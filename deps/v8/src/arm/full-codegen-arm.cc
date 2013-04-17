@@ -162,8 +162,6 @@ void FullCodeGenerator::Generate() {
   // the frame (that is done below).
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
-  int locals_count = info->scope()->num_stack_slots();
-
   info->set_prologue_offset(masm_->pc_offset());
   {
     PredictableCodeSizeScope predictible_code_size_scope(
@@ -179,6 +177,9 @@ void FullCodeGenerator::Generate() {
   }
 
   { Comment cmnt(masm_, "[ Allocate locals");
+    int locals_count = info->scope()->num_stack_slots();
+    // Generators allocate locals, if any, in context slots.
+    ASSERT(!info->function()->is_generator() || locals_count == 0);
     for (int i = 0; i < locals_count; i++) {
       __ push(ip);
     }
@@ -313,7 +314,7 @@ void FullCodeGenerator::Generate() {
   EmitReturnSequence();
 
   // Force emit the constant pool, so it doesn't get emitted in the middle
-  // of the stack check table.
+  // of the back edge table.
   masm()->CheckConstPool(true, false);
 }
 
@@ -350,7 +351,7 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
 void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
                                                 Label* back_edge_target) {
   Comment cmnt(masm_, "[ Back edge bookkeeping");
-  // Block literal pools whilst emitting stack check code.
+  // Block literal pools whilst emitting back edge code.
   Assembler::BlockConstPoolScope block_const_pool(masm_);
   Label ok;
 
@@ -1268,7 +1269,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       !pretenure &&
       scope()->is_function_scope() &&
       info->num_literals() == 0) {
-    FastNewClosureStub stub(info->language_mode());
+    FastNewClosureStub stub(info->language_mode(), info->is_generator());
     __ mov(r0, Operand(info));
     __ push(r0);
     __ CallStub(&stub);
@@ -1562,7 +1563,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   // r0: Newly allocated regexp.
   // r5: Materialized regexp.
   // r2: temp.
-  __ CopyFields(r0, r5, r2.bit(), size / kPointerSize);
+  __ CopyFields(r0, r5, d0, s0, size / kPointerSize);
   context()->Plug(r0);
 }
 
@@ -1727,7 +1728,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
   __ mov(r2, Operand(Smi::FromInt(expr->literal_index())));
   __ mov(r1, Operand(constant_elements));
-  __ Push(r3, r2, r1);
   if (has_fast_elements && constant_elements_values->map() ==
       isolate()->heap()->fixed_cow_array_map()) {
     FastCloneShallowArrayStub stub(
@@ -1738,8 +1738,11 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ IncrementCounter(
         isolate()->counters()->cow_arrays_created_stub(), 1, r1, r2);
   } else if (expr->depth() > 1) {
+    __ Push(r3, r2, r1);
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
-  } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+  } else if (Serializer::enabled() ||
+      length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+    __ Push(r3, r2, r1);
     __ CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
@@ -3024,37 +3027,26 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   // Convert 32 random bits in r0 to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  if (CpuFeatures::IsSupported(VFP2)) {
-    __ PrepareCallCFunction(1, r0);
-    __ ldr(r0,
-           ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-    __ ldr(r0, FieldMemOperand(r0, GlobalObject::kNativeContextOffset));
-    __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+  __ PrepareCallCFunction(1, r0);
+  __ ldr(r0,
+         ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
+  __ ldr(r0, FieldMemOperand(r0, GlobalObject::kNativeContextOffset));
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
-    CpuFeatureScope scope(masm(), VFP2);
-    // 0x41300000 is the top half of 1.0 x 2^20 as a double.
-    // Create this constant using mov/orr to avoid PC relative load.
-    __ mov(r1, Operand(0x41000000));
-    __ orr(r1, r1, Operand(0x300000));
-    // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
-    __ vmov(d7, r0, r1);
-    // Move 0x4130000000000000 to VFP.
-    __ mov(r0, Operand::Zero());
-    __ vmov(d8, r0, r1);
-    // Subtract and store the result in the heap number.
-    __ vsub(d7, d7, d8);
-    __ sub(r0, r4, Operand(kHeapObjectTag));
-    __ vstr(d7, r0, HeapNumber::kValueOffset);
-    __ mov(r0, r4);
-  } else {
-    __ PrepareCallCFunction(2, r0);
-    __ ldr(r1,
-           ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-    __ mov(r0, Operand(r4));
-    __ ldr(r1, FieldMemOperand(r1, GlobalObject::kNativeContextOffset));
-    __ CallCFunction(
-        ExternalReference::fill_heap_number_with_random_function(isolate()), 2);
-  }
+  // 0x41300000 is the top half of 1.0 x 2^20 as a double.
+  // Create this constant using mov/orr to avoid PC relative load.
+  __ mov(r1, Operand(0x41000000));
+  __ orr(r1, r1, Operand(0x300000));
+  // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
+  __ vmov(d7, r0, r1);
+  // Move 0x4130000000000000 to VFP.
+  __ mov(r0, Operand::Zero());
+  __ vmov(d8, r0, r1);
+  // Subtract and store the result in the heap number.
+  __ vsub(d7, d7, d8);
+  __ sub(r0, r4, Operand(kHeapObjectTag));
+  __ vstr(d7, r0, HeapNumber::kValueOffset);
+  __ mov(r0, r4);
 
   context()->Plug(r0);
 }
@@ -3191,12 +3183,8 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   ASSERT(args->length() == 2);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
-  if (CpuFeatures::IsSupported(VFP2)) {
-    MathPowStub stub(MathPowStub::ON_STACK);
-    __ CallStub(&stub);
-  } else {
-    __ CallRuntime(Runtime::kMath_pow, 2);
-  }
+  MathPowStub stub(MathPowStub::ON_STACK);
+  __ CallStub(&stub);
   context()->Plug(r0);
 }
 

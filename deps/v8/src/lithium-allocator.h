@@ -536,10 +536,17 @@ class LAllocator BASE_EMBEDDED {
   // Spill the given life range after position pos.
   void SpillAfter(LiveRange* range, LifetimePosition pos);
 
-  // Spill the given life range after position start and up to position end.
+  // Spill the given life range after position [start] and up to position [end].
   void SpillBetween(LiveRange* range,
                     LifetimePosition start,
                     LifetimePosition end);
+
+  // Spill the given life range after position [start] and up to position [end].
+  // Range is guaranteed to be spilled at least until position [until].
+  void SpillBetweenUntil(LiveRange* range,
+                         LifetimePosition start,
+                         LifetimePosition until,
+                         LifetimePosition end);
 
   void SplitAndSpillIntersecting(LiveRange* range);
 
@@ -624,6 +631,10 @@ class LAllocator BASE_EMBEDDED {
 
   // Indicates success or failure during register allocation.
   bool allocation_ok_;
+
+#ifdef DEBUG
+  LifetimePosition allocation_finger_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(LAllocator);
 };

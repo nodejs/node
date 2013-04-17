@@ -173,7 +173,7 @@ class V8EXPORT CpuProfiler {
    */
 
   /** Deprecated. Use GetProfileCount instead. */
-  static int GetProfilesCount();
+  V8_DEPRECATED(static int GetProfilesCount());
   /**
    * Returns the number of profiles collected (doesn't include
    * profiles that are being collected at the moment of call.)
@@ -181,25 +181,26 @@ class V8EXPORT CpuProfiler {
   int GetProfileCount();
 
   /** Deprecated. Use GetCpuProfile instead. */
-  static const CpuProfile* GetProfile(
+  V8_DEPRECATED(static const CpuProfile* GetProfile(
       int index,
-      Handle<Value> security_token = Handle<Value>());
+      Handle<Value> security_token = Handle<Value>()));
   /** Returns a profile by index. */
   const CpuProfile* GetCpuProfile(
       int index,
       Handle<Value> security_token = Handle<Value>());
 
   /** Deprecated. Use FindProfile instead. */
-  static const CpuProfile* FindProfile(
+  V8_DEPRECATED(static const CpuProfile* FindProfile(
       unsigned uid,
-      Handle<Value> security_token = Handle<Value>());
+      Handle<Value> security_token = Handle<Value>()));
   /** Returns a profile by uid. */
   const CpuProfile* FindCpuProfile(
       unsigned uid,
       Handle<Value> security_token = Handle<Value>());
 
   /** Deprecated. Use StartCpuProfiling instead. */
-  static void StartProfiling(Handle<String> title, bool record_samples = false);
+  V8_DEPRECATED(static void StartProfiling(Handle<String> title,
+                                           bool record_samples = false));
   /**
    * Starts collecting CPU profile. Title may be an empty string. It
    * is allowed to have several profiles being collected at
@@ -214,9 +215,9 @@ class V8EXPORT CpuProfiler {
   void StartCpuProfiling(Handle<String> title, bool record_samples = false);
 
   /** Deprecated. Use StopCpuProfiling instead. */
-  static const CpuProfile* StopProfiling(
+  V8_DEPRECATED(static const CpuProfile* StopProfiling(
       Handle<String> title,
-      Handle<Value> security_token = Handle<Value>());
+      Handle<Value> security_token = Handle<Value>()));
   /**
    * Stops collecting CPU profile with a given title and returns it.
    * If the title given is empty, finishes the last profile started.
@@ -226,7 +227,7 @@ class V8EXPORT CpuProfiler {
       Handle<Value> security_token = Handle<Value>());
 
   /** Deprecated. Use DeleteAllCpuProfiles instead. */
-  static void DeleteAllProfiles();
+  V8_DEPRECATED(static void DeleteAllProfiles());
   /**
    * Deletes all existing profiles, also cancelling all profiling
    * activity.  All previously returned pointers to profiles and their
@@ -425,22 +426,23 @@ class V8EXPORT HeapProfiler {
       (uint16_t class_id, Handle<Value> wrapper);
 
   /** Deprecated. Use GetSnapshotCount instead. */
-  static int GetSnapshotsCount();
+  V8_DEPRECATED(static int GetSnapshotsCount());
   /** Returns the number of snapshots taken. */
   int GetSnapshotCount();
 
   /** Deprecated. Use GetHeapSnapshot instead. */
-  static const HeapSnapshot* GetSnapshot(int index);
+  V8_DEPRECATED(static const HeapSnapshot* GetSnapshot(int index));
   /** Returns a snapshot by index. */
   const HeapSnapshot* GetHeapSnapshot(int index);
 
   /** Deprecated. Use FindHeapSnapshot instead. */
-  static const HeapSnapshot* FindSnapshot(unsigned uid);
+  V8_DEPRECATED(static const HeapSnapshot* FindSnapshot(unsigned uid));
   /** Returns a profile by uid. */
   const HeapSnapshot* FindHeapSnapshot(unsigned uid);
 
   /** Deprecated. Use GetObjectId instead. */
-  static SnapshotObjectId GetSnapshotObjectId(Handle<Value> value);
+  V8_DEPRECATED(static SnapshotObjectId GetSnapshotObjectId(
+      Handle<Value> value));
   /**
    * Returns SnapshotObjectId for a heap object referenced by |value| if
    * it has been seen by the heap profiler, kUnknownObjectId otherwise.
@@ -469,11 +471,11 @@ class V8EXPORT HeapProfiler {
   };
 
   /** Deprecated. Use TakeHeapSnapshot instead. */
-  static const HeapSnapshot* TakeSnapshot(
+  V8_DEPRECATED(static const HeapSnapshot* TakeSnapshot(
       Handle<String> title,
       HeapSnapshot::Type type = HeapSnapshot::kFull,
       ActivityControl* control = NULL,
-      ObjectNameResolver* global_object_name_resolver = NULL);
+      ObjectNameResolver* global_object_name_resolver = NULL));
   /**
    * Takes a heap snapshot and returns it. Title may be an empty string.
    */
@@ -484,7 +486,7 @@ class V8EXPORT HeapProfiler {
 
 
   /** Deprecated. Use StartTrackingHeapObjects instead. */
-  static void StartHeapObjectsTracking();
+  V8_DEPRECATED(static void StartHeapObjectsTracking());
   /**
    * Starts tracking of heap objects population statistics. After calling
    * this method, all heap objects relocations done by the garbage collector
@@ -493,7 +495,8 @@ class V8EXPORT HeapProfiler {
   void StartTrackingHeapObjects();
 
   /** Deprecated. Use GetHeapStats instead. */
-  static SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
+  V8_DEPRECATED(static SnapshotObjectId PushHeapObjectsStats(
+      OutputStream* stream));
   /**
    * Adds a new time interval entry to the aggregated statistics array. The
    * time interval entry contains information on the current heap objects
@@ -509,7 +512,7 @@ class V8EXPORT HeapProfiler {
   SnapshotObjectId GetHeapStats(OutputStream* stream);
 
   /** Deprecated. Use StopTrackingHeapObjects instead. */
-  static void StopHeapObjectsTracking();
+  V8_DEPRECATED(static void StopHeapObjectsTracking());
   /**
    * Stops tracking of heap objects population statistics, cleans up all
    * collected data. StartHeapObjectsTracking must be called again prior to
@@ -518,7 +521,7 @@ class V8EXPORT HeapProfiler {
   void StopTrackingHeapObjects();
 
   /** Deprecated. Use DeleteAllHeapSnapshots instead. */
-  static void DeleteAllSnapshots();
+  V8_DEPRECATED(static void DeleteAllSnapshots());
   /**
    * Deletes all snapshots taken. All previously returned pointers to
    * snapshots and their contents become invalid after this call.
@@ -526,9 +529,9 @@ class V8EXPORT HeapProfiler {
   void DeleteAllHeapSnapshots();
 
   /** Deprecated. Use SetWrapperClassInfoProvider instead. */
-  static void DefineWrapperClass(
+  V8_DEPRECATED(static void DefineWrapperClass(
       uint16_t class_id,
-      WrapperInfoCallback callback);
+      WrapperInfoCallback callback));
   /** Binds a callback to embedder's class ID. */
   void SetWrapperClassInfoProvider(
       uint16_t class_id,
@@ -544,10 +547,10 @@ class V8EXPORT HeapProfiler {
   /**
    * Deprecated. Returns the number of currently existing persistent handles.
    */
-  static int GetPersistentHandleCount();
+  V8_DEPRECATED(static int GetPersistentHandleCount());
 
   /** Deprecated. Use GetHeapProfilerMemorySize instead. */
-  static size_t GetMemorySizeUsedByProfiler();
+  V8_DEPRECATED(static size_t GetMemorySizeUsedByProfiler());
   /** Returns memory used for profiler internal data and snapshots. */
   size_t GetProfilerMemorySize();
 

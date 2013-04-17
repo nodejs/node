@@ -170,7 +170,7 @@ function TickProcessor(
           processor: this.processSnapshotPosition },
       'tick': {
           parsers: [parseInt, parseInt, parseInt, parseInt,
-                    parseInt, parseInt, 'var-args'],
+                    parseInt, 'var-args'],
           processor: this.processTick },
       'heap-sample-begin': { parsers: [null, null, parseInt],
           processor: this.processHeapSampleBegin },
@@ -368,8 +368,7 @@ TickProcessor.prototype.includeTick = function(vmState) {
 TickProcessor.prototype.processTick = function(pc,
                                                sp,
                                                ns_since_start,
-                                               is_external_callback,
-                                               tos_or_external_callback,
+                                               external_callback,
                                                vmState,
                                                stack) {
   this.distortion += this.distortion_per_entry;
@@ -383,23 +382,15 @@ TickProcessor.prototype.processTick = function(pc,
     this.ticks_.excluded++;
     return;
   }
-  if (is_external_callback) {
+  if (external_callback) {
     // Don't use PC when in external callback code, as it can point
     // inside callback's code, and we will erroneously report
     // that a callback calls itself. Instead we use tos_or_external_callback,
     // as simply resetting PC will produce unaccounted ticks.
-    pc = tos_or_external_callback;
-    tos_or_external_callback = 0;
-  } else if (tos_or_external_callback) {
-    // Find out, if top of stack was pointing inside a JS function
-    // meaning that we have encountered a frameless invocation.
-    var funcEntry = this.profile_.findEntry(tos_or_external_callback);
-    if (!funcEntry || !funcEntry.isJSFunction || !funcEntry.isJSFunction()) {
-      tos_or_external_callback = 0;
-    }
-  }
+    pc = 0;
+ }
 
-  this.profile_.recordTick(this.processStack(pc, tos_or_external_callback, stack));
+  this.profile_.recordTick(this.processStack(pc, external_callback, stack));
 };
 
 

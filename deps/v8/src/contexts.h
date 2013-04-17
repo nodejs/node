@@ -165,6 +165,11 @@ enum BindingFlags {
   V(PROXY_ENUMERATE_INDEX, JSFunction, proxy_enumerate) \
   V(OBSERVERS_NOTIFY_CHANGE_INDEX, JSFunction, observers_notify_change) \
   V(OBSERVERS_DELIVER_CHANGES_INDEX, JSFunction, observers_deliver_changes) \
+  V(GENERATOR_FUNCTION_MAP_INDEX, Map, generator_function_map) \
+  V(STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX, Map, \
+    strict_mode_generator_function_map) \
+  V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, \
+    generator_object_prototype_map) \
   V(RANDOM_SEED_INDEX, ByteArray, random_seed)
 
 // JSFunctions are pairs (context, function code), sometimes also called
@@ -295,6 +300,9 @@ class Context: public FixedArray {
     PROXY_ENUMERATE_INDEX,
     OBSERVERS_NOTIFY_CHANGE_INDEX,
     OBSERVERS_DELIVER_CHANGES_INDEX,
+    GENERATOR_FUNCTION_MAP_INDEX,
+    STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX,
+    GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,
     RANDOM_SEED_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
@@ -437,6 +445,16 @@ class Context: public FixedArray {
   // Code generation support.
   static int SlotOffset(int index) {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;
+  }
+
+  static int FunctionMapIndex(LanguageMode language_mode, bool is_generator) {
+    return is_generator
+      ? (language_mode == CLASSIC_MODE
+         ? GENERATOR_FUNCTION_MAP_INDEX
+         : STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX)
+      : (language_mode == CLASSIC_MODE
+         ? FUNCTION_MAP_INDEX
+         : STRICT_MODE_FUNCTION_MAP_INDEX);
   }
 
   static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;

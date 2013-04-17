@@ -45,6 +45,7 @@
 
 #include "codegen.h"
 #include "platform.h"
+#include "simulator.h"
 #include "vm-state-inl.h"
 
 #ifdef _MSC_VER
@@ -147,19 +148,23 @@ double ceiling(double x) {
 static Mutex* limit_mutex = NULL;
 
 #if defined(V8_TARGET_ARCH_IA32)
-static OS::MemCopyFunction memcopy_function = NULL;
+static void MemMoveWrapper(void* dest, const void* src, size_t size) {
+  memmove(dest, src, size);
+}
+
+// Initialize to library version so we can call this at any time during startup.
+static OS::MemMoveFunction memmove_function = &MemMoveWrapper;
+
 // Defined in codegen-ia32.cc.
-OS::MemCopyFunction CreateMemCopyFunction();
+OS::MemMoveFunction CreateMemMoveFunction();
 
 // Copy memory area to disjoint memory area.
-void OS::MemCopy(void* dest, const void* src, size_t size) {
+void OS::MemMove(void* dest, const void* src, size_t size) {
   // Note: here we rely on dependent reads being ordered. This is true
   // on all architectures we currently support.
-  (*memcopy_function)(dest, src, size);
-#ifdef DEBUG
-  CHECK_EQ(0, memcmp(dest, src, size));
-#endif
+  (*memmove_function)(dest, src, size);
 }
+
 #endif  // V8_TARGET_ARCH_IA32
 
 #ifdef _WIN64
@@ -575,7 +580,10 @@ void OS::PostSetUp() {
   // CPU.
   MathSetup();
 #if defined(V8_TARGET_ARCH_IA32)
-  memcopy_function = CreateMemCopyFunction();
+  OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
+  if (generated_memmove != NULL) {
+    memmove_function = generated_memmove;
+  }
 #endif
 }
 
@@ -1061,7 +1069,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
   if (file_mapping == NULL) return NULL;
   // Map a view of the file into memory
   void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
-  if (memory) memmove(memory, initial, size);
+  if (memory) OS::MemMove(memory, initial, size);
   return new Win32MemoryMappedFile(file, file_mapping, memory, size);
 }
 
@@ -1517,7 +1525,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    bool result = ReleaseRegion(address_, size_);
+    bool result = ReleaseRegion(address(), size());
     ASSERT(result);
     USE(result);
   }
@@ -1536,17 +1544,24 @@ void VirtualMemory::Reset() {
 
 
 bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  if (CommitRegion(address, size, is_executable)) {
-    UpdateAllocatedSpaceLimits(address, static_cast<int>(size));
-    return true;
-  }
-  return false;
+  return CommitRegion(address, size, is_executable);
 }
 
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   ASSERT(IsReserved());
   return UncommitRegion(address, size);
+}
+
+
+bool VirtualMemory::Guard(void* address) {
+  if (NULL == VirtualAlloc(address,
+                           OS::CommitPageSize(),
+                           MEM_COMMIT,
+                           PAGE_READONLY | PAGE_GUARD)) {
+    return false;
+  }
+  return true;
 }
 
 
@@ -1562,17 +1577,6 @@ bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
   }
 
   UpdateAllocatedSpaceLimits(base, static_cast<int>(size));
-  return true;
-}
-
-
-bool VirtualMemory::Guard(void* address) {
-  if (NULL == VirtualAlloc(address,
-                           OS::CommitPageSize(),
-                           MEM_COMMIT,
-                           PAGE_READONLY | PAGE_GUARD)) {
-    return false;
-  }
   return true;
 }
 
@@ -1605,7 +1609,7 @@ static const HANDLE kNoThread = INVALID_HANDLE_VALUE;
 // convention.
 static unsigned int __stdcall ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
-  thread->Run();
+  thread->NotifyStartedAndRun();
   return 0;
 }
 
@@ -1622,7 +1626,8 @@ class Thread::PlatformData : public Malloced {
 // handle until it is started.
 
 Thread::Thread(const Options& options)
-    : stack_size_(options.stack_size()) {
+    : stack_size_(options.stack_size()),
+      start_semaphore_(NULL) {
   data_ = new PlatformData(kNoThread);
   set_name(options.name());
 }
@@ -1970,141 +1975,6 @@ Socket* OS::CreateSocket() {
 }
 
 
-// ----------------------------------------------------------------------------
-// Win32 profiler support.
-
-class Sampler::PlatformData : public Malloced {
- public:
-  // Get a handle to the calling thread. This is the thread that we are
-  // going to profile. We need to make a copy of the handle because we are
-  // going to use it in the sampler thread. Using GetThreadHandle() will
-  // not work in this case. We're using OpenThread because DuplicateHandle
-  // for some reason doesn't work in Chrome's sandbox.
-  PlatformData() : profiled_thread_(OpenThread(THREAD_GET_CONTEXT |
-                                               THREAD_SUSPEND_RESUME |
-                                               THREAD_QUERY_INFORMATION,
-                                               false,
-                                               GetCurrentThreadId())) {}
-
-  ~PlatformData() {
-    if (profiled_thread_ != NULL) {
-      CloseHandle(profiled_thread_);
-      profiled_thread_ = NULL;
-    }
-  }
-
-  HANDLE profiled_thread() { return profiled_thread_; }
-
- private:
-  HANDLE profiled_thread_;
-};
-
-
-class SamplerThread : public Thread {
- public:
-  static const int kSamplerThreadStackSize = 64 * KB;
-
-  explicit SamplerThread(int interval)
-      : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
-        interval_(interval) {}
-
-  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
-  static void TearDown() { delete mutex_; }
-
-  static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::AddActiveSampler(sampler);
-    if (instance_ == NULL) {
-      instance_ = new SamplerThread(sampler->interval());
-      instance_->Start();
-    } else {
-      ASSERT(instance_->interval_ == sampler->interval());
-    }
-  }
-
-  static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::RemoveActiveSampler(sampler);
-    if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
-      delete instance_;
-      instance_ = NULL;
-    }
-  }
-
-  // Implement Thread::Run().
-  virtual void Run() {
-    SamplerRegistry::State state;
-    while ((state = SamplerRegistry::GetState()) !=
-           SamplerRegistry::HAS_NO_SAMPLERS) {
-      // When CPU profiling is enabled both JavaScript and C++ code is
-      // profiled. We must not suspend.
-      if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
-        SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
-      } else {
-        if (RuntimeProfiler::WaitForSomeIsolateToEnterJS()) continue;
-      }
-      OS::Sleep(interval_);
-    }
-  }
-
-  static void DoCpuProfile(Sampler* sampler, void* raw_sampler_thread) {
-    if (!sampler->isolate()->IsInitialized()) return;
-    if (!sampler->IsProfiling()) return;
-    SamplerThread* sampler_thread =
-        reinterpret_cast<SamplerThread*>(raw_sampler_thread);
-    sampler_thread->SampleContext(sampler);
-  }
-
-  void SampleContext(Sampler* sampler) {
-    HANDLE profiled_thread = sampler->platform_data()->profiled_thread();
-    if (profiled_thread == NULL) return;
-
-    // Context used for sampling the register state of the profiled thread.
-    CONTEXT context;
-    memset(&context, 0, sizeof(context));
-
-    Isolate* isolate = sampler->isolate();
-    TickSample sample_obj;
-    TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
-    if (sample == NULL) sample = &sample_obj;
-
-    static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
-    if (SuspendThread(profiled_thread) == kSuspendFailed) return;
-    sample->state = isolate->current_vm_state();
-
-    context.ContextFlags = CONTEXT_FULL;
-    if (GetThreadContext(profiled_thread, &context) != 0) {
-#if V8_HOST_ARCH_X64
-      sample->pc = reinterpret_cast<Address>(context.Rip);
-      sample->sp = reinterpret_cast<Address>(context.Rsp);
-      sample->fp = reinterpret_cast<Address>(context.Rbp);
-#else
-      sample->pc = reinterpret_cast<Address>(context.Eip);
-      sample->sp = reinterpret_cast<Address>(context.Esp);
-      sample->fp = reinterpret_cast<Address>(context.Ebp);
-#endif
-      sampler->SampleStack(sample);
-      sampler->Tick(sample);
-    }
-    ResumeThread(profiled_thread);
-  }
-
-  const int interval_;
-
-  // Protects the process wide state below.
-  static Mutex* mutex_;
-  static SamplerThread* instance_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(SamplerThread);
-};
-
-
-Mutex* SamplerThread::mutex_ = NULL;
-SamplerThread* SamplerThread::instance_ = NULL;
-
-
 void OS::SetUp() {
   // Seed the random number generator.
   // Convert the current time to a 64-bit integer first, before converting it
@@ -2114,43 +1984,11 @@ void OS::SetUp() {
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srand(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
-  SamplerThread::SetUp();
 }
 
 
 void OS::TearDown() {
-  SamplerThread::TearDown();
   delete limit_mutex;
-}
-
-
-Sampler::Sampler(Isolate* isolate, int interval)
-    : isolate_(isolate),
-      interval_(interval),
-      profiling_(false),
-      active_(false),
-      samples_taken_(0) {
-  data_ = new PlatformData;
-}
-
-
-Sampler::~Sampler() {
-  ASSERT(!IsActive());
-  delete data_;
-}
-
-
-void Sampler::Start() {
-  ASSERT(!IsActive());
-  SetActive(true);
-  SamplerThread::AddActiveSampler(this);
-}
-
-
-void Sampler::Stop() {
-  ASSERT(IsActive());
-  SamplerThread::RemoveActiveSampler(this);
-  SetActive(false);
 }
 
 

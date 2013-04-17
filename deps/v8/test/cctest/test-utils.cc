@@ -98,57 +98,68 @@ TEST(SNPrintF) {
 }
 
 
-void TestMemCopy(Vector<byte> src,
-                 Vector<byte> dst,
-                 int source_alignment,
-                 int destination_alignment,
-                 int length_alignment) {
-  memset(dst.start(), 0xFF, dst.length());
-  byte* to = dst.start() + 32 + destination_alignment;
-  byte* from = src.start() + source_alignment;
-  int length = OS::kMinComplexMemCopy + length_alignment;
-  OS::MemCopy(to, from, static_cast<size_t>(length));
-  printf("[%d,%d,%d]\n",
-         source_alignment, destination_alignment, length_alignment);
-  for (int i = 0; i < length; i++) {
-    CHECK_EQ(from[i], to[i]);
+static const int kAreaSize = 512;
+
+
+void TestMemMove(byte* area1,
+                 byte* area2,
+                 byte* area3,
+                 int src_offset,
+                 int dest_offset,
+                 int length) {
+  for (int i = 0; i < kAreaSize; i++) {
+    area1[i] = i & 0xFF;
+    area2[i] = i & 0xFF;
+    area3[i] = i & 0xFF;
   }
-  CHECK_EQ(0xFF, to[-1]);
-  CHECK_EQ(0xFF, to[length]);
+  OS::MemMove(area1 + dest_offset, area1 + src_offset, length);
+  MoveBytes(area2 + dest_offset, area2 + src_offset, length);
+  memmove(area3 + dest_offset, area3 + src_offset, length);
+  if (memcmp(area1, area3, kAreaSize) != 0) {
+    printf("OS::MemMove(): src_offset: %d, dest_offset: %d, length: %d\n",
+           src_offset, dest_offset, length);
+    for (int i = 0; i < kAreaSize; i++) {
+      if (area1[i] == area3[i]) continue;
+      printf("diff at offset %d (%p): is %d, should be %d\n",
+             i, reinterpret_cast<void*>(area1 + i), area1[i], area3[i]);
+    }
+    CHECK(false);
+  }
+  if (memcmp(area2, area3, kAreaSize) != 0) {
+    printf("MoveBytes(): src_offset: %d, dest_offset: %d, length: %d\n",
+           src_offset, dest_offset, length);
+    for (int i = 0; i < kAreaSize; i++) {
+      if (area2[i] == area3[i]) continue;
+      printf("diff at offset %d (%p): is %d, should be %d\n",
+             i, reinterpret_cast<void*>(area2 + i), area2[i], area3[i]);
+    }
+    CHECK(false);
+  }
 }
 
 
-
-TEST(MemCopy) {
+TEST(MemMove) {
   v8::V8::Initialize();
   OS::SetUp();
-  const int N = OS::kMinComplexMemCopy + 128;
-  Vector<byte> buffer1 = Vector<byte>::New(N);
-  Vector<byte> buffer2 = Vector<byte>::New(N);
+  byte* area1 = new byte[kAreaSize];
+  byte* area2 = new byte[kAreaSize];
+  byte* area3 = new byte[kAreaSize];
 
-  for (int i = 0; i < N; i++) {
-    buffer1[i] = static_cast<byte>(i & 0x7F);
-  }
+  static const int kMinOffset = 32;
+  static const int kMaxOffset = 64;
+  static const int kMaxLength = 128;
+  STATIC_ASSERT(kMaxOffset + kMaxLength < kAreaSize);
 
-  // Same alignment.
-  for (int i = 0; i < 32; i++) {
-    TestMemCopy(buffer1, buffer2, i, i, i * 2);
-  }
-
-  // Different alignment.
-  for (int i = 0; i < 32; i++) {
-    for (int j = 1; j < 32; j++) {
-      TestMemCopy(buffer1, buffer2, i, (i + j) & 0x1F , 0);
+  for (int src_offset = kMinOffset; src_offset <= kMaxOffset; src_offset++) {
+    for (int dst_offset = kMinOffset; dst_offset <= kMaxOffset; dst_offset++) {
+      for (int length = 0; length <= kMaxLength; length++) {
+        TestMemMove(area1, area2, area3, src_offset, dst_offset, length);
+      }
     }
   }
-
-  // Different lengths
-  for (int i = 0; i < 32; i++) {
-    TestMemCopy(buffer1, buffer2, 3, 7, i);
-  }
-
-  buffer2.Dispose();
-  buffer1.Dispose();
+  delete[] area1;
+  delete[] area2;
+  delete[] area3;
 }
 
 

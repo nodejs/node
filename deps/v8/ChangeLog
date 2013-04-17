@@ -1,3 +1,22 @@
+2013-04-17: Version 3.18.0
+
+        Enabled pretenuring of fast literals in high promotion mode.
+
+        Removed preparser library; link preparser executable against full V8.
+
+        Fixed set-up of intrinsic's 'constructor' properties.
+        (Chromium issue 229445)
+
+        ES6 symbols: extended V8 API to support symbols (issue 2158).
+
+        Removed ARM support for VFP2.
+
+        Made __proto__ a real JavaScript accessor property.
+        (issue 1949 and issue 2606)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-04-04: Version 3.17.16
 
         Stack trace API: poison stack frames below the first strict mode frame.

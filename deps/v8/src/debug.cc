@@ -551,9 +551,9 @@ void Debug::ThreadInit() {
 
 char* Debug::ArchiveDebug(char* storage) {
   char* to = storage;
-  memcpy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
+  OS::MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
   to += sizeof(ThreadLocal);
-  memcpy(to, reinterpret_cast<char*>(&registers_), sizeof(registers_));
+  OS::MemCopy(to, reinterpret_cast<char*>(&registers_), sizeof(registers_));
   ThreadInit();
   ASSERT(to <= storage + ArchiveSpacePerThread());
   return storage + ArchiveSpacePerThread();
@@ -562,9 +562,10 @@ char* Debug::ArchiveDebug(char* storage) {
 
 char* Debug::RestoreDebug(char* storage) {
   char* from = storage;
-  memcpy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
+  OS::MemCopy(
+      reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
   from += sizeof(ThreadLocal);
-  memcpy(reinterpret_cast<char*>(&registers_), from, sizeof(registers_));
+  OS::MemCopy(reinterpret_cast<char*>(&registers_), from, sizeof(registers_));
   ASSERT(from <= storage + ArchiveSpacePerThread());
   return storage + ArchiveSpacePerThread();
 }
@@ -874,8 +875,9 @@ bool Debug::Load() {
   // Check for caught exceptions.
   if (caught_exception) return false;
 
-  // Debugger loaded.
-  debug_context_ = context;
+  // Debugger loaded, create debugger context global handle.
+  debug_context_ = Handle<Context>::cast(
+      isolate_->global_handles()->Create(*context));
 
   return true;
 }
@@ -891,7 +893,7 @@ void Debug::Unload() {
   DestroyScriptCache();
 
   // Clear debugger context global handle.
-  Isolate::Current()->global_handles()->Destroy(
+  isolate_->global_handles()->Destroy(
       reinterpret_cast<Object**>(debug_context_.location()));
   debug_context_ = Handle<Context>();
 }

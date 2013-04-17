@@ -867,7 +867,7 @@ void Simulator::CheckICache(v8::internal::HashMap* i_cache,
                  Instruction::kInstrSize) == 0);
   } else {
     // Cache miss.  Load memory into the cache.
-    memcpy(cached_line, line, CachePage::kLineLength);
+    OS::MemCopy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -1059,8 +1059,8 @@ double Simulator::get_double_from_register_pair(int reg) {
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
   char buffer[2 * sizeof(registers_[0])];
-  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
-  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  OS::MemCopy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  OS::MemCopy(&dm_val, buffer, 2 * sizeof(registers_[0]));
   return(dm_val);
 }
 
@@ -1091,12 +1091,14 @@ double Simulator::get_fpu_register_double(int fpureg) const {
 }
 
 
-// For use in calls that take two double values, constructed either
+// Runtime FP routines take up to two double arguments and zero
+// or one integer arguments. All are constructed here,
 // from a0-a3 or f12 and f14.
-void Simulator::GetFpArgs(double* x, double* y) {
+void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
   if (!IsMipsSoftFloatABI) {
     *x = get_fpu_register_double(12);
     *y = get_fpu_register_double(14);
+    *z = get_register(a2);
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
@@ -1106,53 +1108,14 @@ void Simulator::GetFpArgs(double* x, double* y) {
     // Registers a0 and a1 -> x.
     reg_buffer[0] = get_register(a0);
     reg_buffer[1] = get_register(a1);
-    memcpy(x, buffer, sizeof(buffer));
-
+    OS::MemCopy(x, buffer, sizeof(buffer));
     // Registers a2 and a3 -> y.
     reg_buffer[0] = get_register(a2);
     reg_buffer[1] = get_register(a3);
-    memcpy(y, buffer, sizeof(buffer));
-  }
-}
-
-
-// For use in calls that take one double value, constructed either
-// from a0 and a1 or f12.
-void Simulator::GetFpArgs(double* x) {
-  if (!IsMipsSoftFloatABI) {
-    *x = get_fpu_register_double(12);
-  } else {
-    // We use a char buffer to get around the strict-aliasing rules which
-    // otherwise allow the compiler to optimize away the copy.
-    char buffer[sizeof(*x)];
-    int32_t* reg_buffer = reinterpret_cast<int32_t*>(buffer);
-    // Registers a0 and a1 -> x.
-    reg_buffer[0] = get_register(a0);
-    reg_buffer[1] = get_register(a1);
-    memcpy(x, buffer, sizeof(buffer));
-  }
-}
-
-
-// For use in calls that take one double value constructed either
-// from a0 and a1 or f12 and one integer value.
-void Simulator::GetFpArgs(double* x, int32_t* y) {
-  if (!IsMipsSoftFloatABI) {
-    *x = get_fpu_register_double(12);
-    *y = get_register(a2);
-  } else {
-    // We use a char buffer to get around the strict-aliasing rules which
-    // otherwise allow the compiler to optimize away the copy.
-    char buffer[sizeof(*x)];
-    int32_t* reg_buffer = reinterpret_cast<int32_t*>(buffer);
-    // Registers 0 and 1 -> x.
-    reg_buffer[0] = get_register(a0);
-    reg_buffer[1] = get_register(a1);
-    memcpy(x, buffer, sizeof(buffer));
-
-    // Register 2 -> y.
+    OS::MemCopy(y, buffer, sizeof(buffer));
+    // Register 2 -> z.
     reg_buffer[0] = get_register(a2);
-    memcpy(y, buffer, sizeof(*y));
+    OS::MemCopy(z, buffer, sizeof(*z));
   }
 }
 
@@ -1164,7 +1127,7 @@ void Simulator::SetFpResult(const double& result) {
   } else {
     char buffer[2 * sizeof(registers_[0])];
     int32_t* reg_buffer = reinterpret_cast<int32_t*>(buffer);
-    memcpy(buffer, &result, sizeof(buffer));
+    OS::MemCopy(buffer, &result, sizeof(buffer));
     // Copy result to v0 and v1.
     set_register(v0, reg_buffer[0]);
     set_register(v1, reg_buffer[1]);
@@ -1415,10 +1378,12 @@ typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
                                         int32_t arg3,
                                         int32_t arg4,
                                         int32_t arg5);
-typedef double (*SimulatorRuntimeFPCall)(int32_t arg0,
-                                         int32_t arg1,
-                                         int32_t arg2,
-                                         int32_t arg3);
+
+// These prototypes handle the four types of FP calls.
+typedef int64_t (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
+typedef double (*SimulatorRuntimeFPFPCall)(double darg0, double darg1);
+typedef double (*SimulatorRuntimeFPCall)(double darg0);
+typedef double (*SimulatorRuntimeFPIntCall)(double darg0, int32_t arg0);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
@@ -1495,46 +1460,81 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
     // simulator. Soft-float has additional abstraction of ExternalReference,
     // to support serialization.
     if (fp_call) {
-      SimulatorRuntimeFPCall target =
-                  reinterpret_cast<SimulatorRuntimeFPCall>(external);
+      double dval0, dval1;  // one or two double parameters
+      int32_t ival;         // zero or one integer parameters
+      int64_t iresult = 0;  // integer return value
+      double dresult = 0;   // double return value
+      GetFpArgs(&dval0, &dval1, &ival);
+      SimulatorRuntimeCall generic_target =
+          reinterpret_cast<SimulatorRuntimeCall>(external);
       if (::v8::internal::FLAG_trace_sim) {
-        double dval0, dval1;
-        int32_t ival;
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
-            GetFpArgs(&dval0, &dval1);
             PrintF("Call to host function at %p with args %f, %f",
-                FUNCTION_ADDR(target), dval0, dval1);
+                   FUNCTION_ADDR(generic_target), dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
-            GetFpArgs(&dval0);
             PrintF("Call to host function at %p with arg %f",
-                FUNCTION_ADDR(target), dval0);
+                FUNCTION_ADDR(generic_target), dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
-            GetFpArgs(&dval0, &ival);
             PrintF("Call to host function at %p with args %f, %d",
-                FUNCTION_ADDR(target), dval0, ival);
+                   FUNCTION_ADDR(generic_target), dval0, ival);
             break;
           default:
             UNREACHABLE();
             break;
         }
       }
-      if (redirection->type() != ExternalReference::BUILTIN_COMPARE_CALL) {
+      switch (redirection->type()) {
+      case ExternalReference::BUILTIN_COMPARE_CALL: {
+        SimulatorRuntimeCompareCall target =
+          reinterpret_cast<SimulatorRuntimeCompareCall>(external);
+        iresult = target(dval0, dval1);
+        set_register(v0, static_cast<int32_t>(iresult));
+        set_register(v1, static_cast<int32_t>(iresult >> 32));
+        break;
+      }
+      case ExternalReference::BUILTIN_FP_FP_CALL: {
+        SimulatorRuntimeFPFPCall target =
+          reinterpret_cast<SimulatorRuntimeFPFPCall>(external);
+        dresult = target(dval0, dval1);
+        SetFpResult(dresult);
+        break;
+      }
+      case ExternalReference::BUILTIN_FP_CALL: {
         SimulatorRuntimeFPCall target =
-            reinterpret_cast<SimulatorRuntimeFPCall>(external);
-        double result = target(arg0, arg1, arg2, arg3);
-        SetFpResult(result);
-      } else {
-        SimulatorRuntimeCall target =
-            reinterpret_cast<SimulatorRuntimeCall>(external);
-        uint64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
-        int32_t gpreg_pair[2];
-        memcpy(&gpreg_pair[0], &result, 2 * sizeof(int32_t));
-        set_register(v0, gpreg_pair[0]);
-        set_register(v1, gpreg_pair[1]);
+          reinterpret_cast<SimulatorRuntimeFPCall>(external);
+        dresult = target(dval0);
+        SetFpResult(dresult);
+        break;
+      }
+      case ExternalReference::BUILTIN_FP_INT_CALL: {
+        SimulatorRuntimeFPIntCall target =
+          reinterpret_cast<SimulatorRuntimeFPIntCall>(external);
+        dresult = target(dval0, ival);
+        SetFpResult(dresult);
+        break;
+      }
+      default:
+        UNREACHABLE();
+        break;
+      }
+      if (::v8::internal::FLAG_trace_sim) {
+        switch (redirection->type()) {
+        case ExternalReference::BUILTIN_COMPARE_CALL:
+          PrintF("Returned %08x\n", static_cast<int32_t>(iresult));
+          break;
+        case ExternalReference::BUILTIN_FP_FP_CALL:
+        case ExternalReference::BUILTIN_FP_CALL:
+        case ExternalReference::BUILTIN_FP_INT_CALL:
+          PrintF("Returned %f\n", dresult);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+        }
       }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
       // See DirectCEntryStub::GenerateCall for explanation of register usage.
@@ -2867,9 +2867,9 @@ double Simulator::CallFP(byte* entry, double d0, double d1) {
   } else {
     int buffer[2];
     ASSERT(sizeof(buffer[0]) * 2 == sizeof(d0));
-    memcpy(buffer, &d0, sizeof(d0));
+    OS::MemCopy(buffer, &d0, sizeof(d0));
     set_dw_register(a0, buffer);
-    memcpy(buffer, &d1, sizeof(d1));
+    OS::MemCopy(buffer, &d1, sizeof(d1));
     set_dw_register(a2, buffer);
   }
   CallInternal(entry);

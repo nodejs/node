@@ -37,10 +37,10 @@
 #include "heap-profiler.h"
 #include "hydrogen.h"
 #include "lithium-allocator.h"
-#include "log.h"
 #include "objects.h"
 #include "once.h"
 #include "platform.h"
+#include "sampler.h"
 #include "runtime-profiler.h"
 #include "serialize.h"
 #include "store-buffer.h"
@@ -123,6 +123,7 @@ void V8::TearDown() {
   delete call_completed_callbacks_;
   call_completed_callbacks_ = NULL;
 
+  Sampler::TearDown();
   OS::TearDown();
 }
 
@@ -270,16 +271,15 @@ void V8::InitializeOncePerProcessImpl() {
   }
   if (FLAG_trace_hydrogen) FLAG_parallel_recompilation = false;
   OS::SetUp();
+  Sampler::SetUp();
   CPU::SetUp();
   use_crankshaft_ = FLAG_crankshaft
       && !Serializer::enabled()
       && CPU::SupportsCrankshaft();
   OS::PostSetUp();
-  RuntimeProfiler::GlobalSetUp();
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();
-  SamplerRegistry::SetUp();
   ExternalReference::SetUp();
 }
 

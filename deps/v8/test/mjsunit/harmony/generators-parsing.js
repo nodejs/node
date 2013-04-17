@@ -74,7 +74,7 @@ function* g() { yield ({ get yield() { return 1; }}) }
 // mode or in generators.
 function f() { yield: 1 }
 assertThrows("function f() { \"use strict\"; yield: 1 }", SyntaxError)
-assertThrows("function f*() { yield: 1 }", SyntaxError)
+assertThrows("function* g() { yield: 1 }", SyntaxError)
 
 // Yield is only a keyword in the body of the generator, not in nested
 // functions.

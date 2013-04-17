@@ -39,3 +39,13 @@ json1 = JSON.stringify(a);
 json2 = JSON.stringify(a);
 assertTrue(json1 == json2, "GC caused JSON.stringify to fail.");
 
+// Check that the slow path of JSON.stringify works correctly wrt GC.
+for (var i = 0; i < 100000; i++) {
+  var s = i.toString();
+  assertEquals('"' + s + '"', JSON.stringify(s, null, 0));
+}
+
+for (var i = 0; i < 100000; i++) {
+  var s = i.toString() + "\u2603";
+  assertEquals('"' + s + '"', JSON.stringify(s, null, 0));
+}

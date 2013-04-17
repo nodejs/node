@@ -125,49 +125,126 @@ inline Vector< Handle<Object> > HandleVector(v8::internal::Handle<T>* elms,
 // ----------------------------------------------------------------------------
 // Memory
 
-// Copies data from |src| to |dst|.  The data spans must not overlap.
+// Copies words from |src| to |dst|. The data spans must not overlap.
 template <typename T>
-inline void CopyWords(T* dst, T* src, int num_words) {
+inline void CopyWords(T* dst, const T* src, size_t num_words) {
   STATIC_ASSERT(sizeof(T) == kPointerSize);
-  ASSERT(Min(dst, src) + num_words <= Max(dst, src));
+  ASSERT(Min(dst, const_cast<T*>(src)) + num_words <=
+         Max(dst, const_cast<T*>(src)));
   ASSERT(num_words > 0);
 
   // Use block copying OS::MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
-  static const int kBlockCopyLimit = 16;
-  STATIC_ASSERT(kBlockCopyLimit * kPointerSize >= OS::kMinComplexMemCopy);
+  static const size_t kBlockCopyLimit = 16;
 
-  if (num_words >= kBlockCopyLimit) {
-    OS::MemCopy(dst, src, num_words * kPointerSize);
-  } else {
-    int remaining = num_words;
+  if (num_words < kBlockCopyLimit) {
     do {
-      remaining--;
+      num_words--;
       *dst++ = *src++;
-    } while (remaining > 0);
+    } while (num_words > 0);
+  } else {
+    OS::MemCopy(dst, src, num_words * kPointerSize);
+  }
+}
+
+
+// Copies words from |src| to |dst|. No restrictions.
+template <typename T>
+inline void MoveWords(T* dst, const T* src, size_t num_words) {
+  STATIC_ASSERT(sizeof(T) == kPointerSize);
+  ASSERT(num_words > 0);
+
+  // Use block copying OS::MemCopy if the segment we're copying is
+  // enough to justify the extra call/setup overhead.
+  static const size_t kBlockCopyLimit = 16;
+
+  if (num_words < kBlockCopyLimit &&
+      ((dst < src) || (dst >= (src + num_words * kPointerSize)))) {
+    T* end = dst + num_words;
+    do {
+      num_words--;
+      *dst++ = *src++;
+    } while (num_words > 0);
+  } else {
+    OS::MemMove(dst, src, num_words * kPointerSize);
   }
 }
 
 
 // Copies data from |src| to |dst|.  The data spans must not overlap.
 template <typename T>
-inline void CopyBytes(T* dst, T* src, size_t num_bytes) {
+inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
   STATIC_ASSERT(sizeof(T) == 1);
-  ASSERT(Min(dst, src) + num_bytes <= Max(dst, src));
+  ASSERT(Min(dst, const_cast<T*>(src)) + num_bytes <=
+         Max(dst, const_cast<T*>(src)));
   if (num_bytes == 0) return;
 
   // Use block copying OS::MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
   static const int kBlockCopyLimit = OS::kMinComplexMemCopy;
 
-  if (num_bytes >= static_cast<size_t>(kBlockCopyLimit)) {
-    OS::MemCopy(dst, src, num_bytes);
-  } else {
-    size_t remaining = num_bytes;
+  if (num_bytes < static_cast<size_t>(kBlockCopyLimit)) {
     do {
-      remaining--;
+      num_bytes--;
       *dst++ = *src++;
-    } while (remaining > 0);
+    } while (num_bytes > 0);
+  } else {
+    OS::MemCopy(dst, src, num_bytes);
+  }
+}
+
+
+// Copies data from |src| to |dst|. No restrictions.
+template <typename T>
+inline void MoveBytes(T* dst, const T* src, size_t num_bytes) {
+  STATIC_ASSERT(sizeof(T) == 1);
+  switch (num_bytes) {
+  case 0: return;
+  case 1:
+    *dst = *src;
+    return;
+#ifdef V8_HOST_CAN_READ_UNALIGNED
+  case 2:
+    *reinterpret_cast<uint16_t*>(dst) = *reinterpret_cast<const uint16_t*>(src);
+    return;
+  case 3: {
+    uint16_t part1 = *reinterpret_cast<const uint16_t*>(src);
+    byte part2 = *(src + 2);
+    *reinterpret_cast<uint16_t*>(dst) = part1;
+    *(dst + 2) = part2;
+    return;
+  }
+  case 4:
+    *reinterpret_cast<uint32_t*>(dst) = *reinterpret_cast<const uint32_t*>(src);
+    return;
+  case 5:
+  case 6:
+  case 7:
+  case 8: {
+    uint32_t part1 = *reinterpret_cast<const uint32_t*>(src);
+    uint32_t part2 = *reinterpret_cast<const uint32_t*>(src + num_bytes - 4);
+    *reinterpret_cast<uint32_t*>(dst) = part1;
+    *reinterpret_cast<uint32_t*>(dst + num_bytes - 4) = part2;
+    return;
+  }
+  case 9:
+  case 10:
+  case 11:
+  case 12:
+  case 13:
+  case 14:
+  case 15:
+  case 16: {
+    double part1 = *reinterpret_cast<const double*>(src);
+    double part2 = *reinterpret_cast<const double*>(src + num_bytes - 8);
+    *reinterpret_cast<double*>(dst) = part1;
+    *reinterpret_cast<double*>(dst + num_bytes - 8) = part2;
+    return;
+  }
+#endif
+  default:
+    OS::MemMove(dst, src, num_bytes);
+    return;
   }
 }
 
@@ -184,6 +261,13 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #define STOS "stosl"
 #elif defined(V8_HOST_ARCH_X64)
 #define STOS "stosq"
+#endif
+#if defined(__native_client__)
+  // This STOS sequence does not validate for x86_64 Native Client.
+  // Here we #undef STOS to force use of the slower C version.
+  // TODO(bradchen): Profile V8 and implement a faster REP STOS
+  // here if the profile indicates it matters.
+#undef STOS
 #endif
 
 #if defined(__GNUC__) && defined(STOS)

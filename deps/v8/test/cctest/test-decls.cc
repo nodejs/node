@@ -695,7 +695,7 @@ TEST(ExistsInHiddenPrototype) {
 class SimpleContext {
  public:
   SimpleContext() {
-    context_ = Context::New(0);
+    context_ = Context::New();
     context_->Enter();
   }
 

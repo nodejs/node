@@ -57,11 +57,13 @@
 //         - JSObject
 //           - JSArray
 //           - JSArrayBuffer
+//           - JSTypedArray
 //           - JSSet
 //           - JSMap
 //           - JSWeakMap
 //           - JSRegExp
 //           - JSFunction
+//           - JSGeneratorObject
 //           - JSModule
 //           - GlobalObject
 //             - JSGlobalObject
@@ -395,12 +397,14 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(JS_DATE_TYPE)                                                              \
   V(JS_OBJECT_TYPE)                                                            \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                                          \
+  V(JS_GENERATOR_OBJECT_TYPE)                                                  \
   V(JS_MODULE_TYPE)                                                            \
   V(JS_GLOBAL_OBJECT_TYPE)                                                     \
   V(JS_BUILTINS_OBJECT_TYPE)                                                   \
   V(JS_GLOBAL_PROXY_TYPE)                                                      \
   V(JS_ARRAY_TYPE)                                                             \
   V(JS_ARRAY_BUFFER_TYPE)                                                      \
+  V(JS_TYPED_ARRAY_TYPE)                                                       \
   V(JS_PROXY_TYPE)                                                             \
   V(JS_WEAK_MAP_TYPE)                                                          \
   V(JS_REGEXP_TYPE)                                                            \
@@ -726,12 +730,14 @@ enum InstanceType {
   JS_DATE_TYPE,
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
+  JS_GENERATOR_OBJECT_TYPE,
   JS_MODULE_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
+  JS_TYPED_ARRAY_TYPE,
   JS_SET_TYPE,
   JS_MAP_TYPE,
   JS_WEAK_MAP_TYPE,
@@ -953,13 +959,14 @@ class MaybeObject BASE_EMBEDDED {
   V(JSReceiver)                                \
   V(JSObject)                                  \
   V(JSContextExtensionObject)                  \
+  V(JSGeneratorObject)                         \
   V(JSModule)                                  \
   V(Map)                                       \
   V(DescriptorArray)                           \
   V(TransitionArray)                           \
   V(DeoptimizationInputData)                   \
   V(DeoptimizationOutputData)                  \
-  V(DependentCode)                            \
+  V(DependentCode)                             \
   V(TypeFeedbackCells)                         \
   V(FixedArray)                                \
   V(FixedDoubleArray)                          \
@@ -978,6 +985,7 @@ class MaybeObject BASE_EMBEDDED {
   V(Boolean)                                   \
   V(JSArray)                                   \
   V(JSArrayBuffer)                             \
+  V(JSTypedArray)                              \
   V(JSProxy)                                   \
   V(JSFunctionProxy)                           \
   V(JSSet)                                     \
@@ -1495,6 +1503,8 @@ class HeapNumber: public HeapObject {
   static const int kExponentBits = 11;
   static const int kExponentBias = 1023;
   static const int kExponentShift = 20;
+  static const int kInfinityOrNanExponent =
+      (kExponentMask >> kExponentShift) - kExponentBias;
   static const int kMantissaBitsInTopWord = 20;
   static const int kNonMantissaBitsInTopWord = 12;
 
@@ -1768,10 +1778,13 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attributes);
 
+  static inline Handle<String> ExpectedTransitionKey(Handle<Map> map);
+  static inline Handle<Map> ExpectedTransitionTarget(Handle<Map> map);
+
   // Try to follow an existing transition to a field with attributes NONE. The
   // return value indicates whether the transition was successful.
-  static inline bool TryTransitionToField(Handle<JSObject> object,
-                                          Handle<Name> key);
+  static inline Handle<Map> FindTransitionToField(Handle<Map> map,
+                                                  Handle<Name> key);
 
   inline int LastAddedFieldIndex();
 
@@ -1779,6 +1792,8 @@ class JSObject: public JSReceiver {
   // passed map. This also extends the property backing store if necessary.
   static void AddFastPropertyUsingMap(Handle<JSObject> object, Handle<Map> map);
   inline MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(Map* map);
+  static void TransitionToMap(Handle<JSObject> object, Handle<Map> map);
+  inline MUST_USE_RESULT MaybeObject* TransitionToMap(Map* map);
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
@@ -2034,9 +2049,9 @@ class JSObject: public JSReceiver {
   inline bool HasIndexedInterceptor();
 
   // Support functions for v8 api (needed for correct interceptor behavior).
-  bool HasRealNamedProperty(Name* key);
-  bool HasRealElementProperty(uint32_t index);
-  bool HasRealNamedCallbackProperty(Name* key);
+  bool HasRealNamedProperty(Isolate* isolate, Name* key);
+  bool HasRealElementProperty(Isolate* isolate, uint32_t index);
+  bool HasRealNamedCallbackProperty(Isolate* isolate, Name* key);
 
   // Get the header size for a JSObject.  Used to compute the index of
   // internal fields as well as the number of internal fields.
@@ -4501,13 +4516,13 @@ class Code: public HeapObject {
   inline unsigned safepoint_table_offset();
   inline void set_safepoint_table_offset(unsigned offset);
 
-  // [stack_check_table_start]: For kind FUNCTION, the offset in the
-  // instruction stream where the stack check table starts.
-  inline unsigned stack_check_table_offset();
-  inline void set_stack_check_table_offset(unsigned offset);
+  // [back_edge_table_start]: For kind FUNCTION, the offset in the
+  // instruction stream where the back edge table starts.
+  inline unsigned back_edge_table_offset();
+  inline void set_back_edge_table_offset(unsigned offset);
 
-  inline bool stack_check_patched_for_osr();
-  inline void set_stack_check_patched_for_osr(bool value);
+  inline bool back_edges_patched_for_osr();
+  inline void set_back_edges_patched_for_osr(bool value);
 
   // [check type]: For kind CALL_IC, tells how to check if the
   // receiver is valid for the given call.
@@ -4537,10 +4552,6 @@ class Code: public HeapObject {
 
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
-
-  // Mark this code object as not having a stack check table.  Assumes kind
-  // is FUNCTION.
-  void SetNoStackCheckTable();
 
   // Find the first map in an IC stub.
   Map* FindFirstMap();
@@ -4791,8 +4802,8 @@ class Code: public HeapObject {
       kStubMajorKeyFirstBit, kStubMajorKeyBits> {};  // NOLINT
 
   // KindSpecificFlags2 layout (FUNCTION)
-  class StackCheckTableOffsetField: public BitField<int, 0, 31> {};
-  class StackCheckPatchedForOSRField: public BitField<bool, 31, 1> {};
+  class BackEdgeTableOffsetField: public BitField<int, 0, 31> {};
+  class BackEdgesPatchedForOSRField: public BitField<bool, 31, 1> {};
 
   // Signed field cannot be encoded using the BitField class.
   static const int kArgumentsCountShift = 17;
@@ -5242,6 +5253,7 @@ class Map: public HeapObject {
       Descriptor* descriptor,
       int index,
       TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* AsElementsKind(ElementsKind kind);
   MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,
                                                   TransitionFlag flag);
 
@@ -6248,6 +6260,40 @@ class SharedFunctionInfo: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
+};
+
+
+class JSGeneratorObject: public JSObject {
+ public:
+  // [function]: The function corresponding to this generator object.
+  DECL_ACCESSORS(function, JSFunction)
+
+  // [context]: The context of the suspended computation, or undefined.
+  DECL_ACCESSORS(context, Object)
+
+  // [continuation]: Offset into code of continuation.
+  inline int continuation();
+  inline void set_continuation(int continuation);
+
+  // [operands]: Saved operand stack.
+  DECL_ACCESSORS(operand_stack, FixedArray)
+
+  // Casting.
+  static inline JSGeneratorObject* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSGeneratorObject)
+  DECLARE_VERIFIER(JSGeneratorObject)
+
+  // Layout description.
+  static const int kFunctionOffset = JSObject::kHeaderSize;
+  static const int kContextOffset = kFunctionOffset + kPointerSize;
+  static const int kContinuationOffset = kContextOffset + kPointerSize;
+  static const int kOperandStackOffset = kContinuationOffset + kPointerSize;
+  static const int kSize = kOperandStackOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
 };
 
 
@@ -8514,6 +8560,38 @@ class JSArrayBuffer: public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);
+};
+
+
+class JSTypedArray: public JSObject {
+ public:
+  // [buffer]: ArrayBuffer that this typed array views.
+  DECL_ACCESSORS(buffer, Object)
+
+  // [byte_length]: offset of typed array in bytes.
+  DECL_ACCESSORS(byte_offset, Object)
+
+  // [byte_length]: length of typed array in bytes.
+  DECL_ACCESSORS(byte_length, Object)
+
+  // [length]: length of typed array in elements.
+  DECL_ACCESSORS(length, Object)
+
+  // Casting.
+  static inline JSTypedArray* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSTypedArray)
+  DECLARE_VERIFIER(JSTypedArray)
+
+  static const int kBufferOffset = JSObject::kHeaderSize;
+  static const int kByteOffsetOffset = kBufferOffset + kPointerSize;
+  static const int kByteLengthOffset = kByteOffsetOffset + kPointerSize;
+  static const int kLengthOffset = kByteLengthOffset + kPointerSize;
+  static const int kSize = kLengthOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);
 };
 
 

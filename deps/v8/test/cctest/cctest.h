@@ -51,6 +51,26 @@
   static void Test##Name()
 #endif
 
+#define EXTENSION_LIST(V)                                                \
+  V(GC_EXTENSION,    "v8/gc")                                            \
+  V(PRINT_EXTENSION, "v8/print")                                         \
+  V(TRACE_EXTENSION, "v8/trace")
+
+#define DEFINE_EXTENSION_ID(Name, Ident) Name##_ID,
+enum CcTestExtensionIds {
+  EXTENSION_LIST(DEFINE_EXTENSION_ID)
+  kMaxExtensions
+};
+#undef DEFINE_EXTENSION_ID
+
+typedef v8::internal::EnumSet<CcTestExtensionIds> CcTestExtensionFlags;
+#define DEFINE_EXTENSION_FLAG(Name, Ident)                               \
+  static const CcTestExtensionFlags Name(1 << Name##_ID);
+  static const CcTestExtensionFlags NO_EXTENSIONS(0);
+  static const CcTestExtensionFlags ALL_EXTENSIONS((1 << kMaxExtensions) - 1);
+  EXTENSION_LIST(DEFINE_EXTENSION_FLAG)
+#undef DEFINE_EXTENSION_FLAG
+
 class CcTest {
  public:
   typedef void (TestFunction)();
@@ -67,6 +87,11 @@ class CcTest {
     default_isolate_ = default_isolate;
   }
   static v8::Isolate* default_isolate() { return default_isolate_; }
+  static v8::Isolate* isolate() { return context_->GetIsolate(); }
+  static v8::Handle<v8::Context> env() { return context_; }
+
+  // Helper function to initialize the VM.
+  static void InitializeVM(CcTestExtensionFlags extensions = NO_EXTENSIONS);
 
  private:
   TestFunction* callback_;
@@ -74,9 +99,10 @@ class CcTest {
   const char* name_;
   const char* dependency_;
   bool enabled_;
-  static CcTest* last_;
   CcTest* prev_;
+  static CcTest* last_;
   static v8::Isolate* default_isolate_;
+  static v8::Persistent<v8::Context> context_;
 };
 
 // Switches between all the Api tests using the threading support.

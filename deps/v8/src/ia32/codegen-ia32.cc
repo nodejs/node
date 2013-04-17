@@ -173,21 +173,94 @@ UnaryMathFunction CreateSqrtFunction() {
 }
 
 
-static void MemCopyWrapper(void* dest, const void* src, size_t size) {
-  memcpy(dest, src, size);
+// Helper functions for CreateMemMoveFunction.
+#undef __
+#define __ ACCESS_MASM(masm)
+
+// Keep around global pointers to these objects so that Valgrind won't complain.
+static size_t* medium_handlers = NULL;
+static size_t* small_handlers = NULL;
+
+
+enum Direction { FORWARD, BACKWARD };
+enum Alignment { MOVE_ALIGNED, MOVE_UNALIGNED };
+
+// Expects registers:
+// esi - source, aligned if alignment == ALIGNED
+// edi - destination, always aligned
+// ecx - count (copy size in bytes)
+// edx - loop count (number of 64 byte chunks)
+void MemMoveEmitMainLoop(MacroAssembler* masm,
+                         Label* move_last_15,
+                         Direction direction,
+                         Alignment alignment) {
+  Register src = esi;
+  Register dst = edi;
+  Register count = ecx;
+  Register loop_count = edx;
+  Label loop, move_last_31, move_last_63;
+  __ cmp(loop_count, 0);
+  __ j(equal, &move_last_63);
+  __ bind(&loop);
+  // Main loop. Copy in 64 byte chunks.
+  if (direction == BACKWARD) __ sub(src, Immediate(0x40));
+  __ movdq(alignment == MOVE_ALIGNED, xmm0, Operand(src, 0x00));
+  __ movdq(alignment == MOVE_ALIGNED, xmm1, Operand(src, 0x10));
+  __ movdq(alignment == MOVE_ALIGNED, xmm2, Operand(src, 0x20));
+  __ movdq(alignment == MOVE_ALIGNED, xmm3, Operand(src, 0x30));
+  if (direction == FORWARD) __ add(src, Immediate(0x40));
+  if (direction == BACKWARD) __ sub(dst, Immediate(0x40));
+  __ movdqa(Operand(dst, 0x00), xmm0);
+  __ movdqa(Operand(dst, 0x10), xmm1);
+  __ movdqa(Operand(dst, 0x20), xmm2);
+  __ movdqa(Operand(dst, 0x30), xmm3);
+  if (direction == FORWARD) __ add(dst, Immediate(0x40));
+  __ dec(loop_count);
+  __ j(not_zero, &loop);
+  // At most 63 bytes left to copy.
+  __ bind(&move_last_63);
+  __ test(count, Immediate(0x20));
+  __ j(zero, &move_last_31);
+  if (direction == BACKWARD) __ sub(src, Immediate(0x20));
+  __ movdq(alignment == MOVE_ALIGNED, xmm0, Operand(src, 0x00));
+  __ movdq(alignment == MOVE_ALIGNED, xmm1, Operand(src, 0x10));
+  if (direction == FORWARD) __ add(src, Immediate(0x20));
+  if (direction == BACKWARD) __ sub(dst, Immediate(0x20));
+  __ movdqa(Operand(dst, 0x00), xmm0);
+  __ movdqa(Operand(dst, 0x10), xmm1);
+  if (direction == FORWARD) __ add(dst, Immediate(0x20));
+  // At most 31 bytes left to copy.
+  __ bind(&move_last_31);
+  __ test(count, Immediate(0x10));
+  __ j(zero, move_last_15);
+  if (direction == BACKWARD) __ sub(src, Immediate(0x10));
+  __ movdq(alignment == MOVE_ALIGNED, xmm0, Operand(src, 0));
+  if (direction == FORWARD) __ add(src, Immediate(0x10));
+  if (direction == BACKWARD) __ sub(dst, Immediate(0x10));
+  __ movdqa(Operand(dst, 0), xmm0);
+  if (direction == FORWARD) __ add(dst, Immediate(0x10));
 }
 
 
-OS::MemCopyFunction CreateMemCopyFunction() {
+void MemMoveEmitPopAndReturn(MacroAssembler* masm) {
+  __ pop(esi);
+  __ pop(edi);
+  __ ret(0);
+}
+
+
+#undef __
+#define __ masm.
+
+
+OS::MemMoveFunction CreateMemMoveFunction() {
   size_t actual_size;
   // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
-                                                 &actual_size,
-                                                 true));
-  if (buffer == NULL) return &MemCopyWrapper;
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  if (buffer == NULL) return NULL;
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
 
-  // Generated code is put into a fixed, unmovable, buffer, and not into
+  // Generated code is put into a fixed, unmovable buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses
   // (e.g. the JavaScript nan-object).
 
@@ -203,184 +276,368 @@ OS::MemCopyFunction CreateMemCopyFunction() {
   const int kSourceOffset = 2 * kPointerSize;
   const int kSizeOffset = 3 * kPointerSize;
 
+  // When copying up to this many bytes, use special "small" handlers.
+  const size_t kSmallCopySize = 8;
+  // When copying up to this many bytes, use special "medium" handlers.
+  const size_t kMediumCopySize = 63;
+  // When non-overlapping region of src and dst is less than this,
+  // use a more careful implementation (slightly slower).
+  const size_t kMinMoveDistance = 16;
+  // Note that these values are dictated by the implementation below,
+  // do not just change them and hope things will work!
+
   int stack_offset = 0;  // Update if we change the stack height.
 
-  if (FLAG_debug_code) {
-    __ cmp(Operand(esp, kSizeOffset + stack_offset),
-           Immediate(OS::kMinComplexMemCopy));
-    Label ok;
-    __ j(greater_equal, &ok);
-    __ int3();
-    __ bind(&ok);
-  }
+  Label backward, backward_much_overlap;
+  Label forward_much_overlap, small_size, medium_size, pop_and_return;
+  __ push(edi);
+  __ push(esi);
+  stack_offset += 2 * kPointerSize;
+  Register dst = edi;
+  Register src = esi;
+  Register count = ecx;
+  Register loop_count = edx;
+  __ mov(dst, Operand(esp, stack_offset + kDestinationOffset));
+  __ mov(src, Operand(esp, stack_offset + kSourceOffset));
+  __ mov(count, Operand(esp, stack_offset + kSizeOffset));
+
+  __ cmp(dst, src);
+  __ j(equal, &pop_and_return);
+
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope enable(&masm, SSE2);
-    __ push(edi);
-    __ push(esi);
-    stack_offset += 2 * kPointerSize;
-    Register dst = edi;
-    Register src = esi;
-    Register count = ecx;
-    __ mov(dst, Operand(esp, stack_offset + kDestinationOffset));
-    __ mov(src, Operand(esp, stack_offset + kSourceOffset));
-    __ mov(count, Operand(esp, stack_offset + kSizeOffset));
+    CpuFeatureScope sse2_scope(&masm, SSE2);
+    __ prefetch(Operand(src, 0), 1);
+    __ cmp(count, kSmallCopySize);
+    __ j(below_equal, &small_size);
+    __ cmp(count, kMediumCopySize);
+    __ j(below_equal, &medium_size);
+    __ cmp(dst, src);
+    __ j(above, &backward);
 
-
-    __ movdqu(xmm0, Operand(src, 0));
-    __ movdqu(Operand(dst, 0), xmm0);
-    __ mov(edx, dst);
-    __ and_(edx, 0xF);
-    __ neg(edx);
-    __ add(edx, Immediate(16));
-    __ add(dst, edx);
-    __ add(src, edx);
-    __ sub(count, edx);
-
-    // edi is now aligned. Check if esi is also aligned.
-    Label unaligned_source;
-    __ test(src, Immediate(0x0F));
-    __ j(not_zero, &unaligned_source);
     {
-      // Copy loop for aligned source and destination.
-      __ mov(edx, count);
-      Register loop_count = ecx;
-      Register count = edx;
-      __ shr(loop_count, 5);
-      {
-        // Main copy loop.
-        Label loop;
-        __ bind(&loop);
-        __ prefetch(Operand(src, 0x20), 1);
-        __ movdqa(xmm0, Operand(src, 0x00));
-        __ movdqa(xmm1, Operand(src, 0x10));
-        __ add(src, Immediate(0x20));
-
-        __ movdqa(Operand(dst, 0x00), xmm0);
-        __ movdqa(Operand(dst, 0x10), xmm1);
-        __ add(dst, Immediate(0x20));
-
-        __ dec(loop_count);
-        __ j(not_zero, &loop);
-      }
-
-      // At most 31 bytes to copy.
-      Label move_less_16;
-      __ test(count, Immediate(0x10));
-      __ j(zero, &move_less_16);
-      __ movdqa(xmm0, Operand(src, 0));
-      __ add(src, Immediate(0x10));
-      __ movdqa(Operand(dst, 0), xmm0);
-      __ add(dst, Immediate(0x10));
-      __ bind(&move_less_16);
-
-      // At most 15 bytes to copy. Copy 16 bytes at end of string.
-      __ and_(count, 0xF);
-      __ movdqu(xmm0, Operand(src, count, times_1, -0x10));
-      __ movdqu(Operand(dst, count, times_1, -0x10), xmm0);
-
-      __ mov(eax, Operand(esp, stack_offset + kDestinationOffset));
-      __ pop(esi);
-      __ pop(edi);
-      __ ret(0);
-    }
-    __ Align(16);
-    {
-      // Copy loop for unaligned source and aligned destination.
-      // If source is not aligned, we can't read it as efficiently.
-      __ bind(&unaligned_source);
-      __ mov(edx, ecx);
-      Register loop_count = ecx;
-      Register count = edx;
-      __ shr(loop_count, 5);
-      {
-        // Main copy loop
-        Label loop;
-        __ bind(&loop);
-        __ prefetch(Operand(src, 0x20), 1);
-        __ movdqu(xmm0, Operand(src, 0x00));
-        __ movdqu(xmm1, Operand(src, 0x10));
-        __ add(src, Immediate(0x20));
-
-        __ movdqa(Operand(dst, 0x00), xmm0);
-        __ movdqa(Operand(dst, 0x10), xmm1);
-        __ add(dst, Immediate(0x20));
-
-        __ dec(loop_count);
-        __ j(not_zero, &loop);
-      }
-
-      // At most 31 bytes to copy.
-      Label move_less_16;
-      __ test(count, Immediate(0x10));
-      __ j(zero, &move_less_16);
+      // |dst| is a lower address than |src|. Copy front-to-back.
+      Label unaligned_source, move_last_15, skip_last_move;
+      __ mov(eax, src);
+      __ sub(eax, dst);
+      __ cmp(eax, kMinMoveDistance);
+      __ j(below, &forward_much_overlap);
+      // Copy first 16 bytes.
       __ movdqu(xmm0, Operand(src, 0));
-      __ add(src, Immediate(0x10));
-      __ movdqa(Operand(dst, 0), xmm0);
-      __ add(dst, Immediate(0x10));
-      __ bind(&move_less_16);
-
+      __ movdqu(Operand(dst, 0), xmm0);
+      // Determine distance to alignment: 16 - (dst & 0xF).
+      __ mov(edx, dst);
+      __ and_(edx, 0xF);
+      __ neg(edx);
+      __ add(edx, Immediate(16));
+      __ add(dst, edx);
+      __ add(src, edx);
+      __ sub(count, edx);
+      // dst is now aligned. Main copy loop.
+      __ mov(loop_count, count);
+      __ shr(loop_count, 6);
+      // Check if src is also aligned.
+      __ test(src, Immediate(0xF));
+      __ j(not_zero, &unaligned_source);
+      // Copy loop for aligned source and destination.
+      MemMoveEmitMainLoop(&masm, &move_last_15, FORWARD, MOVE_ALIGNED);
       // At most 15 bytes to copy. Copy 16 bytes at end of string.
-      __ and_(count, 0x0F);
+      __ bind(&move_last_15);
+      __ and_(count, 0xF);
+      __ j(zero, &skip_last_move, Label::kNear);
       __ movdqu(xmm0, Operand(src, count, times_1, -0x10));
       __ movdqu(Operand(dst, count, times_1, -0x10), xmm0);
+      __ bind(&skip_last_move);
+      MemMoveEmitPopAndReturn(&masm);
 
-      __ mov(eax, Operand(esp, stack_offset + kDestinationOffset));
-      __ pop(esi);
-      __ pop(edi);
-      __ ret(0);
+      // Copy loop for unaligned source and aligned destination.
+      __ bind(&unaligned_source);
+      MemMoveEmitMainLoop(&masm, &move_last_15, FORWARD, MOVE_UNALIGNED);
+      __ jmp(&move_last_15);
+
+      // Less than kMinMoveDistance offset between dst and src.
+      Label loop_until_aligned, last_15_much_overlap;
+      __ bind(&loop_until_aligned);
+      __ mov_b(eax, Operand(src, 0));
+      __ inc(src);
+      __ mov_b(Operand(dst, 0), eax);
+      __ inc(dst);
+      __ dec(count);
+      __ bind(&forward_much_overlap);  // Entry point into this block.
+      __ test(dst, Immediate(0xF));
+      __ j(not_zero, &loop_until_aligned);
+      // dst is now aligned, src can't be. Main copy loop.
+      __ mov(loop_count, count);
+      __ shr(loop_count, 6);
+      MemMoveEmitMainLoop(&masm, &last_15_much_overlap,
+                          FORWARD, MOVE_UNALIGNED);
+      __ bind(&last_15_much_overlap);
+      __ and_(count, 0xF);
+      __ j(zero, &pop_and_return);
+      __ cmp(count, kSmallCopySize);
+      __ j(below_equal, &small_size);
+      __ jmp(&medium_size);
     }
 
+    {
+      // |dst| is a higher address than |src|. Copy backwards.
+      Label unaligned_source, move_first_15, skip_last_move;
+      __ bind(&backward);
+      // |dst| and |src| always point to the end of what's left to copy.
+      __ add(dst, count);
+      __ add(src, count);
+      __ mov(eax, dst);
+      __ sub(eax, src);
+      __ cmp(eax, kMinMoveDistance);
+      __ j(below, &backward_much_overlap);
+      // Copy last 16 bytes.
+      __ movdqu(xmm0, Operand(src, -0x10));
+      __ movdqu(Operand(dst, -0x10), xmm0);
+      // Find distance to alignment: dst & 0xF
+      __ mov(edx, dst);
+      __ and_(edx, 0xF);
+      __ sub(dst, edx);
+      __ sub(src, edx);
+      __ sub(count, edx);
+      // dst is now aligned. Main copy loop.
+      __ mov(loop_count, count);
+      __ shr(loop_count, 6);
+      // Check if src is also aligned.
+      __ test(src, Immediate(0xF));
+      __ j(not_zero, &unaligned_source);
+      // Copy loop for aligned source and destination.
+      MemMoveEmitMainLoop(&masm, &move_first_15, BACKWARD, MOVE_ALIGNED);
+      // At most 15 bytes to copy. Copy 16 bytes at beginning of string.
+      __ bind(&move_first_15);
+      __ and_(count, 0xF);
+      __ j(zero, &skip_last_move, Label::kNear);
+      __ sub(src, count);
+      __ sub(dst, count);
+      __ movdqu(xmm0, Operand(src, 0));
+      __ movdqu(Operand(dst, 0), xmm0);
+      __ bind(&skip_last_move);
+      MemMoveEmitPopAndReturn(&masm);
+
+      // Copy loop for unaligned source and aligned destination.
+      __ bind(&unaligned_source);
+      MemMoveEmitMainLoop(&masm, &move_first_15, BACKWARD, MOVE_UNALIGNED);
+      __ jmp(&move_first_15);
+
+      // Less than kMinMoveDistance offset between dst and src.
+      Label loop_until_aligned, first_15_much_overlap;
+      __ bind(&loop_until_aligned);
+      __ dec(src);
+      __ dec(dst);
+      __ mov_b(eax, Operand(src, 0));
+      __ mov_b(Operand(dst, 0), eax);
+      __ dec(count);
+      __ bind(&backward_much_overlap);  // Entry point into this block.
+      __ test(dst, Immediate(0xF));
+      __ j(not_zero, &loop_until_aligned);
+      // dst is now aligned, src can't be. Main copy loop.
+      __ mov(loop_count, count);
+      __ shr(loop_count, 6);
+      MemMoveEmitMainLoop(&masm, &first_15_much_overlap,
+                          BACKWARD, MOVE_UNALIGNED);
+      __ bind(&first_15_much_overlap);
+      __ and_(count, 0xF);
+      __ j(zero, &pop_and_return);
+      // Small/medium handlers expect dst/src to point to the beginning.
+      __ sub(dst, count);
+      __ sub(src, count);
+      __ cmp(count, kSmallCopySize);
+      __ j(below_equal, &small_size);
+      __ jmp(&medium_size);
+    }
+    {
+      // Special handlers for 9 <= copy_size < 64. No assumptions about
+      // alignment or move distance, so all reads must be unaligned and
+      // must happen before any writes.
+      Label f9_16, f17_32, f33_48, f49_63;
+
+      __ bind(&f9_16);
+      __ movdbl(xmm0, Operand(src, 0));
+      __ movdbl(xmm1, Operand(src, count, times_1, -8));
+      __ movdbl(Operand(dst, 0), xmm0);
+      __ movdbl(Operand(dst, count, times_1, -8), xmm1);
+      MemMoveEmitPopAndReturn(&masm);
+
+      __ bind(&f17_32);
+      __ movdqu(xmm0, Operand(src, 0));
+      __ movdqu(xmm1, Operand(src, count, times_1, -0x10));
+      __ movdqu(Operand(dst, 0x00), xmm0);
+      __ movdqu(Operand(dst, count, times_1, -0x10), xmm1);
+      MemMoveEmitPopAndReturn(&masm);
+
+      __ bind(&f33_48);
+      __ movdqu(xmm0, Operand(src, 0x00));
+      __ movdqu(xmm1, Operand(src, 0x10));
+      __ movdqu(xmm2, Operand(src, count, times_1, -0x10));
+      __ movdqu(Operand(dst, 0x00), xmm0);
+      __ movdqu(Operand(dst, 0x10), xmm1);
+      __ movdqu(Operand(dst, count, times_1, -0x10), xmm2);
+      MemMoveEmitPopAndReturn(&masm);
+
+      __ bind(&f49_63);
+      __ movdqu(xmm0, Operand(src, 0x00));
+      __ movdqu(xmm1, Operand(src, 0x10));
+      __ movdqu(xmm2, Operand(src, 0x20));
+      __ movdqu(xmm3, Operand(src, count, times_1, -0x10));
+      __ movdqu(Operand(dst, 0x00), xmm0);
+      __ movdqu(Operand(dst, 0x10), xmm1);
+      __ movdqu(Operand(dst, 0x20), xmm2);
+      __ movdqu(Operand(dst, count, times_1, -0x10), xmm3);
+      MemMoveEmitPopAndReturn(&masm);
+
+      medium_handlers = new size_t[4];
+      medium_handlers[0] = reinterpret_cast<intptr_t>(buffer) + f9_16.pos();
+      medium_handlers[1] = reinterpret_cast<intptr_t>(buffer) + f17_32.pos();
+      medium_handlers[2] = reinterpret_cast<intptr_t>(buffer) + f33_48.pos();
+      medium_handlers[3] = reinterpret_cast<intptr_t>(buffer) + f49_63.pos();
+
+      __ bind(&medium_size);  // Entry point into this block.
+      __ mov(eax, count);
+      __ dec(eax);
+      __ shr(eax, 4);
+      if (FLAG_debug_code) {
+        Label ok;
+        __ cmp(eax, 3);
+        __ j(below_equal, &ok);
+        __ int3();
+        __ bind(&ok);
+      }
+      __ mov(eax, Operand(eax, times_4,
+                          reinterpret_cast<intptr_t>(medium_handlers)));
+      __ jmp(eax);
+    }
+    {
+      // Specialized copiers for copy_size <= 8 bytes.
+      Label f0, f1, f2, f3, f4, f5_8;
+      __ bind(&f0);
+      MemMoveEmitPopAndReturn(&masm);
+
+      __ bind(&f1);
+      __ mov_b(eax, Operand(src, 0));
+      __ mov_b(Operand(dst, 0), eax);
+      MemMoveEmitPopAndReturn(&masm);
+
+      __ bind(&f2);
+      __ mov_w(eax, Operand(src, 0));
+      __ mov_w(Operand(dst, 0), eax);
+      MemMoveEmitPopAndReturn(&masm);
+
+      __ bind(&f3);
+      __ mov_w(eax, Operand(src, 0));
+      __ mov_b(edx, Operand(src, 2));
+      __ mov_w(Operand(dst, 0), eax);
+      __ mov_b(Operand(dst, 2), edx);
+      MemMoveEmitPopAndReturn(&masm);
+
+      __ bind(&f4);
+      __ mov(eax, Operand(src, 0));
+      __ mov(Operand(dst, 0), eax);
+      MemMoveEmitPopAndReturn(&masm);
+
+      __ bind(&f5_8);
+      __ mov(eax, Operand(src, 0));
+      __ mov(edx, Operand(src, count, times_1, -4));
+      __ mov(Operand(dst, 0), eax);
+      __ mov(Operand(dst, count, times_1, -4), edx);
+      MemMoveEmitPopAndReturn(&masm);
+
+      small_handlers = new size_t[9];
+      small_handlers[0] = reinterpret_cast<intptr_t>(buffer) + f0.pos();
+      small_handlers[1] = reinterpret_cast<intptr_t>(buffer) + f1.pos();
+      small_handlers[2] = reinterpret_cast<intptr_t>(buffer) + f2.pos();
+      small_handlers[3] = reinterpret_cast<intptr_t>(buffer) + f3.pos();
+      small_handlers[4] = reinterpret_cast<intptr_t>(buffer) + f4.pos();
+      small_handlers[5] = reinterpret_cast<intptr_t>(buffer) + f5_8.pos();
+      small_handlers[6] = reinterpret_cast<intptr_t>(buffer) + f5_8.pos();
+      small_handlers[7] = reinterpret_cast<intptr_t>(buffer) + f5_8.pos();
+      small_handlers[8] = reinterpret_cast<intptr_t>(buffer) + f5_8.pos();
+
+      __ bind(&small_size);  // Entry point into this block.
+      if (FLAG_debug_code) {
+        Label ok;
+        __ cmp(count, 8);
+        __ j(below_equal, &ok);
+        __ int3();
+        __ bind(&ok);
+      }
+      __ mov(eax, Operand(count, times_4,
+                          reinterpret_cast<intptr_t>(small_handlers)));
+      __ jmp(eax);
+    }
   } else {
-    // SSE2 not supported. Unlikely to happen in practice.
-    __ push(edi);
-    __ push(esi);
-    stack_offset += 2 * kPointerSize;
-    __ cld();
-    Register dst = edi;
-    Register src = esi;
-    Register count = ecx;
-    __ mov(dst, Operand(esp, stack_offset + kDestinationOffset));
-    __ mov(src, Operand(esp, stack_offset + kSourceOffset));
-    __ mov(count, Operand(esp, stack_offset + kSizeOffset));
+    // No SSE2.
+    Label forward;
+    __ cmp(count, 0);
+    __ j(equal, &pop_and_return);
+    __ cmp(dst, src);
+    __ j(above, &backward);
+    __ jmp(&forward);
+    {
+      // Simple forward copier.
+      Label forward_loop_1byte, forward_loop_4byte;
+      __ bind(&forward_loop_4byte);
+      __ mov(eax, Operand(src, 0));
+      __ sub(count, Immediate(4));
+      __ add(src, Immediate(4));
+      __ mov(Operand(dst, 0), eax);
+      __ add(dst, Immediate(4));
+      __ bind(&forward);  // Entry point.
+      __ cmp(count, 3);
+      __ j(above, &forward_loop_4byte);
+      __ bind(&forward_loop_1byte);
+      __ cmp(count, 0);
+      __ j(below_equal, &pop_and_return);
+      __ mov_b(eax, Operand(src, 0));
+      __ dec(count);
+      __ inc(src);
+      __ mov_b(Operand(dst, 0), eax);
+      __ inc(dst);
+      __ jmp(&forward_loop_1byte);
+    }
+    {
+      // Simple backward copier.
+      Label backward_loop_1byte, backward_loop_4byte, entry_shortcut;
+      __ bind(&backward);
+      __ add(src, count);
+      __ add(dst, count);
+      __ cmp(count, 3);
+      __ j(below_equal, &entry_shortcut);
 
-    // Copy the first word.
-    __ mov(eax, Operand(src, 0));
-    __ mov(Operand(dst, 0), eax);
-
-    // Increment src,dstso that dst is aligned.
-    __ mov(edx, dst);
-    __ and_(edx, 0x03);
-    __ neg(edx);
-    __ add(edx, Immediate(4));  // edx = 4 - (dst & 3)
-    __ add(dst, edx);
-    __ add(src, edx);
-    __ sub(count, edx);
-    // edi is now aligned, ecx holds number of remaning bytes to copy.
-
-    __ mov(edx, count);
-    count = edx;
-    __ shr(ecx, 2);  // Make word count instead of byte count.
-    __ rep_movs();
-
-    // At most 3 bytes left to copy. Copy 4 bytes at end of string.
-    __ and_(count, 3);
-    __ mov(eax, Operand(src, count, times_1, -4));
-    __ mov(Operand(dst, count, times_1, -4), eax);
-
-    __ mov(eax, Operand(esp, stack_offset + kDestinationOffset));
-    __ pop(esi);
-    __ pop(edi);
-    __ ret(0);
+      __ bind(&backward_loop_4byte);
+      __ sub(src, Immediate(4));
+      __ sub(count, Immediate(4));
+      __ mov(eax, Operand(src, 0));
+      __ sub(dst, Immediate(4));
+      __ mov(Operand(dst, 0), eax);
+      __ cmp(count, 3);
+      __ j(above, &backward_loop_4byte);
+      __ bind(&backward_loop_1byte);
+      __ cmp(count, 0);
+      __ j(below_equal, &pop_and_return);
+      __ bind(&entry_shortcut);
+      __ dec(src);
+      __ dec(count);
+      __ mov_b(eax, Operand(src, 0));
+      __ dec(dst);
+      __ mov_b(Operand(dst, 0), eax);
+      __ jmp(&backward_loop_1byte);
+    }
   }
+
+  __ bind(&pop_and_return);
+  MemMoveEmitPopAndReturn(&masm);
 
   CodeDesc desc;
   masm.GetCode(&desc);
   ASSERT(!RelocInfo::RequiresRelocation(desc));
-
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<OS::MemCopyFunction>(buffer);
+  return FUNCTION_CAST<OS::MemMoveFunction>(buffer);
 }
+
 
 #undef __
 

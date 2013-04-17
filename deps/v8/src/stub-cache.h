@@ -162,8 +162,13 @@ class StubCache {
   Handle<Code> ComputeStoreField(Handle<Name> name,
                                  Handle<JSObject> object,
                                  LookupResult* lookup,
-                                 Handle<Map> transition,
                                  StrictModeFlag strict_mode);
+
+  Handle<Code> ComputeStoreTransition(Handle<Name> name,
+                                      Handle<JSObject> object,
+                                      LookupResult* lookup,
+                                      Handle<Map> transition,
+                                      StrictModeFlag strict_mode);
 
   Handle<Code> ComputeStoreNormal(StrictModeFlag strict_mode);
 
@@ -193,8 +198,12 @@ class StubCache {
   Handle<Code> ComputeKeyedStoreField(Handle<Name> name,
                                       Handle<JSObject> object,
                                       LookupResult* lookup,
-                                      Handle<Map> transition,
                                       StrictModeFlag strict_mode);
+  Handle<Code> ComputeKeyedStoreTransition(Handle<Name> name,
+                                           Handle<JSObject> object,
+                                           LookupResult* lookup,
+                                           Handle<Map> transition,
+                                           StrictModeFlag strict_mode);
 
   Handle<Code> ComputeKeyedLoadElement(Handle<Map> receiver_map);
 
@@ -509,18 +518,28 @@ class StubCompiler BASE_EMBEDDED {
                                             Register scratch2,
                                             Label* miss_label);
 
+  void GenerateStoreTransition(MacroAssembler* masm,
+                               Handle<JSObject> object,
+                               LookupResult* lookup,
+                               Handle<Map> transition,
+                               Handle<Name> name,
+                               Register receiver_reg,
+                               Register name_reg,
+                               Register value_reg,
+                               Register scratch1,
+                               Register scratch2,
+                               Label* miss_label,
+                               Label* miss_restore_name);
+
   void GenerateStoreField(MacroAssembler* masm,
                           Handle<JSObject> object,
                           LookupResult* lookup,
-                          Handle<Map> transition,
-                          Handle<Name> name,
                           Register receiver_reg,
                           Register name_reg,
                           Register value_reg,
                           Register scratch1,
                           Register scratch2,
-                          Label* miss_label,
-                          Label* miss_restore_name);
+                          Label* miss_label);
 
   static Builtins::Name MissBuiltin(Code::Kind kind) {
     switch (kind) {
@@ -781,9 +800,13 @@ class BaseStoreStubCompiler: public StubCompiler {
 
   virtual ~BaseStoreStubCompiler() { }
 
+  Handle<Code> CompileStoreTransition(Handle<JSObject> object,
+                                      LookupResult* lookup,
+                                      Handle<Map> transition,
+                                      Handle<Name> name);
+
   Handle<Code> CompileStoreField(Handle<JSObject> object,
                                  LookupResult* lookup,
-                                 Handle<Map> transition,
                                  Handle<Name> name);
 
  protected:

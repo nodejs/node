@@ -274,6 +274,7 @@ class Simulator {
   // Support for VFP.
   void Compute_FPSCR_Flags(double val1, double val2);
   void Copy_FPSCR_to_APSR();
+  inline double canonicalizeNaN(double value);
 
   // Helper functions to decode common "addressing" modes
   int32_t GetShiftRm(Instruction* instr, bool* carry_out);
@@ -347,10 +348,8 @@ class Simulator {
       void* external_function,
       v8::internal::ExternalReference::Type type);
 
-  // For use in calls that take double value arguments.
-  void GetFpArgs(double* x, double* y);
-  void GetFpArgs(double* x);
-  void GetFpArgs(double* x, int32_t* y);
+  // Handle arguments and return value for runtime FP functions.
+  void GetFpArgs(double* x, double* y, int32_t* z);
   void SetFpResult(const double& result);
   void TrashCallerSaveRegisters();
 
@@ -381,6 +380,7 @@ class Simulator {
 
   // VFP rounding mode. See ARM DDI 0406B Page A2-29.
   VFPRoundingMode FPSCR_rounding_mode_;
+  bool FPSCR_default_NaN_mode_;
 
   // VFP FP exception flags architecture state.
   bool inv_op_vfp_flag_;

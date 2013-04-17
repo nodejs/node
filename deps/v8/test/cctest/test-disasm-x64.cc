@@ -38,14 +38,6 @@
 
 using namespace v8::internal;
 
-static v8::Persistent<v8::Context> env;
-
-static void InitializeVM() {
-  if (env.IsEmpty()) {
-    env = v8::Context::New();
-  }
-}
-
 
 #define __ assm.
 
@@ -55,7 +47,7 @@ static void DummyStaticFunction(Object* result) {
 
 
 TEST(DisasmX64) {
-  InitializeVM();
+  CcTest::InitializeVM();
   v8::HandleScope scope;
   v8::internal::byte buffer[2048];
   Assembler assm(Isolate::Current(), buffer, sizeof buffer);

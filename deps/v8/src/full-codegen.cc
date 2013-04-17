@@ -322,7 +322,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
     ASSERT(!isolate->has_pending_exception());
     return false;
   }
-  unsigned table_offset = cgen.EmitStackCheckTable();
+  unsigned table_offset = cgen.EmitBackEdgeTable();
 
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
@@ -341,8 +341,8 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 #endif  // ENABLE_DEBUGGER_SUPPORT
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_profiler_ticks(0);
-  code->set_stack_check_table_offset(table_offset);
-  code->set_stack_check_patched_for_osr(false);
+  code->set_back_edge_table_offset(table_offset);
+  code->set_back_edges_patched_for_osr(false);
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);  // May be an empty handle.
 #ifdef ENABLE_GDB_JIT_INTERFACE
@@ -362,17 +362,18 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 }
 
 
-unsigned FullCodeGenerator::EmitStackCheckTable() {
-  // The stack check table consists of a length (in number of entries)
+unsigned FullCodeGenerator::EmitBackEdgeTable() {
+  // The back edge table consists of a length (in number of entries)
   // field, and then a sequence of entries.  Each entry is a pair of AST id
   // and code-relative pc offset.
   masm()->Align(kIntSize);
   unsigned offset = masm()->pc_offset();
-  unsigned length = stack_checks_.length();
+  unsigned length = back_edges_.length();
   __ dd(length);
   for (unsigned i = 0; i < length; ++i) {
-    __ dd(stack_checks_[i].id.ToInt());
-    __ dd(stack_checks_[i].pc_and_state);
+    __ dd(back_edges_[i].id.ToInt());
+    __ dd(back_edges_[i].pc);
+    __ db(back_edges_[i].loop_depth);
   }
   return offset;
 }
@@ -478,8 +479,11 @@ void FullCodeGenerator::RecordTypeFeedbackCell(
 void FullCodeGenerator::RecordBackEdge(BailoutId ast_id) {
   // The pc offset does not need to be encoded and packed together with a state.
   ASSERT(masm_->pc_offset() > 0);
-  BailoutEntry entry = { ast_id, static_cast<unsigned>(masm_->pc_offset()) };
-  stack_checks_.Add(entry, zone());
+  ASSERT(loop_depth() > 0);
+  uint8_t depth = Min(loop_depth(), Code::kMaxLoopNestingMarker);
+  BackEdgeEntry entry =
+      { ast_id, static_cast<unsigned>(masm_->pc_offset()), depth };
+  back_edges_.Add(entry, zone());
 }
 
 
@@ -1251,7 +1255,7 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
 void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
   SetStatementPosition(stmt);
-  Label body, stack_check;
+  Label body, book_keeping;
 
   Iteration loop_statement(this, stmt);
   increment_loop_depth();
@@ -1265,13 +1269,13 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
   SetExpressionPosition(stmt->cond(), stmt->condition_position());
   VisitForControl(stmt->cond(),
-                  &stack_check,
+                  &book_keeping,
                   loop_statement.break_label(),
-                  &stack_check);
+                  &book_keeping);
 
   // Check stack before looping.
   PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
-  __ bind(&stack_check);
+  __ bind(&book_keeping);
   EmitBackEdgeBookkeeping(stmt, &body);
   __ jmp(&body);
 
@@ -1549,6 +1553,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
     UNIMPLEMENTED();
 
   Comment cmnt(masm_, "[ Yield");
+  // TODO(wingo): Actually update the iterator state.
+  VisitForEffect(expr->generator_object());
   VisitForAccumulatorValue(expr->expression());
   // TODO(wingo): Assert that the operand stack depth is 0, at least while
   // general yield expressions are unimplemented.

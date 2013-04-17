@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// This file relies on the fact that the following declarations have been made
+// in runtime.js:
+// var $Object = global.Object;
 
 // Keep reference to original values of some global properties.  This
 // has the added benefit that the code in this file is isolated from
@@ -35,10 +38,9 @@ var $abs = MathAbs;
 // Instance class name can only be set on functions. That is the only
 // purpose for MathConstructor.
 function MathConstructor() {}
-%FunctionSetInstanceClassName(MathConstructor, 'Math');
 var $Math = new MathConstructor();
-%SetPrototype($Math, $Object.prototype);
-%SetProperty(global, "Math", $Math, DONT_ENUM);
+
+// -------------------------------------------------------------------
 
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
@@ -216,6 +218,11 @@ function MathTan(x) {
 
 function SetUpMath() {
   %CheckIsBootstrapping();
+
+  %SetPrototype($Math, $Object.prototype);
+  %SetProperty(global, "Math", $Math, DONT_ENUM);
+  %FunctionSetInstanceClassName(MathConstructor, 'Math');
+
   // Set up math constants.
   // ECMA-262, section 15.8.1.1.
   %OptimizeObjectForAddingMultipleProperties($Math, 8);

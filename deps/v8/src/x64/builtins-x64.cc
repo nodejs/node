@@ -1837,21 +1837,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  // Get the loop depth of the stack guard check. This is recorded in
-  // a test(rax, depth) instruction right after the call.
-  Label stack_check;
-  __ movq(rbx, Operand(rsp, 0));  // return address
-  __ movzxbq(rbx, Operand(rbx, 1));  // depth
-
-  // Get the loop nesting level at which we allow OSR from the
-  // unoptimized code and check if we want to do OSR yet. If not we
-  // should perform a stack guard check so we can get interrupts while
-  // waiting for on-stack replacement.
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  __ movq(rcx, FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset));
-  __ movq(rcx, FieldOperand(rcx, SharedFunctionInfo::kCodeOffset));
-  __ cmpb(rbx, FieldOperand(rcx, Code::kAllowOSRAtLoopNestingLevelOffset));
-  __ j(greater, &stack_check);
 
   // Pass the function to optimize as the argument to the on-stack
   // replacement runtime function.
@@ -1866,21 +1852,6 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   Label skip;
   __ SmiCompare(rax, Smi::FromInt(-1));
   __ j(not_equal, &skip, Label::kNear);
-  __ ret(0);
-
-  // If we decide not to perform on-stack replacement we perform a
-  // stack guard check to enable interrupts.
-  __ bind(&stack_check);
-  Label ok;
-  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
-  __ j(above_equal, &ok, Label::kNear);
-
-  StackCheckStub stub;
-  __ TailCallStub(&stub);
-  if (FLAG_debug_code) {
-    __ Abort("Unreachable code: returned from tail call.");
-  }
-  __ bind(&ok);
   __ ret(0);
 
   __ bind(&skip);

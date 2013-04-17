@@ -57,6 +57,27 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
 }
 
 
+v8::Persistent<v8::Context> CcTest::context_;
+
+
+void CcTest::InitializeVM(CcTestExtensionFlags extensions) {
+  const char* extension_names[kMaxExtensions];
+  int extension_count = 0;
+#define CHECK_EXTENSION_FLAG(Name, Id) \
+  if (extensions.Contains(Name##_ID)) extension_names[extension_count++] = Id;
+  EXTENSION_LIST(CHECK_EXTENSION_FLAG)
+#undef CHECK_EXTENSION_FLAG
+  if (context_.IsEmpty()) {
+    v8::Isolate* isolate = default_isolate();
+    v8::HandleScope scope(isolate);
+    v8::ExtensionConfiguration config(extension_count, extension_names);
+    v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
+    context_ = v8::Persistent<v8::Context>::New(isolate, context);
+  }
+  context_->Enter();
+}
+
+
 static void PrintTestList(CcTest* current) {
   if (current == NULL) return;
   PrintTestList(current->prev());
@@ -70,6 +91,7 @@ static void PrintTestList(CcTest* current) {
 
 
 v8::Isolate* CcTest::default_isolate_;
+
 
 int main(int argc, char* argv[]) {
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);

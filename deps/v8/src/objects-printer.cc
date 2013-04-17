@@ -132,6 +132,7 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_OBJECT_TYPE:  // fall through
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_ARRAY_TYPE:
+    case JS_GENERATOR_OBJECT_TYPE:
     case JS_REGEXP_TYPE:
       JSObject::cast(this)->JSObjectPrint(out);
       break;
@@ -186,6 +187,8 @@ void HeapObject::HeapObjectPrint(FILE* out) {
       break;
     case JS_ARRAY_BUFFER_TYPE:
       JSArrayBuffer::cast(this)->JSArrayBufferPrint(out);
+    case JS_TYPED_ARRAY_TYPE:
+      JSTypedArray::cast(this)->JSTypedArrayPrint(out);
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
     Name::cast(this)->Name##Print(out);    \
@@ -530,6 +533,7 @@ static const char* TypeToString(InstanceType type) {
     case ODDBALL_TYPE: return "ODDBALL";
     case JS_GLOBAL_PROPERTY_CELL_TYPE: return "JS_GLOBAL_PROPERTY_CELL";
     case SHARED_FUNCTION_INFO_TYPE: return "SHARED_FUNCTION_INFO";
+    case JS_GENERATOR_OBJECT_TYPE: return "JS_GENERATOR_OBJECT";
     case JS_MODULE_TYPE: return "JS_MODULE";
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";
     case CODE_TYPE: return "CODE";
@@ -804,6 +808,22 @@ void JSArrayBuffer::JSArrayBufferPrint(FILE* out) {
   PrintF(out, " - byte_length = ");
   byte_length()->ShortPrint(out);
   PrintF(out, "\n");
+}
+
+
+void JSTypedArray::JSTypedArrayPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSTypedArray");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - buffer =");
+  buffer()->ShortPrint(out);
+  PrintF(out, "\n - byte_offset = ");
+  byte_offset()->ShortPrint(out);
+  PrintF(out, "\n - byte_length = ");
+  byte_length()->ShortPrint(out);
+  PrintF(out, " - length = ");
+  length()->ShortPrint(out);
+  PrintF("\n");
+  PrintElements(out);
 }
 
 

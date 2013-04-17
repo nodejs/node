@@ -94,6 +94,12 @@ void OS::Guard(void* address, const size_t size) {
 
 
 void* OS::GetRandomMmapAddr() {
+#if defined(__native_client__)
+  // TODO(bradchen): restore randomization once Native Client gets
+  // smarter about using mmap address hints.
+  // See http://code.google.com/p/nativeclient/issues/3341
+  return NULL;
+#endif
   Isolate* isolate = Isolate::UncheckedCurrent();
   // Note that the current isolate isn't set up in a call path via
   // CpuFeatures::Probe. We don't care about randomization in this case because
@@ -109,26 +115,11 @@ void* OS::GetRandomMmapAddr() {
     raw_addr &= V8_UINT64_C(0x3ffffffff000);
 #else
     uint32_t raw_addr = V8::RandomPrivate(isolate);
-
-    raw_addr &= 0x3ffff000;
-
-# ifdef __sun
-    // For our Solaris/illumos mmap hint, we pick a random address in the bottom
-    // half of the top half of the address space (that is, the third quarter).
-    // Because we do not MAP_FIXED, this will be treated only as a hint -- the
-    // system will not fail to mmap() because something else happens to already
-    // be mapped at our random address. We deliberately set the hint high enough
-    // to get well above the system's break (that is, the heap); Solaris and
-    // illumos will try the hint and if that fails allocate as if there were
-    // no hint at all. The high hint prevents the break from getting hemmed in
-    // at low values, ceding half of the address space to the system heap.
-    raw_addr += 0x80000000;
-# else
     // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
     // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
     // 10.6 and 10.7.
+    raw_addr &= 0x3ffff000;
     raw_addr += 0x20000000;
-# endif
 #endif
     return reinterpret_cast<void*>(raw_addr);
   }
@@ -331,25 +322,32 @@ int OS::VSNPrintF(Vector<char> str,
 
 
 #if defined(V8_TARGET_ARCH_IA32)
-static OS::MemCopyFunction memcopy_function = NULL;
-// Defined in codegen-ia32.cc.
-OS::MemCopyFunction CreateMemCopyFunction();
+static void MemMoveWrapper(void* dest, const void* src, size_t size) {
+  memmove(dest, src, size);
+}
 
-// Copy memory area to disjoint memory area.
-void OS::MemCopy(void* dest, const void* src, size_t size) {
+// Initialize to library version so we can call this at any time during startup.
+static OS::MemMoveFunction memmove_function = &MemMoveWrapper;
+
+// Defined in codegen-ia32.cc.
+OS::MemMoveFunction CreateMemMoveFunction();
+
+// Copy memory area. No restrictions.
+void OS::MemMove(void* dest, const void* src, size_t size) {
   // Note: here we rely on dependent reads being ordered. This is true
   // on all architectures we currently support.
-  (*memcopy_function)(dest, src, size);
-#ifdef DEBUG
-  CHECK_EQ(0, memcmp(dest, src, size));
-#endif
+  (*memmove_function)(dest, src, size);
 }
+
 #endif  // V8_TARGET_ARCH_IA32
 
 
 void POSIXPostSetUp() {
 #if defined(V8_TARGET_ARCH_IA32)
-  memcopy_function = CreateMemCopyFunction();
+  OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
+  if (generated_memmove != NULL) {
+    memmove_function = generated_memmove;
+  }
 #endif
   init_fast_sin_function();
   init_fast_cos_function();

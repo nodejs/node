@@ -27,9 +27,13 @@
 
 "use strict";
 
-global.Proxy = new $Object();
+// This file relies on the fact that the following declaration has been made
+// in runtime.js:
+// var $Object = global.Object;
 
-var $Proxy = global.Proxy
+var $Proxy = new $Object();
+
+// -------------------------------------------------------------------
 
 function ProxyCreate(handler, proto) {
   if (!IS_SPEC_OBJECT(handler))
@@ -62,16 +66,26 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
     handler, callTrap, constructTrap, $Function.prototype)
 }
 
-%CheckIsBootstrapping()
-InstallFunctions($Proxy, DONT_ENUM, [
-  "create", ProxyCreate,
-  "createFunction", ProxyCreateFunction
-])
+
+// -------------------------------------------------------------------
+
+function SetUpProxy() {
+  %CheckIsBootstrapping()
+
+  global.Proxy = $Proxy;
+
+  // Set up non-enumerable properties of the Proxy object.
+  InstallFunctions($Proxy, DONT_ENUM, [
+    "create", ProxyCreate,
+    "createFunction", ProxyCreateFunction
+  ])
+}
+
+SetUpProxy();
 
 
-////////////////////////////////////////////////////////////////////////////////
-// Builtins
-////////////////////////////////////////////////////////////////////////////////
+// -------------------------------------------------------------------
+// Proxy Builtins
 
 function DerivedConstructTrap(callTrap) {
   return function() {

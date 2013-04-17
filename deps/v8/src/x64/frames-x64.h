@@ -48,18 +48,6 @@ const int kNumSafepointRegisters = 16;
 
 // ----------------------------------------------------
 
-class StackHandlerConstants : public AllStatic {
- public:
-  static const int kNextOffset     = 0 * kPointerSize;
-  static const int kCodeOffset     = 1 * kPointerSize;
-  static const int kStateOffset    = 2 * kPointerSize;
-  static const int kContextOffset  = 3 * kPointerSize;
-  static const int kFPOffset       = 4 * kPointerSize;
-
-  static const int kSize = kFPOffset + kPointerSize;
-};
-
-
 class EntryFrameConstants : public AllStatic {
  public:
 #ifdef _WIN64

@@ -170,8 +170,6 @@ void FullCodeGenerator::Generate() {
   // the frame (that is done below).
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
-  int locals_count = info->scope()->num_stack_slots();
-
   info->set_prologue_offset(masm_->pc_offset());
   // The following three instructions must remain together and unmodified for
   // code aging to work properly.
@@ -183,6 +181,9 @@ void FullCodeGenerator::Generate() {
   __ Addu(fp, sp, Operand(2 * kPointerSize));
 
   { Comment cmnt(masm_, "[ Allocate locals");
+    int locals_count = info->scope()->num_stack_slots();
+    // Generators allocate locals, if any, in context slots.
+    ASSERT(!info->function()->is_generator() || locals_count == 0);
     for (int i = 0; i < locals_count; i++) {
       __ push(at);
     }
@@ -673,17 +674,9 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  if (CpuFeatures::IsSupported(FPU)) {
-    ToBooleanStub stub(result_register());
-    __ CallStub(&stub, condition->test_id());
-    __ mov(at, zero_reg);
-  } else {
-    // Call the runtime to find the boolean value of the source and then
-    // translate it into control flow to the pair of labels.
-    __ push(result_register());
-    __ CallRuntime(Runtime::kToBool, 1);
-    __ LoadRoot(at, Heap::kFalseValueRootIndex);
-  }
+  ToBooleanStub stub(result_register());
+  __ CallStub(&stub, condition->test_id());
+  __ mov(at, zero_reg);
   Split(ne, v0, Operand(at), if_true, if_false, fall_through);
 }
 
@@ -1276,7 +1269,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       !pretenure &&
       scope()->is_function_scope() &&
       info->num_literals() == 0) {
-    FastNewClosureStub stub(info->language_mode());
+    FastNewClosureStub stub(info->language_mode(), info->is_generator());
     __ li(a0, Operand(info));
     __ push(a0);
     __ CallStub(&stub);
@@ -1737,7 +1730,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ lw(a3, FieldMemOperand(a3, JSFunction::kLiteralsOffset));
   __ li(a2, Operand(Smi::FromInt(expr->literal_index())));
   __ li(a1, Operand(constant_elements));
-  __ Push(a3, a2, a1);
   if (has_fast_elements && constant_elements_values->map() ==
       isolate()->heap()->fixed_cow_array_map()) {
     FastCloneShallowArrayStub stub(
@@ -1748,8 +1740,11 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(),
         1, a1, a2);
   } else if (expr->depth() > 1) {
+    __ Push(a3, a2, a1);
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
-  } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+  } else if (Serializer::enabled() ||
+      length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+    __ Push(a3, a2, a1);
     __ CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
@@ -3042,31 +3037,21 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   // Convert 32 random bits in v0 to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  if (CpuFeatures::IsSupported(FPU)) {
-    __ PrepareCallCFunction(1, a0);
-    __ lw(a0, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-    __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
-    __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+  __ PrepareCallCFunction(1, a0);
+  __ lw(a0, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
+  __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
-    CpuFeatureScope scope(masm(), FPU);
-    // 0x41300000 is the top half of 1.0 x 2^20 as a double.
-    __ li(a1, Operand(0x41300000));
-    // Move 0x41300000xxxxxxxx (x = random bits in v0) to FPU.
-    __ Move(f12, v0, a1);
-    // Move 0x4130000000000000 to FPU.
-    __ Move(f14, zero_reg, a1);
-    // Subtract and store the result in the heap number.
-    __ sub_d(f0, f12, f14);
-    __ sdc1(f0, FieldMemOperand(s0, HeapNumber::kValueOffset));
-    __ mov(v0, s0);
-  } else {
-    __ PrepareCallCFunction(2, a0);
-    __ mov(a0, s0);
-    __ lw(a1, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-    __ lw(a1, FieldMemOperand(a1, GlobalObject::kNativeContextOffset));
-    __ CallCFunction(
-        ExternalReference::fill_heap_number_with_random_function(isolate()), 2);
-  }
+  // 0x41300000 is the top half of 1.0 x 2^20 as a double.
+  __ li(a1, Operand(0x41300000));
+  // Move 0x41300000xxxxxxxx (x = random bits in v0) to FPU.
+  __ Move(f12, v0, a1);
+  // Move 0x4130000000000000 to FPU.
+  __ Move(f14, zero_reg, a1);
+  // Subtract and store the result in the heap number.
+  __ sub_d(f0, f12, f14);
+  __ sdc1(f0, FieldMemOperand(s0, HeapNumber::kValueOffset));
+  __ mov(v0, s0);
 
   context()->Plug(v0);
 }
@@ -3204,12 +3189,8 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   ASSERT(args->length() == 2);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
-  if (CpuFeatures::IsSupported(FPU)) {
-    MathPowStub stub(MathPowStub::ON_STACK);
-    __ CallStub(&stub);
-  } else {
-    __ CallRuntime(Runtime::kMath_pow, 2);
-  }
+  MathPowStub stub(MathPowStub::ON_STACK);
+  __ CallStub(&stub);
   context()->Plug(v0);
 }
 

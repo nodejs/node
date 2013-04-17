@@ -302,17 +302,6 @@ void LCallConstantFunction::PrintDataTo(StringStream* stream) {
 }
 
 
-void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
-  stream->Add("/%s ", hydrogen()->OpName());
-  value()->PrintTo(stream);
-}
-
-
-void LMathExp::PrintDataTo(StringStream* stream) {
-  value()->PrintTo(stream);
-}
-
-
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
   context()->PrintTo(stream);
   stream->Add("[%d]", slot_index());
@@ -1124,44 +1113,98 @@ LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
 
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
-  BuiltinFunctionId op = instr->op();
-  if (op == kMathLog || op == kMathSin || op == kMathCos || op == kMathTan) {
-    LOperand* input = UseFixedDouble(instr->value(), d2);
-    LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input, NULL);
-    return MarkAsCall(DefineFixedDouble(result, d2), instr);
-  } else if (op == kMathExp) {
-    ASSERT(instr->representation().IsDouble());
-    ASSERT(instr->value()->representation().IsDouble());
-    LOperand* input = UseTempRegister(instr->value());
-    LOperand* temp1 = TempRegister();
-    LOperand* temp2 = TempRegister();
-    LOperand* double_temp = FixedTemp(d3);  // Chosen by fair dice roll.
-    LMathExp* result = new(zone()) LMathExp(input, double_temp, temp1, temp2);
-    return DefineAsRegister(result);
-  } else if (op == kMathPowHalf) {
-    LOperand* input = UseFixedDouble(instr->value(), d2);
-    LOperand* temp = FixedTemp(d3);
-    LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input, temp);
-    return DefineFixedDouble(result, d2);
-  } else {
-    LOperand* input = UseRegister(instr->value());
-
-    LOperand* temp = (op == kMathRound) ? FixedTemp(d3) : NULL;
-    LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input, temp);
-    switch (op) {
-      case kMathAbs:
-        return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
-      case kMathFloor:
-        return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
-      case kMathSqrt:
-        return DefineAsRegister(result);
-      case kMathRound:
-        return AssignEnvironment(DefineAsRegister(result));
-      default:
-        UNREACHABLE();
-        return NULL;
-    }
+  switch (instr->op()) {
+    case kMathFloor: return DoMathFloor(instr);
+    case kMathRound: return DoMathRound(instr);
+    case kMathAbs: return DoMathAbs(instr);
+    case kMathLog: return DoMathLog(instr);
+    case kMathSin: return DoMathSin(instr);
+    case kMathCos: return DoMathCos(instr);
+    case kMathTan: return DoMathTan(instr);
+    case kMathExp: return DoMathExp(instr);
+    case kMathSqrt: return DoMathSqrt(instr);
+    case kMathPowHalf: return DoMathPowHalf(instr);
+    default:
+      UNREACHABLE();
+      return NULL;
   }
+}
+
+
+LInstruction* LChunkBuilder::DoMathFloor(HUnaryMathOperation* instr) {
+  LOperand* input = UseRegister(instr->value());
+  LMathFloor* result = new(zone()) LMathFloor(input);
+  return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+}
+
+
+LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
+  LOperand* input = UseRegister(instr->value());
+  LOperand* temp = FixedTemp(d3);
+  LMathRound* result = new(zone()) LMathRound(input, temp);
+  return AssignEnvironment(DefineAsRegister(result));
+}
+
+
+LInstruction* LChunkBuilder::DoMathAbs(HUnaryMathOperation* instr) {
+  LOperand* input = UseRegister(instr->value());
+  LMathAbs* result = new(zone()) LMathAbs(input);
+  return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+}
+
+
+LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
+  LOperand* input = UseFixedDouble(instr->value(), d2);
+  LMathLog* result = new(zone()) LMathLog(input);
+  return MarkAsCall(DefineFixedDouble(result, d2), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoMathSin(HUnaryMathOperation* instr) {
+  LOperand* input = UseFixedDouble(instr->value(), d2);
+  LMathSin* result = new(zone()) LMathSin(input);
+  return MarkAsCall(DefineFixedDouble(result, d2), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoMathCos(HUnaryMathOperation* instr) {
+  LOperand* input = UseFixedDouble(instr->value(), d2);
+  LMathCos* result = new(zone()) LMathCos(input);
+  return MarkAsCall(DefineFixedDouble(result, d2), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoMathTan(HUnaryMathOperation* instr) {
+  LOperand* input = UseFixedDouble(instr->value(), d2);
+  LMathTan* result = new(zone()) LMathTan(input);
+  return MarkAsCall(DefineFixedDouble(result, d2), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
+  ASSERT(instr->representation().IsDouble());
+  ASSERT(instr->value()->representation().IsDouble());
+  LOperand* input = UseTempRegister(instr->value());
+  LOperand* temp1 = TempRegister();
+  LOperand* temp2 = TempRegister();
+  LOperand* double_temp = FixedTemp(d3);  // Chosen by fair dice roll.
+  LMathExp* result = new(zone()) LMathExp(input, double_temp, temp1, temp2);
+  return DefineAsRegister(result);
+}
+
+
+LInstruction* LChunkBuilder::DoMathSqrt(HUnaryMathOperation* instr) {
+  LOperand* input = UseRegister(instr->value());
+  LMathSqrt* result = new(zone()) LMathSqrt(input);
+  return DefineAsRegister(result);
+}
+
+
+LInstruction* LChunkBuilder::DoMathPowHalf(HUnaryMathOperation* instr) {
+  LOperand* input = UseFixedDouble(instr->value(), d2);
+  LOperand* temp = FixedTemp(d3);
+  LMathPowHalf* result = new(zone()) LMathPowHalf(input, temp);
+  return DefineFixedDouble(result, d2);
 }
 
 
@@ -1933,7 +1976,7 @@ LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
   LUnallocated* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
   LCheckPrototypeMaps* result = new(zone()) LCheckPrototypeMaps(temp1, temp2);
-  return AssignEnvironment(Define(result, temp1));
+  return AssignEnvironment(result);
 }
 
 
@@ -2133,16 +2176,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
         (instr->representation().IsDouble() &&
          ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
           (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
-    // float->double conversion on non-VFP2 requires an extra scratch
-    // register. For convenience, just mark the elements register as "UseTemp"
-    // so that it can be used as a temp during the float->double conversion
-    // after it's no longer needed after the float load.
-    bool needs_temp =
-        !CpuFeatures::IsSupported(VFP2) &&
-        (elements_kind == EXTERNAL_FLOAT_ELEMENTS);
-    LOperand* external_pointer = needs_temp
-        ? UseTempRegister(instr->elements())
-        : UseRegister(instr->elements());
+    LOperand* external_pointer = UseRegister(instr->elements());
     result = new(zone()) LLoadKeyed(external_pointer, key);
   }
 
@@ -2338,11 +2372,6 @@ LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
   LOperand* temp2 = TempRegister();
   LAllocate* result = new(zone()) LAllocate(size, temp1, temp2);
   return AssignPointerMap(DefineAsRegister(result));
-}
-
-
-LInstruction* LChunkBuilder::DoFastLiteral(HFastLiteral* instr) {
-  return MarkAsCall(DefineFixed(new(zone()) LFastLiteral, r0), instr);
 }
 
 

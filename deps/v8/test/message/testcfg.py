@@ -74,7 +74,13 @@ class MessageTestSuite(testsuite.TestSuite):
     """Ignore empty lines, valgrind output and Android output."""
     if not string: return True
     return (string.startswith("==") or string.startswith("**") or
-            string.startswith("ANDROID"))
+            string.startswith("ANDROID") or
+            # These five patterns appear in normal Native Client output.
+            string.startswith("DEBUG MODE ENABLED") or
+            string.startswith("tools/nacl-run.py") or
+            string.find("BYPASSING ALL ACL CHECKS") > 0 or
+            string.find("Native Client module will be loaded") > 0 or
+            string.find("NaClHostDescOpen:") > 0)
 
   def IsFailureOutput(self, output, testpath):
     expected_path = os.path.join(self.root, testpath + ".out")

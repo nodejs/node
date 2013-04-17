@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../include/v8.h"
 #include "../include/v8stdint.h"
 #include "../include/v8-preparser.h"
 
@@ -37,8 +38,7 @@
 
 namespace i = v8::internal;
 
-// This file is only used for testing the stand-alone preparser
-// library.
+// This file is only used for testing the preparser.
 // The first argument must be the path of a JavaScript source file, or
 // the flags "-e" and the next argument is then the source of a JavaScript
 // program.
@@ -319,6 +319,8 @@ int main(int argc, const char* argv[]) {
   arg_index++;
   ExceptionExpectation expects =
       ParseExpectation(argc - arg_index, argv + arg_index);
+
+  v8::V8::Initialize();
 
   ScopedPointer<uint8_t> buffer;
   size_t length;

@@ -150,9 +150,8 @@ void CpuFeatures::Probe() {
   found_by_runtime_probing_only_
       = probed_features & ~kDefaultCpuFeatures & ~platform_features;
 
-  // SSE2 and CMOV must be available on an X64 CPU.
+  // CMOV must be available on an X64 CPU.
   ASSERT(IsSupported(CPUID));
-  ASSERT(IsSupported(SSE2));
   ASSERT(IsSupported(CMOV));
 
   delete memory;
@@ -486,9 +485,9 @@ void Assembler::GrowBuffer() {
   intptr_t pc_delta = desc.buffer - buffer_;
   intptr_t rc_delta = (desc.buffer + desc.buffer_size) -
       (buffer_ + buffer_size_);
-  memmove(desc.buffer, buffer_, desc.instr_size);
-  memmove(rc_delta + reloc_info_writer.pos(),
-          reloc_info_writer.pos(), desc.reloc_size);
+  OS::MemMove(desc.buffer, buffer_, desc.instr_size);
+  OS::MemMove(rc_delta + reloc_info_writer.pos(),
+              reloc_info_writer.pos(), desc.reloc_size);
 
   // Switch buffers.
   if (isolate() != NULL &&
@@ -2595,6 +2594,26 @@ void Assembler::movdqa(const Operand& dst, XMMRegister src) {
 void Assembler::movdqa(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x6F);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movdqu(const Operand& dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0x7F);
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movdqu(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
   emit_rex_64(dst, src);
   emit(0x0F);
   emit(0x6F);

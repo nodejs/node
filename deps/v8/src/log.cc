@@ -112,45 +112,6 @@ class Profiler: public Thread {
 
 
 //
-// StackTracer implementation
-//
-DISABLE_ASAN void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
-  ASSERT(isolate->IsInitialized());
-
-  // Avoid collecting traces while doing GC.
-  if (sample->state == GC) return;
-
-  const Address js_entry_sp =
-      Isolate::js_entry_sp(isolate->thread_local_top());
-  if (js_entry_sp == 0) {
-    // Not executing JS now.
-    return;
-  }
-
-  const Address callback = isolate->external_callback();
-  if (callback != NULL) {
-    sample->external_callback = callback;
-    sample->has_external_callback = true;
-  } else {
-    // Sample potential return address value for frameless invocation of
-    // stubs (we'll figure out later, if this value makes sense).
-    sample->tos = Memory::Address_at(sample->sp);
-    sample->has_external_callback = false;
-  }
-
-  SafeStackTraceFrameIterator it(isolate,
-                                 sample->fp, sample->sp,
-                                 sample->sp, js_entry_sp);
-  int i = 0;
-  while (!it.done() && i < TickSample::kMaxFramesCount) {
-    sample->stack[i++] = it.frame()->pc();
-    it.Advance();
-  }
-  sample->frames_count = i;
-}
-
-
-//
 // Ticker used to provide ticks to the profiler and the sliding state
 // window.
 //
@@ -177,11 +138,6 @@ class Ticker: public Sampler {
     DecreaseProfilingDepth();
     profiler_ = NULL;
     if (IsActive()) Stop();
-  }
-
- protected:
-  virtual void DoSampleStack(TickSample* sample) {
-    StackTracer::Trace(isolate(), sample);
   }
 
  private:
@@ -216,9 +172,10 @@ void Profiler::Engage() {
   Start();
 
   // Register to get ticks.
-  LOGGER->ticker_->SetProfiler(this);
+  Logger* logger = isolate_->logger();
+  logger->ticker_->SetProfiler(this);
 
-  LOGGER->ProfilerBeginEvent();
+  logger->ProfilerBeginEvent();
 }
 
 
@@ -226,7 +183,7 @@ void Profiler::Disengage() {
   if (!engaged_) return;
 
   // Stop receiving ticks.
-  LOGGER->ticker_->ClearProfiler();
+  isolate_->logger()->ticker_->ClearProfiler();
 
   // Terminate the worker thread by setting running_ to false,
   // inserting a fake element in the queue and then wait for
@@ -406,7 +363,7 @@ class Logger::NameBuffer {
 
   void AppendBytes(const char* bytes, int size) {
     size = Min(size, kUtf8BufferSize - utf8_pos_);
-    memcpy(utf8_buffer_ + utf8_pos_, bytes, size);
+    OS::MemCopy(utf8_buffer_ + utf8_pos_, bytes, size);
     utf8_pos_ += size;
   }
 
@@ -778,11 +735,10 @@ void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
 }
 
 
-void Logger::LogRuntime(Isolate* isolate,
-                        Vector<const char> format,
+void Logger::LogRuntime(Vector<const char> format,
                         JSArray* args) {
   if (!log_->IsEnabled() || !FLAG_log_runtime) return;
-  HandleScope scope(isolate);
+  HandleScope scope(isolate_);
   LogMessageBuilder msg(this);
   for (int i = 0; i < format.length(); i++) {
     char c = format[i];
@@ -899,12 +855,12 @@ void Logger::DeleteEvent(const char* name, void* object) {
 
 
 void Logger::NewEventStatic(const char* name, void* object, size_t size) {
-  LOGGER->NewEvent(name, object, size);
+  Isolate::Current()->logger()->NewEvent(name, object, size);
 }
 
 
 void Logger::DeleteEventStatic(const char* name, void* object) {
-  LOGGER->DeleteEvent(name, object);
+  Isolate::Current()->logger()->DeleteEvent(name, object);
 }
 
 void Logger::CallbackEventInternal(const char* prefix, Name* name,
@@ -1492,13 +1448,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.Append(',');
   msg.AppendAddress(sample->sp);
   msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
-  if (sample->has_external_callback) {
-    msg.Append(",1,");
-    msg.AppendAddress(sample->external_callback);
-  } else {
-    msg.Append(",0,");
-    msg.AppendAddress(sample->tos);
-  }
+  msg.AppendAddress(sample->external_callback);
   msg.Append(",%d", static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");
@@ -1557,11 +1507,6 @@ void Logger::ResumeProfiler() {
 // either from main or Profiler's thread.
 void Logger::LogFailure() {
   PauseProfiler();
-}
-
-
-bool Logger::IsProfilerSamplerActive() {
-  return ticker_->IsActive();
 }
 
 
@@ -1937,17 +1882,6 @@ Sampler* Logger::sampler() {
 }
 
 
-void Logger::EnsureTickerStarted() {
-  ASSERT(ticker_ != NULL);
-  if (!ticker_->IsActive()) ticker_->Start();
-}
-
-
-void Logger::EnsureTickerStopped() {
-  if (ticker_ != NULL && ticker_->IsActive()) ticker_->Stop();
-}
-
-
 FILE* Logger::TearDown() {
   if (!is_initialized_) return NULL;
   is_initialized_ = false;
@@ -1963,67 +1897,6 @@ FILE* Logger::TearDown() {
   ticker_ = NULL;
 
   return log_->Close();
-}
-
-
-// Protects the state below.
-static Mutex* active_samplers_mutex = NULL;
-
-List<Sampler*>* SamplerRegistry::active_samplers_ = NULL;
-
-
-void SamplerRegistry::SetUp() {
-  if (!active_samplers_mutex) {
-    active_samplers_mutex = OS::CreateMutex();
-  }
-}
-
-
-bool SamplerRegistry::IterateActiveSamplers(VisitSampler func, void* param) {
-  ScopedLock lock(active_samplers_mutex);
-  for (int i = 0;
-       ActiveSamplersExist() && i < active_samplers_->length();
-       ++i) {
-    func(active_samplers_->at(i), param);
-  }
-  return ActiveSamplersExist();
-}
-
-
-static void ComputeCpuProfiling(Sampler* sampler, void* flag_ptr) {
-  bool* flag = reinterpret_cast<bool*>(flag_ptr);
-  *flag |= sampler->IsProfiling();
-}
-
-
-SamplerRegistry::State SamplerRegistry::GetState() {
-  bool flag = false;
-  if (!IterateActiveSamplers(&ComputeCpuProfiling, &flag)) {
-    return HAS_NO_SAMPLERS;
-  }
-  return flag ? HAS_CPU_PROFILING_SAMPLERS : HAS_SAMPLERS;
-}
-
-
-void SamplerRegistry::AddActiveSampler(Sampler* sampler) {
-  ASSERT(sampler->IsActive());
-  ScopedLock lock(active_samplers_mutex);
-  if (active_samplers_ == NULL) {
-    active_samplers_ = new List<Sampler*>;
-  } else {
-    ASSERT(!active_samplers_->Contains(sampler));
-  }
-  active_samplers_->Add(sampler);
-}
-
-
-void SamplerRegistry::RemoveActiveSampler(Sampler* sampler) {
-  ASSERT(sampler->IsActive());
-  ScopedLock lock(active_samplers_mutex);
-  ASSERT(active_samplers_ != NULL);
-  bool removed = active_samplers_->RemoveElement(sampler);
-  ASSERT(removed);
-  USE(removed);
 }
 
 } }  // namespace v8::internal

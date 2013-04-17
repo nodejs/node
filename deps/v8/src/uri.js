@@ -25,10 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// This file relies on the fact that the following declaration has been made
+// in runtime.js:
+// var $Array = global.Array;
+
+// -------------------------------------------------------------------
+
 // This file contains support for URI manipulations written in
 // JavaScript.
-
-// Expect $String = global.String;
 
 // Lazily initialized.
 var hexCharArray = 0;
@@ -437,6 +441,7 @@ function URIUnescape(str) {
 
 function SetUpUri() {
   %CheckIsBootstrapping();
+
   // Set up non-enumerable URI functions on the global object and set
   // their names.
   InstallFunctions(global, DONT_ENUM, $Array(

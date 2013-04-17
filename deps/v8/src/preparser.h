@@ -119,11 +119,7 @@ class PreParser {
 
   PreParser(i::Scanner* scanner,
             i::ParserRecorder* log,
-            uintptr_t stack_limit,
-            bool allow_lazy,
-            bool allow_natives_syntax,
-            bool allow_modules,
-            bool allow_generators)
+            uintptr_t stack_limit)
       : scanner_(scanner),
         log_(log),
         scope_(NULL),
@@ -131,30 +127,43 @@ class PreParser {
         strict_mode_violation_location_(i::Scanner::Location::invalid()),
         strict_mode_violation_type_(NULL),
         stack_overflow_(false),
-        allow_lazy_(allow_lazy),
-        allow_modules_(allow_modules),
-        allow_natives_syntax_(allow_natives_syntax),
-        allow_generators_(allow_generators),
-        parenthesized_function_(false),
-        harmony_scoping_(scanner->HarmonyScoping()) { }
+        allow_lazy_(false),
+        allow_natives_syntax_(false),
+        allow_generators_(false),
+        parenthesized_function_(false) { }
 
   ~PreParser() {}
+
+  bool allow_natives_syntax() const { return allow_natives_syntax_; }
+  bool allow_lazy() const { return allow_lazy_; }
+  bool allow_modules() const { return scanner_->HarmonyModules(); }
+  bool allow_harmony_scoping() const { return scanner_->HarmonyScoping(); }
+  bool allow_generators() const { return allow_generators_; }
+
+  void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
+  void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
+  void set_allow_modules(bool allow) { scanner_->SetHarmonyModules(allow); }
+  void set_allow_harmony_scoping(bool allow) {
+    scanner_->SetHarmonyScoping(allow);
+  }
+  void set_allow_generators(bool allow) { allow_generators_ = allow; }
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  static PreParseResult PreParseProgram(i::Scanner* scanner,
-                                        i::ParserRecorder* log,
-                                        int flags,
-                                        uintptr_t stack_limit) {
-    bool allow_lazy = (flags & i::kAllowLazy) != 0;
-    bool allow_natives_syntax = (flags & i::kAllowNativesSyntax) != 0;
-    bool allow_modules = (flags & i::kAllowModules) != 0;
-    bool allow_generators = (flags & i::kAllowGenerators) != 0;
-    return PreParser(scanner, log, stack_limit, allow_lazy,
-                     allow_natives_syntax, allow_modules,
-                     allow_generators).PreParse();
+  PreParseResult PreParseProgram() {
+    Scope top_scope(&scope_, kTopLevelScope);
+    bool ok = true;
+    int start_position = scanner_->peek_location().beg_pos;
+    ParseSourceElements(i::Token::EOS, &ok);
+    if (stack_overflow_) return kPreParseStackOverflow;
+    if (!ok) {
+      ReportUnexpectedToken(scanner_->current_token());
+    } else if (!scope_->is_classic_mode()) {
+      CheckOctalLiteral(start_position, scanner_->location().end_pos, &ok);
+    }
+    return kPreParseSuccess;
   }
 
   // Parses a single function literal, from the opening parentheses before
@@ -514,22 +523,6 @@ class PreParser {
     bool is_generator_;
   };
 
-  // Preparse the program. Only called in PreParseProgram after creating
-  // the instance.
-  PreParseResult PreParse() {
-    Scope top_scope(&scope_, kTopLevelScope);
-    bool ok = true;
-    int start_position = scanner_->peek_location().beg_pos;
-    ParseSourceElements(i::Token::EOS, &ok);
-    if (stack_overflow_) return kPreParseStackOverflow;
-    if (!ok) {
-      ReportUnexpectedToken(scanner_->current_token());
-    } else if (!scope_->is_classic_mode()) {
-      CheckOctalLiteral(start_position, scanner_->location().end_pos, &ok);
-    }
-    return kPreParseSuccess;
-  }
-
   // Report syntax error
   void ReportUnexpectedToken(i::Token::Value token);
   void ReportMessageAt(i::Scanner::Location location,
@@ -683,11 +676,9 @@ class PreParser {
   const char* strict_mode_violation_type_;
   bool stack_overflow_;
   bool allow_lazy_;
-  bool allow_modules_;
   bool allow_natives_syntax_;
   bool allow_generators_;
   bool parenthesized_function_;
-  bool harmony_scoping_;
 };
 } }  // v8::preparser
 

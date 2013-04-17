@@ -721,7 +721,7 @@ void Simulator::CheckICache(v8::internal::HashMap* i_cache,
                  Instruction::kInstrSize) == 0);
   } else {
     // Cache miss.  Load memory into the cache.
-    memcpy(cached_line, line, CachePage::kLineLength);
+    OS::MemCopy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -773,6 +773,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   c_flag_FPSCR_ = false;
   v_flag_FPSCR_ = false;
   FPSCR_rounding_mode_ = RZ;
+  FPSCR_default_NaN_mode_ = true;
 
   inv_op_vfp_flag_ = false;
   div_zero_vfp_flag_ = false;
@@ -902,8 +903,8 @@ double Simulator::get_double_from_register_pair(int reg) {
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
   char buffer[2 * sizeof(vfp_registers_[0])];
-  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
-  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  OS::MemCopy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  OS::MemCopy(&dm_val, buffer, 2 * sizeof(registers_[0]));
   return(dm_val);
 }
 
@@ -953,9 +954,9 @@ void Simulator::SetVFPRegister(int reg_index, const InputType& value) {
   if (register_size == 2) ASSERT(reg_index < DwVfpRegister::NumRegisters());
 
   char buffer[register_size * sizeof(vfp_registers_[0])];
-  memcpy(buffer, &value, register_size * sizeof(vfp_registers_[0]));
-  memcpy(&vfp_registers_[reg_index * register_size], buffer,
-         register_size * sizeof(vfp_registers_[0]));
+  OS::MemCopy(buffer, &value, register_size * sizeof(vfp_registers_[0]));
+  OS::MemCopy(&vfp_registers_[reg_index * register_size], buffer,
+              register_size * sizeof(vfp_registers_[0]));
 }
 
 
@@ -967,64 +968,34 @@ ReturnType Simulator::GetFromVFPRegister(int reg_index) {
 
   ReturnType value = 0;
   char buffer[register_size * sizeof(vfp_registers_[0])];
-  memcpy(buffer, &vfp_registers_[register_size * reg_index],
-         register_size * sizeof(vfp_registers_[0]));
-  memcpy(&value, buffer, register_size * sizeof(vfp_registers_[0]));
+  OS::MemCopy(buffer, &vfp_registers_[register_size * reg_index],
+              register_size * sizeof(vfp_registers_[0]));
+  OS::MemCopy(&value, buffer, register_size * sizeof(vfp_registers_[0]));
   return value;
 }
 
 
-// For use in calls that take two double values, constructed either
+// Runtime FP routines take up to two double arguments and zero
+// or one integer arguments. All are constructed here,
 // from r0-r3 or d0 and d1.
-void Simulator::GetFpArgs(double* x, double* y) {
+void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
   if (use_eabi_hardfloat()) {
     *x = vfp_registers_[0];
     *y = vfp_registers_[1];
+    *z = registers_[1];
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
     char buffer[sizeof(*x)];
     // Registers 0 and 1 -> x.
-    memcpy(buffer, registers_, sizeof(*x));
-    memcpy(x, buffer, sizeof(*x));
+    OS::MemCopy(buffer, registers_, sizeof(*x));
+    OS::MemCopy(x, buffer, sizeof(*x));
     // Registers 2 and 3 -> y.
-    memcpy(buffer, registers_ + 2, sizeof(*y));
-    memcpy(y, buffer, sizeof(*y));
-  }
-}
-
-// For use in calls that take one double value, constructed either
-// from r0 and r1 or d0.
-void Simulator::GetFpArgs(double* x) {
-  if (use_eabi_hardfloat()) {
-    *x = vfp_registers_[0];
-  } else {
-    // We use a char buffer to get around the strict-aliasing rules which
-    // otherwise allow the compiler to optimize away the copy.
-    char buffer[sizeof(*x)];
-    // Registers 0 and 1 -> x.
-    memcpy(buffer, registers_, sizeof(*x));
-    memcpy(x, buffer, sizeof(*x));
-  }
-}
-
-
-// For use in calls that take one double value constructed either
-// from r0 and r1 or d0 and one integer value.
-void Simulator::GetFpArgs(double* x, int32_t* y) {
-  if (use_eabi_hardfloat()) {
-    *x = vfp_registers_[0];
-    *y = registers_[1];
-  } else {
-    // We use a char buffer to get around the strict-aliasing rules which
-    // otherwise allow the compiler to optimize away the copy.
-    char buffer[sizeof(*x)];
-    // Registers 0 and 1 -> x.
-    memcpy(buffer, registers_, sizeof(*x));
-    memcpy(x, buffer, sizeof(*x));
-    // Register 2 -> y.
-    memcpy(buffer, registers_ + 2, sizeof(*y));
-    memcpy(y, buffer, sizeof(*y));
+    OS::MemCopy(buffer, registers_ + 2, sizeof(*y));
+    OS::MemCopy(y, buffer, sizeof(*y));
+    // Register 2 -> z.
+    OS::MemCopy(buffer, registers_ + 2, sizeof(*z));
+    OS::MemCopy(z, buffer, sizeof(*z));
   }
 }
 
@@ -1033,14 +1004,14 @@ void Simulator::GetFpArgs(double* x, int32_t* y) {
 void Simulator::SetFpResult(const double& result) {
   if (use_eabi_hardfloat()) {
     char buffer[2 * sizeof(vfp_registers_[0])];
-    memcpy(buffer, &result, sizeof(buffer));
+    OS::MemCopy(buffer, &result, sizeof(buffer));
     // Copy result to d0.
-    memcpy(vfp_registers_, buffer, sizeof(buffer));
+    OS::MemCopy(vfp_registers_, buffer, sizeof(buffer));
   } else {
     char buffer[2 * sizeof(registers_[0])];
-    memcpy(buffer, &result, sizeof(buffer));
+    OS::MemCopy(buffer, &result, sizeof(buffer));
     // Copy result to r0 and r1.
-    memcpy(registers_, buffer, sizeof(buffer));
+    OS::MemCopy(registers_, buffer, sizeof(buffer));
   }
 }
 
@@ -1619,12 +1590,12 @@ void Simulator::HandleVList(Instruction* instr) {
           ReadW(reinterpret_cast<int32_t>(address + 1), instr)
         };
         double d;
-        memcpy(&d, data, 8);
+        OS::MemCopy(&d, data, 8);
         set_d_register_from_double(reg, d);
       } else {
         int32_t data[2];
         double d = get_double_from_d_register(reg);
-        memcpy(data, &d, 8);
+        OS::MemCopy(data, &d, 8);
         WriteW(reinterpret_cast<int32_t>(address), data[0], instr);
         WriteW(reinterpret_cast<int32_t>(address + 1), data[1], instr);
       }
@@ -1647,10 +1618,12 @@ typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
                                         int32_t arg3,
                                         int32_t arg4,
                                         int32_t arg5);
-typedef double (*SimulatorRuntimeFPCall)(int32_t arg0,
-                                         int32_t arg1,
-                                         int32_t arg2,
-                                         int32_t arg3);
+
+// These prototypes handle the four types of FP calls.
+typedef int64_t (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
+typedef double (*SimulatorRuntimeFPFPCall)(double darg0, double darg1);
+typedef double (*SimulatorRuntimeFPCall)(double darg0);
+typedef double (*SimulatorRuntimeFPIntCall)(double darg0, int32_t arg0);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
@@ -1716,27 +1689,27 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       intptr_t external =
           reinterpret_cast<intptr_t>(redirection->external_function());
       if (fp_call) {
+        double dval0, dval1;  // one or two double parameters
+        int32_t ival;         // zero or one integer parameters
+        int64_t iresult = 0;  // integer return value
+        double dresult = 0;   // double return value
+        GetFpArgs(&dval0, &dval1, &ival);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
-          SimulatorRuntimeFPCall target =
-              reinterpret_cast<SimulatorRuntimeFPCall>(external);
-          double dval0, dval1;
-          int32_t ival;
+          SimulatorRuntimeCall generic_target =
+            reinterpret_cast<SimulatorRuntimeCall>(external);
           switch (redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
-            GetFpArgs(&dval0, &dval1);
             PrintF("Call to host function at %p with args %f, %f",
-                FUNCTION_ADDR(target), dval0, dval1);
+                   FUNCTION_ADDR(generic_target), dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
-            GetFpArgs(&dval0);
             PrintF("Call to host function at %p with arg %f",
-                FUNCTION_ADDR(target), dval0);
+                FUNCTION_ADDR(generic_target), dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
-            GetFpArgs(&dval0, &ival);
             PrintF("Call to host function at %p with args %f, %d",
-                FUNCTION_ADDR(target), dval0, ival);
+                   FUNCTION_ADDR(generic_target), dval0, ival);
             break;
           default:
             UNREACHABLE();
@@ -1748,22 +1721,54 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        if (redirection->type() != ExternalReference::BUILTIN_COMPARE_CALL) {
+        switch (redirection->type()) {
+        case ExternalReference::BUILTIN_COMPARE_CALL: {
+          SimulatorRuntimeCompareCall target =
+            reinterpret_cast<SimulatorRuntimeCompareCall>(external);
+          iresult = target(dval0, dval1);
+          set_register(r0, static_cast<int32_t>(iresult));
+          set_register(r1, static_cast<int32_t>(iresult >> 32));
+          break;
+        }
+        case ExternalReference::BUILTIN_FP_FP_CALL: {
+          SimulatorRuntimeFPFPCall target =
+            reinterpret_cast<SimulatorRuntimeFPFPCall>(external);
+          dresult = target(dval0, dval1);
+          SetFpResult(dresult);
+          break;
+        }
+        case ExternalReference::BUILTIN_FP_CALL: {
           SimulatorRuntimeFPCall target =
-              reinterpret_cast<SimulatorRuntimeFPCall>(external);
-          double result = target(arg0, arg1, arg2, arg3);
-          SetFpResult(result);
-        } else {
-          SimulatorRuntimeCall target =
-              reinterpret_cast<SimulatorRuntimeCall>(external);
-          int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
-          int32_t lo_res = static_cast<int32_t>(result);
-          int32_t hi_res = static_cast<int32_t>(result >> 32);
-          if (::v8::internal::FLAG_trace_sim) {
-            PrintF("Returned %08x\n", lo_res);
+            reinterpret_cast<SimulatorRuntimeFPCall>(external);
+          dresult = target(dval0);
+          SetFpResult(dresult);
+          break;
+        }
+        case ExternalReference::BUILTIN_FP_INT_CALL: {
+          SimulatorRuntimeFPIntCall target =
+            reinterpret_cast<SimulatorRuntimeFPIntCall>(external);
+          dresult = target(dval0, ival);
+          SetFpResult(dresult);
+          break;
+        }
+        default:
+          UNREACHABLE();
+          break;
+        }
+        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+          switch (redirection->type()) {
+          case ExternalReference::BUILTIN_COMPARE_CALL:
+            PrintF("Returned %08x\n", static_cast<int32_t>(iresult));
+            break;
+          case ExternalReference::BUILTIN_FP_FP_CALL:
+          case ExternalReference::BUILTIN_FP_CALL:
+          case ExternalReference::BUILTIN_FP_INT_CALL:
+            PrintF("Returned %f\n", dresult);
+            break;
+          default:
+            UNREACHABLE();
+            break;
           }
-          set_register(r0, lo_res);
-          set_register(r1, hi_res);
         }
       } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
         SimulatorRuntimeDirectApiCall target =
@@ -1863,6 +1868,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
   }
 }
 
+
+double Simulator::canonicalizeNaN(double value) {
+  return (FPSCR_default_NaN_mode_ && isnan(value)) ?
+    FixedDoubleArray::canonical_not_the_hole_nan_as_double() : value;
+}
 
 // Stop helper functions.
 bool Simulator::isStopInstruction(Instruction* instr) {
@@ -2724,11 +2734,13 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         // vabs
         double dm_value = get_double_from_d_register(vm);
         double dd_value = fabs(dm_value);
+        dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else if ((instr->Opc2Value() == 0x1) && (instr->Opc3Value() == 0x1)) {
         // vneg
         double dm_value = get_double_from_d_register(vm);
         double dd_value = -dm_value;
+        dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else if ((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
@@ -2744,6 +2756,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         // vsqrt
         double dm_value = get_double_from_d_register(vm);
         double dd_value = sqrt(dm_value);
+        dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else if (instr->Opc3Value() == 0x0) {
         // vmov immediate.
@@ -2765,12 +2778,14 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         double dn_value = get_double_from_d_register(vn);
         double dm_value = get_double_from_d_register(vm);
         double dd_value = dn_value - dm_value;
+        dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else {
         // vadd
         double dn_value = get_double_from_d_register(vn);
         double dm_value = get_double_from_d_register(vm);
         double dd_value = dn_value + dm_value;
+        dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       }
     } else if ((instr->Opc1Value() == 0x2) && !(instr->Opc3Value() & 0x1)) {
@@ -2782,6 +2797,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       double dn_value = get_double_from_d_register(vn);
       double dm_value = get_double_from_d_register(vm);
       double dd_value = dn_value * dm_value;
+      dd_value = canonicalizeNaN(dd_value);
       set_d_register_from_double(vd, dd_value);
     } else if ((instr->Opc1Value() == 0x0)) {
       // vmla, vmls
@@ -2799,9 +2815,13 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       // result with too high precision.
       set_d_register_from_double(vd, dn_val * dm_val);
       if (is_vmls) {
-        set_d_register_from_double(vd, dd_val - get_double_from_d_register(vd));
+        set_d_register_from_double(
+          vd,
+          canonicalizeNaN(dd_val - get_double_from_d_register(vd)));
       } else {
-        set_d_register_from_double(vd, dd_val + get_double_from_d_register(vd));
+        set_d_register_from_double(
+          vd,
+          canonicalizeNaN(dd_val + get_double_from_d_register(vd)));
       }
     } else if ((instr->Opc1Value() == 0x4) && !(instr->Opc3Value() & 0x1)) {
       // vdiv
@@ -2813,6 +2833,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       double dm_value = get_double_from_d_register(vm);
       double dd_value = dn_value / dm_value;
       div_zero_vfp_flag_ = (dm_value == 0);
+      dd_value = canonicalizeNaN(dd_value);
       set_d_register_from_double(vd, dd_value);
     } else {
       UNIMPLEMENTED();  // Not used by V8.
@@ -2828,9 +2849,9 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       int vd = instr->Bits(19, 16) | (instr->Bit(7) << 4);
       double dd_value = get_double_from_d_register(vd);
       int32_t data[2];
-      memcpy(data, &dd_value, 8);
+      OS::MemCopy(data, &dd_value, 8);
       data[instr->Bit(21)] = get_register(instr->RtValue());
-      memcpy(&dd_value, data, 8);
+      OS::MemCopy(&dd_value, data, 8);
       set_d_register_from_double(vd, dd_value);
     } else if ((instr->VLValue() == 0x1) &&
                (instr->VCValue() == 0x0) &&
@@ -2846,6 +2867,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
                          (z_flag_FPSCR_ << 30) |
                          (c_flag_FPSCR_ << 29) |
                          (v_flag_FPSCR_ << 28) |
+                         (FPSCR_default_NaN_mode_ << 25) |
                          (inexact_vfp_flag_ << 4) |
                          (underflow_vfp_flag_ << 3) |
                          (overflow_vfp_flag_ << 2) |
@@ -2868,6 +2890,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         z_flag_FPSCR_ = (rt_value >> 30) & 1;
         c_flag_FPSCR_ = (rt_value >> 29) & 1;
         v_flag_FPSCR_ = (rt_value >> 28) & 1;
+        FPSCR_default_NaN_mode_ = (rt_value >> 25) & 1;
         inexact_vfp_flag_ = (rt_value >> 4) & 1;
         underflow_vfp_flag_ = (rt_value >> 3) & 1;
         overflow_vfp_flag_ = (rt_value >> 2) & 1;
@@ -3179,13 +3202,13 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
           if (instr->HasL()) {
             int32_t data[2];
             double d = get_double_from_d_register(vm);
-            memcpy(data, &d, 8);
+            OS::MemCopy(data, &d, 8);
             set_register(rt, data[0]);
             set_register(rn, data[1]);
           } else {
             int32_t data[] = { get_register(rt), get_register(rn) };
             double d;
-            memcpy(&d, data, 8);
+            OS::MemCopy(&d, data, 8);
             set_d_register_from_double(vm, d);
           }
         }
@@ -3208,13 +3231,13 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
             ReadW(address + 4, instr)
           };
           double val;
-          memcpy(&val, data, 8);
+          OS::MemCopy(&val, data, 8);
           set_d_register_from_double(vd, val);
         } else {
           // Store double to memory: vstr.
           int32_t data[2];
           double val = get_double_from_d_register(vd);
-          memcpy(data, &val, 8);
+          OS::MemCopy(data, &val, 8);
           WriteW(address, data[0], instr);
           WriteW(address + 4, data[1], instr);
         }
@@ -3437,9 +3460,9 @@ double Simulator::CallFP(byte* entry, double d0, double d1) {
   } else {
     int buffer[2];
     ASSERT(sizeof(buffer[0]) * 2 == sizeof(d0));
-    memcpy(buffer, &d0, sizeof(d0));
+    OS::MemCopy(buffer, &d0, sizeof(d0));
     set_dw_register(0, buffer);
-    memcpy(buffer, &d1, sizeof(d1));
+    OS::MemCopy(buffer, &d1, sizeof(d1));
     set_dw_register(2, buffer);
   }
   CallInternal(entry);

@@ -38,14 +38,6 @@
 
 using namespace v8::internal;
 
-static v8::Persistent<v8::Context> env;
-
-static void InitializeVM() {
-  if (env.IsEmpty()) {
-    env = v8::Context::New();
-  }
-}
-
 
 #define __ assm.
 
@@ -55,8 +47,8 @@ static void DummyStaticFunction(Object* result) {
 
 
 TEST(DisasmIa320) {
-  InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[2048];
   Assembler assm(isolate, buffer, sizeof buffer);

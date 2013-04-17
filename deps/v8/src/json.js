@@ -25,7 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// This file relies on the fact that the following declarations have been made
+// in runtime.js:
+// var $Array = global.Array;
+// var $String = global.String;
+
 var $JSON = global.JSON;
+
+// -------------------------------------------------------------------
 
 function Revive(holder, name, reviver) {
   var val = holder[name];
@@ -207,14 +214,23 @@ function JSONStringify(value, replacer, space) {
 }
 
 
+// -------------------------------------------------------------------
+
 function SetUpJSON() {
   %CheckIsBootstrapping();
+
+  // Set up non-enumerable properties of the JSON object.
   InstallFunctions($JSON, DONT_ENUM, $Array(
     "parse", JSONParse,
     "stringify", JSONStringify
   ));
 }
 
+SetUpJSON();
+
+
+// -------------------------------------------------------------------
+// JSON Builtins
 
 function JSONSerializeAdapter(key, object) {
   var holder = {};
@@ -222,5 +238,3 @@ function JSONSerializeAdapter(key, object) {
   // No need to pass the actual holder since there is no replacer function.
   return JSONSerialize(key, holder, void 0, new InternalArray(), "", "");
 }
-
-SetUpJSON();

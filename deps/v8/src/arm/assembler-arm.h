@@ -55,16 +55,15 @@ class CpuFeatures : public AllStatic {
   // is enabled (snapshots must be portable).
   static void Probe();
 
+  // Display target use when compiling.
+  static void PrintTarget();
+
+  // Display features.
+  static void PrintFeatures();
+
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
-    if (f == VFP3 && !FLAG_enable_vfp3) return false;
-    if (f == VFP2 && !FLAG_enable_vfp2) return false;
-    if (f == SUDIV && !FLAG_enable_sudiv) return false;
-    if (f == UNALIGNED_ACCESSES && !FLAG_enable_unaligned_accesses) {
-      return false;
-    }
-    if (f == VFP32DREGS && !FLAG_enable_32dregs) return false;
     return (supported_ & (1u << f)) != 0;
   }
 
@@ -117,7 +116,6 @@ struct Register {
   static const int kNumRegisters = 16;
   static const int kMaxNumAllocatableRegisters = 8;
   static const int kSizeInBytes = 4;
-  static const int kGPRsPerNonVFP2Double = 2;
 
   inline static int NumAllocatableRegisters();
 
@@ -214,6 +212,7 @@ const Register pc  = { kRegister_pc_Code };
 
 // Single word VFP register.
 struct SwVfpRegister {
+  static const int kSizeInBytes = 4;
   bool is_valid() const { return 0 <= code_ && code_ < 32; }
   bool is(SwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
@@ -244,6 +243,7 @@ struct DwVfpRegister {
   static const int kNumReservedRegisters = 2;
   static const int kMaxNumAllocatableRegisters = kMaxNumRegisters -
       kNumReservedRegisters;
+  static const int kSizeInBytes = 8;
 
   // Note: the number of registers can be different at snapshot and run-time.
   // Any code included in the snapshot must be able to run both with 16 or 32
@@ -369,9 +369,6 @@ const DwVfpRegister d28 = { 28 };
 const DwVfpRegister d29 = { 29 };
 const DwVfpRegister d30 = { 30 };
 const DwVfpRegister d31 = { 31 };
-
-const Register sfpd_lo  = { kRegister_r6_Code };
-const Register sfpd_hi  = { kRegister_r7_Code };
 
 // Aliases for double registers.  Defined using #define instead of
 // "static const DwVfpRegister&" because Clang complains otherwise when a

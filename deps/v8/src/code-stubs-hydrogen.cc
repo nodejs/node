@@ -147,6 +147,8 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 
   AddSimulate(BailoutId::StubEntry());
 
+  NoObservableSideEffectsScope no_effects(this);
+
   HValue* return_value = BuildCodeStub();
 
   // We might have extra expressions to pop from the stack in addition to the
@@ -183,6 +185,70 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
 template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
   CodeStubGraphBuilder<Stub> builder(stub);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
+  Zone* zone = this->zone();
+  Factory* factory = isolate()->factory();
+  AllocationSiteMode alloc_site_mode = casted_stub()->allocation_site_mode();
+  FastCloneShallowArrayStub::Mode mode = casted_stub()->mode();
+  int length = casted_stub()->length();
+
+  HInstruction* boilerplate =
+      AddInstruction(new(zone) HLoadKeyed(GetParameter(0),
+                                          GetParameter(1),
+                                          NULL,
+                                          FAST_ELEMENTS));
+
+  CheckBuilder builder(this);
+  builder.CheckNotUndefined(boilerplate);
+
+  if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
+    HValue* elements =
+        AddInstruction(new(zone) HLoadElements(boilerplate, NULL));
+
+    IfBuilder if_fixed_cow(this);
+    if_fixed_cow.BeginIfMapEquals(elements, factory->fixed_cow_array_map());
+    environment()->Push(BuildCloneShallowArray(context(),
+                                               boilerplate,
+                                               alloc_site_mode,
+                                               FAST_ELEMENTS,
+                                               0/*copy-on-write*/));
+    if_fixed_cow.BeginElse();
+
+    IfBuilder if_fixed(this);
+    if_fixed.BeginIfMapEquals(elements, factory->fixed_array_map());
+    environment()->Push(BuildCloneShallowArray(context(),
+                                               boilerplate,
+                                               alloc_site_mode,
+                                               FAST_ELEMENTS,
+                                               length));
+    if_fixed.BeginElse();
+
+    environment()->Push(BuildCloneShallowArray(context(),
+                                               boilerplate,
+                                               alloc_site_mode,
+                                               FAST_DOUBLE_ELEMENTS,
+                                               length));
+  } else {
+    ElementsKind elements_kind = casted_stub()->ComputeElementsKind();
+    environment()->Push(BuildCloneShallowArray(context(),
+                                               boilerplate,
+                                               alloc_site_mode,
+                                               elements_kind,
+                                               length));
+  }
+
+  return environment()->Pop();
+}
+
+
+Handle<Code> FastCloneShallowArrayStub::GenerateCode() {
+  CodeStubGraphBuilder<FastCloneShallowArrayStub> builder(this);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
   return chunk->Codegen(Code::COMPILED_STUB);
 }
@@ -230,7 +296,6 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
                                               factory->empty_string(),
                                               value,
                                               true, i));
-    AddSimulate(BailoutId::StubEntry());
   }
 
   builder.End();
@@ -264,7 +329,6 @@ HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
       GetParameter(0), GetParameter(1), GetParameter(2), NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
       true, casted_stub()->store_mode(), Representation::Tagged());
-  AddSimulate(BailoutId::StubEntry(), REMOVABLE_SIMULATE);
 
   return GetParameter(2);
 }
@@ -308,7 +372,7 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
       AddInstruction(new(zone) HFixedArrayBaseLength(elements));
 
   HValue* new_elements =
-      BuildAllocateElements(context(), to_kind, elements_length);
+      BuildAllocateAndInitializeElements(context(), to_kind, elements_length);
 
   BuildCopyElements(context(), elements,
                     casted_stub()->from_kind(), new_elements,
@@ -320,13 +384,11 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
                                             factory->elements_field_string(),
                                             new_elements, true,
                                             JSArray::kElementsOffset));
-  AddSimulate(BailoutId::StubEntry());
 
   if_builder.End();
 
   AddInstruction(new(zone) HStoreNamedField(js_array, factory->length_string(),
                                             map, true, JSArray::kMapOffset));
-  AddSimulate(BailoutId::StubEntry());
   return js_array;
 }
 

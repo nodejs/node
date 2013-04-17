@@ -291,8 +291,6 @@ void MacroAssembler::Move(Register dst, Register src, Condition cond) {
 
 
 void MacroAssembler::Move(DwVfpRegister dst, DwVfpRegister src) {
-  ASSERT(CpuFeatures::IsSupported(VFP2));
-  CpuFeatureScope scope(this, VFP2);
   if (!dst.is(src)) {
     vmov(dst, src);
   }
@@ -775,6 +773,23 @@ void MacroAssembler::Strd(Register src1, Register src2,
 }
 
 
+void MacroAssembler::VFPEnsureFPSCRState(Register scratch) {
+  // If needed, restore wanted bits of FPSCR.
+  Label fpscr_done;
+  vmrs(scratch);
+  tst(scratch, Operand(kVFPDefaultNaNModeControlBit));
+  b(ne, &fpscr_done);
+  orr(scratch, scratch, Operand(kVFPDefaultNaNModeControlBit));
+  vmsr(scratch);
+  bind(&fpscr_done);
+}
+
+void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister value,
+                                        const Condition cond) {
+  vsub(value, value, kDoubleRegZero, cond);
+}
+
+
 void MacroAssembler::VFPCompareAndSetFlags(const DwVfpRegister src1,
                                            const DwVfpRegister src2,
                                            const Condition cond) {
@@ -811,7 +826,6 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
 void MacroAssembler::Vmov(const DwVfpRegister dst,
                           const double imm,
                           const Register scratch) {
-  ASSERT(IsEnabled(VFP2));
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
   DoubleRepresentation value(imm);
@@ -873,7 +887,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   // Optionally save all double registers.
   if (save_doubles) {
-    CpuFeatureScope scope(this, VFP2);
     // Check CPU flags for number of registers, setting the Z condition flag.
     CheckFor32DRegs(ip);
 
@@ -938,7 +951,6 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count) {
   // Optionally restore all double registers.
   if (save_doubles) {
-    CpuFeatureScope scope(this, VFP2);
     // Calculate the stack location of the saved doubles and restore them.
     const int offset = 2 * kPointerSize;
     sub(r3, fp,
@@ -975,7 +987,6 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
 }
 
 void MacroAssembler::GetCFunctionDoubleResult(const DwVfpRegister dst) {
-  ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     Move(dst, d0);
   } else {
@@ -1402,7 +1413,6 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
   // Check the context is a native context.
   if (emit_debug_code()) {
-    // TODO(119): avoid push(holder_reg)/pop(holder_reg)
     // Cannot use ip as a temporary in this verification code. Due to the fact
     // that ip is clobbered as part of cmp with an object Operand.
     push(holder_reg);  // Temporarily save holder on the stack.
@@ -1421,7 +1431,6 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
   // Check the context is a native context.
   if (emit_debug_code()) {
-    // TODO(119): avoid push(holder_reg)/pop(holder_reg)
     // Cannot use ip as a temporary in this verification code. Due to the fact
     // that ip is clobbered as part of cmp with an object Operand.
     push(holder_reg);  // Temporarily save holder on the stack.
@@ -1991,7 +2000,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                                  Register scratch4,
                                                  Label* fail,
                                                  int elements_offset) {
-  Label smi_value, maybe_nan, have_double_value, is_nan, done;
+  Label smi_value, store;
   Register mantissa_reg = scratch2;
   Register exponent_reg = scratch3;
 
@@ -2005,73 +2014,28 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
            fail,
            DONT_DO_SMI_CHECK);
 
-  // Check for nan: all NaN values have a value greater (signed) than 0x7ff00000
-  // in the exponent.
-  mov(scratch1, Operand(kNaNOrInfinityLowerBoundUpper32));
-  ldr(exponent_reg, FieldMemOperand(value_reg, HeapNumber::kExponentOffset));
-  cmp(exponent_reg, scratch1);
-  b(ge, &maybe_nan);
-
-  ldr(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
-
-  bind(&have_double_value);
-  add(scratch1, elements_reg,
-      Operand(key_reg, LSL, kDoubleSizeLog2 - kSmiTagSize));
-  str(mantissa_reg, FieldMemOperand(
-      scratch1, FixedDoubleArray::kHeaderSize - elements_offset));
-  uint32_t offset = FixedDoubleArray::kHeaderSize - elements_offset +
-      sizeof(kHoleNanLower32);
-  str(exponent_reg, FieldMemOperand(scratch1, offset));
-  jmp(&done);
-
-  bind(&maybe_nan);
-  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
-  // it's an Infinity, and the non-NaN code path applies.
-  b(gt, &is_nan);
-  ldr(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
-  cmp(mantissa_reg, Operand::Zero());
-  b(eq, &have_double_value);
-  bind(&is_nan);
-  // Load canonical NaN for storing into the double array.
-  uint64_t nan_int64 = BitCast<uint64_t>(
-      FixedDoubleArray::canonical_not_the_hole_nan_as_double());
-  mov(mantissa_reg, Operand(static_cast<uint32_t>(nan_int64)));
-  mov(exponent_reg, Operand(static_cast<uint32_t>(nan_int64 >> 32)));
-  jmp(&have_double_value);
+  vldr(d0, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
+  // Force a canonical NaN.
+  if (emit_debug_code()) {
+    vmrs(ip);
+    tst(ip, Operand(kVFPDefaultNaNModeControlBit));
+    Assert(ne, "Default NaN mode not set");
+  }
+  VFPCanonicalizeNaN(d0);
+  b(&store);
 
   bind(&smi_value);
-  add(scratch1, elements_reg,
-      Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag -
-              elements_offset));
-  add(scratch1, scratch1,
-      Operand(key_reg, LSL, kDoubleSizeLog2 - kSmiTagSize));
-  // scratch1 is now effective address of the double element
-
-  FloatingPointHelper::Destination destination;
-  if (CpuFeatures::IsSupported(VFP2)) {
-    destination = FloatingPointHelper::kVFPRegisters;
-  } else {
-    destination = FloatingPointHelper::kCoreRegisters;
-  }
-
-  Register untagged_value = elements_reg;
+  Register untagged_value = scratch1;
   SmiUntag(untagged_value, value_reg);
-  FloatingPointHelper::ConvertIntToDouble(this,
-                                          untagged_value,
-                                          destination,
-                                          d0,
-                                          mantissa_reg,
-                                          exponent_reg,
-                                          scratch4,
-                                          s2);
-  if (destination == FloatingPointHelper::kVFPRegisters) {
-    CpuFeatureScope scope(this, VFP2);
-    vstr(d0, scratch1, 0);
-  } else {
-    str(mantissa_reg, MemOperand(scratch1, 0));
-    str(exponent_reg, MemOperand(scratch1, Register::kSizeInBytes));
-  }
-  bind(&done);
+  FloatingPointHelper::ConvertIntToDouble(
+          this, untagged_value, FloatingPointHelper::kVFPRegisters, d0,
+          mantissa_reg, exponent_reg, scratch4, s2);
+
+  bind(&store);
+  add(scratch1, elements_reg,
+      Operand(key_reg, LSL, kDoubleSizeLog2 - kSmiTagSize));
+  vstr(d0, FieldMemOperand(scratch1,
+                           FixedDoubleArray::kHeaderSize - elements_offset));
 }
 
 
@@ -2425,9 +2389,6 @@ void MacroAssembler::SmiToDoubleVFPRegister(Register smi,
 void MacroAssembler::TestDoubleIsInt32(DwVfpRegister double_input,
                                        DwVfpRegister double_scratch) {
   ASSERT(!double_input.is(double_scratch));
-  ASSERT(CpuFeatures::IsSupported(VFP2));
-  CpuFeatureScope scope(this, VFP2);
-
   vcvt_s32_f64(double_scratch.low(), double_input);
   vcvt_f64_s32(double_scratch, double_scratch.low());
   VFPCompareAndSetFlags(double_input, double_scratch);
@@ -2438,9 +2399,6 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            DwVfpRegister double_input,
                                            DwVfpRegister double_scratch) {
   ASSERT(!double_input.is(double_scratch));
-  ASSERT(CpuFeatures::IsSupported(VFP2));
-  CpuFeatureScope scope(this, VFP2);
-
   vcvt_s32_f64(double_scratch.low(), double_input);
   vmov(result, double_scratch.low());
   vcvt_f64_s32(double_scratch, double_scratch.low());
@@ -2456,8 +2414,6 @@ void MacroAssembler::TryInt32Floor(Register result,
                                    Label* exact) {
   ASSERT(!result.is(input_high));
   ASSERT(!double_input.is(double_scratch));
-  ASSERT(CpuFeatures::IsSupported(VFP2));
-  CpuFeatureScope scope(this, VFP2);
   Label negative, exception;
 
   // Test for NaN and infinities.
@@ -2502,26 +2458,18 @@ void MacroAssembler::ECMAConvertNumberToInt32(Register source,
                                               Register scratch,
                                               DwVfpRegister double_scratch1,
                                               DwVfpRegister double_scratch2) {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatureScope scope(this, VFP2);
-    vldr(double_scratch1, FieldMemOperand(source, HeapNumber::kValueOffset));
-    ECMAToInt32VFP(result, double_scratch1, double_scratch2,
-                   scratch, input_high, input_low);
-  } else {
-    Ldrd(input_low, input_high,
-         FieldMemOperand(source, HeapNumber::kValueOffset));
-    ECMAToInt32NoVFP(result, scratch, input_high, input_low);
-  }
+  vldr(double_scratch1, FieldMemOperand(source, HeapNumber::kValueOffset));
+  ECMAToInt32(result, double_scratch1, double_scratch2,
+              scratch, input_high, input_low);
 }
 
 
-void MacroAssembler::ECMAToInt32VFP(Register result,
-                                    DwVfpRegister double_input,
-                                    DwVfpRegister double_scratch,
-                                    Register scratch,
-                                    Register input_high,
-                                    Register input_low) {
-  CpuFeatureScope scope(this, VFP2);
+void MacroAssembler::ECMAToInt32(Register result,
+                                 DwVfpRegister double_input,
+                                 DwVfpRegister double_scratch,
+                                 Register scratch,
+                                 Register input_high,
+                                 Register input_low) {
   ASSERT(!input_high.is(result));
   ASSERT(!input_low.is(result));
   ASSERT(!input_low.is(input_high));
@@ -2556,58 +2504,6 @@ void MacroAssembler::ECMAToInt32VFP(Register result,
   // If we reach this code, 31 <= exponent <= 83.
   // So, we don't have to handle cases where 0 <= exponent <= 20 for
   // which we would need to shift right the high part of the mantissa.
-  ECMAToInt32Tail(result, scratch, input_high, input_low,
-                  &out_of_range, &negate, &done);
-}
-
-
-void MacroAssembler::ECMAToInt32NoVFP(Register result,
-                                      Register scratch,
-                                      Register input_high,
-                                      Register input_low) {
-  ASSERT(!result.is(scratch));
-  ASSERT(!result.is(input_high));
-  ASSERT(!result.is(input_low));
-  ASSERT(!scratch.is(input_high));
-  ASSERT(!scratch.is(input_low));
-  ASSERT(!input_high.is(input_low));
-
-  Label both, out_of_range, negate, done;
-
-  Ubfx(scratch, input_high,
-       HeapNumber::kExponentShift, HeapNumber::kExponentBits);
-  // Load scratch with exponent.
-  sub(scratch, scratch, Operand(HeapNumber::kExponentBias));
-  // If exponent is negative, 0 < input < 1, the result is 0.
-  // If exponent is greater than or equal to 84, the 32 less significant
-  // bits are 0s (2^84 = 1, 52 significant bits, 32 uncoded bits),
-  // the result is 0.
-  // This test also catch Nan and infinities which also return 0.
-  cmp(scratch, Operand(84));
-  // We do an unsigned comparison so negative numbers are treated as big
-  // positive number and the two tests above are done in one test.
-  b(hs, &out_of_range);
-
-  // Load scratch with 20 - exponent.
-  rsb(scratch, scratch, Operand(20), SetCC);
-  b(mi, &both);
-
-  // Test 0 and -0.
-  bic(result, input_high, Operand(HeapNumber::kSignMask));
-  orr(result, result, Operand(input_low), SetCC);
-  b(eq, &done);
-  // 0 <= exponent <= 20, shift only input_high.
-  // Scratch contains: 20 - exponent.
-  Ubfx(result, input_high,
-       0, HeapNumber::kMantissaBitsInTopWord);
-  // Set the implicit 1 before the mantissa part in input_high.
-  orr(result, result, Operand(1 << HeapNumber::kMantissaBitsInTopWord));
-  mov(result, Operand(result, LSR, scratch));
-  b(&negate);
-
-  bind(&both);
-  // Restore scratch to exponent - 1 to be consistent with ECMAToInt32VFP.
-  rsb(scratch, scratch, Operand(19));
   ECMAToInt32Tail(result, scratch, input_high, input_low,
                   &out_of_range, &negate, &done);
 }
@@ -2715,10 +2611,7 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   const Runtime::Function* function = Runtime::FunctionForId(id);
   mov(r0, Operand(function->nargs));
   mov(r1, Operand(ExternalReference(function, isolate())));
-  SaveFPRegsMode mode = CpuFeatures::IsSupported(VFP2)
-      ? kSaveFPRegs
-      : kDontSaveFPRegs;
-  CEntryStub stub(1, mode);
+  CEntryStub stub(1, kSaveFPRegs);
   CallStub(&stub);
 }
 
@@ -3244,27 +3137,24 @@ void MacroAssembler::AllocateHeapNumberWithValue(Register result,
 // Copies a fixed number of fields of heap objects from src to dst.
 void MacroAssembler::CopyFields(Register dst,
                                 Register src,
-                                RegList temps,
+                                DwVfpRegister double_scratch,
+                                SwVfpRegister single_scratch,
                                 int field_count) {
-  // At least one bit set in the first 15 registers.
-  ASSERT((temps & ((1 << 15) - 1)) != 0);
-  ASSERT((temps & dst.bit()) == 0);
-  ASSERT((temps & src.bit()) == 0);
-  // Primitive implementation using only one temporary register.
-
-  Register tmp = no_reg;
-  // Find a temp register in temps list.
-  for (int i = 0; i < 15; i++) {
-    if ((temps & (1 << i)) != 0) {
-      tmp.set_code(i);
-      break;
-    }
+  int double_count = field_count / (DwVfpRegister::kSizeInBytes / kPointerSize);
+  for (int i = 0; i < double_count; i++) {
+    vldr(double_scratch, FieldMemOperand(src, i * DwVfpRegister::kSizeInBytes));
+    vstr(double_scratch, FieldMemOperand(dst, i * DwVfpRegister::kSizeInBytes));
   }
-  ASSERT(!tmp.is(no_reg));
 
-  for (int i = 0; i < field_count; i++) {
-    ldr(tmp, FieldMemOperand(src, i * kPointerSize));
-    str(tmp, FieldMemOperand(dst, i * kPointerSize));
+  STATIC_ASSERT(SwVfpRegister::kSizeInBytes == kPointerSize);
+  STATIC_ASSERT(2 * SwVfpRegister::kSizeInBytes == DwVfpRegister::kSizeInBytes);
+
+  int remain = field_count % (DwVfpRegister::kSizeInBytes / kPointerSize);
+  if (remain != 0) {
+    vldr(single_scratch,
+         FieldMemOperand(src, (field_count - 1) * kPointerSize));
+    vstr(single_scratch,
+         FieldMemOperand(dst, (field_count - 1) * kPointerSize));
   }
 }
 
@@ -3463,7 +3353,6 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 
 
 void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg) {
-  ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     Move(d0, dreg);
   } else {
@@ -3474,7 +3363,6 @@ void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg) {
 
 void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg1,
                                              DwVfpRegister dreg2) {
-  ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     if (dreg2.is(d0)) {
       ASSERT(!dreg1.is(d1));
@@ -3493,7 +3381,6 @@ void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg1,
 
 void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg,
                                              Register reg) {
-  ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     Move(d0, dreg);
     Move(r0, reg);

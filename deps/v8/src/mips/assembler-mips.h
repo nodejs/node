@@ -74,7 +74,6 @@ struct Register {
   static const int kNumRegisters = v8::internal::kNumRegisters;
   static const int kMaxNumAllocatableRegisters = 14;  // v0 through t7.
   static const int kSizeInBytes = 4;
-  static const int kGPRsPerNonFPUDouble = 2;
 
   inline static int NumAllocatableRegisters();
 
@@ -300,9 +299,6 @@ const FPURegister f29 = { 29 };
 const FPURegister f30 = { 30 };
 const FPURegister f31 = { 31 };
 
-const Register sfpd_lo  = { kRegister_t6_Code };
-const Register sfpd_hi  = { kRegister_t7_Code };
-
 // Register aliases.
 // cp is assumed to be a callee saved register.
 // Defined using #define instead of "static const Register&" because Clang
@@ -403,7 +399,6 @@ class CpuFeatures : public AllStatic {
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
-    if (f == FPU && !FLAG_enable_fpu) return false;
     return (supported_ & (1u << f)) != 0;
   }
 

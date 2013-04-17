@@ -48,29 +48,17 @@ namespace internal {
 
 
 int Register::NumAllocatableRegisters() {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    return kMaxNumAllocatableRegisters;
-  } else {
-    return kMaxNumAllocatableRegisters - kGPRsPerNonVFP2Double;
-  }
+  return kMaxNumAllocatableRegisters;
 }
 
 
 int DwVfpRegister::NumRegisters() {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    return CpuFeatures::IsSupported(VFP32DREGS) ? 32 : 16;
-  } else {
-    return 1;
-  }
+  return CpuFeatures::IsSupported(VFP32DREGS) ? 32 : 16;
 }
 
 
 int DwVfpRegister::NumAllocatableRegisters() {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    return NumRegisters() - kNumReservedRegisters;
-  } else {
-    return 1;
-  }
+  return NumRegisters() - kNumReservedRegisters;
 }
 
 

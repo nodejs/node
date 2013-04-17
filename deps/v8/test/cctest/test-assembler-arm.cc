@@ -43,20 +43,10 @@ typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
 typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
 
 
-static v8::Persistent<v8::Context> env;
-
-
-static void InitializeVM() {
-  if (env.IsEmpty()) {
-    env = v8::Context::New();
-  }
-}
-
-
 #define __ assm.
 
 TEST(0) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -83,7 +73,7 @@ TEST(0) {
 
 
 TEST(1) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -121,7 +111,7 @@ TEST(1) {
 
 
 TEST(2) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -168,7 +158,7 @@ TEST(2) {
 
 
 TEST(3) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -224,7 +214,7 @@ TEST(3) {
 
 TEST(4) {
   // Test the VFP floating point instructions.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -363,7 +353,7 @@ TEST(4) {
 
 TEST(5) {
   // Test the ARMv7 bitfield instructions.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -400,7 +390,7 @@ TEST(5) {
 
 TEST(6) {
   // Test saturating instructions.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -444,7 +434,7 @@ static void TestRoundingMode(VCVTTypes types,
                              double value,
                              int expected,
                              bool expected_exception = false) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -622,7 +612,7 @@ TEST(7) {
 
 TEST(8) {
   // Test VFP multi load/store with ia_w.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -654,87 +644,83 @@ TEST(8) {
   // single precision values around in memory.
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatureScope scope(&assm, VFP2);
+  __ mov(ip, Operand(sp));
+  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+  __ sub(fp, ip, Operand(4));
 
-    __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
-    __ sub(fp, ip, Operand(4));
+  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ vldm(ia_w, r4, d0, d3);
+  __ vldm(ia_w, r4, d4, d7);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
-    __ vldm(ia_w, r4, d0, d3);
-    __ vldm(ia_w, r4, d4, d7);
+  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ vstm(ia_w, r4, d6, d7);
+  __ vstm(ia_w, r4, d0, d5);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
-    __ vstm(ia_w, r4, d6, d7);
-    __ vstm(ia_w, r4, d0, d5);
+  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ vldm(ia_w, r4, s0, s3);
+  __ vldm(ia_w, r4, s4, s7);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
-    __ vldm(ia_w, r4, s0, s3);
-    __ vldm(ia_w, r4, s4, s7);
+  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ vstm(ia_w, r4, s6, s7);
+  __ vstm(ia_w, r4, s0, s5);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
-    __ vstm(ia_w, r4, s6, s7);
-    __ vstm(ia_w, r4, s0, s5);
+  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
-
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked();
+  CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+  Code::cast(code)->Print();
 #endif
-    F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
-    d.a = 1.1;
-    d.b = 2.2;
-    d.c = 3.3;
-    d.d = 4.4;
-    d.e = 5.5;
-    d.f = 6.6;
-    d.g = 7.7;
-    d.h = 8.8;
+  F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  d.a = 1.1;
+  d.b = 2.2;
+  d.c = 3.3;
+  d.d = 4.4;
+  d.e = 5.5;
+  d.f = 6.6;
+  d.g = 7.7;
+  d.h = 8.8;
 
-    f.a = 1.0;
-    f.b = 2.0;
-    f.c = 3.0;
-    f.d = 4.0;
-    f.e = 5.0;
-    f.f = 6.0;
-    f.g = 7.0;
-    f.h = 8.0;
+  f.a = 1.0;
+  f.b = 2.0;
+  f.c = 3.0;
+  f.d = 4.0;
+  f.e = 5.0;
+  f.f = 6.0;
+  f.g = 7.0;
+  f.h = 8.0;
 
-    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
-    USE(dummy);
+  Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+  USE(dummy);
 
-    CHECK_EQ(7.7, d.a);
-    CHECK_EQ(8.8, d.b);
-    CHECK_EQ(1.1, d.c);
-    CHECK_EQ(2.2, d.d);
-    CHECK_EQ(3.3, d.e);
-    CHECK_EQ(4.4, d.f);
-    CHECK_EQ(5.5, d.g);
-    CHECK_EQ(6.6, d.h);
+  CHECK_EQ(7.7, d.a);
+  CHECK_EQ(8.8, d.b);
+  CHECK_EQ(1.1, d.c);
+  CHECK_EQ(2.2, d.d);
+  CHECK_EQ(3.3, d.e);
+  CHECK_EQ(4.4, d.f);
+  CHECK_EQ(5.5, d.g);
+  CHECK_EQ(6.6, d.h);
 
-    CHECK_EQ(7.0, f.a);
-    CHECK_EQ(8.0, f.b);
-    CHECK_EQ(1.0, f.c);
-    CHECK_EQ(2.0, f.d);
-    CHECK_EQ(3.0, f.e);
-    CHECK_EQ(4.0, f.f);
-    CHECK_EQ(5.0, f.g);
-    CHECK_EQ(6.0, f.h);
-  }
+  CHECK_EQ(7.0, f.a);
+  CHECK_EQ(8.0, f.b);
+  CHECK_EQ(1.0, f.c);
+  CHECK_EQ(2.0, f.d);
+  CHECK_EQ(3.0, f.e);
+  CHECK_EQ(4.0, f.f);
+  CHECK_EQ(5.0, f.g);
+  CHECK_EQ(6.0, f.h);
 }
 
 
 TEST(9) {
   // Test VFP multi load/store with ia.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -766,91 +752,87 @@ TEST(9) {
   // single precision values around in memory.
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatureScope scope(&assm, VFP2);
+  __ mov(ip, Operand(sp));
+  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+  __ sub(fp, ip, Operand(4));
 
-    __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
-    __ sub(fp, ip, Operand(4));
+  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ vldm(ia, r4, d0, d3);
+  __ add(r4, r4, Operand(4 * 8));
+  __ vldm(ia, r4, d4, d7);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
-    __ vldm(ia, r4, d0, d3);
-    __ add(r4, r4, Operand(4 * 8));
-    __ vldm(ia, r4, d4, d7);
+  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ vstm(ia, r4, d6, d7);
+  __ add(r4, r4, Operand(2 * 8));
+  __ vstm(ia, r4, d0, d5);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
-    __ vstm(ia, r4, d6, d7);
-    __ add(r4, r4, Operand(2 * 8));
-    __ vstm(ia, r4, d0, d5);
+  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ vldm(ia, r4, s0, s3);
+  __ add(r4, r4, Operand(4 * 4));
+  __ vldm(ia, r4, s4, s7);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
-    __ vldm(ia, r4, s0, s3);
-    __ add(r4, r4, Operand(4 * 4));
-    __ vldm(ia, r4, s4, s7);
+  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ vstm(ia, r4, s6, s7);
+  __ add(r4, r4, Operand(2 * 4));
+  __ vstm(ia, r4, s0, s5);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
-    __ vstm(ia, r4, s6, s7);
-    __ add(r4, r4, Operand(2 * 4));
-    __ vstm(ia, r4, s0, s5);
+  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
-
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked();
+  CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+  Code::cast(code)->Print();
 #endif
-    F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
-    d.a = 1.1;
-    d.b = 2.2;
-    d.c = 3.3;
-    d.d = 4.4;
-    d.e = 5.5;
-    d.f = 6.6;
-    d.g = 7.7;
-    d.h = 8.8;
+  F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  d.a = 1.1;
+  d.b = 2.2;
+  d.c = 3.3;
+  d.d = 4.4;
+  d.e = 5.5;
+  d.f = 6.6;
+  d.g = 7.7;
+  d.h = 8.8;
 
-    f.a = 1.0;
-    f.b = 2.0;
-    f.c = 3.0;
-    f.d = 4.0;
-    f.e = 5.0;
-    f.f = 6.0;
-    f.g = 7.0;
-    f.h = 8.0;
+  f.a = 1.0;
+  f.b = 2.0;
+  f.c = 3.0;
+  f.d = 4.0;
+  f.e = 5.0;
+  f.f = 6.0;
+  f.g = 7.0;
+  f.h = 8.0;
 
-    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
-    USE(dummy);
+  Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+  USE(dummy);
 
-    CHECK_EQ(7.7, d.a);
-    CHECK_EQ(8.8, d.b);
-    CHECK_EQ(1.1, d.c);
-    CHECK_EQ(2.2, d.d);
-    CHECK_EQ(3.3, d.e);
-    CHECK_EQ(4.4, d.f);
-    CHECK_EQ(5.5, d.g);
-    CHECK_EQ(6.6, d.h);
+  CHECK_EQ(7.7, d.a);
+  CHECK_EQ(8.8, d.b);
+  CHECK_EQ(1.1, d.c);
+  CHECK_EQ(2.2, d.d);
+  CHECK_EQ(3.3, d.e);
+  CHECK_EQ(4.4, d.f);
+  CHECK_EQ(5.5, d.g);
+  CHECK_EQ(6.6, d.h);
 
-    CHECK_EQ(7.0, f.a);
-    CHECK_EQ(8.0, f.b);
-    CHECK_EQ(1.0, f.c);
-    CHECK_EQ(2.0, f.d);
-    CHECK_EQ(3.0, f.e);
-    CHECK_EQ(4.0, f.f);
-    CHECK_EQ(5.0, f.g);
-    CHECK_EQ(6.0, f.h);
-  }
+  CHECK_EQ(7.0, f.a);
+  CHECK_EQ(8.0, f.b);
+  CHECK_EQ(1.0, f.c);
+  CHECK_EQ(2.0, f.d);
+  CHECK_EQ(3.0, f.e);
+  CHECK_EQ(4.0, f.f);
+  CHECK_EQ(5.0, f.g);
+  CHECK_EQ(6.0, f.h);
 }
 
 
 TEST(10) {
   // Test VFP multi load/store with db_w.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -882,87 +864,83 @@ TEST(10) {
   // single precision values around in memory.
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatureScope scope(&assm, VFP2);
+  __ mov(ip, Operand(sp));
+  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+  __ sub(fp, ip, Operand(4));
 
-    __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
-    __ sub(fp, ip, Operand(4));
+  __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
+  __ vldm(db_w, r4, d4, d7);
+  __ vldm(db_w, r4, d0, d3);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
-    __ vldm(db_w, r4, d4, d7);
-    __ vldm(db_w, r4, d0, d3);
+  __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
+  __ vstm(db_w, r4, d0, d5);
+  __ vstm(db_w, r4, d6, d7);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
-    __ vstm(db_w, r4, d0, d5);
-    __ vstm(db_w, r4, d6, d7);
+  __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
+  __ vldm(db_w, r4, s4, s7);
+  __ vldm(db_w, r4, s0, s3);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
-    __ vldm(db_w, r4, s4, s7);
-    __ vldm(db_w, r4, s0, s3);
+  __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
+  __ vstm(db_w, r4, s0, s5);
+  __ vstm(db_w, r4, s6, s7);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
-    __ vstm(db_w, r4, s0, s5);
-    __ vstm(db_w, r4, s6, s7);
+  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
-
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked();
+  CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+  Code::cast(code)->Print();
 #endif
-    F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
-    d.a = 1.1;
-    d.b = 2.2;
-    d.c = 3.3;
-    d.d = 4.4;
-    d.e = 5.5;
-    d.f = 6.6;
-    d.g = 7.7;
-    d.h = 8.8;
+  F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  d.a = 1.1;
+  d.b = 2.2;
+  d.c = 3.3;
+  d.d = 4.4;
+  d.e = 5.5;
+  d.f = 6.6;
+  d.g = 7.7;
+  d.h = 8.8;
 
-    f.a = 1.0;
-    f.b = 2.0;
-    f.c = 3.0;
-    f.d = 4.0;
-    f.e = 5.0;
-    f.f = 6.0;
-    f.g = 7.0;
-    f.h = 8.0;
+  f.a = 1.0;
+  f.b = 2.0;
+  f.c = 3.0;
+  f.d = 4.0;
+  f.e = 5.0;
+  f.f = 6.0;
+  f.g = 7.0;
+  f.h = 8.0;
 
-    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
-    USE(dummy);
+  Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+  USE(dummy);
 
-    CHECK_EQ(7.7, d.a);
-    CHECK_EQ(8.8, d.b);
-    CHECK_EQ(1.1, d.c);
-    CHECK_EQ(2.2, d.d);
-    CHECK_EQ(3.3, d.e);
-    CHECK_EQ(4.4, d.f);
-    CHECK_EQ(5.5, d.g);
-    CHECK_EQ(6.6, d.h);
+  CHECK_EQ(7.7, d.a);
+  CHECK_EQ(8.8, d.b);
+  CHECK_EQ(1.1, d.c);
+  CHECK_EQ(2.2, d.d);
+  CHECK_EQ(3.3, d.e);
+  CHECK_EQ(4.4, d.f);
+  CHECK_EQ(5.5, d.g);
+  CHECK_EQ(6.6, d.h);
 
-    CHECK_EQ(7.0, f.a);
-    CHECK_EQ(8.0, f.b);
-    CHECK_EQ(1.0, f.c);
-    CHECK_EQ(2.0, f.d);
-    CHECK_EQ(3.0, f.e);
-    CHECK_EQ(4.0, f.f);
-    CHECK_EQ(5.0, f.g);
-    CHECK_EQ(6.0, f.h);
-  }
+  CHECK_EQ(7.0, f.a);
+  CHECK_EQ(8.0, f.b);
+  CHECK_EQ(1.0, f.c);
+  CHECK_EQ(2.0, f.d);
+  CHECK_EQ(3.0, f.e);
+  CHECK_EQ(4.0, f.f);
+  CHECK_EQ(5.0, f.g);
+  CHECK_EQ(6.0, f.h);
 }
 
 
 TEST(11) {
   // Test instructions using the carry flag.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -1028,7 +1006,7 @@ TEST(11) {
 
 TEST(12) {
   // Test chaining of label usages within instructions (issue 1644).
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -1043,7 +1021,7 @@ TEST(12) {
 
 TEST(13) {
   // Test VFP instructions using registers d16-d31.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -1157,6 +1135,86 @@ TEST(13) {
     CHECK_EQ(16.0, t.j);
     CHECK_EQ(73.8818412254460241, t.k);
   }
+}
+
+
+TEST(14) {
+  // Test the VFP Canonicalized Nan mode.
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    double left;
+    double right;
+    double add_result;
+    double sub_result;
+    double mul_result;
+    double div_result;
+  } T;
+  T t;
+
+  // Create a function that makes the four basic operations.
+  Assembler assm(isolate, NULL, 0);
+
+  // Ensure FPSCR state (as JSEntryStub does).
+  Label fpscr_done;
+  __ vmrs(r1);
+  __ tst(r1, Operand(kVFPDefaultNaNModeControlBit));
+  __ b(ne, &fpscr_done);
+  __ orr(r1, r1, Operand(kVFPDefaultNaNModeControlBit));
+  __ vmsr(r1);
+  __ bind(&fpscr_done);
+
+  __ vldr(d0, r0, OFFSET_OF(T, left));
+  __ vldr(d1, r0, OFFSET_OF(T, right));
+  __ vadd(d2, d0, d1);
+  __ vstr(d2, r0, OFFSET_OF(T, add_result));
+  __ vsub(d2, d0, d1);
+  __ vstr(d2, r0, OFFSET_OF(T, sub_result));
+  __ vmul(d2, d0, d1);
+  __ vstr(d2, r0, OFFSET_OF(T, mul_result));
+  __ vdiv(d2, d0, d1);
+  __ vstr(d2, r0, OFFSET_OF(T, div_result));
+
+  __ mov(pc, Operand(lr));
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked();
+  CHECK(code->IsCode());
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  t.left = BitCast<double>(kHoleNanInt64);
+  t.right = 1;
+  t.add_result = 0;
+  t.sub_result = 0;
+  t.mul_result = 0;
+  t.div_result = 0;
+  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  USE(dummy);
+  const uint32_t kArmNanUpper32 = 0x7ff80000;
+  const uint32_t kArmNanLower32 = 0x00000000;
+#ifdef DEBUG
+  const uint64_t kArmNanInt64 =
+      (static_cast<uint64_t>(kArmNanUpper32) << 32) | kArmNanLower32;
+  ASSERT(kArmNanInt64 != kHoleNanInt64);
+#endif
+  // With VFP2 the sign of the canonicalized Nan is undefined. So
+  // we remove the sign bit for the upper tests.
+  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.add_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.add_result) & 0xffffffffu);
+  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.sub_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.sub_result) & 0xffffffffu);
+  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.mul_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.mul_result) & 0xffffffffu);
+  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.div_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.div_result) & 0xffffffffu);
 }
 
 #undef __

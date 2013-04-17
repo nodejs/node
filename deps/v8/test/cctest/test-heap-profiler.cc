@@ -571,7 +571,7 @@ class TestJSONStream : public v8::OutputStream {
     if (abort_countdown_ == 0) return kAbort;
     CHECK_GT(chars_written, 0);
     i::Vector<char> chunk = buffer_.AddBlock(chars_written, '\0');
-    memcpy(chunk.start(), buffer, chars_written);
+    i::OS::MemCopy(chunk.start(), buffer, chars_written);
     return kContinue;
   }
   virtual WriteResult WriteUint32Chunk(uint32_t* buffer, int chars_written) {
@@ -1661,41 +1661,6 @@ TEST(NoDebugObjectInSnapshot) {
   CHECK_EQ(1, globals_count);
 }
 #endif  // ENABLE_DEBUGGER_SUPPORT
-
-
-TEST(PersistentHandleCount) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  // V8 also uses global handles internally, so we can't test for an absolute
-  // number.
-  int global_handle_count = v8::HeapProfiler::GetPersistentHandleCount();
-
-  // Create some persistent handles.
-  v8::Persistent<v8::String> p_AAA =
-      v8::Persistent<v8::String>::New(isolate, v8_str("AAA"));
-  CHECK_EQ(global_handle_count + 1,
-           v8::HeapProfiler::GetPersistentHandleCount());
-  v8::Persistent<v8::String> p_BBB =
-      v8::Persistent<v8::String>::New(isolate, v8_str("BBB"));
-  CHECK_EQ(global_handle_count + 2,
-           v8::HeapProfiler::GetPersistentHandleCount());
-  v8::Persistent<v8::String> p_CCC =
-      v8::Persistent<v8::String>::New(isolate, v8_str("CCC"));
-  CHECK_EQ(global_handle_count + 3,
-           v8::HeapProfiler::GetPersistentHandleCount());
-
-  // Dipose the persistent handles in a different order.
-  p_AAA.Dispose(env->GetIsolate());
-  CHECK_EQ(global_handle_count + 2,
-           v8::HeapProfiler::GetPersistentHandleCount());
-  p_CCC.Dispose(env->GetIsolate());
-  CHECK_EQ(global_handle_count + 1,
-           v8::HeapProfiler::GetPersistentHandleCount());
-  p_BBB.Dispose(env->GetIsolate());
-  CHECK_EQ(global_handle_count, v8::HeapProfiler::GetPersistentHandleCount());
-}
 
 
 TEST(AllStrongGcRootsHaveNames) {

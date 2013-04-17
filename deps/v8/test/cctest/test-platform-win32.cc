@@ -33,6 +33,7 @@
 
 #include "platform.h"
 #include "cctest.h"
+#include "win32-headers.h"
 
 using namespace ::v8::internal;
 

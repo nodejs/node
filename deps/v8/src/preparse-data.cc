@@ -95,7 +95,7 @@ Vector<unsigned> PartialParserRecorder::ExtractData() {
   Vector<unsigned> data = Vector<unsigned>::New(total_size);
   preamble_[PreparseDataConstants::kFunctionsSizeOffset] = function_size;
   preamble_[PreparseDataConstants::kSymbolCountOffset] = 0;
-  memcpy(data.start(), preamble_, sizeof(preamble_));
+  OS::MemCopy(data.start(), preamble_, sizeof(preamble_));
   int symbol_start = PreparseDataConstants::kHeaderSize + function_size;
   if (function_size > 0) {
     function_store_.WriteTo(data.SubVector(PreparseDataConstants::kHeaderSize,
@@ -151,7 +151,7 @@ Vector<unsigned> CompleteParserRecorder::ExtractData() {
   Vector<unsigned> data = Vector<unsigned>::New(total_size);
   preamble_[PreparseDataConstants::kFunctionsSizeOffset] = function_size;
   preamble_[PreparseDataConstants::kSymbolCountOffset] = symbol_id_;
-  memcpy(data.start(), preamble_, sizeof(preamble_));
+  OS::MemCopy(data.start(), preamble_, sizeof(preamble_));
   int symbol_start = PreparseDataConstants::kHeaderSize + function_size;
   if (function_size > 0) {
     function_store_.WriteTo(data.SubVector(PreparseDataConstants::kHeaderSize,

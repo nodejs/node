@@ -28,8 +28,8 @@
 #include "allocation.h"
 
 #include <stdlib.h>  // For free, malloc.
-#include <string.h>  // For memcpy.
 #include "checks.h"
+#include "platform.h"
 #include "utils.h"
 
 namespace v8 {
@@ -85,7 +85,7 @@ void AllStatic::operator delete(void* p) {
 char* StrDup(const char* str) {
   int length = StrLength(str);
   char* result = NewArray<char>(length + 1);
-  memcpy(result, str, length);
+  OS::MemCopy(result, str, length);
   result[length] = '\0';
   return result;
 }
@@ -95,7 +95,7 @@ char* StrNDup(const char* str, int n) {
   int length = StrLength(str);
   if (n < length) length = n;
   char* result = NewArray<char>(length + 1);
-  memcpy(result, str, length);
+  OS::MemCopy(result, str, length);
   result[length] = '\0';
   return result;
 }

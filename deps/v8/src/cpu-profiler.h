@@ -31,6 +31,7 @@
 #include "allocation.h"
 #include "atomicops.h"
 #include "circular-queue.h"
+#include "sampler.h"
 #include "unbound-queue.h"
 
 namespace v8 {

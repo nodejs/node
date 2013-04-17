@@ -137,7 +137,7 @@ class LCodeGen BASE_EMBEDDED {
                             IntegerSignedness signedness);
 
   void DoDeferredTaggedToI(LTaggedToI* instr);
-  void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
+  void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
   void DoDeferredRandom(LRandom* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
@@ -294,17 +294,7 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(int index) const;
   DwVfpRegister ToDoubleRegister(int index) const;
 
-  // Specific math operations - used from DoUnaryMathOperation.
-  void EmitIntegerMathAbs(LUnaryMathOperation* instr);
-  void DoMathAbs(LUnaryMathOperation* instr);
-  void DoMathFloor(LUnaryMathOperation* instr);
-  void DoMathRound(LUnaryMathOperation* instr);
-  void DoMathSqrt(LUnaryMathOperation* instr);
-  void DoMathPowHalf(LUnaryMathOperation* instr);
-  void DoMathLog(LUnaryMathOperation* instr);
-  void DoMathTan(LUnaryMathOperation* instr);
-  void DoMathCos(LUnaryMathOperation* instr);
-  void DoMathSin(LUnaryMathOperation* instr);
+  void EmitIntegerMathAbs(LMathAbs* instr);
 
   // Support for recording safepoint and position information.
   void RecordSafepoint(LPointerMap* pointers,

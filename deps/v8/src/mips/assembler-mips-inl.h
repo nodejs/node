@@ -81,29 +81,17 @@ bool Operand::is_reg() const {
 
 
 int Register::NumAllocatableRegisters() {
-  if (CpuFeatures::IsSupported(FPU)) {
     return kMaxNumAllocatableRegisters;
-  } else {
-    return kMaxNumAllocatableRegisters - kGPRsPerNonFPUDouble;
-  }
 }
 
 
 int DoubleRegister::NumRegisters() {
-  if (CpuFeatures::IsSupported(FPU)) {
     return FPURegister::kMaxNumRegisters;
-  } else {
-    return 1;
-  }
 }
 
 
 int DoubleRegister::NumAllocatableRegisters() {
-  if (CpuFeatures::IsSupported(FPU)) {
     return FPURegister::kMaxNumAllocatableRegisters;
-  } else {
-    return 1;
-  }
 }
 
 

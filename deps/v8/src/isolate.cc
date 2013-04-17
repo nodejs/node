@@ -371,6 +371,12 @@ Isolate::PerIsolateThreadData*
 
 Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThisThread() {
   ThreadId thread_id = ThreadId::Current();
+  return FindPerThreadDataForThread(thread_id);
+}
+
+
+Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
+    ThreadId thread_id) {
   PerIsolateThreadData* per_thread = NULL;
   {
     ScopedLock lock(process_wide_mutex_);
@@ -1140,7 +1146,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
         Execution::GetStackTraceLine(recv, fun, pos_obj, is_top_level);
     if (line->length() > 0) {
       line->PrintOn(out);
-      fprintf(out, "\n");
+      PrintF(out, "\n");
     }
   }
 }
@@ -1213,6 +1219,7 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
   return false;
 }
 
+static int fatal_exception_depth = 0;
 
 void Isolate::DoThrow(Object* exception, MessageLocation* location) {
   ASSERT(!has_pending_exception());
@@ -1295,6 +1302,21 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
         thread_local_top()->pending_message_script_ = *location->script();
         thread_local_top()->pending_message_start_pos_ = location->start_pos();
         thread_local_top()->pending_message_end_pos_ = location->end_pos();
+      }
+
+      // If the abort-on-uncaught-exception flag is specified, abort on any
+      // exception not caught by JavaScript, even when an external handler is
+      // present.  This flag is intended for use by JavaScript developers, so
+      // print a user-friendly stack trace (not an internal one).
+      if (fatal_exception_depth == 0 &&
+          FLAG_abort_on_uncaught_exception &&
+          (report_exception || can_be_caught_externally)) {
+        fatal_exception_depth++;
+        PrintF(stderr,
+               "%s\n\nFROM\n",
+               *MessageHandler::GetLocalizedMessage(this, message_obj));
+        PrintCurrentStackTrace(stderr);
+        OS::Abort();
       }
     } else if (location != NULL && !location->script().is_null()) {
       // We are bootstrapping and caught an error where the location is set
@@ -1508,14 +1530,12 @@ bool Isolate::is_out_of_memory() {
 
 
 Handle<Context> Isolate::native_context() {
-  GlobalObject* global = thread_local_top()->context_->global_object();
-  return Handle<Context>(global->native_context());
+  return Handle<Context>(context()->global_object()->native_context());
 }
 
 
 Handle<Context> Isolate::global_context() {
-  GlobalObject* global = thread_local_top()->context_->global_object();
-  return Handle<Context>(global->global_context());
+  return Handle<Context>(context()->global_object()->global_context());
 }
 
 
@@ -1542,11 +1562,8 @@ Handle<Context> Isolate::GetCallingNativeContext() {
 
 
 char* Isolate::ArchiveThread(char* to) {
-  if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
-    RuntimeProfiler::IsolateExitedJS(this);
-  }
-  memcpy(to, reinterpret_cast<char*>(thread_local_top()),
-         sizeof(ThreadLocalTop));
+  OS::MemCopy(to, reinterpret_cast<char*>(thread_local_top()),
+              sizeof(ThreadLocalTop));
   InitializeThreadLocal();
   clear_pending_exception();
   clear_pending_message();
@@ -1556,8 +1573,8 @@ char* Isolate::ArchiveThread(char* to) {
 
 
 char* Isolate::RestoreThread(char* from) {
-  memcpy(reinterpret_cast<char*>(thread_local_top()), from,
-         sizeof(ThreadLocalTop));
+  OS::MemCopy(reinterpret_cast<char*>(thread_local_top()), from,
+              sizeof(ThreadLocalTop));
   // This might be just paranoia, but it seems to be needed in case a
   // thread_local_top_ is restored on a separate OS thread.
 #ifdef USE_SIMULATOR
@@ -1567,9 +1584,6 @@ char* Isolate::RestoreThread(char* from) {
   thread_local_top()->simulator_ = Simulator::current(this);
 #endif
 #endif
-  if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
-    RuntimeProfiler::IsolateEnteredJS(this);
-  }
   ASSERT(context() == NULL || context()->IsContext());
   return from + sizeof(ThreadLocalTop);
 }
@@ -1810,7 +1824,8 @@ void Isolate::Deinit() {
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
     // We must stop the logger before we tear down other components.
-    logger_->EnsureTickerStopped();
+    Sampler* sampler = logger_->sampler();
+    if (sampler && sampler->IsActive()) sampler->Stop();
 
     delete deoptimizer_data_;
     deoptimizer_data_ = NULL;
@@ -1826,11 +1841,6 @@ void Isolate::Deinit() {
     preallocated_message_space_ = NULL;
     PreallocatedMemoryThreadStop();
 
-    delete heap_profiler_;
-    heap_profiler_ = NULL;
-    delete cpu_profiler_;
-    cpu_profiler_ = NULL;
-
     if (runtime_profiler_ != NULL) {
       runtime_profiler_->TearDown();
       delete runtime_profiler_;
@@ -1838,6 +1848,11 @@ void Isolate::Deinit() {
     }
     heap_.TearDown();
     logger_->TearDown();
+
+    delete heap_profiler_;
+    heap_profiler_ = NULL;
+    delete cpu_profiler_;
+    cpu_profiler_ = NULL;
 
     // The default isolate is re-initializable due to legacy API.
     state_ = UNINITIALIZED;
@@ -2055,12 +2070,11 @@ bool Isolate::Init(Deserializer* des) {
   date_cache_ = new DateCache();
   code_stub_interface_descriptors_ =
       new CodeStubInterfaceDescriptor[CodeStub::NUMBER_OF_IDS];
+  cpu_profiler_ = new CpuProfiler(this);
+  heap_profiler_ = new HeapProfiler(heap());
 
   // Enable logging before setting up the heap
   logger_->SetUp();
-
-  cpu_profiler_ = new CpuProfiler(this);
-  heap_profiler_ = new HeapProfiler(heap());
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
@@ -2177,9 +2191,16 @@ bool Isolate::Init(Deserializer* des) {
     // Ensure that all stubs which need to be generated ahead of time, but
     // cannot be serialized into the snapshot have been generated.
     HandleScope scope(this);
-    StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     CodeStub::GenerateFPStubs(this);
+    StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     StubFailureTrampolineStub::GenerateAheadOfTime(this);
+    // TODO(mstarzinger): The following is an ugly hack to make sure the
+    // interface descriptor is initialized even when stubs have been
+    // deserialized out of the snapshot without the graph builder.
+    FastCloneShallowArrayStub stub(FastCloneShallowArrayStub::CLONE_ELEMENTS,
+                                   DONT_TRACK_ALLOCATION_SITE, 0);
+    stub.InitializeInterfaceDescriptor(
+        this, code_stub_interface_descriptor(CodeStub::FastCloneShallowArray));
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();

@@ -402,18 +402,30 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
 Handle<Code> StubCache::ComputeStoreField(Handle<Name> name,
                                           Handle<JSObject> receiver,
                                           LookupResult* lookup,
-                                          Handle<Map> transition,
                                           StrictModeFlag strict_mode) {
-  Code::StubType type =
-      transition.is_null() ? Code::FIELD : Code::MAP_TRANSITION;
-
   Handle<Code> stub = FindIC(
-      name, receiver, Code::STORE_IC, type, strict_mode);
+      name, receiver, Code::STORE_IC, Code::FIELD, strict_mode);
+  if (!stub.is_null()) return stub;
+
+  StoreStubCompiler compiler(isolate_, strict_mode);
+  Handle<Code> code = compiler.CompileStoreField(receiver, lookup, name);
+  JSObject::UpdateMapCodeCache(receiver, name, code);
+  return code;
+}
+
+
+Handle<Code> StubCache::ComputeStoreTransition(Handle<Name> name,
+                                               Handle<JSObject> receiver,
+                                               LookupResult* lookup,
+                                               Handle<Map> transition,
+                                               StrictModeFlag strict_mode) {
+  Handle<Code> stub = FindIC(
+      name, receiver, Code::STORE_IC, Code::MAP_TRANSITION, strict_mode);
   if (!stub.is_null()) return stub;
 
   StoreStubCompiler compiler(isolate_, strict_mode);
   Handle<Code> code =
-      compiler.CompileStoreField(receiver, lookup, transition, name);
+      compiler.CompileStoreTransition(receiver, lookup, transition, name);
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -534,20 +546,35 @@ Handle<Code> StubCache::ComputeStoreInterceptor(Handle<Name> name,
   return code;
 }
 
+
 Handle<Code> StubCache::ComputeKeyedStoreField(Handle<Name> name,
                                                Handle<JSObject> receiver,
                                                LookupResult* lookup,
-                                               Handle<Map> transition,
                                                StrictModeFlag strict_mode) {
-  Code::StubType type =
-      (transition.is_null()) ? Code::FIELD : Code::MAP_TRANSITION;
   Handle<Code> stub = FindIC(
-      name, receiver, Code::KEYED_STORE_IC, type, strict_mode);
+      name, receiver, Code::KEYED_STORE_IC, Code::FIELD, strict_mode);
+  if (!stub.is_null()) return stub;
+
+  KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
+  Handle<Code> code = compiler.CompileStoreField(receiver, lookup, name);
+  JSObject::UpdateMapCodeCache(receiver, name, code);
+  return code;
+}
+
+
+Handle<Code> StubCache::ComputeKeyedStoreTransition(
+    Handle<Name> name,
+    Handle<JSObject> receiver,
+    LookupResult* lookup,
+    Handle<Map> transition,
+    StrictModeFlag strict_mode) {
+  Handle<Code> stub = FindIC(
+      name, receiver, Code::KEYED_STORE_IC, Code::MAP_TRANSITION, strict_mode);
   if (!stub.is_null()) return stub;
 
   KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
   Handle<Code> code =
-      compiler.CompileStoreField(receiver, lookup, transition, name);
+      compiler.CompileStoreTransition(receiver, lookup, transition, name);
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -1587,23 +1614,24 @@ Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
 }
 
 
-Handle<Code> BaseStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
-                                                      LookupResult* lookup,
-                                                      Handle<Map> transition,
-                                                      Handle<Name> name) {
+Handle<Code> BaseStoreStubCompiler::CompileStoreTransition(
+    Handle<JSObject> object,
+    LookupResult* lookup,
+    Handle<Map> transition,
+    Handle<Name> name) {
   Label miss, miss_restore_name;
 
   GenerateNameCheck(name, this->name(), &miss);
 
-  // Generate store field code.
-  GenerateStoreField(masm(),
-                     object,
-                     lookup,
-                     transition,
-                     name,
-                     receiver(), this->name(), value(), scratch1(), scratch2(),
-                     &miss,
-                     &miss_restore_name);
+  GenerateStoreTransition(masm(),
+                          object,
+                          lookup,
+                          transition,
+                          name,
+                          receiver(), this->name(), value(),
+                          scratch1(), scratch2(),
+                          &miss,
+                          &miss_restore_name);
 
   // Handle store cache miss.
   GenerateRestoreName(masm(), &miss_restore_name, name);
@@ -1611,9 +1639,30 @@ Handle<Code> BaseStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetICCode(kind(),
-                   transition.is_null() ? Code::FIELD : Code::MAP_TRANSITION,
-                   name);
+  return GetICCode(kind(), Code::MAP_TRANSITION, name);
+}
+
+
+Handle<Code> BaseStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
+                                                      LookupResult* lookup,
+                                                      Handle<Name> name) {
+  Label miss;
+
+  GenerateNameCheck(name, this->name(), &miss);
+
+  // Generate store field code.
+  GenerateStoreField(masm(),
+                     object,
+                     lookup,
+                     receiver(), this->name(), value(), scratch1(), scratch2(),
+                     &miss);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
+
+  // Return the generated code.
+  return GetICCode(kind(), Code::FIELD, name);
 }
 
 

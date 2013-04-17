@@ -162,8 +162,7 @@ Heap::Heap()
 #endif
       promotion_queue_(this),
       configured_(false),
-      chunks_queued_for_free_(NULL),
-      relocation_mutex_(NULL) {
+      chunks_queued_for_free_(NULL) {
   // Allow build-time customization of the max semispace size. Building
   // V8 with snapshots and a non-default max semispace size is much
   // easier if you can define it as part of the build environment.
@@ -688,9 +687,9 @@ void Heap::MoveElements(FixedArray* array,
 
   ASSERT(array->map() != HEAP->fixed_cow_array_map());
   Object** dst_objects = array->data_start() + dst_index;
-  memmove(dst_objects,
-          array->data_start() + src_index,
-          len * kPointerSize);
+  OS::MemMove(dst_objects,
+              array->data_start() + src_index,
+              len * kPointerSize);
   if (!InNewSpace(array)) {
     for (int i = 0; i < len; i++) {
       // TODO(hpayer): check store buffer for entries
@@ -952,6 +951,13 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
       PrintPID("Limited new space size due to high promotion rate: %d MB\n",
                new_space_.InitialCapacity() / MB);
     }
+    // Support for global pre-tenuring uses the high promotion mode as a
+    // heuristic indicator of whether to pretenure or not, we trigger
+    // deoptimization here to take advantage of pre-tenuring as soon as
+    // possible.
+    if (FLAG_pretenure_literals) {
+      isolate_->stack_guard()->FullDeopt();
+    }
   } else if (new_space_high_promotion_mode_active_ &&
       IsStableOrDecreasingSurvivalTrend() &&
       IsLowSurvivalRate()) {
@@ -962,6 +968,11 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     if (FLAG_trace_gc) {
       PrintPID("Unlimited new space size due to low promotion rate: %d MB\n",
                new_space_.MaximumCapacity() / MB);
+    }
+    // Trigger deoptimization here to turn off pre-tenuring as soon as
+    // possible.
+    if (FLAG_pretenure_literals) {
+      isolate_->stack_guard()->FullDeopt();
     }
   }
 
@@ -1282,8 +1293,6 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 
 void Heap::Scavenge() {
-  RelocationLock relocation_lock(this);
-
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
 #endif
@@ -2836,13 +2845,6 @@ bool Heap::CreateInitialObjects() {
   }
   hidden_string_ = String::cast(obj);
 
-  // Allocate the foreign for __proto__.
-  { MaybeObject* maybe_obj =
-        AllocateForeign((Address) &Accessors::ObjectPrototype);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_prototype_accessors(Foreign::cast(obj));
-
   // Allocate the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
   { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(this, 128);
@@ -3963,30 +3965,36 @@ void Heap::InitializeFunction(JSFunction* function,
 
 
 MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
-  // Allocate the prototype.  Make sure to use the object function
-  // from the function's context, since the function can be from a
-  // different context.
-  JSFunction* object_function =
-      function->context()->native_context()->object_function();
-
-  // Each function prototype gets a copy of the object function map.
-  // This avoid unwanted sharing of maps between prototypes of different
-  // constructors.
+  // Make sure to use globals from the function's context, since the function
+  // can be from a different context.
+  Context* native_context = function->context()->native_context();
+  bool needs_constructor_property;
   Map* new_map;
-  ASSERT(object_function->has_initial_map());
-  MaybeObject* maybe_map = object_function->initial_map()->Copy();
-  if (!maybe_map->To(&new_map)) return maybe_map;
+  if (function->shared()->is_generator()) {
+    // Generator prototypes can share maps since they don't have "constructor"
+    // properties.
+    new_map = native_context->generator_object_prototype_map();
+    needs_constructor_property = false;
+  } else {
+    // Each function prototype gets a fresh map to avoid unwanted sharing of
+    // maps between prototypes of different constructors.
+    JSFunction* object_function = native_context->object_function();
+    ASSERT(object_function->has_initial_map());
+    MaybeObject* maybe_map = object_function->initial_map()->Copy();
+    if (!maybe_map->To(&new_map)) return maybe_map;
+    needs_constructor_property = true;
+  }
 
   Object* prototype;
   MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
   if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
 
-  // When creating the prototype for the function we must set its
-  // constructor to the function.
-  MaybeObject* maybe_failure =
-      JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
-          constructor_string(), function, DONT_ENUM);
-  if (maybe_failure->IsFailure()) return maybe_failure;
+  if (needs_constructor_property) {
+    MaybeObject* maybe_failure =
+        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
+            constructor_string(), function, DONT_ENUM);
+    if (maybe_failure->IsFailure()) return maybe_failure;
+  }
 
   return prototype;
 }
@@ -4086,10 +4094,20 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
 
   // First create a new map with the size and number of in-object properties
   // suggested by the function.
-  int instance_size = fun->shared()->CalculateInstanceSize();
-  int in_object_properties = fun->shared()->CalculateInObjectProperties();
+  InstanceType instance_type;
+  int instance_size;
+  int in_object_properties;
+  if (fun->shared()->is_generator()) {
+    instance_type = JS_GENERATOR_OBJECT_TYPE;
+    instance_size = JSGeneratorObject::kSize;
+    in_object_properties = 0;
+  } else {
+    instance_type = JS_OBJECT_TYPE;
+    instance_size = fun->shared()->CalculateInstanceSize();
+    in_object_properties = fun->shared()->CalculateInObjectProperties();
+  }
   Map* map;
-  MaybeObject* maybe_map = AllocateMap(JS_OBJECT_TYPE, instance_size);
+  MaybeObject* maybe_map = AllocateMap(instance_type, instance_size);
   if (!maybe_map->To(&map)) return maybe_map;
 
   // Fetch or allocate prototype.
@@ -4111,7 +4129,8 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   // the inline_new flag so we only change the map if we generate a
   // specialized construct stub.
   ASSERT(in_object_properties <= Map::kMaxPreAllocatedPropertyFields);
-  if (fun->shared()->CanGenerateInlineConstructor(prototype)) {
+  if (instance_type == JS_OBJECT_TYPE &&
+      fun->shared()->CanGenerateInlineConstructor(prototype)) {
     int count = fun->shared()->this_property_assignments_count();
     if (count > in_object_properties) {
       // Inline constructor can only handle inobject properties.
@@ -4144,7 +4163,9 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
     }
   }
 
-  fun->shared()->StartInobjectSlackTracking(map);
+  if (instance_type == JS_OBJECT_TYPE) {
+    fun->shared()->StartInobjectSlackTracking(map);
+  }
 
   return map;
 }
@@ -4324,6 +4345,22 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
   ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
 #endif
   return result;
+}
+
+
+MaybeObject* Heap::AllocateJSGeneratorObject(JSFunction *function) {
+  ASSERT(function->shared()->is_generator());
+  Map *map;
+  if (function->has_initial_map()) {
+    map = function->initial_map();
+  } else {
+    // Allocate the initial map if absent.
+    MaybeObject* maybe_map = AllocateInitialMap(function);
+    if (!maybe_map->To(&map)) return maybe_map;
+    function->set_initial_map(map);
+  }
+  ASSERT(map->instance_type() == JS_GENERATOR_OBJECT_TYPE);
+  return AllocateJSObjectFromMap(map);
 }
 
 
@@ -4945,7 +4982,7 @@ static inline void WriteOneByteData(Vector<const char> vector,
                                     int len) {
   // Only works for ascii.
   ASSERT(vector.length() == len);
-  memcpy(chars, vector.start(), len);
+  OS::MemCopy(chars, vector.start(), len);
 }
 
 static inline void WriteTwoByteData(Vector<const char> vector,
@@ -6588,11 +6625,6 @@ bool Heap::SetUp() {
 
   store_buffer()->SetUp();
 
-  if (FLAG_parallel_recompilation) relocation_mutex_ = OS::CreateMutex();
-#ifdef DEBUG
-  relocation_mutex_locked_ = false;
-#endif  // DEBUG
-
   return true;
 }
 
@@ -6695,8 +6727,6 @@ void Heap::TearDown() {
   incremental_marking()->TearDown();
 
   isolate_->memory_allocator()->TearDown();
-
-  delete relocation_mutex_;
 }
 
 
@@ -7821,8 +7851,8 @@ void Heap::CheckpointObjectStats() {
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
 
-  memcpy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
-  memcpy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
+  OS::MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
+  OS::MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
   ClearObjectStats();
 }
 

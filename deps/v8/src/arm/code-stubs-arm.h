@@ -61,11 +61,11 @@ class TranscendentalCacheStub: public PlatformCodeStub {
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
-      : save_doubles_(save_fp) { }
+      : save_doubles_(save_fp) {}
 
   void Generate(MacroAssembler* masm);
 
-  virtual bool IsPregenerated();
+  virtual bool IsPregenerated() { return true; }
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
@@ -471,7 +471,6 @@ class RecordWriteStub: public PlatformCodeStub {
       if (mode == kSaveFPRegs) {
         // Number of d-regs not known at snapshot time.
         ASSERT(!Serializer::enabled());
-        CpuFeatureScope scope(masm, VFP2);
         masm->sub(sp,
                   sp,
                   Operand(kDoubleSize * (DwVfpRegister::NumRegisters() - 1)));
@@ -489,7 +488,6 @@ class RecordWriteStub: public PlatformCodeStub {
       if (mode == kSaveFPRegs) {
         // Number of d-regs not known at snapshot time.
         ASSERT(!Serializer::enabled());
-        CpuFeatureScope scope(masm, VFP2);
         // Restore all VFP registers except d0.
         // TODO(hans): We should probably restore d0 too. And maybe use vldm.
         for (int i = DwVfpRegister::NumRegisters() - 1; i > 0; i--) {

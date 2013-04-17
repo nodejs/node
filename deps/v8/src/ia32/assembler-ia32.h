@@ -1026,6 +1026,13 @@ class Assembler : public AssemblerBase {
   void movdqa(const Operand& dst, XMMRegister src);
   void movdqu(XMMRegister dst, const Operand& src);
   void movdqu(const Operand& dst, XMMRegister src);
+  void movdq(bool aligned, XMMRegister dst, const Operand& src) {
+    if (aligned) {
+      movdqa(dst, src);
+    } else {
+      movdqu(dst, src);
+    }
+  }
 
   // Use either movsd or movlpd.
   void movdbl(XMMRegister dst, const Operand& src);

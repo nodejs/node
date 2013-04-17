@@ -1204,6 +1204,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   // and the standard stack frame slots.  Include space for an argument
   // object to the callee and optionally the space to pass the argument
   // object to the stub failure handler.
+  ASSERT(descriptor->register_param_count_ >= 0);
   int height_in_bytes = kPointerSize * descriptor->register_param_count_ +
       sizeof(Arguments) + kPointerSize;
   int fixed_frame_size = StandardFrameConstants::kFixedFrameSize;
@@ -2029,52 +2030,96 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 }
 
 
-void Deoptimizer::PatchStackCheckCode(Code* unoptimized_code,
-                                      Code* check_code,
-                                      Code* replacement_code) {
-  // Iterate over the stack check table and patch every stack check
+void Deoptimizer::PatchInterruptCode(Code* unoptimized_code,
+                                     Code* interrupt_code,
+                                     Code* replacement_code) {
+  // Iterate over the back edge table and patch every interrupt
   // call to an unconditional call to the replacement code.
   ASSERT(unoptimized_code->kind() == Code::FUNCTION);
-  ASSERT(!unoptimized_code->stack_check_patched_for_osr());
-  Address stack_check_cursor = unoptimized_code->instruction_start() +
-      unoptimized_code->stack_check_table_offset();
-  uint32_t table_length = Memory::uint32_at(stack_check_cursor);
-  stack_check_cursor += kIntSize;
+  int loop_nesting_level = unoptimized_code->allow_osr_at_loop_nesting_level();
+  Address back_edge_cursor = unoptimized_code->instruction_start() +
+      unoptimized_code->back_edge_table_offset();
+  uint32_t table_length = Memory::uint32_at(back_edge_cursor);
+  back_edge_cursor += kIntSize;
   for (uint32_t i = 0; i < table_length; ++i) {
-    uint32_t pc_offset = Memory::uint32_at(stack_check_cursor + kIntSize);
-    Address pc_after = unoptimized_code->instruction_start() + pc_offset;
-    PatchStackCheckCodeAt(unoptimized_code,
-                          pc_after,
-                          check_code,
-                          replacement_code);
-    stack_check_cursor += 2 * kIntSize;
-  }
-  unoptimized_code->set_stack_check_patched_for_osr(true);
-}
-
-
-void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
-                                       Code* check_code,
-                                       Code* replacement_code) {
-  // Iterate over the stack check table and revert the patched
-  // stack check calls.
-  ASSERT(unoptimized_code->kind() == Code::FUNCTION);
-  ASSERT(unoptimized_code->stack_check_patched_for_osr());
-  Address stack_check_cursor = unoptimized_code->instruction_start() +
-      unoptimized_code->stack_check_table_offset();
-  uint32_t table_length = Memory::uint32_at(stack_check_cursor);
-  stack_check_cursor += kIntSize;
-  for (uint32_t i = 0; i < table_length; ++i) {
-    uint32_t pc_offset = Memory::uint32_at(stack_check_cursor + kIntSize);
-    Address pc_after = unoptimized_code->instruction_start() + pc_offset;
-    RevertStackCheckCodeAt(unoptimized_code,
+    uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
+    if (loop_depth == loop_nesting_level) {
+      // Loop back edge has the loop depth that we want to patch.
+      uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
+      Address pc_after = unoptimized_code->instruction_start() + pc_offset;
+      PatchInterruptCodeAt(unoptimized_code,
                            pc_after,
-                           check_code,
+                           interrupt_code,
                            replacement_code);
-    stack_check_cursor += 2 * kIntSize;
+    }
+    back_edge_cursor += FullCodeGenerator::kBackEdgeEntrySize;
   }
-  unoptimized_code->set_stack_check_patched_for_osr(false);
+  unoptimized_code->set_back_edges_patched_for_osr(true);
+#ifdef DEBUG
+  Deoptimizer::VerifyInterruptCode(
+      unoptimized_code, interrupt_code, replacement_code, loop_nesting_level);
+#endif  // DEBUG
 }
+
+
+void Deoptimizer::RevertInterruptCode(Code* unoptimized_code,
+                                      Code* interrupt_code,
+                                      Code* replacement_code) {
+  // Iterate over the back edge table and revert the patched interrupt calls.
+  ASSERT(unoptimized_code->kind() == Code::FUNCTION);
+  ASSERT(unoptimized_code->back_edges_patched_for_osr());
+  int loop_nesting_level = unoptimized_code->allow_osr_at_loop_nesting_level();
+  Address back_edge_cursor = unoptimized_code->instruction_start() +
+      unoptimized_code->back_edge_table_offset();
+  uint32_t table_length = Memory::uint32_at(back_edge_cursor);
+  back_edge_cursor += kIntSize;
+  for (uint32_t i = 0; i < table_length; ++i) {
+    uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
+    if (loop_depth <= loop_nesting_level) {
+      uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
+      Address pc_after = unoptimized_code->instruction_start() + pc_offset;
+      RevertInterruptCodeAt(unoptimized_code,
+                            pc_after,
+                            interrupt_code,
+                            replacement_code);
+    }
+    back_edge_cursor += FullCodeGenerator::kBackEdgeEntrySize;
+  }
+  unoptimized_code->set_back_edges_patched_for_osr(false);
+#ifdef DEBUG
+  // Assert that none of the back edges are patched anymore.
+  Deoptimizer::VerifyInterruptCode(
+      unoptimized_code, interrupt_code, replacement_code, -1);
+#endif  // DEBUG
+}
+
+
+#ifdef DEBUG
+void Deoptimizer::VerifyInterruptCode(Code* unoptimized_code,
+                                      Code* interrupt_code,
+                                      Code* replacement_code,
+                                      int loop_nesting_level) {
+  CHECK(unoptimized_code->kind() == Code::FUNCTION);
+  Address back_edge_cursor = unoptimized_code->instruction_start() +
+      unoptimized_code->back_edge_table_offset();
+  uint32_t table_length = Memory::uint32_at(back_edge_cursor);
+  back_edge_cursor += kIntSize;
+  for (uint32_t i = 0; i < table_length; ++i) {
+    uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
+    CHECK_LE(loop_depth, Code::kMaxLoopNestingMarker);
+    // Assert that all back edges for shallower loops (and only those)
+    // have already been patched.
+    uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
+    Address pc_after = unoptimized_code->instruction_start() + pc_offset;
+    CHECK_EQ((loop_depth <= loop_nesting_level),
+             InterruptCodeIsPatched(unoptimized_code,
+                                    pc_after,
+                                    interrupt_code,
+                                    replacement_code));
+    back_edge_cursor += FullCodeGenerator::kBackEdgeEntrySize;
+  }
+}
+#endif  // DEBUG
 
 
 unsigned Deoptimizer::ComputeInputFrameSize() const {
@@ -2327,7 +2372,8 @@ int32_t TranslationIterator::Next() {
 Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
   int length = contents_.length();
   Handle<ByteArray> result = factory->NewByteArray(length, TENURED);
-  memcpy(result->GetDataStartAddress(), contents_.ToVector().start(), length);
+  OS::MemCopy(
+      result->GetDataStartAddress(), contents_.ToVector().start(), length);
   return result;
 }
 

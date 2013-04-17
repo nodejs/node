@@ -92,7 +92,7 @@ class FullCodeGenerator: public AstVisitor {
         bailout_entries_(info->HasDeoptimizationSupport()
                          ? info->function()->ast_node_count() : 0,
                          info->zone()),
-        stack_checks_(2, info->zone()),  // There's always at least one.
+        back_edges_(2, info->zone()),
         type_feedback_cells_(info->HasDeoptimizationSupport()
                              ? info->function()->ast_node_count() : 0,
                              info->zone()),
@@ -135,6 +135,7 @@ class FullCodeGenerator: public AstVisitor {
 #error Unsupported target architecture.
 #endif
 
+  static const int kBackEdgeEntrySize = 2 * kIntSize + kOneByteSize;
 
  private:
   class Breakable;
@@ -459,9 +460,9 @@ class FullCodeGenerator: public AstVisitor {
                                Label* back_edge_target);
   // Record the OSR AST id corresponding to a back edge in the code.
   void RecordBackEdge(BailoutId osr_ast_id);
-  // Emit a table of stack check ids and pcs into the code stream.  Return
-  // the offset of the start of the table.
-  unsigned EmitStackCheckTable();
+  // Emit a table of back edge ids, pcs and loop depths into the code stream.
+  // Return the offset of the start of the table.
+  unsigned EmitBackEdgeTable();
 
   void EmitProfilingCounterDecrement(int delta);
   void EmitProfilingCounterReset();
@@ -622,6 +623,12 @@ class FullCodeGenerator: public AstVisitor {
   struct BailoutEntry {
     BailoutId id;
     unsigned pc_and_state;
+  };
+
+  struct BackEdgeEntry {
+    BailoutId id;
+    unsigned pc;
+    uint8_t loop_depth;
   };
 
   struct TypeFeedbackCellEntry {
@@ -818,9 +825,7 @@ class FullCodeGenerator: public AstVisitor {
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
   GrowableBitVector prepared_bailout_ids_;
-  // TODO(svenpanne) Rename this to something like back_edges_ and rename
-  // related functions accordingly.
-  ZoneList<BailoutEntry> stack_checks_;
+  ZoneList<BackEdgeEntry> back_edges_;
   ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   int ic_total_count_;
   Handle<FixedArray> handler_table_;

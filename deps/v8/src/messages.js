@@ -98,9 +98,13 @@ var kMessages = {
   observe_callback_frozen:       ["Object.observe cannot deliver to a frozen function object"],
   observe_type_non_string:       ["Invalid changeRecord with non-string 'type' property"],
   observe_notify_non_notifier:   ["notify called on non-notifier object"],
+  proto_poison_pill:             ["Generic use of __proto__ accessor not allowed"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
+  invalid_typed_array_offset:    ["Start offset is too large"],
+  invalid_typed_array_length:    ["Length is too large"],
+  invalid_typed_array_alignment: ["%0", "of", "%1", "should be a multiple of", "%3"],
   stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
   // SyntaxError

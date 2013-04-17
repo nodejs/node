@@ -90,3 +90,16 @@ test-platform-tls/FastTLS: SKIP
 
 # This test times out.
 test-threads/ThreadJoinSelf: SKIP
+
+##############################################################################
+[ $arch == nacl_ia32 || $arch == nacl_x64 ]
+
+# These tests fail as there is no /tmp directory in Native Client.
+test-log/LogAccessorCallbacks: SKIP
+test-log/LogCallbacks: SKIP
+test-log/ProfLazyMode: SKIP
+
+# Native Client doesn't support sockets.
+test-debug/DebuggerAgent: SKIP
+test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
+test-sockets/Socket: SKIP

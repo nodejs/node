@@ -55,6 +55,19 @@ double StringToDouble(UnicodeCache* unicode_cache,
 // Converts a string into an integer.
 double StringToInt(UnicodeCache* unicode_cache, String* str, int radix);
 
+// Converts a number into size_t.
+inline size_t NumberToSize(Isolate* isolate,
+                           Object* number) {
+  NoHandleAllocation hc(isolate);
+  if (number->IsSmi()) {
+    return Smi::cast(number)->value();
+  } else {
+    ASSERT(number->IsHeapNumber());
+    double value = HeapNumber::cast(number)->value();
+    return static_cast<size_t>(value);
+  }
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_V8CONVERSIONS_H_

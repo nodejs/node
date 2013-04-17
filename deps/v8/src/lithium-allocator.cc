@@ -1546,6 +1546,9 @@ void LAllocator::AllocateRegisters() {
     LiveRange* current = unhandled_live_ranges_.RemoveLast();
     ASSERT(UnhandledIsSorted());
     LifetimePosition position = current->Start();
+#ifdef DEBUG
+    allocation_finger_ = position;
+#endif
     TraceAlloc("Processing interval %d start=%d\n",
                current->id(),
                position.Value());
@@ -1670,6 +1673,7 @@ void LAllocator::AddToInactive(LiveRange* range) {
 void LAllocator::AddToUnhandledSorted(LiveRange* range) {
   if (range == NULL || range->IsEmpty()) return;
   ASSERT(!range->HasRegisterAssigned() && !range->IsSpilled());
+  ASSERT(allocation_finger_.Value() <= range->Start().Value());
   for (int i = unhandled_live_ranges_.length() - 1; i >= 0; --i) {
     LiveRange* cur_range = unhandled_live_ranges_.at(i);
     if (range->ShouldBeAllocatedBefore(cur_range)) {
@@ -1788,7 +1792,7 @@ STATIC_ASSERT(DoubleRegister::kMaxNumAllocatableRegisters >=
 bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
   LifetimePosition free_until_pos[DoubleRegister::kMaxNumAllocatableRegisters];
 
-  for (int i = 0; i < DoubleRegister::kMaxNumAllocatableRegisters; i++) {
+  for (int i = 0; i < num_registers_; i++) {
     free_until_pos[i] = LifetimePosition::MaxPosition();
   }
 
@@ -1880,7 +1884,7 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
   LifetimePosition use_pos[DoubleRegister::kMaxNumAllocatableRegisters];
   LifetimePosition block_pos[DoubleRegister::kMaxNumAllocatableRegisters];
 
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
+  for (int i = 0; i < num_registers_; i++) {
     use_pos[i] = block_pos[i] = LifetimePosition::MaxPosition();
   }
 
@@ -2000,7 +2004,15 @@ void LAllocator::SplitAndSpillIntersecting(LiveRange* current) {
       if (next_pos == NULL) {
         SpillAfter(range, spill_pos);
       } else {
-        SpillBetween(range, spill_pos, next_pos->pos());
+        // When spilling between spill_pos and next_pos ensure that the range
+        // remains spilled at least until the start of the current live range.
+        // This guarantees that we will not introduce new unhandled ranges that
+        // start before the current range as this violates allocation invariant
+        // and will lead to an inconsistent state of active and inactive
+        // live-ranges: ranges are allocated in order of their start positions,
+        // ranges are retired from active/inactive when the start of the
+        // current live-range is larger than their end.
+        SpillBetweenUntil(range, spill_pos, current->Start(), next_pos->pos());
       }
       if (!AllocationOk()) return;
       ActiveToHandled(range);
@@ -2114,6 +2126,14 @@ void LAllocator::SpillAfter(LiveRange* range, LifetimePosition pos) {
 void LAllocator::SpillBetween(LiveRange* range,
                               LifetimePosition start,
                               LifetimePosition end) {
+  SpillBetweenUntil(range, start, start, end);
+}
+
+
+void LAllocator::SpillBetweenUntil(LiveRange* range,
+                                   LifetimePosition start,
+                                   LifetimePosition until,
+                                   LifetimePosition end) {
   CHECK(start.Value() < end.Value());
   LiveRange* second_part = SplitRangeAt(range, start);
   if (!AllocationOk()) return;
@@ -2124,7 +2144,7 @@ void LAllocator::SpillBetween(LiveRange* range,
     // and put the rest to unhandled.
     LiveRange* third_part = SplitBetween(
         second_part,
-        second_part->Start().InstructionEnd(),
+        Max(second_part->Start().InstructionEnd(), until),
         end.PrevInstruction().InstructionEnd());
     if (!AllocationOk()) return;
 

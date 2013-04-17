@@ -50,8 +50,8 @@ void Disassembler::Dump(FILE* f, byte* begin, byte* end) {
              pc - begin,
              *pc);
     } else {
-      fprintf(f, "%" V8PRIxPTR "  %4" V8PRIdPTR "  %02x\n",
-              reinterpret_cast<uintptr_t>(pc), pc - begin, *pc);
+      PrintF(f, "%" V8PRIxPTR "  %4" V8PRIdPTR "  %02x\n",
+             reinterpret_cast<uintptr_t>(pc), pc - begin, *pc);
     }
   }
 }
@@ -101,11 +101,10 @@ static void DumpBuffer(FILE* f, StringBuilder* out) {
   if (f == NULL) {
     PrintF("%s\n", out->Finalize());
   } else {
-    fprintf(f, "%s\n", out->Finalize());
+    PrintF(f, "%s\n", out->Finalize());
   }
   out->Reset();
 }
-
 
 
 static const int kOutBufferSize = 2048 + String::kMaxShortPrintLength;
@@ -337,10 +336,10 @@ void Disassembler::Decode(FILE* f, Code* code) {
                      code->kind() == Code::COMPILED_STUB)
       ? static_cast<int>(code->safepoint_table_offset())
       : code->instruction_size();
-  // If there might be a stack check table, stop before reaching it.
+  // If there might be a back edge table, stop before reaching it.
   if (code->kind() == Code::FUNCTION) {
     decode_size =
-        Min(decode_size, static_cast<int>(code->stack_check_table_offset()));
+        Min(decode_size, static_cast<int>(code->back_edge_table_offset()));
   }
 
   byte* begin = code->instruction_start();

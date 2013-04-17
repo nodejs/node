@@ -62,11 +62,11 @@ class TranscendentalCacheStub: public PlatformCodeStub {
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
-      : save_doubles_(save_fp) { }
+      : save_doubles_(save_fp) {}
 
   void Generate(MacroAssembler* masm);
 
-  virtual bool IsPregenerated();
+  virtual bool IsPregenerated() { return true; }
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
@@ -484,7 +484,6 @@ class RecordWriteStub: public PlatformCodeStub {
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
       masm->MultiPush((kJSCallerSaved | ra.bit()) & ~scratch1_.bit());
       if (mode == kSaveFPRegs) {
-        CpuFeatureScope scope(masm, FPU);
         masm->MultiPushFPU(kCallerSavedFPU);
       }
     }
@@ -492,7 +491,6 @@ class RecordWriteStub: public PlatformCodeStub {
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
-        CpuFeatureScope scope(masm, FPU);
         masm->MultiPopFPU(kCallerSavedFPU);
       }
       masm->MultiPop((kJSCallerSaved | ra.bit()) & ~scratch1_.bit());
@@ -682,27 +680,6 @@ class FloatingPointHelper : public AllStatic {
                                 FPURegister double_scratch0,
                                 FPURegister double_scratch1,
                                 Label* not_int32);
-
-  // Generate non FPU code to check if a double can be exactly represented by a
-  // 32-bit integer. This does not check for 0 or -0, which need
-  // to be checked for separately.
-  // Control jumps to not_int32 if the value is not a 32-bit integer, and falls
-  // through otherwise.
-  // src1 and src2 will be cloberred.
-  //
-  // Expected input:
-  // - src1: higher (exponent) part of the double value.
-  // - src2: lower (mantissa) part of the double value.
-  // Output status:
-  // - dst: 32 higher bits of the mantissa. (mantissa[51:20])
-  // - src2: contains 1.
-  // - other registers are clobbered.
-  static void DoubleIs32BitInteger(MacroAssembler* masm,
-                                   Register src1,
-                                   Register src2,
-                                   Register dst,
-                                   Register scratch,
-                                   Label* not_int32);
 
   // Generates code to call a C function to do a double operation using core
   // registers. (Used when FPU is not supported.)

@@ -183,7 +183,7 @@ static void CopyObjectToObjectElements(FixedArrayBase* from_base,
   Address from_address = from->address() + FixedArray::kHeaderSize;
   CopyWords(reinterpret_cast<Object**>(to_address) + to_start,
             reinterpret_cast<Object**>(from_address) + from_start,
-            copy_size);
+            static_cast<size_t>(copy_size));
   if (IsFastObjectElementsKind(from_kind) &&
       IsFastObjectElementsKind(to_kind)) {
     Heap* heap = from->GetHeap();
@@ -339,7 +339,7 @@ static void CopyDoubleToDoubleElements(FixedArrayBase* from_base,
   int words_per_double = (kDoubleSize / kPointerSize);
   CopyWords(reinterpret_cast<Object**>(to_address),
             reinterpret_cast<Object**>(from_address),
-            words_per_double * copy_size);
+            static_cast<size_t>(words_per_double * copy_size));
 }
 
 

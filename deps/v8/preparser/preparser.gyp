@@ -31,11 +31,24 @@
     {
       'target_name': 'preparser',
       'type': 'executable',
-      'dependencies': [
-        '../tools/gyp/v8.gyp:preparser_lib',
+      'conditions': [
+        # preparser can't link against a shared library, so link against
+        # the underlying static targets.
+        ['v8_use_snapshot=="true"', {
+          'dependencies': ['../tools/gyp/v8.gyp:v8_snapshot'],
+        }, {
+          'dependencies': [
+            '../tools/gyp/v8.gyp:v8_nosnapshot.<(v8_target_arch)',
+          ],
+        }],
+      ],
+      'include_dirs+': [
+        '../src',
       ],
       'sources': [
         'preparser-process.cc',
+        '../include/v8-preparser.h',
+        '../src/preparser-api.cc',
       ],
     },
   ],

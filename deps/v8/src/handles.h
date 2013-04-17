@@ -223,11 +223,13 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> value,
                                 PropertyAttributes attributes);
 
-Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
-                                   Handle<Object> key);
+Handle<Object> DeleteProperty(Handle<JSObject> object, Handle<Object> key);
 
-Handle<Object> GetProperty(Handle<JSReceiver> obj,
-                           const char* name);
+Handle<Object> ForceDeleteProperty(Handle<JSObject> object, Handle<Object> key);
+
+Handle<Object> HasProperty(Handle<JSReceiver> obj, Handle<Object> key);
+
+Handle<Object> GetProperty(Handle<JSReceiver> obj, const char* name);
 
 Handle<Object> GetProperty(Isolate* isolate,
                            Handle<Object> obj,
@@ -239,6 +241,8 @@ Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index);
 
 Handle<JSObject> Copy(Handle<JSObject> obj);
+
+Handle<JSObject> DeepCopy(Handle<JSObject> obj);
 
 Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info);
 

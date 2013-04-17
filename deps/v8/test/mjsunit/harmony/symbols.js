@@ -82,6 +82,23 @@ function TestPrototype() {
 TestPrototype()
 
 
+function TestConstructor() {
+  assertFalse(Object === Symbol.prototype.constructor)
+  assertFalse(Symbol === Object.prototype.constructor)
+  assertSame(Symbol, Symbol.prototype.constructor)
+  assertSame(Symbol, Symbol().__proto__.constructor)
+  assertSame(Symbol, Symbol(Symbol()).__proto__.constructor)
+  assertSame(Symbol, (new Symbol).__proto__.constructor)
+  assertSame(Symbol, (new Symbol()).__proto__.constructor)
+  assertSame(Symbol, (new Symbol(Symbol())).__proto__.constructor)
+  assertSame(Symbol, Object(Symbol()).__proto__.constructor)
+  for (var i in symbols) {
+    assertSame(Symbol, symbols[i].__proto__.constructor)
+  }
+}
+TestConstructor()
+
+
 function TestName() {
   for (var i in symbols) {
     var name = symbols[i].name

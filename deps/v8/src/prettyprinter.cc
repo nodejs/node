@@ -505,7 +505,7 @@ void PrettyPrinter::Print(const char* format, ...) {
       const int slack = 32;
       int new_size = size_ + (size_ >> 1) + slack;
       char* new_output = NewArray<char>(new_size);
-      memcpy(new_output, output_, pos_);
+      OS::MemCopy(new_output, output_, pos_);
       DeleteArray(output_);
       output_ = new_output;
       size_ = new_size;

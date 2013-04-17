@@ -324,29 +324,61 @@ void LGapResolver::EmitMove(int index) {
     }
 
   } else if (source->IsDoubleRegister()) {
-    CpuFeatureScope scope(cgen_->masm(), SSE2);
-    XMMRegister src = cgen_->ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
-      XMMRegister dst = cgen_->ToDoubleRegister(destination);
-      __ movaps(dst, src);
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatureScope scope(cgen_->masm(), SSE2);
+      XMMRegister src = cgen_->ToDoubleRegister(source);
+      if (destination->IsDoubleRegister()) {
+        XMMRegister dst = cgen_->ToDoubleRegister(destination);
+        __ movaps(dst, src);
+      } else {
+        ASSERT(destination->IsDoubleStackSlot());
+        Operand dst = cgen_->ToOperand(destination);
+        __ movdbl(dst, src);
+      }
     } else {
+      // load from the register onto the stack, store in destination, which must
+      // be a double stack slot in the non-SSE2 case.
+      ASSERT(source->index() == 0);  // source is on top of the stack
       ASSERT(destination->IsDoubleStackSlot());
       Operand dst = cgen_->ToOperand(destination);
-      __ movdbl(dst, src);
+      cgen_->ReadX87Operand(dst);
     }
   } else if (source->IsDoubleStackSlot()) {
-    CpuFeatureScope scope(cgen_->masm(), SSE2);
-    ASSERT(destination->IsDoubleRegister() ||
-           destination->IsDoubleStackSlot());
-    Operand src = cgen_->ToOperand(source);
-    if (destination->IsDoubleRegister()) {
-      XMMRegister dst = cgen_->ToDoubleRegister(destination);
-      __ movdbl(dst, src);
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatureScope scope(cgen_->masm(), SSE2);
+      ASSERT(destination->IsDoubleRegister() ||
+             destination->IsDoubleStackSlot());
+      Operand src = cgen_->ToOperand(source);
+      if (destination->IsDoubleRegister()) {
+        XMMRegister dst = cgen_->ToDoubleRegister(destination);
+        __ movdbl(dst, src);
+      } else {
+        // We rely on having xmm0 available as a fixed scratch register.
+        Operand dst = cgen_->ToOperand(destination);
+        __ movdbl(xmm0, src);
+        __ movdbl(dst, xmm0);
+      }
     } else {
-      // We rely on having xmm0 available as a fixed scratch register.
-      Operand dst = cgen_->ToOperand(destination);
-      __ movdbl(xmm0, src);
-      __ movdbl(dst, xmm0);
+      // load from the stack slot on top of the floating point stack, and then
+      // store in destination. If destination is a double register, then it
+      // represents the top of the stack and nothing needs to be done.
+      if (destination->IsDoubleStackSlot()) {
+        Register tmp = EnsureTempRegister();
+        Operand src0 = cgen_->ToOperand(source);
+        Operand src1 = cgen_->HighOperand(source);
+        Operand dst0 = cgen_->ToOperand(destination);
+        Operand dst1 = cgen_->HighOperand(destination);
+        __ mov(tmp, src0);  // Then use tmp to copy source to destination.
+        __ mov(dst0, tmp);
+        __ mov(tmp, src1);
+        __ mov(dst1, tmp);
+      } else {
+        Operand src = cgen_->ToOperand(source);
+        if (cgen_->X87StackNonEmpty()) {
+          cgen_->PopX87();
+        }
+        cgen_->PushX87DoubleOperand(src);
+      }
     }
   } else {
     UNREACHABLE();
@@ -419,21 +451,19 @@ void LGapResolver::EmitSwap(int index) {
     __ movaps(xmm0, src);
     __ movaps(src, dst);
     __ movaps(dst, xmm0);
-
   } else if (source->IsDoubleRegister() || destination->IsDoubleRegister()) {
     CpuFeatureScope scope(cgen_->masm(), SSE2);
     // XMM register-memory swap.  We rely on having xmm0
     // available as a fixed scratch register.
     ASSERT(source->IsDoubleStackSlot() || destination->IsDoubleStackSlot());
     XMMRegister reg = cgen_->ToDoubleRegister(source->IsDoubleRegister()
-                                                  ? source
-                                                  : destination);
+                                              ? source
+                                              : destination);
     Operand other =
         cgen_->ToOperand(source->IsDoubleRegister() ? destination : source);
     __ movdbl(xmm0, other);
     __ movdbl(other, reg);
     __ movdbl(reg, Operand(xmm0));
-
   } else if (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot()) {
     CpuFeatureScope scope(cgen_->masm(), SSE2);
     // Double-width memory-to-memory.  Spill on demand to use a general

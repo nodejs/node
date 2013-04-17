@@ -369,7 +369,6 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
   // Check the context is a native context.
   if (emit_debug_code()) {
-    // TODO(119): Avoid push(holder_reg)/pop(holder_reg).
     push(holder_reg);  // Temporarily save holder on the stack.
     // Read the first word and compare to the native_context_map.
     lw(holder_reg, FieldMemOperand(scratch, HeapObject::kMapOffset));
@@ -385,7 +384,6 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
   // Check the context is a native context.
   if (emit_debug_code()) {
-    // TODO(119): Avoid push(holder_reg)/pop(holder_reg).
     push(holder_reg);  // Temporarily save holder on the stack.
     mov(holder_reg, at);  // Move at to its holding place.
     LoadRoot(at, Heap::kNullValueRootIndex);
@@ -853,7 +851,6 @@ void MacroAssembler::MultiPopReversed(RegList regs) {
 
 
 void MacroAssembler::MultiPushFPU(RegList regs) {
-  CpuFeatureScope scope(this, FPU);
   int16_t num_to_push = NumberOfBitsSet(regs);
   int16_t stack_offset = num_to_push * kDoubleSize;
 
@@ -868,7 +865,6 @@ void MacroAssembler::MultiPushFPU(RegList regs) {
 
 
 void MacroAssembler::MultiPushReversedFPU(RegList regs) {
-  CpuFeatureScope scope(this, FPU);
   int16_t num_to_push = NumberOfBitsSet(regs);
   int16_t stack_offset = num_to_push * kDoubleSize;
 
@@ -883,7 +879,6 @@ void MacroAssembler::MultiPushReversedFPU(RegList regs) {
 
 
 void MacroAssembler::MultiPopFPU(RegList regs) {
-  CpuFeatureScope scope(this, FPU);
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
@@ -897,7 +892,6 @@ void MacroAssembler::MultiPopFPU(RegList regs) {
 
 
 void MacroAssembler::MultiPopReversedFPU(RegList regs) {
-  CpuFeatureScope scope(this, FPU);
   int16_t stack_offset = 0;
 
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
@@ -1170,7 +1164,6 @@ void MacroAssembler::BranchF(Label* target,
 
 
 void MacroAssembler::Move(FPURegister dst, double imm) {
-  ASSERT(IsEnabled(FPU));
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
   DoubleRepresentation value(imm);
@@ -1340,61 +1333,17 @@ void MacroAssembler::ConvertToInt32(Register source,
   Subu(scratch2, scratch2, Operand(zero_exponent));
   // Dest already has a Smi zero.
   Branch(&done, lt, scratch2, Operand(zero_reg));
-  if (!CpuFeatures::IsSupported(FPU)) {
-    // We have a shifted exponent between 0 and 30 in scratch2.
-    srl(dest, scratch2, HeapNumber::kExponentShift);
-    // We now have the exponent in dest.  Subtract from 30 to get
-    // how much to shift down.
-    li(at, Operand(30));
-    subu(dest, at, dest);
-  }
   bind(&right_exponent);
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(this, FPU);
-    // MIPS FPU instructions implementing double precision to integer
-    // conversion using round to zero. Since the FP value was qualified
-    // above, the resulting integer should be a legal int32.
-    // The original 'Exponent' word is still in scratch.
-    lwc1(double_scratch, FieldMemOperand(source, HeapNumber::kMantissaOffset));
-    mtc1(scratch, FPURegister::from_code(double_scratch.code() + 1));
-    trunc_w_d(double_scratch, double_scratch);
-    mfc1(dest, double_scratch);
-  } else {
-    // On entry, dest has final downshift, scratch has original sign/exp/mant.
-    // Save sign bit in top bit of dest.
-    And(scratch2, scratch, Operand(0x80000000));
-    Or(dest, dest, Operand(scratch2));
-    // Put back the implicit 1, just above mantissa field.
-    Or(scratch, scratch, Operand(1 << HeapNumber::kExponentShift));
 
-    // Shift up the mantissa bits to take up the space the exponent used to
-    // take. We just orred in the implicit bit so that took care of one and
-    // we want to leave the sign bit 0 so we subtract 2 bits from the shift
-    // distance. But we want to clear the sign-bit so shift one more bit
-    // left, then shift right one bit.
-    const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
-    sll(scratch, scratch, shift_distance + 1);
-    srl(scratch, scratch, 1);
+  // MIPS FPU instructions implementing double precision to integer
+  // conversion using round to zero. Since the FP value was qualified
+  // above, the resulting integer should be a legal int32.
+  // The original 'Exponent' word is still in scratch.
+  lwc1(double_scratch, FieldMemOperand(source, HeapNumber::kMantissaOffset));
+  mtc1(scratch, FPURegister::from_code(double_scratch.code() + 1));
+  trunc_w_d(double_scratch, double_scratch);
+  mfc1(dest, double_scratch);
 
-    // Get the second half of the double. For some exponents we don't
-    // actually need this because the bits get shifted out again, but
-    // it's probably slower to test than just to do it.
-    lw(scratch2, FieldMemOperand(source, HeapNumber::kMantissaOffset));
-    // Extract the top 10 bits, and insert those bottom 10 bits of scratch.
-    // The width of the field here is the same as the shift amount above.
-    const int field_width = shift_distance;
-    Ext(scratch2, scratch2, 32-shift_distance, field_width);
-    Ins(scratch, scratch2, 0, field_width);
-    // Move down according to the exponent.
-    srlv(scratch, scratch, dest);
-    // Prepare the negative version of our integer.
-    subu(scratch2, zero_reg, scratch);
-    // Trick to check sign bit (msb) held in dest, count leading zero.
-    // 0 indicates negative, save negative version with conditional move.
-    Clz(dest, dest);
-    Movz(scratch, scratch2, dest);
-    mov(dest, scratch);
-  }
   bind(&done);
 }
 
@@ -1410,8 +1359,6 @@ void MacroAssembler::EmitFPUTruncate(FPURoundingMode rounding_mode,
   ASSERT(!double_input.is(double_scratch));
   ASSERT(!except_flag.is(scratch));
 
-  ASSERT(CpuFeatures::IsSupported(FPU));
-  CpuFeatureScope scope(this, FPU);
   Label done;
 
   // Clear the except flag (0 = no exception)
@@ -1553,7 +1500,6 @@ void MacroAssembler::EmitECMATruncate(Register result,
                                       Register scratch,
                                       Register scratch2,
                                       Register scratch3) {
-  CpuFeatureScope scope(this, FPU);
   ASSERT(!scratch2.is(result));
   ASSERT(!scratch3.is(result));
   ASSERT(!scratch3.is(scratch2));
@@ -3461,11 +3407,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   // scratch1 is now effective address of the double element
 
   FloatingPointHelper::Destination destination;
-  if (CpuFeatures::IsSupported(FPU)) {
-    destination = FloatingPointHelper::kFPURegisters;
-  } else {
-    destination = FloatingPointHelper::kCoreRegisters;
-  }
+  destination = FloatingPointHelper::kFPURegisters;
 
   Register untagged_value = elements_reg;
   SmiUntag(untagged_value, value_reg);
@@ -3478,7 +3420,6 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                           scratch4,
                                           f2);
   if (destination == FloatingPointHelper::kFPURegisters) {
-    CpuFeatureScope scope(this, FPU);
     sdc1(f0, MemOperand(scratch1, 0));
   } else {
     sw(mantissa_reg, MemOperand(scratch1, 0));
@@ -3571,7 +3512,6 @@ void MacroAssembler::CheckMap(Register obj,
 
 
 void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
-  CpuFeatureScope scope(this, FPU);
   if (IsMipsSoftFloatABI) {
     Move(dst, v0, v1);
   } else {
@@ -3581,7 +3521,6 @@ void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
 
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
-  CpuFeatureScope scope(this, FPU);
   if (!IsMipsSoftFloatABI) {
     Move(f12, dreg);
   } else {
@@ -3592,7 +3531,6 @@ void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
                                              DoubleRegister dreg2) {
-  CpuFeatureScope scope(this, FPU);
   if (!IsMipsSoftFloatABI) {
     if (dreg2.is(f12)) {
       ASSERT(!dreg1.is(f14));
@@ -3611,7 +3549,6 @@ void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg,
                                              Register reg) {
-  CpuFeatureScope scope(this, FPU);
   if (!IsMipsSoftFloatABI) {
     Move(f12, dreg);
     Move(a2, reg);
@@ -4254,10 +4191,7 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   const Runtime::Function* function = Runtime::FunctionForId(id);
   PrepareCEntryArgs(function->nargs);
   PrepareCEntryFunction(ExternalReference(function, isolate()));
-  SaveFPRegsMode mode = CpuFeatures::IsSupported(FPU)
-      ? kSaveFPRegs
-      : kDontSaveFPRegs;
-  CEntryStub stub(1, mode);
+  CEntryStub stub(1, kSaveFPRegs);
   CallStub(&stub);
 }
 
@@ -4649,7 +4583,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   if (save_doubles) {
-    CpuFeatureScope scope(this, FPU);
     // The stack  must be allign to 0 modulo 8 for stores with sdc1.
     ASSERT(kDoubleSize == frame_alignment);
     if (frame_alignment > 0) {
@@ -4687,7 +4620,6 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     bool do_return) {
   // Optionally restore all double registers.
   if (save_doubles) {
-    CpuFeatureScope scope(this, FPU);
     // Remember: we only need to restore every 2nd double FPU value.
     lw(t8, MemOperand(fp, ExitFrameConstants::kSPOffset));
     for (int i = 0; i < FPURegister::kMaxNumRegisters; i+=2) {

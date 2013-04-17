@@ -448,7 +448,7 @@ class Operand BASE_EMBEDDED {
 //     CpuFeatureScope fscope(assembler, SSE3);
 //     // Generate SSE3 floating point code.
 //   } else {
-//     // Generate standard x87 or SSE2 floating point code.
+//     // Generate standard SSE2 floating point code.
 //   }
 class CpuFeatures : public AllStatic {
  public:
@@ -459,7 +459,6 @@ class CpuFeatures : public AllStatic {
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
-    if (f == SSE2 && !FLAG_enable_sse2) return false;
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
     if (f == CMOV && !FLAG_enable_cmov) return false;
@@ -480,11 +479,11 @@ class CpuFeatures : public AllStatic {
   }
 
  private:
-  // Safe defaults include SSE2 and CMOV for X64. It is always available, if
+  // Safe defaults include CMOV for X64. It is always available, if
   // anyone checks, but they shouldn't need to check.
   // The required user mode extensions in X64 are (from AMD64 ABI Table A.1):
   //   fpu, tsc, cx8, cmov, mmx, sse, sse2, fxsr, syscall
-  static const uint64_t kDefaultCpuFeatures = (1 << SSE2 | 1 << CMOV);
+  static const uint64_t kDefaultCpuFeatures = (1 << CMOV);
 
 #ifdef DEBUG
   static bool initialized_;
@@ -1309,6 +1308,9 @@ class Assembler : public AssemblerBase {
 
   void movdqa(const Operand& dst, XMMRegister src);
   void movdqa(XMMRegister dst, const Operand& src);
+
+  void movdqu(const Operand& dst, XMMRegister src);
+  void movdqu(XMMRegister dst, const Operand& src);
 
   void movapd(XMMRegister dst, XMMRegister src);
   void movaps(XMMRegister dst, XMMRegister src);

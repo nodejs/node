@@ -127,6 +127,8 @@ class StackFrame;
 class StackTrace;
 class String;
 class StringObject;
+class Symbol;
+class SymbolObject;
 class Uint32;
 class Utils;
 class Value;
@@ -764,6 +766,17 @@ class V8EXPORT Script {
    * debugger API.
    */
   void SetData(Handle<String> data);
+
+  /**
+   * Returns the name value of one Script.
+   */
+  Handle<Value> GetScriptName();
+
+  /**
+   * Returns zero based line number of the code_pos location in the script.
+   * -1 will be returned if no information available.
+   */
+  int GetLineNumber(int code_pos);
 };
 
 
@@ -973,6 +986,12 @@ class V8EXPORT Value : public Data {
   V8_INLINE(bool IsString() const);
 
   /**
+   * Returns true if this value is a symbol.
+   * This is an experimental feature.
+   */
+  bool IsSymbol() const;
+
+  /**
    * Returns true if this value is a function.
    */
   bool IsFunction() const;
@@ -1031,6 +1050,12 @@ class V8EXPORT Value : public Data {
    * Returns true if this value is a String object.
    */
   bool IsStringObject() const;
+
+  /**
+   * Returns true if this value is a Symbol object.
+   * This is an experimental feature.
+   */
+  bool IsSymbolObject() const;
 
   /**
    * Returns true if this value is a NativeError.
@@ -1311,7 +1336,11 @@ class V8EXPORT String : public Primitive {
   /** Allocates a new string from 16-bit character codes.*/
   static Local<String> New(const uint16_t* data, int length = -1);
 
-  /** Creates a symbol. Returns one if it exists already.*/
+  /**
+   * Creates an internalized string (historically called a "symbol",
+   * not to be confused with ES6 symbols). Returns one if it exists already.
+   * TODO(rossberg): Deprecate me when the new string API is here.
+   */
   static Local<String> NewSymbol(const char* data, int length = -1);
 
   /**
@@ -1445,6 +1474,29 @@ class V8EXPORT String : public Primitive {
   void VerifyExternalStringResourceBase(ExternalStringResourceBase* v,
                                         Encoding encoding) const;
   void VerifyExternalStringResource(ExternalStringResource* val) const;
+  static void CheckCast(v8::Value* obj);
+};
+
+
+/**
+ * A JavaScript symbol (ECMA-262 edition 6)
+ *
+ * This is an experimental feature. Use at your own risk.
+ */
+class V8EXPORT Symbol : public Primitive {
+ public:
+  // Returns the print name string of the symbol, or undefined if none.
+  Local<Value> Name() const;
+
+  // Create a symbol without a print name.
+  static Local<Symbol> New(Isolate* isolate);
+
+  // Create a symbol with a print name.
+  static Local<Symbol> New(Isolate *isolate, const char* data, int length = -1);
+
+  V8_INLINE(static Symbol* Cast(v8::Value* obj));
+ private:
+  Symbol();
   static void CheckCast(v8::Value* obj);
 };
 
@@ -1590,11 +1642,9 @@ class V8EXPORT Object : public Value {
    */
   PropertyAttribute GetPropertyAttributes(Handle<Value> key);
 
-  // TODO(1245389): Replace the type-specific versions of these
-  // functions with generic ones that accept a Handle<Value> key.
-  bool Has(Handle<String> key);
+  bool Has(Handle<Value> key);
 
-  bool Delete(Handle<String> key);
+  bool Delete(Handle<Value> key);
 
   // Delete a property on this object bypassing interceptors and
   // ignoring dont-delete attributes.
@@ -1975,6 +2025,27 @@ class V8EXPORT StringObject : public Object {
   Local<String> StringValue() const;
 
   V8_INLINE(static StringObject* Cast(v8::Value* obj));
+
+ private:
+  static void CheckCast(v8::Value* obj);
+};
+
+
+/**
+ * A Symbol object (ECMA-262 edition 6).
+ *
+ * This is an experimental feature. Use at your own risk.
+ */
+class V8EXPORT SymbolObject : public Object {
+ public:
+  static Local<Value> New(Isolate* isolate, Handle<Symbol> value);
+
+  /**
+   * Returns the Symbol held by the object.
+   */
+  Local<Symbol> SymbolValue() const;
+
+  V8_INLINE(static SymbolObject* Cast(v8::Value* obj));
 
  private:
   static void CheckCast(v8::Value* obj);
@@ -3036,6 +3107,9 @@ class V8EXPORT Isolate {
    */
   CpuProfiler* GetCpuProfiler();
 
+  /** Returns the context that is on the top of the stack. */
+  Local<Context> GetCurrentContext();
+
  private:
   Isolate();
   Isolate(const Isolate&);
@@ -3864,11 +3938,11 @@ class V8EXPORT Context {
    */
   void ReattachGlobal(Handle<Object> global_object);
 
-  /** Creates a new context.
+  /**
+   * Creates a new context and returns a handle to the newly allocated
+   * context.
    *
-   * Returns a persistent handle to the newly allocated context. This
-   * persistent handle has to be disposed when the context is no
-   * longer used so the context can be garbage collected.
+   * \param isolate The isolate in which to create the context.
    *
    * \param extensions An optional extension configuration containing
    * the extensions to be installed in the newly created context.
@@ -3882,6 +3956,14 @@ class V8EXPORT Context {
    * template. The state of the global object will be completely reset
    * and only object identify will remain.
    */
+  static Local<Context> New(
+      Isolate* isolate,
+      ExtensionConfiguration* extensions = NULL,
+      Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
+      Handle<Value> global_object = Handle<Value>());
+
+  /** Deprecated. Use Isolate version instead. */
+  // TODO(mstarzinger): Put this behind the V8_DEPRECATED guard.
   static Persistent<Context> New(
       ExtensionConfiguration* extensions = NULL,
       Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
@@ -3890,7 +3972,8 @@ class V8EXPORT Context {
   /** Returns the last entered context. */
   static Local<Context> GetEntered();
 
-  /** Returns the context that is on the top of the stack. */
+  // TODO(svenpanne) Actually deprecate this.
+  /** Deprecated. Use Isolate::GetCurrentContext instead. */
   static Local<Context> GetCurrent();
 
   /**
@@ -4301,7 +4384,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 119;
+  static const int kEmptyStringRootIndex = 118;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -4847,6 +4930,14 @@ bool Value::QuickIsString() const {
 }
 
 
+Symbol* Symbol::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Symbol*>(value);
+}
+
+
 Number* Number::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
@@ -4876,6 +4967,14 @@ StringObject* StringObject::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<StringObject*>(value);
+}
+
+
+SymbolObject* SymbolObject::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<SymbolObject*>(value);
 }
 
 

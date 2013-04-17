@@ -445,7 +445,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     generator_ = new ProfileGenerator(profiles_);
     processor_ = new ProfilerEventsProcessor(generator_);
     is_profiling_ = true;
-    processor_->Start();
+    processor_->StartSynchronously();
     // Enumerate stuff we already have in the heap.
     if (isolate_->heap()->HasBeenSetUp()) {
       if (!FLAG_prof_browser_mode) {
@@ -459,11 +459,11 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     }
     // Enable stack sampling.
     Sampler* sampler = reinterpret_cast<Sampler*>(isolate_->logger()->ticker_);
+    sampler->IncreaseProfilingDepth();
     if (!sampler->IsActive()) {
       sampler->Start();
       need_to_stop_sampler_ = true;
     }
-    sampler->IncreaseProfilingDepth();
   }
 }
 

@@ -27,16 +27,20 @@
 
 "use strict";
 
+// This file relies on the fact that the following declaration has been made
+// in runtime.js:
+// var $Array = global.Array;
+
 var $Set = global.Set;
 var $Map = global.Map;
 var $WeakMap = global.WeakMap;
-
-//-------------------------------------------------------------------
 
 // Global sentinel to be used instead of undefined keys, which are not
 // supported internally but required for Harmony sets and maps.
 var undefined_sentinel = {};
 
+// -------------------------------------------------------------------
+// Harmony Set
 
 function SetConstructor() {
   if (%_IsConstructCall()) {
@@ -106,6 +110,31 @@ function SetClear() {
   %SetInitialize(this);
 }
 
+
+// -------------------------------------------------------------------
+
+function SetUpSet() {
+  %CheckIsBootstrapping();
+
+  %SetCode($Set, SetConstructor);
+  %FunctionSetPrototype($Set, new $Object());
+  %SetProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
+
+  // Set up the non-enumerable functions on the Set prototype object.
+  InstallGetter($Set.prototype, "size", SetGetSize);
+  InstallFunctions($Set.prototype, DONT_ENUM, $Array(
+    "add", SetAdd,
+    "has", SetHas,
+    "delete", SetDelete,
+    "clear", SetClear
+  ));
+}
+
+SetUpSet();
+
+
+// -------------------------------------------------------------------
+// Harmony Map
 
 function MapConstructor() {
   if (%_IsConstructCall()) {
@@ -183,6 +212,32 @@ function MapClear() {
 }
 
 
+// -------------------------------------------------------------------
+
+function SetUpMap() {
+  %CheckIsBootstrapping();
+
+  %SetCode($Map, MapConstructor);
+  %FunctionSetPrototype($Map, new $Object());
+  %SetProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
+
+  // Set up the non-enumerable functions on the Map prototype object.
+  InstallGetter($Map.prototype, "size", MapGetSize);
+  InstallFunctions($Map.prototype, DONT_ENUM, $Array(
+    "get", MapGet,
+    "set", MapSet,
+    "has", MapHas,
+    "delete", MapDelete,
+    "clear", MapClear
+  ));
+}
+
+SetUpMap();
+
+
+// -------------------------------------------------------------------
+// Harmony WeakMap
+
 function WeakMapConstructor() {
   if (%_IsConstructCall()) {
     %WeakMapInitialize(this);
@@ -239,42 +294,14 @@ function WeakMapDelete(key) {
   return %WeakMapDelete(this, key);
 }
 
+
 // -------------------------------------------------------------------
 
-(function () {
+function SetUpWeakMap() {
   %CheckIsBootstrapping();
 
-  // Set up the Set and Map constructor function.
-  %SetCode($Set, SetConstructor);
-  %SetCode($Map, MapConstructor);
-
-  // Set up the constructor property on the Set and Map prototype object.
-  %SetProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
-  %SetProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
-
-  // Set up the non-enumerable functions on the Set prototype object.
-  InstallGetter($Set.prototype, "size", SetGetSize);
-  InstallFunctions($Set.prototype, DONT_ENUM, $Array(
-    "add", SetAdd,
-    "has", SetHas,
-    "delete", SetDelete,
-    "clear", SetClear
-  ));
-
-  // Set up the non-enumerable functions on the Map prototype object.
-  InstallGetter($Map.prototype, "size", MapGetSize);
-  InstallFunctions($Map.prototype, DONT_ENUM, $Array(
-    "get", MapGet,
-    "set", MapSet,
-    "has", MapHas,
-    "delete", MapDelete,
-    "clear", MapClear
-  ));
-
-  // Set up the WeakMap constructor function.
   %SetCode($WeakMap, WeakMapConstructor);
-
-  // Set up the constructor property on the WeakMap prototype object.
+  %FunctionSetPrototype($WeakMap, new $Object());
   %SetProperty($WeakMap.prototype, "constructor", $WeakMap, DONT_ENUM);
 
   // Set up the non-enumerable functions on the WeakMap prototype object.
@@ -284,4 +311,6 @@ function WeakMapDelete(key) {
     "has", WeakMapHas,
     "delete", WeakMapDelete
   ));
-})();
+}
+
+SetUpWeakMap();

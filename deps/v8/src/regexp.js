@@ -25,10 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Expect $Object = global.Object;
-// Expect $Array = global.Array;
+// This file relies on the fact that the following declaration has been made
+// in runtime.js:
+// var $Object = global.Object;
+// var $Array = global.Array;
 
 var $RegExp = global.RegExp;
+
+// -------------------------------------------------------------------
 
 // A recursive descent parser for Patterns according to the grammar of
 // ECMA-262 15.10.1, with deviations noted below.

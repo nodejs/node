@@ -48,14 +48,6 @@
 
 static const bool kLogThreading = false;
 
-static bool IsNaN(double x) {
-#ifdef WIN32
-  return _isnan(x);
-#else
-  return isnan(x);
-#endif
-}
-
 using ::v8::AccessorInfo;
 using ::v8::Arguments;
 using ::v8::Context;
@@ -2178,6 +2170,88 @@ THREADED_TEST(IdentityHash) {
 }
 
 
+THREADED_TEST(SymbolProperties) {
+  i::FLAG_harmony_symbols = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> obj = v8::Object::New();
+  v8::Local<v8::Symbol> sym1 = v8::Symbol::New(isolate);
+  v8::Local<v8::Symbol> sym2 = v8::Symbol::New(isolate, "my-symbol");
+
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  // Check basic symbol functionality.
+  CHECK(sym1->IsSymbol());
+  CHECK(sym2->IsSymbol());
+  CHECK(!obj->IsSymbol());
+
+  CHECK(sym1->Equals(sym1));
+  CHECK(sym2->Equals(sym2));
+  CHECK(!sym1->Equals(sym2));
+  CHECK(!sym2->Equals(sym1));
+  CHECK(sym1->StrictEquals(sym1));
+  CHECK(sym2->StrictEquals(sym2));
+  CHECK(!sym1->StrictEquals(sym2));
+  CHECK(!sym2->StrictEquals(sym1));
+
+  CHECK(sym2->Name()->Equals(v8::String::New("my-symbol")));
+
+  v8::Local<v8::Value> sym_val = sym2;
+  CHECK(sym_val->IsSymbol());
+  CHECK(sym_val->Equals(sym2));
+  CHECK(sym_val->StrictEquals(sym2));
+  CHECK(v8::Symbol::Cast(*sym_val)->Equals(sym2));
+
+  v8::Local<v8::Value> sym_obj = v8::SymbolObject::New(isolate, sym2);
+  CHECK(sym_obj->IsSymbolObject());
+  CHECK(!sym2->IsSymbolObject());
+  CHECK(!obj->IsSymbolObject());
+  CHECK(sym_obj->Equals(sym2));
+  CHECK(!sym_obj->StrictEquals(sym2));
+  CHECK(v8::SymbolObject::Cast(*sym_obj)->Equals(sym_obj));
+  CHECK(v8::SymbolObject::Cast(*sym_obj)->SymbolValue()->Equals(sym2));
+
+  // Make sure delete of a non-existent symbol property works.
+  CHECK(obj->Delete(sym1));
+  CHECK(!obj->Has(sym1));
+
+  CHECK(obj->Set(sym1, v8::Integer::New(1503)));
+  CHECK(obj->Has(sym1));
+  CHECK_EQ(1503, obj->Get(sym1)->Int32Value());
+  CHECK(obj->Set(sym1, v8::Integer::New(2002)));
+  CHECK(obj->Has(sym1));
+  CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
+  CHECK_EQ(v8::None, obj->GetPropertyAttributes(sym1));
+
+  CHECK_EQ(0, obj->GetOwnPropertyNames()->Length());
+  int num_props = obj->GetPropertyNames()->Length();
+  CHECK(obj->Set(v8::String::New("bla"), v8::Integer::New(20)));
+  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+  CHECK_EQ(num_props + 1, obj->GetPropertyNames()->Length());
+
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  // Add another property and delete it afterwards to force the object in
+  // slow case.
+  CHECK(obj->Set(sym2, v8::Integer::New(2008)));
+  CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
+  CHECK_EQ(2008, obj->Get(sym2)->Int32Value());
+  CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
+  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+
+  CHECK(obj->Has(sym1));
+  CHECK(obj->Has(sym2));
+  CHECK(obj->Delete(sym2));
+  CHECK(obj->Has(sym1));
+  CHECK(!obj->Has(sym2));
+  CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
+  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+}
+
+
 THREADED_TEST(HiddenProperties) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -3270,7 +3344,7 @@ THREADED_TEST(ConversionException) {
   CheckUncle(&try_catch);
 
   double number_value = obj->NumberValue();
-  CHECK_NE(0, IsNaN(number_value));
+  CHECK_NE(0, isnan(number_value));
   CheckUncle(&try_catch);
 
   int64_t integer_value = obj->IntegerValue();
@@ -12417,7 +12491,7 @@ TEST(PreCompileSerialization) {
   // Serialize.
   int serialized_data_length = sd->Length();
   char* serialized_data = i::NewArray<char>(serialized_data_length);
-  memcpy(serialized_data, sd->Data(), serialized_data_length);
+  i::OS::MemCopy(serialized_data, sd->Data(), serialized_data_length);
 
   // Deserialize.
   v8::ScriptData* deserialized_sd =
@@ -13410,6 +13484,7 @@ v8::Persistent<Context> calling_context2;
 static v8::Handle<Value> GetCallingContextCallback(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
   CHECK(Context::GetCurrent() == calling_context0);
+  CHECK(args.GetIsolate()->GetCurrentContext() == calling_context0);
   CHECK(Context::GetCalling() == calling_context1);
   CHECK(Context::GetEntered() == calling_context2);
   return v8::Integer::New(42);
@@ -15356,21 +15431,21 @@ TEST(VisitExternalStrings) {
 
 static double DoubleFromBits(uint64_t value) {
   double target;
-  memcpy(&target, &value, sizeof(target));
+  i::OS::MemCopy(&target, &value, sizeof(target));
   return target;
 }
 
 
 static uint64_t DoubleToBits(double value) {
   uint64_t target;
-  memcpy(&target, &value, sizeof(target));
+  i::OS::MemCopy(&target, &value, sizeof(target));
   return target;
 }
 
 
 static double DoubleToDateTime(double input) {
   double date_limit = 864e13;
-  if (IsNaN(input) || input < -date_limit || input > date_limit) {
+  if (isnan(input) || input < -date_limit || input > date_limit) {
     return i::OS::nan_value();
   }
   return (input < 0) ? -(floor(-input)) : floor(input);
@@ -15431,7 +15506,7 @@ THREADED_TEST(QuietSignalingNaNs) {
     // Check that Number::New preserves non-NaNs and quiets SNaNs.
     v8::Handle<v8::Value> number = v8::Number::New(test_value);
     double stored_number = number->NumberValue();
-    if (!IsNaN(test_value)) {
+    if (!isnan(test_value)) {
       CHECK_EQ(test_value, stored_number);
     } else {
       uint64_t stored_bits = DoubleToBits(stored_number);
@@ -15450,7 +15525,7 @@ THREADED_TEST(QuietSignalingNaNs) {
     v8::Handle<v8::Value> date = v8::Date::New(test_value);
     double expected_stored_date = DoubleToDateTime(test_value);
     double stored_date = date->NumberValue();
-    if (!IsNaN(expected_stored_date)) {
+    if (!isnan(expected_stored_date)) {
       CHECK_EQ(expected_stored_date, stored_date);
     } else {
       uint64_t stored_bits = DoubleToBits(stored_date);

@@ -95,18 +95,6 @@ class RandomNumberGenerator {
 
 using namespace v8::internal;
 
-static v8::Persistent<v8::Context> env;
-
-
-static void InitializeVM() {
-  if (env.IsEmpty()) {
-    const char* extensions[] = { "v8/print" };
-    v8::ExtensionConfiguration config(1, extensions);
-    env = v8::Context::New(&config);
-  }
-  env->Enter();
-}
-
 
 static const int DEEP_DEPTH = 8 * 1024;
 static const int SUPER_DEEP_DEPTH = 80 * 1024;
@@ -574,8 +562,8 @@ static void TraverseFirst(Handle<String> s1, Handle<String> s2, int chars) {
 
 TEST(Traverse) {
   printf("TestTraverse\n");
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   ConsStringGenerationData data(false);
   Handle<String> flat = ConstructBalanced(&data);
@@ -663,7 +651,7 @@ printf(
 
 template<typename BuildString>
 void TestStringCharacterStream(BuildString build, int test_cases) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope outer_scope(isolate);
   ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
@@ -863,8 +851,8 @@ static const int DEEP_ASCII_DEPTH = 100000;
 
 TEST(DeepAscii) {
   printf("TestDeepAscii\n");
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
 
   char* foo = NewArray<char>(DEEP_ASCII_DEPTH);
   for (int i = 0; i < DEEP_ASCII_DEPTH; i++) {
@@ -888,8 +876,8 @@ TEST(DeepAscii) {
 
 TEST(Utf8Conversion) {
   // Smoke test for converting strings to utf-8.
-  InitializeVM();
-  v8::HandleScope handle_scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope handle_scope(CcTest::isolate());
   // A simple ascii string
   const char* ascii_string = "abcdef12345";
   int len =
@@ -935,8 +923,8 @@ TEST(Utf8Conversion) {
 TEST(ExternalShortStringAdd) {
   ZoneScope zonescope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
 
-  InitializeVM();
-  v8::HandleScope handle_scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope handle_scope(CcTest::isolate());
   Zone* zone = Isolate::Current()->runtime_zone();
 
   // Make sure we cover all always-flat lengths and at least one above.
@@ -977,7 +965,7 @@ TEST(ExternalShortStringAdd) {
   }
 
   // Add the arrays with the short external strings in the global object.
-  v8::Handle<v8::Object> global = env->Global();
+  v8::Handle<v8::Object> global = CcTest::env()->Global();
   global->Set(v8_str("external_ascii"), ascii_external_strings);
   global->Set(v8_str("external_non_ascii"), non_ascii_external_strings);
   global->Set(v8_str("max_length"), v8::Integer::New(kMaxLength));
@@ -1027,8 +1015,8 @@ TEST(CachedHashOverflow) {
   Isolate* isolate = Isolate::Current();
   ZoneScope zone(isolate->runtime_zone(), DELETE_ON_EXIT);
 
-  InitializeVM();
-  v8::HandleScope handle_scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope handle_scope(CcTest::isolate());
   // Lines must be executed sequentially. Combining them into one script
   // makes the bug go away.
   const char* lines[] = {
@@ -1070,8 +1058,8 @@ TEST(CachedHashOverflow) {
 
 TEST(SliceFromCons) {
   FLAG_string_slices = true;
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   Handle<String> string =
       FACTORY->NewStringFromAscii(CStrVector("parentparentparent"));
   Handle<String> parent = FACTORY->NewConsString(string, string);
@@ -1104,8 +1092,8 @@ class AsciiVectorResource : public v8::String::ExternalAsciiStringResource {
 
 TEST(SliceFromExternal) {
   FLAG_string_slices = true;
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   AsciiVectorResource resource(
       i::Vector<const char>("abcdefghijklmnopqrstuvwxyz", 26));
   Handle<String> string = FACTORY->NewExternalStringFromAscii(&resource);
@@ -1123,8 +1111,8 @@ TEST(TrivialSlice) {
   // This tests whether a slice that contains the entire parent string
   // actually creates a new string (it should not).
   FLAG_string_slices = true;
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> result;
   Handle<String> string;
   const char* init = "var str = 'abcdefghijklmnopqrstuvwxyz';";
@@ -1152,8 +1140,8 @@ TEST(SliceFromSlice) {
   // This tests whether a slice that contains the entire parent string
   // actually creates a new string (it should not).
   FLAG_string_slices = true;
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> result;
   Handle<String> string;
   const char* init = "var str = 'abcdefghijklmnopqrstuvwxyz';";
@@ -1220,8 +1208,8 @@ TEST(RobustSubStringStub) {
   // This tests whether the SubStringStub can handle unsafe arguments.
   // If not recognized, those unsafe arguments lead to out-of-bounds reads.
   FLAG_allow_natives_syntax = true;
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> result;
   Handle<String> string;
   CompileRun("var short = 'abcdef';");
@@ -1264,8 +1252,8 @@ TEST(RobustSubStringStub) {
 
 TEST(RegExpOverflow) {
   // Result string has the length 2^32, causing a 32-bit integer overflow.
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   v8::V8::IgnoreOutOfMemoryException();
   v8::Local<v8::Value> result = CompileRun(
@@ -1280,8 +1268,8 @@ TEST(RegExpOverflow) {
 
 
 TEST(StringReplaceAtomTwoByteResult) {
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   v8::Local<v8::Value> result = CompileRun(
       "var subject = 'ascii~only~string~'; "

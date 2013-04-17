@@ -27,6 +27,8 @@
 
 // Flags: --harmony-typed-arrays
 
+// ArrayBuffer
+
 function TestByteLength(param, expectedByteLength) {
   var ab = new __ArrayBuffer(param);
   assertSame(expectedByteLength, ab.byteLength);
@@ -104,8 +106,98 @@ function TestArrayBufferSlice() {
 
 TestArrayBufferSlice();
 
+// Typed arrays
+
+function TestTypedArray(proto, elementSize, typicalElement) {
+  var ab = new __ArrayBuffer(256*elementSize);
+
+  var a1 = new proto(ab, 128*elementSize, 128);
+  assertSame(ab, a1.buffer);
+  assertSame(elementSize, a1.BYTES_PER_ELEMENT);
+  assertSame(128, a1.length);
+  assertSame(128*elementSize, a1.byteLength);
+  assertSame(128*elementSize, a1.byteOffset);
+
+
+  var a2 = new proto(ab, 64*elementSize, 128);
+  assertSame(ab, a2.buffer);
+  assertSame(elementSize, a2.BYTES_PER_ELEMENT);
+  assertSame(128, a2.length);
+  assertSame(128*elementSize, a2.byteLength);
+  assertSame(64*elementSize, a2.byteOffset);
+
+  var a3 = new proto(ab, 192*elementSize);
+  assertSame(ab, a3.buffer);
+  assertSame(64, a3.length);
+  assertSame(64*elementSize, a3.byteLength);
+  assertSame(192*elementSize, a3.byteOffset);
+
+  var a4 = new proto(ab);
+  assertSame(ab, a4.buffer);
+  assertSame(256, a4.length);
+  assertSame(256*elementSize, a4.byteLength);
+  assertSame(0, a4.byteOffset);
+
+
+  var i;
+  for (i = 0; i < 128; i++) {
+    a1[i] = typicalElement;
+  }
+
+  for (i = 0; i < 128; i++) {
+    assertSame(typicalElement, a1[i]);
+  }
+
+  for (i = 0; i < 64; i++) {
+    assertSame(0, a2[i]);
+  }
+
+  for (i = 64; i < 128; i++) {
+    assertSame(typicalElement, a2[i]);
+  }
+
+  for (i = 0; i < 64; i++) {
+    assertSame(typicalElement, a3[i]);
+  }
+
+  for (i = 0; i < 128; i++) {
+    assertSame(0, a4[i]);
+  }
+
+  for (i = 128; i < 256; i++) {
+    assertSame(typicalElement, a4[i]);
+  }
+
+  assertThrows(function () { new proto(ab, 256*elementSize); }, RangeError);
+
+  if (elementSize !== 1) {
+    assertThrows(function() { new proto(ab, 128*elementSize - 1, 10); },
+                 RangeError);
+    var unalignedArrayBuffer = new __ArrayBuffer(10*elementSize + 1);
+    var goodArray = new proto(unalignedArrayBuffer, 0, 10);
+    assertSame(10, goodArray.length);
+    assertSame(10*elementSize, goodArray.byteLength);
+    assertThrows(function() { new proto(unalignedArrayBuffer)}, RangeError);
+    assertThrows(function() { new proto(unalignedArrayBuffer, 5*elementSize)},
+                 RangeError);
+  }
+
+}
+
+TestTypedArray(__Uint8Array, 1, 0xFF);
+TestTypedArray(__Int8Array, 1, -0x7F);
+TestTypedArray(__Uint16Array, 2, 0xFFFF);
+TestTypedArray(__Int16Array, 2, -0x7FFF);
+TestTypedArray(__Uint32Array, 4, 0xFFFFFFFF);
+TestTypedArray(__Int32Array, 4, -0x7FFFFFFF);
+TestTypedArray(__Float32Array, 4, 0.5);
+TestTypedArray(__Float64Array, 8, 0.5);
+
+
+// General tests for properties
+
 // Test property attribute [[Enumerable]]
-function TestEnumerable(func) {
+function TestEnumerable(func, obj) {
   function props(x) {
     var array = [];
     for (var p in x) array.push(p);
@@ -113,9 +205,11 @@ function TestEnumerable(func) {
   }
   assertArrayEquals([], props(func));
   assertArrayEquals([], props(func.prototype));
-  assertArrayEquals([], props(new func()));
+  if (obj)
+    assertArrayEquals([], props(obj));
 }
-TestEnumerable(__ArrayBuffer);
+TestEnumerable(__ArrayBuffer, new __ArrayBuffer());
+TestEnumerable(__Uint8Array);
 
 
 // Test arbitrary properties on ArrayBuffer
@@ -130,7 +224,6 @@ function TestArbitrary(m) {
   }
 }
 TestArbitrary(new __ArrayBuffer(256));
-
 
 // Test direct constructor call
 assertTrue(__ArrayBuffer() instanceof __ArrayBuffer);

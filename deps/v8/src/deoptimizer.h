@@ -210,31 +210,44 @@ class Deoptimizer : public Malloced {
   // The size in bytes of the code required at a lazy deopt patch site.
   static int patch_size();
 
-  // Patch all stack guard checks in the unoptimized code to
+  // Patch all interrupts with allowed loop depth in the unoptimized code to
   // unconditionally call replacement_code.
-  static void PatchStackCheckCode(Code* unoptimized_code,
-                                  Code* check_code,
-                                  Code* replacement_code);
+  static void PatchInterruptCode(Code* unoptimized_code,
+                                 Code* interrupt_code,
+                                 Code* replacement_code);
 
-  // Patch stack guard check at instruction before pc_after in
+  // Patch the interrupt at the instruction before pc_after in
   // the unoptimized code to unconditionally call replacement_code.
-  static void PatchStackCheckCodeAt(Code* unoptimized_code,
-                                    Address pc_after,
-                                    Code* check_code,
-                                    Code* replacement_code);
-
-  // Change all patched stack guard checks in the unoptimized code
-  // back to a normal stack guard check.
-  static void RevertStackCheckCode(Code* unoptimized_code,
-                                   Code* check_code,
+  static void PatchInterruptCodeAt(Code* unoptimized_code,
+                                   Address pc_after,
+                                   Code* interrupt_code,
                                    Code* replacement_code);
 
-  // Change all patched stack guard checks in the unoptimized code
-  // back to a normal stack guard check.
-  static void RevertStackCheckCodeAt(Code* unoptimized_code,
+  // Change all patched interrupts patched in the unoptimized code
+  // back to normal interrupts.
+  static void RevertInterruptCode(Code* unoptimized_code,
+                                  Code* interrupt_code,
+                                  Code* replacement_code);
+
+  // Change patched interrupt in the unoptimized code
+  // back to a normal interrupt.
+  static void RevertInterruptCodeAt(Code* unoptimized_code,
+                                    Address pc_after,
+                                    Code* interrupt_code,
+                                    Code* replacement_code);
+
+#ifdef DEBUG
+  static bool InterruptCodeIsPatched(Code* unoptimized_code,
                                      Address pc_after,
-                                     Code* check_code,
+                                     Code* interrupt_code,
                                      Code* replacement_code);
+
+  // Verify that all back edges of a certain loop depth are patched.
+  static void VerifyInterruptCode(Code* unoptimized_code,
+                                  Code* interrupt_code,
+                                  Code* replacement_code,
+                                  int loop_nesting_level);
+#endif  // DEBUG
 
   ~Deoptimizer();
 

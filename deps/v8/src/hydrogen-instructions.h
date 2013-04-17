@@ -111,7 +111,6 @@ class LChunkBuilder;
   V(DummyUse)                                  \
   V(ElementsKind)                              \
   V(EnterInlined)                              \
-  V(FastLiteral)                               \
   V(FixedArrayBaseLength)                      \
   V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
@@ -235,14 +234,6 @@ class LChunkBuilder;
   virtual Opcode opcode() const { return HValue::k##type; }
 
 
-#ifdef DEBUG
-#define ASSERT_ALLOCATION_DISABLED                                       \
-  ASSERT(isolate()->optimizing_compiler_thread()->IsOptimizerThread() || \
-         !isolate()->heap()->IsAllocationAllowed())
-#else
-#define ASSERT_ALLOCATION_DISABLED do {} while (0)
-#endif
-
 class Range: public ZoneObject {
  public:
   Range()
@@ -362,6 +353,48 @@ class Representation {
   STATIC_ASSERT(kNumRepresentations <= (1 << kBitsPerByte));
 
   int8_t kind_;
+};
+
+
+class UniqueValueId {
+ public:
+  UniqueValueId() : raw_address_(NULL) { }
+
+  explicit UniqueValueId(Object* object) {
+    raw_address_ = reinterpret_cast<Address>(object);
+    ASSERT(IsInitialized());
+  }
+
+  explicit UniqueValueId(Handle<Object> handle) {
+    static const Address kEmptyHandleSentinel = reinterpret_cast<Address>(1);
+    if (handle.is_null()) {
+      raw_address_ = kEmptyHandleSentinel;
+    } else {
+      raw_address_ = reinterpret_cast<Address>(*handle);
+      ASSERT_NE(kEmptyHandleSentinel, raw_address_);
+    }
+    ASSERT(IsInitialized());
+  }
+
+  bool IsInitialized() const { return raw_address_ != NULL; }
+
+  bool operator==(const UniqueValueId& other) const {
+    ASSERT(IsInitialized() && other.IsInitialized());
+    return raw_address_ == other.raw_address_;
+  }
+
+  bool operator!=(const UniqueValueId& other) const {
+    ASSERT(IsInitialized() && other.IsInitialized());
+    return raw_address_ != other.raw_address_;
+  }
+
+  intptr_t Hashcode() const {
+    ASSERT(IsInitialized());
+    return reinterpret_cast<intptr_t>(raw_address_);
+  }
+
+ private:
+  Address raw_address_;
 };
 
 
@@ -829,6 +862,7 @@ class HValue: public ZoneObject {
     // This flag is set to true after the SetupInformativeDefinitions() pass
     // has processed this instruction.
     kIDefsProcessingDone,
+    kHasNoObservableSideEffects,
     kLastFlag = kIDefsProcessingDone
   };
 
@@ -1006,7 +1040,8 @@ class HValue: public ZoneObject {
     return gvn_flags_.ContainsAnyOf(AllSideEffectsFlagSet());
   }
   bool HasObservableSideEffects() const {
-    return gvn_flags_.ContainsAnyOf(AllObservableSideEffectsFlagSet());
+    return !CheckFlag(kHasNoObservableSideEffects) &&
+        gvn_flags_.ContainsAnyOf(AllObservableSideEffectsFlagSet());
   }
 
   GVNFlagSet DependsOnFlags() const {
@@ -1055,6 +1090,9 @@ class HValue: public ZoneObject {
 
   bool Equals(HValue* other);
   virtual intptr_t Hashcode();
+
+  // Compute unique ids upfront that is safe wrt GC and parallel recompilation.
+  virtual void FinalizeUniqueValueId() { }
 
   // Printing support.
   virtual void PrintTo(StringStream* stream) = 0;
@@ -1830,7 +1868,7 @@ class HSimulate: public HInstruction {
     return Representation::None();
   }
 
-  void MergeInto(HSimulate* other);
+  void MergeWith(ZoneList<HSimulate*>* list);
   bool is_candidate_for_removal() { return removable_ == REMOVABLE_SIMULATE; }
 
   DECLARE_CONCRETE_INSTRUCTION(Simulate)
@@ -2642,7 +2680,8 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 class HCheckMaps: public HTemplateInstruction<2> {
  public:
   HCheckMaps(HValue* value, Handle<Map> map, Zone* zone,
-             HValue* typecheck = NULL) {
+             HValue* typecheck = NULL)
+      : map_unique_ids_(0, zone) {
     SetOperandAt(0, value);
     // If callers don't depend on a typecheck, they can pass in NULL. In that
     // case we use a copy of the |value| argument as a dummy value.
@@ -2654,7 +2693,8 @@ class HCheckMaps: public HTemplateInstruction<2> {
     SetGVNFlag(kDependsOnElementsKind);
     map_set()->Add(map, zone);
   }
-  HCheckMaps(HValue* value, SmallMapList* maps, Zone* zone) {
+  HCheckMaps(HValue* value, SmallMapList* maps, Zone* zone)
+      : map_unique_ids_(0, zone) {
     SetOperandAt(0, value);
     SetOperandAt(1, value);
     set_representation(Representation::Tagged());
@@ -2701,28 +2741,36 @@ class HCheckMaps: public HTemplateInstruction<2> {
   HValue* value() { return OperandAt(0); }
   SmallMapList* map_set() { return &map_set_; }
 
+  virtual void FinalizeUniqueValueId();
+
   DECLARE_CONCRETE_INSTRUCTION(CheckMaps)
 
  protected:
   virtual bool DataEquals(HValue* other) {
+    ASSERT_EQ(map_set_.length(), map_unique_ids_.length());
     HCheckMaps* b = HCheckMaps::cast(other);
     // Relies on the fact that map_set has been sorted before.
-    if (map_set()->length() != b->map_set()->length()) return false;
-    for (int i = 0; i < map_set()->length(); i++) {
-      if (!map_set()->at(i).is_identical_to(b->map_set()->at(i))) return false;
+    if (map_unique_ids_.length() != b->map_unique_ids_.length()) {
+      return false;
+    }
+    for (int i = 0; i < map_unique_ids_.length(); i++) {
+      if (map_unique_ids_.at(i) != b->map_unique_ids_.at(i)) {
+        return false;
+      }
     }
     return true;
   }
 
  private:
   SmallMapList map_set_;
+  ZoneList<UniqueValueId> map_unique_ids_;
 };
 
 
 class HCheckFunction: public HUnaryOperation {
  public:
   HCheckFunction(HValue* value, Handle<JSFunction> function)
-      : HUnaryOperation(value), target_(function) {
+      : HUnaryOperation(value), target_(function), target_unique_id_() {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     target_in_new_space_ = Isolate::Current()->heap()->InNewSpace(*function);
@@ -2738,6 +2786,10 @@ class HCheckFunction: public HUnaryOperation {
   virtual void Verify();
 #endif
 
+  virtual void FinalizeUniqueValueId() {
+    target_unique_id_ = UniqueValueId(target_);
+  }
+
   Handle<JSFunction> target() const { return target_; }
   bool target_in_new_space() const { return target_in_new_space_; }
 
@@ -2746,11 +2798,12 @@ class HCheckFunction: public HUnaryOperation {
  protected:
   virtual bool DataEquals(HValue* other) {
     HCheckFunction* b = HCheckFunction::cast(other);
-    return target_.is_identical_to(b->target());
+    return target_unique_id_ == b->target_unique_id_;
   }
 
  private:
   Handle<JSFunction> target_;
+  UniqueValueId target_unique_id_;
   bool target_in_new_space_;
 };
 
@@ -2855,7 +2908,11 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
  public:
   HCheckPrototypeMaps(Handle<JSObject> prototype,
                       Handle<JSObject> holder,
-                      Zone* zone) : prototypes_(2, zone), maps_(2, zone) {
+                      Zone* zone)
+      : prototypes_(2, zone),
+        maps_(2, zone),
+        first_prototype_unique_id_(),
+        last_prototype_unique_id_() {
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
     // Keep a list of all objects on the prototype chain up to the holder
@@ -2881,18 +2938,13 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual intptr_t Hashcode() {
-    ASSERT_ALLOCATION_DISABLED;
-    // Dereferencing to use the object's raw address for hashing is safe.
-    HandleDereferenceGuard allow_handle_deref(isolate(),
-                                              HandleDereferenceGuard::ALLOW);
-    SLOW_ASSERT(Heap::RelocationLock::IsLocked(isolate()->heap()) ||
-                !isolate()->optimizing_compiler_thread()->IsOptimizerThread());
-    intptr_t hash = 0;
-    for (int i = 0; i < prototypes_.length(); i++) {
-      hash = 17 * hash + reinterpret_cast<intptr_t>(*prototypes_[i]);
-      hash = 17 * hash + reinterpret_cast<intptr_t>(*maps_[i]);
-    }
-    return hash;
+    return first_prototype_unique_id_.Hashcode() * 17 +
+           last_prototype_unique_id_.Hashcode();
+  }
+
+  virtual void FinalizeUniqueValueId() {
+    first_prototype_unique_id_ = UniqueValueId(prototypes_.first());
+    last_prototype_unique_id_ = UniqueValueId(prototypes_.last());
   }
 
   bool CanOmitPrototypeChecks() {
@@ -2905,22 +2957,15 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
  protected:
   virtual bool DataEquals(HValue* other) {
     HCheckPrototypeMaps* b = HCheckPrototypeMaps::cast(other);
-#ifdef DEBUG
-    if (prototypes_.length() != b->prototypes()->length()) return false;
-    for (int i = 0; i < prototypes_.length(); i++) {
-      if (!prototypes_[i].is_identical_to(b->prototypes()->at(i))) return false;
-      if (!maps_[i].is_identical_to(b->maps()->at(i))) return false;
-    }
-    return true;
-#else
-    return prototypes_.first().is_identical_to(b->prototypes()->first()) &&
-           prototypes_.last().is_identical_to(b->prototypes()->last());
-#endif  // DEBUG
+    return first_prototype_unique_id_ == b->first_prototype_unique_id_ &&
+           last_prototype_unique_id_ == b->last_prototype_unique_id_;
   }
 
  private:
   ZoneList<Handle<JSObject> > prototypes_;
   ZoneList<Handle<Map> > maps_;
+  UniqueValueId first_prototype_unique_id_;
+  UniqueValueId last_prototype_unique_id_;
 };
 
 
@@ -3175,6 +3220,7 @@ class HConstant: public HTemplateInstruction<0> {
             Representation r,
             Handle<Object> optional_handle = Handle<Object>::null());
   HConstant(Handle<Object> handle,
+            UniqueValueId unique_id,
             Representation r,
             HType type,
             bool is_internalized_string,
@@ -3188,35 +3234,36 @@ class HConstant: public HTemplateInstruction<0> {
     return handle_;
   }
 
-  bool InOldSpace() const { return !HEAP->InNewSpace(*handle_); }
+  bool IsSpecialDouble() const {
+    return has_double_value_ &&
+        (BitCast<int64_t>(double_value_) == BitCast<int64_t>(-0.0) ||
+         FixedDoubleArray::is_the_hole_nan(double_value_) ||
+         isnan(double_value_));
+  }
 
   bool ImmortalImmovable() const {
     if (has_int32_value_) {
       return false;
     }
     if (has_double_value_) {
-      if (BitCast<int64_t>(double_value_) == BitCast<int64_t>(-0.0) ||
-          isnan(double_value_)) {
+      if (IsSpecialDouble()) {
         return true;
       }
       return false;
     }
 
     ASSERT(!handle_.is_null());
+    HandleDereferenceGuard allow_dereference_for_immovable_check(
+        isolate(), HandleDereferenceGuard::ALLOW);
     Heap* heap = isolate()->heap();
-    // We should have handled minus_zero_value and nan_value in the
-    // has_double_value_ clause above.
-    // Dereferencing is safe to compare against immovable singletons.
-    HandleDereferenceGuard allow_handle_deref(isolate(),
-                                              HandleDereferenceGuard::ALLOW);
-    ASSERT(*handle_ != heap->minus_zero_value());
-    ASSERT(*handle_ != heap->nan_value());
-    return *handle_ == heap->undefined_value() ||
-           *handle_ == heap->null_value() ||
-           *handle_ == heap->true_value() ||
-           *handle_ == heap->false_value() ||
-           *handle_ == heap->the_hole_value() ||
-           *handle_ == heap->empty_string();
+    ASSERT(unique_id_ != UniqueValueId(heap->minus_zero_value()));
+    ASSERT(unique_id_ != UniqueValueId(heap->nan_value()));
+    return unique_id_ == UniqueValueId(heap->undefined_value()) ||
+           unique_id_ == UniqueValueId(heap->null_value()) ||
+           unique_id_ == UniqueValueId(heap->true_value()) ||
+           unique_id_ == UniqueValueId(heap->false_value()) ||
+           unique_id_ == UniqueValueId(heap->the_hole_value()) ||
+           unique_id_ == UniqueValueId(heap->empty_string());
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -3227,7 +3274,9 @@ class HConstant: public HTemplateInstruction<0> {
     return has_int32_value_;
   }
 
-  virtual bool EmitAtUses() { return !representation().IsDouble(); }
+  virtual bool EmitAtUses() {
+    return !representation().IsDouble() || IsSpecialDouble();
+  }
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
@@ -3245,6 +3294,16 @@ class HConstant: public HTemplateInstruction<0> {
   double DoubleValue() const {
     ASSERT(HasDoubleValue());
     return double_value_;
+  }
+  bool IsTheHole() const {
+    if (HasDoubleValue() && FixedDoubleArray::is_the_hole_nan(double_value_)) {
+      return true;
+    }
+    Heap* heap = isolate()->heap();
+    if (!handle_.is_null() && *handle_ == heap->the_hole_value()) {
+      return true;
+    }
+    return false;
   }
   bool HasNumberValue() const { return has_double_value_; }
   int32_t NumberValueAsInteger32() const {
@@ -3274,24 +3333,21 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   virtual intptr_t Hashcode() {
-    ASSERT_ALLOCATION_DISABLED;
-    intptr_t hash;
-
     if (has_int32_value_) {
-      hash = static_cast<intptr_t>(int32_value_);
+      return static_cast<intptr_t>(int32_value_);
     } else if (has_double_value_) {
-      hash = static_cast<intptr_t>(BitCast<int64_t>(double_value_));
+      return static_cast<intptr_t>(BitCast<int64_t>(double_value_));
     } else {
       ASSERT(!handle_.is_null());
-      // Dereferencing to use the object's raw address for hashing is safe.
-      HandleDereferenceGuard allow_handle_deref(isolate(),
-                                                HandleDereferenceGuard::ALLOW);
-      SLOW_ASSERT(Heap::RelocationLock::IsLocked(isolate()->heap()) ||
-                 !isolate()->optimizing_compiler_thread()->IsOptimizerThread());
-      hash = reinterpret_cast<intptr_t>(*handle_);
+      return unique_id_.Hashcode();
     }
+  }
 
-    return hash;
+  virtual void FinalizeUniqueValueId() {
+    if (!has_double_value_) {
+      ASSERT(!handle_.is_null());
+      unique_id_ = UniqueValueId(handle_);
+    }
   }
 
 #ifdef DEBUG
@@ -3315,7 +3371,7 @@ class HConstant: public HTemplateInstruction<0> {
     } else {
       ASSERT(!handle_.is_null());
       return !other_constant->handle_.is_null() &&
-          handle_.is_identical_to(other_constant->handle_);
+             unique_id_ == other_constant->unique_id_;
     }
   }
 
@@ -3329,6 +3385,7 @@ class HConstant: public HTemplateInstruction<0> {
   // constant is non-numeric, handle_ always points to a valid
   // constant HeapObject.
   Handle<Object> handle_;
+  UniqueValueId unique_id_;
 
   // We store the HConstant in the most specific form safely possible.
   // The two flags, has_int32_value_ and has_double_value_ tell us if
@@ -4740,7 +4797,7 @@ class HUnknownOSRValue: public HTemplateInstruction<0> {
 class HLoadGlobalCell: public HTemplateInstruction<0> {
  public:
   HLoadGlobalCell(Handle<JSGlobalPropertyCell> cell, PropertyDetails details)
-      : cell_(cell), details_(details) {
+      : cell_(cell), details_(details), unique_id_() {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnGlobalVars);
@@ -4752,13 +4809,11 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual intptr_t Hashcode() {
-    ASSERT_ALLOCATION_DISABLED;
-    // Dereferencing to use the object's raw address for hashing is safe.
-    HandleDereferenceGuard allow_handle_deref(isolate(),
-                                              HandleDereferenceGuard::ALLOW);
-    SLOW_ASSERT(Heap::RelocationLock::IsLocked(isolate()->heap()) ||
-               !isolate()->optimizing_compiler_thread()->IsOptimizerThread());
-    return reinterpret_cast<intptr_t>(*cell_);
+    return unique_id_.Hashcode();
+  }
+
+  virtual void FinalizeUniqueValueId() {
+    unique_id_ = UniqueValueId(cell_);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -4770,7 +4825,7 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
  protected:
   virtual bool DataEquals(HValue* other) {
     HLoadGlobalCell* b = HLoadGlobalCell::cast(other);
-    return cell_.is_identical_to(b->cell());
+    return unique_id_ == b->unique_id_;
   }
 
  private:
@@ -4778,6 +4833,7 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
 
   Handle<JSGlobalPropertyCell> cell_;
   PropertyDetails details_;
+  UniqueValueId unique_id_;
 };
 
 
@@ -4860,7 +4916,6 @@ class HAllocate: public HTemplateInstruction<2> {
   HAllocate(HValue* context, HValue* size, HType type, Flags flags)
       : type_(type),
         flags_(flags) {
-    ASSERT((flags & CAN_ALLOCATE_IN_OLD_DATA_SPACE) == 0);  // unimplemented
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
@@ -4955,7 +5010,6 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
         new_space_dominator);
   }
   if (object != new_space_dominator) return true;
-  if (object->IsFastLiteral()) return false;
   if (object->IsAllocateObject()) return false;
   if (object->IsAllocate()) {
     return !HAllocate::cast(object)->GuaranteedInNewSpace();
@@ -5238,12 +5292,16 @@ class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
 
   static const int kMaxLoadPolymorphism = 4;
 
+  virtual void FinalizeUniqueValueId();
+
  protected:
   virtual bool DataEquals(HValue* value);
 
  private:
   SmallMapList types_;
   Handle<String> name_;
+  ZoneList<UniqueValueId> types_unique_ids_;
+  UniqueValueId name_unique_id_;
   bool need_generic_;
 };
 
@@ -5507,6 +5565,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
       : name_(name),
         is_in_object_(in_object),
         offset_(offset),
+        transition_unique_id_(),
         new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
@@ -5537,6 +5596,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   bool is_in_object() const { return is_in_object_; }
   int offset() const { return offset_; }
   Handle<Map> transition() const { return transition_; }
+  UniqueValueId transition_unique_id() const { return transition_unique_id_; }
   void set_transition(Handle<Map> map) { transition_ = map; }
   HValue* new_space_dominator() const { return new_space_dominator_; }
 
@@ -5549,11 +5609,16 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     return ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
+  virtual void FinalizeUniqueValueId() {
+    transition_unique_id_ = UniqueValueId(transition_);
+  }
+
  private:
   Handle<String> name_;
   bool is_in_object_;
   int offset_;
   Handle<Map> transition_;
+  UniqueValueId transition_unique_id_;
   HValue* new_space_dominator_;
 };
 
@@ -5677,6 +5742,10 @@ class HStoreKeyed
   bool IsDehoisted() { return is_dehoisted_; }
   void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
+  bool IsConstantHoleStore() {
+    return value()->IsConstant() && HConstant::cast(value())->IsTheHole();
+  }
+
   virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
@@ -5750,6 +5819,8 @@ class HTransitionElementsKind: public HTemplateInstruction<2> {
                           Handle<Map> transitioned_map)
       : original_map_(original_map),
         transitioned_map_(transitioned_map),
+        original_map_unique_id_(),
+        transitioned_map_unique_id_(),
         from_kind_(original_map->elements_kind()),
         to_kind_(transitioned_map->elements_kind()) {
     SetOperandAt(0, object);
@@ -5780,18 +5851,25 @@ class HTransitionElementsKind: public HTemplateInstruction<2> {
 
   virtual void PrintDataTo(StringStream* stream);
 
+  virtual void FinalizeUniqueValueId() {
+    original_map_unique_id_ = UniqueValueId(original_map_);
+    transitioned_map_unique_id_ = UniqueValueId(transitioned_map_);
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(TransitionElementsKind)
 
  protected:
   virtual bool DataEquals(HValue* other) {
     HTransitionElementsKind* instr = HTransitionElementsKind::cast(other);
-    return original_map_.is_identical_to(instr->original_map()) &&
-        transitioned_map_.is_identical_to(instr->transitioned_map());
+    return original_map_unique_id_ == instr->original_map_unique_id_ &&
+           transitioned_map_unique_id_ == instr->transitioned_map_unique_id_;
   }
 
  private:
   Handle<Map> original_map_;
   Handle<Map> transitioned_map_;
+  UniqueValueId original_map_unique_id_;
+  UniqueValueId transitioned_map_unique_id_;
   ElementsKind from_kind_;
   ElementsKind to_kind_;
 };
@@ -5963,45 +6041,6 @@ class HMaterializedLiteral: public HTemplateInstruction<V> {
   int literal_index_;
   int depth_;
   AllocationSiteMode allocation_site_mode_;
-};
-
-
-class HFastLiteral: public HMaterializedLiteral<1> {
- public:
-  HFastLiteral(HValue* context,
-               Handle<JSObject> boilerplate,
-               int total_size,
-               int literal_index,
-               int depth,
-               AllocationSiteMode mode)
-      : HMaterializedLiteral<1>(literal_index, depth, mode),
-        boilerplate_(boilerplate),
-        total_size_(total_size) {
-    SetOperandAt(0, context);
-    SetGVNFlag(kChangesNewSpacePromotion);
-  }
-
-  // Maximum depth and total number of elements and properties for literal
-  // graphs to be considered for fast deep-copying.
-  static const int kMaxLiteralDepth = 3;
-  static const int kMaxLiteralProperties = 8;
-
-  HValue* context() { return OperandAt(0); }
-  Handle<JSObject> boilerplate() const { return boilerplate_; }
-  int total_size() const { return total_size_; }
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual Handle<Map> GetMonomorphicJSObjectMap() {
-    return Handle<Map>(boilerplate()->map());
-  }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(FastLiteral)
-
- private:
-  Handle<JSObject> boilerplate_;
-  int total_size_;
 };
 
 
@@ -6192,7 +6231,7 @@ class HToFastProperties: public HUnaryOperation {
     // This instruction is not marked as having side effects, but
     // changes the map of the input operand. Use it only when creating
     // object literals.
-    ASSERT(value->IsObjectLiteral() || value->IsFastLiteral());
+    ASSERT(value->IsObjectLiteral());
     set_representation(Representation::Tagged());
   }
 

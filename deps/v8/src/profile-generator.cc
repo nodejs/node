@@ -894,20 +894,12 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   if (sample.pc != NULL) {
     *entry++ = code_map_.FindEntry(sample.pc);
 
-    if (sample.has_external_callback) {
+    if (sample.external_callback) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
       *(entries.start()) = NULL;
       *entry++ = code_map_.FindEntry(sample.external_callback);
-    } else if (sample.tos != NULL) {
-      // Find out, if top of stack was pointing inside a JS function
-      // meaning that we have encountered a frameless invocation.
-      *entry = code_map_.FindEntry(sample.tos);
-      if (*entry != NULL && !(*entry)->is_js_function()) {
-        *entry = NULL;
-      }
-      entry++;
     }
 
     for (const Address* stack_pos = sample.stack,

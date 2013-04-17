@@ -1810,25 +1810,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  // Get the loop depth of the stack guard check. This is recorded in
-  // a test(eax, depth) instruction right after the call.
-  Label stack_check;
-  __ mov(ebx, Operand(esp, 0));  // return address
-  if (FLAG_debug_code) {
-    __ cmpb(Operand(ebx, 0), Assembler::kTestAlByte);
-    __ Assert(equal, "test eax instruction not found after loop stack check");
-  }
-  __ movzx_b(ebx, Operand(ebx, 1));  // depth
-
-  // Get the loop nesting level at which we allow OSR from the
-  // unoptimized code and check if we want to do OSR yet. If not we
-  // should perform a stack guard check so we can get interrupts while
-  // waiting for on-stack replacement.
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-  __ mov(ecx, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kCodeOffset));
-  __ cmpb(ebx, FieldOperand(ecx, Code::kAllowOSRAtLoopNestingLevelOffset));
-  __ j(greater, &stack_check);
 
   // Pass the function to optimize as the argument to the on-stack
   // replacement runtime function.
@@ -1843,23 +1825,6 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   Label skip;
   __ cmp(eax, Immediate(Smi::FromInt(-1)));
   __ j(not_equal, &skip, Label::kNear);
-  __ ret(0);
-
-  // Insert a stack guard check so that if we decide not to perform
-  // on-stack replacement right away, the function calling this stub can
-  // still be interrupted.
-  __ bind(&stack_check);
-  Label ok;
-  ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(masm->isolate());
-  __ cmp(esp, Operand::StaticVariable(stack_limit));
-  __ j(above_equal, &ok, Label::kNear);
-  StackCheckStub stub;
-  __ TailCallStub(&stub);
-  if (FLAG_debug_code) {
-    __ Abort("Unreachable code: returned from tail call.");
-  }
-  __ bind(&ok);
   __ ret(0);
 
   __ bind(&skip);

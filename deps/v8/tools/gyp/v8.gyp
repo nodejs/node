@@ -43,13 +43,16 @@
               # The dependency on v8_base should come from a transitive
               # dependency however the Android toolchain requires libv8_base.a
               # to appear before libv8_snapshot.a so it's listed explicitly.
-              'dependencies': ['v8_base', 'v8_snapshot'],
+              'dependencies': ['v8_base.<(v8_target_arch)', 'v8_snapshot'],
             },
             {
               # The dependency on v8_base should come from a transitive
               # dependency however the Android toolchain requires libv8_base.a
               # to appear before libv8_snapshot.a so it's listed explicitly.
-              'dependencies': ['v8_base', 'v8_nosnapshot'],
+              'dependencies': [
+                'v8_base.<(v8_target_arch)',
+                'v8_nosnapshot.<(v8_target_arch)',
+              ],
             }],
             ['component=="shared_library"', {
               'type': '<(component)',
@@ -105,10 +108,13 @@
           'conditions': [
             ['want_separate_host_toolset==1', {
               'toolsets': ['host', 'target'],
-              'dependencies': ['mksnapshot#host', 'js2c#host'],
+              'dependencies': [
+                'mksnapshot.<(v8_target_arch)#host',
+                'js2c#host',
+              ],
             }, {
               'toolsets': ['target'],
-              'dependencies': ['mksnapshot', 'js2c'],
+              'dependencies': ['mksnapshot.<(v8_target_arch)', 'js2c'],
             }],
             ['component=="shared_library"', {
               'defines': [
@@ -124,7 +130,7 @@
             }],
           ],
           'dependencies': [
-            'v8_base',
+            'v8_base.<(v8_target_arch)',
           ],
           'include_dirs+': [
             '../../src',
@@ -138,7 +144,7 @@
             {
               'action_name': 'run_mksnapshot',
               'inputs': [
-                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
+                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot.<(v8_target_arch)<(EXECUTABLE_SUFFIX)',
               ],
               'outputs': [
                 '<(INTERMEDIATE_DIR)/snapshot.cc',
@@ -149,40 +155,6 @@
                   '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
                 ],
               },
-              'conditions': [
-                ['v8_target_arch=="arm"', {
-                  # The following rules should be consistent with chromium's
-                  # common.gypi and V8's runtime rule to ensure they all generate
-                  # the same correct machine code. The following issue is about
-                  # V8's runtime rule about vfpv3 and neon:
-                  # http://code.google.com/p/v8/issues/detail?id=914
-                  'conditions': [
-                    ['armv7==1', {
-                      # The ARM Architecture Manual mandates VFPv3 if NEON is
-                      # available.
-                      # V8 does not use d16-d31 unless explicitly enabled
-                      # (--enable_32dregs) or detected at run-time, so for vfpv3-d16,
-                      # we can also enable vfp3 for the better performance.
-                      'conditions': [
-                        ['arm_neon!=1 and arm_fpu!="vfpv3" and arm_fpu!="vfpv3-d16"', {
-                          'variables': {
-                            'mksnapshot_flags': [
-                              '--noenable_vfp3',
-                            ],
-                          },
-                        }],
-                      ],
-                    },{ # else: armv7!=1
-                      'variables': {
-                        'mksnapshot_flags': [
-                          '--noenable_armv7',
-                          '--noenable_vfp3',
-                        ],
-                      },
-                    }],
-                  ],
-                }],
-              ],
               'action': [
                 '<@(_inputs)',
                 '<@(mksnapshot_flags)',
@@ -192,10 +164,10 @@
           ],
         },
         {
-          'target_name': 'v8_nosnapshot',
+          'target_name': 'v8_nosnapshot.<(v8_target_arch)',
           'type': 'static_library',
           'dependencies': [
-            'v8_base',
+            'v8_base.<(v8_target_arch)',
           ],
           'include_dirs+': [
             '../../src',
@@ -222,7 +194,7 @@
           ]
         },
         {
-          'target_name': 'v8_base',
+          'target_name': 'v8_base.<(v8_target_arch)',
           'type': 'static_library',
           'variables': {
             'optimize': 'max',
@@ -441,6 +413,8 @@
             '../../src/runtime.h',
             '../../src/safepoint-table.cc',
             '../../src/safepoint-table.h',
+            '../../src/sampler.cc',
+            '../../src/sampler.h',
             '../../src/scanner-character-streams.cc',
             '../../src/scanner-character-streams.h',
             '../../src/scanner.cc',
@@ -741,15 +715,43 @@
               ]},
             ],
             ['OS=="win"', {
-              'sources': [
-                '../../src/platform-win32.cc',
-                '../../src/win32-math.cc',
-                '../../src/win32-math.h',
-              ],
-              'msvs_disabled_warnings': [4351, 4355, 4800],
-              'link_settings':  {
-                'libraries': [ '-lwinmm.lib', '-lws2_32.lib' ],
+              'variables': {
+                'gyp_generators': '<!(echo $GYP_GENERATORS)',
               },
+              'conditions': [
+                ['gyp_generators=="make"', {
+                  'variables': {
+                    'build_env': '<!(uname -o)',
+                  },
+                  'conditions': [
+                    ['build_env=="Cygwin"', {
+                      'sources': [
+                        '../../src/platform-cygwin.cc',
+                        '../../src/platform-posix.cc',
+                      ],
+                    }, {
+                      'sources': [
+                        '../../src/platform-win32.cc',
+                        '../../src/win32-math.h',
+                        '../../src/win32-math.cc',
+                      ],
+                    }],
+                  ],
+                  'link_settings':  {
+                    'libraries': [ '-lwinmm', '-lws2_32' ],
+                  },
+                }, {
+                  'sources': [
+                    '../../src/platform-win32.cc',
+                    '../../src/win32-math.h',
+                    '../../src/win32-math.cc',
+                  ],
+                  'msvs_disabled_warnings': [4351, 4355, 4800],
+                  'link_settings':  {
+                    'libraries': [ '-lwinmm.lib', '-lws2_32.lib' ],
+                  },
+                }],
+              ],
             }],
             ['component=="shared_library"', {
               'defines': [
@@ -798,7 +800,8 @@
               '../../src/proxy.js',
               '../../src/collection.js',
               '../../src/object-observe.js',
-              '../../src/typedarray.js'
+              '../../src/typedarray.js',
+              '../../src/generator.js'
             ],
           },
           'actions': [
@@ -869,11 +872,11 @@
            ]
         },
         {
-          'target_name': 'mksnapshot',
+          'target_name': 'mksnapshot.<(v8_target_arch)',
           'type': 'executable',
           'dependencies': [
-            'v8_base',
-            'v8_nosnapshot',
+            'v8_base.<(v8_target_arch)',
+            'v8_nosnapshot.<(v8_target_arch)',
           ],
           'include_dirs+': [
             '../../src',
@@ -918,73 +921,6 @@
                 '-lbz2',
               ]
             }],
-          ],
-        },
-        {
-          'target_name': 'preparser_lib',
-          'type': 'static_library',
-          'include_dirs+': [
-            '../../src',
-          ],
-          'sources': [
-            '../../include/v8-preparser.h',
-            '../../include/v8stdint.h',
-            '../../src/allocation.cc',
-            '../../src/allocation.h',
-            '../../src/atomicops.h',
-            '../../src/atomicops_internals_x86_gcc.cc',
-            '../../src/bignum.cc',
-            '../../src/bignum.h',
-            '../../src/bignum-dtoa.cc',
-            '../../src/bignum-dtoa.h',
-            '../../src/cached-powers.cc',
-            '../../src/cached-powers.h',
-            '../../src/char-predicates-inl.h',
-            '../../src/char-predicates.h',
-            '../../src/checks.h',
-            '../../src/conversions-inl.h',
-            '../../src/conversions.cc',
-            '../../src/conversions.h',
-            '../../src/diy-fp.cc',
-            '../../src/diy-fp.h',
-            '../../src/double.h',
-            '../../src/dtoa.cc',
-            '../../src/dtoa.h',
-            '../../src/fast-dtoa.cc',
-            '../../src/fast-dtoa.h',
-            '../../src/fixed-dtoa.cc',
-            '../../src/fixed-dtoa.h',
-            '../../src/globals.h',
-            '../../src/hashmap.h',
-            '../../src/list-inl.h',
-            '../../src/list.h',
-            '../../src/once.cc',
-            '../../src/once.h',
-            '../../src/preparse-data-format.h',
-            '../../src/preparse-data.cc',
-            '../../src/preparse-data.h',
-            '../../src/preparser.cc',
-            '../../src/preparser.h',
-            '../../src/preparser-api.cc',
-            '../../src/scanner.cc',
-            '../../src/scanner.h',
-            '../../src/strtod.cc',
-            '../../src/strtod.h',
-            '../../src/token.cc',
-            '../../src/token.h',
-            '../../src/unicode-inl.h',
-            '../../src/unicode.cc',
-            '../../src/unicode.h',
-            '../../src/utils-inl.h',
-            '../../src/utils.cc',
-            '../../src/utils.h',
-          ],
-          'conditions': [
-            ['OS=="win"', {
-              'sources': [
-                '../../src/win32-math.cc',
-                '../../src/win32-math.h',
-              ]}],
           ],
         },
       ],

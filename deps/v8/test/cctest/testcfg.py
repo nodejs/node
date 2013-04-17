@@ -57,6 +57,10 @@ class CcTestSuite(testsuite.TestSuite):
       return []
     tests = []
     for test_desc in output.stdout.strip().split():
+      if test_desc.find('<') < 0:
+        # Native Client output can contain a few non-test arguments
+        # before the tests. Skip these.
+        continue
       raw_test, dependency = test_desc.split('<')
       if dependency != '':
         dependency = raw_test.split('/')[0] + '/' + dependency

@@ -624,13 +624,11 @@ TEST(RecordTickSample) {
   //      -> ccc -> aaa  - sample3
   TickSample sample1;
   sample1.pc = ToAddress(0x1600);
-  sample1.tos = ToAddress(0x1500);
   sample1.stack[0] = ToAddress(0x1510);
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
   TickSample sample2;
   sample2.pc = ToAddress(0x1925);
-  sample2.tos = ToAddress(0x1900);
   sample2.stack[0] = ToAddress(0x1780);
   sample2.stack[1] = ToAddress(0x10000);  // non-existent.
   sample2.stack[2] = ToAddress(0x1620);
@@ -638,7 +636,6 @@ TEST(RecordTickSample) {
   generator.RecordTickSample(sample2);
   TickSample sample3;
   sample3.pc = ToAddress(0x1510);
-  sample3.tos = ToAddress(0x1500);
   sample3.stack[0] = ToAddress(0x1910);
   sample3.stack[1] = ToAddress(0x1610);
   sample3.frames_count = 2;

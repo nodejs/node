@@ -548,7 +548,8 @@ class MacroAssembler: public Assembler {
   // on access to global objects across environments. The holder register
   // is left untouched, but the scratch register is clobbered.
   void CheckAccessGlobalProxy(Register holder_reg,
-                              Register scratch,
+                              Register scratch1,
+                              Register scratch2,
                               Label* miss);
 
   void GetNumberHash(Register r0, Register scratch);
@@ -806,6 +807,8 @@ class MacroAssembler: public Assembler {
     return code_object_;
   }
 
+  // Insert code to verify that the x87 stack has the specified depth (0-7)
+  void VerifyX87StackDepth(uint32_t depth);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support

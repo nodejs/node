@@ -1290,6 +1290,10 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       }
       break;
     }
+    case JS_GENERATOR_OBJECT_TYPE: {
+      accumulator->Add("<JS Generator>");
+      break;
+    }
     case JS_MODULE_TYPE: {
       accumulator->Add("<JS Module>");
       break;
@@ -1546,11 +1550,13 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_TYPE:
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
+    case JS_TYPED_ARRAY_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
     case JS_WEAK_MAP_TYPE:
@@ -2602,13 +2608,18 @@ MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
     return start_map->CopyAsElementsKind(to_kind, OMIT_TRANSITION);
   }
 
-  Map* closest_map = FindClosestElementsTransition(start_map, to_kind);
+  return start_map->AsElementsKind(to_kind);
+}
 
-  if (closest_map->elements_kind() == to_kind) {
+
+MaybeObject* Map::AsElementsKind(ElementsKind kind) {
+  Map* closest_map = FindClosestElementsTransition(this, kind);
+
+  if (closest_map->elements_kind() == kind) {
     return closest_map;
   }
 
-  return AddMissingElementsTransitions(closest_map, to_kind);
+  return AddMissingElementsTransitions(closest_map, kind);
 }
 
 
@@ -3070,6 +3081,13 @@ void JSObject::AddFastPropertyUsingMap(Handle<JSObject> object,
   CALL_HEAP_FUNCTION_VOID(
       object->GetIsolate(),
       object->AddFastPropertyUsingMap(*map));
+}
+
+
+void JSObject::TransitionToMap(Handle<JSObject> object, Handle<Map> map) {
+  CALL_HEAP_FUNCTION_VOID(
+      object->GetIsolate(),
+      object->TransitionToMap(*map));
 }
 
 
@@ -7991,7 +8009,7 @@ MaybeObject* String::SubString(int start, int end, PretenureFlag pretenure) {
 void String::PrintOn(FILE* file) {
   int length = this->length();
   for (int i = 0; i < length; i++) {
-    fprintf(file, "%c", Get(i));
+    PrintF(file, "%c", Get(i));
   }
 }
 
@@ -8546,6 +8564,7 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
   // Check the basic conditions for generating inline constructor code.
   if (!FLAG_inline_new
       || !has_only_simple_this_property_assignments()
+      || is_generator()
       || this_property_assignments_count() == 0) {
     return false;
   }
@@ -9097,13 +9116,6 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 }
 
 
-void Code::SetNoStackCheckTable() {
-  // Indicate the absence of a stack-check table by a table start after the
-  // end of the instructions.  Table start must be aligned, so round up.
-  set_stack_check_table_offset(RoundUp(instruction_size(), kIntSize));
-}
-
-
 Map* Code::FindFirstMap() {
   ASSERT(is_inline_cache_stub());
   AssertNoAllocation no_allocation;
@@ -9622,18 +9634,20 @@ void Code::Disassemble(const char* name, FILE* out) {
     }
     PrintF(out, "\n");
   } else if (kind() == FUNCTION) {
-    unsigned offset = stack_check_table_offset();
-    // If there is no stack check table, the "table start" will at or after
+    unsigned offset = back_edge_table_offset();
+    // If there is no back edge table, the "table start" will be at or after
     // (due to alignment) the end of the instruction stream.
     if (static_cast<int>(offset) < instruction_size()) {
-      unsigned* address =
-          reinterpret_cast<unsigned*>(instruction_start() + offset);
-      unsigned length = address[0];
-      PrintF(out, "Stack checks (size = %u)\n", length);
-      PrintF(out, "ast_id  pc_offset\n");
-      for (unsigned i = 0; i < length; ++i) {
-        unsigned index = (2 * i) + 1;
-        PrintF(out, "%6u  %9u\n", address[index], address[index + 1]);
+      Address back_edge_cursor = instruction_start() + offset;
+      uint32_t table_length = Memory::uint32_at(back_edge_cursor);
+      PrintF(out, "Back edges (size = %u)\n", table_length);
+      PrintF(out, "ast_id  pc_offset  loop_depth\n");
+      for (uint32_t i = 0; i < table_length; ++i) {
+        uint32_t ast_id = Memory::uint32_at(back_edge_cursor);
+        uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
+        uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
+        PrintF(out, "%6u  %9u  %10u\n", ast_id, pc_offset, loop_depth);
+        back_edge_cursor += FullCodeGenerator::kBackEdgeEntrySize;
       }
       PrintF(out, "\n");
     }
@@ -11545,9 +11559,8 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
 }
 
 
-bool JSObject::HasRealNamedProperty(Name* key) {
+bool JSObject::HasRealNamedProperty(Isolate* isolate, Name* key) {
   // Check access rights if needed.
-  Isolate* isolate = GetIsolate();
   if (IsAccessCheckNeeded()) {
     if (!isolate->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
       isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
@@ -11561,73 +11574,21 @@ bool JSObject::HasRealNamedProperty(Name* key) {
 }
 
 
-bool JSObject::HasRealElementProperty(uint32_t index) {
+bool JSObject::HasRealElementProperty(Isolate* isolate, uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
-    Heap* heap = GetHeap();
-    if (!heap->isolate()->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
-      heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+    if (!isolate->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
       return false;
     }
   }
 
-  // Handle [] on String objects.
-  if (this->IsStringObjectWithCharacterAt(index)) return true;
-
-  switch (GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
-     uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>(
-              Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      return (index < length) &&
-          !FixedArray::cast(elements())->get(index)->IsTheHole();
-    }
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS: {
-      uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>(
-              Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedDoubleArray::cast(elements())->length());
-      return (index < length) &&
-          !FixedDoubleArray::cast(elements())->is_the_hole(index);
-      break;
-    }
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
-      return index < static_cast<uint32_t>(pixels->length());
-    }
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      ExternalArray* array = ExternalArray::cast(elements());
-      return index < static_cast<uint32_t>(array->length());
-    }
-    case DICTIONARY_ELEMENTS: {
-      return element_dictionary()->FindEntry(index)
-          != SeededNumberDictionary::kNotFound;
-    }
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNIMPLEMENTED();
-      break;
-  }
-  // All possibilities have been handled above already.
-  UNREACHABLE();
-  return GetHeap()->null_value();
+  return GetElementAttributeWithoutInterceptor(this, index, false) != ABSENT;
 }
 
 
-bool JSObject::HasRealNamedCallbackProperty(Name* key) {
+bool JSObject::HasRealNamedCallbackProperty(Isolate* isolate, Name* key) {
   // Check access rights if needed.
-  Isolate* isolate = GetIsolate();
   if (IsAccessCheckNeeded()) {
     if (!isolate->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
       isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
@@ -14128,7 +14089,7 @@ Handle<DeclaredAccessorDescriptor> DeclaredAccessorDescriptor::Create(
     if (previous_length != 0) {
       uint8_t* previous_array =
           previous->serialized_data()->GetDataStartAddress();
-      memcpy(array, previous_array, previous_length);
+      OS::MemCopy(array, previous_array, previous_length);
       array += previous_length;
     }
     ASSERT(reinterpret_cast<uintptr_t>(array) % sizeof(uintptr_t) == 0);

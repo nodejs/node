@@ -67,9 +67,21 @@ namespace internal {
 //   http://www.agner.org/optimize/calling_conventions.pdf
 //   or with gcc, run: "echo | gcc -E -dM -"
 #if defined(_M_X64) || defined(__x86_64__)
+#if defined(__native_client__)
+// For Native Client builds of V8, use V8_TARGET_ARCH_ARM, so that V8
+// generates ARM machine code, together with a portable ARM simulator
+// compiled for the host architecture in question.
+//
+// Since Native Client is ILP-32 on all architectures we use
+// V8_HOST_ARCH_IA32 on both 32- and 64-bit x86.
+#define V8_HOST_ARCH_IA32 1
+#define V8_HOST_ARCH_32_BIT 1
+#define V8_HOST_CAN_READ_UNALIGNED 1
+#else
 #define V8_HOST_ARCH_X64 1
 #define V8_HOST_ARCH_64_BIT 1
 #define V8_HOST_CAN_READ_UNALIGNED 1
+#endif  // __native_client__
 #elif defined(_M_IX86) || defined(__i386__)
 #define V8_HOST_ARCH_IA32 1
 #define V8_HOST_ARCH_32_BIT 1

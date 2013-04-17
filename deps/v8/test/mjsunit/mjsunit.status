@@ -44,11 +44,16 @@ regress/regress-524: SKIP
 stack-traces-gc: PASS || FAIL
 
 ##############################################################################
-# Too slow in debug mode with --stress-opt
+# Too slow in debug mode with --stress-opt mode.
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
 compiler/regress-funcaller: PASS, SKIP if $mode == debug
 regress/regress-2318: PASS, SKIP if $mode == debug
 regress/regress-create-exception: PASS, SKIP if $mode == debug
+regress/regress-2612: PASS, SKIP if $mode == debug
+
+##############################################################################
+# Too slow in debug mode for GC stress mode.
+regress/regress-crbug-217858: PASS, SKIP if $mode == debug
 
 ##############################################################################
 # These use a built-in that's only present in debug mode. They take
@@ -197,3 +202,34 @@ debug-liveedit-stack-padding: SKIP
 debug-liveedit-restart-frame: SKIP
 debug-liveedit-double-call: SKIP
 
+##############################################################################
+# Native Client uses the ARM simulator so will behave similarly to arm
+# on mjsunit tests.
+# TODO(bradchen): enable more tests for NaCl V8 when it stops using
+# the ARM simulator.
+##############################################################################
+[ $arch == nacl_ia32 || $arch == nacl_x64 ]
+# There is no /tmp directory for NaCl runs
+d8-os: SKIP
+
+# Stack manipulations in LiveEdit is not implemented for this arch.
+debug-liveedit-check-stack: SKIP
+debug-liveedit-stack-padding: SKIP
+debug-liveedit-restart-frame: SKIP
+debug-liveedit-double-call: SKIP
+
+# This test dumps core for arm.debug, so no reason to expect it to work
+# for NaCl. The other three fuzz-natives tests seem to run fine.
+# As noted above none of them are run in the arm.debug case.
+fuzz-natives-part4: SKIP
+
+# Requires bigger stack size in the Genesis and if stack size is increased,
+# the test requires too much time to run.  However, the problem test covers
+# should be platform-independent.
+regress/regress-1132: SKIP
+
+# Poor performance for NaCl V8 causes an assertion failure for this test.
+regress/regress-165637: SKIP
+
+# Skip long running test that times out in debug mode and goes OOM on NaCl.
+regress/regress-crbug-160010: SKIP

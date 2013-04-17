@@ -509,6 +509,11 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
   }
   LookupResult lookup(type->GetIsolate());
   while (true) {
+    // If a dictionary map is found in the prototype chain before the actual
+    // target, a new target can always appear. In that case, bail out.
+    // TODO(verwaest): Alternatively a runtime negative lookup on the normal
+    // receiver or prototype could be added.
+    if (type->is_dictionary_map()) return false;
     type->LookupDescriptor(NULL, *name, &lookup);
     if (lookup.IsFound()) {
       switch (lookup.type()) {
@@ -534,7 +539,6 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
     if (!type->prototype()->IsJSObject()) return false;
     // Go up the prototype chain, recording where we are currently.
     holder_ = Handle<JSObject>(JSObject::cast(type->prototype()));
-    if (!holder_->HasFastProperties()) return false;
     type = Handle<Map>(holder()->map());
   }
 }

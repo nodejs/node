@@ -43,13 +43,6 @@ class RuntimeProfiler {
  public:
   explicit RuntimeProfiler(Isolate* isolate);
 
-  static void GlobalSetUp();
-
-  static inline bool IsEnabled() {
-    ASSERT(has_been_globally_set_up_);
-    return enabled_;
-  }
-
   void OptimizeNow();
 
   void SetUp();
@@ -63,26 +56,6 @@ class RuntimeProfiler {
 
   // Rate limiting support.
 
-  // VM thread interface.
-  //
-  // Called by isolates when their states change.
-  static inline void IsolateEnteredJS(Isolate* isolate);
-  static inline void IsolateExitedJS(Isolate* isolate);
-
-  // Profiler thread interface.
-  //
-  // WaitForSomeIsolateToEnterJS():
-  // When no isolates are running JavaScript code for some time the
-  // profiler thread suspends itself by calling the wait function. The
-  // wait function returns true after it waited or false immediately.
-  // While the function was waiting the profiler may have been
-  // disabled so it *must check* whether it is allowed to continue.
-  static bool WaitForSomeIsolateToEnterJS();
-
-  // Stops the runtime profiler thread when profiling support is being
-  // turned off.
-  static void StopRuntimeProfilerThreadBeforeShutdown(Thread* thread);
-
   void UpdateSamplesAfterScavenge();
   void RemoveDeadSamples();
   void UpdateSamplesAfterCompact(ObjectVisitor* visitor);
@@ -91,8 +64,6 @@ class RuntimeProfiler {
 
  private:
   static const int kSamplerWindowSize = 16;
-
-  static void HandleWakeUp(Isolate* isolate);
 
   void Optimize(JSFunction* function, const char* reason);
 
@@ -116,38 +87,7 @@ class RuntimeProfiler {
 
   bool any_ic_changed_;
   bool code_generated_;
-
-  // Possible state values:
-  //   -1            => the profiler thread is waiting on the semaphore
-  //   0 or positive => the number of isolates running JavaScript code.
-  static Atomic32 state_;
-
-#ifdef DEBUG
-  static bool has_been_globally_set_up_;
-#endif
-  static bool enabled_;
 };
-
-
-// Implementation of RuntimeProfiler inline functions.
-
-void RuntimeProfiler::IsolateEnteredJS(Isolate* isolate) {
-  Atomic32 new_state = NoBarrier_AtomicIncrement(&state_, 1);
-  if (new_state == 0) {
-    // Just incremented from -1 to 0. -1 can only be set by the
-    // profiler thread before it suspends itself and starts waiting on
-    // the semaphore.
-    HandleWakeUp(isolate);
-  }
-  ASSERT(new_state >= 0);
-}
-
-
-void RuntimeProfiler::IsolateExitedJS(Isolate* isolate) {
-  Atomic32 new_state = NoBarrier_AtomicIncrement(&state_, -1);
-  ASSERT(new_state >= 0);
-  USE(new_state);
-}
 
 } }  // namespace v8::internal
 

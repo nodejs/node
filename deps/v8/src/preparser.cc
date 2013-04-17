@@ -179,7 +179,7 @@ PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
     Statement statement = ParseSourceElement(CHECK_OK);
     if (allow_directive_prologue) {
       if (statement.IsUseStrictLiteral()) {
-        set_language_mode(harmony_scoping_ ?
+        set_language_mode(allow_harmony_scoping() ?
                           i::EXTENDED_MODE : i::STRICT_MODE);
       } else if (!statement.IsStringLiteral()) {
         allow_directive_prologue = false;

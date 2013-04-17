@@ -168,7 +168,7 @@ inline Atomic32 Release_Load(volatile const Atomic32* ptr) {
   return *ptr;
 }
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) && defined(V8_HOST_ARCH_64_BIT)
 
 // 64-bit low-level operations on 64-bit platform.
 

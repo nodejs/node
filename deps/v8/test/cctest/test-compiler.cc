@@ -40,8 +40,6 @@
 
 using namespace v8::internal;
 
-static v8::Persistent<v8::Context> env;
-
 // --- P r i n t   E x t e n s i o n ---
 
 class PrintExtension : public v8::Extension {
@@ -79,16 +77,6 @@ v8::Handle<v8::Value> PrintExtension::Print(const v8::Arguments& args) {
 
 static PrintExtension kPrintExtension;
 v8::DeclareExtension kPrintExtensionDeclaration(&kPrintExtension);
-
-
-static void InitializeVM() {
-  if (env.IsEmpty()) {
-    const char* extensions[] = { "v8/print", "v8/gc" };
-    v8::ExtensionConfiguration config(2, extensions);
-    env = v8::Context::New(&config);
-  }
-  env->Enter();
-}
 
 
 static MaybeObject* GetGlobalProperty(const char* name) {
@@ -142,8 +130,8 @@ static double Inc(int x) {
 
 
 TEST(Inc) {
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   CHECK_EQ(4.0, Inc(3));
 }
 
@@ -163,8 +151,8 @@ static double Add(int x, int y) {
 
 
 TEST(Add) {
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   CHECK_EQ(5.0, Add(2, 3));
 }
 
@@ -183,8 +171,8 @@ static double Abs(int x) {
 
 
 TEST(Abs) {
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   CHECK_EQ(3.0, Abs(-3));
 }
 
@@ -204,15 +192,15 @@ static double Sum(int n) {
 
 
 TEST(Sum) {
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   CHECK_EQ(5050.0, Sum(100));
 }
 
 
 TEST(Print) {
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM(PRINT_EXTENSION);
+  v8::HandleScope scope(CcTest::isolate());
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
@@ -226,8 +214,8 @@ TEST(Print) {
 // The following test method stems from my coding efforts today. It
 // tests all the functionality I have added to the compiler today
 TEST(Stuff) {
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   const char* source =
     "r = 0;\n"
     "a = new Object;\n"
@@ -258,8 +246,8 @@ TEST(Stuff) {
 
 
 TEST(UncaughtThrow) {
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
 
   const char* source = "throw 42;";
   Handle<JSFunction> fun = Compile(source);
@@ -280,8 +268,8 @@ TEST(UncaughtThrow) {
 //   |      JS       |
 //   |   C-to-JS     |
 TEST(C2JSFrames) {
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM(PRINT_EXTENSION | GC_EXTENSION);
+  v8::HandleScope scope(CcTest::isolate());
 
   const char* source = "function foo(a) { gc(), print(a); }";
 
@@ -317,8 +305,8 @@ TEST(C2JSFrames) {
 // Regression 236. Calling InitLineEnds on a Script with undefined
 // source resulted in crash.
 TEST(Regression236) {
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
 
   Handle<Script> script = FACTORY->NewScript(FACTORY->empty_string());
   script->set_source(HEAP->undefined_value());
@@ -329,8 +317,8 @@ TEST(Regression236) {
 
 
 TEST(GetScriptLineNumber) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
   const char function_f[] = "function f() {}";
   const int max_rows = 1000;
@@ -342,11 +330,11 @@ TEST(GetScriptLineNumber) {
   for (int i = 0; i < max_rows; ++i) {
     if (i > 0)
       buffer[i - 1] = '\n';
-    memcpy(&buffer[i], function_f, sizeof(function_f) - 1);
+    OS::MemCopy(&buffer[i], function_f, sizeof(function_f) - 1);
     v8::Handle<v8::String> script_body = v8::String::New(buffer.start());
     v8::Script::Compile(script_body, &origin)->Run();
     v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-        env->Global()->Get(v8::String::New("f")));
+        CcTest::env()->Global()->Get(v8::String::New("f")));
     CHECK_EQ(i, f->GetScriptLineNumber());
   }
 }
@@ -359,8 +347,8 @@ TEST(OptimizedCodeSharing) {
   // FastNewClosureStub that is baked into the snapshot is incorrect.
   if (!FLAG_cache_optimized_code) return;
   FLAG_allow_natives_syntax = true;
-  InitializeVM();
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   for (int i = 0; i < 10; i++) {
     LocalContext env;
     env->Global()->Set(v8::String::New("x"), v8::Integer::New(i));
@@ -402,7 +390,7 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
     Address pc = f->code()->instruction_start();
     int decode_size =
         Min(f->code()->instruction_size(),
-            static_cast<int>(f->code()->stack_check_table_offset()));
+            static_cast<int>(f->code()->back_edge_table_offset()));
     Address end = pc + decode_size;
 
     v8::internal::EmbeddedVector<char, 128> decode_buffer;
@@ -423,16 +411,16 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
 
 
 TEST(SplitConstantsInFullCompiler) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
 
   CompileRun("function f() { a = 12345678 }; f();");
-  CheckCodeForUnsafeLiteral(GetJSFunction(env->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
   CompileRun("function f(x) { a = 12345678 + x}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(env->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
   CompileRun("function f(x) { var arguments = 1; x += 12345678}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(env->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
   CompileRun("function f(x) { var arguments = 1; x = 12345678}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(env->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
 }
 #endif

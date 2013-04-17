@@ -62,13 +62,14 @@ class ScopedLoggerInitializer {
         // Need to run this prior to creating the scope.
         trick_to_run_init_flags_(init_flags_(prof_lazy)),
         scope_(v8::Isolate::GetCurrent()),
-        env_(v8::Context::New()) {
+        env_(v8::Context::New()),
+        logger_(i::Isolate::Current()->logger()) {
     env_->Enter();
   }
 
   ~ScopedLoggerInitializer() {
     env_->Exit();
-    LOGGER->TearDown();
+    logger_->TearDown();
     if (temp_file_ != NULL) fclose(temp_file_);
     i::FLAG_prof_lazy = saved_prof_lazy_;
     i::FLAG_prof = saved_prof_;
@@ -78,8 +79,10 @@ class ScopedLoggerInitializer {
 
   v8::Handle<v8::Context>& env() { return env_; }
 
+  Logger* logger() { return logger_; }
+
   FILE* StopLoggingGetTempFile() {
-    temp_file_ = LOGGER->TearDown();
+    temp_file_ = logger_->TearDown();
     CHECK_NE(NULL, temp_file_);
     fflush(temp_file_);
     rewind(temp_file_);
@@ -104,6 +107,7 @@ class ScopedLoggerInitializer {
   const bool trick_to_run_init_flags_;
   v8::HandleScope scope_;
   v8::Handle<v8::Context> env_;
+  Logger* logger_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedLoggerInitializer);
 };
@@ -123,12 +127,13 @@ static const char* StrNStr(const char* s1, const char* s2, int n) {
 
 TEST(ProfLazyMode) {
   ScopedLoggerInitializer initialize_logger(true);
+  Logger* logger = initialize_logger.logger();
 
   if (!i::V8::UseCrankshaft()) return;
 
-  LOGGER->StringEvent("test-start", "");
+  logger->StringEvent("test-start", "");
   CompileRun("var a = (function(x) { return x + 1; })(10);");
-  LOGGER->StringEvent("test-profiler-start", "");
+  logger->StringEvent("test-profiler-start", "");
   v8::V8::ResumeProfiler();
   CompileRun(
       "var b = (function(x) { return x + 2; })(10);\n"
@@ -136,10 +141,10 @@ TEST(ProfLazyMode) {
       "var d = (function(x) { return x + 4; })(10);\n"
       "var e = (function(x) { return x + 5; })(10);");
   v8::V8::PauseProfiler();
-  LOGGER->StringEvent("test-profiler-stop", "");
+  logger->StringEvent("test-profiler-stop", "");
   CompileRun("var f = (function(x) { return x + 6; })(10);");
   // Check that profiling can be resumed again.
-  LOGGER->StringEvent("test-profiler-start-2", "");
+  logger->StringEvent("test-profiler-start-2", "");
   v8::V8::ResumeProfiler();
   CompileRun(
       "var g = (function(x) { return x + 7; })(10);\n"
@@ -147,8 +152,8 @@ TEST(ProfLazyMode) {
       "var i = (function(x) { return x + 9; })(10);\n"
       "var j = (function(x) { return x + 10; })(10);");
   v8::V8::PauseProfiler();
-  LOGGER->StringEvent("test-profiler-stop-2", "");
-  LOGGER->StringEvent("test-stop", "");
+  logger->StringEvent("test-profiler-stop-2", "");
+  logger->StringEvent("test-stop", "");
 
   bool exists = false;
   i::Vector<const char> log(
@@ -383,7 +388,7 @@ TEST(Issue23768) {
   i_source->set_resource(NULL);
 
   // Must not crash.
-  LOGGER->LogCompiledFunctions();
+  i::Isolate::Current()->logger()->LogCompiledFunctions();
 }
 
 
@@ -393,6 +398,7 @@ static v8::Handle<v8::Value> ObjMethod1(const v8::Arguments& args) {
 
 TEST(LogCallbacks) {
   ScopedLoggerInitializer initialize_logger(false);
+  Logger* logger = initialize_logger.logger();
 
   v8::Persistent<v8::FunctionTemplate> obj =
       v8::Persistent<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
@@ -409,7 +415,7 @@ TEST(LogCallbacks) {
   initialize_logger.env()->Global()->Set(v8_str("Obj"), obj->GetFunction());
   CompileRun("Obj.prototype.method1.toString();");
 
-  LOGGER->LogCompiledFunctions();
+  logger->LogCompiledFunctions();
 
   bool exists = false;
   i::Vector<const char> log(
@@ -444,6 +450,7 @@ static v8::Handle<v8::Value> Prop2Getter(v8::Local<v8::String> property,
 
 TEST(LogAccessorCallbacks) {
   ScopedLoggerInitializer initialize_logger(false);
+  Logger* logger = initialize_logger.logger();
 
   v8::Persistent<v8::FunctionTemplate> obj =
       v8::Persistent<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
@@ -453,7 +460,7 @@ TEST(LogAccessorCallbacks) {
   inst->SetAccessor(v8_str("prop1"), Prop1Getter, Prop1Setter);
   inst->SetAccessor(v8_str("prop2"), Prop2Getter);
 
-  LOGGER->LogAccessorCallbacks();
+  logger->LogAccessorCallbacks();
 
   bool exists = false;
   i::Vector<const char> log(
@@ -487,12 +494,13 @@ TEST(LogAccessorCallbacks) {
 
 TEST(IsLoggingPreserved) {
   ScopedLoggerInitializer initialize_logger(false);
+  Logger* logger = initialize_logger.logger();
 
-  CHECK(LOGGER->is_logging());
-  LOGGER->ResumeProfiler();
-  CHECK(LOGGER->is_logging());
-  LOGGER->PauseProfiler();
-  CHECK(LOGGER->is_logging());
+  CHECK(logger->is_logging());
+  logger->ResumeProfiler();
+  CHECK(logger->is_logging());
+  logger->PauseProfiler();
+  CHECK(logger->is_logging());
 }
 
 
@@ -513,6 +521,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
 
   // Start with profiling to capture all code events from the beginning.
   ScopedLoggerInitializer initialize_logger(false);
+  Logger* logger = initialize_logger.logger();
 
   // Compile and run a function that creates other functions.
   CompileRun(
@@ -522,11 +531,11 @@ TEST(EquivalenceOfLoggingAndTraversal) {
       "})(this);");
   v8::V8::PauseProfiler();
   HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
-  LOGGER->StringEvent("test-logging-done", "");
+  logger->StringEvent("test-logging-done", "");
 
   // Iterate heap to find compiled functions, will write to log.
-  LOGGER->LogCompiledFunctions();
-  LOGGER->StringEvent("test-traversal-done", "");
+  logger->LogCompiledFunctions();
+  logger->StringEvent("test-traversal-done", "");
 
   bool exists = false;
   i::Vector<const char> log(

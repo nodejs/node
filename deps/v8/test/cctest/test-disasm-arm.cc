@@ -40,15 +40,6 @@
 using namespace v8::internal;
 
 
-static v8::Persistent<v8::Context> env;
-
-static void InitializeVM() {
-  if (env.IsEmpty()) {
-    env = v8::Context::New();
-  }
-}
-
-
 bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
@@ -73,7 +64,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
 #define SET_UP()                                          \
-  InitializeVM();                                         \
+  CcTest::InitializeVM();                                 \
   Isolate* isolate = Isolate::Current();                  \
   HandleScope scope(isolate);                             \
   byte *buffer = reinterpret_cast<byte*>(malloc(4*1024)); \

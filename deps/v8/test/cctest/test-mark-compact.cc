@@ -43,16 +43,9 @@
 
 using namespace v8::internal;
 
-static v8::Persistent<v8::Context> env;
-
-static void InitializeVM() {
-  if (env.IsEmpty()) env = v8::Context::New();
-  env->Enter();
-}
-
 
 TEST(MarkingDeque) {
-  InitializeVM();
+  CcTest::InitializeVM();
   int mem_size = 20 * kPointerSize;
   byte* mem = NewArray<byte>(20*kPointerSize);
   Address low = reinterpret_cast<Address>(mem);
@@ -89,9 +82,9 @@ TEST(Promotion) {
   FLAG_always_compact = true;
   HEAP->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
 
-  InitializeVM();
+  CcTest::InitializeVM();
 
-  v8::HandleScope sc(env->GetIsolate());
+  v8::HandleScope sc(CcTest::isolate());
 
   // Allocate a fixed array in the new space.
   int array_size =
@@ -117,9 +110,9 @@ TEST(NoPromotion) {
 
   // Test the situation that some objects in new space are promoted to
   // the old space
-  InitializeVM();
+  CcTest::InitializeVM();
 
-  v8::HandleScope sc(env->GetIsolate());
+  v8::HandleScope sc(CcTest::isolate());
 
   // Do a mark compact GC to shrink the heap.
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
@@ -155,9 +148,9 @@ TEST(NoPromotion) {
 
 
 TEST(MarkCompactCollector) {
-  InitializeVM();
+  CcTest::InitializeVM();
 
-  v8::HandleScope sc(env->GetIsolate());
+  v8::HandleScope sc(CcTest::isolate());
   // call mark-compact when heap is empty
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
@@ -248,7 +241,7 @@ static Handle<Map> CreateMap() {
 
 TEST(MapCompact) {
   FLAG_max_map_space_pages = 16;
-  InitializeVM();
+  CcTest::InitializeVM();
 
   {
     v8::HandleScope sc;
@@ -287,7 +280,7 @@ static void GCEpilogueCallbackFunc() {
 
 
 TEST(GCCallback) {
-  InitializeVM();
+  CcTest::InitializeVM();
 
   HEAP->SetGlobalGCPrologueCallback(&GCPrologueCallbackFunc);
   HEAP->SetGlobalGCEpilogueCallback(&GCEpilogueCallbackFunc);
@@ -315,11 +308,11 @@ static void WeakPointerCallback(v8::Isolate* isolate,
 
 TEST(ObjectGroups) {
   FLAG_incremental_marking = false;
-  InitializeVM();
+  CcTest::InitializeVM();
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
 
   NumberOfWeakCalls = 0;
-  v8::HandleScope handle_scope(env->GetIsolate());
+  v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> g1s1 =
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
@@ -452,10 +445,10 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 
 
 TEST(EmptyObjectGroups) {
-  InitializeVM();
+  CcTest::InitializeVM();
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
 
-  v8::HandleScope handle_scope(env->GetIsolate());
+  v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> object =
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
@@ -552,7 +545,7 @@ TEST(BootUpMemoryUse) {
   // Only Linux has the proc filesystem and only if it is mapped.  If it's not
   // there we just skip the test.
   if (initial_memory >= 0) {
-    InitializeVM();
+    CcTest::InitializeVM();
     intptr_t delta = MemoryInUse() - initial_memory;
     printf("delta: %" V8_PTR_PREFIX "d kB\n", delta / 1024);
     if (sizeof(initial_memory) == 8) {  // 64-bit.

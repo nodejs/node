@@ -105,12 +105,12 @@ char* ReadLine(const char* prompt) {
       char* new_result = NewArray<char>(new_len);
       // Copy the existing input into the new array and set the new
       // array as the result.
-      memcpy(new_result, result, offset * kCharSize);
+      OS::MemCopy(new_result, result, offset * kCharSize);
       DeleteArray(result);
       result = new_result;
     }
     // Copy the newly read line into the result.
-    memcpy(result + offset, line_buf, len * kCharSize);
+    OS::MemCopy(result + offset, line_buf, len * kCharSize);
     offset += len;
   }
   ASSERT(result != NULL);
@@ -264,7 +264,7 @@ void StringBuilder::AddFormatted(const char* format, ...) {
 
 
 void StringBuilder::AddFormattedList(const char* format, va_list list) {
-  ASSERT(!is_finalized() && position_ < buffer_.length());
+  ASSERT(!is_finalized() && position_ <= buffer_.length());
   int n = OS::VSNPrintF(buffer_ + position_, format, list);
   if (n < 0 || n >= (buffer_.length() - position_)) {
     position_ = buffer_.length();

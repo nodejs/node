@@ -29,6 +29,8 @@
 import sys
 import time
 
+from . import junit_output
+
 def EscapeCommand(command):
   parts = []
   for part in command:
@@ -228,6 +230,50 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
   def ClearLine(self, last_line_length):
     print ("\r" + (" " * last_line_length) + "\r"),
+
+
+class JUnitTestProgressIndicator(ProgressIndicator):
+
+  def __init__(self, progress_indicator, junitout, junittestsuite):
+    self.progress_indicator = progress_indicator
+    self.outputter = junit_output.JUnitTestOutput(junittestsuite)
+    if junitout:
+      self.outfile = open(junitout, "w")
+    else:
+      self.outfile = sys.stdout
+
+  def Starting(self):
+    self.progress_indicator.runner = self.runner
+    self.progress_indicator.Starting()
+
+  def Done(self):
+    self.progress_indicator.Done()
+    self.outputter.FinishAndWrite(self.outfile)
+    if self.outfile != sys.stdout:
+      self.outfile.close()
+
+  def AboutToRun(self, test):
+    self.progress_indicator.AboutToRun(test)
+
+  def HasRun(self, test):
+    self.progress_indicator.HasRun(test)
+    fail_text = ""
+    if test.suite.HasUnexpectedOutput(test):
+      stdout = test.output.stdout.strip()
+      if len(stdout):
+        fail_text += "stdout:\n%s\n" % stdout
+      stderr = test.output.stderr.strip()
+      if len(stderr):
+        fail_text += "stderr:\n%s\n" % stderr
+      fail_text += "Command: %s" % EscapeCommand(self.runner.GetCommand(test))
+      if test.output.HasCrashed():
+        fail_text += "exit code: %d\n--- CRASHED ---" % test.output.exit_code
+      if test.output.HasTimedOut():
+        fail_text += "--- TIMEOUT ---"
+    self.outputter.HasRunTest(
+        [test.GetLabel()] + self.runner.context.mode_flags + test.flags,
+        test.duration,
+        fail_text)
 
 
 PROGRESS_INDICATORS = {

@@ -269,6 +269,15 @@ class Scope: public ZoneObject {
     end_position_ = statement_pos;
   }
 
+  // In some cases we want to force context allocation for a whole scope.
+  void ForceContextAllocation() {
+    ASSERT(!already_resolved());
+    force_context_allocation_ = true;
+  }
+  bool has_forced_context_allocation() const {
+    return force_context_allocation_;
+  }
+
   // ---------------------------------------------------------------------------
   // Predicates.
 
@@ -494,6 +503,7 @@ class Scope: public ZoneObject {
   bool outer_scope_calls_non_strict_eval_;
   bool inner_scope_calls_eval_;
   bool force_eager_compilation_;
+  bool force_context_allocation_;
 
   // True if it doesn't need scope resolution (e.g., if the scope was
   // constructed based on a serialized scope info or a catch context).

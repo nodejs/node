@@ -79,6 +79,8 @@ void CPU::DebugBreak() {
   // instead
   // __asm { int 3 }
   __debugbreak();
+#elif defined(__native_client__)
+  asm("hlt");
 #else
   asm("int $3");
 #endif

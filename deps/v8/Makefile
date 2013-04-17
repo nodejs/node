@@ -36,6 +36,7 @@ TESTFLAGS ?=
 ANDROID_NDK_ROOT ?=
 ANDROID_TOOLCHAIN ?=
 ANDROID_V8 ?= /data/local/v8
+NACL_SDK_ROOT ?=
 
 # Special build flags. Use them like this: "make library=shared"
 
@@ -83,21 +84,17 @@ endif
 ifeq ($(gdbjit), on)
   GYPFLAGS += -Dv8_enable_gdbjit=1
 endif
-# vfp2=off
-ifeq ($(vfp2), off)
-  GYPFLAGS += -Dv8_can_use_vfp2_instructions=false
-else
-  GYPFLAGS += -Dv8_can_use_vfp2_instructions=true -Darm_fpu=vfpv2
-endif
-# vfp3=off
-ifeq ($(vfp3), off)
-  GYPFLAGS += -Dv8_can_use_vfp3_instructions=false
-else
-  GYPFLAGS += -Dv8_can_use_vfp3_instructions=true -Darm_fpu=vfpv3
+# vtunejit=on
+ifeq ($(vtunejit), on)
+  GYPFLAGS += -Dv8_enable_vtunejit=1
 endif
 # debuggersupport=off
 ifeq ($(debuggersupport), off)
   GYPFLAGS += -Dv8_enable_debugger_support=0
+endif
+# unalignedaccess=on
+ifeq ($(unalignedaccess), on)
+  GYPFLAGS += -Dv8_can_use_unaligned_accesses=true
 endif
 # soname_version=1.2.3
 ifdef soname_version
@@ -119,13 +116,66 @@ endif
 ifeq ($(regexp), interpreted)
   GYPFLAGS += -Dv8_interpreted_regexp=1
 endif
-# hardfp=on
-ifeq ($(hardfp), on)
-  GYPFLAGS += -Dv8_use_arm_eabi_hardfloat=true
-endif
-# armv7=false
+# arm specific flags.
+# armv7=false/true
 ifeq ($(armv7), false)
   GYPFLAGS += -Darmv7=0
+else
+ifeq ($(armv7), true)
+  GYPFLAGS += -Darmv7=1
+endif
+endif
+# vfp2=off. Deprecated, use armfpu=
+# vfp3=off. Deprecated, use armfpu=
+ifeq ($(vfp3), off)
+  GYPFLAGS += -Darm_fpu=vfp
+endif
+# hardfp=on/off. Deprecated, use armfloatabi
+ifeq ($(hardfp),on)
+  GYPFLAGS += -Darm_float_abi=hard
+else
+ifeq ($(hardfp),off)
+  GYPFLAGS += -Darm_float_abi=softfp
+endif
+endif
+# armneon=on/off
+ifeq ($(armneon), on)
+  GYPFLAGS += -Darm_neon=1
+endif
+# fpu: armfpu=xxx
+# xxx: vfp, vfpv3-d16, vfpv3, neon.
+ifeq ($(armfpu),)
+ifneq ($(vfp3), off)
+  GYPFLAGS += -Darm_fpu=default
+endif
+else
+  GYPFLAGS += -Darm_fpu=$(armfpu)
+endif
+# float abi: armfloatabi=softfp/hard
+ifeq ($(armfloatabi),)
+ifeq ($(hardfp),)
+  GYPFLAGS += -Darm_float_abi=default
+endif
+else
+  GYPFLAGS += -Darm_float_abi=$(armfloatabi)
+endif
+# armthumb=on/off
+ifeq ($(armthumb), off)
+  GYPFLAGS += -Darm_thumb=0
+else
+ifeq ($(armthumb), on)
+  GYPFLAGS += -Darm_thumb=1
+endif
+endif
+# armtest=on
+# With this flag set, by default v8 will only use features implied
+# by the compiler (no probe). This is done by modifying the default
+# values of enable_armv7, enable_vfp2, enable_vfp3 and enable_32dregs.
+# Modifying these flags when launching v8 will enable the probing for
+# the specified values.
+# When using the simulator, this flag is implied.
+ifeq ($(armtest), on)
+  GYPFLAGS += -Darm_test=on
 endif
 
 # ----------------- available targets: --------------------
@@ -136,6 +186,7 @@ endif
 # - "native": current host's architecture, release mode
 # - any of the above with .check appended, e.g. "ia32.release.check"
 # - "android": cross-compile for Android/ARM
+# - "nacl" : cross-compile for Native Client (ia32 and x64)
 # - default (no target specified): build all DEFAULT_ARCHES and MODES
 # - "check": build all targets and run all tests
 # - "<arch>.clean" for any <arch> in ARCHES
@@ -149,19 +200,27 @@ ARCHES = ia32 x64 arm mipsel
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug
 ANDROID_ARCHES = android_ia32 android_arm android_mipsel
+NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:
 GYPFILES = build/all.gyp build/common.gypi build/standalone.gypi \
            preparser/preparser.gyp samples/samples.gyp src/d8.gyp \
            test/cctest/cctest.gyp tools/gyp/v8.gyp
 
+# If vtunejit=on, the v8vtune.gyp will be appended.
+ifeq ($(vtunejit), on)
+  GYPFILES += src/third_party/vtune/v8vtune.gyp
+endif
 # Generates all combinations of ARCHES and MODES, e.g. "ia32.release".
 BUILDS = $(foreach mode,$(MODES),$(addsuffix .$(mode),$(ARCHES)))
 ANDROID_BUILDS = $(foreach mode,$(MODES), \
                    $(addsuffix .$(mode),$(ANDROID_ARCHES)))
+NACL_BUILDS = $(foreach mode,$(MODES), \
+                   $(addsuffix .$(mode),$(NACL_ARCHES)))
 # Generates corresponding test targets, e.g. "ia32.release.check".
 CHECKS = $(addsuffix .check,$(BUILDS))
 ANDROID_CHECKS = $(addsuffix .check,$(ANDROID_BUILDS))
+NACL_CHECKS = $(addsuffix .check,$(NACL_BUILDS))
 # File where previously used GYPFLAGS are stored.
 ENVFILE = $(OUTDIR)/environment
 
@@ -169,7 +228,9 @@ ENVFILE = $(OUTDIR)/environment
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
         $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES)) \
         $(ANDROID_ARCHES) $(ANDROID_BUILDS) $(ANDROID_CHECKS) \
-        must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN
+        must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN \
+        $(NACL_ARCHES) $(NACL_BUILDS) $(NACL_CHECKS) \
+        must-set-NACL_SDK_ROOT
 
 # Target definitions. "all" is the default.
 all: $(MODES)
@@ -213,6 +274,16 @@ $(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
 	        OUTDIR="$(OUTDIR)" \
 	        GYPFLAGS="$(GYPFLAGS)"
 
+$(NACL_ARCHES): $(addprefix $$@.,$(MODES))
+
+$(NACL_BUILDS): $(GYPFILES) $(ENVFILE) \
+		   Makefile.nacl must-set-NACL_SDK_ROOT
+	@$(MAKE) -f Makefile.nacl $@ \
+	        ARCH="$(basename $@)" \
+	        MODE="$(subst .,,$(suffix $@))" \
+	        OUTDIR="$(OUTDIR)" \
+	        GYPFLAGS="$(GYPFLAGS)"
+
 # Test targets.
 check: all
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
@@ -244,12 +315,21 @@ $(addsuffix .check, $(ANDROID_BUILDS)): $$(basename $$@).sync
 $(addsuffix .check, $(ANDROID_ARCHES)): \
                 $(addprefix $$(basename $$@).,$(MODES)).check
 
+$(addsuffix .check, $(NACL_BUILDS)): $$(basename $$@)
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	     --arch-and-mode=$(basename $@) \
+	     --timeout=600 --nopresubmit \
+	     --command-prefix="tools/nacl-run.py"
+
+$(addsuffix .check, $(NACL_ARCHES)): \
+                $(addprefix $$(basename $$@).,$(MODES)).check
+
 native.check: native
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR)/native \
 	    --arch-and-mode=. $(TESTFLAGS)
 
 # Clean targets. You can clean each architecture individually, or everything.
-$(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES)):
+$(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)):
 	rm -f $(OUTDIR)/Makefile.$(basename $@)
 	rm -rf $(OUTDIR)/$(basename $@).release
 	rm -rf $(OUTDIR)/$(basename $@).debug
@@ -260,7 +340,7 @@ native.clean:
 	rm -rf $(OUTDIR)/native
 	find $(OUTDIR) -regex '.*\(host\|target\).native\.mk' -delete
 
-clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES)) native.clean
+clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.clean
 
 # GYP file generation targets.
 OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
@@ -281,6 +361,18 @@ ifndef ANDROID_NDK_ROOT
 ifndef ANDROID_TOOLCHAIN
 	  $(error ANDROID_NDK_ROOT or ANDROID_TOOLCHAIN must be set))
 endif
+endif
+
+# Note that NACL_SDK_ROOT must be set to point to an appropriate
+# Native Client SDK before using this makefile. You can download
+# an SDK here:
+#   https://developers.google.com/native-client/sdk/download
+# The path indicated by NACL_SDK_ROOT will typically end with
+# a folder for a pepper version such as "pepper_25" that should
+# have "tools" and "toolchain" subdirectories.
+must-set-NACL_SDK_ROOT:
+ifndef NACL_SDK_ROOT
+	  $(error NACL_SDK_ROOT must be set)
 endif
 
 # Replaces the old with the new environment file if they're different, which

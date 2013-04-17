@@ -467,6 +467,11 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_ = static_cast<int>(area_start - base);
   chunk->parallel_sweeping_ = 0;
+  chunk->available_in_small_free_list_ = 0;
+  chunk->available_in_medium_free_list_ = 0;
+  chunk->available_in_large_free_list_ = 0;
+  chunk->available_in_huge_free_list_ = 0;
+  chunk->non_available_small_blocks_ = 0;
   chunk->ResetLiveBytes();
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
@@ -694,6 +699,15 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
                                                 owner);
   result->set_reserved_memory(&reservation);
   return result;
+}
+
+
+void Page::ResetFreeListStatistics() {
+  non_available_small_blocks_ = 0;
+  available_in_small_free_list_ = 0;
+  available_in_medium_free_list_ = 0;
+  available_in_large_free_list_ = 0;
+  available_in_huge_free_list_ = 0;
 }
 
 
@@ -1054,6 +1068,23 @@ int PagedSpace::CountTotalPages() {
     count++;
   }
   return count;
+}
+
+
+void PagedSpace::ObtainFreeListStatistics(Page* page, SizeStats* sizes) {
+  sizes->huge_size_ = page->available_in_huge_free_list();
+  sizes->small_size_ = page->available_in_small_free_list();
+  sizes->medium_size_ = page->available_in_medium_free_list();
+  sizes->large_size_ = page->available_in_large_free_list();
+}
+
+
+void PagedSpace::ResetFreeListStatistics() {
+  PageIterator page_iterator(this);
+  while (page_iterator.has_next()) {
+    Page* page = page_iterator.next();
+    page->ResetFreeListStatistics();
+  }
 }
 
 
@@ -2056,20 +2087,6 @@ void FreeListCategory::Reset() {
 }
 
 
-intptr_t FreeListCategory::CountFreeListItemsInList(Page* p) {
-  int sum = 0;
-  FreeListNode* n = top_;
-  while (n != NULL) {
-    if (Page::FromAddress(n->address()) == p) {
-      FreeSpace* free_space = reinterpret_cast<FreeSpace*>(n);
-      sum += free_space->Size();
-    }
-    n = n->next();
-  }
-  return sum;
-}
-
-
 intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
   int sum = 0;
   FreeListNode** n = &top_;
@@ -2170,20 +2187,28 @@ int FreeList::Free(Address start, int size_in_bytes) {
 
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(heap_, size_in_bytes);
+  Page* page = Page::FromAddress(start);
 
   // Early return to drop too-small blocks on the floor.
-  if (size_in_bytes < kSmallListMin) return size_in_bytes;
+  if (size_in_bytes < kSmallListMin) {
+    page->add_non_available_small_blocks(size_in_bytes);
+    return size_in_bytes;
+  }
 
   // Insert other blocks at the head of a free list of the appropriate
   // magnitude.
   if (size_in_bytes <= kSmallListMax) {
     small_list_.Free(node, size_in_bytes);
+    page->add_available_in_small_free_list(size_in_bytes);
   } else if (size_in_bytes <= kMediumListMax) {
     medium_list_.Free(node, size_in_bytes);
+    page->add_available_in_medium_free_list(size_in_bytes);
   } else if (size_in_bytes <= kLargeListMax) {
     large_list_.Free(node, size_in_bytes);
+    page->add_available_in_large_free_list(size_in_bytes);
   } else {
     huge_list_.Free(node, size_in_bytes);
+    page->add_available_in_huge_free_list(size_in_bytes);
   }
 
   ASSERT(IsVeryLong() || available() == SumFreeLists());
@@ -2193,20 +2218,33 @@ int FreeList::Free(Address start, int size_in_bytes) {
 
 FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   FreeListNode* node = NULL;
+  Page* page = NULL;
 
   if (size_in_bytes <= kSmallAllocationMax) {
     node = small_list_.PickNodeFromList(node_size);
-    if (node != NULL) return node;
+    if (node != NULL) {
+      page = Page::FromAddress(node->address());
+      page->add_available_in_small_free_list(-(*node_size));
+      return node;
+    }
   }
 
   if (size_in_bytes <= kMediumAllocationMax) {
     node = medium_list_.PickNodeFromList(node_size);
-    if (node != NULL) return node;
+    if (node != NULL) {
+      page = Page::FromAddress(node->address());
+      page->add_available_in_medium_free_list(-(*node_size));
+      return node;
+    }
   }
 
   if (size_in_bytes <= kLargeAllocationMax) {
     node = large_list_.PickNodeFromList(node_size);
-    if (node != NULL) return node;
+    if (node != NULL) {
+      page = Page::FromAddress(node->address());
+      page->add_available_in_large_free_list(-(*node_size));
+      return node;
+    }
   }
 
   int huge_list_available = huge_list_.available();
@@ -2216,7 +2254,10 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
     FreeListNode* cur_node = *cur;
     while (cur_node != NULL &&
            Page::FromAddress(cur_node->address())->IsEvacuationCandidate()) {
-      huge_list_available -= reinterpret_cast<FreeSpace*>(cur_node)->Size();
+      int size = reinterpret_cast<FreeSpace*>(cur_node)->Size();
+      huge_list_available -= size;
+      page = Page::FromAddress(cur_node->address());
+      page->add_available_in_huge_free_list(-size);
       cur_node = cur_node->next();
     }
 
@@ -2235,6 +2276,8 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
       *cur = node->next();
       *node_size = size;
       huge_list_available -= size;
+      page = Page::FromAddress(node->address());
+      page->add_available_in_huge_free_list(-size);
       break;
     }
   }
@@ -2322,27 +2365,17 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
 }
 
 
-void FreeList::CountFreeListItems(Page* p, SizeStats* sizes) {
-  sizes->huge_size_ = huge_list_.CountFreeListItemsInList(p);
-  if (sizes->huge_size_ < p->area_size()) {
-    sizes->small_size_ = small_list_.CountFreeListItemsInList(p);
-    sizes->medium_size_ = medium_list_.CountFreeListItemsInList(p);
-    sizes->large_size_ = large_list_.CountFreeListItemsInList(p);
-  } else {
-    sizes->small_size_ = 0;
-    sizes->medium_size_ = 0;
-    sizes->large_size_ = 0;
-  }
-}
-
-
 intptr_t FreeList::EvictFreeListItems(Page* p) {
   intptr_t sum = huge_list_.EvictFreeListItemsInList(p);
+  p->set_available_in_huge_free_list(0);
 
   if (sum < p->area_size()) {
     sum += small_list_.EvictFreeListItemsInList(p) +
         medium_list_.EvictFreeListItemsInList(p) +
         large_list_.EvictFreeListItemsInList(p);
+    p->set_available_in_small_free_list(0);
+    p->set_available_in_medium_free_list(0);
+    p->set_available_in_large_free_list(0);
   }
 
   return sum;

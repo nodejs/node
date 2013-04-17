@@ -735,6 +735,13 @@ void Bignum::BigitsShiftLeft(int shift_amount) {
 
 
 void Bignum::SubtractTimes(const Bignum& other, int factor) {
+#ifdef DEBUG
+  Bignum a, b;
+  a.AssignBignum(*this);
+  b.AssignBignum(other);
+  b.MultiplyByUInt32(factor);
+  a.SubtractBignum(b);
+#endif
   ASSERT(exponent_ <= other.exponent_);
   if (factor < 3) {
     for (int i = 0; i < factor; ++i) {
@@ -758,9 +765,9 @@ void Bignum::SubtractTimes(const Bignum& other, int factor) {
     Chunk difference = bigits_[i] - borrow;
     bigits_[i] = difference & kBigitMask;
     borrow = difference >> (kChunkSize - 1);
-    ++i;
   }
   Clamp();
+  ASSERT(Bignum::Equal(a, *this));
 }
 
 

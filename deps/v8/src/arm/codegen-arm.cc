@@ -62,7 +62,6 @@ double fast_exp_simulator(double x) {
 
 
 UnaryMathFunction CreateExpFunction() {
-  if (!CpuFeatures::IsSupported(VFP2)) return &exp;
   if (!FLAG_fast_math) return &exp;
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
@@ -72,7 +71,6 @@ UnaryMathFunction CreateExpFunction() {
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
 
   {
-    CpuFeatureScope use_vfp(&masm, VFP2);
     DwVfpRegister input = d0;
     DwVfpRegister result = d1;
     DwVfpRegister double_scratch1 = d2;
@@ -185,7 +183,6 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   //  -- r4    : scratch (elements)
   // -----------------------------------
   Label loop, entry, convert_hole, gc_required, only_change_map, done;
-  bool vfp2_supported = CpuFeatures::IsSupported(VFP2);
 
   if (mode == TRACK_ALLOCATION_SITE) {
     __ TestJSArrayForAllocationSiteInfo(r2, r4);
@@ -248,7 +245,6 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // r5: kHoleNanUpper32
   // r6: end of destination FixedDoubleArray, not tagged
   // r7: begin of FixedDoubleArray element fields, not tagged
-  if (!vfp2_supported) __ Push(r1, r0);
 
   __ b(&entry);
 
@@ -276,23 +272,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ UntagAndJumpIfNotSmi(r9, r9, &convert_hole);
 
   // Normal smi, convert to double and store.
-  if (vfp2_supported) {
-    CpuFeatureScope scope(masm, VFP2);
-    __ vmov(s0, r9);
-    __ vcvt_f64_s32(d0, s0);
-    __ vstr(d0, r7, 0);
-    __ add(r7, r7, Operand(8));
-  } else {
-    FloatingPointHelper::ConvertIntToDouble(masm,
-                                            r9,
-                                            FloatingPointHelper::kCoreRegisters,
-                                            d0,
-                                            r0,
-                                            r1,
-                                            lr,
-                                            s0);
-    __ Strd(r0, r1, MemOperand(r7, 8, PostIndex));
-  }
+  __ vmov(s0, r9);
+  __ vcvt_f64_s32(d0, s0);
+  __ vstr(d0, r7, 0);
+  __ add(r7, r7, Operand(8));
   __ b(&entry);
 
   // Hole found, store the-hole NaN.
@@ -310,7 +293,6 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ cmp(r7, r6);
   __ b(lt, &loop);
 
-  if (!vfp2_supported) __ Pop(r1, r0);
   __ pop(lr);
   __ bind(&done);
 }

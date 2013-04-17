@@ -115,4 +115,6 @@ PreParserData V8EXPORT Preparse(UnicodeInputStream* input,
 
 }  // namespace v8.
 
+#undef V8EXPORT
+
 #endif  // PREPARSER_H

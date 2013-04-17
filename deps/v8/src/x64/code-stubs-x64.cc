@@ -30,6 +30,7 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "bootstrapper.h"
+#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "regexp-macro-assembler.h"
 #include "stub-cache.h"
@@ -37,6 +38,18 @@
 
 namespace v8 {
 namespace internal {
+
+
+void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rax, rbx, rcx };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kCreateArrayLiteralShallow)->entry;
+}
 
 
 void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
@@ -158,9 +171,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Get the function info from the stack.
   __ movq(rdx, Operand(rsp, 1 * kPointerSize));
 
-  int map_index = (language_mode_ == CLASSIC_MODE)
-      ? Context::FUNCTION_MAP_INDEX
-      : Context::STRICT_MODE_FUNCTION_MAP_INDEX;
+  int map_index = Context::FunctionMapIndex(language_mode_, is_generator_);
 
   // Compute the function map in the current native context and set that
   // as the map of the allocated object.
@@ -383,165 +394,6 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Need to collect. Call into runtime system.
   __ bind(&gc);
   __ TailCallRuntime(Runtime::kPushBlockContext, 2, 1);
-}
-
-
-static void GenerateFastCloneShallowArrayCommon(
-    MacroAssembler* masm,
-    int length,
-    FastCloneShallowArrayStub::Mode mode,
-    AllocationSiteMode allocation_site_mode,
-    Label* fail) {
-  // Registers on entry:
-  //
-  // rcx: boilerplate literal array.
-  ASSERT(mode != FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS);
-
-  // All sizes here are multiples of kPointerSize.
-  int elements_size = 0;
-  if (length > 0) {
-    elements_size = mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        ? FixedDoubleArray::SizeFor(length)
-        : FixedArray::SizeFor(length);
-  }
-  int size = JSArray::kSize;
-  int allocation_info_start = size;
-  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-    size += AllocationSiteInfo::kSize;
-  }
-  size += elements_size;
-
-  // Allocate both the JS array and the elements array in one big
-  // allocation. This avoids multiple limit checks.
-  AllocationFlags flags = TAG_OBJECT;
-  if (mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS) {
-    flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT | flags);
-  }
-  __ Allocate(size, rax, rbx, rdx, fail, flags);
-
-  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-    __ LoadRoot(kScratchRegister, Heap::kAllocationSiteInfoMapRootIndex);
-    __ movq(FieldOperand(rax, allocation_info_start), kScratchRegister);
-    __ movq(FieldOperand(rax, allocation_info_start + kPointerSize), rcx);
-  }
-
-  // Copy the JS array part.
-  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
-    if ((i != JSArray::kElementsOffset) || (length == 0)) {
-      __ movq(rbx, FieldOperand(rcx, i));
-      __ movq(FieldOperand(rax, i), rbx);
-    }
-  }
-
-  if (length > 0) {
-    // Get hold of the elements array of the boilerplate and setup the
-    // elements pointer in the resulting object.
-    __ movq(rcx, FieldOperand(rcx, JSArray::kElementsOffset));
-    if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-      __ lea(rdx, Operand(rax, JSArray::kSize + AllocationSiteInfo::kSize));
-    } else {
-      __ lea(rdx, Operand(rax, JSArray::kSize));
-    }
-    __ movq(FieldOperand(rax, JSArray::kElementsOffset), rdx);
-
-    // Copy the elements array.
-    if (mode == FastCloneShallowArrayStub::CLONE_ELEMENTS) {
-      for (int i = 0; i < elements_size; i += kPointerSize) {
-        __ movq(rbx, FieldOperand(rcx, i));
-        __ movq(FieldOperand(rdx, i), rbx);
-      }
-    } else {
-      ASSERT(mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS);
-      int i;
-      for (i = 0; i < FixedDoubleArray::kHeaderSize; i += kPointerSize) {
-        __ movq(rbx, FieldOperand(rcx, i));
-        __ movq(FieldOperand(rdx, i), rbx);
-      }
-      while (i < elements_size) {
-        __ movsd(xmm0, FieldOperand(rcx, i));
-        __ movsd(FieldOperand(rdx, i), xmm0);
-        i += kDoubleSize;
-      }
-      ASSERT(i == elements_size);
-    }
-  }
-}
-
-void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
-  // Stack layout on entry:
-  //
-  // [rsp + kPointerSize]: constant elements.
-  // [rsp + (2 * kPointerSize)]: literal index.
-  // [rsp + (3 * kPointerSize)]: literals array.
-
-  // Load boilerplate object into rcx and check if we need to create a
-  // boilerplate.
-  __ movq(rcx, Operand(rsp, 3 * kPointerSize));
-  __ movq(rax, Operand(rsp, 2 * kPointerSize));
-  SmiIndex index = masm->SmiToIndex(rax, rax, kPointerSizeLog2);
-  __ movq(rcx,
-          FieldOperand(rcx, index.reg, index.scale, FixedArray::kHeaderSize));
-  __ CompareRoot(rcx, Heap::kUndefinedValueRootIndex);
-  Label slow_case;
-  __ j(equal, &slow_case);
-
-  FastCloneShallowArrayStub::Mode mode = mode_;
-  // rcx is boilerplate object.
-  Factory* factory = masm->isolate()->factory();
-  if (mode == CLONE_ANY_ELEMENTS) {
-    Label double_elements, check_fast_elements;
-    __ movq(rbx, FieldOperand(rcx, JSArray::kElementsOffset));
-    __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
-           factory->fixed_cow_array_map());
-    __ j(not_equal, &check_fast_elements);
-    GenerateFastCloneShallowArrayCommon(masm, 0, COPY_ON_WRITE_ELEMENTS,
-                                        allocation_site_mode_,
-                                        &slow_case);
-    __ ret(3 * kPointerSize);
-
-    __ bind(&check_fast_elements);
-    __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
-           factory->fixed_array_map());
-    __ j(not_equal, &double_elements);
-    GenerateFastCloneShallowArrayCommon(masm, length_, CLONE_ELEMENTS,
-                                        allocation_site_mode_,
-                                        &slow_case);
-    __ ret(3 * kPointerSize);
-
-    __ bind(&double_elements);
-    mode = CLONE_DOUBLE_ELEMENTS;
-    // Fall through to generate the code to handle double elements.
-  }
-
-  if (FLAG_debug_code) {
-    const char* message;
-    Heap::RootListIndex expected_map_index;
-    if (mode == CLONE_ELEMENTS) {
-      message = "Expected (writable) fixed array";
-      expected_map_index = Heap::kFixedArrayMapRootIndex;
-    } else if (mode == CLONE_DOUBLE_ELEMENTS) {
-      message = "Expected (writable) fixed double array";
-      expected_map_index = Heap::kFixedDoubleArrayMapRootIndex;
-    } else {
-      ASSERT(mode == COPY_ON_WRITE_ELEMENTS);
-      message = "Expected copy-on-write fixed array";
-      expected_map_index = Heap::kFixedCOWArrayMapRootIndex;
-    }
-    __ push(rcx);
-    __ movq(rcx, FieldOperand(rcx, JSArray::kElementsOffset));
-    __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
-                   expected_map_index);
-    __ Assert(equal, message);
-    __ pop(rcx);
-  }
-
-  GenerateFastCloneShallowArrayCommon(masm, length_, mode,
-                                      allocation_site_mode_,
-                                      &slow_case);
-  __ ret(3 * kPointerSize);
-
-  __ bind(&slow_case);
-  __ TailCallRuntime(Runtime::kCreateArrayLiteralShallow, 3, 1);
 }
 
 
@@ -4154,6 +4006,7 @@ bool CEntryStub::IsPregenerated() {
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
+  StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   // It is important that the store buffer overflow stubs are generated first.
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
 }
@@ -4299,12 +4152,19 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Special handling of out of memory exceptions.
   JumpIfOOM(masm, rax, kScratchRegister, throw_out_of_memory_exception);
 
-  // Retrieve the pending exception and clear the variable.
+  // Retrieve the pending exception.
   ExternalReference pending_exception_address(
       Isolate::kPendingExceptionAddress, masm->isolate());
   Operand pending_exception_operand =
       masm->ExternalOperand(pending_exception_address);
   __ movq(rax, pending_exception_operand);
+
+  // See if we just retrieved an OOM exception.
+  JumpIfOOM(masm, rax, kScratchRegister, throw_out_of_memory_exception);
+
+  // Clear the pending exception.
+  pending_exception_operand =
+      masm->ExternalOperand(pending_exception_address);
   __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
   __ movq(pending_exception_operand, rdx);
 
@@ -4412,6 +4272,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
+
+#ifdef _WIN64
+  const int kCalleeSaveXMMRegisters = 10;
+  const int kFullXMMRegisterSize = 16;
+#endif
   {  // NOLINT. Scope block confuses linter.
     MacroAssembler::NoRootArrayScope uninitialized_root_register(masm);
     // Set up frame.
@@ -4438,8 +4303,21 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     __ push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
 #endif
     __ push(rbx);
-    // TODO(X64): On Win64, if we ever use XMM6-XMM15, the low low 64 bits are
-    // callee save as well.
+
+#ifdef _WIN64
+    // On Win64 XMM6-XMM15 are callee-save
+    __ subq(rsp, Immediate(kCalleeSaveXMMRegisters * kFullXMMRegisterSize));
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 0), xmm6);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 1), xmm7);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 2), xmm8);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 3), xmm9);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 4), xmm10);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 5), xmm11);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 6), xmm12);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 7), xmm13);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 8), xmm14);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 9), xmm15);
+#endif
 
     // Set up the roots and smi constant registers.
     // Needs to be done before any further smi loads.
@@ -4529,6 +4407,21 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   }
 
   // Restore callee-saved registers (X64 conventions).
+#ifdef _WIN64
+  // On Win64 XMM6-XMM15 are callee-save
+  __ movdqu(xmm6, Operand(rsp, kFullXMMRegisterSize * 0));
+  __ movdqu(xmm7, Operand(rsp, kFullXMMRegisterSize * 1));
+  __ movdqu(xmm8, Operand(rsp, kFullXMMRegisterSize * 2));
+  __ movdqu(xmm8, Operand(rsp, kFullXMMRegisterSize * 3));
+  __ movdqu(xmm10, Operand(rsp, kFullXMMRegisterSize * 4));
+  __ movdqu(xmm11, Operand(rsp, kFullXMMRegisterSize * 5));
+  __ movdqu(xmm12, Operand(rsp, kFullXMMRegisterSize * 6));
+  __ movdqu(xmm13, Operand(rsp, kFullXMMRegisterSize * 7));
+  __ movdqu(xmm14, Operand(rsp, kFullXMMRegisterSize * 8));
+  __ movdqu(xmm15, Operand(rsp, kFullXMMRegisterSize * 9));
+  __ addq(rsp, Immediate(kCalleeSaveXMMRegisters * kFullXMMRegisterSize));
+#endif
+
   __ pop(rbx);
 #ifdef _WIN64
   // Callee save on in Win64 ABI, arguments/volatile in AMD64 ABI.
@@ -6775,8 +6668,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  ASSERT(!Serializer::enabled());
-  CEntryStub ces(1, kSaveFPRegs);
+  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
   __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;

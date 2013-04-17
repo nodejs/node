@@ -27,7 +27,13 @@
 
 "use strict";
 
+// This file relies on the fact that the following declaration has been made
+// in runtime.js:
+// var $Array = global.Array;
+
 var $Symbol = global.Symbol;
+
+// -------------------------------------------------------------------
 
 function SymbolConstructor(x) {
   var value =

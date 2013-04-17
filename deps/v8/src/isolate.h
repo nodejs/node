@@ -497,6 +497,10 @@ class Isolate {
   // If one does not yet exist, return null.
   PerIsolateThreadData* FindPerThreadDataForThisThread();
 
+  // Find the PerThread for given (isolate, thread) combination
+  // If one does not yet exist, return null.
+  PerIsolateThreadData* FindPerThreadDataForThread(ThreadId thread_id);
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Get the debugger from the default isolate. Preinitializes the
   // default isolate if needed.
@@ -645,7 +649,7 @@ class Isolate {
   }
   inline Address* handler_address() { return &thread_local_top_.handler_; }
 
-  // Bottom JS entry (see StackTracer::Trace in log.cc).
+  // Bottom JS entry (see StackTracer::Trace in sampler.cc).
   static Address js_entry_sp(ThreadLocalTop* thread) {
     return thread->js_entry_sp_;
   }
@@ -1027,23 +1031,6 @@ class Isolate {
   }
 
   void SetCurrentVMState(StateTag state) {
-    if (RuntimeProfiler::IsEnabled()) {
-      // Make sure thread local top is initialized.
-      ASSERT(thread_local_top_.isolate_ == this);
-      StateTag current_state = thread_local_top_.current_vm_state_;
-      if (current_state != JS && state == JS) {
-        // Non-JS -> JS transition.
-        RuntimeProfiler::IsolateEnteredJS(this);
-      } else if (current_state == JS && state != JS) {
-        // JS -> non-JS transition.
-        RuntimeProfiler::IsolateExitedJS(this);
-      } else {
-        // Other types of state transitions are not interesting to the
-        // runtime profiler, because they don't affect whether we're
-        // in JS or not.
-        ASSERT((current_state == JS) == (state == JS));
-      }
-    }
     thread_local_top_.current_vm_state_ = state;
   }
 
@@ -1480,7 +1467,6 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 #define HEAP (v8::internal::Isolate::Current()->heap())
 #define FACTORY (v8::internal::Isolate::Current()->factory())
 #define ISOLATE (v8::internal::Isolate::Current())
-#define LOGGER (v8::internal::Isolate::Current()->logger())
 
 
 // Tells whether the native context is marked with out of memory.

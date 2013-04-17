@@ -672,8 +672,8 @@ static int FreeListFragmentation(PagedSpace* space, Page* p) {
     return 0;
   }
 
-  FreeList::SizeStats sizes;
-  space->CountFreeListItems(p, &sizes);
+  PagedSpace::SizeStats sizes;
+  space->ObtainFreeListStatistics(p, &sizes);
 
   intptr_t ratio;
   intptr_t ratio_threshold;
@@ -812,8 +812,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       if (!p->WasSwept()) {
         free_bytes = (p->area_size() - p->LiveBytes());
       } else {
-        FreeList::SizeStats sizes;
-        space->CountFreeListItems(p, &sizes);
+        PagedSpace::SizeStats sizes;
+        space->ObtainFreeListStatistics(p, &sizes);
         free_bytes = sizes.Total();
       }
 
@@ -3125,8 +3125,6 @@ void MarkCompactCollector::ProcessInvalidatedCode(ObjectVisitor* visitor) {
 
 
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
-  Heap::RelocationLock relocation_lock(heap());
-
   bool code_slots_filtering_required;
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
     code_slots_filtering_required = MarkInvalidatedCode();

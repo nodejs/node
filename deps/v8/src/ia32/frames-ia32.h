@@ -60,18 +60,6 @@ const int kAlignmentZapValue = 0x12345678;  // Not heap object tagged.
 // ----------------------------------------------------
 
 
-class StackHandlerConstants : public AllStatic {
- public:
-  static const int kNextOffset     = 0 * kPointerSize;
-  static const int kCodeOffset     = 1 * kPointerSize;
-  static const int kStateOffset    = 2 * kPointerSize;
-  static const int kContextOffset  = 3 * kPointerSize;
-  static const int kFPOffset       = 4 * kPointerSize;
-
-  static const int kSize = kFPOffset + kPointerSize;
-};
-
-
 class EntryFrameConstants : public AllStatic {
  public:
   static const int kCallerFPOffset      = -6 * kPointerSize;

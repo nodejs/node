@@ -90,9 +90,9 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
     Factory* factory = isolate->factory();
     Handle<ByteArray> new_reloc =
         factory->NewByteArray(reloc_length + padding, TENURED);
-    memcpy(new_reloc->GetDataStartAddress() + padding,
-           code->relocation_info()->GetDataStartAddress(),
-           reloc_length);
+    OS::MemCopy(new_reloc->GetDataStartAddress() + padding,
+                code->relocation_info()->GetDataStartAddress(),
+                reloc_length);
     // Create a relocation writer to write the comments in the padding
     // space. Use position 0 for everything to ensure short encoding.
     RelocInfoWriter reloc_info_writer(
@@ -177,7 +177,8 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
 
   // Move the relocation info to the beginning of the byte array.
   int new_reloc_size = reloc_end_address - reloc_info_writer.pos();
-  memmove(code->relocation_start(), reloc_info_writer.pos(), new_reloc_size);
+  OS::MemMove(
+      code->relocation_start(), reloc_info_writer.pos(), new_reloc_size);
 
   // The relocation info is in place, update the size.
   reloc_info->set_length(new_reloc_size);
@@ -211,41 +212,39 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
 
 
 static const byte kJnsInstruction = 0x79;
-static const byte kJnsOffset = 0x13;
+static const byte kJnsOffset = 0x11;
 static const byte kCallInstruction = 0xe8;
 static const byte kNopByteOne = 0x66;
 static const byte kNopByteTwo = 0x90;
 
+// The back edge bookkeeping code matches the pattern:
+//
+//     sub <profiling_counter>, <delta>
+//     jns ok
+//     call <interrupt stub>
+//   ok:
+//
+// The patched back edge looks like this:
+//
+//     sub <profiling_counter>, <delta>  ;; Not changed
+//     nop
+//     nop
+//     call <on-stack replacment>
+//   ok:
 
-void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
-                                        Address pc_after,
-                                        Code* check_code,
-                                        Code* replacement_code) {
+void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
+                                       Address pc_after,
+                                       Code* interrupt_code,
+                                       Code* replacement_code) {
+  ASSERT(!InterruptCodeIsPatched(unoptimized_code,
+                                 pc_after,
+                                 interrupt_code,
+                                 replacement_code));
+  // Turn the jump into nops.
   Address call_target_address = pc_after - kIntSize;
-  ASSERT_EQ(check_code->entry(),
-            Assembler::target_address_at(call_target_address));
-  // The back edge bookkeeping code matches the pattern:
-  //
-  //     sub <profiling_counter>, <delta>
-  //     jns ok
-  //     call <stack guard>
-  //     test eax, <loop nesting depth>
-  // ok: ...
-  //
-  // We will patch away the branch so the code is:
-  //
-  //     sub <profiling_counter>, <delta>  ;; Not changed
-  //     nop
-  //     nop
-  //     call <on-stack replacment>
-  //     test eax, <loop nesting depth>
-  // ok:
-
-  ASSERT_EQ(kJnsInstruction,  *(call_target_address - 3));
-  ASSERT_EQ(kJnsOffset,       *(call_target_address - 2));
-  ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
   *(call_target_address - 3) = kNopByteOne;
   *(call_target_address - 2) = kNopByteTwo;
+  // Replace the call address.
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
 
@@ -254,27 +253,48 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
 }
 
 
-void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
-                                         Address pc_after,
-                                         Code* check_code,
-                                         Code* replacement_code) {
+void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
+                                        Address pc_after,
+                                        Code* interrupt_code,
+                                        Code* replacement_code) {
+  ASSERT(InterruptCodeIsPatched(unoptimized_code,
+                                pc_after,
+                                interrupt_code,
+                                replacement_code));
+  // Restore the original jump.
   Address call_target_address = pc_after - kIntSize;
-  ASSERT_EQ(replacement_code->entry(),
-            Assembler::target_address_at(call_target_address));
-
-  // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
-  // restore the conditional branch.
-  ASSERT_EQ(kNopByteOne,      *(call_target_address - 3));
-  ASSERT_EQ(kNopByteTwo,      *(call_target_address - 2));
-  ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
   *(call_target_address - 3) = kJnsInstruction;
   *(call_target_address - 2) = kJnsOffset;
+  // Restore the original call address.
   Assembler::set_target_address_at(call_target_address,
-                                   check_code->entry());
+                                   interrupt_code->entry());
 
-  check_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, call_target_address, check_code);
+  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, call_target_address, interrupt_code);
 }
+
+
+#ifdef DEBUG
+bool Deoptimizer::InterruptCodeIsPatched(Code* unoptimized_code,
+                                         Address pc_after,
+                                         Code* interrupt_code,
+                                         Code* replacement_code) {
+  Address call_target_address = pc_after - kIntSize;
+  ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
+  if (*(call_target_address - 3) == kNopByteOne) {
+    ASSERT_EQ(replacement_code->entry(),
+             Assembler::target_address_at(call_target_address));
+    ASSERT_EQ(kNopByteTwo,      *(call_target_address - 2));
+    return true;
+  } else {
+    ASSERT_EQ(interrupt_code->entry(),
+              Assembler::target_address_at(call_target_address));
+    ASSERT_EQ(kJnsInstruction,  *(call_target_address - 3));
+    ASSERT_EQ(kJnsOffset,       *(call_target_address - 2));
+    return false;
+  }
+}
+#endif  // DEBUG
 
 
 static int LookupBailoutId(DeoptimizationInputData* data, BailoutId ast_id) {

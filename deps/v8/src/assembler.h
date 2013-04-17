@@ -753,6 +753,10 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
   static ExternalReference old_pointer_space_allocation_limit_address(
       Isolate* isolate);
+  static ExternalReference old_data_space_allocation_top_address(
+      Isolate* isolate);
+  static ExternalReference old_data_space_allocation_limit_address(
+      Isolate* isolate);
 
   static ExternalReference double_fp_operation(Token::Value operation,
                                                Isolate* isolate);

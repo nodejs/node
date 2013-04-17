@@ -116,74 +116,91 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
 }
 
 
-void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
+// This structure comes from FullCodeGenerator::EmitBackEdgeBookkeeping.
+// The back edge bookkeeping code matches the pattern:
+//
+// sltu at, sp, t0 / slt at, a3, zero_reg (in case of count based interrupts)
+// beq at, zero_reg, ok
+// lui t9, <interrupt stub address> upper
+// ori t9, <interrupt stub address> lower
+// jalr t9
+// nop
+// ok-label ----- pc_after points here
+//
+// We patch the code to the following form:
+//
+// addiu at, zero_reg, 1
+// beq at, zero_reg, ok  ;; Not changed
+// lui t9, <on-stack replacement address> upper
+// ori t9, <on-stack replacement address> lower
+// jalr t9  ;; Not changed
+// nop  ;; Not changed
+// ok-label ----- pc_after points here
+
+void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
                                         Address pc_after,
-                                        Code* check_code,
+                                        Code* interrupt_code,
                                         Code* replacement_code) {
-  const int kInstrSize = Assembler::kInstrSize;
-  // This structure comes from FullCodeGenerator::EmitBackEdgeBookkeeping.
-  // The call of the stack guard check has the following form:
-  // sltu at, sp, t0 / slt at, a3, zero_reg (in case of count based interrupts)
-  // beq at, zero_reg, ok
-  // lui t9, <stack guard address> upper
-  // ori t9, <stack guard address> lower
-  // jalr t9
-  // nop
-  // ----- pc_after points here
-
-  ASSERT(Assembler::IsBeq(Assembler::instr_at(pc_after - 5 * kInstrSize)));
-
+  ASSERT(!InterruptCodeIsPatched(unoptimized_code,
+                                 pc_after,
+                                 interrupt_code,
+                                 replacement_code));
+  static const int kInstrSize = Assembler::kInstrSize;
   // Replace the sltu instruction with load-imm 1 to at, so beq is not taken.
   CodePatcher patcher(pc_after - 6 * kInstrSize, 1);
   patcher.masm()->addiu(at, zero_reg, 1);
-
   // Replace the stack check address in the load-immediate (lui/ori pair)
   // with the entry address of the replacement code.
-  ASSERT(reinterpret_cast<uint32_t>(
-      Assembler::target_address_at(pc_after - 4 * kInstrSize)) ==
-      reinterpret_cast<uint32_t>(check_code->entry()));
   Assembler::set_target_address_at(pc_after - 4 * kInstrSize,
                                    replacement_code->entry());
-
-  // We patched the code to the following form:
-  // addiu at, zero_reg, 1
-  // beq at, zero_reg, ok  ;; Not changed
-  // lui t9, <on-stack replacement address> upper
-  // ori t9, <on-stack replacement address> lower
-  // jalr t9  ;; Not changed
-  // nop  ;; Not changed
-  // ----- pc_after points here
 
   unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
       unoptimized_code, pc_after - 4 * kInstrSize, replacement_code);
 }
 
 
-void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
-                                         Address pc_after,
-                                         Code* check_code,
-                                         Code* replacement_code) {
-  // Exact opposite of the function above.
-  const int kInstrSize = Assembler::kInstrSize;
-  ASSERT(Assembler::IsAddImmediate(
-      Assembler::instr_at(pc_after - 6 * kInstrSize)));
-  ASSERT(Assembler::IsBeq(Assembler::instr_at(pc_after - 5 * kInstrSize)));
-
+void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
+                                        Address pc_after,
+                                        Code* interrupt_code,
+                                        Code* replacement_code) {
+  ASSERT(InterruptCodeIsPatched(unoptimized_code,
+                                 pc_after,
+                                 interrupt_code,
+                                 replacement_code));
+  static const int kInstrSize = Assembler::kInstrSize;
   // Restore the sltu instruction so beq can be taken again.
   CodePatcher patcher(pc_after - 6 * kInstrSize, 1);
   patcher.masm()->slt(at, a3, zero_reg);
-
-  // Replace the on-stack replacement address in the load-immediate (lui/ori
-  // pair) with the entry address of the normal stack-check code.
-  ASSERT(reinterpret_cast<uint32_t>(
-      Assembler::target_address_at(pc_after - 4 * kInstrSize)) ==
-      reinterpret_cast<uint32_t>(replacement_code->entry()));
+  // Restore the original call address.
   Assembler::set_target_address_at(pc_after - 4 * kInstrSize,
-                                   check_code->entry());
+                                   interrupt_code->entry());
 
-  check_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, pc_after - 4 * kInstrSize, check_code);
+  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, pc_after - 4 * kInstrSize, interrupt_code);
 }
+
+
+#ifdef DEBUG
+bool Deoptimizer::InterruptCodeIsPatched(Code* unoptimized_code,
+                                         Address pc_after,
+                                         Code* interrupt_code,
+                                         Code* replacement_code) {
+  static const int kInstrSize = Assembler::kInstrSize;
+  ASSERT(Assembler::IsBeq(Assembler::instr_at(pc_after - 5 * kInstrSize)));
+  if (Assembler::IsAddImmediate(
+      Assembler::instr_at(pc_after - 6 * kInstrSize))) {
+    ASSERT(reinterpret_cast<uint32_t>(
+        Assembler::target_address_at(pc_after - 4 * kInstrSize)) ==
+        reinterpret_cast<uint32_t>(replacement_code->entry()));
+    return true;
+  } else {
+    ASSERT(reinterpret_cast<uint32_t>(
+        Assembler::target_address_at(pc_after - 4 * kInstrSize)) ==
+        reinterpret_cast<uint32_t>(interrupt_code->entry()));
+    return false;
+  }
+}
+#endif  // DEBUG
 
 
 static int LookupBailoutId(DeoptimizationInputData* data, BailoutId ast_id) {
@@ -586,17 +603,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   const int kDoubleRegsSize =
       kDoubleSize * FPURegister::kMaxNumAllocatableRegisters;
 
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm(), FPU);
-    // Save all FPU registers before messing with them.
-    __ Subu(sp, sp, Operand(kDoubleRegsSize));
-    for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
-      FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
-      int offset = i * kDoubleSize;
-      __ sdc1(fpu_reg, MemOperand(sp, offset));
-    }
-  } else {
-    __ Subu(sp, sp, Operand(kDoubleRegsSize));
+  // Save all FPU registers before messing with them.
+  __ Subu(sp, sp, Operand(kDoubleRegsSize));
+  for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
+    FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
+    int offset = i * kDoubleSize;
+    __ sdc1(fpu_reg, MemOperand(sp, offset));
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -669,16 +681,13 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm(), FPU);
-    // Copy FPU registers to
-    // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-    for (int i = 0; i < FPURegister::NumAllocatableRegisters(); ++i) {
-      int dst_offset = i * kDoubleSize + double_regs_offset;
-      int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
-      __ ldc1(f0, MemOperand(sp, src_offset));
-      __ sdc1(f0, MemOperand(a1, dst_offset));
-    }
+  // Copy FPU registers to
+  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
+  for (int i = 0; i < FPURegister::NumAllocatableRegisters(); ++i) {
+    int dst_offset = i * kDoubleSize + double_regs_offset;
+    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    __ ldc1(f0, MemOperand(sp, src_offset));
+    __ sdc1(f0, MemOperand(a1, dst_offset));
   }
 
   // Remove the bailout id, eventually return address, and the saved registers
@@ -747,15 +756,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ bind(&outer_loop_header);
   __ Branch(&outer_push_loop, lt, t0, Operand(a1));
 
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm(), FPU);
-
-    __ lw(a1, MemOperand(a0, Deoptimizer::input_offset()));
-    for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
-      const FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
-      int src_offset = i * kDoubleSize + double_regs_offset;
-      __ ldc1(fpu_reg, MemOperand(a1, src_offset));
-    }
+  __ lw(a1, MemOperand(a0, Deoptimizer::input_offset()));
+  for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
+    const FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
+    int src_offset = i * kDoubleSize + double_regs_offset;
+    __ ldc1(fpu_reg, MemOperand(a1, src_offset));
   }
 
   // Push state, pc, and continuation from the last output frame.

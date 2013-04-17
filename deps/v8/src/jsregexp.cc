@@ -624,7 +624,8 @@ int RegExpImpl::IrregexpExecRaw(Handle<JSRegExp> regexp,
                                                      index);
   if (result == RE_SUCCESS) {
     // Copy capture results to the start of the registers array.
-    memcpy(output, raw_output, number_of_capture_registers * sizeof(int32_t));
+    OS::MemCopy(
+        output, raw_output, number_of_capture_registers * sizeof(int32_t));
   }
   if (result == RE_EXCEPTION) {
     ASSERT(!isolate->has_pending_exception());

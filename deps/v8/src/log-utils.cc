@@ -167,8 +167,9 @@ void Log::OpenFile(const char* name) {
     // Open the low-level log file.
     size_t len = strlen(name);
     ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLowLevelLogExt)));
-    memcpy(ll_name.start(), name, len);
-    memcpy(ll_name.start() + len, kLowLevelLogExt, sizeof(kLowLevelLogExt));
+    OS::MemCopy(ll_name.start(), name, len);
+    OS::MemCopy(ll_name.start() + len,
+                kLowLevelLogExt, sizeof(kLowLevelLogExt));
     ll_output_handle_ = OS::FOpen(ll_name.start(), OS::LogFileOpenMode);
     setvbuf(ll_output_handle_, NULL, _IOFBF, kLowLevelLogBufferSize);
   }

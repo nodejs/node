@@ -42,26 +42,6 @@ namespace v8 {
 namespace internal {
 
 
-// General collection of (multi-)bit-flags that can be passed to scanners and
-// parsers to signify their (initial) mode of operation.
-enum ParsingFlags {
-  kNoParsingFlags = 0,
-  // Embed LanguageMode values in parsing flags, i.e., equivalent to:
-  // CLASSIC_MODE = 0,
-  // STRICT_MODE,
-  // EXTENDED_MODE,
-  kLanguageModeMask = 0x03,
-  kAllowLazy = 0x04,
-  kAllowNativesSyntax = 0x08,
-  kAllowModules = 0x10,
-  kAllowGenerators = 0x20
-};
-
-STATIC_ASSERT((kLanguageModeMask & CLASSIC_MODE) == CLASSIC_MODE);
-STATIC_ASSERT((kLanguageModeMask & STRICT_MODE) == STRICT_MODE);
-STATIC_ASSERT((kLanguageModeMask & EXTENDED_MODE) == EXTENDED_MODE);
-
-
 // Returns the value (0 .. 15) of a hexadecimal character c.
 // If c is not a legal hexadecimal character, returns a value < 0.
 inline int HexValue(uc32 c) {
@@ -235,7 +215,7 @@ class LiteralBuffer {
 
   void ExpandBuffer() {
     Vector<byte> new_store = Vector<byte>::New(NewCapacity(kInitialCapacity));
-    memcpy(new_store.start(), backing_store_.start(), position_);
+    OS::MemCopy(new_store.start(), backing_store_.start(), position_);
     backing_store_.Dispose();
     backing_store_ = new_store;
   }

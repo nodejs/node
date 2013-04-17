@@ -197,6 +197,8 @@ void Scope::SetDefaults(ScopeType type,
   outer_scope_calls_non_strict_eval_ = false;
   inner_scope_calls_eval_ = false;
   force_eager_compilation_ = false;
+  force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
+      ? outer_scope->has_forced_context_allocation() : false;
   num_var_or_const_ = 0;
   num_stack_slots_ = 0;
   num_heap_slots_ = 0;
@@ -603,12 +605,18 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
     }
   }
 
-  // Collect temporaries which are always allocated on the stack.
+  // Collect temporaries which are always allocated on the stack, unless the
+  // context as a whole has forced context allocation.
   for (int i = 0; i < temps_.length(); i++) {
     Variable* var = temps_[i];
     if (var->is_used()) {
-      ASSERT(var->IsStackLocal());
-      stack_locals->Add(var, zone());
+      if (var->IsContextSlot()) {
+        ASSERT(has_forced_context_allocation());
+        context_locals->Add(var, zone());
+      } else {
+        ASSERT(var->IsStackLocal());
+        stack_locals->Add(var, zone());
+      }
     }
   }
 
@@ -1182,8 +1190,11 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // an eval() call or a runtime with lookup), it must be allocated in the
   // context.
   //
-  // Exceptions: temporary variables are never allocated in a context;
-  // catch-bound variables are always allocated in a context.
+  // Exceptions: If the scope as a whole has forced context allocation, all
+  // variables will have context allocation, even temporaries.  Otherwise
+  // temporary variables are always stack-allocated.  Catch-bound variables are
+  // always context-allocated.
+  if (has_forced_context_allocation()) return true;
   if (var->mode() == TEMPORARY) return false;
   if (var->mode() == INTERNAL) return true;
   if (is_catch_scope() || is_block_scope() || is_module_scope()) return true;

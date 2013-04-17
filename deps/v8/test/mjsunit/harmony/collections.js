@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-collections --expose-gc
+// Flags: --harmony-collections --expose-gc --allow-natives-syntax
 
 
 // Test valid getter and setter calls on Sets.
@@ -252,6 +252,27 @@ assertTrue(WeakMap.prototype.set instanceof Function)
 assertTrue(WeakMap.prototype.get instanceof Function)
 assertTrue(WeakMap.prototype.has instanceof Function)
 assertTrue(WeakMap.prototype.delete instanceof Function)
+
+
+// Test class of the Set, Map and WeakMap instance and prototype.
+assertEquals("Set", %_ClassOf(new Set))
+assertEquals("Object", %_ClassOf(Set.prototype))
+assertEquals("Map", %_ClassOf(new Map))
+assertEquals("Object", %_ClassOf(Map.prototype))
+assertEquals("WeakMap", %_ClassOf(new WeakMap))
+assertEquals("Object", %_ClassOf(WeakMap.prototype))
+
+
+// Test constructor property of the Set, Map and WeakMap prototype.
+function TestConstructor(C) {
+  assertFalse(C === Object.prototype.constructor);
+  assertSame(C, C.prototype.constructor);
+  assertSame(C, C().__proto__.constructor);
+  assertSame(C, (new C).__proto__.constructor);
+}
+TestConstructor(Set);
+TestConstructor(Map);
+TestConstructor(WeakMap);
 
 
 // Regression test for WeakMap prototype.

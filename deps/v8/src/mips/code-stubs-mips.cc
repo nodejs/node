@@ -30,6 +30,7 @@
 #if defined(V8_TARGET_ARCH_MIPS)
 
 #include "bootstrapper.h"
+#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "codegen.h"
 #include "regexp-macro-assembler.h"
@@ -37,6 +38,18 @@
 
 namespace v8 {
 namespace internal {
+
+
+void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a3, a2, a1 };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kCreateArrayLiteralShallow)->entry;
+}
 
 
 void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
@@ -134,7 +147,6 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
                                     Label* rhs_not_nan,
                                     Label* slow,
                                     bool strict);
-static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc);
 static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
                                            Register lhs,
                                            Register rhs);
@@ -183,9 +195,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   __ IncrementCounter(counters->fast_new_closure_total(), 1, t2, t3);
 
-  int map_index = (language_mode_ == CLASSIC_MODE)
-      ? Context::FUNCTION_MAP_INDEX
-      : Context::STRICT_MODE_FUNCTION_MAP_INDEX;
+  int map_index = Context::FunctionMapIndex(language_mode_, is_generator_);
 
   // Compute the function map in the current native context and set that
   // as the map of the allocated object.
@@ -402,147 +412,6 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void GenerateFastCloneShallowArrayCommon(
-    MacroAssembler* masm,
-    int length,
-    FastCloneShallowArrayStub::Mode mode,
-    AllocationSiteMode allocation_site_mode,
-    Label* fail) {
-  // Registers on entry:
-  // a3: boilerplate literal array.
-  ASSERT(mode != FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS);
-
-  // All sizes here are multiples of kPointerSize.
-  int elements_size = 0;
-  if (length > 0) {
-    elements_size = mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        ? FixedDoubleArray::SizeFor(length)
-        : FixedArray::SizeFor(length);
-  }
-
-  int size = JSArray::kSize;
-  int allocation_info_start = size;
-  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-    size += AllocationSiteInfo::kSize;
-  }
-  size += elements_size;
-
-  // Allocate both the JS array and the elements array in one big
-  // allocation. This avoids multiple limit checks.
-  __ Allocate(size, v0, a1, a2, fail, TAG_OBJECT);
-
-  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-    __ li(a2, Operand(Handle<Map>(masm->isolate()->heap()->
-                                   allocation_site_info_map())));
-    __ sw(a2, FieldMemOperand(v0, allocation_info_start));
-    __ sw(a3, FieldMemOperand(v0, allocation_info_start + kPointerSize));
-  }
-
-  // Copy the JS array part.
-  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
-    if ((i != JSArray::kElementsOffset) || (length == 0)) {
-      __ lw(a1, FieldMemOperand(a3, i));
-      __ sw(a1, FieldMemOperand(v0, i));
-    }
-  }
-
-  if (length > 0) {
-    // Get hold of the elements array of the boilerplate and setup the
-    // elements pointer in the resulting object.
-    __ lw(a3, FieldMemOperand(a3, JSArray::kElementsOffset));
-    if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-      __ Addu(a2, v0, Operand(JSArray::kSize + AllocationSiteInfo::kSize));
-    } else {
-      __ Addu(a2, v0, Operand(JSArray::kSize));
-    }
-    __ sw(a2, FieldMemOperand(v0, JSArray::kElementsOffset));
-
-    // Copy the elements array.
-    ASSERT((elements_size % kPointerSize) == 0);
-    __ CopyFields(a2, a3, a1.bit(), elements_size / kPointerSize);
-  }
-}
-
-void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
-  // Stack layout on entry:
-  //
-  // [sp]: constant elements.
-  // [sp + kPointerSize]: literal index.
-  // [sp + (2 * kPointerSize)]: literals array.
-
-  // Load boilerplate object into r3 and check if we need to create a
-  // boilerplate.
-  Label slow_case;
-  __ lw(a3, MemOperand(sp, 2 * kPointerSize));
-  __ lw(a0, MemOperand(sp, 1 * kPointerSize));
-  __ Addu(a3, a3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(t0, a0, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t0, a3, t0);
-  __ lw(a3, MemOperand(t0));
-  __ LoadRoot(t1, Heap::kUndefinedValueRootIndex);
-  __ Branch(&slow_case, eq, a3, Operand(t1));
-
-  FastCloneShallowArrayStub::Mode mode = mode_;
-  if (mode == CLONE_ANY_ELEMENTS) {
-    Label double_elements, check_fast_elements;
-    __ lw(v0, FieldMemOperand(a3, JSArray::kElementsOffset));
-    __ lw(v0, FieldMemOperand(v0, HeapObject::kMapOffset));
-    __ LoadRoot(t1, Heap::kFixedCOWArrayMapRootIndex);
-    __ Branch(&check_fast_elements, ne, v0, Operand(t1));
-    GenerateFastCloneShallowArrayCommon(masm, 0, COPY_ON_WRITE_ELEMENTS,
-                                        allocation_site_mode_,
-                                        &slow_case);
-    // Return and remove the on-stack parameters.
-    __ DropAndRet(3);
-
-    __ bind(&check_fast_elements);
-    __ LoadRoot(t1, Heap::kFixedArrayMapRootIndex);
-    __ Branch(&double_elements, ne, v0, Operand(t1));
-    GenerateFastCloneShallowArrayCommon(masm, length_, CLONE_ELEMENTS,
-                                        allocation_site_mode_,
-                                        &slow_case);
-    // Return and remove the on-stack parameters.
-    __ DropAndRet(3);
-
-    __ bind(&double_elements);
-    mode = CLONE_DOUBLE_ELEMENTS;
-    // Fall through to generate the code to handle double elements.
-  }
-
-  if (FLAG_debug_code) {
-    const char* message;
-    Heap::RootListIndex expected_map_index;
-    if (mode == CLONE_ELEMENTS) {
-      message = "Expected (writable) fixed array";
-      expected_map_index = Heap::kFixedArrayMapRootIndex;
-    } else if (mode == CLONE_DOUBLE_ELEMENTS) {
-      message = "Expected (writable) fixed double array";
-      expected_map_index = Heap::kFixedDoubleArrayMapRootIndex;
-    } else {
-      ASSERT(mode == COPY_ON_WRITE_ELEMENTS);
-      message = "Expected copy-on-write fixed array";
-      expected_map_index = Heap::kFixedCOWArrayMapRootIndex;
-    }
-    __ push(a3);
-    __ lw(a3, FieldMemOperand(a3, JSArray::kElementsOffset));
-    __ lw(a3, FieldMemOperand(a3, HeapObject::kMapOffset));
-    __ LoadRoot(at, expected_map_index);
-    __ Assert(eq, message, a3, Operand(at));
-    __ pop(a3);
-  }
-
-  GenerateFastCloneShallowArrayCommon(masm, length_, mode,
-                                      allocation_site_mode_,
-                                      &slow_case);
-
-  // Return and remove the on-stack parameters.
-  __ DropAndRet(3);
-
-  __ bind(&slow_case);
-  __ TailCallRuntime(Runtime::kCreateArrayLiteralShallow, 3, 1);
-}
-
-
 // Takes a Smi and converts to an IEEE 64 bit floating point value in two
 // registers.  The format is 1 sign bit, 11 exponent bits (biased 1023) and
 // 52 fraction bits (20 in the first word, 32 in the second).  Zeros is a
@@ -646,30 +515,15 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
                                    FloatingPointHelper::Destination destination,
                                    Register scratch1,
                                    Register scratch2) {
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    __ sra(scratch1, a0, kSmiTagSize);
-    __ mtc1(scratch1, f14);
-    __ cvt_d_w(f14, f14);
-    __ sra(scratch1, a1, kSmiTagSize);
-    __ mtc1(scratch1, f12);
-    __ cvt_d_w(f12, f12);
-    if (destination == kCoreRegisters) {
-      __ Move(a2, a3, f14);
-      __ Move(a0, a1, f12);
-    }
-  } else {
-    ASSERT(destination == kCoreRegisters);
-    // Write Smi from a0 to a3 and a2 in double format.
-    __ mov(scratch1, a0);
-    ConvertToDoubleStub stub1(a3, a2, scratch1, scratch2);
-    __ push(ra);
-    __ Call(stub1.GetCode(masm->isolate()));
-    // Write Smi from a1 to a1 and a0 in double format.
-    __ mov(scratch1, a1);
-    ConvertToDoubleStub stub2(a1, a0, scratch1, scratch2);
-    __ Call(stub2.GetCode(masm->isolate()));
-    __ pop(ra);
+  __ sra(scratch1, a0, kSmiTagSize);
+  __ mtc1(scratch1, f14);
+  __ cvt_d_w(f14, f14);
+  __ sra(scratch1, a1, kSmiTagSize);
+  __ mtc1(scratch1, f12);
+  __ cvt_d_w(f12, f12);
+  if (destination == kCoreRegisters) {
+    __ Move(a2, a3, f14);
+    __ Move(a0, a1, f12);
   }
 }
 
@@ -684,8 +538,6 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
                                      Register scratch1,
                                      Register scratch2,
                                      Label* not_number) {
-  ASSERT(!object.is(dst1) && !object.is(dst2));
-
   __ AssertRootValue(heap_number_map,
                      Heap::kHeapNumberMapRootIndex,
                      "HeapNumberMap register clobbered.");
@@ -698,9 +550,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
 
   // Handle loading a double from a heap number.
-  if (CpuFeatures::IsSupported(FPU) &&
-      destination == kFPURegisters) {
-    CpuFeatureScope scope(masm, FPU);
+  if (destination == kFPURegisters) {
     // Load the double from tagged HeapNumber to double register.
 
     // ARM uses a workaround here because of the unaligned HeapNumber
@@ -718,25 +568,13 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
 
   // Handle loading a double from a smi.
   __ bind(&is_smi);
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    // Convert smi to double using FPU instructions.
-    __ mtc1(scratch1, dst);
-    __ cvt_d_w(dst, dst);
-    if (destination == kCoreRegisters) {
-      // Load the converted smi to dst1 and dst2 in double format.
-      __ Move(dst1, dst2, dst);
-    }
-  } else {
-    ASSERT(destination == kCoreRegisters);
-    // Write smi to dst1 and dst2 double format.
-    __ mov(scratch1, object);
-    ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2);
-    __ push(ra);
-    __ Call(stub.GetCode(masm->isolate()));
-    __ pop(ra);
+  // Convert smi to double using FPU instructions.
+  __ mtc1(scratch1, dst);
+  __ cvt_d_w(dst, dst);
+  if (destination == kCoreRegisters) {
+    // Load the converted smi to dst1 and dst2 in double format.
+    __ Move(dst1, dst2, dst);
   }
-
   __ bind(&done);
 }
 
@@ -792,74 +630,11 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
   ASSERT(!int_scratch.is(dst_mantissa));
   ASSERT(!int_scratch.is(dst_exponent));
 
-  Label done;
-
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    __ mtc1(int_scratch, single_scratch);
-    __ cvt_d_w(double_dst, single_scratch);
-    if (destination == kCoreRegisters) {
-      __ Move(dst_mantissa, dst_exponent, double_dst);
-    }
-  } else {
-    Label fewer_than_20_useful_bits;
-    // Expected output:
-    // |       dst_exponent      |       dst_mantissa      |
-    // | s |   exp   |              mantissa               |
-
-    // Check for zero.
-    __ mov(dst_exponent, int_scratch);
-    __ mov(dst_mantissa, int_scratch);
-    __ Branch(&done, eq, int_scratch, Operand(zero_reg));
-
-    // Preload the sign of the value.
-    __ And(dst_exponent, int_scratch, Operand(HeapNumber::kSignMask));
-    // Get the absolute value of the object (as an unsigned integer).
-    Label skip_sub;
-    __ Branch(&skip_sub, ge, dst_exponent, Operand(zero_reg));
-    __ Subu(int_scratch, zero_reg, int_scratch);
-    __ bind(&skip_sub);
-
-    // Get mantissa[51:20].
-
-    // Get the position of the first set bit.
-    __ Clz(dst_mantissa, int_scratch);
-    __ li(scratch2, 31);
-    __ Subu(dst_mantissa, scratch2, dst_mantissa);
-
-    // Set the exponent.
-    __ Addu(scratch2, dst_mantissa, Operand(HeapNumber::kExponentBias));
-    __ Ins(dst_exponent, scratch2,
-        HeapNumber::kExponentShift, HeapNumber::kExponentBits);
-
-    // Clear the first non null bit.
-    __ li(scratch2, Operand(1));
-    __ sllv(scratch2, scratch2, dst_mantissa);
-    __ li(at, -1);
-    __ Xor(scratch2, scratch2, at);
-    __ And(int_scratch, int_scratch, scratch2);
-
-    // Get the number of bits to set in the lower part of the mantissa.
-    __ Subu(scratch2, dst_mantissa,
-        Operand(HeapNumber::kMantissaBitsInTopWord));
-    __ Branch(&fewer_than_20_useful_bits, lt, scratch2, Operand(zero_reg));
-    // Set the higher 20 bits of the mantissa.
-    __ srlv(at, int_scratch, scratch2);
-    __ or_(dst_exponent, dst_exponent, at);
-    __ li(at, 32);
-    __ subu(scratch2, at, scratch2);
-    __ sllv(dst_mantissa, int_scratch, scratch2);
-    __ Branch(&done);
-
-    __ bind(&fewer_than_20_useful_bits);
-    __ li(at, HeapNumber::kMantissaBitsInTopWord);
-    __ subu(scratch2, at, dst_mantissa);
-    __ sllv(scratch2, int_scratch, scratch2);
-    __ Or(dst_exponent, dst_exponent, scratch2);
-    // Set dst_mantissa to 0.
-    __ mov(dst_mantissa, zero_reg);
+  __ mtc1(int_scratch, single_scratch);
+  __ cvt_d_w(double_dst, single_scratch);
+  if (destination == kCoreRegisters) {
+    __ Move(dst_mantissa, dst_exponent, double_dst);
   }
-  __ bind(&done);
 }
 
 
@@ -880,10 +655,6 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
   ASSERT(!heap_number_map.is(object) &&
          !heap_number_map.is(scratch1) &&
          !heap_number_map.is(scratch2));
-  // ARM uses pop/push and Ldlr to save dst_* and probably object registers in
-  // softfloat path. On MIPS there is no ldlr, 1st lw instruction may overwrite
-  // object register making the 2nd lw invalid.
-  ASSERT(!object.is(dst_mantissa) && !object.is(dst_exponent));
 
   Label done, obj_is_not_smi;
 
@@ -900,46 +671,23 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_int32);
 
   // Load the number.
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    // Load the double value.
-    __ ldc1(double_dst, FieldMemOperand(object, HeapNumber::kValueOffset));
+  // Load the double value.
+  __ ldc1(double_dst, FieldMemOperand(object, HeapNumber::kValueOffset));
 
-    Register except_flag = scratch2;
-    __ EmitFPUTruncate(kRoundToZero,
-                       scratch1,
-                       double_dst,
-                       at,
-                       double_scratch,
-                       except_flag,
-                       kCheckForInexactConversion);
+  Register except_flag = scratch2;
+  __ EmitFPUTruncate(kRoundToZero,
+                     scratch1,
+                     double_dst,
+                     at,
+                     double_scratch,
+                     except_flag,
+                     kCheckForInexactConversion);
 
-    // Jump to not_int32 if the operation did not succeed.
-    __ Branch(not_int32, ne, except_flag, Operand(zero_reg));
-
-    if (destination == kCoreRegisters) {
-      __ Move(dst_mantissa, dst_exponent, double_dst);
-    }
-  } else {
-    // Load the double value in the destination registers.
-    __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
-    __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
-
-    // Check for 0 and -0.
-    __ And(scratch1, dst_exponent, Operand(~HeapNumber::kSignMask));
-    __ Or(scratch1, scratch1, Operand(dst_mantissa));
-    __ Branch(&done, eq, scratch1, Operand(zero_reg));
-
-    // Check that the value can be exactly represented by a 32-bit integer.
-    // Jump to not_int32 if that's not the case.
-    DoubleIs32BitInteger(masm, dst_exponent, dst_mantissa, scratch1, scratch2,
-                         not_int32);
-
-    // dst_* were trashed. Reload the double value.
-    __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
-    __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+  // Jump to not_int32 if the operation did not succeed.
+  __ Branch(not_int32, ne, except_flag, Operand(zero_reg));
+  if (destination == kCoreRegisters) {
+    __ Move(dst_mantissa, dst_exponent, double_dst);
   }
-
   __ bind(&done);
 }
 
@@ -972,53 +720,20 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
 
   // Object is a heap number.
   // Convert the floating point value to a 32-bit integer.
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    // Load the double value.
-    __ ldc1(double_scratch0, FieldMemOperand(object, HeapNumber::kValueOffset));
+  // Load the double value.
+  __ ldc1(double_scratch0, FieldMemOperand(object, HeapNumber::kValueOffset));
 
-    Register except_flag = scratch2;
-    __ EmitFPUTruncate(kRoundToZero,
-                       dst,
-                       double_scratch0,
-                       scratch1,
-                       double_scratch1,
-                       except_flag,
-                       kCheckForInexactConversion);
+  Register except_flag = scratch2;
+  __ EmitFPUTruncate(kRoundToZero,
+                     dst,
+                     double_scratch0,
+                     scratch1,
+                     double_scratch1,
+                     except_flag,
+                     kCheckForInexactConversion);
 
-    // Jump to not_int32 if the operation did not succeed.
-    __ Branch(not_int32, ne, except_flag, Operand(zero_reg));
-  } else {
-    // Load the double value in the destination registers.
-    __ lw(scratch2, FieldMemOperand(object, HeapNumber::kExponentOffset));
-    __ lw(scratch1, FieldMemOperand(object, HeapNumber::kMantissaOffset));
-
-    // Check for 0 and -0.
-    __ And(dst, scratch1, Operand(~HeapNumber::kSignMask));
-    __ Or(dst, scratch2, Operand(dst));
-    __ Branch(&done, eq, dst, Operand(zero_reg));
-
-    DoubleIs32BitInteger(masm, scratch1, scratch2, dst, scratch3, not_int32);
-
-    // Registers state after DoubleIs32BitInteger.
-    // dst: mantissa[51:20].
-    // scratch2: 1
-
-    // Shift back the higher bits of the mantissa.
-    __ srlv(dst, dst, scratch3);
-    // Set the implicit first bit.
-    __ li(at, 32);
-    __ subu(scratch3, at, scratch3);
-    __ sllv(scratch2, scratch2, scratch3);
-    __ Or(dst, dst, scratch2);
-    // Set the sign.
-    __ lw(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
-    __ And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
-    Label skip_sub;
-    __ Branch(&skip_sub, ge, scratch1, Operand(zero_reg));
-    __ Subu(dst, zero_reg, dst);
-    __ bind(&skip_sub);
-  }
+  // Jump to not_int32 if the operation did not succeed.
+  __ Branch(not_int32, ne, except_flag, Operand(zero_reg));
   __ Branch(&done);
 
   __ bind(&maybe_undefined);
@@ -1029,66 +744,6 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
   // Fall through.
 
   __ bind(&done);
-}
-
-
-void FloatingPointHelper::DoubleIs32BitInteger(MacroAssembler* masm,
-                                               Register src_exponent,
-                                               Register src_mantissa,
-                                               Register dst,
-                                               Register scratch,
-                                               Label* not_int32) {
-  // Get exponent alone in scratch.
-  __ Ext(scratch,
-         src_exponent,
-         HeapNumber::kExponentShift,
-         HeapNumber::kExponentBits);
-
-  // Substract the bias from the exponent.
-  __ Subu(scratch, scratch, Operand(HeapNumber::kExponentBias));
-
-  // src1: higher (exponent) part of the double value.
-  // src2: lower (mantissa) part of the double value.
-  // scratch: unbiased exponent.
-
-  // Fast cases. Check for obvious non 32-bit integer values.
-  // Negative exponent cannot yield 32-bit integers.
-  __ Branch(not_int32, lt, scratch, Operand(zero_reg));
-  // Exponent greater than 31 cannot yield 32-bit integers.
-  // Also, a positive value with an exponent equal to 31 is outside of the
-  // signed 32-bit integer range.
-  // Another way to put it is that if (exponent - signbit) > 30 then the
-  // number cannot be represented as an int32.
-  Register tmp = dst;
-  __ srl(at, src_exponent, 31);
-  __ subu(tmp, scratch, at);
-  __ Branch(not_int32, gt, tmp, Operand(30));
-  // - Bits [21:0] in the mantissa are not null.
-  __ And(tmp, src_mantissa, 0x3fffff);
-  __ Branch(not_int32, ne, tmp, Operand(zero_reg));
-
-  // Otherwise the exponent needs to be big enough to shift left all the
-  // non zero bits left. So we need the (30 - exponent) last bits of the
-  // 31 higher bits of the mantissa to be null.
-  // Because bits [21:0] are null, we can check instead that the
-  // (32 - exponent) last bits of the 32 higher bits of the mantissa are null.
-
-  // Get the 32 higher bits of the mantissa in dst.
-  __ Ext(dst,
-         src_mantissa,
-         HeapNumber::kMantissaBitsInTopWord,
-         32 - HeapNumber::kMantissaBitsInTopWord);
-  __ sll(at, src_exponent, HeapNumber::kNonMantissaBitsInTopWord);
-  __ or_(dst, dst, at);
-
-  // Create the mask and test the lower bits (of the higher bits).
-  __ li(at, 32);
-  __ subu(scratch, at, scratch);
-  __ li(src_mantissa, 1);
-  __ sllv(src_exponent, src_mantissa, scratch);
-  __ Subu(src_exponent, src_exponent, Operand(1));
-  __ And(src_exponent, dst, src_exponent);
-  __ Branch(not_int32, ne, src_exponent, Operand(zero_reg));
 }
 
 
@@ -1111,7 +766,6 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   __ push(ra);
   __ PrepareCallCFunction(4, scratch);  // Two doubles are 4 arguments.
   if (!IsMipsSoftFloatABI) {
-    CpuFeatureScope scope(masm, FPU);
     // We are not using MIPS FPU instructions, and parameters for the runtime
     // function call are prepaired in a0-a3 registers, but function we are
     // calling is compiled with hard-float flag and expecting hard float ABI
@@ -1127,7 +781,6 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   }
   // Store answer in the overwritable heap number.
   if (!IsMipsSoftFloatABI) {
-    CpuFeatureScope scope(masm, FPU);
     // Double returned in register f0.
     __ sdc1(f0, FieldMemOperand(heap_number_result, HeapNumber::kValueOffset));
   } else {
@@ -1350,25 +1003,10 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   // Rhs is a smi, lhs is a number.
   // Convert smi rhs to double.
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    __ sra(at, rhs, kSmiTagSize);
-    __ mtc1(at, f14);
-    __ cvt_d_w(f14, f14);
-    __ ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
-  } else {
-    // Load lhs to a double in a2, a3.
-    __ lw(a3, FieldMemOperand(lhs, HeapNumber::kValueOffset + 4));
-    __ lw(a2, FieldMemOperand(lhs, HeapNumber::kValueOffset));
-
-    // Write Smi from rhs to a1 and a0 in double format. t5 is scratch.
-    __ mov(t6, rhs);
-    ConvertToDoubleStub stub1(a1, a0, t6, t5);
-    __ push(ra);
-    __ Call(stub1.GetCode(masm->isolate()));
-
-    __ pop(ra);
-  }
+  __ sra(at, rhs, kSmiTagSize);
+  __ mtc1(at, f14);
+  __ cvt_d_w(f14, f14);
+  __ ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
 
   // We now have both loaded as doubles.
   __ jmp(both_loaded_as_doubles);
@@ -1389,176 +1027,11 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   // Lhs is a smi, rhs is a number.
   // Convert smi lhs to double.
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    __ sra(at, lhs, kSmiTagSize);
-    __ mtc1(at, f12);
-    __ cvt_d_w(f12, f12);
-    __ ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
-  } else {
-    // Convert lhs to a double format. t5 is scratch.
-    __ mov(t6, lhs);
-    ConvertToDoubleStub stub2(a3, a2, t6, t5);
-    __ push(ra);
-    __ Call(stub2.GetCode(masm->isolate()));
-    __ pop(ra);
-    // Load rhs to a double in a1, a0.
-    if (rhs.is(a0)) {
-      __ lw(a1, FieldMemOperand(rhs, HeapNumber::kValueOffset + 4));
-      __ lw(a0, FieldMemOperand(rhs, HeapNumber::kValueOffset));
-    } else {
-      __ lw(a0, FieldMemOperand(rhs, HeapNumber::kValueOffset));
-      __ lw(a1, FieldMemOperand(rhs, HeapNumber::kValueOffset + 4));
-    }
-  }
+  __ sra(at, lhs, kSmiTagSize);
+  __ mtc1(at, f12);
+  __ cvt_d_w(f12, f12);
+  __ ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
   // Fall through to both_loaded_as_doubles.
-}
-
-
-void EmitNanCheck(MacroAssembler* masm, Condition cc) {
-  bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    // Lhs and rhs are already loaded to f12 and f14 register pairs.
-    __ Move(t0, t1, f14);
-    __ Move(t2, t3, f12);
-  } else {
-    // Lhs and rhs are already loaded to GP registers.
-    __ mov(t0, a0);  // a0 has LS 32 bits of rhs.
-    __ mov(t1, a1);  // a1 has MS 32 bits of rhs.
-    __ mov(t2, a2);  // a2 has LS 32 bits of lhs.
-    __ mov(t3, a3);  // a3 has MS 32 bits of lhs.
-  }
-  Register rhs_exponent = exp_first ? t0 : t1;
-  Register lhs_exponent = exp_first ? t2 : t3;
-  Register rhs_mantissa = exp_first ? t1 : t0;
-  Register lhs_mantissa = exp_first ? t3 : t2;
-  Label one_is_nan, neither_is_nan;
-  Label lhs_not_nan_exp_mask_is_loaded;
-
-  Register exp_mask_reg = t4;
-  __ li(exp_mask_reg, HeapNumber::kExponentMask);
-  __ and_(t5, lhs_exponent, exp_mask_reg);
-  __ Branch(&lhs_not_nan_exp_mask_is_loaded, ne, t5, Operand(exp_mask_reg));
-
-  __ sll(t5, lhs_exponent, HeapNumber::kNonMantissaBitsInTopWord);
-  __ Branch(&one_is_nan, ne, t5, Operand(zero_reg));
-
-  __ Branch(&one_is_nan, ne, lhs_mantissa, Operand(zero_reg));
-
-  __ li(exp_mask_reg, HeapNumber::kExponentMask);
-  __ bind(&lhs_not_nan_exp_mask_is_loaded);
-  __ and_(t5, rhs_exponent, exp_mask_reg);
-
-  __ Branch(&neither_is_nan, ne, t5, Operand(exp_mask_reg));
-
-  __ sll(t5, rhs_exponent, HeapNumber::kNonMantissaBitsInTopWord);
-  __ Branch(&one_is_nan, ne, t5, Operand(zero_reg));
-
-  __ Branch(&neither_is_nan, eq, rhs_mantissa, Operand(zero_reg));
-
-  __ bind(&one_is_nan);
-  // NaN comparisons always fail.
-  // Load whatever we need in v0 to make the comparison fail.
-
-  if (cc == lt || cc == le) {
-    __ li(v0, Operand(GREATER));
-  } else {
-    __ li(v0, Operand(LESS));
-  }
-  __ Ret();
-
-  __ bind(&neither_is_nan);
-}
-
-
-static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
-  // f12 and f14 have the two doubles.  Neither is a NaN.
-  // Call a native function to do a comparison between two non-NaNs.
-  // Call C routine that may not cause GC or other trouble.
-  // We use a call_was and return manually because we need arguments slots to
-  // be freed.
-
-  Label return_result_not_equal, return_result_equal;
-  if (cc == eq) {
-    // Doubles are not equal unless they have the same bit pattern.
-    // Exception: 0 and -0.
-    bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
-    if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatureScope scope(masm, FPU);
-      // Lhs and rhs are already loaded to f12 and f14 register pairs.
-      __ Move(t0, t1, f14);
-      __ Move(t2, t3, f12);
-    } else {
-      // Lhs and rhs are already loaded to GP registers.
-      __ mov(t0, a0);  // a0 has LS 32 bits of rhs.
-      __ mov(t1, a1);  // a1 has MS 32 bits of rhs.
-      __ mov(t2, a2);  // a2 has LS 32 bits of lhs.
-      __ mov(t3, a3);  // a3 has MS 32 bits of lhs.
-    }
-    Register rhs_exponent = exp_first ? t0 : t1;
-    Register lhs_exponent = exp_first ? t2 : t3;
-    Register rhs_mantissa = exp_first ? t1 : t0;
-    Register lhs_mantissa = exp_first ? t3 : t2;
-
-    __ xor_(v0, rhs_mantissa, lhs_mantissa);
-    __ Branch(&return_result_not_equal, ne, v0, Operand(zero_reg));
-
-    __ subu(v0, rhs_exponent, lhs_exponent);
-    __ Branch(&return_result_equal, eq, v0, Operand(zero_reg));
-    // 0, -0 case.
-    __ sll(rhs_exponent, rhs_exponent, kSmiTagSize);
-    __ sll(lhs_exponent, lhs_exponent, kSmiTagSize);
-    __ or_(t4, rhs_exponent, lhs_exponent);
-    __ or_(t4, t4, rhs_mantissa);
-
-    __ Branch(&return_result_not_equal, ne, t4, Operand(zero_reg));
-
-    __ bind(&return_result_equal);
-
-    __ li(v0, Operand(EQUAL));
-    __ Ret();
-  }
-
-  __ bind(&return_result_not_equal);
-
-  if (!CpuFeatures::IsSupported(FPU)) {
-    __ push(ra);
-    __ PrepareCallCFunction(0, 2, t4);
-    if (!IsMipsSoftFloatABI) {
-      // We are not using MIPS FPU instructions, and parameters for the runtime
-      // function call are prepaired in a0-a3 registers, but function we are
-      // calling is compiled with hard-float flag and expecting hard float ABI
-      // (parameters in f12/f14 registers). We need to copy parameters from
-      // a0-a3 registers to f12/f14 register pairs.
-      __ Move(f12, a0, a1);
-      __ Move(f14, a2, a3);
-    }
-
-    AllowExternalCallThatCantCauseGC scope(masm);
-    __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()),
-       0, 2);
-    __ pop(ra);  // Because this function returns int, result is in v0.
-    __ Ret();
-  } else {
-    CpuFeatureScope scope(masm, FPU);
-    Label equal, less_than;
-    __ BranchF(&equal, NULL, eq, f12, f14);
-    __ BranchF(&less_than, NULL, lt, f12, f14);
-
-    // Not equal, not less, not NaN, must be greater.
-
-    __ li(v0, Operand(GREATER));
-    __ Ret();
-
-    __ bind(&equal);
-    __ li(v0, Operand(EQUAL));
-    __ Ret();
-
-    __ bind(&less_than);
-    __ li(v0, Operand(LESS));
-    __ Ret();
-  }
 }
 
 
@@ -1616,21 +1089,9 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 
   // Both are heap numbers. Load them up then jump to the code we have
   // for that.
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    __ ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
-    __ ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
-  } else {
-    __ lw(a2, FieldMemOperand(lhs, HeapNumber::kValueOffset));
-    __ lw(a3, FieldMemOperand(lhs, HeapNumber::kValueOffset + 4));
-    if (rhs.is(a0)) {
-      __ lw(a1, FieldMemOperand(rhs, HeapNumber::kValueOffset + 4));
-      __ lw(a0, FieldMemOperand(rhs, HeapNumber::kValueOffset));
-    } else {
-      __ lw(a0, FieldMemOperand(rhs, HeapNumber::kValueOffset));
-      __ lw(a1, FieldMemOperand(rhs, HeapNumber::kValueOffset + 4));
-    }
-  }
+  __ ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
+  __ ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
+
   __ jmp(both_loaded_as_doubles);
 }
 
@@ -1711,42 +1172,34 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Label load_result_from_cache;
   if (!object_is_smi) {
     __ JumpIfSmi(object, &is_smi);
-    if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatureScope scope(masm, FPU);
-      __ CheckMap(object,
-                  scratch1,
-                  Heap::kHeapNumberMapRootIndex,
-                  not_found,
-                  DONT_DO_SMI_CHECK);
+    __ CheckMap(object,
+                scratch1,
+                Heap::kHeapNumberMapRootIndex,
+                not_found,
+                DONT_DO_SMI_CHECK);
 
-      STATIC_ASSERT(8 == kDoubleSize);
-      __ Addu(scratch1,
-              object,
-              Operand(HeapNumber::kValueOffset - kHeapObjectTag));
-      __ lw(scratch2, MemOperand(scratch1, kPointerSize));
-      __ lw(scratch1, MemOperand(scratch1, 0));
-      __ Xor(scratch1, scratch1, Operand(scratch2));
-      __ And(scratch1, scratch1, Operand(mask));
+    STATIC_ASSERT(8 == kDoubleSize);
+    __ Addu(scratch1,
+            object,
+            Operand(HeapNumber::kValueOffset - kHeapObjectTag));
+    __ lw(scratch2, MemOperand(scratch1, kPointerSize));
+    __ lw(scratch1, MemOperand(scratch1, 0));
+    __ Xor(scratch1, scratch1, Operand(scratch2));
+    __ And(scratch1, scratch1, Operand(mask));
 
-      // Calculate address of entry in string cache: each entry consists
-      // of two pointer sized fields.
-      __ sll(scratch1, scratch1, kPointerSizeLog2 + 1);
-      __ Addu(scratch1, number_string_cache, scratch1);
+    // Calculate address of entry in string cache: each entry consists
+    // of two pointer sized fields.
+    __ sll(scratch1, scratch1, kPointerSizeLog2 + 1);
+    __ Addu(scratch1, number_string_cache, scratch1);
 
-      Register probe = mask;
-      __ lw(probe,
-             FieldMemOperand(scratch1, FixedArray::kHeaderSize));
-      __ JumpIfSmi(probe, not_found);
-      __ ldc1(f12, FieldMemOperand(object, HeapNumber::kValueOffset));
-      __ ldc1(f14, FieldMemOperand(probe, HeapNumber::kValueOffset));
-      __ BranchF(&load_result_from_cache, NULL, eq, f12, f14);
-      __ Branch(not_found);
-    } else {
-      // Note that there is no cache check for non-FPU case, even though
-      // it seems there could be. May be a tiny opimization for non-FPU
-      // cores.
-      __ Branch(not_found);
-    }
+    Register probe = mask;
+    __ lw(probe,
+           FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+    __ JumpIfSmi(probe, not_found);
+    __ ldc1(f12, FieldMemOperand(object, HeapNumber::kValueOffset));
+    __ ldc1(f14, FieldMemOperand(probe, HeapNumber::kValueOffset));
+    __ BranchF(&load_result_from_cache, NULL, eq, f12, f14);
+    __ Branch(not_found);
   }
 
   __ bind(&is_smi);
@@ -1864,49 +1317,38 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   // left hand side and a0, a1 represent right hand side.
 
   Isolate* isolate = masm->isolate();
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    Label nan;
-    __ li(t0, Operand(LESS));
-    __ li(t1, Operand(GREATER));
-    __ li(t2, Operand(EQUAL));
+  Label nan;
+  __ li(t0, Operand(LESS));
+  __ li(t1, Operand(GREATER));
+  __ li(t2, Operand(EQUAL));
 
-    // Check if either rhs or lhs is NaN.
-    __ BranchF(NULL, &nan, eq, f12, f14);
+  // Check if either rhs or lhs is NaN.
+  __ BranchF(NULL, &nan, eq, f12, f14);
 
-    // Check if LESS condition is satisfied. If true, move conditionally
-    // result to v0.
-    __ c(OLT, D, f12, f14);
-    __ Movt(v0, t0);
-    // Use previous check to store conditionally to v0 oposite condition
-    // (GREATER). If rhs is equal to lhs, this will be corrected in next
-    // check.
-    __ Movf(v0, t1);
-    // Check if EQUAL condition is satisfied. If true, move conditionally
-    // result to v0.
-    __ c(EQ, D, f12, f14);
-    __ Movt(v0, t2);
+  // Check if LESS condition is satisfied. If true, move conditionally
+  // result to v0.
+  __ c(OLT, D, f12, f14);
+  __ Movt(v0, t0);
+  // Use previous check to store conditionally to v0 oposite condition
+  // (GREATER). If rhs is equal to lhs, this will be corrected in next
+  // check.
+  __ Movf(v0, t1);
+  // Check if EQUAL condition is satisfied. If true, move conditionally
+  // result to v0.
+  __ c(EQ, D, f12, f14);
+  __ Movt(v0, t2);
 
-    __ Ret();
+  __ Ret();
 
-    __ bind(&nan);
-    // NaN comparisons always fail.
-    // Load whatever we need in v0 to make the comparison fail.
-    if (cc == lt || cc == le) {
-      __ li(v0, Operand(GREATER));
-    } else {
-      __ li(v0, Operand(LESS));
-    }
-    __ Ret();
+  __ bind(&nan);
+  // NaN comparisons always fail.
+  // Load whatever we need in v0 to make the comparison fail.
+  if (cc == lt || cc == le) {
+    __ li(v0, Operand(GREATER));
   } else {
-    // Checks for NaN in the doubles we have loaded.  Can return the answer or
-    // fall through if neither is a NaN.  Also binds rhs_not_nan.
-    EmitNanCheck(masm, cc);
-
-    // Compares two doubles that are not NaNs. Returns the answer.
-    // Never falls through.
-    EmitTwoNonNanDoubleComparison(masm, cc);
+    __ li(v0, Operand(LESS));
   }
+  __ Ret();
 
   __ bind(&not_smis);
   // At this point we know we are dealing with two different objects,
@@ -1999,9 +1441,6 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 // The stub expects its argument in the tos_ register and returns its result in
 // it, too: zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
-  // This stub uses FPU instructions.
-  CpuFeatureScope scope(masm, FPU);
-
   Label patch;
   const Register map = t5.is(tos_) ? t3 : t5;
 
@@ -2115,7 +1554,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // restore them.
   __ MultiPush(kJSCallerSaved | ra.bit());
   if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatureScope scope(masm, FPU);
     __ MultiPushFPU(kCallerSavedFPU);
   }
   const int argument_count = 1;
@@ -2129,7 +1567,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       ExternalReference::store_buffer_overflow_function(masm->isolate()),
       argument_count);
   if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatureScope scope(masm, FPU);
     __ MultiPopFPU(kCallerSavedFPU);
   }
 
@@ -2360,19 +1797,11 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     __ mov(v0, a2);  // Move newly allocated heap number to v0.
   }
 
-  if (CpuFeatures::IsSupported(FPU)) {
-    // Convert the int32 in a1 to the heap number in v0. a2 is corrupted.
-    CpuFeatureScope scope(masm, FPU);
-    __ mtc1(a1, f0);
-    __ cvt_d_w(f0, f0);
-    __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
-    __ Ret();
-  } else {
-    // WriteInt32ToHeapNumberStub does not trigger GC, so we do not
-    // have to set up a frame.
-    WriteInt32ToHeapNumberStub stub(a1, v0, a2, a3);
-    __ Jump(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
-  }
+  // Convert the int32 in a1 to the heap number in v0. a2 is corrupted.
+  __ mtc1(a1, f0);
+  __ cvt_d_w(f0, f0);
+  __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+  __ Ret();
 
   __ bind(&impossible);
   if (FLAG_debug_code) {
@@ -2434,7 +1863,7 @@ void UnaryOpStub::GenerateGenericCodeFallback(
 
 
 void BinaryOpStub::Initialize() {
-  platform_specific_bit_ = CpuFeatures::IsSupported(FPU);
+  platform_specific_bit_ = true;  // FPU is a base requirement for V8.
 }
 
 
@@ -2661,9 +2090,8 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
     case Token::DIV:
     case Token::MOD: {
       // Load left and right operands into f12 and f14 or a0/a1 and a2/a3
-      // depending on whether FPU is available or not.
+      // depending on operation.
       FloatingPointHelper::Destination destination =
-          CpuFeatures::IsSupported(FPU) &&
           op != Token::MOD ?
               FloatingPointHelper::kFPURegisters :
               FloatingPointHelper::kCoreRegisters;
@@ -2688,20 +2116,16 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
               masm, destination, right, f14, a2, a3, heap_number_map,
               scratch1, scratch2, fail);
         }
-        // Use scratch3 as left in LoadNumber functions to avoid overwriting of
-        // left (a0) register.
-        __ mov(scratch3, left);
-
         // Load left operand to f12 or a0/a1. This keeps a0/a1 intact if it
         // jumps to |miss|.
         if (left_type == BinaryOpIC::INT32) {
           FloatingPointHelper::LoadNumberAsInt32Double(
-              masm, scratch3, destination, f12, f16, a0, a1, heap_number_map,
+              masm, left, destination, f12, f16, a0, a1, heap_number_map,
               scratch1, scratch2, f2, miss);
         } else {
           Label* fail = (left_type == BinaryOpIC::NUMBER) ? miss : not_numbers;
           FloatingPointHelper::LoadNumber(
-              masm, destination, scratch3, f12, a0, a1, heap_number_map,
+              masm, destination, left, f12, a0, a1, heap_number_map,
               scratch1, scratch2, fail);
         }
       }
@@ -2711,7 +2135,6 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
         // Using FPU registers:
         // f12: Left value.
         // f14: Right value.
-        CpuFeatureScope scope(masm, FPU);
         switch (op) {
         case Token::ADD:
           __ add_d(f10, f12, f14);
@@ -2801,11 +2224,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
           // The code below for writing into heap numbers isn't capable of
           // writing the register as an unsigned int so we go to slow case if we
           // hit this case.
-          if (CpuFeatures::IsSupported(FPU)) {
-            __ Branch(&result_not_a_smi, lt, a2, Operand(zero_reg));
-          } else {
-            __ Branch(not_numbers, lt, a2, Operand(zero_reg));
-          }
+          __ Branch(&result_not_a_smi, lt, a2, Operand(zero_reg));
           break;
         case Token::SHL:
           // Use only the 5 least significant bits of the shift count.
@@ -2839,28 +2258,19 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
       // Nothing can go wrong now, so move the heap number to v0, which is the
       // result.
       __ mov(v0, t1);
-
-      if (CpuFeatures::IsSupported(FPU)) {
-        // Convert the int32 in a2 to the heap number in a0. As
-        // mentioned above SHR needs to always produce a positive result.
-        CpuFeatureScope scope(masm, FPU);
-        __ mtc1(a2, f0);
-        if (op == Token::SHR) {
-          __ Cvt_d_uw(f0, f0, f22);
-        } else {
-          __ cvt_d_w(f0, f0);
-        }
-        // ARM uses a workaround here because of the unaligned HeapNumber
-        // kValueOffset. On MIPS this workaround is built into sdc1 so
-        // there's no point in generating even more instructions.
-        __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
-        __ Ret();
+      // Convert the int32 in a2 to the heap number in a0. As
+      // mentioned above SHR needs to always produce a positive result.
+      __ mtc1(a2, f0);
+      if (op == Token::SHR) {
+        __ Cvt_d_uw(f0, f0, f22);
       } else {
-        // Tail call that writes the int32 in a2 to the heap number in v0, using
-        // a3 and a0 as scratch. v0 is preserved and returned.
-        WriteInt32ToHeapNumberStub stub(a2, v0, a3, a0);
-        __ TailCallStub(&stub);
+        __ cvt_d_w(f0, f0);
       }
+      // ARM uses a workaround here because of the unaligned HeapNumber
+      // kValueOffset. On MIPS this workaround is built into sdc1 so
+      // there's no point in generating even more instructions.
+      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ Ret();
       break;
     }
     default:
@@ -3007,8 +2417,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       // Load both operands and check that they are 32-bit integer.
       // Jump to type transition if they are not. The registers a0 and a1 (right
       // and left) are preserved for the runtime call.
-      FloatingPointHelper::Destination destination =
-          (CpuFeatures::IsSupported(FPU) && op_ != Token::MOD)
+      FloatingPointHelper::Destination destination = (op_ != Token::MOD)
               ? FloatingPointHelper::kFPURegisters
               : FloatingPointHelper::kCoreRegisters;
 
@@ -3038,7 +2447,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    &transition);
 
       if (destination == FloatingPointHelper::kFPURegisters) {
-        CpuFeatureScope scope(masm, FPU);
         Label return_heap_number;
         switch (op_) {
           case Token::ADD:
@@ -3207,23 +2615,12 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // We only get a negative result if the shift value (a2) is 0.
           // This result cannot be respresented as a signed 32-bit integer, try
           // to return a heap number if we can.
-          // The non FPU code does not support this special case, so jump to
-          // runtime if we don't support it.
-          if (CpuFeatures::IsSupported(FPU)) {
-            __ Branch((result_type_ <= BinaryOpIC::INT32)
-                        ? &transition
-                        : &return_heap_number,
-                       lt,
-                       a2,
-                       Operand(zero_reg));
-          } else {
-            __ Branch((result_type_ <= BinaryOpIC::INT32)
-                        ? &transition
-                        : &call_runtime,
-                       lt,
-                       a2,
-                       Operand(zero_reg));
-          }
+          __ Branch((result_type_ <= BinaryOpIC::INT32)
+                      ? &transition
+                      : &return_heap_number,
+                     lt,
+                     a2,
+                     Operand(zero_reg));
           break;
         case Token::SHL:
           __ And(a2, a2, Operand(0x1f));
@@ -3251,30 +2648,20 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                 &call_runtime,
                                                 mode_);
 
-      if (CpuFeatures::IsSupported(FPU)) {
-        CpuFeatureScope scope(masm, FPU);
-
-        if (op_ != Token::SHR) {
-          // Convert the result to a floating point value.
-          __ mtc1(a2, double_scratch);
-          __ cvt_d_w(double_scratch, double_scratch);
-        } else {
-          // The result must be interpreted as an unsigned 32-bit integer.
-          __ mtc1(a2, double_scratch);
-          __ Cvt_d_uw(double_scratch, double_scratch, single_scratch);
-        }
-
-        // Store the result.
-        __ mov(v0, heap_number_result);
-        __ sdc1(double_scratch, FieldMemOperand(v0, HeapNumber::kValueOffset));
-        __ Ret();
+      if (op_ != Token::SHR) {
+        // Convert the result to a floating point value.
+        __ mtc1(a2, double_scratch);
+        __ cvt_d_w(double_scratch, double_scratch);
       } else {
-        // Tail call that writes the int32 in a2 to the heap number in v0, using
-        // a3 and a0 as scratch. v0 is preserved and returned.
-        __ mov(v0, t1);
-        WriteInt32ToHeapNumberStub stub(a2, v0, a3, a0);
-        __ TailCallStub(&stub);
+        // The result must be interpreted as an unsigned 32-bit integer.
+        __ mtc1(a2, double_scratch);
+        __ Cvt_d_uw(double_scratch, double_scratch, single_scratch);
       }
+
+      // Store the result.
+      __ mov(v0, heap_number_result);
+      __ sdc1(double_scratch, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ Ret();
 
       break;
     }
@@ -3455,107 +2842,102 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   const Register cache_entry = a0;
   const bool tagged = (argument_type_ == TAGGED);
 
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
+  if (tagged) {
+    // Argument is a number and is on stack and in a0.
+    // Load argument and check if it is a smi.
+    __ JumpIfNotSmi(a0, &input_not_smi);
 
-    if (tagged) {
-      // Argument is a number and is on stack and in a0.
-      // Load argument and check if it is a smi.
-      __ JumpIfNotSmi(a0, &input_not_smi);
+    // Input is a smi. Convert to double and load the low and high words
+    // of the double into a2, a3.
+    __ sra(t0, a0, kSmiTagSize);
+    __ mtc1(t0, f4);
+    __ cvt_d_w(f4, f4);
+    __ Move(a2, a3, f4);
+    __ Branch(&loaded);
 
-      // Input is a smi. Convert to double and load the low and high words
-      // of the double into a2, a3.
-      __ sra(t0, a0, kSmiTagSize);
-      __ mtc1(t0, f4);
-      __ cvt_d_w(f4, f4);
-      __ Move(a2, a3, f4);
-      __ Branch(&loaded);
+    __ bind(&input_not_smi);
+    // Check if input is a HeapNumber.
+    __ CheckMap(a0,
+                a1,
+                Heap::kHeapNumberMapRootIndex,
+                &calculate,
+                DONT_DO_SMI_CHECK);
+    // Input is a HeapNumber. Store the
+    // low and high words into a2, a3.
+    __ lw(a2, FieldMemOperand(a0, HeapNumber::kValueOffset));
+    __ lw(a3, FieldMemOperand(a0, HeapNumber::kValueOffset + 4));
+  } else {
+    // Input is untagged double in f4. Output goes to f4.
+    __ Move(a2, a3, f4);
+  }
+  __ bind(&loaded);
+  // a2 = low 32 bits of double value.
+  // a3 = high 32 bits of double value.
+  // Compute hash (the shifts are arithmetic):
+  //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
+  __ Xor(a1, a2, a3);
+  __ sra(t0, a1, 16);
+  __ Xor(a1, a1, t0);
+  __ sra(t0, a1, 8);
+  __ Xor(a1, a1, t0);
+  ASSERT(IsPowerOf2(TranscendentalCache::SubCache::kCacheSize));
+  __ And(a1, a1, Operand(TranscendentalCache::SubCache::kCacheSize - 1));
 
-      __ bind(&input_not_smi);
-      // Check if input is a HeapNumber.
-      __ CheckMap(a0,
-                  a1,
-                  Heap::kHeapNumberMapRootIndex,
-                  &calculate,
-                  DONT_DO_SMI_CHECK);
-      // Input is a HeapNumber. Store the
-      // low and high words into a2, a3.
-      __ lw(a2, FieldMemOperand(a0, HeapNumber::kValueOffset));
-      __ lw(a3, FieldMemOperand(a0, HeapNumber::kValueOffset + 4));
-    } else {
-      // Input is untagged double in f4. Output goes to f4.
-      __ Move(a2, a3, f4);
-    }
-    __ bind(&loaded);
-    // a2 = low 32 bits of double value.
-    // a3 = high 32 bits of double value.
-    // Compute hash (the shifts are arithmetic):
-    //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
-    __ Xor(a1, a2, a3);
-    __ sra(t0, a1, 16);
-    __ Xor(a1, a1, t0);
-    __ sra(t0, a1, 8);
-    __ Xor(a1, a1, t0);
-    ASSERT(IsPowerOf2(TranscendentalCache::SubCache::kCacheSize));
-    __ And(a1, a1, Operand(TranscendentalCache::SubCache::kCacheSize - 1));
-
-    // a2 = low 32 bits of double value.
-    // a3 = high 32 bits of double value.
-    // a1 = TranscendentalCache::hash(double value).
-    __ li(cache_entry, Operand(
-        ExternalReference::transcendental_cache_array_address(
-            masm->isolate())));
-    // a0 points to cache array.
-    __ lw(cache_entry, MemOperand(cache_entry, type_ * sizeof(
-        Isolate::Current()->transcendental_cache()->caches_[0])));
-    // a0 points to the cache for the type type_.
-    // If NULL, the cache hasn't been initialized yet, so go through runtime.
-    __ Branch(&invalid_cache, eq, cache_entry, Operand(zero_reg));
+  // a2 = low 32 bits of double value.
+  // a3 = high 32 bits of double value.
+  // a1 = TranscendentalCache::hash(double value).
+  __ li(cache_entry, Operand(
+      ExternalReference::transcendental_cache_array_address(
+          masm->isolate())));
+  // a0 points to cache array.
+  __ lw(cache_entry, MemOperand(cache_entry, type_ * sizeof(
+      Isolate::Current()->transcendental_cache()->caches_[0])));
+  // a0 points to the cache for the type type_.
+  // If NULL, the cache hasn't been initialized yet, so go through runtime.
+  __ Branch(&invalid_cache, eq, cache_entry, Operand(zero_reg));
 
 #ifdef DEBUG
-    // Check that the layout of cache elements match expectations.
-    { TranscendentalCache::SubCache::Element test_elem[2];
-      char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
-      char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
-      char* elem_in0 = reinterpret_cast<char*>(&(test_elem[0].in[0]));
-      char* elem_in1 = reinterpret_cast<char*>(&(test_elem[0].in[1]));
-      char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
-      CHECK_EQ(12, elem2_start - elem_start);  // Two uint_32's and a pointer.
-      CHECK_EQ(0, elem_in0 - elem_start);
-      CHECK_EQ(kIntSize, elem_in1 - elem_start);
-      CHECK_EQ(2 * kIntSize, elem_out - elem_start);
-    }
+  // Check that the layout of cache elements match expectations.
+  { TranscendentalCache::SubCache::Element test_elem[2];
+    char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
+    char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
+    char* elem_in0 = reinterpret_cast<char*>(&(test_elem[0].in[0]));
+    char* elem_in1 = reinterpret_cast<char*>(&(test_elem[0].in[1]));
+    char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
+    CHECK_EQ(12, elem2_start - elem_start);  // Two uint_32's and a pointer.
+    CHECK_EQ(0, elem_in0 - elem_start);
+    CHECK_EQ(kIntSize, elem_in1 - elem_start);
+    CHECK_EQ(2 * kIntSize, elem_out - elem_start);
+  }
 #endif
 
-    // Find the address of the a1'st entry in the cache, i.e., &a0[a1*12].
-    __ sll(t0, a1, 1);
-    __ Addu(a1, a1, t0);
-    __ sll(t0, a1, 2);
-    __ Addu(cache_entry, cache_entry, t0);
+  // Find the address of the a1'st entry in the cache, i.e., &a0[a1*12].
+  __ sll(t0, a1, 1);
+  __ Addu(a1, a1, t0);
+  __ sll(t0, a1, 2);
+  __ Addu(cache_entry, cache_entry, t0);
 
-    // Check if cache matches: Double value is stored in uint32_t[2] array.
-    __ lw(t0, MemOperand(cache_entry, 0));
-    __ lw(t1, MemOperand(cache_entry, 4));
-    __ lw(t2, MemOperand(cache_entry, 8));
-    __ Branch(&calculate, ne, a2, Operand(t0));
-    __ Branch(&calculate, ne, a3, Operand(t1));
-    // Cache hit. Load result, cleanup and return.
-    Counters* counters = masm->isolate()->counters();
-    __ IncrementCounter(
-        counters->transcendental_cache_hit(), 1, scratch0, scratch1);
-    if (tagged) {
-      // Pop input value from stack and load result into v0.
-      __ Drop(1);
-      __ mov(v0, t2);
-    } else {
-      // Load result into f4.
-      __ ldc1(f4, FieldMemOperand(t2, HeapNumber::kValueOffset));
-    }
-    __ Ret();
-  }  // if (CpuFeatures::IsSupported(FPU))
+  // Check if cache matches: Double value is stored in uint32_t[2] array.
+  __ lw(t0, MemOperand(cache_entry, 0));
+  __ lw(t1, MemOperand(cache_entry, 4));
+  __ lw(t2, MemOperand(cache_entry, 8));
+  __ Branch(&calculate, ne, a2, Operand(t0));
+  __ Branch(&calculate, ne, a3, Operand(t1));
+  // Cache hit. Load result, cleanup and return.
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(
+      counters->transcendental_cache_hit(), 1, scratch0, scratch1);
+  if (tagged) {
+    // Pop input value from stack and load result into v0.
+    __ Drop(1);
+    __ mov(v0, t2);
+  } else {
+    // Load result into f4.
+    __ ldc1(f4, FieldMemOperand(t2, HeapNumber::kValueOffset));
+  }
+  __ Ret();
 
   __ bind(&calculate);
-  Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(
       counters->transcendental_cache_miss(), 1, scratch0, scratch1);
   if (tagged) {
@@ -3565,9 +2947,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
                                  1,
                                  1);
   } else {
-    ASSERT(CpuFeatures::IsSupported(FPU));
-    CpuFeatureScope scope(masm, FPU);
-
     Label no_update;
     Label skip_cache;
 
@@ -3694,7 +3073,6 @@ void InterruptStub::Generate(MacroAssembler* masm) {
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  CpuFeatureScope fpu_scope(masm, FPU);
   const Register base = a1;
   const Register exponent = a2;
   const Register heapnumbermap = t1;
@@ -3924,14 +3302,13 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
+  StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
 }
 
 
 void CodeStub::GenerateFPStubs(Isolate* isolate) {
-  SaveFPRegsMode mode = CpuFeatures::IsSupported(FPU)
-      ? kSaveFPRegs
-      : kDontSaveFPRegs;
+  SaveFPRegsMode mode = kSaveFPRegs;
   CEntryStub save_doubles(1, mode);
   StoreBufferOverflowStub stub(mode);
   // These stubs might already be in the snapshot, detect that and don't
@@ -3940,11 +3317,13 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   Code* save_doubles_code;
   if (!save_doubles.FindCodeInCache(&save_doubles_code, isolate)) {
     save_doubles_code = *save_doubles.GetCode(isolate);
-    save_doubles_code->set_is_pregenerated(true);
-
-    Code* store_buffer_overflow_code = *stub.GetCode(isolate);
-    store_buffer_overflow_code->set_is_pregenerated(true);
   }
+  Code* store_buffer_overflow_code;
+  if (!stub.FindCodeInCache(&store_buffer_overflow_code, isolate)) {
+      store_buffer_overflow_code = *stub.GetCode(isolate);
+  }
+  save_doubles_code->set_is_pregenerated(true);
+  store_buffer_overflow_code->set_is_pregenerated(true);
   isolate->set_fp_stubs_generated(true);
 }
 
@@ -4075,11 +3454,18 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Special handling of out of memory exceptions.
   JumpIfOOM(masm, v0, t0, throw_out_of_memory_exception);
 
-  // Retrieve the pending exception and clear the variable.
-  __ LoadRoot(a3, Heap::kTheHoleValueRootIndex);
+  // Retrieve the pending exception.
   __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       isolate)));
   __ lw(v0, MemOperand(t0));
+
+  // See if we just retrieved an OOM exception.
+  JumpIfOOM(masm, v0, t0, throw_out_of_memory_exception);
+
+  // Clear the pending exception.
+  __ li(a3, Operand(isolate->factory()->the_hole_value()));
+  __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
+                                      isolate)));
   __ sw(a3, MemOperand(t0));
 
   // Special handling of termination exceptions which are uncatchable
@@ -4200,20 +3586,15 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Save callee saved registers on the stack.
   __ MultiPush(kCalleeSaved | ra.bit());
 
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    // Save callee-saved FPU registers.
-    __ MultiPushFPU(kCalleeSavedFPU);
-    // Set up the reserved register for 0.0.
-    __ Move(kDoubleRegZero, 0.0);
-  }
+  // Save callee-saved FPU registers.
+  __ MultiPushFPU(kCalleeSavedFPU);
+  // Set up the reserved register for 0.0.
+  __ Move(kDoubleRegZero, 0.0);
 
 
   // Load argv in s0 register.
   int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
-  if (CpuFeatures::IsSupported(FPU)) {
-    offset_to_argv += kNumCalleeSavedFPU * kDoubleSize;
-  }
+  offset_to_argv += kNumCalleeSavedFPU * kDoubleSize;
 
   __ InitializeRootRegister();
   __ lw(s0, MemOperand(sp, offset_to_argv + kCArgsSlotsSize));
@@ -4349,11 +3730,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Reset the stack to the callee saved registers.
   __ addiu(sp, sp, -EntryFrameConstants::kCallerFPOffset);
 
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    // Restore callee-saved fpu registers.
-    __ MultiPopFPU(kCalleeSavedFPU);
-  }
+  // Restore callee-saved fpu registers.
+  __ MultiPopFPU(kCalleeSavedFPU);
 
   // Restore callee saved registers from the stack.
   __ MultiPop(kCalleeSaved | ra.bit());
@@ -7092,59 +6470,55 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   }
 
   // Inlining the double comparison and falling back to the general compare
-  // stub if NaN is involved or FPU is unsupported.
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
+  // stub if NaN is involved.
+  // Load left and right operand.
+  Label done, left, left_smi, right_smi;
+  __ JumpIfSmi(a0, &right_smi);
+  __ CheckMap(a0, a2, Heap::kHeapNumberMapRootIndex, &maybe_undefined1,
+              DONT_DO_SMI_CHECK);
+  __ Subu(a2, a0, Operand(kHeapObjectTag));
+  __ ldc1(f2, MemOperand(a2, HeapNumber::kValueOffset));
+  __ Branch(&left);
+  __ bind(&right_smi);
+  __ SmiUntag(a2, a0);  // Can't clobber a0 yet.
+  FPURegister single_scratch = f6;
+  __ mtc1(a2, single_scratch);
+  __ cvt_d_w(f2, single_scratch);
 
-    // Load left and right operand.
-    Label done, left, left_smi, right_smi;
-    __ JumpIfSmi(a0, &right_smi);
-    __ CheckMap(a0, a2, Heap::kHeapNumberMapRootIndex, &maybe_undefined1,
-                DONT_DO_SMI_CHECK);
-    __ Subu(a2, a0, Operand(kHeapObjectTag));
-    __ ldc1(f2, MemOperand(a2, HeapNumber::kValueOffset));
-    __ Branch(&left);
-    __ bind(&right_smi);
-    __ SmiUntag(a2, a0);  // Can't clobber a0 yet.
-    FPURegister single_scratch = f6;
-    __ mtc1(a2, single_scratch);
-    __ cvt_d_w(f2, single_scratch);
+  __ bind(&left);
+  __ JumpIfSmi(a1, &left_smi);
+  __ CheckMap(a1, a2, Heap::kHeapNumberMapRootIndex, &maybe_undefined2,
+              DONT_DO_SMI_CHECK);
+  __ Subu(a2, a1, Operand(kHeapObjectTag));
+  __ ldc1(f0, MemOperand(a2, HeapNumber::kValueOffset));
+  __ Branch(&done);
+  __ bind(&left_smi);
+  __ SmiUntag(a2, a1);  // Can't clobber a1 yet.
+  single_scratch = f8;
+  __ mtc1(a2, single_scratch);
+  __ cvt_d_w(f0, single_scratch);
 
-    __ bind(&left);
-    __ JumpIfSmi(a1, &left_smi);
-    __ CheckMap(a1, a2, Heap::kHeapNumberMapRootIndex, &maybe_undefined2,
-                DONT_DO_SMI_CHECK);
-    __ Subu(a2, a1, Operand(kHeapObjectTag));
-    __ ldc1(f0, MemOperand(a2, HeapNumber::kValueOffset));
-    __ Branch(&done);
-    __ bind(&left_smi);
-    __ SmiUntag(a2, a1);  // Can't clobber a1 yet.
-    single_scratch = f8;
-    __ mtc1(a2, single_scratch);
-    __ cvt_d_w(f0, single_scratch);
+  __ bind(&done);
 
-    __ bind(&done);
+  // Return a result of -1, 0, or 1, or use CompareStub for NaNs.
+  Label fpu_eq, fpu_lt;
+  // Test if equal, and also handle the unordered/NaN case.
+  __ BranchF(&fpu_eq, &unordered, eq, f0, f2);
 
-    // Return a result of -1, 0, or 1, or use CompareStub for NaNs.
-    Label fpu_eq, fpu_lt;
-    // Test if equal, and also handle the unordered/NaN case.
-    __ BranchF(&fpu_eq, &unordered, eq, f0, f2);
+  // Test if less (unordered case is already handled).
+  __ BranchF(&fpu_lt, NULL, lt, f0, f2);
 
-    // Test if less (unordered case is already handled).
-    __ BranchF(&fpu_lt, NULL, lt, f0, f2);
+  // Otherwise it's greater, so just fall thru, and return.
+  __ li(v0, Operand(GREATER));
+  __ Ret();
 
-    // Otherwise it's greater, so just fall thru, and return.
-    __ li(v0, Operand(GREATER));
-    __ Ret();
+  __ bind(&fpu_eq);
+  __ li(v0, Operand(EQUAL));
+  __ Ret();
 
-    __ bind(&fpu_eq);
-    __ li(v0, Operand(EQUAL));
-    __ Ret();
-
-    __ bind(&fpu_lt);
-    __ li(v0, Operand(LESS));
-    __ Ret();
-  }
+  __ bind(&fpu_lt);
+  __ li(v0, Operand(LESS));
+  __ Ret();
 
   __ bind(&unordered);
   __ bind(&generic_stub);
@@ -7785,11 +7159,6 @@ bool RecordWriteStub::IsPregenerated() {
 }
 
 
-bool StoreBufferOverflowStub::IsPregenerated() {
-  return save_doubles_ == kDontSaveFPRegs || ISOLATE->fp_stubs_generated();
-}
-
-
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
@@ -7812,7 +7181,7 @@ void RecordWriteStub::GenerateFixedRegStubsAheadOfTime(Isolate* isolate) {
 
 
 bool CodeStub::CanUseFPRegisters() {
-  return CpuFeatures::IsSupported(FPU);
+  return true;  // FPU is a base requirement for V8.
 }
 
 
@@ -8080,9 +7449,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  ASSERT(!Serializer::enabled());
-  bool save_fp_regs = CpuFeatures::IsSupported(FPU);
-  CEntryStub ces(1, save_fp_regs ? kSaveFPRegs : kDontSaveFPRegs);
+  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
   __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;

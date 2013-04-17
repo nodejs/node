@@ -726,33 +726,54 @@ void BaseStoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
 }
 
 
+// Generate code to check that a global property cell is empty. Create
+// the property cell at compilation time if no cell exists for the
+// property.
+static void GenerateCheckPropertyCell(MacroAssembler* masm,
+                                      Handle<GlobalObject> global,
+                                      Handle<Name> name,
+                                      Register scratch,
+                                      Label* miss) {
+  Handle<JSGlobalPropertyCell> cell =
+      GlobalObject::EnsurePropertyCell(global, name);
+  ASSERT(cell->value()->IsTheHole());
+  Handle<Oddball> the_hole = masm->isolate()->factory()->the_hole_value();
+  if (Serializer::enabled()) {
+    __ mov(scratch, Immediate(cell));
+    __ cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
+           Immediate(the_hole));
+  } else {
+    __ cmp(Operand::Cell(cell), Immediate(the_hole));
+  }
+  __ j(not_equal, miss);
+}
+
+
 // Both name_reg and receiver_reg are preserved on jumps to miss_label,
 // but may be destroyed if store is successful.
-void StubCompiler::GenerateStoreField(MacroAssembler* masm,
-                                      Handle<JSObject> object,
-                                      LookupResult* lookup,
-                                      Handle<Map> transition,
-                                      Handle<Name> name,
-                                      Register receiver_reg,
-                                      Register name_reg,
-                                      Register value_reg,
-                                      Register scratch1,
-                                      Register scratch2,
-                                      Label* miss_label,
-                                      Label* miss_restore_name) {
+void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
+                                           Handle<JSObject> object,
+                                           LookupResult* lookup,
+                                           Handle<Map> transition,
+                                           Handle<Name> name,
+                                           Register receiver_reg,
+                                           Register name_reg,
+                                           Register value_reg,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Label* miss_label,
+                                           Label* miss_restore_name) {
   // Check that the map of the object hasn't changed.
-  CompareMapMode mode = transition.is_null() ? ALLOW_ELEMENT_TRANSITION_MAPS
-                                             : REQUIRE_EXACT_MAP;
   __ CheckMap(receiver_reg, Handle<Map>(object->map()),
-              miss_label, DO_SMI_CHECK, mode);
+              miss_label, DO_SMI_CHECK, REQUIRE_EXACT_MAP);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(receiver_reg, scratch1, miss_label);
+    __ CheckAccessGlobalProxy(receiver_reg, scratch1, scratch2, miss_label);
   }
 
   // Check that we are allowed to write this.
-  if (!transition.is_null() && object->GetPrototype()->IsJSObject()) {
+  if (object->GetPrototype()->IsJSObject()) {
     JSObject* holder;
     // holder == object indicates that no property was found.
     if (lookup->holder() != *object) {
@@ -771,12 +792,18 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // If no property was found, and the holder (the last object in the
     // prototype chain) is in slow mode, we need to do a negative lookup on the
     // holder.
-    if (lookup->holder() == *object &&
-        !holder->HasFastProperties() &&
-        !holder->IsJSGlobalProxy() &&
-        !holder->IsJSGlobalObject()) {
-      GenerateDictionaryNegativeLookup(
-          masm, miss_restore_name, holder_reg, name, scratch1, scratch2);
+    if (lookup->holder() == *object) {
+      if (holder->IsJSGlobalObject()) {
+        GenerateCheckPropertyCell(
+            masm,
+            Handle<GlobalObject>(GlobalObject::cast(holder)),
+            name,
+            scratch1,
+            miss_restore_name);
+      } else if (!holder->HasFastProperties() && !holder->IsJSGlobalProxy()) {
+        GenerateDictionaryNegativeLookup(
+            masm, miss_restore_name, holder_reg, name, scratch1, scratch2);
+      }
     }
   }
 
@@ -785,7 +812,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
   // Perform map transition for the receiver if necessary.
-  if (!transition.is_null() && (object->map()->unused_property_fields() == 0)) {
+  if (object->map()->unused_property_fields() == 0) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
     __ pop(scratch1);  // Return address.
@@ -801,33 +828,29 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     return;
   }
 
-  int index;
-  if (!transition.is_null()) {
-    // Update the map of the object.
-    __ mov(scratch1, Immediate(transition));
-    __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset), scratch1);
+  // Update the map of the object.
+  __ mov(scratch1, Immediate(transition));
+  __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset), scratch1);
 
-    // Update the write barrier for the map field and pass the now unused
-    // name_reg as scratch register.
-    __ RecordWriteField(receiver_reg,
-                        HeapObject::kMapOffset,
-                        scratch1,
-                        name_reg,
-                        kDontSaveFPRegs,
-                        OMIT_REMEMBERED_SET,
-                        OMIT_SMI_CHECK);
-    index = transition->instance_descriptors()->GetFieldIndex(
-        transition->LastAdded());
-  } else {
-    index = lookup->GetFieldIndex().field_index();
-  }
+  // Update the write barrier for the map field and pass the now unused
+  // name_reg as scratch register.
+  __ RecordWriteField(receiver_reg,
+                      HeapObject::kMapOffset,
+                      scratch1,
+                      name_reg,
+                      kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
 
+  int index = transition->instance_descriptors()->GetFieldIndex(
+      transition->LastAdded());
 
   // Adjust for the number of properties stored in the object. Even in the
   // face of a transition we can use the old map here because the size of the
   // object and the number of in-object properties is not going to change.
   index -= object->map()->inobject_properties();
 
+  // TODO(verwaest): Share this code as a code stub.
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
@@ -864,26 +887,71 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 }
 
 
-// Generate code to check that a global property cell is empty. Create
-// the property cell at compilation time if no cell exists for the
-// property.
-static void GenerateCheckPropertyCell(MacroAssembler* masm,
-                                      Handle<GlobalObject> global,
-                                      Handle<Name> name,
-                                      Register scratch,
-                                      Label* miss) {
-  Handle<JSGlobalPropertyCell> cell =
-      GlobalObject::EnsurePropertyCell(global, name);
-  ASSERT(cell->value()->IsTheHole());
-  Handle<Oddball> the_hole = masm->isolate()->factory()->the_hole_value();
-  if (Serializer::enabled()) {
-    __ mov(scratch, Immediate(cell));
-    __ cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
-           Immediate(the_hole));
-  } else {
-    __ cmp(Operand::Cell(cell), Immediate(the_hole));
+// Both name_reg and receiver_reg are preserved on jumps to miss_label,
+// but may be destroyed if store is successful.
+void StubCompiler::GenerateStoreField(MacroAssembler* masm,
+                                      Handle<JSObject> object,
+                                      LookupResult* lookup,
+                                      Register receiver_reg,
+                                      Register name_reg,
+                                      Register value_reg,
+                                      Register scratch1,
+                                      Register scratch2,
+                                      Label* miss_label) {
+  // Check that the map of the object hasn't changed.
+  __ CheckMap(receiver_reg, Handle<Map>(object->map()),
+              miss_label, DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+
+  // Perform global security token check if needed.
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(receiver_reg, scratch1, scratch2, miss_label);
   }
-  __ j(not_equal, miss);
+
+  // Stub never generated for non-global objects that require access
+  // checks.
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+
+  int index = lookup->GetFieldIndex().field_index();
+
+  // Adjust for the number of properties stored in the object. Even in the
+  // face of a transition we can use the old map here because the size of the
+  // object and the number of in-object properties is not going to change.
+  index -= object->map()->inobject_properties();
+
+  // TODO(verwaest): Share this code as a code stub.
+  if (index < 0) {
+    // Set the property straight into the object.
+    int offset = object->map()->instance_size() + (index * kPointerSize);
+    __ mov(FieldOperand(receiver_reg, offset), value_reg);
+
+    // Update the write barrier for the array address.
+    // Pass the value being stored in the now unused name_reg.
+    __ mov(name_reg, value_reg);
+    __ RecordWriteField(receiver_reg,
+                        offset,
+                        name_reg,
+                        scratch1,
+                        kDontSaveFPRegs);
+  } else {
+    // Write to the properties array.
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
+    // Get the properties array (optimistically).
+    __ mov(scratch1, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
+    __ mov(FieldOperand(scratch1, offset), eax);
+
+    // Update the write barrier for the array address.
+    // Pass the value being stored in the now unused name_reg.
+    __ mov(name_reg, value_reg);
+    __ RecordWriteField(scratch1,
+                        offset,
+                        name_reg,
+                        receiver_reg,
+                        kDontSaveFPRegs);
+  }
+
+  // Return the value (register eax).
+  ASSERT(value_reg.is(eax));
+  __ ret(0);
 }
 
 
@@ -972,10 +1040,6 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     } else {
       bool in_new_space = heap()->InNewSpace(*prototype);
       Handle<Map> current_map(current->map());
-      if (in_new_space) {
-        // Save the map in scratch1 for later.
-        __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
-      }
       if (!current.is_identical_to(first) || check == CHECK_ALL_MAPS) {
         __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK,
                     ALLOW_ELEMENT_TRANSITION_MAPS);
@@ -985,8 +1049,14 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
       // the map check so that we know that the object is actually a global
       // object.
       if (current->IsJSGlobalProxy()) {
-        __ CheckAccessGlobalProxy(reg, scratch2, miss);
+        __ CheckAccessGlobalProxy(reg, scratch1, scratch2, miss);
       }
+
+      if (in_new_space) {
+        // Save the map in scratch1 for later.
+        __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
+      }
+
       reg = holder_reg;  // From now on the object will be in holder_reg.
 
       if (in_new_space) {
@@ -1020,7 +1090,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   // Perform security check for access to the global object.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
   if (holder->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(reg, scratch1, miss);
+    __ CheckAccessGlobalProxy(reg, scratch1, scratch2, miss);
   }
 
   // If we've skipped any global objects, it's not enough to verify that
@@ -1111,19 +1181,12 @@ void BaseLoadStubCompiler::NonexistentHandlerFrontend(
     Handle<GlobalObject> global) {
   Label miss;
 
-  Register reg = HandlerFrontendHeader(object, receiver(), last, name, &miss);
+  HandlerFrontendHeader(object, receiver(), last, name, &miss);
 
   // If the last object in the prototype chain is a global object,
   // check that the global property cell is empty.
   if (!global.is_null()) {
     GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
-  }
-
-  if (!last->HasFastProperties()) {
-    __ mov(scratch2(), FieldOperand(reg, HeapObject::kMapOffset));
-    __ mov(scratch2(), FieldOperand(scratch2(), Map::kPrototypeOffset));
-    __ cmp(scratch2(), isolate()->factory()->null_value());
-    __ j(not_equal, &miss);
   }
 
   HandlerFrontendFooter(success, &miss);
@@ -2657,7 +2720,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(edx, ebx, &miss);
+    __ CheckAccessGlobalProxy(receiver(), scratch1(), scratch2(), &miss);
   }
 
   // Stub never generated for non-global objects that require access

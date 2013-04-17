@@ -25,24 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 // This file relies on the fact that the following declaration has been made
 // in runtime.js:
 // var $String = global.String;
 // var $NaN = 0/0;
 
+// -------------------------------------------------------------------
 
-// Set the String function and constructor.
-%SetCode($String, function(x) {
+function StringConstructor(x) {
   var value = %_ArgumentsLength() == 0 ? '' : TO_STRING_INLINE(x);
   if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
     return value;
   }
-});
+}
 
-%FunctionSetPrototype($String, new $String());
 
 // ECMA-262 section 15.5.4.2
 function StringToString() {
@@ -994,15 +992,18 @@ SetUpLockedPrototype(ReplaceResultBuilder,
 
 function SetUpString() {
   %CheckIsBootstrapping();
+
+  // Set the String function and constructor.
+  %SetCode($String, StringConstructor);
+  %FunctionSetPrototype($String, new $String());
+
   // Set up the constructor property on the String prototype object.
   %SetProperty($String.prototype, "constructor", $String, DONT_ENUM);
-
 
   // Set up the non-enumerable functions on the String object.
   InstallFunctions($String, DONT_ENUM, $Array(
     "fromCharCode", StringFromCharCode
   ));
-
 
   // Set up the non-enumerable functions on the String prototype object.
   InstallFunctions($String.prototype, DONT_ENUM, $Array(

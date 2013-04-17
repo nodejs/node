@@ -228,6 +228,15 @@ class CppLintProcessor(SourceFileProcessor):
   def GetPathsToSearch(self):
     return ['src', 'preparser', 'include', 'samples', join('test', 'cctest')]
 
+  def GetCpplintScript(self, prio_path):
+    for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
+      path = path.strip('"')
+      cpplint = os.path.join(path, "cpplint.py")
+      if os.path.isfile(cpplint):
+        return cpplint
+
+    return None
+
   def ProcessFiles(self, files, path):
     good_files_cache = FileContentsCache('.cpplint-cache')
     good_files_cache.Load()
@@ -237,10 +246,14 @@ class CppLintProcessor(SourceFileProcessor):
       return True
 
     filt = '-,' + ",".join(['+' + n for n in ENABLED_LINT_RULES])
-    command = ['cpplint.py', '--filter', filt]
-    local_cpplint = join(path, "tools", "cpplint.py")
-    if exists(local_cpplint):
-      command = ['python', local_cpplint, '--filter', filt]
+    command = [sys.executable, 'cpplint.py', '--filter', filt]
+    cpplint = self.GetCpplintScript(join(path, "tools"))
+    if cpplint is None:
+      print('Could not find cpplint.py. Make sure '
+            'depot_tools is installed and in the path.')
+      sys.exit(1)
+
+    command = [sys.executable, cpplint, '--filter', filt]
 
     commands = join([command + [file] for file in files])
     count = multiprocessing.cpu_count()

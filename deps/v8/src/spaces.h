@@ -547,7 +547,8 @@ class MemoryChunk {
       kSlotsBufferOffset + kPointerSize + kPointerSize;
 
   static const size_t kHeaderSize = kWriteBarrierCounterOffset + kPointerSize +
-                                    kIntSize + kIntSize + kPointerSize;
+                                    kIntSize + kIntSize + kPointerSize +
+                                    5 * kPointerSize;
 
   static const int kBodyOffset =
       CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
@@ -701,6 +702,13 @@ class MemoryChunk {
 
   intptr_t parallel_sweeping_;
 
+  // PagedSpace free-list statistics.
+  intptr_t available_in_small_free_list_;
+  intptr_t available_in_medium_free_list_;
+  intptr_t available_in_large_free_list_;
+  intptr_t available_in_huge_free_list_;
+  intptr_t non_available_small_blocks_;
+
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,
                                  size_t size,
@@ -796,6 +804,21 @@ class Page : public MemoryChunk {
 
   void ClearSweptPrecisely() { ClearFlag(WAS_SWEPT_PRECISELY); }
   void ClearSweptConservatively() { ClearFlag(WAS_SWEPT_CONSERVATIVELY); }
+
+  void ResetFreeListStatistics();
+
+#define FRAGMENTATION_STATS_ACCESSORS(type, name) \
+  type name() { return name##_; }                 \
+  void set_##name(type name) { name##_ = name; }  \
+  void add_##name(type name) { name##_ += name; }
+
+  FRAGMENTATION_STATS_ACCESSORS(intptr_t, non_available_small_blocks)
+  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_small_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_medium_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_large_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_huge_free_list)
+
+#undef FRAGMENTATION_STATS_ACCESSORS
 
 #ifdef DEBUG
   void Print();
@@ -1432,8 +1455,6 @@ class FreeListCategory {
 
   FreeListNode* PickNodeFromList(int *node_size);
 
-  intptr_t CountFreeListItemsInList(Page* p);
-
   intptr_t EvictFreeListItemsInList(Page* p);
 
   void RepairFreeList(Heap* heap);
@@ -1528,19 +1549,6 @@ class FreeList BASE_EMBEDDED {
   // Used after booting the VM.
   void RepairLists(Heap* heap);
 
-  struct SizeStats {
-    intptr_t Total() {
-      return small_size_ + medium_size_ + large_size_ + huge_size_;
-    }
-
-    intptr_t small_size_;
-    intptr_t medium_size_;
-    intptr_t large_size_;
-    intptr_t huge_size_;
-  };
-
-  void CountFreeListItems(Page* p, SizeStats* sizes);
-
   intptr_t EvictFreeListItems(Page* p);
 
   FreeListCategory* small_list() { return &small_list_; }
@@ -1625,6 +1633,20 @@ class PagedSpace : public Space {
   // Approximate amount of physical memory committed for this space.
   size_t CommittedPhysicalMemory();
 
+  struct SizeStats {
+    intptr_t Total() {
+      return small_size_ + medium_size_ + large_size_ + huge_size_;
+    }
+
+    intptr_t small_size_;
+    intptr_t medium_size_;
+    intptr_t large_size_;
+    intptr_t huge_size_;
+  };
+
+  void ObtainFreeListStatistics(Page* p, SizeStats* sizes);
+  void ResetFreeListStatistics();
+
   // Sets the capacity, the available space and the wasted space to zero.
   // The stats are rebuilt during sweeping by adding each page to the
   // capacity and the size when it is encountered.  As free spaces are
@@ -1632,6 +1654,7 @@ class PagedSpace : public Space {
   // to the available and wasted totals.
   void ClearStats() {
     accounting_stats_.ClearSizeWaste();
+    ResetFreeListStatistics();
   }
 
   // Increases the number of available bytes of that space.
@@ -1784,10 +1807,6 @@ class PagedSpace : public Space {
 
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
-
-  void CountFreeListItems(Page* p, FreeList::SizeStats* sizes) {
-    free_list_.CountFreeListItems(p, sizes);
-  }
 
   void EvictEvacuationCandidatesFromFreeLists();
 

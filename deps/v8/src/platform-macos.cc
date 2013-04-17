@@ -60,6 +60,7 @@
 
 #include "platform-posix.h"
 #include "platform.h"
+#include "simulator.h"
 #include "vm-state-inl.h"
 
 // Manually define these here as weak imports, rather than including execinfo.h.
@@ -407,9 +408,30 @@ VirtualMemory::~VirtualMemory() {
 }
 
 
+bool VirtualMemory::IsReserved() {
+  return address_ != NULL;
+}
+
+
 void VirtualMemory::Reset() {
   address_ = NULL;
   size_ = 0;
+}
+
+
+bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
+  return CommitRegion(address, size, is_executable);
+}
+
+
+bool VirtualMemory::Uncommit(void* address, size_t size) {
+  return UncommitRegion(address, size);
+}
+
+
+bool VirtualMemory::Guard(void* address) {
+  OS::Guard(address, OS::CommitPageSize());
+  return true;
 }
 
 
@@ -424,22 +446,6 @@ void* VirtualMemory::ReserveRegion(size_t size) {
   if (result == MAP_FAILED) return NULL;
 
   return result;
-}
-
-
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
-
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  return CommitRegion(address, size, is_executable);
-}
-
-
-bool VirtualMemory::Guard(void* address) {
-  OS::Guard(address, OS::CommitPageSize());
-  return true;
 }
 
 
@@ -458,11 +464,6 @@ bool VirtualMemory::CommitRegion(void* address,
 
   UpdateAllocatedSpaceLimits(address, size);
   return true;
-}
-
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  return UncommitRegion(address, size);
 }
 
 
@@ -495,7 +496,8 @@ class Thread::PlatformData : public Malloced {
 
 Thread::Thread(const Options& options)
     : data_(new PlatformData),
-      stack_size_(options.stack_size()) {
+      stack_size_(options.stack_size()),
+      start_semaphore_(NULL) {
   set_name(options.name());
 }
 
@@ -530,7 +532,7 @@ static void* ThreadEntry(void* arg) {
   thread->data()->thread_ = pthread_self();
   SetThreadName(thread->name());
   ASSERT(thread->data()->thread_ != kNoThread);
-  thread->Run();
+  thread->NotifyStartedAndRun();
   return NULL;
 }
 
@@ -741,185 +743,16 @@ Semaphore* OS::CreateSemaphore(int count) {
 }
 
 
-class Sampler::PlatformData : public Malloced {
- public:
-  PlatformData() : profiled_thread_(mach_thread_self()) {}
-
-  ~PlatformData() {
-    // Deallocate Mach port for thread.
-    mach_port_deallocate(mach_task_self(), profiled_thread_);
-  }
-
-  thread_act_t profiled_thread() { return profiled_thread_; }
-
- private:
-  // Note: for profiled_thread_ Mach primitives are used instead of PThread's
-  // because the latter doesn't provide thread manipulation primitives required.
-  // For details, consult "Mac OS X Internals" book, Section 7.3.
-  thread_act_t profiled_thread_;
-};
-
-
-class SamplerThread : public Thread {
- public:
-  static const int kSamplerThreadStackSize = 64 * KB;
-
-  explicit SamplerThread(int interval)
-      : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
-        interval_(interval) {}
-
-  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
-  static void TearDown() { delete mutex_; }
-
-  static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::AddActiveSampler(sampler);
-    if (instance_ == NULL) {
-      instance_ = new SamplerThread(sampler->interval());
-      instance_->Start();
-    } else {
-      ASSERT(instance_->interval_ == sampler->interval());
-    }
-  }
-
-  static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::RemoveActiveSampler(sampler);
-    if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
-      delete instance_;
-      instance_ = NULL;
-    }
-  }
-
-  // Implement Thread::Run().
-  virtual void Run() {
-    SamplerRegistry::State state;
-    while ((state = SamplerRegistry::GetState()) !=
-           SamplerRegistry::HAS_NO_SAMPLERS) {
-      // When CPU profiling is enabled both JavaScript and C++ code is
-      // profiled. We must not suspend.
-      if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
-        SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
-      } else {
-        if (RuntimeProfiler::WaitForSomeIsolateToEnterJS()) continue;
-      }
-      OS::Sleep(interval_);
-    }
-  }
-
-  static void DoCpuProfile(Sampler* sampler, void* raw_sampler_thread) {
-    if (!sampler->isolate()->IsInitialized()) return;
-    if (!sampler->IsProfiling()) return;
-    SamplerThread* sampler_thread =
-        reinterpret_cast<SamplerThread*>(raw_sampler_thread);
-    sampler_thread->SampleContext(sampler);
-  }
-
-  void SampleContext(Sampler* sampler) {
-    thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
-    Isolate* isolate = sampler->isolate();
-    TickSample sample_obj;
-    TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
-    if (sample == NULL) sample = &sample_obj;
-
-    if (KERN_SUCCESS != thread_suspend(profiled_thread)) return;
-
-#if V8_HOST_ARCH_X64
-    thread_state_flavor_t flavor = x86_THREAD_STATE64;
-    x86_thread_state64_t state;
-    mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
-#if __DARWIN_UNIX03
-#define REGISTER_FIELD(name) __r ## name
-#else
-#define REGISTER_FIELD(name) r ## name
-#endif  // __DARWIN_UNIX03
-#elif V8_HOST_ARCH_IA32
-    thread_state_flavor_t flavor = i386_THREAD_STATE;
-    i386_thread_state_t state;
-    mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
-#if __DARWIN_UNIX03
-#define REGISTER_FIELD(name) __e ## name
-#else
-#define REGISTER_FIELD(name) e ## name
-#endif  // __DARWIN_UNIX03
-#else
-#error Unsupported Mac OS X host architecture.
-#endif  // V8_HOST_ARCH
-
-    if (thread_get_state(profiled_thread,
-                         flavor,
-                         reinterpret_cast<natural_t*>(&state),
-                         &count) == KERN_SUCCESS) {
-      sample->state = isolate->current_vm_state();
-      sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
-      sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
-      sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
-      sampler->SampleStack(sample);
-      sampler->Tick(sample);
-    }
-    thread_resume(profiled_thread);
-  }
-
-  const int interval_;
-
-  // Protects the process wide state below.
-  static Mutex* mutex_;
-  static SamplerThread* instance_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(SamplerThread);
-};
-
-#undef REGISTER_FIELD
-
-
-Mutex* SamplerThread::mutex_ = NULL;
-SamplerThread* SamplerThread::instance_ = NULL;
-
-
 void OS::SetUp() {
   // Seed the random number generator. We preserve microsecond resolution.
   uint64_t seed = Ticks() ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
-  SamplerThread::SetUp();
 }
 
 
 void OS::TearDown() {
-  SamplerThread::TearDown();
   delete limit_mutex;
-}
-
-
-Sampler::Sampler(Isolate* isolate, int interval)
-    : isolate_(isolate),
-      interval_(interval),
-      profiling_(false),
-      active_(false),
-      samples_taken_(0) {
-  data_ = new PlatformData;
-}
-
-
-Sampler::~Sampler() {
-  ASSERT(!IsActive());
-  delete data_;
-}
-
-
-void Sampler::Start() {
-  ASSERT(!IsActive());
-  SetActive(true);
-  SamplerThread::AddActiveSampler(this);
-}
-
-
-void Sampler::Stop() {
-  ASSERT(IsActive());
-  SamplerThread::RemoveActiveSampler(this);
-  SetActive(false);
 }
 
 

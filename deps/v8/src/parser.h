@@ -163,18 +163,16 @@ class ScriptDataImpl : public ScriptData {
 };
 
 
-class ParserApi {
+class PreParserApi {
  public:
-  // Parses the source code represented by the compilation info and sets its
-  // function literal.  Returns false (and deallocates any allocated AST
-  // nodes) if parsing failed.
-  static bool Parse(CompilationInfo* info, int flags);
-
-  // Generic preparser generating full preparse data.
-  static ScriptDataImpl* PreParse(Utf16CharacterStream* source,
-                                  v8::Extension* extension,
-                                  int flags);
+  // Pre-parse a character stream and return full preparse data.
+  //
+  // This interface is here instead of in preparser.h because it instantiates a
+  // preparser recorder object that is suited to the parser's purposes.  Also,
+  // the preparser doesn't know about ScriptDataImpl.
+  static ScriptDataImpl* PreParse(Utf16CharacterStream* source);
 };
+
 
 // ----------------------------------------------------------------------------
 // REGEXP PARSING
@@ -295,7 +293,7 @@ class RegExpBuilder: public ZoneObject {
 };
 
 
-class RegExpParser {
+class RegExpParser BASE_EMBEDDED {
  public:
   RegExpParser(FlatStringReader* in,
                Handle<String>* error,
@@ -425,20 +423,36 @@ class RegExpParser {
 // Forward declaration.
 class SingletonLogger;
 
-class Parser {
+class Parser BASE_EMBEDDED {
  public:
-  Parser(CompilationInfo* info,
-         int parsing_flags,  // Combination of ParsingFlags
-         v8::Extension* extension,
-         ScriptDataImpl* pre_data);
-  virtual ~Parser() {
+  explicit Parser(CompilationInfo* info);
+  ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
   }
 
+  bool allow_natives_syntax() const { return allow_natives_syntax_; }
+  bool allow_lazy() const { return allow_lazy_; }
+  bool allow_modules() { return scanner().HarmonyModules(); }
+  bool allow_harmony_scoping() { return scanner().HarmonyScoping(); }
+  bool allow_generators() const { return allow_generators_; }
+
+  void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
+  void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
+  void set_allow_modules(bool allow) { scanner().SetHarmonyModules(allow); }
+  void set_allow_harmony_scoping(bool allow) {
+    scanner().SetHarmonyScoping(allow);
+  }
+  void set_allow_generators(bool allow) { allow_generators_ = allow; }
+
+  // Parses the source code represented by the compilation info and sets its
+  // function literal.  Returns false (and deallocates any allocated AST
+  // nodes) if parsing failed.
+  static bool Parse(CompilationInfo* info) { return Parser(info).Parse(); }
+  bool Parse();
+
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram();
-  FunctionLiteral* ParseLazy();
 
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
@@ -474,7 +488,6 @@ class Parser {
    public:
     FunctionState(Parser* parser,
                   Scope* scope,
-                  bool is_generator,
                   Isolate* isolate);
     ~FunctionState();
 
@@ -505,7 +518,17 @@ class Parser {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
-    bool is_generator() const { return is_generator_; }
+    void set_generator_object_variable(Variable *variable) {
+      ASSERT(variable != NULL);
+      ASSERT(!is_generator());
+      generator_object_variable_ = variable;
+    }
+    Variable* generator_object_variable() const {
+      return generator_object_variable_;
+    }
+    bool is_generator() const {
+      return generator_object_variable_ != NULL;
+    }
 
     AstNodeFactory<AstConstructionVisitor>* factory() { return &factory_; }
 
@@ -521,13 +544,15 @@ class Parser {
     // Properties count estimation.
     int expected_property_count_;
 
-    // Indicates that this function is a generator.
-    bool is_generator_;
-
     // Keeps track of assignments to properties of this. Used for
     // optimizing constructors.
     bool only_simple_this_property_assignments_;
     Handle<FixedArray> this_property_assignments_;
+
+    // For generators, the variable that holds the generator object.  This
+    // variable is used by yield expressions and return statements.  NULL
+    // indicates that this function is not a generator.
+    Variable* generator_object_variable_;
 
     Parser* parser_;
     FunctionState* outer_function_state_;
@@ -552,6 +577,7 @@ class Parser {
     Mode old_mode_;
   };
 
+  FunctionLiteral* ParseLazy();
   FunctionLiteral* ParseLazy(Utf16CharacterStream* source,
                              ZoneScope* zone_scope);
 
@@ -570,10 +596,15 @@ class Parser {
   void ReportMessage(const char* message, Vector<const char*> args);
   void ReportMessage(const char* message, Vector<Handle<String> > args);
 
+  void set_pre_parse_data(ScriptDataImpl *data) {
+    pre_parse_data_ = data;
+    symbol_cache_.Initialize(data ? data->symbol_count() : 0, zone());
+  }
+
   bool inside_with() const { return top_scope_->inside_with(); }
   Scanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
-  ScriptDataImpl* pre_data() const { return pre_data_; }
+  ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   bool is_extended_mode() {
     ASSERT(top_scope_ != NULL);
     return top_scope_->is_extended_mode();
@@ -835,13 +866,13 @@ class Parser {
   FunctionState* current_function_state_;
   Target* target_stack_;  // for break, continue statements
   v8::Extension* extension_;
-  ScriptDataImpl* pre_data_;
+  ScriptDataImpl* pre_parse_data_;
   FuncNameInferrer* fni_;
 
   Mode mode_;
   bool allow_natives_syntax_;
   bool allow_lazy_;
-  bool allow_modules_;
+  bool allow_generators_;
   bool stack_overflow_;
   // If true, the next (and immediately following) function literal is
   // preceded by a parenthesis.

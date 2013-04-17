@@ -56,8 +56,7 @@ namespace internal {
   V(ScriptContextData)              \
   V(ScriptEvalFromScript)           \
   V(ScriptEvalFromScriptPosition)   \
-  V(ScriptEvalFromFunctionName)     \
-  V(ObjectPrototype)
+  V(ScriptEvalFromFunctionName)
 
 // Accessors contains all predefined proxy accessors.
 
@@ -111,10 +110,6 @@ class Accessors : public AllStatic {
   static MaybeObject* ScriptGetEvalFromScript(Object* object, void*);
   static MaybeObject* ScriptGetEvalFromScriptPosition(Object* object, void*);
   static MaybeObject* ScriptGetEvalFromFunctionName(Object* object, void*);
-  static MaybeObject* ObjectGetPrototype(Object* receiver, void*);
-  static MaybeObject* ObjectSetPrototype(JSObject* receiver,
-                                         Object* value,
-                                         void*);
 
   // Helper functions.
   static Object* FlattenNumber(Object* value);

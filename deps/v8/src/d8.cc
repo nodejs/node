@@ -45,6 +45,10 @@
 #include "../include/v8-testing.h"
 #endif  // V8_SHARED
 
+#ifdef ENABLE_VTUNE_JIT_INTERFACE
+#include "third_party/vtune/v8-vtune.h"
+#endif
+
 #include "d8.h"
 
 #ifndef V8_SHARED
@@ -144,6 +148,11 @@ class DumbLineEditor: public LineEditor {
 
 Handle<String> DumbLineEditor::Prompt(const char* prompt) {
   printf("%s", prompt);
+#if defined(__native_client__)
+  // Native Client libc is used to being embedded in Chrome and
+  // has trouble recognizing when to flush.
+  fflush(stdout);
+#endif
   return Shell::ReadFromStdin(isolate_);
 }
 
@@ -1921,6 +1930,9 @@ int Shell::Main(int argc, char* argv[]) {
   DumbLineEditor dumb_line_editor(isolate);
   {
     Initialize(isolate);
+#ifdef ENABLE_VTUNE_JIT_INTERFACE
+    vTune::InitilizeVtuneForV8();
+#endif
     Symbols symbols(isolate);
     InitializeDebugger(isolate);
 

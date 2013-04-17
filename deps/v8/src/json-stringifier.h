@@ -296,18 +296,23 @@ MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
   }
 
   FlattenString(object);
-  String::FlatContent flat = object->GetFlatContent();
-  if (flat.IsAscii()) {
+  ASSERT(object->IsFlat());
+  if (object->IsOneByteRepresentationUnderneath()) {
+    Handle<String> result =
+        isolate->factory()->NewRawOneByteString(worst_case_length);
+    AssertNoAllocation no_alloc;
     return StringifyString_<SeqOneByteString>(
         isolate,
-        flat.ToOneByteVector(),
-        isolate->factory()->NewRawOneByteString(worst_case_length));
+        object->GetFlatContent().ToOneByteVector(),
+        result);
   } else {
-    ASSERT(flat.IsTwoByte());
+    Handle<String> result =
+        isolate->factory()->NewRawTwoByteString(worst_case_length);
+    AssertNoAllocation no_alloc;
     return StringifyString_<SeqTwoByteString>(
         isolate,
-        flat.ToUC16Vector(),
-        isolate->factory()->NewRawTwoByteString(worst_case_length));
+        object->GetFlatContent().ToUC16Vector(),
+        result);
   }
 }
 

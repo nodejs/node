@@ -260,6 +260,7 @@ class HGraph: public ZoneObject {
   HBasicBlock* entry_block() const { return entry_block_; }
   HEnvironment* start_environment() const { return start_environment_; }
 
+  void FinalizeUniqueValueIds();
   void InitializeInferredTypes();
   void InsertTypeConversions();
   void MergeRemovableSimulates();
@@ -865,7 +866,10 @@ class FunctionState {
 class HGraphBuilder {
  public:
   explicit HGraphBuilder(CompilationInfo* info)
-      : info_(info), graph_(NULL), current_block_(NULL) {}
+      : info_(info),
+        graph_(NULL),
+        current_block_(NULL),
+        no_side_effects_scope_count_(0) {}
   virtual ~HGraphBuilder() {}
 
   HBasicBlock* current_block() const { return current_block_; }
@@ -890,6 +894,14 @@ class HGraphBuilder {
       Representation r = Representation::None());
 
   HReturn* AddReturn(HValue* value);
+
+  void IncrementInNoSideEffectsScope() {
+    no_side_effects_scope_count_++;
+  }
+
+  void DecrementInNoSideEffectsScope() {
+    no_side_effects_scope_count_--;
+  }
 
  protected:
   virtual bool BuildGraph() = 0;
@@ -939,8 +951,8 @@ class HGraphBuilder {
       KeyedAccessStoreMode store_mode,
       Representation checked_index_representation = Representation::None());
 
-  HInstruction* BuildStoreMap(HValue* object, HValue* map, BailoutId id);
-  HInstruction* BuildStoreMap(HValue* object, Handle<Map> map, BailoutId id);
+  HInstruction* BuildStoreMap(HValue* object, HValue* map);
+  HInstruction* BuildStoreMap(HValue* object, Handle<Map> map);
 
   class CheckBuilder {
    public:
@@ -1032,6 +1044,20 @@ class HGraphBuilder {
     bool finished_;
   };
 
+  class NoObservableSideEffectsScope {
+   public:
+    explicit NoObservableSideEffectsScope(HGraphBuilder* builder) :
+        builder_(builder) {
+      builder_->IncrementInNoSideEffectsScope();
+    }
+    ~NoObservableSideEffectsScope() {
+      builder_->DecrementInNoSideEffectsScope();
+    }
+
+   private:
+    HGraphBuilder* builder_;
+  };
+
   HValue* BuildNewElementsCapacity(HValue* context,
                                    HValue* old_capacity);
 
@@ -1041,6 +1067,14 @@ class HGraphBuilder {
   HValue* BuildAllocateElements(HValue* context,
                                 ElementsKind kind,
                                 HValue* capacity);
+
+  void BuildInitializeElements(HValue* elements,
+                               ElementsKind kind,
+                               HValue* capacity);
+
+  HValue* BuildAllocateAndInitializeElements(HValue* context,
+                                             ElementsKind kind,
+                                             HValue* capacity);
 
   HValue* BuildGrowElementsCapacity(HValue* object,
                                     HValue* elements,
@@ -1062,11 +1096,18 @@ class HGraphBuilder {
                          HValue* length,
                          HValue* capacity);
 
+  HValue* BuildCloneShallowArray(HContext* context,
+                                 HValue* boilerplate,
+                                 AllocationSiteMode mode,
+                                 ElementsKind kind,
+                                 int length);
+
  private:
   HGraphBuilder();
   CompilationInfo* info_;
   HGraph* graph_;
   HBasicBlock* current_block_;
+  int no_side_effects_scope_count_;
 };
 
 
@@ -1182,6 +1223,11 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   static const int kUnlimitedMaxInlinedSourceSize = 100000;
   static const int kUnlimitedMaxInlinedNodes = 10000;
   static const int kUnlimitedMaxInlinedNodesCumulative = 10000;
+
+  // Maximum depth and total number of elements and properties for literal
+  // graphs to be considered for fast deep-copying.
+  static const int kMaxFastLiteralDepth = 3;
+  static const int kMaxFastLiteralProperties = 8;
 
   // Simple accessors.
   void set_function_state(FunctionState* state) { function_state_ = state; }
@@ -1458,6 +1504,26 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   HValue* BuildContextChainWalk(Variable* var);
 
   HInstruction* BuildThisFunction();
+
+  HInstruction* BuildFastLiteral(HValue* context,
+                                 Handle<JSObject> boilerplate_object,
+                                 Handle<JSObject> original_boilerplate_object,
+                                 int data_size,
+                                 int pointer_size,
+                                 AllocationSiteMode mode);
+
+  void BuildEmitDeepCopy(Handle<JSObject> boilerplat_object,
+                         Handle<JSObject> object,
+                         HInstruction* result,
+                         int* offset,
+                         AllocationSiteMode mode);
+
+  MUST_USE_RESULT HValue* BuildCopyObjectHeader(
+      Handle<JSObject> boilerplat_object,
+      HInstruction* target,
+      int object_offset,
+      int elements_offset,
+      int elements_size);
 
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);

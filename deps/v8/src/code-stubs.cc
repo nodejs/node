@@ -619,8 +619,10 @@ void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
-  StubFailureTrampolineStub(NOT_JS_FUNCTION_STUB_MODE).GetCode(isolate);
-  StubFailureTrampolineStub(JS_FUNCTION_STUB_MODE).GetCode(isolate);
+  StubFailureTrampolineStub stub1(NOT_JS_FUNCTION_STUB_MODE);
+  StubFailureTrampolineStub stub2(JS_FUNCTION_STUB_MODE);
+  stub1.GetCode(isolate)->set_is_pregenerated(true);
+  stub2.GetCode(isolate)->set_is_pregenerated(true);
 }
 
 

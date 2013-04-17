@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // This file relies on the fact that the following declarations have been made
-//
 // in runtime.js:
 // var $Object = global.Object;
 // var $Boolean = global.Boolean;
@@ -42,7 +41,6 @@ var $isNaN = GlobalIsNaN;
 var $isFinite = GlobalIsFinite;
 
 // ----------------------------------------------------------------------------
-
 
 // Helper function used to install functions on objects.
 function InstallFunctions(object, attributes, functions) {
@@ -61,12 +59,24 @@ function InstallFunctions(object, attributes, functions) {
 }
 
 
-// Helper function to install a getter only property.
+// Helper function to install a getter-only accessor property.
 function InstallGetter(object, name, getter) {
   %FunctionSetName(getter, name);
   %FunctionRemovePrototype(getter);
   %DefineOrRedefineAccessorProperty(object, name, getter, null, DONT_ENUM);
   %SetNativeFlag(getter);
+}
+
+
+// Helper function to install a getter/setter accessor property.
+function InstallGetterSetter(object, name, getter, setter) {
+  %FunctionSetName(getter, name);
+  %FunctionSetName(setter, name);
+  %FunctionRemovePrototype(getter);
+  %FunctionRemovePrototype(setter);
+  %DefineOrRedefineAccessorProperty(object, name, getter, setter, DONT_ENUM);
+  %SetNativeFlag(getter);
+  %SetNativeFlag(setter);
 }
 
 
@@ -186,6 +196,7 @@ function GlobalEval(x) {
 // Set up global object.
 function SetUpGlobal() {
   %CheckIsBootstrapping();
+
   // ECMA 262 - 15.1.1.1.
   %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
 
@@ -208,26 +219,9 @@ function SetUpGlobal() {
 
 SetUpGlobal();
 
-// ----------------------------------------------------------------------------
-// Boolean (first part of definition)
-
-
-%SetCode($Boolean, function(x) {
-  if (%_IsConstructCall()) {
-    %_SetValueOf(this, ToBoolean(x));
-  } else {
-    return ToBoolean(x);
-  }
-});
-
-%FunctionSetPrototype($Boolean, new $Boolean(false));
-
-%SetProperty($Boolean.prototype, "constructor", $Boolean, DONT_ENUM);
 
 // ----------------------------------------------------------------------------
 // Object
-
-$Object.prototype.constructor = $Object;
 
 // ECMA-262 - 15.2.4.2
 function ObjectToString() {
@@ -395,7 +389,8 @@ function FromPropertyDescriptor(desc) {
   }
   // Must be an AccessorDescriptor then. We never return a generic descriptor.
   return { get: desc.getGet(),
-           set: desc.getSet(),
+           set: desc.getSet() === ObjectSetProto ? ObjectPoisonProto
+                                                 : desc.getSet(),
            enumerable: desc.isEnumerable(),
            configurable: desc.isConfigurable() };
 }
@@ -937,7 +932,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
 
   // Step 4 - Special handling for array index.
   var index = ToUint32(p);
-  if (index == ToNumber(p) && index != 4294967295) {
+  if (ToString(index) == p && index != 4294967295) {
     var length = obj.length;
     var length_desc = GetOwnProperty(obj, "length");
     if ((index >= length && !length_desc.isWritable()) ||
@@ -1326,7 +1321,25 @@ function ObjectIs(obj1, obj2) {
 }
 
 
-%SetCode($Object, function(x) {
+// Harmony __proto__ getter.
+function ObjectGetProto() {
+  return %GetPrototype(this);
+}
+
+
+// Harmony __proto__ setter.
+function ObjectSetProto(obj) {
+  return %SetPrototype(this, obj);
+}
+
+
+// Harmony __proto__ poison pill.
+function ObjectPoisonProto(obj) {
+  throw MakeTypeError("proto_poison_pill", []);
+}
+
+
+function ObjectConstructor(x) {
   if (%_IsConstructCall()) {
     if (x == null) return this;
     return ToObject(x);
@@ -1334,16 +1347,23 @@ function ObjectIs(obj1, obj2) {
     if (x == null) return { };
     return ToObject(x);
   }
-});
+}
 
-%SetExpectedNumberOfProperties($Object, 4);
 
 // ----------------------------------------------------------------------------
 // Object
 
 function SetUpObject() {
   %CheckIsBootstrapping();
-  // Set Up non-enumerable functions on the Object.prototype object.
+
+  %SetCode($Object, ObjectConstructor);
+  %FunctionSetName(ObjectPoisonProto, "__proto__");
+  %FunctionRemovePrototype(ObjectPoisonProto);
+  %SetExpectedNumberOfProperties($Object, 4);
+
+  %SetProperty($Object.prototype, "constructor", $Object, DONT_ENUM);
+
+  // Set up non-enumerable functions on the Object.prototype object.
   InstallFunctions($Object.prototype, DONT_ENUM, $Array(
     "toString", ObjectToString,
     "toLocaleString", ObjectToLocaleString,
@@ -1356,6 +1376,10 @@ function SetUpObject() {
     "__defineSetter__", ObjectDefineSetter,
     "__lookupSetter__", ObjectLookupSetter
   ));
+  InstallGetterSetter($Object.prototype, "__proto__",
+                      ObjectGetProto, ObjectSetProto);
+
+  // Set up non-enumerable functions in the Object object.
   InstallFunctions($Object, DONT_ENUM, $Array(
     "keys", ObjectKeys,
     "create", ObjectCreate,
@@ -1376,8 +1400,18 @@ function SetUpObject() {
 
 SetUpObject();
 
+
 // ----------------------------------------------------------------------------
 // Boolean
+
+function BooleanConstructor(x) {
+  if (%_IsConstructCall()) {
+    %_SetValueOf(this, ToBoolean(x));
+  } else {
+    return ToBoolean(x);
+  }
+}
+
 
 function BooleanToString() {
   // NOTE: Both Boolean objects and values can enter here as
@@ -1405,9 +1439,13 @@ function BooleanValueOf() {
 
 // ----------------------------------------------------------------------------
 
-
 function SetUpBoolean () {
   %CheckIsBootstrapping();
+
+  %SetCode($Boolean, BooleanConstructor);
+  %FunctionSetPrototype($Boolean, new $Boolean(false));
+  %SetProperty($Boolean.prototype, "constructor", $Boolean, DONT_ENUM);
+
   InstallFunctions($Boolean.prototype, DONT_ENUM, $Array(
     "toString", BooleanToString,
     "valueOf", BooleanValueOf
@@ -1420,17 +1458,15 @@ SetUpBoolean();
 // ----------------------------------------------------------------------------
 // Number
 
-// Set the Number function and constructor.
-%SetCode($Number, function(x) {
+function NumberConstructor(x) {
   var value = %_ArgumentsLength() == 0 ? 0 : ToNumber(x);
   if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
     return value;
   }
-});
+}
 
-%FunctionSetPrototype($Number, new $Number(0));
 
 // ECMA-262 section 15.7.4.2.
 function NumberToString(radix) {
@@ -1568,6 +1604,10 @@ function NumberIsNaN(number) {
 
 function SetUpNumber() {
   %CheckIsBootstrapping();
+
+  %SetCode($Number, NumberConstructor);
+  %FunctionSetPrototype($Number, new $Number(0));
+
   %OptimizeObjectForAddingMultipleProperties($Number.prototype, 8);
   // Set up the constructor property on the Number prototype object.
   %SetProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
@@ -1620,13 +1660,12 @@ SetUpNumber();
 // ----------------------------------------------------------------------------
 // Function
 
-$Function.prototype.constructor = $Function;
-
 function FunctionSourceString(func) {
   while (%IsJSFunctionProxy(func)) {
     func = %GetCallTrap(func);
   }
 
+  // TODO(wingo): Print source using function* for generators.
   if (!IS_FUNCTION(func)) {
     throw new $TypeError('Function.prototype.toString is not generic');
   }
@@ -1745,12 +1784,15 @@ function NewFunction(arg1) {  // length == 1
   return %SetNewFunctionAttributes(f);
 }
 
-%SetCode($Function, NewFunction);
 
 // ----------------------------------------------------------------------------
 
 function SetUpFunction() {
   %CheckIsBootstrapping();
+
+  %SetCode($Function, NewFunction);
+  %SetProperty($Function.prototype, "constructor", $Function, DONT_ENUM);
+
   InstallFunctions($Function.prototype, DONT_ENUM, $Array(
     "bind", FunctionBind,
     "toString", FunctionToString

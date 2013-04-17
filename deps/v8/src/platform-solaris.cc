@@ -327,10 +327,9 @@ static const int kMmapFdOffset = 0;
 
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
-VirtualMemory::VirtualMemory(size_t size) {
-  address_ = ReserveRegion(size);
-  size_ = size;
-}
+
+VirtualMemory::VirtualMemory(size_t size)
+    : address_(ReserveRegion(size)), size_(size) { }
 
 
 VirtualMemory::VirtualMemory(size_t size, size_t alignment)
@@ -470,7 +469,8 @@ class Thread::PlatformData : public Malloced {
 
 Thread::Thread(const Options& options)
     : data_(new PlatformData()),
-      stack_size_(options.stack_size()) {
+      stack_size_(options.stack_size()),
+      start_semaphore_(NULL) {
   set_name(options.name());
 }
 
@@ -487,7 +487,7 @@ static void* ThreadEntry(void* arg) {
   // one) so we initialize it here too.
   thread->data()->thread_ = pthread_self();
   ASSERT(thread->data()->thread_ != kNoThread);
-  thread->Run();
+  thread->NotifyStartedAndRun();
   return NULL;
 }
 
@@ -661,169 +661,6 @@ Semaphore* OS::CreateSemaphore(int count) {
 }
 
 
-static pthread_t GetThreadID() {
-  return pthread_self();
-}
-
-static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
-  USE(info);
-  if (signal != SIGPROF) return;
-  Isolate* isolate = Isolate::UncheckedCurrent();
-  if (isolate == NULL || !isolate->IsInitialized() || !isolate->IsInUse()) {
-    // We require a fully initialized and entered isolate.
-    return;
-  }
-  if (v8::Locker::IsActive() &&
-      !isolate->thread_manager()->IsLockedByCurrentThread()) {
-    return;
-  }
-
-  Sampler* sampler = isolate->logger()->sampler();
-  if (sampler == NULL || !sampler->IsActive()) return;
-
-  TickSample sample_obj;
-  TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
-  if (sample == NULL) sample = &sample_obj;
-
-  // Extracting the sample from the context is extremely machine dependent.
-  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-  mcontext_t& mcontext = ucontext->uc_mcontext;
-  sample->state = isolate->current_vm_state();
-
-  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_PC]);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_SP]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_FP]);
-
-  sampler->SampleStack(sample);
-  sampler->Tick(sample);
-}
-
-class Sampler::PlatformData : public Malloced {
- public:
-  PlatformData() : vm_tid_(GetThreadID()) {}
-
-  pthread_t vm_tid() const { return vm_tid_; }
-
- private:
-  pthread_t vm_tid_;
-};
-
-
-class SignalSender : public Thread {
- public:
-  static const int kSignalSenderStackSize = 64 * KB;
-
-  explicit SignalSender(int interval)
-      : Thread(Thread::Options("SignalSender", kSignalSenderStackSize)),
-        interval_(interval) {}
-
-  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
-  static void TearDown() { delete mutex_; }
-
-  static void InstallSignalHandler() {
-    struct sigaction sa;
-    sa.sa_sigaction = ProfilerSignalHandler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-    signal_handler_installed_ =
-        (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
-  }
-
-  static void RestoreSignalHandler() {
-    if (signal_handler_installed_) {
-      sigaction(SIGPROF, &old_signal_handler_, 0);
-      signal_handler_installed_ = false;
-    }
-  }
-
-  static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::AddActiveSampler(sampler);
-    if (instance_ == NULL) {
-      // Start a thread that will send SIGPROF signal to VM threads,
-      // when CPU profiling will be enabled.
-      instance_ = new SignalSender(sampler->interval());
-      instance_->Start();
-    } else {
-      ASSERT(instance_->interval_ == sampler->interval());
-    }
-  }
-
-  static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::RemoveActiveSampler(sampler);
-    if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
-      delete instance_;
-      instance_ = NULL;
-      RestoreSignalHandler();
-    }
-  }
-
-  // Implement Thread::Run().
-  virtual void Run() {
-    SamplerRegistry::State state;
-    while ((state = SamplerRegistry::GetState()) !=
-           SamplerRegistry::HAS_NO_SAMPLERS) {
-      // When CPU profiling is enabled both JavaScript and C++ code is
-      // profiled. We must not suspend.
-      if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
-        if (!signal_handler_installed_) InstallSignalHandler();
-        SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
-      } else {
-        if (signal_handler_installed_) RestoreSignalHandler();
-        if (RuntimeProfiler::WaitForSomeIsolateToEnterJS()) continue;
-      }
-      Sleep();  // TODO(svenpanne) Figure out if OS:Sleep(interval_) is enough.
-    }
-  }
-
-  static void DoCpuProfile(Sampler* sampler, void* raw_sender) {
-    if (!sampler->IsProfiling()) return;
-    SignalSender* sender = reinterpret_cast<SignalSender*>(raw_sender);
-    sender->SendProfilingSignal(sampler->platform_data()->vm_tid());
-  }
-
-  void SendProfilingSignal(pthread_t tid) {
-    if (!signal_handler_installed_) return;
-    pthread_kill(tid, SIGPROF);
-  }
-
-  void Sleep() {
-    // Convert ms to us and subtract 100 us to compensate delays
-    // occuring during signal delivery.
-    useconds_t interval = interval_ * 1000 - 100;
-    int result = usleep(interval);
-#ifdef DEBUG
-    if (result != 0 && errno != EINTR) {
-      fprintf(stderr,
-              "SignalSender usleep error; interval = %u, errno = %d\n",
-              interval,
-              errno);
-      ASSERT(result == 0 || errno == EINTR);
-    }
-#endif
-    USE(result);
-  }
-
-  const int interval_;
-
-  // Protects the process wide state below.
-  static Mutex* mutex_;
-  static SignalSender* instance_;
-  static bool signal_handler_installed_;
-  static struct sigaction old_signal_handler_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(SignalSender);
-};
-
-Mutex* SignalSender::mutex_ = NULL;
-SignalSender* SignalSender::instance_ = NULL;
-struct sigaction SignalSender::old_signal_handler_;
-bool SignalSender::signal_handler_installed_ = false;
-
-
 void OS::SetUp() {
   // Seed the random number generator.
   // Convert the current time to a 64-bit integer first, before converting it
@@ -833,43 +670,12 @@ void OS::SetUp() {
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
-  SignalSender::SetUp();
 }
 
 
 void OS::TearDown() {
-  SignalSender::TearDown();
   delete limit_mutex;
 }
 
-
-Sampler::Sampler(Isolate* isolate, int interval)
-    : isolate_(isolate),
-      interval_(interval),
-      profiling_(false),
-      active_(false),
-      samples_taken_(0) {
-  data_ = new PlatformData;
-}
-
-
-Sampler::~Sampler() {
-  ASSERT(!IsActive());
-  delete data_;
-}
-
-
-void Sampler::Start() {
-  ASSERT(!IsActive());
-  SetActive(true);
-  SignalSender::AddActiveSampler(this);
-}
-
-
-void Sampler::Stop() {
-  ASSERT(IsActive());
-  SignalSender::RemoveActiveSampler(this);
-  SetActive(false);
-}
 
 } }  // namespace v8::internal

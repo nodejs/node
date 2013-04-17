@@ -41,7 +41,8 @@ enum InterruptFlag {
   DEBUGCOMMAND = 1 << 2,
   PREEMPT = 1 << 3,
   TERMINATE = 1 << 4,
-  GC_REQUEST = 1 << 5
+  GC_REQUEST = 1 << 5,
+  FULL_DEOPT = 1 << 6
 };
 
 
@@ -197,6 +198,8 @@ class StackGuard {
 #endif
   bool IsGCRequest();
   void RequestGC();
+  bool IsFullDeopt();
+  void FullDeopt();
   void Continue(InterruptFlag after_what);
 
   // This provides an asynchronous read of the stack limits for the current

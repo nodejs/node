@@ -520,14 +520,15 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
 
   // Only allow non-global compiles for eval.
   ASSERT(info->is_eval() || info->is_global());
-  ParsingFlags flags = kNoParsingFlags;
-  if ((info->pre_parse_data() != NULL ||
-       String::cast(script->source())->length() > FLAG_min_preparse_length) &&
-      !DebuggerWantsEagerCompilation(info)) {
-    flags = kAllowLazy;
-  }
-  if (!ParserApi::Parse(info, flags)) {
-    return Handle<SharedFunctionInfo>::null();
+  {
+    Parser parser(info);
+    if ((info->pre_parse_data() != NULL ||
+         String::cast(script->source())->length() > FLAG_min_preparse_length) &&
+        !DebuggerWantsEagerCompilation(info))
+      parser.set_allow_lazy(true);
+    if (!parser.Parse()) {
+      return Handle<SharedFunctionInfo>::null();
+    }
   }
 
   // Measure how long it takes to do the compilation; only take the
@@ -864,7 +865,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   if (InstallCodeFromOptimizedCodeMap(info)) return true;
 
   // Generate the AST for the lazily compiled function.
-  if (ParserApi::Parse(info, kNoParsingFlags)) {
+  if (Parser::Parse(info)) {
     // Measure how long it takes to do the lazy compilation; only take the
     // rest of the function into account to avoid overlap with the lazy
     // parsing statistics.
@@ -932,7 +933,7 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
       return;
     }
 
-    if (ParserApi::Parse(*info, kNoParsingFlags)) {
+    if (Parser::Parse(*info)) {
       LanguageMode language_mode = info->function()->language_mode();
       info->SetLanguageMode(language_mode);
       shared->set_language_mode(language_mode);
@@ -957,18 +958,18 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
     }
   }
 
-  if (shared->code()->stack_check_patched_for_osr()) {
+  if (shared->code()->back_edges_patched_for_osr()) {
     // At this point we either put the function on recompilation queue or
     // aborted optimization.  In either case we want to continue executing
     // the unoptimized code without running into OSR.  If the unoptimized
     // code has been patched for OSR, unpatch it.
     InterruptStub interrupt_stub;
-    Handle<Code> check_code = interrupt_stub.GetCode(isolate);
+    Handle<Code> interrupt_code = interrupt_stub.GetCode(isolate);
     Handle<Code> replacement_code =
         isolate->builtins()->OnStackReplacement();
-    Deoptimizer::RevertStackCheckCode(shared->code(),
-                                      *check_code,
-                                      *replacement_code);
+    Deoptimizer::RevertInterruptCode(shared->code(),
+                                     *interrupt_code,
+                                     *replacement_code);
   }
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();

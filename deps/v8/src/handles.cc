@@ -252,12 +252,29 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
 }
 
 
+Handle<Object> DeleteProperty(Handle<JSObject> object, Handle<Object> key) {
+  Isolate* isolate = object->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     Runtime::DeleteObjectProperty(
+                         isolate, object, key, JSReceiver::NORMAL_DELETION),
+                     Object);
+}
+
+
 Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
                                    Handle<Object> key) {
   Isolate* isolate = object->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
-                     Runtime::ForceDeleteObjectProperty(isolate, object, key),
+                     Runtime::DeleteObjectProperty(
+                         isolate, object, key, JSReceiver::FORCE_DELETION),
                      Object);
+}
+
+
+Handle<Object> HasProperty(Handle<JSReceiver> obj, Handle<Object> key) {
+  Isolate* isolate = obj->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     Runtime::HasObjectProperty(isolate, obj, key), Object);
 }
 
 
@@ -305,6 +322,14 @@ Handle<JSObject> Copy(Handle<JSObject> obj) {
   Isolate* isolate = obj->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
                      isolate->heap()->CopyJSObject(*obj), JSObject);
+}
+
+
+Handle<JSObject> DeepCopy(Handle<JSObject> obj) {
+  Isolate* isolate = obj->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     obj->DeepCopy(isolate),
+                     JSObject);
 }
 
 
