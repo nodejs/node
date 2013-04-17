@@ -1962,7 +1962,8 @@ Handle<Value> Connection::GetNegotiatedProto(const Arguments& args) {
       return False();
     }
 
-    return String::New((const char*) npn_proto, npn_proto_len);
+    return scope.Close(String::New(reinterpret_cast<const char*>(npn_proto),
+                                   npn_proto_len));
   } else {
     return ss->selectedNPNProto_;
   }
