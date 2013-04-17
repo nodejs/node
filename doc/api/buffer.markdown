@@ -80,6 +80,69 @@ Allocates a new buffer containing the given `str`.
 Returns true if the `encoding` is a valid encoding argument, or false
 otherwise.
 
+### Class Method: Buffer.isBuffer(obj)
+
+* `obj` Object
+* Return: Boolean
+
+Tests if `obj` is a `Buffer`.
+
+### Class Method: Buffer.byteLength(string, [encoding])
+
+* `string` String
+* `encoding` String, Optional, Default: 'utf8'
+* Return: Number
+
+Gives the actual byte length of a string. `encoding` defaults to `'utf8'`.
+This is not the same as `String.prototype.length` since that returns the
+number of *characters* in a string.
+
+Example:
+
+    str = '\u00bd + \u00bc = \u00be';
+
+    console.log(str + ": " + str.length + " characters, " +
+      Buffer.byteLength(str, 'utf8') + " bytes");
+
+    // ½ + ¼ = ¾: 9 characters, 12 bytes
+
+### Class Method: Buffer.concat(list, [totalLength])
+
+* `list` {Array} List of Buffer objects to concat
+* `totalLength` {Number} Total length of the buffers when concatenated
+
+Returns a buffer which is the result of concatenating all the buffers in
+the list together.
+
+If the list has no items, or if the totalLength is 0, then it returns a
+zero-length buffer.
+
+If the list has exactly one item, then the first item of the list is
+returned.
+
+If the list has more than one item, then a new Buffer is created.
+
+If totalLength is not provided, it is read from the buffers in the list.
+However, this adds an additional loop to the function, so it is faster
+to provide the length explicitly.
+
+### buf.length
+
+* Number
+
+The size of the buffer in bytes.  Note that this is not necessarily the size
+of the contents. `length` refers to the amount of memory allocated for the
+buffer object.  It does not change when the contents of the buffer are changed.
+
+    buf = new Buffer(1234);
+
+    console.log(buf.length);
+    buf.write("some string", 0, "ascii");
+    console.log(buf.length);
+
+    // 1234
+    // 1234
+
 ### buf.write(string, [offset], [length], [encoding])
 
 * `string` String - data to be written to buffer
@@ -154,69 +217,6 @@ Example: copy an ASCII string into a buffer, one byte at a time:
     console.log(buf);
 
     // node.js
-
-### Class Method: Buffer.isBuffer(obj)
-
-* `obj` Object
-* Return: Boolean
-
-Tests if `obj` is a `Buffer`.
-
-### Class Method: Buffer.byteLength(string, [encoding])
-
-* `string` String
-* `encoding` String, Optional, Default: 'utf8'
-* Return: Number
-
-Gives the actual byte length of a string. `encoding` defaults to `'utf8'`.
-This is not the same as `String.prototype.length` since that returns the
-number of *characters* in a string.
-
-Example:
-
-    str = '\u00bd + \u00bc = \u00be';
-
-    console.log(str + ": " + str.length + " characters, " +
-      Buffer.byteLength(str, 'utf8') + " bytes");
-
-    // ½ + ¼ = ¾: 9 characters, 12 bytes
-
-### Class Method: Buffer.concat(list, [totalLength])
-
-* `list` {Array} List of Buffer objects to concat
-* `totalLength` {Number} Total length of the buffers when concatenated
-
-Returns a buffer which is the result of concatenating all the buffers in
-the list together.
-
-If the list has no items, or if the totalLength is 0, then it returns a
-zero-length buffer.
-
-If the list has exactly one item, then the first item of the list is
-returned.
-
-If the list has more than one item, then a new Buffer is created.
-
-If totalLength is not provided, it is read from the buffers in the list.
-However, this adds an additional loop to the function, so it is faster
-to provide the length explicitly.
-
-### buf.length
-
-* Number
-
-The size of the buffer in bytes.  Note that this is not necessarily the size
-of the contents. `length` refers to the amount of memory allocated for the
-buffer object.  It does not change when the contents of the buffer are changed.
-
-    buf = new Buffer(1234);
-
-    console.log(buf.length);
-    buf.write("some string", 0, "ascii");
-    console.log(buf.length);
-
-    // 1234
-    // 1234
 
 ### buf.copy(targetBuffer, [targetStart], [sourceStart], [sourceEnd])
 
@@ -694,11 +694,8 @@ Note that this is a property on the buffer module returned by
 
 ## Class: SlowBuffer
 
-This class is primarily for internal use.  JavaScript programs should
-use Buffer instead of using SlowBuffer.
+Deprecated. SlowBuffer now returns an instance of Buffer.
 
 In order to avoid the overhead of allocating many C++ Buffer objects for
 small blocks of memory in the lifetime of a server, Node allocates memory
-in 8Kb (8192 byte) chunks.  If a buffer is smaller than this size, then it
-will be backed by a parent SlowBuffer object.  If it is larger than this,
-then Node will allocate a SlowBuffer slab for it directly.
+in 8Kb (8192 byte) chunks. This is now handled by Smalloc.

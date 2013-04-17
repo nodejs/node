@@ -22,7 +22,6 @@
 /*
  * Tests to verify we're writing doubles correctly
  */
-var SlowBuffer = process.binding('buffer').SlowBuffer;
 var common = require('../common');
 var ASSERT = require('assert');
 
@@ -194,4 +193,3 @@ function test(clazz) {
 
 
 test(Buffer);
-test(SlowBuffer);

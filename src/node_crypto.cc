@@ -275,11 +275,6 @@ SSL_SESSION* SecureContext::GetSessionCallback(SSL* s,
 }
 
 
-void SessionDataFree(char* data, void* hint) {
-  delete[] data;
-}
-
-
 int SecureContext::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
   HandleScope scope(node_isolate);
 
@@ -297,8 +292,8 @@ int SecureContext::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
 
   Handle<Value> argv[2] = {
     Buffer::New(reinterpret_cast<char*>(sess->session_id),
-                sess->session_id_length)->handle_,
-    Buffer::New(serialized, size, SessionDataFree, NULL)->handle_
+                sess->session_id_length),
+    Buffer::Use(serialized, size)
   };
 
   if (onnewsession_sym.IsEmpty()) {
@@ -877,7 +872,7 @@ size_t ClientHelloParser::Write(const uint8_t* data, size_t len) {
     hello = Object::New();
     hello->Set(sessionid_sym,
                Buffer::New(reinterpret_cast<char*>(session_id),
-                           session_size)->handle_);
+                           session_size));
 
     argv[0] = hello;
     MakeCallback(conn_->handle_, onclienthello_sym, 1, argv);
@@ -2292,11 +2287,11 @@ Handle<Value> CipherBase::Update(const Arguments& args) {
     return ThrowCryptoTypeError(ERR_get_error());
   }
 
-  Buffer* buf = Buffer::New(reinterpret_cast<char*>(out), out_len);
+  Local<Object> buf = Buffer::New(reinterpret_cast<char*>(out), out_len);
 
   if (out) delete[] out;
 
-  return scope.Close(buf->handle_);
+  return scope.Close(buf);
 }
 
 
@@ -2347,9 +2342,7 @@ Handle<Value> CipherBase::Final(const Arguments& args) {
     if (!r) return ThrowCryptoTypeError(ERR_get_error());
   }
 
-  Buffer* buf = Buffer::New(reinterpret_cast<char*>(out_value), out_len);
-
-  return scope.Close(buf->handle_);
+  return scope.Close(Buffer::New(reinterpret_cast<char*>(out_value), out_len));
 }
 
 
@@ -3547,11 +3540,6 @@ RandomBytesRequest::~RandomBytesRequest() {
 }
 
 
-void RandomBytesFree(char* data, void* hint) {
-  delete[] data;
-}
-
-
 template <bool pseudoRandom>
 void RandomBytesWork(uv_work_t* work_req) {
   RandomBytesRequest* req = container_of(work_req,
@@ -3588,10 +3576,8 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
     argv[1] = Local<Value>::New(node_isolate, Null(node_isolate));
   }
   else {
-    // avoids the malloc + memcpy
-    Buffer* buffer = Buffer::New(req->data_, req->size_, RandomBytesFree, NULL);
     argv[0] = Local<Value>::New(node_isolate, Null(node_isolate));
-    argv[1] = Local<Object>::New(node_isolate, buffer->handle_);
+    argv[1] = Buffer::Use(req->data_, req->size_);
   }
 }
 

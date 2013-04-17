@@ -22,17 +22,10 @@
 var common = require('../common');
 var assert = require('assert');
 
-var SlowBuffer = require('buffer').SlowBuffer;
 var Buffer = require('buffer').Buffer;
 
 // counter to ensure unique value is always copied
 var cntr = 0;
-
-// Regression test for segfault introduced in commit e501ce4.
-['base64','binary','ucs2','utf8','ascii'].forEach(function(encoding) {
-  var buf = new SlowBuffer(0);
-  buf.write('', encoding);
-});
 
 var b = Buffer(1024); // safe constructor
 
@@ -128,14 +121,6 @@ for (var i = 0; i < b.length; i++) {
 }
 
 
-// copy from fast to slow buffer
-var sb = new SlowBuffer(b.length);
-var copied = b.copy(sb);
-console.log('copied %d bytes from b into sb');
-for (var i = 0; i < sb.length; i++) {
-  assert.strictEqual(sb[i], b[i]);
-}
-
 var caught_error = null;
 
 // try to copy from before the beginning of b
@@ -146,15 +131,10 @@ try {
   caught_error = err;
 }
 
-// copy from b to c with negative sourceStart
-b.fill(++cntr);
-c.fill(++cntr);
-var copied = b.copy(c, 0, -1);
-assert.strictEqual(c.length, copied);
-console.log('copied %d bytes from b into c w/ negative sourceStart', copied);
-for (var i = 0; i < c.length; i++) {
-  assert.strictEqual(b[i], c[i]);
-}
+// copy throws at negative sourceStart
+assert.throws(function() {
+  Buffer(5).copy(Buffer(5), 0, -1);
+}, RangeError);
 
 // check sourceEnd resets to targetEnd if former is greater than the latter
 b.fill(++cntr);
@@ -165,31 +145,17 @@ for (var i = 0; i < c.length; i++) {
   assert.strictEqual(b[i], c[i]);
 }
 
-// copy from fast buffer to slow buffer without parameters
-var sb = new SlowBuffer(b.length);
-sb.fill(++cntr, 0, sb.length);
-b.fill(++cntr);
-var copied = b.copy(sb);
-console.log('copied %d bytes from fast buffer to slow buffer', copied);
-for (var i = 0 ; i < b.length; i++) {
-  assert.strictEqual(b[i], sb[i]);
-}
-
 // throw with negative sourceEnd
 console.log('test copy at negative sourceEnd');
 assert.throws(function() {
   b.copy(c, 0, 0, -1);
 }, RangeError);
 
-// throw when sourceStart is greater than sourceEnd
-assert.throws(function() {
-  b.copy(c, 0, 100, 10);
-}, RangeError);
+// when sourceStart is greater than sourceEnd, zero copied
+assert.equal(b.copy(c, 0, 100, 10), 0);
 
-// throw attempting to copy after end of c
-assert.throws(function() {
-  b.copy(c, 512, 0, 10);
-}, RangeError);
+// when targetStart > targetLength, zero copied
+assert.equal(b.copy(c, 512, 0, 10), 0);
 
 var caught_error;
 
@@ -218,8 +184,14 @@ new Buffer('', 'binary');
 new Buffer(0);
 
 // try to write a 0-length string beyond the end of b
-b.write('', 1024);
-b.write('', 2048);
+assert.throws(function() {
+  b.write('', 2048);
+}, RangeError);
+
+// throw when writing to negative offset
+assert.throws(function() {
+  b.write('a', -1);
+}, RangeError);
 
 // throw when writing past bounds from the pool
 assert.throws(function() {
@@ -591,12 +563,9 @@ assert.equal(b2, b3);
 assert.equal(b2, b4);
 
 
-// Test slice on SlowBuffer GH-843
-var SlowBuffer = process.binding('buffer').SlowBuffer;
-
-function buildSlowBuffer(data) {
+function buildBuffer(data) {
   if (Array.isArray(data)) {
-    var buffer = new SlowBuffer(data.length);
+    var buffer = new Buffer(data.length);
     data.forEach(function(v, k) {
       buffer[k] = v;
     });
@@ -605,10 +574,10 @@ function buildSlowBuffer(data) {
   return null;
 }
 
-var x = buildSlowBuffer([0x81, 0xa3, 0x66, 0x6f, 0x6f, 0xa3, 0x62, 0x61, 0x72]);
+var x = buildBuffer([0x81, 0xa3, 0x66, 0x6f, 0x6f, 0xa3, 0x62, 0x61, 0x72]);
 
 console.log(x.inspect());
-assert.equal('<SlowBuffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
+assert.equal('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
 
 var z = x.slice(4);
 console.log(z.inspect());
@@ -669,7 +638,7 @@ for (; i < 32; i++) assert.equal(1, b[i]);
 for (; i < b.length; i++) assert.equal(0, b[i]);
 
 ['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach(function(encoding) {
-  var b = new SlowBuffer(10);
+  var b = new Buffer(10);
   b.write('あいうえお', encoding);
   assert.equal(b.toString(encoding), 'あいうえお');
 });
@@ -689,7 +658,7 @@ assert.equal(0xad, b[1]);
 assert.equal(0xbe, b[2]);
 assert.equal(0xef, b[3]);
 
-// testing invalid encoding on SlowBuffer.toString
+// testing invalid encoding on Buffer.toString
 caught_error = null;
 try {
   var copied = b.toString('invalid');
@@ -698,7 +667,7 @@ try {
 }
 assert.strictEqual('Unknown encoding: invalid', caught_error.message);
 
-// testing invalid encoding on SlowBuffer.write
+// testing invalid encoding on Buffer.write
 caught_error = null;
 try {
   var copied = b.write('some string', 0, 5, 'invalid');
@@ -707,11 +676,6 @@ try {
 }
 assert.strictEqual('Unknown encoding: invalid', caught_error.message);
 
-
-// This should not segfault the program.
-assert.throws(function() {
-  new Buffer('"pong"', 0, 6, 8031, '127.0.0.1');
-});
 
 // #1210 Test UTF-8 string includes null character
 var buf = new Buffer('\0');
@@ -800,8 +764,8 @@ assert.equal(buf[4], 0);
 Buffer(3.3).toString(); // throws bad argument error in commit 43cb4ec
 assert.equal(Buffer(-1).length, 0);
 assert.equal(Buffer(NaN).length, 0);
-assert.equal(Buffer(3.3).length, 4);
-assert.equal(Buffer({length: 3.3}).length, 4);
+assert.equal(Buffer(3.3).length, 3);
+assert.equal(Buffer({length: 3.3}).length, 3);
 assert.equal(Buffer({length: 'BAM'}).length, 0);
 
 // Make sure that strings are not coerced to numbers.
@@ -863,109 +827,79 @@ assert.throws(function() {
 }, RangeError);
 assert.throws(function() {
   new Buffer(0xFFFFFFFFF);
-}, TypeError);
+}, RangeError);
 
 
 // attempt to overflow buffers, similar to previous bug in array buffers
 assert.throws(function() {
   var buf = new Buffer(8);
   buf.readFloatLE(0xffffffff);
-}, /Trying to access beyond buffer length/);
+}, RangeError);
 
 assert.throws(function() {
   var buf = new Buffer(8);
   buf.writeFloatLE(0.0, 0xffffffff);
-}, /Trying to access beyond buffer length/);
+}, RangeError);
 
 assert.throws(function() {
-  var buf = new SlowBuffer(8);
+  var buf = new Buffer(8);
   buf.readFloatLE(0xffffffff);
-}, /Trying to read beyond buffer length/);
+}, RangeError);
 
 assert.throws(function() {
-  var buf = new SlowBuffer(8);
+  var buf = new Buffer(8);
   buf.writeFloatLE(0.0, 0xffffffff);
-}, /Trying to write beyond buffer length/);
+}, RangeError);
 
 
 // ensure negative values can't get past offset
 assert.throws(function() {
   var buf = new Buffer(8);
   buf.readFloatLE(-1);
-}, /offset is not uint/);
+}, RangeError);
 
 assert.throws(function() {
   var buf = new Buffer(8);
   buf.writeFloatLE(0.0, -1);
-}, /offset is not uint/);
+}, RangeError);
 
 assert.throws(function() {
-  var buf = new SlowBuffer(8);
+  var buf = new Buffer(8);
   buf.readFloatLE(-1);
-}, /offset is not uint/);
+}, RangeError);
 
 assert.throws(function() {
-  var buf = new SlowBuffer(8);
+  var buf = new Buffer(8);
   buf.writeFloatLE(0.0, -1);
-}, /offset is not uint/);
+}, RangeError);
 
 // offset checks
 var buf = new Buffer(0);
 
-assert.throws(function() { buf.readUInt8(0); }, /beyond buffer length/);
-assert.throws(function() { buf.readInt8(0); }, /beyond buffer length/);
+assert.throws(function() { buf.readUInt8(0); }, RangeError);
+assert.throws(function() { buf.readInt8(0); }, RangeError);
 
 [16, 32].forEach(function(bits) {
   var buf = new Buffer(bits / 8 - 1);
 
-  assert.throws(
-    function() { buf['readUInt' + bits + 'BE'](0); },
-    /beyond buffer length/,
-    'readUInt' + bits + 'BE'
-  );
+  assert.throws(function() { buf['readUInt' + bits + 'BE'](0); },
+                RangeError,
+                'readUInt' + bits + 'BE');
 
-  assert.throws(
-    function() { buf['readUInt' + bits + 'LE'](0); },
-    /beyond buffer length/,
-    'readUInt' + bits + 'LE'
-  );
+  assert.throws(function() { buf['readUInt' + bits + 'LE'](0); },
+                RangeError,
+                'readUInt' + bits + 'LE');
 
-  assert.throws(
-    function() { buf['readInt' + bits + 'BE'](0); },
-    /beyond buffer length/,
-    'readInt' + bits + 'BE()'
-  );
+  assert.throws(function() { buf['readInt' + bits + 'BE'](0); },
+                RangeError,
+                'readInt' + bits + 'BE()');
 
-  assert.throws(
-    function() { buf['readInt' + bits + 'LE'](0); },
-    /beyond buffer length/,
-    'readInt' + bits + 'LE()'
-  );
+  assert.throws(function() { buf['readInt' + bits + 'LE'](0); },
+                RangeError,
+                'readInt' + bits + 'LE()');
 });
 
-// SlowBuffer sanity checks.
-assert.throws(function() {
-  var len = 0xfffff;
-  var sbuf = new SlowBuffer(len);
-  var buf = new Buffer(sbuf, len, 0);
-  SlowBuffer.makeFastBuffer(sbuf, buf, -len, len);  // Should throw.
-  for (var i = 0; i < len; ++i) buf[i] = 0x42;      // Try to force segfault.
-}, RangeError);
-
-assert.throws(function() {
-  var len = 0xfffff;
-  var sbuf = new SlowBuffer(len);
-  var buf = new Buffer(sbuf, len, -len);           // Should throw.
-  for (var i = 0; i < len; ++i) buf[i] = 0x42;     // Try to force segfault.
-}, RangeError);
-
-assert.throws(function() {
-  var sbuf = new SlowBuffer(1);
-  var buf = new Buffer(sbuf, 1, 0);
-  buf.length = 0xffffffff;
-  buf.slice(0xffffff0, 0xffffffe);                  // Should throw.
-}, Error);
-
+// test Buffer slice
 (function() {
   var buf = new Buffer('0123456789');
   assert.equal(buf.slice(-10, 10), '0123456789');
@@ -989,10 +923,3 @@ assert.equal(Buffer.byteLength('aaaa==', 'base64'), 3);
 assert.throws(function() {
   Buffer('', 'buffer');
 }, TypeError);
-
-assert.doesNotThrow(function () {
-  var slow = new SlowBuffer(1);
-  assert(slow.write('', Buffer.poolSize * 10) === 0);
-  var fast = new Buffer(1);
-  assert(fast.write('', Buffer.poolSize * 10) === 0);
-});

@@ -128,15 +128,14 @@ int TLSCallbacks::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
     return 0;
 
   // Serialize session
-  Local<Object> buff = Local<Object>::New(Buffer::New(size)->handle_);
+  Local<Object> buff = Buffer::New(size);
   unsigned char* serialized = reinterpret_cast<unsigned char*>(
       Buffer::Data(buff));
   memset(serialized, 0, size);
   i2d_SSL_SESSION(sess, &serialized);
 
-  Local<Object> session = Local<Object>::New(
-      Buffer::New(reinterpret_cast<char*>(sess->session_id),
-                  sess->session_id_length)->handle_);
+  Local<Object> session = Buffer::New(reinterpret_cast<char*>(sess->session_id),
+                                      sess->session_id_length);
   Handle<Value> argv[2] = { session, buff };
 
   MakeCallback(c->handle_, onnewsession_sym, ARRAY_SIZE(argv), argv);
@@ -479,7 +478,7 @@ void TLSCallbacks::ClearOut() {
   do {
     read = SSL_read(ssl_, out, sizeof(out));
     if (read > 0) {
-      Local<Value> buff = Local<Value>::New(Buffer::New(out, read)->handle_);
+      Local<Value> buff = Buffer::New(out, read);
       Handle<Value> argv[3] = {
         buff,
         Integer::New(0, node_isolate),
@@ -775,7 +774,7 @@ void TLSCallbacks::ParseClientHello() {
     hello_obj = Object::New();
     hello_obj->Set(sessionid_sym,
                    Buffer::New(reinterpret_cast<char*>(session_id),
-                               session_size)->handle_);
+                               session_size));
 
     argv[0] = hello_obj;
     MakeCallback(handle_, onclienthello_sym, 1, argv);

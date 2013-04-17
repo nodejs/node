@@ -624,7 +624,7 @@ Local<Value> StringBytes::Encode(const char* buf,
   Local<String> val;
   switch (encoding) {
     case BUFFER:
-      return scope.Close(Buffer::New(buf, buflen)->handle_);
+      return scope.Close(Buffer::New(buf, buflen));
 
     case ASCII:
       if (contains_non_ascii(buf, buflen)) {
