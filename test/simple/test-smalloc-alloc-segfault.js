@@ -19,30 +19,38 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+var common = require('../common');
+var assert = require('assert');
 
-NODE_EXT_LIST_START
-NODE_EXT_LIST_ITEM(node_buffer)
-#if HAVE_OPENSSL
-NODE_EXT_LIST_ITEM(node_crypto)
-#endif
-NODE_EXT_LIST_ITEM(node_evals)
-NODE_EXT_LIST_ITEM(node_fs)
-NODE_EXT_LIST_ITEM(node_http_parser)
-NODE_EXT_LIST_ITEM(node_os)
-NODE_EXT_LIST_ITEM(node_smalloc)
-NODE_EXT_LIST_ITEM(node_zlib)
+var spawn = require('child_process').spawn;
+var alloc = process.binding('smalloc').alloc;
 
-// libuv rewrite
-NODE_EXT_LIST_ITEM(node_timer_wrap)
-NODE_EXT_LIST_ITEM(node_tcp_wrap)
-NODE_EXT_LIST_ITEM(node_tls_wrap)
-NODE_EXT_LIST_ITEM(node_udp_wrap)
-NODE_EXT_LIST_ITEM(node_pipe_wrap)
-NODE_EXT_LIST_ITEM(node_cares_wrap)
-NODE_EXT_LIST_ITEM(node_tty_wrap)
-NODE_EXT_LIST_ITEM(node_process_wrap)
-NODE_EXT_LIST_ITEM(node_fs_event_wrap)
-NODE_EXT_LIST_ITEM(node_signal_wrap)
 
-NODE_EXT_LIST_END
+// child
+if (process.argv[2] === 'child') {
 
+  // test that many allocations won't cause early ones to free prematurely
+  // note: if memory frees prematurely then reading out the values will cause
+  // it to seg fault
+  var arr = [];
+  for (var i = 0; i < 1e4; i++) {
+    arr.push(alloc({}, 1));
+    alloc({}, 1024);
+    if (i % 10 === 0) gc();
+  }
+  var sum = 0;
+  for (var i = 0; i < 1e4; i++) {
+    sum += arr[i][0];
+    arr[i][0] = sum;
+  }
+
+} else {
+  // test case
+  var child = spawn(process.execPath,
+                ['--expose_gc', __filename, 'child']);
+
+  child.on('exit', function(code, signal) {
+    assert.equal(code, 0, signal);
+    console.log('alloc didn\'t segfault');
+  });
+}

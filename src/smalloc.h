@@ -19,30 +19,45 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#ifndef NODE_SMALLOC_H_
+#define NODE_SMALLOC_H_
 
-NODE_EXT_LIST_START
-NODE_EXT_LIST_ITEM(node_buffer)
-#if HAVE_OPENSSL
-NODE_EXT_LIST_ITEM(node_crypto)
-#endif
-NODE_EXT_LIST_ITEM(node_evals)
-NODE_EXT_LIST_ITEM(node_fs)
-NODE_EXT_LIST_ITEM(node_http_parser)
-NODE_EXT_LIST_ITEM(node_os)
-NODE_EXT_LIST_ITEM(node_smalloc)
-NODE_EXT_LIST_ITEM(node_zlib)
+#include "v8.h"
 
-// libuv rewrite
-NODE_EXT_LIST_ITEM(node_timer_wrap)
-NODE_EXT_LIST_ITEM(node_tcp_wrap)
-NODE_EXT_LIST_ITEM(node_tls_wrap)
-NODE_EXT_LIST_ITEM(node_udp_wrap)
-NODE_EXT_LIST_ITEM(node_pipe_wrap)
-NODE_EXT_LIST_ITEM(node_cares_wrap)
-NODE_EXT_LIST_ITEM(node_tty_wrap)
-NODE_EXT_LIST_ITEM(node_process_wrap)
-NODE_EXT_LIST_ITEM(node_fs_event_wrap)
-NODE_EXT_LIST_ITEM(node_signal_wrap)
+namespace node {
 
-NODE_EXT_LIST_END
+/**
+ * Simple memory allocator.
+ *
+ * Utilities for external memory allocation management. Is an abstraction for
+ * v8's external array data handling to simplify and centralize how this is
+ * managed.
+ */
+namespace smalloc {
 
+// mirrors deps/v8/src/objects.h
+static const unsigned int kMaxLength = 0x3fffffff;
+
+typedef void (*FreeCallback)(char* data, void* hint);
+
+/**
+ * Allocate external memory and set to passed object. If data is passed then
+ * will use that instead of allocating new.
+ */
+void Alloc(v8::Handle<v8::Object> obj, size_t length);
+void Alloc(v8::Handle<v8::Object> obj, char* data, size_t length);
+void Alloc(v8::Handle<v8::Object> obj,
+           size_t length,
+           FreeCallback fn,
+           void* hint);
+void Alloc(v8::Handle<v8::Object> obj,
+           char* data,
+           size_t length,
+           FreeCallback fn,
+           void* hint);
+
+}  // namespace smalloc
+
+}  // namespace node
+
+#endif  // NODE_SMALLOC_H_
