@@ -694,8 +694,28 @@ Note that this is a property on the buffer module returned by
 
 ## Class: SlowBuffer
 
-Deprecated. SlowBuffer now returns an instance of Buffer.
+Returns an un-pooled `Buffer`.
 
-In order to avoid the overhead of allocating many C++ Buffer objects for
-small blocks of memory in the lifetime of a server, Node allocates memory
-in 8Kb (8192 byte) chunks. This is now handled by Smalloc.
+In order to avoid the garbage collection overhead of creating many individually
+allocated Buffers, by default allocations under 4KB are sliced from a single
+larger allocated object. This approach improves both performance and memory
+usage since v8 does not need to track and cleanup as many `Persistent` objects.
+
+In the case where a developer may need to retain a small chunk of memory from a
+pool for an indeterminate amount of time it may be appropriate to create an
+un-pooled Buffer instance using SlowBuffer and copy out the relevant bits.
+
+    // need to keep around a few small chunks of memory
+    var store = [];
+
+    socket.on('readable', function() {
+      var data = socket.read();
+      // allocate for retained data
+      var sb = new SlowBuffer(10);
+      // copy the data into the new allocation
+      data.copy(sb, 0, 0, 10);
+      store.push(sb);
+    });
+
+Though this should used sparingly and only be a last resort *after* a developer
+has actively observed undue memory retention in their applications.
