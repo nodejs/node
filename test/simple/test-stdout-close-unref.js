@@ -19,5 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-process.stdout._handle.close();
-process.stdout._handle.unref();  // Should not segfault.
+process.stdin.resume();
+process.stdin._handle.close();
+process.stdin._handle.unref();  // Should not segfault.
