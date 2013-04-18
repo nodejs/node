@@ -19,43 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
-var cp = require('child_process');
-var fs = require('fs');
-var path = require('path');
 var common = require('../common');
-var msg = {test: 'this'};
-var nodePath = process.execPath;
-var copyPath = path.join(common.tmpDir, 'node-copy.exe');
+var assert = require('assert');
+var dgram = require('dgram');
 
-if (process.env.FORK) {
-  assert(process.send);
-  assert.equal(process.argv[0], copyPath);
-  process.send(msg);
-  process.exit();
-}
-else {
-  try {
-    fs.unlinkSync(copyPath);
-  }
-  catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
-  fs.writeFileSync(copyPath, fs.readFileSync(nodePath));
-  fs.chmodSync(copyPath, '0755');
+dgram.createSocket('udp4').bind(common.PORT + 0, common.mustCall(function() {
+  assert.equal(this.address().port, common.PORT + 0);
+  assert.equal(this.address().address, '0.0.0.0');
+  this.close();
+}));
 
-  // slow but simple
-  var envCopy = JSON.parse(JSON.stringify(process.env));
-  envCopy.FORK = 'true';
-  var child = require('child_process').fork(__filename, {
-    execPath: copyPath,
-    env: envCopy
-  });
-  child.on('message', common.mustCall(function(recv) {
-    assert.deepEqual(msg, recv);
-  }));
-  child.on('exit', common.mustCall(function(code) {
-    fs.unlinkSync(copyPath);
-    assert.equal(code, 0);
-  }));
-}
+dgram.createSocket('udp6').bind(common.PORT + 1, common.mustCall(function() {
+  assert.equal(this.address().port, common.PORT + 1);
+  assert.equal(this.address().address, '::');
+  this.close();
+}));

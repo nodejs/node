@@ -33,8 +33,15 @@
 #endif
 
 #ifdef __POSIX__
-# include <unistd.h>  // gethostname, sysconf
+# include <netdb.h>         // MAXHOSTNAMELEN on Solaris.
+# include <unistd.h>        // gethostname, sysconf
+# include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
 # include <sys/utsname.h>
+#endif
+
+// Add Windows fallback.
+#ifndef MAXHOSTNAMELEN
+# define MAXHOSTNAMELEN 256
 #endif
 
 namespace node {
@@ -51,32 +58,29 @@ static Handle<Value> GetEndianness(const Arguments& args) {
 
 static Handle<Value> GetHostname(const Arguments& args) {
   HandleScope scope(node_isolate);
-  char s[255];
-  int r = gethostname(s, 255);
+  char buf[MAXHOSTNAMELEN + 1];
 
-  if (r < 0) {
+  if (gethostname(buf, sizeof(buf))) {
 #ifdef __POSIX__
     return ThrowException(ErrnoException(errno, "gethostname"));
 #else // __MINGW32__
     return ThrowException(ErrnoException(WSAGetLastError(), "gethostname"));
 #endif // __MINGW32__
   }
+  buf[sizeof(buf) - 1] = '\0';
 
-  return scope.Close(String::New(s));
+  return scope.Close(String::New(buf));
 }
 
 static Handle<Value> GetOSType(const Arguments& args) {
   HandleScope scope(node_isolate);
 
 #ifdef __POSIX__
-  char type[256];
   struct utsname info;
-
-  uname(&info);
-  strncpy(type, info.sysname, strlen(info.sysname));
-  type[strlen(info.sysname)] = 0;
-
-  return scope.Close(String::New(type));
+  if (uname(&info)) {
+    return ThrowException(ErrnoException(errno, "uname"));
+  }
+  return scope.Close(String::New(info.sysname));
 #else // __MINGW32__
   return scope.Close(String::New("Windows_NT"));
 #endif
