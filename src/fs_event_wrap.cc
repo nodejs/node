@@ -171,9 +171,9 @@ Handle<Value> FSEventWrap::Close(const Arguments& args) {
   // Unwrap manually here. The UNWRAP() macro asserts that wrap != NULL.
   // That usually indicates an error but not here: double closes are possible
   // and legal, HandleWrap::Close() deals with them the same way.
-  assert(!args.Holder().IsEmpty());
-  assert(args.Holder()->InternalFieldCount() > 0);
-  void* ptr = args.Holder()->GetAlignedPointerFromInternalField(0);
+  assert(!args.This().IsEmpty());
+  assert(args.This()->InternalFieldCount() > 0);
+  void* ptr = args.This()->GetAlignedPointerFromInternalField(0);
   FSEventWrap* wrap = static_cast<FSEventWrap*>(ptr);
 
   if (wrap == NULL || wrap->initialized_ == false) {

@@ -225,7 +225,7 @@ class Connection : ObjectWrap {
   void SetShutdownFlags();
 
   static Connection* Unwrap(const v8::Arguments& args) {
-    Connection* ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+    Connection* ss = ObjectWrap::Unwrap<Connection>(args.This());
     ss->ClearError();
     return ss;
   }

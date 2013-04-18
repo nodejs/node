@@ -240,7 +240,7 @@ Handle<Value> WrappedScript::New(const Arguments& args) {
   HandleScope scope(node_isolate);
 
   WrappedScript *t = new WrappedScript();
-  t->Wrap(args.Holder());
+  t->Wrap(args.This());
 
   return
     WrappedScript::EvalMachine<compileCode, thisContext, wrapExternal>(args);
@@ -401,7 +401,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
       return try_catch.ReThrow();
     }
   } else {
-    WrappedScript *n_script = ObjectWrap::Unwrap<WrappedScript>(args.Holder());
+    WrappedScript *n_script = ObjectWrap::Unwrap<WrappedScript>(args.This());
     if (!n_script) {
       return ThrowException(Exception::Error(
             String::New("Must be called as a method of Script.")));
@@ -422,7 +422,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
       return try_catch.ReThrow();
     }
   } else {
-    WrappedScript *n_script = ObjectWrap::Unwrap<WrappedScript>(args.Holder());
+    WrappedScript *n_script = ObjectWrap::Unwrap<WrappedScript>(args.This());
     if (!n_script) {
       return ThrowException(Exception::Error(
             String::New("Must be called as a method of Script.")));

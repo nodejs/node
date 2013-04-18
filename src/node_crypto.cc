@@ -170,7 +170,7 @@ void SecureContext::Initialize(Handle<Object> target) {
 Handle<Value> SecureContext::New(const Arguments& args) {
   HandleScope scope(node_isolate);
   SecureContext *p = new SecureContext();
-  p->Wrap(args.Holder());
+  p->Wrap(args.This());
   return args.This();
 }
 
@@ -178,7 +178,7 @@ Handle<Value> SecureContext::New(const Arguments& args) {
 Handle<Value> SecureContext::Init(const Arguments& args) {
   HandleScope scope(node_isolate);
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   OPENSSL_CONST SSL_METHOD *method = SSLv23_method();
 
@@ -342,7 +342,7 @@ static X509* LoadX509 (Handle<Value> v) {
 Handle<Value> SecureContext::SetKey(const Arguments& args) {
   HandleScope scope(node_isolate);
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   unsigned int len = args.Length();
   if (len != 1 && len != 2) {
@@ -447,7 +447,7 @@ end:
 Handle<Value> SecureContext::SetCert(const Arguments& args) {
   HandleScope scope(node_isolate);
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   if (args.Length() != 1) {
     return ThrowException(Exception::TypeError(
@@ -478,7 +478,7 @@ Handle<Value> SecureContext::AddCACert(const Arguments& args) {
   bool newCAStore = false;
   HandleScope scope(node_isolate);
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   if (args.Length() != 1) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
@@ -508,7 +508,7 @@ Handle<Value> SecureContext::AddCACert(const Arguments& args) {
 Handle<Value> SecureContext::AddCRL(const Arguments& args) {
   HandleScope scope(node_isolate);
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   if (args.Length() != 1) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
@@ -540,7 +540,7 @@ Handle<Value> SecureContext::AddCRL(const Arguments& args) {
 Handle<Value> SecureContext::AddRootCerts(const Arguments& args) {
   HandleScope scope(node_isolate);
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   assert(sc->ca_store_ == NULL);
 
@@ -579,7 +579,7 @@ Handle<Value> SecureContext::AddRootCerts(const Arguments& args) {
 Handle<Value> SecureContext::SetCiphers(const Arguments& args) {
   HandleScope scope(node_isolate);
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   if (args.Length() != 1 || !args[0]->IsString()) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
@@ -594,7 +594,7 @@ Handle<Value> SecureContext::SetCiphers(const Arguments& args) {
 Handle<Value> SecureContext::SetOptions(const Arguments& args) {
   HandleScope scope(node_isolate);
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   if (args.Length() != 1 || !args[0]->IntegerValue()) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
@@ -608,7 +608,7 @@ Handle<Value> SecureContext::SetOptions(const Arguments& args) {
 Handle<Value> SecureContext::SetSessionIdContext(const Arguments& args) {
   HandleScope scope(node_isolate);
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   if (args.Length() != 1 || !args[0]->IsString()) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
@@ -640,7 +640,7 @@ Handle<Value> SecureContext::SetSessionIdContext(const Arguments& args) {
 Handle<Value> SecureContext::SetSessionTimeout(const Arguments& args) {
   HandleScope scope(node_isolate);
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   if (args.Length() != 1 || !args[0]->IsInt32()) {
     return ThrowTypeError("Bad parameter");
@@ -654,7 +654,7 @@ Handle<Value> SecureContext::SetSessionTimeout(const Arguments& args) {
 
 Handle<Value> SecureContext::Close(const Arguments& args) {
   HandleScope scope(node_isolate);
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
   sc->FreeCTXMem();
   return False(node_isolate);
 }
@@ -671,7 +671,7 @@ Handle<Value> SecureContext::LoadPKCS12(const Arguments& args) {
   char* pass = NULL;
   bool ret = false;
 
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.This());
 
   if (args.Length() < 1) {
     return ThrowException(Exception::TypeError(
@@ -1213,7 +1213,7 @@ Handle<Value> Connection::New(const Arguments& args) {
   HandleScope scope(node_isolate);
 
   Connection *p = new Connection();
-  p->Wrap(args.Holder());
+  p->Wrap(args.This());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return ThrowException(Exception::Error(String::New(

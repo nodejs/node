@@ -47,10 +47,10 @@ namespace node {
 //   taken care of.
 
 #define UNWRAP_NO_ABORT(type)                                               \
-  assert(!args.Holder().IsEmpty());                                         \
-  assert(args.Holder()->InternalFieldCount() > 0);                          \
+  assert(!args.This().IsEmpty());                                           \
+  assert(args.This()->InternalFieldCount() > 0);                            \
   type* wrap = static_cast<type*>(                                          \
-      args.Holder()->GetAlignedPointerFromInternalField(0));
+      args.This()->GetAlignedPointerFromInternalField(0));
 
 class HandleWrap {
   public:

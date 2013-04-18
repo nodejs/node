@@ -84,7 +84,7 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
   HandleScope scope(node_isolate);
 
   HandleWrap *wrap = static_cast<HandleWrap*>(
-      args.Holder()->GetAlignedPointerFromInternalField(0));
+      args.This()->GetAlignedPointerFromInternalField(0));
 
   // guard against uninitialized handle or double close
   if (wrap == NULL || wrap->handle__ == NULL) {

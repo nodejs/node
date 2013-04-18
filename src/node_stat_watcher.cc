@@ -94,7 +94,7 @@ Handle<Value> StatWatcher::New(const Arguments& args) {
   assert(args.IsConstructCall());
   HandleScope scope(node_isolate);
   StatWatcher* s = new StatWatcher();
-  s->Wrap(args.Holder());
+  s->Wrap(args.This());
   return args.This();
 }
 
@@ -103,7 +103,7 @@ Handle<Value> StatWatcher::Start(const Arguments& args) {
   assert(args.Length() == 3);
   HandleScope scope(node_isolate);
 
-  StatWatcher* wrap = ObjectWrap::Unwrap<StatWatcher>(args.Holder());
+  StatWatcher* wrap = ObjectWrap::Unwrap<StatWatcher>(args.This());
   String::Utf8Value path(args[0]);
   const bool persistent = args[1]->BooleanValue();
   const uint32_t interval = args[2]->Uint32Value();
@@ -118,7 +118,7 @@ Handle<Value> StatWatcher::Start(const Arguments& args) {
 
 Handle<Value> StatWatcher::Stop(const Arguments& args) {
   HandleScope scope(node_isolate);
-  StatWatcher* wrap = ObjectWrap::Unwrap<StatWatcher>(args.Holder());
+  StatWatcher* wrap = ObjectWrap::Unwrap<StatWatcher>(args.This());
   if (onstop_sym.IsEmpty()) {
     onstop_sym = NODE_PSYMBOL("onstop");
   }
