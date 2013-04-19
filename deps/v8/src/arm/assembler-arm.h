@@ -663,37 +663,19 @@ class Assembler : public AssemblerBase {
 
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
-#ifdef USE_BLX
   // Patched return sequence is:
   //  ldr  ip, [pc, #0]   @ emited address and start
   //  blx  ip
   static const int kPatchReturnSequenceAddressOffset =  0 * kInstrSize;
-#else
-  // Patched return sequence is:
-  //  mov  lr, pc         @ start of sequence
-  //  ldr  pc, [pc, #-4]  @ emited address
-  static const int kPatchReturnSequenceAddressOffset =  kInstrSize;
-#endif
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
-#ifdef USE_BLX
   // Patched debug break slot code is:
   //  ldr  ip, [pc, #0]   @ emited address and start
   //  blx  ip
   static const int kPatchDebugBreakSlotAddressOffset =  0 * kInstrSize;
-#else
-  // Patched debug break slot code is:
-  //  mov  lr, pc         @ start of sequence
-  //  ldr  pc, [pc, #-4]  @ emited address
-  static const int kPatchDebugBreakSlotAddressOffset =  kInstrSize;
-#endif
 
-#ifdef USE_BLX
   static const int kPatchDebugBreakSlotReturnOffset = 2 * kInstrSize;
-#else
-  static const int kPatchDebugBreakSlotReturnOffset = kInstrSize;
-#endif
 
   // Difference between address of current opcode and value read from pc
   // register.
@@ -1130,16 +1112,8 @@ class Assembler : public AssemblerBase {
 
   static bool use_immediate_embedded_pointer_loads(
       const Assembler* assembler) {
-#ifdef USE_BLX
     return CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
         (assembler == NULL || !assembler->predictable_code_size());
-#else
-    // If not using BLX, all loads from the constant pool cannot be immediate,
-    // because the ldr pc, [pc + #xxxx] used for calls must be a single
-    // instruction and cannot be easily distinguished out of context from
-    // other loads that could use movw/movt.
-    return false;
-#endif
   }
 
   // Check the code size generated from label to here.

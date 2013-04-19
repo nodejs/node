@@ -144,7 +144,11 @@ int CompilationInfo::num_heap_slots() const {
 
 Code::Flags CompilationInfo::flags() const {
   if (IsStub()) {
-    return Code::ComputeFlags(Code::COMPILED_STUB);
+    return Code::ComputeFlags(code_stub()->GetCodeKind(),
+                              code_stub()->GetICState(),
+                              code_stub()->GetExtraICState(),
+                              Code::NORMAL,
+                              0);
   } else {
     return Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
   }
@@ -421,7 +425,7 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     Timer timer(this, &time_taken_to_codegen_);
     ASSERT(chunk_ != NULL);
     ASSERT(graph_ != NULL);
-    Handle<Code> optimized_code = chunk_->Codegen(Code::OPTIMIZED_FUNCTION);
+    Handle<Code> optimized_code = chunk_->Codegen();
     if (optimized_code.is_null()) {
       info()->set_bailout_reason("code generation failed");
       return AbortOptimization();
@@ -553,6 +557,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
       isolate->factory()->NewSharedFunctionInfo(
           lit->name(),
           lit->materialized_literal_count(),
+          lit->is_generator(),
           info->code(),
           ScopeInfo::Create(info->scope(), info->zone()));
 
@@ -1074,6 +1079,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   Handle<SharedFunctionInfo> result =
       FACTORY->NewSharedFunctionInfo(literal->name(),
                                      literal->materialized_literal_count(),
+                                     literal->is_generator(),
                                      info.code(),
                                      scope_info);
   SetFunctionInfo(result, literal, false, script);

@@ -442,7 +442,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
 }
 
 
-Handle<Code> LChunk::Codegen(Code::Kind kind) {
+Handle<Code> LChunk::Codegen() {
   MacroAssembler assembler(info()->isolate(), NULL, 0);
   LOG_CODE_EVENT(info()->isolate(),
                  CodeStartLinePosInfoRecordEvent(
@@ -456,11 +456,11 @@ Handle<Code> LChunk::Codegen(Code::Kind kind) {
       PrintF("Crankshaft Compiler - ");
     }
     CodeGenerator::MakeCodePrologue(info());
-    Code::Flags flags = Code::ComputeFlags(kind);
+    Code::Flags flags = info()->flags();
     Handle<Code> code =
         CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
     generator.FinishCode(code);
-
+    code->set_is_crankshafted(true);
     if (!code.is_null()) {
       void* jit_handler_data =
           assembler.positions_recorder()->DetachJITHandlerData();

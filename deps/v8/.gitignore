@@ -29,7 +29,6 @@ shell_g
 /obj
 /out
 /test/cctest/cctest.status2
-/test/es5conform/data
 /test/message/message.status2
 /test/mjsunit/mjsunit.status2
 /test/mozilla/CHECKED_OUT_VERSION
@@ -37,7 +36,6 @@ shell_g
 /test/mozilla/downloaded_*
 /test/mozilla/mozilla.status2
 /test/preparser/preparser.status2
-/test/sputnik/sputniktests
 /test/test262/data
 /test/test262/test262-*
 /test/test262/test262.status2

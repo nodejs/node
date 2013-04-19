@@ -1195,7 +1195,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   //                                         reg = JSFunction context
   //
 
-  ASSERT(compiled_code_->kind() == Code::COMPILED_STUB);
+  ASSERT(compiled_code_->is_crankshafted() &&
+         compiled_code_->kind() != Code::OPTIMIZED_FUNCTION);
   int major_key = compiled_code_->major_key();
   CodeStubInterfaceDescriptor* descriptor =
       isolate_->code_stub_interface_descriptor(major_key);
@@ -2133,7 +2134,7 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
     // size matches with the stack height we can compute based on the
     // environment at the OSR entry. The code for that his built into
     // the DoComputeOsrOutputFrame function for now.
-  } else if (compiled_code_->kind() != Code::COMPILED_STUB) {
+  } else if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     unsigned stack_slots = compiled_code_->stack_slots();
     unsigned outgoing_size = ComputeOutgoingArgumentSize();
     ASSERT(result == fixed_size + (stack_slots * kPointerSize) + outgoing_size);

@@ -623,6 +623,9 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
   if (IsDeadCheck(isolate, "V8::Persistent::New")) return NULL;
   LOG_API(isolate, "Persistent::New");
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
+#ifdef DEBUG
+  (*obj)->Verify();
+#endif  // DEBUG
   return result.location();
 }
 

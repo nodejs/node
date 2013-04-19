@@ -51,44 +51,15 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 }
 
 
-// We always generate arm code, never thumb code, even if V8 is compiled to
-// thumb, so we require inter-working support
-#if defined(__thumb__) && !defined(USE_THUMB_INTERWORK)
-#error "flag -mthumb-interwork missing"
-#endif
-
-
-// We do not support thumb inter-working with an arm architecture not supporting
-// the blx instruction (below v5t).  If you know what CPU you are compiling for
-// you can use -march=armv7 or similar.
-#if defined(USE_THUMB_INTERWORK) && !defined(CAN_USE_THUMB_INSTRUCTIONS)
-# error "For thumb inter-working we require an architecture which supports blx"
-#endif
-
-
-// Using bx does not yield better code, so use it only when required
-#if defined(USE_THUMB_INTERWORK)
-#define USE_BX 1
-#endif
-
-
 void MacroAssembler::Jump(Register target, Condition cond) {
-#if USE_BX
   bx(target, cond);
-#else
-  mov(pc, Operand(target), LeaveCC, cond);
-#endif
 }
 
 
 void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond) {
-#if USE_BX
   mov(ip, Operand(target, rmode));
   bx(ip, cond);
-#else
-  mov(pc, Operand(target, rmode), LeaveCC, cond);
-#endif
 }
 
 
@@ -108,11 +79,7 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 
 
 int MacroAssembler::CallSize(Register target, Condition cond) {
-#ifdef USE_BLX
   return kInstrSize;
-#else
-  return 2 * kInstrSize;
-#endif
 }
 
 
@@ -121,13 +88,7 @@ void MacroAssembler::Call(Register target, Condition cond) {
   BlockConstPoolScope block_const_pool(this);
   Label start;
   bind(&start);
-#ifdef USE_BLX
   blx(target, cond);
-#else
-  // set lr for return at current pc + 8
-  mov(lr, Operand(pc), LeaveCC, cond);
-  mov(pc, Operand(target), LeaveCC, cond);
-#endif
   ASSERT_EQ(CallSize(target, cond), SizeOfCodeGeneratedSince(&start));
 }
 
@@ -170,7 +131,6 @@ void MacroAssembler::Call(Address target,
     set_predictable_code_size(true);
   }
 
-#ifdef USE_BLX
   // Call sequence on V7 or later may be :
   //  movw  ip, #... @ call address low 16
   //  movt  ip, #... @ call address high 16
@@ -191,12 +151,6 @@ void MacroAssembler::Call(Address target,
   mov(ip, Operand(reinterpret_cast<int32_t>(target), rmode));
   blx(ip, cond);
 
-#else
-  // Set lr for return at current pc + 8.
-  mov(lr, Operand(pc), LeaveCC, cond);
-  // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
-  mov(pc, Operand(reinterpret_cast<int32_t>(target), rmode), LeaveCC, cond);
-#endif
   ASSERT_EQ(CallSize(target, rmode, cond), SizeOfCodeGeneratedSince(&start));
   if (mode == NEVER_INLINE_TARGET_ADDRESS) {
     set_predictable_code_size(old_predictable_code_size);
@@ -230,11 +184,7 @@ void MacroAssembler::Call(Handle<Code> code,
 
 
 void MacroAssembler::Ret(Condition cond) {
-#if USE_BX
   bx(lr, cond);
-#else
-  mov(pc, Operand(lr), LeaveCC, cond);
-#endif
 }
 
 
@@ -3223,44 +3173,6 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
   bind(&entry);
   cmp(start_offset, end_offset);
   b(lt, &loop);
-}
-
-
-void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
-                                       Register source,  // Input.
-                                       Register scratch) {
-  ASSERT(!zeros.is(source) || !source.is(scratch));
-  ASSERT(!zeros.is(scratch));
-  ASSERT(!scratch.is(ip));
-  ASSERT(!source.is(ip));
-  ASSERT(!zeros.is(ip));
-#ifdef CAN_USE_ARMV5_INSTRUCTIONS
-  clz(zeros, source);  // This instruction is only supported after ARM5.
-#else
-  // Order of the next two lines is important: zeros register
-  // can be the same as source register.
-  Move(scratch, source);
-  mov(zeros, Operand::Zero());
-  // Top 16.
-  tst(scratch, Operand(0xffff0000));
-  add(zeros, zeros, Operand(16), LeaveCC, eq);
-  mov(scratch, Operand(scratch, LSL, 16), LeaveCC, eq);
-  // Top 8.
-  tst(scratch, Operand(0xff000000));
-  add(zeros, zeros, Operand(8), LeaveCC, eq);
-  mov(scratch, Operand(scratch, LSL, 8), LeaveCC, eq);
-  // Top 4.
-  tst(scratch, Operand(0xf0000000));
-  add(zeros, zeros, Operand(4), LeaveCC, eq);
-  mov(scratch, Operand(scratch, LSL, 4), LeaveCC, eq);
-  // Top 2.
-  tst(scratch, Operand(0xc0000000));
-  add(zeros, zeros, Operand(2), LeaveCC, eq);
-  mov(scratch, Operand(scratch, LSL, 2), LeaveCC, eq);
-  // Top bit.
-  tst(scratch, Operand(0x80000000u));
-  add(zeros, zeros, Operand(1), LeaveCC, eq);
-#endif
 }
 
 

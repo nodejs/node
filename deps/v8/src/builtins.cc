@@ -125,31 +125,23 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 
 #ifdef DEBUG
 
-#define BUILTIN(name)                                            \
-  MUST_USE_RESULT static MaybeObject* Builtin_Impl_##name(       \
-      name##ArgumentsType args, Isolate* isolate);               \
-  MUST_USE_RESULT static MaybeObject* Builtin_##name(            \
-      int args_length, Object** args_object, Isolate* isolate) { \
-    name##ArgumentsType args(args_length, args_object);          \
-    ASSERT(isolate == Isolate::Current());                       \
-    args.Verify();                                               \
-    return Builtin_Impl_##name(args, isolate);                   \
-  }                                                              \
-  MUST_USE_RESULT static MaybeObject* Builtin_Impl_##name(       \
+#define BUILTIN(name)                                      \
+  MUST_USE_RESULT static MaybeObject* Builtin_Impl_##name( \
+      name##ArgumentsType args, Isolate* isolate);         \
+  MUST_USE_RESULT static MaybeObject* Builtin_##name(      \
+      name##ArgumentsType args, Isolate* isolate) {        \
+    ASSERT(isolate == Isolate::Current());                 \
+    args.Verify();                                         \
+    return Builtin_Impl_##name(args, isolate);             \
+  }                                                        \
+  MUST_USE_RESULT static MaybeObject* Builtin_Impl_##name( \
       name##ArgumentsType args, Isolate* isolate)
 
 #else  // For release mode.
 
-#define BUILTIN(name)                                            \
-  static MaybeObject* Builtin_impl##name(                        \
-      name##ArgumentsType args, Isolate* isolate);               \
-  static MaybeObject* Builtin_##name(                            \
-      int args_length, Object** args_object, Isolate* isolate) { \
-    name##ArgumentsType args(args_length, args_object);          \
-    return Builtin_impl##name(args, isolate);                    \
-  }                                                              \
-  static MaybeObject* Builtin_impl##name(                        \
-      name##ArgumentsType args, Isolate* isolate)
+#define BUILTIN(name)                                      \
+  static MaybeObject* Builtin_##name(name##ArgumentsType args, Isolate* isolate)
+
 #endif
 
 

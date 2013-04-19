@@ -32,9 +32,10 @@
 
 #include "checks.h"
 #include "deoptimizer.h"
+#include "ia32/lithium-gap-resolver-ia32.h"
 #include "safepoint-table.h"
 #include "scopes.h"
-#include "ia32/lithium-gap-resolver-ia32.h"
+#include "v8utils.h"
 
 namespace v8 {
 namespace internal {
@@ -201,7 +202,7 @@ class LCodeGen BASE_EMBEDDED {
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
   void Abort(const char* reason);
-  void Comment(const char* format, ...);
+  void FPRINTF_CHECKING Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 

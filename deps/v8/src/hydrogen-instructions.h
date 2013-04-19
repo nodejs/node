@@ -1001,6 +1001,7 @@ class HValue: public ZoneObject {
 
   bool IsInteger32Constant();
   int32_t GetInteger32Constant();
+  bool EqualsInteger32Constant(int32_t value);
 
   bool IsDefinedAfter(HBasicBlock* other) const;
 
@@ -3328,10 +3329,6 @@ class HConstant: public HTemplateInstruction<0> {
 
   bool BooleanValue() const { return boolean_value_; }
 
-  bool IsUint32() {
-    return HasInteger32Value() && (Integer32Value() >= 0);
-  }
-
   virtual intptr_t Hashcode() {
     if (has_int32_value_) {
       return static_cast<intptr_t>(int32_value_);
@@ -3841,6 +3838,8 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
         ? Representation::Tagged()
         : representation();
   }
+
+  virtual HValue* Canonicalize();
 
  private:
   virtual bool IsDeletable() const { return true; }
@@ -4400,6 +4399,8 @@ class HMul: public HArithmeticBinaryOperation {
                            HValue* right);
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+
+  virtual HValue* Canonicalize();
 
   // Only commutative if it is certain that not two objects are multiplicated.
   virtual bool IsCommutative() const {

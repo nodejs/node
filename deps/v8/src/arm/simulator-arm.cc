@@ -975,14 +975,12 @@ ReturnType Simulator::GetFromVFPRegister(int reg_index) {
 }
 
 
-// Runtime FP routines take up to two double arguments and zero
-// or one integer arguments. All are constructed here,
+// For use in calls that take two double values, constructed either
 // from r0-r3 or d0 and d1.
-void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
+void Simulator::GetFpArgs(double* x, double* y) {
   if (use_eabi_hardfloat()) {
     *x = vfp_registers_[0];
     *y = vfp_registers_[1];
-    *z = registers_[1];
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
@@ -993,9 +991,41 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
     // Registers 2 and 3 -> y.
     OS::MemCopy(buffer, registers_ + 2, sizeof(*y));
     OS::MemCopy(y, buffer, sizeof(*y));
-    // Register 2 -> z.
-    OS::MemCopy(buffer, registers_ + 2, sizeof(*z));
-    OS::MemCopy(z, buffer, sizeof(*z));
+  }
+}
+
+// For use in calls that take one double value, constructed either
+// from r0 and r1 or d0.
+void Simulator::GetFpArgs(double* x) {
+  if (use_eabi_hardfloat()) {
+    *x = vfp_registers_[0];
+  } else {
+    // We use a char buffer to get around the strict-aliasing rules which
+    // otherwise allow the compiler to optimize away the copy.
+    char buffer[sizeof(*x)];
+    // Registers 0 and 1 -> x.
+    OS::MemCopy(buffer, registers_, sizeof(*x));
+    OS::MemCopy(x, buffer, sizeof(*x));
+  }
+}
+
+
+// For use in calls that take one double value constructed either
+// from r0 and r1 or d0 and one integer value.
+void Simulator::GetFpArgs(double* x, int32_t* y) {
+  if (use_eabi_hardfloat()) {
+    *x = vfp_registers_[0];
+    *y = registers_[1];
+  } else {
+    // We use a char buffer to get around the strict-aliasing rules which
+    // otherwise allow the compiler to optimize away the copy.
+    char buffer[sizeof(*x)];
+    // Registers 0 and 1 -> x.
+    OS::MemCopy(buffer, registers_, sizeof(*x));
+    OS::MemCopy(x, buffer, sizeof(*x));
+    // Register 2 -> y.
+    OS::MemCopy(buffer, registers_ + 2, sizeof(*y));
+    OS::MemCopy(y, buffer, sizeof(*y));
   }
 }
 
@@ -1618,12 +1648,10 @@ typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
                                         int32_t arg3,
                                         int32_t arg4,
                                         int32_t arg5);
-
-// These prototypes handle the four types of FP calls.
-typedef int64_t (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
-typedef double (*SimulatorRuntimeFPFPCall)(double darg0, double darg1);
-typedef double (*SimulatorRuntimeFPCall)(double darg0);
-typedef double (*SimulatorRuntimeFPIntCall)(double darg0, int32_t arg0);
+typedef double (*SimulatorRuntimeFPCall)(int32_t arg0,
+                                         int32_t arg1,
+                                         int32_t arg2,
+                                         int32_t arg3);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
@@ -1689,27 +1717,27 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       intptr_t external =
           reinterpret_cast<intptr_t>(redirection->external_function());
       if (fp_call) {
-        double dval0, dval1;  // one or two double parameters
-        int32_t ival;         // zero or one integer parameters
-        int64_t iresult = 0;  // integer return value
-        double dresult = 0;   // double return value
-        GetFpArgs(&dval0, &dval1, &ival);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
-          SimulatorRuntimeCall generic_target =
-            reinterpret_cast<SimulatorRuntimeCall>(external);
+          SimulatorRuntimeFPCall target =
+              reinterpret_cast<SimulatorRuntimeFPCall>(external);
+          double dval0, dval1;
+          int32_t ival;
           switch (redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
+            GetFpArgs(&dval0, &dval1);
             PrintF("Call to host function at %p with args %f, %f",
-                   FUNCTION_ADDR(generic_target), dval0, dval1);
+                FUNCTION_ADDR(target), dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
+            GetFpArgs(&dval0);
             PrintF("Call to host function at %p with arg %f",
-                FUNCTION_ADDR(generic_target), dval0);
+                FUNCTION_ADDR(target), dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
+            GetFpArgs(&dval0, &ival);
             PrintF("Call to host function at %p with args %f, %d",
-                   FUNCTION_ADDR(generic_target), dval0, ival);
+                FUNCTION_ADDR(target), dval0, ival);
             break;
           default:
             UNREACHABLE();
@@ -1721,54 +1749,22 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        switch (redirection->type()) {
-        case ExternalReference::BUILTIN_COMPARE_CALL: {
-          SimulatorRuntimeCompareCall target =
-            reinterpret_cast<SimulatorRuntimeCompareCall>(external);
-          iresult = target(dval0, dval1);
-          set_register(r0, static_cast<int32_t>(iresult));
-          set_register(r1, static_cast<int32_t>(iresult >> 32));
-          break;
-        }
-        case ExternalReference::BUILTIN_FP_FP_CALL: {
-          SimulatorRuntimeFPFPCall target =
-            reinterpret_cast<SimulatorRuntimeFPFPCall>(external);
-          dresult = target(dval0, dval1);
-          SetFpResult(dresult);
-          break;
-        }
-        case ExternalReference::BUILTIN_FP_CALL: {
+        if (redirection->type() != ExternalReference::BUILTIN_COMPARE_CALL) {
           SimulatorRuntimeFPCall target =
-            reinterpret_cast<SimulatorRuntimeFPCall>(external);
-          dresult = target(dval0);
-          SetFpResult(dresult);
-          break;
-        }
-        case ExternalReference::BUILTIN_FP_INT_CALL: {
-          SimulatorRuntimeFPIntCall target =
-            reinterpret_cast<SimulatorRuntimeFPIntCall>(external);
-          dresult = target(dval0, ival);
-          SetFpResult(dresult);
-          break;
-        }
-        default:
-          UNREACHABLE();
-          break;
-        }
-        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
-          switch (redirection->type()) {
-          case ExternalReference::BUILTIN_COMPARE_CALL:
-            PrintF("Returned %08x\n", static_cast<int32_t>(iresult));
-            break;
-          case ExternalReference::BUILTIN_FP_FP_CALL:
-          case ExternalReference::BUILTIN_FP_CALL:
-          case ExternalReference::BUILTIN_FP_INT_CALL:
-            PrintF("Returned %f\n", dresult);
-            break;
-          default:
-            UNREACHABLE();
-            break;
+              reinterpret_cast<SimulatorRuntimeFPCall>(external);
+          double result = target(arg0, arg1, arg2, arg3);
+          SetFpResult(result);
+        } else {
+          SimulatorRuntimeCall target =
+              reinterpret_cast<SimulatorRuntimeCall>(external);
+          int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
+          int32_t lo_res = static_cast<int32_t>(result);
+          int32_t hi_res = static_cast<int32_t>(result >> 32);
+          if (::v8::internal::FLAG_trace_sim) {
+            PrintF("Returned %08x\n", lo_res);
           }
+          set_register(r0, lo_res);
+          set_register(r1, hi_res);
         }
       } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
         SimulatorRuntimeDirectApiCall target =

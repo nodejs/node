@@ -29,10 +29,12 @@
 #define V8_ARM_LITHIUM_CODEGEN_ARM_H_
 
 #include "arm/lithium-arm.h"
+
 #include "arm/lithium-gap-resolver-arm.h"
 #include "deoptimizer.h"
 #include "safepoint-table.h"
 #include "scopes.h"
+#include "v8utils.h"
 
 namespace v8 {
 namespace internal {
@@ -211,7 +213,7 @@ class LCodeGen BASE_EMBEDDED {
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
   void Abort(const char* reason);
-  void Comment(const char* format, ...);
+  void FPRINTF_CHECKING Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 

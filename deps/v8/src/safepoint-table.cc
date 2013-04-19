@@ -59,8 +59,7 @@ bool SafepointEntry::HasRegisterAt(int reg_index) const {
 
 
 SafepointTable::SafepointTable(Code* code) {
-  ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION ||
-         code->kind() == Code::COMPILED_STUB);
+  ASSERT(code->is_crankshafted());
   code_ = code;
   Address header = code->instruction_start() + code->safepoint_table_offset();
   length_ = Memory::uint32_at(header + kLengthOffset);

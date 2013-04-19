@@ -25,8 +25,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test String.fromCharCode.
 
+// Test char codes larger than 0xffff.
+var expected = "";
+for (var i = 100; i < 500; i++) {
+  expected += String.fromCharCode(i);
+}
+
+function testCharCodeTruncation() {
+  var result = "";
+  for (var i = 0x100000 + 100; i < 0x100000 + 500; i++) {
+    result += String.fromCharCode(i);
+  }
+  assertEquals(String.fromCharCode(0xFFFF), String.fromCharCode(0xFFFFFFFF));
+  return result;
+}
+
+assertEquals(expected, testCharCodeTruncation());
+assertEquals(expected, testCharCodeTruncation());
+%OptimizeFunctionOnNextCall(testCharCodeTruncation);
+assertEquals(expected, testCharCodeTruncation());
 
 // Test various receivers and arguments passed to String.fromCharCode.
 

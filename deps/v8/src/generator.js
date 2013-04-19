@@ -39,18 +39,38 @@
 // http://wiki.ecmascript.org/lib/exe/fetch.php?cache=cache&media=harmony:es6_generator_object_model_3-29-13.png
 
 function GeneratorObjectNext() {
+  if (!IS_GENERATOR(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['[Generator].prototype.next', this]);
+  }
+
   // TODO(wingo): Implement.
 }
 
 function GeneratorObjectSend(value) {
+  if (!IS_GENERATOR(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['[Generator].prototype.send', this]);
+  }
+
   // TODO(wingo): Implement.
 }
 
 function GeneratorObjectThrow(exn) {
+  if (!IS_GENERATOR(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['[Generator].prototype.throw', this]);
+  }
+
   // TODO(wingo): Implement.
 }
 
 function GeneratorObjectClose() {
+  if (!IS_GENERATOR(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['[Generator].prototype.close', this]);
+  }
+
   // TODO(wingo): Implement.
 }
 

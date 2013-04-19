@@ -51,7 +51,12 @@ const int kNumSafepointRegisters = 16;
 class EntryFrameConstants : public AllStatic {
  public:
 #ifdef _WIN64
-  static const int kCallerFPOffset      = -10 * kPointerSize;
+  static const int kCalleeSaveXMMRegisters = 10;
+  static const int kXMMRegisterSize = 16;
+  static const int kXMMRegistersBlockSize =
+      kXMMRegisterSize * kCalleeSaveXMMRegisters;
+  static const int kCallerFPOffset =
+      -10 * kPointerSize - kXMMRegistersBlockSize;
 #else
   static const int kCallerFPOffset      = -8 * kPointerSize;
 #endif

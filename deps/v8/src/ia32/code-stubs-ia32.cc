@@ -30,7 +30,6 @@
 #if defined(V8_TARGET_ARCH_IA32)
 
 #include "bootstrapper.h"
-#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "isolate.h"
 #include "jsregexp.h"

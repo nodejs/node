@@ -1,3 +1,12 @@
+2013-04-18: Version 3.18.1
+
+        Removed SCons related files and deprecated test suite configurations.
+
+        Improved handling of unary plus (issue 2527).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-04-17: Version 3.18.0
 
         Enabled pretenuring of fast literals in high promotion mode.

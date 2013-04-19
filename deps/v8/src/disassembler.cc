@@ -332,8 +332,7 @@ int Disassembler::Decode(Isolate* isolate, FILE* f, byte* begin, byte* end) {
 // Called by Code::CodePrint.
 void Disassembler::Decode(FILE* f, Code* code) {
   Isolate* isolate = code->GetIsolate();
-  int decode_size = (code->kind() == Code::OPTIMIZED_FUNCTION ||
-                     code->kind() == Code::COMPILED_STUB)
+  int decode_size = code->is_crankshafted()
       ? static_cast<int>(code->safepoint_table_offset())
       : code->instruction_size();
   // If there might be a back edge table, stop before reaching it.

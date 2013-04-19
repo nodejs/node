@@ -1384,7 +1384,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
   }
 
 
-  return Runtime::GetObjectProperty(isolate(), object, key);
+  return Runtime::GetObjectPropertyOrFail(isolate(), object, key);
 }
 
 
@@ -1972,7 +1972,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
     TRACE_IC("KeyedStoreIC", key, state, target());
   }
 
-  return Runtime::SetObjectProperty(
+  return Runtime::SetObjectPropertyOrFail(
       isolate(), object , key, value, NONE, strict_mode);
 }
 

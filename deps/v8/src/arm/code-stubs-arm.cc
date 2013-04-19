@@ -30,7 +30,6 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "bootstrapper.h"
-#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "regexp-macro-assembler.h"
 #include "stub-cache.h"
@@ -482,9 +481,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   __ Ret();
 
   __ bind(&not_special);
-  // Count leading zeros.  Uses mantissa for a scratch register on pre-ARM5.
-  // Gets the wrong answer for 0, but we already checked for that case above.
-  __ CountLeadingZeros(zeros_, source_, mantissa);
+  __ clz(zeros_, source_);
   // Compute exponent and or it into the exponent register.
   // We use mantissa as a scratch register here.  Use a fudge factor to
   // divide the constant 31 + HeapNumber::kExponentBias, 0x41d, into two parts
@@ -2032,7 +2029,7 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       }
 
       // Perform division by shifting.
-      __ CountLeadingZeros(scratch1, scratch1, scratch2);
+      __ clz(scratch1, scratch1);
       __ rsb(scratch1, scratch1, Operand(31));
       __ mov(right, Operand(left, LSR, scratch1));
       __ Ret();

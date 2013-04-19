@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,50 +25,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var global = this;
+// Flags: --allow-natives-syntax
 
-function ES5Error(ut) {
-  this.ut = ut;
-}
+// The below test function was generated from part of a WebKit layout
+// test library setup routine: fast/canvas/webgl/resources/pnglib.js
 
-ES5Error.prototype.toString = function () {
-  return this.ut.res;
-};
-
-// The harness uses the IE specific .description property of exceptions but
-// that's nothing we can't hack our way around.
-Error.prototype.__defineGetter__('description', function () {
-  return this.message;
-});
-
-function TestHarness() {
-  sth.call(this, global);
-  this._testResults = []
-}
-
-// Borrow sth's registerTest method.
-TestHarness.prototype.registerTest = sth.prototype.registerTest;
-
-// Drop the before/after stuff, just run the test.
-TestHarness.prototype.startTesting = function () {
-  sth.prototype.run.call(this);
-  this.report();
-};
-
-TestHarness.prototype.report = function () {
-  for (var i = 0; i < this._testResults.length; i++) {
-    var ut = this._testResults[i];
-    // We don't fail on preconditions.  Yet.
-    if (ut.res == "Precondition failed")
-      continue;
-    if (ut.res != 'pass')
-      throw new ES5Error(ut);
+function test(crc32) {
+  for (var i = 0; i < 256; i++) {
+    var c = i;
+    for (var j = 0; j < 8; j++) {
+      if (c & 1) {
+        c = -306674912 ^ ((c >> 1) & 0x7fffffff);
+      } else {
+        c = (c >> 1) & 0x7fffffff;
+      }
+    }
+    crc32[i] = c;
   }
-};
+}
 
-TestHarness.prototype.startingTest = function (ut) {
-  this.currentTest = ut;
-  this._testResults.push(ut);
-};
+var a = [0.5];
+for (var i = 0; i < 256; ++i) a[i] = i;
 
-var ES5Harness = new TestHarness();
+test([0.5]);
+test(a);
+%OptimizeFunctionOnNextCall(test);
+test(a);

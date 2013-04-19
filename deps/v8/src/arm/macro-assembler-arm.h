@@ -993,15 +993,6 @@ class MacroAssembler: public Assembler {
                    Register input_high,
                    Register input_low);
 
-  // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
-  // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
-  // for 0 (31 instead of 32).  Source and scratch can be the same in which case
-  // the source is clobbered.  Source and zeros can also be the same in which
-  // case scratch should be a different register.
-  void CountLeadingZeros(Register zeros,
-                         Register source,
-                         Register scratch);
-
   // Check whether d16-d31 are available on the CPU. The result is given by the
   // Z condition flag: Z==0 if d16-d31 available, Z==1 otherwise.
   void CheckFor32DRegs(Register scratch);

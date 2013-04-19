@@ -706,9 +706,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
   holder->set_byte_length(byte_length);
 
   v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Handle<Object> external_holder(*holder);
-  Persistent<Object> weak_handle = Persistent<Object>::New(
-      external_isolate, external_holder);
+  v8::Persistent<v8::Value> weak_handle = v8::Persistent<v8::Value>::New(
+      external_isolate, v8::Utils::ToLocal(Handle<Object>::cast(holder)));
   weak_handle.MakeWeak(external_isolate, data, ArrayBufferWeakCallback);
   weak_handle.MarkIndependent(external_isolate);
   isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
@@ -734,8 +733,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
   size_t start = static_cast<size_t>(first);
   size_t target_length = NumberToSize(isolate, target->byte_length());
 
-  if (target_length == 0)
-    return isolate->heap()->undefined_value();
+  if (target_length == 0) return isolate->heap()->undefined_value();
 
   ASSERT(NumberToSize(isolate, source->byte_length()) - target_length >= start);
   uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
@@ -2417,11 +2415,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
 
 MUST_USE_RESULT static MaybeObject* CharFromCode(Isolate* isolate,
                                                  Object* char_code) {
-  uint32_t code;
-  if (char_code->ToArrayIndex(&code)) {
-    if (code <= 0xffff) {
-      return isolate->heap()->LookupSingleCharacterStringFromCode(code);
-    }
+  if (char_code->IsNumber()) {
+    return isolate->heap()->LookupSingleCharacterStringFromCode(
+        NumberToUint32(char_code) & 0xffff);
   }
   return isolate->heap()->empty_string();
 }
@@ -4096,6 +4092,13 @@ MaybeObject* Runtime::HasObjectProperty(Isolate* isolate,
   return isolate->heap()->ToBoolean(object->HasProperty(*name));
 }
 
+MaybeObject* Runtime::GetObjectPropertyOrFail(
+    Isolate* isolate,
+    Handle<Object> object,
+    Handle<Object> key) {
+  CALL_HEAP_FUNCTION_PASS_EXCEPTION(isolate,
+      GetObjectProperty(isolate, object, key));
+}
 
 MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
                                         Handle<Object> object,
@@ -4377,6 +4380,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
       UNREACHABLE();
   }
   return isolate->heap()->undefined_value();
+}
+
+
+MaybeObject* Runtime::SetObjectPropertyOrFail(
+    Isolate* isolate,
+    Handle<Object> object,
+    Handle<Object> key,
+    Handle<Object> value,
+    PropertyAttributes attr,
+    StrictModeFlag strict_mode) {
+  CALL_HEAP_FUNCTION_PASS_EXCEPTION(isolate,
+      SetObjectProperty(isolate, object, key, value, attr, strict_mode));
 }
 
 
@@ -7636,7 +7651,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyStubFailure) {
   ASSERT(args.length() == 0);
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   ASSERT(isolate->heap()->IsAllocationAllowed());
-  ASSERT(deoptimizer->compiled_code_kind() == Code::COMPILED_STUB);
   delete deoptimizer;
   return isolate->heap()->undefined_value();
 }
@@ -7651,7 +7665,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   ASSERT(isolate->heap()->IsAllocationAllowed());
 
-  ASSERT(deoptimizer->compiled_code_kind() != Code::COMPILED_STUB);
+  ASSERT(deoptimizer->compiled_code_kind() == Code::OPTIMIZED_FUNCTION);
 
   // Make sure to materialize objects before causing any allocation.
   JavaScriptFrameIterator it(isolate);

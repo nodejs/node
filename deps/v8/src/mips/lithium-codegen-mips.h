@@ -28,11 +28,12 @@
 #ifndef V8_MIPS_LITHIUM_CODEGEN_MIPS_H_
 #define V8_MIPS_LITHIUM_CODEGEN_MIPS_H_
 
-#include "mips/lithium-mips.h"
-#include "mips/lithium-gap-resolver-mips.h"
 #include "deoptimizer.h"
+#include "mips/lithium-gap-resolver-mips.h"
+#include "mips/lithium-mips.h"
 #include "safepoint-table.h"
 #include "scopes.h"
+#include "v8utils.h"
 
 namespace v8 {
 namespace internal {
@@ -207,7 +208,7 @@ class LCodeGen BASE_EMBEDDED {
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
   void Abort(const char* reason);
-  void Comment(const char* format, ...);
+  void FPRINTF_CHECKING Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 

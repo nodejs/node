@@ -106,8 +106,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   Zone* zone = this->zone();
   int param_count = descriptor_->register_param_count_;
   HEnvironment* start_environment = graph()->start_environment();
-  HBasicBlock* next_block =
-      CreateBasicBlock(start_environment, BailoutId::StubEntry());
+  HBasicBlock* next_block = CreateBasicBlock(start_environment);
   current_block()->Goto(next_block);
   next_block->SetJoinId(BailoutId::StubEntry());
   set_current_block(next_block);
@@ -186,7 +185,7 @@ template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
   CodeStubGraphBuilder<Stub> builder(stub);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return chunk->Codegen();
 }
 
 
@@ -212,23 +211,24 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
         AddInstruction(new(zone) HLoadElements(boilerplate, NULL));
 
     IfBuilder if_fixed_cow(this);
-    if_fixed_cow.BeginIfMapEquals(elements, factory->fixed_cow_array_map());
+    if_fixed_cow.IfCompareMap(elements, factory->fixed_cow_array_map());
+    if_fixed_cow.Then();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
                                                alloc_site_mode,
                                                FAST_ELEMENTS,
                                                0/*copy-on-write*/));
-    if_fixed_cow.BeginElse();
+    if_fixed_cow.Else();
 
     IfBuilder if_fixed(this);
-    if_fixed.BeginIfMapEquals(elements, factory->fixed_array_map());
+    if_fixed.IfCompareMap(elements, factory->fixed_array_map());
+    if_fixed.Then();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
                                                alloc_site_mode,
                                                FAST_ELEMENTS,
                                                length));
-    if_fixed.BeginElse();
-
+    if_fixed.Else();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
                                                alloc_site_mode,
@@ -250,7 +250,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
 Handle<Code> FastCloneShallowArrayStub::GenerateCode() {
   CodeStubGraphBuilder<FastCloneShallowArrayStub> builder(this);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return chunk->Codegen();
 }
 
 
@@ -359,11 +359,12 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 
   IfBuilder if_builder(this);
 
-  if_builder.BeginIf(array_length, graph()->GetConstant0(), Token::EQ);
+  if_builder.IfCompare(array_length, graph()->GetConstant0(), Token::EQ);
+  if_builder.Then();
 
   // Nothing to do, just change the map.
 
-  if_builder.BeginElse();
+  if_builder.Else();
 
   HInstruction* elements =
       AddInstruction(new(zone) HLoadElements(js_array, js_array));

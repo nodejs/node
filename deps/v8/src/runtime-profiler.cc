@@ -30,6 +30,7 @@
 #include "runtime-profiler.h"
 
 #include "assembler.h"
+#include "bootstrapper.h"
 #include "code-stubs.h"
 #include "compilation-cache.h"
 #include "deoptimizer.h"
@@ -134,7 +135,7 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     PrintF("]\n");
   }
 
-  if (FLAG_parallel_recompilation) {
+  if (FLAG_parallel_recompilation && !isolate_->bootstrapper()->IsActive()) {
     ASSERT(!function->IsMarkedForInstallingRecompiledCode());
     ASSERT(!function->IsInRecompileQueue());
     function->MarkForParallelRecompilation();

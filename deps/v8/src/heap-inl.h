@@ -623,6 +623,13 @@ Isolate* Heap::isolate() {
   CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, return, return)
 
 
+#define CALL_HEAP_FUNCTION_PASS_EXCEPTION(ISOLATE, FUNCTION_CALL) \
+  CALL_AND_RETRY(ISOLATE,                                         \
+                 FUNCTION_CALL,                                   \
+                 return __object__,                               \
+                 return __maybe_object__)
+
+
 #ifdef DEBUG
 
 inline bool Heap::allow_allocation(bool new_state) {

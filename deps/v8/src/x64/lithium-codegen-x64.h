@@ -34,6 +34,7 @@
 #include "deoptimizer.h"
 #include "safepoint-table.h"
 #include "scopes.h"
+#include "v8utils.h"
 #include "x64/lithium-gap-resolver-x64.h"
 
 namespace v8 {
@@ -172,7 +173,7 @@ class LCodeGen BASE_EMBEDDED {
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
   void Abort(const char* reason);
-  void Comment(const char* format, ...);
+  void FPRINTF_CHECKING Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 

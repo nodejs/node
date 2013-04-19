@@ -1,6 +1,0 @@
-To run the sputniktests you must check out the test suite from
-googlecode.com.  The test expectations are currently relative to
-version 97. To get the tests run the following command within
-v8/test/sputnik/
-
-  svn co http://sputniktests.googlecode.com/svn/trunk/ -r97 sputniktests

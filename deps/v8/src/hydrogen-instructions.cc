@@ -648,6 +648,11 @@ int32_t HValue::GetInteger32Constant() {
 }
 
 
+bool HValue::EqualsInteger32Constant(int32_t value) {
+  return IsInteger32Constant() && GetInteger32Constant() == value;
+}
+
+
 void HValue::SetOperandAt(int index, HValue* value) {
   RegisterUse(index, value);
   InternalSetOperandAt(index, value);
@@ -1393,15 +1398,11 @@ HValue* HBitwise::Canonicalize() {
   if (!representation().IsInteger32()) return this;
   // If x is an int32, then x & -1 == x, x | 0 == x and x ^ 0 == x.
   int32_t nop_constant = (op() == Token::BIT_AND) ? -1 : 0;
-  if (left()->IsConstant() &&
-      HConstant::cast(left())->HasInteger32Value() &&
-      HConstant::cast(left())->Integer32Value() == nop_constant &&
+  if (left()->EqualsInteger32Constant(nop_constant) &&
       !right()->CheckFlag(kUint32)) {
     return right();
   }
-  if (right()->IsConstant() &&
-      HConstant::cast(right())->HasInteger32Value() &&
-      HConstant::cast(right())->Integer32Value() == nop_constant &&
+  if (right()->EqualsInteger32Constant(nop_constant) &&
       !left()->CheckFlag(kUint32)) {
     return left();
   }
@@ -1422,17 +1423,37 @@ HValue* HBitNot::Canonicalize() {
 }
 
 
-HValue* HAdd::Canonicalize() {
-  if (!representation().IsInteger32()) return this;
-  if (CheckUsesForFlag(kTruncatingToInt32)) ClearFlag(kCanOverflow);
+HValue* HArithmeticBinaryOperation::Canonicalize() {
+  if (representation().IsInteger32() && CheckUsesForFlag(kTruncatingToInt32)) {
+    ClearFlag(kCanOverflow);
+  }
   return this;
 }
 
 
+static bool IsIdentityOperation(HValue* arg1, HValue* arg2, int32_t identity) {
+  return arg1->representation().IsSpecialization() &&
+    arg2->EqualsInteger32Constant(identity);
+}
+
+
+HValue* HAdd::Canonicalize() {
+  if (IsIdentityOperation(left(), right(), 0)) return left();
+  if (IsIdentityOperation(right(), left(), 0)) return right();
+  return HArithmeticBinaryOperation::Canonicalize();
+}
+
+
 HValue* HSub::Canonicalize() {
-  if (!representation().IsInteger32()) return this;
-  if (CheckUsesForFlag(kTruncatingToInt32)) ClearFlag(kCanOverflow);
-  return this;
+  if (IsIdentityOperation(left(), right(), 0)) return left();
+  return HArithmeticBinaryOperation::Canonicalize();
+}
+
+
+HValue* HMul::Canonicalize() {
+  if (IsIdentityOperation(left(), right(), 1)) return left();
+  if (IsIdentityOperation(right(), left(), 1)) return right();
+  return HArithmeticBinaryOperation::Canonicalize();
 }
 
 

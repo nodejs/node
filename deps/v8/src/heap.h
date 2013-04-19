@@ -268,7 +268,8 @@ namespace internal {
   V(infinity_string, "Infinity")                                         \
   V(minus_infinity_string, "-Infinity")                                  \
   V(hidden_stack_trace_string, "v8::hidden_stack_trace")                 \
-  V(query_colon_string, "(?:)")
+  V(query_colon_string, "(?:)")                                          \
+  V(Generator_string, "Generator")
 
 // Forward declarations.
 class GCTracer;
@@ -1141,7 +1142,8 @@ class Heap {
   MUST_USE_RESULT MaybeObject* CreateCode(const CodeDesc& desc,
                                           Code::Flags flags,
                                           Handle<Object> self_reference,
-                                          bool immovable = false);
+                                          bool immovable = false,
+                                          bool crankshafted = false);
 
   MUST_USE_RESULT MaybeObject* CopyCode(Code* code);
 

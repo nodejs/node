@@ -176,19 +176,19 @@ class CodeStub BASE_EMBEDDED {
   virtual Major MajorKey() = 0;
   virtual int MinorKey() = 0;
 
- protected:
-  static bool CanUseFPRegisters();
-
-  // Generates the assembler code for the stub.
-  virtual Handle<Code> GenerateCode() = 0;
-
-  // BinaryOpStub needs to override this.
   virtual InlineCacheState GetICState() {
     return UNINITIALIZED;
   }
   virtual Code::ExtraICState GetExtraICState() {
     return Code::kNoExtraICState;
   }
+
+ protected:
+  static bool CanUseFPRegisters();
+
+  // Generates the assembler code for the stub.
+  virtual Handle<Code> GenerateCode() = 0;
+
   virtual Code::StubType GetStubType() {
     return Code::NORMAL;
   }
@@ -210,7 +210,7 @@ class CodeStub BASE_EMBEDDED {
   virtual void Activate(Code* code) { }
 
   // BinaryOpStub needs to override this.
-  virtual int GetCodeKind();
+  virtual Code::Kind GetCodeKind() const;
 
   // Add the code to a specialized cache, specific to an individual
   // stub type. Please note, this method must add the code object to a
@@ -249,7 +249,7 @@ class PlatformCodeStub : public CodeStub {
   // Retrieve the code for the stub. Generate the code if needed.
   virtual Handle<Code> GenerateCode();
 
-  virtual int GetCodeKind() { return Code::STUB; }
+  virtual Code::Kind GetCodeKind() const { return Code::STUB; }
   virtual int GetStubFlags() { return -1; }
 
  protected:
@@ -286,7 +286,7 @@ class HydrogenCodeStub : public CodeStub {
   // Retrieve the code for the stub. Generate the code if needed.
   virtual Handle<Code> GenerateCode() = 0;
 
-  virtual int GetCodeKind() { return Code::COMPILED_STUB; }
+  virtual Code::Kind GetCodeKind() const { return Code::STUB; }
 
   CodeStubInterfaceDescriptor* GetInterfaceDescriptor(Isolate* isolate) {
     return isolate->code_stub_interface_descriptor(MajorKey());
@@ -606,7 +606,7 @@ class MathPowStub: public PlatformCodeStub {
 class ICStub: public PlatformCodeStub {
  public:
   explicit ICStub(Code::Kind kind) : kind_(kind) { }
-  virtual int GetCodeKind() { return kind_; }
+  virtual Code::Kind GetCodeKind() const { return kind_; }
   virtual InlineCacheState GetICState() { return MONOMORPHIC; }
 
   bool Describes(Code* code) {
@@ -692,7 +692,7 @@ class StoreArrayLengthStub: public StoreICStub {
 class HandlerStub: public ICStub {
  public:
   explicit HandlerStub(Code::Kind kind) : ICStub(kind) { }
-  virtual int GetCodeKind() { return Code::STUB; }
+  virtual Code::Kind GetCodeKind() const { return Code::STUB; }
   virtual int GetStubFlags() { return kind(); }
 };
 
@@ -830,7 +830,7 @@ class BinaryOpStub: public PlatformCodeStub {
   // Entirely platform-specific methods are defined as static helper
   // functions in the <arch>/code-stubs-<arch>.cc files.
 
-  virtual int GetCodeKind() { return Code::BINARY_OP_IC; }
+  virtual Code::Kind GetCodeKind() const { return Code::BINARY_OP_IC; }
 
   virtual InlineCacheState GetICState() {
     return BinaryOpIC::ToState(Max(left_type_, right_type_));
@@ -884,7 +884,7 @@ class ICCompareStub: public PlatformCodeStub {
   virtual CodeStub::Major MajorKey() { return CompareIC; }
   virtual int MinorKey();
 
-  virtual int GetCodeKind() { return Code::COMPARE_IC; }
+  virtual Code::Kind GetCodeKind() const { return Code::COMPARE_IC; }
 
   void GenerateSmis(MacroAssembler* masm);
   void GenerateNumbers(MacroAssembler* masm);
@@ -1548,7 +1548,7 @@ class ToBooleanStub: public PlatformCodeStub {
       : tos_(tos), types_(types) { }
 
   void Generate(MacroAssembler* masm);
-  virtual int GetCodeKind() { return Code::TO_BOOLEAN_IC; }
+  virtual Code::Kind GetCodeKind() const { return Code::TO_BOOLEAN_IC; }
   virtual void PrintName(StringStream* stream);
 
   virtual bool SometimesSetsUpAFrame() { return false; }

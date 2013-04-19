@@ -304,7 +304,7 @@ bool LCodeGen::GenerateDeferredCode() {
       LDeferredCode* code = deferred_[i];
       __ bind(code->entry());
       if (NeedsDeferredFrame()) {
-        Comment(";;; Deferred build frame",
+        Comment(";;; Deferred build frame @%d: %s.",
                 code->instruction_index(),
                 code->instr()->Mnemonic());
         ASSERT(!frame_is_built_);
@@ -320,7 +320,7 @@ bool LCodeGen::GenerateDeferredCode() {
               code->instr()->Mnemonic());
       code->Generate();
       if (NeedsDeferredFrame()) {
-        Comment(";;; Deferred destroy frame",
+        Comment(";;; Deferred destroy frame @%d: %s.",
                 code->instruction_index(),
                 code->instr()->Mnemonic());
         ASSERT(frame_is_built_);
@@ -1043,11 +1043,9 @@ void LCodeGen::RecordPosition(int position) {
 
 
 void LCodeGen::DoLabel(LLabel* label) {
-  if (label->is_loop_header()) {
-    Comment(";;; B%d - LOOP entry", label->block_id());
-  } else {
-    Comment(";;; B%d", label->block_id());
-  }
+  Comment(";;; -------------------- B%d%s --------------------",
+          label->block_id(),
+          label->is_loop_header() ? " (loop header)" : "");
   __ bind(label->label());
   current_block_ = label->block_id();
   DoGap(label);
@@ -2055,33 +2053,38 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
   HMathMinMax::Operation operation = instr->hydrogen()->operation();
-  Condition condition = (operation == HMathMinMax::kMathMin) ? le : ge;
   if (instr->hydrogen()->representation().IsInteger32()) {
+    Condition condition = (operation == HMathMinMax::kMathMin) ? le : ge;
     Register left_reg = ToRegister(left);
     Operand right_op = (right->IsRegister() || right->IsConstantOperand())
         ? ToOperand(right)
         : Operand(EmitLoadRegister(right, ip));
     Register result_reg = ToRegister(instr->result());
     __ cmp(left_reg, right_op);
-    if (!result_reg.is(left_reg)) {
-      __ mov(result_reg, left_reg, LeaveCC, condition);
-    }
+    __ Move(result_reg, left_reg, condition);
     __ mov(result_reg, right_op, LeaveCC, NegateCondition(condition));
   } else {
     ASSERT(instr->hydrogen()->representation().IsDouble());
     DwVfpRegister left_reg = ToDoubleRegister(left);
     DwVfpRegister right_reg = ToDoubleRegister(right);
     DwVfpRegister result_reg = ToDoubleRegister(instr->result());
-    Label check_nan_left, check_zero, return_left, return_right, done;
+    Label result_is_nan, return_left, return_right, check_zero, done;
     __ VFPCompareAndSetFlags(left_reg, right_reg);
-    __ b(vs, &check_nan_left);
-    __ b(eq, &check_zero);
-    __ b(condition, &return_left);
-    __ b(al, &return_right);
-
-    __ bind(&check_zero);
+    if (operation == HMathMinMax::kMathMin) {
+      __ b(mi, &return_left);
+      __ b(gt, &return_right);
+    } else {
+      __ b(mi, &return_right);
+      __ b(gt, &return_left);
+    }
+    __ b(vs, &result_is_nan);
+    // Left equals right => check for -0.
     __ VFPCompareAndSetFlags(left_reg, 0.0);
-    __ b(ne, &return_left);  // left == right != 0.
+    if (left_reg.is(result_reg) || right_reg.is(result_reg)) {
+      __ b(ne, &done);  // left == right != 0.
+    } else {
+      __ b(ne, &return_left);  // left == right != 0.
+    }
     // At this point, both left and right are either 0 or -0.
     if (operation == HMathMinMax::kMathMin) {
       // We could use a single 'vorr' instruction here if we had NEON support.
@@ -2093,21 +2096,21 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
       // the decision for vadd is easy because vand is a NEON instruction.
       __ vadd(result_reg, left_reg, right_reg);
     }
-    __ b(al, &done);
+    __ b(&done);
 
-    __ bind(&check_nan_left);
-    __ VFPCompareAndSetFlags(left_reg, left_reg);
-    __ b(vs, &return_left);  // left == NaN.
+    __ bind(&result_is_nan);
+    __ vadd(result_reg, left_reg, right_reg);
+    __ b(&done);
+
     __ bind(&return_right);
-    if (!right_reg.is(result_reg)) {
-      __ vmov(result_reg, right_reg);
+    __ Move(result_reg, right_reg);
+    if (!left_reg.is(result_reg)) {
+      __ b(&done);
     }
-    __ b(al, &done);
 
     __ bind(&return_left);
-    if (!left_reg.is(result_reg)) {
-      __ vmov(result_reg, left_reg);
-    }
+    __ Move(result_reg, left_reg);
+
     __ bind(&done);
   }
 }
@@ -2205,12 +2208,10 @@ void LCodeGen::DoBranch(LBranch* instr) {
     EmitBranch(true_block, false_block, ne);
   } else if (r.IsDouble()) {
     DwVfpRegister reg = ToDoubleRegister(instr->value());
-    Register scratch = scratch0();
-
     // Test the double value. Zero and NaN are false.
-    __ VFPCompareAndLoadFlags(reg, 0.0, scratch);
-    __ tst(scratch, Operand(kVFPZConditionFlagBit | kVFPVConditionFlagBit));
-    EmitBranch(true_block, false_block, eq);
+    __ VFPCompareAndSetFlags(reg, 0.0);
+    __ cmp(r0, r0, vs);  // If NaN, set the Z flag.
+    EmitBranch(true_block, false_block, ne);
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->value());
@@ -2302,7 +2303,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ b(ne, &not_heap_number);
         __ vldr(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
         __ VFPCompareAndSetFlags(dbl_scratch, 0.0);
-        __ b(vs, false_label);  // NaN -> false.
+        __ cmp(r0, r0, vs);  // NaN -> false.
         __ b(eq, false_label);  // +0, -0 -> false.
         __ b(true_label);
         __ bind(&not_heap_number);

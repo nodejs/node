@@ -106,10 +106,13 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 
   // Allocate and install the code.
   CodeDesc desc;
+  bool is_crankshafted =
+      Code::ExtractKindFromFlags(flags) == Code::OPTIMIZED_FUNCTION ||
+      info->IsStub();
   masm->GetCode(&desc);
   Handle<Code> code =
-      isolate->factory()->NewCode(desc, flags, masm->CodeObject());
-
+      isolate->factory()->NewCode(desc, flags, masm->CodeObject(),
+                                  false, is_crankshafted);
   if (!code.is_null()) {
     isolate->counters()->total_compiled_code_size()->Increment(
         code->instruction_size());
@@ -129,7 +132,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
   if (print_code) {
     // Print the source code if available.
     FunctionLiteral* function = info->function();
-    if (code->kind() != Code::COMPILED_STUB) {
+    if (code->kind() == Code::OPTIMIZED_FUNCTION) {
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
         PrintF("--- Raw source ---\n");

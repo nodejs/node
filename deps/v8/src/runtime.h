@@ -702,6 +702,14 @@ class Runtime : public AllStatic {
       PropertyAttributes attr,
       StrictModeFlag strict_mode);
 
+  MUST_USE_RESULT static MaybeObject* SetObjectPropertyOrFail(
+      Isolate* isolate,
+      Handle<Object> object,
+      Handle<Object> key,
+      Handle<Object> value,
+      PropertyAttributes attr,
+      StrictModeFlag strict_mode);
+
   MUST_USE_RESULT static MaybeObject* ForceSetObjectProperty(
       Isolate* isolate,
       Handle<JSObject> object,
@@ -721,6 +729,11 @@ class Runtime : public AllStatic {
       Handle<Object> key);
 
   MUST_USE_RESULT static MaybeObject* GetObjectProperty(
+      Isolate* isolate,
+      Handle<Object> object,
+      Handle<Object> key);
+
+  MUST_USE_RESULT static MaybeObject* GetObjectPropertyOrFail(
       Isolate* isolate,
       Handle<Object> object,
       Handle<Object> key);

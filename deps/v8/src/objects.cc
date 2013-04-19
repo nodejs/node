@@ -9313,7 +9313,6 @@ const char* Code::Kind2String(Kind kind) {
   switch (kind) {
     case FUNCTION: return "FUNCTION";
     case OPTIMIZED_FUNCTION: return "OPTIMIZED_FUNCTION";
-    case COMPILED_STUB: return "COMPILED_STUB";
     case STUB: return "STUB";
     case BUILTIN: return "BUILTIN";
     case LOAD_IC: return "LOAD_IC";
@@ -9613,7 +9612,7 @@ void Code::Disassemble(const char* name, FILE* out) {
   }
   PrintF("\n");
 
-  if (kind() == OPTIMIZED_FUNCTION || kind() == COMPILED_STUB) {
+  if (is_crankshafted()) {
     SafepointTable table(this);
     PrintF(out, "Safepoints (size = %u)\n", table.size());
     for (unsigned i = 0; i < table.length(); i++) {

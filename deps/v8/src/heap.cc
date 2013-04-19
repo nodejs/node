@@ -3752,7 +3752,8 @@ MaybeObject* Heap::AllocateExternalArray(int length,
 MaybeObject* Heap::CreateCode(const CodeDesc& desc,
                               Code::Flags flags,
                               Handle<Object> self_reference,
-                              bool immovable) {
+                              bool immovable,
+                              bool crankshafted) {
   // Allocate ByteArray before the Code object, so that we do not risk
   // leaving uninitialized Code object (and breaking the heap).
   ByteArray* reloc_info;
@@ -3796,6 +3797,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   if (code->is_call_stub() || code->is_keyed_call_stub()) {
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
+  code->set_is_crankshafted(crankshafted);
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->InitializeTypeFeedbackInfoNoWriteBarrier(undefined_value());
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
@@ -4358,6 +4360,7 @@ MaybeObject* Heap::AllocateJSGeneratorObject(JSFunction *function) {
     MaybeObject* maybe_map = AllocateInitialMap(function);
     if (!maybe_map->To(&map)) return maybe_map;
     function->set_initial_map(map);
+    map->set_constructor(function);
   }
   ASSERT(map->instance_type() == JS_GENERATOR_OBJECT_TYPE);
   return AllocateJSObjectFromMap(map);

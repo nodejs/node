@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-generators --harmony-scoping
+// Flags: --harmony-generators --harmony-scoping --allow-natives-syntax
 
 // Test instantations of generators.
 
@@ -55,6 +55,8 @@ function TestGeneratorObject() {
   var iter = g();
   assertSame(g.prototype, Object.getPrototypeOf(iter));
   assertTrue(iter instanceof g);
+  assertEquals("Generator", %ClassOf(iter));
+  assertEquals("[object Generator]", String(iter));
   assertEquals([], Object.getOwnPropertyNames(iter));
   assertTrue(iter !== g());
 
@@ -62,7 +64,30 @@ function TestGeneratorObject() {
   iter = new g();
   assertSame(g.prototype, Object.getPrototypeOf(iter));
   assertTrue(iter instanceof g);
+  assertEquals("Generator", %ClassOf(iter));
+  assertEquals("[object Generator]", String(iter));
   assertEquals([], Object.getOwnPropertyNames(iter));
   assertTrue(iter !== new g());
 }
 TestGeneratorObject();
+
+
+// Test the methods of generator objects.
+function TestGeneratorObjectMethods() {
+  function* g() { yield 1; }
+  var iter = g();
+
+  function TestNonGenerator(non_generator) {
+    assertThrows(function() { iter.next.call(non_generator); }, TypeError);
+    assertThrows(function() { iter.send.call(non_generator, 1); }, TypeError);
+    assertThrows(function() { iter.throw.call(non_generator, 1); }, TypeError);
+    assertThrows(function() { iter.close.call(non_generator); }, TypeError);
+  }
+
+  TestNonGenerator(1);
+  TestNonGenerator({});
+  TestNonGenerator(function(){});
+  TestNonGenerator(g);
+  TestNonGenerator(g.prototype);
+}
+TestGeneratorObjectMethods();

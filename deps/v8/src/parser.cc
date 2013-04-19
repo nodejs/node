@@ -1872,9 +1872,10 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
+  bool is_generator = false;
   Handle<SharedFunctionInfo> shared =
-      isolate()->factory()->NewSharedFunctionInfo(name, literals, code,
-          Handle<ScopeInfo>(fun->shared()->scope_info()));
+      isolate()->factory()->NewSharedFunctionInfo(name, literals, is_generator,
+          code, Handle<ScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the shared function info.
@@ -3284,6 +3285,16 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
         *ok = false;
         return NULL;
       }
+    }
+
+    // Desugar '+foo' into 'foo*1', this enables the collection of type feedback
+    // without any special stub and the multiplication is removed later in
+    // Crankshaft's canonicalization pass.
+    if (op == Token::ADD) {
+      return factory()->NewBinaryOperation(Token::MUL,
+                                           expression,
+                                           factory()->NewNumberLiteral(1),
+                                           position);
     }
 
     return factory()->NewUnaryOperation(op, expression, position);
