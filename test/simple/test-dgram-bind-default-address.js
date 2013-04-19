@@ -31,6 +31,9 @@ dgram.createSocket('udp4').bind(common.PORT + 0, common.mustCall(function() {
 
 dgram.createSocket('udp6').bind(common.PORT + 1, common.mustCall(function() {
   assert.equal(this.address().port, common.PORT + 1);
-  assert.equal(this.address().address, '::');
+  var address = this.address().address;
+  if (address === '::ffff:0.0.0.0')
+    address = '::';
+  assert.equal(address, '::');
   this.close();
 }));
