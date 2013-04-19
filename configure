@@ -341,7 +341,7 @@ def is_arm_neon():
   return '__ARM_NEON__' in cc_macros()
 
 
-def arm_hard_float_abi():
+def is_arm_hard_float_abi():
   """Check for hardfloat or softfloat eabi on ARM"""
   # GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
   # the Floating Point ABI used (PCS stands for Procedure Call Standard).
@@ -421,21 +421,15 @@ def compiler_version():
 
 
 def configure_arm(o):
-  # V8 on ARM requires that armv7 is set. CPU Model detected by
-  # the presence of __ARM_ARCH_7__ and the like defines in compiler
   if options.arm_float_abi:
-    hard_float = options.arm_float_abi == 'hard'
+    arm_float_abi = options.arm_float_abi
   else:
-    hard_float = arm_hard_float_abi()
-
-  armv7 = is_arch_armv7()
-  # CHECKME VFPv3 implies ARMv7+ but is the reverse true as well?
-  fpu = 'vfpv3' if armv7 else 'vfpv2'
-
-  o['variables']['armv7'] = int(armv7)
-  o['variables']['arm_fpu'] = fpu
+    arm_float_abi = 'hard' if is_arm_hard_float_abi() else 'default'
+  o['variables']['armv7'] = int(is_arch_armv7())
+  o['variables']['arm_fpu'] = 'vfpv3'  # V8 3.18 no longer supports VFP2.
   o['variables']['arm_neon'] = int(is_arm_neon())
-  o['variables']['v8_use_arm_eabi_hardfloat'] = b(hard_float)
+  o['variables']['arm_thumb'] = 0      # -marm
+  o['variables']['arm_float_abi'] = arm_float_abi
 
 
 def configure_node(o):
