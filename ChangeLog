@@ -1,4 +1,31 @@
-2013.03.28, Version 0.11.0 (Unstable)
+2013.04.19, Version 0.11.1 (Unstable)
+
+* V8: upgrade to 3.18.0
+
+* uv: Upgrade to v0.11.1
+
+* http: split into multiple separate modules (Timothy J Fontaine)
+
+* http: escape unsafe characters in request path (Ben Noordhuis)
+
+* url: Escape all unwise characters (isaacs)
+
+* build: depend on v8 postmortem-metadata if enabled (Paddy Byers)
+
+* etw: update prototypes to match dtrace provider (Timothy J Fontaine)
+
+* buffer: change output of Buffer.prototype.toJSON() (David Braun)
+
+* dtrace: actually use the _handle.fd value (Timothy J Fontaine)
+
+* dtrace: pass more arguments to probes (Dave Pacheco)
+
+* build: allow building with dtrace on osx (Dave Pacheco)
+
+* zlib: allow passing options to convenience methods (Kyle Robinson Young)
+
+
+2013.03.28, Version 0.11.0 (Unstable), bce38b3d74e64fcb7d04a2dd551151da6168cdc5
 
 * V8: update to 3.17.13
 
