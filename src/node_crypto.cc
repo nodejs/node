@@ -3242,7 +3242,7 @@ class Verify : public ObjectWrap {
     ssize_t hwritten = DecodeWrite((char*)hbuf, hlen, args[1], BINARY);
     assert(hwritten == hlen);
 
-    int r=-1;
+    int r;
 
     r = verify->VerifyFinal(kbuf, klen, hbuf, hlen);
 
