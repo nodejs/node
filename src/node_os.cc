@@ -77,7 +77,7 @@ static Handle<Value> GetOSType(const Arguments& args) {
 
 #ifdef __POSIX__
   struct utsname info;
-  if (uname(&info)) {
+  if (uname(&info) < 0) {
     return ThrowException(ErrnoException(errno, "uname"));
   }
   return scope.Close(String::New(info.sysname));
@@ -88,16 +88,15 @@ static Handle<Value> GetOSType(const Arguments& args) {
 
 static Handle<Value> GetOSRelease(const Arguments& args) {
   HandleScope scope;
-  char release[256];
 
 #ifdef __POSIX__
   struct utsname info;
-
-  uname(&info);
-  strncpy(release, info.release, strlen(info.release));
-  release[strlen(info.release)] = 0;
-
+  if (uname(&info) < 0) {
+    return ThrowException(ErrnoException(errno, "uname"));
+  }
+  return scope.Close(String::New(info.release));
 #else // __MINGW32__
+  char release[256];
   OSVERSIONINFO info;
   info.dwOSVersionInfoSize = sizeof(info);
 
@@ -107,9 +106,9 @@ static Handle<Value> GetOSRelease(const Arguments& args) {
 
   sprintf(release, "%d.%d.%d", static_cast<int>(info.dwMajorVersion),
       static_cast<int>(info.dwMinorVersion), static_cast<int>(info.dwBuildNumber));
+  return scope.Close(String::New(release));
 #endif
 
-  return scope.Close(String::New(release));
 }
 
 static Handle<Value> GetCPUInfo(const Arguments& args) {
