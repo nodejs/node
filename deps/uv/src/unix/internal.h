@@ -46,7 +46,7 @@
 #endif
 
 #define STATIC_ASSERT(expr)                                                   \
-  void uv__static_assert(int static_assert_failed[0 - !(expr)])
+  void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
 
 #define ACCESS_ONCE(type, var)                                                \
   (*(volatile type*) &(var))

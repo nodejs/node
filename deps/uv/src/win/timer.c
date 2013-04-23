@@ -87,6 +87,17 @@ void uv_timer_endgame(uv_loop_t* loop, uv_timer_t* handle) {
 }
 
 
+static uint64_t get_clamped_due_time(uint64_t loop_time, uint64_t timeout) {
+  uint64_t clamped_timeout;
+
+  clamped_timeout = loop_time + timeout;
+  if (clamped_timeout < timeout)
+    clamped_timeout = (uint64_t) -1;
+
+  return clamped_timeout;
+}
+
+
 int uv_timer_start(uv_timer_t* handle, uv_timer_cb timer_cb, uint64_t timeout,
     uint64_t repeat) {
   uv_loop_t* loop = handle->loop;
@@ -97,7 +108,7 @@ int uv_timer_start(uv_timer_t* handle, uv_timer_cb timer_cb, uint64_t timeout,
   }
 
   handle->timer_cb = timer_cb;
-  handle->due = loop->time + timeout;
+  handle->due = get_clamped_due_time(loop->time, timeout);
   handle->repeat = repeat;
   handle->flags |= UV_HANDLE_ACTIVE;
   uv__handle_start(handle);
@@ -143,7 +154,7 @@ int uv_timer_again(uv_timer_t* handle) {
   }
 
   if (handle->repeat) {
-    handle->due = loop->time + handle->repeat;
+    handle->due = get_clamped_due_time(loop->time, handle->repeat);
 
     if (RB_INSERT(uv_timer_tree_s, &loop->timers, handle) != NULL) {
       uv_fatal_error(ERROR_INVALID_DATA, "RB_INSERT");
@@ -212,7 +223,7 @@ void uv_process_timers(uv_loop_t* loop) {
 
     if (timer->repeat != 0) {
       /* If it is a repeating timer, reschedule with repeat timeout. */
-      timer->due += timer->repeat;
+      timer->due = get_clamped_due_time(timer->due, timer->repeat);
       if (timer->due < loop->time) {
         timer->due = loop->time;
       }

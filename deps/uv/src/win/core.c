@@ -205,9 +205,7 @@ static void uv_poll(uv_loop_t* loop, int block) {
   if (overlapped) {
     /* Package was dequeued */
     req = uv_overlapped_to_req(overlapped);
-
     uv_insert_pending_req(loop, req);
-
   } else if (GetLastError() != WAIT_TIMEOUT) {
     /* Serious error */
     uv_fatal_error(GetLastError(), "GetQueuedCompletionStatus");
@@ -229,14 +227,13 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
     timeout = 0;
   }
 
-  assert(pGetQueuedCompletionStatusEx);
-
   success = pGetQueuedCompletionStatusEx(loop->iocp,
                                          overlappeds,
                                          ARRAY_SIZE(overlappeds),
                                          &count,
                                          timeout,
                                          FALSE);
+
   if (success) {
     for (i = 0; i < count; i++) {
       /* Package was dequeued */

@@ -284,98 +284,59 @@ uint64_t uv_get_total_memory(void) {
 
 
 uv_err_t uv_resident_set_memory(size_t* rss) {
-  FILE* f;
-  int itmp;
-  char ctmp;
-  unsigned int utmp;
-  size_t page_size = getpagesize();
-  char *cbuf;
-  int foundExeEnd;
-  char buf[PATH_MAX + 1];
+  char buf[1024];
+  const char* s;
+  ssize_t n;
+  long val;
+  int fd;
+  int i;
 
-  f = fopen("/proc/self/stat", "r");
-  if (!f) return uv__new_sys_error(errno);
+  do
+    fd = open("/proc/self/stat", O_RDONLY);
+  while (fd == -1 && errno == EINTR);
 
-  /* PID */
-  if (fscanf(f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Exec file */
-  cbuf = buf;
-  foundExeEnd = 0;
-  if (fscanf (f, "%c", cbuf++) == 0) goto error;
-  while (1) {
-    if (fscanf(f, "%c", cbuf) == 0) goto error;
-    if (*cbuf == ')') {
-      foundExeEnd = 1;
-    } else if (foundExeEnd && *cbuf == ' ') {
-      *cbuf = 0;
-      break;
-    }
+  if (fd == -1)
+    return uv__new_sys_error(errno);
 
-    cbuf++;
+  do
+    n = read(fd, buf, sizeof(buf) - 1);
+  while (n == -1 && errno == EINTR);
+
+  SAVE_ERRNO(close(fd));
+  if (n == -1)
+    return uv__new_sys_error(errno);
+  buf[n] = '\0';
+
+  s = strchr(buf, ' ');
+  if (s == NULL)
+    goto err;
+
+  s += 1;
+  if (*s != '(')
+    goto err;
+
+  s = strchr(s, ')');
+  if (s == NULL)
+    goto err;
+
+  for (i = 1; i <= 22; i++) {
+    s = strchr(s + 1, ' ');
+    if (s == NULL)
+      goto err;
   }
-  /* State */
-  if (fscanf (f, "%c ", &ctmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Parent process */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Process group */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Session id */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* TTY */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* TTY owner process group */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Flags */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Minor faults (no memory page) */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Minor faults, children */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Major faults (memory page faults) */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Major faults, children */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  /* utime */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* stime */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* utime, children */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* stime, children */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* jiffies remaining in current time slice */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* 'nice' value */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  /* jiffies until next timeout */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  /* jiffies until next SIGALRM */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  /* start time (jiffies since system boot) */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
 
-  /* Virtual memory size */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
+  errno = 0;
+  val = strtol(s, NULL, 10);
+  if (errno != 0)
+    goto err;
+  if (val < 0)
+    goto err;
 
-  /* Resident set size */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  *rss = (size_t) utmp * page_size;
-
-  /* rlim */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Start of text */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  /* End of text */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-  /* Start of stack */
-  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
-
-  fclose (f);
+  *rss = val * getpagesize();
   return uv_ok_;
 
-error:
-  fclose (f);
-  return uv__new_sys_error(errno);
+err:
+  return uv__new_artificial_error(UV_EINVAL);
 }
 
 

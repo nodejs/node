@@ -1,4 +1,19 @@
-2013.04.12, Version 0.10.4 (Stable)
+2013.04.24, Version 0.10.5 (Stable)
+
+Changes since version 0.10.4:
+
+* unix: silence STATIC_ASSERT compiler warnings (Ben Noordhuis)
+
+* windows: make timers handle large timeouts (Miroslav Bajtoš)
+
+* windows: remove superfluous assert statement (Bert Belder)
+
+* unix: silence STATIC_ASSERT compiler warnings (Ben Noordhuis)
+
+* linux: don't use fopen() in uv_resident_set_memory() (Ben Noordhuis)
+
+
+2013.04.12, Version 0.10.4 (Stable), 85827e26403ac6dfa331af8ec9916ea7e27bd833
 
 Changes since version 0.10.3:
 
@@ -33,7 +48,7 @@ Changes since version 0.10.3:
 * build: -Wno-dollar-in-identifier-extension is clang only (Ben Noordhuis)
 
 
-2013.02.04, Version 0.10.3 (Stable)
+2013.02.04, Version 0.10.3 (Stable), 31ebe23973dd98fd8a24c042b606f37a794e99d0
 
 Changes since version 0.10.2:
 
@@ -50,7 +65,7 @@ Changes since version 0.10.2:
 * unix: don't clear flags after closing UDP handle (Saúl Ibarra Corretgé)
 
 
-2013.03.25, Version 0.10.2 (Stable)
+2013.03.25, Version 0.10.2 (Stable), 0f36a00568f3e7608f97f6c6cdb081f4800a50c9
 
 This is the first officially versioned release of libuv. Starting now
 libuv will make releases independently of Node.js.
