@@ -101,6 +101,16 @@ if defined nobuild goto sign
 
 @rem Bail out early if not running in VS build env.
 if defined VCINSTALLDIR goto msbuild-found
+
+@rem Look for Visual Studio 2012
+if not defined VS110COMNTOOLS goto vc-set-2010
+if not exist "%VS110COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2010
+call "%VS110COMNTOOLS%\..\..\vc\vcvarsall.bat"
+if not defined VCINSTALLDIR goto msbuild-not-found
+set GYP_MSVS_VERSION=2012
+goto msbuild-found
+
+:vc-set-2010
 if not defined VS100COMNTOOLS goto msbuild-not-found
 if not exist "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
 call "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat"
