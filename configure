@@ -656,6 +656,10 @@ config = {
   'USE_XCODE': str(int(options.use_xcode or 0)),
   'PYTHON': sys.executable,
 }
+
+if options.prefix:
+  config['PREFIX'] = options.prefix
+
 config = '\n'.join(map('='.join, config.iteritems())) + '\n'
 
 write('config.mk',
