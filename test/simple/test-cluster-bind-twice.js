@@ -72,37 +72,39 @@ if (!id) {
   b.on('message', function(m) {
     if (typeof m === 'object') return; // ignore system messages
     assert.equal(m, 'EADDRINUSE');
-    a.kill();
-    b.kill();
     ok = true;
+    a.send('QUIT');
+    b.send('QUIT');
   });
 
   process.on('exit', function() {
-    a.kill();
-    b.kill();
     assert(ok);
   });
 }
 else if (id === 'one') {
   if (cluster.isMaster) return startWorker();
 
-  http.createServer(assert.fail).listen(common.PORT, function() {
+  var server = http.createServer(assert.fail).listen(common.PORT, function() {
     process.send('READY');
+  });
+
+  process.on('message', function(m) {
+    if (m === 'QUIT') process.exit();
   });
 }
 else if (id === 'two') {
   if (cluster.isMaster) return startWorker();
 
   var ok = false;
-  process.on('SIGTERM', process.exit);
   process.on('exit', function() {
     assert(ok);
   });
 
+  var server = http.createServer(assert.fail);
   process.on('message', function(m) {
     if (typeof m === 'object') return; // ignore system messages
+    if (m === 'QUIT') process.exit();
     assert.equal(m, 'START');
-    var server = http.createServer(assert.fail);
     server.listen(common.PORT, assert.fail);
     server.on('error', function(e) {
       assert.equal(e.code, 'EADDRINUSE');
@@ -117,10 +119,7 @@ else {
 
 function startWorker() {
   var worker = cluster.fork();
+  worker.on('exit', process.exit);
   worker.on('message', process.send.bind(process));
   process.on('message', worker.send.bind(worker));
-  process.on('SIGTERM', function() {
-    worker.destroy();
-    process.exit();
-  });
 }
