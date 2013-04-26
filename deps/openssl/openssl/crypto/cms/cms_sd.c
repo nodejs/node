@@ -641,8 +641,7 @@ static int cms_SignerInfo_content_sign(CMS_ContentInfo *cms,
 			cms->d.signedData->encapContentInfo->eContentType; 
 		unsigned char md[EVP_MAX_MD_SIZE];
 		unsigned int mdlen;
-		if (!EVP_DigestFinal_ex(&mctx, md, &mdlen))
-			goto err;
+		EVP_DigestFinal_ex(&mctx, md, &mdlen);
 		if (!CMS_signed_add1_attr_by_NID(si, NID_pkcs9_messageDigest,
 						V_ASN1_OCTET_STRING,
 						md, mdlen))

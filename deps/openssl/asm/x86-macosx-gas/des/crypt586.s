@@ -13,14 +13,11 @@ L_fcrypt_body_begin:
 
 	xorl	%edi,%edi
 	xorl	%esi,%esi
-	call	L000PIC_me_up
-L000PIC_me_up:
-	popl	%edx
-	movl	L_DES_SPtrans$non_lazy_ptr-L000PIC_me_up(%edx),%edx
+	leal	_DES_SPtrans,%edx
 	pushl	%edx
 	movl	28(%esp),%ebp
 	pushl	$25
-L001start:
+L000start:
 
 	# Round 0
 
@@ -843,7 +840,7 @@ L001start:
 	movl	%esi,%edi
 	movl	%eax,%esi
 	movl	%ebx,(%esp)
-	jnz	L001start
+	jnz	L000start
 
 	# FP
 
@@ -892,7 +889,3 @@ L001start:
 	popl	%ebx
 	popl	%ebp
 	ret
-.section __IMPORT,__pointers,non_lazy_symbol_pointers
-L_DES_SPtrans$non_lazy_ptr:
-.indirect_symbol	_DES_SPtrans
-.long	0

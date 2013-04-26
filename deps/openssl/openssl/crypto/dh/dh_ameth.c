@@ -493,7 +493,6 @@ const EVP_PKEY_ASN1_METHOD dh_asn1_meth =
 	dh_copy_parameters,
 	dh_cmp_parameters,
 	dh_param_print,
-	0,
 
 	int_dh_free,
 	0

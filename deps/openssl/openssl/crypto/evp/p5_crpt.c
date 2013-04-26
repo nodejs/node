@@ -82,8 +82,6 @@ int PKCS5_PBE_keyivgen(EVP_CIPHER_CTX *cctx, const char *pass, int passlen,
 	unsigned char *salt;
 	const unsigned char *pbuf;
 	int mdsize;
-	int rv = 0;
-	EVP_MD_CTX_init(&ctx);
 
 	/* Extract useful info from parameter */
 	if (param == NULL || param->type != V_ASN1_SEQUENCE ||
@@ -106,38 +104,29 @@ int PKCS5_PBE_keyivgen(EVP_CIPHER_CTX *cctx, const char *pass, int passlen,
 	if(!pass) passlen = 0;
 	else if(passlen == -1) passlen = strlen(pass);
 
-	if (!EVP_DigestInit_ex(&ctx, md, NULL))
-		goto err;
-	if (!EVP_DigestUpdate(&ctx, pass, passlen))
-		goto err;
-	if (!EVP_DigestUpdate(&ctx, salt, saltlen))
-		goto err;
+	EVP_MD_CTX_init(&ctx);
+	EVP_DigestInit_ex(&ctx, md, NULL);
+	EVP_DigestUpdate(&ctx, pass, passlen);
+	EVP_DigestUpdate(&ctx, salt, saltlen);
 	PBEPARAM_free(pbe);
-	if (!EVP_DigestFinal_ex(&ctx, md_tmp, NULL))
-		goto err;
+	EVP_DigestFinal_ex(&ctx, md_tmp, NULL);
 	mdsize = EVP_MD_size(md);
 	if (mdsize < 0)
 	    return 0;
 	for (i = 1; i < iter; i++) {
-		if (!EVP_DigestInit_ex(&ctx, md, NULL))
-			goto err;
-		if (!EVP_DigestUpdate(&ctx, md_tmp, mdsize))
-			goto err;
-		if (!EVP_DigestFinal_ex (&ctx, md_tmp, NULL))
-			goto err;
+		EVP_DigestInit_ex(&ctx, md, NULL);
+		EVP_DigestUpdate(&ctx, md_tmp, mdsize);
+		EVP_DigestFinal_ex (&ctx, md_tmp, NULL);
 	}
+	EVP_MD_CTX_cleanup(&ctx);
 	OPENSSL_assert(EVP_CIPHER_key_length(cipher) <= (int)sizeof(md_tmp));
 	memcpy(key, md_tmp, EVP_CIPHER_key_length(cipher));
 	OPENSSL_assert(EVP_CIPHER_iv_length(cipher) <= 16);
 	memcpy(iv, md_tmp + (16 - EVP_CIPHER_iv_length(cipher)),
 						 EVP_CIPHER_iv_length(cipher));
-	if (!EVP_CipherInit_ex(cctx, cipher, NULL, key, iv, en_de))
-		goto err;
+	EVP_CipherInit_ex(cctx, cipher, NULL, key, iv, en_de);
 	OPENSSL_cleanse(md_tmp, EVP_MAX_MD_SIZE);
 	OPENSSL_cleanse(key, EVP_MAX_KEY_LENGTH);
 	OPENSSL_cleanse(iv, EVP_MAX_IV_LENGTH);
-	rv = 1;
-	err:
-	EVP_MD_CTX_cleanup(&ctx);
-	return rv;
+	return 1;
 }

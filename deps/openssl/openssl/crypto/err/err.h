@@ -344,9 +344,8 @@ void ERR_print_errors_fp(FILE *fp);
 #endif
 #ifndef OPENSSL_NO_BIO
 void ERR_print_errors(BIO *bp);
-#endif
 void ERR_add_error_data(int num, ...);
-void ERR_add_error_vdata(int num, va_list args);
+#endif
 void ERR_load_strings(int lib,ERR_STRING_DATA str[]);
 void ERR_unload_strings(int lib,ERR_STRING_DATA str[]);
 void ERR_load_ERR_strings(void);

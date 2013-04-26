@@ -26,1738 +26,1930 @@ $L$SEH_begin_sha256_block_data_order::
 	sub	rsp,16*4+4*8
 	lea	rdx,QWORD PTR[rdx*4+rsi]
 	and	rsp,-64
-	mov	QWORD PTR[((64+0))+rsp],rdi
-	mov	QWORD PTR[((64+8))+rsp],rsi
-	mov	QWORD PTR[((64+16))+rsp],rdx
-	mov	QWORD PTR[((64+24))+rsp],r11
+	mov	QWORD PTR[((16*4+0*8))+rsp],rdi
+	mov	QWORD PTR[((16*4+1*8))+rsp],rsi
+	mov	QWORD PTR[((16*4+2*8))+rsp],rdx
+	mov	QWORD PTR[((16*4+3*8))+rsp],r11
 $L$prologue::
 
 	lea	rbp,QWORD PTR[K256]
 
-	mov	eax,DWORD PTR[rdi]
-	mov	ebx,DWORD PTR[4+rdi]
-	mov	ecx,DWORD PTR[8+rdi]
-	mov	edx,DWORD PTR[12+rdi]
-	mov	r8d,DWORD PTR[16+rdi]
-	mov	r9d,DWORD PTR[20+rdi]
-	mov	r10d,DWORD PTR[24+rdi]
-	mov	r11d,DWORD PTR[28+rdi]
+	mov	eax,DWORD PTR[((4*0))+rdi]
+	mov	ebx,DWORD PTR[((4*1))+rdi]
+	mov	ecx,DWORD PTR[((4*2))+rdi]
+	mov	edx,DWORD PTR[((4*3))+rdi]
+	mov	r8d,DWORD PTR[((4*4))+rdi]
+	mov	r9d,DWORD PTR[((4*5))+rdi]
+	mov	r10d,DWORD PTR[((4*6))+rdi]
+	mov	r11d,DWORD PTR[((4*7))+rdi]
 	jmp	$L$loop
 
 ALIGN	16
 $L$loop::
 	xor	rdi,rdi
-	mov	r12d,DWORD PTR[rsi]
-	mov	r13d,r8d
-	mov	r14d,eax
+	mov	r12d,DWORD PTR[((4*0))+rsi]
 	bswap	r12d
-	ror	r13d,14
+	mov	r13d,r8d
+	mov	r14d,r8d
 	mov	r15d,r9d
+
+	ror	r13d,6
+	ror	r14d,11
+	xor	r15d,r10d
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r8d
 	mov	DWORD PTR[rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,r8d
+	xor	r13d,r14d
 	xor	r15d,r10d
-
-	ror	r13d,5
 	add	r12d,r11d
-	xor	r14d,eax
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r8d
-	mov	r11d,ebx
+	mov	r11d,eax
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,r8d
-	xor	r15d,r10d
-
-	xor	r11d,ecx
-	xor	r14d,eax
 	add	r12d,r15d
-	mov	r15d,ebx
+	mov	r13d,eax
+	mov	r14d,eax
+
+	ror	r11d,2
+	ror	r13d,13
+	mov	r15d,eax
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r11d,r13d
+	ror	r13d,9
+	or	r14d,ecx
+
+	xor	r11d,r13d
+	and	r15d,ecx
+	add	edx,r12d
+
+	and	r14d,ebx
+	add	r11d,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	r11d,r14d
+	mov	r12d,DWORD PTR[((4*1))+rsi]
+	bswap	r12d
+	mov	r13d,edx
+	mov	r14d,edx
+	mov	r15d,r8d
 
 	ror	r13d,6
-	and	r11d,eax
-	and	r15d,ecx
+	ror	r14d,11
+	xor	r15d,r9d
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	r11d,r15d
-
-	add	edx,r12d
-	add	r11d,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	r11d,r14d
-
-	mov	r12d,DWORD PTR[4+rsi]
-	mov	r13d,edx
-	mov	r14d,r11d
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,r8d
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,edx
 	mov	DWORD PTR[4+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,edx
+	xor	r13d,r14d
 	xor	r15d,r9d
-
-	ror	r13d,5
 	add	r12d,r10d
-	xor	r14d,r11d
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,edx
-	mov	r10d,eax
+	mov	r10d,r11d
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,edx
-	xor	r15d,r9d
-
-	xor	r10d,ebx
-	xor	r14d,r11d
 	add	r12d,r15d
-	mov	r15d,eax
+	mov	r13d,r11d
+	mov	r14d,r11d
+
+	ror	r10d,2
+	ror	r13d,13
+	mov	r15d,r11d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r10d,r13d
+	ror	r13d,9
+	or	r14d,ebx
+
+	xor	r10d,r13d
+	and	r15d,ebx
+	add	ecx,r12d
+
+	and	r14d,eax
+	add	r10d,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	r10d,r14d
+	mov	r12d,DWORD PTR[((4*2))+rsi]
+	bswap	r12d
+	mov	r13d,ecx
+	mov	r14d,ecx
+	mov	r15d,edx
 
 	ror	r13d,6
-	and	r10d,r11d
-	and	r15d,ebx
+	ror	r14d,11
+	xor	r15d,r8d
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	r10d,r15d
-
-	add	ecx,r12d
-	add	r10d,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	r10d,r14d
-
-	mov	r12d,DWORD PTR[8+rsi]
-	mov	r13d,ecx
-	mov	r14d,r10d
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,edx
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,ecx
 	mov	DWORD PTR[8+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,ecx
+	xor	r13d,r14d
 	xor	r15d,r8d
-
-	ror	r13d,5
 	add	r12d,r9d
-	xor	r14d,r10d
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,ecx
-	mov	r9d,r11d
+	mov	r9d,r10d
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,ecx
-	xor	r15d,r8d
-
-	xor	r9d,eax
-	xor	r14d,r10d
 	add	r12d,r15d
-	mov	r15d,r11d
+	mov	r13d,r10d
+	mov	r14d,r10d
+
+	ror	r9d,2
+	ror	r13d,13
+	mov	r15d,r10d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r9d,r13d
+	ror	r13d,9
+	or	r14d,eax
+
+	xor	r9d,r13d
+	and	r15d,eax
+	add	ebx,r12d
+
+	and	r14d,r11d
+	add	r9d,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	r9d,r14d
+	mov	r12d,DWORD PTR[((4*3))+rsi]
+	bswap	r12d
+	mov	r13d,ebx
+	mov	r14d,ebx
+	mov	r15d,ecx
 
 	ror	r13d,6
-	and	r9d,r10d
-	and	r15d,eax
+	ror	r14d,11
+	xor	r15d,edx
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	r9d,r15d
-
-	add	ebx,r12d
-	add	r9d,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	r9d,r14d
-
-	mov	r12d,DWORD PTR[12+rsi]
-	mov	r13d,ebx
-	mov	r14d,r9d
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,ecx
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,ebx
 	mov	DWORD PTR[12+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,ebx
+	xor	r13d,r14d
 	xor	r15d,edx
-
-	ror	r13d,5
 	add	r12d,r8d
-	xor	r14d,r9d
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,ebx
-	mov	r8d,r10d
+	mov	r8d,r9d
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,ebx
-	xor	r15d,edx
-
-	xor	r8d,r11d
-	xor	r14d,r9d
 	add	r12d,r15d
-	mov	r15d,r10d
+	mov	r13d,r9d
+	mov	r14d,r9d
+
+	ror	r8d,2
+	ror	r13d,13
+	mov	r15d,r9d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r8d,r13d
+	ror	r13d,9
+	or	r14d,r11d
+
+	xor	r8d,r13d
+	and	r15d,r11d
+	add	eax,r12d
+
+	and	r14d,r10d
+	add	r8d,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	r8d,r14d
+	mov	r12d,DWORD PTR[((4*4))+rsi]
+	bswap	r12d
+	mov	r13d,eax
+	mov	r14d,eax
+	mov	r15d,ebx
 
 	ror	r13d,6
-	and	r8d,r9d
-	and	r15d,r11d
+	ror	r14d,11
+	xor	r15d,ecx
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	r8d,r15d
-
-	add	eax,r12d
-	add	r8d,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	r8d,r14d
-
-	mov	r12d,DWORD PTR[16+rsi]
-	mov	r13d,eax
-	mov	r14d,r8d
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,ebx
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,eax
 	mov	DWORD PTR[16+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,eax
+	xor	r13d,r14d
 	xor	r15d,ecx
-
-	ror	r13d,5
 	add	r12d,edx
-	xor	r14d,r8d
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,eax
-	mov	edx,r9d
+	mov	edx,r8d
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,eax
-	xor	r15d,ecx
-
-	xor	edx,r10d
-	xor	r14d,r8d
 	add	r12d,r15d
-	mov	r15d,r9d
+	mov	r13d,r8d
+	mov	r14d,r8d
+
+	ror	edx,2
+	ror	r13d,13
+	mov	r15d,r8d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	edx,r13d
+	ror	r13d,9
+	or	r14d,r10d
+
+	xor	edx,r13d
+	and	r15d,r10d
+	add	r11d,r12d
+
+	and	r14d,r9d
+	add	edx,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	edx,r14d
+	mov	r12d,DWORD PTR[((4*5))+rsi]
+	bswap	r12d
+	mov	r13d,r11d
+	mov	r14d,r11d
+	mov	r15d,eax
 
 	ror	r13d,6
-	and	edx,r8d
-	and	r15d,r10d
+	ror	r14d,11
+	xor	r15d,ebx
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	edx,r15d
-
-	add	r11d,r12d
-	add	edx,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	edx,r14d
-
-	mov	r12d,DWORD PTR[20+rsi]
-	mov	r13d,r11d
-	mov	r14d,edx
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,eax
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r11d
 	mov	DWORD PTR[20+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,r11d
+	xor	r13d,r14d
 	xor	r15d,ebx
-
-	ror	r13d,5
 	add	r12d,ecx
-	xor	r14d,edx
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r11d
-	mov	ecx,r8d
+	mov	ecx,edx
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,r11d
-	xor	r15d,ebx
-
-	xor	ecx,r9d
-	xor	r14d,edx
 	add	r12d,r15d
-	mov	r15d,r8d
+	mov	r13d,edx
+	mov	r14d,edx
+
+	ror	ecx,2
+	ror	r13d,13
+	mov	r15d,edx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	ecx,r13d
+	ror	r13d,9
+	or	r14d,r9d
+
+	xor	ecx,r13d
+	and	r15d,r9d
+	add	r10d,r12d
+
+	and	r14d,r8d
+	add	ecx,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	ecx,r14d
+	mov	r12d,DWORD PTR[((4*6))+rsi]
+	bswap	r12d
+	mov	r13d,r10d
+	mov	r14d,r10d
+	mov	r15d,r11d
 
 	ror	r13d,6
-	and	ecx,edx
-	and	r15d,r9d
+	ror	r14d,11
+	xor	r15d,eax
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	ecx,r15d
-
-	add	r10d,r12d
-	add	ecx,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	ecx,r14d
-
-	mov	r12d,DWORD PTR[24+rsi]
-	mov	r13d,r10d
-	mov	r14d,ecx
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,r11d
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r10d
 	mov	DWORD PTR[24+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,r10d
+	xor	r13d,r14d
 	xor	r15d,eax
-
-	ror	r13d,5
 	add	r12d,ebx
-	xor	r14d,ecx
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r10d
-	mov	ebx,edx
+	mov	ebx,ecx
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,r10d
-	xor	r15d,eax
-
-	xor	ebx,r8d
-	xor	r14d,ecx
 	add	r12d,r15d
-	mov	r15d,edx
+	mov	r13d,ecx
+	mov	r14d,ecx
+
+	ror	ebx,2
+	ror	r13d,13
+	mov	r15d,ecx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	ebx,r13d
+	ror	r13d,9
+	or	r14d,r8d
+
+	xor	ebx,r13d
+	and	r15d,r8d
+	add	r9d,r12d
+
+	and	r14d,edx
+	add	ebx,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	ebx,r14d
+	mov	r12d,DWORD PTR[((4*7))+rsi]
+	bswap	r12d
+	mov	r13d,r9d
+	mov	r14d,r9d
+	mov	r15d,r10d
 
 	ror	r13d,6
-	and	ebx,ecx
-	and	r15d,r8d
+	ror	r14d,11
+	xor	r15d,r11d
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	ebx,r15d
-
-	add	r9d,r12d
-	add	ebx,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	ebx,r14d
-
-	mov	r12d,DWORD PTR[28+rsi]
-	mov	r13d,r9d
-	mov	r14d,ebx
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,r10d
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r9d
 	mov	DWORD PTR[28+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,r9d
+	xor	r13d,r14d
 	xor	r15d,r11d
-
-	ror	r13d,5
 	add	r12d,eax
-	xor	r14d,ebx
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r9d
-	mov	eax,ecx
+	mov	eax,ebx
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,r9d
-	xor	r15d,r11d
-
-	xor	eax,edx
-	xor	r14d,ebx
 	add	r12d,r15d
-	mov	r15d,ecx
+	mov	r13d,ebx
+	mov	r14d,ebx
+
+	ror	eax,2
+	ror	r13d,13
+	mov	r15d,ebx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	eax,r13d
+	ror	r13d,9
+	or	r14d,edx
+
+	xor	eax,r13d
+	and	r15d,edx
+	add	r8d,r12d
+
+	and	r14d,ecx
+	add	eax,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	eax,r14d
+	mov	r12d,DWORD PTR[((4*8))+rsi]
+	bswap	r12d
+	mov	r13d,r8d
+	mov	r14d,r8d
+	mov	r15d,r9d
 
 	ror	r13d,6
-	and	eax,ebx
-	and	r15d,edx
+	ror	r14d,11
+	xor	r15d,r10d
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	eax,r15d
-
-	add	r8d,r12d
-	add	eax,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	eax,r14d
-
-	mov	r12d,DWORD PTR[32+rsi]
-	mov	r13d,r8d
-	mov	r14d,eax
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,r9d
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r8d
 	mov	DWORD PTR[32+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,r8d
+	xor	r13d,r14d
 	xor	r15d,r10d
-
-	ror	r13d,5
 	add	r12d,r11d
-	xor	r14d,eax
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r8d
-	mov	r11d,ebx
+	mov	r11d,eax
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,r8d
-	xor	r15d,r10d
-
-	xor	r11d,ecx
-	xor	r14d,eax
 	add	r12d,r15d
-	mov	r15d,ebx
+	mov	r13d,eax
+	mov	r14d,eax
+
+	ror	r11d,2
+	ror	r13d,13
+	mov	r15d,eax
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r11d,r13d
+	ror	r13d,9
+	or	r14d,ecx
+
+	xor	r11d,r13d
+	and	r15d,ecx
+	add	edx,r12d
+
+	and	r14d,ebx
+	add	r11d,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	r11d,r14d
+	mov	r12d,DWORD PTR[((4*9))+rsi]
+	bswap	r12d
+	mov	r13d,edx
+	mov	r14d,edx
+	mov	r15d,r8d
 
 	ror	r13d,6
-	and	r11d,eax
-	and	r15d,ecx
+	ror	r14d,11
+	xor	r15d,r9d
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	r11d,r15d
-
-	add	edx,r12d
-	add	r11d,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	r11d,r14d
-
-	mov	r12d,DWORD PTR[36+rsi]
-	mov	r13d,edx
-	mov	r14d,r11d
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,r8d
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,edx
 	mov	DWORD PTR[36+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,edx
+	xor	r13d,r14d
 	xor	r15d,r9d
-
-	ror	r13d,5
 	add	r12d,r10d
-	xor	r14d,r11d
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,edx
-	mov	r10d,eax
+	mov	r10d,r11d
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,edx
-	xor	r15d,r9d
-
-	xor	r10d,ebx
-	xor	r14d,r11d
 	add	r12d,r15d
-	mov	r15d,eax
+	mov	r13d,r11d
+	mov	r14d,r11d
+
+	ror	r10d,2
+	ror	r13d,13
+	mov	r15d,r11d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r10d,r13d
+	ror	r13d,9
+	or	r14d,ebx
+
+	xor	r10d,r13d
+	and	r15d,ebx
+	add	ecx,r12d
+
+	and	r14d,eax
+	add	r10d,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	r10d,r14d
+	mov	r12d,DWORD PTR[((4*10))+rsi]
+	bswap	r12d
+	mov	r13d,ecx
+	mov	r14d,ecx
+	mov	r15d,edx
 
 	ror	r13d,6
-	and	r10d,r11d
-	and	r15d,ebx
+	ror	r14d,11
+	xor	r15d,r8d
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	r10d,r15d
-
-	add	ecx,r12d
-	add	r10d,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	r10d,r14d
-
-	mov	r12d,DWORD PTR[40+rsi]
-	mov	r13d,ecx
-	mov	r14d,r10d
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,edx
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,ecx
 	mov	DWORD PTR[40+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,ecx
+	xor	r13d,r14d
 	xor	r15d,r8d
-
-	ror	r13d,5
 	add	r12d,r9d
-	xor	r14d,r10d
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,ecx
-	mov	r9d,r11d
+	mov	r9d,r10d
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,ecx
-	xor	r15d,r8d
-
-	xor	r9d,eax
-	xor	r14d,r10d
 	add	r12d,r15d
-	mov	r15d,r11d
+	mov	r13d,r10d
+	mov	r14d,r10d
+
+	ror	r9d,2
+	ror	r13d,13
+	mov	r15d,r10d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r9d,r13d
+	ror	r13d,9
+	or	r14d,eax
+
+	xor	r9d,r13d
+	and	r15d,eax
+	add	ebx,r12d
+
+	and	r14d,r11d
+	add	r9d,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	r9d,r14d
+	mov	r12d,DWORD PTR[((4*11))+rsi]
+	bswap	r12d
+	mov	r13d,ebx
+	mov	r14d,ebx
+	mov	r15d,ecx
 
 	ror	r13d,6
-	and	r9d,r10d
-	and	r15d,eax
+	ror	r14d,11
+	xor	r15d,edx
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	r9d,r15d
-
-	add	ebx,r12d
-	add	r9d,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	r9d,r14d
-
-	mov	r12d,DWORD PTR[44+rsi]
-	mov	r13d,ebx
-	mov	r14d,r9d
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,ecx
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,ebx
 	mov	DWORD PTR[44+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,ebx
+	xor	r13d,r14d
 	xor	r15d,edx
-
-	ror	r13d,5
 	add	r12d,r8d
-	xor	r14d,r9d
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,ebx
-	mov	r8d,r10d
+	mov	r8d,r9d
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,ebx
-	xor	r15d,edx
-
-	xor	r8d,r11d
-	xor	r14d,r9d
 	add	r12d,r15d
-	mov	r15d,r10d
+	mov	r13d,r9d
+	mov	r14d,r9d
+
+	ror	r8d,2
+	ror	r13d,13
+	mov	r15d,r9d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r8d,r13d
+	ror	r13d,9
+	or	r14d,r11d
+
+	xor	r8d,r13d
+	and	r15d,r11d
+	add	eax,r12d
+
+	and	r14d,r10d
+	add	r8d,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	r8d,r14d
+	mov	r12d,DWORD PTR[((4*12))+rsi]
+	bswap	r12d
+	mov	r13d,eax
+	mov	r14d,eax
+	mov	r15d,ebx
 
 	ror	r13d,6
-	and	r8d,r9d
-	and	r15d,r11d
+	ror	r14d,11
+	xor	r15d,ecx
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	r8d,r15d
-
-	add	eax,r12d
-	add	r8d,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	r8d,r14d
-
-	mov	r12d,DWORD PTR[48+rsi]
-	mov	r13d,eax
-	mov	r14d,r8d
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,ebx
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,eax
 	mov	DWORD PTR[48+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,eax
+	xor	r13d,r14d
 	xor	r15d,ecx
-
-	ror	r13d,5
 	add	r12d,edx
-	xor	r14d,r8d
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,eax
-	mov	edx,r9d
+	mov	edx,r8d
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,eax
-	xor	r15d,ecx
-
-	xor	edx,r10d
-	xor	r14d,r8d
 	add	r12d,r15d
-	mov	r15d,r9d
+	mov	r13d,r8d
+	mov	r14d,r8d
+
+	ror	edx,2
+	ror	r13d,13
+	mov	r15d,r8d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	edx,r13d
+	ror	r13d,9
+	or	r14d,r10d
+
+	xor	edx,r13d
+	and	r15d,r10d
+	add	r11d,r12d
+
+	and	r14d,r9d
+	add	edx,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	edx,r14d
+	mov	r12d,DWORD PTR[((4*13))+rsi]
+	bswap	r12d
+	mov	r13d,r11d
+	mov	r14d,r11d
+	mov	r15d,eax
 
 	ror	r13d,6
-	and	edx,r8d
-	and	r15d,r10d
+	ror	r14d,11
+	xor	r15d,ebx
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	edx,r15d
-
-	add	r11d,r12d
-	add	edx,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	edx,r14d
-
-	mov	r12d,DWORD PTR[52+rsi]
-	mov	r13d,r11d
-	mov	r14d,edx
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,eax
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r11d
 	mov	DWORD PTR[52+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,r11d
+	xor	r13d,r14d
 	xor	r15d,ebx
-
-	ror	r13d,5
 	add	r12d,ecx
-	xor	r14d,edx
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r11d
-	mov	ecx,r8d
+	mov	ecx,edx
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,r11d
-	xor	r15d,ebx
-
-	xor	ecx,r9d
-	xor	r14d,edx
 	add	r12d,r15d
-	mov	r15d,r8d
+	mov	r13d,edx
+	mov	r14d,edx
+
+	ror	ecx,2
+	ror	r13d,13
+	mov	r15d,edx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	ecx,r13d
+	ror	r13d,9
+	or	r14d,r9d
+
+	xor	ecx,r13d
+	and	r15d,r9d
+	add	r10d,r12d
+
+	and	r14d,r8d
+	add	ecx,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	ecx,r14d
+	mov	r12d,DWORD PTR[((4*14))+rsi]
+	bswap	r12d
+	mov	r13d,r10d
+	mov	r14d,r10d
+	mov	r15d,r11d
 
 	ror	r13d,6
-	and	ecx,edx
-	and	r15d,r9d
+	ror	r14d,11
+	xor	r15d,eax
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	ecx,r15d
-
-	add	r10d,r12d
-	add	ecx,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	ecx,r14d
-
-	mov	r12d,DWORD PTR[56+rsi]
-	mov	r13d,r10d
-	mov	r14d,ecx
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,r11d
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r10d
 	mov	DWORD PTR[56+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,r10d
+	xor	r13d,r14d
 	xor	r15d,eax
-
-	ror	r13d,5
 	add	r12d,ebx
-	xor	r14d,ecx
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r10d
-	mov	ebx,edx
+	mov	ebx,ecx
+	add	r12d,r13d
 
-	ror	r14d,11
-	xor	r13d,r10d
-	xor	r15d,eax
-
-	xor	ebx,r8d
-	xor	r14d,ecx
 	add	r12d,r15d
-	mov	r15d,edx
+	mov	r13d,ecx
+	mov	r14d,ecx
+
+	ror	ebx,2
+	ror	r13d,13
+	mov	r15d,ecx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	ebx,r13d
+	ror	r13d,9
+	or	r14d,r8d
+
+	xor	ebx,r13d
+	and	r15d,r8d
+	add	r9d,r12d
+
+	and	r14d,edx
+	add	ebx,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	ebx,r14d
+	mov	r12d,DWORD PTR[((4*15))+rsi]
+	bswap	r12d
+	mov	r13d,r9d
+	mov	r14d,r9d
+	mov	r15d,r10d
 
 	ror	r13d,6
-	and	ebx,ecx
-	and	r15d,r8d
+	ror	r14d,11
+	xor	r15d,r11d
 
-	ror	r14d,2
-	add	r12d,r13d
-	add	ebx,r15d
-
-	add	r9d,r12d
-	add	ebx,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	ebx,r14d
-
-	mov	r12d,DWORD PTR[60+rsi]
-	mov	r13d,r9d
-	mov	r14d,ebx
-	bswap	r12d
-	ror	r13d,14
-	mov	r15d,r10d
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r9d
 	mov	DWORD PTR[60+rsp],r12d
 
-	ror	r14d,9
-	xor	r13d,r9d
+	xor	r13d,r14d
 	xor	r15d,r11d
-
-	ror	r13d,5
 	add	r12d,eax
-	xor	r14d,ebx
 
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r9d
-	mov	eax,ecx
-
-	ror	r14d,11
-	xor	r13d,r9d
-	xor	r15d,r11d
-
-	xor	eax,edx
-	xor	r14d,ebx
-	add	r12d,r15d
-	mov	r15d,ecx
-
-	ror	r13d,6
-	and	eax,ebx
-	and	r15d,edx
-
-	ror	r14d,2
+	mov	eax,ebx
 	add	r12d,r13d
-	add	eax,r15d
 
+	add	r12d,r15d
+	mov	r13d,ebx
+	mov	r14d,ebx
+
+	ror	eax,2
+	ror	r13d,13
+	mov	r15d,ebx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	eax,r13d
+	ror	r13d,9
+	or	r14d,edx
+
+	xor	eax,r13d
+	and	r15d,edx
 	add	r8d,r12d
-	add	eax,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	eax,r14d
 
+	and	r14d,ecx
+	add	eax,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	eax,r14d
 	jmp	$L$rounds_16_xx
 ALIGN	16
 $L$rounds_16_xx::
 	mov	r13d,DWORD PTR[4+rsp]
-	mov	r14d,DWORD PTR[56+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[56+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[36+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[36+rsp]
 
 	add	r12d,DWORD PTR[rsp]
 	mov	r13d,r8d
-	add	r12d,r14d
-	mov	r14d,eax
-	ror	r13d,14
+	mov	r14d,r8d
 	mov	r15d,r9d
-	mov	DWORD PTR[rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,r8d
-	xor	r15d,r10d
-
-	ror	r13d,5
-	add	r12d,r11d
-	xor	r14d,eax
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r8d
-	mov	r11d,ebx
-
-	ror	r14d,11
-	xor	r13d,r8d
-	xor	r15d,r10d
-
-	xor	r11d,ecx
-	xor	r14d,eax
-	add	r12d,r15d
-	mov	r15d,ebx
 
 	ror	r13d,6
-	and	r11d,eax
+	ror	r14d,11
+	xor	r15d,r10d
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r8d
+	mov	DWORD PTR[rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,r10d
+	add	r12d,r11d
+
+	mov	r11d,eax
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,eax
+	mov	r14d,eax
+
+	ror	r11d,2
+	ror	r13d,13
+	mov	r15d,eax
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r11d,r13d
+	ror	r13d,9
+	or	r14d,ecx
+
+	xor	r11d,r13d
 	and	r15d,ecx
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	r11d,r15d
-
 	add	edx,r12d
+
+	and	r14d,ebx
 	add	r11d,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	r11d,r14d
-
 	mov	r13d,DWORD PTR[8+rsp]
-	mov	r14d,DWORD PTR[60+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[60+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[40+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[40+rsp]
 
 	add	r12d,DWORD PTR[4+rsp]
 	mov	r13d,edx
-	add	r12d,r14d
-	mov	r14d,r11d
-	ror	r13d,14
+	mov	r14d,edx
 	mov	r15d,r8d
-	mov	DWORD PTR[4+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,edx
-	xor	r15d,r9d
-
-	ror	r13d,5
-	add	r12d,r10d
-	xor	r14d,r11d
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,edx
-	mov	r10d,eax
-
-	ror	r14d,11
-	xor	r13d,edx
-	xor	r15d,r9d
-
-	xor	r10d,ebx
-	xor	r14d,r11d
-	add	r12d,r15d
-	mov	r15d,eax
 
 	ror	r13d,6
-	and	r10d,r11d
+	ror	r14d,11
+	xor	r15d,r9d
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,edx
+	mov	DWORD PTR[4+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,r9d
+	add	r12d,r10d
+
+	mov	r10d,r11d
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,r11d
+	mov	r14d,r11d
+
+	ror	r10d,2
+	ror	r13d,13
+	mov	r15d,r11d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r10d,r13d
+	ror	r13d,9
+	or	r14d,ebx
+
+	xor	r10d,r13d
 	and	r15d,ebx
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	r10d,r15d
-
 	add	ecx,r12d
+
+	and	r14d,eax
 	add	r10d,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	r10d,r14d
-
 	mov	r13d,DWORD PTR[12+rsp]
-	mov	r14d,DWORD PTR[rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[44+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[44+rsp]
 
 	add	r12d,DWORD PTR[8+rsp]
 	mov	r13d,ecx
-	add	r12d,r14d
-	mov	r14d,r10d
-	ror	r13d,14
+	mov	r14d,ecx
 	mov	r15d,edx
-	mov	DWORD PTR[8+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,ecx
-	xor	r15d,r8d
-
-	ror	r13d,5
-	add	r12d,r9d
-	xor	r14d,r10d
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,ecx
-	mov	r9d,r11d
-
-	ror	r14d,11
-	xor	r13d,ecx
-	xor	r15d,r8d
-
-	xor	r9d,eax
-	xor	r14d,r10d
-	add	r12d,r15d
-	mov	r15d,r11d
 
 	ror	r13d,6
-	and	r9d,r10d
+	ror	r14d,11
+	xor	r15d,r8d
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,ecx
+	mov	DWORD PTR[8+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,r8d
+	add	r12d,r9d
+
+	mov	r9d,r10d
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,r10d
+	mov	r14d,r10d
+
+	ror	r9d,2
+	ror	r13d,13
+	mov	r15d,r10d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r9d,r13d
+	ror	r13d,9
+	or	r14d,eax
+
+	xor	r9d,r13d
 	and	r15d,eax
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	r9d,r15d
-
 	add	ebx,r12d
+
+	and	r14d,r11d
 	add	r9d,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	r9d,r14d
-
 	mov	r13d,DWORD PTR[16+rsp]
-	mov	r14d,DWORD PTR[4+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[4+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[48+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[48+rsp]
 
 	add	r12d,DWORD PTR[12+rsp]
 	mov	r13d,ebx
-	add	r12d,r14d
-	mov	r14d,r9d
-	ror	r13d,14
+	mov	r14d,ebx
 	mov	r15d,ecx
-	mov	DWORD PTR[12+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,ebx
-	xor	r15d,edx
-
-	ror	r13d,5
-	add	r12d,r8d
-	xor	r14d,r9d
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,ebx
-	mov	r8d,r10d
-
-	ror	r14d,11
-	xor	r13d,ebx
-	xor	r15d,edx
-
-	xor	r8d,r11d
-	xor	r14d,r9d
-	add	r12d,r15d
-	mov	r15d,r10d
 
 	ror	r13d,6
-	and	r8d,r9d
+	ror	r14d,11
+	xor	r15d,edx
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,ebx
+	mov	DWORD PTR[12+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,edx
+	add	r12d,r8d
+
+	mov	r8d,r9d
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,r9d
+	mov	r14d,r9d
+
+	ror	r8d,2
+	ror	r13d,13
+	mov	r15d,r9d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r8d,r13d
+	ror	r13d,9
+	or	r14d,r11d
+
+	xor	r8d,r13d
 	and	r15d,r11d
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	r8d,r15d
-
 	add	eax,r12d
+
+	and	r14d,r10d
 	add	r8d,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	r8d,r14d
-
 	mov	r13d,DWORD PTR[20+rsp]
-	mov	r14d,DWORD PTR[8+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[8+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[52+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[52+rsp]
 
 	add	r12d,DWORD PTR[16+rsp]
 	mov	r13d,eax
-	add	r12d,r14d
-	mov	r14d,r8d
-	ror	r13d,14
+	mov	r14d,eax
 	mov	r15d,ebx
-	mov	DWORD PTR[16+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,eax
-	xor	r15d,ecx
-
-	ror	r13d,5
-	add	r12d,edx
-	xor	r14d,r8d
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,eax
-	mov	edx,r9d
-
-	ror	r14d,11
-	xor	r13d,eax
-	xor	r15d,ecx
-
-	xor	edx,r10d
-	xor	r14d,r8d
-	add	r12d,r15d
-	mov	r15d,r9d
 
 	ror	r13d,6
-	and	edx,r8d
+	ror	r14d,11
+	xor	r15d,ecx
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,eax
+	mov	DWORD PTR[16+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,ecx
+	add	r12d,edx
+
+	mov	edx,r8d
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,r8d
+	mov	r14d,r8d
+
+	ror	edx,2
+	ror	r13d,13
+	mov	r15d,r8d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	edx,r13d
+	ror	r13d,9
+	or	r14d,r10d
+
+	xor	edx,r13d
 	and	r15d,r10d
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	edx,r15d
-
 	add	r11d,r12d
+
+	and	r14d,r9d
 	add	edx,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	edx,r14d
-
 	mov	r13d,DWORD PTR[24+rsp]
-	mov	r14d,DWORD PTR[12+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[12+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[56+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[56+rsp]
 
 	add	r12d,DWORD PTR[20+rsp]
 	mov	r13d,r11d
-	add	r12d,r14d
-	mov	r14d,edx
-	ror	r13d,14
+	mov	r14d,r11d
 	mov	r15d,eax
-	mov	DWORD PTR[20+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,r11d
-	xor	r15d,ebx
-
-	ror	r13d,5
-	add	r12d,ecx
-	xor	r14d,edx
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r11d
-	mov	ecx,r8d
-
-	ror	r14d,11
-	xor	r13d,r11d
-	xor	r15d,ebx
-
-	xor	ecx,r9d
-	xor	r14d,edx
-	add	r12d,r15d
-	mov	r15d,r8d
 
 	ror	r13d,6
-	and	ecx,edx
+	ror	r14d,11
+	xor	r15d,ebx
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r11d
+	mov	DWORD PTR[20+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,ebx
+	add	r12d,ecx
+
+	mov	ecx,edx
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,edx
+	mov	r14d,edx
+
+	ror	ecx,2
+	ror	r13d,13
+	mov	r15d,edx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	ecx,r13d
+	ror	r13d,9
+	or	r14d,r9d
+
+	xor	ecx,r13d
 	and	r15d,r9d
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	ecx,r15d
-
 	add	r10d,r12d
+
+	and	r14d,r8d
 	add	ecx,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	ecx,r14d
-
 	mov	r13d,DWORD PTR[28+rsp]
-	mov	r14d,DWORD PTR[16+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[16+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[60+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[60+rsp]
 
 	add	r12d,DWORD PTR[24+rsp]
 	mov	r13d,r10d
-	add	r12d,r14d
-	mov	r14d,ecx
-	ror	r13d,14
+	mov	r14d,r10d
 	mov	r15d,r11d
-	mov	DWORD PTR[24+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,r10d
-	xor	r15d,eax
-
-	ror	r13d,5
-	add	r12d,ebx
-	xor	r14d,ecx
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r10d
-	mov	ebx,edx
-
-	ror	r14d,11
-	xor	r13d,r10d
-	xor	r15d,eax
-
-	xor	ebx,r8d
-	xor	r14d,ecx
-	add	r12d,r15d
-	mov	r15d,edx
 
 	ror	r13d,6
-	and	ebx,ecx
+	ror	r14d,11
+	xor	r15d,eax
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r10d
+	mov	DWORD PTR[24+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,eax
+	add	r12d,ebx
+
+	mov	ebx,ecx
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,ecx
+	mov	r14d,ecx
+
+	ror	ebx,2
+	ror	r13d,13
+	mov	r15d,ecx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	ebx,r13d
+	ror	r13d,9
+	or	r14d,r8d
+
+	xor	ebx,r13d
 	and	r15d,r8d
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	ebx,r15d
-
 	add	r9d,r12d
+
+	and	r14d,edx
 	add	ebx,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	ebx,r14d
-
 	mov	r13d,DWORD PTR[32+rsp]
-	mov	r14d,DWORD PTR[20+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[20+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[rsp]
 
 	add	r12d,DWORD PTR[28+rsp]
 	mov	r13d,r9d
-	add	r12d,r14d
-	mov	r14d,ebx
-	ror	r13d,14
+	mov	r14d,r9d
 	mov	r15d,r10d
-	mov	DWORD PTR[28+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,r9d
-	xor	r15d,r11d
-
-	ror	r13d,5
-	add	r12d,eax
-	xor	r14d,ebx
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r9d
-	mov	eax,ecx
-
-	ror	r14d,11
-	xor	r13d,r9d
-	xor	r15d,r11d
-
-	xor	eax,edx
-	xor	r14d,ebx
-	add	r12d,r15d
-	mov	r15d,ecx
 
 	ror	r13d,6
-	and	eax,ebx
+	ror	r14d,11
+	xor	r15d,r11d
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r9d
+	mov	DWORD PTR[28+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,r11d
+	add	r12d,eax
+
+	mov	eax,ebx
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,ebx
+	mov	r14d,ebx
+
+	ror	eax,2
+	ror	r13d,13
+	mov	r15d,ebx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	eax,r13d
+	ror	r13d,9
+	or	r14d,edx
+
+	xor	eax,r13d
 	and	r15d,edx
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	eax,r15d
-
 	add	r8d,r12d
+
+	and	r14d,ecx
 	add	eax,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	eax,r14d
-
 	mov	r13d,DWORD PTR[36+rsp]
-	mov	r14d,DWORD PTR[24+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[24+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[4+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[4+rsp]
 
 	add	r12d,DWORD PTR[32+rsp]
 	mov	r13d,r8d
-	add	r12d,r14d
-	mov	r14d,eax
-	ror	r13d,14
+	mov	r14d,r8d
 	mov	r15d,r9d
-	mov	DWORD PTR[32+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,r8d
-	xor	r15d,r10d
-
-	ror	r13d,5
-	add	r12d,r11d
-	xor	r14d,eax
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r8d
-	mov	r11d,ebx
-
-	ror	r14d,11
-	xor	r13d,r8d
-	xor	r15d,r10d
-
-	xor	r11d,ecx
-	xor	r14d,eax
-	add	r12d,r15d
-	mov	r15d,ebx
 
 	ror	r13d,6
-	and	r11d,eax
+	ror	r14d,11
+	xor	r15d,r10d
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r8d
+	mov	DWORD PTR[32+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,r10d
+	add	r12d,r11d
+
+	mov	r11d,eax
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,eax
+	mov	r14d,eax
+
+	ror	r11d,2
+	ror	r13d,13
+	mov	r15d,eax
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r11d,r13d
+	ror	r13d,9
+	or	r14d,ecx
+
+	xor	r11d,r13d
 	and	r15d,ecx
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	r11d,r15d
-
 	add	edx,r12d
+
+	and	r14d,ebx
 	add	r11d,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	r11d,r14d
-
 	mov	r13d,DWORD PTR[40+rsp]
-	mov	r14d,DWORD PTR[28+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[28+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[8+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[8+rsp]
 
 	add	r12d,DWORD PTR[36+rsp]
 	mov	r13d,edx
-	add	r12d,r14d
-	mov	r14d,r11d
-	ror	r13d,14
+	mov	r14d,edx
 	mov	r15d,r8d
-	mov	DWORD PTR[36+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,edx
-	xor	r15d,r9d
-
-	ror	r13d,5
-	add	r12d,r10d
-	xor	r14d,r11d
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,edx
-	mov	r10d,eax
-
-	ror	r14d,11
-	xor	r13d,edx
-	xor	r15d,r9d
-
-	xor	r10d,ebx
-	xor	r14d,r11d
-	add	r12d,r15d
-	mov	r15d,eax
 
 	ror	r13d,6
-	and	r10d,r11d
+	ror	r14d,11
+	xor	r15d,r9d
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,edx
+	mov	DWORD PTR[36+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,r9d
+	add	r12d,r10d
+
+	mov	r10d,r11d
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,r11d
+	mov	r14d,r11d
+
+	ror	r10d,2
+	ror	r13d,13
+	mov	r15d,r11d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r10d,r13d
+	ror	r13d,9
+	or	r14d,ebx
+
+	xor	r10d,r13d
 	and	r15d,ebx
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	r10d,r15d
-
 	add	ecx,r12d
+
+	and	r14d,eax
 	add	r10d,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	r10d,r14d
-
 	mov	r13d,DWORD PTR[44+rsp]
-	mov	r14d,DWORD PTR[32+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[32+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[12+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[12+rsp]
 
 	add	r12d,DWORD PTR[40+rsp]
 	mov	r13d,ecx
-	add	r12d,r14d
-	mov	r14d,r10d
-	ror	r13d,14
+	mov	r14d,ecx
 	mov	r15d,edx
-	mov	DWORD PTR[40+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,ecx
-	xor	r15d,r8d
-
-	ror	r13d,5
-	add	r12d,r9d
-	xor	r14d,r10d
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,ecx
-	mov	r9d,r11d
-
-	ror	r14d,11
-	xor	r13d,ecx
-	xor	r15d,r8d
-
-	xor	r9d,eax
-	xor	r14d,r10d
-	add	r12d,r15d
-	mov	r15d,r11d
 
 	ror	r13d,6
-	and	r9d,r10d
+	ror	r14d,11
+	xor	r15d,r8d
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,ecx
+	mov	DWORD PTR[40+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,r8d
+	add	r12d,r9d
+
+	mov	r9d,r10d
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,r10d
+	mov	r14d,r10d
+
+	ror	r9d,2
+	ror	r13d,13
+	mov	r15d,r10d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r9d,r13d
+	ror	r13d,9
+	or	r14d,eax
+
+	xor	r9d,r13d
 	and	r15d,eax
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	r9d,r15d
-
 	add	ebx,r12d
+
+	and	r14d,r11d
 	add	r9d,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	r9d,r14d
-
 	mov	r13d,DWORD PTR[48+rsp]
-	mov	r14d,DWORD PTR[36+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[36+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[16+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[16+rsp]
 
 	add	r12d,DWORD PTR[44+rsp]
 	mov	r13d,ebx
-	add	r12d,r14d
-	mov	r14d,r9d
-	ror	r13d,14
+	mov	r14d,ebx
 	mov	r15d,ecx
-	mov	DWORD PTR[44+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,ebx
-	xor	r15d,edx
-
-	ror	r13d,5
-	add	r12d,r8d
-	xor	r14d,r9d
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,ebx
-	mov	r8d,r10d
-
-	ror	r14d,11
-	xor	r13d,ebx
-	xor	r15d,edx
-
-	xor	r8d,r11d
-	xor	r14d,r9d
-	add	r12d,r15d
-	mov	r15d,r10d
 
 	ror	r13d,6
-	and	r8d,r9d
+	ror	r14d,11
+	xor	r15d,edx
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,ebx
+	mov	DWORD PTR[44+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,edx
+	add	r12d,r8d
+
+	mov	r8d,r9d
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,r9d
+	mov	r14d,r9d
+
+	ror	r8d,2
+	ror	r13d,13
+	mov	r15d,r9d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	r8d,r13d
+	ror	r13d,9
+	or	r14d,r11d
+
+	xor	r8d,r13d
 	and	r15d,r11d
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	r8d,r15d
-
 	add	eax,r12d
+
+	and	r14d,r10d
 	add	r8d,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	r8d,r14d
-
 	mov	r13d,DWORD PTR[52+rsp]
-	mov	r14d,DWORD PTR[40+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[40+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[20+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[20+rsp]
 
 	add	r12d,DWORD PTR[48+rsp]
 	mov	r13d,eax
-	add	r12d,r14d
-	mov	r14d,r8d
-	ror	r13d,14
+	mov	r14d,eax
 	mov	r15d,ebx
-	mov	DWORD PTR[48+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,eax
-	xor	r15d,ecx
-
-	ror	r13d,5
-	add	r12d,edx
-	xor	r14d,r8d
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,eax
-	mov	edx,r9d
-
-	ror	r14d,11
-	xor	r13d,eax
-	xor	r15d,ecx
-
-	xor	edx,r10d
-	xor	r14d,r8d
-	add	r12d,r15d
-	mov	r15d,r9d
 
 	ror	r13d,6
-	and	edx,r8d
+	ror	r14d,11
+	xor	r15d,ecx
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,eax
+	mov	DWORD PTR[48+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,ecx
+	add	r12d,edx
+
+	mov	edx,r8d
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,r8d
+	mov	r14d,r8d
+
+	ror	edx,2
+	ror	r13d,13
+	mov	r15d,r8d
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	edx,r13d
+	ror	r13d,9
+	or	r14d,r10d
+
+	xor	edx,r13d
 	and	r15d,r10d
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	edx,r15d
-
 	add	r11d,r12d
+
+	and	r14d,r9d
 	add	edx,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	edx,r14d
-
 	mov	r13d,DWORD PTR[56+rsp]
-	mov	r14d,DWORD PTR[44+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[44+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[24+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[24+rsp]
 
 	add	r12d,DWORD PTR[52+rsp]
 	mov	r13d,r11d
-	add	r12d,r14d
-	mov	r14d,edx
-	ror	r13d,14
+	mov	r14d,r11d
 	mov	r15d,eax
-	mov	DWORD PTR[52+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,r11d
-	xor	r15d,ebx
-
-	ror	r13d,5
-	add	r12d,ecx
-	xor	r14d,edx
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r11d
-	mov	ecx,r8d
-
-	ror	r14d,11
-	xor	r13d,r11d
-	xor	r15d,ebx
-
-	xor	ecx,r9d
-	xor	r14d,edx
-	add	r12d,r15d
-	mov	r15d,r8d
 
 	ror	r13d,6
-	and	ecx,edx
+	ror	r14d,11
+	xor	r15d,ebx
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r11d
+	mov	DWORD PTR[52+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,ebx
+	add	r12d,ecx
+
+	mov	ecx,edx
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,edx
+	mov	r14d,edx
+
+	ror	ecx,2
+	ror	r13d,13
+	mov	r15d,edx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	ecx,r13d
+	ror	r13d,9
+	or	r14d,r9d
+
+	xor	ecx,r13d
 	and	r15d,r9d
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	ecx,r15d
-
 	add	r10d,r12d
+
+	and	r14d,r8d
 	add	ecx,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	ecx,r14d
-
 	mov	r13d,DWORD PTR[60+rsp]
-	mov	r14d,DWORD PTR[48+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[48+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[28+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[28+rsp]
 
 	add	r12d,DWORD PTR[56+rsp]
 	mov	r13d,r10d
-	add	r12d,r14d
-	mov	r14d,ecx
-	ror	r13d,14
+	mov	r14d,r10d
 	mov	r15d,r11d
-	mov	DWORD PTR[56+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,r10d
-	xor	r15d,eax
-
-	ror	r13d,5
-	add	r12d,ebx
-	xor	r14d,ecx
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r10d
-	mov	ebx,edx
-
-	ror	r14d,11
-	xor	r13d,r10d
-	xor	r15d,eax
-
-	xor	ebx,r8d
-	xor	r14d,ecx
-	add	r12d,r15d
-	mov	r15d,edx
 
 	ror	r13d,6
-	and	ebx,ecx
+	ror	r14d,11
+	xor	r15d,eax
+
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r10d
+	mov	DWORD PTR[56+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,eax
+	add	r12d,ebx
+
+	mov	ebx,ecx
+	add	r12d,r13d
+
+	add	r12d,r15d
+	mov	r13d,ecx
+	mov	r14d,ecx
+
+	ror	ebx,2
+	ror	r13d,13
+	mov	r15d,ecx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	ebx,r13d
+	ror	r13d,9
+	or	r14d,r8d
+
+	xor	ebx,r13d
 	and	r15d,r8d
-
-	ror	r14d,2
-	add	r12d,r13d
-	add	ebx,r15d
-
 	add	r9d,r12d
+
+	and	r14d,edx
 	add	ebx,r12d
+
+	or	r14d,r15d
 	lea	rdi,QWORD PTR[1+rdi]
+
 	add	ebx,r14d
-
 	mov	r13d,DWORD PTR[rsp]
-	mov	r14d,DWORD PTR[52+rsp]
-	mov	r12d,r13d
-	mov	r15d,r14d
+	mov	r12d,DWORD PTR[52+rsp]
 
-	ror	r12d,11
-	xor	r12d,r13d
+	mov	r15d,r13d
+
 	shr	r13d,3
+	ror	r15d,7
 
-	ror	r12d,7
-	xor	r13d,r12d
-	mov	r12d,DWORD PTR[32+rsp]
+	xor	r13d,r15d
+	ror	r15d,11
 
-	ror	r15d,2
-	xor	r15d,r14d
-	shr	r14d,10
+	xor	r13d,r15d
+	mov	r14d,r12d
 
-	ror	r15d,17
+	shr	r12d,10
+	ror	r14d,17
+
+	xor	r12d,r14d
+	ror	r14d,2
+
+	xor	r12d,r14d
+
 	add	r12d,r13d
-	xor	r14d,r15d
+
+	add	r12d,DWORD PTR[32+rsp]
 
 	add	r12d,DWORD PTR[60+rsp]
 	mov	r13d,r9d
-	add	r12d,r14d
-	mov	r14d,ebx
-	ror	r13d,14
+	mov	r14d,r9d
 	mov	r15d,r10d
-	mov	DWORD PTR[60+rsp],r12d
-
-	ror	r14d,9
-	xor	r13d,r9d
-	xor	r15d,r11d
-
-	ror	r13d,5
-	add	r12d,eax
-	xor	r14d,ebx
-
-	add	r12d,DWORD PTR[rdi*4+rbp]
-	and	r15d,r9d
-	mov	eax,ecx
-
-	ror	r14d,11
-	xor	r13d,r9d
-	xor	r15d,r11d
-
-	xor	eax,edx
-	xor	r14d,ebx
-	add	r12d,r15d
-	mov	r15d,ecx
 
 	ror	r13d,6
-	and	eax,ebx
-	and	r15d,edx
+	ror	r14d,11
+	xor	r15d,r11d
 
-	ror	r14d,2
+	xor	r13d,r14d
+	ror	r14d,14
+	and	r15d,r9d
+	mov	DWORD PTR[60+rsp],r12d
+
+	xor	r13d,r14d
+	xor	r15d,r11d
+	add	r12d,eax
+
+	mov	eax,ebx
 	add	r12d,r13d
-	add	eax,r15d
 
+	add	r12d,r15d
+	mov	r13d,ebx
+	mov	r14d,ebx
+
+	ror	eax,2
+	ror	r13d,13
+	mov	r15d,ebx
+	add	r12d,DWORD PTR[rdi*4+rbp]
+
+	xor	eax,r13d
+	ror	r13d,9
+	or	r14d,edx
+
+	xor	eax,r13d
+	and	r15d,edx
 	add	r8d,r12d
-	add	eax,r12d
-	lea	rdi,QWORD PTR[1+rdi]
-	add	eax,r14d
 
+	and	r14d,ecx
+	add	eax,r12d
+
+	or	r14d,r15d
+	lea	rdi,QWORD PTR[1+rdi]
+
+	add	eax,r14d
 	cmp	rdi,64
 	jb	$L$rounds_16_xx
 
-	mov	rdi,QWORD PTR[((64+0))+rsp]
-	lea	rsi,QWORD PTR[64+rsi]
+	mov	rdi,QWORD PTR[((16*4+0*8))+rsp]
+	lea	rsi,QWORD PTR[((16*4))+rsi]
 
-	add	eax,DWORD PTR[rdi]
-	add	ebx,DWORD PTR[4+rdi]
-	add	ecx,DWORD PTR[8+rdi]
-	add	edx,DWORD PTR[12+rdi]
-	add	r8d,DWORD PTR[16+rdi]
-	add	r9d,DWORD PTR[20+rdi]
-	add	r10d,DWORD PTR[24+rdi]
-	add	r11d,DWORD PTR[28+rdi]
+	add	eax,DWORD PTR[((4*0))+rdi]
+	add	ebx,DWORD PTR[((4*1))+rdi]
+	add	ecx,DWORD PTR[((4*2))+rdi]
+	add	edx,DWORD PTR[((4*3))+rdi]
+	add	r8d,DWORD PTR[((4*4))+rdi]
+	add	r9d,DWORD PTR[((4*5))+rdi]
+	add	r10d,DWORD PTR[((4*6))+rdi]
+	add	r11d,DWORD PTR[((4*7))+rdi]
 
-	cmp	rsi,QWORD PTR[((64+16))+rsp]
+	cmp	rsi,QWORD PTR[((16*4+2*8))+rsp]
 
-	mov	DWORD PTR[rdi],eax
-	mov	DWORD PTR[4+rdi],ebx
-	mov	DWORD PTR[8+rdi],ecx
-	mov	DWORD PTR[12+rdi],edx
-	mov	DWORD PTR[16+rdi],r8d
-	mov	DWORD PTR[20+rdi],r9d
-	mov	DWORD PTR[24+rdi],r10d
-	mov	DWORD PTR[28+rdi],r11d
+	mov	DWORD PTR[((4*0))+rdi],eax
+	mov	DWORD PTR[((4*1))+rdi],ebx
+	mov	DWORD PTR[((4*2))+rdi],ecx
+	mov	DWORD PTR[((4*3))+rdi],edx
+	mov	DWORD PTR[((4*4))+rdi],r8d
+	mov	DWORD PTR[((4*5))+rdi],r9d
+	mov	DWORD PTR[((4*6))+rdi],r10d
+	mov	DWORD PTR[((4*7))+rdi],r11d
 	jb	$L$loop
 
-	mov	rsi,QWORD PTR[((64+24))+rsp]
+	mov	rsi,QWORD PTR[((16*4+3*8))+rsp]
 	mov	r15,QWORD PTR[rsi]
 	mov	r14,QWORD PTR[8+rsi]
 	mov	r13,QWORD PTR[16+rsi]
@@ -1818,7 +2010,7 @@ se_handler	PROC PRIVATE
 	cmp	rbx,r10
 	jae	$L$in_prologue
 
-	mov	rax,QWORD PTR[((64+24))+rax]
+	mov	rax,QWORD PTR[((16*4+3*8))+rax]
 	lea	rax,QWORD PTR[48+rax]
 
 	mov	rbx,QWORD PTR[((-8))+rax]

@@ -651,7 +651,6 @@ const EVP_PKEY_ASN1_METHOD eckey_asn1_meth =
 	ec_copy_parameters,
 	ec_cmp_parameters,
 	eckey_param_print,
-	0,
 
 	int_ec_free,
 	ec_pkey_ctrl,

@@ -129,10 +129,6 @@ static const SSL_METHOD *ssl23_get_client_method(int ver)
 		return(SSLv3_client_method());
 	else if (ver == TLS1_VERSION)
 		return(TLSv1_client_method());
-	else if (ver == TLS1_1_VERSION)
-		return(TLSv1_1_client_method());
-	else if (ver == TLS1_2_VERSION)
-		return(TLSv1_2_client_method());
 	else
 		return(NULL);
 	}
@@ -282,51 +278,24 @@ static int ssl23_client_hello(SSL *s)
 	SSL_COMP *comp;
 #endif
 	int ret;
-	unsigned long mask, options = s->options;
 
-	ssl2_compat = (options & SSL_OP_NO_SSLv2) ? 0 : 1;
+	ssl2_compat = (s->options & SSL_OP_NO_SSLv2) ? 0 : 1;
 
 	if (ssl2_compat && ssl23_no_ssl2_ciphers(s))
 		ssl2_compat = 0;
 
-	/*
-	 * SSL_OP_NO_X disables all protocols above X *if* there are
-	 * some protocols below X enabled. This is required in order
-	 * to maintain "version capability" vector contiguous. So
-	 * that if application wants to disable TLS1.0 in favour of
-	 * TLS1>=1, it would be insufficient to pass SSL_NO_TLSv1, the
-	 * answer is SSL_OP_NO_TLSv1|SSL_OP_NO_SSLv3|SSL_OP_NO_SSLv2.
-	 */
-	mask =	SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1
-#if !defined(OPENSSL_NO_SSL3)
-		|SSL_OP_NO_SSLv3
-#endif
-#if !defined(OPENSSL_NO_SSL2)
-		|(ssl2_compat?SSL_OP_NO_SSLv2:0)
-#endif
-		;
-#if !defined(OPENSSL_NO_TLS1_2_CLIENT)
-	version = TLS1_2_VERSION;
-
-	if ((options & SSL_OP_NO_TLSv1_2) && (options & mask) != mask)
-		version = TLS1_1_VERSION;
-#else
-	version = TLS1_1_VERSION;
-#endif
-	mask &= ~SSL_OP_NO_TLSv1_1;
-	if ((options & SSL_OP_NO_TLSv1_1) && (options & mask) != mask)
+	if (!(s->options & SSL_OP_NO_TLSv1))
+		{
 		version = TLS1_VERSION;
-	mask &= ~SSL_OP_NO_TLSv1;
-#if !defined(OPENSSL_NO_SSL3)
-	if ((options & SSL_OP_NO_TLSv1) && (options & mask) != mask)
+		}
+	else if (!(s->options & SSL_OP_NO_SSLv3))
+		{
 		version = SSL3_VERSION;
-	mask &= ~SSL_OP_NO_SSLv3;
-#endif
-#if !defined(OPENSSL_NO_SSL2)
-	if ((options & SSL_OP_NO_SSLv3) && (options & mask) != mask)
+		}
+	else if (!(s->options & SSL_OP_NO_SSLv2))
+		{
 		version = SSL2_VERSION;
-#endif
-
+		}
 #ifndef OPENSSL_NO_TLSEXT
 	if (version != SSL2_VERSION)
 		{
@@ -360,29 +329,11 @@ static int ssl23_client_hello(SSL *s)
 		if (RAND_pseudo_bytes(p,SSL3_RANDOM_SIZE-4) <= 0)
 			return -1;
 
-		if (version == TLS1_2_VERSION)
-			{
-			version_major = TLS1_2_VERSION_MAJOR;
-			version_minor = TLS1_2_VERSION_MINOR;
-			}
-		else if (version == TLS1_1_VERSION)
-			{
-			version_major = TLS1_1_VERSION_MAJOR;
-			version_minor = TLS1_1_VERSION_MINOR;
-			}
-		else if (version == TLS1_VERSION)
+		if (version == TLS1_VERSION)
 			{
 			version_major = TLS1_VERSION_MAJOR;
 			version_minor = TLS1_VERSION_MINOR;
 			}
-#ifdef OPENSSL_FIPS
-		else if(FIPS_mode())
-			{
-			SSLerr(SSL_F_SSL23_CLIENT_HELLO,
-					SSL_R_ONLY_TLS_ALLOWED_IN_FIPS_MODE);
-			return -1;
-			}
-#endif
 		else if (version == SSL3_VERSION)
 			{
 			version_major = SSL3_VERSION_MAJOR;
@@ -486,15 +437,6 @@ static int ssl23_client_hello(SSL *s)
 				SSLerr(SSL_F_SSL23_CLIENT_HELLO,SSL_R_NO_CIPHERS_AVAILABLE);
 				return -1;
 				}
-#ifdef OPENSSL_MAX_TLS1_2_CIPHER_LENGTH
-			/* Some servers hang if client hello > 256 bytes
-			 * as hack workaround chop number of supported ciphers
-			 * to keep it well below this if we use TLS v1.2
-			 */
-			if (TLS1_get_version(s) >= TLS1_2_VERSION
-				&& i > OPENSSL_MAX_TLS1_2_CIPHER_LENGTH)
-				i = OPENSSL_MAX_TLS1_2_CIPHER_LENGTH & ~1;
-#endif
 			s2n(i,p);
 			p+=i;
 
@@ -549,13 +491,8 @@ static int ssl23_client_hello(SSL *s)
 			d=buf;
 			*(d++) = SSL3_RT_HANDSHAKE;
 			*(d++) = version_major;
-			/* Some servers hang if we use long client hellos
-			 * and a record number > TLS 1.0.
-			 */
-			if (TLS1_get_client_version(s) > TLS1_VERSION)
-				*(d++) = 1;
-			else
-				*(d++) = version_minor;
+			*(d++) = version_minor; /* arguably we should send the *lowest* suported version here
+			                         * (indicating, e.g., TLS 1.0 in "SSL 3.0 format") */
 			s2n((int)l,d);
 
 			/* number of bytes to write */
@@ -671,7 +608,7 @@ static int ssl23_get_server_hello(SSL *s)
 #endif
 		}
 	else if (p[1] == SSL3_VERSION_MAJOR &&
-	         p[2] <= TLS1_2_VERSION_MINOR &&
+	         (p[2] == SSL3_VERSION_MINOR || p[2] == TLS1_VERSION_MINOR) &&
 	         ((p[0] == SSL3_RT_HANDSHAKE && p[5] == SSL3_MT_SERVER_HELLO) ||
 	          (p[0] == SSL3_RT_ALERT && p[3] == 0 && p[4] == 2)))
 		{
@@ -680,14 +617,6 @@ static int ssl23_get_server_hello(SSL *s)
 		if ((p[2] == SSL3_VERSION_MINOR) &&
 			!(s->options & SSL_OP_NO_SSLv3))
 			{
-#ifdef OPENSSL_FIPS
-			if(FIPS_mode())
-				{
-				SSLerr(SSL_F_SSL23_GET_SERVER_HELLO,
-					SSL_R_ONLY_TLS_ALLOWED_IN_FIPS_MODE);
-				goto err;
-				}
-#endif
 			s->version=SSL3_VERSION;
 			s->method=SSLv3_client_method();
 			}
@@ -696,18 +625,6 @@ static int ssl23_get_server_hello(SSL *s)
 			{
 			s->version=TLS1_VERSION;
 			s->method=TLSv1_client_method();
-			}
-		else if ((p[2] == TLS1_1_VERSION_MINOR) &&
-			!(s->options & SSL_OP_NO_TLSv1_1))
-			{
-			s->version=TLS1_1_VERSION;
-			s->method=TLSv1_1_client_method();
-			}
-		else if ((p[2] == TLS1_2_VERSION_MINOR) &&
-			!(s->options & SSL_OP_NO_TLSv1_2))
-			{
-			s->version=TLS1_2_VERSION;
-			s->method=TLSv1_2_client_method();
 			}
 		else
 			{
@@ -770,6 +687,13 @@ static int ssl23_get_server_hello(SSL *s)
 
 	/* Since, if we are sending a ssl23 client hello, we are not
 	 * reusing a session-id */
+        if (!s->session_creation_enabled)
+		{
+		if (!(s->client_version == SSL2_VERSION))
+			ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_HANDSHAKE_FAILURE);
+		SSLerr(SSL_F_SSL23_GET_SERVER_HELLO,SSL_R_SESSION_MAY_NOT_BE_CREATED);
+		goto err;
+		}
 	if (!ssl_get_new_session(s,0))
 		goto err;
 

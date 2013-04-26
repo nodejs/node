@@ -7,8 +7,6 @@
 # details see http://www.openssl.org/~appro/cryptogams/.
 # ====================================================================
 #
-# July 2004
-#
 # 2.22x RC4 tune-up:-) It should be noted though that my hand [as in
 # "hand-coded assembler"] doesn't stand for the whole improvement
 # coefficient. It turned out that eliminating RC4_CHAR from config
@@ -21,8 +19,6 @@
 # to operate on partial registers, it turned out to be the best bet.
 # At least for AMD... How IA32E would perform remains to be seen...
 
-# November 2004
-#
 # As was shown by Marc Bevand reordering of couple of load operations
 # results in even higher performance gain of 3.3x:-) At least on
 # Opteron... For reference, 1x in this case is RC4_CHAR C-code
@@ -30,8 +26,6 @@
 # Latter means that if you want to *estimate* what to expect from
 # *your* Opteron, then multiply 54 by 3.3 and clock frequency in GHz.
 
-# November 2004
-#
 # Intel P4 EM64T core was found to run the AMD64 code really slow...
 # The only way to achieve comparable performance on P4 was to keep
 # RC4_CHAR. Kind of ironic, huh? As it's apparently impossible to
@@ -39,14 +33,10 @@
 # on either AMD and Intel platforms, I implement both cases. See
 # rc4_skey.c for further details...
 
-# April 2005
-#
 # P4 EM64T core appears to be "allergic" to 64-bit inc/dec. Replacing 
 # those with add/sub results in 50% performance improvement of folded
 # loop...
 
-# May 2005
-#
 # As was shown by Zou Nanhai loop unrolling can improve Intel EM64T
 # performance by >30% [unlike P4 32-bit case that is]. But this is
 # provided that loads are reordered even more aggressively! Both code
@@ -60,8 +50,6 @@
 # is not implemented, then this final RC4_CHAR code-path should be
 # preferred, as it provides better *all-round* performance].
 
-# March 2007
-#
 # Intel Core2 was observed to perform poorly on both code paths:-( It
 # apparently suffers from some kind of partial register stall, which
 # occurs in 64-bit mode only [as virtually identical 32-bit loop was
@@ -69,37 +57,6 @@
 # cloop1 boosts its performance by 80%! This loop appears to be optimal
 # fit for Core2 and therefore the code was modified to skip cloop8 on
 # this CPU.
-
-# May 2010
-#
-# Intel Westmere was observed to perform suboptimally. Adding yet
-# another movzb to cloop1 improved performance by almost 50%! Core2
-# performance is improved too, but nominally...
-
-# May 2011
-#
-# The only code path that was not modified is P4-specific one. Non-P4
-# Intel code path optimization is heavily based on submission by Maxim
-# Perminov, Maxim Locktyukhin and Jim Guilford of Intel. I've used
-# some of the ideas even in attempt to optmize the original RC4_INT
-# code path... Current performance in cycles per processed byte (less
-# is better) and improvement coefficients relative to previous
-# version of this module are:
-#
-# Opteron	5.3/+0%(*)
-# P4		6.5
-# Core2		6.2/+15%(**)
-# Westmere	4.2/+60%
-# Sandy Bridge	4.2/+120%
-# Atom		9.3/+80%
-#
-# (*)	But corresponding loop has less instructions, which should have
-#	positive effect on upcoming Bulldozer, which has one less ALU.
-#	For reference, Intel code runs at 6.8 cpb rate on Opteron.
-# (**)	Note that Core2 result is ~15% lower than corresponding result
-#	for 32-bit code, meaning that it's possible to improve it,
-#	but more than likely at the cost of the others (see rc4-586.pl
-#	to get the idea)...
 
 $flavour = shift;
 $output  = shift;
@@ -112,18 +69,20 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
-*STDOUT=*OUT;
+open STDOUT,"| $^X $xlate $flavour $output";
 
 $dat="%rdi";	    # arg1
 $len="%rsi";	    # arg2
 $inp="%rdx";	    # arg3
 $out="%rcx";	    # arg4
 
-{
+@XX=("%r8","%r10");
+@TX=("%r9","%r11");
+$YY="%r12";
+$TY="%r13";
+
 $code=<<___;
 .text
-.extern	OPENSSL_ia32cap_P
 
 .globl	RC4
 .type	RC4,\@function,4
@@ -136,173 +95,48 @@ RC4:	or	$len,$len
 	push	%r12
 	push	%r13
 .Lprologue:
-	mov	$len,%r11
-	mov	$inp,%r12
-	mov	$out,%r13
-___
-my $len="%r11";		# reassign input arguments
-my $inp="%r12";
-my $out="%r13";
 
-my @XX=("%r10","%rsi");
-my @TX=("%rax","%rbx");
-my $YY="%rcx";
-my $TY="%rdx";
-
-$code.=<<___;
-	xor	$XX[0],$XX[0]
-	xor	$YY,$YY
-
-	lea	8($dat),$dat
-	mov	-8($dat),$XX[0]#b
-	mov	-4($dat),$YY#b
+	add	\$8,$dat
+	movl	-8($dat),$XX[0]#d
+	movl	-4($dat),$YY#d
 	cmpl	\$-1,256($dat)
 	je	.LRC4_CHAR
-	mov	OPENSSL_ia32cap_P(%rip),%r8d
-	xor	$TX[1],$TX[1]
 	inc	$XX[0]#b
-	sub	$XX[0],$TX[1]
-	sub	$inp,$out
 	movl	($dat,$XX[0],4),$TX[0]#d
-	test	\$-16,$len
+	test	\$-8,$len
 	jz	.Lloop1
-	bt	\$30,%r8d	# Intel CPU?
-	jc	.Lintel
-	and	\$7,$TX[1]
-	lea	1($XX[0]),$XX[1]
-	jz	.Loop8
-	sub	$TX[1],$len
-.Loop8_warmup:
-	add	$TX[0]#b,$YY#b
-	movl	($dat,$YY,4),$TY#d
-	movl	$TX[0]#d,($dat,$YY,4)
-	movl	$TY#d,($dat,$XX[0],4)
-	add	$TY#b,$TX[0]#b
-	inc	$XX[0]#b
-	movl	($dat,$TX[0],4),$TY#d
-	movl	($dat,$XX[0],4),$TX[0]#d
-	xorb	($inp),$TY#b
-	movb	$TY#b,($out,$inp)
-	lea	1($inp),$inp
-	dec	$TX[1]
-	jnz	.Loop8_warmup
-
-	lea	1($XX[0]),$XX[1]
-	jmp	.Loop8
+	jmp	.Lloop8
 .align	16
-.Loop8:
+.Lloop8:
 ___
 for ($i=0;$i<8;$i++) {
-$code.=<<___ if ($i==7);
-	add	\$8,$XX[1]#b
-___
 $code.=<<___;
 	add	$TX[0]#b,$YY#b
+	mov	$XX[0],$XX[1]
 	movl	($dat,$YY,4),$TY#d
+	ror	\$8,%rax			# ror is redundant when $i=0
+	inc	$XX[1]#b
+	movl	($dat,$XX[1],4),$TX[1]#d
+	cmp	$XX[1],$YY
 	movl	$TX[0]#d,($dat,$YY,4)
-	movl	`4*($i==7?-1:$i)`($dat,$XX[1],4),$TX[1]#d
-	ror	\$8,%r8				# ror is redundant when $i=0
-	movl	$TY#d,4*$i($dat,$XX[0],4)
+	cmove	$TX[0],$TX[1]
+	movl	$TY#d,($dat,$XX[0],4)
 	add	$TX[0]#b,$TY#b
-	movb	($dat,$TY,4),%r8b
+	movb	($dat,$TY,4),%al
 ___
-push(@TX,shift(@TX)); #push(@XX,shift(@XX));	# "rotate" registers
+push(@TX,shift(@TX)); push(@XX,shift(@XX));	# "rotate" registers
 }
 $code.=<<___;
-	add	\$8,$XX[0]#b
-	ror	\$8,%r8
+	ror	\$8,%rax
 	sub	\$8,$len
 
-	xor	($inp),%r8
-	mov	%r8,($out,$inp)
-	lea	8($inp),$inp
+	xor	($inp),%rax
+	add	\$8,$inp
+	mov	%rax,($out)
+	add	\$8,$out
 
 	test	\$-8,$len
-	jnz	.Loop8
-	cmp	\$0,$len
-	jne	.Lloop1
-	jmp	.Lexit
-
-.align	16
-.Lintel:
-	test	\$-32,$len
-	jz	.Lloop1
-	and	\$15,$TX[1]
-	jz	.Loop16_is_hot
-	sub	$TX[1],$len
-.Loop16_warmup:
-	add	$TX[0]#b,$YY#b
-	movl	($dat,$YY,4),$TY#d
-	movl	$TX[0]#d,($dat,$YY,4)
-	movl	$TY#d,($dat,$XX[0],4)
-	add	$TY#b,$TX[0]#b
-	inc	$XX[0]#b
-	movl	($dat,$TX[0],4),$TY#d
-	movl	($dat,$XX[0],4),$TX[0]#d
-	xorb	($inp),$TY#b
-	movb	$TY#b,($out,$inp)
-	lea	1($inp),$inp
-	dec	$TX[1]
-	jnz	.Loop16_warmup
-
-	mov	$YY,$TX[1]
-	xor	$YY,$YY
-	mov	$TX[1]#b,$YY#b
-
-.Loop16_is_hot:
-	lea	($dat,$XX[0],4),$XX[1]
-___
-sub RC4_loop {
-  my $i=shift;
-  my $j=$i<0?0:$i;
-  my $xmm="%xmm".($j&1);
-
-    $code.="	add	\$16,$XX[0]#b\n"		if ($i==15);
-    $code.="	movdqu	($inp),%xmm2\n"			if ($i==15);
-    $code.="	add	$TX[0]#b,$YY#b\n"		if ($i<=0);
-    $code.="	movl	($dat,$YY,4),$TY#d\n";
-    $code.="	pxor	%xmm0,%xmm2\n"			if ($i==0);
-    $code.="	psllq	\$8,%xmm1\n"			if ($i==0);
-    $code.="	pxor	$xmm,$xmm\n"			if ($i<=1);
-    $code.="	movl	$TX[0]#d,($dat,$YY,4)\n";
-    $code.="	add	$TY#b,$TX[0]#b\n";
-    $code.="	movl	`4*($j+1)`($XX[1]),$TX[1]#d\n"	if ($i<15);
-    $code.="	movz	$TX[0]#b,$TX[0]#d\n";
-    $code.="	movl	$TY#d,4*$j($XX[1])\n";
-    $code.="	pxor	%xmm1,%xmm2\n"			if ($i==0);
-    $code.="	lea	($dat,$XX[0],4),$XX[1]\n"	if ($i==15);
-    $code.="	add	$TX[1]#b,$YY#b\n"		if ($i<15);
-    $code.="	pinsrw	\$`($j>>1)&7`,($dat,$TX[0],4),$xmm\n";
-    $code.="	movdqu	%xmm2,($out,$inp)\n"		if ($i==0);
-    $code.="	lea	16($inp),$inp\n"		if ($i==0);
-    $code.="	movl	($XX[1]),$TX[1]#d\n"		if ($i==15);
-}
-	RC4_loop(-1);
-$code.=<<___;
-	jmp	.Loop16_enter
-.align	16
-.Loop16:
-___
-
-for ($i=0;$i<16;$i++) {
-    $code.=".Loop16_enter:\n"		if ($i==1);
-	RC4_loop($i);
-	push(@TX,shift(@TX)); 		# "rotate" registers
-}
-$code.=<<___;
-	mov	$YY,$TX[1]
-	xor	$YY,$YY			# keyword to partial register
-	sub	\$16,$len
-	mov	$TX[1]#b,$YY#b
-	test	\$-16,$len
-	jnz	.Loop16
-
-	psllq	\$8,%xmm1
-	pxor	%xmm0,%xmm2
-	pxor	%xmm1,%xmm2
-	movdqu	%xmm2,($out,$inp)
-	lea	16($inp),$inp
-
+	jnz	.Lloop8
 	cmp	\$0,$len
 	jne	.Lloop1
 	jmp	.Lexit
@@ -318,8 +152,9 @@ $code.=<<___;
 	movl	($dat,$TX[0],4),$TY#d
 	movl	($dat,$XX[0],4),$TX[0]#d
 	xorb	($inp),$TY#b
-	movb	$TY#b,($out,$inp)
-	lea	1($inp),$inp
+	inc	$inp
+	movb	$TY#b,($out)
+	inc	$out
 	dec	$len
 	jnz	.Lloop1
 	jmp	.Lexit
@@ -330,11 +165,13 @@ $code.=<<___;
 	movzb	($dat,$XX[0]),$TX[0]#d
 	test	\$-8,$len
 	jz	.Lcloop1
+	cmpl	\$0,260($dat)
+	jnz	.Lcloop1
 	jmp	.Lcloop8
 .align	16
 .Lcloop8:
-	mov	($inp),%r8d
-	mov	4($inp),%r9d
+	mov	($inp),%eax
+	mov	4($inp),%ebx
 ___
 # unroll 2x4-wise, because 64-bit rotates kill Intel P4...
 for ($i=0;$i<4;$i++) {
@@ -351,8 +188,8 @@ $code.=<<___;
 	mov	$TX[0],$TX[1]
 .Lcmov$i:
 	add	$TX[0]#b,$TY#b
-	xor	($dat,$TY),%r8b
-	ror	\$8,%r8d
+	xor	($dat,$TY),%al
+	ror	\$8,%eax
 ___
 push(@TX,shift(@TX)); push(@XX,shift(@XX));	# "rotate" registers
 }
@@ -370,16 +207,16 @@ $code.=<<___;
 	mov	$TX[0],$TX[1]
 .Lcmov$i:
 	add	$TX[0]#b,$TY#b
-	xor	($dat,$TY),%r9b
-	ror	\$8,%r9d
+	xor	($dat,$TY),%bl
+	ror	\$8,%ebx
 ___
 push(@TX,shift(@TX)); push(@XX,shift(@XX));	# "rotate" registers
 }
 $code.=<<___;
 	lea	-8($len),$len
-	mov	%r8d,($out)
+	mov	%eax,($out)
 	lea	8($inp),$inp
-	mov	%r9d,4($out)
+	mov	%ebx,4($out)
 	lea	8($out),$out
 
 	test	\$-8,$len
@@ -392,7 +229,6 @@ $code.=<<___;
 .align	16
 .Lcloop1:
 	add	$TX[0]#b,$YY#b
-	movzb	$YY#b,$YY#d
 	movzb	($dat,$YY),$TY#d
 	movb	$TX[0]#b,($dat,$YY)
 	movb	$TY#b,($dat,$XX[0])
@@ -424,16 +260,16 @@ $code.=<<___;
 	ret
 .size	RC4,.-RC4
 ___
-}
 
 $idx="%r8";
 $ido="%r9";
 
 $code.=<<___;
-.globl	private_RC4_set_key
-.type	private_RC4_set_key,\@function,3
+.extern	OPENSSL_ia32cap_P
+.globl	RC4_set_key
+.type	RC4_set_key,\@function,3
 .align	16
-private_RC4_set_key:
+RC4_set_key:
 	lea	8($dat),$dat
 	lea	($inp,$len),$inp
 	neg	$len
@@ -444,9 +280,12 @@ private_RC4_set_key:
 	xor	%r11,%r11
 
 	mov	OPENSSL_ia32cap_P(%rip),$idx#d
-	bt	\$20,$idx#d	# RC4_CHAR?
-	jc	.Lc1stloop
-	jmp	.Lw1stloop
+	bt	\$20,$idx#d
+	jnc	.Lw1stloop
+	bt	\$30,$idx#d
+	setc	$ido#b
+	mov	$ido#d,260($dat)
+	jmp	.Lc1stloop
 
 .align	16
 .Lw1stloop:
@@ -500,7 +339,7 @@ private_RC4_set_key:
 	mov	%eax,-8($dat)
 	mov	%eax,-4($dat)
 	ret
-.size	private_RC4_set_key,.-private_RC4_set_key
+.size	RC4_set_key,.-RC4_set_key
 
 .globl	RC4_options
 .type	RC4_options,\@abi-omnipotent
@@ -509,20 +348,18 @@ RC4_options:
 	lea	.Lopts(%rip),%rax
 	mov	OPENSSL_ia32cap_P(%rip),%edx
 	bt	\$20,%edx
-	jc	.L8xchar
+	jnc	.Ldone
+	add	\$12,%rax
 	bt	\$30,%edx
 	jnc	.Ldone
-	add	\$25,%rax
-	ret
-.L8xchar:
-	add	\$12,%rax
+	add	\$13,%rax
 .Ldone:
 	ret
 .align	64
 .Lopts:
 .asciz	"rc4(8x,int)"
 .asciz	"rc4(8x,char)"
-.asciz	"rc4(16x,int)"
+.asciz	"rc4(1x,char)"
 .asciz	"RC4 for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
 .align	64
 .size	RC4_options,.-RC4_options
@@ -645,32 +482,22 @@ key_se_handler:
 	.rva	.LSEH_end_RC4
 	.rva	.LSEH_info_RC4
 
-	.rva	.LSEH_begin_private_RC4_set_key
-	.rva	.LSEH_end_private_RC4_set_key
-	.rva	.LSEH_info_private_RC4_set_key
+	.rva	.LSEH_begin_RC4_set_key
+	.rva	.LSEH_end_RC4_set_key
+	.rva	.LSEH_info_RC4_set_key
 
 .section	.xdata
 .align	8
 .LSEH_info_RC4:
 	.byte	9,0,0,0
 	.rva	stream_se_handler
-.LSEH_info_private_RC4_set_key:
+.LSEH_info_RC4_set_key:
 	.byte	9,0,0,0
 	.rva	key_se_handler
 ___
 }
 
-sub reg_part {
-my ($reg,$conv)=@_;
-    if ($reg =~ /%r[0-9]+/)	{ $reg .= $conv; }
-    elsif ($conv eq "b")	{ $reg =~ s/%[er]([^x]+)x?/%$1l/;	}
-    elsif ($conv eq "w")	{ $reg =~ s/%[er](.+)/%$1/;		}
-    elsif ($conv eq "d")	{ $reg =~ s/%[er](.+)/%e$1/;		}
-    return $reg;
-}
-
-$code =~ s/(%[a-z0-9]+)#([bwd])/reg_part($1,$2)/gem;
-$code =~ s/\`([^\`]*)\`/eval $1/gem;
+$code =~ s/#([bwd])/$1/gm;
 
 print $code;
 

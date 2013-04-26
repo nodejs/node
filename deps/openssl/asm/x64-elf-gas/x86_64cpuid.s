@@ -1,10 +1,6 @@
 
-.hidden	OPENSSL_cpuid_setup
 .section	.init
 	call	OPENSSL_cpuid_setup
-
-.hidden	OPENSSL_ia32cap_P
-.comm	OPENSSL_ia32cap_P,8,4
 
 .text
 
@@ -71,15 +67,7 @@ OPENSSL_ia32_cpuid:
 
 	movl	$2147483648,%eax
 	cpuid
-	cmpl	$2147483649,%eax
-	jb	.Lintel
-	movl	%eax,%r10d
-	movl	$2147483649,%eax
-	cpuid
-	orl	%ecx,%r9d
-	andl	$2049,%r9d
-
-	cmpl	$2147483656,%r10d
+	cmpl	$2147483656,%eax
 	jb	.Lintel
 
 	movl	$2147483656,%eax
@@ -90,12 +78,12 @@ OPENSSL_ia32_cpuid:
 	movl	$1,%eax
 	cpuid
 	btl	$28,%edx
-	jnc	.Lgeneric
+	jnc	.Ldone
 	shrl	$16,%ebx
 	cmpb	%r10b,%bl
-	ja	.Lgeneric
+	ja	.Ldone
 	andl	$4026531839,%edx
-	jmp	.Lgeneric
+	jmp	.Ldone
 
 .Lintel:
 	cmpl	$4,%r11d
@@ -112,48 +100,30 @@ OPENSSL_ia32_cpuid:
 .Lnocacheinfo:
 	movl	$1,%eax
 	cpuid
-	andl	$3220176895,%edx
 	cmpl	$0,%r9d
 	jne	.Lnotintel
-	orl	$1073741824,%edx
+	orl	$1048576,%edx
 	andb	$15,%ah
 	cmpb	$15,%ah
-	jne	.Lnotintel
-	orl	$1048576,%edx
+	je	.Lnotintel
+	orl	$1073741824,%edx
 .Lnotintel:
 	btl	$28,%edx
-	jnc	.Lgeneric
+	jnc	.Ldone
 	andl	$4026531839,%edx
 	cmpl	$0,%r10d
-	je	.Lgeneric
+	je	.Ldone
 
 	orl	$268435456,%edx
 	shrl	$16,%ebx
 	cmpb	$1,%bl
-	ja	.Lgeneric
+	ja	.Ldone
 	andl	$4026531839,%edx
-.Lgeneric:
-	andl	$2048,%r9d
-	andl	$4294965247,%ecx
-	orl	%ecx,%r9d
-
-	movl	%edx,%r10d
-	btl	$27,%r9d
-	jnc	.Lclear_avx
-	xorl	%ecx,%ecx
-.byte	0x0f,0x01,0xd0
-
-	andl	$6,%eax
-	cmpl	$6,%eax
-	je	.Ldone
-.Lclear_avx:
-	movl	$4026525695,%eax
-	andl	%eax,%r9d
 .Ldone:
-	shlq	$32,%r9
-	movl	%r10d,%eax
+	shlq	$32,%rcx
+	movl	%edx,%eax
 	movq	%r8,%rbx
-	orq	%r9,%rax
+	orq	%rcx,%rax
 	.byte	0xf3,0xc3
 .size	OPENSSL_ia32_cpuid,.-OPENSSL_ia32_cpuid
 
@@ -222,17 +192,3 @@ OPENSSL_wipe_cpu:
 	leaq	8(%rsp),%rax
 	.byte	0xf3,0xc3
 .size	OPENSSL_wipe_cpu,.-OPENSSL_wipe_cpu
-.globl	OPENSSL_ia32_rdrand
-.type	OPENSSL_ia32_rdrand,@function
-.align	16
-OPENSSL_ia32_rdrand:
-	movl	$8,%ecx
-.Loop_rdrand:
-.byte	72,15,199,240
-	jc	.Lbreak_rdrand
-	loop	.Loop_rdrand
-.Lbreak_rdrand:
-	cmpq	$0,%rax
-	cmoveq	%rcx,%rax
-	.byte	0xf3,0xc3
-.size	OPENSSL_ia32_rdrand,.-OPENSSL_ia32_rdrand

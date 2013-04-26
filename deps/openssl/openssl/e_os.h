@@ -99,6 +99,7 @@ extern "C" {
 #  ifndef MAC_OS_GUSI_SOURCE
 #    define MAC_OS_pre_X
 #    define NO_SYS_TYPES_H
+     typedef long ssize_t;
 #  endif
 #  define NO_SYS_PARAM_H
 #  define NO_CHMOD
@@ -339,6 +340,8 @@ static unsigned int _strlen31(const char *str)
 #    define OPENSSL_NO_POSIX_IO
 #  endif
 
+#  define ssize_t long
+
 #  if defined (__BORLANDC__)
 #    define _setmode setmode
 #    define _O_TEXT O_TEXT
@@ -452,6 +455,9 @@ static unsigned int _strlen31(const char *str)
 #      define pid_t int /* pid_t is missing on NEXTSTEP/OPENSTEP
                          * (unless when compiling with -D_POSIX_SOURCE,
                          * which doesn't work for us) */
+#    endif
+#    if defined(NeXT) || defined(OPENSSL_SYS_NEWS4) || defined(OPENSSL_SYS_SUNOS)
+#      define ssize_t int /* ditto */
 #    endif
 #    ifdef OPENSSL_SYS_NEWS4 /* setvbuf is missing on mips-sony-bsd */
 #      define setvbuf(a, b, c, d) setbuffer((a), (b), (d))
@@ -629,6 +635,12 @@ static unsigned int _strlen31(const char *str)
 #    endif
 #  endif
 
+#endif
+
+#if defined(__ultrix)
+#  ifndef ssize_t
+#    define ssize_t int 
+#  endif
 #endif
 
 #if defined(sun) && !defined(__svr4__) && !defined(__SVR4)

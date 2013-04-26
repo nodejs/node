@@ -62,7 +62,6 @@
 #ifndef OPENSSL_NO_RC4
 
 #include <openssl/evp.h>
-#include "evp_locl.h"
 #include <openssl/objects.h>
 #include <openssl/rc4.h>
 

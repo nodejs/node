@@ -1059,12 +1059,10 @@ static int request_certificate(SSL *s)
 		EVP_PKEY *pkey=NULL;
 
 		EVP_MD_CTX_init(&ctx);
-		if (!EVP_VerifyInit_ex(&ctx,s->ctx->rsa_md5, NULL)
-		    || !EVP_VerifyUpdate(&ctx,s->s2->key_material,
-					 s->s2->key_material_length)
-		    || !EVP_VerifyUpdate(&ctx,ccd,
-					 SSL2_MIN_CERT_CHALLENGE_LENGTH))
-			goto msg_end;
+		EVP_VerifyInit_ex(&ctx,s->ctx->rsa_md5, NULL);
+		EVP_VerifyUpdate(&ctx,s->s2->key_material,
+				 s->s2->key_material_length);
+		EVP_VerifyUpdate(&ctx,ccd,SSL2_MIN_CERT_CHALLENGE_LENGTH);
 
 		i=i2d_X509(s->cert->pkeys[SSL_PKEY_RSA_ENC].x509,NULL);
 		buf2=OPENSSL_malloc((unsigned int)i);
@@ -1075,11 +1073,7 @@ static int request_certificate(SSL *s)
 			}
 		p2=buf2;
 		i=i2d_X509(s->cert->pkeys[SSL_PKEY_RSA_ENC].x509,&p2);
-		if (!EVP_VerifyUpdate(&ctx,buf2,(unsigned int)i))
-			{
-			OPENSSL_free(buf2);
-			goto msg_end;
-			}
+		EVP_VerifyUpdate(&ctx,buf2,(unsigned int)i);
 		OPENSSL_free(buf2);
 
 		pkey=X509_get_pubkey(x509);

@@ -657,15 +657,11 @@ int NETSCAPE_SPKI_set_pubkey(NETSCAPE_SPKI *x, EVP_PKEY *pkey);
 
 int NETSCAPE_SPKI_print(BIO *out, NETSCAPE_SPKI *spki);
 
-int X509_signature_dump(BIO *bp,const ASN1_STRING *sig, int indent);
 int X509_signature_print(BIO *bp,X509_ALGOR *alg, ASN1_STRING *sig);
 
 int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md);
-int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx);
 int X509_REQ_sign(X509_REQ *x, EVP_PKEY *pkey, const EVP_MD *md);
-int X509_REQ_sign_ctx(X509_REQ *x, EVP_MD_CTX *ctx);
 int X509_CRL_sign(X509_CRL *x, EVP_PKEY *pkey, const EVP_MD *md);
-int X509_CRL_sign_ctx(X509_CRL *x, EVP_MD_CTX *ctx);
 int NETSCAPE_SPKI_sign(NETSCAPE_SPKI *x, EVP_PKEY *pkey, const EVP_MD *md);
 
 int X509_pubkey_digest(const X509 *data,const EVP_MD *type,
@@ -767,7 +763,6 @@ X509_ALGOR *X509_ALGOR_dup(X509_ALGOR *xn);
 int X509_ALGOR_set0(X509_ALGOR *alg, ASN1_OBJECT *aobj, int ptype, void *pval);
 void X509_ALGOR_get0(ASN1_OBJECT **paobj, int *pptype, void **ppval,
 						X509_ALGOR *algor);
-void X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md);
 
 X509_NAME *X509_NAME_dup(X509_NAME *xn);
 X509_NAME_ENTRY *X509_NAME_ENTRY_dup(X509_NAME_ENTRY *ne);
@@ -901,9 +896,6 @@ int ASN1_item_verify(const ASN1_ITEM *it, X509_ALGOR *algor1,
 int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1, X509_ALGOR *algor2,
 	ASN1_BIT_STRING *signature,
 	void *data, EVP_PKEY *pkey, const EVP_MD *type);
-int ASN1_item_sign_ctx(const ASN1_ITEM *it,
-		X509_ALGOR *algor1, X509_ALGOR *algor2,
-	     	ASN1_BIT_STRING *signature, void *asn, EVP_MD_CTX *ctx);
 #endif
 
 int 		X509_set_version(X509 *x,long version);
@@ -1168,9 +1160,6 @@ X509_ALGOR *PKCS5_pbe2_set(const EVP_CIPHER *cipher, int iter,
 X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
 				 unsigned char *salt, int saltlen,
 				 unsigned char *aiv, int prf_nid);
-
-X509_ALGOR *PKCS5_pbkdf2_set(int iter, unsigned char *salt, int saltlen,
-				int prf_nid, int keylen);
 
 /* PKCS#8 utilities */
 

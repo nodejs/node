@@ -370,10 +370,6 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
     NONSTOP_KERNEL*)
        echo "nsr-tandem-nsk"; exit 0;
        ;;
-
-    vxworks*)
-       echo "${MACHINE}-whatever-vxworks"; exit 0;
-       ;;
 esac
 
 #
@@ -411,18 +407,23 @@ exit 0
 # this is where the translation occurs into SSLeay terms
 # ---------------------------------------------------------------------------
 
+GCCVER=`(gcc -dumpversion) 2>/dev/null`
+if [ "$GCCVER" != "" ]; then
+  # then strip off whatever prefix egcs prepends the number with...
+  # Hopefully, this will work for any future prefixes as well.
+  GCCVER=`echo $GCCVER | LC_ALL=C sed 's/^[a-zA-Z]*\-//'`
+  # Since gcc 3.1 gcc --version behaviour has changed.  gcc -dumpversion
+  # does give us what we want though, so we use that.  We just just the
+  # major and minor version numbers.
+  # peak single digit before and after first dot, e.g. 2.95.1 gives 29
+  GCCVER=`echo $GCCVER | sed 's/\([0-9]\)\.\([0-9]\).*/\1\2/'`
+fi
+
 # Only set CC if not supplied already
-if [ -z "$CROSS_COMPILE$CC" ]; then
-  GCCVER=`sh -c "gcc -dumpversion" 2>/dev/null`
+if [ -z "$CC" ]; then
+# figure out if gcc is available and if so we use it otherwise
+# we fallback to whatever cc does on the system
   if [ "$GCCVER" != "" ]; then
-    # then strip off whatever prefix egcs prepends the number with...
-    # Hopefully, this will work for any future prefixes as well.
-    GCCVER=`echo $GCCVER | LC_ALL=C sed 's/^[a-zA-Z]*\-//'`
-    # Since gcc 3.1 gcc --version behaviour has changed.  gcc -dumpversion
-    # does give us what we want though, so we use that.  We just just the
-    # major and minor version numbers.
-    # peak single digit before and after first dot, e.g. 2.95.1 gives 29
-    GCCVER=`echo $GCCVER | sed 's/\([0-9]\)\.\([0-9]\).*/\1\2/'`
     CC=gcc
   else
     CC=cc
@@ -538,7 +539,7 @@ case "$GUESSOS" in
   ppc-apple-rhapsody) OUT="rhapsody-ppc-cc" ;;
   ppc-apple-darwin*)
 	ISA64=`(sysctl -n hw.optional.64bitops) 2>/dev/null`
-	if [ "$ISA64" = "1" -a -z "$KERNEL_BITS" ]; then
+	if [ "$ISA64" = "1" ]; then
 	    echo "WARNING! If you wish to build 64-bit library, then you have to"
 	    echo "         invoke './Configure darwin64-ppc-cc' *manually*."
 	    if [ "$TEST" = "false" -a -t 1 ]; then
@@ -546,14 +547,10 @@ case "$GUESSOS" in
 	      (trap "stty `stty -g`" 2 0; stty -icanon min 0 time 50; read waste) <&1
 	    fi
 	fi
-	if [ "$ISA64" = "1" -a "$KERNEL_BITS" = "64" ]; then
-	    OUT="darwin64-ppc-cc"
-	else
-	    OUT="darwin-ppc-cc"
-	fi ;;
+	OUT="darwin-ppc-cc" ;;
   i?86-apple-darwin*)
 	ISA64=`(sysctl -n hw.optional.x86_64) 2>/dev/null`
-	if [ "$ISA64" = "1" -a -z "$KERNEL_BITS" ]; then
+	if [ "$ISA64" = "1" ]; then
 	    echo "WARNING! If you wish to build 64-bit library, then you have to"
 	    echo "         invoke './Configure darwin64-x86_64-cc' *manually*."
 	    if [ "$TEST" = "false" -a -t 1 ]; then
@@ -561,17 +558,7 @@ case "$GUESSOS" in
 	      (trap "stty `stty -g`" 2 0; stty -icanon min 0 time 50; read waste) <&1
 	    fi
 	fi
-	if [ "$ISA64" = "1" -a "$KERNEL_BITS" = "64" ]; then
-	    OUT="darwin64-x86_64-cc"
-	else
-	    OUT="darwin-i386-cc"
-	fi ;;
-  armv6+7-*-iphoneos)
-	options="$options -arch%20armv6 -arch%20armv7"
-	OUT="iphoneos-cross" ;;
-  *-*-iphoneos)
-	options="$options -arch%20${MACHINE}"
-	OUT="iphoneos-cross" ;;
+	OUT="darwin-i386-cc" ;;
   alpha-*-linux2)
         ISA=`awk '/cpu model/{print$4;exit(0);}' /proc/cpuinfo`
 	case ${ISA:-generic} in
@@ -596,11 +583,6 @@ case "$GUESSOS" in
 	OUT="linux-ppc"
 	;;
   ppc-*-linux2) OUT="linux-ppc" ;;
-  ppc60x-*-vxworks*) OUT="vxworks-ppc60x" ;;
-  ppcgen-*-vxworks*) OUT="vxworks-ppcgen" ;;
-  pentium-*-vxworks*) OUT="vxworks-pentium" ;;
-  simlinux-*-vxworks*) OUT="vxworks-simlinux" ;;
-  mips-*-vxworks*) OUT="vxworks-mips";;
   ia64-*-linux?) OUT="linux-ia64" ;;
   sparc64-*-linux2)
 	echo "WARNING! If you *know* that your GNU C supports 64-bit/V9 ABI"
@@ -642,24 +624,12 @@ case "$GUESSOS" in
 	options="$options -DB_ENDIAN -mschedule=$CPUSCHEDULE -march=$CPUARCH"
 	OUT="linux-generic32" ;;
   armv[1-3]*-*-linux2) OUT="linux-generic32" ;;
-  armv[7-9]*-*-linux2) OUT="linux-armv4"; options="$options -march=armv7-a" ;;
   arm*-*-linux2) OUT="linux-armv4" ;;
   sh*b-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;
   sh*-*-linux2)  OUT="linux-generic32"; options="$options -DL_ENDIAN" ;;
   m68k*-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;
   s390-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;
-  s390x-*-linux2)
-	# To be uncommented when glibc bug is fixed, see Configure...
-	#if egrep -e '^features.* highgprs' /proc/cpuinfo >/dev/null ; then
-	#  echo "WARNING! If you wish to build \"highgprs\" 32-bit library, then you"
-	#  echo "         have to invoke './Configure linux32-s390x' *manually*."
-	#  if [ "$TEST" = "false" -a -t -1 ]; then
-	#    echo "         You have about 5 seconds to press Ctrl-C to abort."
-	#    (trap "stty `stty -g`" 2 0; stty -icanon min 0 time 50; read waste) <&1
-	#  fi
-	#fi
-	OUT="linux64-s390x"
-	;;
+  s390x-*-linux2) OUT="linux-s390x" ;;
   x86_64-*-linux?) OUT="linux-x86_64" ;;
   *86-*-linux2) OUT="linux-elf"
 	if [ "$GCCVER" -gt 28 ]; then
@@ -678,7 +648,7 @@ case "$GUESSOS" in
   sun4[uv]*-*-solaris2)
 	OUT="solaris-sparcv9-$CC"
 	ISA64=`(isalist) 2>/dev/null | grep sparcv9`
-	if [ "$ISA64" != "" -a "$KERNEL_BITS" = "" ]; then
+	if [ "$ISA64" != "" ]; then
 	    if [ "$CC" = "cc" -a $CCVER -ge 50 ]; then
 		echo "WARNING! If you wish to build 64-bit library, then you have to"
 		echo "         invoke './Configure solaris64-sparcv9-cc' *manually*."
@@ -708,16 +678,13 @@ case "$GUESSOS" in
 		fi
 	    fi
 	fi
-	if [ "$ISA64" != "" -a "$KERNEL_BITS" = "64" ]; then
-	    OUT="solaris64-sparcv9-$CC"
-	fi
 	;;
   sun4m-*-solaris2)	OUT="solaris-sparcv8-$CC" ;;
   sun4d-*-solaris2)	OUT="solaris-sparcv8-$CC" ;;
   sun4*-*-solaris2)	OUT="solaris-sparcv7-$CC" ;;
   *86*-*-solaris2)
 	ISA64=`(isalist) 2>/dev/null | grep amd64`
-	if [ "$ISA64" != "" -a ${KERNEL_BITS:-64} -eq 64 ]; then
+	if [ "$ISA64" != "" ]; then
 	    OUT="solaris64-x86_64-$CC"
 	else
 	    OUT="solaris-x86-$CC"
@@ -769,17 +736,20 @@ case "$GUESSOS" in
 	if [ $CC = "gcc" -a $GCC_BITS = "64" ]; then
 	    OUT="hpux64-parisc2-gcc"
 	fi
-	[ "$KERNEL_BITS" ] || KERNEL_BITS=`(getconf KERNEL_BITS) 2>/dev/null`
+	KERNEL_BITS=`(getconf KERNEL_BITS) 2>/dev/null`
 	KERNEL_BITS=${KERNEL_BITS:-32}
 	CPU_VERSION=`(getconf CPU_VERSION) 2>/dev/null`
 	CPU_VERSION=${CPU_VERSION:-0}
 	# See <sys/unistd.h> for further info on CPU_VERSION.
 	if   [ $CPU_VERSION -ge 768 ]; then	# IA-64 CPU
-	     if [ $KERNEL_BITS -eq 64 -a "$CC" = "cc" ]; then
-	        OUT="hpux64-ia64-cc"
-             else
-	        OUT="hpux-ia64-cc"
-             fi
+	     echo "WARNING! 64-bit ABI is the default configured ABI on HP-UXi."
+	     echo "         If you wish to build 32-bit library, the you have to"
+	     echo "         invoke './Configure hpux-ia64-cc' *manually*."
+	     if [ "$TEST" = "false" -a -t 1 ]; then
+		echo "         You have about 5 seconds to press Ctrl-C to abort."
+		(trap "stty `stty -g`" 2 0; stty -icanon min 0 time 50; read waste) <&1
+	     fi
+	     OUT="hpux64-ia64-cc"
 	elif [ $CPU_VERSION -ge 532 ]; then	# PA-RISC 2.x CPU
 	     OUT=${OUT:-"hpux-parisc2-${CC}"}
 	     if [ $KERNEL_BITS -eq 64 -a "$CC" = "cc" ]; then
@@ -800,7 +770,7 @@ case "$GUESSOS" in
 	options="$options -D_REENTRANT" ;;
   *-hpux)	OUT="hpux-parisc-$CC" ;;
   *-aix)
-	[ "$KERNEL_BITS" ] || KERNEL_BITS=`(getconf KERNEL_BITMODE) 2>/dev/null`
+	KERNEL_BITS=`(getconf KERNEL_BITMODE) 2>/dev/null`
 	KERNEL_BITS=${KERNEL_BITS:-32}
 	OBJECT_MODE=${OBJECT_MODE:-32}
 	if [ "$CC" = "gcc" ]; then
@@ -840,8 +810,6 @@ case "$GUESSOS" in
   beos-*) OUT="$GUESSOS" ;;
   x86pc-*-qnx6) OUT="QNX6-i386" ;;
   *-*-qnx6) OUT="QNX6" ;;
-  x86-*-android|i?86-*-android) OUT="android-x86" ;;
-  armv[7-9]*-*-android) OUT="android-armv7" ;;
   *) OUT=`echo $GUESSOS | awk -F- '{print $3}'`;;
 esac
 
@@ -857,11 +825,9 @@ esac
 #  options="$options -DATALLA"
 #fi
 
-if expr "$options" : '.*no\-asm' > /dev/null; then :; else
-  sh -c "$CROSS_COMPILE${CC:-gcc} -Wa,--help -c -o /tmp/null.$$.o -x assembler /dev/null && rm /tmp/null.$$.o" 2>&1 | \
-  grep \\--noexecstack >/dev/null && \
+($CC -Wa,--help -c -o /dev/null -x assembler /dev/null 2>&1 | \
+ grep \\--noexecstack) 2>&1 > /dev/null && \
   options="$options -Wa,--noexecstack"
-fi
 
 # gcc < 2.8 does not support -march=ultrasparc
 if [ "$OUT" = solaris-sparcv9-gcc -a $GCCVER -lt 28 ]

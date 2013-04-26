@@ -52,10 +52,9 @@
  */
 
 #include "wp_locl.h"
-#include <openssl/crypto.h>
 #include <string.h>
 
-fips_md_init(WHIRLPOOL)
+int WHIRLPOOL_Init	(WHIRLPOOL_CTX *c)
 	{
 	memset (c,0,sizeof(*c));
 	return(1);

@@ -62,8 +62,12 @@ my $flavour = shift;
 my $output  = shift;
 if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
 
-open STDOUT,">$output" || die "can't open $output: $!"
-	if (defined($output));
+{ my ($stddev,$stdino,@junk)=stat(STDOUT);
+  my ($outdev,$outino,@junk)=stat($output);
+
+    open STDOUT,">$output" || die "can't open $output: $!"
+	if ($stddev!=$outdev || $stdino!=$outino);
+}
 
 my $gas=1;	$gas=0 if ($output =~ /\.asm$/);
 my $elf=1;	$elf=0 if (!$gas);
@@ -112,16 +116,12 @@ my %globals;
 	    $line = substr($line,@+[0]); $line =~ s/^\s+//;
 
 	    undef $self->{sz};
-	    if ($self->{op} =~ /^(movz)x?([bw]).*/) {	# movz is pain...
+	    if ($self->{op} =~ /^(movz)b.*/) {	# movz is pain...
 		$self->{op} = $1;
-		$self->{sz} = $2;
+		$self->{sz} = "b";
 	    } elsif ($self->{op} =~ /call|jmp/) {
 		$self->{sz} = "";
-	    } elsif ($self->{op} =~ /^p/ && $' !~ /^(ush|op|insrw)/) { # SSEn
-		$self->{sz} = "";
-	    } elsif ($self->{op} =~ /^v/) { # VEX
-		$self->{sz} = "";
-	    } elsif ($self->{op} =~ /movq/ && $line =~ /%xmm/) {
+	    } elsif ($self->{op} =~ /^p/ && $' !~ /^(ush|op)/) { # SSEn
 		$self->{sz} = "";
 	    } elsif ($self->{op} =~ /([a-z]{3,})([qlwb])$/) {
 		$self->{op} = $1;
@@ -246,39 +246,35 @@ my %globals;
 	$self->{index} =~ s/^[er](.?[0-9xpi])[d]?$/r\1/;
 	$self->{base}  =~ s/^[er](.?[0-9xpi])[d]?$/r\1/;
 
-	# Solaris /usr/ccs/bin/as can't handle multiplications
-	# in $self->{label}, new gas requires sign extension...
-	use integer;
-	$self->{label} =~ s/(?<![\w\$\.])(0x?[0-9a-f]+)/oct($1)/egi;
-	$self->{label} =~ s/([0-9]+\s*[\*\/\%]\s*[0-9]+)/eval($1)/eg;
-	$self->{label} =~ s/([0-9]+)/$1<<32>>32/eg;
-
 	if ($gas) {
+	    # Solaris /usr/ccs/bin/as can't handle multiplications
+	    # in $self->{label}, new gas requires sign extension...
+	    use integer;
+	    $self->{label} =~ s/(?<![\w\$\.])(0x?[0-9a-f]+)/oct($1)/egi;
+	    $self->{label} =~ s/([0-9]+\s*[\*\/\%]\s*[0-9]+)/eval($1)/eg;
+	    $self->{label} =~ s/([0-9]+)/$1<<32>>32/eg;
 	    $self->{label} =~ s/^___imp_/__imp__/   if ($flavour eq "mingw64");
 
 	    if (defined($self->{index})) {
-		sprintf "%s%s(%s,%%%s,%d)",$self->{asterisk},
-					$self->{label},
-					$self->{base}?"%$self->{base}":"",
+		sprintf "%s%s(%%%s,%%%s,%d)",$self->{asterisk},
+					$self->{label},$self->{base},
 					$self->{index},$self->{scale};
 	    } else {
 		sprintf "%s%s(%%%s)",	$self->{asterisk},$self->{label},$self->{base};
 	    }
 	} else {
-	    %szmap = (	b=>"BYTE$PTR", w=>"WORD$PTR", l=>"DWORD$PTR",
-	    		q=>"QWORD$PTR",o=>"OWORD$PTR",x=>"XMMWORD$PTR" );
+	    %szmap = ( b=>"BYTE$PTR", w=>"WORD$PTR", l=>"DWORD$PTR", q=>"QWORD$PTR" );
 
 	    $self->{label} =~ s/\./\$/g;
 	    $self->{label} =~ s/(?<![\w\$\.])0x([0-9a-f]+)/0$1h/ig;
 	    $self->{label} = "($self->{label})" if ($self->{label} =~ /[\*\+\-\/]/);
-	    $sz="q" if ($self->{asterisk} || opcode->mnemonic() eq "movq");
-	    $sz="l" if (opcode->mnemonic() eq "movd");
+	    $sz="q" if ($self->{asterisk});
 
 	    if (defined($self->{index})) {
-		sprintf "%s[%s%s*%d%s]",$szmap{$sz},
+		sprintf "%s[%s%s*%d+%s]",$szmap{$sz},
 					$self->{label}?"$self->{label}+":"",
 					$self->{index},$self->{scale},
-					$self->{base}?"+$self->{base}":"";
+					$self->{base};
 	    } elsif ($self->{base} eq "rip") {
 		sprintf "%s[%s]",$szmap{$sz},$self->{label};
 	    } else {
@@ -510,12 +506,6 @@ my %globals;
 		    }
 		} elsif ($dir =~ /\.(text|data)/) {
 		    $current_segment=".$1";
-		} elsif ($dir =~ /\.hidden/) {
-		    if    ($flavour eq "macosx")  { $self->{value} = ".private_extern\t$prefix$line"; }
-		    elsif ($flavour eq "mingw64") { $self->{value} = ""; }
-		} elsif ($dir =~ /\.comm/) {
-		    $self->{value} = "$dir\t$prefix$line";
-		    $self->{value} =~ s|,([0-9]+),([0-9]+)$|",$1,".log($2)/log(2)|e if ($flavour eq "macosx");
 		}
 		$line = "";
 		return $self;
@@ -588,7 +578,7 @@ my %globals;
 					    $self->{value}="${decor}SEH_end_$current_function->{name}:";
 					    $self->{value}.=":\n" if($masm);
 					}
-					$self->{value}.="$current_function->{name}\tENDP" if($masm && $current_function->{name});
+					$self->{value}.="$current_function->{name}\tENDP" if($masm);
 					undef $current_function;
 				    }
 				    last;
@@ -624,19 +614,6 @@ my %globals;
 						.join(",",@str) if (@str);
 				    last;
 				  };
-		/\.comm/    && do { my @str=split(/,\s*/,$line);
-				    my $v=undef;
-				    if ($nasm) {
-					$v.="common	$prefix@str[0] @str[1]";
-				    } else {
-					$v="$current_segment\tENDS\n" if ($current_segment);
-					$current_segment = "_DATA";
-					$v.="$current_segment\tSEGMENT\n";
-					$v.="COMM	@str[0]:DWORD:".@str[1]/4;
-				    }
-				    $self->{value} = $v;
-				    last;
-				  };
 	    }
 	    $line = "";
 	}
@@ -649,133 +626,9 @@ my %globals;
     }
 }
 
-sub rex {
- local *opcode=shift;
- my ($dst,$src,$rex)=@_;
-
-   $rex|=0x04 if($dst>=8);
-   $rex|=0x01 if($src>=8);
-   push @opcode,($rex|0x40) if ($rex);
-}
-
-# older gas and ml64 don't handle SSE>2 instructions
-my %regrm = (	"%eax"=>0, "%ecx"=>1, "%edx"=>2, "%ebx"=>3,
-		"%esp"=>4, "%ebp"=>5, "%esi"=>6, "%edi"=>7	);
-
-my $movq = sub {	# elderly gas can't handle inter-register movq
-  my $arg = shift;
-  my @opcode=(0x66);
-    if ($arg =~ /%xmm([0-9]+),\s*%r(\w+)/) {
-	my ($src,$dst)=($1,$2);
-	if ($dst !~ /[0-9]+/)	{ $dst = $regrm{"%e$dst"}; }
-	rex(\@opcode,$src,$dst,0x8);
-	push @opcode,0x0f,0x7e;
-	push @opcode,0xc0|(($src&7)<<3)|($dst&7);	# ModR/M
-	@opcode;
-    } elsif ($arg =~ /%r(\w+),\s*%xmm([0-9]+)/) {
-	my ($src,$dst)=($2,$1);
-	if ($dst !~ /[0-9]+/)	{ $dst = $regrm{"%e$dst"}; }
-	rex(\@opcode,$src,$dst,0x8);
-	push @opcode,0x0f,0x6e;
-	push @opcode,0xc0|(($src&7)<<3)|($dst&7);	# ModR/M
-	@opcode;
-    } else {
-	();
-    }
-};
-
-my $pextrd = sub {
-    if (shift =~ /\$([0-9]+),\s*%xmm([0-9]+),\s*(%\w+)/) {
-      my @opcode=(0x66);
-	$imm=$1;
-	$src=$2;
-	$dst=$3;
-	if ($dst =~ /%r([0-9]+)d/)	{ $dst = $1; }
-	elsif ($dst =~ /%e/)		{ $dst = $regrm{$dst}; }
-	rex(\@opcode,$src,$dst);
-	push @opcode,0x0f,0x3a,0x16;
-	push @opcode,0xc0|(($src&7)<<3)|($dst&7);	# ModR/M
-	push @opcode,$imm;
-	@opcode;
-    } else {
-	();
-    }
-};
-
-my $pinsrd = sub {
-    if (shift =~ /\$([0-9]+),\s*(%\w+),\s*%xmm([0-9]+)/) {
-      my @opcode=(0x66);
-	$imm=$1;
-	$src=$2;
-	$dst=$3;
-	if ($src =~ /%r([0-9]+)/)	{ $src = $1; }
-	elsif ($src =~ /%e/)		{ $src = $regrm{$src}; }
-	rex(\@opcode,$dst,$src);
-	push @opcode,0x0f,0x3a,0x22;
-	push @opcode,0xc0|(($dst&7)<<3)|($src&7);	# ModR/M
-	push @opcode,$imm;
-	@opcode;
-    } else {
-	();
-    }
-};
-
-my $pshufb = sub {
-    if (shift =~ /%xmm([0-9]+),\s*%xmm([0-9]+)/) {
-      my @opcode=(0x66);
-	rex(\@opcode,$2,$1);
-	push @opcode,0x0f,0x38,0x00;
-	push @opcode,0xc0|($1&7)|(($2&7)<<3);		# ModR/M
-	@opcode;
-    } else {
-	();
-    }
-};
-
-my $palignr = sub {
-    if (shift =~ /\$([0-9]+),\s*%xmm([0-9]+),\s*%xmm([0-9]+)/) {
-      my @opcode=(0x66);
-	rex(\@opcode,$3,$2);
-	push @opcode,0x0f,0x3a,0x0f;
-	push @opcode,0xc0|($2&7)|(($3&7)<<3);		# ModR/M
-	push @opcode,$1;
-	@opcode;
-    } else {
-	();
-    }
-};
-
-my $pclmulqdq = sub {
-    if (shift =~ /\$([x0-9a-f]+),\s*%xmm([0-9]+),\s*%xmm([0-9]+)/) {
-      my @opcode=(0x66);
-	rex(\@opcode,$3,$2);
-	push @opcode,0x0f,0x3a,0x44;
-	push @opcode,0xc0|($2&7)|(($3&7)<<3);		# ModR/M
-	my $c=$1;
-	push @opcode,$c=~/^0/?oct($c):$c;
-	@opcode;
-    } else {
-	();
-    }
-};
-
-my $rdrand = sub {
-    if (shift =~ /%[er](\w+)/) {
-      my @opcode=();
-      my $dst=$1;
-	if ($dst !~ /[0-9]+/) { $dst = $regrm{"%e$dst"}; }
-	rex(\@opcode,0,$1,8);
-	push @opcode,0x0f,0xc7,0xf0|($dst&7);
-	@opcode;
-    } else {
-	();
-    }
-};
-
 if ($nasm) {
     print <<___;
 default	rel
-%define XMMWORD
 ___
 } elsif ($masm) {
     print <<___;
@@ -792,22 +645,14 @@ while($line=<>) {
 
     undef $label;
     undef $opcode;
+    undef $sz;
     undef @args;
 
     if ($label=label->re(\$line))	{ print $label->out(); }
 
     if (directive->re(\$line)) {
 	printf "%s",directive->out();
-    } elsif ($opcode=opcode->re(\$line)) {
-	my $asm = eval("\$".$opcode->mnemonic());
-	undef @bytes;
-	
-	if ((ref($asm) eq 'CODE') && scalar(@bytes=&$asm($line))) {
-	    print $gas?".byte\t":"DB\t",join(',',@bytes),"\n";
-	    next;
-	}
-
-	ARGUMENT: while (1) {
+    } elsif ($opcode=opcode->re(\$line)) { ARGUMENT: while (1) {
 	my $arg;
 
 	if ($arg=register->re(\$line))	{ opcode->size($arg->size()); }
@@ -823,26 +668,19 @@ while($line=<>) {
 	$line =~ s/^,\s*//;
 	} # ARGUMENT:
 
+	$sz=opcode->size();
+
 	if ($#args>=0) {
 	    my $insn;
-	    my $sz=opcode->size();
-
 	    if ($gas) {
 		$insn = $opcode->out($#args>=1?$args[$#args]->size():$sz);
-		@args = map($_->out($sz),@args);
-		printf "\t%s\t%s",$insn,join(",",@args);
 	    } else {
 		$insn = $opcode->out();
-		foreach (@args) {
-		    my $arg = $_->out();
-		    # $insn.=$sz compensates for movq, pinsrw, ...
-		    if ($arg =~ /^xmm[0-9]+$/) { $insn.=$sz; $sz="x" if(!$sz); last; }
-		    if ($arg =~ /^mm[0-9]+$/)  { $insn.=$sz; $sz="q" if(!$sz); last; }
-		}
+		$insn .= $sz if (map($_->out() =~ /x?mm/,@args));
 		@args = reverse(@args);
 		undef $sz if ($nasm && $opcode->mnemonic() eq "lea");
-		printf "\t%s\t%s",$insn,join(",",map($_->out($sz),@args));
 	    }
+	    printf "\t%s\t%s",$insn,join(",",map($_->out($sz),@args));
 	} else {
 	    printf "\t%s",$opcode->out();
 	}

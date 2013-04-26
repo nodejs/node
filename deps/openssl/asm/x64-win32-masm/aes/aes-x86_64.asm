@@ -333,9 +333,6 @@ _x86_64_AES_encrypt_compact	ENDP
 PUBLIC	AES_encrypt
 
 ALIGN	16
-PUBLIC	asm_AES_encrypt
-
-asm_AES_encrypt::
 AES_encrypt	PROC PUBLIC
 	mov	QWORD PTR[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD PTR[16+rsp],rsi
@@ -795,9 +792,6 @@ _x86_64_AES_decrypt_compact	ENDP
 PUBLIC	AES_decrypt
 
 ALIGN	16
-PUBLIC	asm_AES_decrypt
-
-asm_AES_decrypt::
 AES_decrypt	PROC PUBLIC
 	mov	QWORD PTR[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD PTR[16+rsp],rsi
@@ -873,14 +867,14 @@ $L$dec_epilogue::
 	DB	0F3h,0C3h		;repret
 $L$SEH_end_AES_decrypt::
 AES_decrypt	ENDP
-PUBLIC	private_AES_set_encrypt_key
+PUBLIC	AES_set_encrypt_key
 
 ALIGN	16
-private_AES_set_encrypt_key	PROC PUBLIC
+AES_set_encrypt_key	PROC PUBLIC
 	mov	QWORD PTR[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD PTR[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_private_AES_set_encrypt_key::
+$L$SEH_begin_AES_set_encrypt_key::
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -908,8 +902,8 @@ $L$enc_key_epilogue::
 	mov	rdi,QWORD PTR[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD PTR[16+rsp]
 	DB	0F3h,0C3h		;repret
-$L$SEH_end_private_AES_set_encrypt_key::
-private_AES_set_encrypt_key	ENDP
+$L$SEH_end_AES_set_encrypt_key::
+AES_set_encrypt_key	ENDP
 
 
 ALIGN	16
@@ -1151,14 +1145,14 @@ $L$exit::
 DB	0f3h,0c3h
 
 _x86_64_AES_set_encrypt_key	ENDP
-PUBLIC	private_AES_set_decrypt_key
+PUBLIC	AES_set_decrypt_key
 
 ALIGN	16
-private_AES_set_decrypt_key	PROC PUBLIC
+AES_set_decrypt_key	PROC PUBLIC
 	mov	QWORD PTR[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD PTR[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_private_AES_set_decrypt_key::
+$L$SEH_begin_AES_set_decrypt_key::
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -1348,15 +1342,12 @@ $L$dec_key_epilogue::
 	mov	rdi,QWORD PTR[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD PTR[16+rsp]
 	DB	0F3h,0C3h		;repret
-$L$SEH_end_private_AES_set_decrypt_key::
-private_AES_set_decrypt_key	ENDP
+$L$SEH_end_AES_set_decrypt_key::
+AES_set_decrypt_key	ENDP
 PUBLIC	AES_cbc_encrypt
 
 ALIGN	16
 EXTERN	OPENSSL_ia32cap_P:NEAR
-PUBLIC	asm_AES_cbc_encrypt
-
-asm_AES_cbc_encrypt::
 AES_cbc_encrypt	PROC PUBLIC
 	mov	QWORD PTR[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD PTR[16+rsp],rsi
@@ -2851,13 +2842,13 @@ ALIGN	4
 	DD	imagerel $L$SEH_end_AES_decrypt
 	DD	imagerel $L$SEH_info_AES_decrypt
 
-	DD	imagerel $L$SEH_begin_private_AES_set_encrypt_key
-	DD	imagerel $L$SEH_end_private_AES_set_encrypt_key
-	DD	imagerel $L$SEH_info_private_AES_set_encrypt_key
+	DD	imagerel $L$SEH_begin_AES_set_encrypt_key
+	DD	imagerel $L$SEH_end_AES_set_encrypt_key
+	DD	imagerel $L$SEH_info_AES_set_encrypt_key
 
-	DD	imagerel $L$SEH_begin_private_AES_set_decrypt_key
-	DD	imagerel $L$SEH_end_private_AES_set_decrypt_key
-	DD	imagerel $L$SEH_info_private_AES_set_decrypt_key
+	DD	imagerel $L$SEH_begin_AES_set_decrypt_key
+	DD	imagerel $L$SEH_end_AES_set_decrypt_key
+	DD	imagerel $L$SEH_info_AES_set_decrypt_key
 
 	DD	imagerel $L$SEH_begin_AES_cbc_encrypt
 	DD	imagerel $L$SEH_end_AES_cbc_encrypt
@@ -2876,12 +2867,12 @@ DB	9,0,0,0
 	DD	imagerel block_se_handler
 	DD	imagerel $L$dec_prologue,imagerel $L$dec_epilogue
 
-$L$SEH_info_private_AES_set_encrypt_key::
+$L$SEH_info_AES_set_encrypt_key::
 DB	9,0,0,0
 	DD	imagerel key_se_handler
 	DD	imagerel $L$enc_key_prologue,imagerel $L$enc_key_epilogue
 
-$L$SEH_info_private_AES_set_decrypt_key::
+$L$SEH_info_AES_set_decrypt_key::
 DB	9,0,0,0
 	DD	imagerel key_se_handler
 	DD	imagerel $L$dec_key_prologue,imagerel $L$dec_key_epilogue

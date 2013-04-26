@@ -21,8 +21,8 @@ TEST=rc4test.c
 APPS=
 
 LIB=$(TOP)/libcrypto.a
-LIBSRC=rc4_skey.c rc4_enc.c rc4_utl.c
-LIBOBJ=$(RC4_ENC) rc4_utl.o
+LIBSRC=rc4_skey.c rc4_enc.c
+LIBOBJ=$(RC4_ENC)
 
 SRC= $(LIBSRC)
 
@@ -46,14 +46,12 @@ rc4-586.s:	asm/rc4-586.pl ../perlasm/x86asm.pl
 
 rc4-x86_64.s: asm/rc4-x86_64.pl
 	$(PERL) asm/rc4-x86_64.pl $(PERLASM_SCHEME) > $@
-rc4-md5-x86_64.s:	asm/rc4-md5-x86_64.pl
-	$(PERL) asm/rc4-md5-x86_64.pl $(PERLASM_SCHEME) > $@
 
 rc4-ia64.S: asm/rc4-ia64.pl
 	$(PERL) asm/rc4-ia64.pl $(CFLAGS) > $@
 
-rc4-parisc.s:	asm/rc4-parisc.pl
-	$(PERL) asm/rc4-parisc.pl $(PERLASM_SCHEME) $@
+rc4-s390x.s:	asm/rc4-s390x.pl
+	$(PERL) asm/rc4-s390x.pl > $@
 
 rc4-ia64.s: rc4-ia64.S
 	@case `awk '/^#define RC4_INT/{print$$NF}' $(TOP)/include/openssl/opensslconf.h` in \
@@ -61,9 +59,6 @@ rc4-ia64.s: rc4-ia64.S
 	char)	set -x; $(CC) $(CFLAGS) -DSZ=1 -E rc4-ia64.S > $@ ;; \
 	*)	exit 1 ;; \
 	esac
-
-# GNU make "catch all"
-rc4-%.s:	asm/rc4-%.pl;	$(PERL) $< $(PERLASM_SCHEME) $@
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -118,8 +113,3 @@ rc4_skey.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 rc4_skey.o: ../../include/openssl/rc4.h ../../include/openssl/safestack.h
 rc4_skey.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 rc4_skey.o: ../cryptlib.h rc4_locl.h rc4_skey.c
-rc4_utl.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
-rc4_utl.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
-rc4_utl.o: ../../include/openssl/ossl_typ.h ../../include/openssl/rc4.h
-rc4_utl.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-rc4_utl.o: ../../include/openssl/symhacks.h rc4_utl.c

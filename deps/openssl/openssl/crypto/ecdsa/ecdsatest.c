@@ -262,7 +262,6 @@ int x9_62_tests(BIO *out)
 		"3238135532097973577080787768312505059318910517550078427819"
 		"78505179448783"))
 		goto x962_err;
-#ifndef OPENSSL_NO_EC2M
 	if (!x9_62_test_internal(out, NID_X9_62_c2tnb191v1,
 		"87194383164871543355722284926904419997237591535066528048",
 		"308992691965804947361541664549085895292153777025772063598"))
@@ -273,7 +272,7 @@ int x9_62_tests(BIO *out)
 		"1970303740007316867383349976549972270528498040721988191026"
 		"49413465737174"))
 		goto x962_err;
-#endif
+
 	ret = 1;
 x962_err:
 	if (!restore_rand())
@@ -290,8 +289,7 @@ int test_builtin(BIO *out)
 	ECDSA_SIG	*ecdsa_sig = NULL;
 	unsigned char	digest[20], wrong_digest[20];
 	unsigned char	*signature = NULL;
-	const unsigned char	*sig_ptr;
-	unsigned char	*sig_ptr2;
+	unsigned char	*sig_ptr;
 	unsigned char	*raw_buf = NULL;
 	unsigned int	sig_len, degree, r_len, s_len, bn_len, buf_len;
 	int		nid, ret =  0;
@@ -466,8 +464,8 @@ int test_builtin(BIO *out)
 			(BN_bin2bn(raw_buf + bn_len, bn_len, ecdsa_sig->s) == NULL))
 			goto builtin_err;
 
-		sig_ptr2 = signature;
-		sig_len = i2d_ECDSA_SIG(ecdsa_sig, &sig_ptr2);
+		sig_ptr = signature;
+		sig_len = i2d_ECDSA_SIG(ecdsa_sig, &sig_ptr);
 		if (ECDSA_verify(0, digest, 20, signature, sig_len, eckey) == 1)
 			{
 			BIO_printf(out, " failed\n");
@@ -479,8 +477,8 @@ int test_builtin(BIO *out)
 			(BN_bin2bn(raw_buf + bn_len, bn_len, ecdsa_sig->s) == NULL))
 			goto builtin_err;
 
-		sig_ptr2 = signature;
-		sig_len = i2d_ECDSA_SIG(ecdsa_sig, &sig_ptr2);
+		sig_ptr = signature;
+		sig_len = i2d_ECDSA_SIG(ecdsa_sig, &sig_ptr);
 		if (ECDSA_verify(0, digest, 20, signature, sig_len, eckey) != 1)
 			{
 			BIO_printf(out, " failed\n");

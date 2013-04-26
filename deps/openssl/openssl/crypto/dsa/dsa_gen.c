@@ -81,33 +81,13 @@
 #include <openssl/sha.h>
 #include "dsa_locl.h"
 
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
 int DSA_generate_parameters_ex(DSA *ret, int bits,
 		const unsigned char *seed_in, int seed_len,
 		int *counter_ret, unsigned long *h_ret, BN_GENCB *cb)
 	{
-#ifdef OPENSSL_FIPS
-	if (FIPS_mode() && !(ret->meth->flags & DSA_FLAG_FIPS_METHOD)
-			&& !(ret->flags & DSA_FLAG_NON_FIPS_ALLOW))
-		{
-		DSAerr(DSA_F_DSA_GENERATE_PARAMETERS_EX, DSA_R_NON_FIPS_DSA_METHOD);
-		return 0;
-		}
-#endif
 	if(ret->meth->dsa_paramgen)
 		return ret->meth->dsa_paramgen(ret, bits, seed_in, seed_len,
 				counter_ret, h_ret, cb);
-#ifdef OPENSSL_FIPS
-	else if (FIPS_mode())
-		{
-		return FIPS_dsa_generate_parameters_ex(ret, bits, 
-							seed_in, seed_len,
-							counter_ret, h_ret, cb);
-		}
-#endif
 	else
 		{
 		const EVP_MD *evpmd;
@@ -125,13 +105,12 @@ int DSA_generate_parameters_ex(DSA *ret, int bits,
 			}
 
 		return dsa_builtin_paramgen(ret, bits, qbits, evpmd,
-			seed_in, seed_len, NULL, counter_ret, h_ret, cb);
+				seed_in, seed_len, counter_ret, h_ret, cb);
 		}
 	}
 
 int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
 	const EVP_MD *evpmd, const unsigned char *seed_in, size_t seed_len,
-	unsigned char *seed_out,
 	int *counter_ret, unsigned long *h_ret, BN_GENCB *cb)
 	{
 	int ok=0;
@@ -222,10 +201,8 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
 				}
 
 			/* step 2 */
-			if (!EVP_Digest(seed, qsize, md,   NULL, evpmd, NULL))
-				goto err;
-			if (!EVP_Digest(buf,  qsize, buf2, NULL, evpmd, NULL))
-				goto err;
+			EVP_Digest(seed, qsize, md,   NULL, evpmd, NULL);
+			EVP_Digest(buf,  qsize, buf2, NULL, evpmd, NULL);
 			for (i = 0; i < qsize; i++)
 				md[i]^=buf2[i];
 
@@ -274,9 +251,7 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
 						break;
 					}
 
-				if (!EVP_Digest(buf, qsize, md ,NULL, evpmd,
-									NULL))
-					goto err;
+				EVP_Digest(buf, qsize, md ,NULL, evpmd, NULL);
 
 				/* step 8 */
 				if (!BN_bin2bn(md, qsize, r0))
@@ -357,8 +332,6 @@ err:
 			}
 		if (counter_ret != NULL) *counter_ret=counter;
 		if (h_ret != NULL) *h_ret=h;
-		if (seed_out)
-			memcpy(seed_out, seed, qsize);
 		}
 	if(ctx)
 		{

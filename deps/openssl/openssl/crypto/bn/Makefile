@@ -26,13 +26,13 @@ LIBSRC=	bn_add.c bn_div.c bn_exp.c bn_lib.c bn_ctx.c bn_mul.c bn_mod.c \
 	bn_print.c bn_rand.c bn_shift.c bn_word.c bn_blind.c \
 	bn_kron.c bn_sqrt.c bn_gcd.c bn_prime.c bn_err.c bn_sqr.c bn_asm.c \
 	bn_recp.c bn_mont.c bn_mpi.c bn_exp2.c bn_gf2m.c bn_nist.c \
-	bn_depr.c bn_const.c bn_x931p.c
+	bn_depr.c bn_const.c
 
 LIBOBJ=	bn_add.o bn_div.o bn_exp.o bn_lib.o bn_ctx.o bn_mul.o bn_mod.o \
 	bn_print.o bn_rand.o bn_shift.o bn_word.o bn_blind.o \
 	bn_kron.o bn_sqrt.o bn_gcd.o bn_prime.o bn_err.o bn_sqr.o $(BN_ASM) \
 	bn_recp.o bn_mont.o bn_mpi.o bn_exp2.o bn_gf2m.o bn_nist.o \
-	bn_depr.o bn_const.o bn_x931p.o
+	bn_depr.o bn_const.o
 
 SRC= $(LIBSRC)
 
@@ -66,8 +66,6 @@ co-586.s:	asm/co-586.pl ../perlasm/x86asm.pl
 	$(PERL) asm/co-586.pl $(PERLASM_SCHEME) $(CFLAGS) $(PROCESSOR) > $@
 x86-mont.s:	asm/x86-mont.pl ../perlasm/x86asm.pl
 	$(PERL) asm/x86-mont.pl $(PERLASM_SCHEME) $(CFLAGS) $(PROCESSOR) > $@
-x86-gf2m.s:	asm/x86-gf2m.pl ../perlasm/x86asm.pl
-	$(PERL) asm/x86-gf2m.pl $(PERLASM_SCHEME) $(CFLAGS) $(PROCESSOR) > $@
 
 sparcv8.o:	asm/sparcv8.S
 	$(CC) $(CFLAGS) -c asm/sparcv8.S
@@ -84,31 +82,16 @@ bn-mips3.o:	asm/mips3.s
 		as -$$ABI -O -o $@ asm/mips3.s; \
 	else	$(CC) -c $(CFLAGS) -o $@ asm/mips3.s; fi
 
-bn-mips.s:	asm/mips.pl
-	$(PERL) asm/mips.pl $(PERLASM_SCHEME) $@
-mips-mont.s:	asm/mips-mont.pl
-	$(PERL)	asm/mips-mont.pl $(PERLASM_SCHEME) $@
-
 bn-s390x.o:	asm/s390x.S
 	$(CC) $(CFLAGS) -c -o $@ asm/s390x.S
-s390x-gf2m.s:	asm/s390x-gf2m.pl
-	$(PERL) asm/s390x-gf2m.pl $(PERLASM_SCHEME) $@
 
 x86_64-gcc.o:	asm/x86_64-gcc.c
 	$(CC) $(CFLAGS) -c -o $@ asm/x86_64-gcc.c
 x86_64-mont.s:	asm/x86_64-mont.pl
 	$(PERL) asm/x86_64-mont.pl $(PERLASM_SCHEME) > $@
-x86_64-mont5.s:	asm/x86_64-mont5.pl
-	$(PERL) asm/x86_64-mont5.pl $(PERLASM_SCHEME) > $@
-x86_64-gf2m.s:	asm/x86_64-gf2m.pl
-	$(PERL) asm/x86_64-gf2m.pl $(PERLASM_SCHEME) > $@
-modexp512-x86_64.s:	asm/modexp512-x86_64.pl
-	$(PERL) asm/modexp512-x86_64.pl $(PERLASM_SCHEME) > $@
 
 bn-ia64.s:	asm/ia64.S
 	$(CC) $(CFLAGS) -E asm/ia64.S > $@
-ia64-mont.s:	asm/ia64-mont.pl
-	$(PERL) asm/ia64-mont.pl $@ $(CFLAGS)
 
 # GNU assembler fails to compile PA-RISC2 modules, insist on calling
 # vendor assembler...
@@ -116,22 +99,16 @@ pa-risc2W.o: asm/pa-risc2W.s
 	/usr/ccs/bin/as -o pa-risc2W.o asm/pa-risc2W.s
 pa-risc2.o: asm/pa-risc2.s
 	/usr/ccs/bin/as -o pa-risc2.o asm/pa-risc2.s
-parisc-mont.s:	asm/parisc-mont.pl
-	$(PERL) asm/parisc-mont.pl $(PERLASM_SCHEME) $@
 
 # ppc - AIX, Linux, MacOS X...
 bn-ppc.s:	asm/ppc.pl;	$(PERL) asm/ppc.pl $(PERLASM_SCHEME) $@
 ppc-mont.s:	asm/ppc-mont.pl;$(PERL) asm/ppc-mont.pl $(PERLASM_SCHEME) $@
-ppc64-mont.s:	asm/ppc64-mont.pl;$(PERL) asm/ppc64-mont.pl $(PERLASM_SCHEME) $@
 
 alpha-mont.s:	asm/alpha-mont.pl
 	$(PERL) $< | $(CC) -E - | tee $@ > /dev/null
 
 # GNU make "catch all"
-%-mont.s:	asm/%-mont.pl;	$(PERL) $< $(PERLASM_SCHEME) $@
-%-gf2m.S:	asm/%-gf2m.pl;	$(PERL) $< $(PERLASM_SCHEME) $@
-
-armv4-gf2m.o:	armv4-gf2m.S
+%-mont.s:	asm/%-mont.pl;	$(PERL) $< $(CFLAGS) > $@
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -368,8 +345,3 @@ bn_word.o: ../../include/openssl/lhash.h ../../include/openssl/opensslconf.h
 bn_word.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 bn_word.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
 bn_word.o: ../../include/openssl/symhacks.h ../cryptlib.h bn_lcl.h bn_word.c
-bn_x931p.o: ../../include/openssl/bn.h ../../include/openssl/crypto.h
-bn_x931p.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-bn_x931p.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
-bn_x931p.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-bn_x931p.o: ../../include/openssl/symhacks.h bn_x931p.c

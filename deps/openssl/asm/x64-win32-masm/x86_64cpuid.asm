@@ -1,15 +1,9 @@
 OPTION	DOTNAME
 EXTERN	OPENSSL_cpuid_setup:NEAR
-
 .CRT$XCU	SEGMENT READONLY ALIGN(8)
 		DQ	OPENSSL_cpuid_setup
 
-
 .CRT$XCU	ENDS
-_DATA	SEGMENT
-COMM	OPENSSL_ia32cap_P:DWORD:2
-
-_DATA	ENDS
 .text$	SEGMENT ALIGN(64) 'CODE'
 
 PUBLIC	OPENSSL_atomic_add
@@ -74,15 +68,7 @@ OPENSSL_ia32_cpuid	PROC PUBLIC
 
 	mov	eax,080000000h
 	cpuid
-	cmp	eax,080000001h
-	jb	$L$intel
-	mov	r10d,eax
-	mov	eax,080000001h
-	cpuid
-	or	r9d,ecx
-	and	r9d,000000801h
-
-	cmp	r10d,080000008h
+	cmp	eax,080000008h
 	jb	$L$intel
 
 	mov	eax,080000008h
@@ -93,12 +79,12 @@ OPENSSL_ia32_cpuid	PROC PUBLIC
 	mov	eax,1
 	cpuid
 	bt	edx,28
-	jnc	$L$generic
+	jnc	$L$done
 	shr	ebx,16
 	cmp	bl,r10b
-	ja	$L$generic
+	ja	$L$done
 	and	edx,0efffffffh
-	jmp	$L$generic
+	jmp	$L$done
 
 $L$intel::
 	cmp	r11d,4
@@ -115,48 +101,30 @@ $L$intel::
 $L$nocacheinfo::
 	mov	eax,1
 	cpuid
-	and	edx,0bfefffffh
 	cmp	r9d,0
 	jne	$L$notintel
-	or	edx,040000000h
+	or	edx,000100000h
 	and	ah,15
 	cmp	ah,15
-	jne	$L$notintel
-	or	edx,000100000h
+	je	$L$notintel
+	or	edx,040000000h
 $L$notintel::
 	bt	edx,28
-	jnc	$L$generic
+	jnc	$L$done
 	and	edx,0efffffffh
 	cmp	r10d,0
-	je	$L$generic
+	je	$L$done
 
 	or	edx,010000000h
 	shr	ebx,16
 	cmp	bl,1
-	ja	$L$generic
+	ja	$L$done
 	and	edx,0efffffffh
-$L$generic::
-	and	r9d,000000800h
-	and	ecx,0fffff7ffh
-	or	r9d,ecx
-
-	mov	r10d,edx
-	bt	r9d,27
-	jnc	$L$clear_avx
-	xor	ecx,ecx
-DB	00fh,001h,0d0h
-
-	and	eax,6
-	cmp	eax,6
-	je	$L$done
-$L$clear_avx::
-	mov	eax,0efffe7ffh
-	and	r9d,eax
 $L$done::
-	shl	r9,32
-	mov	eax,r10d
+	shl	rcx,32
+	mov	eax,edx
 	mov	rbx,r8
-	or	rax,r9
+	or	rax,rcx
 	DB	0F3h,0C3h		;repret
 OPENSSL_ia32_cpuid	ENDP
 
@@ -213,20 +181,6 @@ OPENSSL_wipe_cpu	PROC PUBLIC
 	lea	rax,QWORD PTR[8+rsp]
 	DB	0F3h,0C3h		;repret
 OPENSSL_wipe_cpu	ENDP
-PUBLIC	OPENSSL_ia32_rdrand
-
-ALIGN	16
-OPENSSL_ia32_rdrand	PROC PUBLIC
-	mov	ecx,8
-$L$oop_rdrand::
-DB	72,15,199,240
-	jc	$L$break_rdrand
-	loop	$L$oop_rdrand
-$L$break_rdrand::
-	cmp	rax,0
-	cmove	rax,rcx
-	DB	0F3h,0C3h		;repret
-OPENSSL_ia32_rdrand	ENDP
 
 .text$	ENDS
 END

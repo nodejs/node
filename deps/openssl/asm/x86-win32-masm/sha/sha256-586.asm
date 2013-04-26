@@ -2,7 +2,7 @@ TITLE	sha512-586.asm
 IF @Version LT 800
 ECHO MASM version 8.00 or later is strongly recommended.
 ENDIF
-.686
+.586
 .MODEL	FLAT
 OPTION	DOTNAME
 IF @Version LT 800
@@ -104,30 +104,31 @@ ALIGN	16
 $L00300_15:
 	mov	ebx,DWORD PTR 92[esp]
 	mov	ecx,edx
-	ror	ecx,14
-	mov	esi,DWORD PTR 20[esp]
-	xor	ecx,edx
-	ror	ecx,5
-	xor	ecx,edx
 	ror	ecx,6
+	mov	edi,edx
+	ror	edi,11
+	mov	esi,DWORD PTR 20[esp]
+	xor	ecx,edi
+	ror	edi,14
+	xor	ecx,edi
 	mov	edi,DWORD PTR 24[esp]
 	add	ebx,ecx
-	xor	esi,edi
 	mov	DWORD PTR 16[esp],edx
+	xor	esi,edi
 	mov	ecx,eax
 	and	esi,edx
 	mov	edx,DWORD PTR 12[esp]
 	xor	esi,edi
 	mov	edi,eax
 	add	ebx,esi
-	ror	ecx,9
-	add	ebx,DWORD PTR 28[esp]
-	xor	ecx,eax
-	ror	ecx,11
-	mov	esi,DWORD PTR 4[esp]
-	xor	ecx,eax
 	ror	ecx,2
+	add	ebx,DWORD PTR 28[esp]
+	ror	edi,13
+	mov	esi,DWORD PTR 4[esp]
+	xor	ecx,edi
+	ror	edi,9
 	add	edx,ebx
+	xor	ecx,edi
 	mov	edi,DWORD PTR 8[esp]
 	add	ebx,ecx
 	mov	DWORD PTR [esp],eax
@@ -149,46 +150,48 @@ ALIGN	16
 $L00416_63:
 	mov	esi,ebx
 	mov	ecx,DWORD PTR 100[esp]
+	shr	ebx,3
+	ror	esi,7
+	xor	ebx,esi
 	ror	esi,11
 	mov	edi,ecx
-	xor	esi,ebx
-	ror	esi,7
-	shr	ebx,3
-	ror	edi,2
 	xor	ebx,esi
-	xor	edi,ecx
-	ror	edi,17
 	shr	ecx,10
-	add	ebx,DWORD PTR 156[esp]
+	mov	esi,DWORD PTR 156[esp]
+	ror	edi,17
+	xor	ecx,edi
+	ror	edi,2
+	add	ebx,esi
 	xor	edi,ecx
-	add	ebx,DWORD PTR 120[esp]
-	mov	ecx,edx
 	add	ebx,edi
-	ror	ecx,14
-	mov	esi,DWORD PTR 20[esp]
-	xor	ecx,edx
-	ror	ecx,5
-	mov	DWORD PTR 92[esp],ebx
-	xor	ecx,edx
+	mov	ecx,edx
+	add	ebx,DWORD PTR 120[esp]
 	ror	ecx,6
+	mov	edi,edx
+	ror	edi,11
+	mov	esi,DWORD PTR 20[esp]
+	xor	ecx,edi
+	ror	edi,14
+	mov	DWORD PTR 92[esp],ebx
+	xor	ecx,edi
 	mov	edi,DWORD PTR 24[esp]
 	add	ebx,ecx
-	xor	esi,edi
 	mov	DWORD PTR 16[esp],edx
+	xor	esi,edi
 	mov	ecx,eax
 	and	esi,edx
 	mov	edx,DWORD PTR 12[esp]
 	xor	esi,edi
 	mov	edi,eax
 	add	ebx,esi
-	ror	ecx,9
-	add	ebx,DWORD PTR 28[esp]
-	xor	ecx,eax
-	ror	ecx,11
-	mov	esi,DWORD PTR 4[esp]
-	xor	ecx,eax
 	ror	ecx,2
+	add	ebx,DWORD PTR 28[esp]
+	ror	edi,13
+	mov	esi,DWORD PTR 4[esp]
+	xor	ecx,edi
+	ror	edi,9
 	add	edx,ebx
+	xor	ecx,edi
 	mov	edi,DWORD PTR 8[esp]
 	add	ebx,ecx
 	mov	DWORD PTR [esp],eax

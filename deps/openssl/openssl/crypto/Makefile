@@ -7,7 +7,7 @@ TOP=		..
 CC=		cc
 INCLUDE=	-I. -I$(TOP) -I../include $(ZLIB_INCLUDE)
 # INCLUDES targets sudbirs!
-INCLUDES=	-I.. -I../.. -I../modes -I../asn1 -I../evp -I../../include $(ZLIB_INCLUDE)
+INCLUDES=	-I.. -I../.. -I../asn1 -I../evp -I../../include $(ZLIB_INCLUDE)
 CFLAG=		-g
 MAKEDEPPROG=	makedepend
 MAKEDEPEND=	$(TOP)/util/domd $(TOP) -MD $(MAKEDEPPROG)
@@ -34,10 +34,8 @@ GENERAL=Makefile README crypto-lib.com install.com
 
 LIB= $(TOP)/libcrypto.a
 SHARED_LIB= libcrypto$(SHLIB_EXT)
-LIBSRC=	cryptlib.c mem.c mem_clr.c mem_dbg.c cversion.c ex_data.c cpt_err.c \
-	ebcdic.c uid.c o_time.c o_str.c o_dir.c o_fips.c o_init.c fips_ers.c
-LIBOBJ= cryptlib.o mem.o mem_dbg.o cversion.o ex_data.o cpt_err.o ebcdic.o \
-	uid.o o_time.o o_str.o o_dir.o o_fips.o o_init.o fips_ers.o $(CPUID_OBJ)
+LIBSRC=	cryptlib.c mem.c mem_clr.c mem_dbg.c cversion.c ex_data.c cpt_err.c ebcdic.c uid.c o_time.c o_str.c o_dir.c
+LIBOBJ= cryptlib.o mem.o mem_dbg.o cversion.o ex_data.o cpt_err.o ebcdic.o uid.o o_time.o o_str.o o_dir.o $(CPUID_OBJ)
 
 SRC= $(LIBSRC)
 
@@ -69,13 +67,14 @@ applink.o:	$(TOP)/ms/applink.c
 uplink.o:	$(TOP)/ms/uplink.c applink.o
 	$(CC) $(CFLAGS) -c -o $@ $(TOP)/ms/uplink.c
 
-uplink-x86.s:	$(TOP)/ms/uplink-x86.pl
-	$(PERL) $(TOP)/ms/uplink-x86.pl $(PERLASM_SCHEME) > $@
+uplink-cof.s:	$(TOP)/ms/uplink.pl
+	$(PERL) $(TOP)/ms/uplink.pl coff > $@
 
-x86_64cpuid.s: x86_64cpuid.pl;	$(PERL) x86_64cpuid.pl $(PERLASM_SCHEME) > $@
-ia64cpuid.s: ia64cpuid.S;	$(CC) $(CFLAGS) -E ia64cpuid.S > $@
+x86_64cpuid.s: x86_64cpuid.pl
+	$(PERL) x86_64cpuid.pl $(PERLASM_SCHEME) > $@
+ia64cpuid.s: ia64cpuid.S
+	$(CC) $(CFLAGS) -E ia64cpuid.S > $@
 ppccpuid.s:	ppccpuid.pl;	$(PERL) ppccpuid.pl $(PERLASM_SCHEME) $@
-pariscid.s:	pariscid.pl;	$(PERL) pariscid.pl $(PERLASM_SCHEME) $@
 alphacpuid.s:	alphacpuid.pl
 	$(PERL) $< | $(CC) -E - | tee $@ > /dev/null
 
@@ -103,7 +102,6 @@ lib:	$(LIB)
 	@touch lib
 $(LIB):	$(LIBOBJ)
 	$(AR) $(LIB) $(LIBOBJ)
-	[ -z "$(FIPSLIBDIR)" ] || $(AR) $(LIB) $(FIPSLIBDIR)fipscanister.o
 	$(RANLIB) $(LIB) || echo Never mind.
 
 shared: buildinf.h lib subdirs
@@ -173,7 +171,6 @@ ex_data.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 ex_data.o: ../include/openssl/ossl_typ.h ../include/openssl/safestack.h
 ex_data.o: ../include/openssl/stack.h ../include/openssl/symhacks.h cryptlib.h
 ex_data.o: ex_data.c
-fips_ers.o: ../include/openssl/opensslconf.h fips_ers.c
 mem.o: ../e_os.h ../include/openssl/bio.h ../include/openssl/buffer.h
 mem.o: ../include/openssl/crypto.h ../include/openssl/e_os2.h
 mem.o: ../include/openssl/err.h ../include/openssl/lhash.h
@@ -194,19 +191,6 @@ mem_dbg.o: ../include/openssl/stack.h ../include/openssl/symhacks.h cryptlib.h
 mem_dbg.o: mem_dbg.c
 o_dir.o: ../e_os.h ../include/openssl/e_os2.h ../include/openssl/opensslconf.h
 o_dir.o: LPdir_unix.c o_dir.c o_dir.h
-o_fips.o: ../e_os.h ../include/openssl/bio.h ../include/openssl/buffer.h
-o_fips.o: ../include/openssl/crypto.h ../include/openssl/e_os2.h
-o_fips.o: ../include/openssl/err.h ../include/openssl/lhash.h
-o_fips.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
-o_fips.o: ../include/openssl/ossl_typ.h ../include/openssl/safestack.h
-o_fips.o: ../include/openssl/stack.h ../include/openssl/symhacks.h cryptlib.h
-o_fips.o: o_fips.c
-o_init.o: ../e_os.h ../include/openssl/bio.h ../include/openssl/crypto.h
-o_init.o: ../include/openssl/e_os2.h ../include/openssl/err.h
-o_init.o: ../include/openssl/lhash.h ../include/openssl/opensslconf.h
-o_init.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
-o_init.o: ../include/openssl/safestack.h ../include/openssl/stack.h
-o_init.o: ../include/openssl/symhacks.h o_init.c
 o_str.o: ../e_os.h ../include/openssl/e_os2.h ../include/openssl/opensslconf.h
 o_str.o: o_str.c o_str.h
 o_time.o: ../include/openssl/e_os2.h ../include/openssl/opensslconf.h o_time.c

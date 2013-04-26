@@ -153,12 +153,8 @@ static int md_write(BIO *b, const char *in, int inl)
 		{
 		if (ret > 0)
 			{
-			if (!EVP_DigestUpdate(ctx,(const unsigned char *)in,
-				(unsigned int)ret))
-				{
-				BIO_clear_retry_flags(b);
-				return 0;
-				}
+			EVP_DigestUpdate(ctx,(const unsigned char *)in,
+				(unsigned int)ret);
 			}
 		}
 	if(b->next_bio != NULL)
@@ -224,8 +220,7 @@ static long md_ctrl(BIO *b, int cmd, long num, void *ptr)
 	case BIO_CTRL_DUP:
 		dbio=ptr;
 		dctx=dbio->ptr;
-		if (!EVP_MD_CTX_copy_ex(dctx,ctx))
-			return 0;
+		EVP_MD_CTX_copy_ex(dctx,ctx);
 		b->init=1;
 		break;
 	default:

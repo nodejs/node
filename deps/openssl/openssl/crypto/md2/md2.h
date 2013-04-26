@@ -81,9 +81,6 @@ typedef struct MD2state_st
 	} MD2_CTX;
 
 const char *MD2_options(void);
-#ifdef OPENSSL_FIPS
-int private_MD2_Init(MD2_CTX *c);
-#endif
 int MD2_Init(MD2_CTX *c);
 int MD2_Update(MD2_CTX *c, const unsigned char *data, size_t len);
 int MD2_Final(unsigned char *md, MD2_CTX *c);

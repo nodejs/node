@@ -358,20 +358,6 @@ static int ASIdentifierChoice_is_canonical(ASIdentifierChoice *choice)
       goto done;
   }
 
-  /*
-   * Check for inverted range.
-   */
-  i = sk_ASIdOrRange_num(choice->u.asIdsOrRanges) - 1;
-  {
-    ASIdOrRange *a = sk_ASIdOrRange_value(choice->u.asIdsOrRanges, i);
-    ASN1_INTEGER *a_min, *a_max;
-    if (a != NULL && a->type == ASIdOrRange_range) {
-      extract_min_max(a, &a_min, &a_max);
-      if (ASN1_INTEGER_cmp(a_min, a_max) > 0)
-	goto done;
-    }
-  }
-
   ret = 1;
 
  done:
@@ -406,18 +392,9 @@ static int ASIdentifierChoice_canonize(ASIdentifierChoice *choice)
     return 1;
 
   /*
-   * If not a list, or if empty list, it's broken.
+   * We have a list.  Sort it.
    */
-  if (choice->type != ASIdentifierChoice_asIdsOrRanges ||
-      sk_ASIdOrRange_num(choice->u.asIdsOrRanges) == 0) {
-    X509V3err(X509V3_F_ASIDENTIFIERCHOICE_CANONIZE,
-	      X509V3_R_EXTENSION_VALUE_ERROR);
-    return 0;
-  }
-
-  /*
-   * We have a non-empty list.  Sort it.
-   */
+  OPENSSL_assert(choice->type == ASIdentifierChoice_asIdsOrRanges);
   sk_ASIdOrRange_sort(choice->u.asIdsOrRanges);
 
   /*
@@ -436,13 +413,6 @@ static int ASIdentifierChoice_canonize(ASIdentifierChoice *choice)
      * Make sure we're properly sorted (paranoia).
      */
     OPENSSL_assert(ASN1_INTEGER_cmp(a_min, b_min) <= 0);
-
-    /*
-     * Punt inverted ranges.
-     */
-    if (ASN1_INTEGER_cmp(a_min, a_max) > 0 ||
-	ASN1_INTEGER_cmp(b_min, b_max) > 0)
-      goto done;
 
     /*
      * Check for overlaps.
@@ -495,23 +465,9 @@ static int ASIdentifierChoice_canonize(ASIdentifierChoice *choice)
 	break;
       }
       ASIdOrRange_free(b);
-      (void) sk_ASIdOrRange_delete(choice->u.asIdsOrRanges, i + 1);
+      sk_ASIdOrRange_delete(choice->u.asIdsOrRanges, i + 1);
       i--;
       continue;
-    }
-  }
-
-  /*
-   * Check for final inverted range.
-   */
-  i = sk_ASIdOrRange_num(choice->u.asIdsOrRanges) - 1;
-  {
-    ASIdOrRange *a = sk_ASIdOrRange_value(choice->u.asIdsOrRanges, i);
-    ASN1_INTEGER *a_min, *a_max;
-    if (a != NULL && a->type == ASIdOrRange_range) {
-      extract_min_max(a, &a_min, &a_max);
-      if (ASN1_INTEGER_cmp(a_min, a_max) > 0)
-	goto done;
     }
   }
 
@@ -542,7 +498,6 @@ static void *v2i_ASIdentifiers(const struct v3_ext_method *method,
 			       struct v3_ext_ctx *ctx,
 			       STACK_OF(CONF_VALUE) *values)
 {
-  ASN1_INTEGER *min = NULL, *max = NULL;
   ASIdentifiers *asid = NULL;
   int i;
 
@@ -553,6 +508,7 @@ static void *v2i_ASIdentifiers(const struct v3_ext_method *method,
 
   for (i = 0; i < sk_CONF_VALUE_num(values); i++) {
     CONF_VALUE *val = sk_CONF_VALUE_value(values, i);
+    ASN1_INTEGER *min = NULL, *max = NULL;
     int i1, i2, i3, is_range, which;
 
     /*
@@ -622,19 +578,18 @@ static void *v2i_ASIdentifiers(const struct v3_ext_method *method,
       max = s2i_ASN1_INTEGER(NULL, s + i2);
       OPENSSL_free(s);
       if (min == NULL || max == NULL) {
+	ASN1_INTEGER_free(min);
+	ASN1_INTEGER_free(max);
 	X509V3err(X509V3_F_V2I_ASIDENTIFIERS, ERR_R_MALLOC_FAILURE);
-	goto err;
-      }
-      if (ASN1_INTEGER_cmp(min, max) > 0) {
-	X509V3err(X509V3_F_V2I_ASIDENTIFIERS, X509V3_R_EXTENSION_VALUE_ERROR);
 	goto err;
       }
     }
     if (!v3_asid_add_id_or_range(asid, which, min, max)) {
+      ASN1_INTEGER_free(min);
+      ASN1_INTEGER_free(max);
       X509V3err(X509V3_F_V2I_ASIDENTIFIERS, ERR_R_MALLOC_FAILURE);
       goto err;
     }
-    min = max = NULL;
   }
 
   /*
@@ -646,8 +601,6 @@ static void *v2i_ASIdentifiers(const struct v3_ext_method *method,
 
  err:
   ASIdentifiers_free(asid);
-  ASN1_INTEGER_free(min);
-  ASN1_INTEGER_free(max);
   return NULL;
 }
 

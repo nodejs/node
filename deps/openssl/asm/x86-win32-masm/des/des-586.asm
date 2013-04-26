@@ -2,7 +2,7 @@ TITLE	des-586.asm
 IF @Version LT 800
 ECHO MASM version 8.00 or later is strongly recommended.
 ENDIF
-.686
+.586
 .MODEL	FLAT
 OPTION	DOTNAME
 IF @Version LT 800

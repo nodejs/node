@@ -48,8 +48,7 @@
  *
  */
 
-#include <openssl/crypto.h>
-#include "modes_lcl.h"
+#include "modes.h"
 #include <string.h>
 
 #ifndef MODES_DEBUG
@@ -59,7 +58,12 @@
 #endif
 #include <assert.h>
 
-#ifndef STRICT_ALIGNMENT
+#define STRICT_ALIGNMENT 1
+#if defined(__i386) || defined(__i386__) || \
+    defined(__x86_64) || defined(__x86_64__) || \
+    defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64) || \
+    defined(__s390__) || defined(__s390x__)
+#  undef STRICT_ALIGNMENT
 #  define STRICT_ALIGNMENT 0
 #endif
 

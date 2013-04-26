@@ -94,8 +94,5 @@ bf_enc.o: ../../include/openssl/blowfish.h ../../include/openssl/e_os2.h
 bf_enc.o: ../../include/openssl/opensslconf.h bf_enc.c bf_locl.h
 bf_ofb64.o: ../../include/openssl/blowfish.h ../../include/openssl/e_os2.h
 bf_ofb64.o: ../../include/openssl/opensslconf.h bf_locl.h bf_ofb64.c
-bf_skey.o: ../../include/openssl/blowfish.h ../../include/openssl/crypto.h
-bf_skey.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-bf_skey.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
-bf_skey.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-bf_skey.o: ../../include/openssl/symhacks.h bf_locl.h bf_pi.h bf_skey.c
+bf_skey.o: ../../include/openssl/blowfish.h ../../include/openssl/e_os2.h
+bf_skey.o: ../../include/openssl/opensslconf.h bf_locl.h bf_pi.h bf_skey.c

@@ -975,7 +975,7 @@ L_AES_encrypt_begin:
 	call	L004pic_point
 L004pic_point:
 	popl	%ebp
-	movl	L_OPENSSL_ia32cap_P$non_lazy_ptr-L004pic_point(%ebp),%eax
+	leal	_OPENSSL_ia32cap_P,%eax
 	leal	LAES_Te-L004pic_point(%ebp),%ebp
 	leal	764(%esp),%ebx
 	subl	%ebp,%ebx
@@ -2153,7 +2153,7 @@ L_AES_decrypt_begin:
 	call	L010pic_point
 L010pic_point:
 	popl	%ebp
-	movl	L_OPENSSL_ia32cap_P$non_lazy_ptr-L010pic_point(%ebp),%eax
+	leal	_OPENSSL_ia32cap_P,%eax
 	leal	LAES_Td-L010pic_point(%ebp),%ebp
 	leal	764(%esp),%ebx
 	subl	%ebp,%ebx
@@ -2207,7 +2207,7 @@ L_AES_cbc_encrypt_begin:
 	call	L013pic_point
 L013pic_point:
 	popl	%ebp
-	movl	L_OPENSSL_ia32cap_P$non_lazy_ptr-L013pic_point(%ebp),%eax
+	leal	_OPENSSL_ia32cap_P,%eax
 	cmpl	$0,40(%esp)
 	leal	LAES_Te-L013pic_point(%ebp),%ebp
 	jne	L014picked_te
@@ -2950,16 +2950,16 @@ L045exit:
 	popl	%ebx
 	popl	%ebp
 	ret
-.globl	_private_AES_set_encrypt_key
+.globl	_AES_set_encrypt_key
 .align	4
-_private_AES_set_encrypt_key:
-L_private_AES_set_encrypt_key_begin:
+_AES_set_encrypt_key:
+L_AES_set_encrypt_key_begin:
 	call	__x86_AES_set_encrypt_key
 	ret
-.globl	_private_AES_set_decrypt_key
+.globl	_AES_set_decrypt_key
 .align	4
-_private_AES_set_decrypt_key:
-L_private_AES_set_decrypt_key_begin:
+_AES_set_decrypt_key:
+L_AES_set_decrypt_key_begin:
 	call	__x86_AES_set_encrypt_key
 	cmpl	$0,%eax
 	je	L054proceed
@@ -3191,8 +3191,4 @@ L056permute:
 .byte	65,69,83,32,102,111,114,32,120,56,54,44,32,67,82,89
 .byte	80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114
 .byte	111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
-.section __IMPORT,__pointers,non_lazy_symbol_pointers
-L_OPENSSL_ia32cap_P$non_lazy_ptr:
-.indirect_symbol	_OPENSSL_ia32cap_P
-.long	0
-.comm	_OPENSSL_ia32cap_P,8,2
+.comm	_OPENSSL_ia32cap_P,4

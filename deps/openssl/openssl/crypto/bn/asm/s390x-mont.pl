@@ -32,33 +32,6 @@
 # Reschedule to minimize/avoid Address Generation Interlock hazard,
 # make inner loops counter-based.
 
-# November 2010.
-#
-# Adapt for -m31 build. If kernel supports what's called "highgprs"
-# feature on Linux [see /proc/cpuinfo], it's possible to use 64-bit
-# instructions and achieve "64-bit" performance even in 31-bit legacy
-# application context. The feature is not specific to any particular
-# processor, as long as it's "z-CPU". Latter implies that the code
-# remains z/Architecture specific. Compatibility with 32-bit BN_ULONG
-# is achieved by swapping words after 64-bit loads, follow _dswap-s.
-# On z990 it was measured to perform 2.6-2.2 times better than
-# compiler-generated code, less for longer keys...
-
-$flavour = shift;
-
-if ($flavour =~ /3[12]/) {
-	$SIZE_T=4;
-	$g="";
-} else {
-	$SIZE_T=8;
-	$g="g";
-}
-
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
-open STDOUT,">$output";
-
-$stdframe=16*$SIZE_T+4*8;
-
 $mn0="%r0";
 $num="%r1";
 
@@ -87,44 +60,34 @@ $code.=<<___;
 .globl	bn_mul_mont
 .type	bn_mul_mont,\@function
 bn_mul_mont:
-	lgf	$num,`$stdframe+$SIZE_T-4`($sp)	# pull $num
-	sla	$num,`log($SIZE_T)/log(2)`	# $num to enumerate bytes
+	lgf	$num,164($sp)	# pull $num
+	sla	$num,3		# $num to enumerate bytes
 	la	$bp,0($num,$bp)
 
-	st${g}	%r2,2*$SIZE_T($sp)
+	stg	%r2,16($sp)
 
 	cghi	$num,16		#
 	lghi	%r2,0		#
 	blr	%r14		# if($num<16) return 0;
-___
-$code.=<<___ if ($flavour =~ /3[12]/);
-	tmll	$num,4
-	bnzr	%r14		# if ($num&1) return 0;
-___
-$code.=<<___ if ($flavour !~ /3[12]/);
 	cghi	$num,96		#
 	bhr	%r14		# if($num>96) return 0;
-___
-$code.=<<___;
-	stm${g}	%r3,%r15,3*$SIZE_T($sp)
 
-	lghi	$rp,-$stdframe-8	# leave room for carry bit
+	stmg	%r3,%r15,24($sp)
+
+	lghi	$rp,-160-8	# leave room for carry bit
 	lcgr	$j,$num		# -$num
 	lgr	%r0,$sp
 	la	$rp,0($rp,$sp)
 	la	$sp,0($j,$rp)	# alloca
-	st${g}	%r0,0($sp)	# back chain
+	stg	%r0,0($sp)	# back chain
 
 	sra	$num,3		# restore $num
 	la	$bp,0($j,$bp)	# restore $bp
 	ahi	$num,-1		# adjust $num for inner loop
 	lg	$n0,0($n0)	# pull n0
-	_dswap	$n0
 
 	lg	$bi,0($bp)
-	_dswap	$bi
 	lg	$alo,0($ap)
-	_dswap	$alo
 	mlgr	$ahi,$bi	# ap[0]*bp[0]
 	lgr	$AHI,$ahi
 
@@ -132,7 +95,6 @@ $code.=<<___;
 	msgr	$mn0,$n0
 
 	lg	$nlo,0($np)	#
-	_dswap	$nlo
 	mlgr	$nhi,$mn0	# np[0]*m1
 	algr	$nlo,$alo	# +="tp[0]"
 	lghi	$NHI,0
@@ -144,14 +106,12 @@ $code.=<<___;
 .align	16
 .L1st:
 	lg	$alo,0($j,$ap)
-	_dswap	$alo
 	mlgr	$ahi,$bi	# ap[j]*bp[0]
 	algr	$alo,$AHI
 	lghi	$AHI,0
 	alcgr	$AHI,$ahi
 
 	lg	$nlo,0($j,$np)
-	_dswap	$nlo
 	mlgr	$nhi,$mn0	# np[j]*m1
 	algr	$nlo,$NHI
 	lghi	$NHI,0
@@ -159,24 +119,22 @@ $code.=<<___;
 	algr	$nlo,$alo
 	alcgr	$NHI,$nhi
 
-	stg	$nlo,$stdframe-8($j,$sp)	# tp[j-1]=
+	stg	$nlo,160-8($j,$sp)	# tp[j-1]=
 	la	$j,8($j)	# j++
 	brct	$count,.L1st
 
 	algr	$NHI,$AHI
 	lghi	$AHI,0
 	alcgr	$AHI,$AHI	# upmost overflow bit
-	stg	$NHI,$stdframe-8($j,$sp)
-	stg	$AHI,$stdframe($j,$sp)
+	stg	$NHI,160-8($j,$sp)
+	stg	$AHI,160($j,$sp)
 	la	$bp,8($bp)	# bp++
 
 .Louter:
 	lg	$bi,0($bp)	# bp[i]
-	_dswap	$bi
 	lg	$alo,0($ap)
-	_dswap	$alo
 	mlgr	$ahi,$bi	# ap[0]*bp[i]
-	alg	$alo,$stdframe($sp)	# +=tp[0]
+	alg	$alo,160($sp)	# +=tp[0]
 	lghi	$AHI,0
 	alcgr	$AHI,$ahi
 
@@ -184,7 +142,6 @@ $code.=<<___;
 	msgr	$mn0,$n0	# tp[0]*n0
 
 	lg	$nlo,0($np)	# np[0]
-	_dswap	$nlo
 	mlgr	$nhi,$mn0	# np[0]*m1
 	algr	$nlo,$alo	# +="tp[0]"
 	lghi	$NHI,0
@@ -196,16 +153,14 @@ $code.=<<___;
 .align	16
 .Linner:
 	lg	$alo,0($j,$ap)
-	_dswap	$alo
 	mlgr	$ahi,$bi	# ap[j]*bp[i]
 	algr	$alo,$AHI
 	lghi	$AHI,0
 	alcgr	$ahi,$AHI
-	alg	$alo,$stdframe($j,$sp)# +=tp[j]
+	alg	$alo,160($j,$sp)# +=tp[j]
 	alcgr	$AHI,$ahi
 
 	lg	$nlo,0($j,$np)
-	_dswap	$nlo
 	mlgr	$nhi,$mn0	# np[j]*m1
 	algr	$nlo,$NHI
 	lghi	$NHI,0
@@ -213,33 +168,31 @@ $code.=<<___;
 	algr	$nlo,$alo	# +="tp[j]"
 	alcgr	$NHI,$nhi
 
-	stg	$nlo,$stdframe-8($j,$sp)	# tp[j-1]=
+	stg	$nlo,160-8($j,$sp)	# tp[j-1]=
 	la	$j,8($j)	# j++
 	brct	$count,.Linner
 
 	algr	$NHI,$AHI
 	lghi	$AHI,0
 	alcgr	$AHI,$AHI
-	alg	$NHI,$stdframe($j,$sp)# accumulate previous upmost overflow bit
+	alg	$NHI,160($j,$sp)# accumulate previous upmost overflow bit
 	lghi	$ahi,0
 	alcgr	$AHI,$ahi	# new upmost overflow bit
-	stg	$NHI,$stdframe-8($j,$sp)
-	stg	$AHI,$stdframe($j,$sp)
+	stg	$NHI,160-8($j,$sp)
+	stg	$AHI,160($j,$sp)
 
 	la	$bp,8($bp)	# bp++
-	cl${g}	$bp,`$stdframe+8+4*$SIZE_T`($j,$sp)	# compare to &bp[num]
+	clg	$bp,160+8+32($j,$sp)	# compare to &bp[num]
 	jne	.Louter
 
-	l${g}	$rp,`$stdframe+8+2*$SIZE_T`($j,$sp)	# reincarnate rp
-	la	$ap,$stdframe($sp)
+	lg	$rp,160+8+16($j,$sp)	# reincarnate rp
+	la	$ap,160($sp)
 	ahi	$num,1		# restore $num, incidentally clears "borrow"
 
 	la	$j,0(%r0)
 	lr	$count,$num
 .Lsub:	lg	$alo,0($j,$ap)
-	lg	$nlo,0($j,$np)
-	_dswap	$nlo
-	slbgr	$alo,$nlo
+	slbg	$alo,0($j,$np)
 	stg	$alo,0($j,$rp)
 	la	$j,8($j)
 	brct	$count,.Lsub
@@ -254,24 +207,19 @@ $code.=<<___;
 
 	la	$j,0(%r0)
 	lgr	$count,$num
-.Lcopy:	lg	$alo,0($j,$ap)		# copy or in-place refresh
-	_dswap	$alo
-	stg	$j,$stdframe($j,$sp)	# zap tp
+.Lcopy:	lg	$alo,0($j,$ap)	# copy or in-place refresh
+	stg	$j,160($j,$sp)	# zap tp
 	stg	$alo,0($j,$rp)
 	la	$j,8($j)
 	brct	$count,.Lcopy
 
-	la	%r1,`$stdframe+8+6*$SIZE_T`($j,$sp)
-	lm${g}	%r6,%r15,0(%r1)
+	la	%r1,160+8+48($j,$sp)
+	lmg	%r6,%r15,0(%r1)
 	lghi	%r2,1		# signal "processed"
 	br	%r14
 .size	bn_mul_mont,.-bn_mul_mont
 .string	"Montgomery Multiplication for s390x, CRYPTOGAMS by <appro\@openssl.org>"
 ___
 
-foreach (split("\n",$code)) {
-	s/\`([^\`]*)\`/eval $1/ge;
-	s/_dswap\s+(%r[0-9]+)/sprintf("rllg\t%s,%s,32",$1,$1) if($SIZE_T==4)/e;
-	print $_,"\n";
-}
+print $code;
 close STDOUT;

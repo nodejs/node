@@ -238,7 +238,6 @@ void ERR_load_ECDSA_strings(void);
 /* Error codes for the ECDSA functions. */
 
 /* Function codes. */
-#define ECDSA_F_ECDSA_CHECK				 104
 #define ECDSA_F_ECDSA_DATA_NEW_METHOD			 100
 #define ECDSA_F_ECDSA_DO_SIGN				 101
 #define ECDSA_F_ECDSA_DO_VERIFY				 102
@@ -250,7 +249,6 @@ void ERR_load_ECDSA_strings(void);
 #define ECDSA_R_ERR_EC_LIB				 102
 #define ECDSA_R_MISSING_PARAMETERS			 103
 #define ECDSA_R_NEED_NEW_SETUP_VALUES			 106
-#define ECDSA_R_NON_FIPS_METHOD				 107
 #define ECDSA_R_RANDOM_NUMBER_GENERATION_FAILED		 104
 #define ECDSA_R_SIGNATURE_MALLOC_FAILED			 105
 

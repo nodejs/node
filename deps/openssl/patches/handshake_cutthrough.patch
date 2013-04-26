@@ -1,0 +1,275 @@
+diff -uarp openssl-1.0.0.orig/apps/s_client.c openssl-1.0.0/apps/s_client.c
+--- openssl-1.0.0.orig/apps/s_client.c	2009-12-16 15:28:28.000000000 -0500
++++ openssl-1.0.0/apps/s_client.c	2010-04-21 14:39:49.000000000 -0400
+@@ -248,6 +248,7 @@ static void sc_usage(void)
+ 	BIO_printf(bio_err," -tlsextdebug      - hex dump of all TLS extensions received\n");
+ 	BIO_printf(bio_err," -status           - request certificate status from server\n");
+ 	BIO_printf(bio_err," -no_ticket        - disable use of RFC4507bis session tickets\n");
++	BIO_printf(bio_err," -cutthrough       - enable 1-RTT full-handshake for strong ciphers\n");
+ #endif
+ 	}
+ 
+@@ -304,6 +305,7 @@ int MAIN(int argc, char **argv)
+ 	EVP_PKEY *key = NULL;
+ 	char *CApath=NULL,*CAfile=NULL,*cipher=NULL;
+ 	int reconnect=0,badop=0,verify=SSL_VERIFY_NONE,bugs=0;
++	int cutthrough=0;
+ 	int crlf=0;
+ 	int write_tty,read_tty,write_ssl,read_ssl,tty_on,ssl_pending;
+ 	SSL_CTX *ctx=NULL;
+@@ -533,6 +535,8 @@ int MAIN(int argc, char **argv)
+ 		else if	(strcmp(*argv,"-no_ticket") == 0)
+ 			{ off|=SSL_OP_NO_TICKET; }
+ #endif
++		else if (strcmp(*argv,"-cutthrough") == 0)
++			cutthrough=1;
+ 		else if (strcmp(*argv,"-serverpref") == 0)
+ 			off|=SSL_OP_CIPHER_SERVER_PREFERENCE;
+ 		else if	(strcmp(*argv,"-cipher") == 0)
+@@ -714,6 +718,15 @@ bad:
+ 	 */
+ 	if (sock_type == SOCK_DGRAM) SSL_CTX_set_read_ahead(ctx, 1);
+ 
++	/* Enable handshake cutthrough for client connections using
++	 * strong ciphers. */
++	if (cutthrough)
++		{
++		int ssl_mode = SSL_CTX_get_mode(ctx);
++		ssl_mode |= SSL_MODE_HANDSHAKE_CUTTHROUGH;
++		SSL_CTX_set_mode(ctx, ssl_mode);
++		}
++
+ 	if (state) SSL_CTX_set_info_callback(ctx,apps_ssl_info_callback);
+ 	if (cipher != NULL)
+ 		if(!SSL_CTX_set_cipher_list(ctx,cipher)) {
+diff -uarp openssl-1.0.0.orig/ssl/s3_clnt.c openssl-1.0.0/ssl/s3_clnt.c
+--- openssl-1.0.0.orig/ssl/s3_clnt.c	2010-02-27 19:24:24.000000000 -0500
++++ openssl-1.0.0/ssl/s3_clnt.c	2010-04-21 14:39:49.000000000 -0400
+@@ -186,6 +186,18 @@ int ssl3_connect(SSL *s)
+ 	
+ 	s->in_handshake++;
+ 	if (!SSL_in_init(s) || SSL_in_before(s)) SSL_clear(s); 
++#if 0	/* Send app data in separate packet, otherwise, some particular site
++	 * (only one site so far) closes the socket.
++	 * Note: there is a very small chance that two TCP packets
++	 * could be arriving at server combined into a single TCP packet,
++	 * then trigger that site to break. We haven't encounter that though.
++	 */
++	if (SSL_get_mode(s) & SSL_MODE_HANDSHAKE_CUTTHROUGH)
++		{
++		/* Send app data along with CCS/Finished */
++		s->s3->flags |= SSL3_FLAGS_DELAY_CLIENT_FINISHED;
++		}
++#endif
+ 
+ 	for (;;)
+ 		{
+@@ -454,14 +468,31 @@ int ssl3_connect(SSL *s)
+ 				}
+ 			else
+ 				{
+-#ifndef OPENSSL_NO_TLSEXT
+-				/* Allow NewSessionTicket if ticket expected */
+-				if (s->tlsext_ticket_expected)
+-					s->s3->tmp.next_state=SSL3_ST_CR_SESSION_TICKET_A;
++				if ((SSL_get_mode(s) & SSL_MODE_HANDSHAKE_CUTTHROUGH) && SSL_get_cipher_bits(s, NULL) >= 128
++				    && s->s3->previous_server_finished_len == 0 /* no cutthrough on renegotiation (would complicate the state machine) */
++				   )
++					{
++					if (s->s3->flags & SSL3_FLAGS_DELAY_CLIENT_FINISHED)
++						{
++						s->state=SSL3_ST_CUTTHROUGH_COMPLETE;
++						s->s3->flags|=SSL3_FLAGS_POP_BUFFER;
++						s->s3->delay_buf_pop_ret=0;
++						}
++					else
++						{
++						s->s3->tmp.next_state=SSL3_ST_CUTTHROUGH_COMPLETE;
++						}
++					}
+ 				else
++					{
++#ifndef OPENSSL_NO_TLSEXT
++					/* Allow NewSessionTicket if ticket expected */
++					if (s->tlsext_ticket_expected)
++						s->s3->tmp.next_state=SSL3_ST_CR_SESSION_TICKET_A;
++					else
+ #endif
+-				
+-				s->s3->tmp.next_state=SSL3_ST_CR_FINISHED_A;
++						s->s3->tmp.next_state=SSL3_ST_CR_FINISHED_A;
++					}
+ 				}
+ 			s->init_num=0;
+ 			break;
+@@ -512,6 +541,24 @@ int ssl3_connect(SSL *s)
+ 			s->state=s->s3->tmp.next_state;
+ 			break;
+ 
++		case SSL3_ST_CUTTHROUGH_COMPLETE:
++#ifndef OPENSSL_NO_TLSEXT
++			/* Allow NewSessionTicket if ticket expected */
++			if (s->tlsext_ticket_expected)
++				s->state=SSL3_ST_CR_SESSION_TICKET_A;
++			else
++#endif
++				s->state=SSL3_ST_CR_FINISHED_A;
++
++			/* SSL_write() will take care of flushing buffered data if
++			 * DELAY_CLIENT_FINISHED is set.
++			 */
++			if (!(s->s3->flags & SSL3_FLAGS_DELAY_CLIENT_FINISHED))
++				ssl_free_wbio_buffer(s);
++			ret = 1;
++			goto end;
++			/* break; */
++
+ 		case SSL_ST_OK:
+ 			/* clean a few things up */
+ 			ssl3_cleanup_key_block(s);
+diff -uarp openssl-1.0.0.orig/ssl/s3_lib.c openssl-1.0.0/ssl/s3_lib.c
+-- openssl-1.0.0.orig/ssl/s3_lib.c     2009-10-16 11:24:19.000000000 -0400
++++ openssl-1.0.0/ssl/s3_lib.c  2010-04-21 14:39:49.000000000 -0400
+@@ -2551,9 +2551,22 @@ int ssl3_write(SSL *s, const void *buf, 
+ 
+ static int ssl3_read_internal(SSL *s, void *buf, int len, int peek)
+ 	{
+-	int ret;
++	int n,ret;
+ 	
+ 	clear_sys_error();
++	if ((s->s3->flags & SSL3_FLAGS_POP_BUFFER) && (s->wbio == s->bbio))
++		{
++		/* Deal with an application that calls SSL_read() when handshake data
++		 * is yet to be written.
++		 */
++		if (BIO_wpending(s->wbio) > 0)
++			{
++			s->rwstate=SSL_WRITING;
++			n=BIO_flush(s->wbio);
++			if (n <= 0) return(n);
++			s->rwstate=SSL_NOTHING;
++			}
++		}
+ 	if (s->s3->renegotiate) ssl3_renegotiate_check(s);
+ 	s->s3->in_read_app_data=1;
+ 	ret=s->method->ssl_read_bytes(s,SSL3_RT_APPLICATION_DATA,buf,len,peek);
+diff -uarp openssl-1.0.0.orig/ssl/ssl.h openssl-1.0.0/ssl/ssl.h
+--- openssl-1.0.0.orig/ssl/ssl.h	2010-01-06 12:37:38.000000000 -0500
++++ openssl-1.0.0/ssl/ssl.h	2010-04-21 16:57:49.000000000 -0400
+@@ -605,6 +605,10 @@ typedef struct ssl_session_st
+ /* Use small read and write buffers: (a) lazy allocate read buffers for
+  * large incoming records, and (b) limit the size of outgoing records. */
+ #define SSL_MODE_SMALL_BUFFERS 0x00000020L
++/* When set, clients may send application data before receipt of CCS
++ * and Finished.  This mode enables full-handshakes to 'complete' in
++ * one RTT. */
++#define SSL_MODE_HANDSHAKE_CUTTHROUGH 0x00000040L
+
+ /* Note: SSL[_CTX]_set_{options,mode} use |= op on the previous value,
+  * they cannot be used to clear bits. */
+@@ -1097,10 +1101,12 @@ extern "C" {
+ /* Is the SSL_connection established? */
+ #define SSL_get_state(a)		SSL_state(a)
+ #define SSL_is_init_finished(a)		(SSL_state(a) == SSL_ST_OK)
+-#define SSL_in_init(a)			(SSL_state(a)&SSL_ST_INIT)
++#define SSL_in_init(a)			((SSL_state(a)&SSL_ST_INIT) && \
++                                  !SSL_cutthrough_complete(a))
+ #define SSL_in_before(a)		(SSL_state(a)&SSL_ST_BEFORE)
+ #define SSL_in_connect_init(a)		(SSL_state(a)&SSL_ST_CONNECT)
+ #define SSL_in_accept_init(a)		(SSL_state(a)&SSL_ST_ACCEPT)
++int SSL_cutthrough_complete(const SSL *s);
+ 
+ /* The following 2 states are kept in ssl->rstate when reads fail,
+  * you should not need these */
+Only in openssl-1.0.0/ssl: ssl.h.orig
+diff -uarp openssl-1.0.0.orig/ssl/ssl3.h openssl-1.0.0/ssl/ssl3.h
+-- openssl-1.0.0.orig/ssl/ssl3.h	2010-01-06 12:37:38.000000000 -0500
++++ openssl-1.0.0/ssl/ssl3.h	2010-04-21 14:39:49.000000000 -0400
+@@ -456,6 +456,7 @@ typedef struct ssl3_state_st
+ /*client */
+ /* extra state */
+ #define SSL3_ST_CW_FLUSH		(0x100|SSL_ST_CONNECT)
++#define SSL3_ST_CUTTHROUGH_COMPLETE	(0x101|SSL_ST_CONNECT)
+ /* write to server */
+ #define SSL3_ST_CW_CLNT_HELLO_A		(0x110|SSL_ST_CONNECT)
+ #define SSL3_ST_CW_CLNT_HELLO_B		(0x111|SSL_ST_CONNECT)
+diff -uarp openssl-1.0.0.orig/ssl/ssl_lib.c openssl-1.0.0/ssl/ssl_lib.c
+--- openssl-1.0.0.orig/ssl/ssl_lib.c	2010-02-17 14:43:46.000000000 -0500
++++ openssl-1.0.0/ssl/ssl_lib.c	2010-04-21 17:02:45.000000000 -0400
+@@ -3031,6 +3031,19 @@ void SSL_set_msg_callback(SSL *ssl, void
+ 	SSL_callback_ctrl(ssl, SSL_CTRL_SET_MSG_CALLBACK, (void (*)(void))cb);
+ 	}
+
++int SSL_cutthrough_complete(const SSL *s)
++	{
++	return (!s->server &&                 /* cutthrough only applies to clients */
++		!s->hit &&                        /* full-handshake */
++		s->version >= SSL3_VERSION &&
++		s->s3->in_read_app_data == 0 &&   /* cutthrough only applies to write() */
++		(SSL_get_mode((SSL*)s) & SSL_MODE_HANDSHAKE_CUTTHROUGH) &&  /* cutthrough enabled */
++		SSL_get_cipher_bits(s, NULL) >= 128 &&                      /* strong cipher choosen */
++		s->s3->previous_server_finished_len == 0 &&                 /* not a renegotiation handshake */
++		(s->state == SSL3_ST_CR_SESSION_TICKET_A ||                 /* ready to write app-data*/
++			s->state == SSL3_ST_CR_FINISHED_A));
++	}
++
+ /* Allocates new EVP_MD_CTX and sets pointer to it into given pointer
+  * vairable, freeing  EVP_MD_CTX previously stored in that variable, if
+  * any. If EVP_MD pointer is passed, initializes ctx with this md
+diff -uarp openssl-1.0.0.orig/ssl/ssltest.c openssl-1.0.0/ssl/ssltest.c
+--- openssl-1.0.0.orig/ssl/ssltest.c	2010-01-24 11:57:38.000000000 -0500
++++ openssl-1.0.0/ssl/ssltest.c	2010-04-21 17:06:35.000000000 -0400
+@@ -279,6 +279,7 @@ static void sv_usage(void)
+ 	fprintf(stderr," -test_cipherlist - verifies the order of the ssl cipher lists\n");
+ 	fprintf(stderr," -c_small_records - enable client side use of small SSL record buffers\n");
+ 	fprintf(stderr," -s_small_records - enable server side use of small SSL record buffers\n");
++	fprintf(stderr," -cutthrough      - enable 1-RTT full-handshake for strong ciphers\n");
+ 	}
+ 
+ static void print_details(SSL *c_ssl, const char *prefix)
+@@ -436,6 +437,7 @@ int main(int argc, char *argv[])
+ 	int ssl_mode = 0;
+ 	int c_small_records=0;
+ 	int s_small_records=0;
++	int cutthrough = 0;
+ 
+ 	verbose = 0;
+ 	debug = 0;
+@@ -632,6 +634,10 @@ int main(int argc, char *argv[])
+ 			{
+ 			s_small_records = 1;
+ 			}
++		else if (strcmp(*argv, "-cutthrough") == 0)
++			{
++			cutthrough = 1;
++			}
+ 		else
+ 			{
+ 			fprintf(stderr,"unknown option %s\n",*argv);
+@@ -782,6 +788,13 @@ bad:
+ 		ssl_mode |= SSL_MODE_SMALL_BUFFERS;
+ 		SSL_CTX_set_mode(s_ctx, ssl_mode);
+ 		}
++	ssl_mode = 0;
++	if (cutthrough)
++		{
++		ssl_mode = SSL_CTX_get_mode(c_ctx);
++		ssl_mode = SSL_MODE_HANDSHAKE_CUTTHROUGH;
++		SSL_CTX_set_mode(c_ctx, ssl_mode);
++		}
+ 
+ #ifndef OPENSSL_NO_DH
+ 	if (!no_dhe)
+diff -uarp openssl-1.0.0.orig/test/testssl openssl-1.0.0/test/testssl
+--- openssl-1.0.0.orig/test/testssl	2006-03-10 18:06:27.000000000 -0500
++++ openssl-1.0.0/test/testssl	2010-04-21 16:50:13.000000000 -0400
+@@ -79,6 +79,8 @@ $ssltest -server_auth -client_auth -s_sm
+ echo test sslv2/sslv3 with both client and server authentication and small client and server buffers
+ $ssltest -server_auth -client_auth -c_small_records -s_small_records $CA $extra || exit 1
+ 
++echo test sslv2/sslv3 with both client and server authentication and handshake cutthrough
++$ssltest -server_auth -client_auth -cutthrough $CA $extra || exit 1
+ 
+ echo test sslv2 via BIO pair
+ $ssltest -bio_pair -ssl2 $extra || exit 1

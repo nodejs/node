@@ -235,7 +235,7 @@ typedef struct asn1_object_st
  */
 #define ASN1_STRING_FLAG_MSTRING 0x040 
 /* This is the base type that holds just about everything :-) */
-struct asn1_string_st
+typedef struct asn1_string_st
 	{
 	int length;
 	int type;
@@ -245,7 +245,7 @@ struct asn1_string_st
 	 * input data has a non-zero 'unused bits' value, it will be
 	 * handled correctly */
 	long flags;
-	};
+	} ASN1_STRING;
 
 /* ASN1_ENCODING structure: this is used to save the received
  * encoding of an ASN1 type. This is useful to get round
@@ -293,6 +293,7 @@ DECLARE_STACK_OF(ASN1_STRING_TABLE)
  * see asn1t.h
  */
 typedef struct ASN1_TEMPLATE_st ASN1_TEMPLATE;
+typedef struct ASN1_ITEM_st ASN1_ITEM;
 typedef struct ASN1_TLC_st ASN1_TLC;
 /* This is just an opaque pointer */
 typedef struct ASN1_VALUE_st ASN1_VALUE;
@@ -1193,7 +1194,6 @@ void ERR_load_ASN1_strings(void);
 #define ASN1_F_ASN1_ITEM_I2D_FP				 193
 #define ASN1_F_ASN1_ITEM_PACK				 198
 #define ASN1_F_ASN1_ITEM_SIGN				 195
-#define ASN1_F_ASN1_ITEM_SIGN_CTX			 220
 #define ASN1_F_ASN1_ITEM_UNPACK				 199
 #define ASN1_F_ASN1_ITEM_VERIFY				 197
 #define ASN1_F_ASN1_MBSTRING_NCOPY			 122
@@ -1266,7 +1266,6 @@ void ERR_load_ASN1_strings(void);
 #define ASN1_F_PKCS5_PBE2_SET_IV			 167
 #define ASN1_F_PKCS5_PBE_SET				 202
 #define ASN1_F_PKCS5_PBE_SET0_ALGOR			 215
-#define ASN1_F_PKCS5_PBKDF2_SET				 219
 #define ASN1_F_SMIME_READ_ASN1				 212
 #define ASN1_F_SMIME_TEXT				 213
 #define ASN1_F_X509_CINF_NEW				 168
@@ -1292,7 +1291,6 @@ void ERR_load_ASN1_strings(void);
 #define ASN1_R_BOOLEAN_IS_WRONG_LENGTH			 106
 #define ASN1_R_BUFFER_TOO_SMALL				 107
 #define ASN1_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER		 108
-#define ASN1_R_CONTEXT_NOT_INITIALISED			 217
 #define ASN1_R_DATA_IS_WRONG				 109
 #define ASN1_R_DECODE_ERROR				 110
 #define ASN1_R_DECODING_ERROR				 111

@@ -85,6 +85,7 @@ extern int GetThreadID(void);
 #ifndef OPENSSL_NO_DH
 #include <openssl/dh.h>
 #endif
+#include <openssl/bn.h>
 
 #ifndef OPENSSL_NO_HW
 #ifndef OPENSSL_NO_HW_AEP

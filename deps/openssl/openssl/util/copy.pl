@@ -8,16 +8,9 @@ use Fcntl;
 # Perl script 'copy' comment. On Windows the built in "copy" command also
 # copies timestamps: this messes up Makefile dependencies.
 
-my $stripcr = 0;
-
 my $arg;
 
 foreach $arg (@ARGV) {
-	if ($arg eq "-stripcr")
-		{
-		$stripcr = 1;
-		next;
-		}
 	$arg =~ s|\\|/|g;	# compensate for bug/feature in cygwin glob...
 	foreach (glob $arg)
 		{
@@ -56,10 +49,6 @@ foreach (@filelist)
 					|| die "Can't Open $dfile";
 	while (sysread IN, $buf, 10240)
 		{
-		if ($stripcr)
-			{
-			$buf =~ tr/\015//d;
-			}
 		syswrite(OUT, $buf, length($buf));
 		}
 	close(IN);

@@ -79,6 +79,8 @@ struct dev_crypto_state {
 	unsigned char digest_res[HASH_MAX_LEN];
 	char *mac_data;
 	int mac_len;
+
+	int copy;
 #endif
 };
 
@@ -198,7 +200,6 @@ get_dev_crypto(void)
 
 	if ((fd = open_dev_crypto()) == -1)
 		return (-1);
-#ifndef CRIOGET_NOT_NEEDED
 	if (ioctl(fd, CRIOGET, &retfd) == -1)
 		return (-1);
 
@@ -207,17 +208,7 @@ get_dev_crypto(void)
 		close(retfd);
 		return (-1);
 	}
-#else
-        retfd = fd;
-#endif
 	return (retfd);
-}
-
-static void put_dev_crypto(int fd)
-{
-#ifndef CRIOGET_NOT_NEEDED
-	close(fd);
-#endif
 }
 
 /* Caching version for asym operations */
@@ -261,7 +252,7 @@ get_cryptodev_ciphers(const int **cnids)
 		    ioctl(fd, CIOCFSESSION, &sess.ses) != -1)
 			nids[count++] = ciphers[i].nid;
 	}
-	put_dev_crypto(fd);
+	close(fd);
 
 	if (count > 0)
 		*cnids = nids;
@@ -300,7 +291,7 @@ get_cryptodev_digests(const int **cnids)
 		    ioctl(fd, CIOCFSESSION, &sess.ses) != -1)
 			nids[count++] = digests[i].nid;
 	}
-	put_dev_crypto(fd);
+	close(fd);
 
 	if (count > 0)
 		*cnids = nids;
@@ -445,7 +436,7 @@ cryptodev_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 	sess->cipher = cipher;
 
 	if (ioctl(state->d_fd, CIOCGSESSION, sess) == -1) {
-		put_dev_crypto(state->d_fd);
+		close(state->d_fd);
 		state->d_fd = -1;
 		return (0);
 	}
@@ -482,7 +473,7 @@ cryptodev_cleanup(EVP_CIPHER_CTX *ctx)
 	} else {
 		ret = 1;
 	}
-	put_dev_crypto(state->d_fd);
+	close(state->d_fd);
 	state->d_fd = -1;
 
 	return (ret);
@@ -695,7 +686,7 @@ static int cryptodev_digest_init(EVP_MD_CTX *ctx)
 	sess->mac = digest;
 
 	if (ioctl(state->d_fd, CIOCGSESSION, sess) < 0) {
-		put_dev_crypto(state->d_fd);
+		close(state->d_fd);
 		state->d_fd = -1;
 		printf("cryptodev_digest_init: Open session failed\n");
 		return (0);
@@ -767,12 +758,14 @@ static int cryptodev_digest_final(EVP_MD_CTX *ctx, unsigned char *md)
 	if (! (ctx->flags & EVP_MD_CTX_FLAG_ONESHOT) ) {
 		/* if application doesn't support one buffer */
 		memset(&cryp, 0, sizeof(cryp));
+
 		cryp.ses = sess->ses;
 		cryp.flags = 0;
 		cryp.len = state->mac_len;
 		cryp.src = state->mac_data;
 		cryp.dst = NULL;
 		cryp.mac = (caddr_t)md;
+
 		if (ioctl(state->d_fd, CIOCCRYPT, &cryp) < 0) {
 			printf("cryptodev_digest_final: digest failed\n");
 			return (0);
@@ -793,9 +786,6 @@ static int cryptodev_digest_cleanup(EVP_MD_CTX *ctx)
 	struct dev_crypto_state *state = ctx->md_data;
 	struct session_op *sess = &state->d_sess;
 
-	if (state == NULL)
-	  return 0;
-
 	if (state->d_fd < 0) {
 		printf("cryptodev_digest_cleanup: illegal input\n");
 		return (0);
@@ -807,13 +797,16 @@ static int cryptodev_digest_cleanup(EVP_MD_CTX *ctx)
 		state->mac_len = 0;
 	}
 
+	if (state->copy)
+		return 1;
+
 	if (ioctl(state->d_fd, CIOCFSESSION, &sess->ses) < 0) {
 		printf("cryptodev_digest_cleanup: failed to close session\n");
 		ret = 0;
 	} else {
 		ret = 1;
 	}
-	put_dev_crypto(state->d_fd);	
+	close(state->d_fd);	
 	state->d_fd = -1;
 
 	return (ret);
@@ -823,39 +816,15 @@ static int cryptodev_digest_copy(EVP_MD_CTX *to,const EVP_MD_CTX *from)
 {
 	struct dev_crypto_state *fstate = from->md_data;
 	struct dev_crypto_state *dstate = to->md_data;
-	struct session_op *sess;
-	int digest;
 
-	if (dstate == NULL || fstate == NULL)
-	  return 1;
-
-       	memcpy(dstate, fstate, sizeof(struct dev_crypto_state));
-
-	sess = &dstate->d_sess;
-
-	digest = digest_nid_to_cryptodev(to->digest->type);
-
-	sess->mackey = dstate->dummy_mac_key;
-	sess->mackeylen = digest_key_length(to->digest->type);
-	sess->mac = digest;
-
-	dstate->d_fd = get_dev_crypto();
-
-	if (ioctl(dstate->d_fd, CIOCGSESSION, sess) < 0) {
-		put_dev_crypto(dstate->d_fd);
-		dstate->d_fd = -1;
-		printf("cryptodev_digest_init: Open session failed\n");
-		return (0);
-	}
+	memcpy(dstate, fstate, sizeof(struct dev_crypto_state));
 
 	if (fstate->mac_len != 0) {
-	        if (fstate->mac_data != NULL)
-	                {
-        		dstate->mac_data = OPENSSL_malloc(fstate->mac_len);
-	        	memcpy(dstate->mac_data, fstate->mac_data, fstate->mac_len);
-           		dstate->mac_len = fstate->mac_len;
-	        	}
+		dstate->mac_data = OPENSSL_malloc(fstate->mac_len);
+		memcpy(dstate->mac_data, fstate->mac_data, fstate->mac_len);
 	}
+
+	dstate->copy = 1;
 
 	return 1;
 }
@@ -1378,11 +1347,11 @@ ENGINE_load_cryptodev(void)
 	 * find out what asymmetric crypto algorithms we support
 	 */
 	if (ioctl(fd, CIOCASYMFEAT, &cryptodev_asymfeat) == -1) {
-		put_dev_crypto(fd);
+		close(fd);
 		ENGINE_free(engine);
 		return;
 	}
-	put_dev_crypto(fd);
+	close(fd);
 
 	if (!ENGINE_set_id(engine, "cryptodev") ||
 	    !ENGINE_set_name(engine, "BSD cryptodev engine") ||
