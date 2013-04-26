@@ -126,12 +126,17 @@ function addTest(input, output) {
   expected.push({input: input, lines: output, callback: next});
 }
 
-var initialLines = [
+var handshakeLines = [
   /listening on port \d+/,
-  /connecting.* ok/,
+  /connecting.* ok/
+];
+
+var initialBreakLines = [
   /break in .*:1/,
   /1/, /2/, /3/
 ];
+
+var initialLines = handshakeLines.concat(initialBreakLines);
 
 // Process initial lines
 addTest(null, initialLines);
@@ -139,3 +144,5 @@ addTest(null, initialLines);
 exports.startDebugger = startDebugger;
 exports.addTest = addTest;
 exports.initialLines = initialLines;
+exports.handshakeLines = handshakeLines;
+exports.initialBreakLines = initialBreakLines;
