@@ -37,7 +37,13 @@ namespace internal {
 
 
 ObjectGroup::~ObjectGroup() {
-  if (info_ != NULL) info_->Dispose();
+  if (info != NULL) info->Dispose();
+  delete[] objects;
+}
+
+
+ImplicitRefGroup::~ImplicitRefGroup() {
+  delete[] children;
 }
 
 
@@ -267,7 +273,7 @@ class GlobalHandles::Node {
       ASSERT(!object_->IsExternalTwoByteString() ||
              ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       if (near_death_callback_ != NULL) {
         if (IsWeakCallback::decode(flags_)) {
           WeakReferenceCallback callback =
@@ -438,7 +444,8 @@ GlobalHandles::GlobalHandles(Isolate* isolate)
       first_block_(NULL),
       first_used_block_(NULL),
       first_free_(NULL),
-      post_gc_processing_count_(0) {}
+      post_gc_processing_count_(0),
+      object_group_connections_(kObjectGroupConnectionsCapacity) {}
 
 
 GlobalHandles::~GlobalHandles() {
@@ -578,15 +585,16 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
 
 bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,
                                         WeakSlotCallbackWithHeap can_skip) {
+  ComputeObjectGroupsAndImplicitReferences();
   int last = 0;
   bool any_group_was_visited = false;
   for (int i = 0; i < object_groups_.length(); i++) {
     ObjectGroup* entry = object_groups_.at(i);
     ASSERT(entry != NULL);
 
-    Object*** objects = entry->objects_;
+    Object*** objects = entry->objects;
     bool group_should_be_visited = false;
-    for (size_t j = 0; j < entry->length_; j++) {
+    for (size_t j = 0; j < entry->length; j++) {
       Object* object = *objects[j];
       if (object->IsHeapObject()) {
         if (!can_skip(isolate_->heap(), &object)) {
@@ -603,7 +611,7 @@ bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,
 
     // An object in the group requires visiting, so iterate over all
     // objects in the group.
-    for (size_t j = 0; j < entry->length_; ++j) {
+    for (size_t j = 0; j < entry->length; ++j) {
       Object* object = *objects[j];
       if (object->IsHeapObject()) {
         v->VisitPointer(&object);
@@ -613,7 +621,7 @@ bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,
 
     // Once the entire group has been iterated over, set the object
     // group to NULL so it won't be processed again.
-    entry->Dispose();
+    delete entry;
     object_groups_.at(i) = NULL;
   }
   object_groups_.Rewind(last);
@@ -824,7 +832,23 @@ void GlobalHandles::AddObjectGroup(Object*** handles,
     if (info != NULL) info->Dispose();
     return;
   }
-  object_groups_.Add(ObjectGroup::New(handles, length, info));
+  ObjectGroup* group = new ObjectGroup(length);
+  for (size_t i = 0; i < length; ++i)
+    group->objects[i] = handles[i];
+  group->info = info;
+  object_groups_.Add(group);
+}
+
+
+void GlobalHandles::SetObjectGroupId(Object** handle,
+                                     UniqueId id) {
+  object_group_connections_.Add(ObjectGroupConnection(id, handle));
+}
+
+
+void GlobalHandles::SetRetainedObjectInfo(UniqueId id,
+                                          RetainedObjectInfo* info) {
+  retainer_infos_.Add(ObjectGroupRetainerInfo(id, info));
 }
 
 
@@ -838,28 +862,154 @@ void GlobalHandles::AddImplicitReferences(HeapObject** parent,
   }
 #endif
   if (length == 0) return;
-  implicit_ref_groups_.Add(ImplicitRefGroup::New(parent, children, length));
+  ImplicitRefGroup* group = new ImplicitRefGroup(parent, length);
+  for (size_t i = 0; i < length; ++i)
+    group->children[i] = children[i];
+  implicit_ref_groups_.Add(group);
+}
+
+
+void GlobalHandles::SetReferenceFromGroup(UniqueId id, Object** child) {
+  ASSERT(!Node::FromLocation(child)->is_independent());
+  implicit_ref_connections_.Add(ObjectGroupConnection(id, child));
+}
+
+
+void GlobalHandles::SetReference(HeapObject** parent, Object** child) {
+  ASSERT(!Node::FromLocation(child)->is_independent());
+  ImplicitRefGroup* group = new ImplicitRefGroup(parent, 1);
+  group->children[0] = child;
+  implicit_ref_groups_.Add(group);
 }
 
 
 void GlobalHandles::RemoveObjectGroups() {
-  for (int i = 0; i < object_groups_.length(); i++) {
-    object_groups_.at(i)->Dispose();
-  }
+  for (int i = 0; i < object_groups_.length(); i++)
+    delete object_groups_.at(i);
   object_groups_.Clear();
+  for (int i = 0; i < retainer_infos_.length(); ++i)
+    retainer_infos_[i].info->Dispose();
+  retainer_infos_.Clear();
+  object_group_connections_.Clear();
+  object_group_connections_.Initialize(kObjectGroupConnectionsCapacity);
 }
 
 
 void GlobalHandles::RemoveImplicitRefGroups() {
   for (int i = 0; i < implicit_ref_groups_.length(); i++) {
-    implicit_ref_groups_.at(i)->Dispose();
+    delete implicit_ref_groups_.at(i);
   }
   implicit_ref_groups_.Clear();
+  implicit_ref_connections_.Clear();
 }
 
 
 void GlobalHandles::TearDown() {
   // TODO(1428): invoke weak callbacks.
+}
+
+
+void GlobalHandles::ComputeObjectGroupsAndImplicitReferences() {
+  if (object_group_connections_.length() == 0) {
+    for (int i = 0; i < retainer_infos_.length(); ++i)
+      retainer_infos_[i].info->Dispose();
+    retainer_infos_.Clear();
+    implicit_ref_connections_.Clear();
+    return;
+  }
+
+  object_group_connections_.Sort();
+  retainer_infos_.Sort();
+  implicit_ref_connections_.Sort();
+
+  int info_index = 0;  // For iterating retainer_infos_.
+  UniqueId current_group_id(0);
+  int current_group_start = 0;
+
+  int current_implicit_refs_start = 0;
+  int current_implicit_refs_end = 0;
+  for (int i = 0; i <= object_group_connections_.length(); ++i) {
+    if (i == 0)
+      current_group_id = object_group_connections_[i].id;
+    if (i == object_group_connections_.length() ||
+        current_group_id != object_group_connections_[i].id) {
+      // Group detected: objects in indices [current_group_start, i[.
+
+      // Find out which implicit references are related to this group. (We want
+      // to ignore object groups which only have 1 object, but that object is
+      // needed as a representative object for the implicit refrerence group.)
+      while (current_implicit_refs_start < implicit_ref_connections_.length() &&
+             implicit_ref_connections_[current_implicit_refs_start].id <
+                 current_group_id)
+        ++current_implicit_refs_start;
+      current_implicit_refs_end = current_implicit_refs_start;
+      while (current_implicit_refs_end < implicit_ref_connections_.length() &&
+             implicit_ref_connections_[current_implicit_refs_end].id ==
+                 current_group_id)
+        ++current_implicit_refs_end;
+
+      if (current_implicit_refs_end > current_implicit_refs_start) {
+        // Find a representative object for the implicit references.
+        HeapObject** representative = NULL;
+        for (int j = current_group_start; j < i; ++j) {
+          Object** object = object_group_connections_[j].object;
+          if ((*object)->IsHeapObject()) {
+            representative = reinterpret_cast<HeapObject**>(object);
+            break;
+          }
+        }
+        if (representative) {
+          ImplicitRefGroup* group = new ImplicitRefGroup(
+              representative,
+              current_implicit_refs_end - current_implicit_refs_start);
+          for (int j = current_implicit_refs_start;
+               j < current_implicit_refs_end;
+               ++j) {
+            group->children[j - current_implicit_refs_start] =
+                implicit_ref_connections_[j].object;
+          }
+          implicit_ref_groups_.Add(group);
+        }
+        current_implicit_refs_start = current_implicit_refs_end;
+      }
+
+      // Find a RetainedObjectInfo for the group.
+      RetainedObjectInfo* info = NULL;
+      while (info_index < retainer_infos_.length() &&
+             retainer_infos_[info_index].id < current_group_id) {
+        retainer_infos_[info_index].info->Dispose();
+        ++info_index;
+      }
+      if (info_index < retainer_infos_.length() &&
+          retainer_infos_[info_index].id == current_group_id) {
+        // This object group has an associated ObjectGroupRetainerInfo.
+        info = retainer_infos_[info_index].info;
+        ++info_index;
+      }
+
+      // Ignore groups which only contain one object.
+      if (i > current_group_start + 1) {
+        ObjectGroup* group = new ObjectGroup(i - current_group_start);
+        for (int j = current_group_start; j < i; ++j) {
+          group->objects[j - current_group_start] =
+              object_group_connections_[j].object;
+        }
+        group->info = info;
+        object_groups_.Add(group);
+      } else if (info) {
+        info->Dispose();
+      }
+
+      if (i < object_group_connections_.length()) {
+        current_group_id = object_group_connections_[i].id;
+        current_group_start = i;
+      }
+    }
+  }
+  object_group_connections_.Clear();
+  object_group_connections_.Initialize(kObjectGroupConnectionsCapacity);
+  retainer_infos_.Clear();
+  implicit_ref_connections_.Clear();
 }
 
 

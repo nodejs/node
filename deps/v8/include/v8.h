@@ -92,6 +92,14 @@
 #define V8_DEPRECATED(declarator) declarator
 #endif
 
+#if __GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95))
+  #define V8_UNLIKELY(condition) __builtin_expect((condition), 0)
+  #define V8_LIKELY(condition) __builtin_expect((condition), 1)
+#else
+  #define V8_UNLIKELY(condition) (condition)
+  #define V8_LIKELY(condition) (condition)
+#endif
+
 /**
  * The v8 JavaScript engine.
  */
@@ -143,6 +151,31 @@ class HeapObject;
 class Isolate;
 class Object;
 }
+
+
+/**
+ * General purpose unique identifier.
+ */
+class UniqueId {
+ public:
+  explicit UniqueId(intptr_t data)
+      : data_(data) {}
+
+  bool operator==(const UniqueId& other) const {
+    return data_ == other.data_;
+  }
+
+  bool operator!=(const UniqueId& other) const {
+    return data_ != other.data_;
+  }
+
+  bool operator<(const UniqueId& other) const {
+    return data_ < other.data_;
+  }
+
+ private:
+  intptr_t data_;
+};
 
 
 // --- Weak Handles ---
@@ -375,6 +408,14 @@ template <class T> class Persistent : public Handle<T> {
   }
 
   template <class S> V8_INLINE(Persistent(S* that)) : Handle<T>(that) { }
+
+  /**
+   * A constructor that creates a new global cell pointing to that. In contrast
+   * to the copy constructor, this creates a new persistent handle which needs
+   * to be separately disposed.
+   */
+  template <class S> V8_INLINE(Persistent(Isolate* isolate, Handle<S> that))
+      : Handle<T>(New(isolate, that)) { }
 
   /**
    * "Casts" a plain handle which is known to be a persistent handle
@@ -1142,12 +1183,10 @@ class V8EXPORT String : public Primitive {
   int Utf8Length() const;
 
   /**
-   * A fast conservative check for non-ASCII characters.  May
-   * return true even for ASCII strings, but if it returns
-   * false you can be sure that all characters are in the range
-   * 0-127.
+   * This function is no longer useful.
    */
-  bool MayContainNonAscii() const;
+  // TODO(dcarney): deprecate
+  V8_INLINE(bool MayContainNonAscii()) const { return true; }
 
   /**
    * Returns whether this string contains only one byte data.
@@ -1326,22 +1365,48 @@ class V8EXPORT String : public Primitive {
 
   V8_INLINE(static String* Cast(v8::Value* obj));
 
+  // TODO(dcarney): deprecate
   /**
    * Allocates a new string from either UTF-8 encoded or ASCII data.
    * The second parameter 'length' gives the buffer length. If omitted,
    * the function calls 'strlen' to determine the buffer length.
    */
-  static Local<String> New(const char* data, int length = -1);
+  V8_INLINE(static Local<String> New(const char* data, int length = -1));
 
+  // TODO(dcarney): deprecate
   /** Allocates a new string from 16-bit character codes.*/
-  static Local<String> New(const uint16_t* data, int length = -1);
+  V8_INLINE(static Local<String> New(const uint16_t* data, int length = -1));
 
+  // TODO(dcarney): deprecate
   /**
    * Creates an internalized string (historically called a "symbol",
    * not to be confused with ES6 symbols). Returns one if it exists already.
-   * TODO(rossberg): Deprecate me when the new string API is here.
    */
-  static Local<String> NewSymbol(const char* data, int length = -1);
+  V8_INLINE(static Local<String> NewSymbol(const char* data, int length = -1));
+
+  enum NewStringType {
+    kNormalString, kInternalizedString, kUndetectableString
+  };
+
+  /** Allocates a new string from UTF-8 data.*/
+  static Local<String> NewFromUtf8(Isolate* isolate,
+                                  const char* data,
+                                  NewStringType type = kNormalString,
+                                  int length = -1);
+
+  /** Allocates a new string from Latin-1 data.*/
+  static Local<String> NewFromOneByte(
+      Isolate* isolate,
+      const uint8_t* data,
+      NewStringType type = kNormalString,
+      int length = -1);
+
+  /** Allocates a new string from UTF-16 data.*/
+  static Local<String> NewFromTwoByte(
+      Isolate* isolate,
+      const uint16_t* data,
+      NewStringType type = kNormalString,
+      int length = -1);
 
   /**
    * Creates a new string by concatenating the left and the right strings
@@ -1396,11 +1461,15 @@ class V8EXPORT String : public Primitive {
    */
   bool CanMakeExternal();
 
+  // TODO(dcarney): deprecate
   /** Creates an undetectable string from the supplied ASCII or UTF-8 data.*/
-  static Local<String> NewUndetectable(const char* data, int length = -1);
+  V8_INLINE(
+      static Local<String> NewUndetectable(const char* data, int length = -1));
 
+  // TODO(dcarney): deprecate
   /** Creates an undetectable string from the supplied 16-bit character codes.*/
-  static Local<String> NewUndetectable(const uint16_t* data, int length = -1);
+  V8_INLINE(static Local<String> NewUndetectable(
+      const uint16_t* data, int length = -1));
 
   /**
    * Converts an object to a UTF-8-encoded character array.  Useful if
@@ -1936,6 +2005,43 @@ class V8EXPORT Function : public Object {
 
  private:
   Function();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of the built-in ArrayBuffer constructor (ES6 draft 15.13.5).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT ArrayBuffer : public Object {
+ public:
+  /**
+   * Data length in bytes.
+   */
+  size_t ByteLength() const;
+  /**
+   * Raw pointer to the array buffer data
+   */
+  void* Data() const;
+
+  /**
+   * Create a new ArrayBuffer. Allocate |byte_length| bytes.
+   * Allocated memory will be owned by a created ArrayBuffer and
+   * will be deallocated when it is garbage-collected.
+   */
+  static Local<ArrayBuffer> New(size_t byte_length);
+
+  /**
+   * Create a new ArrayBuffer over an existing memory block.
+   * The memory block will not be reclaimed when a created ArrayBuffer
+   * is garbage-collected.
+   */
+  static Local<ArrayBuffer> New(void* data, size_t byte_length);
+
+  V8_INLINE(static ArrayBuffer* Cast(Value* obj));
+
+ private:
+  ArrayBuffer();
   static void CheckCast(Value* obj);
 };
 
@@ -2953,7 +3059,8 @@ enum GCType {
 
 enum GCCallbackFlags {
   kNoGCCallbackFlags = 0,
-  kGCCallbackFlagCompacted = 1 << 0
+  kGCCallbackFlagCompacted = 1 << 0,
+  kGCCallbackFlagConstructRetainedObjectInfos = 1 << 1
 };
 
 typedef void (*GCPrologueCallback)(GCType type, GCCallbackFlags flags);
@@ -3109,6 +3216,39 @@ class V8EXPORT Isolate {
 
   /** Returns the context that is on the top of the stack. */
   Local<Context> GetCurrentContext();
+
+  /**
+   * Allows the host application to group objects together. If one
+   * object in the group is alive, all objects in the group are alive.
+   * After each garbage collection, object groups are removed. It is
+   * intended to be used in the before-garbage-collection callback
+   * function, for instance to simulate DOM tree connections among JS
+   * wrapper objects. Object groups for all dependent handles need to
+   * be provided for kGCTypeMarkSweepCompact collections, for all other
+   * garbage collection types it is sufficient to provide object groups
+   * for partially dependent handles only.
+   */
+  void SetObjectGroupId(const Persistent<Value>& object,
+                        UniqueId id);
+
+  /**
+   * Allows the host application to declare implicit references from an object
+   * group to an object. If the objects of the object group are alive, the child
+   * object is alive too. After each garbage collection, all implicit references
+   * are removed. It is intended to be used in the before-garbage-collection
+   * callback function.
+   */
+  void SetReferenceFromGroup(UniqueId id,
+                             const Persistent<Value>& child);
+
+  /**
+   * Allows the host application to declare implicit references from an object
+   * to another object. If the parent object is alive, the child object is alive
+   * too. After each garbage collection, all implicit references are removed. It
+   * is intended to be used in the before-garbage-collection callback function.
+   */
+  void SetReference(const Persistent<Object>& parent,
+                    const Persistent<Value>& child);
 
  private:
   Isolate();
@@ -3514,6 +3654,8 @@ class V8EXPORT V8 {
    * for partially dependent handles only.
    * See v8-profiler.h for RetainedObjectInfo interface description.
    */
+  // TODO(marja): deprecate AddObjectGroup. Use Isolate::SetObjectGroupId and
+  // HeapProfiler::SetRetainedObjectInfo instead.
   static void AddObjectGroup(Persistent<Value>* objects,
                              size_t length,
                              RetainedObjectInfo* info = NULL);
@@ -3529,6 +3671,8 @@ class V8EXPORT V8 {
    * are removed.  It is intended to be used in the before-garbage-collection
    * callback function.
    */
+  // TODO(marja): Deprecate AddImplicitReferences. Use
+  // Isolate::SetReferenceFromGroup instead.
   static void AddImplicitReferences(Persistent<Object> parent,
                                     Persistent<Value>* children,
                                     size_t length);
@@ -3676,6 +3820,24 @@ class V8EXPORT V8 {
   static bool IsExecutionTerminating(Isolate* isolate = NULL);
 
   /**
+   * Resume execution capability in the given isolate, whose execution
+   * was previously forcefully terminated using TerminateExecution().
+   *
+   * When execution is forcefully terminated using TerminateExecution(),
+   * the isolate can not resume execution until all JavaScript frames
+   * have propagated the uncatchable exception which is generated.  This
+   * method allows the program embedding the engine to handle the
+   * termination event and resume execution capability, even if
+   * JavaScript frames remain on the stack.
+   *
+   * This method can be used by any thread even if that thread has not
+   * acquired the V8 lock with a Locker object.
+   *
+   * \param isolate The isolate in which to resume execution capability.
+   */
+  static void CancelTerminateExecution(Isolate* isolate);
+
+  /**
    * Releases any resources used by v8 and stops any utility threads
    * that may be running.  Note that disposing v8 is permanent, it
    * cannot be reinitialized.
@@ -3785,19 +3947,28 @@ class V8EXPORT TryCatch {
   bool HasCaught() const;
 
   /**
-   * For certain types of exceptions, it makes no sense to continue
-   * execution.
+   * For certain types of exceptions, it makes no sense to continue execution.
    *
-   * Currently, the only type of exception that can be caught by a
-   * TryCatch handler and for which it does not make sense to continue
-   * is termination exception.  Such exceptions are thrown when the
-   * TerminateExecution methods are called to terminate a long-running
-   * script.
-   *
-   * If CanContinue returns false, the correct action is to perform
-   * any C++ cleanup needed and then return.
+   * If CanContinue returns false, the correct action is to perform any C++
+   * cleanup needed and then return.  If CanContinue returns false and
+   * HasTerminated returns true, it is possible to call
+   * CancelTerminateExecution in order to continue calling into the engine.
    */
   bool CanContinue() const;
+
+  /**
+   * Returns true if an exception has been caught due to script execution
+   * being terminated.
+   *
+   * There is no JavaScript representation of an execution termination
+   * exception.  Such exceptions are thrown when the TerminateExecution
+   * methods are called to terminate a long-running script.
+   *
+   * If such an exception has been thrown, HasTerminated will return true,
+   * indicating that it is possible to call CancelTerminateExecution in order
+   * to continue calling into the engine.
+   */
+  bool HasTerminated() const;
 
   /**
    * Throws the exception caught by this TryCatch in a way that avoids
@@ -3874,6 +4045,7 @@ class V8EXPORT TryCatch {
   bool can_continue_ : 1;
   bool capture_message_ : 1;
   bool rethrow_ : 1;
+  bool has_terminated_ : 1;
 
   friend class v8::internal::Isolate;
 };
@@ -4371,7 +4543,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 55;
+  static const int kContextEmbedderDataIndex = 56;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -4813,7 +4985,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   O* obj = *reinterpret_cast<O**>(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
-  if (I::GetInstanceType(obj) == I::kJSObjectType) {
+  if (V8_LIKELY(I::GetInstanceType(obj) == I::kJSObjectType)) {
     int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     return I::ReadField<void*>(obj, offset);
   }
@@ -4836,6 +5008,32 @@ Local<String> String::Empty(Isolate* isolate) {
   if (!I::IsInitialized(isolate)) return Empty();
   S* slot = I::GetRoot(isolate, I::kEmptyStringRootIndex);
   return Local<String>(reinterpret_cast<String*>(slot));
+}
+
+
+Local<String> String::New(const char* data, int length) {
+  return NewFromUtf8(Isolate::GetCurrent(), data, kNormalString, length);
+}
+
+
+Local<String> String::New(const uint16_t* data, int length) {
+  return NewFromTwoByte(Isolate::GetCurrent(), data, kNormalString, length);
+}
+
+
+Local<String> String::NewSymbol(const char* data, int length) {
+  return NewFromUtf8(Isolate::GetCurrent(), data, kInternalizedString, length);
+}
+
+
+Local<String> String::NewUndetectable(const char* data, int length) {
+  return NewFromUtf8(Isolate::GetCurrent(), data, kUndetectableString, length);
+}
+
+
+Local<String> String::NewUndetectable(const uint16_t* data, int length) {
+  return NewFromTwoByte(
+      Isolate::GetCurrent(), data, kUndetectableString, length);
 }
 
 
@@ -5015,6 +5213,14 @@ Array* Array::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Array*>(value);
+}
+
+
+ArrayBuffer* ArrayBuffer::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<ArrayBuffer*>(value);
 }
 
 

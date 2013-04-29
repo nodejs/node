@@ -30,6 +30,7 @@
 
 #include "arm/assembler-arm.h"
 #include "arm/assembler-arm-inl.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -223,6 +224,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   inline void CallCFunctionUsingStub(ExternalReference function,
                                      int num_arguments);
 
+  Isolate* isolate() const { return masm_->isolate(); }
 
   MacroAssembler* masm_;
 

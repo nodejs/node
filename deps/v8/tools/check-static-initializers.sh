@@ -28,7 +28,6 @@
 
 # Checks that the number of compilation units having at least one static
 # initializer in d8 matches the one defined below.
-# Note that the project must be built with SCons before running this script.
 
 # Allow:
 #  - _GLOBAL__I__ZN2v810LineEditor6first_E

@@ -476,6 +476,8 @@ Handle<ExternalArray> Factory::NewExternalArray(int length,
 
 Handle<JSGlobalPropertyCell> Factory::NewJSGlobalPropertyCell(
     Handle<Object> value) {
+  ALLOW_HANDLE_DEREF(isolate(),
+                     "converting a handle into a global property cell");
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSGlobalPropertyCell(*value),
@@ -1041,6 +1043,16 @@ void Factory::EnsureCanContainElements(Handle<JSArray> array,
   CALL_HEAP_FUNCTION_VOID(
       isolate(),
       array->EnsureCanContainElements(*elements, length, mode));
+}
+
+
+Handle<JSArrayBuffer> Factory::NewJSArrayBuffer() {
+  JSFunction* array_buffer_fun =
+      isolate()->context()->native_context()->array_buffer_fun();
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSObject(array_buffer_fun),
+      JSArrayBuffer);
 }
 
 

@@ -726,7 +726,7 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ push(holder);
   __ ldr(scratch, FieldMemOperand(scratch, InterceptorInfo::kDataOffset));
   __ push(scratch);
-  __ mov(scratch, Operand(ExternalReference::isolate_address()));
+  __ mov(scratch, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ push(scratch);
 }
 
@@ -798,7 +798,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   } else {
     __ Move(r6, call_data);
   }
-  __ mov(r7, Operand(ExternalReference::isolate_address()));
+  __ mov(r7, Operand(ExternalReference::isolate_address(masm->isolate())));
   // Store JS function, call data and isolate.
   __ stm(ib, sp, r5.bit() | r6.bit() | r7.bit());
 
@@ -954,7 +954,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
       CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
           ? CALL_AS_FUNCTION
           : CALL_AS_METHOD;
-      __ InvokeFunction(optimization.constant_function(), arguments_,
+      Handle<JSFunction> function = optimization.constant_function();
+      ParameterCount expected(function);
+      __ InvokeFunction(function, expected, arguments_,
                         JUMP_FUNCTION, NullCallWrapper(), call_kind);
     }
 
@@ -1165,7 +1167,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   }
 
   // Log the check depth.
-  LOG(masm()->isolate(), IntEvent("check-maps-depth", depth + 1));
+  LOG(isolate(), IntEvent("check-maps-depth", depth + 1));
 
   if (!holder.is_identical_to(first) || check == CHECK_ALL_MAPS) {
     // Check the holder map.
@@ -1293,11 +1295,11 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
     __ ldr(scratch3(), FieldMemOperand(scratch3(),
                                        ExecutableAccessorInfo::kDataOffset));
   } else {
-    __ Move(scratch3(), Handle<Object>(callback->data(),
-                                       callback->GetIsolate()));
+    __ Move(scratch3(), Handle<Object>(callback->data(), isolate()));
   }
   __ Push(reg, scratch3());
-  __ mov(scratch3(), Operand(ExternalReference::isolate_address()));
+  __ mov(scratch3(),
+         Operand(ExternalReference::isolate_address(isolate())));
   __ Push(scratch3(), name());
   __ mov(r0, sp);  // r0 = Handle<Name>
 
@@ -1313,10 +1315,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   const int kStackUnwindSpace = 5;
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
-  ExternalReference ref =
-      ExternalReference(&fun,
-                        ExternalReference::DIRECT_GETTER_CALL,
-                        masm()->isolate());
+  ExternalReference ref = ExternalReference(
+      &fun, ExternalReference::DIRECT_GETTER_CALL, isolate());
   __ CallApiFunctionAndReturn(ref, kStackUnwindSpace);
 }
 
@@ -1404,7 +1404,7 @@ void BaseLoadStubCompiler::GenerateLoadInterceptor(
 
     ExternalReference ref =
         ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad),
-                          masm()->isolate());
+                          isolate());
     __ TailCallExternalReference(ref, 6, 1);
   }
 }
@@ -1620,9 +1620,8 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ b(gt, &call_builtin);
 
       __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
-      __ StoreNumberToDoubleElements(
-          r4, r0, elements, r5, r2, r3, r9,
-          &call_builtin, argc * kDoubleSize);
+      __ StoreNumberToDoubleElements(r4, r0, elements, r5,
+                                     &call_builtin, argc * kDoubleSize);
 
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1715,11 +1714,10 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ CheckFastObjectElements(r7, r7, &call_builtin);
       __ bind(&no_fast_elements_check);
 
-      Isolate* isolate = masm()->isolate();
       ExternalReference new_space_allocation_top =
-          ExternalReference::new_space_allocation_top_address(isolate);
+          ExternalReference::new_space_allocation_top_address(isolate());
       ExternalReference new_space_allocation_limit =
-          ExternalReference::new_space_allocation_limit_address(isolate);
+          ExternalReference::new_space_allocation_limit_address(isolate());
 
       const int kAllocationDelta = 4;
       // Load top and check if it is the end of elements.
@@ -1758,10 +1756,8 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Ret();
     }
     __ bind(&call_builtin);
-    __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPush,
-                                                   masm()->isolate()),
-                                 argc + 1,
-                                 1);
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate()), argc + 1, 1);
   }
 
   // Handle call cache miss.
@@ -1845,10 +1841,8 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
   __ Ret();
 
   __ bind(&call_builtin);
-  __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPop,
-                                                 masm()->isolate()),
-                               argc + 1,
-                               1);
+  __ TailCallExternalReference(
+      ExternalReference(Builtins::c_ArrayPop, isolate()), argc + 1, 1);
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -2085,8 +2079,9 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
   __ bind(&slow);
-  __ InvokeFunction(
-      function,  arguments(), JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+  ParameterCount expected(function);
+  __ InvokeFunction(function, expected, arguments(),
+                    JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
 
   __ bind(&miss);
   // r2: function name.
@@ -2196,8 +2191,9 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   __ bind(&slow);
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
-  __ InvokeFunction(
-      function, arguments(), JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+  ParameterCount expected(function);
+  __ InvokeFunction(function, expected, arguments(),
+                    JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
 
   __ bind(&miss);
   // r2: function name.
@@ -2295,8 +2291,9 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
   __ bind(&slow);
-  __ InvokeFunction(
-      function, arguments(), JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+  ParameterCount expected(function);
+  __ InvokeFunction(function, expected, arguments(),
+                    JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
 
   __ bind(&miss);
   // r2: function name.
@@ -2384,8 +2381,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
   ASSERT(!object->IsGlobalObject() || check == RECEIVER_MAP_CHECK);
   switch (check) {
     case RECEIVER_MAP_CHECK:
-      __ IncrementCounter(masm()->isolate()->counters()->call_const(),
-                          1, r0, r3);
+      __ IncrementCounter(isolate()->counters()->call_const(), 1, r0, r3);
 
       // Check that the maps haven't changed.
       CheckPrototypes(Handle<JSObject>::cast(object), r1, holder, r0, r3, r4,
@@ -2470,8 +2466,9 @@ void CallStubCompiler::CompileHandlerBackend(Handle<JSFunction> function) {
   CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
-  __ InvokeFunction(
-      function, arguments(), JUMP_FUNCTION, NullCallWrapper(), call_kind);
+  ParameterCount expected(function);
+  __ InvokeFunction(function, expected, arguments(),
+                    JUMP_FUNCTION, NullCallWrapper(), call_kind);
 }
 
 
@@ -2574,7 +2571,7 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).
-  Counters* counters = masm()->isolate()->counters();
+  Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->call_global_inline(), 1, r3, r4);
   ParameterCount expected(function->shared()->formal_parameter_count());
   CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
@@ -2617,8 +2614,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
-      ExternalReference(IC_Utility(IC::kStoreCallbackProperty),
-                        masm()->isolate());
+      ExternalReference(IC_Utility(IC::kStoreCallbackProperty), isolate());
   __ TailCallExternalReference(store_callback_property, 4, 1);
 
   // Handle store cache miss.
@@ -2653,8 +2649,9 @@ void StoreStubCompiler::GenerateStoreViaSetter(
       // Call the JavaScript setter with receiver and value on the stack.
       __ Push(r1, r0);
       ParameterCount actual(1);
-      __ InvokeFunction(setter, actual, CALL_FUNCTION, NullCallWrapper(),
-                        CALL_AS_METHOD);
+      ParameterCount expected(setter);
+      __ InvokeFunction(setter, expected, actual,
+                        CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -2700,8 +2697,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
-      ExternalReference(IC_Utility(IC::kStoreInterceptorProperty),
-                        masm()->isolate());
+      ExternalReference(IC_Utility(IC::kStoreInterceptorProperty), isolate());
   __ TailCallExternalReference(store_ic_property, 4, 1);
 
   // Handle store cache miss.
@@ -2740,7 +2736,7 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
          FieldMemOperand(scratch1(), JSGlobalPropertyCell::kValueOffset));
   // Cells are always rescanned, so no write barrier here.
 
-  Counters* counters = masm()->isolate()->counters();
+  Counters* counters = isolate()->counters();
   __ IncrementCounter(
       counters->named_store_global_inline(), 1, scratch1(), scratch2());
   __ Ret();
@@ -2838,8 +2834,9 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
       // Call the JavaScript getter with the receiver on the stack.
       __ push(r0);
       ParameterCount actual(0);
-      __ InvokeFunction(getter, actual, CALL_FUNCTION, NullCallWrapper(),
-                        CALL_AS_METHOD);
+      ParameterCount expected(getter);
+      __ InvokeFunction(getter, expected, actual,
+                        CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -2884,7 +2881,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   HandlerFrontendFooter(&success, &miss);
   __ bind(&success);
 
-  Counters* counters = masm()->isolate()->counters();
+  Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_load_global_stub(), 1, r1, r3);
   __ mov(r0, r4);
   __ Ret();
@@ -3088,7 +3085,7 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   // Remove caller arguments and receiver from the stack and return.
   __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2));
   __ add(sp, sp, Operand(kPointerSize));
-  Counters* counters = masm()->isolate()->counters();
+  Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->constructed_objects(), 1, r1, r2);
   __ IncrementCounter(counters->constructed_objects_stub(), 1, r1, r2);
   __ Jump(lr);
@@ -3096,7 +3093,7 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   // Jump to the generic stub in case the specialized code cannot handle the
   // construction.
   __ bind(&generic_stub_call);
-  Handle<Code> code = masm()->isolate()->builtins()->JSConstructStubGeneric();
+  Handle<Code> code = isolate()->builtins()->JSConstructStubGeneric();
   __ Jump(code, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -3246,14 +3243,10 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       StoreIntAsFloat(masm, r3, r4, r5, r7);
       break;
     case EXTERNAL_DOUBLE_ELEMENTS:
+      __ vmov(s2, r5);
+      __ vcvt_f64_s32(d0, s2);
       __ add(r3, r3, Operand(key, LSL, 2));
       // r3: effective address of the double element
-      FloatingPointHelper::Destination destination;
-      destination = FloatingPointHelper::kVFPRegisters;
-      FloatingPointHelper::ConvertIntToDouble(
-          masm, r5, destination,
-          d0, r6, r7,  // These are: double_dst, dst_mantissa, dst_exponent.
-          r4, s2);  // These are: scratch2, single_scratch.
       __ vstr(d0, r3, 0);
       break;
     case FAST_ELEMENTS:
@@ -3303,7 +3296,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       // not include -kHeapObjectTag into it.
       __ sub(r5, value, Operand(kHeapObjectTag));
       __ vldr(d0, r5, HeapNumber::kValueOffset);
-      __ ECMAToInt32(r5, d0, d1, r6, r7, r9);
+      __ ECMAToInt32(r5, d0, r6, r7, r9, d1);
 
       switch (elements_kind) {
         case EXTERNAL_BYTE_ELEMENTS:
@@ -3537,9 +3530,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- r3    : scratch (elements backing store)
   //  -- r4    : scratch
   //  -- r5    : scratch
-  //  -- r6    : scratch
-  //  -- r7    : scratch
-  //  -- r9    : scratch
   // -----------------------------------
   Label miss_force_generic, transition_elements_kind, grow, slow;
   Label finish_store, check_capacity;
@@ -3550,9 +3540,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Register elements_reg = r3;
   Register scratch1 = r4;
   Register scratch2 = r5;
-  Register scratch3 = r6;
-  Register scratch4 = r7;
-  Register scratch5 = r9;
   Register length_reg = r7;
 
   // This stub is meant to be tail-jumped to, the receiver must already
@@ -3581,15 +3568,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   }
 
   __ bind(&finish_store);
-  __ StoreNumberToDoubleElements(value_reg,
-                                 key_reg,
-                                 // All registers after this are overwritten.
-                                 elements_reg,
-                                 scratch1,
-                                 scratch3,
-                                 scratch4,
-                                 scratch2,
-                                 &transition_elements_kind);
+  __ StoreNumberToDoubleElements(value_reg, key_reg, elements_reg,
+                                 scratch1, &transition_elements_kind);
   __ Ret();
 
   // Handle store cache miss, replacing the ic with the generic stub.
@@ -3636,15 +3616,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
            FieldMemOperand(elements_reg, FixedDoubleArray::kLengthOffset));
 
     __ mov(scratch1, elements_reg);
-    __ StoreNumberToDoubleElements(value_reg,
-                                   key_reg,
-                                   // All registers after this are overwritten.
-                                   scratch1,
-                                   scratch2,
-                                   scratch3,
-                                   scratch4,
-                                   scratch5,
-                                   &transition_elements_kind);
+    __ StoreNumberToDoubleElements(value_reg, key_reg, scratch1,
+                                   scratch2, &transition_elements_kind);
 
     __ mov(scratch1, Operand(kHoleNanLower32));
     __ mov(scratch2, Operand(kHoleNanUpper32));

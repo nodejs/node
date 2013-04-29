@@ -38,6 +38,12 @@ function* g() { (yield 3) + (yield 4); }
 // You can have a generator in strict mode.
 function* g() { "use strict"; yield 3; yield 4; }
 
+// Generators can have return statements also, which internally parse to a kind
+// of yield expression.
+function* g() { yield 1; return; }
+function* g() { yield 1; return 2; }
+function* g() { yield 1; return 2; yield "dead"; }
+
 // Generator expression.
 (function* () { yield 3; });
 

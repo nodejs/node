@@ -81,10 +81,10 @@ TEST(MalformedOctal) {
   CHECK_EQ(81.0, StringToDouble(&uc, "081", ALLOW_HEX | ALLOW_OCTALS));
   CHECK_EQ(78.0, StringToDouble(&uc, "078", ALLOW_HEX | ALLOW_OCTALS));
 
-  CHECK(isnan(StringToDouble(&uc, "07.7", ALLOW_HEX | ALLOW_OCTALS)));
-  CHECK(isnan(StringToDouble(&uc, "07.8", ALLOW_HEX | ALLOW_OCTALS)));
-  CHECK(isnan(StringToDouble(&uc, "07e8", ALLOW_HEX | ALLOW_OCTALS)));
-  CHECK(isnan(StringToDouble(&uc, "07e7", ALLOW_HEX | ALLOW_OCTALS)));
+  CHECK(std::isnan(StringToDouble(&uc, "07.7", ALLOW_HEX | ALLOW_OCTALS)));
+  CHECK(std::isnan(StringToDouble(&uc, "07.8", ALLOW_HEX | ALLOW_OCTALS)));
+  CHECK(std::isnan(StringToDouble(&uc, "07e8", ALLOW_HEX | ALLOW_OCTALS)));
+  CHECK(std::isnan(StringToDouble(&uc, "07e7", ALLOW_HEX | ALLOW_OCTALS)));
 
   CHECK_EQ(8.7, StringToDouble(&uc, "08.7", ALLOW_HEX | ALLOW_OCTALS));
   CHECK_EQ(8e7, StringToDouble(&uc, "08e7", ALLOW_HEX | ALLOW_OCTALS));
@@ -123,9 +123,9 @@ TEST(TrailingJunk) {
 
 TEST(NonStrDecimalLiteral) {
   UnicodeCache uc;
-  CHECK(isnan(StringToDouble(&uc, " ", NO_FLAGS, OS::nan_value())));
-  CHECK(isnan(StringToDouble(&uc, "", NO_FLAGS, OS::nan_value())));
-  CHECK(isnan(StringToDouble(&uc, " ", NO_FLAGS, OS::nan_value())));
+  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS, OS::nan_value())));
+  CHECK(std::isnan(StringToDouble(&uc, "", NO_FLAGS, OS::nan_value())));
+  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS, OS::nan_value())));
   CHECK_EQ(0.0, StringToDouble(&uc, "", NO_FLAGS));
   CHECK_EQ(0.0, StringToDouble(&uc, " ", NO_FLAGS));
 }
@@ -140,8 +140,8 @@ TEST(IntegerStrLiteral) {
   CHECK_EQ(-1.0, StringToDouble(&uc, "-1", NO_FLAGS));
   CHECK_EQ(-1.0, StringToDouble(&uc, "  -1  ", NO_FLAGS));
   CHECK_EQ(1.0, StringToDouble(&uc, "  +1  ", NO_FLAGS));
-  CHECK(isnan(StringToDouble(&uc, "  -  1  ", NO_FLAGS)));
-  CHECK(isnan(StringToDouble(&uc, "  +  1  ", NO_FLAGS)));
+  CHECK(std::isnan(StringToDouble(&uc, "  -  1  ", NO_FLAGS)));
+  CHECK(std::isnan(StringToDouble(&uc, "  +  1  ", NO_FLAGS)));
 
   CHECK_EQ(0.0, StringToDouble(&uc, "0e0", ALLOW_HEX | ALLOW_OCTALS));
   CHECK_EQ(0.0, StringToDouble(&uc, "0e1", ALLOW_HEX | ALLOW_OCTALS));

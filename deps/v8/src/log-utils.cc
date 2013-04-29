@@ -79,13 +79,8 @@ void Log::Initialize() {
     FLAG_prof_auto = false;
   }
 
-  bool open_log_file = FLAG_log || FLAG_log_runtime || FLAG_log_api
-      || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-      || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof
-      || FLAG_log_internal_timer_events;
-
   // If we're logging anything, we need to open the log file.
-  if (open_log_file) {
+  if (Log::InitLogAtStart()) {
     if (strcmp(FLAG_logfile, "-") == 0) {
       OpenStdout();
     } else if (strcmp(FLAG_logfile, kLogToTemporaryFile) == 0) {

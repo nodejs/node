@@ -330,9 +330,14 @@ Immediate::Immediate(Label* internal_offset) {
 
 
 Immediate::Immediate(Handle<Object> handle) {
+#ifdef DEBUG
+  Isolate* isolate = Isolate::Current();
+#endif
+  ALLOW_HANDLE_DEREF(isolate,
+                     "using and embedding raw address, heap object check");
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!HEAP->InNewSpace(obj));
+  ASSERT(!isolate->heap()->InNewSpace(obj));
   if (obj->IsHeapObject()) {
     x_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
@@ -363,6 +368,7 @@ void Assembler::emit(uint32_t x) {
 
 
 void Assembler::emit(Handle<Object> handle) {
+  ALLOW_HANDLE_DEREF(isolate(), "heap object check");
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   ASSERT(!isolate()->heap()->InNewSpace(obj));
@@ -383,6 +389,14 @@ void Assembler::emit(uint32_t x, RelocInfo::Mode rmode, TypeFeedbackId id) {
     RecordRelocInfo(rmode);
   }
   emit(x);
+}
+
+
+void Assembler::emit(Handle<Code> code,
+                     RelocInfo::Mode rmode,
+                     TypeFeedbackId id) {
+  ALLOW_HANDLE_DEREF(isolate(), "embedding raw address");
+  emit(reinterpret_cast<intptr_t>(code.location()), rmode, id);
 }
 
 

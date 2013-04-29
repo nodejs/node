@@ -648,11 +648,7 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // the stub returns.
   __ subq(Operand(rsp, 0), Immediate(5));
   __ Pushad();
-#ifdef _WIN64
-  __ movq(rcx, Operand(rsp, kNumSafepointRegisters * kPointerSize));
-#else
-  __ movq(rdi, Operand(rsp, kNumSafepointRegisters * kPointerSize));
-#endif
+  __ movq(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
   {  // NOLINT
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(1);
@@ -1287,8 +1283,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 // entering the generic code. In both cases argc in rax needs to be preserved.
 // Both registers are preserved by this code so no need to differentiate between
 // a construct call and a normal call.
-static void ArrayNativeCode(MacroAssembler* masm,
-                            Label* call_generic_code) {
+void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code) {
   Label argc_one_or_more, argc_two_or_more, empty_array, not_empty_array,
       has_non_smi_element, finish, cant_transition_map, not_double;
 
@@ -1522,7 +1517,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
+void Builtins::Generate_CommonArrayConstructCode(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : argc
   //  -- rdi : constructor
@@ -1541,51 +1536,19 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     __ Check(not_smi, "Unexpected initial map for Array function");
     __ CmpObjectType(rcx, MAP_TYPE, rcx);
     __ Check(equal, "Unexpected initial map for Array function");
-
-    if (FLAG_optimize_constructed_arrays) {
-      // We should either have undefined in ebx or a valid jsglobalpropertycell
-      Label okay_here;
-      Handle<Object> undefined_sentinel(
-          masm->isolate()->factory()->undefined_value());
-      Handle<Map> global_property_cell_map(
-          masm->isolate()->heap()->global_property_cell_map());
-      __ Cmp(rbx, undefined_sentinel);
-      __ j(equal, &okay_here);
-      __ Cmp(FieldOperand(rbx, 0), global_property_cell_map);
-      __ Assert(equal, "Expected property cell in register rbx");
-      __ bind(&okay_here);
-    }
   }
 
-  if (FLAG_optimize_constructed_arrays) {
-    Label not_zero_case, not_one_case;
-    __ testq(rax, rax);
-    __ j(not_zero, &not_zero_case);
-    ArrayNoArgumentConstructorStub no_argument_stub;
-    __ TailCallStub(&no_argument_stub);
-
-    __ bind(&not_zero_case);
-    __ cmpq(rax, Immediate(1));
-    __ j(greater, &not_one_case);
-    ArraySingleArgumentConstructorStub single_argument_stub;
-    __ TailCallStub(&single_argument_stub);
-
-    __ bind(&not_one_case);
-    ArrayNArgumentsConstructorStub n_argument_stub;
-    __ TailCallStub(&n_argument_stub);
-  } else {
-    Label generic_constructor;
-    // Run the native code for the Array function called as constructor.
-    ArrayNativeCode(masm, &generic_constructor);
-
-    // Jump to the generic construct code in case the specialized code cannot
-    // handle the construction.
-    __ bind(&generic_constructor);
-    Handle<Code> generic_construct_stub =
-        masm->isolate()->builtins()->JSConstructStubGeneric();
-    __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
-  }
+  Label generic_constructor;
+  // Run the native code for the Array function called as constructor.
+  ArrayNativeCode(masm, &generic_constructor);
+  // Jump to the generic construct code in case the specialized code cannot
+  // handle the construction.
+  __ bind(&generic_constructor);
+  Handle<Code> generic_construct_stub =
+      masm->isolate()->builtins()->JSConstructStubGeneric();
+  __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
 }
+
 
 
 void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {

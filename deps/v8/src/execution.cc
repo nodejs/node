@@ -76,7 +76,7 @@ static Handle<Object> Invoke(bool is_construct,
   Isolate* isolate = function->GetIsolate();
 
   // Entering JavaScript.
-  VMState state(isolate, JS);
+  VMState<JS> state(isolate);
 
   // Placeholder for return value.
   MaybeObject* value = reinterpret_cast<Object*>(kZapValue);
@@ -423,6 +423,13 @@ void StackGuard::Preempt() {
 bool StackGuard::IsTerminateExecution() {
   ExecutionAccess access(isolate_);
   return (thread_local_.interrupt_flags_ & TERMINATE) != 0;
+}
+
+
+void StackGuard::CancelTerminateExecution() {
+  ExecutionAccess access(isolate_);
+  Continue(TERMINATE);
+  isolate_->CancelTerminateExecution();
 }
 
 

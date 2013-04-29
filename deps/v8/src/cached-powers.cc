@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdarg.h>
-#include <math.h>
 #include <limits.h>
+#include <cmath>
 
 #include "../include/v8stdint.h"
 #include "globals.h"

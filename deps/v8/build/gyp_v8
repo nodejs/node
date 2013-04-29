@@ -32,6 +32,7 @@
 
 import glob
 import os
+import platform
 import shlex
 import sys
 
@@ -42,9 +43,6 @@ if __name__ == '__main__':
   os.chdir(v8_root)
   script_dir = os.path.dirname(__file__)
   v8_root = '.'
-
-sys.path.insert(0, os.path.join(v8_root, 'tools'))
-import utils
 
 sys.path.insert(0, os.path.join(v8_root, 'build', 'gyp', 'pylib'))
 import gyp
@@ -164,6 +162,6 @@ if __name__ == '__main__':
 
   # Generate for the architectures supported on the given platform.
   gyp_args = list(args)
-  if utils.GuessOS() == 'linux':
+  if platform.system() == 'Linux':
     gyp_args.append('--generator-output=out')
   run_gyp(gyp_args)

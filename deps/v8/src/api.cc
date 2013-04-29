@@ -27,8 +27,8 @@
 
 #include "api.h"
 
-#include <math.h>  // For isnan.
 #include <string.h>  // For memcpy, strlen.
+#include <cmath>  // For isnan.
 #include "../include/v8-debug.h"
 #include "../include/v8-profiler.h"
 #include "../include/v8-testing.h"
@@ -52,6 +52,7 @@
 #include "profile-generator-inl.h"
 #include "property-details.h"
 #include "property.h"
+#include "runtime.h"
 #include "runtime-profiler.h"
 #include "scanner-character-streams.h"
 #include "snapshot.h"
@@ -63,11 +64,9 @@
 
 #define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
-#define ENTER_V8(isolate)                                        \
-  ASSERT((isolate)->IsInitialized());                           \
-  i::VMState __state__((isolate), i::OTHER)
-#define LEAVE_V8(isolate) \
-  i::VMState __state__((isolate), i::EXTERNAL)
+#define ENTER_V8(isolate)                                          \
+  ASSERT((isolate)->IsInitialized());                              \
+  i::VMState<i::OTHER> __state__((isolate))
 
 namespace v8 {
 
@@ -131,7 +130,7 @@ static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
   i::Isolate* isolate = i::Isolate::Current();
   if (isolate->IsInitialized()) {
-    i::VMState __state__(isolate, i::OTHER);
+    i::VMState<i::OTHER> state(isolate);
     API_Fatal(location, message);
   } else {
     API_Fatal(location, message);
@@ -216,14 +215,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   const char* message = "Allocation failed - process out of memory";
-  {
-    if (isolate->IsInitialized()) {
-      LEAVE_V8(isolate);
-      callback(location, message);
-    } else {
-      callback(location, message);
-    }
-  }
+  callback(location, message);
   // If the callback returns, we stop execution.
   UNREACHABLE();
 }
@@ -1909,7 +1901,8 @@ v8::TryCatch::TryCatch()
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
-      rethrow_(false) {
+      rethrow_(false),
+      has_terminated_(false) {
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -1934,6 +1927,11 @@ bool v8::TryCatch::HasCaught() const {
 
 bool v8::TryCatch::CanContinue() const {
   return can_continue_;
+}
+
+
+bool v8::TryCatch::HasTerminated() const {
+  return has_terminated_;
 }
 
 
@@ -2748,6 +2746,15 @@ void v8::Array::CheckCast(Value* that) {
 }
 
 
+void v8::ArrayBuffer::CheckCast(Value* that) {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::ArrayBuffer::Cast()")) return;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->IsJSArrayBuffer(),
+           "v8::ArrayBuffer::Cast()",
+           "Could not convert to ArrayBuffer");
+}
+
+
 void v8::Date::CheckCast(v8::Value* that) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Date::Cast()")) return;
@@ -2984,7 +2991,7 @@ bool Value::StrictEquals(Handle<Value> that) const {
     double x = obj->Number();
     double y = other->Number();
     // Must check explicitly for NaN:s on Windows, but -0 works fine.
-    return x == y && !isnan(x) && !isnan(y);
+    return x == y && !std::isnan(x) && !std::isnan(y);
   } else if (*obj == *other) {  // Also covers Booleans.
     return true;
   } else if (obj->IsSmi()) {
@@ -4048,14 +4055,6 @@ int String::Length() const {
   return str->length();
 }
 
-bool String::MayContainNonAscii() const {
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  if (IsDeadCheck(str->GetIsolate(), "v8::String::MayContainNonAscii()")) {
-    return false;
-  }
-  return !str->HasOnlyAsciiChars();
-}
-
 
 bool String::IsOneByte() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
@@ -4507,25 +4506,6 @@ int String::WriteAscii(char* buffer,
   isolate->string_tracker()->RecordWrite(str);
   if (options & HINT_MANY_WRITES_EXPECTED) {
     FlattenString(str);  // Flatten the string for efficiency.
-  }
-
-  if (str->HasOnlyAsciiChars()) {
-    // WriteToFlat is faster than using the StringCharacterStream.
-    if (length == -1) length = str->length() + 1;
-    int len = i::Min(length, str->length() - start);
-    i::String::WriteToFlat(*str,
-                           reinterpret_cast<uint8_t*>(buffer),
-                           start,
-                           start + len);
-    if (!(options & PRESERVE_ASCII_NULL)) {
-      for (int i = 0; i < len; i++) {
-        if (buffer[i] == '\0') buffer[i] = ' ';
-      }
-    }
-    if (!(options & NO_NULL_TERMINATION) && length > len) {
-      buffer[len] = '\0';
-    }
-    return len;
   }
 
   int end = length;
@@ -5283,17 +5263,119 @@ Local<String> v8::String::Empty() {
 }
 
 
-Local<String> v8::String::New(const char* data, int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::New()");
-  LOG_API(isolate, "String::New(char)");
-  if (length == 0) return Empty();
+// anonymous namespace for string creation helper functions
+namespace {
+
+inline int StringLength(const char* string) {
+  return i::StrLength(string);
+}
+
+
+inline int StringLength(const uint8_t* string) {
+  return i::StrLength(reinterpret_cast<const char*>(string));
+}
+
+
+inline int StringLength(const uint16_t* string) {
+  int length = 0;
+  while (string[length] != '\0')
+    length++;
+  return length;
+}
+
+
+inline i::Handle<i::String> NewString(i::Factory* factory,
+                                      String::NewStringType type,
+                                      i::Vector<const char> string) {
+  if (type ==String::kInternalizedString) {
+    return factory->InternalizeUtf8String(string);
+  }
+  return factory->NewStringFromUtf8(string);
+}
+
+
+inline i::Handle<i::String> NewString(i::Factory* factory,
+                                      String::NewStringType type,
+                                      i::Vector<const uint8_t> string) {
+  if (type == String::kInternalizedString) {
+    return factory->InternalizeOneByteString(string);
+  }
+  return factory->NewStringFromOneByte(string);
+}
+
+
+inline i::Handle<i::String> NewString(i::Factory* factory,
+                                      String::NewStringType type,
+                                      i::Vector<const uint16_t> string) {
+  if (type == String::kInternalizedString) {
+    return factory->InternalizeTwoByteString(string);
+  }
+  return factory->NewStringFromTwoByte(string);
+}
+
+
+template<typename Char>
+inline Local<String> NewString(Isolate* v8_isolate,
+                               const char* location,
+                               const char* env,
+                               const Char* data,
+                               String::NewStringType type,
+                               int length) {
+  i::Isolate* isolate = reinterpret_cast<internal::Isolate*>(v8_isolate);
+  EnsureInitializedForIsolate(isolate, location);
+  LOG_API(isolate, env);
+  if (length == 0 && type != String::kUndetectableString) {
+    return String::Empty();
+  }
   ENTER_V8(isolate);
-  if (length == -1) length = i::StrLength(data);
-  i::Handle<i::String> result =
-      isolate->factory()->NewStringFromUtf8(
-          i::Vector<const char>(data, length));
+  if (length == -1) length = StringLength(data);
+  i::Handle<i::String> result = NewString(
+      isolate->factory(), type, i::Vector<const Char>(data, length));
+  if (type == String::kUndetectableString) {
+    result->MarkAsUndetectable();
+  }
   return Utils::ToLocal(result);
+}
+
+}  // anonymous namespace
+
+
+Local<String> String::NewFromUtf8(Isolate* isolate,
+                                  const char* data,
+                                  NewStringType type,
+                                  int length) {
+  return NewString(isolate,
+                   "v8::String::NewFromUtf8()",
+                   "String::NewFromUtf8",
+                   data,
+                   type,
+                   length);
+}
+
+
+Local<String> String::NewFromOneByte(Isolate* isolate,
+                                     const uint8_t* data,
+                                     NewStringType type,
+                                     int length) {
+  return NewString(isolate,
+                   "v8::String::NewFromOneByte()",
+                   "String::NewFromOneByte",
+                   data,
+                   type,
+                   length);
+}
+
+
+Local<String> String::NewFromTwoByte(Isolate* isolate,
+                                     const uint16_t* data,
+                                     NewStringType type,
+                                     int length) {
+  return NewString(isolate,
+                   "v8::String::NewFromTwoByte()",
+                   "String::NewFromTwoByte",
+                   data,
+                   type,
+                   length);
 }
 
 
@@ -5306,55 +5388,6 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
   i::Handle<i::String> result = isolate->factory()->NewConsString(left_string,
                                                                   right_string);
-  return Utils::ToLocal(result);
-}
-
-
-Local<String> v8::String::NewUndetectable(const char* data, int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::NewUndetectable()");
-  LOG_API(isolate, "String::NewUndetectable(char)");
-  ENTER_V8(isolate);
-  if (length == -1) length = i::StrLength(data);
-  i::Handle<i::String> result =
-      isolate->factory()->NewStringFromUtf8(
-          i::Vector<const char>(data, length));
-  result->MarkAsUndetectable();
-  return Utils::ToLocal(result);
-}
-
-
-static int TwoByteStringLength(const uint16_t* data) {
-  int length = 0;
-  while (data[length] != '\0') length++;
-  return length;
-}
-
-
-Local<String> v8::String::New(const uint16_t* data, int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::New()");
-  LOG_API(isolate, "String::New(uint16_)");
-  if (length == 0) return Empty();
-  ENTER_V8(isolate);
-  if (length == -1) length = TwoByteStringLength(data);
-  i::Handle<i::String> result =
-      isolate->factory()->NewStringFromTwoByte(
-          i::Vector<const uint16_t>(data, length));
-  return Utils::ToLocal(result);
-}
-
-
-Local<String> v8::String::NewUndetectable(const uint16_t* data, int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::NewUndetectable()");
-  LOG_API(isolate, "String::NewUndetectable(uint16_)");
-  ENTER_V8(isolate);
-  if (length == -1) length = TwoByteStringLength(data);
-  i::Handle<i::String> result =
-      isolate->factory()->NewStringFromTwoByte(
-          i::Vector<const uint16_t>(data, length));
-  result->MarkAsUndetectable();
   return Utils::ToLocal(result);
 }
 
@@ -5568,7 +5601,7 @@ Local<v8::Value> v8::Date::New(double time) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Date::New()");
   LOG_API(isolate, "Date::New");
-  if (isnan(time)) {
+  if (std::isnan(time)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
     time = i::OS::nan_value();
   }
@@ -5733,15 +5766,43 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
 }
 
 
-Local<String> v8::String::NewSymbol(const char* data, int length) {
+size_t v8::ArrayBuffer::ByteLength() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ArrayBuffer::ByteLength()")) return 0;
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  return static_cast<size_t>(obj->byte_length()->Number());
+}
+
+
+void* v8::ArrayBuffer::Data() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ArrayBuffer::Data()")) return 0;
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  return obj->backing_store();
+}
+
+
+Local<ArrayBuffer> v8::ArrayBuffer::New(size_t byte_length) {
   i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::NewSymbol()");
-  LOG_API(isolate, "String::NewSymbol(char)");
+  EnsureInitializedForIsolate(isolate, "v8::ArrayBuffer::New(size_t)");
+  LOG_API(isolate, "v8::ArrayBuffer::New(size_t)");
   ENTER_V8(isolate);
-  if (length == -1) length = i::StrLength(data);
-  i::Handle<i::String> result = isolate->factory()->InternalizeUtf8String(
-      i::Vector<const char>(data, length));
-  return Utils::ToLocal(result);
+  i::Handle<i::JSArrayBuffer> obj =
+      isolate->factory()->NewJSArrayBuffer();
+  i::Runtime::SetupArrayBufferAllocatingData(isolate, obj, byte_length);
+  return Utils::ToLocal(obj);
+}
+
+
+Local<ArrayBuffer> v8::ArrayBuffer::New(void* data, size_t byte_length) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::ArrayBuffer::New(void*, size_t)");
+  LOG_API(isolate, "v8::ArrayBuffer::New(void*, size_t)");
+  ENTER_V8(isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      isolate->factory()->NewJSArrayBuffer();
+  i::Runtime::SetupArrayBuffer(isolate, obj, data, byte_length);
+  return Utils::ToLocal(obj);
 }
 
 
@@ -5772,7 +5833,7 @@ Local<Symbol> v8::Symbol::New(Isolate* isolate, const char* data, int length) {
 Local<Number> v8::Number::New(double value) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Number::New()");
-  if (isnan(value)) {
+  if (std::isnan(value)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
     value = i::OS::nan_value();
   }
@@ -5981,6 +6042,31 @@ v8::Local<v8::Context> Isolate::GetCurrentContext() {
 }
 
 
+void Isolate::SetObjectGroupId(const Persistent<Value>& object,
+                               UniqueId id) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
+  internal_isolate->global_handles()->SetObjectGroupId(
+      reinterpret_cast<i::Object**>(*object), id);
+}
+
+
+void Isolate::SetReferenceFromGroup(UniqueId id,
+                                    const Persistent<Value>& object) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
+  internal_isolate->global_handles()
+      ->SetReferenceFromGroup(id, reinterpret_cast<i::Object**>(*object));
+}
+
+
+void Isolate::SetReference(const Persistent<Object>& parent,
+                           const Persistent<Value>& child) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
+  internal_isolate->global_handles()->SetReference(
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*parent)).location(),
+      reinterpret_cast<i::Object**>(*child));
+}
+
+
 void V8::SetGlobalGCPrologueCallback(GCCallback callback) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::SetGlobalGCPrologueCallback()")) return;
@@ -6113,6 +6199,12 @@ bool V8::IsExecutionTerminating(Isolate* isolate) {
   i::Isolate* i_isolate = isolate != NULL ?
       reinterpret_cast<i::Isolate*>(isolate) : i::Isolate::Current();
   return IsExecutionTerminatingCheck(i_isolate);
+}
+
+
+void V8::CancelTerminateExecution(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->stack_guard()->CancelTerminateExecution();
 }
 
 
@@ -7171,6 +7263,12 @@ size_t HeapProfiler::GetMemorySizeUsedByProfiler() {
 size_t HeapProfiler::GetProfilerMemorySize() {
   return reinterpret_cast<i::HeapProfiler*>(this)->
       GetMemorySizeUsedByProfiler();
+}
+
+
+void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
+                                         RetainedObjectInfo* info) {
+  reinterpret_cast<i::HeapProfiler*>(this)->SetRetainedObjectInfo(id, info);
 }
 
 

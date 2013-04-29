@@ -163,7 +163,7 @@ class Logger {
 #undef DECLARE_ENUM
 
   // Acquires resources for logging if the right flags are set.
-  bool SetUp();
+  bool SetUp(Isolate* isolate);
 
   // Sets the current code event handler.
   void SetCodeEventHandler(uint32_t options,
@@ -292,8 +292,8 @@ class Logger {
 
   void TimerEvent(StartEnd se, const char* name);
 
-  static void EnterExternal();
-  static void LeaveExternal();
+  static void EnterExternal(Isolate* isolate);
+  static void LeaveExternal(Isolate* isolate);
 
   class TimerEventScope {
    public:
@@ -466,7 +466,7 @@ class Logger {
   friend class LogMessageBuilder;
   friend class TimeLog;
   friend class Profiler;
-  friend class VMState;
+  template <StateTag Tag> friend class VMState;
 
   friend class LoggerTestHelper;
 

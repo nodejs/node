@@ -30,6 +30,7 @@
 
 #include "ia32/assembler-ia32.h"
 #include "ia32/assembler-ia32-inl.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -195,6 +196,8 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   // Pops a value from the backtrack stack. Reads the word at the stack pointer
   // (ecx) and increments it by a word size.
   inline void Pop(Register target);
+
+  Isolate* isolate() const { return masm_->isolate(); }
 
   MacroAssembler* masm_;
 

@@ -29,9 +29,9 @@
 #define V8_CONVERSIONS_INL_H_
 
 #include <limits.h>        // Required for INT_MAX etc.
-#include <math.h>
 #include <float.h>         // Required for DBL_MAX and on Win32 for finite()
 #include <stdarg.h>
+#include <cmath>
 #include "globals.h"       // Required for V8_INFINITY
 
 // ----------------------------------------------------------------------------
@@ -86,8 +86,8 @@ inline unsigned int FastD2UI(double x) {
 
 
 inline double DoubleToInteger(double x) {
-  if (isnan(x)) return 0;
-  if (!isfinite(x) || x == 0) return x;
+  if (std::isnan(x)) return 0;
+  if (!std::isfinite(x) || x == 0) return x;
   return (x >= 0) ? floor(x) : ceil(x);
 }
 

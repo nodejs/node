@@ -44,7 +44,7 @@ function GeneratorObjectNext() {
                         ['[Generator].prototype.next', this]);
   }
 
-  // TODO(wingo): Implement.
+  return %_GeneratorSend(this, void 0);
 }
 
 function GeneratorObjectSend(value) {
@@ -53,7 +53,7 @@ function GeneratorObjectSend(value) {
                         ['[Generator].prototype.send', this]);
   }
 
-  // TODO(wingo): Implement.
+  return %_GeneratorSend(this, value);
 }
 
 function GeneratorObjectThrow(exn) {
@@ -62,16 +62,7 @@ function GeneratorObjectThrow(exn) {
                         ['[Generator].prototype.throw', this]);
   }
 
-  // TODO(wingo): Implement.
-}
-
-function GeneratorObjectClose() {
-  if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.close', this]);
-  }
-
-  // TODO(wingo): Implement.
+  return %_GeneratorThrow(this, exn);
 }
 
 function SetUpGenerators() {
@@ -81,8 +72,7 @@ function SetUpGenerators() {
                    DONT_ENUM | DONT_DELETE | READ_ONLY,
                    ["next", GeneratorObjectNext,
                     "send", GeneratorObjectSend,
-                    "throw", GeneratorObjectThrow,
-                    "close", GeneratorObjectClose]);
+                    "throw", GeneratorObjectThrow]);
   %SetProperty(GeneratorObjectPrototype, "constructor",
                GeneratorFunctionPrototype, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetPrototype(GeneratorFunctionPrototype, $Function.prototype);

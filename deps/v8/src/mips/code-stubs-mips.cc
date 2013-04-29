@@ -97,16 +97,33 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
-static void InitializeArrayConstructorDescriptor(Isolate* isolate,
+void CompareNilICStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a0 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(CompareNilIC_Miss);
+  descriptor->miss_handler_ =
+      ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate);
+}
+
+
+static void InitializeArrayConstructorDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor,
+    int constant_stack_parameter_count) {
   // register state
-  // a1 -- constructor function
+  // a0 -- number of arguments
   // a2 -- type info cell with elements kind
-  // a0 -- number of arguments to the constructor function
-  static Register registers[] = { a1, a2 };
-  descriptor->register_param_count_ = 2;
-  // stack param count needs (constructor pointer, and single argument)
-  descriptor->stack_parameter_count_ = &a0;
+  static Register registers[] = { a2 };
+  descriptor->register_param_count_ = 1;
+  if (constant_stack_parameter_count != 0) {
+    // stack param count needs (constructor pointer, and single argument)
+    descriptor->stack_parameter_count_ = &a0;
+  }
+  descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
   descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
@@ -117,21 +134,21 @@ static void InitializeArrayConstructorDescriptor(Isolate* isolate,
 void ArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate, descriptor);
+  InitializeArrayConstructorDescriptor(isolate, descriptor, 0);
 }
 
 
 void ArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate, descriptor);
+  InitializeArrayConstructorDescriptor(isolate, descriptor, 1);
 }
 
 
 void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate, descriptor);
+  InitializeArrayConstructorDescriptor(isolate, descriptor, -1);
 }
 
 
@@ -158,6 +175,30 @@ static void EmitCheckForHeapNumber(MacroAssembler* masm, Register operand,
   __ lw(scratch1, FieldMemOperand(operand, HeapObject::kMapOffset));
   __ LoadRoot(scratch2, Heap::kHeapNumberMapRootIndex);
   __ Branch(not_a_heap_number, ne, scratch1, Operand(scratch2));
+}
+
+
+void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
+  // Update the static counter each time a new code stub is generated.
+  Isolate* isolate = masm->isolate();
+  isolate->counters()->code_stubs()->Increment();
+
+  CodeStubInterfaceDescriptor* descriptor = GetInterfaceDescriptor(isolate);
+  int param_count = descriptor->register_param_count_;
+  {
+    // Call the runtime system in a fresh internal frame.
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    ASSERT(descriptor->register_param_count_ == 0 ||
+           a0.is(descriptor->register_params_[param_count - 1]));
+    // Push arguments
+    for (int i = 0; i < param_count; ++i) {
+      __ push(descriptor->register_params_[i]);
+    }
+    ExternalReference miss = descriptor->miss_handler_;
+    __ CallExternalReference(miss, descriptor->register_param_count_);
+  }
+
+  __ Ret();
 }
 
 
@@ -1561,7 +1602,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 
   AllowExternalCallThatCantCauseGC scope(masm);
   __ PrepareCallCFunction(argument_count, fp_argument_count, scratch);
-  __ li(a0, Operand(ExternalReference::isolate_address()));
+  __ li(a0, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ CallCFunction(
       ExternalReference::store_buffer_overflow_function(masm->isolate()),
       argument_count);
@@ -2487,12 +2528,17 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           __ Addu(scratch2, scratch1, Operand(0x40000000));
           // If not try to return a heap number.
           __ Branch(&return_heap_number, lt, scratch2, Operand(zero_reg));
-          // Check for minus zero. Return heap number for minus zero.
+          // Check for minus zero. Return heap number for minus zero if
+          // double results are allowed; otherwise transition.
           Label not_zero;
           __ Branch(&not_zero, ne, scratch1, Operand(zero_reg));
           __ mfc1(scratch2, f11);
           __ And(scratch2, scratch2, HeapNumber::kSignMask);
-          __ Branch(&return_heap_number, ne, scratch2, Operand(zero_reg));
+          __ Branch(result_type_ <= BinaryOpIC::INT32 ? &transition
+                    : &return_heap_number,
+                    ne,
+                    scratch2,
+                    Operand(zero_reg));
           __ bind(&not_zero);
 
           // Tag the result and return.
@@ -2505,21 +2551,18 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         __ bind(&return_heap_number);
         // Return a heap number, or fall through to type transition or runtime
         // call if we can't.
-        if (result_type_ >= ((op_ == Token::DIV) ? BinaryOpIC::NUMBER
-                                                 : BinaryOpIC::INT32)) {
-          // We are using FPU registers so s0 is available.
-          heap_number_result = s0;
-          BinaryOpStub_GenerateHeapResultAllocation(masm,
-                                                    heap_number_result,
-                                                    heap_number_map,
-                                                    scratch1,
-                                                    scratch2,
-                                                    &call_runtime,
-                                                    mode_);
-          __ mov(v0, heap_number_result);
-          __ sdc1(f10, FieldMemOperand(v0, HeapNumber::kValueOffset));
-          __ Ret();
-        }
+        // We are using FPU registers so s0 is available.
+        heap_number_result = s0;
+        BinaryOpStub_GenerateHeapResultAllocation(masm,
+                                                  heap_number_result,
+                                                  heap_number_map,
+                                                  scratch1,
+                                                  scratch2,
+                                                  &call_runtime,
+                                                  mode_);
+        __ mov(v0, heap_number_result);
+        __ sdc1(f10, FieldMemOperand(v0, HeapNumber::kValueOffset));
+        __ Ret();
 
         // A DIV operation expecting an integer result falls through
         // to type transition.
@@ -3303,6 +3346,9 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
+  if (FLAG_optimize_constructed_arrays) {
+    ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
+  }
 }
 
 
@@ -3384,7 +3430,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   __ AssertStackIsAligned();
 
-  __ li(a2, Operand(ExternalReference::isolate_address()));
+  __ li(a2, Operand(ExternalReference::isolate_address(isolate)));
 
   // To let the GC traverse the return address of the exit frames, we need to
   // know where the return address is. The CEntryStub is unmovable, so
@@ -4663,7 +4709,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Argument 9: Pass current isolate address.
   // CFunctionArgumentOperand handles MIPS stack argument slots.
-  __ li(a0, Operand(ExternalReference::isolate_address()));
+  __ li(a0, Operand(ExternalReference::isolate_address(isolate)));
   __ sw(a0, MemOperand(sp, 5 * kPointerSize));
 
   // Argument 8: Indicate that this is a direct call from JavaScript.
@@ -5057,7 +5103,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Handle<Object> terminal_kind_sentinel =
       TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
                                                   LAST_FAST_ELEMENTS_KIND);
-  __ Branch(&miss, ne, a3, Operand(terminal_kind_sentinel));
+  __ Branch(&miss, gt, a3, Operand(terminal_kind_sentinel));
   // Make sure the function is the Array() function
   __ LoadArrayFunction(a3);
   __ Branch(&megamorphic, ne, a1, Operand(a3));
@@ -7277,7 +7323,7 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   __ Move(address, regs_.address());
   __ Move(a0, regs_.object());
   __ Move(a1, address);
-  __ li(a2, Operand(ExternalReference::isolate_address()));
+  __ li(a2, Operand(ExternalReference::isolate_address(masm->isolate())));
 
   AllowExternalCallThatCantCauseGC scope(masm);
   if (mode == INCREMENTAL_COMPACTION) {
@@ -7520,6 +7566,189 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   __ Pop(ra, t1, a1);
   __ Ret();
+}
+
+
+template<class T>
+static void CreateArrayDispatch(MacroAssembler* masm) {
+  int last_index = GetSequenceIndexFromFastElementsKind(
+      TERMINAL_FAST_ELEMENTS_KIND);
+  for (int i = 0; i <= last_index; ++i) {
+    Label next;
+    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+    __ Branch(&next, ne, a3, Operand(kind));
+    T stub(kind);
+    __ TailCallStub(&stub);
+    __ bind(&next);
+  }
+
+  // If we reached this point there is a problem.
+  __ Abort("Unexpected ElementsKind in array constructor");
+}
+
+
+static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
+  // a2 - type info cell
+  // a3 - kind
+  // a0 - number of arguments
+  // a1 - constructor?
+  // sp[0] - last argument
+  ASSERT(FAST_SMI_ELEMENTS == 0);
+  ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+  ASSERT(FAST_ELEMENTS == 2);
+  ASSERT(FAST_HOLEY_ELEMENTS == 3);
+  ASSERT(FAST_DOUBLE_ELEMENTS == 4);
+  ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
+
+  Handle<Object> undefined_sentinel(
+      masm->isolate()->heap()->undefined_value(),
+      masm->isolate());
+
+  // is the low bit set? If so, we are holey and that is good.
+  Label normal_sequence;
+  __ And(at, a3, Operand(1));
+  __ Branch(&normal_sequence, ne, at, Operand(zero_reg));
+
+  // look at the first argument
+  __ lw(t1, MemOperand(sp, 0));
+  __ Branch(&normal_sequence, eq, t1, Operand(zero_reg));
+
+  // We are going to create a holey array, but our kind is non-holey.
+  // Fix kind and retry
+  __ Addu(a3, a3, Operand(1));
+  __ Branch(&normal_sequence, eq, a2, Operand(undefined_sentinel));
+
+  // Save the resulting elements kind in type info
+  __ SmiTag(a3);
+  __ sw(a3, FieldMemOperand(a2, kPointerSize));
+  __ SmiUntag(a3);
+
+  __ bind(&normal_sequence);
+  int last_index = GetSequenceIndexFromFastElementsKind(
+      TERMINAL_FAST_ELEMENTS_KIND);
+  for (int i = 0; i <= last_index; ++i) {
+    Label next;
+    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+    __ Branch(&next, ne, a3, Operand(kind));
+    ArraySingleArgumentConstructorStub stub(kind);
+    __ TailCallStub(&stub);
+    __ bind(&next);
+  }
+
+  // If we reached this point there is a problem.
+  __ Abort("Unexpected ElementsKind in array constructor");
+}
+
+
+template<class T>
+static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
+  int to_index = GetSequenceIndexFromFastElementsKind(
+      TERMINAL_FAST_ELEMENTS_KIND);
+  for (int i = 0; i <= to_index; ++i) {
+    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+    T stub(kind);
+    stub.GetCode(isolate)->set_is_pregenerated(true);
+  }
+}
+
+
+void ArrayConstructorStubBase::GenerateStubsAheadOfTime(Isolate* isolate) {
+  ArrayConstructorStubAheadOfTimeHelper<ArrayNoArgumentConstructorStub>(
+      isolate);
+  ArrayConstructorStubAheadOfTimeHelper<ArraySingleArgumentConstructorStub>(
+      isolate);
+  ArrayConstructorStubAheadOfTimeHelper<ArrayNArgumentsConstructorStub>(
+      isolate);
+}
+
+
+void ArrayConstructorStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0 : argc (only if argument_count_ == ANY)
+  //  -- a1 : constructor
+  //  -- a2 : type info cell
+  //  -- sp[0] : return address
+  //  -- sp[4] : last argument
+  // -----------------------------------
+  Handle<Object> undefined_sentinel(
+      masm->isolate()->heap()->undefined_value(),
+      masm->isolate());
+
+  if (FLAG_debug_code) {
+    // The array construct code is only set for the global and natives
+    // builtin Array functions which always have maps.
+
+    // Initial map for the builtin Array function should be a map.
+    __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a NULL and a Smi.
+    __ And(at, a3, Operand(kSmiTagMask));
+    __ Assert(ne, "Unexpected initial map for Array function",
+        at, Operand(zero_reg));
+    __ GetObjectType(a3, a3, t0);
+    __ Assert(eq, "Unexpected initial map for Array function",
+        t0, Operand(MAP_TYPE));
+
+    // We should either have undefined in ebx or a valid jsglobalpropertycell
+    Label okay_here;
+    Handle<Map> global_property_cell_map(
+        masm->isolate()->heap()->global_property_cell_map());
+    __ Branch(&okay_here, eq, a2, Operand(undefined_sentinel));
+    __ lw(a3, FieldMemOperand(a2, 0));
+    __ Assert(eq, "Expected property cell in register ebx",
+        a3, Operand(global_property_cell_map));
+    __ bind(&okay_here);
+  }
+
+  if (FLAG_optimize_constructed_arrays) {
+    Label no_info, switch_ready;
+    // Get the elements kind and case on that.
+    __ Branch(&no_info, eq, a2, Operand(undefined_sentinel));
+    __ lw(a3, FieldMemOperand(a2, kPointerSize));
+
+    // There is no info if the call site went megamorphic either
+    // TODO(mvstanton): Really? I thought if it was the array function that
+    // the cell wouldn't get stamped as megamorphic.
+    __ Branch(&no_info, eq, a3,
+        Operand(TypeFeedbackCells::MegamorphicSentinel(masm->isolate())));
+    __ SmiUntag(a3);
+    __ jmp(&switch_ready);
+    __ bind(&no_info);
+    __ li(a3, Operand(GetInitialFastElementsKind()));
+    __ bind(&switch_ready);
+
+    if (argument_count_ == ANY) {
+      Label not_zero_case, not_one_case;
+      __ And(at, a0, a0);
+      __ Branch(&not_zero_case, ne, at, Operand(zero_reg));
+      CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
+
+      __ bind(&not_zero_case);
+      __ Branch(&not_one_case, gt, a0, Operand(1));
+      CreateArrayDispatchOneArgument(masm);
+
+      __ bind(&not_one_case);
+      CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
+    } else if (argument_count_ == NONE) {
+      CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
+    } else if (argument_count_ == ONE) {
+      CreateArrayDispatchOneArgument(masm);
+    } else if (argument_count_ == MORE_THAN_ONE) {
+      CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
+    } else {
+     UNREACHABLE();
+    }
+  } else {
+     Label generic_constructor;
+     // Run the native code for the Array function called as a constructor.
+     ArrayNativeCode(masm, &generic_constructor);
+
+     // Jump to the generic construct code in case the specialized code cannot
+     // handle the construction.
+     __ bind(&generic_constructor);
+     Handle<Code> generic_construct_stub =
+         masm->isolate()->builtins()->JSConstructStubGeneric();
+     __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+  }
 }
 
 

@@ -347,6 +347,7 @@ void IC::Clear(Address address) {
     case Code::CALL_IC: return CallIC::Clear(address, target);
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
     case Code::COMPARE_IC: return CompareIC::Clear(address, target);
+    case Code::COMPARE_NIL_IC: return CompareNilIC::Clear(address, target);
     case Code::UNARY_OP_IC:
     case Code::BINARY_OP_IC:
     case Code::TO_BOOLEAN_IC:
@@ -877,7 +878,7 @@ MaybeObject* LoadIC::Load(State state,
         if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
 #endif
       }
-      return Accessors::FunctionGetPrototype(*object, 0);
+      return *Accessors::FunctionGetPrototype(object);
     }
   }
 
@@ -887,7 +888,7 @@ MaybeObject* LoadIC::Load(State state,
   if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
     // Rewrite to the generic keyed load stub.
     if (FLAG_use_ic) set_target(*generic_stub());
-    return Runtime::GetElementOrCharAt(isolate(), object, index);
+    return Runtime::GetElementOrCharAtOrFail(isolate(), object, index);
   }
 
   // Named lookup in the object.
@@ -922,7 +923,7 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   // Get the property.
-  return object->GetProperty(*object, &lookup, *name, &attr);
+  return Object::GetPropertyOrFail(object, object, &lookup, name, &attr);
 }
 
 
@@ -1260,7 +1261,7 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
   // non-smi keys of keyed loads/stores to a smi or a string.
   if (key->IsHeapNumber()) {
     double value = Handle<HeapNumber>::cast(key)->value();
-    if (isnan(value)) {
+    if (std::isnan(value)) {
       key = isolate->factory()->nan_string();
     } else {
       int int_value = FastD2I(value);
@@ -1476,8 +1477,8 @@ MaybeObject* StoreIC::Store(State state,
                             JSReceiver::StoreFromKeyed store_mode) {
   // Handle proxies.
   if (object->IsJSProxy()) {
-    return JSProxy::cast(*object)->
-        SetProperty(*name, *value, NONE, strict_mode);
+    return JSReceiver::SetPropertyOrFail(
+        Handle<JSReceiver>::cast(object), name, value, NONE, strict_mode);
   }
 
   // If the object is undefined or null it's illegal to try to set any
@@ -1509,7 +1510,8 @@ MaybeObject* StoreIC::Store(State state,
 
   // Observed objects are always modified through the runtime.
   if (FLAG_harmony_observation && receiver->map()->is_observed()) {
-    return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
+    return JSReceiver::SetPropertyOrFail(
+        receiver, name, value, NONE, strict_mode, store_mode);
   }
 
   // Use specialized code for setting the length of arrays with fast
@@ -1524,7 +1526,8 @@ MaybeObject* StoreIC::Store(State state,
         StoreArrayLengthStub(kind(), strict_mode).GetCode(isolate());
     set_target(*stub);
     TRACE_IC("StoreIC", name, state, *stub);
-    return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
+    return JSReceiver::SetPropertyOrFail(
+        receiver, name, value, NONE, strict_mode, store_mode);
   }
 
   if (receiver->IsJSGlobalProxy()) {
@@ -1537,7 +1540,8 @@ MaybeObject* StoreIC::Store(State state,
       set_target(*stub);
       TRACE_IC("StoreIC", name, state, *stub);
     }
-    return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
+    return JSReceiver::SetPropertyOrFail(
+        receiver, name, value, NONE, strict_mode, store_mode);
   }
 
   LookupResult lookup(isolate());
@@ -1553,7 +1557,8 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   // Set the property.
-  return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
+  return JSReceiver::SetPropertyOrFail(
+      receiver, name, value, NONE, strict_mode, store_mode);
 }
 
 
@@ -2763,6 +2768,100 @@ RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
   ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
   return ic.target();
+}
+
+
+Code* CompareNilIC::GetRawUninitialized(EqualityKind kind,
+                                        NilValue nil) {
+  CompareNilICStub stub(kind, nil);
+  Code* code = NULL;
+  CHECK(stub.FindCodeInCache(&code, Isolate::Current()));
+  return code;
+}
+
+
+void CompareNilIC::Clear(Address address, Code* target) {
+  if (target->ic_state() == UNINITIALIZED) return;
+  Code::ExtraICState state = target->extended_extra_ic_state();
+
+  EqualityKind kind =
+      CompareNilICStub::EqualityKindFromExtraICState(state);
+  NilValue nil =
+      CompareNilICStub::NilValueFromExtraICState(state);
+
+  SetTargetAtAddress(address, GetRawUninitialized(kind, nil));
+}
+
+
+MaybeObject* CompareNilIC::DoCompareNilSlow(EqualityKind kind,
+                                            NilValue nil,
+                                            Handle<Object> object) {
+  if (kind == kStrictEquality) {
+    if (nil == kNullValue) {
+      return Smi::FromInt(object->IsNull());
+    } else {
+      return Smi::FromInt(object->IsUndefined());
+    }
+  }
+  if (object->IsNull() || object->IsUndefined()) {
+    return Smi::FromInt(true);
+  }
+  return Smi::FromInt(object->IsUndetectableObject());
+}
+
+
+MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
+  Code::ExtraICState extra_ic_state = target()->extended_extra_ic_state();
+
+  // Extract the current supported types from the patched IC and calculate what
+  // types must be supported as a result of the miss.
+  bool already_monomorphic;
+  CompareNilICStub::Types types =
+      CompareNilICStub::GetPatchedICFlags(extra_ic_state,
+                                          object, &already_monomorphic);
+
+  EqualityKind kind =
+      CompareNilICStub::EqualityKindFromExtraICState(extra_ic_state);
+  NilValue nil =
+      CompareNilICStub::NilValueFromExtraICState(extra_ic_state);
+
+  // Find or create the specialized stub to support the new set of types.
+  CompareNilICStub stub(kind, nil, types);
+  Handle<Code> code;
+  if ((types & CompareNilICStub::kCompareAgainstMonomorphicMap) != 0) {
+    Handle<Map> monomorphic_map(already_monomorphic
+                                ? target()->FindFirstMap()
+                                : HeapObject::cast(*object)->map());
+    code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map,
+                                                      nil,
+                                                      stub.GetTypes());
+  } else {
+    code = stub.GetCode(isolate());
+  }
+
+  patch(*code);
+
+  return DoCompareNilSlow(kind, nil, object);
+}
+
+
+void CompareNilIC::patch(Code* code) {
+  set_target(code);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, CompareNilIC_Miss) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);
+  CompareNilIC ic(isolate);
+  return ic.CompareNil(object);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Unreachable) {
+  UNREACHABLE();
+  CHECK(false);
+  return isolate->heap()->undefined_value();
 }
 
 

@@ -84,10 +84,20 @@ class LCodeGen BASE_EMBEDDED {
   Heap* heap() const { return isolate()->heap(); }
   Zone* zone() const { return zone_; }
 
+  // TODO(svenpanne) Use this consistently.
+  int LookupDestination(int block_id) const {
+    return chunk()->LookupDestination(block_id);
+  }
+
+  bool IsNextEmittedBlock(int block_id) const {
+    return LookupDestination(block_id) == GetNextEmittedBlock();
+  }
+
   bool NeedsEagerFrame() const {
     return GetStackSlotCount() > 0 ||
         info()->is_non_deferred_calling() ||
-        !info()->IsStub();
+        !info()->IsStub() ||
+        info()->requires_frame();
   }
   bool NeedsDeferredFrame() const {
     return !NeedsEagerFrame() && info()->is_deferred_calling();
@@ -188,9 +198,9 @@ class LCodeGen BASE_EMBEDDED {
 
   LPlatformChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
-  HGraph* graph() const { return chunk_->graph(); }
+  HGraph* graph() const { return chunk()->graph(); }
 
-  int GetNextEmittedBlock(int block);
+  int GetNextEmittedBlock() const;
 
   void EmitClassOfTest(Label* if_true,
                        Label* if_false,
@@ -254,6 +264,7 @@ class LCodeGen BASE_EMBEDDED {
   // Generate a direct call to a known function.  Expects the function
   // to be in edi.
   void CallKnownFunction(Handle<JSFunction> function,
+                         int formal_parameter_count,
                          int arity,
                          LInstruction* instr,
                          CallKind call_kind,

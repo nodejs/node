@@ -62,6 +62,7 @@
 // SunOS 5.10 Generic_141445-09) which make it difficult or impossible to
 // access signbit() despite the availability of other C99 math functions.
 #ifndef signbit
+namespace std {
 // Test sign - usually defined in math.h
 int signbit(double x) {
   // We need to take care of the special case of both positive and negative
@@ -74,6 +75,7 @@ int signbit(double x) {
     return x < 0;
   }
 }
+}  // namespace std
 #endif  // signbit
 
 namespace v8 {
@@ -116,7 +118,7 @@ void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
 
 
 const char* OS::LocalTimezone(double time) {
-  if (isnan(time)) return "";
+  if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return "";

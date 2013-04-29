@@ -317,8 +317,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 // entering the generic code. In both cases argc in a0 needs to be preserved.
 // Both registers are preserved by this code so no need to differentiate between
 // construct call and normal call.
-static void ArrayNativeCode(MacroAssembler* masm,
-                            Label* call_generic_code) {
+void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code) {
   Counters* counters = masm->isolate()->counters();
   Label argc_one_or_more, argc_two_or_more, not_empty_array, empty_array,
       has_non_smi_element, finish, cant_transition_map, not_double;
@@ -546,7 +545,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
+void Builtins::Generate_CommonArrayConstructCode(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0     : number of arguments
   //  -- a1     : constructor function
@@ -566,48 +565,17 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     __ GetObjectType(a3, a3, t0);
     __ Assert(eq, "Unexpected initial map for Array function (4)",
               t0, Operand(MAP_TYPE));
-
-    if (FLAG_optimize_constructed_arrays) {
-      // We should either have undefined in a2 or a valid jsglobalpropertycell
-      Label okay_here;
-      Handle<Object> undefined_sentinel(
-          masm->isolate()->heap()->undefined_value(), masm->isolate());
-      Handle<Map> global_property_cell_map(
-          masm->isolate()->heap()->global_property_cell_map());
-      __ Branch(&okay_here, eq, a2, Operand(undefined_sentinel));
-      __ lw(a3, FieldMemOperand(a2, 0));
-      __ Assert(eq, "Expected property cell in register a3",
-                a3, Operand(global_property_cell_map));
-      __ bind(&okay_here);
-    }
   }
+  Label generic_constructor;
+  // Run the native code for the Array function called as a constructor.
+  ArrayNativeCode(masm, &generic_constructor);
 
-  if (FLAG_optimize_constructed_arrays) {
-    Label not_zero_case, not_one_case;
-    __ Branch(&not_zero_case, ne, a0, Operand(zero_reg));
-    ArrayNoArgumentConstructorStub no_argument_stub;
-    __ TailCallStub(&no_argument_stub);
-
-    __ bind(&not_zero_case);
-    __ Branch(&not_one_case, gt, a0, Operand(1));
-    ArraySingleArgumentConstructorStub single_argument_stub;
-    __ TailCallStub(&single_argument_stub);
-
-    __ bind(&not_one_case);
-    ArrayNArgumentsConstructorStub n_argument_stub;
-    __ TailCallStub(&n_argument_stub);
-  } else {
-    Label generic_constructor;
-    // Run the native code for the Array function called as a constructor.
-    ArrayNativeCode(masm, &generic_constructor);
-
-    // Jump to the generic construct code in case the specialized code cannot
-    // handle the construction.
-    __ bind(&generic_constructor);
-    Handle<Code> generic_construct_stub =
-        masm->isolate()->builtins()->JSConstructStubGeneric();
-    __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
-  }
+  // Jump to the generic construct code in case the specialized code cannot
+  // handle the construction.
+  __ bind(&generic_constructor);
+  Handle<Code> generic_construct_stub =
+      masm->isolate()->builtins()->JSConstructStubGeneric();
+  __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
 }
 
 

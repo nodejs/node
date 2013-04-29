@@ -355,14 +355,14 @@ bool String::IsTwoByteRepresentationUnderneath() {
 }
 
 
-bool String::HasOnlyAsciiChars() {
+bool String::HasOnlyOneByteChars() {
   uint32_t type = map()->instance_type();
-  return (type & kAsciiDataHintMask) == kAsciiDataHintTag;
+  return (type & kOneByteDataHintMask) == kOneByteDataHintTag;
 }
 
 
 bool String::IsOneByteConvertible() {
-  return HasOnlyAsciiChars() || IsOneByteRepresentation();
+  return HasOnlyOneByteChars() || IsOneByteRepresentation();
 }
 
 
@@ -860,7 +860,7 @@ double Object::Number() {
 
 
 bool Object::IsNaN() {
-  return this->IsHeapNumber() && isnan(HeapNumber::cast(this)->value());
+  return this->IsHeapNumber() && std::isnan(HeapNumber::cast(this)->value());
 }
 
 
@@ -1296,6 +1296,44 @@ void JSObject::ValidateElements() {
     accessor->Validate(this);
   }
 #endif
+}
+
+
+bool JSObject::ShouldTrackAllocationInfo() {
+  if (map()->CanTrackAllocationSite()) {
+    if (!IsJSArray()) {
+      return true;
+    }
+
+    return AllocationSiteInfo::GetMode(GetElementsKind()) ==
+        TRACK_ALLOCATION_SITE;
+  }
+  return false;
+}
+
+
+// Heuristic: We only need to create allocation site info if the boilerplate
+// elements kind is the initial elements kind.
+AllocationSiteMode AllocationSiteInfo::GetMode(
+    ElementsKind boilerplate_elements_kind) {
+  if (FLAG_track_allocation_sites &&
+      IsFastSmiElementsKind(boilerplate_elements_kind)) {
+    return TRACK_ALLOCATION_SITE;
+  }
+
+  return DONT_TRACK_ALLOCATION_SITE;
+}
+
+
+AllocationSiteMode AllocationSiteInfo::GetMode(ElementsKind from,
+                                               ElementsKind to) {
+  if (FLAG_track_allocation_sites &&
+      IsFastSmiElementsKind(from) &&
+      (IsFastObjectElementsKind(to) || IsFastDoubleElementsKind(to))) {
+    return TRACK_ALLOCATION_SITE;
+  }
+
+  return DONT_TRACK_ALLOCATION_SITE;
 }
 
 
@@ -1921,7 +1959,7 @@ void FixedDoubleArray::set(int index, double value) {
   ASSERT(map() != HEAP->fixed_cow_array_map() &&
          map() != HEAP->fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
-  if (isnan(value)) value = canonical_not_the_hole_nan_as_double();
+  if (std::isnan(value)) value = canonical_not_the_hole_nan_as_double();
   WRITE_DOUBLE_FIELD(this, offset, value);
 }
 
@@ -3634,6 +3672,12 @@ Code::ExtraICState Code::extra_ic_state() {
 }
 
 
+Code::ExtraICState Code::extended_extra_ic_state() {
+  ASSERT(is_inline_cache_stub() || ic_state() == DEBUG_STUB);
+  return ExtractExtendedExtraICStateFromFlags(flags());
+}
+
+
 Code::StubType Code::type() {
   return ExtractTypeFromFlags(flags());
 }
@@ -3663,6 +3707,7 @@ int Code::major_key() {
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
+         kind() == COMPARE_NIL_IC ||
          kind() == LOAD_IC ||
          kind() == KEYED_LOAD_IC ||
          kind() == TO_BOOLEAN_IC);
@@ -3676,6 +3721,7 @@ void Code::set_major_key(int major) {
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
+         kind() == COMPARE_NIL_IC ||
          kind() == LOAD_IC ||
          kind() == KEYED_LOAD_IC ||
          kind() == STORE_IC ||
@@ -3689,7 +3735,7 @@ void Code::set_major_key(int major) {
 
 
 bool Code::is_pregenerated() {
-  return kind() == STUB && IsPregeneratedField::decode(flags());
+  return (kind() == STUB && IsPregeneratedField::decode(flags()));
 }
 
 
@@ -3940,13 +3986,23 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                int argc,
                                InlineCacheHolderFlag holder) {
   ASSERT(argc <= Code::kMaxArguments);
+  // Since the extended extra ic state overlaps with the argument count
+  // for CALL_ICs, do so checks to make sure that they don't interfere.
+  ASSERT((kind != Code::CALL_IC &&
+          kind != Code::KEYED_CALL_IC) ||
+         (ExtraICStateField::encode(extra_ic_state) | true));
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind)
       | ICStateField::encode(ic_state)
       | TypeField::encode(type)
-      | ExtraICStateField::encode(extra_ic_state)
-      | (argc << kArgumentsCountShift)
+      | ExtendedExtraICStateField::encode(extra_ic_state)
       | CacheHolderField::encode(holder);
+  // TODO(danno): This is a bit of a hack right now since there are still
+  // clients of this API that pass "extra" values in for argc. These clients
+  // should be retrofitted to used ExtendedExtraICState.
+  if (kind != Code::COMPARE_NIL_IC) {
+    bits |= (argc << kArgumentsCountShift);
+  }
   return static_cast<Flags>(bits);
 }
 
@@ -3972,6 +4028,12 @@ InlineCacheState Code::ExtractICStateFromFlags(Flags flags) {
 
 Code::ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
   return ExtraICStateField::decode(flags);
+}
+
+
+Code::ExtraICState Code::ExtractExtendedExtraICStateFromFlags(
+    Flags flags) {
+  return ExtendedExtraICStateField::decode(flags);
 }
 
 
@@ -5029,7 +5091,8 @@ void Foreign::set_foreign_address(Address value) {
 
 
 ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
-ACCESSORS(JSGeneratorObject, context, Object, kContextOffset)
+ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
+ACCESSORS(JSGeneratorObject, receiver, Object, kReceiverOffset)
 SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
 ACCESSORS(JSGeneratorObject, operand_stack, FixedArray, kOperandStackOffset)
 
@@ -5124,7 +5187,8 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 
 
 int Code::stub_info() {
-  ASSERT(kind() == COMPARE_IC || kind() == BINARY_OP_IC || kind() == LOAD_IC);
+  ASSERT(kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
+         kind() == BINARY_OP_IC || kind() == LOAD_IC);
   Object* value = READ_FIELD(this, kTypeFeedbackInfoOffset);
   return Smi::cast(value)->value();
 }
@@ -5132,6 +5196,7 @@ int Code::stub_info() {
 
 void Code::set_stub_info(int value) {
   ASSERT(kind() == COMPARE_IC ||
+         kind() == COMPARE_NIL_IC ||
          kind() == BINARY_OP_IC ||
          kind() == STUB ||
          kind() == LOAD_IC ||

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <math.h>
+#include <cmath>
 
 #include "../include/v8stdint.h"
 
@@ -42,13 +42,17 @@
 #include "unicode.h"
 #include "utils.h"
 
-namespace v8 {
-
 #ifdef _MSC_VER
+namespace std {
+
 // Usually defined in math.h, but not in MSVC.
 // Abstracted to work
 int isfinite(double value);
+
+}  // namespace std
 #endif
+
+namespace v8 {
 
 namespace preparser {
 
@@ -1712,7 +1716,7 @@ int DuplicateFinder::AddNumber(i::Vector<const char> key, int value) {
   double double_value = StringToDouble(unicode_constants_, key, flags, 0.0);
   int length;
   const char* string;
-  if (!isfinite(double_value)) {
+  if (!std::isfinite(double_value)) {
     string = "Infinity";
     length = 8;  // strlen("Infinity");
   } else {

@@ -34,6 +34,9 @@ namespace v8 {
 namespace internal {
 
 
+void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
+
+
 // Compute a transcendental math function natively, or call the
 // TranscendentalCache runtime function.
 class TranscendentalCacheStub: public PlatformCodeStub {
@@ -469,34 +472,14 @@ class RecordWriteStub: public PlatformCodeStub {
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
       masm->stm(db_w, sp, (kCallerSaved | lr.bit()) & ~scratch1_.bit());
       if (mode == kSaveFPRegs) {
-        // Number of d-regs not known at snapshot time.
-        ASSERT(!Serializer::enabled());
-        masm->sub(sp,
-                  sp,
-                  Operand(kDoubleSize * (DwVfpRegister::NumRegisters() - 1)));
-        // Save all VFP registers except d0.
-        // TODO(hans): We should probably save d0 too. And maybe use vstm.
-        for (int i = DwVfpRegister::NumRegisters() - 1; i > 0; i--) {
-          DwVfpRegister reg = DwVfpRegister::from_code(i);
-          masm->vstr(reg, MemOperand(sp, (i - 1) * kDoubleSize));
-        }
+        masm->SaveFPRegs(sp, scratch0_);
       }
     }
 
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
-        // Number of d-regs not known at snapshot time.
-        ASSERT(!Serializer::enabled());
-        // Restore all VFP registers except d0.
-        // TODO(hans): We should probably restore d0 too. And maybe use vldm.
-        for (int i = DwVfpRegister::NumRegisters() - 1; i > 0; i--) {
-          DwVfpRegister reg = DwVfpRegister::from_code(i);
-          masm->vldr(reg, MemOperand(sp, (i - 1) * kDoubleSize));
-        }
-        masm->add(sp,
-                  sp,
-                  Operand(kDoubleSize * (DwVfpRegister::NumRegisters() - 1)));
+        masm->RestoreFPRegs(sp, scratch0_);
       }
       masm->ldm(ia_w, sp, (kCallerSaved | lr.bit()) & ~scratch1_.bit());
     }
@@ -605,142 +588,6 @@ class DirectCEntryStub: public PlatformCodeStub {
   int MinorKey() { return 0; }
 
   bool NeedsImmovableCode() { return true; }
-};
-
-
-class FloatingPointHelper : public AllStatic {
- public:
-  enum Destination {
-    kVFPRegisters,
-    kCoreRegisters
-  };
-
-
-  // Loads smis from r0 and r1 (right and left in binary operations) into
-  // floating point registers. Depending on the destination the values ends up
-  // either d7 and d6 or in r2/r3 and r0/r1 respectively. If the destination is
-  // floating point registers VFP3 must be supported. If core registers are
-  // requested when VFP3 is supported d6 and d7 will be scratched.
-  static void LoadSmis(MacroAssembler* masm,
-                       Destination destination,
-                       Register scratch1,
-                       Register scratch2);
-
-  // Convert the smi or heap number in object to an int32 using the rules
-  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
-  // and brought into the range -2^31 .. +2^31 - 1.
-  static void ConvertNumberToInt32(MacroAssembler* masm,
-                                   Register object,
-                                   Register dst,
-                                   Register heap_number_map,
-                                   Register scratch1,
-                                   Register scratch2,
-                                   Register scratch3,
-                                   DwVfpRegister double_scratch1,
-                                   DwVfpRegister double_scratch2,
-                                   Label* not_int32);
-
-  // Converts the integer (untagged smi) in |int_scratch| to a double, storing
-  // the result either in |double_dst| or |dst2:dst1|, depending on
-  // |destination|.
-  // Warning: The value in |int_scratch| will be changed in the process!
-  static void ConvertIntToDouble(MacroAssembler* masm,
-                                 Register int_scratch,
-                                 Destination destination,
-                                 DwVfpRegister double_dst,
-                                 Register dst1,
-                                 Register dst2,
-                                 Register scratch2,
-                                 SwVfpRegister single_scratch);
-
-  // Load the number from object into double_dst in the double format.
-  // Control will jump to not_int32 if the value cannot be exactly represented
-  // by a 32-bit integer.
-  // Floating point value in the 32-bit integer range that are not exact integer
-  // won't be loaded.
-  static void LoadNumberAsInt32Double(MacroAssembler* masm,
-                                      Register object,
-                                      Destination destination,
-                                      DwVfpRegister double_dst,
-                                      DwVfpRegister double_scratch,
-                                      Register dst1,
-                                      Register dst2,
-                                      Register heap_number_map,
-                                      Register scratch1,
-                                      Register scratch2,
-                                      SwVfpRegister single_scratch,
-                                      Label* not_int32);
-
-  // Loads the number from object into dst as a 32-bit integer.
-  // Control will jump to not_int32 if the object cannot be exactly represented
-  // by a 32-bit integer.
-  // Floating point value in the 32-bit integer range that are not exact integer
-  // won't be converted.
-  // scratch3 is not used when VFP3 is supported.
-  static void LoadNumberAsInt32(MacroAssembler* masm,
-                                Register object,
-                                Register dst,
-                                Register heap_number_map,
-                                Register scratch1,
-                                Register scratch2,
-                                Register scratch3,
-                                DwVfpRegister double_scratch0,
-                                DwVfpRegister double_scratch1,
-                                Label* not_int32);
-
-  // Generate non VFP3 code to check if a double can be exactly represented by a
-  // 32-bit integer. This does not check for 0 or -0, which need
-  // to be checked for separately.
-  // Control jumps to not_int32 if the value is not a 32-bit integer, and falls
-  // through otherwise.
-  // src1 and src2 will be cloberred.
-  //
-  // Expected input:
-  // - src1: higher (exponent) part of the double value.
-  // - src2: lower (mantissa) part of the double value.
-  // Output status:
-  // - dst: 32 higher bits of the mantissa. (mantissa[51:20])
-  // - src2: contains 1.
-  // - other registers are clobbered.
-  static void DoubleIs32BitInteger(MacroAssembler* masm,
-                                   Register src1,
-                                   Register src2,
-                                   Register dst,
-                                   Register scratch,
-                                   Label* not_int32);
-
-  // Generates code to call a C function to do a double operation using core
-  // registers. (Used when VFP3 is not supported.)
-  // This code never falls through, but returns with a heap number containing
-  // the result in r0.
-  // Register heapnumber_result must be a heap number in which the
-  // result of the operation will be stored.
-  // Requires the following layout on entry:
-  // r0: Left value (least significant part of mantissa).
-  // r1: Left value (sign, exponent, top of mantissa).
-  // r2: Right value (least significant part of mantissa).
-  // r3: Right value (sign, exponent, top of mantissa).
-  static void CallCCodeForDoubleOperation(MacroAssembler* masm,
-                                          Token::Value op,
-                                          Register heap_number_result,
-                                          Register scratch);
-
-  // Loads the objects from |object| into floating point registers.
-  // Depending on |destination| the value ends up either in |dst| or
-  // in |dst1|/|dst2|. If |destination| is kVFPRegisters, then VFP3
-  // must be supported. If kCoreRegisters are requested and VFP3 is
-  // supported, |dst| will be scratched. If |object| is neither smi nor
-  // heap number, |not_number| is jumped to with |object| still intact.
-  static void LoadNumber(MacroAssembler* masm,
-                         FloatingPointHelper::Destination destination,
-                         Register object,
-                         DwVfpRegister dst,
-                         Register dst1,
-                         Register dst2,
-                         Register heap_number_map,
-                         Register scratch1,
-                         Register scratch2,
-                         Label* not_number);
 };
 
 

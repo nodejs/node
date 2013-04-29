@@ -1310,20 +1310,18 @@ const char* HUnaryMathOperation::OpName() const {
   switch (op()) {
     case kMathFloor: return "floor";
     case kMathRound: return "round";
-    case kMathCeil: return "ceil";
     case kMathAbs: return "abs";
     case kMathLog: return "log";
     case kMathSin: return "sin";
     case kMathCos: return "cos";
     case kMathTan: return "tan";
-    case kMathASin: return "asin";
-    case kMathACos: return "acos";
-    case kMathATan: return "atan";
     case kMathExp: return "exp";
     case kMathSqrt: return "sqrt";
-    default: break;
+    case kMathPowHalf: return "pow-half";
+    default:
+      UNREACHABLE();
+      return NULL;
   }
-  return "(unknown operation)";
 }
 
 
@@ -1453,7 +1451,7 @@ HValue* HSub::Canonicalize() {
 HValue* HMul::Canonicalize() {
   if (IsIdentityOperation(left(), right(), 1)) return left();
   if (IsIdentityOperation(right(), left(), 1)) return right();
-  return HArithmeticBinaryOperation::Canonicalize();
+  return this;
 }
 
 
@@ -1683,9 +1681,15 @@ void HInstanceOf::PrintDataTo(StringStream* stream) {
 
 
 Range* HValue::InferRange(Zone* zone) {
-  // Untagged integer32 cannot be -0, all other representations can.
-  Range* result = new(zone) Range();
-  result->set_can_be_minus_zero(!representation().IsInteger32());
+  Range* result;
+  if (type().IsSmi()) {
+    result = new(zone) Range(Smi::kMinValue, Smi::kMaxValue);
+    result->set_can_be_minus_zero(false);
+  } else {
+    // Untagged integer32 cannot be -0, all other representations can.
+    result = new(zone) Range();
+    result->set_can_be_minus_zero(!representation().IsInteger32());
+  }
   return result;
 }
 
@@ -2139,7 +2143,7 @@ HConstant::HConstant(double double_value,
       has_int32_value_(IsInteger32(double_value)),
       has_double_value_(true),
       is_internalized_string_(false),
-      boolean_value_(double_value != 0 && !isnan(double_value)),
+      boolean_value_(double_value != 0 && !std::isnan(double_value)),
       int32_value_(DoubleToInt32(double_value)),
       double_value_(double_value) {
   Initialize(r);
@@ -2194,13 +2198,6 @@ void HConstant::PrintDataTo(StringStream* stream) {
 }
 
 
-bool HArrayLiteral::IsCopyOnWrite() const {
-  if (!boilerplate_object_->IsJSObject()) return false;
-  return Handle<JSObject>::cast(boilerplate_object_)->elements()->map() ==
-      HEAP->fixed_cow_array_map();
-}
-
-
 void HBinaryOperation::PrintDataTo(StringStream* stream) {
   left()->PrintNameTo(stream);
   stream->Add(" ");
@@ -2222,13 +2219,24 @@ void HBinaryOperation::InferRepresentation(HInferRepresentation* h_infer) {
 }
 
 
+bool HBinaryOperation::IgnoreObservedOutputRepresentation(
+    Representation current_rep) {
+  return observed_output_representation_.IsDouble() &&
+         current_rep.IsInteger32() &&
+         // Mul in Integer32 mode would be too precise.
+         !this->IsMul() &&
+         // TODO(jkummerow): Remove blacklisting of Div when the Div
+         // instruction has learned not to deopt when the remainder is
+         // non-zero but all uses are truncating.
+         !this->IsDiv() &&
+         CheckUsesForFlag(kTruncatingToInt32);
+}
+
+
 Representation HBinaryOperation::RepresentationFromInputs() {
   // Determine the worst case of observed input representations and
   // the currently assumed output representation.
   Representation rep = representation();
-  if (observed_output_representation_.is_more_general_than(rep)) {
-    rep = observed_output_representation_;
-  }
   for (int i = 1; i <= 2; ++i) {
     Representation input_rep = observed_input_representation(i);
     if (input_rep.is_more_general_than(rep)) rep = input_rep;
@@ -2238,20 +2246,26 @@ Representation HBinaryOperation::RepresentationFromInputs() {
   Representation left_rep = left()->representation();
   Representation right_rep = right()->representation();
 
-  if (left_rep.is_more_general_than(rep) &&
-      left()->CheckFlag(kFlexibleRepresentation)) {
+  if (left_rep.is_more_general_than(rep) && !left_rep.IsTagged()) {
     rep = left_rep;
   }
-  if (right_rep.is_more_general_than(rep) &&
-      right()->CheckFlag(kFlexibleRepresentation)) {
+  if (right_rep.is_more_general_than(rep) && !right_rep.IsTagged()) {
     rep = right_rep;
+  }
+  // Consider observed output representation, but ignore it if it's Double,
+  // this instruction is not a division, and all its uses are truncating
+  // to Integer32.
+  if (observed_output_representation_.is_more_general_than(rep) &&
+      !IgnoreObservedOutputRepresentation(rep)) {
+    rep = observed_output_representation_;
   }
   return rep;
 }
 
 
 void HBinaryOperation::AssumeRepresentation(Representation r) {
-  set_observed_input_representation(r, r);
+  set_observed_input_representation(1, r);
+  set_observed_input_representation(2, r);
   HValue::AssumeRepresentation(r);
 }
 
@@ -3176,7 +3190,7 @@ HInstruction* HStringCharFromCode::New(
     HConstant* c_code = HConstant::cast(char_code);
     Isolate* isolate = Isolate::Current();
     if (c_code->HasNumberValue()) {
-      if (isfinite(c_code->DoubleValue())) {
+      if (std::isfinite(c_code->DoubleValue())) {
         uint32_t code = c_code->NumberValueAsInteger32() & 0xffff;
         return new(zone) HConstant(LookupSingleCharacterStringFromCode(isolate,
                                                                        code),
@@ -3209,10 +3223,10 @@ HInstruction* HUnaryMathOperation::New(
     HConstant* constant = HConstant::cast(value);
     if (!constant->HasNumberValue()) break;
     double d = constant->DoubleValue();
-    if (isnan(d)) {  // NaN poisons everything.
+    if (std::isnan(d)) {  // NaN poisons everything.
       return H_CONSTANT_DOUBLE(OS::nan_value());
     }
-    if (isinf(d)) {  // +Infinity and -Infinity.
+    if (std::isinf(d)) {  // +Infinity and -Infinity.
       switch (op) {
         case kMathSin:
         case kMathCos:
@@ -3276,7 +3290,7 @@ HInstruction* HPower::New(Zone* zone, HValue* left, HValue* right) {
     if (c_left->HasNumberValue() && c_right->HasNumberValue()) {
       double result = power_helper(c_left->DoubleValue(),
                                    c_right->DoubleValue());
-      return H_CONSTANT_DOUBLE(isnan(result) ?  OS::nan_value() : result);
+      return H_CONSTANT_DOUBLE(std::isnan(result) ?  OS::nan_value() : result);
     }
   }
   return new(zone) HPower(left, right);
@@ -3446,6 +3460,42 @@ void HBitwise::PrintDataTo(StringStream* stream) {
   stream->Add(Token::Name(op_));
   stream->Add(" ");
   HBitwiseBinaryOperation::PrintDataTo(stream);
+}
+
+
+void HPhi::SimplifyConstantInputs() {
+  // Convert constant inputs to integers when all uses are truncating.
+  // This must happen before representation inference takes place.
+  if (!CheckUsesForFlag(kTruncatingToInt32)) return;
+  for (int i = 0; i < OperandCount(); ++i) {
+    if (!OperandAt(i)->IsConstant()) return;
+  }
+  HGraph* graph = block()->graph();
+  for (int i = 0; i < OperandCount(); ++i) {
+    HConstant* operand = HConstant::cast(OperandAt(i));
+    if (operand->HasInteger32Value()) {
+      continue;
+    } else if (operand->HasDoubleValue()) {
+      HConstant* integer_input =
+          new(graph->zone()) HConstant(DoubleToInt32(operand->DoubleValue()),
+                                       Representation::Integer32());
+      integer_input->InsertAfter(operand);
+      SetOperandAt(i, integer_input);
+    } else if (operand == graph->GetConstantTrue()) {
+      SetOperandAt(i, graph->GetConstant1());
+    } else {
+      // This catches |false|, |undefined|, strings and objects.
+      SetOperandAt(i, graph->GetConstant0());
+    }
+  }
+  // Overwrite observed input representations because they are likely Tagged.
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    HValue* use = it.value();
+    if (use->IsBinaryOperation()) {
+      HBinaryOperation::cast(use)->set_observed_input_representation(
+          it.index(), Representation::Integer32());
+    }
+  }
 }
 
 

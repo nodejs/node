@@ -1817,6 +1817,7 @@ static void ReportCodeKindStatistics() {
       CASE(UNARY_OP_IC);
       CASE(BINARY_OP_IC);
       CASE(COMPARE_IC);
+      CASE(COMPARE_NIL_IC);
       CASE(TO_BOOLEAN_IC);
     }
   }

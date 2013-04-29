@@ -229,6 +229,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   inline void CallCFunctionUsingStub(ExternalReference function,
                                      int num_arguments);
 
+  Isolate* isolate() const { return masm_->isolate(); }
 
   MacroAssembler* masm_;
 

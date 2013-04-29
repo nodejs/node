@@ -554,6 +554,11 @@ class V8EXPORT HeapProfiler {
   /** Returns memory used for profiler internal data and snapshots. */
   size_t GetProfilerMemorySize();
 
+  /**
+   * Sets a RetainedObjectInfo for an object group (see V8::SetObjectGroupId).
+   */
+  void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
+
  private:
   HeapProfiler();
   ~HeapProfiler();

@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-#include <math.h>
 #include <limits.h>
+#include <cmath>
 #include <cstdarg>
 #include "v8.h"
 
@@ -1155,7 +1155,7 @@ bool Simulator::test_fcsr_bit(uint32_t cc) {
 bool Simulator::set_fcsr_round_error(double original, double rounded) {
   bool ret = false;
 
-  if (!isfinite(original) || !isfinite(rounded)) {
+  if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
     ret = true;
   }
@@ -2067,25 +2067,28 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               set_fpu_register_double(fd_reg, sqrt(fs));
               break;
             case C_UN_D:
-              set_fcsr_bit(fcsr_cc, isnan(fs) || isnan(ft));
+              set_fcsr_bit(fcsr_cc, std::isnan(fs) || std::isnan(ft));
               break;
             case C_EQ_D:
               set_fcsr_bit(fcsr_cc, (fs == ft));
               break;
             case C_UEQ_D:
-              set_fcsr_bit(fcsr_cc, (fs == ft) || (isnan(fs) || isnan(ft)));
+              set_fcsr_bit(fcsr_cc,
+                           (fs == ft) || (std::isnan(fs) || std::isnan(ft)));
               break;
             case C_OLT_D:
               set_fcsr_bit(fcsr_cc, (fs < ft));
               break;
             case C_ULT_D:
-              set_fcsr_bit(fcsr_cc, (fs < ft) || (isnan(fs) || isnan(ft)));
+              set_fcsr_bit(fcsr_cc,
+                           (fs < ft) || (std::isnan(fs) || std::isnan(ft)));
               break;
             case C_OLE_D:
               set_fcsr_bit(fcsr_cc, (fs <= ft));
               break;
             case C_ULE_D:
-              set_fcsr_bit(fcsr_cc, (fs <= ft) || (isnan(fs) || isnan(ft)));
+              set_fcsr_bit(fcsr_cc,
+                           (fs <= ft) || (std::isnan(fs) || std::isnan(ft)));
               break;
             case CVT_W_D:   // Convert double to word.
               // Rounding modes are not yet supported.

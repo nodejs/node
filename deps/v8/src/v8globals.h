@@ -162,7 +162,6 @@ class Variable;
 class RelocInfo;
 class Deserializer;
 class MessageLocation;
-class ObjectGroup;
 class VirtualMemory;
 class Mutex;
 
@@ -363,7 +362,6 @@ enum StateTag {
   JS,
   GC,
   COMPILER,
-  PARALLEL_COMPILER,
   OTHER,
   EXTERNAL
 };

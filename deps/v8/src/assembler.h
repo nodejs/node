@@ -50,7 +50,7 @@ class ApiFunction;
 
 namespace internal {
 
-struct StatsCounter;
+class StatsCounter;
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 
@@ -681,7 +681,7 @@ class ExternalReference BASE_EMBEDDED {
   explicit ExternalReference(const SCTableReference& table_ref);
 
   // Isolate::Current() as an external reference.
-  static ExternalReference isolate_address();
+  static ExternalReference isolate_address(Isolate* isolate);
 
   // One-of-a-kind references. These references are not part of a general
   // pattern. This means that they have to be added to the

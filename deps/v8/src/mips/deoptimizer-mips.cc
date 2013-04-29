@@ -591,8 +591,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
 
-  Isolate* isolate = masm()->isolate();
-
   // Unlike on ARM we don't save all the registers, just the useful ones.
   // For the rest, there are gaps on the stack, so the offsets remain the same.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -653,12 +651,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   // a2: bailout id already loaded.
   // a3: code address or 0 already loaded.
   __ sw(t0, CFunctionArgumentOperand(5));  // Fp-to-sp delta.
-  __ li(t1, Operand(ExternalReference::isolate_address()));
+  __ li(t1, Operand(ExternalReference::isolate_address(isolate())));
   __ sw(t1, CFunctionArgumentOperand(6));  // Isolate.
   // Call Deoptimizer::New().
   {
     AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate()), 6);
   }
 
   // Preserve "deoptimizer" object in register v0 and get the input
@@ -725,7 +723,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   {
     AllowExternalCallThatCantCauseGC scope(masm());
     __ CallCFunction(
-        ExternalReference::compute_output_frames_function(isolate), 1);
+        ExternalReference::compute_output_frames_function(isolate()), 1);
   }
   __ pop(a0);  // Restore deoptimizer object (class Deoptimizer).
 

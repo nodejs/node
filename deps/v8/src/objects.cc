@@ -344,7 +344,7 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       result = call_fun(v8::Utils::ToLocal(key), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -745,6 +745,20 @@ Handle<Object> Object::GetProperty(Handle<Object> object,
 }
 
 
+MaybeObject* Object::GetPropertyOrFail(Handle<Object> object,
+                                       Handle<Object> receiver,
+                                       LookupResult* result,
+                                       Handle<Name> key,
+                                       PropertyAttributes* attributes) {
+  Isolate* isolate = object->IsHeapObject()
+      ? Handle<HeapObject>::cast(object)->GetIsolate()
+      : Isolate::Current();
+  CALL_HEAP_FUNCTION_PASS_EXCEPTION(
+      isolate,
+      object->GetProperty(*receiver, result, *key, attributes));
+}
+
+
 MaybeObject* Object::GetProperty(Object* receiver,
                                  LookupResult* result,
                                  Name* name,
@@ -951,7 +965,7 @@ bool Object::SameValue(Object* other) {
     double this_value = Number();
     double other_value = other->Number();
     return (this_value == other_value) ||
-        (isnan(this_value) && isnan(other_value));
+        (std::isnan(this_value) && std::isnan(other_value));
   }
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
@@ -1116,21 +1130,21 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
     this->set_map_no_write_barrier(
         is_internalized
             ? (is_ascii
-                   ? heap->external_internalized_string_with_ascii_data_map()
+                   ? heap->external_internalized_string_with_one_byte_data_map()
                    : heap->external_internalized_string_map())
             : (is_ascii
-                   ? heap->external_string_with_ascii_data_map()
+                   ? heap->external_string_with_one_byte_data_map()
                    : heap->external_string_map()));
   } else {
     this->set_map_no_write_barrier(
         is_internalized
-            ? (is_ascii
-                   ? heap->
-                       short_external_internalized_string_with_ascii_data_map()
-                   : heap->short_external_internalized_string_map())
-            : (is_ascii
-                   ? heap->short_external_string_with_ascii_data_map()
-                   : heap->short_external_string_map()));
+          ? (is_ascii
+               ? heap->
+                   short_external_internalized_string_with_one_byte_data_map()
+               : heap->short_external_internalized_string_map())
+          : (is_ascii
+                 ? heap->short_external_string_with_one_byte_data_map()
+                 : heap->short_external_string_map()));
   }
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
   self->set_resource(resource);
@@ -2105,7 +2119,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       Handle<Object> value_unhole(value->IsTheHole() ?
                                   isolate->heap()->undefined_value() :
                                   value,
@@ -2136,6 +2150,19 @@ Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
   CALL_HEAP_FUNCTION(object->GetIsolate(),
                      object->SetProperty(*key, *value, attributes, strict_mode),
                      Object);
+}
+
+
+MaybeObject* JSReceiver::SetPropertyOrFail(
+    Handle<JSReceiver> object,
+    Handle<Name> key,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode,
+    JSReceiver::StoreFromKeyed store_mode) {
+  CALL_HEAP_FUNCTION_PASS_EXCEPTION(
+      object->GetIsolate(),
+      object->SetProperty(*key, *value, attributes, strict_mode, store_mode));
 }
 
 
@@ -2203,7 +2230,7 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     v8::AccessorInfo info(args.end());
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       call_fun(v8::Utils::ToLocal(key),
                v8::Utils::ToLocal(value_handle),
                info);
@@ -3251,9 +3278,11 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
     } else {
       LookupResult new_lookup(isolate);
       self->LocalLookup(*name, &new_lookup, true);
-      if (new_lookup.IsDataProperty() &&
-          !Object::GetProperty(self, name)->SameValue(*old_value)) {
-        EnqueueChangeRecord(self, "updated", name, old_value);
+      if (new_lookup.IsDataProperty()) {
+        Handle<Object> new_value = Object::GetProperty(self, name);
+        if (!new_value->SameValue(*old_value)) {
+          EnqueueChangeRecord(self, "updated", name, old_value);
+        }
       }
     }
   }
@@ -3403,8 +3432,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     } else {
       LookupResult new_lookup(isolate);
       self->LocalLookup(*name, &new_lookup, true);
-      bool value_changed = new_lookup.IsDataProperty() &&
-          !old_value->SameValue(*Object::GetProperty(self, name));
+      bool value_changed = false;
+      if (new_lookup.IsDataProperty()) {
+        Handle<Object> new_value = Object::GetProperty(self, name);
+        value_changed = !old_value->SameValue(*new_value);
+      }
       if (new_lookup.GetAttributes() != old_attributes) {
         if (!value_changed) old_value = isolate->factory()->the_hole_value();
         EnqueueChangeRecord(self, "reconfigured", name, old_value);
@@ -3467,7 +3499,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
     v8::Handle<v8::Integer> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       result = query(v8::Utils::ToLocal(name_handle), info);
     }
     if (!result.IsEmpty()) {
@@ -3482,7 +3514,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
     if (!result.IsEmpty()) return DONT_ENUM;
@@ -3608,7 +3640,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
     v8::Handle<v8::Integer> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       result = query(index, info);
     }
     if (!result.IsEmpty())
@@ -3621,7 +3653,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       result = getter(index, info);
     }
     if (!result.IsEmpty()) return NONE;
@@ -4000,10 +4032,10 @@ MaybeObject* JSObject::SetIdentityHash(Smi* hash, CreationFlag flag) {
 
 
 int JSObject::GetIdentityHash(Handle<JSObject> obj) {
-  CALL_AND_RETRY(obj->GetIsolate(),
-                 obj->GetIdentityHash(ALLOW_CREATION),
-                 return Smi::cast(__object__)->value(),
-                 return 0);
+  CALL_AND_RETRY_OR_DIE(obj->GetIsolate(),
+                        obj->GetIdentityHash(ALLOW_CREATION),
+                        return Smi::cast(__object__)->value(),
+                        return 0);
 }
 
 
@@ -4291,7 +4323,7 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(Name* name) {
     v8::Handle<v8::Boolean> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       result = deleter(v8::Utils::ToLocal(name_handle), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -4328,7 +4360,7 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   v8::Handle<v8::Boolean> result;
   {
     // Leaving JavaScript.
-    VMState state(isolate, EXTERNAL);
+    VMState<EXTERNAL> state(isolate);
     result = deleter(index, info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -5363,9 +5395,9 @@ MaybeObject* JSObject::DefineFastAccessor(Name* name,
   LookupResult result(GetIsolate());
   LocalLookup(name, &result);
 
-  if (result.IsFound()
-      && !result.IsPropertyCallbacks()
-      && !result.IsTransition()) return GetHeap()->null_value();
+  if (result.IsFound() && !result.IsPropertyCallbacks()) {
+    return GetHeap()->null_value();
+  }
 
   // Return success if the same accessor with the same attributes already exist.
   AccessorPair* source_accessors = NULL;
@@ -7893,31 +7925,6 @@ bool AllocationSiteInfo::GetElementsKindPayload(ElementsKind* kind) {
 }
 
 
-// Heuristic: We only need to create allocation site info if the boilerplate
-// elements kind is the initial elements kind.
-AllocationSiteMode AllocationSiteInfo::GetMode(
-    ElementsKind boilerplate_elements_kind) {
-  if (FLAG_track_allocation_sites &&
-      IsFastSmiElementsKind(boilerplate_elements_kind)) {
-    return TRACK_ALLOCATION_SITE;
-  }
-
-  return DONT_TRACK_ALLOCATION_SITE;
-}
-
-
-AllocationSiteMode AllocationSiteInfo::GetMode(ElementsKind from,
-                                               ElementsKind to) {
-  if (FLAG_track_allocation_sites &&
-      IsFastSmiElementsKind(from) &&
-      (IsFastObjectElementsKind(to) || IsFastDoubleElementsKind(to))) {
-    return TRACK_ALLOCATION_SITE;
-  }
-
-  return DONT_TRACK_ALLOCATION_SITE;
-}
-
-
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
@@ -8362,13 +8369,13 @@ MaybeObject* JSObject::OptimizeAsPrototype() {
 }
 
 
-MUST_USE_RESULT static MaybeObject* CacheInitialJSArrayMaps(
+static MUST_USE_RESULT MaybeObject* CacheInitialJSArrayMaps(
     Context* native_context, Map* initial_map) {
   // Replace all of the cached initial array maps in the native context with
   // the appropriate transitioned elements kind maps.
   Heap* heap = native_context->GetHeap();
   MaybeObject* maybe_maps =
-      heap->AllocateFixedArrayWithHoles(kElementsKindCount);
+      heap->AllocateFixedArrayWithHoles(kElementsKindCount, TENURED);
   FixedArray* maps;
   if (!maybe_maps->To(&maps)) return maybe_maps;
 
@@ -8388,6 +8395,14 @@ MUST_USE_RESULT static MaybeObject* CacheInitialJSArrayMaps(
   }
   native_context->set_js_array_maps(maps);
   return initial_map;
+}
+
+
+Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
+                                       Handle<Map> initial_map) {
+  CALL_HEAP_FUNCTION(native_context->GetIsolate(),
+                     CacheInitialJSArrayMaps(*native_context, *initial_map),
+                     Object);
 }
 
 
@@ -8994,6 +9009,12 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
   VisitExternalReferences(p, p + 1);
 }
 
+byte Code::compare_nil_state() {
+  ASSERT(is_compare_nil_ic_stub());
+  return CompareNilICStub::TypesFromExtraICState(extended_extra_ic_state());
+}
+
+
 void Code::InvalidateRelocation() {
   set_relocation_info(GetHeap()->empty_byte_array());
 }
@@ -9028,6 +9049,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
                   RelocInfo::kApplyMask;
   // Needed to find target_object and runtime_entry on X64
   Assembler* origin = desc.origin;
+  ALLOW_HANDLE_DEREF(GetIsolate(), "embedding raw addresses into code");
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
@@ -9126,6 +9148,22 @@ Map* Code::FindFirstMap() {
     if (object->IsMap()) return Map::cast(object);
   }
   return NULL;
+}
+
+
+void Code::ReplaceFirstMap(Map* replace_with) {
+  ASSERT(is_inline_cache_stub());
+  AssertNoAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    Object* object = info->target_object();
+    if (object->IsMap()) {
+      info->set_target_object(replace_with);
+      return;
+    }
+  }
+  UNREACHABLE();
 }
 
 
@@ -9324,6 +9362,7 @@ const char* Code::Kind2String(Kind kind) {
     case UNARY_OP_IC: return "UNARY_OP_IC";
     case BINARY_OP_IC: return "BINARY_OP_IC";
     case COMPARE_IC: return "COMPARE_IC";
+    case COMPARE_NIL_IC: return "COMPARE_NIL_IC";
     case TO_BOOLEAN_IC: return "TO_BOOLEAN_IC";
   }
   UNREACHABLE();
@@ -10238,7 +10277,7 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       result = setter(index, v8::Utils::ToLocal(value_handle), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -10281,7 +10320,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       result = call_fun(v8::Utils::ToLocal(key), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -10347,7 +10386,7 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
     v8::AccessorInfo info(args.end());
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       call_fun(v8::Utils::ToLocal(key),
                v8::Utils::ToLocal(value_handle),
                info);
@@ -10923,8 +10962,8 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   } else if (old_value->IsTheHole()) {
     EnqueueChangeRecord(self, "reconfigured", name, old_value);
   } else {
-    bool value_changed =
-        !old_value->SameValue(*Object::GetElement(self, index));
+    Handle<Object> new_value = Object::GetElement(self, index);
+    bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();
       EnqueueChangeRecord(self, "reconfigured", name, old_value);
@@ -11227,7 +11266,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       result = getter(index, info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -11537,7 +11576,7 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -14391,7 +14430,7 @@ Object* JSDate::DoGetField(FieldIndex index) {
   }
 
   double time = value()->Number();
-  if (isnan(time)) return GetIsolate()->heap()->nan_value();
+  if (std::isnan(time)) return GetIsolate()->heap()->nan_value();
 
   int64_t local_time_ms = date_cache->ToLocal(static_cast<int64_t>(time));
   int days = DateCache::DaysFromTime(local_time_ms);
@@ -14410,7 +14449,7 @@ Object* JSDate::GetUTCField(FieldIndex index,
                             DateCache* date_cache) {
   ASSERT(index >= kFirstUTCField);
 
-  if (isnan(value)) return GetIsolate()->heap()->nan_value();
+  if (std::isnan(value)) return GetIsolate()->heap()->nan_value();
 
   int64_t time_ms = static_cast<int64_t>(value);
 

@@ -44,9 +44,11 @@ static const int kTickSamplesBufferChunksCount = 16;
 static const int kProfilerStackSize = 64 * KB;
 
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
+ProfilerEventsProcessor::ProfilerEventsProcessor(
+    ProfileGenerator* generator, CpuProfilesCollection* profiles)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
+      profiles_(profiles),
       running_(true),
       ticks_buffer_(sizeof(TickSampleEventRecord),
                     kTickSamplesBufferChunkSize,
@@ -65,7 +67,7 @@ void ProfilerEventsProcessor::CallbackCreateEvent(Logger::LogEventsAndTags tag,
   rec->type = CodeEventRecord::CODE_CREATION;
   rec->order = ++enqueue_order_;
   rec->start = start;
-  rec->entry = generator_->NewCodeEntry(tag, prefix, name);
+  rec->entry = profiles_->NewCodeEntry(tag, prefix, name);
   rec->size = 1;
   rec->shared = NULL;
   events_buffer_.Enqueue(evt_rec);
@@ -85,7 +87,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->type = CodeEventRecord::CODE_CREATION;
   rec->order = ++enqueue_order_;
   rec->start = start;
-  rec->entry = generator_->NewCodeEntry(tag, name, resource_name, line_number);
+  rec->entry = profiles_->NewCodeEntry(tag, name, resource_name, line_number);
   rec->size = size;
   rec->shared = shared;
   events_buffer_.Enqueue(evt_rec);
@@ -102,7 +104,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->type = CodeEventRecord::CODE_CREATION;
   rec->order = ++enqueue_order_;
   rec->start = start;
-  rec->entry = generator_->NewCodeEntry(tag, name);
+  rec->entry = profiles_->NewCodeEntry(tag, name);
   rec->size = size;
   rec->shared = NULL;
   events_buffer_.Enqueue(evt_rec);
@@ -119,7 +121,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->type = CodeEventRecord::CODE_CREATION;
   rec->order = ++enqueue_order_;
   rec->start = start;
-  rec->entry = generator_->NewCodeEntry(tag, args_count);
+  rec->entry = profiles_->NewCodeEntry(tag, args_count);
   rec->size = size;
   rec->shared = NULL;
   events_buffer_.Enqueue(evt_rec);
@@ -162,7 +164,7 @@ void ProfilerEventsProcessor::RegExpCodeCreateEvent(
   rec->type = CodeEventRecord::CODE_CREATION;
   rec->order = ++enqueue_order_;
   rec->start = start;
-  rec->entry = generator_->NewCodeEntry(tag, prefix, name);
+  rec->entry = profiles_->NewCodeEntry(tag, prefix, name);
   rec->size = size;
   events_buffer_.Enqueue(evt_rec);
 }
@@ -443,7 +445,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     saved_logging_nesting_ = isolate_->logger()->logging_nesting_;
     isolate_->logger()->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
-    processor_ = new ProfilerEventsProcessor(generator_);
+    processor_ = new ProfilerEventsProcessor(generator_, profiles_);
     is_profiling_ = true;
     processor_->StartSynchronously();
     // Enumerate stuff we already have in the heap.
@@ -458,7 +460,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
       isolate_->logger()->LogAccessorCallbacks();
     }
     // Enable stack sampling.
-    Sampler* sampler = reinterpret_cast<Sampler*>(isolate_->logger()->ticker_);
+    Sampler* sampler = isolate_->logger()->sampler();
     sampler->IncreaseProfilingDepth();
     if (!sampler->IsActive()) {
       sampler->Start();

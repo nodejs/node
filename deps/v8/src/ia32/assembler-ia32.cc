@@ -1459,7 +1459,7 @@ void Assembler::call(Handle<Code> code,
   EnsureSpace ensure_space(this);
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
-  emit(reinterpret_cast<intptr_t>(code.location()), rmode, ast_id);
+  emit(code, rmode, ast_id);
 }
 
 
@@ -1513,7 +1513,7 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE9);
-  emit(reinterpret_cast<intptr_t>(code.location()), rmode);
+  emit(code, rmode);
 }
 
 
@@ -1568,7 +1568,7 @@ void Assembler::j(Condition cc, Handle<Code> code) {
   // 0000 1111 1000 tttn #32-bit disp
   EMIT(0x0F);
   EMIT(0x80 | cc);
-  emit(reinterpret_cast<intptr_t>(code.location()), RelocInfo::CODE_TARGET);
+  emit(code, RelocInfo::CODE_TARGET);
 }
 
 

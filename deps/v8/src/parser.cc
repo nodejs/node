@@ -2511,16 +2511,24 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
 
   Token::Value tok = peek();
   Statement* result;
+  Expression* return_value;
   if (scanner().HasAnyLineTerminatorBeforeNext() ||
       tok == Token::SEMICOLON ||
       tok == Token::RBRACE ||
       tok == Token::EOS) {
-    ExpectSemicolon(CHECK_OK);
-    result = factory()->NewReturnStatement(GetLiteralUndefined());
+    return_value = GetLiteralUndefined();
   } else {
-    Expression* expr = ParseExpression(true, CHECK_OK);
-    ExpectSemicolon(CHECK_OK);
-    result = factory()->NewReturnStatement(expr);
+    return_value = ParseExpression(true, CHECK_OK);
+  }
+  ExpectSemicolon(CHECK_OK);
+  if (is_generator()) {
+    Expression* generator = factory()->NewVariableProxy(
+        current_function_state_->generator_object_variable());
+    Expression* yield = factory()->NewYield(
+        generator, return_value, Yield::FINAL, RelocInfo::kNoPosition);
+    result = factory()->NewExpressionStatement(yield);
+  } else {
+    result = factory()->NewReturnStatement(return_value);
   }
 
   // An ECMAScript program is considered syntactically incorrect if it
@@ -2563,7 +2571,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
     stmt = ParseStatement(labels, CHECK_OK);
     with_scope->set_end_position(scanner().location().end_pos);
   }
-  return factory()->NewWithStatement(expr, stmt);
+  return factory()->NewWithStatement(with_scope, expr, stmt);
 }
 
 
@@ -3100,12 +3108,12 @@ Expression* Parser::ParseYieldExpression(bool* ok) {
   //   'yield' '*'? AssignmentExpression
   int position = scanner().peek_location().beg_pos;
   Expect(Token::YIELD, CHECK_OK);
-  bool is_yield_star = Check(Token::MUL);
+  Yield::Kind kind =
+      Check(Token::MUL) ? Yield::DELEGATING : Yield::SUSPEND;
   Expression* generator_object = factory()->NewVariableProxy(
       current_function_state_->generator_object_variable());
   Expression* expression = ParseAssignmentExpression(false, CHECK_OK);
-  return factory()->NewYield(generator_object, expression, is_yield_star,
-                             position);
+  return factory()->NewYield(generator_object, expression, kind, position);
 }
 
 
@@ -4591,11 +4599,21 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         VariableProxy* get_proxy = factory()->NewVariableProxy(
             current_function_state_->generator_object_variable());
         Yield* yield = factory()->NewYield(
-            get_proxy, assignment, false, RelocInfo::kNoPosition);
+            get_proxy, assignment, Yield::INITIAL, RelocInfo::kNoPosition);
         body->Add(factory()->NewExpressionStatement(yield), zone());
       }
 
       ParseSourceElements(body, Token::RBRACE, false, false, CHECK_OK);
+
+      if (is_generator) {
+        VariableProxy* get_proxy = factory()->NewVariableProxy(
+            current_function_state_->generator_object_variable());
+        Expression *undefined = factory()->NewLiteral(
+            isolate()->factory()->undefined_value());
+        Yield* yield = factory()->NewYield(
+            get_proxy, undefined, Yield::FINAL, RelocInfo::kNoPosition);
+        body->Add(factory()->NewExpressionStatement(yield), zone());
+      }
 
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();

@@ -211,6 +211,7 @@ MaybeObject* Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
 MaybeObject* Heap::AllocateRaw(int size_in_bytes,
                                AllocationSpace space,
                                AllocationSpace retry_space) {
+  SLOW_ASSERT(!isolate_->optimizing_compiler_thread()->IsOptimizerThread());
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   ASSERT(space != NEW_SPACE ||
          retry_space == OLD_POINTER_SPACE ||
@@ -577,56 +578,67 @@ Isolate* Heap::isolate() {
 // Warning: Do not use the identifiers __object__, __maybe_object__ or
 // __scope__ in a call to this macro.
 
-#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)\
-  do {                                                                    \
-    GC_GREEDY_CHECK();                                                    \
-    MaybeObject* __maybe_object__ = FUNCTION_CALL;                        \
-    Object* __object__ = NULL;                                            \
-    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
-    if (__maybe_object__->IsOutOfMemory()) {                              \
-      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0", true);\
-    }                                                                     \
-    if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
-    ISOLATE->heap()->CollectGarbage(Failure::cast(__maybe_object__)->     \
-                                    allocation_space(),                   \
-                                    "allocation failure");                \
-    __maybe_object__ = FUNCTION_CALL;                                     \
-    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
-    if (__maybe_object__->IsOutOfMemory()) {                              \
-      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1", true);\
-    }                                                                     \
-    if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
-    ISOLATE->counters()->gc_last_resort_from_handles()->Increment();      \
-    ISOLATE->heap()->CollectAllAvailableGarbage("last resort gc");        \
-    {                                                                     \
-      AlwaysAllocateScope __scope__;                                      \
-      __maybe_object__ = FUNCTION_CALL;                                   \
-    }                                                                     \
-    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
-    if (__maybe_object__->IsOutOfMemory() ||                              \
-        __maybe_object__->IsRetryAfterGC()) {                             \
-      /* TODO(1181417): Fix this. */                                      \
-      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_2", true);\
-    }                                                                     \
-    RETURN_EMPTY;                                                         \
+#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY, OOM)\
+  do {                                                                         \
+    GC_GREEDY_CHECK();                                                         \
+    MaybeObject* __maybe_object__ = FUNCTION_CALL;                             \
+    Object* __object__ = NULL;                                                 \
+    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \
+    if (__maybe_object__->IsOutOfMemory()) {                                   \
+      OOM;                                                                     \
+    }                                                                          \
+    if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                     \
+    ISOLATE->heap()->CollectGarbage(Failure::cast(__maybe_object__)->          \
+                                    allocation_space(),                        \
+                                    "allocation failure");                     \
+    __maybe_object__ = FUNCTION_CALL;                                          \
+    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \
+    if (__maybe_object__->IsOutOfMemory()) {                                   \
+      OOM;                                                                     \
+    }                                                                          \
+    if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                     \
+    ISOLATE->counters()->gc_last_resort_from_handles()->Increment();           \
+    ISOLATE->heap()->CollectAllAvailableGarbage("last resort gc");             \
+    {                                                                          \
+      AlwaysAllocateScope __scope__;                                           \
+      __maybe_object__ = FUNCTION_CALL;                                        \
+    }                                                                          \
+    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \
+    if (__maybe_object__->IsOutOfMemory()) {                                   \
+      OOM;                                                                     \
+    }                                                                          \
+    if (__maybe_object__->IsRetryAfterGC()) {                                  \
+      /* TODO(1181417): Fix this. */                                           \
+      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true);  \
+    }                                                                          \
+    RETURN_EMPTY;                                                              \
   } while (false)
 
+#define CALL_AND_RETRY_OR_DIE(                                             \
+     ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)                   \
+  CALL_AND_RETRY(                                                          \
+      ISOLATE,                                                             \
+      FUNCTION_CALL,                                                       \
+      RETURN_VALUE,                                                        \
+      RETURN_EMPTY,                                                        \
+      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY", true))
 
-#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)       \
-  CALL_AND_RETRY(ISOLATE,                                      \
-                 FUNCTION_CALL,                                \
-                 return Handle<TYPE>(TYPE::cast(__object__), ISOLATE),  \
-                 return Handle<TYPE>())
+#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                      \
+  CALL_AND_RETRY_OR_DIE(ISOLATE,                                              \
+                        FUNCTION_CALL,                                        \
+                        return Handle<TYPE>(TYPE::cast(__object__), ISOLATE), \
+                        return Handle<TYPE>())                                \
 
 
-#define CALL_HEAP_FUNCTION_VOID(ISOLATE, FUNCTION_CALL) \
-  CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, return, return)
+#define CALL_HEAP_FUNCTION_VOID(ISOLATE, FUNCTION_CALL)  \
+  CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL, return, return)
 
 
 #define CALL_HEAP_FUNCTION_PASS_EXCEPTION(ISOLATE, FUNCTION_CALL) \
   CALL_AND_RETRY(ISOLATE,                                         \
                  FUNCTION_CALL,                                   \
                  return __object__,                               \
+                 return __maybe_object__,                         \
                  return __maybe_object__)
 
 

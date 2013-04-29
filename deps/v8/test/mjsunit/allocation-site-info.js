@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --track-allocation-sites --nooptimize-constructed-arrays
+// Flags: --track-allocation-sites --noalways-opt
 
 // TODO(mvstanton): remove --nooptimize-constructed-arrays and enable
 // the constructed array code below when the feature is turned on
@@ -39,7 +39,8 @@
 // in this test case.  Depending on whether smi-only arrays are actually
 // enabled, this test takes the appropriate code path to check smi-only arrays.
 
-support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
+// support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
+support_smi_only_arrays = true;
 optimize_constructed_arrays = false;
 
 if (support_smi_only_arrays) {
@@ -148,12 +149,17 @@ if (support_smi_only_arrays) {
   // sites work again for fast literals
   //assertKind(elements_kind.fast_double, obj);
 
-  obj = fastliteralcase([5, 3, 2], 1.5);
-  assertKind(elements_kind.fast_double, obj);
-  obj = fastliteralcase([3, 6, 2], 1.5);
-  assertKind(elements_kind.fast_double, obj);
-  obj = fastliteralcase([2, 6, 3], 2);
-  assertKind(elements_kind.fast_smi_only, obj);
+  // The test below is in a loop because arrays that live
+  // at global scope without the chance of being recreated
+  // don't have allocation site information attached.
+  for (i = 0; i < 2; i++) {
+    obj = fastliteralcase([5, 3, 2], 1.5);
+    assertKind(elements_kind.fast_double, obj);
+    obj = fastliteralcase([3, 6, 2], 1.5);
+    assertKind(elements_kind.fast_double, obj);
+    obj = fastliteralcase([2, 6, 3], 2);
+    assertKind(elements_kind.fast_smi_only, obj);
+  }
 
   // Verify that we will not pretransition the double->fast path.
   obj = fastliteralcase(get_standard_literal(), "elliot");
@@ -163,6 +169,12 @@ if (support_smi_only_arrays) {
   // to turn it off, but for now we need it.
   // obj = fastliteralcase(3);
   // assertKind(elements_kind.fast_double, obj);
+
+  // Make sure this works in crankshafted code too.
+  %OptimizeFunctionOnNextCall(get_standard_literal);
+  get_standard_literal();
+  obj = get_standard_literal();
+  assertKind(elements_kind.fast_double, obj);
 
   function fastliteralcase_smifast(value) {
     var literal = [1, 2, 3, 4];

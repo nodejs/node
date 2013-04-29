@@ -507,6 +507,29 @@ void Isolate::IterateDeferredHandles(ObjectVisitor* visitor) {
 }
 
 
+#ifdef DEBUG
+bool Isolate::IsDeferredHandle(Object** handle) {
+  // Each DeferredHandles instance keeps the handles to one job in the
+  // parallel recompilation queue, containing a list of blocks.  Each block
+  // contains kHandleBlockSize handles except for the first block, which may
+  // not be fully filled.
+  // We iterate through all the blocks to see whether the argument handle
+  // belongs to one of the blocks.  If so, it is deferred.
+  for (DeferredHandles* deferred = deferred_handles_head_;
+       deferred != NULL;
+       deferred = deferred->next_) {
+    List<Object**>* blocks = &deferred->blocks_;
+    for (int i = 0; i < blocks->length(); i++) {
+      Object** block_limit = (i == 0) ? deferred->first_block_limit_
+                                      : blocks->at(i) + kHandleBlockSize;
+      if (blocks->at(i) <= handle && handle < block_limit) return true;
+    }
+  }
+  return false;
+}
+#endif  // DEBUG
+
+
 void Isolate::RegisterTryCatchHandler(v8::TryCatch* that) {
   // The ARM simulator has a separate JS stack.  We therefore register
   // the C++ try catch handler with the simulator and get back an
@@ -907,7 +930,7 @@ void Isolate::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
   HandleScope scope(this);
   Handle<JSObject> receiver_handle(receiver);
   Handle<Object> data(AccessCheckInfo::cast(data_obj)->data(), this);
-  { VMState state(this, EXTERNAL);
+  { VMState<EXTERNAL> state(this);
     thread_local_top()->failed_access_check_callback_(
       v8::Utils::ToLocal(receiver_handle),
       type,
@@ -986,7 +1009,7 @@ bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
   bool result = false;
   {
     // Leaving JavaScript.
-    VMState state(this, EXTERNAL);
+    VMState<EXTERNAL> state(this);
     result = callback(v8::Utils::ToLocal(receiver_handle),
                       v8::Utils::ToLocal(key_handle),
                       type,
@@ -1028,7 +1051,7 @@ bool Isolate::MayIndexedAccess(JSObject* receiver,
   bool result = false;
   {
     // Leaving JavaScript.
-    VMState state(this, EXTERNAL);
+    VMState<EXTERNAL> state(this);
     result = callback(v8::Utils::ToLocal(receiver_handle),
                       index,
                       type,
@@ -1060,7 +1083,7 @@ Failure* Isolate::StackOverflow() {
       GetProperty(Handle<JSObject>::cast(error), "stackTraceLimit");
   if (!stack_trace_limit->IsNumber()) return Failure::Exception();
   double dlimit = stack_trace_limit->Number();
-  int limit = isnan(dlimit) ? 0 : static_cast<int>(dlimit);
+  int limit = std::isnan(dlimit) ? 0 : static_cast<int>(dlimit);
 
   Handle<JSArray> stack_trace = CaptureSimpleStackTrace(
       exception, factory()->undefined_value(), limit);
@@ -1074,6 +1097,23 @@ Failure* Isolate::StackOverflow() {
 Failure* Isolate::TerminateExecution() {
   DoThrow(heap_.termination_exception(), NULL);
   return Failure::Exception();
+}
+
+
+void Isolate::CancelTerminateExecution() {
+  if (try_catch_handler()) {
+    try_catch_handler()->has_terminated_ = false;
+  }
+  if (has_pending_exception() &&
+      pending_exception() == heap_.termination_exception()) {
+    thread_local_top()->external_caught_exception_ = false;
+    clear_pending_exception();
+  }
+  if (has_scheduled_exception() &&
+      scheduled_exception() == heap_.termination_exception()) {
+    thread_local_top()->external_caught_exception_ = false;
+    clear_scheduled_exception();
+  }
 }
 
 
@@ -1740,8 +1780,8 @@ Isolate::Isolate()
   memset(code_kind_statistics_, 0,
          sizeof(code_kind_statistics_[0]) * Code::NUMBER_OF_KINDS);
 
-  allow_compiler_thread_handle_deref_ = true;
-  allow_execution_thread_handle_deref_ = true;
+  compiler_thread_handle_deref_state_ = HandleDereferenceGuard::ALLOW;
+  execution_thread_handle_deref_state_ = HandleDereferenceGuard::ALLOW;
 #endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1990,12 +2030,14 @@ void Isolate::PropagatePendingExceptionToExternalTryCatch() {
   } else if (thread_local_top_.pending_exception_ ==
              heap()->termination_exception()) {
     try_catch_handler()->can_continue_ = false;
+    try_catch_handler()->has_terminated_ = true;
     try_catch_handler()->exception_ = heap()->null_value();
   } else {
     // At this point all non-object (failure) exceptions have
     // been dealt with so this shouldn't fail.
     ASSERT(!pending_exception()->IsFailure());
     try_catch_handler()->can_continue_ = true;
+    try_catch_handler()->has_terminated_ = false;
     try_catch_handler()->exception_ = pending_exception();
     if (!thread_local_top_.pending_message_obj_->IsTheHole()) {
       try_catch_handler()->message_ = thread_local_top_.pending_message_obj_;
@@ -2009,7 +2051,7 @@ void Isolate::InitializeLoggingAndCounters() {
     logger_ = new Logger(this);
   }
   if (counters_ == NULL) {
-    counters_ = new Counters;
+    counters_ = new Counters(this);
   }
 }
 
@@ -2074,7 +2116,7 @@ bool Isolate::Init(Deserializer* des) {
   heap_profiler_ = new HeapProfiler(heap());
 
   // Enable logging before setting up the heap
-  logger_->SetUp();
+  logger_->SetUp(this);
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
@@ -2201,6 +2243,8 @@ bool Isolate::Init(Deserializer* des) {
                                    DONT_TRACK_ALLOCATION_SITE, 0);
     stub.InitializeInterfaceDescriptor(
         this, code_stub_interface_descriptor(CodeStub::FastCloneShallowArray));
+    CompareNilICStub::InitializeForIsolate(this);
+    ArrayConstructorStubBase::InstallDescriptors(this);
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
@@ -2360,27 +2404,28 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
 
 
 #ifdef DEBUG
-bool Isolate::AllowHandleDereference() {
-  if (allow_execution_thread_handle_deref_ &&
-      allow_compiler_thread_handle_deref_) {
+HandleDereferenceGuard::State Isolate::HandleDereferenceGuardState() {
+  if (execution_thread_handle_deref_state_ == HandleDereferenceGuard::ALLOW &&
+      compiler_thread_handle_deref_state_ == HandleDereferenceGuard::ALLOW) {
     // Short-cut to avoid polling thread id.
-    return true;
+    return HandleDereferenceGuard::ALLOW;
   }
   if (FLAG_parallel_recompilation &&
       optimizing_compiler_thread()->IsOptimizerThread()) {
-    return allow_compiler_thread_handle_deref_;
+    return compiler_thread_handle_deref_state_;
   } else {
-    return allow_execution_thread_handle_deref_;
+    return execution_thread_handle_deref_state_;
   }
 }
 
 
-void Isolate::SetAllowHandleDereference(bool allow) {
+void Isolate::SetHandleDereferenceGuardState(
+    HandleDereferenceGuard::State state) {
   if (FLAG_parallel_recompilation &&
       optimizing_compiler_thread()->IsOptimizerThread()) {
-    allow_compiler_thread_handle_deref_ = allow;
+    compiler_thread_handle_deref_state_ = state;
   } else {
-    allow_execution_thread_handle_deref_ = allow;
+    execution_thread_handle_deref_state_ = state;
   }
 }
 #endif

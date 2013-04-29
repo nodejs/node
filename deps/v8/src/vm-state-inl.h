@@ -47,8 +47,6 @@ inline const char* StateToString(StateTag state) {
       return "GC";
     case COMPILER:
       return "COMPILER";
-    case PARALLEL_COMPILER:
-      return "PARALLEL_COMPILER";
     case OTHER:
       return "OTHER";
     case EXTERNAL:
@@ -60,36 +58,24 @@ inline const char* StateToString(StateTag state) {
 }
 
 
-VMState::VMState(Isolate* isolate, StateTag tag)
+template <StateTag Tag>
+VMState<Tag>::VMState(Isolate* isolate)
     : isolate_(isolate), previous_tag_(isolate->current_vm_state()) {
-  if (FLAG_log_state_changes) {
-    LOG(isolate, UncheckedStringEvent("Entering", StateToString(tag)));
-    LOG(isolate, UncheckedStringEvent("From", StateToString(previous_tag_)));
+  if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
+    LOG(isolate_,
+        TimerEvent(Logger::START, Logger::TimerEventScope::v8_external));
   }
-
-  if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && tag == EXTERNAL) {
-    LOG(isolate_, EnterExternal());
-  }
-
-  isolate_->SetCurrentVMState(tag);
+  isolate_->set_current_vm_state(Tag);
 }
 
 
-VMState::~VMState() {
-  if (FLAG_log_state_changes) {
+template <StateTag Tag>
+VMState<Tag>::~VMState() {
+  if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
     LOG(isolate_,
-        UncheckedStringEvent("Leaving",
-                              StateToString(isolate_->current_vm_state())));
-    LOG(isolate_,
-        UncheckedStringEvent("To", StateToString(previous_tag_)));
+        TimerEvent(Logger::END, Logger::TimerEventScope::v8_external));
   }
-
-  if (FLAG_log_timer_events &&
-      previous_tag_ != EXTERNAL && isolate_->current_vm_state() == EXTERNAL) {
-    LOG(isolate_, LeaveExternal());
-  }
-
-  isolate_->SetCurrentVMState(previous_tag_);
+  isolate_->set_current_vm_state(previous_tag_);
 }
 
 

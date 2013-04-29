@@ -143,6 +143,14 @@ class CompilationInfo {
     return SavesCallerDoubles::decode(flags_);
   }
 
+  void MarkAsRequiresFrame() {
+    flags_ |= RequiresFrame::encode(true);
+  }
+
+  bool requires_frame() const {
+    return RequiresFrame::decode(flags_);
+  }
+
   void SetParseRestriction(ParseRestriction restriction) {
     flags_ = ParseRestricitonField::update(flags_, restriction);
   }
@@ -300,6 +308,8 @@ class CompilationInfo {
   class SavesCallerDoubles: public BitField<bool, 12, 1> {};
   // If the set of valid statements is restricted.
   class ParseRestricitonField: public BitField<ParseRestriction, 13, 1> {};
+  // If the function requires a frame (for unspecified reasons)
+  class RequiresFrame: public BitField<bool, 14, 1> {};
 
   unsigned flags_;
 

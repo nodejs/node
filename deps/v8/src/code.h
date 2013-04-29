@@ -29,6 +29,8 @@
 #define V8_CODE_H_
 
 #include "allocation.h"
+#include "handles.h"
+#include "objects.h"
 
 namespace v8 {
 namespace internal {
@@ -44,6 +46,8 @@ class ParameterCount BASE_EMBEDDED {
       : reg_(reg), immediate_(0) { }
   explicit ParameterCount(int immediate)
       : reg_(no_reg), immediate_(immediate) { }
+  explicit ParameterCount(Handle<JSFunction> f)
+      : reg_(no_reg), immediate_(f->shared()->formal_parameter_count()) { }
 
   bool is_reg() const { return !reg_.is(no_reg); }
   bool is_immediate() const { return !is_reg(); }

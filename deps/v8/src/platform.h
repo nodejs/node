@@ -46,7 +46,9 @@
 
 #ifdef __sun
 # ifndef signbit
+namespace std {
 int signbit(double x);
+}
 # endif
 #endif
 

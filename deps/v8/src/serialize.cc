@@ -472,7 +472,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       37,
       "LDoubleConstant::one_half");
-  Add(ExternalReference::isolate_address().address(),
+  Add(ExternalReference::isolate_address(isolate).address(),
       UNCLASSIFIED,
       38,
       "isolate");

@@ -35,21 +35,14 @@
 #define V8_WIN32_HEADERS_FULL
 #include "win32-headers.h"
 #include <limits.h>        // Required for INT_MAX etc.
-#include <math.h>
 #include <float.h>         // Required for DBL_MAX and on Win32 for finite()
+#include <cmath>
 #include "win32-math.h"
 
 #include "checks.h"
 
-namespace v8 {
 
-// Test for finite value - usually defined in math.h
-int isfinite(double x) {
-  return _finite(x);
-}
-
-}  // namespace v8
-
+namespace std {
 
 // Test for a NaN (not a number) value - usually defined in math.h
 int isnan(double x) {
@@ -60,6 +53,12 @@ int isnan(double x) {
 // Test for infinity - usually defined in math.h
 int isinf(double x) {
   return (_fpclass(x) & (_FPCLASS_PINF | _FPCLASS_NINF)) != 0;
+}
+
+
+// Test for finite value - usually defined in math.h
+int isfinite(double x) {
+  return _finite(x);
 }
 
 
@@ -102,5 +101,7 @@ int signbit(double x) {
   else
     return x < 0;
 }
+
+}  // namespace std
 
 #endif  // _MSC_VER

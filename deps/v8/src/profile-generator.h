@@ -107,7 +107,6 @@ class CodeEntry {
   INLINE(const char* name() const) { return name_; }
   INLINE(const char* resource_name() const) { return resource_name_; }
   INLINE(int line_number() const) { return line_number_; }
-  INLINE(int shared_id() const) { return shared_id_; }
   INLINE(void set_shared_id(int shared_id)) { shared_id_ = shared_id; }
   INLINE(int security_token_id() const) { return security_token_id_; }
 
@@ -400,33 +399,6 @@ class SampleRateCalculator {
 class ProfileGenerator {
  public:
   explicit ProfileGenerator(CpuProfilesCollection* profiles);
-
-  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                                 Name* name,
-                                 String* resource_name,
-                                 int line_number)) {
-    return profiles_->NewCodeEntry(tag, name, resource_name, line_number);
-  }
-
-  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                                 const char* name)) {
-    return profiles_->NewCodeEntry(tag, name);
-  }
-
-  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                                 const char* name_prefix,
-                                 Name* name)) {
-    return profiles_->NewCodeEntry(tag, name_prefix, name);
-  }
-
-  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                                 int args_count)) {
-    return profiles_->NewCodeEntry(tag, args_count);
-  }
-
-  INLINE(CodeEntry* NewCodeEntry(int security_token_id)) {
-    return profiles_->NewCodeEntry(security_token_id);
-  }
 
   void RecordTickSample(const TickSample& sample);
 

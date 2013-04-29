@@ -80,9 +80,14 @@ end
 -- Clang invocation
 
 local CLANG_BIN = os.getenv "CLANG_BIN"
+local CLANG_PLUGINS = os.getenv "CLANG_PLUGINS"
 
 if not CLANG_BIN or CLANG_BIN == "" then
    error "CLANG_BIN not set"
+end
+
+if not CLANG_PLUGINS or CLANG_PLUGINS == "" then
+   CLANG_PLUGINS = DIR
 end
 
 local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
@@ -92,7 +97,7 @@ local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
      end
      plugin_args = " " .. table.concat(plugin_args, " ")
    end
-   return CLANG_BIN .. "/clang -cc1 -load " .. DIR .. "/libgcmole.so"
+   return CLANG_BIN .. "/clang -cc1 -load " .. CLANG_PLUGINS .. "/libgcmole.so"
       .. " -plugin "  .. plugin
       .. (plugin_args or "")
       .. " -triple " .. triple
@@ -117,31 +122,25 @@ function InvokeClangPluginForEachFile(filenames, cfg, func)
 end
 
 -------------------------------------------------------------------------------
--- SConscript parsing
+-- GYP file parsing
 
-local function ParseSConscript()
-   local f = assert(io.open("src/SConscript"), "failed to open SConscript")
-   local sconscript = f:read('*a')
+local function ParseGYPFile()
+   local f = assert(io.open("tools/gyp/v8.gyp"), "failed to open GYP file")
+   local gyp = f:read('*a')
    f:close()
 
-   local SOURCES = sconscript:match "SOURCES = {(.-)}";
+   local result = {}
 
-   local sources = {}
-
-   for condition, list in
-      SOURCES:gmatch "'([^']-)': Split%(\"\"\"(.-)\"\"\"%)" do
+   for condition, sources in
+      gyp:gmatch "'sources': %[.-### gcmole%((.-)%) ###(.-)%]" do
       local files = {}
-      for file in list:gmatch "[^%s]+" do table.insert(files, file) end
-      sources[condition] = files
+      for file in sources:gmatch "'%.%./%.%./src/([^']-%.cc)'" do
+         table.insert(files, file)
+      end
+      result[condition] = files
    end
 
-   for condition, list in SOURCES:gmatch "'([^']-)': %[(.-)%]" do
-      local files = {}
-      for file in list:gmatch "'([^']-)'" do table.insert(files, file) end
-      sources[condition] = files
-   end
-
-   return sources
+   return result
 end
 
 local function EvaluateCondition(cond, props)
@@ -165,7 +164,7 @@ local function BuildFileList(sources, props)
    return list
 end
 
-local sources = ParseSConscript()
+local sources = ParseGYPFile()
 
 local function FilesForArch(arch)
    return BuildFileList(sources, { os = 'linux',

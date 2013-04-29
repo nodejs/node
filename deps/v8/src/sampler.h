@@ -51,16 +51,21 @@ struct TickSample {
         sp(NULL),
         fp(NULL),
         external_callback(NULL),
-        frames_count(0) {}
+        frames_count(0),
+        has_external_callback(false) {}
   void Trace(Isolate* isolate);
   StateTag state;  // The state of the VM.
   Address pc;      // Instruction pointer.
   Address sp;      // Stack pointer.
   Address fp;      // Frame pointer.
-  Address external_callback;
+  union {
+    Address tos;   // Top stack value (*sp).
+    Address external_callback;
+  };
   static const int kMaxFramesCount = 64;
   Address stack[kMaxFramesCount];  // Call stack.
   int frames_count : 8;  // Number of captured frames.
+  bool has_external_callback : 1;
 };
 
 class Sampler {

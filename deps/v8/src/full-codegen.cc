@@ -923,6 +923,20 @@ void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitGeneratorSend(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 2);
+  EmitGeneratorResume(args->at(0), args->at(1), JSGeneratorObject::SEND);
+}
+
+
+void FullCodeGenerator::EmitGeneratorThrow(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 2);
+  EmitGeneratorResume(args->at(0), args->at(1), JSGeneratorObject::THROW);
+}
+
+
 void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA:
@@ -1241,9 +1255,12 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   __ CallRuntime(Runtime::kPushWithContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 
+  Scope* saved_scope = scope();
+  scope_ = stmt->scope();
   { WithOrCatch body(this);
     Visit(stmt->statement());
   }
+  scope_ = saved_scope;
 
   // Pop context.
   LoadContextField(context_register(), Context::PREVIOUS_INDEX);
@@ -1545,30 +1562,6 @@ void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
     SharedFunctionInfoLiteral* expr) {
   Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
   EmitNewClosure(expr->shared_function_info(), false);
-}
-
-
-void FullCodeGenerator::VisitYield(Yield* expr) {
-  if (expr->is_delegating_yield())
-    UNIMPLEMENTED();
-
-  Comment cmnt(masm_, "[ Yield");
-  // TODO(wingo): Actually update the iterator state.
-  VisitForEffect(expr->generator_object());
-  VisitForAccumulatorValue(expr->expression());
-  // TODO(wingo): Assert that the operand stack depth is 0, at least while
-  // general yield expressions are unimplemented.
-
-  // TODO(wingo): What follows is as in VisitReturnStatement.  Replace it with a
-  // call to a builtin that will resume the generator.
-  NestedStatement* current = nesting_stack_;
-  int stack_depth = 0;
-  int context_length = 0;
-  while (current != NULL) {
-    current = current->Exit(&stack_depth, &context_length);
-  }
-  __ Drop(stack_depth);
-  EmitReturnSequence();
 }
 
 

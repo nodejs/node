@@ -335,15 +335,6 @@ class Logger::NameBuffer {
 
   void AppendString(String* str) {
     if (str == NULL) return;
-    if (str->HasOnlyAsciiChars()) {
-      int utf8_length = Min(str->length(), kUtf8BufferSize - utf8_pos_);
-      String::WriteToFlat(str,
-                          reinterpret_cast<uint8_t*>(utf8_buffer_ + utf8_pos_),
-                          0,
-                          utf8_length);
-      utf8_pos_ += utf8_length;
-      return;
-    }
     int uc16_length = Min(str->length(), kUtf16BufferSize);
     String::WriteToFlat(str, utf16_buffer, 0, uc16_length);
     int previous = unibrow::Utf16::kNoPreviousCharacter;
@@ -658,13 +649,17 @@ void Logger::TimerEvent(StartEnd se, const char* name) {
 }
 
 
-void Logger::EnterExternal() {
-  LOG(ISOLATE, TimerEvent(START, TimerEventScope::v8_external));
+void Logger::EnterExternal(Isolate* isolate) {
+  LOG(isolate, TimerEvent(START, TimerEventScope::v8_external));
+  ASSERT(isolate->current_vm_state() == JS);
+  isolate->set_current_vm_state(EXTERNAL);
 }
 
 
-void Logger::LeaveExternal() {
-  LOG(ISOLATE, TimerEvent(END, TimerEventScope::v8_external));
+void Logger::LeaveExternal(Isolate* isolate) {
+  LOG(isolate, TimerEvent(END, TimerEventScope::v8_external));
+  ASSERT(isolate->current_vm_state() == EXTERNAL);
+  isolate->set_current_vm_state(JS);
 }
 
 
@@ -1448,7 +1443,13 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.Append(',');
   msg.AppendAddress(sample->sp);
   msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
-  msg.AppendAddress(sample->external_callback);
+  if (sample->has_external_callback) {
+    msg.Append(",1,");
+    msg.AppendAddress(sample->external_callback);
+  } else {
+    msg.Append(",0,");
+    msg.AppendAddress(sample->tos);
+  }
   msg.Append(",%d", static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");
@@ -1589,6 +1590,7 @@ void Logger::LogCodeObject(Object* object) {
       case Code::UNARY_OP_IC:   // fall through
       case Code::BINARY_OP_IC:   // fall through
       case Code::COMPARE_IC:  // fall through
+      case Code::COMPARE_NIL_IC:   // fall through
       case Code::TO_BOOLEAN_IC:  // fall through
       case Code::STUB:
         description =
@@ -1810,7 +1812,7 @@ void Logger::LogAccessorCallbacks() {
 }
 
 
-bool Logger::SetUp() {
+bool Logger::SetUp(Isolate* isolate) {
   // Tests and EnsureInitialize() can call this twice in a row. It's harmless.
   if (is_initialized_) return true;
   is_initialized_ = true;
@@ -1826,23 +1828,13 @@ bool Logger::SetUp() {
     FLAG_prof_auto = false;
   }
 
-  // TODO(isolates): this assert introduces cyclic dependency (logger
-  // -> thread local top -> heap -> logger).
-  // ASSERT(VMState::is_outermost_external());
-
   log_->Initialize();
 
   if (FLAG_ll_prof) LogCodeInfo();
 
-  Isolate* isolate = Isolate::Current();
   ticker_ = new Ticker(isolate, kSamplingIntervalMs);
 
-  bool start_logging = FLAG_log || FLAG_log_runtime || FLAG_log_api
-    || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-    || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof
-    || FLAG_log_internal_timer_events;
-
-  if (start_logging) {
+  if (Log::InitLogAtStart()) {
     logging_nesting_ = 1;
   }
 

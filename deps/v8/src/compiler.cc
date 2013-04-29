@@ -125,11 +125,8 @@ CompilationInfo::~CompilationInfo() {
 
 
 int CompilationInfo::num_parameters() const {
-  if (IsStub()) {
-    return 0;
-  } else {
-    return scope()->num_parameters();
-  }
+  ASSERT(!IsStub());
+  return scope()->num_parameters();
 }
 
 
@@ -147,8 +144,7 @@ Code::Flags CompilationInfo::flags() const {
     return Code::ComputeFlags(code_stub()->GetCodeKind(),
                               code_stub()->GetICState(),
                               code_stub()->GetExtraICState(),
-                              Code::NORMAL,
-                              0);
+                              Code::NORMAL, -1);
   } else {
     return Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
   }
@@ -425,6 +421,12 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     Timer timer(this, &time_taken_to_codegen_);
     ASSERT(chunk_ != NULL);
     ASSERT(graph_ != NULL);
+    // Deferred handles reference objects that were accessible during
+    // graph creation.  To make sure that we don't encounter inconsistencies
+    // between graph creation and code generation, we disallow accessing
+    // objects through deferred handles during the latter, with exceptions.
+    HandleDereferenceGuard no_deref_deferred(
+        isolate(), HandleDereferenceGuard::DISALLOW_DEFERRED);
     Handle<Code> optimized_code = chunk_->Codegen();
     if (optimized_code.is_null()) {
       info()->set_bailout_reason("code generation failed");
@@ -622,7 +624,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
   isolate->counters()->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
-  VMState state(isolate, COMPILER);
+  VMState<COMPILER> state(isolate);
 
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
@@ -696,7 +698,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   isolate->counters()->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
-  VMState state(isolate, COMPILER);
+  VMState<COMPILER> state(isolate);
 
   // Do a lookup in the compilation cache; if the entry is not there, invoke
   // the compiler and add the result to the cache.
@@ -859,7 +861,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   ZoneScope zone_scope(info->zone(), DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
-  VMState state(isolate, COMPILER);
+  VMState<COMPILER> state(isolate);
 
   PostponeInterruptsScope postpone(isolate);
 
@@ -923,7 +925,7 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
   }
 
   SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(closure));
-  VMState state(isolate, PARALLEL_COMPILER);
+  VMState<COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
@@ -998,7 +1000,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   }
 
   Isolate* isolate = info->isolate();
-  VMState state(isolate, PARALLEL_COMPILER);
+  VMState<COMPILER> state(isolate);
   Logger::TimerEventScope timer(
       isolate, Logger::TimerEventScope::v8_recompile_synchronous);
   // If crankshaft succeeded, install the optimized code else install

@@ -1191,9 +1191,10 @@ class GraphWithImplicitRefs {
   explicit GraphWithImplicitRefs(LocalContext* env) {
     CHECK_EQ(NULL, instance_);
     instance_ = this;
-    v8::Isolate* isolate = (*env)->GetIsolate();
+    isolate_ = (*env)->GetIsolate();
     for (int i = 0; i < kObjectsCount; i++) {
-      objects_[i] = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+      objects_[i] =
+          v8::Persistent<v8::Object>::New(isolate_, v8::Object::New());
     }
     (*env)->Global()->Set(v8_str("root_object"), objects_[0]);
   }
@@ -1208,15 +1209,20 @@ class GraphWithImplicitRefs {
  private:
   void AddImplicitReferences() {
     // 0 -> 1
-    v8::V8::AddImplicitReferences(
-        v8::Persistent<v8::Object>::Cast(objects_[0]), &objects_[1], 1);
-    // Adding two more references(note length=2 in params): 1 -> 2, 1 -> 3
-    v8::V8::AddImplicitReferences(
-        v8::Persistent<v8::Object>::Cast(objects_[1]), &objects_[2], 2);
+    isolate_->SetObjectGroupId(v8::Persistent<v8::Object>::Cast(objects_[0]),
+                               v8::UniqueId(1));
+    isolate_->SetReferenceFromGroup(
+        v8::UniqueId(1), v8::Persistent<v8::Object>::Cast(objects_[1]));
+    // Adding two more references: 1 -> 2, 1 -> 3
+    isolate_->SetReference(v8::Persistent<v8::Object>::Cast(objects_[1]),
+                           v8::Persistent<v8::Object>::Cast(objects_[2]));
+    isolate_->SetReference(v8::Persistent<v8::Object>::Cast(objects_[1]),
+                           v8::Persistent<v8::Object>::Cast(objects_[3]));
   }
 
   v8::Persistent<v8::Value> objects_[kObjectsCount];
   static GraphWithImplicitRefs* instance_;
+  v8::Isolate* isolate_;
 };
 
 GraphWithImplicitRefs* GraphWithImplicitRefs::instance_ = NULL;

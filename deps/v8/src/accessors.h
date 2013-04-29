@@ -79,6 +79,8 @@ class Accessors : public AllStatic {
   // Accessor functions called directly from the runtime system.
   MUST_USE_RESULT static MaybeObject* FunctionGetPrototype(Object* object,
                                                            void*);
+  static Handle<Object> FunctionGetPrototype(Handle<Object> object);
+
   MUST_USE_RESULT static MaybeObject* FunctionSetPrototype(JSObject* object,
                                                       Object* value,
                                                       void*);

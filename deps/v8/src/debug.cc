@@ -612,7 +612,6 @@ void ScriptCache::Add(Handle<Script> script) {
     ASSERT(*script == *reinterpret_cast<Script**>(entry->value));
     return;
   }
-
   // Globalize the script object, make it weak and use the location of the
   // global handle as the value in the hash map.
   Handle<Script> script_ =

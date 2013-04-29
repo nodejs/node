@@ -30,28 +30,24 @@
 #include "cctest.h"
 
 using namespace v8::internal;
+using v8::UniqueId;
 
-static int NumberOfWeakCalls = 0;
-static void WeakPointerCallback(v8::Isolate* isolate,
-                                v8::Persistent<v8::Value> handle,
-                                void* id) {
-  ASSERT(id == reinterpret_cast<void*>(1234));
-  NumberOfWeakCalls++;
-  handle.Dispose(isolate);
-}
 
 static List<Object*> skippable_objects;
 static List<Object*> can_skip_called_objects;
+
 
 static bool CanSkipCallback(Heap* heap, Object** pointer) {
   can_skip_called_objects.Add(*pointer);
   return skippable_objects.Contains(*pointer);
 }
 
+
 static void ResetCanSkipData() {
   skippable_objects.Clear();
   can_skip_called_objects.Clear();
 }
+
 
 class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
  public:
@@ -76,6 +72,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
   bool has_been_disposed_;
 };
 
+
 class TestObjectVisitor : public ObjectVisitor {
  public:
   virtual void VisitPointers(Object** start, Object** end) {
@@ -85,6 +82,7 @@ class TestObjectVisitor : public ObjectVisitor {
 
   List<Object*> visited;
 };
+
 
 TEST(IterateObjectGroupsOldApi) {
   CcTest::InitializeVM();
@@ -96,27 +94,11 @@ TEST(IterateObjectGroupsOldApi) {
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g1s2 =
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
-  global_handles->MakeWeak(g1s1.location(),
-                           reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
-  global_handles->MakeWeak(g1s2.location(),
-                           reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
 
   Handle<Object> g2s1 =
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g2s2 =
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
-  global_handles->MakeWeak(g2s1.location(),
-                           reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
-  global_handles->MakeWeak(g2s2.location(),
-                           reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
 
   TestRetainedObjectInfo info1;
   TestRetainedObjectInfo info2;
@@ -184,7 +166,6 @@ TEST(IterateObjectGroupsOldApi) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    fprintf(stderr, "can skip len %d\n", can_skip_called_objects.length());
     ASSERT(can_skip_called_objects.length() == 1);
     ASSERT(can_skip_called_objects.Contains(*g2s1.location()) ||
            can_skip_called_objects.Contains(*g2s2.location()));
@@ -195,4 +176,142 @@ TEST(IterateObjectGroupsOldApi) {
     ASSERT(visitor.visited.Contains(*g2s2.location()));
     ASSERT(info2.has_been_disposed());
   }
+}
+
+
+TEST(IterateObjectGroups) {
+  CcTest::InitializeVM();
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+
+  v8::HandleScope handle_scope(CcTest::isolate());
+
+  Handle<Object> g1s1 =
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> g1s2 =
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+
+  Handle<Object> g2s1 =
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> g2s2 =
+    global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+
+  TestRetainedObjectInfo info1;
+  TestRetainedObjectInfo info2;
+  global_handles->SetObjectGroupId(g2s1.location(), UniqueId(2));
+  global_handles->SetObjectGroupId(g2s2.location(), UniqueId(2));
+  global_handles->SetRetainedObjectInfo(UniqueId(2), &info2);
+  global_handles->SetObjectGroupId(g1s1.location(), UniqueId(1));
+  global_handles->SetObjectGroupId(g1s2.location(), UniqueId(1));
+  global_handles->SetRetainedObjectInfo(UniqueId(1), &info1);
+
+  // Iterate the object groups. First skip all.
+  {
+    ResetCanSkipData();
+    skippable_objects.Add(*g1s1.location());
+    skippable_objects.Add(*g1s2.location());
+    skippable_objects.Add(*g2s1.location());
+    skippable_objects.Add(*g2s2.location());
+    TestObjectVisitor visitor;
+    global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
+
+    // CanSkipCallback was called for all objects.
+    ASSERT(can_skip_called_objects.length() == 4);
+    ASSERT(can_skip_called_objects.Contains(*g1s1.location()));
+    ASSERT(can_skip_called_objects.Contains(*g1s2.location()));
+    ASSERT(can_skip_called_objects.Contains(*g2s1.location()));
+    ASSERT(can_skip_called_objects.Contains(*g2s2.location()));
+
+    // Nothing was visited.
+    ASSERT(visitor.visited.length() == 0);
+    ASSERT(!info1.has_been_disposed());
+    ASSERT(!info2.has_been_disposed());
+  }
+
+  // Iterate again, now only skip the second object group.
+  {
+    ResetCanSkipData();
+    // The first grough should still be visited, since only one object is
+    // skipped.
+    skippable_objects.Add(*g1s1.location());
+    skippable_objects.Add(*g2s1.location());
+    skippable_objects.Add(*g2s2.location());
+    TestObjectVisitor visitor;
+    global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
+
+    // CanSkipCallback was called for all objects.
+    ASSERT(can_skip_called_objects.length() == 3 ||
+           can_skip_called_objects.length() == 4);
+    ASSERT(can_skip_called_objects.Contains(*g1s2.location()));
+    ASSERT(can_skip_called_objects.Contains(*g2s1.location()));
+    ASSERT(can_skip_called_objects.Contains(*g2s2.location()));
+
+    // The first group was visited.
+    ASSERT(visitor.visited.length() == 2);
+    ASSERT(visitor.visited.Contains(*g1s1.location()));
+    ASSERT(visitor.visited.Contains(*g1s2.location()));
+    ASSERT(info1.has_been_disposed());
+    ASSERT(!info2.has_been_disposed());
+  }
+
+  // Iterate again, don't skip anything.
+  {
+    ResetCanSkipData();
+    TestObjectVisitor visitor;
+    global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
+
+    // CanSkipCallback was called for all objects.
+    ASSERT(can_skip_called_objects.length() == 1);
+    ASSERT(can_skip_called_objects.Contains(*g2s1.location()) ||
+           can_skip_called_objects.Contains(*g2s2.location()));
+
+    // The second group was visited.
+    ASSERT(visitor.visited.length() == 2);
+    ASSERT(visitor.visited.Contains(*g2s1.location()));
+    ASSERT(visitor.visited.Contains(*g2s2.location()));
+    ASSERT(info2.has_been_disposed());
+  }
+}
+
+
+TEST(ImplicitReferences) {
+  CcTest::InitializeVM();
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+
+  v8::HandleScope handle_scope(CcTest::isolate());
+
+  Handle<Object> g1s1 =
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> g1c1 =
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> g1c2 =
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+
+
+  Handle<Object> g2s1 =
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> g2s2 =
+    global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> g2c1 =
+    global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+
+  global_handles->SetObjectGroupId(g1s1.location(), UniqueId(1));
+  global_handles->SetObjectGroupId(g2s1.location(), UniqueId(2));
+  global_handles->SetObjectGroupId(g2s2.location(), UniqueId(2));
+  global_handles->SetReferenceFromGroup(UniqueId(1), g1c1.location());
+  global_handles->SetReferenceFromGroup(UniqueId(1), g1c2.location());
+  global_handles->SetReferenceFromGroup(UniqueId(2), g2c1.location());
+
+  List<ImplicitRefGroup*>* implicit_refs =
+      global_handles->implicit_ref_groups();
+  USE(implicit_refs);
+  ASSERT(implicit_refs->length() == 2);
+  ASSERT(implicit_refs->at(0)->parent ==
+         reinterpret_cast<HeapObject**>(g1s1.location()));
+  ASSERT(implicit_refs->at(0)->length == 2);
+  ASSERT(implicit_refs->at(0)->children[0] == g1c1.location());
+  ASSERT(implicit_refs->at(0)->children[1] == g1c2.location());
+  ASSERT(implicit_refs->at(1)->parent ==
+         reinterpret_cast<HeapObject**>(g2s1.location()));
+  ASSERT(implicit_refs->at(1)->length == 1);
+  ASSERT(implicit_refs->at(1)->children[0] == g2c1.location());
 }

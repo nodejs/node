@@ -28,7 +28,7 @@
 #ifndef V8_HEAP_H_
 #define V8_HEAP_H_
 
-#include <math.h>
+#include <cmath>
 
 #include "allocation.h"
 #include "globals.h"
@@ -95,12 +95,14 @@ namespace internal {
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_ascii_string_map, SlicedAsciiStringMap)                        \
   V(Map, external_string_map, ExternalStringMap)                               \
-  V(Map, external_string_with_ascii_data_map, ExternalStringWithAsciiDataMap)  \
+  V(Map,                                                                       \
+    external_string_with_one_byte_data_map,                                    \
+    ExternalStringWithOneByteDataMap)                                          \
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
   V(Map, short_external_string_map, ShortExternalStringMap)                    \
   V(Map,                                                                       \
-    short_external_string_with_ascii_data_map,                                 \
-    ShortExternalStringWithAsciiDataMap)                                       \
+    short_external_string_with_one_byte_data_map,                              \
+    ShortExternalStringWithOneByteDataMap)                                     \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
   V(Map, ascii_internalized_string_map, AsciiInternalizedStringMap)            \
   V(Map, cons_internalized_string_map, ConsInternalizedStringMap)              \
@@ -109,8 +111,8 @@ namespace internal {
     external_internalized_string_map,                                          \
     ExternalInternalizedStringMap)                                             \
   V(Map,                                                                       \
-    external_internalized_string_with_ascii_data_map,                          \
-    ExternalInternalizedStringWithAsciiDataMap)                                \
+    external_internalized_string_with_one_byte_data_map,                       \
+    ExternalInternalizedStringWithOneByteDataMap)                              \
   V(Map,                                                                       \
     external_ascii_internalized_string_map,                                    \
     ExternalAsciiInternalizedStringMap)                                        \
@@ -118,8 +120,8 @@ namespace internal {
     short_external_internalized_string_map,                                    \
     ShortExternalInternalizedStringMap)                                        \
   V(Map,                                                                       \
-    short_external_internalized_string_with_ascii_data_map,                    \
-    ShortExternalInternalizedStringWithAsciiDataMap)                           \
+    short_external_internalized_string_with_one_byte_data_map,                 \
+    ShortExternalInternalizedStringWithOneByteDataMap)                         \
   V(Map,                                                                       \
     short_external_ascii_internalized_string_map,                              \
     ShortExternalAsciiInternalizedStringMap)                                   \
@@ -240,6 +242,8 @@ namespace internal {
   V(elements_field_string, "%elements")                                  \
   V(length_field_string, "%length")                                      \
   V(function_class_string, "Function")                                   \
+  V(properties_field_symbol, "%properties")                              \
+  V(payload_field_symbol, "%payload")                                    \
   V(illegal_argument_string, "illegal argument")                         \
   V(MakeReferenceError_string, "MakeReferenceError")                     \
   V(MakeSyntaxError_string, "MakeSyntaxError")                           \
@@ -692,6 +696,12 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateFunctionPrototype(JSFunction* function);
+
+  // Allocates a JS ArrayBuffer object.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateJSArrayBuffer();
 
   // Allocates a Harmony proxy or function proxy.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1543,7 +1553,8 @@ class Heap {
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
 
   intptr_t OldGenPromotionLimit(intptr_t old_gen_size) {
-    const int divisor = FLAG_stress_compaction ? 10 : 3;
+    const int divisor = FLAG_stress_compaction ? 10 :
+        new_space_high_promotion_mode_active_ ? 1 : 3;
     intptr_t limit =
         Max(old_gen_size + old_gen_size / divisor, kMinimumPromotionLimit);
     limit += new_space_.Capacity();
@@ -1553,7 +1564,8 @@ class Heap {
   }
 
   intptr_t OldGenAllocationLimit(intptr_t old_gen_size) {
-    const int divisor = FLAG_stress_compaction ? 8 : 2;
+    const int divisor = FLAG_stress_compaction ? 8 :
+        new_space_high_promotion_mode_active_ ? 1 : 2;
     intptr_t limit =
         Max(old_gen_size + old_gen_size / divisor, kMinimumAllocationLimit);
     limit += new_space_.Capacity();
@@ -1753,7 +1765,7 @@ class Heap {
 
   inline Isolate* isolate();
 
-  void CallGCPrologueCallbacks(GCType gc_type);
+  void CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags);
   void CallGCEpilogueCallbacks(GCType gc_type);
 
   inline bool OldGenerationAllocationLimitReached();
@@ -1847,6 +1859,31 @@ class Heap {
   }
 
   void CheckpointObjectStats();
+
+  // We don't use a ScopedLock here since we want to lock the heap
+  // only when FLAG_parallel_recompilation is true.
+  class RelocationLock {
+   public:
+    explicit RelocationLock(Heap* heap);
+
+    ~RelocationLock() {
+      if (FLAG_parallel_recompilation) {
+#ifdef DEBUG
+        heap_->relocation_mutex_locked_by_optimizer_thread_ = false;
+#endif  // DEBUG
+        heap_->relocation_mutex_->Unlock();
+      }
+    }
+
+#ifdef DEBUG
+    static bool IsLockedByOptimizerThread(Heap* heap) {
+      return heap->relocation_mutex_locked_by_optimizer_thread_;
+    }
+#endif  // DEBUG
+
+   private:
+    Heap* heap_;
+  };
 
  private:
   Heap();
@@ -2295,6 +2332,11 @@ class Heap {
   unsigned int gc_count_at_last_idle_gc_;
   int scavenges_since_last_idle_round_;
 
+  // If the --deopt_every_n_garbage_collections flag is set to a positive value,
+  // this variable holds the number of garbage collections since the last
+  // deoptimization triggered by garbage collection.
+  int gcs_since_last_deopt_;
+
 #ifdef VERIFY_HEAP
   int no_weak_embedded_maps_verification_scope_depth_;
 #endif
@@ -2316,6 +2358,11 @@ class Heap {
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
 
   MemoryChunk* chunks_queued_for_free_;
+
+  Mutex* relocation_mutex_;
+#ifdef DEBUG
+  bool relocation_mutex_locked_by_optimizer_thread_;
+#endif  // DEBUG;
 
   friend class Factory;
   friend class GCTracer;

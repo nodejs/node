@@ -113,14 +113,11 @@ class StatsTable {
 // The row has a 32bit value for each process/thread in the table and also
 // a name (stored in the table metadata).  Since the storage location can be
 // thread-specific, this class cannot be shared across threads.
-//
-// This class is designed to be POD initialized.  It will be registered with
-// the counter system on first use.  For example:
-//   StatsCounter c = { "c:myctr", NULL, false };
-struct StatsCounter {
-  const char* name_;
-  int* ptr_;
-  bool lookup_done_;
+class StatsCounter {
+ public:
+  StatsCounter() { }
+  explicit StatsCounter(const char* name)
+      : name_(name), ptr_(NULL), lookup_done_(false) { }
 
   // Sets the counter to a specific value.
   void Set(int value) {
@@ -177,39 +174,29 @@ struct StatsCounter {
 
  private:
   int* FindLocationInStatsTable() const;
-};
 
-// StatsCounterTimer t = { { L"t:foo", NULL, false }, 0, 0 };
-struct StatsCounterTimer {
-  StatsCounter counter_;
-
-  int64_t start_time_;
-  int64_t stop_time_;
-
-  // Start the timer.
-  void Start();
-
-  // Stop the timer and record the results.
-  void Stop();
-
-  // Returns true if the timer is running.
-  bool Running() {
-    return counter_.Enabled() && start_time_ != 0 && stop_time_ == 0;
-  }
+  const char* name_;
+  int* ptr_;
+  bool lookup_done_;
 };
 
 // A Histogram represents a dynamically created histogram in the StatsTable.
-//
-// This class is designed to be POD initialized.  It will be registered with
-// the histogram system on first use.  For example:
-//   Histogram h = { "myhist", 0, 10000, 50, NULL, false };
-struct Histogram {
-  const char* name_;
-  int min_;
-  int max_;
-  int num_buckets_;
-  void* histogram_;
-  bool lookup_done_;
+// It will be registered with the histogram system on first use.
+class Histogram {
+ public:
+  Histogram() { }
+  Histogram(const char* name,
+            int min,
+            int max,
+            int num_buckets,
+            Isolate* isolate)
+      : name_(name),
+        min_(min),
+        max_(max),
+        num_buckets_(num_buckets),
+        histogram_(NULL),
+        lookup_done_(false),
+        isolate_(isolate) { }
 
   // Add a single sample to this histogram.
   void AddSample(int sample);
@@ -234,17 +221,33 @@ struct Histogram {
     return histogram_;
   }
 
+  const char* name() { return name_; }
+  Isolate* isolate() const { return isolate_; }
+
  private:
   void* CreateHistogram() const;
+
+  const char* name_;
+  int min_;
+  int max_;
+  int num_buckets_;
+  void* histogram_;
+  bool lookup_done_;
+  Isolate* isolate_;
 };
 
-// A HistogramTimer allows distributions of results to be created
-// HistogramTimer t = { {L"foo", 0, 10000, 50, NULL, false}, 0, 0 };
-struct HistogramTimer {
-  Histogram histogram_;
-
-  int64_t start_time_;
-  int64_t stop_time_;
+// A HistogramTimer allows distributions of results to be created.
+class HistogramTimer : public Histogram {
+ public:
+  HistogramTimer() { }
+  HistogramTimer(const char* name,
+                 int min,
+                 int max,
+                 int num_buckets,
+                 Isolate* isolate)
+      : Histogram(name, min, max, num_buckets, isolate),
+        start_time_(0),
+        stop_time_(0) { }
 
   // Start the timer.
   void Start();
@@ -254,12 +257,12 @@ struct HistogramTimer {
 
   // Returns true if the timer is running.
   bool Running() {
-    return histogram_.Enabled() && (start_time_ != 0) && (stop_time_ == 0);
+    return Enabled() && (start_time_ != 0) && (stop_time_ == 0);
   }
 
-  void Reset() {
-    histogram_.Reset();
-  }
+ private:
+  int64_t start_time_;
+  int64_t stop_time_;
 };
 
 // Helper class for scoping a HistogramTimer.

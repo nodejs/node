@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "arguments.h"
+#include "code-stubs.h"
 #include "ic-inl.h"
 #include "macro-assembler.h"
 #include "objects.h"
@@ -76,6 +77,12 @@ class StubCache {
 
   Handle<JSObject> StubHolder(Handle<JSObject> receiver,
                               Handle<JSObject> holder);
+
+  Handle<Code> FindIC(Handle<Name> name,
+                      Handle<Map> stub_holder_map,
+                      Code::Kind kind,
+                      Code::StubType type,
+                      Code::ExtraICState extra_state = Code::kNoExtraICState);
 
   Handle<Code> FindIC(Handle<Name> name,
                       Handle<JSObject> stub_holder,
@@ -268,6 +275,12 @@ class StubCache {
   Handle<Code> ComputeCallMiss(int argc,
                                Code::Kind kind,
                                Code::ExtraICState state);
+
+  // ---
+
+  Handle<Code> ComputeCompareNil(Handle<Map> receiver_map,
+                                 NilValue nil,
+                                 CompareNilICStub::Types types);
 
   // ---
 

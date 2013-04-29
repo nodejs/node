@@ -28,10 +28,10 @@
 // Tests of logging functions from log.h
 
 #ifdef __linux__
-#include <math.h>
 #include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
+#include <cmath>
 #endif  // __linux__
 
 #include "v8.h"

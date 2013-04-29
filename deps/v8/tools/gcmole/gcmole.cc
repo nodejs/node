@@ -587,7 +587,6 @@ class FunctionAnalyzer {
     VISIT(StmtExpr);
     VISIT(StringLiteral);
     VISIT(SubstNonTypeTemplateParmPackExpr);
-    VISIT(UnaryExprOrTypeTraitExpr);
     VISIT(UnaryOperator);
     VISIT(UnaryTypeTraitExpr);
     VISIT(VAArgExpr);
@@ -634,7 +633,6 @@ class FunctionAnalyzer {
   IGNORE_EXPR(StmtExpr);
   IGNORE_EXPR(StringLiteral);
   IGNORE_EXPR(SubstNonTypeTemplateParmPackExpr);
-  IGNORE_EXPR(UnaryExprOrTypeTraitExpr);
   IGNORE_EXPR(UnaryTypeTraitExpr);
   IGNORE_EXPR(VAArgExpr);
   IGNORE_EXPR(GNUNullExpr);

@@ -26,13 +26,18 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdarg.h>
-#include <math.h>
 #include <limits.h>
+#include <cmath>
 
 #include "conversions-inl.h"
 #include "dtoa.h"
 #include "strtod.h"
 #include "utils.h"
+
+#ifndef _STLP_VENDOR_CSTD
+// STLPort doesn't import fpclassify into the std namespace.
+using std::fpclassify;
+#endif
 
 namespace v8 {
 namespace internal {

@@ -80,6 +80,8 @@ class HeapProfiler {
     return snapshots_->is_tracking_objects();
   }
 
+  void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
+
  private:
   Heap* heap() const { return snapshots_->heap(); }
 

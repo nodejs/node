@@ -25,9 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-
 #include "store-buffer.h"
+
+#include <algorithm>
+
+#include "v8.h"
 #include "store-buffer-inl.h"
 #include "v8-counters.h"
 
@@ -120,33 +122,6 @@ void StoreBuffer::TearDown() {
 void StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
   isolate->heap()->store_buffer()->Compact();
 }
-
-
-#if V8_TARGET_ARCH_X64
-static int CompareAddresses(const void* void_a, const void* void_b) {
-  intptr_t a =
-      reinterpret_cast<intptr_t>(*reinterpret_cast<const Address*>(void_a));
-  intptr_t b =
-      reinterpret_cast<intptr_t>(*reinterpret_cast<const Address*>(void_b));
-  // Unfortunately if int is smaller than intptr_t there is no branch-free
-  // way to return a number with the same sign as the difference between the
-  // pointers.
-  if (a == b) return 0;
-  if (a < b) return -1;
-  ASSERT(a > b);
-  return 1;
-}
-#else
-static int CompareAddresses(const void* void_a, const void* void_b) {
-  intptr_t a =
-      reinterpret_cast<intptr_t>(*reinterpret_cast<const Address*>(void_a));
-  intptr_t b =
-      reinterpret_cast<intptr_t>(*reinterpret_cast<const Address*>(void_b));
-  ASSERT(sizeof(1) == sizeof(a));
-  // Shift down to avoid wraparound.
-  return (a >> kPointerSizeLog2) - (b >> kPointerSizeLog2);
-}
-#endif
 
 
 void StoreBuffer::Uniq() {
@@ -283,10 +258,7 @@ void StoreBuffer::Filter(int flag) {
 void StoreBuffer::SortUniq() {
   Compact();
   if (old_buffer_is_sorted_) return;
-  qsort(reinterpret_cast<void*>(old_start_),
-        old_top_ - old_start_,
-        sizeof(*old_top_),
-        &CompareAddresses);
+  std::sort(old_start_, old_top_);
   Uniq();
 
   old_buffer_is_sorted_ = true;

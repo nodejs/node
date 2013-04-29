@@ -420,6 +420,8 @@ class Counters {
 
   friend class Isolate;
 
+  explicit Counters(Isolate* isolate);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
 

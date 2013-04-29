@@ -260,12 +260,13 @@ double ProfileNode::GetTotalMillis() const {
 
 
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %5u %*c %s%s [%d]",
+  OS::Print("%5u %5u %*c %s%s [%d] #%d",
             total_ticks_, self_ticks_,
             indent, ' ',
             entry_->name_prefix(),
             entry_->name(),
-            entry_->security_token_id());
+            entry_->security_token_id(),
+            id());
   if (entry_->resource_name()[0] != '\0')
     OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   OS::Print("\n");
@@ -570,7 +571,12 @@ void CodeMap::MoveCode(Address from, Address to) {
 
 void CodeMap::CodeTreePrinter::Call(
     const Address& key, const CodeMap::CodeEntryInfo& value) {
-  OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
+  // For shared function entries, 'size' field is used to store their IDs.
+  if (value.entry == kSharedFunctionCodeEntry) {
+    OS::Print("%p SharedFunctionInfo %d\n", key, value.size);
+  } else {
+    OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
+  }
 }
 
 
@@ -894,7 +900,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   if (sample.pc != NULL) {
     *entry++ = code_map_.FindEntry(sample.pc);
 
-    if (sample.external_callback) {
+    if (sample.has_external_callback) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.

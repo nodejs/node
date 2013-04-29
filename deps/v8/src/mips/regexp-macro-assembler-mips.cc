@@ -388,7 +388,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     // Address of current input position.
     __ Addu(a1, current_input_offset(), Operand(end_of_input_address()));
     // Isolate.
-    __ li(a3, Operand(ExternalReference::isolate_address()));
+    __ li(a3, Operand(ExternalReference::isolate_address(masm_->isolate())));
 
     {
       AllowExternalCallThatCantCauseGC scope(masm_);
@@ -901,7 +901,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       __ PrepareCallCFunction(num_arguments, a0);
       __ mov(a0, backtrack_stackpointer());
       __ Addu(a1, frame_pointer(), Operand(kStackHighEnd));
-      __ li(a2, Operand(ExternalReference::isolate_address()));
+      __ li(a2, Operand(ExternalReference::isolate_address(masm_->isolate())));
       ExternalReference grow_stack =
           ExternalReference::re_grow_stack(masm_->isolate());
       __ CallCFunction(grow_stack, num_arguments);

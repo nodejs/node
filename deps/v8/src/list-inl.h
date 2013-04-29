@@ -216,7 +216,7 @@ void List<T, P>::Sort(int (*cmp)(const T* x, const T* y)) {
 
 template<typename T, class P>
 void List<T, P>::Sort() {
-  Sort(PointerValueCompare<T>);
+  ToVector().Sort();
 }
 
 

@@ -202,7 +202,7 @@
           'include_dirs+': [
             '../../src',
           ],
-          'sources': [
+          'sources': [  ### gcmole(all) ###
             '../../src/accessors.cc',
             '../../src/accessors.h',
             '../../src/allocation.cc',
@@ -491,7 +491,7 @@
               'toolsets': ['target'],
             }],
             ['v8_target_arch=="arm"', {
-              'sources': [
+              'sources': [  ### gcmole(arch:arm) ###
                 '../../src/arm/assembler-arm-inl.h',
                 '../../src/arm/assembler-arm.cc',
                 '../../src/arm/assembler-arm.h',
@@ -525,7 +525,7 @@
               ],
             }],
             ['v8_target_arch=="ia32" or v8_target_arch=="mac" or OS=="mac"', {
-              'sources': [
+              'sources': [  ### gcmole(arch:ia32) ###
                 '../../src/ia32/assembler-ia32-inl.h',
                 '../../src/ia32/assembler-ia32.cc',
                 '../../src/ia32/assembler-ia32.h',
@@ -556,7 +556,7 @@
               ],
             }],
             ['v8_target_arch=="mipsel"', {
-              'sources': [
+              'sources': [  ### gcmole(arch:mipsel) ###
                 '../../src/mips/assembler-mips.cc',
                 '../../src/mips/assembler-mips.h',
                 '../../src/mips/assembler-mips-inl.h',
@@ -590,7 +590,7 @@
               ],
             }],
             ['v8_target_arch=="x64" or v8_target_arch=="mac" or OS=="mac"', {
-              'sources': [
+              'sources': [  ### gcmole(arch:x64) ###
                 '../../src/x64/assembler-x64-inl.h',
                 '../../src/x64/assembler-x64.cc',
                 '../../src/x64/assembler-x64.h',
@@ -630,7 +630,7 @@
                     }],
                   ],
                 },
-                'sources': [
+                'sources': [  ### gcmole(os:linux) ###
                   '../../src/platform-linux.cc',
                   '../../src/platform-posix.cc'
                 ],
@@ -924,7 +924,7 @@
           ],
         },
       ],
-    }, { # use_system_v8 != 0
+    }, {  # use_system_v8 != 0
       'targets': [
         {
           'target_name': 'v8',

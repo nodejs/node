@@ -635,6 +635,8 @@ OS::MemMoveFunction CreateMemMoveFunction() {
   ASSERT(!RelocInfo::RequiresRelocation(desc));
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);
+  // TODO(jkummerow): It would be nice to register this code creation event
+  // with the PROFILE / GDBJIT system.
   return FUNCTION_CAST<OS::MemMoveFunction>(buffer);
 }
 

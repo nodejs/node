@@ -230,6 +230,9 @@ DEFINE_bool(stress_environments, false, "environment for every instruction")
 DEFINE_int(deopt_every_n_times,
            0,
            "deoptimize every n times a deopt point is passed")
+DEFINE_int(deopt_every_n_garbage_collections,
+           0,
+           "deoptimize every n garbage collections")
 DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
@@ -344,6 +347,10 @@ DEFINE_bool(enable_vldr_imm, false,
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
 DEFINE_bool(expose_gc, false, "expose gc extension")
+DEFINE_string(expose_gc_as,
+              NULL,
+              "expose gc extension under the specified name")
+DEFINE_implication(expose_gc_as, expose_gc)
 DEFINE_bool(expose_externalize_string, false,
             "expose externalize string extension")
 DEFINE_int(stack_trace_limit, 10, "number of stack frames to capture")
@@ -666,9 +673,6 @@ DEFINE_bool(collect_heap_spill_statistics, false,
 
 DEFINE_bool(trace_isolates, false, "trace isolate state changes")
 
-// VM state
-DEFINE_bool(log_state_changes, false, "Log state changes.")
-
 // Regexp
 DEFINE_bool(regexp_possessive_quantifier,
             false,
@@ -716,6 +720,7 @@ DEFINE_bool(log_internal_timer_events, false, "Time internal events.")
 DEFINE_bool(log_timer_events, false,
             "Time events including external callbacks.")
 DEFINE_implication(log_timer_events, log_internal_timer_events)
+DEFINE_implication(log_internal_timer_events, prof)
 
 //
 // Disassembler only flags

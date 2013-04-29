@@ -253,7 +253,8 @@ class TypeFeedbackOracle: public ZoneObject {
   bool IsForInFastCase(ForInStatement* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
-  Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId ast_id);
+  Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId id);
+  Handle<Map> CompareNilMonomorphicReceiverType(TypeFeedbackId id);
 
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId ast_id);
 
@@ -292,6 +293,11 @@ class TypeFeedbackOracle: public ZoneObject {
   // of various cylces in our headers. Death to tons of implementations in
   // headers!! :-P
   byte ToBooleanTypes(TypeFeedbackId ast_id);
+
+  // TODO(1571) We can't use CompareNilICStub::Types as the return value because
+  // of various cylces in our headers. Death to tons of implementations in
+  // headers!! :-P
+  byte CompareNilTypes(TypeFeedbackId ast_id);
 
   // Get type information for arithmetic operations and compares.
   TypeInfo UnaryType(UnaryOperation* expr);

@@ -636,7 +636,16 @@ DISABLE_ASAN void TickSample::Trace(Isolate* isolate) {
     return;
   }
 
-  external_callback = isolate->external_callback();
+  const Address callback = isolate->external_callback();
+  if (callback != NULL) {
+    external_callback = callback;
+    has_external_callback = true;
+  } else {
+    // Sample potential return address value for frameless invocation of
+    // stubs (we'll figure out later, if this value makes sense).
+    tos = Memory::Address_at(sp);
+    has_external_callback = false;
+  }
 
   SafeStackTraceFrameIterator it(isolate, fp, sp, sp, js_entry_sp);
   int i = 0;

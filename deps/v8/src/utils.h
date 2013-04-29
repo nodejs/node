@@ -30,6 +30,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 #include <climits>
 
 #include "allocation.h"
@@ -410,15 +411,11 @@ class Vector {
   }
 
   void Sort(int (*cmp)(const T*, const T*)) {
-    typedef int (*RawComparer)(const void*, const void*);
-    qsort(start(),
-          length(),
-          sizeof(T),
-          reinterpret_cast<RawComparer>(cmp));
+    std::sort(start(), start() + length(), RawComparer(cmp));
   }
 
   void Sort() {
-    Sort(PointerValueCompare<T>);
+    std::sort(start(), start() + length());
   }
 
   void Truncate(int length) {
@@ -454,6 +451,17 @@ class Vector {
  private:
   T* start_;
   int length_;
+
+  class RawComparer {
+   public:
+    explicit RawComparer(int (*cmp)(const T*, const T*)) : cmp_(cmp) {}
+    bool operator()(const T& a, const T& b) {
+      return cmp_(&a, &b) < 0;
+    }
+
+   private:
+    int (*cmp_)(const T*, const T*);
+  };
 };
 
 

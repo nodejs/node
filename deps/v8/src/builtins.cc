@@ -192,9 +192,8 @@ BUILTIN(EmptyFunction) {
 
 RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
   CONVERT_ARG_STUB_CALLER_ARGS(caller_args);
-  // ASSERT(args.length() == 3);
-  Handle<JSFunction> function = args.at<JSFunction>(1);
-  Handle<Object> type_info = args.at<Object>(2);
+  ASSERT(args.length() == 2);
+  Handle<Object> type_info = args.at<Object>(1);
 
   JSArray* array = NULL;
   bool holey = false;
@@ -226,8 +225,7 @@ RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
     }
   }
 
-  ASSERT(function->has_initial_map());
-  ElementsKind kind = function->initial_map()->elements_kind();
+  ElementsKind kind = GetInitialFastElementsKind();
   if (holey) {
     kind = GetHoleyElementsKind(kind);
   }
@@ -934,7 +932,7 @@ BUILTIN(ArraySplice) {
       if (start < kMinInt || start > kMaxInt) {
         return CallJsBuiltin(isolate, "ArraySplice", args);
       }
-      relative_start = static_cast<int>(start);
+      relative_start = std::isnan(start) ? 0 : static_cast<int>(start);
     } else if (!arg1->IsUndefined()) {
       return CallJsBuiltin(isolate, "ArraySplice", args);
     }
@@ -1321,7 +1319,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       ExternalCallbackScope call_scope(isolate,
                                        v8::ToCData<Address>(callback_obj));
       value = callback(new_args);
@@ -1398,7 +1396,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       ExternalCallbackScope call_scope(isolate,
                                        v8::ToCData<Address>(callback_obj));
       value = callback(new_args);

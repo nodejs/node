@@ -88,7 +88,9 @@ void OptimizingCompilerThread::CompileNext() {
   // The function may have already been optimized by OSR.  Simply continue.
   // Mark it for installing before queuing so that we can be sure of the write
   // order: marking first and (after being queued) installing code second.
-  optimizing_compiler->info()->closure()->MarkForInstallingRecompiledCode();
+  { Heap::RelocationLock relocation_lock(isolate_->heap());
+    optimizing_compiler->info()->closure()->MarkForInstallingRecompiledCode();
+  }
   output_queue_.Enqueue(optimizing_compiler);
 }
 

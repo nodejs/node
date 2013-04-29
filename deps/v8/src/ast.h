@@ -339,6 +339,9 @@ class Expression: public AstNode {
   // True iff the expression is the null literal.
   bool IsNullLiteral();
 
+  // True iff the expression is the undefined literal.
+  bool IsUndefinedLiteral();
+
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
     UNREACHABLE();
@@ -939,15 +942,18 @@ class WithStatement: public Statement {
  public:
   DECLARE_NODE_TYPE(WithStatement)
 
+  Scope* scope() { return scope_; }
   Expression* expression() const { return expression_; }
   Statement* statement() const { return statement_; }
 
  protected:
-  WithStatement(Expression* expression, Statement* statement)
-      : expression_(expression),
+  WithStatement(Scope* scope, Expression* expression, Statement* statement)
+      : scope_(scope),
+        expression_(expression),
         statement_(statement) { }
 
  private:
+  Scope* scope_;
   Expression* expression_;
   Statement* statement_;
 };
@@ -1964,27 +1970,34 @@ class Yield: public Expression {
  public:
   DECLARE_NODE_TYPE(Yield)
 
+  enum Kind {
+    INITIAL,     // The initial yield that returns the unboxed generator object.
+    SUSPEND,     // A normal yield: { value: EXPRESSION, done: false }
+    DELEGATING,  // A yield*.
+    FINAL        // A return: { value: EXPRESSION, done: true }
+  };
+
   Expression* generator_object() const { return generator_object_; }
   Expression* expression() const { return expression_; }
-  bool is_delegating_yield() const { return is_delegating_yield_; }
+  Kind yield_kind() const { return yield_kind_; }
   virtual int position() const { return pos_; }
 
  protected:
   Yield(Isolate* isolate,
         Expression* generator_object,
         Expression* expression,
-        bool is_delegating_yield,
+        Kind yield_kind,
         int pos)
       : Expression(isolate),
         generator_object_(generator_object),
         expression_(expression),
-        is_delegating_yield_(is_delegating_yield),
+        yield_kind_(yield_kind),
         pos_(pos) { }
 
  private:
   Expression* generator_object_;
   Expression* expression_;
-  bool is_delegating_yield_;
+  Kind yield_kind_;
   int pos_;
 };
 
@@ -2777,9 +2790,11 @@ class AstNodeFactory BASE_EMBEDDED {
     VISIT_AND_RETURN(ReturnStatement, stmt)
   }
 
-  WithStatement* NewWithStatement(Expression* expression,
+  WithStatement* NewWithStatement(Scope* scope,
+                                  Expression* expression,
                                   Statement* statement) {
-    WithStatement* stmt = new(zone_) WithStatement(expression, statement);
+    WithStatement* stmt = new(zone_) WithStatement(
+        scope, expression, statement);
     VISIT_AND_RETURN(WithStatement, stmt)
   }
 
@@ -2966,10 +2981,10 @@ class AstNodeFactory BASE_EMBEDDED {
 
   Yield* NewYield(Expression *generator_object,
                   Expression* expression,
-                  bool is_delegating_yield,
+                  Yield::Kind yield_kind,
                   int pos) {
     Yield* yield = new(zone_) Yield(
-        isolate_, generator_object, expression, is_delegating_yield, pos);
+        isolate_, generator_object, expression, yield_kind, pos);
     VISIT_AND_RETURN(Yield, yield)
   }
 

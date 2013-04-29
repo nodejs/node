@@ -73,8 +73,8 @@ class Handle {
   INLINE(T** location() const);
 
   template <class S> static Handle<T> cast(Handle<S> that) {
-    T::cast(*that);
-    return Handle<T>(reinterpret_cast<T**>(that.location()));
+    T::cast(*reinterpret_cast<T**>(that.location_));
+    return Handle<T>(reinterpret_cast<T**>(that.location_));
   }
 
   static Handle<T> null() { return Handle<T>(); }
@@ -83,6 +83,10 @@ class Handle {
   // Closes the given scope, but lets this handle escape. See
   // implementation in api.h.
   inline Handle<T> EscapeFrom(v8::HandleScope* scope);
+
+#ifdef DEBUG
+  bool IsDereferenceAllowed(bool allow_deferred) const;
+#endif  // DEBUG
 
  private:
   T** location_;
@@ -341,7 +345,7 @@ class NoHandleAllocation BASE_EMBEDDED {
 
 class HandleDereferenceGuard BASE_EMBEDDED {
  public:
-  enum State { ALLOW, DISALLOW };
+  enum State { ALLOW, DISALLOW, DISALLOW_DEFERRED };
 #ifndef DEBUG
   HandleDereferenceGuard(Isolate* isolate, State state) { }
   ~HandleDereferenceGuard() { }
@@ -350,9 +354,17 @@ class HandleDereferenceGuard BASE_EMBEDDED {
   inline ~HandleDereferenceGuard();
  private:
   Isolate* isolate_;
-  bool old_state_;
+  State old_state_;
 #endif
 };
+
+#ifdef DEBUG
+#define ALLOW_HANDLE_DEREF(isolate, why_this_is_safe)                          \
+  HandleDereferenceGuard allow_deref(isolate,                                  \
+                                     HandleDereferenceGuard::ALLOW);
+#else
+#define ALLOW_HANDLE_DEREF(isolate, why_this_is_safe)
+#endif  // DEBUG
 
 } }  // namespace v8::internal
 

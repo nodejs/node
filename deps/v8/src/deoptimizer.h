@@ -309,6 +309,7 @@ class Deoptimizer : public Malloced {
    protected:
     MacroAssembler* masm() const { return masm_; }
     BailoutType type() const { return type_; }
+    Isolate* isolate() const { return masm_->isolate(); }
 
     virtual void GeneratePrologue() { }
 

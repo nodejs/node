@@ -37,6 +37,8 @@
 namespace v8 {
 namespace internal {
 
+class Page;
+class PagedSpace;
 class StoreBuffer;
 
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);

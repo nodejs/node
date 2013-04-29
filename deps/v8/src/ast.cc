@@ -27,7 +27,7 @@
 
 #include "ast.h"
 
-#include <math.h>  // For isfinite.
+#include <cmath>  // For isfinite.
 #include "builtins.h"
 #include "code-stubs.h"
 #include "conversions.h"
@@ -67,6 +67,11 @@ bool Expression::IsStringLiteral() {
 
 bool Expression::IsNullLiteral() {
   return AsLiteral() != NULL && AsLiteral()->handle()->IsNull();
+}
+
+
+bool Expression::IsUndefinedLiteral() {
+  return AsLiteral() != NULL && AsLiteral()->handle()->IsUndefined();
 }
 
 
@@ -241,8 +246,8 @@ bool IsEqualNumber(void* first, void* second) {
   if (h2->IsSmi()) return false;
   Handle<HeapNumber> n1 = Handle<HeapNumber>::cast(h1);
   Handle<HeapNumber> n2 = Handle<HeapNumber>::cast(h2);
-  ASSERT(isfinite(n1->value()));
-  ASSERT(isfinite(n2->value()));
+  ASSERT(std::isfinite(n1->value()));
+  ASSERT(std::isfinite(n2->value()));
   return n1->value() == n2->value();
 }
 
@@ -352,12 +357,17 @@ static bool IsVoidOfLiteral(Expression* expr) {
 }
 
 
-// Check for the pattern: void <literal> equals <expression>
+// Check for the pattern: void <literal> equals <expression> or
+// undefined equals <expression>
 static bool MatchLiteralCompareUndefined(Expression* left,
                                          Token::Value op,
                                          Expression* right,
                                          Expression** expr) {
   if (IsVoidOfLiteral(left) && Token::IsEqualityOp(op)) {
+    *expr = right;
+    return true;
+  }
+  if (left->IsUndefinedLiteral() && Token::IsEqualityOp(op)) {
     *expr = right;
     return true;
   }

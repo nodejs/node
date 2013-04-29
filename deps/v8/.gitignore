@@ -19,6 +19,7 @@
 *~
 .cpplint-cache
 .d8_history
+bsuite
 d8
 d8_g
 shell

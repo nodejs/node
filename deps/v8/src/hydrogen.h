@@ -36,6 +36,7 @@
 #include "hydrogen-instructions.h"
 #include "type-info.h"
 #include "zone.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -304,10 +305,13 @@ class HGraph: public ZoneObject {
   HConstant* GetConstantUndefined() const { return undefined_constant_.get(); }
   HConstant* GetConstant0();
   HConstant* GetConstant1();
+  HConstant* GetConstantSmi0();
+  HConstant* GetConstantSmi1();
   HConstant* GetConstantMinus1();
   HConstant* GetConstantTrue();
   HConstant* GetConstantFalse();
   HConstant* GetConstantHole();
+  HConstant* GetConstantNull();
   HConstant* GetInvalidContext();
 
   HBasicBlock* CreateBasicBlock();
@@ -395,6 +399,8 @@ class HGraph: public ZoneObject {
  private:
   HConstant* GetConstantInt32(SetOncePointer<HConstant>* pointer,
                               int32_t integer_value);
+  HConstant* GetConstantSmi(SetOncePointer<HConstant>* pointer,
+                            int32_t integer_value);
 
   void MarkAsDeoptimizingRecursively(HBasicBlock* block);
   void NullifyUnreachableInstructions();
@@ -424,10 +430,13 @@ class HGraph: public ZoneObject {
   SetOncePointer<HConstant> undefined_constant_;
   SetOncePointer<HConstant> constant_0_;
   SetOncePointer<HConstant> constant_1_;
+  SetOncePointer<HConstant> constant_smi_0_;
+  SetOncePointer<HConstant> constant_smi_1_;
   SetOncePointer<HConstant> constant_minus1_;
   SetOncePointer<HConstant> constant_true_;
   SetOncePointer<HConstant> constant_false_;
   SetOncePointer<HConstant> constant_the_hole_;
+  SetOncePointer<HConstant> constant_null_;
   SetOncePointer<HConstant> constant_invalid_context_;
   SetOncePointer<HArgumentsObject> arguments_object_;
 
@@ -890,7 +899,6 @@ class HIfContinuation {
                HBasicBlock* false_branch,
                int position) {
     ASSERT(!continuation_captured_);
-    ASSERT(true_branch != NULL || false_branch != NULL);
     true_branch_ = true_branch;
     false_branch_ = false_branch;
     position_ = position;
@@ -939,6 +947,10 @@ class HGraphBuilder {
   Isolate* isolate() const { return graph_->isolate(); }
 
   HGraph* CreateGraph();
+
+  // Bailout environment manipulation.
+  void Push(HValue* value) { environment()->Push(value); }
+  HValue* Pop() { return environment()->Pop(); }
 
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
@@ -1013,27 +1025,6 @@ class HGraphBuilder {
   HInstruction* BuildStoreMap(HValue* object, HValue* map);
   HInstruction* BuildStoreMap(HValue* object, Handle<Map> map);
 
-  class CheckBuilder {
-   public:
-    explicit CheckBuilder(HGraphBuilder* builder);
-    ~CheckBuilder() {
-      if (!finished_) End();
-    }
-
-    HValue* CheckNotUndefined(HValue* value);
-    HValue* CheckIntegerCompare(HValue* left, HValue* right, Token::Value op);
-    HValue* CheckIntegerEq(HValue* left, HValue* right);
-    void End();
-
-   private:
-    Zone* zone() { return builder_->zone(); }
-
-    HGraphBuilder* builder_;
-    bool finished_;
-    HBasicBlock* failure_block_;
-    HBasicBlock* merge_block_;
-  };
-
   class IfBuilder {
    public:
     explicit IfBuilder(HGraphBuilder* builder,
@@ -1067,7 +1058,17 @@ class HGraphBuilder {
       return compare;
     }
 
-    template<class Condition>
+    template<class Condition, class P2>
+    HInstruction* IfNot(HValue* p1, P2 p2) {
+      HControlInstruction* compare = new(zone()) Condition(p1, p2);
+      AddCompare(compare);
+      HBasicBlock* block0 = compare->SuccessorAt(0);
+      HBasicBlock* block1 = compare->SuccessorAt(1);
+      compare->SetSuccessorAt(0, block1);
+      compare->SetSuccessorAt(1, block0);
+      return compare;
+    }
+
     HInstruction* OrIfCompare(
         HValue* p1,
         HValue* p2,
@@ -1094,7 +1095,6 @@ class HGraphBuilder {
       return If<Condition>(p1, p2);
     }
 
-    template<class Condition>
     HInstruction* AndIfCompare(
         HValue* p1,
         HValue* p2,
@@ -1131,6 +1131,13 @@ class HGraphBuilder {
     void End();
 
     void Deopt();
+    void ElseDeopt() {
+      Else();
+      Deopt();
+      End();
+    }
+
+    void Return(HValue* value);
 
    private:
     void AddCompare(HControlInstruction* compare);
@@ -1142,8 +1149,6 @@ class HGraphBuilder {
     bool finished_ : 1;
     bool did_then_ : 1;
     bool did_else_ : 1;
-    bool deopt_then_ : 1;
-    bool deopt_else_ : 1;
     bool did_and_ : 1;
     bool did_or_ : 1;
     bool captured_ : 1;
@@ -1212,6 +1217,46 @@ class HGraphBuilder {
   void BuildNewSpaceArrayCheck(HValue* length,
                                ElementsKind kind);
 
+  class JSArrayBuilder {
+   public:
+    JSArrayBuilder(HGraphBuilder* builder,
+                   ElementsKind kind,
+                   HValue* allocation_site_payload,
+                   AllocationSiteMode mode);
+
+    HValue* AllocateEmptyArray();
+    HValue* AllocateArray(HValue* capacity, HValue* length_field,
+                          bool fill_with_hole);
+    HValue* GetElementsLocation() { return elements_location_; }
+
+   private:
+    Zone* zone() const { return builder_->zone(); }
+    int elements_size() const {
+      return IsFastDoubleElementsKind(kind_) ? kDoubleSize : kPointerSize;
+    }
+    HInstruction* AddInstruction(HInstruction* instr) {
+      return builder_->AddInstruction(instr);
+    }
+    HGraphBuilder* builder() { return builder_; }
+    HGraph* graph() { return builder_->graph(); }
+    int initial_capacity() {
+      STATIC_ASSERT(JSArray::kPreallocatedArrayElements > 0);
+      return JSArray::kPreallocatedArrayElements;
+    }
+
+    HValue* EmitMapCode(HValue* context);
+    HValue* EstablishEmptyArrayAllocationSize();
+    HValue* EstablishAllocationSize(HValue* length_node);
+    HValue* AllocateArray(HValue* size_in_bytes, HValue* capacity,
+                          HValue* length_field,  bool fill_with_hole);
+
+    HGraphBuilder* builder_;
+    ElementsKind kind_;
+    AllocationSiteMode mode_;
+    HValue* allocation_site_payload_;
+    HInnerAllocatedObject* elements_location_;
+  };
+
   HValue* BuildAllocateElements(HValue* context,
                                 ElementsKind kind,
                                 HValue* capacity);
@@ -1223,6 +1268,16 @@ class HGraphBuilder {
   HValue* BuildAllocateAndInitializeElements(HValue* context,
                                              ElementsKind kind,
                                              HValue* capacity);
+
+  // array must have been allocated with enough room for
+  // 1) the JSArray, 2) a AllocationSiteInfo if mode requires it,
+  // 3) a FixedArray or FixedDoubleArray.
+  // A pointer to the Fixed(Double)Array is returned.
+  HInnerAllocatedObject* BuildJSArrayHeader(HValue* array,
+                                            HValue* array_map,
+                                            AllocationSiteMode mode,
+                                            HValue* allocation_site_payload,
+                                            HValue* length_field);
 
   HValue* BuildGrowElementsCapacity(HValue* object,
                                     HValue* elements,
@@ -1249,6 +1304,18 @@ class HGraphBuilder {
                                  AllocationSiteMode mode,
                                  ElementsKind kind,
                                  int length);
+
+  void BuildCompareNil(
+      HValue* value,
+      EqualityKind kind,
+      CompareNilICStub::Types types,
+      Handle<Map> map,
+      int position,
+      HIfContinuation* continuation);
+
+  HValue* BuildCreateAllocationSiteInfo(HValue* previous_object,
+                                        int previous_object_size,
+                                        HValue* payload);
 
  private:
   HGraphBuilder();
@@ -1327,10 +1394,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   bool inline_bailout() { return inline_bailout_; }
 
   void AddSoftDeoptimize();
-
-  // Bailout environment manipulation.
-  void Push(HValue* value) { environment()->Push(value); }
-  HValue* Pop() { return environment()->Pop(); }
 
   void Bailout(const char* reason);
 

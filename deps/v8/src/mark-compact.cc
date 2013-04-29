@@ -1939,14 +1939,14 @@ void MarkCompactCollector::MarkImplicitRefGroups() {
     ImplicitRefGroup* entry = ref_groups->at(i);
     ASSERT(entry != NULL);
 
-    if (!IsMarked(*entry->parent_)) {
+    if (!IsMarked(*entry->parent)) {
       (*ref_groups)[last++] = entry;
       continue;
     }
 
-    Object*** children = entry->children_;
+    Object*** children = entry->children;
     // A parent object is marked, so mark all child heap objects.
-    for (size_t j = 0; j < entry->length_; ++j) {
+    for (size_t j = 0; j < entry->length; ++j) {
       if ((*children[j])->IsHeapObject()) {
         HeapObject* child = HeapObject::cast(*children[j]);
         MarkBit mark = Marking::MarkBitFrom(child);
@@ -1956,7 +1956,7 @@ void MarkCompactCollector::MarkImplicitRefGroups() {
 
     // Once the entire group has been marked, dispose it because it's
     // not needed anymore.
-    entry->Dispose();
+    delete entry;
   }
   ref_groups->Rewind(last);
 }
@@ -3125,6 +3125,8 @@ void MarkCompactCollector::ProcessInvalidatedCode(ObjectVisitor* visitor) {
 
 
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
+  Heap::RelocationLock relocation_lock(heap());
+
   bool code_slots_filtering_required;
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
     code_slots_filtering_required = MarkInvalidatedCode();

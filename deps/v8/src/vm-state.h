@@ -34,9 +34,10 @@
 namespace v8 {
 namespace internal {
 
+template <StateTag Tag>
 class VMState BASE_EMBEDDED {
  public:
-  inline VMState(Isolate* isolate, StateTag tag);
+  explicit inline VMState(Isolate* isolate);
   inline ~VMState();
 
  private:

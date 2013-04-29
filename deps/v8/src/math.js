@@ -213,6 +213,13 @@ function MathTan(x) {
   return %_MathTan(x);
 }
 
+// Non-standard extension.
+function MathImul(x, y) {
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  if (!IS_NUMBER(y)) y = NonNumberToNumber(y);
+  return %NumberImul(x, y);
+}
+
 
 // -------------------------------------------------------------------
 
@@ -283,7 +290,8 @@ function SetUpMath() {
     "atan2", MathAtan2,
     "pow", MathPow,
     "max", MathMax,
-    "min", MathMin
+    "min", MathMin,
+    "imul", MathImul
   ));
 }
 

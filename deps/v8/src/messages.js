@@ -31,6 +31,8 @@ var kMessages = {
   // Error
   cyclic_proto:                  ["Cyclic __proto__ value"],
   code_gen_from_strings:         ["%0"],
+  generator_running:             ["Generator is already running"],
+  generator_finished:            ["Generator has already finished"],
   // TypeError
   unexpected_token:              ["Unexpected token ", "%0"],
   unexpected_token_number:       ["Unexpected number"],
@@ -158,7 +160,7 @@ var kMessages = {
   symbol_to_string:              ["Conversion from symbol to string"],
   invalid_module_path:           ["Module does not export '", "%0", "', or export is not itself a module"],
   module_type_error:             ["Module '", "%0", "' used improperly"],
-  module_export_undefined:       ["Export '", "%0", "' is not defined in module"],
+  module_export_undefined:       ["Export '", "%0", "' is not defined in module"]
 };
 
 

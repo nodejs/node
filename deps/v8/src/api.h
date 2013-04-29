@@ -170,6 +170,7 @@ class RegisteredExtension {
   V(RegExp, JSRegExp)                          \
   V(Object, JSObject)                          \
   V(Array, JSArray)                            \
+  V(ArrayBuffer, JSArrayBuffer)                \
   V(String, String)                            \
   V(Symbol, Symbol)                            \
   V(Script, Object)                            \
@@ -205,6 +206,8 @@ class Utils {
       v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<Array> ToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
+  static inline Local<ArrayBuffer> ToLocal(
+      v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
   static inline Local<Message> MessageToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<StackTrace> StackTraceToLocal(
@@ -275,6 +278,7 @@ MAKE_TO_LOCAL(ToLocal, Symbol, Symbol)
 MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
+MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
 MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)
 MAKE_TO_LOCAL(ToLocal, SignatureInfo, Signature)

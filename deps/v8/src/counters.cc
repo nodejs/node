@@ -45,57 +45,38 @@ int* StatsCounter::FindLocationInStatsTable() const {
 }
 
 
-// Start the timer.
-void StatsCounterTimer::Start() {
-  if (!counter_.Enabled())
-    return;
-  stop_time_ = 0;
-  start_time_ = OS::Ticks();
-}
-
-// Stop the timer and record the results.
-void StatsCounterTimer::Stop() {
-  if (!counter_.Enabled())
-    return;
-  stop_time_ = OS::Ticks();
-
-  // Compute the delta between start and stop, in milliseconds.
-  int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
-  counter_.Increment(milliseconds);
-}
-
 void Histogram::AddSample(int sample) {
   if (Enabled()) {
-    Isolate::Current()->stats_table()->AddHistogramSample(histogram_, sample);
+    isolate()->stats_table()->AddHistogramSample(histogram_, sample);
   }
 }
 
 void* Histogram::CreateHistogram() const {
-  return Isolate::Current()->stats_table()->
+  return isolate()->stats_table()->
       CreateHistogram(name_, min_, max_, num_buckets_);
 }
 
 // Start the timer.
 void HistogramTimer::Start() {
-  if (histogram_.Enabled()) {
+  if (Enabled()) {
     stop_time_ = 0;
     start_time_ = OS::Ticks();
   }
   if (FLAG_log_internal_timer_events) {
-    LOG(Isolate::Current(), TimerEvent(Logger::START, histogram_.name_));
+    LOG(isolate(), TimerEvent(Logger::START, name()));
   }
 }
 
 // Stop the timer and record the results.
 void HistogramTimer::Stop() {
-  if (histogram_.Enabled()) {
+  if (Enabled()) {
     stop_time_ = OS::Ticks();
     // Compute the delta between start and stop, in milliseconds.
     int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
-    histogram_.AddSample(milliseconds);
+    AddSample(milliseconds);
   }
   if (FLAG_log_internal_timer_events) {
-    LOG(Isolate::Current(), TimerEvent(Logger::END, histogram_.name_));
+    LOG(isolate(), TimerEvent(Logger::END, name()));
   }
 }
 

@@ -313,6 +313,8 @@ class Factory {
                                 uint32_t length,
                                 EnsureElementsMode mode);
 
+  Handle<JSArrayBuffer> NewJSArrayBuffer();
+
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 
   // Change the type of the argument into a JS object/function and reinitialize.

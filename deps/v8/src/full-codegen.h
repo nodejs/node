@@ -486,6 +486,11 @@ class FullCodeGenerator: public AstVisitor {
   INLINE_RUNTIME_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
 #undef EMIT_INLINE_RUNTIME_CALL
 
+  // Platform-specific code for resuming generators.
+  void EmitGeneratorResume(Expression *generator,
+                           Expression *value,
+                           JSGeneratorObject::ResumeMode resume_mode);
+
   // Platform-specific code for loading variables.
   void EmitLoadGlobalCheckExtensions(Variable* var,
                                      TypeofState typeof_state,

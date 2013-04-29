@@ -372,3 +372,40 @@ TEST(TerminateAndReenterFromThreadItself) {
                                             "f()"))->Run()->IsTrue());
   context.Dispose(context->GetIsolate());
 }
+
+v8::Handle<v8::Value> DoLoopCancelTerminate(const v8::Arguments& args) {
+  v8::TryCatch try_catch;
+  CHECK(!v8::V8::IsExecutionTerminating());
+  v8::Script::Compile(v8::String::New("var term = true;"
+                                      "while(true) {"
+                                      "  if (term) terminate();"
+                                      "  term = false;"
+                                      "}"
+                                      "fail();"))->Run();
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.Exception()->IsNull());
+  CHECK(try_catch.Message().IsEmpty());
+  CHECK(!try_catch.CanContinue());
+  CHECK(v8::V8::IsExecutionTerminating());
+  CHECK(try_catch.HasTerminated());
+  v8::V8::CancelTerminateExecution(v8::Isolate::GetCurrent());
+  CHECK(!v8::V8::IsExecutionTerminating());
+  return v8::Undefined();
+}
+
+// Test that a single thread of JavaScript execution can terminate
+// itself and then resume execution.
+TEST(TerminateCancelTerminateFromThreadItself) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> global =
+      CreateGlobalTemplate(TerminateCurrentThread, DoLoopCancelTerminate);
+  v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
+  v8::Context::Scope context_scope(context);
+  CHECK(!v8::V8::IsExecutionTerminating());
+  v8::Handle<v8::String> source =
+      v8::String::New("try { doloop(); } catch(e) { fail(); } 'completed';");
+  // Check that execution completed with correct return value.
+  CHECK(v8::Script::Compile(source)->Run()->Equals(v8_str("completed")));
+  context.Dispose(context->GetIsolate());
+}
+

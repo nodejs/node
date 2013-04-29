@@ -199,7 +199,7 @@ TEST(HeapObjects) {
 
   // nan oddball checks
   CHECK(heap->nan_value()->IsNumber());
-  CHECK(isnan(heap->nan_value()->Number()));
+  CHECK(std::isnan(heap->nan_value()->Number()));
 
   Handle<String> s = FACTORY->NewStringFromAscii(CStrVector("fisk hest "));
   CHECK(s->IsString());

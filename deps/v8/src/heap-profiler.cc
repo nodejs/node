@@ -140,5 +140,10 @@ void HeapProfiler::ObjectMoveEvent(Address from, Address to) {
   snapshots_->ObjectMoveEvent(from, to);
 }
 
+void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
+                                         RetainedObjectInfo* info) {
+  // TODO(yurus, marja): Don't route this information through GlobalHandles.
+  heap()->isolate()->global_handles()->SetRetainedObjectInfo(id, info);
+}
 
 } }  // namespace v8::internal

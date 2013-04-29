@@ -32,58 +32,48 @@
 namespace v8 {
 namespace internal {
 
-Counters::Counters() {
+Counters::Counters(Isolate* isolate) {
 #define HT(name, caption) \
-    HistogramTimer name = { {#caption, 0, 10000, 50, NULL, false}, 0, 0 }; \
-    name##_ = name;
+    name##_ = HistogramTimer(#caption, 0, 10000, 50, isolate);
     HISTOGRAM_TIMER_LIST(HT)
 #undef HT
 
 #define HP(name, caption) \
-    Histogram name = { #caption, 0, 101, 100, NULL, false }; \
-    name##_ = name;
+    name##_ = Histogram(#caption, 0, 101, 100, isolate);
     HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
 
 #define HM(name, caption) \
-    Histogram name = { #caption, 1000, 500000, 50, NULL, false }; \
-    name##_ = name;
+    name##_ = Histogram(#caption, 1000, 500000, 50, isolate);
     HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 
 #define SC(name, caption) \
-    StatsCounter name = { "c:" #caption, NULL, false };\
-    name##_ = name;
+    name##_ = StatsCounter("c:" #caption);
 
     STATS_COUNTER_LIST_1(SC)
     STATS_COUNTER_LIST_2(SC)
 #undef SC
 
 #define SC(name) \
-    StatsCounter count_of_##name = { "c:" "V8.CountOf_" #name, NULL, false };\
-    count_of_##name##_ = count_of_##name; \
-    StatsCounter size_of_##name = { "c:" "V8.SizeOf_" #name, NULL, false };\
-    size_of_##name##_ = size_of_##name;
+    count_of_##name##_ = StatsCounter("c:" "V8.CountOf_" #name); \
+    size_of_##name##_ = StatsCounter("c:" "V8.SizeOf_" #name);
     INSTANCE_TYPE_LIST(SC)
 #undef SC
 
 #define SC(name) \
-    StatsCounter count_of_CODE_TYPE_##name = { \
-      "c:" "V8.CountOf_CODE_TYPE-" #name, NULL, false }; \
-    count_of_CODE_TYPE_##name##_ = count_of_CODE_TYPE_##name; \
-    StatsCounter size_of_CODE_TYPE_##name = { \
-      "c:" "V8.SizeOf_CODE_TYPE-" #name, NULL, false }; \
-    size_of_CODE_TYPE_##name##_ = size_of_CODE_TYPE_##name;
+    count_of_CODE_TYPE_##name##_ = \
+        StatsCounter("c:" "V8.CountOf_CODE_TYPE-" #name); \
+    size_of_CODE_TYPE_##name##_ = \
+        StatsCounter("c:" "V8.SizeOf_CODE_TYPE-" #name);
     CODE_KIND_LIST(SC)
 #undef SC
 
 #define SC(name) \
-    StatsCounter count_of_FIXED_ARRAY_##name = { \
-      "c:" "V8.CountOf_FIXED_ARRAY-" #name, NULL, false }; \
-    count_of_FIXED_ARRAY_##name##_ = count_of_FIXED_ARRAY_##name; \
-    StatsCounter size_of_FIXED_ARRAY_##name = { \
-      "c:" "V8.SizeOf_FIXED_ARRAY-" #name, NULL, false }; \
-    size_of_FIXED_ARRAY_##name##_ = size_of_FIXED_ARRAY_##name;
+    count_of_FIXED_ARRAY_##name##_ = \
+        StatsCounter("c:" "V8.CountOf_FIXED_ARRAY-" #name); \
+    size_of_FIXED_ARRAY_##name##_ = \
+        StatsCounter("c:" "V8.SizeOf_FIXED_ARRAY-" #name); \
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 }

@@ -1238,6 +1238,10 @@ TEST(ParserSync) {
     NULL
   };
 
+  // TODO(mstarzinger): Disabled in GC stress mode for now, we should find the
+  // correct timeout for this and re-enable this test again.
+  if (i::FLAG_stress_compaction) return;
+
   v8::HandleScope handles(v8::Isolate::GetCurrent());
   v8::Persistent<v8::Context> context = v8::Context::New();
   v8::Context::Scope context_scope(context);
