@@ -39,13 +39,13 @@ prints a usage message.
 
 =item B<-newcert>
 
-creates a new self signed certificate. The private key and certificate are
-written to the file "newreq.pem".
+creates a new self signed certificate. The private key is written to the file
+"newkey.pem" and the request written to the file "newreq.pem".
 
 =item B<-newreq>
 
-creates a new certificate request. The private key and request are
-written to the file "newreq.pem".
+creates a new certificate request. The private key is written to the file
+"newkey.pem" and the request written to the file "newreq.pem".
 
 =item B<-newreq-nodes>
 

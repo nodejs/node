@@ -639,7 +639,7 @@ t_x509.o: ../../include/openssl/rsa.h ../../include/openssl/safestack.h
 t_x509.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
 t_x509.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
 t_x509.o: ../../include/openssl/x509_vfy.h ../../include/openssl/x509v3.h
-t_x509.o: ../cryptlib.h t_x509.c
+t_x509.o: ../cryptlib.h asn1_locl.h t_x509.c
 t_x509a.o: ../../e_os.h ../../include/openssl/asn1.h
 t_x509a.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
 t_x509a.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h

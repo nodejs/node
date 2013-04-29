@@ -94,8 +94,7 @@ int X509_CRL_print(BIO *out, X509_CRL *x)
 	l = X509_CRL_get_version(x);
 	BIO_printf(out, "%8sVersion %lu (0x%lx)\n", "", l+1, l);
 	i = OBJ_obj2nid(x->sig_alg->algorithm);
-	BIO_printf(out, "%8sSignature Algorithm: %s\n", "",
-				 (i == NID_undef) ? "NONE" : OBJ_nid2ln(i));
+	X509_signature_print(out, x->sig_alg, NULL);
 	p=X509_NAME_oneline(X509_CRL_get_issuer(x),NULL,0);
 	BIO_printf(out,"%8sIssuer: %s\n","",p);
 	OPENSSL_free(p);

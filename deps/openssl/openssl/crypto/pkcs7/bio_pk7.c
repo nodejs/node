@@ -56,7 +56,7 @@
 #include <openssl/pkcs7.h>
 #include <openssl/bio.h>
 
-#ifndef OPENSSL_SYSNAME_NETWARE
+#if !defined(OPENSSL_SYSNAME_NETWARE) && !defined(OPENSSL_SYSNAME_VXWORKS)
 #include <memory.h>
 #endif
 #include <stdio.h>

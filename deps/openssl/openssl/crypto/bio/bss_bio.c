@@ -277,10 +277,10 @@ static int bio_read(BIO *bio, char *buf, int size_)
  */
 /* WARNING: The non-copying interface is largely untested as of yet
  * and may contain bugs. */
-static ssize_t bio_nread0(BIO *bio, char **buf)
+static ossl_ssize_t bio_nread0(BIO *bio, char **buf)
 	{
 	struct bio_bio_st *b, *peer_b;
-	ssize_t num;
+	ossl_ssize_t num;
 	
 	BIO_clear_retry_flags(bio);
 
@@ -315,15 +315,15 @@ static ssize_t bio_nread0(BIO *bio, char **buf)
 	return num;
 	}
 
-static ssize_t bio_nread(BIO *bio, char **buf, size_t num_)
+static ossl_ssize_t bio_nread(BIO *bio, char **buf, size_t num_)
 	{
 	struct bio_bio_st *b, *peer_b;
-	ssize_t num, available;
+	ossl_ssize_t num, available;
 
 	if (num_ > SSIZE_MAX)
 		num = SSIZE_MAX;
 	else
-		num = (ssize_t)num_;
+		num = (ossl_ssize_t)num_;
 
 	available = bio_nread0(bio, buf);
 	if (num > available)
@@ -428,7 +428,7 @@ static int bio_write(BIO *bio, const char *buf, int num_)
  * (example usage:  bio_nwrite0(), write to buffer, bio_nwrite()
  *  or just         bio_nwrite(), write to buffer)
  */
-static ssize_t bio_nwrite0(BIO *bio, char **buf)
+static ossl_ssize_t bio_nwrite0(BIO *bio, char **buf)
 	{
 	struct bio_bio_st *b;
 	size_t num;
@@ -476,15 +476,15 @@ static ssize_t bio_nwrite0(BIO *bio, char **buf)
 	return num;
 	}
 
-static ssize_t bio_nwrite(BIO *bio, char **buf, size_t num_)
+static ossl_ssize_t bio_nwrite(BIO *bio, char **buf, size_t num_)
 	{
 	struct bio_bio_st *b;
-	ssize_t num, space;
+	ossl_ssize_t num, space;
 
 	if (num_ > SSIZE_MAX)
 		num = SSIZE_MAX;
 	else
-		num = (ssize_t)num_;
+		num = (ossl_ssize_t)num_;
 
 	space = bio_nwrite0(bio, buf);
 	if (num > space)

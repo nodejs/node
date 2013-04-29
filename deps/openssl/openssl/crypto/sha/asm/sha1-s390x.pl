@@ -21,9 +21,28 @@
 # instructions to favour dual-issue z10 pipeline. On z10 hardware is
 # "only" ~2.3x faster than software.
 
+# November 2010.
+#
+# Adapt for -m31 build. If kernel supports what's called "highgprs"
+# feature on Linux [see /proc/cpuinfo], it's possible to use 64-bit
+# instructions and achieve "64-bit" performance even in 31-bit legacy
+# application context. The feature is not specific to any particular
+# processor, as long as it's "z-CPU". Latter implies that the code
+# remains z/Architecture specific.
+
 $kimdfunc=1;	# magic function code for kimd instruction
 
-$output=shift;
+$flavour = shift;
+
+if ($flavour =~ /3[12]/) {
+	$SIZE_T=4;
+	$g="";
+} else {
+	$SIZE_T=8;
+	$g="g";
+}
+
+while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
 
 $K_00_39="%r0"; $K=$K_00_39;
@@ -42,13 +61,14 @@ $t1="%r11";
 @X=("%r12","%r13","%r14");
 $sp="%r15";
 
-$frame=160+16*4;
+$stdframe=16*$SIZE_T+4*8;
+$frame=$stdframe+16*4;
 
 sub Xupdate {
 my $i=shift;
 
 $code.=<<___ if ($i==15);
-	lg	$prefetch,160($sp)	### Xupdate(16) warm-up
+	lg	$prefetch,$stdframe($sp)	### Xupdate(16) warm-up
 	lr	$X[0],$X[2]
 ___
 return if ($i&1);	# Xupdate is vectorized and executed every 2nd cycle
@@ -58,8 +78,8 @@ $code.=<<___ if ($i<16);
 ___
 $code.=<<___ if ($i>=16);
 	xgr	$X[0],$prefetch		### Xupdate($i)
-	lg	$prefetch,`160+4*(($i+2)%16)`($sp)
-	xg	$X[0],`160+4*(($i+8)%16)`($sp)
+	lg	$prefetch,`$stdframe+4*(($i+2)%16)`($sp)
+	xg	$X[0],`$stdframe+4*(($i+8)%16)`($sp)
 	xgr	$X[0],$prefetch
 	rll	$X[0],$X[0],1
 	rllg	$X[1],$X[0],32
@@ -68,7 +88,7 @@ $code.=<<___ if ($i>=16);
 	lr	$X[2],$X[1]		# feedback
 ___
 $code.=<<___ if ($i<=70);
-	stg	$X[0],`160+4*($i%16)`($sp)
+	stg	$X[0],`$stdframe+4*($i%16)`($sp)
 ___
 unshift(@X,pop(@X));
 }
@@ -148,9 +168,9 @@ $code.=<<___ if ($kimdfunc);
 	tmhl	%r0,0x4000	# check for message-security assist
 	jz	.Lsoftware
 	lghi	%r0,0
-	la	%r1,16($sp)
+	la	%r1,`2*$SIZE_T`($sp)
 	.long	0xb93e0002	# kimd %r0,%r2
-	lg	%r0,16($sp)
+	lg	%r0,`2*$SIZE_T`($sp)
 	tmhh	%r0,`0x8000>>$kimdfunc`
 	jz	.Lsoftware
 	lghi	%r0,$kimdfunc
@@ -165,11 +185,11 @@ $code.=<<___ if ($kimdfunc);
 ___
 $code.=<<___;
 	lghi	%r1,-$frame
-	stg	$ctx,16($sp)
-	stmg	%r6,%r15,48($sp)
+	st${g}	$ctx,`2*$SIZE_T`($sp)
+	stm${g}	%r6,%r15,`6*$SIZE_T`($sp)
 	lgr	%r0,$sp
 	la	$sp,0(%r1,$sp)
-	stg	%r0,0($sp)
+	st${g}	%r0,0($sp)
 
 	larl	$t0,Ktable
 	llgf	$A,0($ctx)
@@ -199,7 +219,7 @@ ___
 for (;$i<80;$i++)	{ &BODY_20_39($i,@V); unshift(@V,pop(@V)); }
 $code.=<<___;
 
-	lg	$ctx,`$frame+16`($sp)
+	l${g}	$ctx,`$frame+2*$SIZE_T`($sp)
 	la	$inp,64($inp)
 	al	$A,0($ctx)
 	al	$B,4($ctx)
@@ -211,13 +231,13 @@ $code.=<<___;
 	st	$C,8($ctx)
 	st	$D,12($ctx)
 	st	$E,16($ctx)
-	brct	$len,.Lloop
+	brct${g} $len,.Lloop
 
-	lmg	%r6,%r15,`$frame+48`($sp)
+	lm${g}	%r6,%r15,`$frame+6*$SIZE_T`($sp)
 	br	%r14
 .size	sha1_block_data_order,.-sha1_block_data_order
 .string	"SHA1 block transform for s390x, CRYPTOGAMS by <appro\@openssl.org>"
-.comm	OPENSSL_s390xcap_P,8,8
+.comm	OPENSSL_s390xcap_P,16,8
 ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;

@@ -580,6 +580,21 @@
 #define NID_sha1WithRSAEncryption		65
 #define OBJ_sha1WithRSAEncryption		OBJ_pkcs1,5L
 
+#define SN_rsaesOaep		"RSAES-OAEP"
+#define LN_rsaesOaep		"rsaesOaep"
+#define NID_rsaesOaep		919
+#define OBJ_rsaesOaep		OBJ_pkcs1,7L
+
+#define SN_mgf1		"MGF1"
+#define LN_mgf1		"mgf1"
+#define NID_mgf1		911
+#define OBJ_mgf1		OBJ_pkcs1,8L
+
+#define SN_rsassaPss		"RSASSA-PSS"
+#define LN_rsassaPss		"rsassaPss"
+#define NID_rsassaPss		912
+#define OBJ_rsassaPss		OBJ_pkcs1,10L
+
 #define SN_sha256WithRSAEncryption		"RSA-SHA256"
 #define LN_sha256WithRSAEncryption		"sha256WithRSAEncryption"
 #define NID_sha256WithRSAEncryption		668
@@ -980,6 +995,10 @@
 #define SN_id_smime_alg_CMSRC2wrap		"id-smime-alg-CMSRC2wrap"
 #define NID_id_smime_alg_CMSRC2wrap		247
 #define OBJ_id_smime_alg_CMSRC2wrap		OBJ_id_smime_alg,7L
+
+#define SN_id_alg_PWRI_KEK		"id-alg-PWRI-KEK"
+#define NID_id_alg_PWRI_KEK		893
+#define OBJ_id_alg_PWRI_KEK		OBJ_id_smime_alg,9L
 
 #define SN_id_smime_cd_ldap		"id-smime-cd-ldap"
 #define NID_id_smime_cd_ldap		248
@@ -2399,6 +2418,11 @@
 #define NID_no_rev_avail		403
 #define OBJ_no_rev_avail		OBJ_id_ce,56L
 
+#define SN_anyExtendedKeyUsage		"anyExtendedKeyUsage"
+#define LN_anyExtendedKeyUsage		"Any Extended Key Usage"
+#define NID_anyExtendedKeyUsage		910
+#define OBJ_anyExtendedKeyUsage		OBJ_ext_key_usage,0L
+
 #define SN_netscape		"Netscape"
 #define LN_netscape		"Netscape Communications Corp."
 #define NID_netscape		57
@@ -2586,6 +2610,24 @@
 #define NID_aes_128_cfb128		421
 #define OBJ_aes_128_cfb128		OBJ_aes,4L
 
+#define SN_id_aes128_wrap		"id-aes128-wrap"
+#define NID_id_aes128_wrap		788
+#define OBJ_id_aes128_wrap		OBJ_aes,5L
+
+#define SN_aes_128_gcm		"id-aes128-GCM"
+#define LN_aes_128_gcm		"aes-128-gcm"
+#define NID_aes_128_gcm		895
+#define OBJ_aes_128_gcm		OBJ_aes,6L
+
+#define SN_aes_128_ccm		"id-aes128-CCM"
+#define LN_aes_128_ccm		"aes-128-ccm"
+#define NID_aes_128_ccm		896
+#define OBJ_aes_128_ccm		OBJ_aes,7L
+
+#define SN_id_aes128_wrap_pad		"id-aes128-wrap-pad"
+#define NID_id_aes128_wrap_pad		897
+#define OBJ_id_aes128_wrap_pad		OBJ_aes,8L
+
 #define SN_aes_192_ecb		"AES-192-ECB"
 #define LN_aes_192_ecb		"aes-192-ecb"
 #define NID_aes_192_ecb		422
@@ -2606,6 +2648,24 @@
 #define NID_aes_192_cfb128		425
 #define OBJ_aes_192_cfb128		OBJ_aes,24L
 
+#define SN_id_aes192_wrap		"id-aes192-wrap"
+#define NID_id_aes192_wrap		789
+#define OBJ_id_aes192_wrap		OBJ_aes,25L
+
+#define SN_aes_192_gcm		"id-aes192-GCM"
+#define LN_aes_192_gcm		"aes-192-gcm"
+#define NID_aes_192_gcm		898
+#define OBJ_aes_192_gcm		OBJ_aes,26L
+
+#define SN_aes_192_ccm		"id-aes192-CCM"
+#define LN_aes_192_ccm		"aes-192-ccm"
+#define NID_aes_192_ccm		899
+#define OBJ_aes_192_ccm		OBJ_aes,27L
+
+#define SN_id_aes192_wrap_pad		"id-aes192-wrap-pad"
+#define NID_id_aes192_wrap_pad		900
+#define OBJ_id_aes192_wrap_pad		OBJ_aes,28L
+
 #define SN_aes_256_ecb		"AES-256-ECB"
 #define LN_aes_256_ecb		"aes-256-ecb"
 #define NID_aes_256_ecb		426
@@ -2625,6 +2685,24 @@
 #define LN_aes_256_cfb128		"aes-256-cfb"
 #define NID_aes_256_cfb128		429
 #define OBJ_aes_256_cfb128		OBJ_aes,44L
+
+#define SN_id_aes256_wrap		"id-aes256-wrap"
+#define NID_id_aes256_wrap		790
+#define OBJ_id_aes256_wrap		OBJ_aes,45L
+
+#define SN_aes_256_gcm		"id-aes256-GCM"
+#define LN_aes_256_gcm		"aes-256-gcm"
+#define NID_aes_256_gcm		901
+#define OBJ_aes_256_gcm		OBJ_aes,46L
+
+#define SN_aes_256_ccm		"id-aes256-CCM"
+#define LN_aes_256_ccm		"aes-256-ccm"
+#define NID_aes_256_ccm		902
+#define OBJ_aes_256_ccm		OBJ_aes,47L
+
+#define SN_id_aes256_wrap_pad		"id-aes256-wrap-pad"
+#define NID_id_aes256_wrap_pad		903
+#define OBJ_id_aes256_wrap_pad		OBJ_aes,48L
 
 #define SN_aes_128_cfb1		"AES-128-CFB1"
 #define LN_aes_128_cfb1		"aes-128-cfb1"
@@ -2650,6 +2728,26 @@
 #define LN_aes_256_cfb8		"aes-256-cfb8"
 #define NID_aes_256_cfb8		655
 
+#define SN_aes_128_ctr		"AES-128-CTR"
+#define LN_aes_128_ctr		"aes-128-ctr"
+#define NID_aes_128_ctr		904
+
+#define SN_aes_192_ctr		"AES-192-CTR"
+#define LN_aes_192_ctr		"aes-192-ctr"
+#define NID_aes_192_ctr		905
+
+#define SN_aes_256_ctr		"AES-256-CTR"
+#define LN_aes_256_ctr		"aes-256-ctr"
+#define NID_aes_256_ctr		906
+
+#define SN_aes_128_xts		"AES-128-XTS"
+#define LN_aes_128_xts		"aes-128-xts"
+#define NID_aes_128_xts		913
+
+#define SN_aes_256_xts		"AES-256-XTS"
+#define LN_aes_256_xts		"aes-256-xts"
+#define NID_aes_256_xts		914
+
 #define SN_des_cfb1		"DES-CFB1"
 #define LN_des_cfb1		"des-cfb1"
 #define NID_des_cfb1		656
@@ -2665,18 +2763,6 @@
 #define SN_des_ede3_cfb8		"DES-EDE3-CFB8"
 #define LN_des_ede3_cfb8		"des-ede3-cfb8"
 #define NID_des_ede3_cfb8		659
-
-#define SN_id_aes128_wrap		"id-aes128-wrap"
-#define NID_id_aes128_wrap		788
-#define OBJ_id_aes128_wrap		OBJ_aes,5L
-
-#define SN_id_aes192_wrap		"id-aes192-wrap"
-#define NID_id_aes192_wrap		789
-#define OBJ_id_aes192_wrap		OBJ_aes,25L
-
-#define SN_id_aes256_wrap		"id-aes256-wrap"
-#define NID_id_aes256_wrap		790
-#define OBJ_id_aes256_wrap		OBJ_aes,45L
 
 #define OBJ_nist_hashalgs		OBJ_nistAlgorithms,2L
 
@@ -3810,6 +3896,18 @@
 #define NID_camellia_256_cbc		753
 #define OBJ_camellia_256_cbc		1L,2L,392L,200011L,61L,1L,1L,1L,4L
 
+#define SN_id_camellia128_wrap		"id-camellia128-wrap"
+#define NID_id_camellia128_wrap		907
+#define OBJ_id_camellia128_wrap		1L,2L,392L,200011L,61L,1L,1L,3L,2L
+
+#define SN_id_camellia192_wrap		"id-camellia192-wrap"
+#define NID_id_camellia192_wrap		908
+#define OBJ_id_camellia192_wrap		1L,2L,392L,200011L,61L,1L,1L,3L,3L
+
+#define SN_id_camellia256_wrap		"id-camellia256-wrap"
+#define NID_id_camellia256_wrap		909
+#define OBJ_id_camellia256_wrap		1L,2L,392L,200011L,61L,1L,1L,3L,4L
+
 #define OBJ_ntt_ds		0L,3L,4401L,5L
 
 #define OBJ_camellia		OBJ_ntt_ds,3L,1L,9L
@@ -3911,4 +4009,24 @@
 #define SN_hmac		"HMAC"
 #define LN_hmac		"hmac"
 #define NID_hmac		855
+
+#define SN_cmac		"CMAC"
+#define LN_cmac		"cmac"
+#define NID_cmac		894
+
+#define SN_rc4_hmac_md5		"RC4-HMAC-MD5"
+#define LN_rc4_hmac_md5		"rc4-hmac-md5"
+#define NID_rc4_hmac_md5		915
+
+#define SN_aes_128_cbc_hmac_sha1		"AES-128-CBC-HMAC-SHA1"
+#define LN_aes_128_cbc_hmac_sha1		"aes-128-cbc-hmac-sha1"
+#define NID_aes_128_cbc_hmac_sha1		916
+
+#define SN_aes_192_cbc_hmac_sha1		"AES-192-CBC-HMAC-SHA1"
+#define LN_aes_192_cbc_hmac_sha1		"aes-192-cbc-hmac-sha1"
+#define NID_aes_192_cbc_hmac_sha1		917
+
+#define SN_aes_256_cbc_hmac_sha1		"AES-256-CBC-HMAC-SHA1"
+#define LN_aes_256_cbc_hmac_sha1		"aes-256-cbc-hmac-sha1"
+#define NID_aes_256_cbc_hmac_sha1		918
 

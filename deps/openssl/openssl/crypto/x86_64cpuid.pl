@@ -7,14 +7,24 @@ if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
 $win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
-open STDOUT,"| $^X ${dir}perlasm/x86_64-xlate.pl $flavour $output";
+( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
+( $xlate="${dir}perlasm/x86_64-xlate.pl" and -f $xlate) or
+die "can't locate x86_64-xlate.pl";
 
-if ($win64)	{ $arg1="%rcx"; $arg2="%rdx"; }
-else		{ $arg1="%rdi"; $arg2="%rsi"; }
+open OUT,"| \"$^X\" $xlate $flavour $output";
+*STDOUT=*OUT;
+
+($arg1,$arg2,$arg3,$arg4)=$win64?("%rcx","%rdx","%r8", "%r9") :	# Win64 order
+				 ("%rdi","%rsi","%rdx","%rcx");	# Unix order
+
 print<<___;
 .extern		OPENSSL_cpuid_setup
+.hidden		OPENSSL_cpuid_setup
 .section	.init
 	call	OPENSSL_cpuid_setup
+
+.hidden	OPENSSL_ia32cap_P
+.comm	OPENSSL_ia32cap_P,8,4
 
 .text
 
@@ -46,7 +56,7 @@ OPENSSL_rdtsc:
 .type	OPENSSL_ia32_cpuid,\@abi-omnipotent
 .align	16
 OPENSSL_ia32_cpuid:
-	mov	%rbx,%r8
+	mov	%rbx,%r8		# save %rbx
 
 	xor	%eax,%eax
 	cpuid
@@ -78,7 +88,15 @@ OPENSSL_ia32_cpuid:
 	# AMD specific
 	mov	\$0x80000000,%eax
 	cpuid
-	cmp	\$0x80000008,%eax
+	cmp	\$0x80000001,%eax
+	jb	.Lintel
+	mov	%eax,%r10d
+	mov	\$0x80000001,%eax
+	cpuid
+	or	%ecx,%r9d
+	and	\$0x00000801,%r9d	# isolate AMD XOP bit, 1<<11
+
+	cmp	\$0x80000008,%r10d
 	jb	.Lintel
 
 	mov	\$0x80000008,%eax
@@ -89,12 +107,12 @@ OPENSSL_ia32_cpuid:
 	mov	\$1,%eax
 	cpuid
 	bt	\$28,%edx		# test hyper-threading bit
-	jnc	.Ldone
+	jnc	.Lgeneric
 	shr	\$16,%ebx		# number of logical processors
 	cmp	%r10b,%bl
-	ja	.Ldone
+	ja	.Lgeneric
 	and	\$0xefffffff,%edx	# ~(1<<28)
-	jmp	.Ldone
+	jmp	.Lgeneric
 
 .Lintel:
 	cmp	\$4,%r11d
@@ -111,30 +129,47 @@ OPENSSL_ia32_cpuid:
 .Lnocacheinfo:
 	mov	\$1,%eax
 	cpuid
+	and	\$0xbfefffff,%edx	# force reserved bits to 0
 	cmp	\$0,%r9d
 	jne	.Lnotintel
-	or	\$0x00100000,%edx	# use reserved 20th bit to engage RC4_CHAR
+	or	\$0x40000000,%edx	# set reserved bit#30 on Intel CPUs
 	and	\$15,%ah
 	cmp	\$15,%ah		# examine Family ID
-	je	.Lnotintel
-	or	\$0x40000000,%edx	# use reserved bit to skip unrolled loop
+	jne	.Lnotintel
+	or	\$0x00100000,%edx	# set reserved bit#20 to engage RC4_CHAR
 .Lnotintel:
 	bt	\$28,%edx		# test hyper-threading bit
-	jnc	.Ldone
+	jnc	.Lgeneric
 	and	\$0xefffffff,%edx	# ~(1<<28)
 	cmp	\$0,%r10d
-	je	.Ldone
+	je	.Lgeneric
 
 	or	\$0x10000000,%edx	# 1<<28
 	shr	\$16,%ebx
 	cmp	\$1,%bl			# see if cache is shared
-	ja	.Ldone
+	ja	.Lgeneric
 	and	\$0xefffffff,%edx	# ~(1<<28)
+.Lgeneric:
+	and	\$0x00000800,%r9d	# isolate AMD XOP flag
+	and	\$0xfffff7ff,%ecx
+	or	%ecx,%r9d		# merge AMD XOP flag
+
+	mov	%edx,%r10d		# %r9d:%r10d is copy of %ecx:%edx
+	bt	\$27,%r9d		# check OSXSAVE bit
+	jnc	.Lclear_avx
+	xor	%ecx,%ecx		# XCR0
+	.byte	0x0f,0x01,0xd0		# xgetbv
+	and	\$6,%eax		# isolate XMM and YMM state support
+	cmp	\$6,%eax
+	je	.Ldone
+.Lclear_avx:
+	mov	\$0xefffe7ff,%eax	# ~(1<<28|1<<12|1<<11)
+	and	%eax,%r9d		# clear AVX, FMA and AMD XOP bits
 .Ldone:
-	shl	\$32,%rcx
-	mov	%edx,%eax
-	mov	%r8,%rbx
-	or	%rcx,%rax
+	shl	\$32,%r9
+	mov	%r10d,%eax
+	mov	%r8,%rbx		# restore %rbx
+	or	%r9,%rax
 	ret
 .size	OPENSSL_ia32_cpuid,.-OPENSSL_ia32_cpuid
 
@@ -227,6 +262,23 @@ OPENSSL_wipe_cpu:
 	leaq	8(%rsp),%rax
 	ret
 .size	OPENSSL_wipe_cpu,.-OPENSSL_wipe_cpu
+___
+
+print<<___;
+.globl	OPENSSL_ia32_rdrand
+.type	OPENSSL_ia32_rdrand,\@abi-omnipotent
+.align	16
+OPENSSL_ia32_rdrand:
+	mov	\$8,%ecx
+.Loop_rdrand:
+	rdrand	%rax
+	jc	.Lbreak_rdrand
+	loop	.Loop_rdrand
+.Lbreak_rdrand:
+	cmp	\$0,%rax
+	cmove	%rcx,%rax
+	ret
+.size	OPENSSL_ia32_rdrand,.-OPENSSL_ia32_rdrand
 ___
 
 close STDOUT;	# flush

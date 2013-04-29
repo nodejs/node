@@ -60,8 +60,14 @@
 #include <time.h>
 #include "cryptlib.h"
 #include <openssl/rand.h>
+
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
+#endif
+
+#ifdef OPENSSL_FIPS
+#include <openssl/fips.h>
+#include <openssl/fips_rand.h>
 #endif
 
 #ifndef OPENSSL_NO_ENGINE
@@ -174,3 +180,119 @@ int RAND_status(void)
 		return meth->status();
 	return 0;
 	}
+
+#ifdef OPENSSL_FIPS
+
+/* FIPS DRBG initialisation code. This sets up the DRBG for use by the
+ * rest of OpenSSL. 
+ */
+
+/* Entropy gatherer: use standard OpenSSL PRNG to seed (this will gather
+ * entropy internally through RAND_poll().
+ */
+
+static size_t drbg_get_entropy(DRBG_CTX *ctx, unsigned char **pout,
+                                int entropy, size_t min_len, size_t max_len)
+        {
+	/* Round up request to multiple of block size */
+	min_len = ((min_len + 19) / 20) * 20;
+	*pout = OPENSSL_malloc(min_len);
+	if (!*pout)
+		return 0;
+	if (RAND_SSLeay()->bytes(*pout, min_len) <= 0)
+		{
+		OPENSSL_free(*pout);
+		*pout = NULL;
+		return 0;
+		}
+        return min_len;
+        }
+
+static void drbg_free_entropy(DRBG_CTX *ctx, unsigned char *out, size_t olen)
+	{
+	if (out)
+		{
+		OPENSSL_cleanse(out, olen);
+		OPENSSL_free(out);
+		}
+	}
+
+/* Set "additional input" when generating random data. This uses the
+ * current PID, a time value and a counter.
+ */
+
+static size_t drbg_get_adin(DRBG_CTX *ctx, unsigned char **pout)
+    	{
+	/* Use of static variables is OK as this happens under a lock */
+	static unsigned char buf[16];
+	static unsigned long counter;
+	FIPS_get_timevec(buf, &counter);
+	*pout = buf;
+	return sizeof(buf);
+	}
+
+/* RAND_add() and RAND_seed() pass through to OpenSSL PRNG so it is 
+ * correctly seeded by RAND_poll().
+ */
+
+static int drbg_rand_add(DRBG_CTX *ctx, const void *in, int inlen,
+				double entropy)
+	{
+	RAND_SSLeay()->add(in, inlen, entropy);
+	return 1;
+	}
+
+static int drbg_rand_seed(DRBG_CTX *ctx, const void *in, int inlen)
+	{
+	RAND_SSLeay()->seed(in, inlen);
+	return 1;
+	}
+
+#ifndef OPENSSL_DRBG_DEFAULT_TYPE
+#define OPENSSL_DRBG_DEFAULT_TYPE	NID_aes_256_ctr
+#endif
+#ifndef OPENSSL_DRBG_DEFAULT_FLAGS
+#define OPENSSL_DRBG_DEFAULT_FLAGS	DRBG_FLAG_CTR_USE_DF
+#endif 
+
+static int fips_drbg_type = OPENSSL_DRBG_DEFAULT_TYPE;
+static int fips_drbg_flags = OPENSSL_DRBG_DEFAULT_FLAGS;
+
+void RAND_set_fips_drbg_type(int type, int flags)
+	{
+	fips_drbg_type = type;
+	fips_drbg_flags = flags;
+	}
+
+int RAND_init_fips(void)
+	{
+	DRBG_CTX *dctx;
+	size_t plen;
+	unsigned char pers[32], *p;
+	dctx = FIPS_get_default_drbg();
+        if (FIPS_drbg_init(dctx, fips_drbg_type, fips_drbg_flags) <= 0)
+		{
+		RANDerr(RAND_F_RAND_INIT_FIPS, RAND_R_ERROR_INITIALISING_DRBG);
+		return 0;
+		}
+		
+        FIPS_drbg_set_callbacks(dctx,
+				drbg_get_entropy, drbg_free_entropy, 20,
+				drbg_get_entropy, drbg_free_entropy);
+	FIPS_drbg_set_rand_callbacks(dctx, drbg_get_adin, 0,
+					drbg_rand_seed, drbg_rand_add);
+	/* Personalisation string: a string followed by date time vector */
+	strcpy((char *)pers, "OpenSSL DRBG2.0");
+	plen = drbg_get_adin(dctx, &p);
+	memcpy(pers + 16, p, plen);
+
+        if (FIPS_drbg_instantiate(dctx, pers, sizeof(pers)) <= 0)
+		{
+		RANDerr(RAND_F_RAND_INIT_FIPS, RAND_R_ERROR_INSTANTIATING_DRBG);
+		return 0;
+		}
+        FIPS_rand_set_method(FIPS_drbg_method());
+	return 1;
+	}
+
+#endif

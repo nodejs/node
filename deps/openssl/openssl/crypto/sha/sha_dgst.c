@@ -56,6 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
+#include <openssl/crypto.h>
 #include <openssl/opensslconf.h>
 #if !defined(OPENSSL_NO_SHA0) && !defined(OPENSSL_NO_SHA)
 

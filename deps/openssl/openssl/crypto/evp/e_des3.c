@@ -65,6 +65,8 @@
 #include <openssl/des.h>
 #include <openssl/rand.h>
 
+#ifndef OPENSSL_FIPS
+
 static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 			    const unsigned char *iv,int enc);
 
@@ -310,4 +312,5 @@ const EVP_CIPHER *EVP_des_ede3(void)
 {
 	return &des_ede3_ecb;
 }
+#endif
 #endif

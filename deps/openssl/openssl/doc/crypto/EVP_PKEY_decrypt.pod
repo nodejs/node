@@ -83,7 +83,7 @@ L<EVP_PKEY_CTX_new(3)|EVP_PKEY_CTX_new(3)>,
 L<EVP_PKEY_encrypt(3)|EVP_PKEY_encrypt(3)>,
 L<EVP_PKEY_sign(3)|EVP_PKEY_sign(3)>,
 L<EVP_PKEY_verify(3)|EVP_PKEY_verify(3)>,
-L<EVP_PKEY_verifyrecover(3)|EVP_PKEY_verifyrecover(3)>,
+L<EVP_PKEY_verify_recover(3)|EVP_PKEY_verify_recover(3)>,
 L<EVP_PKEY_derive(3)|EVP_PKEY_derive(3)> 
 
 =head1 HISTORY

@@ -142,13 +142,13 @@ gost94_keyx.o: ../../include/openssl/x509_vfy.h e_gost_err.h gost89.h
 gost94_keyx.o: gost94_keyx.c gost_keywrap.h gost_lcl.h gosthash.h
 gost_ameth.o: ../../include/openssl/asn1.h ../../include/openssl/asn1t.h
 gost_ameth.o: ../../include/openssl/bio.h ../../include/openssl/bn.h
-gost_ameth.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
-gost_ameth.o: ../../include/openssl/dsa.h ../../include/openssl/e_os2.h
-gost_ameth.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
-gost_ameth.o: ../../include/openssl/ecdsa.h ../../include/openssl/engine.h
-gost_ameth.o: ../../include/openssl/err.h ../../include/openssl/evp.h
-gost_ameth.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
-gost_ameth.o: ../../include/openssl/objects.h
+gost_ameth.o: ../../include/openssl/buffer.h ../../include/openssl/cms.h
+gost_ameth.o: ../../include/openssl/crypto.h ../../include/openssl/dsa.h
+gost_ameth.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
+gost_ameth.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
+gost_ameth.o: ../../include/openssl/engine.h ../../include/openssl/err.h
+gost_ameth.o: ../../include/openssl/evp.h ../../include/openssl/lhash.h
+gost_ameth.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
 gost_ameth.o: ../../include/openssl/opensslconf.h
 gost_ameth.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 gost_ameth.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h

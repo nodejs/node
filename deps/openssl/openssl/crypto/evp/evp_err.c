@@ -1,6 +1,6 @@
 /* crypto/evp/evp_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2008 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -70,8 +70,14 @@
 
 static ERR_STRING_DATA EVP_str_functs[]=
 	{
+{ERR_FUNC(EVP_F_AESNI_INIT_KEY),	"AESNI_INIT_KEY"},
+{ERR_FUNC(EVP_F_AESNI_XTS_CIPHER),	"AESNI_XTS_CIPHER"},
 {ERR_FUNC(EVP_F_AES_INIT_KEY),	"AES_INIT_KEY"},
+{ERR_FUNC(EVP_F_AES_XTS),	"AES_XTS"},
+{ERR_FUNC(EVP_F_AES_XTS_CIPHER),	"AES_XTS_CIPHER"},
+{ERR_FUNC(EVP_F_ALG_MODULE_INIT),	"ALG_MODULE_INIT"},
 {ERR_FUNC(EVP_F_CAMELLIA_INIT_KEY),	"CAMELLIA_INIT_KEY"},
+{ERR_FUNC(EVP_F_CMAC_INIT),	"CMAC_INIT"},
 {ERR_FUNC(EVP_F_D2I_PKEY),	"D2I_PKEY"},
 {ERR_FUNC(EVP_F_DO_SIGVER_INIT),	"DO_SIGVER_INIT"},
 {ERR_FUNC(EVP_F_DSAPKEY2PKCS8),	"DSAPKEY2PKCS8"},
@@ -86,7 +92,7 @@ static ERR_STRING_DATA EVP_str_functs[]=
 {ERR_FUNC(EVP_F_EVP_DIGESTINIT_EX),	"EVP_DigestInit_ex"},
 {ERR_FUNC(EVP_F_EVP_ENCRYPTFINAL_EX),	"EVP_EncryptFinal_ex"},
 {ERR_FUNC(EVP_F_EVP_MD_CTX_COPY_EX),	"EVP_MD_CTX_copy_ex"},
-{ERR_FUNC(EVP_F_EVP_MD_SIZE),	"EVP_MD_SIZE"},
+{ERR_FUNC(EVP_F_EVP_MD_SIZE),	"EVP_MD_size"},
 {ERR_FUNC(EVP_F_EVP_OPENINIT),	"EVP_OpenInit"},
 {ERR_FUNC(EVP_F_EVP_PBE_ALG_ADD),	"EVP_PBE_alg_add"},
 {ERR_FUNC(EVP_F_EVP_PBE_ALG_ADD_TYPE),	"EVP_PBE_alg_add_type"},
@@ -126,9 +132,17 @@ static ERR_STRING_DATA EVP_str_functs[]=
 {ERR_FUNC(EVP_F_EVP_RIJNDAEL),	"EVP_RIJNDAEL"},
 {ERR_FUNC(EVP_F_EVP_SIGNFINAL),	"EVP_SignFinal"},
 {ERR_FUNC(EVP_F_EVP_VERIFYFINAL),	"EVP_VerifyFinal"},
+{ERR_FUNC(EVP_F_FIPS_CIPHERINIT),	"FIPS_CIPHERINIT"},
+{ERR_FUNC(EVP_F_FIPS_CIPHER_CTX_COPY),	"FIPS_CIPHER_CTX_COPY"},
+{ERR_FUNC(EVP_F_FIPS_CIPHER_CTX_CTRL),	"FIPS_CIPHER_CTX_CTRL"},
+{ERR_FUNC(EVP_F_FIPS_CIPHER_CTX_SET_KEY_LENGTH),	"FIPS_CIPHER_CTX_SET_KEY_LENGTH"},
+{ERR_FUNC(EVP_F_FIPS_DIGESTINIT),	"FIPS_DIGESTINIT"},
+{ERR_FUNC(EVP_F_FIPS_MD_CTX_COPY),	"FIPS_MD_CTX_COPY"},
+{ERR_FUNC(EVP_F_HMAC_INIT_EX),	"HMAC_Init_ex"},
 {ERR_FUNC(EVP_F_INT_CTX_NEW),	"INT_CTX_NEW"},
 {ERR_FUNC(EVP_F_PKCS5_PBE_KEYIVGEN),	"PKCS5_PBE_keyivgen"},
 {ERR_FUNC(EVP_F_PKCS5_V2_PBE_KEYIVGEN),	"PKCS5_v2_PBE_keyivgen"},
+{ERR_FUNC(EVP_F_PKCS5_V2_PBKDF2_KEYIVGEN),	"PKCS5_V2_PBKDF2_KEYIVGEN"},
 {ERR_FUNC(EVP_F_PKCS8_SET_BROKEN),	"PKCS8_set_broken"},
 {ERR_FUNC(EVP_F_PKEY_SET_TYPE),	"PKEY_SET_TYPE"},
 {ERR_FUNC(EVP_F_RC2_MAGIC_TO_METH),	"RC2_MAGIC_TO_METH"},
@@ -138,6 +152,7 @@ static ERR_STRING_DATA EVP_str_functs[]=
 
 static ERR_STRING_DATA EVP_str_reasons[]=
 	{
+{ERR_REASON(EVP_R_AES_IV_SETUP_FAILED)   ,"aes iv setup failed"},
 {ERR_REASON(EVP_R_AES_KEY_SETUP_FAILED)  ,"aes key setup failed"},
 {ERR_REASON(EVP_R_ASN1_LIB)              ,"asn1 lib"},
 {ERR_REASON(EVP_R_BAD_BLOCK_LENGTH)      ,"bad block length"},
@@ -155,16 +170,21 @@ static ERR_STRING_DATA EVP_str_reasons[]=
 {ERR_REASON(EVP_R_DECODE_ERROR)          ,"decode error"},
 {ERR_REASON(EVP_R_DIFFERENT_KEY_TYPES)   ,"different key types"},
 {ERR_REASON(EVP_R_DIFFERENT_PARAMETERS)  ,"different parameters"},
+{ERR_REASON(EVP_R_DISABLED_FOR_FIPS)     ,"disabled for fips"},
 {ERR_REASON(EVP_R_ENCODE_ERROR)          ,"encode error"},
+{ERR_REASON(EVP_R_ERROR_LOADING_SECTION) ,"error loading section"},
+{ERR_REASON(EVP_R_ERROR_SETTING_FIPS_MODE),"error setting fips mode"},
 {ERR_REASON(EVP_R_EVP_PBE_CIPHERINIT_ERROR),"evp pbe cipherinit error"},
 {ERR_REASON(EVP_R_EXPECTING_AN_RSA_KEY)  ,"expecting an rsa key"},
 {ERR_REASON(EVP_R_EXPECTING_A_DH_KEY)    ,"expecting a dh key"},
 {ERR_REASON(EVP_R_EXPECTING_A_DSA_KEY)   ,"expecting a dsa key"},
 {ERR_REASON(EVP_R_EXPECTING_A_ECDSA_KEY) ,"expecting a ecdsa key"},
 {ERR_REASON(EVP_R_EXPECTING_A_EC_KEY)    ,"expecting a ec key"},
+{ERR_REASON(EVP_R_FIPS_MODE_NOT_SUPPORTED),"fips mode not supported"},
 {ERR_REASON(EVP_R_INITIALIZATION_ERROR)  ,"initialization error"},
 {ERR_REASON(EVP_R_INPUT_NOT_INITIALIZED) ,"input not initialized"},
 {ERR_REASON(EVP_R_INVALID_DIGEST)        ,"invalid digest"},
+{ERR_REASON(EVP_R_INVALID_FIPS_MODE)     ,"invalid fips mode"},
 {ERR_REASON(EVP_R_INVALID_KEY_LENGTH)    ,"invalid key length"},
 {ERR_REASON(EVP_R_INVALID_OPERATION)     ,"invalid operation"},
 {ERR_REASON(EVP_R_IV_TOO_LARGE)          ,"iv too large"},
@@ -186,8 +206,10 @@ static ERR_STRING_DATA EVP_str_reasons[]=
 {ERR_REASON(EVP_R_PRIVATE_KEY_DECODE_ERROR),"private key decode error"},
 {ERR_REASON(EVP_R_PRIVATE_KEY_ENCODE_ERROR),"private key encode error"},
 {ERR_REASON(EVP_R_PUBLIC_KEY_NOT_RSA)    ,"public key not rsa"},
+{ERR_REASON(EVP_R_TOO_LARGE)             ,"too large"},
 {ERR_REASON(EVP_R_UNKNOWN_CIPHER)        ,"unknown cipher"},
 {ERR_REASON(EVP_R_UNKNOWN_DIGEST)        ,"unknown digest"},
+{ERR_REASON(EVP_R_UNKNOWN_OPTION)        ,"unknown option"},
 {ERR_REASON(EVP_R_UNKNOWN_PBE_ALGORITHM) ,"unknown pbe algorithm"},
 {ERR_REASON(EVP_R_UNSUPORTED_NUMBER_OF_ROUNDS),"unsuported number of rounds"},
 {ERR_REASON(EVP_R_UNSUPPORTED_ALGORITHM) ,"unsupported algorithm"},

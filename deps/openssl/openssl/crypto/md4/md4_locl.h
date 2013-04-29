@@ -77,10 +77,10 @@ void md4_block_data_order (MD4_CTX *c, const void *p,size_t num);
 #define HASH_FINAL		MD4_Final
 #define	HASH_MAKE_STRING(c,s)	do {	\
 	unsigned long ll;		\
-	ll=(c)->A; HOST_l2c(ll,(s));	\
-	ll=(c)->B; HOST_l2c(ll,(s));	\
-	ll=(c)->C; HOST_l2c(ll,(s));	\
-	ll=(c)->D; HOST_l2c(ll,(s));	\
+	ll=(c)->A; (void)HOST_l2c(ll,(s));	\
+	ll=(c)->B; (void)HOST_l2c(ll,(s));	\
+	ll=(c)->C; (void)HOST_l2c(ll,(s));	\
+	ll=(c)->D; (void)HOST_l2c(ll,(s));	\
 	} while (0)
 #define	HASH_BLOCK_DATA_ORDER	md4_block_data_order
 

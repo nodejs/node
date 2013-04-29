@@ -116,7 +116,7 @@ const char *MD2_options(void)
 		return("md2(int)");
 	}
 
-int MD2_Init(MD2_CTX *c)
+fips_md_init(MD2)
 	{
 	c->num=0;
 	memset(c->state,0,sizeof c->state);

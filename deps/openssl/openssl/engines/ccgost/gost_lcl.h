@@ -136,7 +136,7 @@ extern EVP_MD imit_gost_cpa;
 /* Cipher context used for EVP_CIPHER operation */
 struct ossl_gost_cipher_ctx {
 	int paramNID;
-	off_t count;
+	unsigned int count;
 	int key_meshing;
 	gost_ctx cctx;
 };	
@@ -151,7 +151,7 @@ struct ossl_gost_imit_ctx {
 	gost_ctx cctx;
 	unsigned char buffer[8];
 	unsigned char partial_block[8];
-	off_t count;
+	unsigned int count;
 	int key_meshing;
 	int bytes_left;
 	int key_set;

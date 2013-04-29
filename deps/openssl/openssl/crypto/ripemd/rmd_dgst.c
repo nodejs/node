@@ -59,6 +59,7 @@
 #include <stdio.h>
 #include "rmd_locl.h"
 #include <openssl/opensslv.h>
+#include <openssl/crypto.h>
 
 const char RMD160_version[]="RIPE-MD160" OPENSSL_VERSION_PTEXT;
 
@@ -69,7 +70,7 @@ const char RMD160_version[]="RIPE-MD160" OPENSSL_VERSION_PTEXT;
      void ripemd160_block(RIPEMD160_CTX *c, unsigned long *p,size_t num);
 #  endif
 
-int RIPEMD160_Init(RIPEMD160_CTX *c)
+fips_md_init(RIPEMD160)
 	{
 	memset (c,0,sizeof(*c));
 	c->A=RIPEMD160_A;
@@ -104,21 +105,21 @@ void ripemd160_block_data_order (RIPEMD160_CTX *ctx, const void *p, size_t num)
 
 	A=ctx->A; B=ctx->B; C=ctx->C; D=ctx->D; E=ctx->E;
 
-	HOST_c2l(data,l); X( 0)=l;	HOST_c2l(data,l); X( 1)=l;
-	RIP1(A,B,C,D,E,WL00,SL00);	HOST_c2l(data,l); X( 2)=l;
-	RIP1(E,A,B,C,D,WL01,SL01);	HOST_c2l(data,l); X( 3)=l;
-	RIP1(D,E,A,B,C,WL02,SL02);	HOST_c2l(data,l); X( 4)=l;
-	RIP1(C,D,E,A,B,WL03,SL03);	HOST_c2l(data,l); X( 5)=l;
-	RIP1(B,C,D,E,A,WL04,SL04);	HOST_c2l(data,l); X( 6)=l;
-	RIP1(A,B,C,D,E,WL05,SL05);	HOST_c2l(data,l); X( 7)=l;
-	RIP1(E,A,B,C,D,WL06,SL06);	HOST_c2l(data,l); X( 8)=l;
-	RIP1(D,E,A,B,C,WL07,SL07);	HOST_c2l(data,l); X( 9)=l;
-	RIP1(C,D,E,A,B,WL08,SL08);	HOST_c2l(data,l); X(10)=l;
-	RIP1(B,C,D,E,A,WL09,SL09);	HOST_c2l(data,l); X(11)=l;
-	RIP1(A,B,C,D,E,WL10,SL10);	HOST_c2l(data,l); X(12)=l;
-	RIP1(E,A,B,C,D,WL11,SL11);	HOST_c2l(data,l); X(13)=l;
-	RIP1(D,E,A,B,C,WL12,SL12);	HOST_c2l(data,l); X(14)=l;
-	RIP1(C,D,E,A,B,WL13,SL13);	HOST_c2l(data,l); X(15)=l;
+	(void)HOST_c2l(data,l); X( 0)=l;(void)HOST_c2l(data,l); X( 1)=l;
+	RIP1(A,B,C,D,E,WL00,SL00);	(void)HOST_c2l(data,l); X( 2)=l;
+	RIP1(E,A,B,C,D,WL01,SL01);	(void)HOST_c2l(data,l); X( 3)=l;
+	RIP1(D,E,A,B,C,WL02,SL02);	(void)HOST_c2l(data,l); X( 4)=l;
+	RIP1(C,D,E,A,B,WL03,SL03);	(void)HOST_c2l(data,l); X( 5)=l;
+	RIP1(B,C,D,E,A,WL04,SL04);	(void)HOST_c2l(data,l); X( 6)=l;
+	RIP1(A,B,C,D,E,WL05,SL05);	(void)HOST_c2l(data,l); X( 7)=l;
+	RIP1(E,A,B,C,D,WL06,SL06);	(void)HOST_c2l(data,l); X( 8)=l;
+	RIP1(D,E,A,B,C,WL07,SL07);	(void)HOST_c2l(data,l); X( 9)=l;
+	RIP1(C,D,E,A,B,WL08,SL08);	(void)HOST_c2l(data,l); X(10)=l;
+	RIP1(B,C,D,E,A,WL09,SL09);	(void)HOST_c2l(data,l); X(11)=l;
+	RIP1(A,B,C,D,E,WL10,SL10);	(void)HOST_c2l(data,l); X(12)=l;
+	RIP1(E,A,B,C,D,WL11,SL11);	(void)HOST_c2l(data,l); X(13)=l;
+	RIP1(D,E,A,B,C,WL12,SL12);	(void)HOST_c2l(data,l); X(14)=l;
+	RIP1(C,D,E,A,B,WL13,SL13);	(void)HOST_c2l(data,l); X(15)=l;
 	RIP1(B,C,D,E,A,WL14,SL14);
 	RIP1(A,B,C,D,E,WL15,SL15);
 

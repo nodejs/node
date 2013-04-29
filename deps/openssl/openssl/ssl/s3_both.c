@@ -233,7 +233,7 @@ int ssl3_get_finished(SSL *s, int a, int b)
 
 #ifdef OPENSSL_NO_NEXTPROTONEG
 	/* the mac has already been generated when we received the
-	 * change cipher spec message and is in s->s3->tmp.peer_finish_md
+	 * change cipher spec message and is in s->s3->tmp.peer_finish_md.
 	 */ 
 #endif
 
@@ -265,7 +265,7 @@ int ssl3_get_finished(SSL *s, int a, int b)
 		goto f_err;
 		}
 
-	if (memcmp(p, s->s3->tmp.peer_finish_md, i) != 0)
+	if (CRYPTO_memcmp(p, s->s3->tmp.peer_finish_md, i) != 0)
 		{
 		al=SSL_AD_DECRYPT_ERROR;
 		SSLerr(SSL_F_SSL3_GET_FINISHED,SSL_R_DIGEST_CHECK_FAILED);
@@ -347,11 +347,8 @@ unsigned long ssl3_output_cert_chain(SSL *s, X509 *x)
 	unsigned long l=7;
 	BUF_MEM *buf;
 	int no_chain;
-	STACK_OF(X509) *cert_chain;
 
-	cert_chain = SSL_get_certificate_chain(s, x);
-
-	if ((s->mode & SSL_MODE_NO_AUTO_CHAIN) || s->ctx->extra_certs || cert_chain)
+	if ((s->mode & SSL_MODE_NO_AUTO_CHAIN) || s->ctx->extra_certs)
 		no_chain = 1;
 	else
 		no_chain = 0;
@@ -402,10 +399,6 @@ unsigned long ssl3_output_cert_chain(SSL *s, X509 *x)
 		if (ssl3_add_cert_to_buf(buf, &l, x))
 			return(0);
 		}
-
-	for (i=0; i<sk_X509_num(cert_chain); i++)
-		if (ssl3_add_cert_to_buf(buf, &l, sk_X509_value(cert_chain,i)))
-			return(0);
 
 	l-=7;
 	p=(unsigned char *)&(buf->data[4]);
@@ -756,20 +749,13 @@ int ssl3_setup_read_buffer(SSL *s)
 
 	if (s->s3->rbuf.buf == NULL)
 		{
-		if (SSL_get_mode(s) & SSL_MODE_SMALL_BUFFERS)
+		len = SSL3_RT_MAX_PLAIN_LENGTH
+			+ SSL3_RT_MAX_ENCRYPTED_OVERHEAD
+			+ headerlen + align;
+		if (s->options & SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER)
 			{
-			len = SSL3_RT_DEFAULT_PACKET_SIZE;
-			}
-  		else
-			{
-			len = SSL3_RT_MAX_PLAIN_LENGTH
-				+ SSL3_RT_MAX_ENCRYPTED_OVERHEAD
-				+ headerlen + align;
-			if (s->options & SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER)
-				{
-				s->s3->init_extra = 1;
-				len += SSL3_RT_MAX_EXTRA;
-				}
+			s->s3->init_extra = 1;
+			len += SSL3_RT_MAX_EXTRA;
 			}
 #ifndef OPENSSL_NO_COMP
 		if (!(s->options & SSL_OP_NO_COMPRESSION))
@@ -805,15 +791,7 @@ int ssl3_setup_write_buffer(SSL *s)
 
 	if (s->s3->wbuf.buf == NULL)
 		{
-		if (SSL_get_mode(s) & SSL_MODE_SMALL_BUFFERS)
-			{
-			len = SSL3_RT_DEFAULT_PACKET_SIZE;
-			}
-  		else
-			{
-			len = s->max_send_fragment;
-			}
-		len += 0
+		len = s->max_send_fragment
 			+ SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD
 			+ headerlen + align;
 #ifndef OPENSSL_NO_COMP
@@ -823,6 +801,7 @@ int ssl3_setup_write_buffer(SSL *s)
 		if (!(s->options & SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS))
 			len += headerlen + align
 				+ SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD;
+
 		if ((p=freelist_extract(s->ctx, 0, len)) == NULL)
 			goto err;
 		s->s3->wbuf.buf = p;
@@ -865,3 +844,4 @@ int ssl3_release_read_buffer(SSL *s)
 		}
 	return 1;
 	}
+

@@ -289,6 +289,26 @@ extern "C" {
 # define OPENSSL_GLOBAL_REF(name) _shadow_##name
 #endif
 
+#if defined(OPENSSL_SYS_MACINTOSH_CLASSIC) && macintosh==1 && !defined(MAC_OS_GUSI_SOURCE)
+#  define ossl_ssize_t long
+#endif
+
+#ifdef OPENSSL_SYS_MSDOS
+#  define ossl_ssize_t long
+#endif
+
+#if defined(NeXT) || defined(OPENSSL_SYS_NEWS4) || defined(OPENSSL_SYS_SUNOS)
+#  define ssize_t int
+#endif
+
+#if defined(__ultrix) && !defined(ssize_t)
+#  define ossl_ssize_t int 
+#endif
+
+#ifndef ossl_ssize_t
+#  define ossl_ssize_t ssize_t
+#endif
+
 #ifdef  __cplusplus
 }
 #endif

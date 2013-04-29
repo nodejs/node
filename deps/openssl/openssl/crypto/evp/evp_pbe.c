@@ -61,6 +61,7 @@
 #include <openssl/evp.h>
 #include <openssl/pkcs12.h>
 #include <openssl/x509.h>
+#include "evp_locl.h"
 
 /* Password based encryption (PBE) functions */
 
@@ -86,6 +87,10 @@ static const EVP_PBE_CTL builtin_pbe[] =
 			NID_des_cbc, NID_md5, PKCS5_PBE_keyivgen},
 	{EVP_PBE_TYPE_OUTER, NID_pbeWithSHA1AndRC2_CBC,
 			NID_rc2_64_cbc, NID_sha1, PKCS5_PBE_keyivgen},
+
+#ifndef OPENSSL_NO_HMAC
+	{EVP_PBE_TYPE_OUTER, NID_id_pbkdf2, -1, -1, PKCS5_v2_PBKDF2_keyivgen},
+#endif
 
 	{EVP_PBE_TYPE_OUTER, NID_pbe_WithSHA1And128BitRC4,
 			NID_rc4, NID_sha1, PKCS12_PBE_keyivgen},

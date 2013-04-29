@@ -573,15 +573,34 @@ int PKCS7_decrypt(PKCS7 *p7, EVP_PKEY *pkey, X509 *cert, BIO *data, int flags)
 			return 0;
 		}
 		ret = SMIME_text(bread, data);
+		if (ret > 0 && BIO_method_type(tmpmem) == BIO_TYPE_CIPHER)
+			{
+			if (!BIO_get_cipher_status(tmpmem))
+				ret = 0;
+			}
 		BIO_free_all(bread);
 		return ret;
 	} else {
 		for(;;) {
 			i = BIO_read(tmpmem, buf, sizeof(buf));
-			if(i <= 0) break;
-			BIO_write(data, buf, i);
+			if(i <= 0)
+				{
+				ret = 1;
+				if (BIO_method_type(tmpmem) == BIO_TYPE_CIPHER)
+					{
+					if (!BIO_get_cipher_status(tmpmem))
+						ret = 0;
+					}
+					
+				break;
+				}
+			if (BIO_write(data, buf, i) != i)
+				{
+				ret = 0;
+				break;
+				}
 		}
 		BIO_free_all(tmpmem);
-		return 1;
+		return ret;
 	}
 }

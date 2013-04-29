@@ -263,8 +263,10 @@ $ CONFIG_LOGICALS := AES,-
 		     DH,-
 		     DSA,-
 		     EC,-
+		     EC2M,-
 		     ECDH,-
 		     ECDSA,-
+		     EC_NISTP_64_GCC_128,-
 		     ENGINE,-
 		     ERR,-
 		     EVP,-
@@ -296,7 +298,9 @@ $ CONFIG_LOGICALS := AES,-
 		     SHA256,-
 		     SHA512,-
 		     SOCK,-
+		     SRP,-
 		     SSL2,-
+		     SSL_INTERN,-
 		     STACK,-
 		     STATIC_ENGINE,-
 		     STDIO,-
@@ -335,7 +339,8 @@ $ CONFIG_DISABLE_RULES := RIJNDAEL/AES;-
 			  DSA/GOST;-
 			  DH/GOST;-
 			  /STATIC_ENGINE;-
-			  /KRB5
+			  /KRB5;-
+			  /EC_NISTP_64_GCC_128
 $ CONFIG_ENABLE_RULES := ZLIB_DYNAMIC/ZLIB;-
 			 /THREADS
 $
@@ -498,6 +503,9 @@ $ WRITE H_FILE " *       value _IONBF is not supported."
 $ WRITE H_FILE " * So, skip it on VMS."
 $ WRITE H_FILE " */"
 $ WRITE H_FILE "#define OPENSSL_NO_SETVBUF_IONBF"
+$ WRITE H_FILE "/* STCP support comes with TCPIP 5.7 ECO 2 "
+$ WRITE H_FILE " * enable on newer systems / 2012-02-24 arpadffy */"
+$ WRITE H_FILE "#define OPENSSL_NO_SCTP"
 $ WRITE H_FILE ""
 $!
 $! Add in the common "crypto/opensslconf.h.in".
@@ -704,7 +712,7 @@ $ SDIRS := , -
    BUFFER, BIO, STACK, LHASH, RAND, ERR, -
    EVP, ASN1, PEM, X509, X509V3, CONF, TXT_DB, PKCS7, PKCS12, -
    COMP, OCSP, UI, KRB5, -
-   STORE, CMS, PQUEUE, TS, JPAKE
+   CMS, PQUEUE, TS, JPAKE, SRP, STORE, CMAC
 $!
 $ EXHEADER_ := crypto.h, opensslv.h, ebcdic.h, symhacks.h, ossl_typ.h
 $ EXHEADER_'ARCHD' := opensslconf.h
@@ -756,12 +764,14 @@ $ EXHEADER_COMP := comp.h
 $ EXHEADER_OCSP := ocsp.h
 $ EXHEADER_UI := ui.h, ui_compat.h
 $ EXHEADER_KRB5 := krb5_asn.h
-$!!! EXHEADER_STORE := store.h, str_compat.h
-$ EXHEADER_STORE := store.h
 $ EXHEADER_CMS := cms.h
 $ EXHEADER_PQUEUE := pqueue.h
 $ EXHEADER_TS := ts.h
 $ EXHEADER_JPAKE := jpake.h
+$ EXHEADER_SRP := srp.h
+$!!! EXHEADER_STORE := store.h, str_compat.h
+$ EXHEADER_STORE := store.h
+$ EXHEADER_CMAC := cmac.h
 $!
 $ i = 0
 $ loop_sdirs:
@@ -777,7 +787,7 @@ $!
 $! Copy All The ".H" Files From The [.SSL] Directory.
 $!
 $! (keep these in the same order as ssl/Makefile)
-$ EXHEADER := ssl.h, ssl2.h, ssl3.h, ssl23.h, tls1.h, dtls1.h, kssl.h
+$ EXHEADER := ssl.h, ssl2.h, ssl3.h, ssl23.h, tls1.h, dtls1.h, kssl.h, srtp.h
 $ copy sys$disk:[.ssl]'exheader' sys$disk:[.include.openssl]
 $!
 $! Purge the [.include.openssl] header files.

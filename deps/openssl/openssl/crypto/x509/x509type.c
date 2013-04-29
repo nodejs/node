@@ -100,20 +100,26 @@ int X509_certificate_type(X509 *x, EVP_PKEY *pkey)
 		break;
 		}
 
-	i=X509_get_signature_type(x);
-	switch (i)
+	i=OBJ_obj2nid(x->sig_alg->algorithm);
+	if (i && OBJ_find_sigid_algs(i, NULL, &i))
 		{
-	case EVP_PKEY_RSA:
-		ret|=EVP_PKS_RSA;
-		break;
-	case EVP_PKEY_DSA:
-		ret|=EVP_PKS_DSA;
-		break;
-	case EVP_PKEY_EC:
-		ret|=EVP_PKS_EC;
-		break;
-	default:
-		break;
+
+		switch (i)
+			{
+		case NID_rsaEncryption:
+		case NID_rsa:
+			ret|=EVP_PKS_RSA;
+			break;
+		case NID_dsa:
+		case NID_dsa_2:
+			ret|=EVP_PKS_DSA;
+			break;
+		case NID_X9_62_id_ecPublicKey:
+			ret|=EVP_PKS_EC;
+			break;
+		default:
+			break;
+			}
 		}
 
 	if (EVP_PKEY_size(pk) <= 1024/8)/* /8 because it's 1024 bits we look

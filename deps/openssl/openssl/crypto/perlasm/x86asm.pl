@@ -80,6 +80,57 @@ sub ::movq
     {	&::generic("movq",@_);			}
 }
 
+# SSE>2 instructions
+my %regrm = (	"eax"=>0, "ecx"=>1, "edx"=>2, "ebx"=>3,
+		"esp"=>4, "ebp"=>5, "esi"=>6, "edi"=>7	);
+sub ::pextrd
+{ my($dst,$src,$imm)=@_;
+    if ("$dst:$src" =~ /(e[a-dsd][ixp]):xmm([0-7])/)
+    {	&::data_byte(0x66,0x0f,0x3a,0x16,0xc0|($2<<3)|$regrm{$1},$imm);	}
+    else
+    {	&::generic("pextrd",@_);		}
+}
+
+sub ::pinsrd
+{ my($dst,$src,$imm)=@_;
+    if ("$dst:$src" =~ /xmm([0-7]):(e[a-dsd][ixp])/)
+    {	&::data_byte(0x66,0x0f,0x3a,0x22,0xc0|($1<<3)|$regrm{$2},$imm);	}
+    else
+    {	&::generic("pinsrd",@_);		}
+}
+
+sub ::pshufb
+{ my($dst,$src)=@_;
+    if ("$dst:$src" =~ /xmm([0-7]):xmm([0-7])/)
+    {	&data_byte(0x66,0x0f,0x38,0x00,0xc0|($1<<3)|$2);	}
+    else
+    {	&::generic("pshufb",@_);		}
+}
+
+sub ::palignr
+{ my($dst,$src,$imm)=@_;
+    if ("$dst:$src" =~ /xmm([0-7]):xmm([0-7])/)
+    {	&::data_byte(0x66,0x0f,0x3a,0x0f,0xc0|($1<<3)|$2,$imm);	}
+    else
+    {	&::generic("palignr",@_);		}
+}
+
+sub ::pclmulqdq
+{ my($dst,$src,$imm)=@_;
+    if ("$dst:$src" =~ /xmm([0-7]):xmm([0-7])/)
+    {	&::data_byte(0x66,0x0f,0x3a,0x44,0xc0|($1<<3)|$2,$imm);	}
+    else
+    {	&::generic("pclmulqdq",@_);		}
+}
+
+sub ::rdrand
+{ my ($dst)=@_;
+    if ($dst =~ /(e[a-dsd][ixp])/)
+    {	&::data_byte(0x0f,0xc7,0xf0|$regrm{$dst});	}
+    else
+    {	&::generic("rdrand",@_);	}
+}
+
 # label management
 $lbdecor="L";		# local label decoration, set by package
 $label="000";
@@ -167,7 +218,7 @@ sub ::asm_init
     $filename=$fn;
     $i386=$cpu;
 
-    $elf=$cpp=$coff=$aout=$macosx=$win32=$netware=$mwerks=0;
+    $elf=$cpp=$coff=$aout=$macosx=$win32=$netware=$mwerks=$android=0;
     if    (($type eq "elf"))
     {	$elf=1;			require "x86gas.pl";	}
     elsif (($type eq "a\.out"))
@@ -184,6 +235,8 @@ sub ::asm_init
     {	$win32=1;		require "x86masm.pl";	}
     elsif (($type eq "macosx"))
     {	$aout=1; $macosx=1;	require "x86gas.pl";	}
+    elsif (($type eq "android"))
+    {	$elf=1; $android=1;	require "x86gas.pl";	}
     else
     {	print STDERR <<"EOF";
 Pick one target type from

@@ -1,6 +1,6 @@
 /* crypto/ecdh/ech_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -70,6 +70,7 @@
 
 static ERR_STRING_DATA ECDH_str_functs[]=
 	{
+{ERR_FUNC(ECDH_F_ECDH_CHECK),	"ECDH_CHECK"},
 {ERR_FUNC(ECDH_F_ECDH_COMPUTE_KEY),	"ECDH_compute_key"},
 {ERR_FUNC(ECDH_F_ECDH_DATA_NEW_METHOD),	"ECDH_DATA_new_method"},
 {0,NULL}
@@ -78,6 +79,7 @@ static ERR_STRING_DATA ECDH_str_functs[]=
 static ERR_STRING_DATA ECDH_str_reasons[]=
 	{
 {ERR_REASON(ECDH_R_KDF_FAILED)           ,"KDF failed"},
+{ERR_REASON(ECDH_R_NON_FIPS_METHOD)      ,"non fips method"},
 {ERR_REASON(ECDH_R_NO_PRIVATE_VALUE)     ,"no private value"},
 {ERR_REASON(ECDH_R_POINT_ARITHMETIC_FAILURE),"point arithmetic failure"},
 {0,NULL}

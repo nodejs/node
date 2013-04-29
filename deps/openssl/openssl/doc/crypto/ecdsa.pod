@@ -114,7 +114,7 @@ using the public key B<eckey>.
 
 ECDSA_size() returns the maximum length signature or 0 on error.
 
-ECDSA_sign_setup() and ECDSA_sign() return 1 if successful or -1
+ECDSA_sign_setup() and ECDSA_sign() return 1 if successful or 0
 on error.
 
 ECDSA_verify() and ECDSA_do_verify() return 1 for a valid

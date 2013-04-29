@@ -29,7 +29,7 @@
   is required if you intend to utilize assembler modules. Note that NASM
   is now the only supported assembler.
 
- If you are compiling from a tarball or a CVS snapshot then the Win32 files
+ If you are compiling from a tarball or a Git snapshot then the Win32 files
  may well be not up to date. This may mean that some "tweaking" is required to
  get it all to work. See the trouble shooting section later on for if (when?)
  it goes wrong.
@@ -257,7 +257,7 @@
 
  then ms\do_XXX should not give a warning any more. However the numbers that
  get assigned by this technique may not match those that eventually get
- assigned in the CVS tree: so anything linked against this version of the
+ assigned in the Git tree: so anything linked against this version of the
  library may need to be recompiled.
 
  If you get errors about unresolved symbols there are several possible

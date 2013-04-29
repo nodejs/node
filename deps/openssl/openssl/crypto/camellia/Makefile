@@ -23,9 +23,9 @@ APPS=
 
 LIB=$(TOP)/libcrypto.a
 LIBSRC=camellia.c cmll_misc.c cmll_ecb.c cmll_cbc.c cmll_ofb.c \
-	   cmll_cfb.c cmll_ctr.c 
+	   cmll_cfb.c cmll_ctr.c cmll_utl.c
 
-LIBOBJ= cmll_ecb.o cmll_ofb.o cmll_cfb.o cmll_ctr.o $(CMLL_ENC)
+LIBOBJ= cmll_ecb.o cmll_ofb.o cmll_cfb.o cmll_ctr.o cmll_utl.o $(CMLL_ENC)
 
 SRC= $(LIBSRC)
 
@@ -96,8 +96,15 @@ cmll_ctr.o: ../../include/openssl/camellia.h ../../include/openssl/modes.h
 cmll_ctr.o: ../../include/openssl/opensslconf.h cmll_ctr.c
 cmll_ecb.o: ../../include/openssl/camellia.h
 cmll_ecb.o: ../../include/openssl/opensslconf.h cmll_ecb.c cmll_locl.h
-cmll_misc.o: ../../include/openssl/camellia.h
-cmll_misc.o: ../../include/openssl/opensslconf.h
-cmll_misc.o: ../../include/openssl/opensslv.h cmll_locl.h cmll_misc.c
+cmll_misc.o: ../../include/openssl/camellia.h ../../include/openssl/crypto.h
+cmll_misc.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
+cmll_misc.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+cmll_misc.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+cmll_misc.o: ../../include/openssl/symhacks.h cmll_locl.h cmll_misc.c
 cmll_ofb.o: ../../include/openssl/camellia.h ../../include/openssl/modes.h
 cmll_ofb.o: ../../include/openssl/opensslconf.h cmll_ofb.c
+cmll_utl.o: ../../include/openssl/camellia.h ../../include/openssl/crypto.h
+cmll_utl.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
+cmll_utl.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+cmll_utl.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+cmll_utl.o: ../../include/openssl/symhacks.h cmll_locl.h cmll_utl.c

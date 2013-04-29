@@ -73,11 +73,27 @@ static int dh_finish(DH *dh);
 
 int DH_generate_key(DH *dh)
 	{
+#ifdef OPENSSL_FIPS
+	if (FIPS_mode() && !(dh->meth->flags & DH_FLAG_FIPS_METHOD)
+			&& !(dh->flags & DH_FLAG_NON_FIPS_ALLOW))
+		{
+		DHerr(DH_F_DH_GENERATE_KEY, DH_R_NON_FIPS_METHOD);
+		return 0;
+		}
+#endif
 	return dh->meth->generate_key(dh);
 	}
 
 int DH_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 	{
+#ifdef OPENSSL_FIPS
+	if (FIPS_mode() && !(dh->meth->flags & DH_FLAG_FIPS_METHOD)
+			&& !(dh->flags & DH_FLAG_NON_FIPS_ALLOW))
+		{
+		DHerr(DH_F_DH_COMPUTE_KEY, DH_R_NON_FIPS_METHOD);
+		return 0;
+		}
+#endif
 	return dh->meth->compute_key(key, pub_key, dh);
 	}
 
@@ -138,8 +154,21 @@ static int generate_key(DH *dh)
 
 	if (generate_new_key)
 		{
-		l = dh->length ? dh->length : BN_num_bits(dh->p)-1; /* secret exponent length */
-		if (!BN_rand(priv_key, l, 0, 0)) goto err;
+		if (dh->q)
+			{
+			do
+				{
+				if (!BN_rand_range(priv_key, dh->q))
+					goto err;
+				}
+			while (BN_is_zero(priv_key) || BN_is_one(priv_key));
+			}
+		else
+			{
+			/* secret exponent length */
+			l = dh->length ? dh->length : BN_num_bits(dh->p)-1;
+			if (!BN_rand(priv_key, l, 0, 0)) goto err;
+			}
 		}
 
 	{

@@ -115,7 +115,8 @@ int EVP_OpenFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 	int i;
 
 	i=EVP_DecryptFinal_ex(ctx,out,outl);
-	EVP_DecryptInit_ex(ctx,NULL,NULL,NULL,NULL);
+	if (i)
+		i = EVP_DecryptInit_ex(ctx,NULL,NULL,NULL,NULL);
 	return(i);
 	}
 #else /* !OPENSSL_NO_RSA */

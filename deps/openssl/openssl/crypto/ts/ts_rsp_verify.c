@@ -614,12 +614,15 @@ static int TS_compute_imprint(BIO *data, TS_TST_INFO *tst_info,
 		goto err;
 		}
 
-	EVP_DigestInit(&md_ctx, md);
+	if (!EVP_DigestInit(&md_ctx, md))
+		goto err;
 	while ((length = BIO_read(data, buffer, sizeof(buffer))) > 0)
 		{
-		EVP_DigestUpdate(&md_ctx, buffer, length);
+		if (!EVP_DigestUpdate(&md_ctx, buffer, length))
+			goto err;
 		}
-	EVP_DigestFinal(&md_ctx, *imprint, NULL);
+	if (!EVP_DigestFinal(&md_ctx, *imprint, NULL))
+		goto err;
 
 	return 1;
  err:

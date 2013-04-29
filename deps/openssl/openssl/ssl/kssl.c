@@ -2194,6 +2194,22 @@ krb5_error_code  kssl_build_principal_2(
 	return ENOMEM;
 	}
 
+void SSL_set0_kssl_ctx(SSL *s, KSSL_CTX *kctx)
+	{
+	s->kssl_ctx = kctx;
+	} 
+
+KSSL_CTX * SSL_get0_kssl_ctx(SSL *s)
+	{
+	return s->kssl_ctx;
+	}
+
+char *kssl_ctx_get0_client_princ(KSSL_CTX *kctx)
+	{
+	if (kctx)
+		return kctx->client_princ;
+	return NULL;
+	}
 
 #else /* !OPENSSL_NO_KRB5 */
 

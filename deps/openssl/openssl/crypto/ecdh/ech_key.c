@@ -68,9 +68,6 @@
  */
 
 #include "ech_locl.h"
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif
 
 int ECDH_compute_key(void *out, size_t outlen, const EC_POINT *pub_key,
 	EC_KEY *eckey,

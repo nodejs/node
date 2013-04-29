@@ -70,6 +70,10 @@
 #include <openssl/dh.h>
 #endif
 
+#ifdef OPENSSL_FIPS
+#include <openssl/fips.h>
+#endif
+
 const char DSA_version[]="DSA" OPENSSL_VERSION_PTEXT;
 
 static const DSA_METHOD *default_DSA_method = NULL;
@@ -82,7 +86,16 @@ void DSA_set_default_method(const DSA_METHOD *meth)
 const DSA_METHOD *DSA_get_default_method(void)
 	{
 	if(!default_DSA_method)
+		{
+#ifdef OPENSSL_FIPS
+		if (FIPS_mode())
+			return FIPS_dsa_openssl();
+		else
+			return DSA_OpenSSL();
+#else
 		default_DSA_method = DSA_OpenSSL();
+#endif
+		}
 	return default_DSA_method;
 	}
 
@@ -163,7 +176,7 @@ DSA *DSA_new_method(ENGINE *engine)
 	ret->method_mont_p=NULL;
 
 	ret->references=1;
-	ret->flags=ret->meth->flags;
+	ret->flags=ret->meth->flags & ~DSA_FLAG_NON_FIPS_ALLOW;
 	CRYPTO_new_ex_data(CRYPTO_EX_INDEX_DSA, ret, &ret->ex_data);
 	if ((ret->meth->init != NULL) && !ret->meth->init(ret))
 		{
@@ -276,7 +289,8 @@ void *DSA_get_ex_data(DSA *d, int idx)
 DH *DSA_dup_DH(const DSA *r)
 	{
 	/* DSA has p, q, g, optional pub_key, optional priv_key.
-	 * DH has p, optional length, g, optional pub_key, optional priv_key.
+	 * DH has p, optional length, g, optional pub_key, optional priv_key,
+	 * optional q.
 	 */ 
 
 	DH *ret = NULL;
@@ -290,7 +304,11 @@ DH *DSA_dup_DH(const DSA *r)
 		if ((ret->p = BN_dup(r->p)) == NULL)
 			goto err;
 	if (r->q != NULL)
+		{
 		ret->length = BN_num_bits(r->q);
+		if ((ret->q = BN_dup(r->q)) == NULL)
+			goto err;
+		}
 	if (r->g != NULL)
 		if ((ret->g = BN_dup(r->g)) == NULL)
 			goto err;

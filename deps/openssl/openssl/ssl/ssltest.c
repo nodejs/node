@@ -181,6 +181,9 @@
 #ifndef OPENSSL_NO_DH
 #include <openssl/dh.h>
 #endif
+#ifndef OPENSSL_NO_SRP
+#include <openssl/srp.h>
+#endif
 #include <openssl/bn.h>
 
 #define _XOPEN_SOURCE_EXTENDED	1 /* Or gethostname won't be declared properly
@@ -246,6 +249,49 @@ static unsigned int psk_server_callback(SSL *ssl, const char *identity, unsigned
 	unsigned int max_psk_len);
 #endif
 
+#ifndef OPENSSL_NO_SRP
+/* SRP client */
+/* This is a context that we pass to all callbacks */
+typedef struct srp_client_arg_st
+	{
+	char *srppassin;
+	char *srplogin;
+	} SRP_CLIENT_ARG;
+
+#define PWD_STRLEN 1024
+
+static char * MS_CALLBACK ssl_give_srp_client_pwd_cb(SSL *s, void *arg)
+	{
+	SRP_CLIENT_ARG *srp_client_arg = (SRP_CLIENT_ARG *)arg;
+	return BUF_strdup((char *)srp_client_arg->srppassin);
+	}
+
+/* SRP server */
+/* This is a context that we pass to SRP server callbacks */
+typedef struct srp_server_arg_st
+	{
+	char *expected_user;
+	char *pass;
+	} SRP_SERVER_ARG;
+
+static int MS_CALLBACK ssl_srp_server_param_cb(SSL *s, int *ad, void *arg)
+	{
+	SRP_SERVER_ARG * p = (SRP_SERVER_ARG *) arg;
+
+	if (strcmp(p->expected_user, SSL_get_srp_username(s)) != 0)
+		{
+		fprintf(stderr, "User %s doesn't exist\n", SSL_get_srp_username(s));
+		return SSL3_AL_FATAL;
+		}
+	if (SSL_set_srp_server_param_pw(s,p->expected_user,p->pass,"1024")<0)
+		{
+		*ad = SSL_AD_INTERNAL_ERROR;
+		return SSL3_AL_FATAL;
+		}
+	return SSL_ERROR_NONE;
+	}
+#endif
+
 static BIO *bio_err=NULL;
 static BIO *bio_stdout=NULL;
 
@@ -268,6 +314,9 @@ static void sv_usage(void)
 	{
 	fprintf(stderr,"usage: ssltest [args ...]\n");
 	fprintf(stderr,"\n");
+#ifdef OPENSSL_FIPS
+	fprintf(stderr,"-F             - run test in FIPS mode\n");
+#endif
 	fprintf(stderr," -server_auth  - check server certificate\n");
 	fprintf(stderr," -client_auth  - do client authentication\n");
 	fprintf(stderr," -proxy        - allow proxy certificates\n");
@@ -288,6 +337,10 @@ static void sv_usage(void)
 #endif
 #ifndef OPENSSL_NO_PSK
 	fprintf(stderr," -psk arg      - PSK in hex (without 0x)\n");
+#endif
+#ifndef OPENSSL_NO_SRP
+	fprintf(stderr," -srpuser user  - SRP username to use\n");
+	fprintf(stderr," -srppass arg   - password for 'user'\n");
 #endif
 #ifndef OPENSSL_NO_SSL2
 	fprintf(stderr," -ssl2         - use SSLv2\n");
@@ -316,9 +369,6 @@ static void sv_usage(void)
 	               "                 (default is sect163r2).\n");
 #endif
 	fprintf(stderr," -test_cipherlist - verifies the order of the ssl cipher lists\n");
-	fprintf(stderr," -c_small_records - enable client side use of small SSL record buffers\n");
-	fprintf(stderr," -s_small_records - enable server side use of small SSL record buffers\n");
-	fprintf(stderr," -cutthrough      - enable 1-RTT full-handshake for strong ciphers\n");
 	}
 
 static void print_details(SSL *c_ssl, const char *prefix)
@@ -447,10 +497,6 @@ int opaque_prf_input_cb(SSL *ssl, void *peerinput, size_t len, void *arg_)
 	return arg->ret;
 	}
 #endif
-	int ssl_mode = 0;
-	int c_small_records=0;
-	int s_small_records=0;
-	int cutthrough = 0;
 
 int main(int argc, char *argv[])
 	{
@@ -483,6 +529,12 @@ int main(int argc, char *argv[])
 #ifndef OPENSSL_NO_ECDH
 	EC_KEY *ecdh = NULL;
 #endif
+#ifndef OPENSSL_NO_SRP
+	/* client */
+	SRP_CLIENT_ARG srp_client_arg = {NULL,NULL};
+	/* server */
+	SRP_SERVER_ARG srp_server_arg = {NULL,NULL};
+#endif
 	int no_dhe = 0;
 	int no_ecdhe = 0;
 	int no_psk = 0;
@@ -491,9 +543,12 @@ int main(int argc, char *argv[])
 	int comp = 0;
 #ifndef OPENSSL_NO_COMP
 	COMP_METHOD *cm = NULL;
-#endif
 	STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
+#endif
 	int test_cipherlist = 0;
+#ifdef OPENSSL_FIPS
+	int fips_mode=0;
+#endif
 
 	verbose = 0;
 	debug = 0;
@@ -525,7 +580,16 @@ int main(int argc, char *argv[])
 
 	while (argc >= 1)
 		{
-		if	(strcmp(*argv,"-server_auth") == 0)
+		if(!strcmp(*argv,"-F"))
+			{
+#ifdef OPENSSL_FIPS
+			fips_mode=1;
+#else
+			fprintf(stderr,"not compiled with FIPS support, so exitting without running.\n");
+			EXIT(0);
+#endif
+			}
+		else if (strcmp(*argv,"-server_auth") == 0)
 			server_auth=1;
 		else if	(strcmp(*argv,"-client_auth") == 0)
 			client_auth=1;
@@ -579,6 +643,20 @@ int main(int argc, char *argv[])
 			no_psk=1;
 #endif
 			}
+#ifndef OPENSSL_NO_SRP
+		else if (strcmp(*argv,"-srpuser") == 0)
+			{
+			if (--argc < 1) goto bad;
+			srp_server_arg.expected_user = srp_client_arg.srplogin= *(++argv);
+			tls1=1;
+			}
+		else if (strcmp(*argv,"-srppass") == 0)
+			{
+			if (--argc < 1) goto bad;
+			srp_server_arg.pass = srp_client_arg.srppassin= *(++argv);
+			tls1=1;
+			}
+#endif
 		else if	(strcmp(*argv,"-ssl2") == 0)
 			ssl2=1;
 		else if	(strcmp(*argv,"-tls1") == 0)
@@ -687,18 +765,6 @@ int main(int argc, char *argv[])
 			{
 			test_cipherlist = 1;
 			}
-		else if (strcmp(*argv, "-c_small_records") == 0)
-			{
-			c_small_records = 1;
-			}
-		else if (strcmp(*argv, "-s_small_records") == 0)
-			{
-			s_small_records = 1;
-			}
-		else if (strcmp(*argv, "-cutthrough") == 0)
-			{
-			cutthrough = 1;
-			}
 		else
 			{
 			fprintf(stderr,"unknown option %s\n",*argv);
@@ -732,6 +798,20 @@ bad:
 			"to avoid protocol mismatch.\n");
 		EXIT(1);
 		}
+
+#ifdef OPENSSL_FIPS
+	if(fips_mode)
+		{
+		if(!FIPS_mode_set(1))
+			{
+			ERR_load_crypto_strings();
+			ERR_print_errors(BIO_new_fp(stderr,BIO_NOCLOSE));
+			EXIT(1);
+			}
+		else
+			fprintf(stderr,"*** IN FIPS MODE ***\n");
+		}
+#endif
 
 	if (print_time)
 		{
@@ -821,28 +901,6 @@ bad:
 		SSL_CTX_set_cipher_list(s_ctx,cipher);
 		}
 
-	ssl_mode = 0;
-	if (c_small_records)
-		{
-		ssl_mode = SSL_CTX_get_mode(c_ctx);
-		ssl_mode |= SSL_MODE_SMALL_BUFFERS;
-		SSL_CTX_set_mode(c_ctx, ssl_mode);
-		}
-	ssl_mode = 0;
-	if (s_small_records)
-		{
-		ssl_mode = SSL_CTX_get_mode(s_ctx);
-		ssl_mode |= SSL_MODE_SMALL_BUFFERS;
-		SSL_CTX_set_mode(s_ctx, ssl_mode);
-		}
-	ssl_mode = 0;
-	if (cutthrough)
-		{
-		ssl_mode = SSL_CTX_get_mode(c_ctx);
-		ssl_mode = SSL_MODE_HANDSHAKE_CUTTHROUGH;
-		SSL_CTX_set_mode(c_ctx, ssl_mode);
-		}
-
 #ifndef OPENSSL_NO_DH
 	if (!no_dhe)
 		{
@@ -878,7 +936,11 @@ bad:
 				}
 			}
 		else
+#ifdef OPENSSL_NO_EC2M
+			nid = NID_X9_62_prime256v1;
+#else
 			nid = NID_sect163r2;
+#endif
 
 		ecdh = EC_KEY_new_by_curve_name(nid);
 		if (ecdh == NULL)
@@ -981,6 +1043,26 @@ bad:
 			}
 #endif
 		}
+#ifndef OPENSSL_NO_SRP
+        if (srp_client_arg.srplogin)
+		{
+		if (!SSL_CTX_set_srp_username(c_ctx, srp_client_arg.srplogin))
+			{
+			BIO_printf(bio_err,"Unable to set SRP username\n");
+			goto end;
+			}
+		SSL_CTX_set_srp_cb_arg(c_ctx,&srp_client_arg);
+		SSL_CTX_set_srp_client_pwd_callback(c_ctx, ssl_give_srp_client_pwd_cb);
+		/*SSL_CTX_set_srp_strength(c_ctx, srp_client_arg.strength);*/
+		}
+
+	if (srp_server_arg.expected_user != NULL)
+		{
+		SSL_CTX_set_verify(s_ctx,SSL_VERIFY_NONE,verify_callback);
+		SSL_CTX_set_srp_cb_arg(s_ctx, &srp_server_arg);
+		SSL_CTX_set_srp_username_callback(s_ctx, ssl_srp_server_param_cb);
+		}
+#endif
 
 	c_ssl=SSL_new(c_ctx);
 	s_ssl=SSL_new(s_ctx);
@@ -2205,15 +2287,7 @@ static int MS_CALLBACK app_verify_callback(X509_STORE_CTX *ctx, void *arg)
 		}
 
 #ifndef OPENSSL_NO_X509_VERIFY
-# ifdef OPENSSL_FIPS
-	if(s->version == TLS1_VERSION)
-		FIPS_allow_md5(1);
-# endif
 	ok = X509_verify_cert(ctx);
-# ifdef OPENSSL_FIPS
-	if(s->version == TLS1_VERSION)
-		FIPS_allow_md5(0);
-# endif
 #endif
 
 	if (cb_arg->proxy_auth)
