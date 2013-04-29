@@ -41,8 +41,6 @@ import tempfile
 import time
 import threading
 from Queue import Queue, Empty
-
-sys.path.append(dirname(__file__) + "/../deps/v8/tools");
 import utils
 
 VERBOSE = False
