@@ -43,8 +43,6 @@ import threading
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
 from Queue import Queue, Empty
-
-sys.path.append(dirname(__file__) + "/../deps/v8/tools");
 import utils
 
 VERBOSE = False
