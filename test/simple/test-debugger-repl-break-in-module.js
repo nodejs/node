@@ -31,6 +31,12 @@ repl.addTest('sb("mod.js", 23)', [
   /1/, /2/, /3/, /4/, /5/, /6/
 ]);
 
+// Check escaping of regex characters
+repl.addTest('sb(")^$*+?}{|][(.js\\\\", 1)', [
+  /Warning: script '[^']+' was not loaded yet\./,
+  /1/, /2/, /3/, /4/, /5/, /6/
+]);
+
 // continue - the breakpoint should be triggered
 repl.addTest('c', [
     /break in .*[\\\/]mod\.js:23/,
@@ -47,7 +53,9 @@ repl.addTest('restart', [].concat(
   repl.handshakeLines,
   [
     /Restoring breakpoint mod.js:23/,
-    /Warning: script 'mod\.js' was not loaded yet\./
+    /Warning: script 'mod\.js' was not loaded yet\./,
+    /Restoring breakpoint \).*:\d+/,
+    /Warning: script '\)[^']*' was not loaded yet\./
   ],
   repl.initialBreakLines));
 
