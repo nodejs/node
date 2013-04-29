@@ -63,12 +63,10 @@
 
 #include <openssl/evp.h>
 #include <openssl/objects.h>
-#include <openssl/sha.h>
+#include <openssl/x509.h>
 #ifndef OPENSSL_NO_DSA
 #include <openssl/dsa.h>
 #endif
-
-#ifndef OPENSSL_FIPS 
 
 static int init(EVP_MD_CTX *ctx)
 	{ return SHA1_Init(ctx->md_data); }
@@ -99,5 +97,4 @@ const EVP_MD *EVP_dss1(void)
 	{
 	return(&dss1_md);
 	}
-#endif
 #endif

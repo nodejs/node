@@ -2652,12 +2652,12 @@ Handle<Value> Sign::SignFinal(const Arguments& args) {
   unsigned int md_len;
   Local<Value> outString;
 
-  md_len = 8192; // Maximum key size is 8192 bits
-  md_value = new unsigned char[md_len];
-
   ASSERT_IS_BUFFER(args[0]);
   ssize_t len = Buffer::Length(args[0]);
   char* buf = Buffer::Data(args[0]);
+
+  md_len = 8192; // Maximum key size is 8192 bits
+  md_value = new unsigned char[md_len];
 
   bool r = sign->SignFinal(&md_value, &md_len, buf, len);
   if (!r) {

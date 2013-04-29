@@ -1537,11 +1537,11 @@ Camellia_Ekeygen:
 	popl	%ebp
 	ret
 .size	Camellia_Ekeygen,.-.L_Camellia_Ekeygen_begin
-.globl	private_Camellia_set_key
-.type	private_Camellia_set_key,@function
+.globl	Camellia_set_key
+.type	Camellia_set_key,@function
 .align	16
-private_Camellia_set_key:
-.L_private_Camellia_set_key_begin:
+Camellia_set_key:
+.L_Camellia_set_key_begin:
 	pushl	%ebx
 	movl	8(%esp),%ecx
 	movl	12(%esp),%ebx
@@ -1571,7 +1571,7 @@ private_Camellia_set_key:
 .L014done:
 	popl	%ebx
 	ret
-.size	private_Camellia_set_key,.-.L_private_Camellia_set_key_begin
+.size	Camellia_set_key,.-.L_Camellia_set_key_begin
 .align	64
 .LCamellia_SIGMA:
 .long	2694735487,1003262091,3061508184,1286239154,3337565999,3914302142,1426019237,4057165596,283453434,3731369245,2958461122,3018244605,0,0,0,0

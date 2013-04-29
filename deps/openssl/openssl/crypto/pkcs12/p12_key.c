@@ -152,16 +152,14 @@ int PKCS12_key_gen_uni(unsigned char *pass, int passlen, unsigned char *salt,
 	for (i = 0; i < Slen; i++) *p++ = salt[i % saltlen];
 	for (i = 0; i < Plen; i++) *p++ = pass[i % passlen];
 	for (;;) {
-		if (!EVP_DigestInit_ex(&ctx, md_type, NULL)
-			|| !EVP_DigestUpdate(&ctx, D, v)
-			|| !EVP_DigestUpdate(&ctx, I, Ilen)
-			|| !EVP_DigestFinal_ex(&ctx, Ai, NULL))
-			goto err;
+		EVP_DigestInit_ex(&ctx, md_type, NULL);
+		EVP_DigestUpdate(&ctx, D, v);
+		EVP_DigestUpdate(&ctx, I, Ilen);
+		EVP_DigestFinal_ex(&ctx, Ai, NULL);
 		for (j = 1; j < iter; j++) {
-			if (!EVP_DigestInit_ex(&ctx, md_type, NULL)
-				|| !EVP_DigestUpdate(&ctx, Ai, u)
-				|| !EVP_DigestFinal_ex(&ctx, Ai, NULL))
-			goto err;
+			EVP_DigestInit_ex(&ctx, md_type, NULL);
+			EVP_DigestUpdate(&ctx, Ai, u);
+			EVP_DigestFinal_ex(&ctx, Ai, NULL);
 		}
 		memcpy (out, Ai, min (n, u));
 		if (u >= n) {
@@ -176,32 +174,24 @@ int PKCS12_key_gen_uni(unsigned char *pass, int passlen, unsigned char *salt,
 		out += u;
 		for (j = 0; j < v; j++) B[j] = Ai[j % u];
 		/* Work out B + 1 first then can use B as tmp space */
-		if (!BN_bin2bn (B, v, Bpl1))
-			goto err;
-		if (!BN_add_word (Bpl1, 1))
-			goto err;
+		if (!BN_bin2bn (B, v, Bpl1)) goto err;
+		if (!BN_add_word (Bpl1, 1)) goto err;
 		for (j = 0; j < Ilen ; j+=v) {
-			if (!BN_bin2bn(I + j, v, Ij))
-				goto err;
-			if (!BN_add(Ij, Ij, Bpl1))
-				goto err;
-			if (!BN_bn2bin(Ij, B))
-				goto err;
+			if (!BN_bin2bn (I + j, v, Ij)) goto err;
+			if (!BN_add (Ij, Ij, Bpl1)) goto err;
+			BN_bn2bin (Ij, B);
 			Ijlen = BN_num_bytes (Ij);
 			/* If more than 2^(v*8) - 1 cut off MSB */
 			if (Ijlen > v) {
-				if (!BN_bn2bin (Ij, B))
-					goto err;
+				BN_bn2bin (Ij, B);
 				memcpy (I + j, B + 1, v);
 #ifndef PKCS12_BROKEN_KEYGEN
 			/* If less than v bytes pad with zeroes */
 			} else if (Ijlen < v) {
 				memset(I + j, 0, v - Ijlen);
-				if (!BN_bn2bin(Ij, I + j + v - Ijlen))
-					goto err;
+				BN_bn2bin(Ij, I + j + v - Ijlen); 
 #endif
-			} else if (!BN_bn2bin (Ij, I + j))
-				goto err;
+			} else BN_bn2bin (Ij, I + j);
 		}
 	}
 

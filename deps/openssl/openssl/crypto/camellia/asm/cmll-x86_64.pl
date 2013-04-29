@@ -40,8 +40,7 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
-*STDOUT=*OUT;
+open STDOUT,"| $^X $xlate $flavour $output";
 
 sub hi() { my $r=shift; $r =~ s/%[er]([a-d])x/%\1h/;    $r; }
 sub lo() { my $r=shift; $r =~ s/%[er]([a-d])x/%\1l/;

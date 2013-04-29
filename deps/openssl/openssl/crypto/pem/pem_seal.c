@@ -96,8 +96,7 @@ int PEM_SealInit(PEM_ENCODE_SEAL_CTX *ctx, EVP_CIPHER *type, EVP_MD *md_type,
 	EVP_EncodeInit(&ctx->encode);
 
 	EVP_MD_CTX_init(&ctx->md);
-	if (!EVP_SignInit(&ctx->md,md_type))
-		goto err;
+	EVP_SignInit(&ctx->md,md_type);
 
 	EVP_CIPHER_CTX_init(&ctx->cipher);
 	ret=EVP_SealInit(&ctx->cipher,type,ek,ekl,iv,pubk,npubk);
@@ -164,8 +163,7 @@ int PEM_SealFinal(PEM_ENCODE_SEAL_CTX *ctx, unsigned char *sig, int *sigl,
 		goto err;
 		}
 
-	if (!EVP_EncryptFinal_ex(&ctx->cipher,s,(int *)&i))
-		goto err;
+	EVP_EncryptFinal_ex(&ctx->cipher,s,(int *)&i);
 	EVP_EncodeUpdate(&ctx->encode,out,&j,s,i);
 	*outl=j;
 	out+=j;

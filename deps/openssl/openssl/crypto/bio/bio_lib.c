@@ -521,40 +521,40 @@ void BIO_free_all(BIO *bio)
 
 BIO *BIO_dup_chain(BIO *in)
 	{
-	BIO *ret=NULL,*eoc=NULL,*bio,*new_bio;
+	BIO *ret=NULL,*eoc=NULL,*bio,*new;
 
 	for (bio=in; bio != NULL; bio=bio->next_bio)
 		{
-		if ((new_bio=BIO_new(bio->method)) == NULL) goto err;
-		new_bio->callback=bio->callback;
-		new_bio->cb_arg=bio->cb_arg;
-		new_bio->init=bio->init;
-		new_bio->shutdown=bio->shutdown;
-		new_bio->flags=bio->flags;
+		if ((new=BIO_new(bio->method)) == NULL) goto err;
+		new->callback=bio->callback;
+		new->cb_arg=bio->cb_arg;
+		new->init=bio->init;
+		new->shutdown=bio->shutdown;
+		new->flags=bio->flags;
 
 		/* This will let SSL_s_sock() work with stdin/stdout */
-		new_bio->num=bio->num;
+		new->num=bio->num;
 
-		if (!BIO_dup_state(bio,(char *)new_bio))
+		if (!BIO_dup_state(bio,(char *)new))
 			{
-			BIO_free(new_bio);
+			BIO_free(new);
 			goto err;
 			}
 
 		/* copy app data */
-		if (!CRYPTO_dup_ex_data(CRYPTO_EX_INDEX_BIO, &new_bio->ex_data,
+		if (!CRYPTO_dup_ex_data(CRYPTO_EX_INDEX_BIO, &new->ex_data,
 					&bio->ex_data))
 			goto err;
 
 		if (ret == NULL)
 			{
-			eoc=new_bio;
+			eoc=new;
 			ret=eoc;
 			}
 		else
 			{
-			BIO_push(eoc,new_bio);
-			eoc=new_bio;
+			BIO_push(eoc,new);
+			eoc=new;
 			}
 		}
 	return(ret);

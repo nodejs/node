@@ -18,9 +18,9 @@ L_OPENSSL_ia32_cpuid_begin:
 	pushfl
 	popl	%eax
 	xorl	%eax,%ecx
-	xorl	%eax,%eax
 	btl	$21,%ecx
-	jnc	L000nocpuid
+	jnc	L000done
+	xorl	%eax,%eax
 	.byte	0x0f,0xa2
 	movl	%eax,%edi
 	xorl	%eax,%eax
@@ -46,14 +46,7 @@ L_OPENSSL_ia32_cpuid_begin:
 	jnz	L001intel
 	movl	$2147483648,%eax
 	.byte	0x0f,0xa2
-	cmpl	$2147483649,%eax
-	jb	L001intel
-	movl	%eax,%esi
-	movl	$2147483649,%eax
-	.byte	0x0f,0xa2
-	orl	%ecx,%ebp
-	andl	$2049,%ebp
-	cmpl	$2147483656,%esi
+	cmpl	$2147483656,%eax
 	jb	L001intel
 	movl	$2147483656,%eax
 	.byte	0x0f,0xa2
@@ -62,68 +55,46 @@ L_OPENSSL_ia32_cpuid_begin:
 	movl	$1,%eax
 	.byte	0x0f,0xa2
 	btl	$28,%edx
-	jnc	L002generic
+	jnc	L000done
 	shrl	$16,%ebx
 	andl	$255,%ebx
 	cmpl	%esi,%ebx
-	ja	L002generic
+	ja	L000done
 	andl	$4026531839,%edx
-	jmp	L002generic
+	jmp	L000done
 L001intel:
 	cmpl	$4,%edi
 	movl	$-1,%edi
-	jb	L003nocacheinfo
+	jb	L002nocacheinfo
 	movl	$4,%eax
 	movl	$0,%ecx
 	.byte	0x0f,0xa2
 	movl	%eax,%edi
 	shrl	$14,%edi
 	andl	$4095,%edi
-L003nocacheinfo:
+L002nocacheinfo:
 	movl	$1,%eax
 	.byte	0x0f,0xa2
-	andl	$3220176895,%edx
 	cmpl	$0,%ebp
-	jne	L004notintel
-	orl	$1073741824,%edx
+	jne	L003notP4
 	andb	$15,%ah
 	cmpb	$15,%ah
-	jne	L004notintel
+	jne	L003notP4
 	orl	$1048576,%edx
-L004notintel:
+L003notP4:
 	btl	$28,%edx
-	jnc	L002generic
+	jnc	L000done
 	andl	$4026531839,%edx
 	cmpl	$0,%edi
-	je	L002generic
+	je	L000done
 	orl	$268435456,%edx
 	shrl	$16,%ebx
 	cmpb	$1,%bl
-	ja	L002generic
+	ja	L000done
 	andl	$4026531839,%edx
-L002generic:
-	andl	$2048,%ebp
-	andl	$4294965247,%ecx
-	movl	%edx,%esi
-	orl	%ecx,%ebp
-	btl	$27,%ecx
-	jnc	L005clear_avx
-	xorl	%ecx,%ecx
-.byte	15,1,208
-	andl	$6,%eax
-	cmpl	$6,%eax
-	je	L006done
-	cmpl	$2,%eax
-	je	L005clear_avx
-L007clear_xmm:
-	andl	$4261412861,%ebp
-	andl	$4278190079,%esi
-L005clear_avx:
-	andl	$4026525695,%ebp
-L006done:
-	movl	%esi,%eax
-	movl	%ebp,%edx
-L000nocpuid:
+L000done:
+	movl	%edx,%eax
+	movl	%ecx,%edx
 	popl	%edi
 	popl	%esi
 	popl	%ebx
@@ -135,32 +106,26 @@ _OPENSSL_rdtsc:
 L_OPENSSL_rdtsc_begin:
 	xorl	%eax,%eax
 	xorl	%edx,%edx
-	call	L008PIC_me_up
-L008PIC_me_up:
-	popl	%ecx
-	movl	L_OPENSSL_ia32cap_P$non_lazy_ptr-L008PIC_me_up(%ecx),%ecx
+	leal	_OPENSSL_ia32cap_P,%ecx
 	btl	$4,(%ecx)
-	jnc	L009notsc
+	jnc	L004notsc
 	.byte	0x0f,0x31
-L009notsc:
+L004notsc:
 	ret
 .globl	_OPENSSL_instrument_halt
 .align	4
 _OPENSSL_instrument_halt:
 L_OPENSSL_instrument_halt_begin:
-	call	L010PIC_me_up
-L010PIC_me_up:
-	popl	%ecx
-	movl	L_OPENSSL_ia32cap_P$non_lazy_ptr-L010PIC_me_up(%ecx),%ecx
+	leal	_OPENSSL_ia32cap_P,%ecx
 	btl	$4,(%ecx)
-	jnc	L011nohalt
+	jnc	L005nohalt
 .long	2421723150
 	andl	$3,%eax
-	jnz	L011nohalt
+	jnz	L005nohalt
 	pushfl
 	popl	%eax
 	btl	$9,%eax
-	jnc	L011nohalt
+	jnc	L005nohalt
 	.byte	0x0f,0x31
 	pushl	%edx
 	pushl	%eax
@@ -170,7 +135,7 @@ L010PIC_me_up:
 	sbbl	4(%esp),%edx
 	addl	$8,%esp
 	ret
-L011nohalt:
+L005nohalt:
 	xorl	%eax,%eax
 	xorl	%edx,%edx
 	ret
@@ -181,21 +146,21 @@ L_OPENSSL_far_spin_begin:
 	pushfl
 	popl	%eax
 	btl	$9,%eax
-	jnc	L012nospin
+	jnc	L006nospin
 	movl	4(%esp),%eax
 	movl	8(%esp),%ecx
 .long	2430111262
 	xorl	%eax,%eax
 	movl	(%ecx),%edx
-	jmp	L013spin
+	jmp	L007spin
 .align	4,0x90
-L013spin:
+L007spin:
 	incl	%eax
 	cmpl	(%ecx),%edx
-	je	L013spin
+	je	L007spin
 .long	529567888
 	ret
-L012nospin:
+L006nospin:
 	xorl	%eax,%eax
 	xorl	%edx,%edx
 	ret
@@ -205,15 +170,12 @@ _OPENSSL_wipe_cpu:
 L_OPENSSL_wipe_cpu_begin:
 	xorl	%eax,%eax
 	xorl	%edx,%edx
-	call	L014PIC_me_up
-L014PIC_me_up:
-	popl	%ecx
-	movl	L_OPENSSL_ia32cap_P$non_lazy_ptr-L014PIC_me_up(%ecx),%ecx
+	leal	_OPENSSL_ia32cap_P,%ecx
 	movl	(%ecx),%ecx
 	btl	$1,(%ecx)
-	jnc	L015no_x87
+	jnc	L008no_x87
 .long	4007259865,4007259865,4007259865,4007259865,2430851995
-L015no_x87:
+L008no_x87:
 	leal	4(%esp),%eax
 	ret
 .globl	_OPENSSL_atomic_add
@@ -225,11 +187,11 @@ L_OPENSSL_atomic_add_begin:
 	pushl	%ebx
 	nop
 	movl	(%edx),%eax
-L016spin:
+L009spin:
 	leal	(%eax,%ecx,1),%ebx
 	nop
 .long	447811568
-	jne	L016spin
+	jne	L009spin
 	movl	%ebx,%eax
 	popl	%ebx
 	ret
@@ -266,51 +228,34 @@ L_OPENSSL_cleanse_begin:
 	movl	8(%esp),%ecx
 	xorl	%eax,%eax
 	cmpl	$7,%ecx
-	jae	L017lot
+	jae	L010lot
 	cmpl	$0,%ecx
-	je	L018ret
-L019little:
+	je	L011ret
+L012little:
 	movb	%al,(%edx)
 	subl	$1,%ecx
 	leal	1(%edx),%edx
-	jnz	L019little
-L018ret:
+	jnz	L012little
+L011ret:
 	ret
 .align	4,0x90
-L017lot:
+L010lot:
 	testl	$3,%edx
-	jz	L020aligned
+	jz	L013aligned
 	movb	%al,(%edx)
 	leal	-1(%ecx),%ecx
 	leal	1(%edx),%edx
-	jmp	L017lot
-L020aligned:
+	jmp	L010lot
+L013aligned:
 	movl	%eax,(%edx)
 	leal	-4(%ecx),%ecx
 	testl	$-4,%ecx
 	leal	4(%edx),%edx
-	jnz	L020aligned
+	jnz	L013aligned
 	cmpl	$0,%ecx
-	jne	L019little
+	jne	L012little
 	ret
-.globl	_OPENSSL_ia32_rdrand
-.align	4
-_OPENSSL_ia32_rdrand:
-L_OPENSSL_ia32_rdrand_begin:
-	movl	$8,%ecx
-L021loop:
-.byte	15,199,240
-	jc	L022break
-	loop	L021loop
-L022break:
-	cmpl	$0,%eax
-	cmovel	%ecx,%eax
-	ret
-.section __IMPORT,__pointers,non_lazy_symbol_pointers
-L_OPENSSL_ia32cap_P$non_lazy_ptr:
-.indirect_symbol	_OPENSSL_ia32cap_P
-.long	0
-.comm	_OPENSSL_ia32cap_P,8,2
+.comm	_OPENSSL_ia32cap_P,4
 .mod_init_func
 .align 2
 .long   _OPENSSL_cpuid_setup

@@ -18,16 +18,11 @@
 # Rescheduling for dual-issue pipeline resulted in 22% improvement on
 # Cortex A8 core and ~20 cycles per processed byte.
 
-# February 2011.
-#
-# Profiler-assisted and platform-specific optimization resulted in 16%
-# improvement on Cortex A8 core and ~17 cycles per processed byte.
-
 while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
 
 $ctx="r0";	$t0="r0";
-$inp="r1";	$t3="r1";
+$inp="r1";
 $len="r2";	$t1="r2";
 $T1="r3";
 $A="r4";
@@ -51,9 +46,6 @@ sub BODY_00_15 {
 my ($i,$a,$b,$c,$d,$e,$f,$g,$h) = @_;
 
 $code.=<<___ if ($i<16);
-#if __ARM_ARCH__>=7
-	ldr	$T1,[$inp],#4
-#else
 	ldrb	$T1,[$inp,#3]			@ $i
 	ldrb	$t2,[$inp,#2]
 	ldrb	$t1,[$inp,#1]
@@ -61,24 +53,16 @@ $code.=<<___ if ($i<16);
 	orr	$T1,$T1,$t2,lsl#8
 	orr	$T1,$T1,$t1,lsl#16
 	orr	$T1,$T1,$t0,lsl#24
-#endif
+	`"str	$inp,[sp,#17*4]"	if ($i==15)`
 ___
 $code.=<<___;
-	mov	$t0,$e,ror#$Sigma1[0]
 	ldr	$t2,[$Ktbl],#4			@ *K256++
+	mov	$t0,$e,ror#$Sigma1[0]
+	str	$T1,[sp,#`$i%16`*4]
 	eor	$t0,$t0,$e,ror#$Sigma1[1]
 	eor	$t1,$f,$g
-#if $i>=16
-	add	$T1,$T1,$t3			@ from BODY_16_xx
-#elif __ARM_ARCH__>=7 && defined(__ARMEL__)
-	rev	$T1,$T1
-#endif
-#if $i==15
-	str	$inp,[sp,#17*4]			@ leave room for $t3
-#endif
 	eor	$t0,$t0,$e,ror#$Sigma1[2]	@ Sigma1(e)
 	and	$t1,$t1,$e
-	str	$T1,[sp,#`$i%16`*4]
 	add	$T1,$T1,$t0
 	eor	$t1,$t1,$g			@ Ch(e,f,g)
 	add	$T1,$T1,$h
@@ -87,9 +71,6 @@ $code.=<<___;
 	eor	$h,$h,$a,ror#$Sigma0[1]
 	add	$T1,$T1,$t2
 	eor	$h,$h,$a,ror#$Sigma0[2]		@ Sigma0(a)
-#if $i>=15
-	ldr	$t3,[sp,#`($i+2)%16`*4]		@ from BODY_16_xx
-#endif
 	orr	$t0,$a,$b
 	and	$t1,$a,$b
 	and	$t0,$t0,$c
@@ -104,26 +85,24 @@ sub BODY_16_XX {
 my ($i,$a,$b,$c,$d,$e,$f,$g,$h) = @_;
 
 $code.=<<___;
-	@ ldr	$t3,[sp,#`($i+1)%16`*4]		@ $i
+	ldr	$t1,[sp,#`($i+1)%16`*4]		@ $i
 	ldr	$t2,[sp,#`($i+14)%16`*4]
-	mov	$t0,$t3,ror#$sigma0[0]
 	ldr	$T1,[sp,#`($i+0)%16`*4]
-	eor	$t0,$t0,$t3,ror#$sigma0[1]
-	ldr	$t1,[sp,#`($i+9)%16`*4]
-	eor	$t0,$t0,$t3,lsr#$sigma0[2]	@ sigma0(X[i+1])
-	mov	$t3,$t2,ror#$sigma1[0]
+	mov	$t0,$t1,ror#$sigma0[0]
+	ldr	$inp,[sp,#`($i+9)%16`*4]
+	eor	$t0,$t0,$t1,ror#$sigma0[1]
+	eor	$t0,$t0,$t1,lsr#$sigma0[2]	@ sigma0(X[i+1])
+	mov	$t1,$t2,ror#$sigma1[0]
 	add	$T1,$T1,$t0
-	eor	$t3,$t3,$t2,ror#$sigma1[1]
+	eor	$t1,$t1,$t2,ror#$sigma1[1]
+	add	$T1,$T1,$inp
+	eor	$t1,$t1,$t2,lsr#$sigma1[2]	@ sigma1(X[i+14])
 	add	$T1,$T1,$t1
-	eor	$t3,$t3,$t2,lsr#$sigma1[2]	@ sigma1(X[i+14])
-	@ add	$T1,$T1,$t3
 ___
 	&BODY_00_15(@_);
 }
 
 $code=<<___;
-#include "arm_arch.h"
-
 .text
 .code	32
 
@@ -153,7 +132,7 @@ K256:
 sha256_block_data_order:
 	sub	r3,pc,#8		@ sha256_block_data_order
 	add	$len,$inp,$len,lsl#6	@ len to point at the end of inp
-	stmdb	sp!,{$ctx,$inp,$len,r4-r11,lr}
+	stmdb	sp!,{$ctx,$inp,$len,r4-r12,lr}
 	ldmia	$ctx,{$A,$B,$C,$D,$E,$F,$G,$H}
 	sub	$Ktbl,r3,#256		@ K256
 	sub	sp,sp,#16*4		@ alloca(X[16])
@@ -192,14 +171,10 @@ $code.=<<___;
 	bne	.Loop
 
 	add	sp,sp,#`16+3`*4	@ destroy frame
-#if __ARM_ARCH__>=5
-	ldmia	sp!,{r4-r11,pc}
-#else
-	ldmia	sp!,{r4-r11,lr}
+	ldmia	sp!,{r4-r12,lr}
 	tst	lr,#1
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
-#endif
 .size   sha256_block_data_order,.-sha256_block_data_order
 .asciz  "SHA256 block transform for ARMv4, CRYPTOGAMS by <appro\@openssl.org>"
 .align	2

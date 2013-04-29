@@ -32,13 +32,8 @@
 #include <memory.h>
 #endif
 
-#include <openssl/crypto.h>
 #include <openssl/seed.h>
 #include "seed_locl.h"
-
-#ifdef SS	/* can get defined on Solaris by inclusion of <stdlib.h> */
-#undef SS
-#endif
 
 static const seed_word SS[4][256] = {	{
 	0x2989a1a8, 0x05858184, 0x16c6d2d4, 0x13c3d3d0, 0x14445054, 0x1d0d111c, 0x2c8ca0ac, 0x25052124,
@@ -197,14 +192,8 @@ static const seed_word KC[] = {
 	KC0,	KC1,	KC2,	KC3,	KC4,	KC5,	KC6,	KC7,
 	KC8,	KC9,	KC10,	KC11,	KC12,	KC13,	KC14,	KC15	};
 #endif
+
 void SEED_set_key(const unsigned char rawkey[SEED_KEY_LENGTH], SEED_KEY_SCHEDULE *ks)
-#ifdef OPENSSL_FIPS
-	{
-	fips_cipher_abort(SEED);
-	private_SEED_set_key(rawkey, ks);
-	}
-void private_SEED_set_key(const unsigned char rawkey[SEED_KEY_LENGTH], SEED_KEY_SCHEDULE *ks)
-#endif
 {
 	seed_word x1, x2, x3, x4;
 	seed_word t0, t1;

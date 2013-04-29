@@ -305,9 +305,9 @@ $code.=<<___;
 	srlx	@X[(($i+9)/2)%8],32,$tmp1	! X[i+9]
 	xor	$tmp0,$tmp2,$tmp2		! sigma1(X[i+14])
 	srl	@X[($i/2)%8],0,$tmp0
-	add	$tmp2,$tmp1,$tmp1
 	add	$xi,$T1,$T1			! +=X[i]
 	xor	$tmp0,@X[($i/2)%8],@X[($i/2)%8]
+	add	$tmp2,$T1,$T1
 	add	$tmp1,$T1,$T1
 
 	srl	$T1,0,$T1
@@ -318,9 +318,9 @@ ___
 $code.=<<___;
 	srlx	@X[($i/2)%8],32,$tmp1		! X[i]
 	xor	$tmp0,$tmp2,$tmp2		! sigma1(X[i+14])
-	add	$xi,$T1,$T1			! +=X[i+9]
-	add	$tmp2,$tmp1,$tmp1
 	srl	@X[($i/2)%8],0,@X[($i/2)%8]
+	add	$xi,$T1,$T1			! +=X[i+9]
+	add	$tmp2,$T1,$T1
 	add	$tmp1,$T1,$T1
 
 	sllx	$T1,32,$tmp0

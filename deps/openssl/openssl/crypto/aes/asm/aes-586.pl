@@ -39,7 +39,7 @@
 # but exhibits up to 10% improvement on other cores.
 #
 # Second version is "monolithic" replacement for aes_core.c, which in
-# addition to AES_[de|en]crypt implements private_AES_set_[de|en]cryption_key.
+# addition to AES_[de|en]crypt implements AES_set_[de|en]cryption_key.
 # This made it possible to implement little-endian variant of the
 # algorithm without modifying the base C code. Motivating factor for
 # the undertaken effort was that it appeared that in tight IA-32
@@ -2854,12 +2854,12 @@ sub enckey()
     &set_label("exit");
 &function_end("_x86_AES_set_encrypt_key");
 
-# int private_AES_set_encrypt_key(const unsigned char *userKey, const int bits,
+# int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 #                        AES_KEY *key)
-&function_begin_B("private_AES_set_encrypt_key");
+&function_begin_B("AES_set_encrypt_key");
 	&call	("_x86_AES_set_encrypt_key");
 	&ret	();
-&function_end_B("private_AES_set_encrypt_key");
+&function_end_B("AES_set_encrypt_key");
 
 sub deckey()
 { my ($i,$key,$tp1,$tp2,$tp4,$tp8) = @_;
@@ -2916,9 +2916,9 @@ sub deckey()
 	&mov	(&DWP(4*$i,$key),$tp1);
 }
 
-# int private_AES_set_decrypt_key(const unsigned char *userKey, const int bits,
+# int AES_set_decrypt_key(const unsigned char *userKey, const int bits,
 #                        AES_KEY *key)
-&function_begin_B("private_AES_set_decrypt_key");
+&function_begin_B("AES_set_decrypt_key");
 	&call	("_x86_AES_set_encrypt_key");
 	&cmp	("eax",0);
 	&je	(&label("proceed"));
@@ -2974,7 +2974,7 @@ sub deckey()
 	&jb	(&label("permute"));
 
 	&xor	("eax","eax");			# return success
-&function_end("private_AES_set_decrypt_key");
+&function_end("AES_set_decrypt_key");
 &asciz("AES for x86, CRYPTOGAMS by <appro\@openssl.org>");
 
 &asm_finish();

@@ -709,16 +709,13 @@ static int derive_pvk_key(unsigned char *key,
 			const unsigned char *pass, int passlen)
 	{
 	EVP_MD_CTX mctx;
-	int rv = 1;
 	EVP_MD_CTX_init(&mctx);
-	if (!EVP_DigestInit_ex(&mctx, EVP_sha1(), NULL)
-		|| !EVP_DigestUpdate(&mctx, salt, saltlen)
-		|| !EVP_DigestUpdate(&mctx, pass, passlen)
-		|| !EVP_DigestFinal_ex(&mctx, key, NULL))
-			rv = 0;
-
+	EVP_DigestInit_ex(&mctx, EVP_sha1(), NULL);
+	EVP_DigestUpdate(&mctx, salt, saltlen);
+	EVP_DigestUpdate(&mctx, pass, passlen);
+	EVP_DigestFinal_ex(&mctx, key, NULL);
 	EVP_MD_CTX_cleanup(&mctx);
-	return rv;
+	return 1;
 	}
 	
 
@@ -730,12 +727,11 @@ static EVP_PKEY *do_PVK_body(const unsigned char **in,
 	const unsigned char *p = *in;
 	unsigned int magic;
 	unsigned char *enctmp = NULL, *q;
-	EVP_CIPHER_CTX cctx;
-	EVP_CIPHER_CTX_init(&cctx);
 	if (saltlen)
 		{
 		char psbuf[PEM_BUFSIZE];
 		unsigned char keybuf[20];
+		EVP_CIPHER_CTX cctx;
 		int enctmplen, inlen;
 		if (cb)
 			inlen=cb(psbuf,PEM_BUFSIZE,0,u);
@@ -761,41 +757,37 @@ static EVP_PKEY *do_PVK_body(const unsigned char **in,
 		p += 8;
 		inlen = keylen - 8;
 		q = enctmp + 8;
-		if (!EVP_DecryptInit_ex(&cctx, EVP_rc4(), NULL, keybuf, NULL))
-			goto err;
-		if (!EVP_DecryptUpdate(&cctx, q, &enctmplen, p, inlen))
-			goto err;
-		if (!EVP_DecryptFinal_ex(&cctx, q + enctmplen, &enctmplen))
-			goto err;
+		EVP_CIPHER_CTX_init(&cctx);
+		EVP_DecryptInit_ex(&cctx, EVP_rc4(), NULL, keybuf, NULL);
+		EVP_DecryptUpdate(&cctx, q, &enctmplen, p, inlen);
+		EVP_DecryptFinal_ex(&cctx, q + enctmplen, &enctmplen);
 		magic = read_ledword((const unsigned char **)&q);
 		if (magic != MS_RSA2MAGIC && magic != MS_DSS2MAGIC)
 			{
 			q = enctmp + 8;
 			memset(keybuf + 5, 0, 11);
-			if (!EVP_DecryptInit_ex(&cctx, EVP_rc4(), NULL, keybuf,
-								NULL))
-				goto err;
+			EVP_DecryptInit_ex(&cctx, EVP_rc4(), NULL, keybuf,
+								NULL);
 			OPENSSL_cleanse(keybuf, 20);
-			if (!EVP_DecryptUpdate(&cctx, q, &enctmplen, p, inlen))
-				goto err;
-			if (!EVP_DecryptFinal_ex(&cctx, q + enctmplen,
-								&enctmplen))
-				goto err;
+			EVP_DecryptUpdate(&cctx, q, &enctmplen, p, inlen);
+			EVP_DecryptFinal_ex(&cctx, q + enctmplen,
+								&enctmplen);
 			magic = read_ledword((const unsigned char **)&q);
 			if (magic != MS_RSA2MAGIC && magic != MS_DSS2MAGIC)
 				{
+				EVP_CIPHER_CTX_cleanup(&cctx);
 				PEMerr(PEM_F_DO_PVK_BODY, PEM_R_BAD_DECRYPT);
 				goto err;
 				}
 			}
 		else
 			OPENSSL_cleanse(keybuf, 20);
+		EVP_CIPHER_CTX_cleanup(&cctx);
 		p = enctmp;
 		}
 
 	ret = b2i_PrivateKey(&p, keylen);
 	err:
-	EVP_CIPHER_CTX_cleanup(&cctx);
 	if (enctmp && saltlen)
 		OPENSSL_free(enctmp);
 	return ret;
@@ -849,8 +841,6 @@ static int i2b_PVK(unsigned char **out, EVP_PKEY*pk, int enclevel,
 	{
 	int outlen = 24, pklen;
 	unsigned char *p, *salt = NULL;
-	EVP_CIPHER_CTX cctx;
-	EVP_CIPHER_CTX_init(&cctx);
 	if (enclevel)
 		outlen += PVK_SALTLEN;
 	pklen = do_i2b(NULL, pk, 0);
@@ -895,6 +885,7 @@ static int i2b_PVK(unsigned char **out, EVP_PKEY*pk, int enclevel,
 		{
 		char psbuf[PEM_BUFSIZE];
 		unsigned char keybuf[20];
+		EVP_CIPHER_CTX cctx;
 		int enctmplen, inlen;
 		if (cb)
 			inlen=cb(psbuf,PEM_BUFSIZE,1,u);
@@ -911,19 +902,16 @@ static int i2b_PVK(unsigned char **out, EVP_PKEY*pk, int enclevel,
 		if (enclevel == 1)
 			memset(keybuf + 5, 0, 11);
 		p = salt + PVK_SALTLEN + 8;
-		if (!EVP_EncryptInit_ex(&cctx, EVP_rc4(), NULL, keybuf, NULL))
-			goto error;
+		EVP_CIPHER_CTX_init(&cctx);
+		EVP_EncryptInit_ex(&cctx, EVP_rc4(), NULL, keybuf, NULL);
 		OPENSSL_cleanse(keybuf, 20);
-		if (!EVP_DecryptUpdate(&cctx, p, &enctmplen, p, pklen - 8))
-			goto error;
-		if (!EVP_DecryptFinal_ex(&cctx, p + enctmplen, &enctmplen))
-			goto error;
+		EVP_DecryptUpdate(&cctx, p, &enctmplen, p, pklen - 8);
+		EVP_DecryptFinal_ex(&cctx, p + enctmplen, &enctmplen);
+		EVP_CIPHER_CTX_cleanup(&cctx);
 		}
-	EVP_CIPHER_CTX_cleanup(&cctx);
 	return outlen;
 
 	error:
-	EVP_CIPHER_CTX_cleanup(&cctx);
 	return -1;
 	}
 

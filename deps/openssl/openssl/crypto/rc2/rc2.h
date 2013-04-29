@@ -79,9 +79,7 @@ typedef struct rc2_key_st
 	RC2_INT data[64];
 	} RC2_KEY;
 
-#ifdef OPENSSL_FIPS 
-void private_RC2_set_key(RC2_KEY *key, int len, const unsigned char *data,int bits);
-#endif
+ 
 void RC2_set_key(RC2_KEY *key, int len, const unsigned char *data,int bits);
 void RC2_ecb_encrypt(const unsigned char *in,unsigned char *out,RC2_KEY *key,
 		     int enc);

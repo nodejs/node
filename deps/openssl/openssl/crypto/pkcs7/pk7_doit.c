@@ -204,11 +204,11 @@ static int pkcs7_decrypt_rinfo(unsigned char **pek, int *peklen,
 	unsigned char *ek = NULL;
 	size_t eklen;
 
-	int ret = -1;
+	int ret = 0;
 
 	pctx = EVP_PKEY_CTX_new(pkey, NULL);
 	if (!pctx)
-		return -1;
+		return 0;
 
 	if (EVP_PKEY_decrypt_init(pctx) <= 0)
 		goto err;
@@ -235,18 +235,11 @@ static int pkcs7_decrypt_rinfo(unsigned char **pek, int *peklen,
 	if (EVP_PKEY_decrypt(pctx, ek, &eklen,
 				ri->enc_key->data, ri->enc_key->length) <= 0)
 		{
-		ret = 0;
 		PKCS7err(PKCS7_F_PKCS7_DECRYPT_RINFO, ERR_R_EVP_LIB);
 		goto err;
 		}
 
 	ret = 1;
-
-	if (*pek)
-		{
-		OPENSSL_cleanse(*pek, *peklen);
-		OPENSSL_free(*pek);
-		}
 
 	*pek = ek;
 	*peklen = eklen;
@@ -430,8 +423,6 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 	STACK_OF(X509_ALGOR) *md_sk=NULL;
 	STACK_OF(PKCS7_RECIP_INFO) *rsk=NULL;
 	PKCS7_RECIP_INFO *ri=NULL;
-       unsigned char *ek = NULL, *tkey = NULL;
-       int eklen = 0, tkeylen = 0;
 
 	i=OBJ_obj2nid(p7->type);
 	p7->state=PKCS7_S_HEADER;
@@ -509,6 +500,8 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 		int max;
 		X509_OBJECT ret;
 #endif
+		unsigned char *ek = NULL;
+		int eklen;
 
 		if ((etmp=BIO_new(BIO_f_cipher())) == NULL)
 			{
@@ -541,28 +534,29 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 			}
 
 		/* If we haven't got a certificate try each ri in turn */
+
 		if (pcert == NULL)
 			{
-			/* Always attempt to decrypt all rinfo even
-			 * after sucess as a defence against MMA timing
-			 * attacks.
-			 */
 			for (i=0; i<sk_PKCS7_RECIP_INFO_num(rsk); i++)
 				{
 				ri=sk_PKCS7_RECIP_INFO_value(rsk,i);
-				
 				if (pkcs7_decrypt_rinfo(&ek, &eklen,
-							ri, pkey) < 0)
-					goto err;
+							ri, pkey) > 0)
+					break;
 				ERR_clear_error();
+				ri = NULL;
+				}
+			if (ri == NULL)
+				{
+				PKCS7err(PKCS7_F_PKCS7_DATADECODE,
+				      PKCS7_R_NO_RECIPIENT_MATCHES_KEY);
+				goto err;
 				}
 			}
 		else
 			{
-			/* Only exit on fatal errors, not decrypt failure */
-			if (pkcs7_decrypt_rinfo(&ek, &eklen, ri, pkey) < 0)
+			if (pkcs7_decrypt_rinfo(&ek, &eklen, ri, pkey) <= 0)
 				goto err;
-			ERR_clear_error();
 			}
 
 		evp_ctx=NULL;
@@ -571,19 +565,6 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 			goto err;
 		if (EVP_CIPHER_asn1_to_param(evp_ctx,enc_alg->parameter) < 0)
 			goto err;
-		/* Generate random key as MMA defence */
-		tkeylen = EVP_CIPHER_CTX_key_length(evp_ctx);
-		tkey = OPENSSL_malloc(tkeylen);
-		if (!tkey)
-			goto err;
-		if (EVP_CIPHER_CTX_rand_key(evp_ctx, tkey) <= 0)
-			goto err;
-		if (ek == NULL)
-			{
-			ek = tkey;
-			eklen = tkeylen;
-			tkey = NULL;
-			}
 
 		if (eklen != EVP_CIPHER_CTX_key_length(evp_ctx)) {
 			/* Some S/MIME clients don't use the same key
@@ -592,16 +573,11 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 			 */
 			if(!EVP_CIPHER_CTX_set_key_length(evp_ctx, eklen))
 				{
-				/* Use random key as MMA defence */
-				OPENSSL_cleanse(ek, eklen);
-				OPENSSL_free(ek);
-				ek = tkey;
-				eklen = tkeylen;
-				tkey = NULL;
+				PKCS7err(PKCS7_F_PKCS7_DATADECODE,
+					PKCS7_R_DECRYPTED_KEY_IS_WRONG_LENGTH);
+				goto err;
 				}
 		} 
-		/* Clear errors so we don't leak information useful in MMA */
-		ERR_clear_error();
 		if (EVP_CipherInit_ex(evp_ctx,NULL,NULL,ek,NULL,0) <= 0)
 			goto err;
 
@@ -609,13 +585,6 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 			{
 			OPENSSL_cleanse(ek,eklen);
 			OPENSSL_free(ek);
-                       ek = NULL;
-			}
-		if (tkey)
-			{
-			OPENSSL_cleanse(tkey,tkeylen);
-			OPENSSL_free(tkey);
-                       tkey = NULL;
 			}
 
 		if (out == NULL)
@@ -658,16 +627,6 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 	if (0)
 		{
 err:
-               if (ek)
-                       {
-                       OPENSSL_cleanse(ek,eklen);
-                       OPENSSL_free(ek);
-                       }
-               if (tkey)
-                       {
-                       OPENSSL_cleanse(tkey,tkeylen);
-                       OPENSSL_free(tkey);
-                       }
 		if (out != NULL) BIO_free_all(out);
 		if (btmp != NULL) BIO_free_all(btmp);
 		if (etmp != NULL) BIO_free_all(etmp);
@@ -717,11 +676,7 @@ static int do_pkcs7_signed_attrib(PKCS7_SIGNER_INFO *si, EVP_MD_CTX *mctx)
 		}
 
 	/* Add digest */
-	if (!EVP_DigestFinal_ex(mctx, md_data,&md_len))
-		{
-		PKCS7err(PKCS7_F_DO_PKCS7_SIGNED_ATTRIB, ERR_R_EVP_LIB);
-		return 0;
-		}
+	EVP_DigestFinal_ex(mctx, md_data,&md_len);
 	if (!PKCS7_add1_attrib_digest(si, md_data, md_len))
 		{
 		PKCS7err(PKCS7_F_DO_PKCS7_SIGNED_ATTRIB, ERR_R_MALLOC_FAILURE);
@@ -829,8 +784,7 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
 
 			/* We now have the EVP_MD_CTX, lets do the
 			 * signing. */
-			if (!EVP_MD_CTX_copy_ex(&ctx_tmp,mdc))
-				goto err;
+			EVP_MD_CTX_copy_ex(&ctx_tmp,mdc);
 
 			sk=si->auth_attr;
 
@@ -868,8 +822,7 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
 		if (!PKCS7_find_digest(&mdc, bio,
 				OBJ_obj2nid(p7->d.digest->md->algorithm)))
 			goto err;
-		if (!EVP_DigestFinal_ex(mdc,md_data,&md_len))
-			goto err;
+		EVP_DigestFinal_ex(mdc,md_data,&md_len);
 		M_ASN1_OCTET_STRING_set(p7->d.digest->digest, md_data, md_len);
 		}
 
@@ -1062,8 +1015,7 @@ int PKCS7_signatureVerify(BIO *bio, PKCS7 *p7, PKCS7_SIGNER_INFO *si,
 
 	/* mdc is the digest ctx that we want, unless there are attributes,
 	 * in which case the digest is the signed attributes */
-	if (!EVP_MD_CTX_copy_ex(&mdc_tmp,mdc))
-		goto err;
+	EVP_MD_CTX_copy_ex(&mdc_tmp,mdc);
 
 	sk=si->auth_attr;
 	if ((sk != NULL) && (sk_X509_ATTRIBUTE_num(sk) != 0))
@@ -1073,8 +1025,7 @@ int PKCS7_signatureVerify(BIO *bio, PKCS7 *p7, PKCS7_SIGNER_INFO *si,
 		int alen;
 		ASN1_OCTET_STRING *message_digest;
 
-		if (!EVP_DigestFinal_ex(&mdc_tmp,md_dat,&md_len))
-			goto err;
+		EVP_DigestFinal_ex(&mdc_tmp,md_dat,&md_len);
 		message_digest=PKCS7_digest_from_attributes(sk);
 		if (!message_digest)
 			{
@@ -1099,8 +1050,7 @@ for (ii=0; ii<md_len; ii++) printf("%02X",md_dat[ii]); printf(" calc\n");
 			goto err;
 			}
 
-		if (!EVP_VerifyInit_ex(&mdc_tmp,EVP_get_digestbynid(md_type), NULL))
-			goto err;
+		EVP_VerifyInit_ex(&mdc_tmp,EVP_get_digestbynid(md_type), NULL);
 
 		alen = ASN1_item_i2d((ASN1_VALUE *)sk, &abuf,
 						ASN1_ITEM_rptr(PKCS7_ATTR_VERIFY));
@@ -1110,8 +1060,7 @@ for (ii=0; ii<md_len; ii++) printf("%02X",md_dat[ii]); printf(" calc\n");
 			ret = -1;
 			goto err;
 			}
-		if (!EVP_VerifyUpdate(&mdc_tmp, abuf, alen))
-			goto err;
+		EVP_VerifyUpdate(&mdc_tmp, abuf, alen);
 
 		OPENSSL_free(abuf);
 		}

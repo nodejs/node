@@ -73,9 +73,6 @@
 #include <openssl/engine.h>
 #endif
 #include <openssl/err.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
 
 const char ECDH_version[]="ECDH" OPENSSL_VERSION_PTEXT;
 
@@ -93,16 +90,7 @@ void ECDH_set_default_method(const ECDH_METHOD *meth)
 const ECDH_METHOD *ECDH_get_default_method(void)
 	{
 	if(!default_ECDH_method) 
-		{
-#ifdef OPENSSL_FIPS
-		if (FIPS_mode())
-			return FIPS_ecdh_openssl();
-		else
-			return ECDH_OpenSSL();
-#else
 		default_ECDH_method = ECDH_OpenSSL();
-#endif
-		}
 	return default_ECDH_method;
 	}
 
@@ -222,26 +210,11 @@ ECDH_DATA *ecdh_check(EC_KEY *key)
 		ecdh_data = (ECDH_DATA *)ecdh_data_new();
 		if (ecdh_data == NULL)
 			return NULL;
-		data = EC_KEY_insert_key_method_data(key, (void *)ecdh_data,
-			   ecdh_data_dup, ecdh_data_free, ecdh_data_free);
-		if (data != NULL)
-			{
-			/* Another thread raced us to install the key_method
-			 * data and won. */
-			ecdh_data_free(ecdh_data);
-			ecdh_data = (ECDH_DATA *)data;
-			}
+		EC_KEY_insert_key_method_data(key, (void *)ecdh_data,
+			ecdh_data_dup, ecdh_data_free, ecdh_data_free);
 	}
 	else
 		ecdh_data = (ECDH_DATA *)data;
-#ifdef OPENSSL_FIPS
-	if (FIPS_mode() && !(ecdh_data->flags & ECDH_FLAG_FIPS_METHOD)
-			&& !(EC_KEY_get_flags(key) & EC_FLAG_NON_FIPS_ALLOW))
-		{
-		ECDHerr(ECDH_F_ECDH_CHECK, ECDH_R_NON_FIPS_METHOD);
-		return NULL;
-		}
-#endif
 	
 
 	return ecdh_data;

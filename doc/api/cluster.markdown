@@ -414,7 +414,7 @@ that would normally not allow the worker to do any cleanup if needed.
 
       process.on('message', function(msg) {
         if (msg === 'force kill') {
-          server.destroy();
+          server.close();
         }
       });
     }

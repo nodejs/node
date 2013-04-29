@@ -116,8 +116,6 @@
 #include <openssl/x509.h>
 
 #ifndef OPENSSL_NO_SHA
-#ifndef OPENSSL_FIPS
-
 static int init(EVP_MD_CTX *ctx)
 	{ return SHA1_Init(ctx->md_data); }
 
@@ -147,5 +145,4 @@ const EVP_MD *EVP_ecdsa(void)
 	{
 	return(&ecdsa_md);
 	}
-#endif
 #endif

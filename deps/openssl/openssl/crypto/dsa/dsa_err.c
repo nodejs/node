@@ -1,6 +1,6 @@
 /* crypto/dsa/dsa_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -76,8 +76,6 @@ static ERR_STRING_DATA DSA_str_functs[]=
 {ERR_FUNC(DSA_F_DSAPARAMS_PRINT_FP),	"DSAparams_print_fp"},
 {ERR_FUNC(DSA_F_DSA_DO_SIGN),	"DSA_do_sign"},
 {ERR_FUNC(DSA_F_DSA_DO_VERIFY),	"DSA_do_verify"},
-{ERR_FUNC(DSA_F_DSA_GENERATE_KEY),	"DSA_generate_key"},
-{ERR_FUNC(DSA_F_DSA_GENERATE_PARAMETERS_EX),	"DSA_generate_parameters_ex"},
 {ERR_FUNC(DSA_F_DSA_NEW_METHOD),	"DSA_new_method"},
 {ERR_FUNC(DSA_F_DSA_PARAM_DECODE),	"DSA_PARAM_DECODE"},
 {ERR_FUNC(DSA_F_DSA_PRINT_FP),	"DSA_print_fp"},
@@ -88,7 +86,6 @@ static ERR_STRING_DATA DSA_str_functs[]=
 {ERR_FUNC(DSA_F_DSA_SIGN),	"DSA_sign"},
 {ERR_FUNC(DSA_F_DSA_SIGN_SETUP),	"DSA_sign_setup"},
 {ERR_FUNC(DSA_F_DSA_SIG_NEW),	"DSA_SIG_new"},
-{ERR_FUNC(DSA_F_DSA_SIG_PRINT),	"DSA_SIG_PRINT"},
 {ERR_FUNC(DSA_F_DSA_VERIFY),	"DSA_verify"},
 {ERR_FUNC(DSA_F_I2D_DSA_SIG),	"i2d_DSA_SIG"},
 {ERR_FUNC(DSA_F_OLD_DSA_PRIV_DECODE),	"OLD_DSA_PRIV_DECODE"},
@@ -108,8 +105,6 @@ static ERR_STRING_DATA DSA_str_reasons[]=
 {ERR_REASON(DSA_R_INVALID_DIGEST_TYPE)   ,"invalid digest type"},
 {ERR_REASON(DSA_R_MISSING_PARAMETERS)    ,"missing parameters"},
 {ERR_REASON(DSA_R_MODULUS_TOO_LARGE)     ,"modulus too large"},
-{ERR_REASON(DSA_R_NEED_NEW_SETUP_VALUES) ,"need new setup values"},
-{ERR_REASON(DSA_R_NON_FIPS_DSA_METHOD)   ,"non fips dsa method"},
 {ERR_REASON(DSA_R_NO_PARAMETERS_SET)     ,"no parameters set"},
 {ERR_REASON(DSA_R_PARAMETER_ENCODING_ERROR),"parameter encoding error"},
 {0,NULL}

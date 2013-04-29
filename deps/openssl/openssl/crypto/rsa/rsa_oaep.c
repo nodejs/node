@@ -56,8 +56,7 @@ int RSA_padding_add_PKCS1_OAEP(unsigned char *to, int tlen,
 	seed = to + 1;
 	db = to + SHA_DIGEST_LENGTH + 1;
 
-	if (!EVP_Digest((void *)param, plen, db, NULL, EVP_sha1(), NULL))
-		return 0;
+	EVP_Digest((void *)param, plen, db, NULL, EVP_sha1(), NULL);
 	memset(db + SHA_DIGEST_LENGTH, 0,
 		emlen - flen - 2 * SHA_DIGEST_LENGTH - 1);
 	db[emlen - flen - SHA_DIGEST_LENGTH - 1] = 0x01;
@@ -146,10 +145,9 @@ int RSA_padding_check_PKCS1_OAEP(unsigned char *to, int tlen,
 	for (i = 0; i < dblen; i++)
 		db[i] ^= maskeddb[i];
 
-	if (!EVP_Digest((void *)param, plen, phash, NULL, EVP_sha1(), NULL))
-		return -1;
+	EVP_Digest((void *)param, plen, phash, NULL, EVP_sha1(), NULL);
 
-	if (CRYPTO_memcmp(db, phash, SHA_DIGEST_LENGTH) != 0 || bad)
+	if (memcmp(db, phash, SHA_DIGEST_LENGTH) != 0 || bad)
 		goto decoding_err;
 	else
 		{

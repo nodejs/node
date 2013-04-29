@@ -257,9 +257,8 @@ rpc_enc.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
 rpc_enc.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 rpc_enc.o: ../../include/openssl/ui.h ../../include/openssl/ui_compat.h
 rpc_enc.o: des_locl.h des_ver.h rpc_des.h rpc_enc.c
-set_key.o: ../../include/openssl/crypto.h ../../include/openssl/des.h
-set_key.o: ../../include/openssl/des_old.h ../../include/openssl/e_os2.h
-set_key.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
+set_key.o: ../../include/openssl/des.h ../../include/openssl/des_old.h
+set_key.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
 set_key.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
 set_key.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 set_key.o: ../../include/openssl/ui.h ../../include/openssl/ui_compat.h

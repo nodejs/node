@@ -79,15 +79,13 @@ my $OS2=0;
 my $safe_stack_def = 0;
 
 my @known_platforms = ( "__FreeBSD__", "PERL5", "NeXT",
-			"EXPORT_VAR_AS_FUNCTION", "ZLIB", "OPENSSL_FIPS" );
+			"EXPORT_VAR_AS_FUNCTION", "ZLIB" );
 my @known_ossl_platforms = ( "VMS", "WIN16", "WIN32", "WINNT", "OS2" );
 my @known_algorithms = ( "RC2", "RC4", "RC5", "IDEA", "DES", "BF",
 			 "CAST", "MD2", "MD4", "MD5", "SHA", "SHA0", "SHA1",
 			 "SHA256", "SHA512", "RIPEMD",
-			 "MDC2", "WHIRLPOOL", "RSA", "DSA", "DH", "EC", "ECDH", "ECDSA", "EC2M",
+			 "MDC2", "WHIRLPOOL", "RSA", "DSA", "DH", "EC", "ECDH", "ECDSA",
 			 "HMAC", "AES", "CAMELLIA", "SEED", "GOST",
-			 # EC_NISTP_64_GCC_128
-			 "EC_NISTP_64_GCC_128",
 			 # Envelope "algorithms"
 			 "EVP", "X509", "ASN1_TYPEDEFS",
 			 # Helper "algorithms"
@@ -100,7 +98,7 @@ my @known_algorithms = ( "RC2", "RC4", "RC5", "IDEA", "DES", "BF",
 			 # RFC3779
 			 "RFC3779",
 			 # TLS
-			 "TLSEXT", "PSK", "SRP", "HEARTBEATS",
+			 "TLSEXT", "PSK",
 			 # CMS
 			 "CMS",
 			 # CryptoAPI Engine
@@ -109,14 +107,8 @@ my @known_algorithms = ( "RC2", "RC4", "RC5", "IDEA", "DES", "BF",
 			 "SSL2",
 			 # JPAKE
 			 "JPAKE",
-			 # NEXTPROTONEG
-			 "NEXTPROTONEG",
 			 # Deprecated functions
-			 "DEPRECATED",
-			 # Hide SSL internals
-			 "SSL_INTERN",
-			 # SCTP
-			 "SCTP");
+			 "DEPRECATED" );
 
 my $options="";
 open(IN,"<Makefile") || die "unable to open Makefile!\n";
@@ -135,10 +127,7 @@ my $no_rsa; my $no_dsa; my $no_dh; my $no_hmac=0; my $no_aes; my $no_krb5;
 my $no_ec; my $no_ecdsa; my $no_ecdh; my $no_engine; my $no_hw;
 my $no_fp_api; my $no_static_engine=1; my $no_gmp; my $no_deprecated;
 my $no_rfc3779; my $no_psk; my $no_tlsext; my $no_cms; my $no_capieng;
-my $no_jpake; my $no_srp; my $no_ssl2; my $no_ec2m; my $no_nistp_gcc; 
-my $no_nextprotoneg; my $no_sctp;
-
-my $fips;
+my $no_jpake; my $no_ssl2;
 
 my $zlib;
 
@@ -162,7 +151,6 @@ foreach (@ARGV, split(/ /, $options))
 	}
 	$VMS=1 if $_ eq "VMS";
 	$OS2=1 if $_ eq "OS2";
-	$fips=1 if /^fips/;
 	if ($_ eq "zlib" || $_ eq "enable-zlib" || $_ eq "zlib-dynamic"
 			 || $_ eq "enable-zlib-dynamic") {
 		$zlib = 1;
@@ -227,14 +215,9 @@ foreach (@ARGV, split(/ /, $options))
 	elsif (/^no-rfc3779$/)	{ $no_rfc3779=1; }
 	elsif (/^no-tlsext$/)	{ $no_tlsext=1; }
 	elsif (/^no-cms$/)	{ $no_cms=1; }
-	elsif (/^no-ec2m$/)	{ $no_ec2m=1; }
-	elsif (/^no-ec_nistp_64_gcc_128$/)	{ $no_nistp_gcc=1; }
-	elsif (/^no-nextprotoneg$/)	{ $no_nextprotoneg=1; }
 	elsif (/^no-ssl2$/)	{ $no_ssl2=1; }
 	elsif (/^no-capieng$/)	{ $no_capieng=1; }
 	elsif (/^no-jpake$/)	{ $no_jpake=1; }
-	elsif (/^no-srp$/)	{ $no_srp=1; }
-	elsif (/^no-sctp$/)	{ $no_sctp=1; }
 	}
 
 
@@ -271,10 +254,8 @@ $max_crypto = $max_num;
 my $ssl="ssl/ssl.h";
 $ssl.=" ssl/kssl.h";
 $ssl.=" ssl/tls1.h";
-$ssl.=" ssl/srtp.h";
 
 my $crypto ="crypto/crypto.h";
-$crypto.=" crypto/cryptlib.h";
 $crypto.=" crypto/o_dir.h";
 $crypto.=" crypto/o_str.h";
 $crypto.=" crypto/o_time.h";
@@ -304,7 +285,6 @@ $crypto.=" crypto/ec/ec.h" ; # unless $no_ec;
 $crypto.=" crypto/ecdsa/ecdsa.h" ; # unless $no_ecdsa;
 $crypto.=" crypto/ecdh/ecdh.h" ; # unless $no_ecdh;
 $crypto.=" crypto/hmac/hmac.h" ; # unless $no_hmac;
-$crypto.=" crypto/cmac/cmac.h" ; # unless $no_hmac;
 
 $crypto.=" crypto/engine/engine.h"; # unless $no_engine;
 $crypto.=" crypto/stack/stack.h" ; # unless $no_stack;
@@ -339,7 +319,6 @@ $crypto.=" crypto/pqueue/pqueue.h";
 $crypto.=" crypto/cms/cms.h";
 $crypto.=" crypto/jpake/jpake.h";
 $crypto.=" crypto/modes/modes.h";
-$crypto.=" crypto/srp/srp.h";
 
 my $symhacks="crypto/symhacks.h";
 
@@ -1147,9 +1126,6 @@ sub is_valid
 			if ($keyword eq "EXPORT_VAR_AS_FUNCTION" && ($VMSVAX || $W32 || $W16)) {
 				return 1;
 			}
-			if ($keyword eq "OPENSSL_FIPS" && $fips) {
-				return 1;
-			}
 			if ($keyword eq "ZLIB" && $zlib) { return 1; }
 			return 0;
 		} else {
@@ -1196,15 +1172,9 @@ sub is_valid
 			if ($keyword eq "TLSEXT" && $no_tlsext) { return 0; }
 			if ($keyword eq "PSK" && $no_psk) { return 0; }
 			if ($keyword eq "CMS" && $no_cms) { return 0; }
-			if ($keyword eq "EC2M" && $no_ec2m) { return 0; }
-			if ($keyword eq "NEXTPROTONEG" && $no_nextprotoneg) { return 0; }
-			if ($keyword eq "EC_NISTP_64_GCC_128" && $no_nistp_gcc)
-					{ return 0; }
 			if ($keyword eq "SSL2" && $no_ssl2) { return 0; }
 			if ($keyword eq "CAPIENG" && $no_capieng) { return 0; }
 			if ($keyword eq "JPAKE" && $no_jpake) { return 0; }
-			if ($keyword eq "SRP" && $no_srp) { return 0; }
-			if ($keyword eq "SCTP" && $no_sctp) { return 0; }
 			if ($keyword eq "DEPRECATED" && $no_deprecated) { return 0; }
 
 			# Nothing recognise as true

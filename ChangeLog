@@ -1,3 +1,24 @@
+2013.04.23, Version 0.10.5 (Stable)
+
+* uv: Upgrade to 0.10.5 (isaacs)
+
+* build: added support for Visual Studio 2012 (Miroslav Bajtoš)
+
+* http: Don't try to destroy nonexistent sockets (isaacs)
+
+* crypto: LazyTransform on properties, not methods (isaacs)
+
+* assert: put info in err.message, not err.name (Ryan Doenges)
+
+* dgram: fix no address bind() (Ben Noordhuis)
+
+* handle_wrap: fix NULL pointer dereference (Ben Noordhuis)
+
+* os: fix unlikely buffer overflow in os.type() (Ben Noordhuis)
+
+* stream: Fix unshift() race conditions (isaacs)
+
+
 2013.04.19, Version 0.11.1 (Unstable)
 
 * V8: upgrade to 3.18.0
@@ -25,42 +46,7 @@
 * zlib: allow passing options to convenience methods (Kyle Robinson Young)
 
 
-2013.03.28, Version 0.11.0 (Unstable), bce38b3d74e64fcb7d04a2dd551151da6168cdc5
-
-* V8: update to 3.17.13
-
-* os: use %SystemRoot% or %windir% in os.tmpdir() (Suwon Chae)
-
-* util: fix util.inspect() line width calculation (Marcin Kostrzewa)
-
-* buffer: remove _charsWritten (Trevor Norris)
-
-* fs: uv_[fl]stat now reports subsecond resolution (Timothy J Fontaine)
-
-* fs: Throw if error raised and missing callback (bnoordhuis)
-
-* tls: expose SSL_CTX_set_timeout via tls.createServer (Manav Rathi)
-
-* tls: remove harmful unnecessary bounds checking (Marcel Laverdet)
-
-* buffer: write ascii strings using WriteOneByte (Trevor Norris)
-
-* dtrace: fix generation of v8 constants on freebsd (Fedor Indutny)
-
-* dtrace: x64 ustack helper (Fedor Indutny)
-
-* readline: handle wide characters properly (Nao Iizuka)
-
-* repl: Use a domain to catch async errors safely (isaacs)
-
-* repl: emit 'reset' event when context is reset (Sami Samhuri)
-
-* util: custom `inspect()` method may return an Object (Nathan Rajlich)
-
-* console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
-
-
-2013.04.11, Version 0.10.4 (Stable)
+2013.04.11, Version 0.10.4 (Stable), 9712aa9f76073c30850b20a188b1ed12ffb74d17
 
 * uv: Upgrade to 0.10.4
 
@@ -116,6 +102,41 @@
 * crypto: Pass options to ctor calls (isaacs)
 
 * src: tie process.versions.uv to uv_version_string() (Ben Noordhuis)
+
+
+2013.03.28, Version 0.11.0 (Unstable), bce38b3d74e64fcb7d04a2dd551151da6168cdc5
+
+* V8: update to 3.17.13
+
+* os: use %SystemRoot% or %windir% in os.tmpdir() (Suwon Chae)
+
+* util: fix util.inspect() line width calculation (Marcin Kostrzewa)
+
+* buffer: remove _charsWritten (Trevor Norris)
+
+* fs: uv_[fl]stat now reports subsecond resolution (Timothy J Fontaine)
+
+* fs: Throw if error raised and missing callback (bnoordhuis)
+
+* tls: expose SSL_CTX_set_timeout via tls.createServer (Manav Rathi)
+
+* tls: remove harmful unnecessary bounds checking (Marcel Laverdet)
+
+* buffer: write ascii strings using WriteOneByte (Trevor Norris)
+
+* dtrace: fix generation of v8 constants on freebsd (Fedor Indutny)
+
+* dtrace: x64 ustack helper (Fedor Indutny)
+
+* readline: handle wide characters properly (Nao Iizuka)
+
+* repl: Use a domain to catch async errors safely (isaacs)
+
+* repl: emit 'reset' event when context is reset (Sami Samhuri)
+
+* util: custom `inspect()` method may return an Object (Nathan Rajlich)
+
+* console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
 2013.03.28, Version 0.10.2 (Stable), 1e0de9c426e07a260bbec2d2196c2d2db8eb8886
@@ -682,6 +703,23 @@
 * readline: Use one history item for reentered line (Vladimir Beloborodov)
 
 * Fix #3521 Make process.env more like a regular Object (isaacs)
+
+
+2013.04.09, Version 0.8.23 (maintenance), c67f8d0500fe15637a623eb759d2ad7eb9fb3b0b
+
+* npm: Upgrade to v1.2.18
+
+* http: Avoid EE warning on ECONNREFUSED handling (isaacs)
+
+* tls: Re-enable check of CN-ID in cert verification (Tobias Müllerleile)
+
+* child_process: fix sending utf-8 to child process (Ben Noordhuis)
+
+* crypto: check key type in GetPeerCertificate() (Ben Noordhuis)
+
+* win/openssl: mark assembled object files as seh safe (Bert Belder)
+
+* windows/msi: fix msi build issue with WiX 3.7/3.8 (Raymond Feng)
 
 
 2013.03.07, Version 0.8.22 (Stable), 67a4cb4fe8c2346e30ffb83f7178e205cc2dab33

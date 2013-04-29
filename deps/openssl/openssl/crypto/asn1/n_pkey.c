@@ -129,7 +129,6 @@ int i2d_RSA_NET(const RSA *a, unsigned char **pp,
 	unsigned char buf[256],*zz;
 	unsigned char key[EVP_MAX_KEY_LENGTH];
 	EVP_CIPHER_CTX ctx;
-	EVP_CIPHER_CTX_init(&ctx);
 
 	if (a == NULL) return(0);
 
@@ -207,28 +206,24 @@ int i2d_RSA_NET(const RSA *a, unsigned char **pp,
 	i = strlen((char *)buf);
 	/* If the key is used for SGC the algorithm is modified a little. */
 	if(sgckey) {
-		if (!EVP_Digest(buf, i, buf, NULL, EVP_md5(), NULL))
-			goto err;
+		EVP_Digest(buf, i, buf, NULL, EVP_md5(), NULL);
 		memcpy(buf + 16, "SGCKEYSALT", 10);
 		i = 26;
 	}
 
-	if (!EVP_BytesToKey(EVP_rc4(),EVP_md5(),NULL,buf,i,1,key,NULL))
-		goto err;
+	EVP_BytesToKey(EVP_rc4(),EVP_md5(),NULL,buf,i,1,key,NULL);
 	OPENSSL_cleanse(buf,256);
 
 	/* Encrypt private key in place */
 	zz = enckey->enckey->digest->data;
-	if (!EVP_EncryptInit_ex(&ctx,EVP_rc4(),NULL,key,NULL))
-		goto err;
-	if (!EVP_EncryptUpdate(&ctx,zz,&i,zz,pkeylen))
-		goto err;
-	if (!EVP_EncryptFinal_ex(&ctx,zz + i,&j))
-		goto err;
+	EVP_CIPHER_CTX_init(&ctx);
+	EVP_EncryptInit_ex(&ctx,EVP_rc4(),NULL,key,NULL);
+	EVP_EncryptUpdate(&ctx,zz,&i,zz,pkeylen);
+	EVP_EncryptFinal_ex(&ctx,zz + i,&j);
+	EVP_CIPHER_CTX_cleanup(&ctx);
 
 	ret = i2d_NETSCAPE_ENCRYPTED_PKEY(enckey, pp);
 err:
-	EVP_CIPHER_CTX_cleanup(&ctx);
 	NETSCAPE_ENCRYPTED_PKEY_free(enckey);
 	NETSCAPE_PKEY_free(pkey);
 	return(ret);
@@ -293,7 +288,6 @@ static RSA *d2i_RSA_NET_2(RSA **a, ASN1_OCTET_STRING *os,
 	const unsigned char *zz;
 	unsigned char key[EVP_MAX_KEY_LENGTH];
 	EVP_CIPHER_CTX ctx;
-	EVP_CIPHER_CTX_init(&ctx);
 
 	i=cb((char *)buf,256,"Enter Private Key password:",0);
 	if (i != 0)
@@ -304,22 +298,19 @@ static RSA *d2i_RSA_NET_2(RSA **a, ASN1_OCTET_STRING *os,
 
 	i = strlen((char *)buf);
 	if(sgckey){
-		if (!EVP_Digest(buf, i, buf, NULL, EVP_md5(), NULL))
-			goto err;
+		EVP_Digest(buf, i, buf, NULL, EVP_md5(), NULL);
 		memcpy(buf + 16, "SGCKEYSALT", 10);
 		i = 26;
 	}
 		
-	if (!EVP_BytesToKey(EVP_rc4(),EVP_md5(),NULL,buf,i,1,key,NULL))
-		goto err;
+	EVP_BytesToKey(EVP_rc4(),EVP_md5(),NULL,buf,i,1,key,NULL);
 	OPENSSL_cleanse(buf,256);
 
-	if (!EVP_DecryptInit_ex(&ctx,EVP_rc4(),NULL, key,NULL))
-		goto err;
-	if (!EVP_DecryptUpdate(&ctx,os->data,&i,os->data,os->length))
-		goto err;
-	if (!EVP_DecryptFinal_ex(&ctx,&(os->data[i]),&j))
-		goto err;
+	EVP_CIPHER_CTX_init(&ctx);
+	EVP_DecryptInit_ex(&ctx,EVP_rc4(),NULL, key,NULL);
+	EVP_DecryptUpdate(&ctx,os->data,&i,os->data,os->length);
+	EVP_DecryptFinal_ex(&ctx,&(os->data[i]),&j);
+	EVP_CIPHER_CTX_cleanup(&ctx);
 	os->length=i+j;
 
 	zz=os->data;
@@ -337,7 +328,6 @@ static RSA *d2i_RSA_NET_2(RSA **a, ASN1_OCTET_STRING *os,
 		goto err;
 		}
 err:
-	EVP_CIPHER_CTX_cleanup(&ctx);
 	NETSCAPE_PKEY_free(pkey);
 	return(ret);
 	}

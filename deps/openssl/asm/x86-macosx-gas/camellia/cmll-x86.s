@@ -1519,10 +1519,10 @@ L013done:
 	popl	%ebx
 	popl	%ebp
 	ret
-.globl	_private_Camellia_set_key
+.globl	_Camellia_set_key
 .align	4
-_private_Camellia_set_key:
-L_private_Camellia_set_key_begin:
+_Camellia_set_key:
+L_Camellia_set_key_begin:
 	pushl	%ebx
 	movl	8(%esp),%ecx
 	movl	12(%esp),%ebx

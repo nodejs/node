@@ -287,6 +287,8 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 	int ok=0;
 	int i,j,k;
 	unsigned long h;
+	unsigned long hash_array[2];
+	int hash_index;
 	BUF_MEM *b=NULL;
 	X509_OBJECT stmp,*tmp;
 	const char *postfix="";
@@ -323,6 +325,11 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 	ctx=(BY_DIR *)xl->method_data;
 
 	h=X509_NAME_hash(name);
+	hash_array[0]=h;
+	hash_array[1]=X509_NAME_hash_old(name);
+	for (hash_index=0; hash_index < 2; hash_index++)
+		{
+		h=hash_array[hash_index];
 	for (i=0; i < sk_BY_DIR_ENTRY_num(ctx->dirs); i++)
 		{
 		BY_DIR_ENTRY *ent;
@@ -475,6 +482,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 				CRYPTO_LOCK_X509);*/
 			goto finish;
 			}
+		}
 		}
 finish:
 	if (b != NULL) BUF_MEM_free(b);

@@ -96,30 +96,31 @@ sha256_block_data_order:
 .L00300_15:
 	movl	92(%esp),%ebx
 	movl	%edx,%ecx
-	rorl	$14,%ecx
-	movl	20(%esp),%esi
-	xorl	%edx,%ecx
-	rorl	$5,%ecx
-	xorl	%edx,%ecx
 	rorl	$6,%ecx
+	movl	%edx,%edi
+	rorl	$11,%edi
+	movl	20(%esp),%esi
+	xorl	%edi,%ecx
+	rorl	$14,%edi
+	xorl	%edi,%ecx
 	movl	24(%esp),%edi
 	addl	%ecx,%ebx
-	xorl	%edi,%esi
 	movl	%edx,16(%esp)
+	xorl	%edi,%esi
 	movl	%eax,%ecx
 	andl	%edx,%esi
 	movl	12(%esp),%edx
 	xorl	%edi,%esi
 	movl	%eax,%edi
 	addl	%esi,%ebx
-	rorl	$9,%ecx
-	addl	28(%esp),%ebx
-	xorl	%eax,%ecx
-	rorl	$11,%ecx
-	movl	4(%esp),%esi
-	xorl	%eax,%ecx
 	rorl	$2,%ecx
+	addl	28(%esp),%ebx
+	rorl	$13,%edi
+	movl	4(%esp),%esi
+	xorl	%edi,%ecx
+	rorl	$9,%edi
 	addl	%ebx,%edx
+	xorl	%edi,%ecx
 	movl	8(%esp),%edi
 	addl	%ecx,%ebx
 	movl	%eax,(%esp)
@@ -141,46 +142,48 @@ sha256_block_data_order:
 .L00416_63:
 	movl	%ebx,%esi
 	movl	100(%esp),%ecx
+	shrl	$3,%ebx
+	rorl	$7,%esi
+	xorl	%esi,%ebx
 	rorl	$11,%esi
 	movl	%ecx,%edi
-	xorl	%ebx,%esi
-	rorl	$7,%esi
-	shrl	$3,%ebx
-	rorl	$2,%edi
 	xorl	%esi,%ebx
-	xorl	%ecx,%edi
-	rorl	$17,%edi
 	shrl	$10,%ecx
-	addl	156(%esp),%ebx
+	movl	156(%esp),%esi
+	rorl	$17,%edi
+	xorl	%edi,%ecx
+	rorl	$2,%edi
+	addl	%esi,%ebx
 	xorl	%ecx,%edi
-	addl	120(%esp),%ebx
-	movl	%edx,%ecx
 	addl	%edi,%ebx
-	rorl	$14,%ecx
-	movl	20(%esp),%esi
-	xorl	%edx,%ecx
-	rorl	$5,%ecx
-	movl	%ebx,92(%esp)
-	xorl	%edx,%ecx
+	movl	%edx,%ecx
+	addl	120(%esp),%ebx
 	rorl	$6,%ecx
+	movl	%edx,%edi
+	rorl	$11,%edi
+	movl	20(%esp),%esi
+	xorl	%edi,%ecx
+	rorl	$14,%edi
+	movl	%ebx,92(%esp)
+	xorl	%edi,%ecx
 	movl	24(%esp),%edi
 	addl	%ecx,%ebx
-	xorl	%edi,%esi
 	movl	%edx,16(%esp)
+	xorl	%edi,%esi
 	movl	%eax,%ecx
 	andl	%edx,%esi
 	movl	12(%esp),%edx
 	xorl	%edi,%esi
 	movl	%eax,%edi
 	addl	%esi,%ebx
-	rorl	$9,%ecx
-	addl	28(%esp),%ebx
-	xorl	%eax,%ecx
-	rorl	$11,%ecx
-	movl	4(%esp),%esi
-	xorl	%eax,%ecx
 	rorl	$2,%ecx
+	addl	28(%esp),%ebx
+	rorl	$13,%edi
+	movl	4(%esp),%esi
+	xorl	%edi,%ecx
+	rorl	$9,%edi
 	addl	%ebx,%edx
+	xorl	%edi,%ecx
 	movl	8(%esp),%edi
 	addl	%ecx,%ebx
 	movl	%eax,(%esp)

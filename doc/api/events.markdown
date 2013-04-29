@@ -13,7 +13,9 @@ Typically, event names are represented by a camel-cased string, however,
 there aren't any strict restrictions on that, as any string will be accepted.
 
 Functions can then be attached to objects, to be executed when an event
-is emitted. These functions are called _listeners_.
+is emitted. These functions are called _listeners_. Inside a listener
+function, `this` refers to the `EventEmitter` that the listener was
+attached to.
 
 
 ## Class: events.EventEmitter

@@ -136,7 +136,6 @@ static DSA_SIG *dsa_do_sign(const unsigned char *dgst, int dlen, DSA *dsa)
 	BN_CTX *ctx=NULL;
 	int reason=ERR_R_BN_LIB;
 	DSA_SIG *ret=NULL;
-	int noredo = 0;
 
 	BN_init(&m);
 	BN_init(&xr);
@@ -151,7 +150,7 @@ static DSA_SIG *dsa_do_sign(const unsigned char *dgst, int dlen, DSA *dsa)
 	if (s == NULL) goto err;
 	ctx=BN_CTX_new();
 	if (ctx == NULL) goto err;
-redo:
+
 	if ((dsa->kinv == NULL) || (dsa->r == NULL))
 		{
 		if (!DSA_sign_setup(dsa,ctx,&kinv,&r)) goto err;
@@ -162,7 +161,6 @@ redo:
 		dsa->kinv=NULL;
 		r=dsa->r;
 		dsa->r=NULL;
-		noredo = 1;
 		}
 
 	
@@ -183,18 +181,6 @@ redo:
 
 	ret=DSA_SIG_new();
 	if (ret == NULL) goto err;
-	/* Redo if r or s is zero as required by FIPS 186-3: this is
-	 * very unlikely.
-	 */
-	if (BN_is_zero(r) || BN_is_zero(s))
-		{
-		if (noredo)
-			{
-			reason = DSA_R_NEED_NEW_SETUP_VALUES;
-			goto err;
-			}
-		goto redo;
-		}
 	ret->r = r;
 	ret->s = s;
 	

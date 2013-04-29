@@ -1,0 +1,1293 @@
+--- openssl-1.0.0b.orig/apps/apps.c	2010-11-11 14:42:19.000000000 +0000
++++ openssl-1.0.0b/apps/apps.c	2010-11-29 19:56:04.902465346 +0000
+@@ -3012,3 +3012,46 @@ int raw_write_stdout(const void *buf,int
+ int raw_write_stdout(const void *buf,int siz)
+ 	{	return write(fileno(stdout),buf,siz);	}
+ #endif
++
++#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
++/* next_protos_parse parses a comma separated list of strings into a string
++ * in a format suitable for passing to SSL_CTX_set_next_protos_advertised.
++ *   outlen: (output) set to the length of the resulting buffer on success.
++ *   in: a NUL termianted string like "abc,def,ghi"
++ *
++ *   returns: a malloced buffer or NULL on failure.
++ */
++unsigned char *next_protos_parse(unsigned short *outlen, const char *in)
++	{
++	size_t len;
++	unsigned char *out;
++	size_t i, start = 0;
++
++	len = strlen(in);
++	if (len >= 65535)
++		return NULL;
++
++	out = OPENSSL_malloc(strlen(in) + 1);
++	if (!out)
++		return NULL;
++
++	for (i = 0; i <= len; ++i)
++		{
++		if (i == len || in[i] == ',')
++			{
++			if (i - start > 255)
++				{
++				OPENSSL_free(out);
++				return NULL;
++				}
++			out[start] = i - start;
++			start = i + 1;
++			}
++		else
++			out[i+1] = in[i];
++		}
++
++	*outlen = len + 1;
++	return out;
++	}
++#endif  /* !OPENSSL_NO_TLSEXT && !OPENSSL_NO_NEXTPROTONEG */
+--- openssl-1.0.0b.orig/apps/apps.h	2009-10-31 13:34:19.000000000 +0000
++++ openssl-1.0.0b/apps/apps.h	2010-11-29 19:56:04.902465346 +0000
+@@ -358,3 +358,7 @@ int raw_write_stdout(const void *,int);
+ #define TM_STOP		1
+ double app_tminterval (int stop,int usertime);
+ #endif
++
++#ifndef OPENSSL_NO_NEXTPROTONEG
++unsigned char *next_protos_parse(unsigned short *outlen, const char *in);
++#endif
+--- openssl-1.0.0b.orig/apps/s_client.c	2010-11-29 19:56:04.832465351 +0000
++++ openssl-1.0.0b/apps/s_client.c	2010-11-29 19:56:04.902465346 +0000
+@@ -342,6 +342,9 @@ static void sc_usage(void)
+ 	BIO_printf(bio_err," -tlsextdebug      - hex dump of all TLS extensions received\n");
+ 	BIO_printf(bio_err," -status           - request certificate status from server\n");
+ 	BIO_printf(bio_err," -no_ticket        - disable use of RFC4507bis session tickets\n");
++# ifndef OPENSSL_NO_NEXTPROTONEG
++	BIO_printf(bio_err," -nextprotoneg arg - enable NPN extension, considering named protocols supported (comma-separated list)\n");
++# endif
+ 	BIO_printf(bio_err," -cutthrough       - enable 1-RTT full-handshake for strong ciphers\n");
+ #endif
+ 	BIO_printf(bio_err," -legacy_renegotiation - enable use of legacy renegotiation (dangerous)\n");
+@@ -367,6 +370,40 @@ static int MS_CALLBACK ssl_servername_cb
+ 	
+ 	return SSL_TLSEXT_ERR_OK;
+ 	}
++
++# ifndef OPENSSL_NO_NEXTPROTONEG
++/* This the context that we pass to next_proto_cb */
++typedef struct tlsextnextprotoctx_st {
++	unsigned char *data;
++	unsigned short len;
++	int status;
++} tlsextnextprotoctx;
++
++static tlsextnextprotoctx next_proto;
++
++static int next_proto_cb(SSL *s, unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
++	{
++	tlsextnextprotoctx *ctx = arg;
++
++	if (!c_quiet)
++		{
++		/* We can assume that |in| is syntactically valid. */
++		unsigned i;
++		BIO_printf(bio_c_out, "Protocols advertised by server: ");
++		for (i = 0; i < inlen; )
++			{
++			if (i)
++				BIO_write(bio_c_out, ", ", 2);
++			BIO_write(bio_c_out, &in[i + 1], in[i]);
++			i += in[i] + 1;
++			}
++		BIO_write(bio_c_out, "\n", 1);
++		}
++
++	ctx->status = SSL_select_next_proto(out, outlen, in, inlen, ctx->data, ctx->len);
++	return SSL_TLSEXT_ERR_OK;
++	}
++# endif  /* ndef OPENSSL_NO_NEXTPROTONEG */
+ #endif
+ 
+ enum
+@@ -431,6 +468,9 @@ int MAIN(int argc, char **argv)
+ 	char *servername = NULL; 
+         tlsextctx tlsextcbp = 
+         {NULL,0};
++# ifndef OPENSSL_NO_NEXTPROTONEG
++	const char *next_proto_neg_in = NULL;
++# endif
+ #endif
+ 	char *sess_in = NULL;
+ 	char *sess_out = NULL;
+@@ -658,6 +698,13 @@ int MAIN(int argc, char **argv)
+ #ifndef OPENSSL_NO_TLSEXT
+ 		else if	(strcmp(*argv,"-no_ticket") == 0)
+ 			{ off|=SSL_OP_NO_TICKET; }
++# ifndef OPENSSL_NO_NEXTPROTONEG
++		else if (strcmp(*argv,"-nextprotoneg") == 0)
++			{
++			if (--argc < 1) goto bad;
++			next_proto_neg_in = *(++argv);
++			}
++# endif
+ #endif
+ 		else if (strcmp(*argv,"-cutthrough") == 0)
+ 			cutthrough=1;
+@@ -766,6 +813,21 @@ bad:
+ 	OpenSSL_add_ssl_algorithms();
+ 	SSL_load_error_strings();
+ 
++#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
++	next_proto.status = -1;
++	if (next_proto_neg_in)
++		{
++		next_proto.data = next_protos_parse(&next_proto.len, next_proto_neg_in);
++		if (next_proto.data == NULL)
++			{
++			BIO_printf(bio_err, "Error parsing -nextprotoneg argument\n");
++			goto end;
++			}
++		}
++	else
++		next_proto.data = NULL;
++#endif
++
+ #ifndef OPENSSL_NO_ENGINE
+         e = setup_engine(bio_err, engine_id, 1);
+ 	if (ssl_client_engine_id)
+@@ -896,6 +958,11 @@ bad:
+ 		SSL_CTX_set_mode(ctx, ssl_mode);
+ 		}
+ 
++#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
++	if (next_proto.data)
++		SSL_CTX_set_next_proto_select_cb(ctx, next_proto_cb, &next_proto);
++#endif
++
+ 	if (state) SSL_CTX_set_info_callback(ctx,apps_ssl_info_callback);
+ 	if (cipher != NULL)
+ 		if(!SSL_CTX_set_cipher_list(ctx,cipher)) {
+@@ -1755,6 +1822,18 @@ static void print_stuff(BIO *bio, SSL *s
+ 	BIO_printf(bio,"Expansion: %s\n",
+ 		expansion ? SSL_COMP_get_name(expansion) : "NONE");
+ #endif
++
++#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
++	if (next_proto.status != -1) {
++		const unsigned char *proto;
++		unsigned int proto_len;
++		SSL_get0_next_proto_negotiated(s, &proto, &proto_len);
++		BIO_printf(bio, "Next protocol: (%d) ", next_proto.status);
++		BIO_write(bio, proto, proto_len);
++		BIO_write(bio, "\n", 1);
++	}
++#endif
++
+ 	SSL_SESSION_print(bio,SSL_get_session(s));
+ 	BIO_printf(bio,"---\n");
+ 	if (peer != NULL)
+--- openssl-1.0.0b.orig/apps/s_server.c	2010-06-15 17:25:02.000000000 +0000
++++ openssl-1.0.0b/apps/s_server.c	2010-11-29 19:56:04.902465346 +0000
+@@ -492,6 +492,9 @@ static void sv_usage(void)
+ 	BIO_printf(bio_err," -tlsextdebug  - hex dump of all TLS extensions received\n");
+ 	BIO_printf(bio_err," -no_ticket    - disable use of RFC4507bis session tickets\n");
+ 	BIO_printf(bio_err," -legacy_renegotiation - enable use of legacy renegotiation (dangerous)\n");
++# ifndef OPENSSL_NO_NEXTPROTONEG
++	BIO_printf(bio_err," -nextprotoneg arg - set the advertised protocols for the NPN extension (comma-separated list)\n");
++# endif
+ #endif
+ 	}
+ 
+@@ -826,6 +829,24 @@ BIO_printf(err, "cert_status: received %
+ 	ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+ 	goto done;
+ 	}
++
++# ifndef OPENSSL_NO_NEXTPROTONEG
++/* This is the context that we pass to next_proto_cb */
++typedef struct tlsextnextprotoctx_st {
++	unsigned char *data;
++	unsigned int len;
++} tlsextnextprotoctx;
++
++static int next_proto_cb(SSL *s, const unsigned char **data, unsigned int *len, void *arg)
++	{
++	tlsextnextprotoctx *next_proto = arg;
++
++	*data = next_proto->data;
++	*len = next_proto->len;
++
++	return SSL_TLSEXT_ERR_OK;
++	}
++# endif  /* ndef OPENSSL_NO_NPN */
+ #endif
+ 
+ int MAIN(int, char **);
+@@ -867,6 +888,10 @@ int MAIN(int argc, char *argv[])
+ #endif
+ #ifndef OPENSSL_NO_TLSEXT
+         tlsextctx tlsextcbp = {NULL, NULL, SSL_TLSEXT_ERR_ALERT_WARNING};
++# ifndef OPENSSL_NO_NEXTPROTONEG
++	const char *next_proto_neg_in = NULL;
++	tlsextnextprotoctx next_proto;
++# endif
+ #endif
+ #ifndef OPENSSL_NO_PSK
+ 	/* by default do not send a PSK identity hint */
+@@ -1191,7 +1216,13 @@ int MAIN(int argc, char *argv[])
+ 			if (--argc < 1) goto bad;
+ 			s_key_file2= *(++argv);
+ 			}
+-			
++# ifndef OPENSSL_NO_NEXTPROTONEG
++		else if	(strcmp(*argv,"-nextprotoneg") == 0)
++			{
++			if (--argc < 1) goto bad;
++			next_proto_neg_in = *(++argv);
++			}
++# endif
+ #endif
+ #if !defined(OPENSSL_NO_JPAKE) && !defined(OPENSSL_NO_PSK)
+ 		else if (strcmp(*argv,"-jpake") == 0)
+@@ -1476,6 +1507,11 @@ bad:
+ 		if (vpm)
+ 			SSL_CTX_set1_param(ctx2, vpm);
+ 		}
++
++# ifndef OPENSSL_NO_NEXTPROTONEG
++	if (next_proto.data)
++		SSL_CTX_set_next_protos_advertised_cb(ctx, next_proto_cb, &next_proto);
++# endif
+ #endif 
+ 
+ #ifndef OPENSSL_NO_DH
+@@ -1617,6 +1653,21 @@ bad:
+ 					goto end;
+ 					}
+ 				}
++# ifndef OPENSSL_NO_NEXTPROTONEG
++		if (next_proto_neg_in)
++			{
++			unsigned short len;
++			next_proto.data = next_protos_parse(&len,
++				next_proto_neg_in);
++			if (next_proto.data == NULL)
++				goto end;
++			next_proto.len = len;
++			}
++		else
++			{
++			next_proto.data = NULL;
++			}
++# endif
+ #endif
+ 		RSA_free(rsa);
+ 		BIO_printf(bio_s_out,"\n");
+@@ -2159,6 +2210,10 @@ static int init_ssl_connection(SSL *con)
+ 	X509 *peer;
+ 	long verify_error;
+ 	MS_STATIC char buf[BUFSIZ];
++#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
++	const unsigned char *next_proto_neg;
++	unsigned next_proto_neg_len;
++#endif
+ 
+ 	if ((i=SSL_accept(con)) <= 0)
+ 		{
+@@ -2198,6 +2253,15 @@ static int init_ssl_connection(SSL *con)
+ 		BIO_printf(bio_s_out,"Shared ciphers:%s\n",buf);
+ 	str=SSL_CIPHER_get_name(SSL_get_current_cipher(con));
+ 	BIO_printf(bio_s_out,"CIPHER is %s\n",(str != NULL)?str:"(NONE)");
++#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
++	SSL_get0_next_proto_negotiated(con, &next_proto_neg, &next_proto_neg_len);
++	if (next_proto_neg)
++		{
++		BIO_printf(bio_s_out,"NEXTPROTO is ");
++		BIO_write(bio_s_out, next_proto_neg, next_proto_neg_len);
++		BIO_printf(bio_s_out, "\n");
++		}
++#endif
+ 	if (con->hit) BIO_printf(bio_s_out,"Reused session-id\n");
+ 	if (SSL_ctrl(con,SSL_CTRL_GET_FLAGS,0,NULL) &
+ 		TLS1_FLAGS_TLS_PADDING_BUG)
+--- openssl-1.0.0b.orig/include/openssl/ssl.h	2010-11-29 19:56:04.846517045 +0000
++++ openssl-1.0.0b/include/openssl/ssl.h	2010-11-29 19:56:04.965928855 +0000
+@@ -857,6 +857,25 @@ struct ssl_ctx_st
+ 	/* draft-rescorla-tls-opaque-prf-input-00.txt information */
+ 	int (*tlsext_opaque_prf_input_callback)(SSL *, void *peerinput, size_t len, void *arg);
+ 	void *tlsext_opaque_prf_input_callback_arg;
++
++# ifndef OPENSSL_NO_NEXTPROTONEG
++	/* Next protocol negotiation information */
++	/* (for experimental NPN extension). */
++
++	/* For a server, this contains a callback function by which the set of
++	 * advertised protocols can be provided. */
++	int (*next_protos_advertised_cb)(SSL *s, const unsigned char **buf,
++			                 unsigned int *len, void *arg);
++	void *next_protos_advertised_cb_arg;
++	/* For a client, this contains a callback function that selects the
++	 * next protocol from the list provided by the server. */
++	int (*next_proto_select_cb)(SSL *s, unsigned char **out,
++				    unsigned char *outlen,
++				    const unsigned char *in,
++				    unsigned int inlen,
++				    void *arg);
++	void *next_proto_select_cb_arg;
++# endif
+ #endif
+ 
+ #ifndef OPENSSL_NO_PSK
+@@ -928,6 +947,30 @@ int SSL_CTX_set_client_cert_engine(SSL_C
+ #endif
+ void SSL_CTX_set_cookie_generate_cb(SSL_CTX *ctx, int (*app_gen_cookie_cb)(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len));
+ void SSL_CTX_set_cookie_verify_cb(SSL_CTX *ctx, int (*app_verify_cookie_cb)(SSL *ssl, unsigned char *cookie, unsigned int cookie_len));
++#ifndef OPENSSL_NO_NEXTPROTONEG
++void SSL_CTX_set_next_protos_advertised_cb(SSL_CTX *s,
++					   int (*cb) (SSL *ssl,
++						      const unsigned char **out,
++						      unsigned int *outlen,
++						      void *arg), void *arg);
++void SSL_CTX_set_next_proto_select_cb(SSL_CTX *s,
++				      int (*cb) (SSL *ssl, unsigned char **out,
++						 unsigned char *outlen,
++						 const unsigned char *in,
++						 unsigned int inlen, void *arg),
++				      void *arg);
++
++int SSL_select_next_proto(unsigned char **out, unsigned char *outlen,
++			  const unsigned char *in, unsigned int inlen,
++			  const unsigned char *client, unsigned int client_len);
++void SSL_get0_next_proto_negotiated(const SSL *s, const unsigned char **data,
++				    unsigned *len);
++
++#define OPENSSL_NPN_UNSUPPORTED	0
++#define OPENSSL_NPN_NEGOTIATED	1
++#define OPENSSL_NPN_NO_OVERLAP	2
++
++#endif
+ 
+ #ifndef OPENSSL_NO_PSK
+ /* the maximum length of the buffer given to callbacks containing the
+@@ -1187,6 +1230,19 @@ struct ssl_st
+ 	void *tls_session_secret_cb_arg;
+ 
+ 	SSL_CTX * initial_ctx; /* initial ctx, used to store sessions */
++
++#ifndef OPENSSL_NO_NEXTPROTONEG
++	/* Next protocol negotiation. For the client, this is the protocol that
++	 * we sent in NextProtocol and is set when handling ServerHello
++	 * extensions.
++	 *
++	 * For a server, this is the client's selected_protocol from
++	 * NextProtocol and is set when handling the NextProtocol message,
++	 * before the Finished message. */
++	unsigned char *next_proto_negotiated;
++	unsigned char next_proto_negotiated_len;
++#endif
++
+ #define session_ctx initial_ctx
+ #else
+ #define session_ctx ctx
+@@ -1919,6 +1975,7 @@ void ERR_load_SSL_strings(void);
+ #define SSL_F_SSL3_GET_KEY_EXCHANGE			 141
+ #define SSL_F_SSL3_GET_MESSAGE				 142
+ #define SSL_F_SSL3_GET_NEW_SESSION_TICKET		 283
++#define SSL_F_SSL3_GET_NEXT_PROTO			 304
+ #define SSL_F_SSL3_GET_RECORD				 143
+ #define SSL_F_SSL3_GET_SERVER_CERTIFICATE		 144
+ #define SSL_F_SSL3_GET_SERVER_DONE			 145
+@@ -2117,6 +2174,8 @@ void ERR_load_SSL_strings(void);
+ #define SSL_R_EXCESSIVE_MESSAGE_SIZE			 152
+ #define SSL_R_EXTRA_DATA_IN_MESSAGE			 153
+ #define SSL_R_GOT_A_FIN_BEFORE_A_CCS			 154
++#define SSL_R_GOT_NEXT_PROTO_BEFORE_A_CCS		 346
++#define SSL_R_GOT_NEXT_PROTO_WITHOUT_EXTENSION		 347
+ #define SSL_R_HTTPS_PROXY_REQUEST			 155
+ #define SSL_R_HTTP_REQUEST				 156
+ #define SSL_R_ILLEGAL_PADDING				 283
+--- openssl-1.0.0b.orig/include/openssl/ssl3.h	2010-11-29 19:56:04.832465351 +0000
++++ openssl-1.0.0b/include/openssl/ssl3.h	2010-11-29 19:56:04.965928855 +0000
+@@ -465,6 +465,12 @@ typedef struct ssl3_state_st
+ 	void *server_opaque_prf_input;
+ 	size_t server_opaque_prf_input_len;
+ 
++#ifndef OPENSSL_NO_NEXTPROTONEG
++	/* Set if we saw the Next Protocol Negotiation extension from
++	   our peer. */
++	int next_proto_neg_seen;
++#endif
++
+ 	struct	{
+ 		/* actually only needs to be 16+20 */
+ 		unsigned char cert_verify_md[EVP_MAX_MD_SIZE*2];
+@@ -557,6 +563,10 @@ typedef struct ssl3_state_st
+ #define SSL3_ST_CW_CERT_VRFY_B		(0x191|SSL_ST_CONNECT)
+ #define SSL3_ST_CW_CHANGE_A		(0x1A0|SSL_ST_CONNECT)
+ #define SSL3_ST_CW_CHANGE_B		(0x1A1|SSL_ST_CONNECT)
++#ifndef OPENSSL_NO_NEXTPROTONEG
++#define SSL3_ST_CW_NEXT_PROTO_A		(0x200|SSL_ST_CONNECT)
++#define SSL3_ST_CW_NEXT_PROTO_B		(0x201|SSL_ST_CONNECT)
++#endif
+ #define SSL3_ST_CW_FINISHED_A		(0x1B0|SSL_ST_CONNECT)
+ #define SSL3_ST_CW_FINISHED_B		(0x1B1|SSL_ST_CONNECT)
+ /* read from server */
+@@ -602,6 +612,10 @@ typedef struct ssl3_state_st
+ #define SSL3_ST_SR_CERT_VRFY_B		(0x1A1|SSL_ST_ACCEPT)
+ #define SSL3_ST_SR_CHANGE_A		(0x1B0|SSL_ST_ACCEPT)
+ #define SSL3_ST_SR_CHANGE_B		(0x1B1|SSL_ST_ACCEPT)
++#ifndef OPENSSL_NO_NEXTPROTONEG
++#define SSL3_ST_SR_NEXT_PROTO_A		(0x210|SSL_ST_ACCEPT)
++#define SSL3_ST_SR_NEXT_PROTO_B		(0x211|SSL_ST_ACCEPT)
++#endif
+ #define SSL3_ST_SR_FINISHED_A		(0x1C0|SSL_ST_ACCEPT)
+ #define SSL3_ST_SR_FINISHED_B		(0x1C1|SSL_ST_ACCEPT)
+ /* write to client */
+@@ -626,6 +640,9 @@ typedef struct ssl3_state_st
+ #define SSL3_MT_CLIENT_KEY_EXCHANGE		16
+ #define SSL3_MT_FINISHED			20
+ #define SSL3_MT_CERTIFICATE_STATUS		22
++#ifndef OPENSSL_NO_NEXTPROTONEG
++#define SSL3_MT_NEXT_PROTO			67
++#endif
+ #define DTLS1_MT_HELLO_VERIFY_REQUEST    3
+ 
+ 
+--- openssl-1.0.0b.orig/include/openssl/tls1.h	2009-11-11 14:51:29.000000000 +0000
++++ openssl-1.0.0b/include/openssl/tls1.h	2010-11-29 19:56:04.965928855 +0000
+@@ -204,6 +204,11 @@ extern "C" {
+ /* Temporary extension type */
+ #define TLSEXT_TYPE_renegotiate                 0xff01
+ 
++#ifndef OPENSSL_NO_NEXTPROTONEG
++/* This is not an IANA defined extension number */
++#define TLSEXT_TYPE_next_proto_neg		13172
++#endif
++
+ /* NameType value from RFC 3546 */
+ #define TLSEXT_NAMETYPE_host_name 0
+ /* status request value from RFC 3546 */
+--- openssl-1.0.0b.orig/ssl/s3_both.c	2010-11-29 19:56:04.846517045 +0000
++++ openssl-1.0.0b/ssl/s3_both.c	2010-11-29 19:56:04.965928855 +0000
+@@ -202,15 +202,40 @@ int ssl3_send_finished(SSL *s, int a, in
+ 	return(ssl3_do_write(s,SSL3_RT_HANDSHAKE));
+ 	}
+ 
++#ifndef OPENSSL_NO_NEXTPROTONEG
++/* ssl3_take_mac calculates the Finished MAC for the handshakes messages seen to far. */
++static void ssl3_take_mac(SSL *s)
++	{
++	const char *sender;
++	int slen;
++
++	if (s->state & SSL_ST_CONNECT)
++		{
++		sender=s->method->ssl3_enc->server_finished_label;
++		slen=s->method->ssl3_enc->server_finished_label_len;
++		}
++	else
++		{
++		sender=s->method->ssl3_enc->client_finished_label;
++		slen=s->method->ssl3_enc->client_finished_label_len;
++		}
++
++	s->s3->tmp.peer_finish_md_len = s->method->ssl3_enc->final_finish_mac(s,
++		sender,slen,s->s3->tmp.peer_finish_md);
++	}
++#endif
++
+ int ssl3_get_finished(SSL *s, int a, int b)
+ 	{
+ 	int al,i,ok;
+ 	long n;
+ 	unsigned char *p;
+ 
++#ifdef OPENSSL_NO_NEXTPROTONEG
+ 	/* the mac has already been generated when we received the
+ 	 * change cipher spec message and is in s->s3->tmp.peer_finish_md
+ 	 */ 
++#endif
+ 
+ 	n=s->method->ssl_get_message(s,
+ 		a,
+@@ -521,6 +546,15 @@ long ssl3_get_message(SSL *s, int st1, i
+ 		s->init_num += i;
+ 		n -= i;
+ 		}
++
++#ifndef OPENSSL_NO_NEXTPROTONEG
++	/* If receiving Finished, record MAC of prior handshake messages for
++	 * Finished verification. */
++	if (*s->init_buf->data == SSL3_MT_FINISHED)
++		ssl3_take_mac(s);
++#endif
++
++	/* Feed this message into MAC computation. */
+ 	ssl3_finish_mac(s, (unsigned char *)s->init_buf->data, s->init_num + 4);
+ 	if (s->msg_callback)
+ 		s->msg_callback(0, s->version, SSL3_RT_HANDSHAKE, s->init_buf->data, (size_t)s->init_num + 4, s, s->msg_callback_arg);
+--- openssl-1.0.0b.orig/ssl/s3_clnt.c	2010-11-29 19:56:04.846517045 +0000
++++ openssl-1.0.0b/ssl/s3_clnt.c	2010-11-29 19:56:04.965928855 +0000
+@@ -435,7 +435,16 @@ int ssl3_connect(SSL *s)
+ 			ret=ssl3_send_change_cipher_spec(s,
+ 				SSL3_ST_CW_CHANGE_A,SSL3_ST_CW_CHANGE_B);
+ 			if (ret <= 0) goto end;
++
++#if defined(OPENSSL_NO_TLSEXT) || defined(OPENSSL_NO_NEXTPROTONEG)
+ 			s->state=SSL3_ST_CW_FINISHED_A;
++#else
++			if (s->next_proto_negotiated)
++				s->state=SSL3_ST_CW_NEXT_PROTO_A;
++			else
++				s->state=SSL3_ST_CW_FINISHED_A;
++#endif
++
+ 			s->init_num=0;
+ 
+ 			s->session->cipher=s->s3->tmp.new_cipher;
+@@ -463,6 +472,15 @@ int ssl3_connect(SSL *s)
+ 
+ 			break;
+ 
++#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
++		case SSL3_ST_CW_NEXT_PROTO_A:
++		case SSL3_ST_CW_NEXT_PROTO_B:
++			ret=ssl3_send_next_proto(s);
++			if (ret <= 0) goto end;
++			s->state=SSL3_ST_CW_FINISHED_A;
++			break;
++#endif
++
+ 		case SSL3_ST_CW_FINISHED_A:
+ 		case SSL3_ST_CW_FINISHED_B:
+ 			ret=ssl3_send_finished(s,
+@@ -3060,6 +3078,32 @@ err:
+  */
+ 
+ #ifndef OPENSSL_NO_TLSEXT
++# ifndef OPENSSL_NO_NEXTPROTONEG
++int ssl3_send_next_proto(SSL *s)
++	{
++	unsigned int len, padding_len;
++	unsigned char *d;
++
++	if (s->state == SSL3_ST_CW_NEXT_PROTO_A)
++		{
++		len = s->next_proto_negotiated_len;
++		padding_len = 32 - ((len + 2) % 32);
++		d = (unsigned char *)s->init_buf->data;
++		d[4] = len;
++		memcpy(d + 5, s->next_proto_negotiated, len);
++		d[5 + len] = padding_len;
++		memset(d + 6 + len, 0, padding_len);
++		*(d++)=SSL3_MT_NEXT_PROTO;
++		l2n3(2 + len + padding_len, d);
++		s->state = SSL3_ST_CW_NEXT_PROTO_B;
++		s->init_num = 4 + 2 + len + padding_len;
++		s->init_off = 0;
++		}
++
++	return ssl3_do_write(s, SSL3_RT_HANDSHAKE);
++	}
++# endif
++
+ int ssl3_check_finished(SSL *s)
+ 	{
+ 	int ok;
+--- openssl-1.0.0b.orig/ssl/s3_lib.c	2010-11-29 19:56:04.832465351 +0000
++++ openssl-1.0.0b/ssl/s3_lib.c	2010-11-29 19:56:04.965928855 +0000
+@@ -2230,6 +2230,15 @@ void ssl3_clear(SSL *s)
+ 	s->s3->num_renegotiations=0;
+ 	s->s3->in_read_app_data=0;
+ 	s->version=SSL3_VERSION;
++
++#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
++	if (s->next_proto_negotiated)
++		{
++		OPENSSL_free(s->next_proto_negotiated);
++		s->next_proto_negotiated = NULL;
++		s->next_proto_negotiated_len = 0;
++		}
++#endif
+ 	}
+ 
+ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
+--- openssl-1.0.0b.orig/ssl/s3_pkt.c	2010-11-29 19:56:04.832465351 +0000
++++ openssl-1.0.0b/ssl/s3_pkt.c	2010-11-29 19:56:04.965928855 +0000
+@@ -1394,8 +1394,10 @@ err:
+ int ssl3_do_change_cipher_spec(SSL *s)
+ 	{
+ 	int i;
++#ifdef OPENSSL_NO_NEXTPROTONEG
+ 	const char *sender;
+ 	int slen;
++#endif
+ 
+ 	if (s->state & SSL_ST_ACCEPT)
+ 		i=SSL3_CHANGE_CIPHER_SERVER_READ;
+@@ -1418,6 +1420,7 @@ int ssl3_do_change_cipher_spec(SSL *s)
+ 	if (!s->method->ssl3_enc->change_cipher_state(s,i))
+ 		return(0);
+ 
++#ifdef OPENSSL_NO_NEXTPROTONEG
+ 	/* we have to record the message digest at
+ 	 * this point so we can get it before we read
+ 	 * the finished message */
+@@ -1434,6 +1437,7 @@ int ssl3_do_change_cipher_spec(SSL *s)
+ 
+ 	s->s3->tmp.peer_finish_md_len = s->method->ssl3_enc->final_finish_mac(s,
+ 		sender,slen,s->s3->tmp.peer_finish_md);
++#endif
+ 
+ 	return(1);
+ 	}
+--- openssl-1.0.0b.orig/ssl/s3_srvr.c	2010-11-29 19:56:04.846517045 +0000
++++ openssl-1.0.0b/ssl/s3_srvr.c	2010-11-29 19:56:04.965928855 +0000
+@@ -538,7 +538,14 @@ int ssl3_accept(SSL *s)
+ 				 * the client uses its key from the certificate
+ 				 * for key exchange.
+ 				 */
++#if defined(OPENSSL_NO_TLSEXT) || defined(OPENSSL_NO_NEXTPROTONEG)
+ 				s->state=SSL3_ST_SR_FINISHED_A;
++#else
++				if (s->s3->next_proto_neg_seen)
++					s->state=SSL3_ST_SR_NEXT_PROTO_A;
++				else
++					s->state=SSL3_ST_SR_FINISHED_A;
++#endif
+ 				s->init_num = 0;
+ 				}
+ 			else
+@@ -581,10 +588,27 @@ int ssl3_accept(SSL *s)
+ 			ret=ssl3_get_cert_verify(s);
+ 			if (ret <= 0) goto end;
+ 
++#if defined(OPENSSL_NO_TLSEXT) || defined(OPENSSL_NO_NEXTPROTONEG)
+ 			s->state=SSL3_ST_SR_FINISHED_A;
++#else
++			if (s->s3->next_proto_neg_seen)
++				s->state=SSL3_ST_SR_NEXT_PROTO_A;
++			else
++				s->state=SSL3_ST_SR_FINISHED_A;
++#endif
+ 			s->init_num=0;
+ 			break;
+ 
++#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
++		case SSL3_ST_SR_NEXT_PROTO_A:
++		case SSL3_ST_SR_NEXT_PROTO_B:
++			ret=ssl3_get_next_proto(s);
++			if (ret <= 0) goto end;
++			s->init_num = 0;
++			s->state=SSL3_ST_SR_FINISHED_A;
++			break;
++#endif
++
+ 		case SSL3_ST_SR_FINISHED_A:
+ 		case SSL3_ST_SR_FINISHED_B:
+ 			ret=ssl3_get_finished(s,SSL3_ST_SR_FINISHED_A,
+@@ -655,7 +679,16 @@ int ssl3_accept(SSL *s)
+ 			if (ret <= 0) goto end;
+ 			s->state=SSL3_ST_SW_FLUSH;
+ 			if (s->hit)
++				{
++#if defined(OPENSSL_NO_TLSEXT) || defined(OPENSSL_NO_NEXTPROTONEG)
+ 				s->s3->tmp.next_state=SSL3_ST_SR_FINISHED_A;
++#else
++				if (s->s3->next_proto_neg_seen)
++					s->s3->tmp.next_state=SSL3_ST_SR_NEXT_PROTO_A;
++				else
++					s->s3->tmp.next_state=SSL3_ST_SR_FINISHED_A;
++#endif
++				}
+ 			else
+ 				s->s3->tmp.next_state=SSL_ST_OK;
+ 			s->init_num=0;
+@@ -3196,4 +3229,72 @@ int ssl3_send_cert_status(SSL *s)
+ 	/* SSL3_ST_SW_CERT_STATUS_B */
+ 	return(ssl3_do_write(s,SSL3_RT_HANDSHAKE));
+ 	}
++
++# ifndef OPENSSL_NO_NPN
++/* ssl3_get_next_proto reads a Next Protocol Negotiation handshake message. It
++ * sets the next_proto member in s if found */
++int ssl3_get_next_proto(SSL *s)
++	{
++	int ok;
++	unsigned proto_len, padding_len;
++	long n;
++	const unsigned char *p;
++
++	/* Clients cannot send a NextProtocol message if we didn't see the
++	 * extension in their ClientHello */
++	if (!s->s3->next_proto_neg_seen)
++		{
++		SSLerr(SSL_F_SSL3_GET_NEXT_PROTO,SSL_R_GOT_NEXT_PROTO_WITHOUT_EXTENSION);
++		return -1;
++		}
++
++	n=s->method->ssl_get_message(s,
++		SSL3_ST_SR_NEXT_PROTO_A,
++		SSL3_ST_SR_NEXT_PROTO_B,
++		SSL3_MT_NEXT_PROTO,
++		514,  /* See the payload format below */
++		&ok);
++
++	if (!ok)
++		return((int)n);
++
++	/* s->state doesn't reflect whether ChangeCipherSpec has been received
++	 * in this handshake, but s->s3->change_cipher_spec does (will be reset
++	 * by ssl3_get_finished). */
++	if (!s->s3->change_cipher_spec)
++		{
++		SSLerr(SSL_F_SSL3_GET_NEXT_PROTO,SSL_R_GOT_NEXT_PROTO_BEFORE_A_CCS);
++		return -1;
++		}
++
++	if (n < 2)
++		return 0;  /* The body must be > 1 bytes long */
++
++	p=(unsigned char *)s->init_msg;
++
++	/* The payload looks like:
++	 *   uint8 proto_len;
++	 *   uint8 proto[proto_len];
++	 *   uint8 padding_len;
++	 *   uint8 padding[padding_len];
++	 */
++	proto_len = p[0];
++	if (proto_len + 2 > s->init_num)
++		return 0;
++	padding_len = p[proto_len + 1];
++	if (proto_len + padding_len + 2 != s->init_num)
++		return 0;
++
++	s->next_proto_negotiated = OPENSSL_malloc(proto_len);
++	if (!s->next_proto_negotiated)
++		{
++		SSLerr(SSL_F_SSL3_GET_NEXT_PROTO,ERR_R_MALLOC_FAILURE);
++		return 0;
++		}
++	memcpy(s->next_proto_negotiated, p + 1, proto_len);
++	s->next_proto_negotiated_len = proto_len;
++
++	return 1;
++	}
++# endif
+ #endif
+--- openssl-1.0.0b.orig/ssl/ssl.h	2010-11-29 19:56:04.846517045 +0000
++++ openssl-1.0.0b/ssl/ssl.h	2010-11-29 19:56:04.965928855 +0000
+@@ -857,6 +857,25 @@ struct ssl_ctx_st
+ 	/* draft-rescorla-tls-opaque-prf-input-00.txt information */
+ 	int (*tlsext_opaque_prf_input_callback)(SSL *, void *peerinput, size_t len, void *arg);
+ 	void *tlsext_opaque_prf_input_callback_arg;
++
++# ifndef OPENSSL_NO_NEXTPROTONEG
++	/* Next protocol negotiation information */
++	/* (for experimental NPN extension). */
++
++	/* For a server, this contains a callback function by which the set of
++	 * advertised protocols can be provided. */
++	int (*next_protos_advertised_cb)(SSL *s, const unsigned char **buf,
++			                 unsigned int *len, void *arg);
++	void *next_protos_advertised_cb_arg;
++	/* For a client, this contains a callback function that selects the
++	 * next protocol from the list provided by the server. */
++	int (*next_proto_select_cb)(SSL *s, unsigned char **out,
++				    unsigned char *outlen,
++				    const unsigned char *in,
++				    unsigned int inlen,
++				    void *arg);
++	void *next_proto_select_cb_arg;
++# endif
+ #endif
+ 
+ #ifndef OPENSSL_NO_PSK
+@@ -928,6 +947,30 @@ int SSL_CTX_set_client_cert_engine(SSL_C
+ #endif
+ void SSL_CTX_set_cookie_generate_cb(SSL_CTX *ctx, int (*app_gen_cookie_cb)(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len));
+ void SSL_CTX_set_cookie_verify_cb(SSL_CTX *ctx, int (*app_verify_cookie_cb)(SSL *ssl, unsigned char *cookie, unsigned int cookie_len));
++#ifndef OPENSSL_NO_NEXTPROTONEG
++void SSL_CTX_set_next_protos_advertised_cb(SSL_CTX *s,
++					   int (*cb) (SSL *ssl,
++						      const unsigned char **out,
++						      unsigned int *outlen,
++						      void *arg), void *arg);
++void SSL_CTX_set_next_proto_select_cb(SSL_CTX *s,
++				      int (*cb) (SSL *ssl, unsigned char **out,
++						 unsigned char *outlen,
++						 const unsigned char *in,
++						 unsigned int inlen, void *arg),
++				      void *arg);
++
++int SSL_select_next_proto(unsigned char **out, unsigned char *outlen,
++			  const unsigned char *in, unsigned int inlen,
++			  const unsigned char *client, unsigned int client_len);
++void SSL_get0_next_proto_negotiated(const SSL *s, const unsigned char **data,
++				    unsigned *len);
++
++#define OPENSSL_NPN_UNSUPPORTED	0
++#define OPENSSL_NPN_NEGOTIATED	1
++#define OPENSSL_NPN_NO_OVERLAP	2
++
++#endif
+ 
+ #ifndef OPENSSL_NO_PSK
+ /* the maximum length of the buffer given to callbacks containing the
+@@ -1187,6 +1230,19 @@ struct ssl_st
+ 	void *tls_session_secret_cb_arg;
+ 
+ 	SSL_CTX * initial_ctx; /* initial ctx, used to store sessions */
++
++#ifndef OPENSSL_NO_NEXTPROTONEG
++	/* Next protocol negotiation. For the client, this is the protocol that
++	 * we sent in NextProtocol and is set when handling ServerHello
++	 * extensions.
++	 *
++	 * For a server, this is the client's selected_protocol from
++	 * NextProtocol and is set when handling the NextProtocol message,
++	 * before the Finished message. */
++	unsigned char *next_proto_negotiated;
++	unsigned char next_proto_negotiated_len;
++#endif
++
+ #define session_ctx initial_ctx
+ #else
+ #define session_ctx ctx
+@@ -1919,6 +1975,7 @@ void ERR_load_SSL_strings(void);
+ #define SSL_F_SSL3_GET_KEY_EXCHANGE			 141
+ #define SSL_F_SSL3_GET_MESSAGE				 142
+ #define SSL_F_SSL3_GET_NEW_SESSION_TICKET		 283
++#define SSL_F_SSL3_GET_NEXT_PROTO			 304
+ #define SSL_F_SSL3_GET_RECORD				 143
+ #define SSL_F_SSL3_GET_SERVER_CERTIFICATE		 144
+ #define SSL_F_SSL3_GET_SERVER_DONE			 145
+@@ -2117,6 +2174,8 @@ void ERR_load_SSL_strings(void);
+ #define SSL_R_EXCESSIVE_MESSAGE_SIZE			 152
+ #define SSL_R_EXTRA_DATA_IN_MESSAGE			 153
+ #define SSL_R_GOT_A_FIN_BEFORE_A_CCS			 154
++#define SSL_R_GOT_NEXT_PROTO_BEFORE_A_CCS		 346
++#define SSL_R_GOT_NEXT_PROTO_WITHOUT_EXTENSION		 347
+ #define SSL_R_HTTPS_PROXY_REQUEST			 155
+ #define SSL_R_HTTP_REQUEST				 156
+ #define SSL_R_ILLEGAL_PADDING				 283
+--- openssl-1.0.0b.orig/ssl/ssl3.h	2010-11-29 19:56:04.832465351 +0000
++++ openssl-1.0.0b/ssl/ssl3.h	2010-11-29 19:56:04.965928855 +0000
+@@ -465,6 +465,12 @@ typedef struct ssl3_state_st
+ 	void *server_opaque_prf_input;
+ 	size_t server_opaque_prf_input_len;
+ 
++#ifndef OPENSSL_NO_NEXTPROTONEG
++	/* Set if we saw the Next Protocol Negotiation extension from
++	   our peer. */
++	int next_proto_neg_seen;
++#endif
++
+ 	struct	{
+ 		/* actually only needs to be 16+20 */
+ 		unsigned char cert_verify_md[EVP_MAX_MD_SIZE*2];
+@@ -557,6 +563,10 @@ typedef struct ssl3_state_st
+ #define SSL3_ST_CW_CERT_VRFY_B		(0x191|SSL_ST_CONNECT)
+ #define SSL3_ST_CW_CHANGE_A		(0x1A0|SSL_ST_CONNECT)
+ #define SSL3_ST_CW_CHANGE_B		(0x1A1|SSL_ST_CONNECT)
++#ifndef OPENSSL_NO_NEXTPROTONEG
++#define SSL3_ST_CW_NEXT_PROTO_A		(0x200|SSL_ST_CONNECT)
++#define SSL3_ST_CW_NEXT_PROTO_B		(0x201|SSL_ST_CONNECT)
++#endif
+ #define SSL3_ST_CW_FINISHED_A		(0x1B0|SSL_ST_CONNECT)
+ #define SSL3_ST_CW_FINISHED_B		(0x1B1|SSL_ST_CONNECT)
+ /* read from server */
+@@ -602,6 +612,10 @@ typedef struct ssl3_state_st
+ #define SSL3_ST_SR_CERT_VRFY_B		(0x1A1|SSL_ST_ACCEPT)
+ #define SSL3_ST_SR_CHANGE_A		(0x1B0|SSL_ST_ACCEPT)
+ #define SSL3_ST_SR_CHANGE_B		(0x1B1|SSL_ST_ACCEPT)
++#ifndef OPENSSL_NO_NEXTPROTONEG
++#define SSL3_ST_SR_NEXT_PROTO_A		(0x210|SSL_ST_ACCEPT)
++#define SSL3_ST_SR_NEXT_PROTO_B		(0x211|SSL_ST_ACCEPT)
++#endif
+ #define SSL3_ST_SR_FINISHED_A		(0x1C0|SSL_ST_ACCEPT)
+ #define SSL3_ST_SR_FINISHED_B		(0x1C1|SSL_ST_ACCEPT)
+ /* write to client */
+@@ -626,6 +640,9 @@ typedef struct ssl3_state_st
+ #define SSL3_MT_CLIENT_KEY_EXCHANGE		16
+ #define SSL3_MT_FINISHED			20
+ #define SSL3_MT_CERTIFICATE_STATUS		22
++#ifndef OPENSSL_NO_NEXTPROTONEG
++#define SSL3_MT_NEXT_PROTO			67
++#endif
+ #define DTLS1_MT_HELLO_VERIFY_REQUEST    3
+ 
+ 
+--- openssl-1.0.0b.orig/ssl/ssl_err.c	2010-11-29 19:56:04.846517045 +0000
++++ openssl-1.0.0b/ssl/ssl_err.c	2010-11-29 19:56:04.965928855 +0000
+@@ -155,6 +155,7 @@ static ERR_STRING_DATA SSL_str_functs[]=
+ {ERR_FUNC(SSL_F_SSL3_GET_KEY_EXCHANGE),	"SSL3_GET_KEY_EXCHANGE"},
+ {ERR_FUNC(SSL_F_SSL3_GET_MESSAGE),	"SSL3_GET_MESSAGE"},
+ {ERR_FUNC(SSL_F_SSL3_GET_NEW_SESSION_TICKET),	"SSL3_GET_NEW_SESSION_TICKET"},
++{ERR_FUNC(SSL_F_SSL3_GET_NEXT_PROTO),	"SSL3_GET_NEXT_PROTO"},
+ {ERR_FUNC(SSL_F_SSL3_GET_RECORD),	"SSL3_GET_RECORD"},
+ {ERR_FUNC(SSL_F_SSL3_GET_SERVER_CERTIFICATE),	"SSL3_GET_SERVER_CERTIFICATE"},
+ {ERR_FUNC(SSL_F_SSL3_GET_SERVER_DONE),	"SSL3_GET_SERVER_DONE"},
+@@ -355,6 +356,8 @@ static ERR_STRING_DATA SSL_str_reasons[]
+ {ERR_REASON(SSL_R_EXCESSIVE_MESSAGE_SIZE),"excessive message size"},
+ {ERR_REASON(SSL_R_EXTRA_DATA_IN_MESSAGE) ,"extra data in message"},
+ {ERR_REASON(SSL_R_GOT_A_FIN_BEFORE_A_CCS),"got a fin before a ccs"},
++{ERR_REASON(SSL_R_GOT_NEXT_PROTO_BEFORE_A_CCS),"got next proto before a ccs"},
++{ERR_REASON(SSL_R_GOT_NEXT_PROTO_WITHOUT_EXTENSION),"got next proto without seeing extension"},
+ {ERR_REASON(SSL_R_HTTPS_PROXY_REQUEST)   ,"https proxy request"},
+ {ERR_REASON(SSL_R_HTTP_REQUEST)          ,"http request"},
+ {ERR_REASON(SSL_R_ILLEGAL_PADDING)       ,"illegal padding"},
+--- openssl-1.0.0b.orig/ssl/ssl_lib.c	2010-11-29 19:56:04.846517045 +0000
++++ openssl-1.0.0b/ssl/ssl_lib.c	2010-11-29 19:56:04.965928855 +0000
+@@ -354,6 +354,9 @@ SSL *SSL_new(SSL_CTX *ctx)
+ 	s->tlsext_ocsp_resplen = -1;
+ 	CRYPTO_add(&ctx->references,1,CRYPTO_LOCK_SSL_CTX);
+ 	s->initial_ctx=ctx;
++# ifndef OPENSSL_NO_NEXTPROTONEG
++	s->next_proto_negotiated = NULL;
++# endif
+ #endif
+ 
+ 	s->verify_result=X509_V_OK;
+@@ -587,6 +590,11 @@ void SSL_free(SSL *s)
+ 		kssl_ctx_free(s->kssl_ctx);
+ #endif	/* OPENSSL_NO_KRB5 */
+ 
++#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
++	if (s->next_proto_negotiated)
++		OPENSSL_free(s->next_proto_negotiated);
++#endif
++
+ 	OPENSSL_free(s);
+ 	}
+ 
+@@ -1503,6 +1511,124 @@ int SSL_get_servername_type(const SSL *s
+ 		return TLSEXT_NAMETYPE_host_name;
+ 	return -1;
+ 	}
++
++# ifndef OPENSSL_NO_NEXTPROTONEG
++/* SSL_select_next_proto implements the standard protocol selection. It is
++ * expected that this function is called from the callback set by
++ * SSL_CTX_set_next_proto_select_cb.
++ *
++ * The protocol data is assumed to be a vector of 8-bit, length prefixed byte
++ * strings. The length byte itself is not included in the length. A byte
++ * string of length 0 is invalid. No byte string may be truncated.
++ *
++ * The current, but experimental algorithm for selecting the protocol is:
++ *
++ * 1) If the server doesn't support NPN then this is indicated to the
++ * callback. In this case, the client application has to abort the connection
++ * or have a default application level protocol.
++ *
++ * 2) If the server supports NPN, but advertises an empty list then the
++ * client selects the first protcol in its list, but indicates via the
++ * API that this fallback case was enacted.
++ *
++ * 3) Otherwise, the client finds the first protocol in the server's list
++ * that it supports and selects this protocol. This is because it's
++ * assumed that the server has better information about which protocol
++ * a client should use.
++ *
++ * 4) If the client doesn't support any of the server's advertised
++ * protocols, then this is treated the same as case 2.
++ *
++ * It returns either
++ * OPENSSL_NPN_NEGOTIATED if a common protocol was found, or
++ * OPENSSL_NPN_NO_OVERLAP if the fallback case was reached.
++ */
++int SSL_select_next_proto(unsigned char **out, unsigned char *outlen, const unsigned char *server, unsigned int server_len, const unsigned char *client, unsigned int client_len)
++	{
++	unsigned int i, j;
++	const unsigned char *result;
++	int status = OPENSSL_NPN_UNSUPPORTED;
++
++	/* For each protocol in server preference order, see if we support it. */
++	for (i = 0; i < server_len; )
++		{
++		for (j = 0; j < client_len; )
++			{
++			if (server[i] == client[j] &&
++			    memcmp(&server[i+1], &client[j+1], server[i]) == 0)
++				{
++				/* We found a match */
++				result = &server[i];
++				status = OPENSSL_NPN_NEGOTIATED;
++				goto found;
++				}
++			j += client[j];
++			j++;
++			}
++		i += server[i];
++		i++;
++		}
++
++	/* There's no overlap between our protocols and the server's list. */
++	result = client;
++	status = OPENSSL_NPN_NO_OVERLAP;
++
++	found:
++	*out = (unsigned char *) result + 1;
++	*outlen = result[0];
++	return status;
++	}
++
++/* SSL_get0_next_proto_negotiated sets *data and *len to point to the client's
++ * requested protocol for this connection and returns 0. If the client didn't
++ * request any protocol, then *data is set to NULL.
++ *
++ * Note that the client can request any protocol it chooses. The value returned
++ * from this function need not be a member of the list of supported protocols
++ * provided by the callback.
++ */
++void SSL_get0_next_proto_negotiated(const SSL *s, const unsigned char **data, unsigned *len)
++	{
++	*data = s->next_proto_negotiated;
++	if (!*data) {
++		*len = 0;
++	} else {
++		*len = s->next_proto_negotiated_len;
++	}
++}
++
++/* SSL_CTX_set_next_protos_advertised_cb sets a callback that is called when a
++ * TLS server needs a list of supported protocols for Next Protocol
++ * Negotiation. The returned list must be in wire format.  The list is returned
++ * by setting |out| to point to it and |outlen| to its length. This memory will
++ * not be modified, but one should assume that the SSL* keeps a reference to
++ * it.
++ *
++ * The callback should return SSL_TLSEXT_ERR_OK if it wishes to advertise. Otherwise, no
++ * such extension will be included in the ServerHello. */
++void SSL_CTX_set_next_protos_advertised_cb(SSL_CTX *ctx, int (*cb) (SSL *ssl, const unsigned char **out, unsigned int *outlen, void *arg), void *arg)
++	{
++	ctx->next_protos_advertised_cb = cb;
++	ctx->next_protos_advertised_cb_arg = arg;
++	}
++
++/* SSL_CTX_set_next_proto_select_cb sets a callback that is called when a
++ * client needs to select a protocol from the server's provided list. |out|
++ * must be set to point to the selected protocol (which may be within |in|).
++ * The length of the protocol name must be written into |outlen|. The server's
++ * advertised protocols are provided in |in| and |inlen|. The callback can
++ * assume that |in| is syntactically valid.
++ *
++ * The client must select a protocol. It is fatal to the connection if this
++ * callback returns a value other than SSL_TLSEXT_ERR_OK.
++ */
++void SSL_CTX_set_next_proto_select_cb(SSL_CTX *ctx, int (*cb) (SSL *s, unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg), void *arg)
++	{
++	ctx->next_proto_select_cb = cb;
++	ctx->next_proto_select_cb_arg = arg;
++	}
++
++# endif
+ #endif
+ 
+ static unsigned long ssl_session_hash(const SSL_SESSION *a)
+@@ -1667,6 +1793,10 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *m
+ 	ret->tlsext_status_cb = 0;
+ 	ret->tlsext_status_arg = NULL;
+ 
++# ifndef OPENSSL_NO_NEXTPROTONEG
++	ret->next_protos_advertised_cb = 0;
++	ret->next_proto_select_cb = 0;
++# endif
+ #endif
+ #ifndef OPENSSL_NO_PSK
+ 	ret->psk_identity_hint=NULL;
+--- openssl-1.0.0b.orig/ssl/ssl_locl.h	2010-11-29 19:56:04.846517045 +0000
++++ openssl-1.0.0b/ssl/ssl_locl.h	2010-11-29 19:56:04.965928855 +0000
+@@ -968,6 +968,9 @@ int ssl3_get_server_certificate(SSL *s);
+ int ssl3_check_cert_and_algorithm(SSL *s);
+ #ifndef OPENSSL_NO_TLSEXT
+ int ssl3_check_finished(SSL *s);
++# ifndef OPENSSL_NO_NEXTPROTONEG
++int ssl3_send_next_proto(SSL *s);
++# endif
+ #endif
+ 
+ int dtls1_client_hello(SSL *s);
+@@ -986,6 +989,9 @@ int ssl3_check_client_hello(SSL *s);
+ int ssl3_get_client_certificate(SSL *s);
+ int ssl3_get_client_key_exchange(SSL *s);
+ int ssl3_get_cert_verify(SSL *s);
++#ifndef OPENSSL_NO_NEXTPROTONEG
++int ssl3_get_next_proto(SSL *s);
++#endif
+ 
+ int dtls1_send_hello_request(SSL *s);
+ int dtls1_send_server_hello(SSL *s);
+--- openssl-1.0.0b.orig/ssl/t1_lib.c	2010-11-16 13:26:24.000000000 +0000
++++ openssl-1.0.0b/ssl/t1_lib.c	2010-11-29 19:56:04.965928855 +0000
+@@ -494,6 +494,18 @@ unsigned char *ssl_add_clienthello_tlsex
+ 			i2d_X509_EXTENSIONS(s->tlsext_ocsp_exts, &ret);
+ 		}
+ 
++#ifndef OPENSSL_NO_NEXTPROTONEG
++	if (s->ctx->next_proto_select_cb && !s->s3->tmp.finish_md_len)
++		{
++		/* The client advertises an emtpy extension to indicate its
++		 * support for Next Protocol Negotiation */
++		if (limit - ret - 4 < 0)
++			return NULL;
++		s2n(TLSEXT_TYPE_next_proto_neg,ret);
++		s2n(0,ret);
++		}
++#endif
++
+ 	if ((extdatalen = ret-p-2)== 0) 
+ 		return p;
+ 
+@@ -505,6 +517,9 @@ unsigned char *ssl_add_serverhello_tlsex
+ 	{
+ 	int extdatalen=0;
+ 	unsigned char *ret = p;
++#ifndef OPENSSL_NO_NEXTPROTONEG
++	int next_proto_neg_seen;
++#endif
+ 
+ 	/* don't add extensions for SSLv3, unless doing secure renegotiation */
+ 	if (s->version == SSL3_VERSION && !s->s3->send_connection_binding)
+@@ -618,6 +633,28 @@ unsigned char *ssl_add_serverhello_tlsex
+ 
+ 		}
+ 
++#ifndef OPENSSL_NO_NEXTPROTONEG
++	next_proto_neg_seen = s->s3->next_proto_neg_seen;
++	s->s3->next_proto_neg_seen = 0;
++	if (next_proto_neg_seen && s->ctx->next_protos_advertised_cb)
++		{
++		const unsigned char *npa;
++		unsigned int npalen;
++		int r;
++
++		r = s->ctx->next_protos_advertised_cb(s, &npa, &npalen, s->ctx->next_protos_advertised_cb_arg);
++		if (r == SSL_TLSEXT_ERR_OK)
++			{
++			if ((long)(limit - ret - 4 - npalen) < 0) return NULL;
++			s2n(TLSEXT_TYPE_next_proto_neg,ret);
++			s2n(npalen,ret);
++			memcpy(ret, npa, npalen);
++			ret += npalen;
++			s->s3->next_proto_neg_seen = 1;
++			}
++		}
++#endif
++
+ 	if ((extdatalen = ret-p-2)== 0) 
+ 		return p;
+ 
+@@ -982,6 +1019,28 @@ int ssl_parse_clienthello_tlsext(SSL *s,
+ 				else
+ 					s->tlsext_status_type = -1;
+ 			}
++#ifndef OPENSSL_NO_NEXTPROTONEG
++		else if (type == TLSEXT_TYPE_next_proto_neg &&
++                         s->s3->tmp.finish_md_len == 0)
++			{
++			/* We shouldn't accept this extension on a
++			 * renegotiation.
++			 *
++			 * s->new_session will be set on renegotiation, but we
++			 * probably shouldn't rely that it couldn't be set on
++			 * the initial renegotation too in certain cases (when
++			 * there's some other reason to disallow resuming an
++			 * earlier session -- the current code won't be doing
++			 * anything like that, but this might change).
++
++			 * A valid sign that there's been a previous handshake
++			 * in this connection is if s->s3->tmp.finish_md_len >
++			 * 0.  (We are talking about a check that will happen
++			 * in the Hello protocol round, well before a new
++			 * Finished message could have been computed.) */
++			s->s3->next_proto_neg_seen = 1;
++			}
++#endif
+ 
+ 		/* session ticket processed earlier */
+ 		data+=size;
+@@ -1005,6 +1064,26 @@ int ssl_parse_clienthello_tlsext(SSL *s,
+ 	return 1;
+ 	}
+ 
++#ifndef OPENSSL_NO_NEXTPROTONEG
++/* ssl_next_proto_validate validates a Next Protocol Negotiation block. No
++ * elements of zero length are allowed and the set of elements must exactly fill
++ * the length of the block. */
++static int ssl_next_proto_validate(unsigned char *d, unsigned len)
++	{
++	unsigned int off = 0;
++
++	while (off < len)
++		{
++		if (d[off] == 0)
++			return 0;
++		off += d[off];
++		off++;
++		}
++
++	return off == len;
++	}
++#endif
++
+ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, int n, int *al)
+ 	{
+ 	unsigned short length;
+@@ -1139,6 +1218,39 @@ int ssl_parse_serverhello_tlsext(SSL *s,
+ 			/* Set flag to expect CertificateStatus message */
+ 			s->tlsext_status_expected = 1;
+ 			}
++#ifndef OPENSSL_NO_NEXTPROTONEG
++		else if (type == TLSEXT_TYPE_next_proto_neg)
++			{
++			unsigned char *selected;
++			unsigned char selected_len;
++
++			/* We must have requested it. */
++			if ((s->ctx->next_proto_select_cb == NULL))
++				{
++				*al = TLS1_AD_UNSUPPORTED_EXTENSION;
++				return 0;
++				}
++			/* The data must be valid */
++			if (!ssl_next_proto_validate(data, size))
++				{
++				*al = TLS1_AD_DECODE_ERROR;
++				return 0;
++				}
++			if (s->ctx->next_proto_select_cb(s, &selected, &selected_len, data, size, s->ctx->next_proto_select_cb_arg) != SSL_TLSEXT_ERR_OK)
++				{
++				*al = TLS1_AD_INTERNAL_ERROR;
++				return 0;
++				}
++			s->next_proto_negotiated = OPENSSL_malloc(selected_len);
++			if (!s->next_proto_negotiated)
++				{
++				*al = TLS1_AD_INTERNAL_ERROR;
++				return 0;
++				}
++			memcpy(s->next_proto_negotiated, selected, selected_len);
++			s->next_proto_negotiated_len = selected_len;
++			}
++#endif
+ 		else if (type == TLSEXT_TYPE_renegotiate)
+ 			{
+ 			if(!ssl_parse_serverhello_renegotiate_ext(s, data, size, al))
+--- openssl-1.0.0b.orig/ssl/tls1.h	2009-11-11 14:51:29.000000000 +0000
++++ openssl-1.0.0b/ssl/tls1.h	2010-11-29 19:56:04.965928855 +0000
+@@ -204,6 +204,11 @@ extern "C" {
+ /* Temporary extension type */
+ #define TLSEXT_TYPE_renegotiate                 0xff01
+ 
++#ifndef OPENSSL_NO_NEXTPROTONEG
++/* This is not an IANA defined extension number */
++#define TLSEXT_TYPE_next_proto_neg		13172
++#endif
++
+ /* NameType value from RFC 3546 */
+ #define TLSEXT_NAMETYPE_host_name 0
+ /* status request value from RFC 3546 */

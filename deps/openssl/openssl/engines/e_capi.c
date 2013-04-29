@@ -442,36 +442,28 @@ static int capi_init(ENGINE *e)
 	CAPI_CTX *ctx;
 	const RSA_METHOD *ossl_rsa_meth;
 	const DSA_METHOD *ossl_dsa_meth;
-
-	if (capi_idx < 0)
-		{
-		capi_idx = ENGINE_get_ex_new_index(0, NULL, NULL, NULL, 0);
-		if (capi_idx < 0)
-			goto memerr;
-
-		cert_capi_idx = X509_get_ex_new_index(0, NULL, NULL, NULL, 0);
-
-		/* Setup RSA_METHOD */
-		rsa_capi_idx = RSA_get_ex_new_index(0, NULL, NULL, NULL, 0);
-		ossl_rsa_meth = RSA_PKCS1_SSLeay();
-		capi_rsa_method.rsa_pub_enc = ossl_rsa_meth->rsa_pub_enc;
-		capi_rsa_method.rsa_pub_dec = ossl_rsa_meth->rsa_pub_dec;
-		capi_rsa_method.rsa_mod_exp = ossl_rsa_meth->rsa_mod_exp;
-		capi_rsa_method.bn_mod_exp = ossl_rsa_meth->bn_mod_exp;
-
-		/* Setup DSA Method */
-		dsa_capi_idx = DSA_get_ex_new_index(0, NULL, NULL, NULL, 0);
-		ossl_dsa_meth = DSA_OpenSSL();
-		capi_dsa_method.dsa_do_verify = ossl_dsa_meth->dsa_do_verify;
-		capi_dsa_method.dsa_mod_exp = ossl_dsa_meth->dsa_mod_exp;
-		capi_dsa_method.bn_mod_exp = ossl_dsa_meth->bn_mod_exp;
-		}
+	capi_idx = ENGINE_get_ex_new_index(0, NULL, NULL, NULL, 0);
+	cert_capi_idx = X509_get_ex_new_index(0, NULL, NULL, NULL, 0);
 
 	ctx = capi_ctx_new();
-	if (!ctx)
+	if (!ctx || (capi_idx < 0))
 		goto memerr;
 
 	ENGINE_set_ex_data(e, capi_idx, ctx);
+	/* Setup RSA_METHOD */
+	rsa_capi_idx = RSA_get_ex_new_index(0, NULL, NULL, NULL, 0);
+	ossl_rsa_meth = RSA_PKCS1_SSLeay();
+	capi_rsa_method.rsa_pub_enc = ossl_rsa_meth->rsa_pub_enc;
+	capi_rsa_method.rsa_pub_dec = ossl_rsa_meth->rsa_pub_dec;
+	capi_rsa_method.rsa_mod_exp = ossl_rsa_meth->rsa_mod_exp;
+	capi_rsa_method.bn_mod_exp = ossl_rsa_meth->bn_mod_exp;
+
+	/* Setup DSA Method */
+	dsa_capi_idx = DSA_get_ex_new_index(0, NULL, NULL, NULL, 0);
+	ossl_dsa_meth = DSA_OpenSSL();
+	capi_dsa_method.dsa_do_verify = ossl_dsa_meth->dsa_do_verify;
+	capi_dsa_method.dsa_mod_exp = ossl_dsa_meth->dsa_mod_exp;
+	capi_dsa_method.bn_mod_exp = ossl_dsa_meth->bn_mod_exp;
 
 #ifdef OPENSSL_CAPIENG_DIALOG
 	{
@@ -530,7 +522,6 @@ static int bind_capi(ENGINE *e)
 	{
 	if (!ENGINE_set_id(e, engine_capi_id)
 		|| !ENGINE_set_name(e, engine_capi_name)
-		|| !ENGINE_set_flags(e, ENGINE_FLAGS_NO_REGISTER_ALL)
 		|| !ENGINE_set_init_function(e, capi_init)
 		|| !ENGINE_set_finish_function(e, capi_finish)
 		|| !ENGINE_set_destroy_function(e, capi_destroy)
@@ -1164,7 +1155,6 @@ static int capi_list_containers(CAPI_CTX *ctx, BIO *out)
 		{
 		CAPIerr(CAPI_F_CAPI_LIST_CONTAINERS, CAPI_R_ENUMCONTAINERS_ERROR);
 		capi_addlasterror();
-		CryptReleaseContext(hprov, 0);
 		return 0;
 		}
 	CAPI_trace(ctx, "Got max container len %d\n", buflen);
@@ -1432,13 +1422,10 @@ static PCCERT_CONTEXT capi_find_cert(CAPI_CTX *ctx, const char *id, HCERTSTORE h
 static CAPI_KEY *capi_get_key(CAPI_CTX *ctx, const char *contname, char *provname, DWORD ptype, DWORD keyspec)
 	{
 	CAPI_KEY *key;
-    DWORD dwFlags = 0; 
 	key = OPENSSL_malloc(sizeof(CAPI_KEY));
 	CAPI_trace(ctx, "capi_get_key, contname=%s, provname=%s, type=%d\n", 
 						contname, provname, ptype);
-    if(ctx->store_flags & CERT_SYSTEM_STORE_LOCAL_MACHINE)
-        dwFlags = CRYPT_MACHINE_KEYSET;
-    if (!CryptAcquireContextA(&key->hprov, contname, provname, ptype, dwFlags)) 
+	if (!CryptAcquireContextA(&key->hprov, contname, provname, ptype, 0))
 		{
 		CAPIerr(CAPI_F_CAPI_GET_KEY, CAPI_R_CRYPTACQUIRECONTEXT_ERROR);
 		capi_addlasterror();
@@ -1585,8 +1572,6 @@ static int capi_ctx_set_provname(CAPI_CTX *ctx, LPSTR pname, DWORD type, int che
 			}
 		CryptReleaseContext(hprov, 0);
 		}
-	if (ctx->cspname)
-		OPENSSL_free(ctx->cspname);
 	ctx->cspname = BUF_strdup(pname);
 	ctx->csptype = type;
 	return 1;
@@ -1596,12 +1581,9 @@ static int capi_ctx_set_provname_idx(CAPI_CTX *ctx, int idx)
 	{
 	LPSTR pname;
 	DWORD type;
-	int res;
 	if (capi_get_provname(ctx, &pname, &type, idx) != 1)
 		return 0;
-	res = capi_ctx_set_provname(ctx, pname, type, 0);
-	OPENSSL_free(pname);
-	return res;
+	return capi_ctx_set_provname(ctx, pname, type, 0);
 	}
 
 static int cert_issuer_match(STACK_OF(X509_NAME) *ca_dn, X509 *x)
