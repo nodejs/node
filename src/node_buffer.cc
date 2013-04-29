@@ -285,9 +285,7 @@ Handle<Value> Copy(const Arguments &args) {
                            target_length - target_start),
                            obj_length - source_start);
 
-  memmove((void *)(target_data + target_start),
-          (const void*)(obj_data + source_start),
-          to_copy);
+  memmove(target_data + target_start, obj_data + source_start, to_copy);
 
   return scope.Close(Uint32::New(to_copy, node_isolate));
 }
@@ -304,12 +302,12 @@ Handle<Value> Fill(const Arguments &args) {
     String::AsciiValue at(args[0]);
     value = (*at)[0];
   } else {
-    value = (char)args[0]->Int32Value();
+    value = static_cast<char>(args[0]->Int32Value());
   }
 
   SLICE_START_END(args[1], args[2], obj_length)
 
-  memset((void*)(obj_data + start), value, length);
+  memset(obj_data + start, value, length);
 
   return args.This();
 }
