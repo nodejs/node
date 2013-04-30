@@ -16,8 +16,6 @@ function main(conf) {
     api = 'legacy';
   }
 
-  var dur = conf.dur;
-
   var crypto = require('crypto');
   var assert = require('assert');
   var alice = crypto.getDiffieHellman('modp5');
@@ -73,7 +71,7 @@ function streamWrite(alice, bob, message, encoding, writes) {
   bob.on('end', function() {
     // Gbits
     var bits = written * 8;
-    var gbits = written / (1024 * 1024 * 1024);
+    var gbits = bits / (1024 * 1024 * 1024);
     bench.end(gbits);
   });
 
