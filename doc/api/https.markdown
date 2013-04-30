@@ -10,6 +10,14 @@ separate module.
 This class is a subclass of `tls.Server` and emits events same as
 `http.Server`. See `http.Server` for more information.
 
+### server.setTimeout(msecs, callback)
+
+See [http.Server#setTimeout()][].
+
+### server.timeout
+
+See [http.Server#timeout][].
+
 ## https.createServer(options, [requestListener])
 
 Returns a new HTTPS web server object. The `options` is similar to
@@ -197,6 +205,8 @@ for more information.
 
 Global instance of [https.Agent][] for all HTTPS client requests.
 
+[http.Server#setTimeout()]: http.html#http_server_settimeout_msecs_callback
+[http.Server#timeout]: http.html#http_server_timeout
 [Agent]: #https_class_https_agent
 [globalAgent]: #https_https_globalagent
 [http.listen()]: http.html#http_server_listen_port_hostname_backlog_callback
