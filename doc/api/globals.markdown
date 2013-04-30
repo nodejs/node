@@ -63,9 +63,9 @@ value from this object, the next `require` will reload the module.
 
 ### require.extensions
 
-* {Array}
-
     Stability: 0 - Deprecated
+
+* {Object}
 
 Instruct `require` on how to handle certain file extensions.
 
