@@ -331,7 +331,7 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
 }
 
 
-template <WriteEncoding encoding>
+template <enum encoding encoding>
 Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
   HandleScope scope;
   int r;
@@ -344,38 +344,13 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
   Local<String> string = args[0]->ToString();
 
   // Compute the size of the storage that the string will be flattened into.
+  // For UTF8 strings that are very long, go ahead and take the hit for
+  // computing their actual size, rather than tripling the storage.
   size_t storage_size;
-  switch (encoding) {
-    case kAscii:
-      storage_size = string->Length();
-      break;
-
-    case kUtf8:
-      if (!(string->MayContainNonAscii())) {
-        // If the string has only ascii characters, we know exactly how big
-        // the storage should be.
-        storage_size = string->Length();
-      } else if (string->Length() < 65536) {
-        // A single UCS2 codepoint never takes up more than 3 utf8 bytes.
-        // Unless the string is really long we just allocate so much space that
-        // we're certain the string fits in there entirely.
-        // TODO: maybe check handle->write_queue_size instead of string length?
-        storage_size = 3 * string->Length();
-      } else {
-        // The string is really long. Compute the allocation size that we
-        // actually need.
-        storage_size = string->Utf8Length();
-      }
-      break;
-
-    case kUcs2:
-      storage_size = string->Length() * sizeof(uint16_t);
-      break;
-
-    default:
-      // Unreachable.
-      assert(0);
-  }
+  if (encoding == UTF8 && string->Length() > 65535)
+    storage_size = StringBytes::Size(string, encoding);
+  else
+    storage_size = StringBytes::StorageSize(string, encoding);
 
   if (storage_size > INT_MAX) {
     uv_err_t err;
@@ -389,29 +364,9 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
 
   char* data = reinterpret_cast<char*>(ROUND_UP(
       reinterpret_cast<uintptr_t>(storage) + sizeof(WriteWrap), 16));
+
   size_t data_size;
-  switch (encoding) {
-  case kAscii:
-      data_size = string->WriteAscii(data, 0, -1,
-          String::NO_NULL_TERMINATION | String::HINT_MANY_WRITES_EXPECTED);
-      break;
-
-    case kUtf8:
-      data_size = string->WriteUtf8(data, -1, NULL,
-          String::NO_NULL_TERMINATION | String::HINT_MANY_WRITES_EXPECTED);
-      break;
-
-    case kUcs2: {
-      int chars_copied = string->Write((uint16_t*) data, 0, -1,
-          String::NO_NULL_TERMINATION | String::HINT_MANY_WRITES_EXPECTED);
-      data_size = chars_copied * sizeof(uint16_t);
-      break;
-    }
-
-    default:
-      // Unreachable
-      assert(0);
-  }
+  data_size = StringBytes::Write(data, storage_size, string, encoding);
 
   assert(data_size <= storage_size);
 
@@ -479,17 +434,17 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
 
 
 Handle<Value> StreamWrap::WriteAsciiString(const Arguments& args) {
-  return WriteStringImpl<kAscii>(args);
+  return WriteStringImpl<ASCII>(args);
 }
 
 
 Handle<Value> StreamWrap::WriteUtf8String(const Arguments& args) {
-  return WriteStringImpl<kUtf8>(args);
+  return WriteStringImpl<UTF8>(args);
 }
 
 
 Handle<Value> StreamWrap::WriteUcs2String(const Arguments& args) {
-  return WriteStringImpl<kUcs2>(args);
+  return WriteStringImpl<UCS2>(args);
 }
 
 

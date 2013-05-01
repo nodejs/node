@@ -25,16 +25,9 @@
 #include "v8.h"
 #include "node.h"
 #include "handle_wrap.h"
+#include "string_bytes.h"
 
 namespace node {
-
-
-enum WriteEncoding {
-  kAscii,
-  kUtf8,
-  kUcs2
-};
-
 
 class StreamWrap : public HandleWrap {
  public:
@@ -75,7 +68,7 @@ class StreamWrap : public HandleWrap {
   static void OnReadCommon(uv_stream_t* handle, ssize_t nread,
       uv_buf_t buf, uv_handle_type pending);
 
-  template <enum WriteEncoding encoding>
+  template <enum encoding encoding>
   static v8::Handle<v8::Value> WriteStringImpl(const v8::Arguments& args);
 
   size_t slab_offset_;
