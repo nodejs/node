@@ -157,6 +157,7 @@ static int ecdh_compute_key(void *out, size_t outlen, const EC_POINT *pub_key,
 			goto err;
 			}
 		}
+#ifndef OPENSSL_NO_EC2M
 	else
 		{
 		if (!EC_POINT_get_affine_coordinates_GF2m(group, tmp, x, y, ctx)) 
@@ -165,6 +166,7 @@ static int ecdh_compute_key(void *out, size_t outlen, const EC_POINT *pub_key,
 			goto err;
 			}
 		}
+#endif
 
 	buflen = (EC_GROUP_get_degree(group) + 7)/8;
 	len = BN_num_bytes(x);

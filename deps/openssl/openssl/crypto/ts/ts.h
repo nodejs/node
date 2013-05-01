@@ -86,9 +86,6 @@
 #include <openssl/dh.h>
 #endif
 
-#include <openssl/evp.h>
-
-
 #ifdef  __cplusplus
 extern "C" {
 #endif

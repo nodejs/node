@@ -113,6 +113,18 @@
 #include "cryptlib.h"
 #include "bn_lcl.h"
 
+#include <stdlib.h>
+#ifdef _WIN32
+# include <malloc.h>
+# ifndef alloca
+#  define alloca _alloca
+# endif
+#elif defined(__GNUC__)
+# ifndef alloca
+#  define alloca(s) __builtin_alloca((s))
+# endif
+#endif
+
 /* maximum precomputation table size for *variable* sliding windows */
 #define TABLE_SIZE	32
 
@@ -522,23 +534,17 @@ err:
  * as cache lines are concerned.  The following functions are used to transfer a BIGNUM
  * from/to that table. */
 
-static int MOD_EXP_CTIME_COPY_TO_PREBUF(BIGNUM *b, int top, unsigned char *buf, int idx, int width)
+static int MOD_EXP_CTIME_COPY_TO_PREBUF(const BIGNUM *b, int top, unsigned char *buf, int idx, int width)
 	{
 	size_t i, j;
 
-	if (bn_wexpand(b, top) == NULL)
-		return 0;
-	while (b->top < top)
-		{
-		b->d[b->top++] = 0;
-		}
-	
+	if (top > b->top)
+		top = b->top; /* this works because 'buf' is explicitly zeroed */
 	for (i = 0, j=idx; i < top * sizeof b->d[0]; i++, j+=width)
 		{
 		buf[j] = ((unsigned char*)b->d)[i];
 		}
 
-	bn_correct_top(b);
 	return 1;
 	}
 
@@ -561,7 +567,7 @@ static int MOD_EXP_CTIME_COPY_FROM_PREBUF(BIGNUM *b, int top, unsigned char *buf
 
 /* Given a pointer value, compute the next address that is a cache line multiple. */
 #define MOD_EXP_CTIME_ALIGN(x_) \
-	((unsigned char*)(x_) + (MOD_EXP_CTIME_MIN_CACHE_LINE_WIDTH - (((BN_ULONG)(x_)) & (MOD_EXP_CTIME_MIN_CACHE_LINE_MASK))))
+	((unsigned char*)(x_) + (MOD_EXP_CTIME_MIN_CACHE_LINE_WIDTH - (((size_t)(x_)) & (MOD_EXP_CTIME_MIN_CACHE_LINE_MASK))))
 
 /* This variant of BN_mod_exp_mont() uses fixed windows and the special
  * precomputation memory layout to limit data-dependency to a minimum
@@ -572,17 +578,15 @@ static int MOD_EXP_CTIME_COPY_FROM_PREBUF(BIGNUM *b, int top, unsigned char *buf
 int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 		    const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *in_mont)
 	{
-	int i,bits,ret=0,idx,window,wvalue;
+	int i,bits,ret=0,window,wvalue;
 	int top;
- 	BIGNUM *r;
-	const BIGNUM *aa;
 	BN_MONT_CTX *mont=NULL;
 
 	int numPowers;
 	unsigned char *powerbufFree=NULL;
 	int powerbufLen = 0;
 	unsigned char *powerbuf=NULL;
-	BIGNUM *computeTemp=NULL, *am=NULL;
+	BIGNUM tmp, am;
 
 	bn_check_top(a);
 	bn_check_top(p);
@@ -602,10 +606,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 		return ret;
 		}
 
- 	/* Initialize BIGNUM context and allocate intermediate result */
 	BN_CTX_start(ctx);
-	r = BN_CTX_get(ctx);
-	if (r == NULL) goto err;
 
 	/* Allocate a montgomery context if it was not supplied by the caller.
 	 * If this is not done, things will break in the montgomery part.
@@ -620,40 +621,154 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 
 	/* Get the window size to use with size of p. */
 	window = BN_window_bits_for_ctime_exponent_size(bits);
+#if defined(OPENSSL_BN_ASM_MONT5)
+	if (window==6 && bits<=1024) window=5;	/* ~5% improvement of 2048-bit RSA sign */
+#endif
 
 	/* Allocate a buffer large enough to hold all of the pre-computed
-	 * powers of a.
+	 * powers of am, am itself and tmp.
 	 */
 	numPowers = 1 << window;
-	powerbufLen = sizeof(m->d[0])*top*numPowers;
+	powerbufLen = sizeof(m->d[0])*(top*numPowers +
+				((2*top)>numPowers?(2*top):numPowers));
+#ifdef alloca
+	if (powerbufLen < 3072)
+		powerbufFree = alloca(powerbufLen+MOD_EXP_CTIME_MIN_CACHE_LINE_WIDTH);
+	else
+#endif
 	if ((powerbufFree=(unsigned char*)OPENSSL_malloc(powerbufLen+MOD_EXP_CTIME_MIN_CACHE_LINE_WIDTH)) == NULL)
 		goto err;
 		
 	powerbuf = MOD_EXP_CTIME_ALIGN(powerbufFree);
 	memset(powerbuf, 0, powerbufLen);
 
- 	/* Initialize the intermediate result. Do this early to save double conversion,
-	 * once each for a^0 and intermediate result.
-	 */
- 	if (!BN_to_montgomery(r,BN_value_one(),mont,ctx)) goto err;
-	if (!MOD_EXP_CTIME_COPY_TO_PREBUF(r, top, powerbuf, 0, numPowers)) goto err;
+#ifdef alloca
+	if (powerbufLen < 3072)
+		powerbufFree = NULL;
+#endif
 
-	/* Initialize computeTemp as a^1 with montgomery precalcs */
-	computeTemp = BN_CTX_get(ctx);
-	am = BN_CTX_get(ctx);
-	if (computeTemp==NULL || am==NULL) goto err;
+	/* lay down tmp and am right after powers table */
+	tmp.d     = (BN_ULONG *)(powerbuf + sizeof(m->d[0])*top*numPowers);
+	am.d      = tmp.d + top;
+	tmp.top   = am.top  = 0;
+	tmp.dmax  = am.dmax = top;
+	tmp.neg   = am.neg  = 0;
+	tmp.flags = am.flags = BN_FLG_STATIC_DATA;
 
+	/* prepare a^0 in Montgomery domain */
+#if 1
+ 	if (!BN_to_montgomery(&tmp,BN_value_one(),mont,ctx))	goto err;
+#else
+	tmp.d[0] = (0-m->d[0])&BN_MASK2;	/* 2^(top*BN_BITS2) - m */
+	for (i=1;i<top;i++)
+		tmp.d[i] = (~m->d[i])&BN_MASK2;
+	tmp.top = top;
+#endif
+
+	/* prepare a^1 in Montgomery domain */
 	if (a->neg || BN_ucmp(a,m) >= 0)
 		{
-		if (!BN_mod(am,a,m,ctx))
-			goto err;
-		aa= am;
+		if (!BN_mod(&am,a,m,ctx))			goto err;
+		if (!BN_to_montgomery(&am,&am,mont,ctx))	goto err;
 		}
-	else
-		aa=a;
-	if (!BN_to_montgomery(am,aa,mont,ctx)) goto err;
-	if (!BN_copy(computeTemp, am)) goto err;
-	if (!MOD_EXP_CTIME_COPY_TO_PREBUF(am, top, powerbuf, 1, numPowers)) goto err;
+	else	if (!BN_to_montgomery(&am,a,mont,ctx))		goto err;
+
+#if defined(OPENSSL_BN_ASM_MONT5)
+    /* This optimization uses ideas from http://eprint.iacr.org/2011/239,
+     * specifically optimization of cache-timing attack countermeasures
+     * and pre-computation optimization. */
+
+    /* Dedicated window==4 case improves 512-bit RSA sign by ~15%, but as
+     * 512-bit RSA is hardly relevant, we omit it to spare size... */ 
+    if (window==5)
+	{
+	void bn_mul_mont_gather5(BN_ULONG *rp,const BN_ULONG *ap,
+			const void *table,const BN_ULONG *np,
+			const BN_ULONG *n0,int num,int power);
+	void bn_scatter5(const BN_ULONG *inp,size_t num,
+			void *table,size_t power);
+	void bn_gather5(BN_ULONG *out,size_t num,
+			void *table,size_t power);
+
+	BN_ULONG *np=mont->N.d, *n0=mont->n0;
+
+	/* BN_to_montgomery can contaminate words above .top
+	 * [in BN_DEBUG[_DEBUG] build]... */
+	for (i=am.top; i<top; i++)	am.d[i]=0;
+	for (i=tmp.top; i<top; i++)	tmp.d[i]=0;
+
+	bn_scatter5(tmp.d,top,powerbuf,0);
+	bn_scatter5(am.d,am.top,powerbuf,1);
+	bn_mul_mont(tmp.d,am.d,am.d,np,n0,top);
+	bn_scatter5(tmp.d,top,powerbuf,2);
+
+#if 0
+	for (i=3; i<32; i++)
+		{
+		/* Calculate a^i = a^(i-1) * a */
+		bn_mul_mont_gather5(tmp.d,am.d,powerbuf,np,n0,top,i-1);
+		bn_scatter5(tmp.d,top,powerbuf,i);
+		}
+#else
+	/* same as above, but uses squaring for 1/2 of operations */
+	for (i=4; i<32; i*=2)
+		{
+		bn_mul_mont(tmp.d,tmp.d,tmp.d,np,n0,top);
+		bn_scatter5(tmp.d,top,powerbuf,i);
+		}
+	for (i=3; i<8; i+=2)
+		{
+		int j;
+		bn_mul_mont_gather5(tmp.d,am.d,powerbuf,np,n0,top,i-1);
+		bn_scatter5(tmp.d,top,powerbuf,i);
+		for (j=2*i; j<32; j*=2)
+			{
+			bn_mul_mont(tmp.d,tmp.d,tmp.d,np,n0,top);
+			bn_scatter5(tmp.d,top,powerbuf,j);
+			}
+		}
+	for (; i<16; i+=2)
+		{
+		bn_mul_mont_gather5(tmp.d,am.d,powerbuf,np,n0,top,i-1);
+		bn_scatter5(tmp.d,top,powerbuf,i);
+		bn_mul_mont(tmp.d,tmp.d,tmp.d,np,n0,top);
+		bn_scatter5(tmp.d,top,powerbuf,2*i);
+		}
+	for (; i<32; i+=2)
+		{
+		bn_mul_mont_gather5(tmp.d,am.d,powerbuf,np,n0,top,i-1);
+		bn_scatter5(tmp.d,top,powerbuf,i);
+		}
+#endif
+	bits--;
+	for (wvalue=0, i=bits%5; i>=0; i--,bits--)
+		wvalue = (wvalue<<1)+BN_is_bit_set(p,bits);
+	bn_gather5(tmp.d,top,powerbuf,wvalue);
+
+	/* Scan the exponent one window at a time starting from the most
+	 * significant bits.
+	 */
+	while (bits >= 0)
+		{
+		for (wvalue=0, i=0; i<5; i++,bits--)
+			wvalue = (wvalue<<1)+BN_is_bit_set(p,bits);
+
+		bn_mul_mont(tmp.d,tmp.d,tmp.d,np,n0,top);
+		bn_mul_mont(tmp.d,tmp.d,tmp.d,np,n0,top);
+		bn_mul_mont(tmp.d,tmp.d,tmp.d,np,n0,top);
+		bn_mul_mont(tmp.d,tmp.d,tmp.d,np,n0,top);
+		bn_mul_mont(tmp.d,tmp.d,tmp.d,np,n0,top);
+		bn_mul_mont_gather5(tmp.d,tmp.d,powerbuf,np,n0,top,wvalue);
+		}
+
+	tmp.top=top;
+	bn_correct_top(&tmp);
+	}
+    else
+#endif
+	{
+	if (!MOD_EXP_CTIME_COPY_TO_PREBUF(&tmp, top, powerbuf, 0, numPowers)) goto err;
+	if (!MOD_EXP_CTIME_COPY_TO_PREBUF(&am,  top, powerbuf, 1, numPowers)) goto err;
 
 	/* If the window size is greater than 1, then calculate
 	 * val[i=2..2^winsize-1]. Powers are computed as a*a^(i-1)
@@ -662,62 +777,54 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 	 */
 	if (window > 1)
 		{
-		for (i=2; i<numPowers; i++)
+		if (!BN_mod_mul_montgomery(&tmp,&am,&am,mont,ctx))	goto err;
+		if (!MOD_EXP_CTIME_COPY_TO_PREBUF(&tmp, top, powerbuf, 2, numPowers)) goto err;
+		for (i=3; i<numPowers; i++)
 			{
 			/* Calculate a^i = a^(i-1) * a */
-			if (!BN_mod_mul_montgomery(computeTemp,am,computeTemp,mont,ctx))
+			if (!BN_mod_mul_montgomery(&tmp,&am,&tmp,mont,ctx))
 				goto err;
-			if (!MOD_EXP_CTIME_COPY_TO_PREBUF(computeTemp, top, powerbuf, i, numPowers)) goto err;
+			if (!MOD_EXP_CTIME_COPY_TO_PREBUF(&tmp, top, powerbuf, i, numPowers)) goto err;
 			}
 		}
 
- 	/* Adjust the number of bits up to a multiple of the window size.
- 	 * If the exponent length is not a multiple of the window size, then
- 	 * this pads the most significant bits with zeros to normalize the
- 	 * scanning loop to there's no special cases.
- 	 *
- 	 * * NOTE: Making the window size a power of two less than the native
-	 * * word size ensures that the padded bits won't go past the last
- 	 * * word in the internal BIGNUM structure. Going past the end will
- 	 * * still produce the correct result, but causes a different branch
- 	 * * to be taken in the BN_is_bit_set function.
- 	 */
- 	bits = ((bits+window-1)/window)*window;
- 	idx=bits-1;	/* The top bit of the window */
-
- 	/* Scan the exponent one window at a time starting from the most
- 	 * significant bits.
- 	 */
- 	while (idx >= 0)
+	bits--;
+	for (wvalue=0, i=bits%window; i>=0; i--,bits--)
+		wvalue = (wvalue<<1)+BN_is_bit_set(p,bits);
+	if (!MOD_EXP_CTIME_COPY_FROM_PREBUF(&tmp,top,powerbuf,wvalue,numPowers)) goto err;
+ 
+	/* Scan the exponent one window at a time starting from the most
+	 * significant bits.
+	 */
+ 	while (bits >= 0)
   		{
  		wvalue=0; /* The 'value' of the window */
  		
  		/* Scan the window, squaring the result as we go */
- 		for (i=0; i<window; i++,idx--)
+ 		for (i=0; i<window; i++,bits--)
  			{
-			if (!BN_mod_mul_montgomery(r,r,r,mont,ctx))	goto err;
-			wvalue = (wvalue<<1)+BN_is_bit_set(p,idx);
+			if (!BN_mod_mul_montgomery(&tmp,&tmp,&tmp,mont,ctx))	goto err;
+			wvalue = (wvalue<<1)+BN_is_bit_set(p,bits);
   			}
  		
 		/* Fetch the appropriate pre-computed value from the pre-buf */
-		if (!MOD_EXP_CTIME_COPY_FROM_PREBUF(computeTemp, top, powerbuf, wvalue, numPowers)) goto err;
+		if (!MOD_EXP_CTIME_COPY_FROM_PREBUF(&am, top, powerbuf, wvalue, numPowers)) goto err;
 
  		/* Multiply the result into the intermediate result */
- 		if (!BN_mod_mul_montgomery(r,r,computeTemp,mont,ctx)) goto err;
+ 		if (!BN_mod_mul_montgomery(&tmp,&tmp,&am,mont,ctx)) goto err;
   		}
+	}
 
  	/* Convert the final result from montgomery to standard format */
-	if (!BN_from_montgomery(rr,r,mont,ctx)) goto err;
+	if (!BN_from_montgomery(rr,&tmp,mont,ctx)) goto err;
 	ret=1;
 err:
 	if ((in_mont == NULL) && (mont != NULL)) BN_MONT_CTX_free(mont);
 	if (powerbuf!=NULL)
 		{
 		OPENSSL_cleanse(powerbuf,powerbufLen);
-		OPENSSL_free(powerbufFree);
+		if (powerbufFree) OPENSSL_free(powerbufFree);
 		}
- 	if (am!=NULL) BN_clear(am);
- 	if (computeTemp!=NULL) BN_clear(computeTemp);
 	BN_CTX_end(ctx);
 	return(ret);
 	}
@@ -988,4 +1095,3 @@ err:
 	bn_check_top(r);
 	return(ret);
 	}
-

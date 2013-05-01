@@ -214,6 +214,11 @@ satisfy a request; the process might receive security parameters
 difficult to communicate changes to these parameters after that
 point. This message is always a warning.
 
+=item "UP"/"unknown PSK identity"
+
+Sent by the server to indicate that it does not recognize a PSK
+identity or an SRP identity. 
+
 =item "UK"/"unknown"
 
 This indicates that no description is available for this alert type.

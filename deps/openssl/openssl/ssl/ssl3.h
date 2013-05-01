@@ -280,9 +280,6 @@ extern "C" {
 
 #define SSL3_RT_MAX_EXTRA			(16384)
 
-/* Default buffer length used for writen records.  Thus a generated record
- * will contain plaintext no larger than this value. */
-#define SSL3_RT_DEFAULT_PLAIN_LENGTH	2048
 /* Maximum plaintext length: defined by SSL/TLS standards */
 #define SSL3_RT_MAX_PLAIN_LENGTH		16384
 /* Maximum compression overhead: defined by SSL/TLS standards */
@@ -314,13 +311,6 @@ extern "C" {
 #define SSL3_RT_MAX_PACKET_SIZE		\
 		(SSL3_RT_MAX_ENCRYPTED_LENGTH+SSL3_RT_HEADER_LENGTH)
 
-/* Extra space for empty fragment, headers, MAC, and padding. */
-#define SSL3_RT_DEFAULT_WRITE_OVERHEAD  256
-#define SSL3_RT_DEFAULT_PACKET_SIZE     4096 - SSL3_RT_DEFAULT_WRITE_OVERHEAD
-#if SSL3_RT_DEFAULT_PLAIN_LENGTH + SSL3_RT_DEFAULT_WRITE_OVERHEAD > SSL3_RT_DEFAULT_PACKET_SIZE
-#error "Insufficient space allocated for write buffers."
-#endif
-
 #define SSL3_MD_CLIENT_FINISHED_CONST	"\x43\x4C\x4E\x54"
 #define SSL3_MD_SERVER_FINISHED_CONST	"\x53\x52\x56\x52"
 
@@ -332,6 +322,7 @@ extern "C" {
 #define SSL3_RT_ALERT			21
 #define SSL3_RT_HANDSHAKE		22
 #define SSL3_RT_APPLICATION_DATA	23
+#define TLS1_RT_HEARTBEAT		24
 
 #define SSL3_AL_WARNING			1
 #define SSL3_AL_FATAL			2
@@ -348,6 +339,11 @@ extern "C" {
 #define SSL3_AD_CERTIFICATE_EXPIRED	45
 #define SSL3_AD_CERTIFICATE_UNKNOWN	46
 #define SSL3_AD_ILLEGAL_PARAMETER	47	/* fatal */
+
+#define TLS1_HB_REQUEST		1
+#define TLS1_HB_RESPONSE	2
+	
+#ifndef OPENSSL_NO_SSL_INTERN
 
 typedef struct ssl3_record_st
 	{
@@ -370,6 +366,8 @@ typedef struct ssl3_buffer_st
 	int left;               /* how many bytes left */
 	} SSL3_BUFFER;
 
+#endif
+
 #define SSL3_CT_RSA_SIGN			1
 #define SSL3_CT_DSS_SIGN			2
 #define SSL3_CT_RSA_FIXED_DH			3
@@ -389,6 +387,7 @@ typedef struct ssl3_buffer_st
 #define SSL3_FLAGS_POP_BUFFER			0x0004
 #define TLS1_FLAGS_TLS_PADDING_BUG		0x0008
 #define TLS1_FLAGS_SKIP_CERT_VERIFY		0x0010
+#define TLS1_FLAGS_KEEP_HANDSHAKE		0x0020
  
 /* SSL3_FLAGS_SGC_RESTART_DONE is set when we
  * restart a handshake because of MS SGC and so prevents us
@@ -400,6 +399,8 @@ typedef struct ssl3_buffer_st
  * effected, but we can't prevent that.
  */
 #define SSL3_FLAGS_SGC_RESTART_DONE		0x0040
+
+#ifndef OPENSSL_NO_SSL_INTERN
 
 typedef struct ssl3_state_st
 	{
@@ -476,12 +477,6 @@ typedef struct ssl3_state_st
 	void *server_opaque_prf_input;
 	size_t server_opaque_prf_input_len;
 
-#ifndef OPENSSL_NO_NEXTPROTONEG
-	/* Set if we saw the Next Protocol Negotiation extension from
-	   our peer. */
-	int next_proto_neg_seen;
-#endif
-
 	struct	{
 		/* actually only needs to be 16+20 */
 		unsigned char cert_verify_md[EVP_MAX_MD_SIZE*2];
@@ -491,7 +486,7 @@ typedef struct ssl3_state_st
 		int finish_md_len;
 		unsigned char peer_finish_md[EVP_MAX_MD_SIZE*2];
 		int peer_finish_md_len;
-		
+
 		unsigned long message_size;
 		int message_type;
 
@@ -539,14 +534,23 @@ typedef struct ssl3_state_st
         unsigned char previous_server_finished[EVP_MAX_MD_SIZE];
         unsigned char previous_server_finished_len;
         int send_connection_binding; /* TODOEKR */
+
+#ifndef OPENSSL_NO_NEXTPROTONEG
+	/* Set if we saw the Next Protocol Negotiation extension from our peer. */
+	int next_proto_neg_seen;
+#endif
 	} SSL3_STATE;
 
+#endif
 
 /* SSLv3 */
 /*client */
 /* extra state */
 #define SSL3_ST_CW_FLUSH		(0x100|SSL_ST_CONNECT)
-#define SSL3_ST_CUTTHROUGH_COMPLETE	(0x101|SSL_ST_CONNECT)
+#ifndef OPENSSL_NO_SCTP
+#define DTLS1_SCTP_ST_CW_WRITE_SOCK			(0x310|SSL_ST_CONNECT)
+#define DTLS1_SCTP_ST_CR_READ_SOCK			(0x320|SSL_ST_CONNECT)
+#endif	
 /* write to server */
 #define SSL3_ST_CW_CLNT_HELLO_A		(0x110|SSL_ST_CONNECT)
 #define SSL3_ST_CW_CLNT_HELLO_B		(0x111|SSL_ST_CONNECT)
@@ -593,6 +597,10 @@ typedef struct ssl3_state_st
 /* server */
 /* extra state */
 #define SSL3_ST_SW_FLUSH		(0x100|SSL_ST_ACCEPT)
+#ifndef OPENSSL_NO_SCTP
+#define DTLS1_SCTP_ST_SW_WRITE_SOCK			(0x310|SSL_ST_ACCEPT)
+#define DTLS1_SCTP_ST_SR_READ_SOCK			(0x320|SSL_ST_ACCEPT)
+#endif	
 /* read from client */
 /* Do not change the number values, they do matter */
 #define SSL3_ST_SR_CLNT_HELLO_A		(0x110|SSL_ST_ACCEPT)
@@ -673,3 +681,4 @@ typedef struct ssl3_state_st
 }
 #endif
 #endif
+

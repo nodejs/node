@@ -28,6 +28,34 @@
 #
 #					<appro@fy.chalmers.se>
 
+# May 2011
+#
+# Optimize for Core2 and Westmere [and incidentally Opteron]. Current
+# performance in cycles per processed byte (less is better) and
+# improvement relative to previous version of this module is:
+#
+# Pentium	10.2			# original numbers
+# Pentium III	7.8(*)
+# Intel P4	7.5
+#
+# Opteron	6.1/+20%		# new MMX numbers
+# Core2		5.3/+67%(**)
+# Westmere	5.1/+94%(**)
+# Sandy Bridge	5.0/+8%
+# Atom		12.6/+6%
+#
+# (*)	PIII can actually deliver 6.6 cycles per byte with MMX code,
+#	but this specific code performs poorly on Core2. And vice
+#	versa, below MMX/SSE code delivering 5.8/7.1 on Core2 performs
+#	poorly on PIII, at 8.0/14.5:-( As PIII is not a "hot" CPU
+#	[anymore], I chose to discard PIII-specific code path and opt
+#	for original IALU-only code, which is why MMX/SSE code path
+#	is guarded by SSE2 bit (see below), not MMX/SSE.
+# (**)	Performance vs. block size on Core2 and Westmere had a maximum
+#	at ... 64 bytes block size. And it was quite a maximum, 40-60%
+#	in comparison to largest 8KB block size. Above improvement
+#	coefficients are for the largest block size.
+
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
@@ -62,6 +90,68 @@ sub RC4_loop {
 	&$func	($out,&DWP(0,$dat,$ty,4));
 }
 
+if ($alt=0) {
+  # >20% faster on Atom and Sandy Bridge[!], 8% faster on Opteron,
+  # but ~40% slower on Core2 and Westmere... Attempt to add movz
+  # brings down Opteron by 25%, Atom and Sandy Bridge by 15%, yet
+  # on Core2 with movz it's almost 20% slower than below alternative
+  # code... Yes, it's a total mess...
+  my @XX=($xx,$out);
+  $RC4_loop_mmx = sub {		# SSE actually...
+    my $i=shift;
+    my $j=$i<=0?0:$i>>1;
+    my $mm=$i<=0?"mm0":"mm".($i&1);
+
+	&add	(&LB($yy),&LB($tx));
+	&lea	(@XX[1],&DWP(1,@XX[0]));
+	&pxor	("mm2","mm0")				if ($i==0);
+	&psllq	("mm1",8)				if ($i==0);
+	&and	(@XX[1],0xff);
+	&pxor	("mm0","mm0")				if ($i<=0);
+	&mov	($ty,&DWP(0,$dat,$yy,4));
+	&mov	(&DWP(0,$dat,$yy,4),$tx);
+	&pxor	("mm1","mm2")				if ($i==0);
+	&mov	(&DWP(0,$dat,$XX[0],4),$ty);
+	&add	(&LB($ty),&LB($tx));
+	&movd	(@XX[0],"mm7")				if ($i==0);
+	&mov	($tx,&DWP(0,$dat,@XX[1],4));
+	&pxor	("mm1","mm1")				if ($i==1);
+	&movq	("mm2",&QWP(0,$inp))			if ($i==1);
+	&movq	(&QWP(-8,(@XX[0],$inp)),"mm1")		if ($i==0);
+	&pinsrw	($mm,&DWP(0,$dat,$ty,4),$j);
+
+	push	(@XX,shift(@XX))			if ($i>=0);
+  }
+} else {
+  # Using pinsrw here improves performane on Intel CPUs by 2-3%, but
+  # brings down AMD by 7%...
+  $RC4_loop_mmx = sub {
+    my $i=shift;
+
+	&add	(&LB($yy),&LB($tx));
+	&psllq	("mm1",8*(($i-1)&7))			if (abs($i)!=1);
+	&mov	($ty,&DWP(0,$dat,$yy,4));
+	&mov	(&DWP(0,$dat,$yy,4),$tx);
+	&mov	(&DWP(0,$dat,$xx,4),$ty);
+	&inc	($xx);
+	&add	($ty,$tx);
+	&movz	($xx,&LB($xx));				# (*)
+	&movz	($ty,&LB($ty));				# (*)
+	&pxor	("mm2",$i==1?"mm0":"mm1")		if ($i>=0);
+	&movq	("mm0",&QWP(0,$inp))			if ($i<=0);
+	&movq	(&QWP(-8,($out,$inp)),"mm2")		if ($i==0);
+	&mov	($tx,&DWP(0,$dat,$xx,4));
+	&movd	($i>0?"mm1":"mm2",&DWP(0,$dat,$ty,4));
+
+	# (*)	This is the key to Core2 and Westmere performance.
+	#	Whithout movz out-of-order execution logic confuses
+	#	itself and fails to reorder loads and stores. Problem
+	#	appears to be fixed in Sandy Bridge...
+  }
+}
+
+&external_label("OPENSSL_ia32cap_P");
+
 # void RC4(RC4_KEY *key,size_t len,const unsigned char *inp,unsigned char *out);
 &function_begin("RC4");
 	&mov	($dat,&wparam(0));	# load key schedule pointer
@@ -94,11 +184,56 @@ sub RC4_loop {
 	&and	($ty,-4);		# how many 4-byte chunks?
 	&jz	(&label("loop1"));
 
+	&test	($ty,-8);
+	&mov	(&wparam(3),$out);	# $out as accumulator in these loops
+	&jz	(&label("go4loop4"));
+
+	&picmeup($out,"OPENSSL_ia32cap_P");
+	&bt	(&DWP(0,$out),26);	# check SSE2 bit [could have been MMX]
+	&jnc	(&label("go4loop4"));
+
+	&mov	($out,&wparam(3))	if (!$alt);
+	&movd	("mm7",&wparam(3))	if ($alt);
+	&and	($ty,-8);
+	&lea	($ty,&DWP(-8,$inp,$ty));
+	&mov	(&DWP(-4,$dat),$ty);	# save input+(len/8)*8-8
+
+	&$RC4_loop_mmx(-1);
+	&jmp(&label("loop_mmx_enter"));
+
+	&set_label("loop_mmx",16);
+		&$RC4_loop_mmx(0);
+	&set_label("loop_mmx_enter");
+		for 	($i=1;$i<8;$i++) { &$RC4_loop_mmx($i); }
+		&mov	($ty,$yy);
+		&xor	($yy,$yy);		# this is second key to Core2
+		&mov	(&LB($yy),&LB($ty));	# and Westmere performance...
+		&cmp	($inp,&DWP(-4,$dat));
+		&lea	($inp,&DWP(8,$inp));
+	&jb	(&label("loop_mmx"));
+
+    if ($alt) {
+	&movd	($out,"mm7");
+	&pxor	("mm2","mm0");
+	&psllq	("mm1",8);
+	&pxor	("mm1","mm2");
+	&movq	(&QWP(-8,$out,$inp),"mm1");
+    } else {
+	&psllq	("mm1",56);
+	&pxor	("mm2","mm1");
+	&movq	(&QWP(-8,$out,$inp),"mm2");
+    }
+	&emms	();
+
+	&cmp	($inp,&wparam(1));	# compare to input+len
+	&je	(&label("done"));
+	&jmp	(&label("loop1"));
+
+&set_label("go4loop4",16);
 	&lea	($ty,&DWP(-4,$inp,$ty));
 	&mov	(&wparam(2),$ty);	# save input+(len/4)*4-4
-	&mov	(&wparam(3),$out);	# $out as accumulator in this loop
 
-	&set_label("loop4",16);
+	&set_label("loop4");
 		for ($i=0;$i<4;$i++) { RC4_loop($i); }
 		&ror	($out,8);
 		&xor	($out,&DWP(0,$inp));
@@ -151,7 +286,7 @@ sub RC4_loop {
 
 &set_label("done");
 	&dec	(&LB($xx));
-	&mov	(&BP(-4,$dat),&LB($yy));	# save key->y
+	&mov	(&DWP(-4,$dat),$yy);		# save key->y
 	&mov	(&BP(-8,$dat),&LB($xx));	# save key->x
 &set_label("abort");
 &function_end("RC4");
@@ -164,10 +299,8 @@ $idi="ebp";
 $ido="ecx";
 $idx="edx";
 
-&external_label("OPENSSL_ia32cap_P");
-
 # void RC4_set_key(RC4_KEY *key,int len,const unsigned char *data);
-&function_begin("RC4_set_key");
+&function_begin("private_RC4_set_key");
 	&mov	($out,&wparam(0));		# load key
 	&mov	($idi,&wparam(1));		# load len
 	&mov	($inp,&wparam(2));		# load data
@@ -245,7 +378,7 @@ $idx="edx";
 	&xor	("eax","eax");
 	&mov	(&DWP(-8,$out),"eax");		# key->x=0;
 	&mov	(&DWP(-4,$out),"eax");		# key->y=0;
-&function_end("RC4_set_key");
+&function_end("private_RC4_set_key");
 
 # const char *RC4_options(void);
 &function_begin_B("RC4_options");
@@ -254,14 +387,21 @@ $idx="edx";
 	&blindpop("eax");
 	&lea	("eax",&DWP(&label("opts")."-".&label("pic_point"),"eax"));
 	&picmeup("edx","OPENSSL_ia32cap_P");
-	&bt	(&DWP(0,"edx"),20);
-	&jnc	(&label("skip"));
-	  &add	("eax",12);
-	&set_label("skip");
+	&mov	("edx",&DWP(0,"edx"));
+	&bt	("edx",20);
+	&jc	(&label("1xchar"));
+	&bt	("edx",26);
+	&jnc	(&label("ret"));
+	&add	("eax",25);
+	&ret	();
+&set_label("1xchar");
+	&add	("eax",12);
+&set_label("ret");
 	&ret	();
 &set_label("opts",64);
 &asciz	("rc4(4x,int)");
 &asciz	("rc4(1x,char)");
+&asciz	("rc4(8x,mmx)");
 &asciz	("RC4 for x86, CRYPTOGAMS by <appro\@openssl.org>");
 &align	(64);
 &function_end_B("RC4_options");

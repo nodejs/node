@@ -40,6 +40,7 @@ $output =shift;
 
 if ($flavour =~ /64/) {
 	$SIZE_T=8;
+	$LRSAVE=2*$SIZE_T;
 	$STU="stdu";
 	$UCMP="cmpld";
 	$SHL="sldi";
@@ -47,6 +48,7 @@ if ($flavour =~ /64/) {
 	$PUSH="std";
 } elsif ($flavour =~ /32/) {
 	$SIZE_T=4;
+	$LRSAVE=$SIZE_T;
 	$STU="stwu";
 	$UCMP="cmplw";
 	$SHL="slwi";
@@ -87,7 +89,8 @@ if ($output =~ /512/) {
 	$SHR="srwi";
 }
 
-$FRAME=32*$SIZE_T;
+$FRAME=32*$SIZE_T+16*$SZ;
+$LOCALS=6*$SIZE_T;
 
 $sp ="r1";
 $toc="r2";
@@ -179,13 +182,12 @@ $code=<<___;
 .globl	$func
 .align	6
 $func:
+	$STU	$sp,-$FRAME($sp)
 	mflr	r0
-	$STU	$sp,`-($FRAME+16*$SZ)`($sp)
 	$SHL	$num,$num,`log(16*$SZ)/log(2)`
 
 	$PUSH	$ctx,`$FRAME-$SIZE_T*22`($sp)
 
-	$PUSH	r0,`$FRAME-$SIZE_T*21`($sp)
 	$PUSH	$toc,`$FRAME-$SIZE_T*20`($sp)
 	$PUSH	r13,`$FRAME-$SIZE_T*19`($sp)
 	$PUSH	r14,`$FRAME-$SIZE_T*18`($sp)
@@ -206,6 +208,7 @@ $func:
 	$PUSH	r29,`$FRAME-$SIZE_T*3`($sp)
 	$PUSH	r30,`$FRAME-$SIZE_T*2`($sp)
 	$PUSH	r31,`$FRAME-$SIZE_T*1`($sp)
+	$PUSH	r0,`$FRAME+$LRSAVE`($sp)
 
 	$LD	$A,`0*$SZ`($ctx)
 	mr	$inp,r4				; incarnate $inp
@@ -217,7 +220,7 @@ $func:
 	$LD	$G,`6*$SZ`($ctx)
 	$LD	$H,`7*$SZ`($ctx)
 
-	b	LPICmeup
+	bl	LPICmeup
 LPICedup:
 	andi.	r0,$inp,3
 	bne	Lunaligned
@@ -226,8 +229,60 @@ Laligned:
 	$PUSH	$num,`$FRAME-$SIZE_T*24`($sp)	; end pointer
 	$PUSH	$inp,`$FRAME-$SIZE_T*23`($sp)	; inp pointer
 	bl	Lsha2_block_private
+	b	Ldone
+
+; PowerPC specification allows an implementation to be ill-behaved
+; upon unaligned access which crosses page boundary. "Better safe
+; than sorry" principle makes me treat it specially. But I don't
+; look for particular offending word, but rather for the input
+; block which crosses the boundary. Once found that block is aligned
+; and hashed separately...
+.align	4
+Lunaligned:
+	subfic	$t1,$inp,4096
+	andi.	$t1,$t1,`4096-16*$SZ`	; distance to closest page boundary
+	beq	Lcross_page
+	$UCMP	$num,$t1
+	ble-	Laligned		; didn't cross the page boundary
+	subfc	$num,$t1,$num
+	add	$t1,$inp,$t1
+	$PUSH	$num,`$FRAME-$SIZE_T*25`($sp)	; save real remaining num
+	$PUSH	$t1,`$FRAME-$SIZE_T*24`($sp)	; intermediate end pointer
+	$PUSH	$inp,`$FRAME-$SIZE_T*23`($sp)	; inp pointer
+	bl	Lsha2_block_private
+	; $inp equals to the intermediate end pointer here
+	$POP	$num,`$FRAME-$SIZE_T*25`($sp)	; restore real remaining num
+Lcross_page:
+	li	$t1,`16*$SZ/4`
+	mtctr	$t1
+	addi	r20,$sp,$LOCALS			; aligned spot below the frame
+Lmemcpy:
+	lbz	r16,0($inp)
+	lbz	r17,1($inp)
+	lbz	r18,2($inp)
+	lbz	r19,3($inp)
+	addi	$inp,$inp,4
+	stb	r16,0(r20)
+	stb	r17,1(r20)
+	stb	r18,2(r20)
+	stb	r19,3(r20)
+	addi	r20,r20,4
+	bdnz	Lmemcpy
+
+	$PUSH	$inp,`$FRAME-$SIZE_T*26`($sp)	; save real inp
+	addi	$t1,$sp,`$LOCALS+16*$SZ`	; fictitious end pointer
+	addi	$inp,$sp,$LOCALS		; fictitious inp pointer
+	$PUSH	$num,`$FRAME-$SIZE_T*25`($sp)	; save real num
+	$PUSH	$t1,`$FRAME-$SIZE_T*24`($sp)	; end pointer
+	$PUSH	$inp,`$FRAME-$SIZE_T*23`($sp)	; inp pointer
+	bl	Lsha2_block_private
+	$POP	$inp,`$FRAME-$SIZE_T*26`($sp)	; restore real inp
+	$POP	$num,`$FRAME-$SIZE_T*25`($sp)	; restore real num
+	addic.	$num,$num,`-16*$SZ`		; num--
+	bne-	Lunaligned
+
 Ldone:
-	$POP	r0,`$FRAME-$SIZE_T*21`($sp)
+	$POP	r0,`$FRAME+$LRSAVE`($sp)
 	$POP	$toc,`$FRAME-$SIZE_T*20`($sp)
 	$POP	r13,`$FRAME-$SIZE_T*19`($sp)
 	$POP	r14,`$FRAME-$SIZE_T*18`($sp)
@@ -249,64 +304,12 @@ Ldone:
 	$POP	r30,`$FRAME-$SIZE_T*2`($sp)
 	$POP	r31,`$FRAME-$SIZE_T*1`($sp)
 	mtlr	r0
-	addi	$sp,$sp,`$FRAME+16*$SZ`
+	addi	$sp,$sp,$FRAME
 	blr
-___
+	.long	0
+	.byte	0,12,4,1,0x80,18,3,0
+	.long	0
 
-# PowerPC specification allows an implementation to be ill-behaved
-# upon unaligned access which crosses page boundary. "Better safe
-# than sorry" principle makes me treat it specially. But I don't
-# look for particular offending word, but rather for the input
-# block which crosses the boundary. Once found that block is aligned
-# and hashed separately...
-$code.=<<___;
-.align	4
-Lunaligned:
-	subfic	$t1,$inp,4096
-	andi.	$t1,$t1,`4096-16*$SZ`	; distance to closest page boundary
-	beq	Lcross_page
-	$UCMP	$num,$t1
-	ble-	Laligned		; didn't cross the page boundary
-	subfc	$num,$t1,$num
-	add	$t1,$inp,$t1
-	$PUSH	$num,`$FRAME-$SIZE_T*25`($sp)	; save real remaining num
-	$PUSH	$t1,`$FRAME-$SIZE_T*24`($sp)	; intermediate end pointer
-	$PUSH	$inp,`$FRAME-$SIZE_T*23`($sp)	; inp pointer
-	bl	Lsha2_block_private
-	; $inp equals to the intermediate end pointer here
-	$POP	$num,`$FRAME-$SIZE_T*25`($sp)	; restore real remaining num
-Lcross_page:
-	li	$t1,`16*$SZ/4`
-	mtctr	$t1
-	addi	r20,$sp,$FRAME			; aligned spot below the frame
-Lmemcpy:
-	lbz	r16,0($inp)
-	lbz	r17,1($inp)
-	lbz	r18,2($inp)
-	lbz	r19,3($inp)
-	addi	$inp,$inp,4
-	stb	r16,0(r20)
-	stb	r17,1(r20)
-	stb	r18,2(r20)
-	stb	r19,3(r20)
-	addi	r20,r20,4
-	bdnz	Lmemcpy
-
-	$PUSH	$inp,`$FRAME-$SIZE_T*26`($sp)	; save real inp
-	addi	$t1,$sp,`$FRAME+16*$SZ`		; fictitious end pointer
-	addi	$inp,$sp,$FRAME			; fictitious inp pointer
-	$PUSH	$num,`$FRAME-$SIZE_T*25`($sp)	; save real num
-	$PUSH	$t1,`$FRAME-$SIZE_T*24`($sp)	; end pointer
-	$PUSH	$inp,`$FRAME-$SIZE_T*23`($sp)	; inp pointer
-	bl	Lsha2_block_private
-	$POP	$inp,`$FRAME-$SIZE_T*26`($sp)	; restore real inp
-	$POP	$num,`$FRAME-$SIZE_T*25`($sp)	; restore real num
-	addic.	$num,$num,`-16*$SZ`		; num--
-	bne-	Lunaligned
-	b	Ldone
-___
-
-$code.=<<___;
 .align	4
 Lsha2_block_private:
 ___
@@ -372,6 +375,8 @@ $code.=<<___;
 	$ST	$H,`7*$SZ`($ctx)
 	bne	Lsha2_block_private
 	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,0,0
 ___
 
 # Ugly hack here, because PPC assembler syntax seem to vary too
@@ -379,22 +384,15 @@ ___
 $code.=<<___;
 .align	6
 LPICmeup:
-	bl	LPIC
-	addi	$Tbl,$Tbl,`64-4`	; "distance" between . and last nop
-	b	LPICedup
-	nop
-	nop
-	nop
-	nop
-	nop
-LPIC:	mflr	$Tbl
+	mflr	r0
+	bcl	20,31,\$+4
+	mflr	$Tbl	; vvvvvv "distance" between . and 1st data entry
+	addi	$Tbl,$Tbl,`64-8`
+	mtlr	r0
 	blr
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	.long	0
+	.byte	0,12,0x14,0,0,0,0,0
+	.space	`64-9*4`
 ___
 $code.=<<___ if ($SZ==8);
 	.long	0x428a2f98,0xd728ae22,0x71374491,0x23ef65cd

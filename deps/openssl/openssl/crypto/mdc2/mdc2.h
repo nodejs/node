@@ -81,6 +81,9 @@ typedef struct mdc2_ctx_st
 	} MDC2_CTX;
 
 
+#ifdef OPENSSL_FIPS
+int private_MDC2_Init(MDC2_CTX *c);
+#endif
 int MDC2_Init(MDC2_CTX *c);
 int MDC2_Update(MDC2_CTX *c, const unsigned char *data, size_t len);
 int MDC2_Final(unsigned char *md, MDC2_CTX *c);

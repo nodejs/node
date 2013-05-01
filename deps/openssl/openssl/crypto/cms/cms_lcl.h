@@ -175,6 +175,8 @@ struct CMS_EncryptedContentInfo_st
 	const EVP_CIPHER *cipher;
 	unsigned char *key;
 	size_t keylen;
+	/* Set to 1 if we are debugging decrypt and don't fake keys for MMA */
+	int debug;
 	};
 
 struct CMS_RecipientInfo_st
@@ -273,6 +275,9 @@ struct CMS_PasswordRecipientInfo_st
  	X509_ALGOR *keyDerivationAlgorithm;
  	X509_ALGOR *keyEncryptionAlgorithm;
  	ASN1_OCTET_STRING *encryptedKey;
+	/* Extra info: password to use */
+	unsigned char *pass;
+	size_t passlen;
 	};
 
 struct CMS_OtherRecipientInfo_st
@@ -411,6 +416,8 @@ DECLARE_ASN1_ITEM(CMS_SignerInfo)
 DECLARE_ASN1_ITEM(CMS_IssuerAndSerialNumber)
 DECLARE_ASN1_ITEM(CMS_Attributes_Sign)
 DECLARE_ASN1_ITEM(CMS_Attributes_Verify)
+DECLARE_ASN1_ITEM(CMS_RecipientInfo)
+DECLARE_ASN1_ITEM(CMS_PasswordRecipientInfo)
 DECLARE_ASN1_ALLOC_FUNCTIONS(CMS_IssuerAndSerialNumber)
 
 #define CMS_SIGNERINFO_ISSUER_SERIAL	0
@@ -454,6 +461,11 @@ int cms_msgSigDigest_add1(CMS_SignerInfo *dest, CMS_SignerInfo *src);
 ASN1_OCTET_STRING *cms_encode_Receipt(CMS_SignerInfo *si);
 
 BIO *cms_EnvelopedData_init_bio(CMS_ContentInfo *cms);
+CMS_EnvelopedData *cms_get0_enveloped(CMS_ContentInfo *cms);
+
+/* PWRI routines */
+int cms_RecipientInfo_pwri_crypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri,
+							int en_de);
 	
 #ifdef  __cplusplus
 }

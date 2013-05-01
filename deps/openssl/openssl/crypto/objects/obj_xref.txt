@@ -13,6 +13,10 @@ sha512WithRSAEncryption	sha512	rsaEncryption
 sha224WithRSAEncryption	sha224	rsaEncryption
 mdc2WithRSA		mdc2	rsaEncryption
 ripemd160WithRSA	ripemd160 rsaEncryption
+# For PSS the digest algorithm can vary and depends on the included
+# AlgorithmIdentifier. The digest "undef" indicates the public key
+# method should handle this explicitly.
+rsassaPss		undef	rsaEncryption
 
 # Alternative deprecated OIDs. By using the older "rsa" OID this
 # type will be recognized by not normally used.

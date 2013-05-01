@@ -549,7 +549,7 @@ ___
 # programmer detect if current CPU is VIS capable at run-time.
 sub unvis {
 my ($mnemonic,$rs1,$rs2,$rd)=@_;
-my $ref,$opf;
+my ($ref,$opf);
 my %visopf = (	"fmul8ulx16"	=> 0x037,
 		"faligndata"	=> 0x048,
 		"fpadd32"	=> 0x052,

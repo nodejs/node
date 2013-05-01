@@ -237,6 +237,15 @@ static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 				OPENSSL_free(kekri->key);
 				}
 			}
+		else if (ri->type == CMS_RECIPINFO_PASS)
+			{
+			CMS_PasswordRecipientInfo *pwri = ri->d.pwri;
+			if (pwri->pass)
+				{
+				OPENSSL_cleanse(pwri->pass, pwri->passlen);
+				OPENSSL_free(pwri->pass);
+				}
+			}
 		}
 	return 1;
 	}

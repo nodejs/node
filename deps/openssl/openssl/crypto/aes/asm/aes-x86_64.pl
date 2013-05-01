@@ -36,7 +36,8 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open STDOUT,"| $^X $xlate $flavour $output";
+open OUT,"| \"$^X\" $xlate $flavour $output";
+*STDOUT=*OUT;
 
 $verticalspin=1;	# unlike 32-bit version $verticalspin performs
 			# ~15% better on both AMD and Intel cores
@@ -588,6 +589,9 @@ $code.=<<___;
 .globl	AES_encrypt
 .type	AES_encrypt,\@function,3
 .align	16
+.globl	asm_AES_encrypt
+.hidden	asm_AES_encrypt
+asm_AES_encrypt:
 AES_encrypt:
 	push	%rbx
 	push	%rbp
@@ -1184,6 +1188,9 @@ $code.=<<___;
 .globl	AES_decrypt
 .type	AES_decrypt,\@function,3
 .align	16
+.globl	asm_AES_decrypt
+.hidden	asm_AES_decrypt
+asm_AES_decrypt:
 AES_decrypt:
 	push	%rbx
 	push	%rbp
@@ -1277,13 +1284,13 @@ $code.=<<___;
 ___
 }
 
-# int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
+# int private_AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 #                        AES_KEY *key)
 $code.=<<___;
-.globl	AES_set_encrypt_key
-.type	AES_set_encrypt_key,\@function,3
+.globl	private_AES_set_encrypt_key
+.type	private_AES_set_encrypt_key,\@function,3
 .align	16
-AES_set_encrypt_key:
+private_AES_set_encrypt_key:
 	push	%rbx
 	push	%rbp
 	push	%r12			# redundant, but allows to share 
@@ -1304,7 +1311,7 @@ AES_set_encrypt_key:
 	add	\$56,%rsp
 .Lenc_key_epilogue:
 	ret
-.size	AES_set_encrypt_key,.-AES_set_encrypt_key
+.size	private_AES_set_encrypt_key,.-private_AES_set_encrypt_key
 
 .type	_x86_64_AES_set_encrypt_key,\@abi-omnipotent
 .align	16
@@ -1547,13 +1554,13 @@ $code.=<<___;
 ___
 }
 
-# int AES_set_decrypt_key(const unsigned char *userKey, const int bits,
+# int private_AES_set_decrypt_key(const unsigned char *userKey, const int bits,
 #                        AES_KEY *key)
 $code.=<<___;
-.globl	AES_set_decrypt_key
-.type	AES_set_decrypt_key,\@function,3
+.globl	private_AES_set_decrypt_key
+.type	private_AES_set_decrypt_key,\@function,3
 .align	16
-AES_set_decrypt_key:
+private_AES_set_decrypt_key:
 	push	%rbx
 	push	%rbp
 	push	%r12
@@ -1622,7 +1629,7 @@ $code.=<<___;
 	add	\$56,%rsp
 .Ldec_key_epilogue:
 	ret
-.size	AES_set_decrypt_key,.-AES_set_decrypt_key
+.size	private_AES_set_decrypt_key,.-private_AES_set_decrypt_key
 ___
 
 # void AES_cbc_encrypt (const void char *inp, unsigned char *out,
@@ -1648,6 +1655,9 @@ $code.=<<___;
 .type	AES_cbc_encrypt,\@function,6
 .align	16
 .extern	OPENSSL_ia32cap_P
+.globl	asm_AES_cbc_encrypt
+.hidden	asm_AES_cbc_encrypt
+asm_AES_cbc_encrypt:
 AES_cbc_encrypt:
 	cmp	\$0,%rdx	# check length
 	je	.Lcbc_epilogue
@@ -2766,13 +2776,13 @@ cbc_se_handler:
 	.rva	.LSEH_end_AES_decrypt
 	.rva	.LSEH_info_AES_decrypt
 
-	.rva	.LSEH_begin_AES_set_encrypt_key
-	.rva	.LSEH_end_AES_set_encrypt_key
-	.rva	.LSEH_info_AES_set_encrypt_key
+	.rva	.LSEH_begin_private_AES_set_encrypt_key
+	.rva	.LSEH_end_private_AES_set_encrypt_key
+	.rva	.LSEH_info_private_AES_set_encrypt_key
 
-	.rva	.LSEH_begin_AES_set_decrypt_key
-	.rva	.LSEH_end_AES_set_decrypt_key
-	.rva	.LSEH_info_AES_set_decrypt_key
+	.rva	.LSEH_begin_private_AES_set_decrypt_key
+	.rva	.LSEH_end_private_AES_set_decrypt_key
+	.rva	.LSEH_info_private_AES_set_decrypt_key
 
 	.rva	.LSEH_begin_AES_cbc_encrypt
 	.rva	.LSEH_end_AES_cbc_encrypt
@@ -2788,11 +2798,11 @@ cbc_se_handler:
 	.byte	9,0,0,0
 	.rva	block_se_handler
 	.rva	.Ldec_prologue,.Ldec_epilogue	# HandlerData[]
-.LSEH_info_AES_set_encrypt_key:
+.LSEH_info_private_AES_set_encrypt_key:
 	.byte	9,0,0,0
 	.rva	key_se_handler
 	.rva	.Lenc_key_prologue,.Lenc_key_epilogue	# HandlerData[]
-.LSEH_info_AES_set_decrypt_key:
+.LSEH_info_private_AES_set_decrypt_key:
 	.byte	9,0,0,0
 	.rva	key_se_handler
 	.rva	.Ldec_key_prologue,.Ldec_key_epilogue	# HandlerData[]

@@ -83,7 +83,7 @@ int EC_GROUP_get_basis_type(const EC_GROUP *group)
 		/* everything else is currently not supported */
 		return 0;
 	}
-
+#ifndef OPENSSL_NO_EC2M
 int EC_GROUP_get_trinomial_basis(const EC_GROUP *group, unsigned int *k)
 	{
 	if (group == NULL)
@@ -101,7 +101,6 @@ int EC_GROUP_get_trinomial_basis(const EC_GROUP *group, unsigned int *k)
 
 	return 1;
 	}
-
 int EC_GROUP_get_pentanomial_basis(const EC_GROUP *group, unsigned int *k1,
 	unsigned int *k2, unsigned int *k3)
 	{
@@ -124,7 +123,7 @@ int EC_GROUP_get_pentanomial_basis(const EC_GROUP *group, unsigned int *k1,
 
 	return 1;
 	}
-
+#endif
 
 
 /* some structures needed for the asn1 encoding */
@@ -340,6 +339,12 @@ static int ec_asn1_group2fieldid(const EC_GROUP *group, X9_62_FIELDID *field)
 			}
 		}
 	else	/* nid == NID_X9_62_characteristic_two_field */
+#ifdef OPENSSL_NO_EC2M
+		{
+		ECerr(EC_F_EC_ASN1_GROUP2FIELDID, EC_R_GF2M_NOT_SUPPORTED);
+		goto err;
+		}
+#else
 		{
 		int		field_type;
 		X9_62_CHARACTERISTIC_TWO *char_two;
@@ -419,6 +424,7 @@ static int ec_asn1_group2fieldid(const EC_GROUP *group, X9_62_FIELDID *field)
 				}
 			}
 		}
+#endif
 
 	ok = 1;
 
@@ -456,6 +462,7 @@ static int ec_asn1_group2curve(const EC_GROUP *group, X9_62_CURVE *curve)
 			goto err;
 			}
 		}
+#ifndef OPENSSL_NO_EC2M
 	else	/* nid == NID_X9_62_characteristic_two_field */
 		{
 		if (!EC_GROUP_get_curve_GF2m(group, NULL, tmp_1, tmp_2, NULL))
@@ -464,7 +471,7 @@ static int ec_asn1_group2curve(const EC_GROUP *group, X9_62_CURVE *curve)
 			goto err;
 			}
 		}
-
+#endif
 	len_1 = (size_t)BN_num_bytes(tmp_1);
 	len_2 = (size_t)BN_num_bytes(tmp_2);
 
@@ -775,8 +782,13 @@ static EC_GROUP *ec_asn1_parameters2group(const ECPARAMETERS *params)
 
 	/* get the field parameters */
 	tmp = OBJ_obj2nid(params->fieldID->fieldType);
-
 	if (tmp == NID_X9_62_characteristic_two_field)
+#ifdef OPENSSL_NO_EC2M
+		{
+		ECerr(EC_F_EC_ASN1_PARAMETERS2GROUP, EC_R_GF2M_NOT_SUPPORTED);
+		goto err;
+		}
+#else
 		{
 		X9_62_CHARACTERISTIC_TWO *char_two;
 
@@ -862,6 +874,7 @@ static EC_GROUP *ec_asn1_parameters2group(const ECPARAMETERS *params)
 		/* create the EC_GROUP structure */
 		ret = EC_GROUP_new_curve_GF2m(p, a, b, NULL);
 		}
+#endif
 	else if (tmp == NID_X9_62_prime_field)
 		{
 		/* we have a curve over a prime field */
@@ -1065,6 +1078,7 @@ EC_GROUP *d2i_ECPKParameters(EC_GROUP **a, const unsigned char **in, long len)
 	if ((group = ec_asn1_pkparameters2group(params)) == NULL)
 		{
 		ECerr(EC_F_D2I_ECPKPARAMETERS, EC_R_PKPARAMETERS2GROUP_FAILURE);
+		ECPKPARAMETERS_free(params);
 		return NULL; 
 		}
 

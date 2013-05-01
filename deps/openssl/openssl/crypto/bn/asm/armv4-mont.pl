@@ -23,6 +23,9 @@
 # than 1/2KB. Windows CE port would be trivial, as it's exclusively
 # about decorations, ABI and instruction syntax are identical.
 
+while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
+open STDOUT,">$output";
+
 $num="r0";	# starts as num argument, but holds &tp[num-1]
 $ap="r1";
 $bp="r2"; $bi="r2"; $rp="r2";
@@ -89,9 +92,9 @@ bn_mul_mont:
 .L1st:
 	ldr	$aj,[$ap],#4		@ ap[j],ap++
 	mov	$alo,$ahi
+	ldr	$nj,[$np],#4		@ np[j],np++
 	mov	$ahi,#0
 	umlal	$alo,$ahi,$aj,$bi	@ ap[j]*bp[0]
-	ldr	$nj,[$np],#4		@ np[j],np++
 	mov	$nhi,#0
 	umlal	$nlo,$nhi,$nj,$n0	@ np[j]*n0
 	adds	$nlo,$nlo,$alo
@@ -101,21 +104,21 @@ bn_mul_mont:
 	bne	.L1st
 
 	adds	$nlo,$nlo,$ahi
-	mov	$nhi,#0
-	adc	$nhi,$nhi,#0
 	ldr	$tp,[$_bp]		@ restore bp
-	str	$nlo,[$num]		@ tp[num-1]=
+	mov	$nhi,#0
 	ldr	$n0,[$_n0]		@ restore n0
+	adc	$nhi,$nhi,#0
+	str	$nlo,[$num]		@ tp[num-1]=
 	str	$nhi,[$num,#4]		@ tp[num]=
 
 .Louter:
 	sub	$tj,$num,sp		@ "original" $num-1 value
 	sub	$ap,$ap,$tj		@ "rewind" ap to &ap[1]
-	sub	$np,$np,$tj		@ "rewind" np to &np[1]
 	ldr	$bi,[$tp,#4]!		@ *(++bp)
+	sub	$np,$np,$tj		@ "rewind" np to &np[1]
 	ldr	$aj,[$ap,#-4]		@ ap[0]
-	ldr	$nj,[$np,#-4]		@ np[0]
 	ldr	$alo,[sp]		@ tp[0]
+	ldr	$nj,[$np,#-4]		@ np[0]
 	ldr	$tj,[sp,#4]		@ tp[1]
 
 	mov	$ahi,#0
@@ -129,13 +132,13 @@ bn_mul_mont:
 .Linner:
 	ldr	$aj,[$ap],#4		@ ap[j],ap++
 	adds	$alo,$ahi,$tj		@ +=tp[j]
+	ldr	$nj,[$np],#4		@ np[j],np++
 	mov	$ahi,#0
 	umlal	$alo,$ahi,$aj,$bi	@ ap[j]*bp[i]
-	ldr	$nj,[$np],#4		@ np[j],np++
 	mov	$nhi,#0
 	umlal	$nlo,$nhi,$nj,$n0	@ np[j]*n0
-	ldr	$tj,[$tp,#8]		@ tp[j+1]
 	adc	$ahi,$ahi,#0
+	ldr	$tj,[$tp,#8]		@ tp[j+1]
 	adds	$nlo,$nlo,$alo
 	str	$nlo,[$tp],#4		@ tp[j-1]=,tp++
 	adc	$nlo,$nhi,#0
@@ -144,13 +147,13 @@ bn_mul_mont:
 
 	adds	$nlo,$nlo,$ahi
 	mov	$nhi,#0
-	adc	$nhi,$nhi,#0
-	adds	$nlo,$nlo,$tj
-	adc	$nhi,$nhi,#0
 	ldr	$tp,[$_bp]		@ restore bp
-	ldr	$tj,[$_bpend]		@ restore &bp[num]
-	str	$nlo,[$num]		@ tp[num-1]=
+	adc	$nhi,$nhi,#0
 	ldr	$n0,[$_n0]		@ restore n0
+	adds	$nlo,$nlo,$tj
+	ldr	$tj,[$_bpend]		@ restore &bp[num]
+	adc	$nhi,$nhi,#0
+	str	$nlo,[$num]		@ tp[num-1]=
 	str	$nhi,[$num,#4]		@ tp[num]=
 
 	cmp	$tp,$tj

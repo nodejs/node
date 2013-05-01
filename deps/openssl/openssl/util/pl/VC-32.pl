@@ -6,6 +6,16 @@
 $ssl=	"ssleay32";
 $crypto="libeay32";
 
+if ($fips && !$shlib)
+	{
+	$crypto="libeayfips32";
+	$crypto_compat = "libeaycompat32.lib";
+	}
+else
+	{
+	$crypto="libeay32";
+	}
+
 $o='\\';
 $cp='$(PERL) util/copy.pl';
 $mkdir='$(PERL) util/mkdir-p.pl';
@@ -33,7 +43,7 @@ if ($FLAVOR =~ /WIN64/)
     # considered safe to ignore.
     # 
     $base_cflags= " $mf_cflag";
-    my $f = $shlib?' /MD':' /MT';
+    my $f = $shlib || $fips ?' /MD':' /MT';
     $lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
     $opt_cflags=$f.' /Ox';
     $dbg_cflags=$f.'d /Od -DDEBUG -D_DEBUG';
@@ -108,13 +118,13 @@ elsif ($FLAVOR =~ /CE/)
     $base_cflags.=' -I$(WCECOMPAT)/include'		if (defined($ENV{'WCECOMPAT'}));
     $base_cflags.=' -I$(PORTSDK_LIBPATH)/../../include'	if (defined($ENV{'PORTSDK_LIBPATH'}));
     $opt_cflags=' /MC /O1i';	# optimize for space, but with intrinsics...
-    $dbg_clfags=' /MC /Od -DDEBUG -D_DEBUG';
+    $dbg_cflags=' /MC /Od -DDEBUG -D_DEBUG';
     $lflags="/nologo /opt:ref $wcelflag";
     }
 else	# Win32
     {
     $base_cflags= " $mf_cflag";
-    my $f = $shlib?' /MD':' /MT';
+    my $f = $shlib || $fips ?' /MD':' /MT';
     $lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
     $opt_cflags=$f.' /Ox /O2 /Ob2';
     $dbg_cflags=$f.'d /Od -DDEBUG -D_DEBUG';
@@ -266,10 +276,19 @@ elsif ($shlib && $FLAVOR =~ /CE/)
 
 sub do_lib_rule
 	{
-	local($objs,$target,$name,$shlib)=@_;
+	my($objs,$target,$name,$shlib,$ign,$base_addr) = @_;
 	local($ret);
 
 	$taget =~ s/\//$o/g if $o ne '/';
+	my $base_arg;
+	if ($base_addr ne "")
+		{
+		$base_arg= " /base:$base_addr";
+		}
+	else
+		{
+		$base_arg = "";
+		}
 	if ($name ne "")
 		{
 		$name =~ tr/a-z/A-Z/;
@@ -277,17 +296,37 @@ sub do_lib_rule
 		}
 
 #	$target="\$(LIB_D)$o$target";
-	$ret.="$target: $objs\n";
+#	$ret.="$target: $objs\n";
 	if (!$shlib)
 		{
 #		$ret.="\t\$(RM) \$(O_$Name)\n";
+		$ret.="$target: $objs\n";
 		$ret.="\t\$(MKLIB) $lfile$target @<<\n  $objs\n<<\n";
 		}
 	else
 		{
 		local($ex)=($target =~ /O_CRYPTO/)?'':' $(L_CRYPTO)';
 		$ex.=" $zlib_lib" if $zlib_opt == 1 && $target =~ /O_CRYPTO/;
-		$ret.="\t\$(LINK) \$(MLFLAGS) $efile$target $name @<<\n  \$(SHLIB_EX_OBJ) $objs $ex \$(EX_LIBS)\n<<\n";
+
+ 		if ($fips && $target =~ /O_CRYPTO/)
+			{
+			$ret.="$target: $objs \$(PREMAIN_DSO_EXE)";
+			$ret.="\n\tSET FIPS_LINK=\$(LINK)\n";
+			$ret.="\tSET FIPS_CC=\$(CC)\n";
+			$ret.="\tSET FIPS_CC_ARGS=/Fo\$(OBJ_D)${o}fips_premain.obj \$(SHLIB_CFLAGS) -c\n";
+			$ret.="\tSET PREMAIN_DSO_EXE=\$(PREMAIN_DSO_EXE)\n";
+			$ret.="\tSET FIPS_SHA1_EXE=\$(FIPS_SHA1_EXE)\n";
+			$ret.="\tSET FIPS_TARGET=$target\n";
+			$ret.="\tSET FIPSLIB_D=\$(FIPSLIB_D)\n";
+			$ret.="\t\$(FIPSLINK) \$(MLFLAGS) /map $base_arg $efile$target ";
+			$ret.="$name @<<\n  \$(SHLIB_EX_OBJ) $objs \$(EX_LIBS) ";
+			$ret.="\$(OBJ_D)${o}fips_premain.obj $ex\n<<\n";
+			}
+		else
+			{
+			$ret.="$target: $objs";
+			$ret.="\n\t\$(LINK) \$(MLFLAGS) $efile$target $name @<<\n  \$(SHLIB_EX_OBJ) $objs $ex \$(EX_LIBS)\n<<\n";
+			}
 		$ret.="\tIF EXIST \$@.manifest mt -nologo -manifest \$@.manifest -outputresource:\$@;2\n\n";
 		}
 	$ret.="\n";
@@ -296,15 +335,35 @@ sub do_lib_rule
 
 sub do_link_rule
 	{
-	local($target,$files,$dep_libs,$libs)=@_;
+	my($target,$files,$dep_libs,$libs,$standalone)=@_;
 	local($ret,$_);
-	
 	$file =~ s/\//$o/g if $o ne '/';
 	$n=&bname($targer);
 	$ret.="$target: $files $dep_libs\n";
-	$ret.="\t\$(LINK) \$(LFLAGS) $efile$target @<<\n";
-	$ret.="  \$(APP_EX_OBJ) $files $libs\n<<\n";
-	$ret.="\tIF EXIST \$@.manifest mt -nologo -manifest \$@.manifest -outputresource:\$@;1\n\n";
+	if ($standalone == 1)
+		{
+		$ret.="  \$(LINK) \$(LFLAGS) $efile$target @<<\n\t";
+		$ret.= "\$(EX_LIBS) " if ($files =~ /O_FIPSCANISTER/ && !$fipscanisterbuild);
+		$ret.="$files $libs\n<<\n";
+		}
+	elsif ($standalone == 2)
+		{
+		$ret.="\tSET FIPS_LINK=\$(LINK)\n";
+		$ret.="\tSET FIPS_CC=\$(CC)\n";
+		$ret.="\tSET FIPS_CC_ARGS=/Fo\$(OBJ_D)${o}fips_premain.obj \$(SHLIB_CFLAGS) -c\n";
+		$ret.="\tSET PREMAIN_DSO_EXE=\n";
+		$ret.="\tSET FIPS_TARGET=$target\n";
+		$ret.="\tSET FIPS_SHA1_EXE=\$(FIPS_SHA1_EXE)\n";
+		$ret.="\tSET FIPSLIB_D=\$(FIPSLIB_D)\n";
+		$ret.="\t\$(FIPSLINK) \$(LFLAGS) /map $efile$target @<<\n";
+		$ret.="\t\$(APP_EX_OBJ) $files \$(OBJ_D)${o}fips_premain.obj $libs\n<<\n";
+		}
+	else
+		{
+		$ret.="\t\$(LINK) \$(LFLAGS) $efile$target @<<\n";
+		$ret.="\t\$(APP_EX_OBJ) $files $libs\n<<\n";
+		}
+    	$ret.="\tIF EXIST \$@.manifest mt -nologo -manifest \$@.manifest -outputresource:\$@;1\n\n";
 	return($ret);
 	}
 

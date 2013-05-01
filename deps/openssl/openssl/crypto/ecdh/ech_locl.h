@@ -75,6 +75,14 @@ struct ecdh_method
 	char *app_data;
 	};
 
+/* If this flag is set the ECDH method is FIPS compliant and can be used
+ * in FIPS mode. This is set in the validated module method. If an
+ * application sets this flag in its own methods it is its responsibility
+ * to ensure the result is compliant.
+ */
+
+#define ECDH_FLAG_FIPS_METHOD	0x1
+
 typedef struct ecdh_data_st {
 	/* EC_KEY_METH_DATA part */
 	int (*init)(EC_KEY *);

@@ -1,6 +1,6 @@
 /* crypto/cpt_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -76,6 +76,7 @@ static ERR_STRING_DATA CRYPTO_str_functs[]=
 {ERR_FUNC(CRYPTO_F_CRYPTO_SET_EX_DATA),	"CRYPTO_set_ex_data"},
 {ERR_FUNC(CRYPTO_F_DEF_ADD_INDEX),	"DEF_ADD_INDEX"},
 {ERR_FUNC(CRYPTO_F_DEF_GET_CLASS),	"DEF_GET_CLASS"},
+{ERR_FUNC(CRYPTO_F_FIPS_MODE_SET),	"FIPS_mode_set"},
 {ERR_FUNC(CRYPTO_F_INT_DUP_EX_DATA),	"INT_DUP_EX_DATA"},
 {ERR_FUNC(CRYPTO_F_INT_FREE_EX_DATA),	"INT_FREE_EX_DATA"},
 {ERR_FUNC(CRYPTO_F_INT_NEW_EX_DATA),	"INT_NEW_EX_DATA"},
@@ -84,6 +85,7 @@ static ERR_STRING_DATA CRYPTO_str_functs[]=
 
 static ERR_STRING_DATA CRYPTO_str_reasons[]=
 	{
+{ERR_REASON(CRYPTO_R_FIPS_MODE_NOT_SUPPORTED),"fips mode not supported"},
 {ERR_REASON(CRYPTO_R_NO_DYNLOCK_CREATE_CALLBACK),"no dynlock create callback"},
 {0,NULL}
 	};

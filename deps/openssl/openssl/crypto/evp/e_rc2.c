@@ -183,7 +183,8 @@ static int rc2_get_asn1_type_and_iv(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
 		key_bits =rc2_magic_to_meth((int)num);
 		if (!key_bits)
 			return(-1);
-		if(i > 0) EVP_CipherInit_ex(c, NULL, NULL, NULL, iv, -1);
+		if(i > 0 && !EVP_CipherInit_ex(c, NULL, NULL, NULL, iv, -1))
+			return -1;
 		EVP_CIPHER_CTX_ctrl(c, EVP_CTRL_SET_RC2_KEY_BITS, key_bits, NULL);
 		EVP_CIPHER_CTX_set_key_length(c, key_bits / 8);
 		}

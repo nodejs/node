@@ -2,7 +2,14 @@ TITLE	rc4-586.asm
 IF @Version LT 800
 ECHO MASM version 8.00 or later is strongly recommended.
 ENDIF
-.586
+.686
+.XMM
+IF @Version LT 800
+XMMWORD STRUCT 16
+DQ	2 dup (?)
+XMMWORD	ENDS
+ENDIF
+
 .MODEL	FLAT
 OPTION	DOTNAME
 IF @Version LT 800
@@ -10,6 +17,7 @@ IF @Version LT 800
 ELSE
 .text$	SEGMENT ALIGN(64) 'CODE'
 ENDIF
+;EXTERN	_OPENSSL_ia32cap_P:NEAR
 ALIGN	16
 _RC4	PROC PUBLIC
 $L_RC4_begin::
@@ -37,11 +45,146 @@ $L_RC4_begin::
 	mov	ecx,DWORD PTR [eax*4+edi]
 	and	edx,-4
 	jz	$L002loop1
+	test	edx,-8
+	mov	DWORD PTR 32[esp],ebp
+	jz	$L003go4loop4
+	lea	ebp,DWORD PTR _OPENSSL_ia32cap_P
+	bt	DWORD PTR [ebp],26
+	jnc	$L003go4loop4
+	mov	ebp,DWORD PTR 32[esp]
+	and	edx,-8
+	lea	edx,DWORD PTR [edx*1+esi-8]
+	mov	DWORD PTR [edi-4],edx
+	add	bl,cl
+	mov	edx,DWORD PTR [ebx*4+edi]
+	mov	DWORD PTR [ebx*4+edi],ecx
+	mov	DWORD PTR [eax*4+edi],edx
+	inc	eax
+	add	edx,ecx
+	movzx	eax,al
+	movzx	edx,dl
+	movq	mm0,QWORD PTR [esi]
+	mov	ecx,DWORD PTR [eax*4+edi]
+	movd	mm2,DWORD PTR [edx*4+edi]
+	jmp	$L004loop_mmx_enter
+ALIGN	16
+$L005loop_mmx:
+	add	bl,cl
+	psllq	mm1,56
+	mov	edx,DWORD PTR [ebx*4+edi]
+	mov	DWORD PTR [ebx*4+edi],ecx
+	mov	DWORD PTR [eax*4+edi],edx
+	inc	eax
+	add	edx,ecx
+	movzx	eax,al
+	movzx	edx,dl
+	pxor	mm2,mm1
+	movq	mm0,QWORD PTR [esi]
+	movq	QWORD PTR [esi*1+ebp-8],mm2
+	mov	ecx,DWORD PTR [eax*4+edi]
+	movd	mm2,DWORD PTR [edx*4+edi]
+$L004loop_mmx_enter:
+	add	bl,cl
+	mov	edx,DWORD PTR [ebx*4+edi]
+	mov	DWORD PTR [ebx*4+edi],ecx
+	mov	DWORD PTR [eax*4+edi],edx
+	inc	eax
+	add	edx,ecx
+	movzx	eax,al
+	movzx	edx,dl
+	pxor	mm2,mm0
+	mov	ecx,DWORD PTR [eax*4+edi]
+	movd	mm1,DWORD PTR [edx*4+edi]
+	add	bl,cl
+	psllq	mm1,8
+	mov	edx,DWORD PTR [ebx*4+edi]
+	mov	DWORD PTR [ebx*4+edi],ecx
+	mov	DWORD PTR [eax*4+edi],edx
+	inc	eax
+	add	edx,ecx
+	movzx	eax,al
+	movzx	edx,dl
+	pxor	mm2,mm1
+	mov	ecx,DWORD PTR [eax*4+edi]
+	movd	mm1,DWORD PTR [edx*4+edi]
+	add	bl,cl
+	psllq	mm1,16
+	mov	edx,DWORD PTR [ebx*4+edi]
+	mov	DWORD PTR [ebx*4+edi],ecx
+	mov	DWORD PTR [eax*4+edi],edx
+	inc	eax
+	add	edx,ecx
+	movzx	eax,al
+	movzx	edx,dl
+	pxor	mm2,mm1
+	mov	ecx,DWORD PTR [eax*4+edi]
+	movd	mm1,DWORD PTR [edx*4+edi]
+	add	bl,cl
+	psllq	mm1,24
+	mov	edx,DWORD PTR [ebx*4+edi]
+	mov	DWORD PTR [ebx*4+edi],ecx
+	mov	DWORD PTR [eax*4+edi],edx
+	inc	eax
+	add	edx,ecx
+	movzx	eax,al
+	movzx	edx,dl
+	pxor	mm2,mm1
+	mov	ecx,DWORD PTR [eax*4+edi]
+	movd	mm1,DWORD PTR [edx*4+edi]
+	add	bl,cl
+	psllq	mm1,32
+	mov	edx,DWORD PTR [ebx*4+edi]
+	mov	DWORD PTR [ebx*4+edi],ecx
+	mov	DWORD PTR [eax*4+edi],edx
+	inc	eax
+	add	edx,ecx
+	movzx	eax,al
+	movzx	edx,dl
+	pxor	mm2,mm1
+	mov	ecx,DWORD PTR [eax*4+edi]
+	movd	mm1,DWORD PTR [edx*4+edi]
+	add	bl,cl
+	psllq	mm1,40
+	mov	edx,DWORD PTR [ebx*4+edi]
+	mov	DWORD PTR [ebx*4+edi],ecx
+	mov	DWORD PTR [eax*4+edi],edx
+	inc	eax
+	add	edx,ecx
+	movzx	eax,al
+	movzx	edx,dl
+	pxor	mm2,mm1
+	mov	ecx,DWORD PTR [eax*4+edi]
+	movd	mm1,DWORD PTR [edx*4+edi]
+	add	bl,cl
+	psllq	mm1,48
+	mov	edx,DWORD PTR [ebx*4+edi]
+	mov	DWORD PTR [ebx*4+edi],ecx
+	mov	DWORD PTR [eax*4+edi],edx
+	inc	eax
+	add	edx,ecx
+	movzx	eax,al
+	movzx	edx,dl
+	pxor	mm2,mm1
+	mov	ecx,DWORD PTR [eax*4+edi]
+	movd	mm1,DWORD PTR [edx*4+edi]
+	mov	edx,ebx
+	xor	ebx,ebx
+	mov	bl,dl
+	cmp	esi,DWORD PTR [edi-4]
+	lea	esi,DWORD PTR 8[esi]
+	jb	$L005loop_mmx
+	psllq	mm1,56
+	pxor	mm2,mm1
+	movq	QWORD PTR [esi*1+ebp-8],mm2
+	emms
+	cmp	esi,DWORD PTR 24[esp]
+	je	$L006done
+	jmp	$L002loop1
+ALIGN	16
+$L003go4loop4:
 	lea	edx,DWORD PTR [edx*1+esi-4]
 	mov	DWORD PTR 28[esp],edx
-	mov	DWORD PTR 32[esp],ebp
-ALIGN	16
-$L003loop4:
+$L007loop4:
 	add	bl,cl
 	mov	edx,DWORD PTR [ebx*4+edi]
 	mov	DWORD PTR [ebx*4+edi],ecx
@@ -87,9 +230,9 @@ $L003loop4:
 	mov	DWORD PTR [esi*1+ecx],ebp
 	lea	esi,DWORD PTR 4[esi]
 	mov	ecx,DWORD PTR [eax*4+edi]
-	jb	$L003loop4
+	jb	$L007loop4
 	cmp	esi,DWORD PTR 24[esp]
-	je	$L004done
+	je	$L006done
 	mov	ebp,DWORD PTR 32[esp]
 ALIGN	16
 $L002loop1:
@@ -107,11 +250,11 @@ $L002loop1:
 	cmp	esi,DWORD PTR 24[esp]
 	mov	BYTE PTR [esi*1+ebp-1],dl
 	jb	$L002loop1
-	jmp	$L004done
+	jmp	$L006done
 ALIGN	16
 $L001RC4_CHAR:
 	movzx	ecx,BYTE PTR [eax*1+edi]
-$L005cloop1:
+$L008cloop1:
 	add	bl,cl
 	movzx	edx,BYTE PTR [ebx*1+edi]
 	mov	BYTE PTR [ebx*1+edi],cl
@@ -124,10 +267,10 @@ $L005cloop1:
 	movzx	ecx,BYTE PTR [eax*1+edi]
 	cmp	esi,DWORD PTR 24[esp]
 	mov	BYTE PTR [esi*1+ebp-1],dl
-	jb	$L005cloop1
-$L004done:
+	jb	$L008cloop1
+$L006done:
 	dec	al
-	mov	BYTE PTR [edi-4],bl
+	mov	DWORD PTR [edi-4],ebx
 	mov	BYTE PTR [edi-8],al
 $L000abort:
 	pop	edi
@@ -136,10 +279,9 @@ $L000abort:
 	pop	ebp
 	ret
 _RC4 ENDP
-;EXTERN	_OPENSSL_ia32cap_P:NEAR
 ALIGN	16
-_RC4_set_key	PROC PUBLIC
-$L_RC4_set_key_begin::
+_private_RC4_set_key	PROC PUBLIC
+$L_private_RC4_set_key_begin::
 	push	ebp
 	push	ebx
 	push	esi
@@ -154,53 +296,53 @@ $L_RC4_set_key_begin::
 	xor	eax,eax
 	mov	DWORD PTR [edi-4],ebp
 	bt	DWORD PTR [edx],20
-	jc	$L006c1stloop
+	jc	$L009c1stloop
 ALIGN	16
-$L007w1stloop:
+$L010w1stloop:
 	mov	DWORD PTR [eax*4+edi],eax
 	add	al,1
-	jnc	$L007w1stloop
+	jnc	$L010w1stloop
 	xor	ecx,ecx
 	xor	edx,edx
 ALIGN	16
-$L008w2ndloop:
+$L011w2ndloop:
 	mov	eax,DWORD PTR [ecx*4+edi]
 	add	dl,BYTE PTR [ebp*1+esi]
 	add	dl,al
 	add	ebp,1
 	mov	ebx,DWORD PTR [edx*4+edi]
-	jnz	$L009wnowrap
+	jnz	$L012wnowrap
 	mov	ebp,DWORD PTR [edi-4]
-$L009wnowrap:
+$L012wnowrap:
 	mov	DWORD PTR [edx*4+edi],eax
 	mov	DWORD PTR [ecx*4+edi],ebx
 	add	cl,1
-	jnc	$L008w2ndloop
-	jmp	$L010exit
+	jnc	$L011w2ndloop
+	jmp	$L013exit
 ALIGN	16
-$L006c1stloop:
+$L009c1stloop:
 	mov	BYTE PTR [eax*1+edi],al
 	add	al,1
-	jnc	$L006c1stloop
+	jnc	$L009c1stloop
 	xor	ecx,ecx
 	xor	edx,edx
 	xor	ebx,ebx
 ALIGN	16
-$L011c2ndloop:
+$L014c2ndloop:
 	mov	al,BYTE PTR [ecx*1+edi]
 	add	dl,BYTE PTR [ebp*1+esi]
 	add	dl,al
 	add	ebp,1
 	mov	bl,BYTE PTR [edx*1+edi]
-	jnz	$L012cnowrap
+	jnz	$L015cnowrap
 	mov	ebp,DWORD PTR [edi-4]
-$L012cnowrap:
+$L015cnowrap:
 	mov	BYTE PTR [edx*1+edi],al
 	mov	BYTE PTR [ecx*1+edi],bl
 	add	cl,1
-	jnc	$L011c2ndloop
+	jnc	$L014c2ndloop
 	mov	DWORD PTR 256[edi],-1
-$L010exit:
+$L013exit:
 	xor	eax,eax
 	mov	DWORD PTR [edi-8],eax
 	mov	DWORD PTR [edi-4],eax
@@ -209,24 +351,31 @@ $L010exit:
 	pop	ebx
 	pop	ebp
 	ret
-_RC4_set_key ENDP
+_private_RC4_set_key ENDP
 ALIGN	16
 _RC4_options	PROC PUBLIC
 $L_RC4_options_begin::
-	call	$L013pic_point
-$L013pic_point:
+	call	$L016pic_point
+$L016pic_point:
 	pop	eax
-	lea	eax,DWORD PTR ($L014opts-$L013pic_point)[eax]
+	lea	eax,DWORD PTR ($L017opts-$L016pic_point)[eax]
 	lea	edx,DWORD PTR _OPENSSL_ia32cap_P
-	bt	DWORD PTR [edx],20
-	jnc	$L015skip
+	mov	edx,DWORD PTR [edx]
+	bt	edx,20
+	jc	$L0181xchar
+	bt	edx,26
+	jnc	$L019ret
+	add	eax,25
+	ret
+$L0181xchar:
 	add	eax,12
-$L015skip:
+$L019ret:
 	ret
 ALIGN	64
-$L014opts:
+$L017opts:
 DB	114,99,52,40,52,120,44,105,110,116,41,0
 DB	114,99,52,40,49,120,44,99,104,97,114,41,0
+DB	114,99,52,40,56,120,44,109,109,120,41,0
 DB	82,67,52,32,102,111,114,32,120,56,54,44,32,67,82,89
 DB	80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114
 DB	111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
@@ -234,6 +383,6 @@ ALIGN	64
 _RC4_options ENDP
 .text$	ENDS
 .bss	SEGMENT 'BSS'
-COMM	_OPENSSL_ia32cap_P:DWORD
+COMM	_OPENSSL_ia32cap_P:QWORD
 .bss	ENDS
 END

@@ -369,7 +369,13 @@ int gost_mac(gost_ctx *ctx,int mac_len,const unsigned char *data,
 		memset(buf2,0,8);
 		memcpy(buf2,data+i,data_len-i);
 		mac_block(ctx,buffer,buf2);
-		}	
+		i+=8;
+		}
+	if (i==8)
+		{
+		memset(buf2,0,8);
+		mac_block(ctx,buffer,buf2);
+		}
 	get_mac(buffer,mac_len,mac);
 	return 1;
 	}
@@ -389,7 +395,13 @@ int gost_mac_iv(gost_ctx *ctx,int mac_len,const unsigned char *iv,const unsigned
 		memset(buf2,0,8);
 		memcpy(buf2,data+i,data_len-i);
 		mac_block(ctx,buffer,buf2);
+		i+=8;
 		}	
+	if (i==8)
+		{
+		memset(buf2,0,8);
+		mac_block(ctx,buffer,buf2);
+		}
 	get_mac(buffer,mac_len,mac);
 	return 1;
 	}

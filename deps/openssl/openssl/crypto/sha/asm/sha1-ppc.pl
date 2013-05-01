@@ -24,12 +24,14 @@ $flavour = shift;
 
 if ($flavour =~ /64/) {
 	$SIZE_T	=8;
+	$LRSAVE	=2*$SIZE_T;
 	$UCMP	="cmpld";
 	$STU	="stdu";
 	$POP	="ld";
 	$PUSH	="std";
 } elsif ($flavour =~ /32/) {
 	$SIZE_T	=4;
+	$LRSAVE	=$SIZE_T;
 	$UCMP	="cmplw";
 	$STU	="stwu";
 	$POP	="lwz";
@@ -43,7 +45,8 @@ die "can't locate ppc-xlate.pl";
 
 open STDOUT,"| $^X $xlate $flavour ".shift || die "can't call $xlate: $!";
 
-$FRAME=24*$SIZE_T;
+$FRAME=24*$SIZE_T+64;
+$LOCALS=6*$SIZE_T;
 
 $K  ="r0";
 $sp ="r1";
@@ -162,9 +165,8 @@ $code=<<___;
 .globl	.sha1_block_data_order
 .align	4
 .sha1_block_data_order:
+	$STU	$sp,-$FRAME($sp)
 	mflr	r0
-	$STU	$sp,`-($FRAME+64)`($sp)
-	$PUSH	r0,`$FRAME-$SIZE_T*18`($sp)
 	$PUSH	r15,`$FRAME-$SIZE_T*17`($sp)
 	$PUSH	r16,`$FRAME-$SIZE_T*16`($sp)
 	$PUSH	r17,`$FRAME-$SIZE_T*15`($sp)
@@ -182,6 +184,7 @@ $code=<<___;
 	$PUSH	r29,`$FRAME-$SIZE_T*3`($sp)
 	$PUSH	r30,`$FRAME-$SIZE_T*2`($sp)
 	$PUSH	r31,`$FRAME-$SIZE_T*1`($sp)
+	$PUSH	r0,`$FRAME+$LRSAVE`($sp)
 	lwz	$A,0($ctx)
 	lwz	$B,4($ctx)
 	lwz	$C,8($ctx)
@@ -192,8 +195,53 @@ $code=<<___;
 Laligned:
 	mtctr	$num
 	bl	Lsha1_block_private
+	b	Ldone
+
+; PowerPC specification allows an implementation to be ill-behaved
+; upon unaligned access which crosses page boundary. "Better safe
+; than sorry" principle makes me treat it specially. But I don't
+; look for particular offending word, but rather for 64-byte input
+; block which crosses the boundary. Once found that block is aligned
+; and hashed separately...
+.align	4
+Lunaligned:
+	subfic	$t1,$inp,4096
+	andi.	$t1,$t1,4095	; distance to closest page boundary
+	srwi.	$t1,$t1,6	; t1/=64
+	beq	Lcross_page
+	$UCMP	$num,$t1
+	ble-	Laligned	; didn't cross the page boundary
+	mtctr	$t1
+	subfc	$num,$t1,$num
+	bl	Lsha1_block_private
+Lcross_page:
+	li	$t1,16
+	mtctr	$t1
+	addi	r20,$sp,$LOCALS	; spot within the frame
+Lmemcpy:
+	lbz	r16,0($inp)
+	lbz	r17,1($inp)
+	lbz	r18,2($inp)
+	lbz	r19,3($inp)
+	addi	$inp,$inp,4
+	stb	r16,0(r20)
+	stb	r17,1(r20)
+	stb	r18,2(r20)
+	stb	r19,3(r20)
+	addi	r20,r20,4
+	bdnz	Lmemcpy
+
+	$PUSH	$inp,`$FRAME-$SIZE_T*18`($sp)
+	li	$t1,1
+	addi	$inp,$sp,$LOCALS
+	mtctr	$t1
+	bl	Lsha1_block_private
+	$POP	$inp,`$FRAME-$SIZE_T*18`($sp)
+	addic.	$num,$num,-1
+	bne-	Lunaligned
+
 Ldone:
-	$POP	r0,`$FRAME-$SIZE_T*18`($sp)
+	$POP	r0,`$FRAME+$LRSAVE`($sp)
 	$POP	r15,`$FRAME-$SIZE_T*17`($sp)
 	$POP	r16,`$FRAME-$SIZE_T*16`($sp)
 	$POP	r17,`$FRAME-$SIZE_T*15`($sp)
@@ -212,54 +260,11 @@ Ldone:
 	$POP	r30,`$FRAME-$SIZE_T*2`($sp)
 	$POP	r31,`$FRAME-$SIZE_T*1`($sp)
 	mtlr	r0
-	addi	$sp,$sp,`$FRAME+64`
+	addi	$sp,$sp,$FRAME
 	blr
-___
-
-# PowerPC specification allows an implementation to be ill-behaved
-# upon unaligned access which crosses page boundary. "Better safe
-# than sorry" principle makes me treat it specially. But I don't
-# look for particular offending word, but rather for 64-byte input
-# block which crosses the boundary. Once found that block is aligned
-# and hashed separately...
-$code.=<<___;
-.align	4
-Lunaligned:
-	subfic	$t1,$inp,4096
-	andi.	$t1,$t1,4095	; distance to closest page boundary
-	srwi.	$t1,$t1,6	; t1/=64
-	beq	Lcross_page
-	$UCMP	$num,$t1
-	ble-	Laligned	; didn't cross the page boundary
-	mtctr	$t1
-	subfc	$num,$t1,$num
-	bl	Lsha1_block_private
-Lcross_page:
-	li	$t1,16
-	mtctr	$t1
-	addi	r20,$sp,$FRAME	; spot below the frame
-Lmemcpy:
-	lbz	r16,0($inp)
-	lbz	r17,1($inp)
-	lbz	r18,2($inp)
-	lbz	r19,3($inp)
-	addi	$inp,$inp,4
-	stb	r16,0(r20)
-	stb	r17,1(r20)
-	stb	r18,2(r20)
-	stb	r19,3(r20)
-	addi	r20,r20,4
-	bdnz	Lmemcpy
-
-	$PUSH	$inp,`$FRAME-$SIZE_T*19`($sp)
-	li	$t1,1
-	addi	$inp,$sp,$FRAME
-	mtctr	$t1
-	bl	Lsha1_block_private
-	$POP	$inp,`$FRAME-$SIZE_T*19`($sp)
-	addic.	$num,$num,-1
-	bne-	Lunaligned
-	b	Ldone
+	.long	0
+	.byte	0,12,4,1,0x80,18,3,0
+	.long	0
 ___
 
 # This is private block function, which uses tailored calling
@@ -309,6 +314,8 @@ $code.=<<___;
 	addi	$inp,$inp,`16*4`
 	bdnz-	Lsha1_block_private
 	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,0,0
 ___
 $code.=<<___;
 .asciz	"SHA1 block transform for PPC, CRYPTOGAMS by <appro\@fy.chalmers.se>"

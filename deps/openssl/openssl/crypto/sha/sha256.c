@@ -16,7 +16,7 @@
 
 const char SHA256_version[]="SHA-256" OPENSSL_VERSION_PTEXT;
 
-int SHA224_Init (SHA256_CTX *c)
+fips_md_init_ctx(SHA224, SHA256)
 	{
 	memset (c,0,sizeof(*c));
 	c->h[0]=0xc1059ed8UL;	c->h[1]=0x367cd507UL;
@@ -27,7 +27,7 @@ int SHA224_Init (SHA256_CTX *c)
 	return 1;
 	}
 
-int SHA256_Init (SHA256_CTX *c)
+fips_md_init(SHA256)
 	{
 	memset (c,0,sizeof(*c));
 	c->h[0]=0x6a09e667UL;	c->h[1]=0xbb67ae85UL;
@@ -88,17 +88,17 @@ int SHA224_Final (unsigned char *md, SHA256_CTX *c)
 	switch ((c)->md_len)		\
 	{   case SHA224_DIGEST_LENGTH:	\
 		for (nn=0;nn<SHA224_DIGEST_LENGTH/4;nn++)	\
-		{   ll=(c)->h[nn]; HOST_l2c(ll,(s));   }	\
+		{   ll=(c)->h[nn]; (void)HOST_l2c(ll,(s));   }	\
 		break;			\
 	    case SHA256_DIGEST_LENGTH:	\
 		for (nn=0;nn<SHA256_DIGEST_LENGTH/4;nn++)	\
-		{   ll=(c)->h[nn]; HOST_l2c(ll,(s));   }	\
+		{   ll=(c)->h[nn]; (void)HOST_l2c(ll,(s));   }	\
 		break;			\
 	    default:			\
 		if ((c)->md_len > SHA256_DIGEST_LENGTH)	\
 		    return 0;				\
 		for (nn=0;nn<(c)->md_len/4;nn++)		\
-		{   ll=(c)->h[nn]; HOST_l2c(ll,(s));   }	\
+		{   ll=(c)->h[nn]; (void)HOST_l2c(ll,(s));   }	\
 		break;			\
 	}				\
 	} while (0)

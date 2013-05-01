@@ -1,6 +1,6 @@
 /* crypto/rand/rand_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -71,12 +71,16 @@
 static ERR_STRING_DATA RAND_str_functs[]=
 	{
 {ERR_FUNC(RAND_F_RAND_GET_RAND_METHOD),	"RAND_get_rand_method"},
+{ERR_FUNC(RAND_F_RAND_INIT_FIPS),	"RAND_init_fips"},
 {ERR_FUNC(RAND_F_SSLEAY_RAND_BYTES),	"SSLEAY_RAND_BYTES"},
 {0,NULL}
 	};
 
 static ERR_STRING_DATA RAND_str_reasons[]=
 	{
+{ERR_REASON(RAND_R_ERROR_INITIALISING_DRBG),"error initialising drbg"},
+{ERR_REASON(RAND_R_ERROR_INSTANTIATING_DRBG),"error instantiating drbg"},
+{ERR_REASON(RAND_R_NO_FIPS_RANDOM_METHOD_SET),"no fips random method set"},
 {ERR_REASON(RAND_R_PRNG_NOT_SEEDED)      ,"PRNG not seeded"},
 {0,NULL}
 	};

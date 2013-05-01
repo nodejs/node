@@ -27,10 +27,10 @@ $L$prologue::
 	mov	rbp,rdi
 	shl	rdx,6
 	lea	rdi,QWORD PTR[rdx*1+rsi]
-	mov	eax,DWORD PTR[((0*4))+rbp]
-	mov	ebx,DWORD PTR[((1*4))+rbp]
-	mov	ecx,DWORD PTR[((2*4))+rbp]
-	mov	edx,DWORD PTR[((3*4))+rbp]
+	mov	eax,DWORD PTR[rbp]
+	mov	ebx,DWORD PTR[4+rbp]
+	mov	ecx,DWORD PTR[8+rbp]
+	mov	edx,DWORD PTR[12+rbp]
 
 
 
@@ -48,160 +48,160 @@ $L$loop::
 	mov	r9d,ebx
 	mov	r14d,ecx
 	mov	r15d,edx
-	mov	r10d,DWORD PTR[((0*4))+rsi]
+	mov	r10d,DWORD PTR[rsi]
 	mov	r11d,edx
 	xor	r11d,ecx
-	lea	eax,DWORD PTR[0d76aa478h+r10*1+rax]
+	lea	eax,DWORD PTR[((-680876936))+r10*1+rax]
 	and	r11d,ebx
 	xor	r11d,edx
-	mov	r10d,DWORD PTR[((1*4))+rsi]
+	mov	r10d,DWORD PTR[4+rsi]
 	add	eax,r11d
 	rol	eax,7
 	mov	r11d,ecx
 	add	eax,ebx
 	xor	r11d,ebx
-	lea	edx,DWORD PTR[0e8c7b756h+r10*1+rdx]
+	lea	edx,DWORD PTR[((-389564586))+r10*1+rdx]
 	and	r11d,eax
 	xor	r11d,ecx
-	mov	r10d,DWORD PTR[((2*4))+rsi]
+	mov	r10d,DWORD PTR[8+rsi]
 	add	edx,r11d
 	rol	edx,12
 	mov	r11d,ebx
 	add	edx,eax
 	xor	r11d,eax
-	lea	ecx,DWORD PTR[0242070dbh+r10*1+rcx]
+	lea	ecx,DWORD PTR[606105819+r10*1+rcx]
 	and	r11d,edx
 	xor	r11d,ebx
-	mov	r10d,DWORD PTR[((3*4))+rsi]
+	mov	r10d,DWORD PTR[12+rsi]
 	add	ecx,r11d
 	rol	ecx,17
 	mov	r11d,eax
 	add	ecx,edx
 	xor	r11d,edx
-	lea	ebx,DWORD PTR[0c1bdceeeh+r10*1+rbx]
+	lea	ebx,DWORD PTR[((-1044525330))+r10*1+rbx]
 	and	r11d,ecx
 	xor	r11d,eax
-	mov	r10d,DWORD PTR[((4*4))+rsi]
+	mov	r10d,DWORD PTR[16+rsi]
 	add	ebx,r11d
 	rol	ebx,22
 	mov	r11d,edx
 	add	ebx,ecx
 	xor	r11d,ecx
-	lea	eax,DWORD PTR[0f57c0fafh+r10*1+rax]
+	lea	eax,DWORD PTR[((-176418897))+r10*1+rax]
 	and	r11d,ebx
 	xor	r11d,edx
-	mov	r10d,DWORD PTR[((5*4))+rsi]
+	mov	r10d,DWORD PTR[20+rsi]
 	add	eax,r11d
 	rol	eax,7
 	mov	r11d,ecx
 	add	eax,ebx
 	xor	r11d,ebx
-	lea	edx,DWORD PTR[04787c62ah+r10*1+rdx]
+	lea	edx,DWORD PTR[1200080426+r10*1+rdx]
 	and	r11d,eax
 	xor	r11d,ecx
-	mov	r10d,DWORD PTR[((6*4))+rsi]
+	mov	r10d,DWORD PTR[24+rsi]
 	add	edx,r11d
 	rol	edx,12
 	mov	r11d,ebx
 	add	edx,eax
 	xor	r11d,eax
-	lea	ecx,DWORD PTR[0a8304613h+r10*1+rcx]
+	lea	ecx,DWORD PTR[((-1473231341))+r10*1+rcx]
 	and	r11d,edx
 	xor	r11d,ebx
-	mov	r10d,DWORD PTR[((7*4))+rsi]
+	mov	r10d,DWORD PTR[28+rsi]
 	add	ecx,r11d
 	rol	ecx,17
 	mov	r11d,eax
 	add	ecx,edx
 	xor	r11d,edx
-	lea	ebx,DWORD PTR[0fd469501h+r10*1+rbx]
+	lea	ebx,DWORD PTR[((-45705983))+r10*1+rbx]
 	and	r11d,ecx
 	xor	r11d,eax
-	mov	r10d,DWORD PTR[((8*4))+rsi]
+	mov	r10d,DWORD PTR[32+rsi]
 	add	ebx,r11d
 	rol	ebx,22
 	mov	r11d,edx
 	add	ebx,ecx
 	xor	r11d,ecx
-	lea	eax,DWORD PTR[0698098d8h+r10*1+rax]
+	lea	eax,DWORD PTR[1770035416+r10*1+rax]
 	and	r11d,ebx
 	xor	r11d,edx
-	mov	r10d,DWORD PTR[((9*4))+rsi]
+	mov	r10d,DWORD PTR[36+rsi]
 	add	eax,r11d
 	rol	eax,7
 	mov	r11d,ecx
 	add	eax,ebx
 	xor	r11d,ebx
-	lea	edx,DWORD PTR[08b44f7afh+r10*1+rdx]
+	lea	edx,DWORD PTR[((-1958414417))+r10*1+rdx]
 	and	r11d,eax
 	xor	r11d,ecx
-	mov	r10d,DWORD PTR[((10*4))+rsi]
+	mov	r10d,DWORD PTR[40+rsi]
 	add	edx,r11d
 	rol	edx,12
 	mov	r11d,ebx
 	add	edx,eax
 	xor	r11d,eax
-	lea	ecx,DWORD PTR[0ffff5bb1h+r10*1+rcx]
+	lea	ecx,DWORD PTR[((-42063))+r10*1+rcx]
 	and	r11d,edx
 	xor	r11d,ebx
-	mov	r10d,DWORD PTR[((11*4))+rsi]
+	mov	r10d,DWORD PTR[44+rsi]
 	add	ecx,r11d
 	rol	ecx,17
 	mov	r11d,eax
 	add	ecx,edx
 	xor	r11d,edx
-	lea	ebx,DWORD PTR[0895cd7beh+r10*1+rbx]
+	lea	ebx,DWORD PTR[((-1990404162))+r10*1+rbx]
 	and	r11d,ecx
 	xor	r11d,eax
-	mov	r10d,DWORD PTR[((12*4))+rsi]
+	mov	r10d,DWORD PTR[48+rsi]
 	add	ebx,r11d
 	rol	ebx,22
 	mov	r11d,edx
 	add	ebx,ecx
 	xor	r11d,ecx
-	lea	eax,DWORD PTR[06b901122h+r10*1+rax]
+	lea	eax,DWORD PTR[1804603682+r10*1+rax]
 	and	r11d,ebx
 	xor	r11d,edx
-	mov	r10d,DWORD PTR[((13*4))+rsi]
+	mov	r10d,DWORD PTR[52+rsi]
 	add	eax,r11d
 	rol	eax,7
 	mov	r11d,ecx
 	add	eax,ebx
 	xor	r11d,ebx
-	lea	edx,DWORD PTR[0fd987193h+r10*1+rdx]
+	lea	edx,DWORD PTR[((-40341101))+r10*1+rdx]
 	and	r11d,eax
 	xor	r11d,ecx
-	mov	r10d,DWORD PTR[((14*4))+rsi]
+	mov	r10d,DWORD PTR[56+rsi]
 	add	edx,r11d
 	rol	edx,12
 	mov	r11d,ebx
 	add	edx,eax
 	xor	r11d,eax
-	lea	ecx,DWORD PTR[0a679438eh+r10*1+rcx]
+	lea	ecx,DWORD PTR[((-1502002290))+r10*1+rcx]
 	and	r11d,edx
 	xor	r11d,ebx
-	mov	r10d,DWORD PTR[((15*4))+rsi]
+	mov	r10d,DWORD PTR[60+rsi]
 	add	ecx,r11d
 	rol	ecx,17
 	mov	r11d,eax
 	add	ecx,edx
 	xor	r11d,edx
-	lea	ebx,DWORD PTR[049b40821h+r10*1+rbx]
+	lea	ebx,DWORD PTR[1236535329+r10*1+rbx]
 	and	r11d,ecx
 	xor	r11d,eax
-	mov	r10d,DWORD PTR[((0*4))+rsi]
+	mov	r10d,DWORD PTR[rsi]
 	add	ebx,r11d
 	rol	ebx,22
 	mov	r11d,edx
 	add	ebx,ecx
-	mov	r10d,DWORD PTR[((1*4))+rsi]
+	mov	r10d,DWORD PTR[4+rsi]
 	mov	r11d,edx
 	mov	r12d,edx
 	not	r11d
-	lea	eax,DWORD PTR[0f61e2562h+r10*1+rax]
+	lea	eax,DWORD PTR[((-165796510))+r10*1+rax]
 	and	r12d,ebx
 	and	r11d,ecx
-	mov	r10d,DWORD PTR[((6*4))+rsi]
+	mov	r10d,DWORD PTR[24+rsi]
 	or	r12d,r11d
 	mov	r11d,ecx
 	add	eax,r12d
@@ -209,10 +209,10 @@ $L$loop::
 	rol	eax,5
 	add	eax,ebx
 	not	r11d
-	lea	edx,DWORD PTR[0c040b340h+r10*1+rdx]
+	lea	edx,DWORD PTR[((-1069501632))+r10*1+rdx]
 	and	r12d,eax
 	and	r11d,ebx
-	mov	r10d,DWORD PTR[((11*4))+rsi]
+	mov	r10d,DWORD PTR[44+rsi]
 	or	r12d,r11d
 	mov	r11d,ebx
 	add	edx,r12d
@@ -220,10 +220,10 @@ $L$loop::
 	rol	edx,9
 	add	edx,eax
 	not	r11d
-	lea	ecx,DWORD PTR[0265e5a51h+r10*1+rcx]
+	lea	ecx,DWORD PTR[643717713+r10*1+rcx]
 	and	r12d,edx
 	and	r11d,eax
-	mov	r10d,DWORD PTR[((0*4))+rsi]
+	mov	r10d,DWORD PTR[rsi]
 	or	r12d,r11d
 	mov	r11d,eax
 	add	ecx,r12d
@@ -231,10 +231,10 @@ $L$loop::
 	rol	ecx,14
 	add	ecx,edx
 	not	r11d
-	lea	ebx,DWORD PTR[0e9b6c7aah+r10*1+rbx]
+	lea	ebx,DWORD PTR[((-373897302))+r10*1+rbx]
 	and	r12d,ecx
 	and	r11d,edx
-	mov	r10d,DWORD PTR[((5*4))+rsi]
+	mov	r10d,DWORD PTR[20+rsi]
 	or	r12d,r11d
 	mov	r11d,edx
 	add	ebx,r12d
@@ -242,10 +242,10 @@ $L$loop::
 	rol	ebx,20
 	add	ebx,ecx
 	not	r11d
-	lea	eax,DWORD PTR[0d62f105dh+r10*1+rax]
+	lea	eax,DWORD PTR[((-701558691))+r10*1+rax]
 	and	r12d,ebx
 	and	r11d,ecx
-	mov	r10d,DWORD PTR[((10*4))+rsi]
+	mov	r10d,DWORD PTR[40+rsi]
 	or	r12d,r11d
 	mov	r11d,ecx
 	add	eax,r12d
@@ -253,10 +253,10 @@ $L$loop::
 	rol	eax,5
 	add	eax,ebx
 	not	r11d
-	lea	edx,DWORD PTR[02441453h+r10*1+rdx]
+	lea	edx,DWORD PTR[38016083+r10*1+rdx]
 	and	r12d,eax
 	and	r11d,ebx
-	mov	r10d,DWORD PTR[((15*4))+rsi]
+	mov	r10d,DWORD PTR[60+rsi]
 	or	r12d,r11d
 	mov	r11d,ebx
 	add	edx,r12d
@@ -264,10 +264,10 @@ $L$loop::
 	rol	edx,9
 	add	edx,eax
 	not	r11d
-	lea	ecx,DWORD PTR[0d8a1e681h+r10*1+rcx]
+	lea	ecx,DWORD PTR[((-660478335))+r10*1+rcx]
 	and	r12d,edx
 	and	r11d,eax
-	mov	r10d,DWORD PTR[((4*4))+rsi]
+	mov	r10d,DWORD PTR[16+rsi]
 	or	r12d,r11d
 	mov	r11d,eax
 	add	ecx,r12d
@@ -275,10 +275,10 @@ $L$loop::
 	rol	ecx,14
 	add	ecx,edx
 	not	r11d
-	lea	ebx,DWORD PTR[0e7d3fbc8h+r10*1+rbx]
+	lea	ebx,DWORD PTR[((-405537848))+r10*1+rbx]
 	and	r12d,ecx
 	and	r11d,edx
-	mov	r10d,DWORD PTR[((9*4))+rsi]
+	mov	r10d,DWORD PTR[36+rsi]
 	or	r12d,r11d
 	mov	r11d,edx
 	add	ebx,r12d
@@ -286,10 +286,10 @@ $L$loop::
 	rol	ebx,20
 	add	ebx,ecx
 	not	r11d
-	lea	eax,DWORD PTR[021e1cde6h+r10*1+rax]
+	lea	eax,DWORD PTR[568446438+r10*1+rax]
 	and	r12d,ebx
 	and	r11d,ecx
-	mov	r10d,DWORD PTR[((14*4))+rsi]
+	mov	r10d,DWORD PTR[56+rsi]
 	or	r12d,r11d
 	mov	r11d,ecx
 	add	eax,r12d
@@ -297,10 +297,10 @@ $L$loop::
 	rol	eax,5
 	add	eax,ebx
 	not	r11d
-	lea	edx,DWORD PTR[0c33707d6h+r10*1+rdx]
+	lea	edx,DWORD PTR[((-1019803690))+r10*1+rdx]
 	and	r12d,eax
 	and	r11d,ebx
-	mov	r10d,DWORD PTR[((3*4))+rsi]
+	mov	r10d,DWORD PTR[12+rsi]
 	or	r12d,r11d
 	mov	r11d,ebx
 	add	edx,r12d
@@ -308,10 +308,10 @@ $L$loop::
 	rol	edx,9
 	add	edx,eax
 	not	r11d
-	lea	ecx,DWORD PTR[0f4d50d87h+r10*1+rcx]
+	lea	ecx,DWORD PTR[((-187363961))+r10*1+rcx]
 	and	r12d,edx
 	and	r11d,eax
-	mov	r10d,DWORD PTR[((8*4))+rsi]
+	mov	r10d,DWORD PTR[32+rsi]
 	or	r12d,r11d
 	mov	r11d,eax
 	add	ecx,r12d
@@ -319,10 +319,10 @@ $L$loop::
 	rol	ecx,14
 	add	ecx,edx
 	not	r11d
-	lea	ebx,DWORD PTR[0455a14edh+r10*1+rbx]
+	lea	ebx,DWORD PTR[1163531501+r10*1+rbx]
 	and	r12d,ecx
 	and	r11d,edx
-	mov	r10d,DWORD PTR[((13*4))+rsi]
+	mov	r10d,DWORD PTR[52+rsi]
 	or	r12d,r11d
 	mov	r11d,edx
 	add	ebx,r12d
@@ -330,10 +330,10 @@ $L$loop::
 	rol	ebx,20
 	add	ebx,ecx
 	not	r11d
-	lea	eax,DWORD PTR[0a9e3e905h+r10*1+rax]
+	lea	eax,DWORD PTR[((-1444681467))+r10*1+rax]
 	and	r12d,ebx
 	and	r11d,ecx
-	mov	r10d,DWORD PTR[((2*4))+rsi]
+	mov	r10d,DWORD PTR[8+rsi]
 	or	r12d,r11d
 	mov	r11d,ecx
 	add	eax,r12d
@@ -341,10 +341,10 @@ $L$loop::
 	rol	eax,5
 	add	eax,ebx
 	not	r11d
-	lea	edx,DWORD PTR[0fcefa3f8h+r10*1+rdx]
+	lea	edx,DWORD PTR[((-51403784))+r10*1+rdx]
 	and	r12d,eax
 	and	r11d,ebx
-	mov	r10d,DWORD PTR[((7*4))+rsi]
+	mov	r10d,DWORD PTR[28+rsi]
 	or	r12d,r11d
 	mov	r11d,ebx
 	add	edx,r12d
@@ -352,10 +352,10 @@ $L$loop::
 	rol	edx,9
 	add	edx,eax
 	not	r11d
-	lea	ecx,DWORD PTR[0676f02d9h+r10*1+rcx]
+	lea	ecx,DWORD PTR[1735328473+r10*1+rcx]
 	and	r12d,edx
 	and	r11d,eax
-	mov	r10d,DWORD PTR[((12*4))+rsi]
+	mov	r10d,DWORD PTR[48+rsi]
 	or	r12d,r11d
 	mov	r11d,eax
 	add	ecx,r12d
@@ -363,289 +363,289 @@ $L$loop::
 	rol	ecx,14
 	add	ecx,edx
 	not	r11d
-	lea	ebx,DWORD PTR[08d2a4c8ah+r10*1+rbx]
+	lea	ebx,DWORD PTR[((-1926607734))+r10*1+rbx]
 	and	r12d,ecx
 	and	r11d,edx
-	mov	r10d,DWORD PTR[((0*4))+rsi]
+	mov	r10d,DWORD PTR[rsi]
 	or	r12d,r11d
 	mov	r11d,edx
 	add	ebx,r12d
 	mov	r12d,edx
 	rol	ebx,20
 	add	ebx,ecx
-	mov	r10d,DWORD PTR[((5*4))+rsi]
+	mov	r10d,DWORD PTR[20+rsi]
 	mov	r11d,ecx
-	lea	eax,DWORD PTR[0fffa3942h+r10*1+rax]
-	mov	r10d,DWORD PTR[((8*4))+rsi]
+	lea	eax,DWORD PTR[((-378558))+r10*1+rax]
+	mov	r10d,DWORD PTR[32+rsi]
 	xor	r11d,edx
 	xor	r11d,ebx
 	add	eax,r11d
 	rol	eax,4
 	mov	r11d,ebx
 	add	eax,ebx
-	lea	edx,DWORD PTR[08771f681h+r10*1+rdx]
-	mov	r10d,DWORD PTR[((11*4))+rsi]
+	lea	edx,DWORD PTR[((-2022574463))+r10*1+rdx]
+	mov	r10d,DWORD PTR[44+rsi]
 	xor	r11d,ecx
 	xor	r11d,eax
 	add	edx,r11d
 	rol	edx,11
 	mov	r11d,eax
 	add	edx,eax
-	lea	ecx,DWORD PTR[06d9d6122h+r10*1+rcx]
-	mov	r10d,DWORD PTR[((14*4))+rsi]
+	lea	ecx,DWORD PTR[1839030562+r10*1+rcx]
+	mov	r10d,DWORD PTR[56+rsi]
 	xor	r11d,ebx
 	xor	r11d,edx
 	add	ecx,r11d
 	rol	ecx,16
 	mov	r11d,edx
 	add	ecx,edx
-	lea	ebx,DWORD PTR[0fde5380ch+r10*1+rbx]
-	mov	r10d,DWORD PTR[((1*4))+rsi]
+	lea	ebx,DWORD PTR[((-35309556))+r10*1+rbx]
+	mov	r10d,DWORD PTR[4+rsi]
 	xor	r11d,eax
 	xor	r11d,ecx
 	add	ebx,r11d
 	rol	ebx,23
 	mov	r11d,ecx
 	add	ebx,ecx
-	lea	eax,DWORD PTR[0a4beea44h+r10*1+rax]
-	mov	r10d,DWORD PTR[((4*4))+rsi]
+	lea	eax,DWORD PTR[((-1530992060))+r10*1+rax]
+	mov	r10d,DWORD PTR[16+rsi]
 	xor	r11d,edx
 	xor	r11d,ebx
 	add	eax,r11d
 	rol	eax,4
 	mov	r11d,ebx
 	add	eax,ebx
-	lea	edx,DWORD PTR[04bdecfa9h+r10*1+rdx]
-	mov	r10d,DWORD PTR[((7*4))+rsi]
+	lea	edx,DWORD PTR[1272893353+r10*1+rdx]
+	mov	r10d,DWORD PTR[28+rsi]
 	xor	r11d,ecx
 	xor	r11d,eax
 	add	edx,r11d
 	rol	edx,11
 	mov	r11d,eax
 	add	edx,eax
-	lea	ecx,DWORD PTR[0f6bb4b60h+r10*1+rcx]
-	mov	r10d,DWORD PTR[((10*4))+rsi]
+	lea	ecx,DWORD PTR[((-155497632))+r10*1+rcx]
+	mov	r10d,DWORD PTR[40+rsi]
 	xor	r11d,ebx
 	xor	r11d,edx
 	add	ecx,r11d
 	rol	ecx,16
 	mov	r11d,edx
 	add	ecx,edx
-	lea	ebx,DWORD PTR[0bebfbc70h+r10*1+rbx]
-	mov	r10d,DWORD PTR[((13*4))+rsi]
+	lea	ebx,DWORD PTR[((-1094730640))+r10*1+rbx]
+	mov	r10d,DWORD PTR[52+rsi]
 	xor	r11d,eax
 	xor	r11d,ecx
 	add	ebx,r11d
 	rol	ebx,23
 	mov	r11d,ecx
 	add	ebx,ecx
-	lea	eax,DWORD PTR[0289b7ec6h+r10*1+rax]
-	mov	r10d,DWORD PTR[((0*4))+rsi]
+	lea	eax,DWORD PTR[681279174+r10*1+rax]
+	mov	r10d,DWORD PTR[rsi]
 	xor	r11d,edx
 	xor	r11d,ebx
 	add	eax,r11d
 	rol	eax,4
 	mov	r11d,ebx
 	add	eax,ebx
-	lea	edx,DWORD PTR[0eaa127fah+r10*1+rdx]
-	mov	r10d,DWORD PTR[((3*4))+rsi]
+	lea	edx,DWORD PTR[((-358537222))+r10*1+rdx]
+	mov	r10d,DWORD PTR[12+rsi]
 	xor	r11d,ecx
 	xor	r11d,eax
 	add	edx,r11d
 	rol	edx,11
 	mov	r11d,eax
 	add	edx,eax
-	lea	ecx,DWORD PTR[0d4ef3085h+r10*1+rcx]
-	mov	r10d,DWORD PTR[((6*4))+rsi]
+	lea	ecx,DWORD PTR[((-722521979))+r10*1+rcx]
+	mov	r10d,DWORD PTR[24+rsi]
 	xor	r11d,ebx
 	xor	r11d,edx
 	add	ecx,r11d
 	rol	ecx,16
 	mov	r11d,edx
 	add	ecx,edx
-	lea	ebx,DWORD PTR[04881d05h+r10*1+rbx]
-	mov	r10d,DWORD PTR[((9*4))+rsi]
+	lea	ebx,DWORD PTR[76029189+r10*1+rbx]
+	mov	r10d,DWORD PTR[36+rsi]
 	xor	r11d,eax
 	xor	r11d,ecx
 	add	ebx,r11d
 	rol	ebx,23
 	mov	r11d,ecx
 	add	ebx,ecx
-	lea	eax,DWORD PTR[0d9d4d039h+r10*1+rax]
-	mov	r10d,DWORD PTR[((12*4))+rsi]
+	lea	eax,DWORD PTR[((-640364487))+r10*1+rax]
+	mov	r10d,DWORD PTR[48+rsi]
 	xor	r11d,edx
 	xor	r11d,ebx
 	add	eax,r11d
 	rol	eax,4
 	mov	r11d,ebx
 	add	eax,ebx
-	lea	edx,DWORD PTR[0e6db99e5h+r10*1+rdx]
-	mov	r10d,DWORD PTR[((15*4))+rsi]
+	lea	edx,DWORD PTR[((-421815835))+r10*1+rdx]
+	mov	r10d,DWORD PTR[60+rsi]
 	xor	r11d,ecx
 	xor	r11d,eax
 	add	edx,r11d
 	rol	edx,11
 	mov	r11d,eax
 	add	edx,eax
-	lea	ecx,DWORD PTR[01fa27cf8h+r10*1+rcx]
-	mov	r10d,DWORD PTR[((2*4))+rsi]
+	lea	ecx,DWORD PTR[530742520+r10*1+rcx]
+	mov	r10d,DWORD PTR[8+rsi]
 	xor	r11d,ebx
 	xor	r11d,edx
 	add	ecx,r11d
 	rol	ecx,16
 	mov	r11d,edx
 	add	ecx,edx
-	lea	ebx,DWORD PTR[0c4ac5665h+r10*1+rbx]
-	mov	r10d,DWORD PTR[((0*4))+rsi]
+	lea	ebx,DWORD PTR[((-995338651))+r10*1+rbx]
+	mov	r10d,DWORD PTR[rsi]
 	xor	r11d,eax
 	xor	r11d,ecx
 	add	ebx,r11d
 	rol	ebx,23
 	mov	r11d,ecx
 	add	ebx,ecx
-	mov	r10d,DWORD PTR[((0*4))+rsi]
+	mov	r10d,DWORD PTR[rsi]
 	mov	r11d,0ffffffffh
 	xor	r11d,edx
-	lea	eax,DWORD PTR[0f4292244h+r10*1+rax]
+	lea	eax,DWORD PTR[((-198630844))+r10*1+rax]
 	or	r11d,ebx
 	xor	r11d,ecx
 	add	eax,r11d
-	mov	r10d,DWORD PTR[((7*4))+rsi]
+	mov	r10d,DWORD PTR[28+rsi]
 	mov	r11d,0ffffffffh
 	rol	eax,6
 	xor	r11d,ecx
 	add	eax,ebx
-	lea	edx,DWORD PTR[0432aff97h+r10*1+rdx]
+	lea	edx,DWORD PTR[1126891415+r10*1+rdx]
 	or	r11d,eax
 	xor	r11d,ebx
 	add	edx,r11d
-	mov	r10d,DWORD PTR[((14*4))+rsi]
+	mov	r10d,DWORD PTR[56+rsi]
 	mov	r11d,0ffffffffh
 	rol	edx,10
 	xor	r11d,ebx
 	add	edx,eax
-	lea	ecx,DWORD PTR[0ab9423a7h+r10*1+rcx]
+	lea	ecx,DWORD PTR[((-1416354905))+r10*1+rcx]
 	or	r11d,edx
 	xor	r11d,eax
 	add	ecx,r11d
-	mov	r10d,DWORD PTR[((5*4))+rsi]
+	mov	r10d,DWORD PTR[20+rsi]
 	mov	r11d,0ffffffffh
 	rol	ecx,15
 	xor	r11d,eax
 	add	ecx,edx
-	lea	ebx,DWORD PTR[0fc93a039h+r10*1+rbx]
+	lea	ebx,DWORD PTR[((-57434055))+r10*1+rbx]
 	or	r11d,ecx
 	xor	r11d,edx
 	add	ebx,r11d
-	mov	r10d,DWORD PTR[((12*4))+rsi]
+	mov	r10d,DWORD PTR[48+rsi]
 	mov	r11d,0ffffffffh
 	rol	ebx,21
 	xor	r11d,edx
 	add	ebx,ecx
-	lea	eax,DWORD PTR[0655b59c3h+r10*1+rax]
+	lea	eax,DWORD PTR[1700485571+r10*1+rax]
 	or	r11d,ebx
 	xor	r11d,ecx
 	add	eax,r11d
-	mov	r10d,DWORD PTR[((3*4))+rsi]
+	mov	r10d,DWORD PTR[12+rsi]
 	mov	r11d,0ffffffffh
 	rol	eax,6
 	xor	r11d,ecx
 	add	eax,ebx
-	lea	edx,DWORD PTR[08f0ccc92h+r10*1+rdx]
+	lea	edx,DWORD PTR[((-1894986606))+r10*1+rdx]
 	or	r11d,eax
 	xor	r11d,ebx
 	add	edx,r11d
-	mov	r10d,DWORD PTR[((10*4))+rsi]
+	mov	r10d,DWORD PTR[40+rsi]
 	mov	r11d,0ffffffffh
 	rol	edx,10
 	xor	r11d,ebx
 	add	edx,eax
-	lea	ecx,DWORD PTR[0ffeff47dh+r10*1+rcx]
+	lea	ecx,DWORD PTR[((-1051523))+r10*1+rcx]
 	or	r11d,edx
 	xor	r11d,eax
 	add	ecx,r11d
-	mov	r10d,DWORD PTR[((1*4))+rsi]
+	mov	r10d,DWORD PTR[4+rsi]
 	mov	r11d,0ffffffffh
 	rol	ecx,15
 	xor	r11d,eax
 	add	ecx,edx
-	lea	ebx,DWORD PTR[085845dd1h+r10*1+rbx]
+	lea	ebx,DWORD PTR[((-2054922799))+r10*1+rbx]
 	or	r11d,ecx
 	xor	r11d,edx
 	add	ebx,r11d
-	mov	r10d,DWORD PTR[((8*4))+rsi]
+	mov	r10d,DWORD PTR[32+rsi]
 	mov	r11d,0ffffffffh
 	rol	ebx,21
 	xor	r11d,edx
 	add	ebx,ecx
-	lea	eax,DWORD PTR[06fa87e4fh+r10*1+rax]
+	lea	eax,DWORD PTR[1873313359+r10*1+rax]
 	or	r11d,ebx
 	xor	r11d,ecx
 	add	eax,r11d
-	mov	r10d,DWORD PTR[((15*4))+rsi]
+	mov	r10d,DWORD PTR[60+rsi]
 	mov	r11d,0ffffffffh
 	rol	eax,6
 	xor	r11d,ecx
 	add	eax,ebx
-	lea	edx,DWORD PTR[0fe2ce6e0h+r10*1+rdx]
+	lea	edx,DWORD PTR[((-30611744))+r10*1+rdx]
 	or	r11d,eax
 	xor	r11d,ebx
 	add	edx,r11d
-	mov	r10d,DWORD PTR[((6*4))+rsi]
+	mov	r10d,DWORD PTR[24+rsi]
 	mov	r11d,0ffffffffh
 	rol	edx,10
 	xor	r11d,ebx
 	add	edx,eax
-	lea	ecx,DWORD PTR[0a3014314h+r10*1+rcx]
+	lea	ecx,DWORD PTR[((-1560198380))+r10*1+rcx]
 	or	r11d,edx
 	xor	r11d,eax
 	add	ecx,r11d
-	mov	r10d,DWORD PTR[((13*4))+rsi]
+	mov	r10d,DWORD PTR[52+rsi]
 	mov	r11d,0ffffffffh
 	rol	ecx,15
 	xor	r11d,eax
 	add	ecx,edx
-	lea	ebx,DWORD PTR[04e0811a1h+r10*1+rbx]
+	lea	ebx,DWORD PTR[1309151649+r10*1+rbx]
 	or	r11d,ecx
 	xor	r11d,edx
 	add	ebx,r11d
-	mov	r10d,DWORD PTR[((4*4))+rsi]
+	mov	r10d,DWORD PTR[16+rsi]
 	mov	r11d,0ffffffffh
 	rol	ebx,21
 	xor	r11d,edx
 	add	ebx,ecx
-	lea	eax,DWORD PTR[0f7537e82h+r10*1+rax]
+	lea	eax,DWORD PTR[((-145523070))+r10*1+rax]
 	or	r11d,ebx
 	xor	r11d,ecx
 	add	eax,r11d
-	mov	r10d,DWORD PTR[((11*4))+rsi]
+	mov	r10d,DWORD PTR[44+rsi]
 	mov	r11d,0ffffffffh
 	rol	eax,6
 	xor	r11d,ecx
 	add	eax,ebx
-	lea	edx,DWORD PTR[0bd3af235h+r10*1+rdx]
+	lea	edx,DWORD PTR[((-1120210379))+r10*1+rdx]
 	or	r11d,eax
 	xor	r11d,ebx
 	add	edx,r11d
-	mov	r10d,DWORD PTR[((2*4))+rsi]
+	mov	r10d,DWORD PTR[8+rsi]
 	mov	r11d,0ffffffffh
 	rol	edx,10
 	xor	r11d,ebx
 	add	edx,eax
-	lea	ecx,DWORD PTR[02ad7d2bbh+r10*1+rcx]
+	lea	ecx,DWORD PTR[718787259+r10*1+rcx]
 	or	r11d,edx
 	xor	r11d,eax
 	add	ecx,r11d
-	mov	r10d,DWORD PTR[((9*4))+rsi]
+	mov	r10d,DWORD PTR[36+rsi]
 	mov	r11d,0ffffffffh
 	rol	ecx,15
 	xor	r11d,eax
 	add	ecx,edx
-	lea	ebx,DWORD PTR[0eb86d391h+r10*1+rbx]
+	lea	ebx,DWORD PTR[((-343485551))+r10*1+rbx]
 	or	r11d,ecx
 	xor	r11d,edx
 	add	ebx,r11d
-	mov	r10d,DWORD PTR[((0*4))+rsi]
+	mov	r10d,DWORD PTR[rsi]
 	mov	r11d,0ffffffffh
 	rol	ebx,21
 	xor	r11d,edx
@@ -664,10 +664,10 @@ $L$loop::
 
 
 $L$end::
-	mov	DWORD PTR[((0*4))+rbp],eax
-	mov	DWORD PTR[((1*4))+rbp],ebx
-	mov	DWORD PTR[((2*4))+rbp],ecx
-	mov	DWORD PTR[((3*4))+rbp],edx
+	mov	DWORD PTR[rbp],eax
+	mov	DWORD PTR[4+rbp],ebx
+	mov	DWORD PTR[8+rbp],ecx
+	mov	DWORD PTR[12+rbp],edx
 
 	mov	r15,QWORD PTR[rsp]
 	mov	r14,QWORD PTR[8+rsp]

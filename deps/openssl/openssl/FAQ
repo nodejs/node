@@ -10,6 +10,7 @@ OpenSSL  -  Frequently Asked Questions
 * Why aren't tools like 'autoconf' and 'libtool' used?
 * What is an 'engine' version?
 * How do I check the authenticity of the OpenSSL distribution?
+* How does the versioning scheme work?
 
 [LEGAL] Legal questions
 
@@ -82,11 +83,11 @@ OpenSSL  -  Frequently Asked Questions
 * Which is the current version of OpenSSL?
 
 The current version is available from <URL: http://www.openssl.org>.
-OpenSSL 1.0.0f was released on Jan 4th, 2012.
+OpenSSL 1.0.1e was released on Feb 11th, 2013.
 
 In addition to the current stable release, you can also access daily
 snapshots of the OpenSSL development version at <URL:
-ftp://ftp.openssl.org/snapshot/>, or get it by anonymous CVS access.
+ftp://ftp.openssl.org/snapshot/>, or get it by anonymous Git access.
 
 
 * Where is the documentation?
@@ -108,7 +109,9 @@ In addition, you can read the most current versions at
 <URL: http://www.openssl.org/docs/>. Note that the online documents refer
 to the very latest development versions of OpenSSL and may include features
 not present in released versions. If in doubt refer to the documentation
-that came with the version of OpenSSL you are using.
+that came with the version of OpenSSL you are using. The pod format
+documentation is included in each OpenSSL distribution under the docs
+directory.
 
 For information on parts of libcrypto that are not yet documented, you
 might want to read Ariel Glenn's documentation on SSLeay 0.9, OpenSSL's
@@ -172,6 +175,19 @@ list of keys at <URL: http://www.openssl.org/about/>). Then
 just do:
 
    pgp TARBALL.asc
+
+* How does the versioning scheme work?
+
+After the release of OpenSSL 1.0.0 the versioning scheme changed. Letter 
+releases (e.g. 1.0.1a) can only contain bug and security fixes and no
+new features. Minor releases change the last number (e.g. 1.0.2) and 
+can contain new features that retain binary compatibility. Changes to
+the middle number are considered major releases and neither source nor
+binary compatibility is guaranteed.
+
+Therefore the answer to the common question "when will feature X be
+backported to OpenSSL 1.0.0/0.9.8?" is "never" but it could appear
+in the next minor release.
 
 [LEGAL] =======================================================================
 
@@ -284,7 +300,7 @@ current directory in this case, but this has changed with 0.9.6a.)
 Check out the CA.pl(1) manual page. This provides a simple wrapper round
 the 'req', 'verify', 'ca' and 'pkcs12' utilities. For finer control check
 out the manual pages for the individual utilities and the certificate
-extensions documentation (currently in doc/openssl.txt).
+extensions documentation (in ca(1), req(1), x509v3_config(5) )
 
 
 * Why can't I create certificate requests?

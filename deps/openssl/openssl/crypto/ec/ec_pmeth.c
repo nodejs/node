@@ -188,7 +188,7 @@ static int pkey_ec_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 
 	pubkey = EC_KEY_get0_public_key(ctx->peerkey->pkey.ec);
 
-	/* NB: unlike PKS#3 DH, if *outlen is less than maximum size this is
+	/* NB: unlike PKCS#3 DH, if *outlen is less than maximum size this is
 	 * not an error, the result is truncated.
 	 */
 
@@ -221,6 +221,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 
 		case EVP_PKEY_CTRL_MD:
 		if (EVP_MD_type((const EVP_MD *)p2) != NID_sha1 &&
+		    EVP_MD_type((const EVP_MD *)p2) != NID_ecdsa_with_SHA1 &&
 		    EVP_MD_type((const EVP_MD *)p2) != NID_sha224 &&
 		    EVP_MD_type((const EVP_MD *)p2) != NID_sha256 &&
 		    EVP_MD_type((const EVP_MD *)p2) != NID_sha384 &&

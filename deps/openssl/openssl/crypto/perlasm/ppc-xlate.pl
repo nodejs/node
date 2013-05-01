@@ -31,10 +31,9 @@ my $globl = sub {
 				$ret .= ".type	$name,\@function";
 				last;
 			      };
-	/linux.*64/	&& do {	$ret .= ".globl	.$name\n";
-				$ret .= ".type	.$name,\@function\n";
+	/linux.*64/	&& do {	$ret .= ".globl	$name\n";
+				$ret .= ".type	$name,\@function\n";
 				$ret .= ".section	\".opd\",\"aw\"\n";
-				$ret .= ".globl	$name\n";
 				$ret .= ".align	3\n";
 				$ret .= "$name:\n";
 				$ret .= ".quad	.$name,.TOC.\@tocbase,0\n";
@@ -61,6 +60,14 @@ my $machine = sub {
 	$arch = ($flavour=~/64/) ? "ppc970-64" : "ppc970" if ($arch eq "any");
     }
     ".machine	$arch";
+};
+my $size = sub {
+    if ($flavour =~ /linux.*32/)
+    {	shift;
+	".size	" . join(",",@_);
+    }
+    else
+    {	"";	}
 };
 my $asciz = sub {
     shift;

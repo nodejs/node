@@ -54,35 +54,37 @@ in PEM format concatenated together.
 =item B<-untrusted file>
 
 A file of untrusted certificates. The file should contain multiple certificates
+in PEM format concatenated together.
 
 =item B<-purpose purpose>
 
-the intended use for the certificate. Without this option no chain verification
-will be done. Currently accepted uses are B<sslclient>, B<sslserver>,
-B<nssslserver>, B<smimesign>, B<smimeencrypt>. See the B<VERIFY OPERATION>
-section for more information.
+The intended use for the certificate. If this option is not specified,
+B<verify> will not consider certificate purpose during chain verification.
+Currently accepted uses are B<sslclient>, B<sslserver>, B<nssslserver>,
+B<smimesign>, B<smimeencrypt>. See the B<VERIFY OPERATION> section for more
+information.
 
 =item B<-help>
 
-prints out a usage message.
+Print out a usage message.
 
 =item B<-verbose>
 
-print extra information about the operations being performed.
+Print extra information about the operations being performed.
 
 =item B<-issuer_checks>
 
-print out diagnostics relating to searches for the issuer certificate
-of the current certificate. This shows why each candidate issuer
-certificate was rejected. However the presence of rejection messages
-does not itself imply that anything is wrong: during the normal
-verify process several rejections may take place.
+Print out diagnostics relating to searches for the issuer certificate of the
+current certificate. This shows why each candidate issuer certificate was
+rejected. The presence of rejection messages does not itself imply that
+anything is wrong; during the normal verification process, several
+rejections may take place.
 
 =item B<-policy arg>
 
-Enable policy processing and add B<arg> to the user-initial-policy-set
-(see RFC3280 et al). The policy B<arg> can be an object name an OID in numeric
-form. This argument can appear more than once.
+Enable policy processing and add B<arg> to the user-initial-policy-set (see
+RFC5280). The policy B<arg> can be an object name an OID in numeric form.
+This argument can appear more than once.
 
 =item B<-policy_check>
 
@@ -90,41 +92,40 @@ Enables certificate policy processing.
 
 =item B<-explicit_policy>
 
-Set policy variable require-explicit-policy (see RFC3280 et al).
+Set policy variable require-explicit-policy (see RFC5280).
 
 =item B<-inhibit_any>
 
-Set policy variable inhibit-any-policy (see RFC3280 et al).
+Set policy variable inhibit-any-policy (see RFC5280).
 
 =item B<-inhibit_map>
 
-Set policy variable inhibit-policy-mapping (see RFC3280 et al).
+Set policy variable inhibit-policy-mapping (see RFC5280).
 
 =item B<-policy_print>
 
-Print out diagnostics, related to policy checking
+Print out diagnostics related to policy processing.
 
 =item B<-crl_check>
 
-Checks end entity certificate validity by attempting to lookup a valid CRL.
+Checks end entity certificate validity by attempting to look up a valid CRL.
 If a valid CRL cannot be found an error occurs. 
 
 =item B<-crl_check_all>
 
 Checks the validity of B<all> certificates in the chain by attempting
-to lookup valid CRLs.
+to look up valid CRLs.
 
 =item B<-ignore_critical>
 
 Normally if an unhandled critical extension is present which is not
-supported by OpenSSL the certificate is rejected (as required by
-RFC3280 et al). If this option is set critical extensions are
-ignored.
+supported by OpenSSL the certificate is rejected (as required by RFC5280).
+If this option is set critical extensions are ignored.
 
 =item B<-x509_strict>
 
-Disable workarounds for broken certificates which have to be disabled
-for strict X.509 compliance.
+For strict X.509 compliance, disable non-compliant workarounds for broken
+certificates.
 
 =item B<-extended_crl>
 
@@ -142,16 +143,15 @@ because it doesn't add any security.
 
 =item B<->
 
-marks the last option. All arguments following this are assumed to be
+Indicates the last option. All arguments following this are assumed to be
 certificate files. This is useful if the first certificate filename begins
 with a B<->.
 
 =item B<certificates>
 
-one or more certificates to verify. If no certificate filenames are included
-then an attempt is made to read a certificate from standard input. They should
-all be in PEM format.
-
+One or more certificates to verify. If no certificates are given, B<verify>
+will attempt to read a certificate from standard input. Certificates must be
+in PEM format.
 
 =back
 

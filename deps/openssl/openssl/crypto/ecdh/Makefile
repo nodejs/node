@@ -84,17 +84,12 @@ ech_err.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
 ech_err.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 ech_err.o: ech_err.c
 ech_key.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
-ech_key.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
-ech_key.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
-ech_key.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
-ech_key.o: ../../include/openssl/engine.h ../../include/openssl/evp.h
-ech_key.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
-ech_key.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
-ech_key.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
-ech_key.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h
-ech_key.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
-ech_key.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
-ech_key.o: ../../include/openssl/x509_vfy.h ech_key.c ech_locl.h
+ech_key.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+ech_key.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
+ech_key.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
+ech_key.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
+ech_key.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+ech_key.o: ech_key.c ech_locl.h
 ech_lib.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
 ech_lib.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
 ech_lib.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h

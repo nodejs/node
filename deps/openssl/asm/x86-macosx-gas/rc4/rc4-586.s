@@ -28,11 +28,149 @@ L_RC4_begin:
 	movl	(%edi,%eax,4),%ecx
 	andl	$-4,%edx
 	jz	L002loop1
+	testl	$-8,%edx
+	movl	%ebp,32(%esp)
+	jz	L003go4loop4
+	call	L004PIC_me_up
+L004PIC_me_up:
+	popl	%ebp
+	movl	L_OPENSSL_ia32cap_P$non_lazy_ptr-L004PIC_me_up(%ebp),%ebp
+	btl	$26,(%ebp)
+	jnc	L003go4loop4
+	movl	32(%esp),%ebp
+	andl	$-8,%edx
+	leal	-8(%esi,%edx,1),%edx
+	movl	%edx,-4(%edi)
+	addb	%cl,%bl
+	movl	(%edi,%ebx,4),%edx
+	movl	%ecx,(%edi,%ebx,4)
+	movl	%edx,(%edi,%eax,4)
+	incl	%eax
+	addl	%ecx,%edx
+	movzbl	%al,%eax
+	movzbl	%dl,%edx
+	movq	(%esi),%mm0
+	movl	(%edi,%eax,4),%ecx
+	movd	(%edi,%edx,4),%mm2
+	jmp	L005loop_mmx_enter
+.align	4,0x90
+L006loop_mmx:
+	addb	%cl,%bl
+	psllq	$56,%mm1
+	movl	(%edi,%ebx,4),%edx
+	movl	%ecx,(%edi,%ebx,4)
+	movl	%edx,(%edi,%eax,4)
+	incl	%eax
+	addl	%ecx,%edx
+	movzbl	%al,%eax
+	movzbl	%dl,%edx
+	pxor	%mm1,%mm2
+	movq	(%esi),%mm0
+	movq	%mm2,-8(%ebp,%esi,1)
+	movl	(%edi,%eax,4),%ecx
+	movd	(%edi,%edx,4),%mm2
+L005loop_mmx_enter:
+	addb	%cl,%bl
+	movl	(%edi,%ebx,4),%edx
+	movl	%ecx,(%edi,%ebx,4)
+	movl	%edx,(%edi,%eax,4)
+	incl	%eax
+	addl	%ecx,%edx
+	movzbl	%al,%eax
+	movzbl	%dl,%edx
+	pxor	%mm0,%mm2
+	movl	(%edi,%eax,4),%ecx
+	movd	(%edi,%edx,4),%mm1
+	addb	%cl,%bl
+	psllq	$8,%mm1
+	movl	(%edi,%ebx,4),%edx
+	movl	%ecx,(%edi,%ebx,4)
+	movl	%edx,(%edi,%eax,4)
+	incl	%eax
+	addl	%ecx,%edx
+	movzbl	%al,%eax
+	movzbl	%dl,%edx
+	pxor	%mm1,%mm2
+	movl	(%edi,%eax,4),%ecx
+	movd	(%edi,%edx,4),%mm1
+	addb	%cl,%bl
+	psllq	$16,%mm1
+	movl	(%edi,%ebx,4),%edx
+	movl	%ecx,(%edi,%ebx,4)
+	movl	%edx,(%edi,%eax,4)
+	incl	%eax
+	addl	%ecx,%edx
+	movzbl	%al,%eax
+	movzbl	%dl,%edx
+	pxor	%mm1,%mm2
+	movl	(%edi,%eax,4),%ecx
+	movd	(%edi,%edx,4),%mm1
+	addb	%cl,%bl
+	psllq	$24,%mm1
+	movl	(%edi,%ebx,4),%edx
+	movl	%ecx,(%edi,%ebx,4)
+	movl	%edx,(%edi,%eax,4)
+	incl	%eax
+	addl	%ecx,%edx
+	movzbl	%al,%eax
+	movzbl	%dl,%edx
+	pxor	%mm1,%mm2
+	movl	(%edi,%eax,4),%ecx
+	movd	(%edi,%edx,4),%mm1
+	addb	%cl,%bl
+	psllq	$32,%mm1
+	movl	(%edi,%ebx,4),%edx
+	movl	%ecx,(%edi,%ebx,4)
+	movl	%edx,(%edi,%eax,4)
+	incl	%eax
+	addl	%ecx,%edx
+	movzbl	%al,%eax
+	movzbl	%dl,%edx
+	pxor	%mm1,%mm2
+	movl	(%edi,%eax,4),%ecx
+	movd	(%edi,%edx,4),%mm1
+	addb	%cl,%bl
+	psllq	$40,%mm1
+	movl	(%edi,%ebx,4),%edx
+	movl	%ecx,(%edi,%ebx,4)
+	movl	%edx,(%edi,%eax,4)
+	incl	%eax
+	addl	%ecx,%edx
+	movzbl	%al,%eax
+	movzbl	%dl,%edx
+	pxor	%mm1,%mm2
+	movl	(%edi,%eax,4),%ecx
+	movd	(%edi,%edx,4),%mm1
+	addb	%cl,%bl
+	psllq	$48,%mm1
+	movl	(%edi,%ebx,4),%edx
+	movl	%ecx,(%edi,%ebx,4)
+	movl	%edx,(%edi,%eax,4)
+	incl	%eax
+	addl	%ecx,%edx
+	movzbl	%al,%eax
+	movzbl	%dl,%edx
+	pxor	%mm1,%mm2
+	movl	(%edi,%eax,4),%ecx
+	movd	(%edi,%edx,4),%mm1
+	movl	%ebx,%edx
+	xorl	%ebx,%ebx
+	movb	%dl,%bl
+	cmpl	-4(%edi),%esi
+	leal	8(%esi),%esi
+	jb	L006loop_mmx
+	psllq	$56,%mm1
+	pxor	%mm1,%mm2
+	movq	%mm2,-8(%ebp,%esi,1)
+	emms
+	cmpl	24(%esp),%esi
+	je	L007done
+	jmp	L002loop1
+.align	4,0x90
+L003go4loop4:
 	leal	-4(%esi,%edx,1),%edx
 	movl	%edx,28(%esp)
-	movl	%ebp,32(%esp)
-.align	4,0x90
-L003loop4:
+L008loop4:
 	addb	%cl,%bl
 	movl	(%edi,%ebx,4),%edx
 	movl	%ecx,(%edi,%ebx,4)
@@ -78,9 +216,9 @@ L003loop4:
 	movl	%ebp,(%ecx,%esi,1)
 	leal	4(%esi),%esi
 	movl	(%edi,%eax,4),%ecx
-	jb	L003loop4
+	jb	L008loop4
 	cmpl	24(%esp),%esi
-	je	L004done
+	je	L007done
 	movl	32(%esp),%ebp
 .align	4,0x90
 L002loop1:
@@ -98,11 +236,11 @@ L002loop1:
 	cmpl	24(%esp),%esi
 	movb	%dl,-1(%ebp,%esi,1)
 	jb	L002loop1
-	jmp	L004done
+	jmp	L007done
 .align	4,0x90
 L001RC4_CHAR:
 	movzbl	(%edi,%eax,1),%ecx
-L005cloop1:
+L009cloop1:
 	addb	%cl,%bl
 	movzbl	(%edi,%ebx,1),%edx
 	movb	%cl,(%edi,%ebx,1)
@@ -115,10 +253,10 @@ L005cloop1:
 	movzbl	(%edi,%eax,1),%ecx
 	cmpl	24(%esp),%esi
 	movb	%dl,-1(%ebp,%esi,1)
-	jb	L005cloop1
-L004done:
+	jb	L009cloop1
+L007done:
 	decb	%al
-	movb	%bl,-4(%edi)
+	movl	%ebx,-4(%edi)
 	movb	%al,-8(%edi)
 L000abort:
 	popl	%edi
@@ -126,10 +264,10 @@ L000abort:
 	popl	%ebx
 	popl	%ebp
 	ret
-.globl	_RC4_set_key
+.globl	_private_RC4_set_key
 .align	4
-_RC4_set_key:
-L_RC4_set_key_begin:
+_private_RC4_set_key:
+L_private_RC4_set_key_begin:
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -137,60 +275,63 @@ L_RC4_set_key_begin:
 	movl	20(%esp),%edi
 	movl	24(%esp),%ebp
 	movl	28(%esp),%esi
-	leal	_OPENSSL_ia32cap_P,%edx
+	call	L010PIC_me_up
+L010PIC_me_up:
+	popl	%edx
+	movl	L_OPENSSL_ia32cap_P$non_lazy_ptr-L010PIC_me_up(%edx),%edx
 	leal	8(%edi),%edi
 	leal	(%esi,%ebp,1),%esi
 	negl	%ebp
 	xorl	%eax,%eax
 	movl	%ebp,-4(%edi)
 	btl	$20,(%edx)
-	jc	L006c1stloop
+	jc	L011c1stloop
 .align	4,0x90
-L007w1stloop:
+L012w1stloop:
 	movl	%eax,(%edi,%eax,4)
 	addb	$1,%al
-	jnc	L007w1stloop
+	jnc	L012w1stloop
 	xorl	%ecx,%ecx
 	xorl	%edx,%edx
 .align	4,0x90
-L008w2ndloop:
+L013w2ndloop:
 	movl	(%edi,%ecx,4),%eax
 	addb	(%esi,%ebp,1),%dl
 	addb	%al,%dl
 	addl	$1,%ebp
 	movl	(%edi,%edx,4),%ebx
-	jnz	L009wnowrap
+	jnz	L014wnowrap
 	movl	-4(%edi),%ebp
-L009wnowrap:
+L014wnowrap:
 	movl	%eax,(%edi,%edx,4)
 	movl	%ebx,(%edi,%ecx,4)
 	addb	$1,%cl
-	jnc	L008w2ndloop
-	jmp	L010exit
+	jnc	L013w2ndloop
+	jmp	L015exit
 .align	4,0x90
-L006c1stloop:
+L011c1stloop:
 	movb	%al,(%edi,%eax,1)
 	addb	$1,%al
-	jnc	L006c1stloop
+	jnc	L011c1stloop
 	xorl	%ecx,%ecx
 	xorl	%edx,%edx
 	xorl	%ebx,%ebx
 .align	4,0x90
-L011c2ndloop:
+L016c2ndloop:
 	movb	(%edi,%ecx,1),%al
 	addb	(%esi,%ebp,1),%dl
 	addb	%al,%dl
 	addl	$1,%ebp
 	movb	(%edi,%edx,1),%bl
-	jnz	L012cnowrap
+	jnz	L017cnowrap
 	movl	-4(%edi),%ebp
-L012cnowrap:
+L017cnowrap:
 	movb	%al,(%edi,%edx,1)
 	movb	%bl,(%edi,%ecx,1)
 	addb	$1,%cl
-	jnc	L011c2ndloop
+	jnc	L016c2ndloop
 	movl	$-1,256(%edi)
-L010exit:
+L015exit:
 	xorl	%eax,%eax
 	movl	%eax,-8(%edi)
 	movl	%eax,-4(%edi)
@@ -203,22 +344,36 @@ L010exit:
 .align	4
 _RC4_options:
 L_RC4_options_begin:
-	call	L013pic_point
-L013pic_point:
+	call	L018pic_point
+L018pic_point:
 	popl	%eax
-	leal	L014opts-L013pic_point(%eax),%eax
-	leal	_OPENSSL_ia32cap_P,%edx
-	btl	$20,(%edx)
-	jnc	L015skip
+	leal	L019opts-L018pic_point(%eax),%eax
+	call	L020PIC_me_up
+L020PIC_me_up:
+	popl	%edx
+	movl	L_OPENSSL_ia32cap_P$non_lazy_ptr-L020PIC_me_up(%edx),%edx
+	movl	(%edx),%edx
+	btl	$20,%edx
+	jc	L0211xchar
+	btl	$26,%edx
+	jnc	L022ret
+	addl	$25,%eax
+	ret
+L0211xchar:
 	addl	$12,%eax
-L015skip:
+L022ret:
 	ret
 .align	6,0x90
-L014opts:
+L019opts:
 .byte	114,99,52,40,52,120,44,105,110,116,41,0
 .byte	114,99,52,40,49,120,44,99,104,97,114,41,0
+.byte	114,99,52,40,56,120,44,109,109,120,41,0
 .byte	82,67,52,32,102,111,114,32,120,56,54,44,32,67,82,89
 .byte	80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114
 .byte	111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	6,0x90
-.comm	_OPENSSL_ia32cap_P,4
+.section __IMPORT,__pointers,non_lazy_symbol_pointers
+L_OPENSSL_ia32cap_P$non_lazy_ptr:
+.indirect_symbol	_OPENSSL_ia32cap_P
+.long	0
+.comm	_OPENSSL_ia32cap_P,8,2

@@ -68,9 +68,9 @@ typedef unsigned long long	u64;
 					   CPUs this is actually faster! */
 #    endif
 #    define GO_FOR_MMX(ctx,inp,num)	do {			\
-	extern unsigned long OPENSSL_ia32cap_P;			\
+	extern unsigned int OPENSSL_ia32cap_P[];		\
 	void whirlpool_block_mmx(void *,const void *,size_t);	\
-	if (!(OPENSSL_ia32cap_P & (1<<23)))	break;		\
+	if (!(OPENSSL_ia32cap_P[0] & (1<<23)))	break;		\
         whirlpool_block_mmx(ctx->H.c,inp,num);	return;		\
 					} while (0)
 #  endif

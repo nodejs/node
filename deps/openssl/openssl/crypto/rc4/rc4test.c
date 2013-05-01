@@ -120,6 +120,12 @@ int main(int argc, char *argv[])
 	RC4_KEY key;
 	unsigned char obuf[512];
 
+#if !defined(OPENSSL_PIC)
+	void OPENSSL_cpuid_setup(void);
+
+	OPENSSL_cpuid_setup();
+#endif
+
 	for (i=0; i<6; i++)
 		{
 		RC4_set_key(&key,keys[i][0],&(keys[i][1]));

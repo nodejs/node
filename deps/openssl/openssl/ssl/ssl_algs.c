@@ -73,6 +73,9 @@ int SSL_library_init(void)
 #endif
 #ifndef OPENSSL_NO_RC4
 	EVP_add_cipher(EVP_rc4());
+#if !defined(OPENSSL_NO_MD5) && (defined(__x86_64) || defined(__x86_64__))
+	EVP_add_cipher(EVP_rc4_hmac_md5());
+#endif
 #endif  
 #ifndef OPENSSL_NO_RC2
 	EVP_add_cipher(EVP_rc2_cbc());
@@ -85,6 +88,13 @@ int SSL_library_init(void)
 	EVP_add_cipher(EVP_aes_128_cbc());
 	EVP_add_cipher(EVP_aes_192_cbc());
 	EVP_add_cipher(EVP_aes_256_cbc());
+	EVP_add_cipher(EVP_aes_128_gcm());
+	EVP_add_cipher(EVP_aes_256_gcm());
+#if !defined(OPENSSL_NO_SHA) && !defined(OPENSSL_NO_SHA1)
+	EVP_add_cipher(EVP_aes_128_cbc_hmac_sha1());
+	EVP_add_cipher(EVP_aes_256_cbc_hmac_sha1());
+#endif
+
 #endif
 #ifndef OPENSSL_NO_CAMELLIA
 	EVP_add_cipher(EVP_camellia_128_cbc());

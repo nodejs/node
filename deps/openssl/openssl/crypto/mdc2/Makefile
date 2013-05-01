@@ -84,10 +84,10 @@ mdc2_one.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 mdc2_one.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
 mdc2_one.o: ../../include/openssl/symhacks.h ../../include/openssl/ui.h
 mdc2_one.o: ../../include/openssl/ui_compat.h ../cryptlib.h mdc2_one.c
-mdc2dgst.o: ../../include/openssl/des.h ../../include/openssl/des_old.h
-mdc2dgst.o: ../../include/openssl/e_os2.h ../../include/openssl/mdc2.h
-mdc2dgst.o: ../../include/openssl/opensslconf.h
-mdc2dgst.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
-mdc2dgst.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
-mdc2dgst.o: ../../include/openssl/ui.h ../../include/openssl/ui_compat.h
-mdc2dgst.o: mdc2dgst.c
+mdc2dgst.o: ../../include/openssl/crypto.h ../../include/openssl/des.h
+mdc2dgst.o: ../../include/openssl/des_old.h ../../include/openssl/e_os2.h
+mdc2dgst.o: ../../include/openssl/mdc2.h ../../include/openssl/opensslconf.h
+mdc2dgst.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+mdc2dgst.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+mdc2dgst.o: ../../include/openssl/symhacks.h ../../include/openssl/ui.h
+mdc2dgst.o: ../../include/openssl/ui_compat.h mdc2dgst.c
