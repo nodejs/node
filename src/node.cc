@@ -2746,12 +2746,8 @@ static void EmitDebugEnabledAsyncCallback(uv_async_t* handle, int status) {
 }
 
 
-// Called from the signal handler (unix) or off-thread (windows)
+// Called from the signal watcher callback
 static void EmitDebugEnabled() {
-  uv_async_init(uv_default_loop(),
-                &emit_debug_enabled_async,
-                EmitDebugEnabledAsyncCallback);
-  uv_unref((uv_handle_t*) &emit_debug_enabled_async);
   uv_async_send(&emit_debug_enabled_async);
 }
 
@@ -2763,11 +2759,6 @@ static void EnableDebug(bool wait_connect) {
 
   v8::Debug::SetDebugMessageDispatchHandler(DispatchMessagesDebugAgentCallback,
                                             false);
-
-  uv_async_init(uv_default_loop(),
-                &dispatch_debug_messages_async,
-                DispatchDebugMessagesAsyncCallback);
-  uv_unref((uv_handle_t*) &dispatch_debug_messages_async);
 
   // Start the debug thread and it's associated TCP server on port 5858.
   bool r = v8::Debug::EnableAgent("node " NODE_VERSION,
@@ -2783,7 +2774,7 @@ static void EnableDebug(bool wait_connect) {
 
   debugger_running = true;
 
-  // Do not emit _debug_enabled when debugger is enabled before starting
+  // Do not emit NODE_DEBUG_ENABLED when debugger is enabled before starting
   // the main process (i.e. when called via `node --debug`)
   if (!process.IsEmpty())
     EmitDebugEnabled();
@@ -3015,6 +3006,18 @@ char** Init(int argc, char *argv[]) {
 
   // Make inherited handles noninheritable.
   uv_disable_stdio_inheritance();
+
+  // init async debug messages dispatching
+  uv_async_init(uv_default_loop(),
+                &dispatch_debug_messages_async,
+                DispatchDebugMessagesAsyncCallback);
+  uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
+
+  // init async NODE_DEBUG_ENABLED emitter
+  uv_async_init(uv_default_loop(),
+                &emit_debug_enabled_async,
+                EmitDebugEnabledAsyncCallback);
+  uv_unref(reinterpret_cast<uv_handle_t*>(&emit_debug_enabled_async));
 
   // Parse a few arguments which are specific to Node.
   node::ParseArgs(argc, argv);
