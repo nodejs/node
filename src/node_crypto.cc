@@ -1573,7 +1573,7 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
       const char hex[] = "0123456789ABCDEF";
       char fingerprint[EVP_MAX_MD_SIZE * 3];
 
-      for (i=0; i<md_size; i++) {
+      for (i = 0; i<md_size; i++) {
         fingerprint[3*i] = hex[(md[i] & 0xf0) >> 4];
         fingerprint[(3*i)+1] = hex[(md[i] & 0x0f)];
         fingerprint[(3*i)+2] = ':';
@@ -2109,8 +2109,8 @@ class Cipher : public ObjectWrap {
 
   int CipherUpdate(char* data, int len, unsigned char** out, int* out_len) {
     if (!initialised_) return 0;
-    *out_len=len+EVP_CIPHER_CTX_block_size(&ctx);
-    *out= new unsigned char[*out_len];
+    *out_len = len+EVP_CIPHER_CTX_block_size(&ctx);
+    *out = new unsigned char[*out_len];
     return EVP_CipherUpdate(&ctx, *out, out_len, (unsigned char*)data, len);
   }
 
@@ -2235,15 +2235,15 @@ class Cipher : public ObjectWrap {
     ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
     // Only copy the data if we have to, because it's a string
-    unsigned char* out=0;
-    int out_len=0, r;
+    unsigned char* out = 0;
+    int out_len = 0, r;
     if (args[0]->IsString()) {
       enum encoding encoding = ParseEncoding(args[1], BINARY);
-      size_t buflen = StringBytes::SizeFast(args[0], encoding);
-      char* buf = static_cast<char*>(malloc(buflen));
+      size_t buflen = StringBytes::StorageSize(args[0], encoding);
+      char* buf = new char[buflen];
       size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
       r = cipher->CipherUpdate(buf, written, &out, &out_len);
-      free(buf);
+      delete[] buf;
     } else {
       char* buf = Buffer::Data(args[0]);
       size_t buflen = Buffer::Length(args[0]);
@@ -2407,8 +2407,8 @@ class Decipher : public ObjectWrap {
       return 0;
     }
 
-    *out_len=len+EVP_CIPHER_CTX_block_size(&ctx);
-    *out= new unsigned char[*out_len];
+    *out_len = len+EVP_CIPHER_CTX_block_size(&ctx);
+    *out = new unsigned char[*out_len];
 
     return EVP_CipherUpdate(&ctx, *out, out_len, (unsigned char*)data, len);
   }
@@ -2544,15 +2544,15 @@ class Decipher : public ObjectWrap {
     ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
     // Only copy the data if we have to, because it's a string
-    unsigned char* out=0;
-    int out_len=0, r;
+    unsigned char* out = 0;
+    int out_len = 0, r;
     if (args[0]->IsString()) {
       enum encoding encoding = ParseEncoding(args[1], BINARY);
-      size_t buflen = StringBytes::SizeFast(args[0], encoding);
-      char* buf = static_cast<char*>(malloc(buflen));
+      size_t buflen = StringBytes::StorageSize(args[0], encoding);
+      char* buf = new char[buflen];
       size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
       r = cipher->DecipherUpdate(buf, written, &out, &out_len);
-      free(buf);
+      delete[] buf;
     } else {
       char* buf = Buffer::Data(args[0]);
       size_t buflen = Buffer::Length(args[0]);
@@ -2737,11 +2737,11 @@ class Hmac : public ObjectWrap {
     int r;
     if (args[0]->IsString()) {
       enum encoding encoding = ParseEncoding(args[1], BINARY);
-      size_t buflen = StringBytes::SizeFast(args[0], encoding);
-      char* buf = static_cast<char*>(malloc(buflen));
+      size_t buflen = StringBytes::StorageSize(args[0], encoding);
+      char* buf = new char[buflen];
       size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
       r = hmac->HmacUpdate(buf, written);
-      free(buf);
+      delete[] buf;
     } else {
       char* buf = Buffer::Data(args[0]);
       size_t buflen = Buffer::Length(args[0]);
@@ -2860,11 +2860,11 @@ class Hash : public ObjectWrap {
     int r;
     if (args[0]->IsString()) {
       enum encoding encoding = ParseEncoding(args[1], BINARY);
-      size_t buflen = StringBytes::SizeFast(args[0], encoding);
-      char* buf = static_cast<char*>(malloc(buflen));
+      size_t buflen = StringBytes::StorageSize(args[0], encoding);
+      char* buf = new char[buflen];
       size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
       r = hash->HashUpdate(buf, written);
-      free(buf);
+      delete[] buf;
     } else {
       char* buf = Buffer::Data(args[0]);
       size_t buflen = Buffer::Length(args[0]);
@@ -2888,6 +2888,11 @@ class Hash : public ObjectWrap {
       return ThrowException(Exception::Error(String::New("Not initialized")));
     }
 
+    enum encoding encoding = BUFFER;
+    if (args.Length() >= 1) {
+      encoding = ParseEncoding(args[0]->ToString(), BUFFER);
+    }
+
     unsigned char md_value[EVP_MAX_MD_SIZE];
     unsigned int md_len;
 
@@ -2895,11 +2900,8 @@ class Hash : public ObjectWrap {
     EVP_MD_CTX_cleanup(&hash->mdctx);
     hash->initialised_ = false;
 
-    Local<Value> outString;
-
-    outString = Encode(md_value, md_len, BUFFER);
-
-    return scope.Close(outString);
+    return scope.Close(StringBytes::Encode(
+          reinterpret_cast<const char*>(md_value), md_len, encoding));
   }
 
   Hash () : ObjectWrap () {
@@ -3021,11 +3023,11 @@ class Sign : public ObjectWrap {
     int r;
     if (args[0]->IsString()) {
       enum encoding encoding = ParseEncoding(args[1], BINARY);
-      size_t buflen = StringBytes::SizeFast(args[0], encoding);
-      char* buf = static_cast<char*>(malloc(buflen));
+      size_t buflen = StringBytes::StorageSize(args[0], encoding);
+      char* buf = new char[buflen];
       size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
       r = sign->SignUpdate(buf, written);
-      free(buf);
+      delete[] buf;
     } else {
       char* buf = Buffer::Data(args[0]);
       size_t buflen = Buffer::Length(args[0]);
@@ -3240,11 +3242,11 @@ class Verify : public ObjectWrap {
     int r;
     if (args[0]->IsString()) {
       enum encoding encoding = ParseEncoding(args[1], BINARY);
-      size_t buflen = StringBytes::SizeFast(args[0], encoding);
-      char* buf = static_cast<char*>(malloc(buflen));
+      size_t buflen = StringBytes::StorageSize(args[0], encoding);
+      char* buf = new char[buflen];
       size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
       r = verify->VerifyUpdate(buf, written);
-      free(buf);
+      delete[] buf;
     } else {
       char* buf = Buffer::Data(args[0]);
       size_t buflen = Buffer::Length(args[0]);
@@ -3277,8 +3279,15 @@ class Verify : public ObjectWrap {
     ssize_t kwritten = DecodeWrite(kbuf, klen, args[0], BINARY);
     assert(kwritten == klen);
 
-    ASSERT_IS_BUFFER(args[1]);
-    ssize_t hlen = Buffer::Length(args[1]);
+    ASSERT_IS_STRING_OR_BUFFER(args[1]);
+
+    // BINARY works for both buffers and binary strings.
+    enum encoding encoding = BINARY;
+    if (args.Length() >= 3) {
+      encoding = ParseEncoding(args[2]->ToString(), BINARY);
+    }
+
+    ssize_t hlen = StringBytes::Size(args[1], encoding);
 
     if (hlen < 0) {
       delete [] kbuf;
