@@ -466,6 +466,16 @@ a.anchor {
   padding: 0;
 }
 
+#footer .joyent-logo {
+  display:block;
+  position:absolute;
+  overflow:hidden;
+  text-indent:-999em;
+  height:100px;
+  width:190px;
+  z-index:999;
+}
+
 #footer p {
   font-size: 11px;
   line-height: 1em;
