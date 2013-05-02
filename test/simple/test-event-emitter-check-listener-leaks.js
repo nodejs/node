@@ -82,3 +82,6 @@ e.on('uno', function() {});
 assert.ok(!e._events['uno'].hasOwnProperty('warned'));
 e.on('uno', function() {});
 assert.ok(e._events['uno'].hasOwnProperty('warned'));
+
+// chainable
+assert.strictEqual(e, e.setMaxListeners(1));
