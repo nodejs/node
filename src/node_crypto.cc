@@ -25,6 +25,7 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "string_bytes.h"
 #include "node_root_certs.h"
 
 #include <string.h>
@@ -40,6 +41,12 @@
 #else
 # define OPENSSL_CONST
 #endif
+
+#define ASSERT_IS_STRING_OR_BUFFER(val) \
+  if (!Buffer::HasInstance(val) && !val->IsString()) { \
+    return ThrowException(Exception::TypeError(String::New( \
+            "Not a string or buffer"))); \
+  }
 
 #define ASSERT_IS_BUFFER(val) \
   if (!Buffer::HasInstance(val)) { \
@@ -2225,24 +2232,33 @@ class Cipher : public ObjectWrap {
 
     HandleScope scope;
 
-    ASSERT_IS_BUFFER(args[0]);
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
+    // Only copy the data if we have to, because it's a string
     unsigned char* out=0;
     int out_len=0, r;
-    char* buffer_data = Buffer::Data(args[0]);
-    size_t buffer_length = Buffer::Length(args[0]);
-
-    r = cipher->CipherUpdate(buffer_data, buffer_length, &out, &out_len);
+    if (args[0]->IsString()) {
+      enum encoding encoding = ParseEncoding(args[1], BINARY);
+      size_t buflen = StringBytes::SizeFast(args[0], encoding);
+      char* buf = static_cast<char*>(malloc(buflen));
+      size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+      r = cipher->CipherUpdate(buf, written, &out, &out_len);
+      free(buf);
+    } else {
+      char* buf = Buffer::Data(args[0]);
+      size_t buflen = Buffer::Length(args[0]);
+      r = cipher->CipherUpdate(buf, buflen, &out, &out_len);
+    }
 
     if (r == 0) {
-      delete [] out;
+      delete[] out;
       return ThrowCryptoTypeError(ERR_get_error());
     }
 
     Local<Value> outString;
     outString = Encode(out, out_len, BUFFER);
 
-    if (out) delete [] out;
+    if (out) delete[] out;
 
     return scope.Close(outString);
   }
@@ -2525,25 +2541,26 @@ class Decipher : public ObjectWrap {
 
     Decipher *cipher = ObjectWrap::Unwrap<Decipher>(args.This());
 
-    ASSERT_IS_BUFFER(args[0]);
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
-    ssize_t len;
-
-    char* buf;
-    // if alloc_buf then buf must be deleted later
-    bool alloc_buf = false;
-    char* buffer_data = Buffer::Data(args[0]);
-    size_t buffer_length = Buffer::Length(args[0]);
-
-    buf = buffer_data;
-    len = buffer_length;
-
+    // Only copy the data if we have to, because it's a string
     unsigned char* out=0;
-    int out_len=0;
-    int r = cipher->DecipherUpdate(buf, len, &out, &out_len);
+    int out_len=0, r;
+    if (args[0]->IsString()) {
+      enum encoding encoding = ParseEncoding(args[1], BINARY);
+      size_t buflen = StringBytes::SizeFast(args[0], encoding);
+      char* buf = static_cast<char*>(malloc(buflen));
+      size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+      r = cipher->DecipherUpdate(buf, written, &out, &out_len);
+      free(buf);
+    } else {
+      char* buf = Buffer::Data(args[0]);
+      size_t buflen = Buffer::Length(args[0]);
+      r = cipher->DecipherUpdate(buf, buflen, &out, &out_len);
+    }
 
-    if (!r) {
-      delete [] out;
+    if (r == 0) {
+      delete[] out;
       return ThrowCryptoTypeError(ERR_get_error());
     }
 
@@ -2552,9 +2569,7 @@ class Decipher : public ObjectWrap {
 
     if (out) delete [] out;
 
-    if (alloc_buf) delete [] buf;
     return scope.Close(outString);
-
   }
 
   static Handle<Value> SetAutoPadding(const Arguments& args) {
@@ -2716,14 +2731,22 @@ class Hmac : public ObjectWrap {
 
     HandleScope scope;
 
-    ASSERT_IS_BUFFER(args[0]);
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
+    // Only copy the data if we have to, because it's a string
     int r;
-
-    char* buffer_data = Buffer::Data(args[0]);
-    size_t buffer_length = Buffer::Length(args[0]);
-
-    r = hmac->HmacUpdate(buffer_data, buffer_length);
+    if (args[0]->IsString()) {
+      enum encoding encoding = ParseEncoding(args[1], BINARY);
+      size_t buflen = StringBytes::SizeFast(args[0], encoding);
+      char* buf = static_cast<char*>(malloc(buflen));
+      size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+      r = hmac->HmacUpdate(buf, written);
+      free(buf);
+    } else {
+      char* buf = Buffer::Data(args[0]);
+      size_t buflen = Buffer::Length(args[0]);
+      r = hmac->HmacUpdate(buf, buflen);
+    }
 
     if (!r) {
       Local<Value> exception = Exception::TypeError(String::New("HmacUpdate fail"));
@@ -2831,13 +2854,22 @@ class Hash : public ObjectWrap {
 
     Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
 
-    ASSERT_IS_BUFFER(args[0]);
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
+    // Only copy the data if we have to, because it's a string
     int r;
-
-    char* buffer_data = Buffer::Data(args[0]);
-    size_t buffer_length = Buffer::Length(args[0]);
-    r = hash->HashUpdate(buffer_data, buffer_length);
+    if (args[0]->IsString()) {
+      enum encoding encoding = ParseEncoding(args[1], BINARY);
+      size_t buflen = StringBytes::SizeFast(args[0], encoding);
+      char* buf = static_cast<char*>(malloc(buflen));
+      size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+      r = hash->HashUpdate(buf, written);
+      free(buf);
+    } else {
+      char* buf = Buffer::Data(args[0]);
+      size_t buflen = Buffer::Length(args[0]);
+      r = hash->HashUpdate(buf, buflen);
+    }
 
     if (!r) {
       Local<Value> exception = Exception::TypeError(String::New("HashUpdate fail"));
@@ -2983,14 +3015,22 @@ class Sign : public ObjectWrap {
 
     HandleScope scope;
 
-    ASSERT_IS_BUFFER(args[0]);
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
+    // Only copy the data if we have to, because it's a string
     int r;
-
-    char* buffer_data = Buffer::Data(args[0]);
-    size_t buffer_length = Buffer::Length(args[0]);
-
-    r = sign->SignUpdate(buffer_data, buffer_length);
+    if (args[0]->IsString()) {
+      enum encoding encoding = ParseEncoding(args[1], BINARY);
+      size_t buflen = StringBytes::SizeFast(args[0], encoding);
+      char* buf = static_cast<char*>(malloc(buflen));
+      size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+      r = sign->SignUpdate(buf, written);
+      free(buf);
+    } else {
+      char* buf = Buffer::Data(args[0]);
+      size_t buflen = Buffer::Length(args[0]);
+      r = sign->SignUpdate(buf, buflen);
+    }
 
     if (!r) {
       Local<Value> exception = Exception::TypeError(String::New("SignUpdate fail"));
@@ -3194,14 +3234,22 @@ class Verify : public ObjectWrap {
 
     Verify *verify = ObjectWrap::Unwrap<Verify>(args.This());
 
-    ASSERT_IS_BUFFER(args[0]);
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
+    // Only copy the data if we have to, because it's a string
     int r;
-
-    char* buffer_data = Buffer::Data(args[0]);
-    size_t buffer_length = Buffer::Length(args[0]);
-
-    r = verify->VerifyUpdate(buffer_data, buffer_length);
+    if (args[0]->IsString()) {
+      enum encoding encoding = ParseEncoding(args[1], BINARY);
+      size_t buflen = StringBytes::SizeFast(args[0], encoding);
+      char* buf = static_cast<char*>(malloc(buflen));
+      size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+      r = verify->VerifyUpdate(buf, written);
+      free(buf);
+    } else {
+      char* buf = Buffer::Data(args[0]);
+      size_t buflen = Buffer::Length(args[0]);
+      r = verify->VerifyUpdate(buf, buflen);
+    }
 
     if (!r) {
       Local<Value> exception = Exception::TypeError(String::New("VerifyUpdate fail"));
