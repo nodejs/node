@@ -267,17 +267,17 @@ pkg: $(PKG)
 $(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --prefix=$(PKGDIR)/32$(PREFIX) --without-snapshot --dest-cpu=ia32 --tag=$(TAG)
-	$(MAKE) install V=$(V)
+	$(PYTHON) ./configure --without-snapshot --dest-cpu=ia32 --tag=$(TAG)
+	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)/32
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --prefix=$(PKGDIR)$(PREFIX) --without-snapshot --dest-cpu=x64 --tag=$(TAG)
-	$(MAKE) install V=$(V)
+	$(PYTHON) ./configure --without-snapshot --dest-cpu=x64 --tag=$(TAG)
+	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
 	SIGN="$(SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
-	lipo $(PKGDIR)/32$(PREFIX)/bin/node \
-		$(PKGDIR)$(PREFIX)/bin/node \
-		-output $(PKGDIR)$(PREFIX)/bin/node-universal \
+	lipo $(PKGDIR)/32/usr/local/bin/node \
+		$(PKGDIR)/usr/local/bin/node \
+		-output $(PKGDIR)/usr/local/bin/node-universal \
 		-create
-	mv $(PKGDIR)$(PREFIX)/bin/node-universal $(PKGDIR)$(PREFIX)/bin/node
+	mv $(PKGDIR)/usr/local/bin/node-universal $(PKGDIR)/usr/local/bin/node
 	rm -rf $(PKGDIR)/32
 	$(packagemaker) \
 		--id "org.nodejs.Node" \
