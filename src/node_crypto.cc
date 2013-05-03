@@ -2761,6 +2761,11 @@ class Hmac : public ObjectWrap {
 
     HandleScope scope;
 
+    enum encoding encoding = BUFFER;
+    if (args.Length() >= 1) {
+      encoding = ParseEncoding(args[0]->ToString(), BUFFER);
+    }
+
     unsigned char* md_value = NULL;
     unsigned int md_len = 0;
     Local<Value> outString;
@@ -2771,9 +2776,10 @@ class Hmac : public ObjectWrap {
       md_len = 0;
     }
 
-    outString = Encode(md_value, md_len, BUFFER);
+    outString = StringBytes::Encode(
+          reinterpret_cast<const char*>(md_value), md_len, encoding);
 
-    delete [] md_value;
+    delete[] md_value;
     return scope.Close(outString);
   }
 
