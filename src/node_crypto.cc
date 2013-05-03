@@ -3054,6 +3054,11 @@ class Sign : public ObjectWrap {
     ASSERT_IS_BUFFER(args[0]);
     ssize_t len = Buffer::Length(args[0]);
 
+    enum encoding encoding = BUFFER;
+    if (args.Length() >= 2) {
+      encoding = ParseEncoding(args[1]->ToString(), BUFFER);
+    }
+
     char* buf = new char[len];
     ssize_t written = DecodeWrite(buf, len, args[0], BUFFER);
     assert(written == len);
@@ -3069,7 +3074,8 @@ class Sign : public ObjectWrap {
 
     delete [] buf;
 
-    outString = Encode(md_value, md_len, BUFFER);
+    outString = StringBytes::Encode(
+        reinterpret_cast<const char*>(md_value), md_len, encoding);
 
     delete [] md_value;
     return scope.Close(outString);
@@ -3290,21 +3296,21 @@ class Verify : public ObjectWrap {
     ssize_t hlen = StringBytes::Size(args[1], encoding);
 
     if (hlen < 0) {
-      delete [] kbuf;
+      delete[] kbuf;
       Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
       return ThrowException(exception);
     }
 
     unsigned char* hbuf = new unsigned char[hlen];
-    ssize_t hwritten = DecodeWrite((char*)hbuf, hlen, args[1], BINARY);
+    ssize_t hwritten = StringBytes::Write(
+        reinterpret_cast<char*>(hbuf), hlen, args[1], BINARY);
     assert(hwritten == hlen);
 
     int r;
-
     r = verify->VerifyFinal(kbuf, klen, hbuf, hlen);
 
-    delete [] kbuf;
-    delete [] hbuf;
+    delete[] kbuf;
+    delete[] hbuf;
 
     return Boolean::New(r && r != -1);
   }
