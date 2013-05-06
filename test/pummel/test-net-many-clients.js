@@ -37,12 +37,11 @@ for (var i = 0; i < bytes; i++) {
 }
 
 var server = net.createServer(function(c) {
-  c.on('connect', function() {
-    total_connections++;
-    common.print('#');
-    c.write(body);
-    c.end();
-  });
+  console.log('connected');
+  total_connections++;
+  common.print('#');
+  c.write(body);
+  c.end();
 });
 
 function runClient(callback) {
