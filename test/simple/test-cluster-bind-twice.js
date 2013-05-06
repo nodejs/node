@@ -51,13 +51,17 @@ if (!id) {
   var b = fork(__filename, ['two']);
 
   a.on('exit', function(c) {
-    if (c)
+    if (c) {
+      b.send('QUIT');
       throw new Error('A exited with ' + c);
+    }
   });
 
   b.on('exit', function(c) {
-    if (c)
+    if (c) {
+      a.send('QUIT');
       throw new Error('B exited with ' + c);
+    }
   });
 
 
