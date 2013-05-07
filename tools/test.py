@@ -39,6 +39,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import datetime
 import threading
 from Queue import Queue, Empty
 import utils
@@ -113,9 +114,9 @@ class ProgressIndicator(object):
       self.AboutToRun(case)
       self.lock.release()
       try:
-        start = time.time()
+        start = datetime.datetime.now()
         output = case.Run()
-        case.duration = (time.time() - start)
+        case.duration = (datetime.datetime.now() - start)
       except IOError, e:
         assert self.terminate
         return
@@ -239,6 +240,12 @@ class TapProgressIndicator(SimpleProgressIndicator):
         print '#' + l
     else:
       print 'ok %i - %s' % (self._done, command)
+
+    duration = output.test.duration
+
+    print '  ---'
+    print '  duration_ms: %d.%d' % (duration.total_seconds(), duration.microseconds / 1000)
+    print '  ...'
 
   def Done(self):
     pass
