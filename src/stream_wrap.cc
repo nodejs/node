@@ -538,9 +538,6 @@ Handle<Value> StreamWrap::Writev(const Arguments& args) {
   uv_buf_t bufs_[16];
   uv_buf_t* bufs = bufs_;
 
-  if (ARRAY_SIZE(bufs_) < count)
-    bufs = new uv_buf_t[count];
-
   // Determine storage size first
   size_t storage_size = 0;
   for (size_t i = 0; i < count; i++) {
@@ -577,6 +574,9 @@ Handle<Value> StreamWrap::Writev(const Arguments& args) {
     SetErrno(err);
     return scope.Close(v8::Null(node_isolate));
   }
+
+  if (ARRAY_SIZE(bufs_) < count)
+    bufs = new uv_buf_t[count];
 
   storage_size += sizeof(WriteWrap);
   char* storage = new char[storage_size];
