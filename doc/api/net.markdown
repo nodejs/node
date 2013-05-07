@@ -450,6 +450,15 @@ The amount of bytes sent.
 
 `net.Socket` instances are [EventEmitter][] with the following events:
 
+### Event: 'lookup'
+
+Emitted after resolving the hostname but before connecting.
+Not applicable to UNIX sockets.
+
+* `err` {Error | Null} The error object.  See [dns.lookup()][].
+* `address` {String} The IP address.
+* `family` {String | Null} The address type.  See [dns.lookup()][].
+
 ### Event: 'connect'
 
 Emitted when a socket connection is successfully established.
