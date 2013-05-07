@@ -31,7 +31,6 @@
 import imp
 import optparse
 import os
-from os.path import join, dirname, abspath, basename, isdir, exists
 import platform
 import re
 import signal
@@ -39,8 +38,10 @@ import subprocess
 import sys
 import tempfile
 import time
-import datetime
 import threading
+
+from os.path import join, dirname, abspath, basename, isdir, exists
+from datetime import datetime
 from Queue import Queue, Empty
 
 sys.path.append(dirname(__file__) + "/../deps/v8/tools");
@@ -116,9 +117,9 @@ class ProgressIndicator(object):
       self.AboutToRun(case)
       self.lock.release()
       try:
-        start = datetime.datetime.now()
+        start = datetime.now()
         output = case.Run()
-        case.duration = (datetime.datetime.now() - start)
+        case.duration = (datetime.now() - start)
       except IOError, e:
         assert self.terminate
         return
@@ -245,8 +246,12 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
     duration = output.test.duration
 
+    # total_seconds() was added in 2.7
+    total_seconds = (duration.microseconds +
+      (duration.seconds + duration.days * 24 * 3600) * 10**6) / 10**6
+
     print '  ---'
-    print '  duration_ms: %d.%d' % (duration.total_seconds(), duration.microseconds / 1000)
+    print '  duration_ms: %d.%d' % (total_seconds, duration.microseconds / 1000)
     print '  ...'
 
   def Done(self):
