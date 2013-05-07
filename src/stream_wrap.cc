@@ -284,9 +284,7 @@ void StreamWrap::OnRead2(uv_pipe_t* handle, ssize_t nread, uv_buf_t buf,
 }
 
 
-size_t StreamWrap::WriteBuffer(WriteWrap* req,
-                               Handle<Value> val,
-                               uv_buf_t* buf) {
+size_t StreamWrap::WriteBuffer(Handle<Value> val, uv_buf_t* buf) {
   assert(Buffer::HasInstance(val));
 
   // Simple non-writev case
@@ -401,7 +399,7 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
   req_wrap->object_->SetHiddenValue(buffer_sym, args[0]);
 
   uv_buf_t buf;
-  WriteBuffer(req_wrap, args[0], &buf);
+  WriteBuffer(args[0], &buf);
 
   int r = uv_write(&req_wrap->req_,
                    wrap->stream_,
@@ -591,7 +589,7 @@ Handle<Value> StreamWrap::Writev(const Arguments& args) {
 
     // Write buffer
     if (Buffer::HasInstance(chunk)) {
-      bytes += WriteBuffer(req_wrap, chunk, &bufs[i]);
+      bytes += WriteBuffer(chunk, &bufs[i]);
       continue;
     }
 

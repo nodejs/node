@@ -62,9 +62,7 @@ class StreamWrap : public HandleWrap {
   static v8::Handle<v8::Value> WriteUcs2String(const v8::Arguments& args);
 
  protected:
-  static size_t WriteBuffer(WriteWrap* req,
-                            v8::Handle<v8::Value> val,
-                            uv_buf_t* buf);
+  static size_t WriteBuffer(v8::Handle<v8::Value> val, uv_buf_t* buf);
   template <enum WriteEncoding encoding>
   static size_t WriteStringImpl(char* storage,
                                 size_t storage_size,
