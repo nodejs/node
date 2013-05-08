@@ -161,10 +161,14 @@
           'BUILDING_UV_SHARED=1',
         ],
       }],
-      [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
-        'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', '-pthread', ],
+      [ 'OS in "linux freebsd openbsd solaris"', {
+        'cflags': [ '-pthread', ],
+        'ldflags': [ '-pthread' ],
+      }],
+      [ 'OS in "linux freebsd openbsd solaris android"', {
+        'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions' ],
-        'ldflags': [ '-pthread', '-rdynamic' ],
+        'ldflags': [ '-rdynamic' ],
         'target_conditions': [
           ['_type=="static_library"', {
             'standalone_static_library': 1, # disable thin archive which needs binutils >= 2.19
@@ -186,6 +190,10 @@
             'ldflags!': [ '-pthread' ],
           }],
         ],
+      }],
+      [ 'OS=="android"', {
+        'defines': ['_GLIBCXX_USE_C99_MATH'],
+        'libraries': [ '-llog' ],
       }],
       ['OS=="mac"', {
         'defines': ['_DARWIN_USE_64_BIT_INODE=1'],

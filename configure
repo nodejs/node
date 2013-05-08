@@ -237,7 +237,7 @@ parser.add_option("--dest-os",
     action="store",
     dest="dest_os",
     help="Operating system to build for. Valid values are: "
-         "win, mac, solaris, freebsd, openbsd, linux")
+         "win, mac, solaris, freebsd, openbsd, linux, android")
 
 parser.add_option("--no-ifaddrs",
     action="store_true",
@@ -434,6 +434,8 @@ def configure_arm(o):
 
 
 def configure_node(o):
+  if options.dest_os == 'android':
+    o['variables']['OS'] = "android"
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
   o['variables']['v8_no_strict_aliasing'] = 1 # work around compiler bugs
   o['variables']['node_prefix'] = os.path.expanduser(options.prefix or '')
@@ -640,6 +642,7 @@ configure_libuv(output)
 configure_v8(output)
 configure_openssl(output)
 configure_winsdk(output)
+
 
 # variables should be a root level element,
 # move everything else to target_defaults

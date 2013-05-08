@@ -213,7 +213,8 @@ The shell that executed node should see the exit code as 1.
 
 ## process.getgid()
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Gets the group identity of the process. (See getgid(2).)
 This is the numerical group id, not the group name.
@@ -225,7 +226,8 @@ This is the numerical group id, not the group name.
 
 ## process.setgid(id)
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Sets the group identity of the process. (See setgid(2).)  This accepts either
 a numerical ID or a groupname string. If a groupname is specified, this method
@@ -245,7 +247,8 @@ blocks while resolving it to a numerical ID.
 
 ## process.getuid()
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Gets the user identity of the process. (See getuid(2).)
 This is the numerical userid, not the username.
@@ -257,7 +260,8 @@ This is the numerical userid, not the username.
 
 ## process.setuid(id)
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Sets the user identity of the process. (See setuid(2).)  This accepts either
 a numerical ID or a username string.  If a username is specified, this method
@@ -277,7 +281,8 @@ blocks while resolving it to a numerical ID.
 
 ## process.getgroups()
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Returns an array with the supplementary group IDs. POSIX leaves it unspecified
 if the effective group ID is included but node.js ensures it always is.
@@ -285,7 +290,8 @@ if the effective group ID is included but node.js ensures it always is.
 
 ## process.setgroups(groups)
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Sets the supplementary group IDs. This is a privileged operation, meaning you
 need to be root or have the CAP_SETGID capability.
@@ -295,7 +301,8 @@ The list can contain group IDs, group names or both.
 
 ## process.initgroups(user, extra_group)
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Reads /etc/group and initializes the group access list, using all groups of
 which the user is a member. This is a privileged operation, meaning you need

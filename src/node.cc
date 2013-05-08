@@ -61,7 +61,7 @@ typedef int mode_t;
 #include <sys/types.h>
 #include "zlib.h"
 
-#ifdef __POSIX__
+#if defined(__POSIX__) && !defined(__ANDROID__)
 # include <pwd.h> /* getpwnam() */
 # include <grp.h> /* getgrnam() */
 #endif
@@ -1374,7 +1374,7 @@ static Handle<Value> Umask(const Arguments& args) {
 }
 
 
-#ifdef __POSIX__
+#if defined(__POSIX__) && !defined(__ANDROID__)
 
 static const uid_t uid_not_found = static_cast<uid_t>(-1);
 static const gid_t gid_not_found = static_cast<gid_t>(-1);
@@ -1650,7 +1650,7 @@ static Handle<Value> InitGroups(const Arguments& args) {
   return Undefined(node_isolate);
 }
 
-#endif // __POSIX__
+#endif // __POSIX__ && !defined(__ANDROID__)
 
 
 v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
@@ -2349,7 +2349,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   NODE_SET_METHOD(process, "umask", Umask);
 
-#ifdef __POSIX__
+#if defined(__POSIX__) && !defined(__ANDROID__)
   NODE_SET_METHOD(process, "getuid", GetUid);
   NODE_SET_METHOD(process, "setuid", SetUid);
 
@@ -2359,7 +2359,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "getgroups", GetGroups);
   NODE_SET_METHOD(process, "setgroups", SetGroups);
   NODE_SET_METHOD(process, "initgroups", InitGroups);
-#endif // __POSIX__
+#endif // __POSIX__ && !defined(__ANDROID__)
 
   NODE_SET_METHOD(process, "_kill", Kill);
 
