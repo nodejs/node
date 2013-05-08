@@ -117,6 +117,21 @@ The callback has arguments `(err, domains)`.
 On error, `err` is an `Error` object, where `err.code` is
 one of the error codes listed below.
 
+## dns.getServers()
+
+Returns an array of IP addresses as strings that are currently being used for
+resolution
+
+## dns.setServers(servers)
+
+Given an array of IP addresses as strings, set them as the servers to use for
+resolving
+
+If you specify a port with the address it will be stripped, as the underlying
+library doesn't support that.
+
+This will throw if you pass invalid input.
+
 ## Error codes
 
 Each DNS query can return one of the following error codes:
