@@ -66,12 +66,8 @@ assert.doesNotThrow(
       watcher.on('change', function(event, filename) {
         assert.equal('change', event);
 
-        // darwin only shows the file path for subdir watching,
-        // not for individual file watching.
-        if (expectFilePath && process.platform !== 'darwin') {
+        if (expectFilePath) {
           assert.equal('watch.txt', filename);
-        } else {
-          assert.equal(null, filename);
         }
         watcher.close();
         ++watchSeenOne;
@@ -93,12 +89,8 @@ assert.doesNotThrow(
       var watcher = fs.watch(filepathTwo, function(event, filename) {
         assert.equal('change', event);
 
-        // darwin only shows the file path for subdir watching,
-        // not for individual file watching.
-        if (expectFilePath && process.platform !== 'darwin') {
+        if (expectFilePath) {
           assert.equal('hasOwnProperty', filename);
-        } else {
-          assert.equal(null, filename);
         }
         watcher.close();
         ++watchSeenTwo;
