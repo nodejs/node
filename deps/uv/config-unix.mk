@@ -18,8 +18,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-OBJC ?= $(CC)
-
 E=
 CSTDFLAG=--std=c89 -pedantic -Wall -Wextra -Wno-unused-parameter
 CFLAGS += -g
@@ -80,8 +78,12 @@ endif
 
 ifeq (darwin,$(PLATFORM))
 HAVE_DTRACE=1
-# dtrace(1) probes contain dollar signs.
+# dtrace(1) probes contain dollar signs on OS X. Mute the warnings they
+# generate but only when CC=clang, -Wno-dollar-in-identifier-extension
+# is a clang extension.
+ifeq (__clang__,$(shell sh -c "$(CC) -dM -E - </dev/null | grep -ow __clang__"))
 CFLAGS += -Wno-dollar-in-identifier-extension
+endif
 CPPFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
 LDFLAGS += -framework Foundation \
            -framework CoreServices \
@@ -130,13 +132,6 @@ OBJS += src/unix/openbsd.o
 OBJS += src/unix/kqueue.o
 endif
 
-ifneq (,$(findstring cygwin,$(PLATFORM)))
-# We drop the --std=c89, it hides CLOCK_MONOTONIC on cygwin
-CSTDFLAG = -D_GNU_SOURCE
-LDFLAGS+=
-OBJS += src/unix/cygwin.o
-endif
-
 ifeq (sunos,$(PLATFORM))
 RUNNER_LDFLAGS += -pthreads
 else
@@ -180,9 +175,6 @@ test/%.o: test/%.c include/uv.h test/.buildstamp
 
 clean-platform:
 	$(RM) test/run-{tests,benchmarks}.dSYM $(OBJS) $(OBJS:%.o=%.pic.o) src/unix/uv-dtrace.h
-
-%.pic.o %.o:  %.m
-	$(OBJC) $(CPPFLAGS) $(CFLAGS) -c $^ -o $@
 
 src/unix/uv-dtrace.h: src/unix/uv-dtrace.d
 	dtrace -h -xnolibs -s $< -o $@

@@ -71,10 +71,8 @@ STATIC_ASSERT(sizeof(&((uv_buf_t*) 0)->base) ==
               sizeof(((struct iovec*) 0)->iov_base));
 STATIC_ASSERT(sizeof(&((uv_buf_t*) 0)->len) ==
               sizeof(((struct iovec*) 0)->iov_len));
-STATIC_ASSERT((uintptr_t) &((uv_buf_t*) 0)->base ==
-              (uintptr_t) &((struct iovec*) 0)->iov_base);
-STATIC_ASSERT((uintptr_t) &((uv_buf_t*) 0)->len ==
-              (uintptr_t) &((struct iovec*) 0)->iov_len);
+STATIC_ASSERT(offsetof(uv_buf_t, base) == offsetof(struct iovec, iov_base));
+STATIC_ASSERT(offsetof(uv_buf_t, len) == offsetof(struct iovec, iov_len));
 
 
 uint64_t uv_hrtime(void) {

@@ -143,6 +143,11 @@ long int process_output_size(process_info_t *p);
 /* Copy the contents of the stdio output buffer to `fd`. */
 int process_copy_output(process_info_t *p, int fd);
 
+/* Copy the last line of the stdio output buffer to `buffer` */
+int process_read_last_line(process_info_t *p,
+                           char * buffer,
+                           size_t buffer_len);
+
 /* Return the name that was specified when `p` was started by process_start */
 char* process_get_name(process_info_t *p);
 

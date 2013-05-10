@@ -426,6 +426,11 @@ void uv_unref(uv_handle_t* handle) {
 }
 
 
+int uv_has_ref(const uv_handle_t* handle) {
+  return uv__has_ref(handle);
+}
+
+
 void uv_stop(uv_loop_t* loop) {
   loop->stop_flag = 1;
 }

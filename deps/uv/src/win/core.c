@@ -90,6 +90,7 @@ static void uv_loop_init(uv_loop_t* loop) {
   /* To prevent uninitialized memory access, loop->time must be intialized */
   /* to zero before calling uv_update_time for the first time. */
   loop->time = 0;
+  loop->last_tick_count = 0;
   uv_update_time(loop);
 
   QUEUE_INIT(&loop->handle_queue);
@@ -205,12 +206,15 @@ static void uv_poll(uv_loop_t* loop, int block) {
   if (overlapped) {
     /* Package was dequeued */
     req = uv_overlapped_to_req(overlapped);
-
     uv_insert_pending_req(loop, req);
-
   } else if (GetLastError() != WAIT_TIMEOUT) {
     /* Serious error */
     uv_fatal_error(GetLastError(), "GetQueuedCompletionStatus");
+  } else {
+    /* We're sure that at least `timeout` milliseconds have expired, but */
+    /* this may not be reflected yet in the GetTickCount() return value. */
+    /* Therefore we ensure it's taken into account here. */
+    uv__time_forward(loop, timeout);
   }
 }
 
@@ -229,14 +233,13 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
     timeout = 0;
   }
 
-  assert(pGetQueuedCompletionStatusEx);
-
   success = pGetQueuedCompletionStatusEx(loop->iocp,
                                          overlappeds,
                                          ARRAY_SIZE(overlappeds),
                                          &count,
                                          timeout,
                                          FALSE);
+
   if (success) {
     for (i = 0; i < count; i++) {
       /* Package was dequeued */
@@ -246,6 +249,11 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
   } else if (GetLastError() != WAIT_TIMEOUT) {
     /* Serious error */
     uv_fatal_error(GetLastError(), "GetQueuedCompletionStatusEx");
+  } else if (timeout > 0) {
+    /* We're sure that at least `timeout` milliseconds have expired, but */
+    /* this may not be reflected yet in the GetTickCount() return value. */
+    /* Therefore we ensure it's taken into account here. */
+    uv__time_forward(loop, timeout);
   }
 }
 

@@ -186,6 +186,9 @@ void uv__fs_poll_close(uv_fs_poll_t* handle);
   }                                                                           \
   while (0)
 
+#define uv__has_ref(h)                                                        \
+  (((h)->flags & UV__HANDLE_REF) != 0)
+
 #if defined(_WIN32)
 # define uv__handle_platform_init(h)
 #else

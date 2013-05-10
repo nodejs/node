@@ -88,6 +88,7 @@ TESTS= \
 	test/test-loop-stop.o \
 	test/test-multiple-listen.o \
 	test/test-mutexes.o \
+	test/test-osx-select.o \
 	test/test-pass-always.o \
 	test/test-ping-pong.o \
 	test/test-pipe-bind-error.o \

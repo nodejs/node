@@ -248,6 +248,46 @@ int process_copy_output(process_info_t *p, int fd) {
 }
 
 
+int process_read_last_line(process_info_t *p,
+                           char * buffer,
+                           size_t buffer_len) {
+  DWORD size;
+  DWORD read;
+  DWORD start;
+  OVERLAPPED overlapped;
+
+  ASSERT(buffer_len > 0);
+
+  size = GetFileSize(p->stdio_out, NULL);
+  if (size == INVALID_FILE_SIZE)
+    return -1;
+
+  if (size == 0) {
+    buffer[0] = '\0';
+    return 1;
+  }
+
+  memset(&overlapped, 0, sizeof overlapped);
+  if (size >= buffer_len)
+    overlapped.Offset = size - buffer_len - 1;
+
+  if (!ReadFile(p->stdio_out, buffer, buffer_len - 1, &read, &overlapped))
+    return -1;
+
+  for (start = read - 1; start >= 0; start--) {
+    if (buffer[start] == '\n' || buffer[start] == '\r')
+      break;
+  }
+
+  if (start > 0)
+    memmove(buffer, buffer + start, read - start);
+
+  buffer[read - start] = '\0';
+
+  return 0;
+}
+
+
 char* process_get_name(process_info_t *p) {
   return p->name;
 }

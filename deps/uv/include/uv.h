@@ -281,6 +281,7 @@ UV_EXTERN void uv_stop(uv_loop_t*);
  */
 UV_EXTERN void uv_ref(uv_handle_t*);
 UV_EXTERN void uv_unref(uv_handle_t*);
+UV_EXTERN int uv_has_ref(const uv_handle_t*);
 
 UV_EXTERN void uv_update_time(uv_loop_t*);
 UV_EXTERN uint64_t uv_now(uv_loop_t*);
@@ -579,9 +580,9 @@ UV_EXTERN int uv_accept(uv_stream_t* server, uv_stream_t* client);
 
 /*
  * Read data from an incoming stream. The callback will be made several
- * several times until there is no more data to read or uv_read_stop is
- * called. When we've reached EOF nread will be set to -1 and the error is
- * set to UV_EOF. When nread == -1 the buf parameter might not point to a
+ * times until there is no more data to read or uv_read_stop is called.
+ * When we've reached EOF nread will be set to -1 and the error is set
+ * to UV_EOF. When nread == -1 the buf parameter might not point to a
  * valid buffer; in that case buf.len and buf.base are both set to 0.
  * Note that nread might also be 0, which does *not* indicate an error or
  * eof; it happens when libuv requested a buffer through the alloc callback
@@ -1754,9 +1755,9 @@ UV_EXTERN int uv_signal_stop(uv_signal_t* handle);
 
 
 /*
- * Gets load avg
+ * Gets load average.
  * See: http://en.wikipedia.org/wiki/Load_(computing)
- * (Returns [0,0,0] for windows and cygwin)
+ * Returns [0,0,0] on Windows.
  */
 UV_EXTERN void uv_loadavg(double avg[3]);
 

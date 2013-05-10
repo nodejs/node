@@ -5,7 +5,8 @@
     # this is only relevant when dtrace is enabled and libuv is a child project
     # as it's necessary to correctly locate the object files for post
     # processing.
-    'uv_parent_path': '',
+    # XXX gyp is quite sensitive about paths with double / they don't normalize
+    'uv_parent_path': '/',
   },
 
   'target_defaults': {
@@ -176,7 +177,7 @@
           'sources': [
             'src/unix/darwin.c',
             'src/unix/fsevents.c',
-            'src/unix/darwin-proctitle.m',
+            'src/unix/darwin-proctitle.c',
           ],
           'link_settings': {
             'libraries': [
@@ -235,21 +236,16 @@
         }],
         [ 'OS=="freebsd" or OS=="dragonflybsd"', {
           'sources': [ 'src/unix/freebsd.c' ],
-          'link_settings': {
-            'libraries': [
-              '-lkvm',
-            ],
-          },
         }],
         [ 'OS=="openbsd"', {
           'sources': [ 'src/unix/openbsd.c' ],
         }],
         [ 'OS=="netbsd"', {
           'sources': [ 'src/unix/netbsd.c' ],
+        }],
+        [ 'OS in "freebsd dragonflybsd openbsd netbsd".split()', {
           'link_settings': {
-            'libraries': [
-              '-lkvm',
-            ],
+            'libraries': [ '-lkvm' ],
           },
         }],
         [ 'OS in "mac freebsd dragonflybsd openbsd netbsd".split()', {
@@ -309,6 +305,7 @@
         'test/test-loop-stop.c',
         'test/test-walk-handles.c',
         'test/test-multiple-listen.c',
+        'test/test-osx-select.c',
         'test/test-pass-always.c',
         'test/test-ping-pong.c',
         'test/test-pipe-bind-error.c',
@@ -475,10 +472,10 @@
               'action_name': 'uv_dtrace_o',
               'inputs': [
                 'src/unix/uv-dtrace.d',
-                '<(PRODUCT_DIR)/obj.target/libuv/<(uv_parent_path)/src/unix/core.o',
+                '<(PRODUCT_DIR)/obj.target/libuv<(uv_parent_path)src/unix/core.o',
               ],
               'outputs': [
-                '<(PRODUCT_DIR)/obj.target/libuv/<(uv_parent_path)/src/unix/dtrace.o',
+                '<(PRODUCT_DIR)/obj.target/libuv<(uv_parent_path)src/unix/dtrace.o',
               ],
               'action': [ 'dtrace', '-G', '-xnolibs', '-s', '<@(_inputs)',
                 '-o', '<@(_outputs)' ]

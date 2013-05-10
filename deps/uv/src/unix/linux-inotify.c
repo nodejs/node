@@ -45,13 +45,6 @@ struct watcher_root {
 #define CAST(p) ((struct watcher_root*)(p))
 
 
-/* Don't look aghast, this is exactly how glibc's basename() works. */
-static char* basename_r(const char* path) {
-  char* s = strrchr(path, '/');
-  return s ? (s + 1) : (char*)path;
-}
-
-
 static int compare_watchers(const struct watcher_list* a,
                             const struct watcher_list* b) {
   if (a->wd < b->wd) return -1;
@@ -156,7 +149,7 @@ static void uv__inotify_read(uv_loop_t* loop,
        * for modifications. Repurpose the filename for API compatibility.
        * I'm not convinced this is a good thing, maybe it should go.
        */
-      path = e->len ? (const char*) (e + 1) : basename_r(w->path);
+      path = e->len ? (const char*) (e + 1) : uv__basename_r(w->path);
 
       QUEUE_FOREACH(q, &w->watchers) {
         h = QUEUE_DATA(q, uv_fs_event_t, watchers);

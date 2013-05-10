@@ -413,3 +413,15 @@ TEST_IMPL(process_ref) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+
+TEST_IMPL(has_ref) {
+  uv_idle_t h;
+  uv_idle_init(uv_default_loop(), &h);
+  uv_ref((uv_handle_t*)&h);
+  ASSERT(uv_has_ref((uv_handle_t*)&h) == 1);
+  uv_unref((uv_handle_t*)&h);
+  ASSERT(uv_has_ref((uv_handle_t*)&h) == 0);
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

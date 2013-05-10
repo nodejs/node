@@ -18,7 +18,8 @@
  * IN THE SOFTWARE.
  */
 
-#include <Cocoa/Cocoa.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <ApplicationServices/ApplicationServices.h>
 
 
 int uv__set_process_title(const char* title) {
@@ -43,14 +44,14 @@ int uv__set_process_title(const char* title) {
   if (launch_services_bundle == NULL)
     return -1;
 
-  ls_get_current_application_asn =
+  ls_get_current_application_asn = (LSGetCurrentApplicationASNType)
       CFBundleGetFunctionPointerForName(launch_services_bundle,
                                         CFSTR("_LSGetCurrentApplicationASN"));
 
   if (ls_get_current_application_asn == NULL)
     return -1;
 
-  ls_set_application_information_item =
+  ls_set_application_information_item = (LSSetApplicationInformationItemType)
       CFBundleGetFunctionPointerForName(launch_services_bundle,
                                         CFSTR("_LSSetApplicationInformationItem"));
 

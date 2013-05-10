@@ -20,42 +20,63 @@
  */
 
 #include "uv.h"
+#include "task.h"
 
- /*
- * Versions with an even minor version (e.g. 0.6.1 or 1.0.4) are API and ABI
- * stable. When the minor version is odd, the API can change between patch
- * releases.
- */
+#ifdef __APPLE__
 
-#define UV_VERSION_MAJOR 0
-#define UV_VERSION_MINOR 11
-#define UV_VERSION_PATCH 2
-#define UV_VERSION_IS_RELEASE 1
+#include <sys/ioctl.h>
+#include <string.h>
+
+static int read_count;
 
 
-#define UV_VERSION  ((UV_VERSION_MAJOR << 16) | \
-                     (UV_VERSION_MINOR <<  8) | \
-                     (UV_VERSION_PATCH))
+static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
+  static char buf[1024];
 
-#define UV_STRINGIFY(v) UV_STRINGIFY_HELPER(v)
-#define UV_STRINGIFY_HELPER(v) #v
-
-#define UV_VERSION_STRING_BASE  UV_STRINGIFY(UV_VERSION_MAJOR) "." \
-                                UV_STRINGIFY(UV_VERSION_MINOR) "." \
-                                UV_STRINGIFY(UV_VERSION_PATCH)
-
-#if UV_VERSION_IS_RELEASE
-# define UV_VERSION_STRING  UV_VERSION_STRING_BASE
-#else
-# define UV_VERSION_STRING  UV_VERSION_STRING_BASE "-pre"
-#endif
-
-
-unsigned int uv_version(void) {
-  return UV_VERSION;
+  return uv_buf_init(buf, ARRAY_SIZE(buf));
 }
 
 
-const char* uv_version_string(void) {
-  return UV_VERSION_STRING;
+static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
+  fprintf(stdout, "got data %d\n", ++read_count);
+
+  if (read_count == 3)
+    uv_close((uv_handle_t*) stream, NULL);
 }
+
+
+TEST_IMPL(osx_select) {
+  int r;
+  int fd;
+  size_t i;
+  size_t len;
+  const char* str;
+  uv_tty_t tty;
+
+  fd = open("/dev/tty", O_RDONLY);
+
+  ASSERT(fd >= 0);
+
+  r = uv_tty_init(uv_default_loop(), &tty, fd, 1);
+  ASSERT(r == 0);
+
+  uv_read_start((uv_stream_t*) &tty, alloc_cb, read_cb);
+
+  // Emulate user-input
+  str = "got some input\n"
+        "with a couple of lines\n"
+        "feel pretty happy\n";
+  for (i = 0, len = strlen(str); i < len; i++) {
+    r = ioctl(fd, TIOCSTI, str + i);
+    ASSERT(r == 0);
+  }
+
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+  ASSERT(read_count == 3);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+#endif /* __APPLE__ */

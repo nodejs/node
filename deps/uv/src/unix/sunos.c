@@ -189,6 +189,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       w->cb(loop, w, pe->portev_events);
       nevents++;
 
+      if (w != loop->watchers[fd])
+        continue;  /* Disabled by callback. */
+
       /* Events Ports operates in oneshot mode, rearm timer on next run. */
       if (w->pevents != 0 && QUEUE_EMPTY(&w->watcher_queue))
         QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);

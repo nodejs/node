@@ -259,6 +259,11 @@ static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
   uv_fs_event_t* handle;
   struct kevent ev;
   int events;
+  const char* path;
+#if defined(F_GETPATH)
+  /* MAXPATHLEN == PATH_MAX but the former is what XNU calls it internally. */
+  char pathbuf[MAXPATHLEN];
+#endif
 
   handle = container_of(w, uv_fs_event_t, event_watcher);
 
@@ -267,7 +272,16 @@ static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
   else
     events = UV_RENAME;
 
-  handle->cb(handle, NULL, events, 0);
+  path = NULL;
+#if defined(F_GETPATH)
+  /* Also works when the file has been unlinked from the file system. Passing
+   * in the path when the file has been deleted is arguably a little strange
+   * but it's consistent with what the inotify backend does.
+   */
+  if (fcntl(handle->event_watcher.fd, F_GETPATH, pathbuf) == 0)
+    path = uv__basename_r(pathbuf);
+#endif
+  handle->cb(handle, path, events, 0);
 
   if (handle->event_watcher.fd == -1)
     return;
