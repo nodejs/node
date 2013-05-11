@@ -1,4 +1,4 @@
-# form-data
+# Form-Data [![Build Status](https://travis-ci.org/alexindigo/node-form-data.png?branch=master)](https://travis-ci.org/alexindigo/node-form-data)
 
 A module to create readable `"multipart/form-data"` streams.  Can be used to
 submit forms and file uploads to other web applications.
@@ -10,7 +10,9 @@ The API of this module is inspired by the
 
 ## Install
 
-Sorry, this isn't ready for you yet.
+```
+npm install form-data
+```
 
 ## Usage
 
@@ -102,7 +104,28 @@ form.submit('http://example.com/', function(err, res) {
 });
 ```
 
-For edge cases, like POST request to URL with query string or to pass HTTP auth creadentials, object can be passed to `form.submit()` as first parameter:
+Form-Data can recognize and fetch all the required information from common types of streams (fs.readStream, http.response and mikeal's request), for some other types of streams you'd need to provide "file"-related information manually:
+
+``` javascript
+someModule.stream(function(err, stdout, stderr) {
+  if (err) throw err;
+
+  var form = new FormData();
+
+  form.append('file', stdout, {
+    filename: 'unicycle.jpg',
+    contentType: 'image/jpg',
+    knownLength: 19806
+  });
+
+  form.submit('http://example.com/', function(err, res) {
+    if (err) throw err;
+    console.log('Done');
+  });
+});
+```
+
+For edge cases, like POST request to URL with query string or to pass HTTP auth credentials, object can be passed to `form.submit()` as first parameter:
 
 ``` javascript
 form.submit({
@@ -114,5 +137,10 @@ form.submit({
 });
 ```
 
+## TODO
 
-[xhr2-fd]: http://dev.w3.org/2006/webapi/XMLHttpRequest-2/Overview.html#the-formdata-interface
+- Add new streams (0.10) support and try really hard not to break it for 0.8.x.
+
+## License
+
+Form-Data is licensed under the MIT license.

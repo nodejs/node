@@ -10,7 +10,7 @@ help.completion = function (opts, cb) {
 
 var fs = require("graceful-fs")
   , path = require("path")
-  , exec = require("./utils/exec.js")
+  , spawn = require("child_process").spawn
   , npm = require("./npm.js")
   , log = require("npmlog")
   , opener = require("opener")
@@ -60,7 +60,9 @@ function help (args, cb) {
           switch (viewer) {
             case "woman":
               var a = ["-e", "(woman-find-file \"" + sectionPath + "\")"]
-              exec("emacsclient", a, env, true, cb)
+              var conf = { env: env, customFds: [ 0, 1, 2] }
+              var woman = spawn("emacsclient", a, conf)
+              woman.on("close", cb)
               break
 
             case "browser":
@@ -68,7 +70,9 @@ function help (args, cb) {
               break
 
             default:
-              exec("man", [num, section], env, true, cb)
+              var conf = { env: env, customFds: [ 0, 1, 2] }
+              var man = spawn("man", [num, section], conf)
+              man.on("close", cb)
           }
         }
       )

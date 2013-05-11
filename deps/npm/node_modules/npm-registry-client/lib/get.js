@@ -52,7 +52,7 @@ function requestAll (cb) {
         fs.writeFile(cache, "{}", function (er) {
           if (er) return cb(new Error("Broken cache."))
           return requestAll_.call(this, 0, {}, cb)
-        })
+        }.bind(this))
       }
       var t = +data._updated || 0
       requestAll_.call(this, t, data, cb)

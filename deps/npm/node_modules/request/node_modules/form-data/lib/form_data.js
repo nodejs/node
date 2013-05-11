@@ -118,11 +118,12 @@ FormData.prototype._multiPartHeader = function(field, value, options) {
       'Content-Disposition: form-data; name="' + field + '"';
 
     // fs- and request- streams have path property
+    // or use custom filename and/or contentType
     // TODO: Use request's response mime-type
-    if (value.path) {
+    if (options.filename || value.path) {
       header +=
-        '; filename="' + path.basename(value.path) + '"' + FormData.LINE_BREAK +
-        'Content-Type: ' + mime.lookup(value.path);
+        '; filename="' + path.basename(options.filename || value.path) + '"' + FormData.LINE_BREAK +
+        'Content-Type: ' +  (options.contentType || mime.lookup(options.filename || value.path));
 
     // http response has not
     } else if (value.readable && value.hasOwnProperty('httpVersion')) {

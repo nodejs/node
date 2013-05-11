@@ -1,4 +1,3 @@
-
 var ProtoList = require('proto-list')
   , path = require('path')
   , fs = require('fs')
@@ -60,7 +59,8 @@ var parse = exports.parse = function (content, file, type) {
 }
 
 var json = exports.json = function () {
-  var file = path.join.apply(null, [].slice.call(arguments))
+  var args = [].slice.call(arguments).filter(function (arg) { return arg != null })
+  var file = path.join.apply(null, args)
   var content
   try {
     content = fs.readFileSync(file,'utf-8')

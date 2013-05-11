@@ -124,6 +124,15 @@ function errorHandler (er) {
               ].join("\n"))
     break
 
+  case "ENOGIT":
+    er.code = "ENOGIT"
+    log.error("", er.message)
+    log.error("", ["","Failed using git."
+              ,"This is most likely not a problem with npm itself."
+              ,"Please check if you have git installed and in your PATH."
+              ].join("\n"))
+    break
+
   case "EJSONPARSE":
     er.code = "EJSONPARSE"
     log.error("", er.message)
@@ -213,6 +222,16 @@ function errorHandler (er) {
         + er.peersDepending[peer]
     })
     log.error("peerinvalid", [er.message].concat(peerErrors).join("\n"))
+    break
+
+  case "ENOTFOUND":
+    log.error("network", [er.message
+              ,"This is most likely not a problem with npm itself"
+              ,"and is related to network connectivity."
+              ,"In most cases you are behind a proxy or have bad network settings."
+              ,"\nIf you are behind a proxy, please make sure that the"
+              ,"'proxy' config is set properly.  See: 'npm help config'"
+              ].join("\n"))
     break
 
   case "ENOTSUP":

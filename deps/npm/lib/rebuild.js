@@ -8,7 +8,6 @@ var readInstalled = require("read-installed")
   , npm = require("./npm.js")
   , asyncMap = require("slide").asyncMap
   , fs = require("graceful-fs")
-  , exec = require("./utils/exec.js")
 
 rebuild.usage = "npm rebuild [<name>[@<version>] [name[@<version>] ...]]"
 

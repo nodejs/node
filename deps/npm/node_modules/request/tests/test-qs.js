@@ -32,3 +32,11 @@ var req5 = request.get({ uri: 'http://www.google.com', qs: {}})
 setTimeout(function(){
 	assert.equal('/', req5.path)
 }, 1)
+
+
+// Test modifying the qs after creating the request
+var req6 = request.get({ uri: 'http://www.google.com', qs: {}});
+req6.qs({ q: "test" });
+process.nextTick(function() {
+    assert.equal('/?q=test', req6.path);
+});

@@ -80,7 +80,7 @@ describe('Hawk', function () {
                 expect(err).to.not.exist;
                 expect(credentials.user).to.equal('steve');
                 expect(artifacts.ext).to.equal('some-app-data');
-                expect(Hawk.server.authenticatePayload(payload, credentials, artifacts.hash, req.headers['content-type'])).to.equal(true);
+                expect(Hawk.server.authenticatePayload(payload, credentials, artifacts, req.headers['content-type'])).to.equal(true);
 
                 var res = {
                     headers: {
@@ -88,10 +88,10 @@ describe('Hawk', function () {
                     }
                 };
 
-                res.headers['server-authorization'] = Hawk.server.header(artifacts, { payload: 'some reply', contentType: 'text/plain', ext: 'response-specific' });
+                res.headers['server-authorization'] = Hawk.server.header(credentials, artifacts, { payload: 'some reply', contentType: 'text/plain', ext: 'response-specific' });
                 expect(res.headers['server-authorization']).to.exist;
 
-                expect(Hawk.client.authenticate(res, artifacts, { payload: 'some reply' })).to.equal(true);
+                expect(Hawk.client.authenticate(res, credentials, artifacts, { payload: 'some reply' })).to.equal(true);
                 done();
             });
         });
@@ -120,7 +120,7 @@ describe('Hawk', function () {
                 expect(err).to.not.exist;
                 expect(credentials.user).to.equal('steve');
                 expect(artifacts.ext).to.equal('some-app-data');
-                expect(Hawk.server.authenticatePayload(payload, credentials, artifacts.hash, req.headers['content-type'])).to.equal(true);
+                expect(Hawk.server.authenticatePayload(payload, credentials, artifacts, req.headers['content-type'])).to.equal(true);
 
                 var res = {
                     headers: {
@@ -128,10 +128,10 @@ describe('Hawk', function () {
                     }
                 };
 
-                res.headers['server-authorization'] = Hawk.server.header(artifacts);
+                res.headers['server-authorization'] = Hawk.server.header(credentials, artifacts);
                 expect(res.headers['server-authorization']).to.exist;
 
-                expect(Hawk.client.authenticate(res, artifacts)).to.equal(true);
+                expect(Hawk.client.authenticate(res, credentials, artifacts)).to.equal(true);
                 done();
             });
         });
@@ -160,7 +160,7 @@ describe('Hawk', function () {
                 expect(err).to.not.exist;
                 expect(credentials.user).to.equal('steve');
                 expect(artifacts.ext).to.equal('some-app-data');
-                expect(Hawk.server.authenticatePayload(payload, credentials, artifacts.hash, req.headers['content-type'])).to.equal(true);
+                expect(Hawk.server.authenticatePayload(payload, credentials, artifacts, req.headers['content-type'])).to.equal(true);
 
                 var res = {
                     headers: {
@@ -168,10 +168,10 @@ describe('Hawk', function () {
                     }
                 };
 
-                res.headers['server-authorization'] = Hawk.server.header(artifacts);
+                res.headers['server-authorization'] = Hawk.server.header(credentials, artifacts);
                 expect(res.headers['server-authorization']).to.exist;
 
-                expect(Hawk.client.authenticate(res, artifacts, { payload: 'some reply' })).to.equal(false);
+                expect(Hawk.client.authenticate(res, credentials, artifacts, { payload: 'some reply' })).to.equal(false);
                 done();
             });
         });
@@ -216,8 +216,8 @@ describe('Hawk', function () {
                 expect(err).to.not.exist;
                 expect(credentials.user).to.equal('steve');
                 expect(artifacts.ext).to.equal('some-app-data');
-                expect(Hawk.server.authenticatePayload('hola!', credentials, artifacts.hash)).to.be.true;
-                expect(Hawk.server.authenticatePayload('hello!', credentials, artifacts.hash)).to.be.false;
+                expect(Hawk.server.authenticatePayload('hola!', credentials, artifacts)).to.be.true;
+                expect(Hawk.server.authenticatePayload('hello!', credentials, artifacts)).to.be.false;
                 done();
             });
         });

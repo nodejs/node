@@ -132,17 +132,17 @@ describe('Hawk', function () {
                     app: undefined,
                     dlg: undefined,
                     mac: 'BlmSe8K+pbKIb6YsZCnt4E1GrYvY1AaYayNR82dGpIk=',
-                    id: '123456',
-                    credentials:
-                    {
-                        id: '123456',
-                        key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
-                        algorithm: 'sha256',
-                        user: 'steve'
-                    }
+                    id: '123456'
                 };
 
-                expect(Hawk.client.authenticate(res, artifacts)).to.equal(false);
+                var credentials = {
+                    id: '123456',
+                    key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
+                    algorithm: 'sha256',
+                    user: 'steve'
+                };
+
+                expect(Hawk.client.authenticate(res, credentials, artifacts)).to.equal(false);
                 done();
             });
 
@@ -167,17 +167,17 @@ describe('Hawk', function () {
                     app: undefined,
                     dlg: undefined,
                     mac: 'BlmSe8K+pbKIb6YsZCnt4E1GrYvY1AaYayNR82dGpIk=',
-                    id: '123456',
-                    credentials:
-                    {
-                        id: '123456',
-                        key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
-                        algorithm: 'sha256',
-                        user: 'steve'
-                    }
+                    id: '123456'
                 };
 
-                expect(Hawk.client.authenticate(res, artifacts)).to.equal(true);
+                var credentials = {
+                    id: '123456',
+                    key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
+                    algorithm: 'sha256',
+                    user: 'steve'
+                };
+
+                expect(Hawk.client.authenticate(res, credentials, artifacts)).to.equal(true);
                 done();
             });
 
@@ -190,17 +190,15 @@ describe('Hawk', function () {
 
             it('should fail on invalid WWW-Authenticate header format', function (done) {
 
-                var artifacts = {
-                    credentials: {
-                        id: '123456',
-                        key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
-                        algorithm: 'sha256',
-                        user: 'steve'
-                    }
+                var credentials = {
+                    id: '123456',
+                    key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
+                    algorithm: 'sha256',
+                    user: 'steve'
                 };
 
                 var header = 'Hawk ts="1362346425875", tsm="hwayS28vtnn3qbv0mqRBYSXebN/zggEtucfeZ620Zo=", error="Stale timestamp"';
-                expect(Hawk.client.authenticate({ headers: { 'www-authenticate': header } }, artifacts)).to.equal(false);
+                expect(Hawk.client.authenticate({ headers: { 'www-authenticate': header } }, credentials)).to.equal(false);
                 done();
             });
         });

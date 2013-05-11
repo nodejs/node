@@ -81,9 +81,9 @@ internals.Boom.badRequest = function (message) {
 };
 
 
-internals.Boom.unauthorized = function (error, scheme, attributes) {           // Or function (error, wwwAuthenticate[])
+internals.Boom.unauthorized = function (message, scheme, attributes) {          // Or function (message, wwwAuthenticate[])
 
-    var err = new internals.Boom(401, error);
+    var err = new internals.Boom(401, message);
 
     if (!scheme) {
         return err;
@@ -93,7 +93,7 @@ internals.Boom.unauthorized = function (error, scheme, attributes) {           /
 
     if (typeof scheme === 'string') {
 
-        // function (error, scheme, attributes)
+        // function (message, scheme, attributes)
 
         wwwAuthenticate = scheme;
         if (attributes) {
@@ -113,11 +113,11 @@ internals.Boom.unauthorized = function (error, scheme, attributes) {           /
             }
         }
 
-        if (error) {
+        if (message) {
             if (attributes) {
                 wwwAuthenticate += ',';
             }
-            wwwAuthenticate += ' error="' + Hoek.escapeHeaderAttribute(error) + '"';
+            wwwAuthenticate += ' error="' + Hoek.escapeHeaderAttribute(message) + '"';
         }
         else {
             err.isMissing = true;
@@ -125,7 +125,7 @@ internals.Boom.unauthorized = function (error, scheme, attributes) {           /
     }
     else {
 
-        // function (error, wwwAuthenticate[])
+        // function (message, wwwAuthenticate[])
 
         var wwwArray = scheme;
         for (var i = 0, il = wwwArray.length; i < il; ++i) {

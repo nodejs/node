@@ -31,14 +31,18 @@ squid.stdout.on('data', function (c) {
                .join('\nSQUIDOUT '))
 })
 
+squid.on('error', function (c) {
+  console.error('squid: error '+c)
+  if (c && !ready) {
+    notInstalled()
+    return
+  }
+})
+
 squid.on('exit', function (c) {
   console.error('squid: exit '+c)
   if (c && !ready) {
-    console.error('squid must be installed to run this test.')
-    console.error('skipping this test. please install squid and run again if you need to test tunneling.')
-    c = null
-    hadError = null
-    process.exit(0)
+    notInstalled()
     return
   }
 
@@ -61,3 +65,11 @@ setTimeout(function F () {
     squid.kill('SIGKILL')
   })
 }, 100)
+
+function notInstalled() {
+  console.error('squid must be installed to run this test.')
+  console.error('skipping this test. please install squid and run again if you need to test tunneling.')
+  c = null
+  hadError = null
+  process.exit(0)
+}

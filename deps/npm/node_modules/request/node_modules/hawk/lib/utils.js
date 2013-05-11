@@ -165,3 +165,10 @@ exports.parseAuthorizationHeader = function (header, keys) {
 
     return attributes;
 };
+
+
+exports.unauthorized = function (message) {
+
+    return Boom.unauthorized(message, 'Hawk');
+};
+

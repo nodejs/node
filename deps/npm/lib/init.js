@@ -27,7 +27,7 @@ function init (args, cb) {
     ,"Press ^C at any time to quit."
     ].join("\n"))
 
-  initJson(dir, initFile, npm.config.get(), function (er, data) {
+  initJson(dir, initFile, npm.config, function (er, data) {
     log.resume()
     log.silly('package data', data)
     log.info('init', 'written successfully')
