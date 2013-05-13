@@ -549,6 +549,10 @@ Emitted when the stream's write queue empties and it's safe to write
 without buffering again. Listen for it when `stream.write()` returns
 `false`.
 
+### Event: 'error'
+
+Emitted if there was an error receiving data.
+
 ### Event: 'close'
 
 Emitted when the underlying resource (for example, the backing file
