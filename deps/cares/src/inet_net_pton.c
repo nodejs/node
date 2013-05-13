@@ -18,9 +18,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -36,15 +33,10 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#include <ctype.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include "ares.h"
 #include "ares_ipv6.h"
 #include "ares_nowarn.h"
-#include "inet_net_pton.h"
+#include "ares_inet_net_pton.h"
 
 
 const struct ares_in6_addr ares_in6addr_any = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } };
@@ -448,4 +440,11 @@ int ares_inet_pton(int af, const char *src, void *dst)
     return 0;
   return (result > -1 ? 1 : -1);
 }
+#else /* HAVE_INET_PTON */
+int ares_inet_pton(int af, const char *src, void *dst)
+{
+  /* just relay this to the underlying function */
+  return inet_pton(af, src, dst);
+}
+
 #endif

@@ -17,9 +17,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -42,9 +39,6 @@
 #  include <strings.h>
 #endif
 
-#include <stdlib.h>
-#include <string.h>
-
 #include "ares.h"
 #include "ares_dns.h"
 #include "ares_data.h"
@@ -54,7 +48,7 @@ int
 ares_parse_txt_reply (const unsigned char *abuf, int alen,
                       struct ares_txt_reply **txt_out)
 {
-  size_t substr_len, str_len;
+  size_t substr_len;
   unsigned int qdcount, ancount, i;
   const unsigned char *aptr;
   const unsigned char *strptr;
@@ -112,27 +106,15 @@ ares_parse_txt_reply (const unsigned char *abuf, int alen,
       rr_class = DNS_RR_CLASS (aptr);
       rr_len = DNS_RR_LEN (aptr);
       aptr += RRFIXEDSZ;
+      if (aptr + rr_len > abuf + alen)
+        {
+          status = ARES_EBADRESP;
+          break;
+        }
 
       /* Check if we are really looking at a TXT record */
       if (rr_class == C_IN && rr_type == T_TXT)
         {
-          /* Allocate storage for this TXT answer appending it to the list */
-          txt_curr = ares_malloc_data(ARES_DATATYPE_TXT_REPLY);
-          if (!txt_curr)
-            {
-              status = ARES_ENOMEM;
-              break;
-            }
-          if (txt_last)
-            {
-              txt_last->next = txt_curr;
-            }
-          else
-            {
-              txt_head = txt_curr;
-            }
-          txt_last = txt_curr;
-
           /*
            * There may be multiple substrings in a single TXT record. Each
            * substring may be up to 255 characters in length, with a
@@ -141,36 +123,49 @@ ares_parse_txt_reply (const unsigned char *abuf, int alen,
            * substrings contained therein.
            */
 
-          /* Compute total length to allow a single memory allocation */
           strptr = aptr;
           while (strptr < (aptr + rr_len))
             {
               substr_len = (unsigned char)*strptr;
-              txt_curr->length += substr_len;
-              strptr += substr_len + 1;
-            }
+              if (strptr + substr_len + 1 > aptr + rr_len)
+                {
+                  status = ARES_EBADRESP;
+                  break;
+                }
 
-          /* Including null byte */
-          txt_curr->txt = malloc (txt_curr->length + 1);
-          if (txt_curr->txt == NULL)
-            {
-              status = ARES_ENOMEM;
-              break;
-            }
+              ++strptr;
 
-          /* Step through the list of substrings, concatenating them */
-          str_len = 0;
-          strptr = aptr;
-          while (strptr < (aptr + rr_len))
-            {
-              substr_len = (unsigned char)*strptr;
-              strptr++;
-              memcpy ((char *) txt_curr->txt + str_len, strptr, substr_len);
-              str_len += substr_len;
+              /* Allocate storage for this TXT answer appending it to the list */
+              txt_curr = ares_malloc_data(ARES_DATATYPE_TXT_REPLY);
+              if (!txt_curr)
+                {
+                  status = ARES_ENOMEM;
+                  break;
+                }
+              if (txt_last)
+                {
+                  txt_last->next = txt_curr;
+                }
+              else
+                {
+                  txt_head = txt_curr;
+                }
+              txt_last = txt_curr;
+
+              txt_curr->length = substr_len;
+              txt_curr->txt = malloc (substr_len + 1/* Including null byte */);
+              if (txt_curr->txt == NULL)
+                {
+                  status = ARES_ENOMEM;
+                  break;
+                }
+              memcpy ((char *) txt_curr->txt, strptr, substr_len);
+
+              /* Make sure we NULL-terminate */
+              txt_curr->txt[substr_len] = 0;
+
               strptr += substr_len;
             }
-          /* Make sure we NULL-terminate */
-          *((char *) txt_curr->txt + txt_curr->length) = '\0';
         }
 
       /* Don't lose memory in the next iteration */

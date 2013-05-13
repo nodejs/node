@@ -16,9 +16,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -38,8 +35,6 @@
 #  include <strings.h>
 #endif
 
-#include <stdlib.h>
-#include <string.h>
 #include "ares.h"
 #include "ares_dns.h"
 #include "ares_nowarn.h"
@@ -108,6 +103,12 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
       rr_class = DNS_RR_CLASS(aptr);
       rr_len = DNS_RR_LEN(aptr);
       aptr += RRFIXEDSZ;
+      if (aptr + rr_len > abuf + alen)
+        {
+          free(rr_name);
+          status = ARES_EBADRESP;
+          break;
+        }
 
       if (rr_class == C_IN && rr_type == T_PTR
           && strcasecmp(rr_name, ptrname) == 0)
@@ -208,7 +209,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
       status = ARES_ENOMEM;
     }
   for (i=0 ; i<aliascnt ; i++)
-    if (aliases[i]) 
+    if (aliases[i])
       free(aliases[i]);
   free(aliases);
   if (hostname)

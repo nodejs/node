@@ -95,9 +95,9 @@
 #define DNS_RR_LEN(r)                   DNS__16BIT((r) + 8)
 
 /* Macros for constructing the fixed part of a DNS resource record */
-#define DNS_RR_SET_TYPE(r)              DNS__SET16BIT(r, v)
-#define DNS_RR_SET_CLASS(r)             DNS__SET16BIT((r) + 2, v)
-#define DNS_RR_SET_TTL(r)               DNS__SET32BIT((r) + 4, v)
-#define DNS_RR_SET_LEN(r)               DNS__SET16BIT((r) + 8, v)
+#define DNS_RR_SET_TYPE(r, v)           DNS__SET16BIT(r, v)
+#define DNS_RR_SET_CLASS(r, v)          DNS__SET16BIT((r) + 2, v)
+#define DNS_RR_SET_TTL(r, v)            DNS__SET32BIT((r) + 4, v)
+#define DNS_RR_SET_LEN(r, v)            DNS__SET16BIT((r) + 8, v)
 
 #endif /* HEADER_CARES_DNS_H */

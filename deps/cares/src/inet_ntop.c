@@ -17,9 +17,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -35,15 +32,8 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#include <ctype.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include "ares.h"
 #include "ares_ipv6.h"
-#include "inet_ntop.h"
-
 
 #ifndef HAVE_INET_NTOP
 
@@ -69,13 +59,13 @@ static const char *inet_ntop6(const unsigned char *src, char *dst, size_t size);
  *     Paul Vixie, 1996.
  */
 const char *
-ares_inet_ntop(int af, const void *src, char *dst, size_t size)
+ares_inet_ntop(int af, const void *src, char *dst, ares_socklen_t size)
 {
   switch (af) {
   case AF_INET:
-    return (inet_ntop4(src, dst, size));
+    return (inet_ntop4(src, dst, (size_t)size));
   case AF_INET6:
-    return (inet_ntop6(src, dst, size));
+    return (inet_ntop6(src, dst, (size_t)size));
   default:
     SET_ERRNO(EAFNOSUPPORT);
     return (NULL);
@@ -205,4 +195,14 @@ inet_ntop6(const unsigned char *src, char *dst, size_t size)
   strcpy(dst, tmp);
   return (dst);
 }
-#endif
+
+#else /* HAVE_INET_NTOP */
+
+const char *
+ares_inet_ntop(int af, const void *src, char *dst, ares_socklen_t size)
+{
+  /* just relay this to the underlying function */
+  return inet_ntop(af, src, dst, size);
+}
+
+#endif /* HAVE_INET_NTOP */

@@ -16,9 +16,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -31,7 +28,6 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#include <stdlib.h>
 #include "ares.h"
 #include "ares_dns.h"
 #include "ares_private.h"
@@ -43,7 +39,7 @@ struct qquery {
 
 static void qcallback(void *arg, int status, int timeouts, unsigned char *abuf, int alen);
 
-void ares__rc4(rc4_key* key, unsigned char *buffer_ptr, int buffer_len)
+static void rc4(rc4_key* key, unsigned char *buffer_ptr, int buffer_len)
 {
   unsigned char x;
   unsigned char y;
@@ -105,6 +101,13 @@ static unsigned short generate_unique_id(ares_channel channel)
   return (unsigned short)id;
 }
 
+unsigned short ares__generate_new_id(rc4_key* key)
+{
+  unsigned short r=0;
+  rc4(key, (unsigned char *)&r, sizeof(r));
+  return r;
+}
+
 void ares_query(ares_channel channel, const char *name, int dnsclass,
                 int type, ares_callback callback, void *arg)
 {
@@ -114,8 +117,8 @@ void ares_query(ares_channel channel, const char *name, int dnsclass,
 
   /* Compose the query. */
   rd = !(channel->flags & ARES_FLAG_NORECURSE);
-  status = ares_mkquery(name, dnsclass, type, channel->next_id, rd, &qbuf,
-                        &qlen);
+  status = ares_create_query(name, dnsclass, type, channel->next_id, rd, &qbuf,
+              &qlen, (channel->flags & ARES_FLAG_EDNS) ? channel->ednspsz : 0);
   if (status != ARES_SUCCESS)
     {
       if (qbuf != NULL) free(qbuf);

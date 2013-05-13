@@ -1,7 +1,7 @@
 #ifndef HEADER_CARES_INET_NET_PTON_H
 #define HEADER_CARES_INET_NET_PTON_H
 
-/* Copyright (C) 2005-2010 by Daniel Stenberg et al
+/* Copyright (C) 2005-2013 by Daniel Stenberg et al
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -15,12 +15,6 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  */
-
-#ifdef HAVE_INET_PTON
-#define ares_inet_pton(x,y,z) inet_pton(x,y,z)
-#else
-int ares_inet_pton(int af, const char *src, void *dst);
-#endif
 
 #ifdef HAVE_INET_NET_PTON
 #define ares_inet_net_pton(w,x,y,z) inet_net_pton(w,x,y,z)

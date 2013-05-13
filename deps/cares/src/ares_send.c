@@ -16,9 +16,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -31,9 +28,6 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 #include "ares.h"
 #include "ares_dns.h"
 #include "ares_private.h"
@@ -42,7 +36,7 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
                ares_callback callback, void *arg)
 {
   struct query *query;
-  int i;
+  int i, packetsz;
   struct timeval now;
 
   /* Verify that the query is at least long enough to hold the header. */
@@ -109,7 +103,10 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
       query->server_info[i].skip_server = 0;
       query->server_info[i].tcp_connection_generation = 0;
     }
-  query->using_tcp = (channel->flags & ARES_FLAG_USEVC) || qlen > PACKETSZ;
+
+  packetsz = (channel->flags & ARES_FLAG_EDNS) ? channel->ednspsz : PACKETSZ;
+  query->using_tcp = (channel->flags & ARES_FLAG_USEVC) || qlen > packetsz;
+
   query->error_status = ARES_ECONNREFUSED;
   query->timeouts = 0;
 

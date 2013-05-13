@@ -1,6 +1,6 @@
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2007-2012 by Daniel Stenberg
+ * Copyright (C) 2007-2013 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -19,14 +19,6 @@
 
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
-#endif
-
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
 #endif
 
 #ifdef HAVE_NETINET_IN_H
@@ -50,16 +42,6 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
-
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <sys/system_properties.h>
 /* From the Bionic sources */
@@ -68,8 +50,7 @@
 #endif
 
 #include "ares.h"
-#include "inet_ntop.h"
-#include "inet_net_pton.h"
+#include "ares_inet_net_pton.h"
 #include "ares_library_init.h"
 #include "ares_nowarn.h"
 #include "ares_platform.h"
@@ -163,6 +144,7 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
   channel->rotate = -1;
   channel->udp_port = -1;
   channel->tcp_port = -1;
+  channel->ednspsz = -1;
   channel->socket_send_buffer_size = -1;
   channel->socket_receive_buffer_size = -1;
   channel->nservers = -1;
@@ -452,6 +434,9 @@ static int init_by_options(ares_channel channel,
   if ((optmask & ARES_OPT_SOCK_RCVBUF)
       && channel->socket_receive_buffer_size == -1)
     channel->socket_receive_buffer_size = options->socket_receive_buffer_size;
+
+  if ((optmask & ARES_OPT_EDNSPSZ) && channel->ednspsz == -1)
+    channel->ednspsz = options->ednspsz;
 
   /* Copy the IPv4 servers, if given. */
   if ((optmask & ARES_OPT_SERVERS) && channel->nservers == -1)
@@ -1012,15 +997,10 @@ static int get_DNS_AdaptersAddresses(char **outptr)
       }
       else if (namesrvr.sa->sa_family == AF_INET6)
       {
-        /* Windows apparently always reports some IPv6 DNS servers that
-         * prefixed with fec0:0:0:ffff. These ususally do not point to
-         * working DNS servers, so we ignore them. */
-        if (strncmp(txtaddr, "fec0:0:0:ffff:", 14) == 0)
-          continue;
         if (memcmp(&namesrvr.sa6->sin6_addr, &ares_in6addr_any,
                    sizeof(namesrvr.sa6->sin6_addr)) == 0)
           continue;
-        if (! ares_inet_ntop(AF_INET, &namesrvr.sa6->sin6_addr,
+        if (! ares_inet_ntop(AF_INET6, &namesrvr.sa6->sin6_addr,
                              txtaddr, sizeof(txtaddr)))
           continue;
       }
@@ -1362,6 +1342,9 @@ static int init_by_defaults(ares_channel channel)
     channel->udp_port = htons(NAMESERVER_PORT);
   if (channel->tcp_port == -1)
     channel->tcp_port = htons(NAMESERVER_PORT);
+
+  if (channel->ednspsz == -1)
+    channel->ednspsz = EDNSPACKETSZ;
 
   if (channel->nservers == -1) {
     /* If nobody specified servers, try a local named. */
@@ -1958,13 +1941,6 @@ static int init_id_key(rc4_key* key,int key_data_len)
   }
   free(key_data_ptr);
   return ARES_SUCCESS;
-}
-
-unsigned short ares__generate_new_id(rc4_key* key)
-{
-  unsigned short r=0;
-  ares__rc4(key, (unsigned char *)&r, sizeof(r));
-  return r;
 }
 
 void ares_set_local_ip4(ares_channel channel, unsigned int local_ip)

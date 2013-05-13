@@ -15,9 +15,6 @@
  */
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -36,12 +33,8 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "ares.h"
-#include "inet_net_pton.h"
+#include "ares_inet_net_pton.h"
 #include "ares_platform.h"
 #include "ares_private.h"
 

@@ -1,5 +1,5 @@
 
-/* Copyright 1998, 2011 by the Massachusetts Institute of Technology.
+/* Copyright 1998, 2011, 2013 by the Massachusetts Institute of Technology.
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -16,9 +16,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -37,16 +34,12 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
 #endif
 
 #include "ares.h"
-#include "inet_net_pton.h"
+#include "ares_inet_net_pton.h"
 #include "bitncmp.h"
 #include "ares_platform.h"
 #include "ares_nowarn.h"
@@ -467,8 +460,8 @@ static int get_address_index(const struct in_addr *addr,
         }
       else
         {
-          if (!ares_bitncmp(&addr->s_addr, &sortlist[i].addrV4.s_addr,
-                            sortlist[i].mask.bits))
+          if (!ares__bitncmp(&addr->s_addr, &sortlist[i].addrV4.s_addr,
+                             sortlist[i].mask.bits))
             break;
         }
     }
@@ -515,10 +508,8 @@ static int get6_address_index(const struct ares_in6_addr *addr,
     {
       if (sortlist[i].family != AF_INET6)
         continue;
-        if (!ares_bitncmp(addr,
-                          &sortlist[i].addrV6,
-                          sortlist[i].mask.bits))
-          break;
+      if (!ares__bitncmp(addr, &sortlist[i].addrV6, sortlist[i].mask.bits))
+        break;
     }
   return i;
 }

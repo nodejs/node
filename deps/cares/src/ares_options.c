@@ -1,6 +1,6 @@
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2008-2011 by Daniel Stenberg
+ * Copyright (C) 2008-2013 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -24,7 +24,7 @@
 
 #include "ares.h"
 #include "ares_data.h"
-#include "inet_net_pton.h"
+#include "ares_inet_net_pton.h"
 #include "ares_private.h"
 
 
@@ -132,6 +132,7 @@ int ares_set_servers(ares_channel channel,
 }
 
 /* Incomming string format: host[:port][,host[:port]]... */
+/* IPv6 addresses with ports require square brackets [fe80::1%lo0]:53 */
 int ares_set_servers_csv(ares_channel channel,
                          const char* _csv)
 {
@@ -139,6 +140,7 @@ int ares_set_servers_csv(ares_channel channel,
   char* csv = NULL;
   char* ptr;
   char* start_host;
+  int cc = 0;
   int rv = ARES_SUCCESS;
   struct ares_addr_node *servers = NULL;
   struct ares_addr_node *last = NULL;
@@ -164,28 +166,53 @@ int ares_set_servers_csv(ares_channel channel,
 
   start_host = csv;
   for (ptr = csv; *ptr; ptr++) {
-    if (*ptr == ',') {
+    if (*ptr == ':') {
+      /* count colons to determine if we have an IPv6 number or IPv4 with
+         port */
+      cc++;
+    }
+    else if (*ptr == '[') {
+      /* move start_host if an open square bracket is found wrapping an IPv6
+         address */
+      start_host = ptr + 1;
+    }
+    else if (*ptr == ',') {
       char* pp = ptr - 1;
+      char* p = ptr;
       struct in_addr in4;
       struct ares_in6_addr in6;
       struct ares_addr_node *s = NULL;
 
       *ptr = 0; /* null terminate host:port string */
-      /* Got an entry..see if port was specified. */
-      while (pp > start_host) {
-        if (*pp == ':')
-          break; /* yes */
-        if (!ISDIGIT(*pp)) {
-          /* Found end of digits before we found :, so wasn't a port */
-          pp = ptr;
-          break;
+      /* Got an entry..see if the port was specified. */
+      if (cc > 0) {
+        while (pp > start_host) {
+          /* a single close square bracket followed by a colon, ']:' indicates
+             an IPv6 address with port */
+          if ((*pp == ']') && (*p == ':'))
+            break; /* found port */
+          /* a single colon, ':' indicates an IPv4 address with port */
+          if ((*pp == ':') && (cc == 1))
+            break; /* found port */
+          if (!(ISDIGIT(*pp) || (*pp == ':'))) {
+            /* Found end of digits before we found :, so wasn't a port */
+            /* must allow ':' for IPv6 case of ']:' indicates we found a port */
+            pp = p = ptr;
+            break;
+          }
+          pp--;
+          p--;
         }
-        pp--;
-      }
-      if ((pp != start_host) && ((pp + 1) < ptr)) {
-        /* Found it. Parse over the port number */
-        (void)strtol(pp + 1, NULL, 10);
-        *pp = 0; /* null terminate host */
+        if ((pp != start_host) && ((pp + 1) < ptr)) {
+          /* Found it. Parse over the port number */
+          /* when an IPv6 address is wrapped with square brackets the port
+             starts at pp + 2 */
+          if (*pp == ']')
+            p++; /* move p before ':' */
+          /* p will point to the start of the port */
+          (void)strtol(p, NULL, 10);
+          *pp = 0; /* null terminate host */
+        }
       }
       /* resolve host, try ipv4 first, rslt is in network byte order */
       rv = ares_inet_pton(AF_INET, start_host, &in4);
@@ -221,6 +248,8 @@ int ares_set_servers_csv(ares_channel channel,
         s->next = NULL;
         if (last) {
           last->next = s;
+          /* need to move last to maintain the linked list */
+          last = last->next;
         }
         else {
           servers = s;
@@ -230,6 +259,7 @@ int ares_set_servers_csv(ares_channel channel,
 
       /* Set up for next one */
       start_host = ptr + 1;
+      cc = 0;
     }
   }
 

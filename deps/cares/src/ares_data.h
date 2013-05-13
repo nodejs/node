@@ -1,5 +1,5 @@
 
-/* Copyright (C) 2009-2012 by Daniel Stenberg
+/* Copyright (C) 2009-2013 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -66,4 +66,3 @@ struct ares_data {
 
 void *ares_malloc_data(ares_datatype type);
 
-ares_datatype ares_get_datatype(void * dataptr);

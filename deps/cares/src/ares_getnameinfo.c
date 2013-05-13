@@ -22,9 +22,6 @@
 #  endif
 #endif
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -47,17 +44,8 @@
 #include <net/if.h>
 #endif
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "ares.h"
 #include "ares_ipv6.h"
-#include "inet_ntop.h"
 #include "ares_nowarn.h"
 #include "ares_private.h"
 
