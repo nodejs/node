@@ -641,6 +641,7 @@ HConstant* HGraph::GetConstant##Name() {                                       \
         Representation::Tagged(),                                              \
         htype,                                                                 \
         false,                                                                 \
+        true,                                                                  \
         boolean_value);                                                        \
     constant->InsertAfter(GetConstantUndefined());                             \
     constant_##name##_.set(constant);                                          \
@@ -1191,10 +1192,13 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
     new_length->ClearFlag(HValue::kCanOverflow);
 
     Factory* factory = isolate()->factory();
+    Representation representation = IsFastElementsKind(kind)
+        ? Representation::Smi() : Representation::Tagged();
     HInstruction* length_store = AddInstruction(new(zone) HStoreNamedField(
         object,
         factory->length_field_string(),
         new_length, true,
+        representation,
         JSArray::kLengthOffset));
     length_store->SetGVNFlag(kChangesArrayLengths);
   }
@@ -1267,8 +1271,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   bool fast_smi_only_elements = IsFastSmiElementsKind(elements_kind);
   bool fast_elements = IsFastObjectElementsKind(elements_kind);
-  HValue* elements =
-      AddInstruction(new(zone) HLoadElements(object, mapcheck));
+  HValue* elements = AddLoadElements(object, mapcheck);
   if (is_store && (fast_elements || fast_smi_only_elements) &&
       store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
     HCheckMaps* check_cow_map = HCheckMaps::New(
@@ -1413,9 +1416,12 @@ void HGraphBuilder::BuildInitializeElements(HValue* elements,
   BuildStoreMap(elements, map);
 
   Handle<String> fixed_array_length_field_name = factory->length_field_string();
+  Representation representation = IsFastElementsKind(kind)
+      ? Representation::Smi() : Representation::Tagged();
   HInstruction* store_length =
       new(zone) HStoreNamedField(elements, fixed_array_length_field_name,
-                                 capacity, true, FixedArray::kLengthOffset);
+                                 capacity, true, representation,
+                                 FixedArray::kLengthOffset);
   AddInstruction(store_length);
 }
 
@@ -1447,6 +1453,7 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
       isolate()->factory()->properties_field_symbol(),
       empty_fixed_array,
       true,
+      Representation::Tagged(),
       JSArray::kPropertiesOffset));
 
   HInstruction* length_store = AddInstruction(
@@ -1454,6 +1461,7 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
                                    isolate()->factory()->length_field_string(),
                                    length_field,
                                    true,
+                                   Representation::Tagged(),
                                    JSArray::kLengthOffset));
   length_store->SetGVNFlag(kChangesArrayLengths);
 
@@ -1479,6 +1487,7 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
           isolate()->factory()->elements_field_string(),
           elements,
           true,
+          Representation::Tagged(),
           JSArray::kElementsOffset));
   elements_store->SetGVNFlag(kChangesElementsPointer);
 
@@ -1493,7 +1502,9 @@ HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
   Handle<String> map_field_name = factory->map_field_string();
   HInstruction* store_map =
       new(zone) HStoreNamedField(object, map_field_name, map,
-                                 true, JSObject::kMapOffset);
+                                 true, Representation::Tagged(),
+                                 JSObject::kMapOffset);
+  store_map->ClearGVNFlag(kChangesInobjectFields);
   store_map->SetGVNFlag(kChangesMaps);
   AddInstruction(store_map);
   return store_map;
@@ -1506,6 +1517,18 @@ HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
   HValue* map_constant =
       AddInstruction(new(zone) HConstant(map, Representation::Tagged()));
   return BuildStoreMap(object, map_constant);
+}
+
+
+HLoadNamedField* HGraphBuilder::AddLoadElements(HValue* object,
+    HValue* typecheck) {
+  HLoadNamedField* instr = new(zone()) HLoadNamedField(object, true,
+      Representation::Tagged(), JSObject::kElementsOffset, typecheck);
+  AddInstruction(instr);
+  instr->SetGVNFlag(kDependsOnElementsPointer);
+  instr->ClearGVNFlag(kDependsOnMaps);
+  instr->ClearGVNFlag(kDependsOnInobjectFields);
+  return instr;
 }
 
 
@@ -1574,7 +1597,7 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
   HInstruction* elements_store = AddInstruction(new(zone) HStoreNamedField(
       object,
       factory->elements_field_string(),
-      new_elements, true,
+      new_elements, true, Representation::Tagged(),
       JSArray::kElementsOffset));
   elements_store->SetGVNFlag(kChangesElementsPointer);
 
@@ -1711,13 +1734,13 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
   // Copy the JS array part.
   for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
     if ((i != JSArray::kElementsOffset) || (length == 0)) {
-      HInstruction* value =
-          AddInstruction(new(zone) HLoadNamedField(boilerplate, true, i));
+      HInstruction* value = AddInstruction(new(zone) HLoadNamedField(
+          boilerplate, true, Representation::Tagged(), i));
       if (i != JSArray::kMapOffset) {
         AddInstruction(new(zone) HStoreNamedField(object,
                                                   factory->empty_string(),
-                                                  value,
-                                                  true, i));
+                                                  value, true,
+                                                  Representation::Tagged(), i));
       } else {
         BuildStoreMap(object, value);
       }
@@ -1732,24 +1755,24 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
   if (length > 0) {
     // Get hold of the elements array of the boilerplate and setup the
     // elements pointer in the resulting object.
-    HValue* boilerplate_elements =
-        AddInstruction(new(zone) HLoadElements(boilerplate, NULL));
+    HValue* boilerplate_elements = AddLoadElements(boilerplate);
     HValue* object_elements =
         AddInstruction(new(zone) HInnerAllocatedObject(object, elems_offset));
     AddInstruction(new(zone) HStoreNamedField(object,
                                               factory->elements_field_string(),
-                                              object_elements,
-                                              true, JSObject::kElementsOffset));
+                                              object_elements, true,
+                                              Representation::Tagged(),
+                                              JSObject::kElementsOffset));
 
     // Copy the elements array header.
     for (int i = 0; i < FixedArrayBase::kHeaderSize; i += kPointerSize) {
       HInstruction* value =
-          AddInstruction(new(zone) HLoadNamedField(boilerplate_elements,
-                                                   true, i));
+          AddInstruction(new(zone) HLoadNamedField(
+              boilerplate_elements, true, Representation::Tagged(), i));
       AddInstruction(new(zone) HStoreNamedField(object_elements,
                                                 factory->empty_string(),
-                                                value,
-                                                true, i));
+                                                value, true,
+                                                Representation::Tagged(), i));
     }
 
     // Copy the elements array contents.
@@ -1834,8 +1857,29 @@ HValue* HGraphBuilder::BuildCreateAllocationSiteInfo(HValue* previous_object,
       isolate()->factory()->payload_string(),
       payload,
       true,
+      Representation::Tagged(),
       AllocationSiteInfo::kPayloadOffset));
   return alloc_site;
+}
+
+
+HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* context) {
+  HInstruction* global_object = AddInstruction(new(zone())
+                                               HGlobalObject(context));
+  HInstruction* native_context = AddInstruction(new(zone())
+      HLoadNamedField(global_object, true, Representation::Tagged(),
+                      GlobalObject::kNativeContextOffset));
+  return native_context;
+}
+
+
+HInstruction* HGraphBuilder::BuildGetArrayFunction(HValue* context) {
+  HInstruction* native_context = BuildGetNativeContext(context);
+  int offset = Context::kHeaderSize +
+      kPointerSize * Context::ARRAY_FUNCTION_INDEX;
+  HInstruction* array_function = AddInstruction(new(zone())
+      HLoadNamedField(native_context, true, Representation::Tagged(), offset));
+  return array_function;
 }
 
 
@@ -1855,17 +1899,14 @@ HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
 
 
 HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode(HValue* context) {
-  // Get the global context, the native context, the map array
-  HInstruction* global_object = AddInstruction(new(zone())
-      HGlobalObject(context));
-  HInstruction* native_context = AddInstruction(new(zone())
-      HLoadNamedField(global_object, true, GlobalObject::kNativeContextOffset));
+  HInstruction* native_context = builder()->BuildGetNativeContext(context);
   int offset = Context::kHeaderSize +
       kPointerSize * Context::JS_ARRAY_MAPS_INDEX;
   HInstruction* map_array = AddInstruction(new(zone())
-      HLoadNamedField(native_context, true, offset));
+      HLoadNamedField(native_context, true, Representation::Tagged(), offset));
   offset = kind_ * kPointerSize + FixedArrayBase::kHeaderSize;
-  return AddInstruction(new(zone()) HLoadNamedField(map_array, true, offset));
+  return AddInstruction(new(zone()) HLoadNamedField(
+      map_array, true, Representation::Tagged(), offset));
 }
 
 
@@ -3747,7 +3788,39 @@ void HInferRepresentation::Analyze() {
     }
   }
 
+  // Set truncation flags for groups of connected phis. This is a conservative
+  // approximation; the flag will be properly re-computed after representations
+  // have been determined.
+  if (phi_count > 0) {
+    BitVector* done = new(zone()) BitVector(phi_count, graph_->zone());
+    for (int i = 0; i < phi_count; ++i) {
+      if (done->Contains(i)) continue;
+
+      // Check if all uses of all connected phis in this group are truncating.
+      bool all_uses_everywhere_truncating = true;
+      for (BitVector::Iterator it(connected_phis.at(i));
+           !it.Done();
+           it.Advance()) {
+        int index = it.Current();
+        all_uses_everywhere_truncating &=
+            phi_list->at(index)->CheckFlag(HInstruction::kTruncatingToInt32);
+        done->Add(index);
+      }
+      if (all_uses_everywhere_truncating) {
+        continue;  // Great, nothing to do.
+      }
+      // Clear truncation flag of this group of connected phis.
+      for (BitVector::Iterator it(connected_phis.at(i));
+           !it.Done();
+           it.Advance()) {
+        int index = it.Current();
+        phi_list->at(index)->ClearFlag(HInstruction::kTruncatingToInt32);
+      }
+    }
+  }
+
   // Simplify constant phi inputs where possible.
+  // This step uses kTruncatingToInt32 flags of phis.
   for (int i = 0; i < phi_count; ++i) {
     phi_list->at(i)->SimplifyConstantInputs();
   }
@@ -4027,36 +4100,50 @@ void HGraph::InsertRepresentationChanges() {
   // int32-phis allow truncation and iteratively remove the ones that
   // are used in an operation that does not allow a truncating
   // conversion.
-  // TODO(fschneider): Replace this with a worklist-based iteration.
+  ZoneList<HPhi*> worklist(8, zone());
+
   for (int i = 0; i < phi_list()->length(); i++) {
     HPhi* phi = phi_list()->at(i);
     if (phi->representation().IsInteger32()) {
       phi->SetFlag(HValue::kTruncatingToInt32);
     }
   }
-  bool change = true;
-  while (change) {
-    change = false;
-    for (int i = 0; i < phi_list()->length(); i++) {
-      HPhi* phi = phi_list()->at(i);
-      if (!phi->CheckFlag(HValue::kTruncatingToInt32)) continue;
-      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-        // If a Phi is used as a non-truncating int32 or as a double,
-        // clear its "truncating" flag.
-        HValue* use = it.value();
-        Representation input_representation =
-            use->RequiredInputRepresentation(it.index());
-        if ((input_representation.IsInteger32() &&
-             !use->CheckFlag(HValue::kTruncatingToInt32)) ||
-            input_representation.IsDouble()) {
-          if (FLAG_trace_representation) {
-            PrintF("#%d Phi is not truncating because of #%d %s\n",
-                   phi->id(), it.value()->id(), it.value()->Mnemonic());
-          }
-          phi->ClearFlag(HValue::kTruncatingToInt32);
-          change = true;
-          break;
+
+  for (int i = 0; i < phi_list()->length(); i++) {
+    HPhi* phi = phi_list()->at(i);
+    for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+      // If a Phi is used as a non-truncating int32 or as a double,
+      // clear its "truncating" flag.
+      HValue* use = it.value();
+      Representation input_representation =
+          use->RequiredInputRepresentation(it.index());
+      if ((input_representation.IsInteger32() &&
+           !use->CheckFlag(HValue::kTruncatingToInt32)) ||
+          input_representation.IsDouble()) {
+        if (FLAG_trace_representation) {
+          PrintF("#%d Phi is not truncating because of #%d %s\n",
+                 phi->id(), it.value()->id(), it.value()->Mnemonic());
         }
+        phi->ClearFlag(HValue::kTruncatingToInt32);
+        worklist.Add(phi, zone());
+        break;
+      }
+    }
+  }
+
+  while (!worklist.is_empty()) {
+    HPhi* current = worklist.RemoveLast();
+    for (int i = 0; i < current->OperandCount(); ++i) {
+      HValue* input = current->OperandAt(i);
+      if (input->IsPhi() &&
+          input->representation().IsInteger32() &&
+          input->CheckFlag(HValue::kTruncatingToInt32)) {
+        if (FLAG_trace_representation) {
+          PrintF("#%d Phi is not truncating because of #%d %s\n",
+                 input->id(), current->id(), current->Mnemonic());
+        }
+        input->ClearFlag(HValue::kTruncatingToInt32);
+        worklist.Add(HPhi::cast(input), zone());
       }
     }
   }
@@ -5364,6 +5451,9 @@ void HGraph::DeadCodeElimination() {
 
   while (!worklist.is_empty()) {
     HInstruction* instr = worklist.RemoveLast();
+    // This happens when an instruction is used multiple times as operand. That
+    // in turn could happen through GVN.
+    if (!instr->IsLinked()) continue;
     if (FLAG_trace_dead_code_elimination) {
       HeapStringAllocator allocator;
       StringStream stream(&allocator);
@@ -6604,10 +6694,16 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
   if (properties->length() > 0) {
     return false;
   } else {
-    int nof = boilerplate->map()->inobject_properties();
-    for (int i = 0; i < nof; i++) {
+    Handle<DescriptorArray> descriptors(
+        boilerplate->map()->instance_descriptors());
+    int limit = boilerplate->map()->NumberOfOwnDescriptors();
+    for (int i = 0; i < limit; i++) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (details.type() != FIELD) continue;
+      Representation representation = details.representation();
+      int index = descriptors->GetFieldIndex(i);
       if ((*max_properties)-- == 0) return false;
-      Handle<Object> value(boilerplate->InObjectPropertyAt(i), isolate);
+      Handle<Object> value(boilerplate->InObjectPropertyAt(index), isolate);
       if (value->IsJSObject()) {
         Handle<JSObject> value_object = Handle<JSObject>::cast(value);
         if (!IsFastLiteral(value_object,
@@ -6617,6 +6713,8 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
                            pointer_size)) {
           return false;
         }
+      } else if (representation.IsDouble()) {
+        *data_size += HeapNumber::kSize;
       }
     }
   }
@@ -6666,6 +6764,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                                    expr->fast_elements(),
                                    expr->literal_index(),
                                    expr->depth(),
+                                   expr->may_store_doubles(),
                                    expr->has_function()));
   }
 
@@ -6814,7 +6913,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // of the property values and is the value of the entire expression.
   Push(literal);
 
-  HLoadElements* elements = NULL;
+  HInstruction* elements = NULL;
 
   for (int i = 0; i < length; i++) {
     Expression* subexpr = subexprs->at(i);
@@ -6826,10 +6925,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     HValue* value = Pop();
     if (!Smi::IsValid(i)) return Bailout("Non-smi key in array literal");
 
-    // Pass in literal as dummy depedency, since  the receiver always has
-    // elements.
-    elements = new(zone()) HLoadElements(literal, literal);
-    AddInstruction(elements);
+    elements = AddLoadElements(literal);
 
     HValue* key = AddInstruction(
         new(zone()) HConstant(Handle<Object>(Smi::FromInt(i), isolate()),
@@ -6887,14 +6983,29 @@ static bool ComputeLoadStoreField(Handle<Map> type,
 
 
 static int ComputeLoadStoreFieldIndex(Handle<Map> type,
-                                      Handle<String> name,
                                       LookupResult* lookup) {
   ASSERT(lookup->IsField() || lookup->IsTransitionToField(*type));
   if (lookup->IsField()) {
     return lookup->GetLocalFieldIndexFromMap(*type);
   } else {
     Map* transition = lookup->GetTransitionMapFromMap(*type);
-    return transition->PropertyIndexFor(*name) - type->inobject_properties();
+    int descriptor = transition->LastAdded();
+    int index = transition->instance_descriptors()->GetFieldIndex(descriptor);
+    return index - type->inobject_properties();
+  }
+}
+
+
+static Representation ComputeLoadStoreRepresentation(Handle<Map> type,
+                                                     LookupResult* lookup) {
+  if (lookup->IsField()) {
+    return lookup->representation();
+  } else {
+    Map* transition = lookup->GetTransitionMapFromMap(*type);
+    int descriptor = transition->LastAdded();
+    PropertyDetails details =
+        transition->instance_descriptors()->GetDetails(descriptor);
+    return details.representation();
   }
 }
 
@@ -6949,8 +7060,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
         zone()));
   }
 
-  int index = ComputeLoadStoreFieldIndex(map, name, lookup);
+  int index = ComputeLoadStoreFieldIndex(map, lookup);
   bool is_in_object = index < 0;
+  Representation representation = ComputeLoadStoreRepresentation(map, lookup);
   int offset = index * kPointerSize;
   if (index < 0) {
     // Negative property indices are in-object properties, indexed
@@ -6959,9 +7071,33 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   } else {
     offset += FixedArray::kHeaderSize;
   }
-  HStoreNamedField* instr =
-      new(zone()) HStoreNamedField(object, name, value, is_in_object, offset);
-  if (lookup->IsTransitionToField(*map)) {
+  bool transition_to_field = lookup->IsTransitionToField(*map);
+  if (FLAG_track_double_fields && representation.IsDouble()) {
+    if (transition_to_field) {
+      NoObservableSideEffectsScope no_side_effects(this);
+      HInstruction* heap_number_size = AddInstruction(new(zone()) HConstant(
+          HeapNumber::kSize, Representation::Integer32()));
+      HInstruction* double_box = AddInstruction(new(zone()) HAllocate(
+          environment()->LookupContext(), heap_number_size,
+          HType::HeapNumber(), HAllocate::CAN_ALLOCATE_IN_NEW_SPACE));
+      BuildStoreMap(double_box, isolate()->factory()->heap_number_map());
+      AddInstruction(new(zone()) HStoreNamedField(
+          double_box, name, value, true,
+          Representation::Double(), HeapNumber::kValueOffset));
+      value = double_box;
+      representation = Representation::Tagged();
+    } else {
+      HInstruction* double_box = AddInstruction(new(zone()) HLoadNamedField(
+          object, is_in_object, Representation::Tagged(), offset));
+      double_box->set_type(HType::HeapNumber());
+      return new(zone()) HStoreNamedField(
+          double_box, name, value, true,
+          Representation::Double(), HeapNumber::kValueOffset);
+    }
+  }
+  HStoreNamedField* instr = new(zone()) HStoreNamedField(
+      object, name, value, is_in_object, representation, offset);
+  if (transition_to_field) {
     Handle<Map> transition(lookup->GetTransitionMapFromMap(*map));
     instr->set_transition(transition);
     // TODO(fschneider): Record the new map type of the object in the IR to
@@ -7043,22 +7179,31 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
     HValue* object,
     SmallMapList* types,
     Handle<String> name) {
-  int count = 0;
-  int previous_field_offset = 0;
-  bool previous_field_is_in_object = false;
-  bool is_monomorphic_field = true;
 
   if (HandlePolymorphicArrayLengthLoad(expr, object, types, name))
     return;
 
-  Handle<Map> map;
-  LookupResult lookup(isolate());
-  for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
-    map = types->at(i);
-    if (ComputeLoadStoreField(map, name, &lookup, false)) {
-      int index = ComputeLoadStoreFieldIndex(map, name, &lookup);
+  AddInstruction(new(zone()) HCheckNonSmi(object));
+
+  // Use monomorphic load if property lookup results in the same field index
+  // for all maps. Requires special map check on the set of all handled maps.
+  HInstruction* instr = NULL;
+  if (types->length() > 0 && types->length() <= kMaxLoadPolymorphism) {
+    LookupResult lookup(isolate());
+    int previous_field_offset = 0;
+    bool previous_field_is_in_object = false;
+    Representation representation = Representation::None();
+    int count;
+    for (count = 0; count < types->length(); ++count) {
+      Handle<Map> map = types->at(count);
+      if (!ComputeLoadStoreField(map, name, &lookup, false)) break;
+
+      int index = ComputeLoadStoreFieldIndex(map, &lookup);
+      Representation new_representation =
+          ComputeLoadStoreRepresentation(map, &lookup);
       bool is_in_object = index < 0;
       int offset = index * kPointerSize;
+
       if (index < 0) {
         // Negative property indices are in-object properties, indexed
         // from the end of the fixed part of the object.
@@ -7066,31 +7211,33 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
       } else {
         offset += FixedArray::kHeaderSize;
       }
+
       if (count == 0) {
         previous_field_offset = offset;
         previous_field_is_in_object = is_in_object;
-      } else if (is_monomorphic_field) {
-        is_monomorphic_field = (offset == previous_field_offset) &&
-                               (is_in_object == previous_field_is_in_object);
+        representation = new_representation;
+      } else if (offset != previous_field_offset ||
+                 is_in_object != previous_field_is_in_object ||
+                 (FLAG_track_fields &&
+                  !representation.IsCompatibleForLoad(new_representation))) {
+        break;
       }
-      ++count;
+
+      representation = representation.generalize(new_representation);
+    }
+
+    if (count == types->length()) {
+      AddInstruction(HCheckMaps::New(object, types, zone()));
+      instr = DoBuildLoadNamedField(
+          object, previous_field_is_in_object,
+          representation, previous_field_offset);
     }
   }
 
-  // Use monomorphic load if property lookup results in the same field index
-  // for all maps.  Requires special map check on the set of all handled maps.
-  AddInstruction(new(zone()) HCheckNonSmi(object));
-  HInstruction* instr;
-  if (count == types->length() && is_monomorphic_field) {
-    AddInstruction(HCheckMaps::New(object, types, zone()));
-    instr = BuildLoadNamedField(object, map, &lookup);
-  } else {
+  if (instr == NULL) {
     HValue* context = environment()->LookupContext();
-    instr = new(zone()) HLoadNamedFieldPolymorphic(context,
-                                                   object,
-                                                   types,
-                                                   name,
-                                                   zone());
+    instr = new(zone()) HLoadNamedFieldPolymorphic(
+        context, object, types, name, zone());
   }
 
   instr->set_position(expr->position());
@@ -7239,14 +7386,15 @@ void HOptimizedGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     // Keyed store.
     CHECK_ALIVE(VisitForValue(prop->key()));
     CHECK_ALIVE(VisitForValue(expr->value()));
-    HValue* value = Pop();
-    HValue* key = Pop();
-    HValue* object = Pop();
+    HValue* value = environment()->ExpressionStackAt(0);
+    HValue* key = environment()->ExpressionStackAt(1);
+    HValue* object = environment()->ExpressionStackAt(2);
     bool has_side_effects = false;
     HandleKeyedElementAccess(object, key, value, expr, expr->AssignmentId(),
                              expr->position(),
                              true,  // is_store
                              &has_side_effects);
+    Drop(3);
     Push(value);
     AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
     return ast_context()->ReturnValue(Pop());
@@ -7648,16 +7796,37 @@ HLoadNamedField* HOptimizedGraphBuilder::BuildLoadNamedField(
     Handle<Map> map,
     LookupResult* lookup) {
   int index = lookup->GetLocalFieldIndexFromMap(*map);
-  if (index < 0) {
-    // Negative property indices are in-object properties, indexed
-    // from the end of the fixed part of the object.
-    int offset = (index * kPointerSize) + map->instance_size();
-    return new(zone()) HLoadNamedField(object, true, offset);
-  } else {
-    // Non-negative property indices are in the properties array.
-    int offset = (index * kPointerSize) + FixedArray::kHeaderSize;
-    return new(zone()) HLoadNamedField(object, false, offset);
+  // Negative property indices are in-object properties, indexed from the end of
+  // the fixed part of the object. Non-negative property indices are in the
+  // properties array.
+  int inobject = index < 0;
+  Representation representation = lookup->representation();
+  int offset = inobject
+      ? index * kPointerSize + map->instance_size()
+      : index * kPointerSize + FixedArray::kHeaderSize;
+  return DoBuildLoadNamedField(object, inobject, representation, offset);
+}
+
+
+HLoadNamedField* HGraphBuilder::DoBuildLoadNamedField(
+    HValue* object,
+    bool inobject,
+    Representation representation,
+    int offset) {
+  bool load_double = false;
+  if (representation.IsDouble()) {
+    representation = Representation::Tagged();
+    load_double = FLAG_track_double_fields;
   }
+  HLoadNamedField* field =
+      new(zone()) HLoadNamedField(object, inobject, representation, offset);
+  if (load_double) {
+    AddInstruction(field);
+    field->set_type(HType::HeapNumber());
+    return new(zone()) HLoadNamedField(
+        field, true, Representation::Double(), HeapNumber::kValueOffset);
+  }
+  return field;
 }
 
 
@@ -7927,8 +8096,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
   HInstruction* elements_kind_instr =
       AddInstruction(new(zone()) HElementsKind(object));
-  HInstruction* elements =
-      AddInstruction(new(zone()) HLoadElements(object, checkspec));
+  HInstruction* elements = AddLoadElements(object, checkspec);
   HLoadExternalArrayPointer* external_elements = NULL;
   HInstruction* checked_key = NULL;
 
@@ -9555,16 +9723,13 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     CHECK_ALIVE(VisitArgumentList(expr->arguments()));
     HCallNew* call;
     if (use_call_new_array) {
-      AddInstruction(new(zone()) HCheckFunction(constructor,
-          Handle<JSFunction>(isolate()->global_context()->array_function())));
-      Handle<Object> feedback = oracle()->GetInfo(expr->CallNewFeedbackId());
-      ASSERT(feedback->IsSmi());
-
       // TODO(mvstanton): It would be better to use the already created global
       // property cell that is shared by full code gen. That way, any transition
       // information that happened after crankshaft won't be lost.  The right
       // way to do that is to begin passing the cell to the type feedback oracle
       // instead of just the value in the cell. Do this in a follow-up checkin.
+      Handle<Object> feedback = oracle()->GetInfo(expr->CallNewFeedbackId());
+      ASSERT(feedback->IsSmi());
       Handle<JSGlobalPropertyCell> cell =
           isolate()->factory()->NewJSGlobalPropertyCell(feedback);
 
@@ -9977,7 +10142,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
       if (has_side_effects) AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);
 
       after = BuildIncrement(returns_original_input, expr);
-      input = Pop();
+      input = environment()->ExpressionStackAt(0);
 
       expr->RecordTypeFeedback(oracle(), zone());
       HandleKeyedElementAccess(obj, key, after, expr, expr->AssignmentId(),
@@ -9985,10 +10150,10 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
                                true,  // is_store
                                &has_side_effects);
 
-      // Drop the key from the bailout environment.  Overwrite the receiver
-      // with the result of the operation, and the placeholder with the
-      // original value if necessary.
-      Drop(1);
+      // Drop the key and the original value from the bailout environment.
+      // Overwrite the receiver with the result of the operation, and the
+      // placeholder with the original value if necessary.
+      Drop(2);
       environment()->SetExpressionStackAt(0, after);
       if (returns_original_input) environment()->SetExpressionStackAt(1, input);
       ASSERT(has_side_effects);  // Stores always have side effects.
@@ -10660,7 +10825,6 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
       elements->map() != isolate()->heap()->fixed_cow_array_map()) ?
           elements->Size() : 0;
   int elements_offset = *offset + object_size;
-  int inobject_properties = boilerplate_object->map()->inobject_properties();
   if (create_allocation_site_info) {
     elements_offset += AllocationSiteInfo::kSize;
     *offset += AllocationSiteInfo::kSize;
@@ -10674,28 +10838,49 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
   // Copy in-object properties.
   HValue* object_properties =
       AddInstruction(new(zone) HInnerAllocatedObject(target, object_offset));
-  for (int i = 0; i < inobject_properties; i++) {
+
+  Handle<DescriptorArray> descriptors(
+      boilerplate_object->map()->instance_descriptors());
+  int limit = boilerplate_object->map()->NumberOfOwnDescriptors();
+
+  for (int i = 0; i < limit; i++) {
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (details.type() != FIELD) continue;
+    int index = descriptors->GetFieldIndex(i);
+    int property_offset = boilerplate_object->GetInObjectPropertyOffset(index);
+    Handle<Name> name(descriptors->GetKey(i));
     Handle<Object> value =
-        Handle<Object>(boilerplate_object->InObjectPropertyAt(i),
+        Handle<Object>(boilerplate_object->InObjectPropertyAt(index),
         isolate());
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
       Handle<JSObject> original_value_object = Handle<JSObject>::cast(
-          Handle<Object>(original_boilerplate_object->InObjectPropertyAt(i),
+          Handle<Object>(original_boilerplate_object->InObjectPropertyAt(index),
               isolate()));
       HInstruction* value_instruction =
           AddInstruction(new(zone) HInnerAllocatedObject(target, *offset));
       AddInstruction(new(zone) HStoreNamedField(
-          object_properties, factory->unknown_field_string(), value_instruction,
-          true, boilerplate_object->GetInObjectPropertyOffset(i)));
+          object_properties, name, value_instruction, true,
+          Representation::Tagged(), property_offset));
       BuildEmitDeepCopy(value_object, original_value_object, target,
                         offset, DONT_TRACK_ALLOCATION_SITE);
     } else {
+      Representation representation = details.representation();
       HInstruction* value_instruction = AddInstruction(new(zone) HConstant(
           value, Representation::Tagged()));
+      if (representation.IsDouble()) {
+        HInstruction* double_box =
+            AddInstruction(new(zone) HInnerAllocatedObject(target, *offset));
+        BuildStoreMap(double_box, factory->heap_number_map());
+        AddInstruction(new(zone) HStoreNamedField(
+            double_box, name, value_instruction, true,
+            Representation::Double(), HeapNumber::kValueOffset));
+        value_instruction = double_box;
+        *offset += HeapNumber::kSize;
+      }
       AddInstruction(new(zone) HStoreNamedField(
-          object_properties, factory->unknown_field_string(), value_instruction,
-          true, boilerplate_object->GetInObjectPropertyOffset(i)));
+          object_properties, name, value_instruction, true,
+          Representation::Tagged(), property_offset));
     }
   }
 
@@ -10790,7 +10975,7 @@ HValue* HOptimizedGraphBuilder::BuildCopyObjectHeader(
       object_header,
       factory->elements_field_string(),
       elements,
-      true, JSObject::kElementsOffset));
+      true, Representation::Tagged(), JSObject::kElementsOffset));
   elements_store->SetGVNFlag(kChangesElementsPointer);
 
   Handle<Object> properties_field =
@@ -10800,8 +10985,9 @@ HValue* HOptimizedGraphBuilder::BuildCopyObjectHeader(
       properties_field, Representation::None()));
   AddInstruction(new(zone) HStoreNamedField(object_header,
                                             factory->empty_string(),
-                                            properties,
-                                            true, JSObject::kPropertiesOffset));
+                                            properties, true,
+                                            Representation::Tagged(),
+                                            JSObject::kPropertiesOffset));
 
   if (boilerplate_object->IsJSArray()) {
     Handle<JSArray> boilerplate_array =
@@ -10810,11 +10996,15 @@ HValue* HOptimizedGraphBuilder::BuildCopyObjectHeader(
         Handle<Object>(boilerplate_array->length(), isolate());
     HInstruction* length = AddInstruction(new(zone) HConstant(
         length_field, Representation::None()));
+    ASSERT(boilerplate_array->length()->IsSmi());
+    Representation representation =
+        IsFastElementsKind(boilerplate_array->GetElementsKind())
+        ? Representation::Smi() : Representation::Tagged();
     HInstruction* length_store = AddInstruction(new(zone) HStoreNamedField(
         object_header,
         factory->length_field_string(),
         length,
-        true, JSArray::kLengthOffset));
+        true, representation, JSArray::kLengthOffset));
     length_store->SetGVNFlag(kChangesArrayLengths);
   }
 
@@ -11207,6 +11397,7 @@ void HOptimizedGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
                                               name,
                                               value,
                                               true,  // in-object store.
+                                              Representation::Tagged(),
                                               JSValue::kValueOffset));
   if_js_value->Goto(join);
   join->SetJoinId(call->id());

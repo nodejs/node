@@ -240,6 +240,15 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
 }
 
 
+void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
+  // Register state for CompareNil IC
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, eax.bit(), 0, false);
+}
+
+
 void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC call call (from ic-ia32.cc)
   // ----------- S t a t e -------------

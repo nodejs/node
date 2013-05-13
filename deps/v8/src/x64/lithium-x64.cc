@@ -557,6 +557,11 @@ LOperand* LChunkBuilder::UseRegisterOrConstantAtStart(HValue* value) {
 }
 
 
+LOperand* LChunkBuilder::UseConstant(HValue* value) {
+  return chunk_->DefineConstantOperand(HConstant::cast(value));
+}
+
+
 LOperand* LChunkBuilder::UseAny(HValue* value) {
   return value->IsConstant()
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
@@ -680,7 +685,7 @@ LUnallocated* LChunkBuilder::TempRegister() {
   int vreg = allocator_->GetVirtualRegister();
   if (!allocator_->AllocationOk()) {
     Abort("Out of virtual registers while trying to allocate temp register.");
-    return NULL;
+    vreg = 0;
   }
   operand->set_virtual_register(vreg);
   return operand;
@@ -777,8 +782,8 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
   ASSERT(instr->left()->representation().IsDouble());
   ASSERT(instr->right()->representation().IsDouble());
   ASSERT(op != Token::MOD);
-  LOperand* left = UseRegisterAtStart(instr->left());
-  LOperand* right = UseRegisterAtStart(instr->right());
+  LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
+  LOperand* right = UseRegisterAtStart(instr->BetterRightOperand());
   LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
   return DefineSameAsFirst(result);
 }
@@ -1304,8 +1309,8 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
 
-    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
-    LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
+    LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
+    LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
     return DefineSameAsFirst(new(zone()) LBitI(left, right));
   } else {
     ASSERT(instr->representation().IsTagged());
@@ -1468,8 +1473,8 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
-    LOperand* right = UseOrConstant(instr->MostConstantOperand());
+    LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
+    LOperand* right = UseOrConstant(instr->BetterRightOperand());
     LMulI* mul = new(zone()) LMulI(left, right);
     if (instr->CheckFlag(HValue::kCanOverflow) ||
         instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
@@ -1508,13 +1513,24 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
 
 LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
   if (instr->representation().IsInteger32()) {
+    // Check to see if it would be advantageous to use an lea instruction rather
+    // than an add. This is the case when no overflow check is needed and there
+    // are multiple uses of the add's inputs, so using a 3-register add will
+    // preserve all input values for later uses.
+    bool use_lea = LAddI::UseLea(instr);
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
-    LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
+    LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
+    HValue* right_candidate = instr->BetterRightOperand();
+    LOperand* right = use_lea
+        ? UseRegisterOrConstantAtStart(right_candidate)
+        : UseOrConstantAtStart(right_candidate);
     LAddI* add = new(zone()) LAddI(left, right);
-    LInstruction* result = DefineSameAsFirst(add);
-    if (instr->CheckFlag(HValue::kCanOverflow)) {
+    bool can_overflow = instr->CheckFlag(HValue::kCanOverflow);
+    LInstruction* result = use_lea
+        ? DefineAsRegister(add)
+        : DefineSameAsFirst(add);
+    if (can_overflow) {
       result = AssignEnvironment(result);
     }
     return result;
@@ -1534,8 +1550,8 @@ LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    left = UseRegisterAtStart(instr->LeastConstantOperand());
-    right = UseOrConstantAtStart(instr->MostConstantOperand());
+    left = UseRegisterAtStart(instr->BetterLeftOperand());
+    right = UseOrConstantAtStart(instr->BetterRightOperand());
   } else {
     ASSERT(instr->representation().IsDouble());
     ASSERT(instr->left()->representation().IsDouble());
@@ -2022,7 +2038,6 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
-  ASSERT(instr->representation().IsTagged());
   LOperand* obj = UseRegisterAtStart(instr->object());
   return DefineAsRegister(new(zone()) LLoadNamedField(obj));
 }
@@ -2056,12 +2071,6 @@ LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
     HLoadFunctionPrototype* instr) {
   return AssignEnvironment(DefineAsRegister(
       new(zone()) LLoadFunctionPrototype(UseRegister(instr->function()))));
-}
-
-
-LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
-  LOperand* input = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LLoadElements(input));
 }
 
 
@@ -2115,19 +2124,6 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 }
 
 
-// DoStoreKeyed and DoStoreNamedField have special considerations for allowing
-// use of a constant instead of a register.
-static bool StoreConstantValueAllowed(HValue* value) {
-  if (value->IsConstant()) {
-    HConstant* constant_value = HConstant::cast(value);
-    return constant_value->HasSmiValue()
-        || constant_value->HasDoubleValue()
-        || constant_value->ImmortalImmovable();
-  }
-  return false;
-}
-
-
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   bool clobbers_key = instr->key()->representation().IsTagged();
@@ -2151,18 +2147,12 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
         val = UseTempRegister(instr->value());
         key = UseTempRegister(instr->key());
       } else {
-        if (StoreConstantValueAllowed(instr->value())) {
-          val = UseRegisterOrConstantAtStart(instr->value());
-        } else {
-          val = UseRegisterAtStart(instr->value());
-        }
+        val = UseRegisterOrConstantAtStart(instr->value());
 
         if (clobbers_key) {
           key = UseTempRegister(instr->key());
-        } else if (StoreConstantValueAllowed(instr->key())) {
-          key = UseRegisterOrConstantAtStart(instr->key());
         } else {
-          key = UseRegisterAtStart(instr->key());
+          key = UseRegisterOrConstantAtStart(instr->key());
         }
       }
     }
@@ -2258,11 +2248,20 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
         : UseRegisterAtStart(instr->object());
   }
 
+  bool can_be_constant = instr->value()->IsConstant() &&
+      HConstant::cast(instr->value())->NotInNewSpace() &&
+      !(FLAG_track_double_fields && instr->field_representation().IsDouble());
+
   LOperand* val;
   if (needs_write_barrier) {
     val = UseTempRegister(instr->value());
-  } else if (StoreConstantValueAllowed(instr->value())) {
+  } else if (can_be_constant) {
     val = UseRegisterOrConstant(instr->value());
+  } else if (FLAG_track_fields && instr->field_representation().IsSmi()) {
+    val = UseTempRegister(instr->value());
+  } else if (FLAG_track_double_fields &&
+             instr->field_representation().IsDouble()) {
+    val = UseRegisterAtStart(instr->value());
   } else {
     val = UseRegister(instr->value());
   }
@@ -2272,7 +2271,11 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   LOperand* temp = (!instr->is_in_object() || needs_write_barrier ||
       needs_write_barrier_for_map) ? TempRegister() : NULL;
 
-  return new(zone()) LStoreNamedField(obj, val, temp);
+  LStoreNamedField* result = new(zone()) LStoreNamedField(obj, val, temp);
+  if (FLAG_track_fields && instr->field_representation().IsSmi()) {
+    return AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -2323,7 +2326,9 @@ LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
 
 LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
   info()->MarkAsDeferredCalling();
-  LOperand* size = UseTempRegister(instr->size());
+  LOperand* size = instr->size()->IsConstant()
+      ? UseConstant(instr->size())
+      : UseTempRegister(instr->size());
   LOperand* temp = TempRegister();
   LAllocate* result = new(zone()) LAllocate(size, temp);
   return AssignPointerMap(DefineAsRegister(result));
@@ -2384,7 +2389,7 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
 
 LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
   int spill_index = chunk()->GetNextSpillIndex(false);  // Not double-width.
-  if (spill_index > LUnallocated::kMaxFixedIndex) {
+  if (spill_index > LUnallocated::kMaxFixedSlotIndex) {
     Abort("Too many spill slots needed for OSR");
     spill_index = 0;
   }

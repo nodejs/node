@@ -283,6 +283,16 @@ bool Object::HasValidElements() {
   return IsFixedArray() || IsFixedDoubleArray() || IsExternalArray();
 }
 
+
+MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
+                                           Representation representation,
+                                           PretenureFlag tenure) {
+  if (!FLAG_track_double_fields) return this;
+  if (!representation.IsDouble()) return this;
+  return heap->AllocateHeapNumber(Number(), tenure);
+}
+
+
 StringShape::StringShape(String* str)
   : type_(str->map()->instance_type()) {
   set_valid();
@@ -357,12 +367,8 @@ bool String::IsTwoByteRepresentationUnderneath() {
 
 bool String::HasOnlyOneByteChars() {
   uint32_t type = map()->instance_type();
-  return (type & kOneByteDataHintMask) == kOneByteDataHintTag;
-}
-
-
-bool String::IsOneByteConvertible() {
-  return HasOnlyOneByteChars() || IsOneByteRepresentation();
+  return (type & kOneByteDataHintMask) == kOneByteDataHintTag ||
+         IsOneByteRepresentation();
 }
 
 
@@ -1513,22 +1519,7 @@ MaybeObject* JSObject::ResetElements() {
 }
 
 
-MaybeObject* JSObject::AddFastPropertyUsingMap(Map* map) {
-  ASSERT(this->map()->NumberOfOwnDescriptors() + 1 ==
-         map->NumberOfOwnDescriptors());
-  if (this->map()->unused_property_fields() == 0) {
-    int new_size = properties()->length() + map->unused_property_fields() + 1;
-    FixedArray* new_properties;
-    MaybeObject* maybe_properties = properties()->CopySize(new_size);
-    if (!maybe_properties->To(&new_properties)) return maybe_properties;
-    set_properties(new_properties);
-  }
-  set_map(map);
-  return this;
-}
-
-
-MaybeObject* JSObject::TransitionToMap(Map* map) {
+MaybeObject* JSObject::AllocateStorageForMap(Map* map) {
   ASSERT(this->map()->inobject_properties() == map->inobject_properties());
   ElementsKind expected_kind = this->map()->elements_kind();
   if (map->elements_kind() != expected_kind) {
@@ -1546,6 +1537,14 @@ MaybeObject* JSObject::TransitionToMap(Map* map) {
   }
   set_map(map);
   return this;
+}
+
+
+MaybeObject* JSObject::MigrateInstance() {
+  // Converting any field to the most specific type will cause the
+  // GeneralizeFieldRepresentation algorithm to create the most general existing
+  // transition that matches the object. This achieves what is needed.
+  return GeneralizeFieldRepresentation(0, Representation::Smi());
 }
 
 
@@ -1710,10 +1709,17 @@ void JSObject::SetInternalField(int index, Smi* value) {
 }
 
 
+MaybeObject* JSObject::FastPropertyAt(Representation representation,
+                                      int index) {
+  Object* raw_value = RawFastPropertyAt(index);
+  return raw_value->AllocateNewStorageFor(GetHeap(), representation);
+}
+
+
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
-Object* JSObject::FastPropertyAt(int index) {
+Object* JSObject::RawFastPropertyAt(int index) {
   // Adjust for the number of properties stored in the object.
   index -= map()->inobject_properties();
   if (index < 0) {
@@ -1726,7 +1732,7 @@ Object* JSObject::FastPropertyAt(int index) {
 }
 
 
-Object* JSObject::FastPropertyAtPut(int index, Object* value) {
+void JSObject::FastPropertyAtPut(int index, Object* value) {
   // Adjust for the number of properties stored in the object.
   index -= map()->inobject_properties();
   if (index < 0) {
@@ -1737,7 +1743,6 @@ Object* JSObject::FastPropertyAtPut(int index, Object* value) {
     ASSERT(index < properties()->length());
     properties()->set(index, value);
   }
-  return value;
 }
 
 
@@ -2277,6 +2282,23 @@ void DescriptorArray::SetSortedKey(int descriptor_index, int pointer) {
 }
 
 
+void DescriptorArray::SetRepresentation(int descriptor_index,
+                                        Representation representation) {
+  ASSERT(!representation.IsNone());
+  PropertyDetails details = GetDetails(descriptor_index);
+  set(ToDetailsIndex(descriptor_index),
+      details.CopyWithRepresentation(representation).AsSmi());
+}
+
+
+void DescriptorArray::InitializeRepresentations(Representation representation) {
+  int length = number_of_descriptors();
+  for (int i = 0; i < length; i++) {
+    SetRepresentation(i, representation);
+  }
+}
+
+
 Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return HeapObject::RawField(
@@ -2338,10 +2360,8 @@ void DescriptorArray::Set(int descriptor_number,
                           const WhitenessWitness&) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
-  ASSERT(desc->GetDetails().descriptor_index() <=
-         number_of_descriptors());
-  ASSERT(desc->GetDetails().descriptor_index() > 0);
 
+  ASSERT(!desc->GetDetails().representation().IsNone());
   NoIncrementalWriteBarrierSet(this,
                                ToKeyIndex(descriptor_number),
                                desc->GetKey());
@@ -2357,9 +2377,7 @@ void DescriptorArray::Set(int descriptor_number,
 void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
-  ASSERT(desc->GetDetails().descriptor_index() <=
-         number_of_descriptors());
-  ASSERT(desc->GetDetails().descriptor_index() > 0);
+  ASSERT(!desc->GetDetails().representation().IsNone());
 
   set(ToKeyIndex(descriptor_number), desc->GetKey());
   set(ToValueIndex(descriptor_number), desc->GetValue());
@@ -2370,9 +2388,7 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
 void DescriptorArray::Append(Descriptor* desc,
                              const WhitenessWitness& witness) {
   int descriptor_number = number_of_descriptors();
-  int enumeration_index = descriptor_number + 1;
   SetNumberOfDescriptors(descriptor_number + 1);
-  desc->SetEnumerationIndex(enumeration_index);
   Set(descriptor_number, desc, witness);
 
   uint32_t hash = desc->GetKey()->Hash();
@@ -2391,9 +2407,7 @@ void DescriptorArray::Append(Descriptor* desc,
 
 void DescriptorArray::Append(Descriptor* desc) {
   int descriptor_number = number_of_descriptors();
-  int enumeration_index = descriptor_number + 1;
   SetNumberOfDescriptors(descriptor_number + 1);
-  desc->SetEnumerationIndex(enumeration_index);
   Set(descriptor_number, desc);
 
   uint32_t hash = desc->GetKey()->Hash();
@@ -3573,6 +3587,38 @@ bool Map::is_observed() {
 }
 
 
+void Map::deprecate() {
+  set_bit_field3(Deprecated::update(bit_field3(), true));
+}
+
+
+bool Map::is_deprecated() {
+  if (!FLAG_track_fields) return false;
+  return Deprecated::decode(bit_field3());
+}
+
+
+bool Map::CanBeDeprecated() {
+  int descriptor = LastAdded();
+  for (int i = 0; i <= descriptor; i++) {
+    PropertyDetails details = instance_descriptors()->GetDetails(i);
+    if (FLAG_track_fields && details.representation().IsSmi()) {
+      return true;
+    }
+    if (FLAG_track_double_fields && details.representation().IsDouble()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+Handle<Map> Map::CurrentMapForDeprecated(Handle<Map> map) {
+  if (!map->is_deprecated()) return map;
+  return GeneralizeRepresentation(map, 0, Representation::Smi());
+}
+
+
 void Map::NotifyLeafMapLayoutChange() {
   dependent_code()->DeoptimizeDependentCodeGroup(
       GetIsolate(),
@@ -4109,23 +4155,6 @@ static MaybeObject* EnsureHasTransitionArray(Map* map) {
 
 void Map::InitializeDescriptors(DescriptorArray* descriptors) {
   int len = descriptors->number_of_descriptors();
-#ifdef DEBUG
-  ASSERT(len <= DescriptorArray::kMaxNumberOfDescriptors);
-
-  bool used_indices[DescriptorArray::kMaxNumberOfDescriptors];
-  for (int i = 0; i < len; ++i) used_indices[i] = false;
-
-  // Ensure that all enumeration indexes between 1 and length occur uniquely in
-  // the descriptor array.
-  for (int i = 0; i < len; ++i) {
-    int enum_index = descriptors->GetDetails(i).descriptor_index() -
-                     PropertyDetails::kInitialIndex;
-    ASSERT(0 <= enum_index && enum_index < len);
-    ASSERT(!used_indices[enum_index]);
-    used_indices[enum_index] = true;
-  }
-#endif
-
   set_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(len);
 }
@@ -5095,6 +5124,7 @@ ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
 ACCESSORS(JSGeneratorObject, receiver, Object, kReceiverOffset)
 SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
 ACCESSORS(JSGeneratorObject, operand_stack, FixedArray, kOperandStackOffset)
+SMI_ACCESSORS(JSGeneratorObject, stack_handler_index, kStackHandlerIndexOffset)
 
 
 JSGeneratorObject* JSGeneratorObject::cast(Object* obj) {

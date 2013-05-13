@@ -87,7 +87,8 @@ namespace internal {
   V(ArrayConstructor)                    \
   V(ProfileEntryHook)                    \
   /* IC Handler stubs */                 \
-  V(LoadField)
+  V(LoadField)                           \
+  V(KeyedLoadField)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -185,6 +186,12 @@ class CodeStub BASE_EMBEDDED {
   virtual Code::ExtraICState GetExtraICState() {
     return Code::kNoExtraICState;
   }
+  virtual Code::StubType GetStubType() {
+    return Code::NORMAL;
+  }
+  virtual int GetStubFlags() {
+    return -1;
+  }
 
  protected:
   static bool CanUseFPRegisters();
@@ -192,9 +199,6 @@ class CodeStub BASE_EMBEDDED {
   // Generates the assembler code for the stub.
   virtual Handle<Code> GenerateCode() = 0;
 
-  virtual Code::StubType GetStubType() {
-    return Code::NORMAL;
-  }
 
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.
@@ -253,7 +257,6 @@ class PlatformCodeStub : public CodeStub {
   virtual Handle<Code> GenerateCode();
 
   virtual Code::Kind GetCodeKind() const { return Code::STUB; }
-  virtual int GetStubFlags() { return -1; }
 
  protected:
   // Generates the assembler code for the stub.
@@ -754,42 +757,108 @@ class StoreArrayLengthStub: public StoreICStub {
 };
 
 
-class HandlerStub: public ICStub {
+class HICStub: public HydrogenCodeStub {
  public:
-  explicit HandlerStub(Code::Kind kind) : ICStub(kind) { }
+  virtual Code::Kind GetCodeKind() const { return kind(); }
+  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
+
+ protected:
+  HICStub() : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) { }
+  class KindBits: public BitField<Code::Kind, 0, 4> {};
+  virtual Code::Kind kind() const = 0;
+};
+
+
+class HandlerStub: public HICStub {
+ public:
   virtual Code::Kind GetCodeKind() const { return Code::STUB; }
   virtual int GetStubFlags() { return kind(); }
+
+ protected:
+  HandlerStub() : HICStub() { }
 };
 
 
 class LoadFieldStub: public HandlerStub {
  public:
-  LoadFieldStub(Register reg, bool inobject, int index)
-      : HandlerStub(Code::LOAD_IC),
-        reg_(reg),
-        inobject_(inobject),
-        index_(index) { }
-  virtual void Generate(MacroAssembler* masm);
+  LoadFieldStub(bool inobject, int index, Representation representation)
+      : HandlerStub() {
+    Initialize(Code::LOAD_IC, inobject, index, representation);
+  }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+  Representation representation() {
+    if (unboxed_double()) return Representation::Double();
+    return Representation::Tagged();
+  }
+
+  virtual Code::Kind kind() const {
+    return KindBits::decode(bit_field_);
+  }
+
+  bool is_inobject() {
+    return InobjectBits::decode(bit_field_);
+  }
+
+  int offset() {
+    int index = IndexBits::decode(bit_field_);
+    int offset = index * kPointerSize;
+    if (is_inobject()) return offset;
+    return FixedArray::kHeaderSize + offset;
+  }
+
+  bool unboxed_double() {
+    return UnboxedDoubleBits::decode(bit_field_);
+  }
+
+  virtual Code::StubType GetStubType() { return Code::FIELD; }
 
  protected:
-  virtual Code::StubType GetStubType() { return Code::FIELD; }
+  LoadFieldStub() : HandlerStub() { }
+
+  void Initialize(Code::Kind kind,
+                  bool inobject,
+                  int index,
+                  Representation representation) {
+    bool unboxed_double = FLAG_track_double_fields && representation.IsDouble();
+    bit_field_ = KindBits::encode(kind)
+        | InobjectBits::encode(inobject)
+        | IndexBits::encode(index)
+        | UnboxedDoubleBits::encode(unboxed_double);
+  }
 
  private:
   STATIC_ASSERT(KindBits::kSize == 4);
-  class RegisterBits: public BitField<int, 4, 6> {};
-  class InobjectBits: public BitField<bool, 10, 1> {};
-  class IndexBits: public BitField<int, 11, 11> {};
+  class InobjectBits: public BitField<bool, 4, 1> {};
+  class IndexBits: public BitField<int, 5, 11> {};
+  class UnboxedDoubleBits: public BitField<bool, 16, 1> {};
   virtual CodeStub::Major MajorKey() { return LoadField; }
-  virtual int MinorKey() {
-    return KindBits::encode(kind())
-        | RegisterBits::encode(reg_.code())
-        | InobjectBits::encode(inobject_)
-        | IndexBits::encode(index_);
+  virtual int NotMissMinorKey() { return bit_field_; }
+
+  int bit_field_;
+};
+
+
+class KeyedLoadFieldStub: public LoadFieldStub {
+ public:
+  KeyedLoadFieldStub(bool inobject, int index, Representation representation)
+      : LoadFieldStub() {
+    Initialize(Code::KEYED_LOAD_IC, inobject, index, representation);
   }
 
-  Register reg_;
-  bool inobject_;
-  int index_;
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+  virtual Handle<Code> GenerateCode();
+
+ private:
+  virtual CodeStub::Major MajorKey() { return KeyedLoadField; }
 };
 
 
@@ -1596,7 +1665,8 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
   static void InstallDescriptors(Isolate* isolate);
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
-  static const int kPropertyCell = 0;
+  static const int kConstructor = 0;
+  static const int kPropertyCell = 1;
 
  private:
   int NotMissMinorKey() { return bit_field_; }

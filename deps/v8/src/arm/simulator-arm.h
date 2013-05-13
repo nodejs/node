@@ -348,10 +348,8 @@ class Simulator {
       void* external_function,
       v8::internal::ExternalReference::Type type);
 
-  // For use in calls that take double value arguments.
-  void GetFpArgs(double* x, double* y);
-  void GetFpArgs(double* x);
-  void GetFpArgs(double* x, int32_t* y);
+  // Handle arguments and return value for runtime FP functions.
+  void GetFpArgs(double* x, double* y, int32_t* z);
   void SetFpResult(const double& result);
   void TrashCallerSaveRegisters();
 

@@ -36,7 +36,7 @@ using namespace v8;
 TEST(StrictUndeclaredGlobalVariable) {
   HandleScope scope(Isolate::GetCurrent());
   v8::Local<v8::String> var_name = v8_str("x");
-  LocalContext context;
+  v8::LocalContext context;
   v8::TryCatch try_catch;
   v8::Local<v8::Script> script = v8_compile("\"use strict\"; x = 42;");
   v8::Handle<v8::Object> proto = v8::Object::New();

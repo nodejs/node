@@ -64,10 +64,6 @@ class Descriptor BASE_EMBEDDED {
   void Print(FILE* out);
 #endif
 
-  void SetEnumerationIndex(int index) {
-    details_ = PropertyDetails(details_.attributes(), details_.type(), index);
-  }
-
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
  private:
@@ -93,10 +89,10 @@ class Descriptor BASE_EMBEDDED {
              Object* value,
              PropertyAttributes attributes,
              PropertyType type,
-             int index)
+             Representation representation)
       : key_(key),
         value_(value),
-        details_(attributes, type, index) { }
+        details_(attributes, type, representation) { }
 
   friend class DescriptorArray;
 };
@@ -107,8 +103,9 @@ class FieldDescriptor: public Descriptor {
   FieldDescriptor(Name* key,
                   int field_index,
                   PropertyAttributes attributes,
-                  int index = 0)
-      : Descriptor(key, Smi::FromInt(field_index), attributes, FIELD, index) {}
+                  Representation representation)
+      : Descriptor(key, Smi::FromInt(field_index), attributes,
+                   FIELD, representation) {}
 };
 
 
@@ -116,9 +113,9 @@ class ConstantFunctionDescriptor: public Descriptor {
  public:
   ConstantFunctionDescriptor(Name* key,
                              JSFunction* function,
-                             PropertyAttributes attributes,
-                             int index)
-      : Descriptor(key, function, attributes, CONSTANT_FUNCTION, index) {}
+                             PropertyAttributes attributes)
+      : Descriptor(key, function, attributes, CONSTANT_FUNCTION,
+                   Representation::Tagged()) {}
 };
 
 
@@ -126,9 +123,9 @@ class CallbacksDescriptor:  public Descriptor {
  public:
   CallbacksDescriptor(Name* key,
                       Object* foreign,
-                      PropertyAttributes attributes,
-                      int index = 0)
-      : Descriptor(key, foreign, attributes, CALLBACKS, index) {}
+                      PropertyAttributes attributes)
+      : Descriptor(key, foreign, attributes, CALLBACKS,
+                   Representation::Tagged()) {}
 };
 
 
@@ -190,7 +187,7 @@ class LookupResult BASE_EMBEDDED {
         lookup_type_(NOT_FOUND),
         holder_(NULL),
         cacheable_(true),
-        details_(NONE, NONEXISTENT) {
+        details_(NONE, NONEXISTENT, Representation::None()) {
     isolate->SetTopLookupResult(this);
   }
 
@@ -208,9 +205,13 @@ class LookupResult BASE_EMBEDDED {
     number_ = number;
   }
 
+  bool CanHoldValue(Handle<Object> value) {
+    return value->FitsRepresentation(details_.representation());
+  }
+
   void TransitionResult(JSObject* holder, int number) {
     lookup_type_ = TRANSITION_TYPE;
-    details_ = PropertyDetails(NONE, TRANSITION);
+    details_ = PropertyDetails(NONE, TRANSITION, Representation::None());
     holder_ = holder;
     number_ = number;
   }
@@ -225,19 +226,19 @@ class LookupResult BASE_EMBEDDED {
   void HandlerResult(JSProxy* proxy) {
     lookup_type_ = HANDLER_TYPE;
     holder_ = proxy;
-    details_ = PropertyDetails(NONE, HANDLER);
+    details_ = PropertyDetails(NONE, HANDLER, Representation::None());
     cacheable_ = false;
   }
 
   void InterceptorResult(JSObject* holder) {
     lookup_type_ = INTERCEPTOR_TYPE;
     holder_ = holder;
-    details_ = PropertyDetails(NONE, INTERCEPTOR);
+    details_ = PropertyDetails(NONE, INTERCEPTOR, Representation::None());
   }
 
   void NotFound() {
     lookup_type_ = NOT_FOUND;
-    details_ = PropertyDetails(NONE, NONEXISTENT);
+    details_ = PropertyDetails(NONE, NONEXISTENT, Representation::None());
     holder_ = NULL;
   }
 
@@ -254,6 +255,13 @@ class LookupResult BASE_EMBEDDED {
   PropertyType type() {
     ASSERT(IsFound());
     return details_.type();
+  }
+
+  Representation representation() {
+    ASSERT(IsFound());
+    ASSERT(!IsTransition());
+    ASSERT(details_.type() != NONEXISTENT);
+    return details_.representation();
   }
 
   PropertyAttributes GetAttributes() {
@@ -340,7 +348,7 @@ class LookupResult BASE_EMBEDDED {
   Object* GetLazyValue() {
     switch (type()) {
       case FIELD:
-        return holder()->FastPropertyAt(GetFieldIndex().field_index());
+        return holder()->RawFastPropertyAt(GetFieldIndex().field_index());
       case NORMAL: {
         Object* value;
         value = holder()->property_dictionary()->ValueAt(GetDictionaryEntry());

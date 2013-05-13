@@ -25,6 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include <v8.h>
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -124,7 +128,9 @@ void DispatchDebugMessages() {
   // "evaluate" command, because it must be executed some context.
   // In our sample we have only one context, so there is nothing really to
   // think about.
-  v8::Context::Scope scope(debug_message_context);
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::Scope scope(isolate, debug_message_context);
 
   v8::Debug::ProcessDebugMessages();
 }
@@ -136,8 +142,8 @@ int RunMain(int argc, char* argv[]) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope handle_scope(isolate);
 
-  v8::Handle<v8::String> script_source(NULL);
-  v8::Handle<v8::Value> script_name(NULL);
+  v8::Handle<v8::String> script_source;
+  v8::Handle<v8::Value> script_name;
   int script_param_counter = 0;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -209,7 +215,7 @@ int RunMain(int argc, char* argv[]) {
 
   // Create a new execution environment containing the built-in
   // functions
-  v8::Handle<v8::Context> context = v8::Context::New(NULL, global);
+  v8::Handle<v8::Context> context = v8::Context::New(isolate, NULL, global);
   // Enter the newly created execution environment.
   v8::Context::Scope context_scope(context);
 

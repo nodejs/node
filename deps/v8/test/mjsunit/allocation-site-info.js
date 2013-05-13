@@ -284,5 +284,25 @@ if (support_smi_only_arrays) {
     assertKind(elements_kind.fast, obj);
     obj = newarraycase_list_smiobj(2);
     assertKind(elements_kind.fast, obj);
+
+    // Verify that cross context calls work
+    var realmA = Realm.current();
+    var realmB = Realm.create();
+    assertEquals(0, realmA);
+    assertEquals(1, realmB);
+
+    function instanceof_check(type) {
+      assertTrue(new type() instanceof type);
+      assertTrue(new type(5) instanceof type);
+      assertTrue(new type(1,2,3) instanceof type);
+    }
+
+    var realmBArray = Realm.eval(realmB, "Array");
+    instanceof_check(Array);
+    instanceof_check(realmBArray);
+    %OptimizeFunctionOnNextCall(instanceof_check);
+    instanceof_check(Array);
+    instanceof_check(realmBArray);
+    assertTrue(2 != %GetOptimizationStatus(instanceof_check));
   }
 }

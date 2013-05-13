@@ -144,7 +144,8 @@ Code::Flags CompilationInfo::flags() const {
     return Code::ComputeFlags(code_stub()->GetCodeKind(),
                               code_stub()->GetICState(),
                               code_stub()->GetExtraICState(),
-                              Code::NORMAL, -1);
+                              code_stub()->GetStubType(),
+                              code_stub()->GetStubFlags());
   } else {
     return Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
   }
@@ -299,14 +300,14 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   //
   // The encoding is as a signed value, with parameters and receiver using
   // the negative indices and locals the non-negative ones.
-  const int parameter_limit = -LUnallocated::kMinFixedIndex;
+  const int parameter_limit = -LUnallocated::kMinFixedSlotIndex;
   Scope* scope = info()->scope();
   if ((scope->num_parameters() + 1) > parameter_limit) {
     info()->set_bailout_reason("too many parameters");
     return AbortOptimization();
   }
 
-  const int locals_limit = LUnallocated::kMaxFixedIndex;
+  const int locals_limit = LUnallocated::kMaxFixedSlotIndex;
   if (!info()->osr_ast_id().IsNone() &&
       scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit) {
     info()->set_bailout_reason("too many parameters/locals");

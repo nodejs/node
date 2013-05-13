@@ -30,6 +30,7 @@
 #if defined(V8_TARGET_ARCH_MIPS)
 
 #include "bootstrapper.h"
+#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "codegen.h"
 #include "regexp-macro-assembler.h"
@@ -71,6 +72,28 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
+}
+
+
+void LoadFieldStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a0 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
+void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a1 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ = NULL;
 }
 
 
@@ -116,9 +139,10 @@ static void InitializeArrayConstructorDescriptor(
     int constant_stack_parameter_count) {
   // register state
   // a0 -- number of arguments
+  // a1 -- function
   // a2 -- type info cell with elements kind
-  static Register registers[] = { a2 };
-  descriptor->register_param_count_ = 1;
+  static Register registers[] = { a1, a2 };
+  descriptor->register_param_count_ = 2;
   if (constant_stack_parameter_count != 0) {
     // stack param count needs (constructor pointer, and single argument)
     descriptor->stack_parameter_count_ = &a0;
@@ -4099,12 +4123,6 @@ Register InstanceofStub::left() { return a0; }
 Register InstanceofStub::right() { return a1; }
 
 
-void LoadFieldStub::Generate(MacroAssembler* masm) {
-  StubCompiler::DoGenerateFastPropertyLoad(masm, v0, reg_, inobject_, index_);
-  __ Ret();
-}
-
-
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The displacement is the offset of the last parameter (if any)
   // relative to the frame pointer.
@@ -5103,6 +5121,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Handle<Object> terminal_kind_sentinel =
       TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
                                                   LAST_FAST_ELEMENTS_KIND);
+  __ JumpIfNotSmi(a3, &miss);
   __ Branch(&miss, gt, a3, Operand(terminal_kind_sentinel));
   // Make sure the function is the Array() function
   __ LoadArrayFunction(a3);
@@ -6300,25 +6319,53 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ AllocateAsciiConsString(v0, t2, t0, t1, &call_runtime);
   __ bind(&allocated);
   // Fill the fields of the cons string.
+  Label skip_write_barrier, after_writing;
+  ExternalReference high_promotion_mode = ExternalReference::
+      new_space_high_promotion_mode_active_address(masm->isolate());
+  __ li(t0, Operand(high_promotion_mode));
+  __ lw(t0, MemOperand(t0, 0));
+  __ Branch(&skip_write_barrier, eq, t0, Operand(zero_reg));
+
+  __ mov(t3, v0);
+  __ sw(a0, FieldMemOperand(t3, ConsString::kFirstOffset));
+  __ RecordWriteField(t3,
+                      ConsString::kFirstOffset,
+                      a0,
+                      t0,
+                      kRAHasNotBeenSaved,
+                      kDontSaveFPRegs);
+  __ sw(a1, FieldMemOperand(t3, ConsString::kSecondOffset));
+  __ RecordWriteField(t3,
+                      ConsString::kSecondOffset,
+                      a1,
+                      t0,
+                      kRAHasNotBeenSaved,
+                      kDontSaveFPRegs);
+  __ jmp(&after_writing);
+
+  __ bind(&skip_write_barrier);
   __ sw(a0, FieldMemOperand(v0, ConsString::kFirstOffset));
   __ sw(a1, FieldMemOperand(v0, ConsString::kSecondOffset));
+
+  __ bind(&after_writing);
+
   __ IncrementCounter(counters->string_add_native(), 1, a2, a3);
   __ DropAndRet(2);
 
   __ bind(&non_ascii);
   // At least one of the strings is two-byte. Check whether it happens
-  // to contain only ASCII characters.
+  // to contain only one byte characters.
   // t0: first instance type.
   // t1: second instance type.
-  // Branch to if _both_ instances have kAsciiDataHintMask set.
-  __ And(at, t0, Operand(kAsciiDataHintMask));
+  // Branch to if _both_ instances have kOneByteDataHintMask set.
+  __ And(at, t0, Operand(kOneByteDataHintMask));
   __ and_(at, at, t1);
   __ Branch(&ascii_data, ne, at, Operand(zero_reg));
   __ Xor(t0, t0, Operand(t1));
-  STATIC_ASSERT(kOneByteStringTag != 0 && kAsciiDataHintTag != 0);
-  __ And(t0, t0, Operand(kOneByteStringTag | kAsciiDataHintTag));
+  STATIC_ASSERT(kOneByteStringTag != 0 && kOneByteDataHintTag != 0);
+  __ And(t0, t0, Operand(kOneByteStringTag | kOneByteDataHintTag));
   __ Branch(&ascii_data, eq, t0,
-      Operand(kOneByteStringTag | kAsciiDataHintTag));
+      Operand(kOneByteStringTag | kOneByteDataHintTag));
 
   // Allocate a two byte cons string.
   __ AllocateTwoByteConsString(v0, t2, t0, t1, &call_runtime);
@@ -7181,6 +7228,9 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(t1), REG(a0), REG(t2), EMIT_REMEMBERED_SET },
   // FastNewClosureStub::Generate
   { REG(a2), REG(t0), REG(a1), EMIT_REMEMBERED_SET },
+  // StringAddStub::Generate
+  { REG(t3), REG(a1), REG(t0), EMIT_REMEMBERED_SET },
+  { REG(t3), REG(a0), REG(t0), EMIT_REMEMBERED_SET },
   // Null termination.
   { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
 };
@@ -7703,13 +7753,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     Label no_info, switch_ready;
     // Get the elements kind and case on that.
     __ Branch(&no_info, eq, a2, Operand(undefined_sentinel));
-    __ lw(a3, FieldMemOperand(a2, kPointerSize));
-
-    // There is no info if the call site went megamorphic either
-    // TODO(mvstanton): Really? I thought if it was the array function that
-    // the cell wouldn't get stamped as megamorphic.
-    __ Branch(&no_info, eq, a3,
-        Operand(TypeFeedbackCells::MegamorphicSentinel(masm->isolate())));
+    __ lw(a3, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
+    __ JumpIfNotSmi(a3, &no_info);
     __ SmiUntag(a3);
     __ jmp(&switch_ready);
     __ bind(&no_info);

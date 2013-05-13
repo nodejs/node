@@ -171,6 +171,16 @@ class RegisteredExtension {
   V(Object, JSObject)                          \
   V(Array, JSArray)                            \
   V(ArrayBuffer, JSArrayBuffer)                \
+  V(TypedArray, JSTypedArray)                  \
+  V(Uint8Array, JSTypedArray)                  \
+  V(Uint8ClampedArray, JSTypedArray)           \
+  V(Int8Array, JSTypedArray)                   \
+  V(Uint16Array, JSTypedArray)                 \
+  V(Int16Array, JSTypedArray)                  \
+  V(Uint32Array, JSTypedArray)                 \
+  V(Int32Array, JSTypedArray)                  \
+  V(Float32Array, JSTypedArray)                \
+  V(Float64Array, JSTypedArray)                \
   V(String, String)                            \
   V(Symbol, Symbol)                            \
   V(Script, Object)                            \
@@ -208,6 +218,28 @@ class Utils {
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<ArrayBuffer> ToLocal(
       v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
+
+  static inline Local<TypedArray> ToLocal(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Uint8Array> ToLocalUint8Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Uint8ClampedArray> ToLocalUint8ClampedArray(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Int8Array> ToLocalInt8Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Uint16Array> ToLocalUint16Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Int16Array> ToLocalInt16Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Uint32Array> ToLocalUint32Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Int32Array> ToLocalInt32Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Float32Array> ToLocalFloat32Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Float64Array> ToLocalFloat64Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+
   static inline Local<Message> MessageToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<StackTrace> StackTraceToLocal(
@@ -262,13 +294,33 @@ v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
 }
 
 
+class InternalHandleHelper {
+ public:
+  template<class From, class To>
+  static inline Local<To> Convert(v8::internal::Handle<From> obj) {
+    return Local<To>(reinterpret_cast<To*>(obj.location()));
+  }
+};
+
+
 // Implementations of ToLocal
 
 #define MAKE_TO_LOCAL(Name, From, To)                                       \
   Local<v8::To> Utils::Name(v8::internal::Handle<v8::internal::From> obj) { \
     ASSERT(obj.is_null() || !obj->IsTheHole());                             \
-    return Local<To>(reinterpret_cast<To*>(obj.location()));                \
+    return InternalHandleHelper::Convert<v8::internal::From, v8::To>(obj);  \
   }
+
+
+#define MAKE_TO_LOCAL_TYPED_ARRAY(TypedArray, typeConst)                    \
+  Local<v8::TypedArray> Utils::ToLocal##TypedArray(                         \
+      v8::internal::Handle<v8::internal::JSTypedArray> obj) {               \
+    ASSERT(obj.is_null() || !obj->IsTheHole());                             \
+    ASSERT(obj->type() == typeConst);                                       \
+    return InternalHandleHelper::                                           \
+        Convert<v8::internal::JSTypedArray, v8::TypedArray>(obj);           \
+  }
+
 
 MAKE_TO_LOCAL(ToLocal, Context, Context)
 MAKE_TO_LOCAL(ToLocal, Object, Value)
@@ -279,6 +331,18 @@ MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
 MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
+MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
+
+MAKE_TO_LOCAL_TYPED_ARRAY(Uint8Array, kExternalUnsignedByteArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Uint8ClampedArray, kExternalPixelArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Int8Array, kExternalByteArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Uint16Array, kExternalUnsignedShortArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Int16Array, kExternalShortArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Uint32Array, kExternalUnsignedIntArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Int32Array, kExternalIntArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Float32Array, kExternalFloatArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Float64Array, kExternalDoubleArray)
+
 MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)
 MAKE_TO_LOCAL(ToLocal, SignatureInfo, Signature)
@@ -293,6 +357,7 @@ MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
 MAKE_TO_LOCAL(ToLocal, DeclaredAccessorDescriptor, DeclaredAccessorDescriptor)
 
+#undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL
 
 

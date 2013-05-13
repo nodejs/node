@@ -115,6 +115,9 @@ class List {
   void InsertAt(int index, const T& element,
                 AllocationPolicy allocator = AllocationPolicy());
 
+  // Overwrites the element at the specific index.
+  void Set(int index, const T& element);
+
   // Added 'count' elements with the value 'value' and returns a
   // vector that allows access to the elements.  The vector is valid
   // until the next change is made to this list.

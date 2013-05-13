@@ -35,6 +35,11 @@
 #include <errno.h>
 #endif
 
+
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "global-handles.h"
@@ -299,11 +304,11 @@ TEST(GCCallback) {
 
 static int NumberOfWeakCalls = 0;
 static void WeakPointerCallback(v8::Isolate* isolate,
-                                v8::Persistent<v8::Value> handle,
+                                v8::Persistent<v8::Value>* handle,
                                 void* id) {
   ASSERT(id == reinterpret_cast<void*>(1234));
   NumberOfWeakCalls++;
-  handle.Dispose(isolate);
+  handle->Dispose(isolate);
 }
 
 TEST(ObjectGroups) {
@@ -322,16 +327,16 @@ TEST(ObjectGroups) {
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   global_handles->MakeWeak(g1s1.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
+                           &WeakPointerCallback,
+                           NULL);
   global_handles->MakeWeak(g1s2.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
+                           &WeakPointerCallback,
+                           NULL);
   global_handles->MakeWeak(g1c1.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
+                           &WeakPointerCallback,
+                           NULL);
 
   Handle<Object> g2s1 =
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
@@ -341,16 +346,16 @@ TEST(ObjectGroups) {
     global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   global_handles->MakeWeak(g2s1.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
+                           &WeakPointerCallback,
+                           NULL);
   global_handles->MakeWeak(g2s2.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
+                           &WeakPointerCallback,
+                           NULL);
   global_handles->MakeWeak(g2c1.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
+                           &WeakPointerCallback,
+                           NULL);
 
   Handle<Object> root = global_handles->Create(*g1s1);  // make a root.
 
@@ -379,8 +384,8 @@ TEST(ObjectGroups) {
   // Weaken the root.
   global_handles->MakeWeak(root.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
+                           &WeakPointerCallback,
+                           NULL);
   // But make children strong roots---all the objects (except for children)
   // should be collectable now.
   global_handles->ClearWeakness(g1c1.location());
@@ -408,12 +413,12 @@ TEST(ObjectGroups) {
   // And now make children weak again and collect them.
   global_handles->MakeWeak(g1c1.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
+                           &WeakPointerCallback,
+                           NULL);
   global_handles->MakeWeak(g2c1.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &WeakPointerCallback);
+                           &WeakPointerCallback,
+                           NULL);
 
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
   CHECK_EQ(7, NumberOfWeakCalls);

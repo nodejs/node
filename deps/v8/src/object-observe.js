@@ -138,7 +138,9 @@ function NotifyChange(type, object, name, oldValue) {
   var changeRecord = (arguments.length < 4) ?
       { type: type, object: object, name: name } :
       { type: type, object: object, name: name, oldValue: oldValue };
-  ObjectFreeze(changeRecord);
+  // TODO(rafaelw): This breaks spec-compliance. Re-enable when freezing isn't
+  // slow.
+  // ObjectFreeze(changeRecord);
   EnqueueChangeRecord(changeRecord, objectInfo.changeObservers);
 }
 
@@ -164,7 +166,9 @@ function ObjectNotifierNotify(changeRecord) {
     %DefineOrRedefineDataProperty(newRecord, prop, changeRecord[prop],
         READ_ONLY + DONT_DELETE);
   }
-  ObjectFreeze(newRecord);
+  // TODO(rafaelw): This breaks spec-compliance. Re-enable when freezing isn't
+  // slow.
+  // ObjectFreeze(newRecord);
 
   EnqueueChangeRecord(newRecord, objectInfo.changeObservers);
 }

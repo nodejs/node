@@ -98,6 +98,12 @@ inline StackHandler::Kind StackHandler::kind() const {
 }
 
 
+inline unsigned StackHandler::index() const {
+  const int offset = StackHandlerConstants::kStateOffset;
+  return IndexField::decode(Memory::unsigned_at(address() + offset));
+}
+
+
 inline Object** StackHandler::context_address() const {
   const int offset = StackHandlerConstants::kContextOffset;
   return reinterpret_cast<Object**>(address() + offset);
@@ -210,6 +216,34 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
 
 Object* JavaScriptFrame::GetParameter(int index) const {
   return Memory::Object_at(GetParameterSlot(index));
+}
+
+
+inline Address JavaScriptFrame::GetOperandSlot(int index) const {
+  Address base = fp() + JavaScriptFrameConstants::kLocal0Offset;
+  ASSERT(IsAddressAligned(base, kPointerSize));
+  ASSERT_EQ(type(), JAVA_SCRIPT);
+  ASSERT_LT(index, ComputeOperandsCount());
+  ASSERT_LE(0, index);
+  // Operand stack grows down.
+  return base - index * kPointerSize;
+}
+
+
+inline Object* JavaScriptFrame::GetOperand(int index) const {
+  return Memory::Object_at(GetOperandSlot(index));
+}
+
+
+inline int JavaScriptFrame::ComputeOperandsCount() const {
+  Address base = fp() + JavaScriptFrameConstants::kLocal0Offset;
+  // Base points to low address of first operand and stack grows down, so add
+  // kPointerSize to get the actual stack size.
+  intptr_t stack_size_in_bytes = (base + kPointerSize) - sp();
+  ASSERT(IsAligned(stack_size_in_bytes, kPointerSize));
+  ASSERT(type() == JAVA_SCRIPT);
+  ASSERT(stack_size_in_bytes >= 0);
+  return static_cast<int>(stack_size_in_bytes >> kPointerSizeLog2);
 }
 
 

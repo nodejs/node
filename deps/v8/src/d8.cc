@@ -40,6 +40,11 @@
 #include <string.h>
 #include <sys/stat.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #ifdef V8_SHARED
 #include <assert.h>
 #endif  // V8_SHARED
@@ -124,8 +129,8 @@ class PerIsolateData {
   }
 
 #define DEFINE_STRING_GETTER(name, value) \
-  static Persistent<String> name##_string(Isolate* isolate) { \
-    return Get(isolate)->name##_string_; \
+  static Handle<String> name##_string(Isolate* isolate) { \
+    return Handle<String>(*Get(isolate)->name##_string_); \
   }
   FOR_EACH_STRING(DEFINE_STRING_GETTER)
 #undef DEFINE_STRING_GETTER
@@ -245,7 +250,7 @@ bool Shell::ExecuteString(Isolate* isolate,
   } else {
     PerIsolateData* data = PerIsolateData::Get(isolate);
     Local<Context> realm =
-        Local<Context>::New(data->realms_[data->realm_current_]);
+        Local<Context>::New(isolate, data->realms_[data->realm_current_]);
     realm->Enter();
     Handle<Value> result = script->Run();
     realm->Exit();
@@ -272,7 +277,7 @@ bool Shell::ExecuteString(Isolate* isolate,
 #if !defined(V8_SHARED)
         } else {
           v8::TryCatch try_catch;
-          Context::Scope context_scope(utility_context_);
+          Context::Scope context_scope(isolate, utility_context_);
           Handle<Object> global = utility_context_->Global();
           Handle<Value> fun = global->Get(String::New("Stringify"));
           Handle<Value> argv[1] = { result };
@@ -421,7 +426,7 @@ Handle<Value> Shell::RealmEval(const Arguments& args) {
   }
   Handle<Script> script = Script::New(args[1]->ToString());
   if (script.IsEmpty()) return Undefined(isolate);
-  Local<Context> realm = Local<Context>::New(data->realms_[index]);
+  Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
   realm->Enter();
   Handle<Value> result = script->Run();
   realm->Exit();
@@ -435,7 +440,7 @@ Handle<Value> Shell::RealmSharedGet(Local<String> property,
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (data->realm_shared_.IsEmpty()) return Undefined(isolate);
-  return data->realm_shared_;
+  return Local<Value>::New(isolate, data->realm_shared_);
 }
 
 void Shell::RealmSharedSet(Local<String> property,
@@ -1057,14 +1062,14 @@ Handle<Value> Shell::ArraySet(const Arguments& args) {
 
 
 void Shell::ExternalArrayWeakCallback(v8::Isolate* isolate,
-                                      Persistent<Value> object,
-                                      void* data) {
+                                      Persistent<Object>* object,
+                                      uint8_t* data) {
   HandleScope scope(isolate);
-  int32_t length = object->ToObject()->Get(
+  int32_t length = (*object)->Get(
       PerIsolateData::byteLength_string(isolate))->Uint32Value();
   isolate->AdjustAmountOfExternalAllocatedMemory(-length);
-  delete[] static_cast<uint8_t*>(data);
-  object.Dispose(isolate);
+  delete[] data;
+  object->Dispose(isolate);
 }
 
 
@@ -1180,7 +1185,7 @@ Handle<Array> Shell::GetCompletions(Isolate* isolate,
                                     Handle<String> text,
                                     Handle<String> full) {
   HandleScope handle_scope(isolate);
-  Context::Scope context_scope(utility_context_);
+  Context::Scope context_scope(isolate, utility_context_);
   Handle<Object> global = utility_context_->Global();
   Handle<Value> fun = global->Get(String::New("GetCompletions"));
   static const int kArgc = 3;
@@ -1191,8 +1196,10 @@ Handle<Array> Shell::GetCompletions(Isolate* isolate,
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-Handle<Object> Shell::DebugMessageDetails(Handle<String> message) {
-  Context::Scope context_scope(utility_context_);
+Handle<Object> Shell::DebugMessageDetails(Isolate* isolate,
+                                          Handle<String> message) {
+  HandleScope handle_scope(isolate);
+  Context::Scope context_scope(isolate, utility_context_);
   Handle<Object> global = utility_context_->Global();
   Handle<Value> fun = global->Get(String::New("DebugMessageDetails"));
   static const int kArgc = 1;
@@ -1202,8 +1209,10 @@ Handle<Object> Shell::DebugMessageDetails(Handle<String> message) {
 }
 
 
-Handle<Value> Shell::DebugCommandToJSONRequest(Handle<String> command) {
-  Context::Scope context_scope(utility_context_);
+Handle<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
+                                               Handle<String> command) {
+  HandleScope handle_scope(isolate);
+  Context::Scope context_scope(isolate, utility_context_);
   Handle<Object> global = utility_context_->Global();
   Handle<Value> fun = global->Get(String::New("DebugCommandToJSONRequest"));
   static const int kArgc = 1;
@@ -1214,7 +1223,9 @@ Handle<Value> Shell::DebugCommandToJSONRequest(Handle<String> command) {
 
 
 void Shell::DispatchDebugMessages() {
-  v8::Context::Scope scope(Shell::evaluation_context_);
+  Isolate* isolate = v8::Isolate::GetCurrent();
+  HandleScope handle_scope(isolate);
+  v8::Context::Scope scope(isolate, Shell::evaluation_context_);
   v8::Debug::ProcessDebugMessages();
 }
 #endif  // ENABLE_DEBUGGER_SUPPORT
@@ -1327,7 +1338,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   // utility, evaluation and debug context can all access each other.
   utility_context_->SetSecurityToken(Undefined(isolate));
   evaluation_context_->SetSecurityToken(Undefined(isolate));
-  Context::Scope utility_scope(utility_context_);
+  Context::Scope utility_scope(isolate, utility_context_);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (i::FLAG_debugger) printf("JavaScript debugger enabled\n");
@@ -1459,28 +1470,34 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(String::New("Realm"), realm_template);
 
   // Bind the handlers for external arrays.
-  PropertyAttribute attr =
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-  global_template->Set(PerIsolateData::ArrayBuffer_string(isolate),
-                       CreateArrayBufferTemplate(ArrayBuffer), attr);
-  global_template->Set(String::New("Int8Array"),
-                       CreateArrayTemplate(Int8Array), attr);
-  global_template->Set(String::New("Uint8Array"),
-                       CreateArrayTemplate(Uint8Array), attr);
-  global_template->Set(String::New("Int16Array"),
-                       CreateArrayTemplate(Int16Array), attr);
-  global_template->Set(String::New("Uint16Array"),
-                       CreateArrayTemplate(Uint16Array), attr);
-  global_template->Set(String::New("Int32Array"),
-                       CreateArrayTemplate(Int32Array), attr);
-  global_template->Set(String::New("Uint32Array"),
-                       CreateArrayTemplate(Uint32Array), attr);
-  global_template->Set(String::New("Float32Array"),
-                       CreateArrayTemplate(Float32Array), attr);
-  global_template->Set(String::New("Float64Array"),
-                       CreateArrayTemplate(Float64Array), attr);
-  global_template->Set(String::New("Uint8ClampedArray"),
-                       CreateArrayTemplate(Uint8ClampedArray), attr);
+#ifndef V8_SHARED
+  if (!i::FLAG_harmony_typed_arrays) {
+#endif  // V8_SHARED
+    PropertyAttribute attr =
+        static_cast<PropertyAttribute>(ReadOnly | DontDelete);
+    global_template->Set(PerIsolateData::ArrayBuffer_string(isolate),
+                         CreateArrayBufferTemplate(ArrayBuffer), attr);
+    global_template->Set(String::New("Int8Array"),
+                         CreateArrayTemplate(Int8Array), attr);
+    global_template->Set(String::New("Uint8Array"),
+                         CreateArrayTemplate(Uint8Array), attr);
+    global_template->Set(String::New("Int16Array"),
+                         CreateArrayTemplate(Int16Array), attr);
+    global_template->Set(String::New("Uint16Array"),
+                         CreateArrayTemplate(Uint16Array), attr);
+    global_template->Set(String::New("Int32Array"),
+                         CreateArrayTemplate(Int32Array), attr);
+    global_template->Set(String::New("Uint32Array"),
+                         CreateArrayTemplate(Uint32Array), attr);
+    global_template->Set(String::New("Float32Array"),
+                         CreateArrayTemplate(Float32Array), attr);
+    global_template->Set(String::New("Float64Array"),
+                         CreateArrayTemplate(Float64Array), attr);
+    global_template->Set(String::New("Uint8ClampedArray"),
+                         CreateArrayTemplate(Uint8ClampedArray), attr);
+#ifndef V8_SHARED
+  }
+#endif  // V8_SHARED
 
 #if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
@@ -1522,7 +1539,8 @@ void Shell::InitializeDebugger(Isolate* isolate) {
   Locker lock(isolate);
   HandleScope scope(isolate);
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  utility_context_ = Context::New(NULL, global_template);
+  utility_context_.Reset(isolate,
+                         Context::New(isolate, NULL, global_template));
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Start the debugger agent if requested.
@@ -1535,14 +1553,15 @@ void Shell::InitializeDebugger(Isolate* isolate) {
 }
 
 
-Persistent<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
+Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
 #ifndef V8_SHARED
   // This needs to be a critical section since this is not thread-safe
   i::ScopedLock lock(context_mutex_);
 #endif  // V8_SHARED
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  Persistent<Context> context = Context::New(NULL, global_template);
+  HandleScope handle_scope(isolate);
+  Local<Context> context = Context::New(isolate, NULL, global_template);
   ASSERT(!context.IsEmpty());
   Context::Scope scope(context);
 
@@ -1560,7 +1579,7 @@ Persistent<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   context->Global()->Set(String::New("arguments"),
                          Utils::ToLocal(arguments_jsarray));
 #endif  // V8_SHARED
-  return context;
+  return handle_scope.Close(context);
 }
 
 
@@ -1740,9 +1759,9 @@ Handle<String> Shell::ReadFile(Isolate* isolate, const char* name) {
 
 void Shell::RunShell(Isolate* isolate) {
   Locker locker(isolate);
-  Context::Scope context_scope(evaluation_context_);
-  PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
   HandleScope outer_scope(isolate);
+  Context::Scope context_scope(isolate, evaluation_context_);
+  PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
   Handle<String> name = String::New("(d8)");
   LineEditor* console = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
@@ -1791,7 +1810,7 @@ void ShellThread::Run() {
     // Prepare the context for this thread.
     Locker locker(isolate_);
     HandleScope outer_scope(isolate_);
-    Persistent<Context> thread_context =
+    Local<Context> thread_context =
         Shell::CreateEvaluationContext(isolate_);
     Context::Scope context_scope(thread_context);
     PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate_));
@@ -1815,7 +1834,6 @@ void ShellThread::Run() {
       Shell::ExecuteString(isolate_, str, String::New(filename), false, false);
     }
 
-    thread_context.Dispose(thread_context->GetIsolate());
     ptr = next_line;
   }
 }
@@ -1892,15 +1910,16 @@ void SourceGroup::ExecuteInThread() {
     {
       Isolate::Scope iscope(isolate);
       Locker lock(isolate);
-      HandleScope scope(isolate);
-      PerIsolateData data(isolate);
-      Persistent<Context> context = Shell::CreateEvaluationContext(isolate);
       {
-        Context::Scope cscope(context);
-        PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-        Execute(isolate);
+        HandleScope scope(isolate);
+        PerIsolateData data(isolate);
+        Local<Context> context = Shell::CreateEvaluationContext(isolate);
+        {
+          Context::Scope cscope(context);
+          PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
+          Execute(isolate);
+        }
       }
-      context.Dispose(isolate);
       if (Shell::options.send_idle_notification) {
         const int kLongIdlePauseInMs = 1000;
         V8::ContextDisposedNotification();
@@ -2091,26 +2110,27 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 #endif  // V8_SHARED
   {  // NOLINT
     Locker lock(isolate);
-    HandleScope scope(isolate);
-    Persistent<Context> context = CreateEvaluationContext(isolate);
-    if (options.last_run) {
-      // Keep using the same context in the interactive shell.
-      evaluation_context_ = context;
-#if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
-      // If the interactive debugger is enabled make sure to activate
-      // it before running the files passed on the command line.
-      if (i::FLAG_debugger) {
-        InstallUtilityScript(isolate);
-      }
-#endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
-    }
     {
-      Context::Scope cscope(context);
-      PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-      options.isolate_sources[0].Execute(isolate);
+      HandleScope scope(isolate);
+      Local<Context> context = CreateEvaluationContext(isolate);
+      if (options.last_run) {
+        // Keep using the same context in the interactive shell.
+        evaluation_context_.Reset(isolate, context);
+#if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
+        // If the interactive debugger is enabled make sure to activate
+        // it before running the files passed on the command line.
+        if (i::FLAG_debugger) {
+          InstallUtilityScript(isolate);
+        }
+#endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
+      }
+      {
+        Context::Scope cscope(context);
+        PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
+        options.isolate_sources[0].Execute(isolate);
+      }
     }
     if (!options.last_run) {
-      context.Dispose(isolate);
       if (options.send_idle_notification) {
         const int kLongIdlePauseInMs = 1000;
         V8::ContextDisposedNotification();
@@ -2155,7 +2175,7 @@ int Shell::Main(int argc, char* argv[]) {
   {
     Initialize(isolate);
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
-    vTune::InitilizeVtuneForV8();
+    vTune::InitializeVtuneForV8();
 #endif
     PerIsolateData data(isolate);
     InitializeDebugger(isolate);

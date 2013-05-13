@@ -27,6 +27,10 @@
 
 #include <stdlib.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "compilation-cache.h"
@@ -392,10 +396,10 @@ TEST(GlobalHandles) {
 static bool WeakPointerCleared = false;
 
 static void TestWeakGlobalHandleCallback(v8::Isolate* isolate,
-                                         v8::Persistent<v8::Value> handle,
+                                         v8::Persistent<v8::Value>* handle,
                                          void* id) {
   if (1234 == reinterpret_cast<intptr_t>(id)) WeakPointerCleared = true;
-  handle.Dispose(isolate);
+  handle->Dispose(isolate);
 }
 
 
@@ -423,8 +427,8 @@ TEST(WeakGlobalHandlesScavenge) {
 
   global_handles->MakeWeak(h2.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &TestWeakGlobalHandleCallback);
+                           &TestWeakGlobalHandleCallback,
+                           NULL);
 
   // Scavenge treats weak pointers as normal roots.
   heap->PerformScavenge();
@@ -470,8 +474,8 @@ TEST(WeakGlobalHandlesMark) {
 
   global_handles->MakeWeak(h2.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &TestWeakGlobalHandleCallback);
+                           &TestWeakGlobalHandleCallback,
+                           NULL);
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
@@ -507,8 +511,8 @@ TEST(DeleteWeakGlobalHandle) {
 
   global_handles->MakeWeak(h.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &TestWeakGlobalHandleCallback);
+                           &TestWeakGlobalHandleCallback,
+                           NULL);
 
   // Scanvenge does not recognize weak reference.
   heap->PerformScavenge();
@@ -1293,13 +1297,13 @@ TEST(TestInternalWeakLists) {
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  v8::Persistent<v8::Context> ctx[kNumTestContexts];
+  v8::Handle<v8::Context> ctx[kNumTestContexts];
 
   CHECK_EQ(0, CountNativeContexts());
 
   // Create a number of global contests which gets linked together.
   for (int i = 0; i < kNumTestContexts; i++) {
-    ctx[i] = v8::Context::New();
+    ctx[i] = v8::Context::New(v8::Isolate::GetCurrent());
 
     bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
 
@@ -1366,7 +1370,9 @@ TEST(TestInternalWeakLists) {
 
   // Dispose the native contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
-    ctx[i].Dispose(ctx[i]->GetIsolate());
+    // TODO(dcarney): is there a better way to do this?
+    i::Object** unsafe = reinterpret_cast<i::Object**>(*ctx[i]);
+    *unsafe = HEAP->undefined_value();
     ctx[i].Clear();
 
     // Scavenge treats these references as strong.
@@ -1430,14 +1436,14 @@ TEST(TestInternalWeakListsTraverseWithGC) {
   static const int kNumTestContexts = 10;
 
   HandleScope scope(isolate);
-  v8::Persistent<v8::Context> ctx[kNumTestContexts];
+  v8::Handle<v8::Context> ctx[kNumTestContexts];
 
   CHECK_EQ(0, CountNativeContexts());
 
   // Create an number of contexts and check the length of the weak list both
   // with and without GCs while iterating the list.
   for (int i = 0; i < kNumTestContexts; i++) {
-    ctx[i] = v8::Context::New();
+    ctx[i] = v8::Context::New(v8::Isolate::GetCurrent());
     CHECK_EQ(i + 1, CountNativeContexts());
     CHECK_EQ(i + 1, CountNativeContextsWithGC(isolate, i / 2 + 1));
   }
@@ -1655,9 +1661,15 @@ static int NumberOfGlobalObjects() {
 // optimized code.
 TEST(LeakNativeContextViaMap) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
-  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope outer_scope(isolate);
+  v8::Persistent<v8::Context> ctx1;
+  v8::Persistent<v8::Context> ctx2;
+  {
+    v8::HandleScope scope(isolate);
+    ctx1.Reset(isolate, v8::Context::New(isolate));
+    ctx2.Reset(isolate, v8::Context::New(isolate));
+  }
   ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
@@ -1693,9 +1705,15 @@ TEST(LeakNativeContextViaMap) {
 // optimized code.
 TEST(LeakNativeContextViaFunction) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
-  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope outer_scope(isolate);
+  v8::Persistent<v8::Context> ctx1;
+  v8::Persistent<v8::Context> ctx2;
+  {
+    v8::HandleScope scope(isolate);
+    ctx1.Reset(isolate, v8::Context::New(isolate));
+    ctx2.Reset(isolate, v8::Context::New(isolate));
+  }
   ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
@@ -1729,9 +1747,15 @@ TEST(LeakNativeContextViaFunction) {
 
 TEST(LeakNativeContextViaMapKeyed) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
-  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope outer_scope(isolate);
+  v8::Persistent<v8::Context> ctx1;
+  v8::Persistent<v8::Context> ctx2;
+  {
+    v8::HandleScope scope(isolate);
+    ctx1.Reset(isolate, v8::Context::New(isolate));
+    ctx2.Reset(isolate, v8::Context::New(isolate));
+  }
   ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
@@ -1765,9 +1789,15 @@ TEST(LeakNativeContextViaMapKeyed) {
 
 TEST(LeakNativeContextViaMapProto) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
-  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope outer_scope(isolate);
+  v8::Persistent<v8::Context> ctx1;
+  v8::Persistent<v8::Context> ctx2;
+  {
+    v8::HandleScope scope(isolate);
+    ctx1.Reset(isolate, v8::Context::New(isolate));
+    ctx2.Reset(isolate, v8::Context::New(isolate));
+  }
   ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
@@ -2373,7 +2403,7 @@ TEST(Regress2211) {
     // Check size.
     DescriptorArray* descriptors = internal_obj->map()->instance_descriptors();
     ObjectHashTable* hashtable = ObjectHashTable::cast(
-        internal_obj->FastPropertyAt(descriptors->GetFieldIndex(0)));
+        internal_obj->RawFastPropertyAt(descriptors->GetFieldIndex(0)));
     // HashTable header (5) and 4 initial entries (8).
     CHECK_LE(hashtable->SizeFor(hashtable->length()), 13 * kPointerSize);
   }

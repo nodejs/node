@@ -123,7 +123,6 @@ class LCodeGen;
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
-  V(LoadElements)                               \
   V(LoadExternalArrayPointer)                   \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
@@ -1346,6 +1345,11 @@ class LAddI: public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
+  static bool UseLea(HAdd* add) {
+    return !add->CheckFlag(HValue::kCanOverflow) &&
+        add->BetterLeftOperand()->UseCount() > 1;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
 };
@@ -1509,18 +1513,6 @@ class LLoadFunctionPrototype: public LTemplateInstruction<1, 1, 0> {
   DECLARE_HYDROGEN_ACCESSOR(LoadFunctionPrototype)
 
   LOperand* function() { return inputs_[0]; }
-};
-
-
-class LLoadElements: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LLoadElements(LOperand* object) {
-    inputs_[0] = object;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadElements, "load-elements")
 };
 
 
@@ -2063,6 +2055,9 @@ class LStoreNamedField: public LTemplateInstruction<0, 2, 1> {
   bool is_in_object() { return hydrogen()->is_in_object(); }
   int offset() { return hydrogen()->offset(); }
   Handle<Map> transition() const { return hydrogen()->transition(); }
+  Representation representation() const {
+    return hydrogen()->field_representation();
+  }
 };
 
 
@@ -2673,6 +2668,9 @@ class LChunkBuilder BASE_EMBEDDED {
   // An input operand in a register or a constant operand.
   MUST_USE_RESULT LOperand* UseRegisterOrConstant(HValue* value);
   MUST_USE_RESULT LOperand* UseRegisterOrConstantAtStart(HValue* value);
+
+  // An input operand in a constant operand.
+  MUST_USE_RESULT LOperand* UseConstant(HValue* value);
 
   // An input operand in register, stack slot or a constant operand.
   // Will not be moved to a register even if one is freely available.

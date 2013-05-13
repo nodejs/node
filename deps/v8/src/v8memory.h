@@ -64,6 +64,14 @@ class Memory {
     return *reinterpret_cast<unsigned*>(addr);
   }
 
+  static intptr_t& intptr_at(Address addr)  {
+    return *reinterpret_cast<intptr_t*>(addr);
+  }
+
+  static uintptr_t& uintptr_at(Address addr) {
+    return *reinterpret_cast<uintptr_t*>(addr);
+  }
+
   static double& double_at(Address addr)  {
     return *reinterpret_cast<double*>(addr);
   }

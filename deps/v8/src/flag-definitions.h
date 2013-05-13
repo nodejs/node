@@ -166,6 +166,9 @@ DEFINE_bool(harmony_observation, false,
             "enable harmony object observation (implies harmony collections")
 DEFINE_bool(harmony_typed_arrays, false,
             "enable harmony typed arrays")
+DEFINE_bool(harmony_array_buffer, false,
+            "enable harmony array buffer")
+DEFINE_implication(harmony_typed_arrays, harmony_array_buffer)
 DEFINE_bool(harmony_generators, false, "enable harmony generators")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 DEFINE_implication(harmony, harmony_scoping)
@@ -177,7 +180,7 @@ DEFINE_implication(harmony, harmony_observation)
 DEFINE_implication(harmony, harmony_generators)
 DEFINE_implication(harmony_modules, harmony_scoping)
 DEFINE_implication(harmony_observation, harmony_collections)
-DEFINE_implication(harmony, harmony_typed_arrays)
+// TODO[dslomov] add harmony => harmony_typed_arrays
 
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
@@ -190,6 +193,9 @@ DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
 DEFINE_bool(pretenure_literals, true, "allocate literals in old space")
+DEFINE_bool(track_fields, false, "track fields with only smi values")
+DEFINE_bool(track_double_fields, false, "track fields with double values")
+DEFINE_implication(track_double_fields, track_fields)
 
 // Flags for data representation optimizations
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
@@ -225,6 +231,8 @@ DEFINE_bool(trace_gvn, false, "trace global value numbering")
 DEFINE_bool(trace_representation, false, "trace representation types")
 DEFINE_bool(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
+DEFINE_bool(trace_migration, false, "trace object migration")
+DEFINE_bool(trace_generalization, false, "trace map generalization")
 DEFINE_bool(stress_pointer_maps, false, "pointer map for every instruction")
 DEFINE_bool(stress_environments, false, "environment for every instruction")
 DEFINE_int(deopt_every_n_times,

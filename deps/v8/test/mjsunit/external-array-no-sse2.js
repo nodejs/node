@@ -49,12 +49,6 @@ f(a);
 assertEquals(0, a[0]);
 assertEquals(0, a[1]);
 
-// No-parameter constructor should fail right now.
-function abfunc1() {
-  return new ArrayBuffer();
-}
-assertThrows(abfunc1);
-
 // Test derivation from an ArrayBuffer
 var ab = new ArrayBuffer(12);
 assertInstance(ab, ArrayBuffer);
@@ -161,12 +155,10 @@ assertSame(a.buffer, (new Float32Array(a.buffer,4)).buffer);
 assertSame(a.buffer, (new Int8Array(a.buffer,3,51)).buffer);
 assertInstance(a.buffer, ArrayBuffer);
 
-// Test the correct behavior of the |BYTES_PER_ELEMENT| property (which is
-// "constant", but not read-only).
+// Test the correct behavior of the |BYTES_PER_ELEMENT| property.
 a = new Int32Array(2);
 assertEquals(4, a.BYTES_PER_ELEMENT);
 a.BYTES_PER_ELEMENT = 42;
-assertEquals(42, a.BYTES_PER_ELEMENT);
 a = new Uint8Array(2);
 assertEquals(1, a.BYTES_PER_ELEMENT);
 a = new Int16Array(2);
@@ -202,15 +194,6 @@ assertEquals(3.5, get(array, 1));
 // Test non-number parameters.
 var array_with_length_from_non_number = new Int32Array("2");
 assertEquals(2, array_with_length_from_non_number.length);
-array_with_length_from_non_number = new Int32Array(undefined);
-assertEquals(0, array_with_length_from_non_number.length);
-var foo = { valueOf: function() { return 3; } };
-array_with_length_from_non_number = new Int32Array(foo);
-assertEquals(3, array_with_length_from_non_number.length);
-foo = { toString: function() { return "4"; } };
-array_with_length_from_non_number = new Int32Array(foo);
-assertEquals(4, array_with_length_from_non_number.length);
-
 
 // Test loads and stores.
 types = [Array, Int8Array, Uint8Array, Int16Array, Uint16Array, Int32Array,
@@ -359,8 +342,6 @@ for (var t = 0; t < types.length; t++) {
     a.length = 2;
     assertEquals(kElementCount, a.length);
     assertTrue(delete a.length);
-    a.length = 2;
-    assertEquals(2, a.length);
 
     // Make sure bounds checks are handled correctly for external arrays.
     run_bounds_test(a);
@@ -539,8 +520,6 @@ assertSame(a.buffer, aa.buffer);
 
 assertThrows(function(){ a.subarray.call({}, 0) });
 assertThrows(function(){ a.subarray.call([], 0) });
-assertThrows(function(){ a.subarray.call(a) });
-
 
 // Call constructors directly as functions, and through .call and .apply
 

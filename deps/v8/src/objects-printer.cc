@@ -271,7 +271,7 @@ void JSObject::PrintProperties(FILE* out) {
       switch (descs->GetType(i)) {
         case FIELD: {
           int index = descs->GetFieldIndex(i);
-          FastPropertyAt(index)->ShortPrint(out);
+          RawFastPropertyAt(index)->ShortPrint(out);
           PrintF(out, " (field at offset %d)\n", index);
           break;
         }

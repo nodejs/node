@@ -660,6 +660,14 @@ Handle<Object> Factory::NewNumberFromUint(uint32_t value,
 }
 
 
+Handle<HeapNumber> Factory::NewHeapNumber(double value,
+                                          PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateHeapNumber(value, pretenure), HeapNumber);
+}
+
+
 Handle<JSObject> Factory::NewNeanderObject() {
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -1053,6 +1061,58 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer() {
       isolate(),
       isolate()->heap()->AllocateJSObject(array_buffer_fun),
       JSArrayBuffer);
+}
+
+
+Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
+  JSFunction* typed_array_fun;
+  Context* native_context = isolate()->context()->native_context();
+  switch (type) {
+    case kExternalUnsignedByteArray:
+      typed_array_fun = native_context->uint8_array_fun();
+      break;
+
+    case kExternalByteArray:
+      typed_array_fun = native_context->int8_array_fun();
+      break;
+
+    case kExternalUnsignedShortArray:
+      typed_array_fun = native_context->uint16_array_fun();
+      break;
+
+    case kExternalShortArray:
+      typed_array_fun = native_context->int16_array_fun();
+      break;
+
+    case kExternalUnsignedIntArray:
+      typed_array_fun = native_context->uint32_array_fun();
+      break;
+
+    case kExternalIntArray:
+      typed_array_fun = native_context->int32_array_fun();
+      break;
+
+    case kExternalFloatArray:
+      typed_array_fun = native_context->float_array_fun();
+      break;
+
+    case kExternalDoubleArray:
+      typed_array_fun = native_context->double_array_fun();
+      break;
+
+    case kExternalPixelArray:
+      typed_array_fun = native_context->uint8c_array_fun();
+      break;
+
+    default:
+      UNREACHABLE();
+      return Handle<JSTypedArray>();
+  }
+
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSObject(typed_array_fun),
+      JSTypedArray);
 }
 
 

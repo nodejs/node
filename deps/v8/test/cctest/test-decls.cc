@@ -27,6 +27,11 @@
 
 #include <stdlib.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "heap.h"
@@ -113,7 +118,8 @@ DeclarationContext::DeclarationContext()
 
 void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;
-  HandleScope scope(Isolate::GetCurrent());
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   Local<FunctionTemplate> function = FunctionTemplate::New();
   Local<Value> data = External::New(this);
   GetHolder(function)->SetNamedPropertyHandler(&HandleGet,
@@ -121,10 +127,14 @@ void DeclarationContext::InitializeIfNeeded() {
                                                &HandleQuery,
                                                0, 0,
                                                data);
-  context_ = Context::New(0, function->InstanceTemplate(), Local<Value>());
+  context_.Reset(isolate,
+                 Context::New(isolate,
+                              0,
+                              function->InstanceTemplate(),
+                              Local<Value>()));
   context_->Enter();
   is_initialized_ = true;
-  PostInitializeContext(context_);
+  PostInitializeContext(Local<Context>::New(isolate, context_));
 }
 
 
@@ -694,14 +704,14 @@ TEST(ExistsInHiddenPrototype) {
 
 class SimpleContext {
  public:
-  SimpleContext() {
-    context_ = Context::New();
+  SimpleContext()
+      : handle_scope_(Isolate::GetCurrent()),
+        context_(Context::New(Isolate::GetCurrent())) {
     context_->Enter();
   }
 
-  virtual ~SimpleContext() {
+  ~SimpleContext() {
     context_->Exit();
-    context_.Dispose(context_->GetIsolate());
   }
 
   void Check(const char* source,
@@ -732,7 +742,8 @@ class SimpleContext {
   }
 
  private:
-  Persistent<Context> context_;
+  HandleScope handle_scope_;
+  Local<Context> context_;
 };
 
 

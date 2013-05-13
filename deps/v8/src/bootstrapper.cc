@@ -201,7 +201,7 @@ class Genesis BASE_EMBEDDED {
                                           ElementsKind elements_kind);
   bool InstallNatives();
 
-  void InstallTypedArray(const char* name);
+  Handle<JSFunction> InstallTypedArray(const char* name);
   bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
@@ -979,28 +979,32 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
       // ECMA-262, section 15.10.7.1.
       FieldDescriptor field(heap->source_string(),
                             JSRegExp::kSourceFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.2.
       FieldDescriptor field(heap->global_string(),
                             JSRegExp::kGlobalFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.3.
       FieldDescriptor field(heap->ignore_case_string(),
                             JSRegExp::kIgnoreCaseFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.4.
       FieldDescriptor field(heap->multiline_string(),
                             JSRegExp::kMultilineFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
@@ -1009,7 +1013,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
           static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
       FieldDescriptor field(heap->last_index_string(),
                             JSRegExp::kLastIndexFieldIndex,
-                            writable);
+                            writable,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
 
@@ -1161,7 +1166,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     map->set_instance_descriptors(*descriptors);
 
     {  // length
-      FieldDescriptor d(*factory->length_string(), 0, DONT_ENUM);
+      FieldDescriptor d(
+          *factory->length_string(), 0, DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d, witness);
     }
     {  // callee
@@ -1270,11 +1276,11 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 }
 
 
-void Genesis::InstallTypedArray(const char* name) {
+Handle<JSFunction> Genesis::InstallTypedArray(const char* name) {
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
-  InstallFunction(global, name, JS_TYPED_ARRAY_TYPE,
-                  JSTypedArray::kSize, isolate()->initial_object_prototype(),
-                  Builtins::kIllegal, true);
+  return InstallFunction(global, name, JS_TYPED_ARRAY_TYPE,
+      JSTypedArray::kSize, isolate()->initial_object_prototype(),
+      Builtins::kIllegal, true);
 }
 
 
@@ -1311,26 +1317,36 @@ void Genesis::InitializeExperimentalGlobal() {
     }
   }
 
+  if (FLAG_harmony_array_buffer) {
+    // -- A r r a y B u f f e r
+    Handle<JSFunction> array_buffer_fun =
+        InstallFunction(global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
+                        JSArrayBuffer::kSize,
+                        isolate()->initial_object_prototype(),
+                        Builtins::kIllegal, true);
+    native_context()->set_array_buffer_fun(*array_buffer_fun);
+  }
+
   if (FLAG_harmony_typed_arrays) {
-    {  // -- A r r a y B u f f e r
-      Handle<JSFunction> array_buffer_fun =
-          InstallFunction(global, "__ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
-                          JSArrayBuffer::kSize,
-                          isolate()->initial_object_prototype(),
-                          Builtins::kIllegal, true);
-      native_context()->set_array_buffer_fun(*array_buffer_fun);
-    }
-    {
-      // -- T y p e d A r r a y s
-      InstallTypedArray("__Int8Array");
-      InstallTypedArray("__Uint8Array");
-      InstallTypedArray("__Int16Array");
-      InstallTypedArray("__Uint16Array");
-      InstallTypedArray("__Int32Array");
-      InstallTypedArray("__Uint32Array");
-      InstallTypedArray("__Float32Array");
-      InstallTypedArray("__Float64Array");
-    }
+    // -- T y p e d A r r a y s
+    Handle<JSFunction> int8_fun = InstallTypedArray("Int8Array");
+    native_context()->set_int8_array_fun(*int8_fun);
+    Handle<JSFunction> uint8_fun = InstallTypedArray("Uint8Array");
+    native_context()->set_uint8_array_fun(*uint8_fun);
+    Handle<JSFunction> int16_fun = InstallTypedArray("Int16Array");
+    native_context()->set_int16_array_fun(*int16_fun);
+    Handle<JSFunction> uint16_fun = InstallTypedArray("Uint16Array");
+    native_context()->set_uint16_array_fun(*uint16_fun);
+    Handle<JSFunction> int32_fun = InstallTypedArray("Int32Array");
+    native_context()->set_int32_array_fun(*int32_fun);
+    Handle<JSFunction> uint32_fun = InstallTypedArray("Uint32Array");
+    native_context()->set_uint32_array_fun(*uint32_fun);
+    Handle<JSFunction> float_fun = InstallTypedArray("Float32Array");
+    native_context()->set_float_array_fun(*float_fun);
+    Handle<JSFunction> double_fun = InstallTypedArray("Float64Array");
+    native_context()->set_double_array_fun(*double_fun);
+    Handle<JSFunction> uint8c_fun = InstallTypedArray("Uint8ClampedArray");
+    native_context()->set_uint8c_array_fun(*uint8c_fun);
   }
 
   if (FLAG_harmony_generators) {
@@ -1371,6 +1387,40 @@ void Genesis::InitializeExperimentalGlobal() {
         *generator_object_prototype);
     native_context()->set_generator_object_prototype_map(
         *generator_object_prototype_map);
+
+    // Create a map for generator result objects.
+    ASSERT(object_map->inobject_properties() == 0);
+    STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
+    Handle<Map> generator_result_map = factory()->CopyMap(object_map,
+        JSGeneratorObject::kResultPropertyCount);
+    ASSERT(generator_result_map->inobject_properties() ==
+        JSGeneratorObject::kResultPropertyCount);
+
+    Handle<DescriptorArray> descriptors = factory()->NewDescriptorArray(0,
+        JSGeneratorObject::kResultPropertyCount);
+    DescriptorArray::WhitenessWitness witness(*descriptors);
+    generator_result_map->set_instance_descriptors(*descriptors);
+
+    Handle<String> value_string = factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("value"));
+    FieldDescriptor value_descr(*value_string,
+                                JSGeneratorObject::kResultValuePropertyIndex,
+                                NONE,
+                                Representation::Tagged());
+    generator_result_map->AppendDescriptor(&value_descr, witness);
+
+    Handle<String> done_string = factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("done"));
+    FieldDescriptor done_descr(*done_string,
+                               JSGeneratorObject::kResultDonePropertyIndex,
+                               NONE,
+                               Representation::Tagged());
+    generator_result_map->AppendDescriptor(&done_descr, witness);
+
+    generator_result_map->set_unused_property_fields(0);
+    ASSERT_EQ(JSGeneratorObject::kResultSize,
+              generator_result_map->instance_size());
+    native_context()->set_generator_result_map(*generator_result_map);
   }
 }
 
@@ -1924,14 +1974,16 @@ bool Genesis::InstallNatives() {
     {
       FieldDescriptor index_field(heap()->index_string(),
                                   JSRegExpResult::kIndexIndex,
-                                  NONE);
+                                  NONE,
+                                  Representation::Tagged());
       initial_map->AppendDescriptor(&index_field, witness);
     }
 
     {
       FieldDescriptor input_field(heap()->input_string(),
                                   JSRegExpResult::kInputIndex,
-                                  NONE);
+                                  NONE,
+                                  Representation::Tagged());
       initial_map->AppendDescriptor(&input_field, witness);
     }
 
@@ -1972,6 +2024,11 @@ bool Genesis::InstallExperimentalNatives() {
     if (FLAG_harmony_observation &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
                "native object-observe.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
+    if (FLAG_harmony_array_buffer &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native arraybuffer.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
     if (FLAG_harmony_typed_arrays &&
@@ -2352,14 +2409,15 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
   if (from->HasFastProperties()) {
     Handle<DescriptorArray> descs =
         Handle<DescriptorArray>(from->map()->instance_descriptors());
-    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    for (int i = 0; i < from->map()->NumberOfOwnDescriptors(); i++) {
       PropertyDetails details = descs->GetDetails(i);
       switch (details.type()) {
         case FIELD: {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           int index = descs->GetFieldIndex(i);
-          Handle<Object> value = Handle<Object>(from->FastPropertyAt(index),
+          ASSERT(!descs->GetDetails(i).representation().IsDouble());
+          Handle<Object> value = Handle<Object>(from->RawFastPropertyAt(index),
                                                 isolate());
           CHECK_NOT_EMPTY_HANDLE(isolate(),
                                  JSObject::SetLocalPropertyIgnoreAttributes(
@@ -2386,9 +2444,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           // Add to dictionary.
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
-          PropertyDetails d = PropertyDetails(details.attributes(),
-                                              CALLBACKS,
-                                              details.descriptor_index());
+          PropertyDetails d = PropertyDetails(
+              details.attributes(), CALLBACKS, i + 1);
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;
         }

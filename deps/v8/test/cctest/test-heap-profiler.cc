@@ -29,6 +29,9 @@
 
 #include <ctype.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "cctest.h"
@@ -1196,7 +1199,8 @@ class GraphWithImplicitRefs {
       objects_[i] =
           v8::Persistent<v8::Object>::New(isolate_, v8::Object::New());
     }
-    (*env)->Global()->Set(v8_str("root_object"), objects_[0]);
+    (*env)->Global()->Set(v8_str("root_object"),
+                          v8::Local<v8::Value>::New(isolate_, objects_[0]));
   }
   ~GraphWithImplicitRefs() {
     instance_ = NULL;
@@ -1410,7 +1414,7 @@ TEST(GetHeapValue) {
       GetProperty(obj, v8::HeapGraphEdge::kProperty, "n_prop");
   v8::Local<v8::Number> js_n_prop =
       js_obj->Get(v8_str("n_prop")).As<v8::Number>();
-  CHECK(js_n_prop == n_prop->GetHeapValue());
+  CHECK(js_n_prop->NumberValue() == n_prop->GetHeapValue()->NumberValue());
 }
 
 
@@ -1582,9 +1586,9 @@ bool HasWeakGlobalHandle() {
 
 
 static void PersistentHandleCallback(v8::Isolate* isolate,
-                                     v8::Persistent<v8::Value> handle,
+                                     v8::Persistent<v8::Value>* handle,
                                      void*) {
-  handle.Dispose(isolate);
+  handle->Dispose(isolate);
 }
 
 
@@ -1596,7 +1600,9 @@ TEST(WeakGlobalHandle) {
 
   v8::Persistent<v8::Object> handle =
       v8::Persistent<v8::Object>::New(env->GetIsolate(), v8::Object::New());
-  handle.MakeWeak(env->GetIsolate(), NULL, PersistentHandleCallback);
+  handle.MakeWeak<v8::Value, void>(env->GetIsolate(),
+                                   NULL,
+                                   PersistentHandleCallback);
 
   CHECK(HasWeakGlobalHandle());
 }

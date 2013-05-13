@@ -124,6 +124,8 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(StoreIC_Miss,                   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
+  V(StoreIC_Slow,                   BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
   V(KeyedStoreIC_Miss,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(KeyedStoreIC_MissForceGeneric,  BUILTIN, UNINITIALIZED,             \
@@ -230,6 +232,8 @@ enum BuiltinExtraArguments {
                                                DEBUG_BREAK)                   \
   V(KeyedStoreIC_DebugBreak,                   KEYED_STORE_IC, DEBUG_STUB,    \
                                                DEBUG_BREAK)                   \
+  V(CompareNilIC_DebugBreak,                   COMPARE_NIL_IC, DEBUG_STUB,    \
+                                               DEBUG_BREAK)                   \
   V(Slot_DebugBreak,                           BUILTIN, DEBUG_STUB,           \
                                                DEBUG_BREAK)                   \
   V(PlainReturn_LiveEdit,                      BUILTIN, DEBUG_STUB,           \
@@ -273,8 +277,6 @@ enum BuiltinExtraArguments {
   V(STRING_ADD_RIGHT, 1)                 \
   V(APPLY_PREPARE, 1)                    \
   V(APPLY_OVERFLOW, 1)
-
-MaybeObject* ArrayConstructor_StubFailure(Arguments args, Isolate* isolate);
 
 class BuiltinFunctionTable;
 class ObjectVisitor;

@@ -1180,6 +1180,25 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
 }
 
 
+void StoreIC::GenerateSlow(MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- r0     : value
+  //  -- r2     : key
+  //  -- r1     : receiver
+  //  -- lr     : return address
+  // -----------------------------------
+
+  // Push receiver, key and value for runtime call.
+  __ Push(r1, r2, r0);
+
+  // The slow case calls into the runtime to complete the store without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
 void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- r0     : value

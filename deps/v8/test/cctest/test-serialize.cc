@@ -28,6 +28,11 @@
 #include <signal.h>
 
 #include "sys/stat.h"
+
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+
 #include "v8.h"
 
 #include "debug.h"
@@ -246,8 +251,11 @@ static void Serialize() {
   // can be loaded from v8natives.js and their addresses can be processed.  This
   // will clear the pending fixups array, which would otherwise contain GC roots
   // that would confuse the serialization/deserialization process.
-  v8::Persistent<v8::Context> env = v8::Context::New();
-  env.Dispose(env->GetIsolate());
+  {
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    v8::HandleScope scope(isolate);
+    v8::Context::New(isolate);
+  }
   WriteToFile(FLAG_testing_serialization_file);
 }
 
@@ -299,10 +307,11 @@ DEPENDENT_TEST(Deserialize, Serialize) {
   // serialization.  That doesn't matter.  We don't need to be able to
   // serialize a snapshot in a VM that is booted from a snapshot.
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    v8::HandleScope scope(isolate);
     Deserialize();
 
-    v8::Persistent<v8::Context> env = v8::Context::New();
+    v8::Local<v8::Context> env = v8::Context::New(isolate);
     env->Enter();
 
     SanityCheck();
@@ -312,10 +321,11 @@ DEPENDENT_TEST(Deserialize, Serialize) {
 
 DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    v8::HandleScope scope(isolate);
     Deserialize();
 
-    v8::Persistent<v8::Context> env = v8::Context::New();
+    v8::Local<v8::Context> env = v8::Context::New(isolate);
     env->Enter();
 
     SanityCheck();
@@ -325,10 +335,11 @@ DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
 
 DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    v8::HandleScope scope(isolate);
     Deserialize();
 
-    v8::Persistent<v8::Context> env = v8::Context::New();
+    v8::Local<v8::Context> env = v8::Context::New(isolate);
     env->Enter();
 
     const char* c_source = "\"1234\".length";
@@ -342,10 +353,11 @@ DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
 DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
                SerializeTwice) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    v8::HandleScope scope(isolate);
     Deserialize();
 
-    v8::Persistent<v8::Context> env = v8::Context::New();
+    v8::Local<v8::Context> env = v8::Context::New(isolate);
     env->Enter();
 
     const char* c_source = "\"1234\".length";
@@ -363,7 +375,12 @@ TEST(PartialSerialization) {
     Isolate* isolate = Isolate::Current();
     Heap* heap = isolate->heap();
 
-    v8::Persistent<v8::Context> env = v8::Context::New();
+    v8::Persistent<v8::Context> env;
+    {
+      HandleScope scope(isolate);
+      env.Reset(v8::Isolate::GetCurrent(),
+                v8::Context::New(v8::Isolate::GetCurrent()));
+    }
     ASSERT(!env.IsEmpty());
     env->Enter();
     // Make sure all builtin scripts are cached.
@@ -497,7 +514,12 @@ TEST(ContextSerialization) {
     Isolate* isolate = Isolate::Current();
     Heap* heap = isolate->heap();
 
-    v8::Persistent<v8::Context> env = v8::Context::New();
+    v8::Persistent<v8::Context> env;
+    {
+      HandleScope scope(isolate);
+      env.Reset(v8::Isolate::GetCurrent(),
+                v8::Context::New(v8::Isolate::GetCurrent()));
+    }
     ASSERT(!env.IsEmpty());
     env->Enter();
     // Make sure all builtin scripts are cached.

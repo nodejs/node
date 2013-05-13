@@ -662,7 +662,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           !body->at(0)->IsExpressionStatement() ||
           !body->at(0)->AsExpressionStatement()->
               expression()->IsFunctionLiteral()) {
-        ReportMessage("unable_to_parse", Vector<const char*>::empty());
+        ReportMessage("single_function_literal", Vector<const char*>::empty());
         ok = false;
       }
     }
@@ -3738,33 +3738,6 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 }
 
 
-void Parser::BuildArrayLiteralBoilerplateLiterals(ZoneList<Expression*>* values,
-                                                  Handle<FixedArray> literals,
-                                                  bool* is_simple,
-                                                  int* depth) {
-  // Fill in the literals.
-  // Accumulate output values in local variables.
-  bool is_simple_acc = true;
-  int depth_acc = 1;
-  for (int i = 0; i < values->length(); i++) {
-    MaterializedLiteral* m_literal = values->at(i)->AsMaterializedLiteral();
-    if (m_literal != NULL && m_literal->depth() >= depth_acc) {
-      depth_acc = m_literal->depth() + 1;
-    }
-    Handle<Object> boilerplate_value = GetBoilerplateValue(values->at(i));
-    if (boilerplate_value->IsUndefined()) {
-      literals->set_the_hole(i);
-      is_simple_acc = false;
-    } else {
-      literals->set(i, *boilerplate_value);
-    }
-  }
-
-  *is_simple = is_simple_acc;
-  *depth = depth_acc;
-}
-
-
 Expression* Parser::ParseArrayLiteral(bool* ok) {
   // ArrayLiteral ::
   //   '[' Expression? (',' Expression?)* ']'
@@ -3991,7 +3964,8 @@ void Parser::BuildObjectLiteralConstantProperties(
     Handle<FixedArray> constant_properties,
     bool* is_simple,
     bool* fast_elements,
-    int* depth) {
+    int* depth,
+    bool* may_store_doubles) {
   int position = 0;
   // Accumulate the value in local variables and store it at the end.
   bool is_simple_acc = true;
@@ -4014,6 +3988,13 @@ void Parser::BuildObjectLiteralConstantProperties(
     // runtime. The enumeration order is maintained.
     Handle<Object> key = property->key()->handle();
     Handle<Object> value = GetBoilerplateValue(property->value());
+
+    // Ensure objects with doubles are always treated as nested objects.
+    // TODO(verwaest): Remove once we can store them inline.
+    if (FLAG_track_double_fields && value->IsNumber()) {
+      *may_store_doubles = true;
+    }
+
     is_simple_acc = is_simple_acc && !value->IsUndefined();
 
     // Keep track of the number of elements in the object literal and
@@ -4215,17 +4196,20 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   bool is_simple = true;
   bool fast_elements = true;
   int depth = 1;
+  bool may_store_doubles = false;
   BuildObjectLiteralConstantProperties(properties,
                                        constant_properties,
                                        &is_simple,
                                        &fast_elements,
-                                       &depth);
+                                       &depth,
+                                       &may_store_doubles);
   return factory()->NewObjectLiteral(constant_properties,
                                      properties,
                                      literal_index,
                                      is_simple,
                                      fast_elements,
                                      depth,
+                                     may_store_doubles,
                                      has_function);
 }
 
@@ -4752,7 +4736,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
     if (args->length() == 1 && args->at(0)->AsVariableProxy() != NULL) {
       return args->at(0);
     } else {
-      ReportMessage("unable_to_parse", Vector<const char*>::empty());
+      ReportMessage("not_isvar", Vector<const char*>::empty());
       *ok = false;
       return NULL;
     }

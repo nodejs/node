@@ -1476,6 +1476,7 @@ class Heap {
 
 #ifdef DEBUG
   bool IsAllocationAllowed() { return allocation_allowed_; }
+  inline void set_allow_allocation(bool allocation_allowed);
   inline bool allow_allocation(bool enable);
 
   bool disallow_allocation_failure() {
@@ -1528,6 +1529,14 @@ class Heap {
   // promotion rates of previous collections.
   inline bool ShouldGloballyPretenure() {
     return new_space_high_promotion_mode_active_;
+  }
+
+  inline PretenureFlag GetPretenureMode() {
+    return new_space_high_promotion_mode_active_ ? TENURED : NOT_TENURED;
+  }
+
+  inline Address* NewSpaceHighPromotionModeActiveAddress() {
+    return reinterpret_cast<Address*>(&new_space_high_promotion_mode_active_);
   }
 
   inline intptr_t PromotedTotalSize() {
@@ -1608,7 +1617,8 @@ class Heap {
   static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
 
   MUST_USE_RESULT MaybeObject* NumberToString(
-      Object* number, bool check_number_string_cache = true);
+      Object* number, bool check_number_string_cache = true,
+      PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* Uint32ToString(
       uint32_t value, bool check_number_string_cache = true);
 
@@ -1975,7 +1985,8 @@ class Heap {
 
   // Indicates that the new space should be kept small due to high promotion
   // rates caused by the mutator allocating a lot of long-lived objects.
-  bool new_space_high_promotion_mode_active_;
+  // TODO(hpayer): change to bool if no longer accessed from generated code
+  intptr_t new_space_high_promotion_mode_active_;
 
   // Limit that triggers a global GC on the next (normally caused) GC.  This
   // is checked when we have already decided to do a GC to help determine
@@ -2691,6 +2702,13 @@ class DescriptorLookupCache {
 // { AssertNoAllocation nogc;
 //   ...
 // }
+
+#ifdef DEBUG
+inline bool EnterAllocationScope(Isolate* isolate, bool allow_allocation);
+inline void ExitAllocationScope(Isolate* isolate, bool last_state);
+#endif
+
+
 class AssertNoAllocation {
  public:
   inline AssertNoAllocation();
@@ -2698,8 +2716,7 @@ class AssertNoAllocation {
 
 #ifdef DEBUG
  private:
-  bool old_state_;
-  bool active_;
+  bool last_state_;
 #endif
 };
 
@@ -2711,8 +2728,7 @@ class DisableAssertNoAllocation {
 
 #ifdef DEBUG
  private:
-  bool old_state_;
-  bool active_;
+  bool last_state_;
 #endif
 };
 

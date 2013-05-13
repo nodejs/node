@@ -982,6 +982,11 @@ class HGraphBuilder {
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
 
   // Building common constructs
+  HLoadNamedField* DoBuildLoadNamedField(HValue* object,
+                                         bool inobject,
+                                         Representation representation,
+                                         int offset);
+
   HInstruction* BuildExternalArrayElementAccess(
       HValue* external_elements,
       HValue* checked_key,
@@ -1024,6 +1029,8 @@ class HGraphBuilder {
 
   HInstruction* BuildStoreMap(HValue* object, HValue* map);
   HInstruction* BuildStoreMap(HValue* object, Handle<Map> map);
+
+  HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck = NULL);
 
   class IfBuilder {
    public:
@@ -1316,6 +1323,9 @@ class HGraphBuilder {
   HValue* BuildCreateAllocationSiteInfo(HValue* previous_object,
                                         int previous_object_size,
                                         HValue* payload);
+
+  HInstruction* BuildGetNativeContext(HValue* context);
+  HInstruction* BuildGetArrayFunction(HValue* context);
 
  private:
   HGraphBuilder();

@@ -91,6 +91,10 @@ void LCodeGen::FinishCode(Handle<Code> code) {
     prototype_maps_.at(i)->AddDependentCode(
         DependentCode::kPrototypeCheckGroup, code);
   }
+  for (int i = 0 ; i < transition_maps_.length(); i++) {
+    transition_maps_.at(i)->AddDependentCode(
+        DependentCode::kTransitionGroup, code);
+  }
 }
 
 
@@ -1161,14 +1165,14 @@ void LCodeGen::DoModI(LModI* instr) {
   Register result = ToRegister(instr->result());
   Label done;
 
+    // Check for x % 0.
+  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ cmp(right, Operand::Zero());
+    DeoptimizeIf(eq, instr->environment());
+  }
+
   if (CpuFeatures::IsSupported(SUDIV)) {
     CpuFeatureScope scope(masm(), SUDIV);
-    // Check for x % 0.
-    if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-      __ cmp(right, Operand::Zero());
-      DeoptimizeIf(eq, instr->environment());
-    }
-
     // Check for (kMinInt % -1).
     if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
       Label left_not_min_int;
@@ -1185,12 +1189,12 @@ void LCodeGen::DoModI(LModI* instr) {
 
     __ sdiv(result, left, right);
     __ mls(result, result, right, left);
-    __ cmp(result, Operand::Zero());
-    __ b(ne, &done);
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-       __ cmp(left, Operand::Zero());
-       DeoptimizeIf(lt, instr->environment());
+      __ cmp(result, Operand::Zero());
+      __ b(ne, &done);
+      __ cmp(left, Operand::Zero());
+      DeoptimizeIf(lt, instr->environment());
     }
   } else {
     Register scratch = scratch0();
@@ -1206,13 +1210,7 @@ void LCodeGen::DoModI(LModI* instr) {
     ASSERT(!scratch.is(right));
     ASSERT(!scratch.is(result));
 
-    Label vfp_modulo, both_positive, right_negative;
-
-    // Check for x % 0.
-    if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-      __ cmp(right, Operand::Zero());
-      DeoptimizeIf(eq, instr->environment());
-    }
+    Label vfp_modulo, right_negative;
 
     __ Move(result, left);
 
@@ -1230,7 +1228,7 @@ void LCodeGen::DoModI(LModI* instr) {
     __ JumpIfNotPowerOfTwoOrZeroAndNeg(right,
                                        scratch,
                                        &right_negative,
-                                       &both_positive);
+                                       &vfp_modulo);
     // Perform modulo operation (scratch contains right - 1).
     __ and_(result, scratch, Operand(left));
     __ b(&done);
@@ -1238,23 +1236,6 @@ void LCodeGen::DoModI(LModI* instr) {
     __ bind(&right_negative);
     // Negate right. The sign of the divisor does not matter.
     __ rsb(right, right, Operand::Zero());
-
-    __ bind(&both_positive);
-    const int kUnfolds = 3;
-    // If the right hand side is smaller than the (nonnegative)
-    // left hand side, the left hand side is the result.
-    // Else try a few subtractions of the left hand side.
-    __ mov(scratch, left);
-    for (int i = 0; i < kUnfolds; i++) {
-      // Check if the left hand side is less or equal than the
-      // the right hand side.
-      __ cmp(scratch, Operand(right));
-      __ mov(result, scratch, LeaveCC, lt);
-      __ b(lt, &done);
-      // If not, reduce the left hand side by the right hand
-      // side and check again.
-      if (i < kUnfolds - 1) __ sub(scratch, scratch, right);
-    }
 
     __ bind(&vfp_modulo);
     // Load the arguments in VFP registers.
@@ -3076,13 +3057,20 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
+  int offset = instr->hydrogen()->offset();
   Register object = ToRegister(instr->object());
+  if (instr->hydrogen()->representation().IsDouble()) {
+    DwVfpRegister result = ToDoubleRegister(instr->result());
+    __ vldr(result, FieldMemOperand(object, offset));
+    return;
+  }
+
   Register result = ToRegister(instr->result());
   if (instr->hydrogen()->is_in_object()) {
-    __ ldr(result, FieldMemOperand(object, instr->hydrogen()->offset()));
+    __ ldr(result, FieldMemOperand(object, offset));
   } else {
     __ ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
-    __ ldr(result, FieldMemOperand(result, instr->hydrogen()->offset()));
+    __ ldr(result, FieldMemOperand(result, offset));
   }
 }
 
@@ -3225,40 +3213,6 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 
   // All done.
   __ bind(&done);
-}
-
-
-void LCodeGen::DoLoadElements(LLoadElements* instr) {
-  Register result = ToRegister(instr->result());
-  Register input = ToRegister(instr->object());
-  Register scratch = scratch0();
-
-  __ ldr(result, FieldMemOperand(input, JSObject::kElementsOffset));
-  if (FLAG_debug_code) {
-    Label done, fail;
-    __ ldr(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
-    __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-    __ cmp(scratch, ip);
-    __ b(eq, &done);
-    __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
-    __ cmp(scratch, ip);
-    __ b(eq, &done);
-    // |scratch| still contains |input|'s map.
-    __ ldr(scratch, FieldMemOperand(scratch, Map::kBitField2Offset));
-    __ ubfx(scratch, scratch, Map::kElementsKindShift,
-            Map::kElementsKindBitCount);
-    __ cmp(scratch, Operand(GetInitialFastElementsKind()));
-    __ b(lt, &fail);
-    __ cmp(scratch, Operand(TERMINAL_FAST_ELEMENTS_KIND));
-    __ b(le, &done);
-    __ cmp(scratch, Operand(FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND));
-    __ b(lt, &fail);
-    __ cmp(scratch, Operand(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND));
-    __ b(le, &done);
-    __ bind(&fail);
-    __ Abort("Check for fast or external elements failed.");
-    __ bind(&done);
-  }
 }
 
 
@@ -4234,8 +4188,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
 
   __ mov(r0, Operand(instr->arity()));
   __ mov(r2, Operand(instr->hydrogen()->property_cell()));
-  Object* cell_value = instr->hydrogen()->property_cell()->value();
-  ElementsKind kind = static_cast<ElementsKind>(Smi::cast(cell_value)->value());
+  ElementsKind kind = instr->hydrogen()->elements_kind();
   if (instr->arity() == 0) {
     ArrayNoArgumentConstructorStub stub(kind);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
@@ -4262,15 +4215,34 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 
 
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
+  Representation representation = instr->representation();
+
   Register object = ToRegister(instr->object());
-  Register value = ToRegister(instr->value());
   Register scratch = scratch0();
   int offset = instr->offset();
 
-  ASSERT(!object.is(value));
+  Handle<Map> transition = instr->transition();
 
-  if (!instr->transition().is_null()) {
-    __ mov(scratch, Operand(instr->transition()));
+  if (FLAG_track_fields && representation.IsSmi()) {
+    Register value = ToRegister(instr->value());
+    __ SmiTag(value, value, SetCC);
+    if (!instr->hydrogen()->value()->range()->IsInSmiRange()) {
+      DeoptimizeIf(vs, instr->environment());
+    }
+  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+    ASSERT(transition.is_null());
+    ASSERT(instr->is_in_object());
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    DwVfpRegister value = ToDoubleRegister(instr->value());
+    __ vstr(value, FieldMemOperand(object, offset));
+    return;
+  }
+
+  if (!transition.is_null()) {
+    if (transition->CanBeDeprecated()) {
+      transition_maps_.Add(transition, info()->zone());
+    }
+    __ mov(scratch, Operand(transition));
     __ str(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     if (instr->hydrogen()->NeedsWriteBarrierForMap()) {
       Register temp = ToRegister(instr->temp());
@@ -4287,6 +4259,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   // Do the store.
+  Register value = ToRegister(instr->value());
+  ASSERT(!object.is(value));
   HType type = instr->hydrogen()->value()->type();
   SmiCheck check_needed =
       type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
@@ -5138,6 +5112,8 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
       } else {
         mode = NUMBER_CANDIDATE_IS_SMI;
       }
+    } else {
+      mode = NUMBER_CANDIDATE_IS_SMI;
     }
   }
 
@@ -5473,7 +5449,6 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
 
 
 void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
-  Register size = ToRegister(instr->size());
   Register result = ToRegister(instr->result());
 
   // TODO(3095996): Get rid of this. For now, we need to make the
@@ -5482,8 +5457,16 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   __ mov(result, Operand(Smi::FromInt(0)));
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
-  __ SmiTag(size, size);
-  __ push(size);
+  if (instr->size()->IsRegister()) {
+    Register size = ToRegister(instr->size());
+    ASSERT(!size.is(result));
+    __ SmiTag(size);
+    __ push(size);
+  } else {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+    __ Push(Smi::FromInt(size));
+  }
+
   if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
     CallRuntimeFromDeferred(
         Runtime::kAllocateInOldPointerSpace, 1, instr);
@@ -5566,7 +5549,8 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
 
   // Pick the right runtime function or stub to call.
   int properties_count = instr->hydrogen()->constant_properties_length() / 2;
-  if (instr->hydrogen()->depth() > 1) {
+  if ((FLAG_track_double_fields && instr->hydrogen()->may_store_doubles()) ||
+      instr->hydrogen()->depth() > 1) {
     __ Push(r3, r2, r1, r0);
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
   } else if (flags != ObjectLiteral::kFastElements ||

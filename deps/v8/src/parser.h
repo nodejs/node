@@ -692,13 +692,8 @@ class Parser BASE_EMBEDDED {
       Handle<FixedArray> constants,
       bool* is_simple,
       bool* fast_elements,
-      int* depth);
-
-  // Populate the literals fixed array for a materialized array literal.
-  void BuildArrayLiteralBoilerplateLiterals(ZoneList<Expression*>* properties,
-                                            Handle<FixedArray> constants,
-                                            bool* is_simple,
-                                            int* depth);
+      int* depth,
+      bool* may_store_doubles);
 
   // Decide if a property should be in the object boilerplate.
   bool IsBoilerplateProperty(ObjectLiteral::Property* property);

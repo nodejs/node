@@ -571,6 +571,12 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
+  // If this is a native function we do not flush the code because %SetCode
+  // breaks the one-to-one relation between SharedFunctionInfo and Code.
+  if (shared_info->native()) {
+    return false;
+  }
+
   if (FLAG_age_code) {
     return shared_info->code()->IsOld();
   } else {

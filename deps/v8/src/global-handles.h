@@ -130,6 +130,8 @@ class GlobalHandles {
   // Destroy a global handle.
   void Destroy(Object** location);
 
+  typedef WeakReferenceCallbacks<v8::Value, void>::Revivable RevivableCallback;
+
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
   // handles point to an object the handles are cleared and the callback
@@ -138,7 +140,7 @@ class GlobalHandles {
   // reason is that Smi::FromInt(0) does not change during garage collection.
   void MakeWeak(Object** location,
                 void* parameter,
-                WeakReferenceCallback weak_reference_callback,
+                RevivableCallback weak_reference_callback,
                 NearDeathCallback near_death_callback);
 
   void RecordStats(HeapStats* stats);

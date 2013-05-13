@@ -30,6 +30,7 @@
 #if defined(V8_TARGET_ARCH_IA32)
 
 #include "bootstrapper.h"
+#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "isolate.h"
 #include "jsregexp.h"
@@ -79,6 +80,28 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void LoadFieldStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { edx };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
+void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { edx };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -107,9 +130,10 @@ static void InitializeArrayConstructorDescriptor(
     int constant_stack_parameter_count) {
   // register state
   // eax -- number of arguments
+  // edi -- function
   // ebx -- type info cell with elements kind
-  static Register registers[] = { ebx };
-  descriptor->register_param_count_ = 1;
+  static Register registers[] = { edi, ebx };
+  descriptor->register_param_count_ = 2;
 
   if (constant_stack_parameter_count != 0) {
     // stack param count needs (constructor pointer, and single argument)
@@ -3298,12 +3322,6 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
 }
 
 
-void LoadFieldStub::Generate(MacroAssembler* masm) {
-  StubCompiler::DoGenerateFastPropertyLoad(masm, eax, reg_, inobject_, index_);
-  __ ret(0);
-}
-
-
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in edx and the parameter count is in eax.
 
@@ -4758,6 +4776,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Handle<Object> terminal_kind_sentinel =
       TypeFeedbackCells::MonomorphicArraySentinel(isolate,
                                                   LAST_FAST_ELEMENTS_KIND);
+  __ JumpIfNotSmi(ecx, &miss);
   __ cmp(ecx, Immediate(terminal_kind_sentinel));
   __ j(above, &miss);
   // Load the global or builtins object from the current context
@@ -5821,8 +5840,33 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ mov(FieldOperand(ecx, ConsString::kLengthOffset), ebx);
   __ mov(FieldOperand(ecx, ConsString::kHashFieldOffset),
          Immediate(String::kEmptyHashField));
+
+  Label skip_write_barrier, after_writing;
+  ExternalReference high_promotion_mode = ExternalReference::
+      new_space_high_promotion_mode_active_address(masm->isolate());
+  __ test(Operand::StaticVariable(high_promotion_mode), Immediate(1));
+  __ j(zero, &skip_write_barrier);
+
+  __ mov(FieldOperand(ecx, ConsString::kFirstOffset), eax);
+  __ RecordWriteField(ecx,
+                     ConsString::kFirstOffset,
+                     eax,
+                     ebx,
+                     kDontSaveFPRegs);
+  __ mov(FieldOperand(ecx, ConsString::kSecondOffset), edx);
+  __ RecordWriteField(ecx,
+                     ConsString::kSecondOffset,
+                     edx,
+                     ebx,
+                     kDontSaveFPRegs);
+  __ jmp(&after_writing);
+
+  __ bind(&skip_write_barrier);
   __ mov(FieldOperand(ecx, ConsString::kFirstOffset), eax);
   __ mov(FieldOperand(ecx, ConsString::kSecondOffset), edx);
+
+  __ bind(&after_writing);
+
   __ mov(eax, ecx);
   __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
@@ -7354,8 +7398,10 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(edx), REG(eax), REG(edi), EMIT_REMEMBERED_SET},
   // StoreArrayLiteralElementStub::Generate
   { REG(ebx), REG(eax), REG(ecx), EMIT_REMEMBERED_SET},
-  // FastNewClosureStub
+  // FastNewClosureStub and StringAddStub::Generate
   { REG(ecx), REG(edx), REG(ebx), EMIT_REMEMBERED_SET},
+  // StringAddStub::Generate
+  { REG(ecx), REG(eax), REG(ebx), EMIT_REMEMBERED_SET},
   // Null termination.
   { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
 };
@@ -7876,15 +7922,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Get the elements kind and case on that.
     __ cmp(ebx, Immediate(undefined_sentinel));
     __ j(equal, &no_info);
-    __ mov(edx, FieldOperand(ebx, kPointerSize));
-
-    // There is no info if the call site went megamorphic either
-
-    // TODO(mvstanton): Really? I thought if it was the array function that
-    // the cell wouldn't get stamped as megamorphic.
-    __ cmp(edx, Immediate(TypeFeedbackCells::MegamorphicSentinel(
-        masm->isolate())));
-    __ j(equal, &no_info);
+    __ mov(edx, FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset));
+    __ JumpIfNotSmi(edx, &no_info);
     __ SmiUntag(edx);
     __ jmp(&switch_ready);
     __ bind(&no_info);

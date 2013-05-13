@@ -840,6 +840,72 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
 }
 
 
+void JavaScriptFrame::SaveOperandStack(FixedArray* store,
+                                       int* stack_handler_index) const {
+  int operands_count = store->length();
+  ASSERT_LE(operands_count, ComputeOperandsCount());
+
+  // Visit the stack in LIFO order, saving operands and stack handlers into the
+  // array.  The saved stack handlers store a link to the next stack handler,
+  // which will allow RestoreOperandStack to rewind the handlers.
+  StackHandlerIterator it(this, top_handler());
+  int i = operands_count - 1;
+  *stack_handler_index = -1;
+  for (; !it.done(); it.Advance()) {
+    StackHandler* handler = it.handler();
+    // Save operands pushed after the handler was pushed.
+    for (; GetOperandSlot(i) < handler->address(); i--) {
+      store->set(i, GetOperand(i));
+    }
+    ASSERT_GE(i + 1, StackHandlerConstants::kSlotCount);
+    ASSERT_EQ(handler->address(), GetOperandSlot(i));
+    int next_stack_handler_index = i + 1 - StackHandlerConstants::kSlotCount;
+    handler->Unwind(isolate(), store, next_stack_handler_index,
+                    *stack_handler_index);
+    *stack_handler_index = next_stack_handler_index;
+    i -= StackHandlerConstants::kSlotCount;
+  }
+
+  // Save any remaining operands.
+  for (; i >= 0; i--) {
+    store->set(i, GetOperand(i));
+  }
+}
+
+
+void JavaScriptFrame::RestoreOperandStack(FixedArray* store,
+                                          int stack_handler_index) {
+  int operands_count = store->length();
+  ASSERT_LE(operands_count, ComputeOperandsCount());
+  int i = 0;
+  while (i <= stack_handler_index) {
+    if (i < stack_handler_index) {
+      // An operand.
+      ASSERT_EQ(GetOperand(i), isolate()->heap()->the_hole_value());
+      Memory::Object_at(GetOperandSlot(i)) = store->get(i);
+      i++;
+    } else {
+      // A stack handler.
+      ASSERT_EQ(i, stack_handler_index);
+      // The FixedArray store grows up.  The stack grows down.  So the operand
+      // slot for i actually points to the bottom of the top word in the
+      // handler.  The base of the StackHandler* is the address of the bottom
+      // word, which will be the last slot that is in the handler.
+      int handler_slot_index = i + StackHandlerConstants::kSlotCount - 1;
+      StackHandler *handler =
+          StackHandler::FromAddress(GetOperandSlot(handler_slot_index));
+      stack_handler_index = handler->Rewind(isolate(), store, i, fp());
+      i += StackHandlerConstants::kSlotCount;
+    }
+  }
+
+  for (; i < operands_count; i++) {
+    ASSERT_EQ(GetOperand(i), isolate()->heap()->the_hole_value());
+    Memory::Object_at(GetOperandSlot(i)) = store->get(i);
+  }
+}
+
+
 void FrameSummary::Print() {
   PrintF("receiver: ");
   receiver_->ShortPrint();
@@ -1433,6 +1499,60 @@ InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
     entry->inner_pointer = inner_pointer;
   }
   return entry;
+}
+
+
+// -------------------------------------------------------------------------
+
+
+void StackHandler::Unwind(Isolate* isolate,
+                          FixedArray* array,
+                          int offset,
+                          int previous_handler_offset) const {
+  STATIC_ASSERT(StackHandlerConstants::kSlotCount == 5);
+  ASSERT_LE(0, offset);
+  ASSERT_GE(array->length(), offset + 5);
+  // Unwinding a stack handler into an array chains it in the opposite
+  // direction, re-using the "next" slot as a "previous" link, so that stack
+  // handlers can be later re-wound in the correct order.  Decode the "state"
+  // slot into "index" and "kind" and store them separately, using the fp slot.
+  array->set(offset, Smi::FromInt(previous_handler_offset));        // next
+  array->set(offset + 1, *code_address());                          // code
+  array->set(offset + 2, Smi::FromInt(static_cast<int>(index())));  // state
+  array->set(offset + 3, *context_address());                       // context
+  array->set(offset + 4, Smi::FromInt(static_cast<int>(kind())));   // fp
+
+  *isolate->handler_address() = next()->address();
+}
+
+
+int StackHandler::Rewind(Isolate* isolate,
+                         FixedArray* array,
+                         int offset,
+                         Address fp) {
+  STATIC_ASSERT(StackHandlerConstants::kSlotCount == 5);
+  ASSERT_LE(0, offset);
+  ASSERT_GE(array->length(), offset + 5);
+  Smi* prev_handler_offset = Smi::cast(array->get(offset));
+  Code* code = Code::cast(array->get(offset + 1));
+  Smi* smi_index = Smi::cast(array->get(offset + 2));
+  Object* context = array->get(offset + 3);
+  Smi* smi_kind = Smi::cast(array->get(offset + 4));
+
+  unsigned state = KindField::encode(static_cast<Kind>(smi_kind->value())) |
+      IndexField::encode(static_cast<unsigned>(smi_index->value()));
+
+  Memory::Address_at(address() + StackHandlerConstants::kNextOffset) =
+      *isolate->handler_address();
+  Memory::Object_at(address() + StackHandlerConstants::kCodeOffset) = code;
+  Memory::uintptr_at(address() + StackHandlerConstants::kStateOffset) = state;
+  Memory::Object_at(address() + StackHandlerConstants::kContextOffset) =
+      context;
+  Memory::Address_at(address() + StackHandlerConstants::kFPOffset) = fp;
+
+  *isolate->handler_address() = address();
+
+  return prev_handler_offset->value();
 }
 
 

@@ -1,3 +1,30 @@
+2013-05-10: Version 3.19.0
+
+        Deprecated Context::New which returns Persistent.
+
+        Added Persistent<T>::Reset which disposes the handle and redirects it to
+        point to another object.
+
+        Deprecated WriteAscii and MayContainNonAscii.
+
+        Exposed AssertNoAllocation to API.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-04-30: Version 3.18.5
+
+        Allowed setting debugger breakpoints on CompareNilICs (issue 2660)
+
+        Fixed beyond-heap load on x64 Crankshafted StringCharFromCode
+        (Chromium issue 235311)
+
+        Change 'Parse error' to three more informative messages.
+        (Chromium issue 2636)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-04-26: Version 3.18.4
 
         Added a preliminary API for ES6 ArrayBuffers

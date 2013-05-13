@@ -1593,7 +1593,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   __ mov(r0, Operand(Smi::FromInt(flags)));
   int properties_count = constant_properties->length() / 2;
-  if (expr->depth() > 1) {
+  if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
+      expr->depth() > 1) {
     __ Push(r3, r2, r1, r0);
     __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else if (Serializer::enabled() || flags != ObjectLiteral::kFastElements ||
@@ -1939,11 +1940,12 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       Label resume;
       __ CompareRoot(result_register(), Heap::kTheHoleValueRootIndex);
       __ b(ne, &resume);
-      __ pop(result_register());
       if (expr->yield_kind() == Yield::SUSPEND) {
-        // TODO(wingo): Box into { value: VALUE, done: false }.
+        EmitReturnIteratorResult(false);
+      } else {
+        __ pop(result_register());
+        EmitReturnSequence();
       }
-      EmitReturnSequence();
 
       __ bind(&resume);
       context()->Plug(result_register());
@@ -1955,18 +1957,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ mov(r1, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorClosed)));
       __ str(r1, FieldMemOperand(result_register(),
                                  JSGeneratorObject::kContinuationOffset));
-      __ pop(result_register());
-      // TODO(wingo): Box into { value: VALUE, done: true }.
-
-      // Exit all nested statements.
-      NestedStatement* current = nesting_stack_;
-      int stack_depth = 0;
-      int context_length = 0;
-      while (current != NULL) {
-        current = current->Exit(&stack_depth, &context_length);
-      }
-      __ Drop(stack_depth);
-      EmitReturnSequence();
+      EmitReturnIteratorResult(true);
       break;
     }
 
@@ -2071,6 +2062,55 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   __ bind(&done);
   context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitReturnIteratorResult(bool done) {
+  Label gc_required;
+  Label allocated;
+
+  Handle<Map> map(isolate()->native_context()->generator_result_map());
+
+  __ Allocate(map->instance_size(), r0, r2, r3, &gc_required, TAG_OBJECT);
+
+  __ bind(&allocated);
+  __ mov(r1, Operand(map));
+  __ pop(r2);
+  __ mov(r3, Operand(isolate()->factory()->ToBoolean(done)));
+  __ mov(r4, Operand(isolate()->factory()->empty_fixed_array()));
+  ASSERT_EQ(map->instance_size(), 5 * kPointerSize);
+  __ str(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ str(r4, FieldMemOperand(r0, JSObject::kPropertiesOffset));
+  __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
+  __ str(r2,
+         FieldMemOperand(r0, JSGeneratorObject::kResultValuePropertyOffset));
+  __ str(r3,
+         FieldMemOperand(r0, JSGeneratorObject::kResultDonePropertyOffset));
+
+  // Only the value field needs a write barrier, as the other values are in the
+  // root set.
+  __ RecordWriteField(r0, JSGeneratorObject::kResultValuePropertyOffset,
+                      r2, r3, kLRHasBeenSaved, kDontSaveFPRegs);
+
+  if (done) {
+    // Exit all nested statements.
+    NestedStatement* current = nesting_stack_;
+    int stack_depth = 0;
+    int context_length = 0;
+    while (current != NULL) {
+      current = current->Exit(&stack_depth, &context_length);
+    }
+    __ Drop(stack_depth);
+  }
+
+  EmitReturnSequence();
+
+  __ bind(&gc_required);
+  __ Push(Smi::FromInt(map->instance_size()));
+  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  __ ldr(context_register(),
+         MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ jmp(&allocated);
 }
 
 

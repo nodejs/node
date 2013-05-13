@@ -32,6 +32,10 @@
 #endif
 #include <signal.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "bootstrapper.h"
@@ -291,6 +295,18 @@ class BZip2Decompressor : public StartupDataDecompressor {
 #endif
 
 
+void DumpException(Handle<Message> message) {
+  String::Utf8Value message_string(message->Get());
+  String::Utf8Value message_line(message->GetSourceLine());
+  fprintf(stderr, "%s at line %d\n", *message_string, message->GetLineNumber());
+  fprintf(stderr, "%s\n", *message_line);
+  for (int i = 0; i <= message->GetEndColumn(); ++i) {
+    fprintf(stderr, "%c", i < message->GetStartColumn() ? ' ' : '^');
+  }
+  fprintf(stderr, "\n");
+}
+
+
 int main(int argc, char** argv) {
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
@@ -312,13 +328,18 @@ int main(int argc, char** argv) {
   }
 #endif
   i::Serializer::Enable();
-  Persistent<Context> context = v8::Context::New();
+  Isolate* isolate = Isolate::GetCurrent();
+  Persistent<Context> context;
+  {
+    HandleScope handle_scope(isolate);
+    context.Reset(isolate, Context::New(isolate));
+  }
+
   if (context.IsEmpty()) {
     fprintf(stderr,
             "\nException thrown while compiling natives - see above.\n\n");
     exit(1);
   }
-  Isolate* isolate = context->GetIsolate();
   if (i::FLAG_extra_code != NULL) {
     context->Enter();
     // Capture 100 frames if anything happens.
@@ -350,27 +371,14 @@ int main(int argc, char** argv) {
     TryCatch try_catch;
     Local<Script> script = Script::Compile(source);
     if (try_catch.HasCaught()) {
-      fprintf(stderr, "Failure compiling '%s' (see above)\n", name);
+      fprintf(stderr, "Failure compiling '%s'\n", name);
+      DumpException(try_catch.Message());
       exit(1);
     }
     script->Run();
     if (try_catch.HasCaught()) {
       fprintf(stderr, "Failure running '%s'\n", name);
-      Local<Message> message = try_catch.Message();
-      Local<String> message_string = message->Get();
-      Local<String> message_line = message->GetSourceLine();
-      int len = 2 + message_string->Utf8Length() + message_line->Utf8Length();
-      char* buf = new char(len);
-      message_string->WriteUtf8(buf);
-      fprintf(stderr, "%s at line %d\n", buf, message->GetLineNumber());
-      message_line->WriteUtf8(buf);
-      fprintf(stderr, "%s\n", buf);
-      int from = message->GetStartColumn();
-      int to = message->GetEndColumn();
-      int i;
-      for (i = 0; i < from; i++) fprintf(stderr, " ");
-      for ( ; i <= to; i++) fprintf(stderr, "^");
-      fprintf(stderr, "\n");
+      DumpException(try_catch.Message());
       exit(1);
     }
     context->Exit();

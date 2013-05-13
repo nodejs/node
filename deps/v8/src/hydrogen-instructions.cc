@@ -54,20 +54,6 @@ HYDROGEN_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
 
-const char* Representation::Mnemonic() const {
-  switch (kind_) {
-    case kNone: return "v";
-    case kTagged: return "t";
-    case kDouble: return "d";
-    case kInteger32: return "i";
-    case kExternal: return "x";
-    default:
-      UNREACHABLE();
-      return NULL;
-  }
-}
-
-
 int HValue::LoopWeight() const {
   const int w = FLAG_loop_weight;
   static const int weights[] = { 1, w, w*w, w*w*w, w*w*w*w };
@@ -1615,15 +1601,6 @@ void HCheckMaps::SetSideEffectDominator(GVNFlag side_effect,
 }
 
 
-void HLoadElements::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  if (HasTypeCheck()) {
-    stream->Add(" ");
-    typecheck()->PrintNameTo(stream);
-  }
-}
-
-
 void HCheckMaps::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" [%p", *map_set()->first());
@@ -1972,6 +1949,10 @@ void HPhi::DeleteFromGraph() {
 void HPhi::InitRealUses(int phi_id) {
   // Initialize real uses.
   phi_id_ = phi_id;
+  // Compute a conservative approximation of truncating uses before inferring
+  // representations. The proper, exact computation will be done later, when
+  // inserting representation changes.
+  SetFlag(kTruncatingToInt32);
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
@@ -1980,6 +1961,9 @@ void HPhi::InitRealUses(int phi_id) {
       if (FLAG_trace_representation) {
         PrintF("#%d Phi is used by real #%d %s as %s\n",
                id(), value->id(), value->Mnemonic(), rep.Mnemonic());
+      }
+      if (!value->IsSimulate() && !value->CheckFlag(kTruncatingToInt32)) {
+        ClearFlag(kTruncatingToInt32);
       }
     }
   }
@@ -2076,7 +2060,12 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     has_int32_value_(false),
     has_double_value_(false),
     is_internalized_string_(false),
+    is_not_in_new_space_(true),
     boolean_value_(handle->BooleanValue()) {
+  if (handle_->IsHeapObject()) {
+    Heap* heap = Handle<HeapObject>::cast(handle)->GetHeap();
+    is_not_in_new_space_ = !heap->InNewSpace(*handle);
+  }
   if (handle_->IsNumber()) {
     double n = handle_->Number();
     has_int32_value_ = IsInteger32(n);
@@ -2105,12 +2094,14 @@ HConstant::HConstant(Handle<Object> handle,
                      Representation r,
                      HType type,
                      bool is_internalize_string,
+                     bool is_not_in_new_space,
                      bool boolean_value)
     : handle_(handle),
       unique_id_(unique_id),
       has_int32_value_(false),
       has_double_value_(false),
       is_internalized_string_(is_internalize_string),
+      is_not_in_new_space_(is_not_in_new_space),
       boolean_value_(boolean_value),
       type_from_value_(type) {
   ASSERT(!handle.is_null());
@@ -2122,12 +2113,14 @@ HConstant::HConstant(Handle<Object> handle,
 
 HConstant::HConstant(int32_t integer_value,
                      Representation r,
+                     bool is_not_in_new_space,
                      Handle<Object> optional_handle)
     : handle_(optional_handle),
       unique_id_(),
       has_int32_value_(true),
       has_double_value_(true),
       is_internalized_string_(false),
+      is_not_in_new_space_(is_not_in_new_space),
       boolean_value_(integer_value != 0),
       int32_value_(integer_value),
       double_value_(FastI2D(integer_value)) {
@@ -2137,12 +2130,14 @@ HConstant::HConstant(int32_t integer_value,
 
 HConstant::HConstant(double double_value,
                      Representation r,
+                     bool is_not_in_new_space,
                      Handle<Object> optional_handle)
     : handle_(optional_handle),
       unique_id_(),
       has_int32_value_(IsInteger32(double_value)),
       has_double_value_(true),
       is_internalized_string_(false),
+      is_not_in_new_space_(is_not_in_new_space),
       boolean_value_(double_value != 0 && !std::isnan(double_value)),
       int32_value_(DoubleToInt32(double_value)),
       double_value_(double_value) {
@@ -2162,26 +2157,35 @@ void HConstant::Initialize(Representation r) {
 HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   if (r.IsInteger32() && !has_int32_value_) return NULL;
   if (r.IsDouble() && !has_double_value_) return NULL;
-  if (has_int32_value_) return new(zone) HConstant(int32_value_, r, handle_);
-  if (has_double_value_) return new(zone) HConstant(double_value_, r, handle_);
+  if (has_int32_value_) {
+    return new(zone) HConstant(int32_value_, r, is_not_in_new_space_, handle_);
+  }
+  if (has_double_value_) {
+    return new(zone) HConstant(double_value_, r, is_not_in_new_space_, handle_);
+  }
   ASSERT(!handle_.is_null());
   return new(zone) HConstant(handle_,
                              unique_id_,
                              r,
                              type_from_value_,
                              is_internalized_string_,
+                             is_not_in_new_space_,
                              boolean_value_);
 }
 
 
 HConstant* HConstant::CopyToTruncatedInt32(Zone* zone) const {
   if (has_int32_value_) {
-    return new(zone) HConstant(
-        int32_value_, Representation::Integer32(), handle_);
+    return new(zone) HConstant(int32_value_,
+                               Representation::Integer32(),
+                               is_not_in_new_space_,
+                               handle_);
   }
   if (has_double_value_) {
-    return new(zone) HConstant(
-        DoubleToInt32(double_value_), Representation::Integer32(), handle_);
+    return new(zone) HConstant(DoubleToInt32(double_value_),
+                               Representation::Integer32(),
+                               is_not_in_new_space_,
+                               handle_);
   }
   return NULL;
 }
@@ -2517,6 +2521,8 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
        i < types->length() && types_.length() < kMaxLoadPolymorphism;
        ++i) {
     Handle<Map> map = types->at(i);
+    // Deprecated maps are updated to the current map in the type oracle.
+    ASSERT(!map->is_deprecated());
     LookupResult lookup(map->GetIsolate());
     map->LookupDescriptor(NULL, *name, &lookup);
     if (lookup.IsFound()) {
@@ -2527,6 +2533,12 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
             SetGVNFlag(kDependsOnInobjectFields);
           } else {
             SetGVNFlag(kDependsOnBackingStoreFields);
+          }
+          if (FLAG_track_double_fields &&
+              lookup.representation().IsDouble()) {
+            // Since the value needs to be boxed, use a generic handler for
+            // loading doubles.
+            continue;
           }
           types_.Add(types->at(i), zone);
           break;
@@ -3501,35 +3513,12 @@ void HPhi::SimplifyConstantInputs() {
 
 void HPhi::InferRepresentation(HInferRepresentation* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
-  // If there are non-Phi uses, and all of them have observed the same
-  // representation, than that's what this Phi is going to use.
-  Representation new_rep = RepresentationObservedByAllNonPhiUses();
-  if (!new_rep.IsNone()) {
-    UpdateRepresentation(new_rep, h_infer, "unanimous use observations");
-    return;
-  }
-  new_rep = RepresentationFromInputs();
+  Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
   new_rep = RepresentationFromUses();
   UpdateRepresentation(new_rep, h_infer, "uses");
   new_rep = RepresentationFromUseRequirements();
   UpdateRepresentation(new_rep, h_infer, "use requirements");
-}
-
-
-Representation HPhi::RepresentationObservedByAllNonPhiUses() {
-  int non_phi_use_count = 0;
-  for (int i = Representation::kInteger32;
-       i < Representation::kNumRepresentations; ++i) {
-    non_phi_use_count += non_phi_uses_[i];
-  }
-  if (non_phi_use_count <= 1) return Representation::None();
-  for (int i = 0; i < Representation::kNumRepresentations; ++i) {
-    if (non_phi_uses_[i] == non_phi_use_count) {
-      return Representation::FromKind(static_cast<Representation::Kind>(i));
-    }
-  }
-  return Representation::None();
 }
 
 

@@ -323,10 +323,6 @@ void Map::MapVerify() {
           instance_size() < HEAP->Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
-  DescriptorArray* descriptors = instance_descriptors();
-  for (int i = 0; i < NumberOfOwnDescriptors(); ++i) {
-    CHECK_EQ(i, descriptors->GetDetails(i).descriptor_index() - 1);
-  }
   SLOW_ASSERT(instance_descriptors()->IsSortedNoDuplicates());
   if (HasTransitionArray()) {
     SLOW_ASSERT(transitions()->IsSortedNoDuplicates());
@@ -419,6 +415,7 @@ void JSGeneratorObject::JSGeneratorObjectVerify() {
   VerifyObjectField(kReceiverOffset);
   VerifyObjectField(kOperandStackOffset);
   VerifyObjectField(kContinuationOffset);
+  VerifyObjectField(kStackHandlerIndexOffset);
 }
 
 

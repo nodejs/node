@@ -56,6 +56,7 @@ class LCodeGen BASE_EMBEDDED {
         deopt_jump_table_(4, info->zone()),
         deoptimization_literals_(8, info->zone()),
         prototype_maps_(0, info->zone()),
+        transition_maps_(0, info->zone()),
         inlined_function_count_(0),
         scope_(info->scope()),
         status_(UNUSED),
@@ -416,6 +417,7 @@ class LCodeGen BASE_EMBEDDED {
   ZoneList<JumpTableEntry> deopt_jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   ZoneList<Handle<Map> > prototype_maps_;
+  ZoneList<Handle<Map> > transition_maps_;
   int inlined_function_count_;
   Scope* const scope_;
   Status status_;

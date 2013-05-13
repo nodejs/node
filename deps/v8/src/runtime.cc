@@ -28,6 +28,8 @@
 #include <stdlib.h>
 #include <limits>
 
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "accessors.h"
@@ -232,7 +234,9 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
                                 constant_properties,
                                 &is_result_from_cache);
 
-  Handle<JSObject> boilerplate = isolate->factory()->NewJSObjectFromMap(map);
+  Handle<JSObject> boilerplate =
+      isolate->factory()->NewJSObjectFromMap(
+          map, isolate->heap()->GetPretenureMode());
 
   // Normalize the elements of the boilerplate to save space if needed.
   if (!should_have_fast_elements) JSObject::NormalizeElements(boilerplate);
@@ -249,6 +253,7 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
         boilerplate, KEEP_INOBJECT_PROPERTIES, length / 2);
   }
 
+  // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index +=2) {
     Handle<Object> key(constant_properties->get(index+0), isolate);
     Handle<Object> value(constant_properties->get(index+1), isolate);
@@ -335,8 +340,10 @@ Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
   // Create the JSArray.
   Handle<JSFunction> constructor(
       JSFunction::NativeContextFromLiterals(*literals)->array_function());
-  Handle<JSArray> object =
-      Handle<JSArray>::cast(isolate->factory()->NewJSObject(constructor));
+
+  Handle<JSArray> object = Handle<JSArray>::cast(
+      isolate->factory()->NewJSObject(
+          constructor, isolate->heap()->GetPretenureMode()));
 
   ElementsKind constant_elements_kind =
       static_cast<ElementsKind>(Smi::cast(elements->get(0))->value());
@@ -646,11 +653,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
 
 
 static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
-                                    Persistent<Value> object,
+                                    Persistent<Value>* object,
                                     void* data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(external_isolate);
   HandleScope scope(isolate);
-  Handle<Object> internal_object = Utils::OpenHandle(*object);
+  Handle<Object> internal_object = Utils::OpenHandle(**object);
 
   size_t allocated_length = NumberToSize(
       isolate, JSArrayBuffer::cast(*internal_object)->byte_length());
@@ -658,7 +665,7 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
       -static_cast<intptr_t>(allocated_length));
   if (data != NULL)
     free(data);
-  object.Dispose(external_isolate);
+  object->Dispose(external_isolate);
 }
 
 
@@ -773,7 +780,8 @@ enum TypedArrayId {
   ARRAY_ID_UINT32 = 5,
   ARRAY_ID_INT32 = 6,
   ARRAY_ID_FLOAT32 = 7,
-  ARRAY_ID_FLOAT64 = 8
+  ARRAY_ID_FLOAT64 = 8,
+  ARRAY_ID_UINT8C = 9
 };
 
 
@@ -830,6 +838,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
       arrayType = kExternalDoubleArray;
       elementSize = 8;
       break;
+    case ARRAY_ID_UINT8C:
+      elementsKind = EXTERNAL_PIXEL_ELEMENTS;
+      arrayType = kExternalPixelArray;
+      elementSize = 1;
+      break;
     default:
       UNREACHABLE();
       return NULL;
@@ -860,11 +873,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
 
 #define TYPED_ARRAY_GETTER(getter, accessor) \
-  RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayGet##getter) { \
-    HandleScope scope(isolate);                                   \
-    ASSERT(args.length() == 1);                                   \
-    CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);          \
-    return holder->accessor();                                    \
+  RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayGet##getter) {             \
+    HandleScope scope(isolate);                                               \
+    ASSERT(args.length() == 1);                                               \
+    CONVERT_ARG_HANDLE_CHECKED(Object, holder, 0);                            \
+    if (!holder->IsJSTypedArray())                                            \
+      return isolate->Throw(*isolate->factory()->NewTypeError(                \
+          "not_typed_array", HandleVector<Object>(NULL, 0)));                 \
+    Handle<JSTypedArray> typed_array(JSTypedArray::cast(*holder));            \
+    return typed_array->accessor();                                           \
   }
 
 TYPED_ARRAY_GETTER(Buffer, buffer)
@@ -873,6 +890,128 @@ TYPED_ARRAY_GETTER(ByteOffset, byte_offset)
 TYPED_ARRAY_GETTER(Length, length)
 
 #undef TYPED_ARRAY_GETTER
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArraySetFastCases) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, target_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, source_obj, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, offset_obj, 2);
+
+  if (!target_obj->IsJSTypedArray())
+    return isolate->Throw(*isolate->factory()->NewTypeError(
+        "not_typed_array", HandleVector<Object>(NULL, 0)));
+
+  if (!source_obj->IsJSTypedArray())
+    return isolate->heap()->false_value();
+
+  Handle<JSTypedArray> target(JSTypedArray::cast(*target_obj));
+  Handle<JSTypedArray> source(JSTypedArray::cast(*source_obj));
+  size_t offset = NumberToSize(isolate, *offset_obj);
+  size_t target_length = NumberToSize(isolate, target->length());
+  size_t source_length = NumberToSize(isolate, source->length());
+  size_t target_byte_length = NumberToSize(isolate, target->byte_length());
+  size_t source_byte_length = NumberToSize(isolate, source->byte_length());
+  if (offset > target_length ||
+      offset + source_length > target_length ||
+      offset + source_length < offset)  // overflow
+    return isolate->Throw(*isolate->factory()->NewRangeError(
+          "typed_array_set_source_too_large", HandleVector<Object>(NULL, 0)));
+
+  Handle<JSArrayBuffer> target_buffer(JSArrayBuffer::cast(target->buffer()));
+  Handle<JSArrayBuffer> source_buffer(JSArrayBuffer::cast(source->buffer()));
+  size_t target_offset = NumberToSize(isolate, target->byte_offset());
+  size_t source_offset = NumberToSize(isolate, source->byte_offset());
+  uint8_t* target_base =
+      static_cast<uint8_t*>(target_buffer->backing_store()) + target_offset;
+  uint8_t* source_base =
+      static_cast<uint8_t*>(source_buffer->backing_store()) + source_offset;
+
+  // Typed arrays of the same type: use memmove.
+  if (target->type() == source->type()) {
+    memmove(target_base + offset * target->element_size(),
+        source_base, source_byte_length);
+    return isolate->heap()->true_value();
+  }
+
+  // Typed arrays of different types over the same backing store
+  if ((source_base <= target_base &&
+        source_base + source_byte_length > target_base) ||
+      (target_base <= source_base &&
+        target_base + target_byte_length > source_base)) {
+    size_t target_element_size = target->element_size();
+    size_t source_element_size = source->element_size();
+
+    size_t source_length = NumberToSize(isolate, source->length());
+
+    // Copy left part
+    size_t left_index;
+    {
+      // First un-mutated byte after the next write
+      uint8_t* target_ptr = target_base + (offset + 1) * target_element_size;
+      // Next read at source_ptr. We do not care for memory changing before
+      // source_ptr - we have already copied it.
+      uint8_t* source_ptr = source_base;
+      for (left_index = 0;
+           left_index < source_length && target_ptr <= source_ptr;
+           left_index++) {
+        Handle<Object> v = Object::GetElement(
+            source, static_cast<uint32_t>(left_index));
+        JSObject::SetElement(
+            target, static_cast<uint32_t>(offset + left_index), v,
+            NONE, kNonStrictMode);
+        target_ptr += target_element_size;
+        source_ptr += source_element_size;
+      }
+    }
+    // Copy right part
+    size_t right_index;
+    {
+      // First unmutated byte before the next write
+      uint8_t* target_ptr =
+        target_base + (offset + source_length - 1) * target_element_size;
+      // Next read before source_ptr. We do not care for memory changing after
+      // source_ptr - we have already copied it.
+      uint8_t* source_ptr =
+        source_base + source_length * source_element_size;
+      for (right_index = source_length - 1;
+           right_index >= left_index && target_ptr >= source_ptr;
+           right_index--) {
+        Handle<Object> v = Object::GetElement(
+            source, static_cast<uint32_t>(right_index));
+        JSObject::SetElement(
+            target, static_cast<uint32_t>(offset + right_index), v,
+            NONE, kNonStrictMode);
+        target_ptr -= target_element_size;
+        source_ptr -= source_element_size;
+      }
+    }
+    // There can be at most 8 entries left in the middle that need buffering
+    // (because the largest element_size is 8 times the smallest).
+    ASSERT((right_index + 1) - left_index <= 8);
+    Handle<Object> temp[8];
+    size_t idx;
+    for (idx = left_index; idx <= right_index; idx++) {
+      temp[idx - left_index] = Object::GetElement(
+          source, static_cast<uint32_t>(idx));
+    }
+    for (idx = left_index; idx <= right_index; idx++) {
+      JSObject::SetElement(
+          target, static_cast<uint32_t>(offset + idx), temp[idx-left_index],
+          NONE, kNonStrictMode);
+    }
+  } else {  // Non-overlapping typed arrays
+    for (size_t idx = 0; idx < source_length; idx++) {
+      Handle<Object> value = Object::GetElement(
+          source, static_cast<uint32_t>(idx));
+      JSObject::SetElement(
+          target, static_cast<uint32_t>(offset + idx), value,
+          NONE, kNonStrictMode);
+    }
+  }
+
+  return isolate->heap()->true_value();
+}
+
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetInitialize) {
   HandleScope scope(isolate);
@@ -2180,6 +2319,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionMarkNameShouldPrintAsAnonymous) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionIsGenerator) {
+  NoHandleAllocation ha(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, f, 0);
+  return isolate->heap()->ToBoolean(f->shared()->is_generator());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionRemovePrototype) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 1);
@@ -2291,8 +2438,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
 
     CallbacksDescriptor new_desc(name,
         instance_desc->GetValue(index),
-        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
-        details.descriptor_index());
+        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY));
 
     // Create a new map featuring the new field descriptors array.
     Map* new_map;
@@ -2431,56 +2577,52 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
   generator->set_receiver(frame->receiver());
   generator->set_continuation(0);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
+  generator->set_stack_handler_index(-1);
 
   return generator;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
-  HandleScope scope(isolate);
+  NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
+  CONVERT_ARG_CHECKED(JSGeneratorObject, generator_object, 0);
 
   JavaScriptFrameIterator stack_iterator(isolate);
-  JavaScriptFrame *frame = stack_iterator.frame();
-  Handle<JSFunction> function(JSFunction::cast(frame->function()));
+  JavaScriptFrame* frame = stack_iterator.frame();
+  JSFunction* function = JSFunction::cast(frame->function());
   RUNTIME_ASSERT(function->shared()->is_generator());
+  ASSERT_EQ(function, generator_object->function());
 
-  intptr_t offset = frame->pc() - function->code()->instruction_start();
-  ASSERT(*function == generator_object->function());
-  ASSERT(offset > 0 && Smi::IsValid(offset));
-  generator_object->set_continuation(static_cast<int>(offset));
+  // We expect there to be at least two values on the operand stack: the return
+  // value of the yield expression, and the argument to this runtime call.
+  // Neither of those should be saved.
+  int operands_count = frame->ComputeOperandsCount();
+  ASSERT(operands_count >= 2);
+  operands_count -= 2;
 
-  // Generator functions force context allocation for locals, so Local0 points
-  // to the bottom of the operand stack.  Assume the stack grows down.
-  //
-  // TODO(wingo): Move these magical calculations to frames.h when the
-  // generators implementation has stabilized.
-  intptr_t stack_size_in_bytes =
-      (frame->fp() + JavaScriptFrameConstants::kLocal0Offset) -
-      (frame->sp() - kPointerSize);
-  ASSERT(IsAddressAligned(frame->fp(), kPointerSize));
-  ASSERT(IsAligned(stack_size_in_bytes, kPointerSize));
-  ASSERT(stack_size_in_bytes >= 0);
-  ASSERT(Smi::IsValid(stack_size_in_bytes));
-  intptr_t stack_size = stack_size_in_bytes >> kPointerSizeLog2;
-
-  // We expect there to be at least two values on the stack: the return value of
-  // the yield expression, and the argument to this runtime call.  Neither of
-  // those should be saved.
-  ASSERT(stack_size >= 2);
-  stack_size -= 2;
-
-  if (stack_size == 0) {
+  if (operands_count == 0) {
     ASSERT_EQ(generator_object->operand_stack(),
               isolate->heap()->empty_fixed_array());
+    ASSERT_EQ(generator_object->stack_handler_index(), -1);
     // If there are no operands on the stack, there shouldn't be a handler
     // active either.
     ASSERT(!frame->HasHandler());
   } else {
-    // TODO(wingo): Save the operand stack and/or the stack handlers.
-    UNIMPLEMENTED();
+    int stack_handler_index = -1;
+    MaybeObject* alloc = isolate->heap()->AllocateFixedArray(operands_count);
+    FixedArray* operand_stack;
+    if (!alloc->To(&operand_stack)) return alloc;
+    frame->SaveOperandStack(operand_stack, &stack_handler_index);
+    generator_object->set_operand_stack(operand_stack);
+    generator_object->set_stack_handler_index(stack_handler_index);
   }
+
+  // Set continuation down here to avoid side effects if the operand stack
+  // allocation fails.
+  intptr_t offset = frame->pc() - function->code()->instruction_start();
+  ASSERT(offset > 0 && Smi::IsValid(offset));
+  generator_object->set_continuation(static_cast<int>(offset));
 
   // It's possible for the context to be other than the initial context even if
   // there is no stack handler active.  For example, this is the case in the
@@ -2501,13 +2643,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
 // EmitGeneratorResumeResume is called in any case, as it needs to reconstruct
 // the stack frame and make space for arguments and operands.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
-  HandleScope scope(isolate);
+  NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  CONVERT_ARG_CHECKED(JSGeneratorObject, generator_object, 0);
+  CONVERT_ARG_CHECKED(Object, value, 1);
   CONVERT_SMI_ARG_CHECKED(resume_mode_int, 2);
   JavaScriptFrameIterator stack_iterator(isolate);
-  JavaScriptFrame *frame = stack_iterator.frame();
+  JavaScriptFrame* frame = stack_iterator.frame();
 
   ASSERT_EQ(frame->function(), generator_object->function());
 
@@ -2520,18 +2662,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   frame->set_pc(pc + offset);
   generator_object->set_continuation(JSGeneratorObject::kGeneratorExecuting);
 
-  if (generator_object->operand_stack()->length() != 0) {
-    // TODO(wingo): Copy operand stack.  Rewind handlers.
-    UNIMPLEMENTED();
+  FixedArray* operand_stack = generator_object->operand_stack();
+  int operands_count = operand_stack->length();
+  if (operands_count != 0) {
+    frame->RestoreOperandStack(operand_stack,
+                               generator_object->stack_handler_index());
+    generator_object->set_operand_stack(isolate->heap()->empty_fixed_array());
+    generator_object->set_stack_handler_index(-1);
   }
 
   JSGeneratorObject::ResumeMode resume_mode =
       static_cast<JSGeneratorObject::ResumeMode>(resume_mode_int);
   switch (resume_mode) {
     case JSGeneratorObject::SEND:
-      return *value;
+      return value;
     case JSGeneratorObject::THROW:
-      return isolate->Throw(*value);
+      return isolate->Throw(value);
   }
 
   UNREACHABLE();
@@ -2544,7 +2690,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ThrowGeneratorStateError) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
   int continuation = generator->continuation();
-  const char *message = continuation == JSGeneratorObject::kGeneratorClosed ?
+  const char* message = continuation == JSGeneratorObject::kGeneratorClosed ?
       "generator_finished" : "generator_running";
   Vector< Handle<Object> > argv = HandleVector<Object>(NULL, 0);
   Handle<Object> error = isolate->factory()->NewError(message, argv);
@@ -3339,8 +3485,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithString(
 
   // Shortcut for simple non-regexp global replacements
   if (regexp->TypeTag() == JSRegExp::ATOM && simple_replace) {
-    if (subject->IsOneByteConvertible() &&
-        replacement->IsOneByteConvertible()) {
+    if (subject->HasOnlyOneByteChars() &&
+        replacement->HasOnlyOneByteChars()) {
       return StringReplaceGlobalAtomRegExpWithString<SeqOneByteString>(
           isolate, subject, regexp, replacement, last_match_info);
     } else {
@@ -3522,7 +3668,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceGlobalRegExpWithString) {
   if (!subject->IsFlat()) subject = FlattenGetString(subject);
 
   if (replacement->length() == 0) {
-    if (subject->IsOneByteConvertible()) {
+    if (subject->HasOnlyOneByteChars()) {
       return StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
           isolate, subject, regexp, last_match_info);
     } else {
@@ -4327,7 +4473,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
         KeyedLookupCache* keyed_lookup_cache = isolate->keyed_lookup_cache();
         int offset = keyed_lookup_cache->Lookup(receiver_map, key);
         if (offset != -1) {
-          Object* value = receiver->FastPropertyAt(offset);
+          // Doubles are not cached, so raw read the value.
+          Object* value = receiver->RawFastPropertyAt(offset);
           return value->IsTheHole()
               ? isolate->heap()->undefined_value()
               : value;
@@ -4338,8 +4485,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
         receiver->LocalLookup(key, &result);
         if (result.IsField()) {
           int offset = result.GetFieldIndex().field_index();
-          keyed_lookup_cache->Update(receiver_map, key, offset);
-          return receiver->FastPropertyAt(offset);
+          // Do not track double fields in the keyed lookup cache. Reading
+          // double values requires boxing.
+          if (!FLAG_track_double_fields ||
+              !result.representation().IsDouble()) {
+            keyed_lookup_cache->Update(receiver_map, key, offset);
+          }
+          return receiver->FastPropertyAt(result.representation(), offset);
         }
       } else {
         // Attempt dictionary lookup.
@@ -4515,6 +4667,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
       return lookup.holder()->GetNormalizedProperty(&lookup);
     case FIELD:
       return lookup.holder()->FastPropertyAt(
+          lookup.representation(),
           lookup.GetFieldIndex().field_index());
     case CONSTANT_FUNCTION:
       return lookup.GetConstantFunction();
@@ -6113,7 +6266,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToStringSkipCache) {
   Object* number = args[0];
   RUNTIME_ASSERT(number->IsNumber());
 
-  return isolate->heap()->NumberToString(number, false);
+  return isolate->heap()->NumberToString(
+      number, false, isolate->heap()->GetPretenureMode());
 }
 
 
@@ -6381,7 +6535,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
     if (first->IsString()) return first;
   }
 
-  bool one_byte = special->IsOneByteConvertible();
+  bool one_byte = special->HasOnlyOneByteChars();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
@@ -6422,7 +6576,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
       String* element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (one_byte && !element->IsOneByteConvertible()) {
+      if (one_byte && !element->HasOnlyOneByteChars()) {
         one_byte = false;
       }
     } else {
@@ -7570,20 +7724,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
 }
 
 
-static void TrySettingInlineConstructStub(Isolate* isolate,
-                                          Handle<JSFunction> function) {
-  Handle<Object> prototype = isolate->factory()->null_value();
-  if (function->has_instance_prototype()) {
-    prototype = Handle<Object>(function->instance_prototype(), isolate);
-  }
-  if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
-    ConstructStubCompiler compiler(isolate);
-    Handle<Code> code = compiler.CompileConstructStub(function);
-    function->shared()->set_construct_stub(*code);
-  }
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -7647,13 +7787,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
     shared->CompleteInobjectSlackTracking();
   }
 
-  bool first_allocation = !shared->live_objects_may_exist();
   Handle<JSObject> result = isolate->factory()->NewJSObject(function);
   RETURN_IF_EMPTY_HANDLE(isolate, result);
-  // Delay setting the stub if inobject slack tracking is in progress.
-  if (first_allocation && !shared->IsInobjectSlackTrackingInProgress()) {
-    TrySettingInlineConstructStub(isolate, function);
-  }
 
   isolate->counters()->constructed_objects()->Increment();
   isolate->counters()->constructed_objects_runtime()->Increment();
@@ -7668,7 +7803,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FinalizeInstanceSize) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   function->shared()->CompleteInobjectSlackTracking();
-  TrySettingInlineConstructStub(isolate, function);
 
   return isolate->heap()->undefined_value();
 }
@@ -10050,14 +10184,18 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
         return heap->undefined_value();
       }
       return value;
-    case FIELD:
-      value =
+    case FIELD: {
+      Object* value;
+      MaybeObject* maybe_value =
           JSObject::cast(result->holder())->FastPropertyAt(
+              result->representation(),
               result->GetFieldIndex().field_index());
+      if (!maybe_value->To(&value)) return maybe_value;
       if (value->IsTheHole()) {
         return heap->undefined_value();
       }
       return value;
+    }
     case CONSTANT_FUNCTION:
       return result->GetConstantFunction();
     case CALLBACKS: {
@@ -10144,7 +10282,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
       }
     }
     details->set(0, element_or_char);
-    details->set(1, PropertyDetails(NONE, NORMAL).AsSmi());
+    details->set(
+        1, PropertyDetails(NONE, NORMAL, Representation::None()).AsSmi());
     return *isolate->factory()->NewJSArrayWithElements(details);
   }
 
@@ -13333,7 +13472,7 @@ MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
     { MaybeObject* maybe_dictionary = name_dictionary->Add(
           String::cast(name_string),
           Smi::FromInt(i),
-          PropertyDetails(NONE, NORMAL));
+          PropertyDetails(NONE, NORMAL, Representation::None()));
       if (!maybe_dictionary->ToObject(&dictionary)) {
         // Non-recoverable failure.  Calling code must restart heap
         // initialization.

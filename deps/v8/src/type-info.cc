@@ -67,7 +67,7 @@ TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
       isolate_(isolate),
       zone_(zone) {
   BuildDictionary(code);
-  ASSERT(reinterpret_cast<Address>(*dictionary_.location()) != kHandleZapValue);
+  ASSERT(dictionary_->IsDictionary());
 }
 
 
@@ -539,15 +539,6 @@ TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
 }
 
 
-static void AddMapIfMissing(Handle<Map> map, SmallMapList* list,
-                            Zone* zone) {
-  for (int i = 0; i < list->length(); ++i) {
-    if (list->at(i).is_identical_to(map)) return;
-  }
-  list->Add(map, zone);
-}
-
-
 void TypeFeedbackOracle::CollectPolymorphicMaps(Handle<Code> code,
                                                 SmallMapList* types) {
   MapHandleList maps;
@@ -556,7 +547,7 @@ void TypeFeedbackOracle::CollectPolymorphicMaps(Handle<Code> code,
   for (int i = 0; i < maps.length(); i++) {
     Handle<Map> map(maps.at(i));
     if (!CanRetainOtherContext(*map, *native_context_)) {
-      AddMapIfMissing(map, types, zone());
+      types->AddMapIfMissing(map, zone());
     }
   }
 }
@@ -574,7 +565,7 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
     // we need a generic store (or load) here.
     ASSERT(Handle<Code>::cast(object)->ic_state() == GENERIC);
   } else if (object->IsMap()) {
-    types->Add(Handle<Map>::cast(object), zone());
+    types->AddMapIfMissing(Handle<Map>::cast(object), zone());
   } else if (Handle<Code>::cast(object)->ic_state() == POLYMORPHIC) {
     CollectPolymorphicMaps(Handle<Code>::cast(object), types);
   } else if (FLAG_collect_megamorphic_maps_from_stub_cache &&
@@ -582,7 +573,7 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
     types->Reserve(4, zone());
     ASSERT(object->IsCode());
     isolate_->stub_cache()->CollectMatchingMaps(types,
-                                                *name,
+                                                name,
                                                 flags,
                                                 native_context_,
                                                 zone());

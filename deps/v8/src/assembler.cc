@@ -1203,6 +1203,13 @@ ExternalReference ExternalReference::old_data_space_allocation_limit_address(
 }
 
 
+ExternalReference ExternalReference::
+    new_space_high_promotion_mode_active_address(Isolate* isolate) {
+  return ExternalReference(
+      isolate->heap()->NewSpaceHighPromotionModeActiveAddress());
+}
+
+
 ExternalReference ExternalReference::handle_scope_level_address(
     Isolate* isolate) {
   return ExternalReference(HandleScope::current_level_address(isolate));

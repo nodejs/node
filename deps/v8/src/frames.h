@@ -93,6 +93,7 @@ class StackHandlerConstants : public AllStatic {
   static const int kFPOffset       = 4 * kPointerSize;
 
   static const int kSize = kFPOffset + kPointerSize;
+  static const int kSlotCount = kSize >> kPointerSizeLog2;
 };
 
 
@@ -131,9 +132,15 @@ class StackHandler BASE_EMBEDDED {
   inline bool is_catch() const;
   inline bool is_finally() const;
 
+  // Generator support to preserve stack handlers.
+  void Unwind(Isolate* isolate, FixedArray* array, int offset,
+              int previous_handler_offset) const;
+  int Rewind(Isolate* isolate, FixedArray* array, int offset, Address fp);
+
  private:
   // Accessors.
   inline Kind kind() const;
+  inline unsigned index() const;
 
   inline Object** context_address() const;
   inline Object** code_address() const;
@@ -535,6 +542,15 @@ class JavaScriptFrame: public StandardFrame {
   inline int ComputeParametersCount() const {
     return GetNumberOfIncomingArguments();
   }
+
+  // Access the operand stack.
+  inline Address GetOperandSlot(int index) const;
+  inline Object* GetOperand(int index) const;
+  inline int ComputeOperandsCount() const;
+
+  // Generator support to preserve operand stack and stack handlers.
+  void SaveOperandStack(FixedArray* store, int* stack_handler_index) const;
+  void RestoreOperandStack(FixedArray* store, int stack_handler_index);
 
   // Debugger access.
   void SetParameterValue(int index, Object* value) const;

@@ -1309,8 +1309,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
   if (js_obj->HasFastProperties()) {
     DescriptorArray* descs = js_obj->map()->instance_descriptors();
     int real_size = js_obj->map()->NumberOfOwnDescriptors();
-    for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      if (descs->GetDetails(i).descriptor_index() > real_size) continue;
+    for (int i = 0; i < real_size; i++) {
       switch (descs->GetType(i)) {
         case FIELD: {
           int index = descs->GetFieldIndex(i);
@@ -1332,7 +1331,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
                   js_obj->GetInObjectPropertyOffset(index));
             }
           } else {
-            Object* value = js_obj->FastPropertyAt(index);
+            Object* value = js_obj->RawFastPropertyAt(index);
             if (k != heap_->hidden_string()) {
               SetPropertyReference(js_obj, entry, k, value);
             } else {

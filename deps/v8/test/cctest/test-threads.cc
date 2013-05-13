@@ -25,6 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+
 #include "v8.h"
 
 #include "platform.h"
@@ -34,10 +38,12 @@
 
 
 TEST(Preemption) {
-  v8::Locker locker(CcTest::default_isolate());
+  v8::Isolate* isolate = CcTest::default_isolate();
+  v8::Locker locker(isolate);
   v8::V8::Initialize();
-  v8::HandleScope scope(CcTest::default_isolate());
-  v8::Context::Scope context_scope(v8::Context::New());
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
 
   v8::Locker::StartPreemption(100);
 
@@ -67,9 +73,11 @@ class ThreadA : public v8::internal::Thread {
  public:
   ThreadA() : Thread("ThreadA") { }
   void Run() {
-    v8::Locker locker(CcTest::default_isolate());
-    v8::HandleScope scope(CcTest::default_isolate());
-    v8::Context::Scope context_scope(v8::Context::New());
+    v8::Isolate* isolate = CcTest::default_isolate();
+    v8::Locker locker(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Handle<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
 
     CHECK_EQ(FILL_CACHE, turn);
 
@@ -105,10 +113,12 @@ class ThreadB : public v8::internal::Thread {
   void Run() {
     do {
       {
-        v8::Locker locker(CcTest::default_isolate());
+        v8::Isolate* isolate = CcTest::default_isolate();
+        v8::Locker locker(isolate);
         if (turn == CLEAN_CACHE) {
-          v8::HandleScope scope(CcTest::default_isolate());
-          v8::Context::Scope context_scope(v8::Context::New());
+          v8::HandleScope scope(isolate);
+          v8::Handle<v8::Context> context = v8::Context::New(isolate);
+          v8::Context::Scope context_scope(context);
 
           // Clear the caches by forcing major GC.
           HEAP->CollectAllGarbage(v8::internal::Heap::kNoGCFlags);

@@ -27,6 +27,9 @@
 //
 // Tests of profiles generator and utilities.
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 #include "profile-generator-inl.h"
 #include "cctest.h"
@@ -852,7 +855,6 @@ v8::Handle<v8::Value> ProfilerExtension::StopProfiling(
 
 static ProfilerExtension kProfilerExtension;
 v8::DeclareExtension kProfilerExtensionDeclaration(&kProfilerExtension);
-static v8::Persistent<v8::Context> env;
 
 static const ProfileNode* PickChild(const ProfileNode* parent,
                                     const char* name) {
@@ -869,14 +871,12 @@ TEST(RecordStackTraceAtStartProfiling) {
   // don't appear in the stack trace.
   i::FLAG_use_inlining = false;
 
-  if (env.IsEmpty()) {
-    v8::HandleScope scope(v8::Isolate::GetCurrent());
-    const char* extensions[] = { "v8/profiler" };
-    v8::ExtensionConfiguration config(1, extensions);
-    env = v8::Context::New(&config);
-  }
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  env->Enter();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
+  const char* extensions[] = { "v8/profiler" };
+  v8::ExtensionConfiguration config(1, extensions);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  context->Enter();
 
   CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
   CHECK_EQ(0, profiler->GetProfilesCount());

@@ -2036,16 +2036,23 @@ class InspectionShell(cmd.Cmd):
 
   def do_u(self, args):
     """
-     u 0x<address> 0x<size>
-     Unassemble memory in the region [address, address + size)
+     Unassemble memory in the region [address, address + size). If the
+     size is not specified, a default value of 32 bytes is used.
+     Synopsis: u 0x<address> 0x<size>
     """
     args = args.split(' ')
     start = int(args[0], 16)
-    size = int(args[1], 16)
+    size = int(args[1], 16) if len(args) > 1 else 0x20
+    if not self.reader.IsValidAddress(start):
+      print "Address is not contained within the minidump!"
+      return
     lines = self.reader.GetDisasmLines(start, size)
     for line in lines:
       print FormatDisasmLine(start, self.heap, line)
     print
+
+  def do_EOF(self, none):
+    raise KeyboardInterrupt
 
 EIP_PROXIMITY = 64
 
@@ -2131,7 +2138,10 @@ def AnalyzeMinidump(options, minidump_name):
     FullDump(reader, heap)
 
   if options.shell:
-    InspectionShell(reader, heap).cmdloop("type help to get help")
+    try:
+      InspectionShell(reader, heap).cmdloop("type help to get help")
+    except KeyboardInterrupt:
+      print "Kthxbye."
   else:
     if reader.exception is not None:
       print "Annotated stack (from exception.esp to bottom):"

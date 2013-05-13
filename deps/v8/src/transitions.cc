@@ -135,6 +135,7 @@ MaybeObject* TransitionArray::CopyInsert(Name* name, Map* target) {
       }
     }
     result->NoIncrementalWriteBarrierSet(insertion_index, name, target);
+    result->set_back_pointer_storage(back_pointer_storage());
     return result;
   }
 

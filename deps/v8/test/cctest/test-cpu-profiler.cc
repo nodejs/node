@@ -27,6 +27,10 @@
 //
 // Tests of profiles generator and utilities.
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 #include "cpu-profiler-inl.h"
 #include "cctest.h"

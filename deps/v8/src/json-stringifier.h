@@ -644,7 +644,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       Handle<Object> property;
       if (details.type() == FIELD && *map == object->map()) {
         property = Handle<Object>(
-                       object->FastPropertyAt(
+                       object->RawFastPropertyAt(
                            map->instance_descriptors()->GetFieldIndex(i)),
                        isolate_);
       } else {

@@ -27,6 +27,9 @@
 
 #include <stdlib.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "factory.h"
@@ -43,8 +46,6 @@ using namespace v8::internal;
 
 
 typedef uint32_t (*HASH_FUNCTION)();
-
-static v8::Persistent<v8::Context> env;
 
 #define __ masm->
 
@@ -232,7 +233,10 @@ static uint32_t PseudoRandom(uint32_t i, uint32_t j) {
 
 
 TEST(StringHash) {
-  if (env.IsEmpty()) env = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::Scope context_scope(v8::Context::New(isolate));
+
   for (uint8_t a = 0; a < String::kMaxOneByteCharCode; a++) {
     // Numbers are hashed differently.
     if (a >= '0' && a <= '9') continue;
@@ -250,7 +254,9 @@ TEST(StringHash) {
 
 
 TEST(NumberHash) {
-  if (env.IsEmpty()) env = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::Scope context_scope(v8::Context::New(isolate));
 
   // Some specific numbers
   for (uint32_t key = 0; key < 42; key += 7) {

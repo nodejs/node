@@ -727,8 +727,9 @@ int Scope::ContextChainLength(Scope* scope) {
   for (Scope* s = this; s != scope; s = s->outer_scope_) {
     ASSERT(s != NULL);  // scope must be in the scope chain
     if (s->is_with_scope() || s->num_heap_slots() > 0) n++;
-    // Catch scopes always have heap slots.
+    // Catch and module scopes always have heap slots.
     ASSERT(!s->is_catch_scope() || s->num_heap_slots() > 0);
+    ASSERT(!s->is_module_scope() || s->num_heap_slots() > 0);
   }
   return n;
 }

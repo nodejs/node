@@ -2304,14 +2304,6 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // Don't free list allocate if there is linear space available.
   ASSERT(owner_->limit() - owner_->top() < size_in_bytes);
 
-  int new_node_size = 0;
-  FreeListNode* new_node = FindNodeFor(size_in_bytes, &new_node_size);
-  if (new_node == NULL) return NULL;
-
-
-  int bytes_left = new_node_size - size_in_bytes;
-  ASSERT(bytes_left >= 0);
-
   int old_linear_size = static_cast<int>(owner_->limit() - owner_->top());
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.  This also puts it back in the free list
@@ -2320,6 +2312,16 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
 
   owner_->heap()->incremental_marking()->OldSpaceStep(
       size_in_bytes - old_linear_size);
+
+  int new_node_size = 0;
+  FreeListNode* new_node = FindNodeFor(size_in_bytes, &new_node_size);
+  if (new_node == NULL) {
+    owner_->SetTop(NULL, NULL);
+    return NULL;
+  }
+
+  int bytes_left = new_node_size - size_in_bytes;
+  ASSERT(bytes_left >= 0);
 
 #ifdef DEBUG
   for (int i = 0; i < size_in_bytes / kPointerSize; i++) {

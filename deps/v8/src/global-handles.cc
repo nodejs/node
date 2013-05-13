@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "api.h"
@@ -232,7 +235,7 @@ class GlobalHandles::Node {
 
   void MakeWeak(GlobalHandles* global_handles,
                 void* parameter,
-                WeakReferenceCallback weak_reference_callback,
+                RevivableCallback weak_reference_callback,
                 NearDeathCallback near_death_callback) {
     ASSERT(state() != FREE);
     set_state(WEAK);
@@ -264,7 +267,7 @@ class GlobalHandles::Node {
     set_state(NEAR_DEATH);
     set_parameter(NULL);
 
-    v8::Persistent<v8::Object> object = ToApi<v8::Object>(handle());
+    v8::Persistent<v8::Value> object = ToApi<v8::Value>(handle());
     {
       // Check that we are not passing a finalized external string to
       // the callback.
@@ -276,9 +279,11 @@ class GlobalHandles::Node {
       VMState<EXTERNAL> state(isolate);
       if (near_death_callback_ != NULL) {
         if (IsWeakCallback::decode(flags_)) {
-          WeakReferenceCallback callback =
-              reinterpret_cast<WeakReferenceCallback>(near_death_callback_);
-          callback(object, par);
+          RevivableCallback callback =
+              reinterpret_cast<RevivableCallback>(near_death_callback_);
+          callback(reinterpret_cast<v8::Isolate*>(isolate),
+                   &object,
+                   par);
         } else {
           near_death_callback_(reinterpret_cast<v8::Isolate*>(isolate),
                                object,
@@ -490,9 +495,9 @@ void GlobalHandles::Destroy(Object** location) {
 
 void GlobalHandles::MakeWeak(Object** location,
                              void* parameter,
-                             WeakReferenceCallback weak_reference_callback,
+                             RevivableCallback weak_reference_callback,
                              NearDeathCallback near_death_callback) {
-  ASSERT(near_death_callback != NULL);
+  ASSERT((weak_reference_callback == NULL) != (near_death_callback == NULL));
   Node::FromLocation(location)->MakeWeak(this,
                                          parameter,
                                          weak_reference_callback,

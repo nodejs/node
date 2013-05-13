@@ -350,9 +350,8 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
   }
   int real_size = map->NumberOfOwnDescriptors();
   DescriptorArray* descs = map->instance_descriptors();
-  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+  for (int i = 0; i < real_size; i++) {
     PropertyDetails details = descs->GetDetails(i);
-    if (details.descriptor_index() > real_size) continue;
     if (details.type() == FIELD) {
       Object* key = descs->GetKey(i);
       if (key->IsString() || key->IsNumber()) {
@@ -368,7 +367,7 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
           key->ShortPrint();
         }
         Add(": ");
-        Object* value = js_object->FastPropertyAt(descs->GetFieldIndex(i));
+        Object* value = js_object->RawFastPropertyAt(descs->GetFieldIndex(i));
         Add("%o\n", value);
       }
     }

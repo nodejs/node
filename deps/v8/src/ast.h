@@ -277,6 +277,14 @@ class SmallMapList {
   bool is_empty() const { return list_.is_empty(); }
   int length() const { return list_.length(); }
 
+  void AddMapIfMissing(Handle<Map> map, Zone* zone) {
+    map = Map::CurrentMapForDeprecated(map);
+    for (int i = 0; i < length(); ++i) {
+      if (at(i).is_identical_to(map)) return;
+    }
+    Add(map, zone);
+  }
+
   void Add(Handle<Map> handle, Zone* zone) {
     list_.Add(handle.location(), zone);
   }
@@ -1324,10 +1332,9 @@ class ObjectLiteral: public MaterializedLiteral {
     return constant_properties_;
   }
   ZoneList<Property*>* properties() const { return properties_; }
-
   bool fast_elements() const { return fast_elements_; }
-
-  bool has_function() { return has_function_; }
+  bool may_store_doubles() const { return may_store_doubles_; }
+  bool has_function() const { return has_function_; }
 
   // Mark all computed expressions that are bound to a key that
   // is shadowed by a later occurrence of the same key. For the
@@ -1354,17 +1361,20 @@ class ObjectLiteral: public MaterializedLiteral {
                 bool is_simple,
                 bool fast_elements,
                 int depth,
+                bool may_store_doubles,
                 bool has_function)
       : MaterializedLiteral(isolate, literal_index, is_simple, depth),
         constant_properties_(constant_properties),
         properties_(properties),
         fast_elements_(fast_elements),
+        may_store_doubles_(may_store_doubles),
         has_function_(has_function) {}
 
  private:
   Handle<FixedArray> constant_properties_;
   ZoneList<Property*>* properties_;
   bool fast_elements_;
+  bool may_store_doubles_;
   bool has_function_;
 };
 
@@ -2849,10 +2859,11 @@ class AstNodeFactory BASE_EMBEDDED {
       bool is_simple,
       bool fast_elements,
       int depth,
+      bool may_store_doubles,
       bool has_function) {
     ObjectLiteral* lit = new(zone_) ObjectLiteral(
         isolate_, constant_properties, properties, literal_index,
-        is_simple, fast_elements, depth, has_function);
+        is_simple, fast_elements, depth, may_store_doubles, has_function);
     VISIT_AND_RETURN(ObjectLiteral, lit)
   }
 

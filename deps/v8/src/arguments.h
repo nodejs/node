@@ -115,15 +115,18 @@ class CustomArguments : public Relocatable {
 
 
 #define DECLARE_RUNTIME_FUNCTION(Type, Name)    \
-Type Name(Arguments args, Isolate* isolate)
+Type Name(int args_length, Object** args_object, Isolate* isolate)
 
+#define RUNTIME_FUNCTION(Type, Name)                                  \
+static Type __RT_impl_##Name(Arguments args, Isolate* isolate);       \
+Type Name(int args_length, Object** args_object, Isolate* isolate) {  \
+  Arguments args(args_length, args_object);                           \
+  return __RT_impl_##Name(args, isolate);                             \
+}                                                                     \
+static Type __RT_impl_##Name(Arguments args, Isolate* isolate)
 
-#define RUNTIME_FUNCTION(Type, Name)            \
-Type Name(Arguments args, Isolate* isolate)
-
-
-#define RUNTIME_ARGUMENTS(isolate, args) args, isolate
-
+#define RUNTIME_ARGUMENTS(isolate, args) \
+  args.length(), args.arguments(), isolate
 
 } }  // namespace v8::internal
 

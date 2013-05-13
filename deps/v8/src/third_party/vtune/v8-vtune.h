@@ -60,7 +60,7 @@
 
 namespace vTune {
 
-void InitilizeVtuneForV8();
+void InitializeVtuneForV8();
 
 }  // namespace vTune
 

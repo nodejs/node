@@ -431,7 +431,9 @@ CompareNilICStub::Types CompareNilICStub::GetPatchedICFlags(
     } else if (object->IsUndefined()) {
       types = static_cast<CompareNilICStub::Types>(
           types | CompareNilICStub::kCompareAgainstUndefined);
-    } else if (object->IsUndetectableObject() || !object->IsHeapObject()) {
+    } else if (object->IsUndetectableObject() ||
+               object->IsOddball() ||
+               !object->IsHeapObject()) {
         types = CompareNilICStub::kFullCompare;
     } else if ((types & CompareNilICStub::kCompareAgainstMonomorphicMap) != 0) {
       types = CompareNilICStub::kFullCompare;

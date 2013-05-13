@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "api.h"
 
 #include <string.h>  // For memcpy, strlen.
@@ -625,7 +628,7 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 void V8::MakeWeak(i::Isolate* isolate,
                   i::Object** object,
                   void* parameters,
-                  WeakReferenceCallback weak_reference_callback,
+                  RevivableCallback weak_reference_callback,
                   NearDeathCallback near_death_callback) {
   ASSERT(isolate == i::Isolate::Current());
   LOG_API(isolate, "MakeWeak");
@@ -2409,6 +2412,46 @@ bool Value::IsArray() const {
 }
 
 
+bool Value::IsArrayBuffer() const {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsArrayBuffer()"))
+    return false;
+  return Utils::OpenHandle(this)->IsJSArrayBuffer();
+}
+
+
+bool Value::IsTypedArray() const {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsArrayBuffer()"))
+    return false;
+  return Utils::OpenHandle(this)->IsJSTypedArray();
+}
+
+
+#define TYPED_ARRAY_LIST(F) \
+F(Uint8Array, kExternalUnsignedByteArray) \
+F(Int8Array, kExternalByteArray) \
+F(Uint16Array, kExternalUnsignedShortArray) \
+F(Int16Array, kExternalShortArray) \
+F(Uint32Array, kExternalUnsignedIntArray) \
+F(Int32Array, kExternalIntArray) \
+F(Float32Array, kExternalFloatArray) \
+F(Float64Array, kExternalDoubleArray) \
+F(Uint8ClampedArray, kExternalPixelArray)
+
+
+#define VALUE_IS_TYPED_ARRAY(TypedArray, type_const)                          \
+  bool Value::Is##TypedArray() const {                                        \
+    if (IsDeadCheck(i::Isolate::Current(), "v8::Value::Is" #TypedArray "()")) \
+      return false;                                                           \
+    i::Handle<i::Object> obj = Utils::OpenHandle(this);                       \
+    if (!obj->IsJSTypedArray()) return false;                                 \
+    return i::JSTypedArray::cast(*obj)->type() == type_const;                 \
+  }
+
+TYPED_ARRAY_LIST(VALUE_IS_TYPED_ARRAY)
+
+#undef VALUE_IS_TYPED_ARRAY
+
+
 bool Value::IsObject() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsObject()")) return false;
   return Utils::OpenHandle(this)->IsJSObject();
@@ -2753,6 +2796,32 @@ void v8::ArrayBuffer::CheckCast(Value* that) {
            "v8::ArrayBuffer::Cast()",
            "Could not convert to ArrayBuffer");
 }
+
+
+void v8::TypedArray::CheckCast(Value* that) {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::TypedArray::Cast()")) return;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->IsJSTypedArray(),
+           "v8::TypedArray::Cast()",
+           "Could not convert to TypedArray");
+}
+
+
+#define CHECK_TYPED_ARRAY_CAST(ApiClass, typeConst)                         \
+  void v8::ApiClass::CheckCast(Value* that) {                               \
+    if (IsDeadCheck(i::Isolate::Current(), "v8::" #ApiClass "::Cast()"))    \
+      return;                                                               \
+    i::Handle<i::Object> obj = Utils::OpenHandle(that);                     \
+    ApiCheck(obj->IsJSTypedArray() &&                                       \
+             i::JSTypedArray::cast(*obj)->type() == typeConst,              \
+             "v8::" #ApiClass "::Cast()",                                   \
+             "Could not convert to " #ApiClass);                            \
+  }
+
+
+TYPED_ARRAY_LIST(CHECK_TYPED_ARRAY_CAST)
+
+#undef CHECK_TYPED_ARRAY_CAST
 
 
 void v8::Date::CheckCast(v8::Value* that) {
@@ -3281,7 +3350,7 @@ Local<String> v8::Object::ObjectProtoToString() {
       const char* postfix = "]";
 
       int prefix_len = i::StrLength(prefix);
-      int str_len = str->Length();
+      int str_len = str->Utf8Length();
       int postfix_len = i::StrLength(postfix);
 
       int buf_len = prefix_len + str_len + postfix_len;
@@ -3293,7 +3362,7 @@ Local<String> v8::Object::ObjectProtoToString() {
       ptr += prefix_len;
 
       // Write real content.
-      str->WriteAscii(ptr, 0, str_len);
+      str->WriteUtf8(ptr, str_len);
       ptr += str_len;
 
       // Write postfix.
@@ -4061,7 +4130,7 @@ bool String::IsOneByte() const {
   if (IsDeadCheck(str->GetIsolate(), "v8::String::IsOneByte()")) {
     return false;
   }
-  return str->IsOneByteConvertible();
+  return str->HasOnlyOneByteChars();
 }
 
 
@@ -5806,6 +5875,131 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(void* data, size_t byte_length) {
 }
 
 
+Local<ArrayBuffer> v8::TypedArray::Buffer() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::TypedArray::Buffer()"))
+    return Local<ArrayBuffer>();
+  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+  ASSERT(obj->buffer()->IsJSArrayBuffer());
+  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
+  return Utils::ToLocal(buffer);
+}
+
+
+size_t v8::TypedArray::ByteOffset() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::TypedArray::ByteOffset()")) return 0;
+  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+  return static_cast<size_t>(obj->byte_offset()->Number());
+}
+
+
+size_t v8::TypedArray::ByteLength() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::TypedArray::ByteLength()")) return 0;
+  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+  return static_cast<size_t>(obj->byte_length()->Number());
+}
+
+
+size_t v8::TypedArray::Length() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::TypedArray::Length()")) return 0;
+  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+  return static_cast<size_t>(obj->length()->Number());
+}
+
+
+void* v8::TypedArray::BaseAddress() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::TypedArray::BaseAddress()")) return NULL;
+  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
+  void* buffer_data = buffer->backing_store();
+  size_t byte_offset = static_cast<size_t>(obj->byte_offset()->Number());
+  return static_cast<uint8_t*>(buffer_data) + byte_offset;
+}
+
+
+template<typename ElementType,
+         ExternalArrayType array_type,
+         i::ElementsKind elements_kind>
+i::Handle<i::JSTypedArray> NewTypedArray(
+    i::Isolate* isolate,
+    Handle<ArrayBuffer> array_buffer, size_t byte_offset, size_t length) {
+  i::Handle<i::JSTypedArray> obj =
+      isolate->factory()->NewJSTypedArray(array_type);
+  i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
+
+  ASSERT(byte_offset % sizeof(ElementType) == 0);
+  ASSERT(byte_offset + length * sizeof(ElementType) <=
+      static_cast<size_t>(buffer->byte_length()->Number()));
+
+  obj->set_buffer(*buffer);
+
+  i::Handle<i::Object> byte_offset_object = isolate->factory()->NewNumber(
+        static_cast<double>(byte_offset));
+  obj->set_byte_offset(*byte_offset_object);
+
+  i::Handle<i::Object> byte_length_object = isolate->factory()->NewNumber(
+        static_cast<double>(length * sizeof(ElementType)));
+  obj->set_byte_length(*byte_length_object);
+
+  i::Handle<i::Object> length_object = isolate->factory()->NewNumber(
+        static_cast<double>(length));
+  obj->set_length(*length_object);
+
+  i::Handle<i::ExternalArray> elements =
+      isolate->factory()->NewExternalArray(
+          static_cast<int>(length), array_type,
+          static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
+  i::Handle<i::Map> map =
+      isolate->factory()->GetElementsTransitionMap(
+          obj, elements_kind);
+  obj->set_map(*map);
+  obj->set_elements(*elements);
+  return obj;
+}
+
+
+#define TYPED_ARRAY_NEW(TypedArray, element_type, array_type, elements_kind) \
+  Local<TypedArray> TypedArray::New(Handle<ArrayBuffer> array_buffer,        \
+                                    size_t byte_offset, size_t length) {     \
+    i::Isolate* isolate = i::Isolate::Current();                             \
+    EnsureInitializedForIsolate(isolate,                                     \
+        "v8::" #TypedArray "::New(Handle<ArrayBuffer>, size_t, size_t)");    \
+    LOG_API(isolate,                                                         \
+        "v8::" #TypedArray "::New(Handle<ArrayBuffer>, size_t, size_t)");    \
+    ENTER_V8(isolate);                                                       \
+    i::Handle<i::JSTypedArray> obj =                                         \
+        NewTypedArray<element_type, array_type, elements_kind>(              \
+            isolate, array_buffer, byte_offset, length);                     \
+    return Utils::ToLocal##TypedArray(obj);                                  \
+  }
+
+
+TYPED_ARRAY_NEW(Uint8Array, uint8_t, kExternalUnsignedByteArray,
+                i::EXTERNAL_UNSIGNED_BYTE_ELEMENTS)
+TYPED_ARRAY_NEW(Uint8ClampedArray, uint8_t, kExternalPixelArray,
+                i::EXTERNAL_PIXEL_ELEMENTS)
+TYPED_ARRAY_NEW(Int8Array, int8_t, kExternalByteArray,
+                i::EXTERNAL_BYTE_ELEMENTS)
+TYPED_ARRAY_NEW(Uint16Array, uint16_t, kExternalUnsignedShortArray,
+                i::EXTERNAL_UNSIGNED_SHORT_ELEMENTS)
+TYPED_ARRAY_NEW(Int16Array, int16_t, kExternalShortArray,
+                i::EXTERNAL_SHORT_ELEMENTS)
+TYPED_ARRAY_NEW(Uint32Array, uint32_t, kExternalUnsignedIntArray,
+                i::EXTERNAL_UNSIGNED_INT_ELEMENTS)
+TYPED_ARRAY_NEW(Int32Array, int32_t, kExternalIntArray,
+                i::EXTERNAL_INT_ELEMENTS)
+TYPED_ARRAY_NEW(Float32Array, float, kExternalFloatArray,
+                i::EXTERNAL_FLOAT_ELEMENTS)
+TYPED_ARRAY_NEW(Float64Array, double, kExternalDoubleArray,
+                i::EXTERNAL_DOUBLE_ELEMENTS)
+
+#undef TYPED_ARRAY_NEW
+
+
 Local<Symbol> v8::Symbol::New(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   EnsureInitializedForIsolate(i_isolate, "v8::Symbol::New()");
@@ -5881,6 +6075,19 @@ Local<Integer> v8::Integer::NewFromUnsigned(uint32_t value, Isolate* isolate) {
   i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);
   return Utils::IntegerToLocal(result);
 }
+
+
+#ifdef DEBUG
+v8::AssertNoGCScope::AssertNoGCScope(v8::Isolate* isolate)
+  : isolate_(isolate),
+    last_state_(i::EnterAllocationScope(
+        reinterpret_cast<i::Isolate*>(isolate), false)) {
+}
+
+v8::AssertNoGCScope::~AssertNoGCScope() {
+  i::ExitAllocationScope(reinterpret_cast<i::Isolate*>(isolate_), last_state_);
+}
+#endif
 
 
 void V8::IgnoreOutOfMemoryException() {
@@ -6295,9 +6502,10 @@ String::AsciiValue::AsciiValue(v8::Handle<v8::Value> obj)
   TryCatch try_catch;
   Handle<String> str = obj->ToString();
   if (str.IsEmpty()) return;
-  length_ = str->Length();
+  length_ = str->Utf8Length();
   str_ = i::NewArray<char>(length_ + 1);
-  str->WriteAscii(str_);
+  str->WriteUtf8(str_);
+  ASSERT(i::String::NonAsciiStart(str_, length_) >= length_);
 }
 
 

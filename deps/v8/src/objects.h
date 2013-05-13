@@ -1061,6 +1061,29 @@ class Object : public MaybeObject {
   inline double Number();
   inline bool IsNaN();
 
+  inline Representation OptimalRepresentation() {
+    if (FLAG_track_fields && IsSmi()) {
+      return Representation::Smi();
+    } else if (FLAG_track_double_fields && IsHeapNumber()) {
+      return Representation::Double();
+    } else {
+      return Representation::Tagged();
+    }
+  }
+
+  inline bool FitsRepresentation(Representation representation) {
+    if (FLAG_track_fields && representation.IsSmi()) {
+      return IsSmi();
+    } else if (FLAG_track_double_fields && representation.IsDouble()) {
+      return IsNumber();
+    }
+    return true;
+  }
+
+  inline MaybeObject* AllocateNewStorageFor(Heap* heap,
+                                            Representation representation,
+                                            PretenureFlag tenure = NOT_TENURED);
+
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
   inline bool HasValidElements();
@@ -1809,10 +1832,11 @@ class JSObject: public JSReceiver {
 
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
-  static void AddFastPropertyUsingMap(Handle<JSObject> object, Handle<Map> map);
-  inline MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(Map* map);
-  static void TransitionToMap(Handle<JSObject> object, Handle<Map> map);
-  inline MUST_USE_RESULT MaybeObject* TransitionToMap(Map* map);
+  static void AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map);
+  inline MUST_USE_RESULT MaybeObject* AllocateStorageForMap(Map* map);
+
+  static void MigrateInstance(Handle<JSObject> instance);
+  inline MUST_USE_RESULT MaybeObject* MigrateInstance();
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
@@ -2115,10 +2139,12 @@ class JSObject: public JSReceiver {
 
   // Add a property to a fast-case object using a map transition to
   // new_map.
-  MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(Map* new_map,
-                                                       Name* name,
-                                                       Object* value,
-                                                       int field_index);
+  MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(
+      Map* new_map,
+      Name* name,
+      Object* value,
+      int field_index,
+      Representation representation);
 
   // Add a constant function property to a fast-case object.
   // This leaves a CONSTANT_TRANSITION in the old map, and
@@ -2166,6 +2192,11 @@ class JSObject: public JSReceiver {
       Name* name,
       Object* new_value,
       PropertyAttributes attributes);
+
+  MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
+  MUST_USE_RESULT MaybeObject* GeneralizeFieldRepresentation(
+      int modify_index,
+      Representation new_representation);
 
   // Add a property to a fast-case object.
   MUST_USE_RESULT MaybeObject* AddFastProperty(
@@ -2222,8 +2253,11 @@ class JSObject: public JSReceiver {
       int unused_property_fields);
 
   // Access fast-case object properties at index.
-  inline Object* FastPropertyAt(int index);
-  inline Object* FastPropertyAtPut(int index, Object* value);
+  MUST_USE_RESULT inline MaybeObject* FastPropertyAt(
+      Representation representation,
+      int index);
+  inline Object* RawFastPropertyAt(int index);
+  inline void FastPropertyAtPut(int index, Object* value);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
@@ -2756,6 +2790,9 @@ class DescriptorArray: public FixedArray {
   inline Name* GetSortedKey(int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
   inline void SetSortedKey(int pointer, int descriptor_number);
+  inline void InitializeRepresentations(Representation representation);
+  inline void SetRepresentation(int descriptor_number,
+                                Representation representation);
 
   // Accessor for complete descriptor.
   inline void Get(int descriptor_number, Descriptor* desc);
@@ -2776,6 +2813,15 @@ class DescriptorArray: public FixedArray {
                 DescriptorArray* src,
                 int src_index,
                 const WhitenessWitness&);
+  MUST_USE_RESULT MaybeObject* Merge(int verbatim,
+                                     int valid,
+                                     int new_size,
+                                     DescriptorArray* other);
+
+  bool IsMoreGeneralThan(int verbatim,
+                         int valid,
+                         int new_size,
+                         DescriptorArray* other);
 
   MUST_USE_RESULT MaybeObject* CopyUpTo(int enumeration_index);
 
@@ -4592,6 +4638,9 @@ class Code: public HeapObject {
   Code* FindFirstCode();
   void FindAllCode(CodeHandleList* code_list, int length);
 
+  // Find the first name in an IC stub.
+  Name* FindFirstName();
+
   class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
   class ExtraICStateKeyedAccessStoreMode:
       public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
@@ -4911,6 +4960,9 @@ class DependentCode: public FixedArray {
     // Group of code that weakly embed this map and depend on being
     // deoptimized when the map is garbage collected.
     kWeaklyEmbeddedGroup,
+    // Group of code that embed a transition to this map, and depend on being
+    // deoptimized when the transition is replaced by a new version.
+    kTransitionGroup,
     // Group of code that omit run-time prototype checks for prototypes
     // described by this map. The group is deoptimized whenever an object
     // described by this map changes shape (and transitions to a new map),
@@ -5004,6 +5056,7 @@ class Map: public HeapObject {
   class DictionaryMap:              public BitField<bool, 24,  1> {};
   class OwnsDescriptors:            public BitField<bool, 25,  1> {};
   class IsObserved:                 public BitField<bool, 26,  1> {};
+  class Deprecated:                 public BitField<bool, 27,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -5146,6 +5199,28 @@ class Map: public HeapObject {
   inline void ClearTransitions(Heap* heap,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  void DeprecateTransitionTree();
+  void DeprecateTarget(Name* key, DescriptorArray* new_descriptors);
+
+  Map* FindRootMap();
+  Map* FindUpdatedMap(int verbatim, int length, DescriptorArray* descriptors);
+  Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
+
+  int NumberOfFields();
+
+  bool InstancesNeedRewriting(Map* target,
+                              int target_number_of_fields,
+                              int target_inobject,
+                              int target_unused);
+  static Handle<Map> GeneralizeRepresentation(
+      Handle<Map> map,
+      int modify_index,
+      Representation new_representation);
+  MUST_USE_RESULT MaybeObject* GeneralizeRepresentation(
+      int modify_index,
+      Representation representation);
+  MUST_USE_RESULT MaybeObject* CopyGeneralizeAllRepresentations();
+
   // Tells whether the map is attached to SharedFunctionInfo
   // (for inobject slack tracking).
   inline void set_attached_to_shared_function_info(bool value);
@@ -5284,6 +5359,15 @@ class Map: public HeapObject {
   inline void set_owns_descriptors(bool is_shared);
   inline bool is_observed();
   inline void set_is_observed(bool is_observed);
+  inline void deprecate();
+  inline bool is_deprecated();
+  inline bool CanBeDeprecated();
+  // Returns a non-deprecated version of the input. If the input was not
+  // deprecated, it is directly returned. Otherwise, the non-deprecated version
+  // is found by re-transitioning from the root of the transition tree using the
+  // descriptor array of the map. New maps (and transitions) may be created if
+  // no new (more general) version exists.
+  static inline Handle<Map> CurrentMapForDeprecated(Handle<Map> map);
 
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
@@ -5293,6 +5377,9 @@ class Map: public HeapObject {
       Name* name,
       TransitionFlag flag,
       int descriptor_index);
+  MUST_USE_RESULT MaybeObject* CopyInstallDescriptors(
+      int new_descriptor,
+      DescriptorArray* descriptors);
   MUST_USE_RESULT MaybeObject* ShareDescriptor(DescriptorArray* descriptors,
                                                Descriptor* descriptor);
   MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
@@ -5317,9 +5404,6 @@ class Map: public HeapObject {
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   MUST_USE_RESULT MaybeObject* Copy();
-
-  // Returns the property index for name (only valid for FAST MODE).
-  int PropertyIndexFor(Name* name);
 
   // Returns the next free property index (only valid for FAST MODE).
   int NextFreePropertyIndex();
@@ -5370,6 +5454,8 @@ class Map: public HeapObject {
 
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
+
+  bool EquivalentToForTransition(Map* other);
 
   // Compares this map to another to see if they describe equivalent objects.
   // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
@@ -6334,8 +6420,13 @@ class JSGeneratorObject: public JSObject {
   inline int continuation();
   inline void set_continuation(int continuation);
 
-  // [operands]: Saved operand stack.
+  // [operand_stack]: Saved operand stack.
   DECL_ACCESSORS(operand_stack, FixedArray)
+
+  // [stack_handler_index]: Index of first stack handler in operand_stack, or -1
+  // if the captured activation had no stack handler.
+  inline int stack_handler_index();
+  inline void set_stack_handler_index(int stack_handler_index);
 
   // Casting.
   static inline JSGeneratorObject* cast(Object* obj);
@@ -6354,10 +6445,23 @@ class JSGeneratorObject: public JSObject {
   static const int kReceiverOffset = kContextOffset + kPointerSize;
   static const int kContinuationOffset = kReceiverOffset + kPointerSize;
   static const int kOperandStackOffset = kContinuationOffset + kPointerSize;
-  static const int kSize = kOperandStackOffset + kPointerSize;
+  static const int kStackHandlerIndexOffset =
+      kOperandStackOffset + kPointerSize;
+  static const int kSize = kStackHandlerIndexOffset + kPointerSize;
 
   // Resume mode, for use by runtime functions.
   enum ResumeMode { SEND, THROW };
+
+  // Yielding from a generator returns an object with the following inobject
+  // properties.  See Context::generator_result_map() for the map.
+  static const int kResultValuePropertyIndex = 0;
+  static const int kResultDonePropertyIndex = 1;
+  static const int kResultPropertyCount = 2;
+
+  static const int kResultValuePropertyOffset = JSObject::kHeaderSize;
+  static const int kResultDonePropertyOffset =
+      kResultValuePropertyOffset + kPointerSize;
+  static const int kResultSize = kResultDonePropertyOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
@@ -7638,8 +7742,6 @@ class String: public Name {
   // possible.
   inline bool HasOnlyOneByteChars();
 
-  inline bool IsOneByteConvertible();
-
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls
@@ -8646,6 +8748,9 @@ class JSTypedArray: public JSObject {
 
   // Casting.
   static inline JSTypedArray* cast(Object* obj);
+
+  ExternalArrayType type();
+  size_t element_size();
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSTypedArray)

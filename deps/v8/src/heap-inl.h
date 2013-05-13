@@ -650,6 +650,10 @@ inline bool Heap::allow_allocation(bool new_state) {
   return old;
 }
 
+inline void Heap::set_allow_allocation(bool allocation_allowed) {
+  allocation_allowed_ = allocation_allowed;
+}
+
 #endif
 
 
@@ -864,33 +868,41 @@ DisallowAllocationFailure::~DisallowAllocationFailure() {
 
 
 #ifdef DEBUG
-AssertNoAllocation::AssertNoAllocation() {
-  Isolate* isolate = ISOLATE;
-  active_ = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
-  if (active_) {
-    old_state_ = isolate->heap()->allow_allocation(false);
+bool EnterAllocationScope(Isolate* isolate, bool allow_allocation) {
+  bool active = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
+  bool last_state = isolate->heap()->IsAllocationAllowed();
+  if (active) {
+    // TODO(yangguo): Make HandleDereferenceGuard avoid isolate mutation in the
+    // same way if running on the optimizer thread.
+    isolate->heap()->set_allow_allocation(allow_allocation);
+  }
+  return last_state;
+}
+
+
+void ExitAllocationScope(Isolate* isolate, bool last_state) {
+  bool active = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
+  if (active) {
+    isolate->heap()->set_allow_allocation(last_state);
   }
 }
 
+
+AssertNoAllocation::AssertNoAllocation()
+    : last_state_(EnterAllocationScope(ISOLATE, false)) {
+}
 
 AssertNoAllocation::~AssertNoAllocation() {
-  if (active_) HEAP->allow_allocation(old_state_);
+  ExitAllocationScope(ISOLATE, last_state_);
 }
 
-
-DisableAssertNoAllocation::DisableAssertNoAllocation() {
-  Isolate* isolate = ISOLATE;
-  active_ = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
-  if (active_) {
-    old_state_ = isolate->heap()->allow_allocation(true);
-  }
+DisableAssertNoAllocation::DisableAssertNoAllocation()
+  : last_state_(EnterAllocationScope(ISOLATE, true)) {
 }
-
 
 DisableAssertNoAllocation::~DisableAssertNoAllocation() {
-  if (active_) HEAP->allow_allocation(old_state_);
+  ExitAllocationScope(ISOLATE, last_state_);
 }
-
 #else
 
 AssertNoAllocation::AssertNoAllocation() { }

@@ -30,6 +30,7 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "bootstrapper.h"
+#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "regexp-macro-assembler.h"
 #include "stub-cache.h"
@@ -74,6 +75,28 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void LoadFieldStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rax };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
+void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rdx };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -102,9 +125,10 @@ static void InitializeArrayConstructorDescriptor(
     int constant_stack_parameter_count) {
   // register state
   // rax -- number of arguments
+  // rdi -- function
   // rbx -- type info cell with elements kind
-  static Register registers[] = { rbx };
-  descriptor->register_param_count_ = 1;
+  static Register registers[] = { rdi, rbx };
+  descriptor->register_param_count_ = 2;
   if (constant_stack_parameter_count != 0) {
     // stack param count needs (constructor pointer, and single argument)
     descriptor->stack_parameter_count_ = &rax;
@@ -2391,12 +2415,6 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
 }
 
 
-void LoadFieldStub::Generate(MacroAssembler* masm) {
-  StubCompiler::DoGenerateFastPropertyLoad(masm, rax, reg_, inobject_, index_);
-  __ ret(0);
-}
-
-
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in rdx and the parameter count is in rax.
 
@@ -3818,6 +3836,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Handle<Object> terminal_kind_sentinel =
       TypeFeedbackCells::MonomorphicArraySentinel(isolate,
                                                   LAST_FAST_ELEMENTS_KIND);
+  __ JumpIfNotSmi(rcx, &miss);
   __ Cmp(rcx, terminal_kind_sentinel);
   __ j(above, &miss);
   // Make sure the function is the Array() function
@@ -4106,22 +4125,23 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Call C function.
 #ifdef _WIN64
-  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9
-  // Store Arguments object on stack, below the 4 WIN64 ABI parameter slots.
-  __ movq(StackSpaceOperand(0), r14);  // argc.
-  __ movq(StackSpaceOperand(1), r15);  // argv.
+  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9.
+  // Pass argv and argc as two parameters. The arguments object will
+  // be created by stubs declared by DECLARE_RUNTIME_FUNCTION().
   if (result_size_ < 2) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax).
-    __ lea(rcx, StackSpaceOperand(0));
-    __ LoadAddress(rdx, ExternalReference::isolate_address(masm->isolate()));
+    __ movq(rcx, r14);  // argc.
+    __ movq(rdx, r15);  // argv.
+    __ movq(r8, ExternalReference::isolate_address(masm->isolate()));
   } else {
     ASSERT_EQ(2, result_size_);
     // Pass a pointer to the result location as the first argument.
     __ lea(rcx, StackSpaceOperand(2));
     // Pass a pointer to the Arguments object as the second argument.
-    __ lea(rdx, StackSpaceOperand(0));
-    __ LoadAddress(r8, ExternalReference::isolate_address(masm->isolate()));
+    __ movq(rdx, r14);  // argc.
+    __ movq(r8, r15);   // argv.
+    __ movq(r9, ExternalReference::isolate_address(masm->isolate()));
   }
 
 #else  // _WIN64
@@ -4906,8 +4926,34 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movq(FieldOperand(rcx, ConsString::kLengthOffset), rbx);
   __ movq(FieldOperand(rcx, ConsString::kHashFieldOffset),
           Immediate(String::kEmptyHashField));
+
+  Label skip_write_barrier, after_writing;
+  ExternalReference high_promotion_mode = ExternalReference::
+      new_space_high_promotion_mode_active_address(masm->isolate());
+  __ Load(rbx, high_promotion_mode);
+  __ testb(rbx, Immediate(1));
+  __ j(zero, &skip_write_barrier);
+
+  __ movq(FieldOperand(rcx, ConsString::kFirstOffset), rax);
+  __ RecordWriteField(rcx,
+                      ConsString::kFirstOffset,
+                      rax,
+                      rbx,
+                      kDontSaveFPRegs);
+  __ movq(FieldOperand(rcx, ConsString::kSecondOffset), rdx);
+  __ RecordWriteField(rcx,
+                      ConsString::kSecondOffset,
+                      rdx,
+                      rbx,
+                      kDontSaveFPRegs);
+  __ jmp(&after_writing);
+
+  __ bind(&skip_write_barrier);
   __ movq(FieldOperand(rcx, ConsString::kFirstOffset), rax);
   __ movq(FieldOperand(rcx, ConsString::kSecondOffset), rdx);
+
+  __ bind(&after_writing);
+
   __ movq(rax, rcx);
   __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
@@ -6346,8 +6392,11 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(r11), REG(rax), REG(r15), EMIT_REMEMBERED_SET},
   // StoreArrayLiteralElementStub::Generate
   { REG(rbx), REG(rax), REG(rcx), EMIT_REMEMBERED_SET},
-  // FastNewClosureStub::Generate
+  // FastNewClosureStub::Generate and
+  // StringAddStub::Generate
   { REG(rcx), REG(rdx), REG(rbx), EMIT_REMEMBERED_SET},
+  // StringAddStub::Generate
+  { REG(rcx), REG(rax), REG(rbx), EMIT_REMEMBERED_SET},
   // Null termination.
   { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
 };
@@ -6900,14 +6949,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Get the elements kind and case on that.
     __ Cmp(rbx, undefined_sentinel);
     __ j(equal, &no_info);
-    __ movq(rdx, FieldOperand(rbx, kPointerSize));
-
-    // There is no info if the call site went megamorphic either
-
-    // TODO(mvstanton): Really? I thought if it was the array function that
-    // the cell wouldn't get stamped as megamorphic.
-    __ Cmp(rdx, TypeFeedbackCells::MegamorphicSentinel(masm->isolate()));
-    __ j(equal, &no_info);
+    __ movq(rdx, FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset));
+    __ JumpIfNotSmi(rdx, &no_info);
     __ SmiToInteger32(rdx, rdx);
     __ jmp(&switch_ready);
     __ bind(&no_info);

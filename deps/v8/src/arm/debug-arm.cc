@@ -224,6 +224,15 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
 }
 
 
+void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
+  // Register state for CompareNil IC
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, r0.bit(), 0);
+}
+
+
 void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC call (from ic-arm.cc)
   // ----------- S t a t e -------------

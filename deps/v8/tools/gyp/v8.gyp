@@ -800,6 +800,7 @@
               '../../src/proxy.js',
               '../../src/collection.js',
               '../../src/object-observe.js',
+              '../../src/arraybuffer.js',
               '../../src/typedarray.js',
               '../../src/generator.js'
             ],

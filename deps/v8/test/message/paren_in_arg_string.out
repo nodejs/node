@@ -1,0 +1,6 @@
+*%(basename)s:29: SyntaxError: Function arg string contains parenthesis
+var paren_in_arg_string_bad = new Function(')', 'return;');
+                              ^
+SyntaxError: Function arg string contains parenthesis
+    at Function (<anonymous>)
+    at *%(basename)s:29:31

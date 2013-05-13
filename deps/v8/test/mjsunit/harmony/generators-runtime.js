@@ -105,6 +105,8 @@ function TestGeneratorFunction() {
   assertSame(Function, Object.getPrototypeOf(GeneratorFunction));
   assertTrue(g instanceof Function);
 
+  assertEquals("function* g() { yield 1; }", g.toString());
+
   // Not all functions are generators.
   assertTrue(f instanceof Function);  // Sanity check.
   assertTrue(!(f instanceof GeneratorFunction));

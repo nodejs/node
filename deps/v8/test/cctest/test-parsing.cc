@@ -29,6 +29,9 @@
 #include <stdio.h>
 #include <string.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "cctest.h"
@@ -173,8 +176,9 @@ class ScriptResource : public v8::String::ExternalAsciiStringResource {
 
 
 TEST(Preparsing) {
-  v8::HandleScope handles(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> context = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handles(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
   int marker;
   i::Isolate::Current()->stack_guard()->SetStackLimit(
@@ -539,8 +543,9 @@ void TestCharacterStream(const char* ascii_source,
 
 
 TEST(CharacterStreams) {
-  v8::HandleScope handles(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> context = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handles(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
 
   TestCharacterStream("abc\0\n\r\x7f", 7);
@@ -984,7 +989,7 @@ TEST(ScopePositions) {
   };
 
   v8::HandleScope handles(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> context = v8::Context::New();
+  v8::Handle<v8::Context> context = v8::Context::New(v8::Isolate::GetCurrent());
   v8::Context::Scope context_scope(context);
 
   int marker;
@@ -1243,7 +1248,7 @@ TEST(ParserSync) {
   if (i::FLAG_stress_compaction) return;
 
   v8::HandleScope handles(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> context = v8::Context::New();
+  v8::Handle<v8::Context> context = v8::Context::New(v8::Isolate::GetCurrent());
   v8::Context::Scope context_scope(context);
 
   int marker;
@@ -1284,7 +1289,8 @@ TEST(PreparserStrictOctal) {
   v8::internal::FLAG_min_preparse_length = 1;  // Force preparsing.
   v8::V8::Initialize();
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  v8::Context::Scope context_scope(v8::Context::New());
+  v8::Context::Scope context_scope(
+      v8::Context::New(v8::Isolate::GetCurrent()));
   v8::TryCatch try_catch;
   const char* script =
       "\"use strict\";       \n"

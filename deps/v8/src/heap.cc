@@ -3176,7 +3176,8 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
 
 
 MaybeObject* Heap::NumberToString(Object* number,
-                                  bool check_number_string_cache) {
+                                  bool check_number_string_cache,
+                                  PretenureFlag pretenure) {
   isolate_->counters()->number_to_string_runtime()->Increment();
   if (check_number_string_cache) {
     Object* cached = GetNumberStringCache(number);
@@ -3197,7 +3198,8 @@ MaybeObject* Heap::NumberToString(Object* number,
   }
 
   Object* js_string;
-  MaybeObject* maybe_js_string = AllocateStringFromOneByte(CStrVector(str));
+  MaybeObject* maybe_js_string =
+      AllocateStringFromOneByte(CStrVector(str), pretenure);
   if (maybe_js_string->ToObject(&js_string)) {
     SetNumberStringCache(number, String::cast(js_string));
   }
@@ -4156,7 +4158,9 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       for (int i = 0; i < count; i++) {
         String* name = fun->shared()->GetThisPropertyAssignmentName(i);
         ASSERT(name->IsInternalizedString());
-        FieldDescriptor field(name, i, NONE, i + 1);
+        // TODO(verwaest): Since we cannot update the boilerplate's map yet,
+        // initialize to the worst case.
+        FieldDescriptor field(name, i, NONE, Representation::Tagged());
         descriptors->Set(i, &field, witness);
       }
       descriptors->Sort();
@@ -4336,8 +4340,7 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
   ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
   AllocationSiteMode mode = TRACK_ALLOCATION_SITE;
   if (to_kind != initial_map->elements_kind()) {
-    MaybeObject* maybe_new_map = constructor->GetElementsTransitionMap(
-        isolate(), to_kind);
+    MaybeObject* maybe_new_map = initial_map->AsElementsKind(to_kind);
     if (!maybe_new_map->To(&initial_map)) return maybe_new_map;
     // Possibly alter the mode, since we found an updated elements kind
     // in the type info cell.
@@ -4585,12 +4588,10 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
   DescriptorArray* descs = map->instance_descriptors();
-  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
     ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
-    PropertyDetails d = PropertyDetails(details.attributes(),
-                                        CALLBACKS,
-                                        details.descriptor_index());
+    PropertyDetails d = PropertyDetails(details.attributes(), CALLBACKS, i + 1);
     Object* value = descs->GetCallbacksObject(i);
     MaybeObject* maybe_value = AllocateJSGlobalPropertyCell(value);
     if (!maybe_value->ToObject(&value)) return maybe_value;

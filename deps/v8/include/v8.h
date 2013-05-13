@@ -123,6 +123,7 @@ class ImplementationUtilities;
 class Int32;
 class Integer;
 class Isolate;
+class LocalContext;
 class Number;
 class NumberObject;
 class Object;
@@ -190,8 +191,13 @@ class UniqueId {
  * \param object the weak global object to be reclaimed by the garbage collector
  * \param parameter the value passed in when making the weak global object
  */
-typedef void (*WeakReferenceCallback)(Persistent<Value> object,
-                                      void* parameter);
+template<typename T, typename P>
+class WeakReferenceCallbacks {
+ public:
+  typedef void (*Revivable)(Isolate* isolate,
+                            Persistent<T>* object,
+                            P* parameter);
+};
 
 // TODO(svenpanne) Temporary definition until Chrome is in sync.
 typedef void (*NearDeathCallback)(Isolate* isolate,
@@ -204,6 +210,9 @@ typedef void (*NearDeathCallback)(Isolate* isolate,
   while (false) {                                              \
     *(static_cast<T* volatile*>(0)) = static_cast<S*>(0);      \
   }
+
+
+#define V8_USE_UNSAFE_HANDLES
 
 /**
  * An object reference managed by the v8 garbage collector.
@@ -237,10 +246,12 @@ template <class T> class Handle {
    */
   V8_INLINE(Handle()) : val_(0) {}
 
+#ifdef V8_USE_UNSAFE_HANDLES
   /**
    * Creates a new handle for the specified value.
    */
   V8_INLINE(explicit Handle(T* val)) : val_(val) {}
+#endif
 
   /**
    * Creates a handle for the contents of the specified handle.  This
@@ -282,13 +293,24 @@ template <class T> class Handle {
    * to which they refer are identical.
    * The handles' references are not checked.
    */
-  template <class S> V8_INLINE(bool operator==(Handle<S> that) const) {
+  template <class S> V8_INLINE(bool operator==(const Handle<S> that) const) {
     internal::Object** a = reinterpret_cast<internal::Object**>(**this);
     internal::Object** b = reinterpret_cast<internal::Object**>(*that);
     if (a == 0) return b == 0;
     if (b == 0) return false;
     return *a == *b;
   }
+
+#ifndef V8_USE_UNSAFE_HANDLES
+  template <class S> V8_INLINE(
+      bool operator==(const Persistent<S>& that) const) {
+    internal::Object** a = reinterpret_cast<internal::Object**>(**this);
+    internal::Object** b = reinterpret_cast<internal::Object**>(*that);
+    if (a == 0) return b == 0;
+    if (b == 0) return false;
+    return *a == *b;
+  }
+#endif
 
   /**
    * Checks whether two handles are different.
@@ -313,7 +335,46 @@ template <class T> class Handle {
     return Handle<S>::Cast(*this);
   }
 
+#ifndef V8_USE_UNSAFE_HANDLES
+  V8_INLINE(static Handle<T> New(Isolate* isolate, Handle<T> that)) {
+    return New(isolate, that.val_);
+  }
+  // TODO(dcarney): remove before cutover
+  V8_INLINE(static Handle<T> New(Isolate* isolate, const Persistent<T>& that)) {
+    return New(isolate, that.val_);
+  }
+
+#ifndef V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
+
  private:
+#endif
+  /**
+   * Creates a new handle for the specified value.
+   */
+  V8_INLINE(explicit Handle(T* val)) : val_(val) {}
+#endif
+
+ private:
+  template<class F>
+  friend class Persistent;
+  template<class F>
+  friend class Local;
+  friend class Arguments;
+  friend class String;
+  friend class Object;
+  friend class AccessorInfo;
+  friend Handle<Primitive> Undefined(Isolate* isolate);
+  friend Handle<Primitive> Null(Isolate* isolate);
+  friend Handle<Boolean> True(Isolate* isolate);
+  friend Handle<Boolean> False(Isolate* isolate);
+  friend class Context;
+  friend class InternalHandleHelper;
+  friend class LocalContext;
+
+#ifndef V8_USE_UNSAFE_HANDLES
+  V8_INLINE(static Handle<T> New(Isolate* isolate, T* that));
+#endif
+
   T* val_;
 };
 
@@ -325,6 +386,7 @@ template <class T> class Handle {
  * handle scope are destroyed when the handle scope is destroyed.  Hence it
  * is not necessary to explicitly deallocate local handles.
  */
+// TODO(dcarney): deprecate entire class
 template <class T> class Local : public Handle<T> {
  public:
   V8_INLINE(Local());
@@ -337,7 +399,12 @@ template <class T> class Local : public Handle<T> {
      */
     TYPE_CHECK(T, S);
   }
+
+
+#ifdef V8_USE_UNSAFE_HANDLES
   template <class S> V8_INLINE(Local(S* that) : Handle<T>(that)) { }
+#endif
+
   template <class S> V8_INLINE(static Local<T> Cast(Local<S> that)) {
 #ifdef V8_ENABLE_CHECKS
     // If we're going to perform the type check then we have to check
@@ -346,6 +413,12 @@ template <class T> class Local : public Handle<T> {
 #endif
     return Local<T>(T::Cast(*that));
   }
+#ifndef V8_USE_UNSAFE_HANDLES
+  template <class S> V8_INLINE(Local(Handle<S> that))
+      : Handle<T>(reinterpret_cast<T*>(*that)) {
+    TYPE_CHECK(T, S);
+  }
+#endif
 
   template <class S> V8_INLINE(Local<S> As()) {
     return Local<S>::Cast(*this);
@@ -358,8 +431,32 @@ template <class T> class Local : public Handle<T> {
    */
   V8_INLINE(static Local<T> New(Handle<T> that));
   V8_INLINE(static Local<T> New(Isolate* isolate, Handle<T> that));
-};
+#ifndef V8_USE_UNSAFE_HANDLES
+  // TODO(dcarney): remove before cutover
+  V8_INLINE(static Local<T> New(Isolate* isolate, const Persistent<T>& that));
 
+#ifndef V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
+
+ private:
+#endif
+  template <class S> V8_INLINE(Local(S* that) : Handle<T>(that)) { }
+#endif
+
+ private:
+  template<class F>
+  friend class Persistent;
+  template<class F>
+  friend class Handle;
+  friend class Arguments;
+  friend class String;
+  friend class Object;
+  friend class AccessorInfo;
+  friend class Context;
+  friend class InternalHandleHelper;
+  friend class LocalContext;
+
+  V8_INLINE(static Local<T> New(Isolate* isolate, T* that));
+};
 
 /**
  * An object reference that is independent of any handle scope.  Where
@@ -378,13 +475,38 @@ template <class T> class Local : public Handle<T> {
  * different storage cells but rather two references to the same
  * storage cell.
  */
-template <class T> class Persistent : public Handle<T> {
+template <class T> class Persistent // NOLINT
+#ifdef V8_USE_UNSAFE_HANDLES
+    : public Handle<T> {
+#else
+  { // NOLINT
+#endif
  public:
+#ifndef V8_USE_UNSAFE_HANDLES
+  V8_INLINE(Persistent()) : val_(0) { }
+  V8_INLINE(~Persistent()) {
+    // TODO(dcarney): add this back before cutover.
+    // Dispose();
+  }
+  V8_INLINE(bool IsEmpty() const) { return val_ == 0; }
+  // TODO(dcarney): remove somehow before cutover
+  // The handle should either be 0, or a pointer to a live cell.
+  V8_INLINE(void Clear()) { val_ = 0; }
+
+  /**
+   * A constructor that creates a new global cell pointing to that. In contrast
+   * to the copy constructor, this creates a new persistent handle which needs
+   * to be separately disposed.
+   */
+  template <class S> V8_INLINE(Persistent(Isolate* isolate, Handle<S> that))
+      : val_(*New(isolate, that)) { }
+
+#else
   /**
    * Creates an empty persistent handle that doesn't point to any
    * storage cell.
    */
-  V8_INLINE(Persistent());
+  V8_INLINE(Persistent()) : Handle<T>() { }
 
   /**
    * Creates a persistent handle for the same storage cell as the
@@ -424,6 +546,8 @@ template <class T> class Persistent : public Handle<T> {
   template <class S> explicit V8_INLINE(Persistent(Handle<S> that))
       : Handle<T>(*that) { }
 
+#endif
+
   template <class S> V8_INLINE(static Persistent<T> Cast(Persistent<S> that)) {
 #ifdef V8_ENABLE_CHECKS
     // If we're going to perform the type check then we have to check
@@ -437,16 +561,38 @@ template <class T> class Persistent : public Handle<T> {
     return Persistent<S>::Cast(*this);
   }
 
-  /** Deprecated. Use Isolate version instead. */
   V8_DEPRECATED(static Persistent<T> New(Handle<T> that));
 
   /**
    * Creates a new persistent handle for an existing local or persistent handle.
    */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(static Persistent<T> New(Isolate* isolate, Handle<T> that));
+#ifndef V8_USE_UNSAFE_HANDLES
+  // TODO(dcarney): remove before cutover
+  V8_INLINE(static Persistent<T> New(Isolate* isolate, Persistent<T> that));
+#endif
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(void Dispose());
+#ifndef V8_USE_UNSAFE_HANDLES
+  template <class S> V8_INLINE(
+      bool operator==(const Persistent<S>& that) const) {
+    internal::Object** a = reinterpret_cast<internal::Object**>(**this);
+    internal::Object** b = reinterpret_cast<internal::Object**>(*that);
+    if (a == 0) return b == 0;
+    if (b == 0) return false;
+    return *a == *b;
+  }
+
+  template <class S> V8_INLINE(bool operator==(const Handle<S> that) const) {
+    internal::Object** a = reinterpret_cast<internal::Object**>(**this);
+    internal::Object** b = reinterpret_cast<internal::Object**>(*that);
+    if (a == 0) return b == 0;
+    if (b == 0) return false;
+    return *a == *b;
+  }
+#endif
+
+  V8_INLINE(void Dispose());
 
   /**
    * Releases the storage cell referenced by this persistent handle.
@@ -454,11 +600,20 @@ template <class T> class Persistent : public Handle<T> {
    * This handle's reference, and any other references to the storage
    * cell remain and IsEmpty will still return false.
    */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(void Dispose(Isolate* isolate));
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(void MakeWeak(void* parameters,
-                              WeakReferenceCallback callback));
+  template<typename S, typename P>
+  V8_INLINE(void MakeWeak(
+      Isolate* isolate,
+      P* parameters,
+      typename WeakReferenceCallbacks<S, P>::Revivable callback));
+
+  template<typename P>
+  V8_INLINE(void MakeWeak(
+      Isolate* isolate,
+      P* parameters,
+      typename WeakReferenceCallbacks<T, P>::Revivable callback));
 
   /**
    * Make the reference to this object weak.  When only weak handles
@@ -466,18 +621,17 @@ template <class T> class Persistent : public Handle<T> {
    * callback to the given V8::NearDeathCallback function, passing
    * it the object reference and the given parameters.
    */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(void MakeWeak(Isolate* isolate,
                           void* parameters,
                           NearDeathCallback callback));
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(void ClearWeak());
+  V8_INLINE(void ClearWeak());
 
-  /** Clears the weak reference to this object. */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(void ClearWeak(Isolate* isolate));
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(void MarkIndependent());
+  V8_INLINE(void MarkIndependent());
 
   /**
    * Marks the reference to this object independent. Garbage collector is free
@@ -485,10 +639,10 @@ template <class T> class Persistent : public Handle<T> {
    * independent handle should not assume that it will be preceded by a global
    * GC prologue callback or followed by a global GC epilogue callback.
    */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(void MarkIndependent(Isolate* isolate));
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(void MarkPartiallyDependent());
+  V8_INLINE(void MarkPartiallyDependent());
 
   /**
    * Marks the reference to this object partially dependent. Partially dependent
@@ -498,47 +652,103 @@ template <class T> class Persistent : public Handle<T> {
    * external dependencies. This mark is automatically cleared after each
    * garbage collection.
    */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(void MarkPartiallyDependent(Isolate* isolate));
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(bool IsIndependent() const);
+  V8_INLINE(bool IsIndependent() const);
 
-  /** Returns true if this handle was previously marked as independent. */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(bool IsIndependent(Isolate* isolate) const);
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(bool IsNearDeath() const);
+  V8_INLINE(bool IsNearDeath() const);
 
   /** Checks if the handle holds the only reference to an object. */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(bool IsNearDeath(Isolate* isolate) const);
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(bool IsWeak() const);
+  V8_INLINE(bool IsWeak() const);
 
   /** Returns true if the handle's reference is weak.  */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(bool IsWeak(Isolate* isolate) const);
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(void SetWrapperClassId(uint16_t class_id));
+  V8_INLINE(void SetWrapperClassId(uint16_t class_id));
 
   /**
    * Assigns a wrapper class ID to the handle. See RetainedObjectInfo interface
    * description in v8-profiler.h for details.
    */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(void SetWrapperClassId(Isolate* isolate, uint16_t class_id));
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(uint16_t WrapperClassId() const);
+  V8_INLINE(uint16_t WrapperClassId() const);
 
   /**
    * Returns the class ID previously assigned to this handle or 0 if no class ID
    * was previously assigned.
    */
+  // TODO(dcarney): remove before cutover
   V8_INLINE(uint16_t WrapperClassId(Isolate* isolate) const);
 
+  /**
+   * Disposes the current contents of the handle and replaces it.
+   */
+  V8_INLINE(void Reset(Isolate* isolate, const Handle<T>& other));
+
+#ifndef V8_USE_UNSAFE_HANDLES
+
+#ifndef V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
  private:
+#endif
+  // TODO(dcarney): make unlinkable before cutover
+  V8_INLINE(Persistent(const Persistent& that)) : val_(that.val_) {}
+  // TODO(dcarney): make unlinkable before cutover
+  V8_INLINE(Persistent& operator=(const Persistent& that)) {  // NOLINT
+    this->val_ = that.val_;
+    return *this;
+  }
+
+ public:
+#ifndef V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
+
+ private:
+#endif
+  // TODO(dcarney): remove before cutover
+  template <class S> V8_INLINE(Persistent(S* that)) : val_(that) { }
+  // TODO(dcarney): remove before cutover
+  template <class S> V8_INLINE(Persistent(Persistent<S> that))
+      : val_(*that) {
+    TYPE_CHECK(T, S);
+  }
+  // TODO(dcarney): remove before cutover
+  V8_INLINE(T* operator*() const) { return val_; }
+ public:
+#ifndef V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+
+ private:
+#endif
+  // TODO(dcarney): remove before cutover
+  V8_INLINE(T* operator->() const) { return val_; }
+ public:
+#endif
+
+ private:
+  template<class F>
+  friend class Handle;
+  template<class F>
+  friend class Local;
   friend class ImplementationUtilities;
   friend class ObjectTemplate;
+  friend class Context;
+  friend class InternalHandleHelper;
+  friend class LocalContext;
+
+  V8_INLINE(static Persistent<T> New(Isolate* isolate, T* that));
+
+#ifndef V8_USE_UNSAFE_HANDLES
+  T* val_;
+#endif
 };
 
 
@@ -1108,6 +1318,73 @@ class V8EXPORT Value : public Data {
    */
   bool IsRegExp() const;
 
+
+  /**
+   * Returns true if this value is an ArrayBuffer.
+   * This is an experimental feature.
+   */
+  bool IsArrayBuffer() const;
+
+  /**
+   * Returns true if this value is one of TypedArrays.
+   * This is an experimental feature.
+   */
+  bool IsTypedArray() const;
+
+  /**
+   * Returns true if this value is an Uint8Array.
+   * This is an experimental feature.
+   */
+  bool IsUint8Array() const;
+
+  /**
+   * Returns true if this value is an Uint8ClampedArray.
+   * This is an experimental feature.
+   */
+  bool IsUint8ClampedArray() const;
+
+  /**
+   * Returns true if this value is an Int8Array.
+   * This is an experimental feature.
+   */
+  bool IsInt8Array() const;
+
+  /**
+   * Returns true if this value is an Uint16Array.
+   * This is an experimental feature.
+   */
+  bool IsUint16Array() const;
+
+  /**
+   * Returns true if this value is an Int16Array.
+   * This is an experimental feature.
+   */
+  bool IsInt16Array() const;
+
+  /**
+   * Returns true if this value is an Uint32Array.
+   * This is an experimental feature.
+   */
+  bool IsUint32Array() const;
+
+  /**
+   * Returns true if this value is an Int32Array.
+   * This is an experimental feature.
+   */
+  bool IsInt32Array() const;
+
+  /**
+   * Returns true if this value is a Float32Array.
+   * This is an experimental feature.
+   */
+  bool IsFloat32Array() const;
+
+  /**
+   * Returns true if this value is a Float64Array.
+   * This is an experimental feature.
+   */
+  bool IsFloat64Array() const;
+
   Local<Boolean> ToBoolean() const;
   Local<Number> ToNumber() const;
   Local<String> ToString() const;
@@ -1185,8 +1462,7 @@ class V8EXPORT String : public Primitive {
   /**
    * This function is no longer useful.
    */
-  // TODO(dcarney): deprecate
-  V8_INLINE(bool MayContainNonAscii()) const { return true; }
+  V8_DEPRECATED(V8_INLINE(bool MayContainNonAscii()) const) { return true; }
 
   /**
    * Returns whether this string contains only one byte data.
@@ -1231,10 +1507,10 @@ class V8EXPORT String : public Primitive {
             int length = -1,
             int options = NO_OPTIONS) const;
   // ASCII characters.
-  int WriteAscii(char* buffer,
-                 int start = 0,
-                 int length = -1,
-                 int options = NO_OPTIONS) const;
+  V8_DEPRECATED(int WriteAscii(char* buffer,
+                               int start = 0,
+                               int length = -1,
+                               int options = NO_OPTIONS) const);
   // One byte characters.
   int WriteOneByte(uint8_t* buffer,
                    int start = 0,
@@ -2042,6 +2318,185 @@ class V8EXPORT ArrayBuffer : public Object {
 
  private:
   ArrayBuffer();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * A base class for an instance of TypedArray series of constructors
+ * (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT TypedArray : public Object {
+ public:
+  /**
+   * Returns underlying ArrayBuffer.
+   */
+  Local<ArrayBuffer> Buffer();
+  /**
+   * Byte offset in |Buffer|
+   */
+  size_t ByteOffset();
+  /**
+   * Numbe of elements in this typed array.
+   */
+  size_t Length();
+  /**
+   * Size of typed array in bytes (e.g. for Int16Array, 2*|Length|).
+   */
+  size_t ByteLength();
+  /**
+   * Base address of typed array.
+   */
+  void* BaseAddress();
+
+  V8_INLINE(static TypedArray* Cast(Value* obj));
+
+ private:
+  TypedArray();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Uint8Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Uint8Array : public TypedArray {
+ public:
+  static Local<Uint8Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Uint8Array* Cast(Value* obj));
+
+ private:
+  Uint8Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Uint8ClampedArray constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Uint8ClampedArray : public TypedArray {
+ public:
+  static Local<Uint8ClampedArray> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Uint8ClampedArray* Cast(Value* obj));
+
+ private:
+  Uint8ClampedArray();
+  static void CheckCast(Value* obj);
+};
+
+/**
+ * An instance of Int8Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Int8Array : public TypedArray {
+ public:
+  static Local<Int8Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Int8Array* Cast(Value* obj));
+
+ private:
+  Int8Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Uint16Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Uint16Array : public TypedArray {
+ public:
+  static Local<Uint16Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Uint16Array* Cast(Value* obj));
+
+ private:
+  Uint16Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Int16Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Int16Array : public TypedArray {
+ public:
+  static Local<Int16Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Int16Array* Cast(Value* obj));
+
+ private:
+  Int16Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Uint32Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Uint32Array : public TypedArray {
+ public:
+  static Local<Uint32Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Uint32Array* Cast(Value* obj));
+
+ private:
+  Uint32Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Int32Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Int32Array : public TypedArray {
+ public:
+  static Local<Int32Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Int32Array* Cast(Value* obj));
+
+ private:
+  Int32Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Float32Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Float32Array : public TypedArray {
+ public:
+  static Local<Float32Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Float32Array* Cast(Value* obj));
+
+ private:
+  Float32Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Float64Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Float64Array : public TypedArray {
+ public:
+  static Local<Float64Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Float64Array* Cast(Value* obj));
+
+ private:
+  Float64Array();
   static void CheckCast(Value* obj);
 };
 
@@ -3440,6 +3895,24 @@ class V8EXPORT PersistentHandleVisitor {  // NOLINT
 
 
 /**
+ * Asserts that no action is performed that could cause a handle's value
+ * to be modified. Useful when otherwise unsafe handle operations need to
+ * be performed.
+ */
+class V8EXPORT AssertNoGCScope {
+#ifndef DEBUG
+  V8_INLINE(AssertNoGCScope(Isolate* isolate)) {}
+#else
+  AssertNoGCScope(Isolate* isolate);
+  ~AssertNoGCScope();
+ private:
+  Isolate* isolate_;
+  bool last_state_;
+#endif
+};
+
+
+/**
  * Container class for static utility functions.
  */
 class V8EXPORT V8 {
@@ -3909,10 +4382,11 @@ class V8EXPORT V8 {
                                                internal::Object** handle);
   static void DisposeGlobal(internal::Isolate* isolate,
                             internal::Object** global_handle);
+  typedef WeakReferenceCallbacks<Value, void>::Revivable RevivableCallback;
   static void MakeWeak(internal::Isolate* isolate,
                        internal::Object** global_handle,
                        void* data,
-                       WeakReferenceCallback weak_reference_callback,
+                       RevivableCallback weak_reference_callback,
                        NearDeathCallback near_death_callback);
   static void ClearWeak(internal::Isolate* isolate,
                         internal::Object** global_handle);
@@ -4256,7 +4730,16 @@ class V8EXPORT Context {
     explicit V8_INLINE(Scope(Handle<Context> context)) : context_(context) {
       context_->Enter();
     }
+    V8_INLINE(Scope(Isolate* isolate, Persistent<Context>& context)) // NOLINT
+#ifndef V8_USE_UNSAFE_HANDLES
+    : context_(Handle<Context>::New(isolate, context)) {
+#else
+    : context_(Local<Context>::New(isolate, context)) {
+#endif
+      context_->Enter();
+    }
     V8_INLINE(~Scope()) { context_->Exit(); }
+
    private:
     Handle<Context> context_;
   };
@@ -4543,7 +5026,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 56;
+  static const int kContextEmbedderDataIndex = 65;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -4695,8 +5178,30 @@ Local<T> Local<T>::New(Handle<T> that) {
 
 template <class T>
 Local<T> Local<T>::New(Isolate* isolate, Handle<T> that) {
-  if (that.IsEmpty()) return Local<T>();
-  T* that_ptr = *that;
+  return New(isolate, that.val_);
+}
+
+#ifndef V8_USE_UNSAFE_HANDLES
+template <class T>
+Local<T> Local<T>::New(Isolate* isolate, const Persistent<T>& that) {
+  return New(isolate, that.val_);
+}
+
+template <class T>
+Handle<T> Handle<T>::New(Isolate* isolate, T* that) {
+  if (that == NULL) return Handle<T>();
+  T* that_ptr = that;
+  internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
+  return Handle<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
+      reinterpret_cast<internal::Isolate*>(isolate), *p)));
+}
+#endif
+
+
+template <class T>
+Local<T> Local<T>::New(Isolate* isolate, T* that) {
+  if (that == NULL) return Local<T>();
+  T* that_ptr = that;
   internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
   return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
       reinterpret_cast<internal::Isolate*>(isolate), *p)));
@@ -4705,14 +5210,26 @@ Local<T> Local<T>::New(Isolate* isolate, Handle<T> that) {
 
 template <class T>
 Persistent<T> Persistent<T>::New(Handle<T> that) {
-  return New(Isolate::GetCurrent(), that);
+  return New(Isolate::GetCurrent(), that.val_);
 }
 
 
 template <class T>
 Persistent<T> Persistent<T>::New(Isolate* isolate, Handle<T> that) {
-  if (that.IsEmpty()) return Persistent<T>();
-  internal::Object** p = reinterpret_cast<internal::Object**>(*that);
+  return New(Isolate::GetCurrent(), that.val_);
+}
+
+#ifndef V8_USE_UNSAFE_HANDLES
+template <class T>
+Persistent<T> Persistent<T>::New(Isolate* isolate, Persistent<T> that) {
+  return New(Isolate::GetCurrent(), that.val_);
+}
+#endif
+
+template <class T>
+Persistent<T> Persistent<T>::New(Isolate* isolate, T* that) {
+  if (that == NULL) return Persistent<T>();
+  internal::Object** p = reinterpret_cast<internal::Object**>(that);
   return Persistent<T>(reinterpret_cast<T*>(
       V8::GlobalizeReference(reinterpret_cast<internal::Isolate*>(isolate),
                              p)));
@@ -4730,7 +5247,7 @@ bool Persistent<T>::IsIndependent(Isolate* isolate) const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
   if (!I::IsInitialized(isolate)) return false;
-  return I::GetNodeFlag(reinterpret_cast<internal::Object**>(**this),
+  return I::GetNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
                         I::kNodeIsIndependentShift);
 }
 
@@ -4746,7 +5263,7 @@ bool Persistent<T>::IsNearDeath(Isolate* isolate) const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
   if (!I::IsInitialized(isolate)) return false;
-  return I::GetNodeState(reinterpret_cast<internal::Object**>(**this)) ==
+  return I::GetNodeState(reinterpret_cast<internal::Object**>(this->val_)) ==
       I::kNodeStateIsNearDeathValue;
 }
 
@@ -4762,7 +5279,7 @@ bool Persistent<T>::IsWeak(Isolate* isolate) const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
   if (!I::IsInitialized(isolate)) return false;
-  return I::GetNodeState(reinterpret_cast<internal::Object**>(**this)) ==
+  return I::GetNodeState(reinterpret_cast<internal::Object**>(this->val_)) ==
       I::kNodeStateIsWeakValue;
 }
 
@@ -4777,29 +5294,45 @@ template <class T>
 void Persistent<T>::Dispose(Isolate* isolate) {
   if (this->IsEmpty()) return;
   V8::DisposeGlobal(reinterpret_cast<internal::Isolate*>(isolate),
-                    reinterpret_cast<internal::Object**>(**this));
+                    reinterpret_cast<internal::Object**>(this->val_));
+#ifndef V8_USE_UNSAFE_HANDLES
+  val_ = 0;
+#endif
 }
 
 
 template <class T>
-Persistent<T>::Persistent() : Handle<T>() { }
-
-template <class T>
-void Persistent<T>::MakeWeak(void* parameters, WeakReferenceCallback callback) {
-  Isolate* isolate = Isolate::GetCurrent();
+template <typename S, typename P>
+void Persistent<T>::MakeWeak(
+    Isolate* isolate,
+    P* parameters,
+    typename WeakReferenceCallbacks<S, P>::Revivable callback) {
+  TYPE_CHECK(S, T);
+  typedef typename WeakReferenceCallbacks<Value, void>::Revivable Revivable;
   V8::MakeWeak(reinterpret_cast<internal::Isolate*>(isolate),
-               reinterpret_cast<internal::Object**>(**this),
+               reinterpret_cast<internal::Object**>(this->val_),
                parameters,
-               callback,
+               reinterpret_cast<Revivable>(callback),
                NULL);
 }
+
+
+template <class T>
+template <typename P>
+void Persistent<T>::MakeWeak(
+    Isolate* isolate,
+    P* parameters,
+    typename WeakReferenceCallbacks<T, P>::Revivable callback) {
+  MakeWeak<T, P>(isolate, parameters, callback);
+}
+
 
 template <class T>
 void Persistent<T>::MakeWeak(Isolate* isolate,
                              void* parameters,
                              NearDeathCallback callback) {
   V8::MakeWeak(reinterpret_cast<internal::Isolate*>(isolate),
-               reinterpret_cast<internal::Object**>(**this),
+               reinterpret_cast<internal::Object**>(this->val_),
                parameters,
                NULL,
                callback);
@@ -4813,7 +5346,7 @@ void Persistent<T>::ClearWeak() {
 template <class T>
 void Persistent<T>::ClearWeak(Isolate* isolate) {
   V8::ClearWeak(reinterpret_cast<internal::Isolate*>(isolate),
-                reinterpret_cast<internal::Object**>(**this));
+                reinterpret_cast<internal::Object**>(this->val_));
 }
 
 template <class T>
@@ -4826,7 +5359,7 @@ void Persistent<T>::MarkIndependent(Isolate* isolate) {
   typedef internal::Internals I;
   if (this->IsEmpty()) return;
   if (!I::IsInitialized(isolate)) return;
-  I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(**this),
+  I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
                     true,
                     I::kNodeIsIndependentShift);
 }
@@ -4841,7 +5374,7 @@ void Persistent<T>::MarkPartiallyDependent(Isolate* isolate) {
   typedef internal::Internals I;
   if (this->IsEmpty()) return;
   if (!I::IsInitialized(isolate)) return;
-  I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(**this),
+  I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
                     true,
                     I::kNodeIsPartiallyDependentShift);
 }
@@ -4852,11 +5385,27 @@ void Persistent<T>::SetWrapperClassId(uint16_t class_id) {
 }
 
 template <class T>
+void Persistent<T>::Reset(Isolate* isolate, const Handle<T>& other) {
+  Dispose(isolate);
+#ifdef V8_USE_UNSAFE_HANDLES
+  *this = *New(isolate, other);
+#else
+  if (other.IsEmpty()) {
+    this->val_ = NULL;
+    return;
+  }
+  internal::Object** p = reinterpret_cast<internal::Object**>(other.val_);
+  this->val_ = reinterpret_cast<T*>(
+      V8::GlobalizeReference(reinterpret_cast<internal::Isolate*>(isolate), p));
+#endif
+}
+
+template <class T>
 void Persistent<T>::SetWrapperClassId(Isolate* isolate, uint16_t class_id) {
   typedef internal::Internals I;
   if (this->IsEmpty()) return;
   if (!I::IsInitialized(isolate)) return;
-  internal::Object** obj = reinterpret_cast<internal::Object**>(**this);
+  internal::Object** obj = reinterpret_cast<internal::Object**>(this->val_);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   *reinterpret_cast<uint16_t*>(addr) = class_id;
 }
@@ -4871,7 +5420,7 @@ uint16_t Persistent<T>::WrapperClassId(Isolate* isolate) const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return 0;
   if (!I::IsInitialized(isolate)) return 0;
-  internal::Object** obj = reinterpret_cast<internal::Object**>(**this);
+  internal::Object** obj = reinterpret_cast<internal::Object**>(this->val_);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   return *reinterpret_cast<uint16_t*>(addr);
 }
@@ -5221,6 +5770,78 @@ ArrayBuffer* ArrayBuffer::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<ArrayBuffer*>(value);
+}
+
+
+TypedArray* TypedArray::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<TypedArray*>(value);
+}
+
+
+Uint8Array* Uint8Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Uint8Array*>(value);
+}
+
+
+Int8Array* Int8Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Int8Array*>(value);
+}
+
+
+Uint16Array* Uint16Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Uint16Array*>(value);
+}
+
+
+Int16Array* Int16Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Int16Array*>(value);
+}
+
+
+Uint32Array* Uint32Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Uint32Array*>(value);
+}
+
+
+Int32Array* Int32Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Int32Array*>(value);
+}
+
+
+Float32Array* Float32Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Float32Array*>(value);
+}
+
+
+Float64Array* Float64Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Float64Array*>(value);
 }
 
 

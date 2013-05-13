@@ -34,6 +34,11 @@
 #include <cmath>
 #endif  // __linux__
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 #include "log.h"
 #include "cpu-profiler.h"
@@ -62,7 +67,7 @@ class ScopedLoggerInitializer {
         // Need to run this prior to creating the scope.
         trick_to_run_init_flags_(init_flags_(prof_lazy)),
         scope_(v8::Isolate::GetCurrent()),
-        env_(v8::Context::New()),
+        env_(v8::Context::New(v8::Isolate::GetCurrent())),
         logger_(i::Isolate::Current()->logger()) {
     env_->Enter();
   }
@@ -371,7 +376,7 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
 
 TEST(Issue23768) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  v8::Handle<v8::Context> env = v8::Context::New();
+  v8::Handle<v8::Context> env = v8::Context::New(v8::Isolate::GetCurrent());
   env->Enter();
 
   SimpleExternalString source_ext_str("(function ext() {})();");
@@ -405,7 +410,8 @@ TEST(LogCallbacks) {
                                                 v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
-  v8::Local<v8::Signature> signature = v8::Signature::New(obj);
+  v8::Local<v8::Signature> signature =
+      v8::Signature::New(v8::Handle<v8::FunctionTemplate>(*obj));
   proto->Set(v8_str("method1"),
              v8::FunctionTemplate::New(ObjMethod1,
                                        v8::Handle<v8::Value>(),
@@ -563,9 +569,9 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   // The result either be a "true" literal or problem description.
   if (!result->IsTrue()) {
     v8::Local<v8::String> s = result->ToString();
-    i::ScopedVector<char> data(s->Length() + 1);
+    i::ScopedVector<char> data(s->Utf8Length() + 1);
     CHECK_NE(NULL, data.start());
-    s->WriteAscii(data.start());
+    s->WriteUtf8(data.start());
     printf("%s\n", data.start());
     // Make sure that our output is written prior crash due to CHECK failure.
     fflush(stdout);

@@ -53,8 +53,9 @@ Handle<T>::Handle(T* obj, Isolate* isolate) {
 
 template <typename T>
 inline bool Handle<T>::is_identical_to(const Handle<T> other) const {
-  ASSERT(location_ == NULL ||
-         reinterpret_cast<Address>(*location_) != kZapValue);
+  ASSERT(location_ == NULL || !(*location_)->IsFailure());
+  if (location_ == other.location_) return true;
+  if (location_ == NULL || other.location_ == NULL) return false;
   // Dereferencing deferred handles to check object equality is safe.
   SLOW_ASSERT(IsDereferenceAllowed(true) && other.IsDereferenceAllowed(true));
   return *location_ == *other.location_;
@@ -63,24 +64,22 @@ inline bool Handle<T>::is_identical_to(const Handle<T> other) const {
 
 template <typename T>
 inline T* Handle<T>::operator*() const {
-  ASSERT(location_ != NULL);
-  ASSERT(reinterpret_cast<Address>(*location_) != kHandleZapValue);
+  ASSERT(location_ != NULL && !(*location_)->IsFailure());
   SLOW_ASSERT(IsDereferenceAllowed(false));
   return *BitCast<T**>(location_);
 }
 
 template <typename T>
 inline T** Handle<T>::location() const {
-  ASSERT(location_ == NULL ||
-         reinterpret_cast<Address>(*location_) != kZapValue);
-  SLOW_ASSERT(IsDereferenceAllowed(false));
+  ASSERT(location_ == NULL || !(*location_)->IsFailure());
+  SLOW_ASSERT(location_ == NULL || IsDereferenceAllowed(false));
   return location_;
 }
 
 #ifdef DEBUG
 template <typename T>
 bool Handle<T>::IsDereferenceAllowed(bool allow_deferred) const {
-  if (location_ == NULL) return true;
+  ASSERT(location_ != NULL);
   Object* object = *BitCast<T**>(location_);
   if (object->IsSmi()) return true;
   HeapObject* heap_object = HeapObject::cast(object);

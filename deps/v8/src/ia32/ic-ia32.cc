@@ -1530,6 +1530,26 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
 }
 
 
+void StoreIC::GenerateSlow(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  __ pop(ebx);
+  __ push(edx);
+  __ push(ecx);
+  __ push(eax);
+  __ push(ebx);   // return address
+
+  // Do tail-call to runtime routine.
+  ExternalReference ref(IC_Utility(kStoreIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
 void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value

@@ -315,11 +315,13 @@ void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
 }
 
 
-void StubCompiler::DoGenerateFastPropertyLoad(MacroAssembler* masm,
-                                              Register dst,
-                                              Register src,
-                                              bool inobject,
-                                              int index) {
+void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
+                                            Register dst,
+                                            Register src,
+                                            bool inobject,
+                                            int index,
+                                            Representation representation) {
+  ASSERT(!FLAG_track_double_fields || !representation.IsDouble());
   int offset = index * kPointerSize;
   if (!inobject) {
     // Calculate the offset into the properties array.
@@ -451,8 +453,10 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                                            Register value_reg,
                                            Register scratch1,
                                            Register scratch2,
+                                           Register scratch3,
                                            Label* miss_label,
-                                           Label* miss_restore_name) {
+                                           Label* miss_restore_name,
+                                           Label* slow) {
   // r0 : value
   Label exit;
 
@@ -464,6 +468,15 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   if (object->IsJSGlobalProxy()) {
     __ CheckAccessGlobalProxy(receiver_reg, scratch1, miss_label);
   }
+
+  int descriptor = transition->LastAdded();
+  DescriptorArray* descriptors = transition->instance_descriptors();
+  PropertyDetails details = descriptors->GetDetails(descriptor);
+  Representation representation = details.representation();
+  ASSERT(!representation.IsNone());
+
+  // Ensure no transitions to deprecated maps are followed.
+  __ CheckMapDeprecated(transition, scratch1, miss_label);
 
   // Check that we are allowed to write this.
   if (object->GetPrototype()->IsJSObject()) {
@@ -480,7 +493,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     }
     Register holder_reg = CheckPrototypes(
         object, receiver_reg, Handle<JSObject>(holder), name_reg,
-        scratch1, scratch2, name, miss_restore_name);
+        scratch1, scratch2, name, miss_restore_name, SKIP_RECEIVER);
     // If no property was found, and the holder (the last object in the
     // prototype chain) is in slow mode, we need to do a negative lookup on the
     // holder.
@@ -497,6 +510,30 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
             masm, miss_restore_name, holder_reg, name, scratch1, scratch2);
       }
     }
+  }
+
+  Register storage_reg = name_reg;
+
+  if (FLAG_track_fields && representation.IsSmi()) {
+    __ JumpIfNotSmi(value_reg, miss_restore_name);
+  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+    Label do_store, heap_number;
+    __ LoadRoot(scratch3, Heap::kHeapNumberMapRootIndex);
+    __ AllocateHeapNumber(storage_reg, scratch1, scratch2, scratch3, slow);
+
+    __ JumpIfNotSmi(value_reg, &heap_number);
+    __ SmiUntag(scratch1, value_reg);
+    __ vmov(s0, scratch1);
+    __ vcvt_f64_s32(d0, s0);
+    __ jmp(&do_store);
+
+    __ bind(&heap_number);
+    __ CheckMap(value_reg, scratch1, Heap::kHeapNumberMapRootIndex,
+                miss_restore_name, DONT_DO_SMI_CHECK);
+    __ vldr(d0, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
+
+    __ bind(&do_store);
+    __ vstr(d0, FieldMemOperand(storage_reg, HeapNumber::kValueOffset));
   }
 
   // Stub never generated for non-global objects that require access
@@ -527,7 +564,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   __ RecordWriteField(receiver_reg,
                       HeapObject::kMapOffset,
                       scratch1,
-                      name_reg,
+                      scratch2,
                       kLRHasNotBeenSaved,
                       kDontSaveFPRegs,
                       OMIT_REMEMBERED_SET,
@@ -545,40 +582,60 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
-    __ str(value_reg, FieldMemOperand(receiver_reg, offset));
+    if (FLAG_track_double_fields && representation.IsDouble()) {
+      __ str(storage_reg, FieldMemOperand(receiver_reg, offset));
+    } else {
+      __ str(value_reg, FieldMemOperand(receiver_reg, offset));
+    }
 
-    // Skip updating write barrier if storing a smi.
-    __ JumpIfSmi(value_reg, &exit);
+    if (!FLAG_track_fields || !representation.IsSmi()) {
+      // Skip updating write barrier if storing a smi.
+      __ JumpIfSmi(value_reg, &exit);
 
-    // Update the write barrier for the array address.
-    // Pass the now unused name_reg as a scratch register.
-    __ mov(name_reg, value_reg);
-    __ RecordWriteField(receiver_reg,
-                        offset,
-                        name_reg,
-                        scratch1,
-                        kLRHasNotBeenSaved,
-                        kDontSaveFPRegs);
+      // Update the write barrier for the array address.
+      // Pass the now unused name_reg as a scratch register.
+      if (!FLAG_track_double_fields || !representation.IsDouble()) {
+        __ mov(name_reg, value_reg);
+      } else {
+        ASSERT(storage_reg.is(name_reg));
+      }
+      __ RecordWriteField(receiver_reg,
+                          offset,
+                          name_reg,
+                          scratch1,
+                          kLRHasNotBeenSaved,
+                          kDontSaveFPRegs);
+    }
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array
     __ ldr(scratch1,
            FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
-    __ str(value_reg, FieldMemOperand(scratch1, offset));
+    if (FLAG_track_double_fields && representation.IsDouble()) {
+      __ str(storage_reg, FieldMemOperand(scratch1, offset));
+    } else {
+      __ str(value_reg, FieldMemOperand(scratch1, offset));
+    }
 
-    // Skip updating write barrier if storing a smi.
-    __ JumpIfSmi(value_reg, &exit);
+    if (!FLAG_track_fields || !representation.IsSmi()) {
+      // Skip updating write barrier if storing a smi.
+      __ JumpIfSmi(value_reg, &exit);
 
-    // Update the write barrier for the array address.
-    // Ok to clobber receiver_reg and name_reg, since we return.
-    __ mov(name_reg, value_reg);
-    __ RecordWriteField(scratch1,
-                        offset,
-                        name_reg,
-                        receiver_reg,
-                        kLRHasNotBeenSaved,
-                        kDontSaveFPRegs);
+      // Update the write barrier for the array address.
+      // Ok to clobber receiver_reg and name_reg, since we return.
+      if (!FLAG_track_double_fields || !representation.IsDouble()) {
+        __ mov(name_reg, value_reg);
+      } else {
+        ASSERT(storage_reg.is(name_reg));
+      }
+      __ RecordWriteField(scratch1,
+                          offset,
+                          name_reg,
+                          receiver_reg,
+                          kLRHasNotBeenSaved,
+                          kDontSaveFPRegs);
+    }
   }
 
   // Return the value (register r0).
@@ -624,24 +681,63 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   // object and the number of in-object properties is not going to change.
   index -= object->map()->inobject_properties();
 
+  Representation representation = lookup->representation();
+  ASSERT(!representation.IsNone());
+  if (FLAG_track_fields && representation.IsSmi()) {
+    __ JumpIfNotSmi(value_reg, miss_label);
+  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+    // Load the double storage.
+    if (index < 0) {
+      int offset = object->map()->instance_size() + (index * kPointerSize);
+      __ ldr(scratch1, FieldMemOperand(receiver_reg, offset));
+    } else {
+      __ ldr(scratch1,
+             FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
+      int offset = index * kPointerSize + FixedArray::kHeaderSize;
+      __ ldr(scratch1, FieldMemOperand(scratch1, offset));
+    }
+
+    // Store the value into the storage.
+    Label do_store, heap_number;
+    __ JumpIfNotSmi(value_reg, &heap_number);
+    __ SmiUntag(scratch2, value_reg);
+    __ vmov(s0, scratch2);
+    __ vcvt_f64_s32(d0, s0);
+    __ jmp(&do_store);
+
+    __ bind(&heap_number);
+    __ CheckMap(value_reg, scratch2, Heap::kHeapNumberMapRootIndex,
+                miss_label, DONT_DO_SMI_CHECK);
+    __ vldr(d0, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
+
+    __ bind(&do_store);
+    __ vstr(d0, FieldMemOperand(scratch1, HeapNumber::kValueOffset));
+    // Return the value (register r0).
+    ASSERT(value_reg.is(r0));
+    __ Ret();
+    return;
+  }
+
   // TODO(verwaest): Share this code as a code stub.
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
     __ str(value_reg, FieldMemOperand(receiver_reg, offset));
 
-    // Skip updating write barrier if storing a smi.
-    __ JumpIfSmi(value_reg, &exit);
+    if (!FLAG_track_fields || !representation.IsSmi()) {
+      // Skip updating write barrier if storing a smi.
+      __ JumpIfSmi(value_reg, &exit);
 
-    // Update the write barrier for the array address.
-    // Pass the now unused name_reg as a scratch register.
-    __ mov(name_reg, value_reg);
-    __ RecordWriteField(receiver_reg,
-                        offset,
-                        name_reg,
-                        scratch1,
-                        kLRHasNotBeenSaved,
-                        kDontSaveFPRegs);
+      // Update the write barrier for the array address.
+      // Pass the now unused name_reg as a scratch register.
+      __ mov(name_reg, value_reg);
+      __ RecordWriteField(receiver_reg,
+                          offset,
+                          name_reg,
+                          scratch1,
+                          kLRHasNotBeenSaved,
+                          kDontSaveFPRegs);
+    }
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -650,18 +746,20 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
            FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
     __ str(value_reg, FieldMemOperand(scratch1, offset));
 
-    // Skip updating write barrier if storing a smi.
-    __ JumpIfSmi(value_reg, &exit);
+    if (!FLAG_track_fields || !representation.IsSmi()) {
+      // Skip updating write barrier if storing a smi.
+      __ JumpIfSmi(value_reg, &exit);
 
-    // Update the write barrier for the array address.
-    // Ok to clobber receiver_reg and name_reg, since we return.
-    __ mov(name_reg, value_reg);
-    __ RecordWriteField(scratch1,
-                        offset,
-                        name_reg,
-                        receiver_reg,
-                        kLRHasNotBeenSaved,
-                        kDontSaveFPRegs);
+      // Update the write barrier for the array address.
+      // Ok to clobber receiver_reg and name_reg, since we return.
+      __ mov(name_reg, value_reg);
+      __ RecordWriteField(scratch1,
+                          offset,
+                          name_reg,
+                          receiver_reg,
+                          kLRHasNotBeenSaved,
+                          kDontSaveFPRegs);
+    }
   }
 
   // Return the value (register r0).
@@ -1270,9 +1368,20 @@ void BaseLoadStubCompiler::NonexistentHandlerFrontend(
 
 void BaseLoadStubCompiler::GenerateLoadField(Register reg,
                                              Handle<JSObject> holder,
-                                             PropertyIndex index) {
-  GenerateFastPropertyLoad(masm(), r0, reg, holder, index);
-  __ Ret();
+                                             PropertyIndex field,
+                                             Representation representation) {
+  if (!reg.is(receiver())) __ mov(receiver(), reg);
+  if (kind() == Code::LOAD_IC) {
+    LoadFieldStub stub(field.is_inobject(holder),
+                       field.translate(holder),
+                       representation);
+    GenerateTailCall(masm(), stub.GetCode(isolate()));
+  } else {
+    KeyedLoadFieldStub stub(field.is_inobject(holder),
+                            field.translate(holder),
+                            representation);
+    GenerateTailCall(masm(), stub.GetCode(isolate()));
+  }
 }
 
 
@@ -1496,7 +1605,8 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
 
   // Do the right check and compute the holder register.
   Register reg = CheckPrototypes(object, r0, holder, r1, r3, r4, name, &miss);
-  GenerateFastPropertyLoad(masm(), r1, reg, holder, index);
+  GenerateFastPropertyLoad(masm(), r1, reg, index.is_inobject(holder),
+                           index.translate(holder), Representation::Tagged());
 
   GenerateCallFunction(masm(), object, arguments(), &miss, extra_state_);
 
@@ -2907,19 +3017,25 @@ Handle<Code> BaseLoadStubCompiler::CompilePolymorphicIC(
   Register map_reg = scratch1();
 
   int receiver_count = receiver_maps->length();
+  int number_of_handled_maps = 0;
   __ ldr(map_reg, FieldMemOperand(receiver(), HeapObject::kMapOffset));
   for (int current = 0; current < receiver_count; ++current) {
-    __ mov(ip, Operand(receiver_maps->at(current)));
-    __ cmp(map_reg, ip);
-    __ Jump(handlers->at(current), RelocInfo::CODE_TARGET, eq);
+    Handle<Map> map = receiver_maps->at(current);
+    if (!map->is_deprecated()) {
+      number_of_handled_maps++;
+      __ mov(ip, Operand(receiver_maps->at(current)));
+      __ cmp(map_reg, ip);
+      __ Jump(handlers->at(current), RelocInfo::CODE_TARGET, eq);
+    }
   }
+  ASSERT(number_of_handled_maps != 0);
 
   __ bind(&miss);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
   InlineCacheState state =
-      receiver_maps->length() > 1 ? POLYMORPHIC : MONOMORPHIC;
+      number_of_handled_maps > 1 ? POLYMORPHIC : MONOMORPHIC;
   return GetICCode(kind(), type, name, state);
 }
 
