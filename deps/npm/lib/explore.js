@@ -18,7 +18,7 @@ function explore (args, cb) {
   else args = []
 
   var cwd = path.resolve(npm.dir, p)
-  var s = npm.config.get("shell")
+  var sh = npm.config.get("shell")
   fs.stat(cwd, function (er, s) {
     if (er || !s.isDirectory()) return cb(new Error(
       "It doesn't look like "+p+" is installed."))
@@ -26,7 +26,7 @@ function explore (args, cb) {
       "\nExploring "+cwd+"\n"+
       "Type 'exit' or ^D when finished\n")
 
-    var shell = spawn(s, args, { cwd: cwd, customFds: [0, 1, 2] })
+    var shell = spawn(sh, args, { cwd: cwd, customFds: [0, 1, 2] })
     shell.on("close", function (er) {
       // only fail if non-interactive.
       if (!args.length) return cb()

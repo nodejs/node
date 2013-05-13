@@ -14,9 +14,6 @@ if (typeof WScript !== "undefined") {
 // monkey-patch support for 0.6 child processes
 require('child-process-close')
 
-// FIXME there really ought to be a path.split in node core
-require("path").SPLIT_CHAR = process.platform === "win32" ? "\\" : "/"
-
 var EventEmitter = require("events").EventEmitter
   , npm = module.exports = new EventEmitter
   , config = require("./config.js")

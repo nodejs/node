@@ -9,7 +9,8 @@ npm-shrinkwrap(1) -- Lock down dependency versions
 
 This command locks down the versions of a package's dependencies so that you can
 control exactly which versions of each dependency will be used when your package
-is installed.
+is installed. The "package.json" file is still required if you want to use "npm
+install".
 
 By default, "npm install" recursively installs the target's dependencies (as
 specified in package.json), choosing the latest available version that satisfies

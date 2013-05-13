@@ -26,6 +26,10 @@ Next, in some other location, \fBnpm link package\-name\fR will create a
 symlink from the local \fBnode_modules\fR folder to the global symlink\.
 .
 .P
+Note that \fBpackage\-name\fR is taken from \fBpackage\.json\fR ,
+not from directory name\.
+.
+.P
 When creating tarballs for \fBnpm publish\fR, the linked packages are
 "snapshotted" to their current state by resolving the symbolic links\.
 .
