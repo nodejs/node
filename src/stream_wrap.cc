@@ -355,11 +355,7 @@ size_t StreamWrap::GetStringSizeImpl(Handle<Value> val) {
       break;
 
     case kUtf8:
-      if (!(string->MayContainNonAscii())) {
-        // If the string has only ascii characters, we know exactly how big
-        // the storage should be.
-        return string->Length();
-      } else if (string->Length() < 65536) {
+      if (string->Length() < 65536) {
         // A single UCS2 codepoint never takes up more than 3 utf8 bytes.
         // Unless the string is really long we just allocate so much space that
         // we're certain the string fits in there entirely.
@@ -368,7 +364,7 @@ size_t StreamWrap::GetStringSizeImpl(Handle<Value> val) {
       } else {
         // The string is really long. Compute the allocation size that we
         // actually need.
-      return string->Utf8Length();
+        return string->Utf8Length();
       }
       break;
 
