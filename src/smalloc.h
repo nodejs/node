@@ -56,6 +56,12 @@ void Alloc(v8::Handle<v8::Object> obj,
            FreeCallback fn,
            void* hint);
 
+/**
+ * Free memory associated with an externally allocated object. If no external
+ * memory is allocated to the object then nothing will happen.
+ */
+void AllocDispose(v8::Handle<v8::Object> obj);
+
 }  // namespace smalloc
 
 }  // namespace node

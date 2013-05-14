@@ -173,6 +173,27 @@ void TargetCallback(Isolate* isolate, Persistent<Object>* target, char* data) {
 }
 
 
+Handle<Value> AllocDispose(const Arguments& args) {
+  AllocDispose(args[0]->ToObject());
+  return Undefined(node_isolate);
+}
+
+
+void AllocDispose(Handle<Object> obj) {
+  char* data = static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
+  size_t length = obj->GetIndexedPropertiesExternalArrayDataLength();
+
+  if (data == NULL || length == 0)
+    return;
+
+  obj->SetIndexedPropertiesToExternalArrayData(NULL,
+                                               kExternalUnsignedByteArray,
+                                               0);
+  delete[] data;
+  node_isolate->AdjustAmountOfExternalAllocatedMemory(-length);
+}
+
+
 void Alloc(Handle<Object> obj, size_t length, FreeCallback fn, void* hint) {
   assert(length <= kMaxLength);
 
@@ -286,6 +307,8 @@ void Initialize(Handle<Object> exports) {
 
   exports->Set(String::New("alloc"),
                FunctionTemplate::New(Alloc)->GetFunction());
+  exports->Set(String::New("dispose"),
+               FunctionTemplate::New(AllocDispose)->GetFunction());
 
   exports->Set(String::New("kMaxLength"),
                Uint32::New(kMaxLength, node_isolate));

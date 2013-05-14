@@ -22,77 +22,29 @@
 var common = require('../common');
 var assert = require('assert');
 
+var spawn = require('child_process').spawn;
 var smalloc = process.binding('smalloc');
 var alloc = smalloc.alloc;
-var copyOnto = smalloc.copyOnto;
 var dispose = smalloc.dispose;
-var sliceOnto = smalloc.sliceOnto;
 
 
-// verify initial allocation
+// child
+if (process.argv[2] === 'child') {
 
-var b = alloc({}, 5);
-assert.ok(typeof b === 'object');
-for (var i = 0; i < 5; i++)
-  assert.ok(b[i] !== undefined);
+  // test that disposing an allocation won't cause the MakeWeakCallback to try
+  // and free invalid memory
+  for (var i = 0; i < 1e4; i++) {
+    dispose(alloc({}, 5));
+    if (i % 10 === 0) gc();
+  }
 
+} else {
+  // test case
+  var child = spawn(process.execPath,
+                ['--expose_gc', __filename, 'child']);
 
-var b = {};
-var c = alloc(b, 5);
-assert.equal(b, c);
-assert.deepEqual(b, c);
-
-
-var b = alloc({}, 5);
-var c = {};
-c._data = sliceOnto(b, c, 0, 5);
-assert.ok(typeof c._data === 'object');
-assert.equal(b, c._data);
-assert.deepEqual(b, c._data);
-
-
-// verify writes
-
-var b = alloc({}, 5);
-for (var i = 0; i < 5; i++)
-  b[i] = i;
-for (var i = 0; i < 5; i++)
-  assert.equal(b[i], i);
-
-
-var b = alloc({}, 6);
-var c0 = {};
-var c1 = {};
-c0._data = sliceOnto(b, c0, 0, 3);
-c1._data = sliceOnto(b, c1, 3, 6);
-for (var i = 0; i < 3; i++) {
-  c0[i] = i;
-  c1[i] = i + 3;
+  child.on('exit', function(code, signal) {
+    assert.equal(code, 0, signal);
+    console.log('dispose didn\'t segfault');
+  });
 }
-for (var i = 0; i < 3; i++)
-  assert.equal(b[i], i);
-for (var i = 3; i < 6; i++)
-  assert.equal(b[i], i);
-
-
-var a = alloc({}, 6);
-var b = alloc({}, 6);
-var c = alloc({}, 12);
-for (var i = 0; i < 6; i++) {
-  a[i] = i;
-  b[i] = i * 2;
-}
-copyOnto(a, 0, c, 0, 6);
-copyOnto(b, 0, c, 6, 6);
-for (var i = 0; i < 6; i++) {
-  assert.equal(c[i], i);
-  assert.equal(c[i + 6], i * 2);
-}
-
-
-// test disposal
-
-var b = alloc({}, 5);
-dispose(b);
-for (var i = 0; i < 5; i++)
-  assert.equal(b[i], undefined);
