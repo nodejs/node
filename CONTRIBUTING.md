@@ -91,7 +91,8 @@ nicely even when it is indented.
 The header line should be meaningful; it is what other people see when they
 run `git shortlog` or `git log --oneline`.
 
-Have a look at `git log` for inspiration.
+Check the output of `git log --oneline files_that_you_changed` to find out
+what subsystem (or subsystems) your changes touch.
 
 
 ### REBASE
