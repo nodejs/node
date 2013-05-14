@@ -1,4 +1,11 @@
-2013.05.15, Version 0.10.6 (Stable)
+2013.05.15, Version 0.10.7 (Stable)
+
+Changes since version 0.10.6:
+
+* windows: kill child processes when the parent dies (Bert Belder)
+
+
+2013.05.15, Version 0.10.6 (Stable), 11e6613e6260d95c8cf11bf89a2759c24649319a
 
 Changes since version 0.10.5:
 

@@ -45,6 +45,36 @@ typedef struct env_var {
 #define E_V(str) { str "=", L##str, sizeof(str), 0, 0 }
 
 
+static HANDLE uv_global_job_handle_;
+static uv_once_t uv_global_job_handle_init_guard_ = UV_ONCE_INIT;
+
+
+static void uv__init_global_job_handle() {
+  SECURITY_ATTRIBUTES attr;
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION info;
+
+  memset(&attr, 0, sizeof attr);
+  attr.bInheritHandle = FALSE;
+
+  memset(&info, 0, sizeof info);
+  info.BasicLimitInformation.LimitFlags =
+      JOB_OBJECT_LIMIT_BREAKAWAY_OK |
+      JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK |
+      JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION |
+      JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+  uv_global_job_handle_ = CreateJobObjectW(&attr, NULL);
+  if (uv_global_job_handle_ == NULL)
+    uv_fatal_error(GetLastError(), "CreateJobObjectW");
+
+  if (!SetInformationJobObject(uv_global_job_handle_,
+                               JobObjectExtendedLimitInformation,
+                               &info,
+                               sizeof info))
+    uv_fatal_error(GetLastError(), "SetInformationJobObject");
+}
+
+
 static uv_err_t uv_utf8_to_utf16_alloc(const char* s, WCHAR** ws_ptr) {
   int ws_len, r;
   WCHAR* ws;
@@ -907,6 +937,15 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     /* Spawn succeeded */
     process->process_handle = info.hProcess;
     process->pid = info.dwProcessId;
+
+    /* If the process isn't spawned as detached, assign to the global job */
+    /* object so windows will kill it when the parent process dies. */
+    if (!(options.flags & UV_PROCESS_DETACHED)) {
+      uv_once(&uv_global_job_handle_init_guard_, uv__init_global_job_handle);
+
+      if (!AssignProcessToJobObject(uv_global_job_handle_, info.hProcess))
+        uv_fatal_error(GetLastError(), "AssignProcessToJobObject");
+    }
 
     /* Set IPC pid to all IPC pipes. */
     for (i = 0; i < options.stdio_count; i++) {
