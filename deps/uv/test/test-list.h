@@ -220,6 +220,9 @@ TEST_DECLARE   (we_get_signal)
 TEST_DECLARE   (we_get_signals)
 TEST_DECLARE   (signal_multiple_loops)
 #endif
+#ifdef __APPLE__
+TEST_DECLARE   (osx_select)
+#endif
 HELPER_DECLARE (tcp4_echo_server)
 HELPER_DECLARE (tcp6_echo_server)
 HELPER_DECLARE (udp4_echo_server)
@@ -438,6 +441,10 @@ TASK_LIST_START
   TEST_ENTRY  (we_get_signal)
   TEST_ENTRY  (we_get_signals)
   TEST_ENTRY  (signal_multiple_loops)
+#endif
+
+#ifdef __APPLE__
+  TEST_ENTRY (osx_select)
 #endif
 
   TEST_ENTRY  (fs_file_noent)

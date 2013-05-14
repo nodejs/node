@@ -1,4 +1,33 @@
-2013.04.24, Version 0.10.5 (Stable)
+2013.05.15, Version 0.10.6 (Stable)
+
+Changes since version 0.10.5:
+
+* stream: fix osx select hack (Fedor Indutny)
+
+* stream: fix small nit in select hack, add test (Fedor Indutny)
+
+* build: link with libkvm on openbsd (Ben Noordhuis)
+
+* stream: use harder sync restrictions for osx-hack (Fedor Indutny)
+
+* unix: fix EMFILE error handling (Ben Noordhuis)
+
+* darwin: fix unnecessary include headers (Daisuke Murase)
+
+* darwin: rename darwin-getproctitle.m (Ben Noordhuis)
+
+* build: convert predefined $PLATFORM to lower case (Elliot Saba)
+
+* build: set soname in shared library (Ben Noordhuis)
+
+* build: make `make test` link against .a again (Ben Noordhuis)
+
+* darwin: fix ios build, don't require ApplicationServices (Ben Noordhuis)
+
+* build: only set soname on shared object builds (Timothy J. Fontaine)
+
+
+2013.04.24, Version 0.10.5 (Stable), 6595a7732c52eb4f8e57c88655f72997a8567a67
 
 Changes since version 0.10.4:
 
@@ -48,7 +77,7 @@ Changes since version 0.10.3:
 * build: -Wno-dollar-in-identifier-extension is clang only (Ben Noordhuis)
 
 
-2013.02.04, Version 0.10.3 (Stable), 31ebe23973dd98fd8a24c042b606f37a794e99d0
+2013.03.28, Version 0.10.3 (Stable), 31ebe23973dd98fd8a24c042b606f37a794e99d0
 
 Changes since version 0.10.2:
 

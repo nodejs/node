@@ -164,8 +164,15 @@
             ],
           },
           'conditions': [
-            ['"<(library)" == "shared_library"', {
+            ['library=="shared_library"', {
               'cflags': [ '-fPIC' ],
+            }],
+            ['library=="shared_library" and OS!="mac"', {
+              'link_settings': {
+                # Must correspond with UV_VERSION_MAJOR and UV_VERSION_MINOR
+                # in src/version.c
+                'libraries': [ '-Wl,-soname,libuv.so.0.10' ],
+              },
             }],
           ],
         }],
@@ -176,7 +183,7 @@
           'sources': [
             'src/unix/darwin.c',
             'src/unix/fsevents.c',
-            'src/unix/darwin-proctitle.m',
+            'src/unix/darwin-proctitle.c',
           ],
           'link_settings': {
             'libraries': [
@@ -235,21 +242,16 @@
         }],
         [ 'OS=="freebsd" or OS=="dragonflybsd"', {
           'sources': [ 'src/unix/freebsd.c' ],
-          'link_settings': {
-            'libraries': [
-              '-lkvm',
-            ],
-          },
         }],
         [ 'OS=="openbsd"', {
           'sources': [ 'src/unix/openbsd.c' ],
         }],
         [ 'OS=="netbsd"', {
           'sources': [ 'src/unix/netbsd.c' ],
+        }],
+        [ 'OS in "freebsd dragonflybsd openbsd netbsd".split()', {
           'link_settings': {
-            'libraries': [
-              '-lkvm',
-            ],
+            'libraries': [ '-lkvm' ],
           },
         }],
         [ 'OS in "mac freebsd dragonflybsd openbsd netbsd".split()', {
@@ -309,6 +311,7 @@
         'test/test-loop-stop.c',
         'test/test-walk-handles.c',
         'test/test-multiple-listen.c',
+        'test/test-osx-select.c',
         'test/test-pass-always.c',
         'test/test-ping-pong.c',
         'test/test-pipe-bind-error.c',

@@ -286,6 +286,34 @@ int process_copy_output(process_info_t *p, int fd) {
 }
 
 
+/* Copy the last line of the stdio output buffer to `buffer` */
+int process_read_last_line(process_info_t *p,
+                           char* buffer,
+                           size_t buffer_len) {
+  char* ptr;
+
+  int r = fseek(p->stdout_file, 0, SEEK_SET);
+  if (r < 0) {
+    perror("fseek");
+    return -1;
+  }
+
+  buffer[0] = '\0';
+
+  while (fgets(buffer, buffer_len, p->stdout_file) != NULL) {
+    for (ptr = buffer; *ptr && *ptr != '\r' && *ptr != '\n'; ptr++);
+    *ptr = '\0';
+  }
+
+  if (ferror(p->stdout_file)) {
+    perror("read");
+    buffer[0] = '\0';
+    return -1;
+  }
+  return 0;
+}
+
+
 /* Return the name that was specified when `p` was started by process_start */
 char* process_get_name(process_info_t *p) {
   return p->name;

@@ -21,33 +21,62 @@
 
 #include "uv.h"
 #include "task.h"
+
+#ifdef __APPLE__
+
+#include <sys/ioctl.h>
 #include <string.h>
 
+static int read_count;
 
-static void set_title(const char* title) {
-  char buffer[512];
-  uv_err_t err;
 
-  err = uv_get_process_title(buffer, sizeof(buffer));
-  ASSERT(UV_OK == err.code);
+static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
+  static char buf[1024];
 
-  err = uv_set_process_title(title);
-  ASSERT(UV_OK == err.code);
-
-  err = uv_get_process_title(buffer, sizeof(buffer));
-  ASSERT(UV_OK == err.code);
-
-  ASSERT(strcmp(buffer, title) == 0);
+  return uv_buf_init(buf, ARRAY_SIZE(buf));
 }
 
 
-TEST_IMPL(process_title) {
-#if defined(__sun)
-  RETURN_SKIP("uv_(get|set)_process_title is not implemented.");
-#else
-  /* Check for format string vulnerabilities. */
-  set_title("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s");
-  set_title("new title");
+static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
+  fprintf(stdout, "got data %d\n", ++read_count);
+
+  if (read_count == 3)
+    uv_close((uv_handle_t*) stream, NULL);
+}
+
+
+TEST_IMPL(osx_select) {
+  int r;
+  int fd;
+  size_t i;
+  size_t len;
+  const char* str;
+  uv_tty_t tty;
+
+  fd = open("/dev/tty", O_RDONLY);
+
+  ASSERT(fd >= 0);
+
+  r = uv_tty_init(uv_default_loop(), &tty, fd, 1);
+  ASSERT(r == 0);
+
+  uv_read_start((uv_stream_t*) &tty, alloc_cb, read_cb);
+
+  // Emulate user-input
+  str = "got some input\n"
+        "with a couple of lines\n"
+        "feel pretty happy\n";
+  for (i = 0, len = strlen(str); i < len; i++) {
+    r = ioctl(fd, TIOCSTI, str + i);
+    ASSERT(r == 0);
+  }
+
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+  ASSERT(read_count == 3);
+
+  MAKE_VALGRIND_HAPPY();
   return 0;
-#endif
 }
+
+#endif /* __APPLE__ */

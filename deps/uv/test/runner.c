@@ -31,12 +31,25 @@ char executable_path[PATHMAX] = { '\0' };
 int tap_output = 0;
 
 
-static void log_progress(int total, int passed, int failed, const char* name) {
+static void log_progress(int total,
+                         int passed,
+                         int failed,
+                         int todos,
+                         int skipped,
+                         const char* name) {
+  int progress;
+
   if (total == 0)
     total = 1;
 
-  LOGF("[%% %3d|+ %3d|- %3d]: %s", (int) ((passed + failed) / ((double) total) * 100.0),
-      passed, failed, name);
+  progress = 100 * (passed + failed + skipped + todos) / total;
+  LOGF("[%% %3d|+ %3d|- %3d|T %3d|S %3d]: %s",
+       progress,
+       passed,
+       failed,
+       todos,
+       skipped,
+       name);
 }
 
 
@@ -78,7 +91,13 @@ const char* fmt(double d) {
 
 
 int run_tests(int timeout, int benchmark_output) {
-  int total, passed, failed, current;
+  int total;
+  int passed;
+  int failed;
+  int todos;
+  int skipped;
+  int current;
+  int test_result;
   task_entry_t* task;
 
   /* Count the number of tests. */
@@ -96,6 +115,8 @@ int run_tests(int timeout, int benchmark_output) {
   /* Run all tests. */
   passed = 0;
   failed = 0;
+  todos = 0;
+  skipped = 0;
   current = 1;
   for (task = TASKS; task->main; task++) {
     if (task->is_helper) {
@@ -106,13 +127,15 @@ int run_tests(int timeout, int benchmark_output) {
       rewind_cursor();
 
     if (!benchmark_output && !tap_output) {
-      log_progress(total, passed, failed, task->task_name);
+      log_progress(total, passed, failed, todos, skipped, task->task_name);
     }
 
-    if (run_test(task->task_name, timeout, benchmark_output, current) == 0) {
-      passed++;
-    } else {
-      failed++;
+    test_result = run_test(task->task_name, timeout, benchmark_output, current);
+    switch (test_result) {
+    case TEST_OK: passed++; break;
+    case TEST_TODO: todos++; break;
+    case TEST_SKIP: skipped++; break;
+    default: failed++;
     }
     current++;
   }
@@ -121,10 +144,47 @@ int run_tests(int timeout, int benchmark_output) {
     rewind_cursor();
 
   if (!benchmark_output && !tap_output) {
-    log_progress(total, passed, failed, "Done.\n");
+    log_progress(total, passed, failed, todos, skipped, "Done.\n");
   }
 
   return failed;
+}
+
+
+void log_tap_result(int test_count,
+                    const char* test,
+                    int status,
+                    process_info_t* process) {
+  const char* result;
+  const char* directive;
+  char reason[1024];
+
+  switch (status) {
+  case TEST_OK:
+    result = "ok";
+    directive = "";
+    break;
+  case TEST_TODO:
+    result = "not ok";
+    directive = " # TODO ";
+    break;
+  case TEST_SKIP:
+    result = "ok";
+    directive = " # SKIP ";
+    break;
+  default:
+    result = "not ok";
+    directive = "";
+  }
+
+  if ((status == TEST_SKIP || status == TEST_TODO) &&
+      process_output_size(process) > 0) {
+    process_read_last_line(process, reason, sizeof reason);
+  } else {
+    reason[0] = '\0';
+  }
+
+  LOGF("%s %d - %s%s%s\n", result, test_count, test, directive, reason);
 }
 
 
@@ -231,7 +291,7 @@ int run_test(const char* test,
   }
 
   status = process_reap(main_proc);
-  if (status != 0) {
+  if (status != TEST_OK) {
     snprintf(errmsg,
              sizeof errmsg,
              "exit code %d",
@@ -255,17 +315,17 @@ out:
     FATAL("process_wait failed");
   }
 
-  if (tap_output) {
-    if (status == 0)
-      LOGF("ok %d - %s\n", test_count, test);
-    else
-      LOGF("not ok %d - %s\n", test_count, test);
-  }
+  if (tap_output)
+    log_tap_result(test_count, test, status, &processes[i]);
 
   /* Show error and output from processes if the test failed. */
   if (status != 0 || task->show_output) {
     if (tap_output) {
       LOGF("#");
+    } else if (status == TEST_TODO) {
+      LOGF("\n`%s` todo\n", test);
+    } else if (status == TEST_SKIP) {
+      LOGF("\n`%s` skipped\n", test);
     } else if (status != 0) {
       LOGF("\n`%s` failed: %s\n", test, errmsg);
     } else {
