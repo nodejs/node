@@ -3,7 +3,7 @@ exports = module.exports = lifecycle
 exports.cmd = cmd
 
 var log = require("npmlog")
-  , exec = require("./exec.js")
+  , spawn = require("child_process").spawn
   , npm = require("../npm.js")
   , path = require("path")
   , fs = require("graceful-fs")
@@ -149,9 +149,10 @@ function runPackageLifecycle (pkg, env, wd, unsafe, cb) {
            + "\n> " + cmd + "\n"
 
   console.log(note)
-  exec( sh, [shFlag, cmd], env, true, wd
-      , user, group
-      , function (er, code, stdout, stderr) {
+
+  var conf = { cwd: wd, env: env, customFds: [ 0, 1, 2] }
+  var proc = spawn(sh, [shFlag, cmd], conf)
+  proc.on("close", function (er, stdout, stderr) {
     if (er && !npm.ROLLBACK) {
       log.info(pkg._id, "Failed to exec "+stage+" script")
       er.message = pkg._id + " "
@@ -185,9 +186,9 @@ function runHookLifecycle (pkg, env, wd, unsafe, cb) {
   fs.stat(hook, function (er) {
     if (er) return cb()
 
-    exec( "sh", ["-c", cmd], env, true, wd
-        , user, group
-        , function (er) {
+    var conf = { cwd: wd, env: env, customFds: [ 0, 1, 2] }
+    var proc = spawn("sh", ["-c", cmd], conf)
+    proc.on("close", function (er) {
       if (er) {
         er.message += "\nFailed to exec "+stage+" hook script"
         log.info(pkg._id, er)

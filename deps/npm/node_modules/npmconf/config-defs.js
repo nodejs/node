@@ -364,6 +364,7 @@ exports.shorthands =
   , dd : ["--loglevel", "verbose"]
   , ddd : ["--loglevel", "silly"]
   , noreg : ["--no-registry"]
+  , N : ["--no-registry"]
   , reg : ["--registry"]
   , "no-reg" : ["--no-registry"]
   , silent : ["--loglevel", "silent"]

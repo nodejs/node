@@ -5,6 +5,7 @@ var log = require("npmlog")
   , npm = require("./npm.js")
   , registry = npm.registry
   , read = require("read")
+  , userValidate = require("npm-user-validate")
   , crypto
 
 try {
@@ -35,6 +36,7 @@ function adduser (args, cb) {
 }
 
 function readUsername (c, u, cb) {
+  var v = userValidate.username
   read({prompt: "Username: ", default: c.u}, function (er, un) {
     if (er) {
       return cb(er.message === "cancelled" ? er.message : er)
@@ -49,18 +51,9 @@ function readUsername (c, u, cb) {
       return readUsername(c, u, cb)
     }
 
-    if (un !== un.toLowerCase()) {
-      log.warn('Username must be lowercase')
-      return readUsername(c, u, cb)
-    }
-
-    if (un !== encodeURIComponent(un)) {
-      log.warn('Username may not contain non-url-safe chars')
-      return readUsername(c, u, cb)
-    }
-
-    if (un.charAt(0) === '.') {
-      log.warn('Username may not start with "."')
+    var error = v(un)
+    if (error) {
+      log.warn(error.message)
       return readUsername(c, u, cb)
     }
 
@@ -71,6 +64,8 @@ function readUsername (c, u, cb) {
 }
 
 function readPassword (c, u, cb) {
+  var v = userValidate.pw
+
   if (!c.changed) {
     u.p = c.p
     return cb()
@@ -84,8 +79,9 @@ function readPassword (c, u, cb) {
       return readPassword(c, u, cb)
     }
 
-    if (pw.match(/['!:@"]/)) {
-      log.warn('Sorry, passwords cannot contain these characters: \'!:@"')
+    var error = v(pw)
+    if (error) {
+      log.warn(error.message)
       return readPassword(c, u, cb)
     }
 
@@ -95,6 +91,8 @@ function readPassword (c, u, cb) {
 }
 
 function readEmail (c, u, cb) {
+  var v = userValidate.email
+
   read({prompt: "Email: ", default: c.e}, function (er, em) {
     if (er) {
       return cb(er.message === "cancelled" ? er.message : er)
@@ -104,8 +102,9 @@ function readEmail (c, u, cb) {
       return readEmail(c, u, cb)
     }
 
-    if (!em.match(/^.+@.+\..+$/)) {
-      log.warn('Email must be an email address')
+    var error = v(em)
+    if (error) {
+      log.warn(error.message)
       return readEmail(c, u, cb)
     }
 

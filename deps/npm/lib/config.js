@@ -11,11 +11,12 @@ config.usage = "npm config set <key> <value>"
 
 var log = require("npmlog")
   , npm = require("./npm.js")
-  , exec = require("./utils/exec.js")
+  , spawn = require("child_process").spawn
   , fs = require("graceful-fs")
   , npmconf = require("npmconf")
   , types = npmconf.defs.types
   , ini = require("ini")
+  , editor = require("editor")
 
 config.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -93,7 +94,7 @@ function edit (cb) {
         , "utf8"
         , function (er) {
             if (er) return cb(er)
-            exec(e, [f], cb)
+            editor(f, { editor: e }, cb)
           }
         )
     })

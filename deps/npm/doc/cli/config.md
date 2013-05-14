@@ -185,7 +185,7 @@ ostensibly Unix systems.
 
 ### browser
 
-* Default: OS X: `"open"`, others: `"google-chrome"`
+* Default: OS X: `"open"`, Windows: `"start"`, Others: `"xdg-open"`
 * Type: String
 
 The browser that is called by the `npm docs` command to open websites.

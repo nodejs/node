@@ -67,6 +67,15 @@ describe('Hawk', function () {
                 done();
             });
         });
+
+        describe('#unauthorized', function () {
+
+            it('returns a hawk 401', function (done) {
+
+                expect(Hawk.utils.unauthorized('kaboom').response.headers['WWW-Authenticate']).to.equal('Hawk error="kaboom"');
+                done();
+            });
+        });
     });
 });
 

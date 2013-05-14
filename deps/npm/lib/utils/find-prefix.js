@@ -34,7 +34,12 @@ function findPrefix_ (p, original, cb) {
   }
   fs.readdir(p, function (er, files) {
     // an error right away is a bad sign.
-    if (er && p === original) return cb(er)
+    // unless the prefix was simply a non
+    // existent directory.
+    if (er && p === original) {
+      if (er.code === "ENOENT") return cb(null, original);
+      return cb(er)
+    }
 
     // walked up too high or something.
     if (er) return cb(null, original)

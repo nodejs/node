@@ -3,8 +3,7 @@ module.exports = bugs
 
 bugs.usage = "npm bugs <pkgname>"
 
-var exec = require("./utils/exec.js")
-  , npm = require("./npm.js")
+var npm = require("./npm.js")
   , registry = npm.registry
   , log = require("npmlog")
   , opener = require("opener")

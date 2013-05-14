@@ -17,6 +17,21 @@ var readJson = require('read-package-json')
 function init (dir, input, config, cb) {
   if (typeof config === 'function')
     cb = config, config = {}
+
+  // accept either a plain-jane object, or a config object
+  // with a "get" method.
+  if (typeof config.get !== 'function') {
+    var data = config
+    config = {
+      get: function (k) {
+        return data[k]
+      },
+      toJSON: function () {
+        return data
+      }
+    }
+  }
+
   var package = path.resolve(dir, 'package.json')
   input = path.resolve(input)
   var pkg

@@ -10,8 +10,7 @@ docs.completion = function (opts, cb) {
   })
 }
 
-var exec = require("./utils/exec.js")
-  , npm = require("./npm.js")
+var npm = require("./npm.js")
   , registry = npm.registry
   , log = require("npmlog")
   , opener = require("opener")

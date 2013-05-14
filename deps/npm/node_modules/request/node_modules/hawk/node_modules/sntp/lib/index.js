@@ -316,7 +316,12 @@ exports.offset = function (options, callback) {
         internals.last.port === options.port &&
         now < internals.last.expires) {
 
-        return callback(null, internals.last.offset);
+        process.nextTick(function () {
+                
+            callback(null, internals.last.offset);
+        });
+
+        return;
     }
 
     exports.time(options, function (err, time) {
@@ -352,7 +357,12 @@ exports.start = function (options, callback) {
     }
 
     if (internals.now.intervalId) {
-        return callback();
+        process.nextTick(function () {
+            
+            callback();
+        });
+        
+        return;
     }
 
     exports.offset(options, function (err, offset) {

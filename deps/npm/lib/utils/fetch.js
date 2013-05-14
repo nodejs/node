@@ -31,7 +31,7 @@ function fetch_ (remote, local, headers, cb) {
 
   fstr.on("error", function (er) {
     cb(er)
-    fstr.close()
+    fstr.destroy()
   })
 
   var req = makeRequest(remote, fstr, headers)
