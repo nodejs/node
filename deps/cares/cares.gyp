@@ -93,9 +93,8 @@
         'src/bitncmp.c',
         'src/bitncmp.h',
         'src/inet_net_pton.c',
-        'src/inet_net_pton.h',
         'src/inet_ntop.c',
-        'src/inet_ntop.h',
+        'src/ares_inet_net_pton.h',
         'src/setup_once.h',
         'src/windows_port.c'
       ],
