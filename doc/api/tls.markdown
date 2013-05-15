@@ -274,6 +274,10 @@ Creates a new client connection to the given `port` and `host` (old API) or
 
   - `servername`: Servername for SNI (Server Name Indication) TLS extension.
 
+  - `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
+    SSL version 3. The possible values depend on your installation of
+    OpenSSL and are defined in the constant [SSL_METHODS][].
+
 The `callback` parameter will be added as a listener for the
 ['secureConnect'][] event.
 
@@ -560,4 +564,5 @@ The numeric representation of the remote port. For example, `443`.
 ['secureConnect']: #tls_event_secureconnect
 [secureConnection]: #tls_event_secureconnection
 [Stream]: stream.html#stream_stream
+[SSL_METHODS]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
 [tls.Server]: #tls_class_tls_server
