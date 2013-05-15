@@ -22,54 +22,8 @@
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
-var util = require('util');
 
-first();
-
-function first() {
-  test('/~username/', '/~username/', second);
-}
-function second() {
-  test('/\'foo bar\'', '/%27foo%20bar%27', third);
-}
-function third() {
-  var expected = '/%3C%3E%22%60%20%0D%0A%09%7B%7D%7C%5C%5E~%60%27';
-  test('/<>"` \r\n\t{}|\\^~`\'', expected);
-}
-
-function test(path, expected, next) {
-  function helper(arg, next) {
-    var server = http.createServer(function(req, res) {
-      assert.equal(req.url, expected);
-      res.end('OK');
-      server.close(next);
-    });
-    server.on('clientError', function(err) {
-      throw err;
-    });
-    server.listen(common.PORT, '127.0.0.1', function() {
-      http.get(arg);
-    });
-  }
-
-  // Go the extra mile to ensure that the behavior of
-  // http.get("http://example.com/...") matches http.get({ path: ... }).
-  test1();
-
-  function test1() {
-    console.log('as url: ' + util.inspect(path));
-    helper('http://127.0.0.1:' + common.PORT + path, test2);
-  }
-  function test2() {
-    var options = {
-      host: '127.0.0.1',
-      port: common.PORT,
-      path: path
-    };
-    console.log('as options: ' + util.inspect(options));
-    helper(options, done);
-  }
-  function done() {
-    if (next) next();
-  }
-}
+assert.throws(function() {
+  // Path with spaces in it should throw.
+  http.get({ path: 'bad path' }, assert.fail);
+}, /contains unescaped characters/);

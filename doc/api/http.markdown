@@ -413,7 +413,9 @@ Options:
 - `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
 - `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
 - `path`: Request path. Defaults to `'/'`. Should include query string if any.
-  E.G. `'/index.html?page=12'`
+  E.G. `'/index.html?page=12'`. An exception is thrown when the request path
+  contains illegal characters. Currently, only spaces are rejected but that
+  may change in the future.
 - `headers`: An object containing request headers.
 - `auth`: Basic authentication i.e. `'user:password'` to compute an
   Authorization header.
