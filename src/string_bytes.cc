@@ -220,7 +220,8 @@ size_t StringBytes::Write(char* buf,
       break;
     }
 
-    case BINARY: {
+    case BINARY:
+    case BUFFER: {
       // TODO(isaacs): THIS IS AWFUL!!!
       uint16_t* twobytebuf = new uint16_t[buflen];
 
@@ -248,10 +249,6 @@ size_t StringBytes::Write(char* buf,
       break;
     }
 
-    case BUFFER:
-      assert(0 && "buffer encoding specified, but string provided");
-      break;
-
     default:
       assert(0 && "unknown encoding");
       break;
@@ -277,6 +274,7 @@ size_t StringBytes::StorageSize(Handle<Value> val, enum encoding encoding) {
 
   switch (encoding) {
     case BINARY:
+    case BUFFER:
     case ASCII:
       data_size = str->Length();
       break;
@@ -305,10 +303,6 @@ size_t StringBytes::StorageSize(Handle<Value> val, enum encoding encoding) {
       data_size = str->Length() / 2;
       break;
 
-    case BUFFER:
-      assert(0 && "buffer encoding specified but string provided");
-      break;
-
     default:
       assert(0 && "unknown encoding");
       break;
@@ -331,6 +325,7 @@ size_t StringBytes::Size(Handle<Value> val, enum encoding encoding) {
 
   switch (encoding) {
     case BINARY:
+    case BUFFER:
     case ASCII:
       data_size = str->Length();
       break;
@@ -355,10 +350,6 @@ size_t StringBytes::Size(Handle<Value> val, enum encoding encoding) {
 
     case HEX:
       data_size = str->Length() / 2;
-      break;
-
-    case BUFFER:
-      assert(0 && "buffer encoding specified by string provided");
       break;
 
     default:

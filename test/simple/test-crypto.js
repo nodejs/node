@@ -887,3 +887,10 @@ assert.throws(function() {
   try { d.final('xxx') } catch (e) { /* Ignore. */ }
   try { d.final('xxx') } catch (e) { /* Ignore. */ }
 })();
+
+// Regression test for #5482: string to Cipher#update() should not assert.
+(function() {
+  var c = crypto.createCipher('aes192', '0123456789abcdef');
+  c.update('update');
+  c.final();
+})();
