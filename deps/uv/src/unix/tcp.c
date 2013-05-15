@@ -151,77 +151,47 @@ int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
 }
 
 
-int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,
-    int* namelen) {
+int uv_tcp_getsockname(uv_tcp_t* handle,
+                       struct sockaddr* name,
+                       int* namelen) {
   socklen_t socklen;
-  int saved_errno;
-  int rv = 0;
 
-  /* Don't clobber errno. */
-  saved_errno = errno;
+  if (handle->delayed_error)
+    return uv__set_sys_error(handle->loop, handle->delayed_error);
 
-  if (handle->delayed_error) {
-    uv__set_sys_error(handle->loop, handle->delayed_error);
-    rv = -1;
-    goto out;
-  }
-
-  if (uv__stream_fd(handle) < 0) {
-    uv__set_sys_error(handle->loop, EINVAL);
-    rv = -1;
-    goto out;
-  }
+  if (uv__stream_fd(handle) < 0)
+    return uv__set_sys_error(handle->loop, EINVAL);
 
   /* sizeof(socklen_t) != sizeof(int) on some systems. */
-  socklen = (socklen_t)*namelen;
+  socklen = (socklen_t) *namelen;
 
-  if (getsockname(uv__stream_fd(handle), name, &socklen) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    rv = -1;
-  } else {
-    *namelen = (int)socklen;
-  }
+  if (getsockname(uv__stream_fd(handle), name, &socklen) == -1)
+    return uv__set_sys_error(handle->loop, errno);
 
-out:
-  errno = saved_errno;
-  return rv;
+  *namelen = (int) socklen;
+  return 0;
 }
 
 
-int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
-    int* namelen) {
+int uv_tcp_getpeername(uv_tcp_t* handle,
+                       struct sockaddr* name,
+                       int* namelen) {
   socklen_t socklen;
-  int saved_errno;
-  int rv = 0;
 
-  /* Don't clobber errno. */
-  saved_errno = errno;
+  if (handle->delayed_error)
+    return uv__set_sys_error(handle->loop, handle->delayed_error);
 
-  if (handle->delayed_error) {
-    uv__set_sys_error(handle->loop, handle->delayed_error);
-    rv = -1;
-    goto out;
-  }
-
-  if (uv__stream_fd(handle) < 0) {
-    uv__set_sys_error(handle->loop, EINVAL);
-    rv = -1;
-    goto out;
-  }
+  if (uv__stream_fd(handle) < 0)
+    return uv__set_sys_error(handle->loop, EINVAL);
 
   /* sizeof(socklen_t) != sizeof(int) on some systems. */
-  socklen = (socklen_t)*namelen;
+  socklen = (socklen_t) *namelen;
 
-  if (getpeername(uv__stream_fd(handle), name, &socklen) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    rv = -1;
-  } else {
-    *namelen = (int)socklen;
-  }
+  if (getpeername(uv__stream_fd(handle), name, &socklen) == -1)
+    return uv__set_sys_error(handle->loop, errno);
 
-out:
-  errno = saved_errno;
-  return rv;
+  *namelen = (int) socklen;
+  return 0;
 }
 
 
@@ -259,14 +229,7 @@ int uv__tcp_connect(uv_connect_t* req,
                     uv_tcp_t* handle,
                     struct sockaddr_in addr,
                     uv_connect_cb cb) {
-  int saved_errno;
-  int status;
-
-  saved_errno = errno;
-  status = uv__connect(req, handle, (struct sockaddr*)&addr, sizeof addr, cb);
-  errno = saved_errno;
-
-  return status;
+  return uv__connect(req, handle, (struct sockaddr*) &addr, sizeof addr, cb);
 }
 
 
@@ -274,14 +237,7 @@ int uv__tcp_connect6(uv_connect_t* req,
                      uv_tcp_t* handle,
                      struct sockaddr_in6 addr,
                      uv_connect_cb cb) {
-  int saved_errno;
-  int status;
-
-  saved_errno = errno;
-  status = uv__connect(req, handle, (struct sockaddr*)&addr, sizeof addr, cb);
-  errno = saved_errno;
-
-  return status;
+  return uv__connect(req, handle, (struct sockaddr*) &addr, sizeof addr, cb);
 }
 
 

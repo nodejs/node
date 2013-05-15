@@ -42,8 +42,12 @@ static void set_title(const char* title) {
 
 
 TEST_IMPL(process_title) {
+#if defined(__sun)
+  RETURN_SKIP("uv_(get|set)_process_title is not implemented.");
+#else
   /* Check for format string vulnerabilities. */
-  set_title("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s");
+  set_title("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s");
   set_title("new title");
   return 0;
+#endif
 }

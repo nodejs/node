@@ -291,36 +291,27 @@ static int uv__bind(uv_udp_t* handle,
                     struct sockaddr* addr,
                     socklen_t len,
                     unsigned flags) {
-  int saved_errno;
-  int status;
   int yes;
   int fd;
 
-  saved_errno = errno;
-  status = -1;
   fd = -1;
 
   /* Check for bad flags. */
-  if (flags & ~UV_UDP_IPV6ONLY) {
-    uv__set_sys_error(handle->loop, EINVAL);
-    goto out;
-  }
+  if (flags & ~UV_UDP_IPV6ONLY)
+    return uv__set_sys_error(handle->loop, EINVAL);
 
   /* Cannot set IPv6-only mode on non-IPv6 socket. */
-  if ((flags & UV_UDP_IPV6ONLY) && domain != AF_INET6) {
-    uv__set_sys_error(handle->loop, EINVAL);
-    goto out;
-  }
+  if ((flags & UV_UDP_IPV6ONLY) && domain != AF_INET6)
+    return uv__set_sys_error(handle->loop, EINVAL);
 
-  if (handle->io_watcher.fd == -1) {
-    if ((fd = uv__socket(domain, SOCK_DGRAM, 0)) == -1) {
-      uv__set_sys_error(handle->loop, errno);
-      goto out;
-    }
+  fd = handle->io_watcher.fd;
+  if (fd == -1) {
+    fd = uv__socket(domain, SOCK_DGRAM, 0);
+    if (fd == -1)
+      return uv__set_sys_error(handle->loop, errno);
     handle->io_watcher.fd = fd;
   }
 
-  fd = handle->io_watcher.fd;
   yes = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
     uv__set_sys_error(handle->loop, errno);
@@ -361,17 +352,12 @@ static int uv__bind(uv_udp_t* handle,
     goto out;
   }
 
-  handle->io_watcher.fd = fd;
-  status = 0;
+  return 0;
 
 out:
-  if (status) {
-    close(handle->io_watcher.fd);
-    handle->io_watcher.fd = -1;
-  }
-
-  errno = saved_errno;
-  return status;
+  close(handle->io_watcher.fd);
+  handle->io_watcher.fd = -1;
+  return -1;
 }
 
 
@@ -479,24 +465,15 @@ int uv__udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned flags) {
 
 
 int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
-  int saved_errno;
-  int status;
   int yes;
 
-  saved_errno = errno;
-  status = -1;
-
   /* Check for already active socket. */
-  if (handle->io_watcher.fd != -1) {
-    uv__set_artificial_error(handle->loop, UV_EALREADY);
-    goto out;
-  }
+  if (handle->io_watcher.fd != -1)
+    return uv__set_artificial_error(handle->loop, UV_EALREADY);
 
   yes = 1;
-  if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    goto out;
-  }
+  if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1)
+    return uv__set_sys_error(handle->loop, errno);
 
   /* On the BSDs, SO_REUSEADDR lets you reuse an address that's in the TIME_WAIT
    * state (i.e. was until recently tied to a socket) while SO_REUSEPORT lets
@@ -508,18 +485,12 @@ int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
    */
 #ifdef SO_REUSEPORT
   yes = 1;
-  if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    goto out;
-  }
+  if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes) == -1)
+    return uv__set_sys_error(handle->loop, errno);
 #endif
 
   handle->io_watcher.fd = sock;
-  status = 0;
-
-out:
-  errno = saved_errno;
-  return status;
+  return 0;
 }
 
 
@@ -616,31 +587,18 @@ int uv_udp_set_multicast_loop(uv_udp_t* handle, int on) {
 
 int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen) {
   socklen_t socklen;
-  int saved_errno;
-  int rv = 0;
 
-  /* Don't clobber errno. */
-  saved_errno = errno;
-
-  if (handle->io_watcher.fd == -1) {
-    uv__set_sys_error(handle->loop, EINVAL);
-    rv = -1;
-    goto out;
-  }
+  if (handle->io_watcher.fd == -1)
+    return uv__set_sys_error(handle->loop, EINVAL);
 
   /* sizeof(socklen_t) != sizeof(int) on some systems. */
-  socklen = (socklen_t)*namelen;
+  socklen = (socklen_t) *namelen;
 
-  if (getsockname(handle->io_watcher.fd, name, &socklen) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    rv = -1;
-  } else {
-    *namelen = (int)socklen;
-  }
+  if (getsockname(handle->io_watcher.fd, name, &socklen) == -1)
+    return uv__set_sys_error(handle->loop, errno);
 
-out:
-  errno = saved_errno;
-  return rv;
+  *namelen = (int) socklen;
+  return 0;
 }
 
 

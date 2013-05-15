@@ -18,7 +18,11 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-PLATFORM ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
+ifdef PLATFORM
+override PLATFORM := $(shell echo $(PLATFORM) | tr "[A-Z]" "[a-z]")
+else
+PLATFORM = $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
+endif
 
 CPPFLAGS += -I$(SRCDIR)/include -I$(SRCDIR)/include/uv-private
 
@@ -140,10 +144,10 @@ TESTS= \
 
 all: libuv.a
 
-run-tests$(E): test/run-tests.o test/runner.o $(RUNNER_SRC) $(TESTS) libuv.$(SOEXT)
+run-tests$(E): test/run-tests.o test/runner.o $(RUNNER_SRC) $(TESTS) libuv.a
 	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o $@ $^ $(RUNNER_LIBS) $(RUNNER_LDFLAGS)
 
-run-benchmarks$(E): test/run-benchmarks.o test/runner.o $(RUNNER_SRC) $(BENCHMARKS) libuv.$(SOEXT)
+run-benchmarks$(E): test/run-benchmarks.o test/runner.o $(RUNNER_SRC) $(BENCHMARKS) libuv.a
 	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o $@ $^ $(RUNNER_LIBS) $(RUNNER_LDFLAGS)
 
 test/echo.o: test/echo.c test/echo.h

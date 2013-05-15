@@ -45,12 +45,10 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   struct sockaddr_un saddr;
   const char* pipe_fname;
-  int saved_errno;
   int sockfd;
   int status;
   int bound;
 
-  saved_errno = errno;
   pipe_fname = NULL;
   sockfd = -1;
   status = -1;
@@ -105,35 +103,22 @@ out:
     free((void*)pipe_fname);
   }
 
-  errno = saved_errno;
   return status;
 }
 
 
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
-  int saved_errno;
-  int status;
+  if (uv__stream_fd(handle) == -1)
+    return uv__set_artificial_error(handle->loop, UV_EINVAL);
 
-  saved_errno = errno;
-  status = -1;
-
-  if (uv__stream_fd(handle) == -1) {
-    uv__set_artificial_error(handle->loop, UV_EINVAL);
-    goto out;
-  }
   assert(uv__stream_fd(handle) >= 0);
+  if (listen(uv__stream_fd(handle), backlog))
+    return uv__set_sys_error(handle->loop, errno);
 
-  if ((status = listen(uv__stream_fd(handle), backlog)) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-  } else {
-    handle->connection_cb = cb;
-    handle->io_watcher.cb = uv__pipe_accept;
-    uv__io_start(handle->loop, &handle->io_watcher, UV__POLLIN);
-  }
-
-out:
-  errno = saved_errno;
-  return status;
+  handle->connection_cb = cb;
+  handle->io_watcher.cb = uv__pipe_accept;
+  uv__io_start(handle->loop, &handle->io_watcher, UV__POLLIN);
+  return 0;
 }
 
 
@@ -171,12 +156,10 @@ void uv_pipe_connect(uv_connect_t* req,
                     const char* name,
                     uv_connect_cb cb) {
   struct sockaddr_un saddr;
-  int saved_errno;
   int new_sock;
   int err;
   int r;
 
-  saved_errno = errno;
   new_sock = (uv__stream_fd(handle) == -1);
   err = -1;
 
@@ -223,19 +206,15 @@ out:
   /* Mimic the Windows pipe implementation, always
    * return 0 and let the callback handle errors.
    */
-  errno = saved_errno;
 }
 
 
 /* TODO merge with uv__server_io()? */
 static void uv__pipe_accept(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   uv_pipe_t* pipe;
-  int saved_errno;
   int sockfd;
 
-  saved_errno = errno;
   pipe = container_of(w, uv_pipe_t, io_watcher);
-
   assert(pipe->type == UV_NAMED_PIPE);
 
   sockfd = uv__accept(uv__stream_fd(pipe));
@@ -252,8 +231,6 @@ static void uv__pipe_accept(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
       uv__io_stop(pipe->loop, &pipe->io_watcher, UV__POLLIN);
     }
   }
-
-  errno = saved_errno;
 }
 
 

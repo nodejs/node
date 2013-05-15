@@ -24,12 +24,14 @@
  /*
  * Versions with an even minor version (e.g. 0.6.1 or 1.0.4) are API and ABI
  * stable. When the minor version is odd, the API can change between patch
- * releases.
+ * releases. Make sure you update the -soname directives in config-unix.mk
+ * and uv.gyp whenever you bump UV_VERSION_MAJOR or UV_VERSION_MINOR (but
+ * not UV_VERSION_PATCH.)
  */
 
 #define UV_VERSION_MAJOR 0
 #define UV_VERSION_MINOR 11
-#define UV_VERSION_PATCH 2
+#define UV_VERSION_PATCH 3
 #define UV_VERSION_IS_RELEASE 1
 
 

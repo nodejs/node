@@ -18,11 +18,18 @@
  * IN THE SOFTWARE.
  */
 
-#include <CoreFoundation/CoreFoundation.h>
-#include <ApplicationServices/ApplicationServices.h>
+#include <TargetConditionals.h>
+
+#if !TARGET_OS_IPHONE
+# include <CoreFoundation/CoreFoundation.h>
+# include <ApplicationServices/ApplicationServices.h>
+#endif
 
 
 int uv__set_process_title(const char* title) {
+#if TARGET_OS_IPHONE
+  return -1;
+#else
   typedef CFTypeRef (*LSGetCurrentApplicationASNType)(void);
   typedef OSStatus (*LSSetApplicationInformationItemType)(int,
                                                           CFTypeRef,
@@ -76,4 +83,5 @@ int uv__set_process_title(const char* title) {
                                             NULL);
 
   return (err == noErr) ? 0 : -1;
+#endif  /* !TARGET_OS_IPHONE */
 }

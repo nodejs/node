@@ -29,7 +29,7 @@ CPPFLAGS += -D_FILE_OFFSET_BITS=64
 
 RUNNER_SRC=test/runner-unix.c
 RUNNER_CFLAGS=$(CFLAGS) -I$(SRCDIR)/test
-RUNNER_LDFLAGS=-L"$(CURDIR)" -luv -Xlinker -rpath -Xlinker "$(CURDIR)"
+RUNNER_LDFLAGS=-L"$(CURDIR)" -luv
 
 HAVE_DTRACE=
 DTRACE_OBJS=
@@ -64,7 +64,6 @@ HAVE_DTRACE=1
 CPPFLAGS += -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
 LDFLAGS+=-lkstat -lnsl -lsendfile -lsocket
 # Library dependencies are not transitive.
-RUNNER_LDFLAGS += $(LDFLAGS)
 OBJS += src/unix/sunos.o
 OBJS += src/unix/dtrace.o
 DTRACE_OBJS += src/unix/core.o
@@ -87,8 +86,7 @@ endif
 CPPFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
 LDFLAGS += -framework Foundation \
            -framework CoreServices \
-           -framework ApplicationServices \
-           -dynamiclib -install_name "@rpath/libuv.dylib"
+           -framework ApplicationServices
 SOEXT = dylib
 OBJS += src/unix/darwin.o
 OBJS += src/unix/kqueue.o
@@ -144,12 +142,19 @@ CPPFLAGS += -Isrc/unix
 CFLAGS += -DHAVE_DTRACE
 endif
 
+ifneq (darwin,$(PLATFORM))
+# Must correspond with UV_VERSION_MAJOR and UV_VERSION_MINOR in src/version.c
+SO_LDFLAGS = -Wl,-soname,libuv.so.0.11
+endif
+
+RUNNER_LDFLAGS += $(LDFLAGS)
+
 libuv.a: $(OBJS)
 	$(AR) rcs $@ $^
 
 libuv.$(SOEXT):	override CFLAGS += -fPIC
 libuv.$(SOEXT):	$(OBJS:%.o=%.pic.o)
-	$(CC) -shared -o $@ $^ $(LDFLAGS)
+	$(CC) -shared -o $@ $^ $(LDFLAGS) $(SO_LDFLAGS)
 
 include/uv-private/uv-unix.h: \
 	include/uv-private/uv-bsd.h \

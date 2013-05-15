@@ -1,4 +1,67 @@
-2013.05.11, Version 0.11.2 (Unstable)
+2013.05.16, Version 0.11.3 (Unstable)
+
+Changes since version 0.11.2:
+
+* unix: clean up uv_accept() (Ben Noordhuis)
+
+* unix: remove errno preserving code (Ben Noordhuis)
+
+* darwin: fix ios build, don't require ApplicationServices (Ben Noordhuis)
+
+* windows: kill child processes when the parent dies (Bert Belder)
+
+* build: set soname in shared library (Ben Noordhuis)
+
+* build: make `make test` link against .a again (Ben Noordhuis)
+
+* build: only set soname on shared object builds (Timothy J. Fontaine)
+
+* build: convert predefined $PLATFORM to lower case (Elliot Saba)
+
+* test: fix process_title failing on linux (Miroslav Bajtoš)
+
+* test, sunos: disable process_title test (Miroslav Bajtoš)
+
+* test: add error logging to tty unit test (Miroslav Bajtoš)
+
+
+2013.05.15, Version 0.10.7 (Stable), 028baaf0846b686a81e992cb2f2f5a9b8e841fcf
+
+Changes since version 0.10.6:
+
+* windows: kill child processes when the parent dies (Bert Belder)
+
+
+2013.05.15, Version 0.10.6 (Stable), 11e6613e6260d95c8cf11bf89a2759c24649319a
+
+Changes since version 0.10.5:
+
+* stream: fix osx select hack (Fedor Indutny)
+
+* stream: fix small nit in select hack, add test (Fedor Indutny)
+
+* build: link with libkvm on openbsd (Ben Noordhuis)
+
+* stream: use harder sync restrictions for osx-hack (Fedor Indutny)
+
+* unix: fix EMFILE error handling (Ben Noordhuis)
+
+* darwin: fix unnecessary include headers (Daisuke Murase)
+
+* darwin: rename darwin-getproctitle.m (Ben Noordhuis)
+
+* build: convert predefined $PLATFORM to lower case (Elliot Saba)
+
+* build: set soname in shared library (Ben Noordhuis)
+
+* build: make `make test` link against .a again (Ben Noordhuis)
+
+* darwin: fix ios build, don't require ApplicationServices (Ben Noordhuis)
+
+* build: only set soname on shared object builds (Timothy J. Fontaine)
+
+
+2013.05.11, Version 0.11.2 (Unstable), 3fba0bf65f091b91a9760530c05c6339c658d88b
 
 Changes since version 0.11.1:
 

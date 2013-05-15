@@ -536,42 +536,30 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
 
 int uv_accept(uv_stream_t* server, uv_stream_t* client) {
-  uv_stream_t* streamServer;
-  uv_stream_t* streamClient;
-  int saved_errno;
-  int status;
-
   /* TODO document this */
   assert(server->loop == client->loop);
 
-  saved_errno = errno;
-  status = -1;
+  if (server->accepted_fd == -1)
+    return uv__set_sys_error(server->loop, EAGAIN);
 
-  streamServer = (uv_stream_t*)server;
-  streamClient = (uv_stream_t*)client;
-
-  if (streamServer->accepted_fd < 0) {
-    uv__set_sys_error(server->loop, EAGAIN);
-    goto out;
-  }
-
-  switch (streamClient->type) {
+  switch (client->type) {
     case UV_NAMED_PIPE:
     case UV_TCP:
-      if (uv__stream_open(streamClient, streamServer->accepted_fd,
-            UV_STREAM_READABLE | UV_STREAM_WRITABLE)) {
+      if (uv__stream_open(client,
+                          server->accepted_fd,
+                          UV_STREAM_READABLE | UV_STREAM_WRITABLE)) {
         /* TODO handle error */
-        close(streamServer->accepted_fd);
-        streamServer->accepted_fd = -1;
-        goto out;
+        close(server->accepted_fd);
+        server->accepted_fd = -1;
+        return -1;
       }
       break;
 
     case UV_UDP:
-      if (uv_udp_open((uv_udp_t*) client, streamServer->accepted_fd)) {
-        close(streamServer->accepted_fd);
-        streamServer->accepted_fd = -1;
-        goto out;
+      if (uv_udp_open((uv_udp_t*) client, server->accepted_fd)) {
+        close(server->accepted_fd);
+        server->accepted_fd = -1;
+        return -1;
       }
       break;
 
@@ -579,13 +567,9 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
       assert(0);
   }
 
-  uv__io_start(streamServer->loop, &streamServer->io_watcher, UV__POLLIN);
-  streamServer->accepted_fd = -1;
-  status = 0;
-
-out:
-  errno = saved_errno;
-  return status;
+  uv__io_start(server->loop, &server->io_watcher, UV__POLLIN);
+  server->accepted_fd = -1;
+  return 0;
 }
 
 
