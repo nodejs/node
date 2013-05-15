@@ -997,6 +997,11 @@ static int get_DNS_AdaptersAddresses(char **outptr)
       }
       else if (namesrvr.sa->sa_family == AF_INET6)
       {
+        /* Windows apparently always reports some IPv6 DNS servers that
+         * prefixed with fec0:0:0:ffff. These ususally do not point to
+         * working DNS servers, so we ignore them. */
+        if (strncmp(txtaddr, "fec0:0:0:ffff:", 14) == 0)
+          continue;
         if (memcmp(&namesrvr.sa6->sin6_addr, &ares_in6addr_any,
                    sizeof(namesrvr.sa6->sin6_addr)) == 0)
           continue;
