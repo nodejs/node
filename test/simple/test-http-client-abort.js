@@ -50,7 +50,7 @@ var server = http.Server(function(req, res) {
 });
 
 var responses = 0;
-var N = http.Agent.defaultMaxSockets - 1;
+var N = 16;
 var requests = [];
 
 server.listen(common.PORT, function() {
