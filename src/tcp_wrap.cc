@@ -263,7 +263,7 @@ Handle<Value> TCPWrap::Open(const Arguments& args) {
   UNWRAP(TCPWrap)
   int fd = args[0]->IntegerValue();
   uv_tcp_open(&wrap->handle_, fd);
-  return Null();
+  return Null(node_isolate);
 }
 
 

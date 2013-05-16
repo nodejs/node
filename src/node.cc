@@ -903,7 +903,7 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate> t,
 Handle<Value> SetupDomainUse(const Arguments& args) {
   HandleScope scope(node_isolate);
   if (using_domains)
-    return Undefined();
+    return Undefined(node_isolate);
   using_domains = true;
   Local<Value> tdc_v = process->Get(String::New("_tickDomainCallback"));
   Local<Value> ndt_v = process->Get(String::New("_nextDomainTick"));
@@ -920,7 +920,7 @@ Handle<Value> SetupDomainUse(const Arguments& args) {
   process->Set(String::New("_tickCallback"), tdc);
   process->Set(String::New("nextTick"), ndt);
   process_tickCallback = Persistent<Function>::New(node_isolate, tdc);
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -2449,7 +2449,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   // --throw-deprecation
   if (throw_deprecation) {
-    process->Set(String::NewSymbol("throwDeprecation"), True());
+    process->Set(String::NewSymbol("throwDeprecation"), True(node_isolate));
   }
 
   // --trace-deprecation

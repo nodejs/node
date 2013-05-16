@@ -649,7 +649,7 @@ Handle<Value> SecureContext::SetSessionTimeout(const Arguments& args) {
   int32_t sessionTimeout = args[0]->Int32Value();
   SSL_CTX_set_timeout(sc->ctx_, sessionTimeout);
 
-  return True();
+  return True(node_isolate);
 }
 
 Handle<Value> SecureContext::Close(const Arguments& args) {
@@ -2835,7 +2835,7 @@ exit:
     return ThrowCryptoError(err);
   }
 
-  return scope.Close(r ? True() : False(node_isolate));
+  return scope.Close(r ? True(node_isolate) : False(node_isolate));
 }
 
 
