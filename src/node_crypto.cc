@@ -3309,7 +3309,7 @@ class Verify : public ObjectWrap {
 
     unsigned char* hbuf = new unsigned char[hlen];
     ssize_t hwritten = StringBytes::Write(
-        reinterpret_cast<char*>(hbuf), hlen, args[1], BINARY);
+        reinterpret_cast<char*>(hbuf), hlen, args[1], encoding);
     assert(hwritten == hlen);
 
     int r;
