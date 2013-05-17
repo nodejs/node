@@ -26,6 +26,7 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "string_bytes.h"
 #include "node_root_certs.h"
 
 #include <string.h>
@@ -41,6 +42,12 @@
 #else
 # define OPENSSL_CONST
 #endif
+
+#define ASSERT_IS_STRING_OR_BUFFER(val) \
+  if (!Buffer::HasInstance(val) && !val->IsString()) { \
+    return ThrowException(Exception::TypeError(String::New( \
+            "Not a string or buffer"))); \
+  }
 
 #define ASSERT_IS_BUFFER(val) \
   if (!Buffer::HasInstance(val)) { \
@@ -1590,7 +1597,7 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
       const char hex[] = "0123456789ABCDEF";
       char fingerprint[EVP_MAX_MD_SIZE * 3];
 
-      for (i=0; i<md_size; i++) {
+      for (i = 0; i<md_size; i++) {
         fingerprint[3*i] = hex[(md[i] & 0xf0) >> 4];
         fingerprint[(3*i)+1] = hex[(md[i] & 0x0f)];
         fingerprint[(3*i)+2] = ':';
@@ -2073,7 +2080,6 @@ Handle<Value> CipherBase::New(const Arguments& args) {
   return args.This();
 }
 
-
 Handle<Value> CipherBase::Init(char* cipher_type,
                                char* key_buf,
                                int key_buf_len) {
@@ -2229,15 +2235,25 @@ Handle<Value> CipherBase::Update(const Arguments& args) {
 
   CipherBase* cipher = ObjectWrap::Unwrap<CipherBase>(args.This());
 
-  ASSERT_IS_BUFFER(args[0]);
+  ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
   unsigned char* out = NULL;
   bool r;
   int out_len = 0;
-  char* buffer_data = Buffer::Data(args[0]);
-  size_t buffer_length = Buffer::Length(args[0]);
 
-  r = cipher->Update(buffer_data, buffer_length, &out, &out_len);
+  // Only copy the data if we have to, because it's a string
+  if (args[0]->IsString()) {
+    enum encoding encoding = ParseEncoding(args[1], BINARY);
+    size_t buflen = StringBytes::StorageSize(args[0], encoding);
+    char* buf = new char[buflen];
+    size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+    r = cipher->Update(buf, written, &out, &out_len);
+    delete[] buf;
+  } else {
+    char* buf = Buffer::Data(args[0]);
+    size_t buflen = Buffer::Length(args[0]);
+    r = cipher->Update(buf, buflen, &out, &out_len);
+  }
 
   if (!r) {
     delete[] out;
@@ -2245,6 +2261,8 @@ Handle<Value> CipherBase::Update(const Arguments& args) {
   }
 
   Buffer* buf = Buffer::New(reinterpret_cast<char*>(out), out_len);
+
+  if (out) delete[] out;
 
   return scope.Close(buf->handle_);
 }
@@ -2356,6 +2374,7 @@ Handle<Value> Hmac::HmacInit(const Arguments& args) {
     return ThrowError("Must give hashtype string, key as arguments");
   }
 
+
   ASSERT_IS_BUFFER(args[1]);
 
   String::Utf8Value hashType(args[0]);
@@ -2386,14 +2405,22 @@ Handle<Value> Hmac::HmacUpdate(const Arguments& args) {
 
   Hmac* hmac = ObjectWrap::Unwrap<Hmac>(args.This());
 
-  ASSERT_IS_BUFFER(args[0]);
+  ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
+  // Only copy the data if we have to, because it's a string
   bool r;
-
-  char* buffer_data = Buffer::Data(args[0]);
-  size_t buffer_length = Buffer::Length(args[0]);
-
-  r = hmac->HmacUpdate(buffer_data, buffer_length);
+  if (args[0]->IsString()) {
+    enum encoding encoding = ParseEncoding(args[1], BINARY);
+    size_t buflen = StringBytes::StorageSize(args[0], encoding);
+    char* buf = new char[buflen];
+    size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+    r = hmac->HmacUpdate(buf, written);
+    delete[] buf;
+  } else {
+    char* buf = Buffer::Data(args[0]);
+    size_t buflen = Buffer::Length(args[0]);
+    r = hmac->HmacUpdate(buf, buflen);
+  }
 
   if (!r) {
     return ThrowTypeError("HmacUpdate fail");
@@ -2418,6 +2445,11 @@ Handle<Value> Hmac::HmacDigest(const Arguments& args) {
 
   Hmac* hmac = ObjectWrap::Unwrap<Hmac>(args.This());
 
+  enum encoding encoding = BUFFER;
+  if (args.Length() >= 1) {
+    encoding = ParseEncoding(args[0]->ToString(), BUFFER);
+  }
+
   unsigned char* md_value = NULL;
   unsigned int md_len = 0;
   Local<Value> outString;
@@ -2428,9 +2460,11 @@ Handle<Value> Hmac::HmacDigest(const Arguments& args) {
     md_len = 0;
   }
 
-  Buffer* buf = Buffer::New(reinterpret_cast<char*>(md_value), md_len);
+  outString = StringBytes::Encode(
+        reinterpret_cast<const char*>(md_value), md_len, encoding);
 
-  return scope.Close(buf->handle_);
+  delete[] md_value;
+  return scope.Close(outString);
 }
 
 
@@ -2491,13 +2525,22 @@ Handle<Value> Hash::HashUpdate(const Arguments& args) {
 
   Hash* hash = ObjectWrap::Unwrap<Hash>(args.This());
 
-  ASSERT_IS_BUFFER(args[0]);
+  ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
+  // Only copy the data if we have to, because it's a string
   bool r;
-
-  char* buffer_data = Buffer::Data(args[0]);
-  size_t buffer_length = Buffer::Length(args[0]);
-  r = hash->HashUpdate(buffer_data, buffer_length);
+  if (args[0]->IsString()) {
+    enum encoding encoding = ParseEncoding(args[1], BINARY);
+    size_t buflen = StringBytes::StorageSize(args[0], encoding);
+    char* buf = new char[buflen];
+    size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+    r = hash->HashUpdate(buf, written);
+    delete[] buf;
+  } else {
+    char* buf = Buffer::Data(args[0]);
+    size_t buflen = Buffer::Length(args[0]);
+    r = hash->HashUpdate(buf, buflen);
+  }
 
   if (!r) {
     return ThrowTypeError("HashUpdate fail");
@@ -2516,6 +2559,11 @@ Handle<Value> Hash::HashDigest(const Arguments& args) {
     return ThrowError("Not initialized");
   }
 
+  enum encoding encoding = BUFFER;
+  if (args.Length() >= 1) {
+    encoding = ParseEncoding(args[0]->ToString(), BUFFER);
+  }
+
   unsigned char md_value[EVP_MAX_MD_SIZE];
   unsigned int md_len;
 
@@ -2523,9 +2571,8 @@ Handle<Value> Hash::HashDigest(const Arguments& args) {
   EVP_MD_CTX_cleanup(&hash->mdctx_);
   hash->initialised_ = false;
 
-  Buffer* buf = Buffer::New(reinterpret_cast<char*>(md_value), md_len);
-
-  return scope.Close(buf->handle_);
+  return scope.Close(StringBytes::Encode(
+        reinterpret_cast<const char*>(md_value), md_len, encoding));
 }
 
 
@@ -2552,7 +2599,6 @@ Handle<Value> Sign::New(const Arguments& args) {
 
   return args.This();
 }
-
 
 Handle<Value> Sign::SignInit(const char* sign_type) {
   HandleScope scope(node_isolate);
@@ -2603,14 +2649,22 @@ Handle<Value> Sign::SignUpdate(const Arguments& args) {
 
   Sign* sign = ObjectWrap::Unwrap<Sign>(args.This());
 
-  ASSERT_IS_BUFFER(args[0]);
+  ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
-  bool r;
-
-  char* buffer_data = Buffer::Data(args[0]);
-  size_t buffer_length = Buffer::Length(args[0]);
-
-  r = sign->SignUpdate(buffer_data, buffer_length);
+  // Only copy the data if we have to, because it's a string
+  int r;
+  if (args[0]->IsString()) {
+    enum encoding encoding = ParseEncoding(args[1], BINARY);
+    size_t buflen = StringBytes::StorageSize(args[0], encoding);
+    char* buf = new char[buflen];
+    size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+    r = sign->SignUpdate(buf, written);
+    delete[] buf;
+  } else {
+    char* buf = Buffer::Data(args[0]);
+    size_t buflen = Buffer::Length(args[0]);
+    r = sign->SignUpdate(buf, buflen);
+  }
 
   if (!r) {
     return ThrowTypeError("SignUpdate fail");
@@ -2652,6 +2706,11 @@ Handle<Value> Sign::SignFinal(const Arguments& args) {
   unsigned int md_len;
   Local<Value> outString;
 
+  enum encoding encoding = BUFFER;
+  if (args.Length() >= 2) {
+    encoding = ParseEncoding(args[1]->ToString(), BUFFER);
+  }
+
   ASSERT_IS_BUFFER(args[0]);
   ssize_t len = Buffer::Length(args[0]);
   char* buf = Buffer::Data(args[0]);
@@ -2666,10 +2725,11 @@ Handle<Value> Sign::SignFinal(const Arguments& args) {
     md_len = 0;
   }
 
-  Buffer* ret = Buffer::New(reinterpret_cast<char*>(md_value), md_len);
-  delete[] md_value;
+  outString = StringBytes::Encode(
+      reinterpret_cast<const char*>(md_value), md_len, encoding);
 
-  return scope.Close(ret->handle_);
+  delete[] md_value;
+  return scope.Close(outString);
 }
 
 
@@ -2749,14 +2809,22 @@ Handle<Value> Verify::VerifyUpdate(const Arguments& args) {
 
   Verify* verify = ObjectWrap::Unwrap<Verify>(args.This());
 
-  ASSERT_IS_BUFFER(args[0]);
+  ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
+  // Only copy the data if we have to, because it's a string
   bool r;
-
-  char* buffer_data = Buffer::Data(args[0]);
-  size_t buffer_length = Buffer::Length(args[0]);
-
-  r = verify->VerifyUpdate(buffer_data, buffer_length);
+  if (args[0]->IsString()) {
+    enum encoding encoding = ParseEncoding(args[1], BINARY);
+    size_t buflen = StringBytes::StorageSize(args[0], encoding);
+    char* buf = new char[buflen];
+    size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+    r = verify->VerifyUpdate(buf, written);
+    delete[] buf;
+  } else {
+    char* buf = Buffer::Data(args[0]);
+    size_t buflen = Buffer::Length(args[0]);
+    r = verify->VerifyUpdate(buf, buflen);
+  }
 
   if (!r) {
     return ThrowTypeError("VerifyUpdate fail");
@@ -2848,11 +2916,31 @@ Handle<Value> Verify::VerifyFinal(const Arguments& args) {
   char* kbuf = Buffer::Data(args[0]);
   ssize_t klen = Buffer::Length(args[0]);
 
-  ASSERT_IS_BUFFER(args[1]);
-  unsigned char* hbuf = reinterpret_cast<unsigned char*>(Buffer::Data(args[1]));
-  ssize_t hlen = Buffer::Length(args[1]);
+  ASSERT_IS_STRING_OR_BUFFER(args[1]);
+  // BINARY works for both buffers and binary strings.
+  enum encoding encoding = BINARY;
+  if (args.Length() >= 3) {
+    encoding = ParseEncoding(args[2]->ToString(), BINARY);
+  }
 
-  return scope.Close(verify->VerifyFinal(kbuf, klen, hbuf, hlen));
+  ssize_t hlen = StringBytes::Size(args[1], encoding);
+
+  // only copy if we need to, because it's a string.
+  unsigned char* hbuf;
+  if (args[1]->IsString()) {
+    hbuf = new unsigned char[hlen];
+    ssize_t hwritten = StringBytes::Write(
+        reinterpret_cast<char*>(hbuf), hlen, args[1], encoding);
+    assert(hwritten == hlen);
+  } else {
+    hbuf = reinterpret_cast<unsigned char*>(Buffer::Data(args[1]));
+  }
+
+  Local<Value> retval = Local<Value>::New(verify->VerifyFinal(kbuf, klen, hbuf, hlen));
+  if (args[1]->IsString()) {
+    delete[] hbuf;
+  }
+  return scope.Close(retval);
 }
 
 

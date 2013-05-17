@@ -970,3 +970,8 @@ assert.throws(function() {
     assert.equal(buf.slice(0, -i), s.slice(0, -i));
   }
 })();
+
+// Regression test for #5482: should throw but not assert in C++ land.
+assert.throws(function() {
+  Buffer('', 'buffer');
+}, TypeError);

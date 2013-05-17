@@ -60,6 +60,19 @@
 * zlib: allow passing options to convenience methods (Kyle Robinson Young)
 
 
+2013.05.14, Version 0.10.6 (Stable), 5deb1672f2b5794f8be19498a425ea4dc0b0711f
+
+* module: Deprecate require.extensions (isaacs)
+
+* stream: make Readable.wrap support objectMode, empty streams (Daniel Moore)
+
+* child_process: fix handle delivery (Ben Noordhuis)
+
+* crypto: Fix performance regression (isaacs)
+
+* src: DRY string encoding/decoding (isaacs)
+
+
 2013.04.23, Version 0.10.5 (Stable), deeaf8fab978e3cadb364e46fb32dafdebe5f095
 
 * uv: Upgrade to 0.10.5 (isaacs)

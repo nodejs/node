@@ -295,92 +295,6 @@ size_t StreamWrap::WriteBuffer(Handle<Value> val, uv_buf_t* buf) {
 }
 
 
-template <WriteEncoding encoding>
-size_t StreamWrap::WriteStringImpl(char* storage,
-                                   size_t storage_size,
-                                   Handle<Value> val,
-                                   uv_buf_t* buf) {
-  assert(val->IsString());
-  Handle<String> string = val.As<String>();
-
-  size_t data_size;
-  switch (encoding) {
-   case kAscii:
-    data_size = string->WriteOneByte(
-        reinterpret_cast<uint8_t*>(storage),
-        0,
-        -1,
-        String::NO_NULL_TERMINATION | String::HINT_MANY_WRITES_EXPECTED);
-    break;
-
-   case kUtf8:
-    data_size = string->WriteUtf8(
-        storage,
-        -1,
-        NULL,
-        String::NO_NULL_TERMINATION | String::HINT_MANY_WRITES_EXPECTED);
-    break;
-
-   case kUcs2: {
-    int chars_copied = string->Write(
-        reinterpret_cast<uint16_t*>(storage),
-        0,
-        -1,
-        String::NO_NULL_TERMINATION | String::HINT_MANY_WRITES_EXPECTED);
-    data_size = chars_copied * sizeof(uint16_t);
-    break;
-   }
-
-   default:
-    // Unreachable
-    assert(0);
-  }
-  assert(data_size <= storage_size);
-
-  buf->base = storage;
-  buf->len = data_size;
-
-  return data_size;
-}
-
-
-template <WriteEncoding encoding>
-size_t StreamWrap::GetStringSizeImpl(Handle<Value> val) {
-  assert(val->IsString());
-  Handle<String> string = val.As<String>();
-
-  switch (encoding) {
-    case kAscii:
-      return string->Length();
-      break;
-
-    case kUtf8:
-      if (string->Length() < 65536) {
-        // A single UCS2 codepoint never takes up more than 3 utf8 bytes.
-        // Unless the string is really long we just allocate so much space that
-        // we're certain the string fits in there entirely.
-        // TODO: maybe check handle->write_queue_size instead of string length?
-        return 3 * string->Length();
-      } else {
-        // The string is really long. Compute the allocation size that we
-        // actually need.
-        return string->Utf8Length();
-      }
-      break;
-
-    case kUcs2:
-      return string->Length() * sizeof(uint16_t);
-      break;
-
-    default:
-      // Unreachable.
-      assert(0);
-  }
-
-  return 0;
-}
-
-
 Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
   HandleScope scope(node_isolate);
 
@@ -426,7 +340,7 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
 }
 
 
-template <WriteEncoding encoding>
+template <enum encoding encoding>
 Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
   HandleScope scope(node_isolate);
   int r;
@@ -439,7 +353,13 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
   Local<String> string = args[0]->ToString();
 
   // Compute the size of the storage that the string will be flattened into.
-  size_t storage_size = GetStringSizeImpl<encoding>(string);
+  // For UTF8 strings that are very long, go ahead and take the hit for
+  // computing their actual size, rather than tripling the storage.
+  size_t storage_size;
+  if (encoding == UTF8 && string->Length() > 65535)
+    storage_size = StringBytes::Size(string, encoding);
+  else
+    storage_size = StringBytes::StorageSize(string, encoding);
 
   if (storage_size > INT_MAX) {
     uv_err_t err;
@@ -454,9 +374,15 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
   char* data = reinterpret_cast<char*>(ROUND_UP(
       reinterpret_cast<uintptr_t>(storage) + sizeof(WriteWrap), 16));
 
+  size_t data_size;
+  data_size = StringBytes::Write(data, storage_size, string, encoding);
+
+  assert(data_size <= storage_size);
+
   uv_buf_t buf;
-  size_t data_size =
-      WriteStringImpl<encoding>(data, storage_size, string, &buf);
+
+  buf.base = data;
+  buf.len = data_size;
 
   bool ipc_pipe = wrap->stream_->type == UV_NAMED_PIPE &&
                   ((uv_pipe_t*)wrap->stream_)->ipc;
@@ -544,24 +470,15 @@ Handle<Value> StreamWrap::Writev(const Arguments& args) {
       // Buffer chunk, no additional storage required
 
     // String chunk
-    Handle<Value> string = chunk->ToString();
-    switch (static_cast<WriteEncoding>(chunks->Get(i * 2 + 1)->Int32Value())) {
-     case kAscii:
-      storage_size += GetStringSizeImpl<kAscii>(string);
-      break;
+    Handle<String> string = chunk->ToString();
+    enum encoding encoding = ParseEncoding(chunks->Get(i * 2 + 1));
+    size_t chunk_size;
+    if (encoding == UTF8 && string->Length() > 65535)
+      chunk_size = StringBytes::Size(string, encoding);
+    else
+      chunk_size = StringBytes::StorageSize(string, encoding);
 
-     case kUtf8:
-      storage_size += GetStringSizeImpl<kUtf8>(string);
-      break;
-
-     case kUcs2:
-      storage_size += GetStringSizeImpl<kUcs2>(string);
-      break;
-
-     default:
-      assert(0); // Unreachable
-    }
-    storage_size += 15;
+    storage_size += chunk_size + 15;
   }
 
   if (storage_size > INT_MAX) {
@@ -585,7 +502,9 @@ Handle<Value> StreamWrap::Writev(const Arguments& args) {
 
     // Write buffer
     if (Buffer::HasInstance(chunk)) {
-      bytes += WriteBuffer(chunk, &bufs[i]);
+      bufs[i].base = Buffer::Data(chunk);
+      bufs[i].len = Buffer::Length(chunk);
+      bytes += bufs[i].len;
       continue;
     }
 
@@ -596,28 +515,10 @@ Handle<Value> StreamWrap::Writev(const Arguments& args) {
     size_t str_size = storage_size - offset;
 
     Handle<String> string = chunk->ToString();
-    switch (static_cast<WriteEncoding>(chunks->Get(i * 2 + 1)->Int32Value())) {
-     case kAscii:
-      str_size =  WriteStringImpl<kAscii>(str_storage,
-                                          str_size,
-                                          string,
-                                          &bufs[i]);
-      break;
-     case kUtf8:
-      str_size =  WriteStringImpl<kUtf8>(str_storage,
-                                         str_size,
-                                         string,
-                                         &bufs[i]);
-      break;
-     case kUcs2:
-      str_size =  WriteStringImpl<kUcs2>(str_storage,
-                                         str_size,
-                                         string,
-                                         &bufs[i]);
-      break;
-     default:
-      assert(0);
-    }
+    enum encoding encoding = ParseEncoding(chunks->Get(i * 2 + 1));
+    str_size = StringBytes::Write(str_storage, str_size, string, encoding);
+    bufs[i].base = str_storage;
+    bufs[i].len = str_size;
     offset += str_size;
     bytes += str_size;
   }
@@ -655,17 +556,17 @@ Handle<Value> StreamWrap::Writev(const Arguments& args) {
 
 
 Handle<Value> StreamWrap::WriteAsciiString(const Arguments& args) {
-  return WriteStringImpl<kAscii>(args);
+  return WriteStringImpl<ASCII>(args);
 }
 
 
 Handle<Value> StreamWrap::WriteUtf8String(const Arguments& args) {
-  return WriteStringImpl<kUtf8>(args);
+  return WriteStringImpl<UTF8>(args);
 }
 
 
 Handle<Value> StreamWrap::WriteUcs2String(const Arguments& args) {
-  return WriteStringImpl<kUcs2>(args);
+  return WriteStringImpl<UCS2>(args);
 }
 
 

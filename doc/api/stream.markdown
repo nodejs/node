@@ -131,13 +131,15 @@ TLS, may ignore this argument, and simply provide data whenever it
 becomes available.  There is no need, for example to "wait" until
 `size` bytes are available before calling `stream.push(chunk)`.
 
-### readable.push(chunk)
+### readable.push(chunk, [encoding])
 
 * `chunk` {Buffer | null | String} Chunk of data to push into the read queue
+* `encoding` {String} Encoding of String chunks.  Must be a valid
+  Buffer encoding, such as `'utf8'` or `'ascii'`
 * return {Boolean} Whether or not more pushes should be performed
 
 Note: **This function should be called by Readable implementors, NOT
-by consumers of Readable subclasses.**  The `_read()` function will not
+by consumers of Readable streams.**  The `_read()` function will not
 be called again until at least one `push(chunk)` call is made.  If no
 data is available, then you MAY call `push('')` (an empty string) to
 allow a future `_read` call, without adding any data to the queue.

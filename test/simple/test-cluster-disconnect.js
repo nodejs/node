@@ -68,7 +68,7 @@ if (cluster.isWorker) {
 
   // start two workers and execute callback when both is listening
   var startCluster = function(cb) {
-    var workers = 2;
+    var workers = 8;
     var online = 0;
 
     for (var i = 0, l = workers; i < l; i++) {

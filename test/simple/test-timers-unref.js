@@ -54,6 +54,13 @@ check_unref = setInterval(function() {
   checks += 1;
 }, 100);
 
+// Should not assert on args.Holder()->InternalFieldCount() > 0. See #4261.
+(function() {
+  var t = setInterval(function() {}, 1);
+  process.nextTick(t.unref.bind({}));
+  process.nextTick(t.unref.bind(t));
+})();
+
 process.on('exit', function() {
   assert.strictEqual(interval_fired, false, 'Interval should not fire');
   assert.strictEqual(timeout_fired, false, 'Timeout should not fire');

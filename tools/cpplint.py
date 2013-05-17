@@ -2280,11 +2280,6 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
 
   line = clean_lines.lines[linenum]
 
-  # "include" should use the new style "foo/bar.h" instead of just "bar.h"
-  if _RE_PATTERN_INCLUDE_NEW_STYLE.search(line):
-    error(filename, linenum, 'build/include', 4,
-          'Include the directory when naming .h files')
-
   # we shouldn't include a file more than once. actually, there are a
   # handful of instances where doing so is okay, but in general it's
   # not.
@@ -2825,15 +2820,6 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
     line = clean_lines.elided[linenum]
     if not line or line[0] == '#':
       continue
-
-    # String is special -- it is a non-templatized type in STL.
-    m = _RE_PATTERN_STRING.search(line)
-    if m:
-      # Don't warn about strings in non-STL namespaces:
-      # (We check only the first match per line; good enough.)
-      prefix = line[:m.start()]
-      if prefix.endswith('std::') or not prefix.endswith('::'):
-        required['<string>'] = (linenum, 'string')
 
     for pattern, template, header in _re_pattern_algorithm_header:
       if pattern.search(line):

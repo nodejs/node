@@ -25,20 +25,12 @@
 #include "v8.h"
 #include "node.h"
 #include "handle_wrap.h"
+#include "string_bytes.h"
 
 namespace node {
 
-
 // Forward declaration
 class WriteWrap;
-
-
-// Important: this should have the same values as in lib/net.js
-enum WriteEncoding {
-  kUtf8 = 0x1,
-  kAscii = 0x2,
-  kUcs2 = 0x3
-};
 
 
 class StreamWrap : public HandleWrap {
@@ -63,13 +55,6 @@ class StreamWrap : public HandleWrap {
 
  protected:
   static size_t WriteBuffer(v8::Handle<v8::Value> val, uv_buf_t* buf);
-  template <enum WriteEncoding encoding>
-  static size_t WriteStringImpl(char* storage,
-                                size_t storage_size,
-                                v8::Handle<v8::Value> val,
-                                uv_buf_t* buf);
-  template <enum WriteEncoding encoding>
-  static size_t GetStringSizeImpl(v8::Handle<v8::Value> val);
 
   StreamWrap(v8::Handle<v8::Object> object, uv_stream_t* stream);
   virtual void SetHandle(uv_handle_t* h);
@@ -90,7 +75,7 @@ class StreamWrap : public HandleWrap {
   static void OnReadCommon(uv_stream_t* handle, ssize_t nread,
       uv_buf_t buf, uv_handle_type pending);
 
-  template <enum WriteEncoding encoding>
+  template <enum encoding encoding>
   static v8::Handle<v8::Value> WriteStringImpl(const v8::Arguments& args);
 
   size_t slab_offset_;

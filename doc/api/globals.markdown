@@ -133,9 +133,10 @@ See the [module system documentation][] for more information.
 
 <!-- type=var -->
 
-An object which is shared between all instances of the current module and
-made accessible through `require()`.
-`exports` is the same as the `module.exports` object.
+A reference to the `module.exports` object which is shared between all
+instances of the current module and made accessible through `require()`.
+See [module system documentation][] for details on when to use `exports` and
+when to use `module.exports`.
 `exports` isn't actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.
