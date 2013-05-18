@@ -67,6 +67,14 @@ namespace crypto {
 
 using namespace v8;
 
+// Forcibly clear OpenSSL's error stack on return. This stops stale errors
+// from popping up later in the lifecycle of crypto operations where they
+// would cause spurious failures. It's a rather blunt method, though.
+// ERR_clear_error() isn't necessarily cheap either.
+struct ClearErrorOnReturn {
+  ~ClearErrorOnReturn() { ERR_clear_error(); }
+};
+
 static Persistent<String> errno_symbol;
 static Persistent<String> syscall_symbol;
 static Persistent<String> subject_symbol;
@@ -908,13 +916,6 @@ int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
 
 
 int Connection::HandleSSLError(const char* func, int rv, ZeroStatus zs) {
-  // Forcibly clear OpenSSL's error stack on return. This stops stale errors
-  // from popping up later in the lifecycle of the SSL connection where they
-  // would cause spurious failures. It's a rather blunt method, though.
-  // ERR_clear_error() isn't necessarily cheap either.
-  struct ClearErrorOnReturn {
-    ~ClearErrorOnReturn() { ERR_clear_error(); }
-  };
   ClearErrorOnReturn clear_error_on_return;
   (void) &clear_error_on_return;  // Silence unused variable warning.
 
@@ -3603,6 +3604,8 @@ class DiffieHellman : public ObjectWrap {
       return ThrowException(Exception::Error(String::New("Not initialized")));
     }
 
+    ClearErrorOnReturn clear_error_on_return;
+    (void) &clear_error_on_return;  // Silence compiler warning.
     BIGNUM* key = 0;
 
     if (args.Length() == 0) {
