@@ -221,6 +221,16 @@ new Buffer(0);
 b.write('', 1024);
 b.write('', 2048);
 
+// throw when writing past bounds from the pool
+assert.throws(function() {
+  b.write('a', 2048);
+}, RangeError);
+
+// throw when writing to negative offset
+assert.throws(function() {
+  b.write('a', -1);
+}, RangeError);
+
 // try to copy 0 bytes worth of data into an empty buffer
 b.copy(new Buffer(0), 0, 0, 0);
 
