@@ -155,6 +155,18 @@ FakeInput.prototype.end = function() {};
   assert.equal(callCount, expectedLines.length - 1);
   rli.close();
 
+  // \r at start of input should output blank line
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: true });
+  expectedLines = ['', 'foo' ];
+  callCount = 0;
+  rli.on('line', function(line) {
+    assert.equal(line, expectedLines[callCount]);
+    callCount++;
+  });
+  fi.emit('data', '\rfoo\r');
+  assert.equal(callCount, expectedLines.length);
+  rli.close();
 
   // sending a multi-byte utf8 char over multiple writes
   var buf = Buffer('☮', 'utf8');
