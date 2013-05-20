@@ -41,6 +41,9 @@ var server = tls.Server(options, function(s) {
 
   assert.equal(s.remoteAddress, s.socket.remoteAddress);
   assert.equal(s.remotePort, s.socket.remotePort);
+
+  assert.equal(s.localAddress, s.socket.localAddress);
+  assert.equal(s.localPort, s.socket.localPort);
   s.end();
 });
 

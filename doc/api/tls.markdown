@@ -557,6 +557,14 @@ The string representation of the remote IP address. For example,
 
 The numeric representation of the remote port. For example, `443`.
 
+### cleartextStream.localAddress
+
+The string representation of the local IP address.
+
+### cleartextStream.localPort
+
+The numeric representation of the local port.
+
 [OpenSSL cipher list format documentation]: http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
 [BEAST attacks]: http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
 [CleartextStream]: #tls_class_tls_cleartextstream
