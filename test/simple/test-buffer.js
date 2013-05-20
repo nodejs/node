@@ -980,6 +980,10 @@ assert.throws(function() {
   }
 })();
 
+// Make sure byteLength properly checks for base64 padding
+assert.equal(Buffer.byteLength('aaa=', 'base64'), 2);
+assert.equal(Buffer.byteLength('aaaa==', 'base64'), 3);
+
 // Regression test for #5482: should throw but not assert in C++ land.
 assert.throws(function() {
   Buffer('', 'buffer');
