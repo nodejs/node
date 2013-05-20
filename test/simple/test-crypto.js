@@ -698,9 +698,20 @@ var secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 
 assert.equal(secret1, secret3);
 
+// Run this one twice to make sure that the dh3 clears its error properly
+(function() {
+  var c = crypto.createDecipher('aes-128-ecb', '');
+  assert.throws(function() { c.final('utf8') }, /wrong final block length/);
+})();
+
 assert.throws(function() {
   dh3.computeSecret('');
 }, /key is too small/i);
+
+(function() {
+  var c = crypto.createDecipher('aes-128-ecb', '');
+  assert.throws(function() { c.final('utf8') }, /wrong final block length/);
+})();
 
 // Create a shared using a DH group.
 var alice = crypto.createDiffieHellmanGroup('modp5');
@@ -857,11 +868,6 @@ assert.notEqual(-1, crypto.getHashes().indexOf('sha'));
 assert.equal(-1, crypto.getHashes().indexOf('SHA1'));
 assert.equal(-1, crypto.getHashes().indexOf('SHA'));
 assertSorted(crypto.getHashes());
-
-(function() {
-  var c = crypto.createDecipher('aes-128-ecb', '');
-  assert.throws(function() { c.final('utf8') }, /invalid public key/);
-})();
 
 // Base64 padding regression test, see #4837.
 (function() {

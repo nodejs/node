@@ -63,16 +63,15 @@ static inline size_t base64_decoded_size_fast(size_t size) {
 }
 
 static inline size_t base64_decoded_size(const char* src, size_t size) {
-  size = base64_decoded_size_fast(size);
+  if (size == 0)
+    return 0;
 
-  const char* end = src + size;
-  // check for trailing padding (1 or 2 bytes)
-  if (size > 0) {
-    if (end[-1] == '=') size--;
-    if (size > 0 && end[-2] == '=') size--;
-  }
+  if (src[size - 1] == '=')
+    size--;
+  if (size > 0 && src[size - 1] == '=')
+    size--;
 
-  return size;
+  return base64_decoded_size_fast(size);
 }
 
 
@@ -551,8 +550,7 @@ Local<Value> StringBytes::Encode(const char* buf,
   Local<String> val;
   switch (encoding) {
     case BUFFER:
-      return scope.Close(
-          Buffer::New(static_cast<const char*>(buf), buflen)->handle_);
+      return scope.Close(Buffer::New(buf, buflen)->handle_);
 
     case ASCII:
       if (contains_non_ascii(buf, buflen)) {

@@ -60,6 +60,19 @@
 * zlib: allow passing options to convenience methods (Kyle Robinson Young)
 
 
+2013.05.17, Version 0.10.7 (Stable), d2fdae197ac542f686ee06835d1153dd43b862e5
+
+* uv: upgrade to v0.10.7
+
+* npm: Upgrade to 1.2.21
+
+* crypto: Don't ignore verify encoding argument (isaacs)
+
+* buffer, crypto: fix default encoding regression (Ben Noordhuis)
+
+* timers: fix setInterval() assert (Ben Noordhuis)
+
+
 2013.05.14, Version 0.10.6 (Stable), 5deb1672f2b5794f8be19498a425ea4dc0b0711f
 
 * module: Deprecate require.extensions (isaacs)
