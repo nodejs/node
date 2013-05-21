@@ -25,11 +25,11 @@
 var common = require('../common');
 var assert = require('assert');
 
-common.error('before');
+console.error('before');
 
 (function () {
 	// these lines should contain tab!
 	throw ({ foo: 'bar' });
 })();
 
-common.error('after');
+console.error('after');

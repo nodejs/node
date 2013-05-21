@@ -25,7 +25,7 @@
 var common = require('../common');
 var assert = require('assert');
 
-common.error('before');
+console.error('before');
 
 var Script = process.binding('evals').NodeScript;
 
@@ -33,4 +33,4 @@ var Script = process.binding('evals').NodeScript;
 var script = new Script('foo.bar = 5;');
 script.runInNewContext();
 
-common.error('after');
+console.error('after');

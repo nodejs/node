@@ -25,9 +25,9 @@
 var common = require('../common');
 var assert = require('assert');
 
-common.error('before');
+console.error('before');
 
 // custom error throwing
 throw ({ foo: 'bar' });
 
-common.error('after');
+console.error('after');

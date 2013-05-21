@@ -33,7 +33,7 @@ execFile(node, normal, function(er, stdout, stderr) {
   console.error('normal: show deprecation warning');
   assert.equal(er, null);
   assert.equal(stdout, '');
-  assert.equal(stderr, 'util.p: Use console.error() instead.\n\'This is deprecated\'\n');
+  assert.equal(stderr, 'util.p: Use console.error() instead\n\'This is deprecated\'\n');
   console.log('normal ok');
 });
 

@@ -27,7 +27,7 @@ var assert = require('assert');
 
 Error.stackTraceLimit = 0;
 
-common.error('before');
+console.error('before');
 
 // stack overflow
 function stackOverflow() {
@@ -35,4 +35,4 @@ function stackOverflow() {
 }
 stackOverflow();
 
-common.error('after');
+console.error('after');
