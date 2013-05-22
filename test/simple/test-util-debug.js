@@ -80,7 +80,7 @@ function test(environ, shouldWrite) {
 
 function child() {
   var util = require('util');
-  var debug = util.debug('tud');
+  var debug = util.debuglog('tud');
   debug('this', { is: 'a' }, /debugging/);
   debug('number=%d string=%s obj=%j', 1234, 'asdf', { foo: 'bar' });
   console.log('ok');

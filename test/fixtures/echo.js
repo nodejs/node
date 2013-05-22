@@ -22,7 +22,7 @@
 var common = require('../common');
 var assert = require('assert');
 
-common.print('hello world\r\n');
+process.stdout.write('hello world\r\n');
 
 var stdin = process.openStdin();
 
