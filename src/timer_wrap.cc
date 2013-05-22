@@ -51,6 +51,8 @@ class TimerWrap : public HandleWrap {
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(String::NewSymbol("Timer"));
 
+    NODE_SET_METHOD(constructor, "now", Now);
+
     NODE_SET_PROTOTYPE_METHOD(constructor, "close", HandleWrap::Close);
     NODE_SET_PROTOTYPE_METHOD(constructor, "ref", HandleWrap::Ref);
     NODE_SET_PROTOTYPE_METHOD(constructor, "unref", HandleWrap::Unref);
@@ -161,6 +163,13 @@ class TimerWrap : public HandleWrap {
 
     Local<Value> argv[1] = { Integer::New(status, node_isolate) };
     MakeCallback(wrap->object_, ontimeout_sym, ARRAY_SIZE(argv), argv);
+  }
+
+  static Handle<Value> Now(const Arguments& args) {
+    HandleScope scope(node_isolate);
+
+    double now = static_cast<double>(uv_now(uv_default_loop()));
+    return scope.Close(v8::Number::New(now));
   }
 
   uv_timer_t handle_;
