@@ -5,6 +5,7 @@ Evented I/O for V8 javascript. [![Build Status](https://secure.travis-ci.org/joy
 
 Prerequisites (Unix only):
 
+    * GCC 4.2 or newer
     * Python 2.6 or 2.7
     * GNU Make 3.81 or newer
     * libexecinfo (FreeBSD and OpenBSD only)
