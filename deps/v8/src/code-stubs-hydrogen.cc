@@ -418,7 +418,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), NULL, NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
-      false, STANDARD_STORE, Representation::Tagged());
+      false, NEVER_RETURN_HOLE, STANDARD_STORE, Representation::Tagged());
   return load;
 }
 
@@ -463,7 +463,8 @@ HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
   BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), GetParameter(2), NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
-      true, casted_stub()->store_mode(), Representation::Tagged());
+      true, NEVER_RETURN_HOLE, casted_stub()->store_mode(),
+      Representation::Tagged());
 
   return GetParameter(2);
 }

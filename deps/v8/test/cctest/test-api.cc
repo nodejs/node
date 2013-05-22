@@ -80,8 +80,8 @@ using ::v8::Value;
 static void ExpectString(const char* code, const char* expected) {
   Local<Value> result = CompileRun(code);
   CHECK(result->IsString());
-  String::AsciiValue ascii(result);
-  CHECK_EQ(expected, *ascii);
+  String::Utf8Value utf8(result);
+  CHECK_EQ(expected, *utf8);
 }
 
 static void ExpectInt32(const char* code, int expected) {
@@ -805,62 +805,299 @@ THREADED_TEST(GlobalProperties) {
 }
 
 
+template<typename T>
+static void CheckReturnValue(const T& t) {
+  v8::ReturnValue<v8::Value> rv = t.GetReturnValue();
+  i::Object** o = *reinterpret_cast<i::Object***>(&rv);
+  CHECK_EQ(t.GetIsolate(), v8::Isolate::GetCurrent());
+  CHECK((*o)->IsTheHole() || (*o)->IsUndefined());
+}
+
 static v8::Handle<Value> handle_call(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  CheckReturnValue(args);
+  args.GetReturnValue().Set(v8_str("bad value"));
   return v8_num(102);
+}
+
+static v8::Handle<Value> handle_call_indirect(const v8::Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(args);
+  args.GetReturnValue().Set(v8_str("bad value"));
+  args.GetReturnValue().Set(v8_num(102));
+  return v8::Handle<Value>();
+}
+
+static void handle_callback(const v8::FunctionCallbackInfo<Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(v8_str("bad value"));
+  info.GetReturnValue().Set(v8_num(102));
 }
 
 
 static v8::Handle<Value> construct_call(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  CheckReturnValue(args);
   args.This()->Set(v8_str("x"), v8_num(1));
   args.This()->Set(v8_str("y"), v8_num(2));
+  args.GetReturnValue().Set(v8_str("bad value"));
   return args.This();
 }
 
-static v8::Handle<Value> Return239(Local<String> name, const AccessorInfo&) {
+static v8::Handle<Value> construct_call_indirect(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  return v8_num(239);
+  CheckReturnValue(args);
+  args.This()->Set(v8_str("x"), v8_num(1));
+  args.This()->Set(v8_str("y"), v8_num(2));
+  args.GetReturnValue().Set(v8_str("bad value"));
+  args.GetReturnValue().Set(args.This());
+  return v8::Handle<Value>();
+}
+
+static void construct_callback(
+    const v8::FunctionCallbackInfo<Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(info);
+  info.This()->Set(v8_str("x"), v8_num(1));
+  info.This()->Set(v8_str("y"), v8_num(2));
+  info.GetReturnValue().Set(v8_str("bad value"));
+  info.GetReturnValue().Set(info.This());
 }
 
 
-THREADED_TEST(FunctionTemplate) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+static v8::Handle<Value> Return239(
+    Local<String> name, const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(v8_str("bad value"));
+  return v8_num(239);
+}
+
+static v8::Handle<Value> Return239Indirect(
+    Local<String> name, const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(info);
+  Handle<Value> value = v8_num(239);
+  info.GetReturnValue().Set(v8_str("bad value"));
+  info.GetReturnValue().Set(value);
+  return v8::Handle<Value>();
+}
+
+static void Return239Callback(
+    Local<String> name, const v8::PropertyCallbackInfo<Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(v8_str("bad value"));
+  info.GetReturnValue().Set(v8_num(239));
+}
+
+
+template<typename Handler>
+static void TestFunctionTemplateInitializer(Handler handler) {
+  // Test constructor calls.
   {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
     Local<v8::FunctionTemplate> fun_templ =
-        v8::FunctionTemplate::New(handle_call);
+        v8::FunctionTemplate::New(handler);
     Local<Function> fun = fun_templ->GetFunction();
     env->Global()->Set(v8_str("obj"), fun);
     Local<Script> script = v8_compile("obj()");
-    CHECK_EQ(102, script->Run()->Int32Value());
+    for (int i = 0; i < 30; i++) {
+      CHECK_EQ(102, script->Run()->Int32Value());
+    }
   }
   // Use SetCallHandler to initialize a function template, should work like the
   // previous one.
   {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
     Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
-    fun_templ->SetCallHandler(handle_call);
+    fun_templ->SetCallHandler(handler);
     Local<Function> fun = fun_templ->GetFunction();
     env->Global()->Set(v8_str("obj"), fun);
     Local<Script> script = v8_compile("obj()");
-    CHECK_EQ(102, script->Run()->Int32Value());
+    for (int i = 0; i < 30; i++) {
+      CHECK_EQ(102, script->Run()->Int32Value());
+    }
   }
-  // Test constructor calls.
-  {
-    Local<v8::FunctionTemplate> fun_templ =
-        v8::FunctionTemplate::New(construct_call);
-    fun_templ->SetClassName(v8_str("funky"));
-    fun_templ->InstanceTemplate()->SetAccessor(v8_str("m"), Return239);
-    Local<Function> fun = fun_templ->GetFunction();
-    env->Global()->Set(v8_str("obj"), fun);
-    Local<Script> script = v8_compile("var s = new obj(); s.x");
+}
+
+
+template<typename Constructor, typename Accessor>
+static void TestFunctionTemplateAccessor(Constructor constructor,
+                                         Accessor accessor) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  Local<v8::FunctionTemplate> fun_templ =
+      v8::FunctionTemplate::New(constructor);
+  fun_templ->SetClassName(v8_str("funky"));
+  fun_templ->InstanceTemplate()->SetAccessor(v8_str("m"), accessor);
+  Local<Function> fun = fun_templ->GetFunction();
+  env->Global()->Set(v8_str("obj"), fun);
+  Local<Value> result = v8_compile("(new obj()).toString()")->Run();
+  CHECK_EQ(v8_str("[object funky]"), result);
+  CompileRun("var obj_instance = new obj();");
+  Local<Script> script;
+  script = v8_compile("obj_instance.x");
+  for (int i = 0; i < 30; i++) {
     CHECK_EQ(1, script->Run()->Int32Value());
+  }
+  script = v8_compile("obj_instance.m");
+  for (int i = 0; i < 30; i++) {
+    CHECK_EQ(239, script->Run()->Int32Value());
+  }
+}
 
-    Local<Value> result = v8_compile("(new obj()).toString()")->Run();
-    CHECK_EQ(v8_str("[object funky]"), result);
 
-    result = v8_compile("(new obj()).m")->Run();
-    CHECK_EQ(239, result->Int32Value());
+THREADED_TEST(FunctionTemplate) {
+  TestFunctionTemplateInitializer(handle_call);
+  TestFunctionTemplateInitializer(handle_call_indirect);
+  TestFunctionTemplateInitializer(handle_callback);
+
+  TestFunctionTemplateAccessor(construct_call, Return239);
+  TestFunctionTemplateAccessor(construct_call_indirect, Return239Indirect);
+  TestFunctionTemplateAccessor(construct_callback, Return239Callback);
+}
+
+
+static v8::Handle<v8::Value> SimpleDirectCallback(const v8::Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(args);
+  args.GetReturnValue().Set(v8_str("bad value"));
+  return v8_num(51423 + args.Length());
+}
+
+static v8::Handle<v8::Value> SimpleIndirectCallback(const v8::Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(args);
+  args.GetReturnValue().Set(v8_num(51423 + args.Length()));
+  return v8::Handle<v8::Value>();
+}
+
+static void SimpleCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(v8_num(51423 + info.Length()));
+}
+
+
+template<typename Callback>
+static void TestSimpleCallback(Callback callback) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
+  object_template->Set("callback", v8::FunctionTemplate::New(callback));
+  v8::Local<v8::Object> object = object_template->NewInstance();
+  (*env)->Global()->Set(v8_str("callback_object"), object);
+  v8::Handle<v8::Script> script;
+  script = v8_compile("callback_object.callback(17)");
+  for (int i = 0; i < 30; i++) {
+    CHECK_EQ(51424, script->Run()->Int32Value());
+  }
+  script = v8_compile("callback_object.callback(17, 24)");
+  for (int i = 0; i < 30; i++) {
+    CHECK_EQ(51425, script->Run()->Int32Value());
+  }
+}
+
+
+THREADED_TEST(SimpleCallback) {
+  TestSimpleCallback(SimpleDirectCallback);
+  TestSimpleCallback(SimpleIndirectCallback);
+  TestSimpleCallback(SimpleCallback);
+}
+
+
+template<typename T>
+void FastReturnValueCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
+
+// constant return values
+static const int32_t kFastReturnValueInt32 = 471;
+static const uint32_t kFastReturnValueUint32 = 571;
+static const double kFastReturnValueDouble = 2.7;
+// variable return values
+static bool fast_return_value_bool = false;
+static bool fast_return_value_void_is_null = false;
+
+template<>
+void FastReturnValueCallback<int32_t>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(info.GetIsolate(), kFastReturnValueInt32);
+}
+
+template<>
+void FastReturnValueCallback<uint32_t>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(info.GetIsolate(), kFastReturnValueUint32);
+}
+
+template<>
+void FastReturnValueCallback<double>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(info.GetIsolate(), kFastReturnValueDouble);
+}
+
+template<>
+void FastReturnValueCallback<bool>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(info.GetIsolate(), fast_return_value_bool);
+}
+
+template<>
+void FastReturnValueCallback<void>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  if (fast_return_value_void_is_null) {
+    info.GetReturnValue().SetNull(info.GetIsolate());
+  } else {
+    info.GetReturnValue().SetUndefined(info.GetIsolate());
+  }
+}
+
+template<typename T>
+Handle<Value> TestFastReturnValues() {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
+  v8::FunctionCallback callback = &FastReturnValueCallback<T>;
+  object_template->Set("callback", v8::FunctionTemplate::New(callback));
+  v8::Local<v8::Object> object = object_template->NewInstance();
+  (*env)->Global()->Set(v8_str("callback_object"), object);
+  return scope.Close(CompileRun("callback_object.callback()"));
+}
+
+THREADED_TEST(FastReturnValues) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::Handle<v8::Value> value;
+  // check int_32
+  value = TestFastReturnValues<int32_t>();
+  CHECK(value->IsInt32());
+  CHECK_EQ(kFastReturnValueInt32, value->Int32Value());
+  // check uint32_t
+  value = TestFastReturnValues<uint32_t>();
+  CHECK(value->IsInt32());
+  CHECK_EQ(kFastReturnValueUint32, value->Int32Value());
+  // check double
+  value = TestFastReturnValues<double>();
+  CHECK(value->IsNumber());
+  CHECK_EQ(kFastReturnValueDouble, value->ToNumber()->Value());
+  // check bool values
+  for (int i = 0; i < 2; i++) {
+    fast_return_value_bool = i == 0;
+    value = TestFastReturnValues<bool>();
+    CHECK(value->IsBoolean());
+    CHECK_EQ(fast_return_value_bool, value->ToBoolean()->Value());
+  }
+  // check oddballs
+  for (int i = 0; i < 2; i++) {
+    fast_return_value_void_is_null = i == 0;
+    value = TestFastReturnValues<void>();
+    if (fast_return_value_void_is_null) {
+      CHECK(value->IsNull());
+    } else {
+      CHECK(value->IsUndefined());
+    }
   }
 }
 
@@ -1440,8 +1677,8 @@ Handle<Value> EmptyInterceptorSetter(Local<String> name,
 Handle<Value> InterceptorGetter(Local<String> name,
                                 const AccessorInfo& info) {
   // Intercept names that start with 'interceptor_'.
-  String::AsciiValue ascii(name);
-  char* name_str = *ascii;
+  String::Utf8Value utf8(name);
+  char* name_str = *utf8;
   char prefix[] = "interceptor_";
   int i;
   for (i = 0; name_str[i] && prefix[i]; ++i) {
@@ -1701,7 +1938,7 @@ THREADED_TEST(NamedPropertyHandlerGetter) {
   CHECK_EQ(echo_named_call_count, 1);
   const char* code = "var str = 'oddle'; obj[str] + obj.poddle;";
   v8::Handle<Value> str = CompileRun(code);
-  String::AsciiValue value(str);
+  String::Utf8Value value(str);
   CHECK_EQ(*value, "oddlepoddle");
   // Check default behavior
   CHECK_EQ(v8_compile("obj.flob = 10;")->Run()->Int32Value(), 10);
@@ -2539,6 +2776,30 @@ THREADED_TEST(ResettingGlobalHandleToEmpty) {
 }
 
 
+THREADED_TEST(ClearAndLeakGlobal) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::internal::GlobalHandles* global_handles = NULL;
+  int initial_handle_count = 0;
+  v8::Persistent<String> global;
+  {
+    v8::HandleScope scope(isolate);
+    Local<String> str = v8_str("str");
+    global_handles =
+        reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
+    initial_handle_count = global_handles->NumberOfGlobalHandles();
+    global = v8::Persistent<String>::New(isolate, str);
+  }
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count + 1);
+  String* str = global.ClearAndLeak();
+  CHECK(global.IsEmpty());
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count + 1);
+  v8::Persistent<String>* new_global =
+      reinterpret_cast<v8::Persistent<String>*>(&str);
+  new_global->Dispose();
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count);
+}
+
+
 THREADED_TEST(LocalHandle) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
@@ -3162,7 +3423,7 @@ THREADED_TEST(ScriptException) {
   Local<Value> result = script->Run();
   CHECK(result.IsEmpty());
   CHECK(try_catch.HasCaught());
-  String::AsciiValue exception_value(try_catch.Exception());
+  String::Utf8Value exception_value(try_catch.Exception());
   CHECK_EQ(*exception_value, "panama!");
 }
 
@@ -3323,7 +3584,7 @@ THREADED_TEST(PropertyAttributes) {
       CompileRun("({ toString: function() { throw 'exception';} })");
   CHECK_EQ(v8::None, context->Global()->GetPropertyAttributes(exception));
   CHECK(try_catch.HasCaught());
-  String::AsciiValue exception_value(try_catch.Exception());
+  String::Utf8Value exception_value(try_catch.Exception());
   CHECK_EQ("exception", *exception_value);
   try_catch.Reset();
 }
@@ -3614,7 +3875,7 @@ THREADED_TEST(ConstructCall) {
 
 static void CheckUncle(v8::TryCatch* try_catch) {
   CHECK(try_catch->HasCaught());
-  String::AsciiValue str_value(try_catch->Exception());
+  String::Utf8Value str_value(try_catch->Exception());
   CHECK_EQ(*str_value, "uncle?");
   try_catch->Reset();
 }
@@ -3992,7 +4253,7 @@ THREADED_TEST(ExternalScriptException) {
   Local<Value> result = script->Run();
   CHECK(result.IsEmpty());
   CHECK(try_catch.HasCaught());
-  String::AsciiValue exception_value(try_catch.Exception());
+  String::Utf8Value exception_value(try_catch.Exception());
   CHECK_EQ("konto", *exception_value);
 }
 
@@ -4364,7 +4625,7 @@ THREADED_TEST(DefinePropertyOnAPIAccessor) {
   v8::TryCatch try_catch;
   result = script_define->Run();
   CHECK(try_catch.HasCaught());
-  String::AsciiValue exception_value(try_catch.Exception());
+  String::Utf8Value exception_value(try_catch.Exception());
   CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
 }
 
@@ -4409,7 +4670,7 @@ THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
   v8::TryCatch try_catch;
   result = script_define->Run();
   CHECK(try_catch.HasCaught());
-  String::AsciiValue exception_value(try_catch.Exception());
+  String::Utf8Value exception_value(try_catch.Exception());
   CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
 }
 
@@ -4527,7 +4788,7 @@ THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
     CompileRun("Object.defineProperty(obj1, 'x',"
         "{get: function() { return 'func'; }})");
     CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value(try_catch.Exception());
+    String::Utf8Value exception_value(try_catch.Exception());
     CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
   }
   {
@@ -4535,7 +4796,7 @@ THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
     CompileRun("Object.defineProperty(obj2, 'x',"
         "{get: function() { return 'func'; }})");
     CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value(try_catch.Exception());
+    String::Utf8Value exception_value(try_catch.Exception());
     CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
   }
 }
@@ -4625,7 +4886,10 @@ THREADED_TEST(SetterOnly) {
 THREADED_TEST(NoAccessors) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Local<ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetAccessor(v8_str("x"), NULL, NULL, v8_str("donut"));
+  templ->SetAccessor(v8_str("x"),
+                     static_cast<v8::AccessorGetter>(NULL),
+                     NULL,
+                     v8_str("donut"));
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
   Local<Script> script = Script::Compile(v8_str("obj.x = 4; obj.x"));
@@ -5284,8 +5548,7 @@ THREADED_TEST(UndetectableObject) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  Local<v8::FunctionTemplate> desc =
-      v8::FunctionTemplate::New(0, v8::Handle<Value>());
+  Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New();
   desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
 
   Local<v8::Object> obj = desc->GetFunction()->NewInstance();
@@ -5328,8 +5591,7 @@ THREADED_TEST(VoidLiteral) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  Local<v8::FunctionTemplate> desc =
-      v8::FunctionTemplate::New(0, v8::Handle<Value>());
+  Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New();
   desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
 
   Local<v8::Object> obj = desc->GetFunction()->NewInstance();
@@ -5372,8 +5634,7 @@ THREADED_TEST(ExtensibleOnUndetectable) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  Local<v8::FunctionTemplate> desc =
-      v8::FunctionTemplate::New(0, v8::Handle<Value>());
+  Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New();
   desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
 
   Local<v8::Object> obj = desc->GetFunction()->NewInstance();
@@ -7162,10 +7423,10 @@ static void ExceptionInNativeScriptTestListener(v8::Handle<v8::Message> message,
                                                 v8::Handle<Value>) {
   v8::Handle<v8::Value> name_val = message->GetScriptResourceName();
   CHECK(!name_val.IsEmpty() && name_val->IsString());
-  v8::String::AsciiValue name(message->GetScriptResourceName());
+  v8::String::Utf8Value name(message->GetScriptResourceName());
   CHECK_EQ(script_resource_name, *name);
   CHECK_EQ(3, message->GetLineNumber());
-  v8::String::AsciiValue source_line(message->GetSourceLine());
+  v8::String::Utf8Value source_line(message->GetSourceLine());
   CHECK_EQ("  new o.foo();", *source_line);
 }
 
@@ -9024,7 +9285,7 @@ THREADED_TEST(ConstructorForObject) {
         "(function() { var o = new obj('tipli'); return o.a; })()");
     CHECK(!try_catch.HasCaught());
     CHECK(value->IsString());
-    String::AsciiValue string_value1(value->ToString());
+    String::Utf8Value string_value1(value->ToString());
     CHECK_EQ("tipli", *string_value1);
 
     Local<Value> args2[] = { v8_str("tipli") };
@@ -9034,7 +9295,7 @@ THREADED_TEST(ConstructorForObject) {
     value = object2->Get(v8_str("a"));
     CHECK(!try_catch.HasCaught());
     CHECK(value->IsString());
-    String::AsciiValue string_value2(value->ToString());
+    String::Utf8Value string_value2(value->ToString());
     CHECK_EQ("tipli", *string_value2);
 
     // Call the Object's constructor with a Boolean.
@@ -9081,14 +9342,14 @@ THREADED_TEST(ConstructorForObject) {
 
     value = CompileRun("new obj2(28)");
     CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value1(try_catch.Exception());
+    String::Utf8Value exception_value1(try_catch.Exception());
     CHECK_EQ("TypeError: object is not a function", *exception_value1);
     try_catch.Reset();
 
     Local<Value> args[] = { v8_num(29) };
     value = instance->CallAsConstructor(1, args);
     CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value2(try_catch.Exception());
+    String::Utf8Value exception_value2(try_catch.Exception());
     CHECK_EQ("TypeError: #<Object> is not a function", *exception_value2);
     try_catch.Reset();
   }
@@ -9104,14 +9365,14 @@ THREADED_TEST(ConstructorForObject) {
 
     value = CompileRun("new obj3(22)");
     CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value1(try_catch.Exception());
+    String::Utf8Value exception_value1(try_catch.Exception());
     CHECK_EQ("22", *exception_value1);
     try_catch.Reset();
 
     Local<Value> args[] = { v8_num(23) };
     value = instance->CallAsConstructor(1, args);
     CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value2(try_catch.Exception());
+    String::Utf8Value exception_value2(try_catch.Exception());
     CHECK_EQ("23", *exception_value2);
     try_catch.Reset();
   }
@@ -9441,7 +9702,7 @@ THREADED_TEST(CallAsFunction) {
     value = CompileRun("obj2(28)");
     CHECK(value.IsEmpty());
     CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value1(try_catch.Exception());
+    String::Utf8Value exception_value1(try_catch.Exception());
     CHECK_EQ("TypeError: Property 'obj2' of object #<Object> is not a function",
              *exception_value1);
     try_catch.Reset();
@@ -9452,7 +9713,7 @@ THREADED_TEST(CallAsFunction) {
     value = instance->CallAsFunction(instance, 1, args);
     CHECK(value.IsEmpty());
     CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value2(try_catch.Exception());
+    String::Utf8Value exception_value2(try_catch.Exception());
     CHECK_EQ("TypeError: [object Object] is not a function", *exception_value2);
     try_catch.Reset();
   }
@@ -9469,14 +9730,14 @@ THREADED_TEST(CallAsFunction) {
     // Catch the exception which is thrown by call-as-function handler
     value = CompileRun("obj3(22)");
     CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value1(try_catch.Exception());
+    String::Utf8Value exception_value1(try_catch.Exception());
     CHECK_EQ("22", *exception_value1);
     try_catch.Reset();
 
     v8::Handle<Value> args[] = { v8_num(23) };
     value = instance->CallAsFunction(instance, 1, args);
     CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value2(try_catch.Exception());
+    String::Utf8Value exception_value2(try_catch.Exception());
     CHECK_EQ("23", *exception_value2);
     try_catch.Reset();
   }
@@ -10374,6 +10635,7 @@ THREADED_TEST(InterceptorCallICCachedFromGlobal) {
 static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
                                                   const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
+  CheckReturnValue(info);
   int* call_count =
       reinterpret_cast<int*>(v8::External::Cast(*info.Data())->Value());
   ++(*call_count);
@@ -10386,6 +10648,7 @@ static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
 static v8::Handle<Value> FastApiCallback_TrivialSignature(
     const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  CheckReturnValue(args);
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK_EQ(isolate, args.GetIsolate());
   CHECK_EQ(args.This(), args.Holder());
@@ -10396,6 +10659,7 @@ static v8::Handle<Value> FastApiCallback_TrivialSignature(
 static v8::Handle<Value> FastApiCallback_SimpleSignature(
     const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  CheckReturnValue(args);
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK_EQ(isolate, args.GetIsolate());
   CHECK_EQ(args.This()->GetPrototype(), args.Holder());
@@ -10473,29 +10737,59 @@ THREADED_TEST(CallICFastApi_DirectCall_Throw) {
 }
 
 
-v8::Handle<v8::Value> DirectGetterCallback(Local<String> name,
-                                           const v8::AccessorInfo& info) {
+static Handle<Value> DoDirectGetter() {
   if (++p_getter_count % 3 == 0) {
     HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
     GenerateSomeGarbage();
   }
+  return v8_str("Direct Getter Result");
+}
+
+static v8::Handle<v8::Value> DirectGetter(Local<String> name,
+                                  const v8::AccessorInfo& info) {
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(v8_str("Garbage"));
+  return DoDirectGetter();
+}
+
+static v8::Handle<v8::Value> DirectGetterIndirect(
+    Local<String> name,
+    const v8::AccessorInfo& info) {
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(DoDirectGetter());
   return v8::Handle<v8::Value>();
 }
 
+static void DirectGetterCallback(
+    Local<String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(DoDirectGetter());
+}
 
-THREADED_TEST(LoadICFastApi_DirectCall_GCMoveStub) {
+
+template<typename Accessor>
+static void LoadICFastApi_DirectCall_GCMoveStub(Accessor accessor) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = v8::ObjectTemplate::New();
-  obj->SetAccessor(v8_str("p1"), DirectGetterCallback);
+  obj->SetAccessor(v8_str("p1"), accessor);
   context->Global()->Set(v8_str("o1"), obj->NewInstance());
   p_getter_count = 0;
-  CompileRun(
+  v8::Handle<v8::Value> result = CompileRun(
       "function f() {"
       "  for (var i = 0; i < 30; i++) o1.p1;"
+      "  return o1.p1"
       "}"
       "f();");
-  CHECK_EQ(30, p_getter_count);
+  CHECK_EQ(v8_str("Direct Getter Result"), result);
+  CHECK_EQ(31, p_getter_count);
+}
+
+THREADED_TEST(LoadICFastApi_DirectCall_GCMoveStub) {
+  LoadICFastApi_DirectCall_GCMoveStub(DirectGetterIndirect);
+  LoadICFastApi_DirectCall_GCMoveStub(DirectGetterCallback);
+  LoadICFastApi_DirectCall_GCMoveStub(DirectGetter);
 }
 
 
@@ -11174,7 +11468,7 @@ THREADED_TEST(InterceptorICSetterExceptions) {
 THREADED_TEST(NullNamedInterceptor) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetNamedPropertyHandler(0);
+  templ->SetNamedPropertyHandler(static_cast<v8::NamedPropertyGetter>(0));
   LocalContext context;
   templ->Set("x", v8_num(42));
   v8::Handle<v8::Object> obj = templ->NewInstance();
@@ -11189,7 +11483,7 @@ THREADED_TEST(NullNamedInterceptor) {
 THREADED_TEST(NullIndexedInterceptor) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetIndexedPropertyHandler(0);
+  templ->SetIndexedPropertyHandler(static_cast<v8::IndexedPropertyGetter>(0));
   LocalContext context;
   templ->Set("42", v8_num(42));
   v8::Handle<v8::Object> obj = templ->NewInstance();
@@ -12057,6 +12351,13 @@ static void RunLoopInNewEnv() {
 
 
 TEST(SetFunctionEntryHook) {
+  // FunctionEntryHook does not work well with experimental natives.
+  // Experimental natives are compiled during snapshot deserialization.
+  // This test breaks because InstallGetter (function from snapshot that
+  // only gets called from experimental natives) is compiled with entry hooks.
+  i::FLAG_harmony_typed_arrays = false;
+  i::FLAG_harmony_array_buffer = false;
+
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_use_inlining = false;
 
@@ -12426,9 +12727,9 @@ static void CheckTryCatchSourceInfo(v8::Handle<v8::Script> script,
   CHECK_EQ(92, message->GetEndPosition());
   CHECK_EQ(2, message->GetStartColumn());
   CHECK_EQ(3, message->GetEndColumn());
-  v8::String::AsciiValue line(message->GetSourceLine());
+  v8::String::Utf8Value line(message->GetSourceLine());
   CHECK_EQ("  throw 'nirk';", *line);
-  v8::String::AsciiValue name(message->GetScriptResourceName());
+  v8::String::Utf8Value name(message->GetScriptResourceName());
   CHECK_EQ(resource_name, *name);
 }
 
@@ -12500,7 +12801,7 @@ THREADED_TEST(CallbackFunctionName) {
   context->Global()->Set(v8_str("obj"), t->NewInstance());
   v8::Handle<v8::Value> value = CompileRun("obj.asdf.name");
   CHECK(value->IsString());
-  v8::String::AsciiValue name(value);
+  v8::String::Utf8Value name(value);
   CHECK_EQ("asdf", *name);
 }
 
@@ -12972,7 +13273,7 @@ TEST(PreCompileInvalidPreparseDataError) {
   Local<String> source = String::New(script);
   Local<Script> compiled_script = Script::New(source, NULL, sd);
   CHECK(try_catch.HasCaught());
-  String::AsciiValue exception_value(try_catch.Message()->Get());
+  String::Utf8Value exception_value(try_catch.Message()->Get());
   CHECK_EQ("Uncaught SyntaxError: Invalid preparser data for function bar",
            *exception_value);
 
@@ -15852,9 +16153,12 @@ static uint32_t* ComputeStackLimit(uint32_t size) {
 }
 
 
+// We need at least 165kB for an x64 debug build with clang and ASAN.
+static const int stack_breathing_room = 256 * i::KB;
+
+
 TEST(SetResourceConstraints) {
-  static const int K = 1024;
-  uint32_t* set_limit = ComputeStackLimit(128 * K);
+  uint32_t* set_limit = ComputeStackLimit(stack_breathing_room);
 
   // Set stack limit.
   v8::ResourceConstraints constraints;
@@ -15878,8 +16182,7 @@ TEST(SetResourceConstraintsInThread) {
   uint32_t* set_limit;
   {
     v8::Locker locker(CcTest::default_isolate());
-    static const int K = 1024;
-    set_limit = ComputeStackLimit(128 * K);
+    set_limit = ComputeStackLimit(stack_breathing_room);
 
     // Set stack limit.
     v8::ResourceConstraints constraints;
@@ -16241,11 +16544,11 @@ THREADED_TEST(ScriptOrigin) {
       env->Global()->Get(v8::String::New("g")));
 
   v8::ScriptOrigin script_origin_f = f->GetScriptOrigin();
-  CHECK_EQ("test", *v8::String::AsciiValue(script_origin_f.ResourceName()));
+  CHECK_EQ("test", *v8::String::Utf8Value(script_origin_f.ResourceName()));
   CHECK_EQ(0, script_origin_f.ResourceLineOffset()->Int32Value());
 
   v8::ScriptOrigin script_origin_g = g->GetScriptOrigin();
-  CHECK_EQ("test", *v8::String::AsciiValue(script_origin_g.ResourceName()));
+  CHECK_EQ("test", *v8::String::Utf8Value(script_origin_g.ResourceName()));
   CHECK_EQ(0, script_origin_g.ResourceLineOffset()->Int32Value());
 }
 
@@ -16258,7 +16561,7 @@ THREADED_TEST(FunctionGetInferredName) {
   v8::Script::Compile(script, &origin)->Run();
   v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::New("f")));
-  CHECK_EQ("foo.bar.baz", *v8::String::AsciiValue(f->GetInferredName()));
+  CHECK_EQ("foo.bar.baz", *v8::String::Utf8Value(f->GetInferredName()));
 }
 
 THREADED_TEST(ScriptLineNumber) {

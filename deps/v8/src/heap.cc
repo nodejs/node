@@ -120,7 +120,6 @@ Heap::Heap()
       new_space_high_promotion_mode_active_(false),
       old_gen_promotion_limit_(kMinimumPromotionLimit),
       old_gen_allocation_limit_(kMinimumAllocationLimit),
-      old_gen_limit_factor_(1),
       size_of_old_gen_at_last_old_space_gc_(0),
       external_allocation_limit_(0),
       amount_of_external_allocated_memory_(0),
@@ -912,25 +911,10 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);
     sweep_generation_++;
-    bool high_survival_rate_during_scavenges = IsHighSurvivalRate() &&
-        IsStableOrIncreasingSurvivalTrend();
 
     UpdateSurvivalRateTrend(start_new_space_size);
 
     size_of_old_gen_at_last_old_space_gc_ = PromotedSpaceSizeOfObjects();
-
-    if (high_survival_rate_during_scavenges &&
-        IsStableOrIncreasingSurvivalTrend()) {
-      // Stable high survival rates of young objects both during partial and
-      // full collection indicate that mutator is either building or modifying
-      // a structure with a long lifetime.
-      // In this case we aggressively raise old generation memory limits to
-      // postpone subsequent mark-sweep collection and thus trade memory
-      // space for the mutation speed.
-      old_gen_limit_factor_ = 2;
-    } else {
-      old_gen_limit_factor_ = 1;
-    }
 
     old_gen_promotion_limit_ =
         OldGenPromotionLimit(size_of_old_gen_at_last_old_space_gc_);
@@ -2517,6 +2501,54 @@ bool Heap::CreateInitialMaps() {
   }
   set_external_double_array_map(Map::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalByteArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_byte_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateEmptyExternalArray(kExternalUnsignedByteArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_unsigned_byte_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalShortArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_short_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(
+      kExternalUnsignedShortArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_unsigned_short_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalIntArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_int_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateEmptyExternalArray(kExternalUnsignedIntArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_unsigned_int_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalFloatArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_float_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalDoubleArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_double_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalPixelArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_pixel_array(ExternalArray::cast(obj));
+
   { MaybeObject* maybe_obj = AllocateMap(CODE_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
@@ -3248,6 +3280,40 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
   }
 }
 
+Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
+    ElementsKind elementsKind) {
+  switch (elementsKind) {
+    case EXTERNAL_BYTE_ELEMENTS:
+      return kEmptyExternalByteArrayRootIndex;
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      return kEmptyExternalUnsignedByteArrayRootIndex;
+    case EXTERNAL_SHORT_ELEMENTS:
+      return kEmptyExternalShortArrayRootIndex;
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      return kEmptyExternalUnsignedShortArrayRootIndex;
+    case EXTERNAL_INT_ELEMENTS:
+      return kEmptyExternalIntArrayRootIndex;
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      return kEmptyExternalUnsignedIntArrayRootIndex;
+    case EXTERNAL_FLOAT_ELEMENTS:
+      return kEmptyExternalFloatArrayRootIndex;
+    case EXTERNAL_DOUBLE_ELEMENTS:
+      return kEmptyExternalDoubleArrayRootIndex;
+    case EXTERNAL_PIXEL_ELEMENTS:
+      return kEmptyExternalPixelArrayRootIndex;
+    default:
+      UNREACHABLE();
+      return kUndefinedValueRootIndex;
+  }
+}
+
+ExternalArray* Heap::EmptyExternalArrayForMap(Map* map) {
+  return ExternalArray::cast(
+      roots_[RootIndexForEmptyExternalArray(map->elements_kind())]);
+}
+
+
+
 
 MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
   // We need to distinguish the minus zero value and this cannot be
@@ -3291,7 +3357,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_name(name);
   Code* illegal = isolate_->builtins()->builtin(Builtins::kIllegal);
   share->set_code(illegal);
-  share->ClearOptimizedCodeMap();
+  share->set_optimized_code_map(Smi::FromInt(0));
   share->set_scope_info(ScopeInfo::Empty(isolate_));
   Code* construct_stub =
       isolate_->builtins()->builtin(Builtins::kJSConstructStubGeneric);
@@ -3982,13 +4048,11 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
   // Make sure to use globals from the function's context, since the function
   // can be from a different context.
   Context* native_context = function->context()->native_context();
-  bool needs_constructor_property;
   Map* new_map;
   if (function->shared()->is_generator()) {
     // Generator prototypes can share maps since they don't have "constructor"
     // properties.
     new_map = native_context->generator_object_prototype_map();
-    needs_constructor_property = false;
   } else {
     // Each function prototype gets a fresh map to avoid unwanted sharing of
     // maps between prototypes of different constructors.
@@ -3996,14 +4060,13 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
     ASSERT(object_function->has_initial_map());
     MaybeObject* maybe_map = object_function->initial_map()->Copy();
     if (!maybe_map->To(&new_map)) return maybe_map;
-    needs_constructor_property = true;
   }
 
   Object* prototype;
   MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
   if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
 
-  if (needs_constructor_property) {
+  if (!function->shared()->is_generator()) {
     MaybeObject* maybe_failure =
         JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
             constructor_string(), function, DONT_ENUM);
@@ -4143,7 +4206,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   // the inline_new flag so we only change the map if we generate a
   // specialized construct stub.
   ASSERT(in_object_properties <= Map::kMaxPreAllocatedPropertyFields);
-  if (instance_type == JS_OBJECT_TYPE &&
+  if (!fun->shared()->is_generator() &&
       fun->shared()->CanGenerateInlineConstructor(prototype)) {
     int count = fun->shared()->this_property_assignments_count();
     if (count > in_object_properties) {
@@ -4179,7 +4242,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
     }
   }
 
-  if (instance_type == JS_OBJECT_TYPE) {
+  if (!fun->shared()->is_generator()) {
     fun->shared()->StartInobjectSlackTracking(map);
   }
 
@@ -4252,7 +4315,8 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   InitializeJSObjectFromMap(JSObject::cast(obj),
                             FixedArray::cast(properties),
                             map);
-  ASSERT(JSObject::cast(obj)->HasFastElements());
+  ASSERT(JSObject::cast(obj)->HasFastElements() ||
+         JSObject::cast(obj)->HasExternalArrayElements());
   return obj;
 }
 
@@ -5177,15 +5241,8 @@ MaybeObject* Heap::AllocateJSArray(
   Context* native_context = isolate()->context()->native_context();
   JSFunction* array_function = native_context->array_function();
   Map* map = array_function->initial_map();
-  Object* maybe_map_array = native_context->js_array_maps();
-  if (!maybe_map_array->IsUndefined()) {
-    Object* maybe_transitioned_map =
-        FixedArray::cast(maybe_map_array)->get(elements_kind);
-    if (!maybe_transitioned_map->IsUndefined()) {
-      map = Map::cast(maybe_transitioned_map);
-    }
-  }
-
+  Map* transition_map = isolate()->get_initial_js_array_map(elements_kind);
+  if (transition_map != NULL) map = transition_map;
   return AllocateJSObjectFromMap(map, pretenure);
 }
 
@@ -5221,6 +5278,10 @@ MaybeObject* Heap::AllocateEmptyFixedArray() {
       fixed_array_map());
   reinterpret_cast<FixedArray*>(result)->set_length(0);
   return result;
+}
+
+MaybeObject* Heap::AllocateEmptyExternalArray(ExternalArrayType array_type) {
+  return AllocateExternalArray(0, array_type, NULL, TENURED);
 }
 
 
@@ -5872,7 +5933,7 @@ bool Heap::IdleGlobalGC() {
 
 void Heap::Print() {
   if (!HasBeenSetUp()) return;
-  isolate()->PrintStack();
+  isolate()->PrintStack(stdout);
   AllSpaces spaces(this);
   for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
     space->Print();
@@ -5902,7 +5963,6 @@ void Heap::ReportHeapStatistics(const char* title) {
          old_gen_promotion_limit_);
   PrintF("old_gen_allocation_limit_ %" V8_PTR_PREFIX "d\n",
          old_gen_allocation_limit_);
-  PrintF("old_gen_limit_factor_ %d\n", old_gen_limit_factor_);
 
   PrintF("\n");
   PrintF("Number of handles : %d\n", HandleScope::NumberOfHandles(isolate_));

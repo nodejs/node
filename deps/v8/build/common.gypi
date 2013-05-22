@@ -29,7 +29,6 @@
 
 {
   'variables': {
-    'use_system_v8%': 0,
     'msvs_use_common_release': 0,
     'gcc_version%': 'unknown',
     'CXX%': '${CXX:-$(which g++)}',  # Used to assemble a shell command.
@@ -454,6 +453,15 @@
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
             or OS=="android"', {
+            'cflags!': [
+              '-O2',
+              '-Os',
+            ],
+            'cflags': [
+              '-fdata-sections',
+              '-ffunction-sections',
+              '-O3',
+            ],
             'conditions': [
               [ 'gcc_version==44 and clang==0', {
                 'cflags': [

@@ -175,6 +175,7 @@ void FullCodeGenerator::Generate() {
     // Adjust FP to point to saved FP.
     __ add(fp, sp, Operand(2 * kPointerSize));
   }
+  info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();
@@ -438,9 +439,11 @@ void FullCodeGenerator::EmitReturnSequence() {
       PredictableCodeSizeScope predictable(masm_, -1);
       __ RecordJSReturn();
       masm_->mov(sp, fp);
+      int no_frame_start = masm_->pc_offset();
       masm_->ldm(ia_w, sp, fp.bit() | lr.bit());
       masm_->add(sp, sp, Operand(sp_delta));
       masm_->Jump(lr);
+      info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
     }
 
 #ifdef DEBUG
@@ -1195,7 +1198,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Get the current entry of the array into register r3.
   __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ ldr(r3, MemOperand(r2, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r3, MemOperand::PointerAddressFromSmiKey(r2, r0));
 
   // Get the expected map from the stack or a smi in the
   // permanent slow case into register r2.
@@ -1961,8 +1964,102 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       break;
     }
 
-    case Yield::DELEGATING:
-      UNIMPLEMENTED();
+    case Yield::DELEGATING: {
+      VisitForStackValue(expr->generator_object());
+
+      // Initial stack layout is as follows:
+      // [sp + 1 * kPointerSize] iter
+      // [sp + 0 * kPointerSize] g
+
+      Label l_catch, l_try, l_resume, l_send, l_call, l_loop;
+      // Initial send value is undefined.
+      __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+      __ b(&l_send);
+
+      // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
+      __ bind(&l_catch);
+      handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
+      __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
+      __ push(r3);                                       // iter
+      __ push(r0);                                       // exception
+      __ mov(r0, r3);                                    // iter
+      __ push(r0);                                       // push LoadIC state
+      __ LoadRoot(r2, Heap::kthrow_stringRootIndex);     // "throw"
+      Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(throw_ic);                                  // iter.throw in r0
+      __ add(sp, sp, Operand(kPointerSize));             // drop LoadIC state
+      __ jmp(&l_call);
+
+      // try { received = yield result.value }
+      __ bind(&l_try);
+      __ pop(r0);                                        // result.value
+      __ PushTryHandler(StackHandler::CATCH, expr->index());
+      const int handler_size = StackHandlerConstants::kSize;
+      __ push(r0);                                       // result.value
+      __ ldr(r3, MemOperand(sp, (0 + 1) * kPointerSize + handler_size));  // g
+      __ push(r3);                                       // g
+      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ ldr(context_register(),
+             MemOperand(fp, StandardFrameConstants::kContextOffset));
+      __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
+      __ b(ne, &l_resume);
+      EmitReturnIteratorResult(false);
+      __ bind(&l_resume);                                // received in r0
+      __ PopTryHandler();
+
+      // receiver = iter; f = iter.send; arg = received;
+      __ bind(&l_send);
+      __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
+      __ push(r3);                                       // iter
+      __ push(r0);                                       // received
+      __ mov(r0, r3);                                    // iter
+      __ push(r0);                                       // push LoadIC state
+      __ LoadRoot(r2, Heap::ksend_stringRootIndex);      // "send"
+      Handle<Code> send_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(send_ic);                                   // iter.send in r0
+      __ add(sp, sp, Operand(kPointerSize));             // drop LoadIC state
+
+      // result = f.call(receiver, arg);
+      __ bind(&l_call);
+      Label l_call_runtime;
+      __ JumpIfSmi(r0, &l_call_runtime);
+      __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
+      __ b(ne, &l_call_runtime);
+      __ mov(r1, r0);
+      ParameterCount count(1);
+      __ InvokeFunction(r1, count, CALL_FUNCTION,
+                        NullCallWrapper(), CALL_AS_METHOD);
+      __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+      __ jmp(&l_loop);
+      __ bind(&l_call_runtime);
+      __ push(r0);
+      __ CallRuntime(Runtime::kCall, 3);
+
+      // val = result.value; if (!result.done) goto l_try;
+      __ bind(&l_loop);
+      // result.value
+      __ push(r0);                                       // save result
+      __ LoadRoot(r2, Heap::kvalue_stringRootIndex);     // "value"
+      Handle<Code> value_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(value_ic);                                  // result.value in r0
+      __ pop(r1);                                        // result
+      __ push(r0);                                       // result.value
+      __ mov(r0, r1);                                    // result
+      __ push(r0);                                       // push LoadIC state
+      __ LoadRoot(r2, Heap::kdone_stringRootIndex);      // "done"
+      Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(done_ic);                                   // result.done in r0
+      __ add(sp, sp, Operand(kPointerSize));             // drop LoadIC state
+      ToBooleanStub stub(r0);
+      __ CallStub(&stub);
+      __ cmp(r0, Operand(0));
+      __ b(eq, &l_try);
+
+      // result.value
+      __ pop(r0);                                        // result.value
+      context()->DropAndPlug(2, r0);                     // drop iter and g
+      break;
+    }
   }
 }
 
@@ -2166,23 +2263,18 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   // BinaryOpStub::GenerateSmiSmiOperation for comments.
   switch (op) {
     case Token::SAR:
-      __ b(&stub_call);
       __ GetLeastBitsFromSmi(scratch1, right, 5);
       __ mov(right, Operand(left, ASR, scratch1));
       __ bic(right, right, Operand(kSmiTagMask));
       break;
     case Token::SHL: {
-      __ b(&stub_call);
       __ SmiUntag(scratch1, left);
       __ GetLeastBitsFromSmi(scratch2, right, 5);
       __ mov(scratch1, Operand(scratch1, LSL, scratch2));
-      __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
-      __ b(mi, &stub_call);
-      __ SmiTag(right, scratch1);
+      __ TrySmiTag(right, scratch1, &stub_call);
       break;
     }
     case Token::SHR: {
-      __ b(&stub_call);
       __ SmiUntag(scratch1, left);
       __ GetLeastBitsFromSmi(scratch2, right, 5);
       __ mov(scratch1, Operand(scratch1, LSR, scratch2));
@@ -2761,7 +2853,7 @@ void FullCodeGenerator::EmitIsSmi(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ tst(r0, Operand(kSmiTagMask));
+  __ SmiTst(r0);
   Split(eq, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -2782,7 +2874,7 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ tst(r0, Operand(kSmiTagMask | 0x80000000));
+  __ NonNegativeSmiTst(r0);
   Split(eq, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -2909,16 +3001,13 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ LoadInstanceDescriptors(r1, r4);
   // r4: descriptor array.
   // r3: valid entries in the descriptor array.
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kPointerSize == 4);
   __ mov(ip, Operand(DescriptorArray::kDescriptorSize));
   __ mul(r3, r3, ip);
   // Calculate location of the first key name.
   __ add(r4, r4, Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
   // Calculate the end of the descriptor array.
   __ mov(r2, r4);
-  __ add(r2, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r2, r2, Operand::PointerOffsetFromSmiKey(r3));
 
   // Loop through all the keys in the descriptor array. If one of these is the
   // string "valueOf" the result is false.
@@ -3686,12 +3775,11 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
 
   Label done, not_found;
   // tmp now holds finger offset as a smi.
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ ldr(r2, FieldMemOperand(cache, JSFunctionResultCache::kFingerOffset));
   // r2 now holds finger offset as a smi.
   __ add(r3, cache, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   // r3 now points to the start of fixed array elements.
-  __ ldr(r2, MemOperand(r3, r2, LSL, kPointerSizeLog2 - kSmiTagSize, PreIndex));
+  __ ldr(r2, MemOperand::PointerAddressFromSmiKey(r3, r2, PreIndex));
   // Note side effect of PreIndex: r3 now points to the key of the pair.
   __ cmp(key, r2);
   __ b(ne, &not_found);
@@ -4654,9 +4742,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
   __ push(result_register());
   // Cook return address in link register to stack (smi encoded Code* delta)
   __ sub(r1, lr, Operand(masm_->CodeObject()));
-  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ add(r1, r1, Operand(r1));  // Convert to smi.
+  __ SmiTag(r1);
 
   // Store result register while executing finally block.
   __ push(r1);
@@ -4710,8 +4796,7 @@ void FullCodeGenerator::ExitFinallyBlock() {
 
   // Uncook return address and return.
   __ pop(result_register());
-  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
-  __ mov(r1, Operand(r1, ASR, 1));  // Un-smi-tag value.
+  __ SmiUntag(r1);
   __ add(pc, r1, Operand(masm_->CodeObject()));
 }
 

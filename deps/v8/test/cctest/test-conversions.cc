@@ -249,6 +249,7 @@ TEST(ExponentNumberStr) {
   CHECK_EQ(1e-106, StringToDouble(&uc, ".000001e-100", NO_FLAGS));
 }
 
+
 class OneBit1: public BitField<uint32_t, 0, 1> {};
 class OneBit2: public BitField<uint32_t, 7, 1> {};
 class EightBit1: public BitField<uint32_t, 0, 8> {};
@@ -285,4 +286,22 @@ TEST(BitField) {
   }
   CHECK(!EightBit1::is_valid(256));
   CHECK(!EightBit2::is_valid(256));
+}
+
+
+class UpperBits: public BitField64<int, 61, 3> {};
+class MiddleBits: public BitField64<int, 31, 2> {};
+
+TEST(BitField64) {
+  uint64_t x;
+
+  // Test most significant bits.
+  x = V8_2PART_UINT64_C(0xE0000000, 00000000);
+  CHECK(x == UpperBits::encode(7));
+  CHECK_EQ(7, UpperBits::decode(x));
+
+  // Test the 32/64-bit boundary bits.
+  x = V8_2PART_UINT64_C(0x00000001, 80000000);
+  CHECK(x == MiddleBits::encode(3));
+  CHECK_EQ(3, MiddleBits::decode(x));
 }

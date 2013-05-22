@@ -103,6 +103,8 @@ void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
   code_stub_ = NULL;
   prologue_offset_ = kPrologueOffsetNotSet;
   opt_count_ = shared_info().is_null() ? 0 : shared_info()->opt_count();
+  no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
+                   ? new List<OffsetRange>(2) : NULL;
   if (mode == STUB) {
     mode_ = STUB;
     return;
@@ -121,6 +123,7 @@ void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
 
 CompilationInfo::~CompilationInfo() {
   delete deferred_handles_;
+  delete no_frame_ranges_;
 }
 
 
@@ -216,9 +219,8 @@ void OptimizingCompiler::RecordOptimizationStats() {
   double ms_optimize = static_cast<double>(time_taken_to_optimize_) / 1000;
   double ms_codegen = static_cast<double>(time_taken_to_codegen_) / 1000;
   if (FLAG_trace_opt) {
-    PrintF("[optimizing: ");
-    function->PrintName();
-    PrintF(" / %" V8PRIxPTR, reinterpret_cast<intptr_t>(*function));
+    PrintF("[optimizing ");
+    function->ShortPrint();
     PrintF(" - took %0.3f, %0.3f, %0.3f ms]\n", ms_creategraph, ms_optimize,
            ms_codegen);
   }
@@ -315,15 +317,9 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   }
 
   // Take --hydrogen-filter into account.
-  Handle<String> name = info()->function()->debug_name();
-  if (*FLAG_hydrogen_filter != '\0') {
-    Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
-    if ((filter[0] == '-'
-         && name->IsUtf8EqualTo(filter.SubVector(1, filter.length())))
-        || (filter[0] != '-' && !name->IsUtf8EqualTo(filter))) {
+  if (!info()->closure()->PassesHydrogenFilter()) {
       info()->SetCode(code);
       return SetLastStatus(BAILED_OUT);
-    }
   }
 
   // Recompile the unoptimized version of the code if the current version
@@ -360,6 +356,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   ASSERT(info()->shared_info()->has_deoptimization_support());
 
   if (FLAG_trace_hydrogen) {
+    Handle<String> name = info()->function()->debug_name();
     PrintF("-----------------------------------------------------------\n");
     PrintF("Compiling method %s using hydrogen\n", *name->ToCString());
     isolate()->GetHTracer()->TraceCompilation(info());
@@ -574,6 +571,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
         *info->code(),
         *result,
+        info,
         String::cast(script->name())));
     GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
                    script,
@@ -586,6 +584,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
         *info->code(),
         *result,
+        info,
         isolate->heap()->empty_string()));
     GDBJIT(AddCode(Handle<String>(), script, info->code(), info));
   }
@@ -813,6 +812,10 @@ static void InstallCodeCommon(CompilationInfo* info) {
   // reset this bit when lazy compiling the code again.
   if (shared->optimization_disabled()) code->set_optimizable(false);
 
+  if (shared->code() == *code) {
+    // Do not send compilation event for the same code twice.
+    return;
+  }
   Compiler::RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 }
 
@@ -843,9 +846,9 @@ static bool InstallCodeFromOptimizedCodeMap(CompilationInfo* info) {
     int index = shared->SearchOptimizedCodeMap(*native_context);
     if (index > 0) {
       if (FLAG_trace_opt) {
-        PrintF("[found optimized code for: ");
-        function->PrintName();
-        PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(*function));
+        PrintF("[found optimized code for ");
+        function->ShortPrint();
+        PrintF("]\n");
       }
       // Caching of optimized code enabled and optimized code found.
       shared->InstallFromOptimizedCodeMap(*function, index);
@@ -1157,6 +1160,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
               CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
                               *shared,
+                              info,
                               String::cast(script->name()),
                               line_num));
     } else {
@@ -1164,6 +1168,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
               CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
                               *shared,
+                              info,
                               shared->DebugName()));
     }
   }

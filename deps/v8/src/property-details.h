@@ -83,6 +83,7 @@ class Representation {
     kSmi,
     kInteger32,
     kDouble,
+    kHeapObject,
     kTagged,
     kExternal,
     kNumRepresentations
@@ -95,6 +96,7 @@ class Representation {
   static Representation Smi() { return Representation(kSmi); }
   static Representation Integer32() { return Representation(kInteger32); }
   static Representation Double() { return Representation(kDouble); }
+  static Representation HeapObject() { return Representation(kHeapObject); }
   static Representation External() { return Representation(kExternal); }
 
   static Representation FromKind(Kind kind) { return Representation(kind); }
@@ -111,6 +113,7 @@ class Representation {
   bool is_more_general_than(const Representation& other) const {
     ASSERT(kind_ != kExternal);
     ASSERT(other.kind_ != kExternal);
+    if (IsHeapObject()) return other.IsDouble();
     return kind_ > other.kind_;
   }
 
@@ -119,11 +122,9 @@ class Representation {
   }
 
   Representation generalize(Representation other) {
-    if (is_more_general_than(other)) {
-      return *this;
-    } else {
-      return other;
-    }
+    if (other.fits_into(*this)) return *this;
+    if (other.is_more_general_than(*this)) return other;
+    return Representation::Tagged();
   }
 
   Kind kind() const { return static_cast<Kind>(kind_); }
@@ -132,6 +133,7 @@ class Representation {
   bool IsSmi() const { return kind_ == kSmi; }
   bool IsInteger32() const { return kind_ == kInteger32; }
   bool IsDouble() const { return kind_ == kDouble; }
+  bool IsHeapObject() const { return kind_ == kHeapObject; }
   bool IsExternal() const { return kind_ == kExternal; }
   bool IsSpecialization() const {
     return kind_ == kInteger32 || kind_ == kDouble;

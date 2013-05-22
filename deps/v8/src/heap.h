@@ -128,7 +128,6 @@ namespace internal {
   V(Map, short_external_ascii_string_map, ShortExternalAsciiStringMap)         \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
   V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
-  V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \
   V(Map, external_byte_array_map, ExternalByteArrayMap)                        \
   V(Map, external_unsigned_byte_array_map, ExternalUnsignedByteArrayMap)       \
   V(Map, external_short_array_map, ExternalShortArrayMap)                      \
@@ -137,6 +136,21 @@ namespace internal {
   V(Map, external_unsigned_int_array_map, ExternalUnsignedIntArrayMap)         \
   V(Map, external_float_array_map, ExternalFloatArrayMap)                      \
   V(Map, external_double_array_map, ExternalDoubleArrayMap)                    \
+  V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \
+  V(ExternalArray, empty_external_byte_array,                                  \
+      EmptyExternalByteArray)                                                  \
+  V(ExternalArray, empty_external_unsigned_byte_array,                         \
+      EmptyExternalUnsignedByteArray)                                          \
+  V(ExternalArray, empty_external_short_array, EmptyExternalShortArray)        \
+  V(ExternalArray, empty_external_unsigned_short_array,                        \
+      EmptyExternalUnsignedShortArray)                                         \
+  V(ExternalArray, empty_external_int_array, EmptyExternalIntArray)            \
+  V(ExternalArray, empty_external_unsigned_int_array,                          \
+      EmptyExternalUnsignedIntArray)                                           \
+  V(ExternalArray, empty_external_float_array, EmptyExternalFloatArray)        \
+  V(ExternalArray, empty_external_double_array, EmptyExternalDoubleArray)      \
+  V(ExternalArray, empty_external_pixel_array,                                 \
+      EmptyExternalPixelArray)                                                 \
   V(Map, non_strict_arguments_elements_map, NonStrictArgumentsElementsMap)     \
   V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, catch_context_map, CatchContextMap)                                   \
@@ -273,7 +287,11 @@ namespace internal {
   V(minus_infinity_string, "-Infinity")                                  \
   V(hidden_stack_trace_string, "v8::hidden_stack_trace")                 \
   V(query_colon_string, "(?:)")                                          \
-  V(Generator_string, "Generator")
+  V(Generator_string, "Generator")                                       \
+  V(send_string, "send")                                                 \
+  V(throw_string, "throw")                                               \
+  V(done_string, "done")                                                 \
+  V(value_string, "value")
 
 // Forward declarations.
 class GCTracer;
@@ -1567,7 +1585,11 @@ class Heap {
     intptr_t limit =
         Max(old_gen_size + old_gen_size / divisor, kMinimumPromotionLimit);
     limit += new_space_.Capacity();
-    limit *= old_gen_limit_factor_;
+    // TODO(hpayer): Can be removed when when pretenuring is supported for all
+    // allocation sites.
+    if (IsHighSurvivalRate() && IsStableOrIncreasingSurvivalTrend()) {
+      limit *= 2;
+    }
     intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
     return Min(limit, halfway_to_the_max);
   }
@@ -1578,7 +1600,11 @@ class Heap {
     intptr_t limit =
         Max(old_gen_size + old_gen_size / divisor, kMinimumAllocationLimit);
     limit += new_space_.Capacity();
-    limit *= old_gen_limit_factor_;
+    // TODO(hpayer): Can be removed when when pretenuring is supported for all
+    // allocation sites.
+    if (IsHighSurvivalRate() && IsStableOrIncreasingSurvivalTrend()) {
+      limit *= 2;
+    }
     intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
     return Min(limit, halfway_to_the_max);
   }
@@ -1625,6 +1651,9 @@ class Heap {
   Map* MapForExternalArrayType(ExternalArrayType array_type);
   RootListIndex RootIndexForExternalArrayType(
       ExternalArrayType array_type);
+
+  RootListIndex RootIndexForEmptyExternalArray(ElementsKind kind);
+  ExternalArray* EmptyExternalArrayForMap(Map* map);
 
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
 
@@ -1998,10 +2027,6 @@ class Heap {
   // every allocation in large object space.
   intptr_t old_gen_allocation_limit_;
 
-  // Sometimes the heuristics dictate that those limits are increased.  This
-  // variable records that fact.
-  int old_gen_limit_factor_;
-
   // Used to adjust the limits that control the timing of the next GC.
   intptr_t size_of_old_gen_at_last_old_space_gc_;
 
@@ -2139,6 +2164,10 @@ class Heap {
 
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
+
+  // Allocate empty external array of given type.
+  MUST_USE_RESULT MaybeObject* AllocateEmptyExternalArray(
+      ExternalArrayType array_type);
 
   // Allocate empty fixed double array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedDoubleArray();

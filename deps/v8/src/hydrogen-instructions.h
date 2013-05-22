@@ -70,7 +70,6 @@ class LChunkBuilder;
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
   V(ArgumentsObject)                           \
-  V(ArrayLiteral)                              \
   V(Bitwise)                                   \
   V(BitNot)                                    \
   V(BlockEntry)                                \
@@ -104,6 +103,7 @@ class LChunkBuilder;
   V(CompareConstantEqAndBranch)                \
   V(Constant)                                  \
   V(Context)                                   \
+  V(DebugBreak)                                \
   V(DeclareGlobals)                            \
   V(DeleteProperty)                            \
   V(Deoptimize)                                \
@@ -128,7 +128,6 @@ class LChunkBuilder;
   V(InstanceSize)                              \
   V(InvokeFunction)                            \
   V(IsConstructCallAndBranch)                  \
-  V(IsNilAndBranch)                            \
   V(IsObjectAndBranch)                         \
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
@@ -150,7 +149,6 @@ class LChunkBuilder;
   V(Mod)                                       \
   V(Mul)                                       \
   V(NumericConstraint)                         \
-  V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
   V(OuterContext)                              \
   V(Parameter)                                 \
@@ -796,6 +794,7 @@ class HValue: public ZoneObject {
     kDeoptimizeOnUndefined,
     kIsArguments,
     kTruncatingToInt32,
+    // Set after an instruction is killed.
     kIsDead,
     // Instructions that are allowed to produce full range unsigned integer
     // values are marked with kUint32 flag. If arithmetic shift or a load from
@@ -811,6 +810,8 @@ class HValue: public ZoneObject {
     // has processed this instruction.
     kIDefsProcessingDone,
     kHasNoObservableSideEffects,
+    // Indicates the instruction is live during dead code elimination.
+    kIsLive,
     kLastFlag = kIDefsProcessingDone
   };
 
@@ -1073,8 +1074,9 @@ class HValue: public ZoneObject {
     UNREACHABLE();
   }
 
-  bool IsDead() const {
-    return HasNoUses() && !HasObservableSideEffects() && IsDeletable();
+  // Check if this instruction has some reason that prevents elimination.
+  bool CannotBeEliminated() const {
+    return HasObservableSideEffects() || !IsDeletable();
   }
 
 #ifdef DEBUG
@@ -1249,7 +1251,7 @@ class HInstruction: public HValue {
   HInstruction* previous() const { return previous_; }
 
   virtual void PrintTo(StringStream* stream);
-  virtual void PrintDataTo(StringStream* stream) { }
+  virtual void PrintDataTo(StringStream* stream);
 
   bool IsLinked() const { return block() != NULL; }
   void Unlink();
@@ -1459,6 +1461,17 @@ class HSoftDeoptimize: public HTemplateInstruction<0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(SoftDeoptimize)
+};
+
+
+// Inserts an int3/stop break instruction for debugging purposes.
+class HDebugBreak: public HTemplateInstruction<0> {
+ public:
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(DebugBreak)
 };
 
 
@@ -2971,7 +2984,6 @@ class HPhi: public HValue {
       : inputs_(2, zone),
         merged_index_(merged_index),
         phi_id_(-1),
-        is_live_(false),
         is_convertible_to_integer_(true) {
     for (int i = 0; i < Representation::kNumRepresentations; i++) {
       non_phi_uses_[i] = 0;
@@ -2996,7 +3008,7 @@ class HPhi: public HValue {
   void AddInput(HValue* value);
   bool HasRealUses();
 
-  bool IsReceiver() { return merged_index_ == 0; }
+  bool IsReceiver() const { return merged_index_ == 0; }
 
   int merged_index() const { return merged_index_; }
 
@@ -3031,8 +3043,6 @@ class HPhi: public HValue {
     return indirect_uses_[Representation::kDouble];
   }
   int phi_id() { return phi_id_; }
-  bool is_live() { return is_live_; }
-  void set_is_live(bool b) { is_live_ = b; }
 
   static HPhi* cast(HValue* value) {
     ASSERT(value->IsPhi());
@@ -3064,6 +3074,9 @@ class HPhi: public HValue {
 
   void SimplifyConstantInputs();
 
+  // TODO(titzer): we can't eliminate the receiver for generating backtraces
+  virtual bool IsDeletable() const { return !IsReceiver(); }
+
  protected:
   virtual void DeleteFromGraph();
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -3082,7 +3095,6 @@ class HPhi: public HValue {
   int non_phi_uses_[Representation::kNumRepresentations];
   int indirect_uses_[Representation::kNumRepresentations];
   int phi_id_;
-  bool is_live_;
   bool is_convertible_to_integer_;
 };
 
@@ -3923,31 +3935,6 @@ class HCompareConstantEqAndBranch: public HUnaryControlInstruction {
 };
 
 
-class HIsNilAndBranch: public HUnaryControlInstruction {
- public:
-  HIsNilAndBranch(HValue* value, EqualityKind kind, NilValue nil)
-      : HUnaryControlInstruction(value, NULL, NULL), kind_(kind), nil_(nil) { }
-
-  EqualityKind kind() const { return kind_; }
-  NilValue nil() const { return nil_; }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual Representation observed_input_representation(int index) {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNilAndBranch)
-
- private:
-  EqualityKind kind_;
-  NilValue nil_;
-};
-
-
 class HIsObjectAndBranch: public HUnaryControlInstruction {
  public:
   explicit HIsObjectAndBranch(HValue* value)
@@ -4416,6 +4403,8 @@ class HMod: public HArithmeticBinaryOperation {
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
+  virtual HValue* Canonicalize();
+
   DECLARE_CONCRETE_INSTRUCTION(Mod)
 
  protected:
@@ -4427,6 +4416,7 @@ class HMod: public HArithmeticBinaryOperation {
   HMod(HValue* context, HValue* left, HValue* right)
       : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanBeDivByZero);
+    SetFlag(kCanOverflow);
   }
 };
 
@@ -4449,6 +4439,8 @@ class HDiv: public HArithmeticBinaryOperation {
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+
+  virtual HValue* Canonicalize();
 
   DECLARE_CONCRETE_INSTRUCTION(Div)
 
@@ -5220,6 +5212,10 @@ class HLoadNamedField: public HTemplateInstruction<2> {
       set_representation(Representation::Tagged());
     } else if (FLAG_track_double_fields && field_representation.IsDouble()) {
       set_representation(field_representation);
+    } else if (FLAG_track_heap_object_fields &&
+               field_representation.IsHeapObject()) {
+      set_type(HType::NonPrimitive());
+      set_representation(Representation::Tagged());
     } else {
       set_representation(Representation::Tagged());
     }
@@ -5415,7 +5411,7 @@ class HLoadKeyed
              IsFastDoubleElementsKind(elements_kind));
 
       if (IsFastSmiOrObjectElementsKind(elements_kind)) {
-        if (IsFastSmiElementsKind(elements_kind)) {
+        if (elements_kind == FAST_SMI_ELEMENTS) {
           set_type(HType::Smi());
         }
 
@@ -5490,6 +5486,7 @@ class HLoadKeyed
   virtual void PrintDataTo(StringStream* stream);
 
   bool UsesMustHandleHole() const;
+  bool AllUsesCanTreatHoleAsNaN() const;
   bool RequiresHoleCheck() const;
 
   virtual Range* InferRange(Zone* zone);
@@ -6081,106 +6078,6 @@ class HMaterializedLiteral: public HTemplateInstruction<V> {
 };
 
 
-class HArrayLiteral: public HMaterializedLiteral<1> {
- public:
-  HArrayLiteral(HValue* context,
-                Handle<HeapObject> boilerplate_object,
-                Handle<FixedArray> literals,
-                int length,
-                int literal_index,
-                int depth,
-                AllocationSiteMode mode)
-      : HMaterializedLiteral<1>(literal_index, depth, mode),
-        length_(length),
-        boilerplate_object_(boilerplate_object),
-        literals_(literals) {
-    SetOperandAt(0, context);
-    SetGVNFlag(kChangesNewSpacePromotion);
-
-    boilerplate_elements_kind_ = boilerplate_object_->IsJSObject()
-        ? Handle<JSObject>::cast(boilerplate_object_)->GetElementsKind()
-        : TERMINAL_FAST_ELEMENTS_KIND;
-
-    is_copy_on_write_ = boilerplate_object_->IsJSObject() &&
-        (Handle<JSObject>::cast(boilerplate_object_)->elements()->map() ==
-         HEAP->fixed_cow_array_map());
-  }
-
-  HValue* context() { return OperandAt(0); }
-  ElementsKind boilerplate_elements_kind() const {
-    return boilerplate_elements_kind_;
-  }
-  Handle<HeapObject> boilerplate_object() const { return boilerplate_object_; }
-  Handle<FixedArray> literals() const { return literals_; }
-  int length() const { return length_; }
-  bool IsCopyOnWrite() const { return is_copy_on_write_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(ArrayLiteral)
-
- private:
-  int length_;
-  Handle<HeapObject> boilerplate_object_;
-  Handle<FixedArray> literals_;
-  ElementsKind boilerplate_elements_kind_;
-  bool is_copy_on_write_;
-};
-
-
-class HObjectLiteral: public HMaterializedLiteral<1> {
- public:
-  HObjectLiteral(HValue* context,
-                 Handle<FixedArray> constant_properties,
-                 Handle<FixedArray> literals,
-                 bool fast_elements,
-                 int literal_index,
-                 int depth,
-                 bool may_store_doubles,
-                 bool has_function)
-      : HMaterializedLiteral<1>(literal_index, depth),
-        constant_properties_(constant_properties),
-        constant_properties_length_(constant_properties->length()),
-        literals_(literals),
-        fast_elements_(fast_elements),
-        may_store_doubles_(may_store_doubles),
-        has_function_(has_function) {
-    SetOperandAt(0, context);
-    SetGVNFlag(kChangesNewSpacePromotion);
-  }
-
-  HValue* context() { return OperandAt(0); }
-  Handle<FixedArray> constant_properties() const {
-    return constant_properties_;
-  }
-  int constant_properties_length() const {
-    return constant_properties_length_;
-  }
-  Handle<FixedArray> literals() const { return literals_; }
-  bool fast_elements() const { return fast_elements_; }
-  bool may_store_doubles() const { return may_store_doubles_; }
-  bool has_function() const { return has_function_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral)
-
- private:
-  Handle<FixedArray> constant_properties_;
-  int constant_properties_length_;
-  Handle<FixedArray> literals_;
-  bool fast_elements_ : 1;
-  bool may_store_doubles_ : 1;
-  bool has_function_ : 1;
-};
-
-
 class HRegExpLiteral: public HMaterializedLiteral<1> {
  public:
   HRegExpLiteral(HValue* context,
@@ -6301,8 +6198,13 @@ class HToFastProperties: public HUnaryOperation {
   explicit HToFastProperties(HValue* value) : HUnaryOperation(value) {
     // This instruction is not marked as having side effects, but
     // changes the map of the input operand. Use it only when creating
-    // object literals.
-    ASSERT(value->IsObjectLiteral());
+    // object literals via a runtime call.
+    ASSERT(value->IsCallRuntime());
+#ifdef DEBUG
+    const Runtime::Function* function = HCallRuntime::cast(value)->function();
+    ASSERT(function->function_id == Runtime::kCreateObjectLiteral ||
+           function->function_id == Runtime::kCreateObjectLiteralShallow);
+#endif
     set_representation(Representation::Tagged());
   }
 

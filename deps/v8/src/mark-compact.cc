@@ -1054,6 +1054,70 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
 }
 
 
+void CodeFlusher::ProcessOptimizedCodeMaps() {
+  static const int kEntriesStart = SharedFunctionInfo::kEntriesStart;
+  static const int kEntryLength = SharedFunctionInfo::kEntryLength;
+  static const int kContextOffset = 0;
+  static const int kCodeOffset = 1;
+  static const int kLiteralsOffset = 2;
+  STATIC_ASSERT(kEntryLength == 3);
+
+  SharedFunctionInfo* holder = optimized_code_map_holder_head_;
+  SharedFunctionInfo* next_holder;
+  while (holder != NULL) {
+    next_holder = GetNextCodeMap(holder);
+    ClearNextCodeMap(holder);
+
+    FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
+    int new_length = kEntriesStart;
+    int old_length = code_map->length();
+    for (int i = kEntriesStart; i < old_length; i += kEntryLength) {
+      Code* code = Code::cast(code_map->get(i + kCodeOffset));
+      MarkBit code_mark = Marking::MarkBitFrom(code);
+      if (!code_mark.Get()) {
+        continue;
+      }
+
+      // Update and record the context slot in the optimizled code map.
+      Object** context_slot = HeapObject::RawField(code_map,
+          FixedArray::OffsetOfElementAt(new_length));
+      code_map->set(new_length++, code_map->get(i + kContextOffset));
+      ASSERT(Marking::IsBlack(
+          Marking::MarkBitFrom(HeapObject::cast(*context_slot))));
+      isolate_->heap()->mark_compact_collector()->
+          RecordSlot(context_slot, context_slot, *context_slot);
+
+      // Update and record the code slot in the optimized code map.
+      Object** code_slot = HeapObject::RawField(code_map,
+          FixedArray::OffsetOfElementAt(new_length));
+      code_map->set(new_length++, code_map->get(i + kCodeOffset));
+      ASSERT(Marking::IsBlack(
+          Marking::MarkBitFrom(HeapObject::cast(*code_slot))));
+      isolate_->heap()->mark_compact_collector()->
+          RecordSlot(code_slot, code_slot, *code_slot);
+
+      // Update and record the literals slot in the optimized code map.
+      Object** literals_slot = HeapObject::RawField(code_map,
+          FixedArray::OffsetOfElementAt(new_length));
+      code_map->set(new_length++, code_map->get(i + kLiteralsOffset));
+      ASSERT(Marking::IsBlack(
+          Marking::MarkBitFrom(HeapObject::cast(*literals_slot))));
+      isolate_->heap()->mark_compact_collector()->
+          RecordSlot(literals_slot, literals_slot, *literals_slot);
+    }
+
+    // Trim the optimized code map if entries have been removed.
+    if (new_length < old_length) {
+      holder->TrimOptimizedCodeMap(old_length - new_length);
+    }
+
+    holder = next_holder;
+  }
+
+  optimized_code_map_holder_head_ = NULL;
+}
+
+
 void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
   // Make sure previous flushing decisions are revisited.
   isolate_->heap()->incremental_marking()->RecordWrites(shared_info);
@@ -1112,6 +1176,36 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
 }
 
 
+void CodeFlusher::EvictOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
+  ASSERT(!FixedArray::cast(code_map_holder->optimized_code_map())->
+         get(SharedFunctionInfo::kNextMapIndex)->IsUndefined());
+
+  // Make sure previous flushing decisions are revisited.
+  isolate_->heap()->incremental_marking()->RecordWrites(code_map_holder);
+
+  SharedFunctionInfo* holder = optimized_code_map_holder_head_;
+  SharedFunctionInfo* next_holder;
+  if (holder == code_map_holder) {
+    next_holder = GetNextCodeMap(code_map_holder);
+    optimized_code_map_holder_head_ = next_holder;
+    ClearNextCodeMap(code_map_holder);
+  } else {
+    while (holder != NULL) {
+      next_holder = GetNextCodeMap(holder);
+
+      if (next_holder == code_map_holder) {
+        next_holder = GetNextCodeMap(code_map_holder);
+        SetNextCodeMap(holder, next_holder);
+        ClearNextCodeMap(code_map_holder);
+        break;
+      }
+
+      holder = next_holder;
+    }
+  }
+}
+
+
 void CodeFlusher::EvictJSFunctionCandidates() {
   JSFunction* candidate = jsfunction_candidates_head_;
   JSFunction* next_candidate;
@@ -1133,6 +1227,18 @@ void CodeFlusher::EvictSharedFunctionInfoCandidates() {
     candidate = next_candidate;
   }
   ASSERT(shared_function_info_candidates_head_ == NULL);
+}
+
+
+void CodeFlusher::EvictOptimizedCodeMaps() {
+  SharedFunctionInfo* holder = optimized_code_map_holder_head_;
+  SharedFunctionInfo* next_holder;
+  while (holder != NULL) {
+    next_holder = GetNextCodeMap(holder);
+    EvictOptimizedCodeMap(holder);
+    holder = next_holder;
+  }
+  ASSERT(optimized_code_map_holder_head_ == NULL);
 }
 
 
@@ -3954,6 +4060,10 @@ void MarkCompactCollector::EnableCodeFlushing(bool enable) {
     code_flusher_->EvictAllCandidates();
     delete code_flusher_;
     code_flusher_ = NULL;
+  }
+
+  if (FLAG_trace_code_flushing) {
+    PrintF("[code-flushing is now %s]\n", enable ? "on" : "off");
   }
 }
 

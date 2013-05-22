@@ -149,12 +149,10 @@ class RegisteredExtension {
   static void UnregisterAll();
   Extension* extension() { return extension_; }
   RegisteredExtension* next() { return next_; }
-  RegisteredExtension* next_auto() { return next_auto_; }
   static RegisteredExtension* first_extension() { return first_extension_; }
  private:
   Extension* extension_;
   RegisteredExtension* next_;
-  RegisteredExtension* next_auto_;
   static RegisteredExtension* first_extension_;
 };
 

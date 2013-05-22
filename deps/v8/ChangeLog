@@ -1,3 +1,30 @@
+2013-05-22: Version 3.19.3
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-17: Version 3.19.2
+
+        Fill in one-word-fillers for the unused property fields
+        (Chromium issue 240056).
+
+        Removed use_system_v8 logic from the mainline gyp file
+        (Chromium issue 226860).
+
+        Skip CPU profiler samples where top function's stack frame is not
+        set up properly (issue 2628).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-14: Version 3.19.1
+
+        Fixed missing hole check for loads from Smi arrays when all uses are
+        changes (Chromium issue 233737)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-05-10: Version 3.19.0
 
         Deprecated Context::New which returns Persistent.

@@ -28,10 +28,6 @@
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
 // Flags: --track-allocation-sites --noalways-opt
 
-// TODO(mvstanton): remove --nooptimize-constructed-arrays and enable
-// the constructed array code below when the feature is turned on
-// by default.
-
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile
 // time sticks if built with snapshot.  If --smi-only-arrays is deactivated

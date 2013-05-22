@@ -339,13 +339,12 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     JSObject* self = JSObject::cast(receiver);
     Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("load", self, name));
-    CustomArguments args(isolate, data->data(), self, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments args(isolate, data->data(), self, this);
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = call_fun(v8::Utils::ToLocal(key), info);
+      result = args.Call(call_fun, v8::Utils::ToLocal(key));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) {
@@ -1291,20 +1290,23 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       break;
     }
     case JS_FUNCTION_TYPE: {
-      Object* fun_name = JSFunction::cast(this)->shared()->name();
+      JSFunction* function = JSFunction::cast(this);
+      Object* fun_name = function->shared()->DebugName();
       bool printed = false;
       if (fun_name->IsString()) {
         String* str = String::cast(fun_name);
         if (str->length() > 0) {
           accumulator->Add("<JS Function ");
           accumulator->Put(str);
-          accumulator->Put('>');
           printed = true;
         }
       }
       if (!printed) {
-        accumulator->Add("<JS Function>");
+        accumulator->Add("<JS Function");
       }
+      accumulator->Add(" (SharedFunctionInfo %p)",
+                       reinterpret_cast<void*>(function->shared()));
+      accumulator->Put('>');
       break;
     }
     case JS_GENERATOR_OBJECT_TYPE: {
@@ -1341,6 +1343,9 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
                        global_object ? "Global Object: " : "",
                        vowel ? "n" : "");
                 accumulator->Put(str);
+                accumulator->Add(" with %smap 0x%p",
+                    map_of_this->is_deprecated() ? "deprecated " : "",
+                    map_of_this);
                 printed = true;
               }
             }
@@ -1456,9 +1461,17 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<ExternalDoubleArray[%u]>",
                        ExternalDoubleArray::cast(this)->length());
       break;
-    case SHARED_FUNCTION_INFO_TYPE:
-      accumulator->Add("<SharedFunctionInfo>");
+    case SHARED_FUNCTION_INFO_TYPE: {
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(this);
+      SmartArrayPointer<char> debug_name =
+          shared->DebugName()->ToCString();
+      if (debug_name[0] != 0) {
+        accumulator->Add("<SharedFunctionInfo %s>", *debug_name);
+      } else {
+        accumulator->Add("<SharedFunctionInfo>");
+      }
       break;
+    }
     case JS_MESSAGE_OBJECT_TYPE:
       accumulator->Add("<JSMessageObject>");
       break;
@@ -1788,7 +1801,9 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
   int index = map()->NextFreePropertyIndex();
 
   // Allocate new instance descriptors with (name, index) added
-  Representation representation = value->OptimalRepresentation();
+  Representation representation = IsJSContextExtensionObject()
+      ? Representation::Tagged() : value->OptimalRepresentation();
+
   FieldDescriptor new_field(name, index, attributes, representation);
 
   ASSERT(index < map()->inobject_properties() ||
@@ -2041,8 +2056,8 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
   Map* old_target = old_map->GetTransition(transition_index);
   Object* result;
 
-  MaybeObject* maybe_result =
-      ConvertDescriptorToField(name, new_value, attributes);
+  MaybeObject* maybe_result = ConvertDescriptorToField(
+      name, new_value, attributes, OMIT_TRANSITION_KEEP_REPRESENTATIONS);
   if (!maybe_result->To(&result)) return maybe_result;
 
   if (!HasFastProperties()) return result;
@@ -2083,7 +2098,8 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
 
 MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
                                                 Object* new_value,
-                                                PropertyAttributes attributes) {
+                                                PropertyAttributes attributes,
+                                                TransitionFlag flag) {
   if (map()->unused_property_fields() == 0 &&
       TooManyFastProperties(properties()->length(), MAY_BE_STORE_FROM_KEYED)) {
     Object* obj;
@@ -2092,14 +2108,14 @@ MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
     return ReplaceSlowProperty(name, new_value, attributes);
   }
 
-  Representation representation = new_value->OptimalRepresentation();
+  Representation representation = IsJSContextExtensionObject()
+      ? Representation::Tagged() : new_value->OptimalRepresentation();
   int index = map()->NextFreePropertyIndex();
   FieldDescriptor new_field(name, index, attributes, representation);
 
   // Make a new map for the object.
   Map* new_map;
-  MaybeObject* maybe_new_map = map()->CopyInsertDescriptor(&new_field,
-                                                           OMIT_TRANSITION);
+  MaybeObject* maybe_new_map = map()->CopyInsertDescriptor(&new_field, flag);
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
   // Make new properties array if necessary.
@@ -2137,6 +2153,7 @@ const char* Representation::Mnemonic() const {
     case kSmi: return "s";
     case kDouble: return "d";
     case kInteger32: return "i";
+    case kHeapObject: return "h";
     case kExternal: return "x";
     default:
       UNREACHABLE();
@@ -2171,7 +2188,7 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
   Address new_end = elms->address() + FixedArray::SizeFor(len - to_trim);
 
   if (trim_mode != FROM_GC || Heap::ShouldZapGarbage()) {
-      ZapEndOfFixedArray(new_end, to_trim);
+    ZapEndOfFixedArray(new_end, to_trim);
   }
 
   int size_delta = to_trim * kPointerSize;
@@ -2422,6 +2439,7 @@ Map* Map::FindRootMap() {
 }
 
 
+// Returns NULL if the updated map is incompatible.
 Map* Map::FindUpdatedMap(int verbatim,
                          int length,
                          DescriptorArray* descriptors) {
@@ -2437,6 +2455,17 @@ Map* Map::FindUpdatedMap(int verbatim,
     int transition = transitions->Search(name);
     if (transition == TransitionArray::kNotFound) break;
     current = transitions->GetTarget(transition);
+    PropertyDetails details = descriptors->GetDetails(i);
+    PropertyDetails target_details =
+        current->instance_descriptors()->GetDetails(i);
+    if (details.attributes() != target_details.attributes()) return NULL;
+    if (details.type() == CALLBACKS) {
+      if (target_details.type() != CALLBACKS) return NULL;
+      if (descriptors->GetValue(i) !=
+              current->instance_descriptors()->GetValue(i)) {
+        return NULL;
+      }
+    }
   }
 
   return current;
@@ -2499,10 +2528,10 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
                                            Representation new_representation) {
   Map* old_map = this;
   DescriptorArray* old_descriptors = old_map->instance_descriptors();
-  Representation old_reprepresentation =
+  Representation old_representation =
       old_descriptors->GetDetails(modify_index).representation();
 
-  if (old_reprepresentation.IsNone()) {
+  if (old_representation.IsNone()) {
     UNREACHABLE();
     old_descriptors->SetRepresentation(modify_index, new_representation);
     return this;
@@ -2511,6 +2540,7 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
   int descriptors = old_map->NumberOfOwnDescriptors();
   Map* root_map = old_map->FindRootMap();
 
+  // Check the state of the root map.
   if (!old_map->EquivalentToForTransition(root_map)) {
     return CopyGeneralizeAllRepresentations();
   }
@@ -2519,7 +2549,8 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
 
   Map* updated = root_map->FindUpdatedMap(
       verbatim, descriptors, old_descriptors);
-  // Check the state of the root map.
+  if (updated == NULL) return CopyGeneralizeAllRepresentations();
+
   DescriptorArray* updated_descriptors = updated->instance_descriptors();
 
   int valid = updated->NumberOfOwnDescriptors();
@@ -2528,9 +2559,14 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
     Representation updated_representation =
         updated_descriptors->GetDetails(modify_index).representation();
     if (new_representation.fits_into(updated_representation)) {
-      if (FLAG_trace_generalization) {
-        PrintF("migrating to existing map %p -> %p\n",
-               static_cast<void*>(this), static_cast<void*>(updated));
+      if (FLAG_trace_generalization &&
+          !(modify_index == 0 && new_representation.IsSmi())) {
+        PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
+        PrintF("migrating to existing map %p(%s) -> %p(%s)\n",
+               static_cast<void*>(this),
+               old_details.representation().Mnemonic(),
+               static_cast<void*>(updated),
+               updated_representation.Mnemonic());
       }
       return updated;
     }
@@ -2541,10 +2577,13 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
       verbatim, valid, descriptors, old_descriptors);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
-  old_reprepresentation =
+  old_representation =
       new_descriptors->GetDetails(modify_index).representation();
-  new_representation = new_representation.generalize(old_reprepresentation);
-  new_descriptors->SetRepresentation(modify_index, new_representation);
+  Representation updated_representation =
+      new_representation.generalize(old_representation);
+  if (!updated_representation.Equals(old_representation)) {
+    new_descriptors->SetRepresentation(modify_index, updated_representation);
+  }
 
   Map* split_map = root_map->FindLastMatchMap(
       verbatim, descriptors, new_descriptors);
@@ -2558,10 +2597,14 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
   split_map->DeprecateTarget(
       old_descriptors->GetKey(descriptor), new_descriptors);
 
-  if (FLAG_trace_generalization) {
-    PrintF("migrating to new map %p -> %p (%i steps)\n",
+  if (FLAG_trace_generalization &&
+      !(modify_index == 0 && new_representation.IsSmi())) {
+    PrintF("migrating to new map %i: %p(%s) -> %p(%s) (%i steps)\n",
+           modify_index,
            static_cast<void*>(this),
+           old_representation.Mnemonic(),
            static_cast<void*>(new_descriptors),
+           updated_representation.Mnemonic(),
            descriptors - descriptor);
   }
 
@@ -2575,11 +2618,40 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
       // during GC. Its descriptor array is too large, but it will be
       // overwritten during retry anyway.
       Handle<Map>(new_map);
+      return maybe_map;
     }
   }
 
   new_map->set_owns_descriptors(true);
   return new_map;
+}
+
+
+Map* Map::CurrentMapForDeprecated() {
+  AssertNoAllocation no_allocation;
+  if (!is_deprecated()) return this;
+
+  DescriptorArray* old_descriptors = instance_descriptors();
+
+  int descriptors = NumberOfOwnDescriptors();
+  Map* root_map = FindRootMap();
+
+  // Check the state of the root map.
+  if (!EquivalentToForTransition(root_map)) return NULL;
+  int verbatim = root_map->NumberOfOwnDescriptors();
+
+  Map* updated = root_map->FindUpdatedMap(
+      verbatim, descriptors, old_descriptors);
+  if (updated == NULL) return NULL;
+
+  DescriptorArray* updated_descriptors = updated->instance_descriptors();
+  int valid = updated->NumberOfOwnDescriptors();
+  if (!updated_descriptors->IsMoreGeneralThan(
+          verbatim, valid, descriptors, old_descriptors)) {
+    return NULL;
+  }
+
+  return updated;
 }
 
 
@@ -2598,8 +2670,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   if (!interceptor->setter()->IsUndefined()) {
     LOG(isolate, ApiNamedPropertyAccess("interceptor-named-set", this, name));
-    CustomArguments args(isolate, interceptor->data(), this, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
     v8::NamedPropertySetter setter =
         v8::ToCData<v8::NamedPropertySetter>(interceptor->setter());
     v8::Handle<v8::Value> result;
@@ -2610,9 +2681,9 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
                                   isolate->heap()->undefined_value() :
                                   value,
                                   isolate);
-      result = setter(v8::Utils::ToLocal(name_handle),
-                      v8::Utils::ToLocal(value_unhole),
-                      info);
+      result = args.Call(setter,
+                         v8::Utils::ToLocal(name_handle),
+                         v8::Utils::ToLocal(value_unhole));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
@@ -2712,14 +2783,14 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     if (call_fun == NULL) return value;
     Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("store", this, name));
-    CustomArguments args(isolate, data->data(), this, JSObject::cast(holder));
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments
+      args(isolate, data->data(), this, JSObject::cast(holder));
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      call_fun(v8::Utils::ToLocal(key),
-               v8::Utils::ToLocal(value_handle),
-               info);
+      args.Call(call_fun,
+                v8::Utils::ToLocal(key),
+                v8::Utils::ToLocal(value_handle));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
@@ -3003,6 +3074,20 @@ Map* Map::LookupElementsTransitionMap(ElementsKind to_kind) {
   Map* to_map = FindClosestElementsTransition(this, to_kind);
   if (to_map->elements_kind() == to_kind) return to_map;
   return NULL;
+}
+
+
+bool Map::IsMapInArrayPrototypeChain() {
+  Isolate* isolate = GetIsolate();
+  if (isolate->initial_array_prototype()->map() == this) {
+    return true;
+  }
+
+  if (isolate->initial_object_prototype()->map() == this) {
+    return true;
+  }
+
+  return false;
 }
 
 
@@ -4007,8 +4092,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
   Handle<JSObject> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(String::cast(name));
-  CustomArguments args(isolate, interceptor->data(), receiver, this);
-  v8::AccessorInfo info(args.end());
+  PropertyCallbackArguments args(isolate, interceptor->data(), receiver, this);
   if (!interceptor->query()->IsUndefined()) {
     v8::NamedPropertyQuery query =
         v8::ToCData<v8::NamedPropertyQuery>(interceptor->query());
@@ -4018,7 +4102,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = query(v8::Utils::ToLocal(name_handle), info);
+      result = args.Call(query, v8::Utils::ToLocal(name_handle));
     }
     if (!result.IsEmpty()) {
       ASSERT(result->IsInt32());
@@ -4033,7 +4117,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = getter(v8::Utils::ToLocal(name_handle), info);
+      result = args.Call(getter, v8::Utils::ToLocal(name_handle));
     }
     if (!result.IsEmpty()) return DONT_ENUM;
   }
@@ -4148,8 +4232,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSReceiver> hreceiver(receiver);
   Handle<JSObject> holder(this);
-  CustomArguments args(isolate, interceptor->data(), receiver, this);
-  v8::AccessorInfo info(args.end());
+  PropertyCallbackArguments args(isolate, interceptor->data(), receiver, this);
   if (!interceptor->query()->IsUndefined()) {
     v8::IndexedPropertyQuery query =
         v8::ToCData<v8::IndexedPropertyQuery>(interceptor->query());
@@ -4159,7 +4242,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = query(index, info);
+      result = args.Call(query, index);
     }
     if (!result.IsEmpty())
       return static_cast<PropertyAttributes>(result->Int32Value());
@@ -4172,7 +4255,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = getter(index, info);
+      result = args.Call(getter, index);
     }
     if (!result.IsEmpty()) return NONE;
   }
@@ -4836,13 +4919,12 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(Name* name) {
         v8::ToCData<v8::NamedPropertyDeleter>(interceptor->deleter());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-delete", *this_handle, name));
-    CustomArguments args(isolate, interceptor->data(), this, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
     v8::Handle<v8::Boolean> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = deleter(v8::Utils::ToLocal(name_handle), info);
+      result = args.Call(deleter, v8::Utils::ToLocal(name_handle));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
@@ -4873,13 +4955,12 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   Handle<JSObject> this_handle(this);
   LOG(isolate,
       ApiIndexedPropertyAccess("interceptor-indexed-delete", this, index));
-  CustomArguments args(isolate, interceptor->data(), this, this);
-  v8::AccessorInfo info(args.end());
+  PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
   v8::Handle<v8::Boolean> result;
   {
     // Leaving JavaScript.
     VMState<EXTERNAL> state(isolate);
-    result = deleter(index, info);
+    result = args.Call(deleter, index);
   }
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (!result.IsEmpty()) {
@@ -6308,7 +6389,7 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 
     set_transitions(transitions);
     result->SetBackPointer(this);
-  } else {
+  } else if (flag != OMIT_TRANSITION_KEEP_REPRESENTATIONS) {
     descriptors->InitializeRepresentations(Representation::Tagged());
   }
 
@@ -6316,6 +6397,8 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 }
 
 
+// Since this method is used to rewrite an existing transition tree, it can
+// always insert transitions without checking.
 MaybeObject* Map::CopyInstallDescriptors(int new_descriptor,
                                          DescriptorArray* descriptors) {
   ASSERT(descriptors->IsSortedNoDuplicates());
@@ -6338,18 +6421,14 @@ MaybeObject* Map::CopyInstallDescriptors(int new_descriptor,
   result->set_unused_property_fields(unused_property_fields);
   result->set_owns_descriptors(false);
 
-  if (CanHaveMoreTransitions()) {
-    Name* name = descriptors->GetKey(new_descriptor);
-    TransitionArray* transitions;
-    MaybeObject* maybe_transitions =
-        AddTransition(name, result, SIMPLE_TRANSITION);
-    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  Name* name = descriptors->GetKey(new_descriptor);
+  TransitionArray* transitions;
+  MaybeObject* maybe_transitions =
+      AddTransition(name, result, SIMPLE_TRANSITION);
+  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
 
-    set_transitions(transitions);
-    result->SetBackPointer(this);
-  } else {
-    descriptors->InitializeRepresentations(Representation::Tagged());
-  }
+  set_transitions(transitions);
+  result->SetBackPointer(this);
 
   return result;
 }
@@ -7467,18 +7546,12 @@ bool DescriptorArray::IsMoreGeneralThan(int verbatim,
   for (int descriptor = verbatim; descriptor < valid; descriptor++) {
     PropertyDetails details = GetDetails(descriptor);
     PropertyDetails other_details = other->GetDetails(descriptor);
-    if (details.type() != other_details.type()) {
-      if (details.type() != FIELD ||
-          other_details.type() != CONSTANT_FUNCTION) {
-        return false;
-      }
-    } else if (details.type() == CONSTANT_FUNCTION) {
-      if (GetValue(descriptor) != other->GetValue(descriptor)) {
-        return false;
-      }
-    } else if (!other_details.representation().fits_into(
-                   details.representation())) {
+    if (!other_details.representation().fits_into(details.representation())) {
       return false;
+    }
+    if (details.type() == CONSTANT_FUNCTION) {
+      if (other_details.type() != CONSTANT_FUNCTION) return false;
+      if (GetValue(descriptor) != other->GetValue(descriptor)) return false;
     }
   }
 
@@ -8343,12 +8416,13 @@ bool String::MarkAsUndetectable() {
 }
 
 
-bool String::IsUtf8EqualTo(Vector<const char> str) {
+bool String::IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match) {
   int slen = length();
   // Can't check exact length equality, but we can check bounds.
   int str_len = str.length();
-  if (str_len < slen ||
-      str_len > slen*static_cast<int>(unibrow::Utf8::kMaxEncodedSize)) {
+  if (!allow_prefix_match &&
+      (str_len < slen ||
+          str_len > slen*static_cast<int>(unibrow::Utf8::kMaxEncodedSize))) {
     return false;
   }
   int i;
@@ -8368,7 +8442,7 @@ bool String::IsUtf8EqualTo(Vector<const char> str) {
     utf8_data += cursor;
     remaining_in_str -= cursor;
   }
-  return i == slen && remaining_in_str == 0;
+  return (allow_prefix_match || i == slen) && remaining_in_str == 0;
 }
 
 
@@ -8933,33 +9007,46 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<Context> native_context,
     Handle<Code> code,
     Handle<FixedArray> literals) {
+  CALL_HEAP_FUNCTION_VOID(
+      shared->GetIsolate(),
+      shared->AddToOptimizedCodeMap(*native_context, *code, *literals));
+}
+
+
+MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
+                                                       Code* code,
+                                                       FixedArray* literals) {
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
   ASSERT(native_context->IsNativeContext());
   STATIC_ASSERT(kEntryLength == 3);
-  Object* value = shared->optimized_code_map();
-  Handle<FixedArray> new_code_map;
+  Heap* heap = GetHeap();
+  FixedArray* new_code_map;
+  Object* value = optimized_code_map();
   if (value->IsSmi()) {
     // No optimized code map.
     ASSERT_EQ(0, Smi::cast(value)->value());
     // Crate 3 entries per context {context, code, literals}.
-    new_code_map = FACTORY->NewFixedArray(kEntryLength);
-    new_code_map->set(0, *native_context);
-    new_code_map->set(1, *code);
-    new_code_map->set(2, *literals);
+    MaybeObject* maybe = heap->AllocateFixedArray(kInitialLength);
+    if (!maybe->To(&new_code_map)) return maybe;
+    new_code_map->set(kEntriesStart + 0, native_context);
+    new_code_map->set(kEntriesStart + 1, code);
+    new_code_map->set(kEntriesStart + 2, literals);
   } else {
     // Copy old map and append one new entry.
-    Handle<FixedArray> old_code_map(FixedArray::cast(value));
-    ASSERT_EQ(-1, shared->SearchOptimizedCodeMap(*native_context));
+    FixedArray* old_code_map = FixedArray::cast(value);
+    ASSERT_EQ(-1, SearchOptimizedCodeMap(native_context));
     int old_length = old_code_map->length();
     int new_length = old_length + kEntryLength;
-    new_code_map = FACTORY->NewFixedArray(new_length);
-    old_code_map->CopyTo(0, *new_code_map, 0, old_length);
-    new_code_map->set(old_length, *native_context);
-    new_code_map->set(old_length + 1, *code);
-    new_code_map->set(old_length + 2, *literals);
+    MaybeObject* maybe = old_code_map->CopySize(new_length);
+    if (!maybe->To(&new_code_map)) return maybe;
+    new_code_map->set(old_length + 0, native_context);
+    new_code_map->set(old_length + 1, code);
+    new_code_map->set(old_length + 2, literals);
+    // Zap the old map for the sake of the heap verifier.
+    if (Heap::ShouldZapGarbage()) ZapOptimizedCodeMap();
   }
 #ifdef DEBUG
-  for (int i = 0; i < new_code_map->length(); i += kEntryLength) {
+  for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
     ASSERT(new_code_map->get(i)->IsNativeContext());
     ASSERT(new_code_map->get(i + 1)->IsCode());
     ASSERT(Code::cast(new_code_map->get(i + 1))->kind() ==
@@ -8967,14 +9054,14 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     ASSERT(new_code_map->get(i + 2)->IsFixedArray());
   }
 #endif
-  shared->set_optimized_code_map(*new_code_map);
+  set_optimized_code_map(new_code_map);
+  return new_code_map;
 }
 
 
 void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
                                                      int index) {
-  ASSERT(index > 0);
-  ASSERT(optimized_code_map()->IsFixedArray());
+  ASSERT(index > kEntriesStart);
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
   if (!bound()) {
     FixedArray* cached_literals = FixedArray::cast(code_map->get(index + 1));
@@ -8985,6 +9072,76 @@ void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
   ASSERT(code != NULL);
   ASSERT(function->context()->native_context() == code_map->get(index - 1));
   function->ReplaceCode(code);
+}
+
+
+void SharedFunctionInfo::ClearOptimizedCodeMap() {
+  FixedArray* code_map = FixedArray::cast(optimized_code_map());
+
+  // If the next map link slot is already used then the function was
+  // enqueued with code flushing and we remove it now.
+  if (!code_map->get(kNextMapIndex)->IsUndefined()) {
+    CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
+    flusher->EvictOptimizedCodeMap(this);
+  }
+
+  ASSERT(code_map->get(kNextMapIndex)->IsUndefined());
+  set_optimized_code_map(Smi::FromInt(0));
+}
+
+
+void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
+                                                   const char* reason) {
+  if (optimized_code_map()->IsSmi()) return;
+
+  int i;
+  bool removed_entry = false;
+  FixedArray* code_map = FixedArray::cast(optimized_code_map());
+  for (i = kEntriesStart; i < code_map->length(); i += kEntryLength) {
+    ASSERT(code_map->get(i)->IsNativeContext());
+    if (Code::cast(code_map->get(i + 1)) == optimized_code) {
+      if (FLAG_trace_opt) {
+        PrintF("[evicting entry from optimizing code map (%s) for ", reason);
+        ShortPrint();
+        PrintF("]\n");
+      }
+      removed_entry = true;
+      break;
+    }
+  }
+  while (i < (code_map->length() - kEntryLength)) {
+    code_map->set(i, code_map->get(i + kEntryLength));
+    code_map->set(i + 1, code_map->get(i + 1 + kEntryLength));
+    code_map->set(i + 2, code_map->get(i + 2 + kEntryLength));
+    i += kEntryLength;
+  }
+  if (removed_entry) {
+    // Always trim even when array is cleared because of heap verifier.
+    RightTrimFixedArray<FROM_MUTATOR>(GetHeap(), code_map, kEntryLength);
+    if (code_map->length() == kEntriesStart) {
+      ClearOptimizedCodeMap();
+    }
+  }
+}
+
+
+void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
+  FixedArray* code_map = FixedArray::cast(optimized_code_map());
+  ASSERT(shrink_by % kEntryLength == 0);
+  ASSERT(shrink_by <= code_map->length() - kEntriesStart);
+  // Always trim even when array is cleared because of heap verifier.
+  RightTrimFixedArray<FROM_GC>(GetHeap(), code_map, shrink_by);
+  if (code_map->length() == kEntriesStart) {
+    ClearOptimizedCodeMap();
+  }
+}
+
+
+void SharedFunctionInfo::ZapOptimizedCodeMap() {
+  FixedArray* code_map = FixedArray::cast(optimized_code_map());
+  MemsetPointer(code_map->data_start(),
+                GetHeap()->the_hole_value(),
+                code_map->length());
 }
 
 
@@ -9198,6 +9355,26 @@ void JSFunction::PrintName(FILE* out) {
 
 Context* JSFunction::NativeContextFromLiterals(FixedArray* literals) {
   return Context::cast(literals->get(JSFunction::kLiteralNativeContextIndex));
+}
+
+
+bool JSFunction::PassesHydrogenFilter() {
+  String* name = shared()->DebugName();
+  if (*FLAG_hydrogen_filter != '\0') {
+    Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
+    if (filter[0] != '-' && name->IsUtf8EqualTo(filter)) return true;
+    if (filter[0] == '-' &&
+        !name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+      return true;
+    }
+    if (filter[filter.length() - 1] == '*' &&
+        name->IsUtf8EqualTo(filter.SubVector(0, filter.length() - 1), true)) {
+      return true;
+    }
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -9455,8 +9632,9 @@ void SharedFunctionInfo::DisableOptimization(const char* reason) {
     code()->set_optimizable(false);
   }
   if (FLAG_trace_opt) {
-    PrintF("[disabled optimization for %s, reason: %s]\n",
-           *DebugName()->ToCString(), reason);
+    PrintF("[disabled optimization for ");
+    ShortPrint();
+    PrintF(", reason: %s]\n", reason);
   }
 }
 
@@ -9606,10 +9784,15 @@ int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context) {
   if (!value->IsSmi()) {
     FixedArray* optimized_code_map = FixedArray::cast(value);
     int length = optimized_code_map->length();
-    for (int i = 0; i < length; i += 3) {
+    for (int i = kEntriesStart; i < length; i += kEntryLength) {
       if (optimized_code_map->get(i) == native_context) {
         return i + 1;
       }
+    }
+    if (FLAG_trace_opt) {
+      PrintF("[didn't find optimized code in optimized code map for ");
+      ShortPrint();
+      PrintF("]\n");
     }
   }
   return -1;
@@ -9692,9 +9875,10 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
   VisitExternalReferences(p, p + 1);
 }
 
-byte Code::compare_nil_state() {
+byte Code::compare_nil_types() {
   ASSERT(is_compare_nil_ic_stub());
-  return CompareNilICStub::TypesFromExtraICState(extended_extra_ic_state());
+  return CompareNilICStub::ExtractTypesFromExtraICState(
+      extended_extra_ic_state());
 }
 
 
@@ -10031,12 +10215,15 @@ void Code::PrintDeoptLocation(int bailout_id) {
     RelocInfo* info = it.rinfo();
     if (info->rmode() == RelocInfo::COMMENT) {
       last_comment = reinterpret_cast<const char*>(info->data());
-    } else if (last_comment != NULL &&
-               bailout_id == Deoptimizer::GetDeoptimizationId(
-                   GetIsolate(), info->target_address(), Deoptimizer::EAGER)) {
-      CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
-      PrintF("            %s\n", last_comment);
-      return;
+    } else if (last_comment != NULL) {
+      if ((bailout_id == Deoptimizer::GetDeoptimizationId(
+              GetIsolate(), info->target_address(), Deoptimizer::EAGER)) ||
+          (bailout_id == Deoptimizer::GetDeoptimizationId(
+              GetIsolate(), info->target_address(), Deoptimizer::SOFT))) {
+        CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
+        PrintF("            %s\n", last_comment);
+        return;
+      }
     }
   }
 }
@@ -10968,13 +11155,12 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
         v8::ToCData<v8::IndexedPropertySetter>(interceptor->setter());
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-set", this, index));
-    CustomArguments args(isolate, interceptor->data(), this, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = setter(index, v8::Utils::ToLocal(value_handle), info);
+      result = args.Call(setter, index, v8::Utils::ToLocal(value_handle));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
@@ -11011,13 +11197,13 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key = isolate->factory()->NumberToString(number);
     LOG(isolate, ApiNamedPropertyAccess("load", *self, *key));
-    CustomArguments args(isolate, data->data(), *self, *holder_handle);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments
+        args(isolate, data->data(), *self, *holder_handle);
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = call_fun(v8::Utils::ToLocal(key), info);
+      result = args.Call(call_fun, v8::Utils::ToLocal(key));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) return isolate->heap()->undefined_value();
@@ -11078,14 +11264,14 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key(isolate->factory()->NumberToString(number));
     LOG(isolate, ApiNamedPropertyAccess("store", *self, *key));
-    CustomArguments args(isolate, data->data(), *self, *holder_handle);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments
+        args(isolate, data->data(), *self, *holder_handle);
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      call_fun(v8::Utils::ToLocal(key),
-               v8::Utils::ToLocal(value_handle),
-               info);
+      args.Call(call_fun,
+                v8::Utils::ToLocal(key),
+                v8::Utils::ToLocal(value_handle));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
@@ -11150,6 +11336,18 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
                                       bool check_prototype) {
   ASSERT(HasFastSmiOrObjectElements() ||
          HasFastArgumentsElements());
+
+  // Array optimizations rely on the prototype lookups of Array objects always
+  // returning undefined. If there is a store to the initial prototype object,
+  // make sure all of these optimizations are invalidated.
+  Isolate* isolate(GetIsolate());
+  if (isolate->is_initial_object_prototype(this) ||
+      isolate->is_initial_array_prototype(this)) {
+    HandleScope scope(GetIsolate());
+    map()->dependent_code()->DeoptimizeDependentCodeGroup(
+        GetIsolate(),
+        DependentCode::kElementsCantBeAddedGroup);
+  }
 
   FixedArray* backing_store = FixedArray::cast(elements());
   if (backing_store->map() == GetHeap()->non_strict_arguments_elements_map()) {
@@ -11957,13 +12155,13 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
         v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-get", this, index));
-    CustomArguments args(isolate, interceptor->data(), receiver, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments
+        args(isolate, interceptor->data(), receiver, this);
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = getter(index, info);
+      result = args.Call(getter, index);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
@@ -12267,13 +12465,13 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
         v8::ToCData<v8::NamedPropertyGetter>(interceptor->getter());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-get", *holder_handle, name));
-    CustomArguments args(isolate, interceptor->data(), receiver, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments
+        args(isolate, interceptor->data(), receiver, this);
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = getter(v8::Utils::ToLocal(name_handle), info);
+      result = args.Call(getter, v8::Utils::ToLocal(name_handle));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
@@ -13393,7 +13591,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
     // Ordering is irrelevant, since we are going to sort anyway.
     SeededNumberDictionary* dict = element_dictionary();
     if (IsJSArray() || dict->requires_slow_elements() ||
-        dict->max_number_key() >= limit) {
+        dict->max_number_key() >= limit || map()->is_observed()) {
       return PrepareSlowElementsForSort(limit);
     }
     // Convert to fast elements.

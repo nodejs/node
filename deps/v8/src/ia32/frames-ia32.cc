@@ -43,6 +43,10 @@ Address ExitFrame::ComputeStackPointer(Address fp) {
 }
 
 
+Register JavaScriptFrame::fp_register() { return ebp; }
+Register JavaScriptFrame::context_register() { return esi; }
+
+
 Register StubFailureTrampolineFrame::fp_register() { return ebp; }
 Register StubFailureTrampolineFrame::context_register() { return esi; }
 

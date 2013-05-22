@@ -545,19 +545,14 @@ int GetScriptLineNumberSafe(Handle<Script> script, int code_pos) {
 }
 
 
-void CustomArguments::IterateInstance(ObjectVisitor* v) {
-  v->VisitPointers(values_, values_ + ARRAY_SIZE(values_));
-}
-
-
 // Compute the property keys from the interceptor.
 // TODO(rossberg): support symbols in API, and filter here if needed.
 v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
                                                  Handle<JSObject> object) {
   Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
-  CustomArguments args(isolate, interceptor->data(), *receiver, *object);
-  v8::AccessorInfo info(args.end());
+  PropertyCallbackArguments
+      args(isolate, interceptor->data(), *receiver, *object);
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
     v8::NamedPropertyEnumerator enum_fun =
@@ -566,7 +561,7 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = enum_fun(info);
+      result = args.Call(enum_fun);
     }
   }
 #if ENABLE_EXTRA_CHECKS
@@ -581,8 +576,8 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
                                                    Handle<JSObject> object) {
   Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
-  CustomArguments args(isolate, interceptor->data(), *receiver, *object);
-  v8::AccessorInfo info(args.end());
+  PropertyCallbackArguments
+      args(isolate, interceptor->data(), *receiver, *object);
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
     v8::IndexedPropertyEnumerator enum_fun =
@@ -591,7 +586,7 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = enum_fun(info);
+      result = args.Call(enum_fun);
 #if ENABLE_EXTRA_CHECKS
       CHECK(result.IsEmpty() || v8::Utils::OpenHandle(*result)->IsJSObject());
 #endif

@@ -98,7 +98,10 @@ var kMessages = {
   observe_non_object:            ["Object.", "%0", " cannot ", "%0", " non-object"],
   observe_non_function:          ["Object.", "%0", " cannot deliver to non-function"],
   observe_callback_frozen:       ["Object.observe cannot deliver to a frozen function object"],
+  observe_invalid_accept:        ["Object.observe accept must be an array of strings."],
   observe_type_non_string:       ["Invalid changeRecord with non-string 'type' property"],
+  observe_perform_non_string:    ["Invalid non-string changeType"],
+  observe_perform_non_function:  ["Cannot perform non-function"],
   observe_notify_non_notifier:   ["notify called on non-notifier object"],
   proto_poison_pill:             ["Generic use of __proto__ accessor not allowed"],
   parameterless_typed_array_constr:

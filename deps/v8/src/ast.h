@@ -278,7 +278,9 @@ class SmallMapList {
   int length() const { return list_.length(); }
 
   void AddMapIfMissing(Handle<Map> map, Zone* zone) {
-    map = Map::CurrentMapForDeprecated(map);
+    Map* updated = map->CurrentMapForDeprecated();
+    if (updated == NULL) return;
+    map = Handle<Map>(updated);
     for (int i = 0; i < length(); ++i) {
       if (at(i).is_identical_to(map)) return;
     }
@@ -286,6 +288,7 @@ class SmallMapList {
   }
 
   void Add(Handle<Map> handle, Zone* zone) {
+    ASSERT(!handle->is_deprecated());
     list_.Add(handle.location(), zone);
   }
 
@@ -1992,6 +1995,18 @@ class Yield: public Expression {
   Kind yield_kind() const { return yield_kind_; }
   virtual int position() const { return pos_; }
 
+  // Delegating yield surrounds the "yield" in a "try/catch".  This index
+  // locates the catch handler in the handler table, and is equivalent to
+  // TryCatchStatement::index().
+  int index() const {
+    ASSERT(yield_kind() == DELEGATING);
+    return index_;
+  }
+  void set_index(int index) {
+    ASSERT(yield_kind() == DELEGATING);
+    index_ = index;
+  }
+
  protected:
   Yield(Isolate* isolate,
         Expression* generator_object,
@@ -2002,12 +2017,14 @@ class Yield: public Expression {
         generator_object_(generator_object),
         expression_(expression),
         yield_kind_(yield_kind),
+        index_(-1),
         pos_(pos) { }
 
  private:
   Expression* generator_object_;
   Expression* expression_;
   Kind yield_kind_;
+  int index_;
   int pos_;
 };
 

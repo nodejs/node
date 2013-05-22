@@ -440,7 +440,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   Label indirect_string_loaded;
   __ ldr(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
   __ ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
-  __ add(index, index, Operand(result, ASR, kSmiTagSize));
+  __ add(index, index, Operand::SmiUntag(result));
   __ jmp(&indirect_string_loaded);
 
   // Handle cons strings.
@@ -510,9 +510,9 @@ void SeqStringSetCharGenerator::Generate(MacroAssembler* masm,
                                          Register index,
                                          Register value) {
   if (FLAG_debug_code) {
-    __ tst(index, Operand(kSmiTagMask));
+    __ SmiTst(index);
     __ Check(eq, "Non-smi index");
-    __ tst(value, Operand(kSmiTagMask));
+    __ SmiTst(value);
     __ Check(eq, "Non-smi value");
 
     __ ldr(ip, FieldMemOperand(string, String::kLengthOffset));
@@ -540,10 +540,10 @@ void SeqStringSetCharGenerator::Generate(MacroAssembler* masm,
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   if (encoding == String::ONE_BYTE_ENCODING) {
     // Smis are tagged by left shift by 1, thus LSR by 1 to smi-untag inline.
-    __ strb(value, MemOperand(ip, index, LSR, 1));
+    __ strb(value, MemOperand(ip, index, LSR, kSmiTagSize));
   } else {
     // No need to untag a smi for two-byte addressing.
-    __ strh(value, MemOperand(ip, index));
+    __ strh(value, MemOperand(ip, index));  // LSL(1 - kSmiTagSize).
   }
 }
 

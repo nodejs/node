@@ -256,3 +256,12 @@ test(function stringCharAt() {
   assertEquals("b", "abc".charAt(1.1));
   assertEquals("", "abc".charAt(4.1));
 });
+
+
+test(function int32Mod() {
+  assertEquals(-0, -2147483648 % (-1));
+});
+
+test(function int32Div() {
+  assertEquals(2147483648, -2147483648 / (-1));
+});

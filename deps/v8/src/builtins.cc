@@ -845,7 +845,7 @@ BUILTIN(ArraySlice) {
       if (start < kMinInt || start > kMaxInt) {
         return CallJsBuiltin(isolate, "ArraySlice", args);
       }
-      relative_start = static_cast<int>(start);
+      relative_start = std::isnan(start) ? 0 : static_cast<int>(start);
     } else if (!arg1->IsUndefined()) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
@@ -858,7 +858,7 @@ BUILTIN(ArraySlice) {
         if (end < kMinInt || end > kMaxInt) {
           return CallJsBuiltin(isolate, "ArraySlice", args);
         }
-        relative_end = static_cast<int>(end);
+        relative_end = std::isnan(end) ? 0 : static_cast<int>(end);
       } else if (!arg2->IsUndefined()) {
         return CallJsBuiltin(isolate, "ArraySlice", args);
       }
@@ -1317,15 +1317,13 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     LOG(isolate, ApiObjectAccess("call", JSObject::cast(*args.receiver())));
     ASSERT(raw_holder->IsJSObject());
 
-    CustomArguments custom(isolate);
-    v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
-        isolate, data_obj, *function, raw_holder);
-
-    v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
-        custom.end(),
-        &args[0] - 1,
-        args.length() - 1,
-        is_construct);
+    FunctionCallbackArguments custom(isolate,
+                                     data_obj,
+                                     *function,
+                                     raw_holder,
+                                     &args[0] - 1,
+                                     args.length() - 1,
+                                     is_construct);
 
     v8::Handle<v8::Value> value;
     {
@@ -1333,7 +1331,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
       VMState<EXTERNAL> state(isolate);
       ExternalCallbackScope call_scope(isolate,
                                        v8::ToCData<Address>(callback_obj));
-      value = callback(new_args);
+      value = custom.Call(callback);
     }
     if (value.IsEmpty()) {
       result = heap->undefined_value();
@@ -1396,21 +1394,20 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
     HandleScope scope(isolate);
     LOG(isolate, ApiObjectAccess("call non-function", obj));
 
-    CustomArguments custom(isolate);
-    v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
-        isolate, call_data->data(), constructor, obj);
-    v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
-        custom.end(),
-        &args[0] - 1,
-        args.length() - 1,
-        is_construct_call);
+    FunctionCallbackArguments custom(isolate,
+                                     call_data->data(),
+                                     constructor,
+                                     obj,
+                                     &args[0] - 1,
+                                     args.length() - 1,
+                                     is_construct_call);
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
       ExternalCallbackScope call_scope(isolate,
                                        v8::ToCData<Address>(callback_obj));
-      value = callback(new_args);
+      value = custom.Call(callback);
     }
     if (value.IsEmpty()) {
       result = heap->undefined_value();

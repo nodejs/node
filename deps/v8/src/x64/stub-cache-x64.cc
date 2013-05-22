@@ -398,7 +398,7 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 // Number of pointers to be reserved on stack for fast API call.
-static const int kFastApiCallArguments = 4;
+static const int kFastApiCallArguments = FunctionCallbackArguments::kArgsLength;
 
 
 // Reserves space for the extra arguments to API function in the
@@ -449,10 +449,12 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   //                           (first fast api call extra argument)
   //  -- rsp[24]             : api call data
   //  -- rsp[32]             : isolate
-  //  -- rsp[40]             : last argument
+  //  -- rsp[40]             : ReturnValue
+  //
+  //  -- rsp[48]             : last argument
   //  -- ...
-  //  -- rsp[(argc + 4) * 8] : first argument
-  //  -- rsp[(argc + 5) * 8] : receiver
+  //  -- rsp[(argc + 5) * 8] : first argument
+  //  -- rsp[(argc + 6) * 8] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -473,15 +475,23 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ movq(kScratchRegister,
           ExternalReference::isolate_address(masm->isolate()));
   __ movq(Operand(rsp, 4 * kPointerSize), kScratchRegister);
+  __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
+  __ movq(Operand(rsp, 5 * kPointerSize), kScratchRegister);
 
   // Prepare arguments.
-  __ lea(rbx, Operand(rsp, 4 * kPointerSize));
+  STATIC_ASSERT(kFastApiCallArguments == 5);
+  __ lea(rbx, Operand(rsp, kFastApiCallArguments * kPointerSize));
+
+  // Function address is a foreign pointer outside V8's heap.
+  Address function_address = v8::ToCData<Address>(api_call_info->callback());
+  bool returns_handle =
+      !CallbackTable::ReturnsVoid(masm->isolate(), function_address);
 
 #if defined(__MINGW64__)
   Register arguments_arg = rcx;
 #elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
-  Register arguments_arg = rdx;
+  Register arguments_arg = returns_handle ? rdx : rcx;
 #else
   Register arguments_arg = rdi;
 #endif
@@ -490,7 +500,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
-  __ PrepareCallApiFunction(kApiStackSpace);
+  __ PrepareCallApiFunction(kApiStackSpace, returns_handle);
 
   __ movq(StackSpaceOperand(0), rbx);  // v8::Arguments::implicit_args_.
   __ addq(rbx, Immediate(argc * kPointerSize));
@@ -502,10 +512,10 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // v8::InvocationCallback's argument.
   __ lea(arguments_arg, StackSpaceOperand(0));
 
-  // Function address is a foreign pointer outside V8's heap.
-  Address function_address = v8::ToCData<Address>(api_call_info->callback());
   __ CallApiFunctionAndReturn(function_address,
-                              argc + kFastApiCallArguments + 1);
+                              argc + kFastApiCallArguments + 1,
+                              returns_handle,
+                              kFastApiCallArguments + 1);
 }
 
 
@@ -807,6 +817,8 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
   if (FLAG_track_fields && representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_restore_name);
+  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+    __ JumpIfSmi(value_reg, miss_restore_name);
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     Label do_store, heap_number;
     __ AllocateHeapNumber(storage_reg, scratch1, slow);
@@ -953,6 +965,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   ASSERT(!representation.IsNone());
   if (FLAG_track_fields && representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
+  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+    __ JumpIfSmi(value_reg, miss_label);
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     // Load the double storage.
     if (index < 0) {
@@ -1284,18 +1298,24 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   } else {
     __ Push(Handle<Object>(callback->data(), isolate()));
   }
-  __ PushAddress(ExternalReference::isolate_address(isolate()));  // isolate
+  __ PushAddress(ExternalReference::isolate_address(isolate()));
+  __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
+  __ push(kScratchRegister);  // return value
   __ push(name());  // name
   // Save a pointer to where we pushed the arguments pointer.  This will be
   // passed as the const ExecutableAccessorInfo& to the C++ callback.
+
+  Address getter_address = v8::ToCData<Address>(callback->getter());
+  bool returns_handle =
+      !CallbackTable::ReturnsVoid(isolate(), getter_address);
 
 #if defined(__MINGW64__)
   Register accessor_info_arg = rdx;
   Register name_arg = rcx;
 #elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
-  Register accessor_info_arg = r8;
-  Register name_arg = rdx;
+  Register accessor_info_arg = returns_handle ? r8 : rdx;
+  Register name_arg = returns_handle ? rdx : rcx;
 #else
   Register accessor_info_arg = rsi;
   Register name_arg = rdi;
@@ -1305,14 +1325,15 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ movq(name_arg, rsp);
   __ push(scratch2());  // Restore return address.
 
-  // 4 elements array for v8::Arguments::values_ and handler for name.
-  const int kStackSpace = 5;
+  // v8::Arguments::values_ and handler for name.
+  const int kStackSpace = PropertyCallbackArguments::kArgsLength + 1;
 
   // Allocate v8::AccessorInfo in non-GCed stack space.
   const int kArgStackSpace = 1;
 
-  __ PrepareCallApiFunction(kArgStackSpace);
-  __ lea(rax, Operand(name_arg, 4 * kPointerSize));
+  __ PrepareCallApiFunction(kArgStackSpace, returns_handle);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 5);
+  __ lea(rax, Operand(name_arg, 5 * kPointerSize));
 
   // v8::AccessorInfo::args_.
   __ movq(StackSpaceOperand(0), rax);
@@ -1321,8 +1342,10 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // could be used to pass arguments.
   __ lea(accessor_info_arg, StackSpaceOperand(0));
 
-  Address getter_address = v8::ToCData<Address>(callback->getter());
-  __ CallApiFunctionAndReturn(getter_address, kStackSpace);
+  __ CallApiFunctionAndReturn(getter_address,
+                              kStackSpace,
+                              returns_handle,
+                              3);
 }
 
 
@@ -2268,7 +2291,7 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
                   name, depth, &miss);
 
   // Move the return address on top of the stack.
-  __ movq(rax, Operand(rsp, 4 * kPointerSize));
+  __ movq(rax, Operand(rsp, kFastApiCallArguments * kPointerSize));
   __ movq(Operand(rsp, 0 * kPointerSize), rax);
 
   GenerateFastApiCall(masm(), optimization, argc);

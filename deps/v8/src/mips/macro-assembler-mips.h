@@ -1237,7 +1237,10 @@ class MacroAssembler: public Assembler {
   // from handle and propagates exceptions.  Restores context.  stack_space
   // - space to be unwound on exit (includes the call JS arguments space and
   // the additional space allocated for the fast call).
-  void CallApiFunctionAndReturn(ExternalReference function, int stack_space);
+  void CallApiFunctionAndReturn(ExternalReference function,
+                                int stack_space,
+                                bool returns_handle,
+                                int return_value_offset_from_fp);
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,

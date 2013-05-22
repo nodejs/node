@@ -40,6 +40,7 @@ namespace internal {
 // Forward declarations.
 class CodeEntry;
 class CodeMap;
+class CompilationInfo;
 class CpuProfile;
 class CpuProfilesCollection;
 class ProfileGenerator;
@@ -142,7 +143,8 @@ class ProfilerEventsProcessor : public Thread {
                        Name* name,
                        String* resource_name, int line_number,
                        Address start, unsigned size,
-                       Address shared);
+                       Address shared,
+                       CompilationInfo* info);
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
                        const char* name,
                        Address start, unsigned size);
@@ -227,11 +229,13 @@ class CpuProfiler {
                        Code* code, Name* name);
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
                        Code* code,
-                              SharedFunctionInfo* shared,
-                              Name* name);
+                       SharedFunctionInfo* shared,
+                       CompilationInfo* info,
+                       Name* name);
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
                        Code* code,
                        SharedFunctionInfo* shared,
+                       CompilationInfo* info,
                        String* source, int line);
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
                        Code* code, int args_count);

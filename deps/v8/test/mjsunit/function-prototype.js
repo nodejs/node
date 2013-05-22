@@ -90,9 +90,28 @@ assertEquals(F.prototype, GetPrototypeOf(F));
 // in GetPrototypeOf and go to a monomorphic IC load instead.
 assertEquals(87, GetPrototypeOf({prototype:87}));
 
-// Check the prototype is not enumerable, for compatibility with
-// safari.  This is deliberately incompatible with ECMA262, 15.3.5.2.
+// Check the prototype is not enumerable, as per ES5 section 15.3.5.2.  Note
+// that this is in difference to ES3, which specified that function instances
+// would have enumerable prototypes (section 15.3.5.2 also).
 var foo = new Function("return x");
 var result  = ""
 for (var n in foo) result += n;
 assertEquals(result, "");
+
+f = new Function('return 1;')
+var desc = Object.getOwnPropertyDescriptor(f, "prototype");
+assertFalse(desc.configurable);
+assertFalse(desc.enumerable);
+assertTrue(desc.writable);
+
+f = Function('return 1;')
+var desc = Object.getOwnPropertyDescriptor(f, "prototype");
+assertFalse(desc.configurable);
+assertFalse(desc.enumerable);
+assertTrue(desc.writable);
+
+f = function () { return 1; }
+var desc = Object.getOwnPropertyDescriptor(f, "prototype");
+assertFalse(desc.configurable);
+assertFalse(desc.enumerable);
+assertTrue(desc.writable);

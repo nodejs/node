@@ -352,6 +352,9 @@ function testOneArrayType(allocator) {
   assertTrue(%HasFastDoubleElements(large_array));
 }
 
+// Force gc here to start with a clean heap if we repeat this test multiple
+// times.
+gc();
 testOneArrayType(make_object_like_array);
 testOneArrayType(Array);
 

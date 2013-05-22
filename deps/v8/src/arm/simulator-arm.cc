@@ -412,7 +412,7 @@ void ArmDebugger::Debug() {
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int value = *cur;
           Heap* current_heap = v8::internal::Isolate::Current()->heap();
-          if (current_heap->Contains(obj) || ((value & 1) == 0)) {
+          if (((value & 1) == 0) || current_heap->Contains(obj)) {
             PrintF(" (");
             if ((value & 1) == 0) {
               PrintF("smi %d", value / 2);
@@ -1628,10 +1628,13 @@ typedef double (*SimulatorRuntimeFPIntCall)(double darg0, int32_t arg0);
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
 typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectApiCall)(int32_t arg0);
+typedef void (*SimulatorRuntimeDirectApiCallNew)(int32_t arg0);
 
 // This signature supports direct call to accessor getter callback.
 typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectGetterCall)(int32_t arg0,
                                                                   int32_t arg1);
+typedef void (*SimulatorRuntimeDirectGetterCallNew)(int32_t arg0,
+                                                    int32_t arg1);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
@@ -1770,40 +1773,56 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             break;
           }
         }
-      } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
-        SimulatorRuntimeDirectApiCall target =
-            reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
+      } else if (
+          redirection->type() == ExternalReference::DIRECT_API_CALL ||
+          redirection->type() == ExternalReference::DIRECT_API_CALL_NEW) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x",
-              FUNCTION_ADDR(target), arg0);
+              reinterpret_cast<void*>(external), arg0);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        v8::Handle<v8::Value> result = target(arg0);
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
+        if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
+          SimulatorRuntimeDirectApiCall target =
+              reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
+          v8::Handle<v8::Value> result = target(arg0);
+          if (::v8::internal::FLAG_trace_sim) {
+            PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
+          }
+          set_register(r0, reinterpret_cast<int32_t>(*result));
+        } else {
+          SimulatorRuntimeDirectApiCallNew target =
+              reinterpret_cast<SimulatorRuntimeDirectApiCallNew>(external);
+          target(arg0);
         }
-        set_register(r0, reinterpret_cast<int32_t>(*result));
-      } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
-        SimulatorRuntimeDirectGetterCall target =
-            reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
+      } else if (
+          redirection->type() == ExternalReference::DIRECT_GETTER_CALL ||
+          redirection->type() == ExternalReference::DIRECT_GETTER_CALL_NEW) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
-              FUNCTION_ADDR(target), arg0, arg1);
+              reinterpret_cast<void*>(external), arg0, arg1);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        v8::Handle<v8::Value> result = target(arg0, arg1);
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
+        if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
+          SimulatorRuntimeDirectGetterCall target =
+              reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
+          v8::Handle<v8::Value> result = target(arg0, arg1);
+          if (::v8::internal::FLAG_trace_sim) {
+            PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
+          }
+          set_register(r0, reinterpret_cast<int32_t>(*result));
+        } else {
+          SimulatorRuntimeDirectGetterCallNew target =
+              reinterpret_cast<SimulatorRuntimeDirectGetterCallNew>(external);
+          target(arg0, arg1);
         }
-        set_register(r0, reinterpret_cast<int32_t>(*result));
       } else {
         // builtin call.
         ASSERT(redirection->type() == ExternalReference::BUILTIN_CALL);
@@ -2698,6 +2717,7 @@ void Simulator::DecodeType7(Instruction* instr) {
 // vmov :Rt = Sn
 // vcvt: Dd = Sm
 // vcvt: Sd = Dm
+// vcvt.f64.s32 Dd, Dd, #<fbits>
 // Dd = vabs(Dm)
 // Dd = vneg(Dm)
 // Dd = vadd(Dn, Dm)
@@ -2746,6 +2766,13 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
       } else if ((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) {
         DecodeVCVTBetweenFloatingPointAndInteger(instr);
+      } else if ((instr->Opc2Value() == 0xA) && (instr->Opc3Value() == 0x3) &&
+                 (instr->Bit(8) == 1)) {
+        // vcvt.f64.s32 Dd, Dd, #<fbits>
+        int fraction_bits = 32 - ((instr->Bit(5) << 4) | instr->Bits(3, 0));
+        int fixed_value = get_sinteger_from_s_register(vd * 2);
+        double divide = 1 << fraction_bits;
+        set_d_register_from_double(vd, fixed_value / divide);
       } else if (((instr->Opc2Value() >> 1) == 0x6) &&
                  (instr->Opc3Value() & 0x1)) {
         DecodeVCVTBetweenFloatingPointAndInteger(instr);

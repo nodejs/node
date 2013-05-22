@@ -129,7 +129,7 @@ if (support_smi_only_arrays) {
   // upon can hoisted, too.
   function testExactMapHoisting3(a) {
     var object = new Object();
-    a.foo = 0;
+    a.foo = null;
     a[0] = 0;
     a[1] = 1;
     var count = 3;

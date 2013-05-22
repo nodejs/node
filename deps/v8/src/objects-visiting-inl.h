@@ -311,15 +311,23 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   if (shared->ic_age() != heap->global_ic_age()) {
     shared->ResetForNewContext(heap->global_ic_age());
   }
-  if (FLAG_cache_optimized_code) {
-    // Flush optimized code map on major GC.
-    // TODO(mstarzinger): We may experiment with rebuilding it or with
-    // retaining entries which should survive as we iterate through
-    // optimized functions anyway.
+  if (FLAG_cache_optimized_code &&
+      FLAG_flush_optimized_code_cache &&
+      !shared->optimized_code_map()->IsSmi()) {
+    // Always flush the optimized code map if requested by flag.
     shared->ClearOptimizedCodeMap();
   }
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->is_code_flushing_enabled()) {
+    if (FLAG_cache_optimized_code && !shared->optimized_code_map()->IsSmi()) {
+      // Add the shared function info holding an optimized code map to
+      // the code flusher for processing of code maps after marking.
+      collector->code_flusher()->AddOptimizedCodeMap(shared);
+      // Treat all references within the code map weakly by marking the
+      // code map itself but not pushing it onto the marking deque.
+      FixedArray* code_map = FixedArray::cast(shared->optimized_code_map());
+      StaticVisitor::MarkObjectWithoutPush(heap, code_map);
+    }
     if (IsFlushable(heap, shared)) {
       // This function's code looks flushable. But we have to postpone
       // the decision until we see all functions that point to the same
@@ -331,6 +339,12 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
       // Treat the reference to the code object weakly.
       VisitSharedFunctionInfoWeakCode(heap, object);
       return;
+    }
+  } else {
+    if (FLAG_cache_optimized_code && !shared->optimized_code_map()->IsSmi()) {
+      // Flush optimized code map on major GCs without code flushing,
+      // needed because cached code doesn't contain breakpoints.
+      shared->ClearOptimizedCodeMap();
     }
   }
   VisitSharedFunctionInfoStrongCode(heap, object);
@@ -566,14 +580,20 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
-  // If this is a full script wrapped in a function we do no flush the code.
+  // We do not (yet?) flush code for generator functions, because we don't know
+  // if there are still live activations (generator objects) on the heap.
+  if (shared_info->is_generator()) {
+    return false;
+  }
+
+  // If this is a full script wrapped in a function we do not flush the code.
   if (shared_info->is_toplevel()) {
     return false;
   }
 
-  // If this is a native function we do not flush the code because %SetCode
-  // breaks the one-to-one relation between SharedFunctionInfo and Code.
-  if (shared_info->native()) {
+  // If this is a function initialized with %SetCode then the one-to-one
+  // relation between SharedFunctionInfo and Code is broken.
+  if (shared_info->dont_flush()) {
     return false;
   }
 

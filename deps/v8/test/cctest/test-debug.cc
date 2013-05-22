@@ -850,8 +850,8 @@ static void DebugEventEvaluate(v8::DebugEvent event,
       v8::Handle<v8::Value> result =
           evaluate_check_function->Call(exec_state, argc, argv);
       if (!result->IsTrue()) {
-        v8::String::AsciiValue ascii(checks[i].expected->ToString());
-        V8_Fatal(__FILE__, __LINE__, "%s != %s", checks[i].expr, *ascii);
+        v8::String::Utf8Value utf8(checks[i].expected->ToString());
+        V8_Fatal(__FILE__, __LINE__, "%s != %s", checks[i].expr, *utf8);
       }
     }
   }
@@ -923,7 +923,7 @@ static void DebugEventStepSequence(v8::DebugEvent event,
     v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
                                                              argc, argv);
     CHECK(result->IsString());
-    v8::String::AsciiValue function_name(result->ToString());
+    v8::String::Utf8Value function_name(result->ToString());
     CHECK_EQ(1, StrLength(*function_name));
     CHECK_EQ((*function_name)[0],
               expected_step_sequence[break_point_hit_count]);
@@ -4285,7 +4285,7 @@ static v8::Handle<v8::Array> IndexedEnum(const v8::AccessorInfo&) {
 
 static v8::Handle<v8::Value> NamedGetter(v8::Local<v8::String> name,
                                          const v8::AccessorInfo& info) {
-  v8::String::AsciiValue n(name);
+  v8::String::Utf8Value n(name);
   if (strcmp(*n, "a") == 0) {
     return v8::String::New("AA");
   } else if (strcmp(*n, "b") == 0) {
@@ -7008,7 +7008,7 @@ v8::Handle<v8::Context> debugger_context;
 static v8::Handle<v8::Value> NamedGetterWithCallingContextCheck(
     v8::Local<v8::String> name,
     const v8::AccessorInfo& info) {
-  CHECK_EQ(0, strcmp(*v8::String::AsciiValue(name), "a"));
+  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(name), "a"));
   v8::Handle<v8::Context> current = v8::Context::GetCurrent();
   CHECK(current == debugee_context);
   CHECK(current != debugger_context);

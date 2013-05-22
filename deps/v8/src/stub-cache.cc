@@ -907,9 +907,8 @@ Handle<Code> StubCache::ComputeCallMiss(int argc,
 
 
 Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
-                                          NilValue nil,
-                                          CompareNilICStub::Types types) {
-  CompareNilICStub stub(kNonStrictEquality, nil, types);
+                                          CompareNilICStub& stub) {
+  stub.SetKind(kNonStrictEquality);
 
   Handle<String> name(isolate_->heap()->empty_string());
   if (!receiver_map->is_shared()) {
@@ -1035,10 +1034,12 @@ void StubCache::Clear() {
   Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = heap()->empty_string();
+    primary_[i].map = NULL;
     primary_[i].value = empty;
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
     secondary_[j].key = heap()->empty_string();
+    secondary_[j].map = NULL;
     secondary_[j].value = empty;
   }
 }
@@ -1105,13 +1106,13 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   Handle<String> str = Handle<String>::cast(name);
 
   LOG(isolate, ApiNamedPropertyAccess("store", recv, *name));
-  CustomArguments custom_args(isolate, callback->data(), recv, recv);
-  v8::AccessorInfo info(custom_args.end());
+  PropertyCallbackArguments
+      custom_args(isolate, callback->data(), recv, recv);
   {
     // Leaving JavaScript.
     VMState<EXTERNAL> state(isolate);
     ExternalCallbackScope call_scope(isolate, setter_address);
-    fun(v8::Utils::ToLocal(str), v8::Utils::ToLocal(value), info);
+    custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
   }
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
@@ -1129,13 +1130,13 @@ static const int kAccessorInfoOffsetInInterceptorArgs = 2;
  * provide any value for the given name.
  */
 RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
+  typedef PropertyCallbackArguments PCA;
+  static const int kArgsOffset = kAccessorInfoOffsetInInterceptorArgs;
   Handle<Name> name_handle = args.at<Name>(0);
   Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(1);
-  ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
-  ASSERT(args[2]->IsJSObject());  // Receiver.
-  ASSERT(args[3]->IsJSObject());  // Holder.
-  ASSERT(args[5]->IsSmi());  // Isolate.
-  ASSERT(args.length() == 6);
+  ASSERT(kArgsOffset == 2);
+  // No ReturnValue in interceptors.
+  ASSERT(args.length() == kArgsOffset + PCA::kArgsLength - 1);
 
   // TODO(rossberg): Support symbols in the API.
   if (name_handle->IsSymbol())
@@ -1147,16 +1148,22 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
       FUNCTION_CAST<v8::NamedPropertyGetter>(getter_address);
   ASSERT(getter != NULL);
 
+  Handle<JSObject> receiver =
+      args.at<JSObject>(kArgsOffset - PCA::kThisIndex);
+  Handle<JSObject> holder =
+      args.at<JSObject>(kArgsOffset - PCA::kHolderIndex);
+  PropertyCallbackArguments callback_args(isolate,
+                                          interceptor_info->data(),
+                                          *receiver,
+                                          *holder);
   {
     // Use the interceptor getter.
-    v8::AccessorInfo info(args.arguments() -
-                          kAccessorInfoOffsetInInterceptorArgs);
     HandleScope scope(isolate);
     v8::Handle<v8::Value> r;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      r = getter(v8::Utils::ToLocal(name), info);
+      r = callback_args.Call(getter, v8::Utils::ToLocal(name));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
@@ -1190,12 +1197,17 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
 
 static MaybeObject* LoadWithInterceptor(Arguments* args,
                                         PropertyAttributes* attrs) {
+  typedef PropertyCallbackArguments PCA;
+  static const int kArgsOffset = kAccessorInfoOffsetInInterceptorArgs;
   Handle<Name> name_handle = args->at<Name>(0);
   Handle<InterceptorInfo> interceptor_info = args->at<InterceptorInfo>(1);
-  ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
-  Handle<JSObject> receiver_handle = args->at<JSObject>(2);
-  Handle<JSObject> holder_handle = args->at<JSObject>(3);
-  ASSERT(args->length() == 6);
+  ASSERT(kArgsOffset == 2);
+  // No ReturnValue in interceptors.
+  ASSERT(args->length() == kArgsOffset + PCA::kArgsLength - 1);
+  Handle<JSObject> receiver_handle =
+      args->at<JSObject>(kArgsOffset - PCA::kThisIndex);
+  Handle<JSObject> holder_handle =
+      args->at<JSObject>(kArgsOffset - PCA::kHolderIndex);
 
   Isolate* isolate = receiver_handle->GetIsolate();
 
@@ -1210,16 +1222,18 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
       FUNCTION_CAST<v8::NamedPropertyGetter>(getter_address);
   ASSERT(getter != NULL);
 
+  PropertyCallbackArguments callback_args(isolate,
+                                          interceptor_info->data(),
+                                          *receiver_handle,
+                                          *holder_handle);
   {
     // Use the interceptor getter.
-    v8::AccessorInfo info(args->arguments() -
-                          kAccessorInfoOffsetInInterceptorArgs);
     HandleScope scope(isolate);
     v8::Handle<v8::Value> r;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      r = getter(v8::Utils::ToLocal(name), info);
+      r = callback_args.Call(getter, v8::Utils::ToLocal(name));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {

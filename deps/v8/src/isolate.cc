@@ -835,7 +835,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
 }
 
 
-void Isolate::PrintStack() {
+void Isolate::PrintStack(FILE* out) {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
 
@@ -850,7 +850,7 @@ void Isolate::PrintStack() {
     StringStream accumulator(allocator);
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
-    accumulator.OutputToStdOut();
+    accumulator.OutputToFile(out);
     InitializeLoggingAndCounters();
     accumulator.Log();
     incomplete_message_ = NULL;
@@ -865,7 +865,7 @@ void Isolate::PrintStack() {
       "\n\nAttempt to print stack while printing stack (double fault)\n");
     OS::PrintError(
       "If you are lucky you may find a partial stack dump on stdout.\n\n");
-    incomplete_message_->OutputToStdOut();
+    incomplete_message_->OutputToFile(out);
   }
 }
 
@@ -1752,7 +1752,8 @@ Isolate::Isolate()
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
-      sweeper_thread_(NULL) {
+      sweeper_thread_(NULL),
+      callback_table_(NULL) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
@@ -2440,6 +2441,44 @@ HStatistics* Isolate::GetHStatistics() {
 HTracer* Isolate::GetHTracer() {
   if (htracer() == NULL) set_htracer(new HTracer(id()));
   return htracer();
+}
+
+
+Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
+  Context* native_context = context()->native_context();
+  Object* maybe_map_array = native_context->js_array_maps();
+  if (!maybe_map_array->IsUndefined()) {
+    Object* maybe_transitioned_map =
+        FixedArray::cast(maybe_map_array)->get(kind);
+    if (!maybe_transitioned_map->IsUndefined()) {
+      return Map::cast(maybe_transitioned_map);
+    }
+  }
+  return NULL;
+}
+
+
+bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
+  Map* root_array_map =
+      get_initial_js_array_map(GetInitialFastElementsKind());
+  ASSERT(root_array_map != NULL);
+  JSObject* initial_array_proto = JSObject::cast(*initial_array_prototype());
+
+  // Check that the array prototype hasn't been altered WRT empty elements.
+  if (root_array_map->prototype() != initial_array_proto) return false;
+  if (initial_array_proto->elements() != heap()->empty_fixed_array()) {
+    return false;
+  }
+
+  // Check that the object prototype hasn't been altered WRT empty elements.
+  JSObject* initial_object_proto = JSObject::cast(*initial_object_prototype());
+  Object* root_array_map_proto = initial_array_proto->GetPrototype();
+  if (root_array_map_proto != initial_object_proto) return false;
+  if (initial_object_proto->elements() != heap()->empty_fixed_array()) {
+    return false;
+  }
+
+  return initial_object_proto->GetPrototype()->IsNull();
 }
 
 

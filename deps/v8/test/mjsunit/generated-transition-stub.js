@@ -68,7 +68,7 @@ for (j = 0; j < iteration_count; ++j) {
   for (i = 0; i < 0x40000; ++i) {
     a5[i] = 0;
   }
-  assertTrue(%HasFastSmiElements(a5));
+  assertTrue(%HasFastSmiElements(a5) || %HasFastDoubleElements(a5));
   transition1(a5, 0, 2.5);
   assertEquals(2.5, a5[0]);
 }

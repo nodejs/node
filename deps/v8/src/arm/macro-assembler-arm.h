@@ -44,12 +44,6 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
 }
 
 
-inline Operand SmiUntagOperand(Register object) {
-  return Operand(object, ASR, kSmiTagSize);
-}
-
-
-
 // Give alias names to registers
 const Register cp = { 8 };  // JavaScript context pointer
 const Register kRootRegister = { 10 };  // Roots array pointer.
@@ -60,16 +54,6 @@ enum TaggingMode {
   TAG_RESULT,
   // Don't tag
   DONT_TAG_RESULT
-};
-
-// Flags used for the ObjectToDoubleVFPRegister function.
-enum ObjectToDoubleFlags {
-  // No special flags.
-  NO_OBJECT_TO_DOUBLE_FLAGS = 0,
-  // Object is known to be a non smi.
-  OBJECT_NOT_SMI = 1 << 0,
-  // Don't load NaNs or infinities, branch to the non number case instead.
-  AVOID_NANS_AND_INFINITIES = 1 << 1
 };
 
 
@@ -974,31 +958,9 @@ class MacroAssembler: public Assembler {
   void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
   void GetLeastBitsFromInt32(Register dst, Register src, int mun_least_bits);
 
-  // Uses VFP instructions to Convert a Smi to a double.
-  void IntegerToDoubleConversionWithVFP3(Register inReg,
-                                         Register outHighReg,
-                                         Register outLowReg);
-
-  // Load the value of a number object into a VFP double register. If the object
-  // is not a number a jump to the label not_number is performed and the VFP
-  // double register is unchanged.
-  void ObjectToDoubleVFPRegister(
-      Register object,
-      DwVfpRegister value,
-      Register scratch1,
-      Register scratch2,
-      Register heap_number_map,
-      SwVfpRegister scratch3,
-      Label* not_number,
-      ObjectToDoubleFlags flags = NO_OBJECT_TO_DOUBLE_FLAGS);
-
-  // Load the value of a smi object into a VFP double register. The register
-  // scratch1 can be the same register as smi in which case smi will hold the
-  // untagged value afterwards.
-  void SmiToDoubleVFPRegister(Register smi,
-                              DwVfpRegister value,
-                              Register scratch1,
-                              SwVfpRegister scratch2);
+  // Load the value of a smi object into a double register.
+  // The register value must be between d0 and d15.
+  void SmiToDouble(DwVfpRegister value, Register smi);
 
   // Check if a double can be exactly represented as a signed 32-bit integer.
   // Z flag set to one if true.
@@ -1125,7 +1087,10 @@ class MacroAssembler: public Assembler {
   // from handle and propagates exceptions.  Restores context.  stack_space
   // - space to be unwound on exit (includes the call JS arguments space and
   // the additional space allocated for the fast call).
-  void CallApiFunctionAndReturn(ExternalReference function, int stack_space);
+  void CallApiFunctionAndReturn(ExternalReference function,
+                                int stack_space,
+                                bool returns_handle,
+                                int return_value_offset_from_fp);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin);
@@ -1228,18 +1193,21 @@ class MacroAssembler: public Assembler {
   // Try to convert int32 to smi. If the value is to large, preserve
   // the original value and jump to not_a_smi. Destroys scratch and
   // sets flags.
-  void TrySmiTag(Register reg, Label* not_a_smi, Register scratch) {
-    mov(scratch, reg);
-    SmiTag(scratch, SetCC);
+  void TrySmiTag(Register reg, Label* not_a_smi) {
+    TrySmiTag(reg, reg, not_a_smi);
+  }
+  void TrySmiTag(Register reg, Register src, Label* not_a_smi) {
+    SmiTag(ip, src, SetCC);
     b(vs, not_a_smi);
-    mov(reg, scratch);
+    mov(reg, ip);
   }
 
+
   void SmiUntag(Register reg, SBit s = LeaveCC) {
-    mov(reg, Operand(reg, ASR, kSmiTagSize), s);
+    mov(reg, Operand::SmiUntag(reg), s);
   }
   void SmiUntag(Register dst, Register src, SBit s = LeaveCC) {
-    mov(dst, Operand(src, ASR, kSmiTagSize), s);
+    mov(dst, Operand::SmiUntag(src), s);
   }
 
   // Untag the source value into destination and jump if source is a smi.
@@ -1250,6 +1218,13 @@ class MacroAssembler: public Assembler {
   // Souce and destination can be the same register.
   void UntagAndJumpIfNotSmi(Register dst, Register src, Label* non_smi_case);
 
+  // Test if the register contains a smi (Z == 0 (eq) if true).
+  inline void SmiTst(Register value) {
+    tst(value, Operand(kSmiTagMask));
+  }
+  inline void NonNegativeSmiTst(Register value) {
+    tst(value, Operand(kSmiTagMask | kSmiSignMask));
+  }
   // Jump if the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
     tst(value, Operand(kSmiTagMask));

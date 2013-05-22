@@ -647,9 +647,17 @@ class ExternalReference BASE_EMBEDDED {
     // Handle<Value> f(v8::Arguments&)
     DIRECT_API_CALL,
 
+    // Direct call to API function callback.
+    // void f(v8::Arguments&)
+    DIRECT_API_CALL_NEW,
+
     // Direct call to accessor getter callback.
     // Handle<value> f(Local<String> property, AccessorInfo& info)
-    DIRECT_GETTER_CALL
+    DIRECT_GETTER_CALL,
+
+    // Direct call to accessor getter callback.
+    // void f(Local<String> property, AccessorInfo& info)
+    DIRECT_GETTER_CALL_NEW
   };
 
   static void SetUp();

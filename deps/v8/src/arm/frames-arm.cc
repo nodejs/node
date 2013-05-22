@@ -45,6 +45,10 @@ Address ExitFrame::ComputeStackPointer(Address fp) {
 }
 
 
+Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
+Register JavaScriptFrame::context_register() { return cp; }
+
+
 Register StubFailureTrampolineFrame::fp_register() { return v8::internal::fp; }
 Register StubFailureTrampolineFrame::context_register() { return cp; }
 

@@ -3929,7 +3929,9 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
-                                              int stack_space) {
+                                              int stack_space,
+                                              bool returns_handle,
+                                              int return_value_offset_from_fp) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   const int kNextOffset = 0;
@@ -3978,22 +3980,27 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
     PopSafepointRegisters();
   }
 
-  // As mentioned above, on MIPS a pointer is returned - we need to dereference
-  // it to get the actual return value (which is also a pointer).
-  lw(v0, MemOperand(v0));
-
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
+  Label return_value_loaded;
 
-  // If result is non-zero, dereference to get the result value
-  // otherwise set it to undefined.
-  Label skip;
-  LoadRoot(a0, Heap::kUndefinedValueRootIndex);
-  Branch(&skip, eq, v0, Operand(zero_reg));
-  lw(a0, MemOperand(v0));
-  bind(&skip);
-  mov(v0, a0);
+  if (returns_handle) {
+    Label load_return_value;
+
+    // As mentioned above, on MIPS a pointer is returned - we need to
+    // dereference it to get the actual return value (which is also a pointer).
+    lw(v0, MemOperand(v0));
+
+    Branch(&load_return_value, eq, v0, Operand(zero_reg));
+    // Dereference returned value.
+    lw(v0, MemOperand(v0));
+    Branch(&return_value_loaded);
+    bind(&load_return_value);
+  }
+  // Load value from ReturnValue.
+  lw(v0, MemOperand(fp, return_value_offset_from_fp*kPointerSize));
+  bind(&return_value_loaded);
 
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.

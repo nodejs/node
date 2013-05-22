@@ -426,6 +426,8 @@ bool Range::MulAndCheckOverflow(Range* other) {
 
 
 const char* HType::ToString() {
+  // Note: The c1visualizer syntax for locals allows only a sequence of the
+  // following characters: A-Za-z0-9_-|:
   switch (type_) {
     case kTagged: return "tagged";
     case kTaggedPrimitive: return "primitive";
@@ -440,7 +442,7 @@ const char* HType::ToString() {
     case kUninitialized: return "uninitialized";
   }
   UNREACHABLE();
-  return "Unreachable code";
+  return "unreachable";
 }
 
 
@@ -648,7 +650,6 @@ void HValue::SetOperandAt(int index, HValue* value) {
 void HValue::DeleteAndReplaceWith(HValue* other) {
   // We replace all uses first, so Delete can assert that there are none.
   if (other != NULL) ReplaceAllUsesWith(other);
-  ASSERT(HasNoUses());
   Kill();
   DeleteFromGraph();
 }
@@ -694,16 +695,18 @@ void HValue::SetBlock(HBasicBlock* block) {
 
 void HValue::PrintTypeTo(StringStream* stream) {
   if (!representation().IsTagged() || type().Equals(HType::Tagged())) return;
-  stream->Add(" type[%s]", type().ToString());
+  stream->Add(" type:%s", type().ToString());
 }
 
 
 void HValue::PrintRangeTo(StringStream* stream) {
   if (range() == NULL || range()->IsMostGeneric()) return;
-  stream->Add(" range[%d,%d,m0=%d]",
+  // Note: The c1visualizer syntax for locals allows only a sequence of the
+  // following characters: A-Za-z0-9_-|:
+  stream->Add(" range:%d_%d%s",
               range()->lower(),
               range()->upper(),
-              static_cast<int>(range()->CanBeMinusZero()));
+              range()->CanBeMinusZero() ? "_m0" : "");
 }
 
 
@@ -799,6 +802,14 @@ void HInstruction::PrintTo(StringStream* stream) {
   PrintTypeTo(stream);
   if (CheckFlag(HValue::kHasNoObservableSideEffects)) {
     stream->Add(" [noOSE]");
+  }
+}
+
+
+void HInstruction::PrintDataTo(StringStream *stream) {
+  for (int i = 0; i < OperandCount(); ++i) {
+    if (i > 0) stream->Add(" ");
+    OperandAt(i)->PrintNameTo(stream);
   }
 }
 
@@ -1250,14 +1261,6 @@ void HUnaryControlInstruction::PrintDataTo(StringStream* stream) {
 }
 
 
-void HIsNilAndBranch::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(kind() == kStrictEquality ? " === " : " == ");
-  stream->Add(nil() == kNullValue ? "null" : "undefined");
-  HControlInstruction::PrintDataTo(stream);
-}
-
-
 void HReturn::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" (pop ");
@@ -1437,6 +1440,16 @@ HValue* HSub::Canonicalize() {
 HValue* HMul::Canonicalize() {
   if (IsIdentityOperation(left(), right(), 1)) return left();
   if (IsIdentityOperation(right(), left(), 1)) return right();
+  return this;
+}
+
+
+HValue* HMod::Canonicalize() {
+  return this;
+}
+
+
+HValue* HDiv::Canonicalize() {
   return this;
 }
 
@@ -1678,6 +1691,7 @@ Range* HChange::InferRange(Zone* zone) {
       !value()->CheckFlag(HInstruction::kUint32) &&
       input_range != NULL && input_range->IsInSmiRange()) {
     set_type(HType::Smi());
+    ClearGVNFlag(kChangesNewSpacePromotion);
   }
   Range* result = (input_range != NULL)
       ? input_range->Copy(zone)
@@ -1768,20 +1782,22 @@ Range* HMul::InferRange(Zone* zone) {
 
 Range* HDiv::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
+    Range* a = left()->range();
+    Range* b = right()->range();
     Range* result = new(zone) Range();
-    if (left()->range()->CanBeMinusZero()) {
+    if (a->CanBeMinusZero()) {
       result->set_can_be_minus_zero(true);
     }
 
-    if (left()->range()->CanBeZero() && right()->range()->CanBeNegative()) {
+    if (a->CanBeZero() && b->CanBeNegative()) {
       result->set_can_be_minus_zero(true);
     }
 
-    if (right()->range()->Includes(-1) && left()->range()->Includes(kMinInt)) {
-      SetFlag(HValue::kCanOverflow);
+    if (!a->Includes(kMinInt) || !b->Includes(-1)) {
+      ClearFlag(HValue::kCanOverflow);
     }
 
-    if (!right()->range()->CanBeZero()) {
+    if (!b->CanBeZero()) {
       ClearFlag(HValue::kCanBeDivByZero);
     }
     return result;
@@ -1794,16 +1810,17 @@ Range* HDiv::InferRange(Zone* zone) {
 Range* HMod::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
+    Range* b = right()->range();
     Range* result = new(zone) Range();
     if (a->CanBeMinusZero() || a->CanBeNegative()) {
       result->set_can_be_minus_zero(true);
     }
 
-    if (right()->range()->Includes(-1) && left()->range()->Includes(kMinInt)) {
-      SetFlag(HValue::kCanOverflow);
+    if (!a->Includes(kMinInt) || !b->Includes(-1)) {
+      ClearFlag(HValue::kCanOverflow);
     }
 
-    if (!right()->range()->CanBeZero()) {
+    if (!b->CanBeZero()) {
       ClearFlag(HValue::kCanBeDivByZero);
     }
     return result;
@@ -1893,14 +1910,15 @@ void HPhi::PrintTo(StringStream* stream) {
     value->PrintNameTo(stream);
     stream->Add(" ");
   }
-  stream->Add(" uses%d_%di_%dd_%dt",
+  stream->Add(" uses:%d_%di_%dd_%dt",
               UseCount(),
               int32_non_phi_uses() + int32_indirect_uses(),
               double_non_phi_uses() + double_indirect_uses(),
               tagged_non_phi_uses() + tagged_indirect_uses());
-  stream->Add("%s%s]",
-              is_live() ? "_live" : "",
-              IsConvertibleToInteger() ? "" : "_ncti");
+  if (!IsConvertibleToInteger()) stream->Add("_ncti");
+  PrintRangeTo(stream);
+  PrintTypeTo(stream);
+  stream->Add("]");
 }
 
 
@@ -2681,7 +2699,12 @@ bool HLoadKeyed::UsesMustHandleHole() const {
     return false;
   }
 
-  if (hole_mode() == ALLOW_RETURN_HOLE) return true;
+  if (hole_mode() == ALLOW_RETURN_HOLE) {
+    if (IsFastDoubleElementsKind(elements_kind())) {
+      return AllUsesCanTreatHoleAsNaN();
+    }
+    return true;
+  }
 
   if (IsFastDoubleElementsKind(elements_kind())) {
     return false;
@@ -2690,6 +2713,22 @@ bool HLoadKeyed::UsesMustHandleHole() const {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
     if (!use->IsChange()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+bool HLoadKeyed::AllUsesCanTreatHoleAsNaN() const {
+  if (!IsFastDoubleElementsKind(elements_kind())) {
+    return false;
+  }
+
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    HValue* use = it.value();
+    if (use->CheckFlag(HValue::kDeoptimizeOnUndefined)) {
       return false;
     }
   }
@@ -3005,16 +3044,6 @@ HType HAllocate::CalculateInferredType() {
 void HAllocate::PrintDataTo(StringStream* stream) {
   size()->PrintNameTo(stream);
   if (!GuaranteedInNewSpace()) stream->Add(" (pretenure)");
-}
-
-
-HType HArrayLiteral::CalculateInferredType() {
-  return HType::JSArray();
-}
-
-
-HType HObjectLiteral::CalculateInferredType() {
-  return HType::JSObject();
 }
 
 
@@ -3350,6 +3379,9 @@ HInstruction* HMod::New(
     if (c_left->HasInteger32Value() && c_right->HasInteger32Value()) {
       int32_t dividend = c_left->Integer32Value();
       int32_t divisor = c_right->Integer32Value();
+      if (dividend == kMinInt && divisor == -1) {
+        return H_CONSTANT_DOUBLE(-0.0);
+      }
       if (divisor != 0) {
         int32_t res = dividend % divisor;
         if ((res == 0) && (dividend < 0)) {

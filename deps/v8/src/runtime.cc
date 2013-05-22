@@ -676,7 +676,7 @@ bool Runtime::SetupArrayBuffer(Isolate* isolate,
   array_buffer->set_backing_store(data);
 
   Handle<Object> byte_length =
-      isolate->factory()->NewNumber(static_cast<double>(allocated_length));
+      isolate->factory()->NewNumberFromSize(allocated_length);
   CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
   array_buffer->set_byte_length(*byte_length);
   return true;
@@ -795,51 +795,41 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   CONVERT_ARG_HANDLE_CHECKED(Object, byte_length_object, 4);
 
   ExternalArrayType arrayType;
-  ElementsKind elementsKind;
   size_t elementSize;
   switch (arrayId) {
     case ARRAY_ID_UINT8:
-      elementsKind = EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
       arrayType = kExternalUnsignedByteArray;
       elementSize = 1;
       break;
     case ARRAY_ID_INT8:
-      elementsKind = EXTERNAL_BYTE_ELEMENTS;
       arrayType = kExternalByteArray;
       elementSize = 1;
       break;
     case ARRAY_ID_UINT16:
-      elementsKind = EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
       arrayType = kExternalUnsignedShortArray;
       elementSize = 2;
       break;
     case ARRAY_ID_INT16:
-      elementsKind = EXTERNAL_SHORT_ELEMENTS;
       arrayType = kExternalShortArray;
       elementSize = 2;
       break;
     case ARRAY_ID_UINT32:
-      elementsKind = EXTERNAL_UNSIGNED_INT_ELEMENTS;
       arrayType = kExternalUnsignedIntArray;
       elementSize = 4;
       break;
     case ARRAY_ID_INT32:
-      elementsKind = EXTERNAL_INT_ELEMENTS;
       arrayType = kExternalIntArray;
       elementSize = 4;
       break;
     case ARRAY_ID_FLOAT32:
-      elementsKind = EXTERNAL_FLOAT_ELEMENTS;
       arrayType = kExternalFloatArray;
       elementSize = 4;
       break;
     case ARRAY_ID_FLOAT64:
-      elementsKind = EXTERNAL_DOUBLE_ELEMENTS;
       arrayType = kExternalDoubleArray;
       elementSize = 8;
       break;
     case ARRAY_ID_UINT8C:
-      elementsKind = EXTERNAL_PIXEL_ELEMENTS;
       arrayType = kExternalPixelArray;
       elementSize = 1;
       break;
@@ -857,16 +847,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   ASSERT(byte_length % elementSize == 0);
   size_t length = byte_length / elementSize;
 
-  Handle<Object> length_obj =
-      isolate->factory()->NewNumber(static_cast<double>(length));
+  Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
+
   Handle<ExternalArray> elements =
       isolate->factory()->NewExternalArray(
           static_cast<int>(length), arrayType,
           static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
-  Handle<Map> map =
-      isolate->factory()->GetElementsTransitionMap(holder, elementsKind);
-  holder->set_map(*map);
   holder->set_elements(*elements);
   return isolate->heap()->undefined_value();
 }
@@ -2497,6 +2484,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   if (!JSFunction::EnsureCompiled(source, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
+
+  // Mark both, the source and the target, as un-flushable because the
+  // shared unoptimized code makes them impossible to enqueue in a list.
+  ASSERT(target_shared->code()->gc_metadata() == NULL);
+  ASSERT(source_shared->code()->gc_metadata() == NULL);
+  target_shared->set_dont_flush(true);
+  source_shared->set_dont_flush(true);
 
   // Set the code, scope info, formal parameter count, and the length
   // of the target shared function info.  Set the source code of the
@@ -7966,7 +7960,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   JavaScriptFrame* frame = it.frame();
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
-  RUNTIME_ASSERT(type != Deoptimizer::EAGER || function->IsOptimized());
+  Handle<Code> optimized_code(function->code());
+  RUNTIME_ASSERT((type != Deoptimizer::EAGER &&
+                  type != Deoptimizer::SOFT) || function->IsOptimized());
 
   // Avoid doing too much work when running with --always-opt and keep
   // the optimized code around.
@@ -8003,8 +7999,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   } else {
     Deoptimizer::DeoptimizeFunction(*function);
   }
-  // Flush optimized code cache for this function.
-  function->shared()->ClearOptimizedCodeMap();
+  // Evict optimized code for this function from the cache so that it doesn't
+  // get used for new closures.
+  function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
+                                                "notify deoptimized");
 
   return isolate->heap()->undefined_value();
 }
@@ -8993,7 +8991,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrint) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugTrace) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 0);
-  isolate->PrintStack();
+  isolate->PrintStack(stdout);
   return isolate->heap()->undefined_value();
 }
 
@@ -9213,26 +9211,6 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
                            args.at<Object>(2),
                            language_mode,
                            args.smi_at(4));
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNewFunctionAttributes) {
-  // This utility adjusts the property attributes for newly created Function
-  // object ("new Function(...)") by changing the map.
-  // All it does is changing the prototype property to enumerable
-  // as specified in ECMA262, 15.3.5.2.
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-
-  Handle<Map> map = func->shared()->is_classic_mode()
-      ? isolate->function_instance_map()
-      : isolate->strict_mode_function_instance_map();
-
-  ASSERT(func->map()->instance_type() == map->instance_type());
-  ASSERT(func->map()->instance_size() == map->instance_size());
-  func->set_map(*map);
-  return *func;
 }
 
 
@@ -13121,7 +13099,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Abort) {
   ASSERT(args.length() == 2);
   OS::PrintError("abort: %s\n",
                  reinterpret_cast<char*>(args[0]) + args.smi_at(1));
-  isolate->PrintStack();
+  isolate->PrintStack(stderr);
   OS::Abort();
   UNREACHABLE();
   return NULL;

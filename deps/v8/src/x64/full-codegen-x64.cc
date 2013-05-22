@@ -157,6 +157,7 @@ void FullCodeGenerator::Generate() {
   __ movq(rbp, rsp);
   __ push(rsi);  // Callee's context.
   __ push(rdi);  // Callee's JS Function.
+  info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();
@@ -406,6 +407,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     // patch with the code required by the debugger.
     __ movq(rsp, rbp);
     __ pop(rbp);
+    int no_frame_start = masm_->pc_offset();
 
     int arguments_bytes = (info_->scope()->num_parameters() + 1) * kPointerSize;
     __ Ret(arguments_bytes, rcx);
@@ -423,6 +425,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     ASSERT(Assembler::kJSReturnSequenceLength <=
            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
+    info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
   }
 }
 
@@ -1946,8 +1949,96 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       break;
     }
 
-    case Yield::DELEGATING:
-      UNIMPLEMENTED();
+    case Yield::DELEGATING: {
+      VisitForStackValue(expr->generator_object());
+
+      // Initial stack layout is as follows:
+      // [sp + 1 * kPointerSize] iter
+      // [sp + 0 * kPointerSize] g
+
+      Label l_catch, l_try, l_resume, l_send, l_call, l_loop;
+      // Initial send value is undefined.
+      __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+      __ jmp(&l_send);
+
+      // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
+      __ bind(&l_catch);
+      handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
+      __ movq(rcx, Operand(rsp, 1 * kPointerSize));      // iter
+      __ push(rcx);                                      // iter
+      __ push(rax);                                      // exception
+      __ movq(rax, rcx);                                 // iter
+      __ LoadRoot(rcx, Heap::kthrow_stringRootIndex);    // "throw"
+      Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(throw_ic);                                  // iter.throw in rax
+      __ jmp(&l_call);
+
+      // try { received = yield result.value }
+      __ bind(&l_try);
+      __ pop(rax);                                       // result.value
+      __ PushTryHandler(StackHandler::CATCH, expr->index());
+      const int handler_size = StackHandlerConstants::kSize;
+      __ push(rax);                                      // result.value
+      __ push(Operand(rsp, (0 + 1) * kPointerSize + handler_size));  // g
+      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ movq(context_register(),
+              Operand(rbp, StandardFrameConstants::kContextOffset));
+      __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
+      __ j(not_equal, &l_resume);
+      EmitReturnIteratorResult(false);
+      __ bind(&l_resume);                                // received in rax
+      __ PopTryHandler();
+
+      // receiver = iter; f = iter.send; arg = received;
+      __ bind(&l_send);
+      __ movq(rcx, Operand(rsp, 1 * kPointerSize));      // iter
+      __ push(rcx);                                      // iter
+      __ push(rax);                                      // received
+      __ movq(rax, rcx);                                 // iter
+      __ LoadRoot(rcx, Heap::ksend_stringRootIndex);     // "send"
+      Handle<Code> send_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(send_ic);                                   // iter.send in rax
+
+      // result = f.call(receiver, arg);
+      __ bind(&l_call);
+      Label l_call_runtime;
+      __ JumpIfSmi(rax, &l_call_runtime);
+      __ CmpObjectType(rax, JS_FUNCTION_TYPE, rbx);
+      __ j(not_equal, &l_call_runtime);
+      __ movq(rdi, rax);
+      ParameterCount count(1);
+      __ InvokeFunction(rdi, count, CALL_FUNCTION,
+                        NullCallWrapper(), CALL_AS_METHOD);
+      __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+      __ jmp(&l_loop);
+      __ bind(&l_call_runtime);
+      __ push(rax);
+      __ CallRuntime(Runtime::kCall, 3);
+
+      // val = result.value; if (!result.done) goto l_try;
+      __ bind(&l_loop);
+      // result.value
+      __ push(rax);                                      // save result
+      __ LoadRoot(rcx, Heap::kvalue_stringRootIndex);    // "value"
+      Handle<Code> value_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(value_ic);                                  // result.value in rax
+      __ pop(rbx);                                       // result
+      __ push(rax);                                      // result.value
+      __ movq(rax, rbx);                                 // result
+      __ LoadRoot(rcx, Heap::kdone_stringRootIndex);     // "done"
+      Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(done_ic);                                   // result.done in rax
+      ToBooleanStub stub(rax);
+      __ push(rax);
+      __ CallStub(&stub);
+      __ testq(rax, rax);
+      __ j(zero, &l_try);
+
+      // result.value
+      __ pop(rax);                                       // result.value
+      context()->DropAndPlug(2, rax);                    // drop iter and g
+      break;
+    }
   }
 }
 

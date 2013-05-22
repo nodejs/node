@@ -467,10 +467,17 @@ TEST(EmptyObjectGroups) {
 }
 
 
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define V8_WITH_ASAN 1
+#endif
+#endif
+
+
 // Here is a memory use test that uses /proc, and is therefore Linux-only.  We
 // do not care how much memory the simulator uses, since it is only there for
-// debugging purposes.
-#if defined(__linux__) && !defined(USE_SIMULATOR)
+// debugging purposes. Testing with ASAN doesn't make sense, either.
+#if defined(__linux__) && !defined(USE_SIMULATOR) && !defined(V8_WITH_ASAN)
 
 
 static uintptr_t ReadLong(char* buffer, intptr_t* position, int base) {

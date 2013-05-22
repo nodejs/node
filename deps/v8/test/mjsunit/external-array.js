@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
+// Flags: --allow-natives-syntax
 
 // Helper
 function assertInstance(o, f) {
@@ -301,7 +301,7 @@ function run_test(test_func, array, expected_result) {
   }
   assertEquals(expected_result, sum);
   %DeoptimizeFunction(test_func);
-  gc();  // Makes V8 forget about type information for test_func.
+  %ClearFunctionTypeFeedback(test_func);
 }
 
 function run_bounds_test(test_func, array, expected_result) {
@@ -350,8 +350,7 @@ for (var t = 0; t < types.length; t++) {
     %OptimizeFunctionOnNextCall(run_bounds_test);
     run_bounds_test(a);
     %DeoptimizeFunction(run_bounds_test);
-    gc();  // Makes V8 forget about type information for test_func.
-
+    %ClearFunctionTypeFeedback(run_bounds_test);
   }
 
   function array_load_set_smi_check(a) {
@@ -370,7 +369,7 @@ for (var t = 0; t < types.length; t++) {
   array_load_set_smi_check2(a);
   array_load_set_smi_check2(0);
   %DeoptimizeFunction(array_load_set_smi_check2);
-  gc();  // Makes V8 forget about type information for array_load_set_smi_check.
+  %ClearFunctionTypeFeedback(array_load_set_smi_check2);
 }
 
 // Check handling of undefined in 32- and 64-bit external float arrays.

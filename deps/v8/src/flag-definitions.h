@@ -193,9 +193,11 @@ DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
 DEFINE_bool(pretenure_literals, true, "allocate literals in old space")
-DEFINE_bool(track_fields, false, "track fields with only smi values")
-DEFINE_bool(track_double_fields, false, "track fields with double values")
+DEFINE_bool(track_fields, true, "track fields with only smi values")
+DEFINE_bool(track_double_fields, true, "track fields with double values")
+DEFINE_bool(track_heap_object_fields, true, "track fields with heap values")
 DEFINE_implication(track_double_fields, track_fields)
+DEFINE_implication(track_heap_object_fields, track_fields)
 
 // Flags for data representation optimizations
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
@@ -205,7 +207,6 @@ DEFINE_bool(string_slices, true, "use string slices")
 DEFINE_bool(crankshaft, true, "use crankshaft")
 DEFINE_string(hydrogen_filter, "", "optimization filter")
 DEFINE_bool(use_range, true, "use hydrogen range analysis")
-DEFINE_bool(eliminate_dead_phis, true, "eliminate dead phis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
@@ -267,6 +268,8 @@ DEFINE_bool(lookup_sample_by_shared, true,
             "info, not JSFunction itself")
 DEFINE_bool(cache_optimized_code, true,
             "cache optimized code for closures")
+DEFINE_bool(flush_optimized_code_cache, true,
+            "flushes the cache of optimized code for closures on every GC")
 DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
 DEFINE_bool(inline_accessors, true, "inline JavaScript accessors")
@@ -463,6 +466,7 @@ DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again (during full gc)")
 DEFINE_bool(flush_code_incrementally, true,
             "flush code that we expect not to use again (incrementally)")
+DEFINE_bool(trace_code_flushing, false, "trace code flushing progress")
 DEFINE_bool(age_code, true,
             "track un-executed functions to age code and flush only "
             "old code")

@@ -578,6 +578,8 @@ TEST(Vfp) {
             "eeb80be0       vcvt.f64.s32 d0, s1");
     COMPARE(vcvt_f32_s32(s0, s2),
             "eeb80ac1       vcvt.f32.s32 s0, s2");
+    COMPARE(vcvt_f64_s32(d0, 1),
+            "eeba0bef       vcvt.f64.s32 d0, d0, #1");
 
     if (CpuFeatures::IsSupported(VFP32DREGS)) {
       COMPARE(vmov(d3, d27),

@@ -787,8 +787,6 @@ class CompareNilIC: public IC {
 
   static Handle<Code> GetUninitialized();
 
-  static Code* GetRawUninitialized(EqualityKind kind, NilValue nil);
-
   static void Clear(Address address, Code* target);
 
   void patch(Code* code);

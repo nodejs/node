@@ -60,7 +60,7 @@ for (i = 0; i < scripts.length; i++) {
 }
 
 // This has to be updated if the number of native scripts change.
-assertEquals(14, named_native_count);
+assertEquals(16, named_native_count);
 // If no snapshot is used, only the 'gc' extension is loaded.
 // If snapshot is used, all extensions are cached in the snapshot.
 assertTrue(extension_count == 1 || extension_count == 5);

@@ -406,9 +406,10 @@ class SlotsBuffer {
 // CodeFlusher collects candidates for code flushing during marking and
 // processes those candidates after marking has completed in order to
 // reset those functions referencing code objects that would otherwise
-// be unreachable. Code objects can be referenced in two ways:
+// be unreachable. Code objects can be referenced in three ways:
 //    - SharedFunctionInfo references unoptimized code.
 //    - JSFunction references either unoptimized or optimized code.
+//    - OptimizedCodeMap references optimized code.
 // We are not allowed to flush unoptimized code for functions that got
 // optimized or inlined into optimized code, because we might bailout
 // into the unoptimized code again during deoptimization.
@@ -417,7 +418,8 @@ class CodeFlusher {
   explicit CodeFlusher(Isolate* isolate)
       : isolate_(isolate),
         jsfunction_candidates_head_(NULL),
-        shared_function_info_candidates_head_(NULL) {}
+        shared_function_info_candidates_head_(NULL),
+        optimized_code_map_holder_head_(NULL) {}
 
   void AddCandidate(SharedFunctionInfo* shared_info) {
     if (GetNextCandidate(shared_info) == NULL) {
@@ -434,15 +436,25 @@ class CodeFlusher {
     }
   }
 
+  void AddOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
+    if (GetNextCodeMap(code_map_holder)->IsUndefined()) {
+      SetNextCodeMap(code_map_holder, optimized_code_map_holder_head_);
+      optimized_code_map_holder_head_ = code_map_holder;
+    }
+  }
+
+  void EvictOptimizedCodeMap(SharedFunctionInfo* code_map_holder);
   void EvictCandidate(SharedFunctionInfo* shared_info);
   void EvictCandidate(JSFunction* function);
 
   void ProcessCandidates() {
+    ProcessOptimizedCodeMaps();
     ProcessSharedFunctionInfoCandidates();
     ProcessJSFunctionCandidates();
   }
 
   void EvictAllCandidates() {
+    EvictOptimizedCodeMaps();
     EvictJSFunctionCandidates();
     EvictSharedFunctionInfoCandidates();
   }
@@ -450,8 +462,10 @@ class CodeFlusher {
   void IteratePointersToFromSpace(ObjectVisitor* v);
 
  private:
+  void ProcessOptimizedCodeMaps();
   void ProcessJSFunctionCandidates();
   void ProcessSharedFunctionInfoCandidates();
+  void EvictOptimizedCodeMaps();
   void EvictJSFunctionCandidates();
   void EvictSharedFunctionInfoCandidates();
 
@@ -489,9 +503,27 @@ class CodeFlusher {
     candidate->code()->set_gc_metadata(NULL, SKIP_WRITE_BARRIER);
   }
 
+  static SharedFunctionInfo* GetNextCodeMap(SharedFunctionInfo* holder) {
+    FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
+    Object* next_map = code_map->get(SharedFunctionInfo::kNextMapIndex);
+    return reinterpret_cast<SharedFunctionInfo*>(next_map);
+  }
+
+  static void SetNextCodeMap(SharedFunctionInfo* holder,
+                             SharedFunctionInfo* next_holder) {
+    FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
+    code_map->set(SharedFunctionInfo::kNextMapIndex, next_holder);
+  }
+
+  static void ClearNextCodeMap(SharedFunctionInfo* holder) {
+    FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
+    code_map->set_undefined(SharedFunctionInfo::kNextMapIndex);
+  }
+
   Isolate* isolate_;
   JSFunction* jsfunction_candidates_head_;
   SharedFunctionInfo* shared_function_info_candidates_head_;
+  SharedFunctionInfo* optimized_code_map_holder_head_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeFlusher);
 };

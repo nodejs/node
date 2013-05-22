@@ -66,18 +66,147 @@ function CreateObjectInfo(object) {
   var info = {
     changeObservers: new InternalArray,
     notifier: null,
+    inactiveObservers: new InternalArray,
+    performing: { __proto__: null },
+    performingCount: 0,
   };
   objectInfoMap.set(object, info);
   return info;
 }
 
-function ObjectObserve(object, callback) {
+var defaultAcceptTypes = {
+  __proto__: null,
+  'new': true,
+  'updated': true,
+  'deleted': true,
+  'prototype': true,
+  'reconfigured': true
+};
+
+function CreateObserver(callback, accept) {
+  var observer = {
+    __proto__: null,
+    callback: callback,
+    accept: defaultAcceptTypes
+  };
+
+  if (IS_UNDEFINED(accept))
+    return observer;
+
+  var acceptMap = { __proto__: null };
+  for (var i = 0; i < accept.length; i++)
+    acceptMap[accept[i]] = true;
+
+  observer.accept = acceptMap;
+  return observer;
+}
+
+function ObserverIsActive(observer, objectInfo) {
+  if (objectInfo.performingCount === 0)
+    return true;
+
+  var performing = objectInfo.performing;
+  for (var type in performing) {
+    if (performing[type] > 0 && observer.accept[type])
+      return false;
+  }
+
+  return true;
+}
+
+function ObserverIsInactive(observer, objectInfo) {
+  return !ObserverIsActive(observer, objectInfo);
+}
+
+function RemoveNullElements(from) {
+  var i = 0;
+  var j = 0;
+  for (; i < from.length; i++) {
+    if (from[i] === null)
+      continue;
+    if (j < i)
+      from[j] = from[i];
+    j++;
+  }
+
+  if (i !== j)
+    from.length = from.length - (i - j);
+}
+
+function RepartitionObservers(conditionFn, from, to, objectInfo) {
+  var anyRemoved = false;
+  for (var i = 0; i < from.length; i++) {
+    var observer = from[i];
+    if (conditionFn(observer, objectInfo)) {
+      anyRemoved = true;
+      from[i] = null;
+      to.push(observer);
+    }
+  }
+
+  if (anyRemoved)
+    RemoveNullElements(from);
+}
+
+function BeginPerformChange(objectInfo, type) {
+  objectInfo.performing[type] = (objectInfo.performing[type] || 0) + 1;
+  objectInfo.performingCount++;
+  RepartitionObservers(ObserverIsInactive,
+                       objectInfo.changeObservers,
+                       objectInfo.inactiveObservers,
+                       objectInfo);
+}
+
+function EndPerformChange(objectInfo, type) {
+  objectInfo.performing[type]--;
+  objectInfo.performingCount--;
+  RepartitionObservers(ObserverIsActive,
+                       objectInfo.inactiveObservers,
+                       objectInfo.changeObservers,
+                       objectInfo);
+}
+
+function EnsureObserverRemoved(objectInfo, callback) {
+  function remove(observerList) {
+    for (var i = 0; i < observerList.length; i++) {
+      if (observerList[i].callback === callback) {
+        observerList.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (!remove(objectInfo.changeObservers))
+    remove(objectInfo.inactiveObservers);
+}
+
+function AcceptArgIsValid(arg) {
+  if (IS_UNDEFINED(arg))
+    return true;
+
+  if (!IS_SPEC_OBJECT(arg) ||
+      !IS_NUMBER(arg.length) ||
+      arg.length < 0)
+    return false;
+
+  var length = arg.length;
+  for (var i = 0; i < length; i++) {
+    if (!IS_STRING(arg[i]))
+      return false;
+  }
+  return true;
+}
+
+function ObjectObserve(object, callback, accept) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["observe"]);
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["observe"]);
   if (ObjectIsFrozen(callback))
     throw MakeTypeError("observe_callback_frozen");
+  if (!AcceptArgIsValid(accept))
+    throw MakeTypeError("observe_accept_invalid");
 
   if (!observerInfoMap.has(callback)) {
     observerInfoMap.set(callback, {
@@ -90,8 +219,13 @@ function ObjectObserve(object, callback) {
   if (IS_UNDEFINED(objectInfo)) objectInfo = CreateObjectInfo(object);
   %SetIsObserved(object, true);
 
-  var changeObservers = objectInfo.changeObservers;
-  if (changeObservers.indexOf(callback) < 0) changeObservers.push(callback);
+  EnsureObserverRemoved(objectInfo, callback);
+
+  var observer = CreateObserver(callback, accept);
+  if (ObserverIsActive(observer, objectInfo))
+    objectInfo.changeObservers.push(observer);
+  else
+    objectInfo.inactiveObservers.push(observer);
 
   return object;
 }
@@ -106,14 +240,25 @@ function ObjectUnobserve(object, callback) {
   if (IS_UNDEFINED(objectInfo))
     return object;
 
-  var changeObservers = objectInfo.changeObservers;
-  var index = changeObservers.indexOf(callback);
-  if (index >= 0) {
-    changeObservers.splice(index, 1);
-    if (changeObservers.length === 0) %SetIsObserved(object, false);
+  EnsureObserverRemoved(objectInfo, callback);
+
+  if (objectInfo.changeObservers.length === 0 &&
+      objectInfo.inactiveObservers.length === 0) {
+    %SetIsObserved(object, false);
   }
 
   return object;
+}
+
+function ArrayObserve(object, callback) {
+  return ObjectObserve(object, callback, ['new',
+                                          'updated',
+                                          'deleted',
+                                          'splice']);
+}
+
+function ArrayUnobserve(object, callback) {
+  return ObjectUnobserve(object, callback);
 }
 
 function EnqueueChangeRecord(changeRecord, observers) {
@@ -122,8 +267,12 @@ function EnqueueChangeRecord(changeRecord, observers) {
 
   for (var i = 0; i < observers.length; i++) {
     var observer = observers[i];
-    var observerInfo = observerInfoMap.get(observer);
-    observationState.pendingObservers[observerInfo.priority] = observer;
+    if (IS_UNDEFINED(observer.accept[changeRecord.type]))
+      continue;
+
+    var callback = observer.callback;
+    var observerInfo = observerInfoMap.get(callback);
+    observationState.pendingObservers[observerInfo.priority] = callback;
     %SetObserverDeliveryPending();
     if (IS_NULL(observerInfo.pendingChangeRecords)) {
       observerInfo.pendingChangeRecords = new InternalArray(changeRecord);
@@ -133,8 +282,44 @@ function EnqueueChangeRecord(changeRecord, observers) {
   }
 }
 
+function BeginPerformSplice(array) {
+  var objectInfo = objectInfoMap.get(array);
+  if (!IS_UNDEFINED(objectInfo))
+    BeginPerformChange(objectInfo, 'splice');
+}
+
+function EndPerformSplice(array) {
+  var objectInfo = objectInfoMap.get(array);
+  if (!IS_UNDEFINED(objectInfo))
+    EndPerformChange(objectInfo, 'splice');
+}
+
+function EnqueueSpliceRecord(array, index, removed, deleteCount, addedCount) {
+  var objectInfo = objectInfoMap.get(array);
+  if (IS_UNDEFINED(objectInfo) || objectInfo.changeObservers.length === 0)
+    return;
+
+  var changeRecord = {
+    type: 'splice',
+    object: array,
+    index: index,
+    removed: removed,
+    addedCount: addedCount
+  };
+
+  changeRecord.removed.length = deleteCount;
+  // TODO(rafaelw): This breaks spec-compliance. Re-enable when freezing isn't
+  // slow.
+  // ObjectFreeze(changeRecord);
+  // ObjectFreeze(changeRecord.removed);
+  EnqueueChangeRecord(changeRecord, objectInfo.changeObservers);
+}
+
 function NotifyChange(type, object, name, oldValue) {
   var objectInfo = objectInfoMap.get(object);
+  if (objectInfo.changeObservers.length === 0)
+    return;
+
   var changeRecord = (arguments.length < 4) ?
       { type: type, object: object, name: name } :
       { type: type, object: object, name: name, oldValue: oldValue };
@@ -171,6 +356,36 @@ function ObjectNotifierNotify(changeRecord) {
   // ObjectFreeze(newRecord);
 
   EnqueueChangeRecord(newRecord, objectInfo.changeObservers);
+}
+
+function ObjectNotifierPerformChange(changeType, changeFn, receiver) {
+  if (!IS_SPEC_OBJECT(this))
+    throw MakeTypeError("called_on_non_object", ["performChange"]);
+
+  var target = notifierTargetMap.get(this);
+  if (IS_UNDEFINED(target))
+    throw MakeTypeError("observe_notify_non_notifier");
+  if (!IS_STRING(changeType))
+    throw MakeTypeError("observe_perform_non_string");
+  if (!IS_SPEC_FUNCTION(changeFn))
+    throw MakeTypeError("observe_perform_non_function");
+
+  if (IS_NULL_OR_UNDEFINED(receiver)) {
+    receiver = %GetDefaultReceiver(changeFn) || receiver;
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(changeFn)) {
+    receiver = ToObject(receiver);
+  }
+
+  var objectInfo = objectInfoMap.get(target);
+  if (IS_UNDEFINED(objectInfo))
+    return;
+
+  BeginPerformChange(objectInfo, changeType);
+  try {
+    %_CallFunction(receiver, changeFn);
+  } finally {
+    EndPerformChange(objectInfo, changeType);
+  }
 }
 
 function ObjectGetNotifier(object) {
@@ -234,8 +449,13 @@ function SetupObjectObserve() {
     "observe", ObjectObserve,
     "unobserve", ObjectUnobserve
   ));
+  InstallFunctions($Array, DONT_ENUM, $Array(
+    "observe", ArrayObserve,
+    "unobserve", ArrayUnobserve
+  ));
   InstallFunctions(notifierPrototype, DONT_ENUM, $Array(
-    "notify", ObjectNotifierNotify
+    "notify", ObjectNotifierNotify,
+    "performChange", ObjectNotifierPerformChange
   ));
 }
 

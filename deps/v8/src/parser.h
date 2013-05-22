@@ -767,7 +767,7 @@ class Parser BASE_EMBEDDED {
     }
   }
 
-  Handle<String> GetSymbol(bool* ok);
+  Handle<String> GetSymbol();
 
   // Get odd-ball literals.
   Literal* GetLiteralUndefined();

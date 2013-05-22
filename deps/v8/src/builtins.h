@@ -107,6 +107,8 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(NotifyDeoptimized,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
+  V(NotifySoftDeoptimized,          BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
   V(NotifyLazyDeoptimized,          BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(NotifyStubFailure,              BUILTIN, UNINITIALIZED,             \
@@ -380,6 +382,7 @@ class Builtins {
   static void Generate_LazyCompile(MacroAssembler* masm);
   static void Generate_LazyRecompile(MacroAssembler* masm);
   static void Generate_NotifyDeoptimized(MacroAssembler* masm);
+  static void Generate_NotifySoftDeoptimized(MacroAssembler* masm);
   static void Generate_NotifyLazyDeoptimized(MacroAssembler* masm);
   static void Generate_NotifyOSR(MacroAssembler* masm);
   static void Generate_NotifyStubFailure(MacroAssembler* masm);

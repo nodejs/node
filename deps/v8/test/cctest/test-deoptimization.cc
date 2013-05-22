@@ -376,8 +376,8 @@ TEST(DeoptimizeBinaryOperationADDString) {
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   v8::Handle<v8::Value> result = env->Global()->Get(v8_str("result"));
   CHECK(result->IsString());
-  v8::String::AsciiValue ascii(result);
-  CHECK_EQ("a+an X", *ascii);
+  v8::String::Utf8Value utf8(result);
+  CHECK_EQ("a+an X", *utf8);
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(Isolate::Current()));
 }
 

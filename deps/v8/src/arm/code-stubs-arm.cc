@@ -307,8 +307,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // The optimized code map must never be empty, so check the first elements.
   Label install_optimized;
   // Speculatively move code object into r4.
-  __ ldr(r4, FieldMemOperand(r1, FixedArray::kHeaderSize + kPointerSize));
-  __ ldr(r5, FieldMemOperand(r1, FixedArray::kHeaderSize));
+  __ ldr(r4, FieldMemOperand(r1, SharedFunctionInfo::kFirstCodeSlot));
+  __ ldr(r5, FieldMemOperand(r1, SharedFunctionInfo::kFirstContextSlot));
   __ cmp(r2, r5);
   __ b(eq, &install_optimized);
 
@@ -317,19 +317,17 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ ldr(r4, FieldMemOperand(r1, FixedArray::kLengthOffset));
   __ bind(&loop);
   // Do not double check first entry.
-
-  __ cmp(r4, Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
+  __ cmp(r4, Operand(Smi::FromInt(SharedFunctionInfo::kSecondEntryIndex)));
   __ b(eq, &install_unoptimized);
-  __ sub(r4, r4, Operand(
-      Smi::FromInt(SharedFunctionInfo::kEntryLength)));  // Skip an entry.
+  __ sub(r4, r4, Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
   __ add(r5, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(r5, r5, Operand(r4, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r5, r5, Operand::PointerOffsetFromSmiKey(r4));
   __ ldr(r5, MemOperand(r5));
   __ cmp(r2, r5);
   __ b(ne, &loop);
   // Hit: fetch the optimized code.
   __ add(r5, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(r5, r5, Operand(r4, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r5, r5, Operand::PointerOffsetFromSmiKey(r4));
   __ add(r5, r5, Operand(kPointerSize));
   __ ldr(r4, MemOperand(r5));
 
@@ -521,8 +519,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   Register mantissa = result2_;
 
   Label not_special;
-  // Convert from Smi to integer.
-  __ mov(source_, Operand(source_, ASR, kSmiTagSize));
+  __ SmiUntag(source_);
   // Move sign bit from source to destination.  This works because the sign bit
   // in the exponent word of the double has the same position and polarity as
   // the 2's complement sign bit in a Smi.
@@ -772,7 +769,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   // Lhs is a smi, rhs is a number.
   // Convert lhs to a double in d7.
-  __ SmiToDoubleVFPRegister(lhs, d7, r7, s15);
+  __ SmiToDouble(d7, lhs);
   // Load the double from rhs, tagged HeapNumber r0, to d6.
   __ sub(r7, rhs, Operand(kHeapObjectTag));
   __ vldr(d6, r7, HeapNumber::kValueOffset);
@@ -803,7 +800,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   __ sub(r7, lhs, Operand(kHeapObjectTag));
   __ vldr(d7, r7, HeapNumber::kValueOffset);
   // Convert rhs to a double in d6              .
-  __ SmiToDoubleVFPRegister(rhs, d6, r7, s13);
+  __ SmiToDouble(d6, rhs);
   // Fall through to both_loaded_as_doubles.
 }
 
@@ -1230,7 +1227,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
   if (types_.Contains(SMI)) {
     // Smis: 0 -> false, all other -> true
-    __ tst(tos_, Operand(kSmiTagMask));
+    __ SmiTst(tos_);
     // tos_ contains the correct return value already
     __ Ret(eq);
   } else if (types_.NeedsMap()) {
@@ -1535,7 +1532,7 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(MacroAssembler* masm,
   __ b(mi, &try_float);
 
   // Tag the result as a smi and we're done.
-  __ mov(r0, Operand(r1, LSL, kSmiTagSize));
+  __ SmiTag(r0, r1);
   __ Ret();
 
   // Try to store the result in a heap number.
@@ -1882,9 +1879,7 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       __ GetLeastBitsFromSmi(scratch2, right, 5);
       __ mov(scratch1, Operand(scratch1, LSL, scratch2));
       // Check that the signed result fits in a Smi.
-      __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
-      __ b(mi, &not_smi_result);
-      __ SmiTag(right, scratch1);
+      __ TrySmiTag(right, scratch1, &not_smi_result);
       __ Ret();
       break;
     default:
@@ -1946,12 +1941,8 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
 
       // Load left and right operands into d0 and d1.
       if (smi_operands) {
-        __ SmiUntag(scratch1, right);
-        __ vmov(d1.high(), scratch1);
-        __ vcvt_f64_s32(d1, d1.high());
-        __ SmiUntag(scratch1, left);
-        __ vmov(d0.high(), scratch1);
-        __ vcvt_f64_s32(d0, d0.high());
+        __ SmiToDouble(d1, right);
+        __ SmiToDouble(d0, left);
       } else {
         // Load right operand into d1.
         if (right_type == BinaryOpIC::INT32) {
@@ -2062,9 +2053,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
       }
 
       // Check that the *signed* result fits in a smi.
-      __ add(r3, r2, Operand(0x40000000), SetCC);
-      __ b(mi, &result_not_a_smi);
-      __ SmiTag(r0, r2);
+      __ TrySmiTag(r0, r2, &result_not_a_smi);
       __ Ret();
 
       // Allocate new heap number for result.
@@ -2124,7 +2113,6 @@ void BinaryOpStub_GenerateSmiCode(
 
   // Perform combined smi check on both operands.
   __ orr(scratch1, left, Operand(right));
-  STATIC_ASSERT(kSmiTag == 0);
   __ JumpIfNotSmi(scratch1, &not_smis);
 
   // If the smi-smi operation results in a smi return is generated.
@@ -2162,8 +2150,12 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   GenerateTypeTransition(masm);
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2188,7 +2180,8 @@ void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
   __ CompareObjectType(right, r2, r2, FIRST_NONSTRING_TYPE);
   __ b(ge, &call_runtime);
 
-  StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
+  StringAddStub string_add_stub((StringAddFlags)
+                                (ERECT_FRAME | NO_STRING_CHECK_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_stub);
 
@@ -2408,12 +2401,9 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           UNREACHABLE();
       }
 
-      // Check if the result fits in a smi.
-      __ add(scratch1, r2, Operand(0x40000000), SetCC);
-      // If not try to return a heap number. (We know the result is an int32.)
-      __ b(mi, &return_heap_number);
-      // Tag the result and return.
-      __ SmiTag(r0, r2);
+      // Check if the result fits in a smi. If not try to return a heap number.
+      // (We know the result is an int32).
+      __ TrySmiTag(r0, r2, &return_heap_number);
       __ Ret();
 
       __ bind(&return_heap_number);
@@ -2459,8 +2449,12 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   }
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2507,8 +2501,12 @@ void BinaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
   GenerateTypeTransition(masm);
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2531,8 +2529,12 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   }
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2548,7 +2550,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ CompareObjectType(left, r2, r2, FIRST_NONSTRING_TYPE);
   __ b(ge, &left_not_string);
 
-  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
+  StringAddStub string_add_left_stub((StringAddFlags)
+      (ERECT_FRAME | NO_STRING_CHECK_LEFT_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_left_stub);
 
@@ -2558,7 +2561,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ CompareObjectType(right, r2, r2, FIRST_NONSTRING_TYPE);
   __ b(ge, &call_runtime);
 
-  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+  StringAddStub string_add_right_stub((StringAddFlags)
+      (ERECT_FRAME | NO_STRING_CHECK_RIGHT_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_right_stub);
 
@@ -2627,7 +2631,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     // Input is a smi. Convert to double and load the low and high words
     // of the double into r2, r3.
-    __ IntegerToDoubleConversionWithVFP3(r0, r3, r2);
+    __ SmiToDouble(d7, r0);
+    __ vmov(r2, r3, d7);
     __ b(&loaded);
 
     __ bind(&input_not_smi);
@@ -3825,7 +3830,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Read the argument from the stack and return it.
   __ sub(r3, r0, r1);
-  __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r3, fp, Operand::PointerOffsetFromSmiKey(r3));
   __ ldr(r0, MemOperand(r3, kDisplacement));
   __ Jump(lr);
 
@@ -3839,7 +3844,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Read the argument from the adaptor frame and return it.
   __ sub(r3, r0, r1);
-  __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r3, r2, Operand::PointerOffsetFromSmiKey(r3));
   __ ldr(r0, MemOperand(r3, kDisplacement));
   __ Jump(lr);
 
@@ -4092,7 +4097,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ bind(&adaptor_frame);
   __ ldr(r1, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ str(r1, MemOperand(sp, 0));
-  __ add(r3, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r3, r2, Operand::PointerOffsetFromSmiKey(r1));
   __ add(r3, r3, Operand(StandardFrameConstants::kCallerSPOffset));
   __ str(r3, MemOperand(sp, 1 * kPointerSize));
 
@@ -4100,9 +4105,8 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // of the arguments object and the elements array in words.
   Label add_arguments_object;
   __ bind(&try_allocate);
-  __ cmp(r1, Operand::Zero());
+  __ SmiUntag(r1, SetCC);
   __ b(eq, &add_arguments_object);
-  __ mov(r1, Operand(r1, LSR, kSmiTagSize));
   __ add(r1, r1, Operand(FixedArray::kHeaderSize / kPointerSize));
   __ bind(&add_arguments_object);
   __ add(r1, r1, Operand(Heap::kArgumentsObjectSizeStrict / kPointerSize));
@@ -4141,8 +4145,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
   __ str(r3, FieldMemOperand(r4, FixedArray::kMapOffset));
   __ str(r1, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  // Untag the length for the loop.
-  __ mov(r1, Operand(r1, LSR, kSmiTagSize));
+  __ SmiUntag(r1);
 
   // Copy the fixed array slots.
   Label loop;
@@ -4211,7 +4214,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Check that the first argument is a JSRegExp object.
   __ ldr(r0, MemOperand(sp, kJSRegExpOffset));
-  STATIC_ASSERT(kSmiTag == 0);
   __ JumpIfSmi(r0, &runtime);
   __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE);
   __ b(ne, &runtime);
@@ -4219,7 +4221,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the RegExp has been compiled (data contains a fixed array).
   __ ldr(regexp_data, FieldMemOperand(r0, JSRegExp::kDataOffset));
   if (FLAG_debug_code) {
-    __ tst(regexp_data, Operand(kSmiTagMask));
+    __ SmiTst(regexp_data);
     __ Check(ne, "Unexpected type for RegExp data, FixedArray expected");
     __ CompareObjectType(regexp_data, r0, r0, FIXED_ARRAY_TYPE);
     __ Check(eq, "Unexpected type for RegExp data, FixedArray expected");
@@ -4324,7 +4326,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(r3, FieldMemOperand(r3, String::kLengthOffset));
   __ cmp(r3, Operand(r1));
   __ b(ls, &runtime);
-  __ mov(r1, Operand(r1, ASR, kSmiTagSize));
+  __ SmiUntag(r1);
 
   STATIC_ASSERT(4 == kOneByteStringTag);
   STATIC_ASSERT(kTwoByteStringTag == 0);
@@ -4399,7 +4401,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ add(r2, r9, Operand(r1, LSL, r3));
 
   __ ldr(r8, FieldMemOperand(subject, String::kLengthOffset));
-  __ mov(r8, Operand(r8, ASR, kSmiTagSize));
+  __ SmiUntag(r8);
   __ add(r3, r9, Operand(r8, LSL, r3));
 
   // Argument 2 (r1): Previous index.
@@ -4486,13 +4488,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(r0,
          FieldMemOperand(last_match_info_elements, FixedArray::kLengthOffset));
   __ add(r2, r1, Operand(RegExpImpl::kLastMatchOverhead));
-  __ cmp(r2, Operand(r0, ASR, kSmiTagSize));
+  __ cmp(r2, Operand::SmiUntag(r0));
   __ b(gt, &runtime);
 
   // r1: number of capture registers
   // r4: subject string
   // Store the capture count.
-  __ mov(r2, Operand(r1, LSL, kSmiTagSize + kSmiShiftSize));  // To smi.
+  __ SmiTag(r2, r1);
   __ str(r2, FieldMemOperand(last_match_info_elements,
                              RegExpImpl::kLastCaptureCountOffset));
   // Store last subject and last input.
@@ -4536,7 +4538,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Read the value from the static offsets vector buffer.
   __ ldr(r3, MemOperand(r2, kPointerSize, PostIndex));
   // Store the smi value in the last match info.
-  __ mov(r3, Operand(r3, LSL, kSmiTagSize));
+  __ SmiTag(r3);
   __ str(r3, MemOperand(r0, kPointerSize, PostIndex));
   __ jmp(&next_capture);
   __ bind(&done);
@@ -4584,7 +4586,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (9) Sliced string.  Replace subject with parent.  Go to (4).
   // Load offset into r9 and replace subject string with parent.
   __ ldr(r9, FieldMemOperand(subject, SlicedString::kOffsetOffset));
-  __ mov(r9, Operand(r9, ASR, kSmiTagSize));
+  __ SmiUntag(r9);
   __ ldr(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
   __ jmp(&check_underlying);  // Go to (4).
 #endif  // V8_INTERPRETED_REGEXP
@@ -4611,7 +4613,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // FixedArray.
   int objects_size =
       (JSRegExpResult::kSize + FixedArray::kHeaderSize) / kPointerSize;
-  __ mov(r5, Operand(r1, LSR, kSmiTagSize + kSmiShiftSize));
+  __ SmiUntag(r5, r1);
   __ add(r2, r5, Operand(objects_size));
   __ Allocate(
       r2,  // In: Size, in words.
@@ -4654,7 +4656,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   __ mov(r2, Operand(factory->fixed_array_map()));
   __ str(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
   // Set FixedArray length.
-  __ mov(r6, Operand(r5, LSL, kSmiTagSize));
+  __ SmiTag(r6, r5);
   __ str(r6, FieldMemOperand(r3, FixedArray::kLengthOffset));
   // Fill contents of fixed-array with undefined.
   __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
@@ -4771,6 +4773,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ bind(&megamorphic);
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ str(ip, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+  __ jmp(&done);
 
   // An uninitialized cache is patched with the function or sentinel to
   // indicate the ElementsKind if function is the Array constructor.
@@ -4970,7 +4973,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ cmp(ip, Operand(index_));
   __ b(ls, index_out_of_range_);
 
-  __ mov(index_, Operand(index_, ASR, kSmiTagSize));
+  __ SmiUntag(index_);
 
   StringCharLoadGenerator::Generate(masm,
                                     object_,
@@ -4978,7 +4981,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
                                     result_,
                                     &call_runtime_);
 
-  __ mov(result_, Operand(result_, LSL, kSmiTagSize));
+  __ SmiTag(result_);
   __ bind(&exit_);
 }
 
@@ -5024,7 +5027,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // is too complex (e.g., when the string needs to be flattened).
   __ bind(&call_runtime_);
   call_helper.BeforeCall(masm);
-  __ mov(index_, Operand(index_, LSL, kSmiTagSize));
+  __ SmiTag(index_);
   __ Push(object_, index_);
   __ CallRuntime(Runtime::kStringCharCodeAt, 2);
   __ Move(result_, r0);
@@ -5050,8 +5053,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
   // At this point code register contains smi tagged ASCII char code.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ add(result_, result_, Operand(code_, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(result_, result_, Operand::PointerOffsetFromSmiKey(code_));
   __ ldr(result_, FieldMemOperand(result_, FixedArray::kHeaderSize));
   __ CompareRoot(result_, Heap::kUndefinedValueRootIndex);
   __ b(eq, &slow_case_);
@@ -5476,9 +5478,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Make sure first argument is a string.
   __ ldr(r0, MemOperand(sp, kStringOffset));
-  STATIC_ASSERT(kSmiTag == 0);
   // Do a JumpIfSmi, but fold its jump into the subsequent string test.
-  __ tst(r0, Operand(kSmiTagMask));
+  __ SmiTst(r0);
   Condition is_string = masm->IsObjectStringType(r0, r1, ne);
   ASSERT(is_string == eq);
   __ b(NegateCondition(is_string), &runtime);
@@ -5822,7 +5823,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));  // Second argument.
 
   // Make sure that both arguments are strings if not known in advance.
-  if (flags_ == NO_STRING_ADD_FLAGS) {
+  if ((flags_ & NO_STRING_ADD_FLAGS) != 0) {
     __ JumpIfEitherSmi(r0, r1, &call_runtime);
     // Load instance types.
     __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -5875,8 +5876,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ bind(&strings_not_empty);
   }
 
-  __ mov(r2, Operand(r2, ASR, kSmiTagSize));
-  __ mov(r3, Operand(r3, ASR, kSmiTagSize));
+  __ SmiUntag(r2);
+  __ SmiUntag(r3);
   // Both strings are non-empty.
   // r0: first string
   // r1: second string
@@ -6114,12 +6115,46 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to add the two strings.
   __ bind(&call_runtime);
-  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
+  if ((flags_ & ERECT_FRAME) != 0) {
+    GenerateRegisterArgsPop(masm);
+    // Build a frame
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      GenerateRegisterArgsPush(masm);
+      __ CallRuntime(Runtime::kStringAdd, 2);
+    }
+    __ Ret();
+  } else {
+    __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
+  }
 
   if (call_builtin.is_linked()) {
     __ bind(&call_builtin);
-    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
+    if ((flags_ & ERECT_FRAME) != 0) {
+      GenerateRegisterArgsPop(masm);
+      // Build a frame
+      {
+        FrameScope scope(masm, StackFrame::INTERNAL);
+        GenerateRegisterArgsPush(masm);
+        __ InvokeBuiltin(builtin_id, CALL_FUNCTION);
+      }
+      __ Ret();
+    } else {
+      __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
+    }
   }
+}
+
+
+void StringAddStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
+  __ push(r0);
+  __ push(r1);
+}
+
+
+void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm) {
+  __ pop(r1);
+  __ pop(r0);
 }
 
 
@@ -6184,7 +6219,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   } else {
     // Untag before subtracting to avoid handling overflow.
     __ SmiUntag(r1);
-    __ sub(r0, r1, SmiUntagOperand(r0));
+    __ sub(r0, r1, Operand::SmiUntag(r0));
   }
   __ Ret();
 
@@ -6218,10 +6253,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ vldr(d1, r2, HeapNumber::kValueOffset);
   __ b(&left);
   __ bind(&right_smi);
-  __ SmiUntag(r2, r0);  // Can't clobber r0 yet.
-  SwVfpRegister single_scratch = d2.low();
-  __ vmov(single_scratch, r2);
-  __ vcvt_f64_s32(d1, single_scratch);
+  __ SmiToDouble(d1, r0);
 
   __ bind(&left);
   __ JumpIfSmi(r1, &left_smi);
@@ -6231,10 +6263,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ vldr(d0, r2, HeapNumber::kValueOffset);
   __ b(&done);
   __ bind(&left_smi);
-  __ SmiUntag(r2, r1);  // Can't clobber r1 yet.
-  single_scratch = d3.low();
-  __ vmov(single_scratch, r2);
-  __ vcvt_f64_s32(d0, single_scratch);
+  __ SmiToDouble(d0, r1);
 
   __ bind(&done);
   // Compare operands.
@@ -6645,7 +6674,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 
   // Compute the capacity mask.
   __ ldr(scratch1, FieldMemOperand(elements, kCapacityOffset));
-  __ mov(scratch1, Operand(scratch1, ASR, kSmiTagSize));  // convert smi to int
+  __ SmiUntag(scratch1);
   __ sub(scratch1, scratch1, Operand(1));
 
   // Generate an unrolled loop that performs a few probes before
@@ -6726,7 +6755,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   Label in_dictionary, maybe_in_dictionary, not_in_dictionary;
 
   __ ldr(mask, FieldMemOperand(dictionary, kCapacityOffset));
-  __ mov(mask, Operand(mask, ASR, kSmiTagSize));
+  __ SmiUntag(mask);
   __ sub(mask, mask, Operand(1));
 
   __ ldr(hash, FieldMemOperand(key, Name::kHashFieldOffset));
@@ -7124,7 +7153,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // Array literal has ElementsKind of FAST_*_ELEMENTS and value is an object.
   __ bind(&fast_elements);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
-  __ add(r6, r5, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r6, r5, Operand::PointerOffsetFromSmiKey(r3));
   __ add(r6, r6, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ str(r0, MemOperand(r6, 0));
   // Update the write barrier for the array store.
@@ -7136,7 +7165,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // and value is Smi.
   __ bind(&smi_element);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
-  __ add(r6, r5, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r6, r5, Operand::PointerOffsetFromSmiKey(r3));
   __ str(r0, FieldMemOperand(r6, FixedArray::kHeaderSize));
   __ Ret();
 

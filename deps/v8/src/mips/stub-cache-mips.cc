@@ -507,6 +507,8 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
   if (FLAG_track_fields && representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_restore_name);
+  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+    __ JumpIfSmi(value_reg, miss_restore_name);
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     Label do_store, heap_number;
     __ LoadRoot(scratch3, Heap::kHeapNumberMapRootIndex);
@@ -619,7 +621,6 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
       } else {
         ASSERT(storage_reg.is(name_reg));
       }
-      __ mov(name_reg, value_reg);
       __ RecordWriteField(scratch1,
                           offset,
                           name_reg,
@@ -677,6 +678,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   ASSERT(!representation.IsNone());
   if (FLAG_track_fields && representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
+  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+    __ JumpIfSmi(value_reg, miss_label);
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     // Load the double storage.
     if (index < 0) {
@@ -839,8 +842,7 @@ static void CompileCallLoadPropertyWithInterceptor(
 }
 
 
-static const int kFastApiCallArguments = 4;
-
+static const int kFastApiCallArguments = FunctionCallbackArguments::kArgsLength;
 
 // Reserves space for the extra arguments to API function in the
 // caller's frame.
@@ -869,10 +871,11 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //  -- sp[4]              : callee JS function
   //  -- sp[8]              : call data
   //  -- sp[12]             : isolate
-  //  -- sp[16]             : last JS argument
+  //  -- sp[16]             : ReturnValue
+  //  -- sp[20]             : last JS argument
   //  -- ...
-  //  -- sp[(argc + 3) * 4] : first JS argument
-  //  -- sp[(argc + 4) * 4] : receiver
+  //  -- sp[(argc + 4) * 4] : first JS argument
+  //  -- sp[(argc + 5) * 4] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -890,13 +893,15 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   }
 
   __ li(t3, Operand(ExternalReference::isolate_address(masm->isolate())));
-  // Store JS function, call data and isolate.
+  // Store JS function, call data, isolate and ReturnValue.
   __ sw(t1, MemOperand(sp, 1 * kPointerSize));
   __ sw(t2, MemOperand(sp, 2 * kPointerSize));
   __ sw(t3, MemOperand(sp, 3 * kPointerSize));
+  __ LoadRoot(t1, Heap::kUndefinedValueRootIndex);
+  __ sw(t1, MemOperand(sp, 4 * kPointerSize));
 
   // Prepare arguments.
-  __ Addu(a2, sp, Operand(3 * kPointerSize));
+  __ Addu(a2, sp, Operand(4 * kPointerSize));
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -927,13 +932,22 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
 
   const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
+  bool returns_handle =
+      !CallbackTable::ReturnsVoid(masm->isolate(), function_address);
   ApiFunction fun(function_address);
+  ExternalReference::Type type =
+      returns_handle ?
+          ExternalReference::DIRECT_API_CALL :
+          ExternalReference::DIRECT_API_CALL_NEW;
   ExternalReference ref =
       ExternalReference(&fun,
-                        ExternalReference::DIRECT_API_CALL,
+                        type,
                         masm->isolate());
   AllowExternalCallThatCantCauseGC scope(masm);
-  __ CallApiFunctionAndReturn(ref, kStackUnwindSpace);
+  __ CallApiFunctionAndReturn(ref,
+                              kStackUnwindSpace,
+                              returns_handle,
+                              kFastApiCallArguments + 1);
 }
 
 class CallInterceptorCompiler BASE_EMBEDDED {
@@ -1407,12 +1421,14 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   } else {
     __ li(scratch3(), Handle<Object>(callback->data(), isolate()));
   }
-  __ Subu(sp, sp, 4 * kPointerSize);
-  __ sw(reg, MemOperand(sp, 3 * kPointerSize));
-  __ sw(scratch3(), MemOperand(sp, 2 * kPointerSize));
+  __ Subu(sp, sp, 5 * kPointerSize);
+  __ sw(reg, MemOperand(sp, 4 * kPointerSize));
+  __ sw(scratch3(), MemOperand(sp, 3 * kPointerSize));
   __ li(scratch3(),
         Operand(ExternalReference::isolate_address(isolate())));
-  __ sw(scratch3(), MemOperand(sp, 1 * kPointerSize));
+  __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
+  __ sw(scratch3(), MemOperand(sp, 2 * kPointerSize));
+  __ sw(scratch4(), MemOperand(sp, 1 * kPointerSize));
   __ sw(name(), MemOperand(sp, 0 * kPointerSize));
 
   __ mov(a2, scratch2());  // Saved in case scratch2 == a1.
@@ -1433,12 +1449,21 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // a2 (second argument - see note above) = AccessorInfo&
   __ Addu(a2, sp, kPointerSize);
 
-  const int kStackUnwindSpace = 5;
+  const int kStackUnwindSpace = kFastApiCallArguments + 1;
   Address getter_address = v8::ToCData<Address>(callback->getter());
+  bool returns_handle =
+      !CallbackTable::ReturnsVoid(isolate(), getter_address);
   ApiFunction fun(getter_address);
-  ExternalReference ref = ExternalReference(
-      &fun, ExternalReference::DIRECT_GETTER_CALL, isolate());
-  __ CallApiFunctionAndReturn(ref, kStackUnwindSpace);
+  ExternalReference::Type type =
+      returns_handle ?
+          ExternalReference::DIRECT_GETTER_CALL :
+          ExternalReference::DIRECT_GETTER_CALL_NEW;
+
+  ExternalReference ref = ExternalReference(&fun, type, isolate());
+  __ CallApiFunctionAndReturn(ref,
+                              kStackUnwindSpace,
+                              returns_handle,
+                              3);
 }
 
 

@@ -495,9 +495,7 @@ void MacroAssembler::RecordWrite(Register object,
   Label done;
 
   if (smi_check == INLINE_SMI_CHECK) {
-    ASSERT_EQ(0, kSmiTag);
-    tst(value, Operand(kSmiTagMask));
-    b(eq, &done);
+    JumpIfSmi(value, &done);
   }
 
   CheckPageFlag(value,
@@ -978,7 +976,7 @@ void MacroAssembler::InitializeNewString(Register string,
                                          Heap::RootListIndex map_index,
                                          Register scratch1,
                                          Register scratch2) {
-  mov(scratch1, Operand(length, LSL, kSmiTagSize));
+  SmiTag(scratch1, length);
   LoadRoot(scratch2, map_index);
   str(scratch1, FieldMemOperand(string, String::kLengthOffset));
   mov(scratch1, Operand(String::kEmptyHashField));
@@ -1221,7 +1219,7 @@ void MacroAssembler::InvokeFunction(Register fun,
   ldr(expected_reg,
       FieldMemOperand(code_reg,
                       SharedFunctionInfo::kFormalParameterCountOffset));
-  mov(expected_reg, Operand(expected_reg, ASR, kSmiTagSize));
+  SmiUntag(expected_reg);
   ldr(code_reg,
       FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
 
@@ -1359,7 +1357,7 @@ void MacroAssembler::JumpToHandlerEntry() {
   mov(r2, Operand(r2, LSR, StackHandler::kKindWidth));  // Handler index.
   ldr(r2, MemOperand(r3, r2, LSL, kPointerSizeLog2));  // Smi-tagged offset.
   add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start.
-  add(pc, r1, Operand(r2, ASR, kSmiTagSize));  // Jump.
+  add(pc, r1, Operand::SmiUntag(r2));  // Jump
 }
 
 
@@ -1575,7 +1573,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
 
   // Compute the capacity mask.
   ldr(t1, FieldMemOperand(elements, SeededNumberDictionary::kCapacityOffset));
-  mov(t1, Operand(t1, ASR, kSmiTagSize));  // convert smi to int
+  SmiUntag(t1);
   sub(t1, t1, Operand(1));
 
   // Generate an unrolled loop that performs a few probes before giving up.
@@ -2095,14 +2093,10 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   b(&store);
 
   bind(&smi_value);
-  Register untagged_value = scratch1;
-  SmiUntag(untagged_value, value_reg);
-  vmov(s2, untagged_value);
-  vcvt_f64_s32(d0, s2);
+  SmiToDouble(d0, value_reg);
 
   bind(&store);
-  add(scratch1, elements_reg,
-      Operand(key_reg, LSL, kDoubleSizeLog2 - kSmiTagSize));
+  add(scratch1, elements_reg, Operand::DoubleOffsetFromSmiKey(key_reg));
   vstr(d0, FieldMemOperand(scratch1,
                            FixedDoubleArray::kHeaderSize - elements_offset));
 }
@@ -2268,7 +2262,9 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
-                                              int stack_space) {
+                                              int stack_space,
+                                              bool returns_handle,
+                                              int return_value_offset) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   const int kNextOffset = 0;
@@ -2314,13 +2310,20 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
+  Label return_value_loaded;
 
-  // If result is non-zero, dereference to get the result value
-  // otherwise set it to undefined.
-  cmp(r0, Operand::Zero());
-  LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
-  ldr(r0, MemOperand(r0), ne);
-
+  if (returns_handle) {
+    Label load_return_value;
+    cmp(r0, Operand::Zero());
+    b(eq, &load_return_value);
+    // derefernce returned value
+    ldr(r0, MemOperand(r0));
+    b(&return_value_loaded);
+    bind(&load_return_value);
+  }
+  // load value from ReturnValue
+  ldr(r0, MemOperand(fp, return_value_offset*kPointerSize));
+  bind(&return_value_loaded);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   str(r4, MemOperand(r7, kNextOffset));
@@ -2390,70 +2393,21 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
          (1 << String::kArrayIndexValueBits));
   // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
   // the low kHashShift bits.
-  STATIC_ASSERT(kSmiTag == 0);
   Ubfx(hash, hash, String::kHashShift, String::kArrayIndexValueBits);
-  mov(index, Operand(hash, LSL, kSmiTagSize));
+  SmiTag(index, hash);
 }
 
 
-void MacroAssembler::IntegerToDoubleConversionWithVFP3(Register inReg,
-                                                       Register outHighReg,
-                                                       Register outLowReg) {
-  // ARMv7 VFP3 instructions to implement integer to double conversion.
-  mov(r7, Operand(inReg, ASR, kSmiTagSize));
-  vmov(s15, r7);
-  vcvt_f64_s32(d7, s15);
-  vmov(outLowReg, outHighReg, d7);
-}
-
-
-void MacroAssembler::ObjectToDoubleVFPRegister(Register object,
-                                               DwVfpRegister result,
-                                               Register scratch1,
-                                               Register scratch2,
-                                               Register heap_number_map,
-                                               SwVfpRegister scratch3,
-                                               Label* not_number,
-                                               ObjectToDoubleFlags flags) {
-  Label done;
-  if ((flags & OBJECT_NOT_SMI) == 0) {
-    Label not_smi;
-    JumpIfNotSmi(object, &not_smi);
-    // Remove smi tag and convert to double.
-    mov(scratch1, Operand(object, ASR, kSmiTagSize));
-    vmov(scratch3, scratch1);
-    vcvt_f64_s32(result, scratch3);
-    b(&done);
-    bind(&not_smi);
+void MacroAssembler::SmiToDouble(DwVfpRegister value, Register smi) {
+  ASSERT(value.code() < 16);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    vmov(value.low(), smi);
+    vcvt_f64_s32(value, 1);
+  } else {
+    SmiUntag(ip, smi);
+    vmov(value.low(), ip);
+    vcvt_f64_s32(value, value.low());
   }
-  // Check for heap number and load double value from it.
-  ldr(scratch1, FieldMemOperand(object, HeapObject::kMapOffset));
-  sub(scratch2, object, Operand(kHeapObjectTag));
-  cmp(scratch1, heap_number_map);
-  b(ne, not_number);
-  if ((flags & AVOID_NANS_AND_INFINITIES) != 0) {
-    // If exponent is all ones the number is either a NaN or +/-Infinity.
-    ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
-    Sbfx(scratch1,
-         scratch1,
-         HeapNumber::kExponentShift,
-         HeapNumber::kExponentBits);
-    // All-one value sign extend to -1.
-    cmp(scratch1, Operand(-1));
-    b(eq, not_number);
-  }
-  vldr(result, scratch2, HeapNumber::kValueOffset);
-  bind(&done);
-}
-
-
-void MacroAssembler::SmiToDoubleVFPRegister(Register smi,
-                                            DwVfpRegister value,
-                                            Register scratch1,
-                                            SwVfpRegister scratch2) {
-  mov(scratch1, Operand(smi, ASR, kSmiTagSize));
-  vmov(scratch2, scratch1);
-  vcvt_f64_s32(value, scratch2);
 }
 
 
@@ -2610,7 +2564,7 @@ void MacroAssembler::GetLeastBitsFromSmi(Register dst,
   if (CpuFeatures::IsSupported(ARMv7) && !predictable_code_size()) {
     ubfx(dst, src, kSmiTagSize, num_least_bits);
   } else {
-    mov(dst, Operand(src, ASR, kSmiTagSize));
+    SmiUntag(dst, src);
     and_(dst, dst, Operand((1 << num_least_bits) - 1));
   }
 }
@@ -3005,7 +2959,7 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
 void MacroAssembler::UntagAndJumpIfSmi(
     Register dst, Register src, Label* smi_case) {
   STATIC_ASSERT(kSmiTag == 0);
-  mov(dst, Operand(src, ASR, kSmiTagSize), SetCC);
+  SmiUntag(dst, src, SetCC);
   b(cc, smi_case);  // Shifter carry is not set for a smi.
 }
 
@@ -3013,7 +2967,7 @@ void MacroAssembler::UntagAndJumpIfSmi(
 void MacroAssembler::UntagAndJumpIfNotSmi(
     Register dst, Register src, Label* non_smi_case) {
   STATIC_ASSERT(kSmiTag == 0);
-  mov(dst, Operand(src, ASR, kSmiTagSize), SetCC);
+  SmiUntag(dst, src, SetCC);
   b(cs, non_smi_case);  // Shifter carry is set for a non-smi.
 }
 
@@ -3120,7 +3074,6 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
                                                          Register scratch2,
                                                          Label* failure) {
   // Check that neither is a smi.
-  STATIC_ASSERT(kSmiTag == 0);
   and_(scratch1, first, Operand(second));
   JumpIfSmi(scratch1, failure);
   JumpIfNonSmisNotBothSequentialAsciiStrings(first,

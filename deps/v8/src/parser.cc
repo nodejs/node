@@ -794,7 +794,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
 }
 
 
-Handle<String> Parser::GetSymbol(bool* ok) {
+Handle<String> Parser::GetSymbol() {
   int symbol_id = -1;
   if (pre_parse_data() != NULL) {
     symbol_id = pre_parse_data()->GetSymbolIdentifier();
@@ -1341,7 +1341,7 @@ Module* Parser::ParseModuleUrl(bool* ok) {
   //    String
 
   Expect(Token::STRING, CHECK_OK);
-  Handle<String> symbol = GetSymbol(CHECK_OK);
+  Handle<String> symbol = GetSymbol();
 
   // TODO(ES6): Request JS resource from environment...
 
@@ -3113,7 +3113,12 @@ Expression* Parser::ParseYieldExpression(bool* ok) {
   Expression* generator_object = factory()->NewVariableProxy(
       current_function_state_->generator_object_variable());
   Expression* expression = ParseAssignmentExpression(false, CHECK_OK);
-  return factory()->NewYield(generator_object, expression, kind, position);
+  Yield* yield =
+      factory()->NewYield(generator_object, expression, kind, position);
+  if (kind == Yield::DELEGATING) {
+    yield->set_index(current_function_state_->NextHandlerIndex());
+  }
+  return yield;
 }
 
 
@@ -3687,7 +3692,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 
     case Token::STRING: {
       Consume(Token::STRING);
-      Handle<String> symbol = GetSymbol(CHECK_OK);
+      Handle<String> symbol = GetSymbol();
       result = factory()->NewLiteral(symbol);
       if (fni_ != NULL) fni_->PushLiteralName(symbol);
       break;
@@ -4042,7 +4047,7 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
     if (is_keyword) {
       name = isolate_->factory()->InternalizeUtf8String(Token::String(next));
     } else {
-      name = GetSymbol(CHECK_OK);
+      name = GetSymbol();
     }
     FunctionLiteral* value =
         ParseFunctionLiteral(name,
@@ -4123,7 +4128,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       }
       case Token::STRING: {
         Consume(Token::STRING);
-        Handle<String> string = GetSymbol(CHECK_OK);
+        Handle<String> string = GetSymbol();
         if (fni_ != NULL) fni_->PushLiteralName(string);
         uint32_t index;
         if (!string.is_null() && string->AsArrayIndex(&index)) {
@@ -4145,7 +4150,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       default:
         if (Token::IsKeyword(next)) {
           Consume(next);
-          Handle<String> string = GetSymbol(CHECK_OK);
+          Handle<String> string = GetSymbol();
           key = factory()->NewLiteral(string);
         } else {
           // Unexpected token.
@@ -4818,7 +4823,7 @@ void Parser::ExpectSemicolon(bool* ok) {
 void Parser::ExpectContextualKeyword(const char* keyword, bool* ok) {
   Expect(Token::IDENTIFIER, ok);
   if (!*ok) return;
-  Handle<String> symbol = GetSymbol(ok);
+  Handle<String> symbol = GetSymbol();
   if (!*ok) return;
   if (!symbol->IsUtf8EqualTo(CStrVector(keyword))) {
     *ok = false;
@@ -4845,7 +4850,7 @@ Handle<String> Parser::ParseIdentifier(bool* ok) {
       (top_scope_->is_classic_mode() &&
        (next == Token::FUTURE_STRICT_RESERVED_WORD ||
         (next == Token::YIELD && !is_generator())))) {
-    return GetSymbol(ok);
+    return GetSymbol();
   } else {
     ReportUnexpectedToken(next);
     *ok = false;
@@ -4869,7 +4874,7 @@ Handle<String> Parser::ParseIdentifierOrStrictReservedWord(
     *ok = false;
     return Handle<String>();
   }
-  return GetSymbol(ok);
+  return GetSymbol();
 }
 
 
@@ -4883,7 +4888,7 @@ Handle<String> Parser::ParseIdentifierName(bool* ok) {
     *ok = false;
     return Handle<String>();
   }
-  return GetSymbol(ok);
+  return GetSymbol();
 }
 
 

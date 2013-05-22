@@ -2020,7 +2020,14 @@ MaybeObject* KeyedStoreIC::Store(State state,
 
   bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded() &&
       !(FLAG_harmony_observation && object->IsJSObject() &&
-          JSObject::cast(*object)->map()->is_observed());
+        JSObject::cast(*object)->map()->is_observed());
+  if (use_ic && !object->IsSmi()) {
+    // Don't use ICs for maps of the objects in Array's prototype chain. We
+    // expect to be able to trap element sets to objects with those maps in the
+    // runtime to enable optimization of element hole access.
+    Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
+    if (heap_object->map()->IsMapInArrayPrototypeChain()) use_ic = false;
+  }
   ASSERT(!(use_ic && object->IsJSGlobalProxy()));
 
   if (use_ic) {
@@ -2881,25 +2888,17 @@ RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
 }
 
 
-Code* CompareNilIC::GetRawUninitialized(EqualityKind kind,
-                                        NilValue nil) {
-  CompareNilICStub stub(kind, nil);
-  Code* code = NULL;
-  CHECK(stub.FindCodeInCache(&code, Isolate::Current()));
-  return code;
-}
-
-
 void CompareNilIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   Code::ExtraICState state = target->extended_extra_ic_state();
 
-  EqualityKind kind =
-      CompareNilICStub::EqualityKindFromExtraICState(state);
-  NilValue nil =
-      CompareNilICStub::NilValueFromExtraICState(state);
+  CompareNilICStub stub(state, CompareNilICStub::CODE_STUB_IS_MISS);
+  stub.ClearTypes();
 
-  SetTargetAtAddress(address, GetRawUninitialized(kind, nil));
+  Code* code = NULL;
+  CHECK(stub.FindCodeInCache(&code, target->GetIsolate()));
+
+  SetTargetAtAddress(address, code);
 }
 
 
@@ -2923,28 +2922,24 @@ MaybeObject* CompareNilIC::DoCompareNilSlow(EqualityKind kind,
 MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
   Code::ExtraICState extra_ic_state = target()->extended_extra_ic_state();
 
+  CompareNilICStub stub(extra_ic_state);
+
   // Extract the current supported types from the patched IC and calculate what
   // types must be supported as a result of the miss.
-  bool already_monomorphic;
-  CompareNilICStub::Types types =
-      CompareNilICStub::GetPatchedICFlags(extra_ic_state,
-                                          object, &already_monomorphic);
+  bool already_monomorphic = stub.IsMonomorphic();
 
-  EqualityKind kind =
-      CompareNilICStub::EqualityKindFromExtraICState(extra_ic_state);
-  NilValue nil =
-      CompareNilICStub::NilValueFromExtraICState(extra_ic_state);
+  stub.Record(object);
+
+  EqualityKind kind = stub.GetKind();
+  NilValue nil = stub.GetNilValue();
 
   // Find or create the specialized stub to support the new set of types.
-  CompareNilICStub stub(kind, nil, types);
   Handle<Code> code;
-  if ((types & CompareNilICStub::kCompareAgainstMonomorphicMap) != 0) {
+  if (stub.IsMonomorphic()) {
     Handle<Map> monomorphic_map(already_monomorphic
                                 ? target()->FindFirstMap()
                                 : HeapObject::cast(*object)->map());
-    code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map,
-                                                      nil,
-                                                      stub.GetTypes());
+    code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map, stub);
   } else {
     code = stub.GetCode(isolate());
   }

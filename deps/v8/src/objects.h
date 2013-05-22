@@ -254,6 +254,7 @@ enum CreationFlag {
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag {
   INSERT_TRANSITION,
+  OMIT_TRANSITION_KEEP_REPRESENTATIONS,
   OMIT_TRANSITION
 };
 
@@ -851,7 +852,7 @@ struct ValueInfo : public Malloced {
 
 
 // A template-ized version of the IsXXX functions.
-template <class C> static inline bool Is(Object* obj);
+template <class C> inline bool Is(Object* obj);
 
 #ifdef VERIFY_HEAP
 #define DECLARE_VERIFIER(Name) void Name##Verify();
@@ -1066,6 +1067,13 @@ class Object : public MaybeObject {
       return Representation::Smi();
     } else if (FLAG_track_double_fields && IsHeapNumber()) {
       return Representation::Double();
+    } else if (FLAG_track_heap_object_fields && !IsUndefined()) {
+      // Don't track undefined as heapobject because it's also used as temporary
+      // value for computed fields that may turn out to be Smi. That combination
+      // will go tagged, so go tagged immediately.
+      // TODO(verwaest): Change once we track computed boilerplate fields.
+      ASSERT(IsHeapObject());
+      return Representation::HeapObject();
     } else {
       return Representation::Tagged();
     }
@@ -1076,6 +1084,8 @@ class Object : public MaybeObject {
       return IsSmi();
     } else if (FLAG_track_double_fields && representation.IsDouble()) {
       return IsNumber();
+    } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+      return IsHeapObject();
     }
     return true;
   }
@@ -2191,7 +2201,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
       Name* name,
       Object* new_value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      TransitionFlag flag = OMIT_TRANSITION);
 
   MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
   MUST_USE_RESULT MaybeObject* GeneralizeFieldRepresentation(
@@ -4611,7 +4622,7 @@ class Code: public HeapObject {
   inline void set_to_boolean_state(byte value);
 
   // [compare_nil]: For kind COMPARE_NIL_IC tells what state the stub is in.
-  byte compare_nil_state();
+  byte compare_nil_types();
 
   // [has_function_cache]: For kind STUB tells whether there is a function
   // cache is passed to the stub.
@@ -4968,7 +4979,10 @@ class DependentCode: public FixedArray {
     // described by this map changes shape (and transitions to a new map),
     // possibly invalidating the assumptions embedded in the code.
     kPrototypeCheckGroup,
-    kGroupCount = kPrototypeCheckGroup + 1
+    // Group of code that depends on elements not being added to objects with
+    // this map.
+    kElementsCantBeAddedGroup,
+    kGroupCount = kElementsCantBeAddedGroup + 1
   };
 
   // Array for holding the index of the first code object of each group.
@@ -5365,9 +5379,8 @@ class Map: public HeapObject {
   // Returns a non-deprecated version of the input. If the input was not
   // deprecated, it is directly returned. Otherwise, the non-deprecated version
   // is found by re-transitioning from the root of the transition tree using the
-  // descriptor array of the map. New maps (and transitions) may be created if
-  // no new (more general) version exists.
-  static inline Handle<Map> CurrentMapForDeprecated(Handle<Map> map);
+  // descriptor array of the map. Returns NULL if no updated map is found.
+  Map* CurrentMapForDeprecated();
 
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
@@ -5499,6 +5512,8 @@ class Map: public HeapObject {
 
   inline void AddDependentCode(DependentCode::DependencyGroup group,
                                Handle<Code> code);
+
+  bool IsMapInArrayPrototypeChain();
 
   // Dispatched behavior.
   DECLARE_PRINTER(Map)
@@ -5793,7 +5808,7 @@ class SharedFunctionInfo: public HeapObject {
   inline void ReplaceCode(Code* code);
 
   // [optimized_code_map]: Map from native context to optimized code
-  // and a shared literals array or Smi 0 if none.
+  // and a shared literals array or Smi(0) if none.
   DECL_ACCESSORS(optimized_code_map, Object)
 
   // Returns index i of the entry with the specified context. At position
@@ -5806,14 +5821,34 @@ class SharedFunctionInfo: public HeapObject {
   void InstallFromOptimizedCodeMap(JSFunction* function, int index);
 
   // Clear optimized code map.
-  inline void ClearOptimizedCodeMap();
+  void ClearOptimizedCodeMap();
+
+  // Removed a specific optimized code object from the optimized code map.
+  void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
+
+  // Trims the optimized code map after entries have been removed.
+  void TrimOptimizedCodeMap(int shrink_by);
+
+  // Zaps the contents of backing optimized code map.
+  void ZapOptimizedCodeMap();
 
   // Add a new entry to the optimized code map.
+  MUST_USE_RESULT MaybeObject* AddToOptimizedCodeMap(Context* native_context,
+                                                     Code* code,
+                                                     FixedArray* literals);
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                     Handle<Context> native_context,
                                     Handle<Code> code,
                                     Handle<FixedArray> literals);
+
+  // Layout description of the optimized code map.
+  static const int kNextMapIndex = 0;
+  static const int kEntriesStart = 1;
   static const int kEntryLength = 3;
+  static const int kFirstContextSlot = FixedArray::kHeaderSize + kPointerSize;
+  static const int kFirstCodeSlot = FixedArray::kHeaderSize + 2 * kPointerSize;
+  static const int kSecondEntryIndex = kEntryLength + kEntriesStart;
+  static const int kInitialLength = kEntriesStart + kEntryLength;
 
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
@@ -6111,6 +6146,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that code for this function cannot be cached.
   DECL_BOOLEAN_ACCESSORS(dont_cache)
 
+  // Indicates that code for this function cannot be flushed.
+  DECL_BOOLEAN_ACCESSORS(dont_flush)
+
   // Indicates that this function is a generator.
   DECL_BOOLEAN_ACCESSORS(is_generator)
 
@@ -6340,6 +6378,7 @@ class SharedFunctionInfo: public HeapObject {
     kDontOptimize,
     kDontInline,
     kDontCache,
+    kDontFlush,
     kIsGenerator,
     kCompilerHintsCount  // Pseudo entry
   };
@@ -6659,6 +6698,8 @@ class JSFunction: public JSObject {
     return true;
   }
 #endif
+
+  bool PassesHydrogenFilter();
 
   // Layout descriptors. The last property (from kNonWeakFieldsEndOffset to
   // kSize) is weak and has special handling during garbage collection.
@@ -7792,7 +7833,7 @@ class String: public Name {
 
   // String equality operations.
   inline bool Equals(String* other);
-  bool IsUtf8EqualTo(Vector<const char> str);
+  bool IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match = false);
   bool IsOneByteEqualTo(Vector<const uint8_t> str);
   bool IsTwoByteEqualTo(Vector<const uc16> str);
 

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
+// Flags: --allow-natives-syntax
 
 var a = new Array(10);
 
@@ -46,7 +46,7 @@ test_load_set_smi_2(a);
 test_load_set_smi_2(a);
 test_load_set_smi_2(0);
 %DeoptimizeFunction(test_load_set_smi_2);
-gc();  // Makes V8 forget about type information for test_load_set_smi.
+%ClearFunctionTypeFeedback(test_load_set_smi_2);
 
 var b = new Object();
 
@@ -67,4 +67,4 @@ test_load_set_smi_4(b);
 test_load_set_smi_4(b);
 test_load_set_smi_4(0);
 %DeoptimizeFunction(test_load_set_smi_4);
-gc();  // Makes V8 forget about type information for test_load_set_smi.
+%ClearFunctionTypeFeedback(test_load_set_smi_4);

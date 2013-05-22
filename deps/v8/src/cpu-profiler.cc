@@ -29,6 +29,7 @@
 
 #include "cpu-profiler-inl.h"
 
+#include "compiler.h"
 #include "frames-inl.h"
 #include "hashmap.h"
 #include "log-inl.h"
@@ -80,7 +81,8 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                               int line_number,
                                               Address start,
                                               unsigned size,
-                                              Address shared) {
+                                              Address shared,
+                                              CompilationInfo* info) {
   if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -88,6 +90,9 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->order = ++enqueue_order_;
   rec->start = start;
   rec->entry = profiles_->NewCodeEntry(tag, name, resource_name, line_number);
+  if (info) {
+    rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
+  }
   rec->size = size;
   rec->shared = shared;
   events_buffer_.Enqueue(evt_rec);
@@ -323,6 +328,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       v8::CpuProfileNode::kNoLineNumberInfo,
       code->address(),
       code->ExecutableSize(),
+      NULL,
       NULL);
 }
 
@@ -330,6 +336,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   Code* code,
                                   SharedFunctionInfo* shared,
+                                  CompilationInfo* info,
                                   Name* name) {
   processor_->CodeCreateEvent(
       tag,
@@ -338,13 +345,15 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       v8::CpuProfileNode::kNoLineNumberInfo,
       code->address(),
       code->ExecutableSize(),
-      shared->address());
+      shared->address(),
+      info);
 }
 
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   Code* code,
                                   SharedFunctionInfo* shared,
+                                  CompilationInfo* info,
                                   String* source, int line) {
   processor_->CodeCreateEvent(
       tag,
@@ -353,7 +362,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       line,
       code->address(),
       code->ExecutableSize(),
-      shared->address());
+      shared->address(),
+      info);
 }
 
 

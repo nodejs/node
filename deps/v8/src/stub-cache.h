@@ -281,8 +281,7 @@ class StubCache {
   // ---
 
   Handle<Code> ComputeCompareNil(Handle<Map> receiver_map,
-                                 NilValue nil,
-                                 CompareNilICStub::Types types);
+                                 CompareNilICStub& stub);
 
   // ---
 

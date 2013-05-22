@@ -79,6 +79,7 @@ class Ticker;
 class Isolate;
 class PositionsRecorder;
 class CpuProfiler;
+class CompilationInfo;
 
 #undef LOG
 #define LOG(isolate, Call)                          \
@@ -235,10 +236,12 @@ class Logger {
   void CodeCreateEvent(LogEventsAndTags tag,
                        Code* code,
                        SharedFunctionInfo* shared,
+                       CompilationInfo* info,
                        Name* name);
   void CodeCreateEvent(LogEventsAndTags tag,
                        Code* code,
                        SharedFunctionInfo* shared,
+                       CompilationInfo* info,
                        Name* source, int line);
   void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
   void CodeMovingGCEvent();

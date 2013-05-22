@@ -39,31 +39,6 @@ class ImplementationUtilities {
     return that->names_;
   }
 
-  // Packs additional parameters for the NewArguments function. |implicit_args|
-  // is a pointer to the last element of 4-elements array controlled by GC.
-  static void PrepareArgumentsData(internal::Object** implicit_args,
-                                   internal::Isolate* isolate,
-                                   internal::Object* data,
-                                   internal::JSFunction* callee,
-                                   internal::Object* holder) {
-    implicit_args[v8::Arguments::kDataIndex] = data;
-    implicit_args[v8::Arguments::kCalleeIndex] = callee;
-    implicit_args[v8::Arguments::kHolderIndex] = holder;
-    implicit_args[v8::Arguments::kIsolateIndex] =
-        reinterpret_cast<internal::Object*>(isolate);
-  }
-
-  static v8::Arguments NewArguments(internal::Object** implicit_args,
-                                    internal::Object** argv, int argc,
-                                    bool is_construct_call) {
-    ASSERT(implicit_args[v8::Arguments::kCalleeIndex]->IsJSFunction());
-    ASSERT(implicit_args[v8::Arguments::kHolderIndex]->IsHeapObject());
-    // The implicit isolate argument is not tagged and looks like a SMI.
-    ASSERT(implicit_args[v8::Arguments::kIsolateIndex]->IsSmi());
-
-    return v8::Arguments(implicit_args, argv, argc, is_construct_call);
-  }
-
   // Introduce an alias for the handle scope data to allow non-friends
   // to access the HandleScope data.
   typedef v8::HandleScope::Data HandleScopeData;

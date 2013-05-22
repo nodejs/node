@@ -648,7 +648,7 @@ TEST(Regress1433) {
       v8::Handle<String> source = v8::String::New("1+1");
       v8::Handle<Script> script = v8::Script::Compile(source);
       v8::Handle<Value> result = script->Run();
-      v8::String::AsciiValue ascii(result);
+      v8::String::Utf8Value utf8(result);
     }
     isolate->Dispose();
   }

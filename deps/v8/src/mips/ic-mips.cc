@@ -1454,7 +1454,7 @@ void StoreIC::GenerateSlow(MacroAssembler* masm) {
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
   ExternalReference ref =
-      ExternalReference(IC_Utility(kKeyedStoreIC_Slow), masm->isolate());
+      ExternalReference(IC_Utility(kStoreIC_Slow), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 

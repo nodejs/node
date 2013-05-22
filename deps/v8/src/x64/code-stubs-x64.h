@@ -207,11 +207,13 @@ class StringHelper : public AllStatic {
 
 // Flag that indicates how to generate code for the stub StringAddStub.
 enum StringAddFlags {
-  NO_STRING_ADD_FLAGS = 0,
+  NO_STRING_ADD_FLAGS = 1 << 0,
   // Omit left string check in stub (left is definitely a string).
-  NO_STRING_CHECK_LEFT_IN_STUB = 1 << 0,
+  NO_STRING_CHECK_LEFT_IN_STUB = 1 << 1,
   // Omit right string check in stub (right is definitely a string).
-  NO_STRING_CHECK_RIGHT_IN_STUB = 1 << 1,
+  NO_STRING_CHECK_RIGHT_IN_STUB = 1 << 2,
+  // Stub needs a frame before calling the runtime
+  ERECT_FRAME = 1 << 3,
   // Omit both string checks in stub.
   NO_STRING_CHECK_IN_STUB =
       NO_STRING_CHECK_LEFT_IN_STUB | NO_STRING_CHECK_RIGHT_IN_STUB
@@ -235,6 +237,9 @@ class StringAddStub: public PlatformCodeStub {
                                Register scratch2,
                                Register scratch3,
                                Label* slow);
+
+  void GenerateRegisterArgsPush(MacroAssembler* masm);
+  void GenerateRegisterArgsPop(MacroAssembler* masm, Register temp);
 
   const StringAddFlags flags_;
 };

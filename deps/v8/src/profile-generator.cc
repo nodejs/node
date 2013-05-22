@@ -29,6 +29,7 @@
 
 #include "profile-generator-inl.h"
 
+#include "compiler.h"
 #include "global-handles.h"
 #include "scopeinfo.h"
 #include "unicode.h"
@@ -184,6 +185,11 @@ size_t StringsStorage::GetUsedMemorySize() const {
 }
 
 const char* const CodeEntry::kEmptyNamePrefix = "";
+
+
+CodeEntry::~CodeEntry() {
+  delete no_frame_ranges_;
+}
 
 
 void CodeEntry::CopyData(const CodeEntry& source) {
@@ -531,13 +537,17 @@ void CodeMap::DeleteAllCoveredCode(Address start, Address end) {
 }
 
 
-CodeEntry* CodeMap::FindEntry(Address addr) {
+CodeEntry* CodeMap::FindEntry(Address addr, Address* start) {
   CodeTree::Locator locator;
   if (tree_.FindGreatestLessThan(addr, &locator)) {
     // locator.key() <= addr. Need to check that addr is within entry.
     const CodeEntryInfo& entry = locator.value();
-    if (addr < (locator.key() + entry.size))
+    if (addr < (locator.key() + entry.size)) {
+      if (start) {
+        *start = locator.key();
+      }
       return entry.entry;
+    }
   }
   return NULL;
 }
@@ -898,7 +908,26 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   CodeEntry** entry = entries.start();
   memset(entry, 0, entries.length() * sizeof(*entry));
   if (sample.pc != NULL) {
-    *entry++ = code_map_.FindEntry(sample.pc);
+    Address start;
+    CodeEntry* pc_entry = code_map_.FindEntry(sample.pc, &start);
+    // If pc is in the function code before it set up stack frame or after the
+    // frame was destroyed SafeStackTraceFrameIterator incorrectly thinks that
+    // ebp contains return address of the current function and skips caller's
+    // frame. Check for this case and just skip such samples.
+    if (pc_entry) {
+      List<OffsetRange>* ranges = pc_entry->no_frame_ranges();
+      if (ranges) {
+        Code* code = Code::cast(HeapObject::FromAddress(start));
+        int pc_offset = static_cast<int>(sample.pc - code->instruction_start());
+        for (int i = 0; i < ranges->length(); i++) {
+          OffsetRange& range = ranges->at(i);
+          if (range.from <= pc_offset && pc_offset < range.to) {
+            return;
+          }
+        }
+      }
+    }
+    *entry++ = pc_entry;
 
     if (sample.has_external_callback) {
       // Don't use PC when in external callback code, as it can point

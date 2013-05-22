@@ -105,6 +105,8 @@ bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
         Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL;
     if (!preliminary_checks) return false;
     Map* map = code->FindFirstMap();
+    if (map == NULL) return false;
+    map = map->CurrentMapForDeprecated();
     return map != NULL && !CanRetainOtherContext(map, *native_context_);
   }
   return false;
@@ -136,6 +138,8 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(TypeFeedbackId ast_id) {
         Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL;
     if (!preliminary_checks) return false;
     Map* map = code->FindFirstMap();
+    if (map == NULL) return false;
+    map = map->CurrentMapForDeprecated();
     return map != NULL && !CanRetainOtherContext(map, *native_context_);
   }
   return false;
@@ -192,11 +196,10 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
   Handle<Object> map_or_code = GetInfo(expr->PropertyFeedbackId());
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    Map* first_map = code->FindFirstMap();
-    ASSERT(first_map != NULL);
-    return CanRetainOtherContext(first_map, *native_context_)
+    Map* map = code->FindFirstMap()->CurrentMapForDeprecated();
+    return map == NULL || CanRetainOtherContext(map, *native_context_)
         ? Handle<Map>::null()
-        : Handle<Map>(first_map);
+        : Handle<Map>(map);
   }
   return Handle<Map>::cast(map_or_code);
 }
@@ -208,11 +211,10 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(
   Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    Map* first_map = code->FindFirstMap();
-    ASSERT(first_map != NULL);
-    return CanRetainOtherContext(first_map, *native_context_)
+    Map* map = code->FindFirstMap()->CurrentMapForDeprecated();
+    return map == NULL || CanRetainOtherContext(map, *native_context_)
         ? Handle<Map>::null()
-        : Handle<Map>(first_map);
+        : Handle<Map>(map);
   }
   return Handle<Map>::cast(map_or_code);
 }
@@ -222,8 +224,15 @@ Handle<Map> TypeFeedbackOracle::CompareNilMonomorphicReceiverType(
     TypeFeedbackId id) {
   Handle<Object> maybe_code = GetInfo(id);
   if (maybe_code->IsCode()) {
-    Map* first_map = Handle<Code>::cast(maybe_code)->FindFirstMap();
-    if (first_map != NULL) return Handle<Map>(first_map);
+    Map* map = Handle<Code>::cast(maybe_code)->FindFirstMap();
+    if (map == NULL) return Handle<Map>();
+    map = map->CurrentMapForDeprecated();
+    return map == NULL || CanRetainOtherContext(map, *native_context_)
+           ? Handle<Map>()
+           : Handle<Map>(map);
+  } else if (maybe_code->IsMap()) {
+    ASSERT(!Handle<Map>::cast(maybe_code)->is_deprecated());
+    return Handle<Map>::cast(maybe_code);
   }
   return Handle<Map>();
 }
@@ -426,11 +435,10 @@ Handle<Map> TypeFeedbackOracle::GetCompareMap(CompareOperation* expr) {
   if (state != CompareIC::KNOWN_OBJECT) {
     return Handle<Map>::null();
   }
-  Map* first_map = code->FindFirstMap();
-  ASSERT(first_map != NULL);
-  return CanRetainOtherContext(first_map, *native_context_)
+  Map* map = code->FindFirstMap()->CurrentMapForDeprecated();
+  return map == NULL || CanRetainOtherContext(map, *native_context_)
       ? Handle<Map>::null()
-      : Handle<Map>(first_map);
+      : Handle<Map>(map);
 }
 
 
@@ -637,9 +645,9 @@ byte TypeFeedbackOracle::CompareNilTypes(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
   if (object->IsCode() &&
       Handle<Code>::cast(object)->is_compare_nil_ic_stub()) {
-    return Handle<Code>::cast(object)->compare_nil_state();
+    return Handle<Code>::cast(object)->compare_nil_types();
   } else {
-    return CompareNilICStub::kFullCompare;
+    return CompareNilICStub::Types::FullCompare().ToIntegral();
   }
 }
 
@@ -717,7 +725,8 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
               SetInfo(ast_id, static_cast<Object*>(target));
             } else if (!CanRetainOtherContext(Map::cast(map),
                                               *native_context_)) {
-              SetInfo(ast_id, map);
+              Map* feedback = Map::cast(map)->CurrentMapForDeprecated();
+              if (feedback != NULL) SetInfo(ast_id, feedback);
             }
           }
         } else {

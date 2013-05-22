@@ -39,8 +39,8 @@ test-api/ApplyInterruption: PASS || TIMEOUT
 # when snapshot is on, so I am marking it PASS || FAIL
 test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
 
-# BUG(2628): This test is flaky and sometimes fails, but should not crash.
-test-cpu-profiler/CollectCpuProfile: PASS || FAIL
+# BUG(2628): These tests are flaky and sometimes fail, but should not crash.
+test-cpu-profiler/SampleWhenFrameIsNotSetup: PASS || FAIL
 
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.
@@ -79,6 +79,15 @@ test-serialize/Deserialize: SKIP
 test-serialize/DeserializeFromSecondSerializationAndRunScript2: SKIP
 test-serialize/DeserializeAndRunScript2: SKIP
 test-serialize/DeserializeFromSecondSerialization: SKIP
+
+##############################################################################
+[ $arch == arm || $arch == mipsel ]
+
+# BUG(2628): Signal may come when pc is close to frame enter/exit code and on
+# simulator the stack frame is not set up when it is expected to be for the pc
+# value.
+test-cpu-profiler/CollectCpuProfile: PASS || FAIL
+test-cpu-profiler/SampleWhenFrameIsNotSetup: PASS || FAIL
 
 ##############################################################################
 [ $arch == android_arm || $arch == android_ia32 ]

@@ -51,6 +51,7 @@ namespace v8 {
 namespace internal {
 
 class Bootstrapper;
+class CallbackTable;
 class CodeGenerator;
 class CodeRange;
 struct CodeStubInterfaceDescriptor;
@@ -724,7 +725,7 @@ class Isolate {
   void PrintCurrentStackTrace(FILE* out);
   void PrintStackTrace(FILE* out, char* thread_data);
   void PrintStack(StringStream* accumulator);
-  void PrintStack();
+  void PrintStack(FILE* out);
   Handle<String> StackTraceString();
   NO_INLINE(void PushStackTraceAndDie(unsigned int magic,
                                       Object* object,
@@ -835,6 +836,9 @@ class Isolate {
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)            \
   Handle<type> name() {                                             \
     return Handle<type>(context()->native_context()->name(), this); \
+  }                                                                 \
+  bool is_##name(type* value) {                                     \
+    return context()->native_context()->is_##name(value);           \
   }
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
@@ -1067,6 +1071,10 @@ class Isolate {
     date_cache_ = date_cache;
   }
 
+  Map* get_initial_js_array_map(ElementsKind kind);
+
+  bool IsFastArrayConstructorPrototypeChainIntact();
+
   CodeStubInterfaceDescriptor*
       code_stub_interface_descriptor(int index);
 
@@ -1093,6 +1101,13 @@ class Isolate {
 
   SweeperThread** sweeper_threads() {
     return sweeper_thread_;
+  }
+
+  CallbackTable* callback_table() {
+    return callback_table_;
+  }
+  void set_callback_table(CallbackTable* callback_table) {
+    callback_table_ = callback_table;
   }
 
   HStatistics* GetHStatistics();
@@ -1332,6 +1347,7 @@ class Isolate {
   OptimizingCompilerThread optimizing_compiler_thread_;
   MarkingThread** marking_thread_;
   SweeperThread** sweeper_thread_;
+  CallbackTable* callback_table_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

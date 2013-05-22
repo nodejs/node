@@ -459,6 +459,17 @@ class Operand BASE_EMBEDDED {
 
   // rm <shift_op> shift_imm
   explicit Operand(Register rm, ShiftOp shift_op, int shift_imm);
+  INLINE(static Operand SmiUntag(Register rm)) {
+    return Operand(rm, ASR, kSmiTagSize);
+  }
+  INLINE(static Operand PointerOffsetFromSmiKey(Register key)) {
+    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    return Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize);
+  }
+  INLINE(static Operand DoubleOffsetFromSmiKey(Register key)) {
+    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
+    return Operand(key, LSL, kDoubleSizeLog2 - kSmiTagSize);
+  }
 
   // rm <shift_op> rs
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
@@ -515,6 +526,12 @@ class MemOperand BASE_EMBEDDED {
   // [rn], +/- rm <shift_op> shift_imm     PostIndex/NegPostIndex
   explicit MemOperand(Register rn, Register rm,
                       ShiftOp shift_op, int shift_imm, AddrMode am = Offset);
+  INLINE(static MemOperand PointerAddressFromSmiKey(Register array,
+                                                    Register key,
+                                                    AddrMode am = Offset)) {
+    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    return MemOperand(array, key, LSL, kPointerSizeLog2 - kSmiTagSize, am);
+  }
 
   void set_offset(int32_t offset) {
       ASSERT(rm_.is(no_reg));
@@ -1031,6 +1048,9 @@ class Assembler : public AssemblerBase {
   void vcvt_f32_f64(const SwVfpRegister dst,
                     const DwVfpRegister src,
                     VFPConversionMode mode = kDefaultRoundToZero,
+                    const Condition cond = al);
+  void vcvt_f64_s32(const DwVfpRegister dst,
+                    int fraction_bits,
                     const Condition cond = al);
 
   void vneg(const DwVfpRegister dst,

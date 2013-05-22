@@ -108,7 +108,7 @@ static const v8::HeapGraphNode* GetProperty(const v8::HeapGraphNode* node,
                                             const char* name) {
   for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = node->GetChild(i);
-    v8::String::AsciiValue prop_name(prop->GetName());
+    v8::String::Utf8Value prop_name(prop->GetName());
     if (prop->GetType() == type && strcmp(name, *prop_name) == 0)
       return prop->GetToNode();
   }
@@ -121,7 +121,7 @@ static bool HasString(const v8::HeapGraphNode* node, const char* contents) {
     const v8::HeapGraphEdge* prop = node->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
     if (node->GetType() == v8::HeapGraphNode::kString) {
-      v8::String::AsciiValue node_name(node->GetName());
+      v8::String::Utf8Value node_name(node->GetName());
       if (strcmp(contents, *node_name) == 0) return true;
     }
   }
@@ -285,7 +285,7 @@ TEST(HeapSnapshotCodeObjects) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "anonymous");
   CHECK_NE(NULL, anonymous);
   CHECK_EQ(v8::HeapGraphNode::kClosure, anonymous->GetType());
-  v8::String::AsciiValue anonymous_name(anonymous->GetName());
+  v8::String::Utf8Value anonymous_name(anonymous->GetName());
   CHECK_EQ("", *anonymous_name);
 
   // Find references to code.
@@ -1079,16 +1079,16 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
       uint16_t class_id, v8::Handle<v8::Value> wrapper) {
     if (class_id == 1) {
       if (wrapper->IsString()) {
-        v8::String::AsciiValue ascii(wrapper);
-        if (strcmp(*ascii, "AAA") == 0)
+        v8::String::Utf8Value utf8(wrapper);
+        if (strcmp(*utf8, "AAA") == 0)
           return new TestRetainedObjectInfo(1, "aaa-group", "aaa", 100);
-        else if (strcmp(*ascii, "BBB") == 0)
+        else if (strcmp(*utf8, "BBB") == 0)
           return new TestRetainedObjectInfo(1, "aaa-group", "aaa", 100);
       }
     } else if (class_id == 2) {
       if (wrapper->IsString()) {
-        v8::String::AsciiValue ascii(wrapper);
-        if (strcmp(*ascii, "CCC") == 0)
+        v8::String::Utf8Value utf8(wrapper);
+        if (strcmp(*utf8, "CCC") == 0)
           return new TestRetainedObjectInfo(2, "ccc-group", "ccc");
       }
     }
@@ -1254,7 +1254,7 @@ TEST(HeapSnapshotImplicitReferences) {
   int implicit_targets_count = 0;
   for (int i = 0, count = obj1->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = obj1->GetChild(i);
-    v8::String::AsciiValue prop_name(prop->GetName());
+    v8::String::Utf8Value prop_name(prop->GetName());
     if (prop->GetType() == v8::HeapGraphEdge::kInternal &&
         strcmp("native", *prop_name) == 0) {
       ++implicit_targets_count;
@@ -1692,7 +1692,7 @@ TEST(AllStrongGcRootsHaveNames) {
   for (int i = 0; i < strong_roots->GetChildrenCount(); ++i) {
     const v8::HeapGraphEdge* edge = strong_roots->GetChild(i);
     CHECK_EQ(v8::HeapGraphEdge::kInternal, edge->GetType());
-    v8::String::AsciiValue name(edge->GetName());
+    v8::String::Utf8Value name(edge->GetName());
     CHECK(isalpha(**name));
   }
 }

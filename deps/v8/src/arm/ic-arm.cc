@@ -290,10 +290,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   __ b(hs, out_of_range);
   // Fast case: Do the load.
   __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  // The key is a smi.
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ ldr(scratch2,
-         MemOperand(scratch1, key, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(scratch2, MemOperand::PointerAddressFromSmiKey(scratch1, key));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
   __ cmp(scratch2, ip);
   // In case the loaded value is the_hole we have to consult GetProperty
@@ -567,7 +564,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
   __ cmp(r3, ip);
   __ b(ne, &slow_load);
-  __ mov(r0, Operand(r2, ASR, kSmiTagSize));
+  __ SmiUntag(r0, r2);
   // r0: untagged index
   __ LoadFromNumberDictionary(&slow_load, r4, r2, r1, r0, r3, r5);
   __ IncrementCounter(counters->keyed_call_generic_smi_dict(), 1, r0, r3);
@@ -960,7 +957,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
   __ cmp(r3, ip);
   __ b(ne, &slow);
-  __ mov(r2, Operand(r0, ASR, kSmiTagSize));
+  __ SmiUntag(r2, r0);
   __ LoadFromNumberDictionary(&slow, r4, r0, r0, r2, r3, r5);
   __ Ret();
 
@@ -1133,7 +1130,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   __ JumpIfSmi(r1, &slow);
 
   // Check that the key is an array index, that is Uint32.
-  __ tst(r0, Operand(kSmiTagMask | kSmiSignMask));
+  __ NonNegativeSmiTst(r0);
   __ b(ne, &slow);
 
   // Get the map of the receiver.
@@ -1194,7 +1191,7 @@ void StoreIC::GenerateSlow(MacroAssembler* masm) {
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
   ExternalReference ref =
-      ExternalReference(IC_Utility(kKeyedStoreIC_Slow), masm->isolate());
+      ExternalReference(IC_Utility(kStoreIC_Slow), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 
@@ -1321,8 +1318,7 @@ static void KeyedStoreGenerateGenericHelper(
   }
   // It's irrelevant whether array is smi-only or not when writing a smi.
   __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(address, address, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ str(value, MemOperand(address));
+  __ str(value, MemOperand::PointerAddressFromSmiKey(address, key));
   __ Ret();
 
   __ bind(&non_smi_value);
@@ -1338,7 +1334,7 @@ static void KeyedStoreGenerateGenericHelper(
     __ str(scratch_value, FieldMemOperand(receiver, JSArray::kLengthOffset));
   }
   __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(address, address, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(address, address, Operand::PointerOffsetFromSmiKey(key));
   __ str(value, MemOperand(address));
   // Update write barrier for the elements array address.
   __ mov(scratch_value, value);  // Preserve the value which is returned.

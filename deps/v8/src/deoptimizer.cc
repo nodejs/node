@@ -50,22 +50,23 @@ static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
 
 DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
     : allocator_(allocator),
-      eager_deoptimization_entry_code_entries_(-1),
-      lazy_deoptimization_entry_code_entries_(-1),
-      eager_deoptimization_entry_code_(AllocateCodeChunk(allocator)),
-      lazy_deoptimization_entry_code_(AllocateCodeChunk(allocator)),
       current_(NULL),
 #ifdef ENABLE_DEBUGGER_SUPPORT
       deoptimized_frame_info_(NULL),
 #endif
-      deoptimizing_code_list_(NULL) { }
+      deoptimizing_code_list_(NULL) {
+  for (int i = 0; i < Deoptimizer::kBailoutTypesWithCodeEntry; ++i) {
+    deopt_entry_code_entries_[i] = -1;
+    deopt_entry_code_[i] = AllocateCodeChunk(allocator);
+  }
+}
 
 
 DeoptimizerData::~DeoptimizerData() {
-  allocator_->Free(eager_deoptimization_entry_code_);
-  eager_deoptimization_entry_code_ = NULL;
-  allocator_->Free(lazy_deoptimization_entry_code_);
-  lazy_deoptimization_entry_code_ = NULL;
+  for (int i = 0; i < Deoptimizer::kBailoutTypesWithCodeEntry; ++i) {
+    allocator_->Free(deopt_entry_code_[i]);
+    deopt_entry_code_[i] = NULL;
+  }
 
   DeoptimizingCodeListNode* current = deoptimizing_code_list_;
   while (current != NULL) {
@@ -488,6 +489,7 @@ bool Deoptimizer::TraceEnabledFor(BailoutType deopt_type,
                                   StackFrame::Type frame_type) {
   switch (deopt_type) {
     case EAGER:
+    case SOFT:
     case LAZY:
     case DEBUGGER:
       return (frame_type == StackFrame::STUB)
@@ -503,13 +505,11 @@ bool Deoptimizer::TraceEnabledFor(BailoutType deopt_type,
 
 const char* Deoptimizer::MessageFor(BailoutType type) {
   switch (type) {
-    case EAGER:
-    case LAZY:
-      return "DEOPT";
-    case DEBUGGER:
-      return "DEOPT FOR DEBUGGER";
-    case OSR:
-      return "OSR";
+    case EAGER: return "eager";
+    case SOFT: return "soft";
+    case LAZY: return "lazy";
+    case DEBUGGER: return "debugger";
+    case OSR: return "OSR";
   }
   UNREACHABLE();
   return NULL;
@@ -545,13 +545,19 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   }
   if (function != NULL && function->IsOptimized()) {
     function->shared()->increment_deopt_count();
+    if (bailout_type_ == Deoptimizer::SOFT) {
+      // Soft deopts shouldn't count against the overall re-optimization count
+      // that can eventually lead to disabling optimization for a function.
+      int opt_count = function->shared()->opt_count();
+      if (opt_count > 0) opt_count--;
+      function->shared()->set_opt_count(opt_count);
+    }
   }
   compiled_code_ = FindOptimizedCode(function, optimized_code);
   StackFrame::Type frame_type = function == NULL
       ? StackFrame::STUB
       : StackFrame::JAVA_SCRIPT;
   trace_ = TraceEnabledFor(type, frame_type);
-  if (trace_) Trace();
   ASSERT(HEAP->allow_allocation(false));
   unsigned size = ComputeInputFrameSize();
   input_ = new(size) FrameDescription(size, function);
@@ -562,6 +568,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
 Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
                                      Code* optimized_code) {
   switch (bailout_type_) {
+    case Deoptimizer::SOFT:
     case Deoptimizer::EAGER:
       ASSERT(from_ == NULL);
       return function->code();
@@ -587,17 +594,6 @@ Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
   }
   UNREACHABLE();
   return NULL;
-}
-
-
-void Deoptimizer::Trace() {
-  PrintF("**** %s: ", Deoptimizer::MessageFor(bailout_type_));
-  PrintFunctionName();
-  PrintF(" at id #%u, address 0x%" V8PRIxPTR ", frame size %d\n",
-         bailout_id_,
-         reinterpret_cast<intptr_t>(from_),
-         fp_to_sp_delta_ - (2 * kPointerSize));
-  if (bailout_type_ == EAGER) compiled_code_->PrintDeoptLocation(bailout_id_);
 }
 
 
@@ -639,9 +635,8 @@ Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
     ASSERT(mode == CALCULATE_ENTRY_ADDRESS);
   }
   DeoptimizerData* data = isolate->deoptimizer_data();
-  MemoryChunk* base = (type == EAGER)
-      ? data->eager_deoptimization_entry_code_
-      : data->lazy_deoptimization_entry_code_;
+  ASSERT(type < kBailoutTypesWithCodeEntry);
+  MemoryChunk* base = data->deopt_entry_code_[type];
   return base->area_start() + (id * table_entry_size_);
 }
 
@@ -650,9 +645,7 @@ int Deoptimizer::GetDeoptimizationId(Isolate* isolate,
                                      Address addr,
                                      BailoutType type) {
   DeoptimizerData* data = isolate->deoptimizer_data();
-  MemoryChunk* base = (type == EAGER)
-      ? data->eager_deoptimization_entry_code_
-      : data->lazy_deoptimization_entry_code_;
+  MemoryChunk* base = data->deopt_entry_code_[type];
   Address start = base->area_start();
   if (base == NULL ||
       addr < start ||
@@ -713,11 +706,14 @@ void Deoptimizer::DoComputeOutputFrames() {
   // Print some helpful diagnostic information.
   int64_t start = OS::Ticks();
   if (trace_) {
-    PrintF("[deoptimizing%s: begin 0x%08" V8PRIxPTR " ",
-           (bailout_type_ == LAZY ? " (lazy)" : ""),
+    PrintF("[deoptimizing (DEOPT %s): begin 0x%08" V8PRIxPTR " ",
+           MessageFor(bailout_type_),
            reinterpret_cast<intptr_t>(function_));
     PrintFunctionName();
-    PrintF(" @%d]\n", bailout_id_);
+    PrintF(" @%d, FP to SP delta: %d]\n", bailout_id_, fp_to_sp_delta_);
+    if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
+      compiled_code_->PrintDeoptLocation(bailout_id_);
+    }
   }
 
   // Determine basic deoptimization information.  The optimized frame is
@@ -794,11 +790,13 @@ void Deoptimizer::DoComputeOutputFrames() {
     double ms = static_cast<double>(OS::Ticks() - start) / 1000;
     int index = output_count_ - 1;  // Index of the topmost frame.
     JSFunction* function = output_[index]->GetFunction();
-    PrintF("[deoptimizing: end 0x%08" V8PRIxPTR " ",
+    PrintF("[deoptimizing (%s): end 0x%08" V8PRIxPTR " ",
+           MessageFor(bailout_type_),
            reinterpret_cast<intptr_t>(function));
-    if (function != NULL) function->PrintName();
-    PrintF(" => node=%d, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
+    PrintFunctionName();
+    PrintF(" @%d => node=%d, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
            " took %0.3f ms]\n",
+           bailout_id_,
            node_id.ToInt(),
            output_[index]->GetPc(),
            FullCodeGenerator::State2String(
@@ -806,6 +804,193 @@ void Deoptimizer::DoComputeOutputFrames() {
                    output_[index]->GetState()->value())),
            has_alignment_padding_ ? "with padding" : "no padding",
            ms);
+  }
+}
+
+
+void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
+                                   int frame_index) {
+  BailoutId node_id = BailoutId(iterator->Next());
+  JSFunction* function;
+  if (frame_index != 0) {
+    function = JSFunction::cast(ComputeLiteral(iterator->Next()));
+  } else {
+    int closure_id = iterator->Next();
+    USE(closure_id);
+    ASSERT_EQ(Translation::kSelfLiteralId, closure_id);
+    function = function_;
+  }
+  unsigned height = iterator->Next();
+  unsigned height_in_bytes = height * kPointerSize;
+  if (trace_) {
+    PrintF("  translating ");
+    function->PrintName();
+    PrintF(" => node=%d, height=%d\n", node_id.ToInt(), height_in_bytes);
+  }
+
+  // The 'fixed' part of the frame consists of the incoming parameters and
+  // the part described by JavaScriptFrameConstants.
+  unsigned fixed_frame_size = ComputeFixedSize(function);
+  unsigned input_frame_size = input_->GetFrameSize();
+  unsigned output_frame_size = height_in_bytes + fixed_frame_size;
+
+  // Allocate and store the output frame description.
+  FrameDescription* output_frame =
+      new(output_frame_size) FrameDescription(output_frame_size, function);
+  output_frame->SetFrameType(StackFrame::JAVA_SCRIPT);
+
+  bool is_bottommost = (0 == frame_index);
+  bool is_topmost = (output_count_ - 1 == frame_index);
+  ASSERT(frame_index >= 0 && frame_index < output_count_);
+  ASSERT(output_[frame_index] == NULL);
+  output_[frame_index] = output_frame;
+
+  // The top address for the bottommost output frame can be computed from
+  // the input frame pointer and the output frame's height.  For all
+  // subsequent output frames, it can be computed from the previous one's
+  // top address and the current frame's size.
+  Register fp_reg = JavaScriptFrame::fp_register();
+  intptr_t top_address;
+  if (is_bottommost) {
+    // Determine whether the input frame contains alignment padding.
+    has_alignment_padding_ = HasAlignmentPadding(function) ? 1 : 0;
+    // 2 = context and function in the frame.
+    // If the optimized frame had alignment padding, adjust the frame pointer
+    // to point to the new position of the old frame pointer after padding
+    // is removed. Subtract 2 * kPointerSize for the context and function slots.
+    top_address = input_->GetRegister(fp_reg.code()) - (2 * kPointerSize) -
+        height_in_bytes + has_alignment_padding_ * kPointerSize;
+  } else {
+    top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
+  }
+  output_frame->SetTop(top_address);
+
+  // Compute the incoming parameter translation.
+  int parameter_count = function->shared()->formal_parameter_count() + 1;
+  unsigned output_offset = output_frame_size;
+  unsigned input_offset = input_frame_size;
+  for (int i = 0; i < parameter_count; ++i) {
+    output_offset -= kPointerSize;
+    DoTranslateCommand(iterator, frame_index, output_offset);
+  }
+  input_offset -= (parameter_count * kPointerSize);
+
+  // There are no translation commands for the caller's pc and fp, the
+  // context, and the function.  Synthesize their values and set them up
+  // explicitly.
+  //
+  // The caller's pc for the bottommost output frame is the same as in the
+  // input frame.  For all subsequent output frames, it can be read from the
+  // previous one.  This frame's pc can be computed from the non-optimized
+  // function code and AST id of the bailout.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  intptr_t value;
+  if (is_bottommost) {
+    value = input_->GetFrameSlot(input_offset);
+  } else {
+    value = output_[frame_index - 1]->GetPc();
+  }
+  output_frame->SetFrameSlot(output_offset, value);
+  if (trace_) {
+    PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
+           V8PRIxPTR  " ; caller's pc\n",
+           top_address + output_offset, output_offset, value);
+  }
+
+  // The caller's frame pointer for the bottommost output frame is the same
+  // as in the input frame.  For all subsequent output frames, it can be
+  // read from the previous one.  Also compute and set this frame's frame
+  // pointer.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  if (is_bottommost) {
+    value = input_->GetFrameSlot(input_offset);
+  } else {
+    value = output_[frame_index - 1]->GetFp();
+  }
+  output_frame->SetFrameSlot(output_offset, value);
+  intptr_t fp_value = top_address + output_offset;
+  ASSERT(!is_bottommost || (input_->GetRegister(fp_reg.code()) +
+      has_alignment_padding_ * kPointerSize) == fp_value);
+  output_frame->SetFp(fp_value);
+  if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
+  if (trace_) {
+    PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
+           V8PRIxPTR " ; caller's fp\n",
+           fp_value, output_offset, value);
+  }
+  ASSERT(!is_bottommost || !has_alignment_padding_ ||
+         (fp_value & kPointerSize) != 0);
+
+  // For the bottommost output frame the context can be gotten from the input
+  // frame. For all subsequent output frames it can be gotten from the function
+  // so long as we don't inline functions that need local contexts.
+  Register context_reg = JavaScriptFrame::context_register();
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  if (is_bottommost) {
+    value = input_->GetFrameSlot(input_offset);
+  } else {
+    value = reinterpret_cast<intptr_t>(function->context());
+  }
+  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetContext(value);
+  if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
+  if (trace_) {
+    PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
+           V8PRIxPTR "; context\n",
+           top_address + output_offset, output_offset, value);
+  }
+
+  // The function was mentioned explicitly in the BEGIN_FRAME.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(function);
+  // The function for the bottommost output frame should also agree with the
+  // input frame.
+  ASSERT(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
+  output_frame->SetFrameSlot(output_offset, value);
+  if (trace_) {
+    PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
+           V8PRIxPTR "; function\n",
+           top_address + output_offset, output_offset, value);
+  }
+
+  // Translate the rest of the frame.
+  for (unsigned i = 0; i < height; ++i) {
+    output_offset -= kPointerSize;
+    DoTranslateCommand(iterator, frame_index, output_offset);
+  }
+  ASSERT(0 == output_offset);
+
+  // Compute this frame's PC, state, and continuation.
+  Code* non_optimized_code = function->shared()->code();
+  FixedArray* raw_data = non_optimized_code->deoptimization_data();
+  DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
+  Address start = non_optimized_code->instruction_start();
+  unsigned pc_and_state = GetOutputInfo(data, node_id, function->shared());
+  unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
+  intptr_t pc_value = reinterpret_cast<intptr_t>(start + pc_offset);
+  output_frame->SetPc(pc_value);
+
+  FullCodeGenerator::State state =
+      FullCodeGenerator::StateField::decode(pc_and_state);
+  output_frame->SetState(Smi::FromInt(state));
+
+  // Set the continuation for the topmost frame.
+  if (is_topmost && bailout_type_ != DEBUGGER) {
+    Builtins* builtins = isolate_->builtins();
+    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
+    if (bailout_type_ == LAZY) {
+      continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
+    } else if (bailout_type_ == SOFT) {
+      continuation = builtins->builtin(Builtins::kNotifySoftDeoptimized);
+    } else {
+      ASSERT(bailout_type_ == EAGER);
+    }
+    output_frame->SetContinuation(
+        reinterpret_cast<intptr_t>(continuation->entry()));
   }
 }
 
@@ -2206,11 +2391,9 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   // cause us to emit relocation information for the external
   // references. This is fine because the deoptimizer's code section
   // isn't meant to be serialized at all.
-  ASSERT(type == EAGER || type == LAZY);
+  ASSERT(type == EAGER || type == SOFT || type == LAZY);
   DeoptimizerData* data = isolate->deoptimizer_data();
-  int entry_count = (type == EAGER)
-      ? data->eager_deoptimization_entry_code_entries_
-      : data->lazy_deoptimization_entry_code_entries_;
+  int entry_count = data->deopt_entry_code_entries_[type];
   if (max_entry_id < entry_count) return;
   entry_count = Max(entry_count, Deoptimizer::kMinNumberOfEntries);
   while (max_entry_id >= entry_count) entry_count *= 2;
@@ -2223,9 +2406,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   masm.GetCode(&desc);
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
-  MemoryChunk* chunk = (type == EAGER)
-      ? data->eager_deoptimization_entry_code_
-      : data->lazy_deoptimization_entry_code_;
+  MemoryChunk* chunk = data->deopt_entry_code_[type];
   ASSERT(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
          desc.instr_size);
   chunk->CommitArea(desc.instr_size);
@@ -2233,11 +2414,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
       static_cast<size_t>(desc.instr_size));
   CPU::FlushICache(chunk->area_start(), desc.instr_size);
 
-  if (type == EAGER) {
-    data->eager_deoptimization_entry_code_entries_ = entry_count;
-  } else {
-    data->lazy_deoptimization_entry_code_entries_ = entry_count;
-  }
+  data->deopt_entry_code_entries_[type] = entry_count;
 }
 
 

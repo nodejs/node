@@ -2473,6 +2473,23 @@ void Assembler::vcvt_f32_f64(const SwVfpRegister dst,
 }
 
 
+void Assembler::vcvt_f64_s32(const DwVfpRegister dst,
+                             int fraction_bits,
+                             const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-874.
+  // cond(31-28) | 11101(27-23) | D(22) | 11(21-20) | 1010(19-16) | Vd(15-12) |
+  // 101(11-9) | sf=1(8) | sx=1(7) | 1(6) | i(5) | 0(4) | imm4(3-0)
+  ASSERT(fraction_bits > 0 && fraction_bits <= 32);
+  ASSERT(CpuFeatures::IsSupported(VFP3));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int i = ((32 - fraction_bits) >> 4) & 1;
+  int imm4 = (32 - fraction_bits) & 0xf;
+  emit(cond | 0xE*B24 | B23 | d*B22 | 0x3*B20 | B19 | 0x2*B16 |
+       vd*B12 | 0x5*B9 | B8 | B7 | B6 | i*B5 | imm4);
+}
+
+
 void Assembler::vneg(const DwVfpRegister dst,
                      const DwVfpRegister src,
                      const Condition cond) {
@@ -3000,7 +3017,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
     // Put down constant pool marker "Undefined instruction".
     // The data size helps disassembly know what to print.
-    emit(kConstantPoolMarker | EncodeConstantPoolLength(size_after_marker));
+    emit(kConstantPoolMarker |
+         EncodeConstantPoolLength(size_after_marker / kPointerSize));
 
     if (require_64_bit_align) {
       emit(kConstantPoolMarker);

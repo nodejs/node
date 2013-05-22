@@ -584,6 +584,10 @@ class JavaScriptFrame: public StandardFrame {
   // Build a list with summaries for this frame including all inlined frames.
   virtual void Summarize(List<FrameSummary>* frames);
 
+  // Architecture-specific register description.
+  static Register fp_register();
+  static Register context_register();
+
   static JavaScriptFrame* cast(StackFrame* frame) {
     ASSERT(frame->is_java_script());
     return static_cast<JavaScriptFrame*>(frame);

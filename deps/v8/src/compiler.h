@@ -47,6 +47,12 @@ enum ParseRestriction {
   ONLY_SINGLE_FUNCTION_LITERAL  // Only a single FunctionLiteral expression.
 };
 
+struct OffsetRange {
+  OffsetRange(int from, int to) : from(from), to(to) {}
+  int from;
+  int to;
+};
+
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
 class CompilationInfo {
@@ -257,6 +263,20 @@ class CompilationInfo {
     prologue_offset_ = prologue_offset;
   }
 
+  // Adds offset range [from, to) where fp register does not point
+  // to the current frame base. Used in CPU profiler to detect stack
+  // samples where top frame is not set up.
+  inline void AddNoFrameRange(int from, int to) {
+    if (no_frame_ranges_) no_frame_ranges_->Add(OffsetRange(from, to));
+  }
+
+  List<OffsetRange>* ReleaseNoFrameRanges() {
+    List<OffsetRange>* result = no_frame_ranges_;
+    no_frame_ranges_ = NULL;
+    return result;
+  }
+
+
  private:
   Isolate* isolate_;
 
@@ -360,6 +380,8 @@ class CompilationInfo {
   const char* bailout_reason_;
 
   int prologue_offset_;
+
+  List<OffsetRange>* no_frame_ranges_;
 
   // A copy of shared_info()->opt_count() to avoid handle deref
   // during graph optimization.

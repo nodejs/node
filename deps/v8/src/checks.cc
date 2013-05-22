@@ -53,7 +53,7 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
   if (fatal_error_handler_nesting_depth < 3) {
     if (i::FLAG_stack_trace_on_abort) {
       // Call this one twice on double fault
-      i::Isolate::Current()->PrintStack();
+      i::Isolate::Current()->PrintStack(stderr);
     }
   }
   i::OS::Abort();

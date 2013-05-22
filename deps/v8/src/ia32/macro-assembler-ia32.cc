@@ -1954,14 +1954,14 @@ static const bool kReturnHandlesDirectly = false;
 #endif
 
 
-Operand ApiParameterOperand(int index) {
-  return Operand(
-      esp, (index + (kReturnHandlesDirectly ? 0 : 1)) * kPointerSize);
+Operand ApiParameterOperand(int index, bool returns_handle) {
+  int offset = (index +(kReturnHandlesDirectly || !returns_handle ? 0 : 1));
+  return Operand(esp, offset * kPointerSize);
 }
 
 
-void MacroAssembler::PrepareCallApiFunction(int argc) {
-  if (kReturnHandlesDirectly) {
+void MacroAssembler::PrepareCallApiFunction(int argc, bool returns_handle) {
+  if (kReturnHandlesDirectly || !returns_handle) {
     EnterApiExitFrame(argc);
     // When handles are returned directly we don't have to allocate extra
     // space for and pass an out parameter.
@@ -1990,7 +1990,9 @@ void MacroAssembler::PrepareCallApiFunction(int argc) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
-                                              int stack_space) {
+                                              int stack_space,
+                                              bool returns_handle,
+                                              int return_value_offset) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   ExternalReference limit_address =
@@ -2026,23 +2028,29 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
     PopSafepointRegisters();
   }
 
-  if (!kReturnHandlesDirectly) {
-    // PrepareCallApiFunction saved pointer to the output slot into
-    // callee-save register esi.
-    mov(eax, Operand(esi, 0));
-  }
-
-  Label empty_handle;
   Label prologue;
+  if (returns_handle) {
+    if (!kReturnHandlesDirectly) {
+      // PrepareCallApiFunction saved pointer to the output slot into
+      // callee-save register esi.
+      mov(eax, Operand(esi, 0));
+    }
+    Label empty_handle;
+    // Check if the result handle holds 0.
+    test(eax, eax);
+    j(zero, &empty_handle);
+    // It was non-zero.  Dereference to get the result value.
+    mov(eax, Operand(eax, 0));
+    jmp(&prologue);
+    bind(&empty_handle);
+  }
+  // Load the value from ReturnValue
+  mov(eax, Operand(ebp, return_value_offset * kPointerSize));
+
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
 
-  // Check if the result handle holds 0.
-  test(eax, eax);
-  j(zero, &empty_handle);
-  // It was non-zero.  Dereference to get the result value.
-  mov(eax, Operand(eax, 0));
   bind(&prologue);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
@@ -2097,11 +2105,6 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
 
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
-
-  bind(&empty_handle);
-  // It was zero; the result is undefined.
-  mov(eax, isolate()->factory()->undefined_value());
-  jmp(&prologue);
 
   bind(&promote_scheduled_exception);
   TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);

@@ -266,9 +266,11 @@ class Factory {
                                   PretenureFlag pretenure = NOT_TENURED);
   Handle<Object> NewNumberFromUint(uint32_t value,
                                   PretenureFlag pretenure = NOT_TENURED);
-
+  inline Handle<Object> NewNumberFromSize(size_t value,
+                                   PretenureFlag pretenure = NOT_TENURED);
   Handle<HeapNumber> NewHeapNumber(double value,
                                    PretenureFlag pretenure = NOT_TENURED);
+
 
   // These objects are used by the api to create env-independent data
   // structures in the heap.
@@ -537,6 +539,18 @@ class Factory {
                                  Handle<FixedArray> keys,
                                  Handle<Map> map);
 };
+
+
+Handle<Object> Factory::NewNumberFromSize(size_t value,
+                                          PretenureFlag pretenure) {
+  if (Smi::IsValid(static_cast<intptr_t>(value))) {
+    return Handle<Object>(Smi::FromIntptr(static_cast<intptr_t>(value)),
+                          isolate());
+  } else {
+    return NewNumber(static_cast<double>(value), pretenure);
+  }
+}
+
 
 
 } }  // namespace v8::internal

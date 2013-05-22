@@ -1543,7 +1543,7 @@ void StoreIC::GenerateSlow(MacroAssembler* masm) {
   __ push(rbx);  // return address
 
   // Do tail-call to runtime routine.
-  ExternalReference ref(IC_Utility(kKeyedStoreIC_Slow), masm->isolate());
+  ExternalReference ref(IC_Utility(kStoreIC_Slow), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 

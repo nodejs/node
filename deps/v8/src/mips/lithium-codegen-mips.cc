@@ -95,6 +95,12 @@ void LCodeGen::FinishCode(Handle<Code> code) {
     transition_maps_.at(i)->AddDependentCode(
         DependentCode::kTransitionGroup, code);
   }
+  if (graph()->depends_on_empty_array_proto_elements()) {
+    isolate()->initial_object_prototype()->map()->AddDependentCode(
+        DependentCode::kElementsCantBeAddedGroup, code);
+    isolate()->initial_array_prototype()->map()->AddDependentCode(
+        DependentCode::kElementsCantBeAddedGroup, code);
+  }
 }
 
 
@@ -173,6 +179,7 @@ bool LCodeGen::GeneratePrologue() {
       __ Addu(fp, sp, Operand(2 * kPointerSize));
     }
     frame_is_built_ = true;
+    info_->AddNoFrameRange(0, masm_->pc_offset());
   }
 
   // Reserve space for the stack slots needed by the code.
@@ -343,9 +350,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
   for (int i = 0; i < deopt_jump_table_.length(); i++) {
     __ bind(&deopt_jump_table_[i].label);
     Address entry = deopt_jump_table_[i].address;
-    bool is_lazy_deopt = deopt_jump_table_[i].is_lazy_deopt;
-    Deoptimizer::BailoutType type =
-        is_lazy_deopt ? Deoptimizer::LAZY : Deoptimizer::EAGER;
+    Deoptimizer::BailoutType type = deopt_jump_table_[i].bailout_type;
     int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
     if (id == Deoptimizer::kNotDeoptimizationEntry) {
       Comment(";;; jump table entry %d.", i);
@@ -354,7 +359,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
     }
     __ li(t9, Operand(ExternalReference::ForDeoptEntry(entry)));
     if (deopt_jump_table_[i].needs_frame) {
-      if (is_lazy_deopt) {
+      if (type == Deoptimizer::LAZY) {
         if (needs_frame_is_call.is_bound()) {
           __ Branch(&needs_frame_is_call);
         } else {
@@ -386,7 +391,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         }
       }
     } else {
-      if (is_lazy_deopt) {
+      if (type == Deoptimizer::LAZY) {
         __ Call(t9);
       } else {
         __ Jump(t9);
@@ -798,15 +803,13 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
 
 void LCodeGen::DeoptimizeIf(Condition cc,
                             LEnvironment* environment,
+                            Deoptimizer::BailoutType bailout_type,
                             Register src1,
                             const Operand& src2) {
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   ASSERT(environment->HasBeenRegistered());
   int id = environment->deoptimization_index();
   ASSERT(info()->IsOptimizing() || info()->IsStub());
-  Deoptimizer::BailoutType bailout_type = info()->IsStub()
-      ? Deoptimizer::LAZY
-      : Deoptimizer::EAGER;
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
   if (entry == NULL) {
@@ -844,13 +847,34 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     // jump entry if this is the case.
     if (deopt_jump_table_.is_empty() ||
         (deopt_jump_table_.last().address != entry) ||
-        (deopt_jump_table_.last().is_lazy_deopt != needs_lazy_deopt) ||
+        (deopt_jump_table_.last().bailout_type != bailout_type) ||
         (deopt_jump_table_.last().needs_frame != !frame_is_built_)) {
-      JumpTableEntry table_entry(entry, !frame_is_built_, needs_lazy_deopt);
+      Deoptimizer::JumpTableEntry table_entry(entry,
+                                              bailout_type,
+                                              !frame_is_built_);
       deopt_jump_table_.Add(table_entry, zone());
     }
     __ Branch(&deopt_jump_table_.last().label, cc, src1, src2);
   }
+}
+
+
+void LCodeGen::DeoptimizeIf(Condition cc,
+                            LEnvironment* environment,
+                            Register src1,
+                            const Operand& src2) {
+  Deoptimizer::BailoutType bailout_type = info()->IsStub()
+      ? Deoptimizer::LAZY
+      : Deoptimizer::EAGER;
+  DeoptimizeIf(cc, environment, bailout_type, src1, src2);
+}
+
+
+void LCodeGen::SoftDeoptimize(LEnvironment* environment,
+                              Register src1,
+                              const Operand& src2) {
+  ASSERT(!info()->IsStub());
+  DeoptimizeIf(al, environment, Deoptimizer::SOFT, src1, src2);
 }
 
 
@@ -1803,6 +1827,11 @@ void LCodeGen::EmitBranchF(int left_block, int right_block,
 }
 
 
+void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
+  __ stop("LDebugBreak");
+}
+
+
 void LCodeGen::DoBranch(LBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
@@ -2024,48 +2053,6 @@ void LCodeGen::DoCmpConstantEqAndBranch(LCmpConstantEqAndBranch* instr) {
 
   EmitBranch(true_block, false_block, eq, left,
              Operand(instr->hydrogen()->right()));
-}
-
-
-
-void LCodeGen::DoIsNilAndBranch(LIsNilAndBranch* instr) {
-  Register scratch = scratch0();
-  Register reg = ToRegister(instr->value());
-  int false_block = chunk_->LookupDestination(instr->false_block_id());
-
-  // If the expression is known to be untagged or a smi, then it's definitely
-  // not null, and it can't be a an undetectable object.
-  if (instr->hydrogen()->representation().IsSpecialization() ||
-      instr->hydrogen()->type().IsSmi()) {
-    EmitGoto(false_block);
-    return;
-  }
-
-  int true_block = chunk_->LookupDestination(instr->true_block_id());
-
-  Heap::RootListIndex nil_value = instr->nil() == kNullValue ?
-      Heap::kNullValueRootIndex :
-      Heap::kUndefinedValueRootIndex;
-  __ LoadRoot(at, nil_value);
-  if (instr->kind() == kStrictEquality) {
-    EmitBranch(true_block, false_block, eq, reg, Operand(at));
-  } else {
-    Heap::RootListIndex other_nil_value = instr->nil() == kNullValue ?
-        Heap::kUndefinedValueRootIndex :
-        Heap::kNullValueRootIndex;
-    Label* true_label = chunk_->GetAssemblyLabel(true_block);
-    Label* false_label = chunk_->GetAssemblyLabel(false_block);
-    __ Branch(USE_DELAY_SLOT, true_label, eq, reg, Operand(at));
-    __ LoadRoot(at, other_nil_value);  // In the delay slot.
-    __ Branch(USE_DELAY_SLOT, true_label, eq, reg, Operand(at));
-    __ JumpIfSmi(reg, false_label);  // In the delay slot.
-    // Check for undetectable objects by looking in the bit field in
-    // the map. The object has already been smi checked.
-    __ lw(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
-    __ lbu(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-    __ And(scratch, scratch, 1 << Map::kIsUndetectable);
-    EmitBranch(true_block, false_block, ne, scratch, Operand(zero_reg));
-  }
 }
 
 
@@ -2547,9 +2534,11 @@ void LCodeGen::DoReturn(LReturn* instr) {
       count++;
     }
   }
+  int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ mov(sp, fp);
     __ Pop(ra, fp);
+    no_frame_start = masm_->pc_offset();
   }
   if (instr->has_constant_parameter_count()) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());
@@ -2566,6 +2555,10 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
 
   __ Jump(ra);
+
+  if (no_frame_start != -1) {
+    info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
+  }
 }
 
 
@@ -3911,6 +3904,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (!instr->hydrogen()->value()->range()->IsInSmiRange()) {
       DeoptimizeIf(lt, instr->environment(), scratch, Operand(zero_reg));
     }
+  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+    Register value = ToRegister(instr->value());
+    if (!instr->hydrogen()->value()->type().IsHeapObject()) {
+      __ And(scratch, value, Operand(kSmiTagMask));
+      DeoptimizeIf(eq, instr->environment(), scratch, Operand(zero_reg));
+    }
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(instr->is_in_object());
@@ -5180,95 +5179,6 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
 }
 
 
-void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
-  Handle<FixedArray> literals = instr->hydrogen()->literals();
-  ElementsKind boilerplate_elements_kind =
-      instr->hydrogen()->boilerplate_elements_kind();
-  AllocationSiteMode allocation_site_mode =
-      instr->hydrogen()->allocation_site_mode();
-
-  // Deopt if the array literal boilerplate ElementsKind is of a type different
-  // than the expected one. The check isn't necessary if the boilerplate has
-  // already been converted to TERMINAL_FAST_ELEMENTS_KIND.
-  if (CanTransitionToMoreGeneralFastElementsKind(
-          boilerplate_elements_kind, true)) {
-    __ LoadHeapObject(a1, instr->hydrogen()->boilerplate_object());
-    // Load map into a2.
-    __ lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
-    // Load the map's "bit field 2".
-    __ lbu(a2, FieldMemOperand(a2, Map::kBitField2Offset));
-    // Retrieve elements_kind from bit field 2.
-    __ Ext(a2, a2, Map::kElementsKindShift, Map::kElementsKindBitCount);
-    DeoptimizeIf(ne,
-                 instr->environment(),
-                 a2,
-                 Operand(boilerplate_elements_kind));
-  }
-
-  // Set up the parameters to the stub/runtime call.
-  __ LoadHeapObject(a3, literals);
-  __ li(a2, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
-  // Boilerplate already exists, constant elements are never accessed.
-  // Pass an empty fixed array.
-  __ li(a1, Operand(isolate()->factory()->empty_fixed_array()));
-
-  // Pick the right runtime function or stub to call.
-  int length = instr->hydrogen()->length();
-  if (instr->hydrogen()->IsCopyOnWrite()) {
-    ASSERT(instr->hydrogen()->depth() == 1);
-    FastCloneShallowArrayStub::Mode mode =
-        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS;
-    FastCloneShallowArrayStub stub(mode, DONT_TRACK_ALLOCATION_SITE, length);
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  } else if (instr->hydrogen()->depth() > 1) {
-    __ Push(a3, a2, a1);
-    CallRuntime(Runtime::kCreateArrayLiteral, 3, instr);
-  } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ Push(a3, a2, a1);
-    CallRuntime(Runtime::kCreateArrayLiteralShallow, 3, instr);
-  } else {
-    FastCloneShallowArrayStub::Mode mode =
-        boilerplate_elements_kind == FAST_DOUBLE_ELEMENTS
-        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
-    FastCloneShallowArrayStub stub(mode, allocation_site_mode, length);
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
-}
-
-
-void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
-  ASSERT(ToRegister(instr->result()).is(v0));
-  Handle<FixedArray> literals = instr->hydrogen()->literals();
-  Handle<FixedArray> constant_properties =
-      instr->hydrogen()->constant_properties();
-
-  // Set up the parameters to the stub/runtime call.
-  __ LoadHeapObject(a3, literals);
-  __ li(a2, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ li(a1, Operand(constant_properties));
-  int flags = instr->hydrogen()->fast_elements()
-      ? ObjectLiteral::kFastElements
-      : ObjectLiteral::kNoFlags;
-  __ li(a0, Operand(Smi::FromInt(flags)));
-
-  // Pick the right runtime function or stub to call.
-  int properties_count = instr->hydrogen()->constant_properties_length() / 2;
-  if ((FLAG_track_double_fields && instr->hydrogen()->may_store_doubles()) ||
-      instr->hydrogen()->depth() > 1) {
-    __ Push(a3, a2, a1, a0);
-    CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
-  } else if (flags != ObjectLiteral::kFastElements ||
-      properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
-    __ Push(a3, a2, a1, a0);
-    CallRuntime(Runtime::kCreateObjectLiteralShallow, 4, instr);
-  } else {
-    FastCloneShallowObjectStub stub(properties_count);
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
-}
-
-
 void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
   ASSERT(ToRegister(instr->value()).is(a0));
   ASSERT(ToRegister(instr->result()).is(v0));
@@ -5547,7 +5457,11 @@ void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
 
 
 void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
-  DeoptimizeIf(al, instr->environment(), zero_reg, Operand(zero_reg));
+  if (instr->hydrogen_value()->IsSoftDeoptimize()) {
+    SoftDeoptimize(instr->environment(), zero_reg, Operand(zero_reg));
+  } else {
+    DeoptimizeIf(al, instr->environment(), zero_reg, Operand(zero_reg));
+  }
 }
 
 

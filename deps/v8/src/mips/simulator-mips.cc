@@ -526,7 +526,7 @@ void MipsDebugger::Debug() {
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int value = *cur;
           Heap* current_heap = v8::internal::Isolate::Current()->heap();
-          if (current_heap->Contains(obj) || ((value & 1) == 0)) {
+          if (((value & 1) == 0) || current_heap->Contains(obj)) {
             PrintF(" (");
             if ((value & 1) == 0) {
               PrintF("smi %d", value / 2);
@@ -1388,10 +1388,13 @@ typedef double (*SimulatorRuntimeFPIntCall)(double darg0, int32_t arg0);
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
 typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectApiCall)(int32_t arg0);
+typedef void (*SimulatorRuntimeDirectApiCallNew)(int32_t arg0);
 
 // This signature supports direct call to accessor getter callback.
 typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectGetterCall)(int32_t arg0,
                                                                   int32_t arg1);
+typedef void (*SimulatorRuntimeDirectGetterCallNew)(int32_t arg0,
+                                                    int32_t arg1);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime. They are also used for debugging with simulator.
@@ -1536,28 +1539,44 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           break;
         }
       }
-    } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
+    } else if (
+        redirection->type() == ExternalReference::DIRECT_API_CALL ||
+        redirection->type() == ExternalReference::DIRECT_API_CALL_NEW) {
       // See DirectCEntryStub::GenerateCall for explanation of register usage.
-      SimulatorRuntimeDirectApiCall target =
-                  reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
       if (::v8::internal::FLAG_trace_sim) {
         PrintF("Call to host function at %p args %08x\n",
-               FUNCTION_ADDR(target), arg1);
+            reinterpret_cast<void*>(external), arg1);
       }
-      v8::Handle<v8::Value> result = target(arg1);
-      *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
-      set_register(v0, arg0);
-    } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
+      if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
+        SimulatorRuntimeDirectApiCall target =
+            reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
+        v8::Handle<v8::Value> result = target(arg1);
+        *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
+        set_register(v0, arg0);
+      } else {
+        SimulatorRuntimeDirectApiCallNew target =
+            reinterpret_cast<SimulatorRuntimeDirectApiCallNew>(external);
+        target(arg1);
+      }
+    } else if (
+        redirection->type() == ExternalReference::DIRECT_GETTER_CALL ||
+        redirection->type() == ExternalReference::DIRECT_GETTER_CALL_NEW) {
       // See DirectCEntryStub::GenerateCall for explanation of register usage.
-      SimulatorRuntimeDirectGetterCall target =
-                  reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
       if (::v8::internal::FLAG_trace_sim) {
         PrintF("Call to host function at %p args %08x %08x\n",
-               FUNCTION_ADDR(target), arg1, arg2);
+            reinterpret_cast<void*>(external), arg1, arg2);
       }
-      v8::Handle<v8::Value> result = target(arg1, arg2);
-      *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
-      set_register(v0, arg0);
+      if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
+        SimulatorRuntimeDirectGetterCall target =
+            reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
+        v8::Handle<v8::Value> result = target(arg1, arg2);
+        *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
+        set_register(v0, arg0);
+      } else {
+        SimulatorRuntimeDirectGetterCallNew target =
+            reinterpret_cast<SimulatorRuntimeDirectGetterCallNew>(external);
+        target(arg1, arg2);
+      }
     } else {
       SimulatorRuntimeCall target =
                   reinterpret_cast<SimulatorRuntimeCall>(external);
