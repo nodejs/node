@@ -165,7 +165,7 @@ Handle<Value> WrappedContext::New(const Arguments& args) {
 
 
 WrappedContext::WrappedContext() : ObjectWrap() {
-  context_ = Context::New();
+  context_ = Persistent<Context>::New(node_isolate, Context::New(node_isolate));
 }
 
 
@@ -386,9 +386,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
     // function. Here we grab a temporary handle to the new context, assign it
     // to a local handle, and then dispose the persistent handle. This ensures
     // that when this function exits the context will be disposed.
-    Persistent<Context> tmp = Context::New();
-    context = Local<Context>::New(node_isolate, tmp);
-    tmp.Dispose(node_isolate);
+    context = Context::New(node_isolate);
 
   } else if (context_flag == userContext) {
     // Use the passed in context

@@ -3082,7 +3082,7 @@ int Start(int argc, char *argv[]) {
     HandleScope handle_scope(node_isolate);
 
     // Create the one and only Context.
-    Persistent<Context> context = Context::New();
+    Local<Context> context = Context::New(node_isolate);
     Context::Scope context_scope(context);
 
     // Use original argv, as we're just copying values out of it.
@@ -3102,10 +3102,6 @@ int Start(int argc, char *argv[]) {
 
     EmitExit(process_l);
     RunAtExit();
-
-#ifndef NDEBUG
-    context.Dispose(node_isolate);
-#endif
   }
 
 #ifndef NDEBUG
