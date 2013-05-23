@@ -167,6 +167,28 @@ Example:
     /usr/local/bin/node
 
 
+## process.execArgv
+
+This is the set of node-specific command line options from the
+executable that started the process.  These options do not show up in
+`process.argv`, and do not include the node executable, the name of
+the script, or any options following the script name. These options
+are useful in order to spawn child processes with the same execution
+environment as the parent.
+
+Example:
+
+    $ node --harmony script.js --version
+
+results in process.execArgv:
+
+    ['--harmony']
+
+and process.argv:
+
+    ['/usr/local/bin/node', 'script.js', '--version']
+
+
 ## process.abort()
 
 This causes node to emit an abort. This will cause node to exit and
