@@ -4243,7 +4243,7 @@ ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
   while (!done) {
     Expression* argument = ParseAssignmentExpression(true, CHECK_OK);
     result->Add(argument, zone());
-    if (result->length() > Code::kMaxArguments) {
+    if (result->length() > kMaxNumFunctionParameters) {
       ReportMessageAt(scanner().location(), "too_many_arguments",
                       Vector<const char*>::empty());
       *ok = false;
@@ -4420,7 +4420,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
 
       top_scope_->DeclareParameter(param_name, VAR);
       num_parameters++;
-      if (num_parameters > Code::kMaxArguments) {
+      if (num_parameters > kMaxNumFunctionParameters) {
         ReportMessageAt(scanner().location(), "too_many_parameters",
                         Vector<const char*>::empty());
         *ok = false;

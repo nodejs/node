@@ -1080,6 +1080,7 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
   return false;
 }
 
+static int fatal_exception_depth = 0;
 
 void Isolate::DoThrow(Object* exception, MessageLocation* location) {
   ASSERT(!has_pending_exception());
@@ -1149,6 +1150,20 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
         thread_local_top()->pending_message_script_ = *location->script();
         thread_local_top()->pending_message_start_pos_ = location->start_pos();
         thread_local_top()->pending_message_end_pos_ = location->end_pos();
+      }
+
+      // If the abort-on-uncaught-exception flag is specified, abort on any
+      // exception not caught by JavaScript, even when an external handler is
+      // present.  This flag is intended for use by JavaScript developers, so
+      // print a user-friendly stack trace (not an internal one).
+      if (fatal_exception_depth == 0 &&
+          FLAG_abort_on_uncaught_exception &&
+          (report_exception || can_be_caught_externally)) {
+        fatal_exception_depth++;
+        fprintf(stderr, "%s\n\nFROM\n",
+          *MessageHandler::GetLocalizedMessage(this, message_obj));
+        PrintCurrentStackTrace(stderr);
+        OS::Abort();
       }
     } else if (location != NULL && !location->script().is_null()) {
       // We are bootstrapping and caught an error where the location is set

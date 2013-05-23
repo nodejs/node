@@ -617,7 +617,7 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   Handle<Code> code =
       compiler.CompileCallConstant(object, holder, function, name, check);
   code->set_check_type(check);
-  ASSERT(flags == code->flags());
+  ASSERT_EQ(flags, code->flags());
   PROFILE(isolate_,
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
@@ -655,7 +655,7 @@ Handle<Code> StubCache::ComputeCallField(int argc,
   Handle<Code> code =
       compiler.CompileCallField(Handle<JSObject>::cast(object),
                                 holder, index, name);
-  ASSERT(flags == code->flags());
+  ASSERT_EQ(flags, code->flags());
   PROFILE(isolate_,
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
@@ -692,7 +692,7 @@ Handle<Code> StubCache::ComputeCallInterceptor(int argc,
   Handle<Code> code =
       compiler.CompileCallInterceptor(Handle<JSObject>::cast(object),
                                       holder, name);
-  ASSERT(flags == code->flags());
+  ASSERT_EQ(flags, code->flags());
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
@@ -721,7 +721,7 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
   CallStubCompiler compiler(isolate(), argc, kind, extra_state, cache_holder);
   Handle<Code> code =
       compiler.CompileCallGlobal(receiver, holder, cell, function, name);
-  ASSERT(flags == code->flags());
+  ASSERT_EQ(flags, code->flags());
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
