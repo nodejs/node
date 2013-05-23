@@ -998,3 +998,10 @@ assert.equal(Buffer.byteLength('aaaa==', 'base64'), 3);
 assert.throws(function() {
   Buffer('', 'buffer');
 }, TypeError);
+
+assert.doesNotThrow(function () {
+  var slow = new SlowBuffer(1);
+  assert(slow.write('', Buffer.poolSize * 10) === 0);
+  var fast = new Buffer(1);
+  assert(fast.write('', Buffer.poolSize * 10) === 0);
+});
