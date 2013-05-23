@@ -1161,7 +1161,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
           (report_exception || can_be_caught_externally)) {
         fatal_exception_depth++;
         fprintf(stderr, "%s\n\nFROM\n",
-          *MessageHandler::GetLocalizedMessage(this, message_obj));
+          *MessageHandler::GetLocalizedMessage(message_obj));
         PrintCurrentStackTrace(stderr);
         OS::Abort();
       }
