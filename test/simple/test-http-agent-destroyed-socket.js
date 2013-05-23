@@ -43,7 +43,7 @@ var requestOptions = {
 
 var request1 = http.get(requestOptions, function(response) {
   // assert request2 is queued in the agent
-  var key = 'localhost:' + common.PORT;
+  var key = agent.getName(requestOptions);
   assert(agent.requests[key].length === 1);
   console.log('got response1');
   request1.socket.on('close', function() {

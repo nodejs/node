@@ -23,7 +23,7 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
-var name = 'localhost:' + common.PORT;
+var name = http.globalAgent.getName({ port: common.PORT });
 var max = 3;
 var count = 0;
 

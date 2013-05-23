@@ -42,22 +42,25 @@ var server = https.createServer(options, function(req, res) {
 });
 
 server.listen(common.PORT, function() {
+  console.error('listening');
   https.get({
     agent: false,
     path: '/',
     port: common.PORT,
     rejectUnauthorized: false
   }, function(res) {
-    console.error(res.statusCode);
+    console.error(res.statusCode, res.headers);
     gotCallback = true;
+    res.resume();
     server.close();
   }).on('error', function(e) {
-    console.error(e.message);
+    console.error(e.stack);
     process.exit(1);
   });
 });
 
 process.on('exit', function() {
   assert.ok(gotCallback);
+  console.log('ok');
 });
 

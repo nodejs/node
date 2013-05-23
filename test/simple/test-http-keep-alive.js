@@ -32,9 +32,9 @@ var server = http.createServer(function(req, res) {
 });
 
 var connectCount = 0;
-var name = 'localhost:' + common.PORT;
 var agent = new http.Agent({maxSockets: 1});
 var headers = {'connection': 'keep-alive'};
+var name = agent.getName({ port: common.PORT });
 
 server.listen(common.PORT, function() {
   http.get({
