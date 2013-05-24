@@ -118,7 +118,6 @@ closed.
 * `request` is the arguments for the http request, as it is in the request
   event.
 * `socket` is the network socket between the server and client.
-  this may be empty.
 
 After this event is emitted, the request's socket will not have a `data`
 event listener, meaning you will need to bind to it in order to handle data
