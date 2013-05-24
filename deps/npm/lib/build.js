@@ -107,6 +107,8 @@ function shouldWarn(pkg, folder, global, cb) {
     // current searched package is the linked package on first call
     if (linkedPkg !== currentPkg) {
 
+      if (!topPkg.dependencies) return cb()
+
       // don't generate a warning if it's listed in dependencies
       if (Object.keys(topPkg.dependencies).indexOf(currentPkg) === -1) {
 
