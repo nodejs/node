@@ -30,6 +30,9 @@ server.on('upgrade', function(req, socket, head) {
   socket.write('HTTP/1.1 101 Ok' + CRLF +
                'Connection: Upgrade' + CRLF +
                'Upgrade: Test' + CRLF + CRLF + 'head');
+  socket.on('readable', function() {
+    socket.read();
+  });
   socket.on('end', function() {
     socket.end();
   });
@@ -50,6 +53,7 @@ server.listen(common.PORT, function() {
       wasUpgrade = true;
 
       request.removeListener('upgrade', onUpgrade);
+      socket.unref();
       socket.end();
     }
     request.on('upgrade', onUpgrade);
@@ -75,6 +79,7 @@ server.listen(common.PORT, function() {
       successCount++;
       // Test pass
       console.log('Pass!');
+      server.unref();
       server.close();
     });
   });
