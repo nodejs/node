@@ -1,4 +1,27 @@
-2013.05.15, Version 0.10.7 (Stable)
+2013.05.25, Version 0.10.8 (Stable)
+
+Changes since version 0.10.7:
+
+* windows: make uv_spawn not fail under job control (Bert Belder)
+
+* darwin: assume CFRunLoopStop() isn't thread-safe (Fedor Indutny)
+
+* win: fix UV_EALREADY incorrectly set (Bert Belder)
+
+* darwin: make two uv__cf_*() functions static (Ben Noordhuis)
+
+* darwin: task_info() cannot fail (Ben Noordhuis)
+
+* unix: add mapping for ENETDOWN (Ben Noordhuis)
+
+* unix: implicitly signal write errors to libuv user (Ben Noordhuis)
+
+* unix: fix assert on signal pipe overflow (Bert Belder)
+
+* unix: turn off POLLOUT after stream connect (Ben Noordhuis)
+
+
+2013.05.15, Version 0.10.7 (Stable), 028baaf0846b686a81e992cb2f2f5a9b8e841fcf
 
 Changes since version 0.10.6:
 
