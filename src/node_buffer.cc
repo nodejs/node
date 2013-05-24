@@ -296,18 +296,42 @@ Handle<Value> Fill(const Arguments &args) {
   HandleScope scope(node_isolate);
 
   ARGS_THIS(args.This())
-  int value;
-
-  if (args[0]->IsString()) {
-    String::AsciiValue at(args[0]);
-    value = (*at)[0];
-  } else {
-    value = static_cast<char>(args[0]->Int32Value());
-  }
-
   SLICE_START_END(args[1], args[2], obj_length)
 
-  memset(obj_data + start, value, length);
+  if (args[0]->IsNumber()) {
+    int value = args[0]->Uint32Value() & 255;
+    memset(obj_data + start, value, length);
+    return args.This();
+  }
+
+  String::Utf8Value at(args[0]);
+  size_t at_length = at.length();
+
+  // optimize single ascii character case
+  if (at_length == 1) {
+    int value = static_cast<int>((*at)[0]);
+    memset(obj_data + start, value, length);
+    return args.This();
+  }
+
+  size_t in_there = at_length;
+  char* ptr = obj_data + start + at_length;
+
+  memcpy(obj_data + start, *at, MIN(at_length, length));
+
+  if (at_length >= length)
+    return args.This();
+
+  while (in_there < length - in_there) {
+    memcpy(ptr, obj_data + start, in_there);
+    ptr += in_there;
+    in_there *= 2;
+  }
+
+  if (in_there < length) {
+    memcpy(ptr, obj_data + start, length - in_there);
+    in_there = length;
+  }
 
   return args.This();
 }

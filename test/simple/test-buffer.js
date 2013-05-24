@@ -120,6 +120,10 @@ for (var i = 0; i < b.length; i++) {
   assert.strictEqual(cntr, b[i]);
 }
 
+// copy string longer than buffer length (failure will segfault)
+var bb = new Buffer(10);
+bb.fill('hello crazy world');
+
 
 var caught_error = null;
 
@@ -636,6 +640,12 @@ b.fill(1, 16, 32);
 for (var i = 0; i < 16; i++) assert.equal(0, b[i]);
 for (; i < 32; i++) assert.equal(1, b[i]);
 for (; i < b.length; i++) assert.equal(0, b[i]);
+
+var buf = new Buffer(10);
+buf.fill('abc');
+assert.equal(buf.toString(), 'abcabcabca');
+buf.fill('է');
+assert.equal(buf.toString(), 'էէէէէ');
 
 ['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach(function(encoding) {
   var b = new Buffer(10);
