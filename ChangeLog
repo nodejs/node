@@ -60,6 +60,29 @@
 * zlib: allow passing options to convenience methods (Kyle Robinson Young)
 
 
+2013.05.24, Version 0.10.8 (Stable), 30d9e9fdd9d4c33d3d95a129d021cd8b5b91eddb
+
+* v8: update to 3.14.5.9
+
+* uv: upgrade to 0.10.8
+
+* npm: Upgrade to 1.2.23
+
+* http: remove bodyHead from 'upgrade' events (Nathan Zadoks)
+
+* http: Return true on empty writes, not false (isaacs)
+
+* http: save roundtrips, convert buffers to strings (Ben Noordhuis)
+
+* configure: respect the --dest-os flag consistently (Nathan Rajlich)
+
+* buffer: throw when writing beyond buffer (Trevor Norris)
+
+* crypto: Clear error after DiffieHellman key errors (isaacs)
+
+* string_bytes: strip padding from base64 strings (Trevor Norris)
+
+
 2013.05.17, Version 0.10.7 (Stable), d2fdae197ac542f686ee06835d1153dd43b862e5
 
 * uv: upgrade to v0.10.7

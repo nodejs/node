@@ -93,7 +93,7 @@ function install (args, cb_) {
       var tree = treeify(installed || [])
         , pretty = prettify(tree, installed).trim()
 
-      if (pretty) log.write(pretty)
+      if (pretty) console.log(pretty)
       save(where, installed, tree, pretty, cb_)
     })
   }

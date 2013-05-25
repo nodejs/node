@@ -21,40 +21,27 @@
 
 var common = require('../common');
 var assert = require('assert');
-var http = require('http');
+var net = require('net');
 
-var options = {
-  method: 'GET',
-  port: common.PORT,
-  host: '127.0.0.1',
-  path: '/'
-};
+var server = net.createServer(function (c) {
+  c.write('hello');
+  c.unref();
+});
+server.listen(common.PORT);
+server.unref();
 
-var server = http.createServer(function(req, res) {
-  // this space intentionally left blank
+var timedout = false;
+
+[8, 5, 3, 6, 2, 4].forEach(function (T) {
+  var socket = net.createConnection(common.PORT, 'localhost');
+  socket.setTimeout(T * 1000, function () {
+    console.log(process._getActiveHandles());
+    timedout = true;
+    socket.destroy();
+  });
+  socket.unref();
 });
 
-server.listen(options.port, options.host, function() {
-  var req = http.request(options, function(res) {
-    // this space intentionally left blank
-  });
-  req.on('error', function() {
-    // this space is intentially left blank
-  });
-  req.on('close', function() {
-    server.close();
-  });
-
-  var timeout_events = 0;
-  req.setTimeout(1);
-  req.on('timeout', function () {
-    timeout_events += 1;
-  });
-  setTimeout(function () {
-    req.destroy();
-    assert.equal(timeout_events, 1);
-  }, 100);
-  setTimeout(function () {
-    req.end();
-  }, 50);
+process.on('exit', function () {
+  assert.strictEqual(timedout, false, 'Socket timeout should not hold loop open');
 });

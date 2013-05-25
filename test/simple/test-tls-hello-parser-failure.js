@@ -20,41 +20,31 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 var common = require('../common');
+var tls = require('tls');
+var net = require('net');
+var fs = require('fs');
 var assert = require('assert');
-var http = require('http');
 
 var options = {
-  method: 'GET',
-  port: common.PORT,
-  host: '127.0.0.1',
-  path: '/'
+  key: fs.readFileSync(common.fixturesDir + '/test_key.pem'),
+  cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem')
 };
 
-var server = http.createServer(function(req, res) {
-  // this space intentionally left blank
-});
+var server = tls.createServer(options, function(c) {
 
-server.listen(options.port, options.host, function() {
-  var req = http.request(options, function(res) {
-    // this space intentionally left blank
-  });
-  req.on('error', function() {
-    // this space is intentially left blank
-  });
-  req.on('close', function() {
-    server.close();
+}).listen(common.PORT, function() {
+  var client = net.connect(common.PORT, function() {
+    var bonkers = new Buffer(1024 * 1024);
+    bonkers.fill(42);
+    client.end(bonkers);
   });
 
-  var timeout_events = 0;
-  req.setTimeout(1);
-  req.on('timeout', function () {
-    timeout_events += 1;
+  var once = false;
+  client.on('error', function() {
+    if (!once) {
+      once = true;
+      client.destroy();
+      server.close();
+    }
   });
-  setTimeout(function () {
-    req.destroy();
-    assert.equal(timeout_events, 1);
-  }, 100);
-  setTimeout(function () {
-    req.end();
-  }, 50);
 });

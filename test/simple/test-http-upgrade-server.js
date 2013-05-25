@@ -55,7 +55,7 @@ function testServer() {
                  'Connection: Upgrade\r\n' +
                  '\r\n\r\n');
 
-    request_upgradeHead = upgradeHead;
+    request_upgradeHead = socket.read();
 
     socket.ondata = function(d, start, end) {
       var data = d.toString('utf8', start, end);

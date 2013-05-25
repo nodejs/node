@@ -345,7 +345,13 @@ Handle<Value> Buffer::StringWrite(const Arguments& args) {
 
   Local<String> str = args[0].As<String>();
 
-  if (encoding == HEX && str->Length() % 2 != 0)
+  int length = str->Length();
+
+  if (length == 0) {
+    return scope.Close(Integer::New(0));
+  }
+
+  if (encoding == HEX && length % 2 != 0)
     return ThrowTypeError("Invalid hex string");
 
 
