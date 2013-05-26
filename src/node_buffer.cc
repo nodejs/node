@@ -383,23 +383,18 @@ Handle<Value> Buffer::StringWrite(const Arguments& args) {
   return scope.Close(Integer::New(written, node_isolate));
 }
 
-static bool is_big_endian() {
-  const union { uint8_t u8[2]; uint16_t u16; } u = {{0, 1}};
-  return u.u16 == 1 ? true : false;
-}
 
-
-static void swizzle(char* buf, size_t len) {
-  char t;
-  for (size_t i = 0; i < len / 2; ++i) {
-    t = buf[i];
-    buf[i] = buf[len - i - 1];
-    buf[len - i - 1] = t;
+static inline void Swizzle(char* start, unsigned int len) {
+  char* end = start + len - 1;
+  while (start < end) {
+    char tmp = *start;
+    *start++ = *end;
+    *end-- = tmp;
   }
 }
 
 
-template <typename T, bool ENDIANNESS>
+template <typename T, enum Endianness endianness>
 Handle<Value> ReadFloatGeneric(const Arguments& args) {
   double offset_tmp = args[0]->NumberValue();
   int64_t offset = static_cast<int64_t>(offset_tmp);
@@ -414,41 +409,43 @@ Handle<Value> ReadFloatGeneric(const Arguments& args) {
       return ThrowRangeError("Trying to read beyond buffer length");
   }
 
-  T val;
-  char* data = static_cast<char*>(
-                    args.This()->GetIndexedPropertiesExternalArrayData());
-  char* ptr = data + offset;
+  union NoAlias {
+    T val;
+    char bytes[sizeof(T)];
+  };
 
-  memcpy(&val, ptr, sizeof(T));
-  if (ENDIANNESS != is_big_endian())
-    swizzle(reinterpret_cast<char*>(&val), sizeof(T));
+  union NoAlias na;
+  const void* data = args.This()->GetIndexedPropertiesExternalArrayData();
+  const char* ptr = static_cast<const char*>(data) + offset;
+  memcpy(na.bytes, ptr, sizeof(na.bytes));
+  if (endianness != GetEndianness()) Swizzle(na.bytes, sizeof(na.bytes));
 
   // TODO: when Number::New is updated to accept an Isolate, make the change
-  return Number::New(val);
+  return Number::New(na.val);
 }
 
 
 Handle<Value> Buffer::ReadFloatLE(const Arguments& args) {
-  return ReadFloatGeneric<float, false>(args);
+  return ReadFloatGeneric<float, kLittleEndian>(args);
 }
 
 
 Handle<Value> Buffer::ReadFloatBE(const Arguments& args) {
-  return ReadFloatGeneric<float, true>(args);
+  return ReadFloatGeneric<float, kBigEndian>(args);
 }
 
 
 Handle<Value> Buffer::ReadDoubleLE(const Arguments& args) {
-  return ReadFloatGeneric<double, false>(args);
+  return ReadFloatGeneric<double, kLittleEndian>(args);
 }
 
 
 Handle<Value> Buffer::ReadDoubleBE(const Arguments& args) {
-  return ReadFloatGeneric<double, true>(args);
+  return ReadFloatGeneric<double, kBigEndian>(args);
 }
 
 
-template <typename T, bool ENDIANNESS>
+template <typename T, enum Endianness endianness>
 Handle<Value> WriteFloatGeneric(const Arguments& args) {
   bool doAssert = !args[2]->BooleanValue();
 
@@ -461,9 +458,6 @@ Handle<Value> WriteFloatGeneric(const Arguments& args) {
 
   T val = static_cast<T>(args[0]->NumberValue());
   size_t offset = args[1]->Uint32Value();
-  char* data = static_cast<char*>(
-                    args.This()->GetIndexedPropertiesExternalArrayData());
-  char* ptr = data + offset;
 
   if (doAssert) {
     size_t len = static_cast<size_t>(
@@ -472,31 +466,38 @@ Handle<Value> WriteFloatGeneric(const Arguments& args) {
       return ThrowRangeError("Trying to write beyond buffer length");
   }
 
-  memcpy(ptr, &val, sizeof(T));
-  if (ENDIANNESS != is_big_endian())
-    swizzle(ptr, sizeof(T));
+  union NoAlias {
+    T val;
+    char bytes[sizeof(T)];
+  };
+
+  union NoAlias na = { val };
+  void* data = args.This()->GetIndexedPropertiesExternalArrayData();
+  char* ptr = static_cast<char*>(data) + offset;
+  if (endianness != GetEndianness()) Swizzle(na.bytes, sizeof(na.bytes));
+  memcpy(ptr, na.bytes, sizeof(na.bytes));
 
   return Undefined(node_isolate);
 }
 
 
 Handle<Value> Buffer::WriteFloatLE(const Arguments& args) {
-  return WriteFloatGeneric<float, false>(args);
+  return WriteFloatGeneric<float, kLittleEndian>(args);
 }
 
 
 Handle<Value> Buffer::WriteFloatBE(const Arguments& args) {
-  return WriteFloatGeneric<float, true>(args);
+  return WriteFloatGeneric<float, kBigEndian>(args);
 }
 
 
 Handle<Value> Buffer::WriteDoubleLE(const Arguments& args) {
-  return WriteFloatGeneric<double, false>(args);
+  return WriteFloatGeneric<double, kLittleEndian>(args);
 }
 
 
 Handle<Value> Buffer::WriteDoubleBE(const Arguments& args) {
-  return WriteFloatGeneric<double, true>(args);
+  return WriteFloatGeneric<double, kBigEndian>(args);
 }
 
 
