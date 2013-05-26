@@ -113,6 +113,30 @@ v8::Handle<v8::Value> FromConstructorTemplate(
 // allow for quick domain check
 extern bool using_domains;
 
+enum Endianness {
+  kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
+  kBigEndian
+};
+
+inline enum Endianness GetEndianness() {
+  // Constant-folded by the compiler.
+  const union {
+    uint8_t u8[2];
+    uint16_t u16;
+  } u = {
+    { 1, 0 }
+  };
+  return u.u16 == 1 ? kLittleEndian : kBigEndian;
+}
+
+inline bool IsLittleEndian() {
+  return GetEndianness() == kLittleEndian;
+}
+
+inline bool IsBigEndian() {
+  return GetEndianness() == kBigEndian;
+}
+
 } // namespace node
 
 #endif // SRC_NODE_INTERNALS_H_
