@@ -396,12 +396,11 @@ static inline void Swizzle(char* start, unsigned int len) {
 
 template <typename T, enum Endianness endianness>
 Handle<Value> ReadFloatGeneric(const Arguments& args) {
-  double offset_tmp = args[0]->NumberValue();
-  int64_t offset = static_cast<int64_t>(offset_tmp);
+  size_t offset = args[0]->Uint32Value();
   bool doAssert = !args[1]->BooleanValue();
 
   if (doAssert) {
-    if (offset_tmp != offset || offset < 0)
+    if (!args[0]->IsUint32())
       return ThrowTypeError("offset is not uint");
     size_t len = static_cast<size_t>(
                     args.This()->GetIndexedPropertiesExternalArrayDataLength());
