@@ -69,7 +69,6 @@ UDPWrap::UDPWrap(Handle<Object> object)
     : HandleWrap(object, reinterpret_cast<uv_handle_t*>(&handle_)) {
   int r = uv_udp_init(uv_default_loop(), &handle_);
   assert(r == 0); // can't fail anyway
-  handle_.data = reinterpret_cast<void*>(this);
 }
 
 

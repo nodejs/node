@@ -65,8 +65,6 @@ class HandleWrap {
     HandleWrap(v8::Handle<v8::Object> object, uv_handle_t* handle);
     virtual ~HandleWrap();
 
-    virtual void SetHandle(uv_handle_t* h);
-
     v8::Persistent<v8::Object> object_;
 
   private:

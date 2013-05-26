@@ -87,8 +87,12 @@ class ProcessWrap : public HandleWrap {
     return scope.Close(args.This());
   }
 
-  ProcessWrap(Handle<Object> object) : HandleWrap(object, NULL) { }
-  ~ProcessWrap() { }
+  ProcessWrap(Handle<Object> object)
+      : HandleWrap(object, reinterpret_cast<uv_handle_t*>(&process_)) {
+  }
+
+  ~ProcessWrap() {
+  }
 
   static void ParseStdioOptions(Local<Object> js_options,
                                 uv_process_options_t* options) {
@@ -248,7 +252,6 @@ class ProcessWrap : public HandleWrap {
       SetErrno(uv_last_error(uv_default_loop()));
     }
     else {
-      wrap->SetHandle(reinterpret_cast<uv_handle_t*>(&wrap->process_));
       assert(wrap->process_.data == wrap);
       wrap->object_->Set(String::New("pid"),
                          Integer::New(wrap->process_.pid, node_isolate));

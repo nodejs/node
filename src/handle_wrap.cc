@@ -108,9 +108,7 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
 HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
   flags_ = 0;
   handle__ = h;
-  if (h) {
-    h->data = this;
-  }
+  handle__->data = this;
 
   HandleScope scope(node_isolate);
   assert(object_.IsEmpty());
@@ -118,12 +116,6 @@ HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
   object_ = v8::Persistent<v8::Object>::New(node_isolate, object);
   object_->SetAlignedPointerInInternalField(0, this);
   ngx_queue_insert_tail(&handle_wrap_queue, &handle_wrap_queue_);
-}
-
-
-void HandleWrap::SetHandle(uv_handle_t* h) {
-  handle__ = h;
-  h->data = this;
 }
 
 

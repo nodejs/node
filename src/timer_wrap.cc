@@ -86,7 +86,6 @@ class TimerWrap : public HandleWrap {
       : HandleWrap(object, reinterpret_cast<uv_handle_t*>(&handle_)) {
     int r = uv_timer_init(uv_default_loop(), &handle_);
     assert(r == 0);
-    handle_.data = this;
   }
 
   ~TimerWrap() {

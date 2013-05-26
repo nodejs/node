@@ -57,7 +57,6 @@ class StreamWrap : public HandleWrap {
   static size_t WriteBuffer(v8::Handle<v8::Value> val, uv_buf_t* buf);
 
   StreamWrap(v8::Handle<v8::Object> object, uv_stream_t* stream);
-  virtual void SetHandle(uv_handle_t* h);
   void StateChange() { }
   void UpdateWriteQueueSize();
 
