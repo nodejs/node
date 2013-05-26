@@ -404,7 +404,7 @@ Handle<Value> ReadFloatGeneric(const Arguments& args) {
       return ThrowTypeError("offset is not uint");
     size_t len = static_cast<size_t>(
                     args.This()->GetIndexedPropertiesExternalArrayDataLength());
-    if (offset + sizeof(T) > len)
+    if (offset + sizeof(T) > len || offset + sizeof(T) < offset)
       return ThrowRangeError("Trying to read beyond buffer length");
   }
 
