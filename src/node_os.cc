@@ -50,10 +50,7 @@ using namespace v8;
 
 static Handle<Value> GetEndianness(const Arguments& args) {
   HandleScope scope(node_isolate);
-  int i = 1;
-  bool big = (*(char *)&i) == 0;
-  Local<String> endianness = String::New(big ? "BE" : "LE");
-  return scope.Close(endianness);
+  return scope.Close(String::New(IsBigEndian() ? "BE" : "LE"));
 }
 
 static Handle<Value> GetHostname(const Arguments& args) {
