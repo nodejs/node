@@ -110,7 +110,7 @@ void StreamWrap::Initialize(Handle<Object> target) {
 
 
 StreamWrap::StreamWrap(Handle<Object> object, uv_stream_t* stream)
-    : HandleWrap(object, (uv_handle_t*)stream) {
+    : HandleWrap(object, reinterpret_cast<uv_handle_t*>(stream)) {
   stream_ = stream;
   if (stream) {
     stream->data = this;
@@ -151,7 +151,7 @@ Handle<Value> StreamWrap::ReadStart(const Arguments& args) {
   UNWRAP(StreamWrap)
 
   bool ipc_pipe = wrap->stream_->type == UV_NAMED_PIPE &&
-                  ((uv_pipe_t*)wrap->stream_)->ipc;
+                  reinterpret_cast<uv_pipe_t*>(wrap->stream_)->ipc;
   int r;
   if (ipc_pipe) {
     r = uv_read2_start(wrap->stream_, OnAlloc, OnRead2);
@@ -385,7 +385,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
   buf.len = data_size;
 
   bool ipc_pipe = wrap->stream_->type == UV_NAMED_PIPE &&
-                  ((uv_pipe_t*)wrap->stream_)->ipc;
+                  reinterpret_cast<uv_pipe_t*>(wrap->stream_)->ipc;
 
   if (!ipc_pipe) {
     r = uv_write(&req_wrap->req_,

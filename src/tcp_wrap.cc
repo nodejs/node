@@ -156,7 +156,7 @@ Handle<Value> TCPWrap::New(const Arguments& args) {
 
 
 TCPWrap::TCPWrap(Handle<Object> object)
-    : StreamWrap(object, (uv_stream_t*) &handle_) {
+    : StreamWrap(object, reinterpret_cast<uv_stream_t*>(&handle_)) {
   int r = uv_tcp_init(uv_default_loop(), &handle_);
   assert(r == 0); // How do we proxy this error up to javascript?
                   // Suggestion: uv_tcp_init() returns void.
@@ -310,7 +310,9 @@ Handle<Value> TCPWrap::Listen(const Arguments& args) {
 
   int backlog = args[0]->Int32Value();
 
-  int r = uv_listen((uv_stream_t*)&wrap->handle_, backlog, OnConnection);
+  int r = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
+                    backlog,
+                    OnConnection);
 
   // Error starting the tcp.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
@@ -323,7 +325,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
   HandleScope scope(node_isolate);
 
   TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
-  assert(&wrap->handle_ == (uv_tcp_t*)handle);
+  assert(&wrap->handle_ == reinterpret_cast<uv_tcp_t*>(handle));
 
   // We should not be getting this callback if someone as already called
   // uv_close() on the handle.
@@ -337,10 +339,12 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
 
     // Unwrap the client javascript object.
     assert(client_obj->InternalFieldCount() > 0);
-    TCPWrap* client_wrap = static_cast<TCPWrap*>(
-        client_obj->GetAlignedPointerFromInternalField(0));
 
-    if (uv_accept(handle, (uv_stream_t*)&client_wrap->handle_)) return;
+    void* client_wrap_v = client_obj->GetAlignedPointerFromInternalField(0);
+    TCPWrap* client_wrap = static_cast<TCPWrap*>(client_wrap_v);
+    uv_stream_t* client_handle =
+        reinterpret_cast<uv_stream_t*>(&client_wrap->handle_);
+    if (uv_accept(handle, client_handle)) return;
 
     // Successful accept. Call the onconnection callback in JavaScript land.
     argv[0] = client_obj;

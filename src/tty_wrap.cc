@@ -199,7 +199,7 @@ Handle<Value> TTYWrap::New(const Arguments& args) {
 
 
 TTYWrap::TTYWrap(Handle<Object> object, int fd, bool readable)
-    : StreamWrap(object, (uv_stream_t*)&handle_) {
+    : StreamWrap(object, reinterpret_cast<uv_stream_t*>(&handle_)) {
   uv_tty_init(uv_default_loop(), &handle_, fd, readable);
 }
 

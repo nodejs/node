@@ -173,9 +173,9 @@ void init_etw() {
 
     // create async object used to invoke main thread from callback
     uv_async_init(uv_default_loop(),
-                &dispatch_etw_events_change_async,
-                etw_events_change_async);
-    uv_unref((uv_handle_t*) &dispatch_etw_events_change_async);
+                  &dispatch_etw_events_change_async,
+                  etw_events_change_async);
+    uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_etw_events_change_async));
 
     if (event_register) {    
       DWORD status = event_register(&NODE_ETW_PROVIDER,

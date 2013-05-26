@@ -248,7 +248,7 @@ class ProcessWrap : public HandleWrap {
       SetErrno(uv_last_error(uv_default_loop()));
     }
     else {
-      wrap->SetHandle((uv_handle_t*)&wrap->process_);
+      wrap->SetHandle(reinterpret_cast<uv_handle_t*>(&wrap->process_));
       assert(wrap->process_.data == wrap);
       wrap->object_->Set(String::New("pid"),
                          Integer::New(wrap->process_.pid, node_isolate));

@@ -120,7 +120,7 @@ static void ares_poll_close_cb(uv_handle_t* watcher) {
 
 /* Allocates and returns a new ares_task_t */
 static ares_task_t* ares_task_create(uv_loop_t* loop, ares_socket_t sock) {
-  ares_task_t* task = (ares_task_t*) malloc(sizeof *task);
+  ares_task_t* task = static_cast<ares_task_t*>(malloc(sizeof(*task)));
 
   if (task == NULL) {
     /* Out of memory. */
@@ -141,9 +141,11 @@ static ares_task_t* ares_task_create(uv_loop_t* loop, ares_socket_t sock) {
 
 
 /* Callback from ares when socket operation is started */
-static void ares_sockstate_cb(void* data, ares_socket_t sock,
-    int read, int write) {
-  uv_loop_t* loop = (uv_loop_t*) data;
+static void ares_sockstate_cb(void* data,
+                              ares_socket_t sock,
+                              int read,
+                              int write) {
+  uv_loop_t* loop = static_cast<uv_loop_t*>(data);
   ares_task_t* task;
 
   ares_task_t lookup_task;
@@ -155,7 +157,7 @@ static void ares_sockstate_cb(void* data, ares_socket_t sock,
       /* New socket */
 
       /* If this is the first socket then start the timer. */
-      if (!uv_is_active((uv_handle_t*) &ares_timer)) {
+      if (!uv_is_active(reinterpret_cast<uv_handle_t*>(&ares_timer))) {
         assert(RB_EMPTY(&ares_tasks));
         uv_timer_start(&ares_timer, ares_timeout, 1000, 1000);
       }
@@ -185,7 +187,8 @@ static void ares_sockstate_cb(void* data, ares_socket_t sock,
            "When an ares socket is closed we should have a handle for it");
 
     RB_REMOVE(ares_task_list, &ares_tasks, task);
-    uv_close((uv_handle_t*) &task->poll_watcher, ares_poll_close_cb);
+    uv_close(reinterpret_cast<uv_handle_t*>(&task->poll_watcher),
+             ares_poll_close_cb);
 
     if (RB_EMPTY(&ares_tasks)) {
       uv_timer_stop(&ares_timer);
