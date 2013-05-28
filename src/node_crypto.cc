@@ -915,7 +915,10 @@ int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
 }
 
 
-int Connection::HandleSSLError(const char* func, int rv, ZeroStatus zs) {
+int Connection::HandleSSLError(const char* func,
+                               int rv,
+                               ZeroStatus zs,
+                               SyscallStatus ss) {
   ClearErrorOnReturn clear_error_on_return;
   (void) &clear_error_on_return;  // Silence unused variable warning.
 
@@ -939,6 +942,9 @@ int Connection::HandleSSLError(const char* func, int rv, ZeroStatus zs) {
     handle_->Set(String::New("error"),
                  Exception::Error(String::New("ZERO_RETURN")));
     return rv;
+
+  } else if ((err == SSL_ERROR_SYSCALL) && (ss == kIgnoreSyscall)) {
+    return 0;
 
   } else {
     HandleScope scope;
@@ -1372,17 +1378,26 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
 
     if (ss->is_server_) {
       rv = SSL_accept(ss->ssl_);
-      ss->HandleSSLError("SSL_accept:ClearOut", rv, kZeroIsAnError);
+      ss->HandleSSLError("SSL_accept:ClearOut",
+                         rv,
+                         kZeroIsAnError,
+                         kSyscallError);
     } else {
       rv = SSL_connect(ss->ssl_);
-      ss->HandleSSLError("SSL_connect:ClearOut", rv, kZeroIsAnError);
+      ss->HandleSSLError("SSL_connect:ClearOut",
+                         rv,
+                         kZeroIsAnError,
+                         kSyscallError);
     }
 
     if (rv < 0) return scope.Close(Integer::New(rv));
   }
 
   int bytes_read = SSL_read(ss->ssl_, buffer_data + off, len);
-  ss->HandleSSLError("SSL_read:ClearOut", bytes_read, kZeroIsNotAnError);
+  ss->HandleSSLError("SSL_read:ClearOut",
+                     bytes_read,
+                     kZeroIsNotAnError,
+                     kSyscallError);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_read));
@@ -1472,10 +1487,16 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
     int rv;
     if (ss->is_server_) {
       rv = SSL_accept(ss->ssl_);
-      ss->HandleSSLError("SSL_accept:ClearIn", rv, kZeroIsAnError);
+      ss->HandleSSLError("SSL_accept:ClearIn",
+                         rv,
+                         kZeroIsAnError,
+                         kSyscallError);
     } else {
       rv = SSL_connect(ss->ssl_);
-      ss->HandleSSLError("SSL_connect:ClearIn", rv, kZeroIsAnError);
+      ss->HandleSSLError("SSL_connect:ClearIn",
+                         rv,
+                         kZeroIsAnError,
+                         kSyscallError);
     }
 
     if (rv < 0) return scope.Close(Integer::New(rv));
@@ -1485,7 +1506,8 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
 
   ss->HandleSSLError("SSL_write:ClearIn",
                      bytes_written,
-                     len == 0 ? kZeroIsNotAnError : kZeroIsAnError);
+                     len == 0 ? kZeroIsNotAnError : kZeroIsAnError,
+                     kSyscallError);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_written));
@@ -1725,10 +1747,13 @@ Handle<Value> Connection::Start(const Arguments& args) {
     int rv;
     if (ss->is_server_) {
       rv = SSL_accept(ss->ssl_);
-      ss->HandleSSLError("SSL_accept:Start", rv, kZeroIsAnError);
+      ss->HandleSSLError("SSL_accept:Start", rv, kZeroIsAnError, kSyscallError);
     } else {
       rv = SSL_connect(ss->ssl_);
-      ss->HandleSSLError("SSL_connect:Start", rv, kZeroIsAnError);
+      ss->HandleSSLError("SSL_connect:Start",
+                         rv,
+                         kZeroIsAnError,
+                         kSyscallError);
     }
 
     return scope.Close(Integer::New(rv));
@@ -1745,7 +1770,7 @@ Handle<Value> Connection::Shutdown(const Arguments& args) {
 
   if (ss->ssl_ == NULL) return False();
   int rv = SSL_shutdown(ss->ssl_);
-  ss->HandleSSLError("SSL_shutdown", rv, kZeroIsNotAnError);
+  ss->HandleSSLError("SSL_shutdown", rv, kZeroIsNotAnError, kIgnoreSyscall);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(rv));
