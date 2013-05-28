@@ -429,6 +429,11 @@ void uv__stream_destroy(uv_stream_t* stream) {
   }
 
   if (stream->shutdown_req) {
+    /* The UV_ECANCELED error code is a lie, the shutdown(2) syscall is a
+     * fait accompli at this point. Maybe we should revisit this in v0.11.
+     * A possible reason for leaving it unchanged is that it informs the
+     * callee that the handle has been destroyed.
+     */
     uv__req_unregister(stream->loop, stream->shutdown_req);
     uv__set_artificial_error(stream->loop, UV_ECANCELED);
     stream->shutdown_req->cb(stream->shutdown_req, -1);
@@ -627,8 +632,6 @@ static void uv__drain(uv_stream_t* stream) {
   uv_shutdown_t* req;
 
   assert(ngx_queue_empty(&stream->write_queue));
-  assert(stream->write_queue_size == 0);
-
   uv__io_stop(stream->loop, &stream->io_watcher, UV__POLLOUT);
 
   /* Shutdown? */
@@ -722,10 +725,8 @@ start:
 
   assert(uv__stream_fd(stream) >= 0);
 
-  if (ngx_queue_empty(&stream->write_queue)) {
-    assert(stream->write_queue_size == 0);
+  if (ngx_queue_empty(&stream->write_queue))
     return;
-  }
 
   q = ngx_queue_head(&stream->write_queue);
   req = ngx_queue_data(q, uv_write_t, queue);
@@ -797,6 +798,9 @@ start:
       /* Error */
       req->error = errno;
       uv__write_req_finish(req);
+      uv__io_stop(stream->loop, &stream->io_watcher, UV__POLLOUT);
+      if (!uv__io_active(&stream->io_watcher, UV__POLLIN))
+        uv__handle_stop(stream);
       return;
     } else if (stream->flags & UV_STREAM_BLOCKING) {
       /* If this is a blocking stream, try again. */
@@ -1200,6 +1204,12 @@ int uv_write2(uv_write_t* req,
       return uv__set_artificial_error(stream->loop, UV_EBADF);
   }
 
+  /* It's legal for write_queue_size > 0 even when the write_queue is empty;
+   * it means there are error-state requests in the write_completed_queue that
+   * will touch up write_queue_size later, see also uv__write_req_finish().
+   * We chould check that write_queue is empty instead but that implies making
+   * a write() syscall when we know that the handle is in error mode.
+   */
   empty_queue = (stream->write_queue_size == 0);
 
   /* Initialize the req */
@@ -1318,9 +1328,10 @@ int uv_read_stop(uv_stream_t* stream) {
          stream->shutdown_req != NULL ||
          stream->connect_req != NULL);
 
-  uv__io_stop(stream->loop, &stream->io_watcher, UV__POLLIN);
-  uv__handle_stop(stream);
   stream->flags &= ~UV_STREAM_READING;
+  uv__io_stop(stream->loop, &stream->io_watcher, UV__POLLIN);
+  if (!uv__io_active(&stream->io_watcher, UV__POLLOUT))
+    uv__handle_stop(stream);
 
 #if defined(__APPLE__)
   /* Notify select() thread about state change */

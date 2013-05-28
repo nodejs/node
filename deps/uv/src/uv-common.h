@@ -149,6 +149,9 @@ void uv__fs_poll_close(uv_fs_poll_t* handle);
 #define uv__is_active(h)                                                      \
   (((h)->flags & UV__HANDLE_ACTIVE) != 0)
 
+#define uv__is_closing(h)                                                     \
+  (((h)->flags & (UV_CLOSING |  UV_CLOSED)) != 0)
+
 #define uv__handle_start(h)                                                   \
   do {                                                                        \
     assert(((h)->flags & UV__HANDLE_CLOSING) == 0);                           \

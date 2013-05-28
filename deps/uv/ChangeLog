@@ -1,4 +1,17 @@
-2013.05.25, Version 0.10.8 (Stable)
+2013.05.29, Version 0.10.9 (Stable)
+
+Changes since version 0.10.8:
+
+* unix: fix stream refcounting buglet (Ben Noordhuis)
+
+* unix: remove erroneous asserts (Ben Noordhuis)
+
+* unix: add uv__is_closing() macro (Ben Noordhuis)
+
+* unix: stop stream POLLOUT watcher on write error (Ben Noordhuis)
+
+
+2013.05.25, Version 0.10.8 (Stable), 0f39be12926fe2d8766a9f025797a473003e6504
 
 Changes since version 0.10.7:
 
