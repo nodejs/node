@@ -355,11 +355,11 @@
         } else {
           nextTickQueue.splice(0, infoBox[index]);
           infoBox[length] = nextTickQueue.length;
-          if (needSpinner) {
-            _needTickCallback();
-            needSpinner = false;
-          }
         }
+      }
+      if (needSpinner) {
+        _needTickCallback();
+        needSpinner = false;
       }
       inTick = false;
       infoBox[index] = 0;
@@ -483,11 +483,6 @@
 
       nextTickQueue.push(obj);
       infoBox[length]++;
-
-      if (needSpinner) {
-        _needTickCallback();
-        needSpinner = false;
-      }
     }
 
     function _nextDomainTick(callback) {
@@ -501,11 +496,6 @@
 
       nextTickQueue.push(obj);
       infoBox[length]++;
-
-      if (needSpinner) {
-        _needTickCallback();
-        needSpinner = false;
-      }
     }
   };
 
