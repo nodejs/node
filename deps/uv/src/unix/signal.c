@@ -116,7 +116,7 @@ static void uv__signal_unlock_and_unblock(sigset_t* saved_sigmask) {
 }
 
 
-inline static uv_signal_t* uv__signal_first_handle(int signum) {
+static uv_signal_t* uv__signal_first_handle(int signum) {
   /* This function must be called with the signal lock held. */
   uv_signal_t lookup;
   uv_signal_t* handle;
@@ -160,7 +160,7 @@ static void uv__signal_handler(int signum) {
     } while (r == -1 && errno == EINTR);
 
     assert(r == sizeof msg ||
-           (r == -1 && errno != EAGAIN && errno != EWOULDBLOCK));
+           (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)));
 
     if (r != -1)
       handle->caught_signals++;

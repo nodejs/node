@@ -436,11 +436,14 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
      * non-blocking mode and not all data could be written. If a non-zero
      * number of bytes have been sent, we don't consider it an error.
      */
-    len = 0;
 
 #if defined(__FreeBSD__)
+    len = 0;
     r = sendfile(in_fd, out_fd, req->off, req->len, NULL, &len, 0);
 #else
+    /* The darwin sendfile takes len as an input for the length to send,
+     * so make sure to initialize it with the caller's value. */
+    len = req->len;
     r = sendfile(in_fd, out_fd, req->off, &len, NULL, 0);
 #endif
 
@@ -497,7 +500,7 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
   return r;
 }
 
-static inline void uv__to_stat(struct stat* src, uv_stat_t* dst) {
+static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_dev = src->st_dev;
   dst->st_mode = src->st_mode;
   dst->st_nlink = src->st_nlink;

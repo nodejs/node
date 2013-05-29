@@ -162,7 +162,12 @@ void uv__make_close_pending(uv_handle_t* handle) {
 
 
 static void uv__finish_close(uv_handle_t* handle) {
-  assert(!uv__is_active(handle));
+  /* Note: while the handle is in the UV_CLOSING state now, it's still possible
+   * for it to be active in the sense that uv__is_active() returns true.
+   * A good example is when the user calls uv_shutdown(), immediately followed
+   * by uv_close(). The handle is considered active at this point because the
+   * completion of the shutdown req is still pending.
+   */
   assert(handle->flags & UV_CLOSING);
   assert(!(handle->flags & UV_CLOSED));
   handle->flags |= UV_CLOSED;
@@ -220,7 +225,7 @@ static void uv__run_closing_handles(uv_loop_t* loop) {
 
 
 int uv_is_closing(const uv_handle_t* handle) {
-  return handle->flags & (UV_CLOSING | UV_CLOSED);
+  return uv__is_closing(handle);
 }
 
 
@@ -312,8 +317,21 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
     uv__io_poll(loop, timeout);
     uv__run_check(loop);
     uv__run_closing_handles(loop);
-    r = uv__loop_alive(loop);
 
+    if (mode == UV_RUN_ONCE) {
+      /* UV_RUN_ONCE implies forward progess: at least one callback must have
+       * been invoked when it returns. uv__io_poll() can return without doing
+       * I/O (meaning: no callbacks) when its timeout expires - which means we
+       * have pending timers that satisfy the forward progress constraint.
+       *
+       * UV_RUN_NOWAIT makes no guarantees about progress so it's omitted from
+       * the check.
+       */
+      uv__update_time(loop);
+      uv__run_timers(loop);
+    }
+
+    r = uv__loop_alive(loop);
     UV_TICK_STOP(loop, mode);
 
     if (mode & (UV_RUN_ONCE | UV_RUN_NOWAIT))
@@ -332,11 +350,6 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 
 void uv_update_time(uv_loop_t* loop) {
   uv__update_time(loop);
-}
-
-
-uint64_t uv_now(uv_loop_t* loop) {
-  return loop->time;
 }
 
 

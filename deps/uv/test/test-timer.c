@@ -264,3 +264,31 @@ TEST_IMPL(timer_huge_repeat) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+
+static unsigned int timer_run_once_timer_cb_called;
+
+
+static void timer_run_once_timer_cb(uv_timer_t* handle, int status) {
+  timer_run_once_timer_cb_called++;
+}
+
+
+TEST_IMPL(timer_run_once) {
+  uv_timer_t timer_handle;
+
+  ASSERT(0 == uv_timer_init(uv_default_loop(), &timer_handle));
+  ASSERT(0 == uv_timer_start(&timer_handle, timer_run_once_timer_cb, 0, 0));
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_ONCE));
+  ASSERT(1 == timer_run_once_timer_cb_called);
+
+  ASSERT(0 == uv_timer_start(&timer_handle, timer_run_once_timer_cb, 1, 0));
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_ONCE));
+  ASSERT(2 == timer_run_once_timer_cb_called);
+
+  uv_close((uv_handle_t*) &timer_handle, NULL);
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_ONCE));
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

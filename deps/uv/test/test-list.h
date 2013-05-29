@@ -101,6 +101,7 @@ TEST_DECLARE   (timer_start_twice)
 TEST_DECLARE   (timer_order)
 TEST_DECLARE   (timer_huge_timeout)
 TEST_DECLARE   (timer_huge_repeat)
+TEST_DECLARE   (timer_run_once)
 TEST_DECLARE   (idle_starvation)
 TEST_DECLARE   (loop_handles)
 TEST_DECLARE   (get_loadavg)
@@ -350,6 +351,7 @@ TASK_LIST_START
   TEST_ENTRY  (timer_order)
   TEST_ENTRY  (timer_huge_timeout)
   TEST_ENTRY  (timer_huge_repeat)
+  TEST_ENTRY  (timer_run_once)
 
   TEST_ENTRY  (idle_starvation)
 

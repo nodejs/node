@@ -434,3 +434,8 @@ int uv_has_ref(const uv_handle_t* handle) {
 void uv_stop(uv_loop_t* loop) {
   loop->stop_flag = 1;
 }
+
+
+uint64_t uv_now(uv_loop_t* loop) {
+  return loop->time;
+}

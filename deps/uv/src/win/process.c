@@ -49,7 +49,22 @@ static HANDLE uv_global_job_handle_;
 static uv_once_t uv_global_job_handle_init_guard_ = UV_ONCE_INIT;
 
 
-static void uv__init_global_job_handle() {
+static void uv__init_global_job_handle(void) {
+  /* Create a job object and set it up to kill all contained processes when
+   * it's closed. Since this handle is made non-inheritable and we're not
+   * giving it to anyone, we're the only process holding a reference to it.
+   * That means that if this process exits it is closed and all the processes
+   * it contains are killed. All processes created with uv_spawn that are not
+   * spawned with the UV_PROCESS_DETACHED flag are assigned to this job.
+   *
+   * We're setting the JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK flag so only the
+   * processes that we explicitly add are affected, and *their* subprocesses
+   * are not. This ensures that our child processes are not limited in their
+   * ability to use job control on Windows versions that don't deal with
+   * nested jobs (prior to Windows 8 / Server 2012). It also lets our child
+   * processes created detached processes without explicitly breaking away
+   * from job control (which uv_spawn doesn't, either).
+   */
   SECURITY_ATTRIBUTES attr;
   JOBOBJECT_EXTENDED_LIMIT_INFORMATION info;
 
@@ -920,7 +935,18 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   }
 
   process_flags = CREATE_UNICODE_ENVIRONMENT;
+
   if (options.flags & UV_PROCESS_DETACHED) {
+    /* Note that we're not setting the CREATE_BREAKAWAY_FROM_JOB flag. That
+     * means that libuv might not let you create a fully deamonized process
+     * when run under job control. However the type of job control that libuv
+     * itself creates doesn't trickle down to subprocesses so they can still
+     * daemonize.
+     *
+     * A reason to not do this is that CREATE_BREAKAWAY_FROM_JOB makes the
+     * CreateProcess call fail if we're under job control that doesn't allow
+     * breakaway.
+     */
     process_flags |= DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP;
   }
 
@@ -943,8 +969,21 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     if (!(options.flags & UV_PROCESS_DETACHED)) {
       uv_once(&uv_global_job_handle_init_guard_, uv__init_global_job_handle);
 
-      if (!AssignProcessToJobObject(uv_global_job_handle_, info.hProcess))
-        uv_fatal_error(GetLastError(), "AssignProcessToJobObject");
+      if (!AssignProcessToJobObject(uv_global_job_handle_, info.hProcess)) {
+        /* AssignProcessToJobObject might fail if this process is under job
+         * control and the job doesn't have the
+         * JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK flag set, on a Windows version
+         * that doesn't support nested jobs.
+         *
+         * When that happens we just swallow the error and continue without
+         * establishing a kill-child-on-parent-exit relationship, otherwise
+         * there would be no way for libuv applications run under job control
+         * to spawn processes at all.
+         */
+        DWORD err = GetLastError();
+        if (err != ERROR_ACCESS_DENIED)
+          uv_fatal_error(err, "AssignProcessToJobObject");
+      }
     }
 
     /* Set IPC pid to all IPC pipes. */

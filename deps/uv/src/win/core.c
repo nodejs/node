@@ -282,14 +282,10 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     uv_update_time(loop);
     uv_process_timers(loop);
 
-    /* Call idle callbacks if nothing to do. */
-    if (loop->pending_reqs_tail == NULL &&
-        loop->endgame_handles == NULL) {
-      uv_idle_invoke(loop);
-    }
-
     uv_process_reqs(loop);
     uv_process_endgames(loop);
+
+    uv_idle_invoke(loop);
 
     uv_prepare_invoke(loop);
 
@@ -302,6 +298,20 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
                   !(mode & UV_RUN_NOWAIT));
 
     uv_check_invoke(loop);
+
+    if (mode == UV_RUN_ONCE) {
+      /* UV_RUN_ONCE implies forward progess: at least one callback must have
+       * been invoked when it returns. uv__io_poll() can return without doing
+       * I/O (meaning: no callbacks) when its timeout expires - which means we
+       * have pending timers that satisfy the forward progress constraint.
+       *
+       * UV_RUN_NOWAIT makes no guarantees about progress so it's omitted from
+       * the check.
+       */
+      uv_update_time(loop);
+      uv_process_timers(loop);
+    }
+
     r = uv__loop_alive(loop);
     if (mode & (UV_RUN_ONCE | UV_RUN_NOWAIT))
       break;

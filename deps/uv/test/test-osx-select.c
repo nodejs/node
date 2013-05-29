@@ -62,7 +62,7 @@ TEST_IMPL(osx_select) {
 
   uv_read_start((uv_stream_t*) &tty, alloc_cb, read_cb);
 
-  // Emulate user-input
+  /* Emulate user-input */
   str = "got some input\n"
         "with a couple of lines\n"
         "feel pretty happy\n";

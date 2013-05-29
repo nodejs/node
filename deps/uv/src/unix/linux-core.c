@@ -382,12 +382,12 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     return uv__new_sys_error(ENOMEM);
 
   if (read_models(numcpus, ci)) {
-    SAVE_ERRNO(free(ci));
+    SAVE_ERRNO(uv_free_cpu_info(ci, numcpus));
     return uv__new_sys_error(errno);
   }
 
   if (read_times(numcpus, ci)) {
-    SAVE_ERRNO(free(ci));
+    SAVE_ERRNO(uv_free_cpu_info(ci, numcpus));
     return uv__new_sys_error(errno);
   }
 
@@ -414,76 +414,89 @@ static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci) {
 
 /* Also reads the CPU frequency on x86. The other architectures only have
  * a BogoMIPS field, which may not be very accurate.
+ *
+ * Note: Simply returns on error, uv_cpu_info() takes care of the cleanup.
  */
 static int read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
-#if defined(__i386__) || defined(__x86_64__)
   static const char model_marker[] = "model name\t: ";
   static const char speed_marker[] = "cpu MHz\t\t: ";
-#elif defined(__arm__)
-  static const char model_marker[] = "Processor\t: ";
-  static const char speed_marker[] = "";
-#elif defined(__mips__)
-  static const char model_marker[] = "cpu model\t\t: ";
-  static const char speed_marker[] = "";
-#else
-# warning uv_cpu_info() is not supported on this architecture.
-  static const char model_marker[] = "";
-  static const char speed_marker[] = "";
-#endif
-  static const char bogus_model[] = "unknown";
+  const char* inferred_model;
   unsigned int model_idx;
   unsigned int speed_idx;
   char buf[1024];
   char* model;
   FILE* fp;
-  char* inferred_model;
 
-  fp = fopen("/proc/cpuinfo", "r");
-  if (fp == NULL)
-    return -1;
+  /* Most are unused on non-ARM and non-x86 architectures. */
+  (void) &model_marker;
+  (void) &speed_marker;
+  (void) &speed_idx;
+  (void) &model;
+  (void) &buf;
+  (void) &fp;
 
   model_idx = 0;
   speed_idx = 0;
 
+#if defined(__arm__) || defined(__i386__) || defined(__x86_64__)
+  fp = fopen("/proc/cpuinfo", "r");
+  if (fp == NULL)
+    return -1;
+
   while (fgets(buf, sizeof(buf), fp)) {
-    if (model_marker[0] != '\0' &&
-        model_idx < numcpus &&
-        strncmp(buf, model_marker, sizeof(model_marker) - 1) == 0)
-    {
-      model = buf + sizeof(model_marker) - 1;
-      model = strndup(model, strlen(model) - 1); /* strip newline */
-      ci[model_idx++].model = model;
-      continue;
+    if (model_idx < numcpus) {
+      if (strncmp(buf, model_marker, sizeof(model_marker) - 1) == 0) {
+        model = buf + sizeof(model_marker) - 1;
+        model = strndup(model, strlen(model) - 1);  /* Strip newline. */
+        if (model == NULL) {
+          fclose(fp);
+          return -1;
+        }
+        ci[model_idx++].model = model;
+        continue;
+      }
     }
-
-    if (speed_marker[0] != '\0' &&
-        speed_idx < numcpus &&
-        strncmp(buf, speed_marker, sizeof(speed_marker) - 1) == 0)
-    {
-      ci[speed_idx++].speed = atoi(buf + sizeof(speed_marker) - 1);
-      continue;
+#if defined(__arm__)
+    /* Fallback for pre-3.8 kernels. */
+    if (model_idx < numcpus) {
+      static const char model_marker[] = "Processor\t: ";
+      if (strncmp(buf, model_marker, sizeof(model_marker) - 1) == 0) {
+        model = buf + sizeof(model_marker) - 1;
+        model = strndup(model, strlen(model) - 1);  /* Strip newline. */
+        if (model == NULL) {
+          fclose(fp);
+          return -1;
+        }
+        ci[model_idx++].model = model;
+        continue;
+      }
     }
+#else  /* !__arm____ */
+    if (speed_idx < numcpus) {
+      if (strncmp(buf, speed_marker, sizeof(speed_marker) - 1) == 0) {
+        ci[speed_idx++].speed = atoi(buf + sizeof(speed_marker) - 1);
+        continue;
+      }
+    }
+#endif  /* __arm__ */
   }
+
   fclose(fp);
+#endif  /* __arm__ || __i386__ || __x86_64__ */
 
-  /* Now we want to make sure that all the models contain *something*:
-   * it's not safe to leave them as null.
+  /* Now we want to make sure that all the models contain *something* because
+   * it's not safe to leave them as null. Copy the last entry unless there
+   * isn't one, in that case we simply put "unknown" into everything.
    */
-  if (model_idx == 0) {
-    /* No models at all: fake up the first one. */
-    ci[0].model = strndup(bogus_model, sizeof(bogus_model) - 1);
-    model_idx = 1;
-  }
-
-  /* Not enough models, but we do have at least one.  So we'll just
-   * copy the rest down: it might be better to indicate somehow that
-   * the remaining ones have been guessed.
-   */
-  inferred_model = ci[model_idx - 1].model;
+  inferred_model = "unknown";
+  if (model_idx > 0)
+    inferred_model = ci[model_idx - 1].model;
 
   while (model_idx < numcpus) {
-    ci[model_idx].model = strndup(inferred_model, strlen(inferred_model));
-    model_idx++;
+    model = strndup(inferred_model, strlen(inferred_model));
+    if (model == NULL)
+      return -1;
+    ci[model_idx++].model = model;
   }
 
   return 0;

@@ -1,4 +1,101 @@
-2013.05.16, Version 0.11.3 (Unstable)
+2013.05.30, Version 0.11.4 (Unstable)
+
+Changes since version 0.11.3:
+
+* windows: make uv_spawn not fail when the libuv embedding application is run
+  under external job control (Bert Belder)
+
+* darwin: assume CFRunLoopStop() isn't thread-safe, fixing a race condition
+  when stopping the 'stdin select hack' thread (Fedor Indutny)
+
+* win: fix UV_EALREADY not being reported correctly to the libuv user in some
+  cases (Bert Belder)
+
+* darwin: make the uv__cf_loop_runner and uv__cf_loop_cb functions static (Ben
+  Noordhuis)
+
+* darwin: task_info() cannot fail (Ben Noordhuis)
+
+* unix: add error mapping for ENETDOWN (Ben Noordhuis)
+
+* unix: implicitly signal write errors to the libuv user (Ben Noordhuis)
+
+* unix: fix assertion error on signal pipe overflow (Bert Belder)
+
+* unix: turn off POLLOUT after stream connect (Ben Noordhuis)
+
+* unix: fix stream refcounting buglet (Ben Noordhuis)
+
+* unix: remove assert statements that are no longer correct (Ben Noordhuis)
+
+* unix: appease warning about non-standard `inline` (Sean Silva)
+
+* unix: add uv__is_closing() macro (Ben Noordhuis)
+
+* unix: stop stream POLLOUT watcher on write error (Ben Noordhuis)
+
+* include: document uv_update_time() and uv_now() (Ben Noordhuis)
+
+* linux: fix cpu model parsing on newer arm kernels (Ben Noordhuis)
+
+* linux: fix a memory leak in uv_cpu_info() error path (Ben Noordhuis)
+
+* linux: don't ignore out-of-memory errors in uv_cpu_info() (Ben Noordhuis)
+
+* unix, windows: move uv_now() to uv-common.c (Ben Noordhuis)
+
+* test: fix a compilation problem in test-osx-select.c that was caused by the
+  use of c-style comments (Bert Belder)
+
+* darwin: use uv_fs_sendfile() use the sendfile api correctly (Wynn Wilkes)
+
+* windows: call idle handles on every loop iteration, something the unix
+  implementation already did (Bert Belder)
+
+* test: update the idle-starvation test to verify that idle handles are called
+  in every loop iteration (Bert Belder)
+
+* unix, windows: ensure that uv_run() in RUN_ONCE mode calls timers that expire
+  after blocking (Ben Noordhuis)
+
+
+2013.05.29, Version 0.10.9 (Stable), a195f9ace23d92345baf57582678bfc3017e6632
+
+Changes since version 0.10.8:
+
+* unix: fix stream refcounting buglet (Ben Noordhuis)
+
+* unix: remove erroneous asserts (Ben Noordhuis)
+
+* unix: add uv__is_closing() macro (Ben Noordhuis)
+
+* unix: stop stream POLLOUT watcher on write error (Ben Noordhuis)
+
+
+2013.05.25, Version 0.10.8 (Stable), 0f39be12926fe2d8766a9f025797a473003e6504
+
+Changes since version 0.10.7:
+
+* windows: make uv_spawn not fail under job control (Bert Belder)
+
+* darwin: assume CFRunLoopStop() isn't thread-safe (Fedor Indutny)
+
+* win: fix UV_EALREADY incorrectly set (Bert Belder)
+
+* darwin: make two uv__cf_*() functions static (Ben Noordhuis)
+
+* darwin: task_info() cannot fail (Ben Noordhuis)
+
+* unix: add mapping for ENETDOWN (Ben Noordhuis)
+
+* unix: implicitly signal write errors to libuv user (Ben Noordhuis)
+
+* unix: fix assert on signal pipe overflow (Bert Belder)
+
+* unix: turn off POLLOUT after stream connect (Ben Noordhuis)
+
+
+2013.05.16, Version 0.11.3 (Unstable), 0a48c05b5988aea84c605751900926fa25443b34
 
 Changes since version 0.11.2:
 

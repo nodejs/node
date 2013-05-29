@@ -64,11 +64,6 @@ void uv__time_forward(uv_loop_t* loop, uint64_t msecs) {
 }
 
 
-uint64_t uv_now(uv_loop_t* loop) {
-  return loop->time;
-}
-
-
 static int uv_timer_compare(uv_timer_t* a, uv_timer_t* b) {
   if (a->due < b->due)
     return -1;
