@@ -1029,7 +1029,6 @@ MakeCallback(const Handle<Object> object,
 
   if (tick_infobox.length == 0) {
     tick_infobox.index = 0;
-    tick_infobox.depth = 0;
     return ret;
   }
 

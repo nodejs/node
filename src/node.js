@@ -398,25 +398,18 @@
       if (inTick) return;
       if (infoBox[length] === 0) {
         infoBox[index] = 0;
-        infoBox[depth] = 0;
         return;
       }
       inTick = true;
 
-      while (infoBox[depth]++ < process.maxTickDepth) {
-        nextTickLength = infoBox[length];
-        if (infoBox[index] === nextTickLength)
-          return tickDone(0);
-
-        while (infoBox[index] < nextTickLength) {
-          callback = nextTickQueue[infoBox[index]++].callback;
-          threw = true;
-          try {
-            callback();
-            threw = false;
-          } finally {
-            if (threw) tickDone(infoBox[depth]);
-          }
+      while (infoBox[index] < infoBox[length]) {
+        callback = nextTickQueue[infoBox[index]++].callback;
+        threw = true;
+        try {
+          callback();
+          threw = false;
+        } finally {
+          if (threw) tickDone(0);
         }
       }
 
@@ -476,8 +469,6 @@
       // on the way out, don't bother. it won't get fired anyway.
       if (process._exiting)
         return;
-      if (infoBox[depth] >= process.maxTickDepth)
-        maxTickWarn();
 
       var obj = { callback: callback, domain: null };
 
