@@ -225,7 +225,7 @@ that some connections will be handled by the parent and some by the child.
 
 For `dgram` servers the workflow is exactly the same.  Here you listen on
 a `message` event instead of `connection` and use `server.bind` instead of
-`server.listen`.
+`server.listen`.  (Currently only supported on UNIX platforms.)
 
 #### Example: sending socket object
 

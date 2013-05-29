@@ -134,6 +134,9 @@ The following options from [tls.connect()][] can also be specified. However, a
   the list of supplied CAs. An `'error'` event is emitted if verification
   fails. Verification happens at the connection level, *before* the HTTP
   request is sent. Default `true`.
+- `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
+  SSL version 3. The possible values depend on your installation of
+  OpenSSL and are defined in the constant [SSL_METHODS][].
 
 In order to specify these options, use a custom `Agent`.
 
@@ -217,3 +220,4 @@ Global instance of [https.Agent][] for all HTTPS client requests.
 [https.request()]: #https_https_request_options_callback
 [tls.connect()]: tls.html#tls_tls_connect_options_callback
 [tls.createServer()]: tls.html#tls_tls_createserver_options_secureconnectionlistener
+[SSL_METHODS]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS

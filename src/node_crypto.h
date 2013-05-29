@@ -219,7 +219,12 @@ class Connection : ObjectWrap {
     kZeroIsAnError
   };
 
-  int HandleSSLError(const char* func, int rv, ZeroStatus zs);
+  enum SyscallStatus {
+    kIgnoreSyscall,
+    kSyscallError
+  };
+
+  int HandleSSLError(const char* func, int rv, ZeroStatus zs, SyscallStatus ss);
 
   void ClearError();
   void SetShutdownFlags();
