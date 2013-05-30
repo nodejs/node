@@ -721,6 +721,14 @@ character to indicate reverse sort.
 
 The shell to run for the `npm explore` command.
 
+### shrinkwrap
+
+* Default: true
+* Type: Boolean
+
+If set to false, then ignore `npm-shrinkwrap.json` files when
+installing.
+
 ### sign-git-tag
 
 * Default: false

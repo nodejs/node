@@ -81,7 +81,11 @@ var isint = /^[0-9]+$/;
 function promote(parent, key) {
   if (parent[key].length == 0) return parent[key] = createObject();
   var t = createObject();
-  for (var i in parent[key]) t[i] = parent[key][i];
+  for (var i in parent[key]) {
+    if (hasOwnProperty.call(parent[key], i)) {
+      t[i] = parent[key][i];
+    }
+  }
   parent[key] = t;
   return t;
 }
@@ -155,7 +159,13 @@ function compact(obj) {
 
   if (isArray(obj)) {
     var ret = [];
-    for (var i in obj) ret.push(obj[i]);
+
+    for (var i in obj) {
+      if (hasOwnProperty.call(obj, i)) {
+        ret.push(obj[i]);
+      }
+    }
+
     return ret;
   }
 

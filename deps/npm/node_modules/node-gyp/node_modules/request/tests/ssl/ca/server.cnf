@@ -1,0 +1,19 @@
+[ req ]
+default_bits           = 1024
+days                   = 3650
+distinguished_name     = req_distinguished_name
+attributes             = req_attributes
+prompt                 = no
+
+[ req_distinguished_name ]
+C                      = US
+ST                     = CA
+L                      = Oakland
+O                      = request
+OU                     = testing
+CN                     = testing.request.mikealrogers.com
+emailAddress           = mikeal@mikealrogers.com
+
+[ req_attributes ]
+challengePassword              = password challenge
+

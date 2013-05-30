@@ -64,7 +64,27 @@ describe('SNTP', function () {
             });
         });
 
-        it('times out on no response', function (done) {
+        it('errors on error event', function (done) {
+
+            var orig = Dgram.createSocket;
+            Dgram.createSocket = function (type) {
+
+                Dgram.createSocket = orig;
+                var socket = Dgram.createSocket(type);
+                process.nextTick(function () { socket.emit('error', new Error('Fake')) });
+                return socket;
+            };
+
+            Sntp.time(function (err, time) {
+
+                expect(err).to.exist;
+                expect(time).to.not.exist;
+                expect(err.message).to.equal('Fake');
+                done();
+            });
+        });
+
+        it('times out on invalid host', function (done) {
 
             Sntp.time({ host: 'error', timeout: 10000 }, function (err, time) {
 

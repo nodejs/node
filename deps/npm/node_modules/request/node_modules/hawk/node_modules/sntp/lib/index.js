@@ -39,6 +39,7 @@ exports.time = function (options, callback) {
 
         if (!isFinished) {
             isFinished = true;
+            socket.removeAllListeners();
             socket.close();
             return callback(err, result);
         }
@@ -48,7 +49,7 @@ exports.time = function (options, callback) {
 
     var socket = Dgram.createSocket('udp4');
 
-    socket.on('error', function (err) {
+    socket.once('error', function (err) {
 
         return finish(err);
     });

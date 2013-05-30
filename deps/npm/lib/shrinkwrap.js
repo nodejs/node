@@ -7,6 +7,7 @@ var npm = require("./npm.js")
   , log = require("npmlog")
   , fs = require("fs")
   , path = require("path")
+  , readJson = require("read-package-json")
 
 shrinkwrap.usage = "npm shrinkwrap"
 
@@ -19,16 +20,37 @@ function shrinkwrap (args, silent, cb) {
 
   npm.commands.ls([], true, function (er, _, pkginfo) {
     if (er) return cb(er)
-    shrinkwrap_(pkginfo, silent, cb)
+    shrinkwrap_(pkginfo, silent, npm.config.get("dev"), cb)
   })
 }
 
-function shrinkwrap_ (pkginfo, silent, cb) {
+function shrinkwrap_ (pkginfo, silent, dev, cb) {
   if (pkginfo.problems) {
     return cb(new Error("Problems were encountered\n"
                        +"Please correct and try again.\n"
                        +pkginfo.problems.join("\n")))
   }
+
+  if (!dev) {
+    // remove dev deps unless the user does --dev
+    readJson(path.resolve(npm.prefix, "package.json"), function (er, data) {
+      if (er)
+        return cb(er)
+      if (data.devDependencies) {
+        Object.keys(data.devDependencies).forEach(function (dep) {
+          log.warn("shrinkwrap", "Excluding devDependency: %s", dep)
+          delete pkginfo.dependencies[dep]
+        })
+      }
+      save(pkginfo, silent, cb)
+    })
+  } else {
+    save(pkginfo, silent, cb)
+  }
+}
+
+
+function save (pkginfo, silent, cb) {
   try {
     var swdata = JSON.stringify(pkginfo, null, 2) + "\n"
   } catch (er) {

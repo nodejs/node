@@ -97,10 +97,34 @@ more info.
 ## Keeping files *out* of your package
 
 Use a `.npmignore` file to keep stuff out of your package.  If there's
-no .npmignore file, but there *is* a .gitignore file, then npm will
-ignore the stuff matched by the .gitignore file.  If you *want* to
-include something that is excluded by your .gitignore file, you can
-create an empty .npmignore file to override it.
+no `.npmignore` file, but there *is* a `.gitignore` file, then npm will
+ignore the stuff matched by the `.gitignore` file.  If you *want* to
+include something that is excluded by your `.gitignore` file, you can
+create an empty `.npmignore` file to override it.
+
+By default, the following paths and files are ignored, so there's no
+need to add them to `.npmignore` explicitly:
+
+* `.*.swp`
+* `._*`
+* `.DS_Store`
+* `.git`
+* `.hg`
+* `.lock-wscript`
+* `.svn`
+* `.wafpickle-*`
+* `CVS`
+* `npm-debug.log`
+
+Additionally, everything in `node_modules` is ignored, except for
+bundled dependencies. npm automatically handles this for you, so don't
+bother adding `node_modules` to `.npmignore`.
+
+The following paths and files are never ignored, so adding them to
+`.npmignore` is pointless:
+
+* `package.json`
+* `README.*`
 
 ## Link Packages
 
