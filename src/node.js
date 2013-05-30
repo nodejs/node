@@ -285,7 +285,7 @@
       }
       // if we handled an error, then make sure any ticks get processed
       if (caught)
-        process._needTickCallback();
+        setImmediate(process._tickCallback);
       return caught;
     };
   };
@@ -316,7 +316,6 @@
   };
 
   startup.processNextTick = function() {
-    var _needTickCallback = process._needTickCallback;
     var lastThrew = false;
     var nextTickQueue = [];
     var needSpinner = true;
@@ -336,7 +335,6 @@
     process._nextDomainTick = _nextDomainTick;
     process._tickCallback = _tickCallback;
     process._tickDomainCallback = _tickDomainCallback;
-    process._tickFromSpinner = _tickFromSpinner;
 
     function tickDone() {
       if (infoBox[length] !== 0) {
@@ -348,21 +346,8 @@
           infoBox[length] = nextTickQueue.length;
         }
       }
-      if (needSpinner) {
-        _needTickCallback();
-        needSpinner = false;
-      }
       inTick = false;
       infoBox[index] = 0;
-    }
-
-    function _tickFromSpinner() {
-      needSpinner = true;
-      // no callbacks to run
-      if (infoBox[length] === 0)
-        infoBox[index] = 0;
-      else
-        process._tickCallback();
     }
 
     // run callbacks that have no domain
@@ -396,7 +381,7 @@
 
       if (lastThrew) {
         lastThrew = false;
-        return _needTickCallback();
+        return;
       }
 
       if (inTick) return;

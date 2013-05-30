@@ -140,8 +140,6 @@ bool using_domains = false;
 bool no_deprecation = false;
 
 static uv_idle_t tick_spinner;
-static bool need_tick_cb;
-static Persistent<String> tick_callback_sym;
 
 static uv_check_t check_immediate_watcher;
 static uv_idle_t idle_immediate_dummy;
@@ -175,45 +173,6 @@ static uv_async_t emit_debug_enabled_async;
 
 // Declared in node_internals.h
 Isolate* node_isolate = NULL;
-
-
-static void Spin(uv_idle_t* handle, int status) {
-  assert(handle == &tick_spinner);
-  assert(status == 0);
-
-  // Avoid entering a V8 scope.
-  if (!need_tick_cb) return;
-  need_tick_cb = false;
-
-  uv_idle_stop(&tick_spinner);
-
-  HandleScope scope(node_isolate);
-
-  if (process_tickFromSpinner.IsEmpty()) {
-    Local<Value> cb_v = process->Get(String::New("_tickFromSpinner"));
-    if (!cb_v->IsFunction()) {
-      fprintf(stderr, "process._tickFromSpinner assigned to non-function\n");
-      abort();
-    }
-    Local<Function> cb = cb_v.As<Function>();
-    process_tickFromSpinner = Persistent<Function>::New(node_isolate, cb);
-  }
-
-  TryCatch try_catch;
-
-  process_tickFromSpinner->Call(process, 0, NULL);
-
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-  }
-}
-
-
-static Handle<Value> NeedTickCallback(const Arguments& args) {
-  need_tick_cb = true;
-  uv_idle_start(&tick_spinner, Spin);
-  return Undefined(node_isolate);
-}
 
 
 static void CheckImmediate(uv_check_t* handle, int status) {
@@ -2378,7 +2337,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   // define various internal methods
   NODE_SET_METHOD(process, "_getActiveRequests", GetActiveRequests);
   NODE_SET_METHOD(process, "_getActiveHandles", GetActiveHandles);
-  NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);
   NODE_SET_METHOD(process, "reallyExit", Exit);
   NODE_SET_METHOD(process, "abort", Abort);
   NODE_SET_METHOD(process, "chdir", Chdir);
