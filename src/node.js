@@ -317,6 +317,7 @@
 
   startup.processNextTick = function() {
     var _needTickCallback = process._needTickCallback;
+    var lastThrew = false;
     var nextTickQueue = [];
     var needSpinner = true;
     var inTick = false;
@@ -329,7 +330,6 @@
     var infoBox = process._tickInfoBox;
     var length = 0;
     var index = 1;
-    var depth = 2;
 
     process.nextTick = nextTick;
     // needs to be accessible from cc land
@@ -338,16 +338,7 @@
     process._tickDomainCallback = _tickDomainCallback;
     process._tickFromSpinner = _tickFromSpinner;
 
-    // the maximum number of times it'll process something like
-    // nextTick(function f(){nextTick(f)})
-    // It's unlikely, but not illegal, to hit this limit.  When
-    // that happens, it yields to libuv's tick spinner.
-    // This is a loop counter, not a stack depth, so we aren't using
-    // up lots of memory here.  I/O can sneak in before nextTick if this
-    // limit is hit, which is not ideal, but not terrible.
-    process.maxTickDepth = 1000;
-
-    function tickDone(tickDepth_) {
+    function tickDone() {
       if (infoBox[length] !== 0) {
         if (infoBox[length] <= infoBox[index]) {
           nextTickQueue = [];
@@ -363,31 +354,15 @@
       }
       inTick = false;
       infoBox[index] = 0;
-      infoBox[depth] = tickDepth_;
-    }
-
-    function maxTickWarn() {
-      // XXX Remove all this maxTickDepth stuff in 0.11
-      var msg = '(node) warning: Recursive process.nextTick detected. ' +
-                'This will break in the next version of node. ' +
-                'Please use setImmediate for recursive deferral.';
-      if (process.throwDeprecation)
-        throw new Error(msg);
-      else if (process.traceDeprecation)
-        console.trace(msg);
-      else
-        console.error(msg);
     }
 
     function _tickFromSpinner() {
       needSpinner = true;
-      // coming from spinner, reset!
-      if (infoBox[depth] !== 0)
-        infoBox[depth] = 0;
       // no callbacks to run
       if (infoBox[length] === 0)
-        return infoBox[index] = infoBox[depth] = 0;
-      process._tickCallback();
+        infoBox[index] = 0;
+      else
+        process._tickCallback();
     }
 
     // run callbacks that have no domain
@@ -409,60 +384,47 @@
           callback();
           threw = false;
         } finally {
-          if (threw) tickDone(0);
+          if (threw) tickDone();
         }
       }
 
-      tickDone(0);
+      tickDone();
     }
 
     function _tickDomainCallback() {
-      var nextTickLength, tock, callback, threw;
+      var nextTickLength, tock, callback;
 
-      // if you add a nextTick in a domain's error handler, then
-      // it's possible to cycle indefinitely.  Normally, the tickDone
-      // in the finally{} block below will prevent this, however if
-      // that error handler ALSO triggers multiple MakeCallbacks, then
-      // it'll try to keep clearing the queue, since the finally block
-      // fires *before* the error hits the top level and is handled.
-      if (infoBox[depth] >= process.maxTickDepth)
+      if (lastThrew) {
+        lastThrew = false;
         return _needTickCallback();
-
-      if (inTick) return;
-      inTick = true;
-
-      // always do this at least once.  otherwise if process.maxTickDepth
-      // is set to some negative value, or if there were repeated errors
-      // preventing depth from being cleared, we'd never process any
-      // of them.
-      while (infoBox[depth]++ < process.maxTickDepth) {
-        nextTickLength = infoBox[length];
-        if (infoBox[index] === nextTickLength)
-          return tickDone(0);
-
-        while (infoBox[index] < nextTickLength) {
-          tock = nextTickQueue[infoBox[index]++];
-          callback = tock.callback;
-          if (tock.domain) {
-            if (tock.domain._disposed) continue;
-            tock.domain.enter();
-          }
-          threw = true;
-          try {
-            callback();
-            threw = false;
-          } finally {
-            // finally blocks fire before the error hits the top level,
-            // so we can't clear the depth at this point.
-            if (threw) tickDone(infoBox[depth]);
-          }
-          if (tock.domain) {
-            tock.domain.exit();
-          }
-        }
       }
 
-      tickDone(0);
+      if (inTick) return;
+      if (infoBox[length] === 0) {
+        infoBox[index] = 0;
+        return;
+      }
+      inTick = true;
+
+      while (infoBox[index] < infoBox[length]) {
+        tock = nextTickQueue[infoBox[index]++];
+        callback = tock.callback;
+        if (tock.domain) {
+          if (tock.domain._disposed) continue;
+          tock.domain.enter();
+        }
+        lastThrew = true;
+        try {
+          callback();
+          lastThrew = false;
+        } finally {
+          if (lastThrew) tickDone();
+        }
+        if (tock.domain)
+          tock.domain.exit();
+      }
+
+      tickDone();
     }
 
     function nextTick(callback) {
@@ -480,8 +442,6 @@
       // on the way out, don't bother. it won't get fired anyway.
       if (process._exiting)
         return;
-      if (infoBox[depth] >= process.maxTickDepth)
-        maxTickWarn();
 
       var obj = { callback: callback, domain: process.domain };
 

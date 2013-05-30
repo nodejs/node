@@ -152,7 +152,6 @@ static Persistent<String> immediate_callback_sym;
 static struct {
   uint32_t length;
   uint32_t index;
-  uint32_t depth;
 } tick_infobox;
 
 #ifdef OPENSSL_NPN_NEGOTIATED
@@ -984,7 +983,6 @@ MakeDomainCallback(const Handle<Object> object,
 
   if (tick_infobox.length == 0) {
     tick_infobox.index = 0;
-    tick_infobox.depth = 0;
     return ret;
   }
 
@@ -2421,7 +2419,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   Local<Object> info_box = Object::New();
   info_box->SetIndexedPropertiesToExternalArrayData(&tick_infobox,
                                                     kExternalUnsignedIntArray,
-                                                    3);
+                                                    2);
   process->Set(String::NewSymbol("_tickInfoBox"), info_box);
 
   // pre-set _events object for faster emit checks
