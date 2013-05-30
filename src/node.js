@@ -324,7 +324,7 @@
     // this infobox thing is used so that the C++ code in src/node.cc
     // can have easy accesss to our nextTick state, and avoid unnecessary
     // calls into process._tickCallback.
-    // order is [length, index, depth]
+    // order is [length, index]
     // Never write code like this without very good reason!
     var infoBox = process._tickInfoBox;
     var length = 0;
