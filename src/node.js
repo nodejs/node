@@ -336,6 +336,11 @@
     process._tickCallback = _tickCallback;
     process._tickDomainCallback = _tickDomainCallback;
 
+    function Tock(cb, domain) {
+      this.callback = cb;
+      this.domain = domain;
+    }
+
     function tickDone() {
       if (infoBox[length] !== 0) {
         if (infoBox[length] <= infoBox[index]) {
@@ -417,9 +422,7 @@
       if (process._exiting)
         return;
 
-      var obj = { callback: callback, domain: null };
-
-      nextTickQueue.push(obj);
+      nextTickQueue.push(new Tock(callback, null));
       infoBox[length]++;
     }
 
@@ -428,9 +431,7 @@
       if (process._exiting)
         return;
 
-      var obj = { callback: callback, domain: process.domain };
-
-      nextTickQueue.push(obj);
+      nextTickQueue.push(new Tock(callback, process.domain));
       infoBox[length]++;
     }
   };
