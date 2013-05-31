@@ -1,5 +1,5 @@
 {
-  "version": "1.2.23",
+  "version": "1.2.24",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -51,7 +51,7 @@
     "mkdirp": "~0.3.3",
     "read": "~1.0.4",
     "lru-cache": "~2.3.0",
-    "node-gyp": "~0.9.5",
+    "node-gyp": "~0.9.6",
     "fstream-npm": "~0.1.3",
     "uid-number": "0",
     "archy": "0",
@@ -67,7 +67,7 @@
     "lockfile": "~0.3.2",
     "retry": "~0.6.0",
     "once": "~1.1.1",
-    "npmconf": "0",
+    "npmconf": "0.0.25",
     "opener": "~1.3.0",
     "chmodr": "~0.1.0",
     "cmd-shim": "~1.1.0",

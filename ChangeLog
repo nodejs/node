@@ -60,6 +60,21 @@
 * zlib: allow passing options to convenience methods (Kyle Robinson Young)
 
 
+2013.05.30, Version 0.10.9 (Stable), 878ffdbe6a8eac918ef3a7f13925681c3778060b
+
+* npm: Upgrade to 1.2.24
+
+* uv: Upgrade to v0.10.9
+
+* repl: fix JSON.parse error check (Brian White)
+
+* tls: proper .destroySoon (Fedor Indutny)
+
+* tls: invoke write cb only after opposite read end (Fedor Indutny)
+
+* tls: ignore .shutdown() syscall error (Fedor Indutny)
+
+
 2013.05.24, Version 0.10.8 (Stable), 30d9e9fdd9d4c33d3d95a129d021cd8b5b91eddb
 
 * v8: update to 3.14.5.9

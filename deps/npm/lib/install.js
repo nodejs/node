@@ -250,6 +250,10 @@ function readDependencies (context, where, opts, cb) {
       })
     }
 
+    // User has opted out of shrinkwraps entirely
+    if (npm.config.get("shrinkwrap") === false)
+      return cb(null, data, null)
+
     if (wrap) {
       log.verbose("readDependencies: using existing wrap", [where, wrap])
       var rv = {}
@@ -288,6 +292,14 @@ function readDependencies (context, where, opts, cb) {
       Object.keys(newwrap.dependencies || {}).forEach(function (key) {
         rv.dependencies[key] = readWrap(newwrap.dependencies[key])
       })
+
+      // fold in devDependencies if not already present, at top level
+      if (opts && opts.dev) {
+        Object.keys(data.devDependencies || {}).forEach(function (k) {
+          rv.dependencies[k] = rv.dependencies[k] || data.devDependencies[k]
+        })
+      }
+
       log.verbose("readDependencies returned deps", rv.dependencies)
       return cb(null, rv, newwrap.dependencies)
     })
@@ -568,7 +580,10 @@ function installMany (what, where, context, cb) {
       })
       asyncMap(targets, function (target, cb) {
         log.info("installOne", target._id)
-        var newWrap = wrap ? wrap[target.name].dependencies || {} : null
+        var wrapData = wrap ? wrap[target.name] : null
+        var newWrap = wrapData && wrapData.dependencies
+                    ? wrap[target.name].dependencies || {}
+                    : null
         var newContext = { family: newPrev
                          , ancestors: newAnc
                          , parent: parent

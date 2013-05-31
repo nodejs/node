@@ -245,6 +245,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , searchexclude: null
     , searchsort: "name"
     , shell : osenv.shell()
+    , shrinkwrap: true
     , "sign-git-tag": false
     , "strict-ssl": true
     , tag : "latest"
@@ -338,6 +339,7 @@ exports.types =
                 , "date", "-date"
                 , "keywords", "-keywords" ]
   , shell : String
+  , shrinkwrap: Boolean
   , "sign-git-tag": Boolean
   , "strict-ssl": Boolean
   , tag : String

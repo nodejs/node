@@ -665,7 +665,6 @@ Returns a new ReadStream object (See `Readable Stream`).
       encoding: null,
       fd: null,
       mode: 0666,
-      bufferSize: 64 * 1024,
       autoClose: true
     }
 
