@@ -1058,6 +1058,7 @@ MakeCallback(const Handle<Object> object,
   HandleScope scope(node_isolate);
 
   Local<Function> callback = object->Get(symbol).As<Function>();
+  assert(callback->IsFunction());
 
   if (using_domains)
     return scope.Close(MakeDomainCallback(object, callback, argc, argv));
