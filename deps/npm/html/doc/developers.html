@@ -82,10 +82,24 @@ more info.</p>
 <h2 id="Keeping-files-out-of-your-package">Keeping files <em>out</em> of your package</h2>
 
 <p>Use a <code>.npmignore</code> file to keep stuff out of your package.  If there&#39;s
-no .npmignore file, but there <em>is</em> a .gitignore file, then npm will
-ignore the stuff matched by the .gitignore file.  If you <em>want</em> to
-include something that is excluded by your .gitignore file, you can
-create an empty .npmignore file to override it.</p>
+no <code>.npmignore</code> file, but there <em>is</em> a <code>.gitignore</code> file, then npm will
+ignore the stuff matched by the <code>.gitignore</code> file.  If you <em>want</em> to
+include something that is excluded by your <code>.gitignore</code> file, you can
+create an empty <code>.npmignore</code> file to override it.</p>
+
+<p>By default, the following paths and files are ignored, so there&#39;s no
+need to add them to <code>.npmignore</code> explicitly:</p>
+
+<ul><li><code>.*.swp</code></li><li><code>._*</code></li><li><code>.DS_Store</code></li><li><code>.git</code></li><li><code>.hg</code></li><li><code>.lock-wscript</code></li><li><code>.svn</code></li><li><code>.wafpickle-*</code></li><li><code>CVS</code></li><li><code>npm-debug.log</code></li></ul>
+
+<p>Additionally, everything in <code>node_modules</code> is ignored, except for
+bundled dependencies. npm automatically handles this for you, so don&#39;t
+bother adding <code>node_modules</code> to <code>.npmignore</code>.</p>
+
+<p>The following paths and files are never ignored, so adding them to
+<code>.npmignore</code> is pointless:</p>
+
+<ul><li><code>package.json</code></li><li><code><a href="../doc/README.html">README</a>.*</code></li></ul>
 
 <h2 id="Link-Packages">Link Packages</h2>
 
@@ -160,7 +174,7 @@ from a fresh checkout.</p>
 
 <ul><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/init.html">init(1)</a></li><li><a href="../doc/json.html">json(1)</a></li><li><a href="../doc/scripts.html">scripts(1)</a></li><li><a href="../doc/publish.html">publish(1)</a></li><li><a href="../doc/adduser.html">adduser(1)</a></li><li><a href="../doc/registry.html">registry(1)</a></li></ul>
 </div>
-<p id="footer">developers &mdash; npm@1.2.18</p>
+<p id="footer">developers &mdash; npm@1.2.24</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

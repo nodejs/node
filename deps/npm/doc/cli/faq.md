@@ -221,11 +221,18 @@ an argument to `git checkout`.  The default is `master`.
 
 ## How do I install node with npm?
 
-You don't.  Try one of these:
+You don't.  Try one of these node version managers:
 
-* <https://github.com/isaacs/nave>
-* <https://github.com/visionmedia/n>
-* <https://github.com/creationix/nvm>
+Unix:
+
+* <http://github.com/isaacs/nave>
+* <http://github.com/visionmedia/n>
+* <http://github.com/creationix/nvm>
+
+Windows:
+
+* <http://github.com/marcelklehr/nodist>
+* <https://github.com/hakobera/nvmw>
 
 ## How can I use npm for development?
 

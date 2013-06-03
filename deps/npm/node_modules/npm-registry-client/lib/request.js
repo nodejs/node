@@ -222,7 +222,10 @@ function requestDone (method, where, cb) {
   return function (er, response, data) {
     if (er) return cb(er)
 
-    this.log.http(response.statusCode, url.parse(where).href)
+    var urlObj = url.parse(where)
+    if (urlObj.auth)
+      urlObj.auth = '***'
+    this.log.http(response.statusCode, url.format(urlObj))
 
     var parsed
 

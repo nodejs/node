@@ -1,0 +1,41 @@
+{
+  "name": "async",
+  "description": "Higher-order functions and common patterns for asynchronous code",
+  "main": "./index",
+  "author": {
+    "name": "Caolan McMahon"
+  },
+  "version": "0.1.9",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/caolan/async.git"
+  },
+  "bugs": {
+    "url": "http://github.com/caolan/async/issues"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://github.com/caolan/async/raw/master/LICENSE"
+    }
+  ],
+  "_npmUser": {
+    "name": "mikeal",
+    "email": "mikeal.rogers@gmail.com"
+  },
+  "_id": "async@0.1.9",
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "_engineSupported": true,
+  "_npmVersion": "1.1.24",
+  "_nodeVersion": "v0.8.1",
+  "_defaultsLoaded": true,
+  "dist": {
+    "shasum": "fd9b6aca66495fd0f7e97f86e71c7706ca9ae754"
+  },
+  "_from": "async@0.1.9"
+}

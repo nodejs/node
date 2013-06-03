@@ -804,7 +804,7 @@ function makeRe () {
 
   // must match entire pattern
   // ending in a * or ** will make it less strict.
-  re = "^" + re + "$"
+  re = "^(?:" + re + ")$"
 
   // can match anything, as long as it's not this.
   if (this.negate) re = "^(?!" + re + ").*$"

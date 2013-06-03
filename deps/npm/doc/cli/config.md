@@ -185,7 +185,7 @@ ostensibly Unix systems.
 
 ### browser
 
-* Default: OS X: `"open"`, others: `"google-chrome"`
+* Default: OS X: `"open"`, Windows: `"start"`, Others: `"xdg-open"`
 * Type: String
 
 The browser that is called by the `npm docs` command to open websites.
@@ -720,6 +720,14 @@ character to indicate reverse sort.
 * Type: path
 
 The shell to run for the `npm explore` command.
+
+### shrinkwrap
+
+* Default: true
+* Type: Boolean
+
+If set to false, then ignore `npm-shrinkwrap.json` files when
+installing.
 
 ### sign-git-tag
 

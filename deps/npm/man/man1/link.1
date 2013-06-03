@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-LINK" "1" "April 2013" "" ""
+.TH "NPM\-LINK" "1" "May 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-link\fR \-\- Symlink a package folder
@@ -24,6 +24,10 @@ symbolic link from \fBprefix/package\-name\fR to the current folder\.
 .P
 Next, in some other location, \fBnpm link package\-name\fR will create a
 symlink from the local \fBnode_modules\fR folder to the global symlink\.
+.
+.P
+Note that \fBpackage\-name\fR is taken from \fBpackage\.json\fR ,
+not from directory name\.
 .
 .P
 When creating tarballs for \fBnpm publish\fR, the linked packages are

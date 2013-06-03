@@ -1,0 +1,44 @@
+{
+  "name": "editor",
+  "version": "0.0.4",
+  "description": "launch $EDITOR in your program",
+  "main": "index.js",
+  "bin": {},
+  "directories": {
+    "example": "example",
+    "test": "test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "~0.2.5"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/node-editor.git"
+  },
+  "homepage": "https://github.com/substack/node-editor",
+  "keywords": [
+    "text",
+    "edit",
+    "shell"
+  ],
+  "author": {
+    "name": "James Halliday",
+    "email": "mail@substack.net",
+    "url": "http://substack.net"
+  },
+  "license": "MIT",
+  "engine": {
+    "node": ">=0.6"
+  },
+  "readme": "editor\n======\n\nLaunch $EDITOR in your program.\n\nexample\n=======\n\n``` js\nvar editor = require('editor');\neditor('beep.json', function (code, sig) {\n    console.log('finished editing with code ' + code);\n});\n```\n\n***\n\n```\n$ node edit.js\n```\n\n![editor](http://substack.net/images/screenshots/editor.png)\n\n```\nfinished editing with code 0\n```\n\nmethods\n=======\n\n``` js\nvar editor = require('editor')\n```\n\neditor(file, opts={}, cb)\n-------------------------\n\nLaunch the `$EDITOR` (or `opts.editor`) for `file`.\n\nWhen the editor exits, `cb(code, sig)` fires.\n\ninstall\n=======\n\nWith [npm](http://npmjs.org) do:\n\n```\nnpm install editor\n```\n\nlicense\n=======\n\nMIT\n",
+  "readmeFilename": "README.markdown",
+  "bugs": {
+    "url": "https://github.com/substack/node-editor/issues"
+  },
+  "_id": "editor@0.0.4",
+  "_from": "editor@"
+}

@@ -85,7 +85,7 @@ describe('Hawk', function () {
                     resource: '/resource?a=1&b=2',
                     host: 'example.com',
                     port: 8000,
-                    hash: Hawk.crypto.calculateHash(payloadOptions.payload, credentials.algorithm, payloadOptions.contentType),
+                    hash: Hawk.crypto.calculatePayloadHash(payloadOptions.payload, credentials.algorithm, payloadOptions.contentType),
                     ext: options.ext
                 });
 

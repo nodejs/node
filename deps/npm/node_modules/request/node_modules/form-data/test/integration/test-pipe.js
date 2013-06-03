@@ -22,73 +22,26 @@ var FIELDS = [
 
 var server = http.createServer(function(req, res) {
 
-  // formidable is fixed on github
-  // but still 7 month old in npm
-  //
-  // var form = new IncomingForm();
-  // form.uploadDir = common.dir.tmp;
-  // form.parse(req);
-  // form
-  //   .on('field', function(name, value) {
-  //     var field = FIELDS.shift();
-  //     assert.strictEqual(name, field.name);
-  //     assert.strictEqual(value, field.value+'');
-  //   })
-  //   .on('file', function(name, file) {
-  //     var field = FIELDS.shift();
-  //     assert.strictEqual(name, field.name);
-  //     assert.strictEqual(file.name, path.basename(field.value.path));
-  //     assert.strictEqual(file.type, mime.lookup(file.name));
-  //   })
-  //   .on('end', function() {
-  //     res.writeHead(200);
-  //     res.end('done');
-  //   });
+  var form = new IncomingForm({uploadDir: common.dir.tmp});
 
-  // temp workaround
-  var data = '';
-  req.setEncoding('utf8');
+  form.parse(req);
 
-  req.on('data', function(d) {
-    data += d;
-  });
-
-  req.on('end', function() {
-    // check for the fields' traces
-
-    // 1st field : my_field
-    var field = FIELDS.shift();
-    assert.ok( data.indexOf('form-data; name="'+field.name+'"') != -1 );
-    assert.ok( data.indexOf(field.value) != -1 );
-
-    // 2nd field : my_buffer
-    var field = FIELDS.shift();
-    assert.ok( data.indexOf('form-data; name="'+field.name+'"') != -1 );
-    assert.ok( data.indexOf(field.value) != -1 );
-
-    // 3rd field : my_file
-    var field = FIELDS.shift();
-    assert.ok( data.indexOf('form-data; name="'+field.name+'"') != -1 );
-    assert.ok( data.indexOf('; filename="'+path.basename(field.value.path)+'"') != -1 );
-
-    // check for unicycle.jpg traces
-    assert.ok( data.indexOf('2005:06:21 01:44:12') != -1 );
-    assert.ok( data.indexOf('Content-Type: '+mime.lookup(field.value.path) ) != -1 );
-
-    // 4th field : remote_file
-    var field = FIELDS.shift();
-    assert.ok( data.indexOf('form-data; name="'+field.name+'"') != -1 );
-    assert.ok( data.indexOf('; filename="'+path.basename(field.value.path)+'"') != -1 );
-    // check for http://nodejs.org/images/logo.png traces
-    assert.ok( data.indexOf('ImageReady') != -1 );
-    assert.ok( data.indexOf('Content-Type: '+mime.lookup(remoteFile) ) != -1 );
-
-    res.writeHead(200);
-    res.end('done');
-
-  });
-
-
+  form
+    .on('field', function(name, value) {
+      var field = FIELDS.shift();
+      assert.strictEqual(name, field.name);
+      assert.strictEqual(value, field.value+'');
+    })
+    .on('file', function(name, file) {
+      var field = FIELDS.shift();
+      assert.strictEqual(name, field.name);
+      assert.strictEqual(file.name, path.basename(field.value.path));
+      assert.strictEqual(file.type, mime.lookup(file.name));
+    })
+    .on('end', function() {
+      res.writeHead(200);
+      res.end('done');
+    });
 });
 
 server.listen(common.port, function() {

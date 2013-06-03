@@ -1,0 +1,42 @@
+{
+  "author": {
+    "name": "Robert Kieffer",
+    "email": "robert@broofa.com",
+    "url": "http://github.com/broofa"
+  },
+  "contributors": [
+    {
+      "name": "Benjamin Thomas",
+      "email": "benjamin@benjaminthomas.org",
+      "url": "http://github.com/bentomas"
+    }
+  ],
+  "dependencies": {},
+  "description": "A comprehensive library for mime-type mapping",
+  "devDependencies": {},
+  "keywords": [
+    "util",
+    "mime"
+  ],
+  "main": "mime.js",
+  "name": "mime",
+  "repository": {
+    "url": "git://github.com/broofa/node-mime.git",
+    "type": "git"
+  },
+  "version": "1.2.7",
+  "_npmUser": {
+    "name": "mikeal",
+    "email": "mikeal.rogers@gmail.com"
+  },
+  "_id": "mime@1.2.7",
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "_engineSupported": true,
+  "_npmVersion": "1.1.24",
+  "_nodeVersion": "v0.8.1",
+  "_defaultsLoaded": true,
+  "_from": "mime"
+}

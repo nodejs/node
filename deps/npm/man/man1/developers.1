@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-DEVELOPERS" "1" "April 2013" "" ""
+.TH "NPM\-DEVELOPERS" "1" "May 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-developers\fR \-\- Developer Guide
@@ -137,10 +137,62 @@ more info\.
 .
 .SH "Keeping files "
 Use a \fB\|\.npmignore\fR file to keep stuff out of your package\.  If there\'s
-no \.npmignore file, but there \fIis\fR a \.gitignore file, then npm will
-ignore the stuff matched by the \.gitignore file\.  If you \fIwant\fR to
-include something that is excluded by your \.gitignore file, you can
-create an empty \.npmignore file to override it\.
+no \fB\|\.npmignore\fR file, but there \fIis\fR a \fB\|\.gitignore\fR file, then npm will
+ignore the stuff matched by the \fB\|\.gitignore\fR file\.  If you \fIwant\fR to
+include something that is excluded by your \fB\|\.gitignore\fR file, you can
+create an empty \fB\|\.npmignore\fR file to override it\.
+.
+.P
+By default, the following paths and files are ignored, so there\'s no
+need to add them to \fB\|\.npmignore\fR explicitly:
+.
+.IP "\(bu" 4
+\fB\|\.*\.swp\fR
+.
+.IP "\(bu" 4
+\fB\|\._*\fR
+.
+.IP "\(bu" 4
+\fB\|\.DS_Store\fR
+.
+.IP "\(bu" 4
+\fB\|\.git\fR
+.
+.IP "\(bu" 4
+\fB\|\.hg\fR
+.
+.IP "\(bu" 4
+\fB\|\.lock\-wscript\fR
+.
+.IP "\(bu" 4
+\fB\|\.svn\fR
+.
+.IP "\(bu" 4
+\fB\|\.wafpickle\-*\fR
+.
+.IP "\(bu" 4
+\fBCVS\fR
+.
+.IP "\(bu" 4
+\fBnpm\-debug\.log\fR
+.
+.IP "" 0
+.
+.P
+Additionally, everything in \fBnode_modules\fR is ignored, except for
+bundled dependencies\. npm automatically handles this for you, so don\'t
+bother adding \fBnode_modules\fR to \fB\|\.npmignore\fR\|\.
+.
+.P
+The following paths and files are never ignored, so adding them to \fB\|\.npmignore\fR is pointless:
+.
+.IP "\(bu" 4
+\fBpackage\.json\fR
+.
+.IP "\(bu" 4
+\fBREADME\.*\fR
+.
+.IP "" 0
 .
 .SH "Link Packages"
 \fBnpm link\fR is designed to install a development package and see the

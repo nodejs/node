@@ -5,10 +5,11 @@
 module.exports = submodule
 
 var npm = require("./npm.js")
-  , exec = require("./utils/exec.js")
+  , exec = require("child_process").execFile
   , cache = require("./cache.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
+  , which = require("which")
 
 submodule.usage = "npm submodule <pkg>"
 
@@ -55,37 +56,64 @@ function submodule_ (pkg, cb) {
 }
 
 function updateSubmodule (name, cb) {
-  exec( npm.config.get("git"), [ "submodule", "update", "--init"
-               , "node_modules/" + name ]
-      , null, true, npm.prefix, cb)
+  var git = npm.config.get("git")
+  var args = [ "submodule", "update", "--init", "node_modules/", name ]
+
+  // check for git
+  which(git, function (err) {
+    if (err) {
+      err.code = "ENOGIT"
+      return cb(err)
+    }
+
+    exec(git, args, cb)
+  })
 }
 
 function addSubmodule (name, url, cb) {
-  exec( npm.config.get("git"), [ "submodule", "add", url
-               , "node_modules/" + name ]
-      , null, true, npm.prefix, function (er) {
-    if (er) return cb(er)
-    updateSubmodule(name, cb)
+  var git = npm.config.get("git")
+  var args = [ "submodule", "add", url, "node_modules/", name ]
+
+  // check for git
+  which(git, function (err) {
+    if (err) {
+      err.code = "ENOGIT"
+      return cb(err)
+    }
+
+    exec(git, args, function (er) {
+      if (er) return cb(er)
+      updateSubmodule(name, cb)
+    })
   })
 }
 
 
 var getSubmodules = function getSubmodules (cb) {
-  exec( npm.config.get("git"), ["submodule", "status"], null, false
-      , npm.prefix, function (er, code, stdout, stderr) {
-    if (er) return cb(er)
-    res = stdout.trim().split(/\n/).map(function (line) {
-      return line.trim().split(/\s+/)[1]
-    }).filter(function (line) {
-      // only care about submodules in the node_modules folder.
-      return line && line.match(/^node_modules\//)
-    }).map(function (line) {
-      return line.replace(/^node_modules\//g, "")
+  var git = npm.config.get("git")
+  var arg = [ "submodule", "status" ]
+
+  // check for git
+  which(git, function (err) {
+    if (err) {
+      err.code = "ENOGIT"
+      return cb(err)
+    }
+    exec(git, args, function (er, stdout, stderr) {
+      if (er) return cb(er)
+      res = stdout.trim().split(/\n/).map(function (line) {
+        return line.trim().split(/\s+/)[1]
+      }).filter(function (line) {
+        // only care about submodules in the node_modules folder.
+        return line && line.match(/^node_modules\//)
+      }).map(function (line) {
+        return line.replace(/^node_modules\//g, "")
+      })
+
+      // memoize.
+      getSubmodules = function (cb) { return cb(null, res) }
+
+      cb(null, res)
     })
-
-    // memoize.
-    getSubmodules = function (cb) { return cb(null, res) }
-
-    cb(null, res)
   })
 }

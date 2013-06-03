@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CONFIG" "1" "April 2013" "" ""
+.TH "NPM\-CONFIG" "1" "May 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-config\fR \-\- Manage the npm configuration file
@@ -310,7 +310,7 @@ ostensibly Unix systems\.
 .SS "browser"
 .
 .IP "\(bu" 4
-Default: OS X: \fB"open"\fR, others: \fB"google\-chrome"\fR
+Default: OS X: \fB"open"\fR, Windows: \fB"start"\fR, Others: \fB"xdg\-open"\fR
 .
 .IP "\(bu" 4
 Type: String
@@ -1244,6 +1244,20 @@ Type: path
 .
 .P
 The shell to run for the \fBnpm explore\fR command\.
+.
+.SS "shrinkwrap"
+.
+.IP "\(bu" 4
+Default: true
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+If set to false, then ignore \fBnpm\-shrinkwrap\.json\fR files when
+installing\.
 .
 .SS "sign\-git\-tag"
 .
