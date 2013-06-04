@@ -707,6 +707,17 @@
 * Fix #3521 Make process.env more like a regular Object (isaacs)
 
 
+2013.06.04, Version 0.8.24 (maintenance), c1a1ab067721ea17ef7b05ec5c68b01321017f05
+
+* npm: Upgrade to v1.2.24
+
+* url: Properly parse certain oddly formed urls (isaacs)
+
+* http: Don't try to destroy nonexistent sockets (isaacs)
+
+* handle_wrap: fix NULL pointer dereference (Ben Noordhuis)
+
+
 2013.04.09, Version 0.8.23 (maintenance), c67f8d0500fe15637a623eb759d2ad7eb9fb3b0b
 
 * npm: Upgrade to v1.2.18
