@@ -34,9 +34,9 @@ extern QUEUE req_wrap_queue;
 template <typename T>
 class ReqWrap {
 public:
-  ReqWrap() {
+  ReqWrap(v8::Handle<v8::Object> object = v8::Handle<v8::Object>()) {
     v8::HandleScope scope(node_isolate);
-    v8::Local<v8::Object> object = v8::Object::New();
+    if (object.IsEmpty()) object = v8::Object::New();
     persistent().Reset(node_isolate, object);
 
     if (using_domains) {
