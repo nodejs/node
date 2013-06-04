@@ -207,7 +207,8 @@ docopen: out/doc/api/all.html
 docclean:
 	-rm -rf out/doc
 
-VERSION=v$(shell $(PYTHON) tools/getnodeversion.py)
+RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
+VERSION=v$(RAWVER)
 RELEASE=$(shell $(PYTHON) tools/getnodeisrelease.py)
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
 ifeq ($(findstring x86_64,$(shell uname -m)),x86_64)
@@ -234,6 +235,11 @@ BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 BINARYTAR=$(BINARYNAME).tar.gz
 PKG=out/$(TARNAME).pkg
 packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
+
+PKGSRC=nodejs-$(DESTCPU)-$(RAWVER).tgz
+ifdef NIGHTLY
+PKGSRC=nodejs-$(DESTCPU)-$(RAWVER)-$(TAG).tgz
+endif
 
 dist: doc $(TARBALL) $(PKG)
 
@@ -311,6 +317,19 @@ $(BINARYTAR): release-only
 	gzip -f -9 $(BINARYNAME).tar
 
 binary: $(BINARYTAR)
+
+$(PKGSRC): release-only
+	rm -rf dist out
+	$(PYTHON) configure --prefix=/ --without-snapshot \
+		--dest-cpu=$(DESTCPU) --tag=$(TAG) $(CONFIG_FLAGS)
+	$(MAKE) install DESTDIR=dist
+	(cd dist; find * -type f | sort) > packlist
+	pkg_info -X pkg_install | \
+		egrep '^(MACHINE_ARCH|OPSYS|OS_VERSION|PKGTOOLS_VERSION)' > build-info
+	pkg_create -B build-info -c tools/pkgsrc/comment -d tools/pkgsrc/description \
+		-f packlist -I /opt/local -p dist -U $(PKGSRC)
+
+pkgsrc: $(PKGSRC)
 
 dist-upload: $(TARBALL) $(PKG)
 	ssh node@nodejs.org mkdir -p web/nodejs.org/dist/$(VERSION)
