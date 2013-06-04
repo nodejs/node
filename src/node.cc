@@ -93,8 +93,8 @@ extern char **environ;
 
 namespace node {
 
-ngx_queue_t handle_wrap_queue = { &handle_wrap_queue, &handle_wrap_queue };
-ngx_queue_t req_wrap_queue = { &req_wrap_queue, &req_wrap_queue };
+QUEUE handle_wrap_queue = { &handle_wrap_queue, &handle_wrap_queue };
+QUEUE req_wrap_queue = { &req_wrap_queue, &req_wrap_queue };
 
 // declared in req_wrap.h
 Persistent<String> process_symbol;
@@ -1249,10 +1249,10 @@ static Handle<Value> GetActiveRequests(const Arguments& args) {
   HandleScope scope(node_isolate);
 
   Local<Array> ary = Array::New();
-  ngx_queue_t* q = NULL;
+  QUEUE* q = NULL;
   int i = 0;
 
-  ngx_queue_foreach(q, &req_wrap_queue) {
+  QUEUE_FOREACH(q, &req_wrap_queue) {
     ReqWrap<uv_req_t>* w = container_of(q, ReqWrap<uv_req_t>, req_wrap_queue_);
     if (w->object_.IsEmpty()) continue;
     ary->Set(i++, w->object_);
@@ -1268,12 +1268,12 @@ Handle<Value> GetActiveHandles(const Arguments& args) {
   HandleScope scope(node_isolate);
 
   Local<Array> ary = Array::New();
-  ngx_queue_t* q = NULL;
+  QUEUE* q = NULL;
   int i = 0;
 
   Local<String> owner_sym = String::New("owner");
 
-  ngx_queue_foreach(q, &handle_wrap_queue) {
+  QUEUE_FOREACH(q, &handle_wrap_queue) {
     HandleWrap* w = container_of(q, HandleWrap, handle_wrap_queue_);
     if (w->object_.IsEmpty() || (w->flags_ & HandleWrap::kUnref)) continue;
     Local<Value> obj = w->object_->Get(owner_sym);

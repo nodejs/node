@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
-#include "ngx-queue.h"
+#include "queue.h"
 #include "handle_wrap.h"
 
 namespace node {
@@ -43,7 +43,7 @@ using v8::Value;
 
 
 // defined in node.cc
-extern ngx_queue_t handle_wrap_queue;
+extern QUEUE handle_wrap_queue;
 static Persistent<String> close_sym;
 
 
@@ -115,13 +115,13 @@ HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
   assert(object->InternalFieldCount() > 0);
   object_ = v8::Persistent<v8::Object>::New(node_isolate, object);
   object_->SetAlignedPointerInInternalField(0, this);
-  ngx_queue_insert_tail(&handle_wrap_queue, &handle_wrap_queue_);
+  QUEUE_INSERT_TAIL(&handle_wrap_queue, &handle_wrap_queue_);
 }
 
 
 HandleWrap::~HandleWrap() {
   assert(object_.IsEmpty());
-  ngx_queue_remove(&handle_wrap_queue_);
+  QUEUE_REMOVE(&handle_wrap_queue_);
 }
 
 

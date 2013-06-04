@@ -22,7 +22,7 @@
 #ifndef HANDLE_WRAP_H_
 #define HANDLE_WRAP_H_
 
-#include "ngx-queue.h"
+#include "queue.h"
 
 namespace node {
 
@@ -70,7 +70,7 @@ class HandleWrap {
   private:
     friend v8::Handle<v8::Value> GetActiveHandles(const v8::Arguments&);
     static void OnClose(uv_handle_t* handle);
-    ngx_queue_t handle_wrap_queue_;
+    QUEUE handle_wrap_queue_;
     // Using double underscore due to handle_ member in tcp_wrap. Probably
     // tcp_wrap should rename it's member to 'handle'.
     uv_handle_t* handle__;

@@ -22,7 +22,7 @@
 #ifndef REQ_WRAP_H_
 #define REQ_WRAP_H_
 
-#include "ngx-queue.h"
+#include "queue.h"
 #include "node_internals.h"
 
 namespace node {
@@ -30,7 +30,7 @@ namespace node {
 // defined in node.cc
 extern v8::Persistent<v8::String> process_symbol;
 extern v8::Persistent<v8::String> domain_symbol;
-extern ngx_queue_t req_wrap_queue;
+extern QUEUE req_wrap_queue;
 
 template <typename T>
 class ReqWrap {
@@ -51,12 +51,12 @@ class ReqWrap {
       }
     }
 
-    ngx_queue_insert_tail(&req_wrap_queue, &req_wrap_queue_);
+    QUEUE_INSERT_TAIL(&req_wrap_queue, &req_wrap_queue_);
   }
 
 
   ~ReqWrap() {
-    ngx_queue_remove(&req_wrap_queue_);
+    QUEUE_REMOVE(&req_wrap_queue_);
     // Assert that someone has called Dispatched()
     assert(req_.data == this);
     assert(!object_.IsEmpty());
@@ -70,7 +70,7 @@ class ReqWrap {
   }
 
   v8::Persistent<v8::Object> object_;
-  ngx_queue_t req_wrap_queue_;
+  QUEUE req_wrap_queue_;
   void* data_;
   T req_; // *must* be last, GetActiveRequests() in node.cc depends on it
 };
