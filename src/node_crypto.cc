@@ -43,16 +43,19 @@
 # define OPENSSL_CONST
 #endif
 
-#define ASSERT_IS_STRING_OR_BUFFER(val) \
-  if (!Buffer::HasInstance(val) && !val->IsString()) { \
-    return ThrowException(Exception::TypeError(String::New( \
-            "Not a string or buffer"))); \
-  }
+#define ASSERT_IS_STRING_OR_BUFFER(val) do {                  \
+    if (!Buffer::HasInstance(val) && !val->IsString()) {      \
+      return ThrowException(Exception::TypeError(String::New( \
+              "Not a string or buffer")));                    \
+    }                                                         \
+  } while (0)
 
-#define ASSERT_IS_BUFFER(val) \
-  if (!Buffer::HasInstance(val)) { \
-    return ThrowException(Exception::TypeError(String::New("Not a buffer"))); \
-  }
+#define ASSERT_IS_BUFFER(val) do {                            \
+    if (!Buffer::HasInstance(val)) {                          \
+      return ThrowException(Exception::TypeError(String::New( \
+              "Not a buffer")));                              \
+    }                                                         \
+  } while (0)
 
 static const char PUBLIC_KEY_PFX[] =  "-----BEGIN PUBLIC KEY-----";
 static const int PUBLIC_KEY_PFX_LEN = sizeof(PUBLIC_KEY_PFX) - 1;
