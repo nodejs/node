@@ -1,0 +1,8 @@
+{
+  "author": "Rocko Artischocko",
+  "name": "ignore-shrinkwrap",
+  "version": "0.0.0",
+  "dependencies": {
+    "npm-test-ignore-shrinkwrap-file": "http://localhost:1337/package.js"
+  }
+}

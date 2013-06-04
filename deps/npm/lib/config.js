@@ -17,6 +17,7 @@ var log = require("npmlog")
   , types = npmconf.defs.types
   , ini = require("ini")
   , editor = require("editor")
+  , os = require("os")
 
 config.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -63,7 +64,6 @@ function edit (cb) {
   var e = npm.config.get("editor")
     , which = npm.config.get("global") ? "global" : "user"
     , f = npm.config.get(which + "config")
-    , eol = process.platform === "win32" ? "\r\n" : "\n"
   if (!e) return cb(new Error("No EDITOR config or environ set."))
   npm.config.save(which, function (er) {
     if (er) return cb(er)
@@ -87,7 +87,7 @@ function edit (cb) {
                 return "; " + k + " = " + npmconf.defaults[k]
               }))
               .concat([""])
-              .join(eol)
+              .join(os.EOL)
       fs.writeFile
         ( f
         , data
