@@ -1,4 +1,15 @@
-2013.05.30, Version 0.10.9 (Stable)
+2013.06.04, Version 0.10.10 (Stable)
+
+* uv: Upgrade to 0.10.10
+
+* npm: Upgrade to 1.2.25
+
+* url: Properly parse certain oddly formed urls (isaacs)
+
+* stream: unshift('') is a noop (isaacs)
+
+
+2013.05.30, Version 0.10.9 (Stable), 878ffdbe6a8eac918ef3a7f13925681c3778060b
 
 * npm: Upgrade to 1.2.24
 
