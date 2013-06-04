@@ -287,7 +287,28 @@ UV_EXTERN void uv_stop(uv_loop_t*);
 UV_EXTERN void uv_ref(uv_handle_t*);
 UV_EXTERN void uv_unref(uv_handle_t*);
 
+/*
+ * Update the event loop's concept of "now". Libuv caches the current time
+ * at the start of the event loop tick in order to reduce the number of
+ * time-related system calls.
+ *
+ * You won't normally need to call this function unless you have callbacks
+ * that block the event loop for longer periods of time, where "longer" is
+ * somewhat subjective but probably on the order of a millisecond or more.
+ */
 UV_EXTERN void uv_update_time(uv_loop_t*);
+
+/*
+ * Return the current timestamp in milliseconds. The timestamp is cached at
+ * the start of the event loop tick, see |uv_update_time()| for details and
+ * rationale.
+ *
+ * The timestamp increases monotonically from some arbitrary point in time.
+ * Don't make assumptions about the starting point, you will only get
+ * disappointed.
+ *
+ * Use uv_hrtime() if you need sub-milliseond granularity.
+ */
 UV_EXTERN uint64_t uv_now(uv_loop_t*);
 
 /*
@@ -1819,8 +1840,6 @@ UV_EXTERN extern uint64_t uv_hrtime(void);
  * Note that this function works on a best-effort basis: there is no guarantee
  * that libuv can discover all file descriptors that were inherited. In general
  * it does a better job on Windows than it does on unix.
- *
- * TODO(bb): insert snarky remark to annoy bnoordhuis and the folks at joyent.
  */
 UV_EXTERN void uv_disable_stdio_inheritance(void);
 

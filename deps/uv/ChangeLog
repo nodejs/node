@@ -1,4 +1,21 @@
-2013.05.29, Version 0.10.9 (Stable)
+2013.06.05, Version 0.10.10 (Stable)
+
+Changes since version 0.10.9:
+
+* include: document uv_update_time() and uv_now() (Ben Noordhuis)
+
+* linux: fix cpu model parsing on newer arm kernels (Ben Noordhuis)
+
+* linux: fix memory leak in uv_cpu_info() error path (Ben Noordhuis)
+
+* linux: don't ignore OOM errors in uv_cpu_info() (Ben Noordhuis)
+
+* unix, windows: move uv_now() to uv-common.c (Ben Noordhuis)
+
+* darwin: make uv_fs_sendfile() respect length param (Wynn Wilkes)
+
+
+2013.05.29, Version 0.10.9 (Stable), a195f9ace23d92345baf57582678bfc3017e6632
 
 Changes since version 0.10.8:
 
