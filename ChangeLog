@@ -60,6 +60,17 @@
 * zlib: allow passing options to convenience methods (Kyle Robinson Young)
 
 
+2013.06.04, Version 0.10.10 (Stable), 25e51c396aa23018603baae2b1d9390f5d9db496
+
+* uv: Upgrade to 0.10.10
+
+* npm: Upgrade to 1.2.25
+
+* url: Properly parse certain oddly formed urls (isaacs)
+
+* stream: unshift('') is a noop (isaacs)
+
+
 2013.05.30, Version 0.10.9 (Stable), 878ffdbe6a8eac918ef3a7f13925681c3778060b
 
 * npm: Upgrade to 1.2.24
@@ -804,6 +815,17 @@
 * readline: Use one history item for reentered line (Vladimir Beloborodov)
 
 * Fix #3521 Make process.env more like a regular Object (isaacs)
+
+
+2013.06.04, Version 0.8.24 (maintenance), c1a1ab067721ea17ef7b05ec5c68b01321017f05
+
+* npm: Upgrade to v1.2.24
+
+* url: Properly parse certain oddly formed urls (isaacs)
+
+* http: Don't try to destroy nonexistent sockets (isaacs)
+
+* handle_wrap: fix NULL pointer dereference (Ben Noordhuis)
 
 
 2013.04.09, Version 0.8.23 (maintenance), c67f8d0500fe15637a623eb759d2ad7eb9fb3b0b

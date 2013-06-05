@@ -752,6 +752,45 @@ var parseTests = {
     href: 'http://x:1/%27%20%3C%3E%22%60/%7B%7D%7C%5C%5E~%60/'
   },
 
+  'http://a@b@c/': {
+    protocol: 'http:',
+    slashes: true,
+    auth: 'a@b',
+    host: 'c',
+    hostname: 'c',
+    href: 'http://a%40b@c/',
+    path: '/',
+    pathname: '/'
+  },
+
+  'http://a@b?@c': {
+    protocol: 'http:',
+    slashes: true,
+    auth: 'a',
+    host: 'b',
+    hostname: 'b',
+    href: 'http://a@b/?@c',
+    path: '/?@c',
+    pathname: '/',
+    search: '?@c',
+    query: '@c'
+  },
+
+  'http://a\r" \t\n<\'b:b@c\r\nd/e?f':{
+    protocol: 'http:',
+    slashes: true,
+    auth: 'a\r" \t\n<\'b:b',
+    host: 'c',
+    port: null,
+    hostname: 'c',
+    hash: null,
+    search: '?f',
+    query: 'f',
+    pathname: '%0D%0Ad/e',
+    path: '%0D%0Ad/e?f',
+    href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
+  }
+
 };
 
 for (var u in parseTests) {

@@ -304,7 +304,7 @@ function writeLogFile (cb) {
   var fs = require("graceful-fs")
     , fstr = fs.createWriteStream("npm-debug.log")
     , util = require("util")
-    , eol = process.platform === "win32" ? "\r\n" : "\n"
+    , os = require("os")
     , out = ""
 
   log.record.forEach(function (m) {
@@ -315,7 +315,7 @@ function writeLogFile (cb) {
     m.message.trim().split(/\r?\n/).map(function (line) {
       return (pref + ' ' + line).trim()
     }).forEach(function (line) {
-      out += line + eol
+      out += line + os.EOL
     })
   })
 
