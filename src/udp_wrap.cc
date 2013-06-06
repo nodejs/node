@@ -47,9 +47,6 @@ using v8::Value;
 
 typedef ReqWrap<uv_udp_send_t> SendWrap;
 
-// see tcp_wrap.cc
-Local<Object> AddressToJS(const sockaddr* addr);
-
 static Persistent<Function> constructor;
 static Cached<String> buffer_sym;
 static Cached<String> oncomplete_sym;

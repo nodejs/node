@@ -53,8 +53,6 @@ static Cached<String> onconnection_sym;
 
 typedef class ReqWrap<uv_connect_t> ConnectWrap;
 
-Local<Object> AddressToJS(const sockaddr* addr);
-
 
 Local<Object> TCPWrap::Instantiate() {
   // If this assert fire then process.binding('tcp_wrap') hasn't been
@@ -417,7 +415,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
 
 
 // also used by udp_wrap.cc
-Local<Object> AddressToJS(const sockaddr* addr) {
+Local<Object> AddressToJS(const sockaddr* addr, Handle<Object> info) {
   static Cached<String> address_sym;
   static Cached<String> family_sym;
   static Cached<String> port_sym;
@@ -438,7 +436,7 @@ Local<Object> AddressToJS(const sockaddr* addr) {
     ipv6_sym = String::New("IPv6");
   }
 
-  Local<Object> info = Object::New();
+  if (info.IsEmpty()) info = Object::New();
 
   switch (addr->sa_family) {
   case AF_INET6:

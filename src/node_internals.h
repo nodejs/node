@@ -25,6 +25,9 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
 #include "v8.h"
 
 namespace node {
@@ -97,6 +100,13 @@ inline bool HasInstance(v8::Persistent<v8::FunctionTemplate>& function_template,
 inline v8::Local<v8::Object> NewInstance(v8::Persistent<v8::Function>& ctor,
                                           int argc = 0,
                                           v8::Handle<v8::Value>* argv = NULL);
+
+// Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
+// Sets address and port properties on the info object and returns it.
+// If |info| is omitted, a new object is returned.
+v8::Local<v8::Object> AddressToJS(
+    const sockaddr* addr,
+    v8::Handle<v8::Object> info = v8::Handle<v8::Object>());
 
 #ifdef _WIN32
 // emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
