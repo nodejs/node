@@ -97,6 +97,7 @@ proto.shorthands = {
     release: '--no-debug'
   , C: '--directory'
   , debug: '--debug'
+  , j: '--jobs'
   , silly: '--loglevel=silly'
   , verbose: '--loglevel=verbose'
 }
