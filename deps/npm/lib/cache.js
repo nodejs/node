@@ -520,6 +520,16 @@ function archiveGitRemote (p, u, co, origUrl, cb) {
       var parsed = url.parse(origUrl)
       parsed.hash = stdout
       resolved = url.format(parsed)
+
+      // https://github.com/isaacs/npm/issues/3224
+      // node incorrectly sticks a / at the start of the path
+      // We know that the host won't change, so split and detect this
+      var spo = origUrl.split(parsed.host)
+      var spr = resolved.split(parsed.host)
+      if (spo[1].charAt(0) === ':' && spr[1].charAt(0) === '/')
+        spr[1] = spr[1].slice(1)
+      resolved = spr.join(parsed.host)
+
       log.verbose('resolved git url', resolved)
       next()
     })
