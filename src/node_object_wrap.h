@@ -37,8 +37,6 @@
 
 namespace node {
 
-extern v8::Isolate* node_isolate;
-
 class NODE_EXTERN ObjectWrap {
  public:
   ObjectWrap ( ) {
@@ -48,10 +46,11 @@ class NODE_EXTERN ObjectWrap {
 
   virtual ~ObjectWrap ( ) {
     if (!handle_.IsEmpty()) {
-      assert(handle_.IsNearDeath(node_isolate));
-      handle_.ClearWeak(node_isolate);
+      v8::Isolate* isolate = v8::Isolate::GetCurrent();
+      assert(handle_.IsNearDeath(isolate));
+      handle_.ClearWeak(isolate);
       handle_->SetAlignedPointerInInternalField(0, 0);
-      handle_.Dispose(node_isolate);
+      handle_.Dispose(isolate);
       handle_.Clear();
     }
   }
@@ -71,15 +70,17 @@ class NODE_EXTERN ObjectWrap {
   inline void Wrap (v8::Handle<v8::Object> handle) {
     assert(handle_.IsEmpty());
     assert(handle->InternalFieldCount() > 0);
-    handle_ = v8::Persistent<v8::Object>::New(node_isolate, handle);
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    handle_ = v8::Persistent<v8::Object>::New(isolate, handle);
     handle_->SetAlignedPointerInInternalField(0, this);
     MakeWeak();
   }
 
 
   inline void MakeWeak (void) {
-    handle_.MakeWeak(node_isolate, this, WeakCallback);
-    handle_.MarkIndependent(node_isolate);
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    handle_.MakeWeak(isolate, this, WeakCallback);
+    handle_.MarkIndependent(isolate);
   }
 
   /* Ref() marks the object as being attached to an event loop.
@@ -89,7 +90,7 @@ class NODE_EXTERN ObjectWrap {
   virtual void Ref() {
     assert(!handle_.IsEmpty());
     refs_++;
-    handle_.ClearWeak(node_isolate);
+    handle_.ClearWeak(v8::Isolate::GetCurrent());
   }
 
   /* Unref() marks an object as detached from the event loop.  This is its
@@ -103,7 +104,7 @@ class NODE_EXTERN ObjectWrap {
    */
   virtual void Unref() {
     assert(!handle_.IsEmpty());
-    assert(!handle_.IsWeak(node_isolate));
+    assert(!handle_.IsWeak(v8::Isolate::GetCurrent()));
     assert(refs_ > 0);
     if (--refs_ == 0) { MakeWeak(); }
   }
@@ -113,18 +114,18 @@ class NODE_EXTERN ObjectWrap {
 
 
  private:
-  static void WeakCallback(v8::Isolate* env,
+  static void WeakCallback(v8::Isolate* isolate,
                            v8::Persistent<v8::Value> value,
                            void* data) {
-    v8::HandleScope scope(node_isolate);
-
+    v8::HandleScope scope(isolate);
     ObjectWrap *obj = static_cast<ObjectWrap*>(data);
     assert(value == obj->handle_);
     assert(!obj->refs_);
-    assert(value.IsNearDeath(env));
+    assert(value.IsNearDeath(isolate));
     delete obj;
   }
 };
 
 } // namespace node
+
 #endif // object_wrap_h
