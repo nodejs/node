@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "node.h"
 #include "smalloc.h"
 #include "v8.h"
 
@@ -31,29 +32,29 @@ namespace Buffer {
 
 static const unsigned int kMaxLength = smalloc::kMaxLength;
 
-bool HasInstance(v8::Handle<v8::Value> val);
-bool HasInstance(v8::Handle<v8::Object> val);
-char* Data(v8::Handle<v8::Value> val);
-char* Data(v8::Handle<v8::Object> val);
-size_t Length(v8::Handle<v8::Value> val);
-size_t Length(v8::Handle<v8::Object> val);
+NODE_EXTERN bool HasInstance(v8::Handle<v8::Value> val);
+NODE_EXTERN bool HasInstance(v8::Handle<v8::Object> val);
+NODE_EXTERN char* Data(v8::Handle<v8::Value> val);
+NODE_EXTERN char* Data(v8::Handle<v8::Object> val);
+NODE_EXTERN size_t Length(v8::Handle<v8::Value> val);
+NODE_EXTERN size_t Length(v8::Handle<v8::Object> val);
 
 // public constructor
-v8::Local<v8::Object> New(size_t length);
+NODE_EXTERN v8::Local<v8::Object> New(size_t length);
 // public constructor from string
-v8::Local<v8::Object> New(v8::Handle<v8::String> string);
+NODE_EXTERN v8::Local<v8::Object> New(v8::Handle<v8::String> string);
 // public constructor - data is copied
 // TODO(trevnorris): should be something like Copy()
-v8::Local<v8::Object> New(const char* data, size_t len);
+NODE_EXTERN v8::Local<v8::Object> New(const char* data, size_t len);
 // public constructor - data is used, callback is passed data on object gc
-v8::Local<v8::Object> New(char* data,
-                          size_t length,
-                          smalloc::FreeCallback callback,
-                          void* hint);
+NODE_EXTERN v8::Local<v8::Object> New(char* data,
+                                      size_t length,
+                                      smalloc::FreeCallback callback,
+                                      void* hint);
 
 // public constructor - data is used.
 // TODO(trevnorris): should be New() for consistency
-v8::Local<v8::Object> Use(char* data, uint32_t len);
+NODE_EXTERN v8::Local<v8::Object> Use(char* data, uint32_t len);
 
 }  // namespace Buffer
 

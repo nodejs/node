@@ -22,6 +22,7 @@
 #ifndef NODE_SMALLOC_H_
 #define NODE_SMALLOC_H_
 
+#include "node.h"
 #include "v8.h"
 
 namespace node {
@@ -38,29 +39,29 @@ namespace smalloc {
 // mirrors deps/v8/src/objects.h
 static const unsigned int kMaxLength = 0x3fffffff;
 
-typedef void (*FreeCallback)(char* data, void* hint);
+NODE_EXTERN typedef void (*FreeCallback)(char* data, void* hint);
 
 /**
  * Allocate external memory and set to passed object. If data is passed then
  * will use that instead of allocating new.
  */
-void Alloc(v8::Handle<v8::Object> obj, size_t length);
-void Alloc(v8::Handle<v8::Object> obj, char* data, size_t length);
-void Alloc(v8::Handle<v8::Object> obj,
-           size_t length,
-           FreeCallback fn,
-           void* hint);
-void Alloc(v8::Handle<v8::Object> obj,
-           char* data,
-           size_t length,
-           FreeCallback fn,
-           void* hint);
+NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj, size_t length);
+NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj, char* data, size_t length);
+NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj,
+                       size_t length,
+                       FreeCallback fn,
+                       void* hint);
+NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj,
+                       char* data,
+                       size_t length,
+                       FreeCallback fn,
+                       void* hint);
 
 /**
  * Free memory associated with an externally allocated object. If no external
  * memory is allocated to the object then nothing will happen.
  */
-void AllocDispose(v8::Handle<v8::Object> obj);
+NODE_EXTERN void AllocDispose(v8::Handle<v8::Object> obj);
 
 }  // namespace smalloc
 
