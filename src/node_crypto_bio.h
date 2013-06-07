@@ -62,6 +62,10 @@ class NodeBIO {
   // Read `len` bytes maximum into `out`, return actual number of read bytes
   size_t Read(char* out, size_t size);
 
+  // Memory optimization:
+  // Deallocate children of write head's child if they're empty
+  void FreeEmpty();
+
   // Find first appearance of `delim` in buffer or `limit` if `delim`
   // wasn't found.
   size_t IndexOf(char delim, size_t limit);

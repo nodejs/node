@@ -210,7 +210,31 @@ size_t NodeBIO::Read(char* out, size_t size) {
   assert(expected == bytes_read);
   length_ -= bytes_read;
 
+  // Free all empty buffers, but write_head's child
+  FreeEmpty();
+
   return bytes_read;
+}
+
+
+void NodeBIO::FreeEmpty() {
+  Buffer* child = write_head_->next_;
+  if (child == write_head_ || child == read_head_)
+    return;
+  Buffer* cur = child->next_;
+  if (cur == write_head_ || cur == read_head_)
+    return;
+
+  while (cur != read_head_) {
+    assert(cur != write_head_);
+    assert(cur->write_pos_ == cur->read_pos_);
+
+    Buffer* next = cur->next_;
+    child->next_ = next;
+    delete cur;
+
+    cur = next;
+  }
 }
 
 
