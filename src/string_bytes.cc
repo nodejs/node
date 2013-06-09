@@ -97,9 +97,9 @@ static const int unbase64_table[] =
 #define unbase64(x) unbase64_table[(uint8_t)(x)]
 
 
-static inline size_t base64_decode(char *buf,
+static inline size_t base64_decode(char* buf,
                                    size_t len,
-                                   const char *src,
+                                   const char* src,
                                    const size_t srcLen) {
   char a, b, c, d;
   char* dst = buf;
@@ -148,9 +148,9 @@ static inline unsigned hex2bin(char c) {
 }
 
 
-static inline size_t hex_decode(char *buf,
+static inline size_t hex_decode(char* buf,
                                 size_t len,
-                                const char *src,
+                                const char* src,
                                 const size_t srcLen) {
   size_t i;
   for (i = 0; i < len && i * 2 + 1 < srcLen; ++i) {
@@ -170,7 +170,7 @@ size_t StringBytes::Write(char* buf,
                           enum encoding encoding,
                           int* chars_written) {
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   size_t len = 0;
   bool is_buffer = Buffer::HasInstance(val);
 
@@ -230,7 +230,7 @@ size_t StringBytes::Write(char* buf,
       len = str->Write(twobytebuf, 0, buflen, flags);
 
       for (size_t i = 0; i < buflen && i < len; i++) {
-        unsigned char *b = reinterpret_cast<unsigned char*>(&twobytebuf[i]);
+        unsigned char* b = reinterpret_cast<unsigned char*>(&twobytebuf[i]);
         buf[i] = b[0];
       }
 
@@ -264,7 +264,7 @@ size_t StringBytes::Write(char* buf,
 // Will always be at least big enough, but may have some extra
 // UTF8 can be as much as 3x the size, Base64 can have 1-2 extra bytes
 size_t StringBytes::StorageSize(Handle<Value> val, enum encoding encoding) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   size_t data_size = 0;
   bool is_buffer = Buffer::HasInstance(val);
 
@@ -311,7 +311,7 @@ size_t StringBytes::StorageSize(Handle<Value> val, enum encoding encoding) {
 
 
 size_t StringBytes::Size(Handle<Value> val, enum encoding encoding) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   size_t data_size = 0;
   bool is_buffer = Buffer::HasInstance(val);
 
@@ -541,11 +541,11 @@ static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
 Local<Value> StringBytes::Encode(const char* buf,
                                  size_t buflen,
                                  enum encoding encoding) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   assert(buflen <= Buffer::kMaxLength);
   if (!buflen && encoding != BUFFER)
-    return scope.Close(String::Empty());
+    return scope.Close(String::Empty(node_isolate));
 
   Local<String> val;
   switch (encoding) {
@@ -569,8 +569,8 @@ Local<Value> StringBytes::Encode(const char* buf,
 
     case BINARY: {
       // TODO(isaacs) use ExternalTwoByteString?
-      const unsigned char *cbuf = reinterpret_cast<const unsigned char*>(buf);
-      uint16_t * twobytebuf = new uint16_t[buflen];
+      const unsigned char* cbuf = reinterpret_cast<const unsigned char*>(buf);
+      uint16_t* twobytebuf = new uint16_t[buflen];
       for (size_t i = 0; i < buflen; i++) {
         // XXX is the following line platform independent?
         twobytebuf[i] = cbuf[i];
