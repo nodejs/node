@@ -29,6 +29,11 @@
 #include "node_buffer.h"
 #include "v8.h"
 
+// When creating strings >= this length v8's gc spins up and consumes
+// most of the execution time. For these cases it's more performant to
+// use external string resources.
+#define EXTERN_APEX 0xFBEE9
+
 namespace node {
 
 using v8::Local;
@@ -37,6 +42,64 @@ using v8::HandleScope;
 using v8::Object;
 using v8::String;
 using v8::Value;
+
+
+template <typename ResourceType, typename TypeName>
+class ExternString: public ResourceType {
+  public:
+    ~ExternString() {
+      delete[] data_;
+      node_isolate->AdjustAmountOfExternalAllocatedMemory(-length_);
+    }
+
+    const TypeName* data() const {
+      return data_;
+    }
+
+    size_t length() const {
+      return length_;
+    }
+
+    static Local<String> NewFromCopy(const TypeName* data, size_t length) {
+      HandleScope scope(node_isolate);
+
+      if (length == 0)
+        return scope.Close(String::Empty(node_isolate));
+
+      TypeName* new_data = new TypeName[length];
+      memcpy(new_data, data, length * sizeof(*new_data));
+
+      return scope.Close(ExternString<ResourceType, TypeName>::New(new_data,
+                                                                   length));
+    }
+
+    // uses "data" for external resource, and will be free'd on gc
+    static Local<String> New(const TypeName* data, size_t length) {
+      HandleScope scope(node_isolate);
+
+      if (length == 0)
+        return scope.Close(String::Empty(node_isolate));
+
+      ExternString* h_str = new ExternString<ResourceType, TypeName>(data,
+                                                                     length);
+      Local<String> str = String::NewExternal(h_str);
+      node_isolate->AdjustAmountOfExternalAllocatedMemory(length);
+
+      return scope.Close(str);
+    }
+
+  private:
+    ExternString(const TypeName* data, size_t length)
+      : data_(data), length_(length) { }
+    const TypeName* data_;
+    size_t length_;
+};
+
+
+typedef ExternString<String::ExternalAsciiStringResource,
+                     char> ExternOneByteString;
+typedef ExternString<String::ExternalStringResource,
+                     uint16_t> ExternTwoByteString;
 
 
 //// Base 64 ////
@@ -556,16 +619,23 @@ Local<Value> StringBytes::Encode(const char* buf,
       if (contains_non_ascii(buf, buflen)) {
         char* out = new char[buflen];
         force_ascii(buf, out, buflen);
-        val = String::NewFromOneByte(node_isolate,
-                                     reinterpret_cast<const uint8_t*>(out),
-                                     String::kNormalString,
-                                     buflen);
-        delete[] out;
+        if (buflen < EXTERN_APEX) {
+          val = String::NewFromOneByte(node_isolate,
+                                       reinterpret_cast<const uint8_t*>(out),
+                                       String::kNormalString,
+                                       buflen);
+          delete[] out;
+        } else {
+          val = ExternOneByteString::New(out, buflen);
+        }
       } else {
-        val = String::NewFromOneByte(node_isolate,
-                                     reinterpret_cast<const uint8_t*>(buf),
-                                     String::kNormalString,
-                                     buflen);
+        if (buflen < EXTERN_APEX)
+          val = String::NewFromOneByte(node_isolate,
+                                       reinterpret_cast<const uint8_t*>(buf),
+                                       String::kNormalString,
+                                       buflen);
+        else
+          val = ExternOneByteString::NewFromCopy(buf, buflen);
       }
       break;
 
@@ -576,13 +646,15 @@ Local<Value> StringBytes::Encode(const char* buf,
                                 buflen);
       break;
 
-    case BINARY: {
-      val = String::NewFromOneByte(node_isolate,
-                                   reinterpret_cast<const uint8_t*>(buf),
-                                   String::kNormalString,
-                                   buflen);
+    case BINARY:
+      if (buflen < EXTERN_APEX)
+        val = String::NewFromOneByte(node_isolate,
+                                     reinterpret_cast<const uint8_t*>(buf),
+                                     String::kNormalString,
+                                     buflen);
+      else
+        val = ExternOneByteString::NewFromCopy(buf, buflen);
       break;
-    }
 
     case BASE64: {
       size_t dlen = base64_encoded_size(buflen);
@@ -591,19 +663,27 @@ Local<Value> StringBytes::Encode(const char* buf,
       size_t written = base64_encode(buf, buflen, dst, dlen);
       assert(written == dlen);
 
-      val = String::NewFromOneByte(node_isolate,
-                                   reinterpret_cast<const uint8_t*>(dst),
-                                   String::kNormalString,
-                                   dlen);
-      delete[] dst;
+      if (dlen < EXTERN_APEX) {
+        val = String::NewFromOneByte(node_isolate,
+                                     reinterpret_cast<const uint8_t*>(dst),
+                                     String::kNormalString,
+                                     dlen);
+        delete[] dst;
+      } else {
+        val = ExternOneByteString::New(dst, dlen);
+      }
       break;
     }
 
     case UCS2: {
-      val = String::NewFromTwoByte(node_isolate,
-                                   reinterpret_cast<const uint16_t*>(buf),
-                                   String::kNormalString,
-                                   buflen / 2);
+      const uint16_t* out = reinterpret_cast<const uint16_t*>(buf);
+      if (buflen < EXTERN_APEX)
+        val = String::NewFromTwoByte(node_isolate,
+                                     out,
+                                     String::kNormalString,
+                                     buflen / 2);
+      else
+        val = ExternTwoByteString::NewFromCopy(out, buflen / 2);
       break;
     }
 
@@ -613,11 +693,15 @@ Local<Value> StringBytes::Encode(const char* buf,
       size_t written = hex_encode(buf, buflen, dst, dlen);
       assert(written == dlen);
 
-      val = String::NewFromOneByte(node_isolate,
-                                   reinterpret_cast<uint8_t*>(dst),
-                                   String::kNormalString,
-                                   dlen);
-      delete[] dst;
+      if (dlen < EXTERN_APEX) {
+        val = String::NewFromOneByte(node_isolate,
+                                     reinterpret_cast<const uint8_t*>(dst),
+                                     String::kNormalString,
+                                     dlen);
+        delete[] dst;
+      } else {
+        val = ExternOneByteString::New(dst, dlen);
+      }
       break;
     }
 
