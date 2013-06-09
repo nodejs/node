@@ -556,27 +556,31 @@ Local<Value> StringBytes::Encode(const char* buf,
       if (contains_non_ascii(buf, buflen)) {
         char* out = new char[buflen];
         force_ascii(buf, out, buflen);
-        val = String::New(out, buflen);
+        val = String::NewFromOneByte(node_isolate,
+                                     reinterpret_cast<const uint8_t*>(out),
+                                     String::kNormalString,
+                                     buflen);
         delete[] out;
       } else {
-        val = String::New(buf, buflen);
+        val = String::NewFromOneByte(node_isolate,
+                                     reinterpret_cast<const uint8_t*>(buf),
+                                     String::kNormalString,
+                                     buflen);
       }
       break;
 
     case UTF8:
-      val = String::New(buf, buflen);
+      val = String::NewFromUtf8(node_isolate,
+                                buf,
+                                String::kNormalString,
+                                buflen);
       break;
 
     case BINARY: {
-      // TODO(isaacs) use ExternalTwoByteString?
-      const unsigned char* cbuf = reinterpret_cast<const unsigned char*>(buf);
-      uint16_t* twobytebuf = new uint16_t[buflen];
-      for (size_t i = 0; i < buflen; i++) {
-        // XXX is the following line platform independent?
-        twobytebuf[i] = cbuf[i];
-      }
-      val = String::New(twobytebuf, buflen);
-      delete[] twobytebuf;
+      val = String::NewFromOneByte(node_isolate,
+                                   reinterpret_cast<const uint8_t*>(buf),
+                                   String::kNormalString,
+                                   buflen);
       break;
     }
 
@@ -587,14 +591,19 @@ Local<Value> StringBytes::Encode(const char* buf,
       size_t written = base64_encode(buf, buflen, dst, dlen);
       assert(written == dlen);
 
-      val = String::New(dst, dlen);
+      val = String::NewFromOneByte(node_isolate,
+                                   reinterpret_cast<const uint8_t*>(dst),
+                                   String::kNormalString,
+                                   dlen);
       delete[] dst;
       break;
     }
 
     case UCS2: {
-      const uint16_t* data = reinterpret_cast<const uint16_t*>(buf);
-      val = String::New(data, buflen / 2);
+      val = String::NewFromTwoByte(node_isolate,
+                                   reinterpret_cast<const uint16_t*>(buf),
+                                   String::kNormalString,
+                                   buflen / 2);
       break;
     }
 
@@ -604,7 +613,10 @@ Local<Value> StringBytes::Encode(const char* buf,
       size_t written = hex_encode(buf, buflen, dst, dlen);
       assert(written == dlen);
 
-      val = String::New(dst, dlen);
+      val = String::NewFromOneByte(node_isolate,
+                                   reinterpret_cast<uint8_t*>(dst),
+                                   String::kNormalString,
+                                   dlen);
       delete[] dst;
       break;
     }
