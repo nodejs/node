@@ -36,9 +36,9 @@
 
 namespace node {
 
-using v8::Local;
 using v8::Handle;
 using v8::HandleScope;
+using v8::Local;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -227,41 +227,65 @@ static inline size_t hex_decode(char* buf,
 }
 
 
+bool GetExternalParts(Handle<Value> val, const char** data, size_t* len) {
+  if (Buffer::HasInstance(val)) {
+    *data = Buffer::Data(val);
+    *len = Buffer::Length(val);
+    return true;
+
+  }
+
+  assert(val->IsString());
+  Local<String> str = Local<String>::New(val.As<String>());
+
+  if (str->IsExternalAscii()) {
+    const String::ExternalAsciiStringResource* ext;
+    ext = str->GetExternalAsciiStringResource();
+    *data = ext->data();
+    *len = ext->length();
+    return true;
+
+  } else if (str->IsExternal()) {
+    const String::ExternalStringResource* ext;
+    ext = str->GetExternalStringResource();
+    *data = reinterpret_cast<const char*>(ext->data());
+    *len = ext->length();
+    return true;
+  }
+
+  return false;
+}
+
+
 size_t StringBytes::Write(char* buf,
                           size_t buflen,
                           Handle<Value> val,
                           enum encoding encoding,
                           int* chars_written) {
-
   HandleScope scope(node_isolate);
+  const char* data;
   size_t len = 0;
-  bool is_buffer = Buffer::HasInstance(val);
-
-  // sometimes we use 'binary' when we mean 'buffer'
-  if (is_buffer && (encoding == BINARY || encoding == BUFFER)) {
-    // fast path, copy buffer data
-    Local<Object> valObj = Local<Object>::New(val.As<Object>());
-    const char* data = Buffer::Data(valObj);
-    size_t size = Buffer::Length(valObj);
-    size_t len = size < buflen ? size : buflen;
-    memcpy(buf, data, len);
-    return len;
-  }
+  bool is_extern = GetExternalParts(val, &data, &len);
 
   Local<String> str = val->ToString();
+  len = len < buflen ? len : buflen;
 
   int flags = String::NO_NULL_TERMINATION |
               String::HINT_MANY_WRITES_EXPECTED;
 
   switch (encoding) {
     case ASCII:
-      len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf),
-                              0,
-                              buflen,
-                              flags);
-      if (chars_written != NULL) {
+    case BINARY:
+    case BUFFER:
+      if (is_extern)
+        memcpy(buf, data, len);
+      else
+        len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf),
+                                0,
+                                buflen,
+                                flags);
+      if (chars_written != NULL)
         *chars_written = len;
-      }
       break;
 
     case UTF8:
@@ -269,50 +293,38 @@ size_t StringBytes::Write(char* buf,
       break;
 
     case UCS2:
-      len = str->Write(reinterpret_cast<uint16_t*>(buf), 0, buflen, flags);
-      if (chars_written != NULL) {
+      if (is_extern)
+        memcpy(buf, data, len * 2);
+      else
+        len = str->Write(reinterpret_cast<uint16_t*>(buf), 0, buflen, flags);
+      if (chars_written != NULL)
         *chars_written = len;
-      }
       len = len * sizeof(uint16_t);
       break;
 
-    case BASE64: {
-      String::AsciiValue value(str);
-      len = base64_decode(buf, buflen, *value, value.length());
+    case BASE64:
+      if (is_extern) {
+        base64_decode(buf, buflen, data, len);
+      } else {
+        String::AsciiValue value(str);
+        len = base64_decode(buf, buflen, *value, value.length());
+      }
       if (chars_written != NULL) {
         *chars_written = len;
       }
       break;
-    }
 
-    case BINARY:
-    case BUFFER: {
-      // TODO(isaacs): THIS IS AWFUL!!!
-      uint16_t* twobytebuf = new uint16_t[buflen];
-
-      len = str->Write(twobytebuf, 0, buflen, flags);
-
-      for (size_t i = 0; i < buflen && i < len; i++) {
-        unsigned char* b = reinterpret_cast<unsigned char*>(&twobytebuf[i]);
-        buf[i] = b[0];
+    case HEX:
+      if (is_extern) {
+        hex_decode(buf, buflen, data, len);
+      } else {
+        String::AsciiValue value(str);
+        len = hex_decode(buf, buflen, *value, value.length());
       }
-
-      if (chars_written != NULL) {
-        *chars_written = len;
-      }
-
-      delete[] twobytebuf;
-      break;
-    }
-
-    case HEX: {
-      String::AsciiValue value(str);
-      len = hex_decode(buf, buflen, *value, value.length());
       if (chars_written != NULL) {
         *chars_written = len * 2;
       }
       break;
-    }
 
     default:
       assert(0 && "unknown encoding");
