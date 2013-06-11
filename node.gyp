@@ -129,6 +129,7 @@
         'src/node_string.h',
         'src/node_version.h',
         'src/node_watchdog.h',
+        'src/node_wrap.h',
         'src/pipe_wrap.h',
         'src/queue.h',
         'src/tty_wrap.h',

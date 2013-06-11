@@ -123,6 +123,11 @@ static Persistent<String> enter_symbol;
 static Persistent<String> exit_symbol;
 static Persistent<String> disposed_symbol;
 
+// Essential for node_wrap.h
+Persistent<FunctionTemplate> pipeConstructorTmpl;
+Persistent<FunctionTemplate> ttyConstructorTmpl;
+Persistent<FunctionTemplate> tcpConstructorTmpl;
+Persistent<FunctionTemplate> udpConstructorTmpl;
 
 static bool print_eval = false;
 static bool force_repl = false;

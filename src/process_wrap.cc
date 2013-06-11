@@ -21,10 +21,7 @@
 
 #include "node.h"
 #include "handle_wrap.h"
-#include "pipe_wrap.h"
-#include "tty_wrap.h"
-#include "tcp_wrap.h"
-#include "udp_wrap.h"
+#include "node_wrap.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -116,21 +113,8 @@ class ProcessWrap : public HandleWrap {
             PipeWrap::Unwrap(stdio
                 ->Get(String::NewSymbol("handle")).As<Object>())->UVHandle());
       } else if (type->Equals(String::NewSymbol("wrap"))) {
-        uv_stream_t* stream = NULL;
-        Local<Value> wrapType = stdio->Get(String::NewSymbol("wrapType"));
-        if (wrapType->Equals(String::NewSymbol("pipe"))) {
-          stream = reinterpret_cast<uv_stream_t*>(PipeWrap::Unwrap(stdio
-              ->Get(String::NewSymbol("handle")).As<Object>())->UVHandle());
-        } else if (wrapType->Equals(String::NewSymbol("tty"))) {
-          stream = reinterpret_cast<uv_stream_t*>(TTYWrap::Unwrap(stdio
-              ->Get(String::NewSymbol("handle")).As<Object>())->UVHandle());
-        } else if (wrapType->Equals(String::NewSymbol("tcp"))) {
-          stream = reinterpret_cast<uv_stream_t*>(TCPWrap::Unwrap(stdio
-              ->Get(String::NewSymbol("handle")).As<Object>())->UVHandle());
-        } else if (wrapType->Equals(String::NewSymbol("udp"))) {
-          stream = reinterpret_cast<uv_stream_t*>(UDPWrap::Unwrap(stdio
-              ->Get(String::NewSymbol("handle")).As<Object>())->UVHandle());
-        }
+        uv_stream_t* stream = HandleToStream(
+            stdio->Get(String::NewSymbol("handle")).As<Object>());
         assert(stream != NULL);
 
         options->stdio[i].flags = UV_INHERIT_STREAM;

@@ -25,6 +25,7 @@
 #include "handle_wrap.h"
 #include "stream_wrap.h"
 #include "pipe_wrap.h"
+#include "node_wrap.h"
 
 namespace node {
 
@@ -44,7 +45,8 @@ using v8::String;
 using v8::TryCatch;
 using v8::Value;
 
-Persistent<Function> pipeConstructor;
+extern Persistent<FunctionTemplate> pipeConstructorTmpl;
+static Persistent<Function> pipeConstructor;
 
 static Persistent<String> onconnection_sym;
 static Persistent<String> oncomplete_sym;
@@ -114,6 +116,7 @@ void PipeWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "setPendingInstances", SetPendingInstances);
 #endif
 
+  pipeConstructorTmpl = Persistent<FunctionTemplate>::New(node_isolate, t);
   pipeConstructor = Persistent<Function>::New(node_isolate, t->GetFunction());
 
   target->Set(String::NewSymbol("Pipe"), pipeConstructor);

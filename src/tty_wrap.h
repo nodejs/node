@@ -34,7 +34,7 @@ using v8::Value;
 using v8::Arguments;
 
 
-class TTYWrap : StreamWrap {
+class TTYWrap : public StreamWrap {
  public:
   static void Initialize(Handle<Object> target);
   static TTYWrap* Unwrap(Local<Object> obj);

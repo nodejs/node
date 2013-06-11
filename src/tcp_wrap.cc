@@ -25,6 +25,7 @@
 #include "handle_wrap.h"
 #include "stream_wrap.h"
 #include "tcp_wrap.h"
+#include "node_wrap.h"
 
 #include <stdlib.h>
 
@@ -120,6 +121,7 @@ void TCPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
 #endif
 
+  tcpConstructorTmpl = Persistent<FunctionTemplate>::New(node_isolate, t);
   tcpConstructor = Persistent<Function>::New(node_isolate, t->GetFunction());
 
   onconnection_sym = NODE_PSYMBOL("onconnection");

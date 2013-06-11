@@ -25,6 +25,7 @@
 #include "handle_wrap.h"
 #include "stream_wrap.h"
 #include "tty_wrap.h"
+#include "node_wrap.h"
 
 namespace node {
 
@@ -80,6 +81,8 @@ void TTYWrap::Initialize(Handle<Object> target) {
 
   NODE_SET_METHOD(target, "isTTY", IsTTY);
   NODE_SET_METHOD(target, "guessHandleType", GuessHandleType);
+
+  ttyConstructorTmpl = Persistent<FunctionTemplate>::New(node_isolate, t);
 
   target->Set(String::NewSymbol("TTY"), t->GetFunction());
 }

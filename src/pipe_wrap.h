@@ -25,7 +25,7 @@
 
 namespace node {
 
-class PipeWrap : StreamWrap {
+class PipeWrap : public StreamWrap {
  public:
   uv_pipe_t* UVHandle();
 
