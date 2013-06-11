@@ -303,15 +303,23 @@ void NodeBIO::Write(const char* data, size_t size) {
 
     // Go to next buffer if there still are some bytes to write
     if (left != 0) {
-      if (write_head_->write_pos_ == kBufferLength) {
-        Buffer* next = new Buffer();
-        next->next_ = write_head_->next_;
-        write_head_->next_ = next;
-      }
+      TryAllocateForWrite();
       write_head_ = write_head_->next_;
     }
   }
   assert(left == 0);
+}
+
+
+void NodeBIO::TryAllocateForWrite() {
+  // If write head is full, next buffer is either read head or not empty.
+  if (write_head_->write_pos_ == kBufferLength &&
+      (write_head_->next_ == read_head_ ||
+       write_head_->next_->write_pos_ != 0)) {
+    Buffer* next = new Buffer();
+    next->next_ = write_head_->next_;
+    write_head_->next_ = next;
+  }
 }
 
 

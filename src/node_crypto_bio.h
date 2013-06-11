@@ -59,6 +59,9 @@ class NodeBIO {
 
   ~NodeBIO();
 
+  // Allocate new buffer for write if needed
+  void TryAllocateForWrite();
+
   // Read `len` bytes maximum into `out`, return actual number of read bytes
   size_t Read(char* out, size_t size);
 
