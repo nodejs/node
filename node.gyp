@@ -159,7 +159,12 @@
       'conditions': [
         [ 'node_use_openssl=="true"', {
           'defines': [ 'HAVE_OPENSSL=1' ],
-          'sources': [ 'src/node_crypto.cc', 'src/node_crypto_bio.cc' ],
+          'sources': [
+            'src/node_crypto.cc',
+            'src/node_crypto_bio.cc',
+            'src/tls_wrap.cc',
+            'src/tls_wrap.h'
+          ],
           'conditions': [
             [ 'node_shared_openssl=="false"', {
               'dependencies': [ './deps/openssl/openssl.gyp:openssl' ],

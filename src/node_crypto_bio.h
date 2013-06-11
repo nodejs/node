@@ -30,6 +30,13 @@ class NodeBIO {
     return &method_;
   }
 
+  NodeBIO() : length_(0), read_head_(&head_), write_head_(&head_) {
+    // Loop head
+    head_.next_ = &head_;
+  }
+
+  ~NodeBIO();
+
   static int New(BIO* bio);
   static int Free(BIO* bio);
   static int Read(BIO* bio, char* out, int len);
@@ -37,6 +44,47 @@ class NodeBIO {
   static int Puts(BIO* bio, const char* str);
   static int Gets(BIO* bio, char* out, int size);
   static long Ctrl(BIO* bio, int cmd, long num, void* ptr);
+
+  // Allocate new buffer for write if needed
+  void TryAllocateForWrite();
+
+  // Read `len` bytes maximum into `out`, return actual number of read bytes
+  size_t Read(char* out, size_t size);
+
+  // Memory optimization:
+  // Deallocate children of write head's child if they're empty
+  void FreeEmpty();
+
+  // Return pointer to internal data and amount of
+  // contiguous data available to read
+  char* Peek(size_t* size);
+
+  // Find first appearance of `delim` in buffer or `limit` if `delim`
+  // wasn't found.
+  size_t IndexOf(char delim, size_t limit);
+
+  // Discard all available data
+  void Reset();
+
+  // Put `len` bytes from `data` into buffer
+  void Write(const char* data, size_t size);
+
+  // Return pointer to internal data and amount of
+  // contiguous data available for future writes
+  char* PeekWritable(size_t* size);
+
+  // Commit reserved data
+  void Commit(size_t size);
+
+  // Return size of buffer in bytes
+  size_t inline Length() {
+    return length_;
+  }
+
+  static inline NodeBIO* FromBIO(BIO* bio) {
+    assert(bio->ptr != NULL);
+    return static_cast<NodeBIO*>(bio->ptr);
+  }
 
  protected:
   static const size_t kBufferLength = 16 * 1024;
@@ -51,43 +99,6 @@ class NodeBIO {
     Buffer* next_;
     char data_[kBufferLength];
   };
-
-  NodeBIO() : length_(0), read_head_(&head_), write_head_(&head_) {
-    // Loop head
-    head_.next_ = &head_;
-  }
-
-  ~NodeBIO();
-
-  // Allocate new buffer for write if needed
-  void TryAllocateForWrite();
-
-  // Read `len` bytes maximum into `out`, return actual number of read bytes
-  size_t Read(char* out, size_t size);
-
-  // Memory optimization:
-  // Deallocate children of write head's child if they're empty
-  void FreeEmpty();
-
-  // Find first appearance of `delim` in buffer or `limit` if `delim`
-  // wasn't found.
-  size_t IndexOf(char delim, size_t limit);
-
-  // Discard all available data
-  void Reset();
-
-  // Put `len` bytes from `data` into buffer
-  void Write(const char* data, size_t size);
-
-  // Return size of buffer in bytes
-  size_t inline Length() {
-    return length_;
-  }
-
-  static inline NodeBIO* FromBIO(BIO* bio) {
-    assert(bio->ptr != NULL);
-    return static_cast<NodeBIO*>(bio->ptr);
-  }
 
   size_t length_;
   Buffer head_;
