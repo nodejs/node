@@ -315,7 +315,7 @@ Boolean (read-only). True if headers were sent, false otherwise.
 
 ### response.sendDate
 
-When true, the Date header will be automatically generated and sent in 
+When true, the Date header will be automatically generated and sent in
 the response if it is not already present in the headers. Defaults to true.
 
 This should only be disabled for testing; HTTP requires the Date header
@@ -526,17 +526,17 @@ Alternatively, you could just opt out of pooling entirely using `agent:false`:
 
 ### agent.maxSockets
 
-By default set to 5. Determines how many concurrent sockets the agent can have 
+By default set to 5. Determines how many concurrent sockets the agent can have
 open per host.
 
 ### agent.sockets
 
-An object which contains arrays of sockets currently in use by the Agent. Do not 
+An object which contains arrays of sockets currently in use by the Agent. Do not
 modify.
 
 ### agent.requests
 
-An object which contains queues of requests that have not yet been assigned to 
+An object which contains queues of requests that have not yet been assigned to
 sockets. Do not modify.
 
 ## http.globalAgent
@@ -566,7 +566,9 @@ entirely discarded.  However, if you add a `'response'` event handler,
 then you **must** consume the data from the response object, either by
 calling `response.read()` whenever there is a `'readable'` event, or
 by adding a `'data'` handler, or by calling the `.resume()` method.
-Until the data is consumed, the `'end'` event will not fire.
+Until the data is consumed, the `'end'` event will not fire.  Also, until
+the data is read it will consume memory that can eventually lead to a
+'process out of memory' error.
 
 Note: Node does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
