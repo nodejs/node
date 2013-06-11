@@ -201,3 +201,13 @@ An example on Windows:
     process.env.PATH.split(path.delimiter)
     // returns
     ['C:\Windows\system32', 'C:\Windows', 'C:\Program Files\nodejs\']
+
+## path.posix
+
+Provide access to aforementioned `path` methods but always interact in a posix
+compatible way.
+
+## path.win32
+
+Provide access to aforementioned `path` methods but always interact in a win32
+compatible way.
