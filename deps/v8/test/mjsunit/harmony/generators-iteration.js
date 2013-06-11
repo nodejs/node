@@ -64,9 +64,9 @@ function TestGenerator(g, expected_values_for_next,
     for (var i = 0; i < expected_values_for_send.length; i++) {
       assertIteratorResult(expected_values_for_send[i],
                            i == expected_values_for_send.length - 1,
-                           iter.send(send_val));
+                           iter.next(send_val));
     }
-    assertThrows(function() { iter.send(send_val); }, Error);
+    assertThrows(function() { iter.next(send_val); }, Error);
   }
   function testThrow(thunk) {
     for (var i = 0; i < expected_values_for_next.length; i++) {
@@ -572,7 +572,7 @@ function TestRecursion() {
     return iter.next();
   }
   function TestSendRecursion() {
-    function* g() { yield iter.send(42); }
+    function* g() { yield iter.next(42); }
     var iter = g();
     return iter.next();
   }

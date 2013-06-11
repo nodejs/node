@@ -491,6 +491,11 @@ class FullCodeGenerator: public AstVisitor {
   INLINE_RUNTIME_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
 #undef EMIT_INLINE_RUNTIME_CALL
 
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,
+                                 Register value,
+                                 uint32_t encoding_mask);
+
   // Platform-specific code for resuming generators.
   void EmitGeneratorResume(Expression *generator,
                            Expression *value,

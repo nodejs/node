@@ -155,7 +155,7 @@ static void CopyObjectToObjectElements(FixedArrayBase* from_base,
                                        uint32_t to_start,
                                        int raw_copy_size) {
   ASSERT(to_base->map() != HEAP->fixed_cow_array_map());
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
     ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
@@ -204,7 +204,7 @@ static void CopyDictionaryToObjectElements(FixedArrayBase* from_base,
                                            uint32_t to_start,
                                            int raw_copy_size) {
   SeededNumberDictionary* from = SeededNumberDictionary::cast(from_base);
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   Heap* heap = from->GetHeap();
   if (raw_copy_size < 0) {
@@ -840,7 +840,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
     // Fill in the content
     {
-      AssertNoAllocation no_gc;
+      DisallowHeapAllocation no_gc;
       WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
       for (int i = 0; i < len0; i++) {
         Object* e = to->get(i);
@@ -2044,7 +2044,7 @@ MUST_USE_RESULT MaybeObject* ArrayConstructInitializeElements(
     }
     case FAST_HOLEY_ELEMENTS:
     case FAST_ELEMENTS: {
-      AssertNoAllocation no_gc;
+      DisallowHeapAllocation no_gc;
       WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
       FixedArray* object_elms = FixedArray::cast(elms);
       for (int index = 0; index < number_of_elements; index++) {

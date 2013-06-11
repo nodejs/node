@@ -38,13 +38,12 @@ v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
 }
 
 
-v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
+void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args[0]->BooleanValue()) {
     HEAP->CollectGarbage(NEW_SPACE, "gc extension");
   } else {
     HEAP->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
   }
-  return v8::Undefined();
 }
 
 

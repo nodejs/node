@@ -111,7 +111,6 @@ class AccessorInfo;
 class Allocation;
 class Arguments;
 class Assembler;
-class AssertNoAllocation;
 class Code;
 class CodeGenerator;
 class CodeStub;

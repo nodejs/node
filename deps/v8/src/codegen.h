@@ -113,18 +113,6 @@ class ElementsTransitionGenerator : public AllStatic {
 };
 
 
-class SeqStringSetCharGenerator : public AllStatic {
- public:
-  static void Generate(MacroAssembler* masm,
-                       String::Encoding encoding,
-                       Register string,
-                       Register index,
-                       Register value);
- private:
-  DISALLOW_COPY_AND_ASSIGN(SeqStringSetCharGenerator);
-};
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_CODEGEN_H_

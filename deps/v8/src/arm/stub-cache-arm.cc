@@ -462,7 +462,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, scratch1, Handle<Map>(object->map()), miss_label,
-              DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+              DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -581,6 +581,8 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   index -= object->map()->inobject_properties();
 
   // TODO(verwaest): Share this code as a code stub.
+  SmiCheck smi_check = representation.IsTagged()
+      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
@@ -606,7 +608,9 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                           name_reg,
                           scratch1,
                           kLRHasNotBeenSaved,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   } else {
     // Write to the properties array.
@@ -636,7 +640,9 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                           name_reg,
                           receiver_reg,
                           kLRHasNotBeenSaved,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   }
 
@@ -665,7 +671,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, scratch1, Handle<Map>(object->map()), miss_label,
-              DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+              DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -723,6 +729,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   }
 
   // TODO(verwaest): Share this code as a code stub.
+  SmiCheck smi_check = representation.IsTagged()
+      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
@@ -740,7 +748,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                           name_reg,
                           scratch1,
                           kLRHasNotBeenSaved,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   } else {
     // Write to the properties array.
@@ -762,7 +772,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                           name_reg,
                           receiver_reg,
                           kLRHasNotBeenSaved,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   }
 
@@ -881,11 +893,12 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //  -- sp[4]              : callee JS function
   //  -- sp[8]              : call data
   //  -- sp[12]             : isolate
-  //  -- sp[16]             : ReturnValue
-  //  -- sp[20]             : last JS argument
+  //  -- sp[16]             : ReturnValue default value
+  //  -- sp[20]             : ReturnValue
+  //  -- sp[24]             : last JS argument
   //  -- ...
-  //  -- sp[(argc + 4) * 4] : first JS argument
-  //  -- sp[(argc + 5) * 4] : receiver
+  //  -- sp[(argc + 5) * 4] : first JS argument
+  //  -- sp[(argc + 6) * 4] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -902,13 +915,14 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
     __ Move(r6, call_data);
   }
   __ mov(r7, Operand(ExternalReference::isolate_address(masm->isolate())));
-  // Store JS function, call data, isolate and ReturnValue.
+  // Store JS function, call data, isolate ReturnValue default and ReturnValue.
   __ stm(ib, sp, r5.bit() | r6.bit() | r7.bit());
   __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
   __ str(r5, MemOperand(sp, 4 * kPointerSize));
+  __ str(r5, MemOperand(sp, 5 * kPointerSize));
 
   // Prepare arguments.
-  __ add(r2, sp, Operand(4 * kPointerSize));
+  __ add(r2, sp, Operand(5 * kPointerSize));
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -1247,8 +1261,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
       if (!current.is_identical_to(first) || check == CHECK_ALL_MAPS) {
         Handle<Map> current_map(current->map());
         // CheckMap implicitly loads the map of |reg| into |map_reg|.
-        __ CheckMap(reg, map_reg, current_map, miss, DONT_DO_SMI_CHECK,
-                    ALLOW_ELEMENT_TRANSITION_MAPS);
+        __ CheckMap(reg, map_reg, current_map, miss, DONT_DO_SMI_CHECK);
       } else {
         __ ldr(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
       }
@@ -1285,7 +1298,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   if (!holder.is_identical_to(first) || check == CHECK_ALL_MAPS) {
     // Check the holder map.
     __ CheckMap(reg, scratch1, Handle<Map>(holder->map()), miss,
-                DONT_DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+                DONT_DO_SMI_CHECK);
   }
 
   // Perform security check for access to the global object.
@@ -1422,10 +1435,12 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
     __ Move(scratch3(), Handle<Object>(callback->data(), isolate()));
   }
   __ Push(reg, scratch3());
-  __ mov(scratch3(),
+  __ LoadRoot(scratch3(), Heap::kUndefinedValueRootIndex);
+  __ mov(scratch4(), scratch3());
+  __ Push(scratch3(), scratch4());
+  __ mov(scratch4(),
          Operand(ExternalReference::isolate_address(isolate())));
-  __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
-  __ Push(scratch3(), scratch4(), name());
+  __ Push(scratch4(), name());
   __ mov(r0, sp);  // r0 = Handle<Name>
 
   const int kApiStackSpace = 1;
@@ -1451,7 +1466,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ CallApiFunctionAndReturn(ref,
                               kStackUnwindSpace,
                               returns_handle,
-                              3);
+                              5);
 }
 
 
@@ -2797,7 +2812,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver(), scratch1(), Handle<Map>(object->map()), &miss,
-              DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+              DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -3077,151 +3092,6 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
   // Return the generated code.
   return GetICCode(
       kind(), Code::NORMAL, factory()->empty_string(), POLYMORPHIC);
-}
-
-
-Handle<Code> ConstructStubCompiler::CompileConstructStub(
-    Handle<JSFunction> function) {
-  // ----------- S t a t e -------------
-  //  -- r0    : argc
-  //  -- r1    : constructor
-  //  -- lr    : return address
-  //  -- [sp]  : last argument
-  // -----------------------------------
-  Label generic_stub_call;
-
-  // Use r7 for holding undefined which is used in several places below.
-  __ LoadRoot(r7, Heap::kUndefinedValueRootIndex);
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Check to see whether there are any break points in the function code. If
-  // there are jump to the generic constructor stub which calls the actual
-  // code for the function thereby hitting the break points.
-  __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kDebugInfoOffset));
-  __ cmp(r2, r7);
-  __ b(ne, &generic_stub_call);
-#endif
-
-  // Load the initial map and verify that it is in fact a map.
-  // r1: constructor function
-  // r7: undefined
-  __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
-  __ JumpIfSmi(r2, &generic_stub_call);
-  __ CompareObjectType(r2, r3, r4, MAP_TYPE);
-  __ b(ne, &generic_stub_call);
-
-#ifdef DEBUG
-  // Cannot construct functions this way.
-  // r0: argc
-  // r1: constructor function
-  // r2: initial map
-  // r7: undefined
-  __ CompareInstanceType(r2, r3, JS_FUNCTION_TYPE);
-  __ Check(ne, "Function constructed by construct stub.");
-#endif
-
-  // Now allocate the JSObject in new space.
-  // r0: argc
-  // r1: constructor function
-  // r2: initial map
-  // r7: undefined
-  ASSERT(function->has_initial_map());
-  __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
-#ifdef DEBUG
-  int instance_size = function->initial_map()->instance_size();
-  __ cmp(r3, Operand(instance_size >> kPointerSizeLog2));
-  __ Check(eq, "Instance size of initial map changed.");
-#endif
-  __ Allocate(r3, r4, r5, r6, &generic_stub_call, SIZE_IN_WORDS);
-
-  // Allocated the JSObject, now initialize the fields. Map is set to initial
-  // map and properties and elements are set to empty fixed array.
-  // r0: argc
-  // r1: constructor function
-  // r2: initial map
-  // r3: object size (in words)
-  // r4: JSObject (not tagged)
-  // r7: undefined
-  __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
-  __ mov(r5, r4);
-  ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
-  __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
-  ASSERT_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
-  __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
-  ASSERT_EQ(2 * kPointerSize, JSObject::kElementsOffset);
-  __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
-
-  // Calculate the location of the first argument. The stack contains only the
-  // argc arguments.
-  __ add(r1, sp, Operand(r0, LSL, kPointerSizeLog2));
-
-  // Fill all the in-object properties with undefined.
-  // r0: argc
-  // r1: first argument
-  // r3: object size (in words)
-  // r4: JSObject (not tagged)
-  // r5: First in-object property of JSObject (not tagged)
-  // r7: undefined
-  // Fill the initialized properties with a constant value or a passed argument
-  // depending on the this.x = ...; assignment in the function.
-  Handle<SharedFunctionInfo> shared(function->shared());
-  for (int i = 0; i < shared->this_property_assignments_count(); i++) {
-    if (shared->IsThisPropertyAssignmentArgument(i)) {
-      Label not_passed, next;
-      // Check if the argument assigned to the property is actually passed.
-      int arg_number = shared->GetThisPropertyAssignmentArgument(i);
-      __ cmp(r0, Operand(arg_number));
-      __ b(le, &not_passed);
-      // Argument passed - find it on the stack.
-      __ ldr(r2, MemOperand(r1, (arg_number + 1) * -kPointerSize));
-      __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
-      __ b(&next);
-      __ bind(&not_passed);
-      // Set the property to undefined.
-      __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
-      __ bind(&next);
-    } else {
-      // Set the property to the constant value.
-      Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i),
-                              isolate());
-      __ mov(r2, Operand(constant));
-      __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
-    }
-  }
-
-  // Fill the unused in-object property fields with undefined.
-  for (int i = shared->this_property_assignments_count();
-       i < function->initial_map()->inobject_properties();
-       i++) {
-      __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
-  }
-
-  // r0: argc
-  // r4: JSObject (not tagged)
-  // Move argc to r1 and the JSObject to return to r0 and tag it.
-  __ mov(r1, r0);
-  __ mov(r0, r4);
-  __ orr(r0, r0, Operand(kHeapObjectTag));
-
-  // r0: JSObject
-  // r1: argc
-  // Remove caller arguments and receiver from the stack and return.
-  __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2));
-  __ add(sp, sp, Operand(kPointerSize));
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->constructed_objects(), 1, r1, r2);
-  __ IncrementCounter(counters->constructed_objects_stub(), 1, r1, r2);
-  __ Jump(lr);
-
-  // Jump to the generic stub in case the specialized code cannot handle the
-  // construction.
-  __ bind(&generic_stub_call);
-  Handle<Code> code = isolate()->builtins()->JSConstructStubGeneric();
-  __ Jump(code, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode();
 }
 
 

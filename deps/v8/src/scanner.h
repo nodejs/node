@@ -178,6 +178,11 @@ class LiteralBuffer {
 
   bool is_ascii() { return is_ascii_; }
 
+  bool is_contextual_keyword(Vector<const char> keyword) {
+    return is_ascii() && keyword.length() == position_ &&
+        (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
+  }
+
   Vector<const uc16> utf16_literal() {
     ASSERT(!is_ascii_);
     ASSERT((position_ & 0x1) == 0);
@@ -325,6 +330,10 @@ class Scanner {
     ASSERT_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->is_ascii();
   }
+  bool is_literal_contextual_keyword(Vector<const char> keyword) {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->is_contextual_keyword(keyword);
+  }
   int literal_length() const {
     ASSERT_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->length();
@@ -360,6 +369,10 @@ class Scanner {
   bool is_next_literal_ascii() {
     ASSERT_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->is_ascii();
+  }
+  bool is_next_contextual_keyword(Vector<const char> keyword) {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->is_contextual_keyword(keyword);
   }
   int next_literal_length() const {
     ASSERT_NOT_NULL(next_.literal_chars);

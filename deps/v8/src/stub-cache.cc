@@ -341,6 +341,7 @@ Handle<Code> StubCache::ComputeKeyedLoadField(Handle<Name> name,
                                               PropertyIndex field,
                                               Representation representation) {
   if (receiver.is_identical_to(holder)) {
+    // TODO(titzer): this should use an HObjectAccess
     KeyedLoadFieldStub stub(field.is_inobject(holder),
                             field.translate(holder),
                             representation);
@@ -908,8 +909,6 @@ Handle<Code> StubCache::ComputeCallMiss(int argc,
 
 Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
                                           CompareNilICStub& stub) {
-  stub.SetKind(kNonStrictEquality);
-
   Handle<String> name(isolate_->heap()->empty_string());
   if (!receiver_map->is_shared()) {
     Handle<Code> cached_ic = FindIC(name, receiver_map, Code::COMPARE_NIL_IC,
@@ -918,6 +917,7 @@ Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
   }
 
   Handle<Code> ic = stub.GetCode(isolate_);
+
   // For monomorphic maps, use the code as a template, copying and replacing
   // the monomorphic map that checks the object's type.
   ic = isolate_->factory()->CopyCode(ic);
@@ -1136,7 +1136,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(1);
   ASSERT(kArgsOffset == 2);
   // No ReturnValue in interceptors.
-  ASSERT(args.length() == kArgsOffset + PCA::kArgsLength - 1);
+  ASSERT_EQ(kArgsOffset + PCA::kArgsLength - 2, args.length());
 
   // TODO(rossberg): Support symbols in the API.
   if (name_handle->IsSymbol())
@@ -1189,8 +1189,8 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
   HandleScope scope(isolate);
   Handle<Name> name_handle(name);
   Handle<Object> error =
-      FACTORY->NewReferenceError("not_defined",
-                                  HandleVector(&name_handle, 1));
+      isolate->factory()->NewReferenceError("not_defined",
+                                            HandleVector(&name_handle, 1));
   return isolate->Throw(*error);
 }
 
@@ -1203,7 +1203,7 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
   Handle<InterceptorInfo> interceptor_info = args->at<InterceptorInfo>(1);
   ASSERT(kArgsOffset == 2);
   // No ReturnValue in interceptors.
-  ASSERT(args->length() == kArgsOffset + PCA::kArgsLength - 1);
+  ASSERT_EQ(kArgsOffset + PCA::kArgsLength - 2, args->length());
   Handle<JSObject> receiver_handle =
       args->at<JSObject>(kArgsOffset - PCA::kThisIndex);
   Handle<JSObject> holder_handle =
@@ -2024,15 +2024,6 @@ Handle<Code> CallStubCompiler::GetCode(Handle<JSFunction> function) {
     function_name = Handle<String>(String::cast(function->shared()->name()));
   }
   return GetCode(Code::CONSTANT_FUNCTION, function_name);
-}
-
-
-Handle<Code> ConstructStubCompiler::GetCode() {
-  Code::Flags flags = Code::ComputeFlags(Code::STUB);
-  Handle<Code> code = GetCodeWithFlags(flags, "ConstructStub");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, "ConstructStub"));
-  GDBJIT(AddCode(GDBJITInterface::STUB, "ConstructStub", *code));
-  return code;
 }
 
 

@@ -25,11 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(dcarney): remove this
-#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-
 #include <v8.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -58,11 +53,11 @@ bool ExecuteString(v8::Isolate* isolate,
                    v8::Handle<v8::Value> name,
                    bool print_result,
                    bool report_exceptions);
-v8::Handle<v8::Value> Print(const v8::Arguments& args);
-v8::Handle<v8::Value> Read(const v8::Arguments& args);
-v8::Handle<v8::Value> Load(const v8::Arguments& args);
-v8::Handle<v8::Value> Quit(const v8::Arguments& args);
-v8::Handle<v8::Value> Version(const v8::Arguments& args);
+void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
+void Read(const v8::FunctionCallbackInfo<v8::Value>& args);
+void Load(const v8::FunctionCallbackInfo<v8::Value>& args);
+void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
+void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
 v8::Handle<v8::String> ReadFile(const char* name);
 void ReportException(v8::Isolate* isolate, v8::TryCatch* handler);
 
@@ -121,7 +116,7 @@ v8::Handle<v8::Context> CreateShellContext(v8::Isolate* isolate) {
 // The callback that is invoked by v8 whenever the JavaScript 'print'
 // function is called.  Prints its arguments on stdout separated by
 // spaces and ending with a newline.
-v8::Handle<v8::Value> Print(const v8::Arguments& args) {
+void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
   bool first = true;
   for (int i = 0; i < args.Length(); i++) {
     v8::HandleScope handle_scope(args.GetIsolate());
@@ -136,70 +131,73 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
   }
   printf("\n");
   fflush(stdout);
-  return v8::Undefined();
 }
 
 
 // The callback that is invoked by v8 whenever the JavaScript 'read'
 // function is called.  This function loads the content of the file named in
 // the argument into a JavaScript string.
-v8::Handle<v8::Value> Read(const v8::Arguments& args) {
+void Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
-    return v8::ThrowException(v8::String::New("Bad parameters"));
+    v8::ThrowException(v8::String::New("Bad parameters"));
+    return;
   }
   v8::String::Utf8Value file(args[0]);
   if (*file == NULL) {
-    return v8::ThrowException(v8::String::New("Error loading file"));
+    v8::ThrowException(v8::String::New("Error loading file"));
+    return;
   }
   v8::Handle<v8::String> source = ReadFile(*file);
   if (source.IsEmpty()) {
-    return v8::ThrowException(v8::String::New("Error loading file"));
+    v8::ThrowException(v8::String::New("Error loading file"));
+    return;
   }
-  return source;
+  args.GetReturnValue().Set(source);
 }
 
 
 // The callback that is invoked by v8 whenever the JavaScript 'load'
 // function is called.  Loads, compiles and executes its argument
 // JavaScript file.
-v8::Handle<v8::Value> Load(const v8::Arguments& args) {
+void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     v8::HandleScope handle_scope(args.GetIsolate());
     v8::String::Utf8Value file(args[i]);
     if (*file == NULL) {
-      return v8::ThrowException(v8::String::New("Error loading file"));
+      v8::ThrowException(v8::String::New("Error loading file"));
+      return;
     }
     v8::Handle<v8::String> source = ReadFile(*file);
     if (source.IsEmpty()) {
-      return v8::ThrowException(v8::String::New("Error loading file"));
+      v8::ThrowException(v8::String::New("Error loading file"));
+      return;
     }
     if (!ExecuteString(args.GetIsolate(),
                        source,
                        v8::String::New(*file),
                        false,
                        false)) {
-      return v8::ThrowException(v8::String::New("Error executing file"));
+      v8::ThrowException(v8::String::New("Error executing file"));
+      return;
     }
   }
-  return v8::Undefined();
 }
 
 
 // The callback that is invoked by v8 whenever the JavaScript 'quit'
 // function is called.  Quits.
-v8::Handle<v8::Value> Quit(const v8::Arguments& args) {
+void Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // If not arguments are given args[0] will yield undefined which
   // converts to the integer value 0.
   int exit_code = args[0]->Int32Value();
   fflush(stdout);
   fflush(stderr);
   exit(exit_code);
-  return v8::Undefined();
 }
 
 
-v8::Handle<v8::Value> Version(const v8::Arguments& args) {
-  return v8::String::New(v8::V8::GetVersion());
+void Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(v8::String::New(v8::V8::GetVersion()));
 }
 
 

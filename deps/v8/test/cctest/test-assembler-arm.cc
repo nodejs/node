@@ -25,10 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-
 #include "v8.h"
 
 #include "disassembler.h"
@@ -137,7 +133,7 @@ TEST(2) {
 
   // some relocated stuff here, not executed
   __ RecordComment("dead code, just testing relocations");
-  __ mov(r0, Operand(FACTORY->true_value()));
+  __ mov(r0, Operand(isolate->factory()->true_value()));
   __ RecordComment("dead code, just testing immediate operands");
   __ mov(r0, Operand(-1));
   __ mov(r0, Operand(0xFF000000));

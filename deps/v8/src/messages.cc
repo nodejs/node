@@ -57,23 +57,25 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
 
 
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
+    Isolate* isolate,
     const char* type,
     MessageLocation* loc,
     Vector< Handle<Object> > args,
     Handle<String> stack_trace,
     Handle<JSArray> stack_frames) {
-  Handle<String> type_handle = FACTORY->InternalizeUtf8String(type);
+  Factory* factory = isolate->factory();
+  Handle<String> type_handle = factory->InternalizeUtf8String(type);
   Handle<FixedArray> arguments_elements =
-      FACTORY->NewFixedArray(args.length());
+      factory->NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
     arguments_elements->set(i, *args[i]);
   }
   Handle<JSArray> arguments_handle =
-      FACTORY->NewJSArrayWithElements(arguments_elements);
+      factory->NewJSArrayWithElements(arguments_elements);
 
   int start = 0;
   int end = 0;
-  Handle<Object> script_handle = FACTORY->undefined_value();
+  Handle<Object> script_handle = factory->undefined_value();
   if (loc) {
     start = loc->start_pos();
     end = loc->end_pos();
@@ -81,15 +83,15 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
   }
 
   Handle<Object> stack_trace_handle = stack_trace.is_null()
-      ? Handle<Object>::cast(FACTORY->undefined_value())
+      ? Handle<Object>::cast(factory->undefined_value())
       : Handle<Object>::cast(stack_trace);
 
   Handle<Object> stack_frames_handle = stack_frames.is_null()
-      ? Handle<Object>::cast(FACTORY->undefined_value())
+      ? Handle<Object>::cast(factory->undefined_value())
       : Handle<Object>::cast(stack_frames);
 
   Handle<JSMessageObject> message =
-      FACTORY->NewJSMessageObject(type_handle,
+      factory->NewJSMessageObject(type_handle,
                                   arguments_handle,
                                   start,
                                   end,
@@ -122,7 +124,7 @@ void MessageHandler::ReportMessage(Isolate* isolate,
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
   v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception_handle);
 
-  v8::NeanderArray global_listeners(FACTORY->message_listeners());
+  v8::NeanderArray global_listeners(isolate->factory()->message_listeners());
   int global_length = global_listeners.length();
   if (global_length == 0) {
     DefaultMessageReport(isolate, loc, message);

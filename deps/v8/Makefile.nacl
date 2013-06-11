@@ -46,7 +46,7 @@ else
   endif
 endif
 
-TOOLCHAIN_PATH = ${NACL_SDK_ROOT}/toolchain
+TOOLCHAIN_PATH = $(realpath ${NACL_SDK_ROOT}/toolchain)
 NACL_TOOLCHAIN ?= ${TOOLCHAIN_PATH}/${TOOLCHAIN_DIR}
 
 ifeq ($(ARCH), nacl_ia32)

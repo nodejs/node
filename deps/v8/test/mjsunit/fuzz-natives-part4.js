@@ -202,8 +202,8 @@ var knownProblems = {
   "_TwoByteSeqStringSetChar": true,
 
   // Only applicable to generators.
-  "_GeneratorSend": true,
-  "_GeneratorThrow": true
+  "_GeneratorNext": true,
+  "_GeneratorThrow": true,
 };
 
 var currentlyUncallable = {

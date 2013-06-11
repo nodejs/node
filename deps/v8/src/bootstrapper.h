@@ -65,13 +65,14 @@ class SourceCodeCache BASE_EMBEDDED {
   }
 
   void Add(Vector<const char> name, Handle<SharedFunctionInfo> shared) {
-    HandleScope scope(shared->GetIsolate());
+    Isolate* isolate = shared->GetIsolate();
+    Factory* factory = isolate->factory();
+    HandleScope scope(isolate);
     int length = cache_->length();
-    Handle<FixedArray> new_array =
-        FACTORY->NewFixedArray(length + 2, TENURED);
+    Handle<FixedArray> new_array = factory->NewFixedArray(length + 2, TENURED);
     cache_->CopyTo(0, *new_array, 0, cache_->length());
     cache_ = *new_array;
-    Handle<String> str = FACTORY->NewStringFromAscii(name, TENURED);
+    Handle<String> str = factory->NewStringFromAscii(name, TENURED);
     cache_->set(length, *str);
     cache_->set(length + 1, *shared);
     Script::cast(shared->script())->set_type(Smi::FromInt(type_));

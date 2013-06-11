@@ -52,6 +52,9 @@ Atomic32 MarkingThread::id_counter_ = -1;
 
 void MarkingThread::Run() {
   Isolate::SetIsolateThreadLocals(isolate_, NULL);
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
 
   while (true) {
     start_marking_semaphore_->Wait();

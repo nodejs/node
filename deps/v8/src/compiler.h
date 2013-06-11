@@ -449,7 +449,6 @@ class OptimizingCompiler: public ZoneObject {
  public:
   explicit OptimizingCompiler(CompilationInfo* info)
       : info_(info),
-        oracle_(NULL),
         graph_builder_(NULL),
         graph_(NULL),
         chunk_(NULL),
@@ -478,7 +477,6 @@ class OptimizingCompiler: public ZoneObject {
 
  private:
   CompilationInfo* info_;
-  TypeFeedbackOracle* oracle_;
   HOptimizedGraphBuilder* graph_builder_;
   HGraph* graph_;
   LChunk* chunk_;

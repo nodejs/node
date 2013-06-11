@@ -27,9 +27,6 @@
 //
 // Tests of profiles generator and utilities.
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "v8.h"
 #include "profile-generator-inl.h"
 #include "cctest.h"
@@ -875,7 +872,7 @@ TEST(RecordStackTraceAtStartProfiling) {
   v8::HandleScope scope(isolate);
   const char* extensions[] = { "v8/profiler" };
   v8::ExtensionConfiguration config(1, extensions);
-  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
   context->Enter();
 
   CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();

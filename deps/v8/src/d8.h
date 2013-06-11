@@ -300,45 +300,46 @@ class Shell : public i::AllStatic {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 #endif  // V8_SHARED
 
-  static Handle<Value> RealmCurrent(const Arguments& args);
-  static Handle<Value> RealmOwner(const Arguments& args);
-  static Handle<Value> RealmGlobal(const Arguments& args);
-  static Handle<Value> RealmCreate(const Arguments& args);
-  static Handle<Value> RealmDispose(const Arguments& args);
-  static Handle<Value> RealmSwitch(const Arguments& args);
-  static Handle<Value> RealmEval(const Arguments& args);
-  static Handle<Value> RealmSharedGet(Local<String> property,
-                                      const AccessorInfo& info);
+  static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmSharedGet(Local<String> property,
+                             const  PropertyCallbackInfo<Value>& info);
   static void RealmSharedSet(Local<String> property,
                              Local<Value> value,
-                             const AccessorInfo& info);
+                             const  PropertyCallbackInfo<void>& info);
 
-  static Handle<Value> Print(const Arguments& args);
-  static Handle<Value> Write(const Arguments& args);
-  static Handle<Value> Quit(const Arguments& args);
-  static Handle<Value> Version(const Arguments& args);
-  static Handle<Value> EnableProfiler(const Arguments& args);
-  static Handle<Value> DisableProfiler(const Arguments& args);
-  static Handle<Value> Read(const Arguments& args);
-  static Handle<Value> ReadBuffer(const Arguments& args);
+  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Write(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableProfiler(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DisableProfiler(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Read(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
   static Handle<String> ReadFromStdin(Isolate* isolate);
-  static Handle<Value> ReadLine(const Arguments& args) {
-    return ReadFromStdin(args.GetIsolate());
+  static void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    args.GetReturnValue().Set(ReadFromStdin(args.GetIsolate()));
   }
-  static Handle<Value> Load(const Arguments& args);
-  static Handle<Value> ArrayBuffer(const Arguments& args);
-  static Handle<Value> Int8Array(const Arguments& args);
-  static Handle<Value> Uint8Array(const Arguments& args);
-  static Handle<Value> Int16Array(const Arguments& args);
-  static Handle<Value> Uint16Array(const Arguments& args);
-  static Handle<Value> Int32Array(const Arguments& args);
-  static Handle<Value> Uint32Array(const Arguments& args);
-  static Handle<Value> Float32Array(const Arguments& args);
-  static Handle<Value> Float64Array(const Arguments& args);
-  static Handle<Value> Uint8ClampedArray(const Arguments& args);
-  static Handle<Value> ArrayBufferSlice(const Arguments& args);
-  static Handle<Value> ArraySubArray(const Arguments& args);
-  static Handle<Value> ArraySet(const Arguments& args);
+  static void Load(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ArrayBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Int8Array(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Uint8Array(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Int16Array(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Uint16Array(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Int32Array(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Uint32Array(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Float32Array(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Float64Array(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Uint8ClampedArray(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ArrayBufferSlice(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ArraySubArray(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ArraySet(const v8::FunctionCallbackInfo<v8::Value>& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:
   //
@@ -365,14 +366,14 @@ class Shell : public i::AllStatic {
   // with the current umask.  Intermediate directories are created if necessary.
   // An exception is not thrown if the directory already exists.  Analogous to
   // the "mkdir -p" command.
-  static Handle<Value> OSObject(const Arguments& args);
-  static Handle<Value> System(const Arguments& args);
-  static Handle<Value> ChangeDirectory(const Arguments& args);
-  static Handle<Value> SetEnvironment(const Arguments& args);
-  static Handle<Value> UnsetEnvironment(const Arguments& args);
-  static Handle<Value> SetUMask(const Arguments& args);
-  static Handle<Value> MakeDirectory(const Arguments& args);
-  static Handle<Value> RemoveDirectory(const Arguments& args);
+  static void OSObject(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void System(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void AddOSMethods(Handle<ObjectTemplate> os_template);
 
@@ -412,9 +413,10 @@ class Shell : public i::AllStatic {
                                             int32_t byteLength,
                                             int32_t byteOffset,
                                             int32_t element_size);
-  static Handle<Value> CreateExternalArray(const Arguments& args,
-                                           ExternalArrayType type,
-                                           int32_t element_size);
+  static void CreateExternalArray(
+      const v8::FunctionCallbackInfo<v8::Value>& args,
+      ExternalArrayType type,
+      int32_t element_size);
   static void ExternalArrayWeakCallback(Isolate* isolate,
                                         Persistent<Object>* object,
                                         uint8_t* data);

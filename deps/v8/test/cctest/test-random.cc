@@ -25,10 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-
 #include "v8.h"
 
 #include "cctest.h"
@@ -85,8 +81,8 @@ TEST(CrankshaftRandom) {
 
   CompileRun("function f() { return Math.random(); }");
 
-  Object* string = FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("f"))->
-      ToObjectChecked();
+  Object* string = Isolate::Current()->factory()->InternalizeOneByteString(
+      STATIC_ASCII_VECTOR("f"))->ToObjectChecked();
   MaybeObject* fun_object =
       context->global_object()->GetProperty(String::cast(string));
   Handle<JSFunction> fun(JSFunction::cast(fun_object->ToObjectChecked()));

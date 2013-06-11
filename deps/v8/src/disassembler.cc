@@ -115,8 +115,8 @@ static int DecodeIt(Isolate* isolate,
                     const V8NameConverter& converter,
                     byte* begin,
                     byte* end) {
-  NoHandleAllocation ha(isolate);
-  AssertNoAllocation no_alloc;
+  SealHandleScope shs(isolate);
+  DisallowHeapAllocation no_alloc;
   ExternalReferenceEncoder ref_encoder;
   Heap* heap = HEAP;
 

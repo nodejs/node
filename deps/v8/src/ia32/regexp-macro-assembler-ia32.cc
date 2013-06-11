@@ -104,7 +104,7 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(
     int registers_to_save,
     Zone* zone)
     : NativeRegExpMacroAssembler(zone),
-      masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
+      masm_(new MacroAssembler(zone->isolate(), NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -206,86 +206,6 @@ void RegExpMacroAssemblerIA32::CheckNotAtStart(Label* on_not_at_start) {
 void RegExpMacroAssemblerIA32::CheckCharacterLT(uc16 limit, Label* on_less) {
   __ cmp(current_character(), limit);
   BranchOrBacktrack(less, on_less);
-}
-
-
-void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
-                                               int cp_offset,
-                                               Label* on_failure,
-                                               bool check_end_of_string) {
-#ifdef DEBUG
-  // If input is ASCII, don't even bother calling here if the string to
-  // match contains a non-ASCII character.
-  if (mode_ == ASCII) {
-    ASSERT(String::IsOneByte(str.start(), str.length()));
-  }
-#endif
-  int byte_length = str.length() * char_size();
-  int byte_offset = cp_offset * char_size();
-  if (check_end_of_string) {
-    // Check that there are at least str.length() characters left in the input.
-    __ cmp(edi, Immediate(-(byte_offset + byte_length)));
-    BranchOrBacktrack(greater, on_failure);
-  }
-
-  if (on_failure == NULL) {
-    // Instead of inlining a backtrack, (re)use the global backtrack target.
-    on_failure = &backtrack_label_;
-  }
-
-  // Do one character test first to minimize loading for the case that
-  // we don't match at all (loading more than one character introduces that
-  // chance of reading unaligned and reading across cache boundaries).
-  // If the first character matches, expect a larger chance of matching the
-  // string, and start loading more characters at a time.
-  if (mode_ == ASCII) {
-    __ cmpb(Operand(esi, edi, times_1, byte_offset),
-            static_cast<int8_t>(str[0]));
-  } else {
-    // Don't use 16-bit immediate. The size changing prefix throws off
-    // pre-decoding.
-    __ movzx_w(eax,
-               Operand(esi, edi, times_1, byte_offset));
-    __ cmp(eax, static_cast<int32_t>(str[0]));
-  }
-  BranchOrBacktrack(not_equal, on_failure);
-
-  __ lea(ebx, Operand(esi, edi, times_1, 0));
-  for (int i = 1, n = str.length(); i < n;) {
-    if (mode_ == ASCII) {
-      if (i <= n - 4) {
-        int combined_chars =
-            (static_cast<uint32_t>(str[i + 0]) << 0) |
-            (static_cast<uint32_t>(str[i + 1]) << 8) |
-            (static_cast<uint32_t>(str[i + 2]) << 16) |
-            (static_cast<uint32_t>(str[i + 3]) << 24);
-        __ cmp(Operand(ebx, byte_offset + i), Immediate(combined_chars));
-        i += 4;
-      } else {
-        __ cmpb(Operand(ebx, byte_offset + i),
-                static_cast<int8_t>(str[i]));
-        i += 1;
-      }
-    } else {
-      ASSERT(mode_ == UC16);
-      if (i <= n - 2) {
-        __ cmp(Operand(ebx, byte_offset + i * sizeof(uc16)),
-               Immediate(*reinterpret_cast<const int*>(&str[i])));
-        i += 2;
-      } else {
-        // Avoid a 16-bit immediate operation. It uses the length-changing
-        // 0x66 prefix which causes pre-decoder misprediction and pipeline
-        // stalls. See
-        // "Intel(R) 64 and IA-32 Architectures Optimization Reference Manual"
-        // (248966.pdf) section 3.4.2.3 "Length-Changing Prefixes (LCP)"
-        __ movzx_w(eax,
-                   Operand(ebx, byte_offset + i * sizeof(uc16)));
-        __ cmp(eax, static_cast<int32_t>(str[i]));
-        i += 1;
-      }
-    }
-    BranchOrBacktrack(not_equal, on_failure);
-  }
 }
 
 

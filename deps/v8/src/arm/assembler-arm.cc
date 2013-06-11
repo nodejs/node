@@ -308,7 +308,7 @@ Operand::Operand(Handle<Object> handle) {
 #ifdef DEBUG
   Isolate* isolate = Isolate::Current();
 #endif
-  ALLOW_HANDLE_DEREF(isolate, "using and embedding raw address");
+  AllowDeferredHandleDereference using_raw_address;
   rm_ = no_reg;
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
@@ -1368,6 +1368,7 @@ void Assembler::mls(Register dst, Register src1, Register src2, Register srcA,
 void Assembler::sdiv(Register dst, Register src1, Register src2,
                      Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
+  ASSERT(IsEnabled(SUDIV));
   emit(cond | B26 | B25| B24 | B20 | dst.code()*B16 | 0xf * B12 |
        src2.code()*B8 | B4 | src1.code());
 }

@@ -129,22 +129,13 @@
         'defines': [
           'V8_TARGET_ARCH_ARM',
         ],
-        'variables': {
-          'armsimulator': '<!($(echo <(CXX)) -v 2>&1 | grep -q "^Target: arm" && echo "no" || echo "yes")',
-        },
-        'conditions': [
-          [ 'v8_can_use_unaligned_accesses=="true"', {
-            'defines': [
-              'CAN_USE_UNALIGNED_ACCESSES=1',
-            ],
-          }, {
-            'defines': [
-              'CAN_USE_UNALIGNED_ACCESSES=0',
-            ],
-          }],
-          ['armsimulator=="no"', {
-            'target_conditions': [
-              ['_toolset=="target"', {
+        'target_conditions': [
+          ['_toolset=="host"', {
+            'variables': {
+              'armcompiler': '<!($(echo ${CXX_host:-$(which g++)}) -v 2>&1 | grep -q "^Target: arm" && echo "yes" || echo "no")',
+            },
+            'conditions': [
+              ['armcompiler=="yes"', {
                 'conditions': [
                   [ 'armv7==1', {
                     'cflags': ['-march=armv7-a',],
@@ -159,9 +150,9 @@
                           [ 'arm_fpu!="default"', {
                             'cflags': ['-mfpu=<(arm_fpu)',],
                           }],
-                        ]
+                        ],
                       }],
-                    ]
+                    ],
                   }],
                   [ 'arm_float_abi!="default"', {
                     'cflags': ['-mfloat-abi=<(arm_float_abi)',],
@@ -172,63 +163,149 @@
                   [ 'arm_thumb==0', {
                     'cflags': ['-marm',],
                   }],
+                  [ 'arm_test=="on"', {
+                    'defines': [
+                      'ARM_TEST',
+                    ],
+                  }],
                 ],
-              }],
-            ],
-            'conditions': [
-              [ 'arm_test=="on"', {
+              }, {
+                # armcompiler=="no"
+                'conditions': [
+                  [ 'armv7==1 or armv7=="default"', {
+                    'defines': [
+                      'CAN_USE_ARMV7_INSTRUCTIONS=1',
+                    ],
+                    'conditions': [
+                      [ 'arm_fpu=="default"', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                        ],
+                      }],
+                      [ 'arm_fpu=="vfpv3-d16"', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                        ],
+                      }],
+                      [ 'arm_fpu=="vfpv3"', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                          'CAN_USE_VFP32DREGS',
+                        ],
+                      }],
+                      [ 'arm_fpu=="neon" or arm_neon==1', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                          'CAN_USE_VFP32DREGS',
+                        ],
+                      }],
+                    ],
+                  }],
+                  [ 'arm_float_abi=="hard"', {
+                    'defines': [
+                      'USE_EABI_HARDFLOAT=1',
+                    ],
+                  }],
+                  [ 'arm_float_abi=="softfp" or arm_float_abi=="default"', {
+                    'defines': [
+                      'USE_EABI_HARDFLOAT=0',
+                    ],
+                  }],
+                ],
                 'defines': [
                   'ARM_TEST',
                 ],
               }],
             ],
-          }],
-          ['armsimulator=="yes"', {
-            'defines': [
-              'ARM_TEST',
-            ],
+          }],  # _toolset=="host"
+          ['_toolset=="target"', {
+            'variables': {
+              'armcompiler': '<!($(echo ${CXX_target:-<(CXX)}) -v 2>&1 | grep -q "^Target: arm" && echo "yes" || echo "no")',
+            },
             'conditions': [
-              [ 'armv7==1 or armv7=="default"', {
-                'defines': [
-                  'CAN_USE_ARMV7_INSTRUCTIONS=1',
-                ],
+              ['armcompiler=="yes"', {
                 'conditions': [
-                  [ 'arm_fpu=="default"', {
-                    'defines': [
-                      'CAN_USE_VFP3_INSTRUCTIONS',
+                  [ 'armv7==1', {
+                    'cflags': ['-march=armv7-a',],
+                  }],
+                  [ 'armv7==1 or armv7=="default"', {
+                    'conditions': [
+                      [ 'arm_neon==1', {
+                        'cflags': ['-mfpu=neon',],
+                      },
+                      {
+                        'conditions': [
+                          [ 'arm_fpu!="default"', {
+                            'cflags': ['-mfpu=<(arm_fpu)',],
+                          }],
+                        ],
+                      }],
                     ],
                   }],
-                  [ 'arm_fpu=="vfpv3-d16"', {
-                    'defines': [
-                      'CAN_USE_VFP3_INSTRUCTIONS',
-                    ],
+                  [ 'arm_float_abi!="default"', {
+                    'cflags': ['-mfloat-abi=<(arm_float_abi)',],
                   }],
-                  [ 'arm_fpu=="vfpv3"', {
-                    'defines': [
-                      'CAN_USE_VFP3_INSTRUCTIONS',
-                      'CAN_USE_VFP32DREGS',
-                    ],
+                  [ 'arm_thumb==1', {
+                    'cflags': ['-mthumb',],
                   }],
-                  [ 'arm_fpu=="neon" or arm_neon==1', {
+                  [ 'arm_thumb==0', {
+                    'cflags': ['-marm',],
+                  }],
+                  [ 'arm_test=="on"', {
                     'defines': [
-                      'CAN_USE_VFP3_INSTRUCTIONS',
-                      'CAN_USE_VFP32DREGS',
+                      'ARM_TEST',
                     ],
                   }],
                 ],
-              }],
-              [ 'arm_float_abi=="hard"', {
+              }, {
+                # armcompiler=="no"
+                'conditions': [
+                  [ 'armv7==1 or armv7=="default"', {
+                    'defines': [
+                      'CAN_USE_ARMV7_INSTRUCTIONS=1',
+                    ],
+                    'conditions': [
+                      [ 'arm_fpu=="default"', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                        ],
+                      }],
+                      [ 'arm_fpu=="vfpv3-d16"', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                        ],
+                      }],
+                      [ 'arm_fpu=="vfpv3"', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                          'CAN_USE_VFP32DREGS',
+                        ],
+                      }],
+                      [ 'arm_fpu=="neon" or arm_neon==1', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                          'CAN_USE_VFP32DREGS',
+                        ],
+                      }],
+                    ],
+                  }],
+                  [ 'arm_float_abi=="hard"', {
+                    'defines': [
+                      'USE_EABI_HARDFLOAT=1',
+                    ],
+                  }],
+                  [ 'arm_float_abi=="softfp" or arm_float_abi=="default"', {
+                    'defines': [
+                      'USE_EABI_HARDFLOAT=0',
+                    ],
+                  }],
+                ],
                 'defines': [
-                  'USE_EABI_HARDFLOAT=1',
+                  'ARM_TEST',
                 ],
               }],
-              [ 'arm_float_abi=="softfp" or arm_float_abi=="default"', {
-                'defines': [
-                  'USE_EABI_HARDFLOAT=0',
-                ],
-              }],
-            ]
-          }],
+            ],
+          }],  # _toolset=="target"
         ],
       }],  # v8_target_arch=="arm"
       ['v8_target_arch=="ia32"', {
@@ -453,6 +530,15 @@
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
             or OS=="android"', {
+            'cflags!': [
+              '-O2',
+              '-Os',
+            ],
+            'cflags': [
+              '-fdata-sections',
+              '-ffunction-sections',
+              '-O3',
+            ],
             'conditions': [
               [ 'gcc_version==44 and clang==0', {
                 'cflags': [

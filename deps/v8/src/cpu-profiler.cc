@@ -461,10 +461,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     // Enumerate stuff we already have in the heap.
     if (isolate_->heap()->HasBeenSetUp()) {
       if (!FLAG_prof_browser_mode) {
-        bool saved_log_code_flag = FLAG_log_code;
-        FLAG_log_code = true;
         isolate_->logger()->LogCodeObjects();
-        FLAG_log_code = saved_log_code_flag;
       }
       isolate_->logger()->LogCompiledFunctions();
       isolate_->logger()->LogAccessorCallbacks();

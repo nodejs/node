@@ -48,7 +48,7 @@ class TokenEnumerator {
 
  private:
   static void TokenRemovedCallback(v8::Isolate* isolate,
-                                   v8::Persistent<v8::Value> handle,
+                                   v8::Persistent<v8::Value>* handle,
                                    void* parameter);
   void TokenRemoved(Object** token_location);
 

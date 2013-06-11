@@ -47,6 +47,10 @@ regress/regress-crbug-160010: SKIP
 stack-traces-gc: PASS || FAIL
 
 ##############################################################################
+# TODO(wingo): Re-enable when GC bug from r15060 is solved.
+harmony/generators-iteration: SKIP
+
+##############################################################################
 # Too slow in debug mode with --stress-opt mode.
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
 compiler/regress-funcaller: PASS, SKIP if $mode == debug

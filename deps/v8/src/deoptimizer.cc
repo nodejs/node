@@ -285,7 +285,7 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     Context* context, OptimizedFunctionVisitor* visitor) {
   Isolate* isolate = context->GetIsolate();
   ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   ASSERT(context->IsNativeContext());
 
@@ -313,7 +313,7 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
 void Deoptimizer::VisitAllOptimizedFunctions(
     Isolate* isolate,
     OptimizedFunctionVisitor* visitor) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   // Run through the list of all native contexts and deoptimize.
   Object* context = isolate->heap()->native_contexts_list();
@@ -335,7 +335,7 @@ static void PartitionOptimizedFunctions(Context* context,
                                         ZoneList<Code*>* partitions,
                                         Zone* zone,
                                         Object* undefined) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   Object* current = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
   Object* remainder_head = undefined;
   Object* remainder_tail = undefined;
@@ -388,7 +388,7 @@ class DeoptimizeWithMatchingCodeFilter : public OptimizedFunctionFilter {
 
 
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   if (FLAG_trace_deopt) {
     PrintF("[deoptimize all contexts]\n");
@@ -400,7 +400,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 
 
 void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   DeoptimizeAllFilter filter;
   if (object->IsJSGlobalProxy()) {
     Object* proto = object->GetPrototype();
@@ -451,7 +451,7 @@ void Deoptimizer::DeoptimizeAllFunctionsForContext(
 
 void Deoptimizer::DeoptimizeAllFunctionsWith(Isolate* isolate,
                                              OptimizedFunctionFilter* filter) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   // Run through the list of all native contexts and deoptimize.
   Object* context = isolate->heap()->native_contexts_list();
@@ -463,7 +463,7 @@ void Deoptimizer::DeoptimizeAllFunctionsWith(Isolate* isolate,
 
 
 void Deoptimizer::HandleWeakDeoptimizedCode(v8::Isolate* isolate,
-                                            v8::Persistent<v8::Value> obj,
+                                            v8::Persistent<v8::Value>* obj,
                                             void* parameter) {
   DeoptimizingCodeListNode* node =
       reinterpret_cast<DeoptimizingCodeListNode*>(parameter);
@@ -558,7 +558,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       ? StackFrame::STUB
       : StackFrame::JAVA_SCRIPT;
   trace_ = TraceEnabledFor(type, frame_type);
-  ASSERT(HEAP->allow_allocation(false));
+#ifdef DEBUG
+  CHECK(AllowHeapAllocation::IsAllowed());
+  disallow_heap_allocation_ = new DisallowHeapAllocation();
+#endif  // DEBUG
   unsigned size = ComputeInputFrameSize();
   input_ = new(size) FrameDescription(size, function);
   input_->SetFrameType(frame_type);
@@ -608,6 +611,7 @@ void Deoptimizer::PrintFunctionName() {
 
 Deoptimizer::~Deoptimizer() {
   ASSERT(input_ == NULL && output_ == NULL);
+  ASSERT(disallow_heap_allocation_ == NULL);
 }
 
 
@@ -619,7 +623,12 @@ void Deoptimizer::DeleteFrameDescriptions() {
   delete[] output_;
   input_ = NULL;
   output_ = NULL;
-  ASSERT(!HEAP->allow_allocation(true));
+#ifdef DEBUG
+  CHECK(!AllowHeapAllocation::IsAllowed());
+  CHECK(disallow_heap_allocation_ != NULL);
+  delete disallow_heap_allocation_;
+  disallow_heap_allocation_ = NULL;
+#endif  // DEBUG
 }
 
 
@@ -1977,56 +1986,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 }
 
 
-static bool ObjectToInt32(Object* obj, int32_t* value) {
-  if (obj->IsSmi()) {
-    *value = Smi::cast(obj)->value();
-    return true;
-  }
-
-  if (obj->IsHeapNumber()) {
-    double num = HeapNumber::cast(obj)->value();
-    if (FastI2D(FastD2I(num)) != num) {
-      if (FLAG_trace_osr) {
-        PrintF("**** %g could not be converted to int32 ****\n",
-               HeapNumber::cast(obj)->value());
-      }
-      return false;
-    }
-
-    *value = FastD2I(num);
-    return true;
-  }
-
-  return false;
-}
-
-
-static bool ObjectToUint32(Object* obj, uint32_t* value) {
-  if (obj->IsSmi()) {
-    if (Smi::cast(obj)->value() < 0) return false;
-
-    *value = static_cast<uint32_t>(Smi::cast(obj)->value());
-    return true;
-  }
-
-  if (obj->IsHeapNumber()) {
-    double num = HeapNumber::cast(obj)->value();
-    if ((num < 0) || (FastUI2D(FastD2UI(num)) != num)) {
-      if (FLAG_trace_osr) {
-        PrintF("**** %g could not be converted to uint32 ****\n",
-               HeapNumber::cast(obj)->value());
-      }
-      return false;
-    }
-
-    *value = FastD2UI(num);
-    return true;
-  }
-
-  return false;
-}
-
-
 bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
                                         int* input_offset) {
   disasm::NameConverter converter;
@@ -2070,7 +2029,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
     case Translation::INT32_REGISTER: {
       int32_t int32_value = 0;
-      if (!ObjectToInt32(input_object, &int32_value)) return false;
+      if (!input_object->ToInt32(&int32_value)) return false;
 
       int output_reg = iterator->Next();
       if (FLAG_trace_osr) {
@@ -2085,7 +2044,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
     case Translation::UINT32_REGISTER: {
       uint32_t uint32_value = 0;
-      if (!ObjectToUint32(input_object, &uint32_value)) return false;
+      if (!input_object->ToUint32(&uint32_value)) return false;
 
       int output_reg = iterator->Next();
       if (FLAG_trace_osr) {
@@ -2132,7 +2091,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
     case Translation::INT32_STACK_SLOT: {
       int32_t int32_value = 0;
-      if (!ObjectToInt32(input_object, &int32_value)) return false;
+      if (!input_object->ToInt32(&int32_value)) return false;
 
       int output_index = iterator->Next();
       unsigned output_offset =
@@ -2149,7 +2108,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
     case Translation::UINT32_STACK_SLOT: {
       uint32_t uint32_value = 0;
-      if (!ObjectToUint32(input_object, &uint32_value)) return false;
+      if (!input_object->ToUint32(&uint32_value)) return false;
 
       int output_index = iterator->Next();
       unsigned output_offset =
@@ -2750,7 +2709,6 @@ DeoptimizingCodeListNode::DeoptimizingCodeListNode(Code* code): next_(NULL) {
   code_ = Handle<Code>::cast(global_handles->Create(code));
   global_handles->MakeWeak(reinterpret_cast<Object**>(code_.location()),
                            this,
-                           NULL,
                            Deoptimizer::HandleWeakDeoptimizedCode);
 }
 
@@ -2855,7 +2813,7 @@ Vector<SlotRef> SlotRef::ComputeSlotMappingForArguments(
     JavaScriptFrame* frame,
     int inlined_jsframe_index,
     int formal_parameter_count) {
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data =
       static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);

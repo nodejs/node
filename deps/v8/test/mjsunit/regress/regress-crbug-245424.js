@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// When this bug is corrected move to object-define-property and add
-// additional tests for configurable in the same manner as existing tests
-// there.
+// Flags: --allow-natives-syntax
 
-function C() {
-  this.x = 23;
+function boom() {
+  var a = {
+    foo: "bar",
+    foo: "baz"
+  };
+  return a;
 }
 
-// If a setter is added to the prototype chain of a simple constructor setting
-// one of the properties assigned in the constructor then this setter is
-// ignored when constructing new objects from the constructor.
-
-// This only happens if the setter is added _after_ an instance has been
-// created.
-
-assertEquals(23, new C().x);
-C.prototype.__defineSetter__('x', function(value) { this.y = 23; });
-assertEquals(void 0, new C().x);
+assertEquals("baz", boom().foo);
+assertEquals("baz", boom().foo);
+%OptimizeFunctionOnNextCall(boom);
+assertEquals("baz", boom().foo);

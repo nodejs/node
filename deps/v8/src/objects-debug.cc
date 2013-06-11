@@ -312,8 +312,9 @@ void JSObject::JSObjectVerify() {
         Representation r = descriptors->GetDetails(i).representation();
         int field = descriptors->GetFieldIndex(i);
         Object* value = RawFastPropertyAt(field);
-        if (r.IsSmi()) ASSERT(value->IsSmi());
         if (r.IsDouble()) ASSERT(value->IsHeapNumber());
+        if (value->IsUninitialized()) continue;
+        if (r.IsSmi()) ASSERT(value->IsSmi());
         if (r.IsHeapObject()) ASSERT(value->IsHeapObject());
       }
     }
@@ -774,6 +775,12 @@ void JSTypedArray::JSTypedArrayVerify() {
 
 void Foreign::ForeignVerify() {
   CHECK(IsForeign());
+}
+
+
+void Box::BoxVerify() {
+  CHECK(IsBox());
+  value()->Verify();
 }
 
 

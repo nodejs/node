@@ -80,7 +80,7 @@ function listener(event, exec_state, event_data, data) {
       var msg = eval('(' + json + ')');
       assertTrue('context' in msg.body.script);
 
-      // Check that we pick script name from //@ sourceURL, iff present
+      // Check that we pick script name from //# sourceURL, iff present
       assertEquals(current_source.indexOf('sourceURL') >= 0 ?
                      'myscript.js' : undefined,
                    event_data.script().name());
@@ -103,7 +103,7 @@ compileSource('eval("eval(\'(function(){return a;})\')")');
 source_count += 2;  // Using eval causes additional compilation event.
 compileSource('JSON.parse(\'{"a":1,"b":2}\')');
 // Using JSON.parse does not causes additional compilation events.
-compileSource('x=1; //@ sourceURL=myscript.js');
+compileSource('x=1; //# sourceURL=myscript.js');
 
 // Make sure that the debug event listener was invoked.
 assertFalse(exception, "exception in listener")

@@ -469,11 +469,12 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   //                           (first fast api call extra argument)
   //  -- esp[12]             : api call data
   //  -- esp[16]             : isolate
-  //  -- esp[20]             : ReturnValue
-  //  -- esp[24]             : last argument
+  //  -- esp[20]             : ReturnValue default value
+  //  -- esp[24]             : ReturnValue
+  //  -- esp[28]             : last argument
   //  -- ...
-  //  -- esp[(argc + 5) * 4] : first argument
-  //  -- esp[(argc + 6) * 4] : receiver
+  //  -- esp[(argc + 6) * 4] : first argument
+  //  -- esp[(argc + 7) * 4] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -495,9 +496,11 @@ static void GenerateFastApiCall(MacroAssembler* masm,
          Immediate(reinterpret_cast<int>(masm->isolate())));
   __ mov(Operand(esp, 5 * kPointerSize),
          masm->isolate()->factory()->undefined_value());
+  __ mov(Operand(esp, 6 * kPointerSize),
+         masm->isolate()->factory()->undefined_value());
 
   // Prepare arguments.
-  STATIC_ASSERT(kFastApiCallArguments == 5);
+  STATIC_ASSERT(kFastApiCallArguments == 6);
   __ lea(eax, Operand(esp, kFastApiCallArguments * kPointerSize));
 
   const int kApiArgc = 1;  // API function gets reference to the v8::Arguments.
@@ -783,7 +786,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                                            Label* slow) {
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, Handle<Map>(object->map()),
-              miss_label, DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+              miss_label, DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -859,7 +862,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
     __ bind(&heap_number);
     __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
-                miss_restore_name, DONT_DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+                miss_restore_name, DONT_DO_SMI_CHECK);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
       __ movdbl(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
@@ -918,6 +921,8 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   // object and the number of in-object properties is not going to change.
   index -= object->map()->inobject_properties();
 
+  SmiCheck smi_check = representation.IsTagged()
+      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   // TODO(verwaest): Share this code as a code stub.
   if (index < 0) {
     // Set the property straight into the object.
@@ -940,7 +945,9 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                           offset,
                           name_reg,
                           scratch1,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   } else {
     // Write to the properties array.
@@ -965,7 +972,9 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                           offset,
                           name_reg,
                           receiver_reg,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   }
 
@@ -988,7 +997,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Label* miss_label) {
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, Handle<Map>(object->map()),
-              miss_label, DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+              miss_label, DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -1039,7 +1048,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ jmp(&do_store);
     __ bind(&heap_number);
     __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
-                miss_label, DONT_DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+                miss_label, DONT_DO_SMI_CHECK);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
       __ movdbl(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
@@ -1061,6 +1070,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   ASSERT(!FLAG_track_double_fields || !representation.IsDouble());
   // TODO(verwaest): Share this code as a code stub.
+  SmiCheck smi_check = representation.IsTagged()
+      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
@@ -1074,7 +1085,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                           offset,
                           name_reg,
                           scratch1,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   } else {
     // Write to the properties array.
@@ -1091,7 +1104,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                           offset,
                           name_reg,
                           receiver_reg,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   }
 
@@ -1187,8 +1202,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
       bool in_new_space = heap()->InNewSpace(*prototype);
       Handle<Map> current_map(current->map());
       if (!current.is_identical_to(first) || check == CHECK_ALL_MAPS) {
-        __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK,
-                    ALLOW_ELEMENT_TRANSITION_MAPS);
+        __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK);
       }
 
       // Check access rights to the global object.  This has to happen after
@@ -1229,8 +1243,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
 
   if (!holder.is_identical_to(first) || check == CHECK_ALL_MAPS) {
     // Check the holder map.
-    __ CheckMap(reg, Handle<Map>(holder->map()),
-                miss, DONT_DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+    __ CheckMap(reg, Handle<Map>(holder->map()), miss, DONT_DO_SMI_CHECK);
   }
 
   // Perform security check for access to the global object.
@@ -1376,8 +1389,10 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   } else {
     __ push(Immediate(Handle<Object>(callback->data(), isolate())));
   }
-  __ push(Immediate(reinterpret_cast<int>(isolate())));
   __ push(Immediate(isolate()->factory()->undefined_value()));  // ReturnValue
+  // ReturnValue default value
+  __ push(Immediate(isolate()->factory()->undefined_value()));
+  __ push(Immediate(reinterpret_cast<int>(isolate())));
 
   // Save a pointer to where we pushed the arguments pointer.  This will be
   // passed as the const ExecutableAccessorInfo& to the C++ callback.
@@ -1410,7 +1425,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ CallApiFunctionAndReturn(getter_address,
                               kStackSpace,
                               returns_handle,
-                              4);
+                              6);
 }
 
 
@@ -2886,8 +2901,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
   Label miss;
 
   // Check that the map of the object hasn't changed.
-  __ CheckMap(receiver(), Handle<Map>(object->map()),
-              &miss, DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+  __ CheckMap(receiver(), Handle<Map>(object->map()), &miss, DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -3166,145 +3180,6 @@ Handle<Code> BaseLoadStubCompiler::CompilePolymorphicIC(
   InlineCacheState state =
       number_of_handled_maps > 1 ? POLYMORPHIC : MONOMORPHIC;
   return GetICCode(kind(), type, name, state);
-}
-
-
-// Specialized stub for constructing objects from functions which only have only
-// simple assignments of the form this.x = ...; in their body.
-Handle<Code> ConstructStubCompiler::CompileConstructStub(
-    Handle<JSFunction> function) {
-  // ----------- S t a t e -------------
-  //  -- eax : argc
-  //  -- edi : constructor
-  //  -- esp[0] : return address
-  //  -- esp[4] : last argument
-  // -----------------------------------
-  Label generic_stub_call;
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Check to see whether there are any break points in the function code. If
-  // there are jump to the generic constructor stub which calls the actual
-  // code for the function thereby hitting the break points.
-  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kDebugInfoOffset));
-  __ cmp(ebx, factory()->undefined_value());
-  __ j(not_equal, &generic_stub_call);
-#endif
-
-  // Load the initial map and verify that it is in fact a map.
-  // edi: constructor
-  __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
-  // Will both indicate a NULL and a Smi.
-  __ JumpIfSmi(ebx, &generic_stub_call);
-  __ CmpObjectType(ebx, MAP_TYPE, ecx);
-  __ j(not_equal, &generic_stub_call);
-
-#ifdef DEBUG
-  // Cannot construct functions this way.
-  // ebx: initial map
-  __ CmpInstanceType(ebx, JS_FUNCTION_TYPE);
-  __ Check(not_equal, "Function constructed by construct stub.");
-#endif
-
-  // Now allocate the JSObject on the heap by moving the new space allocation
-  // top forward.
-  // ebx: initial map
-  ASSERT(function->has_initial_map());
-  int instance_size = function->initial_map()->instance_size();
-#ifdef DEBUG
-  __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
-  __ shl(ecx, kPointerSizeLog2);
-  __ cmp(ecx, Immediate(instance_size));
-  __ Check(equal, "Instance size of initial map changed.");
-#endif
-  __ Allocate(instance_size, edx, ecx, no_reg, &generic_stub_call,
-              NO_ALLOCATION_FLAGS);
-
-  // Allocated the JSObject, now initialize the fields and add the heap tag.
-  // ebx: initial map
-  // edx: JSObject (untagged)
-  __ mov(Operand(edx, JSObject::kMapOffset), ebx);
-  __ mov(ebx, factory()->empty_fixed_array());
-  __ mov(Operand(edx, JSObject::kPropertiesOffset), ebx);
-  __ mov(Operand(edx, JSObject::kElementsOffset), ebx);
-
-  // Push the allocated object to the stack. This is the object that will be
-  // returned (after it is tagged).
-  __ push(edx);
-
-  // eax: argc
-  // edx: JSObject (untagged)
-  // Load the address of the first in-object property into edx.
-  __ lea(edx, Operand(edx, JSObject::kHeaderSize));
-  // Calculate the location of the first argument. The stack contains the
-  // allocated object and the return address on top of the argc arguments.
-  __ lea(ecx, Operand(esp, eax, times_4, 1 * kPointerSize));
-
-  // Use edi for holding undefined which is used in several places below.
-  __ mov(edi, factory()->undefined_value());
-
-  // eax: argc
-  // ecx: first argument
-  // edx: first in-object property of the JSObject
-  // edi: undefined
-  // Fill the initialized properties with a constant value or a passed argument
-  // depending on the this.x = ...; assignment in the function.
-  Handle<SharedFunctionInfo> shared(function->shared());
-  for (int i = 0; i < shared->this_property_assignments_count(); i++) {
-    if (shared->IsThisPropertyAssignmentArgument(i)) {
-      // Check if the argument assigned to the property is actually passed.
-      // If argument is not passed the property is set to undefined,
-      // otherwise find it on the stack.
-      int arg_number = shared->GetThisPropertyAssignmentArgument(i);
-      __ mov(ebx, edi);
-      __ cmp(eax, arg_number);
-      if (CpuFeatures::IsSupported(CMOV)) {
-        CpuFeatureScope use_cmov(masm(), CMOV);
-        __ cmov(above, ebx, Operand(ecx, arg_number * -kPointerSize));
-      } else {
-        Label not_passed;
-        __ j(below_equal, &not_passed);
-        __ mov(ebx, Operand(ecx, arg_number * -kPointerSize));
-        __ bind(&not_passed);
-      }
-      // Store value in the property.
-      __ mov(Operand(edx, i * kPointerSize), ebx);
-    } else {
-      // Set the property to the constant value.
-      Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i),
-                              isolate());
-      __ mov(Operand(edx, i * kPointerSize), Immediate(constant));
-    }
-  }
-
-  // Fill the unused in-object property fields with undefined.
-  for (int i = shared->this_property_assignments_count();
-       i < function->initial_map()->inobject_properties();
-       i++) {
-    __ mov(Operand(edx, i * kPointerSize), edi);
-  }
-
-  // Move argc to ebx and retrieve and tag the JSObject to return.
-  __ mov(ebx, eax);
-  __ pop(eax);
-  __ or_(eax, Immediate(kHeapObjectTag));
-
-  // Remove caller arguments and receiver from the stack and return.
-  __ pop(ecx);
-  __ lea(esp, Operand(esp, ebx, times_pointer_size, 1 * kPointerSize));
-  __ push(ecx);
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->constructed_objects(), 1);
-  __ IncrementCounter(counters->constructed_objects_stub(), 1);
-  __ ret(0);
-
-  // Jump to the generic stub in case the specialized code cannot handle the
-  // construction.
-  __ bind(&generic_stub_call);
-  Handle<Code> code = isolate()->builtins()->JSConstructStubGeneric();
-  __ jmp(code, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode();
 }
 
 

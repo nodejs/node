@@ -41,6 +41,14 @@ namespace v8 {
 namespace internal {
 
 
+Handle<Box> Factory::NewBox(Handle<Object> value, PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateBox(*value, pretenure),
+      Box);
+}
+
+
 Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
   ASSERT(0 <= size);
   CALL_HEAP_FUNCTION(
@@ -476,8 +484,7 @@ Handle<ExternalArray> Factory::NewExternalArray(int length,
 
 Handle<JSGlobalPropertyCell> Factory::NewJSGlobalPropertyCell(
     Handle<Object> value) {
-  ALLOW_HANDLE_DEREF(isolate(),
-                     "converting a handle into a global property cell");
+  AllowDeferredHandleDereference convert_to_cell;
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSGlobalPropertyCell(*value),
@@ -677,9 +684,9 @@ Handle<JSObject> Factory::NewNeanderObject() {
 }
 
 
-Handle<Object> Factory::NewTypeError(const char* type,
+Handle<Object> Factory::NewTypeError(const char* message,
                                      Vector< Handle<Object> > args) {
-  return NewError("MakeTypeError", type, args);
+  return NewError("MakeTypeError", message, args);
 }
 
 
@@ -688,9 +695,9 @@ Handle<Object> Factory::NewTypeError(Handle<String> message) {
 }
 
 
-Handle<Object> Factory::NewRangeError(const char* type,
+Handle<Object> Factory::NewRangeError(const char* message,
                                       Vector< Handle<Object> > args) {
-  return NewError("MakeRangeError", type, args);
+  return NewError("MakeRangeError", message, args);
 }
 
 
@@ -699,8 +706,9 @@ Handle<Object> Factory::NewRangeError(Handle<String> message) {
 }
 
 
-Handle<Object> Factory::NewSyntaxError(const char* type, Handle<JSArray> args) {
-  return NewError("MakeSyntaxError", type, args);
+Handle<Object> Factory::NewSyntaxError(const char* message,
+                                       Handle<JSArray> args) {
+  return NewError("MakeSyntaxError", message, args);
 }
 
 
@@ -709,9 +717,9 @@ Handle<Object> Factory::NewSyntaxError(Handle<String> message) {
 }
 
 
-Handle<Object> Factory::NewReferenceError(const char* type,
+Handle<Object> Factory::NewReferenceError(const char* message,
                                           Vector< Handle<Object> > args) {
-  return NewError("MakeReferenceError", type, args);
+  return NewError("MakeReferenceError", message, args);
 }
 
 
@@ -721,7 +729,7 @@ Handle<Object> Factory::NewReferenceError(Handle<String> message) {
 
 
 Handle<Object> Factory::NewError(const char* maker,
-                                 const char* type,
+                                 const char* message,
                                  Vector< Handle<Object> > args) {
   // Instantiate a closeable HandleScope for EscapeFrom.
   v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));
@@ -730,24 +738,24 @@ Handle<Object> Factory::NewError(const char* maker,
     array->set(i, *args[i]);
   }
   Handle<JSArray> object = NewJSArrayWithElements(array);
-  Handle<Object> result = NewError(maker, type, object);
+  Handle<Object> result = NewError(maker, message, object);
   return result.EscapeFrom(&scope);
 }
 
 
-Handle<Object> Factory::NewEvalError(const char* type,
+Handle<Object> Factory::NewEvalError(const char* message,
                                      Vector< Handle<Object> > args) {
-  return NewError("MakeEvalError", type, args);
+  return NewError("MakeEvalError", message, args);
 }
 
 
-Handle<Object> Factory::NewError(const char* type,
+Handle<Object> Factory::NewError(const char* message,
                                  Vector< Handle<Object> > args) {
-  return NewError("MakeError", type, args);
+  return NewError("MakeError", message, args);
 }
 
 
-Handle<String> Factory::EmergencyNewError(const char* type,
+Handle<String> Factory::EmergencyNewError(const char* message,
                                           Handle<JSArray> args) {
   const int kBufferSize = 1000;
   char buffer[kBufferSize];
@@ -755,8 +763,8 @@ Handle<String> Factory::EmergencyNewError(const char* type,
   char* p = &buffer[0];
 
   Vector<char> v(buffer, kBufferSize);
-  OS::StrNCpy(v, type, space);
-  space -= Min(space, strlen(type));
+  OS::StrNCpy(v, message, space);
+  space -= Min(space, strlen(message));
   p = &buffer[kBufferSize] - space;
 
   for (unsigned i = 0; i < ARRAY_SIZE(args); i++) {
@@ -785,7 +793,7 @@ Handle<String> Factory::EmergencyNewError(const char* type,
 
 
 Handle<Object> Factory::NewError(const char* maker,
-                                 const char* type,
+                                 const char* message,
                                  Handle<JSArray> args) {
   Handle<String> make_str = InternalizeUtf8String(maker);
   Handle<Object> fun_obj(
@@ -794,11 +802,11 @@ Handle<Object> Factory::NewError(const char* maker,
   // If the builtins haven't been properly configured yet this error
   // constructor may not have been defined.  Bail out.
   if (!fun_obj->IsJSFunction()) {
-    return EmergencyNewError(type, args);
+    return EmergencyNewError(message, args);
   }
   Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
-  Handle<Object> type_obj = InternalizeUtf8String(type);
-  Handle<Object> argv[] = { type_obj, args };
+  Handle<Object> message_obj = InternalizeUtf8String(message);
+  Handle<Object> argv[] = { message_obj, args };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.

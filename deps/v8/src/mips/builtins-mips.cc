@@ -335,9 +335,9 @@ void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code) {
                        call_generic_code);
   __ IncrementCounter(counters->array_function_native(), 1, a3, t0);
   // Set up return value, remove receiver from stack and return.
-  __ mov(v0, a2);
   __ Addu(sp, sp, Operand(kPointerSize));
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a2);
 
   // Check for one argument. Bail out if argument is not smi or if it is
   // negative.
@@ -378,9 +378,9 @@ void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code) {
   __ IncrementCounter(counters->array_function_native(), 1, a2, t0);
 
   // Set up return value, remove receiver and argument from stack and return.
-  __ mov(v0, a3);
   __ Addu(sp, sp, Operand(2 * kPointerSize));
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a3);
 
   // Handle construction of an array from a list of arguments.
   __ bind(&argc_two_or_more);
@@ -434,8 +434,8 @@ void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code) {
   // a3: JSArray
   // sp[0]: receiver
   __ Addu(sp, sp, Operand(kPointerSize));
+  __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a3);
-  __ Ret();
 
   __ bind(&has_non_smi_element);
   // Double values are handled by the runtime.
@@ -498,15 +498,20 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
 
   // Run the native code for the InternalArray function called as a normal
   // function.
-  ArrayNativeCode(masm, &generic_array_code);
+  if (FLAG_optimize_constructed_arrays) {
+    // Tail call a stub.
+    InternalArrayConstructorStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  } else {
+    ArrayNativeCode(masm, &generic_array_code);
 
-  // Jump to the generic array code if the specialized code cannot handle the
-  // construction.
-  __ bind(&generic_array_code);
-
-  Handle<Code> array_code =
-      masm->isolate()->builtins()->InternalArrayCodeGeneric();
-  __ Jump(array_code, RelocInfo::CODE_TARGET);
+    // Jump to the generic array code if the specialized code cannot handle the
+    // construction.
+    __ bind(&generic_array_code);
+    Handle<Code> array_code =
+        masm->isolate()->builtins()->InternalArrayCodeGeneric();
+    __ Jump(array_code, RelocInfo::CODE_TARGET);
+  }
 }
 
 
@@ -533,15 +538,24 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   }
 
   // Run the native code for the Array function called as a normal function.
-  ArrayNativeCode(masm, &generic_array_code);
+  if (FLAG_optimize_constructed_arrays) {
+    // Tail call a stub.
+    Handle<Object> undefined_sentinel(
+        masm->isolate()->heap()->undefined_value(),
+        masm->isolate());
+    __ li(a2, Operand(undefined_sentinel));
+    ArrayConstructorStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  } else {
+    ArrayNativeCode(masm, &generic_array_code);
 
-  // Jump to the generic array code if the specialized code cannot handle
-  // the construction.
-  __ bind(&generic_array_code);
-
-  Handle<Code> array_code =
-      masm->isolate()->builtins()->ArrayCodeGeneric();
-  __ Jump(array_code, RelocInfo::CODE_TARGET);
+    // Jump to the generic array code if the specialized code cannot handle
+    // the construction.
+    __ bind(&generic_array_code);
+    Handle<Code> array_code =
+        masm->isolate()->builtins()->ArrayCodeGeneric();
+    __ Jump(array_code, RelocInfo::CODE_TARGET);
+  }
 }
 
 
@@ -1358,15 +1372,17 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   Label with_tos_register, unknown_state;
   __ Branch(&with_tos_register,
             ne, t2, Operand(FullCodeGenerator::NO_REGISTERS));
+  __ Ret(USE_DELAY_SLOT);
+  // Safe to fill delay slot Addu will emit one instruction.
   __ Addu(sp, sp, Operand(1 * kPointerSize));  // Remove state.
-  __ Ret();
 
   __ bind(&with_tos_register);
   __ lw(v0, MemOperand(sp, 1 * kPointerSize));
   __ Branch(&unknown_state, ne, t2, Operand(FullCodeGenerator::TOS_REG));
 
+  __ Ret(USE_DELAY_SLOT);
+  // Safe to fill delay slot Addu will emit one instruction.
   __ Addu(sp, sp, Operand(2 * kPointerSize));  // Remove state.
-  __ Ret();
 
   __ bind(&unknown_state);
   __ stop("no cases left");

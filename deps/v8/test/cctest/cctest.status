@@ -34,14 +34,6 @@ test-api/Bug*: FAIL
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
 
-# BUG(484): This test which we thought was originally corrected in r5236
-# is re-appearing. Disabled until bug in test is fixed. This only fails
-# when snapshot is on, so I am marking it PASS || FAIL
-test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
-
-# BUG(2628): These tests are flaky and sometimes fail, but should not crash.
-test-cpu-profiler/SampleWhenFrameIsNotSetup: PASS || FAIL
-
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.
 test-serialize/TestThatAlwaysFails: FAIL
@@ -53,14 +45,14 @@ test-debug/LiveEditDisabled: FAIL
 # TODO(gc): Temporarily disabled in the GC branch.
 test-log/EquivalenceOfLoggingAndTraversal: PASS || FAIL
 
-# BUG(1261): Flakey test.
-test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
-
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL
 
 # Deferred stack trace formatting is temporarily disabled.
 test-heap/ReleaseStackTraceData: PASS || FAIL
+
+# Boot up memory use is bloated in debug mode.
+test-mark-compact/BootUpMemoryUse: PASS, PASS || FAIL if $mode == debug
 
 ##############################################################################
 [ $arch == arm ]
@@ -81,13 +73,13 @@ test-serialize/DeserializeAndRunScript2: SKIP
 test-serialize/DeserializeFromSecondSerialization: SKIP
 
 ##############################################################################
-[ $arch == arm || $arch == mipsel ]
+[ $arch == mipsel ]
 
-# BUG(2628): Signal may come when pc is close to frame enter/exit code and on
-# simulator the stack frame is not set up when it is expected to be for the pc
-# value.
-test-cpu-profiler/CollectCpuProfile: PASS || FAIL
+# BUG(2628): The test sometimes fails on MIPS simulator.
 test-cpu-profiler/SampleWhenFrameIsNotSetup: PASS || FAIL
+
+# BUG(2657): Test sometimes times out on MIPS simulator.
+test-thread-termination/TerminateMultipleV8ThreadsDefaultIsolate: PASS || TIMEOUT
 
 ##############################################################################
 [ $arch == android_arm || $arch == android_ia32 ]

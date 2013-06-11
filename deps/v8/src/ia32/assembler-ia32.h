@@ -411,7 +411,7 @@ class Operand BASE_EMBEDDED {
   }
 
   static Operand Cell(Handle<JSGlobalPropertyCell> cell) {
-    ALLOW_HANDLE_DEREF(Isolate::Current(), "embedding raw address");
+    AllowDeferredHandleDereference embedding_raw_address;
     return Operand(reinterpret_cast<int32_t>(cell.location()),
                    RelocInfo::GLOBAL_PROPERTY_CELL);
   }

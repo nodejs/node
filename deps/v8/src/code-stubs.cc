@@ -45,7 +45,8 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
       deoptimization_handler_(NULL),
-      miss_handler_(IC_Utility(IC::kUnreachable), Isolate::Current()) { }
+      miss_handler_(IC_Utility(IC::kUnreachable), Isolate::Current()),
+      has_miss_handler_(false) { }
 
 
 bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {
@@ -304,6 +305,27 @@ void BinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
 }
 
 
+InlineCacheState ICCompareStub::GetICState() {
+  CompareIC::State state = Max(left_, right_);
+  switch (state) {
+    case CompareIC::UNINITIALIZED:
+      return ::v8::internal::UNINITIALIZED;
+    case CompareIC::SMI:
+    case CompareIC::NUMBER:
+    case CompareIC::INTERNALIZED_STRING:
+    case CompareIC::STRING:
+    case CompareIC::UNIQUE_NAME:
+    case CompareIC::OBJECT:
+    case CompareIC::KNOWN_OBJECT:
+      return MONOMORPHIC;
+    case CompareIC::GENERIC:
+      return ::v8::internal::GENERIC;
+  }
+  UNREACHABLE();
+  return ::v8::internal::UNINITIALIZED;
+}
+
+
 void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
   ASSERT(*known_map_ != NULL);
   Isolate* isolate = new_object->GetIsolate();
@@ -410,26 +432,36 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 
 void CompareNilICStub::Record(Handle<Object> object) {
   ASSERT(types_ != Types::FullCompare());
-  if (equality_kind_ == kStrictEquality) {
-    // When testing for strict equality only one value will evaluate to true
-    types_.RemoveAll();
-    types_.Add((nil_value_ == kNullValue) ? NULL_TYPE:
-                                            UNDEFINED);
+  if (object->IsNull()) {
+    types_.Add(NULL_TYPE);
+  } else if (object->IsUndefined()) {
+    types_.Add(UNDEFINED);
+  } else if (object->IsUndetectableObject() ||
+             object->IsOddball() ||
+             !object->IsHeapObject()) {
+    types_ = Types::FullCompare();
+  } else if (IsMonomorphic()) {
+    types_ = Types::FullCompare();
   } else {
-    if (object->IsNull()) {
-      types_.Add(NULL_TYPE);
-    } else if (object->IsUndefined()) {
-      types_.Add(UNDEFINED);
-    } else if (object->IsUndetectableObject() ||
-               object->IsOddball() ||
-               !object->IsHeapObject()) {
-      types_ = Types::FullCompare();
-    } else if (IsMonomorphic()) {
-      types_ = Types::FullCompare();
-    } else {
-      types_.Add(MONOMORPHIC_MAP);
-    }
+    types_.Add(MONOMORPHIC_MAP);
   }
+}
+
+
+void CompareNilICStub::Types::TraceTransition(Types to) const {
+  #ifdef DEBUG
+  if (!FLAG_trace_ic) return;
+  char buffer[100];
+  NoAllocationStringAllocator allocator(buffer,
+                                        static_cast<unsigned>(sizeof(buffer)));
+  StringStream stream(&allocator);
+  stream.Add("[CompareNilIC : ");
+  Print(&stream);
+  stream.Add("=>");
+  to.Print(&stream);
+  stream.Add("]\n");
+  stream.OutputToStdOut();
+  #endif
 }
 
 
@@ -438,8 +470,6 @@ void CompareNilICStub::PrintName(StringStream* stream) {
   types_.Print(stream);
   stream->Add((nil_value_ == kNullValue) ? "(NullValue|":
                                            "(UndefinedValue|");
-  stream->Add((equality_kind_ == kStrictEquality) ? "StrictEquality)":
-                                                    "NonStrictEquality)");
 }
 
 
@@ -554,6 +584,14 @@ void CallConstructStub::PrintName(StringStream* stream) {
 }
 
 
+bool ToBooleanStub::Record(Handle<Object> object) {
+  Types old_types(types_);
+  bool to_boolean_value = types_.Record(object);
+  old_types.TraceTransition(types_);
+  return to_boolean_value;
+}
+
+
 void ToBooleanStub::PrintName(StringStream* stream) {
   stream->Add("ToBooleanStub_");
   types_.Print(stream);
@@ -577,17 +615,19 @@ void ToBooleanStub::Types::Print(StringStream* stream) const {
 
 
 void ToBooleanStub::Types::TraceTransition(Types to) const {
+  #ifdef DEBUG
   if (!FLAG_trace_ic) return;
   char buffer[100];
   NoAllocationStringAllocator allocator(buffer,
                                         static_cast<unsigned>(sizeof(buffer)));
   StringStream stream(&allocator);
-  stream.Add("[ToBooleanIC (");
+  stream.Add("[ToBooleanIC : ");
   Print(&stream);
-  stream.Add("->");
+  stream.Add("=>");
   to.Print(&stream);
-  stream.Add(")]\n");
+  stream.Add("]\n");
   stream.OutputToStdOut();
+  #endif
 }
 
 
@@ -746,6 +786,21 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
     UNREACHABLE();
   }
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
+}
+
+
+void InternalArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
+  InternalArrayNoArgumentConstructorStub stub1(FAST_ELEMENTS);
+  InstallDescriptor(isolate, &stub1);
+  InternalArraySingleArgumentConstructorStub stub2(FAST_ELEMENTS);
+  InstallDescriptor(isolate, &stub2);
+  InternalArrayNArgumentsConstructorStub stub3(FAST_ELEMENTS);
+  InstallDescriptor(isolate, &stub3);
+}
+
+InternalArrayConstructorStub::InternalArrayConstructorStub(
+    Isolate* isolate) {
+  InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
 

@@ -637,7 +637,7 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
   // First perform a full GC in order to avoid dead objects.
   HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::FindHeapObjectById");
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   HeapObject* object = NULL;
   HeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
   // Make sure that object with the given id is still reachable.
@@ -1210,10 +1210,6 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "inferred_name", shared->inferred_name(),
                        SharedFunctionInfo::kInferredNameOffset);
-  SetInternalReference(obj, entry,
-                       "this_property_assignments",
-                       shared->this_property_assignments(),
-                       SharedFunctionInfo::kThisPropertyAssignmentsOffset);
   SetWeakReference(obj, entry,
                    1, shared->initial_map(),
                    SharedFunctionInfo::kInitialMapOffset);
@@ -1827,7 +1823,7 @@ void V8HeapExplorer::TagGlobalObjects() {
     }
   }
 
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
     objects_tags_.SetTag(*enumerator.at(i), urls[i]);
   }
@@ -2219,7 +2215,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
   // The following code uses heap iterators, so we want the heap to be
   // stable. It should follow TagGlobalObjects as that can allocate.
-  AssertNoAllocation no_alloc;
+  DisallowHeapAllocation no_alloc;
 
 #ifdef VERIFY_HEAP
   debug_heap->Verify();

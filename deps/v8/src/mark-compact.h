@@ -841,13 +841,17 @@ class MarkCompactCollector {
   // is marked.
   void MarkImplicitRefGroups();
 
-  // Mark all objects which are reachable due to host application
-  // logic like object groups or implicit references' groups.
-  void ProcessExternalMarking(RootMarkingVisitor* visitor);
-
   // Mark objects reachable (transitively) from objects in the marking stack
   // or overflowed in the heap.
   void ProcessMarkingDeque();
+
+  // Mark objects reachable (transitively) from objects in the marking stack
+  // or overflowed in the heap.  This respects references only considered in
+  // the final atomic marking pause including the following:
+  //    - Processing of objects reachable through Harmony WeakMaps.
+  //    - Objects reachable due to host application logic like object groups
+  //      or implicit references' groups.
+  void ProcessEphemeralMarking(ObjectVisitor* visitor);
 
   // Mark objects reachable (transitively) from objects in the marking
   // stack.  This function empties the marking stack, but may leave

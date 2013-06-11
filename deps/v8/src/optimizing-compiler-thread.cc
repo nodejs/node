@@ -42,6 +42,9 @@ void OptimizingCompilerThread::Run() {
   thread_id_ = ThreadId::Current().ToInteger();
 #endif
   Isolate::SetIsolateThreadLocals(isolate_, NULL);
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
 
   int64_t epoch = 0;
   if (FLAG_trace_parallel_recompilation) epoch = OS::Ticks();
@@ -89,6 +92,7 @@ void OptimizingCompilerThread::CompileNext() {
   // Mark it for installing before queuing so that we can be sure of the write
   // order: marking first and (after being queued) installing code second.
   { Heap::RelocationLock relocation_lock(isolate_->heap());
+    AllowHandleDereference ahd;
     optimizing_compiler->info()->closure()->MarkForInstallingRecompiledCode();
   }
   output_queue_.Enqueue(optimizing_compiler);

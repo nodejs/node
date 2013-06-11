@@ -92,6 +92,8 @@ class StaticVisitorBase : public AllStatic {
   V(SharedFunctionInfo)       \
   V(JSFunction)               \
   V(JSWeakMap)                \
+  V(JSArrayBuffer)            \
+  V(JSTypedArray)             \
   V(JSRegExp)
 
   // For data objects, JS objects and structs along with generic visitor which
@@ -333,6 +335,9 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     return FreeSpace::cast(object)->Size();
   }
 
+  INLINE(static int VisitJSArrayBuffer(Map* map, HeapObject* object));
+  INLINE(static int VisitJSTypedArray(Map* map, HeapObject* object));
+
   class DataObjectVisitor {
    public:
     template<int object_size>
@@ -407,6 +412,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitSharedFunctionInfo(Map* map, HeapObject* object));
   INLINE(static void VisitJSFunction(Map* map, HeapObject* object));
   INLINE(static void VisitJSRegExp(Map* map, HeapObject* object));
+  INLINE(static void VisitJSArrayBuffer(Map* map, HeapObject* object));
+  INLINE(static void VisitJSTypedArray(Map* map, HeapObject* object));
   INLINE(static void VisitNativeContext(Map* map, HeapObject* object));
 
   // Mark pointers in a Map and its TransitionArray together, possibly

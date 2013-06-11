@@ -51,7 +51,7 @@ class CodeGenerator: public AstVisitor {
   static bool MakeCode(CompilationInfo* info);
 
   // Printing of AST, etc. as requested by flags.
-  static void MakeCodePrologue(CompilationInfo* info);
+  static void MakeCodePrologue(CompilationInfo* info, const char* kind);
 
   // Allocate and install the code.
   static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,

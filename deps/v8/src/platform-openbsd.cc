@@ -344,6 +344,10 @@ void OS::SignalCodeMovingGC() {
   // kernel log.
   int size = sysconf(_SC_PAGESIZE);
   FILE* f = fopen(FLAG_gc_fake_mmap, "w+");
+  if (f == NULL) {
+    OS::PrintError("Failed to open %s\n", FLAG_gc_fake_mmap);
+    OS::Abort();
+  }
   void* addr = mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE,
                     fileno(f), 0);
   ASSERT(addr != MAP_FAILED);

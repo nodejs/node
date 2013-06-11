@@ -25,10 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include <v8.h>
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -106,8 +102,8 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* handler);
 v8::Handle<v8::String> ReadFile(const char* name);
 v8::Handle<v8::String> ReadLine();
 
-v8::Handle<v8::Value> Print(const v8::Arguments& args);
-v8::Handle<v8::Value> ReadLine(const v8::Arguments& args);
+void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
+void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args);
 bool RunCppCycle(v8::Handle<v8::Script> script,
                  v8::Local<v8::Context> context,
                  bool report_exceptions);
@@ -130,7 +126,9 @@ void DispatchDebugMessages() {
   // think about.
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope handle_scope(isolate);
-  v8::Context::Scope scope(isolate, debug_message_context);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(isolate, debug_message_context);
+  v8::Context::Scope scope(context);
 
   v8::Debug::ProcessDebugMessages();
 }
@@ -220,8 +218,7 @@ int RunMain(int argc, char* argv[]) {
   v8::Context::Scope context_scope(context);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  debug_message_context =
-      v8::Persistent<v8::Context>::New(isolate, context);
+  debug_message_context.Reset(isolate, context);
 
   v8::Locker locker(isolate);
 
@@ -396,7 +393,7 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
 // The callback that is invoked by v8 whenever the JavaScript 'print'
 // function is called.  Prints its arguments on stdout separated by
 // spaces and ending with a newline.
-v8::Handle<v8::Value> Print(const v8::Arguments& args) {
+void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
   bool first = true;
   for (int i = 0; i < args.Length(); i++) {
     v8::HandleScope handle_scope(args.GetIsolate());
@@ -411,17 +408,17 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
   }
   printf("\n");
   fflush(stdout);
-  return v8::Undefined();
 }
 
 
 // The callback that is invoked by v8 whenever the JavaScript 'read_line'
 // function is called. Reads a string from standard input and returns.
-v8::Handle<v8::Value> ReadLine(const v8::Arguments& args) {
+void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() > 0) {
-    return v8::ThrowException(v8::String::New("Unexpected arguments"));
+    v8::ThrowException(v8::String::New("Unexpected arguments"));
+    return;
   }
-  return ReadLine();
+  args.GetReturnValue().Set(ReadLine());
 }
 
 v8::Handle<v8::String> ReadLine() {
@@ -437,7 +434,7 @@ v8::Handle<v8::String> ReadLine() {
   }
   if (res == NULL) {
     v8::Handle<v8::Primitive> t = v8::Undefined();
-    return v8::Handle<v8::String>(v8::String::Cast(*t));
+    return v8::Handle<v8::String>::Cast(t);
   }
   // Remove newline char
   for (char* pos = buffer; *pos != '\0'; pos++) {

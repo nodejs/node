@@ -345,9 +345,9 @@ Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info) {
 // associated with the wrapper and get rid of both the wrapper and the
 // handle.
 static void ClearWrapperCache(v8::Isolate* v8_isolate,
-                              Persistent<v8::Value> handle,
+                              Persistent<v8::Value>* handle,
                               void*) {
-  Handle<Object> cache = Utils::OpenHandle(*handle);
+  Handle<Object> cache = Utils::OpenHandle(**handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();
   ASSERT(foreign->foreign_address() ==
@@ -387,7 +387,6 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   // garbage collector when it is not used anymore.
   Handle<Object> handle = isolate->global_handles()->Create(*result);
   isolate->global_handles()->MakeWeak(handle.location(),
-                                      NULL,
                                       NULL,
                                       &ClearWrapperCache);
   script->wrapper()->set_foreign_address(
@@ -457,7 +456,7 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> src,
   List<int> line_ends(line_count_estimate);
   Isolate* isolate = src->GetIsolate();
   {
-    AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid.
+    DisallowHeapAllocation no_allocation;  // ensure vectors stay valid.
     // Dispatch on type of strings.
     String::FlatContent content = src->GetFlatContent();
     ASSERT(content.IsFlat());
@@ -485,7 +484,7 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> src,
 // Convert code position into line number.
 int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   InitScriptLineEnds(script);
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
   const int line_ends_len = line_ends_array->length();
 
@@ -512,7 +511,7 @@ int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
   int line_number = GetScriptLineNumber(script, code_pos);
   if (line_number == -1) return -1;
 
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
   line_number = line_number - script->line_offset()->value();
   if (line_number == 0) return code_pos + script->column_offset()->value();
@@ -522,7 +521,7 @@ int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
 }
 
 int GetScriptLineNumberSafe(Handle<Script> script, int code_pos) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   if (!script->line_ends()->IsUndefined()) {
     return GetScriptLineNumber(script, code_pos);
   }
@@ -567,7 +566,8 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
 #if ENABLE_EXTRA_CHECKS
   CHECK(result.IsEmpty() || v8::Utils::OpenHandle(*result)->IsJSObject());
 #endif
-  return result;
+  return v8::Local<v8::Array>::New(reinterpret_cast<v8::Isolate*>(isolate),
+                                   result);
 }
 
 
@@ -592,7 +592,8 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
 #endif
     }
   }
-  return result;
+  return v8::Local<v8::Array>::New(reinterpret_cast<v8::Isolate*>(isolate),
+                                   result);
 }
 
 
@@ -802,7 +803,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
           if (details.type() != FIELD) {
             indices = Handle<FixedArray>();
           } else {
-            int field_index = Descriptor::IndexFromValue(descs->GetValue(i));
+            int field_index = descs->GetFieldIndex(i);
             if (field_index >= map->inobject_properties()) {
               field_index = -(field_index - map->inobject_properties() + 1);
             }

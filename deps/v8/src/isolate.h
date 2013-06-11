@@ -31,6 +31,7 @@
 #include "../include/v8-debug.h"
 #include "allocation.h"
 #include "apiutils.h"
+#include "assert-scope.h"
 #include "atomicops.h"
 #include "builtins.h"
 #include "contexts.h"
@@ -994,10 +995,6 @@ class Isolate {
   }
 
   int* code_kind_statistics() { return code_kind_statistics_; }
-
-  HandleDereferenceGuard::State HandleDereferenceGuardState();
-
-  void SetHandleDereferenceGuardState(HandleDereferenceGuard::State state);
 #endif
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
@@ -1310,9 +1307,6 @@ class Isolate {
   HistogramInfo heap_histograms_[LAST_TYPE + 1];
   JSObject::SpillInformation js_spill_information_;
   int code_kind_statistics_[Code::NUMBER_OF_KINDS];
-
-  HandleDereferenceGuard::State compiler_thread_handle_deref_state_;
-  HandleDereferenceGuard::State execution_thread_handle_deref_state_;
 #endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1486,7 +1480,6 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 // Temporary macros for accessing current isolate and its subobjects.
 // They provide better readability, especially when used a lot in the code.
 #define HEAP (v8::internal::Isolate::Current()->heap())
-#define FACTORY (v8::internal::Isolate::Current()->factory())
 #define ISOLATE (v8::internal::Isolate::Current())
 
 

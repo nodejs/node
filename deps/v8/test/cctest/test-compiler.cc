@@ -28,10 +28,6 @@
 #include <stdlib.h>
 #include <wchar.h>
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "v8.h"
 
 #include "compiler.h"
@@ -84,9 +80,10 @@ v8::DeclareExtension kPrintExtensionDeclaration(&kPrintExtension);
 
 
 static MaybeObject* GetGlobalProperty(const char* name) {
-  Handle<String> internalized_name = FACTORY->InternalizeUtf8String(name);
-  return Isolate::Current()->context()->global_object()->GetProperty(
-      *internalized_name);
+  Isolate* isolate = Isolate::Current();
+  Handle<String> internalized_name =
+      isolate->factory()->InternalizeUtf8String(name);
+  return isolate->context()->global_object()->GetProperty(*internalized_name);
 }
 
 
@@ -101,19 +98,21 @@ static void SetGlobalProperty(const char* name, Object* value) {
 
 
 static Handle<JSFunction> Compile(const char* source) {
-  Handle<String> source_code(FACTORY->NewStringFromUtf8(CStrVector(source)));
+  Isolate* isolate = Isolate::Current();
+  Handle<String> source_code(
+      isolate->factory()->NewStringFromUtf8(CStrVector(source)));
   Handle<SharedFunctionInfo> shared_function =
       Compiler::Compile(source_code,
                         Handle<String>(),
                         0,
                         0,
-                        Handle<Context>(Isolate::Current()->native_context()),
+                        Handle<Context>(isolate->native_context()),
                         NULL,
                         NULL,
                         Handle<String>::null(),
                         NOT_NATIVES_CODE);
-  return FACTORY->NewFunctionFromSharedFunctionInfo(shared_function,
-      Isolate::Current()->native_context());
+  return isolate->factory()->NewFunctionFromSharedFunctionInfo(
+      shared_function, isolate->native_context());
 }
 
 
@@ -287,16 +286,15 @@ TEST(C2JSFrames) {
   Execution::Call(fun0, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 
-  Object* foo_string =
-      FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("foo"))->
-        ToObjectChecked();
+  Object* foo_string = isolate->factory()->InternalizeOneByteString(
+      STATIC_ASCII_VECTOR("foo"))->ToObjectChecked();
   MaybeObject* fun1_object = isolate->context()->global_object()->
       GetProperty(String::cast(foo_string));
   Handle<Object> fun1(fun1_object->ToObjectChecked(), isolate);
   CHECK(fun1->IsJSFunction());
 
-  Handle<Object> argv[] =
-    { FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("hello")) };
+  Handle<Object> argv[] = { isolate->factory()->InternalizeOneByteString(
+      STATIC_ASCII_VECTOR("hello")) };
   Execution::Call(Handle<JSFunction>::cast(fun1),
                   global,
                   ARRAY_SIZE(argv),
@@ -310,9 +308,11 @@ TEST(C2JSFrames) {
 // source resulted in crash.
 TEST(Regression236) {
   CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
-  Handle<Script> script = FACTORY->NewScript(FACTORY->empty_string());
+  Handle<Script> script = factory->NewScript(factory->empty_string());
   script->set_source(HEAP->undefined_value());
   CHECK_EQ(-1, GetScriptLineNumber(script, 0));
   CHECK_EQ(-1, GetScriptLineNumber(script, 100));

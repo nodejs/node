@@ -39,6 +39,11 @@ namespace internal {
 
 class Factory {
  public:
+  // Allocate a new boxed value.
+  Handle<Box> NewBox(
+      Handle<Object> value,
+      PretenureFlag pretenure = NOT_TENURED);
+
   // Allocate a new uninitialized fixed array.
   Handle<FixedArray> NewFixedArray(
       int size,
@@ -369,33 +374,33 @@ class Factory {
 
   // Interface for creating error objects.
 
-  Handle<Object> NewError(const char* maker, const char* type,
+  Handle<Object> NewError(const char* maker, const char* message,
                           Handle<JSArray> args);
-  Handle<String> EmergencyNewError(const char* type, Handle<JSArray> args);
-  Handle<Object> NewError(const char* maker, const char* type,
+  Handle<String> EmergencyNewError(const char* message, Handle<JSArray> args);
+  Handle<Object> NewError(const char* maker, const char* message,
                           Vector< Handle<Object> > args);
-  Handle<Object> NewError(const char* type,
+  Handle<Object> NewError(const char* message,
                           Vector< Handle<Object> > args);
   Handle<Object> NewError(Handle<String> message);
   Handle<Object> NewError(const char* constructor,
                           Handle<String> message);
 
-  Handle<Object> NewTypeError(const char* type,
+  Handle<Object> NewTypeError(const char* message,
                               Vector< Handle<Object> > args);
   Handle<Object> NewTypeError(Handle<String> message);
 
-  Handle<Object> NewRangeError(const char* type,
+  Handle<Object> NewRangeError(const char* message,
                                Vector< Handle<Object> > args);
   Handle<Object> NewRangeError(Handle<String> message);
 
-  Handle<Object> NewSyntaxError(const char* type, Handle<JSArray> args);
+  Handle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
   Handle<Object> NewSyntaxError(Handle<String> message);
 
-  Handle<Object> NewReferenceError(const char* type,
+  Handle<Object> NewReferenceError(const char* message,
                                    Vector< Handle<Object> > args);
   Handle<Object> NewReferenceError(Handle<String> message);
 
-  Handle<Object> NewEvalError(const char* type,
+  Handle<Object> NewEvalError(const char* message,
                               Vector< Handle<Object> > args);
 
 

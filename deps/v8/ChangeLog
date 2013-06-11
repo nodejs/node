@@ -1,3 +1,105 @@
+2013-06-11: Version 3.19.13
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-10: Version 3.19.12
+
+        Fixed arguments array access. (Chromium issue 247303)
+
+        Fixed bug in LookupForWrite. (Chromium issue 242332)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-07: Version 3.19.11
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-06: Version 3.19.10
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-05: Version 3.19.9
+
+        Implemented Load IC support for loading properties from primitive
+        values to avoid perpetual soft deopts.  (Chromium issue 242512)
+
+        Implemented Freeing of PerThreadAssertData when possible to avoid
+        memory leak. (Chromium issue 246567)
+
+        Removed V8_USE_OLD_STYLE_PERSISTENT_HANDLE_VISITORS.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-03: Version 3.19.8
+
+        Fixed bug with inlining 'Array' function. (Chromium issue 244461)
+
+        Fixed initialization of literal objects. (Chromium issue 245424)
+
+        Fixed function name inferred inside closures. (Chromium issue 224884)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-31: Version 3.19.7
+
+        Added support for //# sourceURL similar to deprecated //@ sourceURL one.
+        (issue 2702)
+
+        Made sure IfBuilder::Return clears the current block.
+        (Chromium issue 243868)
+
+        Fixed two CPU profiler tests on ARM and MIPS simulators
+        (issue 2628)
+
+        Fixed idle incremental GC for large objects.
+        (Chromium issue 241815)
+
+        Disabled --optimize-constructed-arrays due to crashes
+        (Chromium issue 244461)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-28: Version 3.19.6
+
+        Fixed IfBuilder::Deopt to clear the current block
+        (Chromium issue 243868).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-27: Version 3.19.5
+
+        Reset regexp parser flag after scanning ahead for capture groups.
+        (issue 2690)
+
+        Removed flakiness in test-cpu-profiler/SampleWhenFrameIsNotSetup.
+        (issue 2628)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-24: Version 3.19.4
+
+        Fixed edge case in stack trace formatting. (Chromium issue 237617)
+
+        Fixed embedded new-space pointer in LCmpObjectEqAndBranch. (Chromium
+	issue 240032)
+
+        Made Object.freeze fast (issue 1858, Chromium issue 115960)
+
+        Fixed bogus deopt in BuildEmitDeepCopy for holey arrays. (Chromium issue
+        242924)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-05-22: Version 3.19.3
 
         Performance and stability improvements on all platforms.

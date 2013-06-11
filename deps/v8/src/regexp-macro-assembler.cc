@@ -113,8 +113,8 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
   ASSERT(previous_index <= subject->length());
 
   // No allocations before calling the regexp, but we can't use
-  // AssertNoAllocation, since regexps might be preempted, and another thread
-  // might do allocation anyway.
+  // DisallowHeapAllocation, since regexps might be preempted, and another
+  // thread might do allocation anyway.
 
   String* subject_ptr = *subject;
   // Character offsets into string.

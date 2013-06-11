@@ -1057,7 +1057,7 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
       LInstruction* branch =
           InstructionAt(cur_block->last_instruction_index());
       if (branch->HasPointerMap()) {
-        if (phi->representation().IsTagged()) {
+        if (phi->representation().IsTagged() && !phi->type().IsSmi()) {
           branch->pointer_map()->RecordPointer(phi_operand, zone());
         } else if (!phi->representation().IsDouble()) {
           branch->pointer_map()->RecordUntagged(phi_operand, zone());
@@ -1348,6 +1348,7 @@ void LAllocator::BuildLiveRanges() {
           PrintF("Function: %s\n", CodeStub::MajorName(major_key, false));
         } else {
           ASSERT(chunk_->info()->IsOptimizing());
+          AllowHandleDereference allow_deref;
           PrintF("Function: %s\n",
                  *chunk_->info()->function()->debug_name()->ToCString());
         }
@@ -1640,7 +1641,7 @@ void LAllocator::TraceAlloc(const char* msg, ...) {
 bool LAllocator::HasTaggedValue(int virtual_register) const {
   HValue* value = graph_->LookupValue(virtual_register);
   if (value == NULL) return false;
-  return value->representation().IsTagged();
+  return value->representation().IsTagged() && !value->type().IsSmi();
 }
 
 

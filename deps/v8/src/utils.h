@@ -86,6 +86,25 @@ inline int WhichPowerOf2(uint32_t x) {
 }
 
 
+inline int MostSignificantBit(uint32_t x) {
+  static const int msb4[] = {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
+  int nibble = 0;
+  if (x & 0xffff0000) {
+    nibble += 16;
+    x >>= 16;
+  }
+  if (x & 0xff00) {
+    nibble += 8;
+    x >>= 8;
+  }
+  if (x & 0xf0) {
+    nibble += 4;
+    x >>= 4;
+  }
+  return nibble + msb4[x];
+}
+
+
 // Magic numbers for integer division.
 // These are kind of 2's complement reciprocal of the divisors.
 // Details and proofs can be found in:
@@ -229,6 +248,20 @@ T Max(T a, T b) {
 template <typename T>
 T Min(T a, T b) {
   return a < b ? a : b;
+}
+
+
+// Returns the absolute value of its argument.
+template <typename T>
+T Abs(T a) {
+  return a < 0 ? -a : a;
+}
+
+
+// Returns the negative absolute value of its argument.
+template <typename T>
+T NegAbs(T a) {
+  return a < 0 ? a : -a;
 }
 
 

@@ -126,8 +126,9 @@ template <typename T> inline T ToCData(v8::internal::Object* obj) {
 
 template <typename T>
 inline v8::internal::Handle<v8::internal::Object> FromCData(T obj) {
+  v8::internal::Isolate* isolate = v8::internal::Isolate::Current();
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
-  return FACTORY->NewForeign(
+  return isolate->factory()->NewForeign(
       reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(obj)));
 }
 
@@ -636,8 +637,13 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
     internal::Object** block_start = blocks_.last();
     internal::Object** block_limit = block_start + kHandleBlockSize;
 #ifdef DEBUG
-    // NoHandleAllocation may make the prev_limit to point inside the block.
-    if (block_start <= prev_limit && prev_limit <= block_limit) break;
+    // SealHandleScope may make the prev_limit to point inside the block.
+    if (block_start <= prev_limit && prev_limit <= block_limit) {
+#ifdef ENABLE_EXTRA_CHECKS
+      internal::HandleScope::ZapRange(prev_limit, block_limit);
+#endif
+      break;
+    }
 #else
     if (prev_limit == block_limit) break;
 #endif

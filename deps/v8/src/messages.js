@@ -543,11 +543,11 @@ function ScriptLineCount() {
  * If sourceURL comment is available and script starts at zero returns sourceURL
  * comment contents. Otherwise, script name is returned. See
  * http://fbug.googlecode.com/svn/branches/firebug1.1/docs/ReleaseNotes_1.1.txt
- * for details on using //@ sourceURL comment to identify scritps that don't
- * have name.
+ * and Source Map Revision 3 proposal for details on using //# sourceURL and
+ * deprecated //@ sourceURL comment to identify scripts that don't have name.
  *
- * @return {?string} script name if present, value for //@ sourceURL comment
- * otherwise.
+ * @return {?string} script name if present, value for //# sourceURL or
+ * deprecated //@ sourceURL comment otherwise.
  */
 function ScriptNameOrSourceURL() {
   if (this.line_offset > 0 || this.column_offset > 0) {
@@ -572,7 +572,7 @@ function ScriptNameOrSourceURL() {
   this.cachedNameOrSourceURL = this.name;
   if (sourceUrlPos > 4) {
     var sourceUrlPattern =
-        /\/\/@[\040\t]sourceURL=[\040\t]*([^\s\'\"]*)[\040\t]*$/gm;
+        /\/\/[#@][\040\t]sourceURL=[\040\t]*([^\s\'\"]*)[\040\t]*$/gm;
     // Don't reuse lastMatchInfo here, so we create a new array with room
     // for four captures (array with length one longer than the index
     // of the fourth capture, where the numbering is zero-based).
@@ -906,8 +906,8 @@ function CallSiteGetPosition() {
 
 function CallSiteIsConstructor() {
   var receiver = this[CallSiteReceiverKey];
-  var constructor =
-      IS_OBJECT(receiver) ? %GetDataProperty(receiver, "constructor") : null;
+  var constructor = (receiver != null && IS_OBJECT(receiver))
+                        ? %GetDataProperty(receiver, "constructor") : null;
   if (!constructor) return false;
   return this[CallSiteFunctionKey] === constructor;
 }

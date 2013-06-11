@@ -2351,7 +2351,7 @@ void Assembler::movd(const Operand& dst, XMMRegister src) {
 
 
 void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
-  ASSERT(CpuFeatures::IsSupported(SSE4_1));
+  ASSERT(IsEnabled(SSE4_1));
   ASSERT(is_uint8(imm8));
   EnsureSpace ensure_space(this);
   EMIT(0x66);

@@ -137,6 +137,12 @@ class StringStream {
            FmtElm arg1,
            FmtElm arg2,
            FmtElm arg3);
+  void Add(const char* format,
+           FmtElm arg0,
+           FmtElm arg1,
+           FmtElm arg2,
+           FmtElm arg3,
+           FmtElm arg4);
 
   // Getting the message out.
   void OutputToFile(FILE* out);

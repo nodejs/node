@@ -937,7 +937,13 @@ MaybeObject* LoadIC::Load(State state,
 
   // Update inline cache and stub cache.
   if (FLAG_use_ic) {
-    UpdateCaches(&lookup, state, object, name);
+    if (!object->IsJSObject()) {
+      // TODO(jkummerow): It would be nice to support non-JSObjects in
+      // UpdateCaches, then we wouldn't need to go generic here.
+      set_target(*generic_stub());
+    } else {
+      UpdateCaches(&lookup, state, object, name);
+    }
   }
 
   PropertyAttributes attr;
@@ -991,7 +997,7 @@ bool IC::UpdatePolymorphicIC(State state,
   int handler_to_overwrite = -1;
   Handle<Map> new_receiver_map(receiver->map());
   {
-    AssertNoAllocation no_gc;
+    DisallowHeapAllocation no_gc;
     target()->FindAllMaps(&receiver_maps);
     int number_of_maps = receiver_maps.length();
     number_of_valid_maps = number_of_maps;
@@ -1059,7 +1065,7 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
   MapHandleList receiver_maps;
   CodeHandleList handlers;
   {
-    AssertNoAllocation no_gc;
+    DisallowHeapAllocation no_gc;
     target()->FindAllMaps(&receiver_maps);
     target()->FindAllCode(&handlers, receiver_maps.length());
   }
@@ -1070,7 +1076,7 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
 
 
 bool IC::IsTransitionedMapOfMonomorphicTarget(Map* receiver_map) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   Map* current_map = target()->FindFirstMap();
   ElementsKind receiver_elements_kind = receiver_map->elements_kind();
@@ -1104,7 +1110,7 @@ void IC::PatchCache(State state,
         if (target()->is_load_stub()) {
           bool is_same_handler = false;
           {
-            AssertNoAllocation no_allocation;
+            DisallowHeapAllocation no_allocation;
             Code* old_handler = target()->FindFirstCode();
             is_same_handler = old_handler == *code;
           }
@@ -1169,7 +1175,7 @@ static void GetReceiverMapsForStub(Handle<Code> stub,
       break;
     }
     case POLYMORPHIC: {
-      AssertNoAllocation no_allocation;
+      DisallowHeapAllocation no_allocation;
       int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
       for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
         RelocInfo* info = it.rinfo();
@@ -1535,6 +1541,10 @@ static bool LookupForWrite(Handle<JSObject> receiver,
     Handle<Map> target(lookup->GetTransitionMapFromMap(receiver->map()));
     Map::GeneralizeRepresentation(
         target, target->LastAdded(), value->OptimalRepresentation());
+    // Lookup the transition again since the transition tree may have changed
+    // entirely by the migration above.
+    receiver->map()->LookupTransition(*holder, *name, lookup);
+    if (!lookup->IsTransition()) return false;
     *state = MONOMORPHIC_PROTOTYPE_FAILURE;
   }
   return true;
@@ -2224,7 +2234,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
-  NoHandleAllocation nha(isolate);
+  SealHandleScope shs(isolate);
 
   ASSERT(args.length() == 2);
   JSArray* receiver = JSArray::cast(args[0]);
@@ -2252,7 +2262,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
 // it is necessary to extend the properties array of a
 // JSObject.
 RUNTIME_FUNCTION(MaybeObject*, SharedStoreIC_ExtendStorage) {
-  NoHandleAllocation na(isolate);
+  SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
 
   // Convert the parameters
@@ -2329,7 +2339,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
-  NoHandleAllocation na(isolate);
+  SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
@@ -2347,7 +2357,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
-  NoHandleAllocation na(isolate);
+  SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
@@ -2498,7 +2508,7 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
     if (FLAG_trace_ic) {
       PrintF("[UnaryOpIC in ");
       JavaScriptFrame::PrintTop(isolate, stdout, false, true);
-      PrintF(" (%s->%s)#%s @ %p]\n",
+      PrintF(" %s => %s #%s @ %p]\n",
              UnaryOpIC::GetName(previous_type),
              UnaryOpIC::GetName(type),
              Token::Name(op),
@@ -2572,6 +2582,19 @@ static BinaryOpIC::TypeInfo InputState(BinaryOpIC::TypeInfo old_type,
 }
 
 
+#ifdef DEBUG
+static void TraceBinaryOp(BinaryOpIC::TypeInfo left,
+                          BinaryOpIC::TypeInfo right,
+                          bool has_fixed_right_arg,
+                          int32_t fixed_right_arg_value,
+                          BinaryOpIC::TypeInfo result) {
+  PrintF("%s*%s", BinaryOpIC::GetName(left), BinaryOpIC::GetName(right));
+  if (has_fixed_right_arg) PrintF("{%d}", fixed_right_arg_value);
+  PrintF("->%s", BinaryOpIC::GetName(result));
+}
+#endif
+
+
 RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   ASSERT(args.length() == 3);
 
@@ -2580,9 +2603,10 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   Handle<Object> right = args.at<Object>(1);
   int key = args.smi_at(2);
   Token::Value op = BinaryOpStub::decode_op_from_minor_key(key);
-  BinaryOpIC::TypeInfo previous_left, previous_right, unused_previous_result;
+
+  BinaryOpIC::TypeInfo previous_left, previous_right, previous_result;
   BinaryOpStub::decode_types_from_minor_key(
-      key, &previous_left, &previous_right, &unused_previous_result);
+      key, &previous_left, &previous_right, &previous_result);
 
   BinaryOpIC::TypeInfo new_left = InputState(previous_left, left, op);
   BinaryOpIC::TypeInfo new_right = InputState(previous_right, right, op);
@@ -2597,43 +2621,60 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   BinaryOpIC::TypeInfo new_overall = Max(new_left, new_right);
   BinaryOpIC::TypeInfo previous_overall = Max(previous_left, previous_right);
 
-  if (new_overall == BinaryOpIC::SMI && previous_overall == BinaryOpIC::SMI) {
-    if (op == Token::DIV ||
-        op == Token::MUL ||
-        op == Token::SHR ||
-        kSmiValueSize == 32) {
-      // Arithmetic on two Smi inputs has yielded a heap number.
-      // That is the only way to get here from the Smi stub.
-      // With 32-bit Smis, all overflows give heap numbers, but with
-      // 31-bit Smis, most operations overflow to int32 results.
-      result_type = BinaryOpIC::NUMBER;
-    } else {
-      // Other operations on SMIs that overflow yield int32s.
-      result_type = BinaryOpIC::INT32;
+  bool previous_has_fixed_right_arg =
+      BinaryOpStub::decode_has_fixed_right_arg_from_minor_key(key);
+  int previous_fixed_right_arg_value =
+      BinaryOpStub::decode_fixed_right_arg_value_from_minor_key(key);
+
+  int32_t value;
+  bool new_has_fixed_right_arg =
+      op == Token::MOD &&
+      right->ToInt32(&value) &&
+      BinaryOpStub::can_encode_arg_value(value) &&
+      (previous_overall == BinaryOpIC::UNINITIALIZED ||
+       (previous_has_fixed_right_arg &&
+        previous_fixed_right_arg_value == value));
+  int32_t new_fixed_right_arg_value = new_has_fixed_right_arg ? value : 1;
+
+  if (previous_has_fixed_right_arg == new_has_fixed_right_arg) {
+    if (new_overall == BinaryOpIC::SMI && previous_overall == BinaryOpIC::SMI) {
+      if (op == Token::DIV ||
+          op == Token::MUL ||
+          op == Token::SHR ||
+          kSmiValueSize == 32) {
+        // Arithmetic on two Smi inputs has yielded a heap number.
+        // That is the only way to get here from the Smi stub.
+        // With 32-bit Smis, all overflows give heap numbers, but with
+        // 31-bit Smis, most operations overflow to int32 results.
+        result_type = BinaryOpIC::NUMBER;
+      } else {
+        // Other operations on SMIs that overflow yield int32s.
+        result_type = BinaryOpIC::INT32;
+      }
     }
-  }
-  if (new_overall == BinaryOpIC::INT32 &&
-      previous_overall == BinaryOpIC::INT32) {
-    if (new_left == previous_left && new_right == previous_right) {
-      result_type = BinaryOpIC::NUMBER;
+    if (new_overall == BinaryOpIC::INT32 &&
+        previous_overall == BinaryOpIC::INT32) {
+      if (new_left == previous_left && new_right == previous_right) {
+        result_type = BinaryOpIC::NUMBER;
+      }
     }
   }
 
-  BinaryOpStub stub(key, new_left, new_right, result_type);
+  BinaryOpStub stub(key, new_left, new_right, result_type,
+                    new_has_fixed_right_arg, new_fixed_right_arg_value);
   Handle<Code> code = stub.GetCode(isolate);
   if (!code.is_null()) {
 #ifdef DEBUG
     if (FLAG_trace_ic) {
       PrintF("[BinaryOpIC in ");
       JavaScriptFrame::PrintTop(isolate, stdout, false, true);
-      PrintF(" ((%s+%s)->((%s+%s)->%s))#%s @ %p]\n",
-             BinaryOpIC::GetName(previous_left),
-             BinaryOpIC::GetName(previous_right),
-             BinaryOpIC::GetName(new_left),
-             BinaryOpIC::GetName(new_right),
-             BinaryOpIC::GetName(result_type),
-             Token::Name(op),
-             static_cast<void*>(*code));
+      PrintF(" ");
+      TraceBinaryOp(previous_left, previous_right, previous_has_fixed_right_arg,
+                    previous_fixed_right_arg_value, previous_result);
+      PrintF(" => ");
+      TraceBinaryOp(new_left, new_right, new_has_fixed_right_arg,
+                    new_fixed_right_arg_value, result_type);
+      PrintF(" #%s @ %p]\n", Token::Name(op), static_cast<void*>(*code));
     }
 #endif
     BinaryOpIC ic(isolate);
@@ -2880,7 +2921,7 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
 // Used from ICCompareStub::GenerateMiss in code-stubs-<arch>.cc.
 RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
-  NoHandleAllocation na(isolate);
+  SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
   ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
@@ -2892,7 +2933,7 @@ void CompareNilIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   Code::ExtraICState state = target->extended_extra_ic_state();
 
-  CompareNilICStub stub(state, CompareNilICStub::CODE_STUB_IS_MISS);
+  CompareNilICStub stub(state, HydrogenCodeStub::UNINITIALIZED);
   stub.ClearTypes();
 
   Code* code = NULL;
@@ -2902,16 +2943,8 @@ void CompareNilIC::Clear(Address address, Code* target) {
 }
 
 
-MaybeObject* CompareNilIC::DoCompareNilSlow(EqualityKind kind,
-                                            NilValue nil,
+MaybeObject* CompareNilIC::DoCompareNilSlow(NilValue nil,
                                             Handle<Object> object) {
-  if (kind == kStrictEquality) {
-    if (nil == kNullValue) {
-      return Smi::FromInt(object->IsNull());
-    } else {
-      return Smi::FromInt(object->IsUndefined());
-    }
-  }
   if (object->IsNull() || object->IsUndefined()) {
     return Smi::FromInt(true);
   }
@@ -2928,9 +2961,10 @@ MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
   // types must be supported as a result of the miss.
   bool already_monomorphic = stub.IsMonomorphic();
 
+  CompareNilICStub::Types old_types = stub.GetTypes();
   stub.Record(object);
+  old_types.TraceTransition(stub.GetTypes());
 
-  EqualityKind kind = stub.GetKind();
   NilValue nil = stub.GetNilValue();
 
   // Find or create the specialized stub to support the new set of types.
@@ -2943,15 +2977,8 @@ MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
   } else {
     code = stub.GetCode(isolate());
   }
-
-  patch(*code);
-
-  return DoCompareNilSlow(kind, nil, object);
-}
-
-
-void CompareNilIC::patch(Code* code) {
-  set_target(code);
+  set_target(*code);
+  return DoCompareNilSlow(nil, object);
 }
 
 
@@ -2970,28 +2997,23 @@ RUNTIME_FUNCTION(MaybeObject*, Unreachable) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, ToBoolean_Patch) {
-  ASSERT(args.length() == 3);
-
-  HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
-  Register tos = Register::from_code(args.smi_at(1));
-  ToBooleanStub::Types old_types(args.smi_at(2));
-
-  ToBooleanStub::Types new_types(old_types);
-  bool to_boolean_value = new_types.Record(object);
-  old_types.TraceTransition(new_types);
-
-  ToBooleanStub stub(tos, new_types);
-  Handle<Code> code = stub.GetCode(isolate);
-  ToBooleanIC ic(isolate);
-  ic.patch(*code);
+MaybeObject* ToBooleanIC::ToBoolean(Handle<Object> object,
+                                    Code::ExtraICState extra_ic_state) {
+  ToBooleanStub stub(extra_ic_state);
+  bool to_boolean_value = stub.Record(object);
+  Handle<Code> code = stub.GetCode(isolate());
+  set_target(*code);
   return Smi::FromInt(to_boolean_value ? 1 : 0);
 }
 
 
-void ToBooleanIC::patch(Code* code) {
-  set_target(code);
+RUNTIME_FUNCTION(MaybeObject*, ToBooleanIC_Miss) {
+  ASSERT(args.length() == 1);
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);
+  ToBooleanIC ic(isolate);
+  Code::ExtraICState ic_state = ic.target()->extended_extra_ic_state();
+  return ic.ToBoolean(object, ic_state);
 }
 
 

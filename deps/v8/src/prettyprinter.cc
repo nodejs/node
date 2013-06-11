@@ -255,6 +255,17 @@ void PrettyPrinter::VisitForInStatement(ForInStatement* node) {
 }
 
 
+void PrettyPrinter::VisitForOfStatement(ForOfStatement* node) {
+  PrintLabels(node->labels());
+  Print("for (");
+  Visit(node->each());
+  Print(" of ");
+  Visit(node->iterable());
+  Print(") ");
+  Visit(node->body());
+}
+
+
 void PrettyPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   Print("try ");
   Visit(node->try_block());
@@ -925,6 +936,14 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
   IndentedScope indent(this, "FOR IN");
   PrintIndentedVisit("FOR", node->each());
   PrintIndentedVisit("IN", node->enumerable());
+  PrintIndentedVisit("BODY", node->body());
+}
+
+
+void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
+  IndentedScope indent(this, "FOR OF");
+  PrintIndentedVisit("FOR", node->each());
+  PrintIndentedVisit("OF", node->iterable());
   PrintIndentedVisit("BODY", node->body());
 }
 

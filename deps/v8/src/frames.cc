@@ -777,7 +777,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
                                bool print_line_number) {
   // constructor calls
   HandleScope scope(isolate);
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   JavaScriptFrameIterator it(isolate);
   while (!it.done()) {
     if (it.frame()->is_java_script()) {

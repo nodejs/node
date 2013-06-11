@@ -504,50 +504,6 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 }
 
 
-void SeqStringSetCharGenerator::Generate(MacroAssembler* masm,
-                                         String::Encoding encoding,
-                                         Register string,
-                                         Register index,
-                                         Register value) {
-  if (FLAG_debug_code) {
-    __ SmiTst(index);
-    __ Check(eq, "Non-smi index");
-    __ SmiTst(value);
-    __ Check(eq, "Non-smi value");
-
-    __ ldr(ip, FieldMemOperand(string, String::kLengthOffset));
-    __ cmp(index, ip);
-    __ Check(lt, "Index is too large");
-
-    __ cmp(index, Operand(Smi::FromInt(0)));
-    __ Check(ge, "Index is negative");
-
-    __ ldr(ip, FieldMemOperand(string, HeapObject::kMapOffset));
-    __ ldrb(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
-
-    __ and_(ip, ip, Operand(kStringRepresentationMask | kStringEncodingMask));
-    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmp(ip, Operand(encoding == String::ONE_BYTE_ENCODING
-                           ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(eq, "Unexpected string type");
-  }
-
-  __ add(ip,
-         string,
-         Operand(SeqString::kHeaderSize - kHeapObjectTag));
-  __ SmiUntag(value, value);
-  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  if (encoding == String::ONE_BYTE_ENCODING) {
-    // Smis are tagged by left shift by 1, thus LSR by 1 to smi-untag inline.
-    __ strb(value, MemOperand(ip, index, LSR, kSmiTagSize));
-  } else {
-    // No need to untag a smi for two-byte addressing.
-    __ strh(value, MemOperand(ip, index));  // LSL(1 - kSmiTagSize).
-  }
-}
-
-
 static MemOperand ExpConstant(int index, Register base) {
   return MemOperand(base, index * kDoubleSize);
 }

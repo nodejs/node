@@ -200,6 +200,10 @@ var knownProblems = {
   "_GetCachedArrayIndex": true,
   "_OneByteSeqStringSetChar": true,
   "_TwoByteSeqStringSetChar": true,
+
+  // Only applicable to generators.
+  "_GeneratorNext": true,
+  "_GeneratorThrow": true,
 };
 
 var currentlyUncallable = {

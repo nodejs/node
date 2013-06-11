@@ -28,10 +28,6 @@
 
 #include <stdlib.h>
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-
 #include "v8.h"
 
 #include "ast.h"
@@ -788,15 +784,22 @@ TEST(MacroAssemblerNativeSimple) {
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 4,
                              Isolate::Current()->runtime_zone());
 
-  uc16 foo_chars[3] = {'f', 'o', 'o'};
-  Vector<const uc16> foo(foo_chars, 3);
-
-  Label fail;
-  m.CheckCharacters(foo, 0, &fail, true);
+  Label fail, backtrack;
+  m.PushBacktrack(&fail);
+  m.CheckNotAtStart(NULL);
+  m.LoadCurrentCharacter(2, NULL);
+  m.CheckNotCharacter('o', NULL);
+  m.LoadCurrentCharacter(1, NULL, false);
+  m.CheckNotCharacter('o', NULL);
+  m.LoadCurrentCharacter(0, NULL, false);
+  m.CheckNotCharacter('f', NULL);
   m.WriteCurrentPositionToRegister(0, 0);
+  m.WriteCurrentPositionToRegister(1, 3);
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(1, 0);
+  m.PushBacktrack(&backtrack);
   m.Succeed();
+  m.Bind(&backtrack);
+  m.Backtrack();
   m.Bind(&fail);
   m.Fail();
 
@@ -846,15 +849,22 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::UC16, 4,
                              Isolate::Current()->runtime_zone());
 
-  uc16 foo_chars[3] = {'f', 'o', 'o'};
-  Vector<const uc16> foo(foo_chars, 3);
-
-  Label fail;
-  m.CheckCharacters(foo, 0, &fail, true);
+  Label fail, backtrack;
+  m.PushBacktrack(&fail);
+  m.CheckNotAtStart(NULL);
+  m.LoadCurrentCharacter(2, NULL);
+  m.CheckNotCharacter('o', NULL);
+  m.LoadCurrentCharacter(1, NULL, false);
+  m.CheckNotCharacter('o', NULL);
+  m.LoadCurrentCharacter(0, NULL, false);
+  m.CheckNotCharacter('f', NULL);
   m.WriteCurrentPositionToRegister(0, 0);
+  m.WriteCurrentPositionToRegister(1, 3);
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(1, 0);
+  m.PushBacktrack(&backtrack);
   m.Succeed();
+  m.Bind(&backtrack);
+  m.Backtrack();
   m.Bind(&fail);
   m.Fail();
 
@@ -1353,36 +1363,33 @@ TEST(MacroAssembler) {
   RegExpMacroAssemblerIrregexp m(Vector<byte>(codes, 1024),
                                  Isolate::Current()->runtime_zone());
   // ^f(o)o.
-  Label fail, fail2, start;
-  uc16 foo_chars[3];
-  foo_chars[0] = 'f';
-  foo_chars[1] = 'o';
-  foo_chars[2] = 'o';
-  Vector<const uc16> foo(foo_chars, 3);
+  Label start, fail, backtrack;
+
   m.SetRegister(4, 42);
   m.PushRegister(4, RegExpMacroAssembler::kNoStackLimitCheck);
   m.AdvanceRegister(4, 42);
   m.GoTo(&start);
   m.Fail();
   m.Bind(&start);
-  m.PushBacktrack(&fail2);
-  m.CheckCharacters(foo, 0, &fail, true);
+  m.PushBacktrack(&fail);
+  m.CheckNotAtStart(NULL);
+  m.LoadCurrentCharacter(0, NULL);
+  m.CheckNotCharacter('f', NULL);
+  m.LoadCurrentCharacter(1, NULL);
+  m.CheckNotCharacter('o', NULL);
+  m.LoadCurrentCharacter(2, NULL);
+  m.CheckNotCharacter('o', NULL);
   m.WriteCurrentPositionToRegister(0, 0);
-  m.PushCurrentPosition();
+  m.WriteCurrentPositionToRegister(1, 3);
+  m.WriteCurrentPositionToRegister(2, 1);
+  m.WriteCurrentPositionToRegister(3, 2);
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(1, 0);
-  m.PopCurrentPosition();
-  m.AdvanceCurrentPosition(1);
-  m.WriteCurrentPositionToRegister(2, 0);
-  m.AdvanceCurrentPosition(1);
-  m.WriteCurrentPositionToRegister(3, 0);
+  m.PushBacktrack(&backtrack);
   m.Succeed();
-
-  m.Bind(&fail);
+  m.Bind(&backtrack);
+  m.ClearRegisters(2, 3);
   m.Backtrack();
-  m.Succeed();
-
-  m.Bind(&fail2);
+  m.Bind(&fail);
   m.PopRegister(0);
   m.Fail();
 

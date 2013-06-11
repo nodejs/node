@@ -103,6 +103,10 @@ for (var i = 0; i < 10; i++) {
   test(i);
 }
 
+assertEquals("AAAA", String.fromCharCode(65, 65, 65, 65));
+assertEquals("AAAA", String.fromCharCode(65, 65, 65, 65));
+%OptimizeFunctionOnNextCall(String.fromCharCode);
+assertEquals("AAAA", String.fromCharCode(65, 65, 65, 65));
 
 // Test the custom IC works correctly when the map changes.
 for (var i = 0; i < 10; i++) {

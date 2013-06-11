@@ -677,8 +677,9 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  ToBooleanStub stub(result_register());
-  __ CallStub(&stub, condition->test_id());
+  __ mov(a0, result_register());
+  Handle<Code> ic = ToBooleanStub::GetUninitialized(isolate());
+  CallIC(ic, RelocInfo::CODE_TARGET, condition->test_id());
   __ mov(at, zero_reg);
   Split(ne, v0, Operand(at), if_true, if_false, fall_through);
 }
@@ -1083,9 +1084,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   ForIn loop_statement(this, stmt);
   increment_loop_depth();
 
-  // Get the object to enumerate over. Both SpiderMonkey and JSC
-  // ignore null and undefined in contrast to the specification; see
-  // ECMA-262 section 12.6.4.
+  // Get the object to enumerate over. If the object is null or undefined, skip
+  // over the loop.  See ECMA-262 version 5, section 12.6.4.
   VisitForAccumulatorValue(stmt->enumerable());
   __ mov(a0, result_register());  // Result as param to InvokeBuiltin below.
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
@@ -1255,6 +1255,67 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Exit and decrement the loop depth.
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
   __ bind(&exit);
+  decrement_loop_depth();
+}
+
+
+void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
+  Comment cmnt(masm_, "[ ForOfStatement");
+  SetStatementPosition(stmt);
+
+  Iteration loop_statement(this, stmt);
+  increment_loop_depth();
+
+  // var iterator = iterable[@@iterator]()
+  VisitForAccumulatorValue(stmt->assign_iterator());
+  __ mov(a0, v0);
+
+  // As with for-in, skip the loop if the iterator is null or undefined.
+  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ Branch(loop_statement.break_label(), eq, a0, Operand(at));
+  __ LoadRoot(at, Heap::kNullValueRootIndex);
+  __ Branch(loop_statement.break_label(), eq, a0, Operand(at));
+
+  // Convert the iterator to a JS object.
+  Label convert, done_convert;
+  __ JumpIfSmi(a0, &convert);
+  __ GetObjectType(a0, a1, a1);
+  __ Branch(&done_convert, ge, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
+  __ bind(&convert);
+  __ push(a0);
+  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+  __ mov(a0, v0);
+  __ bind(&done_convert);
+  __ push(a0);
+
+  // Loop entry.
+  __ bind(loop_statement.continue_label());
+
+  // result = iterator.next()
+  VisitForEffect(stmt->next_result());
+
+  // if (result.done) break;
+  Label result_not_done;
+  VisitForControl(stmt->result_done(),
+                  loop_statement.break_label(),
+                  &result_not_done,
+                  &result_not_done);
+  __ bind(&result_not_done);
+
+  // each = result.value
+  VisitForEffect(stmt->assign_each());
+
+  // Generate code for the body of the loop.
+  Visit(stmt->body());
+
+  // Check stack before looping.
+  PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
+  EmitBackEdgeBookkeeping(stmt, loop_statement.continue_label());
+  __ jmp(loop_statement.continue_label());
+
+  // Exit and decrement the loop depth.
+  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+  __ bind(loop_statement.break_label());
   decrement_loop_depth();
 }
 
@@ -1975,10 +2036,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // [sp + 1 * kPointerSize] iter
       // [sp + 0 * kPointerSize] g
 
-      Label l_catch, l_try, l_resume, l_send, l_call, l_loop;
+      Label l_catch, l_try, l_resume, l_next, l_call, l_loop;
       // Initial send value is undefined.
       __ LoadRoot(a0, Heap::kUndefinedValueRootIndex);
-      __ Branch(&l_send);
+      __ Branch(&l_next);
 
       // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
       __ bind(&l_catch);
@@ -1988,12 +2049,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ push(a3);                                       // iter
       __ push(a0);                                       // exception
       __ mov(a0, a3);                                    // iter
-      __ push(a0);                                       // push LoadIC state
       __ LoadRoot(a2, Heap::kthrow_stringRootIndex);     // "throw"
       Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(throw_ic);                                  // iter.throw in a0
       __ mov(a0, v0);
-      __ Addu(sp, sp, Operand(kPointerSize));            // drop LoadIC state
       __ jmp(&l_call);
 
       // try { received = yield result.value }
@@ -2015,18 +2074,16 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ bind(&l_resume);                                // received in a0
       __ PopTryHandler();
 
-      // receiver = iter; f = iter.send; arg = received;
-      __ bind(&l_send);
+      // receiver = iter; f = iter.next; arg = received;
+      __ bind(&l_next);
       __ lw(a3, MemOperand(sp, 1 * kPointerSize));       // iter
       __ push(a3);                                       // iter
       __ push(a0);                                       // received
       __ mov(a0, a3);                                    // iter
-      __ push(a0);                                       // push LoadIC state
-      __ LoadRoot(a2, Heap::ksend_stringRootIndex);      // "send"
-      Handle<Code> send_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(send_ic);                                   // iter.send in a0
+      __ LoadRoot(a2, Heap::knext_stringRootIndex);      // "next"
+      Handle<Code> next_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(next_ic);                                   // iter.next in a0
       __ mov(a0, v0);
-      __ Addu(sp, sp, Operand(kPointerSize));            // drop LoadIC state
 
       // result = f.call(receiver, arg);
       __ bind(&l_call);
@@ -2056,13 +2113,12 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ pop(a1);                                        // result
       __ push(a0);                                       // result.value
       __ mov(a0, a1);                                    // result
-      __ push(a0);                                       // push LoadIC state
       __ LoadRoot(a2, Heap::kdone_stringRootIndex);      // "done"
       Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(done_ic);                                   // result.done in v0
-      __ Addu(sp, sp, Operand(kPointerSize));            // drop LoadIC state
-      ToBooleanStub stub(v0);
-      __ CallStub(&stub);
+      __ mov(a0, v0);
+      Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
+      CallIC(bool_ic);
       __ Branch(&l_try, eq, v0, Operand(zero_reg));
 
       // result.value
@@ -2131,7 +2187,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // If we are sending a value and there is no operand stack, we can jump back
   // in directly.
-  if (resume_mode == JSGeneratorObject::SEND) {
+  if (resume_mode == JSGeneratorObject::NEXT) {
     Label slow_resume;
     __ Branch(&slow_resume, ne, a3, Operand(zero_reg));
     __ lw(a3, FieldMemOperand(t0, JSFunction::kCodeEntryOffset));
@@ -3037,7 +3093,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // string "valueOf" the result is false.
   // The use of t2 to store the valueOf string assumes that it is not otherwise
   // used in the loop below.
-  __ li(t2, Operand(FACTORY->value_of_string()));
+  __ li(t2, Operand(isolate()->factory()->value_of_string()));
   __ jmp(&entry);
   __ bind(&loop);
   __ lw(a3, MemOperand(t0, 0));
@@ -3445,19 +3501,56 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
+                                                  Register index,
+                                                  Register value,
+                                                  uint32_t encoding_mask) {
+  __ And(at, index, Operand(kSmiTagMask));
+  __ Check(eq, "Non-smi index", at, Operand(zero_reg));
+  __ And(at, value, Operand(kSmiTagMask));
+  __ Check(eq, "Non-smi value", at, Operand(zero_reg));
+
+  __ lw(at, FieldMemOperand(string, String::kLengthOffset));
+  __ Check(lt, "Index is too large", index, Operand(at));
+
+  __ Check(ge, "Index is negative", index, Operand(zero_reg));
+
+  __ lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
+  __ lbu(at, FieldMemOperand(at, Map::kInstanceTypeOffset));
+
+  __ And(at, at, Operand(kStringRepresentationMask | kStringEncodingMask));
+  __ Subu(at, at, Operand(encoding_mask));
+  __ Check(eq, "Unexpected string type", at, Operand(zero_reg));
+}
+
+
 void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
 
+  Register string = v0;
+  Register index = a1;
+  Register value = a2;
+
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ pop(a2);
-  __ pop(a1);
+  __ pop(value);
+  __ pop(index);
   VisitForAccumulatorValue(args->at(0));  // string
 
-  static const String::Encoding encoding = String::ONE_BYTE_ENCODING;
-  SeqStringSetCharGenerator::Generate(masm_, encoding, v0, a1, a2);
-  context()->Plug(v0);
+  if (FLAG_debug_code) {
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
+  }
+
+  __ SmiUntag(value, value);
+  __ Addu(at,
+          string,
+          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+  __ SmiUntag(index);
+  __ Addu(at, at, index);
+  __ sb(value, MemOperand(at));
+  context()->Plug(string);
 }
 
 
@@ -3465,15 +3558,29 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
 
+  Register string = v0;
+  Register index = a1;
+  Register value = a2;
+
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ pop(a2);
-  __ pop(a1);
+  __ pop(value);
+  __ pop(index);
   VisitForAccumulatorValue(args->at(0));  // string
 
-  static const String::Encoding encoding = String::TWO_BYTE_ENCODING;
-  SeqStringSetCharGenerator::Generate(masm_, encoding, v0, a1, a2);
-  context()->Plug(v0);
+  if (FLAG_debug_code) {
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
+  }
+
+  __ SmiUntag(value, value);
+  __ Addu(at,
+          string,
+          Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  __ Addu(at, at, index);
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  __ sh(value, MemOperand(at));
+    context()->Plug(string);
 }
 
 
@@ -4692,19 +4799,15 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
 
   VisitForAccumulatorValue(sub_expr);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  EqualityKind kind = expr->op() == Token::EQ_STRICT
-      ? kStrictEquality : kNonStrictEquality;
   __ mov(a0, result_register());
-  if (kind == kStrictEquality) {
+  if (expr->op() == Token::EQ_STRICT) {
     Heap::RootListIndex nil_value = nil == kNullValue ?
         Heap::kNullValueRootIndex :
         Heap::kUndefinedValueRootIndex;
     __ LoadRoot(a1, nil_value);
     Split(eq, a0, Operand(a1), if_true, if_false, fall_through);
   } else {
-    Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(),
-                                                         kNonStrictEquality,
-                                                         nil);
+    Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(), nil);
     CallIC(ic, RelocInfo::CODE_TARGET, expr->CompareOperationFeedbackId());
     Split(ne, v0, Operand(zero_reg), if_true, if_false, fall_through);
   }

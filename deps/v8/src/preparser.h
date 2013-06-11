@@ -130,6 +130,7 @@ class PreParser {
         allow_lazy_(false),
         allow_natives_syntax_(false),
         allow_generators_(false),
+        allow_for_of_(false),
         parenthesized_function_(false) { }
 
   ~PreParser() {}
@@ -139,6 +140,7 @@ class PreParser {
   bool allow_modules() const { return scanner_->HarmonyModules(); }
   bool allow_harmony_scoping() const { return scanner_->HarmonyScoping(); }
   bool allow_generators() const { return allow_generators_; }
+  bool allow_for_of() const { return allow_for_of_; }
 
   void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
   void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
@@ -147,6 +149,7 @@ class PreParser {
     scanner_->SetHarmonyScoping(allow);
   }
   void set_allow_generators(bool allow) { allow_generators_ = allow; }
+  void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -655,6 +658,8 @@ class PreParser {
   }
   void ExpectSemicolon(bool* ok);
 
+  bool CheckInOrOf();
+
   static int Precedence(i::Token::Value tok, bool accept_IN);
 
   void SetStrictModeViolation(i::Scanner::Location,
@@ -678,6 +683,7 @@ class PreParser {
   bool allow_lazy_;
   bool allow_natives_syntax_;
   bool allow_generators_;
+  bool allow_for_of_;
   bool parenthesized_function_;
 };
 } }  // v8::preparser

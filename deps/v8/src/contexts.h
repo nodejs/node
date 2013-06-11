@@ -172,6 +172,11 @@ enum BindingFlags {
   V(DERIVED_SET_TRAP_INDEX, JSFunction, derived_set_trap) \
   V(PROXY_ENUMERATE_INDEX, JSFunction, proxy_enumerate) \
   V(OBSERVERS_NOTIFY_CHANGE_INDEX, JSFunction, observers_notify_change) \
+  V(OBSERVERS_ENQUEUE_SPLICE_INDEX, JSFunction, observers_enqueue_splice) \
+  V(OBSERVERS_BEGIN_SPLICE_INDEX, JSFunction, \
+    observers_begin_perform_splice) \
+  V(OBSERVERS_END_SPLICE_INDEX, JSFunction, \
+    observers_end_perform_splice) \
   V(OBSERVERS_DELIVER_CHANGES_INDEX, JSFunction, observers_deliver_changes) \
   V(GENERATOR_FUNCTION_MAP_INDEX, Map, generator_function_map) \
   V(STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX, Map, \
@@ -317,6 +322,9 @@ class Context: public FixedArray {
     DERIVED_SET_TRAP_INDEX,
     PROXY_ENUMERATE_INDEX,
     OBSERVERS_NOTIFY_CHANGE_INDEX,
+    OBSERVERS_ENQUEUE_SPLICE_INDEX,
+    OBSERVERS_BEGIN_SPLICE_INDEX,
+    OBSERVERS_END_SPLICE_INDEX,
     OBSERVERS_DELIVER_CHANGES_INDEX,
     GENERATOR_FUNCTION_MAP_INDEX,
     STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX,

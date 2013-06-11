@@ -146,7 +146,7 @@ function g() {
 };
 
 eval('function h(){}');
-eval('function sourceUrlFunc() { a = 2; }\n//@ sourceURL=sourceUrlScript');
+eval('function sourceUrlFunc() { a = 2; }\n//# sourceURL=sourceUrlScript');
 
 o = {a:function(){},b:function(){}}
 

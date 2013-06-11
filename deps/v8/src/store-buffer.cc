@@ -188,10 +188,10 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
     { 3, ((Page::kPageSize / kPointerSize) / 3) / 256 },
     { 1, 0}
   };
-  for (int i = kSampleFinenesses - 1; i >= 0; i--) {
+  for (int i = 0; i < kSampleFinenesses; i++) {
     ExemptPopularPages(samples[i].prime_sample_step, samples[i].threshold);
     // As a last resort we mark all pages as being exempt from the store buffer.
-    ASSERT(i != 0 || old_top_ == old_start_);
+    ASSERT(i != (kSampleFinenesses - 1) || old_top_ == old_start_);
     if (old_limit_ - old_top_ > old_top_ - old_start_) return;
   }
   UNREACHABLE();

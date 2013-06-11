@@ -93,7 +93,7 @@ const signed char URIUnescape::kHexValue[] = {
 template<typename Char>
 Handle<String> URIUnescape::Unescape(Isolate* isolate, Handle<String> source) {
   int index;
-  { AssertNoAllocation no_allocation;
+  { DisallowHeapAllocation no_allocation;
     StringSearch<uint8_t, Char> search(isolate, STATIC_ASCII_VECTOR("%"));
     index = search.Search(GetCharVector<Char>(source), 0);
     if (index < 0) return source;
@@ -109,7 +109,7 @@ Handle<String> URIUnescape::UnescapeSlow(
   int length = string->length();
 
   int unescaped_length = 0;
-  { AssertNoAllocation no_allocation;
+  { DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = start_index; i < length; unescaped_length++) {
       int step;
@@ -130,7 +130,7 @@ Handle<String> URIUnescape::UnescapeSlow(
   if (one_byte) {
     Handle<SeqOneByteString> dest =
         isolate->factory()->NewRawOneByteString(unescaped_length);
-    AssertNoAllocation no_allocation;
+    DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = start_index; i < length; dest_position++) {
       int step;
@@ -142,7 +142,7 @@ Handle<String> URIUnescape::UnescapeSlow(
   } else {
     Handle<SeqTwoByteString> dest =
         isolate->factory()->NewRawTwoByteString(unescaped_length);
-    AssertNoAllocation no_allocation;
+    DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = start_index; i < length; dest_position++) {
       int step;
@@ -249,7 +249,7 @@ Handle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
   int escaped_length = 0;
   int length = string->length();
 
-  { AssertNoAllocation no_allocation;
+  { DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = 0; i < length; i++) {
       uint16_t c = vector[i];
@@ -277,7 +277,7 @@ Handle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
       isolate->factory()->NewRawOneByteString(escaped_length);
   int dest_position = 0;
 
-  { AssertNoAllocation no_allocation;
+  { DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = 0; i < length; i++) {
       uint16_t c = vector[i];

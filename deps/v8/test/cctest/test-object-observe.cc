@@ -418,7 +418,8 @@ TEST(ObservationWeakMap) {
       "Object.observe(obj, function(){});"
       "Object.getNotifier(obj);"
       "obj = null;");
-  i::Handle<i::JSObject> observation_state = FACTORY->observation_state();
+  i::Handle<i::JSObject> observation_state =
+      i::Isolate::Current()->factory()->observation_state();
   i::Handle<i::JSWeakMap> observerInfoMap =
       i::Handle<i::JSWeakMap>::cast(
           i::GetProperty(observation_state, "observerInfoMap"));

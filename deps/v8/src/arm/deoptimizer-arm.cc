@@ -48,7 +48,7 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
     JSFunction* function) {
   Isolate* isolate = function->GetIsolate();
   HandleScope scope(isolate);
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   ASSERT(function->IsOptimized());
   ASSERT(function->FunctionsInFunctionListShareSameCode());

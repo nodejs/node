@@ -38,6 +38,24 @@
 namespace v8 {
 namespace internal {
 
+
+static inline double read_double_value(Address p) {
+#ifdef V8_HOST_CAN_READ_UNALIGNED
+  return Memory::double_at(p);
+#else  // V8_HOST_CAN_READ_UNALIGNED
+  // Prevent gcc from using load-double (mips ldc1) on (possibly)
+  // non-64-bit aligned address.
+  union conversion {
+    double d;
+    uint32_t u[2];
+  } c;
+  c.u[0] = *reinterpret_cast<uint32_t*>(p);
+  c.u[1] = *reinterpret_cast<uint32_t*>(p + 4);
+  return c.d;
+#endif  // V8_HOST_CAN_READ_UNALIGNED
+}
+
+
 class FrameDescription;
 class TranslationIterator;
 class DeoptimizingCodeListNode;
@@ -385,7 +403,7 @@ class Deoptimizer : public Malloced {
 
   // Weak handle callback for deoptimizing code objects.
   static void HandleWeakDeoptimizedCode(v8::Isolate* isolate,
-                                        v8::Persistent<v8::Value> obj,
+                                        v8::Persistent<v8::Value>* obj,
                                         void* data);
 
   // Deoptimize function assuming that function->next_function_link() points
@@ -431,6 +449,9 @@ class Deoptimizer : public Malloced {
   List<Object*> deferred_arguments_objects_values_;
   List<ArgumentsObjectMaterializationDescriptor> deferred_arguments_objects_;
   List<HeapNumberMaterializationDescriptor> deferred_heap_numbers_;
+#ifdef DEBUG
+  DisallowHeapAllocation* disallow_heap_allocation_;
+#endif  // DEBUG
 
   bool trace_;
 
@@ -476,19 +497,7 @@ class FrameDescription {
 
   double GetDoubleFrameSlot(unsigned offset) {
     intptr_t* ptr = GetFrameSlotPointer(offset);
-#if V8_TARGET_ARCH_MIPS
-    // Prevent gcc from using load-double (mips ldc1) on (possibly)
-    // non-64-bit aligned double. Uses two lwc1 instructions.
-    union conversion {
-      double d;
-      uint32_t u[2];
-    } c;
-    c.u[0] = *reinterpret_cast<uint32_t*>(ptr);
-    c.u[1] = *(reinterpret_cast<uint32_t*>(ptr) + 1);
-    return c.d;
-#else
-    return *reinterpret_cast<double*>(ptr);
-#endif
+    return read_double_value(reinterpret_cast<Address>(ptr));
   }
 
   void SetFrameSlot(unsigned offset, intptr_t value) {
@@ -818,7 +827,7 @@ class SlotRef BASE_EMBEDDED {
       }
 
       case DOUBLE: {
-        double value = Memory::double_at(addr_);
+        double value = read_double_value(addr_);
         return isolate->factory()->NewNumber(value);
       }
 

@@ -46,9 +46,8 @@ TEST(TypeConstructors) {
 TEST(ExternalICStateParsing) {
   Types types;
   types.Add(CompareNilICStub::UNDEFINED);
-  CompareNilICStub stub(kNonStrictEquality, kUndefinedValue, types);
+  CompareNilICStub stub(kUndefinedValue, types);
   CompareNilICStub stub2(stub.GetExtraICState());
-  CHECK_EQ(stub.GetKind(), stub2.GetKind());
   CHECK_EQ(stub.GetNilValue(), stub2.GetNilValue());
   CHECK_EQ(stub.GetTypes().ToIntegral(), stub2.GetTypes().ToIntegral());
 }

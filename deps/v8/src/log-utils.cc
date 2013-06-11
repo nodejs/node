@@ -238,7 +238,7 @@ void LogMessageBuilder::Append(const char c) {
 
 
 void LogMessageBuilder::Append(String* str) {
-  AssertNoAllocation no_heap_allocation;  // Ensure string stay valid.
+  DisallowHeapAllocation no_gc;  // Ensure string stay valid.
   int length = str->length();
   for (int i = 0; i < length; i++) {
     Append(static_cast<char>(str->Get(i)));
@@ -253,7 +253,7 @@ void LogMessageBuilder::AppendAddress(Address addr) {
 
 void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
   if (str == NULL) return;
-  AssertNoAllocation no_heap_allocation;  // Ensure string stay valid.
+  DisallowHeapAllocation no_gc;  // Ensure string stay valid.
   int len = str->length();
   if (len > 0x1000)
     len = 0x1000;

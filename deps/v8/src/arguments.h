@@ -52,7 +52,8 @@ class Arguments BASE_EMBEDDED {
 
   Object*& operator[] (int index) {
     ASSERT(0 <= index && index < length_);
-    return arguments_[-index];
+    return *(reinterpret_cast<Object**>(reinterpret_cast<intptr_t>(arguments_) -
+                                        index * kPointerSize));
   }
 
   template <class S> Handle<S> at(int index) {
@@ -152,8 +153,7 @@ class Arguments BASE_EMBEDDED {
 // TODO(dcarney): Remove this class when old callbacks are gone.
 class CallbackTable {
  public:
-  // TODO(dcarney): Flip this when it makes sense for performance.
-  static const bool kStoreVoidFunctions = true;
+  static const bool kStoreVoidFunctions = false;
   static inline bool ReturnsVoid(Isolate* isolate, void* function) {
     CallbackTable* table = isolate->callback_table();
     bool contains =
@@ -171,13 +171,13 @@ class CallbackTable {
   }
 
 #define WRITE_REGISTER(OldFunction, NewFunction)                    \
-  static OldFunction Register(Isolate* isolate, NewFunction f) {    \
-    InsertCallback(isolate, FunctionToVoidPtr(f), true);            \
-    return reinterpret_cast<OldFunction>(f);                        \
+  static NewFunction Register(Isolate* isolate, OldFunction f) {    \
+    InsertCallback(isolate, FunctionToVoidPtr(f), false);           \
+    return reinterpret_cast<NewFunction>(f);                        \
   }                                                                 \
                                                                     \
-  static OldFunction Register(Isolate* isolate, OldFunction f) {    \
-    InsertCallback(isolate, FunctionToVoidPtr(f), false);           \
+  static NewFunction Register(Isolate* isolate, NewFunction f) {    \
+    InsertCallback(isolate, FunctionToVoidPtr(f), true);            \
     return f;                                                       \
   }
   FOR_EACH_CALLBACK_TABLE_MAPPING(WRITE_REGISTER)
@@ -254,6 +254,10 @@ class PropertyCallbackArguments
     values[T::kHolderIndex] = holder;
     values[T::kDataIndex] = data;
     values[T::kIsolateIndex] = reinterpret_cast<Object*>(isolate);
+    // Here the hole is set as default value.
+    // It cannot escape into js as it's remove in Call below.
+    values[T::kReturnValueDefaultValueIndex] =
+        isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
     ASSERT(values[T::kHolderIndex]->IsHeapObject());
     ASSERT(values[T::kIsolateIndex]->IsSmi());
@@ -314,6 +318,10 @@ class FunctionCallbackArguments
     values[T::kCalleeIndex] = callee;
     values[T::kHolderIndex] = holder;
     values[T::kIsolateIndex] = reinterpret_cast<internal::Object*>(isolate);
+    // Here the hole is set as default value.
+    // It cannot escape into js as it's remove in Call below.
+    values[T::kReturnValueDefaultValueIndex] =
+        isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
     ASSERT(values[T::kCalleeIndex]->IsJSFunction());
     ASSERT(values[T::kHolderIndex]->IsHeapObject());

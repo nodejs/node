@@ -114,8 +114,7 @@ TEST(Weakness) {
     HandleScope scope(isolate);
     global_handles->MakeWeak(key.location(),
                              reinterpret_cast<void*>(1234),
-                             &WeakPointerCallback,
-                             NULL);
+                             &WeakPointerCallback);
   }
   CHECK(global_handles->IsWeak(key.location()));
 

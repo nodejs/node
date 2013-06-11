@@ -103,10 +103,6 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);
-  virtual void CheckCharacters(Vector<const uc16> str,
-                               int cp_offset,
-                               Label* on_failure,
-                               bool check_end_of_string);
   virtual void IfRegisterLT(int register_index, int comparand, Label* if_lt);
   virtual void IfRegisterGE(int register_index, int comparand, Label* if_ge);
   virtual void IfRegisterEqPos(int register_index, Label* if_eq);
@@ -137,6 +133,8 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   int advance_current_start_;
   int advance_current_offset_;
   int advance_current_end_;
+
+  Isolate* isolate_;
 
   static const int kInvalidPC = -1;
 

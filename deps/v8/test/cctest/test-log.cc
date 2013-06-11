@@ -34,11 +34,6 @@
 #include <cmath>
 #endif  // __linux__
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "v8.h"
 #include "log.h"
 #include "cpu-profiler.h"
@@ -405,9 +400,9 @@ TEST(LogCallbacks) {
   ScopedLoggerInitializer initialize_logger(false);
   Logger* logger = initialize_logger.logger();
 
-  v8::Persistent<v8::FunctionTemplate> obj =
-      v8::Persistent<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
-                                                v8::FunctionTemplate::New());
+  v8::Local<v8::FunctionTemplate> obj =
+      v8::Local<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
+                                           v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
   v8::Local<v8::Signature> signature =
@@ -434,8 +429,6 @@ TEST(LogCallbacks) {
                   ObjMethod1);
 
   CHECK_NE(NULL, StrNStr(log.start(), ref_data.start(), log.length()));
-
-  obj.Dispose(v8::Isolate::GetCurrent());
 }
 
 
@@ -458,9 +451,9 @@ TEST(LogAccessorCallbacks) {
   ScopedLoggerInitializer initialize_logger(false);
   Logger* logger = initialize_logger.logger();
 
-  v8::Persistent<v8::FunctionTemplate> obj =
-      v8::Persistent<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
-                                                v8::FunctionTemplate::New());
+  v8::Local<v8::FunctionTemplate> obj =
+      v8::Local<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
+                                           v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> inst = obj->InstanceTemplate();
   inst->SetAccessor(v8_str("prop1"), Prop1Getter, Prop1Setter);
@@ -493,8 +486,6 @@ TEST(LogAccessorCallbacks) {
                   Prop2Getter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop2_getter_record.start(), log.length()));
-
-  obj.Dispose(v8::Isolate::GetCurrent());
 }
 
 

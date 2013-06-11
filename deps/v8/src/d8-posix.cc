@@ -238,7 +238,7 @@ class ExecArgs {
 
 
 // Gets the optional timeouts from the arguments to the system() call.
-static bool GetTimeouts(const Arguments& args,
+static bool GetTimeouts(const v8::FunctionCallbackInfo<v8::Value>& args,
                         int* read_timeout,
                         int* total_timeout) {
   if (args.Length() > 3) {
@@ -448,25 +448,28 @@ static bool WaitForChild(int pid,
 
 
 // Implementation of the system() function (see d8.h for details).
-Handle<Value> Shell::System(const Arguments& args) {
+void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   int read_timeout = -1;
   int total_timeout = -1;
-  if (!GetTimeouts(args, &read_timeout, &total_timeout)) return v8::Undefined();
+  if (!GetTimeouts(args, &read_timeout, &total_timeout)) return;
   Handle<Array> command_args;
   if (args.Length() > 1) {
     if (!args[1]->IsArray()) {
-      return ThrowException(String::New("system: Argument 2 must be an array"));
+      ThrowException(String::New("system: Argument 2 must be an array"));
+      return;
     }
     command_args = Handle<Array>::Cast(args[1]);
   } else {
     command_args = Array::New(0);
   }
   if (command_args->Length() > ExecArgs::kMaxArgs) {
-    return ThrowException(String::New("Too many arguments to system()"));
+    ThrowException(String::New("Too many arguments to system()"));
+    return;
   }
   if (args.Length() < 1) {
-    return ThrowException(String::New("Too few arguments to system()"));
+    ThrowException(String::New("Too few arguments to system()"));
+    return;
   }
 
   struct timeval start_time;
@@ -474,16 +477,18 @@ Handle<Value> Shell::System(const Arguments& args) {
 
   ExecArgs exec_args;
   if (!exec_args.Init(args[0], command_args)) {
-    return v8::Undefined();
+    return;
   }
   int exec_error_fds[2];
   int stdout_fds[2];
 
   if (pipe(exec_error_fds) != 0) {
-    return ThrowException(String::New("pipe syscall failed."));
+    ThrowException(String::New("pipe syscall failed."));
+    return;
   }
   if (pipe(stdout_fds) != 0) {
-    return ThrowException(String::New("pipe syscall failed."));
+    ThrowException(String::New("pipe syscall failed."));
+    return;
   }
 
   pid_t pid = fork();
@@ -499,7 +504,7 @@ Handle<Value> Shell::System(const Arguments& args) {
   OpenFDCloser error_read_closer(exec_error_fds[kReadFD]);
   OpenFDCloser stdout_read_closer(stdout_fds[kReadFD]);
 
-  if (!ChildLaunchedOK(exec_error_fds)) return v8::Undefined();
+  if (!ChildLaunchedOK(exec_error_fds)) return;
 
   Handle<Value> accumulator = GetStdout(stdout_fds[kReadFD],
                                         start_time,
@@ -507,7 +512,8 @@ Handle<Value> Shell::System(const Arguments& args) {
                                         total_timeout);
   if (accumulator->IsUndefined()) {
     kill(pid, SIGINT);  // On timeout, kill the subprocess.
-    return accumulator;
+    args.GetReturnValue().Set(accumulator);
+    return;
   }
 
   if (!WaitForChild(pid,
@@ -515,42 +521,47 @@ Handle<Value> Shell::System(const Arguments& args) {
                     start_time,
                     read_timeout,
                     total_timeout)) {
-    return v8::Undefined();
+    return;
   }
 
-  return scope.Close(accumulator);
+  args.GetReturnValue().Set(accumulator);
 }
 
 
-Handle<Value> Shell::ChangeDirectory(const Arguments& args) {
+void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     const char* message = "chdir() takes one argument";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   String::Utf8Value directory(args[0]);
   if (*directory == NULL) {
     const char* message = "os.chdir(): String conversion of argument failed.";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   if (chdir(*directory) != 0) {
-    return ThrowException(String::New(strerror(errno)));
+    ThrowException(String::New(strerror(errno)));
+    return;
   }
-  return v8::Undefined();
 }
 
 
-Handle<Value> Shell::SetUMask(const Arguments& args) {
+void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     const char* message = "umask() takes one argument";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   if (args[0]->IsNumber()) {
     mode_t mask = args[0]->Int32Value();
     int previous = umask(mask);
-    return Number::New(previous);
+    args.GetReturnValue().Set(previous);
+    return;
   } else {
     const char* message = "umask() argument must be numeric";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
 }
 
@@ -598,79 +609,85 @@ static bool mkdirp(char* directory, mode_t mask) {
 }
 
 
-Handle<Value> Shell::MakeDirectory(const Arguments& args) {
+void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   mode_t mask = 0777;
   if (args.Length() == 2) {
     if (args[1]->IsNumber()) {
       mask = args[1]->Int32Value();
     } else {
       const char* message = "mkdirp() second argument must be numeric";
-      return ThrowException(String::New(message));
+      ThrowException(String::New(message));
+      return;
     }
   } else if (args.Length() != 1) {
     const char* message = "mkdirp() takes one or two arguments";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   String::Utf8Value directory(args[0]);
   if (*directory == NULL) {
     const char* message = "os.mkdirp(): String conversion of argument failed.";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   mkdirp(*directory, mask);
-  return v8::Undefined();
 }
 
 
-Handle<Value> Shell::RemoveDirectory(const Arguments& args) {
+void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     const char* message = "rmdir() takes one or two arguments";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   String::Utf8Value directory(args[0]);
   if (*directory == NULL) {
     const char* message = "os.rmdir(): String conversion of argument failed.";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   rmdir(*directory);
-  return v8::Undefined();
 }
 
 
-Handle<Value> Shell::SetEnvironment(const Arguments& args) {
+void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 2) {
     const char* message = "setenv() takes two arguments";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   String::Utf8Value var(args[0]);
   String::Utf8Value value(args[1]);
   if (*var == NULL) {
     const char* message =
         "os.setenv(): String conversion of variable name failed.";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   if (*value == NULL) {
     const char* message =
         "os.setenv(): String conversion of variable contents failed.";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   setenv(*var, *value, 1);
-  return v8::Undefined();
 }
 
 
-Handle<Value> Shell::UnsetEnvironment(const Arguments& args) {
+void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     const char* message = "unsetenv() takes one argument";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   String::Utf8Value var(args[0]);
   if (*var == NULL) {
     const char* message =
         "os.setenv(): String conversion of variable name failed.";
-    return ThrowException(String::New(message));
+    ThrowException(String::New(message));
+    return;
   }
   unsetenv(*var);
-  return v8::Undefined();
 }
 
 

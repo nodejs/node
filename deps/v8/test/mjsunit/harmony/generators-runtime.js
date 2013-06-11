@@ -84,7 +84,7 @@ function TestGeneratorObjectPrototype() {
   assertSame(GeneratorObjectPrototype,
              Object.getPrototypeOf((function*(){yield 1}).prototype));
 
-  var expected_property_names = ["next", "send", "throw", "constructor"];
+  var expected_property_names = ["next", "throw", "constructor"];
   var found_property_names =
       Object.getOwnPropertyNames(GeneratorObjectPrototype);
 

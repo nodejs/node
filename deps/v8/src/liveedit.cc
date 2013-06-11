@@ -631,10 +631,10 @@ static Handle<Object> UnwrapJSValue(Handle<JSValue> jsValue) {
 // Wraps any object into a OpaqueReference, that will hide the object
 // from JavaScript.
 static Handle<JSValue> WrapInJSValue(Handle<Object> object) {
-  Handle<JSFunction> constructor =
-      Isolate::Current()->opaque_reference_function();
+  Isolate* isolate = Isolate::Current();
+  Handle<JSFunction> constructor = isolate->opaque_reference_function();
   Handle<JSValue> result =
-      Handle<JSValue>::cast(FACTORY->NewJSObject(constructor));
+      Handle<JSValue>::cast(isolate->factory()->NewJSObject(constructor));
   result->set_value(*object);
   return result;
 }
@@ -662,7 +662,8 @@ template<typename S>
 class JSArrayBasedStruct {
  public:
   static S Create() {
-    Handle<JSArray> array = FACTORY->NewJSArray(S::kSize_);
+    Factory* factory = Isolate::Current()->factory();
+    Handle<JSArray> array = factory->NewJSArray(S::kSize_);
     return S(array);
   }
   static S cast(Object* object) {
@@ -1069,7 +1070,7 @@ static void ReplaceCodeObject(Handle<Code> original,
 
   ASSERT(!heap->InNewSpace(*substitution));
 
-  AssertNoAllocation no_allocations_please;
+  DisallowHeapAllocation no_allocation;
 
   ReplacingVisitor visitor(*original, *substitution);
 
@@ -1144,7 +1145,7 @@ class LiteralFixer {
   template<typename Visitor>
   static void IterateJSFunctions(SharedFunctionInfo* shared_info,
                                  Visitor* visitor) {
-    AssertNoAllocation no_allocations_please;
+    DisallowHeapAllocation no_allocation;
 
     HeapIterator iterator(shared_info->GetHeap());
     for (HeapObject* obj = iterator.next(); obj != NULL;
@@ -1219,7 +1220,7 @@ static bool IsJSFunctionCode(Code* code) {
 
 // Returns true if an instance of candidate were inlined into function's code.
 static bool IsInlined(JSFunction* function, SharedFunctionInfo* candidate) {
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
 
   if (function->code()->kind() != Code::OPTIMIZED_FUNCTION) return false;
 
@@ -1257,7 +1258,7 @@ class DependentFunctionFilter : public OptimizedFunctionFilter {
 
 
 static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   DependentFunctionFilter filter(function_info);
   Deoptimizer::DeoptimizeAllFunctionsWith(function_info->GetIsolate(), &filter);
@@ -1293,7 +1294,7 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
   if (shared_info->debug_info()->IsDebugInfo()) {
     Handle<DebugInfo> debug_info(DebugInfo::cast(shared_info->debug_info()));
     Handle<Code> new_original_code =
-        FACTORY->CopyCode(compile_info_wrapper.GetFunctionCode());
+        isolate->factory()->CopyCode(compile_info_wrapper.GetFunctionCode());
     debug_info->set_original_code(*new_original_code);
   }
 
@@ -1460,12 +1461,13 @@ class RelocInfoBuffer {
 static Handle<Code> PatchPositionsInCode(
     Handle<Code> code,
     Handle<JSArray> position_change_array) {
+  Isolate* isolate = code->GetIsolate();
 
   RelocInfoBuffer buffer_writer(code->relocation_size(),
                                 code->instruction_start());
 
   {
-    AssertNoAllocation no_allocations_please;
+    DisallowHeapAllocation no_allocation;
     for (RelocIterator it(*code); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();
       if (RelocInfo::IsPosition(rinfo->rmode())) {
@@ -1494,7 +1496,7 @@ static Handle<Code> PatchPositionsInCode(
     // Relocation info section now has different size. We cannot simply
     // rewrite it inside code object. Instead we have to create a new
     // code object.
-    Handle<Code> result(FACTORY->CopyCode(code, buffer));
+    Handle<Code> result(isolate->factory()->CopyCode(code, buffer));
     return result;
   }
 }
@@ -1542,9 +1544,10 @@ MaybeObject* LiveEdit::PatchFunctionPositions(
 
 
 static Handle<Script> CreateScriptCopy(Handle<Script> original) {
-  Handle<String> original_source(String::cast(original->source()));
+  Isolate* isolate = original->GetIsolate();
 
-  Handle<Script> copy = FACTORY->NewScript(original_source);
+  Handle<String> original_source(String::cast(original->source()));
+  Handle<Script> copy = isolate->factory()->NewScript(original_source);
 
   copy->set_name(original->name());
   copy->set_line_offset(original->line_offset());
@@ -2007,7 +2010,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   if (error_message != NULL) {
     // Add error message as an array extra element.
     Vector<const char> vector_message(error_message, StrLength(error_message));
-    Handle<String> str = FACTORY->NewStringFromAscii(vector_message);
+    Handle<String> str = isolate->factory()->NewStringFromAscii(vector_message);
     SetElementNonStrict(result, len, str);
   }
   return result;

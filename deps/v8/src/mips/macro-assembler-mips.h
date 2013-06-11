@@ -289,7 +289,7 @@ class MacroAssembler: public Assembler {
   void LoadHeapObject(Register dst, Handle<HeapObject> object);
 
   void LoadObject(Register result, Handle<Object> object) {
-    ALLOW_HANDLE_DEREF(isolate(), "heap object check");
+    AllowDeferredHandleDereference heap_object_check;
     if (object->IsHeapObject()) {
       LoadHeapObject(result, Handle<HeapObject>::cast(object));
     } else {
@@ -1014,8 +1014,7 @@ class MacroAssembler: public Assembler {
                            Handle<Map> map,
                            Label* early_success,
                            Condition cond,
-                           Label* branch_to,
-                           CompareMapMode mode = REQUIRE_EXACT_MAP);
+                           Label* branch_to);
 
   // As above, but the map of the object is already loaded into the register
   // which is preserved by the code generated.
@@ -1023,8 +1022,7 @@ class MacroAssembler: public Assembler {
                            Handle<Map> map,
                            Label* early_success,
                            Condition cond,
-                           Label* branch_to,
-                           CompareMapMode mode = REQUIRE_EXACT_MAP);
+                           Label* branch_to);
 
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a
@@ -1034,8 +1032,7 @@ class MacroAssembler: public Assembler {
                 Register scratch,
                 Handle<Map> map,
                 Label* fail,
-                SmiCheckType smi_check_type,
-                CompareMapMode mode = REQUIRE_EXACT_MAP);
+                SmiCheckType smi_check_type);
 
 
   void CheckMap(Register obj,

@@ -168,6 +168,11 @@ void Processor::VisitForInStatement(ForInStatement* node) {
 }
 
 
+void Processor::VisitForOfStatement(ForOfStatement* node) {
+  VisitIterationStatement(node);
+}
+
+
 void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
   // Rewrite both try and catch blocks (reversed order).
   bool set_after_catch = is_set_;

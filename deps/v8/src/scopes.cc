@@ -104,7 +104,7 @@ Variable* VariableMap::Lookup(Handle<String> name) {
 // ----------------------------------------------------------------------------
 // Implementation of Scope
 
-Scope::Scope(Scope* outer_scope, ScopeType type, Zone* zone)
+Scope::Scope(Scope* outer_scope, ScopeType scope_type, Zone* zone)
     : isolate_(zone->isolate()),
       inner_scopes_(4, zone),
       variables_(zone),
@@ -114,19 +114,19 @@ Scope::Scope(Scope* outer_scope, ScopeType type, Zone* zone)
       unresolved_(16, zone),
       decls_(4, zone),
       interface_(FLAG_harmony_modules &&
-                 (type == MODULE_SCOPE || type == GLOBAL_SCOPE)
+                 (scope_type == MODULE_SCOPE || scope_type == GLOBAL_SCOPE)
                      ? Interface::NewModule(zone) : NULL),
       already_resolved_(false),
       zone_(zone) {
-  SetDefaults(type, outer_scope, Handle<ScopeInfo>::null());
+  SetDefaults(scope_type, outer_scope, Handle<ScopeInfo>::null());
   // The outermost scope must be a global scope.
-  ASSERT(type == GLOBAL_SCOPE || outer_scope != NULL);
+  ASSERT(scope_type == GLOBAL_SCOPE || outer_scope != NULL);
   ASSERT(!HasIllegalRedeclaration());
 }
 
 
 Scope::Scope(Scope* inner_scope,
-             ScopeType type,
+             ScopeType scope_type,
              Handle<ScopeInfo> scope_info,
              Zone* zone)
     : isolate_(Isolate::Current()),
@@ -140,7 +140,7 @@ Scope::Scope(Scope* inner_scope,
       interface_(NULL),
       already_resolved_(true),
       zone_(zone) {
-  SetDefaults(type, NULL, scope_info);
+  SetDefaults(scope_type, NULL, scope_info);
   if (!scope_info.is_null()) {
     num_heap_slots_ = scope_info_->ContextLength();
   }
@@ -177,11 +177,11 @@ Scope::Scope(Scope* inner_scope, Handle<String> catch_variable_name, Zone* zone)
 }
 
 
-void Scope::SetDefaults(ScopeType type,
+void Scope::SetDefaults(ScopeType scope_type,
                         Scope* outer_scope,
                         Handle<ScopeInfo> scope_info) {
   outer_scope_ = outer_scope;
-  type_ = type;
+  scope_type_ = scope_type;
   scope_name_ = isolate_->factory()->empty_string();
   dynamics_ = NULL;
   receiver_ = NULL;
@@ -780,8 +780,8 @@ void Scope::GetNestedScopeChain(
 
 
 #ifdef DEBUG
-static const char* Header(ScopeType type) {
-  switch (type) {
+static const char* Header(ScopeType scope_type) {
+  switch (scope_type) {
     case EVAL_SCOPE: return "eval";
     case FUNCTION_SCOPE: return "function";
     case MODULE_SCOPE: return "module";
@@ -855,7 +855,7 @@ void Scope::Print(int n) {
   int n1 = n0 + 2;  // indentation
 
   // Print header.
-  Indent(n0, Header(type_));
+  Indent(n0, Header(scope_type_));
   if (scope_name_->length() > 0) {
     PrintF(" ");
     PrintName(scope_name_);

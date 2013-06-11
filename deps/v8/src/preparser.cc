@@ -659,6 +659,18 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
 }
 
 
+bool PreParser::CheckInOrOf() {
+  if (peek() == i::Token::IN ||
+      (allow_for_of() &&
+       peek() == i::Token::IDENTIFIER &&
+       scanner_->is_next_contextual_keyword(v8::internal::CStrVector("of")))) {
+    Next();
+    return true;
+  }
+  return false;
+}
+
+
 PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   // ForStatement ::
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
@@ -675,8 +687,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
           kForStatement, &decl_props, &decl_count, CHECK_OK);
       bool accept_IN = decl_count == 1 &&
           !(is_let && decl_props == kHasInitializers);
-      if (peek() == i::Token::IN && accept_IN) {
-        Expect(i::Token::IN, CHECK_OK);
+      if (accept_IN && CheckInOrOf()) {
         ParseExpression(true, CHECK_OK);
         Expect(i::Token::RPAREN, CHECK_OK);
 
@@ -685,8 +696,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       }
     } else {
       ParseExpression(false, CHECK_OK);
-      if (peek() == i::Token::IN) {
-        Expect(i::Token::IN, CHECK_OK);
+      if (CheckInOrOf()) {
         ParseExpression(true, CHECK_OK);
         Expect(i::Token::RPAREN, CHECK_OK);
 

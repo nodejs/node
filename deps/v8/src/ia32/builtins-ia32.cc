@@ -486,6 +486,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Invoke the code.
     if (is_construct) {
+      // No type feedback cell is available
+      Handle<Object> undefined_sentinel(
+          masm->isolate()->heap()->undefined_value(), masm->isolate());
+      __ mov(ebx, Immediate(undefined_sentinel));
       CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
       __ CallStub(&stub);
     } else {
@@ -1455,14 +1459,20 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
 
   // Run the native code for the InternalArray function called as a normal
   // function.
-  ArrayNativeCode(masm, false, &generic_array_code);
+  if (FLAG_optimize_constructed_arrays) {
+    // tail call a stub
+    InternalArrayConstructorStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  } else {
+    ArrayNativeCode(masm, false, &generic_array_code);
 
-  // Jump to the generic internal array code in case the specialized code cannot
-  // handle the construction.
-  __ bind(&generic_array_code);
-  Handle<Code> array_code =
-      masm->isolate()->builtins()->InternalArrayCodeGeneric();
-  __ jmp(array_code, RelocInfo::CODE_TARGET);
+    // Jump to the generic internal array code in case the specialized code
+    // cannot handle the construction.
+    __ bind(&generic_array_code);
+    Handle<Code> array_code =
+        masm->isolate()->builtins()->InternalArrayCodeGeneric();
+    __ jmp(array_code, RelocInfo::CODE_TARGET);
+  }
 }
 
 
@@ -1488,14 +1498,24 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   }
 
   // Run the native code for the Array function called as a normal function.
-  ArrayNativeCode(masm, false, &generic_array_code);
+  if (FLAG_optimize_constructed_arrays) {
+    // tail call a stub
+    Handle<Object> undefined_sentinel(
+        masm->isolate()->heap()->undefined_value(),
+        masm->isolate());
+    __ mov(ebx, Immediate(undefined_sentinel));
+    ArrayConstructorStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  } else {
+    ArrayNativeCode(masm, false, &generic_array_code);
 
-  // Jump to the generic array code in case the specialized code cannot handle
-  // the construction.
-  __ bind(&generic_array_code);
-  Handle<Code> array_code =
-      masm->isolate()->builtins()->ArrayCodeGeneric();
-  __ jmp(array_code, RelocInfo::CODE_TARGET);
+    // Jump to the generic internal array code in case the specialized code
+    // cannot handle the construction.
+    __ bind(&generic_array_code);
+    Handle<Code> array_code =
+        masm->isolate()->builtins()->ArrayCodeGeneric();
+    __ jmp(array_code, RelocInfo::CODE_TARGET);
+  }
 }
 
 

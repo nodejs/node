@@ -120,7 +120,7 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
     int registers_to_save,
     Zone* zone)
     : NativeRegExpMacroAssembler(zone),
-      masm_(Isolate::Current(), NULL, kRegExpCodeSize),
+      masm_(zone->isolate(), NULL, kRegExpCodeSize),
       no_root_array_scope_(&masm_),
       code_relative_fixup_positions_(4, zone),
       mode_(mode),
@@ -223,101 +223,6 @@ void RegExpMacroAssemblerX64::CheckNotAtStart(Label* on_not_at_start) {
 void RegExpMacroAssemblerX64::CheckCharacterLT(uc16 limit, Label* on_less) {
   __ cmpl(current_character(), Immediate(limit));
   BranchOrBacktrack(less, on_less);
-}
-
-
-void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
-                                              int cp_offset,
-                                              Label* on_failure,
-                                              bool check_end_of_string) {
-#ifdef DEBUG
-  // If input is ASCII, don't even bother calling here if the string to
-  // match contains a non-ASCII character.
-  if (mode_ == ASCII) {
-    ASSERT(String::IsOneByte(str.start(), str.length()));
-  }
-#endif
-  int byte_length = str.length() * char_size();
-  int byte_offset = cp_offset * char_size();
-  if (check_end_of_string) {
-    // Check that there are at least str.length() characters left in the input.
-    __ cmpl(rdi, Immediate(-(byte_offset + byte_length)));
-    BranchOrBacktrack(greater, on_failure);
-  }
-
-  if (on_failure == NULL) {
-    // Instead of inlining a backtrack, (re)use the global backtrack target.
-    on_failure = &backtrack_label_;
-  }
-
-  // Do one character test first to minimize loading for the case that
-  // we don't match at all (loading more than one character introduces that
-  // chance of reading unaligned and reading across cache boundaries).
-  // If the first character matches, expect a larger chance of matching the
-  // string, and start loading more characters at a time.
-  if (mode_ == ASCII) {
-    __ cmpb(Operand(rsi, rdi, times_1, byte_offset),
-            Immediate(static_cast<int8_t>(str[0])));
-  } else {
-    // Don't use 16-bit immediate. The size changing prefix throws off
-    // pre-decoding.
-    __ movzxwl(rax,
-               Operand(rsi, rdi, times_1, byte_offset));
-    __ cmpl(rax, Immediate(static_cast<int32_t>(str[0])));
-  }
-  BranchOrBacktrack(not_equal, on_failure);
-
-  __ lea(rbx, Operand(rsi, rdi, times_1, 0));
-  for (int i = 1, n = str.length(); i < n; ) {
-    if (mode_ == ASCII) {
-      if (i + 8 <= n) {
-        uint64_t combined_chars =
-            (static_cast<uint64_t>(str[i + 0]) << 0) ||
-            (static_cast<uint64_t>(str[i + 1]) << 8) ||
-            (static_cast<uint64_t>(str[i + 2]) << 16) ||
-            (static_cast<uint64_t>(str[i + 3]) << 24) ||
-            (static_cast<uint64_t>(str[i + 4]) << 32) ||
-            (static_cast<uint64_t>(str[i + 5]) << 40) ||
-            (static_cast<uint64_t>(str[i + 6]) << 48) ||
-            (static_cast<uint64_t>(str[i + 7]) << 56);
-        __ movq(rax, combined_chars, RelocInfo::NONE64);
-        __ cmpq(rax, Operand(rbx, byte_offset + i));
-        i += 8;
-      } else if (i + 4 <= n) {
-        uint32_t combined_chars =
-            (static_cast<uint32_t>(str[i + 0]) << 0) ||
-            (static_cast<uint32_t>(str[i + 1]) << 8) ||
-            (static_cast<uint32_t>(str[i + 2]) << 16) ||
-            (static_cast<uint32_t>(str[i + 3]) << 24);
-        __ cmpl(Operand(rbx, byte_offset + i), Immediate(combined_chars));
-        i += 4;
-      } else {
-        __ cmpb(Operand(rbx, byte_offset + i),
-                Immediate(static_cast<int8_t>(str[i])));
-        i++;
-      }
-    } else {
-      ASSERT(mode_ == UC16);
-      if (i + 4 <= n) {
-        uint64_t combined_chars = *reinterpret_cast<const uint64_t*>(&str[i]);
-        __ movq(rax, combined_chars, RelocInfo::NONE64);
-        __ cmpq(rax,
-                Operand(rsi, rdi, times_1, byte_offset + i * sizeof(uc16)));
-        i += 4;
-      } else if (i + 2 <= n) {
-        uint32_t combined_chars = *reinterpret_cast<const uint32_t*>(&str[i]);
-        __ cmpl(Operand(rsi, rdi, times_1, byte_offset + i * sizeof(uc16)),
-                Immediate(combined_chars));
-        i += 2;
-      } else {
-        __ movzxwl(rax,
-                   Operand(rsi, rdi, times_1, byte_offset + i * sizeof(uc16)));
-        __ cmpl(rax, Immediate(str[i]));
-        i++;
-      }
-    }
-    BranchOrBacktrack(not_equal, on_failure);
-  }
 }
 
 

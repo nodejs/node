@@ -2295,20 +2295,22 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
-  ALLOW_HANDLE_DEREF(isolate(), "smi check");
+  AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
+    ASSERT(source->IsHeapObject());
     movq(dst, source, RelocInfo::EMBEDDED_OBJECT);
   }
 }
 
 
 void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
-  ALLOW_HANDLE_DEREF(isolate(), "smi check");
+  AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
+    ASSERT(source->IsHeapObject());
     movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
     movq(dst, kScratchRegister);
   }
@@ -2316,18 +2318,19 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
 
 
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
-  ALLOW_HANDLE_DEREF(isolate(), "smi check");
+  AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    Move(kScratchRegister, source);
+    ASSERT(source->IsHeapObject());
+    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
     cmpq(dst, kScratchRegister);
   }
 }
 
 
 void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
-  ALLOW_HANDLE_DEREF(isolate(), "smi check");
+  AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
@@ -2339,7 +2342,7 @@ void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
 
 
 void MacroAssembler::Push(Handle<Object> source) {
-  ALLOW_HANDLE_DEREF(isolate(), "smi check");
+  AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
     Push(Smi::cast(*source));
   } else {
@@ -2352,7 +2355,7 @@ void MacroAssembler::Push(Handle<Object> source) {
 
 void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
-  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+  AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
         isolate()->factory()->NewJSGlobalPropertyCell(object);
@@ -2364,8 +2367,21 @@ void MacroAssembler::LoadHeapObject(Register result,
 }
 
 
+void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
+  AllowDeferredHandleDereference using_raw_address;
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<JSGlobalPropertyCell> cell =
+        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    movq(kScratchRegister, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    cmpq(reg, Operand(kScratchRegister, 0));
+  } else {
+    Cmp(reg, object);
+  }
+}
+
+
 void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
-  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+  AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
         isolate()->factory()->NewJSGlobalPropertyCell(object);
@@ -2381,7 +2397,7 @@ void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
 void MacroAssembler::LoadGlobalCell(Register dst,
                                     Handle<JSGlobalPropertyCell> cell) {
   if (dst.is(rax)) {
-    ALLOW_HANDLE_DEREF(isolate(), "embedding raw address");
+    AllowDeferredHandleDereference embedding_raw_address;
     load_rax(cell.location(), RelocInfo::GLOBAL_PROPERTY_CELL);
   } else {
     movq(dst, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
@@ -2853,38 +2869,21 @@ void MacroAssembler::StoreNumberToDoubleElements(
 
 void MacroAssembler::CompareMap(Register obj,
                                 Handle<Map> map,
-                                Label* early_success,
-                                CompareMapMode mode) {
+                                Label* early_success) {
   Cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
-  if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
-    ElementsKind kind = map->elements_kind();
-    if (IsFastElementsKind(kind)) {
-      bool packed = IsFastPackedElementsKind(kind);
-      Map* current_map = *map;
-      while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
-        kind = GetNextMoreGeneralFastElementsKind(kind, packed);
-        current_map = current_map->LookupElementsTransitionMap(kind);
-        if (!current_map) break;
-        j(equal, early_success, Label::kNear);
-        Cmp(FieldOperand(obj, HeapObject::kMapOffset),
-            Handle<Map>(current_map));
-      }
-    }
-  }
 }
 
 
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
-                              SmiCheckType smi_check_type,
-                              CompareMapMode mode) {
+                              SmiCheckType smi_check_type) {
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
 
   Label success;
-  CompareMap(obj, map, &success, mode);
+  CompareMap(obj, map, &success);
   j(not_equal, fail);
   bind(&success);
 }

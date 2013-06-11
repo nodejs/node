@@ -5,10 +5,6 @@
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-
 #include "v8.h"
 
 #include "cctest.h"

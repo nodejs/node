@@ -408,12 +408,11 @@ class SnapshotByteSink {
 class SerializationAddressMapper {
  public:
   SerializationAddressMapper()
-      : serialization_map_(new HashMap(&SerializationMatchFun)),
-        no_allocation_(new AssertNoAllocation()) { }
+      : no_allocation_(),
+        serialization_map_(new HashMap(&SerializationMatchFun)) { }
 
   ~SerializationAddressMapper() {
     delete serialization_map_;
-    delete no_allocation_;
   }
 
   bool IsMapped(HeapObject* obj) {
@@ -450,8 +449,8 @@ class SerializationAddressMapper {
     return reinterpret_cast<void*>(v);
   }
 
+  DisallowHeapAllocation no_allocation_;
   HashMap* serialization_map_;
-  AssertNoAllocation* no_allocation_;
   DISALLOW_COPY_AND_ASSIGN(SerializationAddressMapper);
 };
 

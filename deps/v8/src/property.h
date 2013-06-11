@@ -44,10 +44,6 @@ namespace internal {
 
 class Descriptor BASE_EMBEDDED {
  public:
-  static int IndexFromValue(Object* value) {
-    return Smi::cast(value)->value();
-  }
-
   MUST_USE_RESULT MaybeObject* KeyToUniqueName() {
     if (!key_->IsUniqueName()) {
       MaybeObject* maybe_result = HEAP->InternalizeString(String::cast(key_));
@@ -89,10 +85,11 @@ class Descriptor BASE_EMBEDDED {
              Object* value,
              PropertyAttributes attributes,
              PropertyType type,
-             Representation representation)
+             Representation representation,
+             int field_index = 0)
       : key_(key),
         value_(value),
-        details_(attributes, type, representation) { }
+        details_(attributes, type, representation, field_index) { }
 
   friend class DescriptorArray;
 };
@@ -104,8 +101,8 @@ class FieldDescriptor: public Descriptor {
                   int field_index,
                   PropertyAttributes attributes,
                   Representation representation)
-      : Descriptor(key, Smi::FromInt(field_index), attributes,
-                   FIELD, representation) {}
+      : Descriptor(key, Smi::FromInt(0), attributes,
+                   FIELD, representation, field_index) {}
 };
 
 
@@ -206,6 +203,8 @@ class LookupResult BASE_EMBEDDED {
   }
 
   bool CanHoldValue(Handle<Object> value) {
+    if (IsNormal()) return true;
+    ASSERT(!IsTransition());
     return value->FitsRepresentation(details_.representation());
   }
 
@@ -311,7 +310,6 @@ class LookupResult BASE_EMBEDDED {
 
   bool IsDontDelete() { return details_.IsDontDelete(); }
   bool IsDontEnum() { return details_.IsDontEnum(); }
-  bool IsDeleted() { return details_.IsDeleted(); }
   bool IsFound() { return lookup_type_ != NOT_FOUND; }
   bool IsTransition() { return lookup_type_ == TRANSITION_TYPE; }
   bool IsHandler() { return lookup_type_ == HANDLER_TYPE; }
@@ -417,14 +415,12 @@ class LookupResult BASE_EMBEDDED {
   PropertyIndex GetFieldIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(IsField());
-    return PropertyIndex::NewFieldIndex(
-        Descriptor::IndexFromValue(GetValue()));
+    return PropertyIndex::NewFieldIndex(GetFieldIndexFromMap(holder()->map()));
   }
 
   int GetLocalFieldIndexFromMap(Map* map) {
     ASSERT(IsField());
-    return Descriptor::IndexFromValue(GetValueFromMap(map)) -
-        map->inobject_properties();
+    return GetFieldIndexFromMap(map) - map->inobject_properties();
   }
 
   int GetDictionaryEntry() {
@@ -464,6 +460,12 @@ class LookupResult BASE_EMBEDDED {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(number_ < map->NumberOfOwnDescriptors());
     return map->instance_descriptors()->GetValue(number_);
+  }
+
+  int GetFieldIndexFromMap(Map* map) const {
+    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    return map->instance_descriptors()->GetFieldIndex(number_);
   }
 
   void Iterate(ObjectVisitor* visitor);

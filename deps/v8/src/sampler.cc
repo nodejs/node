@@ -145,22 +145,129 @@ enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
 namespace v8 {
 namespace internal {
 
-#if defined(USE_SIGNALS)
+namespace {
 
-class Sampler::PlatformData : public Malloced {
+class PlatformDataCommon : public Malloced {
  public:
-  PlatformData()
-      : vm_tid_(pthread_self()),
-        profiled_thread_id_(ThreadId::Current()) {}
-
-  pthread_t vm_tid() const { return vm_tid_; }
+  PlatformDataCommon() : profiled_thread_id_(ThreadId::Current()) {}
   ThreadId profiled_thread_id() { return profiled_thread_id_; }
 
+ protected:
+  ~PlatformDataCommon() {}
+
  private:
-  pthread_t vm_tid_;
   ThreadId profiled_thread_id_;
 };
 
+}  // namespace
+
+#if defined(USE_SIGNALS)
+
+class Sampler::PlatformData : public PlatformDataCommon {
+ public:
+  PlatformData() : vm_tid_(pthread_self()) {}
+  pthread_t vm_tid() const { return vm_tid_; }
+
+ private:
+  pthread_t vm_tid_;
+};
+
+#elif defined(__MACH__)
+
+class Sampler::PlatformData : public PlatformDataCommon {
+ public:
+  PlatformData() : profiled_thread_(mach_thread_self()) {}
+
+  ~PlatformData() {
+    // Deallocate Mach port for thread.
+    mach_port_deallocate(mach_task_self(), profiled_thread_);
+  }
+
+  thread_act_t profiled_thread() { return profiled_thread_; }
+
+ private:
+  // Note: for profiled_thread_ Mach primitives are used instead of PThread's
+  // because the latter doesn't provide thread manipulation primitives required.
+  // For details, consult "Mac OS X Internals" book, Section 7.3.
+  thread_act_t profiled_thread_;
+};
+
+#elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+
+// ----------------------------------------------------------------------------
+// Win32 profiler support. On Cygwin we use the same sampler implementation as
+// on Win32.
+
+class Sampler::PlatformData : public PlatformDataCommon {
+ public:
+  // Get a handle to the calling thread. This is the thread that we are
+  // going to profile. We need to make a copy of the handle because we are
+  // going to use it in the sampler thread. Using GetThreadHandle() will
+  // not work in this case. We're using OpenThread because DuplicateHandle
+  // for some reason doesn't work in Chrome's sandbox.
+  PlatformData()
+      : profiled_thread_(OpenThread(THREAD_GET_CONTEXT |
+                                    THREAD_SUSPEND_RESUME |
+                                    THREAD_QUERY_INFORMATION,
+                                    false,
+                                    GetCurrentThreadId())) {}
+
+  ~PlatformData() {
+    if (profiled_thread_ != NULL) {
+      CloseHandle(profiled_thread_);
+      profiled_thread_ = NULL;
+    }
+  }
+
+  HANDLE profiled_thread() { return profiled_thread_; }
+
+ private:
+  HANDLE profiled_thread_;
+};
+#endif
+
+
+class SampleHelper {
+ public:
+  inline TickSample* Init(Sampler* sampler, Isolate* isolate) {
+#if defined(USE_SIMULATOR)
+    ThreadId thread_id = sampler->platform_data()->profiled_thread_id();
+    Isolate::PerIsolateThreadData* per_thread_data = isolate->
+        FindPerThreadDataForThread(thread_id);
+    if (!per_thread_data) return NULL;
+    simulator_ = per_thread_data->simulator();
+    // Check if there is active simulator before allocating TickSample.
+    if (!simulator_) return NULL;
+#endif  // USE_SIMULATOR
+    TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
+    if (sample == NULL) sample = &sample_obj;
+    return sample;
+  }
+
+#if defined(USE_SIMULATOR)
+  inline void FillRegisters(TickSample* sample) {
+    sample->pc = reinterpret_cast<Address>(simulator_->get_pc());
+    sample->sp = reinterpret_cast<Address>(simulator_->get_register(
+        Simulator::sp));
+#if V8_TARGET_ARCH_ARM
+    sample->fp = reinterpret_cast<Address>(simulator_->get_register(
+        Simulator::r11));
+#elif V8_TARGET_ARCH_MIPS
+    sample->fp = reinterpret_cast<Address>(simulator_->get_register(
+        Simulator::fp));
+#endif
+  }
+#endif  // USE_SIMULATOR
+
+ private:
+#if defined(USE_SIMULATOR)
+  Simulator* simulator_;
+#endif
+  TickSample sample_obj;
+};
+
+
+#if defined(USE_SIGNALS)
 
 class SignalHandler : public AllStatic {
  public:
@@ -217,32 +324,12 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   Sampler* sampler = isolate->logger()->sampler();
   if (sampler == NULL || !sampler->IsActive()) return;
 
-#if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
-  ThreadId thread_id = sampler->platform_data()->profiled_thread_id();
-  Isolate::PerIsolateThreadData* per_thread_data = isolate->
-      FindPerThreadDataForThread(thread_id);
-  if (!per_thread_data) return;
-  Simulator* sim = per_thread_data->simulator();
-  // Check if there is active simulator before allocating TickSample.
-  if (!sim) return;
-#endif
-#endif  // USE_SIMULATOR
-
-  TickSample sample_obj;
-  TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
-  if (sample == NULL) sample = &sample_obj;
+  SampleHelper helper;
+  TickSample* sample = helper.Init(sampler, isolate);
+  if (sample == NULL) return;
 
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM
-  sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
-  sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
-  sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::r11));
-#elif V8_TARGET_ARCH_MIPS
-  sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
-  sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
-  sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::fp));
-#endif  // V8_TARGET_ARCH_*
+  helper.FillRegisters(sample);
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
@@ -322,65 +409,6 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   sampler->Tick(sample);
 #endif  // __native_client__
 }
-
-#elif defined(__MACH__)
-class Sampler::PlatformData : public Malloced {
- public:
-  PlatformData()
-      : profiled_thread_(mach_thread_self()),
-        profiled_thread_id_(ThreadId::Current()) {}
-
-  ~PlatformData() {
-    // Deallocate Mach port for thread.
-    mach_port_deallocate(mach_task_self(), profiled_thread_);
-  }
-
-  thread_act_t profiled_thread() { return profiled_thread_; }
-  ThreadId profiled_thread_id() { return profiled_thread_id_; }
-
- private:
-  // Note: for profiled_thread_ Mach primitives are used instead of PThread's
-  // because the latter doesn't provide thread manipulation primitives required.
-  // For details, consult "Mac OS X Internals" book, Section 7.3.
-  thread_act_t profiled_thread_;
-  ThreadId profiled_thread_id_;
-};
-
-#elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-
-// ----------------------------------------------------------------------------
-// Win32 profiler support. On Cygwin we use the same sampler implementation as
-// on Win32.
-
-class Sampler::PlatformData : public Malloced {
- public:
-  // Get a handle to the calling thread. This is the thread that we are
-  // going to profile. We need to make a copy of the handle because we are
-  // going to use it in the sampler thread. Using GetThreadHandle() will
-  // not work in this case. We're using OpenThread because DuplicateHandle
-  // for some reason doesn't work in Chrome's sandbox.
-  PlatformData()
-      : profiled_thread_(OpenThread(THREAD_GET_CONTEXT |
-                                    THREAD_SUSPEND_RESUME |
-                                    THREAD_QUERY_INFORMATION,
-                                    false,
-                                    GetCurrentThreadId())),
-        profiled_thread_id_(ThreadId::Current()) {}
-
-  ~PlatformData() {
-    if (profiled_thread_ != NULL) {
-      CloseHandle(profiled_thread_);
-      profiled_thread_ = NULL;
-    }
-  }
-
-  HANDLE profiled_thread() { return profiled_thread_; }
-  ThreadId profiled_thread_id() { return profiled_thread_id_; }
-
- private:
-  HANDLE profiled_thread_;
-  ThreadId profiled_thread_id_;
-};
 
 #endif
 
@@ -478,20 +506,10 @@ class SamplerThread : public Thread {
   void SampleContext(Sampler* sampler) {
     thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
     Isolate* isolate = sampler->isolate();
-#if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
-    ThreadId thread_id = sampler->platform_data()->profiled_thread_id();
-    Isolate::PerIsolateThreadData* per_thread_data = isolate->
-        FindPerThreadDataForThread(thread_id);
-    if (!per_thread_data) return;
-    Simulator* sim = per_thread_data->simulator();
-    // Check if there is active simulator before allocating TickSample.
-    if (!sim) return;
-#endif
-#endif  // USE_SIMULATOR
-    TickSample sample_obj;
-    TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
-    if (sample == NULL) sample = &sample_obj;
+
+    SampleHelper helper;
+    TickSample* sample = helper.Init(sampler, isolate);
+    if (sample == NULL) return;
 
     if (KERN_SUCCESS != thread_suspend(profiled_thread)) return;
 
@@ -523,15 +541,7 @@ class SamplerThread : public Thread {
                          &count) == KERN_SUCCESS) {
       sample->state = isolate->current_vm_state();
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM
-      sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
-      sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
-      sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::r11));
-#elif V8_TARGET_ARCH_MIPS
-      sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
-      sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
-      sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::fp));
-#endif
+      helper.FillRegisters(sample);
 #else
       sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
       sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
@@ -550,42 +560,22 @@ class SamplerThread : public Thread {
     HANDLE profiled_thread = sampler->platform_data()->profiled_thread();
     if (profiled_thread == NULL) return;
 
-    // Context used for sampling the register state of the profiled thread.
-    CONTEXT context;
-    memset(&context, 0, sizeof(context));
-
     Isolate* isolate = sampler->isolate();
-#if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
-    ThreadId thread_id = sampler->platform_data()->profiled_thread_id();
-    Isolate::PerIsolateThreadData* per_thread_data = isolate->
-        FindPerThreadDataForThread(thread_id);
-    if (!per_thread_data) return;
-    Simulator* sim = per_thread_data->simulator();
-    // Check if there is active simulator before allocating TickSample.
-    if (!sim) return;
-#endif
-#endif  // USE_SIMULATOR
-    TickSample sample_obj;
-    TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
-    if (sample == NULL) sample = &sample_obj;
+    SampleHelper helper;
+    TickSample* sample = helper.Init(sampler, isolate);
+    if (sample == NULL) return;
 
-    static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
+    const DWORD kSuspendFailed = static_cast<DWORD>(-1);
     if (SuspendThread(profiled_thread) == kSuspendFailed) return;
     sample->state = isolate->current_vm_state();
 
+    // Context used for sampling the register state of the profiled thread.
+    CONTEXT context;
+    memset(&context, 0, sizeof(context));
     context.ContextFlags = CONTEXT_FULL;
     if (GetThreadContext(profiled_thread, &context) != 0) {
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM
-      sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
-      sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
-      sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::r11));
-#elif V8_TARGET_ARCH_MIPS
-      sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
-      sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
-      sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::fp));
-#endif
+      helper.FillRegisters(sample);
 #else
 #if V8_HOST_ARCH_X64
       sample->pc = reinterpret_cast<Address>(context.Rip);

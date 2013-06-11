@@ -58,8 +58,8 @@ static void AddNumber(v8::Local<v8::Object> object,
 }
 
 
-v8::Handle<v8::Value> StatisticsExtension::GetCounters(
-    const v8::Arguments& args) {
+void StatisticsExtension::GetCounters(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
 
@@ -141,7 +141,7 @@ v8::Handle<v8::Value> StatisticsExtension::GetCounters(
             "lo_space_commited_bytes");
   AddNumber(result, heap->amount_of_external_allocated_memory(),
             "amount_of_external_allocated_memory");
-  return result;
+  args.GetReturnValue().Set(result);
 }
 
 

@@ -122,7 +122,7 @@ RegExpMacroAssemblerMIPS::RegExpMacroAssemblerMIPS(
     int registers_to_save,
     Zone* zone)
     : NativeRegExpMacroAssembler(zone),
-      masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
+      masm_(new MacroAssembler(zone->isolate(), NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -232,55 +232,6 @@ void RegExpMacroAssemblerMIPS::CheckNotAtStart(Label* on_not_at_start) {
 
 void RegExpMacroAssemblerMIPS::CheckCharacterLT(uc16 limit, Label* on_less) {
   BranchOrBacktrack(on_less, lt, current_character(), Operand(limit));
-}
-
-
-void RegExpMacroAssemblerMIPS::CheckCharacters(Vector<const uc16> str,
-                                               int cp_offset,
-                                               Label* on_failure,
-                                               bool check_end_of_string) {
-  if (on_failure == NULL) {
-    // Instead of inlining a backtrack for each test, (re)use the global
-    // backtrack target.
-    on_failure = &backtrack_label_;
-  }
-
-  if (check_end_of_string) {
-    // Is last character of required match inside string.
-    CheckPosition(cp_offset + str.length() - 1, on_failure);
-  }
-
-  __ Addu(a0, end_of_input_address(), Operand(current_input_offset()));
-  if (cp_offset != 0) {
-    int byte_offset = cp_offset * char_size();
-    __ Addu(a0, a0, Operand(byte_offset));
-  }
-
-  // a0 : Address of characters to match against str.
-  int stored_high_byte = 0;
-  for (int i = 0; i < str.length(); i++) {
-    if (mode_ == ASCII) {
-      __ lbu(a1, MemOperand(a0, 0));
-      __ addiu(a0, a0, char_size());
-      ASSERT(str[i] <= String::kMaxOneByteCharCode);
-      BranchOrBacktrack(on_failure, ne, a1, Operand(str[i]));
-    } else {
-      __ lhu(a1, MemOperand(a0, 0));
-      __ addiu(a0, a0, char_size());
-      uc16 match_char = str[i];
-      int match_high_byte = (match_char >> 8);
-      if (match_high_byte == 0) {
-        BranchOrBacktrack(on_failure, ne, a1, Operand(str[i]));
-      } else {
-        if (match_high_byte != stored_high_byte) {
-          __ li(a2, Operand(match_high_byte));
-          stored_high_byte = match_high_byte;
-        }
-        __ Addu(a3, a2, Operand(match_char & 0xff));
-        BranchOrBacktrack(on_failure, ne, a1, Operand(a3));
-      }
-    }
-  }
 }
 
 
@@ -929,9 +880,8 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(&code_desc);
-  Handle<Code> code = FACTORY->NewCode(code_desc,
-                                       Code::ComputeFlags(Code::REGEXP),
-                                       masm_->CodeObject());
+  Handle<Code> code = isolate()->factory()->NewCode(
+      code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
   LOG(Isolate::Current(), RegExpCodeCreateEvent(*code, *source));
   return Handle<HeapObject>::cast(code);
 }

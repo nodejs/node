@@ -94,7 +94,7 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
       } else if (!IS_UNDEFINED(arg1)){
         ConstructByArrayLike(this, arg1);
       } else {
-        throw MakeTypeError("parameterless_typed_array_constr", name);
+        throw MakeTypeError("parameterless_typed_array_constr", [name]);
       }
     } else {
       return new constructor(arg1, arg2, arg3);

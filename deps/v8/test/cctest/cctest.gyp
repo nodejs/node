@@ -99,10 +99,12 @@
         'test-strtod.cc',
         'test-thread-termination.cc',
         'test-threads.cc',
+        'test-types.cc',
         'test-unbound-queue.cc',
         'test-utils.cc',
         'test-version.cc',
-        'test-weakmaps.cc'
+        'test-weakmaps.cc',
+        'test-weaktypedarrays.cc'
       ],
       'conditions': [
         ['v8_target_arch=="ia32"', {

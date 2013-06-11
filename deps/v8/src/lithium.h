@@ -558,7 +558,7 @@ class LEnvironment: public ZoneObject {
                 Representation representation,
                 bool is_uint32) {
     values_.Add(operand, zone());
-    if (representation.IsTagged()) {
+    if (representation.IsSmiOrTagged()) {
       ASSERT(!is_uint32);
       is_tagged_.Add(values_.length() - 1);
     }
@@ -769,9 +769,8 @@ int StackSlotOffset(int index);
 
 enum NumberUntagDMode {
   NUMBER_CANDIDATE_IS_SMI,
-  NUMBER_CANDIDATE_IS_SMI_OR_HOLE,
-  NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE,
-  NUMBER_CANDIDATE_IS_ANY_TAGGED
+  NUMBER_CANDIDATE_IS_ANY_TAGGED,
+  NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE
 };
 
 

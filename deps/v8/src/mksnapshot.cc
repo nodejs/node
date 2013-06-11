@@ -32,10 +32,6 @@
 #endif
 #include <signal.h>
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "v8.h"
 
 #include "bootstrapper.h"
@@ -341,10 +337,10 @@ int main(int argc, char** argv) {
     exit(1);
   }
   if (i::FLAG_extra_code != NULL) {
-    context->Enter();
     // Capture 100 frames if anything happens.
     V8::SetCaptureStackTraceForUncaughtExceptions(true, 100);
     HandleScope scope(isolate);
+    v8::Context::Scope(v8::Local<v8::Context>::New(isolate, context));
     const char* name = i::FLAG_extra_code;
     FILE* file = i::OS::FOpen(name, "rb");
     if (file == NULL) {
@@ -381,7 +377,6 @@ int main(int argc, char** argv) {
       DumpException(try_catch.Message());
       exit(1);
     }
-    context->Exit();
   }
   // Make sure all builtin scripts are cached.
   { HandleScope scope(isolate);
@@ -393,7 +388,7 @@ int main(int argc, char** argv) {
   // context even after we have disposed of the context.
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags, "mksnapshot");
   i::Object* raw_context = *(v8::Utils::OpenHandle(*context));
-  context.Dispose(context->GetIsolate());
+  context.Dispose(isolate);
   CppByteSink sink(argv[1]);
   // This results in a somewhat smaller snapshot, probably because it gets rid
   // of some things that are cached between garbage collections.

@@ -72,26 +72,29 @@ v8::Handle<v8::FunctionTemplate> ExternalizeStringExtension::GetNativeFunction(
 }
 
 
-v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
-    const v8::Arguments& args) {
+void ExternalizeStringExtension::Externalize(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() < 1 || !args[0]->IsString()) {
-    return v8::ThrowException(v8::String::New(
+    v8::ThrowException(v8::String::New(
         "First parameter to externalizeString() must be a string."));
+    return;
   }
   bool force_two_byte = false;
   if (args.Length() >= 2) {
     if (args[1]->IsBoolean()) {
       force_two_byte = args[1]->BooleanValue();
     } else {
-      return v8::ThrowException(v8::String::New(
-          "Second parameter to externalizeString() must be a boolean."));
+      v8::ThrowException(v8::String::New(
+        "Second parameter to externalizeString() must be a boolean."));
+      return;
     }
   }
   bool result = false;
   Handle<String> string = Utils::OpenHandle(*args[0].As<v8::String>());
   if (string->IsExternalString()) {
-    return v8::ThrowException(v8::String::New(
+    v8::ThrowException(v8::String::New(
         "externalizeString() can't externalize twice."));
+    return;
   }
   if (string->IsOneByteRepresentation() && !force_two_byte) {
     uint8_t* data = new uint8_t[string->length()];
@@ -115,21 +118,22 @@ v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
     if (!result) delete resource;
   }
   if (!result) {
-    return v8::ThrowException(v8::String::New("externalizeString() failed."));
+    v8::ThrowException(v8::String::New("externalizeString() failed."));
+    return;
   }
-  return v8::Undefined();
 }
 
 
-v8::Handle<v8::Value> ExternalizeStringExtension::IsAscii(
-    const v8::Arguments& args) {
+void ExternalizeStringExtension::IsAscii(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1 || !args[0]->IsString()) {
-    return v8::ThrowException(v8::String::New(
+    v8::ThrowException(v8::String::New(
         "isAsciiString() requires a single string argument."));
+    return;
   }
-  return
-      Utils::OpenHandle(*args[0].As<v8::String>())->IsOneByteRepresentation() ?
-      v8::True() : v8::False();
+  bool is_one_byte =
+      Utils::OpenHandle(*args[0].As<v8::String>())->IsOneByteRepresentation();
+  args.GetReturnValue().Set(is_one_byte);
 }
 
 

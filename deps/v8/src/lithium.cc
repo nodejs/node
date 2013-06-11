@@ -419,9 +419,8 @@ Representation LChunk::LookupLiteralRepresentation(
 
 
 LChunk* LChunk::NewChunk(HGraph* graph) {
-  NoHandleAllocation no_handles(graph->isolate());
-  AssertNoAllocation no_gc;
-
+  DisallowHandleAllocation no_handles;
+  DisallowHeapAllocation no_gc;
   int values = graph->GetMaximumValueID();
   CompilationInfo* info = graph->info();
   if (values > LUnallocated::kMaxVirtualRegisters) {
@@ -455,10 +454,7 @@ Handle<Code> LChunk::Codegen() {
   MarkEmptyBlocks();
 
   if (generator.GenerateCode()) {
-    if (FLAG_trace_codegen) {
-      PrintF("Crankshaft Compiler - ");
-    }
-    CodeGenerator::MakeCodePrologue(info());
+    CodeGenerator::MakeCodePrologue(info(), "optimized");
     Code::Flags flags = info()->flags();
     Handle<Code> code =
         CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());

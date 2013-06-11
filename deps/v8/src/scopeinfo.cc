@@ -74,10 +74,11 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
       + parameter_count + stack_local_count + 2 * context_local_count
       + (has_function_name ? 2 : 0);
 
-  Handle<ScopeInfo> scope_info = FACTORY->NewScopeInfo(length);
+  Factory* factory = Isolate::Current()->factory();
+  Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   // Encode the flags.
-  int flags = TypeField::encode(scope->type()) |
+  int flags = ScopeTypeField::encode(scope->scope_type()) |
       CallsEvalField::encode(scope->calls_eval()) |
       LanguageModeField::encode(scope->language_mode()) |
       FunctionVariableField::encode(function_name_info) |
@@ -154,9 +155,9 @@ ScopeInfo* ScopeInfo::Empty(Isolate* isolate) {
 }
 
 
-ScopeType ScopeInfo::Type() {
+ScopeType ScopeInfo::scope_type() {
   ASSERT(length() > 0);
-  return TypeField::decode(Flags());
+  return ScopeTypeField::decode(Flags());
 }
 
 
@@ -192,9 +193,9 @@ int ScopeInfo::ContextLength() {
         FunctionVariableField::decode(Flags()) == CONTEXT;
     bool has_context = context_locals > 0 ||
         function_name_context_slot ||
-        Type() == WITH_SCOPE ||
-        (Type() == FUNCTION_SCOPE && CallsEval()) ||
-        Type() == MODULE_SCOPE;
+        scope_type() == WITH_SCOPE ||
+        (scope_type() == FUNCTION_SCOPE && CallsEval()) ||
+        scope_type() == MODULE_SCOPE;
     if (has_context) {
       return Context::MIN_CONTEXT_SLOTS + context_locals +
           (function_name_context_slot ? 1 : 0);

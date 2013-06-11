@@ -61,7 +61,7 @@ class Handle {
     location_ = reinterpret_cast<T**>(handle.location_);
   }
 
-  INLINE(T* operator ->() const) { return operator*(); }
+  INLINE(T* operator->() const) { return operator*(); }
 
   // Check if this handle refers to the exact same object as the other handle.
   INLINE(bool is_identical_to(const Handle<T> other) const);
@@ -85,7 +85,9 @@ class Handle {
   inline Handle<T> EscapeFrom(v8::HandleScope* scope);
 
 #ifdef DEBUG
-  bool IsDereferenceAllowed(bool allow_deferred) const;
+  enum DereferenceCheckMode { INCLUDE_DEFERRED_CHECK, NO_DEFERRED_CHECK };
+
+  bool IsDereferenceAllowed(DereferenceCheckMode mode) const;
 #endif  // DEBUG
 
  private:
@@ -155,18 +157,21 @@ class HandleScope {
   void* operator new(size_t size);
   void operator delete(void* size_t);
 
-  inline void CloseScope();
-
   Isolate* isolate_;
   Object** prev_next_;
   Object** prev_limit_;
+
+  // Close the handle scope resetting limits to a previous state.
+  static inline void CloseScope(Isolate* isolate,
+                                Object** prev_next,
+                                Object** prev_limit);
 
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend(Isolate* isolate);
 
 #ifdef ENABLE_EXTRA_CHECKS
   // Zaps the handles in the half-open interval [start, end).
-  static void ZapRange(internal::Object** start, internal::Object** end);
+  static void ZapRange(Object** start, Object** end);
 #endif
 
   friend class v8::HandleScope;
@@ -327,44 +332,23 @@ Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
                                                Handle<Object> key,
                                                Handle<Object> value);
 
-class NoHandleAllocation BASE_EMBEDDED {
+
+// Seal off the current HandleScope so that new handles can only be created
+// if a new HandleScope is entered.
+class SealHandleScope BASE_EMBEDDED {
  public:
 #ifndef DEBUG
-  explicit NoHandleAllocation(Isolate* isolate) {}
-  ~NoHandleAllocation() {}
+  explicit SealHandleScope(Isolate* isolate) {}
+  ~SealHandleScope() {}
 #else
-  explicit inline NoHandleAllocation(Isolate* isolate);
-  inline ~NoHandleAllocation();
+  explicit inline SealHandleScope(Isolate* isolate);
+  inline ~SealHandleScope();
  private:
   Isolate* isolate_;
+  Object** limit_;
   int level_;
-  bool active_;
 #endif
 };
-
-
-class HandleDereferenceGuard BASE_EMBEDDED {
- public:
-  enum State { ALLOW, DISALLOW, DISALLOW_DEFERRED };
-#ifndef DEBUG
-  HandleDereferenceGuard(Isolate* isolate, State state) { }
-  ~HandleDereferenceGuard() { }
-#else
-  inline HandleDereferenceGuard(Isolate* isolate,  State state);
-  inline ~HandleDereferenceGuard();
- private:
-  Isolate* isolate_;
-  State old_state_;
-#endif
-};
-
-#ifdef DEBUG
-#define ALLOW_HANDLE_DEREF(isolate, why_this_is_safe)                          \
-  HandleDereferenceGuard allow_deref(isolate,                                  \
-                                     HandleDereferenceGuard::ALLOW);
-#else
-#define ALLOW_HANDLE_DEREF(isolate, why_this_is_safe)
-#endif  // DEBUG
 
 } }  // namespace v8::internal
 

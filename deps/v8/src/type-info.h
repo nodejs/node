@@ -29,7 +29,6 @@
 #define V8_TYPE_INFO_H_
 
 #include "allocation.h"
-#include "ast.h"
 #include "globals.h"
 #include "zone-inl.h"
 
@@ -232,6 +231,8 @@ class ICStub;
 class Property;
 class SmallMapList;
 class UnaryOperation;
+class ObjectLiteral;
+class ObjectLiteralProperty;
 
 
 class TypeFeedbackOracle: public ZoneObject {
@@ -248,13 +249,15 @@ class TypeFeedbackOracle: public ZoneObject {
   bool StoreIsPolymorphic(TypeFeedbackId ast_id);
   bool CallIsMonomorphic(Call* expr);
   bool CallNewIsMonomorphic(CallNew* expr);
-  bool ObjectLiteralStoreIsMonomorphic(ObjectLiteral::Property* prop);
+  bool ObjectLiteralStoreIsMonomorphic(ObjectLiteralProperty* prop);
 
-  bool IsForInFastCase(ForInStatement* expr);
+  // TODO(1571) We can't use ForInStatement::ForInType as the return value due
+  // to various cycles in our headers.
+  byte ForInType(ForInStatement* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
   Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId id);
-  Handle<Map> CompareNilMonomorphicReceiverType(TypeFeedbackId id);
+  Handle<Map> CompareNilMonomorphicReceiverType(CompareOperation* expr);
 
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId ast_id);
 
@@ -278,33 +281,33 @@ class TypeFeedbackOracle: public ZoneObject {
   void CollectPolymorphicMaps(Handle<Code> code, SmallMapList* types);
 
   CheckType GetCallCheckType(Call* expr);
-  Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
-
   Handle<JSFunction> GetCallTarget(Call* expr);
   Handle<JSFunction> GetCallNewTarget(CallNew* expr);
-  ElementsKind GetCallNewElementsKind(CallNew* expr);
+  Handle<JSGlobalPropertyCell> GetCallNewAllocationInfoCell(CallNew* expr);
 
-  Handle<Map> GetObjectLiteralStoreMap(ObjectLiteral::Property* prop);
+  Handle<Map> GetObjectLiteralStoreMap(ObjectLiteralProperty* prop);
 
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
   bool LoadIsStub(Property* expr, ICStub* stub);
 
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
-  // of various cylces in our headers. Death to tons of implementations in
+  // of various cycles in our headers. Death to tons of implementations in
   // headers!! :-P
   byte ToBooleanTypes(TypeFeedbackId ast_id);
 
   // TODO(1571) We can't use CompareNilICStub::Types as the return value because
   // of various cylces in our headers. Death to tons of implementations in
   // headers!! :-P
-  byte CompareNilTypes(TypeFeedbackId ast_id);
+  byte CompareNilTypes(CompareOperation* expr);
 
   // Get type information for arithmetic operations and compares.
   TypeInfo UnaryType(UnaryOperation* expr);
   void BinaryType(BinaryOperation* expr,
                   TypeInfo* left,
                   TypeInfo* right,
-                  TypeInfo* result);
+                  TypeInfo* result,
+                  bool* has_fixed_right_arg,
+                  int* fixed_right_arg_value);
   void CompareType(CompareOperation* expr,
                    TypeInfo* left_type,
                    TypeInfo* right_type,
@@ -314,6 +317,7 @@ class TypeFeedbackOracle: public ZoneObject {
   TypeInfo IncrementType(CountOperation* expr);
 
   Zone* zone() const { return zone_; }
+  Isolate* isolate() const { return isolate_; }
 
  private:
   void CollectReceiverTypes(TypeFeedbackId ast_id,
@@ -334,10 +338,10 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
- public:
-  // TODO(mvstanton): how to get this information without making the method
-  // public?
   Handle<Object> GetInfo(TypeFeedbackId ast_id);
+
+  // Return the cell that contains type feedback.
+  Handle<JSGlobalPropertyCell> GetInfoCell(TypeFeedbackId ast_id);
 
  private:
   Handle<Context> native_context_;

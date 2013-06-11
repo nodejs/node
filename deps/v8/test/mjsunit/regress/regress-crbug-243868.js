@@ -25,16 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_BUILTINS_DECLS_H_
-#define V8_BUILTINS_DECLS_H_
+// Flags: --allow-natives-syntax
 
-#include "arguments.h"
+var non_const_true = true;
 
-namespace v8 {
-namespace internal {
+function f(o) {
+  return (non_const_true && (o.val == null || false));
+}
 
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure);
+// Create an object with a constant function in another realm.
+var realm = Realm.create();
+var realmObject = Realm.eval(realm, "function g() {}; var o = { val:g }; o;")
 
-} }  // namespace v8::internal
+// Make the CompareNil IC in the function monomorphic.
+assertFalse(f(realmObject));
+assertFalse(f(realmObject));
 
-#endif  // V8_BUILTINS_DECLS_H_
+// Optimize the function containing the CompareNil IC.
+%OptimizeFunctionOnNextCall(f);
+assertFalse(f(realmObject));

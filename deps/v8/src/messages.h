@@ -91,6 +91,7 @@ class MessageHandler {
  public:
   // Returns a message object for the API to use.
   static Handle<JSMessageObject> MakeMessageObject(
+      Isolate* isolate,
       const char* type,
       MessageLocation* loc,
       Vector< Handle<Object> > args,

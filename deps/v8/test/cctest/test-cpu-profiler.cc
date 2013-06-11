@@ -27,15 +27,13 @@
 //
 // Tests of profiles generator and utilities.
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
+#define V8_DISABLE_DEPRECATIONS 1
 #include "v8.h"
 #include "cpu-profiler-inl.h"
 #include "cctest.h"
 #include "utils.h"
 #include "../include/v8-profiler.h"
+#undef V8_DISABLE_DEPRECATIONS
 
 using i::CodeEntry;
 using i::CpuProfile;
@@ -297,6 +295,19 @@ TEST(DeleteAllCpuProfiles) {
 }
 
 
+static const v8::CpuProfile* FindCpuProfile(v8::CpuProfiler* profiler,
+                                            unsigned uid) {
+  int length = profiler->GetProfileCount();
+  for (int i = 0; i < length; i++) {
+    const v8::CpuProfile* profile = profiler->GetCpuProfile(i);
+    if (profile->GetUid() == uid) {
+      return profile;
+    }
+  }
+  return NULL;
+}
+
+
 TEST(DeleteCpuProfile) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -309,10 +320,10 @@ TEST(DeleteCpuProfile) {
   CHECK_NE(NULL, p1);
   CHECK_EQ(1, cpu_profiler->GetProfileCount());
   unsigned uid1 = p1->GetUid();
-  CHECK_EQ(p1, cpu_profiler->FindCpuProfile(uid1));
+  CHECK_EQ(p1, FindCpuProfile(cpu_profiler, uid1));
   const_cast<v8::CpuProfile*>(p1)->Delete();
   CHECK_EQ(0, cpu_profiler->GetProfileCount());
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid1));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid1));
 
   v8::Local<v8::String> name2 = v8::String::New("2");
   cpu_profiler->StartCpuProfiling(name2);
@@ -321,8 +332,8 @@ TEST(DeleteCpuProfile) {
   CHECK_EQ(1, cpu_profiler->GetProfileCount());
   unsigned uid2 = p2->GetUid();
   CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid2));
-  CHECK_EQ(p2, cpu_profiler->FindCpuProfile(uid2));
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid1));
+  CHECK_EQ(p2, FindCpuProfile(cpu_profiler, uid2));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid1));
   v8::Local<v8::String> name3 = v8::String::New("3");
   cpu_profiler->StartCpuProfiling(name3);
   const v8::CpuProfile* p3 = cpu_profiler->StopCpuProfiling(name3);
@@ -330,17 +341,17 @@ TEST(DeleteCpuProfile) {
   CHECK_EQ(2, cpu_profiler->GetProfileCount());
   unsigned uid3 = p3->GetUid();
   CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid3));
-  CHECK_EQ(p3, cpu_profiler->FindCpuProfile(uid3));
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid1));
+  CHECK_EQ(p3, FindCpuProfile(cpu_profiler, uid3));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid1));
   const_cast<v8::CpuProfile*>(p2)->Delete();
   CHECK_EQ(1, cpu_profiler->GetProfileCount());
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid2));
-  CHECK_EQ(p3, cpu_profiler->FindCpuProfile(uid3));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid2));
+  CHECK_EQ(p3, FindCpuProfile(cpu_profiler, uid3));
   const_cast<v8::CpuProfile*>(p3)->Delete();
   CHECK_EQ(0, cpu_profiler->GetProfileCount());
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid3));
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid2));
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid1));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid3));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid2));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid1));
 }
 
 
@@ -434,8 +445,15 @@ static const v8::CpuProfileNode* FindChild(const v8::CpuProfileNode* node,
     const v8::CpuProfileNode* child = node->GetChild(i);
     if (nameHandle->Equals(child->GetFunctionName())) return child;
   }
-  CHECK(false);
   return NULL;
+}
+
+
+static const v8::CpuProfileNode* GetChild(const v8::CpuProfileNode* node,
+                                          const char* name) {
+  const v8::CpuProfileNode* result = FindChild(node, name);
+  CHECK(result);
+  return result;
 }
 
 
@@ -443,8 +461,7 @@ static void CheckSimpleBranch(const v8::CpuProfileNode* node,
                               const char* names[], int length) {
   for (int i = 0; i < length; i++) {
     const char* name = names[i];
-    node = FindChild(node, name);
-    CHECK(node);
+    node = GetChild(node, name);
     int expectedChildrenCount = (i == length - 1) ? 0 : 1;
     CHECK_EQ(expectedChildrenCount, node->GetChildrenCount());
   }
@@ -535,10 +552,10 @@ TEST(CollectCpuProfile) {
   names[2] = v8::String::New("start");
   CheckChildrenNames(root, names);
 
-  const v8::CpuProfileNode* startNode = FindChild(root, "start");
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
   CHECK_EQ(1, startNode->GetChildrenCount());
 
-  const v8::CpuProfileNode* fooNode = FindChild(startNode, "foo");
+  const v8::CpuProfileNode* fooNode = GetChild(startNode, "foo");
   CHECK_EQ(3, fooNode->GetChildrenCount());
 
   const char* barBranch[] = { "bar", "delay", "loop" };
@@ -612,12 +629,291 @@ TEST(SampleWhenFrameIsNotSetup) {
   // check there.
   if (startNode && startNode->GetChildrenCount() > 0) {
     CHECK_EQ(1, startNode->GetChildrenCount());
-    const v8::CpuProfileNode* delayNode = FindChild(startNode, "delay");
+    const v8::CpuProfileNode* delayNode = GetChild(startNode, "delay");
     if (delayNode->GetChildrenCount() > 0) {
       CHECK_EQ(1, delayNode->GetChildrenCount());
-      FindChild(delayNode, "loop");
+      GetChild(delayNode, "loop");
     }
   }
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}
+
+
+static const char* native_accessor_test_source = "function start(count) {\n"
+"  for (var i = 0; i < count; i++) {\n"
+"    var o = instance.foo;\n"
+"    instance.foo = o + 1;\n"
+"  }\n"
+"}\n";
+
+
+class TestApiCallbacks {
+ public:
+  explicit TestApiCallbacks(int min_duration_ms)
+      : min_duration_ms_(min_duration_ms),
+        is_warming_up_(false) {}
+
+  static v8::Handle<v8::Value> Getter(v8::Local<v8::String> name,
+                                      const v8::AccessorInfo& info) {
+    TestApiCallbacks* data = fromInfo(info);
+    data->Wait();
+    return v8::Int32::New(2013);
+  }
+
+  static void Setter(v8::Local<v8::String> name,
+                     v8::Local<v8::Value> value,
+                     const v8::AccessorInfo& info) {
+    TestApiCallbacks* data = fromInfo(info);
+    data->Wait();
+  }
+
+  static void Callback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    TestApiCallbacks* data = fromInfo(info);
+    data->Wait();
+  }
+
+  void set_warming_up(bool value) { is_warming_up_ = value; }
+
+ private:
+  void Wait() {
+    if (is_warming_up_) return;
+    double start = i::OS::TimeCurrentMillis();
+    double duration = 0;
+    while (duration < min_duration_ms_) {
+      i::OS::Sleep(1);
+      duration = i::OS::TimeCurrentMillis() - start;
+    }
+  }
+
+  static TestApiCallbacks* fromInfo(const v8::AccessorInfo& info) {
+    void* data = v8::External::Cast(*info.Data())->Value();
+    return reinterpret_cast<TestApiCallbacks*>(data);
+  }
+
+  static TestApiCallbacks* fromInfo(
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    void* data = v8::External::Cast(*info.Data())->Value();
+    return reinterpret_cast<TestApiCallbacks*>(data);
+  }
+
+  int min_duration_ms_;
+  bool is_warming_up_;
+};
+
+
+// Test that native accessors are properly reported in the CPU profile.
+// This test checks the case when the long-running accessors are called
+// only once and the optimizer doesn't have chance to change the invocation
+// code.
+TEST(NativeAccessorUninitializedIC) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  v8::Local<v8::ObjectTemplate> instance_template =
+      func_template->InstanceTemplate();
+
+  TestApiCallbacks accessors(100);
+  v8::Local<v8::External> data = v8::External::New(&accessors);
+  instance_template->SetAccessor(
+      v8::String::New("foo"), &TestApiCallbacks::Getter,
+      &TestApiCallbacks::Setter, data);
+  v8::Local<v8::Function> func = func_template->GetFunction();
+  v8::Local<v8::Object> instance = func->NewInstance();
+  env->Global()->Set(v8::String::New("instance"), instance);
+
+  v8::Script::Compile(v8::String::New(native_accessor_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  int32_t repeat_count = 1;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
+  GetChild(startNode, "get foo");
+  GetChild(startNode, "set foo");
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}
+
+
+// Test that native accessors are properly reported in the CPU profile.
+// This test makes sure that the accessors are called enough times to become
+// hot and to trigger optimizations.
+TEST(NativeAccessorMonomorphicIC) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  v8::Local<v8::ObjectTemplate> instance_template =
+      func_template->InstanceTemplate();
+
+  TestApiCallbacks accessors(1);
+  v8::Local<v8::External> data = v8::External::New(&accessors);
+  instance_template->SetAccessor(
+      v8::String::New("foo"), &TestApiCallbacks::Getter,
+      &TestApiCallbacks::Setter, data);
+  v8::Local<v8::Function> func = func_template->GetFunction();
+  v8::Local<v8::Object> instance = func->NewInstance();
+  env->Global()->Set(v8::String::New("instance"), instance);
+
+  v8::Script::Compile(v8::String::New(native_accessor_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  {
+    // Make sure accessors ICs are in monomorphic state before starting
+    // profiling.
+    accessors.set_warming_up(true);
+    int32_t warm_up_iterations = 3;
+    v8::Handle<v8::Value> args[] = { v8::Integer::New(warm_up_iterations) };
+    function->Call(env->Global(), ARRAY_SIZE(args), args);
+    accessors.set_warming_up(false);
+  }
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  int32_t repeat_count = 100;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
+  // TODO(yurys): in LoadIC should be changed to report external callback
+  // invocation. See r13768 where it was LoadCallbackProperty was removed.
+  // GetChild(startNode, "get foo");
+  GetChild(startNode, "set foo");
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}
+
+
+static const char* native_method_test_source = "function start(count) {\n"
+"  for (var i = 0; i < count; i++) {\n"
+"    instance.fooMethod();\n"
+"  }\n"
+"}\n";
+
+
+TEST(NativeMethodUninitializedIC) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  TestApiCallbacks callbacks(100);
+  v8::Local<v8::External> data = v8::External::New(&callbacks);
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  func_template->SetClassName(v8::String::New("Test_InstanceCostructor"));
+  v8::Local<v8::ObjectTemplate> proto_template =
+      func_template->PrototypeTemplate();
+  v8::Local<v8::Signature> signature = v8::Signature::New(func_template);
+  proto_template->Set(v8::String::New("fooMethod"), v8::FunctionTemplate::New(
+      &TestApiCallbacks::Callback, data, signature, 0));
+
+  v8::Local<v8::Function> func = func_template->GetFunction();
+  v8::Local<v8::Object> instance = func->NewInstance();
+  env->Global()->Set(v8::String::New("instance"), instance);
+
+  v8::Script::Compile(v8::String::New(native_method_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  int32_t repeat_count = 1;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
+  GetChild(startNode, "fooMethod");
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}
+
+
+TEST(NativeMethodMonomorphicIC) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  TestApiCallbacks callbacks(1);
+  v8::Local<v8::External> data = v8::External::New(&callbacks);
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  func_template->SetClassName(v8::String::New("Test_InstanceCostructor"));
+  v8::Local<v8::ObjectTemplate> proto_template =
+      func_template->PrototypeTemplate();
+  v8::Local<v8::Signature> signature = v8::Signature::New(func_template);
+  proto_template->Set(v8::String::New("fooMethod"), v8::FunctionTemplate::New(
+      &TestApiCallbacks::Callback, data, signature, 0));
+
+  v8::Local<v8::Function> func = func_template->GetFunction();
+  v8::Local<v8::Object> instance = func->NewInstance();
+  env->Global()->Set(v8::String::New("instance"), instance);
+
+  v8::Script::Compile(v8::String::New(native_method_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+  {
+    // Make sure method ICs are in monomorphic state before starting
+    // profiling.
+    callbacks.set_warming_up(true);
+    int32_t warm_up_iterations = 3;
+    v8::Handle<v8::Value> args[] = { v8::Integer::New(warm_up_iterations) };
+    function->Call(env->Global(), ARRAY_SIZE(args), args);
+    callbacks.set_warming_up(false);
+  }
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  int32_t repeat_count = 100;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  GetChild(root, "start");
+  // TODO(yurys): in CallIC should be changed to report external callback
+  // invocation.
+  // GetChild(startNode, "fooMethod");
 
   cpu_profiler->DeleteAllCpuProfiles();
 }

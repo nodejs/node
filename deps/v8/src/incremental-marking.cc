@@ -54,7 +54,8 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       should_hurry_(false),
       marking_speed_(0),
       allocated_(0),
-      no_marking_scope_depth_(0) {
+      no_marking_scope_depth_(0),
+      unscanned_bytes_of_large_object_(0) {
 }
 
 
@@ -241,6 +242,7 @@ class IncrementalMarkingMarkingVisitor
                              chunk->progress_bar());
       int end_offset = Min(object_size,
                            start_offset + kProgressBarScanningChunk);
+      int already_scanned_offset = start_offset;
       bool scan_until_end = false;
       do {
         VisitPointersWithAnchor(heap,
@@ -254,6 +256,8 @@ class IncrementalMarkingMarkingVisitor
       chunk->set_progress_bar(start_offset);
       if (start_offset < object_size) {
         heap->incremental_marking()->marking_deque()->UnshiftGrey(object);
+        heap->incremental_marking()->NotifyIncompleteScanOfObject(
+            object_size - (start_offset - already_scanned_offset));
       }
     } else {
       FixedArrayVisitor::Visit(map, object);
@@ -739,8 +743,9 @@ void IncrementalMarking::ProcessMarkingDeque(intptr_t bytes_to_process) {
     if (map == filler_map) continue;
 
     int size = obj->SizeFromMap(map);
-    bytes_to_process -= size;
+    unscanned_bytes_of_large_object_ = 0;
     VisitObject(map, obj, size);
+    bytes_to_process -= (size - unscanned_bytes_of_large_object_);
   }
 }
 

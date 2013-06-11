@@ -240,7 +240,7 @@ Operand::Operand(Handle<Object> handle) {
 #ifdef DEBUG
   Isolate* isolate = Isolate::Current();
 #endif
-  ALLOW_HANDLE_DEREF(isolate, "using and embedding raw address");
+  AllowDeferredHandleDereference using_raw_address;
   rm_ = no_reg;
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
@@ -2198,7 +2198,7 @@ void Assembler::set_target_address_at(Address pc, Address target) {
   bool in_range = (ipc ^ static_cast<uint32_t>(itarget) >>
                   (kImm26Bits + kImmFieldShift)) == 0;
   uint32_t target_field =
-      static_cast<uint32_t>(itarget & kJumpAddrMask) >>kImmFieldShift;
+      static_cast<uint32_t>(itarget & kJumpAddrMask) >> kImmFieldShift;
   bool patched_jump = false;
 
 #ifndef ALLOW_JAL_IN_BOUNDARY_REGION

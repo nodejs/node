@@ -30,7 +30,6 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "bootstrapper.h"
-#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "regexp-macro-assembler.h"
 #include "stub-cache.h"
@@ -45,7 +44,6 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   static Register registers[] = { r3, r2, r1 };
   descriptor->register_param_count_ = 3;
   descriptor->register_params_ = registers;
-  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(Runtime::kCreateArrayLiteralShallow)->entry;
 }
@@ -57,7 +55,6 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
   static Register registers[] = { r3, r2, r1, r0 };
   descriptor->register_param_count_ = 4;
   descriptor->register_params_ = registers;
-  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(Runtime::kCreateObjectLiteralShallow)->entry;
 }
@@ -80,7 +77,6 @@ void LoadFieldStub::InitializeInterfaceDescriptor(
   static Register registers[] = { r0 };
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
-  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ = NULL;
 }
 
@@ -91,7 +87,6 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
   static Register registers[] = { r1 };
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
-  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ = NULL;
 }
 
@@ -127,8 +122,8 @@ void CompareNilICStub::InitializeInterfaceDescriptor(
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(CompareNilIC_Miss);
-  descriptor->miss_handler_ =
-      ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate);
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate));
 }
 
 
@@ -150,7 +145,29 @@ static void InitializeArrayConstructorDescriptor(
   descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(ArrayConstructor_StubFailure);
+      Runtime::FunctionForId(Runtime::kArrayConstructor)->entry;
+}
+
+
+static void InitializeInternalArrayConstructorDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor,
+    int constant_stack_parameter_count) {
+  // register state
+  // r0 -- number of arguments
+  // r1 -- constructor function
+  static Register registers[] = { r1 };
+  descriptor->register_param_count_ = 1;
+
+  if (constant_stack_parameter_count != 0) {
+    // stack param count needs (constructor pointer, and single argument)
+    descriptor->stack_parameter_count_ = &r0;
+  }
+  descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
+  descriptor->register_params_ = registers;
+  descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kInternalArrayConstructor)->entry;
 }
 
 
@@ -172,6 +189,40 @@ void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   InitializeArrayConstructorDescriptor(isolate, descriptor, -1);
+}
+
+
+void ToBooleanStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r0 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(ToBooleanIC_Miss);
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate));
+}
+
+
+void InternalArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, 0);
+}
+
+
+void InternalArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, 1);
+}
+
+
+void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, -1);
 }
 
 
@@ -218,7 +269,7 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
     for (int i = 0; i < param_count; ++i) {
       __ push(descriptor->register_params_[i]);
     }
-    ExternalReference miss = descriptor->miss_handler_;
+    ExternalReference miss = descriptor->miss_handler();
     __ CallExternalReference(miss, descriptor->register_param_count_);
   }
 
@@ -649,7 +700,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   __ cmp(r0, r1);
   __ b(ne, &not_identical);
 
-  // Test for NaN. Sadly, we can't just compare to FACTORY->nan_value(),
+  // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
   // so we do the second best thing - test it ourselves.
   // They are both equal and they are not both Smis so both of them are not
   // Smis.  If it's not a heap number, then return equal.
@@ -1207,116 +1258,6 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-// The stub expects its argument in the tos_ register and returns its result in
-// it, too: zero for false, and a non-zero value for true.
-void ToBooleanStub::Generate(MacroAssembler* masm) {
-  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
-  // we cannot call anything that could cause a GC from this stub.
-  Label patch;
-  const Register map = r9.is(tos_) ? r7 : r9;
-
-  // undefined -> false.
-  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false);
-
-  // Boolean -> its value.
-  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false);
-  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true);
-
-  // 'null' -> false.
-  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false);
-
-  if (types_.Contains(SMI)) {
-    // Smis: 0 -> false, all other -> true
-    __ SmiTst(tos_);
-    // tos_ contains the correct return value already
-    __ Ret(eq);
-  } else if (types_.NeedsMap()) {
-    // If we need a map later and have a Smi -> patch.
-    __ JumpIfSmi(tos_, &patch);
-  }
-
-  if (types_.NeedsMap()) {
-    __ ldr(map, FieldMemOperand(tos_, HeapObject::kMapOffset));
-
-    if (types_.CanBeUndetectable()) {
-      __ ldrb(ip, FieldMemOperand(map, Map::kBitFieldOffset));
-      __ tst(ip, Operand(1 << Map::kIsUndetectable));
-      // Undetectable -> false.
-      __ mov(tos_, Operand::Zero(), LeaveCC, ne);
-      __ Ret(ne);
-    }
-  }
-
-  if (types_.Contains(SPEC_OBJECT)) {
-    // Spec object -> true.
-    __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
-    // tos_ contains the correct non-zero return value already.
-    __ Ret(ge);
-  }
-
-  if (types_.Contains(STRING)) {
-    // String value -> false iff empty.
-    __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE);
-    __ ldr(tos_, FieldMemOperand(tos_, String::kLengthOffset), lt);
-    __ Ret(lt);  // the string length is OK as the return value
-  }
-
-  if (types_.Contains(HEAP_NUMBER)) {
-    // Heap number -> false iff +0, -0, or NaN.
-    Label not_heap_number;
-    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-    __ b(ne, &not_heap_number);
-
-    __ vldr(d1, FieldMemOperand(tos_, HeapNumber::kValueOffset));
-    __ VFPCompareAndSetFlags(d1, 0.0);
-    // "tos_" is a register, and contains a non zero value by default.
-    // Hence we only need to overwrite "tos_" with zero to return false for
-    // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
-    __ mov(tos_, Operand::Zero(), LeaveCC, eq);  // for FP_ZERO
-    __ mov(tos_, Operand::Zero(), LeaveCC, vs);  // for FP_NAN
-    __ Ret();
-    __ bind(&not_heap_number);
-  }
-
-  __ bind(&patch);
-  GenerateTypeTransition(masm);
-}
-
-
-void ToBooleanStub::CheckOddball(MacroAssembler* masm,
-                                 Type type,
-                                 Heap::RootListIndex value,
-                                 bool result) {
-  if (types_.Contains(type)) {
-    // If we see an expected oddball, return its ToBoolean value tos_.
-    __ LoadRoot(ip, value);
-    __ cmp(tos_, ip);
-    // The value of a root is never NULL, so we can avoid loading a non-null
-    // value into tos_ when we want to return 'true'.
-    if (!result) {
-      __ mov(tos_, Operand::Zero(), LeaveCC, eq);
-    }
-    __ Ret(eq);
-  }
-}
-
-
-void ToBooleanStub::GenerateTypeTransition(MacroAssembler* masm) {
-  if (!tos_.is(r3)) {
-    __ mov(r3, Operand(tos_));
-  }
-  __ mov(r2, Operand(Smi::FromInt(tos_.code())));
-  __ mov(r1, Operand(Smi::FromInt(types_.ToByte())));
-  __ Push(r3, r2, r1);
-  // Patch the caller to an appropriate specialized stub and return the
-  // operation result to the caller of the stub.
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kToBoolean_Patch), masm->isolate()),
-      3,
-      1);
-}
-
-
 void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // We don't allow a GC during a store buffer overflow so there is no need to
   // store the registers in any particular way, but we do have to store and
@@ -1766,6 +1707,7 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       __ Ret();
 
       if (CpuFeatures::IsSupported(SUDIV)) {
+        CpuFeatureScope scope(masm, SUDIV);
         Label result_not_zero;
 
         __ bind(&div_with_sdiv);
@@ -1822,6 +1764,7 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       __ Ret();
 
       if (CpuFeatures::IsSupported(SUDIV)) {
+        CpuFeatureScope scope(masm, SUDIV);
         __ bind(&modulo_with_sdiv);
         __ mov(scratch2, right);
         // Perform modulus with sdiv and mls.
@@ -2130,7 +2073,14 @@ void BinaryOpStub_GenerateSmiCode(
 
 
 void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
-  Label not_smis, call_runtime;
+  Label right_arg_changed, call_runtime;
+
+  if (op_ == Token::MOD && has_fixed_right_arg_) {
+    // It is guaranteed that the value will fit into a Smi, because if it
+    // didn't, we wouldn't be here, see BinaryOp_Patch.
+    __ cmp(r0, Operand(Smi::FromInt(fixed_right_arg_value())));
+    __ b(ne, &right_arg_changed);
+  }
 
   if (result_type_ == BinaryOpIC::UNINITIALIZED ||
       result_type_ == BinaryOpIC::SMI) {
@@ -2147,6 +2097,7 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 
   // Code falls through if the result is not returned as either a smi or heap
   // number.
+  __ bind(&right_arg_changed);
   GenerateTypeTransition(masm);
 
   __ bind(&call_runtime);
@@ -2259,42 +2210,25 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
             UNREACHABLE();
         }
 
-        if (op_ != Token::DIV) {
-          // These operations produce an integer result.
-          // Try to return a smi if we can.
-          // Otherwise return a heap number if allowed, or jump to type
-          // transition.
-
-          if (result_type_ <= BinaryOpIC::INT32) {
-            __ TryDoubleToInt32Exact(scratch1, d5, d8);
-            // If the ne condition is set, result does
-            // not fit in a 32-bit integer.
-            __ b(ne, &transition);
-          } else {
-            __ vcvt_s32_f64(s8, d5);
-            __ vmov(scratch1, s8);
-          }
-
-          // Check if the result fits in a smi.
-          __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
-          // If not try to return a heap number.
-          __ b(mi, &return_heap_number);
-          // Check for minus zero. Return heap number for minus zero if
-          // double results are allowed; otherwise transition.
+        if (result_type_ <= BinaryOpIC::INT32) {
+          __ TryDoubleToInt32Exact(scratch1, d5, d8);
+          // If the ne condition is set, result does
+          // not fit in a 32-bit integer.
+          __ b(ne, &transition);
+          // Try to tag the result as a Smi, return heap number on overflow.
+          __ SmiTag(scratch1, SetCC);
+          __ b(vs, &return_heap_number);
+          // Check for minus zero, transition in that case (because we need
+          // to return a heap number).
           Label not_zero;
-          __ cmp(scratch1, Operand::Zero());
+          ASSERT(kSmiTag == 0);
           __ b(ne, &not_zero);
           __ vmov(scratch2, d5.high());
           __ tst(scratch2, Operand(HeapNumber::kSignMask));
-          __ b(ne, result_type_ <= BinaryOpIC::INT32 ? &transition
-                                                     : &return_heap_number);
+          __ b(ne, &transition);
           __ bind(&not_zero);
-
-          // Tag the result and return.
-          __ SmiTag(r0, scratch1);
+          __ mov(r0, scratch1);
           __ Ret();
-        } else {
-          // DIV just falls through to allocating a heap number.
         }
 
         __ bind(&return_heap_number);
@@ -2318,6 +2252,12 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         // to type transition.
 
       } else {
+        if (has_fixed_right_arg_) {
+          __ Vmov(d8, fixed_right_arg_value(), scratch1);
+          __ VFPCompareAndSetFlags(d1, d8);
+          __ b(ne, &transition);
+        }
+
         // We preserved r0 and r1 to be able to call runtime.
         // Save the left value on the stack.
         __ Push(r5, r4);
@@ -4689,7 +4629,6 @@ static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
   // megamorphic.
   // r1 : the function to call
   // r2 : cache cell for call target
-  ASSERT(!FLAG_optimize_constructed_arrays);
   Label done;
 
   ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
@@ -7336,6 +7275,10 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
     stub.GetCode(isolate)->set_is_pregenerated(true);
+    if (AllocationSiteInfo::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
+      T stub1(kind, true);
+      stub1.GetCode(isolate)->set_is_pregenerated(true);
+    }
   }
 }
 
@@ -7347,6 +7290,21 @@ void ArrayConstructorStubBase::GenerateStubsAheadOfTime(Isolate* isolate) {
       isolate);
   ArrayConstructorStubAheadOfTimeHelper<ArrayNArgumentsConstructorStub>(
       isolate);
+}
+
+
+void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
+    Isolate* isolate) {
+  ElementsKind kinds[2] = { FAST_ELEMENTS, FAST_HOLEY_ELEMENTS };
+  for (int i = 0; i < 2; i++) {
+    // For internal arrays we only need a few things
+    InternalArrayNoArgumentConstructorStub stubh1(kinds[i]);
+    stubh1.GetCode(isolate)->set_is_pregenerated(true);
+    InternalArraySingleArgumentConstructorStub stubh2(kinds[i]);
+    stubh2.GetCode(isolate)->set_is_pregenerated(true);
+    InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
+    stubh3.GetCode(isolate)->set_is_pregenerated(true);
+  }
 }
 
 
@@ -7432,6 +7390,105 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
      Handle<Code> generic_construct_stub =
          masm->isolate()->builtins()->JSConstructStubGeneric();
      __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+  }
+}
+
+
+void InternalArrayConstructorStub::GenerateCase(
+    MacroAssembler* masm, ElementsKind kind) {
+  Label not_zero_case, not_one_case;
+  Label normal_sequence;
+
+  __ tst(r0, r0);
+  __ b(ne, &not_zero_case);
+  InternalArrayNoArgumentConstructorStub stub0(kind);
+  __ TailCallStub(&stub0);
+
+  __ bind(&not_zero_case);
+  __ cmp(r0, Operand(1));
+  __ b(gt, &not_one_case);
+
+  if (IsFastPackedElementsKind(kind)) {
+    // We might need to create a holey array
+    // look at the first argument
+    __ ldr(r3, MemOperand(sp, 0));
+    __ cmp(r3, Operand::Zero());
+    __ b(eq, &normal_sequence);
+
+    InternalArraySingleArgumentConstructorStub
+        stub1_holey(GetHoleyElementsKind(kind));
+    __ TailCallStub(&stub1_holey);
+  }
+
+  __ bind(&normal_sequence);
+  InternalArraySingleArgumentConstructorStub stub1(kind);
+  __ TailCallStub(&stub1);
+
+  __ bind(&not_one_case);
+  InternalArrayNArgumentsConstructorStub stubN(kind);
+  __ TailCallStub(&stubN);
+}
+
+
+void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0 : argc
+  //  -- r1 : constructor
+  //  -- sp[0] : return address
+  //  -- sp[4] : last argument
+  // -----------------------------------
+
+  if (FLAG_debug_code) {
+    // The array construct code is only set for the global and natives
+    // builtin Array functions which always have maps.
+
+    // Initial map for the builtin Array function should be a map.
+    __ ldr(r3, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a NULL and a Smi.
+    __ tst(r3, Operand(kSmiTagMask));
+    __ Assert(ne, "Unexpected initial map for Array function");
+    __ CompareObjectType(r3, r3, r4, MAP_TYPE);
+    __ Assert(eq, "Unexpected initial map for Array function");
+  }
+
+  if (FLAG_optimize_constructed_arrays) {
+    // Figure out the right elements kind
+    __ ldr(r3, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
+
+    // Load the map's "bit field 2" into |result|. We only need the first byte,
+    // but the following bit field extraction takes care of that anyway.
+    __ ldr(r3, FieldMemOperand(r3, Map::kBitField2Offset));
+    // Retrieve elements_kind from bit field 2.
+    __ Ubfx(r3, r3, Map::kElementsKindShift, Map::kElementsKindBitCount);
+
+    if (FLAG_debug_code) {
+      Label done;
+      __ cmp(r3, Operand(FAST_ELEMENTS));
+      __ b(eq, &done);
+      __ cmp(r3, Operand(FAST_HOLEY_ELEMENTS));
+      __ Assert(eq,
+          "Invalid ElementsKind for InternalArray or InternalPackedArray");
+      __ bind(&done);
+    }
+
+    Label fast_elements_case;
+    __ cmp(r3, Operand(FAST_ELEMENTS));
+    __ b(eq, &fast_elements_case);
+    GenerateCase(masm, FAST_HOLEY_ELEMENTS);
+
+    __ bind(&fast_elements_case);
+    GenerateCase(masm, FAST_ELEMENTS);
+  } else {
+    Label generic_constructor;
+    // Run the native code for the Array function called as constructor.
+    ArrayNativeCode(masm, &generic_constructor);
+
+    // Jump to the generic construct code in case the specialized code cannot
+    // handle the construction.
+    __ bind(&generic_constructor);
+    Handle<Code> generic_construct_stub =
+        masm->isolate()->builtins()->JSConstructStubGeneric();
+    __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
   }
 }
 

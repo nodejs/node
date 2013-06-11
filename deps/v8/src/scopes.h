@@ -97,7 +97,7 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Construction
 
-  Scope(Scope* outer_scope, ScopeType type, Zone* zone);
+  Scope(Scope* outer_scope, ScopeType scope_type, Zone* zone);
 
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
@@ -282,13 +282,13 @@ class Scope: public ZoneObject {
   // Predicates.
 
   // Specific scope types.
-  bool is_eval_scope() const { return type_ == EVAL_SCOPE; }
-  bool is_function_scope() const { return type_ == FUNCTION_SCOPE; }
-  bool is_module_scope() const { return type_ == MODULE_SCOPE; }
-  bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
-  bool is_catch_scope() const { return type_ == CATCH_SCOPE; }
-  bool is_block_scope() const { return type_ == BLOCK_SCOPE; }
-  bool is_with_scope() const { return type_ == WITH_SCOPE; }
+  bool is_eval_scope() const { return scope_type_ == EVAL_SCOPE; }
+  bool is_function_scope() const { return scope_type_ == FUNCTION_SCOPE; }
+  bool is_module_scope() const { return scope_type_ == MODULE_SCOPE; }
+  bool is_global_scope() const { return scope_type_ == GLOBAL_SCOPE; }
+  bool is_catch_scope() const { return scope_type_ == CATCH_SCOPE; }
+  bool is_block_scope() const { return scope_type_ == BLOCK_SCOPE; }
+  bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_declaration_scope() const {
     return is_eval_scope() || is_function_scope() ||
         is_module_scope() || is_global_scope();
@@ -321,7 +321,7 @@ class Scope: public ZoneObject {
   // Accessors.
 
   // The type of this scope.
-  ScopeType type() const { return type_; }
+  ScopeType scope_type() const { return scope_type_; }
 
   // The language mode of this scope.
   LanguageMode language_mode() const { return language_mode_; }
@@ -449,7 +449,7 @@ class Scope: public ZoneObject {
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
 
   // The scope type.
-  ScopeType type_;
+  ScopeType scope_type_;
 
   // Debugging support.
   Handle<String> scope_name_;

@@ -27,11 +27,6 @@
 
 #include <stdlib.h>
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "v8.h"
 
 #include "heap.h"
@@ -57,8 +52,11 @@ class DeclarationContext {
 
   virtual ~DeclarationContext() {
     if (is_initialized_) {
-      context_->Exit();
-      context_.Dispose(context_->GetIsolate());
+      Isolate* isolate = Isolate::GetCurrent();
+      HandleScope scope(isolate);
+      Local<Context> context = Local<Context>::New(isolate, context_);
+      context->Exit();
+      context_.Dispose(isolate);
     }
   }
 
@@ -127,14 +125,14 @@ void DeclarationContext::InitializeIfNeeded() {
                                                &HandleQuery,
                                                0, 0,
                                                data);
-  context_.Reset(isolate,
-                 Context::New(isolate,
-                              0,
-                              function->InstanceTemplate(),
-                              Local<Value>()));
-  context_->Enter();
+  Local<Context> context = Context::New(isolate,
+                                        0,
+                                        function->InstanceTemplate(),
+                                        Local<Value>());
+  context_.Reset(isolate, context);
+  context->Enter();
   is_initialized_ = true;
-  PostInitializeContext(Local<Context>::New(isolate, context_));
+  PostInitializeContext(context);
 }
 
 

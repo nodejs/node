@@ -580,38 +580,21 @@ void MacroAssembler::StoreNumberToDoubleElements(
 
 void MacroAssembler::CompareMap(Register obj,
                                 Handle<Map> map,
-                                Label* early_success,
-                                CompareMapMode mode) {
+                                Label* early_success) {
   cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
-  if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
-    ElementsKind kind = map->elements_kind();
-    if (IsFastElementsKind(kind)) {
-      bool packed = IsFastPackedElementsKind(kind);
-      Map* current_map = *map;
-      while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
-        kind = GetNextMoreGeneralFastElementsKind(kind, packed);
-        current_map = current_map->LookupElementsTransitionMap(kind);
-        if (!current_map) break;
-        j(equal, early_success, Label::kNear);
-        cmp(FieldOperand(obj, HeapObject::kMapOffset),
-            Handle<Map>(current_map));
-      }
-    }
-  }
 }
 
 
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
-                              SmiCheckType smi_check_type,
-                              CompareMapMode mode) {
+                              SmiCheckType smi_check_type) {
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
 
   Label success;
-  CompareMap(obj, map, &success, mode);
+  CompareMap(obj, map, &success);
   j(not_equal, fail);
   bind(&success);
 }
@@ -2510,7 +2493,7 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 
 void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
-  ALLOW_HANDLE_DEREF(isolate(), "embedding raw address");
+  AllowDeferredHandleDereference embedding_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
         isolate()->factory()->NewJSGlobalPropertyCell(object);
@@ -2521,8 +2504,20 @@ void MacroAssembler::LoadHeapObject(Register result,
 }
 
 
+void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
+  AllowDeferredHandleDereference using_raw_address;
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<JSGlobalPropertyCell> cell =
+        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    cmp(reg, Operand::Cell(cell));
+  } else {
+    cmp(reg, object);
+  }
+}
+
+
 void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
-  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+  AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
         isolate()->factory()->NewJSGlobalPropertyCell(object);
@@ -3032,7 +3027,7 @@ void MacroAssembler::EnsureNotWhite(
 
   // Check for heap-number
   mov(map, FieldOperand(value, HeapObject::kMapOffset));
-  cmp(map, FACTORY->heap_number_map());
+  cmp(map, isolate()->factory()->heap_number_map());
   j(not_equal, &not_heap_number, Label::kNear);
   mov(length, Immediate(HeapNumber::kSize));
   jmp(&is_data_object, Label::kNear);

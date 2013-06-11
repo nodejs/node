@@ -2062,7 +2062,7 @@ void GDBJITInterface::AddCode(const char* name,
   if (!FLAG_gdbjit) return;
 
   ScopedLock lock(mutex.Pointer());
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
 
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
   if (e->value != NULL && !IsLineInfoTagged(e->value)) return;

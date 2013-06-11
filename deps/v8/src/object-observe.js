@@ -294,7 +294,7 @@ function EndPerformSplice(array) {
     EndPerformChange(objectInfo, 'splice');
 }
 
-function EnqueueSpliceRecord(array, index, removed, deleteCount, addedCount) {
+function EnqueueSpliceRecord(array, index, removed, addedCount) {
   var objectInfo = objectInfoMap.get(array);
   if (IS_UNDEFINED(objectInfo) || objectInfo.changeObservers.length === 0)
     return;
@@ -307,11 +307,8 @@ function EnqueueSpliceRecord(array, index, removed, deleteCount, addedCount) {
     addedCount: addedCount
   };
 
-  changeRecord.removed.length = deleteCount;
-  // TODO(rafaelw): This breaks spec-compliance. Re-enable when freezing isn't
-  // slow.
-  // ObjectFreeze(changeRecord);
-  // ObjectFreeze(changeRecord.removed);
+  ObjectFreeze(changeRecord);
+  ObjectFreeze(changeRecord.removed);
   EnqueueChangeRecord(changeRecord, objectInfo.changeObservers);
 }
 
@@ -323,9 +320,7 @@ function NotifyChange(type, object, name, oldValue) {
   var changeRecord = (arguments.length < 4) ?
       { type: type, object: object, name: name } :
       { type: type, object: object, name: name, oldValue: oldValue };
-  // TODO(rafaelw): This breaks spec-compliance. Re-enable when freezing isn't
-  // slow.
-  // ObjectFreeze(changeRecord);
+  ObjectFreeze(changeRecord);
   EnqueueChangeRecord(changeRecord, objectInfo.changeObservers);
 }
 
@@ -351,9 +346,7 @@ function ObjectNotifierNotify(changeRecord) {
     %DefineOrRedefineDataProperty(newRecord, prop, changeRecord[prop],
         READ_ONLY + DONT_DELETE);
   }
-  // TODO(rafaelw): This breaks spec-compliance. Re-enable when freezing isn't
-  // slow.
-  // ObjectFreeze(newRecord);
+  ObjectFreeze(newRecord);
 
   EnqueueChangeRecord(newRecord, objectInfo.changeObservers);
 }

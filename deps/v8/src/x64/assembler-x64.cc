@@ -1590,7 +1590,7 @@ void Assembler::movl(const Operand& dst, Label* src) {
 
 
 void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
-  ALLOW_HANDLE_DEREF(isolate(), "using and embedding raw address");
+  AllowDeferredHandleDereference using_raw_address;
   // If there is no relocation info, emit the value of the handle efficiently
   // (possibly using less that 8 bytes for the value).
   if (RelocInfo::IsNone(mode)) {

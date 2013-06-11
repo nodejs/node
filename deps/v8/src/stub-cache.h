@@ -1067,17 +1067,6 @@ class CallStubCompiler: public StubCompiler {
 };
 
 
-class ConstructStubCompiler: public StubCompiler {
- public:
-  explicit ConstructStubCompiler(Isolate* isolate) : StubCompiler(isolate) { }
-
-  Handle<Code> CompileConstructStub(Handle<JSFunction> function);
-
- private:
-  Handle<Code> GetCode();
-};
-
-
 // Holds information about possible function call optimizations.
 class CallOptimization BASE_EMBEDDED {
  public:

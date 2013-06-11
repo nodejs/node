@@ -107,7 +107,7 @@ static Handle<Object> Invoke(bool is_construct,
     // Save and restore context around invocation and block the
     // allocation of handles without explicit handle scopes.
     SaveContext save(isolate);
-    NoHandleAllocation na(isolate);
+    SealHandleScope shs(isolate);
     JSEntryFunction stub_entry = FUNCTION_CAST<JSEntryFunction>(code->entry());
 
     // Call the function through the right JS entry stub.
@@ -641,7 +641,8 @@ Handle<Object> Execution::ToInt32(Handle<Object> obj, bool* exc) {
 
 
 Handle<Object> Execution::NewDate(double time, bool* exc) {
-  Handle<Object> time_obj = FACTORY->NewNumber(time);
+  Isolate* isolate = Isolate::Current();
+  Handle<Object> time_obj = isolate->factory()->NewNumber(time);
   RETURN_NATIVE_CALL(create_date, { time_obj }, exc);
 }
 

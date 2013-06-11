@@ -220,6 +220,10 @@ class IncrementalMarking {
 
   void UncommitMarkingDeque();
 
+  void NotifyIncompleteScanOfObject(int unscanned_bytes) {
+    unscanned_bytes_of_large_object_ = unscanned_bytes;
+  }
+
  private:
   int64_t SpaceLeftInOldSpace();
 
@@ -273,6 +277,8 @@ class IncrementalMarking {
   intptr_t write_barriers_invoked_since_last_step_;
 
   int no_marking_scope_depth_;
+
+  int unscanned_bytes_of_large_object_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

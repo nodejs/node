@@ -36,10 +36,10 @@ var exception = null;
 function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.BeforeCompile) {
     event_data.script().setSource(event_data.script().source() +
-        " //@ sourceURL=proper_location_" + (++script_number));
+        " //# sourceURL=proper_location_" + (++script_number));
   } else if (event == Debug.DebugEvent.AfterCompile) {
     try {
-      event_data.script().setSource("a=1 //@ sourceURL=wrong_location");
+      event_data.script().setSource("a=1 //# sourceURL=wrong_location");
     } catch(e) {
       exception = e;
     }

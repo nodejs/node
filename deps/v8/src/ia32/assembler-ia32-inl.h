@@ -333,8 +333,7 @@ Immediate::Immediate(Handle<Object> handle) {
 #ifdef DEBUG
   Isolate* isolate = Isolate::Current();
 #endif
-  ALLOW_HANDLE_DEREF(isolate,
-                     "using and embedding raw address, heap object check");
+  AllowDeferredHandleDereference using_raw_address;
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   ASSERT(!isolate->heap()->InNewSpace(obj));
@@ -368,7 +367,7 @@ void Assembler::emit(uint32_t x) {
 
 
 void Assembler::emit(Handle<Object> handle) {
-  ALLOW_HANDLE_DEREF(isolate(), "heap object check");
+  AllowDeferredHandleDereference heap_object_check;
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   ASSERT(!isolate()->heap()->InNewSpace(obj));
@@ -395,7 +394,7 @@ void Assembler::emit(uint32_t x, RelocInfo::Mode rmode, TypeFeedbackId id) {
 void Assembler::emit(Handle<Code> code,
                      RelocInfo::Mode rmode,
                      TypeFeedbackId id) {
-  ALLOW_HANDLE_DEREF(isolate(), "embedding raw address");
+  AllowDeferredHandleDereference embedding_raw_address;
   emit(reinterpret_cast<intptr_t>(code.location()), rmode, id);
 }
 
