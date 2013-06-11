@@ -30,7 +30,7 @@ The process object. See the [process object][] section.
 
 * {Object}
 
-Used to print to stdout and stderr. See the [stdio][] section.
+Used to print to stdout and stderr. See the [console][] section.
 
 ## Class: Buffer
 
@@ -185,5 +185,5 @@ The timer functions are global variables. See the [timers][] section.
 [module system documentation]: modules.html
 [Modules]: modules.html#modules_modules
 [process object]: process.html#process_process
-[stdio]: stdio.html
+[console]: console.html
 [timers]: timers.html
