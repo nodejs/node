@@ -180,17 +180,17 @@ if (process.argv[2] === 'child') {
   };
 
   // create server and send it to child
-  var serverSucess = false;
-  var socketSucess = false;
+  var serverSuccess = false;
+  var socketSuccess = false;
   child.on('message', function onReady(msg) {
     if (msg.what !== 'ready') return;
     child.removeListener('message', onReady);
 
     testServer(function() {
-      serverSucess = true;
+      serverSuccess = true;
 
       testSocket(function() {
-        socketSucess = true;
+        socketSuccess = true;
         child.kill();
       });
     });
@@ -198,8 +198,8 @@ if (process.argv[2] === 'child') {
   });
 
   process.on('exit', function() {
-    assert.ok(serverSucess);
-    assert.ok(socketSucess);
+    assert.ok(serverSuccess);
+    assert.ok(socketSuccess);
   });
 
 }

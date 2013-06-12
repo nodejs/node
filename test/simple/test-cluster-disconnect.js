@@ -56,8 +56,8 @@ if (cluster.isWorker) {
     var done = 0;
 
     for (var i = 0, l = servers; i < l; i++) {
-      testConnection(common.PORT + i, function(sucess) {
-        assert.ok(sucess);
+      testConnection(common.PORT + i, function(success) {
+        assert.ok(success);
         done += 1;
         if (done === servers) {
           cb();
