@@ -9,8 +9,6 @@ var npm = require("../npm.js")
   , rm = require("rimraf")
   , readJson = require("read-package-json")
   , cache = require("../cache.js")
-  , lock = cache.lock
-  , unlock = cache.unlock
   , myUid = process.getuid && process.getuid()
   , myGid = process.getgid && process.getgid()
   , tar = require("tar")
@@ -18,6 +16,14 @@ var npm = require("../npm.js")
   , fstream = require("fstream")
   , Packer = require("fstream-npm")
   , lifecycle = require("./lifecycle.js")
+
+function lock(path, cb) {
+  return cache.lock('tar://' + path, cb)
+}
+
+function unlock(path, cb) {
+  return cache.unlock('tar://' + path, cb)
+}
 
 if (process.env.SUDO_UID && myUid === 0) {
   if (!isNaN(process.env.SUDO_UID)) myUid = +process.env.SUDO_UID
