@@ -541,7 +541,8 @@ Alternatively, you could just opt out of pooling entirely using `agent:false`:
 ### agent.maxSockets
 
 By default set to 5. Determines how many concurrent sockets the agent can have
-open per host.
+open per origin. Origin is either a 'host:port' or 'host:port:localAddress'
+combination.
 
 ### agent.sockets
 
