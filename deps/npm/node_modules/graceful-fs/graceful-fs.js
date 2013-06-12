@@ -1,29 +1,21 @@
 // this keeps a queue of opened file descriptors, and will make
 // fs operations wait until some have closed before trying to open more.
 
-var fs_ = require("fs")
+var fs = exports = module.exports = {}
+fs._originalFs = require("fs")
 
-var fs = module.exports = {}
-
-Object.getOwnPropertyNames(fs_).forEach(function(prop) {
-  var desc = Object.getOwnPropertyDescriptor(fs_, prop)
+Object.getOwnPropertyNames(fs._originalFs).forEach(function(prop) {
+  var desc = Object.getOwnPropertyDescriptor(fs._originalFs, prop)
   Object.defineProperty(fs, prop, desc)
 })
 
 var queue = []
   , constants = require("constants")
 
-exports = module.exports = fs
 fs._curOpen = 0
 
 fs.MIN_MAX_OPEN = 64
 fs.MAX_OPEN = 1024
-
-var originalOpen = fs.open
-  , originalOpenSync = fs.openSync
-  , originalClose = fs.close
-  , originalCloseSync = fs.closeSync
-
 
 // prevent EMFILE errors
 function OpenReq (path, flags, mode, cb) {
@@ -61,7 +53,7 @@ function gracefulOpen (path, flags, mode, cb) {
 function open (path, flags, mode, cb) {
   cb = cb || noop
   fs._curOpen ++
-  originalOpen.call(fs, path, flags, mode, function (er, fd) {
+  fs._originalFs.open.call(fs, path, flags, mode, function (er, fd) {
     if (er) onclose()
     cb(er, fd)
   })
@@ -69,7 +61,7 @@ function open (path, flags, mode, cb) {
 
 fs.openSync = function (path, flags, mode) {
   var ret
-  ret = originalOpenSync.call(fs, path, flags, mode)
+  ret = fs._originalFs.openSync.call(fs, path, flags, mode)
   fs._curOpen ++
   return ret
 }
@@ -83,21 +75,72 @@ function flush () {
   while (fs._curOpen < fs.MAX_OPEN) {
     var req = queue.shift()
     if (!req) return
-    open(req.path, req.flags || "r", req.mode || 0777, req.cb)
+    switch (req.constructor.name) {
+      case 'OpenReq':
+        open(req.path, req.flags || "r", req.mode || 0777, req.cb)
+        break
+      case 'ReaddirReq':
+        readdir(req.path, req.cb)
+        break
+      default:
+        throw new Error('Unknown req type: ' + req.constructor.name)
+    }
   }
 }
 
 fs.close = function (fd, cb) {
   cb = cb || noop
-  originalClose.call(fs, fd, function (er) {
+  fs._originalFs.close.call(fs, fd, function (er) {
     onclose()
     cb(er)
   })
 }
 
 fs.closeSync = function (fd) {
-  onclose()
-  return originalCloseSync.call(fs, fd)
+  try {
+    return fs._originalFs.closeSync.call(fs, fd)
+  } finally {
+    onclose()
+  }
+}
+
+
+// readdir takes a fd as well.
+// however, the sync version closes it right away, so
+// there's no need to wrap.
+// It would be nice to catch when it throws an EMFILE,
+// but that's relatively rare anyway.
+
+fs.readdir = gracefulReaddir
+
+function gracefulReaddir (path, cb) {
+  if (fs._curOpen >= fs.MAX_OPEN) {
+    queue.push(new ReaddirReq(path, cb))
+    setTimeout(flush)
+    return
+  }
+
+  readdir(path, function (er, files) {
+    if (er && er.code === "EMFILE" && fs._curOpen > fs.MIN_MAX_OPEN) {
+      fs.MAX_OPEN = fs._curOpen - 1
+      return fs.readdir(path, cb)
+    }
+    cb(er, files)
+  })
+}
+
+function readdir (path, cb) {
+  cb = cb || noop
+  fs._curOpen ++
+  fs._originalFs.readdir.call(fs, path, function (er, files) {
+    onclose()
+    cb(er, files)
+  })
+}
+
+function ReaddirReq (path, cb) {
+  this.path = path
+  this.cb = cb
 }
 
 
