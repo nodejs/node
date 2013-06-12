@@ -179,7 +179,7 @@
   * - elder Alpha because it lacks byte load/store instructions;
   */
 # undef RC4_INT
-# if defined(__arm__)
+# if defined(__arm__) || defined(__mips__)
 #  define RC4_INT unsigned char
 # else
 #  define RC4_INT unsigned int
@@ -194,7 +194,7 @@
 #  define RC4_CHUNK unsigned long long
 # elif (defined(_M_X64) || defined(__x86_64__)) && !defined(_WIN32)
 #  define RC4_CHUNK unsigned long
-# elif defined(__arm__)
+# elif defined(__arm__) || defined(__mips__)
 #  define RC4_CHUNK unsigned long
 # else
    /* On x86 RC4_CHUNK is not defined */
@@ -253,7 +253,7 @@
 #if defined(HEADER_BF_LOCL_H) && !defined(CONFIG_HEADER_BF_LOCL_H)
 # define CONFIG_HEADER_BF_LOCL_H
 # undef BF_PTR
-# if defined(__arm__)
+# if defined(__arm__) || defined(__mips__)
 #  define BF_PTR
 # endif
 #endif /* HEADER_BF_LOCL_H */

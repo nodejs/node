@@ -381,6 +381,7 @@ def host_arch_cc():
     '__x86_64__'  : 'x64',
     '__i386__'    : 'ia32',
     '__arm__'     : 'arm',
+    '__mips__'    : 'mips',
   }
 
   rtn = 'ia32' # default
@@ -402,6 +403,7 @@ def host_arch_win():
     'AMD64'  : 'x64',
     'x86'    : 'ia32',
     'arm'    : 'arm',
+    'mips'   : 'mips',
   }
 
   return matchup.get(arch, 'ia32')
