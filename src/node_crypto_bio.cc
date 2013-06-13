@@ -226,6 +226,11 @@ void NodeBIO::FreeEmpty() {
     return;
 
   while (cur != read_head_) {
+    // Skip embedded buffer
+    if (cur == &head_) {
+      cur = head_.next_;
+      continue;
+    }
     assert(cur != write_head_);
     assert(cur->write_pos_ == cur->read_pos_);
 
