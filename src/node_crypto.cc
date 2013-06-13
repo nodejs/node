@@ -532,6 +532,9 @@ Handle<Value> SecureContext::AddCRL(const Arguments& args) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
 
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
+
   BIO *bio = LoadBIO(args[0]);
   if (!bio) return False(node_isolate);
 
