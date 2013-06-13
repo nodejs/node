@@ -62,7 +62,8 @@ Note that all Node addons must export an initialization function:
     void Initialize (Handle<Object> exports);
     NODE_MODULE(module_name, Initialize)
 
-There is no semi-colon after `NODE_MODULE` as it's not a function (see `node.h`).
+There is no semi-colon after `NODE_MODULE` as it's not a function (see
+`node.h`).
 
 The `module_name` needs to match the filename of the final binary (minus the
 .node suffix).
@@ -91,8 +92,8 @@ command.
 Now you have your compiled `.node` bindings file! The compiled bindings end up
 in `build/Release/`.
 
-You can now use the binary addon in a Node project `hello.js` by pointing `require` to
-the recently built `hello.node` module:
+You can now use the binary addon in a Node project `hello.js` by pointing
+`require` to the recently built `hello.node` module:
 
     var addon = require('./build/Release/hello');
 
@@ -122,8 +123,8 @@ Create the following `binding.gyp` file:
       ]
     }
 
-In cases where there is more than one `.cc` file, simply add the file name to the
-`sources` array, e.g.:
+In cases where there is more than one `.cc` file, simply add the file name to
+the `sources` array, e.g.:
 
     "sources": ["addon.cc", "myexample.cc"]
 
@@ -150,7 +151,8 @@ function calls and return a result. This is the main and only needed source
       HandleScope scope(isolate);
 
       if (args.Length() < 2) {
-        ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
+        ThrowException(Exception::TypeError(
+            String::New("Wrong number of arguments")));
         return scope.Close(Undefined(isolate));
       }
 
@@ -195,7 +197,7 @@ there. Here's `addon.cc`:
 
       Local<Function> cb = Local<Function>::Cast(args[0]);
       const unsigned argc = 1;
-      Local<Value> argv[argc] = { Local<Value>::New(String::New("hello world")) };
+      Local<Value> argv[argc] = { String::New("hello world") };
       cb->Call(Context::GetCurrent()->Global(), argc, argv);
 
       return scope.Close(Undefined(isolate));
@@ -282,7 +284,8 @@ wraps a C++ function:
 
       Local<FunctionTemplate> tpl = FunctionTemplate::New(MyFunction);
       Local<Function> fn = tpl->GetFunction();
-      fn->SetName(String::NewSymbol("theFunction")); // omit this to make it anonymous
+      // omit this to make it anonymous
+      fn->SetName(String::NewSymbol("theFunction"));
 
       return scope.Close(fn);
     }
@@ -367,7 +370,8 @@ prototype:
       tpl->PrototypeTemplate()->Set(String::NewSymbol("plusOne"),
           FunctionTemplate::New(PlusOne)->GetFunction());
 
-      Persistent<Function> constructor = Persistent<Function>::New(isolate, tpl->GetFunction());
+      Persistent<Function> constructor =
+          Persistent<Function>::New(isolate, tpl->GetFunction());
       exports->Set(String::NewSymbol("MyObject"), constructor);
     }
 
