@@ -1,4 +1,22 @@
-2013.06.04, Version 0.10.10 (Stable)
+2013.06.13, Version 0.10.11 (Stable)
+
+* uv: upgrade to 0.10.11
+
+* npm: Upgrade to 1.2.30
+
+* openssl: add missing configuration pieces for MIPS (Andrei Sedoi)
+
+* Revert "http: remove bodyHead from 'upgrade' events" (isaacs)
+
+* v8: fix pointer arithmetic undefined behavior (Trevor Norris)
+
+* crypto: fix utf8/utf-8 encoding check (Ben Noordhuis)
+
+* net: Fix busy loop on POLLERR|POLLHUP on older linux kernels (Ben Noordhuis, isaacs)
+
+
+
+2013.06.04, Version 0.10.10 (Stable), 25e51c396aa23018603baae2b1d9390f5d9db496
 
 * uv: Upgrade to 0.10.10
 
