@@ -86,7 +86,7 @@ server.listen(common.PORT, function() {
       bodyBuffer += s;
     });
 
-    res.on('close', function() {
+    res.on('end', function() {
       console.log('5) Client got "end" event.');
       gotEnd = true;
     });

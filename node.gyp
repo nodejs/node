@@ -59,6 +59,8 @@
       'lib/sys.js',
       'lib/timers.js',
       'lib/tls.js',
+      'lib/_tls_legacy.js',
+      'lib/_tls_wrap.js',
       'lib/tty.js',
       'lib/url.js',
       'lib/util.js',

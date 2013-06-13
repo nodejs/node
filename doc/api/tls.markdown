@@ -49,7 +49,7 @@ server-side resources, which makes it a potential vector for denial-of-service
 attacks.
 
 To mitigate this, renegotiations are limited to three times every 10 minutes. An
-error is emitted on the [CleartextStream][] instance when the threshold is
+error is emitted on the [tls.TLSSocket][] instance when the threshold is
 exceeded. The limits are configurable:
 
   - `tls.CLIENT_RENEG_LIMIT`: renegotiation limit, default is 3.
@@ -188,12 +188,12 @@ Here is a simple example echo server:
       ca: [ fs.readFileSync('client-cert.pem') ]
     };
 
-    var server = tls.createServer(options, function(cleartextStream) {
+    var server = tls.createServer(options, function(socket) {
       console.log('server connected',
-                  cleartextStream.authorized ? 'authorized' : 'unauthorized');
-      cleartextStream.write("welcome!\n");
-      cleartextStream.setEncoding('utf8');
-      cleartextStream.pipe(cleartextStream);
+                  socket.authorized ? 'authorized' : 'unauthorized');
+      socket.write("welcome!\n");
+      socket.setEncoding('utf8');
+      socket.pipe(socket);
     });
     server.listen(8000, function() {
       console.log('server bound');
@@ -212,12 +212,12 @@ Or
 
     };
 
-    var server = tls.createServer(options, function(cleartextStream) {
+    var server = tls.createServer(options, function(socket) {
       console.log('server connected',
-                  cleartextStream.authorized ? 'authorized' : 'unauthorized');
-      cleartextStream.write("welcome!\n");
-      cleartextStream.setEncoding('utf8');
-      cleartextStream.pipe(cleartextStream);
+                  socket.authorized ? 'authorized' : 'unauthorized');
+      socket.write("welcome!\n");
+      socket.setEncoding('utf8');
+      socket.pipe(socket);
     });
     server.listen(8000, function() {
       console.log('server bound');
@@ -226,15 +226,6 @@ You can test this server by connecting to it with `openssl s_client`:
 
 
     openssl s_client -connect 127.0.0.1:8000
-
-
-## tls.SLAB_BUFFER_SIZE
-
-Size of slab buffer used by all tls servers and clients.
-Default: `10 * 1024 * 1024`.
-
-
-Don't change the defaults unless you know what you are doing.
 
 
 ## tls.connect(options, [callback])
@@ -285,7 +276,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
 The `callback` parameter will be added as a listener for the
 ['secureConnect'][] event.
 
-`tls.connect()` returns a [CleartextStream][] object.
+`tls.connect()` returns a [tls.TLSSocket][] object.
 
 Here is an example of a client of echo server as described previously:
 
@@ -301,17 +292,17 @@ Here is an example of a client of echo server as described previously:
       ca: [ fs.readFileSync('server-cert.pem') ]
     };
 
-    var cleartextStream = tls.connect(8000, options, function() {
+    var socket = tls.connect(8000, options, function() {
       console.log('client connected',
-                  cleartextStream.authorized ? 'authorized' : 'unauthorized');
-      process.stdin.pipe(cleartextStream);
+                  socket.authorized ? 'authorized' : 'unauthorized');
+      process.stdin.pipe(socket);
       process.stdin.resume();
     });
-    cleartextStream.setEncoding('utf8');
-    cleartextStream.on('data', function(data) {
+    socket.setEncoding('utf8');
+    socket.on('data', function(data) {
       console.log(data);
     });
-    cleartextStream.on('end', function() {
+    socket.on('end', function() {
       server.close();
     });
 
@@ -324,21 +315,23 @@ Or
       pfx: fs.readFileSync('client.pfx')
     };
 
-    var cleartextStream = tls.connect(8000, options, function() {
+    var socket = tls.connect(8000, options, function() {
       console.log('client connected',
-                  cleartextStream.authorized ? 'authorized' : 'unauthorized');
-      process.stdin.pipe(cleartextStream);
+                  socket.authorized ? 'authorized' : 'unauthorized');
+      process.stdin.pipe(socket);
       process.stdin.resume();
     });
-    cleartextStream.setEncoding('utf8');
-    cleartextStream.on('data', function(data) {
+    socket.setEncoding('utf8');
+    socket.on('data', function(data) {
       console.log(data);
     });
-    cleartextStream.on('end', function() {
+    socket.on('end', function() {
       server.close();
     });
 
 ## tls.createSecurePair([credentials], [isServer], [requestCert], [rejectUnauthorized])
+
+** Deprecated **
 
 Creates a new secure pair object with two streams, one of which reads/writes
 encrypted data, and one reads/writes cleartext data.
@@ -357,8 +350,10 @@ and the cleartext one is used as a replacement for the initial encrypted stream.
    automatically reject clients with invalid certificates. Only applies to
    servers with `requestCert` enabled.
 
-`tls.createSecurePair()` returns a SecurePair object with [cleartext][] and
+`tls.createSecurePair()` returns a SecurePair object with `cleartext` and
 `encrypted` stream properties.
+
+NOTE: `cleartext` has the same APIs as [tls.TLSSocket][]
 
 ## Class: SecurePair
 
@@ -381,50 +376,31 @@ connections using TLS or SSL.
 
 ### Event: 'secureConnection'
 
-`function (cleartextStream) {}`
+`function (tlsSocket) {}`
 
 This event is emitted after a new connection has been successfully
-handshaked. The argument is a instance of [CleartextStream][]. It has all the
+handshaked. The argument is a instance of [tls.TLSSocket][]. It has all the
 common stream methods and events.
 
-`cleartextStream.authorized` is a boolean value which indicates if the
+`socket.authorized` is a boolean value which indicates if the
 client has verified by one of the supplied certificate authorities for the
-server. If `cleartextStream.authorized` is false, then
-`cleartextStream.authorizationError` is set to describe how authorization
+server. If `socket.authorized` is false, then
+`socket.authorizationError` is set to describe how authorization
 failed. Implied but worth mentioning: depending on the settings of the TLS
 server, you unauthorized connections may be accepted.
-`cleartextStream.npnProtocol` is a string containing selected NPN protocol.
-`cleartextStream.servername` is a string containing servername requested with
+`socket.npnProtocol` is a string containing selected NPN protocol.
+`socket.servername` is a string containing servername requested with
 SNI.
 
 
 ### Event: 'clientError'
 
-`function (exception, securePair) { }`
+`function (exception, tlsSocket) { }`
 
 When a client connection emits an 'error' event before secure connection is
 established - it will be forwarded here.
 
-`securePair` is the `tls.SecurePair` that the error originated from.
-
-
-### Event: 'newSession'
-
-`function (sessionId, sessionData) { }`
-
-Emitted on creation of TLS session. May be used to store sessions in external
-storage.
-
-
-### Event: 'resumeSession'
-
-`function (sessionId, callback) { }`
-
-Emitted when client wants to resume previous TLS session. Event listener may
-perform lookup in external storage using given `sessionId`, and invoke
-`callback(null, sessionData)` once finished. If session can't be resumed
-(i.e. doesn't exist in storage) one may call `callback(null, null)`. Calling
-`callback(err)` will terminate incoming connection and destroy socket.
+`tlsSocket` is the [tls.TLSSocket][] that the error originated from.
 
 
 ### server.listen(port, [host], [callback])
@@ -469,6 +445,8 @@ The number of concurrent connections on the server.
 
 ## Class: CryptoStream
 
+** Deprecated **
+
 This is an encrypted stream.
 
 ### cryptoStream.bytesWritten
@@ -476,37 +454,35 @@ This is an encrypted stream.
 A proxy to the underlying socket's bytesWritten accessor, this will return
 the total bytes written to the socket, *including the TLS overhead*.
 
-## Class: tls.CleartextStream
+## Class: tls.TLSSocket
 
-This is a stream on top of the *Encrypted* stream that makes it possible to
-read/write an encrypted data as a cleartext data.
+This is a wrapped version of [net.Socket][] that does transparent encryption
+of written data and all required TLS negotiation.
 
 This instance implements a duplex [Stream][] interfaces.  It has all the
 common stream methods and events.
 
-A ClearTextStream is the `clear` member of a SecurePair object.
-
 ### Event: 'secureConnect'
 
-This event is emitted after a new connection has been successfully handshaked. 
+This event is emitted after a new connection has been successfully handshaked.
 The listener will be called no matter if the server's certificate was
-authorized or not. It is up to the user to test `cleartextStream.authorized`
+authorized or not. It is up to the user to test `tlsSocket.authorized`
 to see if the server certificate was signed by one of the specified CAs.
-If `cleartextStream.authorized === false` then the error can be found in
-`cleartextStream.authorizationError`. Also if NPN was used - you can check
-`cleartextStream.npnProtocol` for negotiated protocol.
+If `tlsSocket.authorized === false` then the error can be found in
+`tlsSocket.authorizationError`. Also if NPN was used - you can check
+`tlsSocket.npnProtocol` for negotiated protocol.
 
-### cleartextStream.authorized
+### tlsSocket.authorized
 
 A boolean that is `true` if the peer certificate was signed by one of the
 specified CAs, otherwise `false`
 
-### cleartextStream.authorizationError
+### tlsSocket.authorizationError
 
 The reason why the peer's certificate has not been verified. This property
-becomes available only when `cleartextStream.authorized === false`.
+becomes available only when `tlsSocket.authorized === false`.
 
-### cleartextStream.getPeerCertificate()
+### tlsSocket.getPeerCertificate()
 
 Returns an object representing the peer's certificate. The returned object has
 some properties corresponding to the field of the certificate.
@@ -534,7 +510,7 @@ Example:
 If the peer does not provide a certificate, it returns `null` or an empty
 object.
 
-### cleartextStream.getCipher()
+### tlsSocket.getCipher()
 Returns an object representing the cipher name and the SSL/TLS
 protocol version of the current connection.
 
@@ -545,33 +521,33 @@ See SSL_CIPHER_get_name() and SSL_CIPHER_get_version() in
 http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_CIPHERS for more
 information.
 
-### cleartextStream.address()
+### tlsSocket.address()
 
 Returns the bound address, the address family name and port of the
 underlying socket as reported by the operating system. Returns an
 object with three properties, e.g.
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
-### cleartextStream.remoteAddress
+### tlsSocket.remoteAddress
 
 The string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
 
-### cleartextStream.remotePort
+### tlsSocket.remotePort
 
 The numeric representation of the remote port. For example, `443`.
 
-### cleartextStream.localAddress
+### tlsSocket.localAddress
 
 The string representation of the local IP address.
 
-### cleartextStream.localPort
+### tlsSocket.localPort
 
 The numeric representation of the local port.
 
 [OpenSSL cipher list format documentation]: http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
 [BEAST attacks]: http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
-[CleartextStream]: #tls_class_tls_cleartextstream
+[tls.TLSSocket]: #tls_class_tls_tlssocket
 [net.Server.address()]: net.html#net_server_address
 ['secureConnect']: #tls_event_secureconnect
 [secureConnection]: #tls_event_secureconnection

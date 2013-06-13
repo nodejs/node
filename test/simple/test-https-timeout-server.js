@@ -47,8 +47,6 @@ server.on('clientError', function(err, conn) {
   // the cleartext object ever changes. We're checking that the https.Server
   // has closed the client connection.
   assert.equal(conn._secureEstablished, false);
-  assert.equal(conn._doneFlag, true);
-  assert.equal(conn.ssl, null);
   server.close();
   clientErrors++;
 });
