@@ -93,7 +93,7 @@ not be emitted.
 
 ### Event: 'connect'
 
-`function (request, socket) { }`
+`function (request, socket, head) { }`
 
 Emitted each time a client requests a http CONNECT method. If this event isn't
 listened for, then clients requesting a CONNECT method will have their
@@ -102,6 +102,8 @@ connections closed.
 * `request` is the arguments for the http request, as it is in the request
   event.
 * `socket` is the network socket between the server and client.
+* `head` is an instance of Buffer, the first packet of the tunneling stream,
+  this may be empty.
 
 After this event is emitted, the request's socket will not have a `data`
 event listener, meaning you will need to bind to it in order to handle data
@@ -109,7 +111,7 @@ sent to the server on that socket.
 
 ### Event: 'upgrade'
 
-`function (request, socket) { }`
+`function (request, socket, head) { }`
 
 Emitted each time a client requests a http upgrade. If this event isn't
 listened for, then clients requesting an upgrade will have their connections
@@ -118,6 +120,8 @@ closed.
 * `request` is the arguments for the http request, as it is in the request
   event.
 * `socket` is the network socket between the server and client.
+* `head` is an instance of Buffer, the first packet of the upgraded stream,
+  this may be empty.
 
 After this event is emitted, the request's socket will not have a `data`
 event listener, meaning you will need to bind to it in order to handle data
@@ -591,7 +595,7 @@ Emitted after a socket is assigned to this request.
 
 ### Event: 'connect'
 
-`function (response, socket) { }`
+`function (response, socket, head) { }`
 
 Emitted each time a server responds to a request with a CONNECT method. If this
 event isn't being listened for, clients receiving a CONNECT method will have
@@ -608,13 +612,14 @@ A client server pair that show you how to listen for the `connect` event.
       res.writeHead(200, {'Content-Type': 'text/plain'});
       res.end('okay');
     });
-    proxy.on('connect', function(req, cltSocket) {
+    proxy.on('connect', function(req, cltSocket, head) {
       // connect to an origin server
       var srvUrl = url.parse('http://' + req.url);
       var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, function() {
         cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                         'Proxy-agent: Node-Proxy\r\n' +
                         '\r\n');
+        srvSocket.write(head);
         srvSocket.pipe(cltSocket);
         cltSocket.pipe(srvSocket);
       });
@@ -634,7 +639,7 @@ A client server pair that show you how to listen for the `connect` event.
       var req = http.request(options);
       req.end();
 
-      req.on('connect', function(res, socket) {
+      req.on('connect', function(res, socket, head) {
         console.log('got connected!');
 
         // make a request over an HTTP tunnel
@@ -653,7 +658,7 @@ A client server pair that show you how to listen for the `connect` event.
 
 ### Event: 'upgrade'
 
-`function (response, socket) { }`
+`function (response, socket, head) { }`
 
 Emitted each time a server responds to a request with an upgrade. If this
 event isn't being listened for, clients receiving an upgrade header will have
@@ -668,7 +673,7 @@ A client server pair that show you how to listen for the `upgrade` event.
       res.writeHead(200, {'Content-Type': 'text/plain'});
       res.end('okay');
     });
-    srv.on('upgrade', function(req, socket) {
+    srv.on('upgrade', function(req, socket, head) {
       socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                    'Upgrade: WebSocket\r\n' +
                    'Connection: Upgrade\r\n' +
@@ -693,7 +698,7 @@ A client server pair that show you how to listen for the `upgrade` event.
       var req = http.request(options);
       req.end();
 
-      req.on('upgrade', function(res, socket) {
+      req.on('upgrade', function(res, socket, upgradeHead) {
         console.log('got upgraded!');
         socket.end();
         process.exit(0);

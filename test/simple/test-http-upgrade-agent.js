@@ -67,7 +67,7 @@ srv.listen(common.PORT, '127.0.0.1', function() {
   req.on('upgrade', function(res, socket, upgradeHead) {
     // XXX: This test isn't fantastic, as it assumes that the entire response
     //      from the server will arrive in a single data callback
-    assert.equal(upgradeHead, '');
+    assert.equal(upgradeHead, 'nurtzo');
 
     console.log(res.headers);
     var expectedHeaders = { 'hello': 'world',
@@ -77,8 +77,6 @@ srv.listen(common.PORT, '127.0.0.1', function() {
 
     // Make sure this request got removed from the pool.
     assert(!http.globalAgent.sockets.hasOwnProperty(name));
-
-    assert.equal(socket.read(), 'nurtzo');
 
     req.on('close', function() {
       socket.end();
