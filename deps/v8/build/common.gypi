@@ -200,10 +200,11 @@
                   ['mips_arch_variant=="mips32r2"', {
                     'cflags': ['-mips32r2', '-Wa,-mips32r2'],
                   }],
+                  ['mips_arch_variant=="mips32r1"', {
+                    'cflags': ['-mips32', '-Wa,-mips32'],
+                  }],
                   ['mips_arch_variant=="loongson"', {
                     'cflags': ['-mips3', '-Wa,-mips3'],
-                  }, {
-                    'cflags': ['-mips32', '-Wa,-mips32'],
                   }],
                 ],
               }],
