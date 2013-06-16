@@ -1012,6 +1012,9 @@ static Handle<Value> SetServers(const Arguments& args) {
         cur->family = AF_INET6;
         uv_ret = uv_inet_pton(AF_INET6, *ip, &cur->addr);
         break;
+      default:
+        assert(0 && "Bad address family.");
+        abort();
     }
 
     if (uv_ret.code != UV_OK)
