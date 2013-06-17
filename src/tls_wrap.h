@@ -22,11 +22,11 @@
 #ifndef SRC_TLS_WRAP_H_
 #define SRC_TLS_WRAP_H_
 
-#include <openssl/ssl.h>
-
 #include "v8.h"
 #include "stream_wrap.h"
 #include "queue.h"
+
+#include <openssl/ssl.h>
 
 namespace node {
 

@@ -22,13 +22,13 @@
 #ifndef NODE_WRAP_H
 #define NODE_WRAP_H
 
+#include "v8.h"
+#include "uv.h"
+
 #include "pipe_wrap.h"
 #include "tty_wrap.h"
 #include "tcp_wrap.h"
 #include "udp_wrap.h"
-
-#include "v8.h"
-#include "uv.h"
 
 namespace node {
 
