@@ -401,6 +401,10 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
   // Catch errors
   TryCatch try_catch;
 
+  // TryCatch must not be verbose to prevent duplicate logging
+  // of uncaught exceptions (we are rethrowing them)
+  try_catch.SetVerbose(false);
+
   Handle<Value> result;
   Handle<Script> script;
 
@@ -411,7 +415,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
                                          : Script::New(code, filename);
     if (script.IsEmpty()) {
       // FIXME UGLY HACK TO DISPLAY SYNTAX ERRORS.
-      if (display_error) DisplayExceptionLine(try_catch);
+      if (display_error) DisplayExceptionLine(try_catch.Message());
 
       // Hack because I can't get a proper stacktrace on SyntaxError
       return try_catch.ReThrow();
@@ -444,7 +448,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
             String::New("Script execution timed out.")));
     }
     if (result.IsEmpty()) {
-      if (display_error) DisplayExceptionLine(try_catch);
+      if (display_error) DisplayExceptionLine(try_catch.Message());
       return try_catch.ReThrow();
     }
   } else {

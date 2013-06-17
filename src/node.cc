@@ -908,6 +908,7 @@ MakeDomainCallback(const Handle<Object> object,
   Local<Function> exit;
 
   TryCatch try_catch;
+  try_catch.SetVerbose(true);
 
   bool has_domain = domain_v->IsObject();
   if (has_domain) {
@@ -922,7 +923,6 @@ MakeDomainCallback(const Handle<Object> object,
     enter->Call(domain, 0, NULL);
 
     if (try_catch.HasCaught()) {
-      FatalException(try_catch);
       return Undefined(node_isolate);
     }
   }
@@ -930,7 +930,6 @@ MakeDomainCallback(const Handle<Object> object,
   Local<Value> ret = callback->Call(object, argc, argv);
 
   if (try_catch.HasCaught()) {
-    FatalException(try_catch);
     return Undefined(node_isolate);
   }
 
@@ -940,7 +939,6 @@ MakeDomainCallback(const Handle<Object> object,
     exit->Call(domain, 0, NULL);
 
     if (try_catch.HasCaught()) {
-      FatalException(try_catch);
       return Undefined(node_isolate);
     }
   }
@@ -954,7 +952,6 @@ MakeDomainCallback(const Handle<Object> object,
   process_tickCallback->Call(process, 0, NULL);
 
   if (try_catch.HasCaught()) {
-    FatalException(try_catch);
     return Undefined(node_isolate);
   }
 
@@ -981,11 +978,11 @@ MakeCallback(const Handle<Object> object,
   }
 
   TryCatch try_catch;
+  try_catch.SetVerbose(true);
 
   Local<Value> ret = callback->Call(object, argc, argv);
 
   if (try_catch.HasCaught()) {
-    FatalException(try_catch);
     return Undefined(node_isolate);
   }
 
@@ -998,7 +995,6 @@ MakeCallback(const Handle<Object> object,
   process_tickCallback->Call(process, 0, NULL);
 
   if (try_catch.HasCaught()) {
-    FatalException(try_catch);
     return Undefined(node_isolate);
   }
 
@@ -1131,7 +1127,7 @@ ssize_t DecodeWrite(char *buf,
   return StringBytes::Write(buf, buflen, val, encoding, NULL);
 }
 
-void DisplayExceptionLine (TryCatch &try_catch) {
+void DisplayExceptionLine(Handle<Message> message) {
   // Prevent re-entry into this function.  For example, if there is
   // a throw from a program in vm.runInThisContext(code, filename, true),
   // then we want to show the original failure, not the secondary one.
@@ -1139,10 +1135,6 @@ void DisplayExceptionLine (TryCatch &try_catch) {
 
   if (displayed_error) return;
   displayed_error = true;
-
-  HandleScope scope(node_isolate);
-
-  Handle<Message> message = try_catch.Message();
 
   uv_tty_reset_mode();
 
@@ -1197,21 +1189,21 @@ void DisplayExceptionLine (TryCatch &try_catch) {
 }
 
 
-static void ReportException(TryCatch &try_catch, bool show_line) {
+static void ReportException(Handle<Value> er, Handle<Message> message) {
   HandleScope scope(node_isolate);
 
-  if (show_line) DisplayExceptionLine(try_catch);
+  DisplayExceptionLine(message);
 
-  String::Utf8Value trace(try_catch.StackTrace());
+  Local<Value> trace_value(er->ToObject()->Get(String::New("stack")));
+  String::Utf8Value trace(trace_value);
 
   // range errors have a trace member set to undefined
-  if (trace.length() > 0 && !try_catch.StackTrace()->IsUndefined()) {
+  if (trace.length() > 0 && !trace_value->IsUndefined()) {
     fprintf(stderr, "%s\n", *trace);
   } else {
     // this really only happens for RangeErrors, since they're the only
     // kind that won't have all this info in the trace, or when non-Error
     // objects are thrown manually.
-    Local<Value> er = try_catch.Exception();
     bool isErrorObject = er->IsObject() &&
       !(er->ToObject()->Get(String::New("message"))->IsUndefined()) &&
       !(er->ToObject()->Get(String::New("name"))->IsUndefined());
@@ -1229,20 +1221,30 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
   fflush(stderr);
 }
 
+
+static void ReportException(TryCatch& try_catch) {
+  ReportException(try_catch.Exception(), try_catch.Message());
+}
+
+
 // Executes a str within the current v8 context.
 Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
   HandleScope scope(node_isolate);
   TryCatch try_catch;
 
+  // try_catch must be nonverbose to disable FatalException() handler,
+  // we will handle exceptions ourself.
+  try_catch.SetVerbose(false);
+
   Local<v8::Script> script = v8::Script::Compile(source, filename);
   if (script.IsEmpty()) {
-    ReportException(try_catch, true);
+    ReportException(try_catch);
     exit(3);
   }
 
   Local<Value> result = script->Run();
   if (result.IsEmpty()) {
-    ReportException(try_catch, true);
+    ReportException(try_catch);
     exit(4);
   }
 
@@ -1869,7 +1871,8 @@ static void OnFatalError(const char* location, const char* message) {
   exit(5);
 }
 
-void FatalException(TryCatch &try_catch) {
+
+void FatalException(Handle<Value> error, Handle<Message> message) {
   HandleScope scope(node_isolate);
 
   if (fatal_exception_symbol.IsEmpty())
@@ -1880,30 +1883,45 @@ void FatalException(TryCatch &try_catch) {
   if (!fatal_v->IsFunction()) {
     // failed before the process._fatalException function was added!
     // this is probably pretty bad.  Nothing to do but report and exit.
-    ReportException(try_catch, true);
+    ReportException(error, message);
     exit(6);
   }
 
   Local<Function> fatal_f = Local<Function>::Cast(fatal_v);
 
-  Local<Value> error = try_catch.Exception();
-  Local<Value> argv[] = { error };
-
   TryCatch fatal_try_catch;
 
+  // Do not call FatalException when _fatalException handler throws
+  fatal_try_catch.SetVerbose(false);
+
   // this will return true if the JS layer handled it, false otherwise
-  Local<Value> caught = fatal_f->Call(process, ARRAY_SIZE(argv), argv);
+  Local<Value> caught = fatal_f->Call(process, 1, &error);
 
   if (fatal_try_catch.HasCaught()) {
     // the fatal exception function threw, so we must exit
-    ReportException(fatal_try_catch, true);
+    ReportException(fatal_try_catch);
     exit(7);
   }
 
   if (false == caught->BooleanValue()) {
-    ReportException(try_catch, true);
+    ReportException(error, message);
     exit(8);
   }
+}
+
+
+void FatalException(TryCatch& try_catch) {
+  HandleScope scope(node_isolate);
+  // TODO do not call FatalException if try_catch is verbose
+  // (requires V8 API to expose getter for try_catch.is_verbose_)
+  FatalException(try_catch.Exception(), try_catch.Message());
+}
+
+
+void OnMessage(Handle<Message> message, Handle<Value> error) {
+  // The current version of V8 sends messages for errors only
+  // (thus `error` is always set).
+  FatalException(error, message);
 }
 
 
@@ -2416,10 +2434,15 @@ void Load(Handle<Object> process_l) {
 
   TryCatch try_catch;
 
+  // Disable verbose mode to stop FatalException() handler from trying
+  // to handle the exception. Errors this early in the start-up phase
+  // are not safe to ignore.
+  try_catch.SetVerbose(false);
+
   Local<Value> f_value = ExecuteString(MainSource(),
                                        IMMUTABLE_STRING("node.js"));
   if (try_catch.HasCaught())  {
-    ReportException(try_catch, true);
+    ReportException(try_catch);
     exit(10);
   }
   assert(f_value->IsFunction());
@@ -2445,11 +2468,15 @@ void Load(Handle<Object> process_l) {
   InitPerfCounters(global);
 #endif
 
-  f->Call(global, 1, args);
+  // Enable handling of uncaught exceptions
+  // (FatalException(), break on uncaught exception in debugger)
+  //
+  // This is not strictly necessary since it's almost impossible
+  // to attach the debugger fast enought to break on exception
+  // thrown during process startup.
+  try_catch.SetVerbose(true);
 
-  if (try_catch.HasCaught())  {
-    FatalException(try_catch);
-  }
+  f->Call(global, 1, args);
 }
 
 static void PrintHelp();
@@ -2936,6 +2963,7 @@ char** Init(int argc, char *argv[]) {
   uv_idle_init(uv_default_loop(), &idle_immediate_dummy);
 
   V8::SetFatalErrorHandler(node::OnFatalError);
+  V8::AddMessageListener(OnMessage);
 
   // If the --debug flag was specified then initialize the debug thread.
   if (use_debug_agent) {
