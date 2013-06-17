@@ -87,7 +87,9 @@ class NodeBIO {
   }
 
  protected:
-  static const size_t kBufferLength = 16 * 1024;
+  // NOTE: Size is maximum TLS frame length, this is required if we want
+  // to fit whole ClientHello into one Buffer of NodeBIO.
+  static const size_t kBufferLength = 16 * 1024 + 5;
 
   class Buffer {
    public:

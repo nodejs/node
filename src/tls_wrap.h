@@ -61,7 +61,24 @@ class TLSCallbacks : public StreamWrapCallbacks {
 
  protected:
   static const int kClearOutChunkSize = 1024;
+  static const size_t kMaxTLSFrameLen = 16 * 1024 + 5;
 
+  // ClientHello parser types
+  enum ParseState {
+    kParseWaiting,
+    kParseTLSHeader,
+    kParseSSLHeader,
+    kParsePaused,
+    kParseEnded
+  };
+
+  struct HelloState {
+    ParseState state;
+    size_t frame_len;
+    size_t body_offset;
+  };
+
+  // Write callback queue's item
   class WriteItem {
    public:
     WriteItem(WriteWrap* w, uv_write_cb cb) : w_(w), cb_(cb) {
@@ -86,6 +103,18 @@ class TLSCallbacks : public StreamWrapCallbacks {
   bool ClearIn();
   void ClearOut();
   void InvokeQueued(int status);
+  void ParseClientHello();
+
+  inline void ParseFinish() {
+    hello_.state = kParseEnded;
+    Cycle();
+  }
+
+  inline void Cycle() {
+    ClearIn();
+    ClearOut();
+    EncOut();
+  }
 
   v8::Handle<v8::Value> GetSSLError(int status, int* err);
 
@@ -99,6 +128,14 @@ class TLSCallbacks : public StreamWrapCallbacks {
   static v8::Handle<v8::Value> VerifyError(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetVerifyMode(const v8::Arguments& args);
   static v8::Handle<v8::Value> IsSessionReused(const v8::Arguments& args);
+  static v8::Handle<v8::Value> EnableSessionCallbacks(const v8::Arguments& args);
+
+  // TLS Session API
+  static SSL_SESSION* GetSessionCallback(SSL* s,
+                                         unsigned char* key,
+                                         int len,
+                                         int* copy);
+  static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   static v8::Handle<v8::Value> GetNegotiatedProto(const v8::Arguments& args);
@@ -134,9 +171,13 @@ class TLSCallbacks : public StreamWrapCallbacks {
   size_t write_queue_size_;
   QUEUE write_item_queue_;
   WriteItem* pending_write_item_;
+  HelloState hello_;
+  int hello_body_;
   bool started_;
   bool established_;
   bool shutdown_;
+  bool session_callbacks_;
+  SSL_SESSION* next_sess_;
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   v8::Persistent<v8::Object> npn_protos_;

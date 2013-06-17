@@ -60,8 +60,9 @@ class SecureContext : ObjectWrap {
   // TODO: ca_store_ should probably be removed, it's not used anywhere.
   X509_STORE *ca_store_;
 
- protected:
   static const int kMaxSessionSize = 10 * 1024;
+
+ protected:
 
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
   static v8::Handle<v8::Value> Init(const v8::Arguments& args);
