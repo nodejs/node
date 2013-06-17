@@ -26,24 +26,23 @@
 
 namespace node {
 
-using v8::Context;
-using v8::Script;
-using v8::Value;
-using v8::Handle;
-using v8::HandleScope;
-using v8::Object;
 using v8::Arguments;
-using v8::ThrowException;
-using v8::TryCatch;
-using v8::String;
-using v8::Exception;
-using v8::Local;
 using v8::Array;
-using v8::Persistent;
-using v8::Integer;
+using v8::Context;
+using v8::Exception;
 using v8::Function;
 using v8::FunctionTemplate;
+using v8::Handle;
+using v8::HandleScope;
+using v8::Local;
+using v8::Object;
+using v8::Persistent;
+using v8::Script;
+using v8::String;
+using v8::ThrowException;
+using v8::TryCatch;
 using v8::V8;
+using v8::Value;
 
 
 class WrappedContext : ObjectWrap {

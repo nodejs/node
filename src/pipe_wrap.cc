@@ -31,7 +31,6 @@ namespace node {
 
 using v8::Arguments;
 using v8::Boolean;
-using v8::Context;
 using v8::Function;
 using v8::FunctionTemplate;
 using v8::Handle;
@@ -42,7 +41,6 @@ using v8::Object;
 using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::String;
-using v8::TryCatch;
 using v8::Value;
 
 extern Persistent<FunctionTemplate> pipeConstructorTmpl;

@@ -31,9 +31,9 @@
 
 namespace {
 
+using node::ThrowError;
 using node::ThrowRangeError;
 using node::ThrowTypeError;
-using node::ThrowError;
 
 struct BatchedMethods {
   const char* name;

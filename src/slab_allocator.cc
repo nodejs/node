@@ -36,8 +36,8 @@ using v8::Null;
 using v8::Object;
 using v8::Persistent;
 using v8::String;
-using v8::Value;
 using v8::V8;
+using v8::Value;
 
 
 namespace node {
