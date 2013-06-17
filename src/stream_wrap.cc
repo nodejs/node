@@ -200,7 +200,6 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
     }
   }
 
-  assert(buf.base != NULL);
   wrap->callbacks_->DoRead(handle, nread, buf, pending);
 }
 
