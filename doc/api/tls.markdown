@@ -331,7 +331,7 @@ Or
 
 ## tls.createSecurePair([credentials], [isServer], [requestCert], [rejectUnauthorized])
 
-** Deprecated **
+    Stability: 0 - Deprecated. Use tls.TLSSocket instead.
 
 Creates a new secure pair object with two streams, one of which reads/writes
 encrypted data, and one reads/writes cleartext data.
@@ -445,7 +445,7 @@ The number of concurrent connections on the server.
 
 ## Class: CryptoStream
 
-** Deprecated **
+    Stability: 0 - Deprecated. Use tls.TLSSocket instead.
 
 This is an encrypted stream.
 
