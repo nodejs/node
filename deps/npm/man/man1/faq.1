@@ -89,56 +89,6 @@ Write your own package manager, then\.  It\'s not that hard\.
 .P
 npm will not help you do something that is known to be a bad idea\.
 .
-.SH "<code>&quot;node_modules&quot;</code>"
-No\.  This will never happen\.  This question comes up sometimes,
-because it seems silly from the outside that npm couldn\'t just be
-configured to put stuff somewhere else, and then npm could load them
-from there\.  It\'s an arbitrary spelling choice, right?  What\'s the big
-deal?
-.
-.P
-At the time of this writing, the string \fB\'node_modules\'\fR appears 151
-times in 53 separate files in npm and node core (excluding tests and
-documentation)\.
-.
-.P
-Some of these references are in node\'s built\-in module loader\.  Since
-npm is not involved \fBat all\fR at run\-time, node itself would have to
-be configured to know where you\'ve decided to stick stuff\.  Complexity
-hurdle #1\.  Since the Node module system is locked, this cannot be
-changed, and is enough to kill this request\.  But I\'ll continue, in
-deference to your deity\'s delicate feelings regarding spelling\.
-.
-.P
-Many of the others are in dependencies that npm uses, which are not
-necessarily tightly coupled to npm (in the sense that they do not read
-npm\'s configuration files, etc\.)  Each of these would have to be
-configured to take the name of the \fBnode_modules\fR folder as a
-parameter\.  Complexity hurdle #2\.
-.
-.P
-Furthermore, npm has the ability to "bundle" dependencies by adding
-the dep names to the \fB"bundledDependencies"\fR list in package\.json,
-which causes the folder to be included in the package tarball\.  What
-if the author of a module bundles its dependencies, and they use a
-different spelling for \fBnode_modules\fR?  npm would have to rename the
-folder at publish time, and then be smart enough to unpack it using
-your locally configured name\.  Complexity hurdle #3\.
-.
-.P
-Furthermore, what happens when you \fIchange\fR this name?  Fine, it\'s
-easy enough the first time, just rename the \fBnode_modules\fR folders to \fB\|\./blergyblerp/\fR or whatever name you choose\.  But what about when you
-change it again?  npm doesn\'t currently track any state about past
-configuration settings, so this would be rather difficult to do
-properly\.  It would have to track every previous value for this
-config, and always accept any of them, or else yesterday\'s install may
-be broken tomorrow\.  Complexity hurdle #5\.
-.
-.P
-Never going to happen\.  The folder is named \fBnode_modules\fR\|\.  It is
-written indelibly in the Node Way, handed down from the ancient times
-of Node 0\.3\.
-.
 .SH "Should I check my "
 Mikeal Rogers answered this question very well:
 .
@@ -286,6 +236,116 @@ git+https://user@hostname/project/blah\.git#commit\-ish
 The \fBcommit\-ish\fR can be any tag, sha, or branch which can be supplied as
 an argument to \fBgit checkout\fR\|\.  The default is \fBmaster\fR\|\.
 .
+.SH "What is a "
+A module is anything that can be loaded with \fBrequire()\fR in a Node\.js
+program\.  The following things are all examples of things that can be
+loaded as modules:
+.
+.IP "\(bu" 4
+A folder with a \fBpackage\.json\fR file containing a \fBmain\fR field\.
+.
+.IP "\(bu" 4
+A folder with an \fBindex\.js\fR file in it\.
+.
+.IP "\(bu" 4
+A JavaScript file\.
+.
+.IP "" 0
+.
+.P
+Most npm packages are modules, because they are libraries that you
+load with \fBrequire\fR\|\.  However, there\'s no requirement that an npm
+package be a module!  Some only contain an executable command\-line
+interface, and don\'t provide a \fBmain\fR field for use in Node programs\.
+.
+.P
+Almost all npm packages (at least, those that are Node programs) \fIcontain\fR many modules within them (because every file they load with \fBrequire()\fR is a module)\.
+.
+.P
+In the context of a Node program, the \fBmodule\fR is also the thing that
+was loaded \fIfrom\fR a file\.  For example, in the following program:
+.
+.IP "" 4
+.
+.nf
+var req = require(\'request\')
+.
+.fi
+.
+.IP "" 0
+.
+.P
+we might say that "The variable \fBreq\fR refers to the \fBrequest\fR module"\.
+.
+.SH "So, why is it the &quot;"
+The \fBpackage\.json\fR file defines the package\.  (See "What is a
+package?" above\.)
+.
+.P
+The \fBnode_modules\fR folder is the place Node\.js looks for modules\.
+(See "What is a module?" above\.)
+.
+.P
+For example, if you create a file at \fBnode_modules/foo\.js\fR and then
+had a program that did \fBvar f = require(\'foo\.js\')\fR then it would load
+the module\.  However, \fBfoo\.js\fR is not a "package" in this case,
+because it does not have a package\.json\.
+.
+.P
+Alternatively, if you create a package which does not have an \fBindex\.js\fR or a \fB"main"\fR field in the \fBpackage\.json\fR file, then it is
+not a module\.  Even if it\'s installed in \fBnode_modules\fR, it can\'t be
+an argument to \fBrequire()\fR\|\.
+.
+.SH "<code>&quot;node_modules&quot;</code>"
+No\.  This will never happen\.  This question comes up sometimes,
+because it seems silly from the outside that npm couldn\'t just be
+configured to put stuff somewhere else, and then npm could load them
+from there\.  It\'s an arbitrary spelling choice, right?  What\'s the big
+deal?
+.
+.P
+At the time of this writing, the string \fB\'node_modules\'\fR appears 151
+times in 53 separate files in npm and node core (excluding tests and
+documentation)\.
+.
+.P
+Some of these references are in node\'s built\-in module loader\.  Since
+npm is not involved \fBat all\fR at run\-time, node itself would have to
+be configured to know where you\'ve decided to stick stuff\.  Complexity
+hurdle #1\.  Since the Node module system is locked, this cannot be
+changed, and is enough to kill this request\.  But I\'ll continue, in
+deference to your deity\'s delicate feelings regarding spelling\.
+.
+.P
+Many of the others are in dependencies that npm uses, which are not
+necessarily tightly coupled to npm (in the sense that they do not read
+npm\'s configuration files, etc\.)  Each of these would have to be
+configured to take the name of the \fBnode_modules\fR folder as a
+parameter\.  Complexity hurdle #2\.
+.
+.P
+Furthermore, npm has the ability to "bundle" dependencies by adding
+the dep names to the \fB"bundledDependencies"\fR list in package\.json,
+which causes the folder to be included in the package tarball\.  What
+if the author of a module bundles its dependencies, and they use a
+different spelling for \fBnode_modules\fR?  npm would have to rename the
+folder at publish time, and then be smart enough to unpack it using
+your locally configured name\.  Complexity hurdle #3\.
+.
+.P
+Furthermore, what happens when you \fIchange\fR this name?  Fine, it\'s
+easy enough the first time, just rename the \fBnode_modules\fR folders to \fB\|\./blergyblerp/\fR or whatever name you choose\.  But what about when you
+change it again?  npm doesn\'t currently track any state about past
+configuration settings, so this would be rather difficult to do
+properly\.  It would have to track every previous value for this
+config, and always accept any of them, or else yesterday\'s install may
+be broken tomorrow\.  Complexity hurdle #5\.
+.
+.P
+Never going to happen\.  The folder is named \fBnode_modules\fR\|\.  It is
+written indelibly in the Node Way, handed down from the ancient times
+of Node 0\.3\.
+.
 .SH "How do I install node with npm?"
 You don\'t\.  Try one of these node version managers:
 .
@@ -335,10 +395,6 @@ See \fBnpm help link\fR
 .SH "The package registry website\.  What is that exactly?"
 See \fBnpm help registry\fR\|\.
 .
-.SH "What&#39;s up with the insecure channel warnings?"
-Until node 0\.4\.10, there were problems sending big files over HTTPS\.  That
-means that publishes go over HTTP by default in those versions of node\.
-.
 .SH "I forgot my password, and can&#39;t publish\.  How do I reset it?"
 Go to \fIhttps://npmjs\.org/forgot\fR\|\.
 .
@@ -351,8 +407,9 @@ in a web browser\.  This will also tell you if you are just unable to
 access the internet for some reason\.
 .
 .P
-If the registry IS down, let me know by emailing or posting an issue\.
-We\'ll have someone kick it or something\.
+If the registry IS down, let me know by emailing \fIi@izs\.me\fR or posting
+an issue at \fIhttps://github\.com/isaacs/npm/issues\fR\|\.  We\'ll have
+someone kick it or something\.
 .
 .SH "Why no namespaces?"
 Please see this discussion: \fIhttps://github\.com/isaacs/npm/issues/798\fR
@@ -371,10 +428,7 @@ There is not sufficient need to impose namespace rules on everyone\.
 \fBnpm view npm contributors\fR
 .
 .SH "I have a question or request not addressed here\. Where should I put it?"
-Discuss it on the mailing list, or post an issue\.
-.
-.IP "\(bu" 4
-\fInpm\-@googlegroups\.com\fR
+Post an issue on the github project:
 .
 .IP "\(bu" 4
 \fIhttps://github\.com/isaacs/npm/issues\fR

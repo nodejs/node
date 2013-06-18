@@ -2,17 +2,31 @@ exports.email = email
 exports.pw = pw
 exports.username = username
 
+var requirements = exports.requirements = {
+  username: {
+    lowerCase: 'Username must be lowercase',
+    urlSafe: 'Username may not contain non-url-safe chars',
+    dot: 'Username may not start with "."'
+  },
+  password: {
+    badchars: 'Password passwords cannot contain these characters: \'!:@"'
+  },
+  email: {
+    valid: 'Email must be an email address'
+  }
+};
+
 function username (un) {
   if (un !== un.toLowerCase()) {
-    return new Error('Username must be lowercase')
+    return new Error(requirements.username.lowerCase)
   }
 
   if (un !== encodeURIComponent(un)) {
-    return new Error('Username may not contain non-url-safe chars')
+    return new Error(requirements.username.urlSafe)
   }
 
   if (un.charAt(0) === '.') {
-    return new Error('Username may not start with "."')
+    return new Error(requirements.username.dot)
   }
 
   return null
@@ -20,7 +34,7 @@ function username (un) {
 
 function email (em) {
   if (!em.match(/^.+@.+\..+$/)) {
-    return new Error('Email must be an email address')
+    return new Error(requirements.email.valid)
   }
 
   return null
@@ -28,7 +42,7 @@ function email (em) {
 
 function pw (pw) {
   if (pw.match(/['!:@"]/)) {
-    return new Error('Sorry, passwords cannot contain these characters: \'!:@"')
+    return new Error(requirements.password.badchars)
   }
 
   return null

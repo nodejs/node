@@ -1,5 +1,5 @@
 {
-  "version": "1.2.30",
+  "version": "1.2.32",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -62,7 +62,7 @@
     "read-package-json": "~0.4.1",
     "read-installed": "0",
     "glob": "~3.2.1",
-    "init-package-json": "0.0.8",
+    "init-package-json": "0.0.9",
     "osenv": "0",
     "lockfile": "~0.3.2",
     "retry": "~0.6.0",
@@ -74,7 +74,8 @@
     "sha": "~1.0.1",
     "editor": "0.0.4",
     "child-process-close": "~0.1.1",
-    "npm-user-validate": "0"
+    "npm-user-validate": "0.0.3",
+    "normalize-package-data": "~0.1.7"
   },
   "bundleDependencies": [
     "semver",
@@ -117,7 +118,8 @@
     "sha",
     "child-process-close",
     "editor",
-    "npm-user-validate"
+    "npm-user-validate",
+    "normalize-package-data"
   ],
   "devDependencies": {
     "ronn": "~0.3.6",

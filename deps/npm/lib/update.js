@@ -27,12 +27,16 @@ function update (args, cb) {
     if (er) return cb(er)
 
     asyncMap(outdated, function (ww, cb) {
-      // [[ dir, dep, has, want ]]
+      // [[ dir, dep, has, want, req ]]
       var where = ww[0]
         , dep = ww[1]
         , want = ww[3]
         , what = dep + "@" + want
+        , req = ww[4]
+        , url = require('url')
 
+      // use the initial installation method (repo, tar, git) for updating
+      if (url.parse(req).protocol) what = req
       npm.commands.install(where, what, cb)
     }, cb)
   })

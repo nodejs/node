@@ -163,6 +163,7 @@ var commandCache = {}
                , "unbuild"
                , "xmas"
                , "substack"
+               , "visnup"
                ]
   , fullList = npm.fullList = cmdList.concat(aliasNames).filter(function (c) {
       return plumbing.indexOf(c) === -1

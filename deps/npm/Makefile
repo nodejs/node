@@ -102,9 +102,10 @@ test:
 	node cli.js test
 
 publish: link doc
-	@git push origin :v$(shell npm -v) || true
-	@npm unpublish npm@$(shell npm -v) || true
-	git clean -fd
+	@git push origin :v$(shell npm -v) 2>&1 || true
+	@npm unpublish npm@$(shell npm -v) 2>&1 || true
+	git clean -fd &&\
+	git push origin &&\
 	git push origin --tags &&\
 	npm publish &&\
 	npm tag npm@$(shell npm -v) $(shell npm -v | awk -F. '{print $$1 "." $$2}') &&\

@@ -138,7 +138,7 @@ function shouldUpdate (args, dir, dep, has, req, cb) {
   }
 
   function doIt (shouldHave) {
-    cb(null, [[ dir, dep, has[dep], shouldHave ]])
+    cb(null, [[ dir, dep, has[dep], shouldHave, req ]])
   }
 
   if (args.length && args.indexOf(dep) === -1) {

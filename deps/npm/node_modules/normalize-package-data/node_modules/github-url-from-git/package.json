@@ -1,0 +1,27 @@
+{
+  "name": "github-url-from-git",
+  "version": "1.1.1",
+  "description": "Parse a github git url and return the github repo url",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha test.js --reporter spec --require should"
+  },
+  "repository": "",
+  "keywords": [
+    "github",
+    "git",
+    "url",
+    "parser"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "better-assert": "~1.0.0",
+    "mocha": "~1.9.0",
+    "should": "~1.2.2"
+  },
+  "readme": "\n# github-url-from-git\n\n```js\ndescribe('parse(url)', function(){\n  it('should support git://*', function(){\n    var url = 'git://github.com/jamesor/mongoose-versioner';\n    parse(url).should.equal('https://github.com/jamesor/mongoose-versioner');\n  })\n\n  it('should support git://*.git', function(){\n    var url = 'git://github.com/treygriffith/cellar.git';\n    parse(url).should.equal('https://github.com/treygriffith/cellar');\n  })\n\n  it('should support https://*', function(){\n    var url = 'https://github.com/Empeeric/i18n-node';\n    parse(url).should.equal('https://github.com/Empeeric/i18n-node');\n  })\n\n  it('should support https://*.git', function(){\n    var url = 'https://jpillora@github.com/banchee/tranquil.git';\n    parse(url).should.equal('https://github.com/banchee/tranquil');\n  })\n\n  it('should return undefined on failure', function(){\n    var url = 'git://github.com/justgord/.git';\n    assert(null == parse(url));\n  })\n\n  it('should parse git@gist urls', function() {\n    var url = 'git@gist.github.com:3135914.git';\n    parse(url).should.equal('https://gist.github.com/3135914')\n  })\n\n  it('should parse https://gist urls', function() {\n    var url = 'https://gist.github.com/3135914.git';\n    parse(url).should.equal('https://gist.github.com/3135914')\n  })\n})\n```\n",
+  "readmeFilename": "Readme.md",
+  "_id": "github-url-from-git@1.1.1",
+  "_from": "github-url-from-git@~1.1.1"
+}
