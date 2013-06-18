@@ -1,4 +1,19 @@
-2013.06.13, Version 0.10.11 (Stable)
+2013.06.18, Version 0.10.12 (Stable)
+
+* npm: Upgrade to 1.2.32
+
+* readline: make `ctrl + L` clear the screen (Yuan Chuan)
+
+* v8: add setVariableValue debugger command (Ben Noordhuis)
+
+* net: Do not destroy socket mid-write (isaacs)
+
+* v8: fix build for mips32r2 architecture (Andrei Sedoi)
+
+* configure: fix cross-compilation host_arch_cc() (Andrei Sedoi)
+
+
+2013.06.13, Version 0.10.11 (Stable), d9d5bc465450ae5d60da32e9ffcf71c2767f1fad
 
 * uv: upgrade to 0.10.11
 
