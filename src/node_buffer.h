@@ -42,7 +42,8 @@ NODE_EXTERN size_t Length(v8::Handle<v8::Object> val);
 // public constructor
 NODE_EXTERN v8::Local<v8::Object> New(size_t length);
 // public constructor from string
-NODE_EXTERN v8::Local<v8::Object> New(v8::Handle<v8::String> string);
+NODE_EXTERN v8::Local<v8::Object> New(v8::Handle<v8::String> string,
+                                      enum encoding enc = UTF8);
 // public constructor - data is copied
 // TODO(trevnorris): should be something like Copy()
 NODE_EXTERN v8::Local<v8::Object> New(const char* data, size_t len);

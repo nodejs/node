@@ -113,15 +113,16 @@ size_t Length(Handle<Object> obj) {
 }
 
 
-// TODO(trevnorris): would be more efficient to use StringBytes to calculate the
-// length and write out the data beforehand then do the same as New().
-Local<Object> New(Handle<String> string) {
+Local<Object> New(Handle<String> string, enum encoding enc) {
   HandleScope scope(node_isolate);
 
-  Handle<Value> argv[1] = { string };
-  Local<Object> obj = p_buffer_fn->NewInstance(1, argv);
+  size_t length = StringBytes::Size(string, enc);
 
-  return scope.Close(obj);
+  Local<Object> buf = New(length);
+  char* data = Buffer::Data(buf);
+  StringBytes::Write(data, length, string, enc);
+
+  return scope.Close(buf);
 }
 
 
