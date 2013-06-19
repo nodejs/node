@@ -22,7 +22,6 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "handle_wrap.h"
-#include "slab_allocator.h"
 #include "stream_wrap.h"
 #include "pipe_wrap.h"
 #include "tcp_wrap.h"
@@ -32,8 +31,6 @@
 
 #include <stdlib.h> // abort()
 #include <limits.h> // INT_MAX
-
-#define SLAB_SIZE (1024 * 1024)
 
 
 namespace node {
@@ -49,6 +46,7 @@ using v8::Number;
 using v8::Object;
 using v8::Persistent;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 
@@ -58,22 +56,12 @@ static Persistent<String> write_queue_size_sym;
 static Persistent<String> onread_sym;
 static Persistent<String> oncomplete_sym;
 static Persistent<String> handle_sym;
-static SlabAllocator* slab_allocator;
 static bool initialized;
-
-
-static void DeleteSlabAllocator(void*) {
-  delete slab_allocator;
-  slab_allocator = NULL;
-}
 
 
 void StreamWrap::Initialize(Handle<Object> target) {
   if (initialized) return;
   initialized = true;
-
-  slab_allocator = new SlabAllocator(SLAB_SIZE);
-  AtExit(DeleteSlabAllocator, NULL);
 
   HandleScope scope(node_isolate);
 
@@ -592,8 +580,7 @@ void StreamWrapCallbacks::AfterWrite(WriteWrap* w) {
 
 uv_buf_t StreamWrapCallbacks::DoAlloc(uv_handle_t* handle,
                                       size_t suggested_size) {
-  char* buf = slab_allocator->Allocate(wrap_->object_, suggested_size);
-  return uv_buf_init(buf, suggested_size);
+  return uv_buf_init(new char[suggested_size], suggested_size);
 }
 
 
@@ -604,26 +591,30 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
   HandleScope scope(node_isolate);
 
   if (nread < 0)  {
-    // If libuv reports an error or EOF it *may* give us a buffer back. In that
-    // case, return the space to the slab.
     if (buf.base != NULL)
-      slab_allocator->Shrink(Self(), buf.base, 0);
+      delete[] buf.base;
 
     SetErrno(uv_last_error(uv_default_loop()));
     MakeCallback(Self(), onread_sym, 0, NULL);
     return;
   }
 
-  Local<Object> slab = slab_allocator->Shrink(wrap_->object_, buf.base, nread);
+  if (nread == 0) {
+    if (buf.base != NULL)
+      delete[] buf.base;
+    return;
+  }
 
-  if (nread == 0) return;
+  // TODO(trevnorris): not kosher to use new/delete w/ realloc
+  buf.base = static_cast<char*>(realloc(buf.base, nread));
+
   assert(static_cast<size_t>(nread) <= buf.len);
 
   int argc = 3;
   Local<Value> argv[4] = {
-    slab,
-    Integer::NewFromUnsigned(buf.base - Buffer::Data(slab), node_isolate),
-    Integer::NewFromUnsigned(nread, node_isolate)
+    Buffer::Use(buf.base, nread),
+    Uint32::New(0, node_isolate),
+    Uint32::New(nread, node_isolate)
   };
 
   Local<Object> pending_obj;

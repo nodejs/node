@@ -135,8 +135,6 @@ class StreamWrap : public HandleWrap {
   void UpdateWriteQueueSize();
 
  private:
-  static inline char* NewSlab(v8::Handle<v8::Object> global, v8::Handle<v8::Object> wrap_obj);
-
   // Callbacks for libuv
   static void AfterWrite(uv_write_t* req, int status);
   static uv_buf_t OnAlloc(uv_handle_t* handle, size_t suggested_size);
@@ -151,7 +149,6 @@ class StreamWrap : public HandleWrap {
   template <enum encoding encoding>
   static v8::Handle<v8::Value> WriteStringImpl(const v8::Arguments& args);
 
-  size_t slab_offset_;
   uv_stream_t* stream_;
 
   StreamWrapCallbacks default_callbacks_;

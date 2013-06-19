@@ -21,14 +21,11 @@
 
 #include "node.h"
 #include "node_buffer.h"
-#include "slab_allocator.h"
 #include "req_wrap.h"
 #include "handle_wrap.h"
 #include "udp_wrap.h"
 
 #include <stdlib.h>
-
-#define SLAB_SIZE (1024 * 1024)
 
 
 namespace node {
@@ -45,6 +42,7 @@ using v8::Object;
 using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 typedef ReqWrap<uv_udp_send_t> SendWrap;
@@ -56,13 +54,6 @@ static Persistent<Function> constructor;
 static Persistent<String> buffer_sym;
 static Persistent<String> oncomplete_sym;
 static Persistent<String> onmessage_sym;
-static SlabAllocator* slab_allocator;
-
-
-static void DeleteSlabAllocator(void*) {
-  delete slab_allocator;
-  slab_allocator = NULL;
-}
 
 
 UDPWrap::UDPWrap(Handle<Object> object)
@@ -78,9 +69,6 @@ UDPWrap::~UDPWrap() {
 
 void UDPWrap::Initialize(Handle<Object> target) {
   HandleWrap::Initialize(target);
-
-  slab_allocator = new SlabAllocator(SLAB_SIZE);
-  AtExit(DeleteSlabAllocator, NULL);
 
   HandleScope scope(node_isolate);
 
@@ -383,9 +371,7 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
 
 
 uv_buf_t UDPWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size) {
-  UDPWrap* wrap = static_cast<UDPWrap*>(handle->data);
-  char* buf = slab_allocator->Allocate(wrap->object_, suggested_size);
-  return uv_buf_init(buf, suggested_size);
+  return uv_buf_init(new char[suggested_size], suggested_size);
 }
 
 
@@ -397,23 +383,30 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   HandleScope scope(node_isolate);
 
   UDPWrap* wrap = reinterpret_cast<UDPWrap*>(handle->data);
-  Local<Object> slab = slab_allocator->Shrink(wrap->object_,
-                                              buf.base,
-                                              nread < 0 ? 0 : nread);
-  if (nread == 0) return;
 
   if (nread < 0) {
+    if (buf.base != NULL)
+      delete[] buf.base;
     Local<Value> argv[] = { Local<Object>::New(node_isolate, wrap->object_) };
     SetErrno(uv_last_error(uv_default_loop()));
     MakeCallback(wrap->object_, onmessage_sym, ARRAY_SIZE(argv), argv);
     return;
   }
 
+  if (nread == 0) {
+    if (buf.base != NULL)
+      delete[] buf.base;
+    return;
+  }
+
+  // TODO(trevnorris): not kosher to use new/delete w/ realloc
+  buf.base = static_cast<char*>(realloc(buf.base, nread));
+
   Local<Value> argv[] = {
     Local<Object>::New(node_isolate, wrap->object_),
-    slab,
-    Integer::NewFromUnsigned(buf.base - Buffer::Data(slab), node_isolate),
-    Integer::NewFromUnsigned(nread, node_isolate),
+    Buffer::Use(buf.base, nread),
+    Uint32::New(0, node_isolate),
+    Uint32::New(nread, node_isolate),
     AddressToJS(addr)
   };
   MakeCallback(wrap->object_, onmessage_sym, ARRAY_SIZE(argv), argv);
