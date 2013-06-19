@@ -209,8 +209,7 @@ size_t NodeBIO::Read(char* out, size_t size) {
       read_head_->write_pos_ = 0;
 
       // But not get beyond write_head_
-      if (length_ != bytes_read) {
-        assert(read_head_ != write_head_);
+      if (length_ != bytes_read && read_head_ != write_head_) {
         read_head_ = read_head_->next_;
       }
     }
