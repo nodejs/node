@@ -250,6 +250,12 @@ parser.add_option("--with-arm-float-abi",
     help="Specifies which floating-point ABI to use. Valid values are: "
          "soft, softfp, hard")
 
+parser.add_option("--with-mips-float-abi",
+    action="store",
+    dest="mips_float_abi",
+    help="Specifies which floating-point ABI to use. Valid values are: "
+         "soft, hard")
+
 parser.add_option("--ninja",
     action="store_true",
     dest="use_ninja",
@@ -441,6 +447,16 @@ def configure_arm(o):
   o['variables']['v8_use_arm_eabi_hardfloat'] = b(hard_float)
 
 
+def configure_mips(o):
+  if options.mips_float_abi:
+    if options.mips_float_abi in ('soft', 'hard'):
+      o['variables']['v8_use_mips_abi_hardfloat'] = b(
+          options.mips_float_abi == 'hard')
+    else:
+      raise Exception(
+          'Invalid mips-float-abi value. Valid values are: soft, hard')
+
+
 def configure_node(o):
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
   o['variables']['v8_no_strict_aliasing'] = 1 # work around compiler bugs
@@ -457,6 +473,8 @@ def configure_node(o):
 
   if target_arch == 'arm':
     configure_arm(o)
+  elif target_arch in ('mips', 'mipsel'):
+    configure_mips(o)
 
   cc_version, is_clang = compiler_version()
   o['variables']['clang'] = 1 if is_clang else 0
