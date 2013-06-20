@@ -1872,6 +1872,13 @@ static void OnFatalError(const char* location, const char* message) {
 }
 
 
+NO_RETURN void FatalError(const char* location, const char* message) {
+  OnFatalError(location, message);
+  // to supress compiler warning
+  abort();
+}
+
+
 void FatalException(Handle<Value> error, Handle<Message> message) {
   HandleScope scope(node_isolate);
 

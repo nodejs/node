@@ -142,7 +142,18 @@ Local<Object> New(size_t length) {
   argv[1] = Uint32::New(length, node_isolate);
   Local<Object> obj = p_buffer_fn->NewInstance(2, argv);
 
-  smalloc::Alloc(obj, new char[length], length);
+  // TODO(trevnorris): done like this to handle HasInstance since only checks
+  // if external array data has been set, but would like to use a better
+  // approach if v8 provided one.
+  char* data;
+  if (length > 0) {
+    data = static_cast<char*>(malloc(length));
+    if (data == NULL)
+      FatalError("node::Buffer::New(size_t)", "Out Of Memory");
+  } else {
+    data = NULL;
+  }
+  smalloc::Alloc(obj, data, length);
 
   return scope.Close(obj);
 }
@@ -163,8 +174,18 @@ Local<Object> New(const char* data, size_t length) {
   argv[1] = Uint32::New(length, node_isolate);
   Local<Object> obj = p_buffer_fn->NewInstance(2, argv);
 
-  char* new_data = new char[length];
-  memcpy(new_data, data, length);
+  // TODO(trevnorris): done like this to handle HasInstance since only checks
+  // if external array data has been set, but would like to use a better
+  // approach if v8 provided one.
+  char* new_data;
+  if (length > 0) {
+    new_data = static_cast<char*>(malloc(length));
+    if (new_data == NULL)
+      FatalError("node::Buffer::New(const char*, size_t)", "Out Of Memory");
+    memcpy(new_data, data, length);
+  } else {
+    new_data = NULL;
+  }
 
   smalloc::Alloc(obj, new_data, length);
 

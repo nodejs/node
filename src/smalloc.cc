@@ -142,14 +142,17 @@ Handle<Value> Alloc(const Arguments& args) {
 void Alloc(Handle<Object> obj, size_t length) {
   assert(length <= kMaxLength);
 
-  char* data = new char[length];
+  if (length == 0)
+    return Alloc(obj, NULL, length);
+
+  char* data = static_cast<char*>(malloc(length));
+  if (data == NULL)
+    FatalError("node::smalloc::Alloc(Handle<Object>, size_t)", "Out Of Memory");
   Alloc(obj, data, length);
 }
 
 
 void Alloc(Handle<Object> obj, char* data, size_t length) {
-  assert(data != NULL);
-
   Persistent<Object> p_obj(node_isolate, obj);
 
   node_isolate->AdjustAmountOfExternalAllocatedMemory(length);
@@ -166,7 +169,7 @@ void TargetCallback(Isolate* isolate, Persistent<Object>* target, char* data) {
   int len = (*target)->GetIndexedPropertiesExternalArrayDataLength();
   if (data != NULL && len > 0) {
     isolate->AdjustAmountOfExternalAllocatedMemory(-len);
-    delete[] data;
+    free(data);
   }
   (*target).Dispose();
   (*target).Clear();
@@ -189,7 +192,7 @@ void AllocDispose(Handle<Object> obj) {
   obj->SetIndexedPropertiesToExternalArrayData(NULL,
                                                kExternalUnsignedByteArray,
                                                0);
-  delete[] data;
+  free(data);
   node_isolate->AdjustAmountOfExternalAllocatedMemory(-length);
 }
 

@@ -580,7 +580,12 @@ void StreamWrapCallbacks::AfterWrite(WriteWrap* w) {
 
 uv_buf_t StreamWrapCallbacks::DoAlloc(uv_handle_t* handle,
                                       size_t suggested_size) {
-  return uv_buf_init(new char[suggested_size], suggested_size);
+  char* data = static_cast<char*>(malloc(suggested_size));
+  if (data == NULL && suggested_size > 0) {
+    FatalError("node::StreamWrapCallbacks::DoAlloc(uv_handle_t*, size_t)",
+               "Out Of Memory");
+  }
+  return uv_buf_init(data, suggested_size);
 }
 
 
@@ -592,8 +597,7 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
 
   if (nread < 0)  {
     if (buf.base != NULL)
-      delete[] buf.base;
-
+      free(buf.base);
     SetErrno(uv_last_error(uv_default_loop()));
     MakeCallback(Self(), onread_sym, 0, NULL);
     return;
@@ -601,11 +605,10 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
 
   if (nread == 0) {
     if (buf.base != NULL)
-      delete[] buf.base;
+      free(buf.base);
     return;
   }
 
-  // TODO(trevnorris): not kosher to use new/delete w/ realloc
   buf.base = static_cast<char*>(realloc(buf.base, nread));
 
   assert(static_cast<size_t>(nread) <= buf.len);

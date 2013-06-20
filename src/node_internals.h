@@ -76,8 +76,10 @@ inline static int snprintf(char* buf, unsigned int len, const char* fmt, ...) {
 
 #if defined(__GNUC__) && __GNUC__ >= 4
 # define MUST_USE_RESULT __attribute__((warn_unused_result))
+# define NO_RETURN __attribute__((noreturn))
 #else
 # define MUST_USE_RESULT
+# define NO_RETURN
 #endif
 
 // this would have been a template function were it not for the fact that g++
@@ -100,6 +102,8 @@ inline static v8::Handle<v8::Value> ThrowTypeError(const char* errmsg) {
 inline static v8::Handle<v8::Value> ThrowRangeError(const char* errmsg) {
   THROW_ERROR(v8::Exception::RangeError);
 }
+
+NO_RETURN void FatalError(const char* location, const char* message);
 
 #define UNWRAP(type)                                                        \
   assert(!args.This().IsEmpty());                                           \
