@@ -27,6 +27,16 @@ var net = require('net');
 // child
 if (process.argv[2] === 'child') {
 
+  // Check that the 'disconnect' event is deferred to the next event loop tick.
+  var disconnect = process.disconnect;
+  process.disconnect = function() {
+    disconnect.apply(this, arguments);
+    // If the event is emitted synchronously, we're too late by now.
+    process.once('disconnect', common.mustCall(disconnectIsNotAsync));
+    // The funky function name makes it show up legible in mustCall errors.
+    function disconnectIsNotAsync() {}
+  };
+
   var server = net.createServer();
 
   server.on('connection', function(socket) {
