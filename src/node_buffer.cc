@@ -91,7 +91,9 @@ bool HasInstance(Handle<Object> obj) {
 
 char* Data(Handle<Value> val) {
   assert(val->IsObject());
-  return Data(val.As<Object>());
+  // Use a fully qualified name here to work around a bug in gcc 4.2.
+  // It mistakes an unadorned call to Data() for the v8::String::Data type.
+  return node::Buffer::Data(val.As<Object>());
 }
 
 
