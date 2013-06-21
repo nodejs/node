@@ -613,11 +613,9 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
 
   assert(static_cast<size_t>(nread) <= buf.len);
 
-  int argc = 3;
-  Local<Value> argv[4] = {
-    Buffer::Use(buf.base, nread),
-    Uint32::New(0, node_isolate),
-    Uint32::New(nread, node_isolate)
+  int argc = 1;
+  Local<Value> argv[2] = {
+    Buffer::Use(buf.base, nread)
   };
 
   Local<Object> pending_obj;
@@ -632,7 +630,7 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
   }
 
   if (!pending_obj.IsEmpty()) {
-    argv[3] = pending_obj;
+    argv[1] = pending_obj;
     argc++;
   }
 

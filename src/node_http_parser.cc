@@ -378,7 +378,7 @@ public:
   }
 
 
-  // var bytesParsed = parser->execute(buffer, off, len);
+  // var bytesParsed = parser->execute(buffer);
   static Handle<Value> Execute(const Arguments& args) {
     HandleScope scope(node_isolate);
 
@@ -403,18 +403,6 @@ public:
     char *buffer_data = Buffer::Data(buffer_obj);
     size_t buffer_len = Buffer::Length(buffer_obj);
 
-    size_t off = args[1]->Int32Value();
-    if (off >= buffer_len) {
-      return ThrowException(Exception::Error(
-            String::New("Offset is out of bounds")));
-    }
-
-    size_t len = args[2]->Int32Value();
-    if (off+len > buffer_len) {
-      return ThrowException(Exception::Error(
-            String::New("off + len > buffer.length")));
-    }
-
     // Assign 'buffer_' while we parse. The callbacks will access that varible.
     current_buffer = &buffer_v;
     current_buffer_data = buffer_data;
@@ -422,7 +410,7 @@ public:
     parser->got_exception_ = false;
 
     size_t nparsed =
-      http_parser_execute(&parser->parser_, &settings, buffer_data + off, len);
+      http_parser_execute(&parser->parser_, &settings, buffer_data, buffer_len);
 
     parser->Save();
 
@@ -437,7 +425,7 @@ public:
     Local<Integer> nparsed_obj = Integer::New(nparsed, node_isolate);
     // If there was a parse error in one of the callbacks
     // TODO What if there is an error on EOF?
-    if (!parser->parser_.upgrade && nparsed != len) {
+    if (!parser->parser_.upgrade && nparsed != buffer_len) {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
 
       Local<Value> e = Exception::Error(String::NewSymbol("Parse Error"));

@@ -49,13 +49,13 @@ server.onconnection = function(client) {
 
   client.readStart();
   client.pendingWrites = [];
-  client.onread = function(buffer, offset, length) {
+  client.onread = function(buffer) {
     if (buffer) {
-      assert.ok(length > 0);
+      assert.ok(buffer.length > 0);
 
       assert.equal(0, client.writeQueueSize);
 
-      var req = client.writeBuffer(buffer.slice(offset, offset + length));
+      var req = client.writeBuffer(buffer);
       client.pendingWrites.push(req);
 
       console.log('client.writeQueueSize: ' + client.writeQueueSize);

@@ -478,13 +478,8 @@ void TLSCallbacks::ClearOut() {
   do {
     read = SSL_read(ssl_, out, sizeof(out));
     if (read > 0) {
-      Local<Value> buff = Buffer::New(out, read);
-      Handle<Value> argv[3] = {
-        buff,
-        Integer::New(0, node_isolate),
-        Integer::New(read, node_isolate)
-      };
-      MakeCallback(Self(), onread_sym, ARRAY_SIZE(argv), argv);
+      Handle<Value> buf = Buffer::New(out, read);
+      MakeCallback(Self(), onread_sym, 1, &buf);
     }
   } while (read > 0);
 

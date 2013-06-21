@@ -409,8 +409,6 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   Local<Value> argv[] = {
     Local<Object>::New(node_isolate, wrap->object_),
     Buffer::Use(buf.base, nread),
-    Uint32::New(0, node_isolate),
-    Uint32::New(nread, node_isolate),
     AddressToJS(addr)
   };
   MakeCallback(wrap->object_, onmessage_sym, ARRAY_SIZE(argv), argv);
