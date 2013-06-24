@@ -511,7 +511,7 @@ you need to compare `curr.mtime` and `prev.mtime`.
 
 ## fs.unwatchFile(filename, [listener])
 
-    Stability: 2 - Unstable.  Use fs.watch instead, if available.
+    Stability: 2 - Unstable.  Use fs.watch instead, if possible.
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
 particular listener is removed. Otherwise, *all* listeners are removed and you
