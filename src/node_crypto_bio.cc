@@ -315,6 +315,7 @@ void NodeBIO::Write(const char* data, size_t size) {
 
     // Go to next buffer if there still are some bytes to write
     if (left != 0) {
+      assert(write_head_->write_pos_ == kBufferLength);
       TryAllocateForWrite();
       write_head_ = write_head_->next_;
     }
@@ -342,7 +343,8 @@ void NodeBIO::Commit(size_t size) {
   // Allocate new buffer if write head is full,
   // and there're no other place to go
   TryAllocateForWrite();
-  write_head_ = write_head_->next_;
+  if (write_head_->write_pos_ == kBufferLength)
+    write_head_ = write_head_->next_;
 }
 
 
