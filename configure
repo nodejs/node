@@ -296,14 +296,11 @@ def pkg_config(pkg):
   return (libs, cflags)
 
 
-def cc_macros(cc=None):
-  """Checks predefined macros using the C compiler command."""
-
-  if cc is None:
-    cc = CC
+def cc_macros():
+  """Checks predefined macros using the CC command."""
 
   try:
-    p = subprocess.Popen(shlex.split(cc) + ['-dM', '-E', '-'],
+    p = subprocess.Popen(shlex.split(CC) + ['-dM', '-E', '-'],
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
@@ -378,9 +375,7 @@ def arm_hard_float_abi():
 def host_arch_cc():
   """Host architecture check using the CC command."""
 
-  # use 'cc', as CC may be set to a target arch compiler command
-  # in case of cross-compilation
-  k = cc_macros('cc')
+  k = cc_macros()
 
   matchup = {
     '__x86_64__'  : 'x64',
