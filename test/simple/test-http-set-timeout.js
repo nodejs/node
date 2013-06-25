@@ -38,7 +38,7 @@ server.listen(common.PORT, function() {
   console.log('Server running at http://127.0.0.1:' + common.PORT + '/');
 
   var errorTimer = setTimeout(function() {
-    throw new Error('Timeout was not sucessful');
+    throw new Error('Timeout was not successful');
   }, 2000);
 
   var x = http.get({port: common.PORT, path: '/'});

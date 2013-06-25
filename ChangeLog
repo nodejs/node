@@ -60,6 +60,73 @@
 * zlib: allow passing options to convenience methods (Kyle Robinson Young)
 
 
+2013.03.28, Version 0.11.0 (Unstable), bce38b3d74e64fcb7d04a2dd551151da6168cdc5
+
+* V8: update to 3.17.13
+
+* os: use %SystemRoot% or %windir% in os.tmpdir() (Suwon Chae)
+
+* util: fix util.inspect() line width calculation (Marcin Kostrzewa)
+
+* buffer: remove _charsWritten (Trevor Norris)
+
+* fs: uv_[fl]stat now reports subsecond resolution (Timothy J Fontaine)
+
+* fs: Throw if error raised and missing callback (bnoordhuis)
+
+* tls: expose SSL_CTX_set_timeout via tls.createServer (Manav Rathi)
+
+* tls: remove harmful unnecessary bounds checking (Marcel Laverdet)
+
+* buffer: write ascii strings using WriteOneByte (Trevor Norris)
+
+* dtrace: fix generation of v8 constants on freebsd (Fedor Indutny)
+
+* dtrace: x64 ustack helper (Fedor Indutny)
+
+* readline: handle wide characters properly (Nao Iizuka)
+
+* repl: Use a domain to catch async errors safely (isaacs)
+
+* repl: emit 'reset' event when context is reset (Sami Samhuri)
+
+* util: custom `inspect()` method may return an Object (Nathan Rajlich)
+
+* console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
+
+
+2013.06.18, Version 0.10.12 (Stable), a088cf4f930d3928c97d239adf950ab43e7794aa
+
+* npm: Upgrade to 1.2.32
+
+* readline: make `ctrl + L` clear the screen (Yuan Chuan)
+
+* v8: add setVariableValue debugger command (Ben Noordhuis)
+
+* net: Do not destroy socket mid-write (isaacs)
+
+* v8: fix build for mips32r2 architecture (Andrei Sedoi)
+
+* configure: fix cross-compilation host_arch_cc() (Andrei Sedoi)
+
+
+2013.06.13, Version 0.10.11 (Stable), d9d5bc465450ae5d60da32e9ffcf71c2767f1fad
+
+* uv: upgrade to 0.10.11
+
+* npm: Upgrade to 1.2.30
+
+* openssl: add missing configuration pieces for MIPS (Andrei Sedoi)
+
+* Revert "http: remove bodyHead from 'upgrade' events" (isaacs)
+
+* v8: fix pointer arithmetic undefined behavior (Trevor Norris)
+
+* crypto: fix utf8/utf-8 encoding check (Ben Noordhuis)
+
+* net: Fix busy loop on POLLERR|POLLHUP on older linux kernels (Ben Noordhuis, isaacs)
+
+
 2013.06.04, Version 0.10.10 (Stable), 25e51c396aa23018603baae2b1d9390f5d9db496
 
 * uv: Upgrade to 0.10.10
@@ -214,41 +281,6 @@
 * crypto: Pass options to ctor calls (isaacs)
 
 * src: tie process.versions.uv to uv_version_string() (Ben Noordhuis)
-
-
-2013.03.28, Version 0.11.0 (Unstable), bce38b3d74e64fcb7d04a2dd551151da6168cdc5
-
-* V8: update to 3.17.13
-
-* os: use %SystemRoot% or %windir% in os.tmpdir() (Suwon Chae)
-
-* util: fix util.inspect() line width calculation (Marcin Kostrzewa)
-
-* buffer: remove _charsWritten (Trevor Norris)
-
-* fs: uv_[fl]stat now reports subsecond resolution (Timothy J Fontaine)
-
-* fs: Throw if error raised and missing callback (bnoordhuis)
-
-* tls: expose SSL_CTX_set_timeout via tls.createServer (Manav Rathi)
-
-* tls: remove harmful unnecessary bounds checking (Marcel Laverdet)
-
-* buffer: write ascii strings using WriteOneByte (Trevor Norris)
-
-* dtrace: fix generation of v8 constants on freebsd (Fedor Indutny)
-
-* dtrace: x64 ustack helper (Fedor Indutny)
-
-* readline: handle wide characters properly (Nao Iizuka)
-
-* repl: Use a domain to catch async errors safely (isaacs)
-
-* repl: emit 'reset' event when context is reset (Sami Samhuri)
-
-* util: custom `inspect()` method may return an Object (Nathan Rajlich)
-
-* console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
 2013.03.28, Version 0.10.2 (Stable), 1e0de9c426e07a260bbec2d2196c2d2db8eb8886
@@ -815,6 +847,13 @@
 * readline: Use one history item for reentered line (Vladimir Beloborodov)
 
 * Fix #3521 Make process.env more like a regular Object (isaacs)
+
+
+2013.06.13, Version 0.8.25 (maintenance), 0b9bdb2bc7e1c872f0ea4713517fda22a4b0b202
+
+* npm: Upgrade to 1.2.30
+
+* child_process: fix handle delivery (Ben Noordhuis)
 
 
 2013.06.04, Version 0.8.24 (maintenance), c1a1ab067721ea17ef7b05ec5c68b01321017f05

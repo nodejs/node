@@ -900,3 +900,18 @@ assert.throws(function() {
   c.update('update');
   c.final();
 })();
+
+// #5655 regression tests, 'utf-8' and 'utf8' are identical.
+(function() {
+  var c = crypto.createCipher('aes192', '0123456789abcdef');
+  c.update('update', '');  // Defaults to "utf8".
+  c.final('utf-8');  // Should not throw.
+
+  c = crypto.createCipher('aes192', '0123456789abcdef');
+  c.update('update', 'utf8');
+  c.final('utf-8');  // Should not throw.
+
+  c = crypto.createCipher('aes192', '0123456789abcdef');
+  c.update('update', 'utf-8');
+  c.final('utf8');  // Should not throw.
+})();

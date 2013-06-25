@@ -456,7 +456,7 @@ static bool contains_non_ascii(const char* src, size_t len) {
   }
 
 
-#if BITS_PER_LONG == 64
+#if defined(__x86_64__) || defined(_WIN64)
   const uintptr_t mask = 0x8080808080808080ll;
 #else
   const uintptr_t mask = 0x80808080l;
@@ -509,7 +509,7 @@ static void force_ascii(const char* src, char* dst, size_t len) {
     }
   }
 
-#if BITS_PER_LONG == 64
+#if defined(__x86_64__) || defined(_WIN64)
   const uintptr_t mask = ~0x8080808080808080ll;
 #else
   const uintptr_t mask = ~0x80808080l;
