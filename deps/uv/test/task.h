@@ -43,6 +43,16 @@
 # define TEST_PIPENAME_2 "/tmp/uv-test-sock2"
 #endif
 
+#ifdef _WIN32
+# include <io.h>
+# ifndef S_IRUSR
+#  define S_IRUSR _S_IREAD
+# endif
+# ifndef S_IWUSR
+#  define S_IWUSR _S_IWRITE
+# endif
+#endif
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 #define container_of(ptr, type, member) \

@@ -70,6 +70,10 @@ Out-of-tree builds are supported:
 
     make builddir_name=/path/to/builddir
 
+To build a shared object:
+
+    make libuv.so  # libuv.dylib on OS X
+
 To build with Visual Studio run the vcbuild.bat file which will
 checkout the GYP code into build/gyp and generate the uv.sln and
 related files.
@@ -105,6 +109,16 @@ Note for UNIX users: compile your project with `-D_LARGEFILE_SOURCE` and
 Note for Linux users: compile your project with `-D_GNU_SOURCE` when you
 include `uv.h`. GYP builds take care of that automatically. If you use
 autotools, add a `AC_GNU_SOURCE` declaration to your `configure.ac`.
+
+To build for android, locate your android NDK path, then run:
+
+    source ./android-configure NDK_PATH
+    make
+
+To build for android with gyp, add "gyp" to the configuration:
+
+    source ./android-configure NDK_PATH gyp
+    make -C out
 
 ## Supported Platforms
 

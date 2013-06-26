@@ -50,7 +50,7 @@ static int uv__tcp_nodelay(uv_tcp_t* handle, SOCKET socket, int enable) {
                  TCP_NODELAY,
                  (const char*)&enable,
                  sizeof enable) == -1) {
-    uv__set_sys_error(handle->loop, errno);
+    uv__set_sys_error(handle->loop, WSAGetLastError());
     return -1;
   }
   return 0;
@@ -63,7 +63,7 @@ static int uv__tcp_keepalive(uv_tcp_t* handle, SOCKET socket, int enable, unsign
                  SO_KEEPALIVE,
                  (const char*)&enable,
                  sizeof enable) == -1) {
-    uv__set_sys_error(handle->loop, errno);
+    uv__set_sys_error(handle->loop, WSAGetLastError());
     return -1;
   }
 
@@ -72,7 +72,7 @@ static int uv__tcp_keepalive(uv_tcp_t* handle, SOCKET socket, int enable, unsign
                            TCP_KEEPALIVE,
                            (const char*)&delay,
                            sizeof delay) == -1) {
-    uv__set_sys_error(handle->loop, errno);
+    uv__set_sys_error(handle->loop, WSAGetLastError());
     return -1;
   }
 

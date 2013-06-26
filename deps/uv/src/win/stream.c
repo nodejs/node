@@ -196,3 +196,13 @@ int uv_is_readable(const uv_stream_t* handle) {
 int uv_is_writable(const uv_stream_t* handle) {
   return !!(handle->flags & UV_HANDLE_WRITABLE);
 }
+
+
+int uv_stream_set_blocking(uv_stream_t* handle, int blocking) {
+  if (blocking != 0)
+    handle->flags |= UV_HANDLE_BLOCKING_WRITES;
+  else
+    handle->flags &= ~UV_HANDLE_BLOCKING_WRITES;
+
+  return 0;
+}

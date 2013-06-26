@@ -58,6 +58,7 @@
 #define UV_HANDLE_SYNC_BYPASS_IOCP              0x00040000
 #define UV_HANDLE_ZERO_READ                     0x00080000
 #define UV_HANDLE_EMULATE_IOCP                  0x00100000
+#define UV_HANDLE_BLOCKING_WRITES               0x00200000
 
 /* Only used by uv_tcp_t handles. */
 #define UV_HANDLE_IPV6                          0x01000000

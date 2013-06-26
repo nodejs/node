@@ -1,4 +1,80 @@
-2013.05.30, Version 0.11.4 (Unstable)
+2013.06.27, Version 0.11.5 (Unstable)
+
+Changes since version 0.11.4:
+
+* build: remove CSTDFLAG, use only CFLAGS (Ben Noordhuis)
+
+* unix: support for android builds (Linus Mårtensson)
+
+* unix: avoid extra read, short-circuit on POLLHUP (Ben Noordhuis)
+
+* uv: support android libuv standalone build (Linus Mårtensson)
+
+* src: make queue.h c++ compatible (Ben Noordhuis)
+
+* unix: s/ngx-queue.h/queue.h/ in checksparse.sh (Ben Noordhuis)
+
+* unix: unconditionally stop handle on close (Ben Noordhuis)
+
+* freebsd: don't enable dtrace if it's not available (Brian White)
+
+* build: make HAVE_DTRACE=0 should disable dtrace (Timothy J. Fontaine)
+
+* unix: remove overzealous assert (Ben Noordhuis)
+
+* unix: remove unused function uv_fatal_error() (Ben Noordhuis)
+
+* unix, windows: clean up uv_thread_create() (Ben Noordhuis)
+
+* queue: fix pointer truncation on LLP64 platforms (Bert Belder)
+
+* build: set OS=="android" for android builds (Linus Mårtensson)
+
+* windows: don't use uppercase in include filename (Ben Noordhuis)
+
+* stream: add an API to make streams do blocking writes (Henry Rawas)
+
+* windows: use WSAGetLastError(), not errno (Ben Noordhuis)
+
+
+2013.06.13, Version 0.10.11 (Stable), c3b75406a66a10222a589cb173e8f469e9665c7e
+
+Changes since version 0.10.10:
+
+* unix: unconditionally stop handle on close (Ben Noordhuis)
+
+* freebsd: don't enable dtrace if it's not available (Brian White)
+
+* build: make HAVE_DTRACE=0 should disable dtrace (Timothy J. Fontaine)
+
+* unix: remove overzealous assert (Ben Noordhuis)
+
+* unix: clear UV_STREAM_SHUTTING after shutdown() (Ben Noordhuis)
+
+* unix: fix busy loop, write if POLLERR or POLLHUP (Ben Noordhuis)
+
+
+2013.06.05, Version 0.10.10 (Stable), 0d95a88bd35fce93863c57a460be613aea34d2c5
+
+Changes since version 0.10.9:
+
+* include: document uv_update_time() and uv_now() (Ben Noordhuis)
+
+* linux: fix cpu model parsing on newer arm kernels (Ben Noordhuis)
+
+* linux: fix a memory leak in uv_cpu_info() error path (Ben Noordhuis)
+
+* linux: don't ignore out-of-memory errors in uv_cpu_info() (Ben Noordhuis)
+
+* unix, windows: move uv_now() to uv-common.c (Ben Noordhuis)
+
+* test: fix a compilation problem in test-osx-select.c that was caused by the
+  use of c-style comments (Bert Belder)
+
+* darwin: use uv_fs_sendfile() use the sendfile api correctly (Wynn Wilkes)
+
+
+2013.05.30, Version 0.11.4 (Unstable), e43e5b3d954a0989db5588aa110e1fe4fe6e0219
 
 Changes since version 0.11.3:
 

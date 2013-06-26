@@ -27,12 +27,12 @@ SPARSE_FLAGS=${SPARSE_FLAGS:-"
 "}
 
 SOURCES="
-include/uv-private/ngx-queue.h
 include/uv-private/tree.h
 include/uv-private/uv-unix.h
 include/uv.h
 src/fs-poll.c
 src/inet.c
+src/queue.h
 src/unix/async.c
 src/unix/core.c
 src/unix/dl.c
@@ -222,7 +222,7 @@ SunOS)
   ;;
 esac
 
-for ARCH in __i386__ __x86_64__ __arm__; do
+for ARCH in __i386__ __x86_64__ __arm__ __mips__; do
   $SPARSE $SPARSE_FLAGS -D$ARCH=1 $SOURCES
 done
 

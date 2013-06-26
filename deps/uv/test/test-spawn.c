@@ -222,7 +222,7 @@ TEST_IMPL(spawn_stdout_to_file) {
   init_process_options("spawn_helper2", exit_cb);
 
   r = uv_fs_open(uv_default_loop(), &fs_req, "stdout_file", O_CREAT | O_RDWR,
-      S_IREAD | S_IWRITE, NULL);
+      S_IRUSR | S_IWUSR, NULL);
   ASSERT(r != -1);
   uv_fs_req_cleanup(&fs_req);
 

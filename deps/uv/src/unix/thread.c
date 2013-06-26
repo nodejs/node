@@ -26,9 +26,7 @@
 #include <assert.h>
 #include <errno.h>
 
-#if defined(__APPLE__) && defined(__MACH__)
 #include <sys/time.h>
-#endif /* defined(__APPLE__) && defined(__MACH__) */
 
 #undef NANOSEC
 #define NANOSEC ((uint64_t) 1e9)
@@ -283,8 +281,10 @@ int uv_cond_init(uv_cond_t* cond) {
   if (pthread_condattr_init(&attr))
     return -1;
 
+#if !defined(__ANDROID__)
   if (pthread_condattr_setclock(&attr, CLOCK_MONOTONIC))
     goto error2;
+#endif
 
   if (pthread_cond_init(cond, &attr))
     goto error2;
@@ -336,7 +336,15 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   timeout += uv__hrtime();
   ts.tv_sec = timeout / NANOSEC;
   ts.tv_nsec = timeout % NANOSEC;
+#if defined(__ANDROID__)
+  /*
+   * The bionic pthread implementation doesn't support CLOCK_MONOTONIC,
+   * but has this alternative function instead.
+   */
+  r = pthread_cond_timedwait_monotonic_np(cond, mutex, &ts);
+#else
   r = pthread_cond_timedwait(cond, mutex, &ts);
+#endif /* __ANDROID__ */
 #endif
 
 

@@ -349,6 +349,8 @@ typedef uv_buf_t (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
  * Trying to read from the stream again is undefined.
  *
  * The callee is responsible for freeing the buffer, libuv does not reuse it.
+ * The buffer may be a null buffer (where buf.base=NULL and buf.len=0) on EOF
+ * or error.
  */
 typedef void (*uv_read_cb)(uv_stream_t* stream, ssize_t nread, uv_buf_t buf);
 
@@ -671,6 +673,31 @@ struct uv_write_s {
  */
 UV_EXTERN int uv_is_readable(const uv_stream_t* handle);
 UV_EXTERN int uv_is_writable(const uv_stream_t* handle);
+
+
+/*
+ * Enable or disable blocking mode for a stream.
+ *
+ * When blocking mode is enabled all writes complete synchronously. The
+ * interface remains unchanged otherwise, e.g. completion or failure of the
+ * operation will still be reported through a callback which is made
+ * asychronously.
+ *
+ * Relying too much on this API is not recommended. It is likely to change
+ * significantly in the future.
+ *
+ * On windows this currently works only for uv_pipe_t instances. On unix it
+ * works for tcp, pipe and tty instances. Be aware that changing the blocking
+ * mode on unix sets or clears the O_NONBLOCK bit. If you are sharing a handle
+ * with another process, the other process is affected by the change too,
+ * which can lead to unexpected results.
+ *
+ * Also libuv currently makes no ordering guarantee when the blocking mode
+ * is changed after write requests have already been submitted. Therefore it is
+ * recommended to set the blocking mode immediately after opening or creating
+ * the stream.
+ */
+UV_EXTERN int uv_stream_set_blocking(uv_stream_t* handle, int blocking);
 
 
 /*
@@ -1869,8 +1896,6 @@ UV_EXTERN extern uint64_t uv_hrtime(void);
  * Note that this function works on a best-effort basis: there is no guarantee
  * that libuv can discover all file descriptors that were inherited. In general
  * it does a better job on Windows than it does on unix.
- *
- * TODO(bb): insert snarky remark to annoy bnoordhuis and the folks at joyent.
  */
 UV_EXTERN void uv_disable_stdio_inheritance(void);
 

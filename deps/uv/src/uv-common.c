@@ -301,37 +301,37 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
   return uv__udp_recv_stop(handle);
 }
 
+
+struct thread_ctx {
+  void (*entry)(void* arg);
+  void* arg;
+};
+
+
 #ifdef _WIN32
-static UINT __stdcall uv__thread_start(void *ctx_v)
+static UINT __stdcall uv__thread_start(void* arg)
 #else
-static void *uv__thread_start(void *ctx_v)
+static void* uv__thread_start(void *arg)
 #endif
 {
-  void (*entry)(void *arg);
-  void *arg;
+  struct thread_ctx *ctx_p;
+  struct thread_ctx ctx;
 
-  struct {
-    void (*entry)(void *arg);
-    void *arg;
-  } *ctx;
-
-  ctx = ctx_v;
-  arg = ctx->arg;
-  entry = ctx->entry;
-  free(ctx);
-  entry(arg);
+  ctx_p = arg;
+  ctx = *ctx_p;
+  free(ctx_p);
+  ctx.entry(ctx.arg);
 
   return 0;
 }
 
 
 int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
-  struct {
-    void (*entry)(void *arg);
-    void *arg;
-  } *ctx;
+  struct thread_ctx* ctx;
+  int err;
 
-  if ((ctx = malloc(sizeof *ctx)) == NULL)
+  ctx = malloc(sizeof(*ctx));
+  if (ctx == NULL)
     return -1;
 
   ctx->entry = entry;
@@ -339,15 +339,15 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
 
 #ifdef _WIN32
   *tid = (HANDLE) _beginthreadex(NULL, 0, uv__thread_start, ctx, 0, NULL);
-  if (*tid == 0) {
+  err = *tid ? 0 : errno;
 #else
-  if (pthread_create(tid, NULL, uv__thread_start, ctx)) {
+  err = pthread_create(tid, NULL, uv__thread_start, ctx);
 #endif
-    free(ctx);
-    return -1;
-  }
 
-  return 0;
+  if (err)
+    free(ctx);
+
+  return err ? -1 : 0;
 }
 
 

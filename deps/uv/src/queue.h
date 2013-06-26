@@ -16,6 +16,8 @@
 #ifndef QUEUE_H_
 #define QUEUE_H_
 
+#include <stdint.h>
+
 typedef void *QUEUE[2];
 
 /* Private macros. */
@@ -26,10 +28,10 @@ typedef void *QUEUE[2];
 
 /* Public macros. */
 #define QUEUE_DATA(ptr, type, field)                                          \
-  ((type *) ((char *) (ptr) - ((long) &((type *) 0)->field)))
+  ((type *) ((char *) (ptr) - ((uintptr_t) &((type *) 0)->field)))
 
 #define QUEUE_FOREACH(q, h)                                                   \
-  for ((q) = (*(h))[0]; (q) != (h); (q) = (*(q))[0])
+  for ((q) = (QUEUE *) (*(h))[0]; (q) != (h); (q) = (QUEUE *) (*(q))[0])
 
 #define QUEUE_EMPTY(q)                                                        \
   (QUEUE_NEXT(q) == (q))

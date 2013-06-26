@@ -1128,6 +1128,13 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
     /* Write the header or the whole frame. */
     memset(&ipc_header_req->overlapped, 0, sizeof(ipc_header_req->overlapped));
 
+    /* Using overlapped IO, but wait for completion before returning.
+       This write is blocking because ipc_frame is on stack. */
+    ipc_header_req->overlapped.hEvent = CreateEvent(NULL, 1, 0, NULL);
+    if (!ipc_header_req->overlapped.hEvent) {
+      uv_fatal_error(GetLastError(), "CreateEvent");
+    }
+
     result = WriteFile(handle->handle,
                         &ipc_frame,
                         ipc_frame.header.flags & UV_IPC_TCP_SERVER ?
@@ -1136,18 +1143,22 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
                         &ipc_header_req->overlapped);
     if (!result && GetLastError() != ERROR_IO_PENDING) {
       uv__set_sys_error(loop, GetLastError());
+      CloseHandle(ipc_header_req->overlapped.hEvent);
       return -1;
     }
 
-    if (result) {
-      /* Request completed immediately. */
-      ipc_header_req->queued_bytes = 0;
-    } else {
-      /* Request queued by the kernel. */
-      ipc_header_req->queued_bytes = ipc_frame.header.flags & UV_IPC_TCP_SERVER ?
-        sizeof(ipc_frame) : sizeof(ipc_frame.header);
-      handle->write_queue_size += ipc_header_req->queued_bytes;
+    if (!result) {
+      /* Request not completed immediately. Wait for it.*/
+      if (WaitForSingleObject(ipc_header_req->overlapped.hEvent, INFINITE) !=
+          WAIT_OBJECT_0) {
+        uv__set_sys_error(loop, GetLastError());
+        CloseHandle(ipc_header_req->overlapped.hEvent);
+        return -1;
+      }
     }
+    ipc_header_req->queued_bytes = 0;
+    CloseHandle(ipc_header_req->overlapped.hEvent);
+    ipc_header_req->overlapped.hEvent = NULL;
 
     REGISTER_HANDLE_REQ(loop, handle, ipc_header_req);
     handle->reqs_pending++;
@@ -1159,7 +1170,29 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
     }
   }
 
-  if (handle->flags & UV_HANDLE_NON_OVERLAPPED_PIPE) {
+  if ((handle->flags &
+      (UV_HANDLE_BLOCKING_WRITES | UV_HANDLE_NON_OVERLAPPED_PIPE)) ==
+      (UV_HANDLE_BLOCKING_WRITES | UV_HANDLE_NON_OVERLAPPED_PIPE)) {
+    DWORD bytes;
+    result = WriteFile(handle->handle,
+                       bufs[0].base,
+                       bufs[0].len,
+                       &bytes,
+                       NULL);
+
+    if (!result) {
+      return uv__set_sys_error(loop, GetLastError());
+    } else {
+      /* Request completed immediately. */
+      req->queued_bytes = 0;
+    }
+
+    REGISTER_HANDLE_REQ(loop, handle, req);
+    handle->reqs_pending++;
+    handle->write_reqs_pending++;
+    POST_COMPLETION_FOR_REQ(loop, req);
+    return 0;
+  } else if (handle->flags & UV_HANDLE_NON_OVERLAPPED_PIPE) {
     req->write_buffer = bufs[0];
     uv_insert_non_overlapped_write_req(handle, req);
     if (handle->write_reqs_pending == 0) {
@@ -1169,6 +1202,44 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
     /* Request queued by the kernel. */
     req->queued_bytes = uv_count_bufs(bufs, bufcnt);
     handle->write_queue_size += req->queued_bytes;
+  } else if (handle->flags & UV_HANDLE_BLOCKING_WRITES) {
+    /* Using overlapped IO, but wait for completion before returning */
+    req->overlapped.hEvent = CreateEvent(NULL, 1, 0, NULL);
+    if (!req->overlapped.hEvent) {
+      uv_fatal_error(GetLastError(), "CreateEvent");
+    }
+
+    result = WriteFile(handle->handle,
+                       bufs[0].base,
+                       bufs[0].len,
+                       NULL,
+                       &req->overlapped);
+
+    if (!result && GetLastError() != ERROR_IO_PENDING) {
+      uv__set_sys_error(loop, GetLastError());
+      CloseHandle(req->overlapped.hEvent);
+      return -1;
+    }
+
+    if (result) {
+      /* Request completed immediately. */
+      req->queued_bytes = 0;
+    } else {
+      /* Request queued by the kernel. */
+      if (WaitForSingleObject(ipc_header_req->overlapped.hEvent, INFINITE) !=
+          WAIT_OBJECT_0) {
+        uv__set_sys_error(loop, GetLastError());
+        CloseHandle(ipc_header_req->overlapped.hEvent);
+        return -1;
+      }
+    }
+    CloseHandle(req->overlapped.hEvent);
+
+    REGISTER_HANDLE_REQ(loop, handle, req);
+    handle->reqs_pending++;
+    handle->write_reqs_pending++;
+    POST_COMPLETION_FOR_REQ(loop, req);
+    return 0;
   } else {
     result = WriteFile(handle->handle,
                        bufs[0].base,

@@ -31,7 +31,7 @@
 #include "uv.h"
 #include "internal.h"
 
-#include <Winsock2.h>
+#include <winsock2.h>
 #include <iphlpapi.h>
 #include <psapi.h>
 #include <tlhelp32.h>

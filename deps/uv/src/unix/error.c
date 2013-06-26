@@ -34,28 +34,6 @@
 #include <assert.h>
 
 
-/* TODO Expose callback to user to handle fatal error like V8 does. */
-void uv_fatal_error(const int errorno, const char* syscall) {
-  char* buf = NULL;
-  const char* errmsg;
-
-  if (buf) {
-    errmsg = buf;
-  } else {
-    errmsg = "Unknown error";
-  }
-
-  if (syscall) {
-    fprintf(stderr, "\nlibuv fatal error. %s: (%d) %s\n", syscall, errorno,
-        errmsg);
-  } else {
-    fprintf(stderr, "\nlibuv fatal error. (%d) %s\n", errorno, errmsg);
-  }
-
-  abort();
-}
-
-
 uv_err_code uv_translate_sys_error(int sys_errno) {
   switch (sys_errno) {
     case 0: return UV_OK;

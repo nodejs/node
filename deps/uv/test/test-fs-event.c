@@ -56,7 +56,7 @@ static void create_file(uv_loop_t* loop, const char* name) {
   uv_fs_t req;
 
   r = uv_fs_open(loop, &req, name, O_WRONLY | O_CREAT,
-      S_IWRITE | S_IREAD, NULL);
+      S_IWUSR | S_IRUSR, NULL);
   ASSERT(r != -1);
   file = r;
   uv_fs_req_cleanup(&req);

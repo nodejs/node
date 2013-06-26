@@ -19,8 +19,7 @@
 # IN THE SOFTWARE.
 
 E=
-CSTDFLAG=--std=c89 -pedantic -Wall -Wextra -Wno-unused-parameter
-CFLAGS += -g
+CFLAGS += -g -Wall -Wextra -Wno-unused-parameter
 CPPFLAGS += -I$(SRCDIR)/src
 LDFLAGS=-lm
 
@@ -31,7 +30,6 @@ RUNNER_SRC=test/runner-unix.c
 RUNNER_CFLAGS=$(CFLAGS) -I$(SRCDIR)/test
 RUNNER_LDFLAGS=-L"$(CURDIR)" -luv
 
-HAVE_DTRACE=
 DTRACE_OBJS=
 DTRACE_HEADER=
 
@@ -60,13 +58,15 @@ OBJS += src/inet.o
 OBJS += src/version.o
 
 ifeq (sunos,$(PLATFORM))
-HAVE_DTRACE=1
+HAVE_DTRACE ?= 1
 CPPFLAGS += -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
 LDFLAGS+=-lkstat -lnsl -lsendfile -lsocket
 # Library dependencies are not transitive.
 OBJS += src/unix/sunos.o
+ifeq (1, $(HAVE_DTRACE))
 OBJS += src/unix/dtrace.o
 DTRACE_OBJS += src/unix/core.o
+endif
 endif
 
 ifeq (aix,$(PLATFORM))
@@ -76,7 +76,7 @@ OBJS += src/unix/aix.o
 endif
 
 ifeq (darwin,$(PLATFORM))
-HAVE_DTRACE=1
+HAVE_DTRACE ?= 1
 # dtrace(1) probes contain dollar signs on OS X. Mute the warnings they
 # generate but only when CC=clang, -Wno-dollar-in-identifier-extension
 # is a clang extension.
@@ -96,7 +96,7 @@ OBJS += src/unix/darwin-proctitle.o
 endif
 
 ifeq (linux,$(PLATFORM))
-CSTDFLAG += -D_GNU_SOURCE
+CFLAGS += -D_GNU_SOURCE
 LDFLAGS+=-ldl -lrt
 RUNNER_CFLAGS += -D_GNU_SOURCE
 OBJS += src/unix/linux-core.o \
@@ -105,8 +105,22 @@ OBJS += src/unix/linux-core.o \
         src/unix/proctitle.o
 endif
 
+ifeq (android,$(PLATFORM))
+CFLAGS += -D_GNU_SOURCE
+LDFLAGS+=-ldl -lrt
+RUNNER_CFLAGS += -D_GNU_SOURCE
+OBJS += src/unix/linux-core.o \
+        src/unix/linux-inotify.o \
+        src/unix/linux-syscalls.o \
+        src/unix/proctitle.o
+else
+CFLAGS += -std=c89
+endif
+
 ifeq (freebsd,$(PLATFORM))
-HAVE_DTRACE=1
+ifeq ($(shell dtrace -l 1>&2 2>/dev/null; echo $$?),0)
+HAVE_DTRACE ?= 1
+endif
 LDFLAGS+=-lkvm
 OBJS += src/unix/freebsd.o
 OBJS += src/unix/kqueue.o
@@ -133,7 +147,9 @@ endif
 ifeq (sunos,$(PLATFORM))
 RUNNER_LDFLAGS += -pthreads
 else
+ifneq (android, $(PLATFORM))
 RUNNER_LDFLAGS += -pthread
+endif
 endif
 
 ifeq ($(HAVE_DTRACE), 1)
@@ -170,13 +186,13 @@ src/.buildstamp src/unix/.buildstamp test/.buildstamp:
 	touch $@
 
 src/unix/%.o src/unix/%.pic.o: src/unix/%.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h src/unix/.buildstamp $(DTRACE_HEADER)
-	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 src/%.o src/%.pic.o: src/%.c include/uv.h include/uv-private/uv-unix.h src/.buildstamp
-	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 test/%.o: test/%.c include/uv.h test/.buildstamp
-	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 clean-platform:
 	$(RM) test/run-{tests,benchmarks}.dSYM $(OBJS) $(OBJS:%.o=%.pic.o) src/unix/uv-dtrace.h
