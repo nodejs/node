@@ -682,27 +682,17 @@ Mutex* OS::CreateMutex() {
 class MacOSSemaphore : public Semaphore {
  public:
   explicit MacOSSemaphore(int count) {
-    int r;
-    r = semaphore_create(mach_task_self(),
-                         &semaphore_,
-                         SYNC_POLICY_FIFO,
-                         count);
-    ASSERT(r == KERN_SUCCESS);
+    semaphore_create(mach_task_self(), &semaphore_, SYNC_POLICY_FIFO, count);
   }
 
   ~MacOSSemaphore() {
-    int r;
-    r = semaphore_destroy(mach_task_self(), semaphore_);
-    ASSERT(r == KERN_SUCCESS);
+    semaphore_destroy(mach_task_self(), semaphore_);
   }
 
-  void Wait() {
-    int r;
-    do {
-      r = semaphore_wait(semaphore_);
-      ASSERT(r == KERN_SUCCESS || r == KERN_ABORTED);
-    } while (r == KERN_ABORTED);
-  }
+  // The MacOS mach semaphore documentation claims it does not have spurious
+  // wakeups, the way pthreads semaphores do.  So the code from the linux
+  // platform is not needed here.
+  void Wait() { semaphore_wait(semaphore_); }
 
   bool Wait(int timeout);
 
