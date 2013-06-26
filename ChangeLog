@@ -1,4 +1,53 @@
-2013.05.13, Version 0.11.2 (Unstable)
+2013.06.26, Version 0.11.3 (Unstable)
+
+* uv: Upgrade to v0.11.5
+
+* c-ares: upgrade to 1.10.0
+
+* v8: upgrade to v3.19.13
+
+* punycode: update to v1.2.3 (Mathias Bynens)
+
+* debugger: break on uncaught exception (Miroslav Bajtos)
+
+* child_process: emit 'disconnect' asynchronously (Ben Noordhuis)
+
+* dtrace: enable uv's probes if enabled (Timothy J Fontaine)
+
+* dtrace: unify dtrace and systemtap interfaces (Timothy J Fontaine)
+
+* buffer: New API for backing data store (Trevor Norris)
+
+* buffer: return `this` in fill() for chainability (Brian White)
+
+* build: fix include order for building on windows (Timothy J Fontaine)
+
+* build: add android support (Linus Mårtensson)
+
+* readline: strip ctrl chars for prompt width calc (Krzysztof Chrapka)
+
+* tls: introduce TLSSocket based on tls_wrap binding (Fedor Indutny)
+
+* tls: add localAddress and localPort properties (Ben Noordhuis)
+
+* crypto: free excessive memory in NodeBIO (Fedor Indutny)
+
+* process: remove maxTickDepth (Trevor Norris)
+
+* timers: use uv_now instead of Date.now (Timothy J Fontaine)
+
+* util: Add debuglog, deprecate console lookalikes (isaacs)
+
+* module: use path.sep instead of a custom solution (Robert Kowalski)
+
+* http: don't escape request path, reject bad chars (Ben Noordhuis)
+
+* net: emit dns 'lookup' event before connect (Ben Noordhuis)
+
+* dns: add getServers and setServers (Timothy J Fontaine)
+
+
+2013.05.13, Version 0.11.2 (Unstable), 5d3dc0e4c3369dfb00b7b13e08936c2e652fa696
 
 * uv: Upgrade to 0.11.2
 
