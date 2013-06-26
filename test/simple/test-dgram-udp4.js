@@ -54,13 +54,11 @@ server.on('listening', function() {
     server.close();
   });
   client.send(message_to_send, 0, message_to_send.length,
-              server_port, 'localhost', function(err, bytes) {
+              server_port, 'localhost', function(err) {
         if (err) {
           console.log('Caught error in client send.');
           throw err;
         }
-        console.log('client wrote ' + bytes + ' bytes.');
-        assert.strictEqual(bytes, message_to_send.length);
       });
   client.on('close',
             function() {

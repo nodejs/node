@@ -48,8 +48,13 @@ should be created via `dgram.createSocket(type, [callback])`.
 * `msg` Buffer object. The message
 * `rinfo` Object. Remote address information
 
-Emitted when a new datagram is available on a socket.  `msg` is a `Buffer` and `rinfo` is
-an object with the sender's address information and the number of bytes in the datagram.
+Emitted when a new datagram is available on a socket.  `msg` is a `Buffer` and
+`rinfo` is an object with the sender's address information:
+
+    socket.on('message', function(msg, rinfo) {
+      console.log('Received %d bytes from %s:%d\n',
+                  msg.length, rinfo.address, rinfo.port);
+    });
 
 ### Event: 'listening'
 
@@ -93,7 +98,7 @@ Example of sending a UDP packet to a random port on `localhost`;
     var dgram = require('dgram');
     var message = new Buffer("Some bytes");
     var client = dgram.createSocket("udp4");
-    client.send(message, 0, message.length, 41234, "localhost", function(err, bytes) {
+    client.send(message, 0, message.length, 41234, "localhost", function(err) {
       client.close();
     });
 
