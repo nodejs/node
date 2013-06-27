@@ -730,6 +730,7 @@ Handle<Value> SecureContext::LoadPKCS12(const Arguments& args) {
 
       X509_STORE_add_cert(sc->ca_store_, x509);
       SSL_CTX_add_client_CA(sc->ctx_, x509);
+      X509_free(x509);
     }
 
     EVP_PKEY_free(pkey);
