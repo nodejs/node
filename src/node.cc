@@ -91,6 +91,7 @@ extern char **environ;
 namespace node {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::Exception;
@@ -202,6 +203,35 @@ static uv_async_t emit_debug_enabled_async;
 
 // Declared in node_internals.h
 Isolate* node_isolate = NULL;
+
+
+class ArrayBufferAllocator : public ArrayBuffer::Allocator {
+public:
+  // Impose an upper limit to avoid out of memory errors that bring down
+  // the process.
+  static const size_t kMaxLength = 0x3fffffff;
+  static ArrayBufferAllocator the_singleton;
+  virtual ~ArrayBufferAllocator() {}
+  virtual void* Allocate(size_t length);
+  virtual void Free(void* data);
+private:
+  ArrayBufferAllocator() {}
+  ArrayBufferAllocator(const ArrayBufferAllocator&);
+  void operator=(const ArrayBufferAllocator&);
+};
+
+ArrayBufferAllocator ArrayBufferAllocator::the_singleton;
+
+
+void* ArrayBufferAllocator::Allocate(size_t length) {
+  if (length > kMaxLength) return NULL;
+  return new char[length];
+}
+
+
+void ArrayBufferAllocator::Free(void* data) {
+  delete[] static_cast<char*>(data);
+}
 
 
 static void CheckImmediate(uv_check_t* handle, int status) {
@@ -2923,6 +2953,10 @@ char** Init(int argc, char *argv[]) {
     SetResourceConstraints(&constraints); // Must be done before V8::Initialize
   }
   V8::SetFlagsFromCommandLine(&v8argc, v8argv, false);
+
+  const char typed_arrays_flag[] = "--harmony_typed_arrays";
+  V8::SetFlagsFromString(typed_arrays_flag, sizeof(typed_arrays_flag) - 1);
+  V8::SetArrayBufferAllocator(&ArrayBufferAllocator::the_singleton);
 
   // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
