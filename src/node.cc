@@ -1852,6 +1852,10 @@ static void OnFatalError(const char* location, const char* message) {
   } else {
     fprintf(stderr, "FATAL ERROR: %s\n", message);
   }
+  fflush(stderr);
+#if defined(DEBUG)
+  abort();
+#endif
   exit(5);
 }
 
