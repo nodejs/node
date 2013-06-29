@@ -124,7 +124,8 @@ static inline size_t base64_decoded_size_fast(size_t size) {
   return size;
 }
 
-static inline size_t base64_decoded_size(const char* src, size_t size) {
+template <typename TypeName>
+size_t base64_decoded_size(const TypeName* src, size_t size) {
   if (size == 0)
     return 0;
 
@@ -159,14 +160,15 @@ static const int unbase64_table[] =
 #define unbase64(x) unbase64_table[(uint8_t)(x)]
 
 
-static inline size_t base64_decode(char* buf,
-                                   size_t len,
-                                   const char* src,
-                                   const size_t srcLen) {
+template <typename TypeName>
+size_t base64_decode(char* buf,
+                     size_t len,
+                     const TypeName* src,
+                     const size_t srcLen) {
   char a, b, c, d;
   char* dst = buf;
   char* dstEnd = buf + len;
-  const char* srcEnd = src + srcLen;
+  const TypeName* srcEnd = src + srcLen;
 
   while (src < srcEnd && dst < dstEnd) {
     int remaining = srcEnd - src;
@@ -202,7 +204,8 @@ static inline size_t base64_decode(char* buf,
 
 //// HEX ////
 
-static inline unsigned hex2bin(char c) {
+template <typename TypeName>
+unsigned hex2bin(TypeName c) {
   if (c >= '0' && c <= '9') return c - '0';
   if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
   if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
@@ -210,10 +213,11 @@ static inline unsigned hex2bin(char c) {
 }
 
 
-static inline size_t hex_decode(char* buf,
-                                size_t len,
-                                const char* src,
-                                const size_t srcLen) {
+template <typename TypeName>
+size_t hex_decode(char* buf,
+                  size_t len,
+                  const TypeName* src,
+                  const size_t srcLen) {
   size_t i;
   for (i = 0; i < len && i * 2 + 1 < srcLen; ++i) {
     unsigned a = hex2bin(src[i * 2 + 0]);
@@ -305,7 +309,7 @@ size_t StringBytes::Write(char* buf,
       if (is_extern) {
         base64_decode(buf, buflen, data, len);
       } else {
-        String::AsciiValue value(str);
+        String::Value value(str);
         len = base64_decode(buf, buflen, *value, value.length());
       }
       if (chars_written != NULL) {
@@ -317,7 +321,7 @@ size_t StringBytes::Write(char* buf,
       if (is_extern) {
         hex_decode(buf, buflen, data, len);
       } else {
-        String::AsciiValue value(str);
+        String::Value value(str);
         len = hex_decode(buf, buflen, *value, value.length());
       }
       if (chars_written != NULL) {
@@ -411,7 +415,7 @@ size_t StringBytes::Size(Handle<Value> val, enum encoding encoding) {
       break;
 
     case BASE64: {
-      String::AsciiValue value(str);
+      String::Value value(str);
       data_size = base64_decoded_size(*value, value.length());
       break;
     }
