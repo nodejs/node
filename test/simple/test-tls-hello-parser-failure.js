@@ -30,21 +30,32 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem')
 };
 
+var bonkers = new Buffer(1024 * 1024);
+bonkers.fill(42);
+
 var server = tls.createServer(options, function(c) {
 
 }).listen(common.PORT, function() {
   var client = net.connect(common.PORT, function() {
-    var bonkers = new Buffer(1024 * 1024);
-    bonkers.fill(42);
-    client.end(bonkers);
+    client.write(bonkers);
   });
 
   var once = false;
-  client.on('error', function() {
+
+	var writeAgain = setTimeout(function() {
+		client.write(bonkers);
+	});
+
+  client.on('error', function(err) {
     if (!once) {
+			clearTimeout(writeAgain);
       once = true;
       client.destroy();
       server.close();
     }
   });
+
+	client.on('close', function (hadError) {
+		assert.strictEqual(hadError, true, 'Client never errored');
+	});
 });
