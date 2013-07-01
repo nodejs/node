@@ -360,6 +360,18 @@ class ZCtx : public ObjectWrap {
     return Undefined(node_isolate);
   }
 
+  static Handle<Value> Params(const Arguments& args) {
+    HandleScope scope(node_isolate);
+
+    assert(args.Length() == 2 && "params(level, strategy)");
+
+    ZCtx* ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
+
+    Params(ctx, args[0]->Int32Value(), args[1]->Int32Value());
+
+    return Undefined(node_isolate);
+  }
+
   static Handle<Value> Reset(const Arguments &args) {
     HandleScope scope(node_isolate);
 
@@ -455,6 +467,23 @@ class ZCtx : public ObjectWrap {
     }
   }
 
+  static void Params(ZCtx* ctx, int level, int strategy) {
+    ctx->err_ = Z_OK;
+
+    switch (ctx->mode_) {
+      case DEFLATE:
+      case DEFLATERAW:
+        ctx->err_ = deflateParams(&ctx->strm_, level, strategy);
+        break;
+      default:
+        break;
+    }
+
+    if (ctx->err_ != Z_OK && ctx->err_ != Z_BUF_ERROR) {
+      ZCtx::Error(ctx, "Failed to set parameters");
+    }
+  }
+
   static void Reset(ZCtx* ctx) {
     ctx->err_ = Z_OK;
 
@@ -514,6 +543,7 @@ void InitZlib(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(z, "write", ZCtx::Write);
   NODE_SET_PROTOTYPE_METHOD(z, "init", ZCtx::Init);
   NODE_SET_PROTOTYPE_METHOD(z, "close", ZCtx::Close);
+  NODE_SET_PROTOTYPE_METHOD(z, "params", ZCtx::Params);
   NODE_SET_PROTOTYPE_METHOD(z, "reset", ZCtx::Reset);
 
   z->SetClassName(String::NewSymbol("Zlib"));

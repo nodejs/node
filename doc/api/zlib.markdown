@@ -151,6 +151,11 @@ class of the compressor/decompressor classes.
 Flush pending data. Don't call this frivolously, premature flushes negatively
 impact the effectiveness of the compression algorithm.
 
+### zlib.params(level, strategy, callback)
+
+Dynamically update the compression level and compression strategy.
+Only applicable to deflate algorithm.
+
 ### zlib.reset()
 
 Reset the compressor/decompressor to factory defaults. Only applicable to
