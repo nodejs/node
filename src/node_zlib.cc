@@ -330,7 +330,7 @@ class ZCtx : public ObjectWrap {
     int windowBits = args[0]->Uint32Value();
     assert((windowBits >= 8 && windowBits <= 15) && "invalid windowBits");
 
-    int level = args[1]->Uint32Value();
+    int level = args[1]->Int32Value();
     assert((level >= -1 && level <= 9) && "invalid compression level");
 
     int memLevel = args[2]->Uint32Value();
