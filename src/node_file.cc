@@ -22,8 +22,10 @@
 #include "node.h"
 #include "node_file.h"
 #include "node_buffer.h"
+#include "node_internals.h"
 #include "node_stat_watcher.h"
 #include "req_wrap.h"
+#include "string_bytes.h"
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -62,10 +64,12 @@ using v8::Value;
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
   FSReqWrap(const char* syscall)
-    : syscall_(syscall) {
+    : must_free_(false),
+      syscall_(syscall) {
   }
 
   const char* syscall() { return syscall_; }
+  bool must_free_; // request is responsible for free'ing memory oncomplete
 
  private:
   const char* syscall_;
@@ -96,6 +100,10 @@ static void After(uv_fs_t *req) {
 
   FSReqWrap* req_wrap = (FSReqWrap*) req->data;
   assert(&req_wrap->req_ == req);
+
+  // check if data needs to be cleaned
+  if (req_wrap->must_free_ == true)
+    delete[] static_cast<char*>(req_wrap->data_);
 
   // there is always at least one argument. "error"
   int argc = 1;
@@ -485,7 +493,7 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
   if (len < 2) return TYPE_ERROR("new path required");
   if (!args[0]->IsString()) return TYPE_ERROR("old path must be a string");
   if (!args[1]->IsString()) return TYPE_ERROR("new path must be a string");
-  
+
   String::Utf8Value old_path(args[0]);
   String::Utf8Value new_path(args[1]);
 
@@ -650,55 +658,113 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-// bytesWritten = write(fd, data, position, enc, callback)
+
 // Wrapper for write(2).
 //
+// bytesWritten = write(fd, buffer, offset, length, position, callback)
 // 0 fd        integer. file descriptor
 // 1 buffer    the data to write
 // 2 offset    where in the buffer to start from
 // 3 length    how much to write
 // 4 position  if integer, position to write at in the file.
 //             if null, write from the current position
-static void Write(const FunctionCallbackInfo<Value>& args) {
+static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  if (!args[0]->IsInt32()) {
-    return THROW_BAD_ARGS;
-  }
+  assert(args[0]->IsInt32());
+  assert(Buffer::HasInstance(args[1]));
 
   int fd = args[0]->Int32Value();
-
-  if (!Buffer::HasInstance(args[1])) {
-    return ThrowError("Second argument needs to be a buffer");
-  }
-
-  Local<Object> buffer_obj = args[1]->ToObject();
-  char *buffer_data = Buffer::Data(buffer_obj);
-  size_t buffer_length = Buffer::Length(buffer_obj);
-
-  size_t off = args[2]->Int32Value();
-  if (off >= buffer_length) {
-    return ThrowError("Offset is out of bounds");
-  }
-
-  ssize_t len = args[3]->Int32Value();
-  if (off + len > buffer_length) {
-    return ThrowError("off + len > buffer.length");
-  }
-
-  ASSERT_OFFSET(args[4]);
+  Local<Object> obj = args[1].As<Object>();
+  const char* buf = Buffer::Data(obj);
+  size_t buffer_length = Buffer::Length(obj);
+  size_t off = args[2]->Uint32Value();
+  size_t len = args[3]->Uint32Value();
   int64_t pos = GET_OFFSET(args[4]);
-
-  char * buf = (char*)buffer_data + off;
   Local<Value> cb = args[5];
+
+  if (off > buffer_length)
+    return ThrowRangeError("offset out of bounds");
+  if (len > buffer_length)
+    return ThrowRangeError("length out of bounds");
+  if (off + len < off)
+    return ThrowRangeError("off + len overflow");
+  if (off + len > buffer_length)
+    return ThrowRangeError("off + len > buffer.length");
+
+  buf += off;
 
   if (cb->IsFunction()) {
     ASYNC_CALL(write, cb, fd, buf, len, pos)
-  } else {
-    SYNC_CALL(write, 0, fd, buf, len, pos)
-    args.GetReturnValue().Set(SYNC_RESULT);
+    return;
   }
+
+  SYNC_CALL(write, NULL, fd, buf, len, pos)
+  args.GetReturnValue().Set(SYNC_RESULT);
 }
+
+
+// Wrapper for write(2).
+//
+// bytesWritten = write(fd, string, position, enc, callback)
+// 0 fd        integer. file descriptor
+// 1 string    non-buffer values are converted to strings
+// 2 position  if integer, position to write at in the file.
+//             if null, write from the current position
+// 3 enc       encoding of string
+static void WriteString(const FunctionCallbackInfo<Value>& args) {
+  HandleScope scope(node_isolate);
+
+  if (!args[0]->IsInt32())
+    return ThrowTypeError("First argument must be file descriptor");
+
+  Local<Value> cb;
+  Local<Value> string = args[1];
+  int fd = args[0]->Int32Value();
+  char* buf = NULL;
+  int64_t pos;
+  size_t len;
+  bool must_free_ = false;
+
+  // will assign buf and len if string was external
+  if (!StringBytes::GetExternalParts(string,
+                                     const_cast<const char**>(&buf),
+                                     &len)) {
+    enum encoding enc = ParseEncoding(args[3], UTF8);
+    len = StringBytes::StorageSize(string, enc);
+    buf = new char[len];
+    // StorageSize may return too large a char, so correct the actual length
+    // by the write size
+    len = StringBytes::Write(buf, len, args[1], enc);
+    must_free_ = true;
+  }
+  pos = GET_OFFSET(args[2]);
+  cb = args[4];
+
+  if (cb->IsFunction()) {
+    FSReqWrap* req_wrap = new FSReqWrap("write");
+    int err = uv_fs_write(uv_default_loop(), &req_wrap->req_,
+        fd, buf, len, pos, After);
+    req_wrap->object()->Set(oncomplete_sym, cb);
+    req_wrap->must_free_ = must_free_;
+    req_wrap->Dispatched();
+    req_wrap->data_ = buf;
+    if (err < 0) {
+      uv_fs_t* req = &req_wrap->req_;
+      req->result = err;
+      req->path = NULL;
+      After(req);
+    }
+    return args.GetReturnValue().Set(req_wrap->persistent());
+  }
+
+  SYNC_CALL(write, NULL, fd, buf, len, pos)
+  args.GetReturnValue().Set(SYNC_RESULT);
+
+  if (must_free_)
+    delete[] buf;
+}
+
 
 /*
  * Wrapper for read(2).
@@ -918,7 +984,8 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "symlink", Symlink);
   NODE_SET_METHOD(target, "readlink", ReadLink);
   NODE_SET_METHOD(target, "unlink", Unlink);
-  NODE_SET_METHOD(target, "write", Write);
+  NODE_SET_METHOD(target, "writeBuffer", WriteBuffer);
+  NODE_SET_METHOD(target, "writeString", WriteString);
 
   NODE_SET_METHOD(target, "chmod", Chmod);
   NODE_SET_METHOD(target, "fchmod", FChmod);

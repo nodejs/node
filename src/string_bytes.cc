@@ -239,7 +239,9 @@ bool StringBytes::GetExternalParts(Handle<Value> val,
     return true;
   }
 
-  assert(val->IsString());
+  if (!val->IsString())
+    return false;
+
   Local<String> str = Local<String>::New(val.As<String>());
 
   if (str->IsExternalAscii()) {

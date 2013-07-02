@@ -373,19 +373,18 @@ to the completion callback.
 
 Synchronous fsync(2).
 
-## fs.write(fd, buffer, offset, length, position, callback)
+## fs.write(fd, buffer, offset, length[, position], callback)
 
 Write `buffer` to the file specified by `fd`.
 
 `offset` and `length` determine the part of the buffer to be written.
 
 `position` refers to the offset from the beginning of the file where this data
-should be written. If `position` is `null`, the data will be written at the
-current position.
-See pwrite(2).
+should be written. If `typeof position !== 'number'`, the data will be written
+at the current position. See pwrite(2).
 
-The callback will be given three arguments `(err, written, buffer)` where `written`
-specifies how many _bytes_ were written from `buffer`.
+The callback will be given three arguments `(err, written, buffer)` where
+`written` specifies how many _bytes_ were written from `buffer`.
 
 Note that it is unsafe to use `fs.write` multiple times on the same file
 without waiting for the callback. For this scenario,
@@ -395,9 +394,39 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-## fs.writeSync(fd, buffer, offset, length, position)
+## fs.write(fd, data[, position[, encoding]], callback)
 
-Synchronous version of `fs.write()`. Returns the number of bytes written.
+Write `data` to the file specified by `fd`.  If `data` is not a Buffer instance
+then the value will be coerced to a string.
+
+`position` refers to the offset from the beginning of the file where this data
+should be written. If `typeof position !== 'number'` the data will be written at
+the current position. See pwrite(2).
+
+`encoding` is the expected string encoding.
+
+The callback will receive the arguments `(err, written, string)` where `written`
+specifies how many _bytes_ the passed string required to be written. Note that
+bytes written is not the same as string characters. See
+[Buffer.byteLength](buffer.html#buffer_class_method_buffer_bytelength_string_encoding).
+
+Unlike when writing `buffer`, the entire string must be written. No substring
+may be specified. This is because the byte offset of the resulting data may not
+be the same as the string offset.
+
+Note that it is unsafe to use `fs.write` multiple times on the same file
+without waiting for the callback. For this scenario,
+`fs.createWriteStream` is strongly recommended.
+
+On Linux, positional writes don't work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
+
+## fs.writeSync(fd, buffer, offset, length[, position])
+
+## fs.writeSync(fd, data[, position[, encoding]])
+
+Synchronous versions of `fs.write()`. Returns the number of bytes written.
 
 ## fs.read(fd, buffer, offset, length, position, callback)
 
