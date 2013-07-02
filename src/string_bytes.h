@@ -44,6 +44,12 @@ class StringBytes {
   // very much slower for UTF-8
   static size_t Size(v8::Handle<v8::Value> val, enum encoding enc);
 
+  // If the string is external then assign external properties to data and len,
+  // then return true. If not return false.
+  static bool GetExternalParts(v8::Handle<v8::Value> val,
+                               const char** data,
+                               size_t* len);
+
   // Write the bytes from the string or buffer into the char*
   // returns the number of bytes written, which will always be
   // <= buflen.  Use StorageSize/Size first to know how much

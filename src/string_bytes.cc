@@ -230,12 +230,13 @@ size_t hex_decode(char* buf,
 }
 
 
-bool GetExternalParts(Handle<Value> val, const char** data, size_t* len) {
+bool StringBytes::GetExternalParts(Handle<Value> val,
+                                   const char** data,
+                                   size_t* len) {
   if (Buffer::HasInstance(val)) {
     *data = Buffer::Data(val);
     *len = Buffer::Length(val);
     return true;
-
   }
 
   assert(val->IsString());
