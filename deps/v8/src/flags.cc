@@ -34,7 +34,7 @@
 #include "smart-pointers.h"
 #include "string-stream.h"
 
-#ifdef V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
 #include "arm/assembler-arm-inl.h"
 #endif
 
@@ -520,7 +520,7 @@ void FlagList::ResetAllFlags() {
 
 // static
 void FlagList::PrintHelp() {
-#ifdef V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
   CpuFeatures::PrintTarget();
   CpuFeatures::Probe();
   CpuFeatures::PrintFeatures();

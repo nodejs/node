@@ -160,7 +160,7 @@ class StoreBuffer {
 
   void ClearFilteringHashSets();
 
-  void CheckForFullBuffer();
+  bool SpaceAvailable(intptr_t space_needed);
   void Uniq();
   void ExemptPopularPages(int prime_sample_step, int threshold);
 
@@ -223,7 +223,6 @@ class StoreBufferRebuildScope {
   ~StoreBufferRebuildScope() {
     store_buffer_->callback_ = stored_callback_;
     store_buffer_->store_buffer_rebuilding_enabled_ = stored_state_;
-    store_buffer_->CheckForFullBuffer();
   }
 
  private:

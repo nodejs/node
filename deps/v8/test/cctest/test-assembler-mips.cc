@@ -337,7 +337,9 @@ TEST(MIPS3) {
   CHECK_EQ(1.8066e16, t.e);
   CHECK_EQ(120.44, t.f);
   CHECK_EQ(10.97451593465515908537, t.g);
-  CHECK_EQ(6.875, t.h);
+  if (kArchVariant == kMips32r2) {
+    CHECK_EQ(6.875, t.h);
+  }
 }
 
 

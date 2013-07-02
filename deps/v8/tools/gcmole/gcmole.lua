@@ -117,7 +117,8 @@ function InvokeClangPluginForEachFile(filenames, cfg, func)
       if FLAGS.verbose then print('popen ', action) end
       local pipe = io.popen(action)
       func(filename, pipe:lines())
-      pipe:close()
+      local success = pipe:close()
+      if not success then error("Failed to run: " .. action) end
    end
 end
 

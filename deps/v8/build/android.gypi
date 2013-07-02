@@ -75,15 +75,8 @@
     ],
     'configurations': {
       'Release': {
-        'cflags!': [
-          '-O2',
-          '-Os',
-        ],
         'cflags': [
-          '-fdata-sections',
-          '-ffunction-sections',
           '-fomit-frame-pointer',
-          '-O3',
         ],
       },  # Release
     },  # configurations

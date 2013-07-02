@@ -35,7 +35,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_MIPS
 
 #include "mips/assembler-mips-inl.h"
 #include "serialize.h"
@@ -1475,7 +1475,7 @@ void Assembler::break_(uint32_t code, bool break_as_stop) {
 void Assembler::stop(const char* msg, uint32_t code) {
   ASSERT(code > kMaxWatchpointCode);
   ASSERT(code <= kMaxStopCode);
-#if defined(V8_HOST_ARCH_MIPS)
+#if V8_HOST_ARCH_MIPS
   break_(0x54321);
 #else  // V8_HOST_ARCH_MIPS
   BlockTrampolinePoolFor(2);

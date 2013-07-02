@@ -29,7 +29,6 @@
 #define V8_LOG_INL_H_
 
 #include "log.h"
-#include "cpu-profiler.h"
 
 namespace v8 {
 namespace internal {

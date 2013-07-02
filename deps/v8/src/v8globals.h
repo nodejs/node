@@ -180,12 +180,13 @@ enum AllocationSpace {
   CODE_SPACE,           // No pointers to new space, marked executable.
   MAP_SPACE,            // Only and all map objects.
   CELL_SPACE,           // Only and all cell objects.
+  PROPERTY_CELL_SPACE,  // Only and all global property cell objects.
   LO_SPACE,             // Promoted large objects.
 
   FIRST_SPACE = NEW_SPACE,
   LAST_SPACE = LO_SPACE,
   FIRST_PAGED_SPACE = OLD_POINTER_SPACE,
-  LAST_PAGED_SPACE = CELL_SPACE
+  LAST_PAGED_SPACE = PROPERTY_CELL_SPACE
 };
 const int kSpaceTagSize = 3;
 const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;

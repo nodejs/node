@@ -171,18 +171,21 @@ monomorphic(smi_only);
 
 if (support_smi_only_arrays) {
   function construct_smis() {
+    try {} catch (e) {} // TODO(titzer): DisableOptimization
     var a = [0, 0, 0];
     a[0] = 0;  // Send the COW array map to the steak house.
     assertKind(elements_kind.fast_smi_only, a);
     return a;
   }
   function construct_doubles() {
+    try {} catch (e) {} // TODO(titzer): DisableOptimization
     var a = construct_smis();
     a[0] = 1.5;
     assertKind(elements_kind.fast_double, a);
     return a;
   }
   function construct_objects() {
+    try {} catch (e) {} // TODO(titzer): DisableOptimization
     var a = construct_smis();
     a[0] = "one";
     assertKind(elements_kind.fast, a);
@@ -191,6 +194,7 @@ if (support_smi_only_arrays) {
 
   // Test crankshafted transition SMI->DOUBLE.
   function convert_to_double(array) {
+    try {} catch (e) {} // TODO(titzer): DisableOptimization
     array[1] = 2.5;
     assertKind(elements_kind.fast_double, array);
     assertEquals(2.5, array[1]);
@@ -202,6 +206,7 @@ if (support_smi_only_arrays) {
   convert_to_double(smis);
   // Test crankshafted transitions SMI->FAST and DOUBLE->FAST.
   function convert_to_fast(array) {
+    try {} catch (e) {} // TODO(titzer): DisableOptimization
     array[1] = "two";
     assertKind(elements_kind.fast, array);
     assertEquals("two", array[1]);
@@ -218,6 +223,7 @@ if (support_smi_only_arrays) {
   // Test transition chain SMI->DOUBLE->FAST (crankshafted function will
   // transition to FAST directly).
   function convert_mixed(array, value, kind) {
+    try {} catch (e) {} // TODO(titzer): DisableOptimization
     array[1] = value;
     assertKind(kind, array);
     assertEquals(value, array[1]);

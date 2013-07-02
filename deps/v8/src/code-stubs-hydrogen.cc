@@ -106,7 +106,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   };
 
   HValue* BuildArrayConstructor(ElementsKind kind,
-                                bool disable_allocation_sites,
+                                ContextCheckMode context_mode,
+                                AllocationSiteOverrideMode override_mode,
                                 ArgumentClass argument_class);
   HValue* BuildInternalArrayConstructor(ElementsKind kind,
                                         ArgumentClass argument_class);
@@ -144,7 +145,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   set_current_block(next_block);
 
   HConstant* undefined_constant = new(zone) HConstant(
-      isolate()->factory()->undefined_value(), Representation::Tagged());
+      isolate()->factory()->undefined_value());
   AddInstruction(undefined_constant);
   graph()->set_undefined_constant(undefined_constant);
 
@@ -196,8 +197,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
       stack_pop_count->ClearFlag(HValue::kCanOverflow);
     } else {
       int count = descriptor_->hint_stack_parameter_count_;
-      stack_pop_count = AddInstruction(new(zone)
-          HConstant(count, Representation::Integer32()));
+      stack_pop_count = AddInstruction(new(zone) HConstant(count));
     }
   }
 
@@ -391,13 +391,11 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HValue* boilerplate_size =
       AddInstruction(new(zone) HInstanceSize(boilerplate));
   HValue* size_in_words =
-      AddInstruction(new(zone) HConstant(size >> kPointerSizeLog2,
-                                         Representation::Integer32()));
+      AddInstruction(new(zone) HConstant(size >> kPointerSizeLog2));
   checker.IfCompare(boilerplate_size, size_in_words, Token::EQ);
   checker.Then();
 
-  HValue* size_in_bytes =
-      AddInstruction(new(zone) HConstant(size, Representation::Integer32()));
+  HValue* size_in_bytes = AddInstruction(new(zone) HConstant(size));
   HAllocate::Flags flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
   if (isolate()->heap()->ShouldGloballyPretenure()) {
     flags = static_cast<HAllocate::Flags>(
@@ -512,8 +510,7 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 
   HInstruction* elements = AddLoadElements(js_array);
 
-  HInstruction* elements_length =
-      AddInstruction(new(zone) HFixedArrayBaseLength(elements));
+  HInstruction* elements_length = AddLoadFixedArrayLength(elements);
 
   HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
       context(), to_kind, elements_length);
@@ -537,15 +534,19 @@ Handle<Code> TransitionElementsKindStub::GenerateCode() {
 }
 
 HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
-    ElementsKind kind, bool disable_allocation_sites,
+    ElementsKind kind,
+    ContextCheckMode context_mode,
+    AllocationSiteOverrideMode override_mode,
     ArgumentClass argument_class) {
   HValue* constructor = GetParameter(ArrayConstructorStubBase::kConstructor);
-  HValue* property_cell = GetParameter(ArrayConstructorStubBase::kPropertyCell);
-  HInstruction* array_function = BuildGetArrayFunction(context());
+  if (context_mode == CONTEXT_CHECK_REQUIRED) {
+    HInstruction* array_function = BuildGetArrayFunction(context());
+    ArrayContextChecker checker(this, constructor, array_function);
+  }
 
-  ArrayContextChecker(this, constructor, array_function);
-  JSArrayBuilder array_builder(this, kind, property_cell,
-                               disable_allocation_sites);
+  HValue* property_cell = GetParameter(ArrayConstructorStubBase::kPropertyCell);
+  JSArrayBuilder array_builder(this, kind, property_cell, constructor,
+                               override_mode);
   HValue* result = NULL;
   switch (argument_class) {
     case NONE:
@@ -558,6 +559,7 @@ HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
       result = BuildArrayNArgumentsConstructor(&array_builder, kind);
       break;
   }
+
   return result;
 }
 
@@ -602,7 +604,7 @@ HValue* CodeStubGraphBuilderBase::BuildArraySingleArgumentConstructor(
   HConstant* initial_capacity_node = new(zone()) HConstant(initial_capacity);
   AddInstruction(initial_capacity_node);
 
-  HBoundsCheck* checked_arg = AddBoundsCheck(argument, max_alloc_length);
+  HBoundsCheck* checked_arg = Add<HBoundsCheck>(argument, max_alloc_length);
   IfBuilder if_builder(this);
   if_builder.IfCompare(checked_arg, constant_zero, Token::EQ);
   if_builder.Then();
@@ -655,8 +657,9 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
 template <>
 HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
   ElementsKind kind = casted_stub()->elements_kind();
-  bool disable_allocation_sites = casted_stub()->disable_allocation_sites();
-  return BuildArrayConstructor(kind, disable_allocation_sites, NONE);
+  ContextCheckMode context_mode = casted_stub()->context_mode();
+  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
+  return BuildArrayConstructor(kind, context_mode, override_mode, NONE);
 }
 
 
@@ -669,8 +672,9 @@ template <>
 HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
     BuildCodeStub() {
   ElementsKind kind = casted_stub()->elements_kind();
-  bool disable_allocation_sites = casted_stub()->disable_allocation_sites();
-  return BuildArrayConstructor(kind, disable_allocation_sites, SINGLE);
+  ContextCheckMode context_mode = casted_stub()->context_mode();
+  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
+  return BuildArrayConstructor(kind, context_mode, override_mode, SINGLE);
 }
 
 
@@ -682,8 +686,9 @@ Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
   ElementsKind kind = casted_stub()->elements_kind();
-  bool disable_allocation_sites = casted_stub()->disable_allocation_sites();
-  return BuildArrayConstructor(kind, disable_allocation_sites, MULTIPLE);
+  ContextCheckMode context_mode = casted_stub()->context_mode();
+  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
+  return BuildArrayConstructor(kind, context_mode, override_mode, MULTIPLE);
 }
 
 
@@ -733,12 +738,13 @@ Handle<Code> InternalArrayNArgumentsConstructorStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
+  Isolate* isolate = graph()->isolate();
   CompareNilICStub* stub = casted_stub();
   HIfContinuation continuation;
-  Handle<Map> sentinel_map(graph()->isolate()->heap()->meta_map());
-  BuildCompareNil(GetParameter(0),
-                  stub->GetTypes(), sentinel_map,
-                  RelocInfo::kNoPosition, &continuation);
+  Handle<Map> sentinel_map(isolate->heap()->meta_map());
+  Handle<Type> type =
+      CompareNilICStub::StateToType(isolate, stub->GetState(), sentinel_map);
+  BuildCompareNil(GetParameter(0), type, RelocInfo::kNoPosition, &continuation);
   IfBuilder if_nil(this, &continuation);
   if_nil.Then();
   if (continuation.IsFalseReachable()) {

@@ -758,6 +758,12 @@ class MacroAssembler: public Assembler {
       Label* on_fail,
       Label::Distance near_jump = Label::kFar);
 
+  // Checks if the given register or operand is a unique name
+  void JumpIfNotUniqueName(Register reg, Label* not_unique_name,
+                           Label::Distance distance = Label::kFar);
+  void JumpIfNotUniqueName(Operand operand, Label* not_unique_name,
+                           Label::Distance distance = Label::kFar);
+
   // ---------------------------------------------------------------------------
   // Macro instructions.
 
@@ -810,7 +816,7 @@ class MacroAssembler: public Assembler {
   }
 
   // Load a global cell into a register.
-  void LoadGlobalCell(Register dst, Handle<JSGlobalPropertyCell> cell);
+  void LoadGlobalCell(Register dst, Handle<Cell> cell);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the rsp register.
@@ -1239,12 +1245,14 @@ class MacroAssembler: public Assembler {
   // caller-save registers.  Restores context.  On return removes
   // stack_space * kPointerSize (GCed).
   void CallApiFunctionAndReturn(Address function_address,
+                                Address thunk_address,
+                                Register thunk_last_arg,
                                 int stack_space,
                                 bool returns_handle,
                                 int return_value_offset_from_rbp);
 
   // Before calling a C-function from generated code, align arguments on stack.
-  // After aligning the frame, arguments must be stored in esp[0], esp[4],
+  // After aligning the frame, arguments must be stored in rsp[0], rsp[8],
   // etc., not pushed. The argument count assumes all arguments are word sized.
   // The number of slots reserved for arguments depends on platform. On Windows
   // stack slots are reserved for the arguments passed in registers. On other

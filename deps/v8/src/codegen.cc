@@ -30,6 +30,7 @@
 #include "bootstrapper.h"
 #include "codegen.h"
 #include "compiler.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "prettyprinter.h"
 #include "rewriter.h"
@@ -178,7 +179,7 @@ bool CodeGenerator::ShouldGenerateLog(Expression* type) {
       !isolate->cpu_profiler()->is_profiling()) {
     return false;
   }
-  Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
+  Handle<String> name = Handle<String>::cast(type->AsLiteral()->value());
   if (FLAG_log_regexp) {
     if (name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("regexp")))
       return true;

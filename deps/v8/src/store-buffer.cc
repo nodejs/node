@@ -121,6 +121,7 @@ void StoreBuffer::TearDown() {
 
 void StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
   isolate->heap()->store_buffer()->Compact();
+  isolate->counters()->store_buffer_overflows()->Increment();
 }
 
 
@@ -142,6 +143,11 @@ void StoreBuffer::Uniq() {
 }
 
 
+bool StoreBuffer::SpaceAvailable(intptr_t space_needed) {
+  return old_limit_ - old_top_ >= space_needed;
+}
+
+
 void StoreBuffer::EnsureSpace(intptr_t space_needed) {
   while (old_limit_ - old_top_ < space_needed &&
          old_limit_ < old_reserved_limit_) {
@@ -152,7 +158,7 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
     old_limit_ += grow;
   }
 
-  if (old_limit_ - old_top_ >= space_needed) return;
+  if (SpaceAvailable(space_needed)) return;
 
   if (old_buffer_is_filtered_) return;
   ASSERT(may_move_store_buffer_entries_);
@@ -171,9 +177,7 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
     Filter(MemoryChunk::SCAN_ON_SCAVENGE);
   }
 
-  // If filtering out the entries from scan_on_scavenge pages got us down to
-  // less than half full, then we are satisfied with that.
-  if (old_limit_ - old_top_ > old_top_ - old_start_) return;
+  if (SpaceAvailable(space_needed)) return;
 
   // Sample 1 entry in 97 and filter out the pages where we estimate that more
   // than 1 in 8 pointers are to new space.
@@ -192,7 +196,7 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
     ExemptPopularPages(samples[i].prime_sample_step, samples[i].threshold);
     // As a last resort we mark all pages as being exempt from the store buffer.
     ASSERT(i != (kSampleFinenesses - 1) || old_top_ == old_start_);
-    if (old_limit_ - old_top_ > old_top_ - old_start_) return;
+    if (SpaceAvailable(space_needed)) return;
   }
   UNREACHABLE();
 }
@@ -294,7 +298,7 @@ bool StoreBuffer::PrepareForIteration() {
 void StoreBuffer::Clean() {
   ClearFilteringHashSets();
   Uniq();  // Also removes things that no longer point to new space.
-  CheckForFullBuffer();
+  EnsureSpace(kStoreBufferSize / 2);
 }
 
 
@@ -687,12 +691,6 @@ void StoreBuffer::Compact() {
     ASSERT(old_top_ <= old_limit_);
   }
   heap_->isolate()->counters()->store_buffer_compactions()->Increment();
-  CheckForFullBuffer();
-}
-
-
-void StoreBuffer::CheckForFullBuffer() {
-  EnsureSpace(kStoreBufferSize * 2);
 }
 
 } }  // namespace v8::internal

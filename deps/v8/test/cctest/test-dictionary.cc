@@ -103,6 +103,7 @@ TEST(ObjectHashTable) {
 
 #ifdef DEBUG
 TEST(ObjectHashSetCausesGC) {
+  i::FLAG_stress_compaction = false;
   LocalContext context;
   Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
@@ -135,6 +136,7 @@ TEST(ObjectHashSetCausesGC) {
 
 #ifdef DEBUG
 TEST(ObjectHashTableCausesGC) {
+  i::FLAG_stress_compaction = false;
   LocalContext context;
   Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();

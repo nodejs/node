@@ -204,14 +204,15 @@ class NetworkedRunner(execution.Runner):
                    self.context.arch, self.context.mode],
                   self.local_socket)
               self.indicator.AboutToRun(test)
-              if test.suite.HasUnexpectedOutput(test):
+              has_unexpected_output = test.suite.HasUnexpectedOutput(test)
+              if has_unexpected_output:
                 self.failed.append(test)
                 if test.output.HasCrashed():
                   self.crashed += 1
               else:
                 self.succeeded += 1
               self.remaining -= 1
-              self.indicator.HasRun(test)
+              self.indicator.HasRun(test, has_unexpected_output)
           rec.Advance()
         peer.runtime = time.time() - start_time
       except KeyboardInterrupt:

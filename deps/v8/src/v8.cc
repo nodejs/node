@@ -271,6 +271,44 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_new_space_size = (1 << (kPageSizeBits - 10)) * 2;
   }
   if (FLAG_trace_hydrogen) FLAG_parallel_recompilation = false;
+
+  if (FLAG_sweeper_threads <= 0) {
+    if (FLAG_concurrent_sweeping) {
+      FLAG_sweeper_threads = SystemThreadManager::
+          NumberOfParallelSystemThreads(
+              SystemThreadManager::CONCURRENT_SWEEPING);
+    } else if (FLAG_parallel_sweeping) {
+      FLAG_sweeper_threads = SystemThreadManager::
+          NumberOfParallelSystemThreads(
+              SystemThreadManager::PARALLEL_SWEEPING);
+    }
+    if (FLAG_sweeper_threads == 0) {
+      FLAG_concurrent_sweeping = false;
+      FLAG_parallel_sweeping = false;
+    }
+  } else if (!FLAG_concurrent_sweeping && !FLAG_parallel_sweeping) {
+    FLAG_sweeper_threads = 0;
+  }
+
+  if (FLAG_parallel_marking) {
+    if (FLAG_marking_threads <= 0) {
+      FLAG_marking_threads = SystemThreadManager::
+          NumberOfParallelSystemThreads(
+              SystemThreadManager::PARALLEL_MARKING);
+    }
+    if (FLAG_marking_threads == 0) {
+      FLAG_parallel_marking = false;
+    }
+  } else {
+    FLAG_marking_threads = 0;
+  }
+
+  if (FLAG_parallel_recompilation &&
+      SystemThreadManager::NumberOfParallelSystemThreads(
+          SystemThreadManager::PARALLEL_RECOMPILATION) == 0) {
+    FLAG_parallel_recompilation = false;
+  }
+
   OS::SetUp();
   Sampler::SetUp();
   CPU::SetUp();

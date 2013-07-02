@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-typed-arrays
-
 // ArrayBuffer
 
 function TestByteLength(param, expectedByteLength) {
@@ -37,13 +35,14 @@ function TestByteLength(param, expectedByteLength) {
 function TestArrayBufferCreation() {
   TestByteLength(1, 1);
   TestByteLength(256, 256);
-  TestByteLength(-10, 0);
   TestByteLength(2.567, 2);
-  TestByteLength(-2.567, 0);
 
   TestByteLength("abc", 0);
 
   TestByteLength(0, 0);
+
+  assertThrows(function() { new ArrayBuffer(-10); }, RangeError);
+  assertThrows(function() { new ArrayBuffer(-2.567); }, RangeError);
 
 /* TODO[dslomov]: Reenable the test
   assertThrows(function() {
@@ -91,6 +90,7 @@ function TestArrayBufferSlice() {
   TestSlice(0, 0, 1, 20);
   TestSlice(100, 100, 0, 100);
   TestSlice(100, 100, 0, 1000);
+
   TestSlice(0, 100, 5, 1);
 
   TestSlice(1, 100, -11, -10);
@@ -101,14 +101,13 @@ function TestArrayBufferSlice() {
   TestSlice(10, 100, 90, "100");
   TestSlice(10, 100, "90", "100");
 
-  TestSlice(0, 100, 90, "abc");
+  TestSlice(0,  100, 90, "abc");
   TestSlice(10, 100, "abc", 10);
 
   TestSlice(10, 100, 0.96, 10.96);
   TestSlice(10, 100, 0.96, 10.01);
   TestSlice(10, 100, 0.01, 10.01);
   TestSlice(10, 100, 0.01, 10.96);
-
 
   TestSlice(10, 100, 90);
   TestSlice(10, 100, -10);
@@ -457,6 +456,74 @@ function TestTypedArraySet() {
 
 TestTypedArraySet();
 
+// DataView
+function TestDataViewConstructor() {
+  var ab = new ArrayBuffer(256);
+
+  var d1 = new DataView(ab, 1, 255);
+  assertSame(ab, d1.buffer);
+  assertSame(1, d1.byteOffset);
+  assertSame(255, d1.byteLength);
+
+  var d2 = new DataView(ab, 2);
+  assertSame(ab, d2.buffer);
+  assertSame(2, d2.byteOffset);
+  assertSame(254, d2.byteLength);
+
+  var d3 = new DataView(ab);
+  assertSame(ab, d3.buffer);
+  assertSame(0, d3.byteOffset);
+  assertSame(256, d3.byteLength);
+
+  var d3a = new DataView(ab, 1, 0);
+  assertSame(ab, d3a.buffer);
+  assertSame(1, d3a.byteOffset);
+  assertSame(0, d3a.byteLength);
+
+  var d3b = new DataView(ab, 256, 0);
+  assertSame(ab, d3b.buffer);
+  assertSame(256, d3b.byteOffset);
+  assertSame(0, d3b.byteLength);
+
+  var d3c = new DataView(ab, 256);
+  assertSame(ab, d3c.buffer);
+  assertSame(256, d3c.byteOffset);
+  assertSame(0, d3c.byteLength);
+
+  var d4 = new DataView(ab, 1, 3.1415926);
+  assertSame(ab, d4.buffer);
+  assertSame(1, d4.byteOffset);
+  assertSame(3, d4.byteLength);
+
+
+  // error cases
+  assertThrows(function() { new DataView(ab, -1); }, RangeError);
+  assertThrows(function() { new DataView(ab, 1, -1); }, RangeError);
+  assertThrows(function() { new DataView(); }, TypeError);
+  assertThrows(function() { new DataView([]); }, TypeError);
+  assertThrows(function() { new DataView(ab, 257); }, RangeError);
+  assertThrows(function() { new DataView(ab, 1, 1024); }, RangeError);
+}
+
+TestDataViewConstructor();
+
+function TestDataViewPropertyTypeChecks() {
+  var a = new DataView(new ArrayBuffer(10));
+  function CheckProperty(name) {
+    var d = Object.getOwnPropertyDescriptor(DataView.prototype, name);
+    var o = {}
+    assertThrows(function() {d.get.call(o);}, TypeError);
+    d.get.call(a); // shouldn't throw
+  }
+
+  CheckProperty("buffer");
+  CheckProperty("byteOffset");
+  CheckProperty("byteLength");
+}
+
+
+TestDataViewPropertyTypeChecks();
+
 // General tests for properties
 
 // Test property attribute [[Enumerable]]
@@ -475,6 +542,7 @@ TestEnumerable(ArrayBuffer, new ArrayBuffer());
 for(i = 0; i < typedArrayConstructors.lenght; i++) {
   TestEnumerable(typedArrayConstructors[i]);
 }
+TestEnumerable(DataView, new DataView(new ArrayBuffer()));
 
 // Test arbitrary properties on ArrayBuffer
 function TestArbitrary(m) {
@@ -491,8 +559,9 @@ TestArbitrary(new ArrayBuffer(256));
 for(i = 0; i < typedArrayConstructors.lenght; i++) {
   TestArbitary(new typedArrayConstructors[i](10));
 }
-
+TestArbitrary(new DataView(new ArrayBuffer(256)));
 
 
 // Test direct constructor call
-assertTrue(ArrayBuffer() instanceof ArrayBuffer);
+assertThrows(function() { ArrayBuffer(); }, TypeError);
+assertThrows(function() { DataView(new ArrayBuffer()); }, TypeError);

@@ -293,6 +293,8 @@ class Logger {
   // ==== Events logged by --log-timer-events. ====
   enum StartEnd { START, END };
 
+  void CodeDeoptEvent(Code* code);
+
   void TimerEvent(StartEnd se, const char* name);
 
   static void EnterExternal(Isolate* isolate);
@@ -412,6 +414,21 @@ class Logger {
 
   // Used for logging stubs found in the snapshot.
   void LogCodeObject(Object* code_object);
+
+  // Helper method. It resets name_buffer_ and add tag name into it.
+  void InitNameBuffer(LogEventsAndTags tag);
+
+  // Helper method. It push recorded buffer into different handlers.
+  void LogRecordedBuffer(Code*, SharedFunctionInfo*);
+
+  // Helper method. It dumps name into name_buffer_.
+  void AppendName(Name* name);
+
+  // Appends standard code header.
+  void AppendCodeCreateHeader(LogMessageBuilder*, LogEventsAndTags, Code*);
+
+  // Appends symbol for the name.
+  void AppendSymbolName(LogMessageBuilder*, Symbol*);
 
   // Emits general information about generated code.
   void LogCodeInfo();

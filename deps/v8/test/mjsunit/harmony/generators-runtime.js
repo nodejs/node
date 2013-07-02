@@ -110,6 +110,9 @@ function TestGeneratorFunction() {
   // Not all functions are generators.
   assertTrue(f instanceof Function);  // Sanity check.
   assertTrue(!(f instanceof GeneratorFunction));
+
+  assertTrue((new GeneratorFunction()) instanceof GeneratorFunction);
+  assertTrue(GeneratorFunction() instanceof GeneratorFunction);
 }
 TestGeneratorFunction();
 

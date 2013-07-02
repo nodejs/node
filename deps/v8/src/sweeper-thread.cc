@@ -93,6 +93,7 @@ void SweeperThread::Stop() {
   Release_Store(&stop_thread_, static_cast<AtomicWord>(true));
   start_sweeping_semaphore_->Signal();
   stop_semaphore_->Wait();
+  Join();
 }
 
 

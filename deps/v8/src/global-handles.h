@@ -152,7 +152,7 @@ class GlobalHandles {
   int NumberOfGlobalObjectWeakHandles();
 
   // Returns the current number of handles to global objects.
-  int NumberOfGlobalHandles() {
+  int global_handles_count() const {
     return number_of_global_handles_;
   }
 

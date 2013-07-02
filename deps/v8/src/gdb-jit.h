@@ -131,6 +131,8 @@ class GDBJITInterface: public AllStatic {
 
   static void RemoveCode(Code* code);
 
+  static void RemoveCodeRange(Address start, Address end);
+
   static void RegisterDetailedLineInfo(Code* code, GDBJITLineInfo* line_info);
 };
 

@@ -91,7 +91,10 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case CODE_TYPE:
       return kVisitCode;
 
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+    case CELL_TYPE:
+      return kVisitCell;
+
+    case PROPERTY_CELL_TYPE:
       return kVisitPropertyCell;
 
     case JS_SET_TYPE:
@@ -139,6 +142,9 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
 
     case JS_TYPED_ARRAY_TYPE:
       return kVisitJSTypedArray;
+
+    case JS_DATA_VIEW_TYPE:
+      return kVisitJSDataView;
 
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:

@@ -32,6 +32,7 @@
 #include "hashmap.h"
 #include "list.h"
 #include "log.h"
+#include "v8utils.h"
 
 namespace v8 {
 namespace internal {
@@ -1454,6 +1455,7 @@ class FreeListCategory {
   void Free(FreeListNode* node, int size_in_bytes);
 
   FreeListNode* PickNodeFromList(int *node_size);
+  FreeListNode* PickNodeFromList(int size_in_bytes, int *node_size);
 
   intptr_t EvictFreeListItemsInList(Page* p);
 
@@ -2626,20 +2628,20 @@ class MapSpace : public FixedSpace {
 
 
 // -----------------------------------------------------------------------------
-// Old space for all global object property cell objects
+// Old space for simple property cell objects
 
 class CellSpace : public FixedSpace {
  public:
   // Creates a property cell space object with a maximum capacity.
   CellSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize)
+      : FixedSpace(heap, max_capacity, id, Cell::kSize)
   {}
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
-    if (IsPowerOf2(JSGlobalPropertyCell::kSize)) {
-      return RoundDown(size, JSGlobalPropertyCell::kSize);
+    if (IsPowerOf2(Cell::kSize)) {
+      return RoundDown(size, Cell::kSize);
     } else {
-      return (size / JSGlobalPropertyCell::kSize) * JSGlobalPropertyCell::kSize;
+      return (size / Cell::kSize) * Cell::kSize;
     }
   }
 
@@ -2648,6 +2650,33 @@ class CellSpace : public FixedSpace {
 
  public:
   TRACK_MEMORY("CellSpace")
+};
+
+
+// -----------------------------------------------------------------------------
+// Old space for all global object property cell objects
+
+class PropertyCellSpace : public FixedSpace {
+ public:
+  // Creates a property cell space object with a maximum capacity.
+  PropertyCellSpace(Heap* heap, intptr_t max_capacity,
+                    AllocationSpace id)
+      : FixedSpace(heap, max_capacity, id, PropertyCell::kSize)
+  {}
+
+  virtual int RoundSizeDownToObjectAlignment(int size) {
+    if (IsPowerOf2(PropertyCell::kSize)) {
+      return RoundDown(size, PropertyCell::kSize);
+    } else {
+      return (size / PropertyCell::kSize) * PropertyCell::kSize;
+    }
+  }
+
+ protected:
+  virtual void VerifyObject(HeapObject* obj);
+
+ public:
+  TRACK_MEMORY("PropertyCellSpace")
 };
 
 

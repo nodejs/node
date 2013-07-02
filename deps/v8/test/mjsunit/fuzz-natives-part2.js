@@ -153,6 +153,7 @@ var knownProblems = {
   "ParallelRecompile": true,
   "InstallRecompiledCode": true,
   "NotifyDeoptimized": true,
+  "NotifyStubFailure": true,
   "NotifyOSR": true,
   "CreateObjectLiteralBoilerplate": true,
   "CloneLiteralBoilerplate": true,
@@ -206,11 +207,18 @@ var knownProblems = {
   // Only applicable to generators.
   "_GeneratorNext": true,
   "_GeneratorThrow": true,
+
+  // Only applicable to DataViews.
+  "DataViewGetBuffer": true,
+  "DataViewGetByteLength": true,
+  "DataViewGetByteOffset": true
 };
 
 var currentlyUncallable = {
   // We need to find a way to test this without breaking the system.
-  "SystemBreak": true
+  "SystemBreak": true,
+  // Inserts an int3/stop instruction when run with --always-opt.
+  "_DebugBreakInOptimizedCode": true
 };
 
 function testNatives() {

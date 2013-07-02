@@ -133,12 +133,12 @@ class AsciiResource: public v8::String::ExternalAsciiStringResource,
 static void InitializeBuildingBlocks(Handle<String>* building_blocks,
                                      int bb_length,
                                      bool long_blocks,
-                                     RandomNumberGenerator* rng) {
+                                     RandomNumberGenerator* rng,
+                                     Zone* zone) {
   // A list of pointers that we don't have any interest in cleaning up.
   // If they are reachable from a root then leak detection won't complain.
   Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
-  Zone* zone = isolate->runtime_zone();
   for (int i = 0; i < bb_length; i++) {
     int len = rng->next(16);
     int slice_head_chars = 0;
@@ -263,7 +263,7 @@ void ConsStringStats::VerifyEqual(const ConsStringStats& that) const {
 class ConsStringGenerationData {
  public:
   static const int kNumberOfBuildingBlocks = 256;
-  explicit ConsStringGenerationData(bool long_blocks);
+  ConsStringGenerationData(bool long_blocks, Zone* zone);
   void Reset();
   inline Handle<String> block(int offset);
   inline Handle<String> block(uint32_t offset);
@@ -285,10 +285,11 @@ class ConsStringGenerationData {
 };
 
 
-ConsStringGenerationData::ConsStringGenerationData(bool long_blocks) {
+ConsStringGenerationData::ConsStringGenerationData(bool long_blocks,
+                                                   Zone* zone) {
   rng_.init();
   InitializeBuildingBlocks(
-      building_blocks_, kNumberOfBuildingBlocks, long_blocks, &rng_);
+      building_blocks_, kNumberOfBuildingBlocks, long_blocks, &rng_, zone);
   empty_string_ = Isolate::Current()->heap()->empty_string();
   Reset();
 }
@@ -570,8 +571,8 @@ TEST(Traverse) {
   printf("TestTraverse\n");
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
-  ConsStringGenerationData data(false);
+  Zone zone(Isolate::Current());
+  ConsStringGenerationData data(false, &zone);
   Handle<String> flat = ConstructBalanced(&data);
   FlattenString(flat);
   Handle<String> left_asymmetric = ConstructLeft(&data, DEEP_DEPTH);
@@ -660,8 +661,8 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope outer_scope(isolate);
-  ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
-  ConsStringGenerationData data(true);
+  Zone zone(isolate);
+  ConsStringGenerationData data(true, &zone);
   for (int i = 0; i < test_cases; i++) {
     printf("%d\n", i);
     HandleScope inner_scope(isolate);
@@ -929,11 +930,11 @@ TEST(Utf8Conversion) {
 
 
 TEST(ExternalShortStringAdd) {
-  ZoneScope zonescope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  Isolate* isolate = Isolate::Current();
+  Zone zone(isolate);
 
   CcTest::InitializeVM();
   v8::HandleScope handle_scope(CcTest::isolate());
-  Zone* zone = Isolate::Current()->runtime_zone();
 
   // Make sure we cover all always-flat lengths and at least one above.
   static const int kMaxLength = 20;
@@ -947,25 +948,25 @@ TEST(ExternalShortStringAdd) {
 
   // Generate short ascii and non-ascii external strings.
   for (int i = 0; i <= kMaxLength; i++) {
-    char* ascii = zone->NewArray<char>(i + 1);
+    char* ascii = zone.NewArray<char>(i + 1);
     for (int j = 0; j < i; j++) {
       ascii[j] = 'a';
     }
     // Terminating '\0' is left out on purpose. It is not required for external
     // string data.
     AsciiResource* ascii_resource =
-        new(zone) AsciiResource(Vector<const char>(ascii, i));
+        new(&zone) AsciiResource(Vector<const char>(ascii, i));
     v8::Local<v8::String> ascii_external_string =
         v8::String::NewExternal(ascii_resource);
 
     ascii_external_strings->Set(v8::Integer::New(i), ascii_external_string);
-    uc16* non_ascii = zone->NewArray<uc16>(i + 1);
+    uc16* non_ascii = zone.NewArray<uc16>(i + 1);
     for (int j = 0; j < i; j++) {
       non_ascii[j] = 0x1234;
     }
     // Terminating '\0' is left out on purpose. It is not required for external
     // string data.
-    Resource* resource = new(zone) Resource(Vector<const uc16>(non_ascii, i));
+    Resource* resource = new(&zone) Resource(Vector<const uc16>(non_ascii, i));
     v8::Local<v8::String> non_ascii_external_string =
       v8::String::NewExternal(resource);
     non_ascii_external_strings->Set(v8::Integer::New(i),
@@ -1021,7 +1022,7 @@ TEST(CachedHashOverflow) {
   // values didn't fit in the hash field.
   // See http://code.google.com/p/v8/issues/detail?id=728
   Isolate* isolate = Isolate::Current();
-  ZoneScope zone(isolate->runtime_zone(), DELETE_ON_EXIT);
+  Zone zone(isolate);
 
   CcTest::InitializeVM();
   v8::HandleScope handle_scope(CcTest::isolate());

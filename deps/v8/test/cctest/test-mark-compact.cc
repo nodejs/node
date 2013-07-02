@@ -283,6 +283,7 @@ static void GCEpilogueCallbackFunc() {
 
 
 TEST(GCCallback) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
 
   HEAP->SetGlobalGCPrologueCallback(&GCPrologueCallbackFunc);
@@ -557,11 +558,32 @@ TEST(BootUpMemoryUse) {
       }
     } else {                            // 32-bit.
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(delta, 2900 * 1024);
+        CHECK_LE(delta, 3100 * 1024);
       } else {
         CHECK_LE(delta, 3400 * 1024);
       }
     }
+  }
+}
+
+
+intptr_t ShortLivingIsolate() {
+  v8::Isolate* isolate = v8::Isolate::New();
+  { v8::Isolate::Scope isolate_scope(isolate);
+    v8::Locker lock(isolate);
+    v8::HandleScope handle_scope;
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    CHECK(!context.IsEmpty());
+  }
+  isolate->Dispose();
+  return MemoryInUse();
+}
+
+
+TEST(RegressJoinThreadsOnIsolateDeinit) {
+  intptr_t size_limit = ShortLivingIsolate() * 2;
+  for (int i = 0; i < 10; i++) {
+    CHECK_GT(size_limit, ShortLivingIsolate());
   }
 }
 

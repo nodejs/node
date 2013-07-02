@@ -75,17 +75,17 @@ class HeapNumberMaterializationDescriptor BASE_EMBEDDED {
 };
 
 
-class ArgumentsObjectMaterializationDescriptor BASE_EMBEDDED {
+class ObjectMaterializationDescriptor BASE_EMBEDDED {
  public:
-  ArgumentsObjectMaterializationDescriptor(Address slot_address, int argc)
-      : slot_address_(slot_address), arguments_length_(argc) { }
+  ObjectMaterializationDescriptor(Address slot_address, int length)
+      : slot_address_(slot_address), object_length_(length) { }
 
   Address slot_address() const { return slot_address_; }
-  int arguments_length() const { return arguments_length_; }
+  int object_length() const { return object_length_; }
 
  private:
   Address slot_address_;
-  int arguments_length_;
+  int object_length_;
 };
 
 
@@ -369,6 +369,10 @@ class Deoptimizer : public Malloced {
   void DoComputeCompiledStubFrame(TranslationIterator* iterator,
                                   int frame_index);
 
+  void DoTranslateObject(TranslationIterator* iterator,
+                         int object_opcode,
+                         int field_index);
+
   enum DeoptimizerTranslatedValueType {
     TRANSLATED_VALUE_IS_NATIVE,
     TRANSLATED_VALUE_IS_TAGGED
@@ -394,8 +398,9 @@ class Deoptimizer : public Malloced {
 
   Object* ComputeLiteral(int index) const;
 
-  void AddArgumentsObject(intptr_t slot_address, int argc);
-  void AddArgumentsObjectValue(intptr_t value);
+  void AddObjectStart(intptr_t slot_address, int argc);
+  void AddObjectTaggedValue(intptr_t value);
+  void AddObjectDoubleValue(double value);
   void AddDoubleValue(intptr_t slot_address, double value);
 
   static void GenerateDeoptimizationEntries(
@@ -446,8 +451,9 @@ class Deoptimizer : public Malloced {
   // Array of output frame descriptions.
   FrameDescription** output_;
 
-  List<Object*> deferred_arguments_objects_values_;
-  List<ArgumentsObjectMaterializationDescriptor> deferred_arguments_objects_;
+  List<Object*> deferred_objects_tagged_values_;
+  List<double> deferred_objects_double_values_;
+  List<ObjectMaterializationDescriptor> deferred_objects_;
   List<HeapNumberMaterializationDescriptor> deferred_heap_numbers_;
 #ifdef DEBUG
   DisallowHeapAllocation* disallow_heap_allocation_;
@@ -698,6 +704,7 @@ class Translation BASE_EMBEDDED {
     SETTER_STUB_FRAME,
     ARGUMENTS_ADAPTOR_FRAME,
     COMPILED_STUB_FRAME,
+    ARGUMENTS_OBJECT,
     REGISTER,
     INT32_REGISTER,
     UINT32_REGISTER,
@@ -706,12 +713,7 @@ class Translation BASE_EMBEDDED {
     INT32_STACK_SLOT,
     UINT32_STACK_SLOT,
     DOUBLE_STACK_SLOT,
-    LITERAL,
-    ARGUMENTS_OBJECT,
-
-    // A prefix indicating that the next command is a duplicate of the one
-    // that follows it.
-    DUPLICATE
+    LITERAL
   };
 
   Translation(TranslationBuffer* buffer, int frame_count, int jsframe_count,
@@ -733,6 +735,7 @@ class Translation BASE_EMBEDDED {
   void BeginConstructStubFrame(int literal_id, unsigned height);
   void BeginGetterStubFrame(int literal_id);
   void BeginSetterStubFrame(int literal_id);
+  void BeginArgumentsObject(int args_length);
   void StoreRegister(Register reg);
   void StoreInt32Register(Register reg);
   void StoreUint32Register(Register reg);
@@ -743,7 +746,6 @@ class Translation BASE_EMBEDDED {
   void StoreDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
   void StoreArgumentsObject(bool args_known, int args_index, int args_length);
-  void MarkDuplicate();
 
   Zone* zone() const { return zone_; }
 

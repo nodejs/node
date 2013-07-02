@@ -1048,8 +1048,9 @@ TEST(ScopePositions) {
 i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
   i::Isolate* isolate = i::Isolate::Current();
   i::Factory* factory = isolate->factory();
+  const char* message = data->BuildMessage();
   i::Handle<i::String> format = v8::Utils::OpenHandle(
-                                    *v8::String::New(data->BuildMessage()));
+                                    *v8::String::New(message));
   i::Vector<const char*> args = data->BuildArgs();
   i::Handle<i::JSArray> args_array = factory->NewJSArray(args.length());
   for (int i = 0; i < args.length(); i++) {
@@ -1068,6 +1069,11 @@ i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
       i::Execution::Call(format_fun, builtins, 2, arg_handles, &has_exception);
   CHECK(!has_exception);
   CHECK(result->IsString());
+  for (int i = 0; i < args.length(); i++) {
+    i::DeleteArray(args[i]);
+  }
+  i::DeleteArray(args.start());
+  i::DeleteArray(message);
   return i::Handle<i::String>::cast(result);
 }
 
@@ -1279,7 +1285,7 @@ TEST(ParserSync) {
             + kSuffixLen + i::StrLength("label: for (;;) {  }");
 
         // Plug the source code pieces together.
-        i::Vector<char> program = i::Vector<char>::New(kProgramSize + 1);
+        i::ScopedVector<char> program(kProgramSize + 1);
         int length = i::OS::SNPrintF(program,
             "label: for (;;) { %s%s%s%s }",
             context_data[i][0],

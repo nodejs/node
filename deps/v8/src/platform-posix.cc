@@ -105,7 +105,7 @@ void* OS::GetRandomMmapAddr() {
   // CpuFeatures::Probe. We don't care about randomization in this case because
   // the code page is immediately freed.
   if (isolate != NULL) {
-#ifdef V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64
     uint64_t rnd1 = V8::RandomPrivate(isolate);
     uint64_t rnd2 = V8::RandomPrivate(isolate);
     uint64_t raw_addr = (rnd1 << 32) ^ rnd2;
@@ -115,26 +115,11 @@ void* OS::GetRandomMmapAddr() {
     raw_addr &= V8_UINT64_C(0x3ffffffff000);
 #else
     uint32_t raw_addr = V8::RandomPrivate(isolate);
-
-    raw_addr &= 0x3ffff000;
-
-# ifdef __sun
-    // For our Solaris/illumos mmap hint, we pick a random address in the bottom
-    // half of the top half of the address space (that is, the third quarter).
-    // Because we do not MAP_FIXED, this will be treated only as a hint -- the
-    // system will not fail to mmap() because something else happens to already
-    // be mapped at our random address. We deliberately set the hint high enough
-    // to get well above the system's break (that is, the heap); Solaris and
-    // illumos will try the hint and if that fails allocate as if there were
-    // no hint at all. The high hint prevents the break from getting hemmed in
-    // at low values, ceding half of the address space to the system heap.
-    raw_addr += 0x80000000;
-# else
     // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
     // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
     // 10.6 and 10.7.
+    raw_addr &= 0x3ffff000;
     raw_addr += 0x20000000;
-# endif
 #endif
     return reinterpret_cast<void*>(raw_addr);
   }
@@ -336,7 +321,7 @@ int OS::VSNPrintF(Vector<char> str,
 }
 
 
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
 static void MemMoveWrapper(void* dest, const void* src, size_t size) {
   memmove(dest, src, size);
 }
@@ -359,7 +344,7 @@ void OS::MemMove(void* dest, const void* src, size_t size) {
 
 
 void POSIXPostSetUp() {
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
   OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
   if (generated_memmove != NULL) {
     memmove_function = generated_memmove;

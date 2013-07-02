@@ -101,8 +101,8 @@ class Debugger;
 class DebuggerAgent;
 #endif
 
-#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
-    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+#if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__mips__) && V8_TARGET_ARCH_MIPS
 class Redirection;
 class Simulator;
 #endif
@@ -246,8 +246,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   ThreadId thread_id_;
   MaybeObject* pending_exception_;
   bool has_pending_message_;
+  bool rethrowing_message_;
   Object* pending_message_obj_;
-  Script* pending_message_script_;
+  Object* pending_message_script_;
   int pending_message_start_pos_;
   int pending_message_end_pos_;
   // Use a separate value for scheduled exceptions to preserve the
@@ -263,7 +264,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   Address handler_;   // try-blocks are chained through the stack
 
 #ifdef USE_SIMULATOR
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   Simulator* simulator_;
 #endif
 #endif  // USE_SIMULATOR
@@ -368,8 +369,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   /* AstNode state. */                                                         \
   V(int, ast_node_id, 0)                                                       \
   V(unsigned, ast_node_count, 0)                                               \
-  /* SafeStackFrameIterator activations count. */                              \
-  V(int, safe_stack_iterator_counter, 0)                                       \
   V(bool, observer_delivery_pending, false)                                    \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
@@ -393,8 +392,8 @@ class Isolate {
           thread_id_(thread_id),
           stack_limit_(0),
           thread_state_(NULL),
-#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
-    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+#if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__mips__) && V8_TARGET_ARCH_MIPS
           simulator_(NULL),
 #endif
           next_(NULL),
@@ -406,8 +405,8 @@ class Isolate {
     ThreadState* thread_state() const { return thread_state_; }
     void set_thread_state(ThreadState* value) { thread_state_ = value; }
 
-#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
-    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+#if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__mips__) && V8_TARGET_ARCH_MIPS
     Simulator* simulator() const { return simulator_; }
     void set_simulator(Simulator* simulator) {
       simulator_ = simulator;
@@ -424,8 +423,8 @@ class Isolate {
     uintptr_t stack_limit_;
     ThreadState* thread_state_;
 
-#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
-    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+#if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__mips__) && V8_TARGET_ARCH_MIPS
     Simulator* simulator_;
 #endif
 
@@ -549,7 +548,7 @@ class Isolate {
   }
   Context** context_address() { return &thread_local_top_.context_; }
 
-  SaveContext* save_context() {return thread_local_top_.save_context_; }
+  SaveContext* save_context() { return thread_local_top_.save_context_; }
   void set_save_context(SaveContext* save) {
     thread_local_top_.save_context_ = save;
   }
@@ -584,7 +583,7 @@ class Isolate {
   void clear_pending_message() {
     thread_local_top_.has_pending_message_ = false;
     thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
-    thread_local_top_.pending_message_script_ = NULL;
+    thread_local_top_.pending_message_script_ = heap_.the_hole_value();
   }
   v8::TryCatch* try_catch_handler() {
     return thread_local_top_.TryCatchHandler();
@@ -762,6 +761,9 @@ class Isolate {
   // originally.
   Failure* ReThrow(MaybeObject* exception);
   void ScheduleThrow(Object* exception);
+  // Re-set pending message, script and positions reported to the TryCatch
+  // back to the TLS for re-use when rethrowing.
+  void RestorePendingMessageFromTryCatch(v8::TryCatch* handler);
   void ReportPendingMessages();
   // Return pending location if any or unfilled structure.
   MessageLocation GetMessageLocation();
@@ -997,8 +999,8 @@ class Isolate {
   int* code_kind_statistics() { return code_kind_statistics_; }
 #endif
 
-#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
-    defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
+#if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
+    V8_TARGET_ARCH_MIPS && !defined(__mips__)
   bool simulator_initialized() { return simulator_initialized_; }
   void set_simulator_initialized(bool initialized) {
     simulator_initialized_ = initialized;
@@ -1052,6 +1054,8 @@ class Isolate {
   void set_context_exit_happened(bool context_exit_happened) {
     context_exit_happened_ = context_exit_happened;
   }
+
+  bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   double time_millis_since_init() {
     return OS::TimeCurrentMillis() - time_millis_at_init_;
@@ -1107,13 +1111,18 @@ class Isolate {
     callback_table_ = callback_table;
   }
 
+  int id() const { return static_cast<int>(id_); }
+
   HStatistics* GetHStatistics();
   HTracer* GetHTracer();
 
+  FunctionEntryHook function_entry_hook() { return function_entry_hook_; }
+  void set_function_entry_hook(FunctionEntryHook function_entry_hook) {
+    function_entry_hook_ = function_entry_hook;
+  }
+
  private:
   Isolate();
-
-  int id() const { return static_cast<int>(id_); }
 
   friend struct GlobalState;
   friend struct InitializeGlobalState;
@@ -1292,11 +1301,14 @@ class Isolate {
   // that a context was recently exited.
   bool context_exit_happened_;
 
+  // True if this isolate was initialized from a snapshot.
+  bool initialized_from_snapshot_;
+
   // Time stamp at initialization.
   double time_millis_at_init_;
 
-#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
-    defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
+#if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
+    V8_TARGET_ARCH_MIPS && !defined(__mips__)
   bool simulator_initialized_;
   HashMap* simulator_i_cache_;
   Redirection* simulator_redirection_;
@@ -1315,6 +1327,7 @@ class Isolate {
 #endif
   CpuProfiler* cpu_profiler_;
   HeapProfiler* heap_profiler_;
+  FunctionEntryHook function_entry_hook_;
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
   type name##_;

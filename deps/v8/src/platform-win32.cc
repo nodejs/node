@@ -147,7 +147,7 @@ double ceiling(double x) {
 
 static Mutex* limit_mutex = NULL;
 
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
 static void MemMoveWrapper(void* dest, const void* src, size_t size) {
   memmove(dest, src, size);
 }
@@ -580,7 +580,7 @@ void OS::PostSetUp() {
   // Math functions depend on CPU features therefore they are initialized after
   // CPU.
   MathSetup();
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
   OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
   if (generated_memmove != NULL) {
     memmove_function = generated_memmove;
@@ -1482,12 +1482,6 @@ int OS::ActivationFrameAlignment() {
 #else
   return 8;  // Floating-point math runs faster with 8-byte alignment.
 #endif
-}
-
-
-void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
-  MemoryBarrier();
-  *ptr = value;
 }
 
 

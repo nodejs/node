@@ -835,7 +835,7 @@ class MarkCompactCollector {
 
   // Mark the string table specially.  References to internalized strings from
   // the string table are weak.
-  void MarkStringTable();
+  void MarkStringTable(RootMarkingVisitor* visitor);
 
   // Mark objects in implicit references groups if their parent object
   // is marked.
@@ -852,6 +852,11 @@ class MarkCompactCollector {
   //    - Objects reachable due to host application logic like object groups
   //      or implicit references' groups.
   void ProcessEphemeralMarking(ObjectVisitor* visitor);
+
+  // If the call-site of the top optimized code was not prepared for
+  // deoptimization, then treat the maps in the code as strong pointers,
+  // otherwise a map can die and deoptimize the code.
+  void ProcessTopOptimizedFrame(ObjectVisitor* visitor);
 
   // Mark objects reachable (transitively) from objects in the marking
   // stack.  This function empties the marking stack, but may leave
@@ -880,7 +885,7 @@ class MarkCompactCollector {
   void ClearNonLiveMapTransitions(Map* map, MarkBit map_mark);
 
   void ClearAndDeoptimizeDependentCode(Map* map);
-  void ClearNonLiveDependentCode(Map* map);
+  void ClearNonLiveDependentCode(DependentCode* dependent_code);
 
   // Marking detaches initial maps from SharedFunctionInfo objects
   // to make this reference weak. We need to reattach initial maps

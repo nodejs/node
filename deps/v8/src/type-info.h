@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "globals.h"
+#include "types.h"
 #include "zone-inl.h"
 
 namespace v8 {
@@ -113,7 +114,7 @@ class TypeInfo {
     return false;
   }
 
-  static TypeInfo TypeFromValue(Handle<Object> value);
+  static TypeInfo FromValue(Handle<Object> value);
 
   bool Equals(const TypeInfo& other) {
     return type_ == other.type_;
@@ -217,12 +218,11 @@ enum StringStubFeedback {
 
 
 // Forward declarations.
+// TODO(rossberg): these should all go away eventually.
 class Assignment;
-class BinaryOperation;
 class Call;
 class CallNew;
 class CaseClause;
-class CompareOperation;
 class CompilationInfo;
 class CountOperation;
 class Expression;
@@ -230,7 +230,6 @@ class ForInStatement;
 class ICStub;
 class Property;
 class SmallMapList;
-class UnaryOperation;
 class ObjectLiteral;
 class ObjectLiteralProperty;
 
@@ -245,6 +244,7 @@ class TypeFeedbackOracle: public ZoneObject {
   bool LoadIsMonomorphicNormal(Property* expr);
   bool LoadIsUninitialized(Property* expr);
   bool LoadIsPolymorphic(Property* expr);
+  bool StoreIsUninitialized(TypeFeedbackId ast_id);
   bool StoreIsMonomorphicNormal(TypeFeedbackId ast_id);
   bool StoreIsPolymorphic(TypeFeedbackId ast_id);
   bool CallIsMonomorphic(Call* expr);
@@ -257,7 +257,6 @@ class TypeFeedbackOracle: public ZoneObject {
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
   Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId id);
-  Handle<Map> CompareNilMonomorphicReceiverType(CompareOperation* expr);
 
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId ast_id);
 
@@ -283,7 +282,7 @@ class TypeFeedbackOracle: public ZoneObject {
   CheckType GetCallCheckType(Call* expr);
   Handle<JSFunction> GetCallTarget(Call* expr);
   Handle<JSFunction> GetCallNewTarget(CallNew* expr);
-  Handle<JSGlobalPropertyCell> GetCallNewAllocationInfoCell(CallNew* expr);
+  Handle<Cell> GetCallNewAllocationInfoCell(CallNew* expr);
 
   Handle<Map> GetObjectLiteralStoreMap(ObjectLiteralProperty* prop);
 
@@ -293,27 +292,23 @@ class TypeFeedbackOracle: public ZoneObject {
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
   // headers!! :-P
-  byte ToBooleanTypes(TypeFeedbackId ast_id);
-
-  // TODO(1571) We can't use CompareNilICStub::Types as the return value because
-  // of various cylces in our headers. Death to tons of implementations in
-  // headers!! :-P
-  byte CompareNilTypes(CompareOperation* expr);
+  byte ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
-  TypeInfo UnaryType(UnaryOperation* expr);
-  void BinaryType(BinaryOperation* expr,
-                  TypeInfo* left,
-                  TypeInfo* right,
-                  TypeInfo* result,
-                  bool* has_fixed_right_arg,
-                  int* fixed_right_arg_value);
-  void CompareType(CompareOperation* expr,
-                   TypeInfo* left_type,
-                   TypeInfo* right_type,
-                   TypeInfo* overall_type);
-  Handle<Map> GetCompareMap(CompareOperation* expr);
-  TypeInfo SwitchType(CaseClause* clause);
+  Handle<Type> UnaryType(TypeFeedbackId id);
+  void BinaryType(TypeFeedbackId id,
+                  Handle<Type>* left,
+                  Handle<Type>* right,
+                  Handle<Type>* result,
+                  Maybe<int>* fixed_right_arg);
+
+  void CompareType(TypeFeedbackId id,
+                   Handle<Type>* left_type,
+                   Handle<Type>* right_type,
+                   Handle<Type>* combined_type);
+
+  Handle<Type> ClauseType(TypeFeedbackId id);
+
   TypeInfo IncrementType(CountOperation* expr);
 
   Zone* zone() const { return zone_; }
@@ -341,7 +336,7 @@ class TypeFeedbackOracle: public ZoneObject {
   Handle<Object> GetInfo(TypeFeedbackId ast_id);
 
   // Return the cell that contains type feedback.
-  Handle<JSGlobalPropertyCell> GetInfoCell(TypeFeedbackId ast_id);
+  Handle<Cell> GetInfoCell(TypeFeedbackId ast_id);
 
  private:
   Handle<Context> native_context_;

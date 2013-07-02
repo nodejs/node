@@ -36,7 +36,7 @@ typedef bool (*NativeSourceCallback)(Vector<const char> name,
                                      int index);
 
 enum NativeType {
-  CORE, EXPERIMENTAL, D8, TEST
+  CORE, EXPERIMENTAL, D8, TEST, I18N
 };
 
 template <NativeType type>
@@ -61,6 +61,7 @@ class NativesCollection {
 
 typedef NativesCollection<CORE> Natives;
 typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
+typedef NativesCollection<I18N> I18NNatives;
 
 } }  // namespace v8::internal
 

@@ -316,8 +316,6 @@ class Simulator {
     if (instr->InstructionBits() == nopInstr) {
       // Short-cut generic nop instructions. They are always valid and they
       // never change the simulator state.
-      set_register(pc, reinterpret_cast<int32_t>(instr) +
-                       Instruction::kInstrSize);
       return;
     }
 

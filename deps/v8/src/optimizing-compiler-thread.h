@@ -31,7 +31,7 @@
 #include "atomicops.h"
 #include "flags.h"
 #include "platform.h"
-#include "unbound-queue.h"
+#include "unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -46,10 +46,12 @@ class OptimizingCompilerThread : public Thread {
       Thread("OptimizingCompilerThread"),
 #ifdef DEBUG
       thread_id_(0),
+      thread_id_mutex_(OS::CreateMutex()),
 #endif
       isolate_(isolate),
       stop_semaphore_(OS::CreateSemaphore(0)),
       input_queue_semaphore_(OS::CreateSemaphore(0)),
+      install_mutex_(OS::CreateMutex()),
       time_spent_compiling_(0),
       time_spent_total_(0) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
@@ -81,13 +83,18 @@ class OptimizingCompilerThread : public Thread {
 #endif
 
   ~OptimizingCompilerThread() {
+    delete install_mutex_;
     delete input_queue_semaphore_;
     delete stop_semaphore_;
+#ifdef DEBUG
+    delete thread_id_mutex_;
+#endif
   }
 
  private:
 #ifdef DEBUG
   int thread_id_;
+  Mutex* thread_id_mutex_;
 #endif
 
   Isolate* isolate_;
@@ -95,6 +102,7 @@ class OptimizingCompilerThread : public Thread {
   Semaphore* input_queue_semaphore_;
   UnboundQueue<OptimizingCompiler*> input_queue_;
   UnboundQueue<OptimizingCompiler*> output_queue_;
+  Mutex* install_mutex_;
   volatile AtomicWord stop_thread_;
   volatile Atomic32 queue_length_;
   int64_t time_spent_compiling_;

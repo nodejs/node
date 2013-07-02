@@ -29,7 +29,7 @@
 
 #include "double.h"
 #include "factory.h"
-#include "hydrogen.h"
+#include "hydrogen-infer-representation.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/lithium-ia32.h"
@@ -78,12 +78,16 @@ void HValue::AssumeRepresentation(Representation r) {
 }
 
 
-void HValue::InferRepresentation(HInferRepresentation* h_infer) {
+void HValue::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
   new_rep = RepresentationFromUses();
   UpdateRepresentation(new_rep, h_infer, "uses");
+  new_rep = RepresentationFromUseRequirements();
+  if (new_rep.fits_into(Representation::Integer32())) {
+    UpdateRepresentation(new_rep, h_infer, "use requirements");
+  }
 }
 
 
@@ -120,10 +124,11 @@ Representation HValue::RepresentationFromUses() {
 
 
 void HValue::UpdateRepresentation(Representation new_rep,
-                                  HInferRepresentation* h_infer,
+                                  HInferRepresentationPhase* h_infer,
                                   const char* reason) {
   Representation r = representation();
   if (new_rep.is_more_general_than(r)) {
+    if (CheckFlag(kCannotBeTagged) && new_rep.IsTagged()) return;
     if (FLAG_trace_representation) {
       PrintF("Changing #%d %s representation %s -> %s based on %s\n",
              id(), Mnemonic(), r.Mnemonic(), new_rep.Mnemonic(), reason);
@@ -134,7 +139,7 @@ void HValue::UpdateRepresentation(Representation new_rep,
 }
 
 
-void HValue::AddDependantsToWorklist(HInferRepresentation* h_infer) {
+void HValue::AddDependantsToWorklist(HInferRepresentationPhase* h_infer) {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     h_infer->AddToWorklist(it.value());
   }
@@ -1145,21 +1150,20 @@ void HBoundsCheck::PrintDataTo(StringStream* stream) {
 }
 
 
-void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
+void HBoundsCheck::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
-  Representation r;
   HValue* actual_index = index()->ActualValue();
   HValue* actual_length = length()->ActualValue();
   Representation index_rep = actual_index->representation();
-  if (!actual_length->representation().IsSmiOrTagged()) {
-    r = Representation::Integer32();
-  } else if ((index_rep.IsTagged() && actual_index->type().IsSmi()) ||
-      index_rep.IsSmi()) {
-    // If the index is smi, allow the length to be smi, since it is usually
-    // already smi from loading it out of the length field of a JSArray.  This
-    // allows for direct comparison without untagging.
-    r = Representation::Smi();
-  } else {
+  Representation length_rep = actual_length->representation();
+  if (index_rep.IsTagged() && actual_index->type().IsSmi()) {
+    index_rep = Representation::Smi();
+  }
+  if (length_rep.IsTagged() && actual_length->type().IsSmi()) {
+    length_rep = Representation::Smi();
+  }
+  Representation r = index_rep.generalize(length_rep);
+  if (r.is_more_general_than(Representation::Integer32())) {
     r = Representation::Integer32();
   }
   UpdateRepresentation(r, h_infer, "boundscheck");
@@ -1221,6 +1225,13 @@ void HCallKnownGlobal::PrintDataTo(StringStream* stream) {
 }
 
 
+void HCallNewArray::PrintDataTo(StringStream* stream) {
+  stream->Add(ElementsKindToString(elements_kind()));
+  stream->Add(" ");
+  HBinaryCall::PrintDataTo(stream);
+}
+
+
 void HCallRuntime::PrintDataTo(StringStream* stream) {
   stream->Add("%o ", *name());
   stream->Add("#%d", argument_count());
@@ -1277,20 +1288,26 @@ void HReturn::PrintDataTo(StringStream* stream) {
 
 Representation HBranch::observed_input_representation(int index) {
   static const ToBooleanStub::Types tagged_types(
-      ToBooleanStub::UNDEFINED |
       ToBooleanStub::NULL_TYPE |
       ToBooleanStub::SPEC_OBJECT |
       ToBooleanStub::STRING |
       ToBooleanStub::SYMBOL);
   if (expected_input_types_.ContainsAnyOf(tagged_types)) {
     return Representation::Tagged();
-  } else if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
-    return Representation::Double();
-  } else if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
-    return Representation::Integer32();
-  } else {
-    return Representation::None();
   }
+  if (expected_input_types_.Contains(ToBooleanStub::UNDEFINED)) {
+    if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+      return Representation::Double();
+    }
+    return Representation::Tagged();
+  }
+  if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+    return Representation::Double();
+  }
+  if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
+    return Representation::Smi();
+  }
+  return Representation::None();
 }
 
 
@@ -1511,30 +1528,52 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
+static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
+  // A value with an integer representation does not need to be transformed.
+  if (dividend->representation().IsInteger32()) {
+    return dividend;
+  }
+  // A change from an integer32 can be replaced by the integer32 value.
+  if (dividend->IsChange() &&
+      HChange::cast(dividend)->from().IsInteger32()) {
+    return HChange::cast(dividend)->value();
+  }
+  return NULL;
+}
+
+
 HValue* HUnaryMathOperation::Canonicalize() {
   if (op() == kMathFloor) {
+    HValue* val = value();
+    if (val->IsChange()) val = HChange::cast(val)->value();
+
     // If the input is integer32 then we replace the floor instruction
-    // with its input. This happens before the representation changes are
-    // introduced.
+    // with its input.
+    if (val->representation().IsInteger32()) return val;
 
-    // TODO(2205): The above comment is lying. All of this happens
-    // *after* representation changes are introduced. We should check
-    // for value->IsChange() and react accordingly if yes.
-
-    if (value()->representation().IsInteger32()) return value();
-
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) || \
-        defined(V8_TARGET_ARCH_X64)
-    if (value()->IsDiv() && (value()->UseCount() == 1)) {
-      // TODO(2038): Implement this optimization for non ARM architectures.
-      HDiv* hdiv = HDiv::cast(value());
+    if (val->IsDiv() && (val->UseCount() == 1)) {
+      HDiv* hdiv = HDiv::cast(val);
       HValue* left = hdiv->left();
       HValue* right = hdiv->right();
       // Try to simplify left and right values of the division.
-      HValue* new_left =
-        LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(left);
+      HValue* new_left = SimplifiedDividendForMathFloorOfDiv(left);
+      if (new_left == NULL &&
+          hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
+        new_left = new(block()->zone())
+            HChange(left, Representation::Integer32(), false, false);
+        HChange::cast(new_left)->InsertBefore(this);
+      }
       HValue* new_right =
-        LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
+          LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
+      if (new_right == NULL &&
+#if V8_TARGET_ARCH_ARM
+          CpuFeatures::IsSupported(SUDIV) &&
+#endif
+          hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
+        new_right = new(block()->zone())
+            HChange(right, Representation::Integer32(), false, false);
+        HChange::cast(new_right)->InsertBefore(this);
+      }
 
       // Return if left or right are not optimizable.
       if ((new_left == NULL) || (new_right == NULL)) return this;
@@ -1548,26 +1587,20 @@ HValue* HUnaryMathOperation::Canonicalize() {
           !HInstruction::cast(new_right)->IsLinked()) {
         HInstruction::cast(new_right)->InsertBefore(this);
       }
-      HMathFloorOfDiv* instr =  new(block()->zone()) HMathFloorOfDiv(context(),
-          new_left,
-          new_right);
+      HMathFloorOfDiv* instr = new(block()->zone())
+          HMathFloorOfDiv(context(), new_left, new_right);
       // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
       instr->InsertBefore(this);
       ReplaceAllUsesWith(instr);
       Kill();
       // We know the division had no other uses than this HMathFloor. Delete it.
-      // Also delete the arguments of the division if they are not used any
-      // more.
+      // Dead code elimination will deal with |left| and |right| if
+      // appropriate.
       hdiv->DeleteAndReplaceWith(NULL);
-      ASSERT(left->IsChange() || left->IsConstant());
-      ASSERT(right->IsChange() || right->IsConstant());
-      if (left->HasNoUses())  left->DeleteAndReplaceWith(NULL);
-      if (right->HasNoUses())  right->DeleteAndReplaceWith(NULL);
 
       // Return NULL to remove this instruction from the graph.
       return NULL;
     }
-#endif  // V8_TARGET_ARCH_ARM
   }
   return this;
 }
@@ -1739,9 +1772,12 @@ Range* HConstant::InferRange(Zone* zone) {
 
 
 Range* HPhi::InferRange(Zone* zone) {
-  if (representation().IsInteger32()) {
+  Representation r = representation();
+  if (r.IsSmiOrInteger32()) {
     if (block()->IsLoopHeader()) {
-      Range* range = new(zone) Range(kMinInt, kMaxInt);
+      Range* range = r.IsSmi()
+          ? new(zone) Range(Smi::kMinValue, Smi::kMaxValue)
+          : new(zone) Range(kMinInt, kMaxInt);
       return range;
     } else {
       Range* range = OperandAt(0)->range()->Copy(zone);
@@ -2295,7 +2331,7 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) {
 }
 
 
-void HBinaryOperation::InferRepresentation(HInferRepresentation* h_infer) {
+void HBinaryOperation::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
@@ -2304,6 +2340,10 @@ void HBinaryOperation::InferRepresentation(HInferRepresentation* h_infer) {
   if (!observed_output_representation_.IsNone()) return;
   new_rep = RepresentationFromUses();
   UpdateRepresentation(new_rep, h_infer, "uses");
+  new_rep = RepresentationFromUseRequirements();
+  if (new_rep.fits_into(Representation::Integer32())) {
+    UpdateRepresentation(new_rep, h_infer, "use requirements");
+  }
 }
 
 
@@ -2354,7 +2394,7 @@ void HBinaryOperation::AssumeRepresentation(Representation r) {
 }
 
 
-void HMathMinMax::InferRepresentation(HInferRepresentation* h_infer) {
+void HMathMinMax::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
@@ -2533,7 +2573,8 @@ void HGoto::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
+void HCompareIDAndBranch::InferRepresentation(
+    HInferRepresentationPhase* h_infer) {
   Representation left_rep = left()->representation();
   Representation right_rep = right()->representation();
   Representation observed_left = observed_input_representation(0);
@@ -3032,9 +3073,8 @@ HType HCheckFunction::CalculateInferredType() {
 }
 
 
-HType HCheckNonSmi::CalculateInferredType() {
-  // TODO(kasperl): Is there any way to signal that this isn't a smi?
-  return HType::Tagged();
+HType HCheckHeapObject::CalculateInferredType() {
+  return HType::NonPrimitive();
 }
 
 
@@ -3121,6 +3161,11 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 
 HType HStringCharFromCode::CalculateInferredType() {
   return HType::String();
+}
+
+
+HType HAllocateObject::CalculateInferredType() {
+  return HType::JSObject();
 }
 
 
@@ -3304,10 +3349,9 @@ HInstruction* HStringAdd::New(
     HConstant* c_right = HConstant::cast(right);
     HConstant* c_left = HConstant::cast(left);
     if (c_left->HasStringValue() && c_right->HasStringValue()) {
-      Factory* factory = Isolate::Current()->factory();
-      return new(zone) HConstant(factory->NewConsString(c_left->StringValue(),
-                                                        c_right->StringValue()),
-                                 Representation::Tagged());
+      Handle<String> concat = zone->isolate()->factory()->NewFlatConcatString(
+          c_left->StringValue(), c_right->StringValue());
+      return new(zone) HConstant(concat, Representation::Tagged());
     }
   }
   return new(zone) HStringAdd(context, left, right);
@@ -3464,8 +3508,7 @@ HInstruction* HMod::New(Zone* zone,
                         HValue* context,
                         HValue* left,
                         HValue* right,
-                        bool has_fixed_right_arg,
-                        int fixed_right_arg_value) {
+                        Maybe<int> fixed_right_arg) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -3484,11 +3527,7 @@ HInstruction* HMod::New(Zone* zone,
       }
     }
   }
-  return new(zone) HMod(context,
-                        left,
-                        right,
-                        has_fixed_right_arg,
-                        fixed_right_arg_value);
+  return new(zone) HMod(context, left, right, fixed_right_arg);
 }
 
 
@@ -3640,7 +3679,7 @@ void HPhi::SimplifyConstantInputs() {
 }
 
 
-void HPhi::InferRepresentation(HInferRepresentation* h_infer) {
+void HPhi::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
@@ -3660,34 +3699,26 @@ Representation HPhi::RepresentationFromInputs() {
 }
 
 
-Representation HPhi::RepresentationFromUseRequirements() {
-  Representation all_uses_require = Representation::None();
-  bool all_uses_require_the_same = true;
+// Returns a representation if all uses agree on the same representation.
+// Integer32 is also returned when some uses are Smi but others are Integer32.
+Representation HValue::RepresentationFromUseRequirements() {
+  Representation rep = Representation::None();
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     // We check for observed_input_representation elsewhere.
     Representation use_rep =
         it.value()->RequiredInputRepresentation(it.index());
-    // No useful info from this use -> look at the next one.
-    if (use_rep.IsNone()) {
+    if (rep.IsNone()) {
+      rep = use_rep;
       continue;
     }
-    if (use_rep.Equals(all_uses_require)) {
+    if (use_rep.IsNone() || rep.Equals(use_rep)) continue;
+    if (rep.generalize(use_rep).IsInteger32()) {
+      rep = Representation::Integer32();
       continue;
     }
-    // This use's representation contradicts what we've seen so far.
-    if (!all_uses_require.IsNone()) {
-      ASSERT(!use_rep.Equals(all_uses_require));
-      all_uses_require_the_same = false;
-      break;
-    }
-    // Otherwise, initialize observed representation.
-    all_uses_require = use_rep;
+    return Representation::None();
   }
-  if (all_uses_require_the_same) {
-    return all_uses_require;
-  }
-
-  return Representation::None();
+  return rep;
 }
 
 
@@ -3712,7 +3743,7 @@ void HSimulate::Verify() {
 }
 
 
-void HCheckNonSmi::Verify() {
+void HCheckHeapObject::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }

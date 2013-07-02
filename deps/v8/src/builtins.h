@@ -166,6 +166,10 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(StoreIC_Megamorphic,            STORE_IC, MEGAMORPHIC,              \
                                     Code::kNoExtraICState)              \
+  V(StoreIC_Generic,                STORE_IC, GENERIC,                  \
+                                    Code::kNoExtraICState)              \
+  V(StoreIC_Generic_Strict,         STORE_IC, GENERIC,                  \
+                                    kStrictMode)                        \
   V(StoreIC_GlobalProxy,            STORE_IC, GENERIC,                  \
                                     Code::kNoExtraICState)              \
   V(StoreIC_Initialize_Strict,      STORE_IC, UNINITIALIZED,            \
@@ -204,8 +208,6 @@ enum BuiltinExtraArguments {
   V(InternalArrayCode,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(ArrayCode,                      BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
-  V(CommonArrayConstructCode,       BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
                                                                         \
   V(StringConstructCode,            BUILTIN, UNINITIALIZED,             \
@@ -395,7 +397,6 @@ class Builtins {
 
   static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
-  static void Generate_CommonArrayConstructCode(MacroAssembler* masm);
 
   static void Generate_StringConstructCode(MacroAssembler* masm);
   static void Generate_OnStackReplacement(MacroAssembler* masm);

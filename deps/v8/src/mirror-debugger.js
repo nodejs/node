@@ -1509,6 +1509,11 @@ FrameDetails.prototype.scopeCount = function() {
 };
 
 
+FrameDetails.prototype.stepInPositionsImpl = function() {
+  return %GetStepInPositions(this.break_id_, this.frameId());
+};
+
+
 /**
  * Mirror object for stack frames.
  * @param {number} break_id The break id in the VM for which this frame is
@@ -1669,15 +1674,55 @@ FrameMirror.prototype.scope = function(index) {
 };
 
 
+FrameMirror.prototype.stepInPositions = function() {
+  var script = this.func().script();
+  var funcOffset = this.func().sourcePosition_();
+
+  var stepInRaw = this.details_.stepInPositionsImpl();
+  var result = [];
+  if (stepInRaw) {
+    for (var i = 0; i < stepInRaw.length; i++) {
+      var posStruct = {};
+      var offset = script.locationFromPosition(funcOffset + stepInRaw[i],
+                                               true);
+      serializeLocationFields(offset, posStruct);
+      var item = {
+        position: posStruct
+      };
+      result.push(item);
+    }
+  }
+
+  return result;
+};
+
+
 FrameMirror.prototype.evaluate = function(source, disable_break,
                                           opt_context_object) {
-  var result = %DebugEvaluate(this.break_id_,
-                              this.details_.frameId(),
-                              this.details_.inlinedFrameIndex(),
-                              source,
-                              Boolean(disable_break),
-                              opt_context_object);
-  return MakeMirror(result);
+  var result_array = %DebugEvaluate(this.break_id_,
+                                    this.details_.frameId(),
+                                    this.details_.inlinedFrameIndex(),
+                                    source,
+                                    Boolean(disable_break),
+                                    opt_context_object);
+  // Silently ignore local variables changes if the frame is optimized.
+  if (!this.isOptimizedFrame()) {
+    var local_scope_on_stack = result_array[1];
+    var local_scope_modifed = result_array[2];
+    for (var n in local_scope_modifed) {
+      var value_on_stack = local_scope_on_stack[n];
+      var value_modifed = local_scope_modifed[n];
+      if (value_on_stack !== value_modifed) {
+        %SetScopeVariableValue(this.break_id_,
+                               this.details_.frameId(),
+                               this.details_.inlinedFrameIndex(),
+                               0,
+                               n,
+                               value_modifed);
+      }
+    }
+  }
+  return MakeMirror(result_array[0]);
 };
 
 

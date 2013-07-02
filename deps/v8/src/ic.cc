@@ -144,7 +144,7 @@ IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
   ASSERT(fp == frame->fp() && pc_address == frame->pc_address());
 #endif
   fp_ = fp;
-  pc_address_ = pc_address;
+  pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
 }
 
 
@@ -686,7 +686,7 @@ Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
 
       if (holder->IsGlobalObject()) {
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
-        Handle<JSGlobalPropertyCell> cell(
+        Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
         if (!cell->value()->IsJSFunction()) return Handle<Code>::null();
         Handle<JSFunction> function(JSFunction::cast(cell->value()));
@@ -936,15 +936,7 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   // Update inline cache and stub cache.
-  if (FLAG_use_ic) {
-    if (!object->IsJSObject()) {
-      // TODO(jkummerow): It would be nice to support non-JSObjects in
-      // UpdateCaches, then we wouldn't need to go generic here.
-      set_target(*generic_stub());
-    } else {
-      UpdateCaches(&lookup, state, object, name);
-    }
-  }
+  if (FLAG_use_ic) UpdateCaches(&lookup, state, object, name);
 
   PropertyAttributes attr;
   if (lookup.IsInterceptor() || lookup.IsHandler()) {
@@ -1204,11 +1196,17 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
                           Handle<Object> object,
                           Handle<String> name) {
   // Bail out if the result is not cacheable.
-  if (!lookup->IsCacheable()) return;
+  if (!lookup->IsCacheable()) {
+    set_target(*generic_stub());
+    return;
+  }
 
-  // Loading properties from values is not common, so don't try to
-  // deal with non-JS objects here.
-  if (!object->IsJSObject()) return;
+  // TODO(jkummerow): It would be nice to support non-JSObjects in
+  // UpdateCaches, then we wouldn't need to go generic here.
+  if (!object->IsJSObject()) {
+    set_target(*generic_stub());
+    return;
+  }
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   Handle<Code> code;
@@ -1219,7 +1217,10 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     code = pre_monomorphic_stub();
   } else {
     code = ComputeLoadHandler(lookup, receiver, name);
-    if (code.is_null()) return;
+    if (code.is_null()) {
+      set_target(*generic_stub());
+      return;
+    }
   }
 
   PatchCache(state, kNonStrictMode, receiver, name, code);
@@ -1257,7 +1258,7 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
     case NORMAL:
       if (holder->IsGlobalObject()) {
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
-        Handle<JSGlobalPropertyCell> cell(
+        Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
         return isolate()->stub_cache()->ComputeLoadGlobal(
             name, receiver, global, cell, lookup->IsDontDelete());
@@ -1640,6 +1641,12 @@ MaybeObject* StoreIC::Store(State state,
              IsUndeclaredGlobal(object)) {
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
+  } else if (FLAG_use_ic &&
+             (lookup.IsNormal() ||
+              (lookup.IsField() && lookup.CanHoldValue(value)))) {
+    Handle<Code> stub = strict_mode == kStrictMode
+        ? generic_stub_strict() : generic_stub();
+    set_target(*stub);
   }
 
   // Set the property.
@@ -1660,9 +1667,14 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   // These are not cacheable, so we never see such LookupResults here.
   ASSERT(!lookup->IsHandler());
 
-  Handle<Code> code =
-      ComputeStoreMonomorphic(lookup, strict_mode, receiver, name);
-  if (code.is_null()) return;
+  Handle<Code> code = ComputeStoreMonomorphic(
+      lookup, strict_mode, receiver, name);
+  if (code.is_null()) {
+    Handle<Code> stub = strict_mode == kStrictMode
+        ? generic_stub_strict() : generic_stub();
+    set_target(*stub);
+    return;
+  }
 
   PatchCache(state, strict_mode, receiver, name, code);
   TRACE_IC("StoreIC", name, state, target());
@@ -1684,7 +1696,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         // from the property cell. So the property must be directly on the
         // global object.
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
-        Handle<JSGlobalPropertyCell> cell(
+        Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
         return isolate()->stub_cache()->ComputeStoreGlobal(
             name, global, cell, strict_mode);
@@ -1733,7 +1745,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       DescriptorArray* target_descriptors = transition->instance_descriptors();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
-      if (details.type() != FIELD || details.attributes() != NONE) break;
+      if (details.type() == CALLBACKS || details.attributes() != NONE) break;
 
       return isolate()->stub_cache()->ComputeStoreTransition(
           name, receiver, lookup, transition, strict_mode);
@@ -2099,7 +2111,7 @@ Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       DescriptorArray* target_descriptors = transition->instance_descriptors();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
-      if (details.type() == FIELD && details.attributes() == NONE) {
+      if (details.type() != CALLBACKS && details.attributes() == NONE) {
         return isolate()->stub_cache()->ComputeKeyedStoreTransition(
             name, receiver, lookup, transition, strict_mode);
       }
@@ -2408,20 +2420,37 @@ const char* UnaryOpIC::GetName(TypeInfo type_info) {
 UnaryOpIC::State UnaryOpIC::ToState(TypeInfo type_info) {
   switch (type_info) {
     case UNINITIALIZED:
-      return ::v8::internal::UNINITIALIZED;
+      return v8::internal::UNINITIALIZED;
     case SMI:
     case NUMBER:
       return MONOMORPHIC;
     case GENERIC:
-      return ::v8::internal::GENERIC;
+      return v8::internal::GENERIC;
   }
   UNREACHABLE();
-  return ::v8::internal::UNINITIALIZED;
+  return v8::internal::UNINITIALIZED;
 }
 
+
+Handle<Type> UnaryOpIC::TypeInfoToType(TypeInfo type_info, Isolate* isolate) {
+  switch (type_info) {
+    case UNINITIALIZED:
+      return handle(Type::None(), isolate);
+    case SMI:
+      return handle(Type::Smi(), isolate);
+    case NUMBER:
+      return handle(Type::Number(), isolate);
+    case GENERIC:
+      return handle(Type::Any(), isolate);
+  }
+  UNREACHABLE();
+  return handle(Type::Any(), isolate);
+}
+
+
 UnaryOpIC::TypeInfo UnaryOpIC::GetTypeInfo(Handle<Object> operand) {
-  ::v8::internal::TypeInfo operand_type =
-      ::v8::internal::TypeInfo::TypeFromValue(operand);
+  v8::internal::TypeInfo operand_type =
+      v8::internal::TypeInfo::FromValue(operand);
   if (operand_type.IsSmi()) {
     return SMI;
   } else if (operand_type.IsNumber()) {
@@ -2489,6 +2518,46 @@ BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
 }
 
 
+Handle<Type> BinaryOpIC::TypeInfoToType(BinaryOpIC::TypeInfo binary_type,
+                                        Isolate* isolate) {
+  switch (binary_type) {
+    case UNINITIALIZED:
+      return handle(Type::None(), isolate);
+    case SMI:
+      return handle(Type::Smi(), isolate);
+    case INT32:
+      return handle(Type::Signed32(), isolate);
+    case NUMBER:
+      return handle(Type::Number(), isolate);
+    case ODDBALL:
+      return handle(Type::Optional(
+          handle(Type::Union(
+              handle(Type::Number(), isolate),
+              handle(Type::String(), isolate)), isolate)), isolate);
+    case STRING:
+      return handle(Type::String(), isolate);
+    case GENERIC:
+      return handle(Type::Any(), isolate);
+  }
+  UNREACHABLE();
+  return handle(Type::Any(), isolate);
+}
+
+
+void BinaryOpIC::StubInfoToType(int minor_key,
+                                Handle<Type>* left,
+                                Handle<Type>* right,
+                                Handle<Type>* result,
+                                Isolate* isolate) {
+  TypeInfo left_typeinfo, right_typeinfo, result_typeinfo;
+  BinaryOpStub::decode_types_from_minor_key(
+      minor_key, &left_typeinfo, &right_typeinfo, &result_typeinfo);
+  *left = TypeInfoToType(left_typeinfo, isolate);
+  *right = TypeInfoToType(right_typeinfo, isolate);
+  *result = TypeInfoToType(result_typeinfo, isolate);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   ASSERT(args.length() == 4);
 
@@ -2545,8 +2614,7 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
 
 static BinaryOpIC::TypeInfo TypeInfoFromValue(Handle<Object> value,
                                               Token::Value op) {
-  ::v8::internal::TypeInfo type =
-      ::v8::internal::TypeInfo::TypeFromValue(value);
+  v8::internal::TypeInfo type = v8::internal::TypeInfo::FromValue(value);
   if (type.IsSmi()) return BinaryOpIC::SMI;
   if (type.IsInteger32()) {
     if (kSmiValueSize == 32) return BinaryOpIC::SMI;
@@ -2585,11 +2653,10 @@ static BinaryOpIC::TypeInfo InputState(BinaryOpIC::TypeInfo old_type,
 #ifdef DEBUG
 static void TraceBinaryOp(BinaryOpIC::TypeInfo left,
                           BinaryOpIC::TypeInfo right,
-                          bool has_fixed_right_arg,
-                          int32_t fixed_right_arg_value,
+                          Maybe<int32_t> fixed_right_arg,
                           BinaryOpIC::TypeInfo result) {
   PrintF("%s*%s", BinaryOpIC::GetName(left), BinaryOpIC::GetName(right));
-  if (has_fixed_right_arg) PrintF("{%d}", fixed_right_arg_value);
+  if (fixed_right_arg.has_value) PrintF("{%d}", fixed_right_arg.value);
   PrintF("->%s", BinaryOpIC::GetName(result));
 }
 #endif
@@ -2621,10 +2688,8 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   BinaryOpIC::TypeInfo new_overall = Max(new_left, new_right);
   BinaryOpIC::TypeInfo previous_overall = Max(previous_left, previous_right);
 
-  bool previous_has_fixed_right_arg =
-      BinaryOpStub::decode_has_fixed_right_arg_from_minor_key(key);
-  int previous_fixed_right_arg_value =
-      BinaryOpStub::decode_fixed_right_arg_value_from_minor_key(key);
+  Maybe<int> previous_fixed_right_arg =
+      BinaryOpStub::decode_fixed_right_arg_from_minor_key(key);
 
   int32_t value;
   bool new_has_fixed_right_arg =
@@ -2632,11 +2697,12 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
       right->ToInt32(&value) &&
       BinaryOpStub::can_encode_arg_value(value) &&
       (previous_overall == BinaryOpIC::UNINITIALIZED ||
-       (previous_has_fixed_right_arg &&
-        previous_fixed_right_arg_value == value));
-  int32_t new_fixed_right_arg_value = new_has_fixed_right_arg ? value : 1;
+       (previous_fixed_right_arg.has_value &&
+        previous_fixed_right_arg.value == value));
+  Maybe<int32_t> new_fixed_right_arg(
+      new_has_fixed_right_arg, new_has_fixed_right_arg ? value : 1);
 
-  if (previous_has_fixed_right_arg == new_has_fixed_right_arg) {
+  if (previous_fixed_right_arg.has_value == new_fixed_right_arg.has_value) {
     if (new_overall == BinaryOpIC::SMI && previous_overall == BinaryOpIC::SMI) {
       if (op == Token::DIV ||
           op == Token::MUL ||
@@ -2660,8 +2726,7 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
     }
   }
 
-  BinaryOpStub stub(key, new_left, new_right, result_type,
-                    new_has_fixed_right_arg, new_fixed_right_arg_value);
+  BinaryOpStub stub(key, new_left, new_right, result_type, new_fixed_right_arg);
   Handle<Code> code = stub.GetCode(isolate);
   if (!code.is_null()) {
 #ifdef DEBUG
@@ -2669,11 +2734,10 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
       PrintF("[BinaryOpIC in ");
       JavaScriptFrame::PrintTop(isolate, stdout, false, true);
       PrintF(" ");
-      TraceBinaryOp(previous_left, previous_right, previous_has_fixed_right_arg,
-                    previous_fixed_right_arg_value, previous_result);
+      TraceBinaryOp(previous_left, previous_right, previous_fixed_right_arg,
+                    previous_result);
       PrintF(" => ");
-      TraceBinaryOp(new_left, new_right, new_has_fixed_right_arg,
-                    new_fixed_right_arg_value, result_type);
+      TraceBinaryOp(new_left, new_right, new_fixed_right_arg, result_type);
       PrintF(" #%s @ %p]\n", Token::Name(op), static_cast<void*>(*code));
     }
 #endif
@@ -2767,52 +2831,96 @@ const char* CompareIC::GetStateName(State state) {
     case OBJECT: return "OBJECT";
     case KNOWN_OBJECT: return "KNOWN_OBJECT";
     case GENERIC: return "GENERIC";
-    default:
-      UNREACHABLE();
-      return NULL;
   }
+  UNREACHABLE();
+  return NULL;
 }
 
 
-static CompareIC::State InputState(CompareIC::State old_state,
-                                   Handle<Object> value) {
-  switch (old_state) {
+Handle<Type> CompareIC::StateToType(
+    Isolate* isolate,
+    CompareIC::State state,
+    Handle<Map> map) {
+  switch (state) {
     case CompareIC::UNINITIALIZED:
-      if (value->IsSmi()) return CompareIC::SMI;
-      if (value->IsHeapNumber()) return CompareIC::NUMBER;
-      if (value->IsInternalizedString()) return CompareIC::INTERNALIZED_STRING;
-      if (value->IsString()) return CompareIC::STRING;
-      if (value->IsSymbol()) return CompareIC::UNIQUE_NAME;
-      if (value->IsJSObject()) return CompareIC::OBJECT;
-      break;
+      return handle(Type::None(), isolate);
     case CompareIC::SMI:
-      if (value->IsSmi()) return CompareIC::SMI;
-      if (value->IsHeapNumber()) return CompareIC::NUMBER;
-      break;
+      return handle(Type::Smi(), isolate);
     case CompareIC::NUMBER:
-      if (value->IsNumber()) return CompareIC::NUMBER;
-      break;
-    case CompareIC::INTERNALIZED_STRING:
-      if (value->IsInternalizedString()) return CompareIC::INTERNALIZED_STRING;
-      if (value->IsString()) return CompareIC::STRING;
-      if (value->IsSymbol()) return CompareIC::UNIQUE_NAME;
-      break;
+      return handle(Type::Number(), isolate);
     case CompareIC::STRING:
-      if (value->IsString()) return CompareIC::STRING;
-      break;
+      return handle(Type::String(), isolate);
+    case CompareIC::INTERNALIZED_STRING:
+      return handle(Type::InternalizedString(), isolate);
     case CompareIC::UNIQUE_NAME:
-      if (value->IsUniqueName()) return CompareIC::UNIQUE_NAME;
-      break;
+      return handle(Type::UniqueName(), isolate);
     case CompareIC::OBJECT:
-      if (value->IsJSObject()) return CompareIC::OBJECT;
-      break;
-    case CompareIC::GENERIC:
-      break;
+      return handle(Type::Receiver(), isolate);
     case CompareIC::KNOWN_OBJECT:
+      return handle(
+          map.is_null() ? Type::Receiver() : Type::Class(map), isolate);
+    case CompareIC::GENERIC:
+      return handle(Type::Any(), isolate);
+  }
+  UNREACHABLE();
+  return Handle<Type>();
+}
+
+
+void CompareIC::StubInfoToType(int stub_minor_key,
+                               Handle<Type>* left_type,
+                               Handle<Type>* right_type,
+                               Handle<Type>* overall_type,
+                               Handle<Map> map,
+                               Isolate* isolate) {
+  State left_state, right_state, handler_state;
+  ICCompareStub::DecodeMinorKey(stub_minor_key, &left_state, &right_state,
+                                &handler_state, NULL);
+  *left_type = StateToType(isolate, left_state);
+  *right_type = StateToType(isolate, right_state);
+  *overall_type = StateToType(isolate, handler_state, map);
+}
+
+
+CompareIC::State CompareIC::NewInputState(State old_state,
+                                          Handle<Object> value) {
+  switch (old_state) {
+    case UNINITIALIZED:
+      if (value->IsSmi()) return SMI;
+      if (value->IsHeapNumber()) return NUMBER;
+      if (value->IsInternalizedString()) return INTERNALIZED_STRING;
+      if (value->IsString()) return STRING;
+      if (value->IsSymbol()) return UNIQUE_NAME;
+      if (value->IsJSObject()) return OBJECT;
+      break;
+    case SMI:
+      if (value->IsSmi()) return SMI;
+      if (value->IsHeapNumber()) return NUMBER;
+      break;
+    case NUMBER:
+      if (value->IsNumber()) return NUMBER;
+      break;
+    case INTERNALIZED_STRING:
+      if (value->IsInternalizedString()) return INTERNALIZED_STRING;
+      if (value->IsString()) return STRING;
+      if (value->IsSymbol()) return UNIQUE_NAME;
+      break;
+    case STRING:
+      if (value->IsString()) return STRING;
+      break;
+    case UNIQUE_NAME:
+      if (value->IsUniqueName()) return UNIQUE_NAME;
+      break;
+    case OBJECT:
+      if (value->IsJSObject()) return OBJECT;
+      break;
+    case GENERIC:
+      break;
+    case KNOWN_OBJECT:
       UNREACHABLE();
       break;
   }
-  return CompareIC::GENERIC;
+  return GENERIC;
 }
 
 
@@ -2885,8 +2993,8 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   State previous_left, previous_right, previous_state;
   ICCompareStub::DecodeMinorKey(target()->stub_info(), &previous_left,
                                 &previous_right, &previous_state, NULL);
-  State new_left = InputState(previous_left, x);
-  State new_right = InputState(previous_right, y);
+  State new_left = NewInputState(previous_left, x);
+  State new_right = NewInputState(previous_right, y);
   State state = TargetState(previous_state, previous_left, previous_right,
                             HasInlinedSmiCode(address()), x, y);
   ICCompareStub stub(op_, new_left, new_right, state);
@@ -2934,7 +3042,7 @@ void CompareNilIC::Clear(Address address, Code* target) {
   Code::ExtraICState state = target->extended_extra_ic_state();
 
   CompareNilICStub stub(state, HydrogenCodeStub::UNINITIALIZED);
-  stub.ClearTypes();
+  stub.ClearState();
 
   Code* code = NULL;
   CHECK(stub.FindCodeInCache(&code, target->GetIsolate()));
@@ -2961,9 +3069,9 @@ MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
   // types must be supported as a result of the miss.
   bool already_monomorphic = stub.IsMonomorphic();
 
-  CompareNilICStub::Types old_types = stub.GetTypes();
+  CompareNilICStub::State old_state = stub.GetState();
   stub.Record(object);
-  old_types.TraceTransition(stub.GetTypes());
+  old_state.TraceTransition(stub.GetState());
 
   NilValue nil = stub.GetNilValue();
 

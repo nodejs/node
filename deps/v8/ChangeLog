@@ -1,3 +1,92 @@
+2013-07-05: Version 3.20.2
+
+        Remove deprecated heap profiler methods from V8 public API
+
+        Mark i18n functions as native and set proper names
+        (issue 2745)
+
+        Correctly report stack trace when current function is FunctionApply
+        builtin (Chromium issue 252097)
+
+        Enable GDBJIT interface for standalone by default.
+
+        Fix debuggersupport=off build. (issue 2754)
+
+        Introduce -m64 flag for making x64 when the default gcc compiler is for
+        X32
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-02: Version 3.20.1
+
+        Implemented WeakMap.prototype.clear function. (issue 2753)
+
+        Ensure CheckInitialized is present independent of define.
+        (Chromium issue 255779)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-28: Version 3.20.0
+
+        Migrated several tests from blink to V8 repository.
+
+        Allowed users of the V8 API to distinguish between unset and undefined
+        HiddenValues (issue 2746).
+
+        Deprecated old style callbacks in the V8 API.
+
+        Turned on parallel recompilation.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-18: Version 3.19.18
+
+	Fixed read-only attribute of Function.length in strict mode.
+	(issue 2705)
+
+	Fixed Runtime_SetProperty to properly handle OOM failures
+	(Chromium issue 249873)
+
+	Emit deprecated check for constant function transitions.
+	(Chromium issue 250609)
+	
+	Made MathFloorOfDiv optimization trigger more often
+	(Issue 2205)
+
+	Make more GCs in idle notification handler.
+	(Chromium issue 241815)
+
+	Increased default type info threshold.
+	(Issue 2730)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-14: Version 3.19.16
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-13: Version 3.19.15
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-13: Version 3.19.14
+
+        Fixed crashes when calling new Array(a) with a single argument that
+        could result in creating a holey array with a packed elements kind.
+        (Chromium issue 245480)
+
+        Fixed issues in parallel compilation.
+        (Chromium issue 248076)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-06-11: Version 3.19.13
 
         Performance and stability improvements on all platforms.

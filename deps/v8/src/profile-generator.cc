@@ -30,11 +30,12 @@
 #include "profile-generator-inl.h"
 
 #include "compiler.h"
+#include "debug.h"
+#include "sampler.h"
 #include "global-handles.h"
 #include "scopeinfo.h"
 #include "unicode.h"
 #include "zone-inl.h"
-#include "debug.h"
 
 namespace v8 {
 namespace internal {
@@ -79,7 +80,7 @@ void TokenEnumerator::TokenRemovedCallback(v8::Isolate* isolate,
                                            v8::Persistent<v8::Value>* handle,
                                            void* parameter) {
   reinterpret_cast<TokenEnumerator*>(parameter)->TokenRemoved(
-      Utils::OpenHandle(**handle).location());
+      Utils::OpenPersistent(handle).location());
   handle->Dispose(isolate);
 }
 
@@ -183,7 +184,9 @@ size_t StringsStorage::GetUsedMemorySize() const {
   return size;
 }
 
+
 const char* const CodeEntry::kEmptyNamePrefix = "";
+const char* const CodeEntry::kEmptyResourceName = "";
 
 
 CodeEntry::~CodeEntry() {
@@ -233,6 +236,12 @@ bool CodeEntry::IsSameAs(CodeEntry* entry) const {
 }
 
 
+void CodeEntry::SetBuiltinId(Builtins::Name id) {
+  tag_ = Logger::BUILTIN_TAG;
+  builtin_id_ = id;
+}
+
+
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
   HashMap::Entry* map_entry =
       children_.Lookup(entry, CodeEntryHash(entry), false);
@@ -265,12 +274,13 @@ double ProfileNode::GetTotalMillis() const {
 
 
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %5u %*c %s%s [%d] #%d",
+  OS::Print("%5u %5u %*c %s%s [%d] #%d %d",
             total_ticks_, self_ticks_,
             indent, ' ',
             entry_->name_prefix(),
             entry_->name(),
             entry_->security_token_id(),
+            entry_->script_id(),
             id());
   if (entry_->resource_name()[0] != '\0')
     OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
@@ -296,12 +306,7 @@ class DeleteNodesCallback {
 
 
 ProfileTree::ProfileTree()
-    : root_entry_(Logger::FUNCTION_TAG,
-                  "",
-                  "(root)",
-                  "",
-                  0,
-                  TokenEnumerator::kNoSecurityToken),
+    : root_entry_(Logger::FUNCTION_TAG, "(root)"),
       next_node_id_(1),
       root_(new ProfileNode(this, &root_entry_)) {
 }
@@ -790,61 +795,6 @@ List<CpuProfile*>* CpuProfilesCollection::Profiles(int security_token_id) {
 }
 
 
-CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
-                                               Name* name,
-                                               String* resource_name,
-                                               int line_number) {
-  CodeEntry* entry = new CodeEntry(tag,
-                                   CodeEntry::kEmptyNamePrefix,
-                                   GetFunctionName(name),
-                                   GetName(resource_name),
-                                   line_number,
-                                   TokenEnumerator::kNoSecurityToken);
-  code_entries_.Add(entry);
-  return entry;
-}
-
-
-CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
-                                               const char* name) {
-  CodeEntry* entry = new CodeEntry(tag,
-                                   CodeEntry::kEmptyNamePrefix,
-                                   GetFunctionName(name),
-                                   "",
-                                   v8::CpuProfileNode::kNoLineNumberInfo,
-                                   TokenEnumerator::kNoSecurityToken);
-  code_entries_.Add(entry);
-  return entry;
-}
-
-
-CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
-                                               const char* name_prefix,
-                                               Name* name) {
-  CodeEntry* entry = new CodeEntry(tag,
-                                   name_prefix,
-                                   GetName(name),
-                                   "",
-                                   v8::CpuProfileNode::kNoLineNumberInfo,
-                                   TokenEnumerator::kInheritsSecurityToken);
-  code_entries_.Add(entry);
-  return entry;
-}
-
-
-CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
-                                               int args_count) {
-  CodeEntry* entry = new CodeEntry(tag,
-                                   "args_count: ",
-                                   GetName(args_count),
-                                   "",
-                                   v8::CpuProfileNode::kNoLineNumberInfo,
-                                   TokenEnumerator::kInheritsSecurityToken);
-  code_entries_.Add(entry);
-  return entry;
-}
-
-
 void CpuProfilesCollection::AddPathToCurrentProfiles(
     const Vector<CodeEntry*>& path) {
   // As starting / stopping profiles is rare relatively to this
@@ -855,6 +805,24 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
     current_profiles_[i]->AddPath(path);
   }
   current_profiles_semaphore_->Signal();
+}
+
+
+CodeEntry* CpuProfilesCollection::NewCodeEntry(
+      Logger::LogEventsAndTags tag,
+      const char* name,
+      int security_token_id,
+      const char* name_prefix,
+      const char* resource_name,
+      int line_number) {
+  CodeEntry* code_entry = new CodeEntry(tag,
+                                        name,
+                                        security_token_id,
+                                        name_prefix,
+                                        resource_name,
+                                        line_number);
+  code_entries_.Add(code_entry);
+  return code_entry;
 }
 
 
@@ -887,6 +855,8 @@ const char* const ProfileGenerator::kProgramEntryName =
     "(program)";
 const char* const ProfileGenerator::kGarbageCollectorEntryName =
     "(garbage collector)";
+const char* const ProfileGenerator::kUnresolvedFunctionName =
+    "(unresolved function)";
 
 
 ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
@@ -895,7 +865,10 @@ ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
           profiles->NewCodeEntry(Logger::FUNCTION_TAG, kProgramEntryName)),
       gc_entry_(
           profiles->NewCodeEntry(Logger::BUILTIN_TAG,
-                                 kGarbageCollectorEntryName)) {
+                                 kGarbageCollectorEntryName)),
+      unresolved_entry_(
+          profiles->NewCodeEntry(Logger::FUNCTION_TAG,
+                                 kUnresolvedFunctionName)) {
 }
 
 
@@ -907,33 +880,45 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   CodeEntry** entry = entries.start();
   memset(entry, 0, entries.length() * sizeof(*entry));
   if (sample.pc != NULL) {
-    Address start;
-    CodeEntry* pc_entry = code_map_.FindEntry(sample.pc, &start);
-    // If pc is in the function code before it set up stack frame or after the
-    // frame was destroyed SafeStackTraceFrameIterator incorrectly thinks that
-    // ebp contains return address of the current function and skips caller's
-    // frame. Check for this case and just skip such samples.
-    if (pc_entry) {
-      List<OffsetRange>* ranges = pc_entry->no_frame_ranges();
-      if (ranges) {
-        Code* code = Code::cast(HeapObject::FromAddress(start));
-        int pc_offset = static_cast<int>(sample.pc - code->instruction_start());
-        for (int i = 0; i < ranges->length(); i++) {
-          OffsetRange& range = ranges->at(i);
-          if (range.from <= pc_offset && pc_offset < range.to) {
-            return;
-          }
-        }
-      }
-    }
-    *entry++ = pc_entry;
-
     if (sample.has_external_callback) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
-      *(entries.start()) = NULL;
       *entry++ = code_map_.FindEntry(sample.external_callback);
+    } else {
+      Address start;
+      CodeEntry* pc_entry = code_map_.FindEntry(sample.pc, &start);
+      // If pc is in the function code before it set up stack frame or after the
+      // frame was destroyed SafeStackFrameIterator incorrectly thinks that
+      // ebp contains return address of the current function and skips caller's
+      // frame. Check for this case and just skip such samples.
+      if (pc_entry) {
+        List<OffsetRange>* ranges = pc_entry->no_frame_ranges();
+        if (ranges) {
+          Code* code = Code::cast(HeapObject::FromAddress(start));
+          int pc_offset = static_cast<int>(
+              sample.pc - code->instruction_start());
+          for (int i = 0; i < ranges->length(); i++) {
+            OffsetRange& range = ranges->at(i);
+            if (range.from <= pc_offset && pc_offset < range.to) {
+              return;
+            }
+          }
+        }
+        *entry++ = pc_entry;
+
+        if (pc_entry->builtin_id() == Builtins::kFunctionCall ||
+            pc_entry->builtin_id() == Builtins::kFunctionApply) {
+          // When current function is FunctionCall or FunctionApply builtin the
+          // top frame is either frame of the calling JS function or internal
+          // frame. In the latter case we know the caller for sure but in the
+          // former case we don't so we simply replace the frame with
+          // 'unresolved' entry.
+          if (sample.top_frame_type == StackFrame::JAVA_SCRIPT) {
+            *entry++ = unresolved_entry_;
+          }
+        }
+      }
     }
 
     for (const Address* stack_pos = sample.stack,

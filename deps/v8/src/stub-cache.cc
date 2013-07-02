@@ -31,6 +31,7 @@
 #include "arguments.h"
 #include "ast.h"
 #include "code-stubs.h"
+#include "cpu-profiler.h"
 #include "gdb-jit.h"
 #include "ic-inl.h"
 #include "stub-cache.h"
@@ -43,7 +44,7 @@ namespace internal {
 // StubCache implementation.
 
 
-StubCache::StubCache(Isolate* isolate, Zone* zone)
+StubCache::StubCache(Isolate* isolate)
     : isolate_(isolate) {
   ASSERT(isolate == Isolate::Current());
 }
@@ -321,7 +322,7 @@ Handle<Code> StubCache::ComputeLoadNormal(Handle<Name> name,
 Handle<Code> StubCache::ComputeLoadGlobal(Handle<Name> name,
                                           Handle<JSObject> receiver,
                                           Handle<GlobalObject> holder,
-                                          Handle<JSGlobalPropertyCell> cell,
+                                          Handle<PropertyCell> cell,
                                           bool is_dont_delete) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
   Handle<Code> stub = FindIC(name, stub_holder, Code::LOAD_IC, Code::NORMAL);
@@ -497,7 +498,7 @@ Handle<Code> StubCache::ComputeStoreNormal(StrictModeFlag strict_mode) {
 
 Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
                                            Handle<GlobalObject> receiver,
-                                           Handle<JSGlobalPropertyCell> cell,
+                                           Handle<PropertyCell> cell,
                                            StrictModeFlag strict_mode) {
   Handle<Code> stub = FindIC(
       name, Handle<JSObject>::cast(receiver),
@@ -644,7 +645,10 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   PROFILE(isolate_,
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  JSObject::UpdateMapCodeCache(stub_holder, name, code);
+
+  if (CallStubCompiler::CanBeCached(function)) {
+    JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  }
   return code;
 }
 
@@ -734,7 +738,7 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
                                           Handle<Name> name,
                                           Handle<JSObject> receiver,
                                           Handle<GlobalObject> holder,
-                                          Handle<JSGlobalPropertyCell> cell,
+                                          Handle<PropertyCell> cell,
                                           Handle<JSFunction> function) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
@@ -753,7 +757,9 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  if (CallStubCompiler::CanBeCached(function)) {
+    JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  }
   return code;
 }
 
@@ -1108,12 +1114,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   LOG(isolate, ApiNamedPropertyAccess("store", recv, *name));
   PropertyCallbackArguments
       custom_args(isolate, callback->data(), recv, recv);
-  {
-    // Leaving JavaScript.
-    VMState<EXTERNAL> state(isolate);
-    ExternalCallbackScope call_scope(isolate, setter_address);
-    custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
-  }
+  custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
 }
@@ -1159,12 +1160,8 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   {
     // Use the interceptor getter.
     HandleScope scope(isolate);
-    v8::Handle<v8::Value> r;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      r = callback_args.Call(getter, v8::Utils::ToLocal(name));
-    }
+    v8::Handle<v8::Value> r =
+        callback_args.Call(getter, v8::Utils::ToLocal(name));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       Handle<Object> result = v8::Utils::OpenHandle(*r);
@@ -1229,12 +1226,8 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
   {
     // Use the interceptor getter.
     HandleScope scope(isolate);
-    v8::Handle<v8::Value> r;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      r = callback_args.Call(getter, v8::Utils::ToLocal(name));
-    }
+    v8::Handle<v8::Value> r =
+        callback_args.Call(getter, v8::Utils::ToLocal(name));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       *attrs = NONE;
@@ -1974,12 +1967,25 @@ bool CallStubCompiler::HasCustomCallGenerator(Handle<JSFunction> function) {
 }
 
 
+bool CallStubCompiler::CanBeCached(Handle<JSFunction> function) {
+  if (function->shared()->HasBuiltinFunctionId()) {
+    BuiltinFunctionId id = function->shared()->builtin_function_id();
+#define CALL_GENERATOR_CASE(name) if (id == k##name) return false;
+    SITE_SPECIFIC_CALL_GENERATORS(CALL_GENERATOR_CASE)
+#undef CALL_GENERATOR_CASE
+  }
+
+  return true;
+}
+
+
 Handle<Code> CallStubCompiler::CompileCustomCall(
     Handle<Object> object,
     Handle<JSObject> holder,
-    Handle<JSGlobalPropertyCell> cell,
+    Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> fname) {
+    Handle<String> fname,
+    Code::StubType type) {
   ASSERT(HasCustomCallGenerator(function));
 
   if (function->shared()->HasBuiltinFunctionId()) {
@@ -1990,7 +1996,8 @@ Handle<Code> CallStubCompiler::CompileCustomCall(
                                                    holder,      \
                                                    cell,        \
                                                    function,    \
-                                                   fname);      \
+                                                   fname,       \
+                                                   type);       \
     }
     CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
 #undef CALL_GENERATOR_CASE

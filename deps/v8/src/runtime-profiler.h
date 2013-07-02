@@ -75,6 +75,8 @@ class RuntimeProfiler {
 
   void AddSample(JSFunction* function, int weight);
 
+  bool CodeSizeOKForOSR(Code* shared_code);
+
   Isolate* isolate_;
 
   int sampler_threshold_;

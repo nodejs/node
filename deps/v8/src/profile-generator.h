@@ -97,11 +97,11 @@ class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
   INLINE(CodeEntry(Logger::LogEventsAndTags tag,
-                   const char* name_prefix,
                    const char* name,
-                   const char* resource_name,
-                   int line_number,
-                   int security_token_id));
+                   int security_token_id = TokenEnumerator::kNoSecurityToken,
+                   const char* name_prefix = CodeEntry::kEmptyNamePrefix,
+                   const char* resource_name = CodeEntry::kEmptyResourceName,
+                   int line_number = v8::CpuProfileNode::kNoLineNumberInfo));
   ~CodeEntry();
 
   INLINE(bool is_js_function() const) { return is_js_function_tag(tag_); }
@@ -111,6 +111,8 @@ class CodeEntry {
   INLINE(const char* resource_name() const) { return resource_name_; }
   INLINE(int line_number() const) { return line_number_; }
   INLINE(void set_shared_id(int shared_id)) { shared_id_ = shared_id; }
+  INLINE(int script_id() const) { return script_id_; }
+  INLINE(void set_script_id(int script_id)) { script_id_ = script_id; }
   INLINE(int security_token_id() const) { return security_token_id_; }
 
   INLINE(static bool is_js_function_tag(Logger::LogEventsAndTags tag));
@@ -120,19 +122,25 @@ class CodeEntry {
     no_frame_ranges_ = ranges;
   }
 
+  void SetBuiltinId(Builtins::Name id);
+  Builtins::Name builtin_id() const { return builtin_id_; }
+
   void CopyData(const CodeEntry& source);
   uint32_t GetCallUid() const;
   bool IsSameAs(CodeEntry* entry) const;
 
   static const char* const kEmptyNamePrefix;
+  static const char* const kEmptyResourceName;
 
  private:
-  Logger::LogEventsAndTags tag_;
+  Logger::LogEventsAndTags tag_ : 8;
+  Builtins::Name builtin_id_ : 8;
   const char* name_prefix_;
   const char* name_;
   const char* resource_name_;
   int line_number_;
   int shared_id_;
+  int script_id_;
   int security_token_id_;
   List<OffsetRange>* no_frame_ranges_;
 
@@ -317,18 +325,24 @@ class CpuProfilesCollection {
   const char* GetName(int args_count) {
     return function_and_resource_names_.GetName(args_count);
   }
+  const char* GetFunctionName(Name* name) {
+    return function_and_resource_names_.GetFunctionName(name);
+  }
+  const char* GetFunctionName(const char* name) {
+    return function_and_resource_names_.GetFunctionName(name);
+  }
   CpuProfile* GetProfile(int security_token_id, unsigned uid);
   bool IsLastProfile(const char* title);
   void RemoveProfile(CpuProfile* profile);
   bool HasDetachedProfiles() { return detached_profiles_.length() > 0; }
 
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                          Name* name, String* resource_name, int line_number);
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, const char* name);
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                          const char* name_prefix, Name* name);
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, int args_count);
-  CodeEntry* NewCodeEntry(int security_token_id);
+  CodeEntry* NewCodeEntry(
+      Logger::LogEventsAndTags tag,
+      const char* name,
+      int security_token_id = TokenEnumerator::kNoSecurityToken,
+      const char* name_prefix = CodeEntry::kEmptyNamePrefix,
+      const char* resource_name = CodeEntry::kEmptyResourceName,
+      int line_number = v8::CpuProfileNode::kNoLineNumberInfo);
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
@@ -337,12 +351,6 @@ class CpuProfilesCollection {
   static const int kMaxSimultaneousProfiles = 100;
 
  private:
-  const char* GetFunctionName(Name* name) {
-    return function_and_resource_names_.GetFunctionName(name);
-  }
-  const char* GetFunctionName(const char* name) {
-    return function_and_resource_names_.GetFunctionName(name);
-  }
   int GetProfileIndex(unsigned uid);
   List<CpuProfile*>* GetProfilesList(int security_token_id);
   int TokenToIndex(int security_token_id);
@@ -421,6 +429,9 @@ class ProfileGenerator {
   static const char* const kAnonymousFunctionName;
   static const char* const kProgramEntryName;
   static const char* const kGarbageCollectorEntryName;
+  // Used to represent frames for which we have no reliable way to
+  // detect function.
+  static const char* const kUnresolvedFunctionName;
 
  private:
   INLINE(CodeEntry* EntryForVMState(StateTag tag));
@@ -429,6 +440,7 @@ class ProfileGenerator {
   CodeMap code_map_;
   CodeEntry* program_entry_;
   CodeEntry* gc_entry_;
+  CodeEntry* unresolved_entry_;
   SampleRateCalculator sample_rate_calc_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);

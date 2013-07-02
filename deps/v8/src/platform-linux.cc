@@ -295,7 +295,7 @@ bool OS::MipsCpuHasFeature(CpuFeature feature) {
 
 
 int OS::ActivationFrameAlignment() {
-#ifdef V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the
   // runtime system.
   return 8;
@@ -305,19 +305,6 @@ int OS::ActivationFrameAlignment() {
   // With gcc 4.4 the tree vectorization optimizer can generate code
   // that requires 16 byte alignment such as movdqa on x86.
   return 16;
-}
-
-
-void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
-#if (defined(V8_TARGET_ARCH_ARM) && defined(__arm__)) || \
-    (defined(V8_TARGET_ARCH_MIPS) && defined(__mips__))
-  // Only use on ARM or MIPS hardware.
-  MemoryBarrier();
-#else
-  __asm__ __volatile__("" : : : "memory");
-  // An x86 store acts as a release barrier.
-#endif
-  *ptr = value;
 }
 
 

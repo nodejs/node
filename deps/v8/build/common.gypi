@@ -104,6 +104,10 @@
     # Interpreted regexp engine exists as platform-independent alternative
     # based where the regular expression is compiled to a bytecode.
     'v8_interpreted_regexp%': 0,
+
+    # Enable ECMAScript Internationalization API. Enabling this feature will
+    # add a dependency on the ICU library.
+    'v8_enable_i18n_support%': 0,
   },
   'target_defaults': {
     'conditions': [
@@ -124,6 +128,9 @@
       }],
       ['v8_interpreted_regexp==1', {
         'defines': ['V8_INTERPRETED_REGEXP',],
+      }],
+      ['v8_enable_i18n_support==1', {
+        'defines': ['V8_I18N_SUPPORT',],
       }],
       ['v8_target_arch=="arm"', {
         'defines': [
@@ -452,6 +459,26 @@
           }],
         ],
       }],
+      ['(OS=="linux") and (v8_target_arch=="x64")', {
+        # Check whether the host compiler and target compiler support the
+        # '-m64' option and set it if so.
+        'target_conditions': [
+          ['_toolset=="host"', {
+            'variables': {
+              'm64flag': '<!((echo | $(echo ${CXX_host:-$(which g++)}) -m64 -E - > /dev/null 2>&1) && echo "-m64" || true)',
+            },
+            'cflags': [ '<(m64flag)' ],
+            'ldflags': [ '<(m64flag)' ],
+          }],
+          ['_toolset=="target"', {
+            'variables': {
+              'm64flag': '<!((echo | $(echo ${CXX_target:-<(CXX)}) -m64 -E - > /dev/null 2>&1) && echo "-m64" || true)',
+            },
+            'cflags': [ '<(m64flag)' ],
+            'ldflags': [ '<(m64flag)' ],
+          }]
+        ],
+      }],
       ['OS=="freebsd" or OS=="openbsd"', {
         'cflags': [ '-I/usr/local/include' ],
       }],
@@ -528,8 +555,35 @@
           ['v8_enable_extra_checks==1', {
             'defines': ['ENABLE_EXTRA_CHECKS',],
           }],
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
-            or OS=="android"', {
+          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
+            'cflags!': [
+              '-O2',
+              '-Os',
+            ],
+            'cflags': [
+              '-fdata-sections',
+              '-ffunction-sections',
+              '-O3',
+            ],
+            'conditions': [
+              [ 'gcc_version==44 and clang==0', {
+                'cflags': [
+                  # Avoid crashes with gcc 4.4 in the v8 test suite.
+                  '-fno-tree-vrp',
+                ],
+              }],
+            ],
+          }],
+          ['OS=="android"', {
+            'cflags!': [
+              '-O3',
+              '-Os',
+            ],
+            'cflags': [
+              '-fdata-sections',
+              '-ffunction-sections',
+              '-O2',
+            ],
             'conditions': [
               [ 'gcc_version==44 and clang==0', {
                 'cflags': [

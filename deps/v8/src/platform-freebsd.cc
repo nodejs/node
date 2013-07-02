@@ -85,12 +85,6 @@ void OS::PostSetUp() {
 }
 
 
-void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
-  __asm__ __volatile__("" : : : "memory");
-  *ptr = value;
-}
-
-
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
   return 0;  // FreeBSD runs on anything.
 }

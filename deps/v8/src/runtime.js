@@ -658,7 +658,6 @@ function DefaultNumber(x) {
   throw %MakeTypeError('cannot_convert_to_primitive', []);
 }
 
-
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultString(x) {
   var toString = x.toString;
@@ -674,6 +673,12 @@ function DefaultString(x) {
   }
 
   throw %MakeTypeError('cannot_convert_to_primitive', []);
+}
+
+function ToPositiveInteger(x, rangeErrorName) {
+  var i = TO_INTEGER(x);
+  if (i < 0) throw %MakeRangeError(rangeErrorName);
+  return i;
 }
 
 

@@ -33,37 +33,33 @@
 v8::internal::Semaphore* semaphore = NULL;
 
 
-v8::Handle<v8::Value> Signal(const v8::Arguments& args) {
+void Signal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   semaphore->Signal();
-  return v8::Undefined();
 }
 
 
-v8::Handle<v8::Value> TerminateCurrentThread(const v8::Arguments& args) {
+void TerminateCurrentThread(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::V8::TerminateExecution();
-  return v8::Undefined();
 }
 
 
-v8::Handle<v8::Value> Fail(const v8::Arguments& args) {
+void Fail(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(false);
-  return v8::Undefined();
 }
 
 
-v8::Handle<v8::Value> Loop(const v8::Arguments& args) {
+void Loop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Handle<v8::String> source =
       v8::String::New("try { doloop(); fail(); } catch(e) { fail(); }");
   v8::Handle<v8::Value> result = v8::Script::Compile(source)->Run();
   CHECK(result.IsEmpty());
   CHECK(v8::V8::IsExecutionTerminating());
-  return v8::Undefined();
 }
 
 
-v8::Handle<v8::Value> DoLoop(const v8::Arguments& args) {
+void DoLoop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Script::Compile(v8::String::New("function f() {"
@@ -84,11 +80,10 @@ v8::Handle<v8::Value> DoLoop(const v8::Arguments& args) {
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
   CHECK(v8::V8::IsExecutionTerminating());
-  return v8::Undefined();
 }
 
 
-v8::Handle<v8::Value> DoLoopNoCall(const v8::Arguments& args) {
+void DoLoopNoCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Script::Compile(v8::String::New("var term = true;"
@@ -101,13 +96,12 @@ v8::Handle<v8::Value> DoLoopNoCall(const v8::Arguments& args) {
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
   CHECK(v8::V8::IsExecutionTerminating());
-  return v8::Undefined();
 }
 
 
 v8::Handle<v8::ObjectTemplate> CreateGlobalTemplate(
-    v8::InvocationCallback terminate,
-    v8::InvocationCallback doloop) {
+    v8::FunctionCallback terminate,
+    v8::FunctionCallback doloop) {
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   global->Set(v8::String::New("terminate"),
               v8::FunctionTemplate::New(terminate));
@@ -268,19 +262,19 @@ TEST(TerminateMultipleV8ThreadsDefaultIsolate) {
 int call_count = 0;
 
 
-v8::Handle<v8::Value> TerminateOrReturnObject(const v8::Arguments& args) {
+void TerminateOrReturnObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (++call_count == 10) {
     CHECK(!v8::V8::IsExecutionTerminating());
     v8::V8::TerminateExecution();
-    return v8::Undefined();
+    return;
   }
   v8::Local<v8::Object> result = v8::Object::New();
   result->Set(v8::String::New("x"), v8::Integer::New(42));
-  return result;
+  args.GetReturnValue().Set(result);
 }
 
 
-v8::Handle<v8::Value> LoopGetProperty(const v8::Arguments& args) {
+void LoopGetProperty(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Script::Compile(v8::String::New("function f() {"
@@ -299,7 +293,6 @@ v8::Handle<v8::Value> LoopGetProperty(const v8::Arguments& args) {
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
   CHECK(v8::V8::IsExecutionTerminating());
-  return v8::Undefined();
 }
 
 
@@ -329,7 +322,7 @@ TEST(TerminateLoadICException) {
   v8::Script::Compile(source)->Run();
 }
 
-v8::Handle<v8::Value> ReenterAfterTermination(const v8::Arguments& args) {
+void ReenterAfterTermination(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Script::Compile(v8::String::New("function f() {"
@@ -351,7 +344,6 @@ v8::Handle<v8::Value> ReenterAfterTermination(const v8::Arguments& args) {
   CHECK(!try_catch.CanContinue());
   CHECK(v8::V8::IsExecutionTerminating());
   v8::Script::Compile(v8::String::New("function f() { fail(); } f()"))->Run();
-  return v8::Undefined();
 }
 
 // Test that reentry into V8 while the termination exception is still pending
@@ -373,7 +365,7 @@ TEST(TerminateAndReenterFromThreadItself) {
                                             "f()"))->Run()->IsTrue());
 }
 
-v8::Handle<v8::Value> DoLoopCancelTerminate(const v8::Arguments& args) {
+void DoLoopCancelTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Script::Compile(v8::String::New("var term = true;"
@@ -390,7 +382,6 @@ v8::Handle<v8::Value> DoLoopCancelTerminate(const v8::Arguments& args) {
   CHECK(try_catch.HasTerminated());
   v8::V8::CancelTerminateExecution(v8::Isolate::GetCurrent());
   CHECK(!v8::V8::IsExecutionTerminating());
-  return v8::Undefined();
 }
 
 // Test that a single thread of JavaScript execution can terminate

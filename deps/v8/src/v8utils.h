@@ -257,9 +257,9 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
   a = b;  // Fake assignment to check assignability.
   USE(a);
 #endif  // DEBUG
-#if defined(V8_HOST_ARCH_IA32)
+#if V8_HOST_ARCH_IA32
 #define STOS "stosl"
-#elif defined(V8_HOST_ARCH_X64)
+#elif V8_HOST_ARCH_X64
 #define STOS "stosq"
 #endif
 #if defined(__native_client__)

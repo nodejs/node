@@ -1085,6 +1085,9 @@ class MacroAssembler: public Assembler {
   // - space to be unwound on exit (includes the call JS arguments space and
   // the additional space allocated for the fast call).
   void CallApiFunctionAndReturn(ExternalReference function,
+                                Address function_address,
+                                ExternalReference thunk_ref,
+                                Register thunk_last_arg,
                                 int stack_space,
                                 bool returns_handle,
                                 int return_value_offset_from_fp);
@@ -1293,6 +1296,7 @@ class MacroAssembler: public Assembler {
                                               Register scratch,
                                               Label* failure);
 
+  void JumpIfNotUniqueName(Register reg, Label* not_unique_name);
 
   // ---------------------------------------------------------------------------
   // Patching helpers.

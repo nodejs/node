@@ -88,7 +88,7 @@ def Main():
     print("Usage: %s <command-to-run-on-device>" % sys.argv[0])
     return 1
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
-  android_workspace = os.getenv("ANDROID_V8", "/data/local/v8")
+  android_workspace = os.getenv("ANDROID_V8", "/data/local/tmp/v8")
   args = [Escape(arg) for arg in sys.argv[1:]]
   script = (" ".join(args) + "\n"
             "case $? in\n"

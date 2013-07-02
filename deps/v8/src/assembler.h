@@ -254,7 +254,7 @@ class RelocInfo BASE_EMBEDDED {
     CODE_TARGET_CONTEXT,  // Code target used for contextual loads and stores.
     DEBUG_BREAK,  // Code target for the debugger statement.
     EMBEDDED_OBJECT,
-    GLOBAL_PROPERTY_CELL,
+    CELL,
 
     // Everything after runtime_entry (inclusive) is not GC'ed.
     RUNTIME_ENTRY,
@@ -282,7 +282,7 @@ class RelocInfo BASE_EMBEDDED {
     FIRST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
     LAST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
     LAST_CODE_ENUM = DEBUG_BREAK,
-    LAST_GCED_ENUM = GLOBAL_PROPERTY_CELL,
+    LAST_GCED_ENUM = CELL,
     // Modes <= LAST_COMPACT_ENUM are guaranteed to have compact encoding.
     LAST_COMPACT_ENUM = CODE_TARGET_WITH_ID,
     LAST_STANDARD_NONCOMPACT_ENUM = INTERNAL_REFERENCE
@@ -386,9 +386,9 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(void set_target_runtime_entry(Address target,
                                        WriteBarrierMode mode =
                                            UPDATE_WRITE_BARRIER));
-  INLINE(JSGlobalPropertyCell* target_cell());
-  INLINE(Handle<JSGlobalPropertyCell> target_cell_handle());
-  INLINE(void set_target_cell(JSGlobalPropertyCell* cell,
+  INLINE(Cell* target_cell());
+  INLINE(Handle<Cell> target_cell_handle());
+  INLINE(void set_target_cell(Cell* cell,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
   INLINE(Code* code_age_stub());
   INLINE(void set_code_age_stub(Code* stub));
@@ -647,17 +647,35 @@ class ExternalReference BASE_EMBEDDED {
     // Handle<Value> f(v8::Arguments&)
     DIRECT_API_CALL,
 
+    // Call to invocation callback via InvokeInvocationCallback.
+    // Handle<Value> f(v8::Arguments&, v8::InvocationCallback)
+    PROFILING_API_CALL,
+
     // Direct call to API function callback.
     // void f(v8::Arguments&)
     DIRECT_API_CALL_NEW,
+
+    // Call to function callback via InvokeFunctionCallback.
+    // void f(v8::Arguments&, v8::FunctionCallback)
+    PROFILING_API_CALL_NEW,
 
     // Direct call to accessor getter callback.
     // Handle<value> f(Local<String> property, AccessorInfo& info)
     DIRECT_GETTER_CALL,
 
+    // Call to accessor getter callback via InvokeAccessorGetter.
+    // Handle<value> f(Local<String> property, AccessorInfo& info,
+    //     AccessorGetter getter)
+    PROFILING_GETTER_CALL,
+
     // Direct call to accessor getter callback.
     // void f(Local<String> property, AccessorInfo& info)
-    DIRECT_GETTER_CALL_NEW
+    DIRECT_GETTER_CALL_NEW,
+
+    // Call to accessor getter callback via InvokeAccessorGetterCallback.
+    // void f(Local<String> property, AccessorInfo& info,
+    //     AccessorGetterCallback callback)
+    PROFILING_GETTER_CALL_NEW
   };
 
   static void SetUp();

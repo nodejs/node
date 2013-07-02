@@ -1,0 +1,113 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This test checks that toString() round-trip on a function that has a array with elision does not remove a comma.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS typeof undefined is 'undefined'
+PASS f1().length is 1
+PASS f1()[1-1] is undefined
+PASS unevalf(eval(unevalf(f1))) is unevalf(f1)
+PASS eval(unevalf(f1))().length is 1
+PASS eval(unevalf(f1))()[1-1] is undefined
+PASS f2().length is 1
+PASS f2()[1-1] is 1
+PASS unevalf(eval(unevalf(f2))) is unevalf(f2)
+PASS eval(unevalf(f2))().length is 1
+PASS eval(unevalf(f2))()[1-1] is 1
+PASS f3().length is 1
+PASS f3()[1-1] is 1
+PASS unevalf(eval(unevalf(f3))) is unevalf(f3)
+PASS eval(unevalf(f3))().length is 1
+PASS eval(unevalf(f3))()[1-1] is 1
+PASS f4().length is 2
+PASS f4()[2-1] is undefined
+PASS unevalf(eval(unevalf(f4))) is unevalf(f4)
+PASS eval(unevalf(f4))().length is 2
+PASS eval(unevalf(f4))()[2-1] is undefined
+PASS f5().length is 3
+PASS f5()[3-1] is undefined
+PASS unevalf(eval(unevalf(f5))) is unevalf(f5)
+PASS eval(unevalf(f5))().length is 3
+PASS eval(unevalf(f5))()[3-1] is undefined
+PASS f6().length is 4
+PASS f6()[4-1] is 4
+PASS unevalf(eval(unevalf(f6))) is unevalf(f6)
+PASS eval(unevalf(f6))().length is 4
+PASS eval(unevalf(f6))()[4-1] is 4
+PASS f7().length is 2
+PASS f7()[2-1] is 2
+PASS unevalf(eval(unevalf(f7))) is unevalf(f7)
+PASS eval(unevalf(f7))().length is 2
+PASS eval(unevalf(f7))()[2-1] is 2
+PASS f8().length is 3
+PASS f8()[3-1] is undefined
+PASS unevalf(eval(unevalf(f8))) is unevalf(f8)
+PASS eval(unevalf(f8))().length is 3
+PASS eval(unevalf(f8))()[3-1] is undefined
+PASS f9().length is 5
+PASS f9()[5-1] is 5
+PASS unevalf(eval(unevalf(f9))) is unevalf(f9)
+PASS eval(unevalf(f9))().length is 5
+PASS eval(unevalf(f9))()[5-1] is 5
+PASS f10().length is 5
+PASS f10()[5-1] is undefined
+PASS unevalf(eval(unevalf(f10))) is unevalf(f10)
+PASS eval(unevalf(f10))().length is 5
+PASS eval(unevalf(f10))()[5-1] is undefined
+PASS f11().length is 6
+PASS f11()[6-1] is 6
+PASS unevalf(eval(unevalf(f11))) is unevalf(f11)
+PASS eval(unevalf(f11))().length is 6
+PASS eval(unevalf(f11))()[6-1] is 6
+PASS f12().length is 2
+PASS f12()[2-1] is undefined
+PASS unevalf(eval(unevalf(f12))) is unevalf(f12)
+PASS eval(unevalf(f12))().length is 2
+PASS eval(unevalf(f12))()[2-1] is undefined
+PASS f13().length is 2
+PASS f13()[2-1] is undefined
+PASS unevalf(eval(unevalf(f13))) is unevalf(f13)
+PASS eval(unevalf(f13))().length is 2
+PASS eval(unevalf(f13))()[2-1] is undefined
+PASS f14().length is 3
+PASS f14()[3-1] is undefined
+PASS unevalf(eval(unevalf(f14))) is unevalf(f14)
+PASS eval(unevalf(f14))().length is 3
+PASS eval(unevalf(f14))()[3-1] is undefined
+PASS f15().length is 2
+PASS f15()[2-1] is undefined
+PASS unevalf(eval(unevalf(f15))) is unevalf(f15)
+PASS eval(unevalf(f15))().length is 2
+PASS eval(unevalf(f15))()[2-1] is undefined
+PASS f16().length is 3
+PASS f16()[3-1] is undefined
+PASS unevalf(eval(unevalf(f16))) is unevalf(f16)
+PASS eval(unevalf(f16))().length is 3
+PASS eval(unevalf(f16))()[3-1] is undefined
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

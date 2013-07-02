@@ -31,6 +31,7 @@
 
 #include "heap-profiler.h"
 #include "debug.h"
+#include "types.h"
 
 namespace v8 {
 namespace internal {
@@ -188,15 +189,11 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 24;
-  static const int kExpectedHeapSnapshotsCollectionSize = 100;
-  static const int kExpectedHeapSnapshotSize = 132;
 };
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 32;
-  static const int kExpectedHeapSnapshotsCollectionSize = 152;
-  static const int kExpectedHeapSnapshotSize = 160;
 };
 
 }  // namespace
@@ -237,7 +234,7 @@ void HeapSnapshot::RememberLastJSObjectId() {
 HeapEntry* HeapSnapshot::AddRootEntry() {
   ASSERT(root_index_ == HeapEntry::kNoEntry);
   ASSERT(entries_.is_empty());  // Root entry must be the first one.
-  HeapEntry* entry = AddEntry(HeapEntry::kObject,
+  HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
                               "",
                               HeapObjectsMap::kInternalRootObjectId,
                               0);
@@ -249,7 +246,7 @@ HeapEntry* HeapSnapshot::AddRootEntry() {
 
 HeapEntry* HeapSnapshot::AddGcRootsEntry() {
   ASSERT(gc_roots_index_ == HeapEntry::kNoEntry);
-  HeapEntry* entry = AddEntry(HeapEntry::kObject,
+  HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
                               "(GC roots)",
                               HeapObjectsMap::kGcRootsObjectId,
                               0);
@@ -262,7 +259,7 @@ HeapEntry* HeapSnapshot::AddGcSubrootEntry(int tag) {
   ASSERT(gc_subroot_indexes_[tag] == HeapEntry::kNoEntry);
   ASSERT(0 <= tag && tag < VisitorSynchronization::kNumberOfSyncTags);
   HeapEntry* entry = AddEntry(
-      HeapEntry::kObject,
+      HeapEntry::kSynthetic,
       VisitorSynchronization::kTagNames[tag],
       HeapObjectsMap::GetNthGcSubrootId(tag),
       0);
@@ -352,8 +349,6 @@ static size_t GetMemoryUsedByList(const List<T, P>& list) {
 
 
 size_t HeapSnapshot::RawSnapshotSize() const {
-  STATIC_CHECK(SnapshotSizeConstants<kPointerSize>::kExpectedHeapSnapshotSize ==
-      sizeof(HeapSnapshot));  // NOLINT
   return
       sizeof(*this) +
       GetMemoryUsedByList(entries_) +
@@ -577,7 +572,6 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 
 HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
-      snapshots_uids_(HeapSnapshotsMatch),
       token_enumerator_(new TokenEnumerator()),
       ids_(heap) {
 }
@@ -606,29 +600,12 @@ void HeapSnapshotsCollection::SnapshotGenerationFinished(
   ids_.SnapshotGenerationFinished();
   if (snapshot != NULL) {
     snapshots_.Add(snapshot);
-    HashMap::Entry* entry =
-        snapshots_uids_.Lookup(reinterpret_cast<void*>(snapshot->uid()),
-                               static_cast<uint32_t>(snapshot->uid()),
-                               true);
-    ASSERT(entry->value == NULL);
-    entry->value = snapshot;
   }
-}
-
-
-HeapSnapshot* HeapSnapshotsCollection::GetSnapshot(unsigned uid) {
-  HashMap::Entry* entry = snapshots_uids_.Lookup(reinterpret_cast<void*>(uid),
-                                                 static_cast<uint32_t>(uid),
-                                                 false);
-  return entry != NULL ? reinterpret_cast<HeapSnapshot*>(entry->value) : NULL;
 }
 
 
 void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
   snapshots_.RemoveElement(snapshot);
-  unsigned uid = snapshot->uid();
-  snapshots_uids_.Remove(reinterpret_cast<void*>(uid),
-                         static_cast<uint32_t>(uid));
 }
 
 
@@ -655,13 +632,9 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
 
 
 size_t HeapSnapshotsCollection::GetUsedMemorySize() const {
-  STATIC_CHECK(SnapshotSizeConstants<kPointerSize>::
-      kExpectedHeapSnapshotsCollectionSize ==
-      sizeof(HeapSnapshotsCollection));  // NOLINT
   size_t size = sizeof(*this);
   size += names_.GetUsedMemorySize();
   size += ids_.GetUsedMemorySize();
-  size += sizeof(HashMap::Entry) * snapshots_uids_.capacity();
   size += GetMemoryUsedByList(snapshots_);
   for (int i = 0; i < snapshots_.length(); ++i) {
     size += snapshots_[i]->RawSnapshotSize();
@@ -888,7 +861,8 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
 #undef MAKE_STRING_MAP_CASE
         default: return "system / Map";
       }
-    case JS_GLOBAL_PROPERTY_CELL_TYPE: return "system / JSGlobalPropertyCell";
+    case CELL_TYPE: return "system / Cell";
+    case PROPERTY_CELL_TYPE: return "system / PropertyCell";
     case FOREIGN_TYPE: return "system / Foreign";
     case ODDBALL_TYPE: return "system / Oddball";
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
@@ -959,7 +933,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 
   bool extract_indexed_refs = true;
   if (obj->IsJSGlobalProxy()) {
-    ExtractJSGlobalProxyReferences(JSGlobalProxy::cast(obj));
+    ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
   } else if (obj->IsJSObject()) {
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
@@ -972,13 +946,18 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractSharedFunctionInfoReferences(entry, SharedFunctionInfo::cast(obj));
   } else if (obj->IsScript()) {
     ExtractScriptReferences(entry, Script::cast(obj));
+  } else if (obj->IsAccessorPair()) {
+    ExtractAccessorPairReferences(entry, AccessorPair::cast(obj));
   } else if (obj->IsCodeCache()) {
     ExtractCodeCacheReferences(entry, CodeCache::cast(obj));
   } else if (obj->IsCode()) {
     ExtractCodeReferences(entry, Code::cast(obj));
-  } else if (obj->IsJSGlobalPropertyCell()) {
-    ExtractJSGlobalPropertyCellReferences(
-        entry, JSGlobalPropertyCell::cast(obj));
+  } else if (obj->IsCell()) {
+    ExtractCellReferences(entry, Cell::cast(obj));
+    extract_indexed_refs = false;
+  } else if (obj->IsPropertyCell()) {
+    ExtractPropertyCellReferences(
+        entry, PropertyCell::cast(obj));
     extract_indexed_refs = false;
   }
   if (extract_indexed_refs) {
@@ -989,19 +968,11 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 }
 
 
-void V8HeapExplorer::ExtractJSGlobalProxyReferences(JSGlobalProxy* proxy) {
-  // We need to reference JS global objects from snapshot's root.
-  // We use JSGlobalProxy because this is what embedder (e.g. browser)
-  // uses for the global object.
-  Object* object = proxy->map()->prototype();
-  bool is_debug_object = false;
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  is_debug_object = object->IsGlobalObject() &&
-      Isolate::Current()->debug()->IsDebugGlobal(GlobalObject::cast(object));
-#endif
-  if (!is_debug_object) {
-    SetUserGlobalReference(object);
-  }
+void V8HeapExplorer::ExtractJSGlobalProxyReferences(
+    int entry, JSGlobalProxy* proxy) {
+  SetInternalReference(proxy, entry,
+                       "native_context", proxy->native_context(),
+                       JSGlobalProxy::kNativeContextOffset);
 }
 
 
@@ -1043,9 +1014,9 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     SetInternalReference(js_fun, entry,
                          "shared", shared_info,
                          JSFunction::kSharedFunctionInfoOffset);
-    TagObject(js_fun->unchecked_context(), "(context)");
+    TagObject(js_fun->context(), "(context)");
     SetInternalReference(js_fun, entry,
-                         "context", js_fun->unchecked_context(),
+                         "context", js_fun->context(),
                          JSFunction::kContextOffset);
     for (int i = JSFunction::kNonWeakFieldsEndOffset;
          i < JSFunction::kSize;
@@ -1237,6 +1208,15 @@ void V8HeapExplorer::ExtractScriptReferences(int entry, Script* script) {
 }
 
 
+void V8HeapExplorer::ExtractAccessorPairReferences(
+    int entry, AccessorPair* accessors) {
+  SetInternalReference(accessors, entry, "getter", accessors->getter(),
+                       AccessorPair::kGetterOffset);
+  SetInternalReference(accessors, entry, "setter", accessors->setter(),
+                       AccessorPair::kSetterOffset);
+}
+
+
 void V8HeapExplorer::ExtractCodeCacheReferences(
     int entry, CodeCache* code_cache) {
   TagObject(code_cache->default_cache(), "(default code cache)");
@@ -1273,9 +1253,15 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
 }
 
 
-void V8HeapExplorer::ExtractJSGlobalPropertyCellReferences(
-    int entry, JSGlobalPropertyCell* cell) {
+void V8HeapExplorer::ExtractCellReferences(int entry, Cell* cell) {
   SetInternalReference(cell, entry, "value", cell->value());
+}
+
+
+void V8HeapExplorer::ExtractPropertyCellReferences(int entry,
+                                                   PropertyCell* cell) {
+  SetInternalReference(cell, entry, "value", cell->value());
+  SetInternalReference(cell, entry, "type", cell->type());
 }
 
 
@@ -1342,21 +1328,11 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
               js_obj, entry,
               descs->GetKey(i), descs->GetConstantFunction(i));
           break;
-        case CALLBACKS: {
-          Object* callback_obj = descs->GetValue(i);
-          if (callback_obj->IsAccessorPair()) {
-            AccessorPair* accessors = AccessorPair::cast(callback_obj);
-            if (Object* getter = accessors->getter()) {
-              SetPropertyReference(js_obj, entry, descs->GetKey(i),
-                                   getter, "get-%s");
-            }
-            if (Object* setter = accessors->setter()) {
-              SetPropertyReference(js_obj, entry, descs->GetKey(i),
-                                   setter, "set-%s");
-            }
-          }
+        case CALLBACKS:
+          ExtractAccessorPairProperty(
+              js_obj, entry,
+              descs->GetKey(i), descs->GetValue(i));
           break;
-        }
         case NORMAL:  // only in slow mode
         case HANDLER:  // only in lookup results, not in descriptors
         case INTERCEPTOR:  // only in lookup results, not in descriptors
@@ -1375,18 +1351,35 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
       if (dictionary->IsKey(k)) {
         Object* target = dictionary->ValueAt(i);
         // We assume that global objects can only have slow properties.
-        Object* value = target->IsJSGlobalPropertyCell()
-            ? JSGlobalPropertyCell::cast(target)->value()
+        Object* value = target->IsPropertyCell()
+            ? PropertyCell::cast(target)->value()
             : target;
-        if (k != heap_->hidden_string()) {
-          SetPropertyReference(js_obj, entry, String::cast(k), value);
-        } else {
+        if (k == heap_->hidden_string()) {
           TagObject(value, "(hidden properties)");
           SetInternalReference(js_obj, entry, "hidden_properties", value);
+          continue;
         }
+        if (ExtractAccessorPairProperty(js_obj, entry, k, value)) continue;
+        SetPropertyReference(js_obj, entry, String::cast(k), value);
       }
     }
   }
+}
+
+
+bool V8HeapExplorer::ExtractAccessorPairProperty(
+    JSObject* js_obj, int entry, Object* key, Object* callback_obj) {
+  if (!callback_obj->IsAccessorPair()) return false;
+  AccessorPair* accessors = AccessorPair::cast(callback_obj);
+  Object* getter = accessors->getter();
+  if (!getter->IsOddball()) {
+    SetPropertyReference(js_obj, entry, String::cast(key), getter, "get %s");
+  }
+  Object* setter = accessors->setter();
+  if (!setter->IsOddball()) {
+    SetPropertyReference(js_obj, entry, String::cast(key), setter, "set %s");
+  }
+  return true;
 }
 
 
@@ -1562,6 +1555,7 @@ bool V8HeapExplorer::IsEssentialObject(Object* object) {
       && object != heap_->empty_fixed_array()
       && object != heap_->empty_descriptor_array()
       && object != heap_->fixed_array_map()
+      && object != heap_->cell_map()
       && object != heap_->global_property_cell_map()
       && object != heap_->shared_function_info_map()
       && object != heap_->free_space_map()
@@ -1747,6 +1741,22 @@ void V8HeapExplorer::SetGcSubrootReference(
           is_weak ? HeapGraphEdge::kWeak : HeapGraphEdge::kElement,
           snapshot_->gc_subroot(tag)->index(),
           child_entry);
+    }
+
+    // Add a shortcut to JS global object reference at snapshot root.
+    if (child_obj->IsNativeContext()) {
+      Context* context = Context::cast(child_obj);
+      GlobalObject* global = context->global_object();
+      if (global->IsJSGlobalObject()) {
+        bool is_debug_object = false;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+        is_debug_object = heap_->isolate()->debug()->IsDebugGlobal(global);
+#endif
+        if (!is_debug_object && !user_roots_.Contains(global)) {
+          user_roots_.Insert(global);
+          SetUserGlobalReference(global);
+        }
+      }
     }
   }
 }
@@ -2210,6 +2220,8 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   CHECK(!debug_heap->old_pointer_space()->was_swept_conservatively());
   CHECK(!debug_heap->code_space()->was_swept_conservatively());
   CHECK(!debug_heap->cell_space()->was_swept_conservatively());
+  CHECK(!debug_heap->property_cell_space()->
+        was_swept_conservatively());
   CHECK(!debug_heap->map_space()->was_swept_conservatively());
 #endif
 

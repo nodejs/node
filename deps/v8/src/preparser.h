@@ -658,7 +658,7 @@ class PreParser {
   }
   void ExpectSemicolon(bool* ok);
 
-  bool CheckInOrOf();
+  bool CheckInOrOf(bool accept_OF);
 
   static int Precedence(i::Token::Value tok, bool accept_IN);
 

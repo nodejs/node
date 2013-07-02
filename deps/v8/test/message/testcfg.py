@@ -95,7 +95,8 @@ class MessageTestSuite(testsuite.TestSuite):
     env = { "basename": os.path.basename(testpath + ".js") }
     if len(expected_lines) != len(actual_lines):
       return True
-    for (expected, actual) in itertools.izip(expected_lines, actual_lines):
+    for (expected, actual) in itertools.izip_longest(
+        expected_lines, actual_lines, fillvalue=''):
       pattern = re.escape(expected.rstrip() % env)
       pattern = pattern.replace("\\*", ".*")
       pattern = "^%s$" % pattern

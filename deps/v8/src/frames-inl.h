@@ -116,7 +116,7 @@ inline Object** StackHandler::code_address() const {
 }
 
 
-inline StackFrame::StackFrame(StackFrameIterator* iterator)
+inline StackFrame::StackFrame(StackFrameIteratorBase* iterator)
     : iterator_(iterator), isolate_(iterator_->isolate()) {
 }
 
@@ -136,22 +136,34 @@ inline Code* StackFrame::GetContainingCode(Isolate* isolate, Address pc) {
 }
 
 
-inline EntryFrame::EntryFrame(StackFrameIterator* iterator)
+inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
+  if (return_address_location_resolver_ == NULL) {
+    return pc_address;
+  } else {
+    return reinterpret_cast<Address*>(
+        return_address_location_resolver_(
+            reinterpret_cast<uintptr_t>(pc_address)));
+  }
+}
+
+
+inline EntryFrame::EntryFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
 }
 
 
-inline EntryConstructFrame::EntryConstructFrame(StackFrameIterator* iterator)
+inline EntryConstructFrame::EntryConstructFrame(
+    StackFrameIteratorBase* iterator)
     : EntryFrame(iterator) {
 }
 
 
-inline ExitFrame::ExitFrame(StackFrameIterator* iterator)
+inline ExitFrame::ExitFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
 }
 
 
-inline StandardFrame::StandardFrame(StackFrameIterator* iterator)
+inline StandardFrame::StandardFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
 }
 
@@ -201,7 +213,7 @@ inline bool StandardFrame::IsConstructFrame(Address fp) {
 }
 
 
-inline JavaScriptFrame::JavaScriptFrame(StackFrameIterator* iterator)
+inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
 }
 
@@ -269,54 +281,51 @@ inline Object* JavaScriptFrame::function() const {
 }
 
 
-inline StubFrame::StubFrame(StackFrameIterator* iterator)
+inline StubFrame::StubFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
 }
 
 
-inline OptimizedFrame::OptimizedFrame(StackFrameIterator* iterator)
+inline OptimizedFrame::OptimizedFrame(StackFrameIteratorBase* iterator)
     : JavaScriptFrame(iterator) {
 }
 
 
 inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
-    StackFrameIterator* iterator) : JavaScriptFrame(iterator) {
+    StackFrameIteratorBase* iterator) : JavaScriptFrame(iterator) {
 }
 
 
-inline InternalFrame::InternalFrame(StackFrameIterator* iterator)
+inline InternalFrame::InternalFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
 }
 
 
 inline StubFailureTrampolineFrame::StubFailureTrampolineFrame(
-    StackFrameIterator* iterator) : StandardFrame(iterator) {
+    StackFrameIteratorBase* iterator) : StandardFrame(iterator) {
 }
 
 
-inline ConstructFrame::ConstructFrame(StackFrameIterator* iterator)
+inline ConstructFrame::ConstructFrame(StackFrameIteratorBase* iterator)
     : InternalFrame(iterator) {
 }
 
 
-template<typename Iterator>
-inline JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
+inline JavaScriptFrameIterator::JavaScriptFrameIterator(
     Isolate* isolate)
     : iterator_(isolate) {
   if (!done()) Advance();
 }
 
 
-template<typename Iterator>
-inline JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
+inline JavaScriptFrameIterator::JavaScriptFrameIterator(
     Isolate* isolate, ThreadLocalTop* top)
     : iterator_(isolate, top) {
   if (!done()) Advance();
 }
 
 
-template<typename Iterator>
-inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
+inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
   // TODO(1233797): The frame hierarchy needs to change. It's
   // problematic that we can't use the safe-cast operator to cast to
   // the JavaScript frame type, because we may encounter arguments
@@ -327,43 +336,10 @@ inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
 }
 
 
-template<typename Iterator>
-JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
-    Isolate* isolate, StackFrame::Id id)
-    : iterator_(isolate) {
-  AdvanceToId(id);
-}
-
-
-template<typename Iterator>
-void JavaScriptFrameIteratorTemp<Iterator>::Advance() {
-  do {
-    iterator_.Advance();
-  } while (!iterator_.done() && !iterator_.frame()->is_java_script());
-}
-
-
-template<typename Iterator>
-void JavaScriptFrameIteratorTemp<Iterator>::AdvanceToArgumentsFrame() {
-  if (!frame()->has_adapted_arguments()) return;
-  iterator_.Advance();
-  ASSERT(iterator_.frame()->is_arguments_adaptor());
-}
-
-
-template<typename Iterator>
-void JavaScriptFrameIteratorTemp<Iterator>::AdvanceToId(StackFrame::Id id) {
-  while (!done()) {
-    Advance();
-    if (frame()->id() == id) return;
-  }
-}
-
-
-template<typename Iterator>
-void JavaScriptFrameIteratorTemp<Iterator>::Reset() {
-  iterator_.Reset();
-  if (!done()) Advance();
+inline JavaScriptFrame* SafeStackFrameIterator::frame() const {
+  ASSERT(!done());
+  ASSERT(frame_->is_java_script());
+  return static_cast<JavaScriptFrame*>(frame_);
 }
 
 

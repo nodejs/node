@@ -1076,14 +1076,15 @@ static char* ReadChars(Isolate* isolate, const char* name, int* size_out) {
 }
 
 static void ReadBufferWeakCallback(v8::Isolate* isolate,
-                                   Persistent<Value>* object,
+                                   Persistent<ArrayBuffer>* array_buffer,
                                    uint8_t* data) {
-  size_t byte_length = ArrayBuffer::Cast(**object)->ByteLength();
+  size_t byte_length =
+      Local<ArrayBuffer>::New(isolate, *array_buffer)->ByteLength();
   isolate->AdjustAmountOfExternalAllocatedMemory(
       -static_cast<intptr_t>(byte_length));
 
   delete[] data;
-  object->Dispose(isolate);
+  array_buffer->Dispose();
 }
 
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1103,8 +1104,8 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(data, length);
-  v8::Persistent<v8::Value> weak_handle(isolate, buffer);
-  weak_handle.MakeWeak(isolate, data, ReadBufferWeakCallback);
+  v8::Persistent<v8::ArrayBuffer> weak_handle(isolate, buffer);
+  weak_handle.MakeWeak(data, ReadBufferWeakCallback);
   weak_handle.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(length);
 

@@ -100,7 +100,6 @@ int random();
 
 #endif  // WIN32
 
-#include "atomicops.h"
 #include "lazy-instance.h"
 #include "platform-tls.h"
 #include "utils.h"
@@ -329,8 +328,6 @@ class OS {
   // Returns the activation frame alignment constraint or zero if
   // the platform doesn't care. Guaranteed to be a power of two.
   static int ActivationFrameAlignment();
-
-  static void ReleaseStore(volatile AtomicWord* ptr, AtomicWord value);
 
 #if defined(V8_TARGET_ARCH_IA32)
   // Limit below which the extra overhead of the MemCopy function is likely

@@ -39,13 +39,6 @@ namespace v8 {
 namespace internal {
 
 
-// Zone scopes are in one of two modes.  Either they delete the zone
-// on exit or they do not.
-enum ZoneScopeMode {
-  DELETE_ON_EXIT,
-  DONT_DELETE_ON_EXIT
-};
-
 class Segment;
 class Isolate;
 
@@ -65,7 +58,7 @@ class Isolate;
 class Zone {
  public:
   explicit Zone(Isolate* isolate);
-  ~Zone() { DeleteKeptSegment(); }
+  ~Zone();
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
   // allocating new segments of memory on demand using malloc().
   inline void* New(int size);
@@ -77,7 +70,8 @@ class Zone {
   // small (size <= kMaximumKeptSegmentSize) segment around if it finds one.
   void DeleteAll();
 
-  // Deletes the last small segment kept around by DeleteAll().
+  // Deletes the last small segment kept around by DeleteAll(). You
+  // may no longer allocate in the Zone after a call to this method.
   void DeleteKeptSegment();
 
   // Returns true if more memory has been allocated in zones than
@@ -86,13 +80,12 @@ class Zone {
 
   inline void adjust_segment_bytes_allocated(int delta);
 
-  inline Isolate* isolate() { return isolate_; }
+  inline unsigned allocation_size() { return allocation_size_; }
 
-  static unsigned allocation_size_;
+  inline Isolate* isolate() { return isolate_; }
 
  private:
   friend class Isolate;
-  friend class ZoneScope;
 
   // All pointers returned from New() have this alignment.  In addition, if the
   // object being allocated has a size that is divisible by 8 then its alignment
@@ -109,7 +102,10 @@ class Zone {
   static const int kMaximumKeptSegmentSize = 64 * KB;
 
   // Report zone excess when allocation exceeds this limit.
-  int zone_excess_limit_;
+  static const int kExcessLimit = 256 * MB;
+
+  // The number of bytes allocated in this zone so far.
+  unsigned allocation_size_;
 
   // The number of bytes allocated in segments.  Note that this number
   // includes memory allocated from the OS but not yet allocated from
@@ -124,18 +120,16 @@ class Zone {
 
   // Creates a new segment, sets it size, and pushes it to the front
   // of the segment chain. Returns the new segment.
-  Segment* NewSegment(int size);
+  INLINE(Segment* NewSegment(int size));
 
   // Deletes the given segment. Does not touch the segment chain.
-  void DeleteSegment(Segment* segment, int size);
+  INLINE(void DeleteSegment(Segment* segment, int size));
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
   // is guaranteed to be aligned as dictated by kAlignment.
   Address position_;
   Address limit_;
-
-  int scope_nesting_;
 
   Segment* segment_head_;
   Isolate* isolate_;
@@ -159,6 +153,20 @@ class ZoneObject {
   // Zone::DeleteAll() to delete all zone objects in one go.
   void operator delete(void*, size_t) { UNREACHABLE(); }
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
+};
+
+
+// The ZoneScope is used to automatically call DeleteAll() on a
+// Zone when the ZoneScope is destroyed (i.e. goes out of scope)
+struct ZoneScope {
+ public:
+  explicit ZoneScope(Zone* zone) : zone_(zone) { }
+  ~ZoneScope() { zone_->DeleteAll(); }
+
+  Zone* zone() { return zone_; }
+
+ private:
+  Zone* zone_;
 };
 
 
@@ -226,31 +234,6 @@ class ZoneList: public List<T, ZoneAllocationPolicy> {
 
   void operator delete(void* pointer) { UNREACHABLE(); }
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
-};
-
-
-// ZoneScopes keep track of the current parsing and compilation
-// nesting and cleans up generated ASTs in the Zone when exiting the
-// outer-most scope.
-class ZoneScope BASE_EMBEDDED {
- public:
-  INLINE(ZoneScope(Zone* zone, ZoneScopeMode mode));
-
-  virtual ~ZoneScope();
-
-  inline bool ShouldDeleteOnExit();
-
-  // For ZoneScopes that do not delete on exit by default, call this
-  // method to request deletion on exit.
-  void DeleteOnExit() {
-    mode_ = DELETE_ON_EXIT;
-  }
-
-  inline static int nesting();
-
- private:
-  Zone* zone_;
-  ZoneScopeMode mode_;
 };
 
 

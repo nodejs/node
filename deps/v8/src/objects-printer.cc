@@ -182,14 +182,20 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_MESSAGE_OBJECT_TYPE:
       JSMessageObject::cast(this)->JSMessageObjectPrint(out);
       break;
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
-      JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellPrint(out);
+    case CELL_TYPE:
+      Cell::cast(this)->CellPrint(out);
+      break;
+    case PROPERTY_CELL_TYPE:
+      PropertyCell::cast(this)->PropertyCellPrint(out);
       break;
     case JS_ARRAY_BUFFER_TYPE:
       JSArrayBuffer::cast(this)->JSArrayBufferPrint(out);
       break;
     case JS_TYPED_ARRAY_TYPE:
       JSTypedArray::cast(this)->JSTypedArrayPrint(out);
+      break;
+    case JS_DATA_VIEW_TYPE:
+      JSDataView::cast(this)->JSDataViewPrint(out);
       break;
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
@@ -533,7 +539,8 @@ static const char* TypeToString(InstanceType type) {
     case JS_OBJECT_TYPE: return "JS_OBJECT";
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE: return "JS_CONTEXT_EXTENSION_OBJECT";
     case ODDBALL_TYPE: return "ODDBALL";
-    case JS_GLOBAL_PROPERTY_CELL_TYPE: return "JS_GLOBAL_PROPERTY_CELL";
+    case CELL_TYPE: return "CELL";
+    case PROPERTY_CELL_TYPE: return "PROPERTY_CELL";
     case SHARED_FUNCTION_INFO_TYPE: return "SHARED_FUNCTION_INFO";
     case JS_GENERATOR_OBJECT_TYPE: return "JS_GENERATOR_OBJECT";
     case JS_MODULE_TYPE: return "JS_MODULE";
@@ -547,8 +554,9 @@ static const char* TypeToString(InstanceType type) {
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
     case JS_BUILTINS_OBJECT_TYPE: return "JS_BUILTINS_OBJECT";
     case JS_GLOBAL_PROXY_TYPE: return "JS_GLOBAL_PROXY";
-    case JS_TYPED_ARRAY_TYPE: return "JS_TYPED_ARRAY";
     case JS_ARRAY_BUFFER_TYPE: return "JS_ARRAY_BUFFER";
+    case JS_TYPED_ARRAY_TYPE: return "JS_TYPED_ARRAY";
+    case JS_DATA_VIEW_TYPE: return "JS_DATA_VIEW";
     case FOREIGN_TYPE: return "FOREIGN";
     case JS_MESSAGE_OBJECT_TYPE: return "JS_MESSAGE_OBJECT_TYPE";
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
@@ -817,7 +825,7 @@ void JSArrayBuffer::JSArrayBufferPrint(FILE* out) {
 
 void JSTypedArray::JSTypedArrayPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSTypedArray");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - buffer =");
   buffer()->ShortPrint(out);
   PrintF(out, "\n - byte_offset = ");
@@ -828,6 +836,19 @@ void JSTypedArray::JSTypedArrayPrint(FILE* out) {
   length()->ShortPrint(out);
   PrintF("\n");
   PrintElements(out);
+}
+
+
+void JSDataView::JSDataViewPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSDataView");
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - buffer =");
+  buffer()->ShortPrint(out);
+  PrintF(out, "\n - byte_offset = ");
+  byte_offset()->ShortPrint(out);
+  PrintF(out, "\n - byte_length = ");
+  byte_length()->ShortPrint(out);
+  PrintF("\n");
 }
 
 
@@ -843,7 +864,7 @@ void JSFunction::JSFunctionPrint(FILE* out) {
   PrintF(out, "\n   - name = ");
   shared()->name()->Print(out);
   PrintF(out, "\n - context = ");
-  unchecked_context()->ShortPrint(out);
+  context()->ShortPrint(out);
   PrintF(out, "\n - literals = ");
   literals()->ShortPrint(out);
   PrintF(out, "\n - code = ");
@@ -917,8 +938,13 @@ void JSBuiltinsObject::JSBuiltinsObjectPrint(FILE* out) {
 }
 
 
-void JSGlobalPropertyCell::JSGlobalPropertyCellPrint(FILE* out) {
-  HeapObject::PrintHeader(out, "JSGlobalPropertyCell");
+void Cell::CellPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "Cell");
+}
+
+
+void PropertyCell::PropertyCellPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "PropertyCell");
 }
 
 
@@ -1093,8 +1119,8 @@ void TypeSwitchInfo::TypeSwitchInfoPrint(FILE* out) {
 void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "AllocationSiteInfo");
   PrintF(out, " - payload: ");
-  if (payload()->IsJSGlobalPropertyCell()) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(payload());
+  if (payload()->IsCell()) {
+    Cell* cell = Cell::cast(payload());
     Object* cell_contents = cell->value();
     if (cell_contents->IsSmi()) {
       ElementsKind kind = static_cast<ElementsKind>(

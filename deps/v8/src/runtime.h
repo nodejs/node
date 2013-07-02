@@ -95,8 +95,9 @@ namespace internal {
   F(DeoptimizeFunction, 1, 1) \
   F(ClearFunctionTypeFeedback, 1, 1) \
   F(RunningInSimulator, 0, 1) \
+  F(IsParallelRecompilationSupported, 0, 1) \
   F(OptimizeFunctionOnNextCall, -1, 1) \
-  F(WaitUntilOptimized, 1, 1) \
+  F(CompleteOptimization, 1, 1) \
   F(GetOptimizationStatus, 1, 1) \
   F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
@@ -368,6 +369,28 @@ namespace internal {
   F(TypedArrayGetLength, 1, 1) \
   F(TypedArraySetFastCases, 3, 1) \
   \
+  F(DataViewInitialize, 4, 1) \
+  F(DataViewGetBuffer, 1, 1) \
+  F(DataViewGetByteLength, 1, 1) \
+  F(DataViewGetByteOffset, 1, 1) \
+  F(DataViewGetInt8, 3, 1) \
+  F(DataViewGetUint8, 3, 1) \
+  F(DataViewGetInt16, 3, 1) \
+  F(DataViewGetUint16, 3, 1) \
+  F(DataViewGetInt32, 3, 1) \
+  F(DataViewGetUint32, 3, 1) \
+  F(DataViewGetFloat32, 3, 1) \
+  F(DataViewGetFloat64, 3, 1) \
+  \
+  F(DataViewSetInt8, 4, 1) \
+  F(DataViewSetUint8, 4, 1) \
+  F(DataViewSetInt16, 4, 1) \
+  F(DataViewSetUint16, 4, 1) \
+  F(DataViewSetInt32, 4, 1) \
+  F(DataViewSetUint32, 4, 1) \
+  F(DataViewSetFloat32, 4, 1) \
+  F(DataViewSetFloat64, 4, 1) \
+  \
   /* Statements */ \
   F(NewClosure, 3, 1) \
   F(NewObject, 1, 1) \
@@ -467,6 +490,7 @@ namespace internal {
   F(GetFrameCount, 1, 1) \
   F(GetFrameDetails, 2, 1) \
   F(GetScopeCount, 2, 1) \
+  F(GetStepInPositions, 2, 1) \
   F(GetScopeDetails, 4, 1) \
   F(GetFunctionScopeCount, 1, 1) \
   F(GetFunctionScopeDetails, 2, 1) \
@@ -475,9 +499,9 @@ namespace internal {
   F(GetThreadCount, 1, 1) \
   F(GetThreadDetails, 2, 1) \
   F(SetDisableBreak, 1, 1) \
-  F(GetBreakLocations, 1, 1) \
+  F(GetBreakLocations, 2, 1) \
   F(SetFunctionBreakPoint, 3, 1) \
-  F(SetScriptBreakPoint, 3, 1) \
+  F(SetScriptBreakPoint, 4, 1) \
   F(ClearBreakPoint, 1, 1) \
   F(ChangeBreakOnException, 2, 1) \
   F(IsBreakOnException, 1, 1) \
@@ -573,7 +597,8 @@ namespace internal {
   F(GetCachedArrayIndex, 1, 1)                                               \
   F(FastAsciiArrayJoin, 2, 1)                                                \
   F(GeneratorNext, 2, 1)                                                     \
-  F(GeneratorThrow, 2, 1)
+  F(GeneratorThrow, 2, 1)                                                    \
+  F(DebugBreakInOptimizedCode, 0, 1)
 
 
 // ----------------------------------------------------------------------------
@@ -767,6 +792,10 @@ class Runtime : public AllStatic {
       Isolate* isolate,
       Handle<JSArrayBuffer> array_buffer,
       size_t allocated_length);
+
+  static void FreeArrayBuffer(
+      Isolate* isolate,
+      JSArrayBuffer* phantom_array_buffer);
 
   // Helper functions used stubs.
   static void PerformGC(Object* result);

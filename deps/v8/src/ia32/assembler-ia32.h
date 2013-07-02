@@ -410,10 +410,10 @@ class Operand BASE_EMBEDDED {
                    RelocInfo::EXTERNAL_REFERENCE);
   }
 
-  static Operand Cell(Handle<JSGlobalPropertyCell> cell) {
+  static Operand ForCell(Handle<Cell> cell) {
     AllowDeferredHandleDereference embedding_raw_address;
     return Operand(reinterpret_cast<int32_t>(cell.location()),
-                   RelocInfo::GLOBAL_PROPERTY_CELL);
+                   RelocInfo::CELL);
   }
 
   // Returns true if this Operand is a wrapper for the specified register.

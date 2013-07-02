@@ -200,7 +200,6 @@ class RegisterThreadedTest {
   const char* name_;
 };
 
-namespace v8 {
 // A LocalContext holds a reference to a v8::Context.
 class LocalContext {
  public:
@@ -209,24 +208,27 @@ class LocalContext {
                    v8::Handle<v8::ObjectTemplate>(),
                v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>()) {
     v8::Isolate* isolate = v8::Isolate::GetCurrent();
-    HandleScope scope(isolate);
-    context_.Reset(isolate,
-                   Context::New(isolate,
-                                extensions,
-                                global_template,
-                                global_object));
-    context_->Enter();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate,
+                                                      extensions,
+                                                      global_template,
+                                                      global_object);
+    context_.Reset(isolate, context);
+    context->Enter();
     // We can't do this later perhaps because of a fatal error.
-    isolate_ = context_->GetIsolate();
+    isolate_ = context->GetIsolate();
   }
 
   virtual ~LocalContext() {
-    context_->Exit();
-    context_.Dispose(isolate_);
+    v8::HandleScope scope(isolate_);
+    v8::Local<v8::Context>::New(isolate_, context_)->Exit();
+    context_.Dispose();
   }
 
-  v8::Context* operator->() { return *context_; }
-  v8::Context* operator*() { return *context_; }
+  v8::Context* operator->() {
+    return *reinterpret_cast<v8::Context**>(&context_);
+  }
+  v8::Context* operator*() { return operator->(); }
   bool IsReady() { return !context_.IsEmpty(); }
 
   v8::Local<v8::Context> local() {
@@ -237,8 +239,6 @@ class LocalContext {
   v8::Persistent<v8::Context> context_;
   v8::Isolate* isolate_;
 };
-}
-typedef v8::LocalContext LocalContext;
 
 static inline v8::Local<v8::Value> v8_num(double x) {
   return v8::Number::New(x);

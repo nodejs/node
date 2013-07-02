@@ -1832,11 +1832,11 @@ class MultipleFunctionTarget {
 // Drops all call frame matched by target and all frames above them.
 template<typename TARGET>
 static const char* DropActivationsInActiveThreadImpl(
-    TARGET& target, bool do_drop, Zone* zone) {
+    TARGET& target, bool do_drop) {
   Isolate* isolate = Isolate::Current();
   Debug* debug = isolate->debug();
-  ZoneScope scope(zone, DELETE_ON_EXIT);
-  Vector<StackFrame*> frames = CreateStackMap(isolate, zone);
+  Zone zone(isolate);
+  Vector<StackFrame*> frames = CreateStackMap(isolate, &zone);
 
 
   int top_frame_index = -1;
@@ -1928,12 +1928,11 @@ static const char* DropActivationsInActiveThreadImpl(
 // Fills result array with statuses of functions. Modifies the stack
 // removing all listed function if possible and if do_drop is true.
 static const char* DropActivationsInActiveThread(
-    Handle<JSArray> shared_info_array, Handle<JSArray> result, bool do_drop,
-    Zone* zone) {
+    Handle<JSArray> shared_info_array, Handle<JSArray> result, bool do_drop) {
   MultipleFunctionTarget target(shared_info_array, result);
 
   const char* message =
-      DropActivationsInActiveThreadImpl(target, do_drop, zone);
+      DropActivationsInActiveThreadImpl(target, do_drop);
   if (message) {
     return message;
   }
@@ -1980,7 +1979,7 @@ class InactiveThreadActivationsChecker : public ThreadVisitor {
 
 
 Handle<JSArray> LiveEdit::CheckAndDropActivations(
-    Handle<JSArray> shared_info_array, bool do_drop, Zone* zone) {
+    Handle<JSArray> shared_info_array, bool do_drop) {
   Isolate* isolate = shared_info_array->GetIsolate();
   int len = GetArrayLength(shared_info_array);
 
@@ -2006,7 +2005,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
 
   // Try to drop activations from the current stack.
   const char* error_message =
-      DropActivationsInActiveThread(shared_info_array, result, do_drop, zone);
+      DropActivationsInActiveThread(shared_info_array, result, do_drop);
   if (error_message != NULL) {
     // Add error message as an array extra element.
     Vector<const char> vector_message(error_message, StrLength(error_message));
@@ -2047,10 +2046,10 @@ class SingleFrameTarget {
 
 // Finds a drops required frame and all frames above.
 // Returns error message or NULL.
-const char* LiveEdit::RestartFrame(JavaScriptFrame* frame, Zone* zone) {
+const char* LiveEdit::RestartFrame(JavaScriptFrame* frame) {
   SingleFrameTarget target(frame);
 
-  const char* result = DropActivationsInActiveThreadImpl(target, true, zone);
+  const char* result = DropActivationsInActiveThreadImpl(target, true);
   if (result != NULL) {
     return result;
   }

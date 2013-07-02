@@ -38,6 +38,7 @@ function h() {
   var b = 2;
   var eval = 5;  // Overriding eval should not break anything.
   debugger;  // Breakpoint.
+  return a;
 }
 
 function checkFrame0(frame) {
@@ -60,7 +61,7 @@ function checkFrame0(frame) {
 function g() {
   var a = 3;
   eval("var b = 4;");
-  h();
+  return h() + a;
 }
 
 function checkFrame1(frame) {
@@ -83,7 +84,7 @@ function f() {
   var a = 5;
   var b = 0;
   with ({b:6}) {
-    g();
+    return g();
   }
 }
 
@@ -125,6 +126,10 @@ function listener(event, exec_state, event_data, data) {
       assertEquals(6, exec_state.frame(2).evaluate('b').value());
       assertEquals("function",
                    typeof exec_state.frame(2).evaluate('eval').value());
+      assertEquals("foo",
+                   exec_state.frame(0).evaluate('a = "foo"').value());
+      assertEquals("bar",
+                   exec_state.frame(1).evaluate('a = "bar"').value());
       // Indicate that all was processed.
       listenerComplete = true;
     }
@@ -137,7 +142,9 @@ function listener(event, exec_state, event_data, data) {
 // Add the debug event listener.
 Debug.setListener(listener);
 
-f();
+var f_result = f();
+
+assertEquals('foobar', f_result);
 
 // Make sure that the debug event listener was invoked.
 assertFalse(exception, "exception in listener")

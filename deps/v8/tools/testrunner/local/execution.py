@@ -138,14 +138,15 @@ class Runner(object):
         self.indicator.AboutToRun(test)
         test.output = result[1]
         test.duration = result[2]
-        if test.suite.HasUnexpectedOutput(test):
+        has_unexpected_output = test.suite.HasUnexpectedOutput(test)
+        if has_unexpected_output:
           self.failed.append(test)
           if test.output.HasCrashed():
             self.crashed += 1
         else:
           self.succeeded += 1
         self.remaining -= 1
-        self.indicator.HasRun(test)
+        self.indicator.HasRun(test, has_unexpected_output)
     except KeyboardInterrupt:
       pool.terminate()
       pool.join()

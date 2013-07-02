@@ -28,6 +28,7 @@
 #ifndef V8_HEAP_PROFILER_H_
 #define V8_HEAP_PROFILER_H_
 
+#include "heap-snapshot-generator-inl.h"
 #include "isolate.h"
 
 namespace v8 {
@@ -65,7 +66,6 @@ class HeapProfiler {
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
   int GetSnapshotsCount();
   HeapSnapshot* GetSnapshot(int index);
-  HeapSnapshot* FindSnapshot(unsigned uid);
   SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
   void DeleteAllSnapshots();
 

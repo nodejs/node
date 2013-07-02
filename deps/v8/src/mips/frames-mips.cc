@@ -28,23 +28,15 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_MIPS
 
 #include "assembler.h"
 #include "assembler-mips.h"
 #include "assembler-mips-inl.h"
-#include "frames-inl.h"
-#include "mips/assembler-mips-inl.h"
-#include "macro-assembler.h"
-#include "macro-assembler-mips.h"
+#include "frames.h"
 
 namespace v8 {
 namespace internal {
-
-
-Address ExitFrame::ComputeStackPointer(Address fp) {
-  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
-}
 
 
 Register JavaScriptFrame::fp_register() { return v8::internal::fp; }

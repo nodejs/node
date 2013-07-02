@@ -1786,30 +1786,36 @@ function FunctionBind(this_arg) { // Length is 1.
 }
 
 
-function NewFunction(arg1) {  // length == 1
-  var n = %_ArgumentsLength();
+function NewFunctionString(arguments, function_token) {
+  var n = arguments.length;
   var p = '';
   if (n > 1) {
-    p = new InternalArray(n - 1);
-    for (var i = 0; i < n - 1; i++) p[i] = %_Arguments(i);
-    p = Join(p, n - 1, ',', NonStringToString);
+    p = ToString(arguments[0]);
+    for (var i = 1; i < n - 1; i++) {
+      p += ',' + ToString(arguments[i]);
+    }
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
     // compile. We avoid this problem by checking for this early on.
     if (%_CallFunction(p, ')', StringIndexOf) != -1) {
-      throw MakeSyntaxError('paren_in_arg_string',[]);
+      throw MakeSyntaxError('paren_in_arg_string', []);
     }
     // If the formal parameters include an unbalanced block comment, the
     // function must be rejected. Since JavaScript does not allow nested
     // comments we can include a trailing block comment to catch this.
     p += '\n/' + '**/';
   }
-  var body = (n > 0) ? ToString(%_Arguments(n - 1)) : '';
-  var source = '(function(' + p + ') {\n' + body + '\n})';
+  var body = (n > 0) ? ToString(arguments[n - 1]) : '';
+  return '(' + function_token + '(' + p + ') {\n' + body + '\n})';
+}
 
+
+function FunctionConstructor(arg1) {  // length == 1
+  var source = NewFunctionString(arguments, 'function');
   var global_receiver = %GlobalReceiver(global);
+  // Compile the string in the constructor and not a helper so that errors
+  // appear to come from here.
   var f = %_CallFunction(global_receiver, %CompileString(source, true));
-
   %FunctionMarkNameShouldPrintAsAnonymous(f);
   return f;
 }
@@ -1820,7 +1826,7 @@ function NewFunction(arg1) {  // length == 1
 function SetUpFunction() {
   %CheckIsBootstrapping();
 
-  %SetCode($Function, NewFunction);
+  %SetCode($Function, FunctionConstructor);
   %SetProperty($Function.prototype, "constructor", $Function, DONT_ENUM);
 
   InstallFunctions($Function.prototype, DONT_ENUM, $Array(

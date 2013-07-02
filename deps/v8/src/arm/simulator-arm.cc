@@ -30,7 +30,7 @@
 #include <cstdarg>
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_ARM)
+#if V8_TARGET_ARCH_ARM
 
 #include "disasm.h"
 #include "assembler.h"
@@ -830,7 +830,10 @@ class Redirection {
     Isolate* isolate = Isolate::Current();
     Redirection* current = isolate->simulator_redirection();
     for (; current != NULL; current = current->next_) {
-      if (current->external_function_ == external_function) return current;
+      if (current->external_function_ == external_function) {
+        ASSERT_EQ(current->type(), type);
+        return current;
+      }
     }
     return new Redirection(external_function, type);
   }
@@ -1629,12 +1632,19 @@ typedef double (*SimulatorRuntimeFPIntCall)(double darg0, int32_t arg0);
 // (refer to InvocationCallback in v8.h).
 typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectApiCall)(int32_t arg0);
 typedef void (*SimulatorRuntimeDirectApiCallNew)(int32_t arg0);
+typedef v8::Handle<v8::Value> (*SimulatorRuntimeProfilingApiCall)(
+    int32_t arg0, int32_t arg1);
+typedef void (*SimulatorRuntimeProfilingApiCallNew)(int32_t arg0, int32_t arg1);
 
 // This signature supports direct call to accessor getter callback.
 typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectGetterCall)(int32_t arg0,
                                                                   int32_t arg1);
 typedef void (*SimulatorRuntimeDirectGetterCallNew)(int32_t arg0,
                                                     int32_t arg1);
+typedef v8::Handle<v8::Value> (*SimulatorRuntimeProfilingGetterCall)(
+    int32_t arg0, int32_t arg1, int32_t arg2);
+typedef void (*SimulatorRuntimeProfilingGetterCallNew)(
+    int32_t arg0, int32_t arg1, int32_t arg2);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
@@ -1799,6 +1809,31 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           target(arg0);
         }
       } else if (
+          redirection->type() == ExternalReference::PROFILING_API_CALL ||
+          redirection->type() == ExternalReference::PROFILING_API_CALL_NEW) {
+        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+          PrintF("Call to host function at %p args %08x %08x",
+              reinterpret_cast<void*>(external), arg0, arg1);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08x\n", get_register(sp));
+          }
+          PrintF("\n");
+        }
+        CHECK(stack_aligned);
+        if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
+          SimulatorRuntimeProfilingApiCall target =
+              reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
+          v8::Handle<v8::Value> result = target(arg0, arg1);
+          if (::v8::internal::FLAG_trace_sim) {
+            PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
+          }
+          set_register(r0, reinterpret_cast<int32_t>(*result));
+        } else {
+          SimulatorRuntimeProfilingApiCallNew target =
+              reinterpret_cast<SimulatorRuntimeProfilingApiCallNew>(external);
+          target(arg0, arg1);
+        }
+      } else if (
           redirection->type() == ExternalReference::DIRECT_GETTER_CALL ||
           redirection->type() == ExternalReference::DIRECT_GETTER_CALL_NEW) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
@@ -1823,6 +1858,32 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
               reinterpret_cast<SimulatorRuntimeDirectGetterCallNew>(external);
           target(arg0, arg1);
         }
+      } else if (
+          redirection->type() == ExternalReference::PROFILING_GETTER_CALL ||
+          redirection->type() == ExternalReference::PROFILING_GETTER_CALL_NEW) {
+        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+          PrintF("Call to host function at %p args %08x %08x %08x",
+              reinterpret_cast<void*>(external), arg0, arg1, arg2);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08x\n", get_register(sp));
+          }
+          PrintF("\n");
+        }
+        CHECK(stack_aligned);
+        if (redirection->type() == ExternalReference::PROFILING_GETTER_CALL) {
+          SimulatorRuntimeProfilingGetterCall target =
+              reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
+          v8::Handle<v8::Value> result = target(arg0, arg1, arg2);
+          if (::v8::internal::FLAG_trace_sim) {
+            PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
+          }
+          set_register(r0, reinterpret_cast<int32_t>(*result));
+        } else {
+          SimulatorRuntimeProfilingGetterCallNew target =
+              reinterpret_cast<SimulatorRuntimeProfilingGetterCallNew>(
+                  external);
+          target(arg0, arg1, arg2);
+        }
       } else {
         // builtin call.
         ASSERT(redirection->type() == ExternalReference::BUILTIN_CALL);
@@ -1830,7 +1891,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             reinterpret_cast<SimulatorRuntimeCall>(external);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF(
-              "Call to host function at %p"
+              "Call to host function at %p "
               "args %08x, %08x, %08x, %08x, %08x, %08x",
               FUNCTION_ADDR(target),
               arg0,

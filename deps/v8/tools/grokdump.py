@@ -31,6 +31,7 @@ import bisect
 import cmd
 import codecs
 import ctypes
+import datetime
 import disasm
 import mmap
 import optparse
@@ -39,7 +40,6 @@ import re
 import struct
 import sys
 import types
-
 
 USAGE="""usage: %prog [OPTIONS] [DUMP-FILE]
 
@@ -442,13 +442,29 @@ MINIDUMP_THREAD_LIST = Descriptor([
   ("threads", lambda t: MINIDUMP_THREAD.ctype * t.thread_count)
 ])
 
+MINIDUMP_VS_FIXEDFILEINFO = Descriptor([
+  ("dwSignature", ctypes.c_uint32),
+  ("dwStrucVersion", ctypes.c_uint32),
+  ("dwFileVersionMS", ctypes.c_uint32),
+  ("dwFileVersionLS", ctypes.c_uint32),
+  ("dwProductVersionMS", ctypes.c_uint32),
+  ("dwProductVersionLS", ctypes.c_uint32),
+  ("dwFileFlagsMask", ctypes.c_uint32),
+  ("dwFileFlags", ctypes.c_uint32),
+  ("dwFileOS", ctypes.c_uint32),
+  ("dwFileType", ctypes.c_uint32),
+  ("dwFileSubtype", ctypes.c_uint32),
+  ("dwFileDateMS", ctypes.c_uint32),
+  ("dwFileDateLS", ctypes.c_uint32)
+])
+
 MINIDUMP_RAW_MODULE = Descriptor([
   ("base_of_image", ctypes.c_uint64),
   ("size_of_image", ctypes.c_uint32),
   ("checksum", ctypes.c_uint32),
   ("time_date_stamp", ctypes.c_uint32),
   ("module_name_rva", ctypes.c_uint32),
-  ("version_info", ctypes.c_uint32 * 13),
+  ("version_info", MINIDUMP_VS_FIXEDFILEINFO.ctype),
   ("cv_record", MINIDUMP_LOCATION_DESCRIPTOR.ctype),
   ("misc_record", MINIDUMP_LOCATION_DESCRIPTOR.ctype),
   ("reserved0", ctypes.c_uint32 * 2),
@@ -785,8 +801,9 @@ class MinidumpReader(object):
     try:
       symfile = os.path.join(self.symdir,
                              modulename.replace('.', '_') + ".pdb.sym")
-      self._LoadSymbolsFrom(symfile, module.base_of_image)
-      self.modules_with_symbols.append(module)
+      if os.path.isfile(symfile):
+        self._LoadSymbolsFrom(symfile, module.base_of_image)
+        self.modules_with_symbols.append(module)
     except Exception as e:
       print "  ... failure (%s)" % (e)
 
@@ -2011,6 +2028,21 @@ class InspectionShell(cmd.Cmd):
     print "Available memory regions:"
     self.reader.ForEachMemoryRegion(print_region)
 
+  def do_lm(self, arg):
+    """
+     List details for all loaded modules in the minidump. An argument can
+     be passed to limit the output to only those modules that contain the
+     argument as a substring (case insensitive match).
+    """
+    for module in self.reader.module_list.modules:
+      if arg:
+        name = GetModuleName(self.reader, module).lower()
+        if name.find(arg.lower()) >= 0:
+          PrintModuleDetails(self.reader, module)
+      else:
+        PrintModuleDetails(self.reader, module)
+    print
+
   def do_s(self, word):
     """
      Search for a given word in available memory regions. The given word
@@ -2069,9 +2101,31 @@ CONTEXT_FOR_ARCH = {
 
 KNOWN_MODULES = {'chrome.exe', 'chrome.dll'}
 
+def GetVersionString(ms, ls):
+  return "%d.%d.%d.%d" % (ms >> 16, ms & 0xffff, ls >> 16, ls & 0xffff)
+
+
 def GetModuleName(reader, module):
   name = reader.ReadMinidumpString(module.module_name_rva)
+  # simplify for path manipulation
+  name = name.encode('utf-8')
   return str(os.path.basename(str(name).replace("\\", "/")))
+
+
+def PrintModuleDetails(reader, module):
+  print "%s" % GetModuleName(reader, module)
+  file_version = GetVersionString(module.version_info.dwFileVersionMS,
+                                  module.version_info.dwFileVersionLS)
+  product_version = GetVersionString(module.version_info.dwProductVersionMS,
+                                     module.version_info.dwProductVersionLS)
+  print "  base: %s" % reader.FormatIntPtr(module.base_of_image)
+  print "  end: %s" % reader.FormatIntPtr(module.base_of_image +
+                                          module.size_of_image)
+  print "  file version: %s" % file_version
+  print "  product version: %s" % product_version
+  time_date_stamp = datetime.datetime.fromtimestamp(module.time_date_stamp)
+  print "  timestamp: %s" % time_date_stamp
+
 
 def AnalyzeMinidump(options, minidump_name):
   reader = MinidumpReader(options, minidump_name)
@@ -2093,14 +2147,13 @@ def AnalyzeMinidump(options, minidump_name):
     else:
       print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
 
-    # TODO(mstarzinger): Disabled because broken, needs investigation.
-    #print
-    #print "  modules:"
-    #for module in reader.module_list.modules:
-    #  name = GetModuleName(reader, module)
-    #  if name in KNOWN_MODULES:
-    #    print "    %s at %08X" % (name, module.base_of_image)
-    #    reader.TryLoadSymbolsFor(name, module)
+    print
+    print "  modules:"
+    for module in reader.module_list.modules:
+      name = GetModuleName(reader, module)
+      if name in KNOWN_MODULES:
+        print "    %s at %08X" % (name, module.base_of_image)
+        reader.TryLoadSymbolsFor(name, module)
     print
 
     stack_top = reader.ExceptionSP()
@@ -2137,12 +2190,15 @@ def AnalyzeMinidump(options, minidump_name):
   if options.full:
     FullDump(reader, heap)
 
+  if options.command:
+    InspectionShell(reader, heap).onecmd(options.command)
+
   if options.shell:
     try:
       InspectionShell(reader, heap).cmdloop("type help to get help")
     except KeyboardInterrupt:
       print "Kthxbye."
-  else:
+  elif not options.command:
     if reader.exception is not None:
       print "Annotated stack (from exception.esp to bottom):"
       for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
@@ -2163,6 +2219,8 @@ if __name__ == "__main__":
   parser = optparse.OptionParser(USAGE)
   parser.add_option("-s", "--shell", dest="shell", action="store_true",
                     help="start an interactive inspector shell")
+  parser.add_option("-c", "--command", dest="command", default="",
+                    help="run an interactive inspector shell command and exit")
   parser.add_option("-f", "--full", dest="full", action="store_true",
                     help="dump all information contained in the minidump")
   parser.add_option("--symdir", dest="symdir", default=".",

@@ -47,7 +47,7 @@ class PrintExtension : public v8::Extension {
   PrintExtension() : v8::Extension("v8/print", kSource) { }
   virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
       v8::Handle<v8::String> name);
-  static v8::Handle<v8::Value> Print(const v8::Arguments& args);
+  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
  private:
   static const char* kSource;
 };
@@ -62,16 +62,15 @@ v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunction(
 }
 
 
-v8::Handle<v8::Value> PrintExtension::Print(const v8::Arguments& args) {
+void PrintExtension::Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     if (i != 0) printf(" ");
     v8::HandleScope scope(args.GetIsolate());
     v8::String::Utf8Value str(args[i]);
-    if (*str == NULL) return v8::Undefined();
+    if (*str == NULL) return;
     printf("%s", *str);
   }
   printf("\n");
-  return v8::Undefined();
 }
 
 
@@ -350,6 +349,7 @@ TEST(OptimizedCodeSharing) {
   // Skip test if --cache-optimized-code is not activated by default because
   // FastNewClosureStub that is baked into the snapshot is incorrect.
   if (!FLAG_cache_optimized_code) return;
+  FLAG_stress_compaction = false;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());

@@ -121,11 +121,11 @@ class LiveEdit : AllStatic {
   // has restart the lowest found frames and drops all other frames above
   // if possible and if do_drop is true.
   static Handle<JSArray> CheckAndDropActivations(
-      Handle<JSArray> shared_info_array, bool do_drop, Zone* zone);
+      Handle<JSArray> shared_info_array, bool do_drop);
 
   // Restarts the call frame and completely drops all frames above it.
   // Return error message or NULL.
-  static const char* RestartFrame(JavaScriptFrame* frame, Zone* zone);
+  static const char* RestartFrame(JavaScriptFrame* frame);
 
   // A copy of this is in liveedit-debugger.js.
   enum FunctionPatchabilityStatus {

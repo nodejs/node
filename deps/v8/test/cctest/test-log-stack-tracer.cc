@@ -32,11 +32,12 @@
 #include "v8.h"
 
 #include "api.h"
-#include "codegen.h"
-#include "log.h"
-#include "isolate.h"
 #include "cctest.h"
+#include "codegen.h"
 #include "disassembler.h"
+#include "isolate.h"
+#include "log.h"
+#include "sampler.h"
 #include "vm-state-inl.h"
 
 using v8::Function;
@@ -51,6 +52,7 @@ using v8::internal::Address;
 using v8::internal::Handle;
 using v8::internal::Isolate;
 using v8::internal::JSFunction;
+using v8::internal::RegisterState;
 using v8::internal::TickSample;
 
 
@@ -65,11 +67,12 @@ static void InitTraceEnv(TickSample* sample) {
 
 
 static void DoTrace(Address fp) {
-  trace_env.sample->fp = fp;
+  RegisterState regs;
+  regs.fp = fp;
   // sp is only used to define stack high bound
-  trace_env.sample->sp =
+  regs.sp =
       reinterpret_cast<Address>(trace_env.sample) - 10240;
-  trace_env.sample->Trace(Isolate::Current());
+  trace_env.sample->Init(Isolate::Current(), regs);
 }
 
 
@@ -92,12 +95,12 @@ class TraceExtension : public v8::Extension {
   TraceExtension() : v8::Extension("v8/trace", kSource) { }
   virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
       v8::Handle<String> name);
-  static v8::Handle<v8::Value> Trace(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSTrace(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSEntrySP(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSEntrySPLevel2(const v8::Arguments& args);
+  static void Trace(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void JSEntrySP(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void JSEntrySPLevel2(const v8::FunctionCallbackInfo<v8::Value>& args);
  private:
-  static Address GetFP(const v8::Arguments& args);
+  static Address GetFP(const v8::FunctionCallbackInfo<v8::Value>& args);
   static const char* kSource;
 };
 
@@ -125,7 +128,7 @@ v8::Handle<v8::FunctionTemplate> TraceExtension::GetNativeFunction(
 }
 
 
-Address TraceExtension::GetFP(const v8::Arguments& args) {
+Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Convert frame pointer from encoding as smis in the arguments to a pointer.
   CHECK_EQ(2, args.Length());  // Ignore second argument on 32-bit platform.
 #if defined(V8_HOST_ARCH_32_BIT)
@@ -142,15 +145,13 @@ Address TraceExtension::GetFP(const v8::Arguments& args) {
 }
 
 
-v8::Handle<v8::Value> TraceExtension::Trace(const v8::Arguments& args) {
+void TraceExtension::Trace(const v8::FunctionCallbackInfo<v8::Value>& args) {
   DoTrace(GetFP(args));
-  return v8::Undefined();
 }
 
 
-v8::Handle<v8::Value> TraceExtension::JSTrace(const v8::Arguments& args) {
+void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
   DoTraceHideCEntryFPAddress(GetFP(args));
-  return v8::Undefined();
 }
 
 
@@ -160,20 +161,19 @@ static Address GetJsEntrySp() {
 }
 
 
-v8::Handle<v8::Value> TraceExtension::JSEntrySP(const v8::Arguments& args) {
+void TraceExtension::JSEntrySP(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK_NE(0, GetJsEntrySp());
-  return v8::Undefined();
 }
 
 
-v8::Handle<v8::Value> TraceExtension::JSEntrySPLevel2(
-    const v8::Arguments& args) {
+void TraceExtension::JSEntrySPLevel2(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::HandleScope scope(args.GetIsolate());
   const Address js_entry_sp = GetJsEntrySp();
   CHECK_NE(0, js_entry_sp);
   CompileRun("js_entry_sp();");
   CHECK_EQ(js_entry_sp, GetJsEntrySp());
-  return v8::Undefined();
 }
 
 
@@ -197,7 +197,7 @@ static bool IsAddressWithinFuncCode(const char* func_name, Address addr) {
 // This C++ function is called as a constructor, to grab the frame pointer
 // from the calling function.  When this function runs, the stack contains
 // a C_Entry frame and a Construct frame above the calling function's frame.
-static v8::Handle<Value> construct_call(const v8::Arguments& args) {
+static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
   i::StackFrameIterator frame_iterator(isolate);
   CHECK(frame_iterator.frame()->is_exit());
@@ -219,7 +219,7 @@ static v8::Handle<Value> construct_call(const v8::Arguments& args) {
 #else
 #error Host architecture is neither 32-bit nor 64-bit.
 #endif
-  return args.This();
+  args.GetReturnValue().Set(args.This());
 }
 
 

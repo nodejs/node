@@ -33,7 +33,7 @@
 namespace v8 {
 namespace internal {
 
-#if defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_X64)
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
 #define V8_FAST_TLS_SUPPORTED 1
 
@@ -43,7 +43,7 @@ INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
 
 inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   intptr_t result;
-#if defined(V8_HOST_ARCH_IA32)
+#if V8_HOST_ARCH_IA32
   asm("movl %%gs:(%1,%2,4), %0;"
       :"=r"(result)  // Output must be a writable register.
       :"r"(kMacTlsBaseOffset), "r"(index));

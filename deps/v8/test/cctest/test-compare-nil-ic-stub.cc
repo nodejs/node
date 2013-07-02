@@ -34,26 +34,26 @@
 
 using namespace v8::internal;
 
-#define Types CompareNilICStub::Types
+typedef CompareNilICStub::State State;
 
-TEST(TypeConstructors) {
-  Types types;
-  types.Add(CompareNilICStub::MONOMORPHIC_MAP);
-  Types types2(types);
-  CHECK_EQ(types.ToIntegral(), types2.ToIntegral());
+TEST(StateConstructors) {
+  State state;
+  state.Add(CompareNilICStub::MONOMORPHIC_MAP);
+  State state2(state);
+  CHECK_EQ(state.ToIntegral(), state2.ToIntegral());
 }
 
 TEST(ExternalICStateParsing) {
-  Types types;
-  types.Add(CompareNilICStub::UNDEFINED);
-  CompareNilICStub stub(kUndefinedValue, types);
+  State state;
+  state.Add(CompareNilICStub::UNDEFINED);
+  CompareNilICStub stub(kUndefinedValue, state);
   CompareNilICStub stub2(stub.GetExtraICState());
   CHECK_EQ(stub.GetNilValue(), stub2.GetNilValue());
-  CHECK_EQ(stub.GetTypes().ToIntegral(), stub2.GetTypes().ToIntegral());
+  CHECK_EQ(stub.GetState().ToIntegral(), stub2.GetState().ToIntegral());
 }
 
-TEST(SettingTypes) {
-  Types state;
+TEST(SettingState) {
+  State state;
   CHECK(state.IsEmpty());
   state.Add(CompareNilICStub::NULL_TYPE);
   CHECK(!state.IsEmpty());
@@ -66,20 +66,22 @@ TEST(SettingTypes) {
   CHECK(!state.Contains(CompareNilICStub::UNDETECTABLE));
 }
 
-TEST(ClearTypes) {
-  Types state;
+TEST(ClearState) {
+  State state;
   state.Add(CompareNilICStub::NULL_TYPE);
   state.RemoveAll();
   CHECK(state.IsEmpty());
 }
 
-TEST(FullCompare) {
-  Types state;
-  CHECK(Types::FullCompare() != state);
+TEST(Generic) {
+  State state;
+  CHECK(State::Generic() != state);
   state.Add(CompareNilICStub::UNDEFINED);
-  CHECK(state != Types::FullCompare());
+  CHECK(state != State::Generic());
   state.Add(CompareNilICStub::NULL_TYPE);
-  CHECK(state != Types::FullCompare());
+  CHECK(state != State::Generic());
   state.Add(CompareNilICStub::UNDETECTABLE);
-  CHECK(state == Types::FullCompare());
+  CHECK(state != State::Generic());
+  state.Add(CompareNilICStub::GENERIC);
+  CHECK(state == State::Generic());
 }

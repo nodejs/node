@@ -79,7 +79,11 @@ class PerThreadAssertScopeBase {
 
  protected:
   PerThreadAssertScopeBase() {
-    data_ = AssertData();
+    data_ = GetAssertData();
+    if (data_ == NULL) {
+      data_ = new PerThreadAssertData();
+      SetThreadLocalData(data_);
+    }
     data_->increment_level();
   }
 
@@ -89,22 +93,22 @@ class PerThreadAssertScopeBase {
       ASSERT(data_->get(static_cast<PerThreadAssertType>(i)));
     }
     delete data_;
-    Thread::SetThreadLocal(thread_local_key, NULL);
+    SetThreadLocalData(NULL);
   }
 
-  static PerThreadAssertData* AssertData() {
-    PerThreadAssertData* data = reinterpret_cast<PerThreadAssertData*>(
-            Thread::GetThreadLocal(thread_local_key));
-    if (data == NULL) {
-      data = new PerThreadAssertData();
-      Thread::SetThreadLocal(thread_local_key, data);
-    }
-    return data;
+  static PerThreadAssertData* GetAssertData() {
+    return reinterpret_cast<PerThreadAssertData*>(
+        Thread::GetThreadLocal(thread_local_key));
   }
 
   static Thread::LocalStorageKey thread_local_key;
   PerThreadAssertData* data_;
   friend class Isolate;
+
+ private:
+  static void SetThreadLocalData(PerThreadAssertData* data) {
+    Thread::SetThreadLocal(thread_local_key, data);
+  }
 #endif  // DEBUG
 };
 
@@ -124,7 +128,10 @@ class PerThreadAssertScope : public PerThreadAssertScopeBase {
 
   ~PerThreadAssertScope() { data_->set(type, old_state_); }
 
-  static bool IsAllowed() { return AssertData()->get(type); }
+  static bool IsAllowed() {
+    PerThreadAssertData* data = GetAssertData();
+    return data == NULL || data->get(type);
+  }
 
  private:
   bool old_state_;

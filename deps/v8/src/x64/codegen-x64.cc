@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_X64)
+#if V8_TARGET_ARCH_X64
 
 #include "codegen.h"
 #include "macro-assembler.h"
@@ -346,7 +346,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Allocate new backing store.
   __ bind(&new_backing_store);
-  __ lea(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
+  __ lea(rdi, Operand(r9, times_8, FixedArray::kHeaderSize));
   __ Allocate(rdi, r14, r11, r15, fail, TAG_OBJECT);
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
@@ -381,7 +381,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Conversion loop.
   __ bind(&loop);
   __ movq(rbx,
-          FieldOperand(r8, r9, times_8, FixedArray::kHeaderSize));
+          FieldOperand(r8, r9, times_pointer_size, FixedArray::kHeaderSize));
   // r9 : current element's index
   // rbx: current element (smi-tagged)
   __ JumpIfNotSmi(rbx, &convert_hole);
@@ -459,7 +459,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ bind(&loop);
   __ movq(r14, FieldOperand(r8,
                             r9,
-                            times_pointer_size,
+                            times_8,
                             FixedDoubleArray::kHeaderSize));
   // r9 : current element's index
   // r14: current element
@@ -735,7 +735,11 @@ void Code::PatchPlatformCodeAge(byte* sequence,
     Code* stub = GetCodeAgeStub(age, parity);
     CodePatcher patcher(sequence, young_length);
     patcher.masm()->call(stub->instruction_start());
-    patcher.masm()->nop();
+    for (int i = 0;
+         i < kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength;
+         i++) {
+      patcher.masm()->nop();
+    }
   }
 }
 

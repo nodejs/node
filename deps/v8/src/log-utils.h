@@ -132,6 +132,9 @@ class LogMessageBuilder BASE_EMBEDDED {
   // Append a character to the log message.
   void Append(const char c);
 
+  // Append double quoted string to the log message.
+  void AppendDoubleQuotedString(const char* string);
+
   // Append a heap string.
   void Append(String* str);
 

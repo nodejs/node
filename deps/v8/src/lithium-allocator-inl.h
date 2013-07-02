@@ -148,14 +148,13 @@ void UseIterator::Advance() {
 void LAllocator::SetLiveRangeAssignedRegister(
     LiveRange* range,
     int reg,
-    RegisterKind register_kind,
-    Zone* zone) {
+    RegisterKind register_kind) {
   if (register_kind == DOUBLE_REGISTERS) {
     assigned_double_registers_->Add(reg);
   } else {
     assigned_registers_->Add(reg);
   }
-  range->set_assigned_register(reg, register_kind, zone);
+  range->set_assigned_register(reg, register_kind, chunk()->zone());
 }
 
 

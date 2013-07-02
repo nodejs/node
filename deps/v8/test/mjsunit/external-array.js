@@ -519,30 +519,15 @@ assertSame(a.buffer, aa.buffer);
 assertThrows(function(){ a.subarray.call({}, 0) });
 assertThrows(function(){ a.subarray.call([], 0) });
 
-// Call constructors directly as functions, and through .call and .apply
+// Try to call constructors directly as functions, and through .call
+// and .apply. Should fail.
 
-b = ArrayBuffer(100)
-a = Int8Array(b, 5, 77)
-assertInstance(b, ArrayBuffer)
-assertInstance(a, Int8Array)
-assertSame(b, a.buffer)
-assertEquals(5, a.byteOffset)
-assertEquals(77, a.byteLength)
-b = ArrayBuffer.call(null, 10)
-a = Uint16Array.call(null, b, 2, 4)
-assertInstance(b, ArrayBuffer)
-assertInstance(a, Uint16Array)
-assertSame(b, a.buffer)
-assertEquals(2, a.byteOffset)
-assertEquals(8, a.byteLength)
-b = ArrayBuffer.apply(null, [1000])
-a = Float32Array.apply(null, [b, 128, 1])
-assertInstance(b, ArrayBuffer)
-assertInstance(a, Float32Array)
-assertSame(b, a.buffer)
-assertEquals(128, a.byteOffset)
-assertEquals(4, a.byteLength)
-
+assertThrows(function() { ArrayBuffer(100); }, TypeError);
+assertThrows(function() { Int8Array(b, 5, 77); }, TypeError);
+assertThrows(function() { ArrayBuffer.call(null, 10); }, TypeError);
+assertThrows(function() { Uint16Array.call(null, b, 2, 4); }, TypeError);
+assertThrows(function() { ArrayBuffer.apply(null, [1000]); }, TypeError);
+assertThrows(function() { Float32Array.apply(null, [b, 128, 1]); }, TypeError);
 
 // Test array.set in different combinations.
 
@@ -631,15 +616,15 @@ var b0 = a0.buffer
 
 var b1 = b0.slice(0)
 assertEquals(b0.byteLength, b1.byteLength)
-assertArrayPrefix([1, 2, 3, 4, 5, 6], Int8Array(b1))
+assertArrayPrefix([1, 2, 3, 4, 5, 6], new Int8Array(b1))
 
 var b2 = b0.slice(3)
 assertEquals(b0.byteLength - 3, b2.byteLength)
-assertArrayPrefix([4, 5, 6], Int8Array(b2))
+assertArrayPrefix([4, 5, 6], new Int8Array(b2))
 
 var b3 = b0.slice(2, 4)
 assertEquals(2, b3.byteLength)
-assertArrayPrefix([3, 4], Int8Array(b3))
+assertArrayPrefix([3, 4], new Int8Array(b3))
 
 function goo(a, i) {
   return a[i];

@@ -120,8 +120,8 @@ static void VerifyRead(v8::Handle<v8::DeclaredAccessorDescriptor> descriptor,
   CreateConstructor(context, "Accessible", internal_field, "x", descriptor);
   // Setup object.
   CompileRun("var accessible = new Accessible();");
-  v8::Local<v8::Object> obj(
-      v8::Object::Cast(*context->Global()->Get(v8_str("accessible"))));
+  v8::Local<v8::Object> obj = v8::Local<v8::Object>::Cast(
+      context->Global()->Get(v8_str("accessible")));
   obj->SetAlignedPointerInInternalField(internal_field, internal_object);
   bool added_accessor;
   added_accessor = obj->SetAccessor(v8_str("y"), descriptor);

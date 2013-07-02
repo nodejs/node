@@ -43,11 +43,11 @@ namespace internal {
 // the last lookup that refers to them.
 // Slots are identified by their index and only affected if whitelisted in
 // HOptimizedGraphBuilder::IsEligibleForEnvironmentLivenessAnalysis().
-class EnvironmentSlotLivenessAnalyzer {
+class HEnvironmentLivenessAnalysisPhase : public HPhase {
  public:
-  explicit EnvironmentSlotLivenessAnalyzer(HGraph* graph);
+  explicit HEnvironmentLivenessAnalysisPhase(HGraph* graph);
 
-  void AnalyzeAndTrim();
+  void Run();
 
  private:
   void ZapEnvironmentSlot(int index, HSimulate* simulate);
@@ -56,14 +56,6 @@ class EnvironmentSlotLivenessAnalyzer {
   void UpdateLivenessAtBlockEnd(HBasicBlock* block, BitVector* live);
   void UpdateLivenessAtInstruction(HInstruction* instr, BitVector* live);
 
-  Zone* zone() { return &zone_; }
-
-  HGraph* graph_;
-  // Use a dedicated Zone for this phase, with a ZoneScope to ensure it
-  // gets freed.
-  Zone zone_;
-  ZoneScope zone_scope_;
-
   int block_count_;
 
   // Largest number of local variables in any environment in the graph
@@ -71,21 +63,23 @@ class EnvironmentSlotLivenessAnalyzer {
   int maximum_environment_size_;
 
   // Per-block data. All these lists are indexed by block_id.
-  ZoneList<BitVector*>* live_at_block_start_;
-  ZoneList<HSimulate*>* first_simulate_;
-  ZoneList<BitVector*>* first_simulate_invalid_for_index_;
+  ZoneList<BitVector*> live_at_block_start_;
+  ZoneList<HSimulate*> first_simulate_;
+  ZoneList<BitVector*> first_simulate_invalid_for_index_;
 
   // List of all HEnvironmentMarker instructions for quick iteration/deletion.
   // It is populated during the first pass over the graph, controlled by
   // |collect_markers_|.
-  ZoneList<HEnvironmentMarker*>* markers_;
+  ZoneList<HEnvironmentMarker*> markers_;
   bool collect_markers_;
 
   // Keeps track of the last simulate seen, as well as the environment slots
   // for which a new live range has started since (so they must not be zapped
   // in that simulate when the end of another live range of theirs is found).
   HSimulate* last_simulate_;
-  BitVector* went_live_since_last_simulate_;
+  BitVector went_live_since_last_simulate_;
+
+  DISALLOW_COPY_AND_ASSIGN(HEnvironmentLivenessAnalysisPhase);
 };
 
 

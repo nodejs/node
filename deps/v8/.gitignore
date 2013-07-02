@@ -40,6 +40,7 @@ shell_g
 /test/test262/data
 /test/test262/test262-*
 /test/test262/test262.status2
+/test/webkit/webkit.status2
 /third_party
 /tools/jsfunfuzz
 /tools/jsfunfuzz.zip

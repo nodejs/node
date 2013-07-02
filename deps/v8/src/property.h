@@ -112,7 +112,7 @@ class ConstantFunctionDescriptor: public Descriptor {
                              JSFunction* function,
                              PropertyAttributes attributes)
       : Descriptor(key, function, attributes, CONSTANT_FUNCTION,
-                   Representation::Tagged()) {}
+                   Representation::HeapObject()) {}
 };
 
 
@@ -351,7 +351,7 @@ class LookupResult BASE_EMBEDDED {
         Object* value;
         value = holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
         if (holder()->IsGlobalObject()) {
-          value = JSGlobalPropertyCell::cast(value)->value();
+          value = PropertyCell::cast(value)->value();
         }
         return value;
       }
@@ -390,6 +390,11 @@ class LookupResult BASE_EMBEDDED {
 
   bool IsTransitionToField(Map* map) {
     return IsTransition() && GetTransitionDetails(map).type() == FIELD;
+  }
+
+  bool IsTransitionToConstantFunction(Map* map) {
+    return IsTransition() &&
+        GetTransitionDetails(map).type() == CONSTANT_FUNCTION;
   }
 
   Map* GetTransitionMap() {

@@ -36,17 +36,16 @@ using namespace v8::internal;
 
 TEST(BitVector) {
   v8::internal::V8::Initialize(NULL);
-  Zone* zone = Isolate::Current()->runtime_zone();
-  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
+  Zone zone(Isolate::Current());
   {
-    BitVector v(15, zone);
+    BitVector v(15, &zone);
     v.Add(1);
     CHECK(v.Contains(1));
     v.Remove(0);
     CHECK(!v.Contains(0));
     v.Add(0);
     v.Add(1);
-    BitVector w(15, zone);
+    BitVector w(15, &zone);
     w.Add(1);
     v.Intersect(w);
     CHECK(!v.Contains(0));
@@ -54,7 +53,7 @@ TEST(BitVector) {
   }
 
   {
-    BitVector v(64, zone);
+    BitVector v(64, &zone);
     v.Add(27);
     v.Add(30);
     v.Add(31);
@@ -72,9 +71,9 @@ TEST(BitVector) {
   }
 
   {
-    BitVector v(15, zone);
+    BitVector v(15, &zone);
     v.Add(0);
-    BitVector w(15, zone);
+    BitVector w(15, &zone);
     w.Add(1);
     v.Union(w);
     CHECK(v.Contains(0));
@@ -82,13 +81,13 @@ TEST(BitVector) {
   }
 
   {
-    BitVector v(15, zone);
+    BitVector v(15, &zone);
     v.Add(0);
-    BitVector w(15, zone);
+    BitVector w(15, &zone);
     w = v;
     CHECK(w.Contains(0));
     w.Add(1);
-    BitVector u(w, zone);
+    BitVector u(w, &zone);
     CHECK(u.Contains(0));
     CHECK(u.Contains(1));
     v.Union(w);
@@ -97,9 +96,9 @@ TEST(BitVector) {
   }
 
   {
-    BitVector v(35, zone);
+    BitVector v(35, &zone);
     v.Add(0);
-    BitVector w(35, zone);
+    BitVector w(35, &zone);
     w.Add(33);
     v.Union(w);
     CHECK(v.Contains(0));
@@ -107,15 +106,15 @@ TEST(BitVector) {
   }
 
   {
-    BitVector v(35, zone);
+    BitVector v(35, &zone);
     v.Add(32);
     v.Add(33);
-    BitVector w(35, zone);
+    BitVector w(35, &zone);
     w.Add(33);
     v.Intersect(w);
     CHECK(!v.Contains(32));
     CHECK(v.Contains(33));
-    BitVector r(35, zone);
+    BitVector r(35, &zone);
     r.CopyFrom(v);
     CHECK(!r.Contains(32));
     CHECK(r.Contains(33));

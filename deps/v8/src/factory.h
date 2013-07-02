@@ -152,6 +152,10 @@ class Factory {
   Handle<String> NewConsString(Handle<String> first,
                                Handle<String> second);
 
+  // Create a new sequential string containing the concatenation of the inputs.
+  Handle<String> NewFlatConcatString(Handle<String> first,
+                                     Handle<String> second);
+
   // Create a new string object which holds a substring of a string.
   Handle<String> NewSubString(Handle<String> str,
                               int begin,
@@ -235,8 +239,9 @@ class Factory {
       void* external_pointer,
       PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<JSGlobalPropertyCell> NewJSGlobalPropertyCell(
-      Handle<Object> value);
+  Handle<Cell> NewCell(Handle<Object> value);
+
+  Handle<PropertyCell> NewPropertyCell(Handle<Object> value);
 
   Handle<Map> NewMap(
       InstanceType type,
@@ -326,6 +331,8 @@ class Factory {
   Handle<JSArrayBuffer> NewJSArrayBuffer();
 
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type);
+
+  Handle<JSDataView> NewJSDataView();
 
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 

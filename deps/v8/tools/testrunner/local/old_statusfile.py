@@ -386,7 +386,7 @@ class ConvertNotation(object):
     self.init = True
 
   def CloseGlobal(self):
-    if not self.init: return
+    if not self.init: self.OpenGlobal()
     print >> self.out, "]"
     self.init = False
 

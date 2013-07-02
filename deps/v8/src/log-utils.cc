@@ -237,6 +237,18 @@ void LogMessageBuilder::Append(const char c) {
 }
 
 
+void LogMessageBuilder::AppendDoubleQuotedString(const char* string) {
+  Append('"');
+  for (const char* p = string; *p != '\0'; p++) {
+    if (*p == '"') {
+      Append('\\');
+    }
+    Append(*p);
+  }
+  Append('"');
+}
+
+
 void LogMessageBuilder::Append(String* str) {
   DisallowHeapAllocation no_gc;  // Ensure string stay valid.
   int length = str->length();

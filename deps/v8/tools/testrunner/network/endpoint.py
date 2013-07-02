@@ -50,7 +50,7 @@ class EndpointProgress(progress.ProgressIndicator):
     self.senderthread = threading.Thread(target=self._SenderThread)
     self.senderthread.start()
 
-  def HasRun(self, test):
+  def HasRun(self, test, has_unexpected_output):
     # The runners that call this have a lock anyway, so this is safe.
     self.results_queue.append(test)
 
@@ -119,6 +119,6 @@ def Execute(workspace, ctx, tests, sock, server):
     else:
       message = "%s" % e
     compression.Send([[-1, message]], sock)
-  progress_indicator.HasRun(None)  # Sentinel to signal the end.
+  progress_indicator.HasRun(None, None)  # Sentinel to signal the end.
   progress_indicator.sender_lock.acquire()  # Released when sending is done.
   progress_indicator.sender_lock.release()

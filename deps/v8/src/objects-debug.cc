@@ -163,8 +163,11 @@ void HeapObject::HeapObjectVerify() {
     case JS_BUILTINS_OBJECT_TYPE:
       JSBuiltinsObject::cast(this)->JSBuiltinsObjectVerify();
       break;
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
-      JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellVerify();
+    case CELL_TYPE:
+      Cell::cast(this)->CellVerify();
+      break;
+    case PROPERTY_CELL_TYPE:
+      PropertyCell::cast(this)->PropertyCellVerify();
       break;
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify();
@@ -203,6 +206,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_TYPED_ARRAY_TYPE:
       JSTypedArray::cast(this)->JSTypedArrayVerify();
+      break;
+    case JS_DATA_VIEW_TYPE:
+      JSDataView::cast(this)->JSDataViewVerify();
       break;
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
@@ -615,9 +621,16 @@ void Oddball::OddballVerify() {
 }
 
 
-void JSGlobalPropertyCell::JSGlobalPropertyCellVerify() {
-  CHECK(IsJSGlobalPropertyCell());
+void Cell::CellVerify() {
+  CHECK(IsCell());
   VerifyObjectField(kValueOffset);
+}
+
+
+void PropertyCell::PropertyCellVerify() {
+  CHECK(IsPropertyCell());
+  VerifyObjectField(kValueOffset);
+  VerifyObjectField(kTypeOffset);
 }
 
 
@@ -751,8 +764,8 @@ void JSArrayBuffer::JSArrayBufferVerify() {
 }
 
 
-void JSTypedArray::JSTypedArrayVerify() {
-  CHECK(IsJSTypedArray());
+void JSArrayBufferView::JSArrayBufferViewVerify() {
+  CHECK(IsJSArrayBufferView());
   JSObjectVerify();
   VerifyPointer(buffer());
   CHECK(buffer()->IsJSArrayBuffer() || buffer()->IsUndefined());
@@ -764,12 +777,23 @@ void JSTypedArray::JSTypedArrayVerify() {
   VerifyPointer(byte_length());
   CHECK(byte_length()->IsSmi() || byte_length()->IsHeapNumber()
         || byte_length()->IsUndefined());
+}
 
+
+void JSTypedArray::JSTypedArrayVerify() {
+  CHECK(IsJSTypedArray());
+  JSArrayBufferViewVerify();
   VerifyPointer(length());
   CHECK(length()->IsSmi() || length()->IsHeapNumber()
         || length()->IsUndefined());
 
   VerifyPointer(elements());
+}
+
+
+void JSDataView::JSDataViewVerify() {
+  CHECK(IsJSDataView());
+  JSArrayBufferViewVerify();
 }
 
 

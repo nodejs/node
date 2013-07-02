@@ -356,8 +356,11 @@ class Expression: public AstNode {
   // True iff the expression is the undefined literal.
   bool IsUndefinedLiteral();
 
-  // Expression type
-  Handle<Type> type() { return type_; }
+  // Expression type bounds
+  Handle<Type> upper_type() { return upper_type_; }
+  Handle<Type> lower_type() { return lower_type_; }
+  void set_upper_type(Handle<Type> type) { upper_type_ = type; }
+  void set_lower_type(Handle<Type> type) { lower_type_ = type; }
 
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
@@ -380,7 +383,7 @@ class Expression: public AstNode {
   }
 
   // TODO(rossberg): this should move to its own AST node eventually.
-  void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
+  virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
   byte to_boolean_types() const { return to_boolean_types_; }
 
   BailoutId id() const { return id_; }
@@ -388,12 +391,15 @@ class Expression: public AstNode {
 
  protected:
   explicit Expression(Isolate* isolate)
-      : type_(Type::Any(), isolate),
+      : upper_type_(Type::Any(), isolate),
+        lower_type_(Type::None(), isolate),
         id_(GetNextId(isolate)),
         test_id_(GetNextId(isolate)) {}
+  void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
 
  private:
-  Handle<Type> type_;
+  Handle<Type> upper_type_;
+  Handle<Type> lower_type_;
   byte to_boolean_types_;
 
   const BailoutId id_;
@@ -1106,24 +1112,15 @@ class CaseClause: public ZoneObject {
   // Type feedback information.
   TypeFeedbackId CompareId() { return compare_id_; }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-  bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
-  bool IsNameCompare() { return compare_type_ == NAME_ONLY; }
-  bool IsStringCompare() { return compare_type_ == STRING_ONLY; }
-  bool IsObjectCompare() { return compare_type_ == OBJECT_ONLY; }
+  Handle<Type> compare_type() { return compare_type_; }
 
  private:
   Expression* label_;
   Label body_target_;
   ZoneList<Statement*>* statements_;
   int position_;
-  enum CompareTypeFeedback {
-    NONE,
-    SMI_ONLY,
-    NAME_ONLY,
-    STRING_ONLY,
-    OBJECT_ONLY
-  };
-  CompareTypeFeedback compare_type_;
+  Handle<Type> compare_type_;
+
   const TypeFeedbackId compare_id_;
   const BailoutId entry_id_;
 };
@@ -1316,36 +1313,36 @@ class Literal: public Expression {
   DECLARE_NODE_TYPE(Literal)
 
   virtual bool IsPropertyName() {
-    if (handle_->IsInternalizedString()) {
+    if (value_->IsInternalizedString()) {
       uint32_t ignored;
-      return !String::cast(*handle_)->AsArrayIndex(&ignored);
+      return !String::cast(*value_)->AsArrayIndex(&ignored);
     }
     return false;
   }
 
   Handle<String> AsPropertyName() {
     ASSERT(IsPropertyName());
-    return Handle<String>::cast(handle_);
+    return Handle<String>::cast(value_);
   }
 
-  virtual bool ToBooleanIsTrue() { return handle_->BooleanValue(); }
-  virtual bool ToBooleanIsFalse() { return !handle_->BooleanValue(); }
+  virtual bool ToBooleanIsTrue() { return value_->BooleanValue(); }
+  virtual bool ToBooleanIsFalse() { return !value_->BooleanValue(); }
 
   // Identity testers.
   bool IsNull() const {
-    ASSERT(!handle_.is_null());
-    return handle_->IsNull();
+    ASSERT(!value_.is_null());
+    return value_->IsNull();
   }
   bool IsTrue() const {
-    ASSERT(!handle_.is_null());
-    return handle_->IsTrue();
+    ASSERT(!value_.is_null());
+    return value_->IsTrue();
   }
   bool IsFalse() const {
-    ASSERT(!handle_.is_null());
-    return handle_->IsFalse();
+    ASSERT(!value_.is_null());
+    return value_->IsFalse();
   }
 
-  Handle<Object> handle() const { return handle_; }
+  Handle<Object> value() const { return value_; }
 
   // Support for using Literal as a HashMap key. NOTE: Currently, this works
   // only for string and number literals!
@@ -1360,14 +1357,14 @@ class Literal: public Expression {
   TypeFeedbackId LiteralFeedbackId() const { return reuse(id()); }
 
  protected:
-  Literal(Isolate* isolate, Handle<Object> handle)
+  Literal(Isolate* isolate, Handle<Object> value)
       : Expression(isolate),
-        handle_(handle) { }
+        value_(value) { }
 
  private:
   Handle<String> ToString();
 
-  Handle<Object> handle_;
+  Handle<Object> value_;
 };
 
 
@@ -1705,7 +1702,7 @@ class Call: public Expression {
   // as the holder!
   Handle<JSObject> holder() { return holder_; }
 
-  Handle<JSGlobalPropertyCell> cell() { return cell_; }
+  Handle<Cell> cell() { return cell_; }
 
   bool ComputeTarget(Handle<Map> type, Handle<String> name);
   bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupResult* lookup);
@@ -1745,7 +1742,7 @@ class Call: public Expression {
   SmallMapList receiver_types_;
   Handle<JSFunction> target_;
   Handle<JSObject> holder_;
-  Handle<JSGlobalPropertyCell> cell_;
+  Handle<Cell> cell_;
 
   const BailoutId return_id_;
 };
@@ -1765,7 +1762,7 @@ class CallNew: public Expression {
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   Handle<JSFunction> target() const { return target_; }
   ElementsKind elements_kind() const { return elements_kind_; }
-  Handle<JSGlobalPropertyCell> allocation_info_cell() const {
+  Handle<Cell> allocation_info_cell() const {
     return allocation_info_cell_;
   }
 
@@ -1792,7 +1789,7 @@ class CallNew: public Expression {
   bool is_monomorphic_;
   Handle<JSFunction> target_;
   ElementsKind elements_kind_;
-  Handle<JSGlobalPropertyCell> allocation_info_cell_;
+  Handle<Cell> allocation_info_cell_;
 
   const BailoutId return_id_;
 };
@@ -1844,8 +1841,8 @@ class UnaryOperation: public Expression {
   BailoutId MaterializeFalseId() { return materialize_false_id_; }
 
   TypeFeedbackId UnaryOperationFeedbackId() const { return reuse(id()); }
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-  TypeInfo type() const { return type_; }
+
+  virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
 
  protected:
   UnaryOperation(Isolate* isolate,
@@ -1865,8 +1862,6 @@ class UnaryOperation: public Expression {
   Token::Value op_;
   Expression* expression_;
   int pos_;
-
-  TypeInfo type_;
 
   // For unary not (Token::NOT), the AST ids where true and false will
   // actually be materialized, respectively.
@@ -1889,12 +1884,13 @@ class BinaryOperation: public Expression {
   BailoutId RightId() const { return right_id_; }
 
   TypeFeedbackId BinaryOperationFeedbackId() const { return reuse(id()); }
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-  TypeInfo left_type() const { return left_type_; }
-  TypeInfo right_type() const { return right_type_; }
-  TypeInfo result_type() const { return result_type_; }
-  bool has_fixed_right_arg() const { return has_fixed_right_arg_; }
-  int fixed_right_arg_value() const { return fixed_right_arg_value_; }
+  // TODO(rossberg): result_type should be subsumed by lower_type.
+  Handle<Type> result_type() const { return result_type_; }
+  void set_result_type(Handle<Type> type) { result_type_ = type; }
+  Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
+  void set_fixed_right_arg(Maybe<int> arg) { fixed_right_arg_ = arg; }
+
+  virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
 
  protected:
   BinaryOperation(Isolate* isolate,
@@ -1917,11 +1913,10 @@ class BinaryOperation: public Expression {
   Expression* right_;
   int pos_;
 
-  TypeInfo left_type_;
-  TypeInfo right_type_;
-  TypeInfo result_type_;
-  bool has_fixed_right_arg_;
-  int fixed_right_arg_value_;
+  Handle<Type> result_type_;
+  // TODO(rossberg): the fixed arg should probably be represented as a Constant
+  // type for the RHS.
+  Maybe<int> fixed_right_arg_;
 
   // The short-circuit logical operations need an AST ID for their
   // right-hand subexpression.
@@ -2002,12 +1997,8 @@ class CompareOperation: public Expression {
 
   // Type feedback information.
   TypeFeedbackId CompareOperationFeedbackId() const { return reuse(id()); }
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-  TypeInfo left_type() const { return left_type_; }
-  TypeInfo right_type() const { return right_type_; }
-  TypeInfo overall_type() const { return overall_type_; }
-  byte compare_nil_types() const { return compare_nil_types_; }
-  Handle<Map> map() const { return map_; }
+  Handle<Type> combined_type() const { return combined_type_; }
+  void set_combined_type(Handle<Type> type) { combined_type_ = type; }
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
@@ -2034,11 +2025,7 @@ class CompareOperation: public Expression {
   Expression* right_;
   int pos_;
 
-  TypeInfo left_type_;
-  TypeInfo right_type_;
-  TypeInfo overall_type_;
-  byte compare_nil_types_;
-  Handle<Map> map_;
+  Handle<Type> combined_type_;
 };
 
 
@@ -2106,6 +2093,7 @@ class Assignment: public Expression {
   TypeFeedbackId AssignmentFeedbackId() { return reuse(id()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
+  bool IsUninitialized() { return is_uninitialized_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
   virtual KeyedAccessStoreMode GetStoreMode() {
     return store_mode_;
@@ -2136,6 +2124,7 @@ class Assignment: public Expression {
   const BailoutId assignment_id_;
 
   bool is_monomorphic_ : 1;
+  bool is_uninitialized_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
   SmallMapList receiver_types_;

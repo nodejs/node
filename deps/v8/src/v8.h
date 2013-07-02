@@ -48,9 +48,6 @@
 #error both DEBUG and NDEBUG are set
 #endif
 
-// TODO(dcarney): remove this
-#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
-
 // Basic includes
 #include "../include/v8.h"
 #include "v8globals.h"
@@ -67,9 +64,7 @@
 #include "incremental-marking-inl.h"
 #include "mark-compact-inl.h"
 #include "log-inl.h"
-#include "cpu-profiler-inl.h"
 #include "handles-inl.h"
-#include "heap-snapshot-generator-inl.h"
 #include "zone-inl.h"
 
 namespace v8 {
@@ -104,6 +99,8 @@ class V8 : public AllStatic {
   // Support for return-address rewriting profilers.
   static void SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver resolver);
+  // Support for entry hooking JITed code.
+  static void SetFunctionEntryHook(FunctionEntryHook entry_hook);
   // Random number generation support. Not cryptographically safe.
   static uint32_t Random(Context* context);
   // We use random numbers internally in memory allocation and in the

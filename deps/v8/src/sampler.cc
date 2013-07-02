@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "sampler.h"
+
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) \
     || defined(__NetBSD__) || defined(__sun) || defined(__ANDROID__) \
     || defined(__native_client__)
@@ -60,6 +62,8 @@
 
 #include "v8.h"
 
+#include "cpu-profiler.h"
+#include "flags.h"
 #include "frames-inl.h"
 #include "log.h"
 #include "platform.h"
@@ -227,44 +231,36 @@ class Sampler::PlatformData : public PlatformDataCommon {
 #endif
 
 
-class SampleHelper {
- public:
-  inline TickSample* Init(Sampler* sampler, Isolate* isolate) {
 #if defined(USE_SIMULATOR)
+class SimulatorHelper {
+ public:
+  inline bool Init(Sampler* sampler, Isolate* isolate) {
     ThreadId thread_id = sampler->platform_data()->profiled_thread_id();
     Isolate::PerIsolateThreadData* per_thread_data = isolate->
         FindPerThreadDataForThread(thread_id);
-    if (!per_thread_data) return NULL;
+    if (!per_thread_data) return false;
     simulator_ = per_thread_data->simulator();
-    // Check if there is active simulator before allocating TickSample.
-    if (!simulator_) return NULL;
-#endif  // USE_SIMULATOR
-    TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
-    if (sample == NULL) sample = &sample_obj;
-    return sample;
+    // Check if there is active simulator.
+    return simulator_ != NULL;
   }
 
-#if defined(USE_SIMULATOR)
-  inline void FillRegisters(TickSample* sample) {
-    sample->pc = reinterpret_cast<Address>(simulator_->get_pc());
-    sample->sp = reinterpret_cast<Address>(simulator_->get_register(
+  inline void FillRegisters(RegisterState* state) {
+    state->pc = reinterpret_cast<Address>(simulator_->get_pc());
+    state->sp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::sp));
 #if V8_TARGET_ARCH_ARM
-    sample->fp = reinterpret_cast<Address>(simulator_->get_register(
+    state->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::r11));
 #elif V8_TARGET_ARCH_MIPS
-    sample->fp = reinterpret_cast<Address>(simulator_->get_register(
+    state->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::fp));
 #endif
   }
-#endif  // USE_SIMULATOR
 
  private:
-#if defined(USE_SIMULATOR)
   Simulator* simulator_;
-#endif
-  TickSample sample_obj;
 };
+#endif  // USE_SIMULATOR
 
 
 #if defined(USE_SIGNALS)
@@ -324,89 +320,86 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   Sampler* sampler = isolate->logger()->sampler();
   if (sampler == NULL || !sampler->IsActive()) return;
 
-  SampleHelper helper;
-  TickSample* sample = helper.Init(sampler, isolate);
-  if (sample == NULL) return;
+  RegisterState state;
 
 #if defined(USE_SIMULATOR)
-  helper.FillRegisters(sample);
+  SimulatorHelper helper;
+  if (!helper.Init(sampler, isolate)) return;
+  helper.FillRegisters(&state);
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
   mcontext_t& mcontext = ucontext->uc_mcontext;
-  sample->state = isolate->current_vm_state();
 #if defined(__linux__) || defined(__ANDROID__)
 #if V8_HOST_ARCH_IA32
-  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_EBP]);
+  state.pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
+  state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
+  state.fp = reinterpret_cast<Address>(mcontext.gregs[REG_EBP]);
 #elif V8_HOST_ARCH_X64
-  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_RIP]);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
+  state.pc = reinterpret_cast<Address>(mcontext.gregs[REG_RIP]);
+  state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
+  state.fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
 #elif V8_HOST_ARCH_ARM
 #if defined(__GLIBC__) && !defined(__UCLIBC__) && \
     (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
   // Old GLibc ARM versions used a gregs[] array to access the register
   // values from mcontext_t.
-  sample->pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
+  state.pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
+  state.sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
+  state.fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
 #else
-  sample->pc = reinterpret_cast<Address>(mcontext.arm_pc);
-  sample->sp = reinterpret_cast<Address>(mcontext.arm_sp);
-  sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
+  state.pc = reinterpret_cast<Address>(mcontext.arm_pc);
+  state.sp = reinterpret_cast<Address>(mcontext.arm_sp);
+  state.fp = reinterpret_cast<Address>(mcontext.arm_fp);
 #endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
         // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
 #elif V8_HOST_ARCH_MIPS
-  sample->pc = reinterpret_cast<Address>(mcontext.pc);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[29]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[30]);
+  state.pc = reinterpret_cast<Address>(mcontext.pc);
+  state.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
+  state.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
 #endif  // V8_HOST_ARCH_*
 #elif defined(__FreeBSD__)
 #if V8_HOST_ARCH_IA32
-  sample->pc = reinterpret_cast<Address>(mcontext.mc_eip);
-  sample->sp = reinterpret_cast<Address>(mcontext.mc_esp);
-  sample->fp = reinterpret_cast<Address>(mcontext.mc_ebp);
+  state.pc = reinterpret_cast<Address>(mcontext.mc_eip);
+  state.sp = reinterpret_cast<Address>(mcontext.mc_esp);
+  state.fp = reinterpret_cast<Address>(mcontext.mc_ebp);
 #elif V8_HOST_ARCH_X64
-  sample->pc = reinterpret_cast<Address>(mcontext.mc_rip);
-  sample->sp = reinterpret_cast<Address>(mcontext.mc_rsp);
-  sample->fp = reinterpret_cast<Address>(mcontext.mc_rbp);
+  state.pc = reinterpret_cast<Address>(mcontext.mc_rip);
+  state.sp = reinterpret_cast<Address>(mcontext.mc_rsp);
+  state.fp = reinterpret_cast<Address>(mcontext.mc_rbp);
 #elif V8_HOST_ARCH_ARM
-  sample->pc = reinterpret_cast<Address>(mcontext.mc_r15);
-  sample->sp = reinterpret_cast<Address>(mcontext.mc_r13);
-  sample->fp = reinterpret_cast<Address>(mcontext.mc_r11);
+  state.pc = reinterpret_cast<Address>(mcontext.mc_r15);
+  state.sp = reinterpret_cast<Address>(mcontext.mc_r13);
+  state.fp = reinterpret_cast<Address>(mcontext.mc_r11);
 #endif  // V8_HOST_ARCH_*
 #elif defined(__NetBSD__)
 #if V8_HOST_ARCH_IA32
-  sample->pc = reinterpret_cast<Address>(mcontext.__gregs[_REG_EIP]);
-  sample->sp = reinterpret_cast<Address>(mcontext.__gregs[_REG_ESP]);
-  sample->fp = reinterpret_cast<Address>(mcontext.__gregs[_REG_EBP]);
+  state.pc = reinterpret_cast<Address>(mcontext.__gregs[_REG_EIP]);
+  state.sp = reinterpret_cast<Address>(mcontext.__gregs[_REG_ESP]);
+  state.fp = reinterpret_cast<Address>(mcontext.__gregs[_REG_EBP]);
 #elif V8_HOST_ARCH_X64
-  sample->pc = reinterpret_cast<Address>(mcontext.__gregs[_REG_RIP]);
-  sample->sp = reinterpret_cast<Address>(mcontext.__gregs[_REG_RSP]);
-  sample->fp = reinterpret_cast<Address>(mcontext.__gregs[_REG_RBP]);
+  state.pc = reinterpret_cast<Address>(mcontext.__gregs[_REG_RIP]);
+  state.sp = reinterpret_cast<Address>(mcontext.__gregs[_REG_RSP]);
+  state.fp = reinterpret_cast<Address>(mcontext.__gregs[_REG_RBP]);
 #endif  // V8_HOST_ARCH_*
 #elif defined(__OpenBSD__)
   USE(mcontext);
 #if V8_HOST_ARCH_IA32
-  sample->pc = reinterpret_cast<Address>(ucontext->sc_eip);
-  sample->sp = reinterpret_cast<Address>(ucontext->sc_esp);
-  sample->fp = reinterpret_cast<Address>(ucontext->sc_ebp);
+  state.pc = reinterpret_cast<Address>(ucontext->sc_eip);
+  state.sp = reinterpret_cast<Address>(ucontext->sc_esp);
+  state.fp = reinterpret_cast<Address>(ucontext->sc_ebp);
 #elif V8_HOST_ARCH_X64
-  sample->pc = reinterpret_cast<Address>(ucontext->sc_rip);
-  sample->sp = reinterpret_cast<Address>(ucontext->sc_rsp);
-  sample->fp = reinterpret_cast<Address>(ucontext->sc_rbp);
+  state.pc = reinterpret_cast<Address>(ucontext->sc_rip);
+  state.sp = reinterpret_cast<Address>(ucontext->sc_rsp);
+  state.fp = reinterpret_cast<Address>(ucontext->sc_rbp);
 #endif  // V8_HOST_ARCH_*
 #elif defined(__sun)
-  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_PC]);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_SP]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_FP]);
+  state.pc = reinterpret_cast<Address>(mcontext.gregs[REG_PC]);
+  state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_SP]);
+  state.fp = reinterpret_cast<Address>(mcontext.gregs[REG_FP]);
 #endif  // __sun
 #endif  // USE_SIMULATOR
-
-  sampler->SampleStack(sample);
-  sampler->Tick(sample);
+  sampler->SampleStack(state);
 #endif  // __native_client__
 }
 
@@ -496,26 +489,25 @@ class SamplerThread : public Thread {
   void SampleContext(Sampler* sampler) {
     if (!SignalHandler::Installed()) return;
     pthread_t tid = sampler->platform_data()->vm_tid();
-    int result = pthread_kill(tid, SIGPROF);
-    USE(result);
-    ASSERT(result == 0);
+    pthread_kill(tid, SIGPROF);
   }
 
 #elif defined(__MACH__)
 
   void SampleContext(Sampler* sampler) {
     thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
-    Isolate* isolate = sampler->isolate();
 
-    SampleHelper helper;
-    TickSample* sample = helper.Init(sampler, isolate);
-    if (sample == NULL) return;
+#if defined(USE_SIMULATOR)
+    SimulatorHelper helper;
+    Isolate* isolate = sampler->isolate();
+    if (!helper.Init(sampler, isolate)) return;
+#endif
 
     if (KERN_SUCCESS != thread_suspend(profiled_thread)) return;
 
 #if V8_HOST_ARCH_X64
     thread_state_flavor_t flavor = x86_THREAD_STATE64;
-    x86_thread_state64_t state;
+    x86_thread_state64_t thread_state;
     mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
 #if __DARWIN_UNIX03
 #define REGISTER_FIELD(name) __r ## name
@@ -524,7 +516,7 @@ class SamplerThread : public Thread {
 #endif  // __DARWIN_UNIX03
 #elif V8_HOST_ARCH_IA32
     thread_state_flavor_t flavor = i386_THREAD_STATE;
-    i386_thread_state_t state;
+    i386_thread_state_t thread_state;
     mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
 #if __DARWIN_UNIX03
 #define REGISTER_FIELD(name) __e ## name
@@ -537,19 +529,18 @@ class SamplerThread : public Thread {
 
     if (thread_get_state(profiled_thread,
                          flavor,
-                         reinterpret_cast<natural_t*>(&state),
+                         reinterpret_cast<natural_t*>(&thread_state),
                          &count) == KERN_SUCCESS) {
-      sample->state = isolate->current_vm_state();
+      RegisterState state;
 #if defined(USE_SIMULATOR)
-      helper.FillRegisters(sample);
+      helper.FillRegisters(&state);
 #else
-      sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
-      sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
-      sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
+      state.pc = reinterpret_cast<Address>(thread_state.REGISTER_FIELD(ip));
+      state.sp = reinterpret_cast<Address>(thread_state.REGISTER_FIELD(sp));
+      state.fp = reinterpret_cast<Address>(thread_state.REGISTER_FIELD(bp));
 #endif  // USE_SIMULATOR
 #undef REGISTER_FIELD
-      sampler->SampleStack(sample);
-      sampler->Tick(sample);
+      sampler->SampleStack(state);
     }
     thread_resume(profiled_thread);
   }
@@ -561,34 +552,34 @@ class SamplerThread : public Thread {
     if (profiled_thread == NULL) return;
 
     Isolate* isolate = sampler->isolate();
-    SampleHelper helper;
-    TickSample* sample = helper.Init(sampler, isolate);
-    if (sample == NULL) return;
+#if defined(USE_SIMULATOR)
+    SimulatorHelper helper;
+    if (!helper.Init(sampler, isolate)) return;
+#endif
 
     const DWORD kSuspendFailed = static_cast<DWORD>(-1);
     if (SuspendThread(profiled_thread) == kSuspendFailed) return;
-    sample->state = isolate->current_vm_state();
 
     // Context used for sampling the register state of the profiled thread.
     CONTEXT context;
     memset(&context, 0, sizeof(context));
     context.ContextFlags = CONTEXT_FULL;
     if (GetThreadContext(profiled_thread, &context) != 0) {
+      RegisterState state;
 #if defined(USE_SIMULATOR)
-      helper.FillRegisters(sample);
+      helper.FillRegisters(&state);
 #else
 #if V8_HOST_ARCH_X64
-      sample->pc = reinterpret_cast<Address>(context.Rip);
-      sample->sp = reinterpret_cast<Address>(context.Rsp);
-      sample->fp = reinterpret_cast<Address>(context.Rbp);
+      state.pc = reinterpret_cast<Address>(context.Rip);
+      state.sp = reinterpret_cast<Address>(context.Rsp);
+      state.fp = reinterpret_cast<Address>(context.Rbp);
 #else
-      sample->pc = reinterpret_cast<Address>(context.Eip);
-      sample->sp = reinterpret_cast<Address>(context.Esp);
-      sample->fp = reinterpret_cast<Address>(context.Ebp);
+      state.pc = reinterpret_cast<Address>(context.Eip);
+      state.sp = reinterpret_cast<Address>(context.Esp);
+      state.fp = reinterpret_cast<Address>(context.Ebp);
 #endif
 #endif  // USE_SIMULATOR
-      sampler->SampleStack(sample);
-      sampler->Tick(sample);
+      sampler->SampleStack(state);
     }
     ResumeThread(profiled_thread);
   }
@@ -614,8 +605,11 @@ SamplerThread* SamplerThread::instance_ = NULL;
 //
 // StackTracer implementation
 //
-DISABLE_ASAN void TickSample::Trace(Isolate* isolate) {
+DISABLE_ASAN void TickSample::Init(Isolate* isolate,
+                                   const RegisterState& regs) {
   ASSERT(isolate->IsInitialized());
+  pc = regs.pc;
+  state = isolate->current_vm_state();
 
   // Avoid collecting traces while doing GC.
   if (state == GC) return;
@@ -634,11 +628,12 @@ DISABLE_ASAN void TickSample::Trace(Isolate* isolate) {
   } else {
     // Sample potential return address value for frameless invocation of
     // stubs (we'll figure out later, if this value makes sense).
-    tos = Memory::Address_at(sp);
+    tos = Memory::Address_at(regs.sp);
     has_external_callback = false;
   }
 
-  SafeStackTraceFrameIterator it(isolate, fp, sp, sp, js_entry_sp);
+  SafeStackFrameIterator it(isolate, regs.fp, regs.sp, js_entry_sp);
+  top_frame_type = it.top_frame_type();
   int i = 0;
   while (!it.done() && i < TickSample::kMaxFramesCount) {
     stack[i++] = it.frame()->pc();
@@ -686,9 +681,13 @@ void Sampler::Stop() {
   SetActive(false);
 }
 
-void Sampler::SampleStack(TickSample* sample) {
-  sample->Trace(isolate_);
+void Sampler::SampleStack(const RegisterState& state) {
+  TickSample* sample = isolate_->cpu_profiler()->TickSampleEvent();
+  TickSample sample_obj;
+  if (sample == NULL) sample = &sample_obj;
+  sample->Init(isolate_, state);
   if (++samples_taken_ < 0) samples_taken_ = 0;
+  Tick(sample);
 }
 
 } }  // namespace v8::internal

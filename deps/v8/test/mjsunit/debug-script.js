@@ -61,9 +61,8 @@ for (i = 0; i < scripts.length; i++) {
 
 // This has to be updated if the number of native scripts change.
 assertEquals(16, named_native_count);
-// If no snapshot is used, only the 'gc' extension is loaded.
-// If snapshot is used, all extensions are cached in the snapshot.
-assertTrue(extension_count == 1 || extension_count == 5);
+// Only the 'gc' and (depending on flags) the 'i18n' extensions are loaded.
+assertTrue(extension_count == 1 || extension_count == 2);
 // This script and mjsunit.js has been loaded.  If using d8, d8 loads
 // a normal script during startup too.
 assertTrue(normal_count == 2 || normal_count == 3);

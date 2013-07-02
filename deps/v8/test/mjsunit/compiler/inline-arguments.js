@@ -266,3 +266,46 @@ test_toarr(toarr2);
     }
   }
 })();
+
+
+// Test materialization of arguments object with values in registers.
+(function () {
+  "use strict";
+  var forceDeopt = { deopt:false };
+  function inner(a,b,c,d,e,f,g,h,i,j) {
+    var args = arguments;
+    forceDeopt.deopt;
+    assertSame(10, args.length);
+    assertSame(a, args[0]);
+    assertSame(b, args[1]);
+    assertSame(c, args[2]);
+    assertSame(d, args[3]);
+    assertSame(e, args[4]);
+    assertSame(f, args[5]);
+    assertSame(g, args[6]);
+    assertSame(h, args[7]);
+    assertSame(i, args[8]);
+    assertSame(j, args[9]);
+  }
+
+  var a = 0.5;
+  var b = 1.7;
+  var c = 123;
+  function outer() {
+    inner(
+      a - 0.3,  // double in double register
+      b + 2.3,  // integer in double register
+      c + 321,  // integer in general register
+      c - 456,  // integer in stack slot
+      a + 0.1, a + 0.2, a + 0.3, a + 0.4, a + 0.5,
+      a + 0.6   // double in stack slot
+    );
+  }
+
+  outer();
+  outer();
+  %OptimizeFunctionOnNextCall(outer);
+  outer();
+  delete forceDeopt.deopt;
+  outer();
+})();

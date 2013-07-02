@@ -295,12 +295,6 @@ int OS::ActivationFrameAlignment() {
 }
 
 
-void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
-  OSMemoryBarrier();
-  *ptr = value;
-}
-
-
 const char* OS::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
@@ -589,7 +583,7 @@ static void InitializeTlsBaseOffset() {
   if (kernel_version_major < 11) {
     // 8.x.x (Tiger), 9.x.x (Leopard), 10.x.x (Snow Leopard) have the
     // same offsets.
-#if defined(V8_HOST_ARCH_IA32)
+#if V8_HOST_ARCH_IA32
     kMacTlsBaseOffset = 0x48;
 #else
     kMacTlsBaseOffset = 0x60;

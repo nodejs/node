@@ -71,6 +71,13 @@ Debug.ScriptBreakPointType = { ScriptId: 0,
                                ScriptName: 1,
                                ScriptRegExp: 2 };
 
+// The different types of breakpoint position alignments.
+// Must match BreakPositionAlignment in debug.h.
+Debug.BreakPositionAlignment = {
+  Statement: 0,
+  BreakPosition: 1
+};
+
 function ScriptTypeFlag(type) {
   return (1 << type);
 }
@@ -251,7 +258,7 @@ function IsBreakPointTriggered(break_id, break_point) {
 // script name or script id and the break point is represented as line and
 // column.
 function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
-                          opt_groupId) {
+                          opt_groupId, opt_position_alignment) {
   this.type_ = type;
   if (type == Debug.ScriptBreakPointType.ScriptId) {
     this.script_id_ = script_id_or_name;
@@ -265,6 +272,8 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
   this.line_ = opt_line || 0;
   this.column_ = opt_column;
   this.groupId_ = opt_groupId;
+  this.position_alignment_ = IS_UNDEFINED(opt_position_alignment)
+      ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
   this.hit_count_ = 0;
   this.active_ = true;
   this.condition_ = null;
@@ -276,7 +285,8 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
 //Creates a clone of script breakpoint that is linked to another script.
 ScriptBreakPoint.prototype.cloneForOtherScript = function (other_script) {
   var copy = new ScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
-      other_script.id, this.line_, this.column_, this.groupId_);
+      other_script.id, this.line_, this.column_, this.groupId_,
+      this.position_alignment_);
   copy.number_ = next_break_point_number++;
   script_break_points.push(copy);
 
@@ -443,7 +453,9 @@ ScriptBreakPoint.prototype.set = function (script) {
   // Create a break point object and set the break point.
   break_point = MakeBreakPoint(position, this);
   break_point.setIgnoreCount(this.ignoreCount());
-  var actual_position = %SetScriptBreakPoint(script, position, break_point);
+  var actual_position = %SetScriptBreakPoint(script, position,
+                                             this.position_alignment_,
+                                             break_point);
   if (IS_UNDEFINED(actual_position)) {
     actual_position = position;
   }
@@ -509,9 +521,11 @@ Debug.breakExecution = function(f) {
   %Break();
 };
 
-Debug.breakLocations = function(f) {
+Debug.breakLocations = function(f, opt_position_aligment) {
   if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
-  return %GetBreakLocations(f);
+  var position_aligment = IS_UNDEFINED(opt_position_aligment)
+      ? Debug.BreakPositionAlignment.Statement : opt_position_aligment;
+  return %GetBreakLocations(f, position_aligment);
 };
 
 // Returns a Script object. If the parameter is a function the return value
@@ -674,7 +688,8 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
 
 
 Debug.setBreakPointByScriptIdAndPosition = function(script_id, position,
-                                                    condition, enabled)
+                                                    condition, enabled,
+                                                    opt_position_alignment)
 {
   break_point = MakeBreakPoint(position);
   break_point.setCondition(condition);
@@ -682,10 +697,12 @@ Debug.setBreakPointByScriptIdAndPosition = function(script_id, position,
     break_point.disable();
   }
   var scripts = this.scripts();
+  var position_alignment = IS_UNDEFINED(opt_position_alignment)
+      ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
   for (var i = 0; i < scripts.length; i++) {
     if (script_id == scripts[i].id) {
       break_point.actual_position = %SetScriptBreakPoint(scripts[i], position,
-                                                         break_point);
+          position_alignment, break_point);
       break;
     }
   }
@@ -780,11 +797,11 @@ Debug.findScriptBreakPoint = function(break_point_number, remove) {
 // specified source line and column within that line.
 Debug.setScriptBreakPoint = function(type, script_id_or_name,
                                      opt_line, opt_column, opt_condition,
-                                     opt_groupId) {
+                                     opt_groupId, opt_position_alignment) {
   // Create script break point object.
   var script_break_point =
       new ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
-                           opt_groupId);
+                           opt_groupId, opt_position_alignment);
 
   // Assign number to the new script break point and add it.
   script_break_point.number_ = next_break_point_number++;
@@ -806,10 +823,12 @@ Debug.setScriptBreakPoint = function(type, script_id_or_name,
 
 Debug.setScriptBreakPointById = function(script_id,
                                          opt_line, opt_column,
-                                         opt_condition, opt_groupId) {
+                                         opt_condition, opt_groupId,
+                                         opt_position_alignment) {
   return this.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
                                   script_id, opt_line, opt_column,
-                                  opt_condition, opt_groupId);
+                                  opt_condition, opt_groupId,
+                                  opt_position_alignment);
 };
 
 
@@ -893,11 +912,11 @@ Debug.isBreakOnUncaughtException = function() {
   return !!%IsBreakOnException(Debug.ExceptionBreak.Uncaught);
 };
 
-Debug.showBreakPoints = function(f, full) {
+Debug.showBreakPoints = function(f, full, opt_position_alignment) {
   if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
   var source = full ? this.scriptSource(f) : this.source(f);
   var offset = full ? this.sourcePosition(f) : 0;
-  var locations = this.breakLocations(f);
+  var locations = this.breakLocations(f, opt_position_alignment);
   if (!locations) return source;
   locations.sort(function(x, y) { return x - y; });
   var result = "";

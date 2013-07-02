@@ -27,8 +27,9 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
 
+#include "cpu-profiler.h"
 #include "unicode.h"
 #include "log.h"
 #include "regexp-stack.h"

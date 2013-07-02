@@ -294,13 +294,6 @@ Handle<Object> GetProperty(Isolate* isolate,
 }
 
 
-Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value) {
-  const bool skip_hidden_prototypes = false;
-  CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->SetPrototype(*value, skip_hidden_prototypes), Object);
-}
-
-
 Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index) {
   CALL_HEAP_FUNCTION(
@@ -347,7 +340,7 @@ Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info) {
 static void ClearWrapperCache(v8::Isolate* v8_isolate,
                               Persistent<v8::Value>* handle,
                               void*) {
-  Handle<Object> cache = Utils::OpenHandle(**handle);
+  Handle<Object> cache = Utils::OpenPersistent(handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();
   ASSERT(foreign->foreign_address() ==
@@ -557,11 +550,7 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
     v8::NamedPropertyEnumerator enum_fun =
         v8::ToCData<v8::NamedPropertyEnumerator>(interceptor->enumerator());
     LOG(isolate, ApiObjectAccess("interceptor-named-enum", *object));
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(enum_fun);
-    }
+    result = args.Call(enum_fun);
   }
 #if ENABLE_EXTRA_CHECKS
   CHECK(result.IsEmpty() || v8::Utils::OpenHandle(*result)->IsJSObject());
@@ -583,14 +572,10 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
     v8::IndexedPropertyEnumerator enum_fun =
         v8::ToCData<v8::IndexedPropertyEnumerator>(interceptor->enumerator());
     LOG(isolate, ApiObjectAccess("interceptor-indexed-enum", *object));
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(enum_fun);
+    result = args.Call(enum_fun);
 #if ENABLE_EXTRA_CHECKS
-      CHECK(result.IsEmpty() || v8::Utils::OpenHandle(*result)->IsJSObject());
+    CHECK(result.IsEmpty() || v8::Utils::OpenHandle(*result)->IsJSObject());
 #endif
-    }
   }
   return v8::Local<v8::Array>::New(reinterpret_cast<v8::Isolate*>(isolate),
                                    result);

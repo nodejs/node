@@ -47,10 +47,6 @@ regress/regress-crbug-160010: SKIP
 stack-traces-gc: PASS || FAIL
 
 ##############################################################################
-# TODO(wingo): Re-enable when GC bug from r15060 is solved.
-harmony/generators-iteration: SKIP
-
-##############################################################################
 # Too slow in debug mode with --stress-opt mode.
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
 compiler/regress-funcaller: PASS, SKIP if $mode == debug
@@ -207,6 +203,9 @@ debug-liveedit-check-stack: SKIP
 debug-liveedit-stack-padding: SKIP
 debug-liveedit-restart-frame: SKIP
 debug-liveedit-double-call: SKIP
+
+# Currently always deopt on minus zero
+math-floor-of-div-minus-zero: SKIP
 
 ##############################################################################
 # Native Client uses the ARM simulator so will behave similarly to arm

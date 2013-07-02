@@ -76,14 +76,24 @@ class SparseSet {
 };
 
 
-class HGlobalValueNumberer BASE_EMBEDDED {
+// Perform common subexpression elimination and loop-invariant code motion.
+class HGlobalValueNumberingPhase : public HPhase {
  public:
-  HGlobalValueNumberer(HGraph* graph, CompilationInfo* info);
+  explicit HGlobalValueNumberingPhase(HGraph* graph);
 
-  // Returns true if values with side effects are removed.
-  bool Analyze();
+  void Run() {
+    Analyze();
+    // Trigger a second analysis pass to further eliminate duplicate values
+    // that could only be discovered by removing side-effect-generating
+    // instructions during the first pass.
+    if (FLAG_smi_only_arrays && removed_side_effects_) {
+      Analyze();
+      ASSERT(!removed_side_effects_);
+    }
+  }
 
  private:
+  void Analyze();
   GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
       HBasicBlock* dominator,
       HBasicBlock* dominated);
@@ -98,12 +108,6 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
 
-  HGraph* graph() { return graph_; }
-  CompilationInfo* info() { return info_; }
-  Zone* zone() const { return graph_->zone(); }
-
-  HGraph* graph_;
-  CompilationInfo* info_;
   bool removed_side_effects_;
 
   // A map of block IDs to their side effects.
@@ -115,6 +119,8 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   // Used when collecting side effects on paths from dominator to
   // dominated.
   SparseSet visited_on_paths_;
+
+  DISALLOW_COPY_AND_ASSIGN(HGlobalValueNumberingPhase);
 };
 
 

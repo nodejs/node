@@ -150,18 +150,19 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
   static Persistent<Array> current_completions;
   Isolate* isolate = read_line_editor.isolate_;
   Locker lock(isolate);
+  HandleScope scope;
+  Handle<Array> completions;
   if (state == 0) {
-    HandleScope scope;
     Local<String> full_text = String::New(rl_line_buffer, rl_point);
-    Handle<Array> completions =
-        Shell::GetCompletions(isolate, String::New(text), full_text);
-    current_completions = Persistent<Array>::New(isolate, completions);
+    completions = Shell::GetCompletions(isolate, String::New(text), full_text);
+    current_completions.Reset(isolate, completions);
     current_index = 0;
+  } else {
+    completions = Local<Array>::New(isolate, current_completions);
   }
-  if (current_index < current_completions->Length()) {
-    HandleScope scope;
+  if (current_index < completions->Length()) {
     Handle<Integer> index = Integer::New(current_index);
-    Handle<Value> str_obj = current_completions->Get(index);
+    Handle<Value> str_obj = completions->Get(index);
     current_index++;
     String::Utf8Value str(str_obj);
     return strdup(*str);

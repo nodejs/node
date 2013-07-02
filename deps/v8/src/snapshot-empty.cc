@@ -49,6 +49,7 @@ const int Snapshot::data_space_used_ = 0;
 const int Snapshot::code_space_used_ = 0;
 const int Snapshot::map_space_used_ = 0;
 const int Snapshot::cell_space_used_ = 0;
+const int Snapshot::property_cell_space_used_ = 0;
 
 const int Snapshot::context_new_space_used_ = 0;
 const int Snapshot::context_pointer_space_used_ = 0;
@@ -56,5 +57,6 @@ const int Snapshot::context_data_space_used_ = 0;
 const int Snapshot::context_code_space_used_ = 0;
 const int Snapshot::context_map_space_used_ = 0;
 const int Snapshot::context_cell_space_used_ = 0;
+const int Snapshot::context_property_cell_space_used_ = 0;
 
 } }  // namespace v8::internal

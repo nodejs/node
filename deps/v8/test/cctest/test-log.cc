@@ -392,8 +392,7 @@ TEST(Issue23768) {
 }
 
 
-static v8::Handle<v8::Value> ObjMethod1(const v8::Arguments& args) {
-  return v8::Handle<v8::Value>();
+static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 TEST(LogCallbacks) {
@@ -405,8 +404,7 @@ TEST(LogCallbacks) {
                                            v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
-  v8::Local<v8::Signature> signature =
-      v8::Signature::New(v8::Handle<v8::FunctionTemplate>(*obj));
+  v8::Local<v8::Signature> signature = v8::Signature::New(obj);
   proto->Set(v8_str("method1"),
              v8::FunctionTemplate::New(ObjMethod1,
                                        v8::Handle<v8::Value>(),
@@ -425,26 +423,24 @@ TEST(LogCallbacks) {
 
   i::EmbeddedVector<char, 100> ref_data;
   i::OS::SNPrintF(ref_data,
-                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"method1\"\0",
+                  "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"method1\"\0",
                   ObjMethod1);
 
   CHECK_NE(NULL, StrNStr(log.start(), ref_data.start(), log.length()));
 }
 
 
-static v8::Handle<v8::Value> Prop1Getter(v8::Local<v8::String> property,
-                                         const v8::AccessorInfo& info) {
-  return v8::Handle<v8::Value>();
+static void Prop1Getter(v8::Local<v8::String> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
 
 static void Prop1Setter(v8::Local<v8::String> property,
-                                         v8::Local<v8::Value> value,
-                                         const v8::AccessorInfo& info) {
+                        v8::Local<v8::Value> value,
+                        const v8::PropertyCallbackInfo<void>& info) {
 }
 
-static v8::Handle<v8::Value> Prop2Getter(v8::Local<v8::String> property,
-                                         const v8::AccessorInfo& info) {
-  return v8::Handle<v8::Value>();
+static void Prop2Getter(v8::Local<v8::String> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
 
 TEST(LogAccessorCallbacks) {
@@ -468,21 +464,21 @@ TEST(LogAccessorCallbacks) {
 
   EmbeddedVector<char, 100> prop1_getter_record;
   i::OS::SNPrintF(prop1_getter_record,
-                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"get prop1\"",
+                  "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop1\"",
                   Prop1Getter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop1_getter_record.start(), log.length()));
 
   EmbeddedVector<char, 100> prop1_setter_record;
   i::OS::SNPrintF(prop1_setter_record,
-                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"set prop1\"",
+                  "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"set prop1\"",
                   Prop1Setter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop1_setter_record.start(), log.length()));
 
   EmbeddedVector<char, 100> prop2_getter_record;
   i::OS::SNPrintF(prop2_getter_record,
-                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"get prop2\"",
+                  "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop2\"",
                   Prop2Getter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop2_getter_record.start(), log.length()));

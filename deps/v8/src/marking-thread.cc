@@ -73,6 +73,7 @@ void MarkingThread::Stop() {
   Release_Store(&stop_thread_, static_cast<AtomicWord>(true));
   start_marking_semaphore_->Signal();
   stop_semaphore_->Wait();
+  Join();
 }
 
 

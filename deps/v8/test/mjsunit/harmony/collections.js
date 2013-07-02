@@ -377,17 +377,39 @@ for (var i = 9; i >= 0; i--) {
   assertEquals(i, m.size);
 }
 
-// Test clear
-var a = new Set();
-s.add(42);
-assertTrue(s.has(42));
-s.clear();
-assertFalse(s.has(42));
-assertEquals(0, s.size);
 
-var m = new Map();
-m.set(42, true);
-assertTrue(m.has(42));
-m.clear();
-assertFalse(m.has(42));
-assertEquals(0, m.size);
+// Test Set clear
+(function() {
+  var s = new Set();
+  s.add(42);
+  assertTrue(s.has(42));
+  assertEquals(1, s.size);
+  s.clear();
+  assertFalse(s.has(42));
+  assertEquals(0, s.size);
+})();
+
+
+// Test Map clear
+(function() {
+  var m = new Map();
+  m.set(42, true);
+  assertTrue(m.has(42));
+  assertEquals(1, m.size);
+  m.clear();
+  assertFalse(m.has(42));
+  assertEquals(0, m.size);
+})();
+
+
+// Test WeakMap clear
+(function() {
+  var k = new Object();
+  var w = new WeakMap();
+  w.set(k, 23);
+  assertTrue(w.has(k));
+  assertEquals(23, w.get(k));
+  w.clear();
+  assertFalse(w.has(k));
+  assertEquals(undefined, w.get(k));
+})();

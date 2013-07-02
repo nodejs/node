@@ -527,13 +527,12 @@ class LEnvironment: public ZoneObject {
         deoptimization_index_(Safepoint::kNoDeoptimizationIndex),
         translation_index_(-1),
         ast_id_(ast_id),
+        translation_size_(value_count),
         parameter_count_(parameter_count),
         pc_offset_(-1),
         values_(value_count, zone),
         is_tagged_(value_count, zone),
         is_uint32_(value_count, zone),
-        spilled_registers_(NULL),
-        spilled_double_registers_(NULL),
         outer_(outer),
         entry_(entry),
         zone_(zone) { }
@@ -544,15 +543,13 @@ class LEnvironment: public ZoneObject {
   int deoptimization_index() const { return deoptimization_index_; }
   int translation_index() const { return translation_index_; }
   BailoutId ast_id() const { return ast_id_; }
+  int translation_size() const { return translation_size_; }
   int parameter_count() const { return parameter_count_; }
   int pc_offset() const { return pc_offset_; }
-  LOperand** spilled_registers() const { return spilled_registers_; }
-  LOperand** spilled_double_registers() const {
-    return spilled_double_registers_;
-  }
   const ZoneList<LOperand*>* values() const { return &values_; }
   LEnvironment* outer() const { return outer_; }
   HEnterInlined* entry() { return entry_; }
+  Zone* zone() const { return zone_; }
 
   void AddValue(LOperand* operand,
                 Representation representation,
@@ -560,11 +557,11 @@ class LEnvironment: public ZoneObject {
     values_.Add(operand, zone());
     if (representation.IsSmiOrTagged()) {
       ASSERT(!is_uint32);
-      is_tagged_.Add(values_.length() - 1);
+      is_tagged_.Add(values_.length() - 1, zone());
     }
 
     if (is_uint32) {
-      is_uint32_.Add(values_.length() - 1);
+      is_uint32_.Add(values_.length() - 1, zone());
     }
   }
 
@@ -588,15 +585,7 @@ class LEnvironment: public ZoneObject {
     return deoptimization_index_ != Safepoint::kNoDeoptimizationIndex;
   }
 
-  void SetSpilledRegisters(LOperand** registers,
-                           LOperand** double_registers) {
-    spilled_registers_ = registers;
-    spilled_double_registers_ = double_registers;
-  }
-
   void PrintTo(StringStream* stream);
-
-  Zone* zone() const { return zone_; }
 
  private:
   Handle<JSFunction> closure_;
@@ -605,21 +594,17 @@ class LEnvironment: public ZoneObject {
   int deoptimization_index_;
   int translation_index_;
   BailoutId ast_id_;
+  int translation_size_;
   int parameter_count_;
   int pc_offset_;
+
+  // Value array: [parameters] [locals] [expression stack] [de-materialized].
+  //              |>--------- translation_size ---------<|
   ZoneList<LOperand*> values_;
-  BitVector is_tagged_;
-  BitVector is_uint32_;
-
-  // Allocation index indexed arrays of spill slot operands for registers
-  // that are also in spill slots at an OSR entry.  NULL for environments
-  // that do not correspond to an OSR entry.
-  LOperand** spilled_registers_;
-  LOperand** spilled_double_registers_;
-
+  GrowableBitVector is_tagged_;
+  GrowableBitVector is_uint32_;
   LEnvironment* outer_;
   HEnterInlined* entry_;
-
   Zone* zone_;
 };
 
@@ -771,6 +756,20 @@ enum NumberUntagDMode {
   NUMBER_CANDIDATE_IS_SMI,
   NUMBER_CANDIDATE_IS_ANY_TAGGED,
   NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE
+};
+
+
+class LPhase : public CompilationPhase {
+ public:
+  LPhase(const char* name, LChunk* chunk)
+      : CompilationPhase(name, chunk->info()),
+        chunk_(chunk) { }
+  ~LPhase();
+
+ private:
+  LChunk* chunk_;
+
+  DISALLOW_COPY_AND_ASSIGN(LPhase);
 };
 
 

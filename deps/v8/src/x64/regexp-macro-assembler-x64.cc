@@ -27,8 +27,9 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_X64)
+#if V8_TARGET_ARCH_X64
 
+#include "cpu-profiler.h"
 #include "serialize.h"
 #include "unicode.h"
 #include "log.h"

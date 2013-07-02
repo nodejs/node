@@ -327,7 +327,8 @@ class SourceProcessor(SourceFileProcessor):
                        'libraries.cc',
                        'libraries-empty.cc',
                        'jsmin.py',
-                       'regexp-pcre.js']
+                       'regexp-pcre.js',
+                       'gnuplot-4.6.3-emscripten.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
 
   def ProcessContents(self, name, contents):

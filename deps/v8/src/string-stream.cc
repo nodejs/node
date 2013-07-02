@@ -471,7 +471,7 @@ void StringStream::PrintSecurityTokenIfChanged(Object* f) {
   }
 
   JSFunction* fun = JSFunction::cast(f);
-  Object* perhaps_context = fun->unchecked_context();
+  Object* perhaps_context = fun->context();
   if (perhaps_context->IsHeapObject() &&
       heap->Contains(HeapObject::cast(perhaps_context)) &&
       perhaps_context->IsContext()) {

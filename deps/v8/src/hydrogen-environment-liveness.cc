@@ -33,65 +33,56 @@ namespace v8 {
 namespace internal {
 
 
-EnvironmentSlotLivenessAnalyzer::EnvironmentSlotLivenessAnalyzer(
+HEnvironmentLivenessAnalysisPhase::HEnvironmentLivenessAnalysisPhase(
     HGraph* graph)
-    : graph_(graph),
-      zone_(graph->isolate()),
-      zone_scope_(&zone_, DELETE_ON_EXIT),
+    : HPhase("H_Environment liveness analysis", graph),
       block_count_(graph->blocks()->length()),
       maximum_environment_size_(graph->maximum_environment_size()),
+      live_at_block_start_(block_count_, zone()),
+      first_simulate_(block_count_, zone()),
+      first_simulate_invalid_for_index_(block_count_, zone()),
+      markers_(maximum_environment_size_, zone()),
       collect_markers_(true),
-      last_simulate_(NULL) {
-  if (maximum_environment_size_ == 0) return;
-
-  live_at_block_start_ =
-      new(zone()) ZoneList<BitVector*>(block_count_, zone());
-  first_simulate_ = new(zone()) ZoneList<HSimulate*>(block_count_, zone());
-  first_simulate_invalid_for_index_ =
-      new(zone()) ZoneList<BitVector*>(block_count_, zone());
-  markers_ = new(zone())
-      ZoneList<HEnvironmentMarker*>(maximum_environment_size_, zone());
-  went_live_since_last_simulate_ =
-      new(zone()) BitVector(maximum_environment_size_, zone());
-
+      last_simulate_(NULL),
+      went_live_since_last_simulate_(maximum_environment_size_, zone()) {
+  ASSERT(maximum_environment_size_ > 0);
   for (int i = 0; i < block_count_; ++i) {
-    live_at_block_start_->Add(
+    live_at_block_start_.Add(
         new(zone()) BitVector(maximum_environment_size_, zone()), zone());
-    first_simulate_->Add(NULL, zone());
-    first_simulate_invalid_for_index_->Add(
+    first_simulate_.Add(NULL, zone());
+    first_simulate_invalid_for_index_.Add(
         new(zone()) BitVector(maximum_environment_size_, zone()), zone());
   }
 }
 
 
-void EnvironmentSlotLivenessAnalyzer::ZapEnvironmentSlot(int index,
-                                                         HSimulate* simulate) {
+void HEnvironmentLivenessAnalysisPhase::ZapEnvironmentSlot(
+    int index, HSimulate* simulate) {
   int operand_index = simulate->ToOperandIndex(index);
   if (operand_index == -1) {
-    simulate->AddAssignedValue(index, graph_->GetConstantUndefined());
+    simulate->AddAssignedValue(index, graph()->GetConstantUndefined());
   } else {
-    simulate->SetOperandAt(operand_index, graph_->GetConstantUndefined());
+    simulate->SetOperandAt(operand_index, graph()->GetConstantUndefined());
   }
 }
 
 
-void EnvironmentSlotLivenessAnalyzer::ZapEnvironmentSlotsInSuccessors(
-    HBasicBlock* block,
-    BitVector* live) {
+void HEnvironmentLivenessAnalysisPhase::ZapEnvironmentSlotsInSuccessors(
+    HBasicBlock* block, BitVector* live) {
   // When a value is live in successor A but dead in B, we must
   // explicitly zap it in B.
   for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
     HBasicBlock* successor = it.Current();
     int successor_id = successor->block_id();
-    BitVector* live_in_successor = live_at_block_start_->at(successor_id);
+    BitVector* live_in_successor = live_at_block_start_[successor_id];
     if (live_in_successor->Equals(*live)) continue;
     for (int i = 0; i < live->length(); ++i) {
       if (!live->Contains(i)) continue;
       if (live_in_successor->Contains(i)) continue;
-      if (first_simulate_invalid_for_index_->at(successor_id)->Contains(i)) {
+      if (first_simulate_invalid_for_index_.at(successor_id)->Contains(i)) {
         continue;
       }
-      HSimulate* simulate = first_simulate_->at(successor_id);
+      HSimulate* simulate = first_simulate_.at(successor_id);
       if (simulate == NULL) continue;
       ASSERT(simulate->closure().is_identical_to(
                  block->last_environment()->closure()));
@@ -101,7 +92,7 @@ void EnvironmentSlotLivenessAnalyzer::ZapEnvironmentSlotsInSuccessors(
 }
 
 
-void EnvironmentSlotLivenessAnalyzer::ZapEnvironmentSlotsForInstruction(
+void HEnvironmentLivenessAnalysisPhase::ZapEnvironmentSlotsForInstruction(
     HEnvironmentMarker* marker) {
   if (!marker->CheckFlag(HValue::kEndsLiveRange)) return;
   HSimulate* simulate = marker->next_simulate();
@@ -112,18 +103,18 @@ void EnvironmentSlotLivenessAnalyzer::ZapEnvironmentSlotsForInstruction(
 }
 
 
-void EnvironmentSlotLivenessAnalyzer::UpdateLivenessAtBlockEnd(
+void HEnvironmentLivenessAnalysisPhase::UpdateLivenessAtBlockEnd(
     HBasicBlock* block,
     BitVector* live) {
   // Liveness at the end of each block: union of liveness in successors.
   live->Clear();
   for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
-    live->Union(*live_at_block_start_->at(it.Current()->block_id()));
+    live->Union(*live_at_block_start_[it.Current()->block_id()]);
   }
 }
 
 
-void EnvironmentSlotLivenessAnalyzer::UpdateLivenessAtInstruction(
+void HEnvironmentLivenessAnalysisPhase::UpdateLivenessAtInstruction(
     HInstruction* instr,
     BitVector* live) {
   switch (instr->opcode()) {
@@ -135,7 +126,7 @@ void EnvironmentSlotLivenessAnalyzer::UpdateLivenessAtInstruction(
       } else {
         marker->ClearFlag(HValue::kEndsLiveRange);
       }
-      if (!went_live_since_last_simulate_->Contains(index)) {
+      if (!went_live_since_last_simulate_.Contains(index)) {
         marker->set_next_simulate(last_simulate_);
       }
       if (marker->kind() == HEnvironmentMarker::LOOKUP) {
@@ -143,11 +134,11 @@ void EnvironmentSlotLivenessAnalyzer::UpdateLivenessAtInstruction(
       } else {
         ASSERT(marker->kind() == HEnvironmentMarker::BIND);
         live->Remove(index);
-        went_live_since_last_simulate_->Add(index);
+        went_live_since_last_simulate_.Add(index);
       }
       if (collect_markers_) {
         // Populate |markers_| list during the first pass.
-        markers_->Add(marker, &zone_);
+        markers_.Add(marker, zone());
       }
       break;
     }
@@ -174,8 +165,8 @@ void EnvironmentSlotLivenessAnalyzer::UpdateLivenessAtInstruction(
         int return_id = enter->return_targets()->at(i)->block_id();
         // When an AbnormalExit is involved, it can happen that the return
         // target block doesn't actually exist.
-        if (return_id < live_at_block_start_->length()) {
-          live->Union(*live_at_block_start_->at(return_id));
+        if (return_id < live_at_block_start_.length()) {
+          live->Union(*live_at_block_start_[return_id]);
         }
       }
       last_simulate_ = NULL;
@@ -192,7 +183,7 @@ void EnvironmentSlotLivenessAnalyzer::UpdateLivenessAtInstruction(
     }
     case HValue::kSimulate:
       last_simulate_ = HSimulate::cast(instr);
-      went_live_since_last_simulate_->Clear();
+      went_live_since_last_simulate_.Clear();
       break;
     default:
       break;
@@ -200,47 +191,46 @@ void EnvironmentSlotLivenessAnalyzer::UpdateLivenessAtInstruction(
 }
 
 
-void EnvironmentSlotLivenessAnalyzer::AnalyzeAndTrim() {
-  HPhase phase("H_EnvironmentLivenessAnalysis", graph_);
-  if (maximum_environment_size_ == 0) return;
+void HEnvironmentLivenessAnalysisPhase::Run() {
+  ASSERT(maximum_environment_size_ > 0);
 
   // Main iteration. Compute liveness of environment slots, and store it
   // for each block until it doesn't change any more. For efficiency, visit
   // blocks in reverse order and walk backwards through each block. We
   // need several iterations to propagate liveness through nested loops.
-  BitVector* live = new(zone()) BitVector(maximum_environment_size_, zone());
-  BitVector* worklist = new(zone()) BitVector(block_count_, zone());
+  BitVector live(maximum_environment_size_, zone());
+  BitVector worklist(block_count_, zone());
   for (int i = 0; i < block_count_; ++i) {
-    worklist->Add(i);
+    worklist.Add(i);
   }
-  while (!worklist->IsEmpty()) {
+  while (!worklist.IsEmpty()) {
     for (int block_id = block_count_ - 1; block_id >= 0; --block_id) {
-      if (!worklist->Contains(block_id)) {
+      if (!worklist.Contains(block_id)) {
         continue;
       }
-      worklist->Remove(block_id);
+      worklist.Remove(block_id);
       last_simulate_ = NULL;
 
-      HBasicBlock* block = graph_->blocks()->at(block_id);
-      UpdateLivenessAtBlockEnd(block, live);
+      HBasicBlock* block = graph()->blocks()->at(block_id);
+      UpdateLivenessAtBlockEnd(block, &live);
 
       for (HInstruction* instr = block->last(); instr != NULL;
            instr = instr->previous()) {
-        UpdateLivenessAtInstruction(instr, live);
+        UpdateLivenessAtInstruction(instr, &live);
       }
 
       // Reached the start of the block, do necessary bookkeeping:
       // store computed information for this block and add predecessors
       // to the work list as necessary.
-      first_simulate_->Set(block_id, last_simulate_);
-      first_simulate_invalid_for_index_->at(block_id)->CopyFrom(
-          *went_live_since_last_simulate_);
-      if (live_at_block_start_->at(block_id)->UnionIsChanged(*live)) {
+      first_simulate_.Set(block_id, last_simulate_);
+      first_simulate_invalid_for_index_[block_id]->CopyFrom(
+          went_live_since_last_simulate_);
+      if (live_at_block_start_[block_id]->UnionIsChanged(live)) {
         for (int i = 0; i < block->predecessors()->length(); ++i) {
-          worklist->Add(block->predecessors()->at(i)->block_id());
+          worklist.Add(block->predecessors()->at(i)->block_id());
         }
         if (block->IsInlineReturnTarget()) {
-          worklist->Add(block->inlined_entry_block()->block_id());
+          worklist.Add(block->inlined_entry_block()->block_id());
         }
       }
     }
@@ -249,18 +239,18 @@ void EnvironmentSlotLivenessAnalyzer::AnalyzeAndTrim() {
   }
 
   // Analysis finished. Zap dead environment slots.
-  for (int i = 0; i < markers_->length(); ++i) {
-    ZapEnvironmentSlotsForInstruction(markers_->at(i));
+  for (int i = 0; i < markers_.length(); ++i) {
+    ZapEnvironmentSlotsForInstruction(markers_[i]);
   }
   for (int block_id = block_count_ - 1; block_id >= 0; --block_id) {
-    HBasicBlock* block = graph_->blocks()->at(block_id);
-    UpdateLivenessAtBlockEnd(block, live);
-    ZapEnvironmentSlotsInSuccessors(block, live);
+    HBasicBlock* block = graph()->blocks()->at(block_id);
+    UpdateLivenessAtBlockEnd(block, &live);
+    ZapEnvironmentSlotsInSuccessors(block, &live);
   }
 
   // Finally, remove the HEnvironment{Bind,Lookup} markers.
-  for (int i = 0; i < markers_->length(); ++i) {
-    markers_->at(i)->DeleteAndReplaceWith(NULL);
+  for (int i = 0; i < markers_.length(); ++i) {
+    markers_[i]->DeleteAndReplaceWith(NULL);
   }
 }
 

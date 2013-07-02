@@ -687,6 +687,8 @@ void Deserializer::Deserialize() {
 
   isolate_->heap()->set_native_contexts_list(
       isolate_->heap()->undefined_value());
+  isolate_->heap()->set_array_buffers_list(
+      isolate_->heap()->undefined_value());
 
   // Update data pointers to the external strings containing natives sources.
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
@@ -776,6 +778,7 @@ void Deserializer::ReadChunk(Object** current,
   bool write_barrier_needed = (current_object_address != NULL &&
                                source_space != NEW_SPACE &&
                                source_space != CELL_SPACE &&
+                               source_space != PROPERTY_CELL_SPACE &&
                                source_space != CODE_SPACE &&
                                source_space != OLD_DATA_SPACE);
   while (current < limit) {
@@ -836,8 +839,7 @@ void Deserializer::ReadChunk(Object** current,
                   new_code_object->instruction_start());                       \
             } else {                                                           \
               ASSERT(space_number == CODE_SPACE);                              \
-              JSGlobalPropertyCell* cell =                                     \
-                  JSGlobalPropertyCell::cast(new_object);                      \
+              Cell* cell = Cell::cast(new_object);                             \
               new_object = reinterpret_cast<Object*>(                          \
                   cell->ValueAddress());                                       \
             }                                                                  \
@@ -877,6 +879,7 @@ void Deserializer::ReadChunk(Object** current,
   CASE_STATEMENT(where, how, within, OLD_POINTER_SPACE)                        \
   CASE_STATEMENT(where, how, within, CODE_SPACE)                               \
   CASE_STATEMENT(where, how, within, CELL_SPACE)                               \
+  CASE_STATEMENT(where, how, within, PROPERTY_CELL_SPACE)                      \
   CASE_STATEMENT(where, how, within, MAP_SPACE)                                \
   CASE_BODY(where, how, within, kAnyOldSpace)
 
@@ -1564,10 +1567,9 @@ void Serializer::ObjectSerializer::VisitCodeEntry(Address entry_address) {
 }
 
 
-void Serializer::ObjectSerializer::VisitGlobalPropertyCell(RelocInfo* rinfo) {
-  ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
-  JSGlobalPropertyCell* cell =
-      JSGlobalPropertyCell::cast(rinfo->target_cell());
+void Serializer::ObjectSerializer::VisitCell(RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::CELL);
+  Cell* cell = Cell::cast(rinfo->target_cell());
   int skip = OutputRawData(rinfo->pc(), kCanReturnSkipInsteadOfSkipping);
   serializer_->SerializeObject(cell, kPlain, kInnerPointer, skip);
 }

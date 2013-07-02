@@ -31,12 +31,12 @@ var $ArrayBuffer = global.ArrayBuffer;
 
 // -------------------------------------------------------------------
 
-function ArrayBufferConstructor(byteLength) { // length = 1
+function ArrayBufferConstructor(length) { // length = 1
   if (%_IsConstructCall()) {
-    var l = TO_POSITIVE_INTEGER(byteLength);
-    %ArrayBufferInitialize(this, l);
+    var byteLength = ToPositiveInteger(length, 'invalid_array_buffer_length');
+    %ArrayBufferInitialize(this, byteLength);
   } else {
-    return new $ArrayBuffer(byteLength);
+    throw MakeTypeError('constructor_not_function', ["ArrayBuffer"]);
   }
 }
 
@@ -70,6 +70,9 @@ function ArrayBufferSlice(start, end) {
     fin = MathMin(relativeEnd, this.byteLength);
   }
 
+  if (fin < first) {
+    fin = first;
+  }
   var newLen = fin - first;
   // TODO(dslomov): implement inheritance
   var result = new $ArrayBuffer(newLen);

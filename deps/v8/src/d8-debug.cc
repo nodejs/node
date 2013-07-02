@@ -68,7 +68,7 @@ void HandleDebugEvent(DebugEvent event,
   // Get the toJSONProtocol function on the event and get the JSON format.
   Local<String> to_json_fun_name = String::New("toJSONProtocol");
   Local<Function> to_json_fun =
-      Function::Cast(*event_data->Get(to_json_fun_name));
+      Local<Function>::Cast(event_data->Get(to_json_fun_name));
   Local<Value> event_json = to_json_fun->Call(event_data, 0, NULL);
   if (try_catch.HasCaught()) {
     Shell::ReportException(isolate, &try_catch);
@@ -91,9 +91,9 @@ void HandleDebugEvent(DebugEvent event,
 
   // Get the debug command processor.
   Local<String> fun_name = String::New("debugCommandProcessor");
-  Local<Function> fun = Function::Cast(*exec_state->Get(fun_name));
+  Local<Function> fun = Local<Function>::Cast(exec_state->Get(fun_name));
   Local<Object> cmd_processor =
-      Object::Cast(*fun->Call(exec_state, 0, NULL));
+      Local<Object>::Cast(fun->Call(exec_state, 0, NULL));
   if (try_catch.HasCaught()) {
     Shell::ReportException(isolate, &try_catch);
     return;

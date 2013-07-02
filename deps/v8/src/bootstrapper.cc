@@ -45,6 +45,10 @@
 #include "extensions/statistics-extension.h"
 #include "code-stubs.h"
 
+#if defined(V8_I18N_SUPPORT)
+#include "extensions/i18n/i18n-extension.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -102,6 +106,9 @@ void Bootstrapper::InitializeOncePerProcess() {
   GCExtension::Register();
   ExternalizeStringExtension::Register();
   StatisticsExtension::Register();
+#if defined(V8_I18N_SUPPORT)
+  v8_i18n::Extension::Register();
+#endif
 }
 
 
@@ -538,31 +545,33 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
     prototype = factory()->NewForeign(&Accessors::FunctionPrototype);
   }
-  PropertyAttributes attribs = static_cast<PropertyAttributes>(
-      DONT_ENUM | DONT_DELETE);
+  PropertyAttributes rw_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
+  PropertyAttributes ro_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
   map->set_instance_descriptors(*descriptors);
 
   {  // Add length.
-    CallbacksDescriptor d(*factory()->length_string(), *length, attribs);
+    CallbacksDescriptor d(*factory()->length_string(), *length, ro_attribs);
     map->AppendDescriptor(&d, witness);
   }
   {  // Add name.
-    CallbacksDescriptor d(*factory()->name_string(), *name, attribs);
+    CallbacksDescriptor d(*factory()->name_string(), *name, rw_attribs);
     map->AppendDescriptor(&d, witness);
   }
   {  // Add arguments.
-    CallbacksDescriptor d(*factory()->arguments_string(), *arguments, attribs);
+    CallbacksDescriptor d(*factory()->arguments_string(), *arguments,
+                          rw_attribs);
     map->AppendDescriptor(&d, witness);
   }
   {  // Add caller.
-    CallbacksDescriptor d(*factory()->caller_string(), *caller, attribs);
+    CallbacksDescriptor d(*factory()->caller_string(), *caller, rw_attribs);
     map->AppendDescriptor(&d, witness);
   }
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
     // Add prototype.
-    if (prototypeMode != ADD_WRITEABLE_PROTOTYPE) {
-      attribs = static_cast<PropertyAttributes>(attribs | READ_ONLY);
-    }
+    PropertyAttributes attribs =
+        prototypeMode == ADD_WRITEABLE_PROTOTYPE ? rw_attribs : ro_attribs;
     CallbacksDescriptor d(*factory()->prototype_string(), *prototype, attribs);
     map->AppendDescriptor(&d, witness);
   }
@@ -857,12 +866,18 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                         isolate->initial_object_prototype(),
                         Builtins::kArrayCode, true, true);
     array_function->shared()->DontAdaptArguments();
+    array_function->shared()->set_function_data(Smi::FromInt(kArrayCode));
 
     // This seems a bit hackish, but we need to make sure Array.length
     // is 1.
     array_function->shared()->set_length(1);
 
     Handle<Map> initial_map(array_function->initial_map());
+
+    // This assert protects an optimization in
+    // HGraphBuilder::JSArrayBuilder::EmitMapCode()
+    ASSERT(initial_map->elements_kind() == GetInitialFastElementsKind());
+
     Handle<DescriptorArray> array_descriptors(
         factory->NewDescriptorArray(0, 1));
     DescriptorArray::WhitenessWitness witness(*array_descriptors);
@@ -883,16 +898,11 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // overwritten by JS code.
     native_context()->set_array_function(*array_function);
 
-    if (FLAG_optimize_constructed_arrays) {
-      // Cache the array maps, needed by ArrayConstructorStub
-      CacheInitialJSArrayMaps(native_context(), initial_map);
-      ArrayConstructorStub array_constructor_stub(isolate);
-      Handle<Code> code = array_constructor_stub.GetCode(isolate);
-      array_function->shared()->set_construct_stub(*code);
-    } else {
-      array_function->shared()->set_construct_stub(
-          isolate->builtins()->builtin(Builtins::kCommonArrayConstructCode));
-    }
+    // Cache the array maps, needed by ArrayConstructorStub
+    CacheInitialJSArrayMaps(native_context(), initial_map);
+    ArrayConstructorStub array_constructor_stub(isolate);
+    Handle<Code> code = array_constructor_stub.GetCode(isolate);
+    array_function->shared()->set_construct_stub(*code);
   }
 
   {  // --- N u m b e r ---
@@ -1359,6 +1369,14 @@ void Genesis::InitializeExperimentalGlobal() {
     Handle<JSFunction> uint8c_fun = InstallTypedArray("Uint8ClampedArray",
         EXTERNAL_PIXEL_ELEMENTS);
     native_context()->set_uint8c_array_fun(*uint8c_fun);
+
+    Handle<JSFunction> data_view_fun =
+        InstallFunction(
+            global, "DataView", JS_DATA_VIEW_TYPE,
+            JSDataView::kSize,
+            isolate()->initial_object_prototype(),
+            Builtins::kIllegal, true, true);
+    native_context()->set_data_view_fun(*data_view_fun);
   }
 
   if (FLAG_harmony_generators) {
@@ -1612,15 +1630,9 @@ Handle<JSFunction> Genesis::InstallInternalArray(
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   SetPrototype(array_function, prototype);
 
-  if (FLAG_optimize_constructed_arrays) {
-    InternalArrayConstructorStub internal_array_constructor_stub(isolate());
-    Handle<Code> code = internal_array_constructor_stub.GetCode(isolate());
-    array_function->shared()->set_construct_stub(*code);
-  } else {
-    array_function->shared()->set_construct_stub(
-        isolate()->builtins()->builtin(Builtins::kCommonArrayConstructCode));
-  }
-
+  InternalArrayConstructorStub internal_array_constructor_stub(isolate());
+  Handle<Code> code = internal_array_constructor_stub.GetCode(isolate());
+  array_function->shared()->set_construct_stub(*code);
   array_function->shared()->DontAdaptArguments();
 
   Handle<Map> original_map(array_function->initial_map());
@@ -2274,6 +2286,12 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
     InstallExtension(isolate, "v8/statistics", &extension_states);
   }
 
+#if defined(V8_I18N_SUPPORT)
+  if (FLAG_enable_i18n) {
+    InstallExtension(isolate, "v8/i18n", &extension_states);
+  }
+#endif
+
   if (extensions == NULL) return true;
   // Install required extensions
   int count = v8::ImplementationUtilities::GetNameCount(extensions);
@@ -2499,8 +2517,9 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         Handle<Name> key = Handle<Name>(Name::cast(raw_key));
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),
                                               isolate());
-        if (value->IsJSGlobalPropertyCell()) {
-          value = Handle<Object>(JSGlobalPropertyCell::cast(*value)->value(),
+        ASSERT(!value->IsCell());
+        if (value->IsPropertyCell()) {
+          value = Handle<Object>(PropertyCell::cast(*value)->value(),
                                  isolate());
         }
         PropertyDetails details = properties->DetailsAt(i);
@@ -2574,7 +2593,14 @@ Genesis::Genesis(Isolate* isolate,
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return;
 
-  native_context_ = Snapshot::NewContextFromSnapshot();
+  // We can only de-serialize a context if the isolate was initialized from
+  // a snapshot. Otherwise we have to build the context from scratch.
+  if (isolate->initialized_from_snapshot()) {
+    native_context_ = Snapshot::NewContextFromSnapshot();
+  } else {
+    native_context_ = Handle<Context>();
+  }
+
   if (!native_context().is_null()) {
     AddToWeakNativeContextList(*native_context());
     isolate->set_context(*native_context());

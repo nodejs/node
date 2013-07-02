@@ -295,6 +295,16 @@ function WeakMapDelete(key) {
 }
 
 
+function WeakMapClear() {
+  if (!IS_WEAKMAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['WeakMap.prototype.clear', this]);
+  }
+  // Replace the internal table with a new empty table.
+  %WeakMapInitialize(this);
+}
+
+
 // -------------------------------------------------------------------
 
 function SetUpWeakMap() {
@@ -309,7 +319,8 @@ function SetUpWeakMap() {
     "get", WeakMapGet,
     "set", WeakMapSet,
     "has", WeakMapHas,
-    "delete", WeakMapDelete
+    "delete", WeakMapDelete,
+    "clear", WeakMapClear
   ));
 }
 

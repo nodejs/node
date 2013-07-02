@@ -245,6 +245,8 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
     result = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
   } else if (CELL_SPACE == space) {
     result = cell_space_->AllocateRaw(size_in_bytes);
+  } else if (PROPERTY_CELL_SPACE == space) {
+    result = property_cell_space_->AllocateRaw(size_in_bytes);
   } else {
     ASSERT(MAP_SPACE == space);
     result = map_space_->AllocateRaw(size_in_bytes);
@@ -305,7 +307,19 @@ MaybeObject* Heap::AllocateRawCell() {
   isolate_->counters()->objs_since_last_full()->Increment();
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
-  MaybeObject* result = cell_space_->AllocateRaw(JSGlobalPropertyCell::kSize);
+  MaybeObject* result = cell_space_->AllocateRaw(Cell::kSize);
+  if (result->IsFailure()) old_gen_exhausted_ = true;
+  return result;
+}
+
+
+MaybeObject* Heap::AllocateRawPropertyCell() {
+#ifdef DEBUG
+  isolate_->counters()->objs_since_last_full()->Increment();
+  isolate_->counters()->objs_since_last_young()->Increment();
+#endif
+  MaybeObject* result =
+      property_cell_space_->AllocateRaw(PropertyCell::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
   return result;
 }
@@ -407,7 +421,8 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
   ASSERT(type != MAP_TYPE);
   ASSERT(type != CODE_TYPE);
   ASSERT(type != ODDBALL_TYPE);
-  ASSERT(type != JS_GLOBAL_PROPERTY_CELL_TYPE);
+  ASSERT(type != CELL_TYPE);
+  ASSERT(type != PROPERTY_CELL_TYPE);
 
   if (type <= LAST_NAME_TYPE) {
     if (type == SYMBOL_TYPE) return OLD_POINTER_SPACE;
@@ -535,7 +550,7 @@ intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
     if (amount >= 0) {
       amount_of_external_allocated_memory_ = amount;
     } else {
-      // Give up and reset the counters in case of an overflow.
+      // Give up and reset the counters in case of an underflow.
       amount_of_external_allocated_memory_ = 0;
       amount_of_external_allocated_memory_at_last_global_gc_ = 0;
     }
@@ -543,17 +558,15 @@ intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
   if (FLAG_trace_external_memory) {
     PrintPID("%8.0f ms: ", isolate()->time_millis_since_init());
     PrintF("Adjust amount of external memory: delta=%6" V8_PTR_PREFIX "d KB, "
-           " amount=%6" V8_PTR_PREFIX "d KB, isolate=0x%08" V8PRIxPTR ".\n",
-           change_in_bytes / 1024, amount_of_external_allocated_memory_ / 1024,
+           "amount=%6" V8_PTR_PREFIX "d KB, since_gc=%6" V8_PTR_PREFIX "d KB, "
+           "isolate=0x%08" V8PRIxPTR ".\n",
+           change_in_bytes / KB,
+           amount_of_external_allocated_memory_ / KB,
+           PromotedExternalMemorySize() / KB,
            reinterpret_cast<intptr_t>(isolate()));
   }
   ASSERT(amount_of_external_allocated_memory_ >= 0);
   return amount_of_external_allocated_memory_;
-}
-
-
-void Heap::SetLastScriptId(Object* last_script_id) {
-  roots_[kLastScriptIdRootIndex] = last_script_id;
 }
 
 

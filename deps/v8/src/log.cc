@@ -31,6 +31,7 @@
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "cpu-profiler.h"
 #include "deoptimizer.h"
 #include "global-handles.h"
 #include "log.h"
@@ -435,7 +436,7 @@ void Logger::IssueCodeAddedEvent(Code* code,
   event.code_len = code->instruction_size();
   Handle<Script> script_handle =
       script != NULL ? Handle<Script>(script) : Handle<Script>();
-  event.script = v8::Handle<v8::Script>(ToApi<v8::Script>(script_handle));
+  event.script = ToApiHandle<v8::Script>(script_handle);
   event.name.str = name;
   event.name.len = name_len;
 
@@ -633,6 +634,16 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
              library_path,
              start,
              end);
+  msg.WriteToLogFile();
+}
+
+
+void Logger::CodeDeoptEvent(Code* code) {
+  if (!log_->IsEnabled()) return;
+  ASSERT(FLAG_log_internal_timer_events);
+  LogMessageBuilder msg(this);
+  int since_epoch = static_cast<int>(OS::Ticks() - epoch_);
+  msg.Append("code-deopt,%ld,%d\n", since_epoch, code->CodeSize());
   msg.WriteToLogFile();
 }
 
@@ -862,7 +873,7 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
                                    Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,-3,",
+  msg.Append("%s,%s,-2,",
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[CALLBACK_TAG]);
   msg.AppendAddress(entry_point);
@@ -903,18 +914,39 @@ void Logger::SetterCallbackEvent(Name* name, Address entry_point) {
 }
 
 
-void Logger::CodeCreateEvent(LogEventsAndTags tag,
-                             Code* code,
-                             const char* comment) {
-  if (!is_logging_code_events()) return;
-  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
+void Logger::AppendName(Name* name) {
+  if (name->IsString()) {
+    name_buffer_->AppendString(String::cast(name));
+  } else {
+    Symbol* symbol = Symbol::cast(name);
+    name_buffer_->AppendBytes("symbol(");
+    if (!symbol->name()->IsUndefined()) {
+      name_buffer_->AppendBytes("\"");
+      name_buffer_->AppendString(String::cast(symbol->name()));
+      name_buffer_->AppendBytes("\" ");
+    }
+    name_buffer_->AppendBytes("hash ");
+    name_buffer_->AppendHex(symbol->Hash());
+    name_buffer_->AppendByte(')');
+  }
+}
+
+
+void Logger::InitNameBuffer(LogEventsAndTags tag) {
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
-    name_buffer_->AppendBytes(comment);
-  }
+}
+
+
+void Logger::LogRecordedBuffer(Code* code, SharedFunctionInfo* shared) {
   if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
+    Script* script = shared && shared->script()->IsScript() ?
+        Script::cast(shared->script()) : NULL;
+    IssueCodeAddedEvent(code,
+                        script,
+                        name_buffer_->get(),
+                        name_buffer_->size());
   }
   if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
@@ -923,21 +955,49 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   if (Serializer::enabled()) {
     RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
   }
-  if (!FLAG_log_code) return;
-  LogMessageBuilder msg(this);
-  msg.Append("%s,%s,%d,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag],
-             code->kind());
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"", code->ExecutableSize());
-  for (const char* p = comment; *p != '\0'; p++) {
-    if (*p == '"') {
-      msg.Append('\\');
+}
+
+
+void Logger::AppendCodeCreateHeader(LogMessageBuilder* msg,
+                                    LogEventsAndTags tag,
+                                    Code* code) {
+  ASSERT(msg);
+  msg->Append("%s,%s,%d,",
+              kLogEventsNames[CODE_CREATION_EVENT],
+              kLogEventsNames[tag],
+              code->kind());
+  msg->AppendAddress(code->address());
+  msg->Append(",%d,", code->ExecutableSize());
+}
+
+
+void Logger::AppendSymbolName(LogMessageBuilder* msg,
+                              Symbol* symbol) {
+    ASSERT(symbol);
+    msg->Append("symbol(");
+    if (!symbol->name()->IsUndefined()) {
+      msg->Append("\"");
+      msg->AppendDetailed(String::cast(symbol->name()), false);
+      msg->Append("\" ");
     }
-    msg.Append(*p);
+    msg->Append("hash %x)", symbol->Hash());
+}
+
+
+void Logger::CodeCreateEvent(LogEventsAndTags tag,
+                             Code* code,
+                             const char* comment) {
+  if (!is_logging_code_events()) return;
+  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
+    InitNameBuffer(tag);
+    name_buffer_->AppendBytes(comment);
+    LogRecordedBuffer(code, NULL);
   }
-  msg.Append('"');
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  LogMessageBuilder msg(this);
+  AppendCodeCreateHeader(&msg, tag, code);
+  msg.AppendDoubleQuotedString(comment);
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -948,55 +1008,20 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Name* name) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
-    name_buffer_->Reset();
-    name_buffer_->AppendBytes(kLogEventsNames[tag]);
-    name_buffer_->AppendByte(':');
-    if (name->IsString()) {
-      name_buffer_->AppendString(String::cast(name));
-    } else {
-      Symbol* symbol = Symbol::cast(name);
-      name_buffer_->AppendBytes("symbol(");
-      if (!symbol->name()->IsUndefined()) {
-        name_buffer_->AppendBytes("\"");
-        name_buffer_->AppendString(String::cast(symbol->name()));
-        name_buffer_->AppendBytes("\" ");
-      }
-      name_buffer_->AppendBytes("hash ");
-      name_buffer_->AppendHex(symbol->Hash());
-      name_buffer_->AppendByte(')');
-    }
+    InitNameBuffer(tag);
+    AppendName(name);
+    LogRecordedBuffer(code, NULL);
   }
-  if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (Serializer::enabled()) {
-    RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!FLAG_log_code) return;
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,%d,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag],
-             code->kind());
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,", code->ExecutableSize());
+  AppendCodeCreateHeader(&msg, tag, code);
   if (name->IsString()) {
     msg.Append('"');
     msg.AppendDetailed(String::cast(name), false);
     msg.Append('"');
   } else {
-    Symbol* symbol = Symbol::cast(name);
-    msg.Append("symbol(");
-    if (!symbol->name()->IsUndefined()) {
-      msg.Append("\"");
-      msg.AppendDetailed(String::cast(symbol->name()), false);
-      msg.Append("\" ");
-    }
-    msg.Append("hash %x)", symbol->Hash());
+    AppendSymbolName(&msg, Symbol::cast(name));
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1020,65 +1045,25 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Name* name) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
-    name_buffer_->Reset();
-    name_buffer_->AppendBytes(kLogEventsNames[tag]);
-    name_buffer_->AppendByte(':');
+    InitNameBuffer(tag);
     name_buffer_->AppendBytes(ComputeMarker(code));
-    if (name->IsString()) {
-      name_buffer_->AppendString(String::cast(name));
-    } else {
-      Symbol* symbol = Symbol::cast(name);
-      name_buffer_->AppendBytes("symbol(");
-      if (!symbol->name()->IsUndefined()) {
-        name_buffer_->AppendBytes("\"");
-        name_buffer_->AppendString(String::cast(symbol->name()));
-        name_buffer_->AppendBytes("\" ");
-      }
-      name_buffer_->AppendBytes("hash ");
-      name_buffer_->AppendHex(symbol->Hash());
-      name_buffer_->AppendByte(')');
-    }
+    AppendName(name);
+    LogRecordedBuffer(code, shared);
   }
-  if (code_event_handler_ != NULL) {
-    Script* script =
-        shared->script()->IsScript() ? Script::cast(shared->script()) : NULL;
-    IssueCodeAddedEvent(code,
-                        script,
-                        name_buffer_->get(),
-                        name_buffer_->size());
-  }
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (Serializer::enabled()) {
-    RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!FLAG_log_code) return;
-  if (code == Isolate::Current()->builtins()->builtin(
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  if (code == isolate_->builtins()->builtin(
       Builtins::kLazyCompile))
     return;
 
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,%d,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag],
-             code->kind());
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,", code->ExecutableSize());
+  AppendCodeCreateHeader(&msg, tag, code);
   if (name->IsString()) {
     SmartArrayPointer<char> str =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("\"%s\"", *str);
   } else {
-    Symbol* symbol = Symbol::cast(name);
-    msg.Append("symbol(");
-    if (!symbol->name()->IsUndefined()) {
-      msg.Append("\"");
-      msg.AppendDetailed(String::cast(symbol->name()), false);
-      msg.Append("\" ");
-    }
-    msg.Append("hash %x)", symbol->Hash());
+    AppendSymbolName(&msg, Symbol::cast(name));
   }
   msg.Append(',');
   msg.AppendAddress(shared->address());
@@ -1098,9 +1083,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Name* source, int line) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
-    name_buffer_->Reset();
-    name_buffer_->AppendBytes(kLogEventsNames[tag]);
-    name_buffer_->AppendByte(':');
+    InitNameBuffer(tag);
     name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(shared->DebugName());
     name_buffer_->AppendByte(' ');
@@ -1113,45 +1096,21 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     }
     name_buffer_->AppendByte(':');
     name_buffer_->AppendInt(line);
+    LogRecordedBuffer(code, shared);
   }
-  if (code_event_handler_ != NULL) {
-    Script* script =
-        shared->script()->IsScript() ? Script::cast(shared->script()) : NULL;
-    IssueCodeAddedEvent(code,
-                        script,
-                        name_buffer_->get(),
-                        name_buffer_->size());
-  }
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (Serializer::enabled()) {
-    RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!FLAG_log_code) return;
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
+  AppendCodeCreateHeader(&msg, tag, code);
   SmartArrayPointer<char> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("%s,%s,%d,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag],
-             code->kind());
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s ", code->ExecutableSize(), *name);
+  msg.Append("\"%s ", *name);
   if (source->IsString()) {
     SmartArrayPointer<char> sourcestr =
        String::cast(source)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("%s", *sourcestr);
   } else {
-    Symbol* symbol = Symbol::cast(source);
-    msg.Append("symbol(");
-    if (!symbol->name()->IsUndefined()) {
-      msg.Append("\"");
-      msg.AppendDetailed(String::cast(symbol->name()), false);
-      msg.Append("\" ");
-    }
-    msg.Append("hash %x)", symbol->Hash());
+    AppendSymbolName(&msg, Symbol::cast(source));
   }
   msg.Append(":%d\",", line);
   msg.AppendAddress(shared->address());
@@ -1164,29 +1123,15 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
-    name_buffer_->Reset();
-    name_buffer_->AppendBytes(kLogEventsNames[tag]);
-    name_buffer_->AppendByte(':');
+    InitNameBuffer(tag);
     name_buffer_->AppendInt(args_count);
+    LogRecordedBuffer(code, NULL);
   }
-  if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (Serializer::enabled()) {
-    RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!FLAG_log_code) return;
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,%d,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag],
-             code->kind());
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"args_count: %d\"", code->ExecutableSize(), args_count);
+  AppendCodeCreateHeader(&msg, tag, code);
+  msg.Append("\"args_count: %d\"", args_count);
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -1202,30 +1147,17 @@ void Logger::CodeMovingGCEvent() {
 void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
-    name_buffer_->Reset();
-    name_buffer_->AppendBytes(kLogEventsNames[REG_EXP_TAG]);
-    name_buffer_->AppendByte(':');
+    InitNameBuffer(REG_EXP_TAG);
     name_buffer_->AppendString(source);
+    LogRecordedBuffer(code, NULL);
   }
-  if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (Serializer::enabled()) {
-    RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!FLAG_log_code) return;
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,-2,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[REG_EXP_TAG]);
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"", code->ExecutableSize());
+  AppendCodeCreateHeader(&msg, REG_EXP_TAG, code);
+  msg.Append('"');
   msg.AppendDetailed(source, false);
-  msg.Append('\"');
+  msg.Append('"');
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -1294,12 +1226,9 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
     const char* code_name = address_to_name_map_->Lookup(addr);
     if (code_name == NULL) return;  // Not a code object.
     LogMessageBuilder msg(this);
-    msg.Append("%s,%d,\"", kLogEventsNames[SNAPSHOT_CODE_NAME_EVENT], pos);
-    for (const char* p = code_name; *p != '\0'; ++p) {
-      if (*p == '"') msg.Append('\\');
-      msg.Append(*p);
-    }
-    msg.Append("\"\n");
+    msg.Append("%s,%d,", kLogEventsNames[SNAPSHOT_CODE_NAME_EVENT], pos);
+    msg.AppendDoubleQuotedString(code_name);
+    msg.Append("\n");
     msg.WriteToLogFile();
   }
   if (!FLAG_log_snapshot_positions) return;
@@ -1371,14 +1300,7 @@ void Logger::SuspectReadEvent(Name* name, Object* obj) {
     msg.Append(String::cast(name));
     msg.Append('"');
   } else {
-    Symbol* symbol = Symbol::cast(name);
-    msg.Append("symbol(");
-    if (!symbol->name()->IsUndefined()) {
-      msg.Append("\"");
-      msg.AppendDetailed(String::cast(symbol->name()), false);
-      msg.Append("\" ");
-    }
-    msg.Append("hash %x)", symbol->Hash());
+    AppendSymbolName(&msg, Symbol::cast(name));
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1442,8 +1364,6 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   LogMessageBuilder msg(this);
   msg.Append("%s,", kLogEventsNames[TICK_EVENT]);
   msg.AppendAddress(sample->pc);
-  msg.Append(',');
-  msg.AppendAddress(sample->sp);
   msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
   if (sample->has_external_callback) {
     msg.Append(",1,");
@@ -1600,6 +1520,10 @@ void Logger::LogCodeObject(Object* object) {
         description = "A stub from the snapshot";
       tag = Logger::STUB_TAG;
       break;
+    case Code::REGEXP:
+      description = "Regular expression code";
+      tag = Logger::REG_EXP_TAG;
+      break;
     case Code::BUILTIN:
       description = "A builtin from the snapshot";
       tag = Logger::BUILTIN_TAG;
@@ -1627,6 +1551,8 @@ void Logger::LogCodeObject(Object* object) {
     case Code::KEYED_CALL_IC:
       description = "A keyed call IC from the snapshot";
       tag = Logger::KEYED_CALL_IC_TAG;
+      break;
+    case Code::NUMBER_OF_KINDS:
       break;
   }
   PROFILE(isolate_, CodeCreateEvent(tag, code_object, description));
@@ -1781,7 +1707,7 @@ void Logger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
-    if (*code_objects[i] == Isolate::Current()->builtins()->builtin(
+    if (*code_objects[i] == isolate_->builtins()->builtin(
         Builtins::kLazyCompile))
       continue;
     LogExistingFunction(sfis[i], code_objects[i]);
@@ -1861,7 +1787,7 @@ void Logger::SetCodeEventHandler(uint32_t options,
   code_event_handler_ = event_handler;
 
   if (code_event_handler_ != NULL && (options & kJitCodeEventEnumExisting)) {
-    HandleScope scope(Isolate::Current());
+    HandleScope scope(isolate_);
     LogCodeObjects();
     LogCompiledFunctions();
   }

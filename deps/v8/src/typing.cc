@@ -52,7 +52,7 @@ AstTyper::AstTyper(CompilationInfo* info)
   } while (false)
 
 
-void AstTyper::Type(CompilationInfo* info) {
+void AstTyper::Run(CompilationInfo* info) {
   AstTyper* visitor = new(info->zone()) AstTyper(info);
   Scope* scope = info->scope();
 
@@ -295,7 +295,7 @@ void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
     if ((prop->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL &&
         !CompileTimeValue::IsCompileTimeValue(prop->value())) ||
         prop->kind() == ObjectLiteral::Property::COMPUTED) {
-      if (prop->key()->handle()->IsInternalizedString() && prop->emit_store())
+      if (prop->key()->value()->IsInternalizedString() && prop->emit_store())
         prop->RecordTypeFeedback(oracle());
     }
   }
@@ -404,7 +404,9 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
   ASSERT(!HasStackOverflow());
   CHECK_ALIVE(Visit(expr->expression()));
 
-  expr->RecordTypeFeedback(oracle());
+  // Collect type feedback.
+  Handle<Type> op_type = oracle()->UnaryType(expr->UnaryOperationFeedbackId());
+  MergeLowerType(expr->expression(), op_type);
   if (expr->op() == Token::NOT) {
     // TODO(rossberg): only do in test or value context.
     expr->expression()->RecordToBooleanTypeFeedback(oracle());
@@ -429,7 +431,15 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
   CHECK_ALIVE(Visit(expr->left()));
   CHECK_ALIVE(Visit(expr->right()));
 
-  expr->RecordTypeFeedback(oracle());
+  // Collect type feedback.
+  Handle<Type> left_type, right_type, result_type;
+  Maybe<int> fixed_right_arg;
+  oracle()->BinaryType(expr->BinaryOperationFeedbackId(),
+      &left_type, &right_type, &result_type, &fixed_right_arg);
+  MergeLowerType(expr->left(), left_type);
+  MergeLowerType(expr->right(), right_type);
+  expr->set_result_type(result_type);
+  expr->set_fixed_right_arg(fixed_right_arg);
   if (expr->op() == Token::OR || expr->op() == Token::AND) {
     expr->left()->RecordToBooleanTypeFeedback(oracle());
   }
@@ -441,7 +451,13 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
   CHECK_ALIVE(Visit(expr->left()));
   CHECK_ALIVE(Visit(expr->right()));
 
-  expr->RecordTypeFeedback(oracle());
+  // Collect type feedback.
+  Handle<Type> left_type, right_type, combined_type;
+  oracle()->CompareType(expr->CompareOperationFeedbackId(),
+      &left_type, &right_type, &combined_type);
+  MergeLowerType(expr->left(), left_type);
+  MergeLowerType(expr->right(), right_type);
+  expr->set_combined_type(combined_type);
 }
 
 

@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "apiutils.h"
+#include "objects.h"
 
 namespace v8 {
 namespace internal {
@@ -243,8 +244,6 @@ Handle<Object> GetProperty(Handle<JSReceiver> obj, const char* name);
 Handle<Object> GetProperty(Isolate* isolate,
                            Handle<Object> obj,
                            Handle<Object> key);
-
-Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
 
 Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index);

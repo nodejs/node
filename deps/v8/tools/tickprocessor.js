@@ -169,7 +169,7 @@ function TickProcessor(
       'snapshot-pos': { parsers: [parseInt, parseInt],
           processor: this.processSnapshotPosition },
       'tick': {
-          parsers: [parseInt, parseInt, parseInt, parseInt,
+          parsers: [parseInt, parseInt, parseInt,
                     parseInt, parseInt, 'var-args'],
           processor: this.processTick },
       'heap-sample-begin': { parsers: [null, null, parseInt],
@@ -204,7 +204,7 @@ function TickProcessor(
   // Convert picoseconds to nanoseconds.
   this.distortion_per_entry = isNaN(distortion) ? 0 : (distortion / 1000);
   this.distortion = 0;
-  var rangelimits = range.split(",");
+  var rangelimits = range ? range.split(",") : [];
   var range_start = parseInt(rangelimits[0]);
   var range_end = parseInt(rangelimits[1]);
   // Convert milliseconds to nanoseconds.
@@ -365,7 +365,6 @@ TickProcessor.prototype.includeTick = function(vmState) {
 };
 
 TickProcessor.prototype.processTick = function(pc,
-                                               sp,
                                                ns_since_start,
                                                is_external_callback,
                                                tos_or_external_callback,

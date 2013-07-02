@@ -170,6 +170,7 @@ class RegisteredExtension {
   V(Object, JSObject)                          \
   V(Array, JSArray)                            \
   V(ArrayBuffer, JSArrayBuffer)                \
+  V(ArrayBufferView, JSArrayBufferView)        \
   V(TypedArray, JSTypedArray)                  \
   V(Uint8Array, JSTypedArray)                  \
   V(Uint8ClampedArray, JSTypedArray)           \
@@ -180,6 +181,7 @@ class RegisteredExtension {
   V(Int32Array, JSTypedArray)                  \
   V(Float32Array, JSTypedArray)                \
   V(Float64Array, JSTypedArray)                \
+  V(DataView, JSDataView)                      \
   V(String, String)                            \
   V(Symbol, Symbol)                            \
   V(Script, Object)                            \
@@ -217,6 +219,10 @@ class Utils {
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<ArrayBuffer> ToLocal(
       v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
+  static inline Local<ArrayBufferView> ToLocal(
+      v8::internal::Handle<v8::internal::JSArrayBufferView> obj);
+  static inline Local<DataView> ToLocal(
+      v8::internal::Handle<v8::internal::JSDataView> obj);
 
   static inline Local<TypedArray> ToLocal(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
@@ -273,13 +279,31 @@ class Utils {
 OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
 #undef DECLARE_OPEN_HANDLE
+
+  template<class From, class To>
+  static inline Local<To> Convert(v8::internal::Handle<From> obj) {
+    ASSERT(obj.is_null() || !obj->IsTheHole());
+    return Local<To>(reinterpret_cast<To*>(obj.location()));
+  }
+
+  template <class T>
+  static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
+      const v8::Persistent<T>& persistent) {
+    return v8::internal::Handle<v8::internal::Object>(
+        reinterpret_cast<v8::internal::Object**>(persistent.val_));
+  }
+
+  template <class T>
+  static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
+      v8::Persistent<T>* persistent) {
+    return OpenPersistent(*persistent);
+  }
+
+  template <class From, class To>
+  static inline v8::internal::Handle<To> OpenHandle(v8::Local<From> handle) {
+    return OpenHandle(*handle);
+  }
 };
-
-
-template <class T>
-inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
-  return reinterpret_cast<T*>(obj.location());
-}
 
 
 template <class T>
@@ -293,31 +317,31 @@ v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
 }
 
 
-class InternalHandleHelper {
- public:
-  template<class From, class To>
-  static inline Local<To> Convert(v8::internal::Handle<From> obj) {
-    return Local<To>(reinterpret_cast<To*>(obj.location()));
-  }
-};
+template <class T>
+inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
+  return reinterpret_cast<T*>(obj.location());
+}
+
+template <class T>
+inline v8::Local<T> ToApiHandle(
+    v8::internal::Handle<v8::internal::Object> obj) {
+  return Utils::Convert<v8::internal::Object, T>(obj);
+}
 
 
 // Implementations of ToLocal
 
 #define MAKE_TO_LOCAL(Name, From, To)                                       \
   Local<v8::To> Utils::Name(v8::internal::Handle<v8::internal::From> obj) { \
-    ASSERT(obj.is_null() || !obj->IsTheHole());                             \
-    return InternalHandleHelper::Convert<v8::internal::From, v8::To>(obj);  \
+    return Convert<v8::internal::From, v8::To>(obj);  \
   }
 
 
 #define MAKE_TO_LOCAL_TYPED_ARRAY(TypedArray, typeConst)                    \
   Local<v8::TypedArray> Utils::ToLocal##TypedArray(                         \
       v8::internal::Handle<v8::internal::JSTypedArray> obj) {               \
-    ASSERT(obj.is_null() || !obj->IsTheHole());                             \
     ASSERT(obj->type() == typeConst);                                       \
-    return InternalHandleHelper::                                           \
-        Convert<v8::internal::JSTypedArray, v8::TypedArray>(obj);           \
+    return Convert<v8::internal::JSTypedArray, v8::TypedArray>(obj);        \
   }
 
 
@@ -330,6 +354,8 @@ MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
 MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
+MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
+MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
 
 MAKE_TO_LOCAL_TYPED_ARRAY(Uint8Array, kExternalUnsignedByteArray)
@@ -661,6 +687,24 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
          (!blocks_.is_empty() && prev_limit != NULL));
 }
 
+
+// Interceptor functions called from generated inline caches to notify
+// CPU profiler that external callbacks are invoked.
+v8::Handle<v8::Value> InvokeAccessorGetter(
+    v8::Local<v8::String> property,
+    const v8::AccessorInfo& info,
+    v8::AccessorGetter getter);
+
+
+void InvokeAccessorGetterCallback(
+    v8::Local<v8::String> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info,
+    v8::AccessorGetterCallback getter);
+
+v8::Handle<v8::Value> InvokeInvocationCallback(const v8::Arguments& args,
+                                              v8::InvocationCallback callback);
+void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
+                            v8::FunctionCallback callback);
 
 class Testing {
  public:

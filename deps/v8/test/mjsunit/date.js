@@ -150,7 +150,7 @@ assertTrue(isNaN(l.getUTCMilliseconds()));
 // date without the timezone information.
 function testToLocaleTimeString() {
   var d = new Date();
-  var s = d.toLocaleTimeString();
+  var s = d.toLocaleTimeString("en-GB");
   assertEquals(8, s.length);
 }
 

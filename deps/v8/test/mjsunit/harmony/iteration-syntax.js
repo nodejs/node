@@ -54,6 +54,11 @@ assertThrows("function f() { for (var of of) { } }", SyntaxError);
 assertThrows("function f() { for (let of y) { } }", SyntaxError);
 assertThrows("function f() { for (let of of) { } }", SyntaxError);
 
+assertThrows("function f() { for (x = 3 of y) { } }", SyntaxError);
+assertThrows("function f() { for (var x = 3 of y) { } }", SyntaxError);
+assertThrows("function f() { for (let x = 3 of y) { } }", SyntaxError);
+
+
 // Alack, this appears to be valid.
 function f() { for (of of y) { } }
 function f() { for (let of of y) { } }

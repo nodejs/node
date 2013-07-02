@@ -43,7 +43,7 @@ namespace internal {
 
 class AstTyper: public AstVisitor {
  public:
-  static void Type(CompilationInfo* info);
+  static void Run(CompilationInfo* info);
 
   void* operator new(size_t size, Zone* zone) {
     return zone->New(static_cast<int>(size));
@@ -61,6 +61,13 @@ class AstTyper: public AstVisitor {
 
   TypeFeedbackOracle* oracle() { return &oracle_; }
   Zone* zone() const { return info_->zone(); }
+
+  void MergeLowerType(Expression* e, Handle<Type> t) {
+    e->set_lower_type(handle(Type::Union(e->lower_type(), t), isolate_));
+  }
+  void MergeUpperType(Expression* e, Handle<Type> t) {
+    e->set_upper_type(handle(Type::Intersect(e->upper_type(), t), isolate_));
+  }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void VisitStatements(ZoneList<Statement*>* statements);

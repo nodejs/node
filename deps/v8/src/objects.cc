@@ -39,6 +39,7 @@
 #include "execution.h"
 #include "full-codegen.h"
 #include "hydrogen.h"
+#include "isolate-inl.h"
 #include "objects-inl.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
@@ -47,7 +48,6 @@
 #include "safepoint-table.h"
 #include "string-stream.h"
 #include "utils.h"
-#include "vm-state-inl.h"
 
 #ifdef ENABLE_DISASSEMBLER
 #include "disasm.h"
@@ -375,14 +375,8 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("load", self, name));
     PropertyCallbackArguments args(isolate, data->data(), self, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      ExternalCallbackScope call_scope(isolate,
-                                       v8::ToCData<Address>(fun_obj));
-      result = args.Call(call_fun, v8::Utils::ToLocal(key));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(call_fun, v8::Utils::ToLocal(key));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) {
       return isolate->heap()->undefined_value();
@@ -629,9 +623,9 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
   if (IsGlobalObject()) {
-    value = JSGlobalPropertyCell::cast(value)->value();
+    value = PropertyCell::cast(value)->value();
   }
-  ASSERT(!value->IsJSGlobalPropertyCell());
+  ASSERT(!value->IsPropertyCell() && !value->IsCell());
   return value;
 }
 
@@ -639,9 +633,8 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
 Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
   ASSERT(!HasFastProperties());
   if (IsGlobalObject()) {
-    JSGlobalPropertyCell* cell =
-        JSGlobalPropertyCell::cast(
-            property_dictionary()->ValueAt(result->GetDictionaryEntry()));
+    PropertyCell* cell = PropertyCell::cast(
+        property_dictionary()->ValueAt(result->GetDictionaryEntry()));
     cell->set_value(value);
   } else {
     property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
@@ -669,8 +662,7 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
     Object* store_value = value;
     if (IsGlobalObject()) {
       Heap* heap = name->GetHeap();
-      MaybeObject* maybe_store_value =
-          heap->AllocateJSGlobalPropertyCell(value);
+      MaybeObject* maybe_store_value = heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
     Object* dict;
@@ -697,8 +689,8 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
       details.attributes(), details.type(), enumeration_index);
 
   if (IsGlobalObject()) {
-    JSGlobalPropertyCell* cell =
-        JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
+    PropertyCell* cell =
+        PropertyCell::cast(property_dictionary()->ValueAt(entry));
     cell->set_value(value);
     // Please note we have to update the property details.
     property_dictionary()->DetailsAtPut(entry, details);
@@ -730,8 +722,7 @@ MaybeObject* JSObject::DeleteNormalizedProperty(Name* name, DeleteMode mode) {
         ASSERT(new_map->is_dictionary_map());
         set_map(new_map);
       }
-      JSGlobalPropertyCell* cell =
-          JSGlobalPropertyCell::cast(dictionary->ValueAt(entry));
+      PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
       cell->set_value(cell->GetHeap()->the_hole_value());
       dictionary->DetailsAtPut(entry, details.AsDeleted());
     } else {
@@ -1385,7 +1376,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
                        global_object ? "Global Object: " : "",
                        vowel ? "n" : "");
                 accumulator->Put(str);
-                accumulator->Add(" with %smap 0x%p",
+                accumulator->Add(" with %smap %p",
                     map_of_this->is_deprecated() ? "deprecated " : "",
                     map_of_this);
                 printed = true;
@@ -1567,9 +1558,13 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case FOREIGN_TYPE:
       accumulator->Add("<Foreign>");
       break;
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+    case CELL_TYPE:
       accumulator->Add("Cell for ");
-      JSGlobalPropertyCell::cast(this)->value()->ShortPrint(accumulator);
+      Cell::cast(this)->value()->ShortPrint(accumulator);
+      break;
+    case PROPERTY_CELL_TYPE:
+      accumulator->Add("PropertyCell for ");
+      PropertyCell::cast(this)->value()->ShortPrint(accumulator);
       break;
     default:
       accumulator->Add("<Other heap object (%d)>", map()->instance_type());
@@ -1629,6 +1624,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_ARRAY_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_TYPED_ARRAY_TYPE:
+    case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
     case JS_WEAK_MAP_TYPE:
@@ -1661,8 +1657,11 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case CODE_TYPE:
       reinterpret_cast<Code*>(this)->CodeIterateBody(v);
       break;
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
-      JSGlobalPropertyCell::BodyDescriptor::IterateBody(this, v);
+    case CELL_TYPE:
+      Cell::BodyDescriptor::IterateBody(this, v);
+      break;
+    case PROPERTY_CELL_TYPE:
+      PropertyCell::BodyDescriptor::IterateBody(this, v);
       break;
     case SYMBOL_TYPE:
       Symbol::BodyDescriptor::IterateBody(this, v);
@@ -1931,7 +1930,7 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
     int entry = dict->FindEntry(name);
     if (entry != NameDictionary::kNotFound) {
       store_value = dict->ValueAt(entry);
-      JSGlobalPropertyCell::cast(store_value)->set_value(value);
+      PropertyCell::cast(store_value)->set_value(value);
       // Assign an enumeration index to the property and update
       // SetNextEnumerationIndex.
       int index = dict->NextEnumerationIndex();
@@ -1942,10 +1941,10 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
     }
     Heap* heap = GetHeap();
     { MaybeObject* maybe_store_value =
-          heap->AllocateJSGlobalPropertyCell(value);
+          heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
-    JSGlobalPropertyCell::cast(store_value)->set_value(value);
+    PropertyCell::cast(store_value)->set_value(value);
   }
   PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
   Object* result;
@@ -2731,18 +2730,13 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
     PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
     v8::NamedPropertySetter setter =
         v8::ToCData<v8::NamedPropertySetter>(interceptor->setter());
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      Handle<Object> value_unhole(value->IsTheHole() ?
-                                  isolate->heap()->undefined_value() :
-                                  value,
-                                  isolate);
-      result = args.Call(setter,
-                         v8::Utils::ToLocal(name_handle),
-                         v8::Utils::ToLocal(value_unhole));
-    }
+    Handle<Object> value_unhole(value->IsTheHole() ?
+                                isolate->heap()->undefined_value() :
+                                value,
+                                isolate);
+    v8::Handle<v8::Value> result = args.Call(setter,
+                                             v8::Utils::ToLocal(name_handle),
+                                             v8::Utils::ToLocal(value_unhole));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
   }
@@ -2841,17 +2835,11 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     if (call_fun == NULL) return value;
     Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("store", this, name));
-    PropertyCallbackArguments
-      args(isolate, data->data(), this, JSObject::cast(holder));
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      ExternalCallbackScope call_scope(isolate,
-                                       v8::ToCData<Address>(call_obj));
-      args.Call(call_fun,
-                v8::Utils::ToLocal(key),
-                v8::Utils::ToLocal(value_handle));
-    }
+    PropertyCallbackArguments args(
+        isolate, data->data(), this, JSObject::cast(holder));
+    args.Call(call_fun,
+              v8::Utils::ToLocal(key),
+              v8::Utils::ToLocal(value_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
   }
@@ -3267,7 +3255,7 @@ void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
         result->NotFound();
         return;
       }
-      value = JSGlobalPropertyCell::cast(value)->value();
+      value = PropertyCell::cast(value)->value();
     }
     // Make sure to disallow caching for uninitialized constants
     // found in the dictionary-mode objects.
@@ -4182,12 +4170,8 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
         v8::ToCData<v8::NamedPropertyQuery>(interceptor->query());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-has", *holder_handle, name));
-    v8::Handle<v8::Integer> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(query, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Integer> result =
+        args.Call(query, v8::Utils::ToLocal(name_handle));
     if (!result.IsEmpty()) {
       ASSERT(result->IsInt32());
       return static_cast<PropertyAttributes>(result->Int32Value());
@@ -4197,12 +4181,8 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
         v8::ToCData<v8::NamedPropertyGetter>(interceptor->getter());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-get-has", this, name));
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(getter, v8::Utils::ToLocal(name_handle));
     if (!result.IsEmpty()) return DONT_ENUM;
   }
   return holder_handle->GetPropertyAttributePostInterceptor(*receiver_handle,
@@ -4322,12 +4302,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
         v8::ToCData<v8::IndexedPropertyQuery>(interceptor->query());
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-has", this, index));
-    v8::Handle<v8::Integer> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(query, index);
-    }
+    v8::Handle<v8::Integer> result = args.Call(query, index);
     if (!result.IsEmpty())
       return static_cast<PropertyAttributes>(result->Int32Value());
   } else if (!interceptor->getter()->IsUndefined()) {
@@ -4335,12 +4310,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
         v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-get-has", this, index));
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, index);
-    }
+    v8::Handle<v8::Value> result = args.Call(getter, index);
     if (!result.IsEmpty()) return NONE;
   }
 
@@ -4764,7 +4734,7 @@ Object* JSObject::GetHiddenProperty(Name* key) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
     // If the proxy is detached, return undefined.
-    if (proxy_parent->IsNull()) return GetHeap()->undefined_value();
+    if (proxy_parent->IsNull()) return GetHeap()->the_hole_value();
     ASSERT(proxy_parent->IsJSGlobalObject());
     return JSObject::cast(proxy_parent)->GetHiddenProperty(key);
   }
@@ -4778,15 +4748,14 @@ Object* JSObject::GetHiddenProperty(Name* key) {
     if (key == GetHeap()->identity_hash_string()) {
       return inline_value;
     } else {
-      return GetHeap()->undefined_value();
+      return GetHeap()->the_hole_value();
     }
   }
 
-  if (inline_value->IsUndefined()) return GetHeap()->undefined_value();
+  if (inline_value->IsUndefined()) return GetHeap()->the_hole_value();
 
   ObjectHashTable* hashtable = ObjectHashTable::cast(inline_value);
   Object* entry = hashtable->Lookup(key);
-  if (entry->IsTheHole()) return GetHeap()->undefined_value();
   return entry;
 }
 
@@ -5010,12 +4979,8 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(Name* name) {
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-delete", *this_handle, name));
     PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
-    v8::Handle<v8::Boolean> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(deleter, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Boolean> result =
+        args.Call(deleter, v8::Utils::ToLocal(name_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       ASSERT(result->IsBoolean());
@@ -5046,12 +5011,7 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   LOG(isolate,
       ApiIndexedPropertyAccess("interceptor-indexed-delete", this, index));
   PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
-  v8::Handle<v8::Boolean> result;
-  {
-    // Leaving JavaScript.
-    VMState<EXTERNAL> state(isolate);
-    result = args.Call(deleter, index);
-  }
+  v8::Handle<v8::Boolean> result = args.Call(deleter, index);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (!result.IsEmpty()) {
     ASSERT(result->IsBoolean());
@@ -5879,11 +5839,12 @@ static bool UpdateGetterSetterInDictionary(
 }
 
 
-MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
-                                             Object* getter,
-                                             Object* setter,
-                                             PropertyAttributes attributes) {
-  switch (GetElementsKind()) {
+void JSObject::DefineElementAccessor(Handle<JSObject> object,
+                                     uint32_t index,
+                                     Handle<Object> getter,
+                                     Handle<Object> setter,
+                                     PropertyAttributes attributes) {
+  switch (object->GetElementsKind()) {
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
@@ -5901,21 +5862,21 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
       // Ignore getters and setters on pixel and external array elements.
-      return GetHeap()->undefined_value();
+      return;
     case DICTIONARY_ELEMENTS:
-      if (UpdateGetterSetterInDictionary(element_dictionary(),
+      if (UpdateGetterSetterInDictionary(object->element_dictionary(),
                                          index,
-                                         getter,
-                                         setter,
+                                         *getter,
+                                         *setter,
                                          attributes)) {
-        return GetHeap()->undefined_value();
+        return;
       }
       break;
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
       // Ascertain whether we have read-only properties or an existing
       // getter/setter pair in an arguments elements dictionary backing
       // store.
-      FixedArray* parameter_map = FixedArray::cast(elements());
+      FixedArray* parameter_map = FixedArray::cast(object->elements());
       uint32_t length = parameter_map->length();
       Object* probe =
           index < (length - 2) ? parameter_map->get(index + 2) : NULL;
@@ -5926,10 +5887,10 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
               SeededNumberDictionary::cast(arguments);
           if (UpdateGetterSetterInDictionary(dictionary,
                                              index,
-                                             getter,
-                                             setter,
+                                             *getter,
+                                             *setter,
                                              attributes)) {
-            return GetHeap()->undefined_value();
+            return;
           }
         }
       }
@@ -5937,19 +5898,20 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
     }
   }
 
-  AccessorPair* accessors;
-  { MaybeObject* maybe_accessors = GetHeap()->AllocateAccessorPair();
-    if (!maybe_accessors->To(&accessors)) return maybe_accessors;
-  }
-  accessors->SetComponents(getter, setter);
+  Isolate* isolate = object->GetIsolate();
+  Handle<AccessorPair> accessors = isolate->factory()->NewAccessorPair();
+  accessors->SetComponents(*getter, *setter);
 
-  return SetElementCallback(index, accessors, attributes);
+  CALL_HEAP_FUNCTION_VOID(
+      isolate, object->SetElementCallback(index, *accessors, attributes));
 }
 
 
-MaybeObject* JSObject::CreateAccessorPairFor(Name* name) {
-  LookupResult result(GetHeap()->isolate());
-  LocalLookupRealNamedProperty(name, &result);
+Handle<AccessorPair> JSObject::CreateAccessorPairFor(Handle<JSObject> object,
+                                                     Handle<Name> name) {
+  Isolate* isolate = object->GetIsolate();
+  LookupResult result(isolate);
+  object->LocalLookupRealNamedProperty(*name, &result);
   if (result.IsPropertyCallbacks()) {
     // Note that the result can actually have IsDontDelete() == true when we
     // e.g. have to fall back to the slow case while adding a setter after
@@ -5959,47 +5921,37 @@ MaybeObject* JSObject::CreateAccessorPairFor(Name* name) {
     // DefinePropertyAccessor below.
     Object* obj = result.GetCallbackObject();
     if (obj->IsAccessorPair()) {
-      return AccessorPair::cast(obj)->Copy();
+      return AccessorPair::Copy(handle(AccessorPair::cast(obj), isolate));
     }
   }
-  return GetHeap()->AllocateAccessorPair();
+  return isolate->factory()->NewAccessorPair();
 }
 
 
-MaybeObject* JSObject::DefinePropertyAccessor(Name* name,
-                                              Object* getter,
-                                              Object* setter,
-                                              PropertyAttributes attributes) {
+void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
+                                      Handle<Name> name,
+                                      Handle<Object> getter,
+                                      Handle<Object> setter,
+                                      PropertyAttributes attributes) {
   // We could assert that the property is configurable here, but we would need
   // to do a lookup, which seems to be a bit of overkill.
-  Heap* heap = GetHeap();
   bool only_attribute_changes = getter->IsNull() && setter->IsNull();
-  if (HasFastProperties() && !only_attribute_changes &&
-      (map()->NumberOfOwnDescriptors() <
+  if (object->HasFastProperties() && !only_attribute_changes &&
+      (object->map()->NumberOfOwnDescriptors() <
        DescriptorArray::kMaxNumberOfDescriptors)) {
-    MaybeObject* getterOk = heap->undefined_value();
-    if (!getter->IsNull()) {
-      getterOk = DefineFastAccessor(name, ACCESSOR_GETTER, getter, attributes);
-      if (getterOk->IsFailure()) return getterOk;
-    }
-
-    MaybeObject* setterOk = heap->undefined_value();
-    if (getterOk != heap->null_value() && !setter->IsNull()) {
-      setterOk = DefineFastAccessor(name, ACCESSOR_SETTER, setter, attributes);
-      if (setterOk->IsFailure()) return setterOk;
-    }
-
-    if (getterOk != heap->null_value() && setterOk != heap->null_value()) {
-      return heap->undefined_value();
-    }
+    bool getterOk = getter->IsNull() ||
+        DefineFastAccessor(object, name, ACCESSOR_GETTER, getter, attributes);
+    bool setterOk = !getterOk || setter->IsNull() ||
+        DefineFastAccessor(object, name, ACCESSOR_SETTER, setter, attributes);
+    if (getterOk && setterOk) return;
   }
 
-  AccessorPair* accessors;
-  MaybeObject* maybe_accessors = CreateAccessorPairFor(name);
-  if (!maybe_accessors->To(&accessors)) return maybe_accessors;
+  Handle<AccessorPair> accessors = CreateAccessorPairFor(object, name);
+  accessors->SetComponents(*getter, *setter);
 
-  accessors->SetComponents(getter, setter);
-  return SetPropertyCallback(name, accessors, attributes);
+  CALL_HEAP_FUNCTION_VOID(
+      object->GetIsolate(),
+      object->SetPropertyCallback(*name, *accessors, attributes));
 }
 
 
@@ -6101,29 +6053,21 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
                               Handle<Object> getter,
                               Handle<Object> setter,
                               PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->DefineAccessor(*name, *getter, *setter, attributes));
-}
-
-MaybeObject* JSObject::DefineAccessor(Name* name_raw,
-                                      Object* getter_raw,
-                                      Object* setter_raw,
-                                      PropertyAttributes attributes) {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = object->GetIsolate();
   // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(this, name_raw, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
-    return isolate->heap()->undefined_value();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_SET);
+    return;
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return this;
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->DefineAccessor(
-        name_raw, getter_raw, setter_raw, attributes);
+    DefineAccessor(
+        Handle<JSObject>::cast(proto), name, getter, setter, attributes);
+    return;
   }
 
   // Make sure that the top context does not change when doing callbacks or
@@ -6131,68 +6075,58 @@ MaybeObject* JSObject::DefineAccessor(Name* name_raw,
   AssertNoContextChange ncc;
 
   // Try to flatten before operating on the string.
-  if (name_raw->IsString()) String::cast(name_raw)->TryFlatten();
+  if (name->IsString()) String::cast(*name)->TryFlatten();
 
-  if (!CanSetCallback(name_raw)) return isolate->heap()->undefined_value();
-
-  // From this point on everything needs to be handlified.
-  HandleScope scope(isolate);
-  Handle<JSObject> self(this);
-  Handle<Name> name(name_raw);
-  Handle<Object> getter(getter_raw, isolate);
-  Handle<Object> setter(setter_raw, isolate);
+  if (!object->CanSetCallback(*name)) return;
 
   uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
+  bool is_observed = FLAG_harmony_observation && object->map()->is_observed();
   bool preexists = false;
   if (is_observed) {
     if (is_element) {
-      preexists = HasLocalElement(index);
-      if (preexists && self->GetLocalElementAccessorPair(index) == NULL) {
-        old_value = Object::GetElement(self, index);
+      preexists = object->HasLocalElement(index);
+      if (preexists && object->GetLocalElementAccessorPair(index) == NULL) {
+        old_value = Object::GetElement(object, index);
       }
     } else {
       LookupResult lookup(isolate);
-      LocalLookup(*name, &lookup, true);
+      object->LocalLookup(*name, &lookup, true);
       preexists = lookup.IsProperty();
       if (preexists && lookup.IsDataProperty()) {
-        old_value = Object::GetProperty(self, name);
+        old_value = Object::GetProperty(object, name);
       }
     }
   }
 
-  MaybeObject* result = is_element ?
-    self->DefineElementAccessor(index, *getter, *setter, attributes) :
-    self->DefinePropertyAccessor(*name, *getter, *setter, attributes);
-
-  Handle<Object> hresult;
-  if (!result->ToHandle(&hresult, isolate)) return result;
+  if (is_element) {
+    DefineElementAccessor(object, index, getter, setter, attributes);
+  } else {
+    DefinePropertyAccessor(object, name, getter, setter, attributes);
+  }
 
   if (is_observed) {
     const char* type = preexists ? "reconfigured" : "new";
-    EnqueueChangeRecord(self, type, name, old_value);
+    EnqueueChangeRecord(object, type, name, old_value);
   }
-
-  return *hresult;
 }
 
 
-static MaybeObject* TryAccessorTransition(JSObject* self,
-                                          Map* transitioned_map,
-                                          int target_descriptor,
-                                          AccessorComponent component,
-                                          Object* accessor,
-                                          PropertyAttributes attributes) {
+static bool TryAccessorTransition(JSObject* self,
+                                  Map* transitioned_map,
+                                  int target_descriptor,
+                                  AccessorComponent component,
+                                  Object* accessor,
+                                  PropertyAttributes attributes) {
   DescriptorArray* descs = transitioned_map->instance_descriptors();
   PropertyDetails details = descs->GetDetails(target_descriptor);
 
   // If the transition target was not callbacks, fall back to the slow case.
-  if (details.type() != CALLBACKS) return self->GetHeap()->null_value();
+  if (details.type() != CALLBACKS) return false;
   Object* descriptor = descs->GetCallbacksObject(target_descriptor);
-  if (!descriptor->IsAccessorPair()) return self->GetHeap()->null_value();
+  if (!descriptor->IsAccessorPair()) return false;
 
   Object* target_accessor = AccessorPair::cast(descriptor)->get(component);
   PropertyAttributes target_attributes = details.attributes();
@@ -6200,25 +6134,46 @@ static MaybeObject* TryAccessorTransition(JSObject* self,
   // Reuse transition if adding same accessor with same attributes.
   if (target_accessor == accessor && target_attributes == attributes) {
     self->set_map(transitioned_map);
-    return self;
+    return true;
   }
 
   // If either not the same accessor, or not the same attributes, fall back to
   // the slow case.
-  return self->GetHeap()->null_value();
+  return false;
 }
 
 
-MaybeObject* JSObject::DefineFastAccessor(Name* name,
-                                          AccessorComponent component,
-                                          Object* accessor,
-                                          PropertyAttributes attributes) {
+static MaybeObject* CopyInsertDescriptor(Map* map,
+                                         Name* name,
+                                         AccessorPair* accessors,
+                                         PropertyAttributes attributes) {
+  CallbacksDescriptor new_accessors_desc(name, accessors, attributes);
+  return map->CopyInsertDescriptor(&new_accessors_desc, INSERT_TRANSITION);
+}
+
+
+static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
+                                        Handle<Name> name,
+                                        Handle<AccessorPair> accessors,
+                                        PropertyAttributes attributes) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(),
+                     CopyInsertDescriptor(*map, *name, *accessors, attributes),
+                     Map);
+}
+
+
+bool JSObject::DefineFastAccessor(Handle<JSObject> object,
+                                  Handle<Name> name,
+                                  AccessorComponent component,
+                                  Handle<Object> accessor,
+                                  PropertyAttributes attributes) {
   ASSERT(accessor->IsSpecFunction() || accessor->IsUndefined());
-  LookupResult result(GetIsolate());
-  LocalLookup(name, &result);
+  Isolate* isolate = object->GetIsolate();
+  LookupResult result(isolate);
+  object->LocalLookup(*name, &result);
 
   if (result.IsFound() && !result.IsPropertyCallbacks()) {
-    return GetHeap()->null_value();
+    return false;
   }
 
   // Return success if the same accessor with the same attributes already exist.
@@ -6228,65 +6183,53 @@ MaybeObject* JSObject::DefineFastAccessor(Name* name,
     if (callback_value->IsAccessorPair()) {
       source_accessors = AccessorPair::cast(callback_value);
       Object* entry = source_accessors->get(component);
-      if (entry == accessor && result.GetAttributes() == attributes) {
-        return this;
+      if (entry == *accessor && result.GetAttributes() == attributes) {
+        return true;
       }
     } else {
-      return GetHeap()->null_value();
+      return false;
     }
 
     int descriptor_number = result.GetDescriptorIndex();
 
-    map()->LookupTransition(this, name, &result);
+    object->map()->LookupTransition(*object, *name, &result);
 
     if (result.IsFound()) {
       Map* target = result.GetTransitionTarget();
       ASSERT(target->NumberOfOwnDescriptors() ==
-             map()->NumberOfOwnDescriptors());
+             object->map()->NumberOfOwnDescriptors());
       // This works since descriptors are sorted in order of addition.
-      ASSERT(map()->instance_descriptors()->GetKey(descriptor_number) == name);
-      return TryAccessorTransition(
-          this, target, descriptor_number, component, accessor, attributes);
+      ASSERT(object->map()->instance_descriptors()->
+             GetKey(descriptor_number) == *name);
+      return TryAccessorTransition(*object, target, descriptor_number,
+                                   component, *accessor, attributes);
     }
   } else {
     // If not, lookup a transition.
-    map()->LookupTransition(this, name, &result);
+    object->map()->LookupTransition(*object, *name, &result);
 
     // If there is a transition, try to follow it.
     if (result.IsFound()) {
       Map* target = result.GetTransitionTarget();
       int descriptor_number = target->LastAdded();
       ASSERT(target->instance_descriptors()->GetKey(descriptor_number)
-             ->Equals(name));
-      return TryAccessorTransition(
-          this, target, descriptor_number, component, accessor, attributes);
+             ->Equals(*name));
+      return TryAccessorTransition(*object, target, descriptor_number,
+                                   component, *accessor, attributes);
     }
   }
 
   // If there is no transition yet, add a transition to the a new accessor pair
-  // containing the accessor.
-  AccessorPair* accessors;
-  MaybeObject* maybe_accessors;
-
-  // Allocate a new pair if there were no source accessors. Otherwise, copy the
-  // pair and modify the accessor.
-  if (source_accessors != NULL) {
-    maybe_accessors = source_accessors->Copy();
-  } else {
-    maybe_accessors = GetHeap()->AllocateAccessorPair();
-  }
-  if (!maybe_accessors->To(&accessors)) return maybe_accessors;
-  accessors->set(component, accessor);
-
-  CallbacksDescriptor new_accessors_desc(name, accessors, attributes);
-
-  Map* new_map;
-  MaybeObject* maybe_new_map =
-      map()->CopyInsertDescriptor(&new_accessors_desc, INSERT_TRANSITION);
-  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
-  set_map(new_map);
-  return this;
+  // containing the accessor.  Allocate a new pair if there were no source
+  // accessors.  Otherwise, copy the pair and modify the accessor.
+  Handle<AccessorPair> accessors = source_accessors != NULL
+      ? AccessorPair::Copy(Handle<AccessorPair>(source_accessors))
+      : isolate->factory()->NewAccessorPair();
+  accessors->set(component, *accessor);
+  Handle<Map> new_map = CopyInsertDescriptor(Handle<Map>(object->map()),
+                                             name, accessors, attributes);
+  object->set_map(*new_map);
+  return true;
 }
 
 
@@ -6727,6 +6670,11 @@ MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
   return CopyReplaceDescriptors(new_descriptors, OMIT_TRANSITION);
+}
+
+
+Handle<Map> Map::Copy(Handle<Map> map) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(), map->Copy(), Map);
 }
 
 
@@ -7861,14 +7809,10 @@ void DescriptorArray::Sort() {
 }
 
 
-MaybeObject* AccessorPair::Copy() {
-  Heap* heap = GetHeap();
-  AccessorPair* copy;
-  MaybeObject* maybe_copy = heap->AllocateAccessorPair();
-  if (!maybe_copy->To(&copy)) return maybe_copy;
-
-  copy->set_getter(getter());
-  copy->set_setter(setter());
+Handle<AccessorPair> AccessorPair::Copy(Handle<AccessorPair> pair) {
+  Handle<AccessorPair> copy = pair->GetIsolate()->factory()->NewAccessorPair();
+  copy->set_getter(pair->getter());
+  copy->set_setter(pair->setter());
   return copy;
 }
 
@@ -8905,8 +8849,8 @@ AllocationSiteInfo* AllocationSiteInfo::FindForJSObject(JSObject* object) {
 
 bool AllocationSiteInfo::GetElementsKindPayload(ElementsKind* kind) {
   ASSERT(kind != NULL);
-  if (payload()->IsJSGlobalPropertyCell()) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(payload());
+  if (payload()->IsCell()) {
+    Cell* cell = Cell::cast(payload());
     Object* cell_contents = cell->value();
     if (cell_contents->IsSmi()) {
       *kind = static_cast<ElementsKind>(
@@ -9181,7 +9125,8 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 
 
 void JSFunction::MarkForLazyRecompilation() {
-  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
   set_code_no_write_barrier(
@@ -9191,9 +9136,13 @@ void JSFunction::MarkForLazyRecompilation() {
 
 
 void JSFunction::MarkForParallelRecompilation() {
-  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  ASSERT(FLAG_parallel_recompilation);
+  if (!FLAG_parallel_recompilation) {
+    JSFunction::MarkForLazyRecompilation();
+    return;
+  }
   if (FLAG_trace_parallel_recompilation) {
     PrintF("  ** Marking ");
     PrintName();
@@ -9206,7 +9155,10 @@ void JSFunction::MarkForParallelRecompilation() {
 
 
 void JSFunction::MarkForInstallingRecompiledCode() {
-  ASSERT(is_compiled() && !IsOptimized());
+  // The debugger could have switched the builtin to lazy compile.
+  // In that case, simply carry on.  It will be dealt with later.
+  ASSERT(IsInRecompileQueue() || GetIsolate()->DebuggerHasBreakPoints());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(FLAG_parallel_recompilation);
   set_code_no_write_barrier(
@@ -9216,7 +9168,10 @@ void JSFunction::MarkForInstallingRecompiledCode() {
 
 
 void JSFunction::MarkInRecompileQueue() {
-  ASSERT(is_compiled() && !IsOptimized());
+  // We can only arrive here via the parallel-recompilation builtin.  If
+  // break points were set, the code would point to the lazy-compile builtin.
+  ASSERT(!GetIsolate()->DebuggerHasBreakPoints());
+  ASSERT(IsMarkedForParallelRecompilation() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(FLAG_parallel_recompilation);
   if (FLAG_trace_parallel_recompilation) {
@@ -9395,7 +9350,6 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
   bool result = true;
   if (function->shared()->is_compiled()) {
     function->ReplaceCode(function->shared()->code());
-    function->shared()->set_code_age(0);
   } else {
     ASSERT(function->shared()->allows_lazy_compilation());
     CompilationInfoWithZone info(function);
@@ -9432,6 +9386,11 @@ bool JSFunction::IsInlineable() {
   // If we never ran this (unlikely) then lets try to optimize it.
   if (code->kind() != Code::FUNCTION) return true;
   return code->optimizable();
+}
+
+
+void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(), object->OptimizeAsPrototype());
 }
 
 
@@ -9980,13 +9939,13 @@ void ObjectVisitor::VisitCodeEntry(Address entry_address) {
 }
 
 
-void ObjectVisitor::VisitGlobalPropertyCell(RelocInfo* rinfo) {
-  ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
+void ObjectVisitor::VisitCell(RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::CELL);
   Object* cell = rinfo->target_cell();
   Object* old_cell = cell;
   VisitPointer(&cell);
   if (cell != old_cell) {
-    rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell));
+    rinfo->set_target_cell(reinterpret_cast<Cell*>(cell));
   }
 }
 
@@ -10012,9 +9971,15 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
   VisitExternalReferences(p, p + 1);
 }
 
-byte Code::compare_nil_types() {
+byte Code::compare_nil_state() {
   ASSERT(is_compare_nil_ic_stub());
   return CompareNilICStub::ExtractTypesFromExtraICState(
+      extended_extra_ic_state());
+}
+
+byte Code::compare_nil_value() {
+  ASSERT(is_compare_nil_ic_stub());
+  return CompareNilICStub::ExtractNilValueFromExtraICState(
       extended_extra_ic_state());
 }
 
@@ -10048,7 +10013,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
   intptr_t delta = instruction_start() - desc.buffer;
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::GLOBAL_PROPERTY_CELL) |
+                  RelocInfo::ModeMask(RelocInfo::CELL) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
                   RelocInfo::kApplyMask;
   // Needed to find target_object and runtime_entry on X64
@@ -10059,8 +10024,8 @@ void Code::CopyFrom(const CodeDesc& desc) {
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(*p, SKIP_WRITE_BARRIER);
-    } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-      Handle<JSGlobalPropertyCell> cell  = it.rinfo()->target_cell_handle();
+    } else if (mode == RelocInfo::CELL) {
+      Handle<Cell> cell  = it.rinfo()->target_cell_handle();
       it.rinfo()->set_target_cell(*cell, SKIP_WRITE_BARRIER);
     } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct
@@ -10142,29 +10107,45 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 }
 
 
-Map* Code::FindFirstMap() {
+Object* Code::FindNthObject(int n, Map* match_map) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
-    if (object->IsMap()) return Map::cast(object);
+    if (object->IsHeapObject()) {
+      if (HeapObject::cast(object)->map() == match_map) {
+        if (--n == 0) return object;
+      }
+    }
   }
   return NULL;
 }
 
 
-void Code::ReplaceFirstMap(Map* replace_with) {
+Map* Code::FindFirstMap() {
+  Object* result = FindNthObject(1, GetHeap()->meta_map());
+  return (result != NULL) ? Map::cast(result) : NULL;
+}
+
+
+void Code::ReplaceNthObject(int n,
+                            Map* match_map,
+                            Object* replace_with) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
-    if (object->IsMap()) {
-      info->set_target_object(replace_with);
-      return;
+    if (object->IsHeapObject()) {
+      if (HeapObject::cast(object)->map() == match_map) {
+        if (--n == 0) {
+          info->set_target_object(replace_with);
+          return;
+        }
+      }
     }
   }
   UNREACHABLE();
@@ -10180,6 +10161,11 @@ void Code::FindAllMaps(MapHandleList* maps) {
     Object* object = info->target_object();
     if (object->IsMap()) maps->Add(Handle<Map>(Map::cast(object)));
   }
+}
+
+
+void Code::ReplaceFirstMap(Map* replace_with) {
+  ReplaceNthObject(1, GetHeap()->meta_map(), replace_with);
 }
 
 
@@ -10224,6 +10210,21 @@ Name* Code::FindFirstName() {
 }
 
 
+void Code::ReplaceNthCell(int n, Cell* replace_with) {
+  ASSERT(is_inline_cache_stub());
+  DisallowHeapAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::CELL);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    if (--n == 0) {
+      info->set_target_cell(replace_with);
+      return;
+    }
+  }
+  UNREACHABLE();
+}
+
+
 void Code::ClearInlineCaches() {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
@@ -10246,7 +10247,7 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
     TypeFeedbackCells* type_feedback_cells =
         TypeFeedbackInfo::cast(raw_info)->type_feedback_cells();
     for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
-      JSGlobalPropertyCell* cell = type_feedback_cells->Cell(i);
+      Cell* cell = type_feedback_cells->GetCell(i);
       cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
     }
   }
@@ -10296,6 +10297,18 @@ byte* Code::FindCodeAgeSequence() {
        (kind() == FUNCTION && !has_debug_break_slots()))
       ? instruction_start() + prologue_offset()
       : NULL;
+}
+
+
+int Code::GetAge() {
+  byte* sequence = FindCodeAgeSequence();
+  if (sequence == NULL) {
+    return Code::kNoAge;
+  }
+  Age age;
+  MarkingParity parity;
+  GetCodeAgeAndParity(sequence, &age, &parity);
+  return age;
 }
 
 
@@ -10366,24 +10379,26 @@ void Code::PrintDeoptLocation(int bailout_id) {
 }
 
 
+bool Code::CanDeoptAt(Address pc) {
+  DeoptimizationInputData* deopt_data =
+      DeoptimizationInputData::cast(deoptimization_data());
+  Address code_start_address = instruction_start();
+  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
+    if (deopt_data->Pc(i)->value() == -1) continue;
+    Address address = code_start_address + deopt_data->Pc(i)->value();
+    if (address == pc) return true;
+  }
+  return false;
+}
+
+
 // Identify kind of code.
 const char* Code::Kind2String(Kind kind) {
   switch (kind) {
-    case FUNCTION: return "FUNCTION";
-    case OPTIMIZED_FUNCTION: return "OPTIMIZED_FUNCTION";
-    case STUB: return "STUB";
-    case BUILTIN: return "BUILTIN";
-    case LOAD_IC: return "LOAD_IC";
-    case KEYED_LOAD_IC: return "KEYED_LOAD_IC";
-    case STORE_IC: return "STORE_IC";
-    case KEYED_STORE_IC: return "KEYED_STORE_IC";
-    case CALL_IC: return "CALL_IC";
-    case KEYED_CALL_IC: return "KEYED_CALL_IC";
-    case UNARY_OP_IC: return "UNARY_OP_IC";
-    case BINARY_OP_IC: return "BINARY_OP_IC";
-    case COMPARE_IC: return "COMPARE_IC";
-    case COMPARE_NIL_IC: return "COMPARE_NIL_IC";
-    case TO_BOOLEAN_IC: return "TO_BOOLEAN_IC";
+#define CASE(name) case name: return #name;
+    CODE_KIND_LIST(CASE)
+#undef CASE
+    case NUMBER_OF_KINDS: break;
   }
   UNREACHABLE();
   return NULL;
@@ -10478,9 +10493,6 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
-        case Translation::DUPLICATE:
-          break;
-
         case Translation::REGISTER: {
           int reg_code = iterator.Next();
             PrintF(out, "{input=%s}", converter.NameOfCPURegister(reg_code));
@@ -10538,11 +10550,8 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         }
 
         case Translation::ARGUMENTS_OBJECT: {
-          bool args_known = iterator.Next();
-          int args_index = iterator.Next();
           int args_length = iterator.Next();
-          PrintF(out, "{index=%d, length=%d, known=%d}",
-                 args_index, args_length, args_known);
+          PrintF(out, "{length=%d}", args_length);
           break;
         }
       }
@@ -11010,63 +11019,61 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
 }
 
 
-Map* Map::GetPrototypeTransition(Object* prototype) {
-  FixedArray* cache = GetPrototypeTransitions();
-  int number_of_transitions = NumberOfProtoTransitions();
+Handle<Map> Map::GetPrototypeTransition(Handle<Map> map,
+                                        Handle<Object> prototype) {
+  FixedArray* cache = map->GetPrototypeTransitions();
+  int number_of_transitions = map->NumberOfProtoTransitions();
   const int proto_offset =
       kProtoTransitionHeaderSize + kProtoTransitionPrototypeOffset;
   const int map_offset = kProtoTransitionHeaderSize + kProtoTransitionMapOffset;
   const int step = kProtoTransitionElementsPerEntry;
   for (int i = 0; i < number_of_transitions; i++) {
-    if (cache->get(proto_offset + i * step) == prototype) {
-      Object* map = cache->get(map_offset + i * step);
-      return Map::cast(map);
+    if (cache->get(proto_offset + i * step) == *prototype) {
+      Object* result = cache->get(map_offset + i * step);
+      return Handle<Map>(Map::cast(result));
     }
   }
-  return NULL;
+  return Handle<Map>();
 }
 
 
-MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
-  ASSERT(map->IsMap());
-  ASSERT(HeapObject::cast(prototype)->map()->IsMap());
+Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
+                                        Handle<Object> prototype,
+                                        Handle<Map> target_map) {
+  ASSERT(target_map->IsMap());
+  ASSERT(HeapObject::cast(*prototype)->map()->IsMap());
   // Don't cache prototype transition if this map is shared.
-  if (is_shared() || !FLAG_cache_prototype_transitions) return this;
-
-  FixedArray* cache = GetPrototypeTransitions();
+  if (map->is_shared() || !FLAG_cache_prototype_transitions) return map;
 
   const int step = kProtoTransitionElementsPerEntry;
   const int header = kProtoTransitionHeaderSize;
 
+  Handle<FixedArray> cache(map->GetPrototypeTransitions());
   int capacity = (cache->length() - header) / step;
-
-  int transitions = NumberOfProtoTransitions() + 1;
+  int transitions = map->NumberOfProtoTransitions() + 1;
 
   if (transitions > capacity) {
-    if (capacity > kMaxCachedPrototypeTransitions) return this;
+    if (capacity > kMaxCachedPrototypeTransitions) return map;
 
-    FixedArray* new_cache;
     // Grow array by factor 2 over and above what we need.
-    { MaybeObject* maybe_cache =
-          GetHeap()->AllocateFixedArray(transitions * 2 * step + header);
-      if (!maybe_cache->To(&new_cache)) return maybe_cache;
-    }
+    Factory* factory = map->GetIsolate()->factory();
+    cache = factory->CopySizeFixedArray(cache, transitions * 2 * step + header);
 
-    for (int i = 0; i < capacity * step; i++) {
-      new_cache->set(i + header, cache->get(i + header));
-    }
-    cache = new_cache;
-    MaybeObject* set_result = SetPrototypeTransitions(cache);
-    if (set_result->IsFailure()) return set_result;
+    CALL_AND_RETRY_OR_DIE(map->GetIsolate(),
+                          map->SetPrototypeTransitions(*cache),
+                          break,
+                          return Handle<Map>());
   }
 
-  int last = transitions - 1;
+  // Reload number of transitions as GC might shrink them.
+  int last = map->NumberOfProtoTransitions();
+  int entry = header + last * step;
 
-  cache->set(header + last * step + kProtoTransitionPrototypeOffset, prototype);
-  cache->set(header + last * step + kProtoTransitionMapOffset, map);
-  SetNumberOfProtoTransitions(transitions);
+  cache->set(entry + kProtoTransitionPrototypeOffset, *prototype);
+  cache->set(entry + kProtoTransitionMapOffset, *target_map);
+  map->SetNumberOfProtoTransitions(transitions);
 
-  return cache;
+  return map;
 }
 
 
@@ -11091,6 +11098,24 @@ void Map::ZapPrototypeTransitions() {
 }
 
 
+void Map::AddDependentCompilationInfo(DependentCode::DependencyGroup group,
+                                      CompilationInfo* info) {
+  Handle<DependentCode> dep(dependent_code());
+  Handle<DependentCode> codes =
+      DependentCode::Insert(dep, group, info->object_wrapper());
+  if (*codes != dependent_code()) set_dependent_code(*codes);
+  info->dependencies(group)->Add(Handle<HeapObject>(this), info->zone());
+}
+
+
+void Map::AddDependentCode(DependentCode::DependencyGroup group,
+                           Handle<Code> code) {
+  Handle<DependentCode> codes = DependentCode::Insert(
+      Handle<DependentCode>(dependent_code()), group, code);
+  if (*codes != dependent_code()) set_dependent_code(*codes);
+}
+
+
 DependentCode::GroupStartIndexes::GroupStartIndexes(DependentCode* entries) {
   Recompute(entries);
 }
@@ -11105,15 +11130,25 @@ void DependentCode::GroupStartIndexes::Recompute(DependentCode* entries) {
 }
 
 
+DependentCode* DependentCode::ForObject(Handle<HeapObject> object,
+                                        DependencyGroup group) {
+  AllowDeferredHandleDereference dependencies_are_safe;
+  if (group == DependentCode::kPropertyCellChangedGroup) {
+    return Handle<PropertyCell>::cast(object)->dependent_code();
+  }
+  return Handle<Map>::cast(object)->dependent_code();
+}
+
+
 Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
                                             DependencyGroup group,
-                                            Handle<Code> value) {
+                                            Handle<Object> object) {
   GroupStartIndexes starts(*entries);
   int start = starts.at(group);
   int end = starts.at(group + 1);
   int number_of_entries = starts.number_of_entries();
-  if (start < end && entries->code_at(end - 1) == *value) {
-    // Do not append the code if it is already in the array.
+  if (start < end && entries->object_at(end - 1) == *object) {
+    // Do not append the compilation info if it is already in the array.
     // It is sufficient to just check only the last element because
     // we process embedded maps of an optimized code in one batch.
     return entries;
@@ -11130,7 +11165,7 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
     end = starts.at(group + 1);
     number_of_entries = starts.number_of_entries();
     for (int i = 0; i < number_of_entries; i++) {
-      entries->clear_code_at(i);
+      entries->clear_at(i);
     }
     // If the old fixed array was empty, we need to reset counters of the
     // new array.
@@ -11142,17 +11177,79 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
     entries = new_entries;
   }
   entries->ExtendGroup(group);
-  entries->set_code_at(end, *value);
+  entries->set_object_at(end, *object);
   entries->set_number_of_entries(group, end + 1 - start);
   return entries;
 }
 
 
+void DependentCode::UpdateToFinishedCode(DependencyGroup group,
+                                         CompilationInfo* info,
+                                         Code* code) {
+  DisallowHeapAllocation no_gc;
+  AllowDeferredHandleDereference get_object_wrapper;
+  Foreign* info_wrapper = *info->object_wrapper();
+  GroupStartIndexes starts(this);
+  int start = starts.at(group);
+  int end = starts.at(group + 1);
+  for (int i = start; i < end; i++) {
+    if (object_at(i) == info_wrapper) {
+      set_object_at(i, code);
+      break;
+    }
+  }
+
+#ifdef DEBUG
+  for (int i = start; i < end; i++) {
+    ASSERT(is_code_at(i) || compilation_info_at(i) != info);
+  }
+#endif
+}
+
+
+void DependentCode::RemoveCompilationInfo(DependentCode::DependencyGroup group,
+                                          CompilationInfo* info) {
+  DisallowHeapAllocation no_allocation;
+  AllowDeferredHandleDereference get_object_wrapper;
+  Foreign* info_wrapper = *info->object_wrapper();
+  GroupStartIndexes starts(this);
+  int start = starts.at(group);
+  int end = starts.at(group + 1);
+  // Find compilation info wrapper.
+  int info_pos = -1;
+  for (int i = start; i < end; i++) {
+    if (object_at(i) == info_wrapper) {
+      info_pos = i;
+      break;
+    }
+  }
+  if (info_pos == -1) return;  // Not found.
+  int gap = info_pos;
+  // Use the last of each group to fill the gap in the previous group.
+  for (int i = group; i < kGroupCount; i++) {
+    int last_of_group = starts.at(i + 1) - 1;
+    ASSERT(last_of_group >= gap);
+    if (last_of_group == gap) continue;
+    copy(last_of_group, gap);
+    gap = last_of_group;
+  }
+  ASSERT(gap == starts.number_of_entries() - 1);
+  clear_at(gap);  // Clear last gap.
+  set_number_of_entries(group, end - start - 1);
+
+#ifdef DEBUG
+  for (int i = start; i < end - 1; i++) {
+    ASSERT(is_code_at(i) || compilation_info_at(i) != info);
+  }
+#endif
+}
+
+
 bool DependentCode::Contains(DependencyGroup group, Code* code) {
   GroupStartIndexes starts(this);
-  int number_of_entries = starts.at(kGroupCount);
+  int number_of_entries = starts.number_of_entries();
   for (int i = 0; i < number_of_entries; i++) {
-    if (code_at(i) == code) return true;
+    if (object_at(i) == code) return true;
   }
   return false;
 }
@@ -11173,20 +11270,25 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   DependentCode::GroupStartIndexes starts(this);
   int start = starts.at(group);
   int end = starts.at(group + 1);
-  int number_of_entries = starts.at(DependentCode::kGroupCount);
+  int code_entries = starts.number_of_entries();
   if (start == end) return;
   for (int i = start; i < end; i++) {
-    Code* code = code_at(i);
-    code->set_marked_for_deoptimization(true);
+    if (is_code_at(i)) {
+      Code* code = code_at(i);
+      code->set_marked_for_deoptimization(true);
+    } else {
+      CompilationInfo* info = compilation_info_at(i);
+      info->AbortDueToDependencyChange();
+    }
   }
   // Compact the array by moving all subsequent groups to fill in the new holes.
-  for (int src = end, dst = start; src < number_of_entries; src++, dst++) {
-    set_code_at(dst, code_at(src));
+  for (int src = end, dst = start; src < code_entries; src++, dst++) {
+    copy(src, dst);
   }
   // Now the holes are at the end of the array, zap them for heap-verifier.
   int removed = end - start;
-  for (int i = number_of_entries - removed; i < number_of_entries; i++) {
-    clear_code_at(i);
+  for (int i = code_entries - removed; i < code_entries; i++) {
+    clear_at(i);
   }
   set_number_of_entries(group, 0);
   DeoptimizeDependentCodeFilter filter;
@@ -11194,13 +11296,14 @@ void DependentCode::DeoptimizeDependentCodeGroup(
 }
 
 
-MaybeObject* JSReceiver::SetPrototype(Object* value,
+Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
+                                      Handle<Object> value,
                                       bool skip_hidden_prototypes) {
 #ifdef DEBUG
-  int size = Size();
+  int size = object->Size();
 #endif
 
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = object->GetIsolate();
   Heap* heap = isolate->heap();
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.
@@ -11214,70 +11317,64 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   // Implementation specific extensions that modify [[Class]], [[Prototype]]
   // or [[Extensible]] must not violate the invariants defined in the preceding
   // paragraph.
-  if (!this->map()->is_extensible()) {
-    HandleScope scope(isolate);
-    Handle<Object> handle(this, isolate);
-    return isolate->Throw(
-        *isolate->factory()->NewTypeError("non_extensible_proto",
-                                          HandleVector<Object>(&handle, 1)));
+  if (!object->map()->is_extensible()) {
+    Handle<Object> args[] = { object };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "non_extensible_proto", HandleVector(args, ARRAY_SIZE(args)));
+    isolate->Throw(*error);
+    return Handle<Object>();
   }
 
   // Before we can set the prototype we need to be sure
   // prototype cycles are prevented.
   // It is sufficient to validate that the receiver is not in the new prototype
   // chain.
-  for (Object* pt = value;
+  for (Object* pt = *value;
        pt != heap->null_value();
        pt = pt->GetPrototype(isolate)) {
-    if (JSReceiver::cast(pt) == this) {
+    if (JSReceiver::cast(pt) == *object) {
       // Cycle detected.
-      HandleScope scope(isolate);
-      return isolate->Throw(
-          *isolate->factory()->NewError("cyclic_proto",
-                                        HandleVector<Object>(NULL, 0)));
+      Handle<Object> error = isolate->factory()->NewError(
+          "cyclic_proto", HandleVector<Object>(NULL, 0));
+      isolate->Throw(*error);
+      return Handle<Object>();
     }
   }
 
-  JSReceiver* real_receiver = this;
+  Handle<JSObject> real_receiver = object;
 
   if (skip_hidden_prototypes) {
     // Find the first object in the chain whose prototype object is not
     // hidden and set the new prototype on that object.
     Object* current_proto = real_receiver->GetPrototype();
     while (current_proto->IsJSObject() &&
-          JSReceiver::cast(current_proto)->map()->is_hidden_prototype()) {
-      real_receiver = JSReceiver::cast(current_proto);
+          JSObject::cast(current_proto)->map()->is_hidden_prototype()) {
+      real_receiver = handle(JSObject::cast(current_proto), isolate);
       current_proto = current_proto->GetPrototype(isolate);
     }
   }
 
   // Set the new prototype of the object.
-  Map* map = real_receiver->map();
+  Handle<Map> map(real_receiver->map());
 
   // Nothing to do if prototype is already set.
-  if (map->prototype() == value) return value;
+  if (map->prototype() == *value) return value;
 
   if (value->IsJSObject()) {
-    MaybeObject* ok = JSObject::cast(value)->OptimizeAsPrototype();
-    if (ok->IsFailure()) return ok;
+    JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
   }
 
-  Map* new_map = map->GetPrototypeTransition(value);
-  if (new_map == NULL) {
-    MaybeObject* maybe_new_map = map->Copy();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
-    MaybeObject* maybe_new_cache =
-        map->PutPrototypeTransition(value, new_map);
-    if (maybe_new_cache->IsFailure()) return maybe_new_cache;
-
-    new_map->set_prototype(value);
+  Handle<Map> new_map = Map::GetPrototypeTransition(map, value);
+  if (new_map.is_null()) {
+    new_map = Map::Copy(map);
+    Map::PutPrototypeTransition(map, value, new_map);
+    new_map->set_prototype(*value);
   }
-  ASSERT(new_map->prototype() == value);
-  real_receiver->set_map(new_map);
+  ASSERT(new_map->prototype() == *value);
+  real_receiver->set_map(*new_map);
 
   heap->ClearInstanceofCache();
-  ASSERT(size == Size());
+  ASSERT(size == object->Size());
   return value;
 }
 
@@ -11363,12 +11460,8 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-set", this, index));
     PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(setter, index, v8::Utils::ToLocal(value_handle));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(setter, index, v8::Utils::ToLocal(value_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
   }
@@ -11406,12 +11499,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     LOG(isolate, ApiNamedPropertyAccess("load", *self, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *self, *holder_handle);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(call_fun, v8::Utils::ToLocal(key));
-    }
+    v8::Handle<v8::Value> result = args.Call(call_fun, v8::Utils::ToLocal(key));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) return isolate->heap()->undefined_value();
     Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
@@ -11473,13 +11561,9 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
     LOG(isolate, ApiNamedPropertyAccess("store", *self, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *self, *holder_handle);
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      args.Call(call_fun,
-                v8::Utils::ToLocal(key),
-                v8::Utils::ToLocal(value_handle));
-    }
+    args.Call(call_fun,
+              v8::Utils::ToLocal(key),
+              v8::Utils::ToLocal(value_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
   }
@@ -11958,7 +12042,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                     StrictModeFlag strict_mode,
                                     SetPropertyMode set_mode) {
   if (object->HasExternalArrayElements()) {
-    if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
+    if (!value->IsNumber() && !value->IsUndefined()) {
       bool has_exception;
       Handle<Object> number = Execution::ToNumber(value, &has_exception);
       if (has_exception) return Handle<Object>();
@@ -12236,8 +12320,8 @@ MaybeObject* JSObject::UpdateAllocationSiteInfo(ElementsKind to_kind) {
         return payload->TransitionElementsKind(to_kind);
       }
     }
-  } else if (info->payload()->IsJSGlobalPropertyCell()) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(info->payload());
+  } else if (info->payload()->IsCell()) {
+    Cell* cell = Cell::cast(info->payload());
     Object* cell_contents = cell->value();
     if (cell_contents->IsSmi()) {
       ElementsKind kind = static_cast<ElementsKind>(
@@ -12379,12 +12463,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
         ApiIndexedPropertyAccess("interceptor-indexed-get", this, index));
     PropertyCallbackArguments
         args(isolate, interceptor->data(), receiver, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, index);
-    }
+    v8::Handle<v8::Value> result = args.Call(getter, index);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
@@ -12689,12 +12768,8 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
         ApiNamedPropertyAccess("interceptor-named-get", *holder_handle, name));
     PropertyCallbackArguments
         args(isolate, interceptor->data(), receiver, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(getter, v8::Utils::ToLocal(name_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       *attributes = NONE;
@@ -14159,20 +14234,20 @@ MaybeObject* ExternalDoubleArray::SetValue(uint32_t index, Object* value) {
 }
 
 
-JSGlobalPropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
+PropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
-  return JSGlobalPropertyCell::cast(value);
+  return PropertyCell::cast(value);
 }
 
 
-Handle<JSGlobalPropertyCell> GlobalObject::EnsurePropertyCell(
+Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
     Handle<GlobalObject> global,
     Handle<Name> name) {
   Isolate* isolate = global->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
                      global->EnsurePropertyCell(*name),
-                     JSGlobalPropertyCell);
+                     PropertyCell);
 }
 
 
@@ -14183,7 +14258,7 @@ MaybeObject* GlobalObject::EnsurePropertyCell(Name* name) {
     Heap* heap = GetHeap();
     Object* cell;
     { MaybeObject* maybe_cell =
-          heap->AllocateJSGlobalPropertyCell(heap->the_hole_value());
+          heap->AllocatePropertyCell(heap->the_hole_value());
       if (!maybe_cell->ToObject(&cell)) return maybe_cell;
     }
     PropertyDetails details(NONE, NORMAL, 0);
@@ -14197,7 +14272,7 @@ MaybeObject* GlobalObject::EnsurePropertyCell(Name* name) {
     return cell;
   } else {
     Object* value = property_dictionary()->ValueAt(entry);
-    ASSERT(value->IsJSGlobalPropertyCell());
+    ASSERT(value->IsPropertyCell());
     return value;
   }
 }
@@ -14980,8 +15055,8 @@ Object* Dictionary<Shape, Key>::SlowReverseLookup(Object* value) {
     Object* k =  HashTable<Shape, Key>::KeyAt(i);
     if (Dictionary<Shape, Key>::IsKey(k)) {
       Object* e = ValueAt(i);
-      if (e->IsJSGlobalPropertyCell()) {
-        e = JSGlobalPropertyCell::cast(e)->value();
+      if (e->IsPropertyCell()) {
+        e = PropertyCell::cast(e)->value();
       }
       if (e == value) return k;
     }
@@ -15703,11 +15778,51 @@ void JSArrayBuffer::Neuter() {
 }
 
 
-void JSTypedArray::Neuter() {
+void JSArrayBufferView::NeuterView() {
   set_byte_offset(Smi::FromInt(0));
   set_byte_length(Smi::FromInt(0));
+}
+
+
+void JSDataView::Neuter() {
+  NeuterView();
+}
+
+
+void JSTypedArray::Neuter() {
+  NeuterView();
   set_length(Smi::FromInt(0));
   set_elements(GetHeap()->EmptyExternalArrayForMap(map()));
 }
+
+
+Type* PropertyCell::type() {
+  return static_cast<Type*>(type_raw());
+}
+
+
+void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
+  set_type_raw(type, ignored);
+}
+
+
+void PropertyCell::AddDependentCompilationInfo(CompilationInfo* info) {
+  Handle<DependentCode> dep(dependent_code());
+  Handle<DependentCode> codes =
+      DependentCode::Insert(dep, DependentCode::kPropertyCellChangedGroup,
+                            info->object_wrapper());
+  if (*codes != dependent_code()) set_dependent_code(*codes);
+  info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
+      Handle<HeapObject>(this), info->zone());
+}
+
+
+void PropertyCell::AddDependentCode(Handle<Code> code) {
+  Handle<DependentCode> codes = DependentCode::Insert(
+      Handle<DependentCode>(dependent_code()),
+      DependentCode::kPropertyCellChangedGroup, code);
+  if (*codes != dependent_code()) set_dependent_code(*codes);
+}
+
 
 } }  // namespace v8::internal

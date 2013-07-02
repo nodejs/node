@@ -29,7 +29,7 @@
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
-function f() {a=1;b=2};
+function f() {a=1;b=2}
 function g() {
   a=1;
   b=2;
@@ -121,13 +121,13 @@ assertTrue(Debug.showBreakPoints(g).indexOf("[B0]") < 0);
 
 
 // Tests for setting break points by script id and position.
-function setBreakpointByPosition(f, position)
+function setBreakpointByPosition(f, position, opt_position_alignment)
 {
   var break_point = Debug.setBreakPointByScriptIdAndPosition(
       Debug.findScript(f).id,
       position + Debug.sourcePosition(f),
       "",
-      true);
+      true, opt_position_alignment);
   return break_point.number();
 }
 
@@ -204,3 +204,22 @@ Debug.clearBreakPoint(bp3);
 //b=2;
 //}
 assertTrue(Debug.showBreakPoints(g).indexOf("[B0]") < 0);
+
+// Tests for setting break points without statement aligment.
+// (This may be sensitive to compiler break position map generation).
+function h() {a=f(f2(1,2),f3())+f3();b=f3();}
+var scenario = [
+  [5, "{a[B0]=f"],
+  [6, "{a=[B0]f("],
+  [7, "{a=f([B0]f2("],
+  [16, "f2(1,2),[B0]f3()"],
+  [22, "+[B0]f3()"]
+];
+for(var i = 0; i < scenario.length; i++) {
+  bp1 = setBreakpointByPosition(h, scenario[i][0],
+      Debug.BreakPositionAlignment.BreakPosition);
+  assertTrue(Debug.showBreakPoints(h, undefined,
+      Debug.BreakPositionAlignment.BreakPosition).indexOf(scenario[i][1]) > 0);
+  Debug.clearBreakPoint(bp1);
+}
+

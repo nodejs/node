@@ -108,14 +108,23 @@ var kMessages = {
                                  ["%0"," constructor should have at least one argument."],
   not_typed_array:               ["this is not a typed array."],
   invalid_argument:              ["invalid_argument"],
+  data_view_not_array_buffer:    ["First argument to DataView constructor must be an ArrayBuffer"],
+  constructor_not_function:      ["Constructor ", "%0", " requires 'new'"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
-  invalid_typed_array_offset:    ["Start offset is too large"],
-  invalid_typed_array_length:    ["Length is too large"],
+  invalid_typed_array_offset:    ["Start offset is too large:"],
+  invalid_typed_array_length:    ["Invalid typed array length"],
   invalid_typed_array_alignment: ["%0", "of", "%1", "should be a multiple of", "%3"],
   typed_array_set_source_too_large:
                                  ["Source is too large"],
+  typed_array_set_negative_offset:
+                                 ["Start offset is negative"],
+  invalid_data_view_offset:      ["Start offset is outside the bounds of the buffer"],
+  invalid_data_view_length:      ["Invalid data view length"],
+  invalid_data_view_accessor_offset:
+                                 ["Offset is outside the bounds of the DataView"],
+
   stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
   // SyntaxError

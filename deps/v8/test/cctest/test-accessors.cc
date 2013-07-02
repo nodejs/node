@@ -44,10 +44,10 @@ using ::v8::Function;
 using ::v8::AccessorInfo;
 using ::v8::Extension;
 
-static v8::Handle<Value> handle_property(Local<String> name,
-                                         const AccessorInfo&) {
+static void handle_property(Local<String> name,
+                            const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  return v8_num(900);
+  info.GetReturnValue().Set(v8_num(900));
 }
 
 
@@ -65,18 +65,18 @@ THREADED_TEST(PropertyHandler) {
 }
 
 
-static v8::Handle<Value> GetIntValue(Local<String> property,
-                                     const AccessorInfo& info) {
+static void GetIntValue(Local<String> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   int* value =
       static_cast<int*>(v8::Handle<v8::External>::Cast(info.Data())->Value());
-  return v8_num(*value);
+  info.GetReturnValue().Set(v8_num(*value));
 }
 
 
 static void SetIntValue(Local<String> property,
                         Local<Value> value,
-                        const AccessorInfo& info) {
+                        const v8::PropertyCallbackInfo<void>& info) {
   int* field =
       static_cast<int*>(v8::Handle<v8::External>::Cast(info.Data())->Value());
   *field = value->Int32Value();
@@ -114,19 +114,20 @@ static v8::Handle<v8::Object> x_receiver;
 static v8::Handle<v8::Object> x_holder;
 
 
-static v8::Handle<Value> XGetter(Local<String> name, const AccessorInfo& info) {
+static void XGetter(Local<String> name,
+                    const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(x_receiver, info.This());
   CHECK_EQ(x_holder, info.Holder());
-  return v8_num(x_register);
+  info.GetReturnValue().Set(v8_num(x_register));
 }
 
 
 static void XSetter(Local<String> name,
                     Local<Value> value,
-                    const AccessorInfo& info) {
+                    const v8::PropertyCallbackInfo<void>& info) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(x_holder, info.This());
@@ -160,11 +161,11 @@ THREADED_TEST(AccessorIC) {
 }
 
 
-static v8::Handle<Value> AccessorProhibitsOverwritingGetter(
+static void AccessorProhibitsOverwritingGetter(
     Local<String> name,
-    const AccessorInfo& info) {
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  return v8::True();
+  info.GetReturnValue().Set(true);
 }
 
 
@@ -208,12 +209,13 @@ THREADED_TEST(AccessorProhibitsOverwriting) {
 
 
 template <int C>
-static v8::Handle<Value> HandleAllocatingGetter(Local<String> name,
-                                                const AccessorInfo& info) {
+static void HandleAllocatingGetter(
+    Local<String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   for (int i = 0; i < C; i++)
     v8::String::New("foo");
-  return v8::String::New("foo");
+  info.GetReturnValue().Set(v8::String::New("foo"));
 }
 
 
@@ -239,8 +241,9 @@ THREADED_TEST(HandleScopePop) {
   CHECK_EQ(count_before, count_after);
 }
 
-static v8::Handle<Value> CheckAccessorArgsCorrect(Local<String> name,
-                                                  const AccessorInfo& info) {
+static void CheckAccessorArgsCorrect(
+    Local<String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
@@ -252,7 +255,7 @@ static v8::Handle<Value> CheckAccessorArgsCorrect(Local<String> name,
   CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
-  return v8::Integer::New(17);
+  info.GetReturnValue().Set(17);
 }
 
 THREADED_TEST(DirectCall) {
@@ -273,12 +276,12 @@ THREADED_TEST(DirectCall) {
   }
 }
 
-static v8::Handle<Value> EmptyGetter(Local<String> name,
-                                     const AccessorInfo& info) {
+static void EmptyGetter(Local<String> name,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
   CheckAccessorArgsCorrect(name, info);
   ApiTestFuzzer::Fuzz();
   CheckAccessorArgsCorrect(name, info);
-  return v8::Handle<v8::Value>();
+  info.GetReturnValue().Set(v8::Handle<v8::Value>());
 }
 
 THREADED_TEST(EmptyResult) {
@@ -330,16 +333,17 @@ THREADED_TEST(NoReuseRegress) {
   }
 }
 
-static v8::Handle<Value> ThrowingGetAccessor(Local<String> name,
-                                             const AccessorInfo& info) {
+static void ThrowingGetAccessor(
+    Local<String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  return v8::ThrowException(v8_str("g"));
+  v8::ThrowException(v8_str("g"));
 }
 
 
 static void ThrowingSetAccessor(Local<String> name,
                                 Local<Value> value,
-                                const AccessorInfo& info) {
+                                const v8::PropertyCallbackInfo<void>& info) {
   v8::ThrowException(value);
 }
 
@@ -374,10 +378,10 @@ THREADED_TEST(Regress1054726) {
 }
 
 
-static v8::Handle<Value> AllocGetter(Local<String> name,
-                                     const AccessorInfo& info) {
+static void AllocGetter(Local<String> name,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  return v8::Array::New(1000);
+  info.GetReturnValue().Set(v8::Array::New(1000));
 }
 
 
@@ -397,8 +401,8 @@ THREADED_TEST(Gc) {
 }
 
 
-static v8::Handle<Value> StackCheck(Local<String> name,
-                                    const AccessorInfo& info) {
+static void StackCheck(Local<String> name,
+                       const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::StackFrameIterator iter(reinterpret_cast<i::Isolate*>(info.GetIsolate()));
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
@@ -409,7 +413,6 @@ static v8::Handle<Value> StackCheck(Local<String> name,
     CHECK(code->contains(pc));
     iter.Advance();
   }
-  return v8::Undefined();
 }
 
 
@@ -430,12 +433,12 @@ THREADED_TEST(StackIteration) {
 }
 
 
-static v8::Handle<Value> AllocateHandles(Local<String> name,
-                                         const AccessorInfo& info) {
+static void AllocateHandles(Local<String> name,
+                            const v8::PropertyCallbackInfo<v8::Value>& info) {
   for (int i = 0; i < i::kHandleBlockSize + 1; i++) {
     v8::Local<v8::Value>::New(name);
   }
-  return v8::Integer::New(100);
+  info.GetReturnValue().Set(v8::Integer::New(100));
 }
 
 
@@ -456,16 +459,16 @@ THREADED_TEST(HandleScopeSegment) {
 }
 
 
-v8::Handle<v8::Array> JSONStringifyEnumerator(const AccessorInfo& info) {
+void JSONStringifyEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Handle<v8::Array> array = v8::Array::New(1);
   array->Set(0, v8_str("regress"));
-  return array;
+  info.GetReturnValue().Set(array);
 }
 
 
-v8::Handle<v8::Value> JSONStringifyGetter(Local<String> name,
-                                          const AccessorInfo& info) {
-  return v8_str("crbug-161028");
+void JSONStringifyGetter(Local<String> name,
+                         const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8_str("crbug-161028"));
 }
 
 
