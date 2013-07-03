@@ -329,6 +329,34 @@ Or
       server.close();
     });
 
+## Class: tls.TLSSocket
+
+Wrapper for instance of [net.Socket][], replaces internal socket read/write
+routines to perform transparent encryption/decryption of incoming/outgoing data.
+
+## new tls.TLSSocket(socket, options)
+
+Construct a new TLSSocket object from existing TCP socket.
+
+`socket` is an instance of [net.Socket][]
+
+`options` is an object that might contain following properties:
+
+  - `credentials`: An optional credentials object from
+     `crypto.createCredentials( ... )`
+
+  - `isServer`: If true - TLS socket will be instantiated in server-mode
+
+  - `server`: An optional [net.Server][] instance
+
+  - `requestCert`: Optional, see [tls.createSecurePair][]
+
+  - `rejectUnauthorized`: Optional, see [tls.createSecurePair][]
+
+  - `NPNProtocols`: Optional, see [tls.createServer][]
+
+  - `SNICallback`: Optional, see [tls.createServer][]
+
 ## tls.createSecurePair([credentials], [isServer], [requestCert], [rejectUnauthorized])
 
     Stability: 0 - Deprecated. Use tls.TLSSocket instead.
@@ -572,7 +600,11 @@ The numeric representation of the local port.
 
 [OpenSSL cipher list format documentation]: http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
 [BEAST attacks]: http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
+[tls.createServer]: #tls_tls_createserver_options_secureconnectionlistener
+[tls.createSecurePair]: #tls_tls_createsecurepair_credentials_isserver_requestcert_rejectunauthorized
 [tls.TLSSocket]: #tls_class_tls_tlssocket
+[net.Server]: net.html#net_class_net_server
+[net.Socket]: net.html#net_class_net_socket
 [net.Server.address()]: net.html#net_server_address
 ['secureConnect']: #tls_event_secureconnect
 [secureConnection]: #tls_event_secureconnection
