@@ -30,9 +30,8 @@
 
 namespace node {
 
-using v8::AccessorInfo;
-using v8::Arguments;
 using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
@@ -41,6 +40,7 @@ using v8::Local;
 using v8::Object;
 using v8::Persistent;
 using v8::PropertyAttribute;
+using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -51,9 +51,9 @@ typedef ReqWrap<uv_udp_send_t> SendWrap;
 Local<Object> AddressToJS(const sockaddr* addr);
 
 static Persistent<Function> constructor;
-static Persistent<String> buffer_sym;
-static Persistent<String> oncomplete_sym;
-static Persistent<String> onmessage_sym;
+static Cached<String> buffer_sym;
+static Cached<String> oncomplete_sym;
+static Cached<String> onmessage_sym;
 
 
 UDPWrap::UDPWrap(Handle<Object> object)
@@ -72,9 +72,9 @@ void UDPWrap::Initialize(Handle<Object> target) {
 
   HandleScope scope(node_isolate);
 
-  buffer_sym = NODE_PSYMBOL("buffer");
-  oncomplete_sym = NODE_PSYMBOL("oncomplete");
-  onmessage_sym = NODE_PSYMBOL("onmessage");
+  buffer_sym = String::New("buffer");
+  oncomplete_sym = String::New("oncomplete");
+  onmessage_sym = String::New("onmessage");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -107,35 +107,29 @@ void UDPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "ref", HandleWrap::Ref);
   NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
 
-  constructor = Persistent<Function>::New(node_isolate,
-      Persistent<FunctionTemplate>::New(node_isolate, t)->GetFunction());
-  target->Set(String::NewSymbol("UDP"), constructor);
+  constructor.Reset(node_isolate, t->GetFunction());
+  target->Set(String::NewSymbol("UDP"), t->GetFunction());
 }
 
 
-Handle<Value> UDPWrap::New(const Arguments& args) {
+void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-
   assert(args.IsConstructCall());
   new UDPWrap(args.This());
-
-  return scope.Close(args.This());
 }
 
 
-Handle<Value> UDPWrap::GetFD(Local<String>, const AccessorInfo& args) {
-#if defined(_WIN32)
-  return v8::Null(node_isolate);
-#else
+void UDPWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
+#if !defined(_WIN32)
   HandleScope scope(node_isolate);
   UNWRAP(UDPWrap)
   int fd = (wrap == NULL) ? -1 : wrap->handle_.io_watcher.fd;
-  return scope.Close(Integer::New(fd, node_isolate));
+  args.GetReturnValue().Set(fd);
 #endif
 }
 
 
-Handle<Value> UDPWrap::DoBind(const Arguments& args, int family) {
+void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   HandleScope scope(node_isolate);
   int r;
 
@@ -160,32 +154,30 @@ Handle<Value> UDPWrap::DoBind(const Arguments& args, int family) {
     abort();
   }
 
-  if (r)
-    SetErrno(uv_last_error(uv_default_loop()));
-
-  return scope.Close(Integer::New(r, node_isolate));
+  if (r) SetErrno(uv_last_error(uv_default_loop()));
+  args.GetReturnValue().Set(r);
 }
 
 
-Handle<Value> UDPWrap::Bind(const Arguments& args) {
-  return DoBind(args, AF_INET);
+void UDPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
+  DoBind(args, AF_INET);
 }
 
 
-Handle<Value> UDPWrap::Bind6(const Arguments& args) {
-  return DoBind(args, AF_INET6);
+void UDPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
+  DoBind(args, AF_INET6);
 }
 
 
 #define X(name, fn)                                                           \
-  Handle<Value> UDPWrap::name(const Arguments& args) {                        \
+  void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {               \
     HandleScope scope(node_isolate);                                          \
     UNWRAP(UDPWrap)                                                           \
     assert(args.Length() == 1);                                               \
     int flag = args[0]->Int32Value();                                         \
     int r = fn(&wrap->handle_, flag);                                         \
     if (r) SetErrno(uv_last_error(uv_default_loop()));                        \
-    return scope.Close(Integer::New(r, node_isolate));                        \
+    args.GetReturnValue().Set(r);                                             \
   }
 
 X(SetTTL, uv_udp_set_ttl)
@@ -196,8 +188,8 @@ X(SetMulticastLoopback, uv_udp_set_multicast_loop)
 #undef X
 
 
-Handle<Value> UDPWrap::SetMembership(const Arguments& args,
-                                     uv_membership membership) {
+void UDPWrap::SetMembership(const FunctionCallbackInfo<Value>& args,
+                            uv_membership membership) {
   HandleScope scope(node_isolate);
   UNWRAP(UDPWrap)
 
@@ -211,27 +203,26 @@ Handle<Value> UDPWrap::SetMembership(const Arguments& args,
       iface_cstr = NULL;
   }
 
-  int r = uv_udp_set_membership(&wrap->handle_, *address, iface_cstr,
+  int r = uv_udp_set_membership(&wrap->handle_,
+                                *address,
+                                iface_cstr,
                                 membership);
-
-  if (r)
-    SetErrno(uv_last_error(uv_default_loop()));
-
-  return scope.Close(Integer::New(r, node_isolate));
+  if (r) SetErrno(uv_last_error(uv_default_loop()));
+  args.GetReturnValue().Set(r);
 }
 
 
-Handle<Value> UDPWrap::AddMembership(const Arguments& args) {
-  return SetMembership(args, UV_JOIN_GROUP);
+void UDPWrap::AddMembership(const FunctionCallbackInfo<Value>& args) {
+  SetMembership(args, UV_JOIN_GROUP);
 }
 
 
-Handle<Value> UDPWrap::DropMembership(const Arguments& args) {
-  return SetMembership(args, UV_LEAVE_GROUP);
+void UDPWrap::DropMembership(const FunctionCallbackInfo<Value>& args) {
+  SetMembership(args, UV_LEAVE_GROUP);
 }
 
 
-Handle<Value> UDPWrap::DoSend(const Arguments& args, int family) {
+void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   HandleScope scope(node_isolate);
   int r;
 
@@ -249,7 +240,7 @@ Handle<Value> UDPWrap::DoSend(const Arguments& args, int family) {
   assert(length <= Buffer::Length(buffer_obj) - offset);
 
   SendWrap* req_wrap = new SendWrap();
-  req_wrap->object_->SetHiddenValue(buffer_sym, buffer_obj);
+  req_wrap->object()->SetHiddenValue(buffer_sym, buffer_obj);
 
   uv_buf_t buf = uv_buf_init(Buffer::Data(buffer_obj) + offset,
                              length);
@@ -276,69 +267,57 @@ Handle<Value> UDPWrap::DoSend(const Arguments& args, int family) {
   if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
-    return Null(node_isolate);
   }
   else {
-    return scope.Close(req_wrap->object_);
+    args.GetReturnValue().Set(req_wrap->persistent());
   }
 }
 
 
-Handle<Value> UDPWrap::Send(const Arguments& args) {
-  return DoSend(args, AF_INET);
+void UDPWrap::Send(const FunctionCallbackInfo<Value>& args) {
+  DoSend(args, AF_INET);
 }
 
 
-Handle<Value> UDPWrap::Send6(const Arguments& args) {
-  return DoSend(args, AF_INET6);
+void UDPWrap::Send6(const FunctionCallbackInfo<Value>& args) {
+  DoSend(args, AF_INET6);
 }
 
 
-Handle<Value> UDPWrap::RecvStart(const Arguments& args) {
+void UDPWrap::RecvStart(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-
   UNWRAP(UDPWrap)
 
   // UV_EALREADY means that the socket is already bound but that's okay
   int r = uv_udp_recv_start(&wrap->handle_, OnAlloc, OnRecv);
-  if (r && uv_last_error(uv_default_loop()).code != UV_EALREADY) {
-    SetErrno(uv_last_error(uv_default_loop()));
-    return False(node_isolate);
-  }
-
-  return True(node_isolate);
+  bool ok = r == 0 || uv_last_error(uv_default_loop()).code == UV_EALREADY;
+  if (ok == false) SetErrno(uv_last_error(uv_default_loop()));
+  args.GetReturnValue().Set(ok);
 }
 
 
-Handle<Value> UDPWrap::RecvStop(const Arguments& args) {
+void UDPWrap::RecvStop(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-
   UNWRAP(UDPWrap)
 
   int r = uv_udp_recv_stop(&wrap->handle_);
-
-  return scope.Close(Integer::New(r, node_isolate));
+  args.GetReturnValue().Set(r);
 }
 
 
-Handle<Value> UDPWrap::GetSockName(const Arguments& args) {
+void UDPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   struct sockaddr_storage address;
-
   UNWRAP(UDPWrap)
 
   int addrlen = sizeof(address);
   int r = uv_udp_getsockname(&wrap->handle_,
                              reinterpret_cast<sockaddr*>(&address),
                              &addrlen);
-
-  if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
-    return Null(node_isolate);
-  }
+  if (r) return SetErrno(uv_last_error(uv_default_loop()));
 
   const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
-  return scope.Close(AddressToJS(addr));
+  args.GetReturnValue().Set(AddressToJS(addr));
 }
 
 
@@ -351,21 +330,22 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
   SendWrap* req_wrap = reinterpret_cast<SendWrap*>(req->data);
   UDPWrap* wrap = reinterpret_cast<UDPWrap*>(req->handle->data);
 
-  assert(req_wrap->object_.IsEmpty() == false);
-  assert(wrap->object_.IsEmpty() == false);
+  assert(req_wrap->persistent().IsEmpty() == false);
+  assert(wrap->persistent().IsEmpty() == false);
 
   if (status) {
     SetErrno(uv_last_error(uv_default_loop()));
   }
 
+  Local<Object> req_wrap_obj = req_wrap->object();
   Local<Value> argv[4] = {
     Integer::New(status, node_isolate),
-    Local<Value>::New(node_isolate, wrap->object_),
-    Local<Value>::New(node_isolate, req_wrap->object_),
-    req_wrap->object_->GetHiddenValue(buffer_sym),
+    wrap->object(),
+    req_wrap_obj,
+    req_wrap_obj->GetHiddenValue(buffer_sym),
   };
 
-  MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
+  MakeCallback(req_wrap_obj, oncomplete_sym, ARRAY_SIZE(argv), argv);
   delete req_wrap;
 }
 
@@ -392,9 +372,10 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   if (nread < 0) {
     if (buf.base != NULL)
       free(buf.base);
-    Local<Value> argv[] = { Local<Object>::New(node_isolate, wrap->object_) };
+    Local<Object> wrap_obj = wrap->object();
+    Local<Value> argv[] = { wrap_obj };
     SetErrno(uv_last_error(uv_default_loop()));
-    MakeCallback(wrap->object_, onmessage_sym, ARRAY_SIZE(argv), argv);
+    MakeCallback(wrap_obj, onmessage_sym, ARRAY_SIZE(argv), argv);
     return;
   }
 
@@ -406,12 +387,13 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
   buf.base = static_cast<char*>(realloc(buf.base, nread));
 
+  Local<Object> wrap_obj = wrap->object();
   Local<Value> argv[] = {
-    Local<Object>::New(node_isolate, wrap->object_),
+    wrap_obj,
     Buffer::Use(buf.base, nread),
     AddressToJS(addr)
   };
-  MakeCallback(wrap->object_, onmessage_sym, ARRAY_SIZE(argv), argv);
+  MakeCallback(wrap_obj, onmessage_sym, ARRAY_SIZE(argv), argv);
 }
 
 
@@ -425,11 +407,7 @@ UDPWrap* UDPWrap::Unwrap(Local<Object> obj) {
 Local<Object> UDPWrap::Instantiate() {
   // If this assert fires then Initialize hasn't been called yet.
   assert(constructor.IsEmpty() == false);
-
-  HandleScope scope(node_isolate);
-  Local<Object> obj = constructor->NewInstance();
-
-  return scope.Close(obj);
+  return NewInstance(constructor);
 }
 
 

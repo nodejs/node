@@ -28,16 +28,17 @@
 namespace node {
 
 // defined in node.cc
-extern v8::Persistent<v8::String> process_symbol;
-extern v8::Persistent<v8::String> domain_symbol;
+extern Cached<v8::String> process_symbol;
+extern Cached<v8::String> domain_symbol;
 extern QUEUE req_wrap_queue;
 
 template <typename T>
 class ReqWrap {
- public:
+public:
   ReqWrap() {
     v8::HandleScope scope(node_isolate);
-    object_ = v8::Persistent<v8::Object>::New(node_isolate, v8::Object::New());
+    v8::Local<v8::Object> object = v8::Object::New();
+    persistent().Reset(node_isolate, object);
 
     if (using_domains) {
       v8::Local<v8::Value> domain = v8::Context::GetCurrent()
@@ -47,7 +48,7 @@ class ReqWrap {
                                     ->Get(domain_symbol);
 
       if (!domain->IsUndefined()) {
-        object_->Set(domain_symbol, domain);
+        object->Set(domain_symbol, domain);
       }
     }
 
@@ -59,14 +60,21 @@ class ReqWrap {
     QUEUE_REMOVE(&req_wrap_queue_);
     // Assert that someone has called Dispatched()
     assert(req_.data == this);
-    assert(!object_.IsEmpty());
-    object_.Dispose(node_isolate);
-    object_.Clear();
+    assert(!persistent().IsEmpty());
+    persistent().Dispose();
   }
 
   // Call this after the req has been dispatched.
   void Dispatched() {
     req_.data = this;
+  }
+
+  inline v8::Local<v8::Object> object() {
+    return v8::Local<v8::Object>::New(node_isolate, persistent());
+  }
+
+  inline v8::Persistent<v8::Object>& persistent() {
+    return object_;
   }
 
   v8::Persistent<v8::Object> object_;

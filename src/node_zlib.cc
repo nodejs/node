@@ -32,11 +32,20 @@
 
 
 namespace node {
-using namespace v8;
 
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Handle;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Local;
+using v8::Number;
+using v8::Object;
+using v8::String;
+using v8::Value;
 
-static Persistent<String> callback_sym;
-static Persistent<String> onerror_sym;
+static Cached<String> callback_sym;
+static Cached<String> onerror_sym;
 
 enum node_zlib_mode {
   NONE,
@@ -104,16 +113,15 @@ class ZCtx : public ObjectWrap {
   }
 
 
-  static Handle<Value> Close(const Arguments& args) {
+  static void Close(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
     ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
     ctx->Close();
-    return scope.Close(Undefined(node_isolate));
   }
 
 
   // write(flush, in, in_off, in_len, out, out_off, out_len)
-  static Handle<Value> Write(const Arguments& args) {
+  static void Write(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
     assert(args.Length() == 7);
 
@@ -183,7 +191,7 @@ class ZCtx : public ObjectWrap {
                   ZCtx::Process,
                   ZCtx::After);
 
-    return ctx->handle_;
+    args.GetReturnValue().Set(ctx->persistent());
   }
 
 
@@ -273,10 +281,10 @@ class ZCtx : public ObjectWrap {
     ctx->write_in_progress_ = false;
 
     // call the write() cb
-    assert(ctx->handle_->Get(callback_sym)->IsFunction() &&
-           "Invalid callback");
+    Local<Object> handle = ctx->handle(node_isolate);
+    assert(handle->Get(callback_sym)->IsFunction() && "Invalid callback");
     Local<Value> args[2] = { avail_in, avail_out };
-    MakeCallback(ctx->handle_, callback_sym, ARRAY_SIZE(args), args);
+    MakeCallback(handle, callback_sym, ARRAY_SIZE(args), args);
 
     ctx->Unref();
   }
@@ -289,37 +297,37 @@ class ZCtx : public ObjectWrap {
       msg = msg_;
     }
 
-    assert(ctx->handle_->Get(onerror_sym)->IsFunction() &&
-           "Invalid error handler");
+    Local<Object> handle = ctx->handle(node_isolate);
+    assert(handle->Get(onerror_sym)->IsFunction() && "Invalid error handler");
     HandleScope scope(node_isolate);
-    Local<Value> args[2] = { String::New(msg),
-                             Local<Value>::New(node_isolate,
-                                               Number::New(ctx->err_)) };
-    MakeCallback(ctx->handle_, onerror_sym, ARRAY_SIZE(args), args);
+    Local<Value> args[2] = {
+      String::New(msg),
+      Number::New(ctx->err_)
+    };
+    MakeCallback(handle, onerror_sym, ARRAY_SIZE(args), args);
 
     // no hope of rescue.
     ctx->write_in_progress_ = false;
     ctx->Unref();
   }
 
-  static Handle<Value> New(const Arguments& args) {
+  static void New(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
     if (args.Length() < 1 || !args[0]->IsInt32()) {
-      return ThrowException(Exception::TypeError(String::New("Bad argument")));
+      return ThrowTypeError("Bad argument");
     }
     node_zlib_mode mode = (node_zlib_mode) args[0]->Int32Value();
 
     if (mode < DEFLATE || mode > UNZIP) {
-      return ThrowException(Exception::TypeError(String::New("Bad argument")));
+      return ThrowTypeError("Bad argument");
     }
 
     ZCtx *ctx = new ZCtx(mode);
     ctx->Wrap(args.This());
-    return args.This();
   }
 
   // just pull the ints out of the args and call the other Init
-  static Handle<Value> Init(const Arguments& args) {
+  static void Init(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
     assert((args.Length() == 4 || args.Length() == 5) &&
@@ -357,10 +365,9 @@ class ZCtx : public ObjectWrap {
     Init(ctx, level, windowBits, memLevel, strategy,
          dictionary, dictionary_len);
     SetDictionary(ctx);
-    return Undefined(node_isolate);
   }
 
-  static Handle<Value> Params(const Arguments& args) {
+  static void Params(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
     assert(args.Length() == 2 && "params(level, strategy)");
@@ -368,18 +375,15 @@ class ZCtx : public ObjectWrap {
     ZCtx* ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
 
     Params(ctx, args[0]->Int32Value(), args[1]->Int32Value());
-
-    return Undefined(node_isolate);
   }
 
-  static Handle<Value> Reset(const Arguments &args) {
+  static void Reset(const FunctionCallbackInfo<Value> &args) {
     HandleScope scope(node_isolate);
 
     ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
 
     Reset(ctx);
     SetDictionary(ctx);
-    return Undefined(node_isolate);
   }
 
   static void Init(ZCtx *ctx, int level, int windowBits, int memLevel,
@@ -549,8 +553,8 @@ void InitZlib(Handle<Object> target) {
   z->SetClassName(String::NewSymbol("Zlib"));
   target->Set(String::NewSymbol("Zlib"), z->GetFunction());
 
-  callback_sym = NODE_PSYMBOL("callback");
-  onerror_sym = NODE_PSYMBOL("onerror");
+  callback_sym = String::New("callback");
+  onerror_sym = String::New("onerror");
 
   // valid flush values.
   NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);

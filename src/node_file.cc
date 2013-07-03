@@ -39,12 +39,23 @@
 
 namespace node {
 
-using namespace v8;
+using v8::Array;
+using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Handle;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Local;
+using v8::Number;
+using v8::Object;
+using v8::Persistent;
+using v8::String;
+using v8::Value;
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
-#define TYPE_ERROR(msg) \
-    ThrowException(Exception::TypeError(String::New(msg)));
+#define TYPE_ERROR(msg) ThrowTypeError(msg)
 
 #define THROW_BAD_ARGS TYPE_ERROR("Bad argument")
 
@@ -61,16 +72,16 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
 };
 
 
-static Persistent<String> oncomplete_sym;
+static Cached<String> oncomplete_sym;
 
 
 #define ASSERT_OFFSET(a) \
   if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
-    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+    return ThrowTypeError("Not an integer"); \
   }
 #define ASSERT_TRUNCATE_LENGTH(a) \
   if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
-    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+    return ThrowTypeError("Not an integer"); \
   }
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
 #define GET_TRUNCATE_LENGTH(a) ((a)->IntegerValue())
@@ -192,9 +203,9 @@ static void After(uv_fs_t *req) {
   }
 
   if (oncomplete_sym.IsEmpty()) {
-    oncomplete_sym = NODE_PSYMBOL("oncomplete");
+    oncomplete_sym = String::New("oncomplete");
   }
-  MakeCallback(req_wrap->object_, oncomplete_sym, argc, argv);
+  MakeCallback(req_wrap->object(), oncomplete_sym, argc, argv);
 
   uv_fs_req_cleanup(&req_wrap->req_);
   delete req_wrap;
@@ -216,7 +227,7 @@ struct fs_req_wrap {
   FSReqWrap* req_wrap = new FSReqWrap(#func);                     \
   int r = uv_fs_##func(uv_default_loop(), &req_wrap->req_,        \
       __VA_ARGS__, After);                                        \
-  req_wrap->object_->Set(oncomplete_sym, callback);               \
+  req_wrap->object()->Set(oncomplete_sym, callback);              \
   req_wrap->Dispatched();                                         \
   if (r < 0) {                                                    \
     uv_fs_t* req = &req_wrap->req_;                               \
@@ -225,14 +236,14 @@ struct fs_req_wrap {
     req->errorno = uv_last_error(uv_default_loop()).code;         \
     After(req);                                                   \
   }                                                               \
-  return scope.Close(req_wrap->object_);
+  args.GetReturnValue().Set(req_wrap->persistent());
 
 #define SYNC_CALL(func, path, ...)                                \
   fs_req_wrap req_wrap;                                           \
   int result = uv_fs_##func(uv_default_loop(), &req_wrap.req, __VA_ARGS__, NULL); \
   if (result < 0) {                                               \
     int code = uv_last_error(uv_default_loop()).code;             \
-    return ThrowException(UVException(code, #func, "", path));    \
+    return ThrowUVException(code, #func, "", path);               \
   }
 
 #define SYNC_REQ req_wrap.req
@@ -240,7 +251,7 @@ struct fs_req_wrap {
 #define SYNC_RESULT result
 
 
-static Handle<Value> Close(const Arguments& args) {
+static void Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
@@ -253,49 +264,49 @@ static Handle<Value> Close(const Arguments& args) {
     ASYNC_CALL(close, args[1], fd)
   } else {
     SYNC_CALL(close, 0, fd)
-    return Undefined(node_isolate);
   }
 }
 
 
-static Persistent<FunctionTemplate> stats_constructor_template;
+static Persistent<Function> stats_constructor;
 
-static Persistent<String> dev_symbol;
-static Persistent<String> ino_symbol;
-static Persistent<String> mode_symbol;
-static Persistent<String> nlink_symbol;
-static Persistent<String> uid_symbol;
-static Persistent<String> gid_symbol;
-static Persistent<String> rdev_symbol;
-static Persistent<String> size_symbol;
-static Persistent<String> blksize_symbol;
-static Persistent<String> blocks_symbol;
-static Persistent<String> atime_symbol;
-static Persistent<String> mtime_symbol;
-static Persistent<String> ctime_symbol;
+static Cached<String> dev_symbol;
+static Cached<String> ino_symbol;
+static Cached<String> mode_symbol;
+static Cached<String> nlink_symbol;
+static Cached<String> uid_symbol;
+static Cached<String> gid_symbol;
+static Cached<String> rdev_symbol;
+static Cached<String> size_symbol;
+static Cached<String> blksize_symbol;
+static Cached<String> blocks_symbol;
+static Cached<String> atime_symbol;
+static Cached<String> mtime_symbol;
+static Cached<String> ctime_symbol;
 
 Local<Object> BuildStatsObject(const uv_stat_t* s) {
   HandleScope scope(node_isolate);
 
   if (dev_symbol.IsEmpty()) {
-    dev_symbol = NODE_PSYMBOL("dev");
-    ino_symbol = NODE_PSYMBOL("ino");
-    mode_symbol = NODE_PSYMBOL("mode");
-    nlink_symbol = NODE_PSYMBOL("nlink");
-    uid_symbol = NODE_PSYMBOL("uid");
-    gid_symbol = NODE_PSYMBOL("gid");
-    rdev_symbol = NODE_PSYMBOL("rdev");
-    size_symbol = NODE_PSYMBOL("size");
-    blksize_symbol = NODE_PSYMBOL("blksize");
-    blocks_symbol = NODE_PSYMBOL("blocks");
-    atime_symbol = NODE_PSYMBOL("atime");
-    mtime_symbol = NODE_PSYMBOL("mtime");
-    ctime_symbol = NODE_PSYMBOL("ctime");
+    dev_symbol = String::New("dev");
+    ino_symbol = String::New("ino");
+    mode_symbol = String::New("mode");
+    nlink_symbol = String::New("nlink");
+    uid_symbol = String::New("uid");
+    gid_symbol = String::New("gid");
+    rdev_symbol = String::New("rdev");
+    size_symbol = String::New("size");
+    blksize_symbol = String::New("blksize");
+    blocks_symbol = String::New("blocks");
+    atime_symbol = String::New("atime");
+    mtime_symbol = String::New("mtime");
+    ctime_symbol = String::New("ctime");
   }
 
-  Local<Object> stats =
-    stats_constructor_template->GetFunction()->NewInstance();
+  Local<Function> constructor =
+      Local<Function>::New(node_isolate, stats_constructor);
 
+  Local<Object> stats = constructor->NewInstance();
   if (stats.IsEmpty()) return Local<Object>();
 
   // The code below is very nasty-looking but it prevents a segmentation fault
@@ -355,7 +366,7 @@ Local<Object> BuildStatsObject(const uv_stat_t* s) {
   return scope.Close(stats);
 }
 
-static Handle<Value> Stat(const Arguments& args) {
+static void Stat(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1) return TYPE_ERROR("path required");
@@ -367,12 +378,12 @@ static Handle<Value> Stat(const Arguments& args) {
     ASYNC_CALL(stat, args[1], *path)
   } else {
     SYNC_CALL(stat, *path, *path)
-    return scope.Close(
+    args.GetReturnValue().Set(
         BuildStatsObject(static_cast<const uv_stat_t*>(SYNC_REQ.ptr)));
   }
 }
 
-static Handle<Value> LStat(const Arguments& args) {
+static void LStat(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1) return TYPE_ERROR("path required");
@@ -384,12 +395,12 @@ static Handle<Value> LStat(const Arguments& args) {
     ASYNC_CALL(lstat, args[1], *path)
   } else {
     SYNC_CALL(lstat, *path, *path)
-    return scope.Close(
+    args.GetReturnValue().Set(
         BuildStatsObject(static_cast<const uv_stat_t*>(SYNC_REQ.ptr)));
   }
 }
 
-static Handle<Value> FStat(const Arguments& args) {
+static void FStat(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
@@ -402,12 +413,12 @@ static Handle<Value> FStat(const Arguments& args) {
     ASYNC_CALL(fstat, args[1], fd)
   } else {
     SYNC_CALL(fstat, 0, fd)
-    return scope.Close(
+    args.GetReturnValue().Set(
         BuildStatsObject(static_cast<const uv_stat_t*>(SYNC_REQ.ptr)));
   }
 }
 
-static Handle<Value> Symlink(const Arguments& args) {
+static void Symlink(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   int len = args.Length();
@@ -427,8 +438,7 @@ static Handle<Value> Symlink(const Arguments& args) {
     } else if (strcmp(*mode, "junction") == 0) {
       flags |= UV_FS_SYMLINK_JUNCTION;
     } else if (strcmp(*mode, "file") != 0) {
-      return ThrowException(Exception::Error(
-        String::New("Unknown symlink type")));
+      return ThrowError("Unknown symlink type");
     }
   }
 
@@ -436,11 +446,10 @@ static Handle<Value> Symlink(const Arguments& args) {
     ASYNC_CALL(symlink, args[3], *dest, *path, flags)
   } else {
     SYNC_CALL(symlink, *path, *dest, *path, flags)
-    return Undefined(node_isolate);
   }
 }
 
-static Handle<Value> Link(const Arguments& args) {
+static void Link(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   int len = args.Length();
@@ -456,11 +465,10 @@ static Handle<Value> Link(const Arguments& args) {
     ASYNC_CALL(link, args[2], *orig_path, *new_path)
   } else {
     SYNC_CALL(link, *orig_path, *orig_path, *new_path)
-    return Undefined(node_isolate);
   }
 }
 
-static Handle<Value> ReadLink(const Arguments& args) {
+static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1) return TYPE_ERROR("path required");
@@ -472,11 +480,12 @@ static Handle<Value> ReadLink(const Arguments& args) {
     ASYNC_CALL(readlink, args[1], *path)
   } else {
     SYNC_CALL(readlink, *path, *path)
-    return scope.Close(String::New((char*)SYNC_REQ.ptr));
+    args.GetReturnValue().Set(
+        String::New(static_cast<const char*>(SYNC_REQ.ptr)));
   }
 }
 
-static Handle<Value> Rename(const Arguments& args) {
+static void Rename(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   int len = args.Length();
@@ -492,11 +501,10 @@ static Handle<Value> Rename(const Arguments& args) {
     ASYNC_CALL(rename, args[2], *old_path, *new_path)
   } else {
     SYNC_CALL(rename, *old_path, *old_path, *new_path)
-    return Undefined(node_isolate);
   }
 }
 
-static Handle<Value> FTruncate(const Arguments& args) {
+static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 2 || !args[0]->IsInt32()) {
@@ -512,11 +520,10 @@ static Handle<Value> FTruncate(const Arguments& args) {
     ASYNC_CALL(ftruncate, args[2], fd, len)
   } else {
     SYNC_CALL(ftruncate, 0, fd, len)
-    return Undefined(node_isolate);
   }
 }
 
-static Handle<Value> Fdatasync(const Arguments& args) {
+static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
@@ -529,11 +536,10 @@ static Handle<Value> Fdatasync(const Arguments& args) {
     ASYNC_CALL(fdatasync, args[1], fd)
   } else {
     SYNC_CALL(fdatasync, 0, fd)
-    return Undefined(node_isolate);
   }
 }
 
-static Handle<Value> Fsync(const Arguments& args) {
+static void Fsync(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
@@ -546,11 +552,10 @@ static Handle<Value> Fsync(const Arguments& args) {
     ASYNC_CALL(fsync, args[1], fd)
   } else {
     SYNC_CALL(fsync, 0, fd)
-    return Undefined(node_isolate);
   }
 }
 
-static Handle<Value> Unlink(const Arguments& args) {
+static void Unlink(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1) return TYPE_ERROR("path required");
@@ -562,11 +567,10 @@ static Handle<Value> Unlink(const Arguments& args) {
     ASYNC_CALL(unlink, args[1], *path)
   } else {
     SYNC_CALL(unlink, *path, *path)
-    return Undefined(node_isolate);
   }
 }
 
-static Handle<Value> RMDir(const Arguments& args) {
+static void RMDir(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1) return TYPE_ERROR("path required");
@@ -578,11 +582,10 @@ static Handle<Value> RMDir(const Arguments& args) {
     ASYNC_CALL(rmdir, args[1], *path)
   } else {
     SYNC_CALL(rmdir, *path, *path)
-    return Undefined(node_isolate);
   }
 }
 
-static Handle<Value> MKDir(const Arguments& args) {
+static void MKDir(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
@@ -596,11 +599,10 @@ static Handle<Value> MKDir(const Arguments& args) {
     ASYNC_CALL(mkdir, args[2], *path, mode)
   } else {
     SYNC_CALL(mkdir, *path, *path, mode)
-    return Undefined(node_isolate);
   }
 }
 
-static Handle<Value> ReadDir(const Arguments& args) {
+static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1) return TYPE_ERROR("path required");
@@ -629,11 +631,11 @@ static Handle<Value> ReadDir(const Arguments& args) {
 #endif
     }
 
-    return scope.Close(names);
+    args.GetReturnValue().Set(names);
   }
 }
 
-static Handle<Value> Open(const Arguments& args) {
+static void Open(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   int len = args.Length();
@@ -652,8 +654,7 @@ static Handle<Value> Open(const Arguments& args) {
     ASYNC_CALL(open, args[3], *path, flags, mode)
   } else {
     SYNC_CALL(open, *path, *path, flags, mode)
-    int fd = SYNC_RESULT;
-    return scope.Close(Integer::New(fd, node_isolate));
+    args.GetReturnValue().Set(SYNC_RESULT);
   }
 }
 
@@ -666,7 +667,7 @@ static Handle<Value> Open(const Arguments& args) {
 // 3 length    how much to write
 // 4 position  if integer, position to write at in the file.
 //             if null, write from the current position
-static Handle<Value> Write(const Arguments& args) {
+static void Write(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (!args[0]->IsInt32()) {
@@ -676,8 +677,7 @@ static Handle<Value> Write(const Arguments& args) {
   int fd = args[0]->Int32Value();
 
   if (!Buffer::HasInstance(args[1])) {
-    return ThrowException(Exception::Error(
-                String::New("Second argument needs to be a buffer")));
+    return ThrowError("Second argument needs to be a buffer");
   }
 
   Local<Object> buffer_obj = args[1]->ToObject();
@@ -686,14 +686,12 @@ static Handle<Value> Write(const Arguments& args) {
 
   size_t off = args[2]->Int32Value();
   if (off >= buffer_length) {
-    return ThrowException(Exception::Error(
-          String::New("Offset is out of bounds")));
+    return ThrowError("Offset is out of bounds");
   }
 
   ssize_t len = args[3]->Int32Value();
   if (off + len > buffer_length) {
-    return ThrowException(Exception::Error(
-          String::New("off + len > buffer.length")));
+    return ThrowError("off + len > buffer.length");
   }
 
   ASSERT_OFFSET(args[4]);
@@ -706,7 +704,7 @@ static Handle<Value> Write(const Arguments& args) {
     ASYNC_CALL(write, cb, fd, buf, len, pos)
   } else {
     SYNC_CALL(write, 0, fd, buf, len, pos)
-    return scope.Close(Integer::New(SYNC_RESULT, node_isolate));
+    args.GetReturnValue().Set(SYNC_RESULT);
   }
 }
 
@@ -722,7 +720,7 @@ static Handle<Value> Write(const Arguments& args) {
  * 4 position  file position - null for current position
  *
  */
-static Handle<Value> Read(const Arguments& args) {
+static void Read(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 2 || !args[0]->IsInt32()) {
@@ -739,8 +737,7 @@ static Handle<Value> Read(const Arguments& args) {
   char * buf = NULL;
 
   if (!Buffer::HasInstance(args[1])) {
-    return ThrowException(Exception::Error(
-                String::New("Second argument needs to be a buffer")));
+    return ThrowError("Second argument needs to be a buffer");
   }
 
   Local<Object> buffer_obj = args[1]->ToObject();
@@ -749,14 +746,12 @@ static Handle<Value> Read(const Arguments& args) {
 
   size_t off = args[2]->Int32Value();
   if (off >= buffer_length) {
-    return ThrowException(Exception::Error(
-          String::New("Offset is out of bounds")));
+    return ThrowError("Offset is out of bounds");
   }
 
   len = args[3]->Int32Value();
   if (off + len > buffer_length) {
-    return ThrowException(Exception::Error(
-          String::New("Length extends beyond buffer")));
+    return ThrowError("Length extends beyond buffer");
   }
 
   pos = GET_OFFSET(args[4]);
@@ -769,8 +764,7 @@ static Handle<Value> Read(const Arguments& args) {
     ASYNC_CALL(read, cb, fd, buf, len, pos);
   } else {
     SYNC_CALL(read, 0, fd, buf, len, pos)
-    Local<Integer> bytesRead = Integer::New(SYNC_RESULT, node_isolate);
-    return scope.Close(bytesRead);
+    args.GetReturnValue().Set(SYNC_RESULT);
   }
 }
 
@@ -778,7 +772,7 @@ static Handle<Value> Read(const Arguments& args) {
 /* fs.chmod(path, mode);
  * Wrapper for chmod(1) / EIO_CHMOD
  */
-static Handle<Value> Chmod(const Arguments& args) {
+static void Chmod(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if(args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
@@ -791,7 +785,6 @@ static Handle<Value> Chmod(const Arguments& args) {
     ASYNC_CALL(chmod, args[2], *path, mode);
   } else {
     SYNC_CALL(chmod, *path, *path, mode);
-    return Undefined(node_isolate);
   }
 }
 
@@ -799,7 +792,7 @@ static Handle<Value> Chmod(const Arguments& args) {
 /* fs.fchmod(fd, mode);
  * Wrapper for fchmod(1) / EIO_FCHMOD
  */
-static Handle<Value> FChmod(const Arguments& args) {
+static void FChmod(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if(args.Length() < 2 || !args[0]->IsInt32() || !args[1]->IsInt32()) {
@@ -812,7 +805,6 @@ static Handle<Value> FChmod(const Arguments& args) {
     ASYNC_CALL(fchmod, args[2], fd, mode);
   } else {
     SYNC_CALL(fchmod, 0, fd, mode);
-    return Undefined(node_isolate);
   }
 }
 
@@ -820,7 +812,7 @@ static Handle<Value> FChmod(const Arguments& args) {
 /* fs.chown(path, uid, gid);
  * Wrapper for chown(1) / EIO_CHOWN
  */
-static Handle<Value> Chown(const Arguments& args) {
+static void Chown(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   int len = args.Length();
@@ -839,7 +831,6 @@ static Handle<Value> Chown(const Arguments& args) {
     ASYNC_CALL(chown, args[3], *path, uid, gid);
   } else {
     SYNC_CALL(chown, *path, *path, uid, gid);
-    return Undefined(node_isolate);
   }
 }
 
@@ -847,7 +838,7 @@ static Handle<Value> Chown(const Arguments& args) {
 /* fs.fchown(fd, uid, gid);
  * Wrapper for fchown(1) / EIO_FCHOWN
  */
-static Handle<Value> FChown(const Arguments& args) {
+static void FChown(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   int len = args.Length();
@@ -866,12 +857,11 @@ static Handle<Value> FChown(const Arguments& args) {
     ASYNC_CALL(fchown, args[3], fd, uid, gid);
   } else {
     SYNC_CALL(fchown, 0, fd, uid, gid);
-    return Undefined(node_isolate);
   }
 }
 
 
-static Handle<Value> UTimes(const Arguments& args) {
+static void UTimes(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   int len = args.Length();
@@ -890,11 +880,10 @@ static Handle<Value> UTimes(const Arguments& args) {
     ASYNC_CALL(utime, args[3], *path, atime, mtime);
   } else {
     SYNC_CALL(utime, *path, *path, atime, mtime);
-    return Undefined(node_isolate);
   }
 }
 
-static Handle<Value> FUTimes(const Arguments& args) {
+static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   int len = args.Length();
@@ -913,7 +902,6 @@ static Handle<Value> FUTimes(const Arguments& args) {
     ASYNC_CALL(futime, args[3], fd, atime, mtime);
   } else {
     SYNC_CALL(futime, 0, fd, atime, mtime);
-    return Undefined(node_isolate);
   }
 }
 
@@ -954,15 +942,15 @@ void File::Initialize(Handle<Object> target) {
 
 void InitFs(Handle<Object> target) {
   HandleScope scope(node_isolate);
+
   // Initialize the stats object
-  Local<FunctionTemplate> stat_templ = FunctionTemplate::New();
-  stats_constructor_template = Persistent<FunctionTemplate>::New(node_isolate,
-                                                                 stat_templ);
-  target->Set(String::NewSymbol("Stats"),
-               stats_constructor_template->GetFunction());
+  Local<Function> constructor = FunctionTemplate::New()->GetFunction();
+  target->Set(String::NewSymbol("Stats"), constructor);
+  stats_constructor.Reset(node_isolate, constructor);
+
   File::Initialize(target);
 
-  oncomplete_sym = NODE_PSYMBOL("oncomplete");
+  oncomplete_sym = String::New("oncomplete");
 
   StatWatcher::Initialize(target);
 }

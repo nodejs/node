@@ -45,9 +45,9 @@ namespace node {
 
 namespace cares_wrap {
 
-using v8::Arguments;
 using v8::Array;
 using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
@@ -69,7 +69,7 @@ struct ares_task_t {
 };
 
 
-static Persistent<String> oncomplete_sym;
+static Cached<String> oncomplete_sym;
 static ares_channel ares_channel;
 static uv_timer_t ares_timer;
 static RB_HEAD(ares_task_list, ares_task_t) ares_tasks;
@@ -268,7 +268,8 @@ static void SetAresErrno(int errorno) {
   HandleScope scope(node_isolate);
   Local<Value> key = String::NewSymbol("_errno");
   Local<Value> value = String::NewSymbol(AresErrnoString(errorno));
-  node::process->Set(key, value);
+  Local<Object> process = Local<Object>::New(node_isolate, process_p);
+  process->Set(key, value);
 }
 
 
@@ -276,26 +277,18 @@ class QueryWrap {
  public:
   QueryWrap() {
     HandleScope scope(node_isolate);
-
-    object_ = Persistent<Object>::New(node_isolate, Object::New());
+    persistent().Reset(node_isolate, Object::New());
   }
 
   virtual ~QueryWrap() {
-    assert(!object_.IsEmpty());
-
-    object_->Delete(oncomplete_sym);
-
-    object_.Dispose(node_isolate);
-    object_.Clear();
-  }
-
-  Handle<Object> GetObject() {
-    return object_;
+    assert(!persistent().IsEmpty());
+    object()->Delete(oncomplete_sym);
+    persistent().Dispose();
   }
 
   void SetOnComplete(Handle<Value> oncomplete) {
     assert(oncomplete->IsFunction());
-    object_->Set(oncomplete_sym, oncomplete);
+    object()->Set(oncomplete_sym, oncomplete);
   }
 
   // Subclasses should implement the appropriate Send method.
@@ -307,6 +300,14 @@ class QueryWrap {
   virtual int Send(const char* name, int family) {
     assert(0);
     return 0;
+  }
+
+  inline Persistent<Object>& persistent() {
+    return object_;
+  }
+
+  inline Local<Object> object() {
+    return Local<Object>::New(node_isolate, persistent());
   }
 
  protected:
@@ -343,13 +344,13 @@ class QueryWrap {
   void CallOnComplete(Local<Value> answer) {
     HandleScope scope(node_isolate);
     Local<Value> argv[2] = { Integer::New(0, node_isolate), answer };
-    MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
+    MakeCallback(object(), oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
   void CallOnComplete(Local<Value> answer, Local<Value> family) {
     HandleScope scope(node_isolate);
     Local<Value> argv[3] = { Integer::New(0, node_isolate), answer, family };
-    MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
+    MakeCallback(object(), oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
   void ParseError(int status) {
@@ -358,7 +359,7 @@ class QueryWrap {
 
     HandleScope scope(node_isolate);
     Local<Value> argv[1] = { Integer::New(-1, node_isolate) };
-    MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
+    MakeCallback(object(), oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
   // Subclasses should implement the appropriate Parse method.
@@ -730,7 +731,7 @@ class GetHostByNameWrap: public QueryWrap {
 
 
 template <class Wrap>
-static Handle<Value> Query(const Arguments& args) {
+static void Query(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   assert(!args.IsConstructCall());
@@ -742,8 +743,8 @@ static Handle<Value> Query(const Arguments& args) {
 
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
-  // object reference, causing wrap->GetObject() to return undefined.
-  Local<Object> object = Local<Object>::New(node_isolate, wrap->GetObject());
+  // object reference, causing wrap->object() to return an empty handle.
+  Local<Object> object = wrap->object();
 
   String::Utf8Value name(args[0]);
 
@@ -751,15 +752,14 @@ static Handle<Value> Query(const Arguments& args) {
   if (r) {
     SetAresErrno(r);
     delete wrap;
-    return scope.Close(v8::Null(node_isolate));
   } else {
-    return scope.Close(object);
+    args.GetReturnValue().Set(object);
   }
 }
 
 
 template <class Wrap>
-static Handle<Value> QueryWithFamily(const Arguments& args) {
+static void QueryWithFamily(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   assert(!args.IsConstructCall());
@@ -771,8 +771,8 @@ static Handle<Value> QueryWithFamily(const Arguments& args) {
 
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
-  // object reference, causing wrap->GetObject() to return undefined.
-  Local<Object> object = Local<Object>::New(node_isolate, wrap->GetObject());
+  // object reference, causing wrap->object() to return an empty handle.
+  Local<Object> object = wrap->object();
 
   String::Utf8Value name(args[0]);
   int family = args[1]->Int32Value();
@@ -781,9 +781,8 @@ static Handle<Value> QueryWithFamily(const Arguments& args) {
   if (r) {
     SetAresErrno(r);
     delete wrap;
-    return scope.Close(v8::Null(node_isolate));
   } else {
-    return scope.Close(object);
+    args.GetReturnValue().Set(object);
   }
 }
 
@@ -877,31 +876,29 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   uv_freeaddrinfo(res);
 
   // Make the callback into JavaScript
-  MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
+  MakeCallback(req_wrap->object(), oncomplete_sym, ARRAY_SIZE(argv), argv);
 
   delete req_wrap;
 }
 
 
-static Handle<Value> IsIP(const Arguments& args) {
+static void IsIP(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   String::AsciiValue ip(args[0]);
   char address_buffer[sizeof(struct in6_addr)];
 
-  if (uv_inet_pton(AF_INET, *ip, &address_buffer).code == UV_OK) {
-    return scope.Close(v8::Integer::New(4, node_isolate));
-  }
+  int rc = 0;
+  if (uv_inet_pton(AF_INET, *ip, &address_buffer).code == UV_OK)
+    rc = 4;
+  else if (uv_inet_pton(AF_INET6, *ip, &address_buffer).code == UV_OK)
+    rc = 6;
 
-  if (uv_inet_pton(AF_INET6, *ip, &address_buffer).code == UV_OK) {
-    return scope.Close(v8::Integer::New(6, node_isolate));
-  }
-
-  return scope.Close(v8::Integer::New(0, node_isolate));
+  args.GetReturnValue().Set(rc);
 }
 
 
-static Handle<Value> GetAddrInfo(const Arguments& args) {
+static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   String::Utf8Value hostname(args[0]);
@@ -937,14 +934,13 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
-    return scope.Close(v8::Null(node_isolate));
   } else {
-    return scope.Close(req_wrap->object_);
+    args.GetReturnValue().Set(req_wrap->persistent());
   }
 }
 
 
-static Handle<Value> GetServers(const Arguments& args) {
+static void GetServers(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   Local<Array> server_array = Array::New();
@@ -969,11 +965,11 @@ static Handle<Value> GetServers(const Arguments& args) {
 
   ares_free_data(servers);
 
-  return scope.Close(server_array);
+  args.GetReturnValue().Set(server_array);
 }
 
 
-static Handle<Value> SetServers(const Arguments& args) {
+static void SetServers(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   assert(args[0]->IsArray());
@@ -984,7 +980,7 @@ static Handle<Value> SetServers(const Arguments& args) {
 
   if (len == 0) {
     int rv = ares_set_servers(ares_channel, NULL);
-    return scope.Close(Integer::New(rv));
+    return args.GetReturnValue().Set(rv);
   }
 
   ares_addr_node* servers = new ares_addr_node[len];
@@ -1039,16 +1035,14 @@ static Handle<Value> SetServers(const Arguments& args) {
 
   delete[] servers;
 
-  return scope.Close(Integer::New(r));
+  args.GetReturnValue().Set(r);
 }
 
 
-static Handle<Value> StrError(const Arguments& args) {
-  HandleScope scope;
-
-  int r = args[0]->Int32Value();
-
-  return scope.Close(String::New(ares_strerror(r)));
+static void StrError(const FunctionCallbackInfo<Value>& args) {
+  HandleScope scope(node_isolate);
+  const char* errmsg = ares_strerror(args[0]->Int32Value());
+  args.GetReturnValue().Set(String::New(errmsg));
 }
 
 
@@ -1100,7 +1094,7 @@ static void Initialize(Handle<Object> target) {
   target->Set(String::NewSymbol("AF_UNSPEC"),
               Integer::New(AF_UNSPEC, node_isolate));
 
-  oncomplete_sym = NODE_PSYMBOL("oncomplete");
+  oncomplete_sym = String::New("oncomplete");
 }
 
 

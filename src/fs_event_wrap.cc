@@ -24,20 +24,28 @@
 
 #include <stdlib.h>
 
-using namespace v8;
-
 namespace node {
 
-static Persistent<String> change_sym;
-static Persistent<String> onchange_sym;
-static Persistent<String> rename_sym;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Handle;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Local;
+using v8::Object;
+using v8::String;
+using v8::Value;
+
+static Cached<String> change_sym;
+static Cached<String> onchange_sym;
+static Cached<String> rename_sym;
 
 class FSEventWrap: public HandleWrap {
 public:
   static void Initialize(Handle<Object> target);
-  static Handle<Value> New(const Arguments& args);
-  static Handle<Value> Start(const Arguments& args);
-  static Handle<Value> Close(const Arguments& args);
+  static void New(const FunctionCallbackInfo<Value>& args);
+  static void Start(const FunctionCallbackInfo<Value>& args);
+  static void Close(const FunctionCallbackInfo<Value>& args);
 
 private:
   FSEventWrap(Handle<Object> object);
@@ -74,33 +82,28 @@ void FSEventWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "start", Start);
   NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
 
-  target->Set(String::NewSymbol("FSEvent"),
-              Persistent<FunctionTemplate>::New(node_isolate,
-                                                t)->GetFunction());
+  target->Set(String::New("FSEvent"), t->GetFunction());
 
-  change_sym = NODE_PSYMBOL("change");
-  onchange_sym = NODE_PSYMBOL("onchange");
-  rename_sym = NODE_PSYMBOL("rename");
+  change_sym = String::New("change");
+  onchange_sym = String::New("onchange");
+  rename_sym = String::New("rename");
 }
 
 
-Handle<Value> FSEventWrap::New(const Arguments& args) {
+void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-
   assert(args.IsConstructCall());
   new FSEventWrap(args.This());
-
-  return scope.Close(args.This());
 }
 
 
-Handle<Value> FSEventWrap::Start(const Arguments& args) {
+void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(FSEventWrap)
 
   if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New("Bad arguments")));
+    return ThrowTypeError("Bad arguments");
   }
 
   String::Utf8Value path(args[0]);
@@ -116,7 +119,7 @@ Handle<Value> FSEventWrap::Start(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()));
   }
 
-  return scope.Close(Integer::New(r, node_isolate));
+  args.GetReturnValue().Set(r);
 }
 
 
@@ -127,7 +130,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 
   FSEventWrap* wrap = static_cast<FSEventWrap*>(handle->data);
 
-  assert(wrap->object_.IsEmpty() == false);
+  assert(wrap->persistent().IsEmpty() == false);
 
   // We're in a bind here. libuv can set both UV_RENAME and UV_CHANGE but
   // the Node API only lets us pass a single event to JS land.
@@ -158,14 +161,18 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   Handle<Value> argv[3] = {
     Integer::New(status, node_isolate),
     eventStr,
-    filename ? String::New(filename) : v8::Null(node_isolate)
+    Null(node_isolate)
   };
 
-  MakeCallback(wrap->object_, onchange_sym, ARRAY_SIZE(argv), argv);
+  if (filename != NULL) {
+    argv[2] = String::New(filename);
+  }
+
+  MakeCallback(wrap->object(), onchange_sym, ARRAY_SIZE(argv), argv);
 }
 
 
-Handle<Value> FSEventWrap::Close(const Arguments& args) {
+void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   // Unwrap manually here. The UNWRAP() macro asserts that wrap != NULL.
@@ -176,12 +183,10 @@ Handle<Value> FSEventWrap::Close(const Arguments& args) {
   void* ptr = args.This()->GetAlignedPointerFromInternalField(0);
   FSEventWrap* wrap = static_cast<FSEventWrap*>(ptr);
 
-  if (wrap == NULL || wrap->initialized_ == false) {
-    return Undefined(node_isolate);
-  }
+  if (wrap == NULL || wrap->initialized_ == false) return;
   wrap->initialized_ = false;
 
-  return HandleWrap::Close(args);
+  HandleWrap::Close(args);
 }
 
 

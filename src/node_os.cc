@@ -46,81 +46,95 @@
 
 namespace node {
 
-using namespace v8;
+using v8::Array;
+using v8::FunctionCallbackInfo;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Local;
+using v8::Number;
+using v8::Object;
+using v8::String;
+using v8::Value;
 
-static Handle<Value> GetEndianness(const Arguments& args) {
+
+static void GetEndianness(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  return scope.Close(String::New(IsBigEndian() ? "BE" : "LE"));
+  const char* rval = IsBigEndian() ? "BE" : "LE";
+  args.GetReturnValue().Set(String::New(rval));
 }
 
-static Handle<Value> GetHostname(const Arguments& args) {
+
+static void GetHostname(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   char buf[MAXHOSTNAMELEN + 1];
 
   if (gethostname(buf, sizeof(buf))) {
 #ifdef __POSIX__
-    return ThrowException(ErrnoException(errno, "gethostname"));
+    int errorno = errno;
 #else // __MINGW32__
-    return ThrowException(ErrnoException(WSAGetLastError(), "gethostname"));
+    int errorno = WSAGetLastError();
 #endif // __MINGW32__
+    return ThrowErrnoException(errorno, "gethostname");
   }
   buf[sizeof(buf) - 1] = '\0';
 
-  return scope.Close(String::New(buf));
+  args.GetReturnValue().Set(String::New(buf));
 }
 
-static Handle<Value> GetOSType(const Arguments& args) {
+
+static void GetOSType(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
+  const char* rval;
 
 #ifdef __POSIX__
   struct utsname info;
   if (uname(&info) < 0) {
-    return ThrowException(ErrnoException(errno, "uname"));
+    return ThrowErrnoException(errno, "uname");
   }
-  return scope.Close(String::New(info.sysname));
+  rval = info.sysname;
 #else // __MINGW32__
-  return scope.Close(String::New("Windows_NT"));
+  rval ="Windows_NT";
 #endif
+
+  args.GetReturnValue().Set(String::New(rval));
 }
 
-static Handle<Value> GetOSRelease(const Arguments& args) {
+
+static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
+  const char* rval;
 
 #ifdef __POSIX__
   struct utsname info;
   if (uname(&info) < 0) {
-    return ThrowException(ErrnoException(errno, "uname"));
+    return ThrowErrnoException(errno, "uname");
   }
-  return scope.Close(String::New(info.release));
+  rval = info.release;
 #else // __MINGW32__
   char release[256];
   OSVERSIONINFO info;
-  info.dwOSVersionInfoSize = sizeof(info);
 
-  if (GetVersionEx(&info) == 0) {
-    return Undefined(node_isolate);
-  }
+  info.dwOSVersionInfoSize = sizeof(info);
+  if (GetVersionEx(&info) == 0) return;
 
   sprintf(release, "%d.%d.%d", static_cast<int>(info.dwMajorVersion),
       static_cast<int>(info.dwMinorVersion), static_cast<int>(info.dwBuildNumber));
-  return scope.Close(String::New(release));
+  rval = release;
 #endif
 
+  args.GetReturnValue().Set(String::New(rval));
 }
 
-static Handle<Value> GetCPUInfo(const Arguments& args) {
+
+static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   uv_cpu_info_t* cpu_infos;
   int count, i;
 
   uv_err_t err = uv_cpu_info(&cpu_infos, &count);
-
-  if (err.code != UV_OK) {
-    return Undefined(node_isolate);
-  }
+  if (err.code != UV_OK) return;
 
   Local<Array> cpus = Array::New();
-
   for (i = 0; i < count; i++) {
     Local<Object> times_info = Object::New();
     times_info->Set(String::New("user"),
@@ -143,60 +157,48 @@ static Handle<Value> GetCPUInfo(const Arguments& args) {
   }
 
   uv_free_cpu_info(cpu_infos, count);
-
-  return scope.Close(cpus);
+  args.GetReturnValue().Set(cpus);
 }
 
-static Handle<Value> GetFreeMemory(const Arguments& args) {
+
+static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   double amount = uv_get_free_memory();
-
-  if (amount < 0) {
-    return Undefined(node_isolate);
-  }
-
-  return scope.Close(Number::New(amount));
+  if (amount < 0) return;
+  args.GetReturnValue().Set(amount);
 }
 
-static Handle<Value> GetTotalMemory(const Arguments& args) {
+
+static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   double amount = uv_get_total_memory();
-
-  if (amount < 0) {
-    return Undefined(node_isolate);
-  }
-
-  return scope.Close(Number::New(amount));
+  if (amount < 0) return;
+  args.GetReturnValue().Set(amount);
 }
 
-static Handle<Value> GetUptime(const Arguments& args) {
+
+static void GetUptime(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   double uptime;
-
   uv_err_t err = uv_uptime(&uptime);
-
-  if (err.code != UV_OK) {
-    return Undefined(node_isolate);
-  }
-
-  return scope.Close(Number::New(uptime));
+  if (err.code != UV_OK) return;
+  args.GetReturnValue().Set(uptime);
 }
 
-static Handle<Value> GetLoadAvg(const Arguments& args) {
+
+static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   double loadavg[3];
   uv_loadavg(loadavg);
-
   Local<Array> loads = Array::New(3);
   loads->Set(0, Number::New(loadavg[0]));
   loads->Set(1, Number::New(loadavg[1]));
   loads->Set(2, Number::New(loadavg[2]));
-
-  return scope.Close(loads);
+  args.GetReturnValue().Set(loads);
 }
 
 
-static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
+static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   uv_interface_address_t* interfaces;
   int count, i;
@@ -207,9 +209,9 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
   Local<Array> ifarr;
 
   uv_err_t err = uv_interface_addresses(&interfaces, &count);
-
-  if (err.code != UV_OK)
-    return ThrowException(UVException(err.code, "uv_interface_addresses"));
+  if (err.code != UV_OK) {
+    return ThrowUVException(err.code, "uv_interface_addresses");
+  }
 
   ret = Object::New();
 
@@ -248,8 +250,7 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
   }
 
   uv_free_interface_addresses(interfaces, count);
-
-  return scope.Close(ret);
+  args.GetReturnValue().Set(ret);
 }
 
 

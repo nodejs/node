@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_counters.h"
-
 #include "uv.h"
 
 #include <string.h>
@@ -28,60 +27,55 @@
 
 namespace node {
 
-using namespace v8;
-
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::GCCallbackFlags;
+using v8::GCEpilogueCallback;
+using v8::GCPrologueCallback;
+using v8::GCType;
+using v8::Handle;
+using v8::HandleScope;
+using v8::Local;
+using v8::Object;
+using v8::String;
+using v8::Value;
 
 static uint64_t counter_gc_start_time;
 static uint64_t counter_gc_end_time;
 
-#define SLURP_OBJECT(obj, member, valp) \
-  if (!(obj)->IsObject()) { \
-    return (ThrowException(Exception::Error(String::New("expected " \
-      "object for " #obj " to contain object member " #member)))); \
-  } \
-  *valp = Local<Object>::Cast(obj->Get(String::New(#member)));
 
-
-Handle<Value> COUNTER_NET_SERVER_CONNECTION(const Arguments& args) {
+void COUNTER_NET_SERVER_CONNECTION(const FunctionCallbackInfo<Value>&) {
   NODE_COUNT_SERVER_CONN_OPEN();
-  return Undefined(node_isolate);
 }
 
 
-Handle<Value> COUNTER_NET_SERVER_CONNECTION_CLOSE(const Arguments& args) {
+void COUNTER_NET_SERVER_CONNECTION_CLOSE(const FunctionCallbackInfo<Value>&) {
   NODE_COUNT_SERVER_CONN_CLOSE();
-  return Undefined(node_isolate);
 }
 
 
-Handle<Value> COUNTER_HTTP_SERVER_REQUEST(const Arguments& args) {
+void COUNTER_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>&) {
   NODE_COUNT_HTTP_SERVER_REQUEST();
-  return Undefined(node_isolate);
 }
 
 
-Handle<Value> COUNTER_HTTP_SERVER_RESPONSE(const Arguments& args) {
+void COUNTER_HTTP_SERVER_RESPONSE(const FunctionCallbackInfo<Value>&) {
   NODE_COUNT_HTTP_SERVER_RESPONSE();
-  return Undefined(node_isolate);
 }
 
 
-Handle<Value> COUNTER_HTTP_CLIENT_REQUEST(const Arguments& args) {
+void COUNTER_HTTP_CLIENT_REQUEST(const FunctionCallbackInfo<Value>&) {
   NODE_COUNT_HTTP_CLIENT_REQUEST();
-  return Undefined(node_isolate);
 }
 
 
-Handle<Value> COUNTER_HTTP_CLIENT_RESPONSE(const Arguments& args) {
+void COUNTER_HTTP_CLIENT_RESPONSE(const FunctionCallbackInfo<Value>&) {
   NODE_COUNT_HTTP_CLIENT_RESPONSE();
-  return Undefined(node_isolate);
 }
 
 
 static void counter_gc_start(GCType type, GCCallbackFlags flags) {
   counter_gc_start_time = NODE_COUNT_GET_GC_RAWTIME();
-
-  return;
 }
 
 
@@ -98,33 +92,30 @@ static void counter_gc_done(GCType type, GCCallbackFlags flags) {
       counter_gc_end_time = endgc;
     }
   }
-
-  return;
 }
 
-
-#define NODE_PROBE(name) #name, name
 
 void InitPerfCounters(Handle<Object> target) {
   HandleScope scope(node_isolate);
 
   static struct {
     const char* name;
-    Handle<Value> (*func)(const Arguments&);
-    Persistent<FunctionTemplate> templ;
+    void (*func)(const FunctionCallbackInfo<Value>&);
   } tab[] = {
+#define NODE_PROBE(name) #name, name
     { NODE_PROBE(COUNTER_NET_SERVER_CONNECTION) },
     { NODE_PROBE(COUNTER_NET_SERVER_CONNECTION_CLOSE) },
     { NODE_PROBE(COUNTER_HTTP_SERVER_REQUEST) },
     { NODE_PROBE(COUNTER_HTTP_SERVER_RESPONSE) },
     { NODE_PROBE(COUNTER_HTTP_CLIENT_REQUEST) },
     { NODE_PROBE(COUNTER_HTTP_CLIENT_RESPONSE) }
+#undef NODE_PROBE
   };
 
   for (int i = 0; i < ARRAY_SIZE(tab); i++) {
-    tab[i].templ = Persistent<FunctionTemplate>::New(node_isolate,
-        FunctionTemplate::New(tab[i].func));
-    target->Set(String::NewSymbol(tab[i].name), tab[i].templ->GetFunction());
+    Local<String> key = String::New(tab[i].name);
+    Local<Value> val = FunctionTemplate::New(tab[i].func)->GetFunction();
+    target->Set(key, val);
   }
 
   // Only Windows performance counters supported

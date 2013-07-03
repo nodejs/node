@@ -64,19 +64,21 @@ class SecureContext : ObjectWrap {
 
  protected:
 
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Init(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetKey(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetCert(const v8::Arguments& args);
-  static v8::Handle<v8::Value> AddCACert(const v8::Arguments& args);
-  static v8::Handle<v8::Value> AddCRL(const v8::Arguments& args);
-  static v8::Handle<v8::Value> AddRootCerts(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetCiphers(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetOptions(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetSessionIdContext(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetSessionTimeout(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Close(const v8::Arguments& args);
-  static v8::Handle<v8::Value> LoadPKCS12(const v8::Arguments& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetCert(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AddCACert(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AddCRL(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AddRootCerts(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetCiphers(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSessionIdContext(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSessionTimeout(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoadPKCS12(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static SSL_SESSION* GetSessionCallback(SSL* s,
                                          unsigned char* key,
@@ -172,48 +174,52 @@ class Connection : ObjectWrap {
 #endif
 
  protected:
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> EncIn(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ClearOut(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ClearPending(const v8::Arguments& args);
-  static v8::Handle<v8::Value> EncPending(const v8::Arguments& args);
-  static v8::Handle<v8::Value> EncOut(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ClearIn(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GetPeerCertificate(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GetSession(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetSession(const v8::Arguments& args);
-  static v8::Handle<v8::Value> LoadSession(const v8::Arguments& args);
-  static v8::Handle<v8::Value> IsSessionReused(const v8::Arguments& args);
-  static v8::Handle<v8::Value> IsInitFinished(const v8::Arguments& args);
-  static v8::Handle<v8::Value> VerifyError(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GetCurrentCipher(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Shutdown(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ReceivedShutdown(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Start(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Close(const v8::Arguments& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EncIn(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ClearOut(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ClearPending(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EncPending(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EncOut(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ClearIn(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPeerCertificate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoadSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsSessionReused(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsInitFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCurrentCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReceivedShutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   // NPN
-  static v8::Handle<v8::Value> GetNegotiatedProto(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetNPNProtocols(const v8::Arguments& args);
-  static int AdvertiseNextProtoCallback_(SSL *s,
-                                         const unsigned char **data,
-                                         unsigned int *len,
-                                         void *arg);
-  static int SelectNextProtoCallback_(SSL *s,
-                                      unsigned char **out, unsigned char *outlen,
+  static void GetNegotiatedProto(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetNPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static int AdvertiseNextProtoCallback_(SSL* s,
+                                         const unsigned char** data,
+                                         unsigned int* len,
+                                         void* arg);
+  static int SelectNextProtoCallback_(SSL* s,
+                                      unsigned char** out,
+                                      unsigned char* outlen,
                                       const unsigned char* in,
-                                      unsigned int inlen, void *arg);
+                                      unsigned int inlen,
+                                      void* arg);
 #endif
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   // SNI
-  static v8::Handle<v8::Value> GetServername(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetSNICallback(const v8::Arguments& args);
-  static int SelectSNIContextCallback_(SSL *s, int *ad, void* arg);
+  static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSNICallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static int SelectSNIContextCallback_(SSL* s, int* ad, void* arg);
 #endif
 
-  int HandleBIOError(BIO *bio, const char* func, int rv);
+  int HandleBIOError(BIO* bio, const char* func, int rv);
 
   enum ZeroStatus {
     kZeroIsNotAnError,
@@ -230,7 +236,7 @@ class Connection : ObjectWrap {
   void ClearError();
   void SetShutdownFlags();
 
-  static Connection* Unwrap(const v8::Arguments& args) {
+  static Connection* Unwrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Connection* ss = ObjectWrap::Unwrap<Connection>(args.This());
     ss->ClearError();
     return ss;
@@ -254,14 +260,14 @@ class Connection : ObjectWrap {
     }
 
 #ifdef OPENSSL_NPN_NEGOTIATED
-    if (!npnProtos_.IsEmpty()) npnProtos_.Dispose(node_isolate);
-    if (!selectedNPNProto_.IsEmpty()) selectedNPNProto_.Dispose(node_isolate);
+    npnProtos_.Dispose();
+    selectedNPNProto_.Dispose();
 #endif
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-   if (!sniObject_.IsEmpty()) sniObject_.Dispose(node_isolate);
-   if (!sniContext_.IsEmpty()) sniContext_.Dispose(node_isolate);
-   if (!servername_.IsEmpty()) servername_.Dispose(node_isolate);
+    sniObject_.Dispose();
+    sniContext_.Dispose();
+    servername_.Dispose();
 #endif
   }
 
@@ -291,22 +297,18 @@ class CipherBase : public ObjectWrap {
     kDecipher
   };
 
-  v8::Handle<v8::Value> Init(char* cipher_type, char* key_buf, int key_buf_len);
-  v8::Handle<v8::Value> InitIv(char* cipher_type,
-                               char* key,
-                               int key_len,
-                               char* iv,
-                               int iv_len);
+  void Init(char* cipher_type, char* key_buf, int key_buf_len);
+  void InitIv(char* cipher_type, char* key, int key_len, char* iv, int iv_len);
   bool Update(char* data, int len, unsigned char** out, int* out_len);
   bool Final(unsigned char** out, int *out_len);
   bool SetAutoPadding(bool auto_padding);
 
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Init(const v8::Arguments& args);
-  static v8::Handle<v8::Value> InitIv(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Update(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Final(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetAutoPadding(const v8::Arguments& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InitIv(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Final(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetAutoPadding(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   CipherBase(CipherKind kind) : cipher_(NULL),
                                 initialised_(false),
@@ -330,14 +332,14 @@ class Hmac : public ObjectWrap {
   static void Initialize (v8::Handle<v8::Object> target);
 
  protected:
-  v8::Handle<v8::Value> HmacInit(char* hashType, char* key, int key_len);
+  void HmacInit(char* hashType, char* key, int key_len);
   bool HmacUpdate(char* data, int len);
   bool HmacDigest(unsigned char** md_value, unsigned int* md_len);
 
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> HmacInit(const v8::Arguments& args);
-  static v8::Handle<v8::Value> HmacUpdate(const v8::Arguments& args);
-  static v8::Handle<v8::Value> HmacDigest(const v8::Arguments& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HmacInit(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HmacUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HmacDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Hmac() : md_(NULL), initialised_(false) {
   }
@@ -361,9 +363,9 @@ class Hash : public ObjectWrap {
   bool HashUpdate(char* data, int len);
 
  protected:
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> HashUpdate(const v8::Arguments& args);
-  static v8::Handle<v8::Value> HashDigest(const v8::Arguments& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HashUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HashDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Hash() : md_(NULL), initialised_(false) {
   }
@@ -383,7 +385,7 @@ class Sign : public ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
 
-  v8::Handle<v8::Value> SignInit(const char* sign_type);
+  void SignInit(const char* sign_type);
   bool SignUpdate(char* data, int len);
   bool SignFinal(unsigned char** md_value,
                  unsigned int *md_len,
@@ -391,10 +393,10 @@ class Sign : public ObjectWrap {
                  int key_pem_len);
 
  protected:
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SignInit(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SignUpdate(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SignFinal(const v8::Arguments& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SignInit(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SignUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SignFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Sign() : md_(NULL), initialised_(false) {
   }
@@ -414,18 +416,18 @@ class Verify : public ObjectWrap {
  public:
   static void Initialize (v8::Handle<v8::Object> target);
 
-  v8::Handle<v8::Value> VerifyInit(const char* verify_type);
+  void VerifyInit(const char* verify_type);
   bool VerifyUpdate(char* data, int len);
-  v8::Handle<v8::Value> VerifyFinal(char* key_pem,
-                                    int key_pem_len,
-                                    unsigned char* sig,
-                                    int siglen);
+  bool VerifyFinal(char* key_pem,
+                   int key_pem_len,
+                   unsigned char* sig,
+                   int siglen);
 
  protected:
-  static v8::Handle<v8::Value> New (const v8::Arguments& args);
-  static v8::Handle<v8::Value> VerifyInit(const v8::Arguments& args);
-  static v8::Handle<v8::Value> VerifyUpdate(const v8::Arguments& args);
-  static v8::Handle<v8::Value> VerifyFinal(const v8::Arguments& args);
+  static void New (const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void VerifyInit(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void VerifyUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void VerifyFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Verify() : md_(NULL), initialised_(false) {
   }
@@ -451,16 +453,17 @@ class DiffieHellman : public ObjectWrap {
   bool Init(unsigned char* p, int p_len, unsigned char* g, int g_len);
 
  protected:
-  static v8::Handle<v8::Value> DiffieHellmanGroup(const v8::Arguments& args);
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GenerateKeys(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GetPrime(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GetGenerator(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GetPublicKey(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GetPrivateKey(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ComputeSecret(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetPublicKey(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetPrivateKey(const v8::Arguments& args);
+  static void DiffieHellmanGroup(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GenerateKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPrime(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetGenerator(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ComputeSecret(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   DiffieHellman() : ObjectWrap(), initialised_(false), dh(NULL) {
   }

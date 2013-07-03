@@ -25,19 +25,18 @@
 
 namespace node {
 
-using v8::Arguments;
 using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::Persistent;
 using v8::String;
 using v8::Value;
 
-static Persistent<String> onsignal_sym;
+static Cached<String> onsignal_sym;
 
 
 class SignalWrap : public HandleWrap {
@@ -57,13 +56,13 @@ class SignalWrap : public HandleWrap {
     NODE_SET_PROTOTYPE_METHOD(constructor, "start", Start);
     NODE_SET_PROTOTYPE_METHOD(constructor, "stop", Stop);
 
-    onsignal_sym = NODE_PSYMBOL("onsignal");
+    onsignal_sym = String::New("onsignal");
 
     target->Set(String::NewSymbol("Signal"), constructor->GetFunction());
   }
 
  private:
-  static Handle<Value> New(const Arguments& args) {
+  static void New(const FunctionCallbackInfo<Value>& args) {
     // This constructor should not be exposed to public javascript.
     // Therefore we assert that we are not trying to call this as a
     // normal function.
@@ -71,8 +70,6 @@ class SignalWrap : public HandleWrap {
 
     HandleScope scope(node_isolate);
     new SignalWrap(args.This());
-
-    return scope.Close(args.This());
   }
 
   SignalWrap(Handle<Object> object)
@@ -84,30 +81,23 @@ class SignalWrap : public HandleWrap {
   ~SignalWrap() {
   }
 
-  static Handle<Value> Start(const Arguments& args) {
+  static void Start(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-
     UNWRAP(SignalWrap)
 
     int signum = args[0]->Int32Value();
-
     int r = uv_signal_start(&wrap->handle_, OnSignal, signum);
-
     if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-    return scope.Close(Integer::New(r, node_isolate));
+    args.GetReturnValue().Set(r);
   }
 
-  static Handle<Value> Stop(const Arguments& args) {
+  static void Stop(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-
     UNWRAP(SignalWrap)
 
     int r = uv_signal_stop(&wrap->handle_);
-
     if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-    return scope.Close(Integer::New(r, node_isolate));
+    args.GetReturnValue().Set(r);
   }
 
   static void OnSignal(uv_signal_t* handle, int signum) {
@@ -117,7 +107,7 @@ class SignalWrap : public HandleWrap {
     assert(wrap);
 
     Local<Value> argv[1] = { Integer::New(signum, node_isolate) };
-    MakeCallback(wrap->object_, onsignal_sym, ARRAY_SIZE(argv), argv);
+    MakeCallback(wrap->object(), onsignal_sym, ARRAY_SIZE(argv), argv);
   }
 
   uv_signal_t handle_;

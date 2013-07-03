@@ -27,25 +27,31 @@
 
 namespace node {
 
-using namespace v8;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Handle;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Local;
+using v8::Object;
+using v8::String;
+using v8::Value;
 
-Persistent<FunctionTemplate> StatWatcher::constructor_template;
-static Persistent<String> onchange_sym;
-static Persistent<String> onstop_sym;
+static Cached<String> onchange_sym;
+static Cached<String> onstop_sym;
 
 
 void StatWatcher::Initialize(Handle<Object> target) {
   HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(StatWatcher::New);
-  constructor_template = Persistent<FunctionTemplate>::New(node_isolate, t);
-  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("StatWatcher"));
+  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->SetClassName(String::NewSymbol("StatWatcher"));
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", StatWatcher::Start);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", StatWatcher::Stop);
+  NODE_SET_PROTOTYPE_METHOD(t, "start", StatWatcher::Start);
+  NODE_SET_PROTOTYPE_METHOD(t, "stop", StatWatcher::Stop);
 
-  target->Set(String::NewSymbol("StatWatcher"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("StatWatcher"), t->GetFunction());
 }
 
 
@@ -84,22 +90,24 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
     SetErrno(uv_last_error(wrap->watcher_->loop));
   }
   if (onchange_sym.IsEmpty()) {
-    onchange_sym = NODE_PSYMBOL("onchange");
+    onchange_sym = String::New("onchange");
   }
-  MakeCallback(wrap->handle_, onchange_sym, ARRAY_SIZE(argv), argv);
+  MakeCallback(wrap->handle(node_isolate),
+               onchange_sym,
+               ARRAY_SIZE(argv),
+               argv);
 }
 
 
-Handle<Value> StatWatcher::New(const Arguments& args) {
+void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
   assert(args.IsConstructCall());
   HandleScope scope(node_isolate);
   StatWatcher* s = new StatWatcher();
   s->Wrap(args.This());
-  return args.This();
 }
 
 
-Handle<Value> StatWatcher::Start(const Arguments& args) {
+void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   assert(args.Length() == 3);
   HandleScope scope(node_isolate);
 
@@ -111,20 +119,17 @@ Handle<Value> StatWatcher::Start(const Arguments& args) {
   if (!persistent) uv_unref(reinterpret_cast<uv_handle_t*>(wrap->watcher_));
   uv_fs_poll_start(wrap->watcher_, Callback, *path, interval);
   wrap->Ref();
-
-  return Undefined(node_isolate);
 }
 
 
-Handle<Value> StatWatcher::Stop(const Arguments& args) {
+void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   StatWatcher* wrap = ObjectWrap::Unwrap<StatWatcher>(args.This());
   if (onstop_sym.IsEmpty()) {
-    onstop_sym = NODE_PSYMBOL("onstop");
+    onstop_sym = String::New("onstop");
   }
-  MakeCallback(wrap->handle_, onstop_sym, 0, NULL);
+  MakeCallback(wrap->handle(node_isolate), onstop_sym, 0, NULL);
   wrap->Stop();
-  return Undefined(node_isolate);
 }
 
 

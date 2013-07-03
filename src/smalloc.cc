@@ -34,8 +34,7 @@
 namespace node {
 namespace smalloc {
 
-using v8::Arguments;
-using v8::FunctionTemplate;
+using v8::FunctionCallbackInfo;
 using v8::Handle;
 using v8::HandleScope;
 using v8::HeapProfiler;
@@ -58,17 +57,16 @@ struct CallbackInfo {
 typedef v8::WeakReferenceCallbacks<Object, char>::Revivable Callback;
 typedef v8::WeakReferenceCallbacks<Object, void>::Revivable CallbackFree;
 
-Callback target_cb;
-CallbackFree target_free_cb;
-
-void TargetCallback(Isolate* isolate, Persistent<Object>* target, char* arg);
+void TargetCallback(Isolate* isolate,
+                    Persistent<Object>* target,
+                    char* arg);
 void TargetFreeCallback(Isolate* isolate,
                         Persistent<Object>* target,
                         void* arg);
 
 
 // for internal use: copyOnto(source, source_start, dest, dest_start, length)
-Handle<Value> CopyOnto(const Arguments& args) {
+void CopyOnto(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   Local<Object> source = args[0]->ToObject();
@@ -95,13 +93,11 @@ Handle<Value> CopyOnto(const Arguments& args) {
   assert(dest_start + length <= dest_length);
 
   memmove(dest_data + dest_start, source_data + source_start, length);
-
-  return Undefined(node_isolate);
 }
 
 
 // for internal use: dest._data = sliceOnto(source, dest, start, end);
-Handle<Value> SliceOnto(const Arguments& args) {
+void SliceOnto(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   Local<Object> source = args[0]->ToObject();
@@ -120,21 +116,19 @@ Handle<Value> SliceOnto(const Arguments& args) {
   dest->SetIndexedPropertiesToExternalArrayData(source_data + start,
                                                 kExternalUnsignedByteArray,
                                                 end - start);
-
-  return scope.Close(source);
+  args.GetReturnValue().Set(source);
 }
 
 
 // for internal use: alloc(obj, n);
-Handle<Value> Alloc(const Arguments& args) {
+void Alloc(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   Local<Object> obj = args[0]->ToObject();
   size_t length = args[1]->Uint32Value();
 
   Alloc(obj, length);
-
-  return scope.Close(obj);
+  args.GetReturnValue().Set(obj);
 }
 
 
@@ -153,31 +147,32 @@ void Alloc(Handle<Object> obj, size_t length) {
 
 void Alloc(Handle<Object> obj, char* data, size_t length) {
   Persistent<Object> p_obj(node_isolate, obj);
-
   node_isolate->AdjustAmountOfExternalAllocatedMemory(length);
-  p_obj.MakeWeak(node_isolate, data, target_cb);
-  p_obj.MarkIndependent(node_isolate);
-  p_obj.SetWrapperClassId(node_isolate, ALLOC_ID);
-  p_obj->SetIndexedPropertiesToExternalArrayData(data,
-                                                 kExternalUnsignedByteArray,
-                                                 length);
+  p_obj.MakeWeak(data, TargetCallback);
+  p_obj.MarkIndependent();
+  p_obj.SetWrapperClassId(ALLOC_ID);
+  obj->SetIndexedPropertiesToExternalArrayData(data,
+                                               kExternalUnsignedByteArray,
+                                               length);
 }
 
 
-void TargetCallback(Isolate* isolate, Persistent<Object>* target, char* data) {
-  int len = (*target)->GetIndexedPropertiesExternalArrayDataLength();
+void TargetCallback(Isolate* isolate,
+                    Persistent<Object>* target,
+                    char* data) {
+  HandleScope handle_scope(node_isolate);
+  Local<Object> obj = Local<Object>::New(isolate, *target);
+  int len = obj->GetIndexedPropertiesExternalArrayDataLength();
   if (data != NULL && len > 0) {
     isolate->AdjustAmountOfExternalAllocatedMemory(-len);
     free(data);
   }
   (*target).Dispose();
-  (*target).Clear();
 }
 
 
-Handle<Value> AllocDispose(const Arguments& args) {
+void AllocDispose(const FunctionCallbackInfo<Value>& args) {
   AllocDispose(args[0]->ToObject());
-  return Undefined(node_isolate);
 }
 
 
@@ -218,12 +213,12 @@ void Alloc(Handle<Object> obj,
 
   node_isolate->AdjustAmountOfExternalAllocatedMemory(length +
                                                       sizeof(*cb_info));
-  p_obj.MakeWeak(node_isolate, static_cast<void*>(cb_info), target_free_cb);
-  p_obj.MarkIndependent(node_isolate);
-  p_obj.SetWrapperClassId(node_isolate, ALLOC_ID);
-  p_obj->SetIndexedPropertiesToExternalArrayData(data,
-                                                 kExternalUnsignedByteArray,
-                                                 length);
+  p_obj.MakeWeak(static_cast<void*>(cb_info), TargetFreeCallback);
+  p_obj.MarkIndependent();
+  p_obj.SetWrapperClassId(ALLOC_ID);
+  obj->SetIndexedPropertiesToExternalArrayData(data,
+                                               kExternalUnsignedByteArray,
+                                               length);
 }
 
 
@@ -232,13 +227,13 @@ void Alloc(Handle<Object> obj,
 void TargetFreeCallback(Isolate* isolate,
                         Persistent<Object>* target,
                         void* arg) {
-  Local<Object> obj = **target;
+  HandleScope handle_scope(node_isolate);
+  Local<Object> obj = Local<Object>::New(isolate, *target);
   int len = obj->GetIndexedPropertiesExternalArrayDataLength();
   char* data = static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
   CallbackInfo* cb_info = static_cast<CallbackInfo*>(arg);
   isolate->AdjustAmountOfExternalAllocatedMemory(-(len + sizeof(*cb_info)));
   (*target).Dispose();
-  (*target).Clear();
   cb_info->cb(data, cb_info->hint);
   delete cb_info;
 }
@@ -311,9 +306,6 @@ void Initialize(Handle<Object> exports) {
 
   exports->Set(String::New("kMaxLength"),
                Uint32::New(kMaxLength, node_isolate));
-
-  target_cb = TargetCallback;
-  target_free_cb = TargetFreeCallback;
 
   HeapProfiler* heap_profiler = node_isolate->GetHeapProfiler();
   heap_profiler->SetWrapperClassInfoProvider(ALLOC_ID, WrapperInfo);

@@ -27,28 +27,21 @@
 
 namespace node {
 
-using v8::Object;
-using v8::Handle;
-using v8::Local;
-using v8::Value;
-using v8::Arguments;
-
-
 class TTYWrap : public StreamWrap {
  public:
-  static void Initialize(Handle<Object> target);
-  static TTYWrap* Unwrap(Local<Object> obj);
+  static void Initialize(v8::Handle<v8::Object> target);
+  static TTYWrap* Unwrap(v8::Local<v8::Object> obj);
 
   uv_tty_t* UVHandle();
 
  private:
-  TTYWrap(Handle<Object> object, int fd, bool readable);
+  TTYWrap(v8::Handle<v8::Object> object, int fd, bool readable);
 
-  static Handle<Value> GuessHandleType(const Arguments& args);
-  static Handle<Value> IsTTY(const Arguments& args);
-  static Handle<Value> GetWindowSize(const Arguments& args);
-  static Handle<Value> SetRawMode(const Arguments& args);
-  static Handle<Value> New(const Arguments& args);
+  static void GuessHandleType(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsTTY(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetWindowSize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetRawMode(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   uv_tty_t handle_;
 };

@@ -28,28 +28,39 @@
 
 namespace node {
 
-using namespace v8;
 using crypto::SecureContext;
+using v8::Array;
+using v8::Exception;
+using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Null;
+using v8::Object;
+using v8::Persistent;
+using v8::String;
+using v8::Value;
 
-static Persistent<String> onread_sym;
-static Persistent<String> onerror_sym;
-static Persistent<String> onsniselect_sym;
-static Persistent<String> onhandshakestart_sym;
-static Persistent<String> onhandshakedone_sym;
-static Persistent<String> onclienthello_sym;
-static Persistent<String> onnewsession_sym;
-static Persistent<String> subject_sym;
-static Persistent<String> subjectaltname_sym;
-static Persistent<String> modulus_sym;
-static Persistent<String> exponent_sym;
-static Persistent<String> issuer_sym;
-static Persistent<String> valid_from_sym;
-static Persistent<String> valid_to_sym;
-static Persistent<String> fingerprint_sym;
-static Persistent<String> name_sym;
-static Persistent<String> version_sym;
-static Persistent<String> ext_key_usage_sym;
-static Persistent<String> sessionid_sym;
+static Cached<String> onread_sym;
+static Cached<String> onerror_sym;
+static Cached<String> onsniselect_sym;
+static Cached<String> onhandshakestart_sym;
+static Cached<String> onhandshakedone_sym;
+static Cached<String> onclienthello_sym;
+static Cached<String> onnewsession_sym;
+static Cached<String> subject_sym;
+static Cached<String> subjectaltname_sym;
+static Cached<String> modulus_sym;
+static Cached<String> exponent_sym;
+static Cached<String> issuer_sym;
+static Cached<String> valid_from_sym;
+static Cached<String> valid_to_sym;
+static Cached<String> fingerprint_sym;
+static Cached<String> name_sym;
+static Cached<String> version_sym;
+static Cached<String> ext_key_usage_sym;
+static Cached<String> sessionid_sym;
 
 static Persistent<Function> tlsWrap;
 
@@ -78,10 +89,11 @@ TLSCallbacks::TLSCallbacks(Kind kind,
 
   // Persist SecureContext
   sc_ = ObjectWrap::Unwrap<SecureContext>(sc);
-  sc_handle_ = Persistent<Object>::New(node_isolate, sc);
+  sc_handle_.Reset(node_isolate, sc);
 
-  handle_ = Persistent<Object>::New(node_isolate, tlsWrap->NewInstance());
-  handle_->SetAlignedPointerInInternalField(0, this);
+  Local<Object> object = NewInstance(tlsWrap);
+  object->SetAlignedPointerInInternalField(0, this);
+  persistent().Reset(node_isolate, object);
 
   // Initialize queue for clearIn writes
   QUEUE_INIT(&write_item_queue_);
@@ -137,8 +149,7 @@ int TLSCallbacks::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
   Local<Object> session = Buffer::New(reinterpret_cast<char*>(sess->session_id),
                                       sess->session_id_length);
   Handle<Value> argv[2] = { session, buff };
-
-  MakeCallback(c->handle_, onnewsession_sym, ARRAY_SIZE(argv), argv);
+  MakeCallback(c->object(), onnewsession_sym, ARRAY_SIZE(argv), argv);
 
   return 0;
 }
@@ -153,24 +164,17 @@ TLSCallbacks::~TLSCallbacks() {
   clear_in_ = NULL;
 
   sc_ = NULL;
-  sc_handle_.Dispose(node_isolate);
-  sc_handle_.Clear();
-
-  handle_.Dispose(node_isolate);
-  handle_.Clear();
+  sc_handle_.Dispose();
+  persistent().Dispose();
 
 #ifdef OPENSSL_NPN_NEGOTIATED
-  npn_protos_.Dispose(node_isolate);
-  npn_protos_.Clear();
-  selected_npn_proto_.Dispose(node_isolate);
-  selected_npn_proto_.Clear();
+  npn_protos_.Dispose();
+  selected_npn_proto_.Dispose();
 #endif  // OPENSSL_NPN_NEGOTIATED
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  servername_.Dispose(node_isolate);
-  servername_.Clear();
-  sni_context_.Dispose(node_isolate);
-  sni_context_.Clear();
+  servername_.Dispose();
+  sni_context_.Dispose();
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 }
 
@@ -295,7 +299,7 @@ void TLSCallbacks::InitSSL() {
 }
 
 
-Handle<Value> TLSCallbacks::Wrap(const Arguments& args) {
+void TLSCallbacks::Wrap(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject())
@@ -315,14 +319,15 @@ Handle<Value> TLSCallbacks::Wrap(const Arguments& args) {
     wrap->OverrideCallbacks(callbacks);
   });
 
-  if (callbacks == NULL)
-    return Null(node_isolate);
+  if (callbacks == NULL) {
+    return args.GetReturnValue().SetNull();
+  }
 
-  return scope.Close(callbacks->handle_);
+  args.GetReturnValue().Set(callbacks->persistent());
 }
 
 
-Handle<Value> TLSCallbacks::Start(const Arguments& args) {
+void TLSCallbacks::Start(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
@@ -335,8 +340,6 @@ Handle<Value> TLSCallbacks::Start(const Arguments& args) {
   assert(wrap->kind_ == kTLSClient);
   wrap->ClearOut();
   wrap->EncOut();
-
-  return Null(node_isolate);
 }
 
 
@@ -347,15 +350,17 @@ void TLSCallbacks::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   if (where & SSL_CB_HANDSHAKE_START) {
     HandleScope scope(node_isolate);
     TLSCallbacks* c = static_cast<TLSCallbacks*>(SSL_get_app_data(ssl));
-    if (c->handle_->Has(onhandshakestart_sym))
-      MakeCallback(c->handle_, onhandshakestart_sym, 0, NULL);
+    Local<Object> object = c->object();
+    if (object->Has(onhandshakestart_sym))
+      MakeCallback(object, onhandshakestart_sym, 0, NULL);
   }
   if (where & SSL_CB_HANDSHAKE_DONE) {
     HandleScope scope(node_isolate);
     TLSCallbacks* c = static_cast<TLSCallbacks*>(SSL_get_app_data(ssl));
     c->established_ = true;
-    if (c->handle_->Has(onhandshakedone_sym))
-      MakeCallback(c->handle_, onhandshakedone_sym, 0, NULL);
+    Local<Object> object = c->object();
+    if (object->Has(onhandshakedone_sym))
+      MakeCallback(object, onhandshakedone_sym, 0, NULL);
   }
 }
 
@@ -417,7 +422,7 @@ void TLSCallbacks::EncOutCb(uv_write_t* req, int status) {
     Local<Value> arg = String::Concat(
         String::New("write cb error, status: "),
         Integer::New(status, node_isolate)->ToString());
-    MakeCallback(callbacks->handle_, onerror_sym, 1, &arg);
+    MakeCallback(callbacks->object(), onerror_sym, 1, &arg);
     callbacks->InvokeQueued(status);
     return;
   }
@@ -488,7 +493,7 @@ void TLSCallbacks::ClearOut() {
     Handle<Value> argv = GetSSLError(read, &err);
 
     if (!argv.IsEmpty())
-      MakeCallback(handle_, onerror_sym, 1, &argv);
+      MakeCallback(object(), onerror_sym, 1, &argv);
   }
 }
 
@@ -521,7 +526,7 @@ bool TLSCallbacks::ClearIn() {
   int err;
   Handle<Value> argv = GetSSLError(written, &err);
   if (!argv.IsEmpty())
-    MakeCallback(handle_, onerror_sym, 1, &argv);
+    MakeCallback(object(), onerror_sym, 1, &argv);
 
   return false;
 }
@@ -583,7 +588,7 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
     int err;
     Handle<Value> argv = GetSSLError(written, &err);
     if (!argv.IsEmpty()) {
-      MakeCallback(handle_, onerror_sym, 1, &argv);
+      MakeCallback(object(), onerror_sym, 1, &argv);
       return -1;
     }
 
@@ -772,7 +777,7 @@ void TLSCallbacks::ParseClientHello() {
                                session_size));
 
     argv[0] = hello_obj;
-    MakeCallback(handle_, onclienthello_sym, 1, argv);
+    MakeCallback(object(), onclienthello_sym, 1, argv);
     break;
    case kParseEnded:
    default:
@@ -782,7 +787,7 @@ void TLSCallbacks::ParseClientHello() {
 
 
 #define CASE_X509_ERR(CODE) case X509_V_ERR_##CODE: reason = #CODE; break;
-Handle<Value> TLSCallbacks::VerifyError(const Arguments& args) {
+void TLSCallbacks::VerifyError(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
@@ -793,8 +798,7 @@ Handle<Value> TLSCallbacks::VerifyError(const Arguments& args) {
     // We requested a certificate and they did not send us one.
     // Definitely an error.
     // XXX is this the right error message?
-    return scope.Close(Exception::Error(
-          String::New("UNABLE_TO_GET_ISSUER_CERT")));
+    return ThrowError("UNABLE_TO_GET_ISSUER_CERT");
   }
   X509_free(peer_cert);
 
@@ -803,36 +807,36 @@ Handle<Value> TLSCallbacks::VerifyError(const Arguments& args) {
   const char* reason = NULL;
   Local<String> s;
   switch (x509_verify_error) {
-   case X509_V_OK:
-    return Null(node_isolate);
-   CASE_X509_ERR(UNABLE_TO_GET_ISSUER_CERT)
-   CASE_X509_ERR(UNABLE_TO_GET_CRL)
-   CASE_X509_ERR(UNABLE_TO_DECRYPT_CERT_SIGNATURE)
-   CASE_X509_ERR(UNABLE_TO_DECRYPT_CRL_SIGNATURE)
-   CASE_X509_ERR(UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY)
-   CASE_X509_ERR(CERT_SIGNATURE_FAILURE)
-   CASE_X509_ERR(CRL_SIGNATURE_FAILURE)
-   CASE_X509_ERR(CERT_NOT_YET_VALID)
-   CASE_X509_ERR(CERT_HAS_EXPIRED)
-   CASE_X509_ERR(CRL_NOT_YET_VALID)
-   CASE_X509_ERR(CRL_HAS_EXPIRED)
-   CASE_X509_ERR(ERROR_IN_CERT_NOT_BEFORE_FIELD)
-   CASE_X509_ERR(ERROR_IN_CERT_NOT_AFTER_FIELD)
-   CASE_X509_ERR(ERROR_IN_CRL_LAST_UPDATE_FIELD)
-   CASE_X509_ERR(ERROR_IN_CRL_NEXT_UPDATE_FIELD)
-   CASE_X509_ERR(OUT_OF_MEM)
-   CASE_X509_ERR(DEPTH_ZERO_SELF_SIGNED_CERT)
-   CASE_X509_ERR(SELF_SIGNED_CERT_IN_CHAIN)
-   CASE_X509_ERR(UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
-   CASE_X509_ERR(UNABLE_TO_VERIFY_LEAF_SIGNATURE)
-   CASE_X509_ERR(CERT_CHAIN_TOO_LONG)
-   CASE_X509_ERR(CERT_REVOKED)
-   CASE_X509_ERR(INVALID_CA)
-   CASE_X509_ERR(PATH_LENGTH_EXCEEDED)
-   CASE_X509_ERR(INVALID_PURPOSE)
-   CASE_X509_ERR(CERT_UNTRUSTED)
-   CASE_X509_ERR(CERT_REJECTED)
-   default:
+  case X509_V_OK:
+    return args.GetReturnValue().SetNull();
+  CASE_X509_ERR(UNABLE_TO_GET_ISSUER_CERT)
+  CASE_X509_ERR(UNABLE_TO_GET_CRL)
+  CASE_X509_ERR(UNABLE_TO_DECRYPT_CERT_SIGNATURE)
+  CASE_X509_ERR(UNABLE_TO_DECRYPT_CRL_SIGNATURE)
+  CASE_X509_ERR(UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY)
+  CASE_X509_ERR(CERT_SIGNATURE_FAILURE)
+  CASE_X509_ERR(CRL_SIGNATURE_FAILURE)
+  CASE_X509_ERR(CERT_NOT_YET_VALID)
+  CASE_X509_ERR(CERT_HAS_EXPIRED)
+  CASE_X509_ERR(CRL_NOT_YET_VALID)
+  CASE_X509_ERR(CRL_HAS_EXPIRED)
+  CASE_X509_ERR(ERROR_IN_CERT_NOT_BEFORE_FIELD)
+  CASE_X509_ERR(ERROR_IN_CERT_NOT_AFTER_FIELD)
+  CASE_X509_ERR(ERROR_IN_CRL_LAST_UPDATE_FIELD)
+  CASE_X509_ERR(ERROR_IN_CRL_NEXT_UPDATE_FIELD)
+  CASE_X509_ERR(OUT_OF_MEM)
+  CASE_X509_ERR(DEPTH_ZERO_SELF_SIGNED_CERT)
+  CASE_X509_ERR(SELF_SIGNED_CERT_IN_CHAIN)
+  CASE_X509_ERR(UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
+  CASE_X509_ERR(UNABLE_TO_VERIFY_LEAF_SIGNATURE)
+  CASE_X509_ERR(CERT_CHAIN_TOO_LONG)
+  CASE_X509_ERR(CERT_REVOKED)
+  CASE_X509_ERR(INVALID_CA)
+  CASE_X509_ERR(PATH_LENGTH_EXCEEDED)
+  CASE_X509_ERR(INVALID_PURPOSE)
+  CASE_X509_ERR(CERT_UNTRUSTED)
+  CASE_X509_ERR(CERT_REJECTED)
+  default:
     s = String::New(X509_verify_cert_error_string(x509_verify_error));
     break;
   }
@@ -841,12 +845,12 @@ Handle<Value> TLSCallbacks::VerifyError(const Arguments& args) {
     s = String::New(reason);
   }
 
-  return scope.Close(Exception::Error(s));
+  args.GetReturnValue().Set(Exception::Error(s));
 }
 #undef CASE_X509_ERR
 
 
-Handle<Value> TLSCallbacks::SetVerifyMode(const Arguments& args) {
+void TLSCallbacks::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
@@ -872,21 +876,19 @@ Handle<Value> TLSCallbacks::SetVerifyMode(const Arguments& args) {
 
   // Always allow a connection. We'll reject in javascript.
   SSL_set_verify(wrap->ssl_, verify_mode, VerifyCallback);
-
-  return True(node_isolate);
 }
 
 
-Handle<Value> TLSCallbacks::IsSessionReused(const Arguments& args) {
+void TLSCallbacks::IsSessionReused(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-
   UNWRAP(TLSCallbacks);
-
-  return scope.Close(Boolean::New(SSL_session_reused(wrap->ssl_)));
+  bool yes = SSL_session_reused(wrap->ssl_);
+  args.GetReturnValue().Set(yes);
 }
 
 
-Handle<Value> TLSCallbacks::EnableSessionCallbacks(const Arguments& args) {
+void TLSCallbacks::EnableSessionCallbacks(
+    const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
@@ -895,12 +897,10 @@ Handle<Value> TLSCallbacks::EnableSessionCallbacks(const Arguments& args) {
   wrap->hello_.state = kParseWaiting;
   wrap->hello_.frame_len = 0;
   wrap->hello_.body_offset = 0;
-
-  return scope.Close(Null(node_isolate));
 }
 
 
-Handle<Value> TLSCallbacks::GetPeerCertificate(const Arguments& args) {
+void TLSCallbacks::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
@@ -1021,18 +1021,17 @@ Handle<Value> TLSCallbacks::GetPeerCertificate(const Arguments& args) {
     X509_free(peer_cert);
   }
 
-  return scope.Close(info);
+  args.GetReturnValue().Set(info);
 }
 
 
-Handle<Value> TLSCallbacks::GetSession(const Arguments& args) {
+void TLSCallbacks::GetSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
 
   SSL_SESSION* sess = SSL_get_session(wrap->ssl_);
-  if (!sess)
-    return Undefined(node_isolate);
+  if (!sess) return;
 
   int slen = i2d_SSL_SESSION(sess, NULL);
   assert(slen > 0);
@@ -1042,15 +1041,16 @@ Handle<Value> TLSCallbacks::GetSession(const Arguments& args) {
     unsigned char* p = sbuf;
     i2d_SSL_SESSION(sess, &p);
     Local<Value> s = Encode(sbuf, slen, BINARY);
+    args.GetReturnValue().Set(s);
     delete[] sbuf;
-    return scope.Close(s);
+    return;
   }
 
-  return Null(node_isolate);
+  args.GetReturnValue().SetNull();
 }
 
 
-Handle<Value> TLSCallbacks::SetSession(const Arguments& args) {
+void TLSCallbacks::SetSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
@@ -1074,22 +1074,18 @@ Handle<Value> TLSCallbacks::SetSession(const Arguments& args) {
 
   delete[] sbuf;
 
-  if (!sess)
-    return Undefined(node_isolate);
+  if (!sess) return;
 
   int r = SSL_set_session(wrap->ssl_, sess);
   SSL_SESSION_free(sess);
 
   if (!r) {
-    Local<String> eStr = String::New("SSL_set_session error");
-    return ThrowException(Exception::Error(eStr));
+    return ThrowError("SSL_set_session error");
   }
-
-  return True(node_isolate);
 }
 
 
-Handle<Value> TLSCallbacks::LoadSession(const Arguments& args) {
+void TLSCallbacks::LoadSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
@@ -1108,12 +1104,10 @@ Handle<Value> TLSCallbacks::LoadSession(const Arguments& args) {
   }
 
   wrap->ParseFinish();
-
-  return True(node_isolate);
 }
 
 
-Handle<Value> TLSCallbacks::GetCurrentCipher(const Arguments& args) {
+void TLSCallbacks::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
@@ -1122,7 +1116,7 @@ Handle<Value> TLSCallbacks::GetCurrentCipher(const Arguments& args) {
 
   c = SSL_get_current_cipher(wrap->ssl_);
   if (c == NULL)
-    return Undefined(node_isolate);
+    return;
 
   const char* cipher_name = SSL_CIPHER_get_name(c);
   const char* cipher_version = SSL_CIPHER_get_version(c);
@@ -1130,7 +1124,7 @@ Handle<Value> TLSCallbacks::GetCurrentCipher(const Arguments& args) {
   Local<Object> info = Object::New();
   info->Set(name_sym, String::New(cipher_name));
   info->Set(version_sym, String::New(cipher_version));
-  return scope.Close(info);
+  args.GetReturnValue().Set(info);
 }
 
 
@@ -1164,9 +1158,7 @@ int TLSCallbacks::SelectNextProtoCallback(SSL* s,
   TLSCallbacks* p = static_cast<TLSCallbacks*>(arg);
 
   // Release old protocol handler if present
-  if (!p->selected_npn_proto_.IsEmpty()) {
-    p->selected_npn_proto_.Dispose(node_isolate);
-  }
+  p->selected_npn_proto_.Dispose();
 
   if (p->npn_protos_.IsEmpty()) {
     // We should at least select one protocol
@@ -1175,8 +1167,7 @@ int TLSCallbacks::SelectNextProtoCallback(SSL* s,
     *outlen = 8;
 
     // set status: unsupported
-    p->selected_npn_proto_ = Persistent<Value>::New(node_isolate,
-                                                    False(node_isolate));
+    p->selected_npn_proto_.Reset(node_isolate, False(node_isolate));
 
     return SSL_TLSEXT_ERR_OK;
   }
@@ -1202,22 +1193,22 @@ int TLSCallbacks::SelectNextProtoCallback(SSL* s,
   }
 
   if (!result.IsEmpty())
-    p->selected_npn_proto_ = Persistent<Value>::New(node_isolate, result);
+    p->selected_npn_proto_.Reset(node_isolate, result);
 
   return SSL_TLSEXT_ERR_OK;
 }
 
 
-Handle<Value> TLSCallbacks::GetNegotiatedProto(const Arguments& args) {
+void TLSCallbacks::GetNegotiatedProto(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
 
   if (wrap->kind_ == kTLSClient) {
-    if (wrap->selected_npn_proto_.IsEmpty())
-      return Undefined(node_isolate);
-    else
-      return wrap->selected_npn_proto_;
+    if (wrap->selected_npn_proto_.IsEmpty() == false) {
+      args.GetReturnValue().Set(wrap->selected_npn_proto_);
+    }
+    return;
   }
 
   const unsigned char* npn_proto;
@@ -1225,15 +1216,16 @@ Handle<Value> TLSCallbacks::GetNegotiatedProto(const Arguments& args) {
 
   SSL_get0_next_proto_negotiated(wrap->ssl_, &npn_proto, &npn_proto_len);
 
-  if (!npn_proto)
-    return False(node_isolate);
+  if (!npn_proto) {
+    return args.GetReturnValue().Set(false);
+  }
 
-  return scope.Close(String::New(reinterpret_cast<const char*>(npn_proto),
-                                 npn_proto_len));
+  args.GetReturnValue().Set(
+      String::New(reinterpret_cast<const char*>(npn_proto), npn_proto_len));
 }
 
 
-Handle<Value> TLSCallbacks::SetNPNProtocols(const Arguments& args) {
+void TLSCallbacks::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
@@ -1241,33 +1233,26 @@ Handle<Value> TLSCallbacks::SetNPNProtocols(const Arguments& args) {
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Must give a Buffer as first argument");
 
-  // Release old handle
-  if (!wrap->npn_protos_.IsEmpty())
-    wrap->npn_protos_.Dispose(node_isolate);
-
-  wrap->npn_protos_ =
-      Persistent<Object>::New(node_isolate, args[0]->ToObject());
-
-  return True(node_isolate);
+  wrap->npn_protos_.Reset(node_isolate, args[0].As<Object>());
 }
 #endif  // OPENSSL_NPN_NEGOTIATED
 
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-Handle<Value> TLSCallbacks::GetServername(const Arguments& args) {
+void TLSCallbacks::GetServername(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
 
   if (wrap->kind_ == kTLSServer && !wrap->servername_.IsEmpty()) {
-    return wrap->servername_;
+    args.GetReturnValue().Set(wrap->servername_);
   } else {
-    return False(node_isolate);
+    args.GetReturnValue().Set(false);
   }
 }
 
 
-Handle<Value> TLSCallbacks::SetServername(const Arguments& args) {
+void TLSCallbacks::SetServername(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TLSCallbacks);
@@ -1276,17 +1261,15 @@ Handle<Value> TLSCallbacks::SetServername(const Arguments& args) {
     return ThrowTypeError("First argument should be a string");
 
   if (wrap->started_)
-    return ThrowException(Exception::Error(String::New("Already started.")));
+    return ThrowError("Already started.");
 
   if (wrap->kind_ != kTLSClient)
-    return False(node_isolate);
+    return;
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   String::Utf8Value servername(args[0].As<String>());
   SSL_set_tlsext_host_name(wrap->ssl_, *servername);
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-
-  return Null(node_isolate);
 }
 
 
@@ -1298,31 +1281,21 @@ int TLSCallbacks::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   const char* servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
 
   if (servername) {
-    if (!p->servername_.IsEmpty())
-      p->servername_.Dispose(node_isolate);
-    p->servername_ = Persistent<String>::New(node_isolate,
-                                             String::New(servername));
+    p->servername_.Reset(node_isolate, String::New(servername));
 
     // Call the SNI callback and use its return value as context
-    if (p->handle_->Has(onsniselect_sym)) {
-      if (!p->sni_context_.IsEmpty())
-        p->sni_context_.Dispose(node_isolate);
+    Local<Object> object = p->object();
+    if (object->Has(onsniselect_sym)) {
+      p->sni_context_.Dispose();
 
-      // Get callback init args
-      Local<Value> argv[1] = {*p->servername_};
-
-      // Call it
-      Local<Value> ret = Local<Value>::New(node_isolate,
-                                           MakeCallback(p->handle_,
-                                                        onsniselect_sym,
-                                                        ARRAY_SIZE(argv),
-                                                        argv));
+      Local<Value> arg = Local<String>::New(node_isolate, p->servername_);
+      Handle<Value> ret = MakeCallback(object, onsniselect_sym, 1, &arg);
 
       // If ret is SecureContext
       if (ret->IsUndefined())
         return SSL_TLSEXT_ERR_NOACK;
 
-      p->sni_context_ = Persistent<Value>::New(node_isolate, ret);
+      p->sni_context_.Reset(node_isolate, ret);
       SecureContext* sc = ObjectWrap::Unwrap<SecureContext>(ret.As<Object>());
       SSL_set_SSL_CTX(s, sc->ctx_);
     }
@@ -1365,28 +1338,28 @@ void TLSCallbacks::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "setServername", SetServername);
 #endif  // SSL_CRT_SET_TLSEXT_SERVERNAME_CB
 
-  tlsWrap = Persistent<Function>::New(node_isolate, t->GetFunction());
+  tlsWrap.Reset(node_isolate, t->GetFunction());
 
-  onread_sym = NODE_PSYMBOL("onread");
-  onsniselect_sym = NODE_PSYMBOL("onsniselect");
-  onerror_sym = NODE_PSYMBOL("onerror");
-  onhandshakestart_sym = NODE_PSYMBOL("onhandshakestart");
-  onhandshakedone_sym = NODE_PSYMBOL("onhandshakedone");
-  onclienthello_sym = NODE_PSYMBOL("onclienthello");
-  onnewsession_sym = NODE_PSYMBOL("onnewsession");
+  onread_sym = String::New("onread");
+  onsniselect_sym = String::New("onsniselect");
+  onerror_sym = String::New("onerror");
+  onhandshakestart_sym = String::New("onhandshakestart");
+  onhandshakedone_sym = String::New("onhandshakedone");
+  onclienthello_sym = String::New("onclienthello");
+  onnewsession_sym = String::New("onnewsession");
 
-  subject_sym = NODE_PSYMBOL("subject");
-  issuer_sym = NODE_PSYMBOL("issuer");
-  valid_from_sym = NODE_PSYMBOL("valid_from");
-  valid_to_sym = NODE_PSYMBOL("valid_to");
-  subjectaltname_sym = NODE_PSYMBOL("subjectaltname");
-  modulus_sym = NODE_PSYMBOL("modulus");
-  exponent_sym = NODE_PSYMBOL("exponent");
-  fingerprint_sym = NODE_PSYMBOL("fingerprint");
-  name_sym = NODE_PSYMBOL("name");
-  version_sym = NODE_PSYMBOL("version");
-  ext_key_usage_sym = NODE_PSYMBOL("ext_key_usage");
-  sessionid_sym = NODE_PSYMBOL("sessionId");
+  subject_sym = String::New("subject");
+  issuer_sym = String::New("issuer");
+  valid_from_sym = String::New("valid_from");
+  valid_to_sym = String::New("valid_to");
+  subjectaltname_sym = String::New("subjectaltname");
+  modulus_sym = String::New("modulus");
+  exponent_sym = String::New("exponent");
+  fingerprint_sym = String::New("fingerprint");
+  name_sym = String::New("name");
+  version_sym = String::New("version");
+  ext_key_usage_sym = String::New("ext_key_usage");
+  sessionid_sym = String::New("sessionId");
 }
 
 }  // namespace node

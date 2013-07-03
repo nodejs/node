@@ -57,9 +57,8 @@ namespace node {
 
 namespace Buffer {
 
-
-using v8::Arguments;
 using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
@@ -72,8 +71,7 @@ using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
-
-Persistent<Function> p_buffer_fn;
+static Persistent<Function> p_buffer_fn;
 
 
 bool HasInstance(Handle<Value> val) {
@@ -140,7 +138,7 @@ Local<Object> New(size_t length) {
   // of GC reclaiming the values prematurely.
   argv[0] = Undefined(node_isolate);
   argv[1] = Uint32::New(length, node_isolate);
-  Local<Object> obj = p_buffer_fn->NewInstance(2, argv);
+  Local<Object> obj = NewInstance(p_buffer_fn, ARRAY_SIZE(argv), argv);
 
   // TODO(trevnorris): done like this to handle HasInstance since only checks
   // if external array data has been set, but would like to use a better
@@ -172,7 +170,7 @@ Local<Object> New(const char* data, size_t length) {
   // of GC reclaiming the values prematurely.
   argv[0] = Undefined(node_isolate);
   argv[1] = Uint32::New(length, node_isolate);
-  Local<Object> obj = p_buffer_fn->NewInstance(2, argv);
+  Local<Object> obj = NewInstance(p_buffer_fn, ARRAY_SIZE(argv), argv);
 
   // TODO(trevnorris): done like this to handle HasInstance since only checks
   // if external array data has been set, but would like to use a better
@@ -206,7 +204,7 @@ Local<Object> New(char* data,
   // of GC reclaiming the values prematurely.
   argv[0] = Undefined(node_isolate);
   argv[1] = Uint32::New(length, node_isolate);
-  Local<Object> obj = p_buffer_fn->NewInstance(2, argv);
+  Local<Object> obj = NewInstance(p_buffer_fn, ARRAY_SIZE(argv), argv);
 
   smalloc::Alloc(obj, data, length, callback, hint);
 
@@ -224,7 +222,7 @@ Local<Object> Use(char* data, uint32_t length) {
   // of GC reclaiming the values prematurely.
   argv[0] = Undefined(node_isolate);
   argv[1] = Uint32::New(length, node_isolate);
-  Local<Object> obj = p_buffer_fn->NewInstance(2, argv);
+  Local<Object> obj = NewInstance(p_buffer_fn, ARRAY_SIZE(argv), argv);
 
   smalloc::Alloc(obj, data, length);
 
@@ -233,49 +231,49 @@ Local<Object> Use(char* data, uint32_t length) {
 
 
 template <encoding encoding>
-Handle<Value> StringSlice(const Arguments& args) {
+void StringSlice(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   ARGS_THIS(args.This())
   SLICE_START_END(args[0], args[1], obj_length)
 
-  return scope.Close(StringBytes::Encode(obj_data + start, length, encoding));
+  args.GetReturnValue().Set(
+      StringBytes::Encode(obj_data + start, length, encoding));
 }
 
 
-Handle<Value> BinarySlice(const Arguments& args) {
-  return StringSlice<BINARY>(args);
+void BinarySlice(const FunctionCallbackInfo<Value>& args) {
+  StringSlice<BINARY>(args);
 }
 
 
-Handle<Value> AsciiSlice(const Arguments& args) {
-  return StringSlice<ASCII>(args);
+void AsciiSlice(const FunctionCallbackInfo<Value>& args) {
+  StringSlice<ASCII>(args);
 }
 
 
-Handle<Value> Utf8Slice(const Arguments& args) {
-  return StringSlice<UTF8>(args);
+void Utf8Slice(const FunctionCallbackInfo<Value>& args) {
+  StringSlice<UTF8>(args);
 }
 
 
-Handle<Value> Ucs2Slice(const Arguments& args) {
-  return StringSlice<UCS2>(args);
+void Ucs2Slice(const FunctionCallbackInfo<Value>& args) {
+  StringSlice<UCS2>(args);
 }
 
 
-
-Handle<Value> HexSlice(const Arguments& args) {
-  return StringSlice<HEX>(args);
+void HexSlice(const FunctionCallbackInfo<Value>& args) {
+  StringSlice<HEX>(args);
 }
 
 
-Handle<Value> Base64Slice(const Arguments& args) {
-  return StringSlice<BASE64>(args);
+void Base64Slice(const FunctionCallbackInfo<Value>& args) {
+  StringSlice<BASE64>(args);
 }
 
 
 // bytesCopied = buffer.copy(target[, targetStart][, sourceStart][, sourceEnd]);
-Handle<Value> Copy(const Arguments &args) {
+void Copy(const FunctionCallbackInfo<Value> &args) {
   HandleScope scope(node_isolate);
 
   Local<Object> target = args[0]->ToObject();
@@ -297,7 +295,7 @@ Handle<Value> Copy(const Arguments &args) {
 
   // Copy 0 bytes; we're done
   if (target_start >= target_length || source_start >= source_end)
-    return scope.Close(Uint32::New(0, node_isolate));
+    return args.GetReturnValue().Set(0);
 
   if (source_start > obj_length)
     return ThrowRangeError("out of range index");
@@ -305,27 +303,27 @@ Handle<Value> Copy(const Arguments &args) {
   if (source_end - source_start > target_length - target_start)
     source_end = source_start + target_length - target_start;
 
-  size_t to_copy = MIN(MIN(source_end - source_start,
-                           target_length - target_start),
-                           obj_length - source_start);
+  uint32_t to_copy = MIN(MIN(source_end - source_start,
+                             target_length - target_start),
+                             obj_length - source_start);
 
   memmove(target_data + target_start, obj_data + source_start, to_copy);
-
-  return scope.Close(Uint32::New(to_copy, node_isolate));
+  args.GetReturnValue().Set(to_copy);
 }
 
 
 // buffer.fill(value[, start][, end]);
-Handle<Value> Fill(const Arguments &args) {
+void Fill(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   ARGS_THIS(args.This())
   SLICE_START_END(args[1], args[2], obj_length)
+  args.GetReturnValue().Set(args.This());
 
   if (args[0]->IsNumber()) {
     int value = args[0]->Uint32Value() & 255;
     memset(obj_data + start, value, length);
-    return args.This();
+    return;
   }
 
   String::Utf8Value at(args[0]);
@@ -335,7 +333,7 @@ Handle<Value> Fill(const Arguments &args) {
   if (at_length == 1) {
     int value = static_cast<int>((*at)[0]);
     memset(obj_data + start, value, length);
-    return args.This();
+    return;
   }
 
   size_t in_there = at_length;
@@ -344,7 +342,7 @@ Handle<Value> Fill(const Arguments &args) {
   memcpy(obj_data + start, *at, MIN(at_length, length));
 
   if (at_length >= length)
-    return args.This();
+    return;
 
   while (in_there < length - in_there) {
     memcpy(ptr, obj_data + start, in_there);
@@ -356,13 +354,11 @@ Handle<Value> Fill(const Arguments &args) {
     memcpy(ptr, obj_data + start, length - in_there);
     in_there = length;
   }
-
-  return args.This();
 }
 
 
 template <encoding encoding>
-Handle<Value> StringWrite(const Arguments& args) {
+void StringWrite(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   ARGS_THIS(args.This())
@@ -384,7 +380,7 @@ Handle<Value> StringWrite(const Arguments& args) {
   max_length = MIN(obj_length - offset, max_length);
 
   if (max_length == 0)
-    return scope.Close(Uint32::New(0, node_isolate));
+    return args.GetReturnValue().Set(0);
 
   if (encoding == UCS2)
     max_length = max_length / 2;
@@ -392,43 +388,42 @@ Handle<Value> StringWrite(const Arguments& args) {
   if (offset >= obj_length)
     return ThrowRangeError("Offset is out of bounds");
 
-  size_t written = StringBytes::Write(obj_data + offset,
-                                      max_length,
-                                      str,
-                                      encoding,
-                                      NULL);
-
-  return scope.Close(Uint32::New(written, node_isolate));
+  uint32_t written = StringBytes::Write(obj_data + offset,
+                                        max_length,
+                                        str,
+                                        encoding,
+                                        NULL);
+  args.GetReturnValue().Set(written);
 }
 
 
-Handle<Value> Base64Write(const Arguments& args) {
-  return StringWrite<BASE64>(args);
+void Base64Write(const FunctionCallbackInfo<Value>& args) {
+  StringWrite<BASE64>(args);
 }
 
 
-Handle<Value> BinaryWrite(const Arguments& args) {
-  return StringWrite<BINARY>(args);
+void BinaryWrite(const FunctionCallbackInfo<Value>& args) {
+  StringWrite<BINARY>(args);
 }
 
 
-Handle<Value> Utf8Write(const Arguments& args) {
-  return StringWrite<UTF8>(args);
+void Utf8Write(const FunctionCallbackInfo<Value>& args) {
+  StringWrite<UTF8>(args);
 }
 
 
-Handle<Value> Ucs2Write(const Arguments& args) {
-  return StringWrite<UCS2>(args);
+void Ucs2Write(const FunctionCallbackInfo<Value>& args) {
+  StringWrite<UCS2>(args);
 }
 
 
-Handle<Value> HexWrite(const Arguments& args) {
-  return StringWrite<HEX>(args);
+void HexWrite(const FunctionCallbackInfo<Value>& args) {
+  StringWrite<HEX>(args);
 }
 
 
-Handle<Value> AsciiWrite(const Arguments& args) {
-  return StringWrite<ASCII>(args);
+void AsciiWrite(const FunctionCallbackInfo<Value>& args) {
+  StringWrite<ASCII>(args);
 }
 
 
@@ -443,7 +438,7 @@ static inline void Swizzle(char* start, unsigned int len) {
 
 
 template <typename T, enum Endianness endianness>
-Handle<Value> ReadFloatGeneric(const Arguments& args) {
+void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   bool doAssert = !args[1]->BooleanValue();
   size_t offset;
 
@@ -466,32 +461,32 @@ Handle<Value> ReadFloatGeneric(const Arguments& args) {
   memcpy(na.bytes, ptr, sizeof(na.bytes));
   if (endianness != GetEndianness()) Swizzle(na.bytes, sizeof(na.bytes));
 
-  return Number::New(na.val);
+  args.GetReturnValue().Set(na.val);
 }
 
 
-Handle<Value> ReadFloatLE(const Arguments& args) {
-  return ReadFloatGeneric<float, kLittleEndian>(args);
+void ReadFloatLE(const FunctionCallbackInfo<Value>& args) {
+  ReadFloatGeneric<float, kLittleEndian>(args);
 }
 
 
-Handle<Value> ReadFloatBE(const Arguments& args) {
-  return ReadFloatGeneric<float, kBigEndian>(args);
+void ReadFloatBE(const FunctionCallbackInfo<Value>& args) {
+  ReadFloatGeneric<float, kBigEndian>(args);
 }
 
 
-Handle<Value> ReadDoubleLE(const Arguments& args) {
-  return ReadFloatGeneric<double, kLittleEndian>(args);
+void ReadDoubleLE(const FunctionCallbackInfo<Value>& args) {
+  ReadFloatGeneric<double, kLittleEndian>(args);
 }
 
 
-Handle<Value> ReadDoubleBE(const Arguments& args) {
-  return ReadFloatGeneric<double, kBigEndian>(args);
+void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
+  ReadFloatGeneric<double, kBigEndian>(args);
 }
 
 
 template <typename T, enum Endianness endianness>
-Handle<Value> WriteFloatGeneric(const Arguments& args) {
+void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   bool doAssert = !args[2]->BooleanValue();
 
   T val = static_cast<T>(args[0]->NumberValue());
@@ -515,32 +510,30 @@ Handle<Value> WriteFloatGeneric(const Arguments& args) {
   char* ptr = static_cast<char*>(data) + offset;
   if (endianness != GetEndianness()) Swizzle(na.bytes, sizeof(na.bytes));
   memcpy(ptr, na.bytes, sizeof(na.bytes));
-
-  return Undefined(node_isolate);
 }
 
 
-Handle<Value> WriteFloatLE(const Arguments& args) {
-  return WriteFloatGeneric<float, kLittleEndian>(args);
+void WriteFloatLE(const FunctionCallbackInfo<Value>& args) {
+  WriteFloatGeneric<float, kLittleEndian>(args);
 }
 
 
-Handle<Value> WriteFloatBE(const Arguments& args) {
-  return WriteFloatGeneric<float, kBigEndian>(args);
+void WriteFloatBE(const FunctionCallbackInfo<Value>& args) {
+  WriteFloatGeneric<float, kBigEndian>(args);
 }
 
 
-Handle<Value> WriteDoubleLE(const Arguments& args) {
-  return WriteFloatGeneric<double, kLittleEndian>(args);
+void WriteDoubleLE(const FunctionCallbackInfo<Value>& args) {
+  WriteFloatGeneric<double, kLittleEndian>(args);
 }
 
 
-Handle<Value> WriteDoubleBE(const Arguments& args) {
-  return WriteFloatGeneric<double, kBigEndian>(args);
+void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
+  WriteFloatGeneric<double, kBigEndian>(args);
 }
 
 
-Handle<Value> ByteLength(const Arguments &args) {
+void ByteLength(const FunctionCallbackInfo<Value> &args) {
   HandleScope scope(node_isolate);
 
   if (!args[0]->IsString())
@@ -549,18 +542,19 @@ Handle<Value> ByteLength(const Arguments &args) {
   Local<String> s = args[0]->ToString();
   enum encoding e = ParseEncoding(args[1], UTF8);
 
-  return scope.Close(Uint32::New(StringBytes::Size(s, e), node_isolate));
+  uint32_t size = StringBytes::Size(s, e);
+  args.GetReturnValue().Set(size);
 }
 
 
 // pass Buffer object to load prototype methods
-Handle<Value> SetupBufferJS(const Arguments& args) {
+void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   assert(args[0]->IsFunction());
 
   Local<Function> bv = args[0].As<Function>();
-  p_buffer_fn = Persistent<Function>::New(node_isolate, bv);
+  p_buffer_fn.Reset(node_isolate, bv);
   Local<Value> proto_v = bv->Get(String::New("prototype"));
 
   assert(proto_v->IsObject());
@@ -599,8 +593,6 @@ Handle<Value> SetupBufferJS(const Arguments& args) {
 
   // for backwards compatibility
   proto->Set(String::New("offset"), Uint32::New(0, node_isolate), v8::ReadOnly);
-
-  return Undefined(node_isolate);
 }
 
 

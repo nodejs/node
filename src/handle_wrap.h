@@ -53,31 +53,38 @@ namespace node {
       args.This()->GetAlignedPointerFromInternalField(0));
 
 class HandleWrap {
-  public:
-    static void Initialize(v8::Handle<v8::Object> target);
-    static v8::Handle<v8::Value> Close(const v8::Arguments& args);
-    static v8::Handle<v8::Value> Ref(const v8::Arguments& args);
-    static v8::Handle<v8::Value> Unref(const v8::Arguments& args);
+public:
+  static void Initialize(v8::Handle<v8::Object> target);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-    inline uv_handle_t* GetHandle() { return handle__; };
+  inline uv_handle_t* GetHandle() { return handle__; };
 
-  protected:
-    HandleWrap(v8::Handle<v8::Object> object, uv_handle_t* handle);
-    virtual ~HandleWrap();
+protected:
+  HandleWrap(v8::Handle<v8::Object> object, uv_handle_t* handle);
+  virtual ~HandleWrap();
 
-    v8::Persistent<v8::Object> object_;
+  inline v8::Local<v8::Object> object() {
+    return v8::Local<v8::Object>::New(node_isolate, persistent());
+  }
 
-  private:
-    friend v8::Handle<v8::Value> GetActiveHandles(const v8::Arguments&);
-    static void OnClose(uv_handle_t* handle);
-    QUEUE handle_wrap_queue_;
-    // Using double underscore due to handle_ member in tcp_wrap. Probably
-    // tcp_wrap should rename it's member to 'handle'.
-    uv_handle_t* handle__;
-    unsigned int flags_;
+  inline v8::Persistent<v8::Object>& persistent() {
+    return object_;
+  }
 
-    static const unsigned int kUnref = 1;
-    static const unsigned int kCloseCallback = 2;
+private:
+  friend void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>&);
+  static void OnClose(uv_handle_t* handle);
+  v8::Persistent<v8::Object> object_;
+  QUEUE handle_wrap_queue_;
+  // Using double underscore due to handle_ member in tcp_wrap. Probably
+  // tcp_wrap should rename it's member to 'handle'.
+  uv_handle_t* handle__;
+  unsigned int flags_;
+
+  static const unsigned int kUnref = 1;
+  static const unsigned int kCloseCallback = 2;
 };
 
 

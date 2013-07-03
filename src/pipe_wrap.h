@@ -36,14 +36,15 @@ class PipeWrap : public StreamWrap {
  private:
   PipeWrap(v8::Handle<v8::Object> object, bool ipc);
 
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Bind(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Listen(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Connect(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Open(const v8::Arguments& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Listen(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef _WIN32
-  static v8::Handle<v8::Value> SetPendingInstances(const v8::Arguments& args);
+  static void SetPendingInstances(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
 
   static void OnConnection(uv_stream_t* handle, int status);

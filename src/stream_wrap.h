@@ -104,19 +104,19 @@ class StreamWrap : public HandleWrap {
 
   static void Initialize(v8::Handle<v8::Object> target);
 
-  static v8::Handle<v8::Value> GetFD(v8::Local<v8::String>,
-                                     const v8::AccessorInfo&);
+  static void GetFD(v8::Local<v8::String>,
+                    const v8::PropertyCallbackInfo<v8::Value>&);
 
   // JavaScript functions
-  static v8::Handle<v8::Value> ReadStart(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ReadStop(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Shutdown(const v8::Arguments& args);
+  static void ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static v8::Handle<v8::Value> Writev(const v8::Arguments& args);
-  static v8::Handle<v8::Value> WriteBuffer(const v8::Arguments& args);
-  static v8::Handle<v8::Value> WriteAsciiString(const v8::Arguments& args);
-  static v8::Handle<v8::Value> WriteUtf8String(const v8::Arguments& args);
-  static v8::Handle<v8::Value> WriteUcs2String(const v8::Arguments& args);
+  static void Writev(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteAsciiString(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // Overridable callbacks
   StreamWrapCallbacks* callbacks_;
@@ -147,7 +147,7 @@ class StreamWrap : public HandleWrap {
       uv_buf_t buf, uv_handle_type pending);
 
   template <enum encoding encoding>
-  static v8::Handle<v8::Value> WriteStringImpl(const v8::Arguments& args);
+  static void WriteStringImpl(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   uv_stream_t* stream_;
 

@@ -118,17 +118,19 @@ class TLSCallbacks : public StreamWrapCallbacks {
 
   v8::Handle<v8::Value> GetSSLError(int status, int* err);
 
-  static v8::Handle<v8::Value> Wrap(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Start(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GetPeerCertificate(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GetSession(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetSession(const v8::Arguments& args);
-  static v8::Handle<v8::Value> LoadSession(const v8::Arguments& args);
-  static v8::Handle<v8::Value> GetCurrentCipher(const v8::Arguments& args);
-  static v8::Handle<v8::Value> VerifyError(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetVerifyMode(const v8::Arguments& args);
-  static v8::Handle<v8::Value> IsSessionReused(const v8::Arguments& args);
-  static v8::Handle<v8::Value> EnableSessionCallbacks(const v8::Arguments& args);
+  static void Wrap(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPeerCertificate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoadSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCurrentCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetVerifyMode(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsSessionReused(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableSessionCallbacks(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // TLS Session API
   static SSL_SESSION* GetSessionCallback(SSL* s,
@@ -138,8 +140,9 @@ class TLSCallbacks : public StreamWrapCallbacks {
   static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
 
 #ifdef OPENSSL_NPN_NEGOTIATED
-  static v8::Handle<v8::Value> GetNegotiatedProto(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetNPNProtocols(const v8::Arguments& args);
+  static void GetNegotiatedProto(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetNPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int AdvertiseNextProtoCallback(SSL* s,
                                         const unsigned char** data,
                                         unsigned int* len,
@@ -153,15 +156,23 @@ class TLSCallbacks : public StreamWrapCallbacks {
 #endif  // OPENSSL_NPN_NEGOTIATED
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  static v8::Handle<v8::Value> GetServername(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetServername(const v8::Arguments& args);
+  static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+
+  inline v8::Local<v8::Object> object() {
+    return v8::Local<v8::Object>::New(node_isolate, persistent());
+  }
+
+  inline v8::Persistent<v8::Object>& persistent() {
+    return object_;
+  }
 
   Kind kind_;
   crypto::SecureContext* sc_;
   v8::Persistent<v8::Object> sc_handle_;
-  v8::Persistent<v8::Object> handle_;
+  v8::Persistent<v8::Object> object_;
   SSL* ssl_;
   BIO* enc_in_;
   BIO* enc_out_;
