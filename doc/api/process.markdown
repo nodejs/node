@@ -457,7 +457,7 @@ This will generate:
 On the next loop around the event loop call this callback.
 This is *not* a simple alias to `setTimeout(fn, 0)`, it's much more
 efficient.  It typically runs before any other I/O events fire, but there
-are some exceptions.  See `process.maxTickDepth` below.
+are some exceptions.
 
     process.nextTick(function() {
       console.log('nextTick callback');
@@ -512,29 +512,6 @@ This approach is much better:
 
       fs.stat('file', cb);
     }
-
-## process.maxTickDepth
-
-* {Number} Default = 1000
-
-Callbacks passed to `process.nextTick` will *usually* be called at the
-end of the current flow of execution, and are thus approximately as fast
-as calling a function synchronously.  Left unchecked, this would starve
-the event loop, preventing any I/O from occurring.
-
-Consider this code:
-
-    process.nextTick(function foo() {
-      process.nextTick(foo);
-    });
-
-In order to avoid the situation where Node is blocked by an infinite
-loop of recursive series of nextTick calls, it defers to allow some I/O
-to be done every so often.
-
-The `process.maxTickDepth` value is the maximum depth of
-nextTick-calling nextTick-callbacks that will be evaluated before
-allowing other forms of I/O to occur.
 
 ## process.umask([mask])
 
