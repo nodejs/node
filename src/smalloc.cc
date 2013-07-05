@@ -32,7 +32,6 @@
 #define ALLOC_ID (0xA10C)
 
 namespace node {
-
 namespace smalloc {
 
 using v8::Arguments;
@@ -246,22 +245,23 @@ void TargetFreeCallback(Isolate* isolate,
 
 
 class RetainedAllocInfo: public RetainedObjectInfo {
-public:
-  RetainedAllocInfo(Handle<Value> wrapper);
+ public:
+  explicit RetainedAllocInfo(Handle<Value> wrapper);
+
   virtual void Dispose();
   virtual bool IsEquivalent(RetainedObjectInfo* other);
   virtual intptr_t GetHash();
   virtual const char* GetLabel();
   virtual intptr_t GetSizeInBytes();
 
-private:
-  static const char label_[];
+ private:
+  static const char* label_;
   char* data_;
   int length_;
 };
 
 
-const char RetainedAllocInfo::label_[] = "smalloc";
+const char* RetainedAllocInfo::label_ = "smalloc";
 
 
 RetainedAllocInfo::RetainedAllocInfo(Handle<Value> wrapper) {
@@ -303,15 +303,11 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Handle<Value> wrapper) {
 
 
 void Initialize(Handle<Object> exports) {
-  exports->Set(String::New("copyOnto"),
-               FunctionTemplate::New(CopyOnto)->GetFunction());
-  exports->Set(String::New("sliceOnto"),
-               FunctionTemplate::New(SliceOnto)->GetFunction());
+  NODE_SET_METHOD(exports, "copyOnto", CopyOnto);
+  NODE_SET_METHOD(exports, "sliceOnto", SliceOnto);
 
-  exports->Set(String::New("alloc"),
-               FunctionTemplate::New(Alloc)->GetFunction());
-  exports->Set(String::New("dispose"),
-               FunctionTemplate::New(AllocDispose)->GetFunction());
+  NODE_SET_METHOD(exports, "alloc", Alloc);
+  NODE_SET_METHOD(exports, "dispose", AllocDispose);
 
   exports->Set(String::New("kMaxLength"),
                Uint32::New(kMaxLength, node_isolate));
@@ -325,7 +321,6 @@ void Initialize(Handle<Object> exports) {
 
 
 }  // namespace smalloc
-
 }  // namespace node
 
 NODE_MODULE(node_smalloc, node::smalloc::Initialize)
