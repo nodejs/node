@@ -455,10 +455,6 @@ With `customFds` it was possible to hook up the new process' `[stdin, stdout,
 stderr]` to existing streams; `-1` meant that a new stream should be created.
 Use at your own risk.
 
-There are several internal options. In particular `stdinStream`,
-`stdoutStream`, `stderrStream`. They are for INTERNAL USE ONLY. As with all
-undocumented APIs in Node, they should not be used.
-
 See also: `child_process.exec()` and `child_process.fork()`
 
 ## child_process.exec(command, [options], callback)
