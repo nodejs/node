@@ -570,54 +570,32 @@ Handle<Value> SetupBufferJS(const Arguments& args) {
   bv->Set(String::New("byteLength"),
           FunctionTemplate::New(ByteLength)->GetFunction());
 
-  proto->Set(String::New("asciiSlice"),
-             FunctionTemplate::New(AsciiSlice)->GetFunction());
-  proto->Set(String::New("base64Slice"),
-             FunctionTemplate::New(Base64Slice)->GetFunction());
-  proto->Set(String::New("binarySlice"),
-             FunctionTemplate::New(BinarySlice)->GetFunction());
-  proto->Set(String::New("hexSlice"),
-             FunctionTemplate::New(HexSlice)->GetFunction());
-  proto->Set(String::New("ucs2Slice"),
-             FunctionTemplate::New(Ucs2Slice)->GetFunction());
-  proto->Set(String::New("utf8Slice"),
-             FunctionTemplate::New(Utf8Slice)->GetFunction());
+  NODE_SET_METHOD(proto, "asciiSlice", AsciiSlice);
+  NODE_SET_METHOD(proto, "base64Slice", Base64Slice);
+  NODE_SET_METHOD(proto, "binarySlice", BinarySlice);
+  NODE_SET_METHOD(proto, "hexSlice", HexSlice);
+  NODE_SET_METHOD(proto, "ucs2Slice", Ucs2Slice);
+  NODE_SET_METHOD(proto, "utf8Slice", Utf8Slice);
 
-  proto->Set(String::New("asciiWrite"),
-             FunctionTemplate::New(AsciiWrite)->GetFunction());
-  proto->Set(String::New("base64Write"),
-             FunctionTemplate::New(Base64Write)->GetFunction());
-  proto->Set(String::New("binaryWrite"),
-             FunctionTemplate::New(BinaryWrite)->GetFunction());
-  proto->Set(String::New("hexWrite"),
-             FunctionTemplate::New(HexWrite)->GetFunction());
-  proto->Set(String::New("ucs2Write"),
-             FunctionTemplate::New(Ucs2Write)->GetFunction());
-  proto->Set(String::New("utf8Write"),
-             FunctionTemplate::New(Utf8Write)->GetFunction());
+  NODE_SET_METHOD(proto, "asciiWrite", AsciiWrite);
+  NODE_SET_METHOD(proto, "base64Write", Base64Write);
+  NODE_SET_METHOD(proto, "binaryWrite", BinaryWrite);
+  NODE_SET_METHOD(proto, "hexWrite", HexWrite);
+  NODE_SET_METHOD(proto, "ucs2Write", Ucs2Write);
+  NODE_SET_METHOD(proto, "utf8Write", Utf8Write);
 
-  proto->Set(String::New("readDoubleBE"),
-             FunctionTemplate::New(ReadDoubleBE)->GetFunction());
-  proto->Set(String::New("readDoubleLE"),
-             FunctionTemplate::New(ReadDoubleLE)->GetFunction());
-  proto->Set(String::New("readFloatBE"),
-             FunctionTemplate::New(ReadFloatBE)->GetFunction());
-  proto->Set(String::New("readFloatLE"),
-             FunctionTemplate::New(ReadFloatLE)->GetFunction());
+  NODE_SET_METHOD(proto, "readDoubleBE", ReadDoubleBE);
+  NODE_SET_METHOD(proto, "readDoubleLE", ReadDoubleLE);
+  NODE_SET_METHOD(proto, "readFloatBE", ReadFloatBE);
+  NODE_SET_METHOD(proto, "readFloatLE", ReadFloatLE);
 
-  proto->Set(String::New("writeDoubleBE"),
-             FunctionTemplate::New(WriteDoubleBE)->GetFunction());
-  proto->Set(String::New("writeDoubleLE"),
-             FunctionTemplate::New(WriteDoubleLE)->GetFunction());
-  proto->Set(String::New("writeFloatBE"),
-             FunctionTemplate::New(WriteFloatBE)->GetFunction());
-  proto->Set(String::New("writeFloatLE"),
-             FunctionTemplate::New(WriteFloatLE)->GetFunction());
+  NODE_SET_METHOD(proto, "writeDoubleBE", WriteDoubleBE);
+  NODE_SET_METHOD(proto, "writeDoubleLE", WriteDoubleLE);
+  NODE_SET_METHOD(proto, "writeFloatBE", WriteFloatBE);
+  NODE_SET_METHOD(proto, "writeFloatLE", WriteFloatLE);
 
-  proto->Set(String::New("copy"),
-             FunctionTemplate::New(Copy)->GetFunction());
-  proto->Set(String::New("fill"),
-             FunctionTemplate::New(Fill)->GetFunction());
+  NODE_SET_METHOD(proto, "copy", Copy);
+  NODE_SET_METHOD(proto, "fill", Fill);
 
   // for backwards compatibility
   proto->Set(String::New("offset"), Uint32::New(0, node_isolate), v8::ReadOnly);
