@@ -180,14 +180,15 @@ void AllocDispose(Handle<Object> obj) {
   char* data = static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
   size_t length = obj->GetIndexedPropertiesExternalArrayDataLength();
 
-  if (data == NULL || length == 0)
-    return;
-
-  obj->SetIndexedPropertiesToExternalArrayData(NULL,
-                                               kExternalUnsignedByteArray,
-                                               0);
-  free(data);
-  node_isolate->AdjustAmountOfExternalAllocatedMemory(-length);
+  if (data != NULL) {
+    obj->SetIndexedPropertiesToExternalArrayData(NULL,
+                                                 kExternalUnsignedByteArray,
+                                                 0);
+    free(data);
+  }
+  if (length != 0) {
+    node_isolate->AdjustAmountOfExternalAllocatedMemory(-length);
+  }
 }
 
 
