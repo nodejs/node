@@ -24,6 +24,7 @@ NODE_EXT_LIST_START
 NODE_EXT_LIST_ITEM(node_buffer)
 #if HAVE_OPENSSL
 NODE_EXT_LIST_ITEM(node_crypto)
+NODE_EXT_LIST_ITEM(node_tls_wrap)
 #endif
 NODE_EXT_LIST_ITEM(node_evals)
 NODE_EXT_LIST_ITEM(node_fs)
@@ -35,7 +36,6 @@ NODE_EXT_LIST_ITEM(node_zlib)
 // libuv rewrite
 NODE_EXT_LIST_ITEM(node_timer_wrap)
 NODE_EXT_LIST_ITEM(node_tcp_wrap)
-NODE_EXT_LIST_ITEM(node_tls_wrap)
 NODE_EXT_LIST_ITEM(node_udp_wrap)
 NODE_EXT_LIST_ITEM(node_pipe_wrap)
 NODE_EXT_LIST_ITEM(node_cares_wrap)

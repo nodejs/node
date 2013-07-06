@@ -118,8 +118,6 @@
         'src/node.h',
         'src/node_buffer.h',
         'src/node_constants.h',
-        'src/node_crypto.h',
-        'src/node_crypto_bio.h',
         'src/node_extensions.h',
         'src/node_file.h',
         'src/node_http_parser.h',
@@ -162,6 +160,8 @@
           'sources': [
             'src/node_crypto.cc',
             'src/node_crypto_bio.cc',
+            'src/node_crypto.h',
+            'src/node_crypto_bio.h',
             'src/tls_wrap.cc',
             'src/tls_wrap.h'
           ],
