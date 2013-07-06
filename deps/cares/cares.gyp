@@ -121,11 +121,15 @@
           # Not Windows i.e. POSIX
           'cflags': [
             '-g',
-            '--std=gnu89',
             '-pedantic',
             '-Wall',
             '-Wextra',
             '-Wno-unused-parameter'
+          ],
+        }],
+        [ 'OS not in "win android"', {
+          'cflags': [
+            '--std=gnu89'
           ],
         }],
         [ 'OS=="linux"', {
@@ -143,6 +147,10 @@
         [ 'OS=="openbsd"', {
           'include_dirs': [ 'config/openbsd' ],
           'sources': [ 'config/openbsd/ares_config.h' ]
+        }],
+        [ 'OS=="android"', {
+          'include_dirs': [ 'config/android' ],
+          'sources': [ 'config/android/ares_config.h' ],
         }],
         [ 'OS=="solaris"', {
           'include_dirs': [ 'config/sunos' ],

@@ -107,6 +107,10 @@ ifeq (linux,$(OS))
 CFLAGS += -D_GNU_SOURCE
 endif
 
+ifeq (android,$(OS))
+CFLAGS += -D_GNU_SOURCE
+endif
+
 ifeq (sunos,$(OS))
 LDFLAGS += -lsocket -lnsl
 CFLAGS += -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
