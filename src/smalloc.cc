@@ -255,13 +255,13 @@ class RetainedAllocInfo: public RetainedObjectInfo {
   virtual intptr_t GetSizeInBytes();
 
  private:
-  static const char* label_;
+  static const char label_[];
   char* data_;
   int length_;
 };
 
 
-const char* RetainedAllocInfo::label_ = "smalloc";
+const char RetainedAllocInfo::label_[] = "smalloc";
 
 
 RetainedAllocInfo::RetainedAllocInfo(Handle<Value> wrapper) {
