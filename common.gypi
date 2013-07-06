@@ -50,7 +50,6 @@
       },
       'Release': {
         'cflags': [ '-O3', '-ffunction-sections', '-fdata-sections' ],
-        'ldflags': [ '-Wl,--gc-sections' ],
         'conditions': [
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
@@ -59,6 +58,9 @@
             'cflags': [ '-fno-omit-frame-pointer' ],
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
+          }, {
+            # Doesn't work with the Solaris linker.
+            'ldflags': [ '-Wl,--gc-sections' ],
           }],
           ['clang == 0 and gcc_version >= 40', {
             'cflags': [ '-fno-tree-vrp' ],  # Work around compiler bug.
