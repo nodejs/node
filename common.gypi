@@ -11,10 +11,6 @@
     'clang%': 0,
     'python%': 'python',
 
-    # Turn on optimizations that may trigger compiler bugs.
-    # Use at your own risk. Do *NOT* report bugs if this option is enabled.
-    'node_unsafe_optimizations%': 0,
-
     # Enable V8's post-mortem debugging only on unix flavors.
     'conditions': [
       ['OS == "win"', {
@@ -53,37 +49,22 @@
         },
       },
       'Release': {
+        'cflags': [ '-O3', '-ffunction-sections', '-fdata-sections' ],
+        'ldflags': [ '-Wl,--gc-sections' ],
         'conditions': [
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
-          }],
-          ['node_unsafe_optimizations==1', {
-            'cflags': [ '-O3', '-ffunction-sections', '-fdata-sections' ],
-            'ldflags': [ '-Wl,--gc-sections' ],
-          }, {
-            'cflags': [ '-O2', '-fno-strict-aliasing' ],
-            'cflags!': [ '-O3', '-fstrict-aliasing' ],
-            'conditions': [
-              # Required by the dtrace post-processor. Unfortunately,
-              # some gcc/binutils combos generate bad code when
-              # -ffunction-sections is enabled. Let's hope for the best.
-              ['OS=="solaris"', {
-                'cflags': [ '-ffunction-sections', '-fdata-sections' ],
-              }, {
-                'cflags!': [ '-ffunction-sections', '-fdata-sections' ],
-              }],
-              ['clang == 0 and gcc_version >= 40', {
-                'cflags': [ '-fno-tree-vrp' ],
-              }],
-              ['clang == 0 and gcc_version <= 44', {
-                'cflags': [ '-fno-tree-sink' ],
-              }],
-            ],
           }],
           ['OS=="solaris"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
+          }],
+          ['clang == 0 and gcc_version >= 40', {
+            'cflags': [ '-fno-tree-vrp' ],  # Work around compiler bug.
+          }],
+          ['clang == 0 and gcc_version <= 44', {
+            'cflags': [ '-fno-tree-sink' ],  # Work around compiler bug.
           }],
         ],
         'msvs_settings': {
