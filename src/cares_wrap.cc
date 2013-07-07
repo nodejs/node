@@ -797,7 +797,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   if (status) {
     // Error
     SetErrno(uv_last_error(uv_default_loop()));
-    argv[0] = Local<Value>::New(node_isolate, Null(node_isolate));
+    argv[0] = Null(node_isolate);
   } else {
     // Success
     struct addrinfo *address;

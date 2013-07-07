@@ -3227,12 +3227,12 @@ void EIO_PBKDF2(uv_work_t* work_req) {
 
 void EIO_PBKDF2After(pbkdf2_req* req, Local<Value> argv[2]) {
   if (req->err) {
-    argv[0] = Local<Value>::New(node_isolate, Undefined(node_isolate));
+    argv[0] = Undefined(node_isolate);
     argv[1] = Encode(req->key, req->keylen, BUFFER);
     memset(req->key, 0, req->keylen);
   } else {
     argv[0] = Exception::Error(String::New("PBKDF2 error"));
-    argv[1] = Local<Value>::New(node_isolate, Undefined(node_isolate));
+    argv[1] = Undefined(node_isolate);
   }
 
   delete[] req->pass;
@@ -3401,10 +3401,10 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
       ERR_error_string_n(req->error_, errmsg, sizeof errmsg);
 
     argv[0] = Exception::Error(String::New(errmsg));
-    argv[1] = Local<Value>::New(node_isolate, Null(node_isolate));
+    argv[1] = Null(node_isolate);
   }
   else {
-    argv[0] = Local<Value>::New(node_isolate, Null(node_isolate));
+    argv[0] = Null(node_isolate);
     argv[1] = Buffer::Use(req->data_, req->size_);
   }
 }

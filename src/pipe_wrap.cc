@@ -248,8 +248,8 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
     Integer::New(status, node_isolate),
     wrap->object(),
     req_wrap_obj,
-    Local<Value>::New(node_isolate, Boolean::New(readable)),
-    Local<Value>::New(node_isolate, Boolean::New(writable))
+    Boolean::New(readable),
+    Boolean::New(writable)
   };
 
   if (oncomplete_sym.IsEmpty()) {
