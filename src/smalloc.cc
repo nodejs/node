@@ -166,7 +166,7 @@ void TargetCallback(Isolate* isolate,
                     Persistent<Object>* target,
                     char* data) {
   HandleScope handle_scope(isolate);
-  Local<Object> obj = Local<Object>::New(isolate, *target);
+  Local<Object> obj = PersistentToLocal(isolate, *target);
   int len = obj->GetIndexedPropertiesExternalArrayDataLength();
   if (data != NULL && len > 0) {
     isolate->AdjustAmountOfExternalAllocatedMemory(-len);
@@ -187,7 +187,7 @@ void AllocDispose(Handle<Object> obj) {
   if (using_alloc_cb && obj->Has(smalloc_sym)) {
     Local<External> ext = obj->Get(smalloc_sym).As<External>();
     CallbackInfo* cb_info = static_cast<CallbackInfo*>(ext->Value());
-    Local<Object> obj = Local<Object>::New(node_isolate, cb_info->p_obj);
+    Local<Object> obj = PersistentToLocal(cb_info->p_obj);
     TargetFreeCallback(node_isolate, obj, cb_info);
     return;
   }
@@ -247,7 +247,7 @@ void TargetFreeCallback(Isolate* isolate,
                         Persistent<Object>* target,
                         CallbackInfo* cb_info) {
   HandleScope handle_scope(isolate);
-  Local<Object> obj = Local<Object>::New(isolate, *target);
+  Local<Object> obj = PersistentToLocal(isolate, *target);
   TargetFreeCallback(isolate, obj, cb_info);
 }
 

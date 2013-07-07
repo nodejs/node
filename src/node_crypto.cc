@@ -1189,9 +1189,8 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
     if (!p->sniObject_.IsEmpty()) {
       p->sniContext_.Dispose();
 
-      Local<Value> arg = Local<String>::New(node_isolate, p->servername_);
-      Local<Value> ret = Local<Value>::New(
-          node_isolate, MakeCallback(p->sniObject_, "onselect", 1, &arg));
+      Local<Value> arg = PersistentToLocal(p->servername_);
+      Local<Value> ret = MakeCallback(p->sniObject_, "onselect", 1, &arg);
 
       // If ret is SecureContext
       if (HasInstance(secure_context_constructor, ret)) {
@@ -3247,7 +3246,7 @@ void EIO_PBKDF2After(uv_work_t* work_req, int status) {
   assert(status == 0);
   pbkdf2_req* req = container_of(work_req, pbkdf2_req, work_req);
   HandleScope scope(node_isolate);
-  Local<Object> obj = Local<Object>::New(node_isolate, req->obj);
+  Local<Object> obj = PersistentToLocal(req->obj);
   req->obj.Dispose();
   Local<Value> argv[2];
   EIO_PBKDF2After(req, argv);

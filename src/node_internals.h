@@ -62,6 +62,15 @@ public:
   void operator=(v8::Handle<v8::Value> that);
 };
 
+template <class TypeName>
+inline v8::Local<TypeName> PersistentToLocal(
+    const v8::Persistent<TypeName>& persistent);
+
+template <class TypeName>
+inline v8::Local<TypeName> PersistentToLocal(
+    v8::Isolate* isolate,
+    const v8::Persistent<TypeName>& persistent);
+
 template <typename TypeName>
 v8::Handle<v8::Value> MakeCallback(
     const v8::Persistent<v8::Object>& recv,
@@ -244,13 +253,31 @@ inline MUST_USE_RESULT bool ParseArrayIndex(v8::Handle<v8::Value> arg,
   return true;
 }
 
+template <class TypeName>
+inline v8::Local<TypeName> PersistentToLocal(
+    const v8::Persistent<TypeName>& persistent) {
+  return PersistentToLocal(node_isolate, persistent);
+}
+
+template <class TypeName>
+inline v8::Local<TypeName> PersistentToLocal(
+    v8::Isolate* isolate,
+    const v8::Persistent<TypeName>& persistent) {
+  if (persistent.IsWeak()) {
+    return v8::Local<TypeName>::New(isolate, persistent);
+  } else {
+    return *reinterpret_cast<v8::Local<TypeName>*>(
+        const_cast<v8::Persistent<TypeName>*>(&persistent));
+  }
+}
+
 template <typename TypeName>
 CachedBase<TypeName>::CachedBase() {
 }
 
 template <typename TypeName>
 CachedBase<TypeName>::operator v8::Handle<TypeName>() const {
-  return v8::Local<TypeName>::New(node_isolate, handle_);
+  return PersistentToLocal(handle_);
 }
 
 template <typename TypeName>
@@ -305,8 +332,7 @@ v8::Handle<v8::Value> MakeCallback(
     const TypeName method,
     int argc,
     v8::Handle<v8::Value>* argv) {
-  v8::Local<v8::Object> recv_obj =
-      v8::Local<v8::Object>::New(node_isolate, recv);
+  v8::Local<v8::Object> recv_obj = PersistentToLocal(recv);
   return MakeCallback(recv_obj, method, argc, argv);
 }
 
@@ -323,15 +349,14 @@ v8::Handle<v8::Value> MakeCallback(
 inline bool HasInstance(v8::Persistent<v8::FunctionTemplate>& function_template,
                         v8::Handle<v8::Value> value) {
   v8::Local<v8::FunctionTemplate> function_template_handle =
-      v8::Local<v8::FunctionTemplate>::New(node_isolate, function_template);
+      PersistentToLocal(function_template);
   return function_template_handle->HasInstance(value);
 }
 
 inline v8::Local<v8::Object> NewInstance(v8::Persistent<v8::Function>& ctor,
                                           int argc,
                                           v8::Handle<v8::Value>* argv) {
-  v8::Local<v8::Function> constructor_handle =
-      v8::Local<v8::Function>::New(node_isolate, ctor);
+  v8::Local<v8::Function> constructor_handle = PersistentToLocal(ctor);
   return constructor_handle->NewInstance(argc, argv);
 }
 
@@ -341,14 +366,14 @@ template <typename TypeName>
 inline char* Data(v8::Persistent<TypeName>& val) {
   NODE_EXTERN char* Data(v8::Handle<v8::Value>);
   NODE_EXTERN char* Data(v8::Handle<v8::Object>);
-  return Data(v8::Local<TypeName>::New(node_isolate, val));
+  return Data(PersistentToLocal(val));
 }
 
 template <typename TypeName>
 inline size_t Length(v8::Persistent<TypeName>& val) {
   NODE_EXTERN size_t Length(v8::Handle<v8::Value>);
   NODE_EXTERN size_t Length(v8::Handle<v8::Object>);
-  return Length(v8::Local<TypeName>::New(node_isolate, val));
+  return Length(PersistentToLocal(val));
 }
 
 } // namespace Buffer

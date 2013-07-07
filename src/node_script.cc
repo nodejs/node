@@ -168,13 +168,13 @@ WrappedContext::~WrappedContext() {
 
 Local<Object> WrappedContext::NewInstance() {
   Local<FunctionTemplate> constructor_template_handle =
-      Local<FunctionTemplate>::New(node_isolate, constructor_template);
+      PersistentToLocal(constructor_template);
   return constructor_template_handle->GetFunction()->NewInstance();
 }
 
 
 Local<Context> WrappedContext::GetV8Context() {
-  return Local<Context>::New(node_isolate, context_);
+  return PersistentToLocal(context_);
 }
 
 
@@ -405,7 +405,7 @@ void WrappedScript::EvalMachine(const FunctionCallbackInfo<Value>& args) {
           "'this' must be a result of previous new Script(code) call.");
     }
 
-    script = Local<Script>::New(node_isolate, n_script->script_);
+    script = PersistentToLocal(n_script->script_);
   }
 
   if (output_flag == returnResult) {

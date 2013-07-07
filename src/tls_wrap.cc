@@ -1289,7 +1289,7 @@ int TLSCallbacks::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
     if (object->Has(onsniselect_sym)) {
       p->sni_context_.Dispose();
 
-      Local<Value> arg = Local<String>::New(node_isolate, p->servername_);
+      Local<Value> arg = PersistentToLocal(p->servername_);
       Handle<Value> ret = MakeCallback(object, onsniselect_sym, 1, &arg);
 
       // If ret is SecureContext

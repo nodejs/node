@@ -268,7 +268,7 @@ static void SetAresErrno(int errorno) {
   HandleScope scope(node_isolate);
   Local<Value> key = String::NewSymbol("_errno");
   Local<Value> value = String::NewSymbol(AresErrnoString(errorno));
-  Local<Object> process = Local<Object>::New(node_isolate, process_p);
+  Local<Object> process = PersistentToLocal(process_p);
   process->Set(key, value);
 }
 
@@ -307,7 +307,7 @@ class QueryWrap {
   }
 
   inline Local<Object> object() {
-    return Local<Object>::New(node_isolate, persistent());
+    return PersistentToLocal(persistent());
   }
 
  protected:
