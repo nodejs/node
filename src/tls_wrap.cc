@@ -798,7 +798,8 @@ void TLSCallbacks::VerifyError(const FunctionCallbackInfo<Value>& args) {
     // We requested a certificate and they did not send us one.
     // Definitely an error.
     // XXX is this the right error message?
-    return ThrowError("UNABLE_TO_GET_ISSUER_CERT");
+    Local<String> s = String::New("UNABLE_TO_GET_ISSUER_CERT");
+    return args.GetReturnValue().Set(Exception::Error(s));
   }
   X509_free(peer_cert);
 
