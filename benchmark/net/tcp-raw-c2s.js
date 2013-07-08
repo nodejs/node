@@ -57,7 +57,7 @@ function server() {
       bench.end((bytes * 8) / (1024 * 1024 * 1024));
     }, dur * 1000);
 
-    clientHandle.onread = function(buffer, offset, length) {
+    clientHandle.onread = function(buffer) {
       // we're not expecting to ever get an EOF from the client.
       // just lots of data forever.
       if (!buffer)
@@ -65,8 +65,7 @@ function server() {
 
       // don't slice the buffer.  the point of this is to isolate, not
       // simulate real traffic.
-      // var chunk = buffer.slice(offset, offset + length);
-      bytes += length;
+      bytes += buffer.length;
     };
 
     clientHandle.readStart();

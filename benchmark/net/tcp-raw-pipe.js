@@ -48,14 +48,13 @@ function server() {
     if (!clientHandle)
       fail('connect');
 
-    clientHandle.onread = function(buffer, offset, length) {
+    clientHandle.onread = function(buffer) {
       // we're not expecting to ever get an EOF from the client.
       // just lots of data forever.
       if (!buffer)
         fail('read');
 
-      var chunk = buffer.slice(offset, offset + length);
-      var writeReq = clientHandle.writeBuffer(chunk);
+      var writeReq = clientHandle.writeBuffer(buffer);
 
       if (!writeReq)
         fail('write');
@@ -99,11 +98,11 @@ function client() {
 
   clientHandle.readStart();
 
-  clientHandle.onread = function(buffer, start, length) {
+  clientHandle.onread = function(buffer) {
     if (!buffer)
       fail('read');
 
-    bytes += length;
+    bytes += buffer.length;
   };
 
   connectReq.oncomplete = function() {
