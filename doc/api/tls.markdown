@@ -55,7 +55,7 @@ exceeded. The limits are configurable:
   - `tls.CLIENT_RENEG_LIMIT`: renegotiation limit, default is 3.
 
   - `tls.CLIENT_RENEG_WINDOW`: renegotiation window in seconds, default is
-                               10 minutes.
+    10 minutes.
 
 Don't change the defaults unless you know what you are doing.
 
