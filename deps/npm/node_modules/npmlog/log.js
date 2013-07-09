@@ -81,7 +81,7 @@ log.log = function (lvl, prefix, message) {
   }
 
   this.emitLog(m)
-}
+}.bind(log)
 
 log.emitLog = function (m) {
   if (this._paused) {
@@ -135,7 +135,7 @@ log.addLevel = function (lvl, n, style, disp) {
       a[i + 1] = arguments[i]
     }
     return this.log.apply(this, a)
-  }
+  }.bind(this)
   this.disp[lvl] = disp
 }
 

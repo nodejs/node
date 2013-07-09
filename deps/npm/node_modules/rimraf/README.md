@@ -19,3 +19,8 @@ errors are handled for you:
 
 It can remove stuff synchronously, too.  But that's not so good.  Use
 the async API.  It's better.
+
+## CLI
+
+If installed with `npm install rimraf -g` it can be used as a global
+command `rimraf <path>` which is useful for cross platform support.

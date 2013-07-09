@@ -131,6 +131,7 @@ function save (c, u, cb) {
     npm.config.set("username", u.u, "user")
     npm.config.set("_password", u.p, "user")
     npm.config.set("email", u.e, "user")
+    npm.config.del("_token", "user")
     log.info("adduser", "Authorized user %s", u.u)
     npm.config.save("user", cb)
   })

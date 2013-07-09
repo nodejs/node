@@ -53,15 +53,16 @@ function mkdir (p, cb) {
 npm.commands = {}
 
 try {
+  var pv = process.version.replace(/^v/, '')
   // startup, ok to do this synchronously
   var j = JSON.parse(fs.readFileSync(
     path.join(__dirname, "../package.json"))+"")
   npm.version = j.version
   npm.nodeVersionRequired = j.engines.node
-  if (!semver.satisfies(process.version, j.engines.node)) {
+  if (!semver.satisfies(pv, j.engines.node)) {
     log.warn("unsupported version", [""
             ,"npm requires node version: "+j.engines.node
-            ,"And you have: "+process.version
+            ,"And you have: "+pv
             ,"which is not satisfactory."
             ,""
             ,"Bad things will likely happen.  You have been warned."

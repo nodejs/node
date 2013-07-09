@@ -74,8 +74,8 @@ nopt.invalidHandler = function (k, val, type, data) {
   }
 }
 
-if (!stableFamily || (+stableFamily[2] % 2)) stableFamily = null
-else stableFamily = stableFamily[1] + "." + stableFamily[2]
+if (!stableFamily || (+stableFamily.minor % 2)) stableFamily = null
+else stableFamily = stableFamily.major + "." + stableFamily.minor
 
 var defaults
 

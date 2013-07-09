@@ -1,1 +1,0 @@
-This file should be copied to the products dir.

@@ -13,7 +13,7 @@ view.completion = function (opts, cb) {
     if (er) return cb(er)
     var dv = d.versions[d["dist-tags"][tag]]
       , fields = []
-    d.versions = Object.keys(d.versions).sort(semver.compare)
+    d.versions = Object.keys(d.versions).sort(semver.compareLoose)
     fields = getFields(d).concat(getFields(dv))
     cb(null, fields)
   })
@@ -64,7 +64,7 @@ function view (args, silent, cb) {
     var results = []
       , error = null
       , versions = data.versions
-    data.versions = Object.keys(data.versions).sort(semver.compare)
+    data.versions = Object.keys(data.versions).sort(semver.compareLoose)
     if (!args.length) args = [""]
 
     // remove readme unless we asked for it
@@ -73,7 +73,7 @@ function view (args, silent, cb) {
     }
 
     Object.keys(versions).forEach(function (v) {
-      if (semver.satisfies(v, version)) args.forEach(function (args) {
+      if (semver.satisfies(v, version, true)) args.forEach(function (args) {
         // remove readme unless we asked for it
         if (-1 === args.indexOf("readme")) {
           delete versions[v].readme

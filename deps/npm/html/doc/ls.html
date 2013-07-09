@@ -25,11 +25,15 @@ limit the results to only the paths to the packages named.  Note that
 nested packages will <em>also</em> show the paths to the specified packages.
 For example, running <code>npm ls promzard</code> in npm&#39;s source tree will show:</p>
 
-<pre><code>npm@1.2.32 /path/to/npm
+<pre><code>npm@1.3.2 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5</code></pre>
 
-<p>It will show print out extraneous, missing, and invalid packages.</p>
+<p>It will print out extraneous, missing, and invalid packages.</p>
+
+<p>If a project specifies git urls for dependencies these are shown
+in parentheses after the name@version to make it easier for users to
+recognize potential forks of a project.</p>
 
 <p>When run as <code>ll</code> or <code>la</code>, it shows extended information by default.</p>
 
@@ -64,7 +68,7 @@ project.</p>
 
 <ul><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/install.html">install(1)</a></li><li><a href="../doc/link.html">link(1)</a></li><li><a href="../doc/prune.html">prune(1)</a></li><li><a href="../doc/outdated.html">outdated(1)</a></li><li><a href="../doc/update.html">update(1)</a></li></ul>
 </div>
-<p id="footer">ls &mdash; npm@1.2.32</p>
+<p id="footer">ls &mdash; npm@1.3.2</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

@@ -24,7 +24,6 @@ var path = require("path")
   , cache = require("./cache.js")
   , asyncMap = require("slide").asyncMap
   , npm = require("./npm.js")
-  , semver = require("semver")
 
 function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false

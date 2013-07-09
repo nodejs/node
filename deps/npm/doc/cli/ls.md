@@ -22,7 +22,11 @@ For example, running `npm ls promzard` in npm's source tree will show:
     └─┬ init-package-json@0.0.4
       └── promzard@0.1.5
 
-It will show print out extraneous, missing, and invalid packages.
+It will print out extraneous, missing, and invalid packages.
+
+If a project specifies git urls for dependencies these are shown
+in parentheses after the name@version to make it easier for users to
+recognize potential forks of a project.
 
 When run as `ll` or `la`, it shows extended information by default.
 

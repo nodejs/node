@@ -17,6 +17,7 @@
    ,"autor": "author"
    ,"contributers": "contributors"
    ,"publicationConfig": "publishConfig"
+   ,"script": "scripts"
   },
   "bugs": { "web": "url", "name": "url" },
   "script": { "server": "start", "tests": "test" }

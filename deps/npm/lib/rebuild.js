@@ -52,7 +52,7 @@ function filter (data, args, set, seen) {
         , n = nv.shift()
         , v = nv.join("@")
       if (n !== data.name) continue
-      if (!semver.satisfies(data.version, v)) continue
+      if (!semver.satisfies(data.version, v, true)) continue
       pass = true
       break
     }

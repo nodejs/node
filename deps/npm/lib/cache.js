@@ -82,6 +82,7 @@ var mkdir = require("mkdirp")
   , zlib = require("zlib")
   , chmodr = require("chmodr")
   , which = require("which")
+  , isGitUrl = require("./utils/is-git-url.js")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -261,15 +262,11 @@ function add (args, cb) {
     case "http:":
     case "https:":
       return addRemoteTarball(spec, null, name, cb)
-    case "git:":
-    case "git+http:":
-    case "git+https:":
-    case "git+rsync:":
-    case "git+ftp:":
-    case "git+ssh:":
-      //p.protocol = p.protocol.replace(/^git([^:])/, "$1")
-      return addRemoteGit(spec, p, name, false, cb)
+
     default:
+      if (isGitUrl(p))
+        return addRemoteGit(spec, p, name, false, cb)
+
       // if we have a name and a spec, then try name@spec
       // if not, then try just spec (which may try name@"" if not found)
       if (name) {
@@ -600,8 +597,8 @@ function addNamed (name, x, data, cb_) {
   lock(k, function (er, fd) {
     if (er) return cb(er)
 
-    var fn = ( null !== semver.valid(x) ? addNameVersion
-             : null !== semver.validRange(x) ? addNameRange
+    var fn = ( semver.valid(x, true) ? addNameVersion
+             : semver.validRange(x, true) ? addNameRange
              : addNameTag
              )
     fn(name, x, data, cb)
@@ -655,8 +652,8 @@ function engineFilter (data) {
     var eng = data.versions[v].engines
     if (!eng) return
     if (!strict && !data.versions[v].engineStrict) return
-    if (eng.node && !semver.satisfies(nodev, eng.node)
-        || eng.npm && !semver.satisfies(npmv, eng.npm)) {
+    if (eng.node && !semver.satisfies(nodev, eng.node, true)
+        || eng.npm && !semver.satisfies(npmv, eng.npm, true)) {
       delete data.versions[v]
     }
   })
@@ -665,7 +662,7 @@ function engineFilter (data) {
 function addNameRange (name, range, data, cb) {
   if (typeof cb !== "function") cb = data, data = null
 
-  range = semver.validRange(range)
+  range = semver.validRange(range, true)
   if (range === null) return cb(new Error(
     "Invalid version range: "+range))
 
@@ -688,12 +685,15 @@ function addNameRange (name, range, data, cb) {
 
     // if the tagged version satisfies, then use that.
     var tagged = data["dist-tags"][npm.config.get("tag")]
-    if (tagged && data.versions[tagged] && semver.satisfies(tagged, range)) {
+    if (tagged
+        && data.versions[tagged]
+        && semver.satisfies(tagged, range, true)) {
       return addNamed(name, tagged, data.versions[tagged], cb)
     }
 
     // find the max satisfying version.
-    var ms = semver.maxSatisfying(Object.keys(data.versions || {}), range)
+    var versions = Object.keys(data.versions || {})
+    var ms = semver.maxSatisfying(versions, range, true)
     if (!ms) {
       return cb(installTargetsError(range, data))
     }
@@ -720,11 +720,11 @@ function installTargetsError (requested, data) {
                   + requested + "\n" + targets)
 }
 
-function addNameVersion (name, ver, data, cb) {
+function addNameVersion (name, v, data, cb) {
   if (typeof cb !== "function") cb = data, data = null
 
-  ver = semver.valid(ver)
-  if (ver === null) return cb(new Error("Invalid version: "+ver))
+  ver = semver.valid(v, true)
+  if (!ver) return cb(new Error("Invalid version: "+v))
 
   var response
 
@@ -1107,7 +1107,9 @@ function addLocalDirectory (p, name, shasum, cb) {
   // tar it to the proper place, and add the cache tar
   if (p.indexOf(npm.cache) === 0) return cb(new Error(
     "Adding a cache directory to the cache will make the world implode."))
-  readJson(path.join(p, "package.json"), function (er, data) {
+  var strict = p.indexOf(npm.tmp) !== 0
+                && p.indexOf(npm.cache) !== 0
+  readJson(path.join(p, "package.json"), strict, function (er, data) {
     er = needName(er, data)
     er = needVersion(er, data)
     if (er) return cb(er)
@@ -1119,12 +1121,10 @@ function addLocalDirectory (p, name, shasum, cb) {
                              , data.version, "package.tgz" )
       , placeDirect = path.basename(p) === "package"
       , tgz = placeDirect ? placed : tmptgz
-      , doFancyCrap = p.indexOf(npm.tmp) !== 0
-                    && p.indexOf(npm.cache) !== 0
     getCacheStat(function (er, cs) {
       mkdir(path.dirname(tgz), function (er, made) {
         if (er) return cb(er)
-        tar.pack(tgz, p, data, doFancyCrap, function (er) {
+        tar.pack(tgz, p, data, strict, function (er) {
           if (er) {
             log.error( "addLocalDirectory", "Could not pack %j to %j"
                      , p, tgz )

@@ -91,7 +91,7 @@ function addSubmodule (name, url, cb) {
 
 var getSubmodules = function getSubmodules (cb) {
   var git = npm.config.get("git")
-  var arg = [ "submodule", "status" ]
+  var args = [ "submodule", "status" ]
 
   // check for git
   which(git, function (err) {

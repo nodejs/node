@@ -10,7 +10,7 @@ npm uses this.
 ```javascript
 var readInstalled = require("read-installed")
 // depth is optional, defaults to Infinity
-readInstalled(folder, depth, function (er, data) {
+readInstalled(folder, depth, logFunction, function (er, data) {
   ...
 })
 ```

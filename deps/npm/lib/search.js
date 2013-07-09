@@ -3,7 +3,6 @@ module.exports = exports = search
 
 var npm = require("./npm.js")
   , registry = npm.registry
-  , semver = require("semver")
 
 search.usage = "npm search [some search terms ...]"
 

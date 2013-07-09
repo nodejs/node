@@ -9,7 +9,7 @@ program which is removed for node `v0.8`. If you have a native addon for node th
 still has a `wscript` file, then you should definitely add a `binding.gyp` file
 to support the latest versions of node.
 
-Multiple target versions of node are supported (i.e. `0.6`, `0.7`,..., `1.0`,
+Multiple target versions of node are supported (i.e. `0.8`, `0.9`, `0.10`, ..., `1.0`,
 etc.), regardless of what version of node is actually installed on your system
 (`node-gyp` downloads the necessary development files for the target version).
 

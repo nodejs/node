@@ -17,7 +17,8 @@ npm will see when it looks at your package.
 ```javascript
 var readJson = require('read-package-json')
 
-readJson('/path/to/package.json', function (er, data) {
+// readJson(filename, [logFunction=noop], [strict=false], cb)
+readJson('/path/to/package.json', console.error, false, function (er, data) {
   if (er) {
     console.error("There was an error reading the file")
     return
@@ -27,10 +28,13 @@ readJson('/path/to/package.json', function (er, data) {
 }
 ```
 
-## readJson(file, cb)
+## readJson(file, [logFn = noop], [strict = false], cb)
 
 * `file` {String} The path to the package.json file
-* `cb` {Function}
+* `logFn` {Function} Function to handle logging.  Defaults to a noop.
+* `strict` {Boolean} True to enforce SemVer 2.0 version strings, and
+  other strict requirements.
+* `cb` {Function} Gets called with `(er, data)`, as is The Node Way.
 
 Reads the JSON file and does the things.
 

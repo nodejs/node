@@ -11,7 +11,7 @@ var exec = require("child_process").execFile
   , which = require("which")
   , npm = require("./npm.js")
 
-version.usage = "npm version [<newversion> | major | minor | patch | build]\n"
+version.usage = "npm version [<newversion> | major | minor | patch]\n"
               + "\n(run in package dir)\n"
               + "'npm -v' or 'npm --version' to print npm version "
               + "("+npm.version+")\n"
