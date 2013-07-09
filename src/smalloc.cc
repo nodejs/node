@@ -53,18 +53,18 @@ using v8::kExternalUnsignedByteArray;
 struct CallbackInfo {
   void* hint;
   FreeCallback cb;
-  Persistent<Object>* p_obj;
+  Persistent<Object> p_obj;
 };
-
-typedef v8::WeakReferenceCallbacks<Object, char>::Revivable Callback;
-typedef v8::WeakReferenceCallbacks<Object, void>::Revivable CallbackFree;
 
 void TargetCallback(Isolate* isolate,
                     Persistent<Object>* target,
                     char* arg);
 void TargetFreeCallback(Isolate* isolate,
                         Persistent<Object>* target,
-                        void* arg);
+                        CallbackInfo* arg);
+void TargetFreeCallback(Isolate* isolate,
+                        Local<Object> target,
+                        CallbackInfo* cb_info);
 
 Cached<String> smalloc_sym;
 static bool using_alloc_cb;
@@ -165,7 +165,7 @@ void Alloc(Handle<Object> obj, char* data, size_t length) {
 void TargetCallback(Isolate* isolate,
                     Persistent<Object>* target,
                     char* data) {
-  HandleScope handle_scope(node_isolate);
+  HandleScope handle_scope(isolate);
   Local<Object> obj = Local<Object>::New(isolate, *target);
   int len = obj->GetIndexedPropertiesExternalArrayDataLength();
   if (data != NULL && len > 0) {
@@ -187,10 +187,8 @@ void AllocDispose(Handle<Object> obj) {
   if (using_alloc_cb && obj->Has(smalloc_sym)) {
     Local<External> ext = obj->Get(smalloc_sym).As<External>();
     CallbackInfo* cb_info = static_cast<CallbackInfo*>(ext->Value());
-    Local<Object> obj = Local<Object>::New(node_isolate, *cb_info->p_obj);
-    char* data = static_cast<char*>(
-        obj->GetIndexedPropertiesExternalArrayData());
-    TargetFreeCallback(node_isolate, cb_info->p_obj, data);
+    Local<Object> obj = Local<Object>::New(node_isolate, cb_info->p_obj);
+    TargetFreeCallback(node_isolate, obj, cb_info);
     return;
   }
 
@@ -229,17 +227,16 @@ void Alloc(Handle<Object> obj,
     using_alloc_cb = true;
   }
 
-  Persistent<Object> p_obj(node_isolate, obj);
   CallbackInfo* cb_info = new CallbackInfo;
   cb_info->cb = fn;
   cb_info->hint = hint;
-  cb_info->p_obj = &p_obj;
+  cb_info->p_obj.Reset(node_isolate, obj);
 
   node_isolate->AdjustAmountOfExternalAllocatedMemory(length +
                                                       sizeof(*cb_info));
-  p_obj.MakeWeak(static_cast<void*>(cb_info), TargetFreeCallback);
-  p_obj.MarkIndependent();
-  p_obj.SetWrapperClassId(ALLOC_ID);
+  cb_info->p_obj.MakeWeak(cb_info, TargetFreeCallback);
+  cb_info->p_obj.MarkIndependent();
+  cb_info->p_obj.SetWrapperClassId(ALLOC_ID);
   obj->SetIndexedPropertiesToExternalArrayData(data,
                                                kExternalUnsignedByteArray,
                                                length);
@@ -248,14 +245,21 @@ void Alloc(Handle<Object> obj,
 
 void TargetFreeCallback(Isolate* isolate,
                         Persistent<Object>* target,
-                        void* arg) {
-  HandleScope handle_scope(node_isolate);
+                        CallbackInfo* cb_info) {
+  HandleScope handle_scope(isolate);
   Local<Object> obj = Local<Object>::New(isolate, *target);
+  TargetFreeCallback(isolate, obj, cb_info);
+}
+
+
+void TargetFreeCallback(Isolate* isolate,
+                        Local<Object> obj,
+                        CallbackInfo* cb_info) {
+  HandleScope handle_scope(isolate);
   char* data = static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
   int len = obj->GetIndexedPropertiesExternalArrayDataLength();
-  CallbackInfo* cb_info = static_cast<CallbackInfo*>(arg);
   isolate->AdjustAmountOfExternalAllocatedMemory(-(len + sizeof(*cb_info)));
-  (*target).Dispose();
+  cb_info->p_obj.Dispose();
   cb_info->cb(data, cb_info->hint);
   delete cb_info;
 }
