@@ -42,7 +42,7 @@ int uv_thread_join(uv_thread_t *tid) {
 
 
 int uv_mutex_init(uv_mutex_t* mutex) {
-#ifdef NDEBUG
+#if defined(NDEBUG) || !defined(PTHREAD_MUTEX_ERRORCHECK)
   if (pthread_mutex_init(mutex, NULL))
     return -1;
   else

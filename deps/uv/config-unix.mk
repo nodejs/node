@@ -29,7 +29,7 @@ CPPFLAGS += -D_FILE_OFFSET_BITS=64
 
 RUNNER_SRC=test/runner-unix.c
 RUNNER_CFLAGS=$(CFLAGS) -I$(SRCDIR)/test
-RUNNER_LDFLAGS=-L"$(CURDIR)" -luv
+RUNNER_LDFLAGS=
 
 DTRACE_OBJS=
 DTRACE_HEADER=
@@ -158,6 +158,13 @@ SO_LDFLAGS = -Wl,-soname,libuv.so.0.10
 endif
 
 RUNNER_LDFLAGS += $(LDFLAGS)
+
+all:
+	# Force a sequential build of the static and the shared library.
+	# Works around a make quirk where it forgets to (re)build either
+	# the *.o or *.pic.o files, depending on what target comes first.
+	$(MAKE) -f $(SRCDIR)/Makefile libuv.a
+	$(MAKE) -f $(SRCDIR)/Makefile libuv.$(SOEXT)
 
 libuv.a: $(OBJS)
 	$(AR) rcs $@ $^

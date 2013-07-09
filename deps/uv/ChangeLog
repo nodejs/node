@@ -1,4 +1,21 @@
-2013.06.13, Version 0.10.11 (Stable)
+2013.07.10, Version 0.10.12 (Stable)
+
+Changes since version 0.10.11:
+
+* linux: add support for MIPS (Andrei Sedoi)
+
+* windows: uv_spawn shouldn't reject reparse points (Bert Belder)
+
+* windows: use WSAGetLastError(), not errno (Ben Noordhuis)
+
+* build: darwin: disable -fstrict-aliasing warnings (Ben Noordhuis)
+
+* build: `all` now builds static and dynamic lib (Ben Noordhuis)
+
+* unix: fix build when !defined(PTHREAD_MUTEX_ERRORCHECK) (Ben Noordhuis)
+
+
+2013.06.13, Version 0.10.11 (Stable), c3b75406a66a10222a589cb173e8f469e9665c7e
 
 Changes since version 0.10.10:
 

@@ -130,6 +130,7 @@ TESTS= \
 	test/test-threadpool.o \
 	test/test-threadpool-cancel.o \
 	test/test-timer-again.o \
+	test/test-timer-from-check.o \
 	test/test-timer.o \
 	test/test-tty.o \
 	test/test-udp-dgram-too-big.o \
@@ -142,7 +143,7 @@ TESTS= \
 	test/test-util.o \
 	test/test-walk-handles.o \
 
-all: libuv.a
+.PHONY: all bench clean clean-platform distclean test
 
 run-tests$(E): test/run-tests.o test/runner.o $(RUNNER_SRC) $(TESTS) libuv.a
 	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o $@ $^ $(RUNNER_LIBS) $(RUNNER_LDFLAGS)
@@ -151,10 +152,6 @@ run-benchmarks$(E): test/run-benchmarks.o test/runner.o $(RUNNER_SRC) $(BENCHMAR
 	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o $@ $^ $(RUNNER_LIBS) $(RUNNER_LDFLAGS)
 
 test/echo.o: test/echo.c test/echo.h
-
-
-.PHONY: clean clean-platform distclean test bench
-
 
 test: run-tests$(E)
 	$(CURDIR)/$<

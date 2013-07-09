@@ -353,6 +353,7 @@
         'test/test-barrier.c',
         'test/test-condvar.c',
         'test/test-timer-again.c',
+        'test/test-timer-from-check.c',
         'test/test-timer.c',
         'test/test-tty.c',
         'test/test-udp-dgram-too-big.c',

@@ -36,6 +36,7 @@
         },
         'xcode_settings': {
           'GCC_OPTIMIZATION_LEVEL': '0',
+          'OTHER_CFLAGS': [ '-Wno-strict-aliasing' ],
         },
         'conditions': [
           ['OS != "win"', {

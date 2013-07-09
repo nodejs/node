@@ -1391,7 +1391,8 @@ TEST_IMPL(fs_symlink_dir) {
 #ifdef _WIN32
   ASSERT(((struct stat*)req.ptr)->st_size == strlen(test_dir + 4));
 #else
-  ASSERT(((struct stat*)req.ptr)->st_size == strlen(test_dir));
+  /* st_size has type off_t. Cast to avoid signed/unsigned warnings. */
+  ASSERT((size_t) ((struct stat*)req.ptr)->st_size == strlen(test_dir));
 #endif
   uv_fs_req_cleanup(&req);
 

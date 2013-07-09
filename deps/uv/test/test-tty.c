@@ -81,10 +81,10 @@ TEST_IMPL(tty) {
   ASSERT(UV_TTY == uv_guess_handle(ttyin_fd));
   ASSERT(UV_TTY == uv_guess_handle(ttyout_fd));
 
-  r = uv_tty_init(uv_default_loop(), &tty_in, ttyin_fd, 1);
+  r = uv_tty_init(uv_default_loop(), &tty_in, ttyin_fd, 1);  /* Readable. */
   ASSERT(r == 0);
 
-  r = uv_tty_init(uv_default_loop(), &tty_out, ttyout_fd, 2);
+  r = uv_tty_init(uv_default_loop(), &tty_out, ttyout_fd, 0);  /* Writable. */
   ASSERT(r == 0);
 
   r = uv_tty_get_winsize(&tty_out, &width, &height);

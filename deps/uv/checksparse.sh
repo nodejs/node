@@ -222,7 +222,7 @@ SunOS)
   ;;
 esac
 
-for ARCH in __i386__ __x86_64__ __arm__; do
+for ARCH in __i386__ __x86_64__ __arm__ __mips__; do
   $SPARSE $SPARSE_FLAGS -D$ARCH=1 $SOURCES
 done
 
