@@ -23,6 +23,7 @@ var common = require('../common');
 var assert = require('assert');
 
 var Buffer = require('buffer').Buffer;
+var SlowBuffer = require('buffer').SlowBuffer;
 
 // counter to ensure unique value is always copied
 var cntr = 0;
@@ -269,6 +270,21 @@ for (var j = 0; j < 100; j++) {
     assert.equal(b[100 + i], slice[i]);
   }
 }
+
+
+// make sure only top level parent propagates from allocPool
+var b = new Buffer(5);
+var c = b.slice(0, 4);
+var d = c.slice(0, 2);
+assert.equal(b.parent, c.parent);
+assert.equal(b.parent, d.parent);
+
+// also from a non-pooled instance
+var b = new SlowBuffer(5);
+var c = b.slice(0, 4);
+var d = c.slice(0, 2);
+assert.equal(b, c.parent);
+assert.equal(b, d.parent);
 
 
 
