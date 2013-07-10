@@ -1007,6 +1007,9 @@ MakeCallback(const Handle<Object> object,
              Handle<Value> argv[]) {
   // TODO Hook for long stack traces to be made here.
 
+  if (using_domains)
+    return MakeDomainCallback(object, callback, argc, argv);
+
   // lazy load no domain next tick callbacks
   if (process_tickCallback.IsEmpty()) {
     Local<Value> cb_v = process->Get(String::New("_tickCallback"));
