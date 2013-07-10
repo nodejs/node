@@ -42,20 +42,20 @@ var server = tls.createServer(options, function(c) {
 
   var once = false;
 
-	var writeAgain = setTimeout(function() {
-		client.write(bonkers);
-	});
+  var writeAgain = setTimeout(function() {
+    client.write(bonkers);
+  });
 
   client.on('error', function(err) {
     if (!once) {
-			clearTimeout(writeAgain);
+      clearTimeout(writeAgain);
       once = true;
       client.destroy();
       server.close();
     }
   });
 
-	client.on('close', function (hadError) {
-		assert.strictEqual(hadError, true, 'Client never errored');
-	});
+  client.on('close', function (hadError) {
+    assert.strictEqual(hadError, true, 'Client never errored');
+  });
 });
