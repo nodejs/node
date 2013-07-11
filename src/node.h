@@ -66,6 +66,36 @@
 
 #include "node_object_wrap.h"
 
+// Forward-declare these functions now to stop MSVS from becoming
+// terminally confused when it's done in node_internals.h
+namespace node {
+
+NODE_EXTERN v8::Local<v8::Value> ErrnoException(int errorno,
+                                                const char* syscall = NULL,
+                                                const char* message = NULL,
+                                                const char* path = NULL);
+NODE_EXTERN v8::Local<v8::Value> UVException(int errorno,
+                                             const char* syscall = NULL,
+                                             const char* message = NULL,
+                                             const char* path = NULL);
+NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
+    const v8::Handle<v8::Object> recv,
+    const char* method,
+    int argc,
+    v8::Handle<v8::Value>* argv);
+NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
+    const v8::Handle<v8::Object> object,
+    const v8::Handle<v8::String> symbol,
+    int argc,
+    v8::Handle<v8::Value>* argv);
+NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
+    const v8::Handle<v8::Object> object,
+    const v8::Handle<v8::Function> callback,
+    int argc,
+    v8::Handle<v8::Value>* argv);
+
+}  // namespace node
+
 #if NODE_WANT_INTERNALS
 # include "node_internals.h"
 #endif
@@ -147,16 +177,6 @@ NODE_EXTERN ssize_t DecodeWrite(char *buf,
 v8::Local<v8::Object> BuildStatsObject(const uv_stat_t* s);
 
 
-NODE_EXTERN v8::Local<v8::Value> ErrnoException(int errorno,
-                                                const char *syscall = NULL,
-                                                const char *msg = "",
-                                                const char *path = NULL);
-
-NODE_EXTERN v8::Local<v8::Value> UVException(int errorno,
-                                             const char *syscall = NULL,
-                                             const char *msg     = NULL,
-                                             const char *path    = NULL);
-
 #ifdef _WIN32
 NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(int errorno,
     const char *syscall = NULL,  const char *msg = "",
@@ -217,23 +237,6 @@ node_module_struct* get_builtin_module(const char *name);
 NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = 0);
 
 NODE_EXTERN void SetErrno(uv_err_t err);
-NODE_EXTERN v8::Handle<v8::Value>
-MakeCallback(const v8::Handle<v8::Object> object,
-             const char* method,
-             int argc,
-             v8::Handle<v8::Value> argv[]);
-
-NODE_EXTERN v8::Handle<v8::Value>
-MakeCallback(const v8::Handle<v8::Object> object,
-             const v8::Handle<v8::String> symbol,
-             int argc,
-             v8::Handle<v8::Value> argv[]);
-
-NODE_EXTERN v8::Handle<v8::Value>
-MakeCallback(const v8::Handle<v8::Object> object,
-             const v8::Handle<v8::Function> callback,
-             int argc,
-             v8::Handle<v8::Value> argv[]);
 
 }  // namespace node
 

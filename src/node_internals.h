@@ -29,6 +29,21 @@
 
 namespace node {
 
+// Forward declarations from node_buffer.h.  We can't include node_buffer.h
+// in this file because:
+//
+// a) we're included early on in node.h, and
+// b) node_buffer.h depends on the definition of the |encoding| enum that's
+//    defined further down in node.h...
+namespace Buffer {
+
+NODE_EXTERN char* Data(v8::Handle<v8::Value>);
+NODE_EXTERN char* Data(v8::Handle<v8::Object>);
+NODE_EXTERN size_t Length(v8::Handle<v8::Value>);
+NODE_EXTERN size_t Length(v8::Handle<v8::Object>);
+
+} // namespace Buffer
+
 // Defined in node.cc
 extern v8::Isolate* node_isolate;
 
@@ -177,10 +192,6 @@ inline static void ThrowErrnoException(int errorno,
                                        const char* syscall = NULL,
                                        const char* message = NULL,
                                        const char* path = NULL) {
-  NODE_EXTERN v8::Local<v8::Value> ErrnoException(int errorno,
-                                                  const char* syscall = NULL,
-                                                  const char* message = NULL,
-                                                  const char* path = NULL);
   v8::ThrowException(ErrnoException(errorno, syscall, message, path));
 }
 
@@ -188,10 +199,6 @@ inline static void ThrowUVException(int errorno,
                                     const char* syscall = NULL,
                                     const char* message = NULL,
                                     const char* path = NULL) {
-  NODE_EXTERN v8::Local<v8::Value> UVException(int errorno,
-                                               const char* syscall = NULL,
-                                               const char* message = NULL,
-                                               const char* path = NULL);
   v8::ThrowException(UVException(errorno, syscall, message, path));
 }
 
@@ -309,23 +316,6 @@ inline void Cached<v8::Value>::operator=(v8::Handle<v8::Value> that) {
   CachedBase<v8::Value>::operator=(that);
 }
 
-// Forward declarations, see node.h
-NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
-    const v8::Handle<v8::Object> recv,
-    const char* method,
-    int argc,
-    v8::Handle<v8::Value>* argv);
-NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
-    const v8::Handle<v8::Object> object,
-    const v8::Handle<v8::String> symbol,
-    int argc,
-    v8::Handle<v8::Value>* argv);
-NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
-    const v8::Handle<v8::Object> object,
-    const v8::Handle<v8::Function> callback,
-    int argc,
-    v8::Handle<v8::Value>* argv);
-
 template <typename TypeName>
 v8::Handle<v8::Value> MakeCallback(
     const v8::Persistent<v8::Object>& recv,
@@ -364,15 +354,11 @@ namespace Buffer {
 
 template <typename TypeName>
 inline char* Data(v8::Persistent<TypeName>& val) {
-  NODE_EXTERN char* Data(v8::Handle<v8::Value>);
-  NODE_EXTERN char* Data(v8::Handle<v8::Object>);
   return Data(PersistentToLocal(val));
 }
 
 template <typename TypeName>
 inline size_t Length(v8::Persistent<TypeName>& val) {
-  NODE_EXTERN size_t Length(v8::Handle<v8::Value>);
-  NODE_EXTERN size_t Length(v8::Handle<v8::Object>);
   return Length(PersistentToLocal(val));
 }
 

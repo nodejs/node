@@ -23,7 +23,6 @@
 #define REQ_WRAP_H_
 
 #include "queue.h"
-#include "node_internals.h"
 
 namespace node {
 

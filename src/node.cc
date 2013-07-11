@@ -740,7 +740,7 @@ Local<Value> ErrnoException(int errorno,
                             const char *path) {
   Local<Value> e;
   Local<String> estring = String::NewSymbol(errno_string(errorno));
-  if (!msg[0]) {
+  if (msg == NULL || msg[0] == '\0') {
     msg = strerror(errorno);
   }
   Local<String> message = String::NewSymbol(msg);
