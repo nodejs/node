@@ -27,7 +27,7 @@ files_mandocs = $(shell find doc/files -name '*.md' \
 misc_mandocs = $(shell find doc/misc -name '*.md' \
                |sed 's|.md|.7|g' \
                |sed 's|doc/misc/|man/man7/|g' ) \
-               man/man7/index.7
+               man/man7/npm-index.7
 
 cli_htmldocs = $(shell find doc/cli -name '*.md' \
                 |sed 's|.md|.html|g' \
@@ -61,7 +61,7 @@ latest:
 	@echo "in this folder that you're looking at right now."
 	node cli.js install -g -f npm
 
-install: all
+install: docclean all
 	node cli.js install -g -f
 
 # backwards compat
@@ -70,7 +70,7 @@ dev: install
 link: uninstall
 	node cli.js link -f
 
-clean: doc-clean uninstall
+clean: ronnclean doc-clean uninstall
 	rm npmrc
 	node cli.js cache clean
 
@@ -79,15 +79,16 @@ uninstall:
 
 doc: $(mandocs) $(htmldocs)
 
+ronnclean:
+	rm -rf node_modules/ronn node_modules/.bin/ronn .building_ronn
+
 docclean: doc-clean
 doc-clean:
 	rm -rf \
-    node_modules/ronn \
-    node_modules/.bin/ronn \
     .building_ronn \
     html/doc \
     html/api \
-    man/man*
+    man
 
 # use `npm install ronn` for this to work.
 man/man1/npm-README.1: README.md scripts/doc-build.sh package.json
@@ -150,6 +151,7 @@ html/doc/misc/%.html: doc/misc/%.md $(html_docdeps)
 
 
 
+ronn: node_modules/.bin/ronn
 
 node_modules/.bin/ronn:
 	node cli.js install ronn

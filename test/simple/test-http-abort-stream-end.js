@@ -20,42 +20,42 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 var common = require('../common');
-var tls = require('tls');
-var net = require('net');
-var fs = require('fs');
 var assert = require('assert');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/test_key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem')
-};
+var http = require('http');
 
-var bonkers = new Buffer(1024 * 1024);
-bonkers.fill(42);
+var maxSize = 1024;
+var size = 0;
 
-var server = tls.createServer(options, function(c) {
+var s = http.createServer(function(req, res) {
+  this.close();
 
-}).listen(common.PORT, function() {
-  var client = net.connect(common.PORT, function() {
-    client.write(bonkers);
+  res.writeHead(200, {'Content-Type': 'text/plain'});
+  for (var i = 0; i < maxSize; i++) {
+    res.write('x' + i);
+  }
+  res.end();
+});
+
+var aborted = false;
+s.listen(common.PORT, function() {
+  var req = http.get('http://localhost:' + common.PORT, function(res) {
+    res.on('data', function(chunk) {
+      size += chunk.length;
+      assert(!aborted, 'got data after abort');
+      if (size > maxSize) {
+        aborted = true;
+        req.abort();
+        size = maxSize;
+      }
+    });
   });
 
-  var once = false;
+  req.end();
+});
 
-  var writeAgain = setTimeout(function() {
-    client.write(bonkers);
-  });
-
-  client.on('error', function(err) {
-    if (!once) {
-      clearTimeout(writeAgain);
-      once = true;
-      client.destroy();
-      server.close();
-    }
-  });
-
-  client.on('close', function (hadError) {
-    assert.strictEqual(hadError, true, 'Client never errored');
-  });
+process.on('exit', function() {
+  assert(aborted);
+  assert.equal(size, maxSize);
+  console.log('ok');
 });

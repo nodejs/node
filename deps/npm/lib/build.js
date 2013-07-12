@@ -200,6 +200,17 @@ function linkMans (pkg, folder, parent, gtop, cb) {
   if (!pkg.man || !gtop || process.platform === "win32") return cb()
 
   var manRoot = path.resolve(npm.config.get("prefix"), "share", "man")
+
+  // make sure that the mans are unique.
+  // otherwise, if there are dupes, it'll fail with EEXIST
+  var set = pkg.man.reduce(function (acc, man) {
+    acc[path.basename(man)] = man
+    return acc
+  }, {})
+  pkg.man = pkg.man.filter(function (man) {
+    return set[path.basename(man)] === man
+  })
+
   asyncMap(pkg.man, function (man, cb) {
     if (typeof man !== "string") return cb()
     var parseMan = man.match(/(.*\.([0-9]+)(\.gz)?)$/)
