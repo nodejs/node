@@ -778,6 +778,14 @@ assert.equal(buf[3], 0xFF);
   assert.equal(buf[3], 0xFF);
 });
 
+// test offset returns are correct
+var b = new Buffer(16);
+assert.equal(4, b.writeUInt32LE(0, 0));
+assert.equal(6, b.writeUInt16LE(0, 4));
+assert.equal(7, b.writeUInt8(0, 6));
+assert.equal(8, b.writeInt8(0, 7));
+assert.equal(16, b.writeDoubleLE(0, 8));
+
 // test for buffer overrun
 buf = new Buffer([0, 0, 0, 0, 0]); // length: 5
 var sub = buf.slice(0, 4);         // length: 4

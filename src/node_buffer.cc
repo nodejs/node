@@ -485,18 +485,23 @@ void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
 
 
 template <typename T, enum Endianness endianness>
-void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
+uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   bool doAssert = !args[2]->BooleanValue();
 
   T val = static_cast<T>(args[0]->NumberValue());
   size_t offset;
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &offset));
+  if (!ParseArrayIndex(args[1], 0, &offset)) {
+    ThrowRangeError("out of range index");
+    return 0;
+  }
 
   if (doAssert) {
     size_t len = Length(args.This());
-    if (offset + sizeof(T) > len || offset + sizeof(T) < offset)
-      return ThrowRangeError("Trying to write beyond buffer length");
+    if (offset + sizeof(T) > len || offset + sizeof(T) < offset) {
+      ThrowRangeError("Trying to write beyond buffer length");
+      return 0;
+    }
   }
 
   union NoAlias {
@@ -509,26 +514,27 @@ void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   char* ptr = static_cast<char*>(data) + offset;
   if (endianness != GetEndianness()) Swizzle(na.bytes, sizeof(na.bytes));
   memcpy(ptr, na.bytes, sizeof(na.bytes));
+  return offset + sizeof(na.bytes);
 }
 
 
 void WriteFloatLE(const FunctionCallbackInfo<Value>& args) {
-  WriteFloatGeneric<float, kLittleEndian>(args);
+  args.GetReturnValue().Set(WriteFloatGeneric<float, kLittleEndian>(args));
 }
 
 
 void WriteFloatBE(const FunctionCallbackInfo<Value>& args) {
-  WriteFloatGeneric<float, kBigEndian>(args);
+  args.GetReturnValue().Set(WriteFloatGeneric<float, kBigEndian>(args));
 }
 
 
 void WriteDoubleLE(const FunctionCallbackInfo<Value>& args) {
-  WriteFloatGeneric<double, kLittleEndian>(args);
+  args.GetReturnValue().Set(WriteFloatGeneric<double, kLittleEndian>(args));
 }
 
 
 void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
-  WriteFloatGeneric<double, kBigEndian>(args);
+  args.GetReturnValue().Set(WriteFloatGeneric<double, kBigEndian>(args));
 }
 
 
