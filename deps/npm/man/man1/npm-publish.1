@@ -1,0 +1,53 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-PUBLISH" "1" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-publish\fR \-\- Publish a package
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm publish <tarball>
+npm publish <folder>
+.
+.fi
+.
+.SH "DESCRIPTION"
+Publishes a package to the registry so that it can be installed by name\.
+.
+.IP "\(bu" 4
+\fB<folder>\fR:
+A folder containing a package\.json file
+.
+.IP "\(bu" 4
+\fB<tarball>\fR:
+A url or file path to a gzipped tar archive containing a single folder
+with a package\.json file inside\.
+.
+.IP "" 0
+.
+.P
+Fails if the package name and version combination already exists in
+the registry\.  Overwrites when the "\-\-force" flag is set\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help  registry
+.
+.IP "\(bu" 4
+npm help adduser
+.
+.IP "\(bu" 4
+npm help owner
+.
+.IP "\(bu" 4
+npm help deprecate
+.
+.IP "\(bu" 4
+npm help tag
+.
+.IP "" 0
+

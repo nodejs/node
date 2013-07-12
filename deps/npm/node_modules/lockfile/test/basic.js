@@ -158,35 +158,6 @@ test('staleness sync test', function (t) {
   }
 })
 
-test('watch test', function (t) {
-  var opts = { wait: 100 }
-  var fdx
-  lockFile.lock('watch-lock', function (er, fd1) {
-    if (er) throw er
-    setTimeout(unlock, 10)
-    function unlock () {
-      console.error('unlocking it')
-      lockFile.unlockSync('watch-lock')
-      // open another file, so the fd gets reused
-      // so we can know that it actually re-opened it fresh,
-      // rather than just getting the same lock as before.
-      fdx = fs.openSync('x', 'w')
-      fdy = fs.openSync('x', 'w')
-    }
-
-    // should have gotten a new fd
-    lockFile.lock('watch-lock', opts, function (er, fd2) {
-      if (er) throw er
-      t.notEqual(fd1, fd2)
-      fs.closeSync(fdx)
-      fs.closeSync(fdy)
-      fs.unlinkSync('x')
-      lockFile.unlockSync('watch-lock')
-      t.end()
-    })
-  })
-})
-
 test('retries', function (t) {
   // next 5 opens will fail.
   var opens = 5
@@ -202,10 +173,9 @@ test('retries', function (t) {
     process.nextTick(cb.bind(null, er))
   }
 
-  lockFile.lock('retry-lock', { retries: opens }, function (er, fd) {
+  lockFile.lock('retry-lock', { retries: opens }, function (er) {
     if (er) throw er
     t.equal(opens, 0)
-    t.ok(fd)
     lockFile.unlockSync('retry-lock')
     t.end()
   })
@@ -227,10 +197,9 @@ test('retryWait', function (t) {
   }
 
   var opts = { retries: opens, retryWait: 100 }
-  lockFile.lock('retry-lock', opts, function (er, fd) {
+  lockFile.lock('retry-lock', opts, function (er) {
     if (er) throw er
     t.equal(opens, 0)
-    t.ok(fd)
     lockFile.unlockSync('retry-lock')
     t.end()
   })

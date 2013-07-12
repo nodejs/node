@@ -1173,7 +1173,7 @@ function unpack (pkg, ver, unpackTarget, dMode, fMode, uid, gid, cb) {
       log.error("unpack", "Could not read data for %s", pkg + "@" + ver)
       return cb(er)
     }
-    npm.commands.unbuild([unpackTarget], function (er) {
+    npm.commands.unbuild([unpackTarget], true, function (er) {
       if (er) return cb(er)
       tar.unpack( path.join(npm.cache, pkg, ver, "package.tgz")
                 , unpackTarget

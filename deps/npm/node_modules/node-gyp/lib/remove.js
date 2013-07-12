@@ -34,7 +34,7 @@ function remove (gyp, argv, callback) {
   }
 
   // flatten the version Array into a String
-  version = version.slice(1, 4).join('.')
+  version = version.version
 
   var versionPath = path.resolve(gyp.devDir, version)
   log.verbose('remove', 'removing development files for version:', version)

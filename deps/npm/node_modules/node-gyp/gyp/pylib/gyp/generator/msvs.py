@@ -17,6 +17,7 @@ import gyp.MSVSProject as MSVSProject
 import gyp.MSVSSettings as MSVSSettings
 import gyp.MSVSToolFile as MSVSToolFile
 import gyp.MSVSUserFile as MSVSUserFile
+import gyp.MSVSUtil as MSVSUtil
 import gyp.MSVSVersion as MSVSVersion
 from gyp.common import GypError
 
@@ -63,6 +64,7 @@ generator_additional_path_sections = [
 generator_additional_non_configuration_keys = [
     'msvs_cygwin_dirs',
     'msvs_cygwin_shell',
+    'msvs_large_pdb',
     'msvs_shard',
 ]
 
@@ -204,6 +206,10 @@ def _ConvertSourcesToFilterHierarchy(sources, prefix=None, excluded=None,
 
 def _ToolAppend(tools, tool_name, setting, value, only_if_unset=False):
   if not value: return
+  _ToolSetOrAppend(tools, tool_name, setting, value, only_if_unset)
+
+
+def _ToolSetOrAppend(tools, tool_name, setting, value, only_if_unset=False):
   # TODO(bradnelson): ugly hack, fix this more generally!!!
   if 'Directories' in setting or 'Dependencies' in setting:
     if type(value) == str:
@@ -232,7 +238,7 @@ def _ConfigPlatform(config_data):
 
 def _ConfigBaseName(config_name, platform_name):
   if config_name.endswith('_' + platform_name):
-    return config_name[0:-len(platform_name)-1]
+    return config_name[0:-len(platform_name) - 1]
   else:
     return config_name
 
@@ -270,7 +276,7 @@ def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
                               '`cygpath -m "${INPUTPATH}"`')
                     for i in direct_cmd]
     direct_cmd = ['\\"%s\\"' % i.replace('"', '\\\\\\"') for i in direct_cmd]
-    #direct_cmd = gyp.common.EncodePOSIXShellList(direct_cmd)
+    # direct_cmd = gyp.common.EncodePOSIXShellList(direct_cmd)
     direct_cmd = ' '.join(direct_cmd)
     # TODO(quote):  regularize quoting path names throughout the module
     cmd = ''
@@ -306,7 +312,7 @@ def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
     # If the argument starts with a slash or dash, it's probably a command line
     # switch
     arguments = [i if (i[:1] in "/-") else _FixPath(i) for i in cmd[1:]]
-    arguments = [i.replace('$(InputDir)','%INPUTDIR%') for i in arguments]
+    arguments = [i.replace('$(InputDir)', '%INPUTDIR%') for i in arguments]
     arguments = [MSVSSettings.FixVCMacroSlashes(i) for i in arguments]
     if quote_cmd:
       # Support a mode for using cmd directly.
@@ -720,7 +726,7 @@ def _EscapeCommandLineArgumentForMSBuild(s):
   """Escapes a Windows command-line argument for use by MSBuild."""
 
   def _Replace(match):
-    return (len(match.group(1))/2*4)*'\\' + '\\"'
+    return (len(match.group(1)) / 2 * 4) * '\\' + '\\"'
 
   # Escape all quotes so that they are interpreted literally.
   s = quote_replacer_regex2.sub(_Replace, s)
@@ -1001,12 +1007,12 @@ def _GetMSVSConfigurationType(spec, build_file):
         }[spec['type']]
   except KeyError:
     if spec.get('type'):
-      raise Exception('Target type %s is not a valid target type for '
-                      'target %s in %s.' %
-                      (spec['type'], spec['target_name'], build_file))
+      raise GypError('Target type %s is not a valid target type for '
+                     'target %s in %s.' %
+                     (spec['type'], spec['target_name'], build_file))
     else:
-      raise Exception('Missing type field for target %s in %s.' %
-                      (spec['target_name'], build_file))
+      raise GypError('Missing type field for target %s in %s.' %
+                     (spec['target_name'], build_file))
   return config_type
 
 
@@ -1041,6 +1047,10 @@ def _AddConfigurationToMSVSProject(p, spec, config_type, config_name, config):
   # Add in user specified msvs_settings.
   msvs_settings = config.get('msvs_settings', {})
   MSVSSettings.ValidateMSVSSettings(msvs_settings)
+
+  # Prevent default library inheritance from the environment.
+  _ToolAppend(tools, 'VCLinkerTool', 'AdditionalDependencies', ['$(NOINHERIT)'])
+
   for tool in msvs_settings:
     settings = config['msvs_settings'][tool]
     for setting in settings:
@@ -1663,7 +1673,7 @@ def _CreateProjectObjects(target_list, target_dicts, options, msvs_version):
   for qualified_target in target_list:
     spec = target_dicts[qualified_target]
     if spec['toolset'] != 'target':
-      raise Exception(
+      raise GypError(
           'Multiple toolsets not supported in msvs build (target %s)' %
           qualified_target)
     proj_path, fixpath_prefix = _GetPathOfProject(qualified_target, spec,
@@ -1718,74 +1728,6 @@ def CalculateVariables(default_variables, params):
     default_variables['MSVS_OS_BITS'] = 32
 
 
-def _ShardName(name, number):
-  """Add a shard number to the end of a target.
-
-  Arguments:
-    name: name of the target (foo#target)
-    number: shard number
-  Returns:
-    Target name with shard added (foo_1#target)
-  """
-  parts = name.rsplit('#', 1)
-  parts[0] = '%s_%d' % (parts[0], number)
-  return '#'.join(parts)
-
-
-def _ShardTargets(target_list, target_dicts):
-  """Shard some targets apart to work around the linkers limits.
-
-  Arguments:
-    target_list: List of target pairs: 'base/base.gyp:base'.
-    target_dicts: Dict of target properties keyed on target pair.
-  Returns:
-    Tuple of the new sharded versions of the inputs.
-  """
-  # Gather the targets to shard, and how many pieces.
-  targets_to_shard = {}
-  for t in target_dicts:
-    shards = int(target_dicts[t].get('msvs_shard', 0))
-    if shards:
-      targets_to_shard[t] = shards
-  # Shard target_list.
-  new_target_list = []
-  for t in target_list:
-    if t in targets_to_shard:
-      for i in range(targets_to_shard[t]):
-        new_target_list.append(_ShardName(t, i))
-    else:
-      new_target_list.append(t)
-  # Shard target_dict.
-  new_target_dicts = {}
-  for t in target_dicts:
-    if t in targets_to_shard:
-      for i in range(targets_to_shard[t]):
-        name = _ShardName(t, i)
-        new_target_dicts[name] = copy.copy(target_dicts[t])
-        new_target_dicts[name]['target_name'] = _ShardName(
-             new_target_dicts[name]['target_name'], i)
-        sources = new_target_dicts[name].get('sources', [])
-        new_sources = []
-        for pos in range(i, len(sources), targets_to_shard[t]):
-          new_sources.append(sources[pos])
-        new_target_dicts[name]['sources'] = new_sources
-    else:
-      new_target_dicts[t] = target_dicts[t]
-  # Shard dependencies.
-  for t in new_target_dicts:
-    dependencies = copy.copy(new_target_dicts[t].get('dependencies', []))
-    new_dependencies = []
-    for d in dependencies:
-      if d in targets_to_shard:
-        for i in range(targets_to_shard[d]):
-          new_dependencies.append(_ShardName(d, i))
-      else:
-        new_dependencies.append(d)
-    new_target_dicts[t]['dependencies'] = new_dependencies
-
-  return (new_target_list, new_target_dicts)
-
-
 def PerformBuild(data, configurations, params):
   options = params['options']
   msvs_version = params['msvs_version']
@@ -1825,7 +1767,12 @@ def GenerateOutput(target_list, target_dicts, data, params):
   generator_flags = params.get('generator_flags', {})
 
   # Optionally shard targets marked with 'msvs_shard': SHARD_COUNT.
-  (target_list, target_dicts) = _ShardTargets(target_list, target_dicts)
+  (target_list, target_dicts) = MSVSUtil.ShardTargets(target_list, target_dicts)
+
+  # Optionally use the large PDB workaround for targets marked with
+  # 'msvs_large_pdb': 1.
+  (target_list, target_dicts) = MSVSUtil.InsertLargePdbShims(
+        target_list, target_dicts, generator_default_variables)
 
   # Prepare the set of configurations.
   configs = set()
@@ -1872,9 +1819,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
     error_message = "Missing input files:\n" + \
                     '\n'.join(set(missing_sources))
     if generator_flags.get('msvs_error_on_missing_sources', False):
-      raise Exception(error_message)
+      raise GypError(error_message)
     else:
-      print >>sys.stdout, "Warning: " + error_message
+      print >> sys.stdout, "Warning: " + error_message
 
 
 def _GenerateMSBuildFiltersFile(filters_path, source_files,
@@ -2815,8 +2762,10 @@ def _FinalizeMSBuildSettings(spec, configuration):
               'AdditionalIncludeDirectories', include_dirs)
   _ToolAppend(msbuild_settings, 'ResourceCompile',
               'AdditionalIncludeDirectories', resource_include_dirs)
-  # Add in libraries.
-  _ToolAppend(msbuild_settings, 'Link', 'AdditionalDependencies', libraries)
+  # Add in libraries, note that even for empty libraries, we want this
+  # set, to prevent inheriting default libraries from the enviroment.
+  _ToolSetOrAppend(msbuild_settings, 'Link', 'AdditionalDependencies',
+                  libraries)
   if out_file:
     _ToolAppend(msbuild_settings, msbuild_tool, 'OutputFile', out_file,
                 only_if_unset=True)
@@ -2850,8 +2799,7 @@ def _GetValueFormattedForMSBuild(tool_name, name, value):
   if type(value) == list:
     # For some settings, VS2010 does not automatically extends the settings
     # TODO(jeanluc) Is this what we want?
-    if name in ['AdditionalDependencies',
-                'AdditionalIncludeDirectories',
+    if name in ['AdditionalIncludeDirectories',
                 'AdditionalLibraryDirectories',
                 'AdditionalOptions',
                 'DelayLoadDLLs',

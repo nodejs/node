@@ -1,0 +1,112 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-CONFIG" "1" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-config\fR \-\- Manage the npm configuration files
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm config set <key> <value> [\-\-global]
+npm config get <key>
+npm config delete <key>
+npm config list
+npm config edit
+npm get <key>
+npm set <key> <value> [\-\-global]
+.
+.fi
+.
+.SH "DESCRIPTION"
+npm gets its config settings from the command line, environment
+variables, \fBnpmrc\fR files, and in some cases, the \fBpackage\.json\fR file\.
+.
+.P
+npm help  See npmrc for more information about the npmrc files\.
+.
+.P
+npm help  See \fBnpm\-config\fR for a more thorough discussion of the mechanisms
+involved\.
+.
+.P
+The \fBnpm config\fR command can be used to update and edit the contents
+of the user and global npmrc files\.
+.
+.SH "Sub\-commands"
+Config supports the following sub\-commands:
+.
+.SS "set"
+.
+.nf
+npm config set key value
+.
+.fi
+.
+.P
+Sets the config key to the value\.
+.
+.P
+If value is omitted, then it sets it to "true"\.
+.
+.SS "get"
+.
+.nf
+npm config get key
+.
+.fi
+.
+.P
+Echo the config value to stdout\.
+.
+.SS "list"
+.
+.nf
+npm config list
+.
+.fi
+.
+.P
+Show all the config settings\.
+.
+.SS "delete"
+.
+.nf
+npm config delete key
+.
+.fi
+.
+.P
+Deletes the key from all configuration files\.
+.
+.SS "edit"
+.
+.nf
+npm config edit
+.
+.fi
+.
+.P
+Opens the config file in an editor\.  Use the \fB\-\-global\fR flag to edit the
+global config\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help  folders
+.
+.IP "\(bu" 4
+npm help  config
+.
+.IP "\(bu" 4
+npm help  package\.json
+.
+.IP "\(bu" 4
+npm help  npmrc
+.
+.IP "\(bu" 4
+npm help npm
+.
+.IP "" 0
+

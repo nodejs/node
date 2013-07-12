@@ -1,0 +1,856 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "PACKAGE\.JSON" "5" "July 2013" "" ""
+.
+.SH "NAME"
+\fBpackage.json\fR \-\- Specifics of npm\'s package\.json handling
+.
+.SH "DESCRIPTION"
+This document is all you need to know about what\'s required in your package\.json
+file\.  It must be actual JSON, not just a JavaScript object literal\.
+.
+.P
+A lot of the behavior described in this document is affected by the config
+npm help  settings described in \fBnpm\-config\fR\|\.
+.
+.SH "DEFAULT VALUES"
+npm will default some values based on package contents\.
+.
+.IP "\(bu" 4
+\fB"scripts": {"start": "node server\.js"}\fR
+.
+.IP
+If there is a \fBserver\.js\fR file in the root of your package, then npm
+will default the \fBstart\fR command to \fBnode server\.js\fR\|\.
+.
+.IP "\(bu" 4
+\fB"scripts":{"preinstall": "node\-waf clean || true; node\-waf configure build"}\fR
+.
+.IP
+If there is a \fBwscript\fR file in the root of your package, npm will
+default the \fBpreinstall\fR command to compile using node\-waf\.
+.
+.IP "\(bu" 4
+\fB"scripts":{"preinstall": "node\-gyp rebuild"}\fR
+.
+.IP
+If there is a \fBbinding\.gyp\fR file in the root of your package, npm will
+default the \fBpreinstall\fR command to compile using node\-gyp\.
+.
+.IP "\(bu" 4
+\fB"contributors": [\.\.\.]\fR
+.
+.IP
+If there is an \fBAUTHORS\fR file in the root of your package, npm will
+treat each line as a \fBName <email> (url)\fR format, where email and url
+are optional\.  Lines which start with a \fB#\fR or are blank, will be
+ignored\.
+.
+.IP "" 0
+.
+.SH "name"
+The \fImost\fR important things in your package\.json are the name and version fields\.
+Those are actually required, and your package won\'t install without
+them\.  The name and version together form an identifier that is assumed
+to be completely unique\.  Changes to the package should come along with
+changes to the version\.
+.
+.P
+The name is what your thing is called\.  Some tips:
+.
+.IP "\(bu" 4
+Don\'t put "js" or "node" in the name\.  It\'s assumed that it\'s js, since you\'re
+writing a package\.json file, and you can specify the engine using the "engines"
+field\.  (See below\.)
+.
+.IP "\(bu" 4
+The name ends up being part of a URL, an argument on the command line, and a
+folder name\. Any name with non\-url\-safe characters will be rejected\.
+Also, it can\'t start with a dot or an underscore\.
+.
+.IP "\(bu" 4
+The name will probably be passed as an argument to require(), so it should
+be something short, but also reasonably descriptive\.
+.
+.IP "\(bu" 4
+You may want to check the npm registry to see if there\'s something by that name
+already, before you get too attached to it\.  http://registry\.npmjs\.org/
+.
+.IP "" 0
+.
+.SH "version"
+The \fImost\fR important things in your package\.json are the name and version fields\.
+Those are actually required, and your package won\'t install without
+them\.  The name and version together form an identifier that is assumed
+to be completely unique\.  Changes to the package should come along with
+changes to the version\.
+.
+.P
+Version must be parseable by node\-semver \fIhttps://github\.com/isaacs/node\-semver\fR, which is bundled
+with npm as a dependency\.  (\fBnpm install semver\fR to use it yourself\.)
+.
+.P
+Here\'s how npm\'s semver implementation deviates from what\'s on semver\.org:
+.
+.IP "\(bu" 4
+Versions can start with "v"
+.
+.IP "\(bu" 4
+A numeric item separated from the main three\-number version by a hyphen
+will be interpreted as a "build" number, and will \fIincrease\fR the version\.
+But, if the tag is not a number separated by a hyphen, then it\'s treated
+as a pre\-release tag, and is \fIless than\fR the version without a tag\.
+So, \fB0\.1\.2\-7 > 0\.1\.2\-7\-beta > 0\.1\.2\-6 > 0\.1\.2 > 0\.1\.2beta\fR
+.
+.IP "" 0
+.
+.P
+This is a little bit confusing to explain, but matches what you see in practice
+when people create tags in git like "v1\.2\.3" and then do "git describe" to generate
+a patch version\.
+.
+.SH "description"
+Put a description in it\.  It\'s a string\.  This helps people discover your
+package, as it\'s listed in \fBnpm search\fR\|\.
+.
+.SH "keywords"
+Put keywords in it\.  It\'s an array of strings\.  This helps people
+discover your package as it\'s listed in \fBnpm search\fR\|\.
+.
+.SH "homepage"
+The url to the project homepage\.
+.
+.P
+\fBNOTE\fR: This is \fInot\fR the same as "url"\.  If you put a "url" field,
+then the registry will think it\'s a redirection to your package that has
+been published somewhere else, and spit at you\.
+.
+.P
+Literally\.  Spit\.  I\'m so not kidding\.
+.
+.SH "bugs"
+The url to your project\'s issue tracker and / or the email address to which
+issues should be reported\. These are helpful for people who encounter issues
+with your package\.
+.
+.P
+It should look like this:
+.
+.IP "" 4
+.
+.nf
+{ "url" : "http://github\.com/owner/project/issues"
+, "email" : "project@hostname\.com"
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+You can specify either one or both values\. If you want to provide only a url,
+you can specify the value for "bugs" as a simple string instead of an object\.
+.
+.P
+If a url is provided, it will be used by the \fBnpm bugs\fR command\.
+.
+.SH "license"
+You should specify a license for your package so that people know how they are
+permitted to use it, and any restrictions you\'re placing on it\.
+.
+.P
+The simplest way, assuming you\'re using a common license such as BSD or MIT, is
+to just specify the name of the license you\'re using, like this:
+.
+.IP "" 4
+.
+.nf
+{ "license" : "BSD" }
+.
+.fi
+.
+.IP "" 0
+.
+.P
+If you have more complex licensing terms, or you want to provide more detail
+in your package\.json file, you can use the more verbose plural form, like this:
+.
+.IP "" 4
+.
+.nf
+"licenses" : [
+  { "type" : "MyLicense"
+  , "url" : "http://github\.com/owner/project/path/to/license"
+  }
+]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+It\'s also a good idea to include a license file at the top level in your package\.
+.
+.SH "people fields: author, contributors"
+The "author" is one person\.  "contributors" is an array of people\.  A "person"
+is an object with a "name" field and optionally "url" and "email", like this:
+.
+.IP "" 4
+.
+.nf
+{ "name" : "Barney Rubble"
+, "email" : "b@rubble\.com"
+, "url" : "http://barnyrubble\.tumblr\.com/"
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Or you can shorten that all into a single string, and npm will parse it for you:
+.
+.IP "" 4
+.
+.nf
+"Barney Rubble <b@rubble\.com> (http://barnyrubble\.tumblr\.com/)
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Both email and url are optional either way\.
+.
+.P
+npm also sets a top\-level "maintainers" field with your npm user info\.
+.
+.SH "files"
+The "files" field is an array of files to include in your project\.  If
+you name a folder in the array, then it will also include the files
+inside that folder\. (Unless they would be ignored by another rule\.)
+.
+.P
+You can also provide a "\.npmignore" file in the root of your package,
+which will keep files from being included, even if they would be picked
+up by the files array\.  The "\.npmignore" file works just like a
+"\.gitignore"\.
+.
+.SH "main"
+The main field is a module ID that is the primary entry point to your program\.
+That is, if your package is named \fBfoo\fR, and a user installs it, and then does \fBrequire("foo")\fR, then your main module\'s exports object will be returned\.
+.
+.P
+This should be a module ID relative to the root of your package folder\.
+.
+.P
+For most modules, it makes the most sense to have a main script and often not
+much else\.
+.
+.SH "bin"
+A lot of packages have one or more executable files that they\'d like to
+install into the PATH\. npm makes this pretty easy (in fact, it uses this
+feature to install the "npm" executable\.)
+.
+.P
+To use this, supply a \fBbin\fR field in your package\.json which is a map of
+command name to local file name\. On install, npm will symlink that file into \fBprefix/bin\fR for global installs, or \fB\|\./node_modules/\.bin/\fR for local
+installs\.
+.
+.P
+For example, npm has this:
+.
+.IP "" 4
+.
+.nf
+{ "bin" : { "npm" : "\./cli\.js" } }
+.
+.fi
+.
+.IP "" 0
+.
+.P
+So, when you install npm, it\'ll create a symlink from the \fBcli\.js\fR script to \fB/usr/local/bin/npm\fR\|\.
+.
+.P
+If you have a single executable, and its name should be the name
+of the package, then you can just supply it as a string\.  For example:
+.
+.IP "" 4
+.
+.nf
+{ "name": "my\-program"
+, "version": "1\.2\.5"
+, "bin": "\./path/to/program" }
+.
+.fi
+.
+.IP "" 0
+.
+.P
+would be the same as this:
+.
+.IP "" 4
+.
+.nf
+{ "name": "my\-program"
+, "version": "1\.2\.5"
+, "bin" : { "my\-program" : "\./path/to/program" } }
+.
+.fi
+.
+.IP "" 0
+.
+.SH "man"
+Specify either a single file or an array of filenames to put in place for the \fBman\fR program to find\.
+.
+.P
+If only a single file is provided, then it\'s installed such that it is the
+result from \fBman <pkgname>\fR, regardless of its actual filename\.  For example:
+.
+.IP "" 4
+.
+.nf
+{ "name" : "foo"
+, "version" : "1\.2\.3"
+, "description" : "A packaged foo fooer for fooing foos"
+, "main" : "foo\.js"
+, "man" : "\./man/doc\.1"
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+would link the \fB\|\./man/doc\.1\fR file in such that it is the target for \fBman foo\fR
+.
+.P
+If the filename doesn\'t start with the package name, then it\'s prefixed\.
+So, this:
+.
+.IP "" 4
+.
+.nf
+{ "name" : "foo"
+, "version" : "1\.2\.3"
+, "description" : "A packaged foo fooer for fooing foos"
+, "main" : "foo\.js"
+, "man" : [ "\./man/foo\.1", "\./man/bar\.1" ]
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+will create files to do \fBman foo\fR and \fBman foo\-bar\fR\|\.
+.
+.P
+Man files must end with a number, and optionally a \fB\|\.gz\fR suffix if they are
+compressed\.  The number dictates which man section the file is installed into\.
+.
+.IP "" 4
+.
+.nf
+{ "name" : "foo"
+, "version" : "1\.2\.3"
+, "description" : "A packaged foo fooer for fooing foos"
+, "main" : "foo\.js"
+, "man" : [ "\./man/foo\.1", "\./man/foo\.2" ]
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+will create entries for \fBman foo\fR and \fBman 2 foo\fR
+.
+.SH "directories"
+The CommonJS Packages \fIhttp://wiki\.commonjs\.org/wiki/Packages/1\.0\fR spec details a
+few ways that you can indicate the structure of your package using a \fBdirectories\fR
+hash\. If you look at npm\'s package\.json \fIhttp://registry\.npmjs\.org/npm/latest\fR,
+you\'ll see that it has directories for doc, lib, and man\.
+.
+.P
+In the future, this information may be used in other creative ways\.
+.
+.SS "directories\.lib"
+Tell people where the bulk of your library is\.  Nothing special is done
+with the lib folder in any way, but it\'s useful meta info\.
+.
+.SS "directories\.bin"
+If you specify a "bin" directory, then all the files in that folder will
+be used as the "bin" hash\.
+.
+.P
+If you have a "bin" hash already, then this has no effect\.
+.
+.SS "directories\.man"
+A folder that is full of man pages\.  Sugar to generate a "man" array by
+walking the folder\.
+.
+.SS "directories\.doc"
+Put markdown files in here\.  Eventually, these will be displayed nicely,
+maybe, someday\.
+.
+.SS "directories\.example"
+Put example scripts in here\.  Someday, it might be exposed in some clever way\.
+.
+.SH "repository"
+Specify the place where your code lives\. This is helpful for people who
+want to contribute\.  If the git repo is on github, then the \fBnpm docs\fR
+command will be able to find you\.
+.
+.P
+Do it like this:
+.
+.IP "" 4
+.
+.nf
+"repository" :
+  { "type" : "git"
+  , "url" : "http://github\.com/isaacs/npm\.git"
+  }
+"repository" :
+  { "type" : "svn"
+  , "url" : "http://v8\.googlecode\.com/svn/trunk/"
+  }
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The URL should be a publicly available (perhaps read\-only) url that can be handed
+directly to a VCS program without any modification\.  It should not be a url to an
+html project page that you put in your browser\.  It\'s for computers\.
+.
+.SH "scripts"
+The "scripts" member is an object hash of script commands that are run
+at various times in the lifecycle of your package\.  The key is the lifecycle
+event, and the value is the command to run at that point\.
+.
+.P
+npm help  See \fBnpm\-scripts\fR to find out more about writing package scripts\.
+.
+.SH "config"
+A "config" hash can be used to set configuration
+parameters used in package scripts that persist across upgrades\.  For
+instance, if a package had the following:
+.
+.IP "" 4
+.
+.nf
+{ "name" : "foo"
+, "config" : { "port" : "8080" } }
+.
+.fi
+.
+.IP "" 0
+.
+.P
+and then had a "start" command that then referenced the \fBnpm_package_config_port\fR environment variable, then the user could
+override that by doing \fBnpm config set foo:port 8001\fR\|\.
+.
+.P
+npm help  See \fBnpm\-confignpm help  \fR and \fBnpm\-scripts\fR for more on package
+configs\.
+.
+.SH "dependencies"
+Dependencies are specified with a simple hash of package name to version
+range\. The version range is EITHER a string which has one or more
+space\-separated descriptors, OR a range like "fromVersion \- toVersion"
+.
+.P
+\fBPlease do not put test harnesses in your \fBdependencies\fR hash\.\fR  See \fBdevDependencies\fR, below\.
+.
+.P
+Version range descriptors may be any of the following styles, where "version"
+is a semver compatible version identifier\.
+.
+.IP "\(bu" 4
+\fBversion\fR Must match \fBversion\fR exactly
+.
+.IP "\(bu" 4
+\fB=version\fR Same as just \fBversion\fR
+.
+.IP "\(bu" 4
+\fB>version\fR Must be greater than \fBversion\fR
+.
+.IP "\(bu" 4
+\fB>=version\fR etc
+.
+.IP "\(bu" 4
+\fB<version\fR
+.
+.IP "\(bu" 4
+\fB<=version\fR
+.
+.IP "\(bu" 4
+\fB~version\fR See \'Tilde Version Ranges\' below
+.
+.IP "\(bu" 4
+\fB1\.2\.x\fR See \'X Version Ranges\' below
+.
+.IP "\(bu" 4
+\fBhttp://\.\.\.\fR See \'URLs as Dependencies\' below
+.
+.IP "\(bu" 4
+\fB*\fR Matches any version
+.
+.IP "\(bu" 4
+\fB""\fR (just an empty string) Same as \fB*\fR
+.
+.IP "\(bu" 4
+\fBversion1 \- version2\fR Same as \fB>=version1 <=version2\fR\|\.
+.
+.IP "\(bu" 4
+\fBrange1 || range2\fR Passes if either range1 or range2 are satisfied\.
+.
+.IP "\(bu" 4
+\fBgit\.\.\.\fR See \'Git URLs as Dependencies\' below
+.
+.IP "" 0
+.
+.P
+For example, these are all valid:
+.
+.IP "" 4
+.
+.nf
+{ "dependencies" :
+  { "foo" : "1\.0\.0 \- 2\.9999\.9999"
+  , "bar" : ">=1\.0\.2 <2\.1\.2"
+  , "baz" : ">1\.0\.2 <=2\.3\.4"
+  , "boo" : "2\.0\.1"
+  , "qux" : "<1\.0\.0 || >=2\.3\.1 <2\.4\.5 || >=2\.5\.2 <3\.0\.0"
+  , "asd" : "http://asdf\.com/asdf\.tar\.gz"
+  , "til" : "~1\.2"
+  , "elf" : "~1\.2\.3"
+  , "two" : "2\.x"
+  , "thr" : "3\.3\.x"
+  }
+}
+.
+.fi
+.
+.IP "" 0
+.
+.SS "Tilde Version Ranges"
+A range specifier starting with a tilde \fB~\fR character is matched against
+a version in the following fashion\.
+.
+.IP "\(bu" 4
+The version must be at least as high as the range\.
+.
+.IP "\(bu" 4
+The version must be less than the next major revision above the range\.
+.
+.IP "" 0
+.
+.P
+For example, the following are equivalent:
+.
+.IP "\(bu" 4
+\fB"~1\.2\.3" = ">=1\.2\.3 <1\.3\.0"\fR
+.
+.IP "\(bu" 4
+\fB"~1\.2" = ">=1\.2\.0 <1\.3\.0"\fR
+.
+.IP "\(bu" 4
+\fB"~1" = ">=1\.0\.0 <1\.1\.0"\fR
+.
+.IP "" 0
+.
+.SS "X Version Ranges"
+An "x" in a version range specifies that the version number must start
+with the supplied digits, but any digit may be used in place of the x\.
+.
+.P
+The following are equivalent:
+.
+.IP "\(bu" 4
+\fB"1\.2\.x" = ">=1\.2\.0 <1\.3\.0"\fR
+.
+.IP "\(bu" 4
+\fB"1\.x\.x" = ">=1\.0\.0 <2\.0\.0"\fR
+.
+.IP "\(bu" 4
+\fB"1\.2" = "1\.2\.x"\fR
+.
+.IP "\(bu" 4
+\fB"1\.x" = "1\.x\.x"\fR
+.
+.IP "\(bu" 4
+\fB"1" = "1\.x\.x"\fR
+.
+.IP "" 0
+.
+.P
+You may not supply a comparator with a version containing an x\.  Any
+digits after the first "x" are ignored\.
+.
+.SS "URLs as Dependencies"
+Starting with npm version 0\.2\.14, you may specify a tarball URL in place
+of a version range\.
+.
+.P
+This tarball will be downloaded and installed locally to your package at
+install time\.
+.
+.SS "Git URLs as Dependencies"
+Git urls can be of the form:
+.
+.IP "" 4
+.
+.nf
+git://github\.com/user/project\.git#commit\-ish
+git+ssh://user@hostname:project\.git#commit\-ish
+git+ssh://user@hostname/project\.git#commit\-ish
+git+http://user@hostname/project/blah\.git#commit\-ish
+git+https://user@hostname/project/blah\.git#commit\-ish
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The \fBcommit\-ish\fR can be any tag, sha, or branch which can be supplied as
+an argument to \fBgit checkout\fR\|\.  The default is \fBmaster\fR\|\.
+.
+.SH "devDependencies"
+If someone is planning on downloading and using your module in their
+program, then they probably don\'t want or need to download and build
+the external test or documentation framework that you use\.
+.
+.P
+In this case, it\'s best to list these additional items in a \fBdevDependencies\fR hash\.
+.
+.P
+These things will be installed whenever the \fB\-\-dev\fR configuration flag
+is set\.  This flag is set automatically when doing \fBnpm link\fR or when doing \fBnpm install\fR from the root of a package, and can be managed like any other npm
+npm help  configuration param\.  See \fBnpm\-config\fR for more on the topic\.
+.
+.SH "bundledDependencies"
+Array of package names that will be bundled when publishing the package\.
+.
+.P
+If this is spelled \fB"bundleDependencies"\fR, then that is also honorable\.
+.
+.SH "optionalDependencies"
+If a dependency can be used, but you would like npm to proceed if it
+cannot be found or fails to install, then you may put it in the \fBoptionalDependencies\fR hash\.  This is a map of package name to version
+or url, just like the \fBdependencies\fR hash\.  The difference is that
+failure is tolerated\.
+.
+.P
+It is still your program\'s responsibility to handle the lack of the
+dependency\.  For example, something like this:
+.
+.IP "" 4
+.
+.nf
+try {
+  var foo = require(\'foo\')
+  var fooVersion = require(\'foo/package\.json\')\.version
+} catch (er) {
+  foo = null
+}
+if ( notGoodFooVersion(fooVersion) ) {
+  foo = null
+}
+// \.\. then later in your program \.\.
+if (foo) {
+  foo\.doFooThings()
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Entries in \fBoptionalDependencies\fR will override entries of the same name in \fBdependencies\fR, so it\'s usually best to only put in one place\.
+.
+.SH "engines"
+You can specify the version of node that your stuff works on:
+.
+.IP "" 4
+.
+.nf
+{ "engines" : { "node" : ">=0\.1\.27 <0\.1\.30" } }
+.
+.fi
+.
+.IP "" 0
+.
+.P
+And, like with dependencies, if you don\'t specify the version (or if you
+specify "*" as the version), then any version of node will do\.
+.
+.P
+If you specify an "engines" field, then npm will require that "node" be
+somewhere on that list\. If "engines" is omitted, then npm will just assume
+that it works on node\.
+.
+.P
+You can also use the "engines" field to specify which versions of npm
+are capable of properly installing your program\.  For example:
+.
+.IP "" 4
+.
+.nf
+{ "engines" : { "npm" : "~1\.0\.20" } }
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Note that, unless the user has set the \fBengine\-strict\fR config flag, this
+field is advisory only\.
+.
+.SH "engineStrict"
+If you are sure that your module will \fIdefinitely not\fR run properly on
+versions of Node/npm other than those specified in the \fBengines\fR hash,
+then you can set \fB"engineStrict": true\fR in your package\.json file\.
+This will override the user\'s \fBengine\-strict\fR config setting\.
+.
+.P
+Please do not do this unless you are really very very sure\.  If your
+engines hash is something overly restrictive, you can quite easily and
+inadvertently lock yourself into obscurity and prevent your users from
+updating to new versions of Node\.  Consider this choice carefully\.  If
+people abuse it, it will be removed in a future version of npm\.
+.
+.SH "os"
+You can specify which operating systems your
+module will run on:
+.
+.IP "" 4
+.
+.nf
+"os" : [ "darwin", "linux" ]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+You can also blacklist instead of whitelist operating systems,
+just prepend the blacklisted os with a \'!\':
+.
+.IP "" 4
+.
+.nf
+"os" : [ "!win32" ]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The host operating system is determined by \fBprocess\.platform\fR
+.
+.P
+It is allowed to both blacklist, and whitelist, although there isn\'t any
+good reason to do this\.
+.
+.SH "cpu"
+If your code only runs on certain cpu architectures,
+you can specify which ones\.
+.
+.IP "" 4
+.
+.nf
+"cpu" : [ "x64", "ia32" ]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Like the \fBos\fR option, you can also blacklist architectures:
+.
+.IP "" 4
+.
+.nf
+"cpu" : [ "!arm", "!mips" ]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The host architecture is determined by \fBprocess\.arch\fR
+.
+.SH "preferGlobal"
+If your package is primarily a command\-line application that should be
+installed globally, then set this value to \fBtrue\fR to provide a warning
+if it is installed locally\.
+.
+.P
+It doesn\'t actually prevent users from installing it locally, but it
+does help prevent some confusion if it doesn\'t work as expected\.
+.
+.SH "private"
+If you set \fB"private": true\fR in your package\.json, then npm will refuse
+to publish it\.
+.
+.P
+This is a way to prevent accidental publication of private repositories\.
+If you would like to ensure that a given package is only ever published
+to a specific registry (for example, an internal registry),
+then use the \fBpublishConfig\fR hash described below
+to override the \fBregistry\fR config param at publish\-time\.
+.
+.SH "publishConfig"
+This is a set of config values that will be used at publish\-time\.  It\'s
+especially handy if you want to set the tag or registry, so that you can
+ensure that a given package is not tagged with "latest" or published to
+the global public registry by default\.
+.
+.P
+Any config values can be overridden, but of course only "tag" and
+"registry" probably matter for the purposes of publishing\.
+.
+.P
+npm help  See \fBnpm\-config\fR to see the list of config options that can be
+overridden\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help  semver
+.
+.IP "\(bu" 4
+npm help init
+.
+.IP "\(bu" 4
+npm help version
+.
+.IP "\(bu" 4
+npm help config
+.
+.IP "\(bu" 4
+npm help  config
+.
+.IP "\(bu" 4
+npm help help
+.
+.IP "\(bu" 4
+npm help  faq
+.
+.IP "\(bu" 4
+npm help install
+.
+.IP "\(bu" 4
+npm help publish
+.
+.IP "\(bu" 4
+npm help rm
+.
+.IP "" 0
+

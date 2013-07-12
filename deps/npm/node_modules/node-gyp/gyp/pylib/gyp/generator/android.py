@@ -19,6 +19,7 @@ import gyp.common
 import gyp.generator.make as make  # Reuse global functions from make backend.
 import os
 import re
+import subprocess
 
 generator_default_variables = {
   'OS': 'android',
@@ -38,7 +39,7 @@ generator_default_variables = {
   'RULE_INPUT_PATH': '$(RULE_SOURCES)',
   'RULE_INPUT_EXT': '$(suffix $<)',
   'RULE_INPUT_NAME': '$(notdir $<)',
-  'CONFIGURATION_NAME': 'NOT_USED_ON_ANDROID',
+  'CONFIGURATION_NAME': '$(GYP_DEFAULT_CONFIGURATION)',
 }
 
 # Make supports multiple toolsets
@@ -131,12 +132,13 @@ class AndroidMkWriter(object):
   def __init__(self, android_top_dir):
     self.android_top_dir = android_top_dir
 
-  def Write(self, qualified_target, base_path, output_filename, spec, configs,
-            part_of_all):
+  def Write(self, qualified_target, relative_target, base_path, output_filename,
+            spec, configs, part_of_all):
     """The main entry point: writes a .mk file for a single target.
 
     Arguments:
       qualified_target: target we're generating
+      relative_target: qualified target name relative to the root
       base_path: path relative to source root we're building in, used to resolve
                  target-relative paths
       output_filename: output .mk file name to write
@@ -150,6 +152,7 @@ class AndroidMkWriter(object):
     self.fp.write(header)
 
     self.qualified_target = qualified_target
+    self.relative_target = relative_target
     self.path = base_path
     self.target = spec['target_name']
     self.type = spec['type']
@@ -248,7 +251,7 @@ class AndroidMkWriter(object):
                    actions)
     """
     for action in actions:
-      name = make.StringToMakefileVariable('%s_%s' % (self.qualified_target,
+      name = make.StringToMakefileVariable('%s_%s' % (self.relative_target,
                                                       action['action_name']))
       self.WriteLn('### Rules for action "%s":' % action['action_name'])
       inputs = action['inputs']
@@ -295,6 +298,15 @@ class AndroidMkWriter(object):
                    '$(GYP_ABS_ANDROID_TOP_DIR)/$(gyp_shared_intermediate_dir)' %
                    main_output)
 
+      # Android's envsetup.sh adds a number of directories to the path including
+      # the built host binary directory. This causes actions/rules invoked by
+      # gyp to sometimes use these instead of system versions, e.g. bison.
+      # The built host binaries may not be suitable, and can cause errors.
+      # So, we remove them from the PATH using the ANDROID_BUILD_PATHS variable
+      # set by envsetup.
+      self.WriteLn('%s: export PATH := $(subst $(ANDROID_BUILD_PATHS),,$(PATH))'
+                   % main_output)
+
       for input in inputs:
         assert ' ' not in input, (
             "Spaces in action input filenames not supported (%s)"  % input)
@@ -334,7 +346,7 @@ class AndroidMkWriter(object):
       if len(rule.get('rule_sources', [])) == 0:
         continue
       did_write_rule = True
-      name = make.StringToMakefileVariable('%s_%s' % (self.qualified_target,
+      name = make.StringToMakefileVariable('%s_%s' % (self.relative_target,
                                                       rule['rule_name']))
       self.WriteLn('\n### Generated for rule "%s":' % name)
       self.WriteLn('# "%s":' % rule)
@@ -388,6 +400,10 @@ class AndroidMkWriter(object):
                      '$(GYP_ABS_ANDROID_TOP_DIR)/$(gyp_shared_intermediate_dir)'
                      % main_output)
 
+        # See explanation in WriteActions.
+        self.WriteLn('%s: export PATH := '
+                     '$(subst $(ANDROID_BUILD_PATHS),,$(PATH))' % main_output)
+
         main_output_deps = self.LocalPathify(rule_source)
         if inputs:
           main_output_deps += ' '
@@ -415,7 +431,7 @@ class AndroidMkWriter(object):
     """
     self.WriteLn('### Generated for copy rule.')
 
-    variable = make.StringToMakefileVariable(self.qualified_target + '_copies')
+    variable = make.StringToMakefileVariable(self.relative_target + '_copies')
     outputs = []
     for copy in copies:
       for path in copy['files']:
@@ -940,30 +956,16 @@ class AndroidMkWriter(object):
     return path
 
 
-def WriteAutoRegenerationRule(params, root_makefile, makefile_name,
-                              build_files):
-  """Write the target to regenerate the Makefile."""
+def PerformBuild(data, configurations, params):
+  # The android backend only supports the default configuration.
   options = params['options']
-  # Sort to avoid non-functional changes to makefile.
-  build_files = sorted([os.path.join('$(LOCAL_PATH)', f) for f in build_files])
-  build_files_args = [gyp.common.RelativePath(filename, options.toplevel_dir)
-                      for filename in params['build_files_arg']]
-  build_files_args = [os.path.join('$(PRIVATE_LOCAL_PATH)', f)
-                      for f in build_files_args]
-  gyp_binary = gyp.common.FixIfRelativePath(params['gyp_binary'],
-                                            options.toplevel_dir)
-  makefile_path = os.path.join('$(LOCAL_PATH)', makefile_name)
-  if not gyp_binary.startswith(os.sep):
-    gyp_binary = os.path.join('.', gyp_binary)
-  root_makefile.write('GYP_FILES := \\\n  %s\n\n' %
-                      '\\\n  '.join(map(Sourceify, build_files)))
-  root_makefile.write('%s: PRIVATE_LOCAL_PATH := $(LOCAL_PATH)\n' %
-                      makefile_path)
-  root_makefile.write('%s: $(GYP_FILES)\n' % makefile_path)
-  root_makefile.write('\techo ACTION Regenerating $@\n\t%s\n\n' %
-      gyp.common.EncodePOSIXShellList([gyp_binary, '-fandroid'] +
-                                      gyp.RegenerateFlags(options) +
-                                      build_files_args))
+  makefile = os.path.abspath(os.path.join(options.toplevel_dir,
+                                          'GypAndroid.mk'))
+  env = dict(os.environ)
+  env['ONE_SHOT_MAKEFILE'] = makefile
+  arguments = ['make', '-C', os.environ['ANDROID_BUILD_TOP'], 'gyp_all_modules']
+  print 'Building: %s' % arguments
+  subprocess.check_call(arguments, env=env)
 
 
 def GenerateOutput(target_list, target_dicts, data, params):
@@ -1004,7 +1006,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
     default_configuration = 'Default'
 
   srcdir = '.'
-  makefile_name = 'GypAndroid.mk' + options.suffix
+  makefile_name = 'GypAndroid' + options.suffix + '.mk'
   makefile_path = os.path.join(options.toplevel_dir, makefile_name)
   assert not options.generator_output, (
       'The Android backend does not support options.generator_output.')
@@ -1030,7 +1032,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
   for qualified_target in target_list:
     build_file, target, toolset = gyp.common.ParseQualifiedTarget(
         qualified_target)
-    build_files.add(gyp.common.RelativePath(build_file, options.toplevel_dir))
+    relative_build_file = gyp.common.RelativePath(build_file,
+                                                  options.toplevel_dir)
+    build_files.add(relative_build_file)
     included_files = data[build_file]['included_files']
     for included_file in included_files:
       # The included_files entries are relative to the dir of the build file
@@ -1058,9 +1062,13 @@ def GenerateOutput(target_list, target_dicts, data, params):
                    not int(spec.get('suppress_wildcard', False)))
     if limit_to_target_all and not part_of_all:
       continue
+
+    relative_target = gyp.common.QualifiedTarget(relative_build_file, target,
+                                                 toolset)
     writer = AndroidMkWriter(android_top_dir)
-    android_module = writer.Write(qualified_target, base_path, output_file,
-                                  spec, configs, part_of_all=part_of_all)
+    android_module = writer.Write(qualified_target, relative_target, base_path,
+                                  output_file, spec, configs,
+                                  part_of_all=part_of_all)
     if android_module in android_modules:
       print ('ERROR: Android module names must be unique. The following '
              'targets both generate Android module name %s.\n  %s\n  %s' %
@@ -1077,15 +1085,14 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
   # Some tools need to know the absolute path of the top directory.
   root_makefile.write('GYP_ABS_ANDROID_TOP_DIR := $(shell pwd)\n')
+  root_makefile.write('GYP_DEFAULT_CONFIGURATION := %s\n' %
+                      default_configuration)
 
   # Write out the sorted list of includes.
   root_makefile.write('\n')
   for include_file in sorted(include_list):
     root_makefile.write('include $(LOCAL_PATH)/' + include_file + '\n')
   root_makefile.write('\n')
-
-  if generator_flags.get('auto_regeneration', True):
-    WriteAutoRegenerationRule(params, root_makefile, makefile_name, build_files)
 
   root_makefile.write(SHARED_FOOTER)
 

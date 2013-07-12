@@ -1,0 +1,354 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-SCRIPTS" "7" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-scripts\fR \-\- How npm handles the "scripts" field
+.
+.SH "DESCRIPTION"
+npm supports the "scripts" member of the package\.json script, for the
+following scripts:
+.
+.IP "\(bu" 4
+prepublish:
+Run BEFORE the package is published\.  (Also run on local \fBnpm
+install\fR without any arguments\.)
+.
+.IP "\(bu" 4
+publish, postpublish:
+Run AFTER the package is published\.
+.
+.IP "\(bu" 4
+preinstall:
+Run BEFORE the package is installed
+.
+.IP "\(bu" 4
+install, postinstall:
+Run AFTER the package is installed\.
+.
+.IP "\(bu" 4
+preuninstall, uninstall:
+Run BEFORE the package is uninstalled\.
+.
+.IP "\(bu" 4
+postuninstall:
+Run AFTER the package is uninstalled\.
+.
+.IP "\(bu" 4
+preupdate:
+Run BEFORE the package is updated with the update command\.
+.
+.IP "\(bu" 4
+update, postupdate:
+Run AFTER the package is updated with the update command\.
+.
+.IP "\(bu" 4
+pretest, test, posttest:
+Run by the \fBnpm test\fR command\.
+.
+.IP "\(bu" 4
+prestop, stop, poststop:
+Run by the \fBnpm stop\fR command\.
+.
+.IP "\(bu" 4
+prestart, start, poststart:
+Run by the \fBnpm start\fR command\.
+.
+.IP "\(bu" 4
+prerestart, restart, postrestart:
+Run by the \fBnpm restart\fR command\. Note: \fBnpm restart\fR will run the
+stop and start scripts if no \fBrestart\fR script is provided\.
+.
+.IP "" 0
+.
+.P
+Additionally, arbitrary scrips can be run by doing \fBnpm run\-script <stage> <pkg>\fR\|\.
+.
+.SH "NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN"
+\fBtl;dr\fR Don\'t use \fBinstall\fR\|\.  Use a \fB\|\.gyp\fR file for compilation, and \fBprepublish\fR for anything else\.
+.
+.P
+You should almost never have to explicitly set a \fBpreinstall\fR or \fBinstall\fR script\.  If you are doing this, please consider if there is
+another option\.
+.
+.P
+The only valid use of \fBinstall\fR or \fBpreinstall\fR scripts is for
+compilation which must be done on the target architecture\.  In early
+versions of node, this was often done using the \fBnode\-waf\fR scripts, or
+a standalone \fBMakefile\fR, and early versions of npm required that it be
+explicitly set in package\.json\.  This was not portable, and harder to
+do properly\.
+.
+.P
+In the current version of node, the standard way to do this is using a \fB\|\.gyp\fR file\.  If you have a file with a \fB\|\.gyp\fR extension in the root
+of your package, then npm will run the appropriate \fBnode\-gyp\fR commands
+automatically at install time\.  This is the only officially supported
+method for compiling binary addons, and does not require that you add
+anything to your package\.json file\.
+.
+.P
+If you have to do other things before your package is used, in a way
+that is not dependent on the operating system or architecture of the
+target system, then use a \fBprepublish\fR script instead\.  This includes
+tasks such as:
+.
+.IP "\(bu" 4
+Compile CoffeeScript source code into JavaScript\.
+.
+.IP "\(bu" 4
+Create minified versions of JavaScript source code\.
+.
+.IP "\(bu" 4
+Fetching remote resources that your package will use\.
+.
+.IP "" 0
+.
+.P
+The advantage of doing these things at \fBprepublish\fR time instead of \fBpreinstall\fR or \fBinstall\fR time is that they can be done once, in a
+single place, and thus greatly reduce complexity and variability\.
+Additionally, this means that:
+.
+.IP "\(bu" 4
+You can depend on \fBcoffee\-script\fR as a \fBdevDependency\fR, and thus
+your users don\'t need to have it installed\.
+.
+.IP "\(bu" 4
+You don\'t need to include the minifiers in your package, reducing
+the size for your users\.
+.
+.IP "\(bu" 4
+You don\'t need to rely on your users having \fBcurl\fR or \fBwget\fR or
+other system tools on the target machines\.
+.
+.IP "" 0
+.
+.SH "DEFAULT VALUES"
+npm will default some script values based on package contents\.
+.
+.IP "\(bu" 4
+\fB"start": "node server\.js"\fR:
+.
+.IP
+If there is a \fBserver\.js\fR file in the root of your package, then npm
+will default the \fBstart\fR command to \fBnode server\.js\fR\|\.
+.
+.IP "\(bu" 4
+\fB"preinstall": "node\-waf clean || true; node\-waf configure build"\fR:
+.
+.IP
+If there is a \fBwscript\fR file in the root of your package, npm will
+default the \fBpreinstall\fR command to compile using node\-waf\.
+.
+.IP "" 0
+.
+.SH "USER"
+If npm was invoked with root privileges, then it will change the uid
+to the user account or uid specified by the \fBuser\fR config, which
+defaults to \fBnobody\fR\|\.  Set the \fBunsafe\-perm\fR flag to run scripts with
+root privileges\.
+.
+.SH "ENVIRONMENT"
+Package scripts run in an environment where many pieces of information
+are made available regarding the setup of npm and the current state of
+the process\.
+.
+.SS "path"
+If you depend on modules that define executable scripts, like test
+suites, then those executables will be added to the \fBPATH\fR for
+executing the scripts\.  So, if your package\.json has this:
+.
+.IP "" 4
+.
+.nf
+{ "name" : "foo"
+, "dependencies" : { "bar" : "0\.1\.x" }
+, "scripts": { "start" : "bar \./test" } }
+.
+.fi
+.
+.IP "" 0
+.
+.P
+then you could run \fBnpm start\fR to execute the \fBbar\fR script, which is
+exported into the \fBnode_modules/\.bin\fR directory on \fBnpm install\fR\|\.
+.
+.SS "package\.json vars"
+The package\.json fields are tacked onto the \fBnpm_package_\fR prefix\. So,
+for instance, if you had \fB{"name":"foo", "version":"1\.2\.5"}\fR in your
+package\.json file, then your package scripts would have the \fBnpm_package_name\fR environment variable set to "foo", and the \fBnpm_package_version\fR set to "1\.2\.5"
+.
+.SS "configuration"
+Configuration parameters are put in the environment with the \fBnpm_config_\fR prefix\. For instance, you can view the effective \fBroot\fR
+config by checking the \fBnpm_config_root\fR environment variable\.
+.
+.SS "Special: package\.json &quot;config&quot; hash"
+The package\.json "config" keys are overwritten in the environment if
+there is a config param of \fB<name>[@<version>]:<key>\fR\|\.  For example,
+if the package\.json has this:
+.
+.IP "" 4
+.
+.nf
+{ "name" : "foo"
+, "config" : { "port" : "8080" }
+, "scripts" : { "start" : "node server\.js" } }
+.
+.fi
+.
+.IP "" 0
+.
+.P
+and the server\.js is this:
+.
+.IP "" 4
+.
+.nf
+http\.createServer(\.\.\.)\.listen(process\.env\.npm_package_config_port)
+.
+.fi
+.
+.IP "" 0
+.
+.P
+then the user could change the behavior by doing:
+.
+.IP "" 4
+.
+.nf
+npm config set foo:port 80
+.
+.fi
+.
+.IP "" 0
+.
+.SS "current lifecycle event"
+Lastly, the \fBnpm_lifecycle_event\fR environment variable is set to
+whichever stage of the cycle is being executed\. So, you could have a
+single script used for different parts of the process which switches
+based on what\'s currently happening\.
+.
+.P
+Objects are flattened following this format, so if you had \fB{"scripts":{"install":"foo\.js"}}\fR in your package\.json, then you\'d
+see this in the script:
+.
+.IP "" 4
+.
+.nf
+process\.env\.npm_package_scripts_install === "foo\.js"
+.
+.fi
+.
+.IP "" 0
+.
+.SH "EXAMPLES"
+For example, if your package\.json contains this:
+.
+.IP "" 4
+.
+.nf
+{ "scripts" :
+  { "install" : "scripts/install\.js"
+  , "postinstall" : "scripts/install\.js"
+  , "uninstall" : "scripts/uninstall\.js"
+  }
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+then the \fBscripts/install\.js\fR will be called for the install,
+post\-install, stages of the lifecycle, and the \fBscripts/uninstall\.js\fR
+would be called when the package is uninstalled\.  Since \fBscripts/install\.js\fR is running for three different phases, it would
+be wise in this case to look at the \fBnpm_lifecycle_event\fR environment
+variable\.
+.
+.P
+If you want to run a make command, you can do so\.  This works just
+fine:
+.
+.IP "" 4
+.
+.nf
+{ "scripts" :
+  { "preinstall" : "\./configure"
+  , "install" : "make && make install"
+  , "test" : "make test"
+  }
+}
+.
+.fi
+.
+.IP "" 0
+.
+.SH "EXITING"
+Scripts are run by passing the line as a script argument to \fBsh\fR\|\.
+.
+.P
+If the script exits with a code other than 0, then this will abort the
+process\.
+.
+.P
+Note that these script files don\'t have to be nodejs or even
+javascript programs\. They just have to be some kind of executable
+file\.
+.
+.SH "HOOK SCRIPTS"
+If you want to run a specific script at a specific lifecycle event for
+ALL packages, then you can use a hook script\.
+.
+.P
+Place an executable file at \fBnode_modules/\.hooks/{eventname}\fR, and
+it\'ll get run for all packages when they are going through that point
+in the package lifecycle for any packages installed in that root\.
+.
+.P
+Hook scripts are run exactly the same way as package\.json scripts\.
+That is, they are in a separate child process, with the env described
+above\.
+.
+.SH "BEST PRACTICES"
+.
+.IP "\(bu" 4
+Don\'t exit with a non\-zero error code unless you \fIreally\fR mean it\.
+Except for uninstall scripts, this will cause the npm action to
+fail, and potentially be rolled back\.  If the failure is minor or
+only will prevent some optional features, then it\'s better to just
+print a warning and exit successfully\.
+.
+.IP "\(bu" 4
+npm help  Try not to use scripts to do what npm can do for you\.  Read through \fBpackage\.json\fR to see all the things that you can specify and enable
+by simply describing your package appropriately\.  In general, this
+will lead to a more robust and consistent state\.
+.
+.IP "\(bu" 4
+Inspect the env to determine where to put things\.  For instance, if
+the \fBnpm_config_binroot\fR environ is set to \fB/home/user/bin\fR, then
+don\'t try to install executables into \fB/usr/local/bin\fR\|\.  The user
+probably set it up that way for a reason\.
+.
+.IP "\(bu" 4
+Don\'t prefix your script commands with "sudo"\.  If root permissions
+are required for some reason, then it\'ll fail with that error, and
+the user will sudo the npm command in question\.
+.
+.IP "" 0
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help run\-script
+.
+.IP "\(bu" 4
+npm help  package\.json
+.
+.IP "\(bu" 4
+npm help  developers
+.
+.IP "\(bu" 4
+npm help install
+.
+.IP "" 0
+

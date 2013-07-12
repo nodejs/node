@@ -212,6 +212,7 @@ def main(argv=None):
     format_list = {
       'freebsd7': ['make'],
       'freebsd8': ['make'],
+      'openbsd5': ['make'],
       'cygwin':   ['msvs'],
       'win32':    ['msvs', 'ninja'],
       'linux2':   ['make', 'ninja'],

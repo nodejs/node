@@ -1,0 +1,103 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-CACHE" "1" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-cache\fR \-\- Manipulates packages cache
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm cache add <tarball file>
+npm cache add <folder>
+npm cache add <tarball url>
+npm cache add <name>@<version>
+npm cache ls [<path>]
+npm cache clean [<path>]
+.
+.fi
+.
+.SH "DESCRIPTION"
+Used to add, list, or clear the npm cache folder\.
+.
+.IP "\(bu" 4
+add:
+Add the specified package to the local cache\.  This command is primarily
+intended to be used internally by npm, but it can provide a way to
+add data to the local installation cache explicitly\.
+.
+.IP "\(bu" 4
+ls:
+Show the data in the cache\.  Argument is a path to show in the cache
+folder\.  Works a bit like the \fBfind\fR program, but limited by the \fBdepth\fR config\.
+.
+.IP "\(bu" 4
+clean:
+Delete data out of the cache folder\.  If an argument is provided, then
+it specifies a subpath to delete\.  If no argument is provided, then
+the entire cache is cleared\.
+.
+.IP "" 0
+.
+.SH "DETAILS"
+npm stores cache data in \fB$HOME/\.npm\fR\|\.  For each package that is added
+to the cache, three pieces of information are stored in \fB{cache}/{name}/{version}\fR:
+.
+.IP "\(bu" 4
+\|\.\.\./package/:
+A folder containing the package contents as they appear in the tarball\.
+.
+.IP "\(bu" 4
+\|\.\.\./package\.json:
+The package\.json file, as npm sees it, with overlays applied and a _id attribute\.
+.
+.IP "\(bu" 4
+\|\.\.\./package\.tgz:
+The tarball for that version\.
+.
+.IP "" 0
+.
+.P
+Additionally, whenever a registry request is made, a \fB\|\.cache\.json\fR file
+is placed at the corresponding URI, to store the ETag and the requested
+data\.
+.
+.P
+Commands that make non\-essential registry requests (such as \fBsearch\fR and \fBview\fR, or the completion scripts) generally specify a minimum timeout\.
+If the \fB\|\.cache\.json\fR file is younger than the specified timeout, then
+they do not make an HTTP request to the registry\.
+.
+.SH "CONFIGURATION"
+.
+.SS "cache"
+Default: \fB$HOME/\.npm\fR on Posix, or \fB$HOME/npm\-cache\fR on Windows\.
+.
+.P
+The root cache folder\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help  folders
+.
+.IP "\(bu" 4
+npm help config
+.
+.IP "\(bu" 4
+npm help  config
+.
+.IP "\(bu" 4
+npm help  npmrc
+.
+.IP "\(bu" 4
+npm help install
+.
+.IP "\(bu" 4
+npm help publish
+.
+.IP "\(bu" 4
+npm help pack
+.
+.IP "" 0
+

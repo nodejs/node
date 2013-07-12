@@ -1110,20 +1110,29 @@ exit 1
         AddHeaderToTarget(header, pbxp, xct, True)
 
     # Add "copies".
+    pbxcp_dict = {}
     for copy_group in spec.get('copies', []):
-      pbxcp = gyp.xcodeproj_file.PBXCopyFilesBuildPhase({
-            'name': 'Copy to ' + copy_group['destination']
-          },
-          parent=xct)
       dest = copy_group['destination']
       if dest[0] not in ('/', '$'):
         # Relative paths are relative to $(SRCROOT).
         dest = '$(SRCROOT)/' + dest
-      pbxcp.SetDestination(dest)
 
-      # TODO(mark): The usual comment about this knowing too much about
-      # gyp.xcodeproj_file internals applies.
-      xct._properties['buildPhases'].insert(prebuild_index, pbxcp)
+      # Coalesce multiple "copies" sections in the same target with the same
+      # "destination" property into the same PBXCopyFilesBuildPhase, otherwise
+      # they'll wind up with ID collisions.
+      pbxcp = pbxcp_dict.get(dest, None)
+      if pbxcp is None:
+        pbxcp = gyp.xcodeproj_file.PBXCopyFilesBuildPhase({
+              'name': 'Copy to ' + copy_group['destination']
+            },
+            parent=xct)
+        pbxcp.SetDestination(dest)
+
+        # TODO(mark): The usual comment about this knowing too much about
+        # gyp.xcodeproj_file internals applies.
+        xct._properties['buildPhases'].insert(prebuild_index, pbxcp)
+
+        pbxcp_dict[dest] = pbxcp
 
       for file in copy_group['files']:
         pbxcp.AddFile(file)

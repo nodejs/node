@@ -982,7 +982,7 @@ function write (target, targetFolder, context, cb_) {
     if (!er) return cb_(er, data)
 
     if (false === npm.config.get("rollback")) return cb_(er)
-    npm.commands.unbuild([targetFolder], function (er2) {
+    npm.commands.unbuild([targetFolder], true, function (er2) {
       if (er2) log.error("error rolling back", target._id, er2)
       return cb_(er, data)
     })

@@ -9,10 +9,10 @@ wait patiently for others.
 var lockFile = require('lockfile')
 
 // opts is optional, and defaults to {}
-lockFile.lock('some-file.lock', opts, function (er, fd) {
+lockFile.lock('some-file.lock', opts, function (er) {
   // if the er happens, then it failed to acquire a lock.
-  // if there was not an error, then the fd is opened in
-  // wx mode.  If you want to write something to it, go ahead.
+  // if there was not an error, then the file was created,
+  // and won't be deleted until we unlock it.
 
   // do my stuff, free of interruptions
   // then, some time later, do:
@@ -33,7 +33,7 @@ effort is made to not be a litterbug.
 
 ### lockFile.lock(path, [opts], cb)
 
-Acquire a file lock on the specified path.  Returns the FD.
+Acquire a file lock on the specified path
 
 ### lockFile.lockSync(path, [opts])
 

@@ -1,0 +1,66 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-EDIT" "1" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-edit\fR \-\- Edit an installed package
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm edit <name>[@<version>]
+.
+.fi
+.
+.SH "DESCRIPTION"
+Opens the package folder in the default editor (or whatever you\'ve
+npm help  configured as the npm \fBeditor\fR config \-\- see \fBnpm\-config\fR\|\.)
+.
+.P
+After it has been edited, the package is rebuilt so as to pick up any
+changes in compiled packages\.
+.
+.P
+For instance, you can do \fBnpm install connect\fR to install connect
+into your package, and then \fBnpm edit connect\fR to make a few
+changes to your locally installed copy\.
+.
+.SH "CONFIGURATION"
+.
+.SS "editor"
+.
+.IP "\(bu" 4
+Default: \fBEDITOR\fR environment variable if set, or \fB"vi"\fR on Posix,
+or \fB"notepad"\fR on Windows\.
+.
+.IP "\(bu" 4
+Type: path
+.
+.IP "" 0
+.
+.P
+The command to run for \fBnpm edit\fR or \fBnpm config edit\fR\|\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help  folders
+.
+.IP "\(bu" 4
+npm help explore
+.
+.IP "\(bu" 4
+npm help install
+.
+.IP "\(bu" 4
+npm help config
+.
+.IP "\(bu" 4
+npm help  config
+.
+.IP "\(bu" 4
+npm help  npmrc
+.
+.IP "" 0
+

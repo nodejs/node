@@ -51,22 +51,13 @@ if (/^v0\.[0-8]/.test(process.version)) {
 exports.unlock = function (path, cb) {
   debug('unlock', path)
   // best-effort.  unlocking an already-unlocked lock is a noop
-  if (hasOwnProperty(locks, path))
-    fs.close(locks[path], unlink)
-  else
-    unlink()
-
-  function unlink () {
-    debug('unlink', path)
-    delete locks[path]
-    fs.unlink(path, function (unlinkEr) { cb() })
-  }
+  delete locks[path]
+  fs.unlink(path, function (unlinkEr) { cb() })
 }
 
 exports.unlockSync = function (path) {
   debug('unlockSync', path)
   // best-effort.  unlocking an already-unlocked lock is a noop
-  try { fs.closeSync(locks[path]) } catch (er) {}
   try { fs.unlinkSync(path) } catch (er) {}
   delete locks[path]
 }
@@ -117,7 +108,7 @@ exports.checkSync = function (path, opts) {
   }
 
   if (!opts.stale) {
-    fs.closeSync(fd)
+    try { fs.closeSync(fd) } catch (er) {}
     return true
   }
 
@@ -160,7 +151,9 @@ exports.lock = function (path, opts, cb) {
     if (!er) {
       debug('locked', path, fd)
       locks[path] = fd
-      return cb(null, fd)
+      return fs.close(fd, function () {
+        return cb()
+      })
     }
 
     // something other than "currently locked"
@@ -229,8 +222,9 @@ exports.lockSync = function (path, opts) {
   try {
     var fd = fs.openSync(path, wx)
     locks[path] = fd
+    try { fs.closeSync(fd) } catch (er) {}
     debug('locked sync!', path, fd)
-    return fd
+    return
   } catch (er) {
     if (er.code !== 'EEXIST') return retryThrow(path, opts, er)
 

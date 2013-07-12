@@ -127,9 +127,9 @@ def RelativePath(path, relative_to):
   # directory, returns a relative path that identifies path relative to
   # relative_to.
 
-  # Convert to absolute (and therefore normalized paths).
-  path = os.path.abspath(path)
-  relative_to = os.path.abspath(relative_to)
+  # Convert to normalized (and therefore absolute paths).
+  path = os.path.realpath(path)
+  relative_to = os.path.realpath(relative_to)
 
   # Split the paths into components.
   path_split = path.split(os.path.sep)
@@ -149,6 +149,20 @@ def RelativePath(path, relative_to):
 
   # Turn it back into a string and we're done.
   return os.path.join(*relative_split)
+
+
+@memoize
+def InvertRelativePath(path, toplevel_dir=None):
+  """Given a path like foo/bar that is relative to toplevel_dir, return
+  the inverse relative path back to the toplevel_dir.
+
+  E.g. os.path.normpath(os.path.join(path, InvertRelativePath(path)))
+  should always produce the empty string, unless the path contains symlinks.
+  """
+  if not path:
+    return path
+  toplevel_dir = '.' if toplevel_dir is None else toplevel_dir
+  return RelativePath(toplevel_dir, os.path.join(toplevel_dir, path))
 
 
 def FixIfRelativePath(path, relative_to):
@@ -378,6 +392,10 @@ def GetFlavor(params):
     return 'solaris'
   if sys.platform.startswith('freebsd'):
     return 'freebsd'
+  if sys.platform.startswith('openbsd'):
+    return 'openbsd'
+  if sys.platform.startswith('aix'):
+    return 'aix'
 
   return 'linux'
 

@@ -75,13 +75,20 @@ def CheckChangeOnUpload(input_api, output_api):
 
 def CheckChangeOnCommit(input_api, output_api):
   report = []
+
+  # Accept any year number from 2009 to the current year.
+  current_year = int(input_api.time.strftime('%Y'))
+  allowed_years = (str(s) for s in reversed(xrange(2009, current_year + 1)))
+  years_re = '(' + '|'.join(allowed_years) + ')'
+
+  # The (c) is deprecated, but tolerate it until it's removed from all files.
   license = (
-      r'.*? Copyright \(c\) %(year)s Google Inc\. All rights reserved\.\n'
+      r'.*? Copyright (\(c\) )?%(year)s Google Inc\. All rights reserved\.\n'
       r'.*? Use of this source code is governed by a BSD-style license that '
         r'can be\n'
       r'.*? found in the LICENSE file\.\n'
   ) % {
-      'year': input_api.time.strftime('%Y'),
+      'year': years_re,
   }
 
   report.extend(input_api.canned_checks.PanProjectChecks(
@@ -106,4 +113,4 @@ def CheckChangeOnCommit(input_api, output_api):
 
 
 def GetPreferredTrySlaves():
-  return ['gyp-win32', 'gyp-win64', 'gyp-linux', 'gyp-mac']
+  return ['gyp-win32', 'gyp-win64', 'gyp-linux', 'gyp-mac', 'gyp-android']

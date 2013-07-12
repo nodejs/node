@@ -477,9 +477,14 @@ Object.defineProperty(npm, "cache",
   })
 
 var tmpFolder
+var crypto = require("crypto")
+var rand = crypto.randomBytes(6)
+                 .toString("base64")
+                 .replace(/\//g, '_')
+                 .replace(/\+/, '-')
 Object.defineProperty(npm, "tmp",
   { get : function () {
-      if (!tmpFolder) tmpFolder = "npm-" + process.pid
+      if (!tmpFolder) tmpFolder = "npm-" + process.pid + "-" + rand
       return path.resolve(npm.config.get("tmp"), tmpFolder)
     }
   , enumerable : true

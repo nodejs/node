@@ -1,0 +1,89 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPMRC" "5" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpmrc\fR \-\- The npm config files
+.
+.SH "DESCRIPTION"
+npm gets its config settings from the command line, environment
+variables, and \fBnpmrc\fR files\.
+.
+.P
+The \fBnpm config\fR command can be used to update and edit the contents
+of the user and global npmrc files\.
+.
+.P
+npm help  For a list of available configuration options, see npm\-config\.
+.
+.SH "FILES"
+The three relevant files are:
+.
+.IP "\(bu" 4
+per\-user config file (~/\.npmrc)
+.
+.IP "\(bu" 4
+global config file ($PREFIX/npmrc)
+.
+.IP "\(bu" 4
+npm builtin config file (/path/to/npm/npmrc)
+.
+.IP "" 0
+.
+.P
+All npm config files are an ini\-formatted list of \fBkey = value\fR
+parameters\.  Environment variables can be replaced using \fB${VARIABLE_NAME}\fR\|\. For example:
+.
+.IP "" 4
+.
+.nf
+prefix = ${HOME}/\.npm\-packages
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Each of these files is loaded, and config options are resolved in
+priority order\.  For example, a setting in the userconfig file would
+override the setting in the globalconfig file\.
+.
+.SS "Per\-user config file"
+\fB$HOME/\.npmrc\fR (or the \fBuserconfig\fR param, if set in the environment
+or on the command line)
+.
+.SS "Global config file"
+\fB$PREFIX/etc/npmrc\fR (or the \fBglobalconfig\fR param, if set above):
+This file is an ini\-file formatted list of \fBkey = value\fR parameters\.
+Environment variables can be replaced as above\.
+.
+.SS "Built\-in config file"
+\fBpath/to/npm/itself/npmrc\fR
+.
+.P
+This is an unchangeable "builtin" configuration file that npm keeps
+consistent across updates\.  Set fields in here using the \fB\|\./configure\fR
+script that comes with npm\.  This is primarily for distribution
+maintainers to override default configs in a standard and consistent
+manner\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help  folders
+.
+.IP "\(bu" 4
+npm help config
+.
+.IP "\(bu" 4
+npm help  config
+.
+.IP "\(bu" 4
+npm help  package\.json
+.
+.IP "\(bu" 4
+npm help npm
+.
+.IP "" 0
+
