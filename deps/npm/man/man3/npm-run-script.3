@@ -1,0 +1,48 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-RUN\-SCRIPT" "3" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-run-script\fR \-\- Run arbitrary package scripts
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm\.commands\.run\-script(args, callback)
+.
+.fi
+.
+.SH "DESCRIPTION"
+This runs an arbitrary command from a package\'s "scripts" object\.
+.
+.P
+It is used by the test, start, restart, and stop commands, but can be
+called directly, as well\.
+.
+.P
+The \'args\' parameter is an array of strings\. Behavior depends on the number
+of elements\.  If there is only one element, npm assumes that the element
+represents a command to be run on the local repository\. If there is more than
+one element, then the first is assumed to be the package and the second is
+assumed to be the command to run\. All other elements are ignored\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help  scripts
+.
+.IP "\(bu" 4
+npm apihelp test
+.
+.IP "\(bu" 4
+npm apihelp start
+.
+.IP "\(bu" 4
+npm apihelp restart
+.
+.IP "\(bu" 4
+npm apihelp stop
+.
+.IP "" 0
+

@@ -51,7 +51,7 @@ function unpublish (name, ver, cb) {
 
     if (latestVer === ver) {
       data["dist-tags"].latest =
-        Object.getOwnPropertyNames(versions).sort(semver.compare).pop()
+        Object.getOwnPropertyNames(versions).sort(semver.compareLoose).pop()
     }
 
     var rev = data._rev

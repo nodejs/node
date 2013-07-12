@@ -1,0 +1,27 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-PRUNE" "3" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-prune\fR \-\- Remove extraneous packages
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm\.commands\.prune([packages,] callback)
+.
+.fi
+.
+.SH "DESCRIPTION"
+This command removes "extraneous" packages\.
+.
+.P
+The first parameter is optional, and it specifies packages to be removed\.
+.
+.P
+No packages are specified, then all packages will be checked\.
+.
+.P
+Extraneous packages are packages that are not listed on the parent
+package\'s dependencies list\.

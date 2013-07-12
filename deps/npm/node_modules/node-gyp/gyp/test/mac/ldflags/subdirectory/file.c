@@ -1,2 +1,0 @@
-void f() {}
-void g() {}

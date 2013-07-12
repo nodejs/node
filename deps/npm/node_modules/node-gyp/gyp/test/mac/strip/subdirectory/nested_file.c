@@ -1,1 +1,0 @@
-void nested_f() {}

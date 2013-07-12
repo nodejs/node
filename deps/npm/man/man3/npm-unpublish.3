@@ -1,0 +1,30 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-UNPUBLISH" "3" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-unpublish\fR \-\- Remove a package from the registry
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm\.commands\.unpublish(package, callback)
+.
+.fi
+.
+.SH "DESCRIPTION"
+This removes a package version from the registry, deleting its
+entry and removing the tarball\.
+.
+.P
+The package parameter must be defined\.
+.
+.P
+Only the first element in the package parameter is used\.  If there is no first
+element, then npm assumes that the package at the current working directory
+is what is meant\.
+.
+.P
+If no version is specified, or if all versions are removed then
+the root package entry is removed from the registry entirely\.

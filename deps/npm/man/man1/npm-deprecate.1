@@ -1,0 +1,48 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-DEPRECATE" "1" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-deprecate\fR \-\- Deprecate a version of a package
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm deprecate <name>[@<version>] <message>
+.
+.fi
+.
+.SH "DESCRIPTION"
+This command will update the npm registry entry for a package, providing
+a deprecation warning to all who attempt to install it\.
+.
+.P
+It works on version ranges as well as specific versions, so you can do
+something like this:
+.
+.IP "" 4
+.
+.nf
+npm deprecate my\-thing@"< 0\.2\.3" "critical bug fixed in v0\.2\.3"
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Note that you must be the package owner to deprecate something\.  See the \fBowner\fR and \fBadduser\fR help topics\.
+.
+.P
+To un\-deprecate a package, specify an empty string (\fB""\fR) for the \fBmessage\fR argument\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help publish
+.
+.IP "\(bu" 4
+npm help  registry
+.
+.IP "" 0
+

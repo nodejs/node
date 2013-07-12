@@ -1,0 +1,28 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-BUGS" "3" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-bugs\fR \-\- Bugs for a package in a web browser maybe
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm\.commands\.bugs(package, callback)
+.
+.fi
+.
+.SH "DESCRIPTION"
+This command tries to guess at the likely location of a package\'s
+bug tracker URL, and then tries to open it using the \fB\-\-browser\fR
+config param\.
+.
+.P
+Like other commands, the first parameter is an array\. This command only
+uses the first element, which is expected to be a package name with an
+optional version number\.
+.
+.P
+This command will launch a browser, so this command may not be the most
+friendly for programmatic use\.

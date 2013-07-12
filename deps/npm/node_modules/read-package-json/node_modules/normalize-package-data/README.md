@@ -56,6 +56,7 @@ If the supplied data has an invalid name or version vield, `normalizeData` will 
 * If `bugs` field does not exist, but `repository` field points to a repository hosted on GitHub, the value of the `bugs` field gets set to an url in the form of https://github.com/[owner-name]/[repo-name]/issues . If the repository field points to a GitHub Gist repo url, the associated http url is chosen.
 * If `bugs` field is an object, the resulting value only has email and url properties. If email and url properties are not strings, they are ignored. If no valid values for either email or url is found, bugs field will be removed.
 * If `homepage` field is not a string, it will be removed.
+* If the url in the `homepage` field does not specify a protocol, then http is assumed. For example, `myproject.org` will be changed to `http://myproject.org`.
 
 ### Rules for name field
 

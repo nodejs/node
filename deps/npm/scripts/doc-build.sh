@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [[ $DEBUG != "" ]]; then
   set -x
@@ -41,11 +41,12 @@ version=$(node cli.js -v)
 mkdir -p $(dirname $dest)
 
 case $dest in
-  *.[13])
+  *.[1357])
     ./node_modules/.bin/ronn --roff $src \
     | sed "s|@VERSION@|$version|g" \
-    | perl -pi -e 's/npm\\-([^\(]*)\(1\)/npm help \1/g' \
-    | perl -pi -e 's/npm\\-([^\(]*)\(3\)/npm apihelp \1/g' \
+    | perl -pi -e 's/(npm\\-)?([^\(]*)\(1\)/npm help \2/g' \
+    | perl -pi -e 's/(npm\\-)?([^\(]*)\([57]\)/npm help \3 \2/g' \
+    | perl -pi -e 's/(npm\\-)?([^\(]*)\(3\)/npm apihelp \2/g' \
     | perl -pi -e 's/npm\(1\)/npm help npm/g' \
     | perl -pi -e 's/npm\(3\)/npm apihelp npm/g' \
     > $dest
@@ -53,21 +54,27 @@ case $dest in
     ;;
   *.html)
     (cat html/dochead.html && \
-     ./node_modules/.bin/ronn -f $src && \
-     cat html/docfoot.html )\
+     ./node_modules/.bin/ronn -f $src &&
+     cat html/docfoot.html)\
     | sed "s|@NAME@|$name|g" \
     | sed "s|@DATE@|$date|g" \
     | sed "s|@VERSION@|$version|g" \
-    | perl -pi -e 's/<h1>npm(-?[^\(]*\([0-9]\)) -- (.*?)<\/h1>/<h1>npm\1<\/h1> <p>\2<\/p>/g' \
+    | perl -pi -e 's/<h1>([^\(]*\([0-9]\)) -- (.*?)<\/h1>/<h1>\1<\/h1> <p>\2<\/p>/g' \
     | perl -pi -e 's/npm-npm/npm/g' \
-    | perl -pi -e 's/([^"-])(npm-)?README(\(1\))?/\1<a href="..\/doc\/README.html">README<\/a>/g' \
-    | perl -pi -e 's/<title><a href="..\/doc\/README.html">README<\/a><\/title>/<title>README<\/title>/g' \
-    | perl -pi -e 's/([^"-])npm-([^\(]+)(\(1\))/\1<a href="..\/doc\/\2.html">\2\3<\/a>/g' \
-    | perl -pi -e 's/([^"-])npm-([^\(]+)(\(3\))/\1<a href="..\/api\/\2.html">\2\3<\/a>/g' \
-    | perl -pi -e 's/([^"-])npm\(1\)/\1<a href="..\/doc\/npm.html">npm(1)<\/a>/g' \
-    | perl -pi -e 's/([^"-])npm\(3\)/\1<a href="..\/api\/npm.html">npm(3)<\/a>/g' \
-    | perl -pi -e 's/\([13]\)<\/a><\/h1>/<\/a><\/h1>/g' \
-    > $dest
+    | perl -pi -e 's/([^"-])(npm-)?README(\(1\))?/\1<a href="..\/..\/doc\/README.html">README<\/a>/g' \
+    | perl -pi -e 's/<title><a href="[^"]+README.html">README<\/a><\/title>/<title>README<\/title>/g' \
+    | perl -pi -e 's/([^"-])([^\(> ]+)(\(1\))/\1<a href="..\/cli\/\2.html">\2\3<\/a>/g' \
+    | perl -pi -e 's/([^"-])([^\(> ]+)(\(3\))/\1<a href="..\/api\/\2.html">\2\3<\/a>/g' \
+    | perl -pi -e 's/([^"-])([^\(> ]+)(\(5\))/\1<a href="..\/files\/\2.html">\2\3<\/a>/g' \
+    | perl -pi -e 's/([^"-])([^\(> ]+)(\(7\))/\1<a href="..\/misc\/\2.html">\2\3<\/a>/g' \
+    | perl -pi -e 's/\([1357]\)<\/a><\/h1>/<\/a><\/h1>/g' \
+    | (if [ $(basename $(dirname $dest)) == "doc" ]; then
+        perl -pi -e 's/ href="\.\.\// href="/g'
+      else
+        cat
+      fi) \
+    > $dest \
+    && cat html/docfoot-script.html >> $dest
     exit $?
     ;;
   *)

@@ -37,7 +37,7 @@ function deprecate (args, cb) {
     if (er) return cb(er)
     // filter all the versions that match
     Object.keys(data.versions).filter(function (v) {
-      return semver.satisfies(v, ver)
+      return semver.satisfies(v, ver, true)
     }).forEach(function (v) {
       data.versions[v].deprecated = msg
     })

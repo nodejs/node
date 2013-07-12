@@ -1,0 +1,51 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-HELP\-SEARCH" "3" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-help-search\fR \-\- Search the help pages
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm\.commands\.helpSearch(args, [silent,] callback)
+.
+.fi
+.
+.SH "DESCRIPTION"
+This command is rarely useful, but it exists in the rare case that it is\.
+.
+.P
+This command takes an array of search terms and returns the help pages that
+match in order of best match\.
+.
+.P
+If there is only one match, then npm displays that help section\. If there
+are multiple results, the results are printed to the screen formatted and the
+array of results is returned\. Each result is an object with these properties:
+.
+.IP "\(bu" 4
+hits:
+A map of args to number of hits on that arg\. For example, {"npm": 3}
+.
+.IP "\(bu" 4
+found:
+Total number of unique args that matched\.
+.
+.IP "\(bu" 4
+totalHits:
+Total number of hits\.
+.
+.IP "\(bu" 4
+lines:
+An array of all matching lines (and some adjacent lines)\.
+.
+.IP "\(bu" 4
+file:
+Name of the file that matched
+.
+.IP "" 0
+.
+.P
+The silent parameter is not neccessary not used, but it may in the future\.

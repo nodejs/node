@@ -3,7 +3,7 @@ var util = require("util")
 console.error("testing")
 
 var called = 0
-readInstalled(process.cwd(), function (er, map) {
+readInstalled(process.cwd(), console.error, function (er, map) {
   console.error(called ++)
   if (er) return console.error(er.stack || er.message)
   cleanup(map)

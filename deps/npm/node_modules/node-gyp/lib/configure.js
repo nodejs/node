@@ -101,7 +101,12 @@ function configure (gyp, argv, callback) {
         log.silly('stripping "+" sign(s) from version')
         version = version.replace(/\+/g, '')
       }
-      if (semver.gte(version, '2.5.0') && semver.lt(version, '3.0.0')) {
+      if (~version.indexOf('rc')) {
+        log.silly('stripping "rc" identifier from version')
+        version = version.replace(/rc(.*)$/ig, '')
+      }
+      var range = semver.Range('>=2.5.0 <3.0.0');
+      if (range.test(version)) {
         getNodeDir()
       } else {
         failPythonVersion(version)
@@ -209,7 +214,11 @@ function configure (gyp, argv, callback) {
       }
 
       // make sure we have a valid version
-      version = semver.parse(versionStr)
+      try {
+        version = semver.parse(versionStr)
+      } catch (e) {
+        return callback(e)
+      }
       if (!version) {
         return callback(new Error('Invalid version number: ' + versionStr))
       }

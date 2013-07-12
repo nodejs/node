@@ -1,1 +1,0 @@
-void objcpp_fun() { }

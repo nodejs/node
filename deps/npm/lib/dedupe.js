@@ -258,9 +258,9 @@ function findVersions (npm, summary, cb) {
 function bestMatch (versions, ranges) {
   return versions.filter(function (v) {
     return !ranges.some(function (r) {
-      return !semver.satisfies(v, r)
+      return !semver.satisfies(v, r, true)
     })
-  }).sort(semver.compare).pop()
+  }).sort(semver.compareLoose).pop()
 }
 
 

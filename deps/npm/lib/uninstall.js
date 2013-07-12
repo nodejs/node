@@ -13,7 +13,6 @@ var fs = require("graceful-fs")
   , readJson = require("read-package-json")
   , path = require("path")
   , npm = require("./npm.js")
-  , semver = require("semver")
   , asyncMap = require("slide").asyncMap
 
 function uninstall (args, cb) {

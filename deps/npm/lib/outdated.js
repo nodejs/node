@@ -24,7 +24,6 @@ var path = require("path")
   , cache = require("./cache.js")
   , asyncMap = require("slide").asyncMap
   , npm = require("./npm.js")
-  , semver = require("semver")
 
 function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
@@ -138,7 +137,7 @@ function shouldUpdate (args, dir, dep, has, req, cb) {
   }
 
   function doIt (shouldHave) {
-    cb(null, [[ dir, dep, has[dep], shouldHave ]])
+    cb(null, [[ dir, dep, has[dep], shouldHave, req ]])
   }
 
   if (args.length && args.indexOf(dep) === -1) {

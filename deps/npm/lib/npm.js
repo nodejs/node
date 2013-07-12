@@ -53,15 +53,16 @@ function mkdir (p, cb) {
 npm.commands = {}
 
 try {
+  var pv = process.version.replace(/^v/, '')
   // startup, ok to do this synchronously
   var j = JSON.parse(fs.readFileSync(
     path.join(__dirname, "../package.json"))+"")
   npm.version = j.version
   npm.nodeVersionRequired = j.engines.node
-  if (!semver.satisfies(process.version, j.engines.node)) {
+  if (!semver.satisfies(pv, j.engines.node)) {
     log.warn("unsupported version", [""
             ,"npm requires node version: "+j.engines.node
-            ,"And you have: "+process.version
+            ,"And you have: "+pv
             ,"which is not satisfactory."
             ,""
             ,"Bad things will likely happen.  You have been warned."
@@ -163,6 +164,7 @@ var commandCache = {}
                , "unbuild"
                , "xmas"
                , "substack"
+               , "visnup"
                ]
   , fullList = npm.fullList = cmdList.concat(aliasNames).filter(function (c) {
       return plumbing.indexOf(c) === -1
@@ -475,9 +477,14 @@ Object.defineProperty(npm, "cache",
   })
 
 var tmpFolder
+var crypto = require("crypto")
+var rand = crypto.randomBytes(6)
+                 .toString("base64")
+                 .replace(/\//g, '_')
+                 .replace(/\+/, '-')
 Object.defineProperty(npm, "tmp",
   { get : function () {
-      if (!tmpFolder) tmpFolder = "npm-" + process.pid
+      if (!tmpFolder) tmpFolder = "npm-" + process.pid + "-" + rand
       return path.resolve(npm.config.get("tmp"), tmpFolder)
     }
   , enumerable : true

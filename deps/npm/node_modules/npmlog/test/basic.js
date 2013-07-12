@@ -87,7 +87,7 @@ var resultExpect =
   '\u001b[0m',
   ' ',
   '\u001b[0m',
-  '\u001b[35m',
+  '\u001b[33m',
   'warn prefix',
   '\u001b[0m',
   ' x = {"foo":{"bar":"baz"}}\n',

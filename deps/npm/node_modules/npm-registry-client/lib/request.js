@@ -283,6 +283,7 @@ function requestDone (method, where, cb) {
         , p = url.parse(where).pathname.split("/")
         , _ = "/"
         , caches = p.map(function (part) {
+            part = part.replace(/:/g, "_")
             return _ = path.join(_, part)
           }).map(function (cache) {
             return path.join(this.conf.get('cache'), cache, ".cache.json")
@@ -293,7 +294,8 @@ function requestDone (method, where, cb) {
       // That's what you get for deleting stuff.  Don't do that.
       if (method === "DELETE") {
         p = p.slice(0, p.indexOf("-rev"))
-        caches.push(path.join(this.conf.get('cache'), p.join("/")))
+        p = p.join("/").replace(/:/g, "_")
+        caches.push(path.join(this.conf.get('cache'), p))
       }
 
       asyncMap(caches, rm, function () {})

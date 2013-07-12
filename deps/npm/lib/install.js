@@ -74,6 +74,7 @@ var npm = require("./npm.js")
   , archy = require("archy")
 
 function install (args, cb_) {
+  var hasArguments = !!args.length
 
   function cb (er, installed) {
     if (er) return cb_(er)
@@ -94,7 +95,7 @@ function install (args, cb_) {
         , pretty = prettify(tree, installed).trim()
 
       if (pretty) console.log(pretty)
-      save(where, installed, tree, pretty, cb_)
+      save(where, installed, tree, pretty, hasArguments, cb_)
     })
   }
 
@@ -160,8 +161,11 @@ function install (args, cb_) {
 
     // initial "family" is the name:version of the root, if it's got
     // a package.json file.
-    readJson(path.resolve(where, "package.json"), function (er, data) {
-      if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
+    var jsonFile = path.resolve(where, "package.json")
+    readJson(jsonFile, true, function (er, data) {
+      if (er
+          && er.code !== "ENOENT"
+          && er.code !== "ENOTDIR") return cb(er)
       if (er) data = null
       var context = { family: {}
                     , ancestors: {}
@@ -178,7 +182,7 @@ function install (args, cb_) {
 }
 
 function findPeerInvalid (where, cb) {
-  readInstalled(where, function (er, data) {
+  readInstalled(where, log.warn, function (er, data) {
     if (er) return cb(er)
 
     cb(null, findPeerInvalid_(data.dependencies, []))
@@ -315,8 +319,9 @@ function readWrap (w) {
 // if the -S|--save option is specified, then write installed packages
 // as dependencies to a package.json file.
 // This is experimental.
-function save (where, installed, tree, pretty, cb) {
-  if (!npm.config.get("save") &&
+function save (where, installed, tree, pretty, hasArguments, cb) {
+  if (!hasArguments ||
+      !npm.config.get("save") &&
       !npm.config.get("save-dev") &&
       !npm.config.get("save-optional") ||
       npm.config.get("global")) {
@@ -337,8 +342,8 @@ function save (where, installed, tree, pretty, cb) {
         if (u && u.protocol) w[1] = t.from
         return w
       }).reduce(function (set, k) {
-        var rangeDescriptor = semver.valid(k[1]) &&
-                              semver.gte(k[1], "0.1.0")
+        var rangeDescriptor = semver.valid(k[1], true) &&
+                              semver.gte(k[1], "0.1.0", true)
                             ? "~" : ""
         set[k[0]] = rangeDescriptor + k[1]
         return set
@@ -494,7 +499,7 @@ function installManyTop (what, where, context, cb_) {
 
   if (context.explicit) return next()
 
-  readJson(path.join(where, "package.json"), function (er, data) {
+  readJson(path.join(where, "package.json"), true, function (er, data) {
     if (er) return next(er)
     lifecycle(data, "preinstall", where, next)
   })
@@ -619,7 +624,7 @@ function targetResolver (where, context, deps) {
         // otherwise, make sure that it's a semver match with what we want.
         var bd = parent.bundleDependencies
         if (bd && bd.indexOf(d.name) !== -1 ||
-            semver.satisfies(d.version, deps[d.name] || "*")) {
+            semver.satisfies(d.version, deps[d.name] || "*", true)) {
           return cb(null, d.name)
         }
 
@@ -977,7 +982,7 @@ function write (target, targetFolder, context, cb_) {
     if (!er) return cb_(er, data)
 
     if (false === npm.config.get("rollback")) return cb_(er)
-    npm.commands.unbuild([targetFolder], function (er2) {
+    npm.commands.unbuild([targetFolder], true, function (er2) {
       if (er2) log.error("error rolling back", target._id, er2)
       return cb_(er, data)
     })
@@ -1066,7 +1071,10 @@ function prepareForInstallMany (packageData, depsKey, bundled, wrap, family) {
     // prefer to not install things that are satisfied by
     // something in the "family" list, unless we're installing
     // from a shrinkwrap.
-    return wrap || !semver.satisfies(family[d], packageData[depsKey][d])
+    if (wrap) return wrap
+    if (semver.validRange(family[d], true))
+      return !semver.satisfies(family[d], packageData[depsKey][d], true)
+    return true
   }).map(function (d) {
     var t = packageData[depsKey][d]
       , parsed = url.parse(t.replace(/^git\+/, "git"))

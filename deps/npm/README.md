@@ -9,7 +9,7 @@ Much more info available via `npm help` once it's installed.
 
 ## IMPORTANT
 
-**You need node v0.6 or higher to run this program.**
+**You need node v0.8 or higher to run this program.**
 
 To install an old **and unsupported** version of npm that works on node 0.3
 and prior, clone the git repo and dig through the old tags and branches.

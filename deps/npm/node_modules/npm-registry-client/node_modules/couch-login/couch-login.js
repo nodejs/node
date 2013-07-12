@@ -151,8 +151,8 @@ function makeReq (meth, body, f) { return function madeReq (p, d, cb) {
   if (this.ca)
     req.ca = this.ca
 
-  if (this.strictSSL && this.strictSSL !== null)
-    req.strictSSL = this.strictSSL
+  if (typeof this.strictSSL === 'boolean')
+    req.strictSSL = req.rejectUnauthorized = this.strictSSL
 
   request(req, function (er, res, data) {
     // update cookie.

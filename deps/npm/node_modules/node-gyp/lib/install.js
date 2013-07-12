@@ -51,16 +51,12 @@ function install (gyp, argv, callback) {
     return callback(new Error('Invalid version number: ' + versionStr))
   }
 
-  // "legacy" versions are 0.7 and 0.6
-  var isLegacy = semver.lt(versionStr, '0.8.0')
-  log.verbose('installing legacy version?', isLegacy)
-
-  if (semver.lt(versionStr, '0.6.0')) {
-    return callback(new Error('Minimum target version is `0.6.0` or greater. Got: ' + versionStr))
+  if (semver.lt(versionStr, '0.8.0')) {
+    return callback(new Error('Minimum target version is `0.8.0` or greater. Got: ' + versionStr))
   }
 
   // 0.x.y-pre versions are not published yet and cannot be installed. Bail.
-  if (version[5] && version[5].match(/\-pre$/)) {
+  if (version.prerelease[0] === 'pre') {
     log.verbose('detected "pre" node version', versionStr)
     if (gyp.opts.nodedir) {
       log.verbose('--nodedir flag was passed; skipping install', gyp.opts.nodedir)
@@ -72,7 +68,7 @@ function install (gyp, argv, callback) {
   }
 
   // flatten version into String
-  version = version.slice(1, 4).join('.')
+  version = version.version
   log.verbose('install', 'installing version: %s', version)
 
   // the directory where the dev files will be installed
@@ -236,12 +232,6 @@ function install (gyp, argv, callback) {
         log.verbose('tarball', 'done parsing tarball')
         var async = 0
 
-        if (isLegacy) {
-          // copy over the files from the `legacy` dir
-          async++
-          copyLegacy(deref)
-        }
-
         if (win) {
           // need to download node.lib
           async++
@@ -262,32 +252,6 @@ function install (gyp, argv, callback) {
           if (err) return cb(err)
           --async || cb()
         }
-      }
-
-      function copyLegacy (done) {
-        // legacy versions of node (< 0.8) require the legacy files to be copied
-        // over since they contain many bugfixes from the current node build system
-        log.verbose('legacy', 'copying "legacy" gyp configuration files for version', version)
-
-        var legacyDir = path.resolve(__dirname, '..', 'legacy')
-        log.verbose('legacy', 'using "legacy" dir', legacyDir)
-        log.verbose('legacy', 'copying to "dev" dir', devDir)
-
-        var reader = fstream.Reader({ path: legacyDir, type: 'Directory' })
-        var writer = fstream.Writer({ path: devDir, type: 'Directory' })
-
-        reader.on('entry', function onEntry (entry) {
-          log.verbose('legacy', 'reading entry:', entry.path)
-          entry.on('entry', onEntry)
-        })
-
-        reader.on('error', done)
-        writer.on('error', done)
-
-        // Like `cp -rpf`
-        reader.pipe(writer)
-
-        reader.on('end', done)
       }
 
       function downloadNodeLib (done) {
@@ -360,8 +324,7 @@ function install (gyp, argv, callback) {
   function valid (file) {
     // header files
     return minimatch(file, '*.h', { matchBase: true }) ||
-      // non-legacy versions of node also extract the gyp build files
-      (!isLegacy && minimatch(file, '*.gypi', { matchBase: true }))
+           minimatch(file, '*.gypi', { matchBase: true })
   }
 
   /**
@@ -385,10 +348,4 @@ function install (gyp, argv, callback) {
     gyp.commands.install(argv, cb)
   }
 
-}
-
-
-install.trim = function trim (file) {
-  var firstSlash = file.indexOf('/')
-  return file.substring(firstSlash + 1)
 }

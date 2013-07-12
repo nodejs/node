@@ -1,0 +1,325 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM" "1" "July 2013" "" ""
+.
+.SH "NAME"
+\fBnpm\fR \-\- node package manager
+.
+.SH "SYNOPSIS"
+This is just enough info to get you up and running\.
+.
+.P
+Much more info available via \fBnpm help\fR once it\'s installed\.
+.
+.SH "IMPORTANT"
+\fBYou need node v0\.8 or higher to run this program\.\fR
+.
+.P
+To install an old \fBand unsupported\fR version of npm that works on node 0\.3
+and prior, clone the git repo and dig through the old tags and branches\.
+.
+.SH "Super Easy Install"
+npm comes with node now\.
+.
+.SS "Windows Computers"
+Get the MSI\.  npm is in it\.
+.
+.SS "Apple Macintosh Computers"
+Get the pkg\.  npm is in it\.
+.
+.SS "Other Sorts of Unices"
+Run \fBmake install\fR\|\.  npm will be installed with node\.
+.
+.P
+If you want a more fancy pants install (a different version, customized
+paths, etc\.) then read on\.
+.
+.SH "Fancy Install (Unix)"
+There\'s a pretty robust install script at \fIhttps://npmjs\.org/install\.sh\fR\|\.  You can download that and run it\.
+.
+.SS "Slightly Fancier"
+You can set any npm configuration params with that script:
+.
+.IP "" 4
+.
+.nf
+npm_config_prefix=/some/path sh install\.sh
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Or, you can run it in uber\-debuggery mode:
+.
+.IP "" 4
+.
+.nf
+npm_debug=1 sh install\.sh
+.
+.fi
+.
+.IP "" 0
+.
+.SS "Even Fancier"
+Get the code with git\.  Use \fBmake\fR to build the docs and do other stuff\.
+If you plan on hacking on npm, \fBmake link\fR is your friend\.
+.
+.P
+If you\'ve got the npm source code, you can also semi\-permanently set
+arbitrary config keys using the \fB\|\./configure \-\-key=val \.\.\.\fR, and then
+run npm commands by doing \fBnode cli\.js <cmd> <args>\fR\|\.  (This is helpful
+for testing, or running stuff without actually installing npm itself\.)
+.
+.SH "Fancy Windows Install"
+You can download a zip file from \fIhttps://npmjs\.org/dist/\fR, and unpack it
+in the same folder where node\.exe lives\.
+.
+.P
+If that\'s not fancy enough for you, then you can fetch the code with
+git, and mess with it directly\.
+.
+.SH "Installing on Cygwin"
+No\.
+.
+.SH "Permissions when Using npm to Install Other Stuff"
+\fBtl;dr\fR
+.
+.IP "\(bu" 4
+Use \fBsudo\fR for greater safety\.  Or don\'t, if you prefer not to\.
+.
+.IP "\(bu" 4
+npm will downgrade permissions if it\'s root before running any build
+scripts that package authors specified\.
+.
+.IP "" 0
+.
+.SS "More details\.\.\."
+As of version 0\.3, it is recommended to run npm as root\.
+This allows npm to change the user identifier to the \fBnobody\fR user prior
+to running any package build or test commands\.
+.
+.P
+If you are not the root user, or if you are on a platform that does not
+support uid switching, then npm will not attempt to change the userid\.
+.
+.P
+If you would like to ensure that npm \fBalways\fR runs scripts as the
+"nobody" user, and have it fail if it cannot downgrade permissions, then
+set the following configuration param:
+.
+.IP "" 4
+.
+.nf
+npm config set unsafe\-perm false
+.
+.fi
+.
+.IP "" 0
+.
+.P
+This will prevent running in unsafe mode, even as non\-root users\.
+.
+.SH "Uninstalling"
+So sad to see you go\.
+.
+.IP "" 4
+.
+.nf
+sudo npm uninstall npm \-g
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Or, if that fails,
+.
+.IP "" 4
+.
+.nf
+sudo make uninstall
+.
+.fi
+.
+.IP "" 0
+.
+.SH "More Severe Uninstalling"
+Usually, the above instructions are sufficient\.  That will remove
+npm, but leave behind anything you\'ve installed\.
+.
+.P
+If you would like to remove all the packages that you have installed,
+then you can use the \fBnpm ls\fR command to find them, and then \fBnpm rm\fR to
+remove them\.
+.
+.P
+To remove cruft left behind by npm 0\.x, you can use the included \fBclean\-old\.sh\fR script file\.  You can run it conveniently like this:
+.
+.IP "" 4
+.
+.nf
+npm explore npm \-g \-\- sh scripts/clean\-old\.sh
+.
+.fi
+.
+.IP "" 0
+.
+.P
+npm uses two configuration files, one for per\-user configs, and another
+for global (every\-user) configs\.  You can view them by doing:
+.
+.IP "" 4
+.
+.nf
+npm config get userconfig   # defaults to ~/\.npmrc
+npm config get globalconfig # defaults to /usr/local/etc/npmrc
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Uninstalling npm does not remove configuration files by default\.  You
+must remove them yourself manually if you want them gone\.  Note that
+this means that future npm installs will not remember the settings that
+you have chosen\.
+.
+.SH "Using npm Programmatically"
+If you would like to use npm programmatically, you can do that\.
+It\'s not very well documented, but it \fIis\fR rather simple\.
+.
+.P
+Most of the time, unless you actually want to do all the things that
+npm does, you should try using one of npm\'s dependencies rather than
+using npm itself, if possible\.
+.
+.P
+Eventually, npm will be just a thin cli wrapper around the modules
+that it depends on, but for now, there are some things that you must
+use npm itself to do\.
+.
+.IP "" 4
+.
+.nf
+var npm = require("npm")
+npm\.load(myConfigObject, function (er) {
+  if (er) return handlError(er)
+  npm\.commands\.install(["some", "args"], function (er, data) {
+    if (er) return commandFailed(er)
+    // command succeeded, and data might have some info
+  })
+  npm\.on("log", function (message) { \.\.\.\. })
+})
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The \fBload\fR function takes an object hash of the command\-line configs\.
+The various \fBnpm\.commands\.<cmd>\fR functions take an \fBarray\fR of
+positional argument \fBstrings\fR\|\.  The last argument to any \fBnpm\.commands\.<cmd>\fR function is a callback\.  Some commands take other
+optional arguments\.  Read the source\.
+.
+.P
+You cannot set configs individually for any single npm function at this
+time\.  Since \fBnpm\fR is a singleton, any call to \fBnpm\.config\.set\fR will
+change the value for \fIall\fR npm commands in that process\.
+.
+.P
+See \fB\|\./bin/npm\-cli\.js\fR for an example of pulling config values off of the
+command line arguments using nopt\.  You may also want to check out \fBnpm
+help config\fR to learn about all the options you can set there\.
+.
+.SH "More Docs"
+Check out the docs \fIhttps://npmjs\.org/doc/\fR,
+especially the faq \fIhttps://npmjs\.org/doc/faq\.html\fR\|\.
+.
+.P
+You can use the \fBnpm help\fR command to read any of them\.
+.
+.P
+If you\'re a developer, and you want to use npm to publish your program,
+you should read this \fIhttps://npmjs\.org/doc/developers\.html\fR
+.
+.SH "Legal Stuff"
+"npm" and "the npm registry" are owned by Isaac Z\. Schlueter\.  All
+rights not explicitly granted in the MIT license are reserved\. See the
+included LICENSE file for more details\.
+.
+.P
+"Node\.js" and "node" are trademarks owned by Joyent, Inc\.  npm is not
+officially part of the Node\.js project, and is neither owned by nor
+officially affiliated with Joyent, Inc\.
+.
+.P
+The packages in the npm registry are not part of npm itself, and are the
+sole property of their respective maintainers\.  While every effort is
+made to ensure accountability, there is absolutely no guarantee,
+warrantee, or assertion made as to the quality, fitness for a specific
+purpose, or lack of malice in any given npm package\.  Modules
+published on the npm registry are not affiliated with or endorsed by
+Joyent, Inc\., Isaac Z\. Schlueter, Ryan Dahl, or the Node\.js project\.
+.
+.P
+If you have a complaint about a package in the npm registry, and cannot
+resolve it with the package owner, please express your concerns to
+Isaac Z\. Schlueter at \fIi@izs\.me\fR\|\.
+.
+.SS "In plain english"
+This is mine; not my employer\'s, not Node\'s, not Joyent\'s, not Ryan
+Dahl\'s\.
+.
+.P
+If you publish something, it\'s yours, and you are solely accountable
+for it\.  Not me, not Node, not Joyent, not Ryan Dahl\.
+.
+.P
+If other people publish something, it\'s theirs\.  Not mine, not Node\'s,
+not Joyent\'s, not Ryan Dahl\'s\.
+.
+.P
+Yes, you can publish something evil\.  It will be removed promptly if
+reported, and we\'ll lose respect for you\.  But there is no vetting
+process for published modules\.
+.
+.P
+If this concerns you, inspect the source before using packages\.
+.
+.SH "BUGS"
+When you find issues, please report them:
+.
+.IP "\(bu" 4
+web: \fIhttps://github\.com/isaacs/npm/issues\fR
+.
+.IP "\(bu" 4
+email: \fInpm\-@googlegroups\.com\fR
+.
+.IP "" 0
+.
+.P
+Be sure to include \fIall\fR of the output from the npm command that didn\'t work
+as expected\.  The \fBnpm\-debug\.log\fR file is also helpful to provide\.
+.
+.P
+You can also look for isaacs in #node\.js on irc://irc\.freenode\.net\.  He
+will no doubt tell you to put the output in a gist or email\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help npm
+.
+.IP "\(bu" 4
+npm help faq
+.
+.IP "\(bu" 4
+npm help help
+.
+.IP "\(bu" 4
+npm help index
+.
+.IP "" 0
+
