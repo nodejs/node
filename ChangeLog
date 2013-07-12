@@ -1,4 +1,39 @@
-2013.06.26, Version 0.11.3 (Unstable)
+2013.07.12, Version 0.11.4 (Unstable)
+
+* npm: Upgrade to 1.3.4
+
+* v8: Upgrade to v3.20.2
+
+* c-ares: Upgrade to piscisaureus/cares@805d153
+
+* timers: setImmediate process full queue each turn (Ben Noordhuis)
+
+* http: Add agent.get/request methods (isaacs)
+
+* http: Proper KeepAlive behavior (isaacs)
+
+* configure: fix the --without-ssl option (Nathan Rajlich)
+
+* buffer: propagate originating parent (Trevor Norris)
+
+* tls_wrap: return Error not throw for missing cert (Timothy J Fontaine)
+
+* src: enable native v8 typed arrays (Ben Noordhuis)
+
+* stream: objectMode transform should allow falsey values (Jeff Barczewski)
+
+* slab_allocator: remove SlabAllocator (Trevor Norris)
+
+* crypto: fix memory leak in LoadPKCS12 (Fedor Indutny)
+
+* tls: export TLSSocket (Fedor Indutny)
+
+* zlib: allow changing of level and strategy (Brian White)
+
+* zlib: allow custom flush type for flush() (Brian White)
+
+
+2013.06.26, Version 0.11.3 (Unstable), 38c0c47bbe280ddc42054418091571e532d82a1e
 
 * uv: Upgrade to v0.11.5
 
