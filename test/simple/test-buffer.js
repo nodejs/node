@@ -950,39 +950,3 @@ assert.throws(function() {
   Buffer('', 'buffer');
 }, TypeError);
 
-
-// test Buffer alloc
-
-// arrays are unsupported by v8
-assert.throws(function() {
-  Buffer.alloc(0, []);
-}, TypeError);
-
-// can't create too large an alloc
-assert.throws(function() {
-  Buffer.alloc(0x3fffffff + 1);
-}, RangeError);
-
-// make sure values are assigned
-var b = {};
-Buffer.alloc(256, b);
-for (var i = 0; i < 256; i++)
-  b[i] = i;
-for (var i = 0; i < 256; i++)
-  assert.equal(b[i], i);
-assert.equal(b[257], undefined);
-
-// several other types that shouldn't throw
-Buffer.alloc(1, function() { });
-Buffer.alloc(1, /abc/);
-Buffer.alloc(1, new Date());
-
-
-// make sure disposal works
-var b = {};
-Buffer.alloc(5, b);
-for (var i = 0; i < 5; i++)
-  b[i] = i;
-Buffer.dispose(b);
-for (var i = 0; i < 5; i++)
-  assert.equal(b[i], undefined);

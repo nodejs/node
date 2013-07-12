@@ -24,6 +24,7 @@
 * [Query Strings](querystring.html)
 * [Readline](readline.html)
 * [REPL](repl.html)
+* [Smalloc](smalloc.html)
 * [Stream](stream.html)
 * [String Decoder](string_decoder.html)
 * [Timers](timers.html)

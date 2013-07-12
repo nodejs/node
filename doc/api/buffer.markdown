@@ -115,46 +115,6 @@ If totalLength is not provided, it is read from the buffers in the list.
 However, this adds an additional loop to the function, so it is faster
 to provide the length explicitly.
 
-### Class Method: Buffer.alloc(length, [receiver])
-
-* `length` Number
-* `receiver` Object, Optional, Default: `new Object`
-
-
-**(EXPERIMENTAL)** Returns object with allocated external array data.
-
-Buffers are backed by a simple allocator that only handles the assignation of
-external raw memory. This exposes that functionality.
-
-No pooling is performed for these allocations. So there's no form of memory
-leak.
-
-This can be used to create your own Buffer-like classes.
-
-    function SimpleData(n) {
-      this.length = n;
-      Buffer.alloc(this.length, this);
-    }
-
-    SimpleData.prototype = { /* ... */ };
-
-### Class Method: Buffer.dispose(obj)
-
-* `obj` Object
-
-
-**(EXPERIMENTAL)** Free memory that has been allocated to an object via
-`Buffer.alloc`.
-
-    var a = {};
-    Buffer.alloc(3, a);
-
-    // { '0': 0, '1': 0, '2': 0 }
-
-    Buffer.dispose(a);
-
-    // {}
-
 ### buf.length
 
 * Number

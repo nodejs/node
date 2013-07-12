@@ -34,3 +34,4 @@
 @include os
 @include debugger
 @include cluster
+@include smalloc
