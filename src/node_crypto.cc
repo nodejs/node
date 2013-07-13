@@ -1120,8 +1120,9 @@ int Connection::AdvertiseNextProtoCallback_(SSL *s,
     *data = reinterpret_cast<const unsigned char*>("");
     *len = 0;
   } else {
-    *data = reinterpret_cast<const unsigned char*>(Buffer::Data(p->npnProtos_));
-    *len = Buffer::Length(p->npnProtos_);
+    Local<Object> obj = PersistentToLocal(p->npnProtos_);
+    *data = reinterpret_cast<const unsigned char*>(Buffer::Data(obj));
+    *len = Buffer::Length(obj);
   }
 
   return SSL_TLSEXT_ERR_OK;
@@ -1148,11 +1149,12 @@ int Connection::SelectNextProtoCallback_(SSL *s,
     return SSL_TLSEXT_ERR_OK;
   }
 
+  Local<Object> obj = PersistentToLocal(p->npnProtos_);
   const unsigned char* npnProtos =
-      reinterpret_cast<const unsigned char*>(Buffer::Data(p->npnProtos_));
+      reinterpret_cast<const unsigned char*>(Buffer::Data(obj));
 
   int status = SSL_select_next_proto(out, outlen, in, inlen, npnProtos,
-                                     Buffer::Length(p->npnProtos_));
+                                     Buffer::Length(obj));
 
   switch (status) {
     case OPENSSL_NPN_UNSUPPORTED:

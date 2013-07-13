@@ -29,21 +29,6 @@
 
 namespace node {
 
-// Forward declarations from node_buffer.h.  We can't include node_buffer.h
-// in this file because:
-//
-// a) we're included early on in node.h, and
-// b) node_buffer.h depends on the definition of the |encoding| enum that's
-//    defined further down in node.h...
-namespace Buffer {
-
-NODE_EXTERN char* Data(v8::Handle<v8::Value>);
-NODE_EXTERN char* Data(v8::Handle<v8::Object>);
-NODE_EXTERN size_t Length(v8::Handle<v8::Value>);
-NODE_EXTERN size_t Length(v8::Handle<v8::Object>);
-
-} // namespace Buffer
-
 // Defined in node.cc
 extern v8::Isolate* node_isolate;
 
@@ -106,18 +91,6 @@ inline bool HasInstance(v8::Persistent<v8::FunctionTemplate>& function_template,
 inline v8::Local<v8::Object> NewInstance(v8::Persistent<v8::Function>& ctor,
                                           int argc = 0,
                                           v8::Handle<v8::Value>* argv = NULL);
-
-// TODO(bnoordhuis) Move to src/node_buffer.h once it's been established
-// that the current approach to dealing with Persistent is working out.
-namespace Buffer {
-
-template <typename TypeName>
-inline char* Data(v8::Persistent<TypeName>& val);
-
-template <typename TypeName>
-inline size_t Length(v8::Persistent<TypeName>& val);
-
-} // namespace Buffer
 
 #ifdef _WIN32
 // emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
@@ -349,20 +322,6 @@ inline v8::Local<v8::Object> NewInstance(v8::Persistent<v8::Function>& ctor,
   v8::Local<v8::Function> constructor_handle = PersistentToLocal(ctor);
   return constructor_handle->NewInstance(argc, argv);
 }
-
-namespace Buffer {
-
-template <typename TypeName>
-inline char* Data(v8::Persistent<TypeName>& val) {
-  return Data(PersistentToLocal(val));
-}
-
-template <typename TypeName>
-inline size_t Length(v8::Persistent<TypeName>& val) {
-  return Length(PersistentToLocal(val));
-}
-
-} // namespace Buffer
 
 } // namespace node
 

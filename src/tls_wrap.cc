@@ -1141,9 +1141,9 @@ int TLSCallbacks::AdvertiseNextProtoCallback(SSL* s,
     *data = reinterpret_cast<const unsigned char*>("");
     *len = 0;
   } else {
-    *data = reinterpret_cast<const unsigned char*>(
-        Buffer::Data(p->npn_protos_));
-    *len = Buffer::Length(p->npn_protos_);
+    Local<Object> obj = PersistentToLocal(p->npn_protos_);
+    *data = reinterpret_cast<const unsigned char*>(Buffer::Data(obj));
+    *len = Buffer::Length(obj);
   }
 
   return SSL_TLSEXT_ERR_OK;
@@ -1173,9 +1173,10 @@ int TLSCallbacks::SelectNextProtoCallback(SSL* s,
     return SSL_TLSEXT_ERR_OK;
   }
 
+  Local<Object> obj = PersistentToLocal(p->npn_protos_);
   const unsigned char* npn_protos =
-      reinterpret_cast<const unsigned char*>(Buffer::Data(p->npn_protos_));
-  size_t len = Buffer::Length(p->npn_protos_);
+      reinterpret_cast<const unsigned char*>(Buffer::Data(obj));
+  size_t len = Buffer::Length(obj);
 
   int status = SSL_select_next_proto(out, outlen, in, inlen, npn_protos, len);
   Handle<Value> result;
