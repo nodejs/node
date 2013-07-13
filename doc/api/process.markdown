@@ -454,14 +454,24 @@ This will generate:
 
 ## process.nextTick(callback)
 
-On the next loop around the event loop call this callback.
-This is *not* a simple alias to `setTimeout(fn, 0)`, it's much more
-efficient.  It typically runs before any other I/O events fire, but there
-are some exceptions.
+* `callback` {Function}
 
+Once the current event loop turn runs to completion, call the callback
+function.
+
+This is *not* a simple alias to `setTimeout(fn, 0)`, it's much more
+efficient.  It runs before any additional I/O events (including
+timers) fire in subsequent ticks of the event loop.
+
+    console.log('start');
     process.nextTick(function() {
       console.log('nextTick callback');
     });
+    console.log('scheduled');
+    // Output:
+    // start
+    // scheduled
+    // nextTick callback
 
 This is important in developing APIs where you want to give the user the
 chance to assign event handlers after an object has been constructed,
@@ -512,6 +522,11 @@ This approach is much better:
 
       fs.stat('file', cb);
     }
+
+Note: the nextTick queue is completely drained on each pass of the
+event loop **before** additional I/O is processed.  As a result,
+recursively setting nextTick callbacks will block any I/O from
+happening, just like a `while(true);` loop.
 
 ## process.umask([mask])
 
