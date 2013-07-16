@@ -81,9 +81,8 @@ int uv_exepath(char* buffer, size_t* size) {
   size_t cb;
   pid_t mypid;
 
-  if (!buffer || !size) {
-    return -1;
-  }
+  if (buffer == NULL || size == NULL)
+    return -EINVAL;
 
   mypid = getpid();
   mib[0] = CTL_KERN;
@@ -92,10 +91,8 @@ int uv_exepath(char* buffer, size_t* size) {
   mib[3] = KERN_PROC_ARGV;
 
   cb = *size;
-  if (sysctl(mib, 4, buffer, &cb, NULL, 0) == -1) {
-    *size = 0;
-    return -1;
-  }
+  if (sysctl(mib, 4, buffer, &cb, NULL, 0))
+    return -errno;
   *size = strlen(buffer);
 
   return 0;
@@ -107,9 +104,8 @@ uint64_t uv_get_free_memory(void) {
   size_t size = sizeof(info);
   int which[] = {CTL_VM, VM_UVMEXP};
 
-  if (sysctl(which, 2, &info, &size, NULL, 0) == -1) {
-    return -1;
-  }
+  if (sysctl(which, 2, &info, &size, NULL, 0))
+    return -errno;
 
   return (uint64_t) info.free * sysconf(_SC_PAGESIZE);
 }
@@ -125,9 +121,8 @@ uint64_t uv_get_total_memory(void) {
 #endif
   size_t size = sizeof(info);
 
-  if (sysctl(which, 2, &info, &size, NULL, 0) == -1) {
-    return -1;
-  }
+  if (sysctl(which, 2, &info, &size, NULL, 0))
+    return -errno;
 
   return (uint64_t) info;
 }
@@ -139,17 +134,17 @@ char** uv_setup_args(int argc, char** argv) {
 }
 
 
-uv_err_t uv_set_process_title(const char* title) {
+int uv_set_process_title(const char* title) {
   if (process_title) free(process_title);
 
   process_title = strdup(title);
   setproctitle("%s", title);
 
-  return uv_ok_;
+  return 0;
 }
 
 
-uv_err_t uv_get_process_title(char* buffer, size_t size) {
+int uv_get_process_title(char* buffer, size_t size) {
   if (process_title) {
     strncpy(buffer, process_title, size);
   } else {
@@ -158,11 +153,11 @@ uv_err_t uv_get_process_title(char* buffer, size_t size) {
     }
   }
 
-  return uv_ok_;
+  return 0;
 }
 
 
-uv_err_t uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t* rss) {
   kvm_t *kd = NULL;
   struct kinfo_proc2 *kinfo = NULL;
   pid_t pid;
@@ -184,32 +179,31 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
 
   kvm_close(kd);
 
-  return uv_ok_;
+  return 0;
 
 error:
   if (kd) kvm_close(kd);
-  return uv__new_sys_error(errno);
+  return -EPERM;
 }
 
 
-uv_err_t uv_uptime(double* uptime) {
+int uv_uptime(double* uptime) {
   time_t now;
   struct timeval info;
   size_t size = sizeof(info);
   static int which[] = {CTL_KERN, KERN_BOOTTIME};
 
-  if (sysctl(which, 2, &info, &size, NULL, 0) == -1) {
-    return uv__new_sys_error(errno);
-  }
+  if (sysctl(which, 2, &info, &size, NULL, 0))
+    return -errno;
 
   now = time(NULL);
 
   *uptime = (double)(now - info.tv_sec);
-  return uv_ok_;
+  return 0;
 }
 
 
-uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK);
   unsigned int multiplier = ((uint64_t)1000L / ticks);
   unsigned int cur = 0;
@@ -222,37 +216,34 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   int i;
 
   size = sizeof(model);
-  if (sysctlbyname("machdep.cpu_brand", &model, &size, NULL, 0) == -1 &&
-      sysctlbyname("hw.model", &model, &size, NULL, 0) == -1) {
-    return uv__new_sys_error(errno);
+  if (sysctlbyname("machdep.cpu_brand", &model, &size, NULL, 0) &&
+      sysctlbyname("hw.model", &model, &size, NULL, 0)) {
+    return -errno;
   }
 
   size = sizeof(numcpus);
-  if (sysctlbyname("hw.ncpu", &numcpus, &size, NULL, 0) == -1) {
-    return uv__new_sys_error(errno);
-  }
+  if (sysctlbyname("hw.ncpu", &numcpus, &size, NULL, 0))
+    return -errno;
   *count = numcpus;
 
   /* Only i386 and amd64 have machdep.tsc_freq */
   size = sizeof(cpuspeed);
-  if (sysctlbyname("machdep.tsc_freq", &cpuspeed, &size, NULL, 0) == -1) {
+  if (sysctlbyname("machdep.tsc_freq", &cpuspeed, &size, NULL, 0))
     cpuspeed = 0;
-  }
 
   size = numcpus * CPUSTATES * sizeof(*cp_times);
   cp_times = malloc(size);
-  if (cp_times == NULL) {
-    return uv__new_artificial_error(UV_ENOMEM);
-  }
-  if (sysctlbyname("kern.cp_time", cp_times, &size, NULL, 0) == -1) {
-    return uv__new_sys_error(errno);
-  }
+  if (cp_times == NULL)
+    return -ENOMEM;
+
+  if (sysctlbyname("kern.cp_time", cp_times, &size, NULL, 0))
+    return -errno;
 
   *cpu_infos = malloc(numcpus * sizeof(**cpu_infos));
   if (!(*cpu_infos)) {
     free(cp_times);
     free(*cpu_infos);
-    return uv__new_artificial_error(UV_ENOMEM);
+    return -ENOMEM;
   }
 
   for (i = 0; i < numcpus; i++) {
@@ -267,8 +258,9 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cur += CPUSTATES;
   }
   free(cp_times);
-  return uv_ok_;
+  return 0;
 }
+
 
 void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   int i;
@@ -281,14 +273,13 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 }
 
 
-uv_err_t uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
+int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   struct ifaddrs *addrs;
   struct ifaddrs *ent;
   uv_interface_address_t* address;
 
-  if (getifaddrs(&addrs) != 0) {
-    return uv__new_sys_error(errno);
-  }
+  if (getifaddrs(&addrs))
+    return -errno;
 
   *count = 0;
 
@@ -304,9 +295,8 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses, int* count) 
 
   *addresses = malloc(*count * sizeof(**addresses));
 
-  if (!(*addresses)) {
-    return uv__new_artificial_error(UV_ENOMEM);
-  }
+  if (!(*addresses))
+    return -ENOMEM;
 
   address = *addresses;
 
@@ -344,7 +334,7 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses, int* count) 
 
   freeifaddrs(addrs);
 
-  return uv_ok_;
+  return 0;
 }
 
 

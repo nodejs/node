@@ -47,7 +47,6 @@ static void on_connection(uv_stream_t*, int status);
 
 static void after_write(uv_write_t* req, int status) {
   write_req_t* wr;
-  uv_err_t err;
 
   /* Free the read/write buffer and the request */
   wr = (write_req_t*) req;
@@ -57,13 +56,12 @@ static void after_write(uv_write_t* req, int status) {
   if (status == 0)
     return;
 
-  err = uv_last_error(loop);
-  fprintf(stderr, "uv_write error: %s\n", uv_strerror(err));
+  fprintf(stderr, "uv_write error: %s\n", uv_strerror(status));
 
-  if (err.code == UV_ECANCELED)
+  if (status == UV_ECANCELED)
     return;
 
-  ASSERT(err.code == UV_EPIPE);
+  ASSERT(status == UV_EPIPE);
   uv_close((uv_handle_t*)req->handle, on_close);
 }
 
@@ -81,7 +79,7 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 
   if (nread < 0) {
     /* Error or EOF */
-    ASSERT (uv_last_error(loop).code == UV_EOF);
+    ASSERT(nread == UV_EOF);
 
     if (buf.base) {
       free(buf.base);
@@ -142,8 +140,7 @@ static void on_connection(uv_stream_t* server, int status) {
   int r;
 
   if (status != 0) {
-    fprintf(stderr, "Connect error %d\n",
-        uv_last_error(loop).code);
+    fprintf(stderr, "Connect error %s\n", uv_err_name(status));
   }
   ASSERT(status == 0);
 
@@ -235,8 +232,7 @@ static int tcp4_echo_start(int port) {
   r = uv_listen((uv_stream_t*)&tcpServer, SOMAXCONN, on_connection);
   if (r) {
     /* TODO: Error codes */
-    fprintf(stderr, "Listen error %s\n",
-        uv_err_name(uv_last_error(loop)));
+    fprintf(stderr, "Listen error %s\n", uv_err_name(r));
     return 1;
   }
 
@@ -285,15 +281,13 @@ static int udp4_echo_start(int port) {
 
   r = uv_udp_init(loop, &udpServer);
   if (r) {
-    fprintf(stderr, "uv_udp_init: %s\n",
-        uv_strerror(uv_last_error(loop)));
+    fprintf(stderr, "uv_udp_init: %s\n", uv_strerror(r));
     return 1;
   }
 
   r = uv_udp_recv_start(&udpServer, echo_alloc, on_recv);
   if (r) {
-    fprintf(stderr, "uv_udp_recv_start: %s\n",
-        uv_strerror(uv_last_error(loop)));
+    fprintf(stderr, "uv_udp_recv_start: %s\n", uv_strerror(r));
     return 1;
   }
 
@@ -317,22 +311,19 @@ static int pipe_echo_start(char* pipeName) {
 
   r = uv_pipe_init(loop, &pipeServer, 0);
   if (r) {
-    fprintf(stderr, "uv_pipe_init: %s\n",
-        uv_strerror(uv_last_error(loop)));
+    fprintf(stderr, "uv_pipe_init: %s\n", uv_strerror(r));
     return 1;
   }
 
   r = uv_pipe_bind(&pipeServer, pipeName);
   if (r) {
-    fprintf(stderr, "uv_pipe_bind: %s\n",
-        uv_strerror(uv_last_error(loop)));
+    fprintf(stderr, "uv_pipe_bind: %s\n", uv_strerror(r));
     return 1;
   }
 
   r = uv_listen((uv_stream_t*)&pipeServer, SOMAXCONN, on_connection);
   if (r) {
-    fprintf(stderr, "uv_pipe_listen: %s\n",
-        uv_strerror(uv_last_error(loop)));
+    fprintf(stderr, "uv_pipe_listen: %s\n", uv_strerror(r));
     return 1;
   }
 

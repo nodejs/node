@@ -45,8 +45,10 @@ extern "C" {
 # define UV_EXTERN /* nothing */
 #endif
 
+#include "uv-errno.h"
+
 #if defined(_MSC_VER) && _MSC_VER < 1600
-# include "uv-private/stdint-msvc2008.h"
+# include "stdint-msvc2008.h"
 #else
 # include <stdint.h>
 #endif
@@ -59,80 +61,79 @@ extern "C" {
 
 #if defined(__unix__) || defined(__POSIX__) || \
     defined(__APPLE__) || defined(_AIX)
-# include "uv-private/uv-unix.h"
+# include "uv-unix.h"
 #else
-# include "uv-private/uv-win.h"
+# include "uv-win.h"
 #endif
 
 /* Expand this list if necessary. */
 #define UV_ERRNO_MAP(XX)                                                      \
-  XX( -1, UNKNOWN, "unknown error")                                           \
-  XX(  0, OK, "success")                                                      \
-  XX(  1, EOF, "end of file")                                                 \
-  XX(  2, EADDRINFO, "getaddrinfo error")                                     \
-  XX(  3, EACCES, "permission denied")                                        \
-  XX(  4, EAGAIN, "resource temporarily unavailable")                         \
-  XX(  5, EADDRINUSE, "address already in use")                               \
-  XX(  6, EADDRNOTAVAIL, "address not available")                             \
-  XX(  7, EAFNOSUPPORT, "address family not supported")                       \
-  XX(  8, EALREADY, "connection already in progress")                         \
-  XX(  9, EBADF, "bad file descriptor")                                       \
-  XX( 10, EBUSY, "resource busy or locked")                                   \
-  XX( 11, ECONNABORTED, "software caused connection abort")                   \
-  XX( 12, ECONNREFUSED, "connection refused")                                 \
-  XX( 13, ECONNRESET, "connection reset by peer")                             \
-  XX( 14, EDESTADDRREQ, "destination address required")                       \
-  XX( 15, EFAULT, "bad address in system call argument")                      \
-  XX( 16, EHOSTUNREACH, "host is unreachable")                                \
-  XX( 17, EINTR, "interrupted system call")                                   \
-  XX( 18, EINVAL, "invalid argument")                                         \
-  XX( 19, EISCONN, "socket is already connected")                             \
-  XX( 20, EMFILE, "too many open files")                                      \
-  XX( 21, EMSGSIZE, "message too long")                                       \
-  XX( 22, ENETDOWN, "network is down")                                        \
-  XX( 23, ENETUNREACH, "network is unreachable")                              \
-  XX( 24, ENFILE, "file table overflow")                                      \
-  XX( 25, ENOBUFS, "no buffer space available")                               \
-  XX( 26, ENOMEM, "not enough memory")                                        \
-  XX( 27, ENOTDIR, "not a directory")                                         \
-  XX( 28, EISDIR, "illegal operation on a directory")                         \
-  XX( 29, ENONET, "machine is not on the network")                            \
-  XX( 31, ENOTCONN, "socket is not connected")                                \
-  XX( 32, ENOTSOCK, "socket operation on non-socket")                         \
-  XX( 33, ENOTSUP, "operation not supported on socket")                       \
-  XX( 34, ENOENT, "no such file or directory")                                \
-  XX( 35, ENOSYS, "function not implemented")                                 \
-  XX( 36, EPIPE, "broken pipe")                                               \
-  XX( 37, EPROTO, "protocol error")                                           \
-  XX( 38, EPROTONOSUPPORT, "protocol not supported")                          \
-  XX( 39, EPROTOTYPE, "protocol wrong type for socket")                       \
-  XX( 40, ETIMEDOUT, "connection timed out")                                  \
-  XX( 41, ECHARSET, "invalid Unicode character")                              \
-  XX( 42, EAIFAMNOSUPPORT, "address family for hostname not supported")       \
-  XX( 44, EAISERVICE, "servname not supported for ai_socktype")               \
-  XX( 45, EAISOCKTYPE, "ai_socktype not supported")                           \
-  XX( 46, ESHUTDOWN, "cannot send after transport endpoint shutdown")         \
-  XX( 47, EEXIST, "file already exists")                                      \
-  XX( 48, ESRCH, "no such process")                                           \
-  XX( 49, ENAMETOOLONG, "name too long")                                      \
-  XX( 50, EPERM, "operation not permitted")                                   \
-  XX( 51, ELOOP, "too many symbolic links encountered")                       \
-  XX( 52, EXDEV, "cross-device link not permitted")                           \
-  XX( 53, ENOTEMPTY, "directory not empty")                                   \
-  XX( 54, ENOSPC, "no space left on device")                                  \
-  XX( 55, EIO, "i/o error")                                                   \
-  XX( 56, EROFS, "read-only file system")                                     \
-  XX( 57, ENODEV, "no such device")                                           \
-  XX( 58, ESPIPE, "invalid seek")                                             \
-  XX( 59, ECANCELED, "operation canceled")                                    \
-
-
-#define UV_ERRNO_GEN(val, name, s) UV_##name = val,
-typedef enum {
-  UV_ERRNO_MAP(UV_ERRNO_GEN)
-  UV_MAX_ERRORS
-} uv_err_code;
-#undef UV_ERRNO_GEN
+  XX(EACCES, "permission denied")                                             \
+  XX(EADDRINUSE, "address already in use")                                    \
+  XX(EADDRNOTAVAIL, "address not available")                                  \
+  XX(EAFNOSUPPORT, "address family not supported")                            \
+  XX(EAGAIN, "resource temporarily unavailable")                              \
+  XX(EAI_ADDRFAMILY, "address family not supported")                          \
+  XX(EAI_AGAIN, "temporary failure")                                          \
+  XX(EAI_BADFLAGS, "bad ai_flags value")                                      \
+  XX(EAI_CANCELED, "request canceled")                                        \
+  XX(EAI_FAIL, "permanent failure")                                           \
+  XX(EAI_FAMILY, "ai_family not supported")                                   \
+  XX(EAI_MEMORY, "out of memory")                                             \
+  XX(EAI_NODATA, "no address")                                                \
+  XX(EAI_NONAME, "unknown node or service")                                   \
+  XX(EAI_SERVICE, "service not available for socket type")                    \
+  XX(EAI_SOCKTYPE, "socket type not supported")                               \
+  XX(EAI_SYSTEM, "system error")                                              \
+  XX(EALREADY, "connection already in progress")                              \
+  XX(EBADF, "bad file descriptor")                                            \
+  XX(EBUSY, "resource busy or locked")                                        \
+  XX(ECANCELED, "operation canceled")                                         \
+  XX(ECHARSET, "invalid Unicode character")                                   \
+  XX(ECONNABORTED, "software caused connection abort")                        \
+  XX(ECONNREFUSED, "connection refused")                                      \
+  XX(ECONNRESET, "connection reset by peer")                                  \
+  XX(EDESTADDRREQ, "destination address required")                            \
+  XX(EEXIST, "file already exists")                                           \
+  XX(EFAULT, "bad address in system call argument")                           \
+  XX(EHOSTUNREACH, "host is unreachable")                                     \
+  XX(EINTR, "interrupted system call")                                        \
+  XX(EINVAL, "invalid argument")                                              \
+  XX(EIO, "i/o error")                                                        \
+  XX(EISCONN, "socket is already connected")                                  \
+  XX(EISDIR, "illegal operation on a directory")                              \
+  XX(ELOOP, "too many symbolic links encountered")                            \
+  XX(EMFILE, "too many open files")                                           \
+  XX(EMSGSIZE, "message too long")                                            \
+  XX(ENAMETOOLONG, "name too long")                                           \
+  XX(ENETDOWN, "network is down")                                             \
+  XX(ENETUNREACH, "network is unreachable")                                   \
+  XX(ENFILE, "file table overflow")                                           \
+  XX(ENOBUFS, "no buffer space available")                                    \
+  XX(ENODEV, "no such device")                                                \
+  XX(ENOENT, "no such file or directory")                                     \
+  XX(ENOMEM, "not enough memory")                                             \
+  XX(ENONET, "machine is not on the network")                                 \
+  XX(ENOSPC, "no space left on device")                                       \
+  XX(ENOSYS, "function not implemented")                                      \
+  XX(ENOTCONN, "socket is not connected")                                     \
+  XX(ENOTDIR, "not a directory")                                              \
+  XX(ENOTEMPTY, "directory not empty")                                        \
+  XX(ENOTSOCK, "socket operation on non-socket")                              \
+  XX(ENOTSUP, "operation not supported on socket")                            \
+  XX(EPERM, "operation not permitted")                                        \
+  XX(EPIPE, "broken pipe")                                                    \
+  XX(EPROTO, "protocol error")                                                \
+  XX(EPROTONOSUPPORT, "protocol not supported")                               \
+  XX(EPROTOTYPE, "protocol wrong type for socket")                            \
+  XX(EROFS, "read-only file system")                                          \
+  XX(ESHUTDOWN, "cannot send after transport endpoint shutdown")              \
+  XX(ESPIPE, "invalid seek")                                                  \
+  XX(ESRCH, "no such process")                                                \
+  XX(ETIMEDOUT, "connection timed out")                                       \
+  XX(EXDEV, "cross-device link not permitted")                                \
+  XX(UNKNOWN, "unknown error")                                                \
+  XX(EOF, "end of file")                                                      \
 
 #define UV_HANDLE_TYPE_MAP(XX)                                                \
   XX(ASYNC, async)                                                            \
@@ -163,6 +164,13 @@ typedef enum {
   XX(GETADDRINFO, getaddrinfo)                                                \
 
 typedef enum {
+#define XX(code, _) UV_ ## code = UV__ ## code,
+  UV_ERRNO_MAP(XX)
+#undef XX
+  UV_ERRNO_MAX = UV__EOF - 1
+} uv_errno_t;
+
+typedef enum {
   UV_UNKNOWN_HANDLE = 0,
 #define XX(uc, lc) UV_##uc,
   UV_HANDLE_TYPE_MAP(XX)
@@ -183,7 +191,6 @@ typedef enum {
 
 /* Handle types. */
 typedef struct uv_loop_s uv_loop_t;
-typedef struct uv_err_s uv_err_t;
 typedef struct uv_handle_s uv_handle_t;
 typedef struct uv_stream_s uv_stream_t;
 typedef struct uv_tcp_s uv_tcp_t;
@@ -339,11 +346,8 @@ UV_EXTERN int uv_backend_timeout(const uv_loop_t*);
 typedef uv_buf_t (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
 
 /*
- * `nread` is > 0 if there is data available, 0 if libuv is done reading for now
- * or -1 on error.
- *
- * Error details can be obtained by calling uv_last_error(). UV_EOF indicates
- * that the stream has been closed.
+ * `nread` is > 0 if there is data available, 0 if libuv is done reading for
+ * now, or < 0 on error.
  *
  * The callee is responsible for closing the stream when an error happens.
  * Trying to read from the stream again is undefined.
@@ -400,9 +404,12 @@ typedef struct {
   uint64_t st_size;
   uint64_t st_blksize;
   uint64_t st_blocks;
+  uint64_t st_flags;
+  uint64_t st_gen;
   uv_timespec_t st_atim;
   uv_timespec_t st_mtim;
   uv_timespec_t st_ctim;
+  uv_timespec_t st_birthtim;
 } uv_stat_t;
 
 
@@ -429,22 +436,11 @@ typedef enum {
 } uv_membership;
 
 
-struct uv_err_s {
-  /* read-only */
-  uv_err_code code;
-  /* private */
-  int sys_errno_;
-};
-
-
 /*
- * Most functions return boolean: 0 for success and -1 for failure.
- * On error the user should then call uv_last_error() to determine
- * the error code.
+ * Most functions return 0 on success or an error code < 0 on failure.
  */
-UV_EXTERN uv_err_t uv_last_error(uv_loop_t*);
-UV_EXTERN const char* uv_strerror(uv_err_t err);
-UV_EXTERN const char* uv_err_name(uv_err_t err);
+UV_EXTERN const char* uv_strerror(int err);
+UV_EXTERN const char* uv_err_name(int err);
 
 
 #define UV_REQ_FIELDS                                                         \
@@ -534,8 +530,7 @@ UV_EXTERN void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg);
  * It gives you a chance to free up any resources associated with the handle.
  *
  * In-progress requests, like uv_connect_t or uv_write_t, are cancelled and
- * have their callbacks called asynchronously with status=-1 and the error code
- * set to UV_ECANCELED.
+ * have their callbacks called asynchronously with status=UV_ECANCELED.
  */
 UV_EXTERN void uv_close(uv_handle_t* handle, uv_close_cb close_cb);
 
@@ -604,9 +599,11 @@ UV_EXTERN int uv_accept(uv_stream_t* server, uv_stream_t* client);
 /*
  * Read data from an incoming stream. The callback will be made several
  * times until there is no more data to read or uv_read_stop is called.
- * When we've reached EOF nread will be set to -1 and the error is set
- * to UV_EOF. When nread == -1 the buf parameter might not point to a
- * valid buffer; in that case buf.len and buf.base are both set to 0.
+ * When we've reached EOF nread will be set to UV_EOF.
+ *
+ * When nread < 0, the buf parameter might not point to a valid buffer;
+ * in that case buf.len and buf.base are both set to 0.
+ *
  * Note that nread might also be 0, which does *not* indicate an error or
  * eof; it happens when libuv requested a buffer through the alloc callback
  * but then decided that it didn't need that buffer.
@@ -804,7 +801,7 @@ typedef void (*uv_udp_send_cb)(uv_udp_send_t* req, int status);
  *  nread   Number of bytes that have been received.
  *          0 if there is no more data to read. You may
  *          discard or repurpose the read buffer.
- *          -1 if a transmission error was detected.
+ *          < 0 if a transmission error was detected.
  *  buf     uv_buf_t with the received data.
  *  addr    struct sockaddr_in or struct sockaddr_in6.
  *          Valid for the duration of the callback only.
@@ -854,7 +851,7 @@ UV_EXTERN int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock);
  *  flags     Unused.
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr,
     unsigned flags);
@@ -868,10 +865,11 @@ UV_EXTERN int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr,
  *  flags     Should be 0 or UV_UDP_IPV6ONLY.
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr,
     unsigned flags);
+
 UV_EXTERN int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name,
     int* namelen);
 
@@ -886,7 +884,7 @@ UV_EXTERN int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name,
  *  membership          Should be UV_JOIN_GROUP or UV_LEAVE_GROUP
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_set_membership(uv_udp_t* handle,
     const char* multicast_addr, const char* interface_addr,
@@ -902,7 +900,7 @@ UV_EXTERN int uv_udp_set_membership(uv_udp_t* handle,
  *  on                  1 for on, 0 for off
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_set_multicast_loop(uv_udp_t* handle, int on);
 
@@ -915,7 +913,7 @@ UV_EXTERN int uv_udp_set_multicast_loop(uv_udp_t* handle, int on);
  *  ttl                 1 through 255
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl);
 
@@ -928,7 +926,7 @@ UV_EXTERN int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl);
  *  on                  1 for on, 0 for off
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_set_broadcast(uv_udp_t* handle, int on);
 
@@ -941,7 +939,7 @@ UV_EXTERN int uv_udp_set_broadcast(uv_udp_t* handle, int on);
  *  ttl                 1 through 255
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_set_ttl(uv_udp_t* handle, int ttl);
 
@@ -959,7 +957,7 @@ UV_EXTERN int uv_udp_set_ttl(uv_udp_t* handle, int ttl);
  *  send_cb   Callback to invoke when the data has been sent out.
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_send(uv_udp_send_t* req, uv_udp_t* handle,
     uv_buf_t bufs[], int bufcnt, struct sockaddr_in addr,
@@ -978,7 +976,7 @@ UV_EXTERN int uv_udp_send(uv_udp_send_t* req, uv_udp_t* handle,
  *  send_cb   Callback to invoke when the data has been sent out.
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_send6(uv_udp_send_t* req, uv_udp_t* handle,
     uv_buf_t bufs[], int bufcnt, struct sockaddr_in6 addr,
@@ -995,7 +993,7 @@ UV_EXTERN int uv_udp_send6(uv_udp_send_t* req, uv_udp_t* handle,
  *  recv_cb   Callback to invoke with received data.
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
     uv_udp_recv_cb recv_cb);
@@ -1007,7 +1005,7 @@ UV_EXTERN int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
  *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
  *
  * Returns:
- *  0 on success, -1 on error.
+ *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_recv_stop(uv_udp_t* handle);
 
@@ -1151,10 +1149,10 @@ UV_EXTERN int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
  * will be called with `status` set to 0, and the detected events set en the
  * `events` field.
  *
- * If an error happens while polling status may be set to -1 and the error
- * code can be retrieved with uv_last_error. The user should not close the
- * socket while uv_poll is active. If the user does that anyway, the callback
- * *may* be called reporting an error status, but this is not guaranteed.
+ * If an error happens while polling status, `status` < 0 and corresponds
+ * with one of the UV_E* error codes. The user should not close the socket
+ * while uv_poll is active. If the user does that anyway, the callback *may*
+ * be called reporting an error status, but this is not guaranteed.
  *
  * Calling uv_poll_start on an uv_poll watcher that is already active is fine.
  * Doing so will update the events mask that is being watched for.
@@ -1275,8 +1273,8 @@ UV_EXTERN int uv_timer_stop(uv_timer_t* handle);
 
 /*
  * Stop the timer, and if it is repeating restart it using the repeat value
- * as the timeout. If the timer has never been started before it returns -1 and
- * sets the error to UV_EINVAL.
+ * as the timeout. If the timer has never been started before it returns
+ * UV_EINVAL.
  */
 UV_EXTERN int uv_timer_again(uv_timer_t* handle);
 
@@ -1312,15 +1310,13 @@ struct uv_getaddrinfo_s {
  * hints is a pointer to a struct addrinfo with additional address type
  * constraints, or NULL. Consult `man -s 3 getaddrinfo` for details.
  *
- * Returns 0 on success, -1 on error. Call uv_last_error() to get the error.
+ * Returns 0 on success or an error code < 0 on failure.
  *
  * If successful, your callback gets called sometime in the future with the
  * lookup result, which is either:
  *
- *  a) status == 0, the res argument points to a valid struct addrinfo, or
- *  b) status == -1, the res argument is NULL.
- *
- * On NXDOMAIN, the status code is -1 and uv_last_error() returns UV_ENOENT.
+ *  a) err == 0, the res argument points to a valid struct addrinfo, or
+ *  b) err < 0, the res argument is NULL. See the UV_EAI_* constants.
  *
  * Call uv_freeaddrinfo() to free the addrinfo structure.
  */
@@ -1335,6 +1331,7 @@ UV_EXTERN int uv_getaddrinfo(uv_loop_t* loop,
  * Free the struct addrinfo. Passing NULL is allowed and is a no-op.
  */
 UV_EXTERN void uv_freeaddrinfo(struct addrinfo* ai);
+
 
 /* uv_spawn() options */
 typedef enum {
@@ -1466,7 +1463,7 @@ UV_EXTERN int uv_process_kill(uv_process_t*, int signum);
 
 
 /* Kills the process with the specified signal. */
-UV_EXTERN uv_err_t uv_kill(int pid, int signum);
+UV_EXTERN int uv_kill(int pid, int signum);
 
 
 /*
@@ -1487,7 +1484,7 @@ UV_EXTERN int uv_queue_work(uv_loop_t* loop, uv_work_t* req,
 /* Cancel a pending request. Fails if the request is executing or has finished
  * executing.
  *
- * Returns 0 on success, -1 on error. The loop error code is not touched.
+ * Returns 0 on success, or an error code < 0 on failure.
  *
  * Only cancellation of uv_fs_t, uv_getaddrinfo_t and uv_work_t requests is
  * currently supported.
@@ -1498,13 +1495,13 @@ UV_EXTERN int uv_queue_work(uv_loop_t* loop, uv_work_t* req,
  *
  * Here is how cancellation is reported to your callback:
  *
- * - A uv_fs_t request has its req->errorno field set to UV_ECANCELED.
+ * - A uv_fs_t request has its req->result field set to UV_ECANCELED.
  *
  * - A uv_work_t or uv_getaddrinfo_t request has its callback invoked with
- *   status == -1 and uv_last_error(loop).code == UV_ECANCELED.
+ *   status == UV_ECANCELED.
  *
  * This function is currently only implemented on UNIX platforms. On Windows,
- * it always returns -1.
+ * it always returns UV_ENOSYS.
  */
 UV_EXTERN int uv_cancel(uv_req_t* req);
 
@@ -1535,23 +1532,23 @@ struct uv_interface_address_s {
 };
 
 UV_EXTERN char** uv_setup_args(int argc, char** argv);
-UV_EXTERN uv_err_t uv_get_process_title(char* buffer, size_t size);
-UV_EXTERN uv_err_t uv_set_process_title(const char* title);
-UV_EXTERN uv_err_t uv_resident_set_memory(size_t* rss);
-UV_EXTERN uv_err_t uv_uptime(double* uptime);
+UV_EXTERN int uv_get_process_title(char* buffer, size_t size);
+UV_EXTERN int uv_set_process_title(const char* title);
+UV_EXTERN int uv_resident_set_memory(size_t* rss);
+UV_EXTERN int uv_uptime(double* uptime);
 
 /*
  * This allocates cpu_infos array, and sets count.  The array
  * is freed using uv_free_cpu_info().
  */
-UV_EXTERN uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count);
+UV_EXTERN int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count);
 UV_EXTERN void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count);
 
 /*
  * This allocates addresses array, and sets count.  The array
  * is freed using uv_free_interface_addresses().
  */
-UV_EXTERN uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
+UV_EXTERN int uv_interface_addresses(uv_interface_address_t** addresses,
   int* count);
 UV_EXTERN void uv_free_interface_addresses(uv_interface_address_t* addresses,
   int count);
@@ -1609,7 +1606,6 @@ struct uv_fs_s {
   ssize_t result;
   void* ptr;
   const char* path;
-  uv_err_code errorno;
   uv_stat_t statbuf;  /* Stores the result of uv_fs_stat and uv_fs_fstat. */
   UV_FS_PRIVATE_FIELDS
 };
@@ -1731,7 +1727,7 @@ UV_EXTERN int uv_fs_poll_init(uv_loop_t* loop, uv_fs_poll_t* handle);
 /*
  * Check the file at `path` for changes every `interval` milliseconds.
  *
- * Your callback i invoked with `status == -1` if `path` does not exist
+ * Your callback is invoked with `status < 0` if `path` does not exist
  * or is inaccessible. The watcher is *not* stopped but your callback is
  * not called again until something changes (e.g. when the file is created
  * or the error reason changes).
@@ -1855,19 +1851,19 @@ UV_EXTERN int uv_ip4_name(struct sockaddr_in* src, char* dst, size_t size);
 UV_EXTERN int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size);
 
 /* Cross-platform IPv6-capable implementation of the 'standard' inet_ntop */
-/* and inet_pton functions. On success they return UV_OK. If an error */
+/* and inet_pton functions. On success they return 0. If an error */
 /* the target of the `dst` pointer is unmodified. */
-UV_EXTERN uv_err_t uv_inet_ntop(int af, const void* src, char* dst, size_t size);
-UV_EXTERN uv_err_t uv_inet_pton(int af, const char* src, void* dst);
+UV_EXTERN int uv_inet_ntop(int af, const void* src, char* dst, size_t size);
+UV_EXTERN int uv_inet_pton(int af, const char* src, void* dst);
 
 /* Gets the executable path */
 UV_EXTERN int uv_exepath(char* buffer, size_t* size);
 
 /* Gets the current working directory */
-UV_EXTERN uv_err_t uv_cwd(char* buffer, size_t size);
+UV_EXTERN int uv_cwd(char* buffer, size_t size);
 
 /* Changes the current working directory */
-UV_EXTERN uv_err_t uv_chdir(const char* dir);
+UV_EXTERN int uv_chdir(const char* dir);
 
 /* Gets memory info in bytes */
 UV_EXTERN uint64_t uv_get_free_memory(void);
@@ -1922,7 +1918,7 @@ UV_EXTERN int uv_dlsym(uv_lib_t* lib, const char* name, void** ptr);
 UV_EXTERN const char* uv_dlerror(uv_lib_t* lib);
 
 /*
- * The mutex functions return 0 on success, -1 on error
+ * The mutex functions return 0 on success or an error code < 0
  * (unless the return type is void, of course).
  */
 UV_EXTERN int uv_mutex_init(uv_mutex_t* handle);
@@ -1966,7 +1962,8 @@ UV_EXTERN void uv_cond_broadcast(uv_cond_t* cond);
  */
 UV_EXTERN void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex);
 /* Waits on a condition variable with a timeout in nano seconds.
- * Returns 0 for success or -1 on timeout, * aborts when other errors happen.
+ * Returns 0 for success or UV_ETIMEDOUT on timeout, It aborts when other
+ * errors happen.
  *
  * Note:
  * 1. callers should be prepared to deal with spurious wakeups.
@@ -2006,8 +2003,6 @@ union uv_any_req {
 struct uv_loop_s {
   /* User data - use this for whatever. */
   void* data;
-  /* The last error */
-  uv_err_t last_err;
   /* Loop reference counting */
   unsigned int active_handles;
   void* handle_queue[2];

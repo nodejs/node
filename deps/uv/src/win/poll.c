@@ -135,8 +135,7 @@ static int uv__fast_poll_cancel_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
   if (result == SOCKET_ERROR) {
     DWORD error = WSAGetLastError();
     if (error != WSA_IO_PENDING) {
-      uv__set_sys_error(loop, WSAGetLastError());
-      return -1;
+      return WSAGetLastError();
     }
   }
 
@@ -166,8 +165,7 @@ static void uv__fast_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
     DWORD error = GET_REQ_SOCK_ERROR(req);
     if (error != WSAEINTR && handle->events != 0) {
       handle->events = 0; /* Stop the watcher */
-      uv__set_sys_error(loop, error);
-      handle->poll_cb(handle, -1, 0);
+      handle->poll_cb(handle, uv_translate_sys_error(error), 0);
     }
 
   } else if (afd_poll_info->NumberOfHandles >= 1) {
@@ -228,17 +226,18 @@ static int uv__fast_poll_set(uv_loop_t* loop, uv_poll_t* handle, int events) {
 }
 
 
-static void uv__fast_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
+static int uv__fast_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
   handle->events = 0;
   uv__handle_closing(handle);
 
   if (handle->submitted_events_1 == 0 &&
       handle->submitted_events_2 == 0) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
+    return 0;
   } else {
     /* Cancel outstanding poll requests by executing another, unique poll */
     /* request that forces the outstanding ones to return. */
-    uv__fast_poll_cancel_poll_req(loop, handle);
+    return uv__fast_poll_cancel_poll_req(loop, handle);
   }
 }
 
@@ -409,6 +408,8 @@ static void uv__slow_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
 static void uv__slow_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
     uv_req_t* req) {
   unsigned char mask_events;
+  int err;
+
   if (req == &handle->poll_req_1) {
     handle->submitted_events_1 = 0;
     mask_events = handle->mask_events_1;
@@ -422,9 +423,9 @@ static void uv__slow_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
   if (!REQ_SUCCESS(req)) {
     /* Error. */
     if (handle->events != 0) {
+      err = GET_REQ_ERROR(req);
       handle->events = 0; /* Stop the watcher */
-      uv__set_sys_error(loop, GET_REQ_ERROR(req));
-      handle->poll_cb(handle, -1, 0);
+      handle->poll_cb(handle, uv_translate_sys_error(err), 0);
     }
   } else {
     /* Got some events. */
@@ -467,7 +468,7 @@ static int uv__slow_poll_set(uv_loop_t* loop, uv_poll_t* handle, int events) {
 }
 
 
-static void uv__slow_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
+static int uv__slow_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
   handle->events = 0;
   uv__handle_closing(handle);
 
@@ -475,6 +476,8 @@ static void uv__slow_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
       handle->submitted_events_2 == 0) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
   }
+
+  return 0;
 }
 
 
@@ -522,8 +525,7 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
                  SO_PROTOCOL_INFOW,
                  (char*) &protocol_info,
                  &len) != 0) {
-    uv__set_sys_error(loop, WSAGetLastError());
-    return -1;
+    return WSAGetLastError();
   }
 
   /* Get the peer socket that is needed to enable fast poll. If the returned */
@@ -555,12 +557,16 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
 
 
 int uv_poll_start(uv_poll_t* handle, int events, uv_poll_cb cb) {
+  int err;
+
   if (!(handle->flags & UV_HANDLE_POLL_SLOW)) {
-    if (uv__fast_poll_set(handle->loop, handle, events) < 0)
-      return -1;
+    err = uv__fast_poll_set(handle->loop, handle, events);
   } else {
-    if (uv__slow_poll_set(handle->loop, handle, events) < 0)
-      return -1;
+    err = uv__slow_poll_set(handle->loop, handle, events);
+  }
+
+  if (err) {
+    return uv_translate_sys_error(err);
   }
 
   handle->poll_cb = cb;
@@ -570,11 +576,15 @@ int uv_poll_start(uv_poll_t* handle, int events, uv_poll_cb cb) {
 
 
 int uv_poll_stop(uv_poll_t* handle) {
+  int err;
+
   if (!(handle->flags & UV_HANDLE_POLL_SLOW)) {
-    return uv__fast_poll_set(handle->loop, handle, 0);
+    err = uv__fast_poll_set(handle->loop, handle, 0);
   } else {
-    return uv__slow_poll_set(handle->loop, handle, 0);
+    err = uv__slow_poll_set(handle->loop, handle, 0);
   }
+
+  return uv_translate_sys_error(err);
 }
 
 
@@ -587,11 +597,11 @@ void uv_process_poll_req(uv_loop_t* loop, uv_poll_t* handle, uv_req_t* req) {
 }
 
 
-void uv_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
+int uv_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
   if (!(handle->flags & UV_HANDLE_POLL_SLOW)) {
-    uv__fast_poll_close(loop, handle);
+    return uv__fast_poll_close(loop, handle);
   } else {
-    uv__slow_poll_close(loop, handle);
+    return uv__slow_poll_close(loop, handle);
   }
 }
 

@@ -37,8 +37,7 @@ static void close_cb(uv_handle_t* handle) {
 
 
 static void connect_cb(uv_connect_t* req, int status) {
-  ASSERT(status == -1);
-  ASSERT(uv_last_error(req->handle->loop).code == UV_ECANCELED);
+  ASSERT(status == UV_ECANCELED);
   uv_timer_stop(&timer2_handle);
   connect_cb_called++;
 }

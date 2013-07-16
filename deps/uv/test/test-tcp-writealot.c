@@ -83,7 +83,7 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
     bytes_received_done += nread;
   }
   else {
-    ASSERT(uv_last_error(uv_default_loop()).code == UV_EOF);
+    ASSERT(nread == UV_EOF);
     printf("GOT EOF\n");
     uv_close((uv_handle_t*)tcp, close_cb);
   }
@@ -96,8 +96,7 @@ static void write_cb(uv_write_t* req, int status) {
   ASSERT(req != NULL);
 
   if (status) {
-    uv_err_t err = uv_last_error(uv_default_loop());
-    fprintf(stderr, "uv_write error: %s\n", uv_strerror(err));
+    fprintf(stderr, "uv_write error: %s\n", uv_strerror(status));
     ASSERT(0);
   }
 

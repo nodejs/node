@@ -130,7 +130,7 @@ static void pinger_read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
   pinger = (pinger_t*)tcp->data;
 
   if (nread < 0) {
-    ASSERT(uv_last_error(loop).code == UV_EOF);
+    ASSERT(nread == UV_EOF);
 
     if (buf.base) {
       buf_free(buf);

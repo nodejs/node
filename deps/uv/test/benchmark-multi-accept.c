@@ -302,8 +302,7 @@ static uv_buf_t sv_alloc_cb(uv_handle_t* handle, size_t suggested_size) {
 
 
 static void sv_read_cb(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
-  ASSERT(nread == -1);
-  ASSERT(uv_last_error(handle->loop).code == UV_EOF);
+  ASSERT(nread == UV_EOF);
   uv_close((uv_handle_t*) handle, (uv_close_cb) free);
 }
 

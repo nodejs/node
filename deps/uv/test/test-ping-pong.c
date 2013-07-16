@@ -92,7 +92,7 @@ static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
   pinger = (pinger_t*)stream->data;
 
   if (nread < 0) {
-    ASSERT(uv_last_error(uv_default_loop()).code == UV_EOF);
+    ASSERT(nread == UV_EOF);
 
     puts("got EOF");
     free(buf.base);

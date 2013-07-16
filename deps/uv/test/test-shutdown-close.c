@@ -37,9 +37,8 @@ static int close_cb_called = 0;
 
 
 static void shutdown_cb(uv_shutdown_t* req, int status) {
-  int err = uv_last_error(uv_default_loop()).code;
   ASSERT(req == &shutdown_req);
-  ASSERT(status == 0 || (status == -1 && err == UV_ECANCELED));
+  ASSERT(status == 0 || status == UV_ECANCELED);
   shutdown_cb_called++;
 }
 

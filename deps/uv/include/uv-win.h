@@ -39,7 +39,7 @@ typedef intptr_t ssize_t;
 #include <sys/stat.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
-# include "uv-private/stdint-msvc2008.h"
+# include "stdint-msvc2008.h"
 #else
 # include <stdint.h>
 #endif
@@ -529,7 +529,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
     UV_REQ_FIELDS                                                             \
   } exit_req;                                                                 \
   BYTE* child_stdio_buffer;                                                   \
-  uv_err_t spawn_error;                                                       \
+  int spawn_error;                                                            \
   int exit_signal;                                                            \
   HANDLE wait_handle;                                                         \
   HANDLE process_handle;                                                      \
@@ -582,3 +582,5 @@ int uv_utf16_to_utf8(const WCHAR* utf16Buffer, size_t utf16Size,
     char* utf8Buffer, size_t utf8Size);
 int uv_utf8_to_utf16(const char* utf8Buffer, WCHAR* utf16Buffer,
     size_t utf16Size);
+
+#define UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS

@@ -182,7 +182,7 @@ static int uv__work_cancel(uv_loop_t* loop, uv_req_t* req, struct uv__work* w) {
   uv_mutex_unlock(&mutex);
 
   if (!cancelled)
-    return -1;
+    return -EBUSY;
 
   w->work = uv__cancelled;
   uv_mutex_lock(&loop->wq_mutex);
@@ -216,7 +216,7 @@ void uv__work_done(uv_async_t* handle, int status) {
     QUEUE_REMOVE(q);
 
     w = container_of(q, struct uv__work, wq);
-    err = (w->work == uv__cancelled) ? -UV_ECANCELED : 0;
+    err = (w->work == uv__cancelled) ? -ECANCELED : 0;
     w->done(w, err);
   }
 }
@@ -229,7 +229,7 @@ static void uv__queue_work(struct uv__work* w) {
 }
 
 
-static void uv__queue_done(struct uv__work* w, int status) {
+static void uv__queue_done(struct uv__work* w, int err) {
   uv_work_t* req;
 
   req = container_of(w, uv_work_t, work_req);
@@ -238,10 +238,7 @@ static void uv__queue_done(struct uv__work* w, int status) {
   if (req->after_work_cb == NULL)
     return;
 
-  if (status == -UV_ECANCELED)
-    uv__set_artificial_error(req->loop, UV_ECANCELED);
-
-  req->after_work_cb(req, status ? -1 : 0);
+  req->after_work_cb(req, err);
 }
 
 
@@ -250,7 +247,7 @@ int uv_queue_work(uv_loop_t* loop,
                   uv_work_cb work_cb,
                   uv_after_work_cb after_work_cb) {
   if (work_cb == NULL)
-    return uv__set_artificial_error(loop, UV_EINVAL);
+    return -EINVAL;
 
   uv__req_init(loop, req, UV_WORK);
   req->loop = loop;
@@ -279,7 +276,7 @@ int uv_cancel(uv_req_t* req) {
     wreq = &((uv_work_t*) req)->work_req;
     break;
   default:
-    return -1;
+    return -EINVAL;
   }
 
   return uv__work_cancel(loop, req, wreq);

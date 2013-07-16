@@ -57,8 +57,7 @@ TEST_IMPL(udp_options) {
 
   for (i = 0; i < (int) ARRAY_SIZE(invalid_ttls); i++) {
     r = uv_udp_set_ttl(&h, invalid_ttls[i]);
-    ASSERT(r == -1);
-    ASSERT(uv_last_error(loop).code == UV_EINVAL);
+    ASSERT(r == UV_EINVAL);
   }
 
   r = uv_udp_set_multicast_loop(&h, 1);
@@ -75,8 +74,7 @@ TEST_IMPL(udp_options) {
 
   /* anything >255 should fail */
   r = uv_udp_set_multicast_ttl(&h, 256);
-  ASSERT(r == -1);
-  ASSERT(uv_last_error(loop).code == UV_EINVAL);
+  ASSERT(r == UV_EINVAL);
   /* don't test ttl=-1, it's a valid value on some platforms */
 
   r = uv_run(loop, UV_RUN_DEFAULT);

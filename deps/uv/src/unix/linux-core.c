@@ -86,7 +86,7 @@ int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
   loop->inotify_watchers = NULL;
 
   if (fd == -1)
-    return -1;
+    return -errno;
 
   return 0;
 }
@@ -263,12 +263,13 @@ void uv_loadavg(double avg[3]) {
 int uv_exepath(char* buffer, size_t* size) {
   ssize_t n;
 
-  if (!buffer || !size) {
-    return -1;
-  }
+  if (buffer == NULL || size == NULL)
+    return -EINVAL;
 
   n = readlink("/proc/self/exe", buffer, *size - 1);
-  if (n <= 0) return -1;
+  if (n == -1)
+    return -errno;
+
   buffer[n] = '\0';
   *size = n;
 
@@ -286,7 +287,7 @@ uint64_t uv_get_total_memory(void) {
 }
 
 
-uv_err_t uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t* rss) {
   char buf[1024];
   const char* s;
   ssize_t n;
@@ -299,7 +300,7 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
   while (fd == -1 && errno == EINTR);
 
   if (fd == -1)
-    return uv__new_sys_error(errno);
+    return -errno;
 
   do
     n = read(fd, buf, sizeof(buf) - 1);
@@ -307,7 +308,7 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
 
   SAVE_ERRNO(close(fd));
   if (n == -1)
-    return uv__new_sys_error(errno);
+    return -errno;
   buf[n] = '\0';
 
   s = strchr(buf, ' ');
@@ -336,14 +337,14 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
     goto err;
 
   *rss = val * getpagesize();
-  return uv_ok_;
+  return 0;
 
 err:
-  return uv__new_artificial_error(UV_EINVAL);
+  return -EINVAL;
 }
 
 
-uv_err_t uv_uptime(double* uptime) {
+int uv_uptime(double* uptime) {
   static volatile int no_clock_boottime;
   struct timespec now;
   int r;
@@ -361,17 +362,18 @@ uv_err_t uv_uptime(double* uptime) {
   }
 
   if (r)
-    return uv__new_sys_error(errno);
+    return -errno;
 
   *uptime = now.tv_sec;
   *uptime += (double)now.tv_nsec / 1000000000.0;
-  return uv_ok_;
+  return 0;
 }
 
 
-uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   unsigned int numcpus;
   uv_cpu_info_t* ci;
+  int err;
 
   *cpu_infos = NULL;
   *count = 0;
@@ -382,16 +384,15 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   ci = calloc(numcpus, sizeof(*ci));
   if (ci == NULL)
-    return uv__new_sys_error(ENOMEM);
+    return -ENOMEM;
 
-  if (read_models(numcpus, ci)) {
-    SAVE_ERRNO(uv_free_cpu_info(ci, numcpus));
-    return uv__new_sys_error(errno);
-  }
+  err = read_models(numcpus, ci);
+  if (err == 0)
+    err = read_times(numcpus, ci);
 
-  if (read_times(numcpus, ci)) {
-    SAVE_ERRNO(uv_free_cpu_info(ci, numcpus));
-    return uv__new_sys_error(errno);
+  if (err) {
+    uv_free_cpu_info(ci, numcpus);
+    return err;
   }
 
   /* read_models() on x86 also reads the CPU speed from /proc/cpuinfo.
@@ -403,7 +404,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   *cpu_infos = ci;
   *count = numcpus;
 
-  return uv_ok_;
+  return 0;
 }
 
 
@@ -447,7 +448,7 @@ static int read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
     defined(__x86_64__)
   fp = fopen("/proc/cpuinfo", "r");
   if (fp == NULL)
-    return -1;
+    return -errno;
 
   while (fgets(buf, sizeof(buf), fp)) {
     if (model_idx < numcpus) {
@@ -456,7 +457,7 @@ static int read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
         model = strndup(model, strlen(model) - 1);  /* Strip newline. */
         if (model == NULL) {
           fclose(fp);
-          return -1;
+          return -ENOMEM;
         }
         ci[model_idx++].model = model;
         continue;
@@ -475,7 +476,7 @@ static int read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
         model = strndup(model, strlen(model) - 1);  /* Strip newline. */
         if (model == NULL) {
           fclose(fp);
-          return -1;
+          return -ENOMEM;
         }
         ci[model_idx++].model = model;
         continue;
@@ -505,7 +506,7 @@ static int read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
   while (model_idx < numcpus) {
     model = strndup(inferred_model, strlen(inferred_model));
     if (model == NULL)
-      return -1;
+      return -ENOMEM;
     ci[model_idx++].model = model;
   }
 
@@ -533,7 +534,7 @@ static int read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
 
   fp = fopen("/proc/stat", "r");
   if (fp == NULL)
-    return -1;
+    return -errno;
 
   if (!fgets(buf, sizeof(buf), fp))
     abort();
@@ -617,18 +618,17 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 }
 
 
-uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
+int uv_interface_addresses(uv_interface_address_t** addresses,
   int* count) {
 #ifndef HAVE_IFADDRS_H
-  return uv__new_artificial_error(UV_ENOSYS);
+  return -ENOSYS;
 #else
   struct ifaddrs *addrs, *ent;
   char ip[INET6_ADDRSTRLEN];
   uv_interface_address_t* address;
 
-  if (getifaddrs(&addrs) != 0) {
-    return uv__new_sys_error(errno);
-  }
+  if (getifaddrs(&addrs))
+    return -errno;
 
   *count = 0;
 
@@ -643,11 +643,9 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
     (*count)++;
   }
 
-  *addresses = (uv_interface_address_t*)
-    malloc(*count * sizeof(uv_interface_address_t));
-  if (!(*addresses)) {
-    return uv__new_artificial_error(UV_ENOMEM);
-  }
+  *addresses = malloc(*count * sizeof(**addresses));
+  if (!(*addresses))
+    return -ENOMEM;
 
   address = *addresses;
 
@@ -690,7 +688,7 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
 
   freeifaddrs(addrs);
 
-  return uv_ok_;
+  return 0;
 #endif
 }
 

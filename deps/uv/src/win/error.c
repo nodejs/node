@@ -63,9 +63,12 @@ void uv_fatal_error(const int errorno, const char* syscall) {
 }
 
 
-uv_err_code uv_translate_sys_error(int sys_errno) {
+int uv_translate_sys_error(int sys_errno) {
+  if (sys_errno <= 0) {
+    return sys_errno;  /* If < 0 then it's already a libuv error. */
+  }
+
   switch (sys_errno) {
-    case ERROR_SUCCESS:                     return UV_OK;
     case ERROR_NOACCESS:                    return UV_EACCES;
     case WSAEACCES:                         return UV_EACCES;
     case ERROR_ADDRESS_ALREADY_ASSOCIATED:  return UV_EADDRINUSE;
@@ -117,6 +120,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_OPEN_FAILED:                 return UV_EIO;
     case ERROR_SETMARK_DETECTED:            return UV_EIO;
     case ERROR_SIGNAL_REFUSED:              return UV_EIO;
+    case WSAEISCONN:                        return UV_EISCONN;
     case ERROR_CANT_RESOLVE_FILENAME:       return UV_ELOOP;
     case ERROR_TOO_MANY_OPEN_FILES:         return UV_EMFILE;
     case WSAEMFILE:                         return UV_EMFILE;
@@ -161,4 +165,3 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     default:                                return UV_UNKNOWN;
   }
 }
-

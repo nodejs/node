@@ -102,6 +102,7 @@ TEST_DECLARE   (timer_order)
 TEST_DECLARE   (timer_huge_timeout)
 TEST_DECLARE   (timer_huge_repeat)
 TEST_DECLARE   (timer_run_once)
+TEST_DECLARE   (timer_from_check)
 TEST_DECLARE   (idle_starvation)
 TEST_DECLARE   (loop_handles)
 TEST_DECLARE   (get_loadavg)
@@ -210,6 +211,7 @@ TEST_DECLARE   (dlerror)
 TEST_DECLARE   (poll_duplex)
 TEST_DECLARE   (poll_unidirectional)
 TEST_DECLARE   (poll_close)
+TEST_DECLARE   (ip6_addr_link_local)
 #ifdef _WIN32
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
 TEST_DECLARE   (argument_escaping)
@@ -352,6 +354,7 @@ TASK_LIST_START
   TEST_ENTRY  (timer_huge_timeout)
   TEST_ENTRY  (timer_huge_repeat)
   TEST_ENTRY  (timer_run_once)
+  TEST_ENTRY  (timer_from_check)
 
   TEST_ENTRY  (idle_starvation)
 
@@ -497,6 +500,7 @@ TASK_LIST_START
   TEST_ENTRY  (strlcpy)
   TEST_ENTRY  (strlcat)
   TEST_ENTRY  (dlerror)
+  TEST_ENTRY  (ip6_addr_link_local)
 #if 0
   /* These are for testing the test runner. */
   TEST_ENTRY  (fail_always)

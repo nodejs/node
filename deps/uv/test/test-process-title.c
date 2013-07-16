@@ -26,16 +26,16 @@
 
 static void set_title(const char* title) {
   char buffer[512];
-  uv_err_t err;
+  int err;
 
   err = uv_get_process_title(buffer, sizeof(buffer));
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
 
   err = uv_set_process_title(title);
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
 
   err = uv_get_process_title(buffer, sizeof(buffer));
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
 
   ASSERT(strcmp(buffer, title) == 0);
 }

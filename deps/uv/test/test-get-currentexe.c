@@ -54,10 +54,10 @@ TEST_IMPL(get_currentexe) {
   /* Negative tests */
   size = sizeof(buffer) / sizeof(buffer[0]);
   r = uv_exepath(NULL, &size);
-  ASSERT(r == -1);
+  ASSERT(r == UV_EINVAL);
 
   r = uv_exepath(buffer, NULL);
-  ASSERT(r == -1);
+  ASSERT(r == UV_EINVAL);
 
   return 0;
 }

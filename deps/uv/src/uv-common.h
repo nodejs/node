@@ -31,7 +31,7 @@
 #include <stddef.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
-# include "uv-private/stdint-msvc2008.h"
+# include "stdint-msvc2008.h"
 #else
 # include <stdint.h>
 #endif
@@ -68,15 +68,6 @@ enum {
 # define UV__HANDLE_REF       0x20
 # define UV__HANDLE_CLOSING   0x01
 #endif
-
-extern const uv_err_t uv_ok_;
-
-uv_err_code uv_translate_sys_error(int sys_errno);
-int uv__set_error(uv_loop_t* loop, uv_err_code code, int sys_error);
-int uv__set_sys_error(uv_loop_t* loop, int sys_error);
-int uv__set_artificial_error(uv_loop_t* loop, uv_err_code code);
-uv_err_t uv__new_sys_error(int sys_error);
-uv_err_t uv__new_artificial_error(uv_err_code code);
 
 int uv__tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr);
 int uv__tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr);
@@ -115,6 +106,7 @@ int uv__udp_recv_stop(uv_udp_t* handle);
 
 void uv__fs_poll_close(uv_fs_poll_t* handle);
 
+int uv__getaddrinfo_translate_error(int sys_err);    /* EAI_* error. */
 
 #define uv__has_active_reqs(loop)                                             \
   (QUEUE_EMPTY(&(loop)->active_reqs) == 0)

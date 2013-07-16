@@ -34,26 +34,17 @@
  * See https://github.com/joyent/libuv/issues/210
  */
 TEST_IMPL(error_message) {
-  uv_err_t e;
-
   /* Cop out. Can't do proper checks on systems with
    * i18n-ized error messages...
    */
-  e.code = 0, e.sys_errno_ = 0;
-
-  if (strcmp(uv_strerror(e), "Success") != 0) {
+  if (strcmp(uv_strerror(0), "Success") != 0) {
     printf("i18n error messages detected, skipping test.\n");
     return 0;
   }
 
-  e.code = UV_EINVAL, e.sys_errno_ = 0;
-  ASSERT(strstr(uv_strerror(e), "Success") == NULL);
-
-  e.code = UV_UNKNOWN, e.sys_errno_ = 0;
-  ASSERT(strcmp(uv_strerror(e), "Unknown error") == 0);
-
-  e.code = 1337, e.sys_errno_ = 0;
-  ASSERT(strcmp(uv_strerror(e), "Unknown error") == 0);
+  ASSERT(strstr(uv_strerror(UV_EINVAL), "Success") == NULL);
+  ASSERT(strcmp(uv_strerror(1337), "Unknown error") == 0);
+  ASSERT(strcmp(uv_strerror(-1337), "Unknown error") == 0);
 
   return 0;
 }

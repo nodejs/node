@@ -206,7 +206,7 @@ static void do_write(uv_stream_t* stream) {
 static void connect_cb(uv_connect_t* req, int status) {
   int i;
 
-  if (status) LOG(uv_strerror(uv_last_error(loop)));
+  if (status) LOG(uv_strerror(status));
   ASSERT(status == 0);
 
   write_sockets++;

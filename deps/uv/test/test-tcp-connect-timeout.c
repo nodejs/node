@@ -39,7 +39,7 @@ static void close_cb(uv_handle_t* handle);
 
 static void connect_cb(uv_connect_t* req, int status) {
   ASSERT(req == &connect_req);
-  ASSERT(status == -1);
+  ASSERT(status == UV_ECANCELED);
   connect_cb_called++;
 }
 

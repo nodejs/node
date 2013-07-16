@@ -109,8 +109,7 @@ static void on_connection(uv_stream_t* server, int status) {
   int r;
 
   if (status != 0) {
-    fprintf(stderr, "Connect error %d\n",
-        uv_last_error(loop).code);
+    fprintf(stderr, "Connect error %s\n", uv_err_name(status));
   }
   ASSERT(status == 0);
 
@@ -198,8 +197,7 @@ static int tcp_listener(void) {
 
   namelen = sizeof sockname;
   r = uv_tcp_getpeername(&tcpServer, &peername, &namelen);
-  ASSERT(r == -1);
-  ASSERT(uv_last_error(loop).code == UV_ENOTCONN);
+  ASSERT(r == UV_ENOTCONN);
   getpeernamecount++;
 
   return 0;

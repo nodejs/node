@@ -46,7 +46,7 @@ static void create_dir(uv_loop_t* loop, const char* name) {
   int r;
   uv_fs_t req;
   r = uv_fs_mkdir(loop, &req, name, 0755, NULL);
-  ASSERT(r == 0 || uv_last_error(loop).code == UV_EEXIST);
+  ASSERT(r == 0 || r == UV_EEXIST);
   uv_fs_req_cleanup(&req);
 }
 
@@ -57,7 +57,7 @@ static void create_file(uv_loop_t* loop, const char* name) {
 
   r = uv_fs_open(loop, &req, name, O_WRONLY | O_CREAT,
       S_IWUSR | S_IRUSR, NULL);
-  ASSERT(r != -1);
+  ASSERT(r >= 0);
   file = r;
   uv_fs_req_cleanup(&req);
   r = uv_fs_close(loop, &req, file, NULL);
@@ -71,16 +71,16 @@ static void touch_file(uv_loop_t* loop, const char* name) {
   uv_fs_t req;
 
   r = uv_fs_open(loop, &req, name, O_RDWR, 0, NULL);
-  ASSERT(r != -1);
+  ASSERT(r >= 0);
   file = r;
   uv_fs_req_cleanup(&req);
 
   r = uv_fs_write(loop, &req, file, "foo", 4, -1, NULL);
-  ASSERT(r != -1);
+  ASSERT(r >= 0);
   uv_fs_req_cleanup(&req);
 
   r = uv_fs_close(loop, &req, file, NULL);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
   uv_fs_req_cleanup(&req);
 }
 
@@ -188,11 +188,11 @@ TEST_IMPL(fs_event_watch_dir) {
   create_dir(loop, "watch_dir");
 
   r = uv_fs_event_init(loop, &fs_event, "watch_dir", fs_event_cb_dir, 0);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
   r = uv_timer_init(loop, &timer);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
   r = uv_timer_start(&timer, timer_cb_dir, 100, 0);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
@@ -222,11 +222,11 @@ TEST_IMPL(fs_event_watch_file) {
   create_file(loop, "watch_dir/file2");
 
   r = uv_fs_event_init(loop, &fs_event, "watch_dir/file2", fs_event_cb_file, 0);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
   r = uv_timer_init(loop, &timer);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
   r = uv_timer_start(&timer, timer_cb_file, 100, 100);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
@@ -275,7 +275,7 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
 
   r = uv_fs_event_init(loop, &fs_event, "watch_file",
     fs_event_cb_file_current_dir, 0);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
 
   r = uv_timer_init(loop, &timer);
   ASSERT(r == 0);
@@ -315,7 +315,7 @@ TEST_IMPL(fs_event_no_callback_after_close) {
                        "watch_dir/file1",
                        fs_event_cb_file,
                        0);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
 
   uv_close((uv_handle_t*)&fs_event, close_cb);
   touch_file(loop, "watch_dir/file1");
@@ -347,7 +347,7 @@ TEST_IMPL(fs_event_no_callback_on_close) {
                        "watch_dir/file1",
                        fs_event_cb_file,
                        0);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
 
   uv_close((uv_handle_t*)&fs_event, close_cb);
 

@@ -248,7 +248,7 @@ int uv__fsevents_init(uv_fs_event_t* handle) {
    */
   handle->cf_cb = malloc(sizeof(*handle->cf_cb));
   if (handle->cf_cb == NULL)
-    return uv__set_sys_error(handle->loop, ENOMEM);
+    return -ENOMEM;
 
   handle->cf_cb->data = handle;
   uv_async_init(handle->loop, handle->cf_cb, uv__fsevents_cb);
@@ -267,7 +267,7 @@ int uv__fsevents_init(uv_fs_event_t* handle) {
 
 int uv__fsevents_close(uv_fs_event_t* handle) {
   if (handle->cf_eventstream == NULL)
-    return -1;
+    return -EINVAL;
 
   /* Ensure that event stream was scheduled */
   uv_sem_wait(&handle->cf_sem);

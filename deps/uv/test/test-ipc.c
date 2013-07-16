@@ -134,7 +134,6 @@ static void on_read(uv_pipe_t* pipe, ssize_t nread, uv_buf_t buf,
     uv_handle_type pending) {
   int r;
   uv_buf_t outbuf;
-  uv_err_t err;
 
   if (nread == 0) {
     /* Everything OK, but nothing read. */
@@ -143,13 +142,12 @@ static void on_read(uv_pipe_t* pipe, ssize_t nread, uv_buf_t buf,
   }
 
   if (nread < 0) {
-    err = uv_last_error(pipe->loop);
-    if (err.code == UV_EOF) {
+    if (nread == UV_EOF) {
       free(buf.base);
       return;
     }
 
-    printf("error recving on channel: %s\n", uv_strerror(err));
+    printf("error recving on channel: %s\n", uv_strerror(nread));
     abort();
   }
 
@@ -263,7 +261,6 @@ static void on_read_connection(uv_pipe_t* pipe, ssize_t nread, uv_buf_t buf,
     uv_handle_type pending) {
   int r;
   uv_buf_t outbuf;
-  uv_err_t err;
 
   if (nread == 0) {
     /* Everything OK, but nothing read. */
@@ -272,13 +269,12 @@ static void on_read_connection(uv_pipe_t* pipe, ssize_t nread, uv_buf_t buf,
   }
 
   if (nread < 0) {
-    err = uv_last_error(pipe->loop);
-    if (err.code == UV_EOF) {
+    if (nread == UV_EOF) {
       free(buf.base);
       return;
     }
 
-    printf("error recving on channel: %s\n", uv_strerror(err));
+    printf("error recving on channel: %s\n", uv_strerror(nread));
     abort();
   }
 
@@ -434,13 +430,12 @@ static void on_tcp_child_process_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t 
   int r;
 
   if (nread < 0) {
-    if (uv_last_error(tcp->loop).code == UV_EOF) {
+    if (nread == UV_EOF) {
       free(buf.base);
       return;
     }
 
-    printf("error recving on tcp connection: %s\n", 
-      uv_strerror(uv_last_error(tcp->loop)));
+    printf("error recving on tcp connection: %s\n", uv_strerror(nread));
     abort();
   }
 

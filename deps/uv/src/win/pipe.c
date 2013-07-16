@@ -157,11 +157,10 @@ static HANDLE open_named_pipe(WCHAR* name, DWORD* duplex_flags) {
 }
 
 
-uv_err_t uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
+int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
     char* name, size_t nameSize) {
   HANDLE pipeHandle;
-  int errorno;
-  uv_err_t err;
+  int err;
   char* ptr = (char*)handle;
 
   for (;;) {
@@ -177,9 +176,8 @@ uv_err_t uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
       break;
     }
 
-    errorno = GetLastError();
-    if (errorno != ERROR_PIPE_BUSY && errorno != ERROR_ACCESS_DENIED) {
-      err = uv__new_sys_error(errorno);
+    err = GetLastError();
+    if (err != ERROR_PIPE_BUSY && err != ERROR_ACCESS_DENIED) {
       goto error;
     }
 
@@ -191,14 +189,14 @@ uv_err_t uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
                              loop->iocp,
                              (ULONG_PTR)handle,
                              0) == NULL) {
-    err = uv__new_sys_error(GetLastError());
+    err = GetLastError();
     goto error;
   }
 
   uv_pipe_connection_init(handle);
   handle->handle = pipeHandle;
 
-  return uv_ok_;
+  return 0;
 
  error:
   if (pipeHandle != INVALID_HANDLE_VALUE) {
@@ -278,6 +276,7 @@ static DWORD WINAPI pipe_shutdown_thread_proc(void* parameter) {
 
 
 void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
+  int err;
   DWORD result;
   uv_shutdown_t* req;
   NTSTATUS nt_status;
@@ -297,8 +296,7 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
 
       /* Already closing. Cancel the shutdown. */
       if (req->cb) {
-        uv__set_artificial_error(loop, UV_ECANCELED);
-        req->cb(req, -1);
+        req->cb(req, UV_ECANCELED);
       }
 
       DECREASE_PENDING_REQ_COUNT(handle);
@@ -318,8 +316,8 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
 
       handle->flags |= UV_HANDLE_WRITABLE; /* Questionable */
       if (req->cb) {
-        uv__set_sys_error(loop, pRtlNtStatusToDosError(nt_status));
-        req->cb(req, -1);
+        err = pRtlNtStatusToDosError(nt_status);
+        req->cb(req, uv_translate_sys_error(err));
       }
 
       DECREASE_PENDING_REQ_COUNT(handle);
@@ -345,8 +343,8 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
 
       handle->flags |= UV_HANDLE_WRITABLE; /* Questionable */
       if (req->cb) {
-        uv__set_sys_error(loop, GetLastError());
-        req->cb(req, -1);
+        err = GetLastError();
+        req->cb(req, uv_translate_sys_error(err));
       }
 
       DECREASE_PENDING_REQ_COUNT(handle);
@@ -396,17 +394,15 @@ void uv_pipe_pending_instances(uv_pipe_t* handle, int count) {
 /* Creates a pipe server. */
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   uv_loop_t* loop = handle->loop;
-  int i, errorno, nameSize;
+  int i, err, nameSize;
   uv_pipe_accept_t* req;
 
   if (handle->flags & UV_HANDLE_BOUND) {
-    uv__set_sys_error(loop, WSAEINVAL);
-    return -1;
+    return UV_EINVAL;
   }
 
   if (!name) {
-    uv__set_sys_error(loop, WSAEINVAL);
-    return -1;
+    return UV_EINVAL;
   }
 
   if (!(handle->flags & UV_HANDLE_PIPESERVER)) {
@@ -436,8 +432,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   }
 
   if (!uv_utf8_to_utf16(name, handle->name, nameSize / sizeof(WCHAR))) {
-    uv__set_sys_error(loop, GetLastError());
-    return -1;
+    return uv_translate_sys_error(GetLastError());
   }
 
   /*
@@ -451,19 +446,17 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
       PIPE_UNLIMITED_INSTANCES, 65536, 65536, 0, NULL);
 
   if (handle->accept_reqs[0].pipeHandle == INVALID_HANDLE_VALUE) {
-    errorno = GetLastError();
-    if (errorno == ERROR_ACCESS_DENIED) {
-      uv__set_error(loop, UV_EADDRINUSE, errorno);
-    } else if (errorno == ERROR_PATH_NOT_FOUND || errorno == ERROR_INVALID_NAME) {
-      uv__set_error(loop, UV_EACCES, errorno);
-    } else {
-      uv__set_sys_error(loop, errorno);
+    err = GetLastError();
+    if (err == ERROR_ACCESS_DENIED) {
+      err = WSAEADDRINUSE;  /* Translates to UV_EADDRINUSE. */
+    } else if (err == ERROR_PATH_NOT_FOUND || err == ERROR_INVALID_NAME) {
+      err = WSAEACCES;  /* Translates to UV_EACCES. */
     }
     goto error;
   }
 
   if (uv_set_pipe_handle(loop, handle, handle->accept_reqs[0].pipeHandle, 0)) {
-    uv__set_sys_error(loop, GetLastError());
+    err = GetLastError();
     goto error;
   }
 
@@ -484,7 +477,7 @@ error:
     handle->accept_reqs[0].pipeHandle = INVALID_HANDLE_VALUE;
   }
 
-  return -1;
+  return uv_translate_sys_error(err);
 }
 
 
@@ -531,7 +524,7 @@ static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
 void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
     const char* name, uv_connect_cb cb) {
   uv_loop_t* loop = handle->loop;
-  int errorno, nameSize;
+  int err, nameSize;
   HANDLE pipeHandle = INVALID_HANDLE_VALUE;
   DWORD duplex_flags;
 
@@ -548,7 +541,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
   }
 
   if (!uv_utf8_to_utf16(name, handle->name, nameSize / sizeof(WCHAR))) {
-    errorno = GetLastError();
+    err = GetLastError();
     goto error;
   }
 
@@ -559,7 +552,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
       if (!QueueUserWorkItem(&pipe_connect_thread_proc,
                              req,
                              WT_EXECUTELONGFUNCTION)) {
-        errorno = GetLastError();
+        err = GetLastError();
         goto error;
       }
 
@@ -569,7 +562,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
       return;
     }
 
-    errorno = GetLastError();
+    err = GetLastError();
     goto error;
   }
 
@@ -579,7 +572,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
                          (uv_pipe_t*) req->handle,
                          pipeHandle,
                          duplex_flags)) {
-    errorno = GetLastError();
+    err = GetLastError();
     goto error;
   }
 
@@ -600,7 +593,7 @@ error:
   }
 
   /* Make this req pending reporting an error. */
-  SET_REQ_ERROR(req, errorno);
+  SET_REQ_ERROR(req, err);
   uv_insert_pending_req(loop, (uv_req_t*) req);
   handle->reqs_pending++;
   REGISTER_HANDLE_REQ(loop, handle, req);
@@ -725,8 +718,7 @@ int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
   if (server->ipc) {
     if (!server->pending_ipc_info.socket_info) {
       /* No valid pending sockets. */
-      uv__set_sys_error(loop, WSAEWOULDBLOCK);
-      return -1;
+      return WSAEWOULDBLOCK;
     }
 
     return uv_tcp_import((uv_tcp_t*)client, server->pending_ipc_info.socket_info,
@@ -740,8 +732,7 @@ int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
 
     if (!req) {
       /* No valid connections found, so we error out. */
-      uv__set_sys_error(loop, WSAEWOULDBLOCK);
-      return -1;
+      return WSAEWOULDBLOCK;
     }
 
     /* Initialize the client handle and copy the pipeHandle to the client */
@@ -773,18 +764,15 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
   }
 
   if (!(handle->flags & UV_HANDLE_BOUND)) {
-    uv__set_artificial_error(loop, UV_EINVAL);
-    return -1;
+    return WSAEINVAL;
   }
 
   if (handle->flags & UV_HANDLE_READING) {
-    uv__set_artificial_error(loop, UV_EISCONN);
-    return -1;
+    return WSAEISCONN;
   }
 
   if (!(handle->flags & UV_HANDLE_PIPESERVER)) {
-    uv__set_artificial_error(loop, UV_ENOTSUP);
-    return -1;
+    return ERROR_NOT_SUPPORTED;
   }
 
   handle->flags |= UV_HANDLE_LISTENING;
@@ -1044,22 +1032,21 @@ static void uv_queue_non_overlapped_write(uv_pipe_t* handle) {
 static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
     uv_pipe_t* handle, uv_buf_t bufs[], int bufcnt,
     uv_stream_t* send_handle, uv_write_cb cb) {
+  int err;
   int result;
   uv_tcp_t* tcp_send_handle;
   uv_write_t* ipc_header_req;
   uv_ipc_frame_uv_stream ipc_frame;
 
   if (bufcnt != 1 && (bufcnt != 0 || !send_handle)) {
-    uv__set_artificial_error(loop, UV_ENOTSUP);
-    return -1;
+    return ERROR_NOT_SUPPORTED;
   }
 
   /* Only TCP handles are supported for sharing. */
   if (send_handle && ((send_handle->type != UV_TCP) ||
       (!(send_handle->flags & UV_HANDLE_BOUND) &&
        !(send_handle->flags & UV_HANDLE_CONNECTION)))) {
-    uv__set_artificial_error(loop, UV_ENOTSUP);
-    return -1;
+    return ERROR_NOT_SUPPORTED;
   }
 
   assert(handle->handle != INVALID_HANDLE_VALUE);
@@ -1081,9 +1068,10 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
     if (send_handle) {
       tcp_send_handle = (uv_tcp_t*)send_handle;
 
-      if (uv_tcp_duplicate_socket(tcp_send_handle, handle->ipc_pid,
-          &ipc_frame.socket_info)) {
-        return -1;
+      err = uv_tcp_duplicate_socket(tcp_send_handle, handle->ipc_pid,
+          &ipc_frame.socket_info);
+      if (err) {
+        return err;
       }
       ipc_frame.header.flags |= UV_IPC_TCP_SERVER;
 
@@ -1142,18 +1130,18 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
                         NULL,
                         &ipc_header_req->overlapped);
     if (!result && GetLastError() != ERROR_IO_PENDING) {
-      uv__set_sys_error(loop, GetLastError());
+      err = GetLastError();
       CloseHandle(ipc_header_req->overlapped.hEvent);
-      return -1;
+      return err;
     }
 
     if (!result) {
       /* Request not completed immediately. Wait for it.*/
       if (WaitForSingleObject(ipc_header_req->overlapped.hEvent, INFINITE) !=
           WAIT_OBJECT_0) {
-        uv__set_sys_error(loop, GetLastError());
+        err = GetLastError();
         CloseHandle(ipc_header_req->overlapped.hEvent);
-        return -1;
+        return err;
       }
     }
     ipc_header_req->queued_bytes = 0;
@@ -1181,7 +1169,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
                        NULL);
 
     if (!result) {
-      return uv__set_sys_error(loop, GetLastError());
+      return err;
     } else {
       /* Request completed immediately. */
       req->queued_bytes = 0;
@@ -1216,9 +1204,9 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
                        &req->overlapped);
 
     if (!result && GetLastError() != ERROR_IO_PENDING) {
-      uv__set_sys_error(loop, GetLastError());
+      err = GetLastError();
       CloseHandle(req->overlapped.hEvent);
-      return -1;
+      return err;
     }
 
     if (result) {
@@ -1228,9 +1216,9 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
       /* Request queued by the kernel. */
       if (WaitForSingleObject(ipc_header_req->overlapped.hEvent, INFINITE) !=
           WAIT_OBJECT_0) {
-        uv__set_sys_error(loop, GetLastError());
+        err = GetLastError();
         CloseHandle(ipc_header_req->overlapped.hEvent);
-        return -1;
+        return uv_translate_sys_error(err);
       }
     }
     CloseHandle(req->overlapped.hEvent);
@@ -1248,8 +1236,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
                        &req->overlapped);
 
     if (!result && GetLastError() != ERROR_IO_PENDING) {
-      uv__set_sys_error(loop, GetLastError());
-      return -1;
+      return GetLastError();
     }
 
     if (result) {
@@ -1269,8 +1256,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
       if (!RegisterWaitForSingleObject(&req->wait_handle,
           req->overlapped.hEvent, post_completion_write_wait, (void*) req,
           INFINITE, WT_EXECUTEINWAITTHREAD)) {
-        uv__set_sys_error(loop, GetLastError());
-        return -1;
+        return GetLastError();
       }
     }
   }
@@ -1292,8 +1278,7 @@ int uv_pipe_write(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
 int uv_pipe_write2(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
     uv_buf_t bufs[], int bufcnt, uv_stream_t* send_handle, uv_write_cb cb) {
   if (!handle->ipc) {
-    uv__set_artificial_error(loop, UV_EINVAL);
-    return -1;
+    return WSAEINVAL;
   }
 
   return uv_pipe_write_impl(loop, req, handle, bufs, bufcnt, send_handle, cb);
@@ -1309,11 +1294,10 @@ static void uv_pipe_read_eof(uv_loop_t* loop, uv_pipe_t* handle,
   handle->flags &= ~UV_HANDLE_READABLE;
   uv_read_stop((uv_stream_t*) handle);
 
-  uv__set_artificial_error(loop, UV_EOF);
   if (handle->read2_cb) {
-    handle->read2_cb(handle, -1, uv_null_buf_, UV_UNKNOWN_HANDLE);
+    handle->read2_cb(handle, UV_EOF, uv_null_buf_, UV_UNKNOWN_HANDLE);
   } else {
-    handle->read_cb((uv_stream_t*) handle, -1, uv_null_buf_);
+    handle->read_cb((uv_stream_t*) handle, UV_EOF, uv_null_buf_);
   }
 }
 
@@ -1326,11 +1310,13 @@ static void uv_pipe_read_error(uv_loop_t* loop, uv_pipe_t* handle, int error,
 
   uv_read_stop((uv_stream_t*) handle);
 
-  uv__set_sys_error(loop, error);
   if (handle->read2_cb) {
-    handle->read2_cb(handle, -1, buf, UV_UNKNOWN_HANDLE);
+    handle->read2_cb(handle,
+                     uv_translate_sys_error(error),
+                     buf,
+                     UV_UNKNOWN_HANDLE);
   } else {
-    handle->read_cb((uv_stream_t*)handle, -1, buf);
+    handle->read_cb((uv_stream_t*)handle, uv_translate_sys_error(error), buf);
   }
 }
 
@@ -1493,6 +1479,8 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
 
 void uv_process_pipe_write_req(uv_loop_t* loop, uv_pipe_t* handle,
     uv_write_t* req) {
+  int err;
+
   assert(handle->type == UV_NAMED_PIPE);
 
   assert(handle->write_queue_size >= req->queued_bytes);
@@ -1519,12 +1507,8 @@ void uv_process_pipe_write_req(uv_loop_t* loop, uv_pipe_t* handle,
     }
   } else {
     if (req->cb) {
-      if (!REQ_SUCCESS(req)) {
-        uv__set_sys_error(loop, GET_REQ_ERROR(req));
-        ((uv_write_cb)req->cb)(req, -1);
-      } else {
-        ((uv_write_cb)req->cb)(req, 0);
-      }
+      err = GET_REQ_ERROR(req);
+      req->cb(req, uv_translate_sys_error(err));
     }
   }
 
@@ -1575,18 +1559,20 @@ void uv_process_pipe_accept_req(uv_loop_t* loop, uv_pipe_t* handle,
 
 void uv_process_pipe_connect_req(uv_loop_t* loop, uv_pipe_t* handle,
     uv_connect_t* req) {
+  int err;
+
   assert(handle->type == UV_NAMED_PIPE);
 
   UNREGISTER_HANDLE_REQ(loop, handle, req);
 
   if (req->cb) {
+    err = 0;
     if (REQ_SUCCESS(req)) {
       uv_pipe_connection_init(handle);
-      ((uv_connect_cb)req->cb)(req, 0);
     } else {
-      uv__set_sys_error(loop, GET_REQ_ERROR(req));
-      ((uv_connect_cb)req->cb)(req, -1);
+      err = GET_REQ_ERROR(req);
     }
+    req->cb(req, uv_translate_sys_error(err));
   }
 
   DECREASE_PENDING_REQ_COUNT(handle);
@@ -1710,8 +1696,7 @@ int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
 
   if (os_handle == INVALID_HANDLE_VALUE ||
       uv_set_pipe_handle(pipe->loop, pipe, os_handle, 0) == -1) {
-    uv__set_sys_error(pipe->loop, WSAEINVAL);
-    return -1;
+    return UV_EINVAL;
   }
 
   uv_pipe_connection_init(pipe);

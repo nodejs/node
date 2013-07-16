@@ -61,18 +61,34 @@ static void exit_cb(uv_process_t* process, int exit_status, int term_signal) {
 }
 
 
-static void exit_cb_failure_expected(uv_process_t* process, int exit_status,
-    int term_signal) {
+static void expect(uv_process_t* process,
+                   int exit_status,
+                   int term_signal,
+                   int err) {
   printf("exit_cb\n");
   exit_cb_called++;
-  ASSERT(exit_status == -1);
+  ASSERT(exit_status == err);
   ASSERT(term_signal == 0);
   uv_close((uv_handle_t*)process, close_cb);
 }
 
 
+static void exit_cb_expect_enoent(uv_process_t* process,
+                                 int exit_status,
+                                 int term_signal) {
+  expect(process, exit_status, term_signal, UV_ENOENT);
+}
+
+
+static void exit_cb_expect_eperm(uv_process_t* process,
+                                 int exit_status,
+                                 int term_signal) {
+  expect(process, exit_status, term_signal, UV_EPERM);
+}
+
+
 static void kill_cb(uv_process_t* process, int exit_status, int term_signal) {
-  uv_err_t err;
+  int err;
 
   printf("exit_cb\n");
   exit_cb_called++;
@@ -90,7 +106,7 @@ static void kill_cb(uv_process_t* process, int exit_status, int term_signal) {
    * This process should be dead.
    */
   err = uv_kill(process->pid, 0);
-  ASSERT(err.code == UV_ESRCH);
+  ASSERT(err == UV_ESRCH);
 }
 
 static void detach_failure_cb(uv_process_t* process, int exit_status, int term_signal) {
@@ -107,12 +123,10 @@ static uv_buf_t on_alloc(uv_handle_t* handle, size_t suggested_size) {
 
 
 static void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
-  uv_err_t err = uv_last_error(uv_default_loop());
-
   if (nread > 0) {
     output_used += nread;
   } else if (nread < 0) {
-    ASSERT(err.code == UV_EOF);
+    ASSERT(nread == UV_EOF);
     uv_close((uv_handle_t*)tcp, close_cb);
   }
 }
@@ -146,12 +160,12 @@ static void timer_cb(uv_timer_t* handle, int status) {
 
 
 TEST_IMPL(spawn_fails) {
-  init_process_options("", exit_cb_failure_expected);
+  init_process_options("", exit_cb_expect_enoent);
   options.file = options.args[0] = "program-that-had-better-not-exist";
   ASSERT(0 == uv_spawn(uv_default_loop(), &process, options));
   ASSERT(0 != uv_is_active((uv_handle_t*)&process));
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
-  ASSERT(uv_last_error(uv_default_loop()).code == UV_ENOENT);
+  ASSERT(1 == exit_cb_called);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
@@ -430,7 +444,6 @@ TEST_IMPL(spawn_preserve_env) {
 
 TEST_IMPL(spawn_detached) {
   int r;
-  uv_err_t err;
 
   init_process_options("spawn_helper4", detach_failure_cb);
 
@@ -446,11 +459,11 @@ TEST_IMPL(spawn_detached) {
 
   ASSERT(exit_cb_called == 0);
 
-  err = uv_kill(process.pid, 0);
-  ASSERT(err.code == 0);
+  r = uv_kill(process.pid, 0);
+  ASSERT(r == 0);
 
-  err = uv_kill(process.pid, 15);
-  ASSERT(err.code == 0);
+  r = uv_kill(process.pid, 15);
+  ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
@@ -564,7 +577,6 @@ TEST_IMPL(spawn_and_ping) {
 
 TEST_IMPL(kill) {
   int r;
-  uv_err_t err;
 
 #ifdef _WIN32
   no_term_signal = 1;
@@ -578,12 +590,12 @@ TEST_IMPL(kill) {
   /* Sending signum == 0 should check if the
    * child process is still alive, not kill it.
    */
-  err = uv_kill(process.pid, 0);
-  ASSERT(err.code == UV_OK);
+  r = uv_kill(process.pid, 0);
+  ASSERT(r == 0);
 
   /* Kill the process. */
-  err = uv_kill(process.pid, /* SIGTERM */ 15);
-  ASSERT(err.code == UV_OK);
+  r = uv_kill(process.pid, /* SIGTERM */ 15);
+  ASSERT(r == 0);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
@@ -644,7 +656,7 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
 }
 
 
-uv_err_t make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr);
+int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr);
 WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target);
 
 TEST_IMPL(argument_escaping) {
@@ -666,7 +678,7 @@ TEST_IMPL(argument_escaping) {
   size_t total_size = 0;
   int i;
   int num_args;
-  uv_err_t result;
+  int result;
 
   char* verbatim[] = {
     "cmd.exe",
@@ -706,9 +718,9 @@ TEST_IMPL(argument_escaping) {
   }
 
   result = make_program_args(verbatim, 1, &verbatim_output);
-  ASSERT(result.code == UV_OK);
+  ASSERT(result == 0);
   result = make_program_args(verbatim, 0, &non_verbatim_output);
-  ASSERT(result.code == UV_OK);
+  ASSERT(result == 0);
 
   wprintf(L"    verbatim_output: %s\n", verbatim_output);
   wprintf(L"non_verbatim_output: %s\n", non_verbatim_output);
@@ -722,7 +734,7 @@ TEST_IMPL(argument_escaping) {
   return 0;
 }
 
-uv_err_t make_program_env(char** env_block, WCHAR** dst_ptr);
+int make_program_env(char** env_block, WCHAR** dst_ptr);
 
 TEST_IMPL(environment_creation) {
   int i;
@@ -737,7 +749,7 @@ TEST_IMPL(environment_creation) {
 
   WCHAR expected[512];
   WCHAR* ptr = expected;
-  uv_err_t result;
+  int result;
   WCHAR* str;
   WCHAR* env;
 
@@ -757,7 +769,7 @@ TEST_IMPL(environment_creation) {
   *ptr = '\0';
 
   result = make_program_env(environment, &env);
-  ASSERT(result.code == UV_OK);
+  ASSERT(result == 0);
 
   for (str = env; *str; str += wcslen(str) + 1) {
     wprintf(L"%s\n", str);
@@ -815,14 +827,14 @@ TEST_IMPL(spawn_setuid_fails) {
     struct passwd* pw;
     pw = getpwnam("nobody");
     ASSERT(pw != NULL);
-    r = setuid(pw->pw_uid);
-    ASSERT(r == 0);
+    ASSERT(0 == setgid(pw->pw_gid));
+    ASSERT(0 == setuid(pw->pw_uid));
   }
 
-  init_process_options("spawn_helper1", exit_cb_failure_expected);
+  init_process_options("spawn_helper1", exit_cb_expect_eperm);
 
   options.flags |= UV_PROCESS_SETUID;
-  options.uid = (uv_uid_t) -42424242;
+  options.uid = 0;
 
   r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
@@ -847,14 +859,14 @@ TEST_IMPL(spawn_setgid_fails) {
     struct passwd* pw;
     pw = getpwnam("nobody");
     ASSERT(pw != NULL);
-    r = setuid(pw->pw_uid);
-    ASSERT(r == 0);
+    ASSERT(0 == setgid(pw->pw_gid));
+    ASSERT(0 == setuid(pw->pw_uid));
   }
 
-  init_process_options("spawn_helper1", exit_cb_failure_expected);
+  init_process_options("spawn_helper1", exit_cb_expect_eperm);
 
   options.flags |= UV_PROCESS_SETGID;
-  options.gid = (uv_gid_t) -42424242;
+  options.gid = 0;
 
   r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
@@ -889,8 +901,7 @@ TEST_IMPL(spawn_setuid_fails) {
   options.uid = (uv_uid_t) -42424242;
 
   r = uv_spawn(uv_default_loop(), &process, options);
-  ASSERT(r == -1);
-  ASSERT(uv_last_error(uv_default_loop()).code == UV_ENOTSUP);
+  ASSERT(r == UV_ENOTSUP);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
@@ -911,8 +922,7 @@ TEST_IMPL(spawn_setgid_fails) {
   options.gid = (uv_gid_t) -42424242;
 
   r = uv_spawn(uv_default_loop(), &process, options);
-  ASSERT(r == -1);
-  ASSERT(uv_last_error(uv_default_loop()).code == UV_ENOTSUP);
+  ASSERT(r == UV_ENOTSUP);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);

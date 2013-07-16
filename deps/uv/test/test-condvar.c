@@ -112,7 +112,7 @@ TEST_IMPL(condvar_3) {
 
   uv_mutex_lock(&wc.mutex);
   r = uv_cond_timedwait(&wc.cond, &wc.mutex, (uint64_t)(50 * 1e6));
-  ASSERT(r == -1);
+  ASSERT(r == UV_ETIMEDOUT);
   uv_mutex_unlock(&wc.mutex);
 
   ASSERT(0 == uv_thread_join(&thread));

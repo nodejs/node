@@ -32,23 +32,23 @@ TEST_IMPL(platform_output) {
   uv_interface_address_t* interfaces;
   int count;
   int i;
-  uv_err_t err;
+  int err;
 
   err = uv_get_process_title(buffer, sizeof(buffer));
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
   printf("uv_get_process_title: %s\n", buffer);
 
   err = uv_resident_set_memory(&rss);
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
   printf("uv_resident_set_memory: %llu\n", (unsigned long long) rss);
 
   err = uv_uptime(&uptime);
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
   ASSERT(uptime > 0);
   printf("uv_uptime: %f\n", uptime);
 
   err = uv_cpu_info(&cpus, &count);
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
 
   printf("uv_cpu_info:\n");
   for (i = 0; i < count; i++) {
@@ -66,7 +66,7 @@ TEST_IMPL(platform_output) {
   uv_free_cpu_info(cpus, count);
 
   err = uv_interface_addresses(&interfaces, &count);
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
 
   printf("uv_interface_addresses:\n");
   for (i = 0; i < count; i++) {

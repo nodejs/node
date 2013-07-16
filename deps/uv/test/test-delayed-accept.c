@@ -124,13 +124,11 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
     free(buf.base);
   }
 
-  if (nread != -1) {
+  if (nread >= 0) {
     ASSERT(nread == 0);
-    ASSERT(uv_last_error(uv_default_loop()).code == UV_EAGAIN);
   } else {
     ASSERT(tcp != NULL);
-    ASSERT(nread == -1);
-    ASSERT(uv_last_error(uv_default_loop()).code == UV_EOF);
+    ASSERT(nread == UV_EOF);
     uv_close((uv_handle_t*)tcp, close_cb);
   }
 }

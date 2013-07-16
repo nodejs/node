@@ -40,7 +40,7 @@ static void getaddrinfo_fail_cb(uv_getaddrinfo_t* req,
                                 int status,
                                 struct addrinfo* res) {
   ASSERT(fail_cb_called == 0);
-  ASSERT(status == -1);
+  ASSERT(status < 0);
   ASSERT(res == NULL);
   uv_freeaddrinfo(res);  /* Should not crash. */
   fail_cb_called++;

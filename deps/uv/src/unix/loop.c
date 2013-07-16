@@ -29,6 +29,7 @@
 
 int uv__loop_init(uv_loop_t* loop, int default_loop) {
   unsigned int i;
+  int err;
 
   uv__signal_global_once_init();
 
@@ -59,8 +60,9 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   loop->timer_counter = 0;
   loop->stop_flag = 0;
 
-  if (uv__platform_loop_init(loop, default_loop))
-    return -1;
+  err = uv__platform_loop_init(loop, default_loop);
+  if (err)
+    return err;
 
   uv_signal_init(loop, &loop->child_watcher);
   uv__handle_unref(&loop->child_watcher);

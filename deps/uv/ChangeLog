@@ -1,4 +1,47 @@
-2013.06.27, Version 0.11.5 (Unstable)
+2013.07.21, Version 0.11.6 (Unstable)
+
+Changes since version 0.11.5:
+
+* test: open stdout fd in write-only mode (Ben Noordhuis)
+
+* windows: uv_spawn shouldn't reject reparse points (Bert Belder)
+
+* windows: use WSAGetLastError(), not errno (Ben Noordhuis)
+
+* build: darwin: disable -fstrict-aliasing warnings (Ben Noordhuis)
+
+* test: fix signed/unsigned compiler warning (Ben Noordhuis)
+
+* test: add 'start timer from check handle' test (Ben Noordhuis)
+
+* build: `all` now builds static and dynamic lib (Ben Noordhuis)
+
+* unix, windows: add extra fields to uv_stat_t (Saúl Ibarra Corretgé)
+
+* build: add install target to the makefile (Navaneeth Kedaram Nambiathan)
+
+* build: switch to autotools (Ben Noordhuis)
+
+* build: use AM_PROG_AR conditionally (Ben Noordhuis)
+
+* test: fix fs_fstat test on sunos (Ben Noordhuis)
+
+* test: fix fs_chown when running as root (Ben Noordhuis)
+
+* test: fix spawn_setgid_fails and spawn_setuid_fails (Ben Noordhuis)
+
+* build: use AM_SILENT_RULES conditionally (Ben Noordhuis)
+
+* build: add DTrace detection for autotools (Timothy J. Fontaine)
+
+* linux,darwin,win: link-local IPv6 addresses (Miroslav Bajtoš)
+
+* unix: fix build when !defined(PTHREAD_MUTEX_ERRORCHECK) (Ben Noordhuis)
+
+* unix, windows: return error codes directly (Ben Noordhuis)
+
+
+2013.06.27, Version 0.11.5 (Unstable), e3c63ff1627a14e96f54c1c62b0d68b446d8425b
 
 Changes since version 0.11.4:
 

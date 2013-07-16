@@ -53,7 +53,7 @@ void uv_loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
       return 0;                                                               \
                                                                               \
     if (cb == NULL)                                                           \
-      return uv__set_artificial_error(handle->loop, UV_EINVAL);               \
+      return UV_EINVAL;                                                       \
                                                                               \
     old_head = loop->name##_handles;                                          \
                                                                               \

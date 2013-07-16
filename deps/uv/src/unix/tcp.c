@@ -36,18 +36,20 @@ int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* tcp) {
 
 static int maybe_new_socket(uv_tcp_t* handle, int domain, int flags) {
   int sockfd;
+  int err;
 
   if (uv__stream_fd(handle) != -1)
     return 0;
 
-  sockfd = uv__socket(domain, SOCK_STREAM, 0);
+  err = uv__socket(domain, SOCK_STREAM, 0);
+  if (err < 0)
+    return err;
+  sockfd = err;
 
-  if (sockfd == -1)
-    return uv__set_sys_error(handle->loop, errno);
-
-  if (uv__stream_open((uv_stream_t*)handle, sockfd, flags)) {
+  err = uv__stream_open((uv_stream_t*) handle, sockfd, flags);
+  if (err) {
     close(sockfd);
-    return -1;
+    return err;
   }
 
   return 0;
@@ -58,20 +60,22 @@ static int uv__bind(uv_tcp_t* tcp,
                     int domain,
                     struct sockaddr* addr,
                     int addrsize) {
+  int err;
   int on;
 
-  if (maybe_new_socket(tcp, domain, UV_STREAM_READABLE|UV_STREAM_WRITABLE))
-    return -1;
+  err = maybe_new_socket(tcp, domain, UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+  if (err)
+    return err;
 
   on = 1;
   if (setsockopt(tcp->io_watcher.fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
-    return uv__set_sys_error(tcp->loop, errno);
+    return -errno;
 
   errno = 0;
   if (bind(tcp->io_watcher.fd, addr, addrsize) && errno != EADDRINUSE)
-    return uv__set_sys_error(tcp->loop, errno);
+    return -errno;
 
-  tcp->delayed_error = errno;
+  tcp->delayed_error = -errno;
   return 0;
 }
 
@@ -81,18 +85,19 @@ static int uv__connect(uv_connect_t* req,
                        struct sockaddr* addr,
                        socklen_t addrlen,
                        uv_connect_cb cb) {
+  int err;
   int r;
 
   assert(handle->type == UV_TCP);
 
-  if (handle->connect_req)
-    return uv__set_sys_error(handle->loop, EALREADY);
+  if (handle->connect_req != NULL)
+    return -EALREADY;  /* FIXME(bnoordhuis) -EINVAL or maybe -EBUSY. */
 
-  if (maybe_new_socket(handle,
-                       addr->sa_family,
-                       UV_STREAM_READABLE|UV_STREAM_WRITABLE)) {
-    return -1;
-  }
+  err = maybe_new_socket(handle,
+                         addr->sa_family,
+                         UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+  if (err)
+    return err;
 
   handle->delayed_error = 0;
 
@@ -108,9 +113,9 @@ static int uv__connect(uv_connect_t* req,
      * error. Solaris wants to report immediately--other unixes want to
      * wait.
      */
-      handle->delayed_error = errno;
+      handle->delayed_error = -errno;
     else
-      return uv__set_sys_error(handle->loop, errno);
+      return -errno;
   }
 
   uv__req_init(handle->loop, req, UV_CONNECT);
@@ -157,16 +162,16 @@ int uv_tcp_getsockname(uv_tcp_t* handle,
   socklen_t socklen;
 
   if (handle->delayed_error)
-    return uv__set_sys_error(handle->loop, handle->delayed_error);
+    return handle->delayed_error;
 
   if (uv__stream_fd(handle) < 0)
-    return uv__set_sys_error(handle->loop, EINVAL);
+    return -EINVAL;  /* FIXME(bnoordhuis) -EBADF */
 
   /* sizeof(socklen_t) != sizeof(int) on some systems. */
   socklen = (socklen_t) *namelen;
 
-  if (getsockname(uv__stream_fd(handle), name, &socklen) == -1)
-    return uv__set_sys_error(handle->loop, errno);
+  if (getsockname(uv__stream_fd(handle), name, &socklen))
+    return -errno;
 
   *namelen = (int) socklen;
   return 0;
@@ -179,16 +184,16 @@ int uv_tcp_getpeername(uv_tcp_t* handle,
   socklen_t socklen;
 
   if (handle->delayed_error)
-    return uv__set_sys_error(handle->loop, handle->delayed_error);
+    return handle->delayed_error;
 
   if (uv__stream_fd(handle) < 0)
-    return uv__set_sys_error(handle->loop, EINVAL);
+    return -EINVAL;  /* FIXME(bnoordhuis) -EBADF */
 
   /* sizeof(socklen_t) != sizeof(int) on some systems. */
   socklen = (socklen_t) *namelen;
 
-  if (getpeername(uv__stream_fd(handle), name, &socklen) == -1)
-    return uv__set_sys_error(handle->loop, errno);
+  if (getpeername(uv__stream_fd(handle), name, &socklen))
+    return -errno;
 
   *namelen = (int) socklen;
   return 0;
@@ -197,9 +202,10 @@ int uv_tcp_getpeername(uv_tcp_t* handle,
 
 int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   static int single_accept = -1;
+  int err;
 
   if (tcp->delayed_error)
-    return uv__set_sys_error(tcp->loop, tcp->delayed_error);
+    return tcp->delayed_error;
 
   if (single_accept == -1) {
     const char* val = getenv("UV_TCP_SINGLE_ACCEPT");
@@ -209,11 +215,12 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   if (single_accept)
     tcp->flags |= UV_TCP_SINGLE_ACCEPT;
 
-  if (maybe_new_socket(tcp, AF_INET, UV_STREAM_READABLE))
-    return -1;
+  err = maybe_new_socket(tcp, AF_INET, UV_STREAM_READABLE);
+  if (err)
+    return err;
 
   if (listen(tcp->io_watcher.fd, backlog))
-    return uv__set_sys_error(tcp->loop, errno);
+    return -errno;
 
   tcp->connection_cb = cb;
 
@@ -248,19 +255,20 @@ int uv__tcp_nodelay(int fd, int on) {
 
 int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
   if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
-    return -1;
+    return -errno;
 
 #ifdef TCP_KEEPIDLE
   if (on && setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &delay, sizeof(delay)))
-    return -1;
+    return -errno;
 #endif
 
   /* Solaris/SmartOS, if you don't support keep-alive,
    * then don't advertise it in your system headers...
    */
+  /* FIXME(bnoordhuis) That's possibly because sizeof(delay) should be 1. */
 #if defined(TCP_KEEPALIVE) && !defined(__sun)
   if (on && setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &delay, sizeof(delay)))
-    return -1;
+    return -errno;
 #endif
 
   return 0;
@@ -268,9 +276,13 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
 
 
 int uv_tcp_nodelay(uv_tcp_t* handle, int on) {
-  if (uv__stream_fd(handle) != -1)
-    if (uv__tcp_nodelay(uv__stream_fd(handle), on))
-      return -1;
+  int err;
+
+  if (uv__stream_fd(handle) != -1) {
+    err = uv__tcp_nodelay(uv__stream_fd(handle), on);
+    if (err)
+      return err;
+  }
 
   if (on)
     handle->flags |= UV_TCP_NODELAY;
@@ -282,9 +294,13 @@ int uv_tcp_nodelay(uv_tcp_t* handle, int on) {
 
 
 int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
-  if (uv__stream_fd(handle) != -1)
-    if (uv__tcp_keepalive(uv__stream_fd(handle), on, delay))
-      return -1;
+  int err;
+
+  if (uv__stream_fd(handle) != -1) {
+    err =uv__tcp_keepalive(uv__stream_fd(handle), on, delay);
+    if (err)
+      return err;
+  }
 
   if (on)
     handle->flags |= UV_TCP_KEEPALIVE;

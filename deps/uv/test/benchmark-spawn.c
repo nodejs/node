@@ -87,13 +87,11 @@ static void pipe_close_cb(uv_handle_t* pipe) {
 
 
 static void on_read(uv_stream_t* pipe, ssize_t nread, uv_buf_t buf) {
-  uv_err_t err = uv_last_error(loop);
-
   if (nread > 0) {
     ASSERT(pipe_open == 1);
     output_used += nread;
   } else if (nread < 0) {
-    if (err.code == UV_EOF) {
+    if (nread == UV_EOF) {
       uv_close((uv_handle_t*)pipe, pipe_close_cb);
     }
   }

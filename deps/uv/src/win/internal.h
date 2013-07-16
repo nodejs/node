@@ -135,7 +135,7 @@ void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle);
 /*
  * Pipes
  */
-uv_err_t uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
+int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
     char* name, size_t nameSize);
 
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
@@ -197,7 +197,7 @@ void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle);
 void uv_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
     uv_req_t* req);
 
-void uv_poll_close(uv_loop_t* loop, uv_poll_t* handle);
+int uv_poll_close(uv_loop_t* loop, uv_poll_t* handle);
 void uv_poll_endgame(uv_loop_t* loop, uv_poll_t* handle);
 
 
@@ -255,6 +255,12 @@ void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle);
 
 
 /*
+ * Error
+ */
+int uv_translate_sys_error(int sys_errno);
+
+
+/*
  * Getaddrinfo
  */
 void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* req);
@@ -295,13 +301,12 @@ void uv__util_init();
 
 int uv_parent_pid();
 void uv_fatal_error(const int errorno, const char* syscall);
-uv_err_code uv_translate_sys_error(int sys_errno);
 
 
 /*
  * Process stdio handles.
  */
-uv_err_t uv__stdio_create(uv_loop_t* loop, uv_process_options_t* options,
+int uv__stdio_create(uv_loop_t* loop, uv_process_options_t* options,
     BYTE** buffer_ptr);
 void uv__stdio_destroy(BYTE* buffer);
 void uv__stdio_noinherit(BYTE* buffer);

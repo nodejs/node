@@ -171,7 +171,7 @@ static void uv__signal_handler(int signum) {
 }
 
 
-static uv_err_t uv__signal_register_handler(int signum) {
+static int uv__signal_register_handler(int signum) {
   /* When this function is called, the signal lock must be held. */
   struct sigaction sa;
 
@@ -183,9 +183,9 @@ static uv_err_t uv__signal_register_handler(int signum) {
 
   /* XXX save old action so we can restore it later on? */
   if (sigaction(signum, &sa, NULL))
-    return uv__new_sys_error(errno);
+    return -errno;
 
-  return uv_ok_;
+  return 0;
 }
 
 
@@ -206,12 +206,15 @@ static void uv__signal_unregister_handler(int signum) {
 
 
 static int uv__signal_loop_once_init(uv_loop_t* loop) {
+  int err;
+
   /* Return if already initialized. */
   if (loop->signal_pipefd[0] != -1)
     return 0;
 
-  if (uv__make_pipe(loop->signal_pipefd, UV__F_NONBLOCK))
-    return -1;
+  err = uv__make_pipe(loop->signal_pipefd, UV__F_NONBLOCK);
+  if (err)
+    return err;
 
   uv__io_init(&loop->signal_io_watcher,
               uv__signal_event,
@@ -249,8 +252,11 @@ void uv__signal_loop_cleanup(uv_loop_t* loop) {
 
 
 int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle) {
-  if (uv__signal_loop_once_init(loop))
-    return uv__set_sys_error(loop, errno);
+  int err;
+
+  err = uv__signal_loop_once_init(loop);
+  if (err)
+    return err;
 
   uv__handle_init(loop, (uv_handle_t*) handle, UV_SIGNAL);
   handle->signum = 0;
@@ -277,6 +283,7 @@ void uv__signal_close(uv_signal_t* handle) {
 
 int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
   sigset_t saved_sigmask;
+  int err;
 
   assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
 
@@ -284,10 +291,8 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
    * signum is otherwise invalid then uv__signal_register will find out
    * eventually.
    */
-  if (signum == 0) {
-    uv__set_artificial_error(handle->loop, UV_EINVAL);
-    return -1;
-  }
+  if (signum == 0)
+    return -EINVAL;
 
   /* Short circuit: if the signal watcher is already watching {signum} don't
    * go through the process of deregistering and registering the handler.
@@ -310,12 +315,11 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
    * any of the loops), it's time to try and register a handler for it here.
    */
   if (uv__signal_first_handle(signum) == NULL) {
-    uv_err_t err = uv__signal_register_handler(signum);
-    if (err.code != UV_OK) {
+    err = uv__signal_register_handler(signum);
+    if (err) {
       /* Registering the signal handler failed. Must be an invalid signal. */
-      handle->loop->last_err = err;
       uv__signal_unlock_and_unblock(&saved_sigmask);
-      return -1;
+      return err;
     }
   }
 

@@ -92,7 +92,7 @@ int uv_timer_stop(uv_timer_t* handle) {
 
 int uv_timer_again(uv_timer_t* handle) {
   if (handle->timer_cb == NULL)
-    return uv__set_artificial_error(handle->loop, UV_EINVAL);
+    return -EINVAL;
 
   if (handle->repeat) {
     uv_timer_stop(handle);

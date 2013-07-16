@@ -81,8 +81,7 @@ static void after_write(uv_write_t* req, int status) {
   write_req_t* wr;
 
   if (status) {
-    uv_err_t err = uv_last_error(loop);
-    fprintf(stderr, "uv_write error: %s\n", uv_strerror(err));
+    fprintf(stderr, "uv_write error: %s\n", uv_strerror(status));
     ASSERT(0);
   }
 
@@ -229,7 +228,7 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 
   if (nread < 0) {
     /* Error or EOF */
-    ASSERT (uv_last_error(loop).code == UV_EOF);
+    ASSERT(nread == UV_EOF);
 
     if (buf.base) {
       free(buf.base);

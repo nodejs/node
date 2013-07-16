@@ -28,7 +28,7 @@
 
 int uv__set_process_title(const char* title) {
 #if TARGET_OS_IPHONE
-  return -1;
+  return -ENOSYS;
 #else
   typedef CFTypeRef (*LSGetCurrentApplicationASNType)(void);
   typedef OSStatus (*LSSetApplicationInformationItemType)(int,
@@ -49,27 +49,27 @@ int uv__set_process_title(const char* title) {
       CFBundleGetBundleWithIdentifier(CFSTR("com.apple.LaunchServices"));
 
   if (launch_services_bundle == NULL)
-    return -1;
+    return -ENOENT;
 
   ls_get_current_application_asn = (LSGetCurrentApplicationASNType)
       CFBundleGetFunctionPointerForName(launch_services_bundle,
                                         CFSTR("_LSGetCurrentApplicationASN"));
 
   if (ls_get_current_application_asn == NULL)
-    return -1;
+    return -ENOENT;
 
   ls_set_application_information_item = (LSSetApplicationInformationItemType)
       CFBundleGetFunctionPointerForName(launch_services_bundle,
                                         CFSTR("_LSSetApplicationInformationItem"));
 
   if (ls_set_application_information_item == NULL)
-    return -1;
+    return -ENOENT;
 
   display_name_key = CFBundleGetDataPointerForName(launch_services_bundle,
                                                    CFSTR("_kLSDisplayNameKey"));
 
   if (display_name_key == NULL || *display_name_key == NULL)
-    return -1;
+    return -ENOENT;
 
   /* Force the process manager to initialize. */
   GetCurrentProcess(&psn);
@@ -81,7 +81,9 @@ int uv__set_process_title(const char* title) {
                                             *display_name_key,
                                             display_name,
                                             NULL);
+  if (err != noErr)
+    return -ENOENT;
 
-  return (err == noErr) ? 0 : -1;
+  return 0;
 #endif  /* !TARGET_OS_IPHONE */
 }

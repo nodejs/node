@@ -74,9 +74,8 @@ int uv_exepath(char* buffer, size_t* size) {
   int mib[4];
   size_t cb;
 
-  if (!buffer || !size) {
-    return -1;
-  }
+  if (buffer == NULL || size == NULL)
+    return -EINVAL;
 
 #ifdef __DragonFly__
   mib[0] = CTL_KERN;
@@ -91,10 +90,8 @@ int uv_exepath(char* buffer, size_t* size) {
 #endif
 
   cb = *size;
-  if (sysctl(mib, 4, buffer, &cb, NULL, 0) < 0) {
-    *size = 0;
-    return -1;
-  }
+  if (sysctl(mib, 4, buffer, &cb, NULL, 0))
+    return -errno;
   *size = strlen(buffer);
 
   return 0;
@@ -105,10 +102,9 @@ uint64_t uv_get_free_memory(void) {
   int freecount;
   size_t size = sizeof(freecount);
 
-  if(sysctlbyname("vm.stats.vm.v_free_count",
-                  &freecount, &size, NULL, 0) == -1){
-    return -1;
-  }
+  if (sysctlbyname("vm.stats.vm.v_free_count", &freecount, &size, NULL, 0))
+    return -errno;
+
   return (uint64_t) freecount * sysconf(_SC_PAGESIZE);
 
 }
@@ -120,9 +116,8 @@ uint64_t uv_get_total_memory(void) {
 
   size_t size = sizeof(info);
 
-  if (sysctl(which, 2, &info, &size, NULL, 0) < 0) {
-    return -1;
-  }
+  if (sysctl(which, 2, &info, &size, NULL, 0))
+    return -errno;
 
   return (uint64_t) info;
 }
@@ -147,7 +142,7 @@ char** uv_setup_args(int argc, char** argv) {
 }
 
 
-uv_err_t uv_set_process_title(const char* title) {
+int uv_set_process_title(const char* title) {
   int oid[4];
 
   if (process_title) free(process_title);
@@ -165,11 +160,11 @@ uv_err_t uv_set_process_title(const char* title) {
          process_title,
          strlen(process_title) + 1);
 
-  return uv_ok_;
+  return 0;
 }
 
 
-uv_err_t uv_get_process_title(char* buffer, size_t size) {
+int uv_get_process_title(char* buffer, size_t size) {
   if (process_title) {
     strncpy(buffer, process_title, size);
   } else {
@@ -178,11 +173,11 @@ uv_err_t uv_get_process_title(char* buffer, size_t size) {
     }
   }
 
-  return uv_ok_;
+  return 0;
 }
 
 
-uv_err_t uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t* rss) {
   kvm_t *kd = NULL;
   struct kinfo_proc *kinfo = NULL;
   pid_t pid;
@@ -205,32 +200,31 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
 
   kvm_close(kd);
 
-  return uv_ok_;
+  return 0;
 
 error:
   if (kd) kvm_close(kd);
-  return uv__new_sys_error(errno);
+  return -EPERM;
 }
 
 
-uv_err_t uv_uptime(double* uptime) {
+int uv_uptime(double* uptime) {
   time_t now;
   struct timeval info;
   size_t size = sizeof(info);
   static int which[] = {CTL_KERN, KERN_BOOTTIME};
 
-  if (sysctl(which, 2, &info, &size, NULL, 0) < 0) {
-    return uv__new_sys_error(errno);
-  }
+  if (sysctl(which, 2, &info, &size, NULL, 0))
+    return -errno;
 
   now = time(NULL);
 
   *uptime = (double)(now - info.tv_sec);
-  return uv_ok_;
+  return 0;
 }
 
 
-uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK),
                multiplier = ((uint64_t)1000L / ticks), cpuspeed, maxcpus,
                cur = 0;
@@ -256,32 +250,30 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 #endif
 
   size = sizeof(model);
-  if (sysctlbyname("hw.model", &model, &size, NULL, 0) < 0) {
-    return uv__new_sys_error(errno);
-  }
-  size = sizeof(numcpus);
-  if (sysctlbyname("hw.ncpu", &numcpus, &size, NULL, 0) < 0) {
-    return uv__new_sys_error(errno);
-  }
+  if (sysctlbyname("hw.model", &model, &size, NULL, 0))
+    return -errno;
 
-  *cpu_infos = (uv_cpu_info_t*)malloc(numcpus * sizeof(uv_cpu_info_t));
-  if (!(*cpu_infos)) {
-    return uv__new_artificial_error(UV_ENOMEM);
-  }
+  size = sizeof(numcpus);
+  if (sysctlbyname("hw.ncpu", &numcpus, &size, NULL, 0))
+    return -errno;
+
+  *cpu_infos = malloc(numcpus * sizeof(**cpu_infos));
+  if (!(*cpu_infos))
+    return -ENOMEM;
 
   *count = numcpus;
 
   size = sizeof(cpuspeed);
-  if (sysctlbyname("hw.clockrate", &cpuspeed, &size, NULL, 0) < 0) {
-    free(*cpu_infos);
-    return uv__new_sys_error(errno);
+  if (sysctlbyname("hw.clockrate", &cpuspeed, &size, NULL, 0)) {
+    SAVE_ERRNO(free(*cpu_infos));
+    return -errno;
   }
 
   /* kern.cp_times on FreeBSD i386 gives an array up to maxcpus instead of ncpu */
   size = sizeof(maxcpus);
-  if (sysctlbyname(maxcpus_key, &maxcpus, &size, NULL, 0) < 0) {
-    free(*cpu_infos);
-    return uv__new_sys_error(errno);
+  if (sysctlbyname(maxcpus_key, &maxcpus, &size, NULL, 0)) {
+    SAVE_ERRNO(free(*cpu_infos));
+    return -errno;
   }
 
   size = maxcpus * CPUSTATES * sizeof(long);
@@ -289,13 +281,13 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   cp_times = malloc(size);
   if (cp_times == NULL) {
     free(*cpu_infos);
-    return uv__new_sys_error(ENOMEM);
+    return -ENOMEM;
   }
 
-  if (sysctlbyname(cptimes_key, cp_times, &size, NULL, 0) < 0) {
-    free(cp_times);
-    free(*cpu_infos);
-    return uv__new_sys_error(errno);
+  if (sysctlbyname(cptimes_key, cp_times, &size, NULL, 0)) {
+    SAVE_ERRNO(free(cp_times));
+    SAVE_ERRNO(free(*cpu_infos));
+    return -errno;
   }
 
   for (i = 0; i < numcpus; i++) {
@@ -314,7 +306,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   }
 
   free(cp_times);
-  return uv_ok_;
+  return 0;
 }
 
 
@@ -329,12 +321,11 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 }
 
 
-uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
-  int* count) {
+int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   /* TODO: implement */
   *addresses = NULL;
   *count = 0;
-  return uv_ok_;
+  return 0;
 }
 
 

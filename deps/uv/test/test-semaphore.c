@@ -99,11 +99,11 @@ TEST_IMPL(semaphore_3) {
   uv_sem_wait(&sem); /* should not block */
   uv_sem_wait(&sem); /* should not block */
   ASSERT(0 == uv_sem_trywait(&sem));
-  ASSERT(-1 == uv_sem_trywait(&sem));
+  ASSERT(UV_EAGAIN == uv_sem_trywait(&sem));
 
   uv_sem_post(&sem);
   ASSERT(0 == uv_sem_trywait(&sem));
-  ASSERT(-1 == uv_sem_trywait(&sem));
+  ASSERT(UV_EAGAIN == uv_sem_trywait(&sem));
 
   uv_sem_destroy(&sem);
 

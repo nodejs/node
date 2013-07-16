@@ -54,7 +54,7 @@ int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
   int r;
 
   if (uv__kqueue_init(loop))
-    return -1;
+    return -errno;
 
   loop->cf_loop = NULL;
   if ((r = uv_mutex_init(&loop->cf_mutex)))
@@ -194,9 +194,8 @@ int uv_exepath(char* buffer, size_t* size) {
   char* path;
   char* fullpath;
 
-  if (!buffer || !size) {
-    return -1;
-  }
+  if (buffer == NULL || size == NULL)
+    return -EINVAL;
 
   usize = *size;
   result = _NSGetExecutablePath(buffer, &usize);
@@ -204,10 +203,9 @@ int uv_exepath(char* buffer, size_t* size) {
 
   path = (char*)malloc(2 * PATH_MAX);
   fullpath = realpath(buffer, path);
-
   if (fullpath == NULL) {
-    free(path);
-    return -1;
+    SAVE_ERRNO(free(path));
+    return -errno;
   }
 
   strncpy(buffer, fullpath, *size);
@@ -223,7 +221,7 @@ uint64_t uv_get_free_memory(void) {
 
   if (host_statistics(mach_host_self(), HOST_VM_INFO,
                       (host_info_t)&info, &count) != KERN_SUCCESS) {
-    return -1;
+    return -EINVAL;  /* FIXME(bnoordhuis) Translate error. */
   }
 
   return (uint64_t) info.free_count * sysconf(_SC_PAGESIZE);
@@ -235,9 +233,8 @@ uint64_t uv_get_total_memory(void) {
   int which[] = {CTL_HW, HW_MEMSIZE};
   size_t size = sizeof(info);
 
-  if (sysctl(which, 2, &info, &size, NULL, 0) < 0) {
-    return -1;
-  }
+  if (sysctl(which, 2, &info, &size, NULL, 0))
+    return -errno;
 
   return (uint64_t) info;
 }
@@ -256,7 +253,7 @@ void uv_loadavg(double avg[3]) {
 }
 
 
-uv_err_t uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t* rss) {
   mach_msg_type_number_t count;
   task_basic_info_data_t info;
   kern_return_t err;
@@ -273,27 +270,26 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
   assert(err == KERN_SUCCESS);
   *rss = info.resident_size;
 
-  return uv_ok_;
+  return 0;
 }
 
 
-uv_err_t uv_uptime(double* uptime) {
+int uv_uptime(double* uptime) {
   time_t now;
   struct timeval info;
   size_t size = sizeof(info);
   static int which[] = {CTL_KERN, KERN_BOOTTIME};
 
-  if (sysctl(which, 2, &info, &size, NULL, 0) < 0) {
-    return uv__new_sys_error(errno);
-  }
+  if (sysctl(which, 2, &info, &size, NULL, 0))
+    return -errno;
+
   now = time(NULL);
+  *uptime = now - info.tv_sec;
 
-  *uptime = (double)(now - info.tv_sec);
-
-  return uv_ok_;
+  return 0;
 }
 
-uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK),
                multiplier = ((uint64_t)1000L / ticks);
   char model[512];
@@ -306,25 +302,24 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   uv_cpu_info_t* cpu_info;
 
   size = sizeof(model);
-  if (sysctlbyname("machdep.cpu.brand_string", &model, &size, NULL, 0) < 0 &&
-      sysctlbyname("hw.model", &model, &size, NULL, 0) < 0) {
-    return uv__new_sys_error(errno);
+  if (sysctlbyname("machdep.cpu.brand_string", &model, &size, NULL, 0) &&
+      sysctlbyname("hw.model", &model, &size, NULL, 0)) {
+    return -errno;
   }
+
   size = sizeof(cpuspeed);
-  if (sysctlbyname("hw.cpufrequency", &cpuspeed, &size, NULL, 0) < 0) {
-    return uv__new_sys_error(errno);
-  }
+  if (sysctlbyname("hw.cpufrequency", &cpuspeed, &size, NULL, 0))
+    return -errno;
 
   if (host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &numcpus,
                           (processor_info_array_t*)&info,
                           &msg_type) != KERN_SUCCESS) {
-    return uv__new_sys_error(errno);
+    return -EINVAL;  /* FIXME(bnoordhuis) Translate error. */
   }
 
-  *cpu_infos = (uv_cpu_info_t*)malloc(numcpus * sizeof(uv_cpu_info_t));
-  if (!(*cpu_infos)) {
-    return uv__new_artificial_error(UV_ENOMEM);
-  }
+  *cpu_infos = malloc(numcpus * sizeof(**cpu_infos));
+  if (!(*cpu_infos))
+    return -ENOMEM;  /* FIXME(bnoordhuis) Deallocate info? */
 
   *count = numcpus;
 
@@ -342,7 +337,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   }
   vm_deallocate(mach_task_self(), (vm_address_t)info, msg_type);
 
-  return uv_ok_;
+  return 0;
 }
 
 
@@ -357,15 +352,12 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 }
 
 
-uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
-  int* count) {
+int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   struct ifaddrs *addrs, *ent;
-  char ip[INET6_ADDRSTRLEN];
   uv_interface_address_t* address;
 
-  if (getifaddrs(&addrs) != 0) {
-    return uv__new_sys_error(errno);
-  }
+  if (getifaddrs(&addrs))
+    return -errno;
 
   *count = 0;
 
@@ -380,16 +372,13 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
     (*count)++;
   }
 
-  *addresses = (uv_interface_address_t*)
-    malloc(*count * sizeof(uv_interface_address_t));
-  if (!(*addresses)) {
-    return uv__new_artificial_error(UV_ENOMEM);
-  }
+  *addresses = malloc(*count * sizeof(**addresses));
+  if (!(*addresses))
+    return -ENOMEM;
 
   address = *addresses;
 
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    bzero(&ip, sizeof (ip));
     if (!(ent->ifa_flags & IFF_UP && ent->ifa_flags & IFF_RUNNING)) {
       continue;
     }
@@ -427,7 +416,7 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
 
   freeifaddrs(addrs);
 
-  return uv_ok_;
+  return 0;
 }
 
 

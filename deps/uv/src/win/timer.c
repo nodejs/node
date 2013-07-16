@@ -157,8 +157,7 @@ int uv_timer_again(uv_timer_t* handle) {
 
   /* If timer_cb is NULL that means that the timer was never started. */
   if (!handle->timer_cb) {
-    uv__set_sys_error(loop, ERROR_INVALID_DATA);
-    return -1;
+    return UV_EINVAL;
   }
 
   if (handle->flags & UV_HANDLE_ACTIVE) {

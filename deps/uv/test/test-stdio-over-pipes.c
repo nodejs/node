@@ -79,8 +79,7 @@ static uv_buf_t on_alloc(uv_handle_t* handle, size_t suggested_size) {
 
 static void after_write(uv_write_t* req, int status) {
   if (status) {
-    uv_err_t err = uv_last_error(loop);
-    fprintf(stderr, "uv_write error: %s\n", uv_strerror(err));
+    fprintf(stderr, "uv_write error: %s\n", uv_strerror(status));
     ASSERT(0);
   }
 
@@ -96,7 +95,7 @@ static void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t rdbuf) {
   uv_buf_t wrbuf;
   int r;
 
-  ASSERT(nread > 0 || uv_last_error(uv_default_loop()).code == UV_EOF);
+  ASSERT(nread > 0 || nread == UV_EOF);
 
   if (nread > 0) {
     output_used += nread;

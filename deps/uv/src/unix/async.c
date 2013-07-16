@@ -39,8 +39,11 @@ static int uv__async_eventfd(void);
 
 
 int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
-  if (uv__async_start(loop, &loop->async_watcher, uv__async_event))
-    return uv__set_sys_error(loop, errno);
+  int err;
+
+  err = uv__async_start(loop, &loop->async_watcher, uv__async_event);
+  if (err)
+    return err;
 
   uv__handle_init(loop, (uv_handle_t*)handle, UV_ASYNC);
   handle->async_cb = async_cb;
@@ -199,20 +202,21 @@ void uv__async_init(struct uv__async* wa) {
 
 int uv__async_start(uv_loop_t* loop, struct uv__async* wa, uv__async_cb cb) {
   int pipefd[2];
-  int fd;
+  int err;
 
   if (wa->io_watcher.fd != -1)
     return 0;
 
-  fd = uv__async_eventfd();
-  if (fd >= 0) {
-    pipefd[0] = fd;
+  err = uv__async_eventfd();
+  if (err >= 0) {
+    pipefd[0] = err;
     pipefd[1] = -1;
   }
-  else if (fd != -ENOSYS)
-    return -1;
-  else if (uv__make_pipe(pipefd, UV__F_NONBLOCK))
-    return -1;
+  else if (err == -ENOSYS)
+    err = uv__make_pipe(pipefd, UV__F_NONBLOCK);
+
+  if (err < 0)
+    return err;
 
   uv__io_init(&wa->io_watcher, uv__async_io, pipefd[0]);
   uv__io_start(loop, &wa->io_watcher, UV__POLLIN);

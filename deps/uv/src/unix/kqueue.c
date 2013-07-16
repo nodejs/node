@@ -39,9 +39,8 @@ static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags);
 
 int uv__kqueue_init(uv_loop_t* loop) {
   loop->backend_fd = kqueue();
-
   if (loop->backend_fd == -1)
-    return -1;
+    return -errno;
 
   uv__cloexec(loop->backend_fd, 1);
 
@@ -308,10 +307,9 @@ int uv_fs_event_init(uv_loop_t* loop,
   int fd;
 
   /* TODO open asynchronously - but how do we report back errors? */
-  if ((fd = open(filename, O_RDONLY)) == -1) {
-    uv__set_sys_error(loop, errno);
-    return -1;
-  }
+  fd = open(filename, O_RDONLY);
+  if (fd == -1)
+    return -errno;
 
   uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
   uv__handle_start(handle); /* FIXME shouldn't start automatically */

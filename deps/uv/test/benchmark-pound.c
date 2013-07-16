@@ -92,7 +92,7 @@ static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
 
 static void after_write(uv_write_t* req, int status) {
   if (status != 0) {
-    fprintf(stderr, "write error %s\n", uv_err_name(uv_last_error(loop)));
+    fprintf(stderr, "write error %s\n", uv_err_name(status));
     uv_close((uv_handle_t*)req->handle, close_cb);
     conns_failed++;
     return;
@@ -107,9 +107,7 @@ static void connect_cb(uv_connect_t* req, int status) {
 
   if (status != 0) {
 #if DEBUG
-    fprintf(stderr,
-            "connect error %s\n",
-            uv_err_name(uv_last_error(uv_default_loop())));
+    fprintf(stderr, "connect error %s\n", uv_err_name(status));
 #endif
     uv_close((uv_handle_t*)req->handle, close_cb);
     conns_failed++;
@@ -138,7 +136,6 @@ static void connect_cb(uv_connect_t* req, int status) {
 
 
 static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
-  uv_err_t err = uv_last_error(loop);
 
   ASSERT(stream != NULL);
 
@@ -148,13 +145,13 @@ static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
 
   uv_close((uv_handle_t*)stream, close_cb);
 
-  if (nread == -1) {
-    if (err.code == UV_EOF) {
+  if (nread < 0) {
+    if (nread == UV_EOF) {
       ;
-    } else if (err.code == UV_ECONNRESET) {
+    } else if (nread == UV_ECONNRESET) {
       conns_failed++;
     } else {
-      fprintf(stderr, "read error %s\n", uv_err_name(uv_last_error(loop)));
+      fprintf(stderr, "read error %s\n", uv_err_name(nread));
       ASSERT(0);
     }
   }
@@ -206,8 +203,7 @@ static void tcp_make_connect(conn_rec* p) {
 
   r = uv_tcp_connect(&((tcp_conn_rec*)p)->conn_req, (uv_tcp_t*)&p->stream, addr, connect_cb);
   if (r) {
-    fprintf(stderr, "uv_tcp_connect error %s\n",
-        uv_err_name(uv_last_error(loop)));
+    fprintf(stderr, "uv_tcp_connect error %s\n", uv_err_name(r));
     ASSERT(0);
   }
 

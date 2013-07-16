@@ -73,7 +73,7 @@ static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
   if (nread >= 0)
     return;
 
-  ASSERT(uv_last_error(stream->loop).code == UV_EOF);
+  ASSERT(nread == UV_EOF);
 
   conn = container_of(stream, conn_rec, handle);
 

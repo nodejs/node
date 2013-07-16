@@ -90,7 +90,7 @@ static void uv__init_global_job_handle(void) {
 }
 
 
-static uv_err_t uv_utf8_to_utf16_alloc(const char* s, WCHAR** ws_ptr) {
+static int uv_utf8_to_utf16_alloc(const char* s, WCHAR** ws_ptr) {
   int ws_len, r;
   WCHAR* ws;
 
@@ -101,12 +101,12 @@ static uv_err_t uv_utf8_to_utf16_alloc(const char* s, WCHAR** ws_ptr) {
                                NULL,
                                0);
   if (ws_len <= 0) {
-    return uv__new_sys_error(GetLastError());
+    return GetLastError();
   }
 
   ws = (WCHAR*) malloc(ws_len * sizeof(WCHAR));
   if (ws == NULL) {
-    return uv__new_artificial_error(UV_ENOMEM);
+    return ERROR_OUTOFMEMORY;
   }
 
   r = MultiByteToWideChar(CP_UTF8,
@@ -118,7 +118,7 @@ static uv_err_t uv_utf8_to_utf16_alloc(const char* s, WCHAR** ws_ptr) {
   assert(r == ws_len);
 
   *ws_ptr = ws;
-  return uv_ok_;
+  return 0;
 }
 
 
@@ -126,7 +126,7 @@ static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
   uv__handle_init(loop, (uv_handle_t*) handle, UV_PROCESS);
   handle->exit_cb = NULL;
   handle->pid = 0;
-  handle->spawn_error = uv_ok_;
+  handle->spawn_error = 0;
   handle->exit_signal = 0;
   handle->wait_handle = INVALID_HANDLE_VALUE;
   handle->process_handle = INVALID_HANDLE_VALUE;
@@ -225,7 +225,7 @@ static WCHAR* search_path_join_test(const WCHAR* dir,
   attrs = GetFileAttributesW(result);
 
   if (attrs != INVALID_FILE_ATTRIBUTES &&
-     !(attrs & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT))) {
+      !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
     return result;
   }
 
@@ -498,7 +498,7 @@ WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target) {
 }
 
 
-uv_err_t make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr) {
+int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr) {
   char** arg;
   WCHAR* dst = NULL;
   WCHAR* temp_buffer = NULL;
@@ -506,7 +506,7 @@ uv_err_t make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr)
   size_t temp_buffer_len = 0;
   WCHAR* pos;
   int arg_count = 0;
-  uv_err_t err = uv_ok_;
+  int err = 0;
 
   /* Count the required size. */
   for (arg = args; *arg; arg++) {
@@ -519,7 +519,7 @@ uv_err_t make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr)
                                   NULL,
                                   0);
     if (arg_len == 0) {
-      return uv__new_sys_error(GetLastError());
+      return GetLastError();
     }
 
     dst_len += arg_len;
@@ -537,14 +537,14 @@ uv_err_t make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr)
   /* Allocate buffer for the final command line. */
   dst = (WCHAR*) malloc(dst_len * sizeof(WCHAR));
   if (dst == NULL) {
-    err = uv__new_artificial_error(UV_ENOMEM);
+    err = ERROR_OUTOFMEMORY;
     goto error;
   }
 
   /* Allocate temporary working buffer. */
   temp_buffer = (WCHAR*) malloc(temp_buffer_len * sizeof(WCHAR));
   if (temp_buffer == NULL) {
-    err = uv__new_artificial_error(UV_ENOMEM);
+    err = ERROR_OUTOFMEMORY;
     goto error;
   }
 
@@ -560,6 +560,7 @@ uv_err_t make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr)
                                   temp_buffer,
                                   (int) (dst + dst_len - pos));
     if (arg_len == 0) {
+      err = GetLastError();
       goto error;
     }
 
@@ -578,7 +579,7 @@ uv_err_t make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr)
   free(temp_buffer);
 
   *dst_ptr = dst;
-  return uv_ok_;
+  return 0;
 
 error:
   free(dst);
@@ -617,7 +618,7 @@ static void check_required_vars_contains_var(env_var_t* required, int count,
  * these get defined if the input environment block does not contain any
  * values for them.
  */
-uv_err_t make_program_env(char* env_block[], WCHAR** dst_ptr) {
+int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   WCHAR* dst;
   WCHAR* ptr;
   char** env;
@@ -645,7 +646,7 @@ uv_err_t make_program_env(char* env_block[], WCHAR** dst_ptr) {
                               NULL,
                               0);
     if (len <= 0) {
-      return uv__new_sys_error(GetLastError());
+      return GetLastError();
     }
 
     env_len += len;
@@ -656,7 +657,7 @@ uv_err_t make_program_env(char* env_block[], WCHAR** dst_ptr) {
       env_len += required_vars[i].len;
       var_size = GetEnvironmentVariableW(required_vars[i].wide, NULL, 0);
       if (var_size == 0) {
-        return uv__new_sys_error(GetLastError());
+        return GetLastError();
       }
       required_vars[i].value_len = var_size;
       env_len += var_size;
@@ -665,7 +666,7 @@ uv_err_t make_program_env(char* env_block[], WCHAR** dst_ptr) {
 
   dst = malloc(env_len * sizeof(WCHAR));
   if (!dst) {
-    return uv__new_artificial_error(UV_ENOMEM);
+    return ERROR_OUTOFMEMORY;
   }
 
   ptr = dst;
@@ -679,7 +680,7 @@ uv_err_t make_program_env(char* env_block[], WCHAR** dst_ptr) {
                               (int) (env_len - (ptr - dst)));
     if (len <= 0) {
       free(dst);
-      return uv__new_sys_error(GetLastError());
+      return GetLastError();
     }
   }
 
@@ -702,7 +703,7 @@ uv_err_t make_program_env(char* env_block[], WCHAR** dst_ptr) {
   *ptr = L'\0';
 
   *dst_ptr = dst;
-  return uv_ok_;
+  return 0;
 }
 
 
@@ -727,7 +728,8 @@ static void CALLBACK exit_wait_callback(void* data, BOOLEAN didTimeout) {
 
 /* Called on main thread after a child process has exited. */
 void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
-  DWORD exit_code;
+  int exit_code;
+  DWORD status;
 
   assert(handle->exit_cb_pending);
   handle->exit_cb_pending = 0;
@@ -749,17 +751,19 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
   /* callback.*/
   uv__handle_stop(handle);
 
-  if (handle->spawn_error.code != UV_OK) {
+  if (handle->spawn_error) {
     /* Spawning failed. */
-    exit_code = (DWORD) -1;
-  } else if (!GetExitCodeProcess(handle->process_handle, &exit_code)) {
+    exit_code = uv_translate_sys_error(handle->spawn_error);
+  } else if (!GetExitCodeProcess(handle->process_handle, &status)) {
     /* Unable to to obtain the exit code. This should never happen. */
-    exit_code = (DWORD) -1;
+    exit_code = uv_translate_sys_error(GetLastError());
+  } else {
+    /* Make sure the exit code is >= 0. */
+    exit_code = status & INT_MAX;
   }
 
   /* Fire the exit callback. */
   if (handle->exit_cb) {
-    loop->last_err = handle->spawn_error;
     handle->exit_cb(handle, exit_code, handle->exit_signal);
   }
 }
@@ -801,7 +805,7 @@ void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle) {
 int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     uv_process_options_t options) {
   int i;
-  uv_err_t err = uv_ok_;
+  int err = 0;
   WCHAR* path = NULL;
   BOOL result;
   WCHAR* application_path = NULL, *application = NULL, *arguments = NULL,
@@ -811,14 +815,12 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   DWORD process_flags;
 
   if (options.flags & (UV_PROCESS_SETGID | UV_PROCESS_SETUID)) {
-    uv__set_artificial_error(loop, UV_ENOTSUP);
-    return -1;
+    return UV_ENOTSUP;
   }
 
   if (options.file == NULL ||
       options.args == NULL) {
-    uv__set_artificial_error(loop, UV_EINVAL);
-    return -1;
+    return UV_EINVAL;
   }
 
   assert(options.file != NULL);
@@ -832,25 +834,25 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   process->exit_cb = options.exit_cb;
 
   err = uv_utf8_to_utf16_alloc(options.file, &application);
-  if (err.code != UV_OK)
+  if (err)
     goto done;
 
   err = make_program_args(options.args,
                           options.flags & UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS,
                           &arguments);
-  if (err.code != UV_OK)
+  if (err)
     goto done;
 
   if (options.env) {
      err = make_program_env(options.env, &env);
-     if (err.code != UV_OK)
+      if (err)
        goto done;
   }
 
   if (options.cwd) {
     /* Explicit cwd */
     err = uv_utf8_to_utf16_alloc(options.cwd, &cwd);
-    if (err.code != UV_OK)
+    if (err)
       goto done;
 
   } else {
@@ -859,19 +861,19 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
     cwd_len = GetCurrentDirectoryW(0, NULL);
     if (!cwd_len) {
-      err = uv__new_sys_error(GetLastError());
+      err = GetLastError();
       goto done;
     }
 
     cwd = (WCHAR*) malloc(cwd_len * sizeof(WCHAR));
     if (cwd == NULL) {
-      err = uv__new_artificial_error(UV_ENOMEM);
+      err = ERROR_OUTOFMEMORY;
       goto done;
     }
 
     r = GetCurrentDirectoryW(cwd_len, cwd);
     if (r == 0 || r >= cwd_len) {
-      err = uv__new_sys_error(GetLastError());
+      err = GetLastError();
       goto done;
     }
   }
@@ -882,20 +884,20 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
     path_len = GetEnvironmentVariableW(L"PATH", NULL, 0);
     if (path_len == 0) {
-      err = uv__new_sys_error(GetLastError());
+      err = GetLastError();
       goto done;
     }
 
 
     path = (WCHAR*) malloc(path_len * sizeof(WCHAR));
     if (path == NULL) {
-      err = uv__new_artificial_error(UV_ENOMEM);
+      err = ERROR_OUTOFMEMORY;
       goto done;
     }
 
     r = GetEnvironmentVariableW(L"PATH", path, path_len);
     if (r == 0 || r >= path_len) {
-      err = uv__new_sys_error(GetLastError());
+      err = GetLastError();
       goto done;
     }
   }
@@ -905,13 +907,12 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
                                  path);
   if (application_path == NULL) {
     /* Not found. */
-    err = uv__new_artificial_error(UV_ENOENT);
+    err = ERROR_FILE_NOT_FOUND;
     goto done;
   }
 
-
   err = uv__stdio_create(loop, &options, &process->child_stdio_buffer);
-  if (err.code != UV_OK)
+  if (err)
     goto done;
 
   startup.cb = sizeof(startup);
@@ -1008,7 +1009,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
   } else {
     /* CreateProcessW failed. */
-    err = uv__new_sys_error(GetLastError());
+    err = GetLastError();
   }
 
 done:
@@ -1032,7 +1033,7 @@ done:
   uv__handle_start(process);
 
   /* If an error happened, queue the exit req. */
-  if (err.code != UV_OK) {
+  if (err) {
     process->exit_cb_pending = 1;
     uv_insert_pending_req(loop, (uv_req_t*) &process->exit_req);
   }
@@ -1041,28 +1042,29 @@ done:
 }
 
 
-static uv_err_t uv__kill(HANDLE process_handle, int signum) {
+static int uv__kill(HANDLE process_handle, int signum) {
   switch (signum) {
     case SIGTERM:
     case SIGKILL:
     case SIGINT: {
       /* Unconditionally terminate the process. On Windows, killed processes */
       /* normally return 1. */
-      DWORD error, status;
+      DWORD status;
+      int err;
 
       if (TerminateProcess(process_handle, 1))
-        return uv_ok_;
+        return 0;
 
       /* If the process already exited before TerminateProcess was called, */
       /* TerminateProcess will fail with ERROR_ACESS_DENIED. */
-      error = GetLastError();
-      if (error == ERROR_ACCESS_DENIED &&
+      err = GetLastError();
+      if (err == ERROR_ACCESS_DENIED &&
           GetExitCodeProcess(process_handle, &status) &&
           status != STILL_ACTIVE) {
-        return uv__new_artificial_error(UV_ESRCH);
+        return UV_ESRCH;
       }
 
-      return uv__new_sys_error(error);
+      return uv_translate_sys_error(err);
     }
 
     case 0: {
@@ -1070,34 +1072,31 @@ static uv_err_t uv__kill(HANDLE process_handle, int signum) {
       DWORD status;
 
       if (!GetExitCodeProcess(process_handle, &status))
-        return uv__new_sys_error(GetLastError());
+        return uv_translate_sys_error(GetLastError());
 
       if (status != STILL_ACTIVE)
-        return uv__new_artificial_error(UV_ESRCH);
+        return UV_ESRCH;
 
-      return uv_ok_;
+      return 0;
     }
 
     default:
       /* Unsupported signal. */
-      return uv__new_artificial_error(UV_ENOSYS);
+      return UV_ENOSYS;
   }
 }
 
 
 int uv_process_kill(uv_process_t* process, int signum) {
-  uv_err_t err;
+  int err;
 
   if (process->process_handle == INVALID_HANDLE_VALUE) {
-    uv__set_artificial_error(process->loop, UV_EINVAL);
-    return -1;
+    return UV_EINVAL;
   }
 
   err = uv__kill(process->process_handle, signum);
-
-  if (err.code != UV_OK) {
-    uv__set_error(process->loop, err.code, err.sys_errno_);
-    return -1;
+  if (err) {
+    return err;  /* err is already translated. */
   }
 
   process->exit_signal = signum;
@@ -1106,21 +1105,22 @@ int uv_process_kill(uv_process_t* process, int signum) {
 }
 
 
-uv_err_t uv_kill(int pid, int signum) {
-  uv_err_t err;
+int uv_kill(int pid, int signum) {
+  int err;
   HANDLE process_handle = OpenProcess(PROCESS_TERMINATE |
     PROCESS_QUERY_INFORMATION, FALSE, pid);
 
   if (process_handle == NULL) {
-    if (GetLastError() == ERROR_INVALID_PARAMETER) {
-      return uv__new_artificial_error(UV_ESRCH);
+    err = GetLastError();
+    if (err == ERROR_INVALID_PARAMETER) {
+      return UV_ESRCH;
     } else {
-      return uv__new_sys_error(GetLastError());
+      return uv_translate_sys_error(err);
     }
   }
 
   err = uv__kill(process_handle, signum);
   CloseHandle(process_handle);
 
-  return err;
+  return err;  /* err is already translated. */
 }
