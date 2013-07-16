@@ -459,16 +459,6 @@
     if (process._print_eval) console.log(result);
   }
 
-  function errnoException(errorno, syscall) {
-    // TODO make this more compatible with ErrnoException from src/node.cc
-    // Once all of Node is using this function the ErrnoException from
-    // src/node.cc should be removed.
-    var e = new Error(syscall + ' ' + errorno);
-    e.errno = e.code = errorno;
-    e.syscall = syscall;
-    return e;
-  }
-
   function createWritableStdioStream(fd) {
     var stream;
     var tty_wrap = process.binding('tty_wrap');
@@ -651,6 +641,7 @@
       }
 
       if (r) {
+        var errnoException = NativeModule.require('util')._errnoException;
         throw errnoException(process._errno, 'kill');
       }
 
@@ -685,6 +676,7 @@
         var r = wrap.start(signum);
         if (r) {
           wrap.close();
+          var errnoException = NativeModule.require('util')._errnoException;
           throw errnoException(process._errno, 'uv_signal_start');
         }
 
