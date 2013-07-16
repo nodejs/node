@@ -114,6 +114,7 @@
         'src/tty_wrap.cc',
         'src/process_wrap.cc',
         'src/udp_wrap.cc',
+        'src/uv.cc',
         # headers to make for a more pleasant IDE experience
         'src/handle_wrap.h',
         'src/node.h',

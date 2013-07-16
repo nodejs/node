@@ -19,28 +19,43 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-NODE_EXT_LIST_START
-NODE_EXT_LIST_ITEM(node_buffer)
-#if HAVE_OPENSSL
-NODE_EXT_LIST_ITEM(node_crypto)
-NODE_EXT_LIST_ITEM(node_tls_wrap)
-#endif
-NODE_EXT_LIST_ITEM(node_evals)
-NODE_EXT_LIST_ITEM(node_fs)
-NODE_EXT_LIST_ITEM(node_http_parser)
-NODE_EXT_LIST_ITEM(node_os)
-NODE_EXT_LIST_ITEM(node_smalloc)
-NODE_EXT_LIST_ITEM(node_zlib)
+#include "node.h"
+#include "uv.h"
 
-NODE_EXT_LIST_ITEM(node_uv)
-NODE_EXT_LIST_ITEM(node_timer_wrap)
-NODE_EXT_LIST_ITEM(node_tcp_wrap)
-NODE_EXT_LIST_ITEM(node_udp_wrap)
-NODE_EXT_LIST_ITEM(node_pipe_wrap)
-NODE_EXT_LIST_ITEM(node_cares_wrap)
-NODE_EXT_LIST_ITEM(node_tty_wrap)
-NODE_EXT_LIST_ITEM(node_process_wrap)
-NODE_EXT_LIST_ITEM(node_fs_event_wrap)
-NODE_EXT_LIST_ITEM(node_signal_wrap)
+namespace node {
+namespace uv {
 
-NODE_EXT_LIST_END
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Handle;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Object;
+using v8::String;
+using v8::Value;
+
+
+void ErrName(const FunctionCallbackInfo<Value>& args) {
+  v8::HandleScope handle_scope(node_isolate);
+  int err = args[0]->Int32Value();
+  if (err >= 0) return ThrowError("err >= 0");
+  const char* name = uv_err_name(err);
+  args.GetReturnValue().Set(String::New(name));
+}
+
+
+void Initialize(Handle<Object> target) {
+  v8::HandleScope handle_scope(node_isolate);
+  target->Set(String::New("errname"),
+              FunctionTemplate::New(ErrName)->GetFunction());
+#define V(name, _) target->Set(String::New("UV_" # name),                     \
+                               Integer::New(UV_ ## name, node_isolate));
+  UV_ERRNO_MAP(V)
+#undef V
+}
+
+
+}  // namespace uv
+}  // namespace node
+
+NODE_MODULE(node_uv, node::uv::Initialize)
