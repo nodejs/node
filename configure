@@ -475,6 +475,13 @@ def configure_node(o):
     o['variables']['node_use_dtrace'] = 'false'
     o['variables']['node_use_systemtap'] = 'false'
 
+  # if we're on illumos based systems wrap the helper library into the
+  # executable
+  if flavor == 'solaris':
+    o['variables']['node_use_mdb'] = 'true'
+  else:
+    o['variables']['node_use_mdb'] = 'false'
+
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
 
