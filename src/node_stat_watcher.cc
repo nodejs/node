@@ -86,9 +86,6 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   argv[0] = BuildStatsObject(curr);
   argv[1] = BuildStatsObject(prev);
   argv[2] = Integer::New(status, node_isolate);
-  if (status == -1) {
-    SetErrno(uv_last_error(wrap->watcher_->loop));
-  }
   if (onchange_sym.IsEmpty()) {
     onchange_sym = String::New("onchange");
   }

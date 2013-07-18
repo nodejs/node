@@ -239,8 +239,6 @@ node_module_struct* get_builtin_module(const char *name);
  */
 NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = 0);
 
-NODE_EXTERN void SetErrno(uv_err_t err);
-
 }  // namespace node
 
 #endif  // SRC_NODE_H_

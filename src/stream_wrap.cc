@@ -45,6 +45,7 @@ using v8::Number;
 using v8::Object;
 using v8::PropertyCallbackInfo;
 using v8::String;
+using v8::Undefined;
 using v8::Value;
 
 
@@ -106,17 +107,14 @@ void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
 
   bool ipc_pipe = wrap->stream_->type == UV_NAMED_PIPE &&
                   reinterpret_cast<uv_pipe_t*>(wrap->stream_)->ipc;
-  int r;
+  int err;
   if (ipc_pipe) {
-    r = uv_read2_start(wrap->stream_, OnAlloc, OnRead2);
+    err = uv_read2_start(wrap->stream_, OnAlloc, OnRead2);
   } else {
-    r = uv_read_start(wrap->stream_, OnAlloc, OnRead);
+    err = uv_read_start(wrap->stream_, OnAlloc, OnRead);
   }
 
-  // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-  args.GetReturnValue().Set(r);
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -125,12 +123,8 @@ void StreamWrap::ReadStop(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(StreamWrap)
 
-  int r = uv_read_stop(wrap->stream_);
-
-  // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-  args.GetReturnValue().Set(r);
+  int err = uv_read_stop(wrap->stream_);
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -215,48 +209,50 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(StreamWrap)
 
-  // The first argument is a buffer.
-  assert(args.Length() >= 1 && Buffer::HasInstance(args[0]));
-  size_t length = Buffer::Length(args[0]);
-  char* storage = new char[sizeof(WriteWrap)];
-  WriteWrap* req_wrap = new (storage) WriteWrap(wrap);
+  assert(args[0]->IsObject());
+  assert(Buffer::HasInstance(args[1]));
 
-  Local<Object> req_wrap_obj = req_wrap->object();
-  req_wrap_obj->SetHiddenValue(buffer_sym, args[0]);
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  Local<Object> buf_obj = args[1].As<Object>();
+
+  size_t length = Buffer::Length(buf_obj);
+  char* storage = new char[sizeof(WriteWrap)];
+  WriteWrap* req_wrap = new (storage) WriteWrap(req_wrap_obj, wrap);
+
+  req_wrap_obj->SetHiddenValue(buffer_sym, buf_obj);
 
   uv_buf_t buf;
-  WriteBuffer(args[0], &buf);
+  WriteBuffer(buf_obj, &buf);
 
-  int r = wrap->callbacks_->DoWrite(req_wrap,
-                                    &buf,
-                                    1,
-                                    NULL,
-                                    StreamWrap::AfterWrite);
-
+  int err = wrap->callbacks_->DoWrite(req_wrap,
+                                      &buf,
+                                      1,
+                                      NULL,
+                                      StreamWrap::AfterWrite);
   req_wrap->Dispatched();
   req_wrap_obj->Set(bytes_sym, Integer::NewFromUnsigned(length, node_isolate));
 
-  if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
+  if (err) {
     req_wrap->~WriteWrap();
     delete[] storage;
-  } else {
-    args.GetReturnValue().Set(req_wrap->persistent());
   }
+
+  args.GetReturnValue().Set(err);
 }
 
 
 template <enum encoding encoding>
 void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  int r;
+  int err;
 
   UNWRAP(StreamWrap)
 
-  if (args.Length() < 1)
-    return ThrowTypeError("Not enough arguments");
+  assert(args[0]->IsObject());
+  assert(args[1]->IsString());
 
-  Local<String> string = args[0]->ToString();
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  Local<String> string = args[1].As<String>();
 
   // Compute the size of the storage that the string will be flattened into.
   // For UTF8 strings that are very long, go ahead and take the hit for
@@ -268,14 +264,12 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
     storage_size = StringBytes::StorageSize(string, encoding);
 
   if (storage_size > INT_MAX) {
-    uv_err_t err;
-    err.code = UV_ENOBUFS;
-    SetErrno(err);
+    args.GetReturnValue().Set(UV_ENOBUFS);
     return;
   }
 
   char* storage = new char[sizeof(WriteWrap) + storage_size + 15];
-  WriteWrap* req_wrap = new (storage) WriteWrap(wrap);
+  WriteWrap* req_wrap = new (storage) WriteWrap(req_wrap_obj, wrap);
 
   char* data = reinterpret_cast<char*>(ROUND_UP(
       reinterpret_cast<uintptr_t>(storage) + sizeof(WriteWrap), 16));
@@ -294,16 +288,16 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
                   reinterpret_cast<uv_pipe_t*>(wrap->stream_)->ipc;
 
   if (!ipc_pipe) {
-    r = wrap->callbacks_->DoWrite(req_wrap,
-                                  &buf,
-                                  1,
-                                  NULL,
-                                  StreamWrap::AfterWrite);
+    err = wrap->callbacks_->DoWrite(req_wrap,
+                                    &buf,
+                                    1,
+                                    NULL,
+                                    StreamWrap::AfterWrite);
   } else {
     uv_handle_t* send_handle = NULL;
 
-    if (args[1]->IsObject()) {
-      Local<Object> send_handle_obj = args[1]->ToObject();
+    if (args[2]->IsObject()) {
+      Local<Object> send_handle_obj = args[2]->ToObject();
       assert(send_handle_obj->InternalFieldCount() > 0);
       HandleWrap* send_handle_wrap = static_cast<HandleWrap*>(
           send_handle_obj->GetAlignedPointerFromInternalField(0));
@@ -318,23 +312,22 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
       req_wrap->object()->Set(handle_sym, send_handle_obj);
     }
 
-    r = wrap->callbacks_->DoWrite(req_wrap,
-                                  &buf,
-                                  1,
-                                  reinterpret_cast<uv_stream_t*>(send_handle),
-                                  StreamWrap::AfterWrite);
+    err = wrap->callbacks_->DoWrite(req_wrap,
+                                    &buf,
+                                    1,
+                                    reinterpret_cast<uv_stream_t*>(send_handle),
+                                    StreamWrap::AfterWrite);
   }
 
   req_wrap->Dispatched();
   req_wrap->object()->Set(bytes_sym, Number::New(node_isolate, data_size));
 
-  if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
+  if (err) {
     req_wrap->~WriteWrap();
     delete[] storage;
-  } else {
-    args.GetReturnValue().Set(req_wrap->persistent());
   }
+
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -343,13 +336,11 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(StreamWrap)
 
-  if (args.Length() < 1)
-    return ThrowTypeError("Not enough arguments");
+  assert(args[0]->IsObject());
+  assert(args[1]->IsArray());
 
-  if (!args[0]->IsArray())
-    return ThrowTypeError("Argument should be array");
-
-  Handle<Array> chunks = args[0].As<Array>();
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  Local<Array> chunks = args[1].As<Array>();
   size_t count = chunks->Length() >> 1;
 
   uv_buf_t bufs_[16];
@@ -377,9 +368,7 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (storage_size > INT_MAX) {
-    uv_err_t err;
-    err.code = UV_ENOBUFS;
-    SetErrno(err);
+    args.GetReturnValue().Set(UV_ENOBUFS);
     return;
   }
 
@@ -388,7 +377,7 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
 
   storage_size += sizeof(WriteWrap);
   char* storage = new char[storage_size];
-  WriteWrap* req_wrap = new (storage) WriteWrap(wrap);
+  WriteWrap* req_wrap = new (storage) WriteWrap(req_wrap_obj, wrap);
 
   uint32_t bytes = 0;
   size_t offset = sizeof(WriteWrap);
@@ -418,11 +407,11 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
     bytes += str_size;
   }
 
-  int r = wrap->callbacks_->DoWrite(req_wrap,
-                                    bufs,
-                                    count,
-                                    NULL,
-                                    StreamWrap::AfterWrite);
+  int err = wrap->callbacks_->DoWrite(req_wrap,
+                                      bufs,
+                                      count,
+                                      NULL,
+                                      StreamWrap::AfterWrite);
 
   // Deallocate space
   if (bufs != bufs_)
@@ -431,13 +420,12 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
   req_wrap->Dispatched();
   req_wrap->object()->Set(bytes_sym, Number::New(node_isolate, bytes));
 
-  if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
+  if (err) {
     req_wrap->~WriteWrap();
     delete[] storage;
-  } else {
-    args.GetReturnValue().Set(req_wrap->persistent());
   }
+
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -472,10 +460,6 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
     req_wrap_obj->Delete(handle_sym);
   }
 
-  if (status) {
-    SetErrno(uv_last_error(uv_default_loop()));
-  }
-
   wrap->callbacks_->AfterWrite(req_wrap);
 
   Local<Value> argv[] = {
@@ -496,34 +480,26 @@ void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(StreamWrap)
 
-  ShutdownWrap* req_wrap = new ShutdownWrap();
+  assert(args[0]->IsObject());
+  Local<Object> req_wrap_obj = args[0].As<Object>();
 
-  int r = wrap->callbacks_->DoShutdown(req_wrap, AfterShutdown);
-
+  ShutdownWrap* req_wrap = new ShutdownWrap(req_wrap_obj);
+  int err = wrap->callbacks_->DoShutdown(req_wrap, AfterShutdown);
   req_wrap->Dispatched();
-
-  if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
-    delete req_wrap;
-  } else {
-    args.GetReturnValue().Set(req_wrap->persistent());
-  }
+  if (err) delete req_wrap;
+  args.GetReturnValue().Set(err);
 }
 
 
 void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
-  ReqWrap<uv_shutdown_t>* req_wrap = (ReqWrap<uv_shutdown_t>*) req->data;
-  StreamWrap* wrap = (StreamWrap*) req->handle->data;
+  ShutdownWrap* req_wrap = static_cast<ShutdownWrap*>(req->data);
+  StreamWrap* wrap = static_cast<StreamWrap*>(req->handle->data);
 
   // The wrap and request objects should still be there.
   assert(req_wrap->persistent().IsEmpty() == false);
   assert(wrap->persistent().IsEmpty() == false);
 
   HandleScope scope(node_isolate);
-
-  if (status) {
-    SetErrno(uv_last_error(uv_default_loop()));
-  }
 
   Local<Object> req_wrap_obj = req_wrap->object();
   Local<Value> argv[3] = {
@@ -589,11 +565,16 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
                                  uv_handle_type pending) {
   HandleScope scope(node_isolate);
 
+  Local<Value> argv[] = {
+    Integer::New(nread, node_isolate),
+    Undefined(),
+    Undefined()
+  };
+
   if (nread < 0)  {
     if (buf.base != NULL)
       free(buf.base);
-    SetErrno(uv_last_error(uv_default_loop()));
-    MakeCallback(Self(), onread_sym, 0, NULL);
+    MakeCallback(Self(), onread_sym, ARRAY_SIZE(argv), argv);
     return;
   }
 
@@ -604,13 +585,8 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
   }
 
   buf.base = static_cast<char*>(realloc(buf.base, nread));
-
   assert(static_cast<size_t>(nread) <= buf.len);
-
-  int argc = 1;
-  Local<Value> argv[2] = {
-    Buffer::Use(buf.base, nread)
-  };
+  argv[1] = Buffer::Use(buf.base, nread);
 
   Local<Object> pending_obj;
   if (pending == UV_TCP) {
@@ -624,11 +600,10 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
   }
 
   if (!pending_obj.IsEmpty()) {
-    argv[1] = pending_obj;
-    argc++;
+    argv[2] = pending_obj;
   }
 
-  MakeCallback(wrap_->object(), onread_sym, argc, argv);
+  MakeCallback(wrap_->object(), onread_sym, ARRAY_SIZE(argv), argv);
 }
 
 

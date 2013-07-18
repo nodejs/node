@@ -774,22 +774,6 @@ Local<Value> ErrnoException(int errorno,
 }
 
 
-static const char* get_uv_errno_string(int errorno) {
-  uv_err_t err;
-  memset(&err, 0, sizeof err);
-  err.code = (uv_err_code)errorno;
-  return uv_err_name(err);
-}
-
-
-static const char* get_uv_errno_message(int errorno) {
-  uv_err_t err;
-  memset(&err, 0, sizeof err);
-  err.code = (uv_err_code)errorno;
-  return uv_strerror(err);
-}
-
-
 // hack alert! copy of ErrnoException, tuned for uv errors
 Local<Value> UVException(int errorno,
                          const char *syscall,
@@ -803,9 +787,9 @@ Local<Value> UVException(int errorno,
   }
 
   if (!msg || !msg[0])
-    msg = get_uv_errno_message(errorno);
+    msg = uv_strerror(errorno);
 
-  Local<String> estring = String::NewSymbol(get_uv_errno_string(errorno));
+  Local<String> estring = String::NewSymbol(uv_err_name(errorno));
   Local<String> message = String::NewSymbol(msg);
   Local<String> cons1 = String::Concat(estring, String::NewSymbol(", "));
   Local<String> cons2 = String::Concat(cons1, message);
@@ -1080,25 +1064,6 @@ MakeCallback(const Handle<Object> object,
 }
 
 
-void SetErrno(uv_err_t err) {
-  HandleScope scope(node_isolate);
-  Local<Object> process = PersistentToLocal(process_p);
-
-  static Cached<String> errno_symbol;
-  if (errno_symbol.IsEmpty()) {
-    errno_symbol = String::New("_errno");
-  }
-
-  if (err.code == UV_UNKNOWN) {
-    char errno_buf[100];
-    snprintf(errno_buf, 100, "Unknown system errno %d", err.sys_errno_);
-    process->Set(errno_symbol, String::New(errno_buf));
-  } else {
-    process->Set(errno_symbol, String::NewSymbol(uv_err_name(err)));
-  }
-}
-
-
 enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
   HandleScope scope(node_isolate);
 
@@ -1356,11 +1321,9 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   }
 
   String::Utf8Value path(args[0]);
-
-  uv_err_t r = uv_chdir(*path);
-
-  if (r.code != UV_OK) {
-    return ThrowUVException(r.code, "uv_chdir");
+  int err = uv_chdir(*path);
+  if (err) {
+    return ThrowUVException(err, "uv_chdir");
   }
 }
 
@@ -1374,9 +1337,9 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
   char buf[PATH_MAX + 1];
 #endif
 
-  uv_err_t r = uv_cwd(buf, ARRAY_SIZE(buf) - 1);
-  if (r.code != UV_OK) {
-    return ThrowUVException(r.code, "uv_cwd");
+  int err = uv_cwd(buf, ARRAY_SIZE(buf) - 1);
+  if (err) {
+    return ThrowUVException(err, "uv_cwd");
   }
 
   buf[ARRAY_SIZE(buf) - 1] = '\0';
@@ -1698,7 +1661,7 @@ void Exit(const FunctionCallbackInfo<Value>& args) {
 static void Uptime(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   double uptime;
-  if (uv_uptime(&uptime).code != UV_OK) return;
+  if (uv_uptime(&uptime)) return;
   args.GetReturnValue().Set(uptime - prog_start_time);
 }
 
@@ -1708,10 +1671,9 @@ void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 
   size_t rss;
 
-  uv_err_t err = uv_resident_set_memory(&rss);
-
-  if (err.code != UV_OK) {
-    return ThrowUVException(err.code, "uv_resident_set_memory");
+  int err = uv_resident_set_memory(&rss);
+  if (err) {
+    return ThrowUVException(err, "uv_resident_set_memory");
   }
 
   Local<Object> info = Object::New();
@@ -1747,12 +1709,8 @@ void Kill(const FunctionCallbackInfo<Value>& args) {
 
   int pid = args[0]->IntegerValue();
   int sig = args[1]->Int32Value();
-  uv_err_t err = uv_kill(pid, sig);
-
-  if (err.code != UV_OK) {
-    SetErrno(err);
-    args.GetReturnValue().Set(-1);
-  }
+  int err = uv_kill(pid, sig);
+  args.GetReturnValue().Set(err);
 }
 
 // used in Hrtime() below

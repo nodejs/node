@@ -418,7 +418,6 @@ void TLSCallbacks::EncOutCb(uv_write_t* req, int status) {
       return;
 
     // Notify about error
-    SetErrno(uv_last_error(uv_default_loop()));
     Local<Value> arg = String::Concat(
         String::New("write cb error, status: "),
         Integer::New(status, node_isolate)->ToString());
@@ -483,8 +482,11 @@ void TLSCallbacks::ClearOut() {
   do {
     read = SSL_read(ssl_, out, sizeof(out));
     if (read > 0) {
-      Handle<Value> buf = Buffer::New(out, read);
-      MakeCallback(Self(), onread_sym, 1, &buf);
+      Local<Value> argv[] = {
+        Integer::New(read, node_isolate),
+        Buffer::New(out, read)
+      };
+      MakeCallback(Self(), onread_sym, ARRAY_SIZE(argv), argv);
     }
   } while (read > 0);
 
@@ -621,12 +623,10 @@ void TLSCallbacks::DoRead(uv_stream_t* handle,
                           uv_buf_t buf,
                           uv_handle_type pending) {
   if (nread < 0)  {
-    uv_err_t err = uv_last_error(uv_default_loop());
-    SetErrno(err);
-
     // Error should be emitted only after all data was read
     ClearOut();
-    MakeCallback(Self(), onread_sym, 0, NULL);
+    Local<Value> arg = Integer::New(nread, node_isolate);
+    MakeCallback(Self(), onread_sym, 1, &arg);
     return;
   }
 

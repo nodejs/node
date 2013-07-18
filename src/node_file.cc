@@ -104,17 +104,12 @@ static void After(uv_fs_t *req) {
   // (Feel free to increase this if you need more)
   Local<Value> argv[2];
 
-  // NOTE: This may be needed to be changed if something returns a -1
-  // for a success, which is possible.
-  if (req->result == -1) {
+  if (req->result < 0) {
     // If the request doesn't have a path parameter set.
-
-    if (!req->path) {
-      argv[0] = UVException(req->errorno,
-                            NULL,
-                            req_wrap->syscall());
+    if (req->path == NULL) {
+      argv[0] = UVException(req->result, NULL, req_wrap->syscall());
     } else {
-      argv[0] = UVException(req->errorno,
+      argv[0] = UVException(req->result,
                             NULL,
                             req_wrap->syscall(),
                             static_cast<const char*>(req->path));
@@ -225,30 +220,29 @@ struct fs_req_wrap {
 
 #define ASYNC_CALL(func, callback, ...)                           \
   FSReqWrap* req_wrap = new FSReqWrap(#func);                     \
-  int r = uv_fs_##func(uv_default_loop(), &req_wrap->req_,        \
+  int err = uv_fs_ ## func(uv_default_loop(), &req_wrap->req_,    \
       __VA_ARGS__, After);                                        \
   req_wrap->object()->Set(oncomplete_sym, callback);              \
   req_wrap->Dispatched();                                         \
-  if (r < 0) {                                                    \
+  if (err < 0) {                                                  \
     uv_fs_t* req = &req_wrap->req_;                               \
-    req->result = r;                                              \
+    req->result = err;                                            \
     req->path = NULL;                                             \
-    req->errorno = uv_last_error(uv_default_loop()).code;         \
     After(req);                                                   \
   }                                                               \
   args.GetReturnValue().Set(req_wrap->persistent());
 
 #define SYNC_CALL(func, path, ...)                                \
   fs_req_wrap req_wrap;                                           \
-  int result = uv_fs_##func(uv_default_loop(), &req_wrap.req, __VA_ARGS__, NULL); \
-  if (result < 0) {                                               \
-    int code = uv_last_error(uv_default_loop()).code;             \
-    return ThrowUVException(code, #func, "", path);               \
-  }
+  int err = uv_fs_ ## func(uv_default_loop(),                     \
+                           &req_wrap.req,                         \
+                           __VA_ARGS__,                           \
+                           NULL);                                 \
+  if (err < 0) return ThrowUVException(err, #func, NULL, path);   \
 
 #define SYNC_REQ req_wrap.req
 
-#define SYNC_RESULT result
+#define SYNC_RESULT err
 
 
 static void Close(const FunctionCallbackInfo<Value>& args) {

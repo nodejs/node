@@ -86,18 +86,16 @@ class SignalWrap : public HandleWrap {
     UNWRAP(SignalWrap)
 
     int signum = args[0]->Int32Value();
-    int r = uv_signal_start(&wrap->handle_, OnSignal, signum);
-    if (r) SetErrno(uv_last_error(uv_default_loop()));
-    args.GetReturnValue().Set(r);
+    int err = uv_signal_start(&wrap->handle_, OnSignal, signum);
+    args.GetReturnValue().Set(err);
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
     UNWRAP(SignalWrap)
 
-    int r = uv_signal_stop(&wrap->handle_);
-    if (r) SetErrno(uv_last_error(uv_default_loop()));
-    args.GetReturnValue().Set(r);
+    int err = uv_signal_stop(&wrap->handle_);
+    args.GetReturnValue().Set(err);
   }
 
   static void OnSignal(uv_signal_t* handle, int signum) {

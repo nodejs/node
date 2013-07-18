@@ -37,7 +37,8 @@ typedef class ReqWrap<uv_shutdown_t> ShutdownWrap;
 
 class WriteWrap: public ReqWrap<uv_write_t> {
  public:
-  explicit WriteWrap(StreamWrap* wrap) {
+  explicit WriteWrap(v8::Local<v8::Object> obj, StreamWrap* wrap)
+      : ReqWrap<uv_write_t>(obj) {
     wrap_ = wrap;
   }
 

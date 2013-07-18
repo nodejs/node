@@ -29,6 +29,7 @@
 
 namespace node {
 
+using v8::Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -131,15 +132,18 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   UNWRAP(TTYWrap)
+  assert(args[0]->IsArray());
 
   int width, height;
-  int r = uv_tty_get_winsize(&wrap->handle_, &width, &height);
-  if (r) return SetErrno(uv_last_error(uv_default_loop()));
+  int err = uv_tty_get_winsize(&wrap->handle_, &width, &height);
 
-  Local<v8::Array> a = v8::Array::New(2);
-  a->Set(0, Integer::New(width, node_isolate));
-  a->Set(1, Integer::New(height, node_isolate));
-  args.GetReturnValue().Set(a);
+  if (err == 0) {
+    Local<v8::Array> a = args[0].As<Array>();
+    a->Set(0, Integer::New(width, node_isolate));
+    a->Set(1, Integer::New(height, node_isolate));
+  }
+
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -148,9 +152,8 @@ void TTYWrap::SetRawMode(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(TTYWrap)
 
-  int r = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
-  args.GetReturnValue().Set(r);
+  int err = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
+  args.GetReturnValue().Set(err);
 }
 
 

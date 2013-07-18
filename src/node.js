@@ -626,23 +626,23 @@
     };
 
     process.kill = function(pid, sig) {
-      var r;
+      var err;
 
       // preserve null signal
       if (0 === sig) {
-        r = process._kill(pid, 0);
+        err = process._kill(pid, 0);
       } else {
         sig = sig || 'SIGTERM';
         if (startup.lazyConstants()[sig]) {
-          r = process._kill(pid, startup.lazyConstants()[sig]);
+          err = process._kill(pid, startup.lazyConstants()[sig]);
         } else {
           throw new Error('Unknown signal: ' + sig);
         }
       }
 
-      if (r) {
+      if (err) {
         var errnoException = NativeModule.require('util')._errnoException;
-        throw errnoException(process._errno, 'kill');
+        throw errnoException(err, 'kill');
       }
 
       return true;
@@ -673,11 +673,11 @@
         wrap.onsignal = function() { process.emit(type); };
 
         var signum = startup.lazyConstants()[type];
-        var r = wrap.start(signum);
-        if (r) {
+        var err = wrap.start(signum);
+        if (err) {
           wrap.close();
           var errnoException = NativeModule.require('util')._errnoException;
-          throw errnoException(process._errno, 'uv_signal_start');
+          throw errnoException(err, 'uv_signal_start');
         }
 
         signalWraps[type] = wrap;

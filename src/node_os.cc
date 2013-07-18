@@ -131,8 +131,8 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   uv_cpu_info_t* cpu_infos;
   int count, i;
 
-  uv_err_t err = uv_cpu_info(&cpu_infos, &count);
-  if (err.code != UV_OK) return;
+  int err = uv_cpu_info(&cpu_infos, &count);
+  if (err) return;
 
   Local<Array> cpus = Array::New();
   for (i = 0; i < count; i++) {
@@ -180,9 +180,8 @@ static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   double uptime;
-  uv_err_t err = uv_uptime(&uptime);
-  if (err.code != UV_OK) return;
-  args.GetReturnValue().Set(uptime);
+  int err = uv_uptime(&uptime);
+  if (err == 0) args.GetReturnValue().Set(uptime);
 }
 
 
@@ -208,9 +207,9 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   Local<String> name, family;
   Local<Array> ifarr;
 
-  uv_err_t err = uv_interface_addresses(&interfaces, &count);
-  if (err.code != UV_OK) {
-    return ThrowUVException(err.code, "uv_interface_addresses");
+  int err = uv_interface_addresses(&interfaces, &count);
+  if (err) {
+    return ThrowUVException(err, "uv_interface_addresses");
   }
 
   ret = Object::New();

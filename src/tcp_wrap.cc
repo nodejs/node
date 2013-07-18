@@ -39,11 +39,11 @@ using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
-using v8::Null;
 using v8::Object;
 using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::String;
+using v8::Undefined;
 using v8::Value;
 
 static Persistent<Function> tcpConstructor;
@@ -168,14 +168,19 @@ void TCPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(TCPWrap)
 
-  int addrlen = sizeof(address);
-  int r = uv_tcp_getsockname(&wrap->handle_,
-                             reinterpret_cast<sockaddr*>(&address),
-                             &addrlen);
-  if (r) return SetErrno(uv_last_error(uv_default_loop()));
+  assert(args[0]->IsObject());
+  Local<Object> out = args[0].As<Object>();
 
-  const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
-  args.GetReturnValue().Set(AddressToJS(addr));
+  int addrlen = sizeof(address);
+  int err = uv_tcp_getsockname(&wrap->handle_,
+                               reinterpret_cast<sockaddr*>(&address),
+                               &addrlen);
+  if (err == 0) {
+    const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
+    AddressToJS(addr, out);
+  }
+
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -185,14 +190,19 @@ void TCPWrap::GetPeerName(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(TCPWrap)
 
-  int addrlen = sizeof(address);
-  int r = uv_tcp_getpeername(&wrap->handle_,
-                             reinterpret_cast<sockaddr*>(&address),
-                             &addrlen);
-  if (r) return SetErrno(uv_last_error(uv_default_loop()));
+  assert(args[0]->IsObject());
+  Local<Object> out = args[0].As<Object>();
 
-  const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
-  args.GetReturnValue().Set(AddressToJS(addr));
+  int addrlen = sizeof(address);
+  int err = uv_tcp_getpeername(&wrap->handle_,
+                               reinterpret_cast<sockaddr*>(&address),
+                               &addrlen);
+  if (err == 0) {
+    const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
+    AddressToJS(addr, out);
+  }
+
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -202,8 +212,8 @@ void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
   UNWRAP(TCPWrap)
 
   int enable = static_cast<int>(args[0]->BooleanValue());
-  int r = uv_tcp_nodelay(&wrap->handle_, enable);
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
+  int err = uv_tcp_nodelay(&wrap->handle_, enable);
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -215,8 +225,8 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   int enable = args[0]->Int32Value();
   unsigned int delay = args[1]->Uint32Value();
 
-  int r = uv_tcp_keepalive(&wrap->handle_, enable, delay);
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
+  int err = uv_tcp_keepalive(&wrap->handle_, enable, delay);
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -227,8 +237,8 @@ void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
   UNWRAP(TCPWrap)
 
   bool enable = args[0]->BooleanValue();
-  int r = uv_tcp_simultaneous_accepts(&wrap->handle_, enable ? 1 : 0);
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
+  int err = uv_tcp_simultaneous_accepts(&wrap->handle_, enable);
+  args.GetReturnValue().Set(err);
 }
 #endif
 
@@ -250,12 +260,9 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   int port = args[1]->Int32Value();
 
   struct sockaddr_in address = uv_ip4_addr(*ip_address, port);
-  int r = uv_tcp_bind(&wrap->handle_, address);
+  int err = uv_tcp_bind(&wrap->handle_, address);
 
-  // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-  args.GetReturnValue().Set(r);
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -268,12 +275,9 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   int port = args[1]->Int32Value();
 
   struct sockaddr_in6 address = uv_ip6_addr(*ip6_address, port);
-  int r = uv_tcp_bind6(&wrap->handle_, address);
+  int err = uv_tcp_bind6(&wrap->handle_, address);
 
-  // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-  args.GetReturnValue().Set(r);
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -283,15 +287,10 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   UNWRAP(TCPWrap)
 
   int backlog = args[0]->Int32Value();
-
-  int r = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
-                    backlog,
-                    OnConnection);
-
-  // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-  args.GetReturnValue().Set(r);
+  int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
+                      backlog,
+                      OnConnection);
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -305,7 +304,10 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
   // uv_close() on the handle.
   assert(wrap->persistent().IsEmpty() == false);
 
-  Local<Value> argv[1];
+  Local<Value> argv[2] = {
+    Integer::New(status, node_isolate),
+    Undefined()
+  };
 
   if (status == 0) {
     // Instantiate the client javascript object and handle.
@@ -321,10 +323,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
     if (uv_accept(handle, client_handle)) return;
 
     // Successful accept. Call the onconnection callback in JavaScript land.
-    argv[0] = client_obj;
-  } else {
-    SetErrno(uv_last_error(uv_default_loop()));
-    argv[0] = Null(node_isolate);
+    argv[1] = client_obj;
   }
 
   MakeCallback(wrap->object(), onconnection_sym, ARRAY_SIZE(argv), argv);
@@ -340,10 +339,6 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
   // The wrap and request objects should still be there.
   assert(req_wrap->persistent().IsEmpty() == false);
   assert(wrap->persistent().IsEmpty() == false);
-
-  if (status) {
-    SetErrno(uv_last_error(uv_default_loop()));
-  }
 
   Local<Object> req_wrap_obj = req_wrap->object();
   Local<Value> argv[5] = {
@@ -364,27 +359,29 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(TCPWrap)
 
-  String::AsciiValue ip_address(args[0]);
-  int port = args[1]->Int32Value();
+  assert(args[0]->IsObject());
+  assert(args[1]->IsString());
+  assert(args[2]->Uint32Value());
+
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  String::AsciiValue ip_address(args[1]);
+  int port = args[2]->Uint32Value();
 
   struct sockaddr_in address = uv_ip4_addr(*ip_address, port);
 
   // I hate when people program C++ like it was C, and yet I do it too.
   // I'm too lazy to come up with the perfect class hierarchy here. Let's
   // just do some type munging.
-  ConnectWrap* req_wrap = new ConnectWrap();
+  ConnectWrap* req_wrap = new ConnectWrap(req_wrap_obj);
 
-  int r = uv_tcp_connect(&req_wrap->req_, &wrap->handle_, address,
-      AfterConnect);
-
+  int err = uv_tcp_connect(&req_wrap->req_,
+                           &wrap->handle_,
+                           address,
+                           AfterConnect);
   req_wrap->Dispatched();
+  if (err) delete req_wrap;
 
-  if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
-    delete req_wrap;
-  } else {
-    args.GetReturnValue().Set(req_wrap->persistent());
-  }
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -393,24 +390,26 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(TCPWrap)
 
-  String::AsciiValue ip_address(args[0]);
-  int port = args[1]->Int32Value();
+  assert(args[0]->IsObject());
+  assert(args[1]->IsString());
+  assert(args[2]->Uint32Value());
+
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  String::AsciiValue ip_address(args[1]);
+  int port = args[2]->Int32Value();
 
   struct sockaddr_in6 address = uv_ip6_addr(*ip_address, port);
 
-  ConnectWrap* req_wrap = new ConnectWrap();
+  ConnectWrap* req_wrap = new ConnectWrap(req_wrap_obj);
 
-  int r = uv_tcp_connect6(&req_wrap->req_, &wrap->handle_, address,
-      AfterConnect);
-
+  int err = uv_tcp_connect6(&req_wrap->req_,
+                            &wrap->handle_,
+                            address,
+                            AfterConnect);
   req_wrap->Dispatched();
+  if (err) delete req_wrap;
 
-  if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
-    delete req_wrap;
-  } else {
-    args.GetReturnValue().Set(req_wrap->persistent());
-  }
+  args.GetReturnValue().Set(err);
 }
 
 

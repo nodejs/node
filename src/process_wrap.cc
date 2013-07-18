@@ -217,12 +217,9 @@ class ProcessWrap : public HandleWrap {
       options.flags |= UV_PROCESS_DETACHED;
     }
 
-    int r = uv_spawn(uv_default_loop(), &wrap->process_, options);
+    int err = uv_spawn(uv_default_loop(), &wrap->process_, options);
 
-    if (r) {
-      SetErrno(uv_last_error(uv_default_loop()));
-    }
-    else {
+    if (err == 0) {
       assert(wrap->process_.data == wrap);
       wrap->object()->Set(String::New("pid"),
                           Integer::New(wrap->process_.pid, node_isolate));
@@ -240,7 +237,7 @@ class ProcessWrap : public HandleWrap {
 
     delete[] options.stdio;
 
-    args.GetReturnValue().Set(r);
+    args.GetReturnValue().Set(err);
   }
 
   static void Kill(const FunctionCallbackInfo<Value>& args) {
@@ -248,9 +245,8 @@ class ProcessWrap : public HandleWrap {
     UNWRAP(ProcessWrap)
 
     int signal = args[0]->Int32Value();
-    int r = uv_process_kill(&wrap->process_, signal);
-    if (r) SetErrno(uv_last_error(uv_default_loop()));
-    args.GetReturnValue().Set(r);
+    int err = uv_process_kill(&wrap->process_, signal);
+    args.GetReturnValue().Set(err);
   }
 
   static void OnExit(uv_process_t* handle, int exit_status, int term_signal) {
@@ -260,14 +256,10 @@ class ProcessWrap : public HandleWrap {
     assert(wrap);
     assert(&wrap->process_ == handle);
 
-    Local<Value> argv[2] = {
+    Local<Value> argv[] = {
       Integer::New(exit_status, node_isolate),
       String::New(signo_string(term_signal))
     };
-
-    if (exit_status == -1) {
-      SetErrno(uv_last_error(uv_default_loop()));
-    }
 
     if (onexit_sym.IsEmpty()) {
       onexit_sym = String::New("onexit");

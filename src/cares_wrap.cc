@@ -228,56 +228,11 @@ static Local<Array> HostentToNames(struct hostent* host) {
 }
 
 
-static const char* AresErrnoString(int errorno) {
-  switch (errorno) {
-#define ERRNO_CASE(e) case ARES_##e: return #e;
-    ERRNO_CASE(SUCCESS)
-    ERRNO_CASE(ENODATA)
-    ERRNO_CASE(EFORMERR)
-    ERRNO_CASE(ESERVFAIL)
-    ERRNO_CASE(ENOTFOUND)
-    ERRNO_CASE(ENOTIMP)
-    ERRNO_CASE(EREFUSED)
-    ERRNO_CASE(EBADQUERY)
-    ERRNO_CASE(EBADNAME)
-    ERRNO_CASE(EBADFAMILY)
-    ERRNO_CASE(EBADRESP)
-    ERRNO_CASE(ECONNREFUSED)
-    ERRNO_CASE(ETIMEOUT)
-    ERRNO_CASE(EOF)
-    ERRNO_CASE(EFILE)
-    ERRNO_CASE(ENOMEM)
-    ERRNO_CASE(EDESTRUCTION)
-    ERRNO_CASE(EBADSTR)
-    ERRNO_CASE(EBADFLAGS)
-    ERRNO_CASE(ENONAME)
-    ERRNO_CASE(EBADHINTS)
-    ERRNO_CASE(ENOTINITIALIZED)
-    ERRNO_CASE(ELOADIPHLPAPI)
-    ERRNO_CASE(EADDRGETNETWORKPARAMS)
-    ERRNO_CASE(ECANCELLED)
-#undef ERRNO_CASE
-    default:
-      assert(0 && "Unhandled c-ares error");
-      return "(UNKNOWN)";
-  }
-}
-
-
-static void SetAresErrno(int errorno) {
-  HandleScope scope(node_isolate);
-  Local<Value> key = String::NewSymbol("_errno");
-  Local<Value> value = String::NewSymbol(AresErrnoString(errorno));
-  Local<Object> process = PersistentToLocal(process_p);
-  process->Set(key, value);
-}
-
-
 class QueryWrap {
  public:
-  QueryWrap() {
+  QueryWrap(Local<Object> req_wrap_obj) {
     HandleScope scope(node_isolate);
-    persistent().Reset(node_isolate, Object::New());
+    persistent().Reset(node_isolate, req_wrap_obj);
   }
 
   virtual ~QueryWrap() {
@@ -355,10 +310,10 @@ class QueryWrap {
 
   void ParseError(int status) {
     assert(status != ARES_SUCCESS);
-    SetAresErrno(status);
-
     HandleScope scope(node_isolate);
-    Local<Value> argv[1] = { Integer::New(-1, node_isolate) };
+    Local<Value> argv[] = {
+      Integer::New(status, node_isolate)
+    };
     MakeCallback(object(), oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
@@ -378,6 +333,9 @@ class QueryWrap {
 
 class QueryAWrap: public QueryWrap {
  public:
+  QueryAWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  }
+
   int Send(const char* name) {
     ares_query(ares_channel, name, ns_c_in, ns_t_a, Callback, GetQueryArg());
     return 0;
@@ -405,6 +363,9 @@ class QueryAWrap: public QueryWrap {
 
 class QueryAaaaWrap: public QueryWrap {
  public:
+  QueryAaaaWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  }
+
   int Send(const char* name) {
     ares_query(ares_channel,
                name,
@@ -437,6 +398,9 @@ class QueryAaaaWrap: public QueryWrap {
 
 class QueryCnameWrap: public QueryWrap {
  public:
+  QueryCnameWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  }
+
   int Send(const char* name) {
     ares_query(ares_channel,
                name,
@@ -472,6 +436,9 @@ class QueryCnameWrap: public QueryWrap {
 
 class QueryMxWrap: public QueryWrap {
  public:
+  QueryMxWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  }
+
   int Send(const char* name) {
     ares_query(ares_channel, name, ns_c_in, ns_t_mx, Callback, GetQueryArg());
     return 0;
@@ -511,6 +478,9 @@ class QueryMxWrap: public QueryWrap {
 
 class QueryNsWrap: public QueryWrap {
  public:
+  QueryNsWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  }
+
   int Send(const char* name) {
     ares_query(ares_channel, name, ns_c_in, ns_t_ns, Callback, GetQueryArg());
     return 0;
@@ -536,6 +506,9 @@ class QueryNsWrap: public QueryWrap {
 
 class QueryTxtWrap: public QueryWrap {
  public:
+  QueryTxtWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  }
+
   int Send(const char* name) {
     ares_query(ares_channel, name, ns_c_in, ns_t_txt, Callback, GetQueryArg());
     return 0;
@@ -568,6 +541,9 @@ class QueryTxtWrap: public QueryWrap {
 
 class QuerySrvWrap: public QueryWrap {
  public:
+  QuerySrvWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  }
+
   int Send(const char* name) {
     ares_query(ares_channel,
                name,
@@ -617,6 +593,9 @@ class QuerySrvWrap: public QueryWrap {
 
 class QueryNaptrWrap: public QueryWrap {
  public:
+  QueryNaptrWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  }
+
   int Send(const char* name) {
     ares_query(ares_channel,
                name,
@@ -679,18 +658,21 @@ class QueryNaptrWrap: public QueryWrap {
 
 class GetHostByAddrWrap: public QueryWrap {
  public:
+  GetHostByAddrWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  }
+
   int Send(const char* name) {
     int length, family;
     char address_buffer[sizeof(struct in6_addr)];
 
-    if (uv_inet_pton(AF_INET, name, &address_buffer).code == UV_OK) {
+    if (uv_inet_pton(AF_INET, name, &address_buffer) == 0) {
       length = sizeof(struct in_addr);
       family = AF_INET;
-    } else if (uv_inet_pton(AF_INET6, name, &address_buffer).code == UV_OK) {
+    } else if (uv_inet_pton(AF_INET6, name, &address_buffer) == 0) {
       length = sizeof(struct in6_addr);
       family = AF_INET6;
     } else {
-      return ARES_ENOTIMP;
+      return UV_EINVAL;  // So errnoException() reports a proper error.
     }
 
     ares_gethostbyaddr(ares_channel,
@@ -713,6 +695,9 @@ class GetHostByAddrWrap: public QueryWrap {
 
 class GetHostByNameWrap: public QueryWrap {
  public:
+  GetHostByNameWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  }
+
   int Send(const char* name, int family) {
     ares_gethostbyname(ares_channel, name, family, Callback, GetQueryArg());
     return 0;
@@ -735,26 +720,27 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   assert(!args.IsConstructCall());
-  assert(args.Length() >= 2);
-  assert(args[1]->IsFunction());
+  assert(args[0]->IsObject());
+  assert(args[1]->IsString());
+  assert(args[2]->IsFunction());
 
-  Wrap* wrap = new Wrap();
-  wrap->SetOnComplete(args[1]);
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  Local<String> string = args[1].As<String>();
+  Local<Function> callback = args[2].As<Function>();
+
+  Wrap* wrap = new Wrap(req_wrap_obj);
+  wrap->SetOnComplete(callback);
 
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
   // object reference, causing wrap->object() to return an empty handle.
   Local<Object> object = Local<Object>::New(node_isolate, wrap->persistent());
 
-  String::Utf8Value name(args[0]);
+  String::Utf8Value name(string);
+  int err = wrap->Send(*name);
+  if (err) delete wrap;
 
-  int r = wrap->Send(*name);
-  if (r) {
-    SetAresErrno(r);
-    delete wrap;
-  } else {
-    args.GetReturnValue().Set(object);
-  }
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -763,27 +749,29 @@ static void QueryWithFamily(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   assert(!args.IsConstructCall());
-  assert(args.Length() >= 3);
-  assert(args[2]->IsFunction());
+  assert(args[0]->IsObject());
+  assert(args[1]->IsString());
+  assert(args[2]->IsInt32());
+  assert(args[3]->IsFunction());
 
-  Wrap* wrap = new Wrap();
-  wrap->SetOnComplete(args[2]);
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  Local<String> string = args[1].As<String>();
+  int family = args[2]->Int32Value();
+  Local<Function> callback = args[3].As<Function>();
+
+  Wrap* wrap = new Wrap(req_wrap_obj);
+  wrap->SetOnComplete(callback);
 
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
   // object reference, causing wrap->object() to return an empty handle.
   Local<Object> object = Local<Object>::New(node_isolate, wrap->persistent());
 
-  String::Utf8Value name(args[0]);
-  int family = args[1]->Int32Value();
+  String::Utf8Value name(string);
+  int err = wrap->Send(*name, family);
+  if (err) delete wrap;
 
-  int r = wrap->Send(*name, family);
-  if (r) {
-    SetAresErrno(r);
-    delete wrap;
-  } else {
-    args.GetReturnValue().Set(object);
-  }
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -792,13 +780,12 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
   GetAddrInfoReqWrap* req_wrap = (GetAddrInfoReqWrap*) req->data;
 
-  Local<Value> argv[1];
+  Local<Value> argv[] = {
+    Integer::New(status, node_isolate),
+    Null(node_isolate)
+  };
 
-  if (status) {
-    // Error
-    SetErrno(uv_last_error(uv_default_loop()));
-    argv[0] = Null(node_isolate);
-  } else {
+  if (status == 0) {
     // Success
     struct addrinfo *address;
     int n = 0;
@@ -826,11 +813,11 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       if (address->ai_family == AF_INET) {
         // Juggle pointers
         addr = (char*) &((struct sockaddr_in*) address->ai_addr)->sin_addr;
-        uv_err_t err = uv_inet_ntop(address->ai_family,
-                                    addr,
-                                    ip,
-                                    INET6_ADDRSTRLEN);
-        if (err.code != UV_OK)
+        int err = uv_inet_ntop(address->ai_family,
+                               addr,
+                               ip,
+                               INET6_ADDRSTRLEN);
+        if (err)
           continue;
 
         // Create JavaScript string
@@ -852,11 +839,11 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       if (address->ai_family == AF_INET6) {
         // Juggle pointers
         addr = (char*) &((struct sockaddr_in6*) address->ai_addr)->sin6_addr;
-        uv_err_t err = uv_inet_ntop(address->ai_family,
-                                    addr,
-                                    ip,
-                                    INET6_ADDRSTRLEN);
-        if (err.code != UV_OK)
+        int err = uv_inet_ntop(address->ai_family,
+                               addr,
+                               ip,
+                               INET6_ADDRSTRLEN);
+        if (err)
           continue;
 
         // Create JavaScript string
@@ -870,7 +857,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     }
 
 
-    argv[0] = results;
+    argv[1] = results;
   }
 
   uv_freeaddrinfo(res);
@@ -889,9 +876,9 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
   char address_buffer[sizeof(struct in6_addr)];
 
   int rc = 0;
-  if (uv_inet_pton(AF_INET, *ip, &address_buffer).code == UV_OK)
+  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0)
     rc = 4;
-  else if (uv_inet_pton(AF_INET6, *ip, &address_buffer).code == UV_OK)
+  else if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0)
     rc = 6;
 
   args.GetReturnValue().Set(rc);
@@ -901,42 +888,45 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
 static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  String::Utf8Value hostname(args[0]);
+  assert(args[0]->IsObject());
+  assert(args[1]->IsString());
+  assert(args[2]->IsInt32());
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  String::Utf8Value hostname(args[1]);
 
-  int fam = AF_UNSPEC;
-  if (args[1]->IsInt32()) {
-    switch (args[1]->Int32Value()) {
-      case 6:
-        fam = AF_INET6;
-        break;
-
-      case 4:
-        fam = AF_INET;
-        break;
-    }
+  int family;
+  switch (args[2]->Int32Value()) {
+  case 0:
+    family = AF_UNSPEC;
+    break;
+  case 4:
+    family = AF_INET;
+    break;
+  case 6:
+    family = AF_INET6;
+    break;
+  default:
+    assert(0 && "bad address family");
+    abort();
   }
 
-  GetAddrInfoReqWrap* req_wrap = new GetAddrInfoReqWrap();
+  GetAddrInfoReqWrap* req_wrap = new GetAddrInfoReqWrap(req_wrap_obj);
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family = fam;
+  hints.ai_family = family;
   hints.ai_socktype = SOCK_STREAM;
 
-  int r = uv_getaddrinfo(uv_default_loop(),
-                         &req_wrap->req_,
-                         AfterGetAddrInfo,
-                         *hostname,
-                         NULL,
-                         &hints);
+  int err = uv_getaddrinfo(uv_default_loop(),
+                           &req_wrap->req_,
+                           AfterGetAddrInfo,
+                           *hostname,
+                           NULL,
+                           &hints);
   req_wrap->Dispatched();
+  if (err) delete req_wrap;
 
-  if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
-    delete req_wrap;
-  } else {
-    args.GetReturnValue().Set(req_wrap->persistent());
-  }
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -956,8 +946,8 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
     char ip[INET6_ADDRSTRLEN];
 
     const void* caddr = static_cast<const void*>(&cur->addr);
-    uv_err_t err = uv_inet_ntop(cur->family, caddr, ip, sizeof(ip));
-    assert(err.code == UV_OK);
+    int err = uv_inet_ntop(cur->family, caddr, ip, sizeof(ip));
+    assert(err == 0);
 
     Local<String> addr = String::New(ip);
     server_array->Set(i, addr);
@@ -986,7 +976,7 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
   ares_addr_node* servers = new ares_addr_node[len];
   ares_addr_node* last = NULL;
 
-  uv_err_t uv_ret;
+  int err;
 
   for (uint32_t i = 0; i < len; i++) {
     assert(arr->Get(i)->IsArray());
@@ -1004,18 +994,18 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
     switch (fam) {
       case 4:
         cur->family = AF_INET;
-        uv_ret = uv_inet_pton(AF_INET, *ip, &cur->addr);
+        err = uv_inet_pton(AF_INET, *ip, &cur->addr);
         break;
       case 6:
         cur->family = AF_INET6;
-        uv_ret = uv_inet_pton(AF_INET6, *ip, &cur->addr);
+        err = uv_inet_pton(AF_INET6, *ip, &cur->addr);
         break;
       default:
         assert(0 && "Bad address family.");
         abort();
     }
 
-    if (uv_ret.code != UV_OK)
+    if (err)
       break;
 
     cur->next = NULL;
@@ -1026,16 +1016,14 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
     last = cur;
   }
 
-  int r;
-
-  if (uv_ret.code == UV_OK)
-    r = ares_set_servers(ares_channel, &servers[0]);
+  if (err == 0)
+    err = ares_set_servers(ares_channel, &servers[0]);
   else
-    r = ARES_EBADSTR;
+    err = ARES_EBADSTR;
 
   delete[] servers;
 
-  args.GetReturnValue().Set(r);
+  args.GetReturnValue().Set(err);
 }
 
 

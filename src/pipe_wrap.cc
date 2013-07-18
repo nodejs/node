@@ -41,6 +41,7 @@ using v8::Object;
 using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::String;
+using v8::Undefined;
 using v8::Value;
 
 static Persistent<Function> pipeConstructor;
@@ -145,13 +146,8 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   UNWRAP(PipeWrap)
 
   String::AsciiValue name(args[0]);
-
-  int r = uv_pipe_bind(&wrap->handle_, *name);
-
-  // Error starting the pipe.
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-  args.GetReturnValue().Set(r);
+  int err = uv_pipe_bind(&wrap->handle_, *name);
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -174,15 +170,10 @@ void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   UNWRAP(PipeWrap)
 
   int backlog = args[0]->Int32Value();
-
-  int r = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
-                    backlog,
-                    OnConnection);
-
-  // Error starting the pipe.
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-  args.GetReturnValue().Set(r);
+  int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
+                      backlog,
+                      OnConnection);
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -197,9 +188,13 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   // uv_close() on the handle.
   assert(wrap->persistent().IsEmpty() == false);
 
+  Local<Value> argv[] = {
+    Integer::New(status, node_isolate),
+    Undefined()
+  };
+
   if (status != 0) {
-    SetErrno(uv_last_error(uv_default_loop()));
-    MakeCallback(wrap->object(), "onconnection", 0, NULL);
+    MakeCallback(wrap->object(), "onconnection", ARRAY_SIZE(argv), argv);
     return;
   }
 
@@ -215,7 +210,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   if (uv_accept(handle, client_handle)) return;
 
   // Successful accept. Call the onconnection callback in JavaScript land.
-  Local<Value> argv[1] = { client_obj };
+  argv[1] = client_obj;
   if (onconnection_sym.IsEmpty()) {
     onconnection_sym = String::New("onconnection");
   }
@@ -236,7 +231,6 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
   bool readable, writable;
 
   if (status) {
-    SetErrno(uv_last_error(uv_default_loop()));
     readable = writable = 0;
   } else {
     readable = uv_is_readable(req->handle) != 0;
@@ -277,18 +271,20 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(PipeWrap)
 
-  String::AsciiValue name(args[0]);
+  assert(args[0]->IsObject());
+  assert(args[1]->IsString());
 
-  ConnectWrap* req_wrap = new ConnectWrap();
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  String::AsciiValue name(args[1]);
 
+  ConnectWrap* req_wrap = new ConnectWrap(req_wrap_obj);
   uv_pipe_connect(&req_wrap->req_,
                   &wrap->handle_,
                   *name,
                   AfterConnect);
-
   req_wrap->Dispatched();
 
-  args.GetReturnValue().Set(req_wrap->persistent());
+  args.GetReturnValue().Set(0);  // uv_pipe_connect() doesn't return errors.
 }
 
 
