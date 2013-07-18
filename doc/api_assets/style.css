@@ -105,6 +105,23 @@ p {
   text-rendering: optimizeLegibility;
 }
 
+table {
+  border-collapse: collapse;
+  margin: 0 0 1.4667em 0;
+}
+
+th, td {
+  border: 1px solid #aaa;
+}
+
+table p {
+  margin: 0 1ex;
+}
+
+th {
+  text-align:left;
+}
+
 .apidoc #apicontent p,
 .apidoc #apicontent li {
   font-size: 15px;
@@ -334,7 +351,7 @@ hr {
 }
 
 p tt,
-p code {
+p code, span.type {
   background: #f8f8ff;
   border: 1px solid #dedede;
   padding: 0 0.2em;

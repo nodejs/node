@@ -44,6 +44,16 @@ var parseTests = {
     'path': '/'
   },
 
+  'HTTP://www.example.com' : {
+    'href': 'http://www.example.com/',
+    'protocol': 'http:',
+    'slashes': true,
+    'host': 'www.example.com',
+    'hostname': 'www.example.com',
+    'pathname': '/',
+    'path': '/'
+  },
+
   'http://www.ExAmPlE.com/' : {
     'href': 'http://www.example.com/',
     'protocol': 'http:',
