@@ -310,8 +310,7 @@ test('complex transform', function(t) {
         pt.end();
         t.end();
       });
-      t.equal(pt.read().toString(), 'abc');
-      t.equal(pt.read().toString(), 'def');
+      t.equal(pt.read().toString(), 'abcdef');
       t.equal(pt.read(), null);
     });
   });

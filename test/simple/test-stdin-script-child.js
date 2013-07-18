@@ -22,22 +22,31 @@
 var common = require('../common');
 var assert = require('assert');
 
-var Readable = require('_stream_readable');
-var EE = require('events').EventEmitter;
+var spawn = require('child_process').spawn;
+var child = spawn(process.execPath, [], {
+  env: {
+    NODE_DEBUG: process.argv[2]
+  }
+});
+var wanted = child.pid + '\n';
+var found = '';
 
-var oldStream = new EE();
-oldStream.pause = function(){};
-oldStream.resume = function(){};
+child.stdout.setEncoding('utf8');
+child.stdout.on('data', function(c) {
+  found += c;
+});
 
-var newStream = new Readable().wrap(oldStream);
+child.stderr.setEncoding('utf8');
+child.stderr.on('data', function(c) {
+  console.error('> ' + c.trim().split(/\n/).join('\n> '));
+});
 
-var ended = false;
-newStream
-  .on('readable', function(){})
-  .on('end', function(){ ended = true; });
+child.on('close', function(c) {
+  assert(!c);
+  assert.equal(found, wanted);
+  console.log('ok');
+});
 
-oldStream.emit('end');
-
-process.on('exit', function(){
-  assert.ok(ended);
+setTimeout(function() {
+  child.stdin.end('console.log(process.pid)');
 });

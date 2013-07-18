@@ -237,9 +237,12 @@ test('high watermark _read', function(t) {
   assert.equal(v, '1');
 
   var v2 = r.read();
+  assert.equal(v2, '2');
+
+  var v3 = r.read();
+  assert.equal(v3, '3');
 
   assert.equal(calls, 1);
-  assert.equal(v2, '2');
 
   t.end();
 });

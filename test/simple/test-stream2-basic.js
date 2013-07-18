@@ -37,10 +37,8 @@ function TestReader(n) {
 
 util.inherits(TestReader, R);
 
-TestReader.prototype.read = function(n) {
-  if (n === 0) return null;
+TestReader.prototype._read = function(n) {
   var max = this._buffer.length - this._pos;
-  n = n || max;
   n = Math.max(n, 0);
   var toRead = Math.min(n, max);
   if (toRead === 0) {
@@ -51,20 +49,21 @@ TestReader.prototype.read = function(n) {
       this._bufs -= 1;
       if (this._bufs <= 0) {
         // read them all!
-        if (!this.ended) {
-          this.emit('end');
-          this.ended = true;
-        }
+        if (!this.ended)
+          this.push(null);
       } else {
-        this.emit('readable');
+        // now we have more.
+        // kinda cheating by calling _read, but whatever,
+        // it's just fake anyway.
+        this._read(n);
       }
     }.bind(this), 10);
-    return null;
+    return;
   }
 
   var ret = this._buffer.slice(this._pos, this._pos + toRead);
   this._pos += toRead;
-  return ret;
+  this.push(ret);
 };
 
 /////
@@ -135,21 +134,17 @@ test('a most basic test', function(t) {
                  'xxx',
                  'xxxx',
                  'xxxxx',
-                 'xxxxx',
-                 'xxxxxxxx',
                  'xxxxxxxxx',
-                 'xxx',
+                 'xxxxxxxxxx',
                  'xxxxxxxxxxxx',
-                 'xxxxxxxx',
+                 'xxxxxxxxxxxxx',
                  'xxxxxxxxxxxxxxx',
-                 'xxxxx',
-                 'xxxxxxxxxxxxxxxxxx',
-                 'xx',
-                 'xxxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxx' ];
+                 'xxxxxxxxxxxxxxxxx',
+                 'xxxxxxxxxxxxxxxxxxx',
+                 'xxxxxxxxxxxxxxxxxxxxx',
+                 'xxxxxxxxxxxxxxxxxxxxxxx',
+                 'xxxxxxxxxxxxxxxxxxxxxxxxx',
+                 'xxxxxxxxxxxxxxxxxxxxx' ];
 
   r.on('end', function() {
     t.same(reads, expect);
@@ -342,6 +337,7 @@ test('back pressure respected', function (t) {
 
   var w1 = new R();
   w1.write = function (chunk) {
+    console.error('w1.emit("close")');
     assert.equal(chunk[0], "one");
     w1.emit("close");
     process.nextTick(function () {
@@ -357,6 +353,7 @@ test('back pressure respected', function (t) {
 
   var w2 = new R();
   w2.write = function (chunk) {
+    console.error('w2 write', chunk, counter);
     assert.equal(chunk[0], expected.shift());
     assert.equal(counter, 0);
 
@@ -368,6 +365,7 @@ test('back pressure respected', function (t) {
 
     setTimeout(function () {
       counter--;
+      console.error("w2 drain");
       w2.emit("drain");
     }, 10);
 
@@ -377,6 +375,7 @@ test('back pressure respected', function (t) {
 
   var w3 = new R();
   w3.write = function (chunk) {
+    console.error('w3 write', chunk, counter);
     assert.equal(chunk[0], expected.shift());
     assert.equal(counter, 1);
 
@@ -388,6 +387,7 @@ test('back pressure respected', function (t) {
 
     setTimeout(function () {
       counter--;
+      console.error("w3 drain");
       w3.emit("drain");
     }, 50);
 
