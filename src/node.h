@@ -141,7 +141,10 @@ inline void NODE_SET_METHOD(TypeName& recv,
                             const char* name,
                             v8::FunctionCallback callback) {
   v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(callback);
-  recv->Set(v8::String::New(name), t->GetFunction());
+  v8::Local<v8::Function> fn = t->GetFunction();
+  v8::Local<v8::String> fn_name = v8::String::New(name);
+  fn->SetName(fn_name);
+  recv->Set(fn_name, fn);
 }
 #define NODE_SET_METHOD node::NODE_SET_METHOD
 
