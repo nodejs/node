@@ -744,7 +744,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
   // object reference, causing wrap->object() to return an empty handle.
-  Local<Object> object = wrap->object();
+  Local<Object> object = Local<Object>::New(node_isolate, wrap->persistent());
 
   String::Utf8Value name(args[0]);
 
@@ -772,7 +772,7 @@ static void QueryWithFamily(const FunctionCallbackInfo<Value>& args) {
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
   // object reference, causing wrap->object() to return an empty handle.
-  Local<Object> object = wrap->object();
+  Local<Object> object = Local<Object>::New(node_isolate, wrap->persistent());
 
   String::Utf8Value name(args[0]);
   int family = args[1]->Int32Value();

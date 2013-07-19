@@ -174,7 +174,7 @@ Local<Object> WrappedContext::NewInstance() {
 
 
 Local<Context> WrappedContext::GetV8Context() {
-  return PersistentToLocal(context_);
+  return Local<Context>::New(node_isolate, context_);
 }
 
 
@@ -405,7 +405,7 @@ void WrappedScript::EvalMachine(const FunctionCallbackInfo<Value>& args) {
           "'this' must be a result of previous new Script(code) call.");
     }
 
-    script = PersistentToLocal(n_script->script_);
+    script = Local<Script>::New(node_isolate, n_script->script_);
   }
 
   if (output_flag == returnResult) {
