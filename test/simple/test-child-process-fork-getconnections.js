@@ -36,7 +36,7 @@ if (process.argv[2] === 'child') {
       sockets.push(socket);
       socket.on('end', function() {
         if (!this.closingOnPurpose)
-          throw new Error('[c] closing by accident! ' + process._errno);
+          throw new Error('[c] closing by accident!');
       });
     }
 

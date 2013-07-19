@@ -36,7 +36,7 @@ var slice, sliceCount = 0, eofCount = 0;
 var writeCount = 0;
 var recvCount = 0;
 
-server.onconnection = function(client) {
+server.onconnection = function(err, client) {
   assert.equal(0, client.writeQueueSize);
   console.log('got connection');
 
@@ -49,13 +49,15 @@ server.onconnection = function(client) {
 
   client.readStart();
   client.pendingWrites = [];
-  client.onread = function(buffer) {
+  client.onread = function(err, buffer) {
     if (buffer) {
       assert.ok(buffer.length > 0);
 
       assert.equal(0, client.writeQueueSize);
 
-      var req = client.writeBuffer(buffer);
+      var req = {};
+      var err = client.writeBuffer(req, buffer);
+      assert.equal(err, 0);
       client.pendingWrites.push(req);
 
       console.log('client.writeQueueSize: ' + client.writeQueueSize);
@@ -112,5 +114,3 @@ process.on('exit', function() {
   assert.equal(1, writeCount);
   assert.equal(1, recvCount);
 });
-
-
