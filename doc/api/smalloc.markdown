@@ -2,10 +2,11 @@
 
     Stability: 1 - Experimental
 
-## smalloc.alloc(length[, receiver])
+## smalloc.alloc(length[, receiver][, type])
 
-* `length` Number `<= smalloc.kMaxLength`
-* `receiver` Object, Optional, Default: `new Object`
+* `length` {Number} `<= smalloc.kMaxLength`
+* `receiver` {Object}, Optional, Default: `new Object`
+* `type` {Enum}, Optional, Default: `Uint8`
 
 Returns `receiver` with allocated external array data. If no `receiver` is
 passed then a new Object will be created and returned.
@@ -34,6 +35,16 @@ this it is possible to allocate external array data to more than a plain Object.
 
 v8 does not support allocating external array data to an Array, and if passed
 will throw.
+
+It's possible is to specify the type of external array data you would like. All
+possible options are listed in `smalloc.Types`. Example usage:
+
+    var doubleArr = smalloc.alloc(3, smalloc.Types.Double);
+
+    for (var i = 0; i < 3; i++)
+      doubleArr = i / 10;
+
+    // { '0': 0, '1': 0.1, '2': 0.2 }
 
 ## smalloc.copyOnto(source, sourceStart, dest, destStart, copyLength);
 
@@ -99,3 +110,17 @@ careful. Cryptic errors may arise in applications that are difficult to trace.
 ## smalloc.kMaxLength
 
 Size of maximum allocation. This is also applicable to Buffer creation.
+
+## smalloc.Types
+
+Enum of possible external array types. Contains:
+
+* `Int8`
+* `Uint8`
+* `Int16`
+* `Uint16`
+* `Int32`
+* `Uint32`
+* `Float`
+* `Double`
+* `Uint8Clamped`

@@ -44,18 +44,32 @@ NODE_EXTERN typedef void (*FreeCallback)(char* data, void* hint);
 /**
  * Allocate external memory and set to passed object. If data is passed then
  * will use that instead of allocating new.
+ *
+ * When you pass an ExternalArrayType and data, Alloc assumes data length is
+ * the same as data length * ExternalArrayType length.
  */
-NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj, size_t length);
-NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj, char* data, size_t length);
+NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj,
+                       size_t length,
+                       enum v8::ExternalArrayType type =
+                       v8::kExternalUnsignedByteArray);
+NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj,
+                       char* data,
+                       size_t length,
+                       enum v8::ExternalArrayType type =
+                       v8::kExternalUnsignedByteArray);
 NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj,
                        size_t length,
                        FreeCallback fn,
-                       void* hint);
+                       void* hint,
+                       enum v8::ExternalArrayType type =
+                       v8::kExternalUnsignedByteArray);
 NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj,
                        char* data,
                        size_t length,
                        FreeCallback fn,
-                       void* hint);
+                       void* hint,
+                       enum v8::ExternalArrayType type =
+                       v8::kExternalUnsignedByteArray);
 
 /**
  * Free memory associated with an externally allocated object. If no external

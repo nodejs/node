@@ -28,6 +28,7 @@ var alloc = smalloc.alloc;
 var dispose = smalloc.dispose;
 var copyOnto = smalloc.copyOnto;
 var kMaxLength = smalloc.kMaxLength;
+var Types = smalloc.Types;
 // sliceOnto is volatile and cannot be exposed to users.
 var sliceOnto = process.binding('smalloc').sliceOnto;
 
@@ -63,6 +64,60 @@ for (var i = 0; i < 5; i++)
   assert.equal(b[i], i);
 
 
+var b = alloc(1, Types.Uint8);
+b[0] = 256;
+assert.equal(b[0], 0);
+assert.equal(b[1], undefined);
+
+
+var b = alloc(1, Types.Int8);
+b[0] = 128;
+assert.equal(b[0], -128);
+assert.equal(b[1], undefined);
+
+
+var b = alloc(1, Types.Uint16);
+b[0] = 65536;
+assert.equal(b[0], 0);
+assert.equal(b[1], undefined);
+
+
+var b = alloc(1, Types.Int16);
+b[0] = 32768;
+assert.equal(b[0], -32768);
+assert.equal(b[1], undefined);
+
+
+var b = alloc(1, Types.Uint32);
+b[0] = 4294967296;
+assert.equal(b[0], 0);
+assert.equal(b[1], undefined);
+
+
+var b = alloc(1, Types.Int32);
+b[0] = 2147483648;
+assert.equal(b[0], -2147483648);
+assert.equal(b[1], undefined);
+
+
+var b = alloc(1, Types.Float);
+b[0] = 0.1111111111111111;
+assert.equal(b[0], 0.1111111119389534);
+assert.equal(b[1], undefined);
+
+
+var b = alloc(1, Types.Double);
+b[0] = 0.1111111111111111;
+assert.equal(b[0], 0.1111111111111111);
+assert.equal(b[1], undefined);
+
+
+var b = alloc(1, Types.Uint8Clamped);
+b[0] = 300;
+assert.equal(b[0], 255);
+assert.equal(b[1], undefined);
+
+
 var b = alloc(6, {});
 var c0 = {};
 var c1 = {};
@@ -91,6 +146,14 @@ for (var i = 0; i < 6; i++) {
   assert.equal(c[i], i);
   assert.equal(c[i + 6], i * 2);
 }
+
+
+var b = alloc(1, Types.Double);
+var c = alloc(2, Types.Uint32);
+c[0] = 2576980378;
+c[1] = 1069128089;
+copyOnto(c, 0, b, 0, 2);
+assert.equal(b[0], 0.1);
 
 
 // verify alloc throws properly
@@ -124,9 +187,6 @@ assert.throws(function() {
   alloc(1, 'a');
 }, TypeError);
 assert.throws(function() {
-  alloc(1, 1);
-}, TypeError);
-assert.throws(function() {
   alloc(1, true);
 }, TypeError);
 assert.throws(function() {
@@ -139,6 +199,14 @@ alloc(1, function() { });
 alloc(1, /abc/);
 alloc(1, new Date());
 
+
+// range check on external array enumeration
+assert.throws(function() {
+  alloc(1, 0);
+}, TypeError);
+assert.throws(function() {
+  alloc(1, 10);
+}, TypeError);
 
 // very copyOnto throws properly
 
@@ -187,6 +255,12 @@ assert.throws(function() {
 // destStart + copyLength <= destLength
 assert.throws(function() {
   copyOnto(alloc(3), 0, alloc(3), 1, 3);
+}, RangeError);
+
+
+// copy_length * array_size <= dest_length
+assert.throws(function() {
+  copyOnto(alloc(2, Types.Double), 0, alloc(2, Types.Uint32), 0, 2);
 }, RangeError);
 
 

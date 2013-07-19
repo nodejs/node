@@ -35,6 +35,7 @@ namespace node {
 namespace smalloc {
 
 using v8::External;
+using v8::ExternalArrayType;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
 using v8::HandleScope;
@@ -67,6 +68,32 @@ Cached<String> smalloc_sym;
 static bool using_alloc_cb;
 
 
+// return size of external array type, or 0 if unrecognized
+static inline size_t ExternalArraySize(enum ExternalArrayType type) {
+  switch (type) {
+    case v8::kExternalUnsignedByteArray:
+      return sizeof(uint8_t);
+    case v8::kExternalByteArray:
+      return sizeof(int8_t);
+    case v8::kExternalShortArray:
+      return sizeof(int16_t);
+    case v8::kExternalUnsignedShortArray:
+      return sizeof(uint16_t);
+    case v8::kExternalIntArray:
+      return sizeof(int32_t);
+    case v8::kExternalUnsignedIntArray:
+      return sizeof(uint32_t);
+    case v8::kExternalFloatArray:
+      return sizeof(float);   // NOLINT(runtime/sizeof)
+    case v8::kExternalDoubleArray:
+      return sizeof(double);  // NOLINT(runtime/sizeof)
+    case v8::kExternalPixelArray:
+      return sizeof(uint8_t);
+  }
+  return 0;
+}
+
+
 // copyOnto(source, source_start, dest, dest_start, copy_length)
 void CopyOnto(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
@@ -87,12 +114,39 @@ void CopyOnto(const FunctionCallbackInfo<Value>& args) {
   size_t source_start = args[1]->Uint32Value();
   size_t dest_start = args[3]->Uint32Value();
   size_t copy_length = args[4]->Uint32Value();
-  size_t source_length = source->GetIndexedPropertiesExternalArrayDataLength();
-  size_t dest_length = dest->GetIndexedPropertiesExternalArrayDataLength();
   char* source_data = static_cast<char*>(
       source->GetIndexedPropertiesExternalArrayData());
   char* dest_data = static_cast<char*>(
       dest->GetIndexedPropertiesExternalArrayData());
+
+  size_t source_length = source->GetIndexedPropertiesExternalArrayDataLength();
+  enum ExternalArrayType source_type =
+    source->GetIndexedPropertiesExternalArrayDataType();
+  size_t source_size = ExternalArraySize(source_type);
+
+  size_t dest_length = dest->GetIndexedPropertiesExternalArrayDataLength();
+  enum ExternalArrayType dest_type =
+    dest->GetIndexedPropertiesExternalArrayDataType();
+  size_t dest_size = ExternalArraySize(dest_type);
+
+  // optimization for Uint8 arrays (i.e. Buffers)
+  if (source_size != 1 && dest_size != 1) {
+    if (source_size == 0)
+      return ThrowTypeError("unknown source external array type");
+    if (dest_size == 0)
+      return ThrowTypeError("unknown dest external array type");
+
+    if (source_length * source_size < source_length)
+      return ThrowRangeError("source_length * source_size overflow");
+    if (copy_length * source_size < copy_length)
+      return ThrowRangeError("copy_length * source_size overflow");
+    if (dest_length * dest_size < dest_length)
+      return ThrowRangeError("dest_length * dest_size overflow");
+
+    source_length *= source_size;
+    copy_length *= source_size;
+    dest_length *= dest_size;
+  }
 
   // necessary to check in case (source|dest)_start _and_ copy_length overflow
   if (copy_length > source_length)
@@ -114,7 +168,9 @@ void CopyOnto(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// for internal use: dest._data = sliceOnto(source, dest, start, end);
+// dest will always be same type as source
+// for internal use:
+//    dest._data = sliceOnto(source, dest, start, end);
 void SliceOnto(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
@@ -127,60 +183,92 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
   char* source_data = static_cast<char*>(
       source->GetIndexedPropertiesExternalArrayData());
   size_t source_len = source->GetIndexedPropertiesExternalArrayDataLength();
+  enum ExternalArrayType source_type =
+    source->GetIndexedPropertiesExternalArrayDataType();
+  size_t source_size = ExternalArraySize(source_type);
+
+  assert(source_size != 0);
+
   size_t start = args[2]->Uint32Value();
   size_t end = args[3]->Uint32Value();
   size_t length = end - start;
+
+  if (source_size > 1) {
+    assert(length * source_size >= length);
+    length *= source_size;
+  }
 
   assert(source_data != NULL || length == 0);
   assert(end <= source_len);
   assert(start <= end);
 
   dest->SetIndexedPropertiesToExternalArrayData(source_data + start,
-                                                kExternalUnsignedByteArray,
+                                                source_type,
                                                 length);
   args.GetReturnValue().Set(source);
 }
 
 
-// for internal use: alloc(obj, n);
+// for internal use:
+//    alloc(obj, n[, type]);
 void Alloc(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   Local<Object> obj = args[0].As<Object>();
-  size_t length = args[1]->Uint32Value();
 
   // can't perform this check in JS
   if (obj->HasIndexedPropertiesInExternalArrayData())
     return ThrowTypeError("object already has external array data");
 
-  Alloc(obj, length);
+  size_t length = args[1]->Uint32Value();
+  enum ExternalArrayType array_type;
+
+  // it's faster to not pass the default argument then use Uint32Value
+  if (args[2]->IsUndefined())
+    array_type = kExternalUnsignedByteArray;
+  else
+    array_type = static_cast<ExternalArrayType>(args[2]->Uint32Value());
+
+  Alloc(obj, length, array_type);
   args.GetReturnValue().Set(obj);
 }
 
 
-void Alloc(Handle<Object> obj, size_t length) {
+void Alloc(Handle<Object> obj, size_t length, enum ExternalArrayType type) {
   assert(length <= kMaxLength);
 
+  size_t type_size = ExternalArraySize(type);
+
+  assert(type_size > 0);
+  assert(length * type_size >= length);
+
+  length *= type_size;
+
   if (length == 0)
-    return Alloc(obj, NULL, length);
+    return Alloc(obj, NULL, length, type);
 
   char* data = static_cast<char*>(malloc(length));
-  if (data == NULL)
-    FatalError("node::smalloc::Alloc(Handle<Object>, size_t)", "Out Of Memory");
-  Alloc(obj, data, length);
+  if (data == NULL) {
+    FatalError("node::smalloc::Alloc(v8::Handle<v8::Object>, size_t,"
+        " ExternalArrayType)", "Out Of Memory");
+  }
+
+  Alloc(obj, data, length, type);
 }
 
 
-void Alloc(Handle<Object> obj, char* data, size_t length) {
+void Alloc(Handle<Object> obj,
+           char* data,
+           size_t length,
+           enum ExternalArrayType type) {
   assert(!obj->HasIndexedPropertiesInExternalArrayData());
   Persistent<Object> p_obj(node_isolate, obj);
   node_isolate->AdjustAmountOfExternalAllocatedMemory(length);
   p_obj.MakeWeak(data, TargetCallback);
   p_obj.MarkIndependent();
   p_obj.SetWrapperClassId(ALLOC_ID);
-  obj->SetIndexedPropertiesToExternalArrayData(data,
-                                               kExternalUnsignedByteArray,
-                                               length);
+  size_t size = length / ExternalArraySize(type);
+  obj->SetIndexedPropertiesToExternalArrayData(data, type, size);
 }
 
 
@@ -190,6 +278,12 @@ void TargetCallback(Isolate* isolate,
   HandleScope handle_scope(isolate);
   Local<Object> obj = PersistentToLocal(isolate, *target);
   size_t len = obj->GetIndexedPropertiesExternalArrayDataLength();
+  enum ExternalArrayType array_type =
+    obj->GetIndexedPropertiesExternalArrayDataType();
+  size_t array_size = ExternalArraySize(array_type);
+  assert(array_size > 0);
+  assert(array_size * len >= len);
+  len *= array_size;
   if (data != NULL && len > 0) {
     isolate->AdjustAmountOfExternalAllocatedMemory(-len);
     free(data);
@@ -216,6 +310,14 @@ void AllocDispose(Handle<Object> obj) {
 
   char* data = static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
   size_t length = obj->GetIndexedPropertiesExternalArrayDataLength();
+  enum ExternalArrayType array_type =
+    obj->GetIndexedPropertiesExternalArrayDataType();
+  size_t array_size = ExternalArraySize(array_type);
+
+  assert(array_size > 0);
+  assert(length * array_size >= length);
+
+  length *= array_size;
 
   if (data != NULL) {
     obj->SetIndexedPropertiesToExternalArrayData(NULL,
@@ -229,11 +331,22 @@ void AllocDispose(Handle<Object> obj) {
 }
 
 
-void Alloc(Handle<Object> obj, size_t length, FreeCallback fn, void* hint) {
+void Alloc(Handle<Object> obj,
+           size_t length,
+           FreeCallback fn,
+           void* hint,
+           enum ExternalArrayType type) {
   assert(length <= kMaxLength);
 
+  size_t type_size = ExternalArraySize(type);
+
+  assert(type_size > 0);
+  assert(length * type_size >= length);
+
+  length *= type_size;
+
   char* data = new char[length];
-  Alloc(obj, data, length, fn, hint);
+  Alloc(obj, data, length, fn, hint, type);
 }
 
 
@@ -241,7 +354,8 @@ void Alloc(Handle<Object> obj,
            char* data,
            size_t length,
            FreeCallback fn,
-           void* hint) {
+           void* hint,
+           enum ExternalArrayType type) {
   assert(!obj->HasIndexedPropertiesInExternalArrayData());
 
   if (smalloc_sym.IsEmpty()) {
@@ -260,9 +374,8 @@ void Alloc(Handle<Object> obj,
   cb_info->p_obj.MakeWeak(cb_info, TargetFreeCallback);
   cb_info->p_obj.MarkIndependent();
   cb_info->p_obj.SetWrapperClassId(ALLOC_ID);
-  obj->SetIndexedPropertiesToExternalArrayData(data,
-                                               kExternalUnsignedByteArray,
-                                               length);
+  size_t size = length / ExternalArraySize(type);
+  obj->SetIndexedPropertiesToExternalArrayData(data, type, size);
 }
 
 
@@ -273,6 +386,14 @@ void TargetFreeCallback(Isolate* isolate,
   Local<Object> obj = PersistentToLocal(isolate, *target);
   char* data = static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
   size_t len = obj->GetIndexedPropertiesExternalArrayDataLength();
+  enum ExternalArrayType array_type =
+      obj->GetIndexedPropertiesExternalArrayDataType();
+  size_t array_size = ExternalArraySize(array_type);
+  assert(array_size > 0);
+  if (array_size > 1) {
+    assert(len * array_size > len);
+    len *= array_size;
+  }
   isolate->AdjustAmountOfExternalAllocatedMemory(-(len + sizeof(*cb_info)));
   cb_info->p_obj.Dispose();
   cb_info->cb(data, cb_info->hint);
