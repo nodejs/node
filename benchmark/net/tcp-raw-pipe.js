@@ -2,6 +2,7 @@
 // as many bytes as we can in the specified time (default = 10s)
 
 var common = require('../common.js');
+var util = require('util');
 
 // if there are --dur=N and --len=N args, then
 // run the function with those settings.
@@ -26,42 +27,39 @@ function main(conf) {
   server();
 }
 
-
-function fail(syscall) {
-  var e = new Error(syscall + ' ' + errno);
-  e.errno = e.code = errno;
-  e.syscall = syscall;
-  throw e;
+function fail(err, syscall) {
+  throw util._errnoException(err, syscall);
 }
 
 function server() {
   var serverHandle = new TCP();
-  var r = serverHandle.bind('127.0.0.1', PORT);
-  if (r)
-    fail('bind');
+  var err = serverHandle.bind('127.0.0.1', PORT);
+  if (err)
+    fail(err, 'bind');
 
-  var r = serverHandle.listen(511);
-  if (r)
-    fail('listen');
+  err = serverHandle.listen(511);
+  if (err)
+    fail(err, 'listen');
 
-  serverHandle.onconnection = function(clientHandle) {
-    if (!clientHandle)
-      fail('connect');
+  serverHandle.onconnection = function(err, clientHandle) {
+    if (err)
+      fail(err, 'connect');
 
-    clientHandle.onread = function(buffer) {
+    clientHandle.onread = function(nread, buffer) {
       // we're not expecting to ever get an EOF from the client.
       // just lots of data forever.
-      if (!buffer)
-        fail('read');
+      if (nread < 0)
+        fail(nread, 'read');
 
-      var writeReq = clientHandle.writeBuffer(buffer);
+      var writeReq = {};
+      err = clientHandle.writeBuffer(writeReq, buffer);
 
-      if (!writeReq)
-        fail('write');
+      if (err)
+        fail(err, 'write');
 
       writeReq.oncomplete = function(status, handle, req) {
         if (status)
-          fail('write');
+          fail(err, 'write');
       };
     };
 
@@ -90,22 +88,26 @@ function client() {
   }
 
   var clientHandle = new TCP();
-  var connectReq = clientHandle.connect('127.0.0.1', PORT);
+  var connectReq = {};
+  var err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
   var bytes = 0;
 
-  if (!connectReq)
-    fail('connect');
+  if (err)
+    fail(err, 'connect');
 
   clientHandle.readStart();
 
-  clientHandle.onread = function(buffer) {
-    if (!buffer)
-      fail('read');
+  clientHandle.onread = function(nread, buffer) {
+    if (nread < 0)
+      fail(nread, 'read');
 
     bytes += buffer.length;
   };
 
-  connectReq.oncomplete = function() {
+  connectReq.oncomplete = function(err) {
+    if (err)
+      fail(err, 'connect');
+
     bench.start();
 
     setTimeout(function() {
@@ -119,28 +121,27 @@ function client() {
   };
 
   function write() {
-    var writeReq
+    var writeReq = { oncomplete: afterWrite };
+    var err;
     switch (type) {
       case 'buf':
-        writeReq = clientHandle.writeBuffer(chunk);
+        err = clientHandle.writeBuffer(writeReq, chunk);
         break;
       case 'utf':
-        writeReq = clientHandle.writeUtf8String(chunk);
+        err = clientHandle.writeUtf8String(writeReq, chunk);
         break;
       case 'asc':
-        writeReq = clientHandle.writeAsciiString(chunk);
+        err = clientHandle.writeAsciiString(writeReq, chunk);
         break;
     }
 
-    if (!writeReq)
-      fail('write');
-
-    writeReq.oncomplete = afterWrite;
+    if (err)
+      fail(err, 'write');
   }
 
-  function afterWrite(status, handle, req) {
-    if (status)
-      fail('write');
+  function afterWrite(err, handle, req) {
+    if (err)
+      fail(err, 'write');
 
     while (clientHandle.writeQueueSize === 0)
       write();
