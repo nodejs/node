@@ -25,10 +25,9 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include <sys/types.h>
-#include <sys/socket.h>
-
 #include "v8.h"
+
+struct sockaddr;
 
 namespace node {
 
