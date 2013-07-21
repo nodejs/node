@@ -79,6 +79,8 @@ class SecureContext : ObjectWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadPKCS12(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static SSL_SESSION* GetSessionCallback(SSL* s,
                                          unsigned char* key,

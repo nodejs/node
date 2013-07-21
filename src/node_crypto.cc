@@ -193,6 +193,8 @@ void SecureContext::Initialize(Handle<Object> target) {
                                SecureContext::SetSessionTimeout);
   NODE_SET_PROTOTYPE_METHOD(t, "close", SecureContext::Close);
   NODE_SET_PROTOTYPE_METHOD(t, "loadPKCS12", SecureContext::LoadPKCS12);
+  NODE_SET_PROTOTYPE_METHOD(t, "getTicketKeys", SecureContext::GetTicketKeys);
+  NODE_SET_PROTOTYPE_METHOD(t, "setTicketKeys", SecureContext::SetTicketKeys);
 
   target->Set(String::NewSymbol("SecureContext"), t->GetFunction());
 }
@@ -747,6 +749,47 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     const char* str = ERR_reason_error_string(err);
     return ThrowError(str);
   }
+}
+
+
+void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
+#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_get_tlsext_ticket_keys)
+  HandleScope scope(node_isolate);
+
+  UNWRAP(SecureContext);
+
+  Local<Object> buff = Buffer::New(48);
+  if (SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_,
+                                     Buffer::Data(buff),
+                                     Buffer::Length(buff)) != 1) {
+    return ThrowError("Failed to fetch tls ticket keys");
+  }
+
+  args.GetReturnValue().Set(buff);
+#endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
+}
+
+
+void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
+#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_get_tlsext_ticket_keys)
+  HandleScope scope(node_isolate);
+
+  if (args.Length() < 1 ||
+      !Buffer::HasInstance(args[0]) ||
+      Buffer::Length(args[0]) != 48) {
+    return ThrowTypeError("Bad argument");
+  }
+
+  UNWRAP(SecureContext);
+
+  if (SSL_CTX_set_tlsext_ticket_keys(wrap->ctx_,
+                                     Buffer::Data(args[0]),
+                                     Buffer::Length(args[0])) != 1) {
+    return ThrowError("Failed to fetch tls ticket keys");
+  }
+
+  args.GetReturnValue().Set(true);
+#endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
 }
 
 
