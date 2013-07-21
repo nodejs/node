@@ -30,6 +30,7 @@ namespace node {
 
 using crypto::SecureContext;
 using v8::Array;
+using v8::Boolean;
 using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -63,6 +64,7 @@ static Cached<String> name_sym;
 static Cached<String> version_sym;
 static Cached<String> ext_key_usage_sym;
 static Cached<String> sessionid_sym;
+static Cached<String> tls_ticket_sym;
 
 static Persistent<Function> tlsWrap;
 
@@ -682,6 +684,8 @@ void TLSCallbacks::ParseClientHello() {
   bool is_clienthello = false;
   uint8_t session_size = -1;
   uint8_t* session_id = NULL;
+  uint16_t tls_ticket_size = -1;
+  uint8_t* tls_ticket = NULL;
   Local<Object> hello_obj;
   Handle<Value> argv[1];
 
@@ -739,6 +743,60 @@ void TLSCallbacks::ParseClientHello() {
             session_size = *body;
             session_id = body + 1;
           }
+
+          size_t cipher_offset = session_offset + 1 + session_size;
+
+          // Session OOB failure
+          if (cipher_offset + 1 >= avail)
+            return ParseFinish();
+
+          uint16_t cipher_len =
+              (data[cipher_offset] << 8) + data[cipher_offset + 1];
+          size_t comp_offset = cipher_offset + 2 + cipher_len;
+
+          // Cipher OOB failure
+          if (comp_offset >= avail)
+            return ParseFinish();
+
+          uint8_t comp_len = data[comp_offset];
+          size_t extension_offset = comp_offset + 1 + comp_len;
+
+          // Compression OOB failure
+          if (extension_offset > avail)
+            return ParseFinish();
+
+          // Extensions present
+          if (extension_offset != avail) {
+            size_t ext_off = extension_offset + 2;
+
+            // Parse known extensions
+            while (ext_off < avail) {
+              // Extension OOB
+              if (avail - ext_off < 4)
+                return ParseFinish();
+
+              uint16_t ext_type = (data[ext_off] << 8) + data[ext_off + 1];
+              uint16_t ext_len = (data[ext_off + 2] << 8) + data[ext_off + 3];
+
+              // Extension OOB
+              if (ext_off + ext_len + 4 > avail)
+                return ParseFinish();
+
+              ext_off += 4;
+
+              // TLS Session Ticket
+              if (ext_type == 35) {
+                tls_ticket_size = ext_len;
+                tls_ticket = data + ext_off;
+              }
+
+              ext_off += ext_len;
+            }
+
+            // Extensions OOB failure
+            if (ext_off > avail)
+              return ParseFinish();
+          }
         } else if (hello_.state == kParseSSLHeader) {
           // Skip header, version
           session_offset = hello_.body_offset + 3;
@@ -773,13 +831,17 @@ void TLSCallbacks::ParseClientHello() {
         return ParseFinish();
 
       hello_.state = kParsePaused;
-      hello_obj = Object::New();
-      hello_obj->Set(sessionid_sym,
-          Buffer::New(reinterpret_cast<char*>(session_id),
-            session_size));
+      {
+        hello_obj = Object::New();
+        hello_obj->Set(sessionid_sym,
+            Buffer::New(reinterpret_cast<char*>(session_id),
+              session_size));
+        bool have_tls_ticket = (tls_ticket != NULL && tls_ticket_size != 0);
+        hello_obj->Set(tls_ticket_sym, Boolean::New(have_tls_ticket));
 
-      argv[0] = hello_obj;
-      MakeCallback(object(), onclienthello_sym, 1, argv);
+        argv[0] = hello_obj;
+        MakeCallback(object(), onclienthello_sym, 1, argv);
+      }
       break;
     case kParseEnded:
     default:
@@ -1364,6 +1426,7 @@ void TLSCallbacks::Initialize(Handle<Object> target) {
   version_sym = String::New("version");
   ext_key_usage_sym = String::New("ext_key_usage");
   sessionid_sym = String::New("sessionId");
+  tls_ticket_sym = String::New("tlsTicket");
 }
 
 }  // namespace node
