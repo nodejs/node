@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --noparallel-recompilation
+// Flags: --allow-natives-syntax
 
 if (%IsParallelRecompilationSupported()) {
   print("Parallel recompilation is turned on after all. Skipping this test.");

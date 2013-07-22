@@ -325,9 +325,9 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
   // bit test is enough.
   // map: key map
   __ ldrb(hash, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kInternalizedTag != 0);
-  __ tst(hash, Operand(kIsInternalizedMask));
-  __ b(eq, not_unique);
+  STATIC_ASSERT(kInternalizedTag == 0);
+  __ tst(hash, Operand(kIsNotInternalizedMask));
+  __ b(ne, not_unique);
 
   __ bind(&unique);
 }
@@ -1230,8 +1230,8 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // Must return the modified receiver in r0.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS,
-                                                          FAST_DOUBLE_ELEMENTS);
+    AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
+                                                      FAST_DOUBLE_ELEMENTS);
     ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
     __ mov(r0, r2);
     __ Ret();
@@ -1253,8 +1253,8 @@ void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
   // Must return the modified receiver in r0.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_DOUBLE_ELEMENTS,
-                                                          FAST_ELEMENTS);
+    AllocationSiteMode mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS,
+                                                      FAST_ELEMENTS);
     ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
     __ mov(r0, r2);
     __ Ret();
@@ -1384,8 +1384,8 @@ static void KeyedStoreGenerateGenericHelper(
                                          r4,
                                          slow);
   ASSERT(receiver_map.is(r3));  // Transition code expects map in r3
-  AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS,
-                                                        FAST_DOUBLE_ELEMENTS);
+  AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
+                                                    FAST_DOUBLE_ELEMENTS);
   ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, slow);
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
@@ -1398,7 +1398,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          r4,
                                          slow);
   ASSERT(receiver_map.is(r3));  // Transition code expects map in r3
-  mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
+  mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm, mode,
                                                                    slow);
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
@@ -1414,7 +1414,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          r4,
                                          slow);
   ASSERT(receiver_map.is(r3));  // Transition code expects map in r3
-  mode = AllocationSiteInfo::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
+  mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, slow);
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
@@ -1531,8 +1531,9 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
   // -----------------------------------
 
   // Get the receiver from the stack and probe the stub cache.
-  Code::Flags flags =
-      Code::ComputeFlags(Code::STORE_IC, MONOMORPHIC, strict_mode);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::STUB, MONOMORPHIC, strict_mode,
+      Code::NORMAL, Code::STORE_IC);
 
   Isolate::Current()->stub_cache()->GenerateProbe(
       masm, flags, r1, r2, r3, r4, r5, r6);

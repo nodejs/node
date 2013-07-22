@@ -30,7 +30,7 @@
 function f() {
   do {
     do {
-      for (i = 0; i < 10000000; i++) {
+      for (var i = 0; i < 10000000; i++) {
         // This should run long enough to trigger OSR.
       }
     } while (false);
@@ -38,7 +38,7 @@ function f() {
 }
 
 f();
-assertTrue(%GetOptimizationStatus(f) != 2);
+assertOptimized(f);
 
 
 function g() {
@@ -46,7 +46,7 @@ function g() {
 
   do {
     do {
-      for (i = 0; i < 1; i++) { }
+      for (var i = 0; i < 1; i++) { }
     } while (false);
   } while (false);
 
@@ -58,7 +58,7 @@ function g() {
             do {
               do {
                 do {
-                  for (i = 0; i < 10000000; i++) { }
+                  for (var i = 0; i < 10000000; i++) { }
                 } while (false);
               } while (false);
             } while (false);
@@ -70,5 +70,4 @@ function g() {
 }
 
 g();
-assertTrue(%GetOptimizationStatus(g) != 2);
-
+assertOptimized(g);

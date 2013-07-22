@@ -44,7 +44,6 @@ class CompilationInfo;
 class CpuProfile;
 class CpuProfilesCollection;
 class ProfileGenerator;
-class TokenEnumerator;
 
 #define CODE_EVENTS_TYPE_LIST(V)                                   \
   V(CODE_CREATION,    CodeCreateEventRecord)                       \
@@ -111,18 +110,8 @@ class TickSampleEventRecord {
   // The parameterless constructor is used when we dequeue data from
   // the ticks buffer.
   TickSampleEventRecord() { }
-  explicit TickSampleEventRecord(unsigned order)
-      : filler(1),
-        order(order) {
-    ASSERT(filler != SamplingCircularQueue::kClear);
-  }
+  explicit TickSampleEventRecord(unsigned order) : order(order) { }
 
-  // The first machine word of a TickSampleEventRecord must not ever
-  // become equal to SamplingCircularQueue::kClear.  As both order and
-  // TickSample's first field are not reliable in this sense (order
-  // can overflow, TickSample can have all fields reset), we are
-  // forced to use an artificial filler field.
-  int filler;
   unsigned order;
   TickSample sample;
 
@@ -156,7 +145,7 @@ class ProfilerEventsProcessor : public Thread {
 
   // Thread control.
   virtual void Run();
-  inline void Stop() { running_ = false; }
+  void StopSynchronously();
   INLINE(bool running()) { return running_; }
   void Enqueue(const CodeEventsContainer& event);
 
@@ -171,15 +160,16 @@ class ProfilerEventsProcessor : public Thread {
 
  private:
   // Called from events processing thread (Run() method.)
-  bool ProcessCodeEvent(unsigned* dequeue_order);
-  bool ProcessTicks(unsigned dequeue_order);
+  bool ProcessCodeEvent();
+  bool ProcessTicks();
 
   ProfileGenerator* generator_;
   bool running_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
   SamplingCircularQueue ticks_buffer_;
   UnboundQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
-  unsigned enqueue_order_;
+  unsigned last_code_event_id_;
+  unsigned last_processed_code_event_id_;
 };
 
 
@@ -208,13 +198,11 @@ class CpuProfiler {
   void StartProfiling(const char* title, bool record_samples = false);
   void StartProfiling(String* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
-  CpuProfile* StopProfiling(Object* security_token, String* title);
+  CpuProfile* StopProfiling(String* title);
   int GetProfilesCount();
-  CpuProfile* GetProfile(Object* security_token, int index);
-  CpuProfile* FindProfile(Object* security_token, unsigned uid);
+  CpuProfile* GetProfile(int index);
   void DeleteAllProfiles();
   void DeleteProfile(CpuProfile* profile);
-  bool HasDetachedProfiles();
 
   // Invoked from stack sampler (thread or signal handler.)
   TickSample* TickSampleEvent();
@@ -251,6 +239,9 @@ class CpuProfiler {
     return &is_profiling_;
   }
 
+  ProfileGenerator* generator() const { return generator_; }
+  ProfilerEventsProcessor* processor() const { return processor_; }
+
  private:
   void StartProcessorIfNotStarted();
   void StopProcessorIfLastProfile(const char* title);
@@ -261,7 +252,6 @@ class CpuProfiler {
   Isolate* isolate_;
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;
-  TokenEnumerator* token_enumerator_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;

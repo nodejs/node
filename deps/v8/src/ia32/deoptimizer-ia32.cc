@@ -566,15 +566,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Get the bailout id from the stack.
   __ mov(ebx, Operand(esp, kSavedRegistersAreaSize));
 
-  // Get the address of the location in the code object if possible
+  // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register edx.
-  if (type() == EAGER || type() == SOFT) {
-    __ Set(ecx, Immediate(0));
-    __ lea(edx, Operand(esp, kSavedRegistersAreaSize + 1 * kPointerSize));
-  } else {
-    __ mov(ecx, Operand(esp, kSavedRegistersAreaSize + 1 * kPointerSize));
-    __ lea(edx, Operand(esp, kSavedRegistersAreaSize + 2 * kPointerSize));
-  }
+  __ mov(ecx, Operand(esp, kSavedRegistersAreaSize + 1 * kPointerSize));
+  __ lea(edx, Operand(esp, kSavedRegistersAreaSize + 2 * kPointerSize));
+
   __ sub(edx, ebp);
   __ neg(edx);
 
@@ -620,12 +616,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   // and check that the generated code never deoptimizes with unbalanced stack.
   __ fnclex();
 
-  // Remove the bailout id and the double registers from the stack.
-  if (type() == EAGER || type() == SOFT) {
-    __ add(esp, Immediate(kDoubleRegsSize + kPointerSize));
-  } else {
-    __ add(esp, Immediate(kDoubleRegsSize + 2 * kPointerSize));
-  }
+  // Remove the bailout id, return address and the double registers.
+  __ add(esp, Immediate(kDoubleRegsSize + 2 * kPointerSize));
 
   // Compute a pointer to the unwinding limit in register ecx; that is
   // the first stack slot not part of the input frame.

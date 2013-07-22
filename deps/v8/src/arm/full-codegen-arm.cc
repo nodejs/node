@@ -169,9 +169,7 @@ void FullCodeGenerator::Generate() {
     // The following three instructions must remain together and unmodified
     // for code aging to work properly.
     __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
-    // Load undefined value here, so the value is ready for the loop
-    // below.
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ nop(ip.code());
     // Adjust FP to point to saved FP.
     __ add(fp, sp, Operand(2 * kPointerSize));
   }
@@ -181,8 +179,11 @@ void FullCodeGenerator::Generate() {
     int locals_count = info->scope()->num_stack_slots();
     // Generators allocate locals, if any, in context slots.
     ASSERT(!info->function()->is_generator() || locals_count == 0);
-    for (int i = 0; i < locals_count; i++) {
-      __ push(ip);
+    if (locals_count > 0) {
+      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+      for (int i = 0; i < locals_count; i++) {
+        __ push(ip);
+      }
     }
   }
 
@@ -3718,7 +3719,7 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  StringAddStub stub(NO_STRING_ADD_FLAGS);
+  StringAddStub stub(STRING_ADD_CHECK_BOTH);
   __ CallStub(&stub);
   context()->Plug(r0);
 }
@@ -4366,10 +4367,7 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
                                            const char* comment) {
   // TODO(svenpanne): Allowing format strings in Comment would be nice here...
   Comment cmt(masm_, comment);
-  bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
-  UnaryOverwriteMode overwrite =
-      can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-  UnaryOpStub stub(expr->op(), overwrite);
+  UnaryOpStub stub(expr->op());
   // UnaryOpStub expects the argument to be in the
   // accumulator register r0.
   VisitForAccumulatorValue(expr->expression());
@@ -4438,7 +4436,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;
-  __ JumpIfSmi(r0, &no_conversion);
+  if (ShouldInlineSmiCase(expr->op())) {
+    __ JumpIfSmi(r0, &no_conversion);
+  }
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
   __ bind(&no_conversion);

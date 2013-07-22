@@ -97,10 +97,10 @@ UnaryMathFunction CreateSqrtFunction();
 class ElementsTransitionGenerator : public AllStatic {
  public:
   // If |mode| is set to DONT_TRACK_ALLOCATION_SITE,
-  // |allocation_site_info_found| may be NULL.
+  // |allocation_memento_found| may be NULL.
   static void GenerateMapChangeElementsTransition(MacroAssembler* masm,
       AllocationSiteMode mode,
-      Label* allocation_site_info_found);
+      Label* allocation_memento_found);
   static void GenerateSmiToDouble(MacroAssembler* masm,
                                   AllocationSiteMode mode,
                                   Label* fail);

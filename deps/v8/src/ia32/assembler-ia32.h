@@ -229,30 +229,40 @@ struct XMMRegister : IntelDoubleRegister {
 #define xmm7 (static_cast<const XMMRegister&>(double_register_7))
 
 
-struct X87TopOfStackRegister : IntelDoubleRegister {
-  static const int kNumAllocatableRegisters = 1;
-  static const int kNumRegisters = 1;
+struct X87Register : IntelDoubleRegister {
+  static const int kNumAllocatableRegisters = 5;
+  static const int kNumRegisters = 5;
 
-  bool is(X87TopOfStackRegister reg) const {
+  bool is(X87Register reg) const {
     return code_ == reg.code_;
   }
 
   static const char* AllocationIndexToString(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
-      "st0",
+      "stX_0", "stX_1", "stX_2", "stX_3", "stX_4"
     };
     return names[index];
   }
 
-  static int ToAllocationIndex(X87TopOfStackRegister reg) {
-    ASSERT(reg.code() == 0);
-    return 0;
+  static X87Register FromAllocationIndex(int index) {
+    STATIC_ASSERT(sizeof(X87Register) == sizeof(IntelDoubleRegister));
+    ASSERT(index >= 0 && index < NumAllocatableRegisters());
+    X87Register result;
+    result.code_ = index;
+    return result;
+  }
+
+  static int ToAllocationIndex(X87Register reg) {
+    return reg.code_;
   }
 };
 
-#define x87tos \
-  static_cast<const X87TopOfStackRegister&>(double_register_0)
+#define stX_0 static_cast<const X87Register&>(double_register_0)
+#define stX_1 static_cast<const X87Register&>(double_register_1)
+#define stX_2 static_cast<const X87Register&>(double_register_2)
+#define stX_3 static_cast<const X87Register&>(double_register_3)
+#define stX_4 static_cast<const X87Register&>(double_register_4)
 
 
 typedef IntelDoubleRegister DoubleRegister;
@@ -947,6 +957,7 @@ class Assembler : public AssemblerBase {
   void fadd(int i);
   void fsub(int i);
   void fmul(int i);
+  void fmul_i(int i);
   void fdiv(int i);
 
   void fisub_s(const Operand& adr);

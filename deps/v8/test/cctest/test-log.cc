@@ -36,6 +36,7 @@
 
 #include "v8.h"
 #include "log.h"
+#include "log-utils.h"
 #include "cpu-profiler.h"
 #include "natives.h"
 #include "v8threads.h"
@@ -395,6 +396,7 @@ TEST(Issue23768) {
 static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
+
 TEST(LogCallbacks) {
   ScopedLoggerInitializer initialize_logger(false);
   Logger* logger = initialize_logger.logger();
@@ -442,6 +444,7 @@ static void Prop1Setter(v8::Local<v8::String> property,
 static void Prop2Getter(v8::Local<v8::String> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
+
 
 TEST(LogAccessorCallbacks) {
   ScopedLoggerInitializer initialize_logger(false);

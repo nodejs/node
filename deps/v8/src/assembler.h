@@ -747,6 +747,9 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable Heap::roots_array_start()
   static ExternalReference roots_array_start(Isolate* isolate);
 
+  // Static variable Heap::allocation_sites_list_address()
+  static ExternalReference allocation_sites_list_address(Isolate* isolate);
+
   // Static variable StackGuard::address_of_jslimit()
   static ExternalReference address_of_stack_limit(Isolate* isolate);
 
@@ -862,6 +865,8 @@ class ExternalReference BASE_EMBEDDED {
     isolate->set_external_reference_redirector(
         reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
   }
+
+  static ExternalReference stress_deopt_count(Isolate* isolate);
 
  private:
   explicit ExternalReference(void* address)

@@ -263,6 +263,7 @@ Object* V8::FillHeapNumberWithRandom(Object* heap_number,
   return heap_number;
 }
 
+
 void V8::InitializeOncePerProcessImpl() {
   FlagList::EnforceFlagImplications();
   if (FLAG_stress_compaction) {
@@ -322,6 +323,7 @@ void V8::InitializeOncePerProcessImpl() {
   ExternalReference::SetUp();
   Bootstrapper::InitializeOncePerProcess();
 }
+
 
 void V8::InitializeOncePerProcess() {
   CallOnce(&init_once, &InitializeOncePerProcessImpl);

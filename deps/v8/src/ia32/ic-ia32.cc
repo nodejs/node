@@ -319,9 +319,10 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
 
   // Is the string internalized? We already know it's a string so a single
   // bit test is enough.
-  STATIC_ASSERT(kInternalizedTag != 0);
-  __ test_b(FieldOperand(map, Map::kInstanceTypeOffset), kIsInternalizedMask);
-  __ j(zero, not_unique);
+  STATIC_ASSERT(kNotInternalizedTag != 0);
+  __ test_b(FieldOperand(map, Map::kInstanceTypeOffset),
+            kIsNotInternalizedMask);
+  __ j(not_zero, not_unique);
 
   __ bind(&unique);
 }
@@ -798,8 +799,8 @@ static void KeyedStoreGenerateGenericHelper(
                                          ebx,
                                          edi,
                                          slow);
-  AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS,
-                                                        FAST_DOUBLE_ELEMENTS);
+  AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
+                                                    FAST_DOUBLE_ELEMENTS);
   ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, slow);
   __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
@@ -811,7 +812,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          ebx,
                                          edi,
                                          slow);
-  mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
+  mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm, mode,
                                                                    slow);
   __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
@@ -827,7 +828,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          ebx,
                                          edi,
                                          slow);
-  mode = AllocationSiteInfo::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
+  mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, slow);
   __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
@@ -1421,8 +1422,9 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
   //  -- esp[0] : return address
   // -----------------------------------
 
-  Code::Flags flags =
-      Code::ComputeFlags(Code::STORE_IC, MONOMORPHIC, strict_mode);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::STUB, MONOMORPHIC, strict_mode,
+      Code::NORMAL, Code::STORE_IC);
   Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, edx, ecx, ebx,
                                                   no_reg);
 
@@ -1598,8 +1600,8 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // Must return the modified receiver in eax.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS,
-                                                          FAST_DOUBLE_ELEMENTS);
+    AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
+                                                      FAST_DOUBLE_ELEMENTS);
     ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
     __ mov(eax, edx);
     __ Ret();
@@ -1626,8 +1628,8 @@ void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
   // Must return the modified receiver in eax.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_DOUBLE_ELEMENTS,
-                                                          FAST_ELEMENTS);
+    AllocationSiteMode mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS,
+                                                      FAST_ELEMENTS);
     ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
     __ mov(eax, edx);
     __ Ret();

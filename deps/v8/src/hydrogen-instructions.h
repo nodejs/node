@@ -66,7 +66,6 @@ class LChunkBuilder;
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
   V(Allocate)                                  \
-  V(AllocateObject)                            \
   V(ApplyArguments)                            \
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
@@ -92,10 +91,11 @@ class LChunkBuilder;
   V(CheckHeapObject)                           \
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
+  V(CheckSmi)                                  \
   V(CheckPrototypeMaps)                        \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
-  V(CompareIDAndBranch)                        \
+  V(CompareNumericAndBranch)                   \
   V(CompareGeneric)                            \
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
@@ -104,7 +104,6 @@ class LChunkBuilder;
   V(Context)                                   \
   V(DebugBreak)                                \
   V(DeclareGlobals)                            \
-  V(DeleteProperty)                            \
   V(Deoptimize)                                \
   V(Div)                                       \
   V(DummyUse)                                  \
@@ -120,7 +119,6 @@ class LChunkBuilder;
   V(HasCachedArrayIndexAndBranch)              \
   V(HasInstanceTypeAndBranch)                  \
   V(InductionVariableAnnotation)               \
-  V(In)                                        \
   V(InnerAllocatedObject)                      \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
@@ -128,10 +126,12 @@ class LChunkBuilder;
   V(InvokeFunction)                            \
   V(IsConstructCallAndBranch)                  \
   V(IsObjectAndBranch)                         \
+  V(IsNumberAndBranch)                         \
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
   V(LeaveInlined)                              \
+  V(LinkObjectInList)                          \
   V(LoadContextSlot)                           \
   V(LoadExternalArrayPointer)                  \
   V(LoadFunctionPrototype)                     \
@@ -790,7 +790,7 @@ class HValue: public ZoneObject {
     // occurrences of the instruction are indeed the same.
     kUseGVN,
     // Track instructions that are dominating side effects. If an instruction
-    // sets this flag, it must implement SetSideEffectDominator() and should
+    // sets this flag, it must implement HandleSideEffectDominator() and should
     // indicate which side effects to track by setting GVN flags.
     kTrackSideEffectDominators,
     kCanOverflow,
@@ -1109,7 +1109,8 @@ class HValue: public ZoneObject {
   // This function must be overridden for instructions which have the
   // kTrackSideEffectDominators flag set, to track instructions that are
   // dominating side effects.
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator) {
     UNREACHABLE();
   }
 
@@ -1604,20 +1605,10 @@ class HUnaryControlInstruction: public HTemplateControlInstruction<2, 1> {
 class HBranch: public HUnaryControlInstruction {
  public:
   HBranch(HValue* value,
-          HBasicBlock* true_target,
-          HBasicBlock* false_target,
-          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types())
+          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types(),
+          HBasicBlock* true_target = NULL,
+          HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        expected_input_types_(expected_input_types) {
-    ASSERT(true_target != NULL && false_target != NULL);
-    SetFlag(kAllowUndefinedAsNaN);
-  }
-  explicit HBranch(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) {
-    SetFlag(kAllowUndefinedAsNaN);
-  }
-  HBranch(HValue* value, ToBooleanStub::Types expected_input_types)
-      : HUnaryControlInstruction(value, NULL, NULL),
         expected_input_types_(expected_input_types) {
     SetFlag(kAllowUndefinedAsNaN);
   }
@@ -1642,12 +1633,10 @@ class HCompareMap: public HUnaryControlInstruction {
  public:
   HCompareMap(HValue* value,
               Handle<Map> map,
-              HBasicBlock* true_target,
-              HBasicBlock* false_target)
+              HBasicBlock* true_target = NULL,
+              HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        map_(map) {
-    ASSERT(true_target != NULL);
-    ASSERT(false_target != NULL);
+      map_(map) {
     ASSERT(!map.is_null());
   }
 
@@ -2786,7 +2775,8 @@ class HCheckMaps: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator);
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator);
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
 
@@ -2847,6 +2837,8 @@ class HCheckFunction: public HUnaryOperation {
   }
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
+
+  virtual HValue* Canonicalize();
 
 #ifdef DEBUG
   virtual void Verify();
@@ -2931,6 +2923,49 @@ class HCheckInstanceType: public HUnaryOperation {
   }
 
   const Check check_;
+};
+
+
+class HCheckSmi: public HUnaryOperation {
+ public:
+  explicit HCheckSmi(HValue* value) : HUnaryOperation(value) {
+    set_representation(Representation::Smi());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  virtual HType CalculateInferredType();
+
+  virtual HValue* Canonicalize() {
+    HType value_type = value()->type();
+    if (value_type.IsSmi()) {
+      return NULL;
+    }
+    return this;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckSmi)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HIsNumberAndBranch: public HUnaryControlInstruction {
+ public:
+  explicit HIsNumberAndBranch(HValue* value)
+    : HUnaryControlInstruction(value, NULL, NULL) {
+    SetFlag(kFlexibleRepresentation);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch)
 };
 
 
@@ -3246,6 +3281,7 @@ class HConstant: public HTemplateInstruction<0> {
             HType type,
             bool is_internalized_string,
             bool is_not_in_new_space,
+            bool is_cell,
             bool boolean_value);
 
   Handle<Object> handle() {
@@ -3294,6 +3330,10 @@ class HConstant: public HTemplateInstruction<0> {
            unique_id_ == UniqueValueId(heap->empty_string());
   }
 
+  bool IsCell() const {
+    return is_cell_;
+  }
+
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
@@ -3305,7 +3345,7 @@ class HConstant: public HTemplateInstruction<0> {
     return Representation::Tagged();
   }
 
-  virtual bool EmitAtUses() { return !representation().IsDouble(); }
+  virtual bool EmitAtUses();
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
@@ -3373,6 +3413,10 @@ class HConstant: public HTemplateInstruction<0> {
     }
   }
 
+  bool UniqueValueIdsMatch(UniqueValueId other) {
+    return !has_double_value_ && unique_id_ == other;
+  }
+
 #ifdef DEBUG
   virtual void Verify() { }
 #endif
@@ -3420,6 +3464,7 @@ class HConstant: public HTemplateInstruction<0> {
   bool has_double_value_ : 1;
   bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
   bool is_not_in_new_space_ : 1;
+  bool is_cell_ : 1;
   bool boolean_value_ : 1;
   int32_t int32_value_;
   double double_value_;
@@ -3909,9 +3954,9 @@ class HCompareGeneric: public HBinaryOperation {
 };
 
 
-class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
+class HCompareNumericAndBranch: public HTemplateControlInstruction<2, 2> {
  public:
-  HCompareIDAndBranch(HValue* left, HValue* right, Token::Value token)
+  HCompareNumericAndBranch(HValue* left, HValue* right, Token::Value token)
       : token_(token) {
     SetFlag(kFlexibleRepresentation);
     ASSERT(Token::IsCompareOp(token));
@@ -3941,7 +3986,7 @@ class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
 
   virtual void AddInformativeDefinitions();
 
-  DECLARE_CONCRETE_INSTRUCTION(CompareIDAndBranch)
+  DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch)
 
  private:
   Representation observed_input_representation_[2];
@@ -4718,6 +4763,7 @@ class HOsrEntry: public HTemplateInstruction<0> {
  public:
   explicit HOsrEntry(BailoutId ast_id) : ast_id_(ast_id) {
     SetGVNFlag(kChangesOsrEntries);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   BailoutId ast_id() const { return ast_id_; }
@@ -4912,48 +4958,6 @@ class HLoadGlobalGeneric: public HTemplateInstruction<2> {
 };
 
 
-class HAllocateObject: public HTemplateInstruction<1> {
- public:
-  HAllocateObject(HValue* context, Handle<JSFunction> constructor)
-      : constructor_(constructor) {
-    SetOperandAt(0, context);
-    set_representation(Representation::Tagged());
-    SetGVNFlag(kChangesNewSpacePromotion);
-    constructor_initial_map_ = constructor->has_initial_map()
-        ? Handle<Map>(constructor->initial_map())
-        : Handle<Map>::null();
-    // If slack tracking finished, the instance size and property counts
-    // remain unchanged so that we can allocate memory for the object.
-    ASSERT(!constructor->shared()->IsInobjectSlackTrackingInProgress());
-  }
-
-  // Maximum instance size for which allocations will be inlined.
-  static const int kMaxSize = 64 * kPointerSize;
-
-  HValue* context() { return OperandAt(0); }
-  Handle<JSFunction> constructor() { return constructor_; }
-  Handle<Map> constructor_initial_map() { return constructor_initial_map_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual Handle<Map> GetMonomorphicJSObjectMap() {
-    ASSERT(!constructor_initial_map_.is_null());
-    return constructor_initial_map_;
-  }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(AllocateObject)
-
- private:
-  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
-  //  virtual bool IsDeletable() const { return true; }
-
-  Handle<JSFunction> constructor_;
-  Handle<Map> constructor_initial_map_;
-};
-
-
 class HAllocate: public HTemplateInstruction<2> {
  public:
   enum Flags {
@@ -4969,8 +4973,13 @@ class HAllocate: public HTemplateInstruction<2> {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
+    SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kChangesNewSpacePromotion);
+    SetGVNFlag(kDependsOnNewSpacePromotion);
   }
+
+  // Maximum instance size for which allocations will be inlined.
+  static const int kMaxInlineSize = 64 * kPointerSize;
 
   static Flags DefaultFlags() {
     return CAN_ALLOCATE_IN_NEW_SPACE;
@@ -4987,6 +4996,7 @@ class HAllocate: public HTemplateInstruction<2> {
 
   HValue* context() { return OperandAt(0); }
   HValue* size() { return OperandAt(1); }
+  HType type() { return type_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     if (index == 0) {
@@ -4994,6 +5004,14 @@ class HAllocate: public HTemplateInstruction<2> {
     } else {
       return Representation::Integer32();
     }
+  }
+
+  virtual Handle<Map> GetMonomorphicJSObjectMap() {
+    return known_initial_map_;
+  }
+
+  void set_known_initial_map(Handle<Map> known_initial_map) {
+    known_initial_map_ = known_initial_map;
   }
 
   virtual HType CalculateInferredType();
@@ -5023,6 +5041,13 @@ class HAllocate: public HTemplateInstruction<2> {
     return (flags_ & ALLOCATE_DOUBLE_ALIGNED) != 0;
   }
 
+  void UpdateSize(HValue* size) {
+    SetOperandAt(1, size);
+  }
+
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator);
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate)
@@ -5030,13 +5055,15 @@ class HAllocate: public HTemplateInstruction<2> {
  private:
   HType type_;
   Flags flags_;
+  Handle<Map> known_initial_map_;
 };
 
 
 class HInnerAllocatedObject: public HTemplateInstruction<1> {
  public:
-  HInnerAllocatedObject(HValue* value, int offset)
-      : offset_(offset) {
+  HInnerAllocatedObject(HValue* value, int offset, HType type = HType::Tagged())
+      : offset_(offset),
+        type_(type) {
     ASSERT(value->IsAllocate());
     SetOperandAt(0, value);
     set_representation(Representation::Tagged());
@@ -5049,12 +5076,15 @@ class HInnerAllocatedObject: public HTemplateInstruction<1> {
     return Representation::Tagged();
   }
 
+  virtual HType CalculateInferredType() { return type_; }
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject)
 
  private:
   int offset_;
+  HType type_;
 };
 
 
@@ -5072,8 +5102,10 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
         HInnerAllocatedObject::cast(object)->base_object(),
         new_space_dominator);
   }
+  if (object->IsConstant() && HConstant::cast(object)->IsCell()) {
+    return false;
+  }
   if (object != new_space_dominator) return true;
-  if (object->IsAllocateObject()) return false;
   if (object->IsAllocate()) {
     return !HAllocate::cast(object)->GuaranteedInNewSpace();
   }
@@ -5297,6 +5329,14 @@ class HObjectAccess {
     return HObjectAccess(kArrayLengths, JSArray::kLengthOffset);
   }
 
+  static HObjectAccess ForAllocationSiteTransitionInfo() {
+    return HObjectAccess(kInobject, AllocationSite::kTransitionInfoOffset);
+  }
+
+  static HObjectAccess ForAllocationSiteWeakNext() {
+    return HObjectAccess(kInobject, AllocationSite::kWeakNextOffset);
+  }
+
   static HObjectAccess ForFixedArrayLength() {
     return HObjectAccess(kArrayLengths, FixedArray::kLengthOffset);
   }
@@ -5313,8 +5353,16 @@ class HObjectAccess {
     return HObjectAccess(kMaps, JSObject::kMapOffset);
   }
 
-  static HObjectAccess ForAllocationSitePayload() {
-    return HObjectAccess(kInobject, AllocationSiteInfo::kPayloadOffset);
+  static HObjectAccess ForPropertyCellValue() {
+    return HObjectAccess(kInobject, PropertyCell::kValueOffset);
+  }
+
+  static HObjectAccess ForCellValue() {
+    return HObjectAccess(kInobject, Cell::kValueOffset);
+  }
+
+  static HObjectAccess ForAllocationMementoSite() {
+    return HObjectAccess(kInobject, AllocationMemento::kAllocationSiteOffset);
   }
 
   // Create an access to an offset in a fixed array header.
@@ -5332,6 +5380,9 @@ class HObjectAccess {
   // Create an access to a resolved field (in-object or backing store).
   static HObjectAccess ForField(Handle<Map> map,
       LookupResult *lookup, Handle<String> name = Handle<String>::null());
+
+  // Create an access for the payload of a Cell or JSGlobalPropertyCell.
+  static HObjectAccess ForCellPayload(Isolate* isolate);
 
   void PrintTo(StringStream* stream);
 
@@ -5373,6 +5424,38 @@ class HObjectAccess {
   inline Portion portion() const {
     return PortionField::decode(value_);
   }
+};
+
+
+class HLinkObjectInList: public HUnaryOperation {
+ public:
+  // There needs to be a mapping from every KnownList to an external reference
+  enum KnownList {
+    ALLOCATION_SITE_LIST
+  };
+
+  HLinkObjectInList(HValue* object, HObjectAccess store_field,
+                    KnownList known_list)
+      : HUnaryOperation(object),
+        store_field_(store_field),
+        known_list_(known_list) {
+    set_representation(Representation::Tagged());
+  }
+
+  HObjectAccess store_field() const { return store_field_; }
+  KnownList known_list() const { return known_list_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(LinkObjectInList)
+
+ private:
+  HObjectAccess store_field_;
+  KnownList known_list_;
 };
 
 
@@ -5739,7 +5822,8 @@ class HStoreNamedField: public HTemplateInstruction<2> {
         field_representation_(field_representation),
         transition_(),
         transition_unique_id_(),
-        new_space_dominator_(NULL) {
+        new_space_dominator_(NULL),
+        write_barrier_mode_(UPDATE_WRITE_BARRIER) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     access.SetGVNFlags(this, true);
@@ -5758,11 +5842,17 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     }
     return Representation::Tagged();
   }
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator) {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
   }
   virtual void PrintDataTo(StringStream* stream);
+
+  void SkipWriteBarrier() { write_barrier_mode_ = SKIP_WRITE_BARRIER; }
+  bool IsSkipWriteBarrier() const {
+    return write_barrier_mode_ == SKIP_WRITE_BARRIER;
+  }
 
   HValue* object() { return OperandAt(0); }
   HValue* value() { return OperandAt(1); }
@@ -5782,6 +5872,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   bool NeedsWriteBarrier() {
     ASSERT(!(FLAG_track_double_fields && field_representation_.IsDouble()) ||
            transition_.is_null());
+    if (IsSkipWriteBarrier()) return false;
     return (!FLAG_track_fields || !field_representation_.IsSmi()) &&
         // If there is a transition, a new storage object needs to be allocated.
         !(FLAG_track_double_fields && field_representation_.IsDouble()) &&
@@ -5790,6 +5881,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   }
 
   bool NeedsWriteBarrierForMap() {
+    if (IsSkipWriteBarrier()) return false;
     return ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
@@ -5807,6 +5899,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   Handle<Map> transition_;
   UniqueValueId transition_unique_id_;
   HValue* new_space_dominator_;
+  WriteBarrierMode write_barrier_mode_;
 };
 
 
@@ -5952,7 +6045,8 @@ class HStoreKeyed
     return value()->IsConstant() && HConstant::cast(value())->IsTheHole();
   }
 
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator) {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
   }
@@ -6087,7 +6181,10 @@ class HStringAdd: public HBinaryOperation {
   static HInstruction* New(Zone* zone,
                            HValue* context,
                            HValue* left,
-                           HValue* right);
+                           HValue* right,
+                           StringAddFlags flags = STRING_ADD_CHECK_NONE);
+
+  StringAddFlags flags() const { return flags_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -6102,10 +6199,9 @@ class HStringAdd: public HBinaryOperation {
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
 
-
  private:
-  HStringAdd(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right) {
+  HStringAdd(HValue* context, HValue* left, HValue* right, StringAddFlags flags)
+      : HBinaryOperation(context, left, right), flags_(flags) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
@@ -6114,6 +6210,8 @@ class HStringAdd: public HBinaryOperation {
 
   // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
   //  virtual bool IsDeletable() const { return true; }
+
+  const StringAddFlags flags_;
 };
 
 
@@ -6455,55 +6553,6 @@ class HSeqStringSetChar: public HTemplateInstruction<3> {
 
  private:
   String::Encoding encoding_;
-};
-
-
-class HDeleteProperty: public HBinaryOperation {
- public:
-  HDeleteProperty(HValue* context, HValue* obj, HValue* key)
-      : HBinaryOperation(context, obj, key) {
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(DeleteProperty)
-
-  HValue* object() { return left(); }
-  HValue* key() { return right(); }
-};
-
-
-class HIn: public HTemplateInstruction<3> {
- public:
-  HIn(HValue* context, HValue* key, HValue* object) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, key);
-    SetOperandAt(2, object);
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-
-  HValue* context() { return OperandAt(0); }
-  HValue* key() { return OperandAt(1); }
-  HValue* object() { return OperandAt(2); }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType() {
-    return HType::Boolean();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  DECLARE_CONCRETE_INSTRUCTION(In)
 };
 
 

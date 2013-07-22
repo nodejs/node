@@ -175,6 +175,7 @@ class ThreadIdValidationThread : public v8::internal::Thread {
   i::Semaphore* semaphore_;
 };
 
+
 TEST(ThreadIdValidation) {
   const int kNThreads = 100;
   i::List<ThreadIdValidationThread*> threads(kNThreads);

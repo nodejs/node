@@ -347,6 +347,10 @@ class Deserializer: public SerializerDeserializer {
     UNREACHABLE();
   }
 
+  // Allocation sites are present in the snapshot, and must be linked into
+  // a list at deserialization time.
+  void RelinkAllocationSite(AllocationSite* site);
+
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
   // of the object we are writing into, or NULL if we are not writing into an

@@ -965,7 +965,7 @@ Object* Debug::Break(Arguments args) {
 
   // Get the debug info (create it if it does not exist).
   Handle<SharedFunctionInfo> shared =
-      Handle<SharedFunctionInfo>(JSFunction::cast(frame->function())->shared());
+      Handle<SharedFunctionInfo>(frame->function()->shared());
   Handle<DebugInfo> debug_info = GetDebugInfo(shared);
 
   // Find the break point where execution has stopped.
@@ -1348,8 +1348,7 @@ void Debug::FloodHandlerWithOneShot() {
     JavaScriptFrame* frame = it.frame();
     if (frame->HasHandler()) {
       // Flood the function with the catch block with break points
-      JSFunction* function = JSFunction::cast(frame->function());
-      FloodWithOneShot(Handle<JSFunction>(function));
+      FloodWithOneShot(Handle<JSFunction>(frame->function()));
       return;
     }
   }
@@ -1415,13 +1414,13 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
     // breakpoints.
     frames_it.Advance();
     // Fill the function to return to with one-shot break points.
-    JSFunction* function = JSFunction::cast(frames_it.frame()->function());
+    JSFunction* function = frames_it.frame()->function();
     FloodWithOneShot(Handle<JSFunction>(function));
     return;
   }
 
   // Get the debug info (create it if it does not exist).
-  Handle<JSFunction> function(JSFunction::cast(frame->function()));
+  Handle<JSFunction> function(frame->function());
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) {
     // Return if ensuring debug info failed.
@@ -1486,15 +1485,14 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       frames_it.Advance();
     }
     // Skip builtin functions on the stack.
-    while (!frames_it.done() &&
-           JSFunction::cast(frames_it.frame()->function())->IsBuiltin()) {
+    while (!frames_it.done() && frames_it.frame()->function()->IsBuiltin()) {
       frames_it.Advance();
     }
     // Step out: If there is a JavaScript caller frame, we need to
     // flood it with breakpoints.
     if (!frames_it.done()) {
       // Fill the function to return to with one-shot break points.
-      JSFunction* function = JSFunction::cast(frames_it.frame()->function());
+      JSFunction* function = frames_it.frame()->function();
       FloodWithOneShot(Handle<JSFunction>(function));
       // Set target frame pointer.
       ActivateStepOut(frames_it.frame());
@@ -1811,6 +1809,7 @@ void Debug::ClearStepping() {
   thread_local_.step_count_ = 0;
 }
 
+
 // Clears all the one-shot break points that are currently set. Normally this
 // function is called each time a break point is hit as one shot break points
 // are used to support stepping.
@@ -1907,7 +1906,7 @@ static void CollectActiveFunctionsFromThread(
   for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->is_optimized()) {
-      List<JSFunction*> functions(Compiler::kMaxInliningLevels + 1);
+      List<JSFunction*> functions(FLAG_max_inlining_levels + 1);
       frame->GetFunctions(&functions);
       for (int i = 0; i < functions.length(); i++) {
         JSFunction* function = functions[i];
@@ -1915,7 +1914,7 @@ static void CollectActiveFunctionsFromThread(
         function->shared()->code()->set_gc_metadata(active_code_marker);
       }
     } else if (frame->function()->IsJSFunction()) {
-      JSFunction* function = JSFunction::cast(frame->function());
+      JSFunction* function = frame->function();
       ASSERT(frame->LookupCode()->kind() == Code::FUNCTION);
       active_functions->Add(Handle<JSFunction>(function));
       function->shared()->code()->set_gc_metadata(active_code_marker);
@@ -1932,7 +1931,7 @@ static void RedirectActivationsToRecompiledCodeOnThread(
 
     if (frame->is_optimized() || !frame->function()->IsJSFunction()) continue;
 
-    JSFunction* function = JSFunction::cast(frame->function());
+    JSFunction* function = frame->function();
 
     ASSERT(frame->LookupCode()->kind() == Code::FUNCTION);
 

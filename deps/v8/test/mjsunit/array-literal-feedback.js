@@ -55,7 +55,7 @@ if (support_smi_only_arrays) {
   get_literal(3);
   %OptimizeFunctionOnNextCall(get_literal);
   a = get_literal(3);
-  assertTrue(2 != %GetOptimizationStatus(get_literal));
+  assertOptimized(get_literal);
   assertTrue(%HasFastSmiElements(a));
   a[0] = 3.5;
 
@@ -64,12 +64,12 @@ if (support_smi_only_arrays) {
   b = get_literal(3);
   assertTrue(%HasFastDoubleElements(b));
   assertEquals([1, 2, 3], b);
-  assertTrue(1 != %GetOptimizationStatus(get_literal));
+  assertUnoptimized(get_literal);
 
   // Optimize again
   get_literal(3);
   %OptimizeFunctionOnNextCall(get_literal);
   b = get_literal(3);
   assertTrue(%HasFastDoubleElements(b));
-  assertTrue(2 != %GetOptimizationStatus(get_literal));
+  assertOptimized(get_literal);
 }

@@ -33,26 +33,22 @@ namespace v8 {
 namespace internal {
 
 
-SamplingCircularQueue::SamplingCircularQueue(int record_size_in_bytes,
-                                             int desired_chunk_size_in_bytes,
-                                             int buffer_size_in_chunks)
+SamplingCircularQueue::SamplingCircularQueue(size_t record_size_in_bytes,
+                                             size_t desired_chunk_size_in_bytes,
+                                             unsigned buffer_size_in_chunks)
     : record_size_(record_size_in_bytes / sizeof(Cell)),
       chunk_size_in_bytes_(desired_chunk_size_in_bytes / record_size_in_bytes *
-                        record_size_in_bytes),
+                        record_size_in_bytes + sizeof(Cell)),
       chunk_size_(chunk_size_in_bytes_ / sizeof(Cell)),
       buffer_size_(chunk_size_ * buffer_size_in_chunks),
-      // The distance ensures that producer and consumer never step on
-      // each other's chunks and helps eviction of produced data from
-      // the CPU cache (having that chunk size is bigger than the cache.)
-      producer_consumer_distance_(2 * chunk_size_),
-      buffer_(NewArray<Cell>(buffer_size_ + 1)) {
+      buffer_(NewArray<Cell>(buffer_size_)) {
+  ASSERT(record_size_ * sizeof(Cell) == record_size_in_bytes);
+  ASSERT(chunk_size_ * sizeof(Cell) == chunk_size_in_bytes_);
   ASSERT(buffer_size_in_chunks > 2);
-  // Clean up the whole buffer to avoid encountering a random kEnd
-  // while enqueuing.
-  for (int i = 0; i < buffer_size_; ++i) {
+  // Mark all chunks as clear.
+  for (size_t i = 0; i < buffer_size_; i += chunk_size_) {
     buffer_[i] = kClear;
   }
-  buffer_[buffer_size_] = kEnd;
 
   // Layout producer and consumer position pointers each on their own
   // cache lines to avoid cache lines thrashing due to simultaneous
@@ -67,6 +63,7 @@ SamplingCircularQueue::SamplingCircularQueue(int record_size_in_bytes,
 
   producer_pos_ = reinterpret_cast<ProducerPosition*>(
       RoundUp(positions_, kProcessorCacheLineSize));
+  producer_pos_->next_chunk_pos = buffer_;
   producer_pos_->enqueue_pos = buffer_;
 
   consumer_pos_ = reinterpret_cast<ConsumerPosition*>(
@@ -74,7 +71,11 @@ SamplingCircularQueue::SamplingCircularQueue(int record_size_in_bytes,
   ASSERT(reinterpret_cast<byte*>(consumer_pos_ + 1) <=
          positions_ + positions_size);
   consumer_pos_->dequeue_chunk_pos = buffer_;
-  consumer_pos_->dequeue_chunk_poll_pos = buffer_ + producer_consumer_distance_;
+  // The distance ensures that producer and consumer never step on
+  // each other's chunks and helps eviction of produced data from
+  // the CPU cache (having that chunk size is bigger than the cache.)
+  const size_t producer_consumer_distance = (2 * chunk_size_);
+  consumer_pos_->dequeue_chunk_poll_pos = buffer_ + producer_consumer_distance;
   consumer_pos_->dequeue_pos = NULL;
 }
 
@@ -89,9 +90,11 @@ void* SamplingCircularQueue::StartDequeue() {
   if (consumer_pos_->dequeue_pos != NULL) {
     return consumer_pos_->dequeue_pos;
   } else {
-    if (*consumer_pos_->dequeue_chunk_poll_pos != kClear) {
-      consumer_pos_->dequeue_pos = consumer_pos_->dequeue_chunk_pos;
-      consumer_pos_->dequeue_end_pos = consumer_pos_->dequeue_pos + chunk_size_;
+    if (Acquire_Load(consumer_pos_->dequeue_chunk_poll_pos) != kClear) {
+      // Skip marker.
+      consumer_pos_->dequeue_pos = consumer_pos_->dequeue_chunk_pos + 1;
+      consumer_pos_->dequeue_end_pos =
+          consumer_pos_->dequeue_chunk_pos + chunk_size_;
       return consumer_pos_->dequeue_pos;
     } else {
       return NULL;

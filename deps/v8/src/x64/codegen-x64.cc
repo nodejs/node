@@ -253,7 +253,7 @@ ModuloFunction CreateModuloFunction() {
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
     MacroAssembler* masm, AllocationSiteMode mode,
-    Label* allocation_site_info_found) {
+    Label* allocation_memento_found) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rbx    : target map
@@ -262,9 +262,9 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   //  -- rsp[0] : return address
   // -----------------------------------
   if (mode == TRACK_ALLOCATION_SITE) {
-    ASSERT(allocation_site_info_found != NULL);
-    __ TestJSArrayForAllocationSiteInfo(rdx, rdi);
-    __ j(equal, allocation_site_info_found);
+    ASSERT(allocation_memento_found != NULL);
+    __ TestJSArrayForAllocationMemento(rdx, rdi);
+    __ j(equal, allocation_memento_found);
   }
 
   // Set transitioned map.
@@ -292,7 +292,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Label allocated, new_backing_store, only_change_map, done;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationSiteInfo(rdx, rdi);
+    __ TestJSArrayForAllocationMemento(rdx, rdi);
     __ j(equal, fail);
   }
 
@@ -418,7 +418,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Label loop, entry, convert_hole, gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationSiteInfo(rdx, rdi);
+    __ TestJSArrayForAllocationMemento(rdx, rdi);
     __ j(equal, fail);
   }
 

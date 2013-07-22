@@ -70,7 +70,7 @@ void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
 TickSample* ProfilerEventsProcessor::TickSampleEvent() {
   generator_->Tick();
   TickSampleEventRecord* evt =
-      new(ticks_buffer_.Enqueue()) TickSampleEventRecord(enqueue_order_);
+      new(ticks_buffer_.Enqueue()) TickSampleEventRecord(last_code_event_id_);
   return &evt->sample;
 }
 

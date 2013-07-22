@@ -31,6 +31,20 @@ namespace v8 {
 namespace internal {
 
 
+class Pending {
+ public:
+  Pending(HBasicBlock* block, int last_changed_range)
+      : block_(block), last_changed_range_(last_changed_range) {}
+
+  HBasicBlock* block() const { return block_; }
+  int last_changed_range() const { return last_changed_range_; }
+
+ private:
+  HBasicBlock* block_;
+  int last_changed_range_;
+};
+
+
 void HRangeAnalysisPhase::TraceRange(const char* msg, ...) {
   if (FLAG_trace_range) {
     va_list arguments;
@@ -41,40 +55,56 @@ void HRangeAnalysisPhase::TraceRange(const char* msg, ...) {
 }
 
 
-void HRangeAnalysisPhase::Analyze(HBasicBlock* block) {
-  TraceRange("Analyzing block B%d\n", block->block_id());
+void HRangeAnalysisPhase::Run() {
+  HBasicBlock* block(graph()->entry_block());
+  ZoneList<Pending> stack(graph()->blocks()->length(), zone());
+  while (block != NULL) {
+    TraceRange("Analyzing block B%d\n", block->block_id());
 
-  int last_changed_range = changed_ranges_.length() - 1;
+    // Infer range based on control flow.
+    if (block->predecessors()->length() == 1) {
+      HBasicBlock* pred = block->predecessors()->first();
+      if (pred->end()->IsCompareNumericAndBranch()) {
+        InferControlFlowRange(HCompareNumericAndBranch::cast(pred->end()),
+                              block);
+      }
+    }
 
-  // Infer range based on control flow.
-  if (block->predecessors()->length() == 1) {
-    HBasicBlock* pred = block->predecessors()->first();
-    if (pred->end()->IsCompareIDAndBranch()) {
-      InferControlFlowRange(HCompareIDAndBranch::cast(pred->end()), block);
+    // Process phi instructions.
+    for (int i = 0; i < block->phis()->length(); ++i) {
+      HPhi* phi = block->phis()->at(i);
+      InferRange(phi);
+    }
+
+    // Go through all instructions of the current block.
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      InferRange(it.Current());
+    }
+
+    // Continue analysis in all dominated blocks.
+    const ZoneList<HBasicBlock*>* dominated_blocks(block->dominated_blocks());
+    if (!dominated_blocks->is_empty()) {
+      // Continue with first dominated block, and push the
+      // remaining blocks on the stack (in reverse order).
+      int last_changed_range = changed_ranges_.length();
+      for (int i = dominated_blocks->length() - 1; i > 0; --i) {
+        stack.Add(Pending(dominated_blocks->at(i), last_changed_range), zone());
+      }
+      block = dominated_blocks->at(0);
+    } else if (!stack.is_empty()) {
+      // Pop next pending block from stack.
+      Pending pending = stack.RemoveLast();
+      RollBackTo(pending.last_changed_range());
+      block = pending.block();
+    } else {
+      // All blocks done.
+      block = NULL;
     }
   }
-
-  // Process phi instructions.
-  for (int i = 0; i < block->phis()->length(); ++i) {
-    HPhi* phi = block->phis()->at(i);
-    InferRange(phi);
-  }
-
-  // Go through all instructions of the current block.
-  for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-    InferRange(it.Current());
-  }
-
-  // Continue analysis in all dominated blocks.
-  for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
-    Analyze(block->dominated_blocks()->at(i));
-  }
-
-  RollBackTo(last_changed_range);
 }
 
 
-void HRangeAnalysisPhase::InferControlFlowRange(HCompareIDAndBranch* test,
+void HRangeAnalysisPhase::InferControlFlowRange(HCompareNumericAndBranch* test,
                                                 HBasicBlock* dest) {
   ASSERT((test->FirstSuccessor() == dest) == (test->SecondSuccessor() != dest));
   if (test->representation().IsSmiOrInteger32()) {
@@ -139,10 +169,11 @@ void HRangeAnalysisPhase::InferRange(HValue* value) {
 
 
 void HRangeAnalysisPhase::RollBackTo(int index) {
-  for (int i = index + 1; i < changed_ranges_.length(); ++i) {
+  ASSERT(index <= changed_ranges_.length());
+  for (int i = index; i < changed_ranges_.length(); ++i) {
     changed_ranges_[i]->RemoveLastAddedRange();
   }
-  changed_ranges_.Rewind(index + 1);
+  changed_ranges_.Rewind(index);
 }
 
 

@@ -40,6 +40,8 @@ inline bool IsCarriageReturn(uc32 c);
 inline bool IsLineFeed(uc32 c);
 inline bool IsDecimalDigit(uc32 c);
 inline bool IsHexDigit(uc32 c);
+inline bool IsOctalDigit(uc32 c);
+inline bool IsBinaryDigit(uc32 c);
 inline bool IsRegExpWord(uc32 c);
 inline bool IsRegExpNewline(uc32 c);
 

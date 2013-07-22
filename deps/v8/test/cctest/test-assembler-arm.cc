@@ -619,6 +619,7 @@ TEST(7) {
   TestRoundingMode(u32_f64, RN, (kMaxUInt + 1.0), kMaxUInt, true);
 }
 
+
 TEST(8) {
   // Test VFP multi load/store with ia_w.
   CcTest::InitializeVM();
@@ -1224,6 +1225,188 @@ TEST(14) {
   CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.mul_result) & 0xffffffffu);
   CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.div_result) >> 32) & 0x7fffffff);
   CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.div_result) & 0xffffffffu);
+}
+
+
+TEST(15) {
+  // Test the Neon instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t src0;
+    uint32_t src1;
+    uint32_t src2;
+    uint32_t src3;
+    uint32_t src4;
+    uint32_t src5;
+    uint32_t src6;
+    uint32_t src7;
+    uint32_t dst0;
+    uint32_t dst1;
+    uint32_t dst2;
+    uint32_t dst3;
+    uint32_t dst4;
+    uint32_t dst5;
+    uint32_t dst6;
+    uint32_t dst7;
+    uint32_t srcA0;
+    uint32_t srcA1;
+    uint32_t dstA0;
+    uint32_t dstA1;
+    uint32_t dstA2;
+    uint32_t dstA3;
+  } T;
+  T t;
+
+  // Create a function that accepts &t, and loads, manipulates, and stores
+  // the doubles and floats.
+  Assembler assm(isolate, NULL, 0);
+
+
+  if (CpuFeatures::IsSupported(NEON)) {
+    CpuFeatureScope scope(&assm, NEON);
+
+    __ stm(db_w, sp, r4.bit() | lr.bit());
+    // Move 32 bytes with neon.
+    __ add(r4, r0, Operand(OFFSET_OF(T, src0)));
+    __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(r4));
+    __ add(r4, r0, Operand(OFFSET_OF(T, dst0)));
+    __ vst1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(r4));
+
+    // Expand 8 bytes into 8 words(16 bits).
+    __ add(r4, r0, Operand(OFFSET_OF(T, srcA0)));
+    __ vld1(Neon8, NeonListOperand(d0), NeonMemOperand(r4));
+    __ vmovl(NeonU8, q0, d0);
+    __ add(r4, r0, Operand(OFFSET_OF(T, dstA0)));
+    __ vst1(Neon8, NeonListOperand(d0, 2), NeonMemOperand(r4));
+
+  __ ldm(ia_w, sp, r4.bit() | pc.bit());
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Object* code = isolate->heap()->CreateCode(
+        desc,
+        Code::ComputeFlags(Code::STUB),
+        Handle<Code>())->ToObjectChecked();
+    CHECK(code->IsCode());
+#ifdef DEBUG
+    Code::cast(code)->Print();
+#endif
+    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    t.src0 = 0x01020304;
+    t.src1 = 0x11121314;
+    t.src2 = 0x21222324;
+    t.src3 = 0x31323334;
+    t.src4 = 0x41424344;
+    t.src5 = 0x51525354;
+    t.src6 = 0x61626364;
+    t.src7 = 0x71727374;
+    t.dst0 = 0;
+    t.dst1 = 0;
+    t.dst2 = 0;
+    t.dst3 = 0;
+    t.dst4 = 0;
+    t.dst5 = 0;
+    t.dst6 = 0;
+    t.dst7 = 0;
+    t.srcA0 = 0x41424344;
+    t.srcA1 = 0x81828384;
+    t.dstA0 = 0;
+    t.dstA1 = 0;
+    t.dstA2 = 0;
+    t.dstA3 = 0;
+    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    USE(dummy);
+    CHECK_EQ(0x01020304, t.dst0);
+    CHECK_EQ(0x11121314, t.dst1);
+    CHECK_EQ(0x21222324, t.dst2);
+    CHECK_EQ(0x31323334, t.dst3);
+    CHECK_EQ(0x41424344, t.dst4);
+    CHECK_EQ(0x51525354, t.dst5);
+    CHECK_EQ(0x61626364, t.dst6);
+    CHECK_EQ(0x71727374, t.dst7);
+    CHECK_EQ(0x00430044, t.dstA0);
+    CHECK_EQ(0x00410042, t.dstA1);
+    CHECK_EQ(0x00830084, t.dstA2);
+    CHECK_EQ(0x00810082, t.dstA3);
+  }
+}
+
+
+TEST(16) {
+  // Test the pkh, uxtb, uxtab and uxtb16 instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t src0;
+    uint32_t src1;
+    uint32_t src2;
+    uint32_t dst0;
+    uint32_t dst1;
+    uint32_t dst2;
+    uint32_t dst3;
+    uint32_t dst4;
+  } T;
+  T t;
+
+  // Create a function that accepts &t, and loads, manipulates, and stores
+  // the doubles and floats.
+  Assembler assm(isolate, NULL, 0);
+
+  __ stm(db_w, sp, r4.bit() | lr.bit());
+
+  __ mov(r4, Operand(r0));
+  __ ldr(r0, MemOperand(r4, OFFSET_OF(T, src0)));
+  __ ldr(r1, MemOperand(r4, OFFSET_OF(T, src1)));
+
+  __ pkhbt(r2, r0, Operand(r1, LSL, 8));
+  __ str(r2, MemOperand(r4, OFFSET_OF(T, dst0)));
+
+  __ pkhtb(r2, r0, Operand(r1, ASR, 8));
+  __ str(r2, MemOperand(r4, OFFSET_OF(T, dst1)));
+
+  __ uxtb16(r2, Operand(r0, ROR, 8));
+  __ str(r2, MemOperand(r4, OFFSET_OF(T, dst2)));
+
+  __ uxtb(r2, Operand(r0, ROR, 8));
+  __ str(r2, MemOperand(r4, OFFSET_OF(T, dst3)));
+
+  __ ldr(r0, MemOperand(r4, OFFSET_OF(T, src2)));
+  __ uxtab(r2, r0, Operand(r1, ROR, 8));
+  __ str(r2, MemOperand(r4, OFFSET_OF(T, dst4)));
+
+  __ ldm(ia_w, sp, r4.bit() | pc.bit());
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked();
+  CHECK(code->IsCode());
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  t.src0 = 0x01020304;
+  t.src1 = 0x11121314;
+  t.src2 = 0x11121300;
+  t.dst0 = 0;
+  t.dst1 = 0;
+  t.dst2 = 0;
+  t.dst3 = 0;
+  t.dst4 = 0;
+  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  USE(dummy);
+  CHECK_EQ(0x12130304, t.dst0);
+  CHECK_EQ(0x01021213, t.dst1);
+  CHECK_EQ(0x00010003, t.dst2);
+  CHECK_EQ(0x00000003, t.dst3);
+  CHECK_EQ(0x11121313, t.dst4);
 }
 
 #undef __

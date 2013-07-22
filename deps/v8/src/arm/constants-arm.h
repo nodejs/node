@@ -33,22 +33,6 @@
 #error ARM EABI support is required.
 #endif
 
-#if defined(__ARM_ARCH_7A__) || \
-    defined(__ARM_ARCH_7R__) || \
-    defined(__ARM_ARCH_7__)
-# define CAN_USE_ARMV7_INSTRUCTIONS 1
-#ifndef CAN_USE_VFP3_INSTRUCTIONS
-# define CAN_USE_VFP3_INSTRUCTIONS
-#endif
-#endif
-
-// Simulator should support unaligned access by default.
-#if !defined(__arm__)
-# ifndef CAN_USE_UNALIGNED_ACCESSES
-#  define CAN_USE_UNALIGNED_ACCESSES 1
-# endif
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -331,6 +315,32 @@ enum LFlag {
 };
 
 
+// NEON data type
+enum NeonDataType {
+  NeonS8 = 0x1,   // U = 0, imm3 = 0b001
+  NeonS16 = 0x2,  // U = 0, imm3 = 0b010
+  NeonS32 = 0x4,  // U = 0, imm3 = 0b100
+  NeonU8 = 1 << 24 | 0x1,   // U = 1, imm3 = 0b001
+  NeonU16 = 1 << 24 | 0x2,  // U = 1, imm3 = 0b010
+  NeonU32 = 1 << 24 | 0x4,   // U = 1, imm3 = 0b100
+  NeonDataTypeSizeMask = 0x7,
+  NeonDataTypeUMask = 1 << 24
+};
+
+enum NeonListType {
+  nlt_1 = 0x7,
+  nlt_2 = 0xA,
+  nlt_3 = 0x6,
+  nlt_4 = 0x2
+};
+
+enum NeonSize {
+  Neon8 = 0x0,
+  Neon16 = 0x1,
+  Neon32 = 0x2,
+  Neon64 = 0x4
+};
+
 // -----------------------------------------------------------------------------
 // Supervisor Call (svc) specific support.
 
@@ -573,6 +583,7 @@ class Instruction {
   DECLARE_STATIC_TYPED_ACCESSOR(Condition, ConditionField);
 
   inline int TypeValue() const { return Bits(27, 25); }
+  inline int SpecialValue() const { return Bits(27, 23); }
 
   inline int RnValue() const { return Bits(19, 16); }
   DECLARE_STATIC_ACCESSOR(RnValue);

@@ -230,6 +230,11 @@ inline void CheckNonEqualsHelper(const char* file,
 #define CHECK_LE(a, b) CHECK((a) <= (b))
 
 
+// Use C++11 static_assert if possible, which gives error
+// messages that are easier to understand on first sight.
+#if __cplusplus >= 201103L
+#define STATIC_CHECK(test) static_assert(test, #test)
+#else
 // This is inspired by the static assertion facility in boost.  This
 // is pretty magical.  If it causes you trouble on a platform you may
 // find a fix in the boost code.
@@ -249,6 +254,7 @@ template <int> class StaticAssertionHelper { };
   typedef                                                                     \
     StaticAssertionHelper<sizeof(StaticAssertion<static_cast<bool>((test))>)> \
     SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__)
+#endif
 
 
 extern bool FLAG_enable_slow_asserts;

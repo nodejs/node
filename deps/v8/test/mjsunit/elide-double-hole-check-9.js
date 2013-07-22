@@ -29,8 +29,8 @@
 
 var do_set = false;
 
+%NeverOptimizeFunction(set_proto_elements);
 function set_proto_elements() {
-  try {} catch (e) {}  // Don't optimize or inline
   if (do_set) Array.prototype[1] = 1.5;
 }
 

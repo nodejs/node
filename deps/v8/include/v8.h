@@ -2377,6 +2377,7 @@ class V8EXPORT Function : public Object {
 };
 
 #ifndef V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT
+// The number of required internal fields can be defined by embedder.
 #define V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT 2
 #endif
 
@@ -2489,6 +2490,12 @@ class V8EXPORT ArrayBuffer : public Object {
 };
 
 
+#ifndef V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT
+// The number of required internal fields can be defined by embedder.
+#define V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT 2
+#endif
+
+
 /**
  * A base class for an instance of one of "views" over ArrayBuffer,
  * including TypedArrays and DataView (ES6 draft 15.13).
@@ -2515,6 +2522,9 @@ class V8EXPORT ArrayBufferView : public Object {
   void* BaseAddress();
 
   V8_INLINE(static ArrayBufferView* Cast(Value* obj));
+
+  static const int kInternalFieldCount =
+      V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT;
 
  private:
   ArrayBufferView();
@@ -4689,6 +4699,12 @@ class V8EXPORT V8 {
    */
   static int ContextDisposedNotification();
 
+  /**
+   * Initialize the ICU library bundled with V8. The embedder should only
+   * invoke this method when using the bundled ICU. Returns true on success.
+   */
+  static bool InitializeICU();
+
  private:
   V8();
 
@@ -5383,7 +5399,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 131;
+  static const int kEmptyStringRootIndex = 132;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -5393,7 +5409,7 @@ class Internals {
   static const int kNodeIsIndependentShift = 4;
   static const int kNodeIsPartiallyDependentShift = 5;
 
-  static const int kJSObjectType = 0xb0;
+  static const int kJSObjectType = 0xb1;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x88;

@@ -43,6 +43,7 @@ static void* GetValue(int num) {
   return reinterpret_cast<void*>(static_cast<intptr_t>(num + 1));
 }
 
+
 static void DoTest() {
   for (int i = 0; i < kValueCount; i++) {
     CHECK(!Thread::HasThreadLocal(keys[i]));
@@ -79,6 +80,7 @@ class TestThread : public Thread {
     DoTest();
   }
 };
+
 
 TEST(FastTLS) {
   for (int i = 0; i < kValueCount; i++) {

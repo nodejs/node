@@ -577,6 +577,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       62,
       "Heap::NewSpaceAllocationLimitAddress");
+  Add(ExternalReference::allocation_sites_list_address(isolate).address(),
+      UNCLASSIFIED,
+      63,
+      "Heap::allocation_sites_list_address()");
 
   // Add a small set of deopt entry addresses to encoder without generating the
   // deopt table code, which isn't possible at deserialization time.
@@ -587,7 +591,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
         entry,
         Deoptimizer::LAZY,
         Deoptimizer::CALCULATE_ENTRY_ADDRESS);
-    Add(address, LAZY_DEOPTIMIZATION, 63 + entry, "lazy_deopt");
+    Add(address, LAZY_DEOPTIMIZATION, 64 + entry, "lazy_deopt");
   }
 }
 
@@ -690,6 +694,13 @@ void Deserializer::Deserialize() {
   isolate_->heap()->set_array_buffers_list(
       isolate_->heap()->undefined_value());
 
+  // The allocation site list is build during root iteration, but if no sites
+  // were encountered then it needs to be initialized to undefined.
+  if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
+    isolate_->heap()->set_allocation_sites_list(
+        isolate_->heap()->undefined_value());
+  }
+
   // Update data pointers to the external strings containing natives sources.
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
     Object* source = isolate_->heap()->natives_source_cache()->get(i);
@@ -745,6 +756,16 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
 }
 
 
+void Deserializer::RelinkAllocationSite(AllocationSite* site) {
+  if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
+    site->set_weak_next(isolate_->heap()->undefined_value());
+  } else {
+    site->set_weak_next(isolate_->heap()->allocation_sites_list());
+  }
+  isolate_->heap()->set_allocation_sites_list(site);
+}
+
+
 // This routine writes the new object into the pointer provided and then
 // returns true if the new object was in young space and false otherwise.
 // The reason for this strange interface is that otherwise the object is
@@ -754,16 +775,25 @@ void Deserializer::ReadObject(int space_number,
                               Object** write_back) {
   int size = source_->GetInt() << kObjectAlignmentBits;
   Address address = Allocate(space_number, size);
-  *write_back = HeapObject::FromAddress(address);
+  HeapObject* obj = HeapObject::FromAddress(address);
+  *write_back = obj;
   Object** current = reinterpret_cast<Object**>(address);
   Object** limit = current + (size >> kPointerSizeLog2);
   if (FLAG_log_snapshot_positions) {
     LOG(isolate_, SnapshotPositionEvent(address, source_->position()));
   }
   ReadChunk(current, limit, space_number, address);
+
+  // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
+  // as a (weak) root. If this root is relocated correctly,
+  // RelinkAllocationSite() isn't necessary.
+  if (obj->IsAllocationSite()) {
+    RelinkAllocationSite(AllocationSite::cast(obj));
+  }
+
 #ifdef DEBUG
   bool is_codespace = (space_number == CODE_SPACE);
-  ASSERT(HeapObject::FromAddress(address)->IsCode() == is_codespace);
+  ASSERT(obj->IsCode() == is_codespace);
 #endif
 }
 

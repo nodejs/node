@@ -113,6 +113,8 @@ class Decoder {
 
   // Handle formatting of instructions and their options.
   int FormatRegister(Instruction* instr, const char* option);
+  void FormatNeonList(int Vd, int type);
+  void FormatNeonMemory(int Rn, int align, int Rm);
   int FormatOption(Instruction* instr, const char* option);
   void Format(Instruction* instr, const char* format);
   void Unknown(Instruction* instr);
@@ -132,6 +134,8 @@ class Decoder {
   // For VFP support.
   void DecodeTypeVFP(Instruction* instr);
   void DecodeType6CoprocessorIns(Instruction* instr);
+
+  void DecodeSpecialCondition(Instruction* instr);
 
   void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instruction* instr);
   void DecodeVCMP(Instruction* instr);
@@ -187,10 +191,12 @@ void Decoder::PrintRegister(int reg) {
   Print(converter_.NameOfCPURegister(reg));
 }
 
+
 // Print the VFP S register name according to the active name converter.
 void Decoder::PrintSRegister(int reg) {
   Print(VFPRegisters::Name(reg, false));
 }
+
 
 // Print the VFP D register name according to the active name converter.
 void Decoder::PrintDRegister(int reg) {
@@ -414,6 +420,41 @@ int Decoder::FormatVFPRegister(Instruction* instr, const char* format) {
 int Decoder::FormatVFPinstruction(Instruction* instr, const char* format) {
     Print(format);
     return 0;
+}
+
+
+void Decoder::FormatNeonList(int Vd, int type) {
+  if (type == nlt_1) {
+    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "{d%d}", Vd);
+  } else if (type == nlt_2) {
+    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "{d%d, d%d}", Vd, Vd + 1);
+  } else if (type == nlt_3) {
+    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "{d%d, d%d, d%d}", Vd, Vd + 1, Vd + 2);
+  } else if (type == nlt_4) {
+    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                            "{d%d, d%d, d%d, d%d}", Vd, Vd + 1, Vd + 2, Vd + 3);
+  }
+}
+
+
+void Decoder::FormatNeonMemory(int Rn, int align, int Rm) {
+  out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "[r%d", Rn);
+  if (align != 0) {
+    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    ":%d", (1 << align) << 6);
+  }
+  if (Rm == 15) {
+    Print("]");
+  } else if (Rm == 13) {
+    Print("]!");
+  } else {
+    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "], r%d", Rm);
+  }
 }
 
 
@@ -980,15 +1021,107 @@ void Decoder::DecodeType3(Instruction* instr) {
       break;
     }
     case ia_x: {
-      if (instr->HasW()) {
-        VERIFY(instr->Bits(5, 4) == 0x1);
-        if (instr->Bit(22) == 0x1) {
-          Format(instr, "usat 'rd, #'imm05@16, 'rm'shift_sat");
-        } else {
-          UNREACHABLE();  // SSAT.
-        }
-      } else {
+      if (instr->Bit(4) == 0) {
         Format(instr, "'memop'cond'b 'rd, ['rn], +'shift_rm");
+      } else {
+        if (instr->Bit(5) == 0) {
+          switch (instr->Bits(22, 21)) {
+            case 0:
+              if (instr->Bit(20) == 0) {
+                if (instr->Bit(6) == 0) {
+                  Format(instr, "pkhbt'cond 'rd, 'rn, 'rm, lsl #'imm05@07");
+                } else {
+                  if (instr->Bits(11, 7) == 0) {
+                    Format(instr, "pkhtb'cond 'rd, 'rn, 'rm, asr #32");
+                  } else {
+                    Format(instr, "pkhtb'cond 'rd, 'rn, 'rm, asr #'imm05@07");
+                  }
+                }
+              } else {
+                UNREACHABLE();
+              }
+              break;
+            case 1:
+              UNREACHABLE();
+              break;
+            case 2:
+              UNREACHABLE();
+              break;
+            case 3:
+              Format(instr, "usat 'rd, #'imm05@16, 'rm'shift_sat");
+              break;
+          }
+        } else {
+          switch (instr->Bits(22, 21)) {
+            case 0:
+              UNREACHABLE();
+              break;
+            case 1:
+              UNREACHABLE();
+              break;
+            case 2:
+              if ((instr->Bit(20) == 0) && (instr->Bits(9, 6) == 1)) {
+                if (instr->Bits(19, 16) == 0xF) {
+                  switch (instr->Bits(11, 10)) {
+                    case 0:
+                      Format(instr, "uxtb16'cond 'rd, 'rm, ror #0");
+                      break;
+                    case 1:
+                      Format(instr, "uxtb16'cond 'rd, 'rm, ror #8");
+                      break;
+                    case 2:
+                      Format(instr, "uxtb16'cond 'rd, 'rm, ror #16");
+                      break;
+                    case 3:
+                      Format(instr, "uxtb16'cond 'rd, 'rm, ror #24");
+                      break;
+                  }
+                } else {
+                  UNREACHABLE();
+                }
+              } else {
+                UNREACHABLE();
+              }
+              break;
+            case 3:
+              if ((instr->Bit(20) == 0) && (instr->Bits(9, 6) == 1)) {
+                if (instr->Bits(19, 16) == 0xF) {
+                  switch (instr->Bits(11, 10)) {
+                    case 0:
+                      Format(instr, "uxtb'cond 'rd, 'rm, ror #0");
+                      break;
+                    case 1:
+                      Format(instr, "uxtb'cond 'rd, 'rm, ror #8");
+                      break;
+                    case 2:
+                      Format(instr, "uxtb'cond 'rd, 'rm, ror #16");
+                      break;
+                    case 3:
+                      Format(instr, "uxtb'cond 'rd, 'rm, ror #24");
+                      break;
+                  }
+                } else {
+                  switch (instr->Bits(11, 10)) {
+                    case 0:
+                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #0");
+                      break;
+                    case 1:
+                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #8");
+                      break;
+                    case 2:
+                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #16");
+                      break;
+                    case 3:
+                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #24");
+                      break;
+                  }
+                }
+              } else {
+                UNREACHABLE();
+              }
+              break;
+          }
+        }
       }
       break;
     }
@@ -1421,6 +1554,91 @@ void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
   }
 }
 
+
+void Decoder::DecodeSpecialCondition(Instruction* instr) {
+  switch (instr->SpecialValue()) {
+    case 5:
+      if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
+          (instr->Bit(4) == 1)) {
+        // vmovl signed
+        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        int Vm = (instr->Bit(5) << 4) | instr->VmValue();
+        int imm3 = instr->Bits(21, 19);
+        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vmovl.s%d q%d, d%d", imm3*8, Vd, Vm);
+      } else {
+        Unknown(instr);
+      }
+      break;
+    case 7:
+      if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
+          (instr->Bit(4) == 1)) {
+        // vmovl unsigned
+        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        int Vm = (instr->Bit(5) << 4) | instr->VmValue();
+        int imm3 = instr->Bits(21, 19);
+        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vmovl.u%d q%d, d%d", imm3*8, Vd, Vm);
+      } else {
+        Unknown(instr);
+      }
+      break;
+    case 8:
+      if (instr->Bits(21, 20) == 0) {
+        // vst1
+        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        int Rn = instr->VnValue();
+        int type = instr->Bits(11, 8);
+        int size = instr->Bits(7, 6);
+        int align = instr->Bits(5, 4);
+        int Rm = instr->VmValue();
+        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vst1.%d ", (1 << size) << 3);
+        FormatNeonList(Vd, type);
+        Print(", ");
+        FormatNeonMemory(Rn, align, Rm);
+      } else if (instr->Bits(21, 20) == 2) {
+        // vld1
+        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        int Rn = instr->VnValue();
+        int type = instr->Bits(11, 8);
+        int size = instr->Bits(7, 6);
+        int align = instr->Bits(5, 4);
+        int Rm = instr->VmValue();
+        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vld1.%d ", (1 << size) << 3);
+        FormatNeonList(Vd, type);
+        Print(", ");
+        FormatNeonMemory(Rn, align, Rm);
+      } else {
+        Unknown(instr);
+      }
+      break;
+    case 0xA:
+    case 0xB:
+      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xf)) {
+        int Rn = instr->Bits(19, 16);
+        int offset = instr->Bits(11, 0);
+        if (offset == 0) {
+          out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "pld [r%d]", Rn);
+        } else if (instr->Bit(23) == 0) {
+          out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "pld [r%d, #-%d]", Rn, offset);
+        } else {
+          out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "pld [r%d, #+%d]", Rn, offset);
+        }
+      } else {
+        Unknown(instr);
+      }
+      break;
+    default:
+      Unknown(instr);
+      break;
+  }
+}
+
 #undef VERIFIY
 
 bool Decoder::IsConstantPoolAt(byte* instr_ptr) {
@@ -1447,7 +1665,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
                                   "%08x       ",
                                   instr->InstructionBits());
   if (instr->ConditionField() == kSpecialCondition) {
-    Unknown(instr);
+    DecodeSpecialCondition(instr);
     return Instruction::kInstrSize;
   }
   int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));

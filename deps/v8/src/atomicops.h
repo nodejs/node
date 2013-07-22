@@ -153,14 +153,11 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 // Include our platform specific implementation.
 #if defined(THREAD_SANITIZER)
 #include "atomicops_internals_tsan.h"
-#elif defined(_MSC_VER) && \
-  (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
+#elif defined(_MSC_VER) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 #include "atomicops_internals_x86_msvc.h"
-#elif defined(__APPLE__) && \
-  (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
+#elif defined(__APPLE__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 #include "atomicops_internals_x86_macosx.h"
-#elif defined(__GNUC__) && \
-  (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
+#elif defined(__GNUC__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 #include "atomicops_internals_x86_gcc.h"
 #elif defined(__GNUC__) && V8_HOST_ARCH_ARM
 #include "atomicops_internals_arm_gcc.h"

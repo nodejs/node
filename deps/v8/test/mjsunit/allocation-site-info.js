@@ -133,9 +133,7 @@ if (support_smi_only_arrays) {
   obj = fastliteralcase(get_standard_literal(), 1.5);
   assertKind(elements_kind.fast_double, obj);
   obj = fastliteralcase(get_standard_literal(), 2);
-  // TODO(hpayer): bring the following assert back as soon as allocation
-  // sites work again for fast literals
-  //assertKind(elements_kind.fast_double, obj);
+  assertKind(elements_kind.fast_double, obj);
 
   // The test below is in a loop because arrays that live
   // at global scope without the chance of being recreated
@@ -175,9 +173,21 @@ if (support_smi_only_arrays) {
   obj = fastliteralcase_smifast("carter");
   assertKind(elements_kind.fast, obj);
   obj = fastliteralcase_smifast(2);
-  // TODO(hpayer): bring the following assert back as soon as allocation
-  // sites work again for fast literals
-  //assertKind(elements_kind.fast, obj);
+  assertKind(elements_kind.fast, obj);
+
+  // Case: make sure transitions from packed to holey are tracked
+  function fastliteralcase_smiholey(index, value) {
+    var literal = [1, 2, 3, 4];
+    literal[index] = value;
+    return literal;
+  }
+
+  obj = fastliteralcase_smiholey(5, 1);
+  assertKind(elements_kind.fast_smi_only, obj);
+  assertHoley(obj);
+  obj = fastliteralcase_smiholey(0, 1);
+  assertKind(elements_kind.fast_smi_only, obj);
+  assertHoley(obj);
 
   function newarraycase_smidouble(value) {
     var a = new Array();
@@ -272,6 +282,32 @@ if (support_smi_only_arrays) {
   obj = newarraycase_list_smiobj(2);
   assertKind(elements_kind.fast, obj);
 
+  // Case: array constructor calls with out of date feedback.
+  // The boilerplate should incorporate all feedback, but the input array
+  // should be minimally transitioned based on immediate need.
+  (function() {
+    function foo(i) {
+      // We have two cases, one for literals one for constructed arrays.
+      var a = (i == 0)
+        ? [1, 2, 3]
+        : new Array(1, 2, 3);
+      return a;
+    }
+
+    for (i = 0; i < 2; i++) {
+      a = foo(i);
+      b = foo(i);
+      b[5] = 1;  // boilerplate goes holey
+      assertHoley(foo(i));
+      a[0] = 3.5;  // boilerplate goes holey double
+      assertKind(elements_kind.fast_double, a);
+      assertNotHoley(a);
+      c = foo(i);
+      assertKind(elements_kind.fast_double, c);
+      assertHoley(c);
+    }
+  })();
+
   function newarraycase_onearg(len, value) {
     var a = new Array(len);
     a[0] = value;
@@ -301,17 +337,34 @@ if (support_smi_only_arrays) {
     assertTrue(new type(1,2,3) instanceof type);
   }
 
+  function instanceof_check2(type) {
+    assertTrue(new type() instanceof type);
+    assertTrue(new type(5) instanceof type);
+    assertTrue(new type(1,2,3) instanceof type);
+  }
+
   var realmBArray = Realm.eval(realmB, "Array");
   instanceof_check(Array);
   instanceof_check(realmBArray);
+
+  // instanceof_check2 is here because the call site goes through a state.
+  // Since instanceof_check(Array) was first called with the current context
+  // Array function, it went from (uninit->Array) then (Array->megamorphic).
+  // We'll get a different state traversal if we start with realmBArray.
+  // It'll go (uninit->realmBArray) then (realmBArray->megamorphic). Recognize
+  // that state "Array" implies an AllocationSite is present, and code is
+  // configured to use it.
+  instanceof_check2(realmBArray);
+  instanceof_check2(Array);
+
   %OptimizeFunctionOnNextCall(instanceof_check);
 
   // No de-opt will occur because HCallNewArray wasn't selected, on account of
   // the call site not being monomorphic to Array.
   instanceof_check(Array);
-  assertTrue(2 != %GetOptimizationStatus(instanceof_check));
+  assertOptimized(instanceof_check);
   instanceof_check(realmBArray);
-  assertTrue(2 != %GetOptimizationStatus(instanceof_check));
+  assertOptimized(instanceof_check);
 
   // Try to optimize again, but first clear all type feedback, and allow it
   // to be monomorphic on first call. Only after crankshafting do we introduce
@@ -322,8 +375,8 @@ if (support_smi_only_arrays) {
   instanceof_check(Array);
   %OptimizeFunctionOnNextCall(instanceof_check);
   instanceof_check(Array);
-  assertTrue(2 != %GetOptimizationStatus(instanceof_check));
+  assertOptimized(instanceof_check);
 
   instanceof_check(realmBArray);
-  assertTrue(1 != %GetOptimizationStatus(instanceof_check));
+  assertUnoptimized(instanceof_check);
 }

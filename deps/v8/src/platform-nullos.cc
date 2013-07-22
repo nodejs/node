@@ -220,6 +220,11 @@ CpuImplementer OS::GetCpuImplementer() {
 }
 
 
+CpuPart OS::GetCpuPart(CpuImplementer implementer) {
+  UNIMPLEMENTED();
+}
+
+
 bool OS::ArmCpuHasFeature(CpuFeature feature) {
   UNIMPLEMENTED();
 }

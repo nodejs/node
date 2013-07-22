@@ -50,6 +50,7 @@ TEST(Uint64Conversions) {
   CHECK_EQ(1.7976931348623157e308, Double(max_double64).value());
 }
 
+
 TEST(AsDiyFp) {
   uint64_t ordered = V8_2PART_UINT64_C(0x01234567, 89ABCDEF);
   DiyFp diy_fp = Double(ordered).AsDiyFp();

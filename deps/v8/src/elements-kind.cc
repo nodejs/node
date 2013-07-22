@@ -83,6 +83,7 @@ ElementsKind GetFastElementsKindFromSequenceIndex(int sequence_number) {
   return fast_elements_kind_sequence.Get()[sequence_number];
 }
 
+
 int GetSequenceIndexFromFastElementsKind(ElementsKind elements_kind) {
   for (int i = 0; i < kFastElementsKindCount; ++i) {
     if (fast_elements_kind_sequence.Get()[i] == elements_kind) {

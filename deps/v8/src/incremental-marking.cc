@@ -273,11 +273,12 @@ class IncrementalMarkingMarkingVisitor
     VisitNativeContext(map, context);
   }
 
-  static void VisitJSWeakMap(Map* map, HeapObject* object) {
+  static void VisitWeakCollection(Map* map, HeapObject* object) {
     Heap* heap = map->GetHeap();
     VisitPointers(heap,
-                  HeapObject::RawField(object, JSWeakMap::kPropertiesOffset),
-                  HeapObject::RawField(object, JSWeakMap::kSize));
+                  HeapObject::RawField(object,
+                                       JSWeakCollection::kPropertiesOffset),
+                  HeapObject::RawField(object, JSWeakCollection::kSize));
   }
 
   static void BeforeVisitingSharedFunctionInfo(HeapObject* object) {}
@@ -562,6 +563,7 @@ void IncrementalMarking::EnsureMarkingDequeIsCommitted() {
     marking_deque_memory_committed_ = true;
   }
 }
+
 
 void IncrementalMarking::UncommitMarkingDeque() {
   if (state_ == STOPPED && marking_deque_memory_committed_) {

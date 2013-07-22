@@ -34,19 +34,21 @@ if (!%IsParallelRecompilationSupported()) {
   quit();
 }
 
-function assertUnoptimized(fun) {
-  assertTrue(%GetOptimizationStatus(fun) != 1);
-}
-
 function test(fun) {
   fun();
   fun();
+  // Mark for parallel optimization.
   %OptimizeFunctionOnNextCall(fun, "parallel");
-  fun();  // Trigger optimization in the background.
-  gc();   // Tenure cons string.
-  assertUnoptimized(fun);      // Compilation not complete yet.
-  %CompleteOptimization(fun);  // Compilation embeds tenured cons string.
-  gc();   // Visit embedded cons string during mark compact.
+  //Trigger optimization in the background.
+  fun();
+  //Tenure cons string.
+  gc();
+  // In the mean time, parallel recompiling is not complete yet.
+  assertUnoptimized(fun, "no sync");
+  // Parallel recompilation eventually finishes and embeds tenured cons string.
+  assertOptimized(fun, "sync");
+  //Visit embedded cons string during mark compact.
+  gc();
 }
 
 function f() {

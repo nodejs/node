@@ -35,7 +35,7 @@
 namespace v8 {
 namespace internal {
 
-const int Deoptimizer::table_entry_size_ = 16;
+const int Deoptimizer::table_entry_size_ = 12;
 
 
 int Deoptimizer::patch_size() {
@@ -465,22 +465,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Get the bailout id from the stack.
   __ ldr(r2, MemOperand(sp, kSavedRegistersAreaSize));
 
-  // Get the address of the location in the code object if possible (r3) (return
+  // Get the address of the location in the code object (r3) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register r4.
-  if (type() == EAGER || type() == SOFT) {
-    __ mov(r3, Operand::Zero());
-    // Correct one word for bailout id.
-    __ add(r4, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
-  } else if (type() == OSR) {
-    __ mov(r3, lr);
-    // Correct one word for bailout id.
-    __ add(r4, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
-  } else {
-    __ mov(r3, lr);
-    // Correct two words for bailout id and return address.
-    __ add(r4, sp, Operand(kSavedRegistersAreaSize + (2 * kPointerSize)));
-  }
+  __ mov(r3, lr);
+  // Correct one word for bailout id.
+  __ add(r4, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
   __ sub(r4, fp, r4);
 
   // Allocate a new deoptimizer object.
@@ -521,13 +511,8 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ vstr(d0, r1, dst_offset);
   }
 
-  // Remove the bailout id, eventually return address, and the saved registers
-  // from the stack.
-  if (type() == EAGER || type() == SOFT || type() == OSR) {
-    __ add(sp, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
-  } else {
-    __ add(sp, sp, Operand(kSavedRegistersAreaSize + (2 * kPointerSize)));
-  }
+  // Remove the bailout id and the saved registers from the stack.
+  __ add(sp, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
 
   // Compute a pointer to the unwinding limit in register r2; that is
   // the first stack slot not part of the input frame.
@@ -636,18 +621,12 @@ void Deoptimizer::EntryGenerator::Generate() {
 
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
-  // Create a sequence of deoptimization entries. Note that any
-  // registers may be still live.
+  // Create a sequence of deoptimization entries.
+  // Note that registers are still live when jumping to an entry.
   Label done;
   for (int i = 0; i < count(); i++) {
     int start = masm()->pc_offset();
     USE(start);
-    if (type() == EAGER || type() == SOFT) {
-      __ nop();
-    } else {
-      // Emulate ia32 like call by pushing return address to stack.
-      __ push(lr);
-    }
     __ mov(ip, Operand(i));
     __ push(ip);
     __ b(&done);

@@ -28,12 +28,12 @@
 "use strict";
 
 var observationState = %GetObservationState();
-if (IS_UNDEFINED(observationState.observerInfoMap)) {
-  observationState.observerInfoMap = %ObservationWeakMapCreate();
+if (IS_UNDEFINED(observationState.callbackInfoMap)) {
+  observationState.callbackInfoMap = %ObservationWeakMapCreate();
   observationState.objectInfoMap = %ObservationWeakMapCreate();
   observationState.notifierTargetMap = %ObservationWeakMapCreate();
   observationState.pendingObservers = new InternalArray;
-  observationState.observerPriority = 0;
+  observationState.nextCallbackPriority = 0;
 }
 
 function ObservationWeakMap(map) {
@@ -44,20 +44,20 @@ ObservationWeakMap.prototype = {
   get: function(key) {
     key = %UnwrapGlobalProxy(key);
     if (!IS_SPEC_OBJECT(key)) return void 0;
-    return %WeakMapGet(this.map_, key);
+    return %WeakCollectionGet(this.map_, key);
   },
   set: function(key, value) {
     key = %UnwrapGlobalProxy(key);
     if (!IS_SPEC_OBJECT(key)) return void 0;
-    %WeakMapSet(this.map_, key, value);
+    %WeakCollectionSet(this.map_, key, value);
   },
   has: function(key) {
     return !IS_UNDEFINED(this.get(key));
   }
 };
 
-var observerInfoMap =
-    new ObservationWeakMap(observationState.observerInfoMap);
+var callbackInfoMap =
+    new ObservationWeakMap(observationState.callbackInfoMap);
 var objectInfoMap = new ObservationWeakMap(observationState.objectInfoMap);
 var notifierTargetMap =
     new ObservationWeakMap(observationState.notifierTargetMap);
@@ -198,6 +198,22 @@ function AcceptArgIsValid(arg) {
   return true;
 }
 
+function EnsureCallbackPriority(callback) {
+  if (!callbackInfoMap.has(callback))
+    callbackInfoMap.set(callback, observationState.nextCallbackPriority++);
+}
+
+function NormalizeCallbackInfo(callback) {
+  var callbackInfo = callbackInfoMap.get(callback);
+  if (IS_NUMBER(callbackInfo)) {
+    var priority = callbackInfo;
+    callbackInfo = new InternalArray;
+    callbackInfo.priority = priority;
+    callbackInfoMap.set(callback, callbackInfo);
+  }
+  return callbackInfo;
+}
+
 function ObjectObserve(object, callback, accept) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["observe"]);
@@ -208,16 +224,13 @@ function ObjectObserve(object, callback, accept) {
   if (!AcceptArgIsValid(accept))
     throw MakeTypeError("observe_accept_invalid");
 
-  if (!observerInfoMap.has(callback)) {
-    observerInfoMap.set(callback, {
-      pendingChangeRecords: null,
-      priority: observationState.observerPriority++,
-    });
-  }
+  EnsureCallbackPriority(callback);
 
   var objectInfo = objectInfoMap.get(object);
-  if (IS_UNDEFINED(objectInfo)) objectInfo = CreateObjectInfo(object);
-  %SetIsObserved(object, true);
+  if (IS_UNDEFINED(objectInfo)) {
+    objectInfo = CreateObjectInfo(object);
+    %SetIsObserved(object);
+  }
 
   EnsureObserverRemoved(objectInfo, callback);
 
@@ -241,12 +254,6 @@ function ObjectUnobserve(object, callback) {
     return object;
 
   EnsureObserverRemoved(objectInfo, callback);
-
-  if (objectInfo.changeObservers.length === 0 &&
-      objectInfo.inactiveObservers.length === 0) {
-    %SetIsObserved(object, false);
-  }
-
   return object;
 }
 
@@ -261,6 +268,13 @@ function ArrayUnobserve(object, callback) {
   return ObjectUnobserve(object, callback);
 }
 
+function EnqueueToCallback(callback, changeRecord) {
+  var callbackInfo = NormalizeCallbackInfo(callback);
+  observationState.pendingObservers[callbackInfo.priority] = callback;
+  callbackInfo.push(changeRecord);
+  %SetObserverDeliveryPending();
+}
+
 function EnqueueChangeRecord(changeRecord, observers) {
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (IS_SYMBOL(changeRecord.name)) return;
@@ -270,15 +284,7 @@ function EnqueueChangeRecord(changeRecord, observers) {
     if (IS_UNDEFINED(observer.accept[changeRecord.type]))
       continue;
 
-    var callback = observer.callback;
-    var observerInfo = observerInfoMap.get(callback);
-    observationState.pendingObservers[observerInfo.priority] = callback;
-    %SetObserverDeliveryPending();
-    if (IS_NULL(observerInfo.pendingChangeRecords)) {
-      observerInfo.pendingChangeRecords = new InternalArray(changeRecord);
-    } else {
-      observerInfo.pendingChangeRecords.push(changeRecord);
-    }
+    EnqueueToCallback(observer.callback, changeRecord);
   }
 }
 
@@ -398,21 +404,22 @@ function ObjectGetNotifier(object) {
   return objectInfo.notifier;
 }
 
-function DeliverChangeRecordsForObserver(observer) {
-  var observerInfo = observerInfoMap.get(observer);
-  if (IS_UNDEFINED(observerInfo))
+function CallbackDeliverPending(callback) {
+  var callbackInfo = callbackInfoMap.get(callback);
+  if (IS_UNDEFINED(callbackInfo) || IS_NUMBER(callbackInfo))
     return false;
 
-  var pendingChangeRecords = observerInfo.pendingChangeRecords;
-  if (IS_NULL(pendingChangeRecords))
-    return false;
+  // Clear the pending change records from callback and return it to its
+  // "optimized" state.
+  var priority = callbackInfo.priority;
+  callbackInfoMap.set(callback, priority);
 
-  observerInfo.pendingChangeRecords = null;
-  delete observationState.pendingObservers[observerInfo.priority];
+  delete observationState.pendingObservers[priority];
   var delivered = [];
-  %MoveArrayContents(pendingChangeRecords, delivered);
+  %MoveArrayContents(callbackInfo, delivered);
+
   try {
-    %Call(void 0, delivered, observer);
+    %Call(void 0, delivered, callback);
   } catch (ex) {}
   return true;
 }
@@ -421,7 +428,7 @@ function ObjectDeliverChangeRecords(callback) {
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["deliverChangeRecords"]);
 
-  while (DeliverChangeRecordsForObserver(callback)) {}
+  while (CallbackDeliverPending(callback)) {}
 }
 
 function DeliverChangeRecords() {
@@ -429,7 +436,7 @@ function DeliverChangeRecords() {
     var pendingObservers = observationState.pendingObservers;
     observationState.pendingObservers = new InternalArray;
     for (var i in pendingObservers) {
-      DeliverChangeRecordsForObserver(pendingObservers[i]);
+      CallbackDeliverPending(pendingObservers[i]);
     }
   }
 }

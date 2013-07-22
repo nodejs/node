@@ -56,6 +56,7 @@ void* Histogram::CreateHistogram() const {
       CreateHistogram(name_, min_, max_, num_buckets_);
 }
 
+
 // Start the timer.
 void HistogramTimer::Start() {
   if (Enabled()) {
@@ -66,6 +67,7 @@ void HistogramTimer::Start() {
     LOG(isolate(), TimerEvent(Logger::START, name()));
   }
 }
+
 
 // Stop the timer and record the results.
 void HistogramTimer::Stop() {

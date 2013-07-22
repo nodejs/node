@@ -103,8 +103,13 @@ class Sampler {
   bool IsActive() const { return NoBarrier_Load(&active_); }
 
   // Used in tests to make sure that stack sampling is performed.
-  int samples_taken() const { return samples_taken_; }
-  void ResetSamplesTaken() { samples_taken_ = 0; }
+  unsigned js_and_external_sample_count() const {
+    return js_and_external_sample_count_;
+  }
+  void StartCountingSamples() {
+      is_counting_samples_ = true;
+      js_and_external_sample_count_ = 0;
+  }
 
   class PlatformData;
   PlatformData* platform_data() const { return data_; }
@@ -122,7 +127,9 @@ class Sampler {
   Atomic32 profiling_;
   Atomic32 active_;
   PlatformData* data_;  // Platform specific data.
-  int samples_taken_;  // Counts stack samples taken.
+  bool is_counting_samples_;
+  // Counts stack samples taken in JS VM state.
+  unsigned js_and_external_sample_count_;
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
 

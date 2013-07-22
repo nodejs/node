@@ -169,12 +169,6 @@ void SetExpectedNofProperties(Handle<JSFunction> func, int nof) {
 }
 
 
-void SetPrototypeProperty(Handle<JSFunction> func, Handle<JSObject> value) {
-  CALL_HEAP_FUNCTION_VOID(func->GetIsolate(),
-                          func->SetPrototype(*value));
-}
-
-
 static int ExpectedNofPropertiesFromEstimate(int estimate) {
   // If no properties are added in the constructor, they are more likely
   // to be added later.
@@ -499,6 +493,7 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   return right + script->line_offset()->value();
 }
 
+
 // Convert code position into column number.
 int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
   int line_number = GetScriptLineNumber(script, code_pos);
@@ -512,6 +507,7 @@ int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
       Smi::cast(line_ends_array->get(line_number - 1))->value();
   return code_pos - (prev_line_end_pos + 1);
 }
+
 
 int GetScriptLineNumberSafe(Handle<Script> script, int code_pos) {
   DisallowHeapAllocation no_allocation;
@@ -648,6 +644,10 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
                                  isolate->heap()->undefined_value(),
                                  v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
+      if (isolate->has_scheduled_exception()) {
+        isolate->PromoteScheduledException();
+        *threw = true;
+      }
       break;
     }
 

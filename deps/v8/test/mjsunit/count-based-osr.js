@@ -26,14 +26,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --count-based-interrupts --interrupt-budget=10 --weighted-back-edges
-// Flags: --allow-natives-syntax --noparallel-recompilation
+// Flags: --allow-natives-syntax
 
 // Test that OSR works properly when using count-based interrupting/profiling.
 
 function osr_this() {
   var a = 1;
   // Trigger OSR.
-  while (%GetOptimizationStatus(osr_this) == 2) {}
+  while (%GetOptimizationStatus(osr_this, "no sync") == 2) {}
   return a;
 }
 assertEquals(1, osr_this());

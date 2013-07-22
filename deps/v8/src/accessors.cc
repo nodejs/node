@@ -450,26 +450,23 @@ Handle<Object> Accessors::FunctionGetPrototype(Handle<Object> object) {
 
 MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
   Isolate* isolate = Isolate::Current();
-  JSFunction* function = FindInstanceOf<JSFunction>(isolate, object);
-  if (function == NULL) return isolate->heap()->undefined_value();
-  while (!function->should_have_prototype()) {
-    function = FindInstanceOf<JSFunction>(isolate, function->GetPrototype());
+  JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, object);
+  if (function_raw == NULL) return isolate->heap()->undefined_value();
+  while (!function_raw->should_have_prototype()) {
+    function_raw = FindInstanceOf<JSFunction>(isolate,
+                                              function_raw->GetPrototype());
     // There has to be one because we hit the getter.
-    ASSERT(function != NULL);
+    ASSERT(function_raw != NULL);
   }
 
-  if (!function->has_prototype()) {
-    Object* prototype;
-    { MaybeObject* maybe_prototype
-          = isolate->heap()->AllocateFunctionPrototype(function);
-      if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
-    }
-    Object* result;
-    { MaybeObject* maybe_result = function->SetPrototype(prototype);
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
+  if (!function_raw->has_prototype()) {
+    HandleScope scope(isolate);
+    Handle<JSFunction> function(function_raw);
+    Handle<Object> proto = isolate->factory()->NewFunctionPrototype(function);
+    JSFunction::SetPrototype(function, proto);
+    function_raw = *function;
   }
-  return function->prototype();
+  return function_raw->prototype();
 }
 
 
@@ -503,9 +500,7 @@ MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
       old_value = isolate->factory()->NewFunctionPrototype(function);
   }
 
-  Handle<Object> result;
-  MaybeObject* maybe_result = function->SetPrototype(*value);
-  if (!maybe_result->ToHandle(&result, isolate)) return maybe_result;
+  JSFunction::SetPrototype(function, value);
   ASSERT(function->prototype() == *value);
 
   if (is_observed && !old_value->SameValue(*value)) {
@@ -579,6 +574,13 @@ const AccessorDescriptor Accessors::FunctionName = {
 //
 // Accessors::FunctionArguments
 //
+
+
+Handle<Object> Accessors::FunctionGetArguments(Handle<Object> object) {
+  Isolate* isolate = Isolate::Current();
+  CALL_HEAP_FUNCTION(
+      isolate, Accessors::FunctionGetArguments(*object, 0), Object);
+}
 
 
 static MaybeObject* ConstructArgumentsObjectForInlinedFunction(

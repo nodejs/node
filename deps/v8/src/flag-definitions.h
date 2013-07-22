@@ -171,6 +171,8 @@ DEFINE_bool(harmony_array_buffer, false,
 DEFINE_implication(harmony_typed_arrays, harmony_array_buffer)
 DEFINE_bool(harmony_generators, false, "enable harmony generators")
 DEFINE_bool(harmony_iteration, false, "enable harmony iteration (for-of)")
+DEFINE_bool(harmony_numeric_literals, false,
+            "enable harmony numeric literals (0o77, 0b11)")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_modules)
@@ -180,6 +182,7 @@ DEFINE_implication(harmony, harmony_collections)
 DEFINE_implication(harmony, harmony_observation)
 DEFINE_implication(harmony, harmony_generators)
 DEFINE_implication(harmony, harmony_iteration)
+DEFINE_implication(harmony, harmony_numeric_literals)
 DEFINE_implication(harmony_modules, harmony_scoping)
 DEFINE_implication(harmony_observation, harmony_collections)
 // TODO[dslomov] add harmony => harmony_typed_arrays
@@ -187,7 +190,7 @@ DEFINE_implication(harmony_observation, harmony_collections)
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
 DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
-DEFINE_bool(compiled_transitions, false, "use optimizing compiler to "
+DEFINE_bool(compiled_transitions, true, "use optimizing compiler to "
             "generate array elements transition stubs")
 DEFINE_bool(compiled_keyed_stores, true, "use optimizing compiler to "
             "generate keyed store stubs")
@@ -195,6 +198,9 @@ DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
 DEFINE_bool(pretenuring, true, "allocate objects in old space")
+// TODO(hpayer): We will remove this flag as soon as we have pretenuring
+// support for specific allocation sites.
+DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
 DEFINE_bool(track_fields, true, "track fields with only smi values")
 DEFINE_bool(track_double_fields, true, "track fields with double values")
 DEFINE_bool(track_heap_object_fields, true, "track fields with heap values")
@@ -209,17 +215,19 @@ DEFINE_bool(string_slices, true, "use string slices")
 
 // Flags for Crankshaft.
 DEFINE_bool(crankshaft, true, "use crankshaft")
-DEFINE_string(hydrogen_filter, "", "optimization filter")
+DEFINE_string(hydrogen_filter, "*", "optimization filter")
 DEFINE_bool(use_range, true, "use hydrogen range analysis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
 DEFINE_bool(use_escape_analysis, false, "use hydrogen escape analysis")
+DEFINE_bool(use_allocation_folding, true, "use allocation folding")
+DEFINE_int(max_inlining_levels, 5, "maximum number of inlining levels")
 DEFINE_int(max_inlined_source_size, 600,
            "maximum source size in bytes considered for a single inlining")
 DEFINE_int(max_inlined_nodes, 196,
            "maximum number of AST nodes considered for a single inlining")
-DEFINE_int(max_inlined_nodes_cumulative, 196,
+DEFINE_int(max_inlined_nodes_cumulative, 400,
            "maximum cumulative number of AST nodes considered for inlining")
 DEFINE_bool(loop_invariant_code_motion, true, "loop invariant code motion")
 DEFINE_bool(fast_math, true, "faster (but maybe less accurate) math functions")
@@ -236,6 +244,7 @@ DEFINE_bool(trace_range, false, "trace range analysis")
 DEFINE_bool(trace_gvn, false, "trace global value numbering")
 DEFINE_bool(trace_representation, false, "trace representation types")
 DEFINE_bool(trace_escape_analysis, false, "trace hydrogen escape analysis")
+DEFINE_bool(trace_allocation_folding, false, "trace allocation folding")
 DEFINE_bool(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
 DEFINE_bool(trace_migration, false, "trace object migration")
@@ -248,6 +257,7 @@ DEFINE_int(deopt_every_n_times,
 DEFINE_int(deopt_every_n_garbage_collections,
            0,
            "deoptimize every n garbage collections")
+DEFINE_bool(print_deopt_stress, false, "print number of possible deopt points")
 DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
@@ -348,6 +358,8 @@ DEFINE_bool(enable_vfp3, ENABLE_VFP3_DEFAULT,
             "enable use of VFP3 instructions if available")
 DEFINE_bool(enable_armv7, ENABLE_ARMV7_DEFAULT,
             "enable use of ARMv7 instructions if available (ARM only)")
+DEFINE_bool(enable_neon, true,
+            "enable use of NEON instructions if available (ARM only)")
 DEFINE_bool(enable_sudiv, true,
             "enable use of SDIV and UDIV instructions if available (ARM only)")
 DEFINE_bool(enable_movw_movt, false,

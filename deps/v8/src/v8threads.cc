@@ -388,6 +388,7 @@ bool ThreadManager::IsArchived() {
   return data != NULL && data->thread_state() != NULL;
 }
 
+
 void ThreadManager::Iterate(ObjectVisitor* v) {
   // Expecting no threads during serialization/deserialization
   for (ThreadState* state = FirstThreadStateInUse();

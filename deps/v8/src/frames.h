@@ -543,7 +543,7 @@ class JavaScriptFrame: public StandardFrame {
   virtual Type type() const { return JAVA_SCRIPT; }
 
   // Accessors.
-  inline Object* function() const;
+  inline JSFunction* function() const;
   inline Object* receiver() const;
   inline void set_receiver(Object* value);
 

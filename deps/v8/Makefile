@@ -34,6 +34,7 @@ TESTJOBS ?=
 GYPFLAGS ?=
 TESTFLAGS ?=
 ANDROID_NDK_ROOT ?=
+ANDROID_NDK_HOST_ARCH ?=
 ANDROID_TOOLCHAIN ?=
 ANDROID_V8 ?= /data/local/tmp/v8
 NACL_SDK_ROOT ?=
@@ -90,6 +91,10 @@ endif
 # vtunejit=on
 ifeq ($(vtunejit), on)
   GYPFLAGS += -Dv8_enable_vtunejit=1
+endif
+# optdebug=on
+ifeq ($(optdebug), on)
+  GYPFLAGS += -Dv8_optimized_debug=1
 endif
 # debuggersupport=off
 ifeq ($(debuggersupport), off)
@@ -210,9 +215,9 @@ ANDROID_ARCHES = android_ia32 android_arm android_mipsel
 NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:
-GYPFILES = build/all.gyp build/common.gypi build/standalone.gypi \
-           preparser/preparser.gyp samples/samples.gyp src/d8.gyp \
-           test/cctest/cctest.gyp tools/gyp/v8.gyp
+GYPFILES = build/all.gyp build/features.gypi build/standalone.gypi \
+	   build/toolchain.gypi preparser/preparser.gyp samples/samples.gyp \
+	   src/d8.gyp test/cctest/cctest.gyp tools/gyp/v8.gyp
 
 # If vtunejit=on, the v8vtune.gyp will be appended.
 ifeq ($(vtunejit), on)
@@ -352,6 +357,7 @@ clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.cl
 # GYP file generation targets.
 OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
 $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
@@ -359,6 +365,7 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	              -S.$(subst .,,$(suffix $@)) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
@@ -401,4 +408,4 @@ dependencies:
 	    --revision 1656
 	svn checkout --force \
 	    https://src.chromium.org/chrome/trunk/deps/third_party/icu46 \
-	    third_party/icu --revision 205936
+	    third_party/icu --revision 210659

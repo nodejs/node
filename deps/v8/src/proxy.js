@@ -192,8 +192,12 @@ function DerivedEnumerateTrap() {
     var name = names[i]
     if (IS_SYMBOL(name)) continue
     var desc = this.getPropertyDescriptor(TO_STRING_INLINE(name))
-    if (!IS_UNDEFINED(desc) && desc.enumerable) {
-      enumerableNames[count++] = names[i]
+    if (!IS_UNDEFINED(desc)) {
+      if (!desc.configurable) {
+        throw MakeTypeError("proxy_prop_not_configurable",
+            [this, "getPropertyDescriptor", name])
+      }
+      if (desc.enumerable) enumerableNames[count++] = names[i]
     }
   }
   return enumerableNames

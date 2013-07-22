@@ -914,6 +914,7 @@ void MemoryChunk::IncrementLiveBytesFromMutator(Address address, int by) {
   chunk->IncrementLiveBytes(by);
 }
 
+
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
@@ -993,6 +994,7 @@ MaybeObject* PagedSpace::FindObject(Address addr) {
   UNREACHABLE();
   return Failure::Exception();
 }
+
 
 bool PagedSpace::CanExpand() {
   ASSERT(max_capacity_ % AreaSize() == 0);
@@ -1868,6 +1870,7 @@ void NewSpace::ClearHistograms() {
   }
 }
 
+
 // Because the copying collector does not touch garbage objects, we iterate
 // the new space before a collection to get a histogram of allocated objects.
 // This only happens when --log-gc flag is set.
@@ -1960,6 +1963,7 @@ size_t NewSpace::CommittedPhysicalMemory() {
   }
   return size;
 }
+
 
 // -----------------------------------------------------------------------------
 // Free lists for old object spaces implementation

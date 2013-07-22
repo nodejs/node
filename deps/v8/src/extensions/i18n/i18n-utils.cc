@@ -42,6 +42,7 @@ void Utils::StrNCopy(char* dest, int length, const char* src) {
   dest[length - 1] = '\0';
 }
 
+
 // static
 bool Utils::V8StringToUnicodeString(const v8::Handle<v8::Value>& input,
                                     icu::UnicodeString* output) {
@@ -53,6 +54,7 @@ bool Utils::V8StringToUnicodeString(const v8::Handle<v8::Value>& input,
 
   return true;
 }
+
 
 // static
 bool Utils::ExtractStringSetting(const v8::Handle<v8::Object>& settings,
@@ -73,6 +75,7 @@ bool Utils::ExtractStringSetting(const v8::Handle<v8::Object>& settings,
   }
   return false;
 }
+
 
 // static
 bool Utils::ExtractIntegerSetting(const v8::Handle<v8::Object>& settings,
@@ -95,6 +98,7 @@ bool Utils::ExtractIntegerSetting(const v8::Handle<v8::Object>& settings,
   return false;
 }
 
+
 // static
 bool Utils::ExtractBooleanSetting(const v8::Handle<v8::Object>& settings,
                                   const char* setting,
@@ -116,6 +120,7 @@ bool Utils::ExtractBooleanSetting(const v8::Handle<v8::Object>& settings,
   return false;
 }
 
+
 // static
 void Utils::AsciiToUChar(const char* source,
                          int32_t source_length,
@@ -135,6 +140,7 @@ void Utils::AsciiToUChar(const char* source,
   target[length - 1] = 0x0u;
 }
 
+
 // static
 // Chrome Linux doesn't like static initializers in class, so we create
 // template on demand.
@@ -152,6 +158,7 @@ v8::Local<v8::ObjectTemplate> Utils::GetTemplate(v8::Isolate* isolate) {
 
   return v8::Local<v8::ObjectTemplate>::New(isolate, icu_template);
 }
+
 
 // static
 // Chrome Linux doesn't like static initializers in class, so we create

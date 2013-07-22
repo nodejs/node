@@ -170,22 +170,22 @@ for (var i = 0; i < 3; i++) monomorphic(smi_only);
 monomorphic(smi_only);
 
 if (support_smi_only_arrays) {
+  %NeverOptimizeFunction(construct_smis);
   function construct_smis() {
-    try {} catch (e) {} // TODO(titzer): DisableOptimization
     var a = [0, 0, 0];
     a[0] = 0;  // Send the COW array map to the steak house.
     assertKind(elements_kind.fast_smi_only, a);
     return a;
   }
+  %NeverOptimizeFunction(construct_doubles);
   function construct_doubles() {
-    try {} catch (e) {} // TODO(titzer): DisableOptimization
     var a = construct_smis();
     a[0] = 1.5;
     assertKind(elements_kind.fast_double, a);
     return a;
   }
+  %NeverOptimizeFunction(construct_objects);
   function construct_objects() {
-    try {} catch (e) {} // TODO(titzer): DisableOptimization
     var a = construct_smis();
     a[0] = "one";
     assertKind(elements_kind.fast, a);
@@ -193,8 +193,8 @@ if (support_smi_only_arrays) {
   }
 
   // Test crankshafted transition SMI->DOUBLE.
+  %NeverOptimizeFunction(convert_to_double);
   function convert_to_double(array) {
-    try {} catch (e) {} // TODO(titzer): DisableOptimization
     array[1] = 2.5;
     assertKind(elements_kind.fast_double, array);
     assertEquals(2.5, array[1]);
@@ -205,8 +205,8 @@ if (support_smi_only_arrays) {
   smis = construct_smis();
   convert_to_double(smis);
   // Test crankshafted transitions SMI->FAST and DOUBLE->FAST.
+  %NeverOptimizeFunction(convert_to_fast);
   function convert_to_fast(array) {
-    try {} catch (e) {} // TODO(titzer): DisableOptimization
     array[1] = "two";
     assertKind(elements_kind.fast, array);
     assertEquals("two", array[1]);
@@ -222,8 +222,8 @@ if (support_smi_only_arrays) {
   convert_to_fast(doubles);
   // Test transition chain SMI->DOUBLE->FAST (crankshafted function will
   // transition to FAST directly).
+  %NeverOptimizeFunction(convert_mixed);
   function convert_mixed(array, value, kind) {
-    try {} catch (e) {} // TODO(titzer): DisableOptimization
     array[1] = value;
     assertKind(kind, array);
     assertEquals(value, array[1]);

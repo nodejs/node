@@ -54,6 +54,7 @@ class HarmonyIsolate {
 };
 }
 
+
 TEST(PerIsolateState) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
@@ -94,6 +95,7 @@ TEST(PerIsolateState) {
   CHECK_EQ(3, CompileRun("count")->Int32Value());
 }
 
+
 TEST(EndOfMicrotaskDelivery) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
@@ -106,6 +108,7 @@ TEST(EndOfMicrotaskDelivery) {
       "obj.foo = 'bar';");
   CHECK_EQ(1, CompileRun("count")->Int32Value());
 }
+
 
 TEST(DeliveryOrdering) {
   HarmonyIsolate isolate;
@@ -138,6 +141,7 @@ TEST(DeliveryOrdering) {
   CHECK_EQ(3, CompileRun("ordering[2]")->Int32Value());
 }
 
+
 TEST(DeliveryOrderingReentrant) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
@@ -169,6 +173,7 @@ TEST(DeliveryOrderingReentrant) {
   CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());
 }
 
+
 TEST(DeliveryOrderingDeliverChangeRecords) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
@@ -192,6 +197,7 @@ TEST(DeliveryOrderingDeliverChangeRecords) {
   CHECK_EQ(1, CompileRun("ordering[2]")->Int32Value());
   CHECK_EQ(2, CompileRun("ordering[3]")->Int32Value());
 }
+
 
 TEST(ObjectHashTableGrowth) {
   HarmonyIsolate isolate;
@@ -221,6 +227,7 @@ TEST(ObjectHashTableGrowth) {
   CompileRun("obj.foo = 'bar'");
   CHECK(CompileRun("ran")->BooleanValue());
 }
+
 
 TEST(GlobalObjectObservation) {
   HarmonyIsolate isolate;
@@ -289,6 +296,7 @@ struct RecordExpectation {
   const char* name;
   Handle<Value> old_value;
 };
+
 
 // TODO(adamk): Use this helper elsewhere in this file.
 static void ExpectRecords(Handle<Value> records,
@@ -360,6 +368,7 @@ TEST(APITestBasicMutation) {
   EXPECT_RECORDS(CompileRun("records"), expected_records);
 }
 
+
 TEST(HiddenPrototypeObservation) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
@@ -420,20 +429,20 @@ TEST(ObservationWeakMap) {
       "obj = null;");
   i::Handle<i::JSObject> observation_state =
       i::Isolate::Current()->factory()->observation_state();
-  i::Handle<i::JSWeakMap> observerInfoMap =
+  i::Handle<i::JSWeakMap> callbackInfoMap =
       i::Handle<i::JSWeakMap>::cast(
-          i::GetProperty(observation_state, "observerInfoMap"));
+          i::GetProperty(observation_state, "callbackInfoMap"));
   i::Handle<i::JSWeakMap> objectInfoMap =
       i::Handle<i::JSWeakMap>::cast(
           i::GetProperty(observation_state, "objectInfoMap"));
   i::Handle<i::JSWeakMap> notifierTargetMap =
       i::Handle<i::JSWeakMap>::cast(
           i::GetProperty(observation_state, "notifierTargetMap"));
-  CHECK_EQ(1, NumberOfElements(observerInfoMap));
+  CHECK_EQ(1, NumberOfElements(callbackInfoMap));
   CHECK_EQ(1, NumberOfElements(objectInfoMap));
   CHECK_EQ(1, NumberOfElements(notifierTargetMap));
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
-  CHECK_EQ(0, NumberOfElements(observerInfoMap));
+  CHECK_EQ(0, NumberOfElements(callbackInfoMap));
   CHECK_EQ(0, NumberOfElements(objectInfoMap));
   CHECK_EQ(0, NumberOfElements(notifierTargetMap));
 }

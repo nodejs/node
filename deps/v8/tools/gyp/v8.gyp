@@ -29,7 +29,7 @@
   'variables': {
     'v8_code': 1,
   },
-  'includes': ['../../build/common.gypi'],
+  'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
   'targets': [
     {
       'target_name': 'v8',
@@ -335,6 +335,16 @@
         '../../src/heap-snapshot-generator.h',
         '../../src/heap.cc',
         '../../src/heap.h',
+        '../../src/hydrogen-bce.cc',
+        '../../src/hydrogen-bce.h',
+        '../../src/hydrogen-canonicalize.cc',
+        '../../src/hydrogen-canonicalize.h',
+        '../../src/hydrogen-dce.cc',
+        '../../src/hydrogen-dce.h',
+        '../../src/hydrogen-dehoist.cc',
+        '../../src/hydrogen-dehoist.h',
+        '../../src/hydrogen-deoptimizing-mark.cc',
+        '../../src/hydrogen-deoptimizing-mark.h',
         '../../src/hydrogen-environment-liveness.cc',
         '../../src/hydrogen-environment-liveness.h',
         '../../src/hydrogen-escape-analysis.cc',
@@ -347,12 +357,26 @@
         '../../src/hydrogen-gvn.h',
         '../../src/hydrogen-infer-representation.cc',
         '../../src/hydrogen-infer-representation.h',
+        '../../src/hydrogen-infer-types.cc',
+        '../../src/hydrogen-infer-types.h',
+        '../../src/hydrogen-minus-zero.cc',
+        '../../src/hydrogen-minus-zero.h',
         '../../src/hydrogen-range-analysis.cc',
         '../../src/hydrogen-range-analysis.h',
+        '../../src/hydrogen-redundant-phi.cc',
+        '../../src/hydrogen-redundant-phi.h',
+        '../../src/hydrogen-removable-simulates.cc',
+        '../../src/hydrogen-removable-simulates.h',
+        '../../src/hydrogen-representation-changes.cc',
+        '../../src/hydrogen-representation-changes.h',
+        '../../src/hydrogen-sce.cc',
+        '../../src/hydrogen-sce.h',
         '../../src/hydrogen-uint32-analysis.cc',
         '../../src/hydrogen-uint32-analysis.h',
         '../../src/hydrogen-osr.cc',
         '../../src/hydrogen-osr.h',
+        '../../src/icu_util.cc',
+        '../../src/icu_util.h',
         '../../src/ic-inl.h',
         '../../src/ic.cc',
         '../../src/ic.h',
@@ -813,8 +837,14 @@
             '../../src/extensions/i18n/number-format.h',
           ],
           'dependencies': [
-            '<(DEPTH)/third_party/icu/icu.gyp:*',
+            '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
+            '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
           ]
+        }],
+        ['OS=="win" and v8_enable_i18n_support==1', {
+          'dependencies': [
+            '<(DEPTH)/third_party/icu/icu.gyp:icudata',
+          ],
         }],
       ],
     },
@@ -874,7 +904,8 @@
           '../../src/object-observe.js',
           '../../src/arraybuffer.js',
           '../../src/typedarray.js',
-          '../../src/generator.js'
+          '../../src/generator.js',
+          '../../src/array-iterator.js'
         ],
         'i18n_library_files': [
           '../../src/extensions/i18n/header.js',

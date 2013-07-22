@@ -55,7 +55,7 @@ void HEscapeAnalysisPhase::CollectCapturedValues() {
     HBasicBlock* block = graph()->blocks()->at(i);
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
       HInstruction* instr = it.Current();
-      if (instr->IsAllocate() || instr->IsAllocateObject()) {
+      if (instr->IsAllocate()) {
         CollectIfNoEscapingUses(instr);
       }
     }

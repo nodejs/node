@@ -495,10 +495,9 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 
 MaybeObject* Heap::AllocateEmptyJSArrayWithAllocationSite(
       ElementsKind elements_kind,
-      Handle<Object> allocation_site_payload) {
+      Handle<AllocationSite> allocation_site) {
   return AllocateJSArrayAndStorageWithAllocationSite(elements_kind, 0, 0,
-      allocation_site_payload,
-      DONT_INITIALIZE_ARRAY_ELEMENTS);
+      allocation_site, DONT_INITIALIZE_ARRAY_ELEMENTS);
 }
 
 

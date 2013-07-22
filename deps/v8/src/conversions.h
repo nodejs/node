@@ -52,6 +52,11 @@ inline bool isDigit(int x, int radix) {
 }
 
 
+inline bool isBinaryDigit(int x) {
+  return x == '0' || x == '1';
+}
+
+
 // The fast double-to-(unsigned-)int conversion routine does not guarantee
 // rounding towards zero.
 // For NaN and values outside the int range, return INT_MIN or INT_MAX.
@@ -108,8 +113,10 @@ inline uint32_t DoubleToUint32(double x) {
 enum ConversionFlags {
   NO_FLAGS = 0,
   ALLOW_HEX = 1,
-  ALLOW_OCTALS = 2,
-  ALLOW_TRAILING_JUNK = 4
+  ALLOW_OCTAL = 2,
+  ALLOW_IMPLICIT_OCTAL = 4,
+  ALLOW_BINARY = 8,
+  ALLOW_TRAILING_JUNK = 16
 };
 
 

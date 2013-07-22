@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --parallel-recompilation --parallel-recompilation-delay=300
+// Flags: --parallel-recompilation --parallel-recompilation-delay=100
 
 if (!%IsParallelRecompilationSupported()) {
   print("Parallel recompilation is disabled. Skipping this test.");
@@ -62,7 +62,8 @@ f();                           // Kick off parallel recompilation.
 
 Debug.setListener(listener);   // Activate debugger.
 Debug.setBreakPoint(f, 2, 0);  // Force deopt.
-%CompleteOptimization(f);      // Install optimized code.
+// Sync with parallel optimization thread.  But no optimized code is installed.
+assertUnoptimized(f, "sync");
 
 f();                           // Trigger break point.
 assertEquals(1, listened);

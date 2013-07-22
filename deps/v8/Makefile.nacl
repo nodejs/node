@@ -91,6 +91,8 @@ $(NACL_MAKEFILES):
 	GYP_DEFINES="${GYPENV}" \
 	CC=${NACL_CC} \
 	CXX=${NACL_CXX} \
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
 	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
-	              -S.$(subst .,,$(suffix $@)) $(GYPFLAGS)
+	              -S.$(subst .,,$(suffix $@)) $(GYPFLAGS) \
+                      -Dwno_array_bounds=-Wno-array-bounds

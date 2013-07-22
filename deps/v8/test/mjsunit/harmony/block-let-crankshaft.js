@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-scoping --allow-natives-syntax --noparallel-recompilation
+// Flags: --harmony-scoping --allow-natives-syntax
 
 // TODO(ES6): properly activate extended mode
 "use strict";
@@ -43,7 +43,7 @@ for (var i = 0; i < functions.length; ++i) {
   }
   %OptimizeFunctionOnNextCall(func);
   func(12);
-  assertTrue(%GetOptimizationStatus(func) != 2);
+  assertOptimized(func);
 }
 
 function f1() { }

@@ -449,6 +449,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   return SetLastStatus(SUCCEEDED);
 }
 
+
 OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
@@ -564,8 +565,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     if (info->is_eval()) {
       StackTraceFrameIterator it(isolate);
       if (!it.done()) {
-        script->set_eval_from_shared(
-            JSFunction::cast(it.frame()->function())->shared());
+        script->set_eval_from_shared(it.frame()->function()->shared());
         Code* code = it.frame()->LookupCode();
         int offset = static_cast<int>(
             it.frame()->pc() - code->instruction_start());
@@ -1199,9 +1199,9 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     Handle<Code> code = info->code();
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
+    int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    USE(line_num);
     if (script->name()->IsString()) {
-      int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
-      USE(line_num);
       PROFILE(info->isolate(),
               CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
@@ -1215,7 +1215,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *code,
                               *shared,
                               info,
-                              shared->DebugName()));
+                              info->isolate()->heap()->empty_string(),
+                              line_num));
     }
   }
 

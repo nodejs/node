@@ -49,7 +49,6 @@ class LCodeGen;
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V)    \
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
-  V(AllocateObject)                             \
   V(Allocate)                                   \
   V(ApplyArguments)                             \
   V(ArgumentsElements)                          \
@@ -81,7 +80,7 @@ class LCodeGen;
   V(ClampTToUint8)                              \
   V(ClassOfTestAndBranch)                       \
   V(CmpConstantEqAndBranch)                     \
-  V(CmpIDAndBranch)                             \
+  V(CompareNumericAndBranch)                    \
   V(CmpObjectEqAndBranch)                       \
   V(CmpMapAndBranch)                            \
   V(CmpT)                                       \
@@ -92,7 +91,6 @@ class LCodeGen;
   V(Context)                                    \
   V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
-  V(DeleteProperty)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
@@ -106,7 +104,6 @@ class LCodeGen;
   V(Goto)                                       \
   V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceTypeAndBranch)                   \
-  V(In)                                         \
   V(InstanceOf)                                 \
   V(InstanceOfKnownGlobal)                      \
   V(InstanceSize)                               \
@@ -118,10 +115,12 @@ class LCodeGen;
   V(IsConstructCallAndBranch)                   \
   V(IsObjectAndBranch)                          \
   V(IsStringAndBranch)                          \
+  V(IsNumberAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsUndetectableAndBranch)                    \
   V(Label)                                      \
   V(LazyBailout)                                \
+  V(LinkObjectInList)                           \
   V(LoadContextSlot)                            \
   V(LoadExternalArrayPointer)                   \
   V(LoadFunctionPrototype)                      \
@@ -719,9 +718,9 @@ class LDebugBreak: public LTemplateInstruction<0, 0, 0> {
 };
 
 
-class LCmpIDAndBranch: public LControlInstruction<2, 0> {
+class LCompareNumericAndBranch: public LControlInstruction<2, 0> {
  public:
-  LCmpIDAndBranch(LOperand* left, LOperand* right) {
+  LCompareNumericAndBranch(LOperand* left, LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -729,8 +728,9 @@ class LCmpIDAndBranch: public LControlInstruction<2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CmpIDAndBranch, "cmp-id-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(CompareIDAndBranch)
+  DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch,
+                               "compare-numeric-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareNumericAndBranch)
 
   Token::Value op() const { return hydrogen()->token(); }
   bool is_double() const {
@@ -922,6 +922,19 @@ class LIsObjectAndBranch: public LControlInstruction<1, 1> {
   DECLARE_HYDROGEN_ACCESSOR(IsObjectAndBranch)
 
   virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LIsNumberAndBranch: public LControlInstruction<1, 0> {
+ public:
+  explicit LIsNumberAndBranch(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch, "is-number-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(IsNumberAndBranch)
 };
 
 
@@ -1668,6 +1681,23 @@ class LStoreGlobalGeneric: public LTemplateInstruction<0, 2, 0> {
 
   Handle<Object> name() const { return hydrogen()->name(); }
   StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
+};
+
+
+class LLinkObjectInList: public LTemplateInstruction<0, 1, 0> {
+ public:
+  explicit LLinkObjectInList(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+
+  ExternalReference GetReference(Isolate* isolate);
+
+  DECLARE_CONCRETE_INSTRUCTION(LinkObjectInList, "link-object-in-list")
+  DECLARE_HYDROGEN_ACCESSOR(LinkObjectInList)
+
+  virtual void PrintDataTo(StringStream* stream);
 };
 
 
@@ -2450,21 +2480,6 @@ class LClampTToUint8: public LTemplateInstruction<1, 1, 1> {
 };
 
 
-class LAllocateObject: public LTemplateInstruction<1, 1, 2> {
- public:
-  LAllocateObject(LOperand* temp, LOperand* temp2) {
-    temps_[0] = temp;
-    temps_[1] = temp2;
-  }
-
-  LOperand* temp() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
-  DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
-};
-
-
 class LAllocate: public LTemplateInstruction<1, 2, 2> {
  public:
   LAllocate(LOperand* size, LOperand* temp1, LOperand* temp2) {
@@ -2551,20 +2566,6 @@ class LIsConstructCallAndBranch: public LControlInstruction<0, 1> {
 };
 
 
-class LDeleteProperty: public LTemplateInstruction<1, 2, 0> {
- public:
-  LDeleteProperty(LOperand* object, LOperand* key) {
-    inputs_[0] = object;
-    inputs_[1] = key;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(DeleteProperty, "delete-property")
-};
-
-
 class LOsrEntry: public LTemplateInstruction<0, 0, 0> {
  public:
   LOsrEntry() {}
@@ -2583,20 +2584,6 @@ class LStackCheck: public LTemplateInstruction<0, 0, 0> {
 
  private:
   Label done_label_;
-};
-
-
-class LIn: public LTemplateInstruction<1, 2, 0> {
- public:
-  LIn(LOperand* key, LOperand* object) {
-    inputs_[0] = key;
-    inputs_[1] = object;
-  }
-
-  LOperand* key() { return inputs_[0]; }
-  LOperand* object() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(In, "in")
 };
 
 

@@ -94,6 +94,7 @@ static SmartArrayPointer<const char> Parse(const char* input) {
   return output;
 }
 
+
 static bool CheckSimple(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -111,6 +112,7 @@ struct MinMaxPair {
   int min_match;
   int max_match;
 };
+
 
 static MinMaxPair CheckMinMaxMatch(const char* input) {
   V8::Initialize(NULL);
@@ -376,6 +378,7 @@ TEST(Parser) {
   CHECK_MIN_MAX("a(?=bbb|bb)c", 2, 2);
   CHECK_MIN_MAX("a(?!bbb|bb)c", 2, 2);
 }
+
 
 TEST(ParserRegression) {
   CHECK_PARSE_EQ("[A-Z$-][x]", "(! [A-Z $ -] [x])");
@@ -658,6 +661,7 @@ TEST(DispatchTableConstruction) {
     }
   }
 }
+
 
 // Test of debug-only syntax.
 #ifdef DEBUG

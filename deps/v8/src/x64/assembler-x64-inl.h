@@ -369,7 +369,7 @@ bool RelocInfo::IsPatchedReturnSequence() {
   // The 11th byte is int3 (0xCC) in the return sequence and
   // REX.WB (0x48+register bit) for the call sequence.
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  return pc_[10] != 0xCC;
+  return pc_[2 + kPointerSize] != 0xCC;
 #else
   return false;
 #endif

@@ -560,8 +560,6 @@ class OptimizingCompiler: public ZoneObject {
 
 class Compiler : public AllStatic {
  public:
-  static const int kMaxInliningLevels = 3;
-
   // Call count before primitive functions trigger their own optimization.
   static const int kCallsUntilPrimitiveOpt = 200;
 

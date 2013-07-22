@@ -1,3 +1,61 @@
+2013-07-22: Version 3.20.7
+
+        Deprecated some debugger methods.
+
+        Fixed wrong bailout id in polymorphic stores (Chromium issue 259787).
+
+        Fixed data race in SamplingCircularQueue (Chromium issue 251218).
+
+        Fixed type feedback in presence of negative lookups
+        (Chromium issue 252797).
+
+        Do not materialize context-allocated values for debug-evaluate
+        (Chromium issue 259300).
+
+        Synchronized Compare-Literal behavior in FullCodegen and Hydrogen
+        (Chromium issue 260345).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-17: Version 3.20.6
+
+        Try to remove invalidated stubs before falling back to checking the
+        constant state (Chromium issue 260585).
+
+        Fixed gyp_v8 to work with use_system_icu=1 (issue 2475).
+
+        Fixed sloppy-mode 'const' under Harmony flag (Chromium issue 173361).
+
+        Use internal array as API function cache  (Chromium issue 260106).
+
+        Fixed possible stack overflow in range analysis
+        (Chromium issue 259452).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-15: Version 3.20.5
+
+        Ensured that the length of frozen arrays is immutable
+        (issue 2711, Chromium issue 259548).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-10: Version 3.20.4
+
+        Fixed garbage-collection issue that causes a crash on ARM
+        (Chromium issue 254570)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-08: Version 3.20.3
+
+        Performance and stability improvements on all platforms.
+
+
 2013-07-05: Version 3.20.2
 
         Remove deprecated heap profiler methods from V8 public API

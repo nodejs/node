@@ -228,6 +228,10 @@ debug-liveedit-double-call: SKIP
 # As noted above none of them are run in the arm.debug case.
 fuzz-natives-part4: SKIP
 
+# NaCl builds have problems with this test since Pepper_28.
+# V8 Issue 2786
+math-exp-precision: SKIP
+
 # Requires bigger stack size in the Genesis and if stack size is increased,
 # the test requires too much time to run.  However, the problem test covers
 # should be platform-independent.

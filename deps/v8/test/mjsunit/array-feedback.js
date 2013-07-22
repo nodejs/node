@@ -35,6 +35,11 @@
 // in this test case.  Depending on whether smi-only arrays are actually
 // enabled, this test takes the appropriate code path to check smi-only arrays.
 
+// Reset the GC stress mode to be off. Needed because AllocationMementos only
+// live for one gc, so a gc that happens in certain fragile areas of the test
+// can break assumptions.
+%SetFlags("--gc-interval=-1")
+
 // support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
 support_smi_only_arrays = true;
 
@@ -187,7 +192,7 @@ if (support_smi_only_arrays) {
       b[0] = 3.5;
       c = create0();
       assertKind(elements_kind.fast_double, c);
-      assertTrue(2 != %GetOptimizationStatus(create0));
+      assertOptimized(create0);
     }
   })();
 

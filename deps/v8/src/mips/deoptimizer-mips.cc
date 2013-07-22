@@ -457,22 +457,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Get the bailout id from the stack.
   __ lw(a2, MemOperand(sp, kSavedRegistersAreaSize));
 
-  // Get the address of the location in the code object if possible (a3) (return
+  // Get the address of the location in the code object (a3) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register t0.
-  if (type() == EAGER || type() == SOFT) {
-    __ mov(a3, zero_reg);
-    // Correct one word for bailout id.
-    __ Addu(t0, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
-  } else if (type() == OSR) {
-    __ mov(a3, ra);
-    // Correct one word for bailout id.
-    __ Addu(t0, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
-  } else {
-    __ mov(a3, ra);
-    // Correct two words for bailout id and return address.
-    __ Addu(t0, sp, Operand(kSavedRegistersAreaSize + (2 * kPointerSize)));
-  }
+  __ mov(a3, ra);
+  // Correct one word for bailout id.
+  __ Addu(t0, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
 
   __ Subu(t0, fp, t0);
 
@@ -521,13 +511,8 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ sdc1(f0, MemOperand(a1, dst_offset));
   }
 
-  // Remove the bailout id, eventually return address, and the saved registers
-  // from the stack.
-  if (type() == EAGER || type() == SOFT || type() == OSR) {
-    __ Addu(sp, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
-  } else {
-    __ Addu(sp, sp, Operand(kSavedRegistersAreaSize + (2 * kPointerSize)));
-  }
+  // Remove the bailout id and the saved registers from the stack.
+  __ Addu(sp, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
 
   // Compute a pointer to the unwinding limit in register a2; that is
   // the first stack slot not part of the input frame.
@@ -628,25 +613,19 @@ void Deoptimizer::EntryGenerator::Generate() {
 
 
 // Maximum size of a table entry generated below.
-const int Deoptimizer::table_entry_size_ = 9 * Assembler::kInstrSize;
+const int Deoptimizer::table_entry_size_ = 7 * Assembler::kInstrSize;
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
 
-  // Create a sequence of deoptimization entries. Note that any
-  // registers may be still live.
+  // Create a sequence of deoptimization entries.
+  // Note that registers are still live when jumping to an entry.
   Label table_start;
   __ bind(&table_start);
   for (int i = 0; i < count(); i++) {
     Label start;
     __ bind(&start);
-    if (type() != EAGER && type() != SOFT) {
-      // Emulate ia32 like call by pushing return address to stack.
-      __ addiu(sp, sp, -2 * kPointerSize);
-      __ sw(ra, MemOperand(sp, 1 * kPointerSize));
-    } else {
-      __ addiu(sp, sp, -1 * kPointerSize);
-    }
+    __ addiu(sp, sp, -1 * kPointerSize);
     // Jump over the remaining deopt entries (including this one).
     // This code is always reached by calling Jump, which puts the target (label
     // start) into t9.

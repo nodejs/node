@@ -107,6 +107,7 @@ static int64_t TimeFromYearMonthDay(DateCache* date_cache,
   return (result + day - 1) * DateCache::kMsPerDay;
 }
 
+
 static void CheckDST(int64_t time) {
   Isolate* isolate = Isolate::Current();
   DateCache* date_cache = isolate->date_cache();

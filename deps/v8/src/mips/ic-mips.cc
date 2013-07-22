@@ -330,9 +330,9 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
   // bit test is enough.
   // map: key map
   __ lbu(hash, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kInternalizedTag != 0);
-  __ And(at, hash, Operand(kIsInternalizedMask));
-  __ Branch(not_unique, eq, at, Operand(zero_reg));
+  STATIC_ASSERT(kInternalizedTag == 0);
+  __ And(at, hash, Operand(kIsNotInternalizedMask));
+  __ Branch(not_unique, ne, at, Operand(zero_reg));
 
   __ bind(&unique);
 }
@@ -1261,8 +1261,8 @@ static void KeyedStoreGenerateGenericHelper(
                                          t0,
                                          slow);
   ASSERT(receiver_map.is(a3));  // Transition code expects map in a3
-  AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS,
-                                                        FAST_DOUBLE_ELEMENTS);
+  AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
+                                                    FAST_DOUBLE_ELEMENTS);
   ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, slow);
   __ lw(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
@@ -1275,7 +1275,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          t0,
                                          slow);
   ASSERT(receiver_map.is(a3));  // Transition code expects map in a3
-  mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
+  mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm, mode,
                                                                    slow);
   __ lw(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
@@ -1291,7 +1291,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          t0,
                                          slow);
   ASSERT(receiver_map.is(a3));  // Transition code expects map in a3
-  mode = AllocationSiteInfo::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
+  mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, slow);
   __ lw(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
@@ -1495,8 +1495,8 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // Must return the modified receiver in v0.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS,
-                                                          FAST_DOUBLE_ELEMENTS);
+    AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
+                                                      FAST_DOUBLE_ELEMENTS);
     ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
     __ Ret(USE_DELAY_SLOT);
     __ mov(v0, a2);
@@ -1518,8 +1518,8 @@ void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
   // Must return the modified receiver in v0.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_DOUBLE_ELEMENTS,
-                                                          FAST_ELEMENTS);
+    AllocationSiteMode mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS,
+                                                      FAST_ELEMENTS);
     ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
     __ Ret(USE_DELAY_SLOT);
     __ mov(v0, a2);
@@ -1541,8 +1541,9 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
   // -----------------------------------
 
   // Get the receiver from the stack and probe the stub cache.
-  Code::Flags flags =
-      Code::ComputeFlags(Code::STORE_IC, MONOMORPHIC, strict_mode);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::STUB, MONOMORPHIC, strict_mode,
+      Code::NORMAL, Code::STORE_IC);
   Isolate::Current()->stub_cache()->GenerateProbe(
       masm, flags, a1, a2, a3, t0, t1, t2);
 

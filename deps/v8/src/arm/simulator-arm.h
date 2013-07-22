@@ -144,7 +144,10 @@ class Simulator {
     d8, d9, d10, d11, d12, d13, d14, d15,
     d16, d17, d18, d19, d20, d21, d22, d23,
     d24, d25, d26, d27, d28, d29, d30, d31,
-    num_d_registers = 32
+    num_d_registers = 32,
+    q0 = 0, q1, q2, q3, q4, q5, q6, q7,
+    q8, q9, q10, q11, q12, q13, q14, q15,
+    num_q_registers = 16
   };
 
   explicit Simulator(Isolate* isolate);
@@ -163,6 +166,15 @@ class Simulator {
   void set_dw_register(int dreg, const int* dbl);
 
   // Support for VFP.
+  void get_d_register(int dreg, uint64_t* value);
+  void set_d_register(int dreg, const uint64_t* value);
+  void get_d_register(int dreg, uint32_t* value);
+  void set_d_register(int dreg, const uint32_t* value);
+  void get_q_register(int qreg, uint64_t* value);
+  void set_q_register(int qreg, const uint64_t* value);
+  void get_q_register(int qreg, uint32_t* value);
+  void set_q_register(int qreg, const uint32_t* value);
+
   void set_s_register(int reg, unsigned int value);
   unsigned int get_s_register(int reg) const;
 
@@ -279,11 +291,11 @@ class Simulator {
   // Helper functions to decode common "addressing" modes
   int32_t GetShiftRm(Instruction* instr, bool* carry_out);
   int32_t GetImm(Instruction* instr, bool* carry_out);
-  void ProcessPUW(Instruction* instr,
-                  int num_regs,
-                  int operand_size,
-                  intptr_t* start_address,
-                  intptr_t* end_address);
+  int32_t ProcessPU(Instruction* instr,
+                    int num_regs,
+                    int operand_size,
+                    intptr_t* start_address,
+                    intptr_t* end_address);
   void HandleRList(Instruction* instr, bool load);
   void HandleVList(Instruction* inst);
   void SoftwareInterrupt(Instruction* instr);
@@ -328,6 +340,7 @@ class Simulator {
   // Support for VFP.
   void DecodeTypeVFP(Instruction* instr);
   void DecodeType6CoprocessorIns(Instruction* instr);
+  void DecodeSpecialCondition(Instruction* instr);
 
   void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instruction* instr);
   void DecodeVCMP(Instruction* instr);

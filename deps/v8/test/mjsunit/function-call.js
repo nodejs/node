@@ -151,8 +151,8 @@ var reducing_functions =
 
 function checkExpectedMessage(e) {
   assertTrue(e.message.indexOf("called on null or undefined") >= 0 ||
-             e.message.indexOf("invoked on undefined or null value") >= 0 ||
-             e.message.indexOf("Cannot convert null to object") >= 0);
+      e.message.indexOf("invoked on undefined or null value") >= 0 ||
+      e.message.indexOf("Cannot convert undefined or null to object") >= 0);
 }
 
 // Test that all natives using the ToObject call throw the right exception.

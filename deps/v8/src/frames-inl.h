@@ -274,10 +274,8 @@ inline bool JavaScriptFrame::has_adapted_arguments() const {
 }
 
 
-inline Object* JavaScriptFrame::function() const {
-  Object* result = function_slot_object();
-  ASSERT(result->IsJSFunction());
-  return result;
+inline JSFunction* JavaScriptFrame::function() const {
+  return JSFunction::cast(function_slot_object());
 }
 
 

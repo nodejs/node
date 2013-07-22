@@ -36,10 +36,7 @@
 namespace v8 {
 
 
-void HandleDebugEvent(DebugEvent event,
-                      Handle<Object> exec_state,
-                      Handle<Object> event_data,
-                      Handle<Value> data);
+void HandleDebugEvent(const Debug::EventDetails& event_details);
 
 // Start the remove debugger connecting to a V8 debugger agent on the specified
 // port.

@@ -322,7 +322,9 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
   return true;
 }
 
+
 int main(int argc, char* argv[]) {
+  v8::V8::InitializeICU();
   int result = RunMain(argc, argv);
   v8::V8::Dispose();
   return result;
@@ -420,6 +422,7 @@ void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   args.GetReturnValue().Set(ReadLine());
 }
+
 
 v8::Handle<v8::String> ReadLine() {
   const int kBufferSize = 1024 + 1;

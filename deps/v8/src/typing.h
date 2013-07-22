@@ -34,6 +34,7 @@
 #include "ast.h"
 #include "compiler.h"
 #include "type-info.h"
+#include "types.h"
 #include "zone.h"
 #include "scopes.h"
 
@@ -62,11 +63,11 @@ class AstTyper: public AstVisitor {
   TypeFeedbackOracle* oracle() { return &oracle_; }
   Zone* zone() const { return info_->zone(); }
 
-  void MergeLowerType(Expression* e, Handle<Type> t) {
-    e->set_lower_type(handle(Type::Union(e->lower_type(), t), isolate_));
+  void NarrowType(Expression* e, Bounds b) {
+    e->set_bounds(Bounds::Both(e->bounds(), b, isolate_));
   }
-  void MergeUpperType(Expression* e, Handle<Type> t) {
-    e->set_upper_type(handle(Type::Intersect(e->upper_type(), t), isolate_));
+  void NarrowLowerType(Expression* e, Handle<Type> t) {
+    e->set_bounds(Bounds::NarrowLower(e->bounds(), t, isolate_));
   }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);

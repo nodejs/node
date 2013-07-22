@@ -62,6 +62,7 @@ using v8::internal::rdx;
 using v8::internal::rsi;
 using v8::internal::rsp;
 using v8::internal::times_1;
+using v8::internal::xmm0;
 
 // Test the x64 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
@@ -110,6 +111,7 @@ TEST(AssemblerX64ReturnOperation) {
   CHECK_EQ(2, result);
 }
 
+
 TEST(AssemblerX64StackOperations) {
   OS::SetUp();
   // Allocate an executable page of memory.
@@ -142,6 +144,7 @@ TEST(AssemblerX64StackOperations) {
   CHECK_EQ(2, result);
 }
 
+
 TEST(AssemblerX64ArithmeticOperations) {
   OS::SetUp();
   // Allocate an executable page of memory.
@@ -163,6 +166,7 @@ TEST(AssemblerX64ArithmeticOperations) {
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(5, result);
 }
+
 
 TEST(AssemblerX64ImulOperation) {
   OS::SetUp();
@@ -191,6 +195,7 @@ TEST(AssemblerX64ImulOperation) {
   result =  FUNCTION_CAST<F2>(buffer)(-0x100000000l, 0x100000000l);
   CHECK_EQ(-1, result);
 }
+
 
 TEST(AssemblerX64MemoryOperands) {
   OS::SetUp();
@@ -226,6 +231,7 @@ TEST(AssemblerX64MemoryOperands) {
   CHECK_EQ(3, result);
 }
 
+
 TEST(AssemblerX64ControlFlow) {
   OS::SetUp();
   // Allocate an executable page of memory.
@@ -254,6 +260,7 @@ TEST(AssemblerX64ControlFlow) {
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(3, result);
 }
+
 
 TEST(AssemblerX64LoopImmediates) {
   OS::SetUp();
@@ -429,6 +436,92 @@ TEST(AssemblerMultiByteNop) {
 }
 
 
+#ifdef __GNUC__
+#define ELEMENT_COUNT 4
+
+void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::internal::byte buffer[1024];
+
+  CHECK(args[0]->IsArray());
+  v8::Local<v8::Array> vec = v8::Local<v8::Array>::Cast(args[0]);
+  CHECK_EQ(ELEMENT_COUNT, vec->Length());
+
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, buffer, sizeof(buffer));
+
+  // Remove return address from the stack for fix stack frame alignment.
+  __ pop(rcx);
+
+  // Store input vector on the stack.
+  for (int i = 0; i < ELEMENT_COUNT; i++) {
+    __ movl(rax, Immediate(vec->Get(i)->Int32Value()));
+    __ shl(rax, Immediate(0x20));
+    __ or_(rax, Immediate(vec->Get(++i)->Int32Value()));
+    __ push(rax);
+  }
+
+  // Read vector into a xmm register.
+  __ xorps(xmm0, xmm0);
+  __ movdqa(xmm0, Operand(rsp, 0));
+  // Create mask and store it in the return register.
+  __ movmskps(rax, xmm0);
+
+  // Remove unused data from the stack.
+  __ addq(rsp, Immediate(ELEMENT_COUNT * sizeof(int32_t)));
+  // Restore return address.
+  __ push(rcx);
+
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Code* code = Code::cast(isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      v8::internal::Handle<Code>())->ToObjectChecked());
+  CHECK(code->IsCode());
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  int res = f();
+  args.GetReturnValue().Set(v8::Integer::New(res));
+}
+
+
+TEST(StackAlignmentForSSE2) {
+  CHECK_EQ(0, OS::ActivationFrameAlignment() % 16);
+
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->Set(v8_str("do_sse2"), v8::FunctionTemplate::New(DoSSE2));
+
+  LocalContext env(NULL, global_template);
+  CompileRun(
+      "function foo(vec) {"
+      "  return do_sse2(vec);"
+      "}");
+
+  v8::Local<v8::Object> global_object = env->Global();
+  v8::Local<v8::Function> foo =
+      v8::Local<v8::Function>::Cast(global_object->Get(v8_str("foo")));
+
+  int32_t vec[ELEMENT_COUNT] = { -1, 1, 1, 1 };
+  v8::Local<v8::Array> v8_vec = v8::Array::New(ELEMENT_COUNT);
+  for (int i = 0; i < ELEMENT_COUNT; i++) {
+    v8_vec->Set(i, v8_num(vec[i]));
+  }
+
+  v8::Local<v8::Value> args[] = { v8_vec };
+  v8::Local<v8::Value> result = foo->Call(global_object, 1, args);
+
+  // The mask should be 0b1000.
+  CHECK_EQ(8, result->Int32Value());
+}
+
+#undef ELEMENT_COUNT
+#endif  // __GNUC__
 
 
 #undef __

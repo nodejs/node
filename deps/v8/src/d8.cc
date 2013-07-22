@@ -810,7 +810,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Start the in-process debugger if requested.
   if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
-    v8::Debug::SetDebugEventListener(HandleDebugEvent);
+    v8::Debug::SetDebugEventListener2(HandleDebugEvent);
   }
 #endif  // ENABLE_DEBUGGER_SUPPORT
 }
@@ -1086,6 +1086,7 @@ static void ReadBufferWeakCallback(v8::Isolate* isolate,
   delete[] data;
   array_buffer->Dispose();
 }
+
 
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ASSERT(sizeof(char) == sizeof(uint8_t));  // NOLINT
@@ -1581,6 +1582,7 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
+  v8::V8::InitializeICU();
 #ifndef V8_SHARED
   i::FLAG_harmony_array_buffer = true;
   i::FLAG_harmony_typed_arrays = true;

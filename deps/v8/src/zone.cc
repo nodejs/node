@@ -92,18 +92,15 @@ void Zone::DeleteAll() {
 #endif
 
   // Find a segment with a suitable size to keep around.
-  Segment* keep = segment_head_;
-  while (keep != NULL && keep->size() > kMaximumKeptSegmentSize) {
-    keep = keep->next();
-  }
-
+  Segment* keep = NULL;
   // Traverse the chained list of segments, zapping (in debug mode)
   // and freeing every segment except the one we wish to keep.
   for (Segment* current = segment_head_; current != NULL; ) {
     Segment* next = current->next();
-    if (current == keep) {
+    if (keep == NULL && current->size() <= kMaximumKeptSegmentSize) {
       // Unlink the segment we wish to keep from the list.
-      current->clear_next();
+      keep = current;
+      keep->clear_next();
     } else {
       int size = current->size();
 #ifdef DEBUG

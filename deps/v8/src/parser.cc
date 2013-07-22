@@ -371,6 +371,7 @@ const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
   return result;
 }
 
+
 Scanner::Location ScriptDataImpl::MessageLocation() {
   int beg_pos = Read(PreparseDataConstants::kMessageStartPos);
   int end_pos = Read(PreparseDataConstants::kMessageEndPos);
@@ -562,6 +563,7 @@ Parser::Parser(CompilationInfo* info)
   set_allow_lazy(false);  // Must be explicitly enabled.
   set_allow_generators(FLAG_harmony_generators);
   set_allow_for_of(FLAG_harmony_iteration);
+  set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
 }
 
 
@@ -1562,24 +1564,18 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
     // For global const variables we bind the proxy to a variable.
     ASSERT(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
-    var = new(zone()) Variable(declaration_scope,
-                               name,
-                               mode,
-                               true,
-                               kind,
-                               kNeedsInitialization);
+    var = new(zone()) Variable(
+        declaration_scope, name, mode, true, kind,
+        kNeedsInitialization, proxy->interface());
   } else if (declaration_scope->is_eval_scope() &&
              declaration_scope->is_classic_mode()) {
     // For variable declarations in a non-strict eval scope the proxy is bound
     // to a lookup variable to force a dynamic declaration using the
     // DeclareContextSlot runtime function.
     Variable::Kind kind = Variable::NORMAL;
-    var = new(zone()) Variable(declaration_scope,
-                               name,
-                               mode,
-                               true,
-                               kind,
-                               declaration->initialization());
+    var = new(zone()) Variable(
+        declaration_scope, name, mode, true, kind,
+        declaration->initialization(), proxy->interface());
     var->AllocateTo(Variable::LOOKUP, -1);
     resolve = true;
   }
@@ -3578,7 +3574,8 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
       ASSERT(scanner().is_literal_ascii());
       double value = StringToDouble(isolate()->unicode_cache(),
                                     scanner().literal_ascii_string(),
-                                    ALLOW_HEX | ALLOW_OCTALS);
+                                    ALLOW_HEX | ALLOW_OCTAL |
+                                        ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
       result = factory()->NewNumberLiteral(value);
       break;
     }
@@ -3768,6 +3765,7 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
   }
   return isolate()->factory()->uninitialized_value();
 }
+
 
 // Validation per 11.1.5 Object Initialiser
 class ObjectLiteralPropertyChecker {
@@ -4030,7 +4028,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         ASSERT(scanner().is_literal_ascii());
         double value = StringToDouble(isolate()->unicode_cache(),
                                       scanner().literal_ascii_string(),
-                                      ALLOW_HEX | ALLOW_OCTALS);
+                                      ALLOW_HEX | ALLOW_OCTAL |
+                                          ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
         key = factory()->NewNumberLiteral(value);
         break;
       }
@@ -4585,6 +4584,8 @@ preparser::PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
     reusable_preparser_->set_allow_lazy(true);
     reusable_preparser_->set_allow_generators(allow_generators());
     reusable_preparser_->set_allow_for_of(allow_for_of());
+    reusable_preparser_->set_allow_harmony_numeric_literals(
+        allow_harmony_numeric_literals());
   }
   preparser::PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(top_scope_->language_mode(),
@@ -4962,6 +4963,7 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
   return factory()->NewThrow(call_constructor, scanner().location().beg_pos);
 }
 
+
 // ----------------------------------------------------------------------------
 // Regular expressions
 
@@ -5031,6 +5033,7 @@ void RegExpParser::Advance(int dist) {
 bool RegExpParser::simple() {
   return simple_;
 }
+
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
   failed_ = true;
@@ -5852,6 +5855,7 @@ ScriptDataImpl* PreParserApi::PreParse(Utf16CharacterStream* source) {
   preparser.set_allow_generators(FLAG_harmony_generators);
   preparser.set_allow_for_of(FLAG_harmony_iteration);
   preparser.set_allow_harmony_scoping(FLAG_harmony_scoping);
+  preparser.set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   scanner.Initialize(source);
   preparser::PreParser::PreParseResult result = preparser.PreParseProgram();
   if (result == preparser::PreParser::kPreParseStackOverflow) {

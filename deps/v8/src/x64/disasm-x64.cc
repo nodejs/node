@@ -49,6 +49,7 @@ enum OperandType {
   BYTE_OPER_REG_OP_ORDER = OPER_REG_OP_ORDER | BYTE_SIZE_OPERAND_FLAG
 };
 
+
 //------------------------------------------------------------------
 // Tables
 //------------------------------------------------------------------
@@ -293,6 +294,7 @@ static InstructionDesc cmov_instructions[16] = {
   {"cmovg", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false}
 };
 
+
 //------------------------------------------------------------------------------
 // DisassemblerX64 implementation.
 
@@ -300,6 +302,7 @@ enum UnimplementedOpcodeAction {
   CONTINUE_ON_UNIMPLEMENTED_OPCODE,
   ABORT_ON_UNIMPLEMENTED_OPCODE
 };
+
 
 // A new DisassemblerX64 object is created to disassemble each instruction.
 // The object can only disassemble a single instruction.
@@ -1763,6 +1766,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
   return instr_len;
 }
 
+
 //------------------------------------------------------------------------------
 
 
@@ -1821,6 +1825,7 @@ const char* NameConverter::NameInCode(byte* addr) const {
   UNREACHABLE();
   return "";
 }
+
 
 //------------------------------------------------------------------------------
 

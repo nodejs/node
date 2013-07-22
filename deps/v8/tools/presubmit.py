@@ -331,6 +331,14 @@ class SourceProcessor(SourceFileProcessor):
                        'gnuplot-4.6.3-emscripten.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
 
+  def EndOfDeclaration(self, line):
+    return line == "}" or line == "};"
+
+  def StartOfDeclaration(self, line):
+    return line.find("//") == 0 or \
+           line.find("/*") == 0 or \
+           line.find(") {") != -1
+
   def ProcessContents(self, name, contents):
     result = True
     base = basename(name)
@@ -342,7 +350,6 @@ class SourceProcessor(SourceFileProcessor):
       if not COPYRIGHT_HEADER_PATTERN.search(contents):
         print "%s is missing a correct copyright header." % name
         result = False
-    ext = base.split('.').pop()
     if ' \n' in contents or contents.endswith(' '):
       line = 0
       lines = []
@@ -358,6 +365,30 @@ class SourceProcessor(SourceFileProcessor):
       else:
         print "%s has trailing whitespaces in line %s." % (name, linenumbers)
       result = False
+    # Check two empty lines between declarations.
+    if name.endswith(".cc"):
+      line = 0
+      lines = []
+      parts = contents.split('\n')
+      while line < len(parts) - 2:
+        if self.EndOfDeclaration(parts[line]):
+          if self.StartOfDeclaration(parts[line + 1]):
+            lines.append(str(line + 1))
+            line += 1
+          elif parts[line + 1] == "" and \
+               self.StartOfDeclaration(parts[line + 2]):
+            lines.append(str(line + 1))
+            line += 2
+        line += 1
+      if len(lines) >= 1:
+        linenumbers = ', '.join(lines)
+        if len(lines) > 1:
+          print "%s does not have two empty lines between declarations " \
+                "in lines %s." % (name, linenumbers)
+        else:
+          print "%s does not have two empty lines between declarations " \
+                "in line %s." % (name, linenumbers)
+        result = False
     return result
 
   def ProcessFiles(self, files, path):
@@ -391,7 +422,8 @@ def Main():
   print "Running C++ lint check..."
   if not options.no_lint:
     success = CppLintProcessor().Run(workspace) and success
-  print "Running copyright header and trailing whitespaces check..."
+  print "Running copyright header, trailing whitespaces and " \
+        "two empty lines between declarations check..."
   success = SourceProcessor().Run(workspace) and success
   if success:
     return 0

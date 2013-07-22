@@ -408,7 +408,12 @@ class Scanner {
   void SetHarmonyModules(bool modules) {
     harmony_modules_ = modules;
   }
-
+  bool HarmonyNumericLiterals() const {
+    return harmony_numeric_literals_;
+  }
+  void SetHarmonyNumericLiterals(bool numeric_literals) {
+    harmony_numeric_literals_ = numeric_literals;
+  }
 
   // Returns true if there was a line terminator before the peek'ed token,
   // possibly inside a multi-line comment.
@@ -557,6 +562,8 @@ class Scanner {
   bool harmony_scoping_;
   // Whether we scan 'module', 'import', 'export' as keywords.
   bool harmony_modules_;
+  // Whether we scan 0o777 and 0b111 as numbers.
+  bool harmony_numeric_literals_;
 };
 
 } }  // namespace v8::internal

@@ -35,7 +35,7 @@ mul(0, 0);
 mul(0, 0);
 %OptimizeFunctionOnNextCall(mul);
 assertEquals(0, mul(0, -1));
-assertTrue(%GetOptimizationStatus(mul) != 2);
+assertOptimized(mul);
 
 function div(x, y) {
   return (x / y) | 0;
@@ -45,4 +45,4 @@ div(4, 2);
 div(4, 2);
 %OptimizeFunctionOnNextCall(div);
 assertEquals(1, div(5, 3));
-assertTrue(%GetOptimizationStatus(div) != 2);
+assertOptimized(div);

@@ -94,6 +94,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   return TakeSnapshot(snapshots_->names()->GetName(name), control, resolver);
 }
 
+
 void HeapProfiler::StartHeapObjectsTracking() {
   snapshots_->StartHeapObjectsTracking();
 }

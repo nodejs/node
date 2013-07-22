@@ -43,7 +43,13 @@ namespace internal {
 static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
   return allocator->AllocateChunk(Deoptimizer::GetMaxDeoptTableSize(),
                                   OS::CommitPageSize(),
+#if defined(__native_client__)
+  // The Native Client port of V8 uses an interpreter,
+  // so code pages don't need PROT_EXEC.
+                                  NOT_EXECUTABLE,
+#else
                                   EXECUTABLE,
+#endif
                                   NULL);
 }
 
@@ -186,7 +192,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   ASSERT(isolate->deoptimizer_data()->deoptimized_frame_info_ == NULL);
 
   // Get the function and code from the frame.
-  JSFunction* function = JSFunction::cast(frame->function());
+  JSFunction* function = frame->function();
   Code* code = frame->LookupCode();
 
   // Locate the deoptimization point in the code. As we are at a call the
@@ -542,6 +548,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   if (function->IsSmi()) {
     function = NULL;
   }
+  ASSERT(from != NULL);
   if (function != NULL && function->IsOptimized()) {
     function->shared()->increment_deopt_count();
     if (bailout_type_ == Deoptimizer::SOFT) {
@@ -573,13 +580,11 @@ Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
   switch (bailout_type_) {
     case Deoptimizer::SOFT:
     case Deoptimizer::EAGER:
-      ASSERT(from_ == NULL);
-      return function->code();
     case Deoptimizer::LAZY: {
       Code* compiled_code =
           isolate_->deoptimizer_data()->FindDeoptimizingCode(from_);
       return (compiled_code == NULL)
-          ? static_cast<Code*>(isolate_->heap()->FindCodeObject(from_))
+          ? static_cast<Code*>(isolate_->FindCodeObject(from_))
           : compiled_code;
     }
     case Deoptimizer::OSR: {
@@ -1609,7 +1614,7 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
     if (frame_index != 0) it->Advance();
     JavaScriptFrame* frame = it->frame();
-    Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate_);
+    Handle<JSFunction> function(frame->function(), isolate_);
     Handle<JSObject> arguments;
     for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
       if (frame->GetExpression(i) == isolate_->heap()->arguments_marker()) {
@@ -1619,11 +1624,9 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
         if (arguments.is_null()) {
           if (frame->has_adapted_arguments()) {
             // Use the arguments adapter frame we just built to materialize the
-            // arguments object. FunctionGetArguments can't throw an exception,
-            // so cast away the doubt with an assert.
-            arguments = Handle<JSObject>(JSObject::cast(
-                Accessors::FunctionGetArguments(*function,
-                                                NULL)->ToObjectUnchecked()));
+            // arguments object. FunctionGetArguments can't throw an exception.
+            arguments = Handle<JSObject>::cast(
+                Accessors::FunctionGetArguments(function));
             values.RewindBy(length);
           } else {
             // Construct an arguments object and copy the parameters to a newly
@@ -2368,8 +2371,8 @@ void Deoptimizer::PatchInterruptCode(Code* unoptimized_code,
   uint32_t table_length = Memory::uint32_at(back_edge_cursor);
   back_edge_cursor += kIntSize;
   for (uint32_t i = 0; i < table_length; ++i) {
-    uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
-    if (loop_depth == loop_nesting_level) {
+    uint32_t loop_depth = Memory::uint32_at(back_edge_cursor + 2 * kIntSize);
+    if (static_cast<int>(loop_depth) == loop_nesting_level) {
       // Loop back edge has the loop depth that we want to patch.
       uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
       Address pc_after = unoptimized_code->instruction_start() + pc_offset;
@@ -2400,8 +2403,8 @@ void Deoptimizer::RevertInterruptCode(Code* unoptimized_code,
   uint32_t table_length = Memory::uint32_at(back_edge_cursor);
   back_edge_cursor += kIntSize;
   for (uint32_t i = 0; i < table_length; ++i) {
-    uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
-    if (loop_depth <= loop_nesting_level) {
+    uint32_t loop_depth = Memory::uint32_at(back_edge_cursor + 2 * kIntSize);
+    if (static_cast<int>(loop_depth) <= loop_nesting_level) {
       uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
       Address pc_after = unoptimized_code->instruction_start() + pc_offset;
       RevertInterruptCodeAt(unoptimized_code,
@@ -2432,13 +2435,13 @@ void Deoptimizer::VerifyInterruptCode(Code* unoptimized_code,
   uint32_t table_length = Memory::uint32_at(back_edge_cursor);
   back_edge_cursor += kIntSize;
   for (uint32_t i = 0; i < table_length; ++i) {
-    uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
-    CHECK_LE(loop_depth, Code::kMaxLoopNestingMarker);
+    uint32_t loop_depth = Memory::uint32_at(back_edge_cursor + 2 * kIntSize);
+    CHECK_LE(static_cast<int>(loop_depth), Code::kMaxLoopNestingMarker);
     // Assert that all back edges for shallower loops (and only those)
     // have already been patched.
     uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
     Address pc_after = unoptimized_code->instruction_start() + pc_offset;
-    CHECK_EQ((loop_depth <= loop_nesting_level),
+    CHECK_EQ((static_cast<int>(loop_depth) <= loop_nesting_level),
              InterruptCodeIsPatched(unoptimized_code,
                                     pc_after,
                                     interrupt_code,
@@ -3065,7 +3068,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
   expression_stack_ = new Object*[expression_count_];
   // Get the source position using the unoptimized code.
   Address pc = reinterpret_cast<Address>(output_frame->GetPc());
-  Code* code = Code::cast(deoptimizer->isolate()->heap()->FindCodeObject(pc));
+  Code* code = Code::cast(deoptimizer->isolate()->FindCodeObject(pc));
   source_position_ = code->SourcePosition(pc);
 
   for (int i = 0; i < expression_count_; i++) {

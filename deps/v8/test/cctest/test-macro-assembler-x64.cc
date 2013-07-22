@@ -801,6 +801,7 @@ static void SmiAddTest(MacroAssembler* masm,
   __ j(not_equal, exit);
 }
 
+
 TEST(SmiAdd) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
@@ -1396,6 +1397,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     __ incq(rax);
   }
 }
+
 
 TEST(SmiIndex) {
   v8::internal::V8::Initialize(NULL);

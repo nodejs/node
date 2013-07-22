@@ -45,9 +45,9 @@ namespace internal {
 class SamplingCircularQueue {
  public:
   // Executed on the application thread.
-  SamplingCircularQueue(int record_size_in_bytes,
-                        int desired_chunk_size_in_bytes,
-                        int buffer_size_in_chunks);
+  SamplingCircularQueue(size_t record_size_in_bytes,
+                        size_t desired_chunk_size_in_bytes,
+                        unsigned buffer_size_in_chunks);
   ~SamplingCircularQueue();
 
   // Enqueue returns a pointer to a memory location for storing the next
@@ -67,12 +67,16 @@ class SamplingCircularQueue {
   void FlushResidualRecords();
 
   typedef AtomicWord Cell;
-  // Reserved values for the first cell of a record.
-  static const Cell kClear = 0;  // Marks clean (processed) chunks.
-  static const Cell kEnd = -1;   // Marks the end of the buffer.
 
  private:
+  // Reserved values for the chunk marker (first Cell in each chunk).
+  enum {
+    kClear,          // Marks clean (processed) chunks.
+    kEnqueueStarted  // Marks chunks where enqueue started.
+  };
+
   struct ProducerPosition {
+    Cell* next_chunk_pos;
     Cell* enqueue_pos;
   };
   struct ConsumerPosition {
@@ -84,11 +88,10 @@ class SamplingCircularQueue {
 
   INLINE(void WrapPositionIfNeeded(Cell** pos));
 
-  const int record_size_;
-  const int chunk_size_in_bytes_;
-  const int chunk_size_;
-  const int buffer_size_;
-  const int producer_consumer_distance_;
+  const size_t record_size_;
+  const size_t chunk_size_in_bytes_;
+  const size_t chunk_size_;
+  const size_t buffer_size_;
   Cell* buffer_;
   byte* positions_;
   ProducerPosition* producer_pos_;

@@ -587,7 +587,7 @@ function ToObject(x) {
   if (IS_NUMBER(x)) return new $Number(x);
   if (IS_BOOLEAN(x)) return new $Boolean(x);
   if (IS_NULL_OR_UNDEFINED(x) && !IS_UNDETECTABLE(x)) {
-    throw %MakeTypeError('null_to_object', []);
+    throw %MakeTypeError('undefined_or_null_to_object', []);
   }
   return x;
 }

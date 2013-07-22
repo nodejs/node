@@ -246,7 +246,7 @@ class TypeFeedbackOracle: public ZoneObject {
   bool LoadIsPolymorphic(Property* expr);
   bool StoreIsUninitialized(TypeFeedbackId ast_id);
   bool StoreIsMonomorphicNormal(TypeFeedbackId ast_id);
-  bool StoreIsPolymorphic(TypeFeedbackId ast_id);
+  bool StoreIsKeyedPolymorphic(TypeFeedbackId ast_id);
   bool CallIsMonomorphic(Call* expr);
   bool CallNewIsMonomorphic(CallNew* expr);
   bool ObjectLiteralStoreIsMonomorphic(ObjectLiteralProperty* prop);
@@ -272,6 +272,8 @@ class TypeFeedbackOracle: public ZoneObject {
                          SmallMapList* types);
   void CollectKeyedReceiverTypes(TypeFeedbackId ast_id,
                                  SmallMapList* types);
+  void CollectPolymorphicStoreReceiverTypes(TypeFeedbackId ast_id,
+                                            SmallMapList* types);
 
   static bool CanRetainOtherContext(Map* map, Context* native_context);
   static bool CanRetainOtherContext(JSFunction* function,
@@ -303,9 +305,9 @@ class TypeFeedbackOracle: public ZoneObject {
                   Maybe<int>* fixed_right_arg);
 
   void CompareType(TypeFeedbackId id,
-                   Handle<Type>* left_type,
-                   Handle<Type>* right_type,
-                   Handle<Type>* combined_type);
+                   Handle<Type>* left,
+                   Handle<Type>* right,
+                   Handle<Type>* combined);
 
   Handle<Type> ClauseType(TypeFeedbackId id);
 

@@ -202,9 +202,10 @@ void StackTraceFrameIterator::Advance() {
   }
 }
 
+
 bool StackTraceFrameIterator::IsValidFrame() {
     if (!frame()->function()->IsJSFunction()) return false;
-    Object* script = JSFunction::cast(frame()->function())->shared()->script();
+    Object* script = frame()->function()->shared()->script();
     // Don't show functions from native scripts to user.
     return (script->IsScript() &&
             Script::TYPE_NATIVE != Script::cast(script)->type()->value());
@@ -672,7 +673,7 @@ void StubFrame::Iterate(ObjectVisitor* v) const {
 
 
 Code* StubFrame::unchecked_code() const {
-  return static_cast<Code*>(isolate()->heap()->FindCodeObject(pc()));
+  return static_cast<Code*>(isolate()->FindCodeObject(pc()));
 }
 
 
@@ -723,8 +724,7 @@ int JavaScriptFrame::GetArgumentsLength() const {
 
 
 Code* JavaScriptFrame::unchecked_code() const {
-  JSFunction* function = JSFunction::cast(this->function());
-  return function->code();
+  return function()->code();
 }
 
 
@@ -732,8 +732,7 @@ int JavaScriptFrame::GetNumberOfIncomingArguments() const {
   ASSERT(can_access_heap_objects() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
 
-  JSFunction* function = JSFunction::cast(this->function());
-  return function->shared()->formal_parameter_count();
+  return function()->shared()->formal_parameter_count();
 }
 
 
@@ -744,7 +743,7 @@ Address JavaScriptFrame::GetCallerStackPointer() const {
 
 void JavaScriptFrame::GetFunctions(List<JSFunction*>* functions) {
   ASSERT(functions->length() == 0);
-  functions->Add(JSFunction::cast(function()));
+  functions->Add(function());
 }
 
 
@@ -753,7 +752,7 @@ void JavaScriptFrame::Summarize(List<FrameSummary>* functions) {
   Code* code_pointer = LookupCode();
   int offset = static_cast<int>(pc() - code_pointer->address());
   FrameSummary summary(receiver(),
-                       JSFunction::cast(function()),
+                       function(),
                        code_pointer,
                        offset,
                        IsConstructor());
@@ -774,40 +773,35 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
       JavaScriptFrame* frame = it.frame();
       if (frame->IsConstructor()) PrintF(file, "new ");
       // function name
-      Object* maybe_fun = frame->function();
-      if (maybe_fun->IsJSFunction()) {
-        JSFunction* fun = JSFunction::cast(maybe_fun);
-        fun->PrintName();
-        Code* js_code = frame->unchecked_code();
-        Address pc = frame->pc();
-        int code_offset =
-            static_cast<int>(pc - js_code->instruction_start());
-        PrintF("+%d", code_offset);
-        SharedFunctionInfo* shared = fun->shared();
-        if (print_line_number) {
-          Code* code = Code::cast(
-              v8::internal::Isolate::Current()->heap()->FindCodeObject(pc));
-          int source_pos = code->SourcePosition(pc);
-          Object* maybe_script = shared->script();
-          if (maybe_script->IsScript()) {
-            Handle<Script> script(Script::cast(maybe_script));
-            int line = GetScriptLineNumberSafe(script, source_pos) + 1;
-            Object* script_name_raw = script->name();
-            if (script_name_raw->IsString()) {
-              String* script_name = String::cast(script->name());
-              SmartArrayPointer<char> c_script_name =
-                  script_name->ToCString(DISALLOW_NULLS,
-                                         ROBUST_STRING_TRAVERSAL);
-              PrintF(file, " at %s:%d", *c_script_name, line);
-            } else {
-              PrintF(file, " at <unknown>:%d", line);
-            }
+      JSFunction* fun = frame->function();
+      fun->PrintName();
+      Code* js_code = frame->unchecked_code();
+      Address pc = frame->pc();
+      int code_offset =
+          static_cast<int>(pc - js_code->instruction_start());
+      PrintF("+%d", code_offset);
+      SharedFunctionInfo* shared = fun->shared();
+      if (print_line_number) {
+        Code* code = Code::cast(
+            v8::internal::Isolate::Current()->FindCodeObject(pc));
+        int source_pos = code->SourcePosition(pc);
+        Object* maybe_script = shared->script();
+        if (maybe_script->IsScript()) {
+          Handle<Script> script(Script::cast(maybe_script));
+          int line = GetScriptLineNumberSafe(script, source_pos) + 1;
+          Object* script_name_raw = script->name();
+          if (script_name_raw->IsString()) {
+            String* script_name = String::cast(script->name());
+            SmartArrayPointer<char> c_script_name =
+                script_name->ToCString(DISALLOW_NULLS,
+                                       ROBUST_STRING_TRAVERSAL);
+            PrintF(file, " at %s:%d", *c_script_name, line);
           } else {
-            PrintF(file, " at <unknown>:<unknown>");
+            PrintF(file, " at <unknown>:%d", line);
           }
+        } else {
+          PrintF(file, " at <unknown>:<unknown>");
         }
-      } else {
-        PrintF("<unknown>");
       }
 
       if (print_args) {
@@ -912,7 +906,7 @@ void FrameSummary::Print() {
 JSFunction* OptimizedFrame::LiteralAt(FixedArray* literal_array,
                                       int literal_id) {
   if (literal_id == Translation::kSelfLiteralId) {
-    return JSFunction::cast(function());
+    return function();
   }
 
   return JSFunction::cast(literal_array->get(literal_id));
@@ -1017,7 +1011,7 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
     int* deopt_index) {
   ASSERT(is_optimized());
 
-  JSFunction* opt_function = JSFunction::cast(function());
+  JSFunction* opt_function = function();
   Code* code = opt_function->code();
 
   // The code object may have been replaced by lazy deoptimization. Fall
@@ -1131,7 +1125,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
                             int index) const {
   HandleScope scope(isolate());
   Object* receiver = this->receiver();
-  Object* function = this->function();
+  JSFunction* function = this->function();
 
   accumulator->PrintSecurityTokenIfChanged(function);
   PrintIndex(accumulator, mode, index);
@@ -1145,29 +1139,27 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   // or context slots.
   Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
 
-  if (function->IsJSFunction()) {
-    Handle<SharedFunctionInfo> shared(JSFunction::cast(function)->shared());
-    scope_info = Handle<ScopeInfo>(shared->scope_info());
-    Object* script_obj = shared->script();
-    if (script_obj->IsScript()) {
-      Handle<Script> script(Script::cast(script_obj));
-      accumulator->Add(" [");
-      accumulator->PrintName(script->name());
+  Handle<SharedFunctionInfo> shared(function->shared());
+  scope_info = Handle<ScopeInfo>(shared->scope_info());
+  Object* script_obj = shared->script();
+  if (script_obj->IsScript()) {
+    Handle<Script> script(Script::cast(script_obj));
+    accumulator->Add(" [");
+    accumulator->PrintName(script->name());
 
-      Address pc = this->pc();
-      if (code != NULL && code->kind() == Code::FUNCTION &&
-          pc >= code->instruction_start() && pc < code->instruction_end()) {
-        int source_pos = code->SourcePosition(pc);
-        int line = GetScriptLineNumberSafe(script, source_pos) + 1;
-        accumulator->Add(":%d", line);
-      } else {
-        int function_start_pos = shared->start_position();
-        int line = GetScriptLineNumberSafe(script, function_start_pos) + 1;
-        accumulator->Add(":~%d", line);
-      }
-
-      accumulator->Add("] ");
+    Address pc = this->pc();
+    if (code != NULL && code->kind() == Code::FUNCTION &&
+        pc >= code->instruction_start() && pc < code->instruction_end()) {
+      int source_pos = code->SourcePosition(pc);
+      int line = GetScriptLineNumberSafe(script, source_pos) + 1;
+      accumulator->Add(":%d", line);
+    } else {
+      int function_start_pos = shared->start_position();
+      int line = GetScriptLineNumberSafe(script, function_start_pos) + 1;
+      accumulator->Add(":~%d", line);
     }
+
+    accumulator->Add("] ");
   }
 
   accumulator->Add("(this=%o", receiver);
@@ -1257,7 +1249,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
 
   // Print details about the function.
   if (FLAG_max_stack_trace_source_length != 0 && code != NULL) {
-    SharedFunctionInfo* shared = JSFunction::cast(function)->shared();
+    SharedFunctionInfo* shared = function->shared();
     accumulator->Add("--------- s o u r c e   c o d e ---------\n");
     shared->SourceCodePrint(accumulator, FLAG_max_stack_trace_source_length);
     accumulator->Add("\n-----------------------------------------\n");
@@ -1272,10 +1264,8 @@ void ArgumentsAdaptorFrame::Print(StringStream* accumulator,
                                   int index) const {
   int actual = ComputeParametersCount();
   int expected = -1;
-  Object* function = this->function();
-  if (function->IsJSFunction()) {
-    expected = JSFunction::cast(function)->shared()->formal_parameter_count();
-  }
+  JSFunction* function = this->function();
+  expected = function->shared()->formal_parameter_count();
 
   PrintIndex(accumulator, mode, index);
   accumulator->Add("arguments adaptor frame: %d->%d", actual, expected);
@@ -1568,6 +1558,7 @@ void SetUpJSCallerSavedCodeData() {
   ASSERT(i == kNumJSCallerSaved);
 }
 
+
 int JSCallerSavedCode(int n) {
   ASSERT(0 <= n && n < kNumJSCallerSaved);
   return caller_saved_code_data.reg_code[n];
@@ -1599,6 +1590,7 @@ static StackFrame* AllocateFrameCopy(StackFrame* frame, Zone* zone) {
 #undef FRAME_TYPE_CASE
   return NULL;
 }
+
 
 Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone) {
   ZoneList<StackFrame*> list(10, zone);

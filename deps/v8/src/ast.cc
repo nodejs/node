@@ -71,8 +71,14 @@ bool Expression::IsNullLiteral() {
 }
 
 
-bool Expression::IsUndefinedLiteral() {
-  return AsLiteral() != NULL && AsLiteral()->value()->IsUndefined();
+bool Expression::IsUndefinedLiteral(Isolate* isolate) {
+  VariableProxy* var_proxy = AsVariableProxy();
+  if (var_proxy == NULL) return false;
+  Variable* var = var_proxy->var();
+  // The global identifier "undefined" is immutable. Everything
+  // else could be reassigned.
+  return var != NULL && var->location() == Variable::UNALLOCATED &&
+         var_proxy->name()->Equals(isolate->heap()->undefined_string());
 }
 
 
@@ -385,12 +391,13 @@ static bool IsVoidOfLiteral(Expression* expr) {
 static bool MatchLiteralCompareUndefined(Expression* left,
                                          Token::Value op,
                                          Expression* right,
-                                         Expression** expr) {
+                                         Expression** expr,
+                                         Isolate* isolate) {
   if (IsVoidOfLiteral(left) && Token::IsEqualityOp(op)) {
     *expr = right;
     return true;
   }
-  if (left->IsUndefinedLiteral() && Token::IsEqualityOp(op)) {
+  if (left->IsUndefinedLiteral(isolate) && Token::IsEqualityOp(op)) {
     *expr = right;
     return true;
   }
@@ -398,9 +405,10 @@ static bool MatchLiteralCompareUndefined(Expression* left,
 }
 
 
-bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
-  return MatchLiteralCompareUndefined(left_, op_, right_, expr) ||
-      MatchLiteralCompareUndefined(right_, op_, left_, expr);
+bool CompareOperation::IsLiteralCompareUndefined(
+    Expression** expr, Isolate* isolate) {
+  return MatchLiteralCompareUndefined(left_, op_, right_, expr, isolate) ||
+      MatchLiteralCompareUndefined(right_, op_, left_, expr, isolate);
 }
 
 
@@ -503,7 +511,7 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     // Record receiver type for monomorphic keyed stores.
     receiver_types_.Add(oracle->StoreMonomorphicReceiverType(id), zone);
     store_mode_ = oracle->GetStoreMode(id);
-  } else if (oracle->StoreIsPolymorphic(id)) {
+  } else if (oracle->StoreIsKeyedPolymorphic(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
     store_mode_ = oracle->GetStoreMode(id);
@@ -520,9 +528,11 @@ void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     // Record receiver type for monomorphic keyed stores.
     receiver_types_.Add(
         oracle->StoreMonomorphicReceiverType(id), zone);
-  } else if (oracle->StoreIsPolymorphic(id)) {
+  } else if (oracle->StoreIsKeyedPolymorphic(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
+  } else {
+    oracle->CollectPolymorphicStoreReceiverTypes(id, &receiver_types_);
   }
   store_mode_ = oracle->GetStoreMode(id);
   type_ = oracle->IncrementType(this);
@@ -675,8 +685,10 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   if (is_monomorphic_) {
     target_ = oracle->GetCallNewTarget(this);
     Object* value = allocation_info_cell_->value();
-    if (value->IsSmi()) {
-      elements_kind_ = static_cast<ElementsKind>(Smi::cast(value)->value());
+    ASSERT(!value->IsTheHole());
+    if (value->IsAllocationSite()) {
+      AllocationSite* site = AllocationSite::cast(value);
+      elements_kind_ = site->GetElementsKind();
     }
   }
 }

@@ -181,17 +181,8 @@ class V8EXPORT CpuProfiler {
    */
   int GetProfileCount();
 
-  /** Deprecated. Use GetCpuProfile with single parameter. */
-  V8_DEPRECATED(const CpuProfile* GetCpuProfile(
-      int index,
-      Handle<Value> security_token));
   /** Returns a profile by index. */
   const CpuProfile* GetCpuProfile(int index);
-
-  /** Returns a profile by uid. */
-  V8_DEPRECATED(const CpuProfile* FindCpuProfile(
-      unsigned uid,
-      Handle<Value> security_token = Handle<Value>()));
 
   /**
    * Starts collecting CPU profile. Title may be an empty string. It
@@ -206,12 +197,6 @@ class V8EXPORT CpuProfiler {
    */
   void StartCpuProfiling(Handle<String> title, bool record_samples = false);
 
-  /**
-   * Deprecated. Use StopCpuProfiling with one parameter instead.
-   */
-  V8_DEPRECATED(const CpuProfile* StopCpuProfiling(
-      Handle<String> title,
-      Handle<Value> security_token));
   /**
    * Stops collecting CPU profile with a given title and returns it.
    * If the title given is empty, finishes the last profile started.

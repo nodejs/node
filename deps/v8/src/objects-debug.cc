@@ -181,6 +181,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapVerify();
       break;
+    case JS_WEAK_SET_TYPE:
+      JSWeakSet::cast(this)->JSWeakSetVerify();
+      break;
     case JS_REGEXP_TYPE:
       JSRegExp::cast(this)->JSRegExpVerify();
       break;
@@ -699,6 +702,14 @@ void JSWeakMap::JSWeakMapVerify() {
 }
 
 
+void JSWeakSet::JSWeakSetVerify() {
+  CHECK(IsJSWeakSet());
+  JSObjectVerify();
+  VerifyHeapPointer(table());
+  CHECK(table()->IsHashTable() || table()->IsUndefined());
+}
+
+
 void JSRegExp::JSRegExpVerify() {
   JSObjectVerify();
   CHECK(data()->IsUndefined() || data()->IsFixedArray());
@@ -754,6 +765,7 @@ void JSFunctionProxy::JSFunctionProxyVerify() {
   VerifyPointer(call_trap());
   VerifyPointer(construct_trap());
 }
+
 
 void JSArrayBuffer::JSArrayBufferVerify() {
   CHECK(IsJSArrayBuffer());
@@ -875,6 +887,7 @@ void TemplateInfo::TemplateInfoVerify() {
   VerifyPointer(property_list());
 }
 
+
 void FunctionTemplateInfo::FunctionTemplateInfoVerify() {
   CHECK(IsFunctionTemplateInfo());
   TemplateInfoVerify();
@@ -912,10 +925,15 @@ void TypeSwitchInfo::TypeSwitchInfoVerify() {
 }
 
 
-void AllocationSiteInfo::AllocationSiteInfoVerify() {
-  CHECK(IsAllocationSiteInfo());
-  VerifyHeapPointer(payload());
-  CHECK(payload()->IsObject());
+void AllocationSite::AllocationSiteVerify() {
+  CHECK(IsAllocationSite());
+}
+
+
+void AllocationMemento::AllocationMementoVerify() {
+  CHECK(IsAllocationMemento());
+  VerifyHeapPointer(allocation_site());
+  CHECK(!IsValid() || GetAllocationSite()->IsAllocationSite());
 }
 
 
@@ -1069,6 +1087,7 @@ void JSObject::SpillInformation::Clear() {
   number_of_slow_used_elements_ = 0;
   number_of_slow_unused_elements_ = 0;
 }
+
 
 void JSObject::SpillInformation::Print() {
   PrintF("\n  JSObject Spill Statistics (#%d):\n", number_of_objects_);

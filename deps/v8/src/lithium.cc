@@ -306,6 +306,7 @@ Label* LChunk::GetAssemblyLabel(int block_id) const {
   return label->label();
 }
 
+
 void LChunk::MarkEmptyBlocks() {
   LPhase phase("L_Mark empty blocks", this);
   for (int i = 0; i < graph()->blocks()->length(); ++i) {

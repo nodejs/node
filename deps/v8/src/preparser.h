@@ -141,6 +141,9 @@ class PreParser {
   bool allow_harmony_scoping() const { return scanner_->HarmonyScoping(); }
   bool allow_generators() const { return allow_generators_; }
   bool allow_for_of() const { return allow_for_of_; }
+  bool allow_harmony_numeric_literals() const {
+    return scanner_->HarmonyNumericLiterals();
+  }
 
   void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
   void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
@@ -150,6 +153,9 @@ class PreParser {
   }
   void set_allow_generators(bool allow) { allow_generators_ = allow; }
   void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
+  void set_allow_harmony_numeric_literals(bool allow) {
+    scanner_->SetHarmonyNumericLiterals(allow);
+  }
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully

@@ -26,15 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
-// Flags: --parallel-recompilation --parallel-recompilation-delay=50
+// Flags: --parallel-recompilation --parallel-recompilation-delay=100
 
 if (!%IsParallelRecompilationSupported()) {
   print("Parallel recompilation is disabled. Skipping this test.");
   quit();
-}
-
-function assertUnoptimized(fun) {
-  assertTrue(%GetOptimizationStatus(fun) != 1);
 }
 
 function f1(a, i) {
@@ -47,9 +43,12 @@ assertEquals(0.5, f1(arr, 0));
 
 // Optimized code of f1 depends on initial object and array maps.
 %OptimizeFunctionOnNextCall(f1, "parallel");
+// Trigger optimization in the background thread
 assertEquals(0.5, f1(arr, 0));
-assertUnoptimized(f1);      // Not yet optimized.
 Object.prototype[1] = 1.5;  // Invalidate current initial object map.
 assertEquals(2, f1(arr, 1));
-%CompleteOptimization(f1);  // Conclude optimization with...
-assertUnoptimized(f1);      // ... bailing out due to map dependency.
+// Not yet optimized while background thread is running.
+assertUnoptimized(f1, "no sync");
+// Sync with background thread to conclude optimization, which bails out
+// due to map dependency.
+assertUnoptimized(f1, "sync");

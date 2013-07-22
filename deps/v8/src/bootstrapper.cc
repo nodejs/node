@@ -200,7 +200,7 @@ class Genesis BASE_EMBEDDED {
   // detached from the other objects in the snapshot.
   void HookUpInnerGlobal(Handle<GlobalObject> inner_global);
   // New context initialization.  Used for creating a context from scratch.
-  bool InitializeGlobal(Handle<GlobalObject> inner_global,
+  void InitializeGlobal(Handle<GlobalObject> inner_global,
                         Handle<JSFunction> empty_function);
   void InitializeExperimentalGlobal();
   // Installs the contents of the native .js files on the global objects.
@@ -829,7 +829,7 @@ void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
 
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpInnerGlobal.
-bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
+void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                                Handle<JSFunction> empty_function) {
   // --- G l o b a l   C o n t e x t ---
   // Use the empty function as closure (no scope info).
@@ -1053,10 +1053,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<String> name = factory->NewStringFromAscii(CStrVector("JSON"));
     Handle<JSFunction> cons = factory->NewFunction(name,
                                                    factory->the_hole_value());
-    { MaybeObject* result = cons->SetInstancePrototype(
-        native_context()->initial_object_prototype());
-      if (result->IsFailure()) return false;
-    }
+    JSFunction::SetInstancePrototype(cons,
+        Handle<Object>(native_context()->initial_object_prototype(), isolate));
     cons->SetInstanceClassName(*name);
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     ASSERT(json_object->IsJSObject());
@@ -1277,7 +1275,6 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_random_seed(*zeroed_byte_array);
     memset(zeroed_byte_array->GetDataStartAddress(), 0, kRandomStateSize);
   }
-  return true;
 }
 
 
@@ -1289,7 +1286,7 @@ Handle<JSFunction> Genesis::InstallTypedArray(
       Builtins::kIllegal, false, true);
 
   Handle<Map> initial_map = isolate()->factory()->NewMap(
-      JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize, elementsKind);
+      JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithInternalFields, elementsKind);
   result->set_initial_map(*initial_map);
   initial_map->set_constructor(*result);
   return result;
@@ -1324,6 +1321,11 @@ void Genesis::InitializeExperimentalGlobal() {
     }
     {  // -- W e a k M a p
       InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+                      isolate()->initial_object_prototype(),
+                      Builtins::kIllegal, true, true);
+    }
+    {  // -- W e a k S e t
+      InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
                       isolate()->initial_object_prototype(),
                       Builtins::kIllegal, true, true);
     }
@@ -1373,7 +1375,7 @@ void Genesis::InitializeExperimentalGlobal() {
     Handle<JSFunction> data_view_fun =
         InstallFunction(
             global, "DataView", JS_DATA_VIEW_TYPE,
-            JSDataView::kSize,
+            JSDataView::kSizeWithInternalFields,
             isolate()->initial_object_prototype(),
             Builtins::kIllegal, true, true);
     native_context()->set_data_view_fun(*data_view_fun);
@@ -1585,6 +1587,7 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
 }
+
 
 void Genesis::InstallExperimentalNativeFunctions() {
   if (FLAG_harmony_proxies) {
@@ -2071,6 +2074,11 @@ bool Genesis::InstallExperimentalNatives() {
                "native generator.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
+    if (FLAG_harmony_iteration &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native array-iterator.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
   }
 
   InstallExperimentalNativeFunctions();
@@ -2239,9 +2247,11 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
 #endif
 }
 
+
 static uint32_t Hash(RegisteredExtension* extension) {
   return v8::internal::ComputePointerHash(extension);
 }
+
 
 static bool MatchRegisteredExtensions(void* key1, void* key2) {
   return key1 == key2;
@@ -2624,7 +2634,7 @@ Genesis::Genesis(Isolate* isolate,
     Handle<JSGlobalProxy> global_proxy =
         CreateNewGlobals(global_template, global_object, &inner_global);
     HookUpGlobalProxy(inner_global, global_proxy);
-    if (!InitializeGlobal(inner_global, empty_function)) return;
+    InitializeGlobal(inner_global, empty_function);
     InstallJSFunctionResultCaches();
     InitializeNormalizedMapCaches();
     if (!InstallNatives()) return;

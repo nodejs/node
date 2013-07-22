@@ -88,6 +88,7 @@ JSObject* Context::global_proxy() {
   return native_context()->global_proxy_object();
 }
 
+
 void Context::set_global_proxy(JSObject* object) {
   native_context()->set_global_proxy_object(object);
 }
@@ -123,7 +124,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
     if (context->IsNativeContext() ||
         context->IsWithContext() ||
         (context->IsFunctionContext() && context->has_extension())) {
-      Handle<JSObject> object(JSObject::cast(context->extension()), isolate);
+      Handle<JSReceiver> object(
+          JSReceiver::cast(context->extension()), isolate);
       // Context extension objects needs to behave as if they have no
       // prototype.  So even if we want to follow prototype chains, we need
       // to only do a local lookup for context extension objects.
@@ -133,6 +135,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
       } else {
         *attributes = object->GetPropertyAttribute(*name);
       }
+      if (isolate->has_pending_exception()) return Handle<Object>();
+
       if (*attributes != ABSENT) {
         if (FLAG_trace_contexts) {
           PrintF("=> found property in context object %p\n",

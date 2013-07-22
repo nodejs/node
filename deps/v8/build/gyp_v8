@@ -47,6 +47,10 @@ if __name__ == '__main__':
 sys.path.insert(0, os.path.join(v8_root, 'build', 'gyp', 'pylib'))
 import gyp
 
+# Add paths so that pymod_do_main(...) can import files.
+sys.path.insert(
+    1, os.path.abspath(os.path.join(v8_root, 'tools', 'generate_shim_headers')))
+
 
 def apply_gyp_environment(file_path=None):
   """

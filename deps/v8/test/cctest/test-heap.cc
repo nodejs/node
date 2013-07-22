@@ -127,7 +127,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
   Address obj_addr = obj->address();
 
   for (int i = 0; i < obj->Size(); i += kPointerSize) {
-    Object* found = heap->FindCodeObject(obj_addr + i);
+    Object* found = isolate->FindCodeObject(obj_addr + i);
     CHECK_EQ(code, found);
   }
 
@@ -137,8 +137,8 @@ static void CheckFindCodeObject(Isolate* isolate) {
       Handle<Code>())->ToObjectChecked();
   CHECK(copy->IsCode());
   HeapObject* obj_copy = HeapObject::cast(copy);
-  Object* not_right = heap->FindCodeObject(obj_copy->address() +
-                                           obj_copy->Size() / 2);
+  Object* not_right = isolate->FindCodeObject(obj_copy->address() +
+                                              obj_copy->Size() / 2);
   CHECK(not_right != code);
 }
 
@@ -661,7 +661,7 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(*first));
 
   // delete first
-  CHECK(obj->DeleteProperty(*first, JSObject::NORMAL_DELETION));
+  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION);
   CHECK(!obj->HasLocalProperty(*first));
 
   // add first and then second
@@ -673,9 +673,9 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(*second));
 
   // delete first and then second
-  CHECK(obj->DeleteProperty(*first, JSObject::NORMAL_DELETION));
+  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION);
   CHECK(obj->HasLocalProperty(*second));
-  CHECK(obj->DeleteProperty(*second, JSObject::NORMAL_DELETION));
+  JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION);
   CHECK(!obj->HasLocalProperty(*first));
   CHECK(!obj->HasLocalProperty(*second));
 
@@ -688,9 +688,9 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(*second));
 
   // delete second and then first
-  CHECK(obj->DeleteProperty(*second, JSObject::NORMAL_DELETION));
+  JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION);
   CHECK(obj->HasLocalProperty(*first));
-  CHECK(obj->DeleteProperty(*first, JSObject::NORMAL_DELETION));
+  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION);
   CHECK(!obj->HasLocalProperty(*first));
   CHECK(!obj->HasLocalProperty(*second));
 
@@ -1327,6 +1327,11 @@ TEST(TestInternalWeakLists) {
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i] = v8::Context::New(v8::Isolate::GetCurrent());
 
+    // Collect garbage that might have been created by one of the
+    // installed extensions.
+    isolate->compilation_cache()->Clear();
+    heap->CollectAllGarbage(Heap::kNoGCFlags);
+
     bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
 
     CHECK_EQ(i + 1, CountNativeContexts());
@@ -1388,6 +1393,7 @@ TEST(TestInternalWeakLists) {
   }
 
   // Force compilation cache cleanup.
+  HEAP->NotifyContextDisposed();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   // Dispose the native contexts one by one.
@@ -1942,7 +1948,7 @@ TEST(PrototypeTransitionClearing) {
 
   // Verify that only dead prototype transitions are cleared.
   CHECK_EQ(10, baseObject->map()->NumberOfProtoTransitions());
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   const int transitions = 10 - 3;
   CHECK_EQ(transitions, baseObject->map()->NumberOfProtoTransitions());
 
@@ -2343,6 +2349,31 @@ TEST(OptimizedAllocationArrayLiterals) {
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
   CHECK(HEAP->InNewSpace(o->elements()));
+}
+
+
+TEST(OptimizedPretenuringCallNew) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_pretenuring_call_new = true;
+  CcTest::InitializeVM();
+  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope(CcTest::isolate());
+  HEAP->SetNewSpaceHighPromotionModeActive(true);
+
+  AlwaysAllocateScope always_allocate;
+  v8::Local<v8::Value> res = CompileRun(
+      "function g() { this.a = 0; }"
+      "function f() {"
+      "  return new g();"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  CHECK(HEAP->InOldPointerSpace(*o));
 }
 
 
@@ -3011,6 +3042,10 @@ TEST(Regress169209) {
   i::FLAG_harmony_typed_arrays = false;
   i::FLAG_harmony_array_buffer = false;
 
+  // Disable loading the i18n extension which breaks the assumptions of this
+  // test about the heap layout.
+  i::FLAG_enable_i18n = false;
+
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
@@ -3135,7 +3170,7 @@ TEST(Regress169928) {
   array_data->set(1, Smi::FromInt(2));
 
   AllocateAllButNBytes(HEAP->new_space(),
-                       JSArray::kSize + AllocationSiteInfo::kSize +
+                       JSArray::kSize + AllocationMemento::kSize +
                        kPointerSize);
 
   Handle<JSArray> array = factory->NewJSArrayWithElements(array_data,
@@ -3145,16 +3180,16 @@ TEST(Regress169928) {
   CHECK_EQ(Smi::FromInt(2), array->length());
   CHECK(array->HasFastSmiOrObjectElements());
 
-  // We need filler the size of AllocationSiteInfo object, plus an extra
+  // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
   MaybeObject* maybe_object = HEAP->AllocateRaw(
-      AllocationSiteInfo::kSize + kPointerSize, NEW_SPACE, OLD_POINTER_SPACE);
+      AllocationMemento::kSize + kPointerSize, NEW_SPACE, OLD_POINTER_SPACE);
   Object* obj = NULL;
   CHECK(maybe_object->ToObject(&obj));
   Address addr_obj = reinterpret_cast<Address>(
       reinterpret_cast<byte*>(obj - kHeapObjectTag));
   HEAP->CreateFillerObjectAt(addr_obj,
-                             AllocationSiteInfo::kSize + kPointerSize);
+                             AllocationMemento::kSize + kPointerSize);
 
   // Give the array a name, making sure not to allocate strings.
   v8::Handle<v8::Object> array_obj = v8::Utils::ToLocal(array);

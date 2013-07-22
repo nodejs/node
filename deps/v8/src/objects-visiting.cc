@@ -110,6 +110,9 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_WEAK_MAP_TYPE:
       return kVisitJSWeakMap;
 
+    case JS_WEAK_SET_TYPE:
+      return kVisitJSWeakSet;
+
     case JS_REGEXP_TYPE:
       return kVisitJSRegExp;
 
@@ -182,6 +185,10 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
         case NAME##_TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
+          if (instance_type == ALLOCATION_SITE_TYPE) {
+            return kVisitAllocationSite;
+          }
+
           return GetVisitorIdForSize(kVisitStruct,
                                      kVisitStructGeneric,
                                      instance_size);

@@ -86,6 +86,7 @@ void FunctionLoggingParserRecorder::WriteString(Vector<const char> str) {
   }
 }
 
+
 // ----------------------------------------------------------------------------
 // PartialParserRecorder -  Record both function entries and symbols.
 

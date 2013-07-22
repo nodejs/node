@@ -27,18 +27,6 @@
 
 // Flags: --allow-natives-syntax --expose-gc
 
-/**
- * The possible optimization states of a function. Must be in sync with the
- * return values of Runtime_GetOptimizationStatus() in runtime.cc!
- */
-
-var OptimizationState = {
-    YES: 1,
-    NO: 2,
-    ALWAYS: 3,
-    NEVER: 4
-};
-
 function simple() {
   return simple_two_args(0, undefined);
 }
@@ -53,7 +41,5 @@ simple();
 simple();
 %OptimizeFunctionOnNextCall(simple);
 simple();
-var raw_optimized = %GetOptimizationStatus(simple);
-assertFalse(raw_optimized == OptimizationState.NO);
+assertOptimized(simple);
 gc();
-

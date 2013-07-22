@@ -322,6 +322,7 @@ TEST(TerminateLoadICException) {
   v8::Script::Compile(source)->Run();
 }
 
+
 void ReenterAfterTermination(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
   CHECK(!v8::V8::IsExecutionTerminating());
@@ -346,6 +347,7 @@ void ReenterAfterTermination(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Script::Compile(v8::String::New("function f() { fail(); } f()"))->Run();
 }
 
+
 // Test that reentry into V8 while the termination exception is still pending
 // (has not yet unwound the 0-level JS frame) does not crash.
 TEST(TerminateAndReenterFromThreadItself) {
@@ -365,6 +367,7 @@ TEST(TerminateAndReenterFromThreadItself) {
                                             "f()"))->Run()->IsTrue());
 }
 
+
 void DoLoopCancelTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
   CHECK(!v8::V8::IsExecutionTerminating());
@@ -383,6 +386,7 @@ void DoLoopCancelTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::V8::CancelTerminateExecution(v8::Isolate::GetCurrent());
   CHECK(!v8::V8::IsExecutionTerminating());
 }
+
 
 // Test that a single thread of JavaScript execution can terminate
 // itself and then resume execution.

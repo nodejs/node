@@ -418,6 +418,17 @@ enum CpuImplementer {
 };
 
 
+enum CpuPart {
+  CPU_UNKNOWN,
+  CORTEX_A15,
+  CORTEX_A12,
+  CORTEX_A9,
+  CORTEX_A8,
+  CORTEX_A7,
+  CORTEX_A5
+};
+
+
 // Feature flags bit positions. They are mostly based on the CPUID spec.
 // (We assign CPUID itself to one of the currently reserved bits --
 // feel free to change this if needed.)
@@ -434,6 +445,7 @@ enum CpuFeature { SSE4_1 = 32 + 19,  // x86
                   UNALIGNED_ACCESSES = 4,  // ARM
                   MOVW_MOVT_IMMEDIATE_LOADS = 5,  // ARM
                   VFP32DREGS = 6,  // ARM
+                  NEON = 7,    // ARM
                   SAHF = 0,    // x86
                   FPU = 1};    // MIPS
 

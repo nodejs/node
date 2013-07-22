@@ -89,8 +89,6 @@
 #undef THIS
 #undef CONST
 #undef NAN
-#undef TRUE
-#undef FALSE
 #undef UNKNOWN
 #undef NONE
 #undef ANY

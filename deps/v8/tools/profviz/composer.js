@@ -337,7 +337,7 @@ function PlotScriptComposer(kResX, kResY) {
     };
 
     var processTickEvent = function(
-        pc, sp, timer, unused_x, unused_y, vmstate, stack) {
+        pc, timer, unused_x, unused_y, vmstate, stack) {
       var tick = new Tick(timer);
 
       var entry = code_map.findEntry(pc);
@@ -365,7 +365,7 @@ function PlotScriptComposer(kResX, kResY) {
                             processor: processCodeDeleteEvent },
         'code-deopt':     { parsers: [parseTimeStamp, parseInt],
                             processor: processCodeDeoptEvent },
-        'tick':           { parsers: [parseInt, parseInt, parseTimeStamp,
+        'tick':           { parsers: [parseInt, parseTimeStamp,
                                       null, null, parseInt, 'var-args'],
                             processor: processTickEvent }
       });

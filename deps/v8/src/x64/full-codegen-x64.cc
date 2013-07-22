@@ -3645,7 +3645,7 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  StringAddStub stub(NO_STRING_ADD_FLAGS);
+  StringAddStub stub(STRING_ADD_CHECK_BOTH);
   __ CallStub(&stub);
   context()->Plug(rax);
 }
@@ -4353,10 +4353,7 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
                                            const char* comment) {
   // TODO(svenpanne): Allowing format strings in Comment would be nice here...
   Comment cmt(masm_, comment);
-  bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
-  UnaryOverwriteMode overwrite =
-      can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-  UnaryOpStub stub(expr->op(), overwrite);
+  UnaryOpStub stub(expr->op());
   // UnaryOpStub expects the argument to be in the
   // accumulator register rax.
   VisitForAccumulatorValue(expr->expression());
@@ -4423,7 +4420,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;
-  __ JumpIfSmi(rax, &no_conversion, Label::kNear);
+  if (ShouldInlineSmiCase(expr->op())) {
+    __ JumpIfSmi(rax, &no_conversion, Label::kNear);
+  }
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
   __ bind(&no_conversion);

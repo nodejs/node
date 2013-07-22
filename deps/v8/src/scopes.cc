@@ -970,6 +970,13 @@ Variable* Scope::LookupRecursive(Handle<String> name,
                                  BindingKind* binding_kind,
                                  AstNodeFactory<AstNullVisitor>* factory) {
   ASSERT(binding_kind != NULL);
+  if (already_resolved() && is_with_scope()) {
+    // Short-cut: if the scope is deserialized from a scope info, variable
+    // allocation is already fixed.  We can simply return with dynamic lookup.
+    *binding_kind = DYNAMIC_LOOKUP;
+    return NULL;
+  }
+
   // Try to find the variable in this scope.
   Variable* var = LocalLookup(name);
 
@@ -998,6 +1005,7 @@ Variable* Scope::LookupRecursive(Handle<String> name,
   }
 
   if (is_with_scope()) {
+    ASSERT(!already_resolved());
     // The current scope is a with scope, so the variable binding can not be
     // statically resolved. However, note that it was necessary to do a lookup
     // in the outer scope anyway, because if a binding exists in an outer scope,

@@ -186,6 +186,7 @@ static bool IsAddressWithinFuncCode(JSFunction* function, Address addr) {
   return code->contains(addr);
 }
 
+
 static bool IsAddressWithinFuncCode(const char* func_name, Address addr) {
   v8::Local<v8::Value> func = CcTest::env()->Global()->Get(v8_str(func_name));
   CHECK(func->IsFunction());

@@ -81,77 +81,6 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
 };
 
 
-class UnaryOpStub: public PlatformCodeStub {
- public:
-  UnaryOpStub(Token::Value op,
-              UnaryOverwriteMode mode,
-              UnaryOpIC::TypeInfo operand_type = UnaryOpIC::UNINITIALIZED)
-      : op_(op),
-        mode_(mode),
-        operand_type_(operand_type) {
-  }
-
- private:
-  Token::Value op_;
-  UnaryOverwriteMode mode_;
-
-  // Operand type information determined at runtime.
-  UnaryOpIC::TypeInfo operand_type_;
-
-  virtual void PrintName(StringStream* stream);
-
-  class ModeBits: public BitField<UnaryOverwriteMode, 0, 1> {};
-  class OpBits: public BitField<Token::Value, 1, 7> {};
-  class OperandTypeInfoBits: public BitField<UnaryOpIC::TypeInfo, 8, 3> {};
-
-  Major MajorKey() { return UnaryOp; }
-  int MinorKey() {
-    return ModeBits::encode(mode_)
-           | OpBits::encode(op_)
-           | OperandTypeInfoBits::encode(operand_type_);
-  }
-
-  // Note: A lot of the helper functions below will vanish when we use virtual
-  // function instead of switch more often.
-  void Generate(MacroAssembler* masm);
-
-  void GenerateTypeTransition(MacroAssembler* masm);
-
-  void GenerateSmiStub(MacroAssembler* masm);
-  void GenerateSmiStubSub(MacroAssembler* masm);
-  void GenerateSmiStubBitNot(MacroAssembler* masm);
-  void GenerateSmiCodeSub(MacroAssembler* masm,
-                          Label* non_smi,
-                          Label* slow,
-                          Label::Distance non_smi_near = Label::kFar,
-                          Label::Distance slow_near = Label::kFar);
-  void GenerateSmiCodeBitNot(MacroAssembler* masm,
-                             Label* non_smi,
-                             Label::Distance non_smi_near);
-
-  void GenerateNumberStub(MacroAssembler* masm);
-  void GenerateNumberStubSub(MacroAssembler* masm);
-  void GenerateNumberStubBitNot(MacroAssembler* masm);
-  void GenerateHeapNumberCodeSub(MacroAssembler* masm, Label* slow);
-  void GenerateHeapNumberCodeBitNot(MacroAssembler* masm, Label* slow);
-
-  void GenerateGenericStub(MacroAssembler* masm);
-  void GenerateGenericStubSub(MacroAssembler* masm);
-  void GenerateGenericStubBitNot(MacroAssembler* masm);
-  void GenerateGenericCodeFallback(MacroAssembler* masm);
-
-  virtual Code::Kind GetCodeKind() const { return Code::UNARY_OP_IC; }
-
-  virtual InlineCacheState GetICState() {
-    return UnaryOpIC::ToState(operand_type_);
-  }
-
-  virtual void FinishCode(Handle<Code> code) {
-    code->set_unary_op_type(operand_type_);
-  }
-};
-
-
 class StringHelper : public AllStatic {
  public:
   // Generate code for copying characters using a simple loop. This should only
@@ -202,21 +131,6 @@ class StringHelper : public AllStatic {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
-};
-
-
-// Flag that indicates how to generate code for the stub StringAddStub.
-enum StringAddFlags {
-  NO_STRING_ADD_FLAGS = 1 << 0,
-  // Omit left string check in stub (left is definitely a string).
-  NO_STRING_CHECK_LEFT_IN_STUB = 1 << 1,
-  // Omit right string check in stub (right is definitely a string).
-  NO_STRING_CHECK_RIGHT_IN_STUB = 1 << 2,
-  // Stub needs a frame before calling the runtime
-  ERECT_FRAME = 1 << 3,
-  // Omit both string checks in stub.
-  NO_STRING_CHECK_IN_STUB =
-      NO_STRING_CHECK_LEFT_IN_STUB | NO_STRING_CHECK_RIGHT_IN_STUB
 };
 
 
@@ -308,7 +222,6 @@ class NumberToStringStub: public PlatformCodeStub {
                                               Register result,
                                               Register scratch1,
                                               Register scratch2,
-                                              bool object_is_smi,
                                               Label* not_found);
 
  private:

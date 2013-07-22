@@ -634,6 +634,11 @@ bool GlobalHandles::PostGarbageCollectionProcessing(
     for (int i = 0; i < new_space_nodes_.length(); ++i) {
       Node* node = new_space_nodes_[i];
       ASSERT(node->is_in_new_space_list());
+      if (!node->IsRetainer()) {
+        // Free nodes do not have weak callbacks. Do not use them to compute
+        // the next_gc_likely_to_collect_more.
+        continue;
+      }
       // Skip dependent handles. Their weak callbacks might expect to be
       // called between two global garbage collection callbacks which
       // are not called for minor collections.
@@ -656,6 +661,11 @@ bool GlobalHandles::PostGarbageCollectionProcessing(
     }
   } else {
     for (NodeIterator it(this); !it.done(); it.Advance()) {
+      if (!it.node()->IsRetainer()) {
+        // Free nodes do not have weak callbacks. Do not use them to compute
+        // the next_gc_likely_to_collect_more.
+        continue;
+      }
       it.node()->clear_partially_dependent();
       if (it.node()->PostGarbageCollectionProcessing(isolate_)) {
         if (initial_post_gc_processing_count != post_gc_processing_count_) {
@@ -798,6 +808,7 @@ void GlobalHandles::PrintStats() {
   PrintF("  # free       = %d\n", destroyed);
   PrintF("  # total      = %d\n", total);
 }
+
 
 void GlobalHandles::Print() {
   PrintF("Global handles:\n");

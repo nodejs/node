@@ -46,6 +46,7 @@ BufferedUtf16CharacterStream::BufferedUtf16CharacterStream()
   buffer_end_ = buffer_;
 }
 
+
 BufferedUtf16CharacterStream::~BufferedUtf16CharacterStream() { }
 
 void BufferedUtf16CharacterStream::PushBack(uc32 character) {
@@ -112,6 +113,7 @@ unsigned BufferedUtf16CharacterStream::SlowSeekForward(unsigned delta) {
   pushback_limit_ = NULL;
   return BufferSeekForward(delta);
 }
+
 
 // ----------------------------------------------------------------------------
 // GenericStringUtf16CharacterStream

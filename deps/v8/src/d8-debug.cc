@@ -50,14 +50,12 @@ void PrintPrompt() {
 }
 
 
-void HandleDebugEvent(DebugEvent event,
-                      Handle<Object> exec_state,
-                      Handle<Object> event_data,
-                      Handle<Value> data) {
+void HandleDebugEvent(const Debug::EventDetails& event_details) {
   // TODO(svenpanne) There should be a way to retrieve this in the callback.
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
+  DebugEvent event = event_details.GetEvent();
   // Check for handled event.
   if (event != Break && event != Exception && event != AfterCompile) {
     return;
@@ -67,6 +65,7 @@ void HandleDebugEvent(DebugEvent event,
 
   // Get the toJSONProtocol function on the event and get the JSON format.
   Local<String> to_json_fun_name = String::New("toJSONProtocol");
+  Handle<Object> event_data = event_details.GetEventData();
   Local<Function> to_json_fun =
       Local<Function>::Cast(event_data->Get(to_json_fun_name));
   Local<Value> event_json = to_json_fun->Call(event_data, 0, NULL);
@@ -91,6 +90,7 @@ void HandleDebugEvent(DebugEvent event,
 
   // Get the debug command processor.
   Local<String> fun_name = String::New("debugCommandProcessor");
+  Handle<Object> exec_state = event_details.GetExecutionState();
   Local<Function> fun = Local<Function>::Cast(exec_state->Get(fun_name));
   Local<Object> cmd_processor =
       Local<Object>::Cast(fun->Call(exec_state, 0, NULL));

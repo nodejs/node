@@ -174,9 +174,7 @@ void FullCodeGenerator::Generate() {
   // The following three instructions must remain together and unmodified for
   // code aging to work properly.
   __ Push(ra, fp, cp, a1);
-  // Load undefined value here, so the value is ready for the loop
-  // below.
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ nop(Assembler::CODE_AGE_SEQUENCE_NOP);
   // Adjust fp to point to caller's fp.
   __ Addu(fp, sp, Operand(2 * kPointerSize));
   info->AddNoFrameRange(0, masm_->pc_offset());
@@ -185,8 +183,11 @@ void FullCodeGenerator::Generate() {
     int locals_count = info->scope()->num_stack_slots();
     // Generators allocate locals, if any, in context slots.
     ASSERT(!info->function()->is_generator() || locals_count == 0);
-    for (int i = 0; i < locals_count; i++) {
-      __ push(at);
+    if (locals_count > 0) {
+      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+      for (int i = 0; i < locals_count; i++) {
+        __ push(at);
+      }
     }
   }
 
@@ -3745,7 +3746,7 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  StringAddStub stub(NO_STRING_ADD_FLAGS);
+  StringAddStub stub(STRING_ADD_CHECK_BOTH);
   __ CallStub(&stub);
   context()->Plug(v0);
 }
@@ -4400,10 +4401,7 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
                                            const char* comment) {
   // TODO(svenpanne): Allowing format strings in Comment would be nice here...
   Comment cmt(masm_, comment);
-  bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
-  UnaryOverwriteMode overwrite =
-      can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-  UnaryOpStub stub(expr->op(), overwrite);
+  UnaryOpStub stub(expr->op());
   // GenericUnaryOpStub expects the argument to be in a0.
   VisitForAccumulatorValue(expr->expression());
   SetSourcePosition(expr->position());
@@ -4472,7 +4470,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;
-  __ JumpIfSmi(v0, &no_conversion);
+  if (ShouldInlineSmiCase(expr->op())) {
+    __ JumpIfSmi(v0, &no_conversion);
+  }
   __ mov(a0, v0);
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);

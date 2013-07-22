@@ -43,46 +43,7 @@ using i::ProfileTree;
 using i::ProfileGenerator;
 using i::SampleRateCalculator;
 using i::TickSample;
-using i::TokenEnumerator;
 using i::Vector;
-
-
-namespace v8 {
-namespace internal {
-
-class TokenEnumeratorTester {
- public:
-  static i::List<bool>* token_removed(TokenEnumerator* te) {
-    return &te->token_removed_;
-  }
-};
-
-} }  // namespace v8::internal
-
-TEST(TokenEnumerator) {
-  TokenEnumerator te;
-  CHECK_EQ(TokenEnumerator::kNoSecurityToken, te.GetTokenId(NULL));
-  v8::HandleScope hs(v8::Isolate::GetCurrent());
-  v8::Local<v8::String> token1(v8::String::New("1x"));
-  CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
-  CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
-  v8::Local<v8::String> token2(v8::String::New("2x"));
-  CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
-  CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
-  CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
-  {
-    v8::HandleScope hs(v8::Isolate::GetCurrent());
-    v8::Local<v8::String> token3(v8::String::New("3x"));
-    CHECK_EQ(2, te.GetTokenId(*v8::Utils::OpenHandle(*token3)));
-    CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
-    CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
-  }
-  CHECK(!i::TokenEnumeratorTester::token_removed(&te)->at(2));
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK(i::TokenEnumeratorTester::token_removed(&te)->at(2));
-  CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
-  CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
-}
 
 
 TEST(ProfileNodeFindOrAddChild) {
@@ -121,8 +82,7 @@ TEST(ProfileNodeFindOrAddChildForSameFunction) {
   CodeEntry entry2(i::Logger::FUNCTION_TAG, aaa);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry2));
   // Now with a different security token.
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, aaa,
-                   TokenEnumerator::kNoSecurityToken + 1);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, aaa);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry3));
 }
 
@@ -415,107 +375,10 @@ TEST(ProfileTreeCalculateTotalTicks) {
 }
 
 
-TEST(ProfileTreeFilteredClone) {
-  ProfileTree source_tree;
-  const int token0 = 0, token1 = 1, token2 = 2;
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", token0);
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", token1);
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", token0);
-  CodeEntry entry4(i::Logger::FUNCTION_TAG, "ddd",
-                   TokenEnumerator::kInheritsSecurityToken);
-
-  {
-    CodeEntry* e1_e2_path[] = {&entry1, &entry2};
-    Vector<CodeEntry*> e1_e2_path_vec(
-        e1_e2_path, sizeof(e1_e2_path) / sizeof(e1_e2_path[0]));
-    source_tree.AddPathFromStart(e1_e2_path_vec);
-    CodeEntry* e2_e4_path[] = {&entry2, &entry4};
-    Vector<CodeEntry*> e2_e4_path_vec(
-        e2_e4_path, sizeof(e2_e4_path) / sizeof(e2_e4_path[0]));
-    source_tree.AddPathFromStart(e2_e4_path_vec);
-    CodeEntry* e3_e1_path[] = {&entry3, &entry1};
-    Vector<CodeEntry*> e3_e1_path_vec(
-        e3_e1_path, sizeof(e3_e1_path) / sizeof(e3_e1_path[0]));
-    source_tree.AddPathFromStart(e3_e1_path_vec);
-    CodeEntry* e3_e2_path[] = {&entry3, &entry2};
-    Vector<CodeEntry*> e3_e2_path_vec(
-        e3_e2_path, sizeof(e3_e2_path) / sizeof(e3_e2_path[0]));
-    source_tree.AddPathFromStart(e3_e2_path_vec);
-    source_tree.CalculateTotalTicks();
-    // Results in               -> {entry1,0,1,0} -> {entry2,1,1,1}
-    //            {root,0,4,-1} -> {entry2,0,1,1} -> {entry4,1,1,inherits}
-    //                          -> {entry3,0,2,0} -> {entry1,1,1,0}
-    //                                            -> {entry2,1,1,1}
-    CHECK_EQ(4, source_tree.root()->total_ticks());
-    CHECK_EQ(0, source_tree.root()->self_ticks());
-  }
-
-  {
-    ProfileTree token0_tree;
-    token0_tree.FilteredClone(&source_tree, token0);
-    // Should be                -> {entry1,1,1,0}
-    //            {root,1,4,-1} -> {entry3,1,2,0} -> {entry1,1,1,0}
-    // [self ticks from filtered nodes are attributed to their parents]
-    CHECK_EQ(4, token0_tree.root()->total_ticks());
-    CHECK_EQ(1, token0_tree.root()->self_ticks());
-    ProfileTreeTestHelper token0_helper(&token0_tree);
-    ProfileNode* node1 = token0_helper.Walk(&entry1);
-    CHECK_NE(NULL, node1);
-    CHECK_EQ(1, node1->total_ticks());
-    CHECK_EQ(1, node1->self_ticks());
-    CHECK_EQ(NULL, token0_helper.Walk(&entry2));
-    ProfileNode* node3 = token0_helper.Walk(&entry3);
-    CHECK_NE(NULL, node3);
-    CHECK_EQ(2, node3->total_ticks());
-    CHECK_EQ(1, node3->self_ticks());
-    ProfileNode* node3_1 = token0_helper.Walk(&entry3, &entry1);
-    CHECK_NE(NULL, node3_1);
-    CHECK_EQ(1, node3_1->total_ticks());
-    CHECK_EQ(1, node3_1->self_ticks());
-    CHECK_EQ(NULL, token0_helper.Walk(&entry3, &entry2));
-  }
-
-  {
-    ProfileTree token1_tree;
-    token1_tree.FilteredClone(&source_tree, token1);
-    // Should be
-    //            {root,1,4,-1} -> {entry2,2,3,1} -> {entry4,1,1,inherits}
-    // [child nodes referring to the same entry get merged and
-    //  their self times summed up]
-    CHECK_EQ(4, token1_tree.root()->total_ticks());
-    CHECK_EQ(1, token1_tree.root()->self_ticks());
-    ProfileTreeTestHelper token1_helper(&token1_tree);
-    CHECK_EQ(NULL, token1_helper.Walk(&entry1));
-    CHECK_EQ(NULL, token1_helper.Walk(&entry3));
-    ProfileNode* node2 = token1_helper.Walk(&entry2);
-    CHECK_NE(NULL, node2);
-    CHECK_EQ(3, node2->total_ticks());
-    CHECK_EQ(2, node2->self_ticks());
-    ProfileNode* node2_4 = token1_helper.Walk(&entry2, &entry4);
-    CHECK_NE(NULL, node2_4);
-    CHECK_EQ(1, node2_4->total_ticks());
-    CHECK_EQ(1, node2_4->self_ticks());
-  }
-
-  {
-    ProfileTree token2_tree;
-    token2_tree.FilteredClone(&source_tree, token2);
-    // Should be
-    //            {root,4,4,-1}
-    // [no nodes, all ticks get migrated into root node]
-    CHECK_EQ(4, token2_tree.root()->total_ticks());
-    CHECK_EQ(4, token2_tree.root()->self_ticks());
-    ProfileTreeTestHelper token2_helper(&token2_tree);
-    CHECK_EQ(NULL, token2_helper.Walk(&entry1));
-    CHECK_EQ(NULL, token2_helper.Walk(&entry2));
-    CHECK_EQ(NULL, token2_helper.Walk(&entry3));
-  }
-}
-
-
 static inline i::Address ToAddress(int n) {
   return reinterpret_cast<i::Address>(n);
 }
+
 
 TEST(CodeMapAddCode) {
   CodeMap code_map;
@@ -622,8 +485,7 @@ TEST(RecordTickSample) {
   sample3.frames_count = 2;
   generator.RecordTickSample(sample3);
 
-  CpuProfile* profile =
-      profiles.StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
+  CpuProfile* profile = profiles.StopProfiling("", 1);
   CHECK_NE(NULL, profile);
   ProfileTreeTestHelper top_down_test_helper(profile->top_down());
   CHECK_EQ(NULL, top_down_test_helper.Walk(entry2));
@@ -700,6 +562,7 @@ static void CheckNodeIds(ProfileNode* node, int* expectedId) {
   }
 }
 
+
 TEST(SampleIds) {
   TestSetup test_setup;
   CpuProfilesCollection profiles;
@@ -735,8 +598,7 @@ TEST(SampleIds) {
   sample3.frames_count = 2;
   generator.RecordTickSample(sample3);
 
-  CpuProfile* profile =
-      profiles.StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
+  CpuProfile* profile = profiles.StopProfiling("", 1);
   int nodeId = 1;
   CheckNodeIds(profile->top_down()->root(), &nodeId);
   CHECK_EQ(7, nodeId - 1);
@@ -765,8 +627,7 @@ TEST(NoSamples) {
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
 
-  CpuProfile* profile =
-      profiles.StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
+  CpuProfile* profile = profiles.StopProfiling("", 1);
   int nodeId = 1;
   CheckNodeIds(profile->top_down()->root(), &nodeId);
   CHECK_EQ(3, nodeId - 1);
@@ -860,7 +721,7 @@ TEST(RecordStackTraceAtStartProfiling) {
       "a();\n"
       "stopProfiling();");
   CHECK_EQ(1, profiler->GetProfilesCount());
-  CpuProfile* profile = profiler->GetProfile(NULL, 0);
+  CpuProfile* profile = profiler->GetProfile(0);
   const ProfileTree* topDown = profile->top_down();
   const ProfileNode* current = topDown->root();
   const_cast<ProfileNode*>(current)->Print(0);
@@ -965,3 +826,59 @@ TEST(ProfileNodeScriptId) {
 }
 
 
+
+
+static const char* line_number_test_source_existing_functions =
+"function foo_at_the_first_line() {\n"
+"}\n"
+"foo_at_the_first_line();\n"
+"function lazy_func_at_forth_line() {}\n";
+
+
+static const char* line_number_test_source_profile_time_functions =
+"// Empty first line\n"
+"function bar_at_the_second_line() {\n"
+"  foo_at_the_first_line();\n"
+"}\n"
+"bar_at_the_second_line();\n"
+"function lazy_func_at_6th_line() {}";
+
+int GetFunctionLineNumber(LocalContext* env, const char* name) {
+  CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
+  CodeMap* code_map = profiler->generator()->code_map();
+  i::Handle<i::JSFunction> func = v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(
+          (*(*env))->Global()->Get(v8_str(name))));
+  CodeEntry* func_entry = code_map->FindEntry(func->code()->address());
+  if (!func_entry)
+    FATAL(name);
+  return func_entry->line_number();
+}
+
+
+TEST(LineNumber) {
+  i::FLAG_use_inlining = false;
+
+  CcTest::InitializeVM();
+  LocalContext env;
+  i::Isolate* isolate = i::Isolate::Current();
+  TestSetup test_setup;
+
+  i::HandleScope scope(isolate);
+
+  CompileRun(line_number_test_source_existing_functions);
+
+  CpuProfiler* profiler = isolate->cpu_profiler();
+  profiler->StartProfiling("LineNumber");
+
+  CompileRun(line_number_test_source_profile_time_functions);
+
+  profiler->processor()->StopSynchronously();
+
+  CHECK_EQ(1, GetFunctionLineNumber(&env, "foo_at_the_first_line"));
+  CHECK_EQ(0, GetFunctionLineNumber(&env, "lazy_func_at_forth_line"));
+  CHECK_EQ(2, GetFunctionLineNumber(&env, "bar_at_the_second_line"));
+  CHECK_EQ(0, GetFunctionLineNumber(&env, "lazy_func_at_6th_line"));
+
+  profiler->StopProfiling("LineNumber");
+}

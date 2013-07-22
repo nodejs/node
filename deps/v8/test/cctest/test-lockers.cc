@@ -96,6 +96,7 @@ class KangarooThread : public v8::internal::Thread {
   Persistent<v8::Context> context_;
 };
 
+
 // Migrates an isolate from one thread to another
 TEST(KangarooIsolates) {
   v8::Isolate* isolate = v8::Isolate::New();
@@ -113,6 +114,7 @@ TEST(KangarooIsolates) {
   thread1->Start();
   thread1->Join();
 }
+
 
 static void CalcFibAndCheck() {
   Local<Value> v = CompileRun("function fib(n) {"
@@ -192,6 +194,7 @@ class IsolateLockingThreadWithLocalContext : public JoinableThread {
   v8::Isolate* isolate_;
 };
 
+
 static void StartJoinAndDeleteThreads(const i::List<JoinableThread*>& threads) {
   for (int i = 0; i < threads.length(); i++) {
     threads[i]->Start();
@@ -242,6 +245,7 @@ class IsolateNonlockingThread : public JoinableThread {
  private:
 };
 
+
 // Run many threads each accessing its own isolate without locking
 TEST(MultithreadedParallelIsolates) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
@@ -279,6 +283,7 @@ class IsolateNestedLockingThread : public JoinableThread {
  private:
   v8::Isolate* isolate_;
 };
+
 
 // Run  many threads with nested locks
 TEST(IsolateNestedLocking) {
@@ -320,6 +325,7 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
   v8::Isolate* isolate1_;
   v8::Isolate* isolate2_;
 };
+
 
 // Run parallel threads that lock and access different isolates in parallel
 TEST(SeparateIsolatesLocksNonexclusive) {
@@ -397,6 +403,7 @@ class LockerUnlockerThread : public JoinableThread {
   v8::Isolate* isolate_;
 };
 
+
 // Use unlocker inside of a Locker, multiple threads.
 TEST(LockerUnlocker) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
@@ -449,6 +456,7 @@ class LockTwiceAndUnlockThread : public JoinableThread {
  private:
   v8::Isolate* isolate_;
 };
+
 
 // Use Unlocker inside two Lockers.
 TEST(LockTwiceAndUnlock) {
@@ -517,6 +525,7 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
   v8::Isolate* isolate2_;
 };
 
+
 // Lock two isolates and unlock one of them.
 TEST(LockAndUnlockDifferentIsolates) {
   v8::Isolate* isolate1 = v8::Isolate::New();
@@ -570,6 +579,7 @@ class LockUnlockLockThread : public JoinableThread {
   v8::Isolate* isolate_;
   v8::Persistent<v8::Context> context_;
 };
+
 
 // Locker inside an Unlocker inside a Locker.
 TEST(LockUnlockLockMultithreaded) {
@@ -625,6 +635,7 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
  private:
   v8::Persistent<v8::Context> context_;
 };
+
 
 // Locker inside an Unlocker inside a Locker for default isolate.
 TEST(LockUnlockLockDefaultIsolateMultithreaded) {
@@ -695,6 +706,7 @@ class IsolateGenesisThread : public JoinableThread {
   int count_;
   const char** extension_names_;
 };
+
 
 // Test installing extensions in separate isolates concurrently.
 // http://code.google.com/p/v8/issues/detail?id=1821

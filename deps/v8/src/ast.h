@@ -353,14 +353,12 @@ class Expression: public AstNode {
   // True iff the expression is the null literal.
   bool IsNullLiteral();
 
-  // True iff the expression is the undefined literal.
-  bool IsUndefinedLiteral();
+  // True if we can prove that the expression is the undefined literal.
+  bool IsUndefinedLiteral(Isolate* isolate);
 
   // Expression type bounds
-  Handle<Type> upper_type() { return upper_type_; }
-  Handle<Type> lower_type() { return lower_type_; }
-  void set_upper_type(Handle<Type> type) { upper_type_ = type; }
-  void set_lower_type(Handle<Type> type) { lower_type_ = type; }
+  Bounds bounds() { return bounds_; }
+  void set_bounds(Bounds bounds) { bounds_ = bounds; }
 
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
@@ -391,15 +389,13 @@ class Expression: public AstNode {
 
  protected:
   explicit Expression(Isolate* isolate)
-      : upper_type_(Type::Any(), isolate),
-        lower_type_(Type::None(), isolate),
+      : bounds_(Type::None(), Type::Any(), isolate),
         id_(GetNextId(isolate)),
         test_id_(GetNextId(isolate)) {}
   void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
 
  private:
-  Handle<Type> upper_type_;
-  Handle<Type> lower_type_;
+  Bounds bounds_;
   byte to_boolean_types_;
 
   const BailoutId id_;
@@ -1884,9 +1880,6 @@ class BinaryOperation: public Expression {
   BailoutId RightId() const { return right_id_; }
 
   TypeFeedbackId BinaryOperationFeedbackId() const { return reuse(id()); }
-  // TODO(rossberg): result_type should be subsumed by lower_type.
-  Handle<Type> result_type() const { return result_type_; }
-  void set_result_type(Handle<Type> type) { result_type_ = type; }
   Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
   void set_fixed_right_arg(Maybe<int> arg) { fixed_right_arg_ = arg; }
 
@@ -1913,7 +1906,6 @@ class BinaryOperation: public Expression {
   Expression* right_;
   int pos_;
 
-  Handle<Type> result_type_;
   // TODO(rossberg): the fixed arg should probably be represented as a Constant
   // type for the RHS.
   Maybe<int> fixed_right_arg_;
@@ -2002,7 +1994,7 @@ class CompareOperation: public Expression {
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
-  bool IsLiteralCompareUndefined(Expression** expr);
+  bool IsLiteralCompareUndefined(Expression** expr, Isolate* isolate);
   bool IsLiteralCompareNull(Expression** expr);
 
  protected:

@@ -651,7 +651,7 @@ OS::MemMoveFunction CreateMemMoveFunction() {
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
     MacroAssembler* masm, AllocationSiteMode mode,
-    Label* allocation_site_info_found) {
+    Label* allocation_memento_found) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ebx    : target map
@@ -660,9 +660,9 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   //  -- esp[0] : return address
   // -----------------------------------
   if (mode == TRACK_ALLOCATION_SITE) {
-    ASSERT(allocation_site_info_found != NULL);
-    __ TestJSArrayForAllocationSiteInfo(edx, edi);
-    __ j(equal, allocation_site_info_found);
+    ASSERT(allocation_memento_found != NULL);
+    __ TestJSArrayForAllocationMemento(edx, edi);
+    __ j(equal, allocation_memento_found);
   }
 
   // Set transitioned map.
@@ -689,7 +689,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Label loop, entry, convert_hole, gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationSiteInfo(edx, edi);
+    __ TestJSArrayForAllocationMemento(edx, edi);
     __ j(equal, fail);
   }
 
@@ -828,7 +828,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Label loop, entry, convert_hole, gc_required, only_change_map, success;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationSiteInfo(edx, edi);
+    __ TestJSArrayForAllocationMemento(edx, edi);
     __ j(equal, fail);
   }
 

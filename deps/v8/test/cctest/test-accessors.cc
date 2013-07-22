@@ -258,6 +258,7 @@ static void CheckAccessorArgsCorrect(
   info.GetReturnValue().Set(17);
 }
 
+
 THREADED_TEST(DirectCall) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -283,6 +284,7 @@ static void EmptyGetter(Local<String> name,
   CheckAccessorArgsCorrect(name, info);
   info.GetReturnValue().Set(v8::Handle<v8::Value>());
 }
+
 
 THREADED_TEST(EmptyResult) {
   LocalContext context;

@@ -31,7 +31,6 @@
 #include "allocation.h"
 #include "objects.h"
 #include "platform.h"
-#include "log-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -71,15 +70,16 @@ namespace internal {
 // tick profiler requires code events, so --prof implies --log-code.
 
 // Forward declarations.
-class LogMessageBuilder;
+class CodeAddressMap;
+class CompilationInfo;
+class CpuProfiler;
+class Isolate;
+class Log;
+class PositionsRecorder;
 class Profiler;
 class Semaphore;
-struct TickSample;
 class Ticker;
-class Isolate;
-class PositionsRecorder;
-class CpuProfiler;
-class CompilationInfo;
+struct TickSample;
 
 #undef LOG
 #define LOG(isolate, Call)                          \
@@ -151,6 +151,8 @@ class CompilationInfo;
 // original tags when writing to the log.
 
 
+class JitLogger;
+class LowLevelLogger;
 class Sampler;
 
 
@@ -336,12 +338,8 @@ class Logger {
     return logging_nesting_ > 0;
   }
 
-  bool is_code_event_handler_enabled() {
-    return code_event_handler_ != NULL;
-  }
-
   bool is_logging_code_events() {
-    return is_logging() || code_event_handler_ != NULL;
+    return is_logging() || jit_logger_ != NULL;
   }
 
   // Pause/Resume collection of profiling data.
@@ -376,25 +374,9 @@ class Logger {
   void LogFailure();
 
  private:
-  class NameBuffer;
-  class NameMap;
-
   explicit Logger(Isolate* isolate);
   ~Logger();
 
-  // Issue code notifications.
-  void IssueCodeAddedEvent(Code* code,
-                           Script* script,
-                           const char* name,
-                           size_t name_len);
-  void IssueCodeMovedEvent(Address from, Address to);
-  void IssueCodeRemovedEvent(Address from);
-  void IssueAddCodeLinePosInfoEvent(void* jit_handler_data,
-                                    int pc_offset,
-                                    int position,
-                                    JitCodeEvent::PositionType position_Type);
-  void* IssueStartCodePosInfoEvent();
-  void IssueEndCodePosInfoEvent(Code* code, void* jit_handler_data);
   // Emits the profiler's first message.
   void ProfilerBeginEvent();
 
@@ -406,9 +388,6 @@ class Logger {
   // Internal configurable move event.
   void MoveEventInternal(LogEventsAndTags event, Address from, Address to);
 
-  // Internal configurable move event.
-  void DeleteEventInternal(LogEventsAndTags event, Address from);
-
   // Emits the source code of a regexp. Used by regexp events.
   void LogRegExpSource(Handle<JSRegExp> regexp);
 
@@ -417,42 +396,6 @@ class Logger {
 
   // Helper method. It resets name_buffer_ and add tag name into it.
   void InitNameBuffer(LogEventsAndTags tag);
-
-  // Helper method. It push recorded buffer into different handlers.
-  void LogRecordedBuffer(Code*, SharedFunctionInfo*);
-
-  // Helper method. It dumps name into name_buffer_.
-  void AppendName(Name* name);
-
-  // Appends standard code header.
-  void AppendCodeCreateHeader(LogMessageBuilder*, LogEventsAndTags, Code*);
-
-  // Appends symbol for the name.
-  void AppendSymbolName(LogMessageBuilder*, Symbol*);
-
-  // Emits general information about generated code.
-  void LogCodeInfo();
-
-  void RegisterSnapshotCodeName(Code* code, const char* name, int name_size);
-
-  // Low-level logging support.
-
-  void LowLevelCodeCreateEvent(Code* code, const char* name, int name_size);
-
-  void LowLevelCodeMoveEvent(Address from, Address to);
-
-  void LowLevelCodeDeleteEvent(Address from);
-
-  void LowLevelSnapshotPositionEvent(Address addr, int pos);
-
-  void LowLevelLogWriteBytes(const char* bytes, int size);
-
-  template <typename T>
-  void LowLevelLogWriteStruct(const T& s) {
-    char tag = T::kTag;
-    LowLevelLogWriteBytes(reinterpret_cast<const char*>(&tag), sizeof(tag));
-    LowLevelLogWriteBytes(reinterpret_cast<const char*>(&s), sizeof(s));
-  }
 
   // Emits a profiler tick event. Used by the profiler thread.
   void TickEvent(TickSample* sample, bool overflow);
@@ -483,7 +426,6 @@ class Logger {
   // private members.
   friend class EventLog;
   friend class Isolate;
-  friend class LogMessageBuilder;
   friend class TimeLog;
   friend class Profiler;
   template <StateTag Tag> friend class VMState;
@@ -495,17 +437,13 @@ class Logger {
   int cpu_profiler_nesting_;
 
   Log* log_;
-
-  NameBuffer* name_buffer_;
-
-  NameMap* address_to_name_map_;
+  LowLevelLogger* ll_logger_;
+  JitLogger* jit_logger_;
+  CodeAddressMap* code_address_map_;
 
   // Guards against multiple calls to TearDown() that can happen in some tests.
   // 'true' between SetUp() and TearDown().
   bool is_initialized_;
-
-  // The code event handler - if any.
-  JitCodeEventHandler code_event_handler_;
 
   // Support for 'incremental addresses' in compressed logs:
   //  LogMessageBuilder::AppendAddress(Address addr)

@@ -281,8 +281,7 @@ bool LCodeGen::GenerateBody() {
 
 
 bool LCodeGen::GenerateJumpTable() {
-  Label needs_frame_not_call;
-  Label needs_frame_is_call;
+  Label needs_frame;
   if (jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
   }
@@ -298,47 +297,24 @@ bool LCodeGen::GenerateJumpTable() {
     }
     if (jump_table_[i].needs_frame) {
       __ movq(kScratchRegister, ExternalReference::ForDeoptEntry(entry));
-      if (type == Deoptimizer::LAZY) {
-        if (needs_frame_is_call.is_bound()) {
-          __ jmp(&needs_frame_is_call);
-        } else {
-          __ bind(&needs_frame_is_call);
-          __ push(rbp);
-          __ movq(rbp, rsp);
-          __ push(rsi);
-          // This variant of deopt can only be used with stubs. Since we don't
-          // have a function pointer to install in the stack frame that we're
-          // building, install a special marker there instead.
-          ASSERT(info()->IsStub());
-          __ Move(rsi, Smi::FromInt(StackFrame::STUB));
-          __ push(rsi);
-          __ movq(rsi, MemOperand(rsp, kPointerSize));
-          __ call(kScratchRegister);
-        }
+      if (needs_frame.is_bound()) {
+        __ jmp(&needs_frame);
       } else {
-        if (needs_frame_not_call.is_bound()) {
-          __ jmp(&needs_frame_not_call);
-        } else {
-          __ bind(&needs_frame_not_call);
-          __ push(rbp);
-          __ movq(rbp, rsp);
-          __ push(rsi);
-          // This variant of deopt can only be used with stubs. Since we don't
-          // have a function pointer to install in the stack frame that we're
-          // building, install a special marker there instead.
-          ASSERT(info()->IsStub());
-          __ Move(rsi, Smi::FromInt(StackFrame::STUB));
-          __ push(rsi);
-          __ movq(rsi, MemOperand(rsp, kPointerSize));
-          __ jmp(kScratchRegister);
-        }
+        __ bind(&needs_frame);
+        __ push(rbp);
+        __ movq(rbp, rsp);
+        __ push(rsi);
+        // This variant of deopt can only be used with stubs. Since we don't
+        // have a function pointer to install in the stack frame that we're
+        // building, install a special marker there instead.
+        ASSERT(info()->IsStub());
+        __ Move(rsi, Smi::FromInt(StackFrame::STUB));
+        __ push(rsi);
+        __ movq(rsi, MemOperand(rsp, kPointerSize));
+        __ call(kScratchRegister);
       }
     } else {
-      if (type == Deoptimizer::LAZY) {
-        __ call(entry, RelocInfo::RUNTIME_ENTRY);
-      } else {
-        __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
-      }
+      __ call(entry, RelocInfo::RUNTIME_ENTRY);
     }
   }
   return !is_aborted();
@@ -689,13 +665,8 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   }
 
   ASSERT(info()->IsStub() || frame_is_built_);
-  bool needs_lazy_deopt = info()->IsStub();
   if (cc == no_condition && frame_is_built_) {
-    if (needs_lazy_deopt) {
-      __ call(entry, RelocInfo::RUNTIME_ENTRY);
-    } else {
-      __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
-    }
+    __ call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
@@ -947,11 +918,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
-    case CodeStub::StringAdd: {
-      StringAddStub stub(NO_STRING_ADD_FLAGS);
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
@@ -1834,12 +1800,12 @@ int LCodeGen::GetNextEmittedBlock() const {
 
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
-  int right_block = instr->FalseDestination(chunk_);
   int left_block = instr->TrueDestination(chunk_);
+  int right_block = instr->FalseDestination(chunk_);
 
   int next_block = GetNextEmittedBlock();
 
-  if (right_block == left_block) {
+  if (right_block == left_block || cc == no_condition) {
     EmitGoto(left_block);
   } else if (left_block == next_block) {
     __ j(NegateCondition(cc), chunk_->GetAssemblyLabel(right_block));
@@ -1856,6 +1822,25 @@ void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
 
 void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
   __ int3();
+}
+
+
+void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
+  Representation r = instr->hydrogen()->value()->representation();
+  if (r.IsSmiOrInteger32() || r.IsDouble()) {
+    EmitBranch(instr, no_condition);
+  } else {
+    ASSERT(r.IsTagged());
+    Register reg = ToRegister(instr->value());
+    HType type = instr->hydrogen()->value()->type();
+    if (type.IsTaggedNumber()) {
+      EmitBranch(instr, no_condition);
+    }
+    __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
+    __ CompareRoot(FieldOperand(reg, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
+    EmitBranch(instr, equal);
+  }
 }
 
 
@@ -2027,7 +2012,7 @@ inline Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 }
 
 
-void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
+void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
   Condition cc = TokenToCondition(instr->op(), instr->is_double());
@@ -2610,6 +2595,16 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
       ? isolate()->builtins()->StoreIC_Initialize_Strict()
       : isolate()->builtins()->StoreIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+}
+
+
+void LCodeGen::DoLinkObjectInList(LLinkObjectInList* instr) {
+  Register object = ToRegister(instr->object());
+  ExternalReference sites_list_address = instr->GetReference(isolate());
+  __ Load(kScratchRegister, sites_list_address);
+  __ movq(FieldOperand(object, instr->hydrogen()->store_field().offset()),
+          kScratchRegister);
+  __ Store(sites_list_address, object);
 }
 
 
@@ -3871,7 +3866,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   __ Move(rbx, instr->hydrogen()->property_cell());
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
-      (AllocationSiteInfo::GetMode(kind) == TRACK_ALLOCATION_SITE)
+      (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
           ? DISABLE_ALLOCATION_SITES
           : DONT_OVERRIDE;
   ContextCheckMode context_mode = CONTEXT_CHECK_NOT_REQUIRED;
@@ -4316,7 +4311,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp = ToRegister(instr->temp());
-  __ TestJSArrayForAllocationSiteInfo(object, temp);
+  __ TestJSArrayForAllocationMemento(object, temp);
   DeoptimizeIf(equal, instr->environment());
 }
 
@@ -4324,7 +4319,7 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   EmitPushTaggedOperand(instr->left());
   EmitPushTaggedOperand(instr->right());
-  StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+  StringAddStub stub(instr->hydrogen()->flags());
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
@@ -5042,94 +5037,6 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 }
 
 
-void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
-  class DeferredAllocateObject: public LDeferredCode {
-   public:
-    DeferredAllocateObject(LCodeGen* codegen, LAllocateObject* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() { codegen()->DoDeferredAllocateObject(instr_); }
-    virtual LInstruction* instr() { return instr_; }
-   private:
-    LAllocateObject* instr_;
-  };
-
-  DeferredAllocateObject* deferred =
-      new(zone()) DeferredAllocateObject(this, instr);
-
-  Register result = ToRegister(instr->result());
-  Register scratch = ToRegister(instr->temp());
-  Handle<JSFunction> constructor = instr->hydrogen()->constructor();
-  Handle<Map> initial_map = instr->hydrogen()->constructor_initial_map();
-  int instance_size = initial_map->instance_size();
-  ASSERT(initial_map->pre_allocated_property_fields() +
-         initial_map->unused_property_fields() -
-         initial_map->inobject_properties() == 0);
-
-  __ Allocate(instance_size, result, no_reg, scratch, deferred->entry(),
-              TAG_OBJECT);
-
-  __ bind(deferred->exit());
-  if (FLAG_debug_code) {
-    Label is_in_new_space;
-    __ JumpIfInNewSpace(result, scratch, &is_in_new_space);
-    __ Abort("Allocated object is not in new-space");
-    __ bind(&is_in_new_space);
-  }
-
-  // Load the initial map.
-  Register map = scratch;
-  __ LoadHeapObject(scratch, constructor);
-  __ movq(map, FieldOperand(scratch, JSFunction::kPrototypeOrInitialMapOffset));
-
-  if (FLAG_debug_code) {
-    __ AssertNotSmi(map);
-    __ cmpb(FieldOperand(map, Map::kInstanceSizeOffset),
-            Immediate(instance_size >> kPointerSizeLog2));
-    __ Assert(equal, "Unexpected instance size");
-    __ cmpb(FieldOperand(map, Map::kPreAllocatedPropertyFieldsOffset),
-            Immediate(initial_map->pre_allocated_property_fields()));
-    __ Assert(equal, "Unexpected pre-allocated property fields count");
-    __ cmpb(FieldOperand(map, Map::kUnusedPropertyFieldsOffset),
-            Immediate(initial_map->unused_property_fields()));
-    __ Assert(equal, "Unexpected unused property fields count");
-    __ cmpb(FieldOperand(map, Map::kInObjectPropertiesOffset),
-            Immediate(initial_map->inobject_properties()));
-    __ Assert(equal, "Unexpected in-object property fields count");
-  }
-
-  // Initialize map and fields of the newly allocated object.
-  ASSERT(initial_map->instance_type() == JS_OBJECT_TYPE);
-  __ movq(FieldOperand(result, JSObject::kMapOffset), map);
-  __ LoadRoot(scratch, Heap::kEmptyFixedArrayRootIndex);
-  __ movq(FieldOperand(result, JSObject::kElementsOffset), scratch);
-  __ movq(FieldOperand(result, JSObject::kPropertiesOffset), scratch);
-  if (initial_map->inobject_properties() != 0) {
-    __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
-    for (int i = 0; i < initial_map->inobject_properties(); i++) {
-      int property_offset = JSObject::kHeaderSize + i * kPointerSize;
-      __ movq(FieldOperand(result, property_offset), scratch);
-    }
-  }
-}
-
-
-void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
-  Register result = ToRegister(instr->result());
-  Handle<Map> initial_map = instr->hydrogen()->constructor_initial_map();
-  int instance_size = initial_map->instance_size();
-
-  // TODO(3095996): Get rid of this. For now, we need to make the
-  // result register contain a valid pointer because it is already
-  // contained in the register pointer map.
-  __ Set(result, 0);
-
-  PushSafepointRegistersScope scope(this);
-  __ Push(Smi::FromInt(instance_size));
-  CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
-  __ StoreToSafepointRegisterSlot(result, rax);
-}
-
-
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate: public LDeferredCode {
    public:
@@ -5450,38 +5357,6 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 
 void LCodeGen::DoDummyUse(LDummyUse* instr) {
   // Nothing to see here, move on!
-}
-
-
-void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
-  LOperand* obj = instr->object();
-  LOperand* key = instr->key();
-  EmitPushTaggedOperand(obj);
-  EmitPushTaggedOperand(key);
-  ASSERT(instr->HasPointerMap());
-  LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
-  // Create safepoint generator that will also ensure enough space in the
-  // reloc info for patching in deoptimization (since this is invoking a
-  // builtin)
-  SafepointGenerator safepoint_generator(
-      this, pointers, Safepoint::kLazyDeopt);
-  __ Push(Smi::FromInt(strict_mode_flag()));
-  __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, safepoint_generator);
-}
-
-
-void LCodeGen::DoIn(LIn* instr) {
-  LOperand* obj = instr->object();
-  LOperand* key = instr->key();
-  EmitPushTaggedOperand(key);
-  EmitPushTaggedOperand(obj);
-  ASSERT(instr->HasPointerMap());
-  LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
-  SafepointGenerator safepoint_generator(
-      this, pointers, Safepoint::kLazyDeopt);
-  __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION, safepoint_generator);
 }
 
 

@@ -108,24 +108,24 @@ function assertKind(expected, obj, name_opt) {
   assertEquals(expected, getKind(obj), name_opt);
 }
 
+%NeverOptimizeFunction(construct_smis);
 function construct_smis() {
-  try {} catch (e) {} // TODO(titzer): DisableOptimization
   var a = [0, 0, 0];
   a[0] = 0;  // Send the COW array map to the steak house.
   assertKind(elements_kind.fast_smi_only, a);
   return a;
 }
 
+%NeverOptimizeFunction(construct_doubles);
 function construct_doubles() {
-  try {} catch (e) {} // TODO(titzer): DisableOptimization
   var a = construct_smis();
   a[0] = 1.5;
   assertKind(elements_kind.fast_double, a);
   return a;
 }
 
+%NeverOptimizeFunction(convert_mixed);
 function convert_mixed(array, value, kind) {
-  try {} catch (e) {} // TODO(titzer): DisableOptimization
   array[1] = value;
   assertKind(kind, array);
   assertEquals(value, array[1]);

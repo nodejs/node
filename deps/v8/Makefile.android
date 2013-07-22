@@ -35,11 +35,12 @@ ANDROID_BUILDS = $(foreach mode,$(MODES), \
                    $(addsuffix .$(mode),$(ANDROID_ARCHES)))
 
 HOST_OS = $(shell uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')
+ANDROID_NDK_HOST_ARCH ?= $(shell uname -m | sed -e 's/i[3456]86/x86/')
 ifeq ($(HOST_OS), linux)
-  TOOLCHAIN_DIR = linux-x86
+  TOOLCHAIN_DIR = linux-$(ANDROID_NDK_HOST_ARCH)
 else
   ifeq ($(HOST_OS), mac)
-    TOOLCHAIN_DIR = darwin-x86
+    TOOLCHAIN_DIR = darwin-$(ANDROID_NDK_HOST_ARCH)
   else
     $(error Host platform "${HOST_OS}" is not supported)
   endif
@@ -67,7 +68,9 @@ endif
 TOOLCHAIN_PATH = ${ANDROID_NDK_ROOT}/toolchains/${TOOLCHAIN_ARCH}/prebuilt
 ANDROID_TOOLCHAIN ?= ${TOOLCHAIN_PATH}/${TOOLCHAIN_DIR}
 ifeq ($(wildcard $(ANDROID_TOOLCHAIN)),)
-  $(error Cannot find Android toolchain in "${ANDROID_TOOLCHAIN}")
+  $(error Cannot find Android toolchain in "${ANDROID_TOOLCHAIN}".  Please \
+          check that ANDROID_NDK_ROOT and ANDROID_NDK_HOST_ARCH are set    \
+          correctly)
 endif
 
 # For mksnapshot host generation.
@@ -93,6 +96,7 @@ $(ANDROID_MAKEFILES):
 	GYP_DEFINES="${DEFINES}" \
 	CC="${ANDROID_TOOLCHAIN}/bin/*-gcc" \
 	CXX="${ANDROID_TOOLCHAIN}/bin/*-g++" \
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
 	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
 	              -S.${ARCH} ${GYPFLAGS}

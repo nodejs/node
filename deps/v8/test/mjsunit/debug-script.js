@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --expose-gc --noparallel-recompilation
-// Flags: --send-idle-notification
+// Flags: --expose-debug-as debug --expose-gc --send-idle-notification
 
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug;

@@ -29,6 +29,7 @@
 
 #include <stdlib.h>
 
+#define V8_DISABLE_DEPRECATIONS 1
 #include "v8.h"
 
 #include "api.h"
@@ -39,6 +40,7 @@
 #include "platform.h"
 #include "stub-cache.h"
 #include "utils.h"
+#undef V8_DISABLE_DEPRECATIONS
 
 
 using ::v8::internal::EmbeddedVector;
@@ -820,6 +822,8 @@ struct EvaluateCheck {
   const char* expr;  // An expression to evaluate when a break point is hit.
   v8::Handle<v8::Value> expected;  // The expected result.
 };
+
+
 // Array of checks to do.
 struct EvaluateCheck* checks = NULL;
 // Source for The JavaScript function which can do the evaluation when a break
@@ -1392,6 +1396,7 @@ static void CallWithBreakPoints(v8::Local<v8::Object> recv,
     CHECK_EQ((i + 1) * break_point_count, break_point_hit_count);
   }
 }
+
 
 // Test GC during break point processing.
 TEST(GCDuringBreakPointProcessing) {
@@ -2526,6 +2531,7 @@ static void CheckDebugEvent(const v8::Debug::EventDetails& eventDetails) {
   if (eventDetails.GetEvent() == v8::Break) ++debugEventCount;
 }
 
+
 // Test that the conditional breakpoints work event if code generation from
 // strings is prohibited in the debugee context.
 TEST(ConditionalBreakpointWithCodeGenerationDisallowed) {
@@ -2570,6 +2576,7 @@ static void CheckDebugEval(const v8::Debug::EventDetails& eventDetails) {
         eventDetails.GetEventContext()->Global(), 1, args)->IsTrue());
   }
 }
+
 
 // Test that the evaluation of expressions when a break point is hit generates
 // the correct results in case code generation from strings is disallowed in the
@@ -2624,6 +2631,7 @@ int AsciiToUtf16(const char* input_buffer, uint16_t* output_buffer) {
   output_buffer[i] = 0;
   return i;
 }
+
 
 // Copies a 16-bit string to a C string by dropping the high byte of
 // each character.  Does not check for buffer overflow.
@@ -2711,6 +2719,7 @@ static void DebugProcessDebugMessagesHandler(
     process_debug_messages_data.next();
   }
 }
+
 
 // Test that the evaluation of expressions works even from ProcessDebugMessages
 // i.e. with empty stack.
@@ -4265,6 +4274,7 @@ TEST(NoBreakWhenBootstrapping) {
   CheckDebuggerUnloaded();
 }
 
+
 static void NamedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Handle<v8::Array> result = v8::Array::New(3);
   result->Set(v8::Integer::New(0), v8::String::New("a"));
@@ -4709,6 +4719,7 @@ ThreadBarrier::ThreadBarrier(int num_threads)
   invalid_ = false;  // A barrier may only be used once.  Then it is invalid.
 }
 
+
 // Do not call, due to race condition with Wait().
 // Could be resolved with Pthread condition variables.
 ThreadBarrier::~ThreadBarrier() {
@@ -4716,6 +4727,7 @@ ThreadBarrier::~ThreadBarrier() {
   delete lock_;
   delete sem_;
 }
+
 
 void ThreadBarrier::Wait() {
   lock_->Lock();
@@ -4735,6 +4747,7 @@ void ThreadBarrier::Wait() {
     sem_->Wait();  // these two lines are not atomic.
   }
 }
+
 
 // A set containing enough barriers and semaphores for any of the tests.
 class Barriers {
@@ -4845,6 +4858,7 @@ int GetSourceLineFromBreakEventMessage(char *message) {
   return res;
 }
 
+
 /* Test MessageQueues */
 /* Tests the message queues that hold debugger commands and
  * response messages to the debugger.  Fills queues and makes
@@ -4875,6 +4889,7 @@ static void MessageHandler(const uint16_t* message, int length,
   // messages while blocked.
   message_queue_barriers.semaphore_1->Wait();
 }
+
 
 void MessageQueueDebuggerThread::Run() {
   const int kBufferSize = 1000;
@@ -5175,6 +5190,7 @@ void V8Thread::Run() {
   CompileRun(source);
 }
 
+
 void DebuggerThread::Run() {
   const int kBufSize = 1000;
   uint16_t buffer[kBufSize];
@@ -5208,6 +5224,7 @@ TEST(ThreadedDebugging) {
   v8_thread.Join();
   debugger_thread.Join();
 }
+
 
 /* Test RecursiveBreakpoints */
 /* In this test, the debugger evaluates a function with a breakpoint, after
@@ -5400,6 +5417,7 @@ void BreakpointsDebuggerThread::Run() {
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_8, buffer));
 }
 
+
 void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
   i::FLAG_debugger_auto_break = true;
 
@@ -5418,9 +5436,11 @@ void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
   breakpoints_debugger_thread.Join();
 }
 
+
 TEST(RecursiveBreakpoints) {
   TestRecursiveBreakpointsGeneric(false);
 }
+
 
 TEST(RecursiveBreakpointsGlobal) {
   TestRecursiveBreakpointsGeneric(true);
@@ -6270,8 +6290,6 @@ TEST(ContextData) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
 
-  v8::Debug::SetMessageHandler2(ContextCheckMessageHandler);
-
   // Create two contexts.
   v8::Handle<v8::Context> context_1;
   v8::Handle<v8::Context> context_2;
@@ -6280,6 +6298,8 @@ TEST(ContextData) {
   v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>();
   context_1 = v8::Context::New(isolate, NULL, global_template, global_object);
   context_2 = v8::Context::New(isolate, NULL, global_template, global_object);
+
+  v8::Debug::SetMessageHandler2(ContextCheckMessageHandler);
 
   // Default data value is undefined.
   CHECK(context_1->GetEmbedderData(0)->IsUndefined());
@@ -6438,13 +6458,16 @@ TEST(RegExpDebugBreak) {
 
 
 // Common part of EvalContextData and NestedBreakEventContextData tests.
-static void ExecuteScriptForContextCheck() {
+static void ExecuteScriptForContextCheck(
+    v8::Debug::MessageHandler2 message_handler) {
   // Create a context.
   v8::Handle<v8::Context> context_1;
   v8::Handle<v8::ObjectTemplate> global_template =
       v8::Handle<v8::ObjectTemplate>();
   context_1 =
       v8::Context::New(v8::Isolate::GetCurrent(), NULL, global_template);
+
+  v8::Debug::SetMessageHandler2(message_handler);
 
   // Default data value is undefined.
   CHECK(context_1->GetEmbedderData(0)->IsUndefined());
@@ -6465,6 +6488,8 @@ static void ExecuteScriptForContextCheck() {
     v8::Local<v8::Function> f = CompileFunction(source, "f");
     f->Call(context_1->Global(), 0, NULL);
   }
+
+  v8::Debug::SetMessageHandler2(NULL);
 }
 
 
@@ -6474,13 +6499,11 @@ static void ExecuteScriptForContextCheck() {
 // Message.GetEventContext.
 TEST(EvalContextData) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  v8::Debug::SetMessageHandler2(ContextCheckMessageHandler);
 
-  ExecuteScriptForContextCheck();
+  ExecuteScriptForContextCheck(ContextCheckMessageHandler);
 
   // One time compile event and one time break event.
   CHECK_GT(message_handler_hit_count, 2);
-  v8::Debug::SetMessageHandler2(NULL);
   CheckDebuggerUnloaded();
 }
 
@@ -6539,16 +6562,14 @@ TEST(NestedBreakEventContextData) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   break_count = 0;
   message_handler_hit_count = 0;
-  v8::Debug::SetMessageHandler2(DebugEvalContextCheckMessageHandler);
 
-  ExecuteScriptForContextCheck();
+  ExecuteScriptForContextCheck(DebugEvalContextCheckMessageHandler);
 
   // One time compile event and two times break event.
   CHECK_GT(message_handler_hit_count, 3);
 
   // One break from the source and another from the evaluate request.
   CHECK_EQ(break_count, 2);
-  v8::Debug::SetMessageHandler2(NULL);
   CheckDebuggerUnloaded();
 }
 
@@ -6873,6 +6894,7 @@ static void CountingMessageHandler(const v8::Debug::Message& message) {
   counting_message_handler_counter++;
 }
 
+
 // Test that debug messages get processed when ProcessDebugMessages is called.
 TEST(ProcessDebugMessages) {
   DebugLocalContext env;
@@ -7112,14 +7134,15 @@ static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
   CHECK_EQ(expected_callback_data, details.GetCallbackData());
 }
 
+
 // Check that event details contain context where debug event occured.
 TEST(DebugEventContext) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
   expected_callback_data = v8::Int32::New(2010);
+  expected_context = v8::Context::New(isolate);
   v8::Debug::SetDebugEventListener2(DebugEventContextChecker,
                                     expected_callback_data);
-  expected_context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(expected_context);
   v8::Script::Compile(v8::String::New("(function(){debugger;})();"))->Run();
   expected_context.Clear();

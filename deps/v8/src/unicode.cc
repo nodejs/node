@@ -52,13 +52,16 @@ static inline uchar TableGet(const int32_t* table, int index) {
   return table[D * index];
 }
 
+
 static inline uchar GetEntry(int32_t entry) {
   return entry & (kStartBit - 1);
 }
 
+
 static inline bool IsStart(int32_t entry) {
   return (entry & kStartBit) != 0;
 }
+
 
 /**
  * Look up a character in the unicode table using a mix of binary and
@@ -105,6 +108,7 @@ struct MultiCharacterSpecialCase {
   static const uchar kEndOfEncoding = kSentinel;
   uchar chars[kW];
 };
+
 
 // Look up the mapping for the given character in the specified table,
 // which is of the specified length and uses the specified special case
@@ -456,6 +460,7 @@ bool Uppercase::Is(uchar c) {
   }
 }
 
+
 // Lowercase:            point.category == 'Ll'
 
 static const uint16_t kLowercaseTable0Size = 463;
@@ -566,6 +571,7 @@ bool Lowercase::Is(uchar c) {
     default: return false;
   }
 }
+
 
 // Letter:               point.category in ['Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nl' ]
 
@@ -703,6 +709,7 @@ bool Letter::Is(uchar c) {
   }
 }
 
+
 // Space:                point.category == 'Zs'
 
 static const uint16_t kSpaceTable0Size = 4;
@@ -723,6 +730,7 @@ bool Space::Is(uchar c) {
     default: return false;
   }
 }
+
 
 // Number:               point.category == 'Nd'
 
@@ -758,6 +766,7 @@ bool Number::Is(uchar c) {
   }
 }
 
+
 // WhiteSpace:           'Ws' in point.properties
 
 static const uint16_t kWhiteSpaceTable0Size = 7;
@@ -779,6 +788,7 @@ bool WhiteSpace::Is(uchar c) {
   }
 }
 
+
 // LineTerminator:       'Lt' in point.properties
 
 static const uint16_t kLineTerminatorTable0Size = 2;
@@ -799,6 +809,7 @@ bool LineTerminator::Is(uchar c) {
     default: return false;
   }
 }
+
 
 // CombiningMark:        point.category in ['Mn', 'Mc']
 
@@ -870,6 +881,7 @@ bool CombiningMark::Is(uchar c) {
     default: return false;
   }
 }
+
 
 // ConnectorPunctuation: point.category == 'Pc'
 

@@ -35,26 +35,19 @@ namespace internal {
 
 
 const char* const Log::kLogToTemporaryFile = "&";
+const char* const Log::kLogToConsole = "-";
 
 
 Log::Log(Logger* logger)
   : is_stopped_(false),
     output_handle_(NULL),
-    ll_output_handle_(NULL),
     mutex_(NULL),
     message_buffer_(NULL),
     logger_(logger) {
 }
 
 
-static void AddIsolateIdIfNeeded(StringStream* stream) {
-  Isolate* isolate = Isolate::Current();
-  if (isolate->IsDefaultIsolate()) return;
-  stream->Add("isolate-%p-", isolate);
-}
-
-
-void Log::Initialize() {
+void Log::Initialize(const char* log_file_name) {
   mutex_ = OS::CreateMutex();
   message_buffer_ = NewArray<char>(kMessageBufferSize);
 
@@ -81,55 +74,12 @@ void Log::Initialize() {
 
   // If we're logging anything, we need to open the log file.
   if (Log::InitLogAtStart()) {
-    if (strcmp(FLAG_logfile, "-") == 0) {
+    if (strcmp(log_file_name, kLogToConsole) == 0) {
       OpenStdout();
-    } else if (strcmp(FLAG_logfile, kLogToTemporaryFile) == 0) {
+    } else if (strcmp(log_file_name, kLogToTemporaryFile) == 0) {
       OpenTemporaryFile();
     } else {
-      if (strchr(FLAG_logfile, '%') != NULL ||
-          !Isolate::Current()->IsDefaultIsolate()) {
-        // If there's a '%' in the log file name we have to expand
-        // placeholders.
-        HeapStringAllocator allocator;
-        StringStream stream(&allocator);
-        AddIsolateIdIfNeeded(&stream);
-        for (const char* p = FLAG_logfile; *p; p++) {
-          if (*p == '%') {
-            p++;
-            switch (*p) {
-              case '\0':
-                // If there's a % at the end of the string we back up
-                // one character so we can escape the loop properly.
-                p--;
-                break;
-              case 'p':
-                stream.Add("%d", OS::GetCurrentProcessId());
-                break;
-              case 't': {
-                // %t expands to the current time in milliseconds.
-                double time = OS::TimeCurrentMillis();
-                stream.Add("%.0f", FmtElm(time));
-                break;
-              }
-              case '%':
-                // %% expands (contracts really) to %.
-                stream.Put('%');
-                break;
-              default:
-                // All other %'s expand to themselves.
-                stream.Put('%');
-                stream.Put(*p);
-                break;
-            }
-          } else {
-            stream.Put(*p);
-          }
-        }
-        SmartArrayPointer<const char> expanded = stream.ToCString();
-        OpenFile(*expanded);
-      } else {
-        OpenFile(FLAG_logfile);
-      }
+      OpenFile(log_file_name);
     }
   }
 }
@@ -147,27 +97,9 @@ void Log::OpenTemporaryFile() {
 }
 
 
-// Extension added to V8 log file name to get the low-level log name.
-static const char kLowLevelLogExt[] = ".ll";
-
-// File buffer size of the low-level log. We don't use the default to
-// minimize the associated overhead.
-static const int kLowLevelLogBufferSize = 2 * MB;
-
-
 void Log::OpenFile(const char* name) {
   ASSERT(!IsEnabled());
   output_handle_ = OS::FOpen(name, OS::LogFileOpenMode);
-  if (FLAG_ll_prof) {
-    // Open the low-level log file.
-    size_t len = strlen(name);
-    ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLowLevelLogExt)));
-    OS::MemCopy(ll_name.start(), name, len);
-    OS::MemCopy(ll_name.start() + len,
-                kLowLevelLogExt, sizeof(kLowLevelLogExt));
-    ll_output_handle_ = OS::FOpen(ll_name.start(), OS::LogFileOpenMode);
-    setvbuf(ll_output_handle_, NULL, _IOFBF, kLowLevelLogBufferSize);
-  }
 }
 
 
@@ -181,8 +113,6 @@ FILE* Log::Close() {
     }
   }
   output_handle_ = NULL;
-  if (ll_output_handle_ != NULL) fclose(ll_output_handle_);
-  ll_output_handle_ = NULL;
 
   DeleteArray(message_buffer_);
   message_buffer_ = NULL;
@@ -195,15 +125,15 @@ FILE* Log::Close() {
 }
 
 
-LogMessageBuilder::LogMessageBuilder(Logger* logger)
-  : log_(logger->log_),
+Log::MessageBuilder::MessageBuilder(Log* log)
+  : log_(log),
     sl(log_->mutex_),
     pos_(0) {
   ASSERT(log_->message_buffer_ != NULL);
 }
 
 
-void LogMessageBuilder::Append(const char* format, ...) {
+void Log::MessageBuilder::Append(const char* format, ...) {
   Vector<char> buf(log_->message_buffer_ + pos_,
                    Log::kMessageBufferSize - pos_);
   va_list args;
@@ -214,7 +144,7 @@ void LogMessageBuilder::Append(const char* format, ...) {
 }
 
 
-void LogMessageBuilder::AppendVA(const char* format, va_list args) {
+void Log::MessageBuilder::AppendVA(const char* format, va_list args) {
   Vector<char> buf(log_->message_buffer_ + pos_,
                    Log::kMessageBufferSize - pos_);
   int result = v8::internal::OS::VSNPrintF(buf, format, args);
@@ -229,7 +159,7 @@ void LogMessageBuilder::AppendVA(const char* format, va_list args) {
 }
 
 
-void LogMessageBuilder::Append(const char c) {
+void Log::MessageBuilder::Append(const char c) {
   if (pos_ < Log::kMessageBufferSize) {
     log_->message_buffer_[pos_++] = c;
   }
@@ -237,7 +167,7 @@ void LogMessageBuilder::Append(const char c) {
 }
 
 
-void LogMessageBuilder::AppendDoubleQuotedString(const char* string) {
+void Log::MessageBuilder::AppendDoubleQuotedString(const char* string) {
   Append('"');
   for (const char* p = string; *p != '\0'; p++) {
     if (*p == '"') {
@@ -249,7 +179,7 @@ void LogMessageBuilder::AppendDoubleQuotedString(const char* string) {
 }
 
 
-void LogMessageBuilder::Append(String* str) {
+void Log::MessageBuilder::Append(String* str) {
   DisallowHeapAllocation no_gc;  // Ensure string stay valid.
   int length = str->length();
   for (int i = 0; i < length; i++) {
@@ -258,12 +188,24 @@ void LogMessageBuilder::Append(String* str) {
 }
 
 
-void LogMessageBuilder::AppendAddress(Address addr) {
+void Log::MessageBuilder::AppendAddress(Address addr) {
   Append("0x%" V8PRIxPTR, addr);
 }
 
 
-void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
+void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
+  ASSERT(symbol);
+  Append("symbol(");
+  if (!symbol->name()->IsUndefined()) {
+    Append("\"");
+    AppendDetailed(String::cast(symbol->name()), false);
+    Append("\" ");
+  }
+  Append("hash %x)", symbol->Hash());
+}
+
+
+void Log::MessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
   if (str == NULL) return;
   DisallowHeapAllocation no_gc;  // Ensure string stay valid.
   int len = str->length();
@@ -296,7 +238,7 @@ void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
 }
 
 
-void LogMessageBuilder::AppendStringPart(const char* str, int len) {
+void Log::MessageBuilder::AppendStringPart(const char* str, int len) {
   if (pos_ + len > Log::kMessageBufferSize) {
     len = Log::kMessageBufferSize - pos_;
     ASSERT(len >= 0);
@@ -310,7 +252,7 @@ void LogMessageBuilder::AppendStringPart(const char* str, int len) {
 }
 
 
-void LogMessageBuilder::WriteToLogFile() {
+void Log::MessageBuilder::WriteToLogFile() {
   ASSERT(pos_ <= Log::kMessageBufferSize);
   const int written = log_->WriteToFile(log_->message_buffer_, pos_);
   if (written != pos_) {

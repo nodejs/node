@@ -42,7 +42,8 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       octal_pos_(Location::invalid()),
       harmony_scoping_(false),
-      harmony_modules_(false) { }
+      harmony_modules_(false),
+      harmony_numeric_literals_(false) { }
 
 
 void Scanner::Initialize(Utf16CharacterStream* source) {
@@ -719,7 +720,7 @@ void Scanner::ScanDecimalDigits() {
 Token::Value Scanner::ScanNumber(bool seen_period) {
   ASSERT(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
 
-  enum { DECIMAL, HEX, OCTAL } kind = DECIMAL;
+  enum { DECIMAL, HEX, OCTAL, IMPLICIT_OCTAL, BINARY } kind = DECIMAL;
 
   LiteralScope literal(this);
   if (seen_period) {
@@ -733,7 +734,8 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
       int start_pos = source_pos();  // For reporting octal positions.
       AddLiteralCharAdvance();
 
-      // either 0, 0exxx, 0Exxx, 0.xxx, an octal number, or a hex number
+      // either 0, 0exxx, 0Exxx, 0.xxx, a hex number, a binary number or
+      // an octal number.
       if (c0_ == 'x' || c0_ == 'X') {
         // hex number
         kind = HEX;
@@ -745,9 +747,29 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         while (IsHexDigit(c0_)) {
           AddLiteralCharAdvance();
         }
+      } else if (harmony_numeric_literals_ && (c0_ == 'o' || c0_ == 'O')) {
+        kind = OCTAL;
+        AddLiteralCharAdvance();
+        if (!IsOctalDigit(c0_)) {
+          // we must have at least one octal digit after 'o'/'O'
+          return Token::ILLEGAL;
+        }
+        while (IsOctalDigit(c0_)) {
+          AddLiteralCharAdvance();
+        }
+      } else if (harmony_numeric_literals_ && (c0_ == 'b' || c0_ == 'B')) {
+        kind = BINARY;
+        AddLiteralCharAdvance();
+        if (!IsBinaryDigit(c0_)) {
+          // we must have at least one binary digit after 'b'/'B'
+          return Token::ILLEGAL;
+        }
+        while (IsBinaryDigit(c0_)) {
+          AddLiteralCharAdvance();
+        }
       } else if ('0' <= c0_ && c0_ <= '7') {
         // (possible) octal number
-        kind = OCTAL;
+        kind = IMPLICIT_OCTAL;
         while (true) {
           if (c0_ == '8' || c0_ == '9') {
             kind = DECIMAL;
@@ -776,7 +798,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   // scan exponent, if any
   if (c0_ == 'e' || c0_ == 'E') {
     ASSERT(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
-    if (kind == OCTAL) return Token::ILLEGAL;  // no exponent for octals allowed
+    if (kind != DECIMAL) return Token::ILLEGAL;
     // scan exponent
     AddLiteralCharAdvance();
     if (c0_ == '+' || c0_ == '-')

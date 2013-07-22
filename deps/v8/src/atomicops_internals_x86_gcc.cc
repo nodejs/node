@@ -124,6 +124,7 @@ class AtomicOpsx86Initializer {
   }
 };
 
+
 // A global to get use initialized on startup via static initialization :/
 AtomicOpsx86Initializer g_initer;
 

@@ -501,10 +501,12 @@ bool Assembler::IsBranch(Instr instr) {
       (opcode == COP1 && rs_field == BC1);  // Coprocessor branch.
 }
 
+
 bool Assembler::IsEmittedConstant(Instr instr) {
   uint32_t label_constant = GetLabelConst(instr);
   return label_constant == 0;  // Emitted label const in reg-exp engine.
 }
+
 
 bool Assembler::IsBeq(Instr instr) {
   return GetOpcodeField(instr) == BEQ;
@@ -539,9 +541,11 @@ bool Assembler::IsJal(Instr instr) {
   return GetOpcodeField(instr) == JAL;
 }
 
+
 bool Assembler::IsJr(Instr instr) {
   return GetOpcodeField(instr) == SPECIAL && GetFunctionField(instr) == JR;
 }
+
 
 bool Assembler::IsJalr(Instr instr) {
   return GetOpcodeField(instr) == SPECIAL && GetFunctionField(instr) == JALR;
@@ -825,12 +829,14 @@ void Assembler::next(Label* L) {
   }
 }
 
+
 bool Assembler::is_near(Label* L) {
   if (L->is_bound()) {
     return ((pc_offset() - L->pos()) < kMaxBranchOffset - 4 * kInstrSize);
   }
   return false;
 }
+
 
 // We have to use a temporary register for things that can be relocated even
 // if they can be encoded in the MIPS's 16 bits of immediate-offset instruction
@@ -1669,6 +1675,7 @@ void Assembler::cfc1(Register rt, FPUControlRegister fs) {
   GenInstrRegister(COP1, CFC1, rt, fs);
 }
 
+
 void Assembler::DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i;
   OS::MemCopy(&i, &d, 8);
@@ -1676,6 +1683,7 @@ void Assembler::DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   *lo = i & 0xffffffff;
   *hi = i >> 32;
 }
+
 
 // Arithmetic.
 
@@ -2256,6 +2264,7 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 
   CPU::FlushICache(pc, (patched_jump ? 3 : 2) * sizeof(int32_t));
 }
+
 
 void Assembler::JumpLabelToJumpRegister(Address pc) {
   // Address pc points to lui/ori instructions.

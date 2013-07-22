@@ -2477,7 +2477,8 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
                                 QuickCheckDetails* details,
                                 bool fall_through_on_failure) {
   if (details->characters() == 0) return false;
-  GetQuickCheckDetails(details, compiler, 0, trace->at_start() == Trace::FALSE);
+  GetQuickCheckDetails(
+      details, compiler, 0, trace->at_start() == Trace::FALSE_VALUE);
   if (details->cannot_match()) return false;
   if (!details->Rationalize(compiler->ascii())) return false;
   ASSERT(details->characters() == 1 ||
@@ -3066,7 +3067,7 @@ static void EmitHat(RegExpCompiler* compiler,
 void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   Trace::TriBool next_is_word_character = Trace::UNKNOWN;
-  bool not_at_start = (trace->at_start() == Trace::FALSE);
+  bool not_at_start = (trace->at_start() == Trace::FALSE_VALUE);
   BoyerMooreLookahead* lookahead = bm_info(not_at_start);
   if (lookahead == NULL) {
     int eats_at_least =
@@ -3077,12 +3078,15 @@ void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
       BoyerMooreLookahead* bm =
           new(zone()) BoyerMooreLookahead(eats_at_least, compiler, zone());
       FillInBMInfo(0, kRecursionBudget, bm, not_at_start);
-      if (bm->at(0)->is_non_word()) next_is_word_character = Trace::FALSE;
-      if (bm->at(0)->is_word()) next_is_word_character = Trace::TRUE;
+      if (bm->at(0)->is_non_word())
+        next_is_word_character = Trace::FALSE_VALUE;
+      if (bm->at(0)->is_word()) next_is_word_character = Trace::TRUE_VALUE;
     }
   } else {
-    if (lookahead->at(0)->is_non_word()) next_is_word_character = Trace::FALSE;
-    if (lookahead->at(0)->is_word()) next_is_word_character = Trace::TRUE;
+    if (lookahead->at(0)->is_non_word())
+      next_is_word_character = Trace::FALSE_VALUE;
+    if (lookahead->at(0)->is_word())
+      next_is_word_character = Trace::TRUE_VALUE;
   }
   bool at_boundary = (assertion_type_ == AssertionNode::AT_BOUNDARY);
   if (next_is_word_character == Trace::UNKNOWN) {
@@ -3102,10 +3106,10 @@ void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
     assembler->Bind(&before_word);
     BacktrackIfPrevious(compiler, trace, at_boundary ? kIsWord : kIsNonWord);
     assembler->Bind(&ok);
-  } else if (next_is_word_character == Trace::TRUE) {
+  } else if (next_is_word_character == Trace::TRUE_VALUE) {
     BacktrackIfPrevious(compiler, trace, at_boundary ? kIsWord : kIsNonWord);
   } else {
-    ASSERT(next_is_word_character == Trace::FALSE);
+    ASSERT(next_is_word_character == Trace::FALSE_VALUE);
     BacktrackIfPrevious(compiler, trace, at_boundary ? kIsNonWord : kIsWord);
   }
 }
@@ -3169,7 +3173,7 @@ void AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       break;
     }
     case AT_START: {
-      if (trace->at_start() == Trace::FALSE) {
+      if (trace->at_start() == Trace::FALSE_VALUE) {
         assembler->GoTo(trace->backtrack());
         return;
       }
@@ -3986,7 +3990,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   int first_normal_choice = greedy_loop ? 1 : 0;
 
-  bool not_at_start = current_trace->at_start() == Trace::FALSE;
+  bool not_at_start = current_trace->at_start() == Trace::FALSE_VALUE;
   const int kEatsAtLeastNotYetInitialized = -1;
   int eats_at_least = kEatsAtLeastNotYetInitialized;
 
@@ -4057,7 +4061,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       new_trace.set_bound_checked_up_to(preload_characters);
     }
     new_trace.quick_check_performed()->Clear();
-    if (not_at_start_) new_trace.set_at_start(Trace::FALSE);
+    if (not_at_start_) new_trace.set_at_start(Trace::FALSE_VALUE);
     alt_gen->expects_preload = preload_is_current;
     bool generate_full_check_inline = false;
     if (FLAG_regexp_optimization &&
@@ -4157,7 +4161,7 @@ void ChoiceNode::EmitOutOfLineContinuation(RegExpCompiler* compiler,
   Trace out_of_line_trace(*trace);
   out_of_line_trace.set_characters_preloaded(preload_characters);
   out_of_line_trace.set_quick_check_performed(&alt_gen->quick_check_details);
-  if (not_at_start_) out_of_line_trace.set_at_start(Trace::FALSE);
+  if (not_at_start_) out_of_line_trace.set_at_start(Trace::FALSE_VALUE);
   ZoneList<Guard*>* guards = alternative.guards();
   int guard_count = (guards == NULL) ? 0 : guards->length();
   if (next_expects_preload) {

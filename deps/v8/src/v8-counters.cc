@@ -73,10 +73,11 @@ Counters::Counters(Isolate* isolate) {
     count_of_FIXED_ARRAY_##name##_ = \
         StatsCounter("c:" "V8.CountOf_FIXED_ARRAY-" #name); \
     size_of_FIXED_ARRAY_##name##_ = \
-        StatsCounter("c:" "V8.SizeOf_FIXED_ARRAY-" #name); \
+        StatsCounter("c:" "V8.SizeOf_FIXED_ARRAY-" #name);
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 }
+
 
 void Counters::ResetHistograms() {
 #define HT(name, caption) name##_.Reset();

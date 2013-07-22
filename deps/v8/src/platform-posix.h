@@ -28,11 +28,81 @@
 #ifndef V8_PLATFORM_POSIX_H_
 #define V8_PLATFORM_POSIX_H_
 
+#if !defined(ANDROID)
+#include <cxxabi.h>
+#endif
+#include <stdio.h>
+
+#include "platform.h"
+
 namespace v8 {
 namespace internal {
 
 // Used by platform implementation files during OS::PostSetUp().
 void POSIXPostSetUp();
+
+// Used by platform implementation files during OS::DumpBacktrace()
+// and OS::StackWalk().
+template<int (*backtrace)(void**, int),
+         char** (*backtrace_symbols)(void* const*, int)>
+struct POSIXBacktraceHelper {
+  static void DumpBacktrace() {
+    void* trace[100];
+    int size = backtrace(trace, ARRAY_SIZE(trace));
+    char** symbols = backtrace_symbols(trace, size);
+    fprintf(stderr, "\n==== C stack trace ===============================\n\n");
+    if (size == 0) {
+      fprintf(stderr, "(empty)\n");
+    } else if (symbols == NULL) {
+      fprintf(stderr, "(no symbols)\n");
+    } else {
+      for (int i = 1; i < size; ++i) {
+        fprintf(stderr, "%2d: ", i);
+        char mangled[201];
+        if (sscanf(symbols[i], "%*[^(]%*[(]%200[^)+]", mangled) == 1) {// NOLINT
+          char* demangled = NULL;
+#if !defined(ANDROID)
+          int status;
+          size_t length;
+          demangled = abi::__cxa_demangle(mangled, NULL, &length, &status);
+#endif
+          fprintf(stderr, "%s\n", demangled != NULL ? demangled : mangled);
+          free(demangled);
+        } else {
+          fprintf(stderr, "??\n");
+        }
+      }
+    }
+    fflush(stderr);
+    free(symbols);
+  }
+
+  static int StackWalk(Vector<OS::StackFrame> frames) {
+    int frames_size = frames.length();
+    ScopedVector<void*> addresses(frames_size);
+
+    int frames_count = backtrace(addresses.start(), frames_size);
+
+    char** symbols = backtrace_symbols(addresses.start(), frames_count);
+    if (symbols == NULL) {
+      return OS::kStackWalkError;
+    }
+
+    for (int i = 0; i < frames_count; i++) {
+      frames[i].address = addresses[i];
+      // Format a text representation of the frame based on the information
+      // available.
+      OS::SNPrintF(MutableCStrVector(frames[i].text, OS::kStackWalkMaxTextLen),
+                   "%s", symbols[i]);
+      // Make sure line termination is in place.
+      frames[i].text[OS::kStackWalkMaxTextLen - 1] = '\0';
+    }
+
+    free(symbols);
+
+    return frames_count;
+  }
+};
 
 } }  // namespace v8::internal
 

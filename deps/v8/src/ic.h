@@ -57,7 +57,6 @@ namespace internal {
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
-  ICU(UnaryOp_Patch)                                  \
   ICU(BinaryOp_Patch)                                 \
   ICU(CompareIC_Miss)                                 \
   ICU(CompareNilIC_Miss)                              \
@@ -170,14 +169,25 @@ class IC {
 
   virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
-                                   Handle<String> name) {
+                                   Handle<String> name,
+                                   StrictModeFlag strict_mode) {
     set_target(*handler);
   }
   bool UpdatePolymorphicIC(State state,
-                           StrictModeFlag strict_mode,
                            Handle<JSObject> receiver,
                            Handle<String> name,
-                           Handle<Code> code);
+                           Handle<Code> code,
+                           StrictModeFlag strict_mode);
+
+  virtual Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                            CodeHandleList* handlers,
+                                            int number_of_valid_maps,
+                                            Handle<Name> name,
+                                            StrictModeFlag strict_mode) {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  };
+
   void CopyICToMegamorphicCache(Handle<String> name);
   bool IsTransitionedMapOfMonomorphicTarget(Map* receiver_map);
   void PatchCache(State state,
@@ -392,9 +402,18 @@ class LoadIC: public IC {
                     State state,
                     Handle<Object> object,
                     Handle<String> name);
+
   virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
-                                   Handle<String> name);
+                                   Handle<String> name,
+                                   StrictModeFlag strict_mode);
+
+  virtual Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                            CodeHandleList* handlers,
+                                            int number_of_valid_maps,
+                                            Handle<Name> name,
+                                            StrictModeFlag strict_mode);
+
   virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
                                           Handle<JSObject> receiver,
                                           Handle<String> name);
@@ -468,7 +487,8 @@ class KeyedLoadIC: public LoadIC {
   // Update the inline cache.
   virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
-                                   Handle<String> name);
+                                   Handle<String> name,
+                                   StrictModeFlag strict_mode);
   virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
                                           Handle<JSObject> receiver,
                                           Handle<String> name);
@@ -545,6 +565,16 @@ class StoreIC: public IC {
     return isolate()->builtins()->StoreIC_GlobalProxy_Strict();
   }
 
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                   Handle<Code> handler,
+                                   Handle<String> name,
+                                   StrictModeFlag strict_mode);
+
+  virtual Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                            CodeHandleList* handlers,
+                                            int number_of_valid_maps,
+                                            Handle<Name> name,
+                                            StrictModeFlag strict_mode);
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -560,7 +590,8 @@ class StoreIC: public IC {
   virtual Handle<Code> ComputeStoreMonomorphic(LookupResult* lookup,
                                                StrictModeFlag strict_mode,
                                                Handle<JSObject> receiver,
-                                               Handle<String> name);
+                                               Handle<String> name,
+                                               Handle<Object> value);
 
  private:
   void set_target(Code* code) {
@@ -627,7 +658,8 @@ class KeyedStoreIC: public StoreIC {
   virtual Handle<Code> ComputeStoreMonomorphic(LookupResult* lookup,
                                                StrictModeFlag strict_mode,
                                                Handle<JSObject> receiver,
-                                               Handle<String> name);
+                                               Handle<String> name,
+                                               Handle<Object> value);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
   virtual Handle<Code> megamorphic_stub() {
@@ -640,6 +672,11 @@ class KeyedStoreIC: public StoreIC {
   Handle<Code> StoreElementStub(Handle<JSObject> receiver,
                                 KeyedAccessStoreMode store_mode,
                                 StrictModeFlag strict_mode);
+
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                   Handle<Code> handler,
+                                   Handle<String> name,
+                                   StrictModeFlag strict_mode);
 
  private:
   void set_target(Code* code) {
@@ -681,28 +718,9 @@ class KeyedStoreIC: public StoreIC {
 
 class UnaryOpIC: public IC {
  public:
-  // sorted: increasingly more unspecific (ignoring UNINITIALIZED)
-  // TODO(svenpanne) Using enums+switch is an antipattern, use a class instead.
-  enum TypeInfo {
-    UNINITIALIZED,
-    SMI,
-    NUMBER,
-    GENERIC
-  };
+  explicit UnaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
 
-  static Handle<Type> TypeInfoToType(TypeInfo info, Isolate* isolate);
-
-  explicit UnaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
-
-  void patch(Code* code);
-
-  static const char* GetName(TypeInfo type_info);
-
-  static State ToState(TypeInfo type_info);
-
-  static TypeInfo GetTypeInfo(Handle<Object> operand);
-
-  static TypeInfo ComputeNewType(TypeInfo type, TypeInfo previous);
+  MUST_USE_RESULT MaybeObject* Transition(Handle<Object> object);
 };
 
 
@@ -838,6 +856,9 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
 
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, UnaryOpIC_Miss);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, CompareNilIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, ToBooleanIC_Miss);
 

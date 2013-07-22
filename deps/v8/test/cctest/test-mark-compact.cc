@@ -310,6 +310,7 @@ static void WeakPointerCallback(v8::Isolate* isolate,
   handle->Dispose(isolate);
 }
 
+
 TEST(ObjectGroups) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();
@@ -560,7 +561,7 @@ TEST(BootUpMemoryUse) {
       if (v8::internal::Snapshot::IsEnabled()) {
         CHECK_LE(delta, 3100 * 1024);
       } else {
-        CHECK_LE(delta, 3400 * 1024);
+        CHECK_LE(delta, 3450 * 1024);
       }
     }
   }

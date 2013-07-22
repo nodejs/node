@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --noparallel-recompilation
 
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile
@@ -144,11 +143,11 @@ if (support_smi_only_arrays) {
   deopt_array(false);
   %OptimizeFunctionOnNextCall(deopt_array);
   var array = deopt_array(false);
-  assertTrue(2 != %GetOptimizationStatus(deopt_array));
+  assertOptimized(deopt_array);
   deopt_array(true);
-  assertTrue(2 != %GetOptimizationStatus(deopt_array));
+  assertOptimized(deopt_array);
   array = deopt_array(false);
-  assertTrue(2 != %GetOptimizationStatus(deopt_array));
+  assertOptimized(deopt_array);
 
   // Check that unexpected changes in the objects stored into the boilerplate
   // also force a deopt.
@@ -166,13 +165,13 @@ if (support_smi_only_arrays) {
   %OptimizeFunctionOnNextCall(deopt_array_literal_all_smis);
   array = deopt_array_literal_all_smis(5);
   array = deopt_array_literal_all_smis(6);
-  assertTrue(2 != %GetOptimizationStatus(deopt_array_literal_all_smis));
+  assertOptimized(deopt_array_literal_all_smis);
   assertEquals(0, array[0]);
   assertEquals(1, array[1]);
   assertEquals(6, array[2]);
 
   array = deopt_array_literal_all_smis(.5);
-  assertTrue(1 != %GetOptimizationStatus(deopt_array_literal_all_smis));
+  assertUnoptimized(deopt_array_literal_all_smis);
   assertEquals(0, array[0]);
   assertEquals(1, array[1]);
   assertEquals(.5, array[2]);
@@ -191,14 +190,14 @@ if (support_smi_only_arrays) {
   %OptimizeFunctionOnNextCall(deopt_array_literal_all_doubles);
   array = deopt_array_literal_all_doubles(5);
   array = deopt_array_literal_all_doubles(6);
-  assertTrue(2 != %GetOptimizationStatus(deopt_array_literal_all_doubles));
+  assertOptimized(deopt_array_literal_all_doubles);
   assertEquals(0.5, array[0]);
   assertEquals(1, array[1]);
   assertEquals(6, array[2]);
 
   var foo = new Object();
   array = deopt_array_literal_all_doubles(foo);
-  assertTrue(1 != %GetOptimizationStatus(deopt_array_literal_all_doubles));
+  assertUnoptimized(deopt_array_literal_all_doubles);
   assertEquals(0.5, array[0]);
   assertEquals(1, array[1]);
   assertEquals(foo, array[2]);
@@ -207,6 +206,6 @@ if (support_smi_only_arrays) {
 (function literals_after_osr() {
   var color = [0];
   // Trigger OSR.
-  while (%GetOptimizationStatus(literals_after_osr) == 2) {}
+  while (%GetOptimizationStatus(literals_after_osr, "no sync") == 2) {}
   return [color[0]];
 })();

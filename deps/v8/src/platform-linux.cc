@@ -146,6 +146,9 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
     case VFP3:
       search_string = "vfpv3";
       break;
+    case NEON:
+      search_string = "neon";
+      break;
     case ARMv7:
       search_string = "ARMv7";
       break;
@@ -194,6 +197,36 @@ CpuImplementer OS::GetCpuImplementer() {
     cached_value = QUALCOMM_IMPLEMENTER;
   } else {
     cached_value = UNKNOWN_IMPLEMENTER;
+  }
+  use_cached_value = true;
+  return cached_value;
+}
+
+
+CpuPart OS::GetCpuPart(CpuImplementer implementer) {
+  static bool use_cached_value = false;
+  static CpuPart cached_value = CPU_UNKNOWN;
+  if (use_cached_value) {
+    return cached_value;
+  }
+  if (implementer == ARM_IMPLEMENTER) {
+    if (CPUInfoContainsString("CPU part\t: 0xc0f")) {
+      cached_value = CORTEX_A15;
+    } else if (CPUInfoContainsString("CPU part\t: 0xc0c")) {
+      cached_value = CORTEX_A12;
+    } else if (CPUInfoContainsString("CPU part\t: 0xc09")) {
+      cached_value = CORTEX_A9;
+    } else if (CPUInfoContainsString("CPU part\t: 0xc08")) {
+      cached_value = CORTEX_A8;
+    } else if (CPUInfoContainsString("CPU part\t: 0xc07")) {
+      cached_value = CORTEX_A7;
+    } else if (CPUInfoContainsString("CPU part\t: 0xc05")) {
+      cached_value = CORTEX_A5;
+    } else {
+      cached_value = CPU_UNKNOWN;
+    }
+  } else {
+    cached_value = CPU_UNKNOWN;
   }
   use_cached_value = true;
   return cached_value;
@@ -418,32 +451,9 @@ void OS::DebugBreak() {
 
 
 void OS::DumpBacktrace() {
+  // backtrace is a glibc extension.
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
-  void* trace[100];
-  int size = backtrace(trace, ARRAY_SIZE(trace));
-  char** symbols = backtrace_symbols(trace, size);
-  fprintf(stderr, "\n==== C stack trace ===============================\n\n");
-  if (size == 0) {
-    fprintf(stderr, "(empty)\n");
-  } else if (symbols == NULL) {
-    fprintf(stderr, "(no symbols)\n");
-  } else {
-    for (int i = 1; i < size; ++i) {
-      fprintf(stderr, "%2d: ", i);
-      char mangled[201];
-      if (sscanf(symbols[i], "%*[^(]%*[(]%200[^)+]", mangled) == 1) {  // NOLINT
-        int status;
-        size_t length;
-        char* demangled = abi::__cxa_demangle(mangled, NULL, &length, &status);
-        fprintf(stderr, "%s\n", demangled ? demangled : mangled);
-        free(demangled);
-      } else {
-        fprintf(stderr, "??\n");
-      }
-    }
-  }
-  fflush(stderr);
-  free(symbols);
+  POSIXBacktraceHelper<backtrace, backtrace_symbols>::DumpBacktrace();
 #endif
 }
 
@@ -584,7 +594,13 @@ void OS::SignalCodeMovingGC() {
   }
   void* addr = mmap(OS::GetRandomMmapAddr(),
                     size,
+#if defined(__native_client__)
+                    // The Native Client port of V8 uses an interpreter,
+                    // so code pages don't need PROT_EXEC.
+                    PROT_READ,
+#else
                     PROT_READ | PROT_EXEC,
+#endif
                     MAP_PRIVATE,
                     fileno(f),
                     0);
@@ -597,33 +613,10 @@ void OS::SignalCodeMovingGC() {
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
   // backtrace is a glibc extension.
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
-  int frames_size = frames.length();
-  ScopedVector<void*> addresses(frames_size);
-
-  int frames_count = backtrace(addresses.start(), frames_size);
-
-  char** symbols = backtrace_symbols(addresses.start(), frames_count);
-  if (symbols == NULL) {
-    return kStackWalkError;
-  }
-
-  for (int i = 0; i < frames_count; i++) {
-    frames[i].address = addresses[i];
-    // Format a text representation of the frame based on the information
-    // available.
-    SNPrintF(MutableCStrVector(frames[i].text, kStackWalkMaxTextLen),
-             "%s",
-             symbols[i]);
-    // Make sure line termination is in place.
-    frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
-  }
-
-  free(symbols);
-
-  return frames_count;
-#else  // defined(__GLIBC__) && !defined(__UCLIBC__)
+  return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
+#else
   return 0;
-#endif  // defined(__GLIBC__) && !defined(__UCLIBC__)
+#endif
 }
 
 
@@ -730,7 +723,13 @@ void* VirtualMemory::ReserveRegion(size_t size) {
 
 
 bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
+#if defined(__native_client__)
+  // The Native Client port of V8 uses an interpreter,
+  // so code pages don't need PROT_EXEC.
+  int prot = PROT_READ | PROT_WRITE;
+#else
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+#endif
   if (MAP_FAILED == mmap(base,
                          size,
                          prot,
@@ -857,56 +856,6 @@ void* Thread::GetThreadLocal(LocalStorageKey key) {
 void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
   pthread_setspecific(pthread_key, value);
-}
-
-
-void Thread::YieldCPU() {
-  sched_yield();
-}
-
-
-class LinuxMutex : public Mutex {
- public:
-  LinuxMutex() {
-    pthread_mutexattr_t attrs;
-    int result = pthread_mutexattr_init(&attrs);
-    ASSERT(result == 0);
-    result = pthread_mutexattr_settype(&attrs, PTHREAD_MUTEX_RECURSIVE);
-    ASSERT(result == 0);
-    result = pthread_mutex_init(&mutex_, &attrs);
-    ASSERT(result == 0);
-    USE(result);
-  }
-
-  virtual ~LinuxMutex() { pthread_mutex_destroy(&mutex_); }
-
-  virtual int Lock() {
-    int result = pthread_mutex_lock(&mutex_);
-    return result;
-  }
-
-  virtual int Unlock() {
-    int result = pthread_mutex_unlock(&mutex_);
-    return result;
-  }
-
-  virtual bool TryLock() {
-    int result = pthread_mutex_trylock(&mutex_);
-    // Return false if the lock is busy and locking failed.
-    if (result == EBUSY) {
-      return false;
-    }
-    ASSERT(result == 0);  // Verify no other errors.
-    return true;
-  }
-
- private:
-  pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
-};
-
-
-Mutex* OS::CreateMutex() {
-  return new LinuxMutex();
 }
 
 

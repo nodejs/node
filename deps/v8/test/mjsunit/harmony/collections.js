@@ -35,6 +35,7 @@ function TestValidSetCalls(m) {
   assertDoesNotThrow(function () { m.delete(new Object) });
 }
 TestValidSetCalls(new Set);
+TestValidSetCalls(new WeakSet);
 
 
 // Test valid getter and setter calls on Maps and WeakMaps
@@ -85,6 +86,7 @@ function TestSetBehavior(set) {
   }
 }
 TestSetBehavior(new Set);
+TestSet(new WeakSet, new Object);
 
 
 // Test expected mapping behavior for Maps and WeakMaps
@@ -185,6 +187,7 @@ function TestEnumerable(func) {
 TestEnumerable(Set);
 TestEnumerable(Map);
 TestEnumerable(WeakMap);
+TestEnumerable(WeakSet);
 
 
 // Test arbitrary properties on Maps and WeakMaps
@@ -207,6 +210,7 @@ TestArbitrary(new WeakMap);
 assertTrue(Set() instanceof Set);
 assertTrue(Map() instanceof Map);
 assertTrue(WeakMap() instanceof WeakMap);
+assertTrue(WeakSet() instanceof WeakSet);
 
 
 // Test whether NaN values as keys are treated correctly.
@@ -234,6 +238,7 @@ assertTrue(s instanceof Set);
 assertTrue(Set.prototype.add instanceof Function)
 assertTrue(Set.prototype.has instanceof Function)
 assertTrue(Set.prototype.delete instanceof Function)
+assertTrue(Set.prototype.clear instanceof Function)
 
 
 // Test some common JavaScript idioms for Maps
@@ -243,6 +248,7 @@ assertTrue(Map.prototype.set instanceof Function)
 assertTrue(Map.prototype.get instanceof Function)
 assertTrue(Map.prototype.has instanceof Function)
 assertTrue(Map.prototype.delete instanceof Function)
+assertTrue(Map.prototype.clear instanceof Function)
 
 
 // Test some common JavaScript idioms for WeakMaps
@@ -252,18 +258,37 @@ assertTrue(WeakMap.prototype.set instanceof Function)
 assertTrue(WeakMap.prototype.get instanceof Function)
 assertTrue(WeakMap.prototype.has instanceof Function)
 assertTrue(WeakMap.prototype.delete instanceof Function)
+assertTrue(WeakMap.prototype.clear instanceof Function)
 
 
-// Test class of the Set, Map and WeakMap instance and prototype.
+// Test some common JavaScript idioms for WeakSets
+var s = new WeakSet;
+assertTrue(s instanceof WeakSet);
+assertTrue(WeakSet.prototype.add instanceof Function)
+assertTrue(WeakSet.prototype.has instanceof Function)
+assertTrue(WeakSet.prototype.delete instanceof Function)
+assertTrue(WeakSet.prototype.clear instanceof Function)
+
+
+// Test class of instance and prototype.
 assertEquals("Set", %_ClassOf(new Set))
 assertEquals("Object", %_ClassOf(Set.prototype))
 assertEquals("Map", %_ClassOf(new Map))
 assertEquals("Object", %_ClassOf(Map.prototype))
 assertEquals("WeakMap", %_ClassOf(new WeakMap))
 assertEquals("Object", %_ClassOf(WeakMap.prototype))
+assertEquals("WeakSet", %_ClassOf(new WeakSet))
+assertEquals("Object", %_ClassOf(WeakMap.prototype))
 
 
-// Test constructor property of the Set, Map and WeakMap prototype.
+// Test name of constructor.
+assertEquals("Set", Set.name);
+assertEquals("Map", Map.name);
+assertEquals("WeakMap", WeakMap.name);
+assertEquals("WeakSet", WeakSet.name);
+
+
+// Test constructor property of the Set, Map, WeakMap and WeakSet prototype.
 function TestConstructor(C) {
   assertFalse(C === Object.prototype.constructor);
   assertSame(C, C.prototype.constructor);
@@ -273,6 +298,21 @@ function TestConstructor(C) {
 TestConstructor(Set);
 TestConstructor(Map);
 TestConstructor(WeakMap);
+TestConstructor(WeakSet);
+
+
+function TestDescriptor(global, C) {
+  assertEquals({
+    value: C,
+    writable: true,
+    enumerable: false,
+    configurable: true
+  }, Object.getOwnPropertyDescriptor(global, C.name));
+}
+TestDescriptor(this, Set);
+TestDescriptor(this, Map);
+TestDescriptor(this, WeakMap);
+TestDescriptor(this, WeakSet);
 
 
 // Regression test for WeakMap prototype.
@@ -304,15 +344,19 @@ var alwaysBogus = [ undefined, null, true, "x", 23, {} ];
 var bogusReceiversTestSet = [
   { proto: Set.prototype,
     funcs: [ 'add', 'has', 'delete' ],
-    receivers: alwaysBogus.concat([ new Map, new WeakMap ]),
+    receivers: alwaysBogus.concat([ new Map, new WeakMap, new WeakSet ]),
   },
   { proto: Map.prototype,
     funcs: [ 'get', 'set', 'has', 'delete' ],
-    receivers: alwaysBogus.concat([ new Set, new WeakMap ]),
+    receivers: alwaysBogus.concat([ new Set, new WeakMap, new WeakSet ]),
   },
   { proto: WeakMap.prototype,
     funcs: [ 'get', 'set', 'has', 'delete' ],
-    receivers: alwaysBogus.concat([ new Set, new Map ]),
+    receivers: alwaysBogus.concat([ new Set, new Map, new WeakSet ]),
+  },
+  { proto: WeakSet.prototype,
+    funcs: [ 'add', 'has', 'delete' ],
+    receivers: alwaysBogus.concat([ new Set, new Map, new WeakMap ]),
   },
 ];
 function TestBogusReceivers(testSet) {
@@ -412,4 +456,15 @@ for (var i = 9; i >= 0; i--) {
   w.clear();
   assertFalse(w.has(k));
   assertEquals(undefined, w.get(k));
+})();
+
+
+// Test WeakSet clear
+(function() {
+  var k = new Object();
+  var w = new WeakSet();
+  w.add(k);
+  assertTrue(w.has(k));
+  w.clear();
+  assertFalse(w.has(k));
 })();

@@ -66,6 +66,7 @@ static bool run_shell;
 
 
 int main(int argc, char* argv[]) {
+  v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   run_shell = (argc == 1);

@@ -44,7 +44,6 @@ class LCodeGen;
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
   V(Allocate)                                   \
-  V(AllocateObject)                             \
   V(ApplyArguments)                             \
   V(ArgumentsElements)                          \
   V(ArgumentsLength)                            \
@@ -75,7 +74,7 @@ class LCodeGen;
   V(ClampTToUint8)                              \
   V(ClampTToUint8NoSSE2)                        \
   V(ClassOfTestAndBranch)                       \
-  V(CmpIDAndBranch)                             \
+  V(CompareNumericAndBranch)                    \
   V(CmpObjectEqAndBranch)                       \
   V(CmpMapAndBranch)                            \
   V(CmpT)                                       \
@@ -87,7 +86,6 @@ class LCodeGen;
   V(Context)                                    \
   V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
-  V(DeleteProperty)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
@@ -101,7 +99,6 @@ class LCodeGen;
   V(Goto)                                       \
   V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceTypeAndBranch)                   \
-  V(In)                                         \
   V(InstanceOf)                                 \
   V(InstanceOfKnownGlobal)                      \
   V(InstanceSize)                               \
@@ -114,9 +111,11 @@ class LCodeGen;
   V(IsObjectAndBranch)                          \
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
+  V(IsNumberAndBranch)                          \
   V(IsUndetectableAndBranch)                    \
   V(Label)                                      \
   V(LazyBailout)                                \
+  V(LinkObjectInList)                           \
   V(LoadContextSlot)                            \
   V(LoadExternalArrayPointer)                   \
   V(LoadFunctionPrototype)                      \
@@ -265,7 +264,11 @@ class LInstruction: public ZoneObject {
   bool ClobbersTemps() const { return is_call_; }
   bool ClobbersRegisters() const { return is_call_; }
   virtual bool ClobbersDoubleRegisters() const {
-    return is_call_ || !CpuFeatures::IsSupported(SSE2);
+    return is_call_ ||
+      (!CpuFeatures::IsSupported(SSE2) &&
+       // We only have rudimentary X87Stack tracking, thus in general
+       // cannot handle deoptimization nor phi-nodes.
+       (HasEnvironment() || IsControl()));
   }
 
   virtual bool HasResult() const = 0;
@@ -273,6 +276,7 @@ class LInstruction: public ZoneObject {
 
   bool HasDoubleRegisterResult();
   bool HasDoubleRegisterInput();
+  bool IsDoubleInput(X87Register reg, LCodeGen* cgen);
 
   LOperand* FirstInput() { return InputAt(0); }
   LOperand* Output() { return HasResult() ? result() : NULL; }
@@ -377,7 +381,6 @@ class LGap: public LTemplateInstruction<0, 0, 0> {
 class LInstructionGap: public LGap {
  public:
   explicit LInstructionGap(HBasicBlock* block) : LGap(block) { }
-  virtual bool ClobbersDoubleRegisters() const { return false; }
 
   virtual bool HasInterestingComment(LCodeGen* gen) const {
     return !IsRedundant();
@@ -676,9 +679,9 @@ class LMulI: public LTemplateInstruction<1, 2, 1> {
 };
 
 
-class LCmpIDAndBranch: public LControlInstruction<2, 0> {
+class LCompareNumericAndBranch: public LControlInstruction<2, 0> {
  public:
-  LCmpIDAndBranch(LOperand* left, LOperand* right) {
+  LCompareNumericAndBranch(LOperand* left, LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -686,8 +689,9 @@ class LCmpIDAndBranch: public LControlInstruction<2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CmpIDAndBranch, "cmp-id-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(CompareIDAndBranch)
+  DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch,
+                               "compare-numeric-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareNumericAndBranch)
 
   Token::Value op() const { return hydrogen()->token(); }
   bool is_double() const {
@@ -880,6 +884,19 @@ class LIsObjectAndBranch: public LControlInstruction<1, 1> {
   DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch, "is-object-and-branch")
 
   virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LIsNumberAndBranch: public LControlInstruction<1, 0> {
+ public:
+  explicit LIsNumberAndBranch(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch, "is-number-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(IsNumberAndBranch)
 };
 
 
@@ -1194,10 +1211,6 @@ class LConstantD: public LTemplateInstruction<1, 0, 1> {
  public:
   explicit LConstantD(LOperand* temp) {
     temps_[0] = temp;
-  }
-
-  virtual bool ClobbersDoubleRegisters() const {
-    return false;
   }
 
   LOperand* temp() { return temps_[0]; }
@@ -1694,6 +1707,25 @@ class LStoreGlobalGeneric: public LTemplateInstruction<0, 3, 0> {
 };
 
 
+class LLinkObjectInList: public LTemplateInstruction<0, 1, 1> {
+ public:
+  explicit LLinkObjectInList(LOperand* object, LOperand* temp) {
+    inputs_[0] = object;
+    temps_[0] = temp;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  ExternalReference GetReference(Isolate* isolate);
+
+  DECLARE_CONCRETE_INSTRUCTION(LinkObjectInList, "link-object-in-list")
+  DECLARE_HYDROGEN_ACCESSOR(LinkObjectInList)
+
+  virtual void PrintDataTo(StringStream* stream);
+};
+
+
 class LLoadContextSlot: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LLoadContextSlot(LOperand* context) {
@@ -2180,9 +2212,7 @@ class LNumberUntagD: public LTemplateInstruction<1, 1, 1> {
   LOperand* value() { return inputs_[0]; }
   LOperand* temp() { return temps_[0]; }
 
-  virtual bool ClobbersDoubleRegisters() const {
-    return false;
-  }
+  virtual bool ClobbersDoubleRegisters() const { return false; }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberUntagD, "double-untag")
   DECLARE_HYDROGEN_ACCESSOR(Change);
@@ -2561,21 +2591,6 @@ class LCheckNonSmi: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LAllocateObject: public LTemplateInstruction<1, 1, 1> {
- public:
-  LAllocateObject(LOperand* context, LOperand* temp) {
-    inputs_[0] = context;
-    temps_[0] = temp;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
-  DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
-};
-
-
 class LAllocate: public LTemplateInstruction<1, 2, 1> {
  public:
   LAllocate(LOperand* context, LOperand* size, LOperand* temp) {
@@ -2663,22 +2678,6 @@ class LTypeofIsAndBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LDeleteProperty: public LTemplateInstruction<1, 3, 0> {
- public:
-  LDeleteProperty(LOperand* context, LOperand* obj, LOperand* key) {
-    inputs_[0] = context;
-    inputs_[1] = obj;
-    inputs_[2] = key;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* object() { return inputs_[1]; }
-  LOperand* key() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(DeleteProperty, "delete-property")
-};
-
-
 class LOsrEntry: public LTemplateInstruction<0, 0, 0> {
  public:
   LOsrEntry() {}
@@ -2703,22 +2702,6 @@ class LStackCheck: public LTemplateInstruction<0, 1, 0> {
 
  private:
   Label done_label_;
-};
-
-
-class LIn: public LTemplateInstruction<1, 3, 0> {
- public:
-  LIn(LOperand* context, LOperand* key, LOperand* object) {
-    inputs_[0] = context;
-    inputs_[1] = key;
-    inputs_[2] = object;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-  LOperand* object() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(In, "in")
 };
 
 
@@ -2858,14 +2841,13 @@ class LChunkBuilder BASE_EMBEDDED {
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);
   LUnallocated* ToUnallocated(XMMRegister reg);
-  LUnallocated* ToUnallocated(X87TopOfStackRegister reg);
+  LUnallocated* ToUnallocated(X87Register reg);
 
   // Methods for setting up define-use relationships.
   MUST_USE_RESULT LOperand* Use(HValue* value, LUnallocated* operand);
   MUST_USE_RESULT LOperand* UseFixed(HValue* value, Register fixed_register);
   MUST_USE_RESULT LOperand* UseFixedDouble(HValue* value,
                                            XMMRegister fixed_register);
-  MUST_USE_RESULT LOperand* UseX87TopOfStack(HValue* value);
 
   // A value that is guaranteed to be allocated to a register.
   // Operand created by UseRegister is guaranteed to be live until the end of

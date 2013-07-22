@@ -726,6 +726,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ Abort("no cases left");
 }
 
+
 void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
   Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
 }
@@ -1194,7 +1195,6 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
       rbx,  // Result.
       rcx,  // Scratch 1.
       rdx,  // Scratch 2.
-      false,  // Input is known to be smi?
       &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1);
   __ bind(&argument_is_string);

@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --smi-only-arrays
-// Flags: --noparallel-recompilation
 // Flags: --notrack-allocation-sites
 
 // Test element kind of objects.

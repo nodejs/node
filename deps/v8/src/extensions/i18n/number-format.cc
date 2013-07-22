@@ -148,10 +148,10 @@ void NumberFormat::JSInternalParse(
     args.GetReturnValue().Set(result.getDouble());
     return;
   case icu::Formattable::kLong:
-    args.GetReturnValue().Set(v8::Number::New(result.getLong()));
+    args.GetReturnValue().Set(result.getLong());
     return;
   case icu::Formattable::kInt64:
-    args.GetReturnValue().Set(v8::Number::New(result.getInt64()));
+    args.GetReturnValue().Set(static_cast<double>(result.getInt64()));
     return;
   default:
     return;

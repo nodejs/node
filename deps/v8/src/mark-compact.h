@@ -695,9 +695,11 @@ class MarkCompactCollector {
 
   bool TryPromoteObject(HeapObject* object, int object_size);
 
-  inline Object* encountered_weak_maps() { return encountered_weak_maps_; }
-  inline void set_encountered_weak_maps(Object* weak_map) {
-    encountered_weak_maps_ = weak_map;
+  inline Object* encountered_weak_collections() {
+    return encountered_weak_collections_;
+  }
+  inline void set_encountered_weak_collections(Object* weak_collection) {
+    encountered_weak_collections_ = weak_collection;
   }
 
   void InvalidateCode(Code* code);
@@ -893,15 +895,15 @@ class MarkCompactCollector {
   // ClearNonLiveTransitions pass or by calling this function.
   void ReattachInitialMaps();
 
-  // Mark all values associated with reachable keys in weak maps encountered
-  // so far.  This might push new object or even new weak maps onto the
-  // marking stack.
-  void ProcessWeakMaps();
+  // Mark all values associated with reachable keys in weak collections
+  // encountered so far.  This might push new object or even new weak maps onto
+  // the marking stack.
+  void ProcessWeakCollections();
 
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
   // The linked list of all encountered weak maps is destroyed.
-  void ClearWeakMaps();
+  void ClearWeakCollections();
 
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for
@@ -918,6 +920,9 @@ class MarkCompactCollector {
   // for the large object space, clearing mark bits and adding unmarked
   // regions to each space's free list.
   void SweepSpaces();
+
+  int DiscoverAndPromoteBlackObjectsOnPage(NewSpace* new_space,
+                                           NewSpacePage* p);
 
   void EvacuateNewSpace();
 
@@ -940,12 +945,56 @@ class MarkCompactCollector {
   Heap* heap_;
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
-  Object* encountered_weak_maps_;
+  Object* encountered_weak_collections_;
 
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;
 
   friend class Heap;
+};
+
+
+class MarkBitCellIterator BASE_EMBEDDED {
+ public:
+  explicit MarkBitCellIterator(MemoryChunk* chunk)
+      : chunk_(chunk) {
+    last_cell_index_ = Bitmap::IndexToCell(
+        Bitmap::CellAlignIndex(
+            chunk_->AddressToMarkbitIndex(chunk_->area_end())));
+    cell_base_ = chunk_->area_start();
+    cell_index_ = Bitmap::IndexToCell(
+        Bitmap::CellAlignIndex(
+            chunk_->AddressToMarkbitIndex(cell_base_)));
+    cells_ = chunk_->markbits()->cells();
+  }
+
+  inline bool Done() { return cell_index_ == last_cell_index_; }
+
+  inline bool HasNext() { return cell_index_ < last_cell_index_ - 1; }
+
+  inline MarkBit::CellType* CurrentCell() {
+    ASSERT(cell_index_ == Bitmap::IndexToCell(Bitmap::CellAlignIndex(
+        chunk_->AddressToMarkbitIndex(cell_base_))));
+    return &cells_[cell_index_];
+  }
+
+  inline Address CurrentCellBase() {
+    ASSERT(cell_index_ == Bitmap::IndexToCell(Bitmap::CellAlignIndex(
+        chunk_->AddressToMarkbitIndex(cell_base_))));
+    return cell_base_;
+  }
+
+  inline void Advance() {
+    cell_index_++;
+    cell_base_ += 32 * kPointerSize;
+  }
+
+ private:
+  MemoryChunk* chunk_;
+  MarkBit::CellType* cells_;
+  unsigned int last_cell_index_;
+  unsigned int cell_index_;
+  Address cell_base_;
 };
 
 

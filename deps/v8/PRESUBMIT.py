@@ -44,7 +44,8 @@ def _V8PresubmitChecks(input_api, output_api):
     results.append(output_api.PresubmitError("C++ lint check failed"))
   if not SourceProcessor().Run(input_api.PresubmitLocalPath()):
     results.append(output_api.PresubmitError(
-        "Copyright header and trailing whitespaces check failed"))
+        "Copyright header, trailing whitespaces and two empty lines " \
+        "between declarations check failed"))
   return results
 
 

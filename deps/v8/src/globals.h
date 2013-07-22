@@ -89,18 +89,22 @@ namespace internal {
 #elif defined(__ARMEL__)
 #define V8_HOST_ARCH_ARM 1
 #define V8_HOST_ARCH_32_BIT 1
-// Some CPU-OS combinations allow unaligned access on ARM. We assume
-// that unaligned accesses are not allowed unless the build system
-// defines the CAN_USE_UNALIGNED_ACCESSES macro to be non-zero.
-#if CAN_USE_UNALIGNED_ACCESSES
-#define V8_HOST_CAN_READ_UNALIGNED 1
-#endif
 #elif defined(__MIPSEL__)
 #define V8_HOST_ARCH_MIPS 1
 #define V8_HOST_ARCH_32_BIT 1
 #else
 #error Host architecture was not detected as supported by v8
 #endif
+
+#if defined(__ARM_ARCH_7A__) || \
+    defined(__ARM_ARCH_7R__) || \
+    defined(__ARM_ARCH_7__)
+# define CAN_USE_ARMV7_INSTRUCTIONS 1
+# ifndef CAN_USE_VFP3_INSTRUCTIONS
+#  define CAN_USE_VFP3_INSTRUCTIONS
+# endif
+#endif
+
 
 // Target architecture detection. This may be set externally. If not, detect
 // in the same way as the host architecture, that is, target the native
@@ -323,11 +327,18 @@ F FUNCTION_CAST(Address addr) {
 }
 
 
+#if __cplusplus >= 201103L
+#define DISALLOW_BY_DELETE = delete
+#else
+#define DISALLOW_BY_DELETE
+#endif
+
+
 // A macro to disallow the evil copy constructor and operator= functions
 // This should be used in the private: declarations for a class
-#define DISALLOW_COPY_AND_ASSIGN(TypeName)      \
-  TypeName(const TypeName&);                    \
-  void operator=(const TypeName&)
+#define DISALLOW_COPY_AND_ASSIGN(TypeName)           \
+  TypeName(const TypeName&) DISALLOW_BY_DELETE;      \
+  void operator=(const TypeName&) DISALLOW_BY_DELETE
 
 
 // A macro to disallow all the implicit constructors, namely the
@@ -337,7 +348,7 @@ F FUNCTION_CAST(Address addr) {
 // that wants to prevent anyone from instantiating it. This is
 // especially useful for classes containing only static methods.
 #define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
-  TypeName();                                    \
+  TypeName() DISALLOW_BY_DELETE;                 \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 

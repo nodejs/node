@@ -306,7 +306,6 @@ class HeapSnapshotsCollection {
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
   StringsStorage* names() { return &names_; }
-  TokenEnumerator* token_enumerator() { return token_enumerator_; }
 
   SnapshotObjectId FindObjectId(Address object_addr) {
     return ids_.FindEntry(object_addr);
@@ -325,7 +324,6 @@ class HeapSnapshotsCollection {
   bool is_tracking_objects_;  // Whether tracking object moves is needed.
   List<HeapSnapshot*> snapshots_;
   StringsStorage names_;
-  TokenEnumerator* token_enumerator_;
   // Mapping from HeapObject addresses to objects' uids.
   HeapObjectsMap ids_;
 
@@ -462,6 +460,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractCodeReferences(int entry, Code* code);
   void ExtractCellReferences(int entry, Cell* cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
+  void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
   void ExtractClosureReferences(JSObject* js_obj, int entry);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
   bool ExtractAccessorPairProperty(JSObject* js_obj, int entry,

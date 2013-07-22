@@ -62,7 +62,10 @@ function getElementSize(func) {
 
 function checkGet(func, index, expected, littleEndian) {
   function doGet() {
-    return view["get" + func](index, littleEndian);
+    if (littleEndian != undefined)
+      return view["get" + func](index, littleEndian);
+    else
+      return view["get" + func](index);
   }
   if (index >=0 && index + getElementSize(func) - 1 < view.byteLength)
       assertSame(expected, doGet());
@@ -72,7 +75,10 @@ function checkGet(func, index, expected, littleEndian) {
 
 function checkSet(func, index, value, littleEndian) {
   function doSet() {
-    view["set" + func](index, value, littleEndian);
+    if (littleEndian != undefined)
+      view["set" + func](index, value, littleEndian);
+    else
+      view["set" + func](index, value);
   }
   if (index >= 0 &&
       index + getElementSize(func) - 1 < view.byteLength) {
@@ -105,39 +111,46 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
   createDataView(array, 0, true, start, length);
 
   test(isTestingGet, "Int8", 0, 0);
+  test(isTestingGet, "Int8", undefined, 0);
   test(isTestingGet, "Int8", 8, -128);
   test(isTestingGet, "Int8", 15, -1);
 
   test(isTestingGet, "Uint8", 0, 0);
+  test(isTestingGet, "Uint8", undefined, 0);
   test(isTestingGet, "Uint8", 8, 128);
   test(isTestingGet, "Uint8", 15, 255);
 
   // Little endian.
   test(isTestingGet, "Int16", 0, 256, true);
+  test(isTestingGet, "Int16", undefined, 256, true);
   test(isTestingGet, "Int16", 5, 26213, true);
   test(isTestingGet, "Int16", 9, -32127, true);
   test(isTestingGet, "Int16", 14, -2, true);
 
   // Big endian.
   test(isTestingGet, "Int16", 0, 1);
+  test(isTestingGet, "Int16", undefined, 1);
   test(isTestingGet, "Int16", 5, 25958);
   test(isTestingGet, "Int16", 9, -32382);
   test(isTestingGet, "Int16", 14, -257);
 
   // Little endian.
   test(isTestingGet, "Uint16", 0, 256, true);
+  test(isTestingGet, "Uint16", undefined, 256, true);
   test(isTestingGet, "Uint16", 5, 26213, true);
   test(isTestingGet, "Uint16", 9, 33409, true);
   test(isTestingGet, "Uint16", 14, 65534, true);
 
   // Big endian.
   test(isTestingGet, "Uint16", 0, 1);
+  test(isTestingGet, "Uint16", undefined, 1);
   test(isTestingGet, "Uint16", 5, 25958);
   test(isTestingGet, "Uint16", 9, 33154);
   test(isTestingGet, "Uint16", 14, 65279);
 
   // Little endian.
   test(isTestingGet, "Int32", 0, 50462976, true);
+  test(isTestingGet, "Int32", undefined, 50462976, true);
   test(isTestingGet, "Int32", 3, 1717920771, true);
   test(isTestingGet, "Int32", 6, -2122291354, true);
   test(isTestingGet, "Int32", 9, -58490239, true);
@@ -145,6 +158,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
 
   // Big endian.
   test(isTestingGet, "Int32", 0, 66051);
+  test(isTestingGet, "Int32", undefined, 66051);
   test(isTestingGet, "Int32", 3, 56911206);
   test(isTestingGet, "Int32", 6, 1718059137);
   test(isTestingGet, "Int32", 9, -2122152964);
@@ -152,6 +166,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
 
   // Little endian.
   test(isTestingGet, "Uint32", 0, 50462976, true);
+  test(isTestingGet, "Uint32", undefined, 50462976, true);
   test(isTestingGet, "Uint32", 3, 1717920771, true);
   test(isTestingGet, "Uint32", 6, 2172675942, true);
   test(isTestingGet, "Uint32", 9, 4236477057, true);
@@ -159,6 +174,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
 
   // Big endian.
   test(isTestingGet, "Uint32", 0, 66051);
+  test(isTestingGet, "Uint32", undefined, 66051);
   test(isTestingGet, "Uint32", 3, 56911206);
   test(isTestingGet, "Uint32", 6, 1718059137);
   test(isTestingGet, "Uint32", 9, 2172814332);
@@ -169,6 +185,7 @@ function testFloat(isTestingGet, func, array, start, expected) {
   // Little endian.
   createDataView(array, 0, true, start);
   test(isTestingGet, func, 0, expected, true);
+  test(isTestingGet, func, undefined, expected, true);
   createDataView(array, 3, true, start);
   test(isTestingGet, func, 3, expected, true);
   createDataView(array, 7, true, start);
@@ -179,6 +196,7 @@ function testFloat(isTestingGet, func, array, start, expected) {
   // Big endian.
   createDataView(array, 0, false);
   test(isTestingGet, func, 0, expected, false);
+  test(isTestingGet, func, undefined, expected, false);
   createDataView(array, 3, false);
   test(isTestingGet, func, 3, expected, false);
   createDataView(array, 7, false);
@@ -276,18 +294,101 @@ function TestSetters() {
   runFloatTestCases(false, 7);
 
   runNegativeIndexTests(false);
-
 }
 
 TestGetters();
 TestSetters();
 
+function CheckOutOfRangeInt8(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setInt8(0, value));
+  assertSame(expected, view.getInt8(0));
+  assertSame(undefined, view.setInt8(0, value, true));
+  assertSame(expected, view.getInt8(0, true));
+}
+
+function CheckOutOfRangeUint8(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setUint8(0, value));
+  assertSame(expected, view.getUint8(0));
+  assertSame(undefined, view.setUint8(0, value, true));
+  assertSame(expected, view.getUint8(0, true));
+}
+
+function CheckOutOfRangeInt16(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setInt16(0, value));
+  assertSame(expected, view.getInt16(0));
+  assertSame(undefined, view.setInt16(0, value, true));
+  assertSame(expected, view.getInt16(0, true));
+}
+
+function CheckOutOfRangeUint16(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setUint16(0, value));
+  assertSame(expected, view.getUint16(0));
+  assertSame(undefined, view.setUint16(0, value, true));
+  assertSame(expected, view.getUint16(0, true));
+}
+
+function CheckOutOfRangeInt32(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setInt32(0, value));
+  assertSame(expected, view.getInt32(0));
+  assertSame(undefined, view.setInt32(0, value, true));
+  assertSame(expected, view.getInt32(0, true));
+}
+
+function CheckOutOfRangeUint32(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setUint32(0, value));
+  assertSame(expected, view.getUint32(0));
+  assertSame(undefined, view.setUint32(0, value, true));
+  assertSame(expected, view.getUint32(0, true));
+}
+
+function TestOutOfRange() {
+  CheckOutOfRangeInt8(0x80,   -0x80);
+  CheckOutOfRangeInt8(0x1000, 0);
+  CheckOutOfRangeInt8(-0x81,  0x7F);
+
+  CheckOutOfRangeUint8(0x100,  0);
+  CheckOutOfRangeUint8(0x1000, 0);
+  CheckOutOfRangeUint8(-0x80,  0x80);
+  CheckOutOfRangeUint8(-1,     0xFF);
+  CheckOutOfRangeUint8(-0xFF,  1);
+
+  CheckOutOfRangeInt16(0x8000,  -0x8000);
+  CheckOutOfRangeInt16(0x10000, 0);
+  CheckOutOfRangeInt16(-0x8001, 0x7FFF);
+
+  CheckOutOfRangeUint16(0x10000,  0);
+  CheckOutOfRangeUint16(0x100000, 0);
+  CheckOutOfRangeUint16(-0x8000,  0x8000);
+  CheckOutOfRangeUint16(-1,       0xFFFF);
+  CheckOutOfRangeUint16(-0xFFFF,  1);
+
+  CheckOutOfRangeInt32(0x80000000,  -0x80000000);
+  CheckOutOfRangeInt32(0x100000000, 0);
+  CheckOutOfRangeInt32(-0x80000001, 0x7FFFFFFF);
+
+  CheckOutOfRangeUint32(0x100000000,  0);
+  CheckOutOfRangeUint32(0x1000000000, 0);
+  CheckOutOfRangeUint32(-0x80000000,  0x80000000);
+  CheckOutOfRangeUint32(-1,           0xFFFFFFFF);
+  CheckOutOfRangeUint32(-0xFFFFFFFF,  1);
+}
+
+TestOutOfRange();
+
 function TestGeneralAccessors() {
   var a = new DataView(new ArrayBuffer(256));
   function CheckAccessor(name) {
     var f = a[name];
+    assertThrows(function() { f(); }, TypeError);
     f.call(a, 0, 0); // should not throw
     assertThrows(function() { f.call({}, 0, 0); }, TypeError);
+    assertThrows(function() { f.call(a); }, TypeError);
   }
   CheckAccessor("getUint8");
   CheckAccessor("setUint8");

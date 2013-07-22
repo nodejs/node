@@ -133,11 +133,11 @@ Handle<Code> StubCache::FindIC(Handle<Name> name,
 }
 
 
-Handle<Code> StubCache::FindHandler(Handle<Name> name,
-                                    Handle<JSObject> receiver,
-                                    Handle<JSObject> stub_holder,
-                                    Code::Kind kind,
-                                    Code::StubType type) {
+Handle<Code> StubCache::FindLoadHandler(Handle<Name> name,
+                                        Handle<JSObject> receiver,
+                                        Handle<JSObject> stub_holder,
+                                        Code::Kind kind,
+                                        Code::StubType type) {
   Code::ExtraICState extra_ic_state = Code::ComputeExtraICState(
       receiver.is_identical_to(stub_holder) ? Code::OWN_STUB
                                             : Code::PROTOTYPE_STUB);
@@ -151,9 +151,26 @@ Handle<Code> StubCache::FindHandler(Handle<Name> name,
 }
 
 
-Handle<Code> StubCache::ComputeMonomorphicIC(Handle<JSObject> receiver,
-                                             Handle<Code> handler,
-                                             Handle<Name> name) {
+Handle<Code> StubCache::FindStoreHandler(Handle<Name> name,
+                                         Handle<JSObject> receiver,
+                                         Code::Kind kind,
+                                         Code::StubType type,
+                                         StrictModeFlag strict_mode) {
+  Code::ExtraICState extra_ic_state = Code::ComputeExtraICState(
+      STANDARD_STORE, strict_mode);
+  ASSERT(type != Code::NORMAL);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(
+      Code::STUB, extra_ic_state, type, kind);
+  Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags),
+                       isolate_);
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+  return Handle<Code>::null();
+}
+
+
+Handle<Code> StubCache::ComputeMonomorphicLoadIC(Handle<JSObject> receiver,
+                                                 Handle<Code> handler,
+                                                 Handle<Name> name) {
   Handle<Code> ic = FindIC(name, receiver, Code::LOAD_IC, handler->type());
   if (!ic.is_null()) return ic;
 
@@ -166,14 +183,49 @@ Handle<Code> StubCache::ComputeMonomorphicIC(Handle<JSObject> receiver,
 }
 
 
-Handle<Code> StubCache::ComputeKeyedMonomorphicIC(Handle<JSObject> receiver,
-                                                  Handle<Code> handler,
-                                                  Handle<Name> name) {
+Handle<Code> StubCache::ComputeMonomorphicKeyedLoadIC(Handle<JSObject> receiver,
+                                                      Handle<Code> handler,
+                                                      Handle<Name> name) {
   Handle<Code> ic = FindIC(
       name, receiver, Code::KEYED_LOAD_IC, handler->type());
   if (!ic.is_null()) return ic;
 
   KeyedLoadStubCompiler ic_compiler(isolate());
+  ic = ic_compiler.CompileMonomorphicIC(
+      Handle<Map>(receiver->map()), handler, name);
+
+  JSObject::UpdateMapCodeCache(receiver, name, ic);
+  return ic;
+}
+
+
+Handle<Code> StubCache::ComputeMonomorphicStoreIC(Handle<JSObject> receiver,
+                                                  Handle<Code> handler,
+                                                  Handle<Name> name,
+                                                  StrictModeFlag strict_mode) {
+  Handle<Code> ic = FindIC(
+      name, receiver, Code::STORE_IC, handler->type(), strict_mode);
+  if (!ic.is_null()) return ic;
+
+  StoreStubCompiler ic_compiler(isolate(), strict_mode);
+  ic = ic_compiler.CompileMonomorphicIC(
+      Handle<Map>(receiver->map()), handler, name);
+
+  JSObject::UpdateMapCodeCache(receiver, name, ic);
+  return ic;
+}
+
+
+Handle<Code> StubCache::ComputeMonomorphicKeyedStoreIC(
+    Handle<JSObject> receiver,
+    Handle<Code> handler,
+    Handle<Name> name,
+    StrictModeFlag strict_mode) {
+  Handle<Code> ic = FindIC(
+      name, receiver, Code::KEYED_STORE_IC, handler->type(), strict_mode);
+  if (!ic.is_null()) return ic;
+
+  KeyedStoreStubCompiler ic_compiler(isolate(), strict_mode, STANDARD_STORE);
   ic = ic_compiler.CompileMonomorphicIC(
       Handle<Map>(receiver->map()), handler, name);
 
@@ -207,7 +259,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
 
   // Compile the stub that is either shared for all names or
   // name specific if there are global objects involved.
-  Handle<Code> handler = FindHandler(
+  Handle<Code> handler = FindLoadHandler(
       cache_name, receiver, receiver, Code::LOAD_IC, Code::NONEXISTENT);
   if (!handler.is_null()) return handler;
 
@@ -232,7 +284,7 @@ Handle<Code> StubCache::ComputeLoadField(Handle<Name> name,
   }
 
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindLoadHandler(
       name, receiver, stub_holder, Code::LOAD_IC, Code::FIELD);
   if (!stub.is_null()) return stub;
 
@@ -251,7 +303,7 @@ Handle<Code> StubCache::ComputeLoadCallback(
     Handle<ExecutableAccessorInfo> callback) {
   ASSERT(v8::ToCData<Address>(callback->getter()) != 0);
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindLoadHandler(
       name, receiver, stub_holder, Code::LOAD_IC, Code::CALLBACKS);
   if (!stub.is_null()) return stub;
 
@@ -268,7 +320,7 @@ Handle<Code> StubCache::ComputeLoadViaGetter(Handle<Name> name,
                                              Handle<JSObject> holder,
                                              Handle<JSFunction> getter) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindLoadHandler(
       name, receiver, stub_holder, Code::LOAD_IC, Code::CALLBACKS);
   if (!stub.is_null()) return stub;
 
@@ -285,7 +337,7 @@ Handle<Code> StubCache::ComputeLoadConstant(Handle<Name> name,
                                             Handle<JSObject> holder,
                                             Handle<JSFunction> value) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> handler = FindHandler(
+  Handle<Code> handler = FindLoadHandler(
       name, receiver, stub_holder, Code::LOAD_IC, Code::CONSTANT_FUNCTION);
   if (!handler.is_null()) return handler;
 
@@ -301,7 +353,7 @@ Handle<Code> StubCache::ComputeLoadInterceptor(Handle<Name> name,
                                                Handle<JSObject> receiver,
                                                Handle<JSObject> holder) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindLoadHandler(
       name, receiver, stub_holder, Code::LOAD_IC, Code::INTERCEPTOR);
   if (!stub.is_null()) return stub;
 
@@ -350,7 +402,7 @@ Handle<Code> StubCache::ComputeKeyedLoadField(Handle<Name> name,
   }
 
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindLoadHandler(
       name, receiver, stub_holder, Code::KEYED_LOAD_IC, Code::FIELD);
   if (!stub.is_null()) return stub;
 
@@ -367,7 +419,7 @@ Handle<Code> StubCache::ComputeKeyedLoadConstant(Handle<Name> name,
                                                  Handle<JSObject> holder,
                                                  Handle<JSFunction> value) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> handler = FindHandler(
+  Handle<Code> handler = FindLoadHandler(
       name, receiver, stub_holder, Code::KEYED_LOAD_IC,
       Code::CONSTANT_FUNCTION);
   if (!handler.is_null()) return handler;
@@ -383,7 +435,7 @@ Handle<Code> StubCache::ComputeKeyedLoadInterceptor(Handle<Name> name,
                                                     Handle<JSObject> receiver,
                                                     Handle<JSObject> holder) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindLoadHandler(
       name, receiver, stub_holder, Code::KEYED_LOAD_IC, Code::INTERCEPTOR);
   if (!stub.is_null()) return stub;
 
@@ -401,7 +453,7 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
     Handle<JSObject> holder,
     Handle<ExecutableAccessorInfo> callback) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindLoadHandler(
       name, receiver, stub_holder, Code::KEYED_LOAD_IC, Code::CALLBACKS);
   if (!stub.is_null()) return stub;
 
@@ -417,14 +469,14 @@ Handle<Code> StubCache::ComputeStoreField(Handle<Name> name,
                                           Handle<JSObject> receiver,
                                           LookupResult* lookup,
                                           StrictModeFlag strict_mode) {
-  Handle<Code> stub = FindIC(
+  Handle<Code> stub = FindStoreHandler(
       name, receiver, Code::STORE_IC, Code::FIELD, strict_mode);
   if (!stub.is_null()) return stub;
 
   StoreStubCompiler compiler(isolate_, strict_mode);
-  Handle<Code> code = compiler.CompileStoreField(receiver, lookup, name);
-  JSObject::UpdateMapCodeCache(receiver, name, code);
-  return code;
+  Handle<Code> handler = compiler.CompileStoreField(receiver, lookup, name);
+  JSObject::UpdateMapCodeCache(receiver, name, handler);
+  return handler;
 }
 
 
@@ -433,15 +485,15 @@ Handle<Code> StubCache::ComputeStoreTransition(Handle<Name> name,
                                                LookupResult* lookup,
                                                Handle<Map> transition,
                                                StrictModeFlag strict_mode) {
-  Handle<Code> stub = FindIC(
+  Handle<Code> stub = FindStoreHandler(
       name, receiver, Code::STORE_IC, Code::MAP_TRANSITION, strict_mode);
   if (!stub.is_null()) return stub;
 
   StoreStubCompiler compiler(isolate_, strict_mode);
-  Handle<Code> code =
+  Handle<Code> handler =
       compiler.CompileStoreTransition(receiver, lookup, transition, name);
-  JSObject::UpdateMapCodeCache(receiver, name, code);
-  return code;
+  JSObject::UpdateMapCodeCache(receiver, name, handler);
+  return handler;
 }
 
 
@@ -499,15 +551,30 @@ Handle<Code> StubCache::ComputeStoreNormal(StrictModeFlag strict_mode) {
 Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
                                            Handle<GlobalObject> receiver,
                                            Handle<PropertyCell> cell,
+                                           Handle<Object> value,
                                            StrictModeFlag strict_mode) {
-  Handle<Code> stub = FindIC(
-      name, Handle<JSObject>::cast(receiver),
-      Code::STORE_IC, Code::NORMAL, strict_mode);
-  if (!stub.is_null()) return stub;
+  Isolate* isolate = cell->GetIsolate();
+  Handle<Type> union_type(PropertyCell::UpdateType(cell, value), isolate);
+  bool is_constant = union_type->IsConstant();
+  StoreGlobalStub stub(strict_mode, is_constant);
 
-  StoreStubCompiler compiler(isolate_, strict_mode);
-  Handle<Code> code = compiler.CompileStoreGlobal(receiver, cell, name);
+  Handle<Code> code = FindIC(
+      name, Handle<JSObject>::cast(receiver),
+      Code::STORE_IC, Code::NORMAL, stub.GetExtraICState());
+  if (!code.is_null()) return code;
+
+  if (is_constant) return stub.GetCode(isolate_);
+
+  // Replace the placeholder cell and global object map with the actual global
+  // cell and receiver map.
+  Handle<Map> cell_map(isolate_->heap()->global_property_cell_map());
+  Handle<Map> meta_map(isolate_->heap()->meta_map());
+  Handle<Object> receiver_map(receiver->map(), isolate_);
+  code = stub.GetCodeCopyFromTemplate(isolate_);
+  code->ReplaceNthObject(1, *meta_map, *receiver_map);
+  code->ReplaceNthObject(1, *cell_map, *cell);
   JSObject::UpdateMapCodeCache(receiver, name, code);
+
   return code;
 }
 
@@ -519,15 +586,15 @@ Handle<Code> StubCache::ComputeStoreCallback(
     Handle<ExecutableAccessorInfo> callback,
     StrictModeFlag strict_mode) {
   ASSERT(v8::ToCData<Address>(callback->setter()) != 0);
-  Handle<Code> stub = FindIC(
+  Handle<Code> stub = FindStoreHandler(
       name, receiver, Code::STORE_IC, Code::CALLBACKS, strict_mode);
   if (!stub.is_null()) return stub;
 
   StoreStubCompiler compiler(isolate_, strict_mode);
-  Handle<Code> code =
-      compiler.CompileStoreCallback(name, receiver, holder, callback);
-  JSObject::UpdateMapCodeCache(receiver, name, code);
-  return code;
+  Handle<Code> handler = compiler.CompileStoreCallback(
+      receiver, holder, name, callback);
+  JSObject::UpdateMapCodeCache(receiver, name, handler);
+  return handler;
 }
 
 
@@ -536,29 +603,29 @@ Handle<Code> StubCache::ComputeStoreViaSetter(Handle<Name> name,
                                               Handle<JSObject> holder,
                                               Handle<JSFunction> setter,
                                               StrictModeFlag strict_mode) {
-  Handle<Code> stub = FindIC(
+  Handle<Code> stub = FindStoreHandler(
       name, receiver, Code::STORE_IC, Code::CALLBACKS, strict_mode);
   if (!stub.is_null()) return stub;
 
   StoreStubCompiler compiler(isolate_, strict_mode);
-  Handle<Code> code =
-      compiler.CompileStoreViaSetter(name, receiver, holder, setter);
-  JSObject::UpdateMapCodeCache(receiver, name, code);
-  return code;
+  Handle<Code> handler = compiler.CompileStoreViaSetter(
+      receiver, holder, name, setter);
+  JSObject::UpdateMapCodeCache(receiver, name, handler);
+  return handler;
 }
 
 
 Handle<Code> StubCache::ComputeStoreInterceptor(Handle<Name> name,
                                                 Handle<JSObject> receiver,
                                                 StrictModeFlag strict_mode) {
-  Handle<Code> stub = FindIC(
+  Handle<Code> stub = FindStoreHandler(
       name, receiver, Code::STORE_IC, Code::INTERCEPTOR, strict_mode);
   if (!stub.is_null()) return stub;
 
   StoreStubCompiler compiler(isolate_, strict_mode);
-  Handle<Code> code = compiler.CompileStoreInterceptor(receiver, name);
-  JSObject::UpdateMapCodeCache(receiver, name, code);
-  return code;
+  Handle<Code> handler = compiler.CompileStoreInterceptor(receiver, name);
+  JSObject::UpdateMapCodeCache(receiver, name, handler);
+  return handler;
 }
 
 
@@ -566,14 +633,14 @@ Handle<Code> StubCache::ComputeKeyedStoreField(Handle<Name> name,
                                                Handle<JSObject> receiver,
                                                LookupResult* lookup,
                                                StrictModeFlag strict_mode) {
-  Handle<Code> stub = FindIC(
+  Handle<Code> stub = FindStoreHandler(
       name, receiver, Code::KEYED_STORE_IC, Code::FIELD, strict_mode);
   if (!stub.is_null()) return stub;
 
   KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
-  Handle<Code> code = compiler.CompileStoreField(receiver, lookup, name);
-  JSObject::UpdateMapCodeCache(receiver, name, code);
-  return code;
+  Handle<Code> handler = compiler.CompileStoreField(receiver, lookup, name);
+  JSObject::UpdateMapCodeCache(receiver, name, handler);
+  return handler;
 }
 
 
@@ -583,15 +650,15 @@ Handle<Code> StubCache::ComputeKeyedStoreTransition(
     LookupResult* lookup,
     Handle<Map> transition,
     StrictModeFlag strict_mode) {
-  Handle<Code> stub = FindIC(
+  Handle<Code> stub = FindStoreHandler(
       name, receiver, Code::KEYED_STORE_IC, Code::MAP_TRANSITION, strict_mode);
   if (!stub.is_null()) return stub;
 
   KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
-  Handle<Code> code =
+  Handle<Code> handler =
       compiler.CompileStoreTransition(receiver, lookup, transition, name);
-  JSObject::UpdateMapCodeCache(receiver, name, code);
-  return code;
+  JSObject::UpdateMapCodeCache(receiver, name, handler);
+  return handler;
 }
 
 
@@ -922,12 +989,8 @@ Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
     if (!cached_ic.is_null()) return cached_ic;
   }
 
-  Handle<Code> ic = stub.GetCode(isolate_);
-
-  // For monomorphic maps, use the code as a template, copying and replacing
-  // the monomorphic map that checks the object's type.
-  ic = isolate_->factory()->CopyCode(ic);
-  ic->ReplaceFirstMap(*receiver_map);
+  Handle<Code> ic = stub.GetCodeCopyFromTemplate(isolate_);
+  ic->ReplaceNthObject(1, isolate_->heap()->meta_map(), *receiver_map);
 
   if (!receiver_map->is_shared()) {
     Map::UpdateCodeCache(receiver_map, name, ic);
@@ -959,11 +1022,25 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
 }
 
 
-Handle<Code> StubCache::ComputePolymorphicIC(MapHandleList* receiver_maps,
-                                             CodeHandleList* handlers,
-                                             int number_of_valid_maps,
-                                             Handle<Name> name) {
+Handle<Code> StubCache::ComputePolymorphicLoadIC(MapHandleList* receiver_maps,
+                                                 CodeHandleList* handlers,
+                                                 int number_of_valid_maps,
+                                                 Handle<Name> name) {
   LoadStubCompiler ic_compiler(isolate_);
+  Code::StubType type = number_of_valid_maps == 1 ? handlers->at(0)->type()
+                                                  : Code::NORMAL;
+  Handle<Code> ic = ic_compiler.CompilePolymorphicIC(
+      receiver_maps, handlers, name, type, PROPERTY);
+  return ic;
+}
+
+
+Handle<Code> StubCache::ComputePolymorphicStoreIC(MapHandleList* receiver_maps,
+                                                  CodeHandleList* handlers,
+                                                  int number_of_valid_maps,
+                                                  Handle<Name> name,
+                                                  StrictModeFlag strict_mode) {
+  StoreStubCompiler ic_compiler(isolate_, strict_mode);
   Code::StubType type = number_of_valid_maps == 1 ? handlers->at(0)->type()
                                                   : Code::NORMAL;
   Handle<Code> ic = ic_compiler.CompilePolymorphicIC(
@@ -1462,7 +1539,7 @@ Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
                                             Handle<Name> name) {
   return (FLAG_print_code_stubs && !name.is_null() && name->IsString())
       ? GetCodeWithFlags(flags, *Handle<String>::cast(name)->ToCString())
-      : GetCodeWithFlags(flags, reinterpret_cast<char*>(NULL));
+      : GetCodeWithFlags(flags, NULL);
 }
 
 
@@ -1479,28 +1556,42 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
 #define __ ACCESS_MASM(masm())
 
 
-Register BaseLoadStubCompiler::HandlerFrontendHeader(Handle<JSObject> object,
-                                                     Register object_reg,
-                                                     Handle<JSObject> holder,
-                                                     Handle<Name> name,
-                                                     Label* miss) {
-  // Check the prototype chain.
+Register BaseLoadStubCompiler::HandlerFrontendHeader(
+    Handle<JSObject> object,
+    Register object_reg,
+    Handle<JSObject> holder,
+    Handle<Name> name,
+    Label* miss) {
   return CheckPrototypes(object, object_reg, holder,
                          scratch1(), scratch2(), scratch3(),
                          name, miss, SKIP_RECEIVER);
 }
 
 
-Register BaseLoadStubCompiler::HandlerFrontend(Handle<JSObject> object,
-                                               Register object_reg,
-                                               Handle<JSObject> holder,
-                                               Handle<Name> name,
-                                               Label* success) {
+// HandlerFrontend for store uses the name register. It has to be restored
+// before a miss.
+Register BaseStoreStubCompiler::HandlerFrontendHeader(
+    Handle<JSObject> object,
+    Register object_reg,
+    Handle<JSObject> holder,
+    Handle<Name> name,
+    Label* miss) {
+  return CheckPrototypes(object, object_reg, holder,
+                         this->name(), scratch1(), scratch2(),
+                         name, miss, SKIP_RECEIVER);
+}
+
+
+Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<JSObject> object,
+                                                    Register object_reg,
+                                                    Handle<JSObject> holder,
+                                                    Handle<Name> name,
+                                                    Label* success) {
   Label miss;
 
   Register reg = HandlerFrontendHeader(object, object_reg, holder, name, &miss);
 
-  HandlerFrontendFooter(success, &miss);
+  HandlerFrontendFooter(name, success, &miss);
   return reg;
 }
 
@@ -1614,7 +1705,7 @@ void BaseLoadStubCompiler::GenerateLoadPostInterceptor(
 }
 
 
-Handle<Code> BaseLoadStubCompiler::CompileMonomorphicIC(
+Handle<Code> BaseLoadStoreStubCompiler::CompileMonomorphicIC(
     Handle<Map> receiver_map,
     Handle<Code> handler,
     Handle<Name> name) {
@@ -1648,9 +1739,35 @@ Handle<Code> BaseStoreStubCompiler::CompileStoreTransition(
     LookupResult* lookup,
     Handle<Map> transition,
     Handle<Name> name) {
-  Label miss, miss_restore_name, slow;
+  Label miss, slow;
 
-  GenerateNameCheck(name, this->name(), &miss);
+  // Ensure no transitions to deprecated maps are followed.
+  __ CheckMapDeprecated(transition, scratch1(), &miss);
+
+  // Check that we are allowed to write this.
+  if (object->GetPrototype()->IsJSObject()) {
+    Handle<JSObject> holder;
+    // holder == object indicates that no property was found.
+    if (lookup->holder() != *object) {
+      holder = Handle<JSObject>(lookup->holder());
+    } else {
+      // Find the top object.
+      holder = object;
+      do {
+        holder = Handle<JSObject>(JSObject::cast(holder->GetPrototype()));
+      } while (holder->GetPrototype()->IsJSObject());
+    }
+
+    Register holder_reg =
+        HandlerFrontendHeader(object, receiver(), holder, name, &miss);
+
+    // If no property was found, and the holder (the last object in the
+    // prototype chain) is in slow mode, we need to do a negative lookup on the
+    // holder.
+    if (lookup->holder() == *object) {
+      GenerateNegativeHolderLookup(masm(), holder, holder_reg, name, &miss);
+    }
+  }
 
   GenerateStoreTransition(masm(),
                           object,
@@ -1660,19 +1777,17 @@ Handle<Code> BaseStoreStubCompiler::CompileStoreTransition(
                           receiver(), this->name(), value(),
                           scratch1(), scratch2(), scratch3(),
                           &miss,
-                          &miss_restore_name,
                           &slow);
 
   // Handle store cache miss.
-  GenerateRestoreName(masm(), &miss_restore_name, name);
-  __ bind(&miss);
+  GenerateRestoreName(masm(), &miss, name);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   GenerateRestoreName(masm(), &slow, name);
   TailCallBuiltin(masm(), SlowBuiltin(kind()));
 
   // Return the generated code.
-  return GetICCode(kind(), Code::MAP_TRANSITION, name);
+  return GetCode(kind(), Code::MAP_TRANSITION, name);
 }
 
 
@@ -1681,7 +1796,7 @@ Handle<Code> BaseStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
                                                       Handle<Name> name) {
   Label miss;
 
-  GenerateNameCheck(name, this->name(), &miss);
+  HandlerFrontendHeader(object, receiver(), object, name, &miss);
 
   // Generate store field code.
   GenerateStoreField(masm(),
@@ -1695,32 +1810,22 @@ Handle<Code> BaseStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetICCode(kind(), Code::FIELD, name);
+  return GetCode(kind(), Code::FIELD, name);
 }
 
 
 Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
-    Handle<Name> name,
     Handle<JSObject> object,
     Handle<JSObject> holder,
+    Handle<Name> name,
     Handle<JSFunction> setter) {
-  Label miss, miss_restore_name;
+  Label success;
+  HandlerFrontend(object, receiver(), holder, name, &success);
 
-  // Check that the maps haven't changed, preserving the name register.
-  __ JumpIfSmi(receiver(), &miss);
-  CheckPrototypes(object, receiver(), holder,
-                  this->name(), scratch1(), scratch2(),
-                  name, &miss_restore_name);
-
+  __ bind(&success);
   GenerateStoreViaSetter(masm(), setter);
 
-  GenerateRestoreName(masm(), &miss_restore_name, name);
-
-  __ bind(&miss);
-  TailCallBuiltin(masm(), MissBuiltin(kind()));
-
-  // Return the generated code.
-  return GetICCode(kind(), Code::CALLBACKS, name);
+  return GetCode(kind(), Code::CALLBACKS, name);
 }
 
 
@@ -1802,12 +1907,12 @@ void KeyedStoreStubCompiler::JitEvent(Handle<Name> name, Handle<Code> code) {
 }
 
 
-Handle<Code> BaseLoadStubCompiler::GetICCode(Code::Kind kind,
-                                             Code::StubType type,
-                                             Handle<Name> name,
-                                             InlineCacheState state) {
+Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
+                                                  Code::StubType type,
+                                                  Handle<Name> name,
+                                                  InlineCacheState state) {
   Code::Flags flags = Code::ComputeFlags(
-      kind, state, Code::kNoExtraICState, type);
+      kind, state, extra_state(), type);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);
@@ -1821,19 +1926,6 @@ Handle<Code> BaseLoadStubCompiler::GetCode(Code::Kind kind,
   ASSERT(type != Code::NORMAL);
   Code::Flags flags = Code::ComputeFlags(
       Code::STUB, MONOMORPHIC, Code::kNoExtraICState, type, kind);
-  Handle<Code> code = GetCodeWithFlags(flags, name);
-  PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
-  JitEvent(name, code);
-  return code;
-}
-
-
-Handle<Code> BaseStoreStubCompiler::GetICCode(Code::Kind kind,
-                                              Code::StubType type,
-                                              Handle<Name> name,
-                                              InlineCacheState state) {
-  Code::Flags flags = Code::ComputeFlags(
-      kind, state, extra_state(), type);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);
@@ -1901,12 +1993,21 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
     ElementsKind elements_kind = receiver_map->elements_kind();
     if (!transitioned_map.is_null()) {
-      cached_stub = ElementsTransitionAndStoreStub(
-          elements_kind,
-          transitioned_map->elements_kind(),
-          is_js_array,
-          strict_mode(),
-          store_mode_).GetCode(isolate());
+      if (FLAG_compiled_transitions) {
+        cached_stub = ElementsTransitionAndStoreStub(
+            elements_kind,
+            transitioned_map->elements_kind(),
+            is_js_array,
+            store_mode_).GetCode(isolate());
+      } else {
+        // TODO(bmeurer) Remove this when compiled transitions is enabled
+        cached_stub = ElementsTransitionAndStorePlatformStub(
+            elements_kind,
+            transitioned_map->elements_kind(),
+            is_js_array,
+            strict_mode(),
+            store_mode_).GetCode(isolate());
+      }
     } else {
       if (FLAG_compiled_keyed_stores &&
           (receiver_map->has_fast_elements() ||
@@ -2044,6 +2145,7 @@ CallOptimization::CallOptimization(LookupResult* lookup) {
     Initialize(Handle<JSFunction>::null());
   }
 }
+
 
 CallOptimization::CallOptimization(Handle<JSFunction> function) {
   Initialize(function);

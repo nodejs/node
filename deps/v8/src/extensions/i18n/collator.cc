@@ -76,6 +76,7 @@ void Collator::DeleteCollator(v8::Isolate* isolate,
   object->Dispose(isolate);
 }
 
+
 // Throws a JavaScript exception.
 static v8::Handle<v8::Value> ThrowUnexpectedObjectError() {
   // Returns undefined, and schedules an exception to be thrown.
@@ -84,10 +85,12 @@ static v8::Handle<v8::Value> ThrowUnexpectedObjectError() {
                       "that is not a Collator.")));
 }
 
+
 // When there's an ICU error, throw a JavaScript error with |message|.
 static v8::Handle<v8::Value> ThrowExceptionForICUError(const char* message) {
   return v8::ThrowException(v8::Exception::Error(v8::String::New(message)));
 }
+
 
 // static
 void Collator::JSInternalCompare(

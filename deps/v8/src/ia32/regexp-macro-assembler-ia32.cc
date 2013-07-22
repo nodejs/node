@@ -1030,6 +1030,7 @@ void RegExpMacroAssemblerIA32::SetCurrentPositionFromEnd(int by)  {
   __ bind(&after_position);
 }
 
+
 void RegExpMacroAssemblerIA32::SetRegister(int register_index, int to) {
   ASSERT(register_index >= num_saved_registers_);  // Reserved for positions!
   __ mov(register_location(register_index), Immediate(to));

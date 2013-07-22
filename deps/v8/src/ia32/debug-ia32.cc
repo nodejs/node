@@ -91,6 +91,7 @@ void BreakLocationIterator::ClearDebugBreakAtSlot() {
   rinfo()->PatchCode(original_rinfo()->pc(), Assembler::kDebugBreakSlotLength);
 }
 
+
 // All debug break stubs support padding for LiveEdit.
 const bool Debug::FramePaddingLayout::kIsSupported = true;
 

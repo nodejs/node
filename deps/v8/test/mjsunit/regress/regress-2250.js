@@ -64,5 +64,5 @@ test();
 // Second compilation should have noticed that LICM wasn't a good idea, and now
 // function should no longer deopt when called.
 test();
-assertTrue(2 != %GetOptimizationStatus(test));
+assertOptimized(test);
 

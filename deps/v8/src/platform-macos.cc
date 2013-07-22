@@ -53,6 +53,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <cxxabi.h>
 
 #undef MAP_TYPE
 
@@ -189,7 +190,10 @@ void OS::DebugBreak() {
 
 
 void OS::DumpBacktrace() {
-  // Currently unsupported.
+  // If weak link to execinfo lib has failed, ie because we are on 10.4, abort.
+  if (backtrace == NULL) return;
+
+  POSIXBacktraceHelper<backtrace, backtrace_symbols>::DumpBacktrace();
 }
 
 
@@ -315,34 +319,9 @@ double OS::LocalTimeOffset() {
 
 int OS::StackWalk(Vector<StackFrame> frames) {
   // If weak link to execinfo lib has failed, ie because we are on 10.4, abort.
-  if (backtrace == NULL)
-    return 0;
+  if (backtrace == NULL) return 0;
 
-  int frames_size = frames.length();
-  ScopedVector<void*> addresses(frames_size);
-
-  int frames_count = backtrace(addresses.start(), frames_size);
-
-  char** symbols = backtrace_symbols(addresses.start(), frames_count);
-  if (symbols == NULL) {
-    return kStackWalkError;
-  }
-
-  for (int i = 0; i < frames_count; i++) {
-    frames[i].address = addresses[i];
-    // Format a text representation of the frame based on the information
-    // available.
-    SNPrintF(MutableCStrVector(frames[i].text,
-                               kStackWalkMaxTextLen),
-             "%s",
-             symbols[i]);
-    // Make sure line termination is in place.
-    frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
-  }
-
-  free(symbols);
-
-  return frames_count;
+  return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
 }
 
 
@@ -596,6 +575,7 @@ static void InitializeTlsBaseOffset() {
   Release_Store(&tls_base_offset_initialized, 1);
 }
 
+
 static void CheckFastTls(Thread::LocalStorageKey key) {
   void* expected = reinterpret_cast<void*>(0x1234CAFE);
   Thread::SetThreadLocal(key, expected);
@@ -648,45 +628,6 @@ void* Thread::GetThreadLocal(LocalStorageKey key) {
 void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
   pthread_setspecific(pthread_key, value);
-}
-
-
-void Thread::YieldCPU() {
-  sched_yield();
-}
-
-
-class MacOSMutex : public Mutex {
- public:
-  MacOSMutex() {
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&mutex_, &attr);
-  }
-
-  virtual ~MacOSMutex() { pthread_mutex_destroy(&mutex_); }
-
-  virtual int Lock() { return pthread_mutex_lock(&mutex_); }
-  virtual int Unlock() { return pthread_mutex_unlock(&mutex_); }
-
-  virtual bool TryLock() {
-    int result = pthread_mutex_trylock(&mutex_);
-    // Return false if the lock is busy and locking failed.
-    if (result == EBUSY) {
-      return false;
-    }
-    ASSERT(result == 0);  // Verify no other errors.
-    return true;
-  }
-
- private:
-  pthread_mutex_t mutex_;
-};
-
-
-Mutex* OS::CreateMutex() {
-  return new MacOSMutex();
 }
 
 

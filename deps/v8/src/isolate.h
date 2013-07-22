@@ -124,6 +124,15 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
     }                                                     \
   } while (false)
 
+#define RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, T)  \
+  do {                                                    \
+    Isolate* __isolate__ = (isolate);                     \
+    if (__isolate__->has_scheduled_exception()) {         \
+      __isolate__->PromoteScheduledException();           \
+      return Handle<T>::null();                           \
+    }                                                     \
+  } while (false)
+
 #define RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, value) \
   do {                                                     \
     if ((call).is_null()) {                                \
@@ -1121,6 +1130,11 @@ class Isolate {
     function_entry_hook_ = function_entry_hook;
   }
 
+  void* stress_deopt_count_address() { return &stress_deopt_count_; }
+
+  // Given an address occupied by a live code object, return that object.
+  Object* FindCodeObject(Address a);
+
  private:
   Isolate();
 
@@ -1355,6 +1369,9 @@ class Isolate {
   MarkingThread** marking_thread_;
   SweeperThread** sweeper_thread_;
   CallbackTable* callback_table_;
+
+  // Counts deopt points if deopt_every_n_times is enabled.
+  unsigned int stress_deopt_count_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

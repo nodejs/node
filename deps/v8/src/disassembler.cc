@@ -360,6 +360,8 @@ void Disassembler::Dump(FILE* f, byte* begin, byte* end) {}
 int Disassembler::Decode(Isolate* isolate, FILE* f, byte* begin, byte* end) {
   return 0;
 }
+
+
 void Disassembler::Decode(FILE* f, Code* code) {}
 
 #endif  // ENABLE_DISASSEMBLER

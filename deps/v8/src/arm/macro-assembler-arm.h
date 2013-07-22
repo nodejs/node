@@ -1334,14 +1334,14 @@ class MacroAssembler: public Assembler {
   // in r0.  Assumes that any other register can be used as a scratch.
   void CheckEnumCache(Register null_value, Label* call_runtime);
 
-  // AllocationSiteInfo support. Arrays may have an associated
-  // AllocationSiteInfo object that can be checked for in order to pretransition
+  // AllocationMemento support. Arrays may have an associated
+  // AllocationMemento object that can be checked for in order to pretransition
   // to another type.
   // On entry, receiver_reg should point to the array object.
   // scratch_reg gets clobbered.
   // If allocation info is present, condition flags are set to eq
-  void TestJSArrayForAllocationSiteInfo(Register receiver_reg,
-                                        Register scratch_reg);
+  void TestJSArrayForAllocationMemento(Register receiver_reg,
+                                       Register scratch_reg);
 
  private:
   void CallCFunctionHelper(Register function,

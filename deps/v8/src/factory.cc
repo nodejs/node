@@ -178,12 +178,14 @@ Handle<String> Factory::InternalizeUtf8String(Vector<const char> string) {
                      String);
 }
 
+
 // Internalized strings are created in the old generation (data space).
 Handle<String> Factory::InternalizeString(Handle<String> string) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->InternalizeString(*string),
                      String);
 }
+
 
 Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
   CALL_HEAP_FUNCTION(isolate(),
@@ -514,6 +516,14 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Object> value) {
       isolate(),
       isolate()->heap()->AllocatePropertyCell(*value),
       PropertyCell);
+}
+
+
+Handle<AllocationSite> Factory::NewAllocationSite() {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateAllocationSite(),
+      AllocationSite);
 }
 
 
@@ -925,7 +935,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
     initial_map->set_constructor(*function);
   }
 
-  SetPrototypeProperty(function, prototype);
+  JSFunction::SetPrototype(function, prototype);
   return function;
 }
 
@@ -1234,6 +1244,7 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
                          *stack_frames),
                      JSMessageObject);
 }
+
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),

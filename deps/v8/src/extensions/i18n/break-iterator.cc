@@ -82,6 +82,7 @@ void BreakIterator::DeleteBreakIterator(v8::Isolate* isolate,
   object->Dispose(isolate);
 }
 
+
 // Throws a JavaScript exception.
 static v8::Handle<v8::Value> ThrowUnexpectedObjectError() {
   // Returns undefined, and schedules an exception to be thrown.
@@ -89,6 +90,7 @@ static v8::Handle<v8::Value> ThrowUnexpectedObjectError() {
       v8::String::New("BreakIterator method called on an object "
                       "that is not a BreakIterator.")));
 }
+
 
 // Deletes the old value and sets the adopted text in corresponding
 // JavaScript object.

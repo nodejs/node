@@ -509,6 +509,7 @@ void Isolate::Iterate(ObjectVisitor* v) {
   Iterate(v, current_t);
 }
 
+
 void Isolate::IterateDeferredHandles(ObjectVisitor* visitor) {
   for (DeferredHandles* deferred = deferred_handles_head_;
        deferred != NULL;
@@ -621,10 +622,8 @@ static bool IsVisibleInStackTrace(StackFrame* raw_frame,
   // Only display JS frames.
   if (!raw_frame->is_java_script()) return false;
   JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
-  Object* raw_fun = frame->function();
-  // Not sure when this can happen but skip it just in case.
-  if (!raw_fun->IsJSFunction()) return false;
-  if ((raw_fun == caller) && !(*seen_caller)) {
+  JSFunction* fun = frame->function();
+  if ((fun == caller) && !(*seen_caller)) {
     *seen_caller = true;
     return false;
   }
@@ -636,7 +635,6 @@ static bool IsVisibleInStackTrace(StackFrame* raw_frame,
   // The --builtins-in-stack-traces command line flag allows including
   // internal call sites in the stack trace for debugging purposes.
   if (!FLAG_builtins_in_stack_traces) {
-    JSFunction* fun = JSFunction::cast(raw_fun);
     if (frame->receiver()->IsJSBuiltinsObject() ||
         (fun->IsBuiltin() && !fun->shared()->native())) {
       return false;
@@ -671,7 +669,7 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
       JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
       // Set initial size to the maximum inlining level + 1 for the outermost
       // function.
-      List<FrameSummary> frames(Compiler::kMaxInliningLevels + 1);
+      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
       frame->Summarize(&frames);
       for (int i = frames.length() - 1; i >= 0; i--) {
         if (cursor + 4 > elements->length()) {
@@ -754,7 +752,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     JavaScriptFrame* frame = it.frame();
     // Set initial size to the maximum inlining level + 1 for the outermost
     // function.
-    List<FrameSummary> frames(Compiler::kMaxInliningLevels + 1);
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
     frame->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
       // Create a JSObject to hold the information for the StackFrame.
@@ -1200,7 +1198,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
     int pos = frame->LookupCode()->SourcePosition(frame->pc());
     Handle<Object> pos_obj(Smi::FromInt(pos), this);
     // Fetch function and receiver.
-    Handle<JSFunction> fun(JSFunction::cast(frame->function()));
+    Handle<JSFunction> fun(frame->function());
     Handle<Object> recv(frame->receiver(), this);
     // Advance to the next JavaScript frame and determine if the
     // current frame is the top-level frame.
@@ -1224,7 +1222,7 @@ void Isolate::ComputeLocation(MessageLocation* target) {
   StackTraceFrameIterator it(this);
   if (!it.done()) {
     JavaScriptFrame* frame = it.frame();
-    JSFunction* fun = JSFunction::cast(frame->function());
+    JSFunction* fun = frame->function();
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined())) {
@@ -1788,7 +1786,8 @@ Isolate::Isolate()
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
       sweeper_thread_(NULL),
-      callback_table_(NULL) {
+      callback_table_(NULL),
+      stress_deopt_count_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
@@ -1876,6 +1875,10 @@ void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    debugger()->UnloadDebugger();
+#endif
+
     if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
 
     if (FLAG_sweeper_threads > 0) {
@@ -1895,6 +1898,10 @@ void Isolate::Deinit() {
     }
 
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
+
+    if (FLAG_print_deopt_stress) {
+      PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
+    }
 
     // We must stop the logger before we tear down other components.
     Sampler* sampler = logger_->sampler();
@@ -2129,6 +2136,8 @@ bool Isolate::Init(Deserializer* des) {
   ASSERT(state_ != INITIALIZED);
   ASSERT(Isolate::Current() == this);
   TRACE_ISOLATE(init);
+
+  stress_deopt_count_ = FLAG_deopt_every_n_times;
 
   if (function_entry_hook() != NULL) {
     // When function entry hooking is in effect, we have to create the code
@@ -2498,6 +2507,11 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
 CodeStubInterfaceDescriptor*
     Isolate::code_stub_interface_descriptor(int index) {
   return code_stub_interface_descriptors_ + index;
+}
+
+
+Object* Isolate::FindCodeObject(Address a) {
+  return inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(a);
 }
 
 

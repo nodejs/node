@@ -58,6 +58,7 @@ const char* Registers::names_[kNumSimuRegisters] = {
   "pc"
 };
 
+
 // List of alias names which can be used when referring to MIPS registers.
 const Registers::RegisterAlias Registers::aliases_[] = {
   {0, "zero"},
@@ -66,6 +67,7 @@ const Registers::RegisterAlias Registers::aliases_[] = {
   {30, "s8_fp"},
   {kInvalidRegister, NULL}
 };
+
 
 const char* Registers::Name(int reg) {
   const char* result;
@@ -106,10 +108,12 @@ const char* FPURegisters::names_[kNumFPURegisters] = {
   "f22", "f23", "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31"
 };
 
+
 // List of alias names which can be used when referring to MIPS registers.
 const FPURegisters::RegisterAlias FPURegisters::aliases_[] = {
   {kInvalidRegister, NULL}
 };
+
 
 const char* FPURegisters::Name(int creg) {
   const char* result;

@@ -317,6 +317,11 @@ template <typename sourcechar, typename sinkchar>
 INLINE(static void CopyCharsUnsigned(sinkchar* dest,
                                      const sourcechar* src,
                                      int chars));
+#if defined(V8_HOST_ARCH_ARM)
+INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
+#endif
 
 // Copy from ASCII/16bit chars to ASCII/16bit chars.
 template <typename sourcechar, typename sinkchar>
@@ -373,6 +378,105 @@ void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
     *dest++ = static_cast<sinkchar>(*src++);
   }
 }
+
+
+#if defined(V8_HOST_ARCH_ARM)
+void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
+  switch (static_cast<unsigned>(chars)) {
+    case 0:
+      break;
+    case 1:
+      *dest = *src;
+      break;
+    case 2:
+      memcpy(dest, src, 2);
+      break;
+    case 3:
+      memcpy(dest, src, 3);
+      break;
+    case 4:
+      memcpy(dest, src, 4);
+      break;
+    case 5:
+      memcpy(dest, src, 5);
+      break;
+    case 6:
+      memcpy(dest, src, 6);
+      break;
+    case 7:
+      memcpy(dest, src, 7);
+      break;
+    case 8:
+      memcpy(dest, src, 8);
+      break;
+    case 9:
+      memcpy(dest, src, 9);
+      break;
+    case 10:
+      memcpy(dest, src, 10);
+      break;
+    case 11:
+      memcpy(dest, src, 11);
+      break;
+    case 12:
+      memcpy(dest, src, 12);
+      break;
+    case 13:
+      memcpy(dest, src, 13);
+      break;
+    case 14:
+      memcpy(dest, src, 14);
+      break;
+    case 15:
+      memcpy(dest, src, 15);
+      break;
+    default:
+      OS::MemCopy(dest, src, chars);
+      break;
+  }
+}
+
+
+void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars) {
+  if (chars >= OS::kMinComplexConvertMemCopy) {
+    OS::MemCopyUint16Uint8(dest, src, chars);
+  } else {
+    OS::MemCopyUint16Uint8Wrapper(dest, src, chars);
+  }
+}
+
+
+void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
+  switch (static_cast<unsigned>(chars)) {
+    case 0:
+      break;
+    case 1:
+      *dest = *src;
+      break;
+    case 2:
+      memcpy(dest, src, 4);
+      break;
+    case 3:
+      memcpy(dest, src, 6);
+      break;
+    case 4:
+      memcpy(dest, src, 8);
+      break;
+    case 5:
+      memcpy(dest, src, 10);
+      break;
+    case 6:
+      memcpy(dest, src, 12);
+      break;
+    case 7:
+      memcpy(dest, src, 14);
+      break;
+    default:
+      OS::MemCopy(dest, src, chars * sizeof(*dest));
+      break;
+  }
+}
+#endif
 
 
 class StringBuilder : public SimpleStringBuilder {

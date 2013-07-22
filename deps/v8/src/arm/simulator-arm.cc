@@ -919,6 +919,54 @@ void Simulator::set_dw_register(int dreg, const int* dbl) {
 }
 
 
+void Simulator::get_d_register(int dreg, uint64_t* value) {
+  ASSERT((dreg >= 0) && (dreg < DwVfpRegister::NumRegisters()));
+  memcpy(value, vfp_registers_ + dreg * 2, sizeof(*value));
+}
+
+
+void Simulator::set_d_register(int dreg, const uint64_t* value) {
+  ASSERT((dreg >= 0) && (dreg < DwVfpRegister::NumRegisters()));
+  memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value));
+}
+
+
+void Simulator::get_d_register(int dreg, uint32_t* value) {
+  ASSERT((dreg >= 0) && (dreg < DwVfpRegister::NumRegisters()));
+  memcpy(value, vfp_registers_ + dreg * 2, sizeof(*value) * 2);
+}
+
+
+void Simulator::set_d_register(int dreg, const uint32_t* value) {
+  ASSERT((dreg >= 0) && (dreg < DwVfpRegister::NumRegisters()));
+  memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value) * 2);
+}
+
+
+void Simulator::get_q_register(int qreg, uint64_t* value) {
+  ASSERT((qreg >= 0) && (qreg < num_q_registers));
+  memcpy(value, vfp_registers_ + qreg * 4, sizeof(*value) * 2);
+}
+
+
+void Simulator::set_q_register(int qreg, const uint64_t* value) {
+  ASSERT((qreg >= 0) && (qreg < num_q_registers));
+  memcpy(vfp_registers_ + qreg * 4, value, sizeof(*value) * 2);
+}
+
+
+void Simulator::get_q_register(int qreg, uint32_t* value) {
+  ASSERT((qreg >= 0) && (qreg < num_q_registers));
+  memcpy(value, vfp_registers_ + qreg * 4, sizeof(*value) * 4);
+}
+
+
+void Simulator::set_q_register(int qreg, const uint32_t* value) {
+  ASSERT((qreg >= 0) && (qreg < num_q_registers));
+  memcpy(vfp_registers_ + qreg * 4, value, sizeof(*value) * 4);
+}
+
+
 // Raw access to the PC register.
 void Simulator::set_pc(int32_t value) {
   pc_modified_ = true;
@@ -1025,6 +1073,7 @@ void Simulator::TrashCallerSaveRegisters() {
   registers_[3] = 0x50Bad4U;
   registers_[12] = 0x50Bad4U;
 }
+
 
 // Some Operating Systems allow unaligned access on ARMv7 targets. We
 // assume that unaligned accesses are not allowed unless the v8 build system
@@ -1485,11 +1534,11 @@ static int count_bits(int bit_vector) {
 }
 
 
-void Simulator::ProcessPUW(Instruction* instr,
-                           int num_regs,
-                           int reg_size,
-                           intptr_t* start_address,
-                           intptr_t* end_address) {
+int32_t Simulator::ProcessPU(Instruction* instr,
+                             int num_regs,
+                             int reg_size,
+                             intptr_t* start_address,
+                             intptr_t* end_address) {
   int rn = instr->RnValue();
   int32_t rn_val = get_register(rn);
   switch (instr->PUField()) {
@@ -1520,10 +1569,9 @@ void Simulator::ProcessPUW(Instruction* instr,
       break;
     }
   }
-  if (instr->HasW()) {
-    set_register(rn, rn_val);
-  }
+  return rn_val;
 }
+
 
 // Addressing Mode 4 - Load and Store Multiple
 void Simulator::HandleRList(Instruction* instr, bool load) {
@@ -1532,7 +1580,8 @@ void Simulator::HandleRList(Instruction* instr, bool load) {
 
   intptr_t start_address = 0;
   intptr_t end_address = 0;
-  ProcessPUW(instr, num_regs, kPointerSize, &start_address, &end_address);
+  int32_t rn_val =
+      ProcessPU(instr, num_regs, kPointerSize, &start_address, &end_address);
 
   intptr_t* address = reinterpret_cast<intptr_t*>(start_address);
   // Catch null pointers a little earlier.
@@ -1551,6 +1600,9 @@ void Simulator::HandleRList(Instruction* instr, bool load) {
     rlist >>= 1;
   }
   ASSERT(end_address == ((intptr_t)address) - 4);
+  if (instr->HasW()) {
+    set_register(instr->RnValue(), rn_val);
+  }
 }
 
 
@@ -1573,7 +1625,8 @@ void Simulator::HandleVList(Instruction* instr) {
 
   intptr_t start_address = 0;
   intptr_t end_address = 0;
-  ProcessPUW(instr, num_regs, operand_size, &start_address, &end_address);
+  int32_t rn_val =
+      ProcessPU(instr, num_regs, operand_size, &start_address, &end_address);
 
   intptr_t* address = reinterpret_cast<intptr_t*>(start_address);
   for (int reg = vd; reg < vd + num_regs; reg++) {
@@ -1606,6 +1659,9 @@ void Simulator::HandleVList(Instruction* instr) {
     }
   }
   ASSERT(reinterpret_cast<intptr_t>(address) - operand_size == end_address);
+  if (instr->HasW()) {
+    set_register(instr->RnValue(), rn_val);
+  }
 }
 
 
@@ -1953,6 +2009,7 @@ double Simulator::canonicalizeNaN(double value) {
   return (FPSCR_default_NaN_mode_ && std::isnan(value)) ?
     FixedDoubleArray::canonical_not_the_hole_nan_as_double() : value;
 }
+
 
 // Stop helper functions.
 bool Simulator::isStopInstruction(Instruction* instr) {
@@ -2596,36 +2653,148 @@ void Simulator::DecodeType3(Instruction* instr) {
       break;
     }
     case ia_x: {
-      if (instr->HasW()) {
-        ASSERT(instr->Bits(5, 4) == 0x1);
-
-        if (instr->Bit(22) == 0x1) {  // USAT.
-          int32_t sat_pos = instr->Bits(20, 16);
-          int32_t sat_val = (1 << sat_pos) - 1;
-          int32_t shift = instr->Bits(11, 7);
-          int32_t shift_type = instr->Bit(6);
-          int32_t rm_val = get_register(instr->RmValue());
-          if (shift_type == 0) {  // LSL
-            rm_val <<= shift;
-          } else {  // ASR
-            rm_val >>= shift;
+      if (instr->Bit(4) == 0) {
+        // Memop.
+      } else {
+        if (instr->Bit(5) == 0) {
+          switch (instr->Bits(22, 21)) {
+            case 0:
+              if (instr->Bit(20) == 0) {
+                if (instr->Bit(6) == 0) {
+                  // Pkhbt.
+                  uint32_t rn_val = get_register(rn);
+                  uint32_t rm_val = get_register(instr->RmValue());
+                  int32_t shift = instr->Bits(11, 7);
+                  rm_val <<= shift;
+                  set_register(rd, (rn_val & 0xFFFF) | (rm_val & 0xFFFF0000U));
+                } else {
+                  // Pkhtb.
+                  uint32_t rn_val = get_register(rn);
+                  int32_t rm_val = get_register(instr->RmValue());
+                  int32_t shift = instr->Bits(11, 7);
+                  if (shift == 0) {
+                    shift = 32;
+                  }
+                  rm_val >>= shift;
+                  set_register(rd, (rn_val & 0xFFFF0000U) | (rm_val & 0xFFFF));
+                }
+              } else {
+                UNIMPLEMENTED();
+              }
+              break;
+            case 1:
+              UNIMPLEMENTED();
+              break;
+            case 2:
+              UNIMPLEMENTED();
+              break;
+            case 3: {
+              // Usat.
+              int32_t sat_pos = instr->Bits(20, 16);
+              int32_t sat_val = (1 << sat_pos) - 1;
+              int32_t shift = instr->Bits(11, 7);
+              int32_t shift_type = instr->Bit(6);
+              int32_t rm_val = get_register(instr->RmValue());
+              if (shift_type == 0) {  // LSL
+                rm_val <<= shift;
+              } else {  // ASR
+                rm_val >>= shift;
+              }
+              // If saturation occurs, the Q flag should be set in the CPSR.
+              // There is no Q flag yet, and no instruction (MRS) to read the
+              // CPSR directly.
+              if (rm_val > sat_val) {
+                rm_val = sat_val;
+              } else if (rm_val < 0) {
+                rm_val = 0;
+              }
+              set_register(rd, rm_val);
+              break;
+            }
           }
-          // If saturation occurs, the Q flag should be set in the CPSR.
-          // There is no Q flag yet, and no instruction (MRS) to read the
-          // CPSR directly.
-          if (rm_val > sat_val) {
-            rm_val = sat_val;
-          } else if (rm_val < 0) {
-            rm_val = 0;
+        } else {
+          switch (instr->Bits(22, 21)) {
+            case 0:
+              UNIMPLEMENTED();
+              break;
+            case 1:
+              UNIMPLEMENTED();
+              break;
+            case 2:
+              if ((instr->Bit(20) == 0) && (instr->Bits(9, 6) == 1)) {
+                if (instr->Bits(19, 16) == 0xF) {
+                  // Uxtb16.
+                  uint32_t rm_val = get_register(instr->RmValue());
+                  int32_t rotate = instr->Bits(11, 10);
+                  switch (rotate) {
+                    case 0:
+                      break;
+                    case 1:
+                      rm_val = (rm_val >> 8) | (rm_val << 24);
+                      break;
+                    case 2:
+                      rm_val = (rm_val >> 16) | (rm_val << 16);
+                      break;
+                    case 3:
+                      rm_val = (rm_val >> 24) | (rm_val << 8);
+                      break;
+                  }
+                  set_register(rd,
+                               (rm_val & 0xFF) | (rm_val & 0xFF0000));
+                } else {
+                  UNIMPLEMENTED();
+                }
+              } else {
+                UNIMPLEMENTED();
+              }
+              break;
+            case 3:
+              if ((instr->Bit(20) == 0) && (instr->Bits(9, 6) == 1)) {
+                if (instr->Bits(19, 16) == 0xF) {
+                  // Uxtb.
+                  uint32_t rm_val = get_register(instr->RmValue());
+                  int32_t rotate = instr->Bits(11, 10);
+                  switch (rotate) {
+                    case 0:
+                      break;
+                    case 1:
+                      rm_val = (rm_val >> 8) | (rm_val << 24);
+                      break;
+                    case 2:
+                      rm_val = (rm_val >> 16) | (rm_val << 16);
+                      break;
+                    case 3:
+                      rm_val = (rm_val >> 24) | (rm_val << 8);
+                      break;
+                  }
+                  set_register(rd, (rm_val & 0xFF));
+                } else {
+                  // Uxtab.
+                  uint32_t rn_val = get_register(rn);
+                  uint32_t rm_val = get_register(instr->RmValue());
+                  int32_t rotate = instr->Bits(11, 10);
+                  switch (rotate) {
+                    case 0:
+                      break;
+                    case 1:
+                      rm_val = (rm_val >> 8) | (rm_val << 24);
+                      break;
+                    case 2:
+                      rm_val = (rm_val >> 16) | (rm_val << 16);
+                      break;
+                    case 3:
+                      rm_val = (rm_val >> 24) | (rm_val << 8);
+                      break;
+                  }
+                  set_register(rd, rn_val + (rm_val & 0xFF));
+                }
+              } else {
+                UNIMPLEMENTED();
+              }
+              break;
           }
-          set_register(rd, rm_val);
-        } else {  // SSAT.
-          UNIMPLEMENTED();
         }
         return;
-      } else {
-        Format(instr, "'memop'cond'b 'rd, ['rn], +'shift_rm");
-        UNIMPLEMENTED();
       }
       break;
     }
@@ -3349,6 +3518,156 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
 }
 
 
+void Simulator::DecodeSpecialCondition(Instruction* instr) {
+  switch (instr->SpecialValue()) {
+    case 5:
+      if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
+          (instr->Bit(4) == 1)) {
+        // vmovl signed
+        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        int Vm = (instr->Bit(5) << 4) | instr->VmValue();
+        int imm3 = instr->Bits(21, 19);
+        if ((imm3 != 1) && (imm3 != 2) && (imm3 != 4)) UNIMPLEMENTED();
+        int esize = 8 * imm3;
+        int elements = 64 / esize;
+        int8_t from[8];
+        get_d_register(Vm, reinterpret_cast<uint64_t*>(from));
+        int16_t to[8];
+        int e = 0;
+        while (e < elements) {
+          to[e] = from[e];
+          e++;
+        }
+        set_q_register(Vd, reinterpret_cast<uint64_t*>(to));
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case 7:
+      if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
+          (instr->Bit(4) == 1)) {
+        // vmovl unsigned
+        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        int Vm = (instr->Bit(5) << 4) | instr->VmValue();
+        int imm3 = instr->Bits(21, 19);
+        if ((imm3 != 1) && (imm3 != 2) && (imm3 != 4)) UNIMPLEMENTED();
+        int esize = 8 * imm3;
+        int elements = 64 / esize;
+        uint8_t from[8];
+        get_d_register(Vm, reinterpret_cast<uint64_t*>(from));
+        uint16_t to[8];
+        int e = 0;
+        while (e < elements) {
+          to[e] = from[e];
+          e++;
+        }
+        set_q_register(Vd, reinterpret_cast<uint64_t*>(to));
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case 8:
+      if (instr->Bits(21, 20) == 0) {
+        // vst1
+        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        int Rn = instr->VnValue();
+        int type = instr->Bits(11, 8);
+        int Rm = instr->VmValue();
+        int32_t address = get_register(Rn);
+        int regs = 0;
+        switch (type) {
+          case nlt_1:
+            regs = 1;
+            break;
+          case nlt_2:
+            regs = 2;
+            break;
+          case nlt_3:
+            regs = 3;
+            break;
+          case nlt_4:
+            regs = 4;
+            break;
+          default:
+            UNIMPLEMENTED();
+            break;
+        }
+        int r = 0;
+        while (r < regs) {
+          uint32_t data[2];
+          get_d_register(Vd + r, data);
+          WriteW(address, data[0], instr);
+          WriteW(address + 4, data[1], instr);
+          address += 8;
+          r++;
+        }
+        if (Rm != 15) {
+          if (Rm == 13) {
+            set_register(Rn, address);
+          } else {
+            set_register(Rn, get_register(Rn) + get_register(Rm));
+          }
+        }
+      } else if (instr->Bits(21, 20) == 2) {
+        // vld1
+        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        int Rn = instr->VnValue();
+        int type = instr->Bits(11, 8);
+        int Rm = instr->VmValue();
+        int32_t address = get_register(Rn);
+        int regs = 0;
+        switch (type) {
+          case nlt_1:
+            regs = 1;
+            break;
+          case nlt_2:
+            regs = 2;
+            break;
+          case nlt_3:
+            regs = 3;
+            break;
+          case nlt_4:
+            regs = 4;
+            break;
+          default:
+            UNIMPLEMENTED();
+            break;
+        }
+        int r = 0;
+        while (r < regs) {
+          uint32_t data[2];
+          data[0] = ReadW(address, instr);
+          data[1] = ReadW(address + 4, instr);
+          set_d_register(Vd + r, data);
+          address += 8;
+          r++;
+        }
+        if (Rm != 15) {
+          if (Rm == 13) {
+            set_register(Rn, address);
+          } else {
+            set_register(Rn, get_register(Rn) + get_register(Rm));
+          }
+        }
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case 0xA:
+    case 0xB:
+      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xf)) {
+        // pld: ignore instruction.
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    default:
+      UNIMPLEMENTED();
+      break;
+  }
+}
+
+
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
@@ -3365,7 +3684,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
     PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
   }
   if (instr->ConditionField() == kSpecialCondition) {
-    UNIMPLEMENTED();
+    DecodeSpecialCondition(instr);
   } else if (ConditionallyExecute(instr)) {
     switch (instr->TypeValue()) {
       case 0:

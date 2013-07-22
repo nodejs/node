@@ -245,8 +245,9 @@ class EXPORT Debug {
   typedef void (*DebugMessageDispatchHandler)();
 
   // Set a C debug event listener.
-  static bool SetDebugEventListener(EventCallback that,
-                                    Handle<Value> data = Handle<Value>());
+  V8_DEPRECATED(static bool SetDebugEventListener(
+      EventCallback that,
+      Handle<Value> data = Handle<Value>()));
   static bool SetDebugEventListener2(EventCallback2 that,
                                      Handle<Value> data = Handle<Value>());
 
@@ -274,8 +275,9 @@ class EXPORT Debug {
 
   // Message based interface. The message protocol is JSON. NOTE the message
   // handler thread is not supported any more parameter must be false.
-  static void SetMessageHandler(MessageHandler handler,
-                                bool message_handler_thread = false);
+  V8_DEPRECATED(static void SetMessageHandler(
+      MessageHandler handler,
+      bool message_handler_thread = false));
   static void SetMessageHandler2(MessageHandler2 handler);
 
   // If no isolate is provided the default isolate is

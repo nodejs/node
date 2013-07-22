@@ -34,6 +34,7 @@
 var $Set = global.Set;
 var $Map = global.Map;
 var $WeakMap = global.WeakMap;
+var $WeakSet = global.WeakSet;
 
 // Global sentinel to be used instead of undefined keys, which are not
 // supported internally but required for Harmony sets and maps.
@@ -240,7 +241,7 @@ SetUpMap();
 
 function WeakMapConstructor() {
   if (%_IsConstructCall()) {
-    %WeakMapInitialize(this);
+    %WeakCollectionInitialize(this);
   } else {
     return new $WeakMap();
   }
@@ -255,7 +256,7 @@ function WeakMapGet(key) {
   if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
-  return %WeakMapGet(this, key);
+  return %WeakCollectionGet(this, key);
 }
 
 
@@ -267,7 +268,7 @@ function WeakMapSet(key, value) {
   if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
-  return %WeakMapSet(this, key, value);
+  return %WeakCollectionSet(this, key, value);
 }
 
 
@@ -279,7 +280,7 @@ function WeakMapHas(key) {
   if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
-  return %WeakMapHas(this, key);
+  return %WeakCollectionHas(this, key);
 }
 
 
@@ -291,7 +292,7 @@ function WeakMapDelete(key) {
   if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
-  return %WeakMapDelete(this, key);
+  return %WeakCollectionDelete(this, key);
 }
 
 
@@ -301,7 +302,7 @@ function WeakMapClear() {
                         ['WeakMap.prototype.clear', this]);
   }
   // Replace the internal table with a new empty table.
-  %WeakMapInitialize(this);
+  %WeakCollectionInitialize(this);
 }
 
 
@@ -325,3 +326,82 @@ function SetUpWeakMap() {
 }
 
 SetUpWeakMap();
+
+
+// -------------------------------------------------------------------
+// Harmony WeakSet
+
+function WeakSetConstructor() {
+  if (%_IsConstructCall()) {
+    %WeakCollectionInitialize(this);
+  } else {
+    return new $WeakSet();
+  }
+}
+
+
+function WeakSetAdd(value) {
+  if (!IS_WEAKSET(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['WeakSet.prototype.add', this]);
+  }
+  if (!(IS_SPEC_OBJECT(value) || IS_SYMBOL(value))) {
+    throw %MakeTypeError('invalid_weakset_value', [this, value]);
+  }
+  return %WeakCollectionSet(this, value, true);
+}
+
+
+function WeakSetHas(value) {
+  if (!IS_WEAKSET(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['WeakSet.prototype.has', this]);
+  }
+  if (!(IS_SPEC_OBJECT(value) || IS_SYMBOL(value))) {
+    throw %MakeTypeError('invalid_weakset_value', [this, value]);
+  }
+  return %WeakCollectionHas(this, value);
+}
+
+
+function WeakSetDelete(value) {
+  if (!IS_WEAKSET(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['WeakSet.prototype.delete', this]);
+  }
+  if (!(IS_SPEC_OBJECT(value) || IS_SYMBOL(value))) {
+    throw %MakeTypeError('invalid_weakset_value', [this, value]);
+  }
+  return %WeakCollectionDelete(this, value);
+}
+
+
+function WeakSetClear() {
+  if (!IS_WEAKSET(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['WeakSet.prototype.clear', this]);
+  }
+  // Replace the internal table with a new empty table.
+  %WeakCollectionInitialize(this);
+}
+
+
+// -------------------------------------------------------------------
+
+function SetUpWeakSet() {
+  %CheckIsBootstrapping();
+
+  %SetCode($WeakSet, WeakSetConstructor);
+  %FunctionSetPrototype($WeakSet, new $Object());
+  %SetProperty($WeakSet.prototype, "constructor", $WeakSet, DONT_ENUM);
+
+  // Set up the non-enumerable functions on the WeakSet prototype object.
+  InstallFunctions($WeakSet.prototype, DONT_ENUM, $Array(
+    "add", WeakSetAdd,
+    "has", WeakSetHas,
+    "delete", WeakSetDelete,
+    "clear", WeakSetClear
+  ));
+}
+
+SetUpWeakSet();

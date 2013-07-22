@@ -1685,6 +1685,7 @@ PreParser::Identifier PreParser::ParseIdentifierNameOrGetOrSet(bool* is_get,
   return result;
 }
 
+
 bool PreParser::peek_any_identifier() {
   i::Token::Value next = peek();
   return next == i::Token::IDENTIFIER ||
@@ -1697,6 +1698,7 @@ bool PreParser::peek_any_identifier() {
 int DuplicateFinder::AddAsciiSymbol(i::Vector<const char> key, int value) {
   return AddSymbol(i::Vector<const byte>::cast(key), true, value);
 }
+
 
 int DuplicateFinder::AddUtf16Symbol(i::Vector<const uint16_t> key, int value) {
   return AddSymbol(i::Vector<const byte>::cast(key), false, value);
@@ -1722,7 +1724,8 @@ int DuplicateFinder::AddNumber(i::Vector<const char> key, int value) {
     return AddAsciiSymbol(key, value);
   }
 
-  int flags = i::ALLOW_HEX | i::ALLOW_OCTALS;
+  int flags = i::ALLOW_HEX | i::ALLOW_OCTAL | i::ALLOW_IMPLICIT_OCTAL |
+      i::ALLOW_BINARY;
   double double_value = StringToDouble(unicode_constants_, key, flags, 0.0);
   int length;
   const char* string;

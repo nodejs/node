@@ -108,6 +108,7 @@ v8::Handle<v8::FunctionTemplate> Extension::GetNativeFunction(
   return v8::Handle<v8::FunctionTemplate>();
 }
 
+
 void Extension::Register() {
   static Extension i18n_extension;
   static v8::DeclareExtension extension_declaration(&i18n_extension);

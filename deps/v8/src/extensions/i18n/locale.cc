@@ -82,6 +82,7 @@ void JSCanonicalizeLanguageTag(
   args.GetReturnValue().Set(v8::String::New(result));
 }
 
+
 void JSAvailableLocalesOf(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Expect service name which is a string.
   if (args.Length() != 1 || !args[0]->IsString()) {
@@ -131,6 +132,7 @@ void JSAvailableLocalesOf(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(locales);
 }
 
+
 void JSGetDefaultICULocale(const v8::FunctionCallbackInfo<v8::Value>& args) {
   icu::Locale default_locale;
 
@@ -146,6 +148,7 @@ void JSGetDefaultICULocale(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   args.GetReturnValue().Set(v8::String::New("und"));
 }
+
 
 void JSGetLanguageTagVariants(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;

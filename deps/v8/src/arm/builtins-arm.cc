@@ -200,7 +200,6 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
       r3,        // Scratch.
       r4,        // Scratch.
       r5,        // Scratch.
-      false,     // Is it a Smi?
       &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1, r3, r4);
   __ bind(&argument_is_string);

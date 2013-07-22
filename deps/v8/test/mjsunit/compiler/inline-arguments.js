@@ -115,9 +115,9 @@ F4(1);
 })();
 
 // Test arguments access from the inlined function.
+%NeverOptimizeFunction(uninlinable);
 function uninlinable(v) {
   assertEquals(0, v);
-  try { } catch (e) { }
   return 0;
 }
 

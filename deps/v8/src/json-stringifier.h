@@ -434,6 +434,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
           return UNCHANGED;
       }
     case JS_ARRAY_TYPE:
+      if (object->IsAccessCheckNeeded()) break;
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSArray(Handle<JSArray>::cast(object));
     case JS_VALUE_TYPE:
@@ -447,12 +448,13 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
         SerializeString(Handle<String>::cast(object));
         return SUCCESS;
       } else if (object->IsJSObject()) {
+        if (object->IsAccessCheckNeeded()) break;
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         return SerializeJSObject(Handle<JSObject>::cast(object));
-      } else {
-        return SerializeGeneric(object, key, comma, deferred_string_key);
       }
   }
+
+  return SerializeGeneric(object, key, comma, deferred_string_key);
 }
 
 

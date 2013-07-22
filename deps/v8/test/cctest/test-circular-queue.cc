@@ -42,8 +42,6 @@ TEST(SamplingCircularQueue) {
                             3);
 
   // Check that we are using non-reserved values.
-  CHECK_NE(SamplingCircularQueue::kClear, 1);
-  CHECK_NE(SamplingCircularQueue::kEnd, 1);
   // Fill up the first chunk.
   CHECK_EQ(NULL, scq.StartDequeue());
   for (Record i = 1; i < 1 + kRecordsPerChunk; ++i) {
@@ -153,8 +151,6 @@ TEST(SamplingCircularQueueMultithreading) {
   scq.FlushResidualRecords();
 
   // Check that we are using non-reserved values.
-  CHECK_NE(SamplingCircularQueue::kClear, 1);
-  CHECK_NE(SamplingCircularQueue::kEnd, 1);
   ProducerThread producer1(&scq, kRecordsPerChunk, 1, semaphore);
   ProducerThread producer2(&scq, kRecordsPerChunk, 10, semaphore);
   ProducerThread producer3(&scq, kRecordsPerChunk, 20, semaphore);

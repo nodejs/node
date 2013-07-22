@@ -309,6 +309,8 @@ void DumpException(Handle<Message> message) {
 
 
 int main(int argc, char** argv) {
+  V8::InitializeICU();
+
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
 

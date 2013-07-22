@@ -34,7 +34,7 @@ function test(f) {
   %OptimizeFunctionOnNextCall(f);
   f();
   // Assert that there has been no deopt.
-  assertTrue(%GetOptimizationStatus(f) != 2);
+  assertOptimized(f);
 }
 
 test(function add() {

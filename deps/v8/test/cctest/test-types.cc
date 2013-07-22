@@ -62,6 +62,7 @@ static void CheckEqual(Handle<Type> type1, Handle<Type> type2) {
   CHECK(type2->Is(type1));
 }
 
+
 static void CheckSub(Handle<Type> type1, Handle<Type> type2) {
   CHECK(type1->Is(type2));
   CHECK(!type2->Is(type1));
@@ -69,6 +70,7 @@ static void CheckSub(Handle<Type> type1, Handle<Type> type2) {
     CHECK_NE(AsBitset(*type1), AsBitset(*type2));
   }
 }
+
 
 static void CheckUnordered(Handle<Type> type1, Handle<Type> type2) {
   CHECK(!type1->Is(type2));
@@ -78,6 +80,7 @@ static void CheckUnordered(Handle<Type> type1, Handle<Type> type2) {
   }
 }
 
+
 static void CheckOverlap(Handle<Type> type1, Handle<Type> type2) {
   CHECK(type1->Maybe(type2));
   CHECK(type2->Maybe(type1));
@@ -85,6 +88,7 @@ static void CheckOverlap(Handle<Type> type1, Handle<Type> type2) {
     CHECK_NE(0, AsBitset(*type1) & AsBitset(*type2));
   }
 }
+
 
 static void CheckDisjoint(Handle<Type> type1, Handle<Type> type2) {
   CHECK(!type1->Is(type2));

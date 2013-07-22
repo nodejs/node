@@ -196,27 +196,7 @@ void OS::DebugBreak() {
 
 
 void OS::DumpBacktrace() {
-  void* trace[100];
-  int size = backtrace(trace, ARRAY_SIZE(trace));
-  char** symbols = backtrace_symbols(trace, size);
-  fprintf(stderr, "\n==== C stack trace ===============================\n\n");
-  if (size == 0) {
-    fprintf(stderr, "(empty)\n");
-  } else if (symbols == NULL) {
-    fprintf(stderr, "(no symbols)\n");
-  } else {
-    for (int i = 1; i < size; ++i) {
-      fprintf(stderr, "%2d: ", i);
-      char mangled[201];
-      if (sscanf(symbols[i], "%*[^(]%*[(]%200[^)+]", mangled) == 1) {  // NOLINT
-        fprintf(stderr, "%s\n", mangled);
-      } else {
-        fprintf(stderr, "??\n");
-      }
-    }
-  }
-  fflush(stderr);
-  free(symbols);
+  POSIXBacktraceHelper<backtrace, backtrace_symbols>::DumpBacktrace();
 }
 
 
@@ -318,30 +298,7 @@ void OS::SignalCodeMovingGC() {
 
 
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  int frames_size = frames.length();
-  ScopedVector<void*> addresses(frames_size);
-
-  int frames_count = backtrace(addresses.start(), frames_size);
-
-  char** symbols = backtrace_symbols(addresses.start(), frames_count);
-  if (symbols == NULL) {
-    return kStackWalkError;
-  }
-
-  for (int i = 0; i < frames_count; i++) {
-    frames[i].address = addresses[i];
-    // Format a text representation of the frame based on the information
-    // available.
-    SNPrintF(MutableCStrVector(frames[i].text, kStackWalkMaxTextLen),
-             "%s",
-             symbols[i]);
-    // Make sure line termination is in place.
-    frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
-  }
-
-  free(symbols);
-
-  return frames_count;
+  return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
 }
 
 
@@ -565,56 +522,6 @@ void* Thread::GetThreadLocal(LocalStorageKey key) {
 void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
   pthread_setspecific(pthread_key, value);
-}
-
-
-void Thread::YieldCPU() {
-  sched_yield();
-}
-
-
-class FreeBSDMutex : public Mutex {
- public:
-  FreeBSDMutex() {
-    pthread_mutexattr_t attrs;
-    int result = pthread_mutexattr_init(&attrs);
-    ASSERT(result == 0);
-    result = pthread_mutexattr_settype(&attrs, PTHREAD_MUTEX_RECURSIVE);
-    ASSERT(result == 0);
-    result = pthread_mutex_init(&mutex_, &attrs);
-    ASSERT(result == 0);
-    USE(result);
-  }
-
-  virtual ~FreeBSDMutex() { pthread_mutex_destroy(&mutex_); }
-
-  virtual int Lock() {
-    int result = pthread_mutex_lock(&mutex_);
-    return result;
-  }
-
-  virtual int Unlock() {
-    int result = pthread_mutex_unlock(&mutex_);
-    return result;
-  }
-
-  virtual bool TryLock() {
-    int result = pthread_mutex_trylock(&mutex_);
-    // Return false if the lock is busy and locking failed.
-    if (result == EBUSY) {
-      return false;
-    }
-    ASSERT(result == 0);  // Verify no other errors.
-    return true;
-  }
-
- private:
-  pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
-};
-
-
-Mutex* OS::CreateMutex() {
-  return new FreeBSDMutex();
 }
 
 

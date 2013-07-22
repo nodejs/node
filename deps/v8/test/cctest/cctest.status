@@ -47,6 +47,7 @@ test-log/EquivalenceOfLoggingAndTraversal: PASS || FAIL
 
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL
+test-weaksets/WeakSet_Shrinking: FAIL
 
 # Deferred stack trace formatting is temporarily disabled.
 test-heap/ReleaseStackTraceData: PASS || FAIL
@@ -100,6 +101,12 @@ test-threads/ThreadJoinSelf: SKIP
 
 ##############################################################################
 [ $arch == nacl_ia32 || $arch == nacl_x64 ]
+
+# NaCl builds have problems with threaded tests since Pepper_28.
+# V8 Issue 2786
+test-api/Threading1: SKIP
+test-lockers/MultithreadedParallelIsolates: SKIP
+test-lockers/ExtensionsRegistration: SKIP
 
 # These tests fail as there is no /tmp directory in Native Client.
 test-log/LogAccessorCallbacks: SKIP

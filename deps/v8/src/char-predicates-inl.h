@@ -71,6 +71,18 @@ inline bool IsHexDigit(uc32 c) {
 }
 
 
+inline bool IsOctalDigit(uc32 c) {
+  // ECMA-262, 6th, 7.8.3
+  return IsInRange(c, '0', '7');
+}
+
+
+inline bool IsBinaryDigit(uc32 c) {
+  // ECMA-262, 6th, 7.8.3
+  return c == '0' || c == '1';
+}
+
+
 inline bool IsRegExpWord(uc16 c) {
   return IsInRange(AsciiAlphaToLower(c), 'a', 'z')
       || IsDecimalDigit(c)
