@@ -947,6 +947,13 @@ assert.throws(function() { buf.readInt8(0); }, RangeError);
     assert.equal(buf.slice(-i), s.slice(-i));
     assert.equal(buf.slice(0, -i), s.slice(0, -i));
   }
+  // try to slice a zero length Buffer
+  // see https://github.com/joyent/node/issues/5881
+  SlowBuffer(0).slice(0, 1);
+  // make sure a zero length slice doesn't set the .parent attribute
+  assert.equal(Buffer(5).slice(0,0).parent, undefined);
+  // and make sure a proper slice does have a parent
+  assert.ok(typeof Buffer(5).slice(0, 5).parent === 'object');
 })();
 
 // Make sure byteLength properly checks for base64 padding

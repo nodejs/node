@@ -124,15 +124,16 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
   size_t source_len = source->GetIndexedPropertiesExternalArrayDataLength();
   size_t start = args[2]->Uint32Value();
   size_t end = args[3]->Uint32Value();
+  size_t length = end - start;
 
   assert(!dest->HasIndexedPropertiesInExternalArrayData());
-  assert(source_data != NULL);
+  assert(source_data != NULL || length == 0);
   assert(end <= source_len);
   assert(start <= end);
 
   dest->SetIndexedPropertiesToExternalArrayData(source_data + start,
                                                 kExternalUnsignedByteArray,
-                                                end - start);
+                                                length);
   args.GetReturnValue().Set(source);
 }
 
