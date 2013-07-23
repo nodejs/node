@@ -206,7 +206,7 @@ void AllocDispose(Handle<Object> obj) {
   HandleScope scope(node_isolate);
 
   if (using_alloc_cb && obj->Has(smalloc_sym)) {
-    Local<External> ext = obj->Get(smalloc_sym).As<External>();
+    Local<External> ext = obj->GetHiddenValue(smalloc_sym).As<External>();
     CallbackInfo* cb_info = static_cast<CallbackInfo*>(ext->Value());
     Local<Object> obj = PersistentToLocal(cb_info->p_obj);
     TargetFreeCallback(node_isolate, obj, cb_info);
@@ -252,6 +252,7 @@ void Alloc(Handle<Object> obj,
   cb_info->cb = fn;
   cb_info->hint = hint;
   cb_info->p_obj.Reset(node_isolate, obj);
+  obj->SetHiddenValue(smalloc_sym, External::New(cb_info));
 
   node_isolate->AdjustAmountOfExternalAllocatedMemory(length +
                                                       sizeof(*cb_info));
