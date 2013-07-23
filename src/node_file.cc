@@ -826,12 +826,12 @@ static Handle<Value> Chown(const Arguments& args) {
   if (len < 2) return TYPE_ERROR("uid required");
   if (len < 3) return TYPE_ERROR("gid required");
   if (!args[0]->IsString()) return TYPE_ERROR("path must be a string");
-  if (!args[1]->IsInt32()) return TYPE_ERROR("uid must be an int");
-  if (!args[2]->IsInt32()) return TYPE_ERROR("gid must be an int");
+  if (!args[1]->IsUint32()) return TYPE_ERROR("uid must be an unsigned int");
+  if (!args[2]->IsUint32()) return TYPE_ERROR("gid must be an unsigned int");
 
   String::Utf8Value path(args[0]);
-  int uid = static_cast<int>(args[1]->Int32Value());
-  int gid = static_cast<int>(args[2]->Int32Value());
+  uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
+  uv_gid_t gid = static_cast<uv_gid_t>(args[2]->Uint32Value());
 
   if (args[3]->IsFunction()) {
     ASYNC_CALL(chown, args[3], *path, uid, gid);
@@ -853,12 +853,12 @@ static Handle<Value> FChown(const Arguments& args) {
   if (len < 2) return TYPE_ERROR("uid required");
   if (len < 3) return TYPE_ERROR("gid required");
   if (!args[0]->IsInt32()) return TYPE_ERROR("fd must be an int");
-  if (!args[1]->IsInt32()) return TYPE_ERROR("uid must be an int");
-  if (!args[2]->IsInt32()) return TYPE_ERROR("gid must be an int");
+  if (!args[1]->IsUint32()) return TYPE_ERROR("uid must be an unsigned int");
+  if (!args[2]->IsUint32()) return TYPE_ERROR("gid must be an unsigned int");
 
   int fd = args[0]->Int32Value();
-  int uid = static_cast<int>(args[1]->Int32Value());
-  int gid = static_cast<int>(args[2]->Int32Value());
+  uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
+  uv_gid_t gid = static_cast<uv_gid_t>(args[2]->Uint32Value());
 
   if (args[3]->IsFunction()) {
     ASYNC_CALL(fchown, args[3], fd, uid, gid);
