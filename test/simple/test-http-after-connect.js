@@ -29,6 +29,7 @@ var clientResponses = 0;
 
 var server = http.createServer(function(req, res) {
   common.debug('Server got GET request');
+  req.resume();
   ++serverRequests;
   res.writeHead(200);
   res.write('');
@@ -40,6 +41,7 @@ server.on('connect', function(req, socket, firstBodyChunk) {
   common.debug('Server got CONNECT request');
   serverConnected = true;
   socket.write('HTTP/1.1 200 Connection established\r\n\r\n');
+  socket.resume();
   socket.on('end', function() {
     socket.end();
   });
@@ -57,6 +59,7 @@ server.listen(common.PORT, function() {
       doRequest(0);
       doRequest(1);
     });
+    socket.resume();
   });
   req.end();
 });

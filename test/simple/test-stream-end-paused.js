@@ -21,40 +21,33 @@
 
 var common = require('../common');
 var assert = require('assert');
-var http = require('http');
+var gotEnd = false;
 
-var server = http.Server(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
-  res.end('Hello World\n');
-  server.close();
+// Make sure we don't miss the end event for paused 0-length streams
+
+var Readable = require('stream').Readable;
+var stream = new Readable();
+var calledRead = false;
+stream._read = function() {
+  assert(!calledRead);
+  calledRead = true;
+  this.push(null);
+};
+
+stream.on('data', function() {
+  throw new Error('should not ever get data');
 });
+stream.pause();
 
-
-var dataCount = 0, endCount = 0;
-
-server.listen(common.PORT, function() {
-  var opts = {
-    port: common.PORT,
-    headers: { connection: 'close' }
-  };
-
-  http.get(opts, function(res) {
-    res.on('data', function(chunk) {
-      dataCount++;
-      res.pause();
-      setTimeout(function() {
-        res.resume();
-      });
-    });
-
-    res.on('end', function() {
-      endCount++;
-    });
+setTimeout(function() {
+  stream.on('end', function() {
+    gotEnd = true;
   });
+  stream.resume();
 });
-
 
 process.on('exit', function() {
-  assert.equal(1, dataCount);
-  assert.equal(1, endCount);
+  assert(gotEnd);
+  assert(calledRead);
+  console.log('ok');
 });

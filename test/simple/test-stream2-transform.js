@@ -470,6 +470,8 @@ test('object transform (json parse)', function(t) {
   });
 
   jp.end();
+  // read one more time to get the 'end' event
+  jp.read();
 
   process.nextTick(function() {
     t.ok(ended);
@@ -510,6 +512,8 @@ test('object transform (json stringify)', function(t) {
   });
 
   js.end();
+  // read one more time to get the 'end' event
+  js.read();
 
   process.nextTick(function() {
     t.ok(ended);
