@@ -33,7 +33,7 @@ The shell to run for the `npm explore` command.
 ## SEE ALSO
 
 * npm-submodule(1)
-* npm-folders(7)
+* npm-folders(5)
 * npm-edit(1)
 * npm-rebuild(1)
 * npm-build(1)

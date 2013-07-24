@@ -13,7 +13,7 @@ Print the folder where npm will install executables.
 
 * npm-prefix(1)
 * npm-root(1)
-* npm-folders(7)
+* npm-folders(5)
 * npm-config(1)
 * npm-config(7)
 * npmrc(5)

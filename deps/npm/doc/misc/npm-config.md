@@ -312,7 +312,7 @@ the git binary.
 
 Operates in "global" mode, so that packages are installed into the
 `prefix` folder instead of the current working directory.  See
-`npm-folders(7)` for more on the differences in behavior.
+`npm-folders(5)` for more on the differences in behavior.
 
 * packages are installed into the `{prefix}/lib/node_modules` folder, instead of the
   current working directory.
@@ -525,7 +525,7 @@ standard output.
 
 ### prefix
 
-* Default: see npm-folders(7)
+* Default: see npm-folders(5)
 * Type: path
 
 The location to install global items.  If set on the command line, then

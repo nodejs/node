@@ -20,11 +20,11 @@ function BufferEntry () {
   })
 }
 
+inherits(BufferEntry, Entry)
+
 // collect the bytes as they come in.
 BufferEntry.prototype.write = function (c) {
   c.copy(this._buffer, this._offset)
   this._offset += c.length
   Entry.prototype.write.call(this, c)
 }
-
-inherits(BufferEntry, Entry)

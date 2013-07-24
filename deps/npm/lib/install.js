@@ -162,7 +162,7 @@ function install (args, cb_) {
     // initial "family" is the name:version of the root, if it's got
     // a package.json file.
     var jsonFile = path.resolve(where, "package.json")
-    readJson(jsonFile, true, function (er, data) {
+    readJson(jsonFile, log.warn, function (er, data) {
       if (er
           && er.code !== "ENOENT"
           && er.code !== "ENOTDIR") return cb(er)
@@ -238,6 +238,7 @@ function readDependencies (context, where, opts, cb) {
   var wrap = context ? context.wrap : null
 
   readJson( path.resolve(where, "package.json")
+          , log.warn
           , function (er, data) {
     if (er)  return cb(er)
 
@@ -499,7 +500,7 @@ function installManyTop (what, where, context, cb_) {
 
   if (context.explicit) return next()
 
-  readJson(path.join(where, "package.json"), true, function (er, data) {
+  readJson(path.join(where, "package.json"), log.warn, function (er, data) {
     if (er) return next(er)
     lifecycle(data, "preinstall", where, next)
   })
@@ -524,7 +525,7 @@ function installManyTop_ (what, where, context, cb) {
     asyncMap(pkgs.map(function (p) {
       return path.resolve(nm, p, "package.json")
     }), function (jsonfile, cb) {
-      readJson(jsonfile, function (er, data) {
+      readJson(jsonfile, log.warn, function (er, data) {
         if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
         if (er) return cb(null, [])
         return cb(null, [[data.name, data.version]])
@@ -615,7 +616,7 @@ function targetResolver (where, context, deps) {
     })
 
     asyncMap(inst, function (pkg, cb) {
-      readJson(path.resolve(nm, pkg, "package.json"), function (er, d) {
+      readJson(path.resolve(nm, pkg, "package.json"), log.warn, function (er, d) {
         if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
         // error means it's not a package, most likely.
         if (er) return cb(null, [])
@@ -734,7 +735,7 @@ function localLink (target, where, context, cb) {
                              , "package.json" )
     , parent = context.parent
 
-  readJson(jsonFile, function (er, data) {
+  readJson(jsonFile, log.warn, function (er, data) {
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er || data._id === target._id) {
       if (er) {

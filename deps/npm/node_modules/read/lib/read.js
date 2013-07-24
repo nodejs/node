@@ -17,24 +17,12 @@ function read (opts, cb) {
 
   var input = opts.input || process.stdin
   var output = opts.output || process.stdout
-  var m = new Mute({ replace: opts.replace })
-  m.pipe(output, {end: false})
-  output = m
-  var def = opts.default || ''
-  var terminal = !!(opts.terminal || output.isTTY)
-  var rlOpts = { input: input, output: output, terminal: terminal }
-
-  if (process.version.match(/^v0\.6/)) {
-    var rl = readline.createInterface(rlOpts.input, rlOpts.output)
-  } else {
-    var rl = readline.createInterface(rlOpts)
-  }
-
   var prompt = (opts.prompt || '').trim() + ' '
   var silent = opts.silent
   var editDef = false
   var timeout = opts.timeout
 
+  var def = opts.default || ''
   if (def) {
     if (silent) {
       prompt += '(<default hidden>) '
@@ -44,6 +32,19 @@ function read (opts, cb) {
       prompt += '(' + def + ') '
     }
   }
+  var terminal = !!(opts.terminal || output.isTTY)
+
+  var m = new Mute({ replace: opts.replace, prompt: prompt })
+  m.pipe(output, {end: false})
+  output = m
+  var rlOpts = { input: input, output: output, terminal: terminal }
+
+  if (process.version.match(/^v0\.6/)) {
+    var rl = readline.createInterface(rlOpts.input, rlOpts.output)
+  } else {
+    var rl = readline.createInterface(rlOpts)
+  }
+
 
   output.unmute()
   rl.setPrompt(prompt)

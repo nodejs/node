@@ -25,7 +25,7 @@ readJson('/path/to/package.json', console.error, false, function (er, data) {
   }
 
   console.error('the package data is', data)
-}
+});
 ```
 
 ## readJson(file, [logFn = noop], [strict = false], cb)

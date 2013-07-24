@@ -20,5 +20,5 @@ If no package name is specified, all packages in the specified location (global 
 * npm-install(1)
 * npm-outdated(1)
 * npm-registry(7)
-* npm-folders(7)
-* npm-list(1)
+* npm-folders(5)
+* npm-ls(1)

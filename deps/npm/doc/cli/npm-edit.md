@@ -29,7 +29,7 @@ The command to run for `npm edit` or `npm config edit`.
 
 ## SEE ALSO
 
-* npm-folders(7)
+* npm-folders(5)
 * npm-explore(1)
 * npm-install(1)
 * npm-config(1)

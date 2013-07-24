@@ -1,51 +1,42 @@
-A dead simple way to do inheritance in JS.
+Browser-friendly inheritance fully compatible with standard node.js
+[inherits](http://nodejs.org/api/util.html#util_util_inherits_constructor_superconstructor).
 
-    var inherits = require("inherits")
+This package exports standard `inherits` from node.js `util` module in
+node environment, but also provides alternative browser-friendly
+implementation through [browser
+field](https://gist.github.com/shtylman/4339901). Alternative
+implementation is a literal copy of standard one located in standalone
+module to avoid requiring of `util`. It also has a shim for old
+browsers with no `Object.create` support.
 
-    function Animal () {
-      this.alive = true
-    }
-    Animal.prototype.say = function (what) {
-      console.log(what)
-    }
+While keeping you sure you are using standard `inherits`
+implementation in node.js environment, it allows bundlers such as
+[browserify](https://github.com/substack/node-browserify) to not
+include full `util` package to your client code if all you need is
+just `inherits` function. It worth, because browser shim for `util`
+package is large and `inherits` is often the single function you need
+from it.
 
-    inherits(Dog, Animal)
-    function Dog () {
-      Dog.super.apply(this)
-    }
-    Dog.prototype.sniff = function () {
-      this.say("sniff sniff")
-    }
-    Dog.prototype.bark = function () {
-      this.say("woof woof")
-    }
+It's recommended to use this package instead of
+`require('util').inherits` for any code that has chances to be used
+not only in node.js but in browser too.
 
-    inherits(Chihuahua, Dog)
-    function Chihuahua () {
-      Chihuahua.super.apply(this)
-    }
-    Chihuahua.prototype.bark = function () {
-      this.say("yip yip")
-    }
+## usage
 
-    // also works
-    function Cat () {
-      Cat.super.apply(this)
-    }
-    Cat.prototype.hiss = function () {
-      this.say("CHSKKSS!!")
-    }
-    inherits(Cat, Animal, {
-      meow: function () { this.say("miao miao") }
-    })
-    Cat.prototype.purr = function () {
-      this.say("purr purr")
-    }
+```js
+var inherits = require('inherits');
+// then use exactly as the standard one
+```
 
+## note on version ~1.0
 
-    var c = new Chihuahua
-    assert(c instanceof Chihuahua)
-    assert(c instanceof Dog)
-    assert(c instanceof Animal)
+Version ~1.0 had completely different motivation and is not compatible
+neither with 2.0 nor with standard node.js `inherits`.
 
-The actual function is laughably small.  10-lines small.
+If you are using version ~1.0 and planning to switch to ~2.0, be
+careful:
+
+* new version uses `super_` instead of `super` for referencing
+  superclass
+* new version overwrites current prototype while old one preserves any
+  existing fields on it

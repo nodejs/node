@@ -11,6 +11,12 @@ function MuteStream (opts) {
   this.muted = false
   this.on('pipe', this._onpipe)
   this.replace = opts.replace
+
+  // For readline-type situations
+  // This much at the start of a line being redrawn after a ctrl char
+  // is seen (such as backspace) won't be redrawn as the replacement
+  this._prompt = opts.prompt || null
+  this._hadControl = false
 }
 
 MuteStream.prototype = Object.create(Stream.prototype)
@@ -94,7 +100,18 @@ MuteStream.prototype.resume = function () {
 MuteStream.prototype.write = function (c) {
   if (this.muted) {
     if (!this.replace) return true
-    c = c.toString().replace(/./g, this.replace)
+    if (c.match(/^\u001b/)) {
+      this._hadControl = true
+      return this.emit('data', c)
+    } else {
+      if (this._prompt && this._hadControl &&
+          c.indexOf(this._prompt) === 0) {
+        this._hadControl = false
+        this.emit('data', this._prompt)
+        c = c.substr(this._prompt.length)
+      }
+      c = c.toString().replace(/./g, this.replace)
+    }
   }
   this.emit('data', c)
 }

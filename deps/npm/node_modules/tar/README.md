@@ -7,28 +7,25 @@ Tar for Node.js.
 1. Be able to parse and reasonably extract the contents of any tar file
    created by any program that creates tar files, period.
 
-    At least, this includes every version of:
+        At least, this includes every version of:
 
-    * bsdtar
-    * gnutar
-    * solaris posix tar
-    * Joerg Schilling's star ("Schilly tar")
+        * bsdtar
+        * gnutar
+        * solaris posix tar
+        * Joerg Schilling's star ("Schilly tar")
 
-2. Create tar files that can be extracted by any of the following tar
-   programs:
+2. Create tar files that can be extracted by any of the following tar programs:
 
-    * bsdtar/libarchive version 2.6.2
-    * gnutar 1.15 and above
-    * SunOS Posix tar
-    * Joerg Schilling's star ("Schilly tar")
+        * bsdtar/libarchive version 2.6.2
+        * gnutar 1.15 and above
+        * SunOS Posix tar
+        * Joerg Schilling's star ("Schilly tar")
 
-3. 100% test coverage.  Speed is important.  Correctness is slightly
-   more important.
+3. 100% test coverage.  Speed is important.  Correctness is slightly more important.
 
 4. Create the kind of tar interface that Node users would want to use.
 
-5. Satisfy npm's needs for a portable tar implementation with a
-   JavaScript interface.
+5. Satisfy npm's needs for a portable tar implementation with a JavaScript interface.
 
 6. No excuses.  No complaining.  No tolerance for failure.
 
