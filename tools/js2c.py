@@ -150,8 +150,9 @@ def ExpandMacros(lines, macros):
       result = macro.expand(mapping)
       # Replace the occurrence of the macro with the expansion
       lines = lines[:start] + result + lines[end:]
-      start = lines.find(name + '(', end)
+      start = lines.find(name + '(', start)
   return lines
+
 
 class TextMacro:
   def __init__(self, args, body):
