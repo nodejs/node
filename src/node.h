@@ -58,8 +58,10 @@
 # define SIGKILL         9
 #endif
 
+#include "node_version.h"  /* NODE_MODULE_VERSION */
 #include "uv.h"
 #include "v8.h"
+
 #include <sys/types.h> /* struct stat */
 #include <sys/stat.h>
 #include <assert.h>
@@ -201,14 +203,6 @@ struct node_module_struct {
 };
 
 node_module_struct* get_builtin_module(const char *name);
-
-/**
- * When this version number is changed, node.js will refuse
- * to load older modules.  This should be done whenever
- * an API is broken in the C++ side, including in v8 or
- * other dependencies.
- */
-#define NODE_MODULE_VERSION 0x000C /* v0.12 */
 
 #define NODE_STANDARD_MODULE_STUFF \
           NODE_MODULE_VERSION,     \

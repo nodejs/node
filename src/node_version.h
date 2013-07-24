@@ -57,4 +57,12 @@
   || ((major) == NODE_MAJOR_VERSION && (minor) < NODE_MINOR_VERSION) \
   || ((major) == NODE_MAJOR_VERSION && (minor) == NODE_MINOR_VERSION && (patch) <= NODE_PATCH_VERSION))
 
+/**
+ * When this version number is changed, node.js will refuse
+ * to load older modules.  This should be done whenever
+ * an API is broken in the C++ side, including in v8 or
+ * other dependencies.
+ */
+#define NODE_MODULE_VERSION 0x000C /* v0.12 */
+
 #endif /* NODE_VERSION_H */
