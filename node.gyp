@@ -378,19 +378,18 @@
               ' and node_use_etw=="false"'
               ' and node_use_systemtap=="false"',
             {
-                'inputs': ['src/macros.py']
-              }
-              ],
+              'inputs': ['src/notrace_macros.py']
+            }],
             [ 'node_use_perfctr=="false"', {
               'inputs': [ 'src/perfctr_macros.py' ]
             }]
           ],
-              'action': [
-                '<(python)',
-                'tools/js2c.py',
-                '<@(_outputs)',
-                '<@(_inputs)',
-              ],
+          'action': [
+            '<(python)',
+            'tools/js2c.py',
+            '<@(_outputs)',
+            '<@(_inputs)',
+          ],
         },
       ],
     }, # end node_js2c
