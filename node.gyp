@@ -388,6 +388,7 @@
             '<(python)',
             'tools/js2c.py',
             '<@(_outputs)',
+            'src/macros.py',
             '<@(_inputs)',
           ],
         },
