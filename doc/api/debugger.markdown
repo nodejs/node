@@ -166,4 +166,4 @@ with the node debugger. Either connect to the `pid` or the URI to the debugger.
 The syntax is:
 
 * `node debug -p <pid>` - Connects to the process via the `pid`
-* `node debug <URI> - Connects to the process via the URI such as localhost:5858
+* `node debug <URI>` - Connects to the process via the URI such as localhost:5858
