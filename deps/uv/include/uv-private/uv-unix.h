@@ -300,8 +300,8 @@ typedef struct {
   void* buf;                                                                  \
   size_t len;                                                                 \
   off_t off;                                                                  \
-  uid_t uid;                                                                  \
-  gid_t gid;                                                                  \
+  uv_uid_t uid;                                                               \
+  uv_gid_t gid;                                                               \
   double atime;                                                               \
   double mtime;                                                               \
   struct uv__work work_req;                                                   \

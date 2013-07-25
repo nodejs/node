@@ -1672,8 +1672,8 @@ int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
 }
 
 
-int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, int uid,
-    int gid, uv_fs_cb cb) {
+int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_uid_t uid,
+    uv_gid_t gid, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_CHOWN, cb);
 
   if (fs__capture_path(loop, req, path, NULL, cb != NULL) < 0) {
@@ -1691,8 +1691,8 @@ int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, int uid,
 }
 
 
-int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file fd, int uid,
-    int gid, uv_fs_cb cb) {
+int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file fd, uv_uid_t uid,
+    uv_gid_t gid, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_FCHOWN, cb);
 
   if (cb) {

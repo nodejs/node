@@ -1642,10 +1642,10 @@ UV_EXTERN int uv_fs_fchmod(uv_loop_t* loop, uv_fs_t* req, uv_file file,
     int mode, uv_fs_cb cb);
 
 UV_EXTERN int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path,
-    int uid, int gid, uv_fs_cb cb);
+    uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb);
 
 UV_EXTERN int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file,
-    int uid, int gid, uv_fs_cb cb);
+    uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb);
 
 
 enum uv_fs_event {

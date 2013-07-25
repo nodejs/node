@@ -1,4 +1,11 @@
-2013.07.10, Version 0.10.12 (Stable)
+2013.07.26, Version 0.10.13 (Stable)
+
+Changes since version 0.10.12:
+
+* unix, windows: fix uv_fs_chown() function prototype (Ben Noordhuis)
+
+
+2013.07.10, Version 0.10.12 (Stable), 58a46221bba726746887a661a9f36fe9ff204209
 
 Changes since version 0.10.11:
 
