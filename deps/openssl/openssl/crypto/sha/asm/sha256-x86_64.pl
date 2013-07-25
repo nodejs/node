@@ -54,18 +54,18 @@ die "can't locate x86_64-xlate.pl";
 open OUT,"| \"$^X\" $xlate $flavour $output";
 *STDOUT=*OUT;
 
-# assume 512
-$func="sha512_block_data_order";
-$TABLE="K512";
-$SZ=8;
-@ROT=($A,$B,$C,$D,$E,$F,$G,$H)=("%rax","%rbx","%rcx","%rdx",
-        "%r8", "%r9", "%r10","%r11");
-($T1,$a0,$a1,$a2)=("%r12","%r13","%r14","%r15");
-@Sigma0=(28,34,39);
-@Sigma1=(14,18,41);
-@sigma0=(1,  8, 7);
-@sigma1=(19,61, 6);
-$rounds=80;
+# assume 256
+$func="sha256_block_data_order";
+$TABLE="K256";
+$SZ=4;
+@ROT=($A,$B,$C,$D,$E,$F,$G,$H)=("%eax","%ebx","%ecx","%edx",
+        "%r8d","%r9d","%r10d","%r11d");
+($T1,$a0,$a1,$a2)=("%r12d","%r13d","%r14d","%r15d");
+@Sigma0=( 2,13,22);
+@Sigma1=( 6,11,25);
+@sigma0=( 7,18, 3);
+@sigma1=(17,19,10);
+$rounds=64;
 
 $ctx="%rdi";	# 1st arg
 $round="%rdi";	# zaps $ctx
