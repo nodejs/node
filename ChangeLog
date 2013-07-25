@@ -1,4 +1,23 @@
-2013.07.09, Version 0.10.13 (Stable)
+2013.07.25, Version 0.10.14 (Stable)
+
+* uv: Upgrade to v0.10.13
+
+* npm: Upgrade to v1.3.5
+
+* os: Don't report negative times in cpu info (Ben Noordhuis)
+
+* fs: Handle large UID and GID (Ben Noordhuis)
+
+* url: Fix edge-case when protocol is non-lowercase (Shuan Wang)
+
+* doc: Streams API Doc Rewrite (isaacs)
+
+* node: call MakeDomainCallback in all domain cases (Trevor Norris)
+
+* crypto: fix memory leak in LoadPKCS12 (Fedor Indutny)
+
+
+2013.07.09, Version 0.10.13 (Stable), e32660a984427d46af6a144983cf7b8045b7299c
 
 * uv: Upgrade to v0.10.12
 
@@ -23,7 +42,7 @@
 * src: fix memory leak in UsingDomains() (Ben Noordhuis)
 
 
-2013.06.18, Version 0.10.12 (Stable)
+2013.06.18, Version 0.10.12 (Stable), a088cf4f930d3928c97d239adf950ab43e7794aa
 
 * npm: Upgrade to 1.2.32
 
