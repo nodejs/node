@@ -31,7 +31,10 @@ var common = require('../common');
 var assert = require('assert');
 var exec = require('child_process').exec;
 
-var title = 'testTestTESTtest123123123123123123HiHaiJo';
+// The title shouldn't be too long; libuv's uv_set_process_title() out of
+// security considerations no longer overwrites envp, only argv, so the
+// maximum title length is possibly quite short.
+var title = 'testme';
 
 assert.notEqual(process.title, title);
 process.title = title;
