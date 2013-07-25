@@ -167,6 +167,10 @@ automatically set as a listener for the [secureConnection][] event.  The
     resumption. If `requestCert` is `true`, the default is MD5 hash value
     generated from command-line. Otherwise, the default is not provided.
 
+  - `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
+    SSL version 3. The possible values depend on your installation of
+    OpenSSL and are defined in the constant [SSL_METHODS][].
+
 Here is a simple example echo server:
 
     var tls = require('tls');
