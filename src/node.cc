@@ -1528,15 +1528,15 @@ static gid_t gid_by_name(Handle<Value> value) {
 
 static Handle<Value> GetUid(const Arguments& args) {
   HandleScope scope;
-  int uid = getuid();
-  return scope.Close(Integer::New(uid));
+  uid_t uid = getuid();
+  return scope.Close(Integer::NewFromUnsigned(uid));
 }
 
 
 static Handle<Value> GetGid(const Arguments& args) {
   HandleScope scope;
-  int gid = getgid();
-  return scope.Close(Integer::New(gid));
+  gid_t gid = getgid();
+  return scope.Close(Integer::NewFromUnsigned(gid));
 }
 
 
