@@ -1,4 +1,9 @@
-2013.07.25, Version 0.10.14 (Stable)
+2013.07.25, Version 0.10.15 (Stable)
+
+* src: fix process.getuid() return value (Ben Noordhuis)
+
+
+2013.07.25, Version 0.10.14 (Stable), fdf57f811f9683a4ec49a74dc7226517e32e6c9d
 
 * uv: Upgrade to v0.10.13
 
