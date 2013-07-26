@@ -28,7 +28,8 @@ Returns the operating system platform.
 
 ## os.arch()
 
-Returns the operating system CPU architecture.
+Returns the operating system CPU architecture. Possible values are `"x64"`,
+`"arm"` and `"ia32"`.
 
 ## os.release()
 
