@@ -57,14 +57,14 @@ function testServer() {
 
     request_upgradeHead = upgradeHead;
 
-    socket.ondata = function(d, start, end) {
-      var data = d.toString('utf8', start, end);
+    socket.on('data', function(d) {
+      var data = d.toString('utf8');
       if (data == 'kill') {
         socket.end();
       } else {
         socket.write(data, 'utf8');
       }
-    };
+    });
   });
 }
 
