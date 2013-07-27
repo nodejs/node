@@ -19,16 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
 var common = require('../common');
 var assert = require('assert');
 var vm = require('vm');
 
-console.error('before');
+var ctx = vm.createContext();
+ctx.window = ctx;
 
-// undefined reference
-vm.runInNewContext('foo.bar = 5;');
-
-console.error('after');
+var thisVal = vm.runInContext('this;', ctx);
+var windowVal = vm.runInContext('window;', ctx);
+assert.strictEqual(thisVal, windowVal);

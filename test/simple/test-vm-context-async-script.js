@@ -19,16 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
 var common = require('../common');
 var assert = require('assert');
 var vm = require('vm');
 
-console.error('before');
+var sandbox = { setTimeout: setTimeout };
 
-// undefined reference
-vm.runInNewContext('foo.bar = 5;');
+var ctx = vm.createContext(sandbox);
 
-console.error('after');
+vm.runInContext('setTimeout(function() { x = 3; }, 0);', ctx);
+setTimeout(function () {
+  assert.strictEqual(sandbox.x, 3);
+  assert.strictEqual(ctx.x, 3);
+}, 1);

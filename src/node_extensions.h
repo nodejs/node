@@ -34,7 +34,7 @@
     START                                                                     \
     ITEM(node_buffer)                                                         \
     NODE_EXT_LIST_SSL(ITEM)                                                   \
-    ITEM(node_evals)                                                          \
+    ITEM(node_contextify)                                                     \
     ITEM(node_fs)                                                             \
     ITEM(node_http_parser)                                                    \
     ITEM(node_os)                                                             \
