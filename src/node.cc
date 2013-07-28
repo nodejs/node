@@ -169,8 +169,6 @@ bool using_domains = false;
 // used by C++ modules as well
 bool no_deprecation = false;
 
-static uv_idle_t tick_spinner;
-
 static uv_check_t check_immediate_watcher;
 static uv_idle_t idle_immediate_dummy;
 static bool need_immediate_cb;
@@ -2930,8 +2928,6 @@ char** Init(int argc, char *argv[]) {
   RegisterSignalHandler(SIGINT, SignalExit);
   RegisterSignalHandler(SIGTERM, SignalExit);
 #endif // __POSIX__
-
-  uv_idle_init(uv_default_loop(), &tick_spinner);
 
   uv_check_init(uv_default_loop(), &check_immediate_watcher);
   uv_unref(reinterpret_cast<uv_handle_t*>(&check_immediate_watcher));
