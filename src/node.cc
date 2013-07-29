@@ -72,7 +72,6 @@ typedef int mode_t;
 #include "node_constants.h"
 #include "node_javascript.h"
 #include "node_version.h"
-#include "node_string.h"
 #if HAVE_OPENSSL
 # include "node_crypto.h"
 #endif
@@ -2403,6 +2402,8 @@ static void SignalExit(int signal) {
 
 
 void Load(Handle<Object> process_l) {
+  HandleScope handle_scope(node_isolate);
+
   process_symbol = String::New("process");
   domain_symbol = String::New("domain");
 
@@ -2420,8 +2421,7 @@ void Load(Handle<Object> process_l) {
   // are not safe to ignore.
   try_catch.SetVerbose(false);
 
-  Local<Value> f_value = ExecuteString(MainSource(),
-                                       IMMUTABLE_STRING("node.js"));
+  Local<Value> f_value = ExecuteString(MainSource(), String::New("node.js"));
   if (try_catch.HasCaught())  {
     ReportException(try_catch);
     exit(10);
