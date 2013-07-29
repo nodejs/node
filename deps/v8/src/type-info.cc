@@ -709,8 +709,7 @@ void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
 
 Representation Representation::FromType(TypeInfo info) {
   if (info.IsUninitialized()) return Representation::None();
-  // TODO(verwaest): Return Smi rather than Integer32.
-  if (info.IsSmi()) return Representation::Integer32();
+  if (info.IsSmi()) return Representation::Smi();
   if (info.IsInteger32()) return Representation::Integer32();
   if (info.IsDouble()) return Representation::Double();
   if (info.IsNumber()) return Representation::Double();

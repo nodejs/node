@@ -31,7 +31,11 @@
 
 #include "platform-posix.h"
 
+#include <dlfcn.h>
 #include <pthread.h>
+#if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#include <pthread_np.h>  // for pthread_set_name_np
+#endif
 #include <sched.h>  // for sched_yield
 #include <unistd.h>
 #include <errno.h>
@@ -43,6 +47,13 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#if defined(__linux__)
+#include <sys/prctl.h>  // for prctl
+#endif
+#if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) || \
+    defined(__NetBSD__) || defined(__OpenBSD__)
+#include <sys/sysctl.h>  // for sysctl
+#endif
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -63,6 +74,21 @@
 namespace v8 {
 namespace internal {
 
+// 0 is never a valid thread id.
+static const pthread_t kNoThread = (pthread_t) 0;
+
+
+uint64_t OS::CpuFeaturesImpliedByPlatform() {
+#if defined(__APPLE__)
+  // Mac OS X requires all these to install so we can assume they are present.
+  // These constants are defined by the CPUid instructions.
+  const uint64_t one = 1;
+  return (one << SSE2) | (one << CMOV) | (one << RDTSC) | (one << CPUID);
+#else
+  return 0;  // Nothing special about the other systems.
+#endif
+}
+
 
 // Maximum size of the virtual memory.  0 means there is no artificial
 // limit.
@@ -75,16 +101,44 @@ intptr_t OS::MaxVirtualMemory() {
 }
 
 
+int OS::ActivationFrameAlignment() {
+#if V8_TARGET_ARCH_ARM
+  // On EABI ARM targets this is required for fp correctness in the
+  // runtime system.
+  return 8;
+#elif V8_TARGET_ARCH_MIPS
+  return 8;
+#else
+  // Otherwise we just assume 16 byte alignment, i.e.:
+  // - With gcc 4.4 the tree vectorization optimizer can generate code
+  //   that requires 16 byte alignment such as movdqa on x86.
+  // - Mac OS X and Solaris (64-bit) activation frames must be 16 byte-aligned;
+  //   see "Mac OS X ABI Function Call Guide"
+  return 16;
+#endif
+}
+
+
 intptr_t OS::CommitPageSize() {
   static intptr_t page_size = getpagesize();
   return page_size;
 }
 
 
-#ifndef __CYGWIN__
+void OS::Free(void* address, const size_t size) {
+  // TODO(1240712): munmap has a return value which is ignored here.
+  int result = munmap(address, size);
+  USE(result);
+  ASSERT(result == 0);
+}
+
+
 // Get rid of writable permission on code allocations.
 void OS::ProtectCode(void* address, const size_t size) {
-#if defined(__native_client__)
+#if defined(__CYGWIN__)
+  DWORD old_protect;
+  VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect);
+#elif defined(__native_client__)
   // The Native Client port of V8 uses an interpreter, so
   // code pages don't need PROT_EXEC.
   mprotect(address, size, PROT_READ);
@@ -96,9 +150,13 @@ void OS::ProtectCode(void* address, const size_t size) {
 
 // Create guard pages.
 void OS::Guard(void* address, const size_t size) {
+#if defined(__CYGWIN__)
+  DWORD oldprotect;
+  VirtualProtect(address, size, PAGE_READONLY | PAGE_GUARD, &oldprotect);
+#else
   mprotect(address, size, PROT_NONE);
+#endif
 }
-#endif  // __CYGWIN__
 
 
 void* OS::GetRandomMmapAddr() {
@@ -150,8 +208,58 @@ void* OS::GetRandomMmapAddr() {
 }
 
 
+size_t OS::AllocateAlignment() {
+  return getpagesize();
+}
+
+
+void OS::Sleep(int milliseconds) {
+  useconds_t ms = static_cast<useconds_t>(milliseconds);
+  usleep(1000 * ms);
+}
+
+
+int OS::NumberOfCores() {
+  return sysconf(_SC_NPROCESSORS_ONLN);
+}
+
+
+void OS::Abort() {
+  // Redirect to std abort to signal abnormal program termination.
+  if (FLAG_break_on_abort) {
+    DebugBreak();
+  }
+  abort();
+}
+
+
+void OS::DebugBreak() {
+#if V8_HOST_ARCH_ARM
+  asm("bkpt 0");
+#elif V8_HOST_ARCH_MIPS
+  asm("break");
+#elif V8_HOST_ARCH_IA32
+#if defined(__native_client__)
+  asm("hlt");
+#else
+  asm("int $3");
+#endif  // __native_client__
+#elif V8_HOST_ARCH_X64
+  asm("int $3");
+#else
+#error Unsupported host architecture.
+#endif
+}
+
+
 // ----------------------------------------------------------------------------
 // Math functions
+
+double ceiling(double x) {
+  // Correct buggy 'ceil' on some systems (i.e. FreeBSD, OS X 10.5)
+  return (-1.0 < x && x < 0.0) ? -0.0 : ceil(x);
+}
+
 
 double modulo(double x, double y) {
   return fmod(x, y);
@@ -174,7 +282,7 @@ UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
 UNARY_MATH_FUNCTION(exp, CreateExpFunction())
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
-#undef MATH_FUNCTION
+#undef UNARY_MATH_FUNCTION
 
 
 void lazily_initialize_fast_exp() {
@@ -386,7 +494,7 @@ OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
 #endif
 
 
-void POSIXPostSetUp() {
+void OS::PostSetUp() {
 #if V8_TARGET_ARCH_IA32
   OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
   if (generated_memmove != NULL) {
@@ -425,8 +533,226 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 // POSIX thread support.
 //
 
+class Thread::PlatformData : public Malloced {
+ public:
+  PlatformData() : thread_(kNoThread) {}
+  pthread_t thread_;  // Thread handle for pthread.
+};
+
+Thread::Thread(const Options& options)
+    : data_(new PlatformData),
+      stack_size_(options.stack_size()),
+      start_semaphore_(NULL) {
+  set_name(options.name());
+}
+
+
+Thread::~Thread() {
+  delete data_;
+}
+
+
+static void SetThreadName(const char* name) {
+#if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+  pthread_set_name_np(pthread_self(), name);
+#elif defined(__NetBSD__)
+  STATIC_ASSERT(Thread::kMaxThreadNameLength <= PTHREAD_MAX_NAMELEN_NP);
+  pthread_setname_np(pthread_self(), "%s", name);
+#elif defined(__APPLE__)
+  // pthread_setname_np is only available in 10.6 or later, so test
+  // for it at runtime.
+  int (*dynamic_pthread_setname_np)(const char*);
+  *reinterpret_cast<void**>(&dynamic_pthread_setname_np) =
+    dlsym(RTLD_DEFAULT, "pthread_setname_np");
+  if (dynamic_pthread_setname_np == NULL)
+    return;
+
+  // Mac OS X does not expose the length limit of the name, so hardcode it.
+  static const int kMaxNameLength = 63;
+  STATIC_ASSERT(Thread::kMaxThreadNameLength <= kMaxNameLength);
+  dynamic_pthread_setname_np(name);
+#elif defined(PR_SET_NAME)
+  prctl(PR_SET_NAME,
+        reinterpret_cast<unsigned long>(name),  // NOLINT
+        0, 0, 0);
+#endif
+}
+
+
+static void* ThreadEntry(void* arg) {
+  Thread* thread = reinterpret_cast<Thread*>(arg);
+  // This is also initialized by the first argument to pthread_create() but we
+  // don't know which thread will run first (the original thread or the new
+  // one) so we initialize it here too.
+  thread->data()->thread_ = pthread_self();
+  SetThreadName(thread->name());
+  ASSERT(thread->data()->thread_ != kNoThread);
+  thread->NotifyStartedAndRun();
+  return NULL;
+}
+
+
+void Thread::set_name(const char* name) {
+  strncpy(name_, name, sizeof(name_));
+  name_[sizeof(name_) - 1] = '\0';
+}
+
+
+void Thread::Start() {
+  int result;
+  pthread_attr_t attr;
+  memset(&attr, 0, sizeof(attr));
+  result = pthread_attr_init(&attr);
+  ASSERT_EQ(0, result);
+  // Native client uses default stack size.
+#if !defined(__native_client__)
+  if (stack_size_ > 0) {
+    result = pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
+    ASSERT_EQ(0, result);
+  }
+#endif
+  result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
+  ASSERT_EQ(0, result);
+  result = pthread_attr_destroy(&attr);
+  ASSERT_EQ(0, result);
+  ASSERT(data_->thread_ != kNoThread);
+  USE(result);
+}
+
+
+void Thread::Join() {
+  pthread_join(data_->thread_, NULL);
+}
+
+
 void Thread::YieldCPU() {
-  sched_yield();
+  int result = sched_yield();
+  ASSERT_EQ(0, result);
+  USE(result);
+}
+
+
+static Thread::LocalStorageKey PthreadKeyToLocalKey(pthread_key_t pthread_key) {
+#if defined(__CYGWIN__)
+  // We need to cast pthread_key_t to Thread::LocalStorageKey in two steps
+  // because pthread_key_t is a pointer type on Cygwin. This will probably not
+  // work on 64-bit platforms, but Cygwin doesn't support 64-bit anyway.
+  STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
+  intptr_t ptr_key = reinterpret_cast<intptr_t>(pthread_key);
+  return static_cast<Thread::LocalStorageKey>(ptr_key);
+#else
+  return static_cast<Thread::LocalStorageKey>(pthread_key);
+#endif
+}
+
+
+static pthread_key_t LocalKeyToPthreadKey(Thread::LocalStorageKey local_key) {
+#if defined(__CYGWIN__)
+  STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
+  intptr_t ptr_key = static_cast<intptr_t>(local_key);
+  return reinterpret_cast<pthread_key_t>(ptr_key);
+#else
+  return static_cast<pthread_key_t>(local_key);
+#endif
+}
+
+
+#ifdef V8_FAST_TLS_SUPPORTED
+
+static Atomic32 tls_base_offset_initialized = 0;
+intptr_t kMacTlsBaseOffset = 0;
+
+// It's safe to do the initialization more that once, but it has to be
+// done at least once.
+static void InitializeTlsBaseOffset() {
+  const size_t kBufferSize = 128;
+  char buffer[kBufferSize];
+  size_t buffer_size = kBufferSize;
+  int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
+  if (sysctl(ctl_name, 2, buffer, &buffer_size, NULL, 0) != 0) {
+    V8_Fatal(__FILE__, __LINE__, "V8 failed to get kernel version");
+  }
+  // The buffer now contains a string of the form XX.YY.ZZ, where
+  // XX is the major kernel version component.
+  // Make sure the buffer is 0-terminated.
+  buffer[kBufferSize - 1] = '\0';
+  char* period_pos = strchr(buffer, '.');
+  *period_pos = '\0';
+  int kernel_version_major =
+      static_cast<int>(strtol(buffer, NULL, 10));  // NOLINT
+  // The constants below are taken from pthreads.s from the XNU kernel
+  // sources archive at www.opensource.apple.com.
+  if (kernel_version_major < 11) {
+    // 8.x.x (Tiger), 9.x.x (Leopard), 10.x.x (Snow Leopard) have the
+    // same offsets.
+#if V8_HOST_ARCH_IA32
+    kMacTlsBaseOffset = 0x48;
+#else
+    kMacTlsBaseOffset = 0x60;
+#endif
+  } else {
+    // 11.x.x (Lion) changed the offset.
+    kMacTlsBaseOffset = 0;
+  }
+
+  Release_Store(&tls_base_offset_initialized, 1);
+}
+
+
+static void CheckFastTls(Thread::LocalStorageKey key) {
+  void* expected = reinterpret_cast<void*>(0x1234CAFE);
+  Thread::SetThreadLocal(key, expected);
+  void* actual = Thread::GetExistingThreadLocal(key);
+  if (expected != actual) {
+    V8_Fatal(__FILE__, __LINE__,
+             "V8 failed to initialize fast TLS on current kernel");
+  }
+  Thread::SetThreadLocal(key, NULL);
+}
+
+#endif  // V8_FAST_TLS_SUPPORTED
+
+
+Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
+#ifdef V8_FAST_TLS_SUPPORTED
+  bool check_fast_tls = false;
+  if (tls_base_offset_initialized == 0) {
+    check_fast_tls = true;
+    InitializeTlsBaseOffset();
+  }
+#endif
+  pthread_key_t key;
+  int result = pthread_key_create(&key, NULL);
+  ASSERT_EQ(0, result);
+  USE(result);
+  LocalStorageKey local_key = PthreadKeyToLocalKey(key);
+#ifdef V8_FAST_TLS_SUPPORTED
+  // If we just initialized fast TLS support, make sure it works.
+  if (check_fast_tls) CheckFastTls(local_key);
+#endif
+  return local_key;
+}
+
+
+void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
+  pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
+  int result = pthread_key_delete(pthread_key);
+  ASSERT_EQ(0, result);
+  USE(result);
+}
+
+
+void* Thread::GetThreadLocal(LocalStorageKey key) {
+  pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
+  return pthread_getspecific(pthread_key);
+}
+
+
+void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
+  pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
+  int result = pthread_setspecific(pthread_key, value);
+  ASSERT_EQ(0, result);
+  USE(result);
 }
 
 

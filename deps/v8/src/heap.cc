@@ -583,8 +583,6 @@ void Heap::GarbageCollectionEpilogue() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->AfterGarbageCollection();
 #endif  // ENABLE_DEBUGGER_SUPPORT
-
-  error_object_list_.DeferredFormatStackTrace(isolate());
 }
 
 
@@ -702,6 +700,16 @@ bool Heap::CollectGarbage(AllocationSpace space,
   }
 
   return next_gc_likely_to_collect_more;
+}
+
+
+int Heap::NotifyContextDisposed() {
+  if (FLAG_parallel_recompilation) {
+    // Flush the queued recompilation tasks.
+    isolate()->optimizing_compiler_thread()->Flush();
+  }
+  flush_monomorphic_ics_ = true;
+  return ++contexts_disposed_;
 }
 
 
@@ -922,6 +930,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     VMState<EXTERNAL> state(isolate_);
+    HandleScope handle_scope(isolate_);
     CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
   }
 
@@ -1027,6 +1036,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     VMState<EXTERNAL> state(isolate_);
+    HandleScope handle_scope(isolate_);
     CallGCEpilogueCallbacks(gc_type);
   }
 
@@ -1427,8 +1437,6 @@ void Heap::Scavenge() {
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
-
-  error_object_list_.UpdateReferencesInNewSpace(this);
 
   promotion_queue_.Destroy();
 
@@ -3214,6 +3222,9 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_observed_symbol(Symbol::cast(obj));
+
+  set_i18n_template_one(the_hole_value());
+  set_i18n_template_two(the_hole_value());
 
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
@@ -5353,25 +5364,16 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
   if (length < 0 || length > SeqOneByteString::kMaxLength) {
     return Failure::OutOfMemoryException(0xb);
   }
-
   int size = SeqOneByteString::SizeFor(length);
   ASSERT(size <= SeqOneByteString::kMaxSize);
-
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   AllocationSpace retry_space = OLD_DATA_SPACE;
 
-  if (space == NEW_SPACE) {
-    if (size > kMaxObjectSizeInNewSpace) {
-      // Allocate in large object space, retry space will be ignored.
-      space = LO_SPACE;
-    } else if (size > Page::kMaxNonCodeHeapObjectSize) {
-      // Allocate in new space, retry in large object space.
-      retry_space = LO_SPACE;
-    }
-  } else if (space == OLD_DATA_SPACE &&
-             size > Page::kMaxNonCodeHeapObjectSize) {
+  if (size > Page::kMaxNonCodeHeapObjectSize) {
+    // Allocate in large object space, retry space will be ignored.
     space = LO_SPACE;
   }
+
   Object* result;
   { MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -5397,18 +5399,11 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   AllocationSpace retry_space = OLD_DATA_SPACE;
 
-  if (space == NEW_SPACE) {
-    if (size > kMaxObjectSizeInNewSpace) {
-      // Allocate in large object space, retry space will be ignored.
-      space = LO_SPACE;
-    } else if (size > Page::kMaxNonCodeHeapObjectSize) {
-      // Allocate in new space, retry in large object space.
-      retry_space = LO_SPACE;
-    }
-  } else if (space == OLD_DATA_SPACE &&
-             size > Page::kMaxNonCodeHeapObjectSize) {
+  if (size > Page::kMaxNonCodeHeapObjectSize) {
+    // Allocate in large object space, retry space will be ignored.
     space = LO_SPACE;
   }
+
   Object* result;
   { MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -5482,7 +5477,7 @@ MaybeObject* Heap::AllocateRawFixedArray(int length) {
   if (always_allocate()) return AllocateFixedArray(length, TENURED);
   // Allocate the raw data for a fixed array.
   int size = FixedArray::SizeFor(length);
-  return size <= kMaxObjectSizeInNewSpace
+  return size <= Page::kMaxNonCodeHeapObjectSize
       ? new_space_.AllocateRaw(size)
       : lo_space_->AllocateRaw(size, NOT_EXECUTABLE);
 }
@@ -5553,21 +5548,15 @@ MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > FixedArray::kMaxLength) {
     return Failure::OutOfMemoryException(0xe);
   }
-
+  int size = FixedArray::SizeFor(length);
   AllocationSpace space =
       (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-  int size = FixedArray::SizeFor(length);
-  if (space == NEW_SPACE && size > kMaxObjectSizeInNewSpace) {
-    // Too big for new space.
-    space = LO_SPACE;
-  } else if (space == OLD_POINTER_SPACE &&
-             size > Page::kMaxNonCodeHeapObjectSize) {
-    // Too big for old pointer space.
+  AllocationSpace retry_space = OLD_POINTER_SPACE;
+
+  if (size > Page::kMaxNonCodeHeapObjectSize) {
+    // Allocate in large object space, retry space will be ignored.
     space = LO_SPACE;
   }
-
-  AllocationSpace retry_space =
-      (size <= Page::kMaxNonCodeHeapObjectSize) ? OLD_POINTER_SPACE : LO_SPACE;
 
   return AllocateRaw(size, space, retry_space);
 }
@@ -5686,26 +5675,18 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
     return Failure::OutOfMemoryException(0xf);
   }
-
-  AllocationSpace space =
-      (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   int size = FixedDoubleArray::SizeFor(length);
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  AllocationSpace retry_space = OLD_DATA_SPACE;
 
 #ifndef V8_HOST_ARCH_64_BIT
   size += kPointerSize;
 #endif
 
-  if (space == NEW_SPACE && size > kMaxObjectSizeInNewSpace) {
-    // Too big for new space.
-    space = LO_SPACE;
-  } else if (space == OLD_DATA_SPACE &&
-             size > Page::kMaxNonCodeHeapObjectSize) {
-    // Too big for old data space.
+  if (size > Page::kMaxNonCodeHeapObjectSize) {
+    // Allocate in large object space, retry space will be ignored.
     space = LO_SPACE;
   }
-
-  AllocationSpace retry_space =
-      (size <= Page::kMaxNonCodeHeapObjectSize) ? OLD_DATA_SPACE : LO_SPACE;
 
   HeapObject* object;
   { MaybeObject* maybe_object = AllocateRaw(size, space, retry_space);
@@ -6575,7 +6556,6 @@ void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
       mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     // Scavenge collections have special processing for this.
     external_string_table_.Iterate(v);
-    error_object_list_.Iterate(v);
   }
   v->Synchronize(VisitorSynchronization::kExternalStringsTable);
 }
@@ -6974,8 +6954,6 @@ void Heap::TearDown() {
   isolate_->global_handles()->TearDown();
 
   external_string_table_.TearDown();
-
-  error_object_list_.TearDown();
 
   new_space_.TearDown();
 
@@ -7926,120 +7904,6 @@ void ExternalStringTable::CleanUp() {
 void ExternalStringTable::TearDown() {
   new_space_strings_.Free();
   old_space_strings_.Free();
-}
-
-
-// Update all references.
-void ErrorObjectList::UpdateReferences() {
-  for (int i = 0; i < list_.length(); i++) {
-    HeapObject* object = HeapObject::cast(list_[i]);
-    MapWord first_word = object->map_word();
-    if (first_word.IsForwardingAddress()) {
-      list_[i] = first_word.ToForwardingAddress();
-    }
-  }
-}
-
-
-// Unforwarded objects in new space are dead and removed from the list.
-void ErrorObjectList::UpdateReferencesInNewSpace(Heap* heap) {
-  if (list_.is_empty()) return;
-  if (!nested_) {
-    int write_index = 0;
-    for (int i = 0; i < list_.length(); i++) {
-      MapWord first_word = HeapObject::cast(list_[i])->map_word();
-      if (first_word.IsForwardingAddress()) {
-        list_[write_index++] = first_word.ToForwardingAddress();
-      }
-    }
-    list_.Rewind(write_index);
-  } else {
-    // If a GC is triggered during DeferredFormatStackTrace, we do not move
-    // objects in the list, just remove dead ones, as to not confuse the
-    // loop in DeferredFormatStackTrace.
-    for (int i = 0; i < list_.length(); i++) {
-      MapWord first_word = HeapObject::cast(list_[i])->map_word();
-      list_[i] = first_word.IsForwardingAddress()
-                     ? first_word.ToForwardingAddress()
-                     : heap->the_hole_value();
-    }
-  }
-}
-
-
-void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
-  // If formatting the stack trace causes a GC, this method will be
-  // recursively called.  In that case, skip the recursive call, since
-  // the loop modifies the list while iterating over it.
-  if (nested_ || list_.is_empty() || isolate->has_pending_exception()) return;
-  nested_ = true;
-  HandleScope scope(isolate);
-  Handle<String> stack_key = isolate->factory()->stack_string();
-  int write_index = 0;
-  int budget = kBudgetPerGC;
-  for (int i = 0; i < list_.length(); i++) {
-    Object* object = list_[i];
-    JSFunction* getter_fun;
-
-    { DisallowHeapAllocation no_gc;
-      // Skip possible holes in the list.
-      if (object->IsTheHole()) continue;
-      if (isolate->heap()->InNewSpace(object) || budget == 0) {
-        list_[write_index++] = object;
-        continue;
-      }
-
-      // Check whether the stack property is backed by the original getter.
-      LookupResult lookup(isolate);
-      JSObject::cast(object)->LocalLookupRealNamedProperty(*stack_key, &lookup);
-      if (!lookup.IsFound() || lookup.type() != CALLBACKS) continue;
-      Object* callback = lookup.GetCallbackObject();
-      if (!callback->IsAccessorPair()) continue;
-      Object* getter_obj = AccessorPair::cast(callback)->getter();
-      if (!getter_obj->IsJSFunction()) continue;
-      getter_fun = JSFunction::cast(getter_obj);
-      String* key = isolate->heap()->hidden_stack_trace_string();
-      Object* value = getter_fun->GetHiddenProperty(key);
-      if (key != value) continue;
-    }
-
-    budget--;
-    HandleScope scope(isolate);
-    bool has_exception = false;
-#ifdef DEBUG
-    Handle<Map> map(HeapObject::cast(object)->map(), isolate);
-#endif
-    Handle<Object> object_handle(object, isolate);
-    Handle<Object> getter_handle(getter_fun, isolate);
-    Execution::Call(getter_handle, object_handle, 0, NULL, &has_exception);
-    ASSERT(*map == HeapObject::cast(*object_handle)->map());
-    if (has_exception) {
-      // Hit an exception (most likely a stack overflow).
-      // Wrap up this pass and retry after another GC.
-      isolate->clear_pending_exception();
-      // We use the handle since calling the getter might have caused a GC.
-      list_[write_index++] = *object_handle;
-      budget = 0;
-    }
-  }
-  list_.Rewind(write_index);
-  list_.Trim();
-  nested_ = false;
-}
-
-
-void ErrorObjectList::RemoveUnmarked(Heap* heap) {
-  for (int i = 0; i < list_.length(); i++) {
-    HeapObject* object = HeapObject::cast(list_[i]);
-    if (!Marking::MarkBitFrom(object).Get()) {
-      list_[i] = heap->the_hole_value();
-    }
-  }
-}
-
-
-void ErrorObjectList::TearDown() {
-  list_.Free();
 }
 
 

@@ -634,7 +634,7 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
                                        Handle<Object> object,
                                        Code::ExtraICState* extra_ic_state) {
   ASSERT(kind_ == Code::CALL_IC);
-  if (lookup->type() != CONSTANT_FUNCTION) return false;
+  if (!lookup->IsConstantFunction()) return false;
   JSFunction* function = lookup->GetConstantFunction();
   if (!function->shared()->HasBuiltinFunctionId()) return false;
 
@@ -687,7 +687,8 @@ Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
       return isolate()->stub_cache()->ComputeCallField(
           argc, kind_, extra_state, name, object, holder, index);
     }
-    case CONSTANT_FUNCTION: {
+    case CONSTANT: {
+      if (!lookup->IsConstantFunction()) return Handle<Code>::null();
       // Get the constant function and compute the code stub for this
       // call; used for rewriting to monomorphic state and making sure
       // that the code stub is in the stub cache.
@@ -1312,8 +1313,11 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
       return isolate()->stub_cache()->ComputeLoadField(
           name, receiver, holder,
           lookup->GetFieldIndex(), lookup->representation());
-    case CONSTANT_FUNCTION: {
-      Handle<JSFunction> constant(lookup->GetConstantFunction());
+    case CONSTANT: {
+      Handle<Object> constant(lookup->GetConstant(), isolate());
+      // TODO(2803): Don't compute a stub for cons strings because they cannot
+      // be embedded into code.
+      if (constant->IsConsString()) return Handle<Code>::null();
       return isolate()->stub_cache()->ComputeLoadConstant(
           name, receiver, holder, constant);
     }
@@ -1522,8 +1526,11 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
       return isolate()->stub_cache()->ComputeKeyedLoadField(
           name, receiver, holder,
           lookup->GetFieldIndex(), lookup->representation());
-    case CONSTANT_FUNCTION: {
-      Handle<JSFunction> constant(lookup->GetConstantFunction(), isolate());
+    case CONSTANT: {
+      Handle<Object> constant(lookup->GetConstant(), isolate());
+      // TODO(2803): Don't compute a stub for cons strings because they cannot
+      // be embedded into code.
+      if (constant->IsConsString()) return Handle<Code>::null();
       return isolate()->stub_cache()->ComputeKeyedLoadConstant(
           name, receiver, holder, constant);
     }
@@ -1798,7 +1805,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       ASSERT(!receiver->GetNamedInterceptor()->setter()->IsUndefined());
       return isolate()->stub_cache()->ComputeStoreInterceptor(
           name, receiver, strict_mode);
-    case CONSTANT_FUNCTION:
+    case CONSTANT:
       break;
     case TRANSITION: {
       // Explicitly pass in the receiver map since LookupForWrite may have
@@ -2184,7 +2191,7 @@ Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       // fall through.
     }
     case NORMAL:
-    case CONSTANT_FUNCTION:
+    case CONSTANT:
     case CALLBACKS:
     case INTERCEPTOR:
       // Always rewrite to the generic case so that we do not

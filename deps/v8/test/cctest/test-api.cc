@@ -49,6 +49,7 @@
 #include "snapshot.h"
 #include "unicode-inl.h"
 #include "utils.h"
+#include "vm-state.h"
 
 static const bool kLogThreading = false;
 
@@ -848,8 +849,8 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   // VMState is set to EXTERNAL.
   if (isolate->cpu_profiler()->is_profiling()) {
     CHECK_EQ(i::EXTERNAL, isolate->current_vm_state());
-    CHECK(isolate->external_callback());
-    CHECK_EQ(callback, isolate->external_callback());
+    CHECK(isolate->external_callback_scope());
+    CHECK_EQ(callback, isolate->external_callback_scope()->callback());
   }
 }
 

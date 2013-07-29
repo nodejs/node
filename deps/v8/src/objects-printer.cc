@@ -294,9 +294,9 @@ void JSObject::PrintProperties(FILE* out) {
           PrintF(out, " (field at offset %d)\n", index);
           break;
         }
-        case CONSTANT_FUNCTION:
-          descs->GetConstantFunction(i)->ShortPrint(out);
-          PrintF(out, " (constant function)\n");
+        case CONSTANT:
+          descs->GetConstant(i)->ShortPrint(out);
+          PrintF(out, " (constant)\n");
           break;
         case CALLBACKS:
           descs->GetCallbacksObject(i)->ShortPrint(out);
@@ -450,8 +450,8 @@ void JSObject::PrintTransitions(FILE* out) {
         PrintF(out, " (transition to field)\n");
         break;
       }
-      case CONSTANT_FUNCTION:
-        PrintF(out, " (transition to constant function)\n");
+      case CONSTANT:
+        PrintF(out, " (transition to constant)\n");
         break;
       case CALLBACKS:
         PrintF(out, " (transition to callback)\n");
@@ -1262,8 +1262,8 @@ void TransitionArray::PrintTransitions(FILE* out) {
         PrintF(out, " (transition to field)\n");
         break;
       }
-      case CONSTANT_FUNCTION:
-        PrintF(out, " (transition to constant function)\n");
+      case CONSTANT:
+        PrintF(out, " (transition to constant)\n");
         break;
       case CALLBACKS:
         PrintF(out, " (transition to callback)\n");

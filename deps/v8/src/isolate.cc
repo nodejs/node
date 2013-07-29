@@ -95,7 +95,7 @@ void ThreadLocalTop::InitializeInternal() {
   simulator_ = NULL;
 #endif
   js_entry_sp_ = NULL;
-  external_callback_ = NULL;
+  external_callback_scope_ = NULL;
   current_vm_state_ = EXTERNAL;
   try_catch_handler_address_ = NULL;
   context_ = NULL;
@@ -1777,7 +1777,6 @@ Isolate::Isolate()
       regexp_stack_(NULL),
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
-      context_exit_happened_(false),
       initialized_from_snapshot_(false),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),

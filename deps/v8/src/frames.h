@@ -47,6 +47,7 @@ int JSCallerSavedCode(int n);
 
 
 // Forward declarations.
+class ExternalCallbackScope;
 class StackFrameIteratorBase;
 class ThreadLocalTop;
 class Isolate;
@@ -92,7 +93,7 @@ class StackHandlerConstants : public AllStatic {
   static const int kContextOffset  = 3 * kPointerSize;
   static const int kFPOffset       = 4 * kPointerSize;
 
-  static const int kSize = kFPOffset + kPointerSize;
+  static const int kSize = kFPOffset + kFPOnStackSize;
   static const int kSlotCount = kSize >> kPointerSizeLog2;
 };
 
@@ -168,13 +169,14 @@ class StandardFrameConstants : public AllStatic {
   // context and function.
   // StandardFrame::IterateExpressions assumes that kContextOffset is the last
   // object pointer.
-  static const int kFixedFrameSize    =  4 * kPointerSize;
+  static const int kFixedFrameSize    =  kPCOnStackSize + kFPOnStackSize +
+                                         2 * kPointerSize;
   static const int kExpressionsOffset = -3 * kPointerSize;
   static const int kMarkerOffset      = -2 * kPointerSize;
   static const int kContextOffset     = -1 * kPointerSize;
   static const int kCallerFPOffset    =  0 * kPointerSize;
-  static const int kCallerPCOffset    = +1 * kPointerSize;
-  static const int kCallerSPOffset    = +2 * kPointerSize;
+  static const int kCallerPCOffset    = +1 * kFPOnStackSize;
+  static const int kCallerSPOffset    = +2 * kPCOnStackSize;
 };
 
 
@@ -883,7 +885,7 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
                          Address fp, Address sp,
                          Address js_entry_sp);
 
-  inline JavaScriptFrame* frame() const;
+  inline StackFrame* frame() const;
   void Advance();
 
   StackFrame::Type top_frame_type() const { return top_frame_type_; }
@@ -902,6 +904,7 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
   const Address low_bound_;
   const Address high_bound_;
   StackFrame::Type top_frame_type_;
+  ExternalCallbackScope* external_callback_scope_;
 };
 
 

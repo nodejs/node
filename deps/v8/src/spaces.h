@@ -781,7 +781,10 @@ class Page : public MemoryChunk {
   // Object area size in bytes.
   static const int kNonCodeObjectAreaSize = kPageSize - kObjectStartOffset;
 
-  // Maximum object size that fits in a page.
+  // Maximum object size that fits in a page. Objects larger than that size
+  // are allocated in large object space and are never moved in memory. This
+  // also applies to new space allocation, since objects are never migrated
+  // from new space to large object space.
   static const int kMaxNonCodeHeapObjectSize = kNonCodeObjectAreaSize;
 
   // Page size mask.

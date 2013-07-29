@@ -518,7 +518,7 @@ MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
       }
       case NORMAL:
       case FIELD:
-      case CONSTANT_FUNCTION: {
+      case CONSTANT: {
         // Search ALL_CAN_READ accessors in prototype chain.
         LookupResult r(GetIsolate());
         result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
@@ -579,7 +579,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
 
       case NORMAL:
       case FIELD:
-      case CONSTANT_FUNCTION: {
+      case CONSTANT: {
         if (!continue_search) break;
         // Search ALL_CAN_READ accessors in prototype chain.
         LookupResult r(GetIsolate());
@@ -874,8 +874,8 @@ MaybeObject* Object::GetProperty(Object* receiver,
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? heap->undefined_value() : value;
     }
-    case CONSTANT_FUNCTION:
-      return result->GetConstantFunction();
+    case CONSTANT:
+      return result->GetConstant();
     case CALLBACKS:
       return result->holder()->GetPropertyWithCallback(
           receiver, result->GetCallbackObject(), name);
@@ -1927,12 +1927,12 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
 }
 
 
-MaybeObject* JSObject::AddConstantFunctionProperty(
+MaybeObject* JSObject::AddConstantProperty(
     Name* name,
-    JSFunction* function,
+    Object* constant,
     PropertyAttributes attributes) {
-  // Allocate new instance descriptors with (name, function) added
-  ConstantFunctionDescriptor d(name, function, attributes);
+  // Allocate new instance descriptors with (name, constant) added
+  ConstantDescriptor d(name, constant, attributes);
 
   TransitionFlag flag =
       // Do not add transitions to  global objects.
@@ -1948,7 +1948,7 @@ MaybeObject* JSObject::AddConstantFunctionProperty(
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
   set_map(new_map);
-  return function;
+  return constant;
 }
 
 
@@ -2000,7 +2000,8 @@ MaybeObject* JSObject::AddProperty(Name* name,
                                    StrictModeFlag strict_mode,
                                    JSReceiver::StoreFromKeyed store_mode,
                                    ExtensibilityCheck extensibility_check,
-                                   ValueType value_type) {
+                                   ValueType value_type,
+                                   StoreMode mode) {
   ASSERT(!IsJSGlobalProxy());
   Map* map_of_this = map();
   Heap* heap = GetHeap();
@@ -2022,10 +2023,12 @@ MaybeObject* JSObject::AddProperty(Name* name,
     // Ensure the descriptor array does not get too big.
     if (map_of_this->NumberOfOwnDescriptors() <
         DescriptorArray::kMaxNumberOfDescriptors) {
+      // TODO(verwaest): Support other constants.
+      // if (mode == ALLOW_AS_CONSTANT &&
+      //     !value->IsTheHole() &&
+      //     !value->IsConsString()) {
       if (value->IsJSFunction()) {
-        result = AddConstantFunctionProperty(name,
-                                             JSFunction::cast(value),
-                                             attributes);
+        result = AddConstantProperty(name, value, attributes);
       } else {
         result = AddFastProperty(
             name, value, attributes, store_mode, value_type);
@@ -2095,7 +2098,8 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     Object* value,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode,
-    ExtensibilityCheck extensibility_check) {
+    ExtensibilityCheck extensibility_check,
+    StoreMode mode) {
   // Check local property, ignore interceptor.
   LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
@@ -2112,7 +2116,8 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
   if (done) return result_object;
   // Add a new real property.
   return AddProperty(name, value, attributes, strict_mode,
-                     MAY_BE_STORE_FROM_KEYED, extensibility_check);
+                     MAY_BE_STORE_FROM_KEYED, extensibility_check,
+                     OPTIMAL_REPRESENTATION, mode);
 }
 
 
@@ -2377,9 +2382,9 @@ MaybeObject* JSObject::MigrateToMap(Map* new_map) {
     PropertyDetails details = new_descriptors->GetDetails(i);
     if (details.type() != FIELD) continue;
     PropertyDetails old_details = old_descriptors->GetDetails(i);
-    ASSERT(old_details.type() == CONSTANT_FUNCTION ||
+    ASSERT(old_details.type() == CONSTANT ||
            old_details.type() == FIELD);
-    Object* value = old_details.type() == CONSTANT_FUNCTION
+    Object* value = old_details.type() == CONSTANT
         ? old_descriptors->GetValue(i)
         : RawFastPropertyAt(old_descriptors->GetFieldIndex(i));
     if (FLAG_track_double_fields &&
@@ -2994,7 +2999,7 @@ MaybeObject* JSObject::SetPropertyViaPrototypes(
     switch (result.type()) {
       case NORMAL:
       case FIELD:
-      case CONSTANT_FUNCTION:
+      case CONSTANT:
         *done = result.IsReadOnly();
         break;
       case INTERCEPTOR: {
@@ -3867,13 +3872,13 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
       result = *value;
       break;
     }
-    case CONSTANT_FUNCTION:
-      // Only replace the function if necessary.
-      if (*value == lookup->GetConstantFunction()) return *value;
+    case CONSTANT:
+      // Only replace the constant if necessary.
+      if (*value == lookup->GetConstant()) return *value;
       // Preserve the attributes of this existing property.
       attributes = lookup->GetAttributes();
-      result =
-          lookup->holder()->ConvertDescriptorToField(*name, *value, attributes);
+      result = lookup->holder()->ConvertDescriptorToField(
+          *name, *value, attributes);
       break;
     case CALLBACKS: {
       Object* callback_object = lookup->GetCallbackObject();
@@ -3919,14 +3924,14 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
         result = lookup->holder()->ConvertDescriptorToField(
             *name, *value, attributes);
       } else {
-        ASSERT(details.type() == CONSTANT_FUNCTION);
+        ASSERT(details.type() == CONSTANT);
 
-        Object* constant_function = descriptors->GetValue(descriptor);
-        if (constant_function == *value) {
+        Object* constant = descriptors->GetValue(descriptor);
+        if (constant == *value) {
           // If the same constant function is being added we can simply
           // transition to the target map.
           lookup->holder()->set_map(transition_map);
-          result = constant_function;
+          result = constant;
         } else {
           // Otherwise, replace with a map transition to a new map with a FIELD,
           // even if the value is a constant function.
@@ -3977,11 +3982,12 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     Handle<Name> key,
     Handle<Object> value,
     PropertyAttributes attributes,
-    ValueType value_type) {
+    ValueType value_type,
+    StoreMode mode) {
   CALL_HEAP_FUNCTION(
     object->GetIsolate(),
     object->SetLocalPropertyIgnoreAttributes(
-        *key, *value, attributes, value_type),
+        *key, *value, attributes, value_type, mode),
     Object);
 }
 
@@ -3990,7 +3996,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     Name* name_raw,
     Object* value_raw,
     PropertyAttributes attributes,
-    ValueType value_type) {
+    ValueType value_type,
+    StoreMode mode) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
@@ -4017,7 +4024,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
         name_raw,
         value_raw,
         attributes,
-        value_type);
+        value_type,
+        mode);
   }
 
   // Check for accessor in prototype chain removed here in clone.
@@ -4025,7 +4033,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     // Neither properties nor transitions found.
     return AddProperty(
         name_raw, value_raw, attributes, kNonStrictMode,
-        MAY_BE_STORE_FROM_KEYED, PERFORM_EXTENSIBILITY_CHECK, value_type);
+        MAY_BE_STORE_FROM_KEYED, PERFORM_EXTENSIBILITY_CHECK, value_type, mode);
   }
 
   // From this point on everything needs to be handlified.
@@ -4075,9 +4083,9 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       result = *value;
       break;
     }
-    case CONSTANT_FUNCTION:
+    case CONSTANT:
       // Only replace the function if necessary.
-      if (*value != lookup.GetConstantFunction()) {
+      if (*value != lookup.GetConstant()) {
         // Preserve the attributes of this existing property.
         attributes = lookup.GetAttributes();
         result = self->ConvertDescriptorToField(*name, *value, attributes);
@@ -4122,7 +4130,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       } else if (details.type() == CALLBACKS) {
         result = self->ConvertDescriptorToField(*name, *value, attributes);
       } else {
-        ASSERT(details.type() == CONSTANT_FUNCTION);
+        ASSERT(details.type() == CONSTANT);
 
         // Replace transition to CONSTANT FUNCTION with a map transition to a
         // new map with a FIELD, even if the value is a function.
@@ -4264,7 +4272,7 @@ PropertyAttributes JSReceiver::GetPropertyAttributeForResult(
     switch (lookup->type()) {
       case NORMAL:  // fall through
       case FIELD:
-      case CONSTANT_FUNCTION:
+      case CONSTANT:
       case CALLBACKS:
         return lookup->GetAttributes();
       case HANDLER: {
@@ -4504,10 +4512,10 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   for (int i = 0; i < real_size; i++) {
     PropertyDetails details = descs->GetDetails(i);
     switch (details.type()) {
-      case CONSTANT_FUNCTION: {
+      case CONSTANT: {
         PropertyDetails d = PropertyDetails(
             details.attributes(), NORMAL, i + 1);
-        Object* value = descs->GetConstantFunction(i);
+        Object* value = descs->GetConstant(i);
         MaybeObject* maybe_dictionary =
             dictionary->Add(descs->GetKey(i), value, d);
         if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
@@ -4949,7 +4957,8 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
                                  hashtable,
                                  DONT_ENUM,
                                  kNonStrictMode,
-                                 OMIT_EXTENSIBILITY_CHECK);
+                                 OMIT_EXTENSIBILITY_CHECK,
+                                 FORCE_FIELD);
   if (store_result->IsFailure()) return store_result;
   return hashtable;
 }
@@ -4981,7 +4990,8 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
                                  value,
                                  DONT_ENUM,
                                  kNonStrictMode,
-                                 OMIT_EXTENSIBILITY_CHECK);
+                                 OMIT_EXTENSIBILITY_CHECK,
+                                 FORCE_FIELD);
   if (store_result->IsFailure()) return store_result;
   return this;
 }
@@ -6457,8 +6467,8 @@ Object* JSObject::SlowReverseLookup(Object* value) {
         } else if (property == value) {
           return descs->GetKey(i);
         }
-      } else if (descs->GetType(i) == CONSTANT_FUNCTION) {
-        if (descs->GetConstantFunction(i) == value) {
+      } else if (descs->GetType(i) == CONSTANT) {
+        if (descs->GetConstant(i) == value) {
           return descs->GetKey(i);
         }
       }
@@ -7800,8 +7810,8 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
     PropertyDetails other_details = other->GetDetails(descriptor);
 
     if (details.type() == FIELD || other_details.type() == FIELD ||
-        (details.type() == CONSTANT_FUNCTION &&
-         other_details.type() == CONSTANT_FUNCTION &&
+        (details.type() == CONSTANT &&
+         other_details.type() == CONSTANT &&
          GetValue(descriptor) != other->GetValue(descriptor))) {
       Representation representation =
           details.representation().generalize(other_details.representation());
@@ -7850,8 +7860,8 @@ bool DescriptorArray::IsMoreGeneralThan(int verbatim,
     if (!other_details.representation().fits_into(details.representation())) {
       return false;
     }
-    if (details.type() == CONSTANT_FUNCTION) {
-      if (other_details.type() != CONSTANT_FUNCTION) return false;
+    if (details.type() == CONSTANT) {
+      if (other_details.type() != CONSTANT) return false;
       if (GetValue(descriptor) != other->GetValue(descriptor)) return false;
     }
   }
@@ -9224,6 +9234,7 @@ void JSFunction::MarkForLazyRecompilation() {
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
+  ASSERT(!shared()->is_generator());
   set_code_no_write_barrier(
       GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile));
   // No write barrier required, since the builtin is part of the root set.
@@ -9234,10 +9245,8 @@ void JSFunction::MarkForParallelRecompilation() {
   ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  if (!FLAG_parallel_recompilation) {
-    JSFunction::MarkForLazyRecompilation();
-    return;
-  }
+  ASSERT(!shared()->is_generator());
+  ASSERT(FLAG_parallel_recompilation);
   if (FLAG_trace_parallel_recompilation) {
     PrintF("  ** Marking ");
     PrintName();
@@ -10688,7 +10697,7 @@ const char* Code::StubType2String(StubType type) {
   switch (type) {
     case NORMAL: return "NORMAL";
     case FIELD: return "FIELD";
-    case CONSTANT_FUNCTION: return "CONSTANT_FUNCTION";
+    case CONSTANT: return "CONSTANT";
     case CALLBACKS: return "CALLBACKS";
     case INTERCEPTOR: return "INTERCEPTOR";
     case MAP_TRANSITION: return "MAP_TRANSITION";
@@ -11348,14 +11357,6 @@ bool DependentCode::Contains(DependencyGroup group, Code* code) {
 }
 
 
-class DeoptimizeDependentCodeFilter : public OptimizedFunctionFilter {
- public:
-  virtual bool TakeFunction(JSFunction* function) {
-    return function->code()->marked_for_deoptimization();
-  }
-};
-
-
 void DependentCode::DeoptimizeDependentCodeGroup(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
@@ -11365,10 +11366,14 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   int end = starts.at(group + 1);
   int code_entries = starts.number_of_entries();
   if (start == end) return;
+
+  // Collect all the code to deoptimize.
+  Zone zone(isolate);
+  ZoneList<Code*> codes(end - start, &zone);
   for (int i = start; i < end; i++) {
     if (is_code_at(i)) {
       Code* code = code_at(i);
-      code->set_marked_for_deoptimization(true);
+      if (!code->marked_for_deoptimization()) codes.Add(code, &zone);
     } else {
       CompilationInfo* info = compilation_info_at(i);
       info->AbortDueToDependencyChange();
@@ -11384,8 +11389,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
     clear_at(i);
   }
   set_number_of_entries(group, 0);
-  DeoptimizeDependentCodeFilter filter;
-  Deoptimizer::DeoptimizeAllFunctionsWith(isolate, &filter);
+  Deoptimizer::DeoptimizeCodeList(isolate, &codes);
 }
 
 
@@ -15269,9 +15273,7 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
       PropertyType type = details.type();
 
       if (value->IsJSFunction()) {
-        ConstantFunctionDescriptor d(key,
-                                     JSFunction::cast(value),
-                                     details.attributes());
+        ConstantDescriptor d(key, value, details.attributes());
         descriptors->Set(enumeration_index - 1, &d, witness);
       } else if (type == NORMAL) {
         if (current_offset < inobject_props) {
@@ -15918,10 +15920,11 @@ Type* PropertyCell::UpdateType(Handle<PropertyCell> cell,
                                Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
   Handle<Type> old_type(cell->type(), isolate);
-  Handle<Type> new_type((value->IsSmi() || value->IsJSFunction() ||
-                         value->IsUndefined())
-                        ? Type::Constant(value, isolate)
-                        : Type::Any(), isolate);
+  // TODO(2803): Do not track ConsString as constant because they cannot be
+  // embedded into code.
+  Handle<Type> new_type(value->IsConsString() || value->IsTheHole()
+                        ? Type::Any()
+                        : Type::Constant(value, isolate), isolate);
 
   if (new_type->Is(old_type)) {
     return *old_type;

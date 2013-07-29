@@ -106,13 +106,13 @@ class FieldDescriptor: public Descriptor {
 };
 
 
-class ConstantFunctionDescriptor: public Descriptor {
+class ConstantDescriptor: public Descriptor {
  public:
-  ConstantFunctionDescriptor(Name* key,
-                             JSFunction* function,
-                             PropertyAttributes attributes)
-      : Descriptor(key, function, attributes, CONSTANT_FUNCTION,
-                   Representation::HeapObject()) {}
+  ConstantDescriptor(Name* key,
+                     Object* value,
+                     PropertyAttributes attributes)
+      : Descriptor(key, value, attributes, CONSTANT,
+                   value->OptimalRepresentation()) {}
 };
 
 
@@ -303,9 +303,13 @@ class LookupResult BASE_EMBEDDED {
     return details_.type() == NORMAL;
   }
 
+  bool IsConstant() {
+    ASSERT(!(details_.type() == CONSTANT && !IsFound()));
+    return details_.type() == CONSTANT;
+  }
+
   bool IsConstantFunction() {
-    ASSERT(!(details_.type() == CONSTANT_FUNCTION && !IsFound()));
-    return details_.type() == CONSTANT_FUNCTION;
+    return IsConstant() && GetValue()->IsJSFunction();
   }
 
   bool IsDontDelete() { return details_.IsDontDelete(); }
@@ -324,7 +328,7 @@ class LookupResult BASE_EMBEDDED {
     switch (type()) {
       case FIELD:
       case NORMAL:
-      case CONSTANT_FUNCTION:
+      case CONSTANT:
         return true;
       case CALLBACKS: {
         Object* callback = GetCallbackObject();
@@ -355,8 +359,8 @@ class LookupResult BASE_EMBEDDED {
         }
         return value;
       }
-      case CONSTANT_FUNCTION:
-        return GetConstantFunction();
+      case CONSTANT:
+        return GetConstant();
       case CALLBACKS:
       case HANDLER:
       case INTERCEPTOR:
@@ -392,9 +396,8 @@ class LookupResult BASE_EMBEDDED {
     return IsTransition() && GetTransitionDetails(map).type() == FIELD;
   }
 
-  bool IsTransitionToConstantFunction(Map* map) {
-    return IsTransition() &&
-        GetTransitionDetails(map).type() == CONSTANT_FUNCTION;
+  bool IsTransitionToConstant(Map* map) {
+    return IsTransition() && GetTransitionDetails(map).type() == CONSTANT;
   }
 
   Map* GetTransitionMap() {
@@ -434,13 +437,22 @@ class LookupResult BASE_EMBEDDED {
   }
 
   JSFunction* GetConstantFunction() {
-    ASSERT(type() == CONSTANT_FUNCTION);
+    ASSERT(type() == CONSTANT);
     return JSFunction::cast(GetValue());
   }
 
+  Object* GetConstantFromMap(Map* map) {
+    ASSERT(type() == CONSTANT);
+    return GetValueFromMap(map);
+  }
+
   JSFunction* GetConstantFunctionFromMap(Map* map) {
-    ASSERT(type() == CONSTANT_FUNCTION);
-    return JSFunction::cast(GetValueFromMap(map));
+    return JSFunction::cast(GetConstantFromMap(map));
+  }
+
+  Object* GetConstant() {
+    ASSERT(type() == CONSTANT);
+    return GetValue();
   }
 
   Object* GetCallbackObject() {

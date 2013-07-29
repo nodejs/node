@@ -129,7 +129,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   // Update the static counter each time a new code stub is generated.
   isolate()->counters()->code_stubs()->Increment();
 
-  if (FLAG_trace_hydrogen) {
+  if (FLAG_trace_hydrogen_stubs) {
     const char* name = CodeStub::MajorName(stub()->MajorKey(), false);
     PrintF("-----------------------------------------------------------\n");
     PrintF("Compiling stub %s using hydrogen\n", name);
@@ -178,7 +178,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   AddInstruction(context_);
   start_environment->BindContext(context_);
 
-  AddSimulate(BailoutId::StubEntry());
+  Add<HSimulate>(BailoutId::StubEntry());
 
   NoObservableSideEffectsScope no_effects(this);
 
@@ -307,6 +307,37 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
 
 
 template <>
+HValue* CodeStubGraphBuilder<ToNumberStub>::BuildCodeStub() {
+  HValue* value = GetParameter(0);
+
+  // Check if the parameter is already a SMI or heap number.
+  IfBuilder if_number(this);
+  if_number.If<HIsSmiAndBranch>(value);
+  if_number.OrIf<HCompareMap>(value, isolate()->factory()->heap_number_map());
+  if_number.Then();
+
+  // Return the number.
+  Push(value);
+
+  if_number.Else();
+
+  // Convert the parameter to number using the builtin.
+  HValue* function = AddLoadJSBuiltin(Builtins::TO_NUMBER, context());
+  Add<HPushArgument>(value);
+  Push(Add<HInvokeFunction>(context(), function, 1));
+
+  if_number.End();
+
+  return Pop();
+}
+
+
+Handle<Code> ToNumberStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Zone* zone = this->zone();
   Factory* factory = isolate()->factory();
@@ -366,9 +397,10 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                length));
   }
 
-  HValue* result = environment()->Pop();
   checker.ElseDeopt();
-  return result;
+  checker.End();
+
+  return environment()->Pop();
 }
 
 
@@ -416,8 +448,11 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
     AddStore(object, access, AddLoad(boilerplate, access));
   }
 
+  environment()->Push(object);
   checker.ElseDeopt();
-  return object;
+  checker.End();
+
+  return environment()->Pop();
 }
 
 
@@ -486,11 +521,11 @@ Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
+  Representation rep = casted_stub()->representation();
   HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForJSObjectOffset(casted_stub()->offset()) :
-      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset());
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access,
-      casted_stub()->representation()));
+      HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
+      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
 }
 
 
@@ -501,11 +536,11 @@ Handle<Code> LoadFieldStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
+  Representation rep = casted_stub()->representation();
   HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForJSObjectOffset(casted_stub()->offset()) :
-      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset());
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access,
-      casted_stub()->representation()));
+      HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
+      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
 }
 
 
@@ -850,23 +885,26 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   HParameter* receiver = GetParameter(0);
   HParameter* value = GetParameter(2);
 
+  // Check that the map of the global has not changed: use a placeholder map
+  // that will be replaced later with the global object's map.
+  Handle<Map> placeholder_map = isolate()->factory()->meta_map();
+  AddInstruction(HCheckMaps::New(
+      receiver, placeholder_map, zone(), top_info()));
+
+  HValue* cell = Add<HConstant>(placeholder_cell, Representation::Tagged());
+  HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
+  HValue* cell_contents = Add<HLoadNamedField>(cell, access);
+
   if (stub->is_constant()) {
-    // Assume every store to a constant value changes it.
-    current_block()->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
-    set_current_block(NULL);
+    IfBuilder builder(this);
+    builder.If<HCompareObjectEqAndBranch>(cell_contents, value);
+    builder.Then();
+    builder.ElseDeopt();
+    builder.End();
   } else {
-    HValue* cell = Add<HConstant>(placeholder_cell, Representation::Tagged());
-
-    // Check that the map of the global has not changed: use a placeholder map
-    // that will be replaced later with the global object's map.
-    Handle<Map> placeholder_map = isolate()->factory()->meta_map();
-    AddInstruction(HCheckMaps::New(receiver, placeholder_map, zone()));
-
     // Load the payload of the global parameter cell. A hole indicates that the
     // property has been deleted and that the store must be handled by the
     // runtime.
-    HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
-    HValue* cell_contents = Add<HLoadNamedField>(cell, access);
     IfBuilder builder(this);
     HValue* hole_value = Add<HConstant>(hole, Representation::Tagged());
     builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
@@ -876,6 +914,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     Add<HStoreNamedField>(cell, access, value);
     builder.End();
   }
+
   return value;
 }
 
@@ -894,8 +933,7 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
-    current_block()->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
-    set_current_block(NULL);
+    Add<HDeoptimize>(Deoptimizer::EAGER);
   } else {
     info()->MarkAsSavesCallerDoubles();
 

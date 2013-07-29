@@ -197,6 +197,8 @@ class Deoptimizer : public Malloced {
   static void DeoptimizeAllFunctionsWith(Isolate* isolate,
                                          OptimizedFunctionFilter* filter);
 
+  static void DeoptimizeCodeList(Isolate* isolate, ZoneList<Code*>* codes);
+
   static void DeoptimizeAllFunctionsForContext(
       Context* context, OptimizedFunctionFilter* filter);
 
@@ -411,9 +413,11 @@ class Deoptimizer : public Malloced {
                                         v8::Persistent<v8::Value>* obj,
                                         void* data);
 
-  // Deoptimize function assuming that function->next_function_link() points
-  // to a list that contains all functions that share the same optimized code.
-  static void DeoptimizeFunctionWithPreparedFunctionList(JSFunction* function);
+  // Deoptimize the given code and add to appropriate deoptimization lists.
+  static void DeoptimizeCode(Isolate* isolate, Code* code);
+
+  // Patch the given code so that it will deoptimize itself.
+  static void PatchCodeForDeoptimization(Isolate* isolate, Code* code);
 
   // Fill the input from from a JavaScript frame. This is used when
   // the debugger needs to inspect an optimized frame. For normal
@@ -509,6 +513,10 @@ class FrameDescription {
   void SetFrameSlot(unsigned offset, intptr_t value) {
     *GetFrameSlotPointer(offset) = value;
   }
+
+  void SetCallerPc(unsigned offset, intptr_t value);
+
+  void SetCallerFp(unsigned offset, intptr_t value);
 
   intptr_t GetRegister(unsigned n) const {
     ASSERT(n < ARRAY_SIZE(registers_));

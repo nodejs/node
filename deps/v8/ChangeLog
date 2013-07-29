@@ -1,3 +1,22 @@
+2013-07-26: Version 3.20.9
+
+        Check that ExternalString objects get aligned resources.
+
+        Fixed JSArray-specific length lookup in polymorphic array handling
+        (Chromium issues 263276, 263905).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-24: Version 3.20.8
+
+        Deprecated v8::V8::Pause/ResumeProfiler.
+
+        Fixed Chromium issues 247688, 258519 and 260203.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-07-22: Version 3.20.7
 
         Deprecated some debugger methods.

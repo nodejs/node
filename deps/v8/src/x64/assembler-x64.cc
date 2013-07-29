@@ -1377,7 +1377,7 @@ void Assembler::load_rax(void* value, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
   emit(0x48);  // REX.W
   emit(0xA1);
-  emitq(reinterpret_cast<uintptr_t>(value), mode);
+  emitp(value, mode);
 }
 
 
@@ -1529,7 +1529,7 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit_rex_64(dst);
   emit(0xB8 | dst.low_bits());
-  emitq(reinterpret_cast<uintptr_t>(value), rmode);
+  emitp(value, rmode);
 }
 
 
@@ -1606,7 +1606,7 @@ void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
     ASSERT(!HEAP->InNewSpace(*value));
     emit_rex_64(dst);
     emit(0xB8 | dst.low_bits());
-    emitq(reinterpret_cast<uintptr_t>(value.location()), mode);
+    emitp(value.location(), mode);
   }
 }
 
@@ -1998,7 +1998,7 @@ void Assembler::store_rax(void* dst, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
   emit(0x48);  // REX.W
   emit(0xA3);
-  emitq(reinterpret_cast<uintptr_t>(dst), mode);
+  emitp(dst, mode);
 }
 
 

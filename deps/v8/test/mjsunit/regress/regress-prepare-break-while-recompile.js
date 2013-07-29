@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,26 +25,33 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform and architecture specific thread local store functions.
+// Flags: --expose-debug-as debug --allow-natives-syntax
+// Flags: --parallel-recompilation-delay=300
 
-#ifndef V8_PLATFORM_TLS_H_
-#define V8_PLATFORM_TLS_H_
+Debug = debug.Debug
 
-#ifndef V8_NO_FAST_TLS
+function foo() {
+  var x = 1;
+  return x;
+}
 
-// When fast TLS is requested we include the appropriate
-// implementation header.
-//
-// The implementation header defines V8_FAST_TLS_SUPPORTED if it
-// provides fast TLS support for the current platform and architecture
-// combination.
+function bar() {
+  var x = 2;
+  return x;
+}
 
-#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
-#include "platform-tls-win32.h"
-#elif defined(__APPLE__)
-#include "platform-tls-mac.h"
-#endif
+foo();
+// Mark and trigger parallel optimization.
+%OptimizeFunctionOnNextCall(foo, "parallel");
+foo();
 
-#endif
+// Set break points on an unrelated function. This clears both optimized
+// and (shared) unoptimized code on foo, and sets both to lazy-compile builtin.
+// Clear the break point immediately after to deactivate the debugger.
+Debug.setBreakPoint(bar, 0, 0);
+Debug.clearAllBreakPoints();
 
-#endif  // V8_PLATFORM_TLS_H_
+// Install optimized code when parallel optimization finishes.
+// This needs to be able to deal with shared code being a builtin.
+assertUnoptimized(foo, "sync");
+

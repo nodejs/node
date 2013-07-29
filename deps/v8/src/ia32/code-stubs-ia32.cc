@@ -43,6 +43,16 @@ namespace v8 {
 namespace internal {
 
 
+void ToNumberStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { eax };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -297,27 +307,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ ret(0);
-}
-
-
-void ToNumberStub::Generate(MacroAssembler* masm) {
-  // The ToNumber stub takes one argument in eax.
-  Label check_heap_number, call_builtin;
-  __ JumpIfNotSmi(eax, &check_heap_number, Label::kNear);
-  __ ret(0);
-
-  __ bind(&check_heap_number);
-  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  Factory* factory = masm->isolate()->factory();
-  __ cmp(ebx, Immediate(factory->heap_number_map()));
-  __ j(not_equal, &call_builtin, Label::kNear);
-  __ ret(0);
-
-  __ bind(&call_builtin);
-  __ pop(ecx);  // Pop return address.
-  __ push(eax);
-  __ push(ecx);  // Push return address.
-  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
 }
 
 

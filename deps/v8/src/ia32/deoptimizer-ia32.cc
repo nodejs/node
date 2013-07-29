@@ -114,22 +114,8 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
 }
 
 
-void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
-    JSFunction* function) {
-  Isolate* isolate = function->GetIsolate();
-  HandleScope scope(isolate);
-  DisallowHeapAllocation nha;
-
-  ASSERT(function->IsOptimized());
-  ASSERT(function->FunctionsInFunctionListShareSameCode());
-
-  // Get the optimized code.
-  Code* code = function->code();
+void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   Address code_start_address = code->instruction_start();
-
-  // The optimized code is going to be patched, so we cannot use it any more.
-  function->shared()->EvictFromOptimizedCodeMap(code, "deoptimized function");
-
   // We will overwrite the code's relocation info in-place. Relocation info
   // is written backward. The relocation info is the payload of a byte
   // array.  Later on we will slide this to the start of the byte array and
@@ -188,25 +174,6 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
   ASSERT(junk_address <= reloc_end_address);
   isolate->heap()->CreateFillerObjectAt(junk_address,
                                         reloc_end_address - junk_address);
-
-  // Add the deoptimizing code to the list.
-  DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  DeoptimizerData* data = isolate->deoptimizer_data();
-  node->set_next(data->deoptimizing_code_list_);
-  data->deoptimizing_code_list_ = node;
-
-  // We might be in the middle of incremental marking with compaction.
-  // Tell collector to treat this code object in a special way and
-  // ignore all slots that might have been recorded on it.
-  isolate->heap()->mark_compact_collector()->InvalidateCode(code);
-
-  ReplaceCodeForRelatedFunctions(function, code);
-
-  if (FLAG_trace_deopt) {
-    PrintF("[forced deoptimization: ");
-    function->PrintName();
-    PrintF(" / %x]\n", reinterpret_cast<uint32_t>(function));
-  }
 }
 
 
@@ -740,6 +707,17 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   }
   __ bind(&done);
 }
+
+
+void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
+  SetFrameSlot(offset, value);
+}
+
+
+void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
+  SetFrameSlot(offset, value);
+}
+
 
 #undef __
 

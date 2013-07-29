@@ -500,6 +500,11 @@ TEST(Vfp) {
     COMPARE(vmov(d0, VmovIndexHi, r0),
             "ee200b10       vmov.32 d0[1], r0");
 
+    COMPARE(vmov(r2, VmovIndexLo, d15),
+            "ee1f2b10       vmov.32 r2, d15[0]");
+    COMPARE(vmov(r3, VmovIndexHi, d14),
+            "ee3e3b10       vmov.32 r3, d14[1]");
+
     COMPARE(vldr(s0, r0, 0),
             "ed900a00       vldr s0, [r0 + 4*0]");
     COMPARE(vldr(s1, r1, 4),

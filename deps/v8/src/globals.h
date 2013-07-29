@@ -239,12 +239,15 @@ const int kMinInt = -kMaxInt - 1;
 
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 
-const int kCharSize     = sizeof(char);      // NOLINT
-const int kShortSize    = sizeof(short);     // NOLINT
-const int kIntSize      = sizeof(int);       // NOLINT
-const int kDoubleSize   = sizeof(double);    // NOLINT
-const int kIntptrSize   = sizeof(intptr_t);  // NOLINT
-const int kPointerSize  = sizeof(void*);     // NOLINT
+const int kCharSize      = sizeof(char);      // NOLINT
+const int kShortSize     = sizeof(short);     // NOLINT
+const int kIntSize       = sizeof(int);       // NOLINT
+const int kDoubleSize    = sizeof(double);    // NOLINT
+const int kIntptrSize    = sizeof(intptr_t);  // NOLINT
+const int kPointerSize   = sizeof(void*);     // NOLINT
+const int kRegisterSize  = kPointerSize;
+const int kPCOnStackSize = kRegisterSize;
+const int kFPOnStackSize = kRegisterSize;
 
 const int kDoubleSizeLog2 = 3;
 

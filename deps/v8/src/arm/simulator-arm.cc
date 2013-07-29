@@ -3111,6 +3111,15 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       OS::MemCopy(&dd_value, data, 8);
       set_d_register_from_double(vd, dd_value);
     } else if ((instr->VLValue() == 0x1) &&
+               (instr->VCValue() == 0x1) &&
+               (instr->Bit(23) == 0x0)) {
+      // vmov (scalar to ARM core register)
+      int vn = instr->Bits(19, 16) | (instr->Bit(7) << 4);
+      double dn_value = get_double_from_d_register(vn);
+      int32_t data[2];
+      OS::MemCopy(data, &dn_value, 8);
+      set_register(instr->RtValue(), data[instr->Bit(21)]);
+    } else if ((instr->VLValue() == 0x1) &&
                (instr->VCValue() == 0x0) &&
                (instr->VAValue() == 0x7) &&
                (instr->Bits(19, 16) == 0x1)) {

@@ -51,33 +51,8 @@
 namespace v8 {
 namespace internal {
 
-// 0 is never a valid thread id
-static const pthread_t kNoThread = (pthread_t) 0;
-
-
-double ceiling(double x) {
-  return ceil(x);
-}
-
 
 static Mutex* limit_mutex = NULL;
-
-
-void OS::PostSetUp() {
-  POSIXPostSetUp();
-}
-
-
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // Nothing special about Cygwin.
-}
-
-
-int OS::ActivationFrameAlignment() {
-  // With gcc 4.4 the tree vectorization optimizer can generate code
-  // that requires 16 byte alignment such as movdqa on x86.
-  return 16;
-}
 
 
 const char* OS::LocalTimezone(double time) {
@@ -126,11 +101,6 @@ bool OS::IsOutsideAllocatedSpace(void* address) {
 }
 
 
-size_t OS::AllocateAlignment() {
-  return sysconf(_SC_PAGESIZE);
-}
-
-
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool is_executable) {
@@ -144,48 +114,6 @@ void* OS::Allocate(const size_t requested,
   *allocated = msize;
   UpdateAllocatedSpaceLimits(mbase, msize);
   return mbase;
-}
-
-
-void OS::Free(void* address, const size_t size) {
-  // TODO(1240712): munmap has a return value which is ignored here.
-  int result = munmap(address, size);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
-void OS::ProtectCode(void* address, const size_t size) {
-  DWORD old_protect;
-  VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect);
-}
-
-
-void OS::Guard(void* address, const size_t size) {
-  DWORD oldprotect;
-  VirtualProtect(address, size, PAGE_READONLY | PAGE_GUARD, &oldprotect);
-}
-
-
-void OS::Sleep(int milliseconds) {
-  unsigned int ms = static_cast<unsigned int>(milliseconds);
-  usleep(1000 * ms);
-}
-
-
-int OS::NumberOfCores() {
-  return sysconf(_SC_NPROCESSORS_ONLN);
-}
-
-
-void OS::Abort() {
-  // Redirect to std abort to signal abnormal program termination.
-  abort();
-}
-
-
-void OS::DebugBreak() {
-  asm("int $3");
 }
 
 
@@ -467,110 +395,6 @@ bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
 bool VirtualMemory::HasLazyCommits() {
   // TODO(alph): implement for the platform.
   return false;
-}
-
-
-class Thread::PlatformData : public Malloced {
- public:
-  PlatformData() : thread_(kNoThread) {}
-  pthread_t thread_;  // Thread handle for pthread.
-};
-
-
-Thread::Thread(const Options& options)
-    : data_(new PlatformData()),
-      stack_size_(options.stack_size()),
-      start_semaphore_(NULL) {
-  set_name(options.name());
-}
-
-
-Thread::~Thread() {
-  delete data_;
-}
-
-
-static void* ThreadEntry(void* arg) {
-  Thread* thread = reinterpret_cast<Thread*>(arg);
-  // This is also initialized by the first argument to pthread_create() but we
-  // don't know which thread will run first (the original thread or the new
-  // one) so we initialize it here too.
-  thread->data()->thread_ = pthread_self();
-  ASSERT(thread->data()->thread_ != kNoThread);
-  thread->NotifyStartedAndRun();
-  return NULL;
-}
-
-
-void Thread::set_name(const char* name) {
-  strncpy(name_, name, sizeof(name_));
-  name_[sizeof(name_) - 1] = '\0';
-}
-
-
-void Thread::Start() {
-  pthread_attr_t* attr_ptr = NULL;
-  pthread_attr_t attr;
-  if (stack_size_ > 0) {
-    pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
-    attr_ptr = &attr;
-  }
-  pthread_create(&data_->thread_, attr_ptr, ThreadEntry, this);
-  ASSERT(data_->thread_ != kNoThread);
-}
-
-
-void Thread::Join() {
-  pthread_join(data_->thread_, NULL);
-}
-
-
-static inline Thread::LocalStorageKey PthreadKeyToLocalKey(
-    pthread_key_t pthread_key) {
-  // We need to cast pthread_key_t to Thread::LocalStorageKey in two steps
-  // because pthread_key_t is a pointer type on Cygwin. This will probably not
-  // work on 64-bit platforms, but Cygwin doesn't support 64-bit anyway.
-  STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
-  intptr_t ptr_key = reinterpret_cast<intptr_t>(pthread_key);
-  return static_cast<Thread::LocalStorageKey>(ptr_key);
-}
-
-
-static inline pthread_key_t LocalKeyToPthreadKey(
-    Thread::LocalStorageKey local_key) {
-  STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
-  intptr_t ptr_key = static_cast<intptr_t>(local_key);
-  return reinterpret_cast<pthread_key_t>(ptr_key);
-}
-
-
-Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
-  pthread_key_t key;
-  int result = pthread_key_create(&key, NULL);
-  USE(result);
-  ASSERT(result == 0);
-  return PthreadKeyToLocalKey(key);
-}
-
-
-void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
-  pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
-  int result = pthread_key_delete(pthread_key);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
-void* Thread::GetThreadLocal(LocalStorageKey key) {
-  pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
-  return pthread_getspecific(pthread_key);
-}
-
-
-void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
-  pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
-  pthread_setspecific(pthread_key, value);
 }
 
 

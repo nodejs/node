@@ -62,38 +62,8 @@
 namespace v8 {
 namespace internal {
 
-// 0 is never a valid thread id on FreeBSD since tids and pids share a
-// name space and pid 0 is used to kill the group (see man 2 kill).
-static const pthread_t kNoThread = (pthread_t) 0;
-
-
-double ceiling(double x) {
-    // Correct as on OS X
-    if (-1.0 < x && x < 0.0) {
-        return -0.0;
-    } else {
-        return ceil(x);
-    }
-}
-
 
 static Mutex* limit_mutex = NULL;
-
-
-void OS::PostSetUp() {
-  POSIXPostSetUp();
-}
-
-
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // FreeBSD runs on anything.
-}
-
-
-int OS::ActivationFrameAlignment() {
-  // 16 byte alignment on FreeBSD
-  return 16;
-}
 
 
 const char* OS::LocalTimezone(double time) {
@@ -139,11 +109,6 @@ bool OS::IsOutsideAllocatedSpace(void* address) {
 }
 
 
-size_t OS::AllocateAlignment() {
-  return getpagesize();
-}
-
-
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool executable) {
@@ -158,40 +123,6 @@ void* OS::Allocate(const size_t requested,
   *allocated = msize;
   UpdateAllocatedSpaceLimits(mbase, msize);
   return mbase;
-}
-
-
-void OS::Free(void* buf, const size_t length) {
-  // TODO(1240712): munmap has a return value which is ignored here.
-  int result = munmap(buf, length);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
-void OS::Sleep(int milliseconds) {
-  unsigned int ms = static_cast<unsigned int>(milliseconds);
-  usleep(1000 * ms);
-}
-
-
-int OS::NumberOfCores() {
-  return sysconf(_SC_NPROCESSORS_ONLN);
-}
-
-
-void OS::Abort() {
-  // Redirect to std abort to signal abnormal program termination.
-  abort();
-}
-
-
-void OS::DebugBreak() {
-#if (defined(__arm__) || defined(__thumb__))
-  asm("bkpt 0");
-#else
-  asm("int $3");
-#endif
 }
 
 
@@ -438,90 +369,6 @@ bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
 bool VirtualMemory::HasLazyCommits() {
   // TODO(alph): implement for the platform.
   return false;
-}
-
-
-class Thread::PlatformData : public Malloced {
- public:
-  pthread_t thread_;  // Thread handle for pthread.
-};
-
-
-Thread::Thread(const Options& options)
-    : data_(new PlatformData),
-      stack_size_(options.stack_size()),
-      start_semaphore_(NULL) {
-  set_name(options.name());
-}
-
-
-Thread::~Thread() {
-  delete data_;
-}
-
-
-static void* ThreadEntry(void* arg) {
-  Thread* thread = reinterpret_cast<Thread*>(arg);
-  // This is also initialized by the first argument to pthread_create() but we
-  // don't know which thread will run first (the original thread or the new
-  // one) so we initialize it here too.
-  thread->data()->thread_ = pthread_self();
-  ASSERT(thread->data()->thread_ != kNoThread);
-  thread->NotifyStartedAndRun();
-  return NULL;
-}
-
-
-void Thread::set_name(const char* name) {
-  strncpy(name_, name, sizeof(name_));
-  name_[sizeof(name_) - 1] = '\0';
-}
-
-
-void Thread::Start() {
-  pthread_attr_t* attr_ptr = NULL;
-  pthread_attr_t attr;
-  if (stack_size_ > 0) {
-    pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
-    attr_ptr = &attr;
-  }
-  pthread_create(&data_->thread_, attr_ptr, ThreadEntry, this);
-  ASSERT(data_->thread_ != kNoThread);
-}
-
-
-void Thread::Join() {
-  pthread_join(data_->thread_, NULL);
-}
-
-
-Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
-  pthread_key_t key;
-  int result = pthread_key_create(&key, NULL);
-  USE(result);
-  ASSERT(result == 0);
-  return static_cast<LocalStorageKey>(key);
-}
-
-
-void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
-  pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
-  int result = pthread_key_delete(pthread_key);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
-void* Thread::GetThreadLocal(LocalStorageKey key) {
-  pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
-  return pthread_getspecific(pthread_key);
-}
-
-
-void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
-  pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
-  pthread_setspecific(pthread_key, value);
 }
 
 

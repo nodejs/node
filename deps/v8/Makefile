@@ -408,4 +408,4 @@ dependencies:
 	    --revision 1656
 	svn checkout --force \
 	    https://src.chromium.org/chrome/trunk/deps/third_party/icu46 \
-	    third_party/icu --revision 210659
+	    third_party/icu --revision 213354

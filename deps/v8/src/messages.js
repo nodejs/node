@@ -1145,24 +1145,29 @@ function captureStackTrace(obj, cons_opt) {
   }
 
   var error_string = FormatErrorString(obj);
-  // Note that 'obj' and 'this' maybe different when called on objects that
-  // have the error object on its prototype chain.  The getter replaces itself
-  // with a data property as soon as the stack trace has been formatted.
-  // The getter must not change the object layout as it may be called after GC.
+  // The holder of this getter ('obj') may not be the receiver ('this').
+  // When this getter is called the first time, we use the context values to
+  // format a stack trace string and turn this accessor pair into a data
+  // property (on the holder).
   var getter = function() {
-    if (IS_STRING(stack)) return stack;
     // Stack is still a raw array awaiting to be formatted.
-    stack = FormatStackTrace(error_string, GetStackFrames(stack));
-    // Release context value.
-    error_string = void 0;
-    return stack;
+    var result = FormatStackTrace(error_string, GetStackFrames(stack));
+    // Turn this accessor into a data property.
+    %DefineOrRedefineDataProperty(obj, 'stack', result, NONE);
+    // Release context values.
+    stack = error_string = void 0;
+    return result;
   };
-  %MarkOneShotGetter(getter);
 
-  // The 'stack' property of the receiver is set as data property.  If
-  // the receiver is the same as holder, this accessor pair is replaced.
+  // Set the 'stack' property on the receiver.  If the receiver is the same as
+  // holder of this setter, the accessor pair is turned into a data property.
   var setter = function(v) {
+    // Set data property on the receiver (not necessarily holder).
     %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
+    if (this === obj) {
+      // Release context values if holder is the same as the receiver.
+      stack = error_string = void 0;
+    }
   };
 
   %DefineOrRedefineAccessorProperty(obj, 'stack', getter, setter, DONT_ENUM);
@@ -1300,38 +1305,36 @@ InstallFunctions($Error.prototype, DONT_ENUM, ['toString', ErrorToString]);
 function SetUpStackOverflowBoilerplate() {
   var boilerplate = MakeRangeError('stack_overflow', []);
 
-  // The raw stack trace is stored as hidden property of the copy of this
-  // boilerplate error object.  Note that the receiver 'this' may not be that
-  // error object copy, but can be found on the prototype chain of 'this'.
-  // When the stack trace is formatted, this accessor property is replaced by
-  // a data property.
   var error_string = boilerplate.name + ": " + boilerplate.message;
 
-  // The getter must not change the object layout as it may be called after GC.
-  function getter() {
+  // The raw stack trace is stored as a hidden property on the holder of this
+  // getter, which may not be the same as the receiver.  Find the holder to
+  // retrieve the raw stack trace and then turn this accessor pair into a
+  // data property.
+  var getter = function() {
     var holder = this;
     while (!IS_ERROR(holder)) {
       holder = %GetPrototype(holder);
-      if (holder == null) return MakeSyntaxError('illegal_access', []);
+      if (IS_NULL(holder)) return MakeSyntaxError('illegal_access', []);
     }
-    var stack = %GetOverflowedStackTrace(holder);
-    if (IS_STRING(stack)) return stack;
-    if (IS_ARRAY(stack)) {
-      var result = FormatStackTrace(error_string, GetStackFrames(stack));
-      %SetOverflowedStackTrace(holder, result);
-      return result;
-    }
-    return void 0;
-  }
-  %MarkOneShotGetter(getter);
+    var stack = %GetAndClearOverflowedStackTrace(holder);
+    // We may not have captured any stack trace.
+    if (IS_UNDEFINED(stack)) return stack;
 
-  // The 'stack' property of the receiver is set as data property.  If
-  // the receiver is the same as holder, this accessor pair is replaced.
-  function setter(v) {
+    var result = FormatStackTrace(error_string, GetStackFrames(stack));
+    // Replace this accessor with a data property.
+    %DefineOrRedefineDataProperty(holder, 'stack', result, NONE);
+    return result;
+  };
+
+  // Set the 'stack' property on the receiver.  If the receiver is the same as
+  // holder of this setter, the accessor pair is turned into a data property.
+  var setter = function(v) {
     %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
-    // Release the stack trace that is stored as hidden property, if exists.
-    %SetOverflowedStackTrace(this, void 0);
-  }
+    // Tentatively clear the hidden property. If the receiver is the same as
+    // holder, we release the raw stack trace this way.
+    %GetAndClearOverflowedStackTrace(this);
+  };
 
   %DefineOrRedefineAccessorProperty(
       boilerplate, 'stack', getter, setter, DONT_ENUM);

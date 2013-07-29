@@ -1444,6 +1444,7 @@ class Assembler : public AssemblerBase {
 
   void emit(byte x) { *pc_++ = x; }
   inline void emitl(uint32_t x);
+  inline void emitp(void* x, RelocInfo::Mode rmode);
   inline void emitq(uint64_t x, RelocInfo::Mode rmode);
   inline void emitw(uint16_t x);
   inline void emit_code_target(Handle<Code> target,

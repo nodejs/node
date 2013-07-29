@@ -65,6 +65,7 @@ class CpuProfiler;
 class DeoptimizerData;
 class Deserializer;
 class EmptyStatement;
+class ExternalCallbackScope;
 class ExternalReferenceTable;
 class Factory;
 class FunctionInfoListener;
@@ -279,7 +280,8 @@ class ThreadLocalTop BASE_EMBEDDED {
 #endif  // USE_SIMULATOR
 
   Address js_entry_sp_;  // the stack pointer of the bottom JS entry frame
-  Address external_callback_;  // the external callback we're currently in
+  // the external callback we're currently in
+  ExternalCallbackScope* external_callback_scope_;
   StateTag current_vm_state_;
 
   // Generated code scratch locations.
@@ -1032,11 +1034,11 @@ class Isolate {
 
   static const int kJSRegexpStaticOffsetsVectorSize = 128;
 
-  Address external_callback() {
-    return thread_local_top_.external_callback_;
+  ExternalCallbackScope* external_callback_scope() {
+    return thread_local_top_.external_callback_scope_;
   }
-  void set_external_callback(Address callback) {
-    thread_local_top_.external_callback_ = callback;
+  void set_external_callback_scope(ExternalCallbackScope* scope) {
+    thread_local_top_.external_callback_scope_ = scope;
   }
 
   StateTag current_vm_state() {
@@ -1055,13 +1057,6 @@ class Isolate {
   }
   void SetTopLookupResult(LookupResult* top) {
     thread_local_top_.top_lookup_result_ = top;
-  }
-
-  bool context_exit_happened() {
-    return context_exit_happened_;
-  }
-  void set_context_exit_happened(bool context_exit_happened) {
-    context_exit_happened_ = context_exit_happened;
   }
 
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
@@ -1310,10 +1305,6 @@ class Isolate {
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
-
-  // The garbage collector should be a little more aggressive when it knows
-  // that a context was recently exited.
-  bool context_exit_happened_;
 
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_;

@@ -1095,12 +1095,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                            JSObject::SetLocalPropertyIgnoreAttributes(
                                result, factory->length_string(),
                                factory->undefined_value(), DONT_ENUM,
-                               Object::FORCE_TAGGED));
+                               Object::FORCE_TAGGED, JSReceiver::FORCE_FIELD));
     CHECK_NOT_EMPTY_HANDLE(isolate,
                            JSObject::SetLocalPropertyIgnoreAttributes(
                                result, factory->callee_string(),
                                factory->undefined_value(), DONT_ENUM,
-                               Object::FORCE_TAGGED));
+                               Object::FORCE_TAGGED, JSReceiver::FORCE_FIELD));
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
@@ -2475,14 +2475,13 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                      to, key, value, details.attributes()));
           break;
         }
-        case CONSTANT_FUNCTION: {
+        case CONSTANT: {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
-          Handle<JSFunction> fun =
-              Handle<JSFunction>(descs->GetConstantFunction(i));
+          Handle<Object> constant(descs->GetConstant(i), isolate());
           CHECK_NOT_EMPTY_HANDLE(isolate(),
                                  JSObject::SetLocalPropertyIgnoreAttributes(
-                                     to, key, fun, details.attributes()));
+                                     to, key, constant, details.attributes()));
           break;
         }
         case CALLBACKS: {

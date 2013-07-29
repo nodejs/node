@@ -712,19 +712,6 @@ void ExternalStringTable::ShrinkNewStrings(int position) {
 }
 
 
-void ErrorObjectList::Add(JSObject* object) {
-  list_.Add(object);
-}
-
-
-void ErrorObjectList::Iterate(ObjectVisitor* v) {
-  if (!list_.is_empty()) {
-    Object** start = &list_[0];
-    v->VisitPointers(start, start + list_.length());
-  }
-}
-
-
 void Heap::ClearInstanceofCache() {
   set_instanceof_cache_function(the_hole_value());
 }

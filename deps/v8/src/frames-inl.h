@@ -334,10 +334,10 @@ inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
 }
 
 
-inline JavaScriptFrame* SafeStackFrameIterator::frame() const {
+inline StackFrame* SafeStackFrameIterator::frame() const {
   ASSERT(!done());
-  ASSERT(frame_->is_java_script());
-  return static_cast<JavaScriptFrame*>(frame_);
+  ASSERT(frame_->is_java_script() || frame_->is_exit());
+  return frame_;
 }
 
 

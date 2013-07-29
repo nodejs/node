@@ -22,11 +22,15 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 var wasPostTestScriptParsed = false;
-var errorMessage;
+
+function removeLink(text)
+{
+    return text.replace(/<a[^>]*>/g, "").replace(/<\/a>/g, "");
+}
 
 function description(msg)
 {
-    print(msg);
+    print(removeLink(msg));
     print("\nOn success, you will see a series of \"PASS\" messages, followed by \"TEST COMPLETE\".\n");
     print();
 }
@@ -48,7 +52,6 @@ function testPassed(msg)
 
 function testFailed(msg)
 {
-    errorMessage = msg;
     print("FAIL", escapeString(msg));
 }
 
@@ -173,9 +176,7 @@ function shouldThrow(_a, _e)
 
 function isSuccessfullyParsed()
 {
-    // FIXME: Remove this and only report unexpected syntax errors.
-    if (!errorMessage)
-        successfullyParsed = true;
+    successfullyParsed = true;
     shouldBeTrue("successfullyParsed");
     debug("\nTEST COMPLETE\n");
 }

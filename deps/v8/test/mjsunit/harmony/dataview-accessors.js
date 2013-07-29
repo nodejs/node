@@ -389,6 +389,11 @@ function TestGeneralAccessors() {
     f.call(a, 0, 0); // should not throw
     assertThrows(function() { f.call({}, 0, 0); }, TypeError);
     assertThrows(function() { f.call(a); }, TypeError);
+    if (name.indexOf("set") == 0) {
+      assertThrows(function() { f.call(a, 1); }, TypeError);
+    } else {
+      f.call(a, 1); // should not throw
+    }
   }
   CheckAccessor("getUint8");
   CheckAccessor("setUint8");
@@ -409,3 +414,36 @@ function TestGeneralAccessors() {
 }
 
 TestGeneralAccessors();
+
+function TestInsufficientArguments() {
+  var a = new DataView(new ArrayBuffer(256));
+
+  assertThrows(function() { a.getUint8(); }, TypeError);
+  assertThrows(function() { a.getInt8(); }, TypeError);
+  assertThrows(function() { a.getUint16(); }, TypeError);
+  assertThrows(function() { a.getInt16(); }, TypeError);
+  assertThrows(function() { a.getUint32(); }, TypeError);
+  assertThrows(function() { a.getInt32(); }, TypeError);
+  assertThrows(function() { a.getFloat32(); }, TypeError);
+  assertThrows(function() { a.getFloat64(); }, TypeError);
+
+  assertThrows(function() { a.setUint8(); }, TypeError);
+  assertThrows(function() { a.setInt8(); }, TypeError);
+  assertThrows(function() { a.setUint16(); }, TypeError);
+  assertThrows(function() { a.setInt16(); }, TypeError);
+  assertThrows(function() { a.setUint32(); }, TypeError);
+  assertThrows(function() { a.setInt32(); }, TypeError);
+  assertThrows(function() { a.setFloat32(); }, TypeError);
+  assertThrows(function() { a.setFloat64(); }, TypeError);
+
+  assertThrows(function() { a.setUint8(1) }, TypeError);
+  assertThrows(function() { a.setInt8(1) }, TypeError);
+  assertThrows(function() { a.setUint16(1) }, TypeError);
+  assertThrows(function() { a.setInt16(1) }, TypeError);
+  assertThrows(function() { a.setUint32(1) }, TypeError);
+  assertThrows(function() { a.setInt32(1) }, TypeError);
+  assertThrows(function() { a.setFloat32(1) }, TypeError);
+  assertThrows(function() { a.setFloat64(1) }, TypeError);
+}
+
+TestInsufficientArguments();

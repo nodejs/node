@@ -2352,8 +2352,8 @@ int DescriptorArray::GetFieldIndex(int descriptor_number) {
 }
 
 
-JSFunction* DescriptorArray::GetConstantFunction(int descriptor_number) {
-  return JSFunction::cast(GetValue(descriptor_number));
+Object* DescriptorArray::GetConstant(int descriptor_number) {
+  return GetValue(descriptor_number);
 }
 
 
@@ -3648,7 +3648,7 @@ bool Map::CanBeDeprecated() {
         details.representation().IsHeapObject()) {
       return true;
     }
-    if (FLAG_track_fields && details.type() == CONSTANT_FUNCTION) {
+    if (FLAG_track_fields && details.type() == CONSTANT) {
       return true;
     }
   }
@@ -3666,6 +3666,12 @@ void Map::NotifyLeafMapLayoutChange() {
 bool Map::CanOmitPrototypeChecks() {
   return !HasTransitionArray() && !is_dictionary_map() &&
          FLAG_omit_prototype_checks_for_leaf_maps;
+}
+
+
+bool Map::CanOmitMapChecks() {
+  return !HasTransitionArray() && !is_dictionary_map() &&
+         FLAG_omit_map_checks_for_leaf_maps;
 }
 
 
@@ -5233,15 +5239,22 @@ void Code::set_stub_info(int value) {
 }
 
 
-void Code::set_deoptimizing_functions(Object* value) {
+Object* Code::code_to_deoptimize_link() {
+  // Optimized code should not have type feedback.
+  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  return READ_FIELD(this, kTypeFeedbackInfoOffset);
+}
+
+
+void Code::set_code_to_deoptimize_link(Object* value) {
   ASSERT(kind() == OPTIMIZED_FUNCTION);
   WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
 }
 
 
-Object* Code::deoptimizing_functions() {
+Object** Code::code_to_deoptimize_link_slot() {
   ASSERT(kind() == OPTIMIZED_FUNCTION);
-  return Object::cast(READ_FIELD(this, kTypeFeedbackInfoOffset));
+  return HeapObject::RawField(this, kTypeFeedbackInfoOffset);
 }
 
 

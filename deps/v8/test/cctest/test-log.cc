@@ -27,6 +27,7 @@
 //
 // Tests of logging functions from log.h
 
+#define V8_DISABLE_DEPRECATIONS 1
 #ifdef __linux__
 #include <pthread.h>
 #include <signal.h>
@@ -43,6 +44,7 @@
 #include "v8utils.h"
 #include "cctest.h"
 #include "vm-state-inl.h"
+#undef V8_DISABLE_DEPRECATIONS
 
 using v8::internal::Address;
 using v8::internal::EmbeddedVector;

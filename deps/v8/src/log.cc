@@ -54,6 +54,14 @@ static const char* const kLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
 #undef DECLARE_EVENT
 
 
+#define PROFILER_LOG(Call)                                \
+  do {                                                    \
+    CpuProfiler* cpu_profiler = isolate_->cpu_profiler(); \
+    if (cpu_profiler->is_profiling()) {                   \
+      cpu_profiler->Call;                                 \
+    }                                                     \
+  } while (false);
+
 // ComputeMarker must only be used when SharedFunctionInfo is known.
 static const char* ComputeMarker(Code* code) {
   switch (code->kind()) {
@@ -543,7 +551,7 @@ class JitLogger : public CodeEventLogger {
  public:
   explicit JitLogger(JitCodeEventHandler code_event_handler);
 
-  void CodeMovedEvent(Address from, Address to);
+  void CodeMoveEvent(Address from, Address to);
   void CodeDeleteEvent(Address from);
   void AddCodeLinePosInfoEvent(
       void* jit_handler_data,
@@ -588,7 +596,7 @@ void JitLogger::LogRecordedBuffer(Code* code,
 }
 
 
-void JitLogger::CodeMovedEvent(Address from, Address to) {
+void JitLogger::CodeMoveEvent(Address from, Address to) {
   Code* from_code = Code::cast(HeapObject::FromAddress(from));
 
   JitCodeEvent event;
@@ -1209,7 +1217,7 @@ void Logger::DeleteEventStatic(const char* name, void* object) {
 
 void Logger::CallbackEventInternal(const char* prefix, Name* name,
                                    Address entry_point) {
-  if (!log_->IsEnabled() || !FLAG_log_code) return;
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
   msg.Append("%s,%s,-2,",
              kLogEventsNames[CODE_CREATION_EVENT],
@@ -1235,19 +1243,19 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
 
 
 void Logger::CallbackEvent(Name* name, Address entry_point) {
-  if (!log_->IsEnabled() || !FLAG_log_code) return;
+  PROFILER_LOG(CallbackEvent(name, entry_point));
   CallbackEventInternal("", name, entry_point);
 }
 
 
 void Logger::GetterCallbackEvent(Name* name, Address entry_point) {
-  if (!log_->IsEnabled() || !FLAG_log_code) return;
+  PROFILER_LOG(GetterCallbackEvent(name, entry_point));
   CallbackEventInternal("get ", name, entry_point);
 }
 
 
 void Logger::SetterCallbackEvent(Name* name, Address entry_point) {
-  if (!log_->IsEnabled() || !FLAG_log_code) return;
+  PROFILER_LOG(SetterCallbackEvent(name, entry_point));
   CallbackEventInternal("set ", name, entry_point);
 }
 
@@ -1268,8 +1276,9 @@ static void AppendCodeCreateHeader(Log::MessageBuilder* msg,
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              const char* comment) {
-  if (!is_logging_code_events()) return;
+  PROFILER_LOG(CodeCreateEvent(tag, code, comment));
 
+  if (!is_logging_code_events()) return;
   JIT_LOG(CodeCreateEvent(tag, code, comment));
   LL_LOG(CodeCreateEvent(tag, code, comment));
   CODE_ADDRESS_MAP_LOG(CodeCreateEvent(tag, code, comment));
@@ -1286,8 +1295,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              Name* name) {
-  if (!is_logging_code_events()) return;
+  PROFILER_LOG(CodeCreateEvent(tag, code, name));
 
+  if (!is_logging_code_events()) return;
   JIT_LOG(CodeCreateEvent(tag, code, name));
   LL_LOG(CodeCreateEvent(tag, code, name));
   CODE_ADDRESS_MAP_LOG(CodeCreateEvent(tag, code, name));
@@ -1312,8 +1322,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              SharedFunctionInfo* shared,
                              CompilationInfo* info,
                              Name* name) {
-  if (!is_logging_code_events()) return;
+  PROFILER_LOG(CodeCreateEvent(tag, code, shared, info, name));
 
+  if (!is_logging_code_events()) return;
   JIT_LOG(CodeCreateEvent(tag, code, shared, info, name));
   LL_LOG(CodeCreateEvent(tag, code, shared, info, name));
   CODE_ADDRESS_MAP_LOG(CodeCreateEvent(tag, code, shared, info, name));
@@ -1348,8 +1359,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              SharedFunctionInfo* shared,
                              CompilationInfo* info,
                              Name* source, int line) {
-  if (!is_logging_code_events()) return;
+  PROFILER_LOG(CodeCreateEvent(tag, code, shared, info, source, line));
 
+  if (!is_logging_code_events()) return;
   JIT_LOG(CodeCreateEvent(tag, code, shared, info, source, line));
   LL_LOG(CodeCreateEvent(tag, code, shared, info, source, line));
   CODE_ADDRESS_MAP_LOG(CodeCreateEvent(tag, code, shared, info, source, line));
@@ -1378,8 +1390,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              int args_count) {
-  if (!is_logging_code_events()) return;
+  PROFILER_LOG(CodeCreateEvent(tag, code, args_count));
 
+  if (!is_logging_code_events()) return;
   JIT_LOG(CodeCreateEvent(tag, code, args_count));
   LL_LOG(CodeCreateEvent(tag, code, args_count));
   CODE_ADDRESS_MAP_LOG(CodeCreateEvent(tag, code, args_count));
@@ -1394,6 +1407,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 
 
 void Logger::CodeMovingGCEvent() {
+  PROFILER_LOG(CodeMovingGCEvent());
+
+  if (!is_logging_code_events()) return;
   if (!log_->IsEnabled() || !FLAG_ll_prof) return;
   LL_LOG(CodeMovingGCEvent());
   OS::SignalCodeMovingGC();
@@ -1401,8 +1417,9 @@ void Logger::CodeMovingGCEvent() {
 
 
 void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
-  if (!is_logging_code_events()) return;
+  PROFILER_LOG(RegExpCodeCreateEvent(code, source));
 
+  if (!is_logging_code_events()) return;
   JIT_LOG(RegExpCodeCreateEvent(code, source));
   LL_LOG(RegExpCodeCreateEvent(code, source));
   CODE_ADDRESS_MAP_LOG(RegExpCodeCreateEvent(code, source));
@@ -1419,8 +1436,10 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 
 
 void Logger::CodeMoveEvent(Address from, Address to) {
-  JIT_LOG(CodeMovedEvent(from, to));
-  if (!log_->IsEnabled()) return;
+  PROFILER_LOG(CodeMoveEvent(from, to));
+
+  if (!is_logging_code_events()) return;
+  JIT_LOG(CodeMoveEvent(from, to));
   LL_LOG(CodeMoveEvent(from, to));
   CODE_ADDRESS_MAP_LOG(CodeMoveEvent(from, to));
   MoveEventInternal(CODE_MOVE_EVENT, from, to);
@@ -1428,12 +1447,14 @@ void Logger::CodeMoveEvent(Address from, Address to) {
 
 
 void Logger::CodeDeleteEvent(Address from) {
+  PROFILER_LOG(CodeDeleteEvent(from));
+
+  if (!is_logging_code_events()) return;
   JIT_LOG(CodeDeleteEvent(from));
-  if (!log_->IsEnabled()) return;
   LL_LOG(CodeDeleteEvent(from));
   CODE_ADDRESS_MAP_LOG(CodeDeleteEvent(from));
 
-  if (!log_->IsEnabled() || !FLAG_log_code) return;
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[CODE_DELETE_EVENT]);
   msg.AppendAddress(from);
@@ -1498,6 +1519,9 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
 
 
 void Logger::SharedFunctionInfoMoveEvent(Address from, Address to) {
+  PROFILER_LOG(SharedFunctionInfoMoveEvent(from, to));
+
+  if (!is_logging_code_events()) return;
   MoveEventInternal(SHARED_FUNC_MOVE_EVENT, from, to);
 }
 
@@ -1505,7 +1529,7 @@ void Logger::SharedFunctionInfoMoveEvent(Address from, Address to) {
 void Logger::MoveEventInternal(LogEventsAndTags event,
                                Address from,
                                Address to) {
-  if (!log_->IsEnabled() || !FLAG_log_code) return;
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[event]);
   msg.AppendAddress(from);

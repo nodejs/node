@@ -317,8 +317,6 @@ class Shell : public i::AllStatic {
   static void Write(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EnableProfiler(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void DisableProfiler(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Read(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
   static Handle<String> ReadFromStdin(Isolate* isolate);

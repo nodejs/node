@@ -69,6 +69,7 @@
 #include "platform.h"
 #include "simulator.h"
 #include "v8threads.h"
+#include "vm-state-inl.h"
 
 
 #if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T)
@@ -621,9 +622,13 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
     return;
   }
 
-  const Address callback = isolate->external_callback();
-  if (callback != NULL) {
-    external_callback = callback;
+  ExternalCallbackScope* scope = isolate->external_callback_scope();
+  Address handler = Isolate::handler(isolate->thread_local_top());
+  // If there is a handler on top of the external callback scope then
+  // we have already entrered JavaScript again and the external callback
+  // is not the top function.
+  if (scope && scope->scope_address() < handler) {
+    external_callback = scope->callback();
     has_external_callback = true;
   } else {
     // Sample potential return address value for frameless invocation of

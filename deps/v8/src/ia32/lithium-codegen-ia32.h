@@ -109,11 +109,8 @@ class LCodeGen BASE_EMBEDDED {
 
   bool IsInteger32(LConstantOperand* op) const;
   bool IsSmi(LConstantOperand* op) const;
-  Immediate ToInteger32Immediate(LOperand* op) const {
-    return Immediate(ToInteger32(LConstantOperand::cast(op)));
-  }
-  Immediate ToSmiImmediate(LOperand* op) const {
-    return Immediate(Smi::FromInt(ToInteger32(LConstantOperand::cast(op))));
+  Immediate ToImmediate(LOperand* op, const Representation& r) const {
+    return Immediate(ToRepresentation(LConstantOperand::cast(op), r));
   }
   double ToDouble(LConstantOperand* op) const;
 
@@ -283,7 +280,7 @@ class LCodeGen BASE_EMBEDDED {
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
-  void SoftDeoptimize(LEnvironment* environment);
+  void ApplyCheckIf(Condition cc, LBoundsCheck* check);
 
   void AddToTranslation(Translation* translation,
                         LOperand* op,
@@ -298,7 +295,8 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
   X87Register ToX87Register(int index) const;
-  int ToInteger32(LConstantOperand* op) const;
+  int ToRepresentation(LConstantOperand* op, const Representation& r) const;
+  int32_t ToInteger32(LConstantOperand* op) const;
 
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,
@@ -371,11 +369,11 @@ class LCodeGen BASE_EMBEDDED {
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp);
 
-  void EmitLoadFieldOrConstantFunction(Register result,
-                                       Register object,
-                                       Handle<Map> type,
-                                       Handle<String> name,
-                                       LEnvironment* env);
+  void EmitLoadFieldOrConstant(Register result,
+                               Register object,
+                               Handle<Map> type,
+                               Handle<String> name,
+                               LEnvironment* env);
 
   // Emits optimized code to deep-copy the contents of statically known
   // object graphs (e.g. object literal boilerplate).

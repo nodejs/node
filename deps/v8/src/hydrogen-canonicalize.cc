@@ -38,11 +38,18 @@ void HCanonicalizePhase::Run() {
   for (int i = 0; i < blocks->length(); ++i) {
     for (HInstructionIterator it(blocks->at(i)); !it.Done(); it.Advance()) {
       HInstruction* instr = it.Current();
-      if (instr->IsArithmeticBinaryOperation() &&
-          instr->representation().IsInteger32() &&
-          instr->HasAtLeastOneUseWithFlagAndNoneWithout(
-              HInstruction::kTruncatingToInt32)) {
-        instr->SetFlag(HInstruction::kAllUsesTruncatingToInt32);
+      if (instr->IsArithmeticBinaryOperation()) {
+        if (instr->representation().IsInteger32()) {
+          if (instr->HasAtLeastOneUseWithFlagAndNoneWithout(
+                  HInstruction::kTruncatingToInt32)) {
+            instr->SetFlag(HInstruction::kAllUsesTruncatingToInt32);
+          }
+        } else if (instr->representation().IsSmi()) {
+          if (instr->HasAtLeastOneUseWithFlagAndNoneWithout(
+                  HInstruction::kTruncatingToSmi)) {
+            instr->SetFlag(HInstruction::kAllUsesTruncatingToSmi);
+          }
+        }
       }
     }
   }

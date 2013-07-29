@@ -247,10 +247,10 @@ void LGapResolver::EmitMove(int index) {
     LConstantOperand* constant_source = LConstantOperand::cast(source);
     if (destination->IsRegister()) {
       Register dst = cgen_->ToRegister(destination);
-      if (cgen_->IsSmi(constant_source)) {
-        __ mov(dst, Operand(cgen_->ToSmi(constant_source)));
-      } else if (cgen_->IsInteger32(constant_source)) {
-        __ mov(dst, Operand(cgen_->ToInteger32(constant_source)));
+      Representation r = cgen_->IsSmi(constant_source)
+          ? Representation::Smi() : Representation::Integer32();
+      if (cgen_->IsInteger32(constant_source)) {
+        __ mov(dst, Operand(cgen_->ToRepresentation(constant_source, r)));
       } else {
         __ LoadObject(dst, cgen_->ToHandle(constant_source));
       }
@@ -261,11 +261,11 @@ void LGapResolver::EmitMove(int index) {
     } else {
       ASSERT(destination->IsStackSlot());
       ASSERT(!in_cycle_);  // Constant moves happen after all cycles are gone.
-      if (cgen_->IsSmi(constant_source)) {
-        __ mov(kSavedValueRegister, Operand(cgen_->ToSmi(constant_source)));
-      } else if (cgen_->IsInteger32(constant_source)) {
+      Representation r = cgen_->IsSmi(constant_source)
+          ? Representation::Smi() : Representation::Integer32();
+      if (cgen_->IsInteger32(constant_source)) {
         __ mov(kSavedValueRegister,
-               Operand(cgen_->ToInteger32(constant_source)));
+               Operand(cgen_->ToRepresentation(constant_source, r)));
       } else {
         __ LoadObject(kSavedValueRegister,
                       cgen_->ToHandle(constant_source));

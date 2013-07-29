@@ -25,7 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nouse-osr
+// Flags: --allow-natives-syntax --nouse-osr --expose-gc
+
+// Test loop barrier when folding allocations.
+
 function f() {
   var elem1 = [1,2,3];
   for (var i=0; i < 100000; i++) {
@@ -39,8 +42,38 @@ f(); f(); f();
 %OptimizeFunctionOnNextCall(f);
 var result = f();
 
-for (var i=0; i < 100000; i++) {
-  var bar = [1];
-}
+gc();
 
 assertEquals(result[2], 3);
+
+// Test allocation folding of doubles.
+
+function doubles() {
+  var elem1 = [1.1, 1.2];
+  var elem2 = [2.1, 2.2];
+  return elem2;
+}
+
+doubles(); doubles(); doubles();
+%OptimizeFunctionOnNextCall(doubles);
+var result = doubles();
+
+gc();
+
+assertEquals(result[1], 2.2);
+
+// Test allocation folding of doubles into non-doubles.
+
+function doubles_int() {
+  var elem1 = [2, 3];
+  var elem2 = [2.1, 3.1];
+  return elem2;
+}
+
+doubles_int(); doubles_int(); doubles_int();
+%OptimizeFunctionOnNextCall(doubles_int);
+var result = doubles_int();
+
+gc();
+
+assertEquals(result[1], 3.1);

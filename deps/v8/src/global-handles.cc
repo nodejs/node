@@ -262,6 +262,7 @@ class GlobalHandles::Node {
              ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
       VMState<EXTERNAL> state(isolate);
+      HandleScope handle_scope(isolate);
       weak_reference_callback_(reinterpret_cast<v8::Isolate*>(isolate),
                                reinterpret_cast<Persistent<Value>*>(&object),
                                par);

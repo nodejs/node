@@ -244,9 +244,7 @@ namespace internal {
   F(FunctionIsBuiltin, 1, 1) \
   F(GetScript, 1, 1) \
   F(CollectStackTrace, 3, 1) \
-  F(MarkOneShotGetter, 1, 1) \
-  F(GetOverflowedStackTrace, 1, 1) \
-  F(SetOverflowedStackTrace, 2, 1) \
+  F(GetAndClearOverflowedStackTrace, 1, 1) \
   F(GetV8Version, 0, 1) \
   \
   F(ClassOf, 1, 1) \
@@ -467,10 +465,7 @@ namespace internal {
   F(TransitionElementsKind, 2, 1) \
   F(TransitionElementsSmiToDouble, 1, 1) \
   F(TransitionElementsDoubleToObject, 1, 1) \
-  F(HaveSameMap, 2, 1) \
-  /* profiler */ \
-  F(ProfilerResume, 0, 1) \
-  F(ProfilerPause, 0, 1)
+  F(HaveSameMap, 2, 1)
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

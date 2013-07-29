@@ -474,15 +474,19 @@ class InterruptStub : public PlatformCodeStub {
 };
 
 
-class ToNumberStub: public PlatformCodeStub {
+class ToNumberStub: public HydrogenCodeStub {
  public:
   ToNumberStub() { }
 
-  void Generate(MacroAssembler* masm);
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
 
  private:
   Major MajorKey() { return ToNumber; }
-  int MinorKey() { return 0; }
+  int NotMissMinorKey() { return 0; }
 };
 
 

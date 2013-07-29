@@ -9,11 +9,14 @@
 *.pdb
 *.pyc
 *.scons*
+*.sdf
 *.sln
 *.so
 *.suo
 *.user
 *.vcproj
+*.vcxproj
+*.vcxproj.filters
 *.xcodeproj
 #*#
 *~
@@ -26,6 +29,7 @@ shell
 shell_g
 /build/Debug
 /build/gyp
+/build/ipch/
 /build/Release
 /obj
 /out

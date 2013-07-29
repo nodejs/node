@@ -794,11 +794,9 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   Representation representation = details.representation();
   ASSERT(!representation.IsNone());
 
-  if (details.type() == CONSTANT_FUNCTION) {
-    Handle<HeapObject> constant(
-        HeapObject::cast(descriptors->GetValue(descriptor)));
-    __ LoadHeapObject(scratch1, constant);
-    __ cmpq(value_reg, scratch1);
+  if (details.type() == CONSTANT) {
+    Handle<Object> constant(descriptors->GetValue(descriptor), masm->isolate());
+    __ CmpObject(value_reg, constant);
     __ j(not_equal, miss_label);
   } else if (FLAG_track_fields && representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
@@ -857,7 +855,7 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                       OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
 
-  if (details.type() == CONSTANT_FUNCTION) {
+  if (details.type() == CONSTANT) {
     ASSERT(value_reg.is(rax));
     __ ret(0);
     return;
@@ -1357,9 +1355,9 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
 }
 
 
-void BaseLoadStubCompiler::GenerateLoadConstant(Handle<JSFunction> value) {
+void BaseLoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
   // Return the constant value.
-  __ LoadHeapObject(rax, value);
+  __ LoadObject(rax, value);
   __ ret(0);
 }
 
@@ -2500,7 +2498,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
     Handle<Code> code = CompileCustomCall(object, holder,
                                           Handle<PropertyCell>::null(),
                                           function, Handle<String>::cast(name),
-                                          Code::CONSTANT_FUNCTION);
+                                          Code::CONSTANT);
     // A null handle means bail out to the regular compiler code below.
     if (!code.is_null()) return code;
   }

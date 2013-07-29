@@ -45,20 +45,25 @@ void HRepresentationChangesPhase::InsertRepresentationChangeForUse(
   // information we treat constants like normal instructions and insert the
   // change instructions for them.
   HInstruction* new_value = NULL;
-  bool is_truncating = use_value->CheckFlag(HValue::kTruncatingToInt32);
+  bool is_truncating_to_smi = use_value->CheckFlag(HValue::kTruncatingToSmi);
+  bool is_truncating_to_int = use_value->CheckFlag(HValue::kTruncatingToInt32);
   bool allow_undefined_as_nan =
       use_value->CheckFlag(HValue::kAllowUndefinedAsNaN);
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
-    new_value = (is_truncating && to.IsInteger32())
-        ? constant->CopyToTruncatedInt32(graph()->zone())
-        : constant->CopyToRepresentation(to, graph()->zone());
+    if (is_truncating_to_int && to.IsInteger32()) {
+      Maybe<HConstant*> res = constant->CopyToTruncatedInt32(graph()->zone());
+      if (res.has_value) new_value = res.value;
+    } else {
+      new_value = constant->CopyToRepresentation(to, graph()->zone());
+    }
   }
 
   if (new_value == NULL) {
     new_value = new(graph()->zone()) HChange(value, to,
-                                             is_truncating,
+                                             is_truncating_to_smi,
+                                             is_truncating_to_int,
                                              allow_undefined_as_nan);
   }
 
@@ -105,6 +110,8 @@ void HRepresentationChangesPhase::Run() {
     HPhi* phi = phi_list->at(i);
     if (phi->representation().IsInteger32()) {
       phi->SetFlag(HValue::kTruncatingToInt32);
+    } else if (phi->representation().IsSmi()) {
+      phi->SetFlag(HValue::kTruncatingToSmi);
     }
   }
 
@@ -116,13 +123,18 @@ void HRepresentationChangesPhase::Run() {
       HValue* use = it.value();
       Representation input_representation =
           use->RequiredInputRepresentation(it.index());
-      if (!input_representation.IsInteger32() ||
-          !use->CheckFlag(HValue::kTruncatingToInt32)) {
+      if ((phi->representation().IsInteger32() &&
+           !(input_representation.IsInteger32() &&
+             use->CheckFlag(HValue::kTruncatingToInt32))) ||
+          (phi->representation().IsSmi() &&
+           !(input_representation.IsSmi() ||
+             use->CheckFlag(HValue::kTruncatingToSmi)))) {
         if (FLAG_trace_representation) {
           PrintF("#%d Phi is not truncating because of #%d %s\n",
                  phi->id(), it.value()->id(), it.value()->Mnemonic());
         }
         phi->ClearFlag(HValue::kTruncatingToInt32);
+        phi->ClearFlag(HValue::kTruncatingToSmi);
         worklist.Add(phi, zone());
         break;
       }
@@ -134,13 +146,16 @@ void HRepresentationChangesPhase::Run() {
     for (int i = 0; i < current->OperandCount(); ++i) {
       HValue* input = current->OperandAt(i);
       if (input->IsPhi() &&
-          input->representation().IsInteger32() &&
-          input->CheckFlag(HValue::kTruncatingToInt32)) {
+          ((input->representation().IsInteger32() &&
+            input->CheckFlag(HValue::kTruncatingToInt32)) ||
+           (input->representation().IsSmi() &&
+            input->CheckFlag(HValue::kTruncatingToSmi)))) {
         if (FLAG_trace_representation) {
           PrintF("#%d Phi is not truncating because of #%d %s\n",
                  input->id(), current->id(), current->Mnemonic());
         }
         input->ClearFlag(HValue::kTruncatingToInt32);
+        input->ClearFlag(HValue::kTruncatingToSmi);
         worklist.Add(HPhi::cast(input), zone());
       }
     }

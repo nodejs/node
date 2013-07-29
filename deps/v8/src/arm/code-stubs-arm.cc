@@ -38,6 +38,16 @@ namespace v8 {
 namespace internal {
 
 
+void ToNumberStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r0 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -286,17 +296,6 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
                                            Register rhs);
 
 
-// Check if the operand is a heap number.
-static void EmitCheckForHeapNumber(MacroAssembler* masm, Register operand,
-                                   Register scratch1, Register scratch2,
-                                   Label* not_a_heap_number) {
-  __ ldr(scratch1, FieldMemOperand(operand, HeapObject::kMapOffset));
-  __ LoadRoot(scratch2, Heap::kHeapNumberMapRootIndex);
-  __ cmp(scratch1, scratch2);
-  __ b(ne, not_a_heap_number);
-}
-
-
 void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
   Isolate* isolate = masm->isolate();
@@ -318,22 +317,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ Ret();
-}
-
-
-void ToNumberStub::Generate(MacroAssembler* masm) {
-  // The ToNumber stub takes one argument in eax.
-  Label check_heap_number, call_builtin;
-  __ JumpIfNotSmi(r0, &check_heap_number);
-  __ Ret();
-
-  __ bind(&check_heap_number);
-  EmitCheckForHeapNumber(masm, r0, r1, ip, &call_builtin);
-  __ Ret();
-
-  __ bind(&call_builtin);
-  __ push(r0);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
 }
 
 
@@ -1914,7 +1897,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   Register right = r0;
   Register scratch1 = r7;
   Register scratch2 = r9;
-  DwVfpRegister double_scratch = d0;
+  LowDwVfpRegister double_scratch = d0;
 
   Register heap_number_result = no_reg;
   Register heap_number_map = r6;
@@ -1989,7 +1972,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           Label not_zero;
           ASSERT(kSmiTag == 0);
           __ b(ne, &not_zero);
-          __ vmov(scratch2, d5.high());
+          __ VmovHigh(scratch2, d5);
           __ tst(scratch2, Operand(HeapNumber::kSignMask));
           __ b(ne, &transition);
           __ bind(&not_zero);
@@ -3834,7 +3817,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
       Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
 
   // Copy the JS object part.
-  __ CopyFields(r0, r4, d0, s0, JSObject::kHeaderSize / kPointerSize);
+  __ CopyFields(r0, r4, d0, JSObject::kHeaderSize / kPointerSize);
 
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
@@ -6821,7 +6804,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
   __ bind(&double_elements);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
-  __ StoreNumberToDoubleElements(r0, r3, r5, r6, &slow_elements);
+  __ StoreNumberToDoubleElements(r0, r3, r5, r6, d0, &slow_elements);
   __ Ret();
 }
 

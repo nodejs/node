@@ -1081,3 +1081,231 @@ TEST(FunctionApplySample) {
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }
+
+
+static const char* js_native_js_test_source = "function foo(iterations) {\n"
+"  var r = 0;\n"
+"  for (var i = 0; i < iterations; i++) { r += i; }\n"
+"  return r;\n"
+"}\n"
+"function bar(iterations) {\n"
+"  try { foo(iterations); } catch(e) {}\n"
+"}\n"
+"function start(duration) {\n"
+"  var start = Date.now();\n"
+"  while (Date.now() - start < duration) {\n"
+"    try {\n"
+"      CallJsFunction(bar, 10 * 1000);\n"
+"    } catch(e) {}\n"
+"  }\n"
+"}";
+
+static void CallJsFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Handle<v8::Function> function = info[0].As<v8::Function>();
+  v8::Handle<v8::Value> argv[] = { info[1] };
+  function->Call(info.This(), ARRAY_SIZE(argv), argv);
+}
+
+
+// [Top down]:
+//    58     0   (root) #0 1
+//     2     2    (program) #0 2
+//    56     1    start #16 3
+//    55     0      CallJsFunction #0 4
+//    55     1        bar #16 5
+//    54    54          foo #16 6
+TEST(JsNativeJsSample) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
+      CallJsFunction);
+  v8::Local<v8::Function> func = func_template->GetFunction();
+  func->SetName(v8::String::New("CallJsFunction"));
+  env->Global()->Set(v8::String::New("CallJsFunction"), func);
+
+  v8::Script::Compile(v8::String::New(js_native_js_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  int32_t duration_ms = 20;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 50);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  {
+    ScopedVector<v8::Handle<v8::String> > names(3);
+    names[0] = v8::String::New(ProfileGenerator::kGarbageCollectorEntryName);
+    names[1] = v8::String::New(ProfileGenerator::kProgramEntryName);
+    names[2] = v8::String::New("start");
+    CheckChildrenNames(root, names);
+  }
+
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
+  CHECK_EQ(1, startNode->GetChildrenCount());
+  const v8::CpuProfileNode* nativeFunctionNode =
+      GetChild(startNode, "CallJsFunction");
+
+  CHECK_EQ(1, nativeFunctionNode->GetChildrenCount());
+  const v8::CpuProfileNode* barNode = GetChild(nativeFunctionNode, "bar");
+
+  CHECK_EQ(1, barNode->GetChildrenCount());
+  GetChild(barNode, "foo");
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  cpu_profiler->DeleteAllCpuProfiles();
+}
+
+
+static const char* js_native_js_runtime_js_test_source =
+"function foo(iterations) {\n"
+"  var r = 0;\n"
+"  for (var i = 0; i < iterations; i++) { r += i; }\n"
+"  return r;\n"
+"}\n"
+"var bound = foo.bind(this);\n"
+"function bar(iterations) {\n"
+"  try { bound(iterations); } catch(e) {}\n"
+"}\n"
+"function start(duration) {\n"
+"  var start = Date.now();\n"
+"  while (Date.now() - start < duration) {\n"
+"    try {\n"
+"      CallJsFunction(bar, 10 * 1000);\n"
+"    } catch(e) {}\n"
+"  }\n"
+"}";
+
+
+// [Top down]:
+//    57     0   (root) #0 1
+//    55     1    start #16 3
+//    54     0      CallJsFunction #0 4
+//    54     3        bar #16 5
+//    51    51          foo #16 6
+//     2     2    (program) #0 2
+TEST(JsNativeJsRuntimeJsSample) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
+      CallJsFunction);
+  v8::Local<v8::Function> func = func_template->GetFunction();
+  func->SetName(v8::String::New("CallJsFunction"));
+  env->Global()->Set(v8::String::New("CallJsFunction"), func);
+
+  v8::Script::Compile(v8::String::New(js_native_js_runtime_js_test_source))->
+      Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  int32_t duration_ms = 20;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 50);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  ScopedVector<v8::Handle<v8::String> > names(3);
+  names[0] = v8::String::New(ProfileGenerator::kGarbageCollectorEntryName);
+  names[1] = v8::String::New(ProfileGenerator::kProgramEntryName);
+  names[2] = v8::String::New("start");
+  CheckChildrenNames(root, names);
+
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
+  CHECK_EQ(1, startNode->GetChildrenCount());
+  const v8::CpuProfileNode* nativeFunctionNode =
+      GetChild(startNode, "CallJsFunction");
+
+  CHECK_EQ(1, nativeFunctionNode->GetChildrenCount());
+  const v8::CpuProfileNode* barNode = GetChild(nativeFunctionNode, "bar");
+
+  CHECK_EQ(1, barNode->GetChildrenCount());
+  GetChild(barNode, "foo");
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  cpu_profiler->DeleteAllCpuProfiles();
+}
+
+
+static void CallJsFunction2(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CallJsFunction(info);
+}
+
+
+static const char* js_native1_js_native2_js_test_source =
+"function foo(iterations) {\n"
+"  var r = 0;\n"
+"  for (var i = 0; i < iterations; i++) { r += i; }\n"
+"  return r;\n"
+"}\n"
+"function bar(iterations) {\n"
+"  CallJsFunction2(foo, iterations);\n"
+"}\n"
+"function start(duration) {\n"
+"  var start = Date.now();\n"
+"  while (Date.now() - start < duration) {\n"
+"    try {\n"
+"      CallJsFunction1(bar, 10 * 1000);\n"
+"    } catch(e) {}\n"
+"  }\n"
+"}";
+
+
+// [Top down]:
+//    57     0   (root) #0 1
+//    55     1    start #16 3
+//    54     0      CallJsFunction1 #0 4
+//    54     0        bar #16 5
+//    54     0          CallJsFunction2 #0 6
+//    54    54            foo #16 7
+//     2     2    (program) #0 2
+TEST(JsNative1JsNative2JsSample) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
+      CallJsFunction);
+  v8::Local<v8::Function> func1 = func_template->GetFunction();
+  func1->SetName(v8::String::New("CallJsFunction1"));
+  env->Global()->Set(v8::String::New("CallJsFunction1"), func1);
+
+  v8::Local<v8::Function> func2 = v8::FunctionTemplate::New(
+      CallJsFunction2)->GetFunction();
+  func2->SetName(v8::String::New("CallJsFunction2"));
+  env->Global()->Set(v8::String::New("CallJsFunction2"), func2);
+
+  v8::Script::Compile(v8::String::New(js_native1_js_native2_js_test_source))->
+      Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  int32_t duration_ms = 20;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 50);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  ScopedVector<v8::Handle<v8::String> > names(3);
+  names[0] = v8::String::New(ProfileGenerator::kGarbageCollectorEntryName);
+  names[1] = v8::String::New(ProfileGenerator::kProgramEntryName);
+  names[2] = v8::String::New("start");
+  CheckChildrenNames(root, names);
+
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
+  CHECK_EQ(1, startNode->GetChildrenCount());
+  const v8::CpuProfileNode* nativeNode1 =
+      GetChild(startNode, "CallJsFunction1");
+
+  CHECK_EQ(1, nativeNode1->GetChildrenCount());
+  const v8::CpuProfileNode* barNode = GetChild(nativeNode1, "bar");
+
+  CHECK_EQ(1, barNode->GetChildrenCount());
+  const v8::CpuProfileNode* nativeNode2 = GetChild(barNode, "CallJsFunction2");
+
+  CHECK_EQ(1, nativeNode2->GetChildrenCount());
+  GetChild(nativeNode2, "foo");
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  cpu_profiler->DeleteAllCpuProfiles();
+}

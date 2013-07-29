@@ -1469,8 +1469,6 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
         this.suspendRequest_(request, response);
       } else if (request.command == 'version') {
         this.versionRequest_(request, response);
-      } else if (request.command == 'profile') {
-        this.profileRequest_(request, response);
       } else if (request.command == 'changelive') {
         this.changeLiveRequest_(request, response);
       } else if (request.command == 'restartframe') {
@@ -2397,18 +2395,6 @@ DebugCommandProcessor.prototype.versionRequest_ = function(request, response) {
   response.body = {
     V8Version: %GetV8Version()
   };
-};
-
-
-DebugCommandProcessor.prototype.profileRequest_ = function(request, response) {
-  if (request.arguments.command == 'resume') {
-    %ProfilerResume();
-  } else if (request.arguments.command == 'pause') {
-    %ProfilerPause();
-  } else {
-    return response.failed('Unknown command');
-  }
-  response.body = {};
 };
 
 

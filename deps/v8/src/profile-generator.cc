@@ -655,7 +655,8 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   CodeEntry** entry = entries.start();
   memset(entry, 0, entries.length() * sizeof(*entry));
   if (sample.pc != NULL) {
-    if (sample.has_external_callback) {
+    if (sample.has_external_callback && sample.state == EXTERNAL &&
+        sample.top_frame_type == StackFrame::EXIT) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.

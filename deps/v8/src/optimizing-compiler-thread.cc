@@ -60,12 +60,23 @@ void OptimizingCompilerThread::Run() {
       OS::Sleep(FLAG_parallel_recompilation_delay);
     }
 
-    if (Acquire_Load(&stop_thread_)) {
-      stop_semaphore_->Signal();
-      if (FLAG_trace_parallel_recompilation) {
-        time_spent_total_ = OS::Ticks() - epoch;
-      }
-      return;
+    switch (static_cast<StopFlag>(Acquire_Load(&stop_thread_))) {
+      case CONTINUE:
+        break;
+      case STOP:
+        if (FLAG_trace_parallel_recompilation) {
+          time_spent_total_ = OS::Ticks() - epoch;
+        }
+        stop_semaphore_->Signal();
+        return;
+      case FLUSH:
+        // Reset input queue semaphore.
+        delete input_queue_semaphore_;
+        input_queue_semaphore_ = OS::CreateSemaphore(0);
+        // Signal for main thread to start flushing.
+        stop_semaphore_->Signal();
+        // Return to start of consumer loop.
+        continue;
     }
 
     int64_t compiling_start = 0;
@@ -102,9 +113,41 @@ void OptimizingCompilerThread::CompileNext() {
 }
 
 
+void OptimizingCompilerThread::FlushQueue(
+    UnboundQueue<OptimizingCompiler*>* queue,
+    bool restore_function_code) {
+  ASSERT(!IsOptimizerThread());
+  OptimizingCompiler* optimizing_compiler;
+  // The optimizing compiler is allocated in the CompilationInfo's zone.
+  while (queue->Dequeue(&optimizing_compiler)) {
+    CompilationInfo* info = optimizing_compiler->info();
+    if (restore_function_code) {
+      Handle<JSFunction> function = info->closure();
+      function->ReplaceCode(function->shared()->code());
+    }
+    delete info;
+  }
+}
+
+
+void OptimizingCompilerThread::Flush() {
+  ASSERT(!IsOptimizerThread());
+  Release_Store(&stop_thread_, static_cast<AtomicWord>(FLUSH));
+  input_queue_semaphore_->Signal();
+
+  FlushQueue(&input_queue_, true);
+  NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
+
+  stop_semaphore_->Wait();
+  Release_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
+
+  FlushQueue(&output_queue_, true);
+}
+
+
 void OptimizingCompilerThread::Stop() {
   ASSERT(!IsOptimizerThread());
-  Release_Store(&stop_thread_, static_cast<AtomicWord>(true));
+  Release_Store(&stop_thread_, static_cast<AtomicWord>(STOP));
   input_queue_semaphore_->Signal();
   stop_semaphore_->Wait();
 
@@ -114,14 +157,8 @@ void OptimizingCompilerThread::Stop() {
     while (NoBarrier_Load(&queue_length_) > 0) CompileNext();
     InstallOptimizedFunctions();
   } else {
-    OptimizingCompiler* optimizing_compiler;
-    // The optimizing compiler is allocated in the CompilationInfo's zone.
-    while (input_queue_.Dequeue(&optimizing_compiler)) {
-      delete optimizing_compiler->info();
-    }
-    while (output_queue_.Dequeue(&optimizing_compiler)) {
-      delete optimizing_compiler->info();
-    }
+    FlushQueue(&input_queue_, false);
+    FlushQueue(&output_queue_, false);
   }
 
   if (FLAG_trace_parallel_recompilation) {

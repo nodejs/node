@@ -479,10 +479,9 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   Representation representation = details.representation();
   ASSERT(!representation.IsNone());
 
-  if (details.type() == CONSTANT_FUNCTION) {
-    Handle<HeapObject> constant(
-        HeapObject::cast(descriptors->GetValue(descriptor)));
-    __ LoadHeapObject(scratch1, constant);
+  if (details.type() == CONSTANT) {
+    Handle<Object> constant(descriptors->GetValue(descriptor), masm->isolate());
+    __ LoadObject(scratch1, constant);
     __ cmp(value_reg, scratch1);
     __ b(ne, miss_label);
   } else if (FLAG_track_fields && representation.IsSmi()) {
@@ -543,7 +542,7 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                       OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
 
-  if (details.type() == CONSTANT_FUNCTION) {
+  if (details.type() == CONSTANT) {
     ASSERT(value_reg.is(r0));
     __ Ret();
     return;
@@ -1399,9 +1398,9 @@ void BaseLoadStubCompiler::GenerateLoadField(Register reg,
 }
 
 
-void BaseLoadStubCompiler::GenerateLoadConstant(Handle<JSFunction> value) {
+void BaseLoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
   // Return the constant value.
-  __ LoadHeapObject(r0, value);
+  __ LoadObject(r0, value);
   __ Ret();
 }
 
@@ -1814,7 +1813,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ b(gt, &call_builtin);
 
       __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
-      __ StoreNumberToDoubleElements(r4, r0, elements, r5,
+      __ StoreNumberToDoubleElements(r4, r0, elements, r5, d0,
                                      &call_builtin, argc * kDoubleSize);
 
       // Save new length.
@@ -2670,7 +2669,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
     Handle<Code> code = CompileCustomCall(object, holder,
                                           Handle<Cell>::null(),
                                           function, Handle<String>::cast(name),
-                                          Code::CONSTANT_FUNCTION);
+                                          Code::CONSTANT);
     // A null handle means bail out to the regular compiler code below.
     if (!code.is_null()) return code;
   }
@@ -3195,7 +3194,7 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                                 Register key,
                                 Register scratch0,
                                 DwVfpRegister double_scratch0,
-                                DwVfpRegister double_scratch1,
+                                LowDwVfpRegister double_scratch1,
                                 Label* fail) {
   Label key_ok;
   // Check for smi or a smi inside a heap number.  We convert the heap
@@ -3604,7 +3603,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   __ bind(&finish_store);
   __ StoreNumberToDoubleElements(value_reg, key_reg, elements_reg,
-                                 scratch1, &transition_elements_kind);
+                                 scratch1, d0, &transition_elements_kind);
   __ Ret();
 
   // Handle store cache miss, replacing the ic with the generic stub.
@@ -3652,7 +3651,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
     __ mov(scratch1, elements_reg);
     __ StoreNumberToDoubleElements(value_reg, key_reg, scratch1,
-                                   scratch2, &transition_elements_kind);
+                                   scratch2, d0, &transition_elements_kind);
 
     __ mov(scratch1, Operand(kHoleNanLower32));
     __ mov(scratch2, Operand(kHoleNanUpper32));

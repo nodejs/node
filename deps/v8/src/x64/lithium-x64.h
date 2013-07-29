@@ -40,12 +40,6 @@ namespace internal {
 // Forward declarations.
 class LCodeGen;
 
-#define LITHIUM_ALL_INSTRUCTION_LIST(V)         \
-  V(ControlInstruction)                         \
-  V(Call)                                       \
-  LITHIUM_CONCRETE_INSTRUCTION_LIST(V)
-
-
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V)    \
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
@@ -72,6 +66,7 @@ class LCodeGen;
   V(CheckFunction)                              \
   V(CheckInstanceType)                          \
   V(CheckMaps)                                  \
+  V(CheckMapValue)                              \
   V(CheckNonSmi)                                \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
@@ -79,7 +74,6 @@ class LCodeGen;
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
   V(ClassOfTestAndBranch)                       \
-  V(CmpConstantEqAndBranch)                     \
   V(CompareNumericAndBranch)                    \
   V(CmpObjectEqAndBranch)                       \
   V(CmpMapAndBranch)                            \
@@ -89,15 +83,18 @@ class LCodeGen;
   V(ConstantS)                                  \
   V(ConstantT)                                  \
   V(Context)                                    \
+  V(DateField)                                  \
   V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
   V(DoubleToSmi)                                \
+  V(Drop)                                       \
   V(DummyUse)                                   \
   V(ElementsKind)                               \
-  V(MapEnumLength)                              \
+  V(ForInCacheArray)                            \
+  V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
   V(GetCachedArrayIndex)                        \
   V(GlobalObject)                               \
@@ -105,13 +102,13 @@ class LCodeGen;
   V(Goto)                                       \
   V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceTypeAndBranch)                   \
+  V(InnerAllocatedObject)                       \
   V(InstanceOf)                                 \
   V(InstanceOfKnownGlobal)                      \
   V(InstanceSize)                               \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
   V(Integer32ToSmi)                             \
-  V(Uint32ToDouble)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
   V(IsObjectAndBranch)                          \
@@ -124,6 +121,7 @@ class LCodeGen;
   V(LinkObjectInList)                           \
   V(LoadContextSlot)                            \
   V(LoadExternalArrayPointer)                   \
+  V(LoadFieldByIndex)                           \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
   V(LoadGlobalGeneric)                          \
@@ -132,6 +130,7 @@ class LCodeGen;
   V(LoadNamedField)                             \
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
+  V(MapEnumLength)                              \
   V(MathAbs)                                    \
   V(MathCos)                                    \
   V(MathExp)                                    \
@@ -184,16 +183,10 @@ class LCodeGen;
   V(TrapAllocationMemento)                      \
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
+  V(Uint32ToDouble)                             \
   V(UnknownOSRValue)                            \
   V(ValueOf)                                    \
-  V(ForInPrepareMap)                            \
-  V(ForInCacheArray)                            \
-  V(CheckMapValue)                              \
-  V(LoadFieldByIndex)                           \
-  V(DateField)                                  \
-  V(WrapReceiver)                               \
-  V(Drop)                                       \
-  V(InnerAllocatedObject)
+  V(WrapReceiver)
 
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
@@ -433,6 +426,7 @@ class LDummyUse: public LTemplateInstruction<1, 1, 0> {
 class LDeoptimize: public LTemplateInstruction<0, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize, "deoptimize")
+  DECLARE_HYDROGEN_ACCESSOR(Deoptimize)
 };
 
 
@@ -834,20 +828,6 @@ class LCmpObjectEqAndBranch: public LControlInstruction<2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CmpObjectEqAndBranch,
                                "cmp-object-eq-and-branch")
-};
-
-
-class LCmpConstantEqAndBranch: public LControlInstruction<1, 0> {
- public:
-  explicit LCmpConstantEqAndBranch(LOperand* left) {
-    inputs_[0] = left;
-  }
-
-  LOperand* left() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CmpConstantEqAndBranch,
-                               "cmp-constant-eq-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(CompareConstantEqAndBranch)
 };
 
 

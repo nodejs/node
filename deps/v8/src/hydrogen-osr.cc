@@ -94,7 +94,7 @@ HBasicBlock* HOsrBuilder::BuildPossibleOsrLoopEntry(
     }
   }
 
-  builder_->AddSimulate(osr_entry_id);
+  builder_->Add<HSimulate>(osr_entry_id);
   builder_->Add<HOsrEntry>(osr_entry_id);
   HContext* context = builder_->Add<HContext>();
   environment->BindContext(context);

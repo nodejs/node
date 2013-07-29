@@ -67,7 +67,7 @@ enum PropertyType {
   NORMAL                    = 0,
   // Only in fast mode.
   FIELD                     = 1,
-  CONSTANT_FUNCTION         = 2,
+  CONSTANT                  = 2,
   CALLBACKS                 = 3,
   // Only in lookup results, not in descriptors.
   HANDLER                   = 4,

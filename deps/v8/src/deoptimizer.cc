@@ -331,34 +331,47 @@ void Deoptimizer::VisitAllOptimizedFunctions(
 
 
 // Removes the functions selected by the given filter from the optimized
-// function list of the given context and partitions the removed functions
-// into one or more lists such that all functions in a list share the same
-// code. The head of each list is written in the deoptimizing_functions field
-// of the corresponding code object.
-// The found code objects are returned in the given zone list.
-static void PartitionOptimizedFunctions(Context* context,
-                                        OptimizedFunctionFilter* filter,
-                                        ZoneList<Code*>* partitions,
-                                        Zone* zone,
-                                        Object* undefined) {
+// function list of the given context and adds their code to the list of
+// code objects to be deoptimized.
+static void SelectCodeToDeoptimize(Context* context,
+                                   OptimizedFunctionFilter* filter,
+                                   ZoneList<Code*>* codes,
+                                   Zone* zone,
+                                   Object* undefined) {
   DisallowHeapAllocation no_allocation;
   Object* current = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
   Object* remainder_head = undefined;
   Object* remainder_tail = undefined;
-  ASSERT_EQ(0, partitions->length());
+
+  // TODO(titzer): rewrite to not modify unselected functions.
   while (current != undefined) {
     JSFunction* function = JSFunction::cast(current);
     current = function->next_function_link();
     if (filter->TakeFunction(function)) {
+      // Extract this function from the context's list and remember the code.
       Code* code = function->code();
-      if (code->deoptimizing_functions() == undefined) {
-        partitions->Add(code, zone);
+      ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
+      if (code->marked_for_deoptimization()) {
+        ASSERT(codes->Contains(code));
       } else {
-        ASSERT(partitions->Contains(code));
+        code->set_marked_for_deoptimization(true);
+        codes->Add(code, zone);
       }
-      function->set_next_function_link(code->deoptimizing_functions());
-      code->set_deoptimizing_functions(function);
+      SharedFunctionInfo* shared = function->shared();
+      // Replace the function's code with the shared code.
+      function->set_code(shared->code());
+      // Evict the code from the optimized code map.
+      shared->EvictFromOptimizedCodeMap(code, "deoptimized function");
+      // Remove the function from the optimized functions list.
+      function->set_next_function_link(undefined);
+
+      if (FLAG_trace_deopt) {
+        PrintF("[forced deoptimization: ");
+        function->PrintName();
+        PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+      }
     } else {
+      // Don't select this function; link it back into the list.
       if (remainder_head == undefined) {
         remainder_head = function;
       } else {
@@ -393,6 +406,14 @@ class DeoptimizeWithMatchingCodeFilter : public OptimizedFunctionFilter {
 };
 
 
+class DeoptimizeMarkedCodeFilter : public OptimizedFunctionFilter {
+ public:
+  virtual bool TakeFunction(JSFunction* function) {
+    return function->code()->marked_for_deoptimization();
+  }
+};
+
+
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   DisallowHeapAllocation no_allocation;
 
@@ -421,19 +442,11 @@ void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  if (!function->IsOptimized()) return;
   Code* code = function->code();
-  Context* context = function->context()->native_context();
-  Isolate* isolate = context->GetIsolate();
-  Object* undefined = isolate->heap()->undefined_value();
-  Zone zone(isolate);
-  ZoneList<Code*> codes(1, &zone);
+  if (code->kind() != Code::OPTIMIZED_FUNCTION) return;
   DeoptimizeWithMatchingCodeFilter filter(code);
-  PartitionOptimizedFunctions(context, &filter, &codes, &zone, undefined);
-  ASSERT_EQ(1, codes.length());
-  DeoptimizeFunctionWithPreparedFunctionList(
-      JSFunction::cast(codes.at(0)->deoptimizing_functions()));
-  codes.at(0)->set_deoptimizing_functions(undefined);
+  DeoptimizeAllFunctionsForContext(
+      function->context()->native_context(), &filter);
 }
 
 
@@ -443,12 +456,10 @@ void Deoptimizer::DeoptimizeAllFunctionsForContext(
   Isolate* isolate = context->GetIsolate();
   Object* undefined = isolate->heap()->undefined_value();
   Zone zone(isolate);
-  ZoneList<Code*> codes(1, &zone);
-  PartitionOptimizedFunctions(context, filter, &codes, &zone, undefined);
-  for (int i = 0; i < codes.length(); ++i) {
-    DeoptimizeFunctionWithPreparedFunctionList(
-        JSFunction::cast(codes.at(i)->deoptimizing_functions()));
-    codes.at(i)->set_deoptimizing_functions(undefined);
+  ZoneList<Code*> codes(4, &zone);
+  SelectCodeToDeoptimize(context, filter, &codes, &zone, undefined);
+  for (int i = 0; i < codes.length(); i++) {
+    DeoptimizeCode(isolate, codes.at(i));
   }
 }
 
@@ -463,6 +474,55 @@ void Deoptimizer::DeoptimizeAllFunctionsWith(Isolate* isolate,
     DeoptimizeAllFunctionsForContext(Context::cast(context), filter);
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
   }
+}
+
+
+void Deoptimizer::DeoptimizeCodeList(Isolate* isolate, ZoneList<Code*>* codes) {
+  if (codes->length() == 0) return;  // Nothing to do.
+
+  // Mark the code; any functions refering to this code will be selected.
+  for (int i = 0; i < codes->length(); i++) {
+    ASSERT(!codes->at(i)->marked_for_deoptimization());
+    codes->at(i)->set_marked_for_deoptimization(true);
+  }
+
+  // For all contexts, remove optimized functions that refer to the selected
+  // code from the optimized function lists.
+  Object* undefined = isolate->heap()->undefined_value();
+  Zone zone(isolate);
+  Object* list = isolate->heap()->native_contexts_list();
+  DeoptimizeMarkedCodeFilter filter;
+  while (!list->IsUndefined()) {
+    Context* context = Context::cast(list);
+    // Note that selecting code unlinks the functions that refer to it.
+    SelectCodeToDeoptimize(context, &filter, codes, &zone, undefined);
+    list = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+  }
+
+  // Now deoptimize all the code.
+  for (int i = 0; i < codes->length(); i++) {
+    DeoptimizeCode(isolate, codes->at(i));
+  }
+}
+
+
+void Deoptimizer::DeoptimizeCode(Isolate* isolate, Code* code) {
+  HandleScope scope(isolate);
+  DisallowHeapAllocation nha;
+
+  // Do platform-specific patching of the optimized code.
+  PatchCodeForDeoptimization(isolate, code);
+
+  // Add the deoptimizing code to the list.
+  DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
+  DeoptimizerData* data = isolate->deoptimizer_data();
+  node->set_next(data->deoptimizing_code_list_);
+  data->deoptimizing_code_list_ = node;
+
+  // We might be in the middle of incremental marking with compaction.
+  // Tell collector to treat this code object in a special way and
+  // ignore all slots that might have been recorded on it.
+  isolate->heap()->mark_compact_collector()->InvalidateCode(code);
 }
 
 
@@ -900,15 +960,15 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   // input frame.  For all subsequent output frames, it can be read from the
   // previous one.  This frame's pc can be computed from the non-optimized
   // function code and AST id of the bailout.
-  output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
+  output_offset -= kPCOnStackSize;
+  input_offset -= kPCOnStackSize;
   intptr_t value;
   if (is_bottommost) {
     value = input_->GetFrameSlot(input_offset);
   } else {
     value = output_[frame_index - 1]->GetPc();
   }
-  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetCallerPc(output_offset, value);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
            V8PRIxPTR  " ; caller's pc\n",
@@ -919,14 +979,14 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   // as in the input frame.  For all subsequent output frames, it can be
   // read from the previous one.  Also compute and set this frame's frame
   // pointer.
-  output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
+  output_offset -= kFPOnStackSize;
+  input_offset -= kFPOnStackSize;
   if (is_bottommost) {
     value = input_->GetFrameSlot(input_offset);
   } else {
     value = output_[frame_index - 1]->GetFp();
   }
-  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   ASSERT(!is_bottommost || (input_->GetRegister(fp_reg.code()) +
       has_alignment_padding_ * kPointerSize) == fp_value);
@@ -1049,9 +1109,9 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
   }
 
   // Read caller's PC from the previous frame.
-  output_offset -= kPointerSize;
+  output_offset -= kPCOnStackSize;
   intptr_t callers_pc = output_[frame_index - 1]->GetPc();
-  output_frame->SetFrameSlot(output_offset, callers_pc);
+  output_frame->SetCallerPc(output_offset, callers_pc);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
            V8PRIxPTR " ; caller's pc\n",
@@ -1059,9 +1119,9 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
   }
 
   // Read caller's FP from the previous frame, and set this frame's FP.
-  output_offset -= kPointerSize;
+  output_offset -= kFPOnStackSize;
   intptr_t value = output_[frame_index - 1]->GetFp();
-  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
   if (trace_) {
@@ -1152,9 +1212,9 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   }
 
   // Read caller's PC from the previous frame.
-  output_offset -= kPointerSize;
+  output_offset -= kPCOnStackSize;
   intptr_t callers_pc = output_[frame_index - 1]->GetPc();
-  output_frame->SetFrameSlot(output_offset, callers_pc);
+  output_frame->SetCallerPc(output_offset, callers_pc);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
            V8PRIxPTR " ; caller's pc\n",
@@ -1162,9 +1222,9 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   }
 
   // Read caller's FP from the previous frame, and set this frame's FP.
-  output_offset -= kPointerSize;
+  output_offset -= kFPOnStackSize;
   intptr_t value = output_[frame_index - 1]->GetFp();
-  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
   if (trace_) {
@@ -1265,7 +1325,9 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   // MacroAssembler::EnterFrame). For a setter stub frame we need one additional
   // entry for the implicit return value, see
   // StoreStubCompiler::CompileStoreViaSetter.
-  unsigned fixed_frame_entries = 1 + 4 + (is_setter_stub_frame ? 1 : 0);
+  unsigned fixed_frame_entries = (kPCOnStackSize / kPointerSize) +
+                                 (kFPOnStackSize / kPointerSize) + 3 +
+                                 (is_setter_stub_frame ? 1 : 0);
   unsigned fixed_frame_size = fixed_frame_entries * kPointerSize;
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
@@ -1287,9 +1349,9 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   unsigned output_offset = output_frame_size;
 
   // Read caller's PC from the previous frame.
-  output_offset -= kPointerSize;
+  output_offset -= kPCOnStackSize;
   intptr_t callers_pc = output_[frame_index - 1]->GetPc();
-  output_frame->SetFrameSlot(output_offset, callers_pc);
+  output_frame->SetCallerPc(output_offset, callers_pc);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
            " ; caller's pc\n",
@@ -1297,9 +1359,9 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   }
 
   // Read caller's FP from the previous frame, and set this frame's FP.
-  output_offset -= kPointerSize;
+  output_offset -= kFPOnStackSize;
   intptr_t value = output_[frame_index - 1]->GetFp();
-  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
   if (trace_) {
@@ -1435,10 +1497,10 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   output_frame->SetTop(top_address);
 
   // Read caller's PC (JSFunction continuation) from the input frame.
-  unsigned input_frame_offset = input_frame_size - kPointerSize;
-  unsigned output_frame_offset = output_frame_size - kPointerSize;
+  unsigned input_frame_offset = input_frame_size - kPCOnStackSize;
+  unsigned output_frame_offset = output_frame_size - kFPOnStackSize;
   intptr_t value = input_->GetFrameSlot(input_frame_offset);
-  output_frame->SetFrameSlot(output_frame_offset, value);
+  output_frame->SetCallerPc(output_frame_offset, value);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
            V8PRIxPTR " ; caller's pc\n",
@@ -1446,10 +1508,10 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   // Read caller's FP from the input frame, and set this frame's FP.
-  input_frame_offset -= kPointerSize;
+  input_frame_offset -= kFPOnStackSize;
   value = input_->GetFrameSlot(input_frame_offset);
-  output_frame_offset -= kPointerSize;
-  output_frame->SetFrameSlot(output_frame_offset, value);
+  output_frame_offset -= kFPOnStackSize;
+  output_frame->SetCallerFp(output_frame_offset, value);
   intptr_t frame_ptr = input_->GetRegister(fp_reg.code());
   output_frame->SetRegister(fp_reg.code(), frame_ptr);
   output_frame->SetFp(frame_ptr);
@@ -2566,21 +2628,6 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   CPU::FlushICache(chunk->area_start(), desc.instr_size);
 
   data->deopt_entry_code_entries_[type] = entry_count;
-}
-
-
-void Deoptimizer::ReplaceCodeForRelatedFunctions(JSFunction* function,
-                                                 Code* code) {
-  SharedFunctionInfo* shared = function->shared();
-  Object* undefined = function->GetHeap()->undefined_value();
-  Object* current = function;
-
-  while (current != undefined) {
-    JSFunction* func = JSFunction::cast(current);
-    current = func->next_function_link();
-    func->set_code(shared->code());
-    func->set_next_function_link(undefined);
-  }
 }
 
 

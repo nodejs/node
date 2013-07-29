@@ -4545,18 +4545,18 @@ class V8EXPORT V8 {
    * See also the --prof and --prof_auto command line switches to
    * enable V8 profiling.
    */
-  static void PauseProfiler();
+  V8_DEPRECATED(static void PauseProfiler());
 
   /**
    * Resumes recording of tick samples in the profiler.
    * See also PauseProfiler().
    */
-  static void ResumeProfiler();
+  V8_DEPRECATED(static void ResumeProfiler());
 
   /**
    * Return whether profiler is currently paused.
    */
-  static bool IsProfilerPaused();
+  V8_DEPRECATED(static bool IsProfilerPaused());
 
   /**
    * Retrieve the V8 thread id of the calling thread.
@@ -5399,7 +5399,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 132;
+  static const int kEmptyStringRootIndex = 134;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -5412,7 +5412,7 @@ class Internals {
   static const int kJSObjectType = 0xb1;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
-  static const int kForeignType = 0x88;
+  static const int kForeignType = 0x87;
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;

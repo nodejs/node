@@ -1339,10 +1339,10 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
           }
           break;
         }
-        case CONSTANT_FUNCTION:
+        case CONSTANT:
           SetPropertyReference(
               js_obj, entry,
-              descs->GetKey(i), descs->GetConstantFunction(i));
+              descs->GetKey(i), descs->GetConstant(i));
           break;
         case CALLBACKS:
           ExtractAccessorPairProperty(

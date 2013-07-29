@@ -172,15 +172,6 @@ void HEnvironmentLivenessAnalysisPhase::UpdateLivenessAtInstruction(
       last_simulate_ = NULL;
       break;
     }
-    case HValue::kDeoptimize: {
-      // Keep all environment slots alive.
-      HDeoptimize* deopt = HDeoptimize::cast(instr);
-      for (int i = deopt->first_local_index();
-           i < deopt->first_expression_index(); ++i) {
-        live->Add(i);
-      }
-      break;
-    }
     case HValue::kSimulate:
       last_simulate_ = HSimulate::cast(instr);
       went_live_since_last_simulate_.Clear();

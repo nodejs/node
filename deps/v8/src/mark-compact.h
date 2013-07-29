@@ -743,6 +743,7 @@ class MarkCompactCollector {
   ~MarkCompactCollector();
 
   bool MarkInvalidatedCode();
+  bool WillBeDeoptimized(Code* code);
   void RemoveDeadInvalidatedCode();
   void ProcessInvalidatedCode(ObjectVisitor* visitor);
 
@@ -946,6 +947,7 @@ class MarkCompactCollector {
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
   Object* encountered_weak_collections_;
+  Object* code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;

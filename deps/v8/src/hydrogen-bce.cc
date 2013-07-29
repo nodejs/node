@@ -189,6 +189,8 @@ class BoundsCheckBbData: public ZoneObject {
     }
 
     if (!keep_new_check) {
+      new_check->block()->graph()->isolate()->counters()->
+          bounds_checks_eliminated()->Increment();
       new_check->DeleteAndReplaceWith(new_check->ActualValue());
     }
 
@@ -347,6 +349,8 @@ void HBoundsCheckEliminationPhase::EliminateRedundantBoundsChecks(
                                                    NULL);
       *data_p = bb_data_list;
     } else if (data->OffsetIsCovered(offset)) {
+      bb->graph()->isolate()->counters()->
+          bounds_checks_eliminated()->Increment();
       check->DeleteAndReplaceWith(check->ActualValue());
     } else if (data->BasicBlock() != bb ||
                !data->CoverCheck(check, offset)) {

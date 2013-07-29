@@ -114,7 +114,8 @@ class LCodeGen BASE_EMBEDDED {
   DoubleRegister EmitLoadDoubleRegister(LOperand* op,
                                         FloatRegister flt_scratch,
                                         DoubleRegister dbl_scratch);
-  int ToInteger32(LConstantOperand* op) const;
+  int ToRepresentation(LConstantOperand* op, const Representation& r) const;
+  int32_t ToInteger32(LConstantOperand* op) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op);
@@ -284,9 +285,10 @@ class LCodeGen BASE_EMBEDDED {
                     LEnvironment* environment,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
-  void SoftDeoptimize(LEnvironment* environment,
-                      Register src1 = zero_reg,
-                      const Operand& src2 = Operand(zero_reg));
+  void ApplyCheckIf(Condition cc,
+                    LBoundsCheck* check,
+                    Register src1 = zero_reg,
+                    const Operand& src2 = Operand(zero_reg));
 
   void AddToTranslation(Translation* translation,
                         LOperand* op,

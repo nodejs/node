@@ -29,7 +29,8 @@
 #define V8_VM_STATE_INL_H_
 
 #include "vm-state.h"
-#include "runtime-profiler.h"
+#include "log.h"
+#include "simulator.h"
 
 namespace v8 {
 namespace internal {
@@ -80,12 +81,26 @@ VMState<Tag>::~VMState() {
 
 
 ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
-    : isolate_(isolate), previous_callback_(isolate->external_callback()) {
-  isolate_->set_external_callback(callback);
+    : isolate_(isolate),
+      callback_(callback),
+      previous_scope_(isolate->external_callback_scope()) {
+#ifdef USE_SIMULATOR
+  int32_t sp = Simulator::current(isolate)->get_register(Simulator::sp);
+  scope_address_ = reinterpret_cast<Address>(static_cast<intptr_t>(sp));
+#endif
+  isolate_->set_external_callback_scope(this);
 }
 
 ExternalCallbackScope::~ExternalCallbackScope() {
-  isolate_->set_external_callback(previous_callback_);
+  isolate_->set_external_callback_scope(previous_scope_);
+}
+
+Address ExternalCallbackScope::scope_address() {
+#ifdef USE_SIMULATOR
+  return scope_address_;
+#else
+  return reinterpret_cast<Address>(this);
+#endif
 }
 
 

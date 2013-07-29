@@ -225,8 +225,17 @@ class Token {
     return op == EQ || op == EQ_STRICT;
   }
 
+  static bool IsInequalityOp(Value op) {
+    return op == NE || op == NE_STRICT;
+  }
+
+  static bool IsArithmeticCompareOp(Value op) {
+    return IsOrderedRelationalCompareOp(op) ||
+        IsEqualityOp(op) || IsInequalityOp(op);
+  }
+
   static Value NegateCompareOp(Value op) {
-    ASSERT(IsCompareOp(op));
+    ASSERT(IsArithmeticCompareOp(op));
     switch (op) {
       case EQ: return NE;
       case NE: return EQ;
@@ -243,7 +252,7 @@ class Token {
   }
 
   static Value ReverseCompareOp(Value op) {
-    ASSERT(IsCompareOp(op));
+    ASSERT(IsArithmeticCompareOp(op));
     switch (op) {
       case EQ: return EQ;
       case NE: return NE;

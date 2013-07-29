@@ -8,7 +8,7 @@ deps = {
     "http://gyp.googlecode.com/svn/trunk@1656",
 
   "v8/third_party/icu":
-    "https://src.chromium.org/chrome/trunk/deps/third_party/icu46@210659",
+    "https://src.chromium.org/chrome/trunk/deps/third_party/icu46@213354",
 }
 
 deps_os = {

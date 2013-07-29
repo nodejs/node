@@ -115,7 +115,8 @@ class LCodeGen BASE_EMBEDDED {
   DwVfpRegister EmitLoadDoubleRegister(LOperand* op,
                                        SwVfpRegister flt_scratch,
                                        DwVfpRegister dbl_scratch);
-  int ToInteger32(LConstantOperand* op) const;
+  int ToRepresentation(LConstantOperand* op, const Representation& r) const;
+  int32_t ToInteger32(LConstantOperand* op) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op);
@@ -199,7 +200,7 @@ class LCodeGen BASE_EMBEDDED {
   HGraph* graph() const { return chunk()->graph(); }
 
   Register scratch0() { return r9; }
-  DwVfpRegister double_scratch0() { return kScratchDoubleReg; }
+  LowDwVfpRegister double_scratch0() { return kScratchDoubleReg; }
 
   int GetNextEmittedBlock() const;
   LInstruction* GetNextInstruction();
@@ -284,7 +285,7 @@ class LCodeGen BASE_EMBEDDED {
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
-  void SoftDeoptimize(LEnvironment* environment);
+  void ApplyCheckIf(Condition cc, LBoundsCheck* check);
 
   void AddToTranslation(Translation* translation,
                         LOperand* op,

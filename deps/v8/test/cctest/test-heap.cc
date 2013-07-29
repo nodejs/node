@@ -984,7 +984,7 @@ TEST(Regression39128) {
   // just enough room to allocate JSObject and thus fill the newspace.
 
   int allocation_amount = Min(FixedArray::kMaxSize,
-                              HEAP->MaxObjectSizeInNewSpace());
+                              Page::kMaxNonCodeHeapObjectSize);
   int allocation_len = LenFromSize(allocation_amount);
   NewSpace* new_space = HEAP->new_space();
   Address* top_addr = new_space->allocation_top_address();
@@ -2820,20 +2820,27 @@ class SourceResource: public v8::String::ExternalAsciiStringResource {
 };
 
 
-void ReleaseStackTraceDataTest(const char* source) {
+void ReleaseStackTraceDataTest(const char* source, const char* accessor) {
   // Test that the data retained by the Error.stack accessor is released
   // after the first time the accessor is fired.  We use external string
   // to check whether the data is being released since the external string
   // resource's callback is fired when the external string is GC'ed.
+  FLAG_use_ic = false;  // ICs retain objects.
+  FLAG_parallel_recompilation = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   SourceResource* resource = new SourceResource(i::StrDup(source));
   {
     v8::HandleScope scope(CcTest::isolate());
     v8::Handle<v8::String> source_string = v8::String::NewExternal(resource);
+    HEAP->CollectAllAvailableGarbage();
     v8::Script::Compile(source_string)->Run();
     CHECK(!resource->IsDisposed());
   }
+  // HEAP->CollectAllAvailableGarbage();
+  CHECK(!resource->IsDisposed());
+
+  CompileRun(accessor);
   HEAP->CollectAllAvailableGarbage();
 
   // External source has been released.
@@ -2855,8 +2862,33 @@ TEST(ReleaseStackTraceData) {
                                "} catch (e) {                "
                                "  error = e;                 "
                                "}                            ";
-  ReleaseStackTraceDataTest(source1);
-  ReleaseStackTraceDataTest(source2);
+  static const char* source3 = "var error = null;            "
+  /* Normal Error */           "try {                        "
+  /* as prototype */           "  throw new Error();         "
+                               "} catch (e) {                "
+                               "  error = {};                "
+                               "  error.__proto__ = e;       "
+                               "}                            ";
+  static const char* source4 = "var error = null;            "
+  /* Stack overflow */         "try {                        "
+  /* as prototype   */         "  (function f() { f(); })(); "
+                               "} catch (e) {                "
+                               "  error = {};                "
+                               "  error.__proto__ = e;       "
+                               "}                            ";
+  static const char* getter = "error.stack";
+  static const char* setter = "error.stack = 0";
+
+  ReleaseStackTraceDataTest(source1, setter);
+  ReleaseStackTraceDataTest(source2, setter);
+  // We do not test source3 and source4 with setter, since the setter is
+  // supposed to (untypically) write to the receiver, not the holder.  This is
+  // to emulate the behavior of a data property.
+
+  ReleaseStackTraceDataTest(source1, getter);
+  ReleaseStackTraceDataTest(source2, getter);
+  ReleaseStackTraceDataTest(source3, getter);
+  ReleaseStackTraceDataTest(source4, getter);
 }
 
 

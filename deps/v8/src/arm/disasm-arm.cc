@@ -1345,6 +1345,14 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
       } else {
         Format(instr, "vmov'cond.32 'Dd[1], 'rt");
       }
+    } else if ((instr->VLValue() == 0x1) &&
+               (instr->VCValue() == 0x1) &&
+               (instr->Bit(23) == 0x0)) {
+      if (instr->Bit(21) == 0x0) {
+        Format(instr, "vmov'cond.32 'rt, 'Dd[0]");
+      } else {
+        Format(instr, "vmov'cond.32 'rt, 'Dd[1]");
+      }
     } else if ((instr->VCValue() == 0x0) &&
                (instr->VAValue() == 0x7) &&
                (instr->Bits(19, 16) == 0x1)) {

@@ -265,6 +265,9 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
     }
     Handle<Object> result;
     uint32_t element_index = 0;
+    JSReceiver::StoreMode mode = value->IsJSObject()
+        ? JSReceiver::FORCE_FIELD
+        : JSReceiver::ALLOW_AS_CONSTANT;
     if (key->IsInternalizedString()) {
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
@@ -274,7 +277,8 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
         result = JSObject::SetLocalPropertyIgnoreAttributes(
-            boilerplate, name, value, NONE);
+            boilerplate, name, value, NONE,
+            Object::OPTIMAL_REPRESENTATION, mode);
       }
     } else if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
@@ -290,7 +294,8 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
       Handle<String> name =
           isolate->factory()->NewStringFromAscii(CStrVector(str));
       result = JSObject::SetLocalPropertyIgnoreAttributes(
-          boilerplate, name, value, NONE);
+          boilerplate, name, value, NONE,
+          Object::OPTIMAL_REPRESENTATION, mode);
     }
     // If setting the property on the boilerplate throws an
     // exception, the exception is converted to an empty handle in
@@ -2203,8 +2208,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
     }
   } else {
     // Ignore re-initialization of constants that have already been
-    // assigned a function value.
-    ASSERT(lookup.IsReadOnly() && lookup.IsConstantFunction());
+    // assigned a constant value.
+    ASSERT(lookup.IsReadOnly() && lookup.IsConstant());
   }
 
   // Use the set value as the result of the operation.
@@ -2943,6 +2948,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   JavaScriptFrame* frame = stack_iterator.frame();
 
   ASSERT_EQ(frame->function(), generator_object->function());
+  ASSERT(frame->function()->is_compiled());
 
   STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting <= 0);
   STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed <= 0);
@@ -4969,8 +4975,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
       return lookup.holder()->FastPropertyAt(
           lookup.representation(),
           lookup.GetFieldIndex().field_index());
-    case CONSTANT_FUNCTION:
-      return lookup.GetConstantFunction();
+    case CONSTANT:
+      return lookup.GetConstant();
     case CALLBACKS:
     case HANDLER:
     case INTERCEPTOR:
@@ -8460,8 +8466,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (FLAG_parallel_recompilation && sync_with_compiler_thread) {
-    while (function->IsMarkedForParallelRecompilation() ||
-           function->IsInRecompileQueue() ||
+    while (function->IsInRecompileQueue() ||
            function->IsMarkedForInstallingRecompiledCode()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
       OS::Sleep(50);
@@ -10554,8 +10559,8 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
       }
       return value;
     }
-    case CONSTANT_FUNCTION:
-      return result->GetConstantFunction();
+    case CONSTANT:
+      return result->GetConstant();
     case CALLBACKS: {
       Object* structure = result->GetCallbackObject();
       if (structure->IsForeign() || structure->IsAccessorInfo()) {
@@ -13345,20 +13350,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHeapUsage) {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerResume) {
-  SealHandleScope shs(isolate);
-  v8::V8::ResumeProfiler();
-  return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerPause) {
-  SealHandleScope shs(isolate);
-  v8::V8::PauseProfiler();
-  return isolate->heap()->undefined_value();
-}
-
-
 // Finds the script object from the script data. NOTE: This operation uses
 // heap traversal to find the function generated for the source position
 // for the requested break point. For lazily compiled functions several heap
@@ -13429,47 +13420,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
 }
 
 
-// Mark a function to recognize when called after GC to format the stack trace.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_MarkOneShotGetter) {
-  HandleScope scope(isolate);
-  ASSERT_EQ(args.length(), 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  Handle<String> key = isolate->factory()->hidden_stack_trace_string();
-  JSObject::SetHiddenProperty(fun, key, key);
-  return *fun;
-}
-
-
-// Retrieve the stack trace.  This could be the raw stack trace collected
-// on stack overflow or the already formatted stack trace string.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOverflowedStackTrace) {
+// Retrieve the stack trace.  This is the raw stack trace that yet has to
+// be formatted.  Since we only need this once, clear it afterwards.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAndClearOverflowedStackTrace) {
   HandleScope scope(isolate);
   ASSERT_EQ(args.length(), 1);
   CONVERT_ARG_CHECKED(JSObject, error_object, 0);
   String* key = isolate->heap()->hidden_stack_trace_string();
   Object* result = error_object->GetHiddenProperty(key);
-  if (result->IsTheHole()) result = isolate->heap()->undefined_value();
-  RUNTIME_ASSERT(result->IsJSArray() ||
-                 result->IsString() ||
-                 result->IsUndefined());
+  if (result->IsTheHole()) return isolate->heap()->undefined_value();
+  RUNTIME_ASSERT(result->IsJSArray() || result->IsUndefined());
+  error_object->DeleteHiddenProperty(key);
   return result;
-}
-
-
-// Set or clear the stack trace attached to an stack overflow error object.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SetOverflowedStackTrace) {
-  HandleScope scope(isolate);
-  ASSERT_EQ(args.length(), 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, error_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, value, 1);
-  Handle<String> key = isolate->factory()->hidden_stack_trace_string();
-  if (value->IsUndefined()) {
-    error_object->DeleteHiddenProperty(*key);
-  } else {
-    RUNTIME_ASSERT(value->IsString());
-    JSObject::SetHiddenProperty(error_object, key, value);
-  }
-  return *error_object;
 }
 
 

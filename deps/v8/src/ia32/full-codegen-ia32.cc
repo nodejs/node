@@ -4045,7 +4045,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   __ and_(scratch, Immediate(
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
-  __ cmp(scratch, ASCII_STRING_TYPE);
+  __ cmp(scratch, kStringTag | kOneByteStringTag | kSeqStringTag);
   __ j(not_equal, &bailout);
 
   // Add (separator length times array_length) - separator length

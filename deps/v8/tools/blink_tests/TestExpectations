@@ -25,3 +25,6 @@ crbug.com/178745 [ Win Debug ] plugins/open-and-close-window-with-plugin.html [ 
 [ Linux Debug ] fast/js/regress/function-dot-apply.html [ Slow ]
 crbug.com/249894 [ Linux Debug ] fast/js/regress/inline-arguments-access.html  [ Pass Failure Crash Slow ]
 [ Linux Debug ] fast/js/regress/inline-arguments-local-escape.html [ Slow ]
+
+# Slow on windows:
+webkit.org/b/48655 [ Win ] plugins/js-from-destroy.html [ Crash Slow ]

@@ -38,9 +38,6 @@
 namespace v8 {
 namespace internal {
 
-// Used by platform implementation files during OS::PostSetUp().
-void POSIXPostSetUp();
-
 // Used by platform implementation files during OS::DumpBacktrace()
 // and OS::StackWalk().
 template<int (*backtrace)(void**, int),

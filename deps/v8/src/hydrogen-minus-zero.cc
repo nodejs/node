@@ -41,10 +41,10 @@ void HComputeMinusZeroChecksPhase::Run() {
         // int32-to-tagged and int32-to-double.
         Representation from = change->value()->representation();
         ASSERT(from.Equals(change->from()));
-        if (from.IsInteger32()) {
+        if (from.IsSmiOrInteger32()) {
           ASSERT(change->to().IsTagged() ||
                  change->to().IsDouble() ||
-                 change->to().IsSmi());
+                 change->to().IsSmiOrInteger32());
           ASSERT(visited_.IsEmpty());
           PropagateMinusZeroChecks(change->value());
           visited_.Clear();

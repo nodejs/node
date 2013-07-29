@@ -173,14 +173,14 @@ class ProfilerEventsProcessor : public Thread {
 };
 
 
-#define PROFILE(IsolateGetter, Call)                                   \
-  do {                                                                 \
-    Isolate* cpu_profiler_isolate = (IsolateGetter);                   \
-    LOG_CODE_EVENT(cpu_profiler_isolate, Call);                        \
-    CpuProfiler* cpu_profiler = cpu_profiler_isolate->cpu_profiler();  \
-    if (cpu_profiler->is_profiling()) {                                \
-      cpu_profiler->Call;                                              \
-    }                                                                  \
+#define PROFILE(IsolateGetter, Call)                                        \
+  do {                                                                      \
+    Isolate* cpu_profiler_isolate = (IsolateGetter);                        \
+    v8::internal::Logger* logger = cpu_profiler_isolate->logger();          \
+    CpuProfiler* cpu_profiler = cpu_profiler_isolate->cpu_profiler();       \
+    if (logger->is_logging_code_events() || cpu_profiler->is_profiling()) { \
+      logger->Call;                                                         \
+    }                                                                       \
   } while (false)
 
 
@@ -223,7 +223,7 @@ class CpuProfiler {
                        Code* code,
                        SharedFunctionInfo* shared,
                        CompilationInfo* info,
-                       String* source, int line);
+                       Name* source, int line);
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
                        Code* code, int args_count);
   void CodeMovingGCEvent() {}

@@ -144,7 +144,7 @@ class StubCache {
   Handle<Code> ComputeLoadConstant(Handle<Name> name,
                                    Handle<JSObject> object,
                                    Handle<JSObject> holder,
-                                   Handle<JSFunction> value);
+                                   Handle<Object> value);
 
   Handle<Code> ComputeLoadInterceptor(Handle<Name> name,
                                       Handle<JSObject> object,
@@ -176,7 +176,7 @@ class StubCache {
   Handle<Code> ComputeKeyedLoadConstant(Handle<Name> name,
                                         Handle<JSObject> object,
                                         Handle<JSObject> holder,
-                                        Handle<JSFunction> value);
+                                        Handle<Object> value);
 
   Handle<Code> ComputeKeyedLoadInterceptor(Handle<Name> name,
                                            Handle<JSObject> object,
@@ -708,7 +708,7 @@ class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
   Handle<Code> CompileLoadConstant(Handle<JSObject> object,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
-                                   Handle<JSFunction> value);
+                                   Handle<Object> value);
 
   Handle<Code> CompileLoadInterceptor(Handle<JSObject> object,
                                       Handle<JSObject> holder,
@@ -741,7 +741,7 @@ class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
                          Handle<JSObject> holder,
                          PropertyIndex field,
                          Representation representation);
-  void GenerateLoadConstant(Handle<JSFunction> value);
+  void GenerateLoadConstant(Handle<Object> value);
   void GenerateLoadCallback(Register reg,
                             Handle<ExecutableAccessorInfo> callback);
   void GenerateLoadInterceptor(Register holder_reg,

@@ -1623,7 +1623,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   // r0: Newly allocated regexp.
   // r5: Materialized regexp.
   // r2: temp.
-  __ CopyFields(r0, r5, d0, s0, size / kPointerSize);
+  __ CopyFields(r0, r5, d0, size / kPointerSize);
   context()->Plug(r0);
 }
 

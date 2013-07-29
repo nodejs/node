@@ -60,61 +60,8 @@
 namespace v8 {
 namespace internal {
 
-// 0 is never a valid thread id on Linux and OpenBSD since tids and pids share a
-// name space and pid 0 is reserved (see man 2 kill).
-static const pthread_t kNoThread = (pthread_t) 0;
-
-
-double ceiling(double x) {
-  return ceil(x);
-}
-
 
 static Mutex* limit_mutex = NULL;
-
-
-static void* GetRandomMmapAddr() {
-  Isolate* isolate = Isolate::UncheckedCurrent();
-  // Note that the current isolate isn't set up in a call path via
-  // CpuFeatures::Probe. We don't care about randomization in this case because
-  // the code page is immediately freed.
-  if (isolate != NULL) {
-#if V8_TARGET_ARCH_X64
-    uint64_t rnd1 = V8::RandomPrivate(isolate);
-    uint64_t rnd2 = V8::RandomPrivate(isolate);
-    uint64_t raw_addr = (rnd1 << 32) ^ rnd2;
-    // Currently available CPUs have 48 bits of virtual addressing.  Truncate
-    // the hint address to 46 bits to give the kernel a fighting chance of
-    // fulfilling our placement request.
-    raw_addr &= V8_UINT64_C(0x3ffffffff000);
-#else
-    uint32_t raw_addr = V8::RandomPrivate(isolate);
-    // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
-    // variety of ASLR modes (PAE kernel, NX compat mode, etc).
-    raw_addr &= 0x3ffff000;
-    raw_addr += 0x20000000;
-#endif
-    return reinterpret_cast<void*>(raw_addr);
-  }
-  return NULL;
-}
-
-
-void OS::PostSetUp() {
-  POSIXPostSetUp();
-}
-
-
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;
-}
-
-
-int OS::ActivationFrameAlignment() {
-  // With gcc 4.4 the tree vectorization optimizer can generate code
-  // that requires 16 byte alignment such as movdqa on x86.
-  return 16;
-}
 
 
 const char* OS::LocalTimezone(double time) {
@@ -160,17 +107,12 @@ bool OS::IsOutsideAllocatedSpace(void* address) {
 }
 
 
-size_t OS::AllocateAlignment() {
-  return sysconf(_SC_PAGESIZE);
-}
-
-
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool is_executable) {
   const size_t msize = RoundUp(requested, AllocateAlignment());
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* addr = GetRandomMmapAddr();
+  void* addr = OS::GetRandomMmapAddr();
   void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
   if (mbase == MAP_FAILED) {
     LOG(i::Isolate::Current(),
@@ -180,36 +122,6 @@ void* OS::Allocate(const size_t requested,
   *allocated = msize;
   UpdateAllocatedSpaceLimits(mbase, msize);
   return mbase;
-}
-
-
-void OS::Free(void* address, const size_t size) {
-  // TODO(1240712): munmap has a return value which is ignored here.
-  int result = munmap(address, size);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
-void OS::Sleep(int milliseconds) {
-  unsigned int ms = static_cast<unsigned int>(milliseconds);
-  usleep(1000 * ms);
-}
-
-
-int OS::NumberOfCores() {
-  return sysconf(_SC_NPROCESSORS_ONLN);
-}
-
-
-void OS::Abort() {
-  // Redirect to std abort to signal abnormal program termination.
-  abort();
-}
-
-
-void OS::DebugBreak() {
-  asm("int $3");
 }
 
 
@@ -395,7 +307,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation = mmap(GetRandomMmapAddr(),
+  void* reservation = mmap(OS::GetRandomMmapAddr(),
                            request_size,
                            PROT_NONE,
                            MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
@@ -467,7 +379,7 @@ bool VirtualMemory::Guard(void* address) {
 
 
 void* VirtualMemory::ReserveRegion(size_t size) {
-  void* result = mmap(GetRandomMmapAddr(),
+  void* result = mmap(OS::GetRandomMmapAddr(),
                       size,
                       PROT_NONE,
                       MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
@@ -514,96 +426,6 @@ bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
 bool VirtualMemory::HasLazyCommits() {
   // TODO(alph): implement for the platform.
   return false;
-}
-
-
-class Thread::PlatformData : public Malloced {
- public:
-  PlatformData() : thread_(kNoThread) {}
-
-  pthread_t thread_;  // Thread handle for pthread.
-};
-
-Thread::Thread(const Options& options)
-    : data_(new PlatformData()),
-      stack_size_(options.stack_size()),
-      start_semaphore_(NULL) {
-  set_name(options.name());
-}
-
-
-Thread::~Thread() {
-  delete data_;
-}
-
-
-static void* ThreadEntry(void* arg) {
-  Thread* thread = reinterpret_cast<Thread*>(arg);
-  // This is also initialized by the first argument to pthread_create() but we
-  // don't know which thread will run first (the original thread or the new
-  // one) so we initialize it here too.
-#ifdef PR_SET_NAME
-  prctl(PR_SET_NAME,
-        reinterpret_cast<unsigned long>(thread->name()),  // NOLINT
-        0, 0, 0);
-#endif
-  thread->data()->thread_ = pthread_self();
-  ASSERT(thread->data()->thread_ != kNoThread);
-  thread->NotifyStartedAndRun();
-  return NULL;
-}
-
-
-void Thread::set_name(const char* name) {
-  strncpy(name_, name, sizeof(name_));
-  name_[sizeof(name_) - 1] = '\0';
-}
-
-
-void Thread::Start() {
-  pthread_attr_t* attr_ptr = NULL;
-  pthread_attr_t attr;
-  if (stack_size_ > 0) {
-    pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
-    attr_ptr = &attr;
-  }
-  pthread_create(&data_->thread_, attr_ptr, ThreadEntry, this);
-  ASSERT(data_->thread_ != kNoThread);
-}
-
-
-void Thread::Join() {
-  pthread_join(data_->thread_, NULL);
-}
-
-
-Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
-  pthread_key_t key;
-  int result = pthread_key_create(&key, NULL);
-  USE(result);
-  ASSERT(result == 0);
-  return static_cast<LocalStorageKey>(key);
-}
-
-
-void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
-  pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
-  int result = pthread_key_delete(pthread_key);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
-void* Thread::GetThreadLocal(LocalStorageKey key) {
-  pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
-  return pthread_getspecific(pthread_key);
-}
-
-
-void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
-  pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
-  pthread_setspecific(pthread_key, value);
 }
 
 

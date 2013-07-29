@@ -401,7 +401,7 @@ void HGlobalValueNumberingPhase::ComputeBlockSideEffects() {
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
       HInstruction* instr = it.Current();
       side_effects.Add(instr->ChangesFlags());
-      if (instr->IsSoftDeoptimize()) {
+      if (instr->IsDeoptimize()) {
         block_side_effects_[id].RemoveAll();
         side_effects.RemoveAll();
         break;

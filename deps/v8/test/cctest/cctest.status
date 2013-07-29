@@ -49,9 +49,6 @@ test-log/EquivalenceOfLoggingAndTraversal: PASS || FAIL
 test-weakmaps/Shrinking: FAIL
 test-weaksets/WeakSet_Shrinking: FAIL
 
-# Deferred stack trace formatting is temporarily disabled.
-test-heap/ReleaseStackTraceData: PASS || FAIL
-
 # Boot up memory use is bloated in debug mode.
 test-mark-compact/BootUpMemoryUse: PASS, PASS || FAIL if $mode == debug
 

@@ -188,7 +188,9 @@ namespace internal {
   V(Symbol, frozen_symbol, FrozenSymbol)                                       \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
       EmptySlowElementDictionary)                                              \
-  V(Symbol, observed_symbol, ObservedSymbol)
+  V(Symbol, observed_symbol, ObservedSymbol)                                   \
+  V(HeapObject, i18n_template_one, I18nTemplateOne)                            \
+  V(HeapObject, i18n_template_two, I18nTemplateTwo)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -472,41 +474,6 @@ class ExternalStringTable {
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
-};
-
-
-// The stack property of an error object is implemented as a getter that
-// formats the attached raw stack trace into a string.  This raw stack trace
-// keeps code and function objects alive until the getter is called the first
-// time.  To release those objects, we call the getter after each GC for
-// newly tenured error objects that are kept in a list.
-class ErrorObjectList {
- public:
-  inline void Add(JSObject* object);
-
-  inline void Iterate(ObjectVisitor* v);
-
-  void TearDown();
-
-  void RemoveUnmarked(Heap* heap);
-
-  void DeferredFormatStackTrace(Isolate* isolate);
-
-  void UpdateReferences();
-
-  void UpdateReferencesInNewSpace(Heap* heap);
-
- private:
-  static const int kBudgetPerGC = 16;
-
-  ErrorObjectList() : nested_(false) { }
-
-  friend class Heap;
-
-  List<Object*> list_;
-  bool nested_;
-
-  DISALLOW_COPY_AND_ASSIGN(ErrorObjectList);
 };
 
 
@@ -1287,10 +1254,7 @@ class Heap {
   void EnsureHeapIsIterable();
 
   // Notify the heap that a context has been disposed.
-  int NotifyContextDisposed() {
-    flush_monomorphic_ics_ = true;
-    return ++contexts_disposed_;
-  }
+  int NotifyContextDisposed();
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
@@ -1332,6 +1296,12 @@ class Heap {
   void SetGlobalGCEpilogueCallback(GCCallback callback) {
     ASSERT((callback == NULL) ^ (global_gc_epilogue_callback_ == NULL));
     global_gc_epilogue_callback_ = callback;
+  }
+  void SetI18nTemplateOne(ObjectTemplateInfo* tmpl) {
+    set_i18n_template_one(tmpl);
+  }
+  void SetI18nTemplateTwo(ObjectTemplateInfo* tmpl) {
+    set_i18n_template_two(tmpl);
   }
 
   // Heap root getters.  We have versions with and without type::cast() here.
@@ -1716,8 +1686,6 @@ class Heap {
   // we try to promote this object.
   inline bool ShouldBePromoted(Address old_address, int object_size);
 
-  int MaxObjectSizeInNewSpace() { return kMaxObjectSizeInNewSpace; }
-
   void ClearJSFunctionResultCaches();
 
   void ClearNormalizedMapCaches();
@@ -1796,10 +1764,6 @@ class Heap {
 
   ExternalStringTable* external_string_table() {
     return &external_string_table_;
-  }
-
-  ErrorObjectList* error_object_list() {
-    return &error_object_list_;
   }
 
   // Returns the current sweep generation.
@@ -1965,12 +1929,6 @@ class Heap {
   bool flush_monomorphic_ics_;
 
   int scan_on_scavenge_pages_;
-
-#if V8_TARGET_ARCH_X64
-  static const int kMaxObjectSizeInNewSpace = 1024*KB;
-#else
-  static const int kMaxObjectSizeInNewSpace = 512*KB;
-#endif
 
   NewSpace new_space_;
   OldSpace* old_pointer_space_;
@@ -2405,8 +2363,6 @@ class Heap {
   bool configured_;
 
   ExternalStringTable external_string_table_;
-
-  ErrorObjectList error_object_list_;
 
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
 

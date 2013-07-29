@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,38 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_TLS_WIN32_H_
-#define V8_PLATFORM_TLS_WIN32_H_
+// Flags: --allow-natives-syntax
 
-#include "checks.h"
-#include "globals.h"
-#include "win32-headers.h"
+var array1 = [];
+array1.foo = true;
 
-namespace v8 {
-namespace internal {
+var array2 = [];
+array2.bar = true;
 
-#if defined(_WIN32) && !defined(_WIN64)
-
-#define V8_FAST_TLS_SUPPORTED 1
-
-inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
-  const intptr_t kTibInlineTlsOffset = 0xE10;
-  const intptr_t kTibExtraTlsOffset = 0xF94;
-  const intptr_t kMaxInlineSlots = 64;
-  const intptr_t kMaxSlots = kMaxInlineSlots + 1024;
-  ASSERT(0 <= index && index < kMaxSlots);
-  if (index < kMaxInlineSlots) {
-    return static_cast<intptr_t>(__readfsdword(kTibInlineTlsOffset +
-                                               kPointerSize * index));
-  }
-  intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
-  ASSERT(extra != 0);
-  return *reinterpret_cast<intptr_t*>(extra +
-                                      kPointerSize * (index - kMaxInlineSlots));
+function bad(array) {
+  array[array.length] = 1;
 }
 
-#endif
-
-} }  // namespace v8::internal
-
-#endif  // V8_PLATFORM_TLS_WIN32_H_
+bad(array1);
+bad(array1);
+bad(array2);  // Length is now 1.
+bad(array2);  // Length is now 2.
+%OptimizeFunctionOnNextCall(bad);
+bad(array2);  // Length is now 3.
+assertEquals(3, array2.length);

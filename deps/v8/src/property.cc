@@ -55,10 +55,10 @@ void LookupResult::Print(FILE* out) {
       PrintF(out, " -type = normal\n");
       PrintF(out, " -entry = %d", GetDictionaryEntry());
       break;
-    case CONSTANT_FUNCTION:
-      PrintF(out, " -type = constant function\n");
-      PrintF(out, " -function:\n");
-      GetConstantFunction()->Print(out);
+    case CONSTANT:
+      PrintF(out, " -type = constant\n");
+      PrintF(out, " -value:\n");
+      GetConstant()->Print(out);
       PrintF(out, "\n");
       break;
     case FIELD:
@@ -85,7 +85,7 @@ void LookupResult::Print(FILE* out) {
           GetTransitionMap()->Print(out);
           PrintF(out, "\n");
           return;
-        case CONSTANT_FUNCTION:
+        case CONSTANT:
           PrintF(out, " -type = constant property transition\n");
           PrintF(out, " -map:\n");
           GetTransitionMap()->Print(out);

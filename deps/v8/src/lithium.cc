@@ -270,7 +270,7 @@ int StackSlotOffset(int index) {
     return -(index + 3) * kPointerSize;
   } else {
     // Incoming parameter. Skip the return address.
-    return -(index - 1) * kPointerSize;
+    return -(index + 1) * kPointerSize + kFPOnStackSize + kPCOnStackSize;
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,38 +25,56 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_TLS_MAC_H_
-#define V8_PLATFORM_TLS_MAC_H_
+// Flags: --allow-natives-syntax
 
-#include "globals.h"
+var a = {};
+a.x = 1
+a.y = 1.5
 
-namespace v8 {
-namespace internal {
+var b = {}
+b.x = 1.5;
+b.y = 1;
 
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+var c = {}
+c.x = 1.5;
 
-#define V8_FAST_TLS_SUPPORTED 1
+var d = {}
+d.x = 1.5;
 
-extern intptr_t kMacTlsBaseOffset;
+var e = {}
+e.x = 1.5;
 
-INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
+var f = {}
+f.x = 1.5;
 
-inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
-  intptr_t result;
-#if V8_HOST_ARCH_IA32
-  asm("movl %%gs:(%1,%2,4), %0;"
-      :"=r"(result)  // Output must be a writable register.
-      :"r"(kMacTlsBaseOffset), "r"(index));
-#else
-  asm("movq %%gs:(%1,%2,8), %0;"
-      :"=r"(result)
-      :"r"(kMacTlsBaseOffset), "r"(index));
-#endif
-  return result;
+var g = {}
+g.x = 1.5;
+
+var h = {}
+h.x = 1.5;
+
+var i = {}
+i.x = 1.5;
+
+var o = {}
+var p = {y : 10, z : 1}
+o.__proto__ = p;
+delete p.z
+
+function foo(v, w) {
+  // Make load via IC in optimized code. Its target will get overwritten by
+  // lazy deopt patch for the stack check.
+  v.y;
+  // Make store with transition to make this code dependent on the map.
+  w.y = 1;
+  return b.y;
 }
 
-#endif
-
-} }  // namespace v8::internal
-
-#endif  // V8_PLATFORM_TLS_MAC_H_
+foo(o, c);
+foo(o, d);
+foo(o, e);
+%OptimizeFunctionOnNextCall(foo);
+foo(b, f);
+foo(b, g);
+foo(b, h);
+foo(a, i);

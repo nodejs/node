@@ -107,7 +107,7 @@ void HPropagateDeoptimizingMarkPhase::NullifyUnreachableInstructions() {
         instr->DeleteAndReplaceWith(last_dummy);
         continue;
       }
-      if (instr->IsSoftDeoptimize()) {
+      if (instr->IsDeoptimize()) {
         ASSERT(block->IsDeoptimizing());
         nullify = true;
       }

@@ -565,11 +565,16 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
     type->LookupDescriptor(NULL, *name, &lookup);
     if (lookup.IsFound()) {
       switch (lookup.type()) {
-        case CONSTANT_FUNCTION:
+        case CONSTANT: {
           // We surely know the target for a constant function.
-          target_ =
-              Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
-          return true;
+          Handle<Object> constant(lookup.GetConstantFromMap(*type),
+                                  type->GetIsolate());
+          if (constant->IsJSFunction()) {
+            target_ = Handle<JSFunction>::cast(constant);
+            return true;
+          }
+          // Fall through.
+        }
         case NORMAL:
         case FIELD:
         case CALLBACKS:

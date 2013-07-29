@@ -51,6 +51,16 @@ void Assembler::emitl(uint32_t x) {
 }
 
 
+void Assembler::emitp(void* x, RelocInfo::Mode rmode) {
+  uintptr_t value = reinterpret_cast<uintptr_t>(x);
+  Memory::uintptr_at(pc_) = value;
+  if (!RelocInfo::IsNone(rmode)) {
+    RecordRelocInfo(rmode, value);
+  }
+  pc_ += sizeof(uintptr_t);
+}
+
+
 void Assembler::emitq(uint64_t x, RelocInfo::Mode rmode) {
   Memory::uint64_at(pc_) = x;
   if (!RelocInfo::IsNone(rmode)) {

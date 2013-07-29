@@ -2373,15 +2373,16 @@ void Assembler::vmov(const DwVfpRegister dst,
 
     if (scratch.is(no_reg)) {
       if (dst.code() < 16) {
+        const LowDwVfpRegister loc = LowDwVfpRegister::from_code(dst.code());
         // Move the low part of the double into the lower of the corresponsing S
         // registers of D register dst.
         mov(ip, Operand(lo));
-        vmov(dst.low(), ip);
+        vmov(loc.low(), ip);
 
         // Move the high part of the double into the higher of the
         // corresponsing S registers of D register dst.
         mov(ip, Operand(hi));
-        vmov(dst.high(), ip);
+        vmov(loc.high(), ip);
       } else {
         // D16-D31 does not have S registers, so move the low and high parts
         // directly to the D register using vmov.32.
@@ -2443,6 +2444,22 @@ void Assembler::vmov(const DwVfpRegister dst,
   dst.split_code(&vd, &d);
   emit(cond | 0xE*B24 | index.index*B21 | vd*B16 | src.code()*B12 | 0xB*B8 |
        d*B7 | B4);
+}
+
+
+void Assembler::vmov(const Register dst,
+                     const VmovIndex index,
+                     const DwVfpRegister src,
+                     const Condition cond) {
+  // Dd[index] = Rt
+  // Instruction details available in ARM DDI 0406C.b, A8.8.342.
+  // cond(31-28) | 1110(27-24) | U=0(23) | opc1=0index(22-21) | 1(20) |
+  // Vn(19-16) | Rt(15-12) | 1011(11-8) | N(7) | opc2=00(6-5) | 1(4) | 0000(3-0)
+  ASSERT(index.index == 0 || index.index == 1);
+  int vn, n;
+  src.split_code(&vn, &n);
+  emit(cond | 0xE*B24 | index.index*B21 | B20 | vn*B16 | dst.code()*B12 |
+       0xB*B8 | n*B7 | B4);
 }
 
 

@@ -2253,7 +2253,8 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(
   ASSERT(kNotStringTag != 0);
   const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
 
   andl(scratch1, Immediate(kFlatAsciiStringMask));
   andl(scratch2, Immediate(kFlatAsciiStringMask));
@@ -2299,7 +2300,8 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
   ASSERT(kNotStringTag != 0);
   const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
 
   andl(scratch1, Immediate(kFlatAsciiStringMask));
   andl(scratch2, Immediate(kFlatAsciiStringMask));
@@ -3836,6 +3838,7 @@ void MacroAssembler::Allocate(int object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
+  ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.

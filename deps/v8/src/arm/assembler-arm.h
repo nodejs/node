@@ -267,22 +267,6 @@ struct DwVfpRegister {
     return 0 <= code_ && code_ < kMaxNumRegisters;
   }
   bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
-  SwVfpRegister low() const {
-    ASSERT(code_ < 16);
-    SwVfpRegister reg;
-    reg.code_ = code_ * 2;
-
-    ASSERT(reg.is_valid());
-    return reg;
-  }
-  SwVfpRegister high() const {
-    ASSERT(code_ < 16);
-    SwVfpRegister reg;
-    reg.code_ = (code_ * 2) + 1;
-
-    ASSERT(reg.is_valid());
-    return reg;
-  }
   int code() const {
     ASSERT(is_valid());
     return code_;
@@ -302,6 +286,47 @@ struct DwVfpRegister {
 
 
 typedef DwVfpRegister DoubleRegister;
+
+
+// Double word VFP register d0-15.
+struct LowDwVfpRegister {
+ public:
+  static const int kMaxNumLowRegisters = 16;
+  operator DwVfpRegister() const {
+    DwVfpRegister r = { code_ };
+    return r;
+  }
+  static LowDwVfpRegister from_code(int code) {
+    LowDwVfpRegister r = { code };
+    return r;
+  }
+
+  bool is_valid() const {
+    return 0 <= code_ && code_ < kMaxNumLowRegisters;
+  }
+  bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
+  bool is(LowDwVfpRegister reg) const { return code_ == reg.code_; }
+  int code() const {
+    ASSERT(is_valid());
+    return code_;
+  }
+  SwVfpRegister low() const {
+    SwVfpRegister reg;
+    reg.code_ = code_ * 2;
+
+    ASSERT(reg.is_valid());
+    return reg;
+  }
+  SwVfpRegister high() const {
+    SwVfpRegister reg;
+    reg.code_ = (code_ * 2) + 1;
+
+    ASSERT(reg.is_valid());
+    return reg;
+  }
+
+  int code_;
+};
 
 
 // Quad word NEON register.
@@ -370,22 +395,22 @@ const SwVfpRegister s30 = { 30 };
 const SwVfpRegister s31 = { 31 };
 
 const DwVfpRegister no_dreg = { -1 };
-const DwVfpRegister d0  = {  0 };
-const DwVfpRegister d1  = {  1 };
-const DwVfpRegister d2  = {  2 };
-const DwVfpRegister d3  = {  3 };
-const DwVfpRegister d4  = {  4 };
-const DwVfpRegister d5  = {  5 };
-const DwVfpRegister d6  = {  6 };
-const DwVfpRegister d7  = {  7 };
-const DwVfpRegister d8  = {  8 };
-const DwVfpRegister d9  = {  9 };
-const DwVfpRegister d10 = { 10 };
-const DwVfpRegister d11 = { 11 };
-const DwVfpRegister d12 = { 12 };
-const DwVfpRegister d13 = { 13 };
-const DwVfpRegister d14 = { 14 };
-const DwVfpRegister d15 = { 15 };
+const LowDwVfpRegister d0 = { 0 };
+const LowDwVfpRegister d1 = { 1 };
+const LowDwVfpRegister d2 = { 2 };
+const LowDwVfpRegister d3 = { 3 };
+const LowDwVfpRegister d4 = { 4 };
+const LowDwVfpRegister d5 = { 5 };
+const LowDwVfpRegister d6 = { 6 };
+const LowDwVfpRegister d7 = { 7 };
+const LowDwVfpRegister d8 = { 8 };
+const LowDwVfpRegister d9 = { 9 };
+const LowDwVfpRegister d10 = { 10 };
+const LowDwVfpRegister d11 = { 11 };
+const LowDwVfpRegister d12 = { 12 };
+const LowDwVfpRegister d13 = { 13 };
+const LowDwVfpRegister d14 = { 14 };
+const LowDwVfpRegister d15 = { 15 };
 const DwVfpRegister d16 = { 16 };
 const DwVfpRegister d17 = { 17 };
 const DwVfpRegister d18 = { 18 };
@@ -419,6 +444,7 @@ const QwNeonRegister q12 = { 12 };
 const QwNeonRegister q13 = { 13 };
 const QwNeonRegister q14 = { 14 };
 const QwNeonRegister q15 = { 15 };
+
 
 // Aliases for double registers.  Defined using #define instead of
 // "static const DwVfpRegister&" because Clang complains otherwise when a
@@ -1108,6 +1134,10 @@ class Assembler : public AssemblerBase {
   void vmov(const DwVfpRegister dst,
             const VmovIndex index,
             const Register src,
+            const Condition cond = al);
+  void vmov(const Register dst,
+            const VmovIndex index,
+            const DwVfpRegister src,
             const Condition cond = al);
   void vmov(const DwVfpRegister dst,
             const Register src1,
