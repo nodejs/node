@@ -60,3 +60,9 @@ assert.equal(util.format('%s:%s', 'foo', 'bar'), 'foo:bar');
 assert.equal(util.format('%s:%s', 'foo', 'bar', 'baz'), 'foo:bar baz');
 assert.equal(util.format('%%%s%%', 'hi'), '%hi%');
 assert.equal(util.format('%%%s%%%%', 'hi'), '%hi%%');
+
+(function() {
+  var o = {};
+  o.o = o;
+  assert.equal(util.format('%j', o), '[Circular]');
+})();
