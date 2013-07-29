@@ -2972,25 +2972,21 @@ void DiffieHellman::DiffieHellmanGroup(
   }
 
   const String::Utf8Value group_name(args[0]);
+  for (unsigned int i = 0; i < ARRAY_SIZE(modp_groups); ++i) {
+    const modp_group* it = modp_groups + i;
 
-  modp_group* it = modp_groups;
+    if (strcasecmp(*group_name, it->name) != 0)
+      continue;
 
-  while (it->name != NULL) {
-    if (!strcasecmp(*group_name, it->name))
-      break;
-    it++;
-  }
-
-  if (it->name != NULL) {
     diffieHellman->Init(it->prime,
                         it->prime_size,
                         it->gen,
                         it->gen_size);
-  } else {
-    return ThrowError("Unknown group");
+    diffieHellman->Wrap(args.This());
+    return;
   }
 
-  diffieHellman->Wrap(args.This());
+  ThrowError("Unknown group");
 }
 
 
