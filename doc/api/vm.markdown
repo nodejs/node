@@ -86,7 +86,7 @@ result. Running code does not have access to local scope. The object `sandbox`
 will be used as the global object for `code`.
 `sandbox` and `filename` are optional, `filename` is only used in stack traces.
 `timeout` specifies an optional number of milliseconds to execute `code` before
-terminating execution. If execution is terminated, `null` will be thrown.
+terminating execution. If execution is terminated, an `Error` will be thrown.
 
 Example: compile and execute code that increments a global variable and sets a new one.
 These globals are contained in the sandbox.
@@ -119,7 +119,7 @@ and the global object held within `context` will be used as the global object
 for `code`.
 `filename` is optional, it's used only in stack traces.
 `timeout` specifies an optional number of milliseconds to execute `code` before
-terminating execution. If execution is terminated, `null` will be thrown.
+terminating execution. If execution is terminated, an `Error` will be thrown.
 
 Example: compile and execute code in a existing context.
 
@@ -176,7 +176,7 @@ Similar to `vm.runInThisContext` but a method of a precompiled `Script` object.
 Running code does not have access to local scope, but does have access to the `global` object
 (v8: in actual context).
 `timeout` specifies an optional number of milliseconds to execute `code` before
-terminating execution. If execution is terminated, `null` will be thrown.
+terminating execution. If execution is terminated, an `Error` will be thrown.
 
 Example of using `script.runInThisContext` to compile code once and run it multiple times:
 
@@ -201,7 +201,7 @@ Similar to `vm.runInNewContext` a method of a precompiled `Script` object.
 `script.runInNewContext` runs the code of `script` with `sandbox` as the global object and returns the result.
 Running code does not have access to local scope. `sandbox` is optional.
 `timeout` specifies an optional number of milliseconds to execute `code` before
-terminating execution. If execution is terminated, `null` will be thrown.
+terminating execution. If execution is terminated, an `Error` will be thrown.
 
 Example: compile code that increments a global variable and sets one, then execute this code multiple times.
 These globals are contained in the sandbox.
