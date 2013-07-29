@@ -62,7 +62,7 @@ server.listen(common.PORT, function() {
       // (i.e. should not leak)
       assert(res._readableState.length < 100 * 1024);
       process.exit(0);
-    }, 5000);
+    }, 2000);
   });
   req.end();
 });
