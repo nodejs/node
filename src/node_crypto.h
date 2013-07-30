@@ -299,9 +299,13 @@ class CipherBase : public ObjectWrap {
     kDecipher
   };
 
-  void Init(char* cipher_type, char* key_buf, int key_buf_len);
-  void InitIv(char* cipher_type, char* key, int key_len, char* iv, int iv_len);
-  bool Update(char* data, int len, unsigned char** out, int* out_len);
+  void Init(const char* cipher_type, const char* key_buf, int key_buf_len);
+  void InitIv(const char* cipher_type,
+              const char* key,
+              int key_len,
+              const char* iv,
+              int iv_len);
+  bool Update(const char* data, int len, unsigned char** out, int* out_len);
   bool Final(unsigned char** out, int *out_len);
   bool SetAutoPadding(bool auto_padding);
 
@@ -334,8 +338,8 @@ class Hmac : public ObjectWrap {
   static void Initialize (v8::Handle<v8::Object> target);
 
  protected:
-  void HmacInit(char* hashType, char* key, int key_len);
-  bool HmacUpdate(char* data, int len);
+  void HmacInit(const char* hash_type, const char* key, int key_len);
+  bool HmacUpdate(const char* data, int len);
   bool HmacDigest(unsigned char** md_value, unsigned int* md_len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -361,8 +365,8 @@ class Hash : public ObjectWrap {
  public:
   static void Initialize (v8::Handle<v8::Object> target);
 
-  bool HashInit(const char* hashType);
-  bool HashUpdate(char* data, int len);
+  bool HashInit(const char* hash_type);
+  bool HashUpdate(const char* data, int len);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -388,10 +392,10 @@ class Sign : public ObjectWrap {
   static void Initialize(v8::Handle<v8::Object> target);
 
   void SignInit(const char* sign_type);
-  bool SignUpdate(char* data, int len);
+  bool SignUpdate(const char* data, int len);
   bool SignFinal(unsigned char** md_value,
                  unsigned int *md_len,
-                 char* key_pem,
+                 const char* key_pem,
                  int key_pem_len);
 
  protected:
@@ -419,10 +423,10 @@ class Verify : public ObjectWrap {
   static void Initialize (v8::Handle<v8::Object> target);
 
   void VerifyInit(const char* verify_type);
-  bool VerifyUpdate(char* data, int len);
-  bool VerifyFinal(char* key_pem,
+  bool VerifyUpdate(const char* data, int len);
+  bool VerifyFinal(const char* key_pem,
                    int key_pem_len,
-                   unsigned char* sig,
+                   const char* sig,
                    int siglen);
 
  protected:
@@ -451,8 +455,8 @@ class DiffieHellman : public ObjectWrap {
   static void Initialize(v8::Handle<v8::Object> target);
 
   bool Init(int primeLength);
-  bool Init(unsigned char* p, int p_len);
-  bool Init(unsigned char* p, int p_len, unsigned char* g, int g_len);
+  bool Init(const char* p, int p_len);
+  bool Init(const char* p, int p_len, const char* g, int g_len);
 
  protected:
   static void DiffieHellmanGroup(

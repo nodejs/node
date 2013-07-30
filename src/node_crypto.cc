@@ -217,7 +217,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   OPENSSL_CONST SSL_METHOD *method = SSLv23_method();
 
   if (args.Length() == 1 && args[0]->IsString()) {
-    String::Utf8Value sslmethod(args[0]);
+    const String::Utf8Value sslmethod(args[0]);
 
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
 #ifndef OPENSSL_NO_SSL2
@@ -335,7 +335,7 @@ static BIO* LoadBIO (Handle<Value> v) {
   int r = -1;
 
   if (v->IsString()) {
-    String::Utf8Value s(v);
+    const String::Utf8Value s(v);
     r = BIO_write(bio, *s, s.length());
   } else if (Buffer::HasInstance(v)) {
     char* buffer_data = Buffer::Data(v);
@@ -605,7 +605,7 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
     return ThrowTypeError("Bad parameter");
   }
 
-  String::Utf8Value ciphers(args[0]);
+  const String::Utf8Value ciphers(args[0]);
   SSL_CTX_set_cipher_list(sc->ctx_, *ciphers);
 }
 
@@ -633,8 +633,9 @@ void SecureContext::SetSessionIdContext(
     return ThrowTypeError("Bad parameter");
   }
 
-  String::Utf8Value sessionIdContext(args[0]);
-  const unsigned char* sid_ctx = (const unsigned char*) *sessionIdContext;
+  const String::Utf8Value sessionIdContext(args[0]);
+  const unsigned char* sid_ctx =
+      reinterpret_cast<const unsigned char*>(*sessionIdContext);
   unsigned int sid_ctx_len = sessionIdContext.length();
 
   int r = SSL_CTX_set_session_id_context(sc->ctx_, sid_ctx, sid_ctx_len);
@@ -1295,7 +1296,7 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
   if (is_server) {
     SSL_CTX_set_tlsext_servername_callback(sc->ctx_, SelectSNIContextCallback_);
   } else {
-    String::Utf8Value servername(args[2]);
+    const String::Utf8Value servername(args[2]);
     SSL_set_tlsext_host_name(p->ssl_, *servername);
   }
 #endif
@@ -2092,7 +2093,9 @@ void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void CipherBase::Init(char* cipher_type, char* key_buf, int key_buf_len) {
+void CipherBase::Init(const char* cipher_type,
+                      const char* key_buf,
+                      int key_buf_len) {
   HandleScope scope(node_isolate);
 
   assert(cipher_ == NULL);
@@ -2107,7 +2110,7 @@ void CipherBase::Init(char* cipher_type, char* key_buf, int key_buf_len) {
   int key_len = EVP_BytesToKey(cipher_,
                                EVP_md5(),
                                NULL,
-                               reinterpret_cast<unsigned char*>(key_buf),
+                               reinterpret_cast<const unsigned char*>(key_buf),
                                key_buf_len,
                                1,
                                key,
@@ -2140,17 +2143,17 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
     return ThrowError("Must give cipher-type, key");
   }
 
-  String::Utf8Value cipher_type(args[0]);
-  char* key_buf = Buffer::Data(args[1]);
+  const String::Utf8Value cipher_type(args[0]);
+  const char* key_buf = Buffer::Data(args[1]);
   ssize_t key_buf_len = Buffer::Length(args[1]);
   cipher->Init(*cipher_type, key_buf, key_buf_len);
 }
 
 
-void CipherBase::InitIv(char* cipher_type,
-                        char* key,
+void CipherBase::InitIv(const char* cipher_type,
+                        const char* key,
                         int key_len,
-                        char* iv,
+                        const char* iv,
                         int iv_len) {
   HandleScope scope(node_isolate);
 
@@ -2175,8 +2178,8 @@ void CipherBase::InitIv(char* cipher_type,
   EVP_CipherInit_ex(&ctx_,
                     NULL,
                     NULL,
-                    reinterpret_cast<unsigned char*>(key),
-                    reinterpret_cast<unsigned char*>(iv),
+                    reinterpret_cast<const unsigned char*>(key),
+                    reinterpret_cast<const unsigned char*>(iv),
                     kind_ == kCipher);
   initialised_ = true;
 }
@@ -2194,16 +2197,16 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   ASSERT_IS_BUFFER(args[1]);
   ASSERT_IS_BUFFER(args[2]);
 
-  String::Utf8Value cipher_type(args[0]);
+  const String::Utf8Value cipher_type(args[0]);
   ssize_t key_len = Buffer::Length(args[1]);
-  char* key_buf = Buffer::Data(args[1]);
+  const char* key_buf = Buffer::Data(args[1]);
   ssize_t iv_len = Buffer::Length(args[2]);
-  char* iv_buf = Buffer::Data(args[2]);
+  const char* iv_buf = Buffer::Data(args[2]);
   cipher->InitIv(*cipher_type, key_buf, key_len, iv_buf, iv_len);
 }
 
 
-bool CipherBase::Update(char* data,
+bool CipherBase::Update(const char* data,
                         int len,
                         unsigned char** out,
                         int* out_len) {
@@ -2213,7 +2216,7 @@ bool CipherBase::Update(char* data,
   return EVP_CipherUpdate(&ctx_,
                           *out,
                           out_len,
-                          reinterpret_cast<unsigned char*>(data),
+                          reinterpret_cast<const unsigned char*>(data),
                           len);
 }
 
@@ -2328,11 +2331,11 @@ void Hmac::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Hmac::HmacInit(char* hashType, char* key, int key_len) {
+void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   HandleScope scope(node_isolate);
 
   assert(md_ == NULL);
-  md_ = EVP_get_digestbyname(hashType);
+  md_ = EVP_get_digestbyname(hash_type);
   if (md_ == NULL) {
     return ThrowError("Unknown message digest");
   }
@@ -2357,17 +2360,16 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 
   ASSERT_IS_BUFFER(args[1]);
 
-  String::Utf8Value hashType(args[0]);
-
-  char* buffer_data = Buffer::Data(args[1]);
+  const String::Utf8Value hash_type(args[0]);
+  const char* buffer_data = Buffer::Data(args[1]);
   size_t buffer_length = Buffer::Length(args[1]);
-  hmac->HmacInit(*hashType, buffer_data, buffer_length);
+  hmac->HmacInit(*hash_type, buffer_data, buffer_length);
 }
 
 
-bool Hmac::HmacUpdate(char* data, int len) {
+bool Hmac::HmacUpdate(const char* data, int len) {
   if (!initialised_) return false;
-  HMAC_Update(&ctx_, reinterpret_cast<unsigned char*>(data), len);
+  HMAC_Update(&ctx_, reinterpret_cast<const unsigned char*>(data), len);
   return true;
 }
 
@@ -2460,10 +2462,10 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
     return ThrowError("Must give hashtype string as argument");
   }
 
-  String::Utf8Value hashType(args[0]);
+  const String::Utf8Value hash_type(args[0]);
 
   Hash* hash = new Hash();
-  if (!hash->HashInit(*hashType)) {
+  if (!hash->HashInit(*hash_type)) {
     delete hash;
     return ThrowError("Digest method not supported");
   }
@@ -2472,9 +2474,9 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-bool Hash::HashInit(const char* hashType) {
+bool Hash::HashInit(const char* hash_type) {
   assert(md_ == NULL);
-  md_ = EVP_get_digestbyname(hashType);
+  md_ = EVP_get_digestbyname(hash_type);
   if (md_ == NULL) return false;
   EVP_MD_CTX_init(&mdctx_);
   EVP_DigestInit_ex(&mdctx_, md_, NULL);
@@ -2483,7 +2485,7 @@ bool Hash::HashInit(const char* hashType) {
 }
 
 
-bool Hash::HashUpdate(char* data, int len) {
+bool Hash::HashUpdate(const char* data, int len) {
   if (!initialised_) return false;
   EVP_DigestUpdate(&mdctx_, data, len);
   return true;
@@ -2593,12 +2595,12 @@ void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
     return ThrowError("Must give signtype string as argument");
   }
 
-  String::Utf8Value sign_type(args[0]);
+  const String::Utf8Value sign_type(args[0]);
   sign->SignInit(*sign_type);
 }
 
 
-bool Sign::SignUpdate(char* data, int len) {
+bool Sign::SignUpdate(const char* data, int len) {
   if (!initialised_) return false;
   EVP_SignUpdate(&mdctx_, data, len);
   return true;
@@ -2638,7 +2640,7 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
 
 bool Sign::SignFinal(unsigned char** md_value,
                      unsigned int *md_len,
-                     char* key_pem,
+                     const char* key_pem,
                      int key_pem_len) {
   if (!initialised_) return false;
 
@@ -2739,12 +2741,12 @@ void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
     return ThrowError("Must give verifytype string as argument");
   }
 
-  String::Utf8Value verify_type(args[0]);
+  const String::Utf8Value verify_type(args[0]);
   verify->VerifyInit(*verify_type);
 }
 
 
-bool Verify::VerifyUpdate(char* data, int len) {
+bool Verify::VerifyUpdate(const char* data, int len) {
   if (!initialised_) return false;
   EVP_VerifyUpdate(&mdctx_, data, len);
   return true;
@@ -2782,9 +2784,9 @@ void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-bool Verify::VerifyFinal(char* key_pem,
+bool Verify::VerifyFinal(const char* key_pem,
                          int key_pem_len,
-                         unsigned char* sig,
+                         const char* sig,
                          int siglen) {
   HandleScope scope(node_isolate);
 
@@ -2834,7 +2836,10 @@ bool Verify::VerifyFinal(char* key_pem,
   }
 
   fatal = false;
-  r = EVP_VerifyFinal(&mdctx_, sig, siglen, pkey);
+  r = EVP_VerifyFinal(&mdctx_,
+                      reinterpret_cast<const unsigned char*>(sig),
+                      siglen,
+                      pkey);
 
 exit:
   if (pkey != NULL)
@@ -2876,14 +2881,13 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   ssize_t hlen = StringBytes::Size(args[1], encoding);
 
   // only copy if we need to, because it's a string.
-  unsigned char* hbuf;
+  char* hbuf;
   if (args[1]->IsString()) {
-    hbuf = new unsigned char[hlen];
-    ssize_t hwritten = StringBytes::Write(
-        reinterpret_cast<char*>(hbuf), hlen, args[1], encoding);
+    hbuf = new char[hlen];
+    ssize_t hwritten = StringBytes::Write(hbuf, hlen, args[1], encoding);
     assert(hwritten == hlen);
   } else {
-    hbuf = reinterpret_cast<unsigned char*>(Buffer::Data(args[1]));
+    hbuf = Buffer::Data(args[1]);
   }
 
   bool rc = verify->VerifyFinal(kbuf, klen, hbuf, hlen);
@@ -2936,9 +2940,9 @@ bool DiffieHellman::Init(int primeLength) {
 }
 
 
-bool DiffieHellman::Init(unsigned char* p, int p_len) {
+bool DiffieHellman::Init(const char* p, int p_len) {
   dh = DH_new();
-  dh->p = BN_bin2bn(p, p_len, 0);
+  dh->p = BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, 0);
   dh->g = BN_new();
   if (!BN_set_word(dh->g, 2)) return false;
   bool result = VerifyContext();
@@ -2948,13 +2952,10 @@ bool DiffieHellman::Init(unsigned char* p, int p_len) {
 }
 
 
-bool DiffieHellman::Init(unsigned char* p,
-                         int p_len,
-                         unsigned char* g,
-                         int g_len) {
+bool DiffieHellman::Init(const char* p, int p_len, const char* g, int g_len) {
   dh = DH_new();
-  dh->p = BN_bin2bn(p, p_len, 0);
-  dh->g = BN_bin2bn(g, g_len, 0);
+  dh->p = BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, 0);
+  dh->g = BN_bin2bn(reinterpret_cast<const unsigned char*>(g), g_len, 0);
   initialised_ = true;
   return true;
 }
@@ -2970,11 +2971,11 @@ void DiffieHellman::DiffieHellmanGroup(
     return ThrowError("No group name given");
   }
 
-  String::Utf8Value group_name(args[0]);
+  const String::Utf8Value group_name(args[0]);
 
   modp_group* it = modp_groups;
 
-  while(it->name != NULL) {
+  while (it->name != NULL) {
     if (!strcasecmp(*group_name, it->name))
       break;
     it++;
@@ -3003,9 +3004,8 @@ void DiffieHellman::New(const FunctionCallbackInfo<Value>& args) {
     if (args[0]->IsInt32()) {
       initialized = diffieHellman->Init(args[0]->Int32Value());
     } else {
-      initialized = diffieHellman->Init(
-              reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
-              Buffer::Length(args[0]));
+      initialized = diffieHellman->Init(Buffer::Data(args[0]),
+                                        Buffer::Length(args[0]));
     }
   }
 
