@@ -72,6 +72,7 @@ using v8::Exception;
 using v8::False;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -80,6 +81,7 @@ using v8::Object;
 using v8::Persistent;
 using v8::String;
 using v8::ThrowException;
+using v8::Value;
 
 
 // Forcibly clear OpenSSL's error stack on return. This stops stale errors
