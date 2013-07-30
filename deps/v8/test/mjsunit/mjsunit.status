@@ -253,8 +253,3 @@ array-feedback: SKIP
 
 # Deopt every n garbage collections collides with the deopt every n times flag.
 regress/regress-2653: SKIP
-
-# Issue 2795:
-array-store-and-grow: SKIP if $mode == debug
-
-

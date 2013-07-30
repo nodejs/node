@@ -770,6 +770,7 @@ void Context::Exit() {
   i::Context* last_context =
       isolate->handle_scope_implementer()->RestoreContext();
   isolate->set_context(last_context);
+  isolate->set_context_exit_happened(true);
 }
 
 
@@ -779,8 +780,8 @@ static void* DecodeSmiToAligned(i::Object* value, const char* location) {
 }
 
 
-static i::Smi* EncodeAlignedAsSmi(const void* value, const char* location) {
-  i::Smi* smi = const_cast<i::Smi*>(reinterpret_cast<const i::Smi*>(value));
+static i::Smi* EncodeAlignedAsSmi(void* value, const char* location) {
+  i::Smi* smi = reinterpret_cast<i::Smi*>(value);
   ApiCheck(smi->IsSmi(), location, "Pointer is not aligned");
   return smi;
 }
@@ -5930,6 +5931,23 @@ i::Handle<i::String> NewExternalAsciiStringHandle(i::Isolate* isolate,
 }
 
 
+bool RedirectToExternalString(i::Isolate* isolate,
+                              i::Handle<i::String> parent,
+                              i::Handle<i::String> external) {
+  if (parent->IsConsString()) {
+    i::Handle<i::ConsString> cons = i::Handle<i::ConsString>::cast(parent);
+    cons->set_first(*external);
+    cons->set_second(isolate->heap()->empty_string());
+  } else {
+    ASSERT(parent->IsSlicedString());
+    i::Handle<i::SlicedString> slice = i::Handle<i::SlicedString>::cast(parent);
+    slice->set_parent(*external);
+    slice->set_offset(0);
+  }
+  return true;
+}
+
+
 Local<String> v8::String::NewExternal(
       v8::String::ExternalStringResource* resource) {
   i::Isolate* isolate = i::Isolate::Current();
@@ -5937,10 +5955,6 @@ Local<String> v8::String::NewExternal(
   LOG_API(isolate, "String::NewExternal");
   ENTER_V8(isolate);
   CHECK(resource && resource->data());
-  // Resource pointers need to look like Smis since ExternalString objects
-  // are sometimes put into old pointer space (see i::String::MakeExternal).
-  CHECK(EncodeAlignedAsSmi(resource, "v8::String::NewExternal()"));
-  CHECK(EncodeAlignedAsSmi(resource->data(), "v8::String::NewExternal()"));
   i::Handle<i::String> result = NewExternalStringHandle(isolate, resource);
   isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
@@ -5962,13 +5976,23 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     return false;
   }
   CHECK(resource && resource->data());
-  // Resource pointers need to look like Smis since ExternalString objects
-  // are sometimes put into old pointer space (see i::String::MakeExternal).
-  CHECK(EncodeAlignedAsSmi(resource, "v8::String::MakeExternal()"));
-  CHECK(EncodeAlignedAsSmi(resource->data(), "v8::String::MakeExternal()"));
-  bool result = obj->MakeExternal(resource);
-  if (result && !obj->IsInternalizedString()) {
-    isolate->heap()->external_string_table()->AddString(*obj);
+
+  bool result;
+  i::Handle<i::String> external;
+  if (isolate->heap()->old_pointer_space()->Contains(*obj)) {
+    // We do not allow external strings in the old pointer space.  Instead of
+    // converting the string in-place, we keep the cons/sliced string and
+    // point it to a newly-allocated external string.
+    external = NewExternalStringHandle(isolate, resource);
+    result = RedirectToExternalString(isolate, obj, external);
+  } else {
+    result = obj->MakeExternal(resource);
+    external = obj;
+  }
+
+  ASSERT(external->IsExternalString());
+  if (result && !external->IsInternalizedString()) {
+    isolate->heap()->external_string_table()->AddString(*external);
   }
   return result;
 }
@@ -5981,10 +6005,6 @@ Local<String> v8::String::NewExternal(
   LOG_API(isolate, "String::NewExternal");
   ENTER_V8(isolate);
   CHECK(resource && resource->data());
-  // Resource pointers need to look like Smis since ExternalString objects
-  // are sometimes put into old pointer space (see i::String::MakeExternal).
-  CHECK(EncodeAlignedAsSmi(resource, "v8::String::NewExternal()"));
-  CHECK(EncodeAlignedAsSmi(resource->data(), "v8::String::NewExternal()"));
   i::Handle<i::String> result = NewExternalAsciiStringHandle(isolate, resource);
   isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
@@ -6007,13 +6027,23 @@ bool v8::String::MakeExternal(
     return false;
   }
   CHECK(resource && resource->data());
-  // Resource pointers need to look like Smis since ExternalString objects
-  // are sometimes put into old pointer space (see i::String::MakeExternal).
-  CHECK(EncodeAlignedAsSmi(resource, "v8::String::MakeExternal()"));
-  CHECK(EncodeAlignedAsSmi(resource->data(), "v8::String::MakeExternal()"));
-  bool result = obj->MakeExternal(resource);
-  if (result && !obj->IsInternalizedString()) {
-    isolate->heap()->external_string_table()->AddString(*obj);
+
+  bool result;
+  i::Handle<i::String> external;
+  if (isolate->heap()->old_pointer_space()->Contains(*obj)) {
+    // We do not allow external strings in the old pointer space.  Instead of
+    // converting the string in-place, we keep the cons/sliced string and
+    // point it to a newly-allocated external string.
+    external = NewExternalAsciiStringHandle(isolate, resource);
+    result = RedirectToExternalString(isolate, obj, external);
+  } else {
+    result = obj->MakeExternal(resource);
+    external = obj;
+  }
+
+  ASSERT(external->IsExternalString());
+  if (result && !external->IsInternalizedString()) {
+    isolate->heap()->external_string_table()->AddString(*external);
   }
   return result;
 }
@@ -6054,7 +6084,7 @@ Local<v8::Value> v8::NumberObject::New(double value) {
 }
 
 
-double v8::NumberObject::NumberValue() const {
+double v8::NumberObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::NumberObject::NumberValue()")) return 0;
   LOG_API(isolate, "NumberObject::NumberValue");
@@ -6078,7 +6108,7 @@ Local<v8::Value> v8::BooleanObject::New(bool value) {
 }
 
 
-bool v8::BooleanObject::BooleanValue() const {
+bool v8::BooleanObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::BooleanObject::BooleanValue()")) return 0;
   LOG_API(isolate, "BooleanObject::BooleanValue");
@@ -6099,7 +6129,7 @@ Local<v8::Value> v8::StringObject::New(Handle<String> value) {
 }
 
 
-Local<v8::String> v8::StringObject::StringValue() const {
+Local<v8::String> v8::StringObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::StringObject::StringValue()")) {
     return Local<v8::String>();
@@ -6123,7 +6153,7 @@ Local<v8::Value> v8::SymbolObject::New(Isolate* isolate, Handle<Symbol> value) {
 }
 
 
-Local<v8::Symbol> v8::SymbolObject::SymbolValue() const {
+Local<v8::Symbol> v8::SymbolObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::SymbolObject::SymbolValue()"))
     return Local<v8::Symbol>();
@@ -6152,7 +6182,7 @@ Local<v8::Value> v8::Date::New(double time) {
 }
 
 
-double v8::Date::NumberValue() const {
+double v8::Date::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Date::NumberValue()")) return 0;
   LOG_API(isolate, "Date::NumberValue");

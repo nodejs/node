@@ -4482,12 +4482,29 @@ ACCESSORS(Script, data, Object, kDataOffset)
 ACCESSORS(Script, context_data, Object, kContextOffset)
 ACCESSORS(Script, wrapper, Foreign, kWrapperOffset)
 ACCESSORS_TO_SMI(Script, type, kTypeOffset)
-ACCESSORS_TO_SMI(Script, compilation_type, kCompilationTypeOffset)
-ACCESSORS_TO_SMI(Script, compilation_state, kCompilationStateOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 ACCESSORS(Script, eval_from_shared, Object, kEvalFromSharedOffset)
 ACCESSORS_TO_SMI(Script, eval_from_instructions_offset,
                  kEvalFrominstructionsOffsetOffset)
+ACCESSORS_TO_SMI(Script, flags, kFlagsOffset)
+
+Script::CompilationType Script::compilation_type() {
+  return BooleanBit::get(flags(), kCompilationTypeBit) ?
+      COMPILATION_TYPE_EVAL : COMPILATION_TYPE_HOST;
+}
+void Script::set_compilation_type(CompilationType type) {
+  set_flags(BooleanBit::set(flags(), kCompilationTypeBit,
+      type == COMPILATION_TYPE_EVAL));
+}
+Script::CompilationState Script::compilation_state() {
+  return BooleanBit::get(flags(), kCompilationStateBit) ?
+      COMPILATION_STATE_COMPILED : COMPILATION_STATE_INITIAL;
+}
+void Script::set_compilation_state(CompilationState state) {
+  set_flags(BooleanBit::set(flags(), kCompilationStateBit,
+      state == COMPILATION_STATE_COMPILED));
+}
+
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)

@@ -684,6 +684,8 @@ class ExternalReference BASE_EMBEDDED {
 
   typedef void* ExternalReferenceRedirector(void* original, Type type);
 
+  ExternalReference() : address_(NULL) {}
+
   ExternalReference(Builtins::CFunctionId id, Isolate* isolate);
 
   ExternalReference(ApiFunction* ptr, Type type, Isolate* isolate);
@@ -829,7 +831,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference cpu_features();
 
-  Address address() const {return reinterpret_cast<Address>(address_);}
+  Address address() const { return reinterpret_cast<Address>(address_); }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Function Debug::Break()
@@ -867,6 +869,14 @@ class ExternalReference BASE_EMBEDDED {
   }
 
   static ExternalReference stress_deopt_count(Isolate* isolate);
+
+  bool operator==(const ExternalReference& other) const {
+    return address_ == other.address_;
+  }
+
+  bool operator!=(const ExternalReference& other) const {
+    return !(*this == other);
+  }
 
  private:
   explicit ExternalReference(void* address)

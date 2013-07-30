@@ -44,6 +44,7 @@
 #include "hydrogen-infer-representation.h"
 #include "hydrogen-infer-types.h"
 #include "hydrogen-gvn.h"
+#include "hydrogen-mark-deoptimize.h"
 #include "hydrogen-minus-zero.h"
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
@@ -986,6 +987,19 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 }
 
 
+void HGraphBuilder::AddIncrementCounter(StatsCounter* counter,
+                                        HValue* context) {
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    HValue* reference = Add<HConstant>(ExternalReference(counter));
+    HValue* old_value = AddLoad(reference, HObjectAccess::ForCounter(), NULL);
+    HValue* new_value = AddInstruction(
+        HAdd::New(zone(), context, old_value, graph()->GetConstant1()));
+    new_value->ClearFlag(HValue::kCanOverflow);  // Ignore counter overflow
+    AddStore(reference, HObjectAccess::ForCounter(), new_value);
+  }
+}
+
+
 HBasicBlock* HGraphBuilder::CreateBasicBlock(HEnvironment* env) {
   HBasicBlock* b = graph()->CreateBasicBlock();
   b->SetInitialEnvironment(env);
@@ -1078,8 +1092,16 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
 
   HValue* context = environment()->LookupContext();
 
-  HValue* new_capacity = BuildNewElementsCapacity(context, key);
+  HValue* max_gap = Add<HConstant>(static_cast<int32_t>(JSObject::kMaxGap));
+  HValue* max_capacity = AddInstruction(
+      HAdd::New(zone, context, current_capacity, max_gap));
+  IfBuilder key_checker(this);
+  key_checker.If<HCompareNumericAndBranch>(key, max_capacity, Token::LT);
+  key_checker.Then();
+  key_checker.ElseDeopt();
+  key_checker.End();
 
+  HValue* new_capacity = BuildNewElementsCapacity(context, key);
   HValue* new_elements = BuildGrowElementsCapacity(object, elements,
                                                    kind, kind, length,
                                                    new_capacity);
@@ -1337,6 +1359,9 @@ HValue* HGraphBuilder::BuildAllocateElementsAndInitializeElementsHeader(
     HValue* context,
     ElementsKind kind,
     HValue* capacity) {
+  // The HForceRepresentation is to prevent possible deopt on int-smi
+  // conversion after allocation but before the new object fields are set.
+  capacity = Add<HForceRepresentation>(capacity, Representation::Smi());
   HValue* new_elements = BuildAllocateElements(context, kind, capacity);
   BuildInitializeElementsHeader(new_elements, kind, capacity);
   return new_elements;
@@ -1474,7 +1499,6 @@ HValue* HGraphBuilder::BuildNewElementsCapacity(HValue* context,
   HValue* half_old_capacity =
       AddInstruction(HShr::New(zone, context, old_capacity,
                                graph_->GetConstant1()));
-  half_old_capacity->ClearFlag(HValue::kCanOverflow);
 
   HValue* new_capacity = AddInstruction(
       HAdd::New(zone, context, half_old_capacity, old_capacity));
@@ -1497,8 +1521,6 @@ void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
   int max_size = heap->MaxRegularSpaceAllocationSize() / element_size;
   max_size -= JSArray::kSize / element_size;
   HConstant* max_size_constant = Add<HConstant>(max_size);
-  // Since we're forcing Integer32 representation for this HBoundsCheck,
-  // there's no need to Smi-check the index.
   Add<HBoundsCheck>(length, max_size_constant);
 }
 
@@ -1926,6 +1948,14 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
                                                      HValue* length_field,
                                                      bool fill_with_hole) {
   HValue* context = builder()->environment()->LookupContext();
+
+  // These HForceRepresentations are because we store these as fields in the
+  // objects we construct, and an int32-to-smi HChange could deopt. Accept
+  // the deopt possibility now, before allocation occurs.
+  capacity = builder()->Add<HForceRepresentation>(capacity,
+                                                  Representation::Smi());
+  length_field = builder()->Add<HForceRepresentation>(length_field,
+                                                      Representation::Smi());
 
   // Allocate (dealing with failure appropriately)
   HAllocate::Flags flags = HAllocate::DefaultFlags(kind_);
@@ -2485,38 +2515,6 @@ void HGraph::CollectPhis() {
 }
 
 
-void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
-  if (!phi->CheckFlag(HValue::kAllowUndefinedAsNaN)) return;
-  phi->ClearFlag(HValue::kAllowUndefinedAsNaN);
-  for (int i = 0; i < phi->OperandCount(); ++i) {
-    HValue* input = phi->OperandAt(i);
-    if (input->IsPhi()) {
-      RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi::cast(input));
-    }
-  }
-}
-
-
-void HGraph::MarkDeoptimizeOnUndefined() {
-  HPhase phase("H_MarkDeoptimizeOnUndefined", this);
-  // Compute DeoptimizeOnUndefined flag for phis.  Any phi that can reach a use
-  // with DeoptimizeOnUndefined set must have DeoptimizeOnUndefined set.
-  // Currently only HCompareNumericAndBranch, with double input representation,
-  // has this flag set.  The flag is used by HChange tagged->double, which must
-  // deoptimize if one of its uses has this flag set.
-  for (int i = 0; i < phi_list()->length(); i++) {
-    HPhi* phi = phi_list()->at(i);
-    for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-      HValue* use_value = it.value();
-      if (!use_value->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
-        RecursivelyMarkPhiDeoptimizeOnUndefined(phi);
-        break;
-      }
-    }
-  }
-}
-
-
 // Implementation of utility class to encapsulate the translation state for
 // a (possibly inlined) function.
 FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
@@ -2989,7 +2987,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   // This must happen after inferring representations.
   Run<HMergeRemovableSimulatesPhase>();
 
-  MarkDeoptimizeOnUndefined();
+  Run<HMarkDeoptimizeOnUndefinedPhase>();
   Run<HRepresentationChangesPhase>();
 
   Run<HInferTypesPhase>();

@@ -203,13 +203,11 @@ class ProfileTree {
 
 class CpuProfile {
  public:
-  CpuProfile(const char* title, unsigned uid, bool record_samples)
-      : title_(title), uid_(uid), record_samples_(record_samples) { }
+  CpuProfile(const char* title, unsigned uid, bool record_samples);
 
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(const Vector<CodeEntry*>& path);
-  void CalculateTotalTicks();
-  void SetActualSamplingRate(double actual_sampling_rate);
+  void CalculateTotalTicksAndSamplingRate();
 
   INLINE(const char* title() const) { return title_; }
   INLINE(unsigned uid() const) { return uid_; }
@@ -227,6 +225,8 @@ class CpuProfile {
   const char* title_;
   unsigned uid_;
   bool record_samples_;
+  double start_time_ms_;
+  double end_time_ms_;
   List<ProfileNode*> samples_;
   ProfileTree top_down_;
 
@@ -286,7 +286,7 @@ class CpuProfilesCollection {
   ~CpuProfilesCollection();
 
   bool StartProfiling(const char* title, unsigned uid, bool record_samples);
-  CpuProfile* StopProfiling(const char* title, double actual_sampling_rate);
+  CpuProfile* StopProfiling(const char* title);
   List<CpuProfile*>* profiles() { return &finished_profiles_; }
   const char* GetName(Name* name) {
     return function_and_resource_names_.GetName(name);
@@ -329,44 +329,6 @@ class CpuProfilesCollection {
 };
 
 
-class SampleRateCalculator {
- public:
-  SampleRateCalculator()
-      : result_(Logger::kSamplingIntervalMs * kResultScale),
-        ticks_per_ms_(Logger::kSamplingIntervalMs),
-        measurements_count_(0),
-        wall_time_query_countdown_(1) {
-  }
-
-  double ticks_per_ms() {
-    return result_ / static_cast<double>(kResultScale);
-  }
-  void Tick();
-  void UpdateMeasurements(double current_time);
-
-  // Instead of querying current wall time each tick,
-  // we use this constant to control query intervals.
-  static const unsigned kWallTimeQueryIntervalMs = 100;
-
- private:
-  // As the result needs to be accessed from a different thread, we
-  // use type that guarantees atomic writes to memory.  There should
-  // be <= 1000 ticks per second, thus storing a value of a 10 ** 5
-  // order should provide enough precision while keeping away from a
-  // potential overflow.
-  static const int kResultScale = 100000;
-
-  AtomicWord result_;
-  // All other fields are accessed only from the sampler thread.
-  double ticks_per_ms_;
-  unsigned measurements_count_;
-  unsigned wall_time_query_countdown_;
-  double last_wall_time_;
-
-  DISALLOW_COPY_AND_ASSIGN(SampleRateCalculator);
-};
-
-
 class ProfileGenerator {
  public:
   explicit ProfileGenerator(CpuProfilesCollection* profiles);
@@ -374,11 +336,6 @@ class ProfileGenerator {
   void RecordTickSample(const TickSample& sample);
 
   INLINE(CodeMap* code_map()) { return &code_map_; }
-
-  INLINE(void Tick()) { sample_rate_calc_.Tick(); }
-  INLINE(double actual_sampling_rate()) {
-    return sample_rate_calc_.ticks_per_ms();
-  }
 
   static const char* const kAnonymousFunctionName;
   static const char* const kProgramEntryName;
@@ -395,7 +352,6 @@ class ProfileGenerator {
   CodeEntry* program_entry_;
   CodeEntry* gc_entry_;
   CodeEntry* unresolved_entry_;
-  SampleRateCalculator sample_rate_calc_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
 };

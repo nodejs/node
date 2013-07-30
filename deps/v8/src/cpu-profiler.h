@@ -184,7 +184,7 @@ class ProfilerEventsProcessor : public Thread {
   } while (false)
 
 
-class CpuProfiler {
+class CpuProfiler : public CodeEventListener {
  public:
   explicit CpuProfiler(Isolate* isolate);
 
@@ -193,7 +193,7 @@ class CpuProfiler {
               ProfileGenerator* test_generator,
               ProfilerEventsProcessor* test_processor);
 
-  ~CpuProfiler();
+  virtual ~CpuProfiler();
 
   void StartProfiling(const char* title, bool record_samples = false);
   void StartProfiling(String* title, bool record_samples);
@@ -209,30 +209,30 @@ class CpuProfiler {
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.
-  void CallbackEvent(Name* name, Address entry_point);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Code* code, const char* comment);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Code* code, Name* name);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Code* code,
-                       SharedFunctionInfo* shared,
-                       CompilationInfo* info,
-                       Name* name);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Code* code,
-                       SharedFunctionInfo* shared,
-                       CompilationInfo* info,
-                       Name* source, int line);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Code* code, int args_count);
-  void CodeMovingGCEvent() {}
-  void CodeMoveEvent(Address from, Address to);
-  void CodeDeleteEvent(Address from);
-  void GetterCallbackEvent(Name* name, Address entry_point);
-  void RegExpCodeCreateEvent(Code* code, String* source);
-  void SetterCallbackEvent(Name* name, Address entry_point);
-  void SharedFunctionInfoMoveEvent(Address from, Address to);
+  virtual void CallbackEvent(Name* name, Address entry_point);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code, const char* comment);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code, Name* name);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               SharedFunctionInfo* shared,
+                               CompilationInfo* info,
+                               Name* name);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               SharedFunctionInfo* shared,
+                               CompilationInfo* info,
+                               Name* source, int line);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code, int args_count);
+  virtual void CodeMovingGCEvent() {}
+  virtual void CodeMoveEvent(Address from, Address to);
+  virtual void CodeDeleteEvent(Address from);
+  virtual void GetterCallbackEvent(Name* name, Address entry_point);
+  virtual void RegExpCodeCreateEvent(Code* code, String* source);
+  virtual void SetterCallbackEvent(Name* name, Address entry_point);
+  virtual void SharedFunctionInfoMoveEvent(Address from, Address to);
 
   INLINE(bool is_profiling() const) { return is_profiling_; }
   bool* is_profiling_address() {

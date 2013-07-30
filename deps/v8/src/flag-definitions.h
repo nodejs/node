@@ -190,8 +190,6 @@ DEFINE_implication(harmony_observation, harmony_collections)
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
 DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
-DEFINE_bool(compiled_transitions, true, "use optimizing compiler to "
-            "generate array elements transition stubs")
 DEFINE_bool(compiled_keyed_stores, true, "use optimizing compiler to "
             "generate keyed store stubs")
 DEFINE_bool(clever_optimizations,
@@ -744,11 +742,9 @@ DEFINE_bool(log_snapshot_positions, false,
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
 DEFINE_bool(prof, false,
             "Log statistical profiling information (implies --log-code).")
-DEFINE_bool(prof_auto, true,
-            "Used with --prof, starts profiling automatically")
 DEFINE_bool(prof_lazy, false,
             "Used with --prof, only does sampling and logging"
-            " when profiler is active (implies --noprof_auto).")
+            " when profiler is active.")
 DEFINE_bool(prof_browser_mode, true,
             "Used with --prof, turns on browser-compatible mode for profiling.")
 DEFINE_bool(log_regexp, false, "Log regular expression execution.")

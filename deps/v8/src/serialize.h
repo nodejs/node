@@ -459,6 +459,8 @@ class SerializationAddressMapper {
 };
 
 
+class CodeAddressMap;
+
 // There can be only one serializer per V8 process.
 class Serializer : public SerializerDeserializer {
  public:
@@ -472,14 +474,9 @@ class Serializer : public SerializerDeserializer {
     return fullness_[space];
   }
 
-  static void Enable() {
-    if (!serialization_enabled_) {
-      ASSERT(!too_late_to_enable_now_);
-    }
-    serialization_enabled_ = true;
-  }
+  static void Enable();
+  static void Disable();
 
-  static void Disable() { serialization_enabled_ = false; }
   // Call this when you have made use of the fact that there is no serialization
   // going on.
   static void TooLateToEnableNow() { too_late_to_enable_now_ = true; }
@@ -589,6 +586,7 @@ class Serializer : public SerializerDeserializer {
   friend class Deserializer;
 
  private:
+  static CodeAddressMap* code_address_map_;
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 

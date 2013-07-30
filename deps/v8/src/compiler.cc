@@ -558,8 +558,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (info->is_eval()) {
-    Script::CompilationType compilation_type = Script::COMPILATION_TYPE_EVAL;
-    script->set_compilation_type(Smi::FromInt(compilation_type));
+    script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
     // For eval scripts add information on the function from which eval was
     // called.
     if (info->is_eval()) {
@@ -650,8 +649,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // the instances of the function.
   SetExpectedNofPropertiesFromEstimate(result, lit->expected_property_count());
 
-  script->set_compilation_state(
-      Smi::FromInt(Script::COMPILATION_STATE_COMPILED));
+  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
@@ -969,9 +967,7 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
 
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
     if (FLAG_trace_parallel_recompilation) {
-      PrintF("  ** Compilation queue full, will retry optimizing ");
-      closure->PrintName();
-      PrintF(" on next run.\n");
+      PrintF("  ** Compilation queue, will retry opting on next run.\n");
     }
     return;
   }

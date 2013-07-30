@@ -1347,7 +1347,7 @@ void Assembler::rotrv(Register rd, Register rt, Register rs) {
 // Helper for base-reg + offset, when offset is larger than int16.
 void Assembler::LoadRegPlusOffsetToAt(const MemOperand& src) {
   ASSERT(!src.rm().is(at));
-  lui(at, src.offset_ >> kLuiShift);
+  lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
   ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
   addu(at, at, src.rm());  // Add base register.
 }

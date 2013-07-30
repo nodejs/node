@@ -60,7 +60,6 @@ class ScopedLoggerInitializer {
       : saved_log_(i::FLAG_log),
         saved_prof_lazy_(i::FLAG_prof_lazy),
         saved_prof_(i::FLAG_prof),
-        saved_prof_auto_(i::FLAG_prof_auto),
         temp_file_(NULL),
         // Need to run this prior to creating the scope.
         trick_to_run_init_flags_(init_flags_(prof_lazy)),
@@ -76,7 +75,6 @@ class ScopedLoggerInitializer {
     if (temp_file_ != NULL) fclose(temp_file_);
     i::FLAG_prof_lazy = saved_prof_lazy_;
     i::FLAG_prof = saved_prof_;
-    i::FLAG_prof_auto = saved_prof_auto_;
     i::FLAG_log = saved_log_;
   }
 
@@ -97,7 +95,6 @@ class ScopedLoggerInitializer {
     i::FLAG_log = true;
     i::FLAG_prof = true;
     i::FLAG_prof_lazy = prof_lazy;
-    i::FLAG_prof_auto = false;
     i::FLAG_logfile = i::Log::kLogToTemporaryFile;
     return prof_lazy;
   }
@@ -105,7 +102,6 @@ class ScopedLoggerInitializer {
   const bool saved_log_;
   const bool saved_prof_lazy_;
   const bool saved_prof_;
-  const bool saved_prof_auto_;
   FILE* temp_file_;
   const bool trick_to_run_init_flags_;
   v8::HandleScope scope_;

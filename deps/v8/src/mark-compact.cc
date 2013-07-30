@@ -2743,8 +2743,7 @@ void MarkCompactCollector::MigrateObject(Address dst,
   if (dest == OLD_POINTER_SPACE) {
     // TODO(hpayer): Replace this check with an assert.
     HeapObject* heap_object = HeapObject::FromAddress(src);
-    CHECK(heap_object->IsExternalString() ||
-          heap_->TargetSpace(heap_object) == heap_->old_pointer_space());
+    CHECK(heap_->TargetSpace(heap_object) == heap_->old_pointer_space());
     Address src_slot = src;
     Address dst_slot = dst;
     ASSERT(IsAligned(size, kPointerSize));

@@ -1933,7 +1933,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 // If false, it is returned as a pointer to a preallocated by caller memory
 // region. Pointer to this region should be passed to a function as an
 // implicit first argument.
-#if defined(USING_BSD_ABI) || defined(__MINGW32__) || defined(__CYGWIN__)
+#if V8_OS_BSD4 || V8_OS_MINGW32 || V8_OS_CYGWIN
 static const bool kReturnHandlesDirectly = true;
 #else
 static const bool kReturnHandlesDirectly = false;

@@ -106,6 +106,7 @@ class LCodeGen BASE_EMBEDDED {
   int32_t ToInteger32(LConstantOperand* op) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
+  ExternalReference ToExternalReference(LConstantOperand* op) const;
   bool IsTaggedConstant(LConstantOperand* op) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op) const;

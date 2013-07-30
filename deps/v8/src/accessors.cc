@@ -292,7 +292,7 @@ const AccessorDescriptor Accessors::ScriptType = {
 
 MaybeObject* Accessors::ScriptGetCompilationType(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->compilation_type();
+  return Smi::FromInt(Script::cast(script)->compilation_type());
 }
 
 
@@ -388,8 +388,7 @@ MaybeObject* Accessors::ScriptGetEvalFromScriptPosition(Object* object, void*) {
   Handle<Script> script(raw_script);
 
   // If this is not a script compiled through eval there is no eval position.
-  int compilation_type = Smi::cast(script->compilation_type())->value();
-  if (compilation_type != Script::COMPILATION_TYPE_EVAL) {
+  if (script->compilation_type() != Script::COMPILATION_TYPE_EVAL) {
     return script->GetHeap()->undefined_value();
   }
 

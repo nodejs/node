@@ -64,9 +64,14 @@ using namespace std;
 // To avoid GCC 4.4 compilation warning about hash_map being deprecated.
 #define OLD_DEPRECATED __DEPRECATED
 #undef __DEPRECATED
+#if defined (ANDROID)
+#include <hash_map>
+using namespace std;
+#else
 #include <ext/hash_map>
-#define __DEPRECATED OLD_DEPRECATED
 using namespace __gnu_cxx;
+#endif
+#define __DEPRECATED OLD_DEPRECATED
 #endif
 
 #include <list>

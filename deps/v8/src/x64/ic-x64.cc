@@ -1610,55 +1610,6 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
 }
 
 
-void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rbx    : target map
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  // Must return the modified receiver in eax.
-  if (!FLAG_trace_elements_transitions) {
-    Label fail;
-    AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
-                                                      FAST_DOUBLE_ELEMENTS);
-    ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
-    __ movq(rax, rdx);
-    __ Ret();
-    __ bind(&fail);
-  }
-
-  __ pop(rbx);
-  __ push(rdx);
-  __ push(rbx);  // return address
-  __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
-}
-
-
-void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
-    MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rbx    : target map
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  // Must return the modified receiver in eax.
-  if (!FLAG_trace_elements_transitions) {
-    Label fail;
-    AllocationSiteMode mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS,
-                                                      FAST_ELEMENTS);
-    ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
-    __ movq(rax, rdx);
-    __ Ret();
-    __ bind(&fail);
-  }
-
-  __ pop(rbx);
-  __ push(rdx);
-  __ push(rbx);  // return address
-  __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
-}
-
-
 #undef __
 
 

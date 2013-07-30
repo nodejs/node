@@ -66,10 +66,9 @@ void Log::Initialize(const char* log_file_name) {
   // --prof implies --log-code.
   if (FLAG_prof) FLAG_log_code = true;
 
-  // --prof_lazy controls --log-code, implies --noprof_auto.
+  // --prof_lazy controls --log-code.
   if (FLAG_prof_lazy) {
     FLAG_log_code = false;
-    FLAG_prof_auto = false;
   }
 
   // If we're logging anything, we need to open the log file.

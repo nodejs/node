@@ -448,6 +448,7 @@ const char* HType::ToString() {
   // Note: The c1visualizer syntax for locals allows only a sequence of the
   // following characters: A-Za-z0-9_-|:
   switch (type_) {
+    case kNone: return "none";
     case kTagged: return "tagged";
     case kTaggedPrimitive: return "primitive";
     case kTaggedNumber: return "number";
@@ -458,7 +459,6 @@ const char* HType::ToString() {
     case kNonPrimitive: return "non-primitive";
     case kJSArray: return "array";
     case kJSObject: return "object";
-    case kUninitialized: return "uninitialized";
   }
   UNREACHABLE();
   return "unreachable";
@@ -1632,9 +1632,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
 
 
 HValue* HCheckInstanceType::Canonicalize() {
-  if (check_ == IS_STRING &&
-      !value()->type().IsUninitialized() &&
-      value()->type().IsString()) {
+  if (check_ == IS_STRING && value()->type().IsString()) {
     return NULL;
   }
 
@@ -2647,10 +2645,13 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
+    has_external_reference_value_(false),
     is_internalized_string_(false),
     is_not_in_new_space_(true),
     is_cell_(false),
     boolean_value_(handle->BooleanValue()) {
+  set_type(HType::TypeFromValue(handle));
+
   if (handle_->IsHeapObject()) {
     Heap* heap = Handle<HeapObject>::cast(handle)->GetHeap();
     is_not_in_new_space_ = !heap->InNewSpace(*handle);
@@ -2663,7 +2664,6 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     double_value_ = n;
     has_double_value_ = true;
   } else {
-    type_from_value_ = HType::TypeFromValue(handle_);
     is_internalized_string_ = handle_->IsInternalizedString();
   }
 
@@ -2681,19 +2681,19 @@ HConstant::HConstant(Handle<Object> handle,
                      bool is_not_in_new_space,
                      bool is_cell,
                      bool boolean_value)
-    : handle_(handle),
-      unique_id_(unique_id),
-      has_smi_value_(false),
-      has_int32_value_(false),
-      has_double_value_(false),
-      is_internalized_string_(is_internalize_string),
-      is_not_in_new_space_(is_not_in_new_space),
-      is_cell_(is_cell),
-      boolean_value_(boolean_value),
-      type_from_value_(type) {
+  : handle_(handle),
+    unique_id_(unique_id),
+    has_smi_value_(false),
+    has_int32_value_(false),
+    has_double_value_(false),
+    has_external_reference_value_(false),
+    is_internalized_string_(is_internalize_string),
+    is_not_in_new_space_(is_not_in_new_space),
+    is_cell_(is_cell),
+    boolean_value_(boolean_value) {
   ASSERT(!handle.is_null());
-  ASSERT(!type.IsUninitialized());
   ASSERT(!type.IsTaggedNumber());
+  set_type(type);
   Initialize(r);
 }
 
@@ -2702,17 +2702,19 @@ HConstant::HConstant(int32_t integer_value,
                      Representation r,
                      bool is_not_in_new_space,
                      Handle<Object> optional_handle)
-    : handle_(optional_handle),
-      unique_id_(),
-      has_int32_value_(true),
-      has_double_value_(true),
-      is_internalized_string_(false),
-      is_not_in_new_space_(is_not_in_new_space),
-      is_cell_(false),
-      boolean_value_(integer_value != 0),
-      int32_value_(integer_value),
-      double_value_(FastI2D(integer_value)) {
-  has_smi_value_ = Smi::IsValid(int32_value_);
+  : handle_(optional_handle),
+    unique_id_(),
+    has_smi_value_(Smi::IsValid(integer_value)),
+    has_int32_value_(true),
+    has_double_value_(true),
+    has_external_reference_value_(false),
+    is_internalized_string_(false),
+    is_not_in_new_space_(is_not_in_new_space),
+    is_cell_(false),
+    boolean_value_(integer_value != 0),
+    int32_value_(integer_value),
+    double_value_(FastI2D(integer_value)) {
+  set_type(has_smi_value_ ? HType::Smi() : HType::TaggedNumber());
   Initialize(r);
 }
 
@@ -2721,18 +2723,35 @@ HConstant::HConstant(double double_value,
                      Representation r,
                      bool is_not_in_new_space,
                      Handle<Object> optional_handle)
-    : handle_(optional_handle),
-      unique_id_(),
-      has_int32_value_(IsInteger32(double_value)),
-      has_double_value_(true),
-      is_internalized_string_(false),
-      is_not_in_new_space_(is_not_in_new_space),
-      is_cell_(false),
-      boolean_value_(double_value != 0 && !std::isnan(double_value)),
-      int32_value_(DoubleToInt32(double_value)),
-      double_value_(double_value) {
+  : handle_(optional_handle),
+    unique_id_(),
+    has_int32_value_(IsInteger32(double_value)),
+    has_double_value_(true),
+    has_external_reference_value_(false),
+    is_internalized_string_(false),
+    is_not_in_new_space_(is_not_in_new_space),
+    is_cell_(false),
+    boolean_value_(double_value != 0 && !std::isnan(double_value)),
+    int32_value_(DoubleToInt32(double_value)),
+    double_value_(double_value) {
   has_smi_value_ = has_int32_value_ && Smi::IsValid(int32_value_);
+  set_type(has_smi_value_ ? HType::Smi() : HType::TaggedNumber());
   Initialize(r);
+}
+
+
+HConstant::HConstant(ExternalReference reference)
+  : has_smi_value_(false),
+    has_int32_value_(false),
+    has_double_value_(false),
+    has_external_reference_value_(true),
+    is_internalized_string_(false),
+    is_not_in_new_space_(true),
+    is_cell_(false),
+    boolean_value_(true),
+    external_reference_value_(reference) {
+  set_type(HType::None());
+  Initialize(Representation::External());
 }
 
 
@@ -2744,6 +2763,8 @@ void HConstant::Initialize(Representation r) {
       r = Representation::Integer32();
     } else if (has_double_value_) {
       r = Representation::Double();
+    } else if (has_external_reference_value_) {
+      r = Representation::External();
     } else {
       r = Representation::Tagged();
     }
@@ -2768,17 +2789,21 @@ HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   if (r.IsSmi() && !has_smi_value_) return NULL;
   if (r.IsInteger32() && !has_int32_value_) return NULL;
   if (r.IsDouble() && !has_double_value_) return NULL;
+  if (r.IsExternal() && !has_external_reference_value_) return NULL;
   if (has_int32_value_) {
     return new(zone) HConstant(int32_value_, r, is_not_in_new_space_, handle_);
   }
   if (has_double_value_) {
     return new(zone) HConstant(double_value_, r, is_not_in_new_space_, handle_);
   }
+  if (has_external_reference_value_) {
+    return new(zone) HConstant(external_reference_value_);
+  }
   ASSERT(!handle_.is_null());
   return new(zone) HConstant(handle_,
                              unique_id_,
                              r,
-                             type_from_value_,
+                             type_,
                              is_internalized_string_,
                              is_not_in_new_space_,
                              is_cell_,
@@ -2826,6 +2851,9 @@ void HConstant::PrintDataTo(StringStream* stream) {
     stream->Add("%d ", int32_value_);
   } else if (has_double_value_) {
     stream->Add("%f ", FmtElm(double_value_));
+  } else if (has_external_reference_value_) {
+    stream->Add("%p ", reinterpret_cast<void*>(
+            external_reference_value_.address()));
   } else {
     handle()->ShortPrint(stream);
   }
@@ -3653,22 +3681,13 @@ HType HCheckSmi::CalculateInferredType() {
 
 
 HType HPhi::CalculateInferredType() {
-  HType result = HType::Uninitialized();
-  for (int i = 0; i < OperandCount(); ++i) {
+  if (OperandCount() == 0) return HType::Tagged();
+  HType result = OperandAt(0)->type();
+  for (int i = 1; i < OperandCount(); ++i) {
     HType current = OperandAt(i)->type();
     result = result.Combine(current);
   }
   return result;
-}
-
-
-HType HConstant::CalculateInferredType() {
-  if (has_int32_value_) {
-    return Smi::IsValid(int32_value_) ? HType::Smi() : HType::HeapNumber();
-  }
-  if (has_double_value_) return HType::HeapNumber();
-  ASSERT(!type_from_value_.IsUninitialized());
-  return type_from_value_;
 }
 
 
@@ -3725,11 +3744,6 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
   Representation input_rep = value()->representation();
   if (!input_rep.IsTagged()) rep = rep.generalize(input_rep);
   return rep;
-}
-
-
-HType HStringCharFromCode::CalculateInferredType() {
-  return HType::String();
 }
 
 
@@ -4361,7 +4375,11 @@ bool HValue::HasNonSmiUse() {
     // We check for observed_input_representation elsewhere.
     Representation use_rep =
         it.value()->RequiredInputRepresentation(it.index());
-    if (!use_rep.IsNone() && !use_rep.IsSmi()) return true;
+    if (!use_rep.IsNone() &&
+        !use_rep.IsSmi() &&
+        !use_rep.IsTagged()) {
+      return true;
+    }
   }
   return false;
 }
@@ -4520,6 +4538,10 @@ void HObjectAccess::SetGVNFlags(HValue *instr, bool is_store) {
       instr->SetGVNFlag(is_store
           ? kChangesMaps : kDependsOnMaps);
       break;
+    case kExternalMemory:
+      instr->SetGVNFlag(is_store
+          ? kChangesExternalMemory : kDependsOnExternalMemory);
+      break;
   }
 }
 
@@ -4545,6 +4567,9 @@ void HObjectAccess::PrintTo(StringStream* stream) {
     case kBackingStore:
       if (!name_.is_null()) stream->Add(*String::cast(*name_)->ToCString());
       stream->Add("[backing-store]");
+      break;
+    case kExternalMemory:
+      stream->Add("[external-memory]");
       break;
   }
 

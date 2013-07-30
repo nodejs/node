@@ -5849,12 +5849,6 @@ class Script: public Struct {
   // [type]: the script type.
   DECL_ACCESSORS(type, Smi)
 
-  // [compilation]: how the the script was compiled.
-  DECL_ACCESSORS(compilation_type, Smi)
-
-  // [is_compiled]: determines whether the script has already been compiled.
-  DECL_ACCESSORS(compilation_state, Smi)
-
   // [line_ends]: FixedArray of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
 
@@ -5865,6 +5859,19 @@ class Script: public Struct {
   // [eval_from_instructions_offset]: the instruction offset in the code for the
   // function from which eval was called where eval was called.
   DECL_ACCESSORS(eval_from_instructions_offset, Smi)
+
+  // [flags]: Holds an exciting bitfield.
+  DECL_ACCESSORS(flags, Smi)
+
+  // [compilation_type]: how the the script was compiled. Encoded in the
+  // 'flags' field.
+  inline CompilationType compilation_type();
+  inline void set_compilation_type(CompilationType type);
+
+  // [compilation_state]: determines whether the script has already been
+  // compiled. Encoded in the 'flags' field.
+  inline CompilationState compilation_state();
+  inline void set_compilation_state(CompilationState state);
 
   static inline Script* cast(Object* obj);
 
@@ -5884,17 +5891,20 @@ class Script: public Struct {
   static const int kContextOffset = kDataOffset + kPointerSize;
   static const int kWrapperOffset = kContextOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
-  static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
-  static const int kCompilationStateOffset =
-      kCompilationTypeOffset + kPointerSize;
-  static const int kLineEndsOffset = kCompilationStateOffset + kPointerSize;
+  static const int kLineEndsOffset = kTypeOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
   static const int kEvalFromSharedOffset = kIdOffset + kPointerSize;
   static const int kEvalFrominstructionsOffsetOffset =
       kEvalFromSharedOffset + kPointerSize;
-  static const int kSize = kEvalFrominstructionsOffsetOffset + kPointerSize;
+  static const int kFlagsOffset =
+      kEvalFrominstructionsOffsetOffset + kPointerSize;
+  static const int kSize = kFlagsOffset + kPointerSize;
 
  private:
+  // Bit positions in the flags field.
+  static const int kCompilationTypeBit = 0;
+  static const int kCompilationStateBit = 1;
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);
 };
 

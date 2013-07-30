@@ -27,8 +27,6 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 
 PASS gotRightCatch is true
-PASS gotWrongCatch1 is false
-FAIL gotWrongCatch2 should be false. Was true.
 PASS successfullyParsed is true
 
 TEST COMPLETE

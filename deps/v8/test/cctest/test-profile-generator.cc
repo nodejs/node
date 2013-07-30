@@ -41,7 +41,6 @@ using i::CpuProfilesCollection;
 using i::ProfileNode;
 using i::ProfileTree;
 using i::ProfileGenerator;
-using i::SampleRateCalculator;
 using i::TickSample;
 using i::Vector;
 
@@ -485,7 +484,7 @@ TEST(RecordTickSample) {
   sample3.frames_count = 2;
   generator.RecordTickSample(sample3);
 
-  CpuProfile* profile = profiles.StopProfiling("", 1);
+  CpuProfile* profile = profiles.StopProfiling("");
   CHECK_NE(NULL, profile);
   ProfileTreeTestHelper top_down_test_helper(profile->top_down());
   CHECK_EQ(NULL, top_down_test_helper.Walk(entry2));
@@ -502,56 +501,6 @@ TEST(RecordTickSample) {
   ProfileNode* node4 = top_down_test_helper.Walk(entry1, entry3, entry1);
   CHECK_NE(NULL, node4);
   CHECK_EQ(entry1, node4->entry());
-}
-
-
-TEST(SampleRateCalculator) {
-  const double kSamplingIntervalMs = i::Logger::kSamplingIntervalMs;
-
-  // Verify that ticking exactly in query intervals results in the
-  // initial sampling interval.
-  double time = 0.0;
-  SampleRateCalculator calc1;
-  CHECK_EQ(kSamplingIntervalMs, calc1.ticks_per_ms());
-  calc1.UpdateMeasurements(time);
-  CHECK_EQ(kSamplingIntervalMs, calc1.ticks_per_ms());
-  time += SampleRateCalculator::kWallTimeQueryIntervalMs;
-  calc1.UpdateMeasurements(time);
-  CHECK_EQ(kSamplingIntervalMs, calc1.ticks_per_ms());
-  time += SampleRateCalculator::kWallTimeQueryIntervalMs;
-  calc1.UpdateMeasurements(time);
-  CHECK_EQ(kSamplingIntervalMs, calc1.ticks_per_ms());
-  time += SampleRateCalculator::kWallTimeQueryIntervalMs;
-  calc1.UpdateMeasurements(time);
-  CHECK_EQ(kSamplingIntervalMs, calc1.ticks_per_ms());
-
-  SampleRateCalculator calc2;
-  time = 0.0;
-  CHECK_EQ(kSamplingIntervalMs, calc2.ticks_per_ms());
-  calc2.UpdateMeasurements(time);
-  CHECK_EQ(kSamplingIntervalMs, calc2.ticks_per_ms());
-  time += SampleRateCalculator::kWallTimeQueryIntervalMs * 0.5;
-  calc2.UpdateMeasurements(time);
-  // (1.0 + 2.0) / 2
-  CHECK_EQ(kSamplingIntervalMs * 1.5, calc2.ticks_per_ms());
-  time += SampleRateCalculator::kWallTimeQueryIntervalMs * 0.75;
-  calc2.UpdateMeasurements(time);
-  // (1.0 + 2.0 + 2.0) / 3
-  CHECK_EQ(kSamplingIntervalMs * 5.0, floor(calc2.ticks_per_ms() * 3.0 + 0.5));
-
-  SampleRateCalculator calc3;
-  time = 0.0;
-  CHECK_EQ(kSamplingIntervalMs, calc3.ticks_per_ms());
-  calc3.UpdateMeasurements(time);
-  CHECK_EQ(kSamplingIntervalMs, calc3.ticks_per_ms());
-  time += SampleRateCalculator::kWallTimeQueryIntervalMs * 2;
-  calc3.UpdateMeasurements(time);
-  // (1.0 + 0.5) / 2
-  CHECK_EQ(kSamplingIntervalMs * 0.75, calc3.ticks_per_ms());
-  time += SampleRateCalculator::kWallTimeQueryIntervalMs * 1.5;
-  calc3.UpdateMeasurements(time);
-  // (1.0 + 0.5 + 0.5) / 3
-  CHECK_EQ(kSamplingIntervalMs * 2.0, floor(calc3.ticks_per_ms() * 3.0 + 0.5));
 }
 
 
@@ -598,7 +547,7 @@ TEST(SampleIds) {
   sample3.frames_count = 2;
   generator.RecordTickSample(sample3);
 
-  CpuProfile* profile = profiles.StopProfiling("", 1);
+  CpuProfile* profile = profiles.StopProfiling("");
   int nodeId = 1;
   CheckNodeIds(profile->top_down()->root(), &nodeId);
   CHECK_EQ(7, nodeId - 1);
@@ -627,7 +576,7 @@ TEST(NoSamples) {
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
 
-  CpuProfile* profile = profiles.StopProfiling("", 1);
+  CpuProfile* profile = profiles.StopProfiling("");
   int nodeId = 1;
   CheckNodeIds(profile->top_down()->root(), &nodeId);
   CHECK_EQ(3, nodeId - 1);

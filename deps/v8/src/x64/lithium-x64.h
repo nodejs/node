@@ -79,6 +79,7 @@ class LCodeGen;
   V(CmpMapAndBranch)                            \
   V(CmpT)                                       \
   V(ConstantD)                                  \
+  V(ConstantE)                                  \
   V(ConstantI)                                  \
   V(ConstantS)                                  \
   V(ConstantT)                                  \
@@ -266,7 +267,7 @@ class LInstruction: public ZoneObject {
   bool IsMarkedAsCall() const { return is_call_; }
 
   virtual bool HasResult() const = 0;
-  virtual LOperand* result() = 0;
+  virtual LOperand* result() const = 0;
 
   LOperand* FirstInput() { return InputAt(0); }
   LOperand* Output() { return HasResult() ? result() : NULL; }
@@ -302,9 +303,9 @@ class LTemplateInstruction: public LInstruction {
  public:
   // Allow 0 or 1 output operands.
   STATIC_ASSERT(R == 0 || R == 1);
-  virtual bool HasResult() const { return R != 0; }
+  virtual bool HasResult() const { return R != 0 && result() != NULL; }
   void set_result(LOperand* operand) { results_[0] = operand; }
-  LOperand* result() { return results_[0]; }
+  LOperand* result() const { return results_[0]; }
 
  protected:
   EmbeddedContainer<LOperand*, R> results_;
@@ -1163,6 +1164,17 @@ class LConstantD: public LTemplateInstruction<1, 0, 1> {
   DECLARE_HYDROGEN_ACCESSOR(Constant)
 
   double value() const { return hydrogen()->DoubleValue(); }
+};
+
+
+class LConstantE: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(ConstantE, "constant-e")
+  DECLARE_HYDROGEN_ACCESSOR(Constant)
+
+  ExternalReference value() const {
+    return hydrogen()->ExternalReferenceValue();
+  }
 };
 
 

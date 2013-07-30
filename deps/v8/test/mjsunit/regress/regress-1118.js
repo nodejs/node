@@ -52,8 +52,10 @@ function h() {
     g();
   } else {
     // Run for a bit as long as h is unoptimized.
-    while (%GetOptimizationStatus(h, "no sync") == 2) {
-      for (var j = 0; j < 100; j++) g();
+    if (%GetOptimizationStatus(h) != 4) {
+      while (%GetOptimizationCount(h) == 0) {
+        for (var j = 0; j < 100; j++) g();
+      }
     }
     g();
   }

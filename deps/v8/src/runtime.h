@@ -463,8 +463,6 @@ namespace internal {
   F(HasExternalDoubleElements, 1, 1) \
   F(HasFastProperties, 1, 1) \
   F(TransitionElementsKind, 2, 1) \
-  F(TransitionElementsSmiToDouble, 1, 1) \
-  F(TransitionElementsDoubleToObject, 1, 1) \
   F(HaveSameMap, 2, 1)
 
 

@@ -49,7 +49,7 @@ from testrunner.objects import context
 
 
 ARCH_GUESS = utils.DefaultArch()
-DEFAULT_TESTS = ["mjsunit"]
+DEFAULT_TESTS = ["mjsunit", "webkit"]
 TIMEOUT_DEFAULT = 60
 TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }

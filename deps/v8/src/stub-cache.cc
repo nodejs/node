@@ -1992,21 +1992,11 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
     ElementsKind elements_kind = receiver_map->elements_kind();
     if (!transitioned_map.is_null()) {
-      if (FLAG_compiled_transitions) {
-        cached_stub = ElementsTransitionAndStoreStub(
-            elements_kind,
-            transitioned_map->elements_kind(),
-            is_js_array,
-            store_mode_).GetCode(isolate());
-      } else {
-        // TODO(bmeurer) Remove this when compiled transitions is enabled
-        cached_stub = ElementsTransitionAndStorePlatformStub(
-            elements_kind,
-            transitioned_map->elements_kind(),
-            is_js_array,
-            strict_mode(),
-            store_mode_).GetCode(isolate());
-      }
+      cached_stub = ElementsTransitionAndStoreStub(
+          elements_kind,
+          transitioned_map->elements_kind(),
+          is_js_array,
+          store_mode_).GetCode(isolate());
     } else {
       if (FLAG_compiled_keyed_stores &&
           (receiver_map->has_fast_elements() ||

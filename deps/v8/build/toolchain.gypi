@@ -60,7 +60,19 @@
 
     'v8_enable_backtrace%': 0,
 
-    # Turns on compiler optimizations in Debug builds (#defines are unaffected).
+    # Speeds up Debug builds:
+    # 0 - compiler optimizations off (debuggable) (default). This may
+    #     be 5x slower than Release (or worse).
+    # 1 - turn on compiler optimizations. and #undef DEBUG/#define NDEBUG.
+    #     This may be hard or impossible to debug. This may still be
+    #     2x slower than Release (or worse).
+    # 2 - Turn on optimizations, and also #undef DEBUG / #define NDEBUG
+    #     (but leave V8_ENABLE_CHECKS and most other assertions enabled.
+    #     This may cause some v8 tests to fail in the Debug configuration.
+    #     This roughly matches the performance of a Release build and can
+    #     be used by embedders that need to build their own code as debug
+    #     but don't want or need a debug version of V8. This should produce
+    #     near-release speeds.
     'v8_optimized_debug%': 0,
 
     # Enable profiling support. Only required on Windows.
@@ -435,7 +447,6 @@
     'configurations': {
       'Debug': {
         'defines': [
-          'DEBUG',
           'ENABLE_DISASSEMBLER',
           'V8_ENABLE_CHECKS',
           'OBJECT_PRINT',
@@ -449,41 +460,96 @@
               }, {
                 'RuntimeLibrary': '1',  # /MTd
               }],
-              ['v8_optimized_debug==1', {
-                'Optimization': '1',
+              ['v8_optimized_debug==0', {
+                'Optimization': '0',
+              }, {
+                'Optimization': '2',
                 'InlineFunctionExpansion': '2',
                 'EnableIntrinsicFunctions': 'true',
                 'FavorSizeOrSpeed': '0',
                 'StringPooling': 'true',
                 'BasicRuntimeChecks': '0',
-              }, {
-                'Optimization': '0',
+                'conditions': [
+                  ['component=="shared_library"', {
+                    'RuntimeLibrary': '2',  #/MD
+                  }, {
+                    'RuntimeLibrary': '0',  #/MT
+                  }],
+                  ['v8_target_arch=="x64"', {
+                    # TODO(2207): remove this option once the bug is fixed.
+                    'WholeProgramOptimization': 'true',
+                  }],
+                ],
               }],
             ],
           },
           'VCLinkerTool': {
-            'LinkIncremental': '2',
+            'conditions': [
+              ['v8_optimized_debug==0', {
+                'LinkIncremental': '2',
+              }, {
+                'LinkIncremental': '1',
+                'OptimizeReferences': '2',
+                'EnableCOMDATFolding': '2',
+              }],
+            ],
           },
         },
         'conditions': [
+          ['v8_optimized_debug==2', {
+            'defines': [
+              'NDEBUG',
+            ],
+          }, {
+            'defines': [
+              'DEBUG',
+            ],
+          }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual',
                         '<(wno_array_bounds)' ],
             'conditions': [
+              ['v8_optimized_debug==0', {
+                'cflags!': [
+                  '-O0',
+                  '-O3',
+                  '-O2',
+                  '-O1',
+                  '-Os',
+                ],
+                'cflags': [
+                  '-fdata-sections',
+                  '-ffunction-sections',
+                ],
+              }],
               ['v8_optimized_debug==1', {
                 'cflags!': [
                   '-O0',
+                  '-O3', # TODO(2807) should be -O1.
                   '-O2',
                   '-Os',
                 ],
                 'cflags': [
                   '-fdata-sections',
                   '-ffunction-sections',
-                  '-O1',
+                  '-O1', # TODO(2807) should be -O3.
                 ],
               }],
-              ['v8_optimized_debug==1 and gcc_version==44 and clang==0', {
+              ['v8_optimized_debug==2', {
+                'cflags!': [
+                  '-O0',
+                  '-O1',
+                  '-O2',
+                  '-Os',
+                ],
+                'cflags': [
+                  '-fdata-sections',
+                  '-ffunction-sections',
+                  '-O3',
+                ],
+              }],
+              ['v8_optimized_debug!=0 and gcc_version==44 and clang==0', {
                 'cflags': [
                   # Avoid crashes with gcc 4.4 in the v8 test suite.
                   '-fno-tree-vrp',
@@ -512,11 +578,11 @@
           ['OS=="mac"', {
             'xcode_settings': {
               'conditions': [
-                 ['v8_optimized_debug==1', {
-                   'GCC_OPTIMIZATION_LEVEL': '1',  # -O1
-                   'GCC_STRICT_ALIASING': 'YES',
-                 }, {
+                 ['v8_optimized_debug==0', {
                    'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
+                 }, {
+                   'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
+                   'GCC_STRICT_ALIASING': 'YES',
                  }],
                ],
             },

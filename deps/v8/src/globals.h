@@ -28,72 +28,172 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-// Define V8_INFINITY
-#define V8_INFINITY INFINITY
+// ----------------------------------------------------------------------------
+// Operating system detection (V8_OS_x)
+//
+//  ANDROID - Android
+//  BSD4    - Any BSD 4.4 system
+//  CYGWIN  - Cygwin
+//  DARWIN  - Darwin / Mac OS X
+//  FREEBSD - FreeBSD
+//  LINUX   - Linux
+//  NACL    - Native Client
+//  NETBSD  - NetBSD
+//  OPENBSD - OpenBSD
+//  SOLARIS - Solaris
+//  UNIX    - Any UNIX BSD/SYSV system
+//  WIN32   - Win32 (Windows 2000/XP/Vista/7 and Windows Server 2003/2008)
 
-// GCC specific stuff
-#ifdef __GNUC__
-
-#define __GNUC_VERSION_FOR_INFTY__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
-
-// Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
-// warning flag and certain versions of GCC due to a bug:
-// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=11931
-// For now, we use the more involved template-based version from <limits>, but
-// only when compiling with GCC versions affected by the bug (2.96.x - 4.0.x)
-// __GNUC_PREREQ is not defined in GCC for Mac OS X, so we define our own macro
-#if __GNUC_VERSION_FOR_INFTY__ >= 29600 && __GNUC_VERSION_FOR_INFTY__ < 40100
-#include <limits>
-#undef V8_INFINITY
-#define V8_INFINITY std::numeric_limits<double>::infinity()
+#if defined(ANDROID) || defined(__ANDROID__)
+# define V8_OS_ANDROID 1
+# define V8_OS_LINUX 1
+# define V8_OS_UNIX 1
+#elif defined(__APPLE__) && defined(__MACH__)
+# define V8_OS_DARWIN 1
+# define V8_OS_BSD4 1
+# define V8_OS_UNIX 1
+#elif defined(__CYGWIN__)
+# define V8_OS_CYGWIN 1
+# define V8_OS_UNIX 1
+#elif defined(WIN64) || defined(_WIN64) || defined(__WIN64__)
+# define V8_OS_WIN32 1
+# define V8_OS_WIN64 1
+#elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || \
+    (defined(__MWERKS__) && defined(__INTEL__))
+# define V8_OS_WIN32 1
+#elif defined(__sun) || defined(sun)
+# define V8_OS_SOLARIS 1
+# define V8_OS_UNIX 1
+#elif defined(__native_client__)
+# define V8_OS_NACL 1
+#elif defined(__linux__) || defined(__linux)
+# define V8_OS_LINUX 1
+# define V8_OS_UNIX 1
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
+# define V8_OS_FREEBSD 1
+# define V8_OS_BSD4 1
+# define V8_OS_UNIX 1
+#elif defined(__NetBSD__)
+# define V8_OS_NETBSD 1
+# define V8_OS_BSD4 1
+# define V8_OS_UNIX 1
+#elif defined(__OpenBSD__)
+# define V8_OS_OPENBSD 1
+# define V8_OS_BSD4 1
+# define V8_OS_UNIX 1
+#else
+# error Operating system was not detected as supported by v8
 #endif
-#undef __GNUC_VERSION_FOR_INFTY__
 
-#endif  // __GNUC__
 
-#ifdef _MSC_VER
-#undef V8_INFINITY
-#define V8_INFINITY HUGE_VAL
+// ----------------------------------------------------------------------------
+// Compiler detection (V8_CC_x)
+//
+//  CLANG - C++ front-end for the LLVM compiler
+//  GNU   - GNU C++ or compatible
+//  INTEL - Intel C++ for Linux or Windows
+//  MINGW - Minimalistic GNU for Windows Compiler
+//  MIPS  - MIPSpro C++
+//  MSVC  - Microsoft Visual C/C++ or compatible
+//  RVCT  - ARM Realview Compiler Suite
+
+#if defined(_MSC_VER)
+# define V8_CC_MSVC 1
+# if defined(__INTEL_COMPILER)
+#  define V8_CC_INTEL 1
+# endif
+#elif defined(__GNUC__)
+# define V8_CC_GNU 1
+# if defined(__MINGW64__)
+#  define V8_CC_MINGW 1
+#  define V8_CC_MINGW64 1
+# elif defined(__MINGW32__)
+#  define V8_CC_MINGW 1
+#  define V8_CC_MINGW32 1
+# elif defined(__ARMCC__) || defined(__CC_ARM)
+#  define V8_CC_RVCT 1  // ARM Realview Compiler Suite also masquerades as GCC
+# elif defined(__INTEL_COMPILER)
+#  define V8_CC_INTEL 1  // Intel C++ also masquerades as GCC 3.2.0
+# elif defined(__clang__)
+#  define V8_CC_CLANG 1  // Clang also masquerades as GCC 4.2.1
+# endif
+#elif defined(__ARMCC__) || defined(__CC_ARM)
+# define V8_CC_RVCT 1
+#elif defined(__INTEL_COMPILER)
+# define V8_CC_INTEL 1
+#elif defined(__SUNPRO_CC) || defined(__SUNPRO_C)
+# define V8_CC_SUN 1
+#else
+# error Compiler was not detected as supported by v8
+#endif
+
+#if V8_CC_GNU
+# define V8_GNUC_PREREQ(major, minor) \
+    (__GNUC__ > (major) || (__GNUC__ == (major) && __GNUC_MINOR__ >= (minor)))
+#else
+# define V8_GNUC_PREREQ(major, minor) 0
+#endif  // V8_CC_GNU
+
+
+// ----------------------------------------------------------------------------
+// Compiler features
+
+// C++11 deleted functions
+#if __cplusplus >= 201103L
+# define V8_CXX_DELETED_FUNCTIONS 1
+#elif V8_CC_CLANG
+# define V8_CXX_DELETED_FUNCTIONS __has_feature(cxx_deleted_functions)
+#else
+# define V8_CXX_DELETED_FUNCTIONS (defined(__GXX_EXPERIMENTAL_CXX0X__) && \
+                                   V8_GNUC_PREREQ(4, 4))
+#endif
+
+// C++11 static_assert()
+#if __cplusplus >= 201103L
+# define V8_CXX_STATIC_ASSERT 1
+#elif V8_CC_CLANG
+# define V8_CXX_STATIC_ASSERT (__has_extension(cxx_static_assert) || \
+                               __has_feature(cxx_static_assert))
+#else
+# define V8_CXX_STATIC_ASSERT (defined(__GXX_EXPERIMENTAL_CXX0X__) && \
+                               V8_GNUC_PREREQ(4, 3))
 #endif
 
 
-#include "../include/v8stdint.h"
-
-namespace v8 {
-namespace internal {
-
-// Processor architecture detection.  For more info on what's defined, see:
+// ----------------------------------------------------------------------------
+// Host architecture detection.  For more info on what's defined, see:
 //   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
 //   http://www.agner.org/optimize/calling_conventions.pdf
 //   or with gcc, run: "echo | gcc -E -dM -"
+
 #if defined(_M_X64) || defined(__x86_64__)
-#if defined(__native_client__)
+# if V8_OS_NACL
 // For Native Client builds of V8, use V8_TARGET_ARCH_ARM, so that V8
 // generates ARM machine code, together with a portable ARM simulator
 // compiled for the host architecture in question.
 //
 // Since Native Client is ILP-32 on all architectures we use
 // V8_HOST_ARCH_IA32 on both 32- and 64-bit x86.
-#define V8_HOST_ARCH_IA32 1
-#define V8_HOST_ARCH_32_BIT 1
-#define V8_HOST_CAN_READ_UNALIGNED 1
-#else
-#define V8_HOST_ARCH_X64 1
-#define V8_HOST_ARCH_64_BIT 1
-#define V8_HOST_CAN_READ_UNALIGNED 1
-#endif  // __native_client__
+#  define V8_HOST_ARCH_IA32 1
+#  define V8_HOST_ARCH_32_BIT 1
+#  define V8_HOST_CAN_READ_UNALIGNED 1
+# else
+#  define V8_HOST_ARCH_X64 1
+#  define V8_HOST_ARCH_64_BIT 1
+#  define V8_HOST_CAN_READ_UNALIGNED 1
+# endif  // V8_OS_NACL
 #elif defined(_M_IX86) || defined(__i386__)
-#define V8_HOST_ARCH_IA32 1
-#define V8_HOST_ARCH_32_BIT 1
-#define V8_HOST_CAN_READ_UNALIGNED 1
+# define V8_HOST_ARCH_IA32 1
+# define V8_HOST_ARCH_32_BIT 1
+# define V8_HOST_CAN_READ_UNALIGNED 1
 #elif defined(__ARMEL__)
-#define V8_HOST_ARCH_ARM 1
-#define V8_HOST_ARCH_32_BIT 1
+# define V8_HOST_ARCH_ARM 1
+# define V8_HOST_ARCH_32_BIT 1
 #elif defined(__MIPSEL__)
-#define V8_HOST_ARCH_MIPS 1
-#define V8_HOST_ARCH_32_BIT 1
+# define V8_HOST_ARCH_MIPS 1
+# define V8_HOST_ARCH_32_BIT 1
 #else
-#error Host architecture was not detected as supported by v8
+# error Host architecture was not detected as supported by v8
 #endif
 
 #if defined(__ARM_ARCH_7A__) || \
@@ -101,67 +201,124 @@ namespace internal {
     defined(__ARM_ARCH_7__)
 # define CAN_USE_ARMV7_INSTRUCTIONS 1
 # ifndef CAN_USE_VFP3_INSTRUCTIONS
-#  define CAN_USE_VFP3_INSTRUCTIONS
+#  define CAN_USE_VFP3_INSTRUCTIONS 1
 # endif
 #endif
 
 
+// ----------------------------------------------------------------------------
 // Target architecture detection. This may be set externally. If not, detect
 // in the same way as the host architecture, that is, target the native
 // environment as presented by the compiler.
+
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && \
     !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS
-#if defined(_M_X64) || defined(__x86_64__)
-#define V8_TARGET_ARCH_X64 1
-#elif defined(_M_IX86) || defined(__i386__)
-#define V8_TARGET_ARCH_IA32 1
-#elif defined(__ARMEL__)
-#define V8_TARGET_ARCH_ARM 1
-#elif defined(__MIPSEL__)
-#define V8_TARGET_ARCH_MIPS 1
-#else
-#error Target architecture was not detected as supported by v8
-#endif
+# if V8_HOST_ARCH_X64
+#  define V8_TARGET_ARCH_X64 1
+# elif V8_HOST_ARCH_IA32
+#  define V8_TARGET_ARCH_IA32 1
+# elif V8_HOST_ARCH_ARM
+#  define V8_TARGET_ARCH_ARM 1
+# elif V8_HOST_ARCH_MIPS
+#  define V8_TARGET_ARCH_MIPS 1
+# else
+#  error Target architecture was not detected as supported by v8
+# endif
 #endif
 
 // Check for supported combinations of host and target architectures.
 #if V8_TARGET_ARCH_IA32 && !V8_HOST_ARCH_IA32
-#error Target architecture ia32 is only supported on ia32 host
-#endif
-#if V8_TARGET_ARCH_X64 && !V8_HOST_ARCH_X64
-#error Target architecture x64 is only supported on x64 host
-#endif
-#if (V8_TARGET_ARCH_ARM && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_ARM))
-#error Target architecture arm is only supported on arm and ia32 host
-#endif
-#if (V8_TARGET_ARCH_MIPS && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_MIPS))
-#error Target architecture mips is only supported on mips and ia32 host
+# error Target architecture ia32 is only supported on ia32 host
+#elif V8_TARGET_ARCH_X64 && !V8_HOST_ARCH_X64
+# error Target architecture x64 is only supported on x64 host
+#elif V8_TARGET_ARCH_ARM && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_ARM)
+# error Target architecture arm is only supported on arm and ia32 host
+#elif V8_TARGET_ARCH_MIPS && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_MIPS)
+# error Target architecture mips is only supported on mips and ia32 host
 #endif
 
 // Determine whether we are running in a simulated environment.
 // Setting USE_SIMULATOR explicitly from the build script will force
 // the use of a simulated environment.
 #if !defined(USE_SIMULATOR)
-#if (V8_TARGET_ARCH_ARM && !V8_HOST_ARCH_ARM)
-#define USE_SIMULATOR 1
-#endif
-#if (V8_TARGET_ARCH_MIPS && !V8_HOST_ARCH_MIPS)
-#define USE_SIMULATOR 1
-#endif
+# if V8_TARGET_ARCH_ARM && !V8_HOST_ARCH_ARM
+#  define USE_SIMULATOR 1
+# elif V8_TARGET_ARCH_MIPS && !V8_HOST_ARCH_MIPS
+#  define USE_SIMULATOR 1
+# endif
 #endif
 
 // Determine architecture endiannes (we only support little-endian).
-#if V8_TARGET_ARCH_IA32
-#define V8_TARGET_LITTLE_ENDIAN 1
-#elif V8_TARGET_ARCH_X64
-#define V8_TARGET_LITTLE_ENDIAN 1
-#elif V8_TARGET_ARCH_ARM
-#define V8_TARGET_LITTLE_ENDIAN 1
-#elif V8_TARGET_ARCH_MIPS
-#define V8_TARGET_LITTLE_ENDIAN 1
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+# define V8_TARGET_LITTLE_ENDIAN 1
 #else
-#error Unknown target architecture endiannes
+# error Unknown target architecture endiannes
 #endif
+
+
+// ----------------------------------------------------------------------------
+// Define our own macros for writing 64-bit constants.  This is less fragile
+// than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
+// works on compilers that don't have it (like MSVC).
+#if V8_HOST_ARCH_64_BIT
+# if V8_CC_MSVC
+#  define V8_UINT64_C(x)  (x ## UI64)
+#  define V8_INT64_C(x)   (x ## I64)
+#  define V8_INTPTR_C(x)  (x ## I64)
+#  define V8_PTR_PREFIX "ll"
+# elif V8_CC_MINGW
+#  define V8_UINT64_C(x)  (x ## ULL)
+#  define V8_INT64_C(x)   (x ## LL)
+#  define V8_INTPTR_C(x)  (x ## LL)
+#  define V8_PTR_PREFIX "I64"
+# else
+#  define V8_UINT64_C(x)  (x ## UL)
+#  define V8_INT64_C(x)   (x ## L)
+#  define V8_INTPTR_C(x)  (x ## L)
+#  define V8_PTR_PREFIX "l"
+# endif
+#else  // V8_HOST_ARCH_64_BIT
+# define V8_INTPTR_C(x)  (x)
+# define V8_PTR_PREFIX ""
+#endif  // V8_HOST_ARCH_64_BIT
+
+// The following macro works on both 32 and 64-bit platforms.
+// Usage: instead of writing 0x1234567890123456
+//      write V8_2PART_UINT64_C(0x12345678,90123456);
+#define V8_2PART_UINT64_C(a, b) (((static_cast<uint64_t>(a) << 32) + 0x##b##u))
+
+#if V8_OS_DARWIN
+// Fix for Mac OS X defining uintptr_t as "unsigned long":
+# define V8PRIxPTR "lx"
+#else
+# define V8PRIxPTR V8_PTR_PREFIX "x"
+#endif  // V8_OS_DARWIN
+#define V8PRIdPTR V8_PTR_PREFIX "d"
+#define V8PRIuPTR V8_PTR_PREFIX "u"
+
+
+// ----------------------------------------------------------------------------
+// Define V8_INFINITY
+#if V8_GNUC_PREREQ(2, 96) && !V8_GNUC_PREREQ(4, 1)
+// Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
+// warning flag and certain versions of GCC due to a bug:
+// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=11931
+// For now, we use the more involved template-based version from <limits>, but
+// only when compiling with GCC versions affected by the bug (2.96.x - 4.0.x)
+# include <limits>
+# define V8_INFINITY std::numeric_limits<double>::infinity()
+#elif V8_CC_MSVC
+# define V8_INFINITY HUGE_VAL
+#else
+# define V8_INFINITY INFINITY
+#endif
+
+
+#include "../include/v8stdint.h"
+
+namespace v8 {
+namespace internal {
 
 // Support for alternative bool type. This is only enabled if the code is
 // compiled with USE_MYBOOL defined. This catches some nasty type bugs.
@@ -182,51 +339,6 @@ typedef unsigned int __my_bool__;
 
 typedef uint8_t byte;
 typedef byte* Address;
-
-// Define our own macros for writing 64-bit constants.  This is less fragile
-// than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
-// works on compilers that don't have it (like MSVC).
-#if V8_HOST_ARCH_64_BIT
-#if defined(_MSC_VER)
-#define V8_UINT64_C(x)  (x ## UI64)
-#define V8_INT64_C(x)   (x ## I64)
-#define V8_INTPTR_C(x)  (x ## I64)
-#define V8_PTR_PREFIX "ll"
-#elif defined(__MINGW64__)
-#define V8_UINT64_C(x)  (x ## ULL)
-#define V8_INT64_C(x)   (x ## LL)
-#define V8_INTPTR_C(x)  (x ## LL)
-#define V8_PTR_PREFIX "I64"
-#else
-#define V8_UINT64_C(x)  (x ## UL)
-#define V8_INT64_C(x)   (x ## L)
-#define V8_INTPTR_C(x)  (x ## L)
-#define V8_PTR_PREFIX "l"
-#endif
-#else  // V8_HOST_ARCH_64_BIT
-#define V8_INTPTR_C(x)  (x)
-#define V8_PTR_PREFIX ""
-#endif  // V8_HOST_ARCH_64_BIT
-
-// The following macro works on both 32 and 64-bit platforms.
-// Usage: instead of writing 0x1234567890123456
-//      write V8_2PART_UINT64_C(0x12345678,90123456);
-#define V8_2PART_UINT64_C(a, b) (((static_cast<uint64_t>(a) << 32) + 0x##b##u))
-
-#define V8PRIxPTR V8_PTR_PREFIX "x"
-#define V8PRIdPTR V8_PTR_PREFIX "d"
-#define V8PRIuPTR V8_PTR_PREFIX "u"
-
-// Fix for Mac OS X defining uintptr_t as "unsigned long":
-#if defined(__APPLE__) && defined(__MACH__)
-#undef V8PRIxPTR
-#define V8PRIxPTR "lx"
-#endif
-
-#if (defined(__APPLE__) && defined(__MACH__)) || \
-    defined(__FreeBSD__) || defined(__OpenBSD__)
-#define USING_BSD_ABI
-#endif
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -330,10 +442,10 @@ F FUNCTION_CAST(Address addr) {
 }
 
 
-#if __cplusplus >= 201103L
-#define DISALLOW_BY_DELETE = delete
+#if V8_CXX_DELETED_FUNCTIONS
+# define DISALLOW_BY_DELETE = delete
 #else
-#define DISALLOW_BY_DELETE
+# define DISALLOW_BY_DELETE
 #endif
 
 
@@ -358,24 +470,22 @@ F FUNCTION_CAST(Address addr) {
 // Define used for helping GCC to make better inlining. Don't bother for debug
 // builds. On GCC 3.4.5 using __attribute__((always_inline)) causes compilation
 // errors in debug build.
-#if defined(__GNUC__) && !defined(DEBUG)
-#if (__GNUC__ >= 4)
-#define INLINE(header) inline header  __attribute__((always_inline))
-#define NO_INLINE(header) header __attribute__((noinline))
+#if V8_GNUC_PREREQ(4, 0) && !defined(DEBUG)
+# define INLINE(header) inline header  __attribute__((always_inline))
+# define NO_INLINE(header) header __attribute__((noinline))
+#elif V8_CC_GNU && !defined(DEBUG)
+# define INLINE(header) inline __attribute__((always_inline)) header
+# define NO_INLINE(header) __attribute__((noinline)) header
+#elif V8_CC_MSVC && !defined(DEBUG)
+# define INLINE(header) __forceinline header
+# define NO_INLINE(header) header
 #else
-#define INLINE(header) inline __attribute__((always_inline)) header
-#define NO_INLINE(header) __attribute__((noinline)) header
-#endif
-#elif defined(_MSC_VER) && !defined(DEBUG)
-#define INLINE(header) __forceinline header
-#define NO_INLINE(header) header
-#else
-#define INLINE(header) inline header
-#define NO_INLINE(header) header
+# define INLINE(header) inline header
+# define NO_INLINE(header) header
 #endif
 
 
-#if defined(__GNUC__) && __GNUC__ >= 4
+#if V8_GNUC_PREREQ(4, 0)
 #define MUST_USE_RESULT __attribute__ ((warn_unused_result))
 #else
 #define MUST_USE_RESULT

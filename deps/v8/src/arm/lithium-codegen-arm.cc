@@ -1742,7 +1742,14 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
       case Token::SHL:
         if (shift_count != 0) {
-          __ mov(result, Operand(left, LSL, shift_count));
+          if (instr->hydrogen_value()->representation().IsSmi() &&
+              instr->can_deopt()) {
+            __ mov(result, Operand(left, LSL, shift_count - 1));
+            __ SmiTag(result, result, SetCC);
+            DeoptimizeIf(vs, instr->environment());
+          } else {
+            __ mov(result, Operand(left, LSL, shift_count));
+          }
         } else {
           __ Move(result, left);
         }
@@ -1812,6 +1819,11 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   DwVfpRegister result = ToDoubleRegister(instr->result());
   double v = instr->value();
   __ Vmov(result, v, scratch0());
+}
+
+
+void LCodeGen::DoConstantE(LConstantE* instr) {
+  __ mov(ToRegister(instr->result()), Operand(instr->value()));
 }
 
 
@@ -2995,6 +3007,13 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
   Register object = ToRegister(instr->object());
+
+  if (access.IsExternalMemory()) {
+    Register result = ToRegister(instr->result());
+    __ ldr(result, MemOperand(object, offset));
+    return;
+  }
+
   if (instr->hydrogen()->representation().IsDouble()) {
     DwVfpRegister result = ToDoubleRegister(instr->result());
     __ vldr(result, FieldMemOperand(object, offset));
@@ -4174,9 +4193,14 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Register object = ToRegister(instr->object());
   Register scratch = scratch0();
-
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
+
+  if (access.IsExternalMemory()) {
+    Register value = ToRegister(instr->value());
+    __ str(value, MemOperand(object, offset));
+    return;
+  }
 
   Handle<Map> transition = instr->transition();
 
@@ -4500,7 +4524,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     // Write barrier.
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         scratch, GetLinkRegisterState(), kDontSaveFPRegs);
-  } else if (FLAG_compiled_transitions) {
+  } else {
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
     __ Move(r0, object_reg);
     __ Move(r1, to_map);
@@ -4508,28 +4532,6 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ CallStub(&stub);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
-  } else if (IsFastSmiElementsKind(from_kind) &&
-             IsFastDoubleElementsKind(to_kind)) {
-    Register fixed_object_reg = ToRegister(instr->temp());
-    ASSERT(fixed_object_reg.is(r2));
-    Register new_map_reg = ToRegister(instr->new_map_temp());
-    ASSERT(new_map_reg.is(r3));
-    __ mov(new_map_reg, Operand(to_map));
-    __ mov(fixed_object_reg, object_reg);
-    CallCode(isolate()->builtins()->TransitionElementsSmiToDouble(),
-             RelocInfo::CODE_TARGET, instr);
-  } else if (IsFastDoubleElementsKind(from_kind) &&
-             IsFastObjectElementsKind(to_kind)) {
-    Register fixed_object_reg = ToRegister(instr->temp());
-    ASSERT(fixed_object_reg.is(r2));
-    Register new_map_reg = ToRegister(instr->new_map_temp());
-    ASSERT(new_map_reg.is(r3));
-    __ mov(new_map_reg, Operand(to_map));
-    __ mov(fixed_object_reg, object_reg);
-    CallCode(isolate()->builtins()->TransitionElementsDoubleToObject(),
-             RelocInfo::CODE_TARGET, instr);
-  } else {
-    UNREACHABLE();
   }
   __ bind(&not_applicable);
 }

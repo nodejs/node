@@ -761,7 +761,7 @@ LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
 
 LInstruction* LChunkBuilder::DoShift(Token::Value op,
                                      HBitwiseBinaryOperation* instr) {
-  if (instr->representation().IsSmiOrTagged()) {
+  if (instr->representation().IsTagged()) {
     ASSERT(instr->left()->representation().IsSmiOrTagged());
     ASSERT(instr->right()->representation().IsSmiOrTagged());
 
@@ -772,25 +772,35 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     return MarkAsCall(DefineFixed(result, eax), instr);
   }
 
-  ASSERT(instr->representation().IsInteger32());
-  ASSERT(instr->left()->representation().IsInteger32());
-  ASSERT(instr->right()->representation().IsInteger32());
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* left = UseRegisterAtStart(instr->left());
 
   HValue* right_value = instr->right();
   LOperand* right = NULL;
   int constant_value = 0;
+  bool does_deopt = false;
   if (right_value->IsConstant()) {
     HConstant* constant = HConstant::cast(right_value);
     right = chunk_->DefineConstantOperand(constant);
     constant_value = constant->Integer32Value() & 0x1f;
+    // Left shifts can deoptimize if we shift by > 0 and the result cannot be
+    // truncated to smi.
+    if (instr->representation().IsSmi() && constant_value > 0) {
+      for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
+        if (!it.value()->CheckFlag(HValue::kTruncatingToSmi)) {
+          does_deopt = true;
+          break;
+        }
+      }
+    }
   } else {
     right = UseFixed(right_value, ecx);
   }
 
   // Shift operations can only deoptimize if we do a logical shift by 0 and
   // the result cannot be truncated to int32.
-  bool does_deopt = false;
   if (op == Token::SHR && constant_value == 0) {
     if (FLAG_opt_safe_uint32_operations) {
       does_deopt = !instr->CheckFlag(HInstruction::kUint32);
@@ -2136,6 +2146,8 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
     bool value_is_zero = BitCast<uint64_t, double>(value) == 0;
     LOperand* temp = value_is_zero ? NULL : TempRegister();
     return DefineAsRegister(new(zone()) LConstantD(temp));
+  } else if (r.IsExternal()) {
+    return DefineAsRegister(new(zone()) LConstantE);
   } else if (r.IsTagged()) {
     return DefineAsRegister(new(zone()) LConstantT);
   } else {
@@ -2212,7 +2224,10 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
-  LOperand* obj = UseRegisterAtStart(instr->object());
+  LOperand* obj = (instr->access().IsExternalMemory() &&
+                   instr->access().offset() == 0)
+      ? UseRegisterOrConstantAtStart(instr->object())
+      : UseRegisterAtStart(instr->object());
   return DefineAsRegister(new(zone()) LLoadNamedField(obj));
 }
 
@@ -2405,21 +2420,11 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
         new(zone()) LTransitionElementsKind(object, NULL,
                                             new_map_reg, temp_reg);
     return result;
-  } else if (FLAG_compiled_transitions) {
+  } else {
     LOperand* context = UseRegister(instr->context());
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, context, NULL, NULL);
     return AssignPointerMap(result);
-  } else {
-    LOperand* object = UseFixed(instr->object(), eax);
-    LOperand* fixed_object_reg = FixedTemp(edx);
-    LOperand* new_map_reg = FixedTemp(ebx);
-    LTransitionElementsKind* result =
-        new(zone()) LTransitionElementsKind(object,
-                                            NULL,
-                                            new_map_reg,
-                                            fixed_object_reg);
-    return MarkAsCall(result, instr);
   }
 }
 
@@ -2436,6 +2441,8 @@ LInstruction* LChunkBuilder::DoTrapAllocationMemento(
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   bool is_in_object = instr->access().IsInobject();
+  bool is_external_location = instr->access().IsExternalMemory() &&
+      instr->access().offset() == 0;
   bool needs_write_barrier = instr->NeedsWriteBarrier();
   bool needs_write_barrier_for_map = !instr->transition().is_null() &&
       instr->NeedsWriteBarrierForMap();
@@ -2445,6 +2452,11 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     obj = is_in_object
         ? UseRegister(instr->object())
         : UseTempRegister(instr->object());
+  } else if (is_external_location) {
+    ASSERT(!is_in_object);
+    ASSERT(!needs_write_barrier);
+    ASSERT(!needs_write_barrier_for_map);
+    obj = UseRegisterOrConstant(instr->object());
   } else {
     obj = needs_write_barrier_for_map
         ? UseRegister(instr->object())

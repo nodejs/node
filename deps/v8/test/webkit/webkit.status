@@ -30,3 +30,6 @@ dfg-int-overflow-in-loop: PASS, SKIP if $mode == debug
 dfg-double-vote-fuzz: PASS, SKIP if $mode == debug
 reentrant-caching: PASS, SKIP if $mode == debug
 sort-large-array: PASS, SKIP if $mode == debug
+
+##############################################################################
+[ $deopt_fuzzer == True ]

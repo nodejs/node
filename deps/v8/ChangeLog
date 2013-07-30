@@ -1,3 +1,13 @@
+2013-07-30: Version 3.20.11
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-29: Version 3.20.10
+
+        Performance and stability improvements on all platforms.
+
+
 2013-07-26: Version 3.20.9
 
         Check that ExternalString objects get aligned resources.

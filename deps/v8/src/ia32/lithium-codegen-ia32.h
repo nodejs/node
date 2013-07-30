@@ -297,6 +297,7 @@ class LCodeGen BASE_EMBEDDED {
   X87Register ToX87Register(int index) const;
   int ToRepresentation(LConstantOperand* op, const Representation& r) const;
   int32_t ToInteger32(LConstantOperand* op) const;
+  ExternalReference ToExternalReference(LConstantOperand* op) const;
 
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,

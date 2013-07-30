@@ -315,7 +315,11 @@ assertTrue(fired);
 Error.prepareStackTrace = function() { throw new Error("abc"); };
 var message;
 try {
-  throw new Error();
+  try {
+    throw new Error();
+  } catch (e) {
+    e.stack;
+  }
 } catch (e) {
   message = e.message;
 }
@@ -324,6 +328,6 @@ assertEquals("abc", message);
 
 // Test that modifying Error.prepareStackTrace by itself works.
 Error.prepareStackTrace = function() { Error.prepareStackTrace = "custom"; };
-new Error();
+new Error().stack;
 
 assertEquals("custom", Error.prepareStackTrace);

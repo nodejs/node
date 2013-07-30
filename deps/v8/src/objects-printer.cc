@@ -1202,8 +1202,7 @@ void Script::ScriptPrint(FILE* out) {
   context_data()->ShortPrint(out);
   PrintF(out, "\n - wrapper: ");
   wrapper()->ShortPrint(out);
-  PrintF(out, "\n - compilation type: ");
-  compilation_type()->ShortPrint(out);
+  PrintF(out, "\n - compilation type: %d", compilation_type());
   PrintF(out, "\n - line ends: ");
   line_ends()->ShortPrint(out);
   PrintF(out, "\n - eval from shared: ");

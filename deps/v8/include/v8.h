@@ -2719,11 +2719,15 @@ class V8EXPORT Date : public Object {
  public:
   static Local<Value> New(double time);
 
+  // Deprecated, use Date::ValueOf() instead.
+  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
+  double NumberValue() const { return ValueOf(); }
+
   /**
    * A specialization of Value::NumberValue that is more efficient
    * because we know the structure of this object.
    */
-  double NumberValue() const;
+  double ValueOf() const;
 
   V8_INLINE(static Date* Cast(v8::Value* obj));
 
@@ -2753,10 +2757,14 @@ class V8EXPORT NumberObject : public Object {
  public:
   static Local<Value> New(double value);
 
+  // Deprecated, use NumberObject::ValueOf() instead.
+  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
+  double NumberValue() const { return ValueOf(); }
+
   /**
    * Returns the Number held by the object.
    */
-  double NumberValue() const;
+  double ValueOf() const;
 
   V8_INLINE(static NumberObject* Cast(v8::Value* obj));
 
@@ -2772,10 +2780,14 @@ class V8EXPORT BooleanObject : public Object {
  public:
   static Local<Value> New(bool value);
 
+  // Deprecated, use BooleanObject::ValueOf() instead.
+  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
+  bool BooleanValue() const { return ValueOf(); }
+
   /**
    * Returns the Boolean held by the object.
    */
-  bool BooleanValue() const;
+  bool ValueOf() const;
 
   V8_INLINE(static BooleanObject* Cast(v8::Value* obj));
 
@@ -2791,10 +2803,14 @@ class V8EXPORT StringObject : public Object {
  public:
   static Local<Value> New(Handle<String> value);
 
+  // Deprecated, use StringObject::ValueOf() instead.
+  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
+  Local<String> StringValue() const { return ValueOf(); }
+
   /**
    * Returns the String held by the object.
    */
-  Local<String> StringValue() const;
+  Local<String> ValueOf() const;
 
   V8_INLINE(static StringObject* Cast(v8::Value* obj));
 
@@ -2812,10 +2828,14 @@ class V8EXPORT SymbolObject : public Object {
  public:
   static Local<Value> New(Isolate* isolate, Handle<Symbol> value);
 
+  // Deprecated, use SymbolObject::ValueOf() instead.
+  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
+  Local<Symbol> SymbolValue() const { return ValueOf(); }
+
   /**
    * Returns the Symbol held by the object.
    */
-  Local<Symbol> SymbolValue() const;
+  Local<Symbol> ValueOf() const;
 
   V8_INLINE(static SymbolObject* Cast(v8::Value* obj));
 

@@ -665,6 +665,141 @@ bool Serializer::serialization_enabled_ = false;
 bool Serializer::too_late_to_enable_now_ = false;
 
 
+class CodeAddressMap: public CodeEventLogger {
+ public:
+  explicit CodeAddressMap(Isolate* isolate)
+      : isolate_(isolate) {
+    isolate->logger()->addCodeEventListener(this);
+  }
+
+  virtual ~CodeAddressMap() {
+    isolate_->logger()->removeCodeEventListener(this);
+  }
+
+  virtual void CodeMoveEvent(Address from, Address to) {
+    address_to_name_map_.Move(from, to);
+  }
+
+  virtual void CodeDeleteEvent(Address from) {
+    address_to_name_map_.Remove(from);
+  }
+
+  const char* Lookup(Address address) {
+    return address_to_name_map_.Lookup(address);
+  }
+
+ private:
+  class NameMap {
+   public:
+    NameMap() : impl_(&PointerEquals) {}
+
+    ~NameMap() {
+      for (HashMap::Entry* p = impl_.Start(); p != NULL; p = impl_.Next(p)) {
+        DeleteArray(static_cast<const char*>(p->value));
+      }
+    }
+
+    void Insert(Address code_address, const char* name, int name_size) {
+      HashMap::Entry* entry = FindOrCreateEntry(code_address);
+      if (entry->value == NULL) {
+        entry->value = CopyName(name, name_size);
+      }
+    }
+
+    const char* Lookup(Address code_address) {
+      HashMap::Entry* entry = FindEntry(code_address);
+      return (entry != NULL) ? static_cast<const char*>(entry->value) : NULL;
+    }
+
+    void Remove(Address code_address) {
+      HashMap::Entry* entry = FindEntry(code_address);
+      if (entry != NULL) {
+        DeleteArray(static_cast<char*>(entry->value));
+        RemoveEntry(entry);
+      }
+    }
+
+    void Move(Address from, Address to) {
+      if (from == to) return;
+      HashMap::Entry* from_entry = FindEntry(from);
+      ASSERT(from_entry != NULL);
+      void* value = from_entry->value;
+      RemoveEntry(from_entry);
+      HashMap::Entry* to_entry = FindOrCreateEntry(to);
+      ASSERT(to_entry->value == NULL);
+      to_entry->value = value;
+    }
+
+   private:
+    static bool PointerEquals(void* lhs, void* rhs) {
+      return lhs == rhs;
+    }
+
+    static char* CopyName(const char* name, int name_size) {
+      char* result = NewArray<char>(name_size + 1);
+      for (int i = 0; i < name_size; ++i) {
+        char c = name[i];
+        if (c == '\0') c = ' ';
+        result[i] = c;
+      }
+      result[name_size] = '\0';
+      return result;
+    }
+
+    HashMap::Entry* FindOrCreateEntry(Address code_address) {
+      return impl_.Lookup(code_address, ComputePointerHash(code_address), true);
+    }
+
+    HashMap::Entry* FindEntry(Address code_address) {
+      return impl_.Lookup(code_address,
+                          ComputePointerHash(code_address),
+                          false);
+    }
+
+    void RemoveEntry(HashMap::Entry* entry) {
+      impl_.Remove(entry->key, entry->hash);
+    }
+
+    HashMap impl_;
+
+    DISALLOW_COPY_AND_ASSIGN(NameMap);
+  };
+
+  virtual void LogRecordedBuffer(Code* code,
+                                 SharedFunctionInfo*,
+                                 const char* name,
+                                 int length) {
+    address_to_name_map_.Insert(code->address(), name, length);
+  }
+
+  NameMap address_to_name_map_;
+  Isolate* isolate_;
+};
+
+
+CodeAddressMap* Serializer::code_address_map_ = NULL;
+
+
+void Serializer::Enable() {
+  if (!serialization_enabled_) {
+    ASSERT(!too_late_to_enable_now_);
+  }
+  if (serialization_enabled_) return;
+  serialization_enabled_ = true;
+  i::Isolate* isolate = Isolate::Current();
+  isolate->InitializeLoggingAndCounters();
+  code_address_map_ = new CodeAddressMap(isolate);
+}
+
+
+void Serializer::Disable() {
+  if (!serialization_enabled_) return;
+  serialization_enabled_ = false;
+  delete code_address_map_;
+  code_address_map_ = NULL;
+}
+
+
 Deserializer::Deserializer(SnapshotByteSource* source)
     : isolate_(NULL),
       source_(source),
@@ -1458,7 +1593,11 @@ void Serializer::ObjectSerializer::Serialize() {
              "ObjectSerialization");
   sink_->PutInt(size >> kObjectAlignmentBits, "Size in words");
 
-  LOG(i::Isolate::Current(),
+  ASSERT(code_address_map_);
+  const char* code_name = code_address_map_->Lookup(object_->address());
+  LOG(serializer_->isolate_,
+      CodeNameEvent(object_->address(), sink_->Position(), code_name));
+  LOG(serializer_->isolate_,
       SnapshotPositionEvent(object_->address(), sink_->Position()));
 
   // Mark this object as already serialized.

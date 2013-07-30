@@ -408,11 +408,6 @@ void RuntimeProfiler::TearDown() {
 }
 
 
-int RuntimeProfiler::SamplerWindowSize() {
-  return kSamplerWindowSize;
-}
-
-
 // Update the pointers in the sampler window after a GC.
 void RuntimeProfiler::UpdateSamplesAfterScavenge() {
   for (int i = 0; i < kSamplerWindowSize; i++) {

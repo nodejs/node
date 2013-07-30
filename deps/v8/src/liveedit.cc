@@ -1290,7 +1290,6 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
     if (code_scope_info->IsFixedArray()) {
       shared_info->set_scope_info(ScopeInfo::cast(*code_scope_info));
     }
-    shared_info->DisableOptimization("LiveEdit");
   }
 
   if (shared_info->debug_info()->IsDebugInfo()) {
@@ -1558,10 +1557,13 @@ static Handle<Script> CreateScriptCopy(Handle<Script> original) {
   copy->set_data(original->data());
   copy->set_type(original->type());
   copy->set_context_data(original->context_data());
-  copy->set_compilation_type(original->compilation_type());
   copy->set_eval_from_shared(original->eval_from_shared());
   copy->set_eval_from_instructions_offset(
       original->eval_from_instructions_offset());
+
+  // Copy all the flags, but clear compilation state.
+  copy->set_flags(original->flags());
+  copy->set_compilation_state(Script::COMPILATION_STATE_INITIAL);
 
   return copy;
 }

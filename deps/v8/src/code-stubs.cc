@@ -818,44 +818,6 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 }
 
 
-void ElementsTransitionAndStorePlatformStub::Generate(MacroAssembler* masm) {
-  Label fail;
-  AllocationSiteMode mode = AllocationSite::GetMode(from_, to_);
-  ASSERT(!IsFastHoleyElementsKind(from_) || IsFastHoleyElementsKind(to_));
-  if (!FLAG_trace_elements_transitions) {
-    if (IsFastSmiOrObjectElementsKind(to_)) {
-      if (IsFastSmiOrObjectElementsKind(from_)) {
-        ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm, mode, &fail);
-      } else if (IsFastDoubleElementsKind(from_)) {
-        ASSERT(!IsFastSmiElementsKind(to_));
-        ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
-      } else {
-        UNREACHABLE();
-      }
-      KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
-                                                       is_jsarray_,
-                                                       to_,
-                                                       store_mode_);
-    } else if (IsFastSmiElementsKind(from_) &&
-               IsFastDoubleElementsKind(to_)) {
-      ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
-      KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
-                                                             is_jsarray_,
-                                                             store_mode_);
-    } else if (IsFastDoubleElementsKind(from_)) {
-      ASSERT(to_ == FAST_HOLEY_DOUBLE_ELEMENTS);
-      ElementsTransitionGenerator::
-          GenerateMapChangeElementsTransition(masm, mode, &fail);
-    } else {
-      UNREACHABLE();
-    }
-  }
-  masm->bind(&fail);
-  KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode_);
-}
-
-
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub stub1(NOT_JS_FUNCTION_STUB_MODE);
   StubFailureTrampolineStub stub2(JS_FUNCTION_STUB_MODE);

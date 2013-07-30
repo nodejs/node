@@ -1078,7 +1078,26 @@ function GetStackFrames(raw_stack) {
 }
 
 
-function FormatStackTrace(error_string, frames) {
+// Flag to prevent recursive call of Error.prepareStackTrace.
+var formatting_custom_stack_trace = false;
+
+
+function FormatStackTrace(obj, error_string, frames) {
+  if (IS_FUNCTION($Error.prepareStackTrace) && !formatting_custom_stack_trace) {
+    var array = [];
+    %MoveArrayContents(frames, array);
+    formatting_custom_stack_trace = true;
+    var stack_trace = void 0;
+    try {
+      stack_trace = $Error.prepareStackTrace(obj, array);
+    } catch (e) {
+      throw e;  // The custom formatting function threw.  Rethrow.
+    } finally {
+      formatting_custom_stack_trace = false;
+    }
+    return stack_trace;
+  }
+
   var lines = new InternalArray();
   lines.push(error_string);
   for (var i = 0; i < frames.length; i++) {
@@ -1115,10 +1134,6 @@ function GetTypeName(receiver, requireConstructor) {
 }
 
 
-// Flag to prevent recursive call of Error.prepareStackTrace.
-var formatting_custom_stack_trace = false;
-
-
 function captureStackTrace(obj, cons_opt) {
   var stackTraceLimit = $Error.stackTraceLimit;
   if (!stackTraceLimit || !IS_NUMBER(stackTraceLimit)) return;
@@ -1129,21 +1144,6 @@ function captureStackTrace(obj, cons_opt) {
                                  cons_opt ? cons_opt : captureStackTrace,
                                  stackTraceLimit);
 
-  // Don't be lazy if the error stack formatting is custom (observable).
-  if (IS_FUNCTION($Error.prepareStackTrace) && !formatting_custom_stack_trace) {
-    var array = [];
-    %MoveArrayContents(GetStackFrames(stack), array);
-    formatting_custom_stack_trace = true;
-    try {
-      obj.stack = $Error.prepareStackTrace(obj, array);
-    } catch (e) {
-      throw e;  // The custom formatting function threw.  Rethrow.
-    } finally {
-      formatting_custom_stack_trace = false;
-    }
-    return;
-  }
-
   var error_string = FormatErrorString(obj);
   // The holder of this getter ('obj') may not be the receiver ('this').
   // When this getter is called the first time, we use the context values to
@@ -1151,7 +1151,7 @@ function captureStackTrace(obj, cons_opt) {
   // property (on the holder).
   var getter = function() {
     // Stack is still a raw array awaiting to be formatted.
-    var result = FormatStackTrace(error_string, GetStackFrames(stack));
+    var result = FormatStackTrace(obj, error_string, GetStackFrames(stack));
     // Turn this accessor into a data property.
     %DefineOrRedefineDataProperty(obj, 'stack', result, NONE);
     // Release context values.
@@ -1321,7 +1321,7 @@ function SetUpStackOverflowBoilerplate() {
     // We may not have captured any stack trace.
     if (IS_UNDEFINED(stack)) return stack;
 
-    var result = FormatStackTrace(error_string, GetStackFrames(stack));
+    var result = FormatStackTrace(holder, error_string, GetStackFrames(stack));
     // Replace this accessor with a data property.
     %DefineOrRedefineDataProperty(holder, 'stack', result, NONE);
     return result;

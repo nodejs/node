@@ -1486,51 +1486,6 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- a2     : receiver
-  //  -- a3     : target map
-  //  -- ra     : return address
-  // -----------------------------------
-  // Must return the modified receiver in v0.
-  if (!FLAG_trace_elements_transitions) {
-    Label fail;
-    AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
-                                                      FAST_DOUBLE_ELEMENTS);
-    ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
-    __ Ret(USE_DELAY_SLOT);
-    __ mov(v0, a2);
-    __ bind(&fail);
-  }
-
-  __ push(a2);
-  __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
-}
-
-
-void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
-    MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- a2     : receiver
-  //  -- a3     : target map
-  //  -- ra     : return address
-  // -----------------------------------
-  // Must return the modified receiver in v0.
-  if (!FLAG_trace_elements_transitions) {
-    Label fail;
-    AllocationSiteMode mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS,
-                                                      FAST_ELEMENTS);
-    ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
-    __ Ret(USE_DELAY_SLOT);
-    __ mov(v0, a2);
-    __ bind(&fail);
-  }
-
-  __ push(a2);
-  __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
-}
-
-
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
                                   StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------

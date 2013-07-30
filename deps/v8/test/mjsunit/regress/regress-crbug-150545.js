@@ -45,8 +45,10 @@
 
   function outer() {
     inner(1,2,3);
-    // Trigger OSR.
-    while (%GetOptimizationStatus(outer, "no sync") == 2) {}
+    // Trigger OSR, if optimization is not disabled.
+    if (%GetOptimizationStatus(outer) != 4) {
+      while (%GetOptimizationCount(outer) == 0) {}
+    }
   }
 
   outer();

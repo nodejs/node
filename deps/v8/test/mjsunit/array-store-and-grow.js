@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Verifies that the KeyedStoreIC correctly handles out-of-bounds stores
 // to an array that grow it by a single element. Test functions are
 // called twice to make sure that the IC is used, first call is handled
@@ -184,3 +186,24 @@ a = [];
 array_store_1(a, 0, 0.5);
 assertEquals(0.5, a[0]);
 assertEquals(0.5, array_store_1([], 0, 0.5));
+
+// Verify that a grow store will deoptimize if the max gap (difference between
+// the end of an array capacity and a new index) is passed. The wrapper is to
+// make sure array_store_10 isn't inlined.
+
+(function() {
+  function grow_store(a,b,c) {
+    a[b] = c;
+  }
+
+  a = new Array(1);
+  grow_store(a,1,1);
+  grow_store(a,2,1);
+  %OptimizeFunctionOnNextCall(grow_store);
+  grow_store(a,10,1);
+  assertOptimized(grow_store);
+  grow_store(a,2048,1);
+  assertUnoptimized(grow_store);
+  %ClearFunctionTypeFeedback(grow_store);
+})();
+

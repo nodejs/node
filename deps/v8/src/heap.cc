@@ -703,16 +703,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
 }
 
 
-int Heap::NotifyContextDisposed() {
-  if (FLAG_parallel_recompilation) {
-    // Flush the queued recompilation tasks.
-    isolate()->optimizing_compiler_thread()->Flush();
-  }
-  flush_monomorphic_ics_ = true;
-  return ++contexts_disposed_;
-}
-
-
 void Heap::PerformScavenge() {
   GCTracer tracer(this, NULL, NULL);
   if (incremental_marking()->IsStopped()) {

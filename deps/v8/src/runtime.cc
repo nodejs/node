@@ -2948,7 +2948,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   JavaScriptFrame* frame = stack_iterator.frame();
 
   ASSERT_EQ(frame->function(), generator_object->function());
-  ASSERT(frame->function()->is_compiled());
 
   STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting <= 0);
   STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed <= 0);
@@ -5228,40 +5227,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsKind) {
   CONVERT_ARG_HANDLE_CHECKED(Map, map, 1);
   JSObject::TransitionElementsKind(array, map->elements_kind());
   return *array;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsSmiToDouble) {
-  SealHandleScope shs(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
-  Handle<Object> object = args.at<Object>(0);
-  if (object->IsJSObject()) {
-    Handle<JSObject> js_object(Handle<JSObject>::cast(object));
-    ASSERT(!js_object->map()->is_observed());
-    ElementsKind new_kind = js_object->HasFastHoleyElements()
-        ? FAST_HOLEY_DOUBLE_ELEMENTS
-        : FAST_DOUBLE_ELEMENTS;
-    return TransitionElements(object, new_kind, isolate);
-  } else {
-    return *object;
-  }
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsDoubleToObject) {
-  SealHandleScope shs(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
-  Handle<Object> object = args.at<Object>(0);
-  if (object->IsJSObject()) {
-    Handle<JSObject> js_object(Handle<JSObject>::cast(object));
-    ASSERT(!js_object->map()->is_observed());
-    ElementsKind new_kind = js_object->HasFastHoleyElements()
-        ? FAST_HOLEY_ELEMENTS
-        : FAST_ELEMENTS;
-    return TransitionElements(object, new_kind, isolate);
-  } else {
-    return *object;
-  }
 }
 
 
@@ -8466,7 +8431,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (FLAG_parallel_recompilation && sync_with_compiler_thread) {
-    while (function->IsInRecompileQueue() ||
+    while (function->IsMarkedForParallelRecompilation() ||
+           function->IsInRecompileQueue() ||
            function->IsMarkedForInstallingRecompiledCode()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
       OS::Sleep(50);
@@ -12921,7 +12887,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugSetScriptSource) {
   RUNTIME_ASSERT(script_wrapper->value()->IsScript());
   Handle<Script> script(Script::cast(script_wrapper->value()));
 
-  int compilation_state = Smi::cast(script->compilation_state())->value();
+  int compilation_state = script->compilation_state();
   RUNTIME_ASSERT(compilation_state == Script::COMPILATION_STATE_INITIAL);
   script->set_source(*source);
 

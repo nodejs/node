@@ -70,7 +70,7 @@ namespace internal {
 // tick profiler requires code events, so --prof implies --log-code.
 
 // Forward declarations.
-class CodeAddressMap;
+class CodeEventListener;
 class CompilationInfo;
 class CpuProfiler;
 class Isolate;
@@ -155,7 +155,6 @@ class JitLogger;
 class LowLevelLogger;
 class Sampler;
 
-
 class Logger {
  public:
 #define DECLARE_ENUM(enum_item, ignore) enum_item,
@@ -226,6 +225,11 @@ class Logger {
 
 
   // ==== Events logged by --log-code. ====
+  void addCodeEventListener(CodeEventListener* listener);
+  void removeCodeEventListener(CodeEventListener* listener);
+  bool hasCodeEventListener(CodeEventListener* listener);
+
+
   // Emits a code event for a callback function.
   void CallbackEvent(Name* name, Address entry_point);
   void GetterCallbackEvent(Name* name, Address entry_point);
@@ -269,6 +273,7 @@ class Logger {
 
   void SharedFunctionInfoMoveEvent(Address from, Address to);
 
+  void CodeNameEvent(Address addr, int pos, const char* code_name);
   void SnapshotPositionEvent(Address addr, int pos);
 
   // ==== Events logged by --log-gc. ====
@@ -439,26 +444,95 @@ class Logger {
   Log* log_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
-  CodeAddressMap* code_address_map_;
+  List<CodeEventListener*> listeners_;
 
   // Guards against multiple calls to TearDown() that can happen in some tests.
   // 'true' between SetUp() and TearDown().
   bool is_initialized_;
 
-  // Support for 'incremental addresses' in compressed logs:
-  //  LogMessageBuilder::AppendAddress(Address addr)
-  Address last_address_;
-  //  Logger::TickEvent(...)
-  Address prev_sp_;
-  Address prev_function_;
-  //  Logger::MoveEventInternal(...)
-  Address prev_to_;
-  //  Logger::FunctionCreateEvent(...)
-  Address prev_code_;
-
   int64_t epoch_;
 
   friend class CpuProfiler;
+};
+
+
+class CodeEventListener {
+ public:
+  virtual ~CodeEventListener() {}
+
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               const char* comment) = 0;
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               Name* name) = 0;
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               SharedFunctionInfo* shared,
+                               CompilationInfo* info,
+                               Name* name) = 0;
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               SharedFunctionInfo* shared,
+                               CompilationInfo* info,
+                               Name* source,
+                               int line) = 0;
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               int args_count) = 0;
+  virtual void CallbackEvent(Name* name, Address entry_point) = 0;
+  virtual void GetterCallbackEvent(Name* name, Address entry_point) = 0;
+  virtual void SetterCallbackEvent(Name* name, Address entry_point) = 0;
+  virtual void RegExpCodeCreateEvent(Code* code, String* source) = 0;
+  virtual void CodeMoveEvent(Address from, Address to) = 0;
+  virtual void CodeDeleteEvent(Address from) = 0;
+  virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
+  virtual void CodeMovingGCEvent() = 0;
+};
+
+
+class CodeEventLogger : public CodeEventListener {
+ public:
+  CodeEventLogger();
+  virtual ~CodeEventLogger();
+
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               const char* comment);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               Name* name);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               int args_count);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               SharedFunctionInfo* shared,
+                               CompilationInfo* info,
+                               Name* name);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                               Code* code,
+                               SharedFunctionInfo* shared,
+                               CompilationInfo* info,
+                               Name* source,
+                               int line);
+  virtual void RegExpCodeCreateEvent(Code* code, String* source);
+
+  virtual void CallbackEvent(Name* name, Address entry_point) { }
+  virtual void GetterCallbackEvent(Name* name, Address entry_point) { }
+  virtual void SetterCallbackEvent(Name* name, Address entry_point) { }
+  virtual void SharedFunctionInfoMoveEvent(Address from, Address to) { }
+  virtual void CodeMovingGCEvent() { }
+
+ private:
+  class NameBuffer;
+
+  virtual void LogRecordedBuffer(Code* code,
+                                 SharedFunctionInfo* shared,
+                                 const char* name,
+                                 int length) = 0;
+
+  NameBuffer* name_buffer_;
 };
 
 

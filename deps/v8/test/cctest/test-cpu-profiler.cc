@@ -222,7 +222,7 @@ TEST(TickEvents) {
 
   processor.StopSynchronously();
   processor.Join();
-  CpuProfile* profile = profiles->StopProfiling("", 1);
+  CpuProfile* profile = profiles->StopProfiling("");
   CHECK_NE(NULL, profile);
 
   // Check call trees.
@@ -286,7 +286,7 @@ TEST(Issue1398) {
 
   processor.StopSynchronously();
   processor.Join();
-  CpuProfile* profile = profiles->StopProfiling("", 1);
+  CpuProfile* profile = profiles->StopProfiling("");
   CHECK_NE(NULL, profile);
 
   int actual_depth = 0;

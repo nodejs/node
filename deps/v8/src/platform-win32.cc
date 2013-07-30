@@ -892,7 +892,7 @@ size_t OS::AllocateAlignment() {
 }
 
 
-static void* GetRandomAddr() {
+void* OS::GetRandomMmapAddr() {
   Isolate* isolate = Isolate::UncheckedCurrent();
   // Note that the current isolate isn't set up in a call path via
   // CpuFeatures::Probe. We don't care about randomization in this case because
@@ -925,7 +925,7 @@ static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
   if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
     // For exectutable pages try and randomize the allocation address
     for (size_t attempts = 0; base == NULL && attempts < 3; ++attempts) {
-      base = VirtualAlloc(GetRandomAddr(), size, action, protection);
+      base = VirtualAlloc(OS::GetRandomMmapAddr(), size, action, protection);
     }
   }
 

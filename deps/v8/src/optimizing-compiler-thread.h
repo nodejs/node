@@ -54,13 +54,13 @@ class OptimizingCompilerThread : public Thread {
       install_mutex_(OS::CreateMutex()),
       time_spent_compiling_(0),
       time_spent_total_(0) {
-    NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
+    NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
     NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
   }
 
   void Run();
   void Stop();
-  void Flush();
+  void CompileNext();
   void QueueForOptimization(OptimizingCompiler* optimizing_compiler);
   void InstallOptimizedFunctions();
 
@@ -92,12 +92,6 @@ class OptimizingCompilerThread : public Thread {
   }
 
  private:
-  enum StopFlag { CONTINUE, STOP, FLUSH };
-
-  void FlushQueue(UnboundQueue<OptimizingCompiler*>* queue,
-                  bool restore_function_code);
-  void CompileNext();
-
 #ifdef DEBUG
   int thread_id_;
   Mutex* thread_id_mutex_;
