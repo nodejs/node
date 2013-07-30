@@ -104,7 +104,7 @@ static char buf[32];
 static char test_buf[] = "test-buffer\n";
 
 
-static void check_permission(const char* filename, int mode) {
+static void check_permission(const char* filename, unsigned int mode) {
   int r;
   uv_fs_t req;
   uv_stat_t* s;
@@ -925,16 +925,16 @@ TEST_IMPL(fs_fstat) {
   r = fstat(file, &t);
   ASSERT(r == 0);
 
-  ASSERT(s->st_dev == t.st_dev);
-  ASSERT(s->st_mode == t.st_mode);
-  ASSERT(s->st_nlink == t.st_nlink);
-  ASSERT(s->st_uid == t.st_uid);
-  ASSERT(s->st_gid == t.st_gid);
-  ASSERT(s->st_rdev == t.st_rdev);
-  ASSERT(s->st_ino == t.st_ino);
-  ASSERT(s->st_size == t.st_size);
-  ASSERT(s->st_blksize == t.st_blksize);
-  ASSERT(s->st_blocks == t.st_blocks);
+  ASSERT(s->st_dev == (uint64_t) t.st_dev);
+  ASSERT(s->st_mode == (uint64_t) t.st_mode);
+  ASSERT(s->st_nlink == (uint64_t) t.st_nlink);
+  ASSERT(s->st_uid == (uint64_t) t.st_uid);
+  ASSERT(s->st_gid == (uint64_t) t.st_gid);
+  ASSERT(s->st_rdev == (uint64_t) t.st_rdev);
+  ASSERT(s->st_ino == (uint64_t) t.st_ino);
+  ASSERT(s->st_size == (uint64_t) t.st_size);
+  ASSERT(s->st_blksize == (uint64_t) t.st_blksize);
+  ASSERT(s->st_blocks == (uint64_t) t.st_blocks);
 #if defined(__APPLE__)
   ASSERT(s->st_atim.tv_sec == t.st_atimespec.tv_sec);
   ASSERT(s->st_atim.tv_nsec == t.st_atimespec.tv_nsec);

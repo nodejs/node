@@ -205,8 +205,11 @@ static void uv__udp_recvmsg(uv_loop_t* loop,
   h.msg_name = &peer;
 
   do {
-    buf = handle->alloc_cb((uv_handle_t*)handle, 64 * 1024);
-    assert(buf.len > 0);
+    buf = handle->alloc_cb((uv_handle_t*) handle, 64 * 1024);
+    if (buf.len == 0) {
+      handle->recv_cb(handle, UV_ENOBUFS, buf, NULL, 0);
+      return;
+    }
     assert(buf.base != NULL);
 
     h.msg_namelen = sizeof(peer);

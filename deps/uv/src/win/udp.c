@@ -38,7 +38,6 @@ static char uv_zero_[] = "";
 
 int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name,
     int* namelen) {
-  uv_loop_t* loop = handle->loop;
   int result;
 
   if (!(handle->flags & UV_HANDLE_BOUND)) {
@@ -273,7 +272,11 @@ static void uv_udp_queue_recv(uv_loop_t* loop, uv_udp_t* handle) {
     handle->flags &= ~UV_HANDLE_ZERO_READ;
 
     handle->recv_buffer = handle->alloc_cb((uv_handle_t*) handle, 65536);
-    assert(handle->recv_buffer.len > 0);
+    if (handle->recv_buffer.len == 0) {
+      handle->recv_cb(handle, UV_ENOBUFS, handle->recv_buffer, NULL, 0);
+      return;
+    }
+    assert(handle->recv_buffer.base != NULL);
 
     buf = handle->recv_buffer;
     memset(&handle->recv_from, 0, sizeof handle->recv_from);
@@ -516,7 +519,11 @@ void uv_process_udp_recv_req(uv_loop_t* loop, uv_udp_t* handle,
     /* Do a nonblocking receive */
     /* TODO: try to read multiple datagrams at once. FIONREAD maybe? */
     buf = handle->alloc_cb((uv_handle_t*) handle, 65536);
-    assert(buf.len > 0);
+    if (buf.len == 0) {
+      handle->recv_cb(handle, UV_ENOBUFS, buf, NULL, 0);
+      goto done;
+    }
+    assert(buf.base != NULL);
 
     memset(&from, 0, sizeof from);
     from_len = sizeof from;

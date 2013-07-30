@@ -32,6 +32,7 @@
 #include "internal.h"
 
 #include <winsock2.h>
+#include <winperf.h>
 #include <iphlpapi.h>
 #include <psapi.h>
 #include <tlhelp32.h>
@@ -939,6 +940,13 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
       memset(uv_address, 0, sizeof *uv_address);
 
       uv_address->name = name_buf;
+
+      if (win_address->PhysicalAddressLength == sizeof(uv_address->phys_addr)) {
+        memcpy(uv_address->phys_addr,
+               win_address->PhysicalAddress,
+               sizeof(uv_address->phys_addr));
+      }
+
       uv_address->is_internal =
           (win_address->IfType == IF_TYPE_SOFTWARE_LOOPBACK);
 

@@ -318,7 +318,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
     memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
     if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
       close(sockfd);
-      return uv__new_artificial_error(UV_ENOSYS);
+      return -ENOSYS;
     }
 
     if (!(flg.ifr_flags & IFF_UP && flg.ifr_flags & IFF_RUNNING))
@@ -349,7 +349,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
     memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
     if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
       close(sockfd);
-      return uv__new_artificial_error(UV_ENOSYS);
+      return -ENOSYS;
     }
 
     if (!(flg.ifr_flags & IFF_UP && flg.ifr_flags & IFF_RUNNING))

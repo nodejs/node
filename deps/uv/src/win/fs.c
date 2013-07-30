@@ -20,6 +20,7 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
 #include <malloc.h>
 #include <direct.h>
 #include <errno.h>
@@ -1520,12 +1521,12 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file fd, void* buf,
 }
 
 
-int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file fd, void* buf,
+int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file fd, const void* buf,
     size_t length, int64_t offset, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_WRITE, cb);
 
   req->fd = fd;
-  req->buf = buf;
+  req->buf = (void*) buf;
   req->length = length;
   req->offset = offset;
 
@@ -1691,8 +1692,8 @@ int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
 }
 
 
-int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, int uid,
-    int gid, uv_fs_cb cb) {
+int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_uid_t uid,
+    uv_gid_t gid, uv_fs_cb cb) {
   int err;
 
   uv_fs_req_init(loop, req, UV_FS_CHOWN, cb);
@@ -1712,8 +1713,8 @@ int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, int uid,
 }
 
 
-int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file fd, int uid,
-    int gid, uv_fs_cb cb) {
+int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file fd, uv_uid_t uid,
+    uv_gid_t gid, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_FCHOWN, cb);
 
   if (cb) {

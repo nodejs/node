@@ -342,6 +342,12 @@ UV_EXTERN int uv_backend_timeout(const uv_loop_t*);
  *
  * `suggested_size` is a hint. Returning a buffer that is smaller is perfectly
  * okay as long as `buf.len > 0`.
+ *
+ * If you return a buffer with `buf.len == 0`, libuv skips the read and calls
+ * your read or recv callback with nread=UV_ENOBUFS.
+ *
+ * Note that returning a zero-length buffer does not stop the handle, call
+ * uv_read_stop() or uv_udp_recv_stop() for that.
  */
 typedef uv_buf_t (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
 
@@ -1520,6 +1526,7 @@ struct uv_cpu_info_s {
 
 struct uv_interface_address_s {
   char* name;
+  char phys_addr[6];
   int is_internal;
   union {
     struct sockaddr_in address4;
@@ -1625,7 +1632,7 @@ UV_EXTERN int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
     uv_fs_cb cb);
 
 UV_EXTERN int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file,
-    void* buf, size_t length, int64_t offset, uv_fs_cb cb);
+    const void* buf, size_t length, int64_t offset, uv_fs_cb cb);
 
 UV_EXTERN int uv_fs_mkdir(uv_loop_t* loop, uv_fs_t* req, const char* path,
     int mode, uv_fs_cb cb);
@@ -1694,10 +1701,10 @@ UV_EXTERN int uv_fs_fchmod(uv_loop_t* loop, uv_fs_t* req, uv_file file,
     int mode, uv_fs_cb cb);
 
 UV_EXTERN int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path,
-    int uid, int gid, uv_fs_cb cb);
+    uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb);
 
 UV_EXTERN int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file,
-    int uid, int gid, uv_fs_cb cb);
+    uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb);
 
 
 enum uv_fs_event {

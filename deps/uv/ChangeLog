@@ -1,4 +1,11 @@
-2013.07.21, Version 0.11.6 (Unstable)
+2013.07.26, Version 0.10.13 (Stable), 381312e1fe6fecbabc943ccd56f0e7d114b3d064
+
+Changes since version 0.10.12:
+
+* unix, windows: fix uv_fs_chown() function prototype (Ben Noordhuis)
+
+
+2013.07.21, Version 0.11.6 (Unstable), 6645b93273e0553d23823c576573b82b129bf28c
 
 Changes since version 0.11.5:
 
@@ -39,6 +46,23 @@ Changes since version 0.11.5:
 * unix: fix build when !defined(PTHREAD_MUTEX_ERRORCHECK) (Ben Noordhuis)
 
 * unix, windows: return error codes directly (Ben Noordhuis)
+
+
+2013.07.10, Version 0.10.12 (Stable), 58a46221bba726746887a661a9f36fe9ff204209
+
+Changes since version 0.10.11:
+
+* linux: add support for MIPS (Andrei Sedoi)
+
+* windows: uv_spawn shouldn't reject reparse points (Bert Belder)
+
+* windows: use WSAGetLastError(), not errno (Ben Noordhuis)
+
+* build: darwin: disable -fstrict-aliasing warnings (Ben Noordhuis)
+
+* build: `all` now builds static and dynamic lib (Ben Noordhuis)
+
+* unix: fix build when !defined(PTHREAD_MUTEX_ERRORCHECK) (Ben Noordhuis)
 
 
 2013.06.27, Version 0.11.5 (Unstable), e3c63ff1627a14e96f54c1c62b0d68b446d8425b

@@ -72,6 +72,14 @@ TEST_IMPL(platform_output) {
   for (i = 0; i < count; i++) {
     printf("  name: %s\n", interfaces[i].name);
     printf("  internal: %d\n", interfaces[i].is_internal);
+    printf("  physical address: ");
+    printf("%02x:%02x:%02x:%02x:%02x:%02x\n",
+           (unsigned char)interfaces[i].phys_addr[0],
+           (unsigned char)interfaces[i].phys_addr[1],
+           (unsigned char)interfaces[i].phys_addr[2],
+           (unsigned char)interfaces[i].phys_addr[3],
+           (unsigned char)interfaces[i].phys_addr[4],
+           (unsigned char)interfaces[i].phys_addr[5]);
 
     if (interfaces[i].address.address4.sin_family == AF_INET) {
       uv_ip4_name(&interfaces[i].address.address4, buffer, sizeof(buffer));

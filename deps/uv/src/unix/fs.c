@@ -684,8 +684,8 @@ int uv_fs_chmod(uv_loop_t* loop,
 int uv_fs_chown(uv_loop_t* loop,
                 uv_fs_t* req,
                 const char* path,
-                int uid,
-                int gid,
+                uv_uid_t uid,
+                uv_gid_t gid,
                 uv_fs_cb cb) {
   INIT(CHOWN);
   PATH;
@@ -717,8 +717,8 @@ int uv_fs_fchmod(uv_loop_t* loop,
 int uv_fs_fchown(uv_loop_t* loop,
                  uv_fs_t* req,
                  uv_file file,
-                 int uid,
-                 int gid,
+                 uv_uid_t uid,
+                 uv_gid_t gid,
                  uv_fs_cb cb) {
   INIT(FCHOWN);
   req->file = file;
@@ -934,13 +934,13 @@ int uv_fs_utime(uv_loop_t* loop,
 int uv_fs_write(uv_loop_t* loop,
                 uv_fs_t* req,
                 uv_file file,
-                void* buf,
+                const void* buf,
                 size_t len,
                 int64_t off,
                 uv_fs_cb cb) {
   INIT(WRITE);
   req->file = file;
-  req->buf = buf;
+  req->buf = (void*) buf;
   req->len = len;
   req->off = off;
   POST;

@@ -27,6 +27,7 @@
 
 #include <ifaddrs.h>
 #include <net/if.h>
+#include <net/if_dl.h>
 
 #include <CoreFoundation/CFRunLoop.h>
 
@@ -355,6 +356,8 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   struct ifaddrs *addrs, *ent;
   uv_interface_address_t* address;
+  int i;
+  struct sockaddr_dl *sa_addr;
 
   if (getifaddrs(&addrs))
     return -errno;
@@ -363,7 +366,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   /* Count the number of interfaces */
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!(ent->ifa_flags & IFF_UP && ent->ifa_flags & IFF_RUNNING) ||
+    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
         (ent->ifa_addr == NULL) ||
         (ent->ifa_addr->sa_family == AF_LINK)) {
       continue;
@@ -379,21 +382,18 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   address = *addresses;
 
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!(ent->ifa_flags & IFF_UP && ent->ifa_flags & IFF_RUNNING)) {
+    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
       continue;
-    }
 
-    if (ent->ifa_addr == NULL) {
+    if (ent->ifa_addr == NULL)
       continue;
-    }
 
     /*
      * On Mac OS X getifaddrs returns information related to Mac Addresses for
      * various devices, such as firewire, etc. These are not relevant here.
      */
-    if (ent->ifa_addr->sa_family == AF_LINK) {
+    if (ent->ifa_addr->sa_family == AF_LINK)
       continue;
-    }
 
     address->name = strdup(ent->ifa_name);
 
@@ -409,9 +409,28 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
       address->netmask.netmask4 = *((struct sockaddr_in*) ent->ifa_netmask);
     }
 
-    address->is_internal = ent->ifa_flags & IFF_LOOPBACK ? 1 : 0;
+    address->is_internal = !!(ent->ifa_flags & IFF_LOOPBACK);
 
     address++;
+  }
+
+  /* Fill in physical addresses for each interface */
+  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
+    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
+        (ent->ifa_addr == NULL) ||
+        (ent->ifa_addr->sa_family != AF_LINK)) {
+      continue;
+    }
+
+    address = *addresses;
+
+    for (i = 0; i < (*count); i++) {
+      if (strcmp(address->name, ent->ifa_name) == 0) {
+        sa_addr = (struct sockaddr_dl*)(ent->ifa_addr);
+        memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
+      }
+      address++;
+    }
   }
 
   freeifaddrs(addrs);

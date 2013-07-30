@@ -348,8 +348,11 @@ static void uv_tty_queue_read_line(uv_loop_t* loop, uv_tty_t* handle) {
   memset(&req->overlapped, 0, sizeof(req->overlapped));
 
   handle->read_line_buffer = handle->alloc_cb((uv_handle_t*) handle, 8192);
+  if (handle->read_line_buffer.len == 0) {
+    handle->read_cb(handle, UV_ENOBUFS, handle->read_line_buffer);
+    return;
+  }
   assert(handle->read_line_buffer.base != NULL);
-  assert(handle->read_line_buffer.len > 0);
 
   /* Duplicate the console handle, so if we want to cancel the read, we can */
   /* just close this handle duplicate. */
@@ -682,6 +685,11 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
         /* Allocate a buffer if needed */
         if (buf_used == 0) {
           buf = handle->alloc_cb((uv_handle_t*) handle, 1024);
+          if (buf.len == 0) {
+            handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, buf);
+            goto out;
+          }
+          assert(buf.base != NULL);
         }
 
         buf.base[buf_used++] = handle->last_key[handle->last_key_offset++];

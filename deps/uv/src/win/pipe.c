@@ -23,6 +23,7 @@
 #include <io.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "uv.h"
 #include "internal.h"
@@ -1429,7 +1430,15 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
       }
 
       buf = handle->alloc_cb((uv_handle_t*) handle, avail);
-      assert(buf.len > 0);
+      if (buf.len == 0) {
+        if (handle->read2_cb) {
+          handle->read2_cb(handle, UV_ENOBUFS, buf, UV_UNKNOWN_HANDLE);
+        } else if (handle->read_cb) {
+          handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, buf);
+        }
+        break;
+      }
+      assert(buf.base != NULL);
 
       if (ReadFile(handle->handle,
                    buf.base,

@@ -32,6 +32,7 @@
 # include <ifaddrs.h>
 #endif
 #include <net/if.h>
+#include <net/if_dl.h>
 
 #include <sys/loadavg.h>
 #include <sys/time.h>
@@ -579,9 +580,11 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 #ifdef SUNOS_NO_IFADDRS
   return -ENOSYS;
 #else
-  struct ifaddrs *addrs, *ent;
-  char ip[INET6_ADDRSTRLEN];
   uv_interface_address_t* address;
+  struct sockaddr_dl* sa_addr;
+  struct ifaddrs* addrs;
+  struct ifaddrs* ent;
+  int i;
 
   if (getifaddrs(&addrs))
     return -errno;
@@ -590,7 +593,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   /* Count the number of interfaces */
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!(ent->ifa_flags & IFF_UP && ent->ifa_flags & IFF_RUNNING) ||
+    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
         (ent->ifa_addr == NULL) ||
         (ent->ifa_addr->sa_family == PF_PACKET)) {
       continue;
@@ -606,15 +609,11 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   address = *addresses;
 
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    memset(&ip, 0, sizeof(ip));
-
-    if (!(ent->ifa_flags & IFF_UP && ent->ifa_flags & IFF_RUNNING)) {
+    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
       continue;
-    }
 
-    if (ent->ifa_addr == NULL) {
+    if (ent->ifa_addr == NULL)
       continue;
-    }
 
     address->name = strdup(ent->ifa_name);
 
@@ -630,10 +629,29 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
       address->netmask.netmask4 = *((struct sockaddr_in*) ent->ifa_netmask);
     }
 
-    address->is_internal = ent->ifa_flags & IFF_PRIVATE || ent->ifa_flags &
-	IFF_LOOPBACK ? 1 : 0;
+    address->is_internal = !!((ent->ifa_flags & IFF_PRIVATE) ||
+                           (ent->ifa_flags & IFF_LOOPBACK));
 
     address++;
+  }
+
+  /* Fill in physical addresses for each interface */
+  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
+    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
+        (ent->ifa_addr == NULL) ||
+        (ent->ifa_addr->sa_family != AF_LINK)) {
+      continue;
+    }
+
+    address = *addresses;
+
+    for (i = 0; i < (*count); i++) {
+      if (strcmp(address->name, ent->ifa_name) == 0) {
+        sa_addr = (struct sockaddr_dl*)(ent->ifa_addr);
+        memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
+      }
+      address++;
+    }
   }
 
   freeifaddrs(addrs);

@@ -977,11 +977,16 @@ static void uv__read(uv_stream_t* stream) {
   while ((stream->read_cb || stream->read2_cb)
       && (stream->flags & UV_STREAM_READING)
       && (count-- > 0)) {
-    assert(stream->alloc_cb);
-    buf = stream->alloc_cb((uv_handle_t*)stream, 64 * 1024);
+    assert(stream->alloc_cb != NULL);
 
-    assert(buf.len > 0);
-    assert(buf.base);
+    buf = stream->alloc_cb((uv_handle_t*)stream, 64 * 1024);
+    if (buf.len == 0) {
+      /* User indicates it can't or won't handle the read. */
+      uv__stream_read_cb(stream, UV_ENOBUFS, buf, UV_UNKNOWN_HANDLE);
+      return;
+    }
+
+    assert(buf.base != NULL);
     assert(uv__stream_fd(stream) >= 0);
 
     if (stream->read_cb) {
