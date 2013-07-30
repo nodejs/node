@@ -236,7 +236,7 @@ function parse (args, data, remain, types, shorthands) {
       break
     }
     var hadEq = false
-    if (arg.charAt(0) === "-") {
+    if (arg.charAt(0) === "-" && arg.length > 1) {
       if (arg.indexOf("=") !== -1) {
         hadEq = true
         var v = arg.split("=")
@@ -580,6 +580,16 @@ var assert = require("assert")
    ,[]
    ,{clear:Boolean,con:Boolean,len:Boolean,exp:Boolean,add:Boolean,rep:Boolean}
    ,{c:"--con",l:"--len",e:"--exp",a:"--add",r:"--rep"}]
+  ,["--file -"
+   ,{"file":"-"}
+   ,[]
+   ,{file:String}
+   ,{}]
+  ,["--file -"
+   ,{"file":true}
+   ,["-"]
+   ,{file:Boolean}
+   ,{}]
   ].forEach(function (test) {
     var argv = test[0].split(/\s+/)
       , opts = test[1]

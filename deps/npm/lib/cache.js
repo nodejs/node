@@ -723,7 +723,7 @@ function installTargetsError (requested, data) {
 function addNameVersion (name, v, data, cb) {
   if (typeof cb !== "function") cb = data, data = null
 
-  ver = semver.valid(v, true)
+  var ver = semver.valid(v, true)
   if (!ver) return cb(new Error("Invalid version: "+v))
 
   var response

@@ -33,7 +33,7 @@ Use `npm ls` to show everything you've installed.
 
 ## DIRECTORIES
 
-See `npm-folders(7)` to learn about where npm puts stuff.
+See `npm-folders(5)` to learn about where npm puts stuff.
 
 In particular, npm has two modes of operation:
 

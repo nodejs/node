@@ -119,7 +119,8 @@ Return the number of listeners for a given event.
 * `event` {String} The event name
 * `listener` {Function} The event handler function
 
-This event is emitted any time someone adds a new listener.
+This event is emitted any time someone adds a new listener.  It is unspecified
+if `listener` is in the list returned by `emitter.listeners(event)`.
 
 
 ### Event: 'removeListener'
@@ -127,4 +128,5 @@ This event is emitted any time someone adds a new listener.
 * `event` {String} The event name
 * `listener` {Function} The event handler function
 
-This event is emitted any time someone removes a listener.
+This event is emitted any time someone removes a listener.  It is unspecified
+if `listener` is in the list returned by `emitter.listeners(event)`.

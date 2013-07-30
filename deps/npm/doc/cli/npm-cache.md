@@ -63,7 +63,7 @@ The root cache folder.
 
 ## SEE ALSO
 
-* npm-folders(7)
+* npm-folders(5)
 * npm-config(1)
 * npm-config(7)
 * npmrc(5)

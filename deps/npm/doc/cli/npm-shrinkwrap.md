@@ -182,4 +182,4 @@ contents rather than versions.
 
 * npm-install(1)
 * package.json(5)
-* npm-list(1)
+* npm-ls(1)

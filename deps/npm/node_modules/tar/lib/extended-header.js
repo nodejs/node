@@ -30,7 +30,8 @@ function ExtendedHeader () {
   this._key = ""
 }
 
-inherits(ExtendedHeader, Entry, { _parse: parse })
+inherits(ExtendedHeader, Entry)
+ExtendedHeader.prototype._parse = parse
 
 var s = 0
   , states = ExtendedHeader.states = {}

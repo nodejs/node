@@ -17,5 +17,5 @@ package's dependencies list.
 ## SEE ALSO
 
 * npm-rm(1)
-* npm-folders(7)
-* npm-list(1)
+* npm-folders(5)
+* npm-ls(1)

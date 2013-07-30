@@ -8,7 +8,6 @@ inherits(ExtendedHeaderWriter, EntryWriter)
 
 var tar = require("../tar.js")
   , path = require("path")
-  , inherits = require("inherits")
   , TarHeader = require("./header.js")
 
 // props is the props of the thing we need to write an

@@ -2229,10 +2229,13 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
 
   // Only copy the data if we have to, because it's a string
   if (args[0]->IsString()) {
+    Local<String> string = args[0].As<String>();
     enum encoding encoding = ParseEncoding(args[1], BINARY);
-    size_t buflen = StringBytes::StorageSize(args[0], encoding);
+    if (!StringBytes::IsValidString(string, encoding))
+      return ThrowTypeError("Bad input string");
+    size_t buflen = StringBytes::StorageSize(string, encoding);
     char* buf = new char[buflen];
-    size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+    size_t written = StringBytes::Write(buf, buflen, string, encoding);
     r = cipher->Update(buf, written, &out, &out_len);
     delete[] buf;
   } else {
@@ -2377,10 +2380,13 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
   // Only copy the data if we have to, because it's a string
   bool r;
   if (args[0]->IsString()) {
+    Local<String> string = args[0].As<String>();
     enum encoding encoding = ParseEncoding(args[1], BINARY);
-    size_t buflen = StringBytes::StorageSize(args[0], encoding);
+    if (!StringBytes::IsValidString(string, encoding))
+      return ThrowTypeError("Bad input string");
+    size_t buflen = StringBytes::StorageSize(string, encoding);
     char* buf = new char[buflen];
-    size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+    size_t written = StringBytes::Write(buf, buflen, string, encoding);
     r = hmac->HmacUpdate(buf, written);
     delete[] buf;
   } else {
@@ -2492,10 +2498,13 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
   // Only copy the data if we have to, because it's a string
   bool r;
   if (args[0]->IsString()) {
+    Local<String> string = args[0].As<String>();
     enum encoding encoding = ParseEncoding(args[1], BINARY);
-    size_t buflen = StringBytes::StorageSize(args[0], encoding);
+    if (!StringBytes::IsValidString(string, encoding))
+      return ThrowTypeError("Bad input string");
+    size_t buflen = StringBytes::StorageSize(string, encoding);
     char* buf = new char[buflen];
-    size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+    size_t written = StringBytes::Write(buf, buflen, string, encoding);
     r = hash->HashUpdate(buf, written);
     delete[] buf;
   } else {
@@ -2604,10 +2613,13 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
   // Only copy the data if we have to, because it's a string
   int r;
   if (args[0]->IsString()) {
+    Local<String> string = args[0].As<String>();
     enum encoding encoding = ParseEncoding(args[1], BINARY);
-    size_t buflen = StringBytes::StorageSize(args[0], encoding);
+    if (!StringBytes::IsValidString(string, encoding))
+      return ThrowTypeError("Bad input string");
+    size_t buflen = StringBytes::StorageSize(string, encoding);
     char* buf = new char[buflen];
-    size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+    size_t written = StringBytes::Write(buf, buflen, string, encoding);
     r = sign->SignUpdate(buf, written);
     delete[] buf;
   } else {
@@ -2747,10 +2759,13 @@ void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
   // Only copy the data if we have to, because it's a string
   bool r;
   if (args[0]->IsString()) {
+    Local<String> string = args[0].As<String>();
     enum encoding encoding = ParseEncoding(args[1], BINARY);
-    size_t buflen = StringBytes::StorageSize(args[0], encoding);
+    if (!StringBytes::IsValidString(string, encoding))
+      return ThrowTypeError("Bad input string");
+    size_t buflen = StringBytes::StorageSize(string, encoding);
     char* buf = new char[buflen];
-    size_t written = StringBytes::Write(buf, buflen, args[0], encoding);
+    size_t written = StringBytes::Write(buf, buflen, string, encoding);
     r = verify->VerifyUpdate(buf, written);
     delete[] buf;
   } else {
