@@ -49,7 +49,6 @@ namespace node {
 using v8::Array;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
-using v8::Integer;
 using v8::Local;
 using v8::Number;
 using v8::Object;
