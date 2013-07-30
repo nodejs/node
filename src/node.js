@@ -315,30 +315,24 @@
   };
 
   startup.processNextTick = function() {
-    var lastThrew = false;
     var nextTickQueue = [];
-    var needSpinner = true;
-    var inTick = false;
 
-    // this infobox thing is used so that the C++ code in src/node.cc
+    // this infoBox thing is used so that the C++ code in src/node.cc
     // can have easy accesss to our nextTick state, and avoid unnecessary
     // calls into process._tickCallback.
-    // order is [length, index]
+    // order is [length, index, inTick, lastThrew]
     // Never write code like this without very good reason!
     var infoBox = process._tickInfoBox;
     var length = 0;
     var index = 1;
+    var inTick = 2;
+    var lastThrew = 3;
 
     process.nextTick = nextTick;
     // needs to be accessible from cc land
     process._nextDomainTick = _nextDomainTick;
     process._tickCallback = _tickCallback;
     process._tickDomainCallback = _tickDomainCallback;
-
-    function Tock(cb, domain) {
-      this.callback = cb;
-      this.domain = domain;
-    }
 
     function tickDone() {
       if (infoBox[length] !== 0) {
@@ -350,7 +344,7 @@
           infoBox[length] = nextTickQueue.length;
         }
       }
-      inTick = false;
+      infoBox[inTick] = 0;
       infoBox[index] = 0;
     }
 
@@ -359,12 +353,12 @@
     function _tickCallback() {
       var callback, nextTickLength, threw;
 
-      if (inTick) return;
+      if (infoBox[inTick] === 1) return;
       if (infoBox[length] === 0) {
         infoBox[index] = 0;
         return;
       }
-      inTick = true;
+      infoBox[inTick] = 1;
 
       while (infoBox[index] < infoBox[length]) {
         callback = nextTickQueue[infoBox[index]++].callback;
@@ -383,17 +377,17 @@
     function _tickDomainCallback() {
       var nextTickLength, tock, callback;
 
-      if (lastThrew) {
-        lastThrew = false;
+      if (infoBox[lastThrew] === 1) {
+        infoBox[lastThrew] = 0;
         return;
       }
 
-      if (inTick) return;
+      if (infoBox[inTick] === 1) return;
       if (infoBox[length] === 0) {
         infoBox[index] = 0;
         return;
       }
-      inTick = true;
+      infoBox[inTick] = 1;
 
       while (infoBox[index] < infoBox[length]) {
         tock = nextTickQueue[infoBox[index]++];
@@ -402,12 +396,12 @@
           if (tock.domain._disposed) continue;
           tock.domain.enter();
         }
-        lastThrew = true;
+        infoBox[lastThrew] = 1;
         try {
           callback();
-          lastThrew = false;
+          infoBox[lastThrew] = 0;
         } finally {
-          if (lastThrew) tickDone();
+          if (infoBox[lastThrew] === 1) tickDone();
         }
         if (tock.domain)
           tock.domain.exit();
@@ -421,7 +415,7 @@
       if (process._exiting)
         return;
 
-      nextTickQueue.push(new Tock(callback, null));
+      nextTickQueue.push({ callback: callback, domain: null });
       infoBox[length]++;
     }
 
@@ -430,7 +424,7 @@
       if (process._exiting)
         return;
 
-      nextTickQueue.push(new Tock(callback, process.domain));
+      nextTickQueue.push({ callback: callback, domain: process.domain });
       infoBox[length]++;
     }
   };

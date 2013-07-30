@@ -180,6 +180,8 @@ static Cached<String> immediate_callback_sym;
 static struct {
   uint32_t length;
   uint32_t index;
+  uint32_t in_tick;
+  uint32_t last_threw;
 } tick_infobox;
 
 #ifdef OPENSSL_NPN_NEGOTIATED
@@ -969,6 +971,15 @@ MakeDomainCallback(const Handle<Object> object,
     }
   }
 
+  if (tick_infobox.last_threw == 1) {
+    tick_infobox.last_threw = 0;
+    return ret;
+  }
+
+  if (tick_infobox.in_tick == 1) {
+    return ret;
+  }
+
   if (tick_infobox.length == 0) {
     tick_infobox.index = 0;
     return ret;
@@ -1015,6 +1026,10 @@ MakeCallback(const Handle<Object> object,
 
   if (try_catch.HasCaught()) {
     return Undefined(node_isolate);
+  }
+
+  if (tick_infobox.in_tick == 1) {
+    return ret;
   }
 
   if (tick_infobox.length == 0) {
@@ -2383,7 +2398,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   Local<Object> info_box = Object::New();
   info_box->SetIndexedPropertiesToExternalArrayData(&tick_infobox,
                                                     kExternalUnsignedIntArray,
-                                                    2);
+                                                    4);
   process->Set(String::NewSymbol("_tickInfoBox"), info_box);
 
   // pre-set _events object for faster emit checks
