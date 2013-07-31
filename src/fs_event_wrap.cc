@@ -41,14 +41,14 @@ static Cached<String> onchange_sym;
 static Cached<String> rename_sym;
 
 class FSEventWrap: public HandleWrap {
-public:
+ public:
   static void Initialize(Handle<Object> target);
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Start(const FunctionCallbackInfo<Value>& args);
   static void Close(const FunctionCallbackInfo<Value>& args);
 
-private:
-  FSEventWrap(Handle<Object> object);
+ private:
+  explicit FSEventWrap(Handle<Object> object);
   virtual ~FSEventWrap();
 
   static void OnEvent(uv_fs_event_t* handle, const char* filename, int events,
@@ -147,14 +147,11 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   // unreasonable, right? Still, we should revisit this before v1.0.
   if (status) {
     eventStr = String::Empty(node_isolate);
-  }
-  else if (events & UV_RENAME) {
+  } else if (events & UV_RENAME) {
     eventStr = rename_sym;
-  }
-  else if (events & UV_CHANGE) {
+  } else if (events & UV_CHANGE) {
     eventStr = change_sym;
-  }
-  else {
+  } else {
     assert(0 && "bad fs events flag");
     abort();
   }
@@ -190,7 +187,6 @@ void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleWrap::Close(args);
 }
 
-
-} // namespace node
+}  // namespace node
 
 NODE_MODULE(node_fs_event_wrap, node::FSEventWrap::Initialize)

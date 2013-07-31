@@ -57,7 +57,7 @@ static Cached<String> onmessage_sym;
 UDPWrap::UDPWrap(Handle<Object> object)
     : HandleWrap(object, reinterpret_cast<uv_handle_t*>(&handle_)) {
   int r = uv_udp_init(uv_default_loop(), &handle_);
-  assert(r == 0); // can't fail anyway
+  assert(r == 0);  // can't fail anyway
 }
 
 
@@ -328,7 +328,7 @@ void UDPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// TODO share with StreamWrap::AfterWrite() in stream_wrap.cc
+// TODO(bnoordhuis) share with StreamWrap::AfterWrite() in stream_wrap.cc
 void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
   HandleScope scope(node_isolate);
 
@@ -413,6 +413,6 @@ uv_udp_t* UDPWrap::UVHandle() {
 }
 
 
-} // namespace node
+}  // namespace node
 
 NODE_MODULE(node_udp_wrap, node::UDPWrap::Initialize)

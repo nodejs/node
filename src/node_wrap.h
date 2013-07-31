@@ -19,8 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef NODE_WRAP_H
-#define NODE_WRAP_H
+#ifndef SRC_NODE_WRAP_H_
+#define SRC_NODE_WRAP_H_
 
 #include "v8.h"
 #include "uv.h"
@@ -63,6 +63,6 @@ inline uv_stream_t* HandleToStream(v8::Local<v8::Object> obj) {
   return NULL;
 }
 
-}
+}  // namespace node
 
-#endif
+#endif  // SRC_NODE_WRAP_H_

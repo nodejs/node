@@ -39,12 +39,12 @@ extern v8::Persistent<v8::Object> process_p;
 
 template <typename TypeName>
 class CachedBase {
-public:
+ public:
   CachedBase();
   operator v8::Handle<TypeName>() const;
   void operator=(v8::Handle<TypeName> that);  // Can only assign once.
   bool IsEmpty() const;
-private:
+ private:
   CachedBase(const CachedBase&);
   void operator=(const CachedBase&);
   v8::Persistent<TypeName> handle_;
@@ -52,14 +52,14 @@ private:
 
 template <typename TypeName>
 class Cached : public CachedBase<TypeName> {
-public:
+ public:
   operator v8::Handle<v8::Value>() const;
   void operator=(v8::Handle<TypeName> that);
 };
 
 template <>
 class Cached<v8::Value> : public CachedBase<v8::Value> {
-public:
+ public:
   operator v8::Handle<v8::Value>() const;
   void operator=(v8::Handle<v8::Value> that);
 };
@@ -93,12 +93,14 @@ v8::Handle<v8::Value> MakeCallback(
     int argc,
     v8::Handle<v8::Value>* argv);
 
-inline bool HasInstance(v8::Persistent<v8::FunctionTemplate>& function_template,
-                        v8::Handle<v8::Value> value);
+inline bool HasInstance(
+    const v8::Persistent<v8::FunctionTemplate>& function_template,
+    v8::Handle<v8::Value> value);
 
-inline v8::Local<v8::Object> NewInstance(v8::Persistent<v8::Function>& ctor,
-                                          int argc = 0,
-                                          v8::Handle<v8::Value>* argv = NULL);
+inline v8::Local<v8::Object> NewInstance(
+    const v8::Persistent<v8::Function>& ctor,
+    int argc = 0,
+    v8::Handle<v8::Value>* argv = NULL);
 
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
@@ -131,12 +133,14 @@ inline static int snprintf(char* buf, unsigned int len, const char* fmt, ...) {
 // g++ in strict mode complains loudly about the system offsetof() macro
 // because it uses NULL as the base address.
 # define offset_of(type, member) \
-  ((intptr_t) ((char *) &(((type *) 8)->member) - 8))
+  (reinterpret_cast<intptr_t>( \
+      reinterpret_cast<char*>(&(reinterpret_cast<type*>(8)->member)) - 8))
 #endif
 
 #ifndef container_of
 # define container_of(ptr, type, member) \
-  ((type *) ((char *) (ptr) - offset_of(type, member)))
+  (reinterpret_cast<type*>(reinterpret_cast<char*>(ptr) - \
+                           offset_of(type, member)))
 #endif
 
 #ifndef ARRAY_SIZE
@@ -324,20 +328,22 @@ v8::Handle<v8::Value> MakeCallback(
   return MakeCallback(recv, handle, argc, argv);
 }
 
-inline bool HasInstance(v8::Persistent<v8::FunctionTemplate>& function_template,
-                        v8::Handle<v8::Value> value) {
+inline bool HasInstance(
+    const v8::Persistent<v8::FunctionTemplate>& function_template,
+    v8::Handle<v8::Value> value) {
   v8::Local<v8::FunctionTemplate> function_template_handle =
       PersistentToLocal(function_template);
   return function_template_handle->HasInstance(value);
 }
 
-inline v8::Local<v8::Object> NewInstance(v8::Persistent<v8::Function>& ctor,
-                                          int argc,
-                                          v8::Handle<v8::Value>* argv) {
+inline v8::Local<v8::Object> NewInstance(
+    const v8::Persistent<v8::Function>& ctor,
+    int argc,
+    v8::Handle<v8::Value>* argv) {
   v8::Local<v8::Function> constructor_handle = PersistentToLocal(ctor);
   return constructor_handle->NewInstance(argc, argv);
 }
 
-} // namespace node
+}  // namespace node
 
-#endif // SRC_NODE_INTERNALS_H_
+#endif  // SRC_NODE_INTERNALS_H_

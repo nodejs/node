@@ -161,7 +161,7 @@ struct StringPtr {
       str_ = str;
     else if (on_heap_ || str_ + size_ != str) {
       // Non-consecutive input, make a copy on the heap.
-      // TODO Use slab allocation, O(n) allocs is bad.
+      // TODO(bnoordhuis) Use slab allocation, O(n) allocs is bad.
       char* s = new char[size_ + size];
       memcpy(s, str_, size_);
       memcpy(s + size_, str, size);
@@ -192,8 +192,8 @@ struct StringPtr {
 
 
 class Parser : public ObjectWrap {
-public:
-  Parser(enum http_parser_type type) : ObjectWrap() {
+ public:
+  explicit Parser(enum http_parser_type type) : ObjectWrap() {
     Init(type);
   }
 
@@ -228,7 +228,7 @@ public:
       fields_[num_fields_ - 1].Reset();
     }
 
-    assert(num_fields_ < (int)ARRAY_SIZE(fields_));
+    assert(num_fields_ < static_cast<int>(ARRAY_SIZE(fields_)));
     assert(num_fields_ == num_values_ + 1);
 
     fields_[num_fields_ - 1].Update(at, length);
@@ -244,7 +244,7 @@ public:
       values_[num_values_ - 1].Reset();
     }
 
-    assert(num_values_ < (int)ARRAY_SIZE(values_));
+    assert(num_values_ < static_cast<int>(ARRAY_SIZE(values_)));
     assert(num_values_ == num_fields_);
 
     values_[num_values_ - 1].Update(at, length);
@@ -265,8 +265,7 @@ public:
     if (have_flushed_) {
       // Slow case, flush remaining headers.
       Flush();
-    }
-    else {
+    } else {
       // Fast case, pass headers and URL to JS land.
       message_info->Set(headers_sym, CreateHeaders());
       if (parser_.type == HTTP_REQUEST)
@@ -342,7 +341,7 @@ public:
     HandleScope scope(node_isolate);
 
     if (num_fields_)
-      Flush(); // Flush trailing HTTP headers.
+      Flush();  // Flush trailing HTTP headers.
 
     Local<Object> obj = handle(node_isolate);
     Local<Value> cb = obj->Get(on_message_complete_sym);
@@ -430,7 +429,7 @@ public:
 
     Local<Integer> nparsed_obj = Integer::New(nparsed, node_isolate);
     // If there was a parse error in one of the callbacks
-    // TODO What if there is an error on EOF?
+    // TODO(bnoordhuis) What if there is an error on EOF?
     if (!parser->parser_.upgrade && nparsed != buffer_len) {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
 
@@ -481,7 +480,7 @@ public:
   }
 
 
-private:
+ private:
 
   Local<Array> CreateHeaders() {
     // num_values_ is either -1 or the entry # of the last header

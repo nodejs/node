@@ -60,10 +60,8 @@ static void Delete(uv_handle_t* handle) {
 }
 
 
-StatWatcher::StatWatcher()
-  : ObjectWrap()
-  , watcher_(new uv_fs_poll_t)
-{
+StatWatcher::StatWatcher() : ObjectWrap(),
+                             watcher_(new uv_fs_poll_t) {
   uv_fs_poll_init(uv_default_loop(), watcher_);
   watcher_->data = static_cast<void*>(this);
 }
@@ -130,7 +128,7 @@ void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void StatWatcher::Stop () {
+void StatWatcher::Stop() {
   if (!uv_is_active(reinterpret_cast<uv_handle_t*>(watcher_))) return;
   uv_fs_poll_stop(watcher_);
   Unref();

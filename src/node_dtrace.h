@@ -19,14 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef NODE_DTRACE_H_
-#define NODE_DTRACE_H_
+#ifndef SRC_NODE_DTRACE_H_
+#define SRC_NODE_DTRACE_H_
 
 #include "node.h"
 #include "v8.h"
 
 extern "C" {
-
 /*
  * The following structures are passed directly to DTrace when probes are fired.
  * Translators in node.d translate these structures into the corresponding D
@@ -36,15 +35,15 @@ extern "C" {
  */
 
 typedef struct {
-	int32_t fd;
-	int32_t port;
-	char *remote;
-	int32_t buffered;
+  int32_t fd;
+  int32_t port;
+  char* remote;
+  int32_t buffered;
 } node_dtrace_connection_t;
 
 typedef struct {
-	char *url;
-	char *method;
+  char* url;
+  char* method;
 } node_dtrace_http_client_request_t;
 
 /*
@@ -61,22 +60,22 @@ typedef struct {
  * a field is present by checking it against NULL.
  */
 typedef struct {
-	union {
-		uint32_t version;
-		uintptr_t unused;	/* for compat. with old 64-bit struct */
-	} _un;
-	char *url;
-	char *method;
-	char *forwardedFor;
-	char *_pad[8];
+  union {
+    uint32_t version;
+    uintptr_t unused;  /* for compat. with old 64-bit struct */
+  } _un;
+  char* url;
+  char* method;
+  char* forwardedFor;
+  char* _pad[8];
 } node_dtrace_http_server_request_t;
 
-}
+}  // extern "C"
 
 namespace node {
 
 void InitDTrace(v8::Handle<v8::Object> target);
 
-}
+}  // namespace node
 
-#endif
+#endif  // SRC_NODE_DTRACE_H_

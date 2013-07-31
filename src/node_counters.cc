@@ -86,7 +86,8 @@ static void counter_gc_done(GCType type, GCCallbackFlags flags) {
     uint64_t gcperiod = endgc - counter_gc_start_time;
 
     if (totalperiod > 0) {
-      unsigned int percent = static_cast<unsigned int>((gcperiod * 100) / totalperiod);
+      unsigned int percent = static_cast<unsigned int>(
+          (gcperiod * 100) / totalperiod);
 
       NODE_COUNT_GC_PERCENTTIME(percent);
       counter_gc_end_time = endgc;
@@ -137,4 +138,4 @@ void TermPerfCounters(Handle<Object> target) {
   TermPerfCountersWin32();
 }
 
-}
+}  // namespace node

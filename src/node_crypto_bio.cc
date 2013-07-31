@@ -133,49 +133,49 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
   ret = 1;
 
   switch (cmd) {
-   case BIO_CTRL_RESET:
-    nbio->Reset();
-    break;
-   case BIO_CTRL_EOF:
-    ret = nbio->Length() == 0;
-    break;
-   case BIO_C_SET_BUF_MEM_EOF_RETURN:
-    bio->num = num;
-    break;
-   case BIO_CTRL_INFO:
-    ret = nbio->Length();
-    if (ptr != NULL)
-      *reinterpret_cast<void**>(ptr) = NULL;
-    break;
-   case BIO_C_SET_BUF_MEM:
-    assert(0 && "Can't use SET_BUF_MEM_PTR with NodeBIO");
-    abort();
-    break;
-   case BIO_C_GET_BUF_MEM_PTR:
-    assert(0 && "Can't use GET_BUF_MEM_PTR with NodeBIO");
-    ret = 0;
-    break;
-   case BIO_CTRL_GET_CLOSE:
-    ret = bio->shutdown;
-    break;
-   case BIO_CTRL_SET_CLOSE:
-    bio->shutdown = num;
-    break;
-   case BIO_CTRL_WPENDING:
-    ret = 0;
-    break;
-   case BIO_CTRL_PENDING:
-    ret = nbio->Length();
-    break;
-   case BIO_CTRL_DUP:
-   case BIO_CTRL_FLUSH:
-    ret = 1;
-    break;
-   case BIO_CTRL_PUSH:
-   case BIO_CTRL_POP:
-   default:
-    ret = 0;
-    break;
+    case BIO_CTRL_RESET:
+      nbio->Reset();
+      break;
+    case BIO_CTRL_EOF:
+      ret = nbio->Length() == 0;
+      break;
+    case BIO_C_SET_BUF_MEM_EOF_RETURN:
+      bio->num = num;
+      break;
+    case BIO_CTRL_INFO:
+      ret = nbio->Length();
+      if (ptr != NULL)
+        *reinterpret_cast<void**>(ptr) = NULL;
+      break;
+    case BIO_C_SET_BUF_MEM:
+      assert(0 && "Can't use SET_BUF_MEM_PTR with NodeBIO");
+      abort();
+      break;
+    case BIO_C_GET_BUF_MEM_PTR:
+      assert(0 && "Can't use GET_BUF_MEM_PTR with NodeBIO");
+      ret = 0;
+      break;
+    case BIO_CTRL_GET_CLOSE:
+      ret = bio->shutdown;
+      break;
+    case BIO_CTRL_SET_CLOSE:
+      bio->shutdown = num;
+      break;
+    case BIO_CTRL_WPENDING:
+      ret = 0;
+      break;
+    case BIO_CTRL_PENDING:
+      ret = nbio->Length();
+      break;
+    case BIO_CTRL_DUP:
+    case BIO_CTRL_FLUSH:
+      ret = 1;
+      break;
+    case BIO_CTRL_PUSH:
+    case BIO_CTRL_POP:
+    default:
+      ret = 0;
+      break;
   }
   return ret;
 }
@@ -387,4 +387,4 @@ NodeBIO::~NodeBIO() {
   write_head_ = NULL;
 }
 
-} // namespace node
+}  // namespace node

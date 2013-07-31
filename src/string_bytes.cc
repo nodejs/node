@@ -458,7 +458,7 @@ static bool contains_non_ascii(const char* src, size_t len) {
     return contains_non_ascii_slow(src, len);
   }
 
-  const unsigned bytes_per_word = sizeof(void*);
+  const unsigned bytes_per_word = sizeof(uintptr_t);
   const unsigned align_mask = bytes_per_word - 1;
   const unsigned unaligned = reinterpret_cast<uintptr_t>(src) & align_mask;
 
@@ -505,7 +505,7 @@ static void force_ascii(const char* src, char* dst, size_t len) {
     return;
   }
 
-  const unsigned bytes_per_word = sizeof(void*);
+  const unsigned bytes_per_word = sizeof(uintptr_t);
   const unsigned align_mask = bytes_per_word - 1;
   const unsigned src_unalign = reinterpret_cast<uintptr_t>(src) & align_mask;
   const unsigned dst_unalign = reinterpret_cast<uintptr_t>(dst) & align_mask;

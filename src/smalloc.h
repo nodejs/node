@@ -19,8 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef NODE_SMALLOC_H_
-#define NODE_SMALLOC_H_
+#ifndef SRC_SMALLOC_H_
+#define SRC_SMALLOC_H_
 
 #include "node.h"
 #include "v8.h"
@@ -64,7 +64,6 @@ NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj,
 NODE_EXTERN void AllocDispose(v8::Handle<v8::Object> obj);
 
 }  // namespace smalloc
-
 }  // namespace node
 
-#endif  // NODE_SMALLOC_H_
+#endif  // SRC_SMALLOC_H_

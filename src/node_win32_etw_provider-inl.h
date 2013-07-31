@@ -19,15 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef SRC_ETW_INL_H_
-#define SRC_ETW_INL_H_
+#ifndef SRC_NODE_WIN32_ETW_PROVIDER_INL_H_
+#define SRC_NODE_WIN32_ETW_PROVIDER_INL_H_
 
 #include "node_win32_etw_provider.h"
 #include "node_etw_provider.h"
 
 namespace node {
-
-using namespace v8;
 
 // From node_win32_etw_provider.cc
 extern REGHANDLE node_provider;
@@ -37,7 +35,7 @@ extern int events_enabled;
 #define ETW_WRITE_STRING_DATA(data_descriptor, data)                          \
   EventDataDescCreate(data_descriptor,                                        \
                       data,                                                   \
-                      (strlen(data) + 1) * sizeof(char));
+                      (strlen(data) + 1) * sizeof(*data));
 
 #define ETW_WRITE_INT32_DATA(data_descriptor, data)  \
   EventDataDescCreate(data_descriptor, data, sizeof(int32_t));
@@ -106,7 +104,8 @@ extern int events_enabled;
 #define ETW_WRITE_EVENT(eventDescriptor, dataDescriptors)                     \
   DWORD status = event_write(node_provider,                                   \
                              &eventDescriptor,                                \
-                             sizeof(dataDescriptors)/sizeof(*dataDescriptors),\
+                             sizeof(dataDescriptors) /                        \
+                                 sizeof(*dataDescriptors),                    \
                              dataDescriptors);                                \
   assert(status == ERROR_SUCCESS);
 
@@ -163,7 +162,7 @@ void NODE_NET_STREAM_END(node_dtrace_connection_t* conn,
 }
 
 
-void NODE_GC_START(GCType type, GCCallbackFlags flags) {
+void NODE_GC_START(v8::GCType type, v8::GCCallbackFlags flags) {
   if (events_enabled > 0) {
     EVENT_DATA_DESCRIPTOR descriptors[2];
     ETW_WRITE_GC(descriptors, type, flags);
@@ -172,7 +171,7 @@ void NODE_GC_START(GCType type, GCCallbackFlags flags) {
 }
 
 
-void NODE_GC_DONE(GCType type, GCCallbackFlags flags) {
+void NODE_GC_DONE(v8::GCType type, v8::GCCallbackFlags flags) {
   if (events_enabled > 0) {
     EVENT_DATA_DESCRIPTOR descriptors[2];
     ETW_WRITE_GC(descriptors, type, flags);
@@ -221,7 +220,12 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
     if (symbol == NULL) {
       SETSYMBUF(L"NULL");
     } else {
-      symbol_len = MultiByteToWideChar(CP_ACP, 0, symbol, symbol_len, symbuf, 128);
+      symbol_len = MultiByteToWideChar(CP_ACP,
+                                       0,
+                                       symbol,
+                                       symbol_len,
+                                       symbuf,
+                                       128);
       if (symbol_len == 0) {
         SETSYMBUF(L"Invalid");
       } else {
@@ -267,5 +271,7 @@ bool NODE_NET_STREAM_END_ENABLED() { return events_enabled > 0; }
 bool NODE_NET_SOCKET_READ_ENABLED() { return events_enabled > 0; }
 bool NODE_NET_SOCKET_WRITE_ENABLED() { return events_enabled > 0; }
 bool NODE_V8SYMBOL_ENABLED() { return events_enabled > 0; }
-}
-#endif  // SRC_ETW_INL_H_
+
+}  // namespace node
+
+#endif  // SRC_NODE_WIN32_ETW_PROVIDER_INL_H_

@@ -19,8 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef object_wrap_h
-#define object_wrap_h
+#ifndef SRC_NODE_OBJECT_WRAP_H_
+#define SRC_NODE_OBJECT_WRAP_H_
 
 #include "node.h"
 #include "v8.h"
@@ -38,7 +38,7 @@
 namespace node {
 
 class NODE_EXTERN ObjectWrap {
-public:
+ public:
   ObjectWrap() {
     refs_ = 0;
   }
@@ -75,7 +75,7 @@ public:
   }
 
 
-protected:
+ protected:
   inline void Wrap(v8::Handle<v8::Object> handle) {
     assert(persistent().IsEmpty());
     assert(handle->InternalFieldCount() > 0);
@@ -118,7 +118,7 @@ protected:
 
   int refs_;  // ro
 
-private:
+ private:
   static void WeakCallback(v8::Isolate* isolate,
                            v8::Persistent<v8::Object>* pobj,
                            ObjectWrap* wrap) {
@@ -132,6 +132,6 @@ private:
   v8::Persistent<v8::Object> handle_;
 };
 
-} // namespace node
+}  // namespace node
 
-#endif // object_wrap_h
+#endif  // SRC_NODE_OBJECT_WRAP_H_

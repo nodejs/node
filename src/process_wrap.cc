@@ -75,7 +75,7 @@ class ProcessWrap : public HandleWrap {
     new ProcessWrap(args.This());
   }
 
-  ProcessWrap(Handle<Object> object)
+  explicit ProcessWrap(Handle<Object> object)
       : HandleWrap(object, reinterpret_cast<uv_handle_t*>(&process_)) {
   }
 
@@ -158,7 +158,7 @@ class ProcessWrap : public HandleWrap {
       return ThrowTypeError("options.gid should be a number");
     }
 
-    // TODO is this possible to do without mallocing ?
+    // TODO(bnoordhuis) is this possible to do without mallocing ?
 
     // options.file
     Local<Value> file_v = js_options->Get(String::NewSymbol("file"));
@@ -195,7 +195,7 @@ class ProcessWrap : public HandleWrap {
     if (!env_v.IsEmpty() && env_v->IsArray()) {
       Local<Array> env = Local<Array>::Cast(env_v);
       int envc = env->Length();
-      options.env = new char*[envc + 1]; // Heap allocated to detect errors.
+      options.env = new char*[envc + 1];  // Heap allocated to detect errors.
       for (int i = 0; i < envc; i++) {
         String::Utf8Value pair(env->Get(i));
         options.env[i] = strdup(*pair);
@@ -212,7 +212,7 @@ class ProcessWrap : public HandleWrap {
       options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
     }
 
-    //options.detached
+    // options.detached
     if (js_options->Get(String::NewSymbol("detached"))->IsTrue()) {
       options.flags |= UV_PROCESS_DETACHED;
     }

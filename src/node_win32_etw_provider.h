@@ -19,15 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef SRC_ETW_H_
-#define SRC_ETW_H_
+#ifndef SRC_NODE_WIN32_ETW_PROVIDER_H_
+#define SRC_NODE_WIN32_ETW_PROVIDER_H_
 
 #include <evntprov.h>
 #include "node_dtrace.h"
 
 namespace node {
-
-using namespace v8;
 
 #if defined(_MSC_VER)
 # define INLINE __forceinline
@@ -70,8 +68,8 @@ INLINE void NODE_NET_SERVER_CONNECTION(node_dtrace_connection_t* conn,
   const char *remote, int port, int fd);
 INLINE void NODE_NET_STREAM_END(node_dtrace_connection_t* conn,
   const char *remote, int port, int fd);
-INLINE void NODE_GC_START(GCType type, GCCallbackFlags flags);
-INLINE void NODE_GC_DONE(GCType type, GCCallbackFlags flags);
+INLINE void NODE_GC_START(v8::GCType type, v8::GCCallbackFlags flags);
+INLINE void NODE_GC_DONE(v8::GCType type, v8::GCCallbackFlags flags);
 INLINE void NODE_V8SYMBOL_REMOVE(const void* addr1, const void* addr2);
 INLINE void NODE_V8SYMBOL_MOVE(const void* addr1, const void* addr2);
 INLINE void NODE_V8SYMBOL_RESET();
@@ -92,5 +90,6 @@ INLINE bool NODE_V8SYMBOL_ENABLED();
 
 #define NODE_NET_SOCKET_READ(arg0, arg1)
 #define NODE_NET_SOCKET_WRITE(arg0, arg1)
-}
-#endif  // SRC_ETW_H_
+}  // namespace node
+
+#endif  // SRC_NODE_WIN32_ETW_PROVIDER_H_

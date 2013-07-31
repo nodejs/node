@@ -57,7 +57,7 @@ class SecureContext : ObjectWrap {
   static void Initialize(v8::Handle<v8::Object> target);
 
   SSL_CTX *ctx_;
-  // TODO: ca_store_ should probably be removed, it's not used anywhere.
+  // TODO(indutny): ca_store_ should probably be removed, it's not used anywhere
   X509_STORE *ca_store_;
 
   static const int kMaxSessionSize = 10 * 1024;
@@ -139,10 +139,10 @@ class ClientHelloParser {
     kEnded
   };
 
-  ClientHelloParser(Connection* c) : conn_(c),
-                                     state_(kWaiting),
-                                     offset_(0),
-                                     body_offset_(0) {
+  explicit ClientHelloParser(Connection* c) : conn_(c),
+                                              state_(kWaiting),
+                                              offset_(0),
+                                              body_offset_(0) {
   }
 
   size_t Write(const uint8_t* data, size_t len);
@@ -316,9 +316,9 @@ class CipherBase : public ObjectWrap {
   static void Final(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAutoPadding(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  CipherBase(CipherKind kind) : cipher_(NULL),
-                                initialised_(false),
-                                kind_(kind) {
+  explicit CipherBase(CipherKind kind) : cipher_(NULL),
+                                         initialised_(false),
+                                         kind_(kind) {
   }
 
   ~CipherBase() {
@@ -335,7 +335,7 @@ class CipherBase : public ObjectWrap {
 
 class Hmac : public ObjectWrap {
  public:
-  static void Initialize (v8::Handle<v8::Object> target);
+  static void Initialize(v8::Handle<v8::Object> target);
 
  protected:
   void HmacInit(const char* hash_type, const char* key, int key_len);
@@ -363,7 +363,7 @@ class Hmac : public ObjectWrap {
 
 class Hash : public ObjectWrap {
  public:
-  static void Initialize (v8::Handle<v8::Object> target);
+  static void Initialize(v8::Handle<v8::Object> target);
 
   bool HashInit(const char* hash_type);
   bool HashUpdate(const char* data, int len);
@@ -420,7 +420,7 @@ class Sign : public ObjectWrap {
 
 class Verify : public ObjectWrap {
  public:
-  static void Initialize (v8::Handle<v8::Object> target);
+  static void Initialize(v8::Handle<v8::Object> target);
 
   void VerifyInit(const char* verify_type);
   bool VerifyUpdate(const char* data, int len);
@@ -430,7 +430,7 @@ class Verify : public ObjectWrap {
                    int siglen);
 
  protected:
-  static void New (const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void VerifyInit(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void VerifyUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void VerifyFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -447,7 +447,6 @@ class Verify : public ObjectWrap {
   EVP_MD_CTX mdctx_; /* coverity[member_decl] */
   const EVP_MD* md_; /* coverity[member_decl] */
   bool initialised_;
-
 };
 
 class DiffieHellman : public ObjectWrap {

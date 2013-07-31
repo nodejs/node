@@ -30,19 +30,19 @@
 
 #ifdef __MINGW32__
 # include <io.h>
-#endif
+#endif  // __MINGW32__
 
 #ifdef __POSIX__
 # include <netdb.h>         // MAXHOSTNAMELEN on Solaris.
 # include <unistd.h>        // gethostname, sysconf
 # include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
 # include <sys/utsname.h>
-#endif
+#endif  // __MINGW32__
 
 // Add Windows fallback.
 #ifndef MAXHOSTNAMELEN
 # define MAXHOSTNAMELEN 256
-#endif
+#endif  // MAXHOSTNAMELEN
 
 namespace node {
 
@@ -70,9 +70,9 @@ static void GetHostname(const FunctionCallbackInfo<Value>& args) {
   if (gethostname(buf, sizeof(buf))) {
 #ifdef __POSIX__
     int errorno = errno;
-#else // __MINGW32__
+#else  // __MINGW32__
     int errorno = WSAGetLastError();
-#endif // __MINGW32__
+#endif  // __POSIX__
     return ThrowErrnoException(errorno, "gethostname");
   }
   buf[sizeof(buf) - 1] = '\0';
@@ -91,9 +91,9 @@ static void GetOSType(const FunctionCallbackInfo<Value>& args) {
     return ThrowErrnoException(errno, "uname");
   }
   rval = info.sysname;
-#else // __MINGW32__
+#else  // __MINGW32__
   rval ="Windows_NT";
-#endif
+#endif  // __POSIX__
 
   args.GetReturnValue().Set(String::New(rval));
 }
@@ -109,17 +109,21 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
     return ThrowErrnoException(errno, "uname");
   }
   rval = info.release;
-#else // __MINGW32__
+#else  // __MINGW32__
   char release[256];
   OSVERSIONINFO info;
 
   info.dwOSVersionInfoSize = sizeof(info);
   if (GetVersionEx(&info) == 0) return;
 
-  sprintf(release, "%d.%d.%d", static_cast<int>(info.dwMajorVersion),
-      static_cast<int>(info.dwMinorVersion), static_cast<int>(info.dwBuildNumber));
+  snprintf(release,
+           sizeof(release),
+           "%d.%d.%d",
+           static_cast<int>(info.dwMajorVersion),
+           static_cast<int>(info.dwMinorVersion),
+           static_cast<int>(info.dwBuildNumber));
   rval = release;
-#endif
+#endif  // __POSIX__
 
   args.GetReturnValue().Set(String::New(rval));
 }
@@ -225,7 +229,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     }
 
     if (interfaces[i].address.address4.sin_family == AF_INET) {
-      uv_ip4_name(&interfaces[i].address.address4,ip, sizeof(ip));
+      uv_ip4_name(&interfaces[i].address.address4, ip, sizeof(ip));
       uv_ip4_name(&interfaces[i].netmask.netmask4, netmask, sizeof(netmask));
       family = String::New("IPv4");
     } else if (interfaces[i].address.address4.sin_family == AF_INET6) {

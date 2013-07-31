@@ -19,8 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef NODE_VERSION_H
-#define NODE_VERSION_H
+#ifndef SRC_NODE_VERSION_H_
+#define SRC_NODE_VERSION_H_
 
 #define NODE_MAJOR_VERSION 0
 #define NODE_MINOR_VERSION 11
@@ -55,7 +55,8 @@
 #define NODE_VERSION_AT_LEAST(major, minor, patch) \
   (( (major) < NODE_MAJOR_VERSION) \
   || ((major) == NODE_MAJOR_VERSION && (minor) < NODE_MINOR_VERSION) \
-  || ((major) == NODE_MAJOR_VERSION && (minor) == NODE_MINOR_VERSION && (patch) <= NODE_PATCH_VERSION))
+  || ((major) == NODE_MAJOR_VERSION && \
+      (minor) == NODE_MINOR_VERSION && (patch) <= NODE_PATCH_VERSION))
 
 /**
  * When this version number is changed, node.js will refuse
@@ -65,4 +66,4 @@
  */
 #define NODE_MODULE_VERSION 0x000C /* v0.12 */
 
-#endif /* NODE_VERSION_H */
+#endif  /* SRC_NODE_VERSION_H_ */

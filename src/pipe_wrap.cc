@@ -49,7 +49,7 @@ static Cached<String> onconnection_sym;
 static Cached<String> oncomplete_sym;
 
 
-// TODO share with TCPWrap?
+// TODO(bnoordhuis) share with TCPWrap?
 typedef class ReqWrap<uv_connect_t> ConnectWrap;
 
 
@@ -100,7 +100,9 @@ void PipeWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", StreamWrap::Shutdown);
 
   NODE_SET_PROTOTYPE_METHOD(t, "writeBuffer", StreamWrap::WriteBuffer);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeAsciiString", StreamWrap::WriteAsciiString);
+  NODE_SET_PROTOTYPE_METHOD(t,
+                            "writeAsciiString",
+                            StreamWrap::WriteAsciiString);
   NODE_SET_PROTOTYPE_METHOD(t, "writeUtf8String", StreamWrap::WriteUtf8String);
   NODE_SET_PROTOTYPE_METHOD(t, "writeUcs2String", StreamWrap::WriteUcs2String);
 
@@ -134,8 +136,8 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
 PipeWrap::PipeWrap(Handle<Object> object, bool ipc)
     : StreamWrap(object, reinterpret_cast<uv_stream_t*>(&handle_)) {
   int r = uv_pipe_init(uv_default_loop(), &handle_, ipc);
-  assert(r == 0); // How do we proxy this error up to javascript?
-                  // Suggestion: uv_pipe_init() returns void.
+  assert(r == 0);  // How do we proxy this error up to javascript?
+                   // Suggestion: uv_pipe_init() returns void.
   UpdateWriteQueueSize();
 }
 
@@ -177,7 +179,7 @@ void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// TODO maybe share with TCPWrap?
+// TODO(bnoordhuis) maybe share with TCPWrap?
 void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   HandleScope scope(node_isolate);
 
@@ -217,10 +219,10 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   MakeCallback(wrap->object(), onconnection_sym, ARRAY_SIZE(argv), argv);
 }
 
-// TODO Maybe share this with TCPWrap?
+// TODO(bnoordhuis) Maybe share this with TCPWrap?
 void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
-  ConnectWrap* req_wrap = (ConnectWrap*) req->data;
-  PipeWrap* wrap = (PipeWrap*) req->handle->data;
+  ConnectWrap* req_wrap = reinterpret_cast<ConnectWrap*>(req->data);
+  PipeWrap* wrap = reinterpret_cast<PipeWrap*>(req->handle->data);
 
   HandleScope scope(node_isolate);
 

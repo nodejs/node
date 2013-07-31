@@ -19,8 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef SRC_WINPERFCTRS_H_
-#define SRC_WINPERFCTRS_H_
+#ifndef SRC_NODE_WIN32_PERFCTR_PROVIDER_H_
+#define SRC_NODE_WIN32_PERFCTR_PROVIDER_H_
 
 #if defined(_MSC_VER)
 # define INLINE __forceinline
@@ -49,7 +49,6 @@ void NODE_COUNT_PIPE_BYTES_RECV(int bytes);
 void InitPerfCountersWin32();
 void TermPerfCountersWin32();
 
-}
+}  // namespace node
 
-#endif
-
+#endif  // SRC_NODE_WIN32_PERFCTR_PROVIDER_H_

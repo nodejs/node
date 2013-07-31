@@ -42,7 +42,6 @@
 
 
 namespace node {
-
 namespace cares_wrap {
 
 using v8::Array;
@@ -230,7 +229,7 @@ static Local<Array> HostentToNames(struct hostent* host) {
 
 class QueryWrap {
  public:
-  QueryWrap(Local<Object> req_wrap_obj) {
+  explicit QueryWrap(Local<Object> req_wrap_obj) {
     HandleScope scope(node_isolate);
     persistent().Reset(node_isolate, req_wrap_obj);
   }
@@ -333,7 +332,7 @@ class QueryWrap {
 
 class QueryAWrap: public QueryWrap {
  public:
-  QueryAWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  explicit QueryAWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
   }
 
   int Send(const char* name) {
@@ -363,7 +362,7 @@ class QueryAWrap: public QueryWrap {
 
 class QueryAaaaWrap: public QueryWrap {
  public:
-  QueryAaaaWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  explicit QueryAaaaWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
   }
 
   int Send(const char* name) {
@@ -398,7 +397,8 @@ class QueryAaaaWrap: public QueryWrap {
 
 class QueryCnameWrap: public QueryWrap {
  public:
-  QueryCnameWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  explicit QueryCnameWrap(Local<Object> req_wrap_obj)
+      : QueryWrap(req_wrap_obj) {
   }
 
   int Send(const char* name) {
@@ -436,7 +436,7 @@ class QueryCnameWrap: public QueryWrap {
 
 class QueryMxWrap: public QueryWrap {
  public:
-  QueryMxWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  explicit QueryMxWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
   }
 
   int Send(const char* name) {
@@ -478,7 +478,7 @@ class QueryMxWrap: public QueryWrap {
 
 class QueryNsWrap: public QueryWrap {
  public:
-  QueryNsWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  explicit QueryNsWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
   }
 
   int Send(const char* name) {
@@ -506,7 +506,7 @@ class QueryNsWrap: public QueryWrap {
 
 class QueryTxtWrap: public QueryWrap {
  public:
-  QueryTxtWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  explicit QueryTxtWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
   }
 
   int Send(const char* name) {
@@ -541,7 +541,7 @@ class QueryTxtWrap: public QueryWrap {
 
 class QuerySrvWrap: public QueryWrap {
  public:
-  QuerySrvWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  explicit QuerySrvWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
   }
 
   int Send(const char* name) {
@@ -593,7 +593,8 @@ class QuerySrvWrap: public QueryWrap {
 
 class QueryNaptrWrap: public QueryWrap {
  public:
-  QueryNaptrWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  explicit QueryNaptrWrap(Local<Object> req_wrap_obj)
+      : QueryWrap(req_wrap_obj) {
   }
 
   int Send(const char* name) {
@@ -630,7 +631,6 @@ class QueryNaptrWrap: public QueryWrap {
     for (ares_naptr_reply* naptr_current = naptr_start;
          naptr_current;
          naptr_current = naptr_current->next) {
-
       Local<Object> naptr_record = Object::New();
 
       naptr_record->Set(flags_symbol,
@@ -658,7 +658,8 @@ class QueryNaptrWrap: public QueryWrap {
 
 class GetHostByAddrWrap: public QueryWrap {
  public:
-  GetHostByAddrWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  explicit GetHostByAddrWrap(Local<Object> req_wrap_obj)
+      : QueryWrap(req_wrap_obj) {
   }
 
   int Send(const char* name) {
@@ -695,7 +696,8 @@ class GetHostByAddrWrap: public QueryWrap {
 
 class GetHostByNameWrap: public QueryWrap {
  public:
-  GetHostByNameWrap(Local<Object> req_wrap_obj) : QueryWrap(req_wrap_obj) {
+  explicit GetHostByNameWrap(Local<Object> req_wrap_obj)
+      : QueryWrap(req_wrap_obj) {
   }
 
   int Send(const char* name, int family) {
@@ -768,7 +770,8 @@ static void QueryWithFamily(const FunctionCallbackInfo<Value>& args) {
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   HandleScope scope(node_isolate);
 
-  GetAddrInfoReqWrap* req_wrap = (GetAddrInfoReqWrap*) req->data;
+  GetAddrInfoReqWrap* req_wrap =
+      reinterpret_cast<GetAddrInfoReqWrap*>(req->data);
 
   Local<Value> argv[] = {
     Integer::New(status, node_isolate),
@@ -802,7 +805,8 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       // Ignore random ai_family types.
       if (address->ai_family == AF_INET) {
         // Juggle pointers
-        addr = (char*) &((struct sockaddr_in*) address->ai_addr)->sin_addr;
+        addr = reinterpret_cast<char*>(&(reinterpret_cast<struct sockaddr_in*>(
+            address->ai_addr)->sin_addr));
         int err = uv_inet_ntop(address->ai_family,
                                addr,
                                ip,
@@ -828,7 +832,8 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       // Ignore random ai_family types.
       if (address->ai_family == AF_INET6) {
         // Juggle pointers
-        addr = (char*) &((struct sockaddr_in6*) address->ai_addr)->sin6_addr;
+        addr = reinterpret_cast<char*>(&(reinterpret_cast<struct sockaddr_in6*>(
+            address->ai_addr)->sin6_addr));
         int err = uv_inet_ntop(address->ai_family,
                                addr,
                                ip,
@@ -1075,9 +1080,7 @@ static void Initialize(Handle<Object> target) {
   oncomplete_sym = String::New("oncomplete");
 }
 
-
-} // namespace cares_wrap
-
+}  // namespace cares_wrap
 }  // namespace node
 
 NODE_MODULE(node_cares_wrap, node::cares_wrap::Initialize)

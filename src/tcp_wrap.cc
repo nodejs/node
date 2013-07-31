@@ -96,7 +96,9 @@ void TCPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", StreamWrap::Shutdown);
 
   NODE_SET_PROTOTYPE_METHOD(t, "writeBuffer", StreamWrap::WriteBuffer);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeAsciiString", StreamWrap::WriteAsciiString);
+  NODE_SET_PROTOTYPE_METHOD(t,
+                            "writeAsciiString",
+                            StreamWrap::WriteAsciiString);
   NODE_SET_PROTOTYPE_METHOD(t, "writeUtf8String", StreamWrap::WriteUtf8String);
   NODE_SET_PROTOTYPE_METHOD(t, "writeUcs2String", StreamWrap::WriteUcs2String);
   NODE_SET_PROTOTYPE_METHOD(t, "writev", StreamWrap::Writev);
@@ -113,7 +115,9 @@ void TCPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "setKeepAlive", SetKeepAlive);
 
 #ifdef _WIN32
-  NODE_SET_PROTOTYPE_METHOD(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
+  NODE_SET_PROTOTYPE_METHOD(t,
+                            "setSimultaneousAccepts",
+                            SetSimultaneousAccepts);
 #endif
 
   onconnection_sym = String::New("onconnection");
@@ -151,8 +155,8 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
 TCPWrap::TCPWrap(Handle<Object> object)
     : StreamWrap(object, reinterpret_cast<uv_stream_t*>(&handle_)) {
   int r = uv_tcp_init(uv_default_loop(), &handle_);
-  assert(r == 0); // How do we proxy this error up to javascript?
-                  // Suggestion: uv_tcp_init() returns void.
+  assert(r == 0);  // How do we proxy this error up to javascript?
+                   // Suggestion: uv_tcp_init() returns void.
   UpdateWriteQueueSize();
 }
 
@@ -331,8 +335,8 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
 
 
 void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
-  ConnectWrap* req_wrap = (ConnectWrap*) req->data;
-  TCPWrap* wrap = (TCPWrap*) req->handle->data;
+  ConnectWrap* req_wrap = reinterpret_cast<ConnectWrap*>(req->data);
+  TCPWrap* wrap = reinterpret_cast<TCPWrap*>(req->handle->data);
 
   HandleScope scope(node_isolate);
 

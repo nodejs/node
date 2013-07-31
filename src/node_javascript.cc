@@ -28,22 +28,26 @@
 #include <strings.h>
 #endif
 
-using namespace v8;
-
 namespace node {
+
+using v8::Handle;
+using v8::HandleScope;
+using v8::Local;
+using v8::Object;
+using v8::String;
 
 Handle<String> MainSource() {
   return String::New(node_native, sizeof(node_native) - 1);
 }
 
-void DefineJavaScript(v8::Handle<v8::Object> target) {
+void DefineJavaScript(Handle<Object> target) {
   HandleScope scope(node_isolate);
 
   for (int i = 0; natives[i].name; i++) {
     if (natives[i].source != node_native) {
       Local<String> name = String::New(natives[i].name);
       Handle<String> source = String::New(natives[i].source,
-                                          natives[i].source_len);
+                                                      natives[i].source_len);
       target->Set(name, source);
     }
   }

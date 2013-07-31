@@ -29,72 +29,61 @@
 typedef ULONG (WINAPI *PerfStartProviderExFunc)(
     __in LPGUID ProviderGuid,
     __in_opt PPERF_PROVIDER_CONTEXT ProviderContext,
-    __out PHANDLE Provider
-    );
+    __out PHANDLE Provider);
 
 typedef ULONG (WINAPI *PerfStopProviderFunc)(
-    __in HANDLE ProviderHandle
-    );
+    __in HANDLE ProviderHandle);
 
 typedef ULONG (WINAPI *PerfSetCounterSetInfoFunc)(
     __in HANDLE ProviderHandle,
     __inout_bcount(TemplateSize) PPERF_COUNTERSET_INFO Template,
-    __in ULONG TemplateSize
-    );
+    __in ULONG TemplateSize);
 
 typedef PPERF_COUNTERSET_INSTANCE (WINAPI *PerfCreateInstanceFunc)(
     __in HANDLE ProviderHandle,
     __in LPCGUID CounterSetGuid,
     __in PCWSTR Name,
-    __in ULONG Id
-    );
+    __in ULONG Id);
 
 typedef ULONG (WINAPI *PerfDeleteInstanceFunc)(
     __in HANDLE Provider,
-    __in PPERF_COUNTERSET_INSTANCE InstanceBlock
-    );
+    __in PPERF_COUNTERSET_INSTANCE InstanceBlock);
 
 typedef ULONG (WINAPI *PerfSetULongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONG Value
-    );
+    __in ULONG Value);
 
 typedef ULONG (WINAPI *PerfSetULongLongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONGLONG Value
-    );
+    __in ULONGLONG Value);
 
 typedef ULONG (WINAPI *PerfIncrementULongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONG Value
-    );
+    __in ULONG Value);
 
 typedef ULONG (WINAPI *PerfIncrementULongLongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONGLONG Value
-    );
+    __in ULONGLONG Value);
 
 typedef ULONG (WINAPI *PerfDecrementULongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONG Value
-    );
+    __in ULONG Value);
 
 typedef ULONG (WINAPI *PerfDecrementULongLongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONGLONG Value
-    );
+    __in ULONGLONG Value);
 
 
 HMODULE advapimod;
@@ -341,5 +330,4 @@ void NODE_COUNT_PIPE_BYTES_RECV(int bytes) {
   }
 }
 
-
-}
+}  // namespace node

@@ -19,28 +19,39 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-NODE_EXT_LIST_START
-NODE_EXT_LIST_ITEM(node_buffer)
-#if HAVE_OPENSSL
-NODE_EXT_LIST_ITEM(node_crypto)
-NODE_EXT_LIST_ITEM(node_tls_wrap)
-#endif
-NODE_EXT_LIST_ITEM(node_evals)
-NODE_EXT_LIST_ITEM(node_fs)
-NODE_EXT_LIST_ITEM(node_http_parser)
-NODE_EXT_LIST_ITEM(node_os)
-NODE_EXT_LIST_ITEM(node_smalloc)
-NODE_EXT_LIST_ITEM(node_zlib)
+#ifndef SRC_NODE_EXTENSIONS_H_
+#define SRC_NODE_EXTENSIONS_H_
 
-NODE_EXT_LIST_ITEM(node_uv)
-NODE_EXT_LIST_ITEM(node_timer_wrap)
-NODE_EXT_LIST_ITEM(node_tcp_wrap)
-NODE_EXT_LIST_ITEM(node_udp_wrap)
-NODE_EXT_LIST_ITEM(node_pipe_wrap)
-NODE_EXT_LIST_ITEM(node_cares_wrap)
-NODE_EXT_LIST_ITEM(node_tty_wrap)
-NODE_EXT_LIST_ITEM(node_process_wrap)
-NODE_EXT_LIST_ITEM(node_fs_event_wrap)
-NODE_EXT_LIST_ITEM(node_signal_wrap)
+#ifdef HAVE_OPENSSL
+# define NODE_EXT_LIST_SSL(ITEM)                                              \
+    ITEM(node_crypto)                                                         \
+    ITEM(node_tls_wrap)
+#else
+# define NODE_EXT_LIST_SSL(ITEM)
+#endif  // HAVE_OPENSSL
 
-NODE_EXT_LIST_END
+#define NODE_EXT_LIST(START, ITEM, END)                                       \
+    START                                                                     \
+    ITEM(node_buffer)                                                         \
+    NODE_EXT_LIST_SSL(ITEM)                                                   \
+    ITEM(node_evals)                                                          \
+    ITEM(node_fs)                                                             \
+    ITEM(node_http_parser)                                                    \
+    ITEM(node_os)                                                             \
+    ITEM(node_smalloc)                                                        \
+    ITEM(node_zlib)                                                           \
+                                                                              \
+    ITEM(node_uv)                                                             \
+    ITEM(node_timer_wrap)                                                     \
+    ITEM(node_tcp_wrap)                                                       \
+    ITEM(node_udp_wrap)                                                       \
+    ITEM(node_pipe_wrap)                                                      \
+    ITEM(node_cares_wrap)                                                     \
+    ITEM(node_tty_wrap)                                                       \
+    ITEM(node_process_wrap)                                                   \
+    ITEM(node_fs_event_wrap)                                                  \
+    ITEM(node_signal_wrap)                                                    \
+                                                                              \
+    END                                                                       \
+
+#endif  // SRC_NODE_EXTENSIONS_H_

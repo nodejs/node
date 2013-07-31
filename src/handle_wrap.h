@@ -19,8 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef HANDLE_WRAP_H_
-#define HANDLE_WRAP_H_
+#ifndef SRC_HANDLE_WRAP_H_
+#define SRC_HANDLE_WRAP_H_
 
 #include "queue.h"
 
@@ -53,16 +53,16 @@ namespace node {
       args.This()->GetAlignedPointerFromInternalField(0));
 
 class HandleWrap {
-public:
+ public:
   static void Initialize(v8::Handle<v8::Object> target);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  inline uv_handle_t* GetHandle() { return handle__; };
+  inline uv_handle_t* GetHandle() { return handle__; }
 
-protected:
-  HandleWrap(v8::Handle<v8::Object> object, uv_handle_t* handle);
+ protected:
+  explicit HandleWrap(v8::Handle<v8::Object> object, uv_handle_t* handle);
   virtual ~HandleWrap();
 
   inline v8::Local<v8::Object> object() {
@@ -73,7 +73,7 @@ protected:
     return object_;
   }
 
-private:
+ private:
   friend void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>&);
   static void OnClose(uv_handle_t* handle);
   v8::Persistent<v8::Object> object_;
@@ -91,4 +91,4 @@ private:
 }  // namespace node
 
 
-#endif  // HANDLE_WRAP_H_
+#endif  // SRC_HANDLE_WRAP_H_

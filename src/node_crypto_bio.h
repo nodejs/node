@@ -19,6 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#ifndef SRC_NODE_CRYPTO_BIO_H_
+#define SRC_NODE_CRYPTO_BIO_H_
+
 #include "openssl/bio.h"
 #include <assert.h>
 
@@ -110,4 +113,6 @@ class NodeBIO {
   static BIO_METHOD method_;
 };
 
-} // namespace node
+}  // namespace node
+
+#endif  // SRC_NODE_CRYPTO_BIO_H_

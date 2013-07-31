@@ -68,21 +68,19 @@ void InitZlib(v8::Handle<v8::Object> target);
 class ZCtx : public ObjectWrap {
  public:
 
-  ZCtx(node_zlib_mode mode)
-    : ObjectWrap()
-    , init_done_(false)
-    , level_(0)
-    , windowBits_(0)
-    , memLevel_(0)
-    , strategy_(0)
-    , err_(0)
-    , dictionary_(NULL)
-    , dictionary_len_(0)
-    , flush_(0)
-    , chunk_size_(0)
-    , write_in_progress_(false)
-    , mode_(mode)
-  {
+  explicit ZCtx(node_zlib_mode mode) : ObjectWrap(),
+                                       init_done_(false),
+                                       level_(0),
+                                       windowBits_(0),
+                                       memLevel_(0),
+                                       strategy_(0),
+                                       err_(0),
+                                       dictionary_(NULL),
+                                       dictionary_len_(0),
+                                       flush_(0),
+                                       chunk_size_(0),
+                                       write_in_progress_(false),
+                                       mode_(mode) {
   }
 
 
@@ -219,17 +217,14 @@ class ZCtx : public ObjectWrap {
 
         // If data was encoded with dictionary
         if (ctx->err_ == Z_NEED_DICT && ctx->dictionary_ != NULL) {
-
           // Load it
           ctx->err_ = inflateSetDictionary(&ctx->strm_,
                                            ctx->dictionary_,
                                            ctx->dictionary_len_);
           if (ctx->err_ == Z_OK) {
-
             // And try to decode again
             ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
           } else if (ctx->err_ == Z_DATA_ERROR) {
-
             // Both inflateSetDictionary() and inflate() return Z_DATA_ERROR.
             // Make it possible for After() to tell a bad dictionary from bad
             // input.
@@ -510,8 +505,8 @@ class ZCtx : public ObjectWrap {
   }
 
  private:
-  static const int kDeflateContextSize = 16384; // approximate
-  static const int kInflateContextSize = 10240; // approximate
+  static const int kDeflateContextSize = 16384;  // approximate
+  static const int kInflateContextSize = 10240;  // approximate
 
   bool init_done_;
 

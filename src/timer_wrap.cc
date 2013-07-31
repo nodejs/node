@@ -75,7 +75,7 @@ class TimerWrap : public HandleWrap {
     new TimerWrap(args.This());
   }
 
-  TimerWrap(Handle<Object> object)
+  explicit TimerWrap(Handle<Object> object)
       : HandleWrap(object, reinterpret_cast<uv_handle_t*>(&handle_)) {
     int r = uv_timer_init(uv_default_loop(), &handle_);
     assert(r == 0);

@@ -347,4 +347,4 @@ void InitDTrace(Handle<Object> target) {
 #endif
 }
 
-}
+}  // namespace node

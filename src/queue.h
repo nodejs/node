@@ -13,8 +13,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef QUEUE_H_
-#define QUEUE_H_
+#ifndef SRC_QUEUE_H_
+#define SRC_QUEUE_H_
 
 typedef void *QUEUE[2];
 
@@ -89,4 +89,4 @@ typedef void *QUEUE[2];
   }                                                                           \
   while (0)
 
-#endif /* QUEUE_H_ */
+#endif  /* SRC_QUEUE_H_ */

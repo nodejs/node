@@ -310,9 +310,8 @@ void WrappedScript::EvalMachine(const FunctionCallbackInfo<Value>& args) {
   }
 
   const int sandbox_index = input_flag == compileCode ? 1 : 0;
-  if (context_flag == userContext
-    && !WrappedContext::InstanceOf(args[sandbox_index]))
-  {
+  if (context_flag == userContext &&
+      !WrappedContext::InstanceOf(args[sandbox_index])) {
     return ThrowTypeError("needs a 'context' argument.");
   }
 

@@ -26,8 +26,6 @@
 
 namespace node {
 
-using namespace v8;
-
 HMODULE advapi;
 REGHANDLE node_provider;
 EventRegisterFunc event_register;
@@ -177,7 +175,7 @@ void init_etw() {
                   etw_events_change_async);
     uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_etw_events_change_async));
 
-    if (event_register) {    
+    if (event_register) {
       DWORD status = event_register(&NODE_ETW_PROVIDER,
                                     etw_events_enable_callback,
                                     NULL,

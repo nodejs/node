@@ -72,7 +72,7 @@ class SignalWrap : public HandleWrap {
     new SignalWrap(args.This());
   }
 
-  SignalWrap(Handle<Object> object)
+  explicit SignalWrap(Handle<Object> object)
       : HandleWrap(object, reinterpret_cast<uv_handle_t*>(&handle_)) {
     int r = uv_signal_init(uv_default_loop(), &handle_);
     assert(r == 0);

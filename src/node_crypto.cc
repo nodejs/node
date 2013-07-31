@@ -326,7 +326,7 @@ int SecureContext::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
 
 // Takes a string or buffer and loads it into a BIO.
 // Caller responsible for BIO_free_all-ing the returned object.
-static BIO* LoadBIO (Handle<Value> v) {
+static BIO* LoadBIO(Handle<Value> v) {
   BIO *bio = BIO_new(NodeBIO::GetMethod());
   if (!bio) return NULL;
 
@@ -354,8 +354,8 @@ static BIO* LoadBIO (Handle<Value> v) {
 
 // Takes a string or buffer and loads it into an X509
 // Caller responsible for X509_free-ing the returned object.
-static X509* LoadX509 (Handle<Value> v) {
-  HandleScope scope(node_isolate); // necessary?
+static X509* LoadX509(Handle<Value> v) {
+  HandleScope scope(node_isolate);
 
   BIO *bio = LoadBIO(v);
   if (!bio) return NULL;
@@ -467,7 +467,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX *ctx, BIO *in) {
     }
   }
 
-end:
+ end:
   if (x != NULL) X509_free(x);
   return ret;
 }
@@ -648,8 +648,7 @@ void SecureContext::SetSessionIdContext(
   bio = BIO_new(BIO_s_mem());
   if (bio == NULL) {
     message = String::New("SSL_CTX_set_session_id_context error");
-  }
-  else {
+  } else {
     ERR_print_errors(bio);
     BIO_get_mem_ptr(bio, &mem);
     message = String::New(mem->data, mem->length);
@@ -681,7 +680,7 @@ void SecureContext::Close(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-//Takes .pfx or .p12 and password in string or buffer format
+// Takes .pfx or .p12 and password in string or buffer format
 void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
@@ -722,8 +721,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   if (d2i_PKCS12_bio(in, &p12) &&
       PKCS12_parse(p12, pass, &pkey, &cert, &extraCerts) &&
       SSL_CTX_use_certificate(sc->ctx_, cert) &&
-      SSL_CTX_use_PrivateKey(sc->ctx_, pkey))
-  {
+      SSL_CTX_use_PrivateKey(sc->ctx_, pkey)) {
     // set extra certs
     while (X509* x509 = sk_X509_pop(extraCerts)) {
       if (!sc->ca_store_) {
@@ -817,115 +815,114 @@ size_t ClientHelloParser::Write(const uint8_t* data, size_t len) {
   Handle<Value> argv[1];
 
   switch (state_) {
-   case kWaiting:
-    // >= 5 bytes for header parsing
-    if (offset_ < 5) break;
+    case kWaiting:
+      // >= 5 bytes for header parsing
+      if (offset_ < 5)
+        break;
 
-    if (data_[0] == kChangeCipherSpec || data_[0] == kAlert ||
-        data_[0] == kHandshake || data_[0] == kApplicationData) {
-      frame_len_ = (data_[3] << 8) + data_[4];
-      state_ = kTLSHeader;
-      body_offset_ = 5;
-    } else {
-      frame_len_ = (data_[0] << 8) + data_[1];
-      state_ = kSSLHeader;
-      if (*data_ & 0x40) {
-        // header with padding
-        body_offset_ = 3;
+      if (data_[0] == kChangeCipherSpec ||
+          data_[0] == kAlert ||
+          data_[0] == kHandshake ||
+          data_[0] == kApplicationData) {
+        frame_len_ = (data_[3] << 8) + data_[4];
+        state_ = kTLSHeader;
+        body_offset_ = 5;
       } else {
-        // without padding
-        body_offset_ = 2;
-      }
-    }
-
-    // Sanity check (too big frame, or too small)
-    if (frame_len_ >= sizeof(data_)) {
-      // Let OpenSSL handle it
-      Finish();
-      return copied;
-    }
-   case kTLSHeader:
-   case kSSLHeader:
-    // >= 5 + frame size bytes for frame parsing
-    if (offset_ < body_offset_ + frame_len_) break;
-
-    // Skip unsupported frames and gather some data from frame
-
-    // TODO: Check protocol version
-    if (data_[body_offset_] == kClientHello) {
-      is_clienthello = true;
-      uint8_t* body;
-      size_t session_offset;
-
-      if (state_ == kTLSHeader) {
-        // Skip frame header, hello header, protocol version and random data
-        session_offset = body_offset_ + 4 + 2 + 32;
-
-        if (session_offset + 1 < offset_) {
-          body = data_ + session_offset;
-          session_size = *body;
-          session_id = body + 1;
+        frame_len_ = (data_[0] << 8) + data_[1];
+        state_ = kSSLHeader;
+        if (*data_ & 0x40) {
+          // header with padding
+          body_offset_ = 3;
+        } else {
+          // without padding
+          body_offset_ = 2;
         }
-      } else if (state_ == kSSLHeader) {
-        // Skip header, version
-        session_offset = body_offset_ + 3;
+      }
 
-        if (session_offset + 4 < offset_) {
-          body = data_ + session_offset;
+      // Sanity check (too big frame, or too small)
+      if (frame_len_ >= sizeof(data_)) {
+        // Let OpenSSL handle it
+        Finish();
+        return copied;
+      }
+    case kTLSHeader:
+    case kSSLHeader:
+      // >= 5 + frame size bytes for frame parsing
+      if (offset_ < body_offset_ + frame_len_)
+        break;
 
-          int ciphers_size = (body[0] << 8) + body[1];
+      // Skip unsupported frames and gather some data from frame
 
-          if (body + 4 + ciphers_size < data_ + offset_) {
-            session_size = (body[2] << 8) + body[3];
-            session_id = body + 4 + ciphers_size;
+      if (data_[body_offset_] == kClientHello) {
+        is_clienthello = true;
+        uint8_t* body;
+        size_t session_offset;
+
+        if (state_ == kTLSHeader) {
+          // Skip frame header, hello header, protocol version and random data
+          session_offset = body_offset_ + 4 + 2 + 32;
+
+          if (session_offset + 1 < offset_) {
+            body = data_ + session_offset;
+            session_size = *body;
+            session_id = body + 1;
           }
+        } else if (state_ == kSSLHeader) {
+          // Skip header, version
+          session_offset = body_offset_ + 3;
+
+          if (session_offset + 4 < offset_) {
+            body = data_ + session_offset;
+
+            int ciphers_size = (body[0] << 8) + body[1];
+
+            if (body + 4 + ciphers_size < data_ + offset_) {
+              session_size = (body[2] << 8) + body[3];
+              session_id = body + 4 + ciphers_size;
+            }
+          }
+        } else {
+          // Whoa? How did we get here?
+          abort();
         }
-      } else {
-        // Whoa? How did we get here?
-        abort();
+
+        // Check if we overflowed (do not reply with any private data)
+        if (session_id == NULL ||
+            session_size > 32 ||
+            session_id + session_size > data_ + offset_) {
+          Finish();
+          return copied;
+        }
       }
 
-      // Check if we overflowed (do not reply with any private data)
-      if (session_id == NULL ||
-          session_size > 32 ||
-          session_id + session_size > data_ + offset_) {
+      // Not client hello - let OpenSSL handle it
+      if (!is_clienthello) {
         Finish();
         return copied;
       }
 
-      // TODO: Parse other things?
-    }
+      // Parse frame, call javascript handler and
+      // move parser into the paused state
+      if (onclienthello_sym.IsEmpty())
+        onclienthello_sym = String::New("onclienthello");
+      if (sessionid_sym.IsEmpty())
+        sessionid_sym = String::New("sessionId");
 
-    // Not client hello - let OpenSSL handle it
-    if (!is_clienthello) {
-      Finish();
-      return copied;
-    }
+      state_ = kPaused;
+      hello = Object::New();
+      hello->Set(sessionid_sym,
+                 Buffer::New(reinterpret_cast<char*>(session_id),
+                             session_size));
 
-    // Parse frame, call javascript handler and
-    // move parser into the paused state
-    if (onclienthello_sym.IsEmpty()) {
-      onclienthello_sym = String::New("onclienthello");
-    }
-    if (sessionid_sym.IsEmpty()) {
-      sessionid_sym = String::New("sessionId");
-    }
-
-    state_ = kPaused;
-    hello = Object::New();
-    hello->Set(sessionid_sym,
-               Buffer::New(reinterpret_cast<char*>(session_id),
-                           session_size));
-
-    argv[0] = hello;
-    MakeCallback(conn_->handle(node_isolate),
-                 onclienthello_sym,
-                 ARRAY_SIZE(argv),
-                 argv);
-    break;
-   case kEnded:
-   default:
-    break;
+      argv[0] = hello;
+      MakeCallback(conn_->handle(node_isolate),
+                   onclienthello_sym,
+                   ARRAY_SIZE(argv),
+                   argv);
+      break;
+    case kEnded:
+    default:
+      break;
   }
 
   return copied;
@@ -954,10 +951,13 @@ int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
   if (rv >= 0) return rv;
 
   int retry = BIO_should_retry(bio);
-  (void) retry; // unused if !defined(SSL_PRINT_DEBUG)
+  (void) retry;  // unused if !defined(SSL_PRINT_DEBUG)
 
   if (BIO_should_write(bio)) {
-    DEBUG_PRINT("[%p] BIO: %s want write. should retry %d\n", ssl_, func, retry);
+    DEBUG_PRINT("[%p] BIO: %s want write. should retry %d\n",
+                ssl_,
+                func,
+                retry);
     return 0;
 
   } else if (BIO_should_read(bio)) {
@@ -972,7 +972,11 @@ int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
     Local<Value> e = Exception::Error(String::New(ssl_error_buf));
     handle(node_isolate)->Set(String::New("error"), e);
 
-    DEBUG_PRINT("[%p] BIO: %s failed: (%d) %s\n", ssl_, func, rv, ssl_error_buf);
+    DEBUG_PRINT("[%p] BIO: %s failed: (%d) %s\n",
+                ssl_,
+                func,
+                rv,
+                ssl_error_buf);
 
     return rv;
   }
@@ -1046,7 +1050,7 @@ void Connection::ClearError() {
   // We should clear the error in JS-land
   assert(
       handle(node_isolate)->Get(String::New("error"))->BooleanValue() == false);
-#endif // NDEBUG
+#endif  // NDEBUG
 }
 
 
@@ -1079,22 +1083,32 @@ void Connection::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "encOut", Connection::EncOut);
   NODE_SET_PROTOTYPE_METHOD(t, "clearPending", Connection::ClearPending);
   NODE_SET_PROTOTYPE_METHOD(t, "encPending", Connection::EncPending);
-  NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate", Connection::GetPeerCertificate);
+  NODE_SET_PROTOTYPE_METHOD(t,
+                            "getPeerCertificate",
+                            Connection::GetPeerCertificate);
   NODE_SET_PROTOTYPE_METHOD(t, "getSession", Connection::GetSession);
   NODE_SET_PROTOTYPE_METHOD(t, "setSession", Connection::SetSession);
   NODE_SET_PROTOTYPE_METHOD(t, "loadSession", Connection::LoadSession);
   NODE_SET_PROTOTYPE_METHOD(t, "isSessionReused", Connection::IsSessionReused);
   NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished", Connection::IsInitFinished);
   NODE_SET_PROTOTYPE_METHOD(t, "verifyError", Connection::VerifyError);
-  NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", Connection::GetCurrentCipher);
+  NODE_SET_PROTOTYPE_METHOD(t,
+                            "getCurrentCipher",
+                            Connection::GetCurrentCipher);
   NODE_SET_PROTOTYPE_METHOD(t, "start", Connection::Start);
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Connection::Shutdown);
-  NODE_SET_PROTOTYPE_METHOD(t, "receivedShutdown", Connection::ReceivedShutdown);
+  NODE_SET_PROTOTYPE_METHOD(t,
+                            "receivedShutdown",
+                            Connection::ReceivedShutdown);
   NODE_SET_PROTOTYPE_METHOD(t, "close", Connection::Close);
 
 #ifdef OPENSSL_NPN_NEGOTIATED
-  NODE_SET_PROTOTYPE_METHOD(t, "getNegotiatedProtocol", Connection::GetNegotiatedProto);
-  NODE_SET_PROTOTYPE_METHOD(t, "setNPNProtocols", Connection::SetNPNProtocols);
+  NODE_SET_PROTOTYPE_METHOD(t,
+                            "getNegotiatedProtocol",
+                            Connection::GetNegotiatedProto);
+  NODE_SET_PROTOTYPE_METHOD(t,
+                            "setNPNProtocols",
+                            Connection::SetNPNProtocols);
 #endif
 
 
@@ -1158,7 +1172,6 @@ int Connection::AdvertiseNextProtoCallback_(SSL *s,
                                             const unsigned char** data,
                                             unsigned int *len,
                                             void *arg) {
-
   Connection *p = static_cast<Connection*>(SSL_get_app_data(s));
 
   if (p->npnProtos_.IsEmpty()) {
@@ -1599,8 +1612,8 @@ void Connection::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
 
     EVP_PKEY *pkey = NULL;
     RSA *rsa = NULL;
-    if( NULL != (pkey = X509_get_pubkey(peer_cert))
-        && NULL != (rsa = EVP_PKEY_get1_RSA(pkey)) ) {
+    if (NULL != (pkey = X509_get_pubkey(peer_cert)) &&
+        NULL != (rsa = EVP_PKEY_get1_RSA(pkey))) {
         BN_print(bio, rsa->n);
         BIO_get_mem_ptr(bio, &mem);
         info->Set(modulus_symbol, String::New(mem->data, mem->length) );
@@ -1637,7 +1650,7 @@ void Connection::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
       const char hex[] = "0123456789ABCDEF";
       char fingerprint[EVP_MAX_MD_SIZE * 3];
 
-      for (i = 0; i<md_size; i++) {
+      for (i = 0; i < md_size; i++) {
         fingerprint[3*i] = hex[(md[i] & 0xf0) >> 4];
         fingerprint[(3*i)+1] = hex[(md[i] & 0x0f)];
         fingerprint[(3*i)+2] = ':';
@@ -1645,8 +1658,7 @@ void Connection::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
 
       if (md_size > 0) {
         fingerprint[(3*(md_size-1))+2] = '\0';
-      }
-      else {
+      } else {
         fingerprint[0] = '\0';
       }
 
@@ -1839,7 +1851,6 @@ void Connection::VerifyError(const FunctionCallbackInfo<Value>& args) {
         Exception::Error(String::New("UNABLE_TO_GET_ISSUER_CERT")));
   }
   X509_free(peer_cert);
-
 
   long x509_verify_error = SSL_get_verify_result(ss->ssl_);
 
@@ -2678,7 +2689,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   ssize_t len = Buffer::Length(args[0]);
   char* buf = Buffer::Data(args[0]);
 
-  md_len = 8192; // Maximum key size is 8192 bits
+  md_len = 8192;  // Maximum key size is 8192 bits
   md_value = new unsigned char[md_len];
 
   bool r = sign->SignFinal(&md_value, &md_len, buf, len);
@@ -2841,7 +2852,7 @@ bool Verify::VerifyFinal(const char* key_pem,
                       siglen,
                       pkey);
 
-exit:
+ exit:
   if (pkey != NULL)
     EVP_PKEY_free(pkey);
   if (bp != NULL)
@@ -3404,7 +3415,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   }
   return;
 
-err:
+ err:
   delete[] salt;
   delete[] pass;
   return ThrowTypeError(type_error);
@@ -3414,7 +3425,7 @@ err:
 struct RandomBytesRequest {
   ~RandomBytesRequest();
   Persistent<Object> obj_;
-  unsigned long error_; // openssl error code or zero
+  unsigned long error_;  // openssl error code or zero
   uv_work_t work_req_;
   size_t size_;
   char* data_;
@@ -3460,8 +3471,7 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
 
     argv[0] = Exception::Error(String::New(errmsg));
     argv[1] = Null(node_isolate);
-  }
-  else {
+  } else {
     argv[0] = Null(node_isolate);
     argv[1] = Buffer::Use(req->data_, req->size_);
   }
@@ -3511,8 +3521,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
                   RandomBytesWork<pseudoRandom>,
                   RandomBytesAfter);
     args.GetReturnValue().Set(obj);
-  }
-  else {
+  } else {
     Local<Value> argv[2];
     RandomBytesWork<pseudoRandom>(&req->work_req_);
     RandomBytesCheck(req, argv);
@@ -3596,13 +3605,11 @@ void InitCrypto(Handle<Object> target) {
 
   // Turn off compression. Saves memory - do it in userland.
 #if !defined(OPENSSL_NO_COMP)
-  STACK_OF(SSL_COMP)* comp_methods =
 #if OPENSSL_VERSION_NUMBER < 0x00908000L
-    SSL_COMP_get_compression_method()
+  STACK_OF(SSL_COMP)* comp_methods = SSL_COMP_get_compression_method();
 #else
-    SSL_COMP_get_compression_methods()
+  STACK_OF(SSL_COMP)* comp_methods = SSL_COMP_get_compression_methods();
 #endif
-  ;
   sk_SSL_COMP_zero(comp_methods);
   assert(sk_SSL_COMP_num(comp_methods) == 0);
 #endif

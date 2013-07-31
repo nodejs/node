@@ -19,6 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#ifndef SRC_NODE_JAVASCRIPT_H_
+#define SRC_NODE_JAVASCRIPT_H_
+
 #include "v8.h"
 
 namespace node {
@@ -27,3 +30,5 @@ void DefineJavaScript(v8::Handle<v8::Object> target);
 v8::Handle<v8::String> MainSource();
 
 }  // namespace node
+
+#endif  // SRC_NODE_JAVASCRIPT_H_

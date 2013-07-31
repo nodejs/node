@@ -27,10 +27,7 @@ namespace node {
 using v8::V8;
 
 
-Watchdog::Watchdog(uint64_t ms)
-  : thread_created_(false)
-  , destroyed_(false) {
-
+Watchdog::Watchdog(uint64_t ms) : thread_created_(false), destroyed_(false) {
   loop_ = uv_loop_new();
   if (!loop_)
     return;

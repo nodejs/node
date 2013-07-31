@@ -19,8 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef node_script_h
-#define node_script_h
+#ifndef SRC_NODE_SCRIPT_H_
+#define SRC_NODE_SCRIPT_H_
 
 #include "node.h"
 #include "node_object_wrap.h"
@@ -29,8 +29,8 @@
 
 namespace node {
 
-
 void InitEvals(v8::Handle<v8::Object> target);
 
-} // namespace node
-#endif //  node_script_h
+}  // namespace node
+
+#endif  // SRC_NODE_SCRIPT_H_

@@ -19,8 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef node_os_h
-#define node_os_h
+#ifndef SRC_NODE_OS_H_
+#define SRC_NODE_OS_H_
 
 #include "node.h"
 #include "v8.h"
@@ -28,11 +28,10 @@
 namespace node {
 
 class OS {
-public:
-  static void Initialize (v8::Handle<v8::Object> target);
+ public:
+  static void Initialize(v8::Handle<v8::Object> target);
 };
-
 
 }  // namespace node
 
-#endif  // node_os_h
+#endif  // SRC_NODE_OS_H_

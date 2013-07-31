@@ -55,7 +55,7 @@ using v8::Persistent;
 using v8::String;
 using v8::Value;
 
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define TYPE_ERROR(msg) ThrowTypeError(msg)
 
@@ -63,13 +63,13 @@ using v8::Value;
 
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
-  FSReqWrap(const char* syscall)
+  explicit FSReqWrap(const char* syscall)
     : must_free_(false),
       syscall_(syscall) {
   }
 
   const char* syscall() { return syscall_; }
-  bool must_free_; // request is responsible for free'ing memory oncomplete
+  bool must_free_;  // request is responsible for free'ing memory oncomplete
 
  private:
   const char* syscall_;
@@ -98,7 +98,7 @@ static inline int IsInt64(double x) {
 static void After(uv_fs_t *req) {
   HandleScope scope(node_isolate);
 
-  FSReqWrap* req_wrap = (FSReqWrap*) req->data;
+  FSReqWrap* req_wrap = reinterpret_cast<FSReqWrap*>(req->data);
   assert(&req_wrap->req_ == req);
 
   // check if data needs to be cleaned
@@ -833,13 +833,13 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
 static void Chmod(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  if(args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
+  if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
   }
   String::Utf8Value path(args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
 
-  if(args[2]->IsFunction()) {
+  if (args[2]->IsFunction()) {
     ASYNC_CALL(chmod, args[2], *path, mode);
   } else {
     SYNC_CALL(chmod, *path, *path, mode);
@@ -853,13 +853,13 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
 static void FChmod(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  if(args.Length() < 2 || !args[0]->IsInt32() || !args[1]->IsInt32()) {
+  if (args.Length() < 2 || !args[0]->IsInt32() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
   }
   int fd = args[0]->Int32Value();
   int mode = static_cast<int>(args[1]->Int32Value());
 
-  if(args[2]->IsFunction()) {
+  if (args[2]->IsFunction()) {
     ASYNC_CALL(fchmod, args[2], fd, mode);
   } else {
     SYNC_CALL(fchmod, 0, fd, mode);
@@ -989,11 +989,11 @@ void File::Initialize(Handle<Object> target) {
 
   NODE_SET_METHOD(target, "chmod", Chmod);
   NODE_SET_METHOD(target, "fchmod", FChmod);
-  //NODE_SET_METHOD(target, "lchmod", LChmod);
+  // NODE_SET_METHOD(target, "lchmod", LChmod);
 
   NODE_SET_METHOD(target, "chown", Chown);
   NODE_SET_METHOD(target, "fchown", FChown);
-  //NODE_SET_METHOD(target, "lchown", LChown);
+  // NODE_SET_METHOD(target, "lchown", LChown);
 
   NODE_SET_METHOD(target, "utimes", UTimes);
   NODE_SET_METHOD(target, "futimes", FUTimes);

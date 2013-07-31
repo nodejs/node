@@ -442,29 +442,29 @@ Handle<Value> TLSCallbacks::GetSSLError(int status, int* err) {
 
   *err = SSL_get_error(ssl_, status);
   switch (*err) {
-   case SSL_ERROR_NONE:
-   case SSL_ERROR_WANT_READ:
-   case SSL_ERROR_WANT_WRITE:
-    break;
-   case SSL_ERROR_ZERO_RETURN:
-    return scope.Close(String::NewSymbol("ZERO_RETURN"));
-    break;
-   default:
-    {
-      BUF_MEM* mem;
-      BIO* bio;
+    case SSL_ERROR_NONE:
+    case SSL_ERROR_WANT_READ:
+    case SSL_ERROR_WANT_WRITE:
+      break;
+    case SSL_ERROR_ZERO_RETURN:
+      return scope.Close(String::NewSymbol("ZERO_RETURN"));
+      break;
+    default:
+      {
+        BUF_MEM* mem;
+        BIO* bio;
 
-      assert(*err == SSL_ERROR_SSL || *err == SSL_ERROR_SYSCALL);
+        assert(*err == SSL_ERROR_SSL || *err == SSL_ERROR_SYSCALL);
 
-      bio = BIO_new(BIO_s_mem());
-      assert(bio != NULL);
-      ERR_print_errors(bio);
-      BIO_get_mem_ptr(bio, &mem);
-      Handle<Value> r = Exception::Error(String::New(mem->data, mem->length));
-      BIO_free_all(bio);
+        bio = BIO_new(BIO_s_mem());
+        assert(bio != NULL);
+        ERR_print_errors(bio);
+        BIO_get_mem_ptr(bio, &mem);
+        Handle<Value> r = Exception::Error(String::New(mem->data, mem->length));
+        BIO_free_all(bio);
 
-      return scope.Close(r);
-    }
+        return scope.Close(r);
+      }
   }
   return Handle<Value>();
 }
@@ -686,104 +686,104 @@ void TLSCallbacks::ParseClientHello() {
   Handle<Value> argv[1];
 
   switch (hello_.state) {
-   case kParseWaiting:
-    // >= 5 bytes for header parsing
-    if (avail < 5)
-      break;
+    case kParseWaiting:
+      // >= 5 bytes for header parsing
+      if (avail < 5)
+        break;
 
-    if (data[0] == kChangeCipherSpec ||
-        data[0] == kAlert ||
-        data[0] == kHandshake ||
-        data[0] == kApplicationData) {
-      hello_.frame_len = (data[3] << 8) + data[4];
-      hello_.state = kParseTLSHeader;
-      hello_.body_offset = 5;
-    } else {
-      hello_.frame_len = (data[0] << 8) + data[1];
-      hello_.state = kParseSSLHeader;
-      if (*data & 0x40) {
-        // header with padding
-        hello_.body_offset = 3;
+      if (data[0] == kChangeCipherSpec ||
+          data[0] == kAlert ||
+          data[0] == kHandshake ||
+          data[0] == kApplicationData) {
+        hello_.frame_len = (data[3] << 8) + data[4];
+        hello_.state = kParseTLSHeader;
+        hello_.body_offset = 5;
       } else {
-        // without padding
-        hello_.body_offset = 2;
-      }
-    }
-
-    // Sanity check (too big frame, or too small)
-    // Let OpenSSL handle it
-    if (hello_.frame_len >= kMaxTLSFrameLen)
-      return ParseFinish();
-
-    // Fall through
-   case kParseTLSHeader:
-   case kParseSSLHeader:
-    // >= 5 + frame size bytes for frame parsing
-    if (avail < hello_.body_offset + hello_.frame_len)
-      break;
-
-    // Skip unsupported frames and gather some data from frame
-
-    // TODO(indutny): Check protocol version
-    if (data[hello_.body_offset] == kClientHello) {
-      is_clienthello = true;
-      uint8_t* body;
-      size_t session_offset;
-
-      if (hello_.state == kParseTLSHeader) {
-        // Skip frame header, hello header, protocol version and random data
-        session_offset = hello_.body_offset + 4 + 2 + 32;
-
-        if (session_offset + 1 < avail) {
-          body = data + session_offset;
-          session_size = *body;
-          session_id = body + 1;
+        hello_.frame_len = (data[0] << 8) + data[1];
+        hello_.state = kParseSSLHeader;
+        if (*data & 0x40) {
+          // header with padding
+          hello_.body_offset = 3;
+        } else {
+          // without padding
+          hello_.body_offset = 2;
         }
-      } else if (hello_.state == kParseSSLHeader) {
-        // Skip header, version
-        session_offset = hello_.body_offset + 3;
-
-        if (session_offset + 4 < avail) {
-          body = data + session_offset;
-
-          int ciphers_size = (body[0] << 8) + body[1];
-
-          if (body + 4 + ciphers_size < data + avail) {
-            session_size = (body[2] << 8) + body[3];
-            session_id = body + 4 + ciphers_size;
-          }
-        }
-      } else {
-        // Whoa? How did we get here?
-        abort();
       }
 
-      // Check if we overflowed (do not reply with any private data)
-      if (session_id == NULL ||
-          session_size > 32 ||
-          session_id + session_size > data + avail) {
+      // Sanity check (too big frame, or too small)
+      // Let OpenSSL handle it
+      if (hello_.frame_len >= kMaxTLSFrameLen)
         return ParseFinish();
+
+      // Fall through
+    case kParseTLSHeader:
+    case kParseSSLHeader:
+      // >= 5 + frame size bytes for frame parsing
+      if (avail < hello_.body_offset + hello_.frame_len)
+        break;
+
+      // Skip unsupported frames and gather some data from frame
+
+      // TODO(indutny): Check protocol version
+      if (data[hello_.body_offset] == kClientHello) {
+        is_clienthello = true;
+        uint8_t* body;
+        size_t session_offset;
+
+        if (hello_.state == kParseTLSHeader) {
+          // Skip frame header, hello header, protocol version and random data
+          session_offset = hello_.body_offset + 4 + 2 + 32;
+
+          if (session_offset + 1 < avail) {
+            body = data + session_offset;
+            session_size = *body;
+            session_id = body + 1;
+          }
+        } else if (hello_.state == kParseSSLHeader) {
+          // Skip header, version
+          session_offset = hello_.body_offset + 3;
+
+          if (session_offset + 4 < avail) {
+            body = data + session_offset;
+
+            int ciphers_size = (body[0] << 8) + body[1];
+
+            if (body + 4 + ciphers_size < data + avail) {
+              session_size = (body[2] << 8) + body[3];
+              session_id = body + 4 + ciphers_size;
+            }
+          }
+        } else {
+          // Whoa? How did we get here?
+          abort();
+        }
+
+        // Check if we overflowed (do not reply with any private data)
+        if (session_id == NULL ||
+            session_size > 32 ||
+            session_id + session_size > data + avail) {
+          return ParseFinish();
+        }
+
+        // TODO(indutny): Parse other things?
       }
 
-      // TODO(indutny): Parse other things?
-    }
+      // Not client hello - let OpenSSL handle it
+      if (!is_clienthello)
+        return ParseFinish();
 
-    // Not client hello - let OpenSSL handle it
-    if (!is_clienthello)
-      return ParseFinish();
+      hello_.state = kParsePaused;
+      hello_obj = Object::New();
+      hello_obj->Set(sessionid_sym,
+          Buffer::New(reinterpret_cast<char*>(session_id),
+            session_size));
 
-    hello_.state = kParsePaused;
-    hello_obj = Object::New();
-    hello_obj->Set(sessionid_sym,
-                   Buffer::New(reinterpret_cast<char*>(session_id),
-                               session_size));
-
-    argv[0] = hello_obj;
-    MakeCallback(object(), onclienthello_sym, 1, argv);
-    break;
-   case kParseEnded:
-   default:
-    break;
+      argv[0] = hello_obj;
+      MakeCallback(object(), onclienthello_sym, 1, argv);
+      break;
+    case kParseEnded:
+    default:
+      break;
   }
 }
 
@@ -1183,17 +1183,17 @@ int TLSCallbacks::SelectNextProtoCallback(SSL* s,
   int status = SSL_select_next_proto(out, outlen, in, inlen, npn_protos, len);
   Handle<Value> result;
   switch (status) {
-   case OPENSSL_NPN_UNSUPPORTED:
-    result = Null(node_isolate);
-    break;
-   case OPENSSL_NPN_NEGOTIATED:
-    result = String::New(reinterpret_cast<const char*>(*out), *outlen);
-    break;
-   case OPENSSL_NPN_NO_OVERLAP:
-    result = False(node_isolate);
-    break;
-   default:
-    break;
+    case OPENSSL_NPN_UNSUPPORTED:
+      result = Null(node_isolate);
+      break;
+    case OPENSSL_NPN_NEGOTIATED:
+      result = String::New(reinterpret_cast<const char*>(*out), *outlen);
+      break;
+    case OPENSSL_NPN_NO_OVERLAP:
+      result = False(node_isolate);
+      break;
+    default:
+      break;
   }
 
   if (!result.IsEmpty())

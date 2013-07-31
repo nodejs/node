@@ -80,12 +80,12 @@ typedef int mode_t;
 #endif
 #include "node_script.h"
 
-# ifdef __APPLE__
+#ifdef __APPLE__
 # include <crt_externs.h>
 # define environ (*_NSGetEnviron())
-# elif !defined(_MSC_VER)
+#elif !defined(_MSC_VER)
 extern char **environ;
-# endif
+#endif
 
 namespace node {
 
@@ -164,7 +164,7 @@ static char *eval_string = NULL;
 static int option_end_index = 0;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
-static int debug_port=5858;
+static int debug_port = 5858;
 static int max_stack_size = 0;
 bool using_domains = false;
 
@@ -208,7 +208,7 @@ Isolate* node_isolate = NULL;
 
 
 class ArrayBufferAllocator : public ArrayBuffer::Allocator {
-public:
+ public:
   // Impose an upper limit to avoid out of memory errors that bring down
   // the process.
   static const size_t kMaxLength = 0x3fffffff;
@@ -216,7 +216,7 @@ public:
   virtual ~ArrayBufferAllocator() {}
   virtual void* Allocate(size_t length);
   virtual void Free(void* data);
-private:
+ private:
   ArrayBufferAllocator() {}
   ArrayBufferAllocator(const ArrayBufferAllocator&);
   void operator=(const ArrayBufferAllocator&);
@@ -260,7 +260,6 @@ static void IdleImmediateDummy(uv_idle_t* handle, int status) {
 static inline const char *errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
   switch (errorno) {
-
 #ifdef EACCES
   ERRNO_CASE(EACCES);
 #endif
@@ -585,7 +584,6 @@ static inline const char *errno_string(int errorno) {
 const char *signo_string(int signo) {
 #define SIGNO_CASE(e)  case e: return #e;
   switch (signo) {
-
 #ifdef SIGHUP
   SIGNO_CASE(SIGHUP);
 #endif
@@ -823,7 +821,7 @@ Local<Value> UVException(int errorno,
 
   Local<Object> obj = e->ToObject();
 
-  // TODO errno should probably go
+  // TODO(piscisaureus) errno should probably go
   obj->Set(errno_symbol, Integer::New(errorno, node_isolate));
   obj->Set(code_symbol, estring);
   if (path) obj->Set(errpath_symbol, path_str);
@@ -921,7 +919,7 @@ MakeDomainCallback(const Handle<Object> object,
                    const Handle<Function> callback,
                    int argc,
                    Handle<Value> argv[]) {
-  // TODO Hook for long stack traces to be made here.
+  // TODO(trevnorris) Hook for long stack traces to be made here.
 
   // lazy load domain specific symbols
   if (enter_symbol.IsEmpty()) {
@@ -1003,7 +1001,7 @@ MakeCallback(const Handle<Object> object,
              const Handle<Function> callback,
              int argc,
              Handle<Value> argv[]) {
-  // TODO Hook for long stack traces to be made here.
+  // TODO(trevnorris) Hook for long stack traces to be made here.
   Local<Object> process = PersistentToLocal(process_p);
 
   if (using_domains)
@@ -1204,8 +1202,6 @@ void DisplayExceptionLine(Handle<Message> message) {
     int start = message->GetStartColumn();
     int end = message->GetEndColumn();
 
-    // fprintf(stderr, "---\nsourceline:%s\noffset:%d\nstart:%d\nend:%d\n---\n", sourceline_string, start, end);
-
     fprintf(stderr, "%s\n", sourceline_string);
     // Print wavy underline (GetUnderline is deprecated).
     for (int i = 0; i < start; i++) {
@@ -1252,7 +1248,7 @@ static void ReportException(Handle<Value> er, Handle<Message> message) {
 }
 
 
-static void ReportException(TryCatch& try_catch) {
+static void ReportException(const TryCatch& try_catch) {
   ReportException(try_catch.Exception(), try_catch.Message());
 }
 
@@ -1371,13 +1367,11 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1 || args[0]->IsUndefined()) {
     old = umask(0);
     umask(static_cast<mode_t>(old));
-
-  } else if(!args[0]->IsInt32() && !args[0]->IsString()) {
+  } else if (!args[0]->IsInt32() && !args[0]->IsString()) {
     return ThrowTypeError("argument must be an integer or octal string.");
-
   } else {
     int oct;
-    if(args[0]->IsInt32()) {
+    if (args[0]->IsInt32()) {
       oct = args[0]->Uint32Value();
     } else {
       oct = 0;
@@ -1664,7 +1658,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-#endif // __POSIX__ && !defined(__ANDROID__)
+#endif  // __POSIX__ && !defined(__ANDROID__)
 
 
 void Exit(const FunctionCallbackInfo<Value>& args) {
@@ -1773,8 +1767,8 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return ThrowError("process.dlopen takes exactly 2 arguments.");
   }
 
-  Local<Object> module = args[0]->ToObject(); // Cast
-  String::Utf8Value filename(args[1]); // Cast
+  Local<Object> module = args[0]->ToObject();  // Cast
+  String::Utf8Value filename(args[1]);  // Cast
 
   if (exports_symbol.IsEmpty()) {
     exports_symbol = String::New("exports");
@@ -1786,7 +1780,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
     errmsg = String::Concat(errmsg, args[1]->ToString());
-#endif
+#endif  // _WIN32
     ThrowException(Exception::Error(errmsg));
     return;
   }
@@ -1800,7 +1794,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   if (pos != NULL) {
     base = pos + 1;
   }
-#else // Windows
+#else  // Windows
   for (;;) {
     pos = strpbrk(base, "\\/:");
     if (pos == NULL) {
@@ -1808,7 +1802,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     }
     base = pos + 1;
   }
-#endif
+#endif  // __POSIX__
 
   /* Strip the .node extension. */
   pos = strrchr(base, '.');
@@ -1913,9 +1907,9 @@ void FatalException(Handle<Value> error, Handle<Message> message) {
 }
 
 
-void FatalException(TryCatch& try_catch) {
+void FatalException(const TryCatch& try_catch) {
   HandleScope scope(node_isolate);
-  // TODO do not call FatalException if try_catch is verbose
+  // TODO(bajtos) do not call FatalException if try_catch is verbose
   // (requires V8 API to expose getter for try_catch.is_verbose_)
   FatalException(try_catch.Exception(), try_catch.Message());
 }
@@ -1946,7 +1940,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 
   // Append a string to process.moduleLoadList
   char buf[1024];
-  snprintf(buf, 1024, "Binding %s", *module_v);
+  snprintf(buf, sizeof(buf), "Binding %s", *module_v);
 
   Local<Array> modules = PersistentToLocal(module_load_list);
   uint32_t l = modules->Length();
@@ -1958,19 +1952,15 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
     // only exports.
     modp->register_func(exports, Undefined(node_isolate));
     cache->Set(module, exports);
-
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New();
     DefineConstants(exports);
     cache->Set(module, exports);
-
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New();
     DefineJavaScript(exports);
     cache->Set(module, exports);
-
   } else {
-
     return ThrowError("No such module");
   }
 
@@ -1992,7 +1982,7 @@ static void ProcessTitleSetter(Local<String> property,
                                const PropertyCallbackInfo<void>& info) {
   HandleScope scope(node_isolate);
   String::Utf8Value title(value);
-  // TODO: protect with a lock
+  // TODO(piscisaureus): protect with a lock
   uv_set_process_title(*title);
 }
 
@@ -2008,7 +1998,7 @@ static void EnvGetter(Local<String> property,
   }
 #else  // _WIN32
   String::Value key(property);
-  WCHAR buffer[32767]; // The maximum size allowed for environment variables.
+  WCHAR buffer[32767];  // The maximum size allowed for environment variables.
   DWORD result = GetEnvironmentVariableW(reinterpret_cast<WCHAR*>(*key),
                                          buffer,
                                          ARRAY_SIZE(buffer));
@@ -2142,16 +2132,17 @@ static Handle<Object> GetFeatures() {
   HandleScope scope(node_isolate);
 
   Local<Object> obj = Object::New();
-  obj->Set(String::NewSymbol("debug"),
 #if defined(DEBUG) && DEBUG
-    True(node_isolate)
+  Local<Value> debug = True(node_isolate);
 #else
-    False(node_isolate)
-#endif
-  );
+  Local<Value> debug = False(node_isolate);
+#endif  // defined(DEBUG) && DEBUG
+
+  obj->Set(String::NewSymbol("debug"), debug);
 
   obj->Set(String::NewSymbol("uv"), True(node_isolate));
-  obj->Set(String::NewSymbol("ipv6"), True(node_isolate)); // TODO ping libuv
+  // TODO(bnoordhuis) ping libuv
+  obj->Set(String::NewSymbol("ipv6"), True(node_isolate));
   obj->Set(String::NewSymbol("tls_npn"), Boolean::New(use_npn));
   obj->Set(String::NewSymbol("tls_sni"), Boolean::New(use_sni));
   obj->Set(String::NewSymbol("tls"),
@@ -2375,7 +2366,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "getgroups", GetGroups);
   NODE_SET_METHOD(process, "setgroups", SetGroups);
   NODE_SET_METHOD(process, "initgroups", InitGroups);
-#endif // __POSIX__ && !defined(__ANDROID__)
+#endif  // __POSIX__ && !defined(__ANDROID__)
 
   NODE_SET_METHOD(process, "_kill", Kill);
 
@@ -2488,7 +2479,7 @@ static void ParseDebugOpt(const char* arg) {
     debug_port = atoi(p);
   } else {
     use_debug_agent = true;
-    if (!strcmp (arg, "--debug-brk")) {
+    if (!strcmp(arg, "--debug-brk")) {
       debug_wait_connect = true;
       return;
     } else if (!strcmp(arg, "--debug")) {
@@ -2546,7 +2537,7 @@ static void PrintHelp() {
 static void ParseArgs(int argc, char **argv) {
   int i;
 
-  // TODO use parse opts
+  // TODO(bnoordhuis) use parse opts
   for (i = 1; i < argc; i++) {
     const char *arg = argv[i];
     if (strstr(arg, "--debug") == arg) {
@@ -2687,7 +2678,7 @@ static void EnableDebugSignalHandler(uv_signal_t* handle, int) {
 }
 
 
-static void RegisterSignalHandler(int signal, void (*handler)(int)) {
+static void RegisterSignalHandler(int signal, void (*handler)(int signal)) {
   struct sigaction sa;
 
   memset(&sa, 0, sizeof(sa));
@@ -2713,7 +2704,7 @@ void DebugProcess(const FunctionCallbackInfo<Value>& args) {
     return ThrowErrnoException(errno, "kill");
   }
 }
-#endif // __POSIX__
+#endif  // __POSIX__
 
 
 #ifdef _WIN32
@@ -2776,7 +2767,7 @@ static int RegisterDebugSignalHandler() {
 
   *handler = EnableDebugThreadProc;
 
-  UnmapViewOfFile((void*) handler);
+  UnmapViewOfFile(static_cast<void*>(handler));
 
   return 0;
 }
@@ -2851,20 +2842,16 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   }
 
  out:
-  if (process != NULL) {
-   CloseHandle(process);
-  }
-  if (thread != NULL) {
+  if (process != NULL)
+    CloseHandle(process);
+  if (thread != NULL)
     CloseHandle(thread);
-  }
-  if (handler != NULL) {
+  if (handler != NULL)
     UnmapViewOfFile(handler);
-  }
-  if (mapping != NULL) {
+  if (mapping != NULL)
     CloseHandle(mapping);
-  }
 }
-#endif // _WIN32
+#endif  // _WIN32
 
 
 static void DebugPause(const FunctionCallbackInfo<Value>& args) {
@@ -2928,7 +2915,7 @@ char** Init(int argc, char *argv[]) {
 
     uint32_t *stack_limit = &stack_var - (max_stack_size / sizeof(uint32_t));
     constraints.set_stack_limit(stack_limit);
-    SetResourceConstraints(&constraints); // Must be done before V8::Initialize
+    SetResourceConstraints(&constraints);  // Must be done before V8::Initialize
   }
   V8::SetFlagsFromCommandLine(&v8argc, v8argv, false);
 
@@ -2945,7 +2932,7 @@ char** Init(int argc, char *argv[]) {
   RegisterSignalHandler(SIGPIPE, SIG_IGN);
   RegisterSignalHandler(SIGINT, SignalExit);
   RegisterSignalHandler(SIGTERM, SignalExit);
-#endif // __POSIX__
+#endif  // __POSIX__
 
   uv_check_init(uv_default_loop(), &check_immediate_watcher);
   uv_unref(reinterpret_cast<uv_handle_t*>(&check_immediate_watcher));
@@ -2960,12 +2947,12 @@ char** Init(int argc, char *argv[]) {
   } else {
 #ifdef _WIN32
     RegisterDebugSignalHandler();
-#else // Posix
+#else  // Posix
     static uv_signal_t signal_watcher;
     uv_signal_init(uv_default_loop(), &signal_watcher);
     uv_signal_start(&signal_watcher, EnableDebugSignalHandler, SIGUSR1);
     uv_unref(reinterpret_cast<uv_handle_t*>(&signal_watcher));
-#endif // __POSIX__
+#endif  // __POSIX__
   }
 
   return argv;
@@ -3018,18 +3005,20 @@ static char **copy_argv(int argc, char **argv) {
   int i;
 
   strlen_sum = 0;
-  for(i = 0; i < argc; i++) {
+  for (i = 0; i < argc; i++) {
     strlen_sum += strlen(argv[i]) + 1;
   }
 
-  argv_copy = (char **) malloc(sizeof(char *) * (argc + 1) + strlen_sum);
+  argv_copy = static_cast<char**>(
+      malloc(sizeof(*argv_copy) * (argc + 1) + strlen_sum));
   if (!argv_copy) {
     return NULL;
   }
 
-  argv_data = (char *) argv_copy + sizeof(char *) * (argc + 1);
+  argv_data = reinterpret_cast<char*>(argv_copy) +
+              sizeof(*argv_copy) * (argc + 1);
 
-  for(i = 0; i < argc; i++) {
+  for (i = 0; i < argc; i++) {
     argv_copy[i] = argv_data;
     len = strlen(argv[i]) + 1;
     memcpy(argv_data, argv[i], len);

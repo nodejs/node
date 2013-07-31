@@ -29,8 +29,8 @@
 #include "udp_wrap.h"
 #include "node_counters.h"
 
-#include <stdlib.h> // abort()
-#include <limits.h> // INT_MAX
+#include <stdlib.h>  // abort()
+#include <limits.h>  // INT_MAX
 
 
 namespace node {
@@ -217,7 +217,7 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
   size_t length = Buffer::Length(buf_obj);
   char* storage = new char[sizeof(WriteWrap)];
-  WriteWrap* req_wrap = new (storage) WriteWrap(req_wrap_obj, wrap);
+  WriteWrap* req_wrap = new(storage) WriteWrap(req_wrap_obj, wrap);
 
   req_wrap_obj->SetHiddenValue(buffer_sym, buf_obj);
 
@@ -269,7 +269,7 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   }
 
   char* storage = new char[sizeof(WriteWrap) + storage_size + 15];
-  WriteWrap* req_wrap = new (storage) WriteWrap(req_wrap_obj, wrap);
+  WriteWrap* req_wrap = new(storage) WriteWrap(req_wrap_obj, wrap);
 
   char* data = reinterpret_cast<char*>(ROUND_UP(
       reinterpret_cast<uintptr_t>(storage) + sizeof(WriteWrap), 16));
@@ -377,7 +377,7 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
 
   storage_size += sizeof(WriteWrap);
   char* storage = new char[storage_size];
-  WriteWrap* req_wrap = new (storage) WriteWrap(req_wrap_obj, wrap);
+  WriteWrap* req_wrap = new(storage) WriteWrap(req_wrap_obj, wrap);
 
   uint32_t bytes = 0;
   size_t offset = sizeof(WriteWrap);
@@ -616,4 +616,4 @@ Handle<Object> StreamWrapCallbacks::Self() {
   return wrap_->object();
 }
 
-}
+}  // namespace node

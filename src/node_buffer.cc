@@ -53,7 +53,6 @@
   size_t length = end - start;
 
 namespace node {
-
 namespace Buffer {
 
 using v8::Function;
@@ -610,7 +609,6 @@ void Initialize(Handle<Object> target) {
 
 
 }  // namespace Buffer
-
 }  // namespace node
 
 NODE_MODULE(node_buffer, node::Buffer::Initialize)

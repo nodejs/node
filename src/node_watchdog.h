@@ -29,7 +29,7 @@ namespace node {
 
 class Watchdog {
  public:
-  Watchdog(uint64_t ms);
+  explicit Watchdog(uint64_t ms);
   ~Watchdog();
 
   void Dispose();

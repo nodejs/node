@@ -19,8 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef SRC_FILE_H_
-#define SRC_FILE_H_
+#ifndef SRC_NODE_FILE_H_
+#define SRC_NODE_FILE_H_
 
 #include "node.h"
 #include "v8.h"
@@ -35,4 +35,5 @@ class File {
 void InitFs(v8::Handle<v8::Object> target);
 
 }  // namespace node
-#endif  // SRC_FILE_H_
+
+#endif  // SRC_NODE_FILE_H_
