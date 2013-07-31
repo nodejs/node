@@ -23,8 +23,12 @@
 #define SRC_NODE_CRYPTO_H_
 
 #include "node.h"
-
 #include "node_object_wrap.h"
+
+#ifdef OPENSSL_NPN_NEGOTIATED
+#include "node_buffer.h"
+#endif
+
 #include "v8.h"
 
 #include <openssl/ssl.h>
@@ -36,10 +40,6 @@
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
 #include <openssl/pkcs12.h>
-
-#ifdef OPENSSL_NPN_NEGOTIATED
-#include "node_buffer.h"
-#endif
 
 #define EVP_F_EVP_DECRYPTFINAL 101
 

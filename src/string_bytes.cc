@@ -21,13 +21,13 @@
 
 #include "string_bytes.h"
 
-#include <assert.h>
-#include <string.h>  // memcpy
-#include <limits.h>
-
 #include "node.h"
 #include "node_buffer.h"
 #include "v8.h"
+
+#include <assert.h>
+#include <limits.h>
+#include <string.h>  // memcpy
 
 // When creating strings >= this length v8's gc spins up and consumes
 // most of the execution time. For these cases it's more performant to

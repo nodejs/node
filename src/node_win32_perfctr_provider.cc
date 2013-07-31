@@ -19,12 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#define __INIT_node_perfctr_provider_IMP
 #include "node_counters.h"
-#include <perflib.h>
+#include "node_perfctr_provider.h"
 #include "node_win32_perfctr_provider.h"
 
-#define __INIT_node_perfctr_provider_IMP
-#include <node_perfctr_provider.h>
+#include <perflib.h>
 
 typedef ULONG (WINAPI *PerfStartProviderExFunc)(
     __in LPGUID ProviderGuid,

@@ -22,10 +22,10 @@
 #ifndef SRC_NODE_INTERNALS_H_
 #define SRC_NODE_INTERNALS_H_
 
+#include "v8.h"
+
 #include <assert.h>
 #include <stdlib.h>
-
-#include "v8.h"
 
 struct sockaddr;
 

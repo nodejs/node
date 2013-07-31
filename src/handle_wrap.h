@@ -22,7 +22,10 @@
 #ifndef SRC_HANDLE_WRAP_H_
 #define SRC_HANDLE_WRAP_H_
 
+#include "node.h"
 #include "queue.h"
+#include "uv.h"
+#include "v8.h"
 
 namespace node {
 

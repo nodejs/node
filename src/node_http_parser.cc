@@ -19,19 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node_http_parser.h"
-
-#include "v8.h"
 #include "node.h"
 #include "node_buffer.h"
+#include "node_http_parser.h"
+#include "v8.h"
 
-#include <string.h>  /* strdup() */
-#if !defined(_MSC_VER)
-#include <strings.h>  /* strcasecmp() */
-#else
+#include <stdlib.h>  // free()
+#include <string.h>  // strdup()
+
+#if defined(_MSC_VER)
 #define strcasecmp _stricmp
+#else
+#include <strings.h>  // strcasecmp()
 #endif
-#include <stdlib.h>  /* free() */
 
 // This is a binding to http_parser (https://github.com/joyent/http-parser)
 // The goal is to decouple sockets from parsing for more javascript-level

@@ -22,8 +22,8 @@
 #ifndef SRC_NODE_WIN32_ETW_PROVIDER_H_
 #define SRC_NODE_WIN32_ETW_PROVIDER_H_
 
-#include <evntprov.h>
 #include "node_dtrace.h"
+#include <evntprov.h>
 
 namespace node {
 

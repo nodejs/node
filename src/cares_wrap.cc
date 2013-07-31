@@ -19,17 +19,17 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <assert.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
-
 #define CARES_STATICLIB
 #include "ares.h"
 #include "node.h"
 #include "req_wrap.h"
 #include "tree.h"
 #include "uv.h"
+
+#include <assert.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if defined(__ANDROID__) || \
     defined(__MINGW32__) || \

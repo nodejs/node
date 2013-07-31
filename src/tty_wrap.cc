@@ -19,13 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "tty_wrap.h"
 #include "node.h"
 #include "node_buffer.h"
-#include "req_wrap.h"
 #include "handle_wrap.h"
-#include "stream_wrap.h"
-#include "tty_wrap.h"
 #include "node_wrap.h"
+#include "req_wrap.h"
+#include "stream_wrap.h"
 
 namespace node {
 

@@ -19,10 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
+#include "smalloc.h"
 #include "node.h"
 #include "node_internals.h"
-#include "smalloc.h"
 
 #include "v8.h"
 #include "v8-profiler.h"

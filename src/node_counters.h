@@ -23,14 +23,6 @@
 #define SRC_NODE_COUNTERS_H_
 
 #include "node.h"
-#include "v8.h"
-
-namespace node {
-
-void InitPerfCounters(v8::Handle<v8::Object> target);
-void TermPerfCounters(v8::Handle<v8::Object> target);
-
-}  // namespace node
 
 #ifdef HAVE_PERFCTR
 #include "node_win32_perfctr_provider.h"
@@ -49,5 +41,14 @@ void TermPerfCounters(v8::Handle<v8::Object> target);
 #define NODE_COUNT_PIPE_BYTES_SENT(bytes)
 #define NODE_COUNT_PIPE_BYTES_RECV(bytes)
 #endif
+
+#include "v8.h"
+
+namespace node {
+
+void InitPerfCounters(v8::Handle<v8::Object> target);
+void TermPerfCounters(v8::Handle<v8::Object> target);
+
+}  // namespace node
 
 #endif  // SRC_NODE_COUNTERS_H_

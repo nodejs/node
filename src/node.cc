@@ -20,69 +20,69 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
-#include "req_wrap.h"
-#include "handle_wrap.h"
-#include "string_bytes.h"
+#include "node_buffer.h"
+#include "node_constants.h"
+#include "node_file.h"
+#include "node_http_parser.h"
+#include "node_javascript.h"
+#include "node_script.h"
+#include "node_version.h"
+
+#if defined HAVE_PERFCTR
+#include "node_counters.h"
+#endif
+
+#if HAVE_OPENSSL
+#include "node_crypto.h"
+#endif
+
+#if defined HAVE_DTRACE || defined HAVE_ETW || defined HAVE_SYSTEMTAP
+#include "node_dtrace.h"
+#endif
+
+#if HAVE_SYSTEMTAP
+#include "node_provider.h"
+#endif
 
 #include "ares.h"
+#include "handle_wrap.h"
+#include "req_wrap.h"
+#include "string_bytes.h"
 #include "uv.h"
-
 #include "v8-debug.h"
-#if defined HAVE_DTRACE || defined HAVE_ETW || defined HAVE_SYSTEMTAP
-# include "node_dtrace.h"
-#endif
-#if defined HAVE_PERFCTR
-# include "node_counters.h"
-#endif
+#include "zlib.h"
 
+#include <assert.h>
+#include <errno.h>
+#include <limits.h>  // PATH_MAX
 #include <locale.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if !defined(_MSC_VER)
-#include <strings.h>
-#else
-#define strcasecmp _stricmp
-#endif
-#include <limits.h> /* PATH_MAX */
-#include <assert.h>
-#if !defined(_MSC_VER)
-#include <unistd.h> /* setuid, getuid */
-#else
+#include <sys/types.h>
+
+#if defined(_MSC_VER)
 #include <direct.h>
-#include <process.h>
-#define getpid _getpid
 #include <io.h>
+#include <process.h>
+#include <strings.h>
+#define strcasecmp _stricmp
+#define getpid _getpid
 #define umask _umask
 typedef int mode_t;
+#else
+#include <unistd.h>  // setuid, getuid
 #endif
-#include <errno.h>
-#include <sys/types.h>
-#include "zlib.h"
 
 #if defined(__POSIX__) && !defined(__ANDROID__)
-# include <pwd.h> /* getpwnam() */
-# include <grp.h> /* getgrnam() */
+#include <pwd.h>  // getpwnam()
+#include <grp.h>  // getgrnam()
 #endif
-
-#include "node_buffer.h"
-#include "node_file.h"
-#include "node_http_parser.h"
-#include "node_constants.h"
-#include "node_javascript.h"
-#include "node_version.h"
-#if HAVE_OPENSSL
-# include "node_crypto.h"
-#endif
-#if HAVE_SYSTEMTAP
-#include "node_provider.h"
-#endif
-#include "node_script.h"
 
 #ifdef __APPLE__
-# include <crt_externs.h>
-# define environ (*_NSGetEnviron())
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
 #elif !defined(_MSC_VER)
 extern char **environ;
 #endif

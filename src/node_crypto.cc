@@ -19,28 +19,28 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "node.h"
+#include "node_buffer.h"
 #include "node_crypto.h"
 #include "node_crypto_bio.h"
 #include "node_crypto_groups.h"
-#include "v8.h"
-
-#include "node.h"
-#include "node_buffer.h"
-#include "string_bytes.h"
 #include "node_root_certs.h"
 
+#include "string_bytes.h"
+#include "v8.h"
+
+#include <errno.h>
+#include <stdlib.h>
 #include <string.h>
-#ifdef _MSC_VER
+
+#if defined(_MSC_VER)
 #define strcasecmp _stricmp
 #endif
 
-#include <stdlib.h>
-#include <errno.h>
-
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
-# define OPENSSL_CONST const
+#define OPENSSL_CONST const
 #else
-# define OPENSSL_CONST
+#define OPENSSL_CONST
 #endif
 
 #define ASSERT_IS_STRING_OR_BUFFER(val) do {                  \
