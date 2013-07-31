@@ -76,6 +76,7 @@ distclean:
 test: all
 	$(PYTHON) tools/test.py --mode=release simple message
 	$(MAKE) jslint
+	$(MAKE) cpplint
 
 test-http1: all
 	$(PYTHON) tools/test.py --mode=release --use-http1 simple message
@@ -388,8 +389,17 @@ jslintfix:
 jslint:
 	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
 
+CPPLINT_EXCLUDE ?=
+CPPLINT_EXCLUDE += src/tree.h
+CPPLINT_EXCLUDE += src/queue.h
+CPPLINT_EXCLUDE += src/v8abbr.h
+CPPLINT_EXCLUDE += src/node_root_certs.h
+CPPLINT_EXCLUDE += src/node_dtrace.cc
+
+CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard src/*.cc src/*.h src/*.c))
+
 cpplint:
-	@$(PYTHON) tools/cpplint.py $(wildcard src/*.cc src/*.h src/*.c)
+	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
 
 lint: jslint cpplint
 
