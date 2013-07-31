@@ -280,11 +280,11 @@ for op, inv_replacement in [('==', 'NE'), ('!=', 'EQ'),
 
 # These constants define types of headers for use with
 # _IncludeState.CheckNextIncludeOrder().
-_C_SYS_HEADER = 1
-_CPP_SYS_HEADER = 2
-_LIKELY_MY_HEADER = 3
-_POSSIBLE_MY_HEADER = 4
-_OTHER_HEADER = 5
+_LIKELY_MY_HEADER = 1
+_POSSIBLE_MY_HEADER = 2
+_OTHER_HEADER = 3
+_C_SYS_HEADER = 4
+_CPP_SYS_HEADER = 5
 
 
 _regexp_compile_cache = {}
@@ -377,9 +377,9 @@ class _IncludeState(dict):
   # needs to move backwards, CheckNextIncludeOrder will raise an error.
   _INITIAL_SECTION = 0
   _MY_H_SECTION = 1
-  _C_SECTION = 2
-  _CPP_SECTION = 3
-  _OTHER_H_SECTION = 4
+  _OTHER_H_SECTION = 2
+  _C_SECTION = 3
+  _CPP_SECTION = 4
 
   _TYPE_NAMES = {
       _C_SYS_HEADER: 'C system header',
@@ -453,33 +453,32 @@ class _IncludeState(dict):
 
     last_section = self._section
 
-    if header_type == _C_SYS_HEADER:
-      if self._section <= self._C_SECTION:
-        self._section = self._C_SECTION
-      else:
-        self._last_header = ''
-        return error_message
-    elif header_type == _CPP_SYS_HEADER:
-      if self._section <= self._CPP_SECTION:
-        self._section = self._CPP_SECTION
-      else:
-        self._last_header = ''
-        return error_message
-    elif header_type == _LIKELY_MY_HEADER:
+    if header_type == _LIKELY_MY_HEADER:
       if self._section <= self._MY_H_SECTION:
         self._section = self._MY_H_SECTION
       else:
-        self._section = self._OTHER_H_SECTION
+        self._last_header = ''
+        return error_message
     elif header_type == _POSSIBLE_MY_HEADER:
       if self._section <= self._MY_H_SECTION:
         self._section = self._MY_H_SECTION
       else:
-        # This will always be the fallback because we're not sure
-        # enough that the header is associated with this file.
+        self._last_header = ''
+        return error_message
+    elif header_type == _OTHER_HEADER:
+      if self._section <= self._OTHER_H_SECTION:
         self._section = self._OTHER_H_SECTION
+      else:
+        self._last_header = ''
+        return error_message
+    elif header_type == _C_SYS_HEADER:
+      if self._section <= self._C_SECTION:
+        self._section = self._C_SECTION
+      else:
+        self._section = self._CPP_SECTION
     else:
-      assert header_type == _OTHER_HEADER
-      self._section = self._OTHER_H_SECTION
+      assert header_type == _CPP_SYS_HEADER
+      self._section = self._CPP_SECTION
 
     if last_section != self._section:
       self._last_header = ''
@@ -2312,10 +2311,10 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
       # lower type after that.
       error_message = include_state.CheckNextIncludeOrder(
           _ClassifyInclude(fileinfo, include, is_system))
-      # if error_message:
-      #   error(filename, linenum, 'build/include_order', 4,
-      #         '%s. Should be: %s.h, c system, c++ system, other.' %
-      #         (error_message, fileinfo.BaseName()))
+      if error_message:
+        error(filename, linenum, 'build/include_order', 4,
+              '%s. Should be: %s.h, c system, c++ system, other.' %
+              (error_message, fileinfo.BaseName()))
       if not include_state.IsInAlphabeticalOrder(include):
         error(filename, linenum, 'build/include_alpha', 4,
               'Include "%s" not in alphabetical order' % include)
