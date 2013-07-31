@@ -208,6 +208,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   int count, i;
   char ip[INET6_ADDRSTRLEN];
   char netmask[INET6_ADDRSTRLEN];
+  char mac[18];
   Local<Object> ret, o;
   Local<String> name, family;
   Local<Array> ifarr;
@@ -228,6 +229,16 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
       ret->Set(name, ifarr);
     }
 
+    snprintf(mac,
+             18,
+             "%02x:%02x:%02x:%02x:%02x:%02x",
+             static_cast<unsigned char>(interfaces[i].phys_addr[0]),
+             static_cast<unsigned char>(interfaces[i].phys_addr[1]),
+             static_cast<unsigned char>(interfaces[i].phys_addr[2]),
+             static_cast<unsigned char>(interfaces[i].phys_addr[3]),
+             static_cast<unsigned char>(interfaces[i].phys_addr[4]),
+             static_cast<unsigned char>(interfaces[i].phys_addr[5]));
+
     if (interfaces[i].address.address4.sin_family == AF_INET) {
       uv_ip4_name(&interfaces[i].address.address4, ip, sizeof(ip));
       uv_ip4_name(&interfaces[i].netmask.netmask4, netmask, sizeof(netmask));
@@ -245,6 +256,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     o->Set(String::New("address"), String::New(ip));
     o->Set(String::New("netmask"), String::New(netmask));
     o->Set(String::New("family"), family);
+    o->Set(String::New("mac"), String::New(mac));
 
     const bool internal = interfaces[i].is_internal;
     o->Set(String::New("internal"),
