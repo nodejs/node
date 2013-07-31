@@ -1087,9 +1087,11 @@ def CheckForHeaderGuard(filename, lines, error):
     error(filename, ifndef_linenum, 'build/header_guard', error_level,
           '#ifndef header guard has wrong style, please use: %s' % cppvar)
 
-  if endif != ('#endif  // %s' % cppvar):
+  if (endif != ('#endif  // %s' % cppvar) and
+      endif != ('#endif  /* %s */' % cppvar)):
     error_level = 0
-    if endif != ('#endif  // %s' % (cppvar + '_')):
+    if (endif != ('#endif  // %s' % (cppvar + '_')) and
+        endif != ('#endif  /* %s */' % (cppvar + '_'))):
       error_level = 5
 
     ParseNolintSuppressions(filename, lines[endif_linenum], endif_linenum,
@@ -1380,7 +1382,8 @@ def CheckForNonStandardConstructs(filename, clean_lines, linenum,
   classinfo_stack = class_state.classinfo_stack
   # Look for a class declaration
   class_decl_match = Match(
-      r'\s*(template\s*<[\w\s<>,:]*>\s*)?(class|struct)\s+(\w+(::\w+)*)', line)
+      r'\s*(template\s*<[\w\s<>,:]*>\s*)?(class|struct)\s+' +
+      r'(?:NODE_EXTERN\s+)?(\w+(::\w+)*)', line)
   if class_decl_match:
     classinfo_stack.append(_ClassInfo(class_decl_match.group(3), linenum))
 
@@ -1711,6 +1714,7 @@ def CheckSpacing(filename, clean_lines, linenum, error):
       if (next_line
           and Match(r'\s*}', next_line)
           and next_line.find('namespace') == -1
+          and next_line.find('extern') == -1
           and next_line.find('} else ') == -1):
         error(filename, linenum, 'whitespace/blank_line', 3,
               'Blank line at the end of a code block.  Is this needed?')
@@ -2112,7 +2116,8 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, error):
     cppvar = GetHeaderGuardCPPVariable(filename)
     if (line.startswith('#ifndef %s' % cppvar) or
         line.startswith('#define %s' % cppvar) or
-        line.startswith('#endif  // %s' % cppvar)):
+        line.startswith('#endif  // %s' % cppvar) or
+        line.startswith('#endif  /* %s */' % cppvar)):
       is_header_guard = True
   # #include lines and header guards can be long, since there's no clean way to
   # split them.
@@ -2307,10 +2312,10 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
       # lower type after that.
       error_message = include_state.CheckNextIncludeOrder(
           _ClassifyInclude(fileinfo, include, is_system))
-      if error_message:
-        error(filename, linenum, 'build/include_order', 4,
-              '%s. Should be: %s.h, c system, c++ system, other.' %
-              (error_message, fileinfo.BaseName()))
+      # if error_message:
+      #   error(filename, linenum, 'build/include_order', 4,
+      #         '%s. Should be: %s.h, c system, c++ system, other.' %
+      #         (error_message, fileinfo.BaseName()))
       if not include_state.IsInAlphabeticalOrder(include):
         error(filename, linenum, 'build/include_alpha', 4,
               'Include "%s" not in alphabetical order' % include)
@@ -2464,11 +2469,11 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension, include_state,
     if not Search(r'\bunsigned short port\b', line):
       error(filename, linenum, 'runtime/int', 4,
             'Use "unsigned short" for ports, not "short"')
-  else:
-    match = Search(r'\b(short|long(?! +double)|long long)\b', line)
-    if match:
-      error(filename, linenum, 'runtime/int', 4,
-            'Use int16/int64/etc, rather than the C type %s' % match.group(1))
+#  else:
+#    match = Search(r'\b(short|long(?! +double)|long long)\b', line)
+#    if match:
+#      error(filename, linenum, 'runtime/int', 4,
+#            'Use int16/int64/etc, rather than the C type %s' % match.group(1))
 
   # When snprintf is used, the second argument shouldn't be a literal.
   match = Search(r'snprintf\s*\(([^,]*),\s*([0-9]*)\s*,', line)
