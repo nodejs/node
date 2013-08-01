@@ -86,7 +86,8 @@ switch (platform) {
     var filter = function(e) { return e.address == '127.0.0.1'; };
     var actual = interfaces.lo.filter(filter);
     var expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                      family: 'IPv4', internal: true }];
+                      mac: '00:00:00:00:00:00', family: 'IPv4',
+                      internal: true }];
     assert.deepEqual(actual, expected);
     break;
   case 'win32':
@@ -96,7 +97,8 @@ switch (platform) {
     //       default to /32 here.  We could put in a special case to force
     //       to /8 if desired.
     var expected = [{ address: '127.0.0.1', netmask: '255.255.255.255',
-                      family: 'IPv4', internal: true }];
+                      mac: '00:00:00:00:00:00', family: 'IPv4',
+                      internal: true }];
     assert.deepEqual(actual, expected);
     break;
 }
