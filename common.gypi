@@ -129,6 +129,7 @@
         ],
       },
     },
+    'msvs_disabled_warnings': [4351, 4355, 4800],
     'conditions': [
       ['OS == "win"', {
         'msvs_cygwin_shell': 0, # prevent actions from trying to use cygwin
