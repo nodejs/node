@@ -66,7 +66,6 @@
 #include <direct.h>
 #include <io.h>
 #include <process.h>
-#include <string.h>
 #define strcasecmp _stricmp
 #define getpid _getpid
 #define umask _umask
