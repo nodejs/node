@@ -2199,6 +2199,12 @@ static void NeedImmediateCallbackSetter(Local<String> property,
 }
 
 
+#define READONLY_PROPERTY(obj, str, var)                                      \
+  do {                                                                        \
+    obj->Set(String::New(str), var, v8::ReadOnly);                            \
+  } while (0)
+
+
 Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   HandleScope scope(node_isolate);
 
@@ -2218,27 +2224,27 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
                        ProcessTitleSetter);
 
   // process.version
-  process->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
+  READONLY_PROPERTY(process, "version", String::New(NODE_VERSION));
 
   // process.moduleLoadList
   Local<Array> modules = Array::New();
   module_load_list.Reset(node_isolate, modules);
-  process->Set(String::NewSymbol("moduleLoadList"), modules);
+  READONLY_PROPERTY(process, "moduleLoadList", modules);
 
   // process.versions
   Local<Object> versions = Object::New();
-  process->Set(String::NewSymbol("versions"), versions);
-  versions->Set(String::NewSymbol("http_parser"), String::New(
-               NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR) "."
-               NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)));
+  READONLY_PROPERTY(process, "versions", versions);
+  READONLY_PROPERTY(versions, "http_parser", String::New(
+                    NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR) "."
+                    NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)));
   // +1 to get rid of the leading 'v'
-  versions->Set(String::NewSymbol("node"), String::New(NODE_VERSION+1));
-  versions->Set(String::NewSymbol("v8"), String::New(V8::GetVersion()));
-  versions->Set(String::NewSymbol("ares"), String::New(ARES_VERSION_STR));
-  versions->Set(String::NewSymbol("uv"), String::New(uv_version_string()));
-  versions->Set(String::NewSymbol("zlib"), String::New(ZLIB_VERSION));
-  versions->Set(String::NewSymbol("modules"),
-                String::New(NODE_STRINGIFY(NODE_MODULE_VERSION)));
+  READONLY_PROPERTY(versions, "node", String::New(NODE_VERSION+1));
+  READONLY_PROPERTY(versions, "v8", String::New(V8::GetVersion()));
+  READONLY_PROPERTY(versions, "uv", String::New(uv_version_string()));
+  READONLY_PROPERTY(versions, "zlib", String::New(ZLIB_VERSION));
+  READONLY_PROPERTY(versions,
+                    "modules",
+                    String::New(NODE_STRINGIFY(NODE_MODULE_VERSION)));
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
   int c, l = strlen(OPENSSL_VERSION_TEXT);
@@ -2252,17 +2258,18 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
       break;
     }
   }
-  versions->Set(String::NewSymbol("openssl"),
-                String::New(&OPENSSL_VERSION_TEXT[i], j - i));
+  READONLY_PROPERTY(versions,
+                    "openssl",
+                    String::New(&OPENSSL_VERSION_TEXT[i], j - i));
 #endif
 
 
 
   // process.arch
-  process->Set(String::NewSymbol("arch"), String::New(ARCH));
+  READONLY_PROPERTY(process, "arch", String::New(ARCH));
 
   // process.platform
-  process->Set(String::NewSymbol("platform"), String::New(PLATFORM));
+  READONLY_PROPERTY(process, "platform", String::New(PLATFORM));
 
   // process.argv
   Local<Array> arguments = Array::New(argc - option_end_index + 1);
@@ -2294,40 +2301,40 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   Local<Object> env = envTemplate->NewInstance();
   process->Set(String::NewSymbol("env"), env);
 
-  process->Set(String::NewSymbol("pid"), Integer::New(getpid(), node_isolate));
-  process->Set(String::NewSymbol("features"), GetFeatures());
+  READONLY_PROPERTY(process, "pid", Integer::New(getpid(), node_isolate));
+  READONLY_PROPERTY(process, "features", GetFeatures());
   process->SetAccessor(String::New("_needImmediateCallback"),
                        NeedImmediateCallbackGetter,
                        NeedImmediateCallbackSetter);
 
   // -e, --eval
   if (eval_string) {
-    process->Set(String::NewSymbol("_eval"), String::New(eval_string));
+    READONLY_PROPERTY(process, "_eval", String::New(eval_string));
   }
 
   // -p, --print
   if (print_eval) {
-    process->Set(String::NewSymbol("_print_eval"), True(node_isolate));
+    READONLY_PROPERTY(process, "_print_eval", True(node_isolate));
   }
 
   // -i, --interactive
   if (force_repl) {
-    process->Set(String::NewSymbol("_forceRepl"), True(node_isolate));
+    READONLY_PROPERTY(process, "_forceRepl", True(node_isolate));
   }
 
   // --no-deprecation
   if (no_deprecation) {
-    process->Set(String::NewSymbol("noDeprecation"), True(node_isolate));
+    READONLY_PROPERTY(process, "noDeprecation", True(node_isolate));
   }
 
   // --throw-deprecation
   if (throw_deprecation) {
-    process->Set(String::NewSymbol("throwDeprecation"), True(node_isolate));
+    READONLY_PROPERTY(process, "throwDeprecation", True(node_isolate));
   }
 
   // --trace-deprecation
   if (trace_deprecation) {
-    process->Set(String::NewSymbol("traceDeprecation"), True(node_isolate));
+    READONLY_PROPERTY(process, "traceDeprecation", True(node_isolate));
   }
 
   size_t size = 2*PATH_MAX;
@@ -2396,6 +2403,9 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   return scope.Close(process);
 }
+
+
+#undef READONLY_PROPERTY
 
 
 static void AtExit() {
