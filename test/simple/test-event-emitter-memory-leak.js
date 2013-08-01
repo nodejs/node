@@ -28,6 +28,8 @@ var assert = require('assert');
 var events = require('events');
 
 assert.equal(typeof gc, 'function', 'Run this test with --expose-gc');
+gc();
+
 var before = process.memoryUsage().heapUsed;
 var e = new events.EventEmitter();
 
@@ -36,7 +38,7 @@ for (var i = 0; i < 2.5e5; ++i) {
   e.on(name, assert.fail);
   e.removeListener(name, assert.fail);
 }
-while (gc());
+gc();
 
 var after = process.memoryUsage().heapUsed;
 assert(after - before < 1024*1024, 'EventEmitter leaks event names.');
