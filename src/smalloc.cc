@@ -141,10 +141,7 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
 void Alloc(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  if (!args[0]->IsObject())
-    return ThrowTypeError("argument must be an Object");
-
-  Local<Object> obj = args[0]->ToObject();
+  Local<Object> obj = args[0].As<Object>();
   size_t length = args[1]->Uint32Value();
 
   if (obj->HasIndexedPropertiesInExternalArrayData())
@@ -197,7 +194,7 @@ void TargetCallback(Isolate* isolate,
 
 // for internal use: dispose(obj);
 void AllocDispose(const FunctionCallbackInfo<Value>& args) {
-  AllocDispose(args[0]->ToObject());
+  AllocDispose(args[0].As<Object>());
 }
 
 
