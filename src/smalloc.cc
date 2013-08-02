@@ -62,9 +62,6 @@ void TargetCallback(Isolate* isolate,
 void TargetFreeCallback(Isolate* isolate,
                         Persistent<Object>* target,
                         CallbackInfo* arg);
-void TargetFreeCallback(Isolate* isolate,
-                        Local<Object> target,
-                        CallbackInfo* cb_info);
 
 Cached<String> smalloc_sym;
 static bool using_alloc_cb;
@@ -74,8 +71,13 @@ static bool using_alloc_cb;
 void CopyOnto(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Local<Object> source = args[0]->ToObject();
-  Local<Object> dest = args[2]->ToObject();
+  if (!args[0]->IsObject())
+    return ThrowTypeError("source must be an object");
+  if (!args[2]->IsObject())
+    return ThrowTypeError("dest must be an object");
+
+  Local<Object> source = args[0].As<Object>();
+  Local<Object> dest = args[2].As<Object>();
 
   if (!source->HasIndexedPropertiesInExternalArrayData())
     return ThrowError("source has no external array data");
@@ -116,8 +118,12 @@ void CopyOnto(const FunctionCallbackInfo<Value>& args) {
 void SliceOnto(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Local<Object> source = args[0]->ToObject();
-  Local<Object> dest = args[1]->ToObject();
+  Local<Object> source = args[0].As<Object>();
+  Local<Object> dest = args[1].As<Object>();
+
+  assert(source->HasIndexedPropertiesInExternalArrayData());
+  assert(!dest->HasIndexedPropertiesInExternalArrayData());
+
   char* source_data = static_cast<char*>(
       source->GetIndexedPropertiesExternalArrayData());
   size_t source_len = source->GetIndexedPropertiesExternalArrayDataLength();
@@ -125,7 +131,6 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
   size_t end = args[3]->Uint32Value();
   size_t length = end - start;
 
-  assert(!dest->HasIndexedPropertiesInExternalArrayData());
   assert(source_data != NULL || length == 0);
   assert(end <= source_len);
   assert(start <= end);
@@ -144,6 +149,7 @@ void Alloc(const FunctionCallbackInfo<Value>& args) {
   Local<Object> obj = args[0].As<Object>();
   size_t length = args[1]->Uint32Value();
 
+  // can't perform this check in JS
   if (obj->HasIndexedPropertiesInExternalArrayData())
     return ThrowTypeError("object already has external array data");
 
@@ -183,7 +189,7 @@ void TargetCallback(Isolate* isolate,
                     char* data) {
   HandleScope handle_scope(isolate);
   Local<Object> obj = PersistentToLocal(isolate, *target);
-  int len = obj->GetIndexedPropertiesExternalArrayDataLength();
+  size_t len = obj->GetIndexedPropertiesExternalArrayDataLength();
   if (data != NULL && len > 0) {
     isolate->AdjustAmountOfExternalAllocatedMemory(-len);
     free(data);
@@ -204,8 +210,7 @@ void AllocDispose(Handle<Object> obj) {
   if (using_alloc_cb && obj->Has(smalloc_sym)) {
     Local<External> ext = obj->GetHiddenValue(smalloc_sym).As<External>();
     CallbackInfo* cb_info = static_cast<CallbackInfo*>(ext->Value());
-    Local<Object> obj = PersistentToLocal(node_isolate, cb_info->p_obj);
-    TargetFreeCallback(node_isolate, obj, cb_info);
+    TargetFreeCallback(node_isolate, &cb_info->p_obj, cb_info);
     return;
   }
 
@@ -266,16 +271,8 @@ void TargetFreeCallback(Isolate* isolate,
                         CallbackInfo* cb_info) {
   HandleScope handle_scope(isolate);
   Local<Object> obj = PersistentToLocal(isolate, *target);
-  TargetFreeCallback(isolate, obj, cb_info);
-}
-
-
-void TargetFreeCallback(Isolate* isolate,
-                        Local<Object> obj,
-                        CallbackInfo* cb_info) {
-  HandleScope handle_scope(isolate);
   char* data = static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
-  int len = obj->GetIndexedPropertiesExternalArrayDataLength();
+  size_t len = obj->GetIndexedPropertiesExternalArrayDataLength();
   isolate->AdjustAmountOfExternalAllocatedMemory(-(len + sizeof(*cb_info)));
   cb_info->p_obj.Dispose();
   cb_info->cb(data, cb_info->hint);
@@ -349,7 +346,7 @@ void Initialize(Handle<Object> exports) {
   NODE_SET_METHOD(exports, "dispose", AllocDispose);
 
   exports->Set(String::New("kMaxLength"),
-               Uint32::New(kMaxLength, node_isolate));
+               Uint32::NewFromUnsigned(kMaxLength, node_isolate));
 
   // for performance, begin checking if allocation object may contain
   // callbacks if at least one has been set.
