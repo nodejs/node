@@ -1000,7 +1000,7 @@ initialized.
 * `chunk` {Buffer | String} The chunk to be written.  Will always
   be a buffer unless the `decodeStrings` option was set to `false`.
 * `encoding` {String} If the chunk is a string, then this is the
-  encoding type.  Ignore chunk is a buffer.  Note that chunk will
+  encoding type.  Ignore if chunk is a buffer.  Note that chunk will
   **always** be a buffer unless the `decodeStrings` option is
   explicitly set to `false`.
 * `callback` {Function} Call this function (optionally with an error
