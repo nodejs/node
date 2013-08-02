@@ -247,12 +247,6 @@ inline MUST_USE_RESULT bool ParseArrayIndex(v8::Handle<v8::Value> arg,
 
 template <class TypeName>
 inline v8::Local<TypeName> PersistentToLocal(
-    const v8::Persistent<TypeName>& persistent) {
-  return PersistentToLocal(node_isolate, persistent);
-}
-
-template <class TypeName>
-inline v8::Local<TypeName> PersistentToLocal(
     v8::Isolate* isolate,
     const v8::Persistent<TypeName>& persistent) {
   if (persistent.IsWeak()) {
@@ -269,7 +263,7 @@ CachedBase<TypeName>::CachedBase() {
 
 template <typename TypeName>
 CachedBase<TypeName>::operator v8::Handle<TypeName>() const {
-  return PersistentToLocal(handle_);
+  return PersistentToLocal(node_isolate, handle_);
 }
 
 template <typename TypeName>
@@ -307,7 +301,7 @@ v8::Handle<v8::Value> MakeCallback(
     const TypeName method,
     int argc,
     v8::Handle<v8::Value>* argv) {
-  v8::Local<v8::Object> recv_obj = PersistentToLocal(recv);
+  v8::Local<v8::Object> recv_obj = PersistentToLocal(node_isolate, recv);
   return MakeCallback(recv_obj, method, argc, argv);
 }
 
@@ -325,7 +319,7 @@ inline bool HasInstance(
     const v8::Persistent<v8::FunctionTemplate>& function_template,
     v8::Handle<v8::Value> value) {
   v8::Local<v8::FunctionTemplate> function_template_handle =
-      PersistentToLocal(function_template);
+      PersistentToLocal(node_isolate, function_template);
   return function_template_handle->HasInstance(value);
 }
 
@@ -333,7 +327,8 @@ inline v8::Local<v8::Object> NewInstance(
     const v8::Persistent<v8::Function>& ctor,
     int argc,
     v8::Handle<v8::Value>* argv) {
-  v8::Local<v8::Function> constructor_handle = PersistentToLocal(ctor);
+  v8::Local<v8::Function> constructor_handle =
+      PersistentToLocal(node_isolate, ctor);
   return constructor_handle->NewInstance(argc, argv);
 }
 
