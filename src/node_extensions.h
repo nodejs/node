@@ -22,7 +22,7 @@
 #ifndef SRC_NODE_EXTENSIONS_H_
 #define SRC_NODE_EXTENSIONS_H_
 
-#ifdef HAVE_OPENSSL
+#if HAVE_OPENSSL
 # define NODE_EXT_LIST_SSL(ITEM)                                              \
     ITEM(node_crypto)                                                         \
     ITEM(node_tls_wrap)
