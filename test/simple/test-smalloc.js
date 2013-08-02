@@ -107,6 +107,12 @@ assert.throws(function() {
 }, RangeError);
 
 
+// properly convert to uint32 before checking overflow
+assert.throws(function() {
+  alloc(-1);
+}, RangeError);
+
+
 // no allocating on what's been allocated
 assert.throws(function() {
   alloc(1, alloc(1));
@@ -122,6 +128,9 @@ assert.throws(function() {
 }, TypeError);
 assert.throws(function() {
   alloc(1, true);
+}, TypeError);
+assert.throws(function() {
+  alloc(1, null);
 }, TypeError);
 
 
@@ -186,3 +195,17 @@ var b = alloc(5, {});
 dispose(b);
 for (var i = 0; i < 5; i++)
   assert.equal(b[i], undefined);
+
+
+// verify dispose throws properly
+
+// only allow object to be passed to dispose
+assert.throws(function() {
+  alloc.dispose(null);
+});
+
+
+// can't dispose a Buffer
+assert.throws(function() {
+  alloc.dispose(new Buffer());
+});
