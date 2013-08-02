@@ -1179,7 +1179,7 @@ int Connection::AdvertiseNextProtoCallback_(SSL *s,
     *data = reinterpret_cast<const unsigned char*>("");
     *len = 0;
   } else {
-    Local<Object> obj = PersistentToLocal(p->npnProtos_);
+    Local<Object> obj = PersistentToLocal(node_isolate, p->npnProtos_);
     *data = reinterpret_cast<const unsigned char*>(Buffer::Data(obj));
     *len = Buffer::Length(obj);
   }
@@ -1208,7 +1208,7 @@ int Connection::SelectNextProtoCallback_(SSL *s,
     return SSL_TLSEXT_ERR_OK;
   }
 
-  Local<Object> obj = PersistentToLocal(p->npnProtos_);
+  Local<Object> obj = PersistentToLocal(node_isolate, p->npnProtos_);
   const unsigned char* npnProtos =
       reinterpret_cast<const unsigned char*>(Buffer::Data(obj));
 
@@ -1250,7 +1250,7 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
     if (!p->sniObject_.IsEmpty()) {
       p->sniContext_.Dispose();
 
-      Local<Value> arg = PersistentToLocal(p->servername_);
+      Local<Value> arg = PersistentToLocal(node_isolate, p->servername_);
       Local<Value> ret = MakeCallback(p->sniObject_, "onselect", 1, &arg);
 
       // If ret is SecureContext

@@ -204,7 +204,7 @@ void AllocDispose(Handle<Object> obj) {
   if (using_alloc_cb && obj->Has(smalloc_sym)) {
     Local<External> ext = obj->GetHiddenValue(smalloc_sym).As<External>();
     CallbackInfo* cb_info = static_cast<CallbackInfo*>(ext->Value());
-    Local<Object> obj = PersistentToLocal(cb_info->p_obj);
+    Local<Object> obj = PersistentToLocal(node_isolate, cb_info->p_obj);
     TargetFreeCallback(node_isolate, obj, cb_info);
     return;
   }

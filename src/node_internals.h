@@ -69,13 +69,6 @@ class Cached<v8::Value> : public CachedBase<v8::Value> {
 // reference to the object.
 template <class TypeName>
 inline v8::Local<TypeName> PersistentToLocal(
-    const v8::Persistent<TypeName>& persistent);
-
-// If persistent.IsWeak() == false, then do not call persistent.Dispose()
-// while the returned Local<T> is still in scope, it will destroy the
-// reference to the object.
-template <class TypeName>
-inline v8::Local<TypeName> PersistentToLocal(
     v8::Isolate* isolate,
     const v8::Persistent<TypeName>& persistent);
 

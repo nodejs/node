@@ -261,7 +261,7 @@ class QueryWrap {
   }
 
   inline Local<Object> object() {
-    return PersistentToLocal(persistent());
+    return PersistentToLocal(node_isolate, persistent());
   }
 
  protected:

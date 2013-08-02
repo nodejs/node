@@ -168,7 +168,7 @@ WrappedContext::~WrappedContext() {
 
 Local<Object> WrappedContext::NewInstance() {
   Local<FunctionTemplate> constructor_template_handle =
-      PersistentToLocal(constructor_template);
+      PersistentToLocal(node_isolate, constructor_template);
   return constructor_template_handle->GetFunction()->NewInstance();
 }
 

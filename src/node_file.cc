@@ -305,7 +305,8 @@ Local<Object> BuildStatsObject(const uv_stat_t* s) {
     ctime_symbol = String::New("ctime");
   }
 
-  Local<Function> constructor = PersistentToLocal(stats_constructor);
+  Local<Function> constructor =
+      PersistentToLocal(node_isolate, stats_constructor);
   Local<Object> stats = constructor->NewInstance();
   if (stats.IsEmpty()) return Local<Object>();
 

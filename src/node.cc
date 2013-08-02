@@ -894,7 +894,7 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   if (using_domains) return;
   HandleScope scope(node_isolate);
   using_domains = true;
-  Local<Object> process = PersistentToLocal(process_p);
+  Local<Object> process = PersistentToLocal(node_isolate, process_p);
   Local<Value> tdc_v = process->Get(String::New("_tickDomainCallback"));
   Local<Value> ndt_v = process->Get(String::New("_nextDomainTick"));
   if (!tdc_v->IsFunction()) {
@@ -983,8 +983,8 @@ MakeDomainCallback(const Handle<Object> object,
   }
 
   // process nextTicks after call
-  Local<Object> process = PersistentToLocal(process_p);
-  Local<Function> fn = PersistentToLocal(process_tickCallback);
+  Local<Object> process = PersistentToLocal(node_isolate, process_p);
+  Local<Function> fn = PersistentToLocal(node_isolate, process_tickCallback);
   fn->Call(process, 0, NULL);
 
   if (try_catch.HasCaught()) {
@@ -1001,7 +1001,7 @@ MakeCallback(const Handle<Object> object,
              int argc,
              Handle<Value> argv[]) {
   // TODO(trevnorris) Hook for long stack traces to be made here.
-  Local<Object> process = PersistentToLocal(process_p);
+  Local<Object> process = PersistentToLocal(node_isolate, process_p);
 
   if (using_domains)
     return MakeDomainCallback(object, callback, argc, argv);
@@ -1035,7 +1035,7 @@ MakeCallback(const Handle<Object> object,
   }
 
   // process nextTicks after call
-  Local<Function> fn = PersistentToLocal(process_tickCallback);
+  Local<Function> fn = PersistentToLocal(node_isolate, process_tickCallback);
   fn->Call(process, 0, NULL);
 
   if (try_catch.HasCaught()) {
@@ -1873,7 +1873,7 @@ void FatalException(Handle<Value> error, Handle<Message> message) {
   if (fatal_exception_symbol.IsEmpty())
     fatal_exception_symbol = String::New("_fatalException");
 
-  Local<Object> process = PersistentToLocal(process_p);
+  Local<Object> process = PersistentToLocal(node_isolate, process_p);
   Local<Value> fatal_v = process->Get(fatal_exception_symbol);
 
   if (!fatal_v->IsFunction()) {
@@ -1928,7 +1928,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   String::Utf8Value module_v(module);
   node_module_struct* modp;
 
-  Local<Object> cache = PersistentToLocal(binding_cache);
+  Local<Object> cache = PersistentToLocal(node_isolate, binding_cache);
   Local<Object> exports;
 
   if (cache->Has(module)) {
@@ -1941,7 +1941,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   char buf[1024];
   snprintf(buf, sizeof(buf), "Binding %s", *module_v);
 
-  Local<Array> modules = PersistentToLocal(module_load_list);
+  Local<Array> modules = PersistentToLocal(node_isolate, module_load_list);
   uint32_t l = modules->Length();
   modules->Set(l, String::New(buf));
 
