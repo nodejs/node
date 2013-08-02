@@ -23,6 +23,8 @@
 #include "node_buffer.h"  // Buffer
 #include "node_crypto.h"  // SecureContext
 #include "node_crypto_bio.h"  // NodeBIO
+#include "node_crypto_clienthello.h"  // ClientHelloParser
+#include "node_crypto_clienthello-inl.h"
 #include "node_wrap.h"  // WithGenericStream
 #include "node_counters.h"
 
@@ -101,11 +103,6 @@ TLSCallbacks::TLSCallbacks(Kind kind,
 
   // Initialize queue for clearIn writes
   QUEUE_INIT(&write_item_queue_);
-
-  // Initialize hello parser
-  hello_.state = kParseEnded;
-  hello_.frame_len = 0;
-  hello_.body_offset = 0;
 
   // We've our own session callbacks
   SSL_CTX_sess_set_get_cb(sc_->ctx_, GetSessionCallback);
@@ -371,7 +368,7 @@ void TLSCallbacks::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
 
 void TLSCallbacks::EncOut() {
   // Ignore cycling data if ClientHello wasn't yet parsed
-  if (hello_.state != kParseEnded)
+  if (!hello_.IsEnded())
     return;
 
   // Write in progress
@@ -474,7 +471,7 @@ Handle<Value> TLSCallbacks::GetSSLError(int status, int* err) {
 
 void TLSCallbacks::ClearOut() {
   // Ignore cycling data if ClientHello wasn't yet parsed
-  if (hello_.state != kParseEnded)
+  if (!hello_.IsEnded())
     return;
 
   HandleScope scope(node_isolate);
@@ -506,7 +503,7 @@ void TLSCallbacks::ClearOut() {
 
 bool TLSCallbacks::ClearIn() {
   // Ignore cycling data if ClientHello wasn't yet parsed
-  if (hello_.state != kParseEnded)
+  if (!hello_.IsEnded())
     return false;
 
   HandleScope scope(node_isolate);
@@ -638,11 +635,17 @@ void TLSCallbacks::DoRead(uv_stream_t* handle,
   assert(ssl_ != NULL);
 
   // Commit read data
-  NodeBIO::FromBIO(enc_in_)->Commit(nread);
+  NodeBIO* enc_in = NodeBIO::FromBIO(enc_in_);
+  enc_in->Commit(nread);
 
   // Parse ClientHello first
-  if (hello_.state != kParseEnded)
-    return ParseClientHello();
+  if (!hello_.IsEnded()) {
+    assert(session_callbacks_);
+    size_t avail = 0;
+    uint8_t* data = reinterpret_cast<uint8_t*>(enc_in->Peek(&avail));
+    assert(avail == 0 || data != NULL);
+    return hello_.Parse(data, avail);
+  }
 
   // Cycle OpenSSL's state
   Cycle();
@@ -655,198 +658,6 @@ int TLSCallbacks::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
   shutdown_ = true;
   EncOut();
   return StreamWrapCallbacks::DoShutdown(req_wrap, cb);
-}
-
-
-void TLSCallbacks::ParseClientHello() {
-  enum FrameType {
-    kChangeCipherSpec = 20,
-    kAlert = 21,
-    kHandshake = 22,
-    kApplicationData = 23,
-    kOther = 255
-  };
-
-  enum HandshakeType {
-    kClientHello = 1
-  };
-
-  assert(session_callbacks_);
-  HandleScope scope(node_isolate);
-
-  NodeBIO* enc_in = NodeBIO::FromBIO(enc_in_);
-
-  size_t avail = 0;
-  uint8_t* data = reinterpret_cast<uint8_t*>(enc_in->Peek(&avail));
-  assert(avail == 0 || data != NULL);
-
-  // Vars for parsing hello
-  bool is_clienthello = false;
-  uint8_t session_size = -1;
-  uint8_t* session_id = NULL;
-  uint16_t tls_ticket_size = -1;
-  uint8_t* tls_ticket = NULL;
-  Local<Object> hello_obj;
-  Handle<Value> argv[1];
-
-  switch (hello_.state) {
-    case kParseWaiting:
-      // >= 5 bytes for header parsing
-      if (avail < 5)
-        break;
-
-      if (data[0] == kChangeCipherSpec ||
-          data[0] == kAlert ||
-          data[0] == kHandshake ||
-          data[0] == kApplicationData) {
-        hello_.frame_len = (data[3] << 8) + data[4];
-        hello_.state = kParseTLSHeader;
-        hello_.body_offset = 5;
-      } else {
-        hello_.frame_len = (data[0] << 8) + data[1];
-        hello_.state = kParseSSLHeader;
-        if (*data & 0x40) {
-          // header with padding
-          hello_.body_offset = 3;
-        } else {
-          // without padding
-          hello_.body_offset = 2;
-        }
-      }
-
-      // Sanity check (too big frame, or too small)
-      // Let OpenSSL handle it
-      if (hello_.frame_len >= kMaxTLSFrameLen)
-        return ParseFinish();
-
-      // Fall through
-    case kParseTLSHeader:
-    case kParseSSLHeader:
-      // >= 5 + frame size bytes for frame parsing
-      if (avail < hello_.body_offset + hello_.frame_len)
-        break;
-
-      // Skip unsupported frames and gather some data from frame
-
-      // TODO(indutny): Check protocol version
-      if (data[hello_.body_offset] == kClientHello) {
-        is_clienthello = true;
-        uint8_t* body;
-        size_t session_offset;
-
-        if (hello_.state == kParseTLSHeader) {
-          // Skip frame header, hello header, protocol version and random data
-          session_offset = hello_.body_offset + 4 + 2 + 32;
-
-          if (session_offset + 1 < avail) {
-            body = data + session_offset;
-            session_size = *body;
-            session_id = body + 1;
-          }
-
-          size_t cipher_offset = session_offset + 1 + session_size;
-
-          // Session OOB failure
-          if (cipher_offset + 1 >= avail)
-            return ParseFinish();
-
-          uint16_t cipher_len =
-              (data[cipher_offset] << 8) + data[cipher_offset + 1];
-          size_t comp_offset = cipher_offset + 2 + cipher_len;
-
-          // Cipher OOB failure
-          if (comp_offset >= avail)
-            return ParseFinish();
-
-          uint8_t comp_len = data[comp_offset];
-          size_t extension_offset = comp_offset + 1 + comp_len;
-
-          // Compression OOB failure
-          if (extension_offset > avail)
-            return ParseFinish();
-
-          // Extensions present
-          if (extension_offset != avail) {
-            size_t ext_off = extension_offset + 2;
-
-            // Parse known extensions
-            while (ext_off < avail) {
-              // Extension OOB
-              if (avail - ext_off < 4)
-                return ParseFinish();
-
-              uint16_t ext_type = (data[ext_off] << 8) + data[ext_off + 1];
-              uint16_t ext_len = (data[ext_off + 2] << 8) + data[ext_off + 3];
-
-              // Extension OOB
-              if (ext_off + ext_len + 4 > avail)
-                return ParseFinish();
-
-              ext_off += 4;
-
-              // TLS Session Ticket
-              if (ext_type == 35) {
-                tls_ticket_size = ext_len;
-                tls_ticket = data + ext_off;
-              }
-
-              ext_off += ext_len;
-            }
-
-            // Extensions OOB failure
-            if (ext_off > avail)
-              return ParseFinish();
-          }
-        } else if (hello_.state == kParseSSLHeader) {
-          // Skip header, version
-          session_offset = hello_.body_offset + 3;
-
-          if (session_offset + 4 < avail) {
-            body = data + session_offset;
-
-            int ciphers_size = (body[0] << 8) + body[1];
-
-            if (body + 4 + ciphers_size < data + avail) {
-              session_size = (body[2] << 8) + body[3];
-              session_id = body + 4 + ciphers_size;
-            }
-          }
-        } else {
-          // Whoa? How did we get here?
-          abort();
-        }
-
-        // Check if we overflowed (do not reply with any private data)
-        if (session_id == NULL ||
-            session_size > 32 ||
-            session_id + session_size > data + avail) {
-          return ParseFinish();
-        }
-
-        // TODO(indutny): Parse other things?
-      }
-
-      // Not client hello - let OpenSSL handle it
-      if (!is_clienthello)
-        return ParseFinish();
-
-      hello_.state = kParsePaused;
-      {
-        hello_obj = Object::New();
-        hello_obj->Set(sessionid_sym,
-            Buffer::New(reinterpret_cast<char*>(session_id),
-              session_size));
-        bool have_tls_ticket = (tls_ticket != NULL && tls_ticket_size != 0);
-        hello_obj->Set(tls_ticket_sym, Boolean::New(have_tls_ticket));
-
-        argv[0] = hello_obj;
-        MakeCallback(object(), onclienthello_sym, 1, argv);
-      }
-      break;
-    case kParseEnded:
-    default:
-      break;
-  }
 }
 
 
@@ -959,9 +770,31 @@ void TLSCallbacks::EnableSessionCallbacks(
   UNWRAP(TLSCallbacks);
 
   wrap->session_callbacks_ = true;
-  wrap->hello_.state = kParseWaiting;
-  wrap->hello_.frame_len = 0;
-  wrap->hello_.body_offset = 0;
+  wrap->hello_.Start(OnClientHello, OnClientHelloParseEnd, wrap);
+}
+
+
+void TLSCallbacks::OnClientHello(void* arg,
+                                 const ClientHelloParser::ClientHello& hello) {
+  HandleScope scope(node_isolate);
+
+  TLSCallbacks* c = static_cast<TLSCallbacks*>(arg);
+
+  Local<Object> hello_obj = Object::New();
+  Local<Object> buff = Buffer::New(
+      reinterpret_cast<const char*>(hello.session_id()),
+                                    hello.session_size());
+  hello_obj->Set(sessionid_sym, buff);
+  hello_obj->Set(tls_ticket_sym, Boolean::New(hello.has_ticket()));
+
+  Handle<Value> argv[1] = { hello_obj };
+  MakeCallback(c->object(), onclienthello_sym, 1, argv);
+}
+
+
+void TLSCallbacks::OnClientHelloParseEnd(void* arg) {
+  TLSCallbacks* c = static_cast<TLSCallbacks*>(arg);
+  c->Cycle();
 }
 
 
@@ -1168,7 +1001,7 @@ void TLSCallbacks::LoadSession(const FunctionCallbackInfo<Value>& args) {
     wrap->next_sess_ = sess;
   }
 
-  wrap->ParseFinish();
+  wrap->hello_.End();
 }
 
 

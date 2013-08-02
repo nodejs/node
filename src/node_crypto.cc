@@ -794,149 +794,38 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-size_t ClientHelloParser::Write(const uint8_t* data, size_t len) {
+void Connection::OnClientHello(void* arg,
+                               const ClientHelloParser::ClientHello& hello) {
   HandleScope scope(node_isolate);
+  Connection* c = static_cast<Connection*>(arg);
 
-  // Just accumulate data, everything will be pushed to BIO later
-  if (state_ == kPaused) return 0;
+  if (onclienthello_sym.IsEmpty())
+    onclienthello_sym = String::New("onclienthello");
+  if (sessionid_sym.IsEmpty())
+    sessionid_sym = String::New("sessionId");
 
-  // Copy incoming data to the internal buffer
-  // (which has a size of the biggest possible TLS frame)
-  size_t available = sizeof(data_) - offset_;
-  size_t copied = len < available ? len : available;
-  memcpy(data_ + offset_, data, copied);
-  offset_ += copied;
+  Local<Object> obj = Object::New();
+  obj->Set(sessionid_sym,
+           Buffer::New(reinterpret_cast<const char*>(hello.session_id()),
+                       hello.session_size()));
 
-  // Vars for parsing hello
-  bool is_clienthello = false;
-  uint8_t session_size = -1;
-  uint8_t* session_id = NULL;
-  Local<Object> hello;
-  Handle<Value> argv[1];
-
-  switch (state_) {
-    case kWaiting:
-      // >= 5 bytes for header parsing
-      if (offset_ < 5)
-        break;
-
-      if (data_[0] == kChangeCipherSpec ||
-          data_[0] == kAlert ||
-          data_[0] == kHandshake ||
-          data_[0] == kApplicationData) {
-        frame_len_ = (data_[3] << 8) + data_[4];
-        state_ = kTLSHeader;
-        body_offset_ = 5;
-      } else {
-        frame_len_ = (data_[0] << 8) + data_[1];
-        state_ = kSSLHeader;
-        if (*data_ & 0x40) {
-          // header with padding
-          body_offset_ = 3;
-        } else {
-          // without padding
-          body_offset_ = 2;
-        }
-      }
-
-      // Sanity check (too big frame, or too small)
-      if (frame_len_ >= sizeof(data_)) {
-        // Let OpenSSL handle it
-        Finish();
-        return copied;
-      }
-    case kTLSHeader:
-    case kSSLHeader:
-      // >= 5 + frame size bytes for frame parsing
-      if (offset_ < body_offset_ + frame_len_)
-        break;
-
-      // Skip unsupported frames and gather some data from frame
-
-      if (data_[body_offset_] == kClientHello) {
-        is_clienthello = true;
-        uint8_t* body;
-        size_t session_offset;
-
-        if (state_ == kTLSHeader) {
-          // Skip frame header, hello header, protocol version and random data
-          session_offset = body_offset_ + 4 + 2 + 32;
-
-          if (session_offset + 1 < offset_) {
-            body = data_ + session_offset;
-            session_size = *body;
-            session_id = body + 1;
-          }
-        } else if (state_ == kSSLHeader) {
-          // Skip header, version
-          session_offset = body_offset_ + 3;
-
-          if (session_offset + 4 < offset_) {
-            body = data_ + session_offset;
-
-            int ciphers_size = (body[0] << 8) + body[1];
-
-            if (body + 4 + ciphers_size < data_ + offset_) {
-              session_size = (body[2] << 8) + body[3];
-              session_id = body + 4 + ciphers_size;
-            }
-          }
-        } else {
-          // Whoa? How did we get here?
-          abort();
-        }
-
-        // Check if we overflowed (do not reply with any private data)
-        if (session_id == NULL ||
-            session_size > 32 ||
-            session_id + session_size > data_ + offset_) {
-          Finish();
-          return copied;
-        }
-      }
-
-      // Not client hello - let OpenSSL handle it
-      if (!is_clienthello) {
-        Finish();
-        return copied;
-      }
-
-      // Parse frame, call javascript handler and
-      // move parser into the paused state
-      if (onclienthello_sym.IsEmpty())
-        onclienthello_sym = String::New("onclienthello");
-      if (sessionid_sym.IsEmpty())
-        sessionid_sym = String::New("sessionId");
-
-      state_ = kPaused;
-      hello = Object::New();
-      hello->Set(sessionid_sym,
-                 Buffer::New(reinterpret_cast<char*>(session_id),
-                             session_size));
-
-      argv[0] = hello;
-      MakeCallback(conn_->handle(node_isolate),
-                   onclienthello_sym,
-                   ARRAY_SIZE(argv),
-                   argv);
-      break;
-    case kEnded:
-    default:
-      break;
-  }
-
-  return copied;
+  Handle<Value> argv[1] = { obj };
+  MakeCallback(c->handle(node_isolate),
+               onclienthello_sym,
+               ARRAY_SIZE(argv),
+               argv);
 }
 
 
-void ClientHelloParser::Finish() {
-  assert(state_ != kEnded);
-  state_ = kEnded;
+void Connection::OnClientHelloParseEnd(void* arg) {
+  Connection* c = static_cast<Connection*>(arg);
 
   // Write all accumulated data
-  int r = BIO_write(conn_->bio_read_, reinterpret_cast<char*>(data_), offset_);
-  conn_->HandleBIOError(conn_->bio_read_, "BIO_write", r);
-  conn_->SetShutdownFlags();
+  int r = BIO_write(c->bio_read_,
+                    reinterpret_cast<char*>(c->hello_data_),
+                    c->hello_offset_);
+  c->HandleBIOError(c->bio_read_, "BIO_write", r);
+  c->SetShutdownFlags();
 }
 
 
@@ -1398,9 +1287,21 @@ void Connection::EncIn(const FunctionCallbackInfo<Value>& args) {
   int bytes_written;
   char* data = buffer_data + off;
 
-  if (ss->is_server_ && !ss->hello_parser_.ended()) {
-    bytes_written = ss->hello_parser_.Write(reinterpret_cast<uint8_t*>(data),
-                                            len);
+  if (ss->is_server_ && !ss->hello_parser_.IsEnded()) {
+    // Just accumulate data, everything will be pushed to BIO later
+    if (ss->hello_parser_.IsPaused()) {
+      bytes_written = 0;
+    } else {
+      // Copy incoming data to the internal buffer
+      // (which has a size of the biggest possible TLS frame)
+      size_t available = sizeof(ss->hello_data_) - ss->hello_offset_;
+      size_t copied = len < available ? len : available;
+      memcpy(ss->hello_data_ + ss->hello_offset_, data, copied);
+      ss->hello_offset_ += copied;
+
+      ss->hello_parser_.Parse(ss->hello_data_, ss->hello_offset_);
+      bytes_written = copied;
+    }
   } else {
     bytes_written = BIO_write(ss->bio_read_, data, len);
     ss->HandleBIOError(ss->bio_read_, "BIO_write", bytes_written);
@@ -1766,7 +1667,7 @@ void Connection::LoadSession(const FunctionCallbackInfo<Value>& args) {
     ss->next_sess_ = sess;
   }
 
-  ss->hello_parser_.Finish();
+  ss->hello_parser_.End();
 }
 
 

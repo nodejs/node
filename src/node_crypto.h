@@ -23,6 +23,8 @@
 #define SRC_NODE_CRYPTO_H_
 
 #include "node.h"
+#include "node_crypto_clienthello.h"  // ClientHelloParser
+#include "node_crypto_clienthello-inl.h"
 #include "node_object_wrap.h"
 
 #ifdef OPENSSL_NPN_NEGOTIATED
@@ -117,49 +119,6 @@ class SecureContext : ObjectWrap {
  private:
 };
 
-class ClientHelloParser {
- public:
-  enum FrameType {
-    kChangeCipherSpec = 20,
-    kAlert = 21,
-    kHandshake = 22,
-    kApplicationData = 23,
-    kOther = 255
-  };
-
-  enum HandshakeType {
-    kClientHello = 1
-  };
-
-  enum ParseState {
-    kWaiting,
-    kTLSHeader,
-    kSSLHeader,
-    kPaused,
-    kEnded
-  };
-
-  explicit ClientHelloParser(Connection* c) : conn_(c),
-                                              state_(kWaiting),
-                                              offset_(0),
-                                              body_offset_(0) {
-  }
-
-  size_t Write(const uint8_t* data, size_t len);
-  void Finish();
-
-  inline bool ended() { return state_ == kEnded; }
-
- private:
-  Connection* conn_;
-  ParseState state_;
-  size_t frame_len_;
-
-  uint8_t data_[18432];
-  size_t offset_;
-  size_t body_offset_;
-};
-
 class Connection : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
@@ -221,6 +180,10 @@ class Connection : ObjectWrap {
   static int SelectSNIContextCallback_(SSL* s, int* ad, void* arg);
 #endif
 
+  static void OnClientHello(void* arg,
+                            const ClientHelloParser::ClientHello& hello);
+  static void OnClientHelloParseEnd(void* arg);
+
   int HandleBIOError(BIO* bio, const char* func, int rv);
 
   enum ZeroStatus {
@@ -244,10 +207,11 @@ class Connection : ObjectWrap {
     return ss;
   }
 
-  Connection() : ObjectWrap(), hello_parser_(this) {
+  Connection() : ObjectWrap(), hello_offset_(0) {
     bio_read_ = bio_write_ = NULL;
     ssl_ = NULL;
     next_sess_ = NULL;
+    hello_parser_.Start(OnClientHello, OnClientHelloParseEnd, this);
   }
 
   ~Connection() {
@@ -284,6 +248,9 @@ class Connection : ObjectWrap {
 
   bool is_server_; /* coverity[member_decl] */
   SSL_SESSION* next_sess_;
+
+  uint8_t hello_data_[18432];
+  size_t hello_offset_;
 
   friend class ClientHelloParser;
   friend class SecureContext;

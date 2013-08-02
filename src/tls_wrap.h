@@ -23,6 +23,7 @@
 #define SRC_TLS_WRAP_H_
 
 #include "node.h"
+#include "node_crypto_clienthello.h"
 #include "queue.h"
 #include "stream_wrap.h"
 #include "v8.h"
@@ -62,22 +63,6 @@ class TLSCallbacks : public StreamWrapCallbacks {
 
  protected:
   static const int kClearOutChunkSize = 1024;
-  static const size_t kMaxTLSFrameLen = 16 * 1024 + 5;
-
-  // ClientHello parser types
-  enum ParseState {
-    kParseWaiting,
-    kParseTLSHeader,
-    kParseSSLHeader,
-    kParsePaused,
-    kParseEnded
-  };
-
-  struct HelloState {
-    ParseState state;
-    size_t frame_len;
-    size_t body_offset;
-  };
 
   // Write callback queue's item
   class WriteItem {
@@ -104,12 +89,6 @@ class TLSCallbacks : public StreamWrapCallbacks {
   bool ClearIn();
   void ClearOut();
   void InvokeQueued(int status);
-  void ParseClientHello();
-
-  inline void ParseFinish() {
-    hello_.state = kParseEnded;
-    Cycle();
-  }
 
   inline void Cycle() {
     ClearIn();
@@ -118,6 +97,9 @@ class TLSCallbacks : public StreamWrapCallbacks {
   }
 
   v8::Handle<v8::Value> GetSSLError(int status, int* err);
+  static void OnClientHello(void* arg,
+                            const ClientHelloParser::ClientHello& hello);
+  static void OnClientHelloParseEnd(void* arg);
 
   static void Wrap(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -183,13 +165,12 @@ class TLSCallbacks : public StreamWrapCallbacks {
   size_t write_queue_size_;
   QUEUE write_item_queue_;
   WriteItem* pending_write_item_;
-  HelloState hello_;
-  int hello_body_;
   bool started_;
   bool established_;
   bool shutdown_;
   bool session_callbacks_;
   SSL_SESSION* next_sess_;
+  ClientHelloParser hello_;
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   v8::Persistent<v8::Object> npn_protos_;
