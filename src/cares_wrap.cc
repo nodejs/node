@@ -770,8 +770,7 @@ static void QueryWithFamily(const FunctionCallbackInfo<Value>& args) {
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   HandleScope scope(node_isolate);
 
-  GetAddrInfoReqWrap* req_wrap =
-      reinterpret_cast<GetAddrInfoReqWrap*>(req->data);
+  GetAddrInfoReqWrap* req_wrap = static_cast<GetAddrInfoReqWrap*>(req->data);
 
   Local<Value> argv[] = {
     Integer::New(status, node_isolate),

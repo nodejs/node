@@ -334,8 +334,8 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
 
   assert(req != NULL);
 
-  SendWrap* req_wrap = reinterpret_cast<SendWrap*>(req->data);
-  UDPWrap* wrap = reinterpret_cast<UDPWrap*>(req->handle->data);
+  SendWrap* req_wrap = static_cast<SendWrap*>(req->data);
+  UDPWrap* wrap = static_cast<UDPWrap*>(req->handle->data);
 
   assert(req_wrap->persistent().IsEmpty() == false);
   assert(wrap->persistent().IsEmpty() == false);
@@ -368,7 +368,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
     return;
   }
 
-  UDPWrap* wrap = reinterpret_cast<UDPWrap*>(handle->data);
+  UDPWrap* wrap = static_cast<UDPWrap*>(handle->data);
 
   HandleScope scope(node_isolate);
   Local<Object> wrap_obj = wrap->object();

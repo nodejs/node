@@ -98,7 +98,7 @@ static inline int IsInt64(double x) {
 static void After(uv_fs_t *req) {
   HandleScope scope(node_isolate);
 
-  FSReqWrap* req_wrap = reinterpret_cast<FSReqWrap*>(req->data);
+  FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
   assert(&req_wrap->req_ == req);
 
   // check if data needs to be cleaned

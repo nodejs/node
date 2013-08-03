@@ -335,8 +335,8 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
 
 
 void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
-  ConnectWrap* req_wrap = reinterpret_cast<ConnectWrap*>(req->data);
-  TCPWrap* wrap = reinterpret_cast<TCPWrap*>(req->handle->data);
+  ConnectWrap* req_wrap = static_cast<ConnectWrap*>(req->data);
+  TCPWrap* wrap = static_cast<TCPWrap*>(req->handle->data);
 
   HandleScope scope(node_isolate);
 

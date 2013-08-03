@@ -221,8 +221,8 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
 
 // TODO(bnoordhuis) Maybe share this with TCPWrap?
 void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
-  ConnectWrap* req_wrap = reinterpret_cast<ConnectWrap*>(req->data);
-  PipeWrap* wrap = reinterpret_cast<PipeWrap*>(req->handle->data);
+  ConnectWrap* req_wrap = static_cast<ConnectWrap*>(req->data);
+  PipeWrap* wrap = static_cast<PipeWrap*>(req->handle->data);
 
   HandleScope scope(node_isolate);
 
