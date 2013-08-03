@@ -156,9 +156,10 @@ automatically set as a listener for the [secureConnection][] event.  The
   - `NPNProtocols`: An array or `Buffer` of possible NPN protocols. (Protocols
     should be ordered by their priority).
 
-  - `SNICallback`: A function that will be called if client supports SNI TLS
-    extension. Only one argument will be passed to it: `servername`. And
-    `SNICallback` should return SecureContext instance.
+  - `SNICallback(servername, cb)`: A function that will be called if client
+    supports SNI TLS extension. Two argument will be passed to it: `servername`,
+    and `cb`. `SNICallback` should invoke `cb(null, ctx)`, where `ctx` is a
+    SecureContext instance.
     (You can use `crypto.createCredentials(...).context` to get proper
     SecureContext). If `SNICallback` wasn't provided - default callback with
     high-level API will be used (see below).

@@ -123,6 +123,8 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   hello.session_id_ = session_id_;
   hello.session_size_ = session_size_;
   hello.has_ticket_ = tls_ticket_ != NULL && tls_ticket_size_ != 0;
+  hello.servername_ = servername_;
+  hello.servername_size_ = servername_size_;
   onhello_cb_(cb_arg_, hello);
 }
 
@@ -134,6 +136,29 @@ void ClientHelloParser::ParseExtension(ClientHelloParser::ExtensionType type,
   // That's because we're heavily relying on OpenSSL to solve any problem with
   // incoming data.
   switch (type) {
+    case kServerName:
+      {
+        if (len < 2)
+          return;
+        uint16_t server_names_len = (data[0] << 8) + data[1];
+        if (server_names_len + 2 > len)
+          return;
+        for (size_t offset = 2; offset < 2 + server_names_len; ) {
+          if (offset + 3 > len)
+            return;
+          uint8_t name_type = data[offset];
+          if (name_type != kServernameHostname)
+            return;
+          uint16_t name_len = (data[offset + 1] << 8) + data[offset + 2];
+          offset += 3;
+          if (offset + name_len > len)
+            return;
+          servername_ = data + offset;
+          servername_size_ = name_len;
+          offset += name_len;
+        }
+      }
+      break;
     case kTLSSessionTicket:
       tls_ticket_size_ = len;
       tls_ticket_ = data + len;

@@ -34,6 +34,8 @@ inline void ClientHelloParser::Reset() {
   session_id_ = NULL;
   tls_ticket_size_ = -1;
   tls_ticket_ = NULL;
+  servername_size_ = 0;
+  servername_ = NULL;
 }
 
 inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,

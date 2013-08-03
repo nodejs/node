@@ -42,10 +42,16 @@ function loadPEM(n) {
 var serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
-  SNICallback: function(servername) {
+  SNICallback: function(servername, callback) {
     var credentials = SNIContexts[servername];
-    if (credentials)
-      return crypto.createCredentials(credentials).context;
+
+    // Just to test asynchronous callback
+    setTimeout(function() {
+      if (credentials)
+        callback(null, crypto.createCredentials(credentials).context);
+      else
+        callback(null, null);
+    }, 100);
   }
 };
 
