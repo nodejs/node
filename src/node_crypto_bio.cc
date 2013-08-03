@@ -232,9 +232,12 @@ void NodeBIO::FreeEmpty() {
   if (cur == write_head_ || cur == read_head_)
     return;
 
+  Buffer* prev = child;
   while (cur != read_head_) {
-    // Skip embedded buffer
+    // Skip embedded buffer, and continue deallocating again starting from it
     if (cur == &head_) {
+      prev->next_ = cur;
+      prev = cur;
       cur = head_.next_;
       continue;
     }
@@ -242,11 +245,11 @@ void NodeBIO::FreeEmpty() {
     assert(cur->write_pos_ == cur->read_pos_);
 
     Buffer* next = cur->next_;
-    child->next_ = next;
     delete cur;
-
     cur = next;
   }
+  assert(prev == child || prev == &head_);
+  prev->next_ = cur;
 }
 
 
