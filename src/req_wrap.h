@@ -22,6 +22,7 @@
 #ifndef SRC_REQ_WRAP_H_
 #define SRC_REQ_WRAP_H_
 
+#include "node.h"
 #include "queue.h"
 
 namespace node {
@@ -69,7 +70,7 @@ class ReqWrap {
   }
 
   inline v8::Local<v8::Object> object() {
-    return v8::Local<v8::Object>::New(node_isolate, persistent());
+    return PersistentToLocal(node_isolate, persistent());
   }
 
   inline v8::Persistent<v8::Object>& persistent() {

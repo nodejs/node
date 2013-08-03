@@ -69,7 +69,7 @@ class HandleWrap {
   virtual ~HandleWrap();
 
   inline v8::Local<v8::Object> object() {
-    return v8::Local<v8::Object>::New(node_isolate, persistent());
+    return PersistentToLocal(node_isolate, persistent());
   }
 
   inline v8::Persistent<v8::Object>& persistent() {

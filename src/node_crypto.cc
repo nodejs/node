@@ -3315,6 +3315,9 @@ void EIO_PBKDF2After(uv_work_t* work_req, int status) {
   assert(status == 0);
   pbkdf2_req* req = container_of(work_req, pbkdf2_req, work_req);
   HandleScope scope(node_isolate);
+  // Create a new Local that's associated with the current HandleScope.
+  // PersistentToLocal() returns a handle that gets zeroed when we call
+  // Dispose() so don't use that.
   Local<Object> obj = Local<Object>::New(node_isolate, req->obj);
   req->obj.Dispose();
   Local<Value> argv[2];

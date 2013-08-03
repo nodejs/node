@@ -22,9 +22,10 @@
 #ifndef SRC_TLS_WRAP_H_
 #define SRC_TLS_WRAP_H_
 
-#include "v8.h"
-#include "stream_wrap.h"
+#include "node.h"
 #include "queue.h"
+#include "stream_wrap.h"
+#include "v8.h"
 
 #include <openssl/ssl.h>
 
@@ -162,7 +163,7 @@ class TLSCallbacks : public StreamWrapCallbacks {
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
   inline v8::Local<v8::Object> object() {
-    return v8::Local<v8::Object>::New(node_isolate, persistent());
+    return PersistentToLocal(node_isolate, persistent());
   }
 
   inline v8::Persistent<v8::Object>& persistent() {
