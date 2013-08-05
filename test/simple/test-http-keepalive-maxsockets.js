@@ -50,7 +50,7 @@ function makeReqs(n, cb) {
     if (er)
       return cb(er);
     else if (--n === 0)
-      setTimeout(cb);
+      setTimeout(cb, 100);
   }
 }
 

@@ -425,6 +425,11 @@ Options:
  - `Agent` object: explicitly use the passed in `Agent`.
  - `false`: opts out of connection pooling with an Agent, defaults request to
    `Connection: close`.
+- `keepAlive`: {Boolean} Keep sockets around in a pool to be used
+  by other requests in the future. Default = `false`
+- `keepAliveMsecs`: {Integer} When using HTTP KeepAlive, how often to
+  send TCP KeepAlive packets over sockets being kept alive.  Default =
+  `1000`.  Only relevant if `keepAlive` is set to `true`.
 
 `http.request()` returns an instance of the `http.ClientRequest`
 class. The `ClientRequest` instance is a writable stream. If one needs to
@@ -497,22 +502,29 @@ Example:
 
 ## Class: http.Agent
 
-In node 0.5.3+ there is a new implementation of the HTTP Agent which is used
-for pooling sockets used in HTTP client requests.
+The HTTP Agent is used for pooling sockets used in HTTP client
+requests.
 
-Previously, a single agent instance helped pool for a single host+port. The
-current implementation now holds sockets for any number of hosts.
+The HTTP Agent also defaults client requests to using
+Connection:keep-alive. If no pending HTTP requests are waiting on a
+socket to become free the socket is closed. This means that Node's
+pool has the benefit of keep-alive when under load but still does not
+require developers to manually close the HTTP clients using
+KeepAlive.
 
-The current HTTP Agent also defaults client requests to using
-Connection:keep-alive. If no pending HTTP requests are waiting on a socket
-to become free the socket is closed. This means that node's pool has the
-benefit of keep-alive when under load but still does not require developers
-to manually close the HTTP clients using keep-alive.
+If you opt into using HTTP KeepAlive, you can create an Agent object
+with that flag set to `true`.  (See the [constructor
+options](#http_new_agent_options) below.)  Then, the Agent will keep
+unused sockets in a pool for later use.  They will be explicitly
+marked so as to not keep the Node process running.  However, it is
+still a good idea to explicitly [`destroy()`](#http_agent_destroy)
+KeepAlive agents when they are no longer in use, so that the Sockets
+will be shut down.
 
-Sockets are removed from the agent's pool when the socket emits either a
-"close" event or a special "agentRemove" event. This means that if you intend
-to keep one HTTP request open for a long time and don't want it to stay in the
-pool you can do something along the lines of:
+Sockets are removed from the agent's pool when the socket emits either
+a "close" event or a special "agentRemove" event. This means that if
+you intend to keep one HTTP request open for a long time and don't
+want it to stay in the pool you can do something along the lines of:
 
     http.get(options, function(res) {
       // Do stuff
@@ -520,26 +532,88 @@ pool you can do something along the lines of:
       socket.emit("agentRemove");
     });
 
-Alternatively, you could just opt out of pooling entirely using `agent:false`:
+Alternatively, you could just opt out of pooling entirely using
+`agent:false`:
 
-    http.get({hostname:'localhost', port:80, path:'/', agent:false}, function (res) {
-      // Do stuff
+    http.get({
+      hostname: 'localhost',
+      port: 80,
+      path: '/',
+      agent: false  // create a new agent just for this one request
+    }, function (res) {
+      // Do stuff with response
     })
+
+### new Agent([options])
+
+* `options` {Object} Set of configurable options to set on the agent.
+  Can have the following fields:
+  * `keepAlive` {Boolean} Keep sockets around in a pool to be used by
+    other requests in the future. Default = `false`
+  * `keepAliveMsecs` {Integer} When using HTTP KeepAlive, how often
+    to send TCP KeepAlive packets over sockets being kept alive.
+    Default = `1000`.  Only relevant if `keepAlive` is set to `true`.
+  * `maxSockets` {Number} Maximum number of sockets to allow per
+    host.  Default = `Infinity`.
+  * `maxFreeSockets` {Number} Maximum number of sockets to leave open
+    in a free state.  Only relevant if `keepAlive` is set to `true`.
+    Default = `256`.
+
+The default `http.globalAgent` that is used by `http.request` has all
+of these values set to their respective defaults.
+
+To configure any of them, you must create your own `Agent` object.
+
+```javascript
+var http = require('http');
+var keepAliveAgent = new http.Agent({ keepAlive: true });
+keepAliveAgent.request(options, onResponseCallback);
+```
 
 ### agent.maxSockets
 
-By default set to 5. Determines how many concurrent sockets the agent can have
-open per host.
+By default set to Infinity. Determines how many concurrent sockets the
+agent can have open per host.
+
+### agent.maxFreeSockets
+
+By default set to 256.  For Agents supporting HTTP KeepAlive, this
+sets the maximum number of sockets that will be left open in the free
+state.
 
 ### agent.sockets
 
-An object which contains arrays of sockets currently in use by the Agent. Do not
-modify.
+An object which contains arrays of sockets currently in use by the
+Agent.  Do not modify.
+
+### agent.freeSockets
+
+An object which contains arrays of sockets currently awaiting use by
+the Agent when HTTP KeepAlive is used.  Do not modify.
 
 ### agent.requests
 
 An object which contains queues of requests that have not yet been assigned to
 sockets. Do not modify.
+
+### agent.destroy()
+
+Destroy any sockets that are currently in use by the agent.
+
+It is usually not necessary to do this.  However, if you are using an
+agent with KeepAlive enabled, then it is best to explicitly shut down
+the agent when you know that it will no longer be used.  Otherwise,
+sockets may hang open for quite a long time before the server
+terminates them.
+
+### agent.getName(options)
+
+Get a unique name for a set of request options, to determine whether a
+connection can be reused.  In the http agent, this returns
+`host:port:localAddress`.  In the https agent, the name includes the
+CA, cert, ciphers, and other HTTPS/TLS-specific options that determine
+socket reusability.
+
 
 ## http.globalAgent
 
