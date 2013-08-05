@@ -430,7 +430,7 @@
                 'outputs': [ '<(PRODUCT_DIR)/obj.target/node/src/node_mdb.o' ],
                 'conditions': [
                   [ 'target_arch=="ia32"', {
-                    'action': [ 'elfwrap', '-32', '-o', '<@(_outputs)', '<@(_inputs)' ],
+                    'action': [ 'elfwrap', '-o', '<@(_outputs)', '<@(_inputs)' ],
                   } ],
                   [ 'target_arch=="x64"', {
                     'action': [ 'elfwrap', '-64', '-o', '<@(_outputs)', '<@(_inputs)' ],
