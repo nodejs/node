@@ -47,7 +47,7 @@ class ReqWrap {
                                     ->ToObject()
                                     ->Get(domain_symbol);
 
-      if (!domain->IsUndefined()) {
+      if (domain->IsObject()) {
         object->Set(domain_symbol, domain);
       }
     }
