@@ -468,6 +468,10 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
     return -1;
   }
 #else
+  /* Squelch compiler warnings. */
+  (void) &in_fd;
+  (void) &out_fd;
+
   return uv__fs_sendfile_emul(req);
 #endif
 }

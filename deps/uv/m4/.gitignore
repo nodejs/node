@@ -1,0 +1,2 @@
+# Ignore libtoolize-generated files.
+*.m4

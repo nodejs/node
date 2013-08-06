@@ -1,3 +1,50 @@
+2013.08.07, Version 0.11.7 (Unstable)
+
+Changes since version 0.11.6:
+
+* unix, windows: fix uv_fs_chown() function prototype (Ben Noordhuis)
+
+* unix, windows: remove unused variables (Brian White)
+
+* test: fix signed/unsigned comparison warnings (Ben Noordhuis)
+
+* build: dtrace shouldn't break out of tree builds (Timothy J. Fontaine)
+
+* unix, windows: don't read/recv if buf.len==0 (Ben Noordhuis)
+
+* build: add mingw makefile (Ben Noordhuis)
+
+* unix, windows: add MAC to uv_interface_addresses() (Brian White)
+
+* build: enable AM_INIT_AUTOMAKE([subdir-objects]) (Ben Noordhuis)
+
+* unix, windows: make buf arg to uv_fs_write const (Ben Noordhuis)
+
+* sunos: fix build breakage introduced in e3a657c (Ben Noordhuis)
+
+* aix: fix build breakage introduced in 3ee4d3f (Ben Noordhuis)
+
+* windows: fix mingw32 build, define JOB_OBJECT_XXX (Yasuhiro Matsumoto)
+
+* windows: fix mingw32 build, include limits.h (Yasuhiro Matsumoto)
+
+* test: replace sprintf() with snprintf() (Ben Noordhuis)
+
+* test: replace strcpy() with strncpy() (Ben Noordhuis)
+
+* openbsd: fix uv_ip6_addr() unused variable warnings (Ben Noordhuis)
+
+* openbsd: fix dlerror() const correctness warning (Ben Noordhuis)
+
+* openbsd: fix uv_fs_sendfile() unused variable warnings (Ben Noordhuis)
+
+* build: disable parallel automake tests (Ben Noordhuis)
+
+* test: add windows-only snprintf() function (Ben Noordhuis)
+
+* build: add automake serial-tests version check (Ben Noordhuis)
+
+
 2013.07.26, Version 0.10.13 (Stable), 381312e1fe6fecbabc943ccd56f0e7d114b3d064
 
 Changes since version 0.10.12:

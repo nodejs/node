@@ -140,9 +140,11 @@ struct sockaddr_in uv_ip4_addr(const char* ip, int port) {
 
 struct sockaddr_in6 uv_ip6_addr(const char* ip, int port) {
   struct sockaddr_in6 addr;
+#if defined(UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS)
   char address_part[40];
   size_t address_part_size;
   const char* zone_index;
+#endif
 
   memset(&addr, 0, sizeof(struct sockaddr_in6));
 
