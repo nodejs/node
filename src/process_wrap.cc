@@ -86,13 +86,12 @@ class ProcessWrap : public HandleWrap {
                                 uv_process_options_t* options) {
     Local<Array> stdios = js_options
         ->Get(String::NewSymbol("stdio")).As<Array>();
-    int len = stdios->Length();
+    uint32_t len = stdios->Length();
     options->stdio = new uv_stdio_container_t[len];
     options->stdio_count = len;
 
-    for (int i = 0; i < len; i++) {
-      Local<Object> stdio = stdios
-          ->Get(Number::New(static_cast<double>(i))).As<Object>();
+    for (uint32_t i = 0; i < len; i++) {
+      Local<Object> stdio = stdios->Get(i).As<Object>();
       Local<Value> type = stdio->Get(String::NewSymbol("type"));
 
       if (type->Equals(String::NewSymbol("ignore"))) {
