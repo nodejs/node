@@ -1,27 +1,3 @@
-2013.07.25, Version 0.10.15 (Stable)
-
-* src: fix process.getuid() return value (Ben Noordhuis)
-
-
-2013.07.25, Version 0.10.14 (Stable), fdf57f811f9683a4ec49a74dc7226517e32e6c9d
-
-* uv: Upgrade to v0.10.13
-
-* npm: Upgrade to v1.3.5
-
-* os: Don't report negative times in cpu info (Ben Noordhuis)
-
-* fs: Handle large UID and GID (Ben Noordhuis)
-
-* url: Fix edge-case when protocol is non-lowercase (Shuan Wang)
-
-* doc: Streams API Doc Rewrite (isaacs)
-
-* node: call MakeDomainCallback in all domain cases (Trevor Norris)
-
-* crypto: fix memory leak in LoadPKCS12 (Fedor Indutny)
-
-
 2013.07.12, Version 0.11.4 (Unstable)
 
 * npm: Upgrade to 1.3.4
@@ -201,6 +177,30 @@
 * util: custom `inspect()` method may return an Object (Nathan Rajlich)
 
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
+
+
+2013.07.25, Version 0.10.15 (Stable), 2426d65af860bda7be9f0832a99601cc43c6cf63
+
+* src: fix process.getuid() return value (Ben Noordhuis)
+
+
+2013.07.25, Version 0.10.14 (Stable), fdf57f811f9683a4ec49a74dc7226517e32e6c9d
+
+* uv: Upgrade to v0.10.13
+
+* npm: Upgrade to v1.3.5
+
+* os: Don't report negative times in cpu info (Ben Noordhuis)
+
+* fs: Handle large UID and GID (Ben Noordhuis)
+
+* url: Fix edge-case when protocol is non-lowercase (Shuan Wang)
+
+* doc: Streams API Doc Rewrite (isaacs)
+
+* node: call MakeDomainCallback in all domain cases (Trevor Norris)
+
+* crypto: fix memory leak in LoadPKCS12 (Fedor Indutny)
 
 
 2013.07.09, Version 0.10.13 (Stable), e32660a984427d46af6a144983cf7b8045b7299c

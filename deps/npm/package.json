@@ -1,5 +1,5 @@
 {
-  "version": "1.3.5",
+  "version": "1.3.6",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -134,10 +134,5 @@
     "dumpconf": "env | grep npm | sort | uniq",
     "echo": "node bin/npm-cli.js"
   },
-  "licenses": [
-    {
-      "type": "MIT +no-false-attribs",
-      "url": "https://github.com/isaacs/npm/raw/master/LICENSE"
-    }
-  ]
+  "license": "Artistic-2.0"
 }
