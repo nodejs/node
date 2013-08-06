@@ -330,7 +330,6 @@
 
     process.nextTick = nextTick;
     // needs to be accessible from cc land
-    process._nextDomainTick = _nextDomainTick;
     process._tickCallback = _tickCallback;
     process._tickDomainCallback = _tickDomainCallback;
 
@@ -415,16 +414,10 @@
       if (process._exiting)
         return;
 
-      nextTickQueue.push({ callback: callback, domain: null });
-      infoBox[length]++;
-    }
-
-    function _nextDomainTick(callback) {
-      // on the way out, don't bother. it won't get fired anyway.
-      if (process._exiting)
-        return;
-
-      nextTickQueue.push({ callback: callback, domain: process.domain });
+      nextTickQueue.push({
+        callback: callback,
+        domain: process.domain || null
+      });
       infoBox[length]++;
     }
   };

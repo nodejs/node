@@ -910,20 +910,12 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Local<Object> process = PersistentToLocal(node_isolate, process_p);
   Local<Value> tdc_v =
       process->Get(FIXED_ONE_BYTE_STRING(node_isolate, "_tickDomainCallback"));
-  Local<Value> ndt_v =
-      process->Get(FIXED_ONE_BYTE_STRING(node_isolate, "_nextDomainTick"));
   if (!tdc_v->IsFunction()) {
     fprintf(stderr, "process._tickDomainCallback assigned to non-function\n");
     abort();
   }
-  if (!ndt_v->IsFunction()) {
-    fprintf(stderr, "process._nextDomainTick assigned to non-function\n");
-    abort();
-  }
   Local<Function> tdc = tdc_v.As<Function>();
-  Local<Function> ndt = ndt_v.As<Function>();
   process->Set(FIXED_ONE_BYTE_STRING(node_isolate, "_tickCallback"), tdc);
-  process->Set(FIXED_ONE_BYTE_STRING(node_isolate, "nextTick"), ndt);
   process_tickCallback.Reset(node_isolate, tdc);
 }
 
