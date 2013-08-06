@@ -759,7 +759,8 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 #if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_get_tlsext_ticket_keys)
   HandleScope scope(node_isolate);
 
-  UNWRAP(SecureContext);
+  SecureContext* wrap;
+  UNWRAP(args.This(), SecureContext, wrap);
 
   Local<Object> buff = Buffer::New(48);
   if (SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_,
@@ -783,7 +784,8 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
     return ThrowTypeError("Bad argument");
   }
 
-  UNWRAP(SecureContext);
+  SecureContext* wrap;
+  UNWRAP(args.This(), SecureContext, wrap);
 
   if (SSL_CTX_set_tlsext_ticket_keys(wrap->ctx_,
                                      Buffer::Data(args[0]),

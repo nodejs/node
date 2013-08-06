@@ -128,7 +128,8 @@ class ProcessWrap : public HandleWrap {
   static void Spawn(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
-    UNWRAP(ProcessWrap)
+    ProcessWrap* wrap;
+    UNWRAP(args.This(), ProcessWrap, wrap);
 
     Local<Object> js_options = args[0]->ToObject();
 
@@ -256,7 +257,8 @@ class ProcessWrap : public HandleWrap {
 
   static void Kill(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    UNWRAP(ProcessWrap)
+    ProcessWrap* wrap;
+    UNWRAP(args.This(), ProcessWrap, wrap);
 
     int signal = args[0]->Int32Value();
     int err = uv_process_kill(&wrap->process_, signal);

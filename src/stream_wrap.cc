@@ -80,7 +80,8 @@ StreamWrap::StreamWrap(Handle<Object> object, uv_stream_t* stream)
 void StreamWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 #if !defined(_WIN32)
   HandleScope scope(node_isolate);
-  UNWRAP_NO_ABORT(StreamWrap)
+  StreamWrap* wrap;
+  UNWRAP_NO_ABORT(args.This(), StreamWrap, wrap);
   int fd = -1;
   if (wrap != NULL && wrap->stream() != NULL) {
     fd = wrap->stream()->io_watcher.fd;
@@ -101,7 +102,8 @@ void StreamWrap::UpdateWriteQueueSize() {
 void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(StreamWrap)
+  StreamWrap* wrap;
+  UNWRAP(args.This(), StreamWrap, wrap);
 
   int err;
   if (wrap->is_named_pipe_ipc()) {
@@ -117,7 +119,8 @@ void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
 void StreamWrap::ReadStop(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(StreamWrap)
+  StreamWrap* wrap;
+  UNWRAP(args.This(), StreamWrap, wrap);
 
   int err = uv_read_stop(wrap->stream());
   args.GetReturnValue().Set(err);
@@ -135,15 +138,14 @@ template <class WrapType, class UVType>
 static Local<Object> AcceptHandle(uv_stream_t* pipe) {
   HandleScope scope(node_isolate);
   Local<Object> wrap_obj;
-  WrapType* wrap;
   UVType* handle;
 
   wrap_obj = WrapType::Instantiate();
   if (wrap_obj.IsEmpty())
     return Local<Object>();
 
-  wrap = static_cast<WrapType*>(
-      wrap_obj->GetAlignedPointerFromInternalField(0));
+  WrapType* wrap;
+  UNWRAP(wrap_obj, WrapType, wrap);
   handle = wrap->UVHandle();
 
   if (uv_accept(pipe, reinterpret_cast<uv_stream_t*>(handle)))
@@ -202,7 +204,8 @@ size_t StreamWrap::WriteBuffer(Handle<Value> val, uv_buf_t* buf) {
 void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(StreamWrap)
+  StreamWrap* wrap;
+  UNWRAP(args.This(), StreamWrap, wrap);
 
   assert(args[0]->IsObject());
   assert(Buffer::HasInstance(args[1]));
@@ -239,7 +242,8 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   int err;
 
-  UNWRAP(StreamWrap)
+  StreamWrap* wrap;
+  UNWRAP(args.This(), StreamWrap, wrap);
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
@@ -287,11 +291,10 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
     uv_handle_t* send_handle = NULL;
 
     if (args[2]->IsObject()) {
-      Local<Object> send_handle_obj = args[2]->ToObject();
-      assert(send_handle_obj->InternalFieldCount() > 0);
-      HandleWrap* send_handle_wrap = static_cast<HandleWrap*>(
-          send_handle_obj->GetAlignedPointerFromInternalField(0));
-      send_handle = send_handle_wrap->GetHandle();
+      Local<Object> send_handle_obj = args[2].As<Object>();
+      HandleWrap* wrap;
+      UNWRAP(send_handle_obj, HandleWrap, wrap);
+      send_handle = wrap->GetHandle();
 
       // Reference StreamWrap instance to prevent it from being garbage
       // collected before `AfterWrite` is called.
@@ -325,7 +328,8 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
 void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope;
 
-  UNWRAP(StreamWrap)
+  StreamWrap* wrap;
+  UNWRAP(args.This(), StreamWrap, wrap);
 
   assert(args[0]->IsObject());
   assert(args[1]->IsArray());
@@ -469,7 +473,8 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
 void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(StreamWrap)
+  StreamWrap* wrap;
+  UNWRAP(args.This(), StreamWrap, wrap);
 
   assert(args[0]->IsObject());
   Local<Object> req_wrap_obj = args[0].As<Object>();

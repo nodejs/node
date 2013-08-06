@@ -41,7 +41,8 @@ static Cached<String> close_sym;
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP_NO_ABORT(HandleWrap)
+  HandleWrap* wrap;
+  UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
 
   if (wrap != NULL && wrap->handle__ != NULL) {
     uv_ref(wrap->handle__);
@@ -53,7 +54,8 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
 void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP_NO_ABORT(HandleWrap)
+  HandleWrap* wrap;
+  UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
 
   if (wrap != NULL && wrap->handle__ != NULL) {
     uv_unref(wrap->handle__);
@@ -65,8 +67,8 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  HandleWrap *wrap = static_cast<HandleWrap*>(
-      args.This()->GetAlignedPointerFromInternalField(0));
+  HandleWrap* wrap;
+  UNWRAP(args.This(), HandleWrap, wrap);
 
   // guard against uninitialized handle or double close
   if (wrap == NULL || wrap->handle__ == NULL) return;
@@ -92,9 +94,8 @@ HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
 
   HandleScope scope(node_isolate);
   assert(persistent().IsEmpty());
-  assert(object->InternalFieldCount() > 0);
   persistent().Reset(node_isolate, object);
-  object->SetAlignedPointerInInternalField(0, this);
+  WRAP(object, this);
   QUEUE_INSERT_TAIL(&handle_wrap_queue, &handle_wrap_queue_);
 }
 

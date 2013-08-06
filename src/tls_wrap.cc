@@ -27,6 +27,7 @@
 #include "node_crypto_clienthello-inl.h"
 #include "node_wrap.h"  // WithGenericStream
 #include "node_counters.h"
+#include "node_internals.h"
 
 namespace node {
 
@@ -99,7 +100,7 @@ TLSCallbacks::TLSCallbacks(Kind kind,
   sc_handle_.Reset(node_isolate, sc);
 
   Local<Object> object = NewInstance(tlsWrap);
-  object->SetAlignedPointerInInternalField(0, this);
+  WRAP(object, this);
   persistent().Reset(node_isolate, object);
 
   // Initialize queue for clearIn writes
@@ -331,7 +332,8 @@ void TLSCallbacks::Wrap(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::Start(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   if (wrap->started_)
     return ThrowError("Already started.");
@@ -666,7 +668,8 @@ int TLSCallbacks::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
 void TLSCallbacks::VerifyError(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   // XXX Do this check in JS land?
   X509* peer_cert = SSL_get_peer_certificate(wrap->ssl_);
@@ -732,7 +735,8 @@ void TLSCallbacks::VerifyError(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   if (args.Length() < 2 || !args[0]->IsBoolean() || !args[1]->IsBoolean())
     return ThrowTypeError("Bad arguments, expected two booleans");
@@ -760,7 +764,8 @@ void TLSCallbacks::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
 
 void TLSCallbacks::IsSessionReused(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
   bool yes = SSL_session_reused(wrap->ssl_);
   args.GetReturnValue().Set(yes);
 }
@@ -770,18 +775,19 @@ void TLSCallbacks::EnableSessionCallbacks(
     const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   wrap->session_callbacks_ = true;
   EnableHelloParser(args);
 }
 
 
-void TLSCallbacks::EnableHelloParser(
-    const FunctionCallbackInfo<Value>& args) {
+void TLSCallbacks::EnableHelloParser(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   wrap->hello_.Start(OnClientHello, OnClientHelloParseEnd, wrap);
 }
@@ -822,7 +828,8 @@ void TLSCallbacks::OnClientHelloParseEnd(void* arg) {
 void TLSCallbacks::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   Local<Object> info = Object::New();
   X509* peer_cert = SSL_get_peer_certificate(wrap->ssl_);
@@ -955,7 +962,8 @@ void TLSCallbacks::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::GetSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   SSL_SESSION* sess = SSL_get_session(wrap->ssl_);
   if (!sess) return;
@@ -980,7 +988,8 @@ void TLSCallbacks::GetSession(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::SetSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   if (wrap->started_)
     return ThrowError("Already started.");
@@ -1015,7 +1024,8 @@ void TLSCallbacks::SetSession(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::LoadSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   if (args.Length() >= 1 && Buffer::HasInstance(args[0])) {
     ssize_t slen = Buffer::Length(args[0]);
@@ -1045,7 +1055,8 @@ void TLSCallbacks::LoadSession(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::EndParser(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   wrap->hello_.End();
 }
@@ -1054,7 +1065,8 @@ void TLSCallbacks::EndParser(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   const SSL_CIPHER* c;
 
@@ -1147,7 +1159,8 @@ int TLSCallbacks::SelectNextProtoCallback(SSL* s,
 void TLSCallbacks::GetNegotiatedProto(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   if (wrap->kind_ == kTLSClient) {
     if (wrap->selected_npn_proto_.IsEmpty() == false) {
@@ -1173,7 +1186,8 @@ void TLSCallbacks::GetNegotiatedProto(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Must give a Buffer as first argument");
@@ -1187,7 +1201,8 @@ void TLSCallbacks::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::GetServername(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   const char* servername = SSL_get_servername(wrap->ssl_,
                                               TLSEXT_NAMETYPE_host_name);
@@ -1202,7 +1217,8 @@ void TLSCallbacks::GetServername(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::SetServername(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(TLSCallbacks);
+  TLSCallbacks* wrap;
+  UNWRAP(args.This(), TLSCallbacks, wrap);
 
   if (args.Length() < 1 || !args[0]->IsString())
     return ThrowTypeError("First argument should be a string");

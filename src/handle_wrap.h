@@ -49,12 +49,6 @@ namespace node {
 //   js/c++ boundary crossing. At the javascript layer that should all be
 //   taken care of.
 
-#define UNWRAP_NO_ABORT(type)                                               \
-  assert(!args.This().IsEmpty());                                           \
-  assert(args.This()->InternalFieldCount() > 0);                            \
-  type* wrap = static_cast<type*>(                                          \
-      args.This()->GetAlignedPointerFromInternalField(0));
-
 class HandleWrap {
  public:
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);

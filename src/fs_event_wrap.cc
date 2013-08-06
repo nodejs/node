@@ -98,7 +98,8 @@ void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  UNWRAP(FSEventWrap)
+  FSEventWrap* wrap;
+  UNWRAP(args.This(), FSEventWrap, wrap);
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return ThrowTypeError("Bad arguments");
@@ -171,13 +172,8 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  // Unwrap manually here. The UNWRAP() macro asserts that wrap != NULL.
-  // That usually indicates an error but not here: double closes are possible
-  // and legal, HandleWrap::Close() deals with them the same way.
-  assert(!args.This().IsEmpty());
-  assert(args.This()->InternalFieldCount() > 0);
-  void* ptr = args.This()->GetAlignedPointerFromInternalField(0);
-  FSEventWrap* wrap = static_cast<FSEventWrap*>(ptr);
+  FSEventWrap* wrap;
+  UNWRAP_NO_ABORT(args.This(), FSEventWrap, wrap);
 
   if (wrap == NULL || wrap->initialized_ == false) return;
   wrap->initialized_ = false;
