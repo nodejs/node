@@ -140,7 +140,7 @@ void ClientHelloParser::ParseExtension(ClientHelloParser::ExtensionType type,
       {
         if (len < 2)
           return;
-        uint16_t server_names_len = (data[0] << 8) + data[1];
+        uint32_t server_names_len = (data[0] << 8) + data[1];
         if (server_names_len + 2 > len)
           return;
         for (size_t offset = 2; offset < 2 + server_names_len; ) {
