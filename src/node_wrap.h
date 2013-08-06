@@ -40,7 +40,7 @@ extern v8::Persistent<v8::FunctionTemplate> tcpConstructorTmpl;
     do {                                                  \
       if (!tcpConstructorTmpl.IsEmpty() &&                \
           HasInstance(tcpConstructorTmpl, obj)) {         \
-        PipeWrap* wrap = PipeWrap::Unwrap(obj);           \
+        TCPWrap* wrap = TCPWrap::Unwrap(obj);             \
         BODY                                              \
       } else if (!ttyConstructorTmpl.IsEmpty() &&         \
                  HasInstance(ttyConstructorTmpl, obj)) {  \
@@ -48,7 +48,7 @@ extern v8::Persistent<v8::FunctionTemplate> tcpConstructorTmpl;
         BODY                                              \
       } else if (!pipeConstructorTmpl.IsEmpty() &&        \
                  HasInstance(pipeConstructorTmpl, obj)) { \
-        TCPWrap* wrap = TCPWrap::Unwrap(obj);             \
+        PipeWrap* wrap = PipeWrap::Unwrap(obj);           \
         BODY                                              \
       }                                                   \
     } while (0)
