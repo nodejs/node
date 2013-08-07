@@ -107,10 +107,8 @@ void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(StreamWrap)
 
-  bool ipc_pipe = wrap->stream()->type == UV_NAMED_PIPE &&
-                  reinterpret_cast<uv_pipe_t*>(wrap->stream())->ipc;
   int err;
-  if (ipc_pipe) {
+  if (wrap->is_named_pipe_ipc()) {
     err = uv_read2_start(wrap->stream(), OnAlloc, OnRead2);
   } else {
     err = uv_read_start(wrap->stream(), OnAlloc, OnRead);
@@ -172,9 +170,9 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
   assert(wrap->persistent().IsEmpty() == false);
 
   if (nread > 0) {
-    if (wrap->stream()->type == UV_TCP) {
+    if (wrap->is_tcp()) {
       NODE_COUNT_NET_BYTES_RECV(nread);
-    } else if (wrap->stream()->type == UV_NAMED_PIPE) {
+    } else if (wrap->is_named_pipe()) {
       NODE_COUNT_PIPE_BYTES_RECV(nread);
     }
   }
@@ -285,10 +283,7 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   buf.base = data;
   buf.len = data_size;
 
-  bool ipc_pipe = wrap->stream()->type == UV_NAMED_PIPE &&
-                  reinterpret_cast<uv_pipe_t*>(wrap->stream())->ipc;
-
-  if (!ipc_pipe) {
+  if (!wrap->is_named_pipe_ipc()) {
     err = wrap->callbacks()->DoWrite(req_wrap,
                                      &buf,
                                      1,

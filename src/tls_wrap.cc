@@ -398,9 +398,9 @@ void TLSCallbacks::EncOut() {
 
   // Ignore errors, this should be already handled in js
   if (!r) {
-    if (wrap()->stream()->type == UV_TCP) {
+    if (wrap()->is_tcp()) {
       NODE_COUNT_NET_BYTES_SENT(write_size_);
-    } else if (wrap()->stream()->type == UV_NAMED_PIPE) {
+    } else if (wrap()->is_named_pipe()) {
       NODE_COUNT_PIPE_BYTES_SENT(write_size_);
     }
   }

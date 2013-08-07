@@ -130,6 +130,19 @@ class StreamWrap : public HandleWrap {
     return stream_;
   }
 
+  inline bool is_named_pipe() const {
+    return stream()->type == UV_NAMED_PIPE;
+  }
+
+  inline bool is_named_pipe_ipc() const {
+    return is_named_pipe() &&
+           reinterpret_cast<const uv_pipe_t*>(stream())->ipc != 0;
+  }
+
+  inline bool is_tcp() const {
+    return stream()->type == UV_TCP;
+  }
+
  protected:
   static size_t WriteBuffer(v8::Handle<v8::Value> val, uv_buf_t* buf);
 
