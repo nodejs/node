@@ -1,4 +1,39 @@
-2013.07.12, Version 0.11.4 (Unstable)
+2013.08.06, Version 0.11.5 (Unstable)
+
+* v8: upgrade to 3.20.11
+
+* uv: upgrade to v0.11.7
+
+* buffer: return offset for end of last write (Trevor Norris)
+
+* build: embed the mdb_v8.so into the binary (Timothy J Fontaine)
+
+* build: fix --without-ssl build (Ben Noordhuis)
+
+* child_process: add 'shell' option to .exec() (Ben Noordhuis)
+
+* dgram: report send errors to cb, don't pass bytes (Ben Noordhuis)
+
+* fs: write strings directly to disk (Trevor Norris)
+
+* https: fix default port (Koichi Kobayashi)
+
+* openssl: use asm for sha, md5, rmd (Fedor Indutny)
+
+* os: add mac address to networkInterfaces() output (Brian White)
+
+* smalloc: introduce smalloc module (Trevor Norris)
+
+* stream: Simplify flowing, passive data listening (streams3) (isaacs)
+
+* tls: asynchronous SNICallback (Fedor Indutny)
+
+* tls: share tls tickets key between cluster workers (Fedor Indutny)
+
+* util: don't throw on circular %j input to format() (Ben Noordhuis)
+
+
+2013.07.12, Version 0.11.4 (Unstable), b5b84197ed037918fd1a26e5cb87cce7c812ca55
 
 * npm: Upgrade to 1.3.4
 

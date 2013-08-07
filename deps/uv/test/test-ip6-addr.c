@@ -76,9 +76,9 @@ void test_ip6_addr_scope(const char* ip6_addr,
   if (strncmp(ip6_addr, "fe80::", 6) != 0) return;
 
 #ifdef _WIN32
-  sprintf(scoped_addr, "%s%%%d", ip6_addr, iface_index);
+  snprintf(scoped_addr, sizeof(scoped_addr), "%s%%%d", ip6_addr, iface_index);
 #else
-  sprintf(scoped_addr, "%s%%%s", ip6_addr, device_name);
+  snprintf(scoped_addr, sizeof(scoped_addr), "%s%%%s", ip6_addr, device_name);
 #endif
 
   LOGF("Testing link-local address %s (iface_index: 0x%02x, device_name: %s)\n",
