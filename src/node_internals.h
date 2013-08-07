@@ -318,6 +318,7 @@ v8::Handle<v8::Value> MakeCallback(
 inline bool HasInstance(
     const v8::Persistent<v8::FunctionTemplate>& function_template,
     v8::Handle<v8::Value> value) {
+  if (function_template.IsEmpty()) return false;
   v8::Local<v8::FunctionTemplate> function_template_handle =
       PersistentToLocal(node_isolate, function_template);
   return function_template_handle->HasInstance(value);
