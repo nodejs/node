@@ -645,20 +645,14 @@ Local<Value> StringBytes::Encode(const char* buf,
         char* out = new char[buflen];
         force_ascii(buf, out, buflen);
         if (buflen < EXTERN_APEX) {
-          val = String::NewFromOneByte(node_isolate,
-                                       reinterpret_cast<const uint8_t*>(out),
-                                       String::kNormalString,
-                                       buflen);
+          val = OneByteString(node_isolate, out, buflen);
           delete[] out;
         } else {
           val = ExternOneByteString::New(out, buflen);
         }
       } else {
         if (buflen < EXTERN_APEX)
-          val = String::NewFromOneByte(node_isolate,
-                                       reinterpret_cast<const uint8_t*>(buf),
-                                       String::kNormalString,
-                                       buflen);
+          val = OneByteString(node_isolate, buf, buflen);
         else
           val = ExternOneByteString::NewFromCopy(buf, buflen);
       }
@@ -673,10 +667,7 @@ Local<Value> StringBytes::Encode(const char* buf,
 
     case BINARY:
       if (buflen < EXTERN_APEX)
-        val = String::NewFromOneByte(node_isolate,
-                                     reinterpret_cast<const uint8_t*>(buf),
-                                     String::kNormalString,
-                                     buflen);
+        val = OneByteString(node_isolate, buf, buflen);
       else
         val = ExternOneByteString::NewFromCopy(buf, buflen);
       break;
@@ -689,10 +680,7 @@ Local<Value> StringBytes::Encode(const char* buf,
       assert(written == dlen);
 
       if (dlen < EXTERN_APEX) {
-        val = String::NewFromOneByte(node_isolate,
-                                     reinterpret_cast<const uint8_t*>(dst),
-                                     String::kNormalString,
-                                     dlen);
+        val = OneByteString(node_isolate, dst, dlen);
         delete[] dst;
       } else {
         val = ExternOneByteString::New(dst, dlen);
@@ -719,10 +707,7 @@ Local<Value> StringBytes::Encode(const char* buf,
       assert(written == dlen);
 
       if (dlen < EXTERN_APEX) {
-        val = String::NewFromOneByte(node_isolate,
-                                     reinterpret_cast<const uint8_t*>(dst),
-                                     String::kNormalString,
-                                     dlen);
+        val = OneByteString(node_isolate, dst, dlen);
         delete[] dst;
       } else {
         val = ExternOneByteString::New(dst, dlen);

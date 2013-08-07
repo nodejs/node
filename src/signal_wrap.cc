@@ -46,7 +46,7 @@ class SignalWrap : public HandleWrap {
 
     Local<FunctionTemplate> constructor = FunctionTemplate::New(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
-    constructor->SetClassName(String::NewSymbol("Signal"));
+    constructor->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "Signal"));
 
     NODE_SET_PROTOTYPE_METHOD(constructor, "close", HandleWrap::Close);
     NODE_SET_PROTOTYPE_METHOD(constructor, "ref", HandleWrap::Ref);
@@ -54,9 +54,10 @@ class SignalWrap : public HandleWrap {
     NODE_SET_PROTOTYPE_METHOD(constructor, "start", Start);
     NODE_SET_PROTOTYPE_METHOD(constructor, "stop", Stop);
 
-    onsignal_sym = String::New("onsignal");
+    onsignal_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onsignal");
 
-    target->Set(String::NewSymbol("Signal"), constructor->GetFunction());
+    target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "Signal"),
+                constructor->GetFunction());
   }
 
  private:

@@ -49,13 +49,13 @@ void TTYWrap::Initialize(Handle<Object> target) {
   HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
-  t->SetClassName(String::NewSymbol("TTY"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "TTY"));
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(String::New("fd"),
+  t->InstanceTemplate()->SetAccessor(FIXED_ONE_BYTE_STRING(node_isolate, "fd"),
                                      StreamWrap::GetFD,
                                      NULL,
                                      Handle<Value>(),
@@ -82,7 +82,7 @@ void TTYWrap::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "guessHandleType", GuessHandleType);
 
   ttyConstructorTmpl.Reset(node_isolate, t);
-  target->Set(String::NewSymbol("TTY"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "TTY"), t->GetFunction());
 }
 
 
@@ -117,7 +117,7 @@ void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
     abort();
   }
 
-  args.GetReturnValue().Set(String::New(type));
+  args.GetReturnValue().Set(OneByteString(node_isolate, type));
 }
 
 

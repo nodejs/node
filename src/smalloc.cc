@@ -359,7 +359,7 @@ void Alloc(Handle<Object> obj,
   assert(!obj->HasIndexedPropertiesInExternalArrayData());
 
   if (smalloc_sym.IsEmpty()) {
-    smalloc_sym = String::New("_smalloc_p");
+    smalloc_sym = FIXED_ONE_BYTE_STRING(node_isolate, "_smalloc_p");
     using_alloc_cb = true;
   }
 
@@ -466,7 +466,7 @@ void Initialize(Handle<Object> exports) {
   NODE_SET_METHOD(exports, "alloc", Alloc);
   NODE_SET_METHOD(exports, "dispose", AllocDispose);
 
-  exports->Set(String::New("kMaxLength"),
+  exports->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kMaxLength"),
                Uint32::NewFromUnsigned(kMaxLength, node_isolate));
 
   // for performance, begin checking if allocation object may contain

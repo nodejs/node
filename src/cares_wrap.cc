@@ -206,7 +206,7 @@ static Local<Array> HostentToAddresses(struct hostent* host) {
   for (int i = 0; host->h_addr_list[i]; ++i) {
     uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
 
-    Local<String> address = String::New(ip);
+    Local<String> address = OneByteString(node_isolate, ip);
     addresses->Set(Integer::New(i, node_isolate), address);
   }
 
@@ -219,7 +219,7 @@ static Local<Array> HostentToNames(struct hostent* host) {
   Local<Array> names = Array::New();
 
   for (int i = 0; host->h_aliases[i]; ++i) {
-    Local<String> address = String::New(host->h_aliases[i]);
+    Local<String> address = OneByteString(node_isolate, host->h_aliases[i]);
     names->Set(Integer::New(i, node_isolate), address);
   }
 
@@ -426,7 +426,7 @@ class QueryCnameWrap: public QueryWrap {
     // A cname lookup always returns a single record but we follow the
     // common API here.
     Local<Array> result = Array::New(1);
-    result->Set(0, String::New(host->h_name));
+    result->Set(0, OneByteString(node_isolate, host->h_name));
     ares_free_hostent(host);
 
     this->CallOnComplete(result);
@@ -456,14 +456,18 @@ class QueryMxWrap: public QueryWrap {
     }
 
     Local<Array> mx_records = Array::New();
-    Local<String> exchange_symbol = String::NewSymbol("exchange");
-    Local<String> priority_symbol = String::NewSymbol("priority");
+    Local<String> exchange_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "exchange");
+    Local<String> priority_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "priority");
+
     int i = 0;
     for (struct ares_mx_reply* mx_current = mx_start;
          mx_current;
          mx_current = mx_current->next) {
       Local<Object> mx_record = Object::New();
-      mx_record->Set(exchange_symbol, String::New(mx_current->host));
+      mx_record->Set(exchange_symbol,
+                     OneByteString(node_isolate, mx_current->host));
       mx_record->Set(priority_symbol,
                      Integer::New(mx_current->priority, node_isolate));
       mx_records->Set(Integer::New(i++, node_isolate), mx_record);
@@ -528,7 +532,7 @@ class QueryTxtWrap: public QueryWrap {
 
     struct ares_txt_reply *current = txt_out;
     for (int i = 0; current; ++i, current = current->next) {
-      Local<String> txt = String::New(reinterpret_cast<char*>(current->txt));
+      Local<String> txt = OneByteString(node_isolate, current->txt);
       txt_records->Set(Integer::New(i, node_isolate), txt);
     }
 
@@ -566,16 +570,22 @@ class QuerySrvWrap: public QueryWrap {
     }
 
     Local<Array> srv_records = Array::New();
-    Local<String> name_symbol = String::NewSymbol("name");
-    Local<String> port_symbol = String::NewSymbol("port");
-    Local<String> priority_symbol = String::NewSymbol("priority");
-    Local<String> weight_symbol = String::NewSymbol("weight");
+    Local<String> name_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "name");
+    Local<String> port_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "port");
+    Local<String> priority_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "priority");
+    Local<String> weight_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "weight");
+
     int i = 0;
     for (struct ares_srv_reply* srv_current = srv_start;
          srv_current;
          srv_current = srv_current->next) {
       Local<Object> srv_record = Object::New();
-      srv_record->Set(name_symbol, String::New(srv_current->host));
+      srv_record->Set(name_symbol,
+                      OneByteString(node_isolate, srv_current->host));
       srv_record->Set(port_symbol,
                       Integer::New(srv_current->port, node_isolate));
       srv_record->Set(priority_symbol,
@@ -620,12 +630,18 @@ class QueryNaptrWrap: public QueryWrap {
     }
 
     Local<Array> naptr_records = Array::New();
-    Local<String> flags_symbol = String::NewSymbol("flags");
-    Local<String> service_symbol = String::NewSymbol("service");
-    Local<String> regexp_symbol = String::NewSymbol("regexp");
-    Local<String> replacement_symbol = String::NewSymbol("replacement");
-    Local<String> order_symbol = String::NewSymbol("order");
-    Local<String> preference_symbol = String::NewSymbol("preference");
+    Local<String> flags_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "flags");
+    Local<String> service_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "service");
+    Local<String> regexp_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "regexp");
+    Local<String> replacement_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "replacement");
+    Local<String> order_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "order");
+    Local<String> preference_symbol =
+        FIXED_ONE_BYTE_STRING(node_isolate, "preference");
 
     int i = 0;
     for (ares_naptr_reply* naptr_current = naptr_start;
@@ -634,13 +650,14 @@ class QueryNaptrWrap: public QueryWrap {
       Local<Object> naptr_record = Object::New();
 
       naptr_record->Set(flags_symbol,
-          String::New(reinterpret_cast<char*>(naptr_current->flags)));
+                        OneByteString(node_isolate, naptr_current->flags));
       naptr_record->Set(service_symbol,
-          String::New(reinterpret_cast<char*>(naptr_current->service)));
+                        OneByteString(node_isolate, naptr_current->service));
       naptr_record->Set(regexp_symbol,
-          String::New(reinterpret_cast<char*>(naptr_current->regexp)));
+                        OneByteString(node_isolate, naptr_current->regexp));
       naptr_record->Set(replacement_symbol,
-          String::New(naptr_current->replacement));
+                        OneByteString(node_isolate,
+                                      naptr_current->replacement));
       naptr_record->Set(order_symbol, Integer::New(naptr_current->order,
                                                    node_isolate));
       naptr_record->Set(preference_symbol,
@@ -814,7 +831,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
           continue;
 
         // Create JavaScript string
-        Local<String> s = String::New(ip);
+        Local<String> s = OneByteString(node_isolate, ip);
         results->Set(n, s);
         n++;
       }
@@ -841,7 +858,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
           continue;
 
         // Create JavaScript string
-        Local<String> s = String::New(ip);
+        Local<String> s = OneByteString(node_isolate, ip);
         results->Set(n, s);
         n++;
       }
@@ -943,7 +960,7 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
     int err = uv_inet_ntop(cur->family, caddr, ip, sizeof(ip));
     assert(err == 0);
 
-    Local<String> addr = String::New(ip);
+    Local<String> addr = OneByteString(node_isolate, ip);
     server_array->Set(i, addr);
   }
 
@@ -1024,7 +1041,7 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
 static void StrError(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   const char* errmsg = ares_strerror(args[0]->Int32Value());
-  args.GetReturnValue().Set(String::New(errmsg));
+  args.GetReturnValue().Set(OneByteString(node_isolate, errmsg));
 }
 
 
@@ -1069,14 +1086,14 @@ static void Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "getServers", GetServers);
   NODE_SET_METHOD(target, "setServers", SetServers);
 
-  target->Set(String::NewSymbol("AF_INET"),
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "AF_INET"),
               Integer::New(AF_INET, node_isolate));
-  target->Set(String::NewSymbol("AF_INET6"),
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "AF_INET6"),
               Integer::New(AF_INET6, node_isolate));
-  target->Set(String::NewSymbol("AF_UNSPEC"),
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "AF_UNSPEC"),
               Integer::New(AF_UNSPEC, node_isolate));
 
-  oncomplete_sym = String::New("oncomplete");
+  oncomplete_sym = FIXED_ONE_BYTE_STRING(node_isolate, "oncomplete");
 }
 
 }  // namespace cares_wrap

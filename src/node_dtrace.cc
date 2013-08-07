@@ -77,7 +77,7 @@ using v8::Value;
     return ThrowError( \
         "expected object for " #obj " to contain string member " #member); \
   } \
-  String::Utf8Value _##member(obj->Get(String::New(#member))); \
+  String::Utf8Value _##member(obj->Get(OneByteString(node_isolate, #member))); \
   if ((*(const char **)valp = *_##member) == NULL) \
     *(const char **)valp = "<unknown>";
 
@@ -86,14 +86,14 @@ using v8::Value;
     return ThrowError( \
       "expected object for " #obj " to contain integer member " #member); \
   } \
-  *valp = obj->Get(String::New(#member))->ToInteger()->Value();
+  *valp = obj->Get(OneByteString(node_isolate, #member))->ToInteger()->Value();
 
 #define SLURP_OBJECT(obj, member, valp) \
   if (!(obj)->IsObject()) { \
     return ThrowError( \
       "expected object for " #obj " to contain object member " #member); \
   } \
-  *valp = Local<Object>::Cast(obj->Get(String::New(#member)));
+  *valp = Local<Object>::Cast(obj->Get(OneByteString(node_isolate, #member)));
 
 #define SLURP_CONNECTION(arg, conn) \
   if (!(arg)->IsObject()) { \
@@ -102,7 +102,7 @@ using v8::Value;
   } \
   node_dtrace_connection_t conn; \
   Local<Object> _##conn = Local<Object>::Cast(arg); \
-  Local<Value> _handle = (_##conn)->Get(String::New("_handle")); \
+  Local<Value> _handle = (_##conn)->Get(FIXED_ONE_BYTE_STRING(node_isolate, "_handle")); \
   if (_handle->IsObject()) { \
     SLURP_INT(_handle.As<Object>(), fd, &conn.fd); \
   } else { \
@@ -221,7 +221,7 @@ void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
       "expected object for request to contain string member headers");
   }
 
-  Local<Value> strfwdfor = headers->Get(String::New("x-forwarded-for"));
+  Local<Value> strfwdfor = headers->Get(FIXED_ONE_BYTE_STRING(node_isolate, "x-forwarded-for"));
   String::Utf8Value fwdfor(strfwdfor);
 
   if (!strfwdfor->IsString() || (req.forwardedFor = *fwdfor) == NULL)
@@ -332,7 +332,7 @@ void InitDTrace(Handle<Object> target) {
   };
 
   for (unsigned int i = 0; i < ARRAY_SIZE(tab); i++) {
-    Local<String> key = String::New(tab[i].name);
+    Local<String> key = OneByteString(node_isolate, tab[i].name);
     Local<Value> val = FunctionTemplate::New(tab[i].func)->GetFunction();
     target->Set(key, val);
   }

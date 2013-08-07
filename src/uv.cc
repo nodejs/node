@@ -40,16 +40,17 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
   int err = args[0]->Int32Value();
   if (err >= 0) return ThrowError("err >= 0");
   const char* name = uv_err_name(err);
-  args.GetReturnValue().Set(String::New(name));
+  args.GetReturnValue().Set(OneByteString(node_isolate, name));
 }
 
 
 void Initialize(Handle<Object> target) {
   v8::HandleScope handle_scope(node_isolate);
-  target->Set(String::New("errname"),
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "errname"),
               FunctionTemplate::New(ErrName)->GetFunction());
-#define V(name, _) target->Set(String::New("UV_" # name),                     \
-                               Integer::New(UV_ ## name, node_isolate));
+#define V(name, _)                                                            \
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "UV_" # name),              \
+              Integer::New(UV_ ## name, node_isolate));
   UV_ERRNO_MAP(V)
 #undef V
 }

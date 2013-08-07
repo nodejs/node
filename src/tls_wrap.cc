@@ -420,7 +420,7 @@ void TLSCallbacks::EncOutCb(uv_write_t* req, int status) {
 
     // Notify about error
     Local<Value> arg = String::Concat(
-        String::New("write cb error, status: "),
+        FIXED_ONE_BYTE_STRING(node_isolate, "write cb error, status: "),
         Integer::New(status, node_isolate)->ToString());
     MakeCallback(callbacks->object(), onerror_sym, 1, &arg);
     callbacks->InvokeQueued(status);
@@ -446,7 +446,7 @@ Handle<Value> TLSCallbacks::GetSSLError(int status, int* err) {
     case SSL_ERROR_WANT_WRITE:
       break;
     case SSL_ERROR_ZERO_RETURN:
-      return scope.Close(String::NewSymbol("ZERO_RETURN"));
+      return scope.Close(FIXED_ONE_BYTE_STRING(node_isolate, "ZERO_RETURN"));
       break;
     default:
       {
@@ -459,10 +459,12 @@ Handle<Value> TLSCallbacks::GetSSLError(int status, int* err) {
         assert(bio != NULL);
         ERR_print_errors(bio);
         BIO_get_mem_ptr(bio, &mem);
-        Handle<Value> r = Exception::Error(String::New(mem->data, mem->length));
+        Local<String> message =
+            OneByteString(node_isolate, mem->data, mem->length);
+        Local<Value> exception = Exception::Error(message);
         BIO_free_all(bio);
 
-        return scope.Close(r);
+        return scope.Close(exception);
       }
   }
   return Handle<Value>();
@@ -672,7 +674,8 @@ void TLSCallbacks::VerifyError(const FunctionCallbackInfo<Value>& args) {
     // We requested a certificate and they did not send us one.
     // Definitely an error.
     // XXX is this the right error message?
-    Local<String> s = String::New("UNABLE_TO_GET_ISSUER_CERT");
+    Local<String> s =
+        FIXED_ONE_BYTE_STRING(node_isolate, "UNABLE_TO_GET_ISSUER_CERT");
     return args.GetReturnValue().Set(Exception::Error(s));
   }
   X509_free(peer_cert);
@@ -712,12 +715,13 @@ void TLSCallbacks::VerifyError(const FunctionCallbackInfo<Value>& args) {
   CASE_X509_ERR(CERT_UNTRUSTED)
   CASE_X509_ERR(CERT_REJECTED)
   default:
-    s = String::New(X509_verify_cert_error_string(x509_verify_error));
+    s = OneByteString(node_isolate,
+                      X509_verify_cert_error_string(x509_verify_error));
     break;
   }
 
   if (s.IsEmpty()) {
-    s = String::New(reason);
+    s = OneByteString(node_isolate, reason);
   }
 
   args.GetReturnValue().Set(Exception::Error(s));
@@ -797,9 +801,9 @@ void TLSCallbacks::OnClientHello(void* arg,
   if (hello.servername() == NULL) {
     hello_obj->Set(servername_sym, String::Empty(node_isolate));
   } else {
-    Local<String> servername = String::New(
-        reinterpret_cast<const char*>(hello.servername()),
-        hello.servername_size());
+    Local<String> servername = OneByteString(node_isolate,
+                                             hello.servername(),
+                                             hello.servername_size());
     hello_obj->Set(servername_sym, servername);
   }
   hello_obj->Set(tls_ticket_sym, Boolean::New(hello.has_ticket()));
@@ -830,7 +834,8 @@ void TLSCallbacks::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
                            0,
                            X509_NAME_FLAGS) > 0) {
       BIO_get_mem_ptr(bio, &mem);
-      info->Set(subject_sym, String::New(mem->data, mem->length));
+      info->Set(subject_sym,
+                OneByteString(node_isolate, mem->data, mem->length));
     }
     (void) BIO_reset(bio);
 
@@ -839,7 +844,8 @@ void TLSCallbacks::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
                            0,
                            X509_NAME_FLAGS) > 0) {
       BIO_get_mem_ptr(bio, &mem);
-      info->Set(issuer_sym, String::New(mem->data, mem->length));
+      info->Set(issuer_sym,
+                OneByteString(node_isolate, mem->data, mem->length));
     }
     (void) BIO_reset(bio);
 
@@ -855,7 +861,8 @@ void TLSCallbacks::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
       assert(rv == 1);
 
       BIO_get_mem_ptr(bio, &mem);
-      info->Set(subjectaltname_sym, String::New(mem->data, mem->length));
+      info->Set(subjectaltname_sym,
+                OneByteString(node_isolate, mem->data, mem->length));
 
       (void) BIO_reset(bio);
     }
@@ -866,12 +873,14 @@ void TLSCallbacks::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
         NULL != (rsa = EVP_PKEY_get1_RSA(pkey))) {
       BN_print(bio, rsa->n);
       BIO_get_mem_ptr(bio, &mem);
-      info->Set(modulus_sym, String::New(mem->data, mem->length) );
+      info->Set(modulus_sym,
+                OneByteString(node_isolate, mem->data, mem->length));
       (void) BIO_reset(bio);
 
       BN_print(bio, rsa->e);
       BIO_get_mem_ptr(bio, &mem);
-      info->Set(exponent_sym, String::New(mem->data, mem->length) );
+      info->Set(exponent_sym,
+                OneByteString(node_isolate, mem->data, mem->length));
       (void) BIO_reset(bio);
     }
 
@@ -886,12 +895,14 @@ void TLSCallbacks::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
 
     ASN1_TIME_print(bio, X509_get_notBefore(peer_cert));
     BIO_get_mem_ptr(bio, &mem);
-    info->Set(valid_from_sym, String::New(mem->data, mem->length));
+    info->Set(valid_from_sym,
+              OneByteString(node_isolate, mem->data, mem->length));
     (void) BIO_reset(bio);
 
     ASN1_TIME_print(bio, X509_get_notAfter(peer_cert));
     BIO_get_mem_ptr(bio, &mem);
-    info->Set(valid_to_sym, String::New(mem->data, mem->length));
+    info->Set(valid_to_sym,
+              OneByteString(node_isolate, mem->data, mem->length));
     BIO_free_all(bio);
 
     unsigned int md_size, i;
@@ -911,7 +922,7 @@ void TLSCallbacks::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
       else
         fingerprint[0] = '\0';
 
-      info->Set(fingerprint_sym, String::New(fingerprint));
+      info->Set(fingerprint_sym, OneByteString(node_isolate, fingerprint));
     }
 
     STACK_OF(ASN1_OBJECT)* eku = static_cast<STACK_OF(ASN1_OBJECT)*>(
@@ -926,7 +937,8 @@ void TLSCallbacks::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
       for (int i = 0; i < sk_ASN1_OBJECT_num(eku); i++) {
         memset(buf, 0, sizeof(buf));
         OBJ_obj2txt(buf, sizeof(buf) - 1, sk_ASN1_OBJECT_value(eku, i), 1);
-        ext_key_usage->Set(Integer::New(i, node_isolate), String::New(buf));
+        ext_key_usage->Set(Integer::New(i, node_isolate),
+                           OneByteString(node_isolate, buf));
       }
 
       sk_ASN1_OBJECT_pop_free(eku, ASN1_OBJECT_free);
@@ -1022,7 +1034,8 @@ void TLSCallbacks::LoadSession(const FunctionCallbackInfo<Value>& args) {
     if (sess->tlsext_hostname == NULL) {
       info->Set(servername_sym, False(node_isolate));
     } else {
-      info->Set(servername_sym, String::New(sess->tlsext_hostname));
+      info->Set(servername_sym,
+                OneByteString(node_isolate, sess->tlsext_hostname));
     }
 #endif
     args.GetReturnValue().Set(info);
@@ -1053,8 +1066,8 @@ void TLSCallbacks::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   const char* cipher_version = SSL_CIPHER_get_version(c);
 
   Local<Object> info = Object::New();
-  info->Set(name_sym, String::New(cipher_name));
-  info->Set(version_sym, String::New(cipher_version));
+  info->Set(name_sym, OneByteString(node_isolate, cipher_name));
+  info->Set(version_sym, OneByteString(node_isolate, cipher_version));
   args.GetReturnValue().Set(info);
 }
 
@@ -1115,7 +1128,7 @@ int TLSCallbacks::SelectNextProtoCallback(SSL* s,
       result = Null(node_isolate);
       break;
     case OPENSSL_NPN_NEGOTIATED:
-      result = String::New(reinterpret_cast<const char*>(*out), *outlen);
+      result = OneByteString(node_isolate, *out, *outlen);
       break;
     case OPENSSL_NPN_NO_OVERLAP:
       result = False(node_isolate);
@@ -1153,7 +1166,7 @@ void TLSCallbacks::GetNegotiatedProto(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(
-      String::New(reinterpret_cast<const char*>(npn_proto), npn_proto_len));
+      OneByteString(node_isolate, npn_proto, npn_proto_len));
 }
 
 
@@ -1179,7 +1192,7 @@ void TLSCallbacks::GetServername(const FunctionCallbackInfo<Value>& args) {
   const char* servername = SSL_get_servername(wrap->ssl_,
                                               TLSEXT_NAMETYPE_host_name);
   if (servername != NULL) {
-    args.GetReturnValue().Set(String::New(servername));
+    args.GetReturnValue().Set(OneByteString(node_isolate, servername));
   } else {
     args.GetReturnValue().Set(false);
   }
@@ -1244,7 +1257,7 @@ void TLSCallbacks::Initialize(Handle<Object> target) {
 
   Local<FunctionTemplate> t = FunctionTemplate::New();
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(String::NewSymbol("TLSWrap"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "TLSWrap"));
 
   NODE_SET_PROTOTYPE_METHOD(t, "start", Start);
   NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate", GetPeerCertificate);
@@ -1275,28 +1288,29 @@ void TLSCallbacks::Initialize(Handle<Object> target) {
 
   tlsWrap.Reset(node_isolate, t->GetFunction());
 
-  onread_sym = String::New("onread");
-  onerror_sym = String::New("onerror");
-  onhandshakestart_sym = String::New("onhandshakestart");
-  onhandshakedone_sym = String::New("onhandshakedone");
-  onclienthello_sym = String::New("onclienthello");
-  onnewsession_sym = String::New("onnewsession");
+  onread_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onread");
+  onerror_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onerror");
+  onhandshakestart_sym =
+      FIXED_ONE_BYTE_STRING(node_isolate, "onhandshakestart");
+  onhandshakedone_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onhandshakedone");
+  onclienthello_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onclienthello");
+  onnewsession_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onnewsession");
 
-  subject_sym = String::New("subject");
-  issuer_sym = String::New("issuer");
-  valid_from_sym = String::New("valid_from");
-  valid_to_sym = String::New("valid_to");
-  subjectaltname_sym = String::New("subjectaltname");
-  modulus_sym = String::New("modulus");
-  exponent_sym = String::New("exponent");
-  fingerprint_sym = String::New("fingerprint");
-  name_sym = String::New("name");
-  version_sym = String::New("version");
-  ext_key_usage_sym = String::New("ext_key_usage");
-  sessionid_sym = String::New("sessionId");
-  tls_ticket_sym = String::New("tlsTicket");
-  servername_sym = String::New("servername");
-  sni_context_sym = String::New("sni_context");
+  subject_sym = FIXED_ONE_BYTE_STRING(node_isolate, "subject");
+  issuer_sym = FIXED_ONE_BYTE_STRING(node_isolate, "issuer");
+  valid_from_sym = FIXED_ONE_BYTE_STRING(node_isolate, "valid_from");
+  valid_to_sym = FIXED_ONE_BYTE_STRING(node_isolate, "valid_to");
+  subjectaltname_sym = FIXED_ONE_BYTE_STRING(node_isolate, "subjectaltname");
+  modulus_sym = FIXED_ONE_BYTE_STRING(node_isolate, "modulus");
+  exponent_sym = FIXED_ONE_BYTE_STRING(node_isolate, "exponent");
+  fingerprint_sym = FIXED_ONE_BYTE_STRING(node_isolate, "fingerprint");
+  name_sym = FIXED_ONE_BYTE_STRING(node_isolate, "name");
+  version_sym = FIXED_ONE_BYTE_STRING(node_isolate, "version");
+  ext_key_usage_sym = FIXED_ONE_BYTE_STRING(node_isolate, "ext_key_usage");
+  sessionid_sym = FIXED_ONE_BYTE_STRING(node_isolate, "sessionId");
+  tls_ticket_sym = FIXED_ONE_BYTE_STRING(node_isolate, "tlsTicket");
+  servername_sym = FIXED_ONE_BYTE_STRING(node_isolate, "servername");
+  sni_context_sym = FIXED_ONE_BYTE_STRING(node_isolate, "sni_context");
 }
 
 }  // namespace node

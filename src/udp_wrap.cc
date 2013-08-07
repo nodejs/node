@@ -68,17 +68,17 @@ UDPWrap::~UDPWrap() {
 void UDPWrap::Initialize(Handle<Object> target) {
   HandleScope scope(node_isolate);
 
-  buffer_sym = String::New("buffer");
-  oncomplete_sym = String::New("oncomplete");
-  onmessage_sym = String::New("onmessage");
+  buffer_sym = FIXED_ONE_BYTE_STRING(node_isolate, "buffer");
+  oncomplete_sym = FIXED_ONE_BYTE_STRING(node_isolate, "oncomplete");
+  onmessage_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onmessage");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(String::NewSymbol("UDP"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "UDP"));
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(String::New("fd"),
+  t->InstanceTemplate()->SetAccessor(FIXED_ONE_BYTE_STRING(node_isolate, "fd"),
                                      UDPWrap::GetFD,
                                      NULL,
                                      Handle<Value>(),
@@ -104,7 +104,7 @@ void UDPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
 
   constructor.Reset(node_isolate, t->GetFunction());
-  target->Set(String::NewSymbol("UDP"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "UDP"), t->GetFunction());
 }
 
 

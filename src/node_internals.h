@@ -25,7 +25,11 @@
 #include "v8.h"
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
+
+#define FIXED_ONE_BYTE_STRING(isolate, string)                                \
+  (node::OneByteString((isolate), (string), sizeof(string) - 1))
 
 struct sockaddr;
 
@@ -95,6 +99,20 @@ inline v8::Local<v8::Object> NewInstance(
     int argc = 0,
     v8::Handle<v8::Value>* argv = NULL);
 
+// Convenience wrapper around v8::String::NewFromOneByte().
+inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
+                                           const char* data,
+                                           int length = -1);
+
+// For the people that compile with -funsigned-char.
+inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
+                                           const signed char* data,
+                                           int length = -1);
+
+inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
+                                           const unsigned char* data,
+                                           int length = -1);
+
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
 // If |info| is omitted, a new object is returned.
@@ -157,7 +175,7 @@ inline static int snprintf(char* buf, unsigned int len, const char* fmt, ...) {
 #define THROW_ERROR(fun)                                                      \
   do {                                                                        \
     v8::HandleScope scope(node_isolate);                                      \
-    v8::ThrowException(fun(v8::String::New(errmsg)));                         \
+    v8::ThrowException(fun(OneByteString(node_isolate, errmsg)));             \
   }                                                                           \
   while (0)
 
@@ -331,6 +349,33 @@ inline v8::Local<v8::Object> NewInstance(
   v8::Local<v8::Function> constructor_handle =
       PersistentToLocal(node_isolate, ctor);
   return constructor_handle->NewInstance(argc, argv);
+}
+
+inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
+                                           const char* data,
+                                           int length) {
+  return v8::String::NewFromOneByte(isolate,
+                                    reinterpret_cast<const uint8_t*>(data),
+                                    v8::String::kNormalString,
+                                    length);
+}
+
+inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
+                                           const signed char* data,
+                                           int length) {
+  return v8::String::NewFromOneByte(isolate,
+                                    reinterpret_cast<const uint8_t*>(data),
+                                    v8::String::kNormalString,
+                                    length);
+}
+
+inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
+                                           const unsigned char* data,
+                                           int length) {
+  return v8::String::NewFromOneByte(isolate,
+                                    reinterpret_cast<const uint8_t*>(data),
+                                    v8::String::kNormalString,
+                                    length);
 }
 
 }  // namespace node

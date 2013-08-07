@@ -118,9 +118,10 @@ void CloneObject(Handle<Object> recv,
       "});                                                            \n";
 
   Local<String> script_source =
-      String::New(raw_script_source, sizeof(raw_script_source) - 1);
-  Local<Script> script =
-      Script::Compile(script_source, String::New("binding:script"));
+      FIXED_ONE_BYTE_STRING(node_isolate, raw_script_source);
+  Local<String> script_name =
+      FIXED_ONE_BYTE_STRING(node_isolate, "binding:script");
+  Local<Script> script = Script::Compile(script_source, script_name);
 
   Local<Function> fun = script->Run().As<Function>();
   assert(fun.IsEmpty() == false);
@@ -137,9 +138,9 @@ void WrappedContext::Initialize(Handle<Object> target) {
 
   Local<FunctionTemplate> t = FunctionTemplate::New(WrappedContext::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(String::NewSymbol("Context"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "Context"));
 
-  target->Set(String::NewSymbol("Context"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "Context"), t->GetFunction());
   constructor_template.Reset(node_isolate, t);
 }
 
@@ -186,7 +187,7 @@ void WrappedScript::Initialize(Handle<Object> target) {
   // Note: We use 'NodeScript' instead of 'Script' so that we do not
   // conflict with V8's Script class defined in v8/src/messages.js
   // See GH-203 https://github.com/joyent/node/issues/203
-  t->SetClassName(String::NewSymbol("NodeScript"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "NodeScript"));
 
   NODE_SET_PROTOTYPE_METHOD(t,
                             "createContext",
@@ -220,7 +221,8 @@ void WrappedScript::Initialize(Handle<Object> target) {
                   "runInNewContext",
                   WrappedScript::CompileRunInNewContext);
 
-  target->Set(String::NewSymbol("NodeScript"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "NodeScript"),
+              t->GetFunction());
 }
 
 
@@ -328,9 +330,12 @@ void WrappedScript::EvalMachine(const FunctionCallbackInfo<Value>& args) {
 
   const int filename_index = sandbox_index +
                              (context_flag == thisContext? 0 : 1);
-  Local<String> filename = args.Length() > filename_index
-                           ? args[filename_index]->ToString()
-                           : String::New("evalmachine.<anonymous>");
+  Local<String> filename;
+  if (args.Length() > filename_index) {
+    filename = args[filename_index]->ToString();
+  } else {
+    filename = FIXED_ONE_BYTE_STRING(node_isolate, "evalmachine.<anonymous>");
+  }
 
   uint64_t timeout = 0;
   const int timeout_index = filename_index + 1;

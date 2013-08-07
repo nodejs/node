@@ -78,13 +78,13 @@ void PipeWrap::Initialize(Handle<Object> target) {
   HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
-  t->SetClassName(String::NewSymbol("Pipe"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "Pipe"));
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(String::New("fd"),
+  t->InstanceTemplate()->SetAccessor(FIXED_ONE_BYTE_STRING(node_isolate, "fd"),
                                      StreamWrap::GetFD,
                                      NULL,
                                      Handle<Value>(),
@@ -117,7 +117,7 @@ void PipeWrap::Initialize(Handle<Object> target) {
 
   pipeConstructorTmpl.Reset(node_isolate, t);
   pipeConstructor.Reset(node_isolate, t->GetFunction());
-  target->Set(String::NewSymbol("Pipe"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "Pipe"), t->GetFunction());
 }
 
 
@@ -214,7 +214,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   // Successful accept. Call the onconnection callback in JavaScript land.
   argv[1] = client_obj;
   if (onconnection_sym.IsEmpty()) {
-    onconnection_sym = String::New("onconnection");
+    onconnection_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onconnection");
   }
   MakeCallback(wrap->object(), onconnection_sym, ARRAY_SIZE(argv), argv);
 }
@@ -249,7 +249,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
   };
 
   if (oncomplete_sym.IsEmpty()) {
-    oncomplete_sym = String::New("oncomplete");
+    oncomplete_sym = FIXED_ONE_BYTE_STRING(node_isolate, "oncomplete");
   }
   MakeCallback(req_wrap_obj, oncomplete_sym, ARRAY_SIZE(argv), argv);
 

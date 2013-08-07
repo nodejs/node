@@ -63,11 +63,11 @@ void StreamWrap::Initialize(Handle<Object> target) {
   initialized = true;
 
   HandleScope scope(node_isolate);
-  buffer_sym = String::New("buffer");
-  bytes_sym = String::New("bytes");
-  write_queue_size_sym = String::New("writeQueueSize");
-  onread_sym = String::New("onread");
-  oncomplete_sym = String::New("oncomplete");
+  buffer_sym = FIXED_ONE_BYTE_STRING(node_isolate, "buffer");
+  bytes_sym = FIXED_ONE_BYTE_STRING(node_isolate, "bytes");
+  write_queue_size_sym = FIXED_ONE_BYTE_STRING(node_isolate, "writeQueueSize");
+  onread_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onread");
+  oncomplete_sym = FIXED_ONE_BYTE_STRING(node_isolate, "oncomplete");
 }
 
 
@@ -299,7 +299,7 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
       // Reference StreamWrap instance to prevent it from being garbage
       // collected before `AfterWrite` is called.
       if (handle_sym.IsEmpty()) {
-        handle_sym = String::New("handle");
+        handle_sym = FIXED_ONE_BYTE_STRING(node_isolate, "handle");
       }
       assert(!req_wrap->persistent().IsEmpty());
       req_wrap->object()->Set(handle_sym, send_handle_obj);

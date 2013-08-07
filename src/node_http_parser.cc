@@ -179,7 +179,7 @@ struct StringPtr {
 
   Local<String> ToString() const {
     if (str_)
-      return String::New(str_, size_);
+      return OneByteString(node_isolate, str_, size_);
     else
       return String::Empty(node_isolate);
   }
@@ -433,10 +433,12 @@ class Parser : public ObjectWrap {
     if (!parser->parser_.upgrade && nparsed != buffer_len) {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
 
-      Local<Value> e = Exception::Error(String::NewSymbol("Parse Error"));
+      Local<Value> e = Exception::Error(
+          FIXED_ONE_BYTE_STRING(node_isolate, "Parse Error"));
       Local<Object> obj = e->ToObject();
-      obj->Set(String::NewSymbol("bytesParsed"), nparsed_obj);
-      obj->Set(String::NewSymbol("code"), String::New(http_errno_name(err)));
+      obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "bytesParsed"), nparsed_obj);
+      obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "code"),
+               OneByteString(node_isolate, http_errno_name(err)));
       args.GetReturnValue().Set(e);
     } else {
       args.GetReturnValue().Set(nparsed_obj);
@@ -459,10 +461,13 @@ class Parser : public ObjectWrap {
     if (rv != 0) {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
 
-      Local<Value> e = Exception::Error(String::NewSymbol("Parse Error"));
+      Local<Value> e = Exception::Error(
+          FIXED_ONE_BYTE_STRING(node_isolate, "Parse Error"));
       Local<Object> obj = e->ToObject();
-      obj->Set(String::NewSymbol("bytesParsed"), Integer::New(0, node_isolate));
-      obj->Set(String::NewSymbol("code"), String::New(http_errno_name(err)));
+      obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "bytesParsed"),
+               Integer::New(0, node_isolate));
+      obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "code"),
+               OneByteString(node_isolate, http_errno_name(err)));
       args.GetReturnValue().Set(e);
     }
   }
@@ -547,38 +552,45 @@ void InitHttpParser(Handle<Object> target) {
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(String::NewSymbol("HTTPParser"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "HTTPParser"));
 
-  t->Set(String::NewSymbol("REQUEST"),
+  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "REQUEST"),
          Integer::New(HTTP_REQUEST, node_isolate));
-  t->Set(String::NewSymbol("RESPONSE"),
+  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "RESPONSE"),
          Integer::New(HTTP_RESPONSE, node_isolate));
 
   NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
   NODE_SET_PROTOTYPE_METHOD(t, "finish", Parser::Finish);
   NODE_SET_PROTOTYPE_METHOD(t, "reinitialize", Parser::Reinitialize);
 
-  target->Set(String::NewSymbol("HTTPParser"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "HTTPParser"),
+              t->GetFunction());
 
-  on_headers_sym          = String::New("onHeaders");
-  on_headers_complete_sym = String::New("onHeadersComplete");
-  on_body_sym             = String::New("onBody");
-  on_message_complete_sym = String::New("onMessageComplete");
+  on_headers_sym =
+      FIXED_ONE_BYTE_STRING(node_isolate, "onHeaders");
+  on_headers_complete_sym =
+      FIXED_ONE_BYTE_STRING(node_isolate, "onHeadersComplete");
+  on_body_sym =
+      FIXED_ONE_BYTE_STRING(node_isolate, "onBody");
+  on_message_complete_sym =
+      FIXED_ONE_BYTE_STRING(node_isolate, "onMessageComplete");
 
-#define X(num, name, string) name##_sym = String::New(#string);
+#define X(num, name, string)                                                  \
+  name ## _sym = OneByteString(node_isolate, #string);
   HTTP_METHOD_MAP(X)
 #undef X
-  unknown_method_sym = String::New("UNKNOWN_METHOD");
+  unknown_method_sym = FIXED_ONE_BYTE_STRING(node_isolate, "UNKNOWN_METHOD");
 
-  method_sym = String::New("method");
-  status_code_sym = String::New("statusCode");
-  http_version_sym = String::New("httpVersion");
-  version_major_sym = String::New("versionMajor");
-  version_minor_sym = String::New("versionMinor");
-  should_keep_alive_sym = String::New("shouldKeepAlive");
-  upgrade_sym = String::New("upgrade");
-  headers_sym = String::New("headers");
-  url_sym = String::New("url");
+  method_sym = FIXED_ONE_BYTE_STRING(node_isolate, "method");
+  status_code_sym = FIXED_ONE_BYTE_STRING(node_isolate, "statusCode");
+  http_version_sym = FIXED_ONE_BYTE_STRING(node_isolate, "httpVersion");
+  version_major_sym = FIXED_ONE_BYTE_STRING(node_isolate, "versionMajor");
+  version_minor_sym = FIXED_ONE_BYTE_STRING(node_isolate, "versionMinor");
+  should_keep_alive_sym =
+      FIXED_ONE_BYTE_STRING(node_isolate, "shouldKeepAlive");
+  upgrade_sym = FIXED_ONE_BYTE_STRING(node_isolate, "upgrade");
+  headers_sym = FIXED_ONE_BYTE_STRING(node_isolate, "headers");
+  url_sym = FIXED_ONE_BYTE_STRING(node_isolate, "url");
 
   settings.on_message_begin    = Parser::on_message_begin;
   settings.on_url              = Parser::on_url;

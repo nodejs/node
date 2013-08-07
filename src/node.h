@@ -129,20 +129,30 @@ void EmitExit(v8::Handle<v8::Object> process);
 #define NODE_UNIXTIME_V8(t) v8::Date::New(1000*static_cast<double>(t))
 #define NODE_V8_UNIXTIME(v) (static_cast<double>((v)->NumberValue())/1000.0);
 
-#define NODE_DEFINE_CONSTANT(target, constant)                            \
-  (target)->Set(v8::String::NewSymbol(#constant),                         \
-                v8::Number::New(constant),                                \
-                static_cast<v8::PropertyAttribute>(                       \
-                    v8::ReadOnly|v8::DontDelete))
+// Used to be a macro, hence the uppercase name.
+#define NODE_DEFINE_CONSTANT(target, constant)                                \
+  do {                                                                        \
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();                         \
+    v8::Local<v8::String> constant_name =                                     \
+        v8::String::NewFromUtf8(isolate, #constant);                          \
+    v8::Local<v8::Number> constant_value =                                    \
+        v8::Number::New(isolate, static_cast<double>(constant));              \
+    v8::PropertyAttribute constant_attributes =                               \
+        static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);    \
+    (target)->Set(constant_name, constant_value, constant_attributes);        \
+  }                                                                           \
+  while (0)
 
 // Used to be a macro, hence the uppercase name.
 template <typename TypeName>
 inline void NODE_SET_METHOD(const TypeName& recv,
                             const char* name,
                             v8::FunctionCallback callback) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handle_scope(isolate);
   v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(callback);
   v8::Local<v8::Function> fn = t->GetFunction();
-  v8::Local<v8::String> fn_name = v8::String::New(name);
+  v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name);
   fn->SetName(fn_name);
   recv->Set(fn_name, fn);
 }
@@ -153,8 +163,11 @@ inline void NODE_SET_METHOD(const TypeName& recv,
 inline void NODE_SET_PROTOTYPE_METHOD(v8::Handle<v8::FunctionTemplate> recv,
                                       const char* name,
                                       v8::FunctionCallback callback) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handle_scope(isolate);
   v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(callback);
-  recv->PrototypeTemplate()->Set(v8::String::New(name), t->GetFunction());
+  recv->PrototypeTemplate()->Set(v8::String::NewFromUtf8(isolate, name),
+                                 t->GetFunction());
 }
 #define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
 

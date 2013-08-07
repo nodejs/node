@@ -294,7 +294,7 @@ class ZCtx : public ObjectWrap {
     assert(handle->Get(onerror_sym)->IsFunction() && "Invalid error handler");
     HandleScope scope(node_isolate);
     Local<Value> args[2] = {
-      String::New(msg),
+      OneByteString(node_isolate, msg),
       Number::New(ctx->err_)
     };
     MakeCallback(handle, onerror_sym, ARRAY_SIZE(args), args);
@@ -543,11 +543,11 @@ void InitZlib(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(z, "params", ZCtx::Params);
   NODE_SET_PROTOTYPE_METHOD(z, "reset", ZCtx::Reset);
 
-  z->SetClassName(String::NewSymbol("Zlib"));
-  target->Set(String::NewSymbol("Zlib"), z->GetFunction());
+  z->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "Zlib"));
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "Zlib"), z->GetFunction());
 
-  callback_sym = String::New("callback");
-  onerror_sym = String::New("onerror");
+  callback_sym = FIXED_ONE_BYTE_STRING(node_isolate, "callback");
+  onerror_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onerror");
 
   // valid flush values.
   NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);
@@ -587,7 +587,8 @@ void InitZlib(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, INFLATERAW);
   NODE_DEFINE_CONSTANT(target, UNZIP);
 
-  target->Set(String::NewSymbol("ZLIB_VERSION"), String::New(ZLIB_VERSION));
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "ZLIB_VERSION"),
+              FIXED_ONE_BYTE_STRING(node_isolate, ZLIB_VERSION));
 }
 
 }  // namespace node

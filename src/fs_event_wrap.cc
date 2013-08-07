@@ -75,16 +75,16 @@ void FSEventWrap::Initialize(Handle<Object> target) {
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(String::NewSymbol("FSEvent"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "FSEvent"));
 
   NODE_SET_PROTOTYPE_METHOD(t, "start", Start);
   NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
 
-  target->Set(String::New("FSEvent"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "FSEvent"), t->GetFunction());
 
-  change_sym = String::New("change");
-  onchange_sym = String::New("onchange");
-  rename_sym = String::New("rename");
+  change_sym = FIXED_ONE_BYTE_STRING(node_isolate, "change");
+  onchange_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onchange");
+  rename_sym = FIXED_ONE_BYTE_STRING(node_isolate, "rename");
 }
 
 
@@ -161,7 +161,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   };
 
   if (filename != NULL) {
-    argv[2] = String::New(filename);
+    argv[2] = OneByteString(node_isolate, filename);
   }
 
   MakeCallback(wrap->object(), onchange_sym, ARRAY_SIZE(argv), argv);

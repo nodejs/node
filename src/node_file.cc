@@ -169,7 +169,8 @@ static void After(uv_fs_t *req) {
         break;
 
       case UV_FS_READLINK:
-        argv[1] = String::New(static_cast<char*>(req->ptr));
+        argv[1] = String::NewFromUtf8(node_isolate,
+                                      static_cast<const char*>(req->ptr));
         break;
 
       case UV_FS_READ:
@@ -185,7 +186,7 @@ static void After(uv_fs_t *req) {
           Local<Array> names = Array::New(nnames);
 
           for (int i = 0; i < nnames; i++) {
-            Local<String> name = String::New(namebuf);
+            Local<String> name = String::NewFromUtf8(node_isolate, namebuf);
             names->Set(Integer::New(i, node_isolate), name);
 #ifndef NDEBUG
             namebuf += strlen(namebuf);
@@ -206,7 +207,7 @@ static void After(uv_fs_t *req) {
   }
 
   if (oncomplete_sym.IsEmpty()) {
-    oncomplete_sym = String::New("oncomplete");
+    oncomplete_sym = FIXED_ONE_BYTE_STRING(node_isolate, "oncomplete");
   }
   MakeCallback(req_wrap->object(), oncomplete_sym, argc, argv);
 
@@ -290,19 +291,19 @@ Local<Object> BuildStatsObject(const uv_stat_t* s) {
   HandleScope scope(node_isolate);
 
   if (dev_symbol.IsEmpty()) {
-    dev_symbol = String::New("dev");
-    ino_symbol = String::New("ino");
-    mode_symbol = String::New("mode");
-    nlink_symbol = String::New("nlink");
-    uid_symbol = String::New("uid");
-    gid_symbol = String::New("gid");
-    rdev_symbol = String::New("rdev");
-    size_symbol = String::New("size");
-    blksize_symbol = String::New("blksize");
-    blocks_symbol = String::New("blocks");
-    atime_symbol = String::New("atime");
-    mtime_symbol = String::New("mtime");
-    ctime_symbol = String::New("ctime");
+    dev_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "dev");
+    ino_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "ino");
+    mode_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "mode");
+    nlink_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "nlink");
+    uid_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "uid");
+    gid_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "gid");
+    rdev_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "rdev");
+    size_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "size");
+    blksize_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "blksize");
+    blocks_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "blocks");
+    atime_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "atime");
+    mtime_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "mtime");
+    ctime_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "ctime");
   }
 
   Local<Function> constructor =
@@ -481,8 +482,9 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
     ASYNC_CALL(readlink, args[1], *path)
   } else {
     SYNC_CALL(readlink, *path, *path)
-    args.GetReturnValue().Set(
-        String::New(static_cast<const char*>(SYNC_REQ.ptr)));
+    const char* link_path = static_cast<const char*>(SYNC_REQ.ptr);
+    Local<String> rc = String::NewFromUtf8(node_isolate, link_path);
+    args.GetReturnValue().Set(rc);
   }
 }
 
@@ -621,7 +623,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     Local<Array> names = Array::New(nnames);
 
     for (int i = 0; i < nnames; i++) {
-      Local<String> name = String::New(namebuf);
+      Local<String> name = String::NewFromUtf8(node_isolate, namebuf);
       names->Set(Integer::New(i, node_isolate), name);
 #ifndef NDEBUG
       namebuf += strlen(namebuf);
@@ -1005,12 +1007,12 @@ void InitFs(Handle<Object> target) {
 
   // Initialize the stats object
   Local<Function> constructor = FunctionTemplate::New()->GetFunction();
-  target->Set(String::NewSymbol("Stats"), constructor);
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "Stats"), constructor);
   stats_constructor.Reset(node_isolate, constructor);
 
   File::Initialize(target);
 
-  oncomplete_sym = String::New("oncomplete");
+  oncomplete_sym = FIXED_ONE_BYTE_STRING(node_isolate, "oncomplete");
 
   StatWatcher::Initialize(target);
 }

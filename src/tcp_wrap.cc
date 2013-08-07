@@ -72,13 +72,13 @@ void TCPWrap::Initialize(Handle<Object> target) {
   HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
-  t->SetClassName(String::NewSymbol("TCP"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "TCP"));
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(String::New("fd"),
+  t->InstanceTemplate()->SetAccessor(FIXED_ONE_BYTE_STRING(node_isolate, "fd"),
                                      StreamWrap::GetFD,
                                      NULL,
                                      Handle<Value>(),
@@ -119,12 +119,12 @@ void TCPWrap::Initialize(Handle<Object> target) {
                             SetSimultaneousAccepts);
 #endif
 
-  onconnection_sym = String::New("onconnection");
-  oncomplete_sym = String::New("oncomplete");
+  onconnection_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onconnection");
+  oncomplete_sym = FIXED_ONE_BYTE_STRING(node_isolate, "oncomplete");
 
   tcpConstructorTmpl.Reset(node_isolate, t);
   tcpConstructor.Reset(node_isolate, t->GetFunction());
-  target->Set(String::NewSymbol("TCP"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "TCP"), t->GetFunction());
 }
 
 
@@ -431,11 +431,11 @@ Local<Object> AddressToJS(const sockaddr* addr, Handle<Object> info) {
   int port;
 
   if (address_sym.IsEmpty()) {
-    address_sym = String::New("address");
-    family_sym = String::New("family");
-    port_sym = String::New("port");
-    ipv4_sym = String::New("IPv4");
-    ipv6_sym = String::New("IPv6");
+    address_sym = FIXED_ONE_BYTE_STRING(node_isolate, "address");
+    family_sym = FIXED_ONE_BYTE_STRING(node_isolate, "family");
+    port_sym = FIXED_ONE_BYTE_STRING(node_isolate, "port");
+    ipv4_sym = FIXED_ONE_BYTE_STRING(node_isolate, "IPv4");
+    ipv6_sym = FIXED_ONE_BYTE_STRING(node_isolate, "IPv6");
   }
 
   if (info.IsEmpty()) info = Object::New();
@@ -445,7 +445,7 @@ Local<Object> AddressToJS(const sockaddr* addr, Handle<Object> info) {
     a6 = reinterpret_cast<const sockaddr_in6*>(addr);
     uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
     port = ntohs(a6->sin6_port);
-    info->Set(address_sym, String::New(ip));
+    info->Set(address_sym, OneByteString(node_isolate, ip));
     info->Set(family_sym, ipv6_sym);
     info->Set(port_sym, Integer::New(port, node_isolate));
     break;
@@ -454,7 +454,7 @@ Local<Object> AddressToJS(const sockaddr* addr, Handle<Object> info) {
     a4 = reinterpret_cast<const sockaddr_in*>(addr);
     uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
     port = ntohs(a4->sin_port);
-    info->Set(address_sym, String::New(ip));
+    info->Set(address_sym, OneByteString(node_isolate, ip));
     info->Set(family_sym, ipv4_sym);
     info->Set(port_sym, Integer::New(port, node_isolate));
     break;

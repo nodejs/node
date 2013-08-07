@@ -76,7 +76,9 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   wrap->handle__ = NULL;
 
   if (args[0]->IsFunction()) {
-    if (close_sym.IsEmpty() == true) close_sym = String::New("close");
+    if (close_sym.IsEmpty() == true) {
+      close_sym = FIXED_ONE_BYTE_STRING(node_isolate, "close");
+    }
     wrap->object()->Set(close_sym, args[0]);
     wrap->flags_ |= kCloseCallback;
   }

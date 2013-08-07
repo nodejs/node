@@ -44,7 +44,7 @@ class TimerWrap : public HandleWrap {
 
     Local<FunctionTemplate> constructor = FunctionTemplate::New(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
-    constructor->SetClassName(String::NewSymbol("Timer"));
+    constructor->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "Timer"));
 
     NODE_SET_METHOD(constructor, "now", Now);
 
@@ -58,9 +58,10 @@ class TimerWrap : public HandleWrap {
     NODE_SET_PROTOTYPE_METHOD(constructor, "getRepeat", GetRepeat);
     NODE_SET_PROTOTYPE_METHOD(constructor, "again", Again);
 
-    ontimeout_sym = String::New("ontimeout");
+    ontimeout_sym = FIXED_ONE_BYTE_STRING(node_isolate, "ontimeout");
 
-    target->Set(String::NewSymbol("Timer"), constructor->GetFunction());
+    target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "Timer"),
+                constructor->GetFunction());
   }
 
  private:

@@ -37,7 +37,7 @@ using v8::Object;
 using v8::String;
 
 Handle<String> MainSource() {
-  return String::New(node_native, sizeof(node_native) - 1);
+  return OneByteString(node_isolate, node_native, sizeof(node_native) - 1);
 }
 
 void DefineJavaScript(Handle<Object> target) {
@@ -45,9 +45,11 @@ void DefineJavaScript(Handle<Object> target) {
 
   for (int i = 0; natives[i].name; i++) {
     if (natives[i].source != node_native) {
-      Local<String> name = String::New(natives[i].name);
-      Handle<String> source = String::New(natives[i].source,
-                                                      natives[i].source_len);
+      Local<String> name = String::NewFromUtf8(node_isolate, natives[i].name);
+      Handle<String> source = String::NewFromUtf8(node_isolate,
+                                                  natives[i].source,
+                                                  String::kNormalString,
+                                                  natives[i].source_len);
       target->Set(name, source);
     }
   }

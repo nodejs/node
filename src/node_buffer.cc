@@ -559,13 +559,14 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   Local<Function> bv = args[0].As<Function>();
   p_buffer_fn.Reset(node_isolate, bv);
-  Local<Value> proto_v = bv->Get(String::New("prototype"));
+  Local<Value> proto_v =
+      bv->Get(FIXED_ONE_BYTE_STRING(node_isolate, "prototype"));
 
   assert(proto_v->IsObject());
 
   Local<Object> proto = proto_v.As<Object>();
 
-  bv->Set(String::New("byteLength"),
+  bv->Set(FIXED_ONE_BYTE_STRING(node_isolate, "byteLength"),
           FunctionTemplate::New(ByteLength)->GetFunction());
 
   NODE_SET_METHOD(proto, "asciiSlice", AsciiSlice);
@@ -596,14 +597,16 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   NODE_SET_METHOD(proto, "fill", Fill);
 
   // for backwards compatibility
-  proto->Set(String::New("offset"), Uint32::New(0, node_isolate), v8::ReadOnly);
+  proto->Set(FIXED_ONE_BYTE_STRING(node_isolate, "offset"),
+             Uint32::New(0, node_isolate),
+             v8::ReadOnly);
 }
 
 
 void Initialize(Handle<Object> target) {
   HandleScope scope(node_isolate);
 
-  target->Set(String::New("setupBufferJS"),
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "setupBufferJS"),
               FunctionTemplate::New(SetupBufferJS)->GetFunction());
 }
 

@@ -114,7 +114,7 @@ void InitPerfCounters(Handle<Object> target) {
   };
 
   for (int i = 0; i < ARRAY_SIZE(tab); i++) {
-    Local<String> key = String::New(tab[i].name);
+    Local<String> key = OneByteString(node_isolate, tab[i].name);
     Local<Value> val = FunctionTemplate::New(tab[i].func)->GetFunction();
     target->Set(key, val);
   }

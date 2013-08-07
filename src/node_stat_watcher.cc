@@ -46,12 +46,13 @@ void StatWatcher::Initialize(Handle<Object> target) {
 
   Local<FunctionTemplate> t = FunctionTemplate::New(StatWatcher::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(String::NewSymbol("StatWatcher"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "StatWatcher"));
 
   NODE_SET_PROTOTYPE_METHOD(t, "start", StatWatcher::Start);
   NODE_SET_PROTOTYPE_METHOD(t, "stop", StatWatcher::Stop);
 
-  target->Set(String::NewSymbol("StatWatcher"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "StatWatcher"),
+              t->GetFunction());
 }
 
 
@@ -85,7 +86,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   argv[1] = BuildStatsObject(prev);
   argv[2] = Integer::New(status, node_isolate);
   if (onchange_sym.IsEmpty()) {
-    onchange_sym = String::New("onchange");
+    onchange_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onchange");
   }
   MakeCallback(wrap->handle(node_isolate),
                onchange_sym,
@@ -121,7 +122,7 @@ void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   StatWatcher* wrap = ObjectWrap::Unwrap<StatWatcher>(args.This());
   if (onstop_sym.IsEmpty()) {
-    onstop_sym = String::New("onstop");
+    onstop_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onstop");
   }
   MakeCallback(wrap->handle(node_isolate), onstop_sym, 0, NULL);
   wrap->Stop();
