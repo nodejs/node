@@ -76,9 +76,9 @@ void StreamWrap::Initialize(Handle<Object> target) {
 
 StreamWrap::StreamWrap(Handle<Object> object, uv_stream_t* stream)
     : HandleWrap(object, reinterpret_cast<uv_handle_t*>(stream)),
-      default_callbacks_(this) {
-  stream_ = stream;
-  callbacks_ = &default_callbacks_;
+      stream_(stream),
+      default_callbacks_(this),
+      callbacks_(&default_callbacks_) {
 }
 
 
@@ -87,7 +87,9 @@ void StreamWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   UNWRAP_NO_ABORT(StreamWrap)
   int fd = -1;
-  if (wrap != NULL && wrap->stream_ != NULL) fd = wrap->stream_->io_watcher.fd;
+  if (wrap != NULL && wrap->stream() != NULL) {
+    fd = wrap->stream()->io_watcher.fd;
+  }
   args.GetReturnValue().Set(fd);
 #endif
 }
@@ -96,7 +98,7 @@ void StreamWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 void StreamWrap::UpdateWriteQueueSize() {
   HandleScope scope(node_isolate);
   object()->Set(write_queue_size_sym,
-                Integer::New(stream_->write_queue_size, node_isolate));
+                Integer::New(stream()->write_queue_size, node_isolate));
 }
 
 
@@ -105,13 +107,13 @@ void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(StreamWrap)
 
-  bool ipc_pipe = wrap->stream_->type == UV_NAMED_PIPE &&
-                  reinterpret_cast<uv_pipe_t*>(wrap->stream_)->ipc;
+  bool ipc_pipe = wrap->stream()->type == UV_NAMED_PIPE &&
+                  reinterpret_cast<uv_pipe_t*>(wrap->stream())->ipc;
   int err;
   if (ipc_pipe) {
-    err = uv_read2_start(wrap->stream_, OnAlloc, OnRead2);
+    err = uv_read2_start(wrap->stream(), OnAlloc, OnRead2);
   } else {
-    err = uv_read_start(wrap->stream_, OnAlloc, OnRead);
+    err = uv_read_start(wrap->stream(), OnAlloc, OnRead);
   }
 
   args.GetReturnValue().Set(err);
@@ -123,16 +125,15 @@ void StreamWrap::ReadStop(const FunctionCallbackInfo<Value>& args) {
 
   UNWRAP(StreamWrap)
 
-  int err = uv_read_stop(wrap->stream_);
+  int err = uv_read_stop(wrap->stream());
   args.GetReturnValue().Set(err);
 }
 
 
 uv_buf_t StreamWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size) {
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
-  assert(wrap->stream_ == reinterpret_cast<uv_stream_t*>(handle));
-
-  return wrap->callbacks_->DoAlloc(handle, suggested_size);
+  assert(wrap->stream() == reinterpret_cast<uv_stream_t*>(handle));
+  return wrap->callbacks()->DoAlloc(handle, suggested_size);
 }
 
 
@@ -171,14 +172,14 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
   assert(wrap->persistent().IsEmpty() == false);
 
   if (nread > 0) {
-    if (wrap->stream_->type == UV_TCP) {
+    if (wrap->stream()->type == UV_TCP) {
       NODE_COUNT_NET_BYTES_RECV(nread);
-    } else if (wrap->stream_->type == UV_NAMED_PIPE) {
+    } else if (wrap->stream()->type == UV_NAMED_PIPE) {
       NODE_COUNT_PIPE_BYTES_RECV(nread);
     }
   }
 
-  wrap->callbacks_->DoRead(handle, nread, buf, pending);
+  wrap->callbacks()->DoRead(handle, nread, buf, pending);
 }
 
 
@@ -224,11 +225,11 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   uv_buf_t buf;
   WriteBuffer(buf_obj, &buf);
 
-  int err = wrap->callbacks_->DoWrite(req_wrap,
-                                      &buf,
-                                      1,
-                                      NULL,
-                                      StreamWrap::AfterWrite);
+  int err = wrap->callbacks()->DoWrite(req_wrap,
+                                       &buf,
+                                       1,
+                                       NULL,
+                                       StreamWrap::AfterWrite);
   req_wrap->Dispatched();
   req_wrap_obj->Set(bytes_sym, Integer::NewFromUnsigned(length, node_isolate));
 
@@ -284,15 +285,15 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   buf.base = data;
   buf.len = data_size;
 
-  bool ipc_pipe = wrap->stream_->type == UV_NAMED_PIPE &&
-                  reinterpret_cast<uv_pipe_t*>(wrap->stream_)->ipc;
+  bool ipc_pipe = wrap->stream()->type == UV_NAMED_PIPE &&
+                  reinterpret_cast<uv_pipe_t*>(wrap->stream())->ipc;
 
   if (!ipc_pipe) {
-    err = wrap->callbacks_->DoWrite(req_wrap,
-                                    &buf,
-                                    1,
-                                    NULL,
-                                    StreamWrap::AfterWrite);
+    err = wrap->callbacks()->DoWrite(req_wrap,
+                                     &buf,
+                                     1,
+                                     NULL,
+                                     StreamWrap::AfterWrite);
   } else {
     uv_handle_t* send_handle = NULL;
 
@@ -312,11 +313,11 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
       req_wrap->object()->Set(handle_sym, send_handle_obj);
     }
 
-    err = wrap->callbacks_->DoWrite(req_wrap,
-                                    &buf,
-                                    1,
-                                    reinterpret_cast<uv_stream_t*>(send_handle),
-                                    StreamWrap::AfterWrite);
+    err = wrap->callbacks()->DoWrite(req_wrap,
+                                     &buf,
+                                     1,
+                                     reinterpret_cast<uv_stream_t*>(send_handle),
+                                     StreamWrap::AfterWrite);
   }
 
   req_wrap->Dispatched();
@@ -407,11 +408,11 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
     bytes += str_size;
   }
 
-  int err = wrap->callbacks_->DoWrite(req_wrap,
-                                      bufs,
-                                      count,
-                                      NULL,
-                                      StreamWrap::AfterWrite);
+  int err = wrap->callbacks()->DoWrite(req_wrap,
+                                       bufs,
+                                       count,
+                                       NULL,
+                                       StreamWrap::AfterWrite);
 
   // Deallocate space
   if (bufs != bufs_)
@@ -446,7 +447,7 @@ void StreamWrap::WriteUcs2String(const FunctionCallbackInfo<Value>& args) {
 
 void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   WriteWrap* req_wrap = container_of(req, WriteWrap, req_);
-  StreamWrap* wrap = req_wrap->wrap_;
+  StreamWrap* wrap = req_wrap->wrap();
 
   HandleScope scope(node_isolate);
 
@@ -460,7 +461,7 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
     req_wrap_obj->Delete(handle_sym);
   }
 
-  wrap->callbacks_->AfterWrite(req_wrap);
+  wrap->callbacks()->AfterWrite(req_wrap);
 
   Local<Value> argv[] = {
     Integer::New(status, node_isolate),
@@ -484,7 +485,7 @@ void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
   Local<Object> req_wrap_obj = args[0].As<Object>();
 
   ShutdownWrap* req_wrap = new ShutdownWrap(req_wrap_obj);
-  int err = wrap->callbacks_->DoShutdown(req_wrap, AfterShutdown);
+  int err = wrap->callbacks()->DoShutdown(req_wrap, AfterShutdown);
   req_wrap->Dispatched();
   if (err) delete req_wrap;
   args.GetReturnValue().Set(err);
@@ -521,30 +522,30 @@ int StreamWrapCallbacks::DoWrite(WriteWrap* w,
                                  uv_write_cb cb) {
   int r;
   if (send_handle == NULL) {
-    r = uv_write(&w->req_, wrap_->stream_, bufs, count, cb);
+    r = uv_write(&w->req_, wrap()->stream(), bufs, count, cb);
   } else {
-    r = uv_write2(&w->req_, wrap_->stream_, bufs, count, send_handle, cb);
+    r = uv_write2(&w->req_, wrap()->stream(), bufs, count, send_handle, cb);
   }
 
   if (!r) {
     size_t bytes = 0;
     for (size_t i = 0; i < count; i++)
       bytes += bufs[i].len;
-    if (wrap_->stream_->type == UV_TCP) {
+    if (wrap()->stream()->type == UV_TCP) {
       NODE_COUNT_NET_BYTES_SENT(bytes);
-    } else if (wrap_->stream_->type == UV_NAMED_PIPE) {
+    } else if (wrap()->stream()->type == UV_NAMED_PIPE) {
       NODE_COUNT_PIPE_BYTES_SENT(bytes);
     }
   }
 
-  wrap_->UpdateWriteQueueSize();
+  wrap()->UpdateWriteQueueSize();
 
   return r;
 }
 
 
 void StreamWrapCallbacks::AfterWrite(WriteWrap* w) {
-  wrap_->UpdateWriteQueueSize();
+  wrap()->UpdateWriteQueueSize();
 }
 
 
@@ -603,17 +604,17 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
     argv[2] = pending_obj;
   }
 
-  MakeCallback(wrap_->object(), onread_sym, ARRAY_SIZE(argv), argv);
+  MakeCallback(wrap()->object(), onread_sym, ARRAY_SIZE(argv), argv);
 }
 
 
 int StreamWrapCallbacks::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
-  return uv_shutdown(&req_wrap->req_, wrap_->stream_, cb);
+  return uv_shutdown(&req_wrap->req_, wrap()->stream(), cb);
 }
 
 
 Handle<Object> StreamWrapCallbacks::Self() {
-  return wrap_->object();
+  return wrap()->object();
 }
 
 }  // namespace node

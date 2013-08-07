@@ -37,9 +37,9 @@ typedef class ReqWrap<uv_shutdown_t> ShutdownWrap;
 
 class WriteWrap: public ReqWrap<uv_write_t> {
  public:
-  explicit WriteWrap(v8::Local<v8::Object> obj, StreamWrap* wrap)
-      : ReqWrap<uv_write_t>(obj) {
-    wrap_ = wrap;
+  WriteWrap(v8::Local<v8::Object> obj, StreamWrap* wrap)
+      : ReqWrap<uv_write_t>(obj)
+      , wrap_(wrap) {
   }
 
   void* operator new(size_t size, char* storage) { return storage; }
@@ -48,13 +48,17 @@ class WriteWrap: public ReqWrap<uv_write_t> {
   // we don't use exceptions in node.
   void operator delete(void* ptr, char* storage) { assert(0); }
 
-  StreamWrap* wrap_;
+  inline StreamWrap* wrap() const {
+    return wrap_;
+  }
 
- protected:
+ private:
   // People should not be using the non-placement new and delete operator on a
   // WriteWrap. Ensure this never happens.
   void* operator new(size_t size) { assert(0); }
   void operator delete(void* ptr) { assert(0); }
+
+  StreamWrap* const wrap_;
 };
 
 // Overridable callbacks' types
@@ -63,7 +67,7 @@ class StreamWrapCallbacks {
   explicit StreamWrapCallbacks(StreamWrap* wrap) : wrap_(wrap) {
   }
 
-  explicit StreamWrapCallbacks(StreamWrapCallbacks* old) : wrap_(old->wrap_) {
+  explicit StreamWrapCallbacks(StreamWrapCallbacks* old) : wrap_(old->wrap()) {
   }
 
   virtual ~StreamWrapCallbacks() {
@@ -85,22 +89,21 @@ class StreamWrapCallbacks {
   v8::Handle<v8::Object> Self();
 
  protected:
-  StreamWrap* wrap_;
+  inline StreamWrap* wrap() const {
+    return wrap_;
+  }
+
+ private:
+  StreamWrap* const wrap_;
 };
 
 class StreamWrap : public HandleWrap {
  public:
-  uv_stream_t* GetStream() { return stream_; }
-
   void OverrideCallbacks(StreamWrapCallbacks* callbacks) {
     StreamWrapCallbacks* old = callbacks_;
     callbacks_ = callbacks;
     if (old != &default_callbacks_)
       delete old;
-  }
-
-  StreamWrapCallbacks* GetCallbacks() {
-    return callbacks_;
   }
 
   static void Initialize(v8::Handle<v8::Object> target);
@@ -119,19 +122,26 @@ class StreamWrap : public HandleWrap {
   static void WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  // Overridable callbacks
-  StreamWrapCallbacks* callbacks_;
+  inline StreamWrapCallbacks* callbacks() const {
+    return callbacks_;
+  }
+
+  inline uv_stream_t* stream() const {
+    return stream_;
+  }
 
  protected:
   static size_t WriteBuffer(v8::Handle<v8::Value> val, uv_buf_t* buf);
 
   StreamWrap(v8::Handle<v8::Object> object, uv_stream_t* stream);
+
   ~StreamWrap() {
     if (callbacks_ != &default_callbacks_) {
       delete callbacks_;
       callbacks_ = NULL;
     }
   }
+
   void StateChange() { }
   void UpdateWriteQueueSize();
 
@@ -150,9 +160,10 @@ class StreamWrap : public HandleWrap {
   template <enum encoding encoding>
   static void WriteStringImpl(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  uv_stream_t* stream_;
-
+  uv_stream_t* const stream_;
   StreamWrapCallbacks default_callbacks_;
+  StreamWrapCallbacks* callbacks_;  // Overridable callbacks
+
   friend class StreamWrapCallbacks;
 };
 

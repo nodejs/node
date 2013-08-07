@@ -316,7 +316,7 @@ void TLSCallbacks::Wrap(const FunctionCallbackInfo<Value>& args) {
 
   TLSCallbacks* callbacks = NULL;
   WITH_GENERIC_STREAM(stream, {
-    callbacks = new TLSCallbacks(kind, sc, wrap->GetCallbacks());
+    callbacks = new TLSCallbacks(kind, sc, wrap->callbacks());
     wrap->OverrideCallbacks(callbacks);
   });
 
@@ -394,13 +394,13 @@ void TLSCallbacks::EncOut() {
 
   write_req_.data = this;
   uv_buf_t buf = uv_buf_init(data, write_size_);
-  int r = uv_write(&write_req_, wrap_->GetStream(), &buf, 1, EncOutCb);
+  int r = uv_write(&write_req_, wrap()->stream(), &buf, 1, EncOutCb);
 
   // Ignore errors, this should be already handled in js
   if (!r) {
-    if (wrap_->GetStream()->type == UV_TCP) {
+    if (wrap()->stream()->type == UV_TCP) {
       NODE_COUNT_NET_BYTES_SENT(write_size_);
-    } else if (wrap_->GetStream()->type == UV_NAMED_PIPE) {
+    } else if (wrap()->stream()->type == UV_NAMED_PIPE) {
       NODE_COUNT_PIPE_BYTES_SENT(write_size_);
     }
   }
@@ -560,7 +560,7 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
     // However if there any data that should be written to socket,
     // callback should not be invoked immediately
     if (BIO_pending(enc_out_) == 0)
-      return uv_write(&w->req_, wrap_->GetStream(), bufs, count, cb);
+      return uv_write(&w->req_, wrap()->stream(), bufs, count, cb);
   }
 
   QUEUE_INSERT_TAIL(&write_item_queue_, &wi->member_);
