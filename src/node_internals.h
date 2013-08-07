@@ -218,9 +218,6 @@ NO_RETURN void FatalError(const char* location, const char* message);
     abort();                                                                \
   }
 
-// allow for quick domain check
-extern bool using_domains;
-
 enum Endianness {
   kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
   kBigEndian
@@ -377,6 +374,10 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                     v8::String::kNormalString,
                                     length);
 }
+
+bool InDomain();
+
+v8::Handle<v8::Value> GetDomain();
 
 }  // namespace node
 

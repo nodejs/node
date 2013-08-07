@@ -132,6 +132,7 @@ Persistent<Object> process_p;
 static Persistent<Function> process_tickCallback;
 static Persistent<Object> binding_cache;
 static Persistent<Array> module_load_list;
+static Persistent<Array> p_domain_box;
 
 static Cached<String> exports_symbol;
 
@@ -182,6 +183,11 @@ static struct {
   uint32_t in_tick;
   uint32_t last_threw;
 } tick_infobox;
+
+// easily communicate domain depth
+static struct {
+  uint32_t count;
+} domain_flag;
 
 #ifdef OPENSSL_NPN_NEGOTIATED
 static bool use_npn = true;
@@ -917,6 +923,33 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Local<Function> tdc = tdc_v.As<Function>();
   process->Set(FIXED_ONE_BYTE_STRING(node_isolate, "_tickCallback"), tdc);
   process_tickCallback.Reset(node_isolate, tdc);
+  if (!args[0]->IsArray()) {
+    fprintf(stderr, "_setupDomainUse first argument must be an array\n");
+    abort();
+  }
+  p_domain_box.Reset(node_isolate, args[0].As<Array>());
+  if (!args[1]->IsObject()) {
+    fprintf(stderr, "_setupDomainUse second argument must be an object\n");
+    abort();
+  }
+  Local<Object> flag = args[1].As<Object>();
+  flag->SetIndexedPropertiesToExternalArrayData(&domain_flag,
+                                                kExternalUnsignedIntArray,
+                                                1);
+}
+
+
+bool InDomain() {
+  return using_domains && domain_flag.count > 0;
+}
+
+
+Handle<Value> GetDomain() {
+  // no domain can exist if no domain module has been loaded
+  if (!InDomain() || p_domain_box.IsEmpty())
+    return Null(node_isolate);
+
+  return PersistentToLocal(node_isolate, p_domain_box)->Get(0);
 }
 
 
