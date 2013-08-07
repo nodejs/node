@@ -305,11 +305,12 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
       req_wrap->object()->Set(handle_sym, send_handle_obj);
     }
 
-    err = wrap->callbacks()->DoWrite(req_wrap,
-                                     &buf,
-                                     1,
-                                     reinterpret_cast<uv_stream_t*>(send_handle),
-                                     StreamWrap::AfterWrite);
+    err = wrap->callbacks()->DoWrite(
+        req_wrap,
+        &buf,
+        1,
+        reinterpret_cast<uv_stream_t*>(send_handle),
+        StreamWrap::AfterWrite);
   }
 
   req_wrap->Dispatched();
