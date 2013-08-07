@@ -66,8 +66,6 @@ UDPWrap::~UDPWrap() {
 
 
 void UDPWrap::Initialize(Handle<Object> target) {
-  HandleWrap::Initialize(target);
-
   HandleScope scope(node_isolate);
 
   buffer_sym = String::New("buffer");

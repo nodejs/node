@@ -48,8 +48,6 @@ class ProcessWrap : public HandleWrap {
   static void Initialize(Handle<Object> target) {
     HandleScope scope(node_isolate);
 
-    HandleWrap::Initialize(target);
-
     Local<FunctionTemplate> constructor = FunctionTemplate::New(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(String::NewSymbol("Process"));

@@ -67,7 +67,6 @@ Local<Object> TCPWrap::Instantiate() {
 
 
 void TCPWrap::Initialize(Handle<Object> target) {
-  HandleWrap::Initialize(target);
   StreamWrap::Initialize(target);
 
   HandleScope scope(node_isolate);

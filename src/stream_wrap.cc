@@ -63,9 +63,6 @@ void StreamWrap::Initialize(Handle<Object> target) {
   initialized = true;
 
   HandleScope scope(node_isolate);
-
-  HandleWrap::Initialize(target);
-
   buffer_sym = String::New("buffer");
   bytes_sym = String::New("bytes");
   write_queue_size_sym = String::New("writeQueueSize");

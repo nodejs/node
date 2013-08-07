@@ -71,8 +71,6 @@ FSEventWrap::~FSEventWrap() {
 
 
 void FSEventWrap::Initialize(Handle<Object> target) {
-  HandleWrap::Initialize(target);
-
   HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);

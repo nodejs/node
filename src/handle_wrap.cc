@@ -38,11 +38,6 @@ extern QUEUE handle_wrap_queue;
 static Cached<String> close_sym;
 
 
-void HandleWrap::Initialize(Handle<Object> target) {
-  /* Doesn't do anything at the moment. */
-}
-
-
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 

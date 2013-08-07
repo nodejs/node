@@ -57,7 +57,6 @@ namespace node {
 
 class HandleWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
