@@ -2151,7 +2151,12 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
       s = p + wcslen(p);
     }
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(p);
-    env->Set(i++, TWO_BYTE_STRING(node_isolate, two_byte_buffer, s - p));
+    const size_t two_byte_buffer_len = s - p;
+    Local<String> value = String::NewFromTwoByte(node_isolate,
+                                                 two_byte_buffer,
+                                                 String::kNormalString,
+                                                 two_byte_buffer_len);
+    env->Set(i++, value);
     p = s + wcslen(s) + 1;
   }
   FreeEnvironmentStringsW(environment);
