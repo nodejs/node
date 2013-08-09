@@ -51,7 +51,7 @@ function server() {
       console.error('_socketEnd');
     });
     socket.write(content);
-  }).listen(3000, function() {
+  }).listen(common.PORT, function() {
     console.log('listening');
   });
 }
@@ -60,7 +60,7 @@ function client() {
   var net = require('net');
   var client = net.connect({
     host: 'localhost',
-    port: 3000
+    port: common.PORT
   }, function() {
     client.destroy();
   });
