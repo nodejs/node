@@ -49,7 +49,6 @@ using v8::Undefined;
 using v8::Value;
 
 
-static Cached<String> buffer_sym;
 static Cached<String> bytes_sym;
 static Cached<String> write_queue_size_sym;
 static Cached<String> onread_sym;
@@ -63,7 +62,6 @@ void StreamWrap::Initialize(Handle<Object> target) {
   initialized = true;
 
   HandleScope scope(node_isolate);
-  buffer_sym = FIXED_ONE_BYTE_STRING(node_isolate, "buffer");
   bytes_sym = FIXED_ONE_BYTE_STRING(node_isolate, "bytes");
   write_queue_size_sym = FIXED_ONE_BYTE_STRING(node_isolate, "writeQueueSize");
   onread_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onread");
@@ -214,8 +212,6 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   size_t length = Buffer::Length(buf_obj);
   char* storage = new char[sizeof(WriteWrap)];
   WriteWrap* req_wrap = new(storage) WriteWrap(req_wrap_obj, wrap);
-
-  req_wrap_obj->SetHiddenValue(buffer_sym, buf_obj);
 
   uv_buf_t buf;
   WriteBuffer(buf_obj, &buf);

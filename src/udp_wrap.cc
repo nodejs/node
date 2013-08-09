@@ -57,7 +57,6 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
 
 
 static Persistent<Function> constructor;
-static Cached<String> buffer_sym;
 static Cached<String> oncomplete_sym;
 static Cached<String> onmessage_sym;
 
@@ -87,7 +86,6 @@ UDPWrap::~UDPWrap() {
 void UDPWrap::Initialize(Handle<Object> target) {
   HandleScope scope(node_isolate);
 
-  buffer_sym = FIXED_ONE_BYTE_STRING(node_isolate, "buffer");
   oncomplete_sym = FIXED_ONE_BYTE_STRING(node_isolate, "oncomplete");
   onmessage_sym = FIXED_ONE_BYTE_STRING(node_isolate, "onmessage");
 
@@ -261,7 +259,6 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   assert(length <= Buffer::Length(buffer_obj) - offset);
 
   SendWrap* req_wrap = new SendWrap(req_wrap_obj, have_callback);
-  req_wrap->object()->SetHiddenValue(buffer_sym, buffer_obj);
 
   uv_buf_t buf = uv_buf_init(Buffer::Data(buffer_obj) + offset,
                              length);
