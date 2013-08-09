@@ -46,12 +46,31 @@ using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
-typedef ReqWrap<uv_udp_send_t> SendWrap;
+
+class SendWrap : public ReqWrap<uv_udp_send_t> {
+ public:
+  SendWrap(Local<Object> req_wrap_obj, bool have_callback);
+  inline bool have_callback() const;
+ private:
+  const bool have_callback_;
+};
+
 
 static Persistent<Function> constructor;
 static Cached<String> buffer_sym;
 static Cached<String> oncomplete_sym;
 static Cached<String> onmessage_sym;
+
+
+SendWrap::SendWrap(Local<Object> req_wrap_obj, bool have_callback)
+    : ReqWrap<uv_udp_send_t>(req_wrap_obj)
+    , have_callback_(have_callback) {
+}
+
+
+inline bool SendWrap::have_callback() const {
+  return have_callback_;
+}
 
 
 UDPWrap::UDPWrap(Handle<Object> object)
@@ -228,6 +247,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   assert(args[3]->IsUint32());
   assert(args[4]->IsUint32());
   assert(args[5]->IsString());
+  assert(args[6]->IsBoolean());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   Local<Object> buffer_obj = args[1].As<Object>();
@@ -235,11 +255,12 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   size_t length = args[3]->Uint32Value();
   const unsigned short port = args[4]->Uint32Value();
   String::Utf8Value address(args[5]);
+  const bool have_callback = args[6]->IsTrue();
 
   assert(offset < Buffer::Length(buffer_obj));
   assert(length <= Buffer::Length(buffer_obj) - offset);
 
-  SendWrap* req_wrap = new SendWrap(req_wrap_obj);
+  SendWrap* req_wrap = new SendWrap(req_wrap_obj, have_callback);
   req_wrap->object()->SetHiddenValue(buffer_sym, buffer_obj);
 
   uv_buf_t buf = uv_buf_init(Buffer::Data(buffer_obj) + offset,
@@ -328,19 +349,13 @@ void UDPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
 
 // TODO(bnoordhuis) share with StreamWrap::AfterWrite() in stream_wrap.cc
 void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
-  HandleScope scope(node_isolate);
-
-  assert(req != NULL);
-
   SendWrap* req_wrap = static_cast<SendWrap*>(req->data);
-  UDPWrap* wrap = static_cast<UDPWrap*>(req->handle->data);
-
-  assert(req_wrap->persistent().IsEmpty() == false);
-  assert(wrap->persistent().IsEmpty() == false);
-
-  Local<Object> req_wrap_obj = req_wrap->object();
-  Local<Value> arg = Integer::New(status, node_isolate);
-  MakeCallback(req_wrap_obj, oncomplete_sym, 1, &arg);
+  if (req_wrap->have_callback()) {
+    HandleScope scope(node_isolate);
+    Local<Object> req_wrap_obj = req_wrap->object();
+    Local<Value> arg = Integer::New(status, node_isolate);
+    MakeCallback(req_wrap_obj, oncomplete_sym, 1, &arg);
+  }
   delete req_wrap;
 }
 
