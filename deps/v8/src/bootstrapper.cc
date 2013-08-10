@@ -1525,6 +1525,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
         script_name,
         0,
         0,
+        false,
         top_context,
         extension,
         NULL,
@@ -2077,6 +2078,16 @@ bool Genesis::InstallExperimentalNatives() {
     if (FLAG_harmony_iteration &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
                "native array-iterator.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
+    if (FLAG_harmony_strings &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native harmony-string.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
+    if (FLAG_harmony_arrays &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native harmony-array.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }

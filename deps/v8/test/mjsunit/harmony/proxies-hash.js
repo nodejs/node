@@ -51,7 +51,7 @@ function TestSet2(construct, fix, create) {
   var p3 = create(handler)
   fix(p3)
 
-  var s = construct();
+  var s = new construct();
   s.add(p1);
   s.add(p2);
   assertTrue(s.has(p1));
@@ -88,7 +88,7 @@ function TestMap2(construct, fix, create) {
   var p3 = create(handler)
   fix(p3)
 
-  var m = construct();
+  var m = new construct();
   m.set(p1, 123);
   m.set(p2, 321);
   assertTrue(m.has(p1));

@@ -144,6 +144,8 @@ class MacroAssembler: public Assembler {
             Condition cond = al);
 
   void Call(Label* target);
+  void Push(Register src) { push(src); }
+  void Pop(Register dst) { pop(dst); }
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Handle<Object> value);
@@ -1136,14 +1138,14 @@ class MacroAssembler: public Assembler {
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cond, const char* msg);
+  void Assert(Condition cond, BailoutReason reason);
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cond, const char* msg);
+  void Check(Condition cond, BailoutReason reason);
 
   // Print a message to stdout and abort execution.
-  void Abort(const char* msg);
+  void Abort(BailoutReason msg);
 
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }

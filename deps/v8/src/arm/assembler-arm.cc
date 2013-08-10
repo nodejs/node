@@ -764,10 +764,13 @@ int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
 // Linked labels refer to unknown positions in the code
 // to be generated; pos() is the position of the last
 // instruction using the label.
-
-
-// The link chain is terminated by a negative code position (must be aligned)
-const int kEndOfChain = -4;
+//
+// The linked labels form a link chain by making the branch offset
+// in the instruction steam to point to the previous branch
+// instruction using the same label.
+//
+// The link chain is terminated by a branch offset pointing to the
+// same position.
 
 
 int Assembler::target_at(int pos)  {
@@ -790,7 +793,7 @@ int Assembler::target_at(int pos)  {
 void Assembler::target_at_put(int pos, int target_pos) {
   Instr instr = instr_at(pos);
   if ((instr & ~kImm24Mask) == 0) {
-    ASSERT(target_pos == kEndOfChain || target_pos >= 0);
+    ASSERT(target_pos == pos || target_pos >= 0);
     // Emitted label constant, not part of a branch.
     // Make label relative to Code* of generated Code object.
     instr_at_put(pos, target_pos + (Code::kHeaderSize - kHeapObjectTag));
@@ -886,27 +889,6 @@ void Assembler::bind_to(Label* L, int pos) {
 }
 
 
-void Assembler::link_to(Label* L, Label* appendix) {
-  if (appendix->is_linked()) {
-    if (L->is_linked()) {
-      // Append appendix to L's list.
-      int fixup_pos;
-      int link = L->pos();
-      do {
-        fixup_pos = link;
-        link = target_at(fixup_pos);
-      } while (link > 0);
-      ASSERT(link == kEndOfChain);
-      target_at_put(fixup_pos, appendix->pos());
-    } else {
-      // L is empty, simply use appendix.
-      *L = *appendix;
-    }
-  }
-  appendix->Unuse();  // appendix should not be used anymore
-}
-
-
 void Assembler::bind(Label* L) {
   ASSERT(!L->is_bound());  // label can only be bound once
   bind_to(L, pc_offset());
@@ -916,7 +898,9 @@ void Assembler::bind(Label* L) {
 void Assembler::next(Label* L) {
   ASSERT(L->is_linked());
   int link = target_at(L->pos());
-  if (link == kEndOfChain) {
+  if (link == L->pos()) {
+    // Branch target points to the same instuction. This is the end of the link
+    // chain.
     L->Unuse();
   } else {
     ASSERT(link >= 0);
@@ -1229,9 +1213,11 @@ int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
     target_pos = L->pos();
   } else {
     if (L->is_linked()) {
-      target_pos = L->pos();  // L's link
+      // Point to previous instruction that uses the link.
+      target_pos = L->pos();
     } else {
-      target_pos = kEndOfChain;
+      // First entry of the link chain points to itself.
+      target_pos = pc_offset();
     }
     L->link_to(pc_offset());
   }
@@ -1245,17 +1231,16 @@ int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
 
 void Assembler::label_at_put(Label* L, int at_offset) {
   int target_pos;
-  if (L->is_bound()) {
+  ASSERT(!L->is_bound());
+  if (L->is_linked()) {
+    // Point to previous instruction that uses the link.
     target_pos = L->pos();
   } else {
-    if (L->is_linked()) {
-      target_pos = L->pos();  // L's link
-    } else {
-      target_pos = kEndOfChain;
-    }
-    L->link_to(at_offset);
-    instr_at_put(at_offset, target_pos + (Code::kHeaderSize - kHeapObjectTag));
+    // First entry of the link chain points to itself.
+    target_pos = at_offset;
   }
+  L->link_to(at_offset);
+  instr_at_put(at_offset, target_pos + (Code::kHeaderSize - kHeapObjectTag));
 }
 
 

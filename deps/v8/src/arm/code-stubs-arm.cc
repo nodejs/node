@@ -246,17 +246,6 @@ void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
 }
 
 
-void UnaryOpStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { r0 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(UnaryOpIC_Miss);
-}
-
-
 void StoreGlobalStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -520,9 +509,8 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   Label after_sentinel;
   __ JumpIfNotSmi(r3, &after_sentinel);
   if (FLAG_debug_code) {
-    const char* message = "Expected 0 as a Smi sentinel";
     __ cmp(r3, Operand::Zero());
-    __ Assert(eq, message);
+    __ Assert(eq, kExpected0AsASmiSentinel);
   }
   __ ldr(r3, GlobalObjectOperand());
   __ ldr(r3, FieldMemOperand(r3, GlobalObject::kNativeContextOffset));
@@ -3917,9 +3905,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(regexp_data, FieldMemOperand(r0, JSRegExp::kDataOffset));
   if (FLAG_debug_code) {
     __ SmiTst(regexp_data);
-    __ Check(ne, "Unexpected type for RegExp data, FixedArray expected");
+    __ Check(ne, kUnexpectedTypeForRegExpDataFixedArrayExpected);
     __ CompareObjectType(regexp_data, r0, r0, FIXED_ARRAY_TYPE);
-    __ Check(eq, "Unexpected type for RegExp data, FixedArray expected");
+    __ Check(eq, kUnexpectedTypeForRegExpDataFixedArrayExpected);
   }
 
   // regexp_data: RegExp data (FixedArray)
@@ -4261,7 +4249,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
     // Assert that we do not have a cons or slice (indirect strings) here.
     // Sequential strings have already been ruled out.
     __ tst(r0, Operand(kIsIndirectStringMask));
-    __ Assert(eq, "external string expected, but not found");
+    __ Assert(eq, kExternalStringExpectedButNotFound);
   }
   __ ldr(subject,
          FieldMemOperand(subject, ExternalString::kResourceDataOffset));
@@ -4643,7 +4631,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharCodeAtGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort("Unexpected fallthrough to CharCodeAt slow case");
+  __ Abort(kUnexpectedFallthroughToCharCodeAtSlowCase);
 
   // Index is not a smi.
   __ bind(&index_not_smi_);
@@ -4688,7 +4676,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
-  __ Abort("Unexpected fallthrough from CharCodeAt slow case");
+  __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
 }
 
 
@@ -4718,7 +4706,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharFromCodeGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort("Unexpected fallthrough to CharFromCode slow case");
+  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
 
   __ bind(&slow_case_);
   call_helper.BeforeCall(masm);
@@ -4728,7 +4716,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
-  __ Abort("Unexpected fallthrough from CharFromCode slow case");
+  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
 
@@ -4785,7 +4773,7 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
     // Check that destination is actually word aligned if the flag says
     // that it is.
     __ tst(dest, Operand(kPointerAlignmentMask));
-    __ Check(eq, "Destination of copy not aligned.");
+    __ Check(eq, kDestinationOfCopyNotAligned);
   }
 
   const int kReadAlignment = 4;
@@ -5014,7 +5002,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
     if (FLAG_debug_code) {
       __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
       __ cmp(ip, candidate);
-      __ Assert(eq, "oddball in string table is not undefined or the hole");
+      __ Assert(eq, kOddballInStringTableIsNotUndefinedOrTheHole);
     }
     __ jmp(&next_probe[i]);
 
@@ -6912,7 +6900,7 @@ static void CreateArrayDispatch(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort("Unexpected ElementsKind in array constructor");
+  __ Abort(kUnexpectedElementsKindInArrayConstructor);
 }
 
 
@@ -6969,7 +6957,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort("Unexpected ElementsKind in array constructor");
+  __ Abort(kUnexpectedElementsKindInArrayConstructor);
 }
 
 
@@ -7030,9 +7018,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ ldr(r3, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     __ tst(r3, Operand(kSmiTagMask));
-    __ Assert(ne, "Unexpected initial map for Array function");
+    __ Assert(ne, kUnexpectedInitialMapForArrayFunction);
     __ CompareObjectType(r3, r3, r4, MAP_TYPE);
-    __ Assert(eq, "Unexpected initial map for Array function");
+    __ Assert(eq, kUnexpectedInitialMapForArrayFunction);
 
     // We should either have undefined in ebx or a valid cell
     Label okay_here;
@@ -7041,7 +7029,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ b(eq, &okay_here);
     __ ldr(r3, FieldMemOperand(r2, 0));
     __ cmp(r3, Operand(cell_map));
-    __ Assert(eq, "Expected property cell in register ebx");
+    __ Assert(eq, kExpectedPropertyCellInRegisterEbx);
     __ bind(&okay_here);
   }
 
@@ -7144,9 +7132,9 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ ldr(r3, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     __ tst(r3, Operand(kSmiTagMask));
-    __ Assert(ne, "Unexpected initial map for Array function");
+    __ Assert(ne, kUnexpectedInitialMapForArrayFunction);
     __ CompareObjectType(r3, r3, r4, MAP_TYPE);
-    __ Assert(eq, "Unexpected initial map for Array function");
+    __ Assert(eq, kUnexpectedInitialMapForArrayFunction);
   }
 
   // Figure out the right elements kind
@@ -7163,7 +7151,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ b(eq, &done);
     __ cmp(r3, Operand(FAST_HOLEY_ELEMENTS));
     __ Assert(eq,
-              "Invalid ElementsKind for InternalArray or InternalPackedArray");
+              kInvalidElementsKindForInternalArrayOrInternalPackedArray);
     __ bind(&done);
   }
 

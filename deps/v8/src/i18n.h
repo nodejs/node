@@ -26,31 +26,54 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // limitations under the License.
 
-#ifndef V8_EXTENSIONS_I18N_SRC_LOCALE_H_
-#define V8_EXTENSIONS_I18N_SRC_LOCALE_H_
+#ifndef V8_I18N_H_
+#define V8_I18N_H_
 
 #include "unicode/uversion.h"
 #include "v8.h"
 
-namespace v8_i18n {
+namespace U_ICU_NAMESPACE {
+class SimpleDateFormat;
+}
 
-// Canonicalizes the BCP47 language tag using BCP47 rules.
-// Returns 'invalid-tag' in case input was not well formed.
-void JSCanonicalizeLanguageTag(const v8::FunctionCallbackInfo<v8::Value>& args);
+namespace v8 {
+namespace internal {
 
-// Returns a list of available locales for collator, date or number formatter.
-void JSAvailableLocalesOf(const v8::FunctionCallbackInfo<v8::Value>& args);
+class I18N {
+ public:
+  // Creates an ObjectTemplate with one internal field.
+  static Handle<ObjectTemplateInfo> GetTemplate(Isolate* isolate);
 
-// Returns default ICU locale.
-void JSGetDefaultICULocale(const v8::FunctionCallbackInfo<v8::Value>& args);
+  // Creates an ObjectTemplate with two internal fields.
+  static Handle<ObjectTemplateInfo> GetTemplate2(Isolate* isolate);
 
-// Returns an array of objects, that have maximized and base names of inputs.
-// Unicode extensions are dropped from both.
-// Input: ['zh-TW-u-nu-thai', 'sr']
-// Output: [{maximized: 'zh-Hant-TW', base: 'zh-TW'},
-//          {maximized: 'sr-Cyrl-RS', base: 'sr'}]
-void JSGetLanguageTagVariants(const v8::FunctionCallbackInfo<v8::Value>& args);
+ private:
+  I18N();
+};
 
-}  // namespace v8_i18n
+class DateFormat {
+ public:
+  // Create a formatter for the specificied locale and options. Returns the
+  // resolved settings for the locale / options.
+  static icu::SimpleDateFormat* InitializeDateTimeFormat(
+      Isolate* isolate,
+      Handle<String> locale,
+      Handle<JSObject> options,
+      Handle<JSObject> resolved);
 
-#endif  // V8_EXTENSIONS_I18N_LOCALE_H_
+  // Unpacks date format object from corresponding JavaScript object.
+  static icu::SimpleDateFormat* UnpackDateFormat(Isolate* isolate,
+                                                 Handle<JSObject> obj);
+
+  // Release memory we allocated for the DateFormat once the JS object that
+  // holds the pointer gets garbage collected.
+  static void DeleteDateFormat(v8::Isolate* isolate,
+                               Persistent<v8::Object>* object,
+                               void* param);
+ private:
+  DateFormat();
+};
+
+} }  // namespace v8::internal
+
+#endif  // V8_I18N_H_

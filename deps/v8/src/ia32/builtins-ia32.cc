@@ -241,7 +241,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         if (FLAG_debug_code) {
           __ cmp(esi, edi);
           __ Assert(less_equal,
-                    "Unexpected number of pre-allocated property fields.");
+                    kUnexpectedNumberOfPreAllocatedPropertyFields);
         }
         __ InitializeFieldsWithFiller(ecx, esi, edx);
         __ mov(edx, factory->one_pointer_filler_map());
@@ -272,7 +272,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ sub(edx, ecx);
       // Done if no extra properties are to be allocated.
       __ j(zero, &allocated);
-      __ Assert(positive, "Property allocation count failed.");
+      __ Assert(positive, kPropertyAllocationCountFailed);
 
       // Scale the number of elements by pointer size and add the header for
       // FixedArrays to the start of the next object calculation from above.
@@ -654,7 +654,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ ret(2 * kPointerSize);  // Remove state, eax.
 
   __ bind(&not_tos_eax);
-  __ Abort("no cases left");
+  __ Abort(kNoCasesLeft);
 }
 
 
@@ -1033,9 +1033,9 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
     __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     __ test(ebx, Immediate(kSmiTagMask));
-    __ Assert(not_zero, "Unexpected initial map for InternalArray function");
+    __ Assert(not_zero, kUnexpectedInitialMapForInternalArrayFunction);
     __ CmpObjectType(ebx, MAP_TYPE, ecx);
-    __ Assert(equal, "Unexpected initial map for InternalArray function");
+    __ Assert(equal, kUnexpectedInitialMapForInternalArrayFunction);
   }
 
   // Run the native code for the InternalArray function called as a normal
@@ -1062,9 +1062,9 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
     __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     __ test(ebx, Immediate(kSmiTagMask));
-    __ Assert(not_zero, "Unexpected initial map for Array function");
+    __ Assert(not_zero, kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(ebx, MAP_TYPE, ecx);
-    __ Assert(equal, "Unexpected initial map for Array function");
+    __ Assert(equal, kUnexpectedInitialMapForArrayFunction);
   }
 
   // Run the native code for the Array function called as a normal function.
@@ -1092,7 +1092,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, ecx);
     __ cmp(edi, ecx);
-    __ Assert(equal, "Unexpected String function");
+    __ Assert(equal, kUnexpectedStringFunction);
   }
 
   // Load the first argument into eax and get rid of the rest
@@ -1137,9 +1137,9 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ cmpb(FieldOperand(ecx, Map::kInstanceSizeOffset),
             JSValue::kSize >> kPointerSizeLog2);
-    __ Assert(equal, "Unexpected string wrapper instance size");
+    __ Assert(equal, kUnexpectedStringWrapperInstanceSize);
     __ cmpb(FieldOperand(ecx, Map::kUnusedPropertyFieldsOffset), 0);
-    __ Assert(equal, "Unexpected unused properties of string wrapper");
+    __ Assert(equal, kUnexpectedUnusedPropertiesOfStringWrapper);
   }
   __ mov(FieldOperand(eax, HeapObject::kMapOffset), ecx);
 

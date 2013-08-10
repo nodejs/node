@@ -1418,4 +1418,25 @@ TEST(16) {
   CHECK_EQ(0x11121313, t.dst4);
 }
 
+
+TEST(17) {
+  // Test generating labels at high addresses.
+  // Should not assert.
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
+  // Generate a code segment that will be longer than 2^24 bytes.
+  Assembler assm(isolate, NULL, 0);
+  for (size_t i = 0; i < 1 << 23 ; ++i) {  // 2^23
+    __ nop();
+  }
+
+  Label target;
+  __ b(eq, &target);
+  __ bind(&target);
+  __ nop();
+}
+
+
 #undef __

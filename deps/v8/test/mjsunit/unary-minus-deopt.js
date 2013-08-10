@@ -25,12 +25,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Make sure that v8Intl is mapped into Intl for backward compatibility.
+// Flags: --allow-natives-syntax
 
-assertEquals(v8Intl, Intl);
+// This is a boiled-down example happening in the Epic Citadel demo:
+// After deopting, the multiplication for unary minus stayed in Smi
+// mode instead of going to double mode, leading to deopt loops.
 
-// Extra checks.
-assertTrue(v8Intl.hasOwnProperty('DateTimeFormat'));
-assertTrue(v8Intl.hasOwnProperty('NumberFormat'));
-assertTrue(v8Intl.hasOwnProperty('Collator'));
-assertTrue(v8Intl.hasOwnProperty('v8BreakIterator'));
+function unaryMinusTest(x) {
+  var g = (1 << x) | 0;
+  // Optimized code will contain a LMulI with -1 as right operand.
+  return (g & -g) - 1 | 0;
+}
+
+unaryMinusTest(3);
+unaryMinusTest(3);
+%OptimizeFunctionOnNextCall(unaryMinusTest);
+unaryMinusTest(3);
+assertOptimized(unaryMinusTest);
+
+// Deopt on kMinInt
+unaryMinusTest(31);
+// The following is normally true, but not with --stress-opt. :-/
+// assertUnoptimized(unaryMinusTest);
+
+// We should have learned something from the deopt.
+unaryMinusTest(31);
+%OptimizeFunctionOnNextCall(unaryMinusTest);
+unaryMinusTest(31);
+assertOptimized(unaryMinusTest);

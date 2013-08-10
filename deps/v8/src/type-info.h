@@ -297,7 +297,6 @@ class TypeFeedbackOracle: public ZoneObject {
   byte ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
-  Handle<Type> UnaryType(TypeFeedbackId id);
   void BinaryType(TypeFeedbackId id,
                   Handle<Type>* left,
                   Handle<Type>* right,

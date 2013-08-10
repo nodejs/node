@@ -376,8 +376,8 @@ CpuProfile::CpuProfile(const char* title, unsigned uid, bool record_samples)
     : title_(title),
       uid_(uid),
       record_samples_(record_samples),
-      start_time_ms_(OS::TimeCurrentMillis()),
-      end_time_ms_(0) {
+      start_time_us_(OS::Ticks()),
+      end_time_us_(0) {
 }
 
 
@@ -388,13 +388,13 @@ void CpuProfile::AddPath(const Vector<CodeEntry*>& path) {
 
 
 void CpuProfile::CalculateTotalTicksAndSamplingRate() {
-  end_time_ms_ = OS::TimeCurrentMillis();
+  end_time_us_ = OS::Ticks();
   top_down_.CalculateTotalTicks();
 
-  double duration = end_time_ms_ - start_time_ms_;
-  if (duration < 1) duration = 1;
+  double duration_ms = (end_time_us_ - start_time_us_) / 1000.;
+  if (duration_ms < 1) duration_ms = 1;
   unsigned ticks = top_down_.root()->total_ticks();
-  double rate = ticks / duration;
+  double rate = ticks / duration_ms;
   top_down_.SetTickRatePerMs(rate);
 }
 

@@ -173,6 +173,8 @@ DEFINE_bool(harmony_generators, false, "enable harmony generators")
 DEFINE_bool(harmony_iteration, false, "enable harmony iteration (for-of)")
 DEFINE_bool(harmony_numeric_literals, false,
             "enable harmony numeric literals (0o77, 0b11)")
+DEFINE_bool(harmony_strings, false, "enable harmony string")
+DEFINE_bool(harmony_arrays, false, "enable harmony arrays")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_modules)
@@ -183,6 +185,8 @@ DEFINE_implication(harmony, harmony_observation)
 DEFINE_implication(harmony, harmony_generators)
 DEFINE_implication(harmony, harmony_iteration)
 DEFINE_implication(harmony, harmony_numeric_literals)
+DEFINE_implication(harmony, harmony_strings)
+DEFINE_implication(harmony, harmony_arrays)
 DEFINE_implication(harmony_modules, harmony_scoping)
 DEFINE_implication(harmony_observation, harmony_collections)
 // TODO[dslomov] add harmony => harmony_typed_arrays
@@ -263,7 +267,6 @@ DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(use_osr, true, "use on-stack replacement")
-DEFINE_bool(idefs, false, "use informative definitions")
 DEFINE_bool(array_bounds_checks_elimination, true,
             "perform array bounds checks elimination")
 DEFINE_bool(array_bounds_checks_hoisting, false,
@@ -307,9 +310,6 @@ DEFINE_int(parallel_recompilation_queue_length, 8,
            "the length of the parallel compilation queue")
 DEFINE_int(parallel_recompilation_delay, 0,
            "artificial compilation delay in ms")
-DEFINE_bool(omit_prototype_checks_for_leaf_maps, true,
-            "do not emit prototype checks if all prototypes have leaf maps, "
-            "deoptimize the optimized code if the layout of the maps changes.")
 DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")

@@ -40,58 +40,6 @@
 #include "cctest.h"
 #include "zone-inl.h"
 
-// Adapted from http://en.wikipedia.org/wiki/Multiply-with-carry
-class RandomNumberGenerator {
- public:
-  RandomNumberGenerator() {
-    init();
-  }
-
-  void init(uint32_t seed = 0x5688c73e) {
-    static const uint32_t phi = 0x9e3779b9;
-    c = 362436;
-    i = kQSize-1;
-    Q[0] = seed;
-    Q[1] = seed + phi;
-    Q[2] = seed + phi + phi;
-    for (unsigned j = 3; j < kQSize; j++) {
-      Q[j] = Q[j - 3] ^ Q[j - 2] ^ phi ^ j;
-    }
-  }
-
-  uint32_t next() {
-    uint64_t a = 18782;
-    uint32_t r = 0xfffffffe;
-    i = (i + 1) & (kQSize-1);
-    uint64_t t = a * Q[i] + c;
-    c = (t >> 32);
-    uint32_t x = static_cast<uint32_t>(t + c);
-    if (x < c) {
-      x++;
-      c++;
-    }
-    return (Q[i] = r - x);
-  }
-
-  uint32_t next(int max) {
-    return next() % max;
-  }
-
-  bool next(double threshold) {
-    ASSERT(threshold >= 0.0 && threshold <= 1.0);
-    if (threshold == 1.0) return true;
-    if (threshold == 0.0) return false;
-    uint32_t value = next() % 100000;
-    return threshold > static_cast<double>(value)/100000.0;
-  }
-
- private:
-  static const uint32_t kQSize = 4096;
-  uint32_t Q[kQSize];
-  uint32_t c;
-  uint32_t i;
-};
-
 
 using namespace v8::internal;
 

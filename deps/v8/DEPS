@@ -5,10 +5,10 @@
 deps = {
   # Remember to keep the revision in sync with the Makefile.
   "v8/build/gyp":
-    "http://gyp.googlecode.com/svn/trunk@1656",
+    "http://gyp.googlecode.com/svn/trunk@1685",
 
   "v8/third_party/icu":
-    "https://src.chromium.org/chrome/trunk/deps/third_party/icu46@213354",
+    "https://src.chromium.org/chrome/trunk/deps/third_party/icu46@214189",
 }
 
 deps_os = {

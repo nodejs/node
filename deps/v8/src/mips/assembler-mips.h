@@ -358,6 +358,11 @@ class Operand BASE_EMBEDDED {
   // Return true if this is a register operand.
   INLINE(bool is_reg() const);
 
+  inline int32_t immediate() const {
+    ASSERT(!is_reg());
+    return imm32_;
+  }
+
   Register rm() const { return rm_; }
 
  private:

@@ -40,7 +40,6 @@ namespace internal {
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
   V(CallConstruct)                       \
-  V(UnaryOp)                             \
   V(BinaryOp)                            \
   V(StringAdd)                           \
   V(SubString)                           \
@@ -590,73 +589,6 @@ class StoreGlobalStub : public HydrogenCodeStub {
   int bit_field_;
 
   DISALLOW_COPY_AND_ASSIGN(StoreGlobalStub);
-};
-
-
-class UnaryOpStub : public HydrogenCodeStub {
- public:
-  // Stub without type info available -> construct uninitialized
-  explicit UnaryOpStub(Token::Value operation)
-      : HydrogenCodeStub(UNINITIALIZED), operation_(operation) { }
-  explicit UnaryOpStub(Code::ExtraICState ic_state) :
-      state_(StateBits::decode(ic_state)),
-      operation_(OperatorBits::decode(ic_state)) { }
-
-  virtual void InitializeInterfaceDescriptor(
-      Isolate* isolate,
-      CodeStubInterfaceDescriptor* descriptor);
-
-  virtual Code::Kind GetCodeKind() const { return Code::UNARY_OP_IC; }
-  virtual InlineCacheState GetICState() {
-    if (state_.Contains(GENERIC)) {
-      return MEGAMORPHIC;
-    } else if (state_.IsEmpty()) {
-      return PREMONOMORPHIC;
-    } else {
-      return MONOMORPHIC;
-    }
-  }
-  virtual Code::ExtraICState GetExtraICState() {
-    return OperatorBits::encode(operation_) |
-           StateBits::encode(state_.ToIntegral());
-  }
-
-  Token::Value operation() { return operation_; }
-  Handle<JSFunction> ToJSFunction(Isolate* isolate);
-  Builtins::JavaScript ToJSBuiltin();
-
-  void UpdateStatus(Handle<Object> object);
-  MaybeObject* Result(Handle<Object> object, Isolate* isolate);
-  Handle<Code> GenerateCode();
-  Handle<Type> GetType(Isolate* isolate);
-
- protected:
-  void PrintState(StringStream* stream);
-  void PrintBaseName(StringStream* stream);
-
- private:
-  enum UnaryOpType {
-    SMI,
-    HEAP_NUMBER,
-    GENERIC,
-    NUMBER_OF_TYPES
-  };
-
-  class State : public EnumSet<UnaryOpType, byte> {
-   public:
-    State() : EnumSet<UnaryOpType, byte>() { }
-    explicit State(byte bits) : EnumSet<UnaryOpType, byte>(bits) { }
-    void Print(StringStream* stream) const;
-  };
-
-  class StateBits : public BitField<int, 0, NUMBER_OF_TYPES> { };
-  class OperatorBits : public BitField<Token::Value, NUMBER_OF_TYPES, 8> { };
-
-  State state_;
-  Token::Value operation_;
-
-  virtual CodeStub::Major MajorKey() { return UnaryOp; }
-  virtual int NotMissMinorKey() { return GetExtraICState(); }
 };
 
 

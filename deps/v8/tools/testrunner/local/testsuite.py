@@ -66,7 +66,10 @@ class TestSuite(object):
 
   # Used in the status file and for stdout printing.
   def CommonTestName(self, testcase):
-    return testcase.path
+    if utils.IsWindows():
+      return testcase.path.replace("\\", "/")
+    else:
+      return testcase.path
 
   def ListTests(self, context):
     raise NotImplementedError
@@ -84,32 +87,36 @@ class TestSuite(object):
   def ReadTestCases(self, context):
     self.tests = self.ListTests(context)
 
-  def FilterTestCasesByStatus(self, warn_unused_rules):
+  @staticmethod
+  def _FilterFlaky(flaky, mode):
+    return (mode == "run" and not flaky) or (mode == "skip" and flaky)
+
+  def FilterTestCasesByStatus(self, warn_unused_rules, flaky_tests="dontcare"):
     filtered = []
     used_rules = set()
     for t in self.tests:
+      flaky = False
       testname = self.CommonTestName(t)
-      if utils.IsWindows():
-        testname = testname.replace("\\", "/")
       if testname in self.rules:
         used_rules.add(testname)
-        outcomes = self.rules[testname]
-        t.outcomes = outcomes  # Even for skipped tests, as the TestCase
-        # object stays around and PrintReport() uses it.
-        if statusfile.DoSkip(outcomes):
+        # Even for skipped tests, as the TestCase object stays around and
+        # PrintReport() uses it.
+        t.outcomes = self.rules[testname]
+        if statusfile.DoSkip(t.outcomes):
           continue  # Don't add skipped tests to |filtered|.
-      if len(self.wildcards) != 0:
-        skip = False
-        for rule in self.wildcards:
-          assert rule[-1] == '*'
-          if testname.startswith(rule[:-1]):
-            used_rules.add(rule)
-            outcomes = self.wildcards[rule]
-            t.outcomes = outcomes
-            if statusfile.DoSkip(outcomes):
-              skip = True
-              break  # "for rule in self.wildcards"
-        if skip: continue  # "for t in self.tests"
+        flaky = statusfile.IsFlaky(t.outcomes)
+      skip = False
+      for rule in self.wildcards:
+        assert rule[-1] == '*'
+        if testname.startswith(rule[:-1]):
+          used_rules.add(rule)
+          t.outcomes = self.wildcards[rule]
+          if statusfile.DoSkip(t.outcomes):
+            skip = True
+            break  # "for rule in self.wildcards"
+          flaky = flaky or statusfile.IsFlaky(t.outcomes)
+      if skip or self._FilterFlaky(flaky, flaky_tests):
+        continue  # "for t in self.tests"
       filtered.append(t)
     self.tests = filtered
 

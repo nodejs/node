@@ -28,48 +28,14 @@
 #ifndef PREPARSER_H
 #define PREPARSER_H
 
+#include "v8.h"
 #include "v8stdint.h"
-
-#ifdef _WIN32
-
-// Setup for Windows DLL export/import. When building the V8 DLL the
-// BUILDING_V8_SHARED needs to be defined. When building a program which uses
-// the V8 DLL USING_V8_SHARED needs to be defined. When either building the V8
-// static library or building a program which uses the V8 static library neither
-// BUILDING_V8_SHARED nor USING_V8_SHARED should be defined.
-#if defined(BUILDING_V8_SHARED) && defined(USING_V8_SHARED)
-#error both BUILDING_V8_SHARED and USING_V8_SHARED are set - please check the\
-  build configuration to ensure that at most one of these is set
-#endif
-
-#ifdef BUILDING_V8_SHARED
-#define V8EXPORT __declspec(dllexport)
-#elif USING_V8_SHARED
-#define V8EXPORT __declspec(dllimport)
-#else
-#define V8EXPORT
-#endif  // BUILDING_V8_SHARED
-
-#else  // _WIN32
-
-// Setup for Linux shared library export. There is no need to distinguish
-// between building or using the V8 shared library, but we should not
-// export symbols when we are building a static library.
-#if defined(__GNUC__) && ((__GNUC__ >= 4) || \
-    (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)) && defined(V8_SHARED)
-#define V8EXPORT __attribute__ ((visibility("default")))
-#else
-#define V8EXPORT
-#endif
-
-#endif  // _WIN32
-
 
 namespace v8 {
 
 // The result of preparsing is either a stack overflow error, or an opaque
 // blob of data that can be passed back into the parser.
-class V8EXPORT PreParserData {
+class V8_EXPORT PreParserData {
  public:
   PreParserData(size_t size, const uint8_t* data)
       : data_(data), size_(size) { }
@@ -94,7 +60,7 @@ class V8EXPORT PreParserData {
 
 
 // Interface for a stream of Unicode characters.
-class V8EXPORT UnicodeInputStream {  // NOLINT - Thinks V8EXPORT is class name.
+class V8_EXPORT UnicodeInputStream {  // NOLINT - V8_EXPORT is not a class name.
  public:
   virtual ~UnicodeInputStream();
 
@@ -110,11 +76,9 @@ class V8EXPORT UnicodeInputStream {  // NOLINT - Thinks V8EXPORT is class name.
 // more stack space than the limit provided, the result's stack_overflow()
 // method will return true. Otherwise the result contains preparser
 // data that can be used by the V8 parser to speed up parsing.
-PreParserData V8EXPORT Preparse(UnicodeInputStream* input,
+PreParserData V8_EXPORT Preparse(UnicodeInputStream* input,
                                 size_t max_stack_size);
 
 }  // namespace v8.
-
-#undef V8EXPORT
 
 #endif  // PREPARSER_H

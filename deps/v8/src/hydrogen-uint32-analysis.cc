@@ -33,11 +33,7 @@ namespace internal {
 
 bool HUint32AnalysisPhase::IsSafeUint32Use(HValue* val, HValue* use) {
   // Operations that operate on bits are safe.
-  if (use->IsBitwise() ||
-      use->IsShl() ||
-      use->IsSar() ||
-      use->IsShr() ||
-      use->IsBitNot()) {
+  if (use->IsBitwise() || use->IsShl() || use->IsSar() || use->IsShr()) {
     return true;
   } else if (use->IsChange() || use->IsSimulate()) {
     // Conversions and deoptimization have special support for unt32.

@@ -1227,6 +1227,10 @@ void Assembler::test_b(Register reg, const Operand& op) {
 
 
 void Assembler::test(const Operand& op, const Immediate& imm) {
+  if (op.is_reg_only()) {
+    test(op.reg(), imm);
+    return;
+  }
   EnsureSpace ensure_space(this);
   EMIT(0xF7);
   emit_operand(eax, op);

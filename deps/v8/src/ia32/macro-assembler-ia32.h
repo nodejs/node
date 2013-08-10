@@ -807,6 +807,8 @@ class MacroAssembler: public Assembler {
   void Drop(int element_count);
 
   void Call(Label* target) { call(target); }
+  void Push(Register src) { push(src); }
+  void Pop(Register dst) { pop(dst); }
 
   // Emit call to the code we are currently generating.
   void CallSelf() {
@@ -844,15 +846,15 @@ class MacroAssembler: public Assembler {
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, const char* msg);
+  void Assert(Condition cc, BailoutReason reason);
 
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cc, const char* msg);
+  void Check(Condition cc, BailoutReason reason);
 
   // Print a message to stdout and abort execution.
-  void Abort(const char* msg);
+  void Abort(BailoutReason reason);
 
   // Check that the stack is aligned.
   void CheckStackAlignment();

@@ -30,40 +30,6 @@
 
 #include "v8.h"
 
-#ifdef _WIN32
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef unsigned short uint16_t;  // NOLINT
-typedef long long int64_t;  // NOLINT
-
-// Setup for Windows DLL export/import. See v8.h in this directory for
-// information on how to build/use V8 as a DLL.
-#if defined(BUILDING_V8_SHARED) && defined(USING_V8_SHARED)
-#error both BUILDING_V8_SHARED and USING_V8_SHARED are set - please check the\
-  build configuration to ensure that at most one of these is set
-#endif
-
-#ifdef BUILDING_V8_SHARED
-#define EXPORT __declspec(dllexport)
-#elif USING_V8_SHARED
-#define EXPORT __declspec(dllimport)
-#else
-#define EXPORT
-#endif
-
-#else  // _WIN32
-
-// Setup for Linux shared library export. See v8.h in this directory for
-// information on how to build/use V8 as shared library.
-#if defined(__GNUC__) && (__GNUC__ >= 4) && defined(V8_SHARED)
-#define EXPORT __attribute__ ((visibility("default")))
-#else  // defined(__GNUC__) && (__GNUC__ >= 4)
-#define EXPORT
-#endif  // defined(__GNUC__) && (__GNUC__ >= 4)
-
-#endif  // _WIN32
-
-
 /**
  * Debugger support for the V8 JavaScript engine.
  */
@@ -81,7 +47,7 @@ enum DebugEvent {
 };
 
 
-class EXPORT Debug {
+class V8_EXPORT Debug {
  public:
   /**
    * A client object passed to the v8 debugger whose ownership will be taken by

@@ -255,8 +255,6 @@ function resolveLocale(service, requestedLocales, options) {
  * lookup algorithm.
  */
 function lookupMatcher(service, requestedLocales) {
-  native function NativeJSGetDefaultICULocale();
-
   if (service.match(SERVICE_RE) === null) {
     throw new Error('Internal error, wrong service type: ' + service);
   }
@@ -287,7 +285,7 @@ function lookupMatcher(service, requestedLocales) {
 
   // Didn't find a match, return default.
   if (DEFAULT_ICU_LOCALE === undefined) {
-    DEFAULT_ICU_LOCALE = NativeJSGetDefaultICULocale();
+    DEFAULT_ICU_LOCALE = %GetDefaultICULocale();
   }
 
   return {'locale': DEFAULT_ICU_LOCALE, 'extension': '', 'position': -1};
@@ -446,14 +444,12 @@ function getOptimalLanguageTag(original, resolved) {
   // Returns Array<Object>, where each object has maximized and base properties.
   // Maximized: zh -> zh-Hans-CN
   // Base: zh-CN-u-ca-gregory -> zh-CN
-  native function NativeJSGetLanguageTagVariants();
-
   // Take care of grandfathered or simple cases.
   if (original === resolved) {
     return original;
   }
 
-  var locales = NativeJSGetLanguageTagVariants([original, resolved]);
+  var locales = %GetLanguageTagVariants([original, resolved]);
   if (locales[0].maximized !== locales[1].maximized) {
     return resolved;
   }
@@ -471,8 +467,7 @@ function getOptimalLanguageTag(original, resolved) {
  * that is supported. This is required by the spec.
  */
 function getAvailableLocalesOf(service) {
-  native function NativeJSAvailableLocalesOf();
-  var available = NativeJSAvailableLocalesOf(service);
+  var available = %AvailableLocalesOf(service);
 
   for (var i in available) {
     if (available.hasOwnProperty(i)) {

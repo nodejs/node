@@ -34,8 +34,6 @@
  * Canonicalizes the language tag, or throws in case the tag is invalid.
  */
 function canonicalizeLanguageTag(localeID) {
-  native function NativeJSCanonicalizeLanguageTag();
-
   // null is typeof 'object' so we have to do extra check.
   if (typeof localeID !== 'string' && typeof localeID !== 'object' ||
       localeID === null) {
@@ -52,7 +50,7 @@ function canonicalizeLanguageTag(localeID) {
   // ICU bug filled - http://bugs.icu-project.org/trac/ticket/9265.
   // TODO(cira): check if -u-kn-true-kc-true-kh-true still throws after
   // upgrade to ICU 4.9.
-  var tag = NativeJSCanonicalizeLanguageTag(localeString);
+  var tag = %CanonicalizeLanguageTag(localeString);
   if (tag === 'invalid-tag') {
     throw new RangeError('Invalid language tag: ' + localeString);
   }

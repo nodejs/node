@@ -259,8 +259,6 @@ enum BuiltinExtraArguments {
   V(BIT_OR, 1)                           \
   V(BIT_AND, 1)                          \
   V(BIT_XOR, 1)                          \
-  V(UNARY_MINUS, 0)                      \
-  V(BIT_NOT, 0)                          \
   V(SHL, 1)                              \
   V(SAR, 1)                              \
   V(SHR, 1)                              \

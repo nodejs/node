@@ -27,15 +27,7 @@
 
 prefix intl
 
-# The following tests use getDefaultLocale() or getDefaultTimezone().
-break-iterator/default-locale: FAIL
-break-iterator/wellformed-unsupported-locale: FAIL
-collator/default-locale: FAIL
-collator/wellformed-unsupported-locale: FAIL
-date-format/default-locale: FAIL
+# The following tests use getDefaultTimeZone().
 date-format/resolved-options: FAIL
 date-format/timezone: FAIL
-date-format/wellformed-unsupported-locale: FAIL
 general/v8Intl-exists: FAIL
-number-format/default-locale: FAIL
-number-format/wellformed-unsupported-locale: FAIL

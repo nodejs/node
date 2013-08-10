@@ -1406,6 +1406,14 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #else
       options.num_parallel_files++;
 #endif  // V8_SHARED
+    } else if (strcmp(argv[i], "--dump-heap-constants") == 0) {
+#ifdef V8_SHARED
+      printf("D8 with shared library does not support constant dumping\n");
+      return false;
+#else
+      options.dump_heap_constants = true;
+      argv[i] = NULL;
+#endif
     }
 #ifdef V8_SHARED
     else if (strcmp(argv[i], "--dump-counters") == 0) {
@@ -1560,10 +1568,80 @@ static void SetStandaloneFlagsViaCommandLine() {
 #endif
 
 
+#ifndef V8_SHARED
+static void DumpHeapConstants(i::Isolate* isolate) {
+  i::Heap* heap = isolate->heap();
+
+  // Dump the INSTANCE_TYPES table to the console.
+  printf("# List of known V8 instance types.\n");
+#define DUMP_TYPE(T) printf("  %d: \"%s\",\n", i::T, #T);
+  printf("INSTANCE_TYPES = {\n");
+  INSTANCE_TYPE_LIST(DUMP_TYPE)
+  printf("}\n");
+#undef DUMP_TYPE
+
+  // Dump the KNOWN_MAP table to the console.
+  printf("\n# List of known V8 maps.\n");
+#define ROOT_LIST_CASE(type, name, camel_name) \
+  if (n == NULL && o == heap->name()) n = #camel_name;
+#define STRUCT_LIST_CASE(upper_name, camel_name, name) \
+  if (n == NULL && o == heap->name##_map()) n = #camel_name "Map";
+  i::HeapObjectIterator it(heap->map_space());
+  printf("KNOWN_MAPS = {\n");
+  for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
+    i::Map* m = i::Map::cast(o);
+    const char* n = NULL;
+    intptr_t p = reinterpret_cast<intptr_t>(m) & 0xfffff;
+    int t = m->instance_type();
+    ROOT_LIST(ROOT_LIST_CASE)
+    STRUCT_LIST(STRUCT_LIST_CASE)
+    if (n == NULL) continue;
+    printf("  0x%05" V8PRIxPTR ": (%d, \"%s\"),\n", p, t, n);
+  }
+  printf("}\n");
+#undef STRUCT_LIST_CASE
+#undef ROOT_LIST_CASE
+
+  // Dump the KNOWN_OBJECTS table to the console.
+  printf("\n# List of known V8 objects.\n");
+#define ROOT_LIST_CASE(type, name, camel_name) \
+  if (n == NULL && o == heap->name()) n = #camel_name;
+  i::OldSpaces spit(heap);
+  printf("KNOWN_OBJECTS = {\n");
+  for (i::PagedSpace* s = spit.next(); s != NULL; s = spit.next()) {
+    i::HeapObjectIterator it(s);
+    const char* sname = AllocationSpaceName(s->identity());
+    for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
+      const char* n = NULL;
+      intptr_t p = reinterpret_cast<intptr_t>(o) & 0xfffff;
+      ROOT_LIST(ROOT_LIST_CASE)
+      if (n == NULL) continue;
+      printf("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", sname, p, n);
+    }
+  }
+  printf("}\n");
+#undef ROOT_LIST_CASE
+}
+#endif  // V8_SHARED
+
+
 class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  virtual void* Allocate(size_t length) { return malloc(length); }
-  virtual void Free(void* data) { free(data); }
+  virtual void* Allocate(size_t length) {
+    void* result = malloc(length);
+    memset(result, 0, length);
+    return result;
+  }
+  virtual void* AllocateUninitialized(size_t length) {
+    return malloc(length);
+  }
+  virtual void Free(void* data, size_t) { free(data); }
+  // TODO(dslomov): Remove when v8:2823 is fixed.
+  virtual void Free(void* data) {
+#ifndef V8_SHARED
+    UNREACHABLE();
+#endif
+  }
 };
 
 
@@ -1589,6 +1667,13 @@ int Shell::Main(int argc, char* argv[]) {
 #endif
     PerIsolateData data(isolate);
     InitializeDebugger(isolate);
+
+#ifndef V8_SHARED
+    if (options.dump_heap_constants) {
+      DumpHeapConstants(reinterpret_cast<i::Isolate*>(isolate));
+      return 0;
+    }
+#endif
 
     if (options.stress_opt || options.stress_deopt) {
       Testing::SetStressRunType(options.stress_opt

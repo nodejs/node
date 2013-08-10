@@ -304,17 +304,6 @@ void UnaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-bool UnaryOperation::ResultOverwriteAllowed() {
-  switch (op_) {
-    case Token::BIT_NOT:
-    case Token::SUB:
-      return true;
-    default:
-      return false;
-  }
-}
-
-
 void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
   // TODO(olivf) If this Operation is used in a test context, then the right
   // hand side has a ToBoolean stub and we want to collect the type information.

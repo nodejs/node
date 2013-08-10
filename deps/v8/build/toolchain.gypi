@@ -61,11 +61,10 @@
     'v8_enable_backtrace%': 0,
 
     # Speeds up Debug builds:
-    # 0 - compiler optimizations off (debuggable) (default). This may
+    # 0 - Compiler optimizations off (debuggable) (default). This may
     #     be 5x slower than Release (or worse).
-    # 1 - turn on compiler optimizations. and #undef DEBUG/#define NDEBUG.
-    #     This may be hard or impossible to debug. This may still be
-    #     2x slower than Release (or worse).
+    # 1 - Turn on compiler optimizations. This may be hard or impossible to
+    #     debug. This may still be 2x slower than Release (or worse).
     # 2 - Turn on optimizations, and also #undef DEBUG / #define NDEBUG
     #     (but leave V8_ENABLE_CHECKS and most other assertions enabled.
     #     This may cause some v8 tests to fail in the Debug configuration.
@@ -455,14 +454,32 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'conditions': [
-              ['component=="shared_library"', {
-                'RuntimeLibrary': '3',  # /MDd
-              }, {
-                'RuntimeLibrary': '1',  # /MTd
-              }],
               ['v8_optimized_debug==0', {
                 'Optimization': '0',
-              }, {
+                'conditions': [
+                  ['component=="shared_library"', {
+                    'RuntimeLibrary': '3',  # /MDd
+                  }, {
+                    'RuntimeLibrary': '1',  # /MTd
+                  }],
+                ],
+              }],
+              ['v8_optimized_debug==1', {
+                'Optimization': '1',
+                'InlineFunctionExpansion': '2',
+                'EnableIntrinsicFunctions': 'true',
+                'FavorSizeOrSpeed': '0',
+                'StringPooling': 'true',
+                'BasicRuntimeChecks': '0',
+                'conditions': [
+                  ['component=="shared_library"', {
+                    'RuntimeLibrary': '3',  # /MDd
+                  }, {
+                    'RuntimeLibrary': '1',  # /MTd
+                  }],
+                ],
+              }],
+              ['v8_optimized_debug==2', {
                 'Optimization': '2',
                 'InlineFunctionExpansion': '2',
                 'EnableIntrinsicFunctions': 'true',
@@ -471,9 +488,9 @@
                 'BasicRuntimeChecks': '0',
                 'conditions': [
                   ['component=="shared_library"', {
-                    'RuntimeLibrary': '2',  #/MD
+                    'RuntimeLibrary': '3',  #/MDd
                   }, {
-                    'RuntimeLibrary': '0',  #/MT
+                    'RuntimeLibrary': '1',  #/MTd
                   }],
                   ['v8_target_arch=="x64"', {
                     # TODO(2207): remove this option once the bug is fixed.
@@ -487,7 +504,11 @@
             'conditions': [
               ['v8_optimized_debug==0', {
                 'LinkIncremental': '2',
-              }, {
+              }],
+              ['v8_optimized_debug==1', {
+                'LinkIncremental': '2',
+              }],
+              ['v8_optimized_debug==2', {
                 'LinkIncremental': '1',
                 'OptimizeReferences': '2',
                 'EnableCOMDATFolding': '2',

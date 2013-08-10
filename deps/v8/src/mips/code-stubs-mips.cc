@@ -247,17 +247,6 @@ void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
 }
 
 
-void UnaryOpStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a0 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(UnaryOpIC_Miss);
-}
-
-
 void StoreGlobalStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -520,8 +509,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   Label after_sentinel;
   __ JumpIfNotSmi(a3, &after_sentinel);
   if (FLAG_debug_code) {
-    const char* message = "Expected 0 as a Smi sentinel";
-    __ Assert(eq, message, a3, Operand(zero_reg));
+    __ Assert(eq, kExpected0AsASmiSentinel, a3, Operand(zero_reg));
   }
   __ lw(a3, GlobalObjectOperand());
   __ lw(a3, FieldMemOperand(a3, GlobalObject::kNativeContextOffset));
@@ -679,7 +667,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
                                      Label* not_number) {
   __ AssertRootValue(heap_number_map,
                      Heap::kHeapNumberMapRootIndex,
-                     "HeapNumberMap register clobbered.");
+                     kHeapNumberMapRegisterClobbered);
 
   Label is_smi, done;
 
@@ -729,7 +717,7 @@ void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
                                                Label* not_number) {
   __ AssertRootValue(heap_number_map,
                      Heap::kHeapNumberMapRootIndex,
-                     "HeapNumberMap register clobbered.");
+                     kHeapNumberMapRegisterClobbered);
   Label done;
   Label not_in_int32_range;
 
@@ -806,7 +794,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
   __ bind(&obj_is_not_smi);
   __ AssertRootValue(heap_number_map,
                      Heap::kHeapNumberMapRootIndex,
-                     "HeapNumberMap register clobbered.");
+                     kHeapNumberMapRegisterClobbered);
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_int32);
 
   // Load the number.
@@ -853,7 +841,7 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
 
   __ AssertRootValue(heap_number_map,
                      Heap::kHeapNumberMapRootIndex,
-                     "HeapNumberMap register clobbered.");
+                     kHeapNumberMapRegisterClobbered);
 
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, &maybe_undefined);
 
@@ -4279,12 +4267,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ And(t0, regexp_data, Operand(kSmiTagMask));
     __ Check(nz,
-             "Unexpected type for RegExp data, FixedArray expected",
+             kUnexpectedTypeForRegExpDataFixedArrayExpected,
              t0,
              Operand(zero_reg));
     __ GetObjectType(regexp_data, a0, a0);
     __ Check(eq,
-             "Unexpected type for RegExp data, FixedArray expected",
+             kUnexpectedTypeForRegExpDataFixedArrayExpected,
              a0,
              Operand(FIXED_ARRAY_TYPE));
   }
@@ -4639,7 +4627,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
     // Sequential strings have already been ruled out.
     __ And(at, a0, Operand(kIsIndirectStringMask));
     __ Assert(eq,
-              "external string expected, but not found",
+              kExternalStringExpectedButNotFound,
               at,
               Operand(zero_reg));
   }
@@ -5020,7 +5008,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharCodeAtGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort("Unexpected fallthrough to CharCodeAt slow case");
+  __ Abort(kUnexpectedFallthroughToCharCodeAtSlowCase);
 
   // Index is not a smi.
   __ bind(&index_not_smi_);
@@ -5069,7 +5057,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
-  __ Abort("Unexpected fallthrough from CharCodeAt slow case");
+  __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
 }
 
 
@@ -5106,7 +5094,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharFromCodeGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort("Unexpected fallthrough to CharFromCode slow case");
+  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
 
   __ bind(&slow_case_);
   call_helper.BeforeCall(masm);
@@ -5117,7 +5105,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ Branch(&exit_);
 
-  __ Abort("Unexpected fallthrough from CharFromCode slow case");
+  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
 
@@ -5172,7 +5160,7 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
     // that it is.
     __ And(scratch4, dest, Operand(kPointerAlignmentMask));
     __ Check(eq,
-             "Destination of copy not aligned.",
+             kDestinationOfCopyNotAligned,
              scratch4,
              Operand(zero_reg));
   }
@@ -5372,7 +5360,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
     // Must be the hole (deleted entry).
     if (FLAG_debug_code) {
       __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
-      __ Assert(eq, "oddball in string table is not undefined or the hole",
+      __ Assert(eq, kOddballInStringTableIsNotUndefinedOrTheHole,
           scratch, Operand(candidate));
     }
     __ jmp(&next_probe[i]);
@@ -6580,7 +6568,7 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
     // filled with kZapValue by the GC.
     // Dereference the address and check for this.
     __ lw(t0, MemOperand(t9));
-    __ Assert(ne, "Received invalid return address.", t0,
+    __ Assert(ne, kReceivedInvalidReturnAddress, t0,
         Operand(reinterpret_cast<uint32_t>(kZapValue)));
   }
   __ Jump(t9);
@@ -7331,7 +7319,7 @@ static void CreateArrayDispatch(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort("Unexpected ElementsKind in array constructor");
+  __ Abort(kUnexpectedElementsKindInArrayConstructor);
 }
 
 
@@ -7386,7 +7374,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort("Unexpected ElementsKind in array constructor");
+  __ Abort(kUnexpectedElementsKindInArrayConstructor);
 }
 
 
@@ -7447,10 +7435,10 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     __ And(at, a3, Operand(kSmiTagMask));
-    __ Assert(ne, "Unexpected initial map for Array function",
+    __ Assert(ne, kUnexpectedInitialMapForArrayFunction,
         at, Operand(zero_reg));
     __ GetObjectType(a3, a3, t0);
-    __ Assert(eq, "Unexpected initial map for Array function",
+    __ Assert(eq, kUnexpectedInitialMapForArrayFunction,
         t0, Operand(MAP_TYPE));
 
     // We should either have undefined in a2 or a valid cell.
@@ -7459,7 +7447,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(&okay_here, eq, a2, Operand(at));
     __ lw(a3, FieldMemOperand(a2, 0));
-    __ Assert(eq, "Expected property cell in register a2",
+    __ Assert(eq, kExpectedPropertyCellInRegisterA2,
         a3, Operand(cell_map));
     __ bind(&okay_here);
   }
@@ -7559,10 +7547,10 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     __ And(at, a3, Operand(kSmiTagMask));
-    __ Assert(ne, "Unexpected initial map for Array function",
+    __ Assert(ne, kUnexpectedInitialMapForArrayFunction,
         at, Operand(zero_reg));
     __ GetObjectType(a3, a3, t0);
-    __ Assert(eq, "Unexpected initial map for Array function",
+    __ Assert(eq, kUnexpectedInitialMapForArrayFunction,
         t0, Operand(MAP_TYPE));
   }
 
@@ -7579,7 +7567,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     Label done;
     __ Branch(&done, eq, a3, Operand(FAST_ELEMENTS));
     __ Assert(
-        eq, "Invalid ElementsKind for InternalArray or InternalPackedArray",
+        eq, kInvalidElementsKindForInternalArrayOrInternalPackedArray,
         a3, Operand(FAST_HOLEY_ELEMENTS));
     __ bind(&done);
   }

@@ -27,7 +27,7 @@
 
 #include "icu_util.h"
 
-#if defined(_WIN32) && defined(ENABLE_I18N_SUPPORT)
+#if defined(_WIN32) && defined(V8_I18N_SUPPORT)
 #include <windows.h>
 
 #include "unicode/putil.h"
@@ -42,7 +42,7 @@ namespace v8 {
 namespace internal {
 
 bool InitializeICU() {
-#if defined(_WIN32) && defined(ENABLE_I18N_SUPPORT)
+#if defined(_WIN32) && defined(V8_I18N_SUPPORT)
   // We expect to find the ICU data module alongside the current module.
   HMODULE module = LoadLibraryA(ICU_UTIL_DATA_SHARED_MODULE_NAME);
   if (!module) return false;

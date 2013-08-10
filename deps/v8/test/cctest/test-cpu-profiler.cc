@@ -410,6 +410,21 @@ TEST(GetProfilerWhenIsolateIsNotInitialized) {
 }
 
 
+TEST(ProfileStartEndTime) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+
+  int64_t time_before_profiling = i::OS::Ticks();
+  v8::Local<v8::String> profile_name = v8::String::New("test");
+  cpu_profiler->StartCpuProfiling(profile_name);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+  CHECK(time_before_profiling <= profile->GetStartTime());
+  CHECK(profile->GetStartTime() <= profile->GetEndTime());
+  CHECK(profile->GetEndTime() <= i::OS::Ticks());
+}
+
+
 static const v8::CpuProfile* RunProfiler(
     LocalContext& env, v8::Handle<v8::Function> function,
     v8::Handle<v8::Value> argv[], int argc,

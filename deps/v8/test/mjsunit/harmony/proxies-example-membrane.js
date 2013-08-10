@@ -285,8 +285,8 @@ assertEquals(4, wh4.q);
 // http://wiki.ecmascript.org/doku.php?id=harmony:proxies#an_identity-preserving_membrane
 
 function createMembrane(wetTarget) {
-  var wet2dry = WeakMap();
-  var dry2wet = WeakMap();
+  var wet2dry = new WeakMap();
+  var dry2wet = new WeakMap();
 
   function asDry(obj) {
     registerObject(obj)

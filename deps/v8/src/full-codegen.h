@@ -31,11 +31,14 @@
 #include "v8.h"
 
 #include "allocation.h"
+#include "assert-scope.h"
 #include "ast.h"
 #include "code-stubs.h"
 #include "codegen.h"
 #include "compiler.h"
 #include "data-flow.h"
+#include "globals.h"
+#include "objects.h"
 
 namespace v8 {
 namespace internal {
@@ -136,7 +139,64 @@ class FullCodeGenerator: public AstVisitor {
 #error Unsupported target architecture.
 #endif
 
-  static const int kBackEdgeEntrySize = 3 * kIntSize;
+  class BackEdgeTableIterator {
+   public:
+    explicit BackEdgeTableIterator(Code* unoptimized) {
+      ASSERT(unoptimized->kind() == Code::FUNCTION);
+      instruction_start_ = unoptimized->instruction_start();
+      cursor_ = instruction_start_ + unoptimized->back_edge_table_offset();
+      ASSERT(cursor_ < instruction_start_ + unoptimized->instruction_size());
+      table_length_ = Memory::uint32_at(cursor_);
+      cursor_ += kTableLengthSize;
+      end_ = cursor_ + table_length_ * kEntrySize;
+    }
+
+    bool Done() { return cursor_ >= end_; }
+
+    void Next() {
+      ASSERT(!Done());
+      cursor_ += kEntrySize;
+    }
+
+    BailoutId ast_id() {
+      ASSERT(!Done());
+      return BailoutId(static_cast<int>(
+          Memory::uint32_at(cursor_ + kAstIdOffset)));
+    }
+
+    uint32_t loop_depth() {
+      ASSERT(!Done());
+      return Memory::uint32_at(cursor_ + kLoopDepthOffset);
+    }
+
+    uint32_t pc_offset() {
+      ASSERT(!Done());
+      return Memory::uint32_at(cursor_ + kPcOffsetOffset);
+    }
+
+    Address pc() {
+      ASSERT(!Done());
+      return instruction_start_ + pc_offset();
+    }
+
+    uint32_t table_length() { return table_length_; }
+
+   private:
+    static const int kTableLengthSize = kIntSize;
+    static const int kAstIdOffset = 0 * kIntSize;
+    static const int kPcOffsetOffset = 1 * kIntSize;
+    static const int kLoopDepthOffset = 2 * kIntSize;
+    static const int kEntrySize = 3 * kIntSize;
+
+    Address cursor_;
+    Address end_;
+    Address instruction_start_;
+    uint32_t table_length_;
+    DisallowHeapAllocation no_gc_while_iterating_over_raw_addresses_;
+
+    DISALLOW_COPY_AND_ASSIGN(BackEdgeTableIterator);
+  };
+
 
  private:
   class Breakable;
@@ -624,8 +684,6 @@ class FullCodeGenerator: public AstVisitor {
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-
-  void EmitUnaryOperation(UnaryOperation* expr, const char* comment);
 
   void VisitComma(BinaryOperation* expr);
   void VisitLogicalExpression(BinaryOperation* expr);

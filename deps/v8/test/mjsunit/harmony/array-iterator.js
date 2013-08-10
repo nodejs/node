@@ -39,7 +39,7 @@ function TestArrayPrototype() {
 TestArrayPrototype();
 
 function assertIteratorResult(value, done, result) {
-  assertEquals({ value: value, done: done}, result);
+  assertEquals({value: value, done: done}, result);
 }
 
 function TestValues() {
@@ -70,9 +70,9 @@ TestValuesMutate();
 function TestKeys() {
   var array = ['a', 'b', 'c'];
   var iterator = array.keys();
-  assertIteratorResult('0', false, iterator.next());
-  assertIteratorResult('1', false, iterator.next());
-  assertIteratorResult('2', false, iterator.next());
+  assertIteratorResult(0, false, iterator.next());
+  assertIteratorResult(1, false, iterator.next());
+  assertIteratorResult(2, false, iterator.next());
   assertIteratorResult(void 0, true, iterator.next());
 
   array.push('d');
@@ -83,11 +83,11 @@ TestKeys();
 function TestKeysMutate() {
   var array = ['a', 'b', 'c'];
   var iterator = array.keys();
-  assertIteratorResult('0', false, iterator.next());
-  assertIteratorResult('1', false, iterator.next());
-  assertIteratorResult('2', false, iterator.next());
+  assertIteratorResult(0, false, iterator.next());
+  assertIteratorResult(1, false, iterator.next());
+  assertIteratorResult(2, false, iterator.next());
   array.push('d');
-  assertIteratorResult('3', false, iterator.next());
+  assertIteratorResult(3, false, iterator.next());
   assertIteratorResult(void 0, true, iterator.next());
 }
 TestKeysMutate();
@@ -95,9 +95,9 @@ TestKeysMutate();
 function TestEntries() {
   var array = ['a', 'b', 'c'];
   var iterator = array.entries();
-  assertIteratorResult(['0', 'a'], false, iterator.next());
-  assertIteratorResult(['1', 'b'], false, iterator.next());
-  assertIteratorResult(['2', 'c'], false, iterator.next());
+  assertIteratorResult([0, 'a'], false, iterator.next());
+  assertIteratorResult([1, 'b'], false, iterator.next());
+  assertIteratorResult([2, 'c'], false, iterator.next());
   assertIteratorResult(void 0, true, iterator.next());
 
   array.push('d');
@@ -108,11 +108,11 @@ TestEntries();
 function TestEntriesMutate() {
   var array = ['a', 'b', 'c'];
   var iterator = array.entries();
-  assertIteratorResult(['0', 'a'], false, iterator.next());
-  assertIteratorResult(['1', 'b'], false, iterator.next());
-  assertIteratorResult(['2', 'c'], false, iterator.next());
+  assertIteratorResult([0, 'a'], false, iterator.next());
+  assertIteratorResult([1, 'b'], false, iterator.next());
+  assertIteratorResult([2, 'c'], false, iterator.next());
   array.push('d');
-  assertIteratorResult(['3', 'd'], false, iterator.next());
+  assertIteratorResult([3, 'd'], false, iterator.next());
   assertIteratorResult(void 0, true, iterator.next());
 }
 TestEntriesMutate();
@@ -168,7 +168,7 @@ function TestForArrayKeys() {
   assertEquals(8, buffer.length);
 
   for (var i = 0; i < buffer.length; i++) {
-    assertEquals(String(i), buffer[i]);
+    assertEquals(i, buffer[i]);
   }
 }
 TestForArrayKeys();
@@ -189,7 +189,7 @@ function TestForArrayEntries() {
   assertTrue(isNaN(buffer[buffer.length - 1][1]));
 
   for (var i = 0; i < buffer.length; i++) {
-    assertEquals(String(i), buffer[i][0]);
+    assertEquals(i, buffer[i][0]);
   }
 }
 TestForArrayEntries();

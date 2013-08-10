@@ -42,6 +42,7 @@ OKAY = "OKAY"
 TIMEOUT = "TIMEOUT"
 CRASH = "CRASH"
 SLOW = "SLOW"
+FLAKY = "FLAKY"
 # These are just for the status files and are mapped below in DEFS:
 FAIL_OK = "FAIL_OK"
 PASS_OR_FAIL = "PASS_OR_FAIL"
@@ -49,7 +50,7 @@ PASS_OR_FAIL = "PASS_OR_FAIL"
 ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
-for key in [SKIP, FAIL, PASS, OKAY, TIMEOUT, CRASH, SLOW, FAIL_OK,
+for key in [SKIP, FAIL, PASS, OKAY, TIMEOUT, CRASH, SLOW, FLAKY, FAIL_OK,
             PASS_OR_FAIL, ALWAYS]:
   KEYWORDS[key] = key
 
@@ -68,6 +69,10 @@ def DoSkip(outcomes):
 
 
 def IsFlaky(outcomes):
+  return FLAKY in outcomes
+
+
+def IsPassOrFail(outcomes):
   return ((PASS in outcomes) and (FAIL in outcomes) and
           (not CRASH in outcomes) and (not OKAY in outcomes))
 

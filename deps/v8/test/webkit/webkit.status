@@ -33,3 +33,6 @@ sort-large-array: PASS, SKIP if $mode == debug
 
 ##############################################################################
 [ $deopt_fuzzer == True ]
+
+# Issue 2815.
+fast/js/kde/encode_decode_uri: SKIP

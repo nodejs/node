@@ -1097,73 +1097,69 @@ void Factory::EnsureCanContainElements(Handle<JSArray> array,
 
 
 Handle<JSArrayBuffer> Factory::NewJSArrayBuffer() {
-  JSFunction* array_buffer_fun =
-      isolate()->context()->native_context()->array_buffer_fun();
+  Handle<JSFunction> array_buffer_fun(
+      isolate()->context()->native_context()->array_buffer_fun());
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateJSObject(array_buffer_fun),
+      isolate()->heap()->AllocateJSObject(*array_buffer_fun),
       JSArrayBuffer);
 }
 
 
 Handle<JSDataView> Factory::NewJSDataView() {
-  JSFunction* data_view_fun =
-      isolate()->context()->native_context()->data_view_fun();
+  Handle<JSFunction> data_view_fun(
+      isolate()->context()->native_context()->data_view_fun());
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateJSObject(data_view_fun),
+      isolate()->heap()->AllocateJSObject(*data_view_fun),
       JSDataView);
 }
 
 
-Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
-  JSFunction* typed_array_fun;
-  Context* native_context = isolate()->context()->native_context();
+static JSFunction* GetTypedArrayFun(ExternalArrayType type,
+                                    Isolate* isolate) {
+  Context* native_context = isolate->context()->native_context();
   switch (type) {
     case kExternalUnsignedByteArray:
-      typed_array_fun = native_context->uint8_array_fun();
-      break;
+      return native_context->uint8_array_fun();
 
     case kExternalByteArray:
-      typed_array_fun = native_context->int8_array_fun();
-      break;
+      return native_context->int8_array_fun();
 
     case kExternalUnsignedShortArray:
-      typed_array_fun = native_context->uint16_array_fun();
-      break;
+      return native_context->uint16_array_fun();
 
     case kExternalShortArray:
-      typed_array_fun = native_context->int16_array_fun();
-      break;
+      return native_context->int16_array_fun();
 
     case kExternalUnsignedIntArray:
-      typed_array_fun = native_context->uint32_array_fun();
-      break;
+      return native_context->uint32_array_fun();
 
     case kExternalIntArray:
-      typed_array_fun = native_context->int32_array_fun();
-      break;
+      return native_context->int32_array_fun();
 
     case kExternalFloatArray:
-      typed_array_fun = native_context->float_array_fun();
-      break;
+      return native_context->float_array_fun();
 
     case kExternalDoubleArray:
-      typed_array_fun = native_context->double_array_fun();
-      break;
+      return native_context->double_array_fun();
 
     case kExternalPixelArray:
-      typed_array_fun = native_context->uint8c_array_fun();
-      break;
+      return native_context->uint8c_array_fun();
 
     default:
       UNREACHABLE();
-      return Handle<JSTypedArray>();
+      return NULL;
   }
+}
+
+
+Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
+  Handle<JSFunction> typed_array_fun_handle(GetTypedArrayFun(type, isolate()));
 
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateJSObject(typed_array_fun),
+      isolate()->heap()->AllocateJSObject(*typed_array_fun_handle),
       JSTypedArray);
 }
 

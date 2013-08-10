@@ -1774,6 +1774,7 @@ Isolate::Isolate()
       inner_pointer_to_code_cache_(NULL),
       write_iterator_(NULL),
       global_handles_(NULL),
+      eternal_handles_(NULL),
       context_switcher_(NULL),
       thread_manager_(NULL),
       fp_stubs_generated_(false),
@@ -2052,6 +2053,8 @@ Isolate::~Isolate() {
   code_range_ = NULL;
   delete global_handles_;
   global_handles_ = NULL;
+  delete eternal_handles_;
+  eternal_handles_ = NULL;
 
   delete string_stream_debug_object_cache_;
   string_stream_debug_object_cache_ = NULL;
@@ -2183,6 +2186,7 @@ bool Isolate::Init(Deserializer* des) {
   inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
   write_iterator_ = new ConsStringIteratorOp();
   global_handles_ = new GlobalHandles(this);
+  eternal_handles_ = new EternalHandles();
   bootstrapper_ = new Bootstrapper(this);
   handle_scope_implementer_ = new HandleScopeImplementer(this);
   stub_cache_ = new StubCache(this);

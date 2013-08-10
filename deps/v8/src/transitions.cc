@@ -50,7 +50,6 @@ MaybeObject* TransitionArray::Allocate(int number_of_transitions) {
   FixedArray* array;
   MaybeObject* maybe_array = AllocateRaw(ToKeyIndex(number_of_transitions));
   if (!maybe_array->To(&array)) return maybe_array;
-  array->set(kElementsTransitionIndex, Smi::FromInt(0));
   array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
   return array;
 }
@@ -119,10 +118,6 @@ MaybeObject* TransitionArray::CopyInsert(Name* name, Map* target) {
   MaybeObject* maybe_array;
   maybe_array = TransitionArray::Allocate(new_size);
   if (!maybe_array->To(&result)) return maybe_array;
-
-  if (HasElementsTransition()) {
-    result->set_elements_transition(elements_transition());
-  }
 
   if (HasPrototypeTransitions()) {
     result->SetPrototypeTransitions(GetPrototypeTransitions());

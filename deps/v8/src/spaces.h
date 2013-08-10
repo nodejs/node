@@ -784,8 +784,9 @@ class Page : public MemoryChunk {
   // Maximum object size that fits in a page. Objects larger than that size
   // are allocated in large object space and are never moved in memory. This
   // also applies to new space allocation, since objects are never migrated
-  // from new space to large object space.
-  static const int kMaxNonCodeHeapObjectSize = kNonCodeObjectAreaSize;
+  // from new space to large object space.  Takes double alignment into account.
+  static const int kMaxNonCodeHeapObjectSize =
+      kNonCodeObjectAreaSize - kPointerSize;
 
   // Page size mask.
   static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;

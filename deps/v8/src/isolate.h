@@ -922,6 +922,8 @@ class Isolate {
 
   GlobalHandles* global_handles() { return global_handles_; }
 
+  EternalHandles* eternal_handles() { return eternal_handles_; }
+
   ThreadManager* thread_manager() { return thread_manager_; }
 
   ContextSwitcher* context_switcher() { return context_switcher_; }
@@ -1295,6 +1297,7 @@ class Isolate {
   InnerPointerToCodeCache* inner_pointer_to_code_cache_;
   ConsStringIteratorOp* write_iterator_;
   GlobalHandles* global_handles_;
+  EternalHandles* eternal_handles_;
   ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;

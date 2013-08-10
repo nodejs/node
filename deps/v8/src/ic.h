@@ -714,14 +714,6 @@ class KeyedStoreIC: public StoreIC {
 };
 
 
-class UnaryOpIC: public IC {
- public:
-  explicit UnaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
-
-  MUST_USE_RESULT MaybeObject* Transition(Handle<Object> object);
-};
-
-
 // Type Recording BinaryOpIC, that records the types of the inputs and outputs.
 class BinaryOpIC: public IC {
  public:

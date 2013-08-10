@@ -627,11 +627,11 @@ class MacroAssembler: public Assembler {
   void MultiPushFPU(RegList regs);
   void MultiPushReversedFPU(RegList regs);
 
-  // Lower case push() for compatibility with arch-independent code.
   void push(Register src) {
     Addu(sp, sp, Operand(-kPointerSize));
     sw(src, MemOperand(sp, 0));
   }
+  void Push(Register src) { push(src); }
 
   // Push a handle.
   void Push(Handle<Object> handle);
@@ -676,11 +676,11 @@ class MacroAssembler: public Assembler {
   void MultiPopFPU(RegList regs);
   void MultiPopReversedFPU(RegList regs);
 
-  // Lower case pop() for compatibility with arch-independent code.
   void pop(Register dst) {
     lw(dst, MemOperand(sp, 0));
     Addu(sp, sp, Operand(kPointerSize));
   }
+  void Pop(Register dst) { pop(dst); }
 
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2) {
@@ -1286,15 +1286,15 @@ class MacroAssembler: public Assembler {
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, const char* msg, Register rs, Operand rt);
+  void Assert(Condition cc, BailoutReason reason, Register rs, Operand rt);
   void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cc, const char* msg, Register rs, Operand rt);
+  void Check(Condition cc, BailoutReason reason, Register rs, Operand rt);
 
   // Print a message to stdout and abort execution.
-  void Abort(const char* msg);
+  void Abort(BailoutReason msg);
 
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
@@ -1378,7 +1378,7 @@ class MacroAssembler: public Assembler {
   // enabled via --debug-code.
   void AssertRootValue(Register src,
                        Heap::RootListIndex root_value_index,
-                       const char* message);
+                       BailoutReason reason);
 
   // ---------------------------------------------------------------------------
   // HeapNumber utilities.

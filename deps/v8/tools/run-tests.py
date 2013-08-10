@@ -94,6 +94,9 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
                     default=False, action="store_true")
+  result.add_option("--flaky-tests",
+                    help="Regard tests marked as flaky (run|skip|dontcare)",
+                    default="dontcare")
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
                     default="")
@@ -204,6 +207,9 @@ def ProcessOptions(options):
     # This is OK for distributed running, so we don't need to set no_network.
     options.command_prefix = (["python", "-u", run_valgrind] +
                               options.command_prefix)
+  if not options.flaky_tests in ["run", "skip", "dontcare"]:
+    print "Unknown flaky test mode %s" % options.flaky_tests
+    return False
   return True
 
 
@@ -315,7 +321,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     if len(args) > 0:
       s.FilterTestCasesByArgs(args)
     all_tests += s.tests
-    s.FilterTestCasesByStatus(options.warn_unused)
+    s.FilterTestCasesByStatus(options.warn_unused, options.flaky_tests)
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue

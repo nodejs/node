@@ -38,7 +38,7 @@ assertFalse(options.locale === '');
 assertFalse(options.locale === undefined);
 
 // Then check for equality.
-assertEquals(options.locale, getDefaultLocale());
+assertEquals(options.locale, %GetDefaultICULocale());
 
 var iteratorNone = new Intl.v8BreakIterator();
 assertEquals(options.locale, iteratorNone.resolvedOptions().locale);

@@ -337,6 +337,11 @@ static void VerifyNativeContextSeparation(Heap* heap) {
 #endif
 
 
+void MarkCompactCollector::TearDown() {
+  AbortCompaction();
+}
+
+
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   p->MarkEvacuationCandidate();
   evacuation_candidates_.Add(p);
@@ -426,8 +431,8 @@ void MarkCompactCollector::CollectGarbage() {
       heap()->weak_embedded_maps_verification_enabled()) {
     VerifyWeakEmbeddedMapsInOptimizedCode();
   }
-  if (FLAG_collect_maps && FLAG_omit_prototype_checks_for_leaf_maps) {
-    VerifyOmittedPrototypeChecks();
+  if (FLAG_collect_maps && FLAG_omit_map_checks_for_leaf_maps) {
+    VerifyOmittedMapChecks();
   }
 #endif
 
@@ -498,13 +503,13 @@ void MarkCompactCollector::VerifyWeakEmbeddedMapsInOptimizedCode() {
 }
 
 
-void MarkCompactCollector::VerifyOmittedPrototypeChecks() {
+void MarkCompactCollector::VerifyOmittedMapChecks() {
   HeapObjectIterator iterator(heap()->map_space());
   for (HeapObject* obj = iterator.Next();
        obj != NULL;
        obj = iterator.Next()) {
     Map* map = Map::cast(obj);
-    map->VerifyOmittedPrototypeChecks();
+    map->VerifyOmittedMapChecks();
   }
 }
 #endif  // VERIFY_HEAP

@@ -37,4 +37,4 @@ var CLEANUP_RE = new RegExp('');
 CLEANUP_RE.test('');
 
 return Intl;
-}());
+}())});

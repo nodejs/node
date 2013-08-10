@@ -394,7 +394,10 @@ function ObjectGetNotifier(object) {
   if (ObjectIsFrozen(object)) return null;
 
   var objectInfo = objectInfoMap.get(object);
-  if (IS_UNDEFINED(objectInfo)) objectInfo = CreateObjectInfo(object);
+  if (IS_UNDEFINED(objectInfo)) {
+    objectInfo = CreateObjectInfo(object);
+    %SetIsObserved(object);
+  }
 
   if (IS_NULL(objectInfo.notifier)) {
     objectInfo.notifier = { __proto__: notifierPrototype };

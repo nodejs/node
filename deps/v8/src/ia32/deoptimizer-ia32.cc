@@ -625,7 +625,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ pop(ecx);
     if (FLAG_debug_code) {
       __ cmp(ecx, Immediate(kAlignmentZapValue));
-      __ Assert(equal, "alignment marker expected");
+      __ Assert(equal, kAlignmentMarkerExpected);
     }
     __ bind(&no_padding);
   } else {

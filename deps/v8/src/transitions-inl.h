@@ -57,30 +57,8 @@ TransitionArray* TransitionArray::cast(Object* object) {
 }
 
 
-Map* TransitionArray::elements_transition() {
-  Object* transition_map = get(kElementsTransitionIndex);
-  return Map::cast(transition_map);
-}
-
-
-void TransitionArray::ClearElementsTransition() {
-  WRITE_FIELD(this, kElementsTransitionOffset, Smi::FromInt(0));
-}
-
-
 bool TransitionArray::HasElementsTransition() {
-  return IsFullTransitionArray() &&
-      get(kElementsTransitionIndex) != Smi::FromInt(0);
-}
-
-
-void TransitionArray::set_elements_transition(Map* transition_map,
-                                              WriteBarrierMode mode) {
-  ASSERT(IsFullTransitionArray());
-  Heap* heap = GetHeap();
-  WRITE_FIELD(this, kElementsTransitionOffset, transition_map);
-  CONDITIONAL_WRITE_BARRIER(
-      heap, this, kElementsTransitionOffset, transition_map, mode);
+  return Search(GetHeap()->elements_transition_symbol()) != kNotFound;
 }
 
 

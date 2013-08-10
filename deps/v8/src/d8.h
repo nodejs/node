@@ -231,6 +231,7 @@ class ShellOptions {
      stress_deopt(false),
      interactive_shell(false),
      test_shell(false),
+     dump_heap_constants(false),
      num_isolates(1),
      isolate_sources(NULL) { }
 
@@ -254,6 +255,7 @@ class ShellOptions {
   bool stress_deopt;
   bool interactive_shell;
   bool test_shell;
+  bool dump_heap_constants;
   int num_isolates;
   SourceGroup* isolate_sources;
 };

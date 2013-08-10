@@ -256,7 +256,7 @@ void MacroAssembler::RecordWrite(Register object,
   if (emit_debug_code()) {
     lw(at, MemOperand(address));
     Assert(
-        eq, "Wrong address or value passed to RecordWrite", at, Operand(value));
+        eq, kWrongAddressOrValuePassedToRecordWrite, at, Operand(value));
   }
 
   Label done;
@@ -358,7 +358,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   lw(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
   // In debug mode, make sure the lexical context is set.
 #ifdef DEBUG
-  Check(ne, "we should not have an empty lexical context",
+  Check(ne, kWeShouldNotHaveAnEmptyLexicalContext,
       scratch, Operand(zero_reg));
 #endif
 
@@ -374,7 +374,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     // Read the first word and compare to the native_context_map.
     lw(holder_reg, FieldMemOperand(scratch, HeapObject::kMapOffset));
     LoadRoot(at, Heap::kNativeContextMapRootIndex);
-    Check(eq, "JSGlobalObject::native_context should be a native context.",
+    Check(eq, kJSGlobalObjectNativeContextShouldBeANativeContext,
           holder_reg, Operand(at));
     pop(holder_reg);  // Restore holder.
   }
@@ -388,12 +388,12 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     push(holder_reg);  // Temporarily save holder on the stack.
     mov(holder_reg, at);  // Move at to its holding place.
     LoadRoot(at, Heap::kNullValueRootIndex);
-    Check(ne, "JSGlobalProxy::context() should not be null.",
+    Check(ne, kJSGlobalProxyContextShouldNotBeNull,
           holder_reg, Operand(at));
 
     lw(holder_reg, FieldMemOperand(holder_reg, HeapObject::kMapOffset));
     LoadRoot(at, Heap::kNativeContextMapRootIndex);
-    Check(eq, "JSGlobalObject::native_context should be a native context.",
+    Check(eq, kJSGlobalObjectNativeContextShouldBeANativeContext,
           holder_reg, Operand(at));
     // Restore at is not needed. at is reloaded below.
     pop(holder_reg);  // Restore holder.
@@ -2938,7 +2938,7 @@ void MacroAssembler::Allocate(int object_size,
       // immediately below so this use of t9 does not cause difference with
       // respect to register content between debug and release mode.
       lw(t9, MemOperand(topaddr));
-      Check(eq, "Unexpected allocation top", result, Operand(t9));
+      Check(eq, kUnexpectedAllocationTop, result, Operand(t9));
     }
     // Load allocation limit into t9. Result already contains allocation top.
     lw(t9, MemOperand(topaddr, limit - top));
@@ -3008,7 +3008,7 @@ void MacroAssembler::Allocate(Register object_size,
       // immediately below so this use of t9 does not cause difference with
       // respect to register content between debug and release mode.
       lw(t9, MemOperand(topaddr));
-      Check(eq, "Unexpected allocation top", result, Operand(t9));
+      Check(eq, kUnexpectedAllocationTop, result, Operand(t9));
     }
     // Load allocation limit into t9. Result already contains allocation top.
     lw(t9, MemOperand(topaddr, limit - top));
@@ -3028,7 +3028,7 @@ void MacroAssembler::Allocate(Register object_size,
   // Update allocation top. result temporarily holds the new top.
   if (emit_debug_code()) {
     And(t9, scratch2, Operand(kObjectAlignmentMask));
-    Check(eq, "Unaligned allocation in new space", t9, Operand(zero_reg));
+    Check(eq, kUnalignedAllocationInNewSpace, t9, Operand(zero_reg));
   }
   sw(scratch2, MemOperand(topaddr));
 
@@ -3050,7 +3050,7 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object,
   // Check that the object un-allocated is below the current top.
   li(scratch, Operand(new_space_allocation_top));
   lw(scratch, MemOperand(scratch));
-  Check(less, "Undo allocation of non allocated memory",
+  Check(less, kUndoAllocationOfNonAllocatedMemory,
       object, Operand(scratch));
 #endif
   // Write the address of the object to un-allocate as the current top.
@@ -3303,7 +3303,7 @@ void MacroAssembler::CopyBytes(Register src,
   bind(&word_loop);
   if (emit_debug_code()) {
     And(scratch, src, kPointerSize - 1);
-    Assert(eq, "Expecting alignment for CopyBytes",
+    Assert(eq, kExpectingAlignmentForCopyBytes,
         scratch, Operand(zero_reg));
   }
   Branch(&byte_loop, lt, length, Operand(kPointerSize));
@@ -4029,7 +4029,7 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   sw(s0, MemOperand(s3, kNextOffset));
   if (emit_debug_code()) {
     lw(a1, MemOperand(s3, kLevelOffset));
-    Check(eq, "Unexpected level after return from api call", a1, Operand(s2));
+    Check(eq, kUnexpectedLevelAfterReturnFromApiCall, a1, Operand(s2));
   }
   Subu(s2, s2, Operand(1));
   sw(s2, MemOperand(s3, kLevelOffset));
@@ -4383,10 +4383,10 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 // -----------------------------------------------------------------------------
 // Debugging.
 
-void MacroAssembler::Assert(Condition cc, const char* msg,
+void MacroAssembler::Assert(Condition cc, BailoutReason reason,
                             Register rs, Operand rt) {
   if (emit_debug_code())
-    Check(cc, msg, rs, rt);
+    Check(cc, reason, rs, rt);
 }
 
 
@@ -4394,7 +4394,7 @@ void MacroAssembler::AssertRegisterIsRoot(Register reg,
                                           Heap::RootListIndex index) {
   if (emit_debug_code()) {
     LoadRoot(at, index);
-    Check(eq, "Register did not match expected root", reg, Operand(at));
+    Check(eq, kRegisterDidNotMatchExpectedRoot, reg, Operand(at));
   }
 }
 
@@ -4411,24 +4411,24 @@ void MacroAssembler::AssertFastElements(Register elements) {
     Branch(&ok, eq, elements, Operand(at));
     LoadRoot(at, Heap::kFixedCOWArrayMapRootIndex);
     Branch(&ok, eq, elements, Operand(at));
-    Abort("JSObject with fast elements map has slow elements");
+    Abort(kJSObjectWithFastElementsMapHasSlowElements);
     bind(&ok);
     pop(elements);
   }
 }
 
 
-void MacroAssembler::Check(Condition cc, const char* msg,
+void MacroAssembler::Check(Condition cc, BailoutReason reason,
                            Register rs, Operand rt) {
   Label L;
   Branch(&L, cc, rs, rt);
-  Abort(msg);
+  Abort(reason);
   // Will not return here.
   bind(&L);
 }
 
 
-void MacroAssembler::Abort(const char* msg) {
+void MacroAssembler::Abort(BailoutReason reason) {
   Label abort_start;
   bind(&abort_start);
   // We want to pass the msg string like a smi to avoid GC
@@ -4436,6 +4436,7 @@ void MacroAssembler::Abort(const char* msg) {
   // properly. Instead, we pass an aligned pointer that is
   // a proper v8 smi, but also pass the alignment difference
   // from the real pointer as a smi.
+  const char* msg = GetBailoutReason(reason);
   intptr_t p1 = reinterpret_cast<intptr_t>(msg);
   intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
   ASSERT(reinterpret_cast<Object*>(p0)->IsSmi());
@@ -4579,7 +4580,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
     CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, DO_SMI_CHECK);
     Branch(&ok);
     bind(&fail);
-    Abort("Global functions must have initial map");
+    Abort(kGlobalFunctionsMustHaveInitialMap);
     bind(&ok);
   }
 }
@@ -4862,7 +4863,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     andi(at, object, kSmiTagMask);
-    Check(ne, "Operand is a smi", at, Operand(zero_reg));
+    Check(ne, kOperandIsASmi, at, Operand(zero_reg));
   }
 }
 
@@ -4871,7 +4872,7 @@ void MacroAssembler::AssertSmi(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     andi(at, object, kSmiTagMask);
-    Check(eq, "Operand is a smi", at, Operand(zero_reg));
+    Check(eq, kOperandIsASmi, at, Operand(zero_reg));
   }
 }
 
@@ -4880,11 +4881,11 @@ void MacroAssembler::AssertString(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     And(t0, object, Operand(kSmiTagMask));
-    Check(ne, "Operand is a smi and not a string", t0, Operand(zero_reg));
+    Check(ne, kOperandIsASmiAndNotAString, t0, Operand(zero_reg));
     push(object);
     lw(object, FieldMemOperand(object, HeapObject::kMapOffset));
     lbu(object, FieldMemOperand(object, Map::kInstanceTypeOffset));
-    Check(lo, "Operand is not a string", object, Operand(FIRST_NONSTRING_TYPE));
+    Check(lo, kOperandIsNotAString, object, Operand(FIRST_NONSTRING_TYPE));
     pop(object);
   }
 }
@@ -4894,11 +4895,11 @@ void MacroAssembler::AssertName(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     And(t0, object, Operand(kSmiTagMask));
-    Check(ne, "Operand is a smi and not a name", t0, Operand(zero_reg));
+    Check(ne, kOperandIsASmiAndNotAName, t0, Operand(zero_reg));
     push(object);
     lw(object, FieldMemOperand(object, HeapObject::kMapOffset));
     lbu(object, FieldMemOperand(object, Map::kInstanceTypeOffset));
-    Check(le, "Operand is not a name", object, Operand(LAST_NAME_TYPE));
+    Check(le, kOperandIsNotAName, object, Operand(LAST_NAME_TYPE));
     pop(object);
   }
 }
@@ -4906,11 +4907,11 @@ void MacroAssembler::AssertName(Register object) {
 
 void MacroAssembler::AssertRootValue(Register src,
                                      Heap::RootListIndex root_value_index,
-                                     const char* message) {
+                                     BailoutReason reason) {
   if (emit_debug_code()) {
     ASSERT(!src.is(at));
     LoadRoot(at, root_value_index);
-    Check(eq, message, src, Operand(at));
+    Check(eq, reason, src, Operand(at));
   }
 }
 
@@ -5127,7 +5128,7 @@ void MacroAssembler::PatchRelocatedValue(Register li_location,
   // At this point scratch is a lui(at, ...) instruction.
   if (emit_debug_code()) {
     And(scratch, scratch, kOpcodeMask);
-    Check(eq, "The instruction to patch should be a lui.",
+    Check(eq, kTheInstructionToPatchShouldBeALui,
         scratch, Operand(LUI));
     lw(scratch, MemOperand(li_location));
   }
@@ -5139,7 +5140,7 @@ void MacroAssembler::PatchRelocatedValue(Register li_location,
   // scratch is now ori(at, ...).
   if (emit_debug_code()) {
     And(scratch, scratch, kOpcodeMask);
-    Check(eq, "The instruction to patch should be an ori.",
+    Check(eq, kTheInstructionToPatchShouldBeAnOri,
         scratch, Operand(ORI));
     lw(scratch, MemOperand(li_location, kInstrSize));
   }
@@ -5156,7 +5157,7 @@ void MacroAssembler::GetRelocatedValue(Register li_location,
   lw(value, MemOperand(li_location));
   if (emit_debug_code()) {
     And(value, value, kOpcodeMask);
-    Check(eq, "The instruction should be a lui.",
+    Check(eq, kTheInstructionShouldBeALui,
         value, Operand(LUI));
     lw(value, MemOperand(li_location));
   }
@@ -5167,7 +5168,7 @@ void MacroAssembler::GetRelocatedValue(Register li_location,
   lw(scratch, MemOperand(li_location, kInstrSize));
   if (emit_debug_code()) {
     And(scratch, scratch, kOpcodeMask);
-    Check(eq, "The instruction should be an ori.",
+    Check(eq, kTheInstructionShouldBeAnOri,
         scratch, Operand(ORI));
     lw(scratch, MemOperand(li_location, kInstrSize));
   }

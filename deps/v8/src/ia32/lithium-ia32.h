@@ -50,7 +50,6 @@ class LCodeGen;
   V(ArithmeticD)                                \
   V(ArithmeticT)                                \
   V(BitI)                                       \
-  V(BitNotI)                                    \
   V(BoundsCheck)                                \
   V(Branch)                                     \
   V(CallConstantFunction)                       \
@@ -68,7 +67,6 @@ class LCodeGen;
   V(CheckMaps)                                  \
   V(CheckMapValue)                              \
   V(CheckNonSmi)                                \
-  V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
@@ -120,7 +118,6 @@ class LCodeGen;
   V(IsUndetectableAndBranch)                    \
   V(Label)                                      \
   V(LazyBailout)                                \
-  V(LinkObjectInList)                           \
   V(LoadContextSlot)                            \
   V(LoadExternalArrayPointer)                   \
   V(LoadFieldByIndex)                           \
@@ -175,7 +172,6 @@ class LCodeGen;
   V(StringCharCodeAt)                           \
   V(StringCharFromCode)                         \
   V(StringCompareAndBranch)                     \
-  V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
   V(TaggedToINoSSE2)                            \
@@ -1360,18 +1356,6 @@ class LThrow: public LTemplateInstruction<0, 2, 0> {
 };
 
 
-class LBitNotI: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LBitNotI(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(BitNotI, "bit-not-i")
-};
-
-
 class LAddI: public LTemplateInstruction<1, 2, 0> {
  public:
   LAddI(LOperand* left, LOperand* right) {
@@ -1702,25 +1686,6 @@ class LStoreGlobalGeneric: public LTemplateInstruction<0, 3, 0> {
 
   Handle<Object> name() const { return hydrogen()->name(); }
   StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
-};
-
-
-class LLinkObjectInList: public LTemplateInstruction<0, 1, 1> {
- public:
-  explicit LLinkObjectInList(LOperand* object, LOperand* temp) {
-    inputs_[0] = object;
-    temps_[0] = temp;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  ExternalReference GetReference(Isolate* isolate);
-
-  DECLARE_CONCRETE_INSTRUCTION(LinkObjectInList, "link-object-in-list")
-  DECLARE_HYDROGEN_ACCESSOR(LinkObjectInList)
-
-  virtual void PrintDataTo(StringStream* stream);
 };
 
 
@@ -2257,7 +2222,7 @@ class LStoreNamedField: public LTemplateInstruction<0, 2, 2> {
 
   virtual void PrintDataTo(StringStream* stream);
 
-  Handle<Map> transition() const { return hydrogen()->transition(); }
+  Handle<Map> transition() const { return hydrogen()->transition_map(); }
   Representation representation() const {
     return hydrogen()->field_representation();
   }
@@ -2431,19 +2396,6 @@ class LStringCharFromCode: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LStringLength: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LStringLength(LOperand* string) {
-    inputs_[0] = string;
-  }
-
-  LOperand* string() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StringLength, "string-length")
-  DECLARE_HYDROGEN_ACCESSOR(StringLength)
-};
-
-
 class LCheckFunction: public LTemplateInstruction<0, 1, 0> {
  public:
   explicit LCheckFunction(LOperand* value) {
@@ -2482,24 +2434,6 @@ class LCheckMaps: public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMaps, "check-maps")
   DECLARE_HYDROGEN_ACCESSOR(CheckMaps)
-};
-
-
-class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 1> {
- public:
-  explicit LCheckPrototypeMaps(LOperand* temp)  {
-    temps_[0] = temp;
-  }
-
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check-prototype-maps")
-  DECLARE_HYDROGEN_ACCESSOR(CheckPrototypeMaps)
-
-  ZoneList<Handle<JSObject> >* prototypes() const {
-    return hydrogen()->prototypes();
-  }
-  ZoneList<Handle<Map> >* maps() const { return hydrogen()->maps(); }
 };
 
 
@@ -2834,7 +2768,7 @@ class LChunkBuilder BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  void Abort(const char* reason);
+  void Abort(BailoutReason reason);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);

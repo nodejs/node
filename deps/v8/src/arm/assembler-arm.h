@@ -1548,7 +1548,6 @@ class Assembler : public AssemblerBase {
   // Labels
   void print(Label* L);
   void bind_to(Label* L, int pos);
-  void link_to(Label* L, Label* appendix);
   void next(Label* L);
 
   enum UseConstantPoolMode {

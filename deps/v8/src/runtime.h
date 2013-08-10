@@ -109,6 +109,7 @@ namespace internal {
   F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
   F(FlattenString, 1, 1) \
+  F(MigrateInstance, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
@@ -157,7 +158,6 @@ namespace internal {
   F(NumberOr, 2, 1) \
   F(NumberAnd, 2, 1) \
   F(NumberXor, 2, 1) \
-  F(NumberNot, 1, 1) \
   \
   F(NumberShl, 2, 1) \
   F(NumberShr, 2, 1) \
@@ -361,6 +361,7 @@ namespace internal {
   F(ArrayBufferSliceImpl, 3, 1) \
   \
   F(TypedArrayInitialize, 5, 1) \
+  F(TypedArrayInitializeFromArrayLike, 4, 1) \
   F(TypedArrayGetBuffer, 1, 1) \
   F(TypedArrayGetByteLength, 1, 1) \
   F(TypedArrayGetByteOffset, 1, 1) \
@@ -533,6 +534,26 @@ namespace internal {
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 #endif
 
+
+#ifdef V8_I18N_SUPPORT
+#define RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F) \
+  /* i18n support */ \
+  /* Standalone, helper methods. */ \
+  F(CanonicalizeLanguageTag, 1, 1) \
+  F(AvailableLocalesOf, 1, 1) \
+  F(GetDefaultICULocale, 0, 1) \
+  F(GetLanguageTagVariants, 1, 1) \
+  \
+  /* Date format and parse. */ \
+  F(CreateDateTimeFormat, 3, 1) \
+  F(InternalDateFormat, 2, 1) \
+  F(InternalDateParse, 2, 1) \
+
+#else
+#define RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
+#endif
+
+
 #ifdef DEBUG
 #define RUNTIME_FUNCTION_LIST_DEBUG(F) \
   /* Testing */ \
@@ -550,7 +571,8 @@ namespace internal {
   RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
   RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   RUNTIME_FUNCTION_LIST_DEBUG(F) \
-  RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
+  RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
+  RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
 
 // ----------------------------------------------------------------------------
 // INLINE_FUNCTION_LIST defines all inlined functions accessed
@@ -784,7 +806,8 @@ class Runtime : public AllStatic {
   static bool SetupArrayBufferAllocatingData(
       Isolate* isolate,
       Handle<JSArrayBuffer> array_buffer,
-      size_t allocated_length);
+      size_t allocated_length,
+      bool initialize = true);
 
   static void FreeArrayBuffer(
       Isolate* isolate,

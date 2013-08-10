@@ -3153,7 +3153,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     __ j(equal, &miss);
   } else if (FLAG_debug_code) {
     __ cmp(eax, factory()->the_hole_value());
-    __ Check(not_equal, "DontDelete cells can't contain the hole");
+    __ Check(not_equal, kDontDeleteCellsCannotContainTheHole);
   }
 
   HandlerFrontendFooter(name, &success, &miss);

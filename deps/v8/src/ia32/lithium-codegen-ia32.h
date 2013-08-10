@@ -163,8 +163,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredAllocate(LAllocate* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
-
-  void DoCheckMapCommon(Register reg, Handle<Map> map, LInstruction* instr);
+  void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
@@ -212,7 +211,7 @@ class LCodeGen BASE_EMBEDDED {
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
-  void Abort(const char* reason);
+  void Abort(BailoutReason reason);
   void FPRINTF_CHECKING Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
@@ -295,7 +294,7 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
   X87Register ToX87Register(int index) const;
-  int ToRepresentation(LConstantOperand* op, const Representation& r) const;
+  int32_t ToRepresentation(LConstantOperand* op, const Representation& r) const;
   int32_t ToInteger32(LConstantOperand* op) const;
   ExternalReference ToExternalReference(LConstantOperand* op) const;
 
@@ -407,6 +406,14 @@ class LCodeGen BASE_EMBEDDED {
   bool X87StackContains(X87Register reg);
   int X87ArrayIndex(X87Register reg);
   int x87_st2idx(int pos);
+
+#ifdef _MSC_VER
+  // On windows, you may not access the stack more than one page below
+  // the most recently mapped page. To make the allocated area randomly
+  // accessible, we write an arbitrary value to each page in range
+  // esp + offset - page_size .. esp in turn.
+  void MakeSureStackPagesMapped(int offset);
+#endif
 
   Zone* zone_;
   LPlatformChunk* const chunk_;

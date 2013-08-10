@@ -145,6 +145,7 @@ class StackHandler BASE_EMBEDDED {
 
   inline Object** context_address() const;
   inline Object** code_address() const;
+  inline void SetFp(Address slot, Address fp);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackHandler);
 };
@@ -176,7 +177,7 @@ class StandardFrameConstants : public AllStatic {
   static const int kContextOffset     = -1 * kPointerSize;
   static const int kCallerFPOffset    =  0 * kPointerSize;
   static const int kCallerPCOffset    = +1 * kFPOnStackSize;
-  static const int kCallerSPOffset    = +2 * kPCOnStackSize;
+  static const int kCallerSPOffset    =  kCallerPCOffset + 1 * kPCOnStackSize;
 };
 
 

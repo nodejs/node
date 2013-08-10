@@ -46,6 +46,7 @@
 #include "heap-profiler.h"
 #include "heap-snapshot-generator-inl.h"
 #include "icu_util.h"
+#include "json-parser.h"
 #include "messages.h"
 #ifdef COMPRESS_STARTUP_DATA_BZ2
 #include "natives.h"
@@ -398,7 +399,7 @@ enum CompressedStartupDataItems {
   kSnapshotContext,
   kLibraries,
   kExperimentalLibraries,
-#if defined(ENABLE_I18N_SUPPORT)
+#if defined(V8_I18N_SUPPORT)
   kI18NExtension,
 #endif
   kCompressedStartupDataCount
@@ -442,7 +443,7 @@ void V8::GetCompressedStartupData(StartupData* compressed_data) {
   compressed_data[kExperimentalLibraries].raw_size =
       i::ExperimentalNatives::GetRawScriptsSize();
 
-#if defined(ENABLE_I18N_SUPPORT)
+#if defined(V8_I18N_SUPPORT)
   i::Vector<const ii:byte> i18n_extension_source =
       i::I18NNatives::GetScriptsSource();
   compressed_data[kI18NExtension].data =
@@ -482,7 +483,7 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
       decompressed_data[kExperimentalLibraries].raw_size);
   i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
 
-#if defined(ENABLE_I18N_SUPPORT)
+#if defined(V8_I18N_SUPPORT)
   ASSERT_EQ(i::I18NNatives::GetRawScriptsSize(),
             decompressed_data[kI18NExtension].raw_size);
   i::Vector<const char> i18n_extension_source(
@@ -672,6 +673,16 @@ void V8::ClearWeak(i::Object** obj) {
 
 void V8::DisposeGlobal(i::Object** obj) {
   i::GlobalHandles::Destroy(obj);
+}
+
+
+int V8::Eternalize(i::Isolate* isolate, i::Object** handle) {
+  return isolate->eternal_handles()->Create(isolate, *handle);
+}
+
+
+i::Object** V8::GetEternal(i::Isolate* isolate, int index) {
+  return isolate->eternal_handles()->Get(index).location();
 }
 
 
@@ -1918,6 +1929,7 @@ Local<Script> Script::New(v8::Handle<String> source,
     i::Handle<i::Object> name_obj;
     int line_offset = 0;
     int column_offset = 0;
+    bool is_shared_cross_origin = false;
     if (origin != NULL) {
       if (!origin->ResourceName().IsEmpty()) {
         name_obj = Utils::OpenHandle(*origin->ResourceName());
@@ -1928,6 +1940,10 @@ Local<Script> Script::New(v8::Handle<String> source,
       if (!origin->ResourceColumnOffset().IsEmpty()) {
         column_offset =
             static_cast<int>(origin->ResourceColumnOffset()->Value());
+      }
+      if (!origin->ResourceIsSharedCrossOrigin().IsEmpty()) {
+        is_shared_cross_origin =
+            origin->ResourceIsSharedCrossOrigin() == v8::True();
       }
     }
     EXCEPTION_PREAMBLE(isolate);
@@ -1945,6 +1961,7 @@ Local<Script> Script::New(v8::Handle<String> source,
                            name_obj,
                            line_offset,
                            column_offset,
+                           is_shared_cross_origin,
                            isolate->global_context(),
                            NULL,
                            pre_data_impl,
@@ -2412,6 +2429,20 @@ int Message::GetEndColumn() const {
 }
 
 
+bool Message::IsSharedCrossOrigin() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Message::IsSharedCrossOrigin()")) return 0;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::JSValue> script =
+      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script(),
+                                                       isolate));
+  return i::Script::cast(script->value())->is_shared_cross_origin();
+}
+
+
 Local<String> Message::GetSourceLine() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Message::GetSourceLine()", return Local<String>());
@@ -2584,6 +2615,29 @@ bool StackFrame::IsConstructor() const {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> is_constructor = GetProperty(self, "isConstructor");
   return is_constructor->IsTrue();
+}
+
+
+// --- J S O N ---
+
+Local<Object> JSON::Parse(Local<String> json_string) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::JSON::Parse");
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::String> source = i::Handle<i::String>(
+      FlattenGetString(Utils::OpenHandle(*json_string)));
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> result;
+  if (source->IsSeqOneByteString()) {
+    result = i::JsonParser<true>::Parse(source);
+  } else {
+    result = i::JsonParser<false>::Parse(source);
+  }
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
+  return Utils::ToLocal(
+      i::Handle<i::JSObject>::cast(scope.CloseAndEscape(result)));
 }
 
 
@@ -3048,6 +3102,12 @@ void v8::ArrayBuffer::CheckCast(Value* that) {
   ApiCheck(obj->IsJSArrayBuffer(),
            "v8::ArrayBuffer::Cast()",
            "Could not convert to ArrayBuffer");
+}
+
+
+void v8::ArrayBuffer::Allocator::Free(void* data) {
+  API_Fatal("v8::ArrayBuffer::Allocator::Free",
+            "Override Allocator::Free(void*, size_t)");
 }
 
 
@@ -7538,6 +7598,18 @@ const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
 const CpuProfileNode* CpuProfile::GetSample(int index) const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return reinterpret_cast<const CpuProfileNode*>(profile->sample(index));
+}
+
+
+int64_t CpuProfile::GetStartTime() const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return profile->start_time_us();
+}
+
+
+int64_t CpuProfile::GetEndTime() const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return profile->end_time_us();
 }
 
 

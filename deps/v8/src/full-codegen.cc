@@ -512,7 +512,7 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(Register reg) const {
 
 
 void FullCodeGenerator::StackValueContext::Plug(Register reg) const {
-  __ push(reg);
+  __ Push(reg);
 }
 
 
@@ -530,7 +530,7 @@ void FullCodeGenerator::EffectContext::PlugTOS() const {
 
 
 void FullCodeGenerator::AccumulatorValueContext::PlugTOS() const {
-  __ pop(result_register());
+  __ Pop(result_register());
 }
 
 
@@ -540,7 +540,7 @@ void FullCodeGenerator::StackValueContext::PlugTOS() const {
 
 void FullCodeGenerator::TestContext::PlugTOS() const {
   // For simplicity we always test the accumulator register.
-  __ pop(result_register());
+  __ Pop(result_register());
   codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
@@ -1006,7 +1006,7 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     VisitForAccumulatorValue(left);
     // We want the value in the accumulator for the test, and on the stack in
     // case we need it.
-    __ push(result_register());
+    __ Push(result_register());
     Label discard, restore;
     if (is_logical_and) {
       DoTest(left, &discard, &restore, &restore);
@@ -1014,7 +1014,7 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
       DoTest(left, &restore, &discard, &restore);
     }
     __ bind(&restore);
-    __ pop(result_register());
+    __ Pop(result_register());
     __ jmp(&done);
     __ bind(&discard);
     __ Drop(1);
@@ -1024,7 +1024,7 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     VisitForAccumulatorValue(left);
     // We want the value in the accumulator for the test, and on the stack in
     // case we need it.
-    __ push(result_register());
+    __ Push(result_register());
     Label discard;
     if (is_logical_and) {
       DoTest(left, &discard, &done, &discard);
@@ -1416,7 +1416,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // Extend the context before executing the catch block.
   { Comment cmnt(masm_, "[ Extend catch context");
     __ Push(stmt->variable()->name());
-    __ push(result_register());
+    __ Push(result_register());
     PushFunctionArgumentForContextAllocation();
     __ CallRuntime(Runtime::kPushCatchContext, 3);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
@@ -1481,7 +1481,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // preserved by the finally block.  Call the finally block and then
   // rethrow the exception if it returns.
   __ Call(&finally_entry);
-  __ push(result_register());
+  __ Push(result_register());
   __ CallRuntime(Runtime::kReThrow, 1);
 
   // Finally block implementation.

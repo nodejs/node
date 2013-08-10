@@ -271,7 +271,12 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_gc_global = true;
     FLAG_max_new_space_size = (1 << (kPageSizeBits - 10)) * 2;
   }
-  if (FLAG_trace_hydrogen) FLAG_parallel_recompilation = false;
+
+  if (FLAG_parallel_recompilation &&
+      (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs)) {
+    FLAG_parallel_recompilation = false;
+    PrintF("Parallel recompilation has been disabled for tracing.\n");
+  }
 
   if (FLAG_sweeper_threads <= 0) {
     if (FLAG_concurrent_sweeping) {

@@ -1,3 +1,44 @@
+2013-08-07: Version 3.20.14
+
+        Exposed eternal handle api.
+
+        Bugfix to solve issues with enabling V8 typed arrays in Blink.
+
+        Fixed Array index dehoisting.  (Chromium issue 264203)
+
+        Updated Array Iterator to use numeric indexes (issue 2818)
+
+        Return start/end profiling time in microseconds instead of milliseconds
+        (issue 2824)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-06: Version 3.20.14
+
+        Added new Harmony methods to Array.prototype object.
+        (issue 2776,v8:2777)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-01: Version 3.20.12
+
+        Removed buggy ToNumber truncation (partial fix for issue 2813)
+
+        Calling Map etc without new should throw TypeError (issue 2819)
+
+        Fixed a crash for large code objects on ARM (Chromium issue 2736)
+
+        Fixed stale unhandlified value in JSObject::SetPropertyForResult.
+        (Chromium issue 265894)
+
+        Added new Harmony methods to String.prototype object.
+        (issue 2796,v8:2797,v8:2798,v8:2799)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-07-30: Version 3.20.11
 
         Performance and stability improvements on all platforms.

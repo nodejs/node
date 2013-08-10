@@ -289,7 +289,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
     __ SmiTag(t5);
     __ Or(t5, t5, Operand(1));
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-    __ Assert(eq, "object found in smi-only array", at, Operand(t5));
+    __ Assert(eq, kObjectFoundInSmiOnlyArray, at, Operand(t5));
   }
   __ sw(t0, MemOperand(t3));  // mantissa
   __ sw(t1, MemOperand(t3, kIntSize));  // exponent
@@ -489,7 +489,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
     // Assert that we do not have a cons or slice (indirect strings) here.
     // Sequential strings have already been ruled out.
     __ And(at, result, Operand(kIsIndirectStringMask));
-    __ Assert(eq, "external string expected, but not found",
+    __ Assert(eq, kExternalStringExpectedButNotFound,
         at, Operand(zero_reg));
   }
   // Rule out short external strings.

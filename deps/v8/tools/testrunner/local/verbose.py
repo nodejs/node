@@ -54,7 +54,7 @@ def PrintReport(tests):
       skipped += 1
       continue
     if statusfile.TIMEOUT in o: timeout += 1
-    if statusfile.IsFlaky(o): nocrash += 1
+    if statusfile.IsPassOrFail(o): nocrash += 1
     if list(o) == [statusfile.PASS]: passes += 1
     if statusfile.IsFailOk(o): fail_ok += 1
     if list(o) == [statusfile.FAIL]: fail += 1

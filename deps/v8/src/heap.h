@@ -178,7 +178,7 @@ namespace internal {
   V(Smi, last_script_id, LastScriptId)                                         \
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
-  V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
+  V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)          \
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
   V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
@@ -186,11 +186,10 @@ namespace internal {
   V(JSObject, observation_state, ObservationState)                             \
   V(Map, external_map, ExternalMap)                                            \
   V(Symbol, frozen_symbol, FrozenSymbol)                                       \
+  V(Symbol, elements_transition_symbol, ElementsTransitionSymbol)              \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
       EmptySlowElementDictionary)                                              \
-  V(Symbol, observed_symbol, ObservedSymbol)                                   \
-  V(HeapObject, i18n_template_one, I18nTemplateOne)                            \
-  V(HeapObject, i18n_template_two, I18nTemplateTwo)
+  V(Symbol, observed_symbol, ObservedSymbol)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -481,6 +480,7 @@ enum ArrayStorageAllocationMode {
   DONT_INITIALIZE_ARRAY_ELEMENTS,
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
 };
+
 
 class Heap {
  public:
@@ -1300,12 +1300,6 @@ class Heap {
     ASSERT((callback == NULL) ^ (global_gc_epilogue_callback_ == NULL));
     global_gc_epilogue_callback_ = callback;
   }
-  void SetI18nTemplateOne(ObjectTemplateInfo* tmpl) {
-    set_i18n_template_one(tmpl);
-  }
-  void SetI18nTemplateTwo(ObjectTemplateInfo* tmpl) {
-    set_i18n_template_two(tmpl);
-  }
 
   // Heap root getters.  We have versions with and without type::cast() here.
   // You can't use type::cast during GC because the assert fails.
@@ -1398,7 +1392,7 @@ class Heap {
 
   // Finds out which space an object should get promoted to based on its type.
   inline OldSpace* TargetSpace(HeapObject* object);
-  inline AllocationSpace TargetSpaceId(InstanceType type);
+  static inline AllocationSpace TargetSpaceId(InstanceType type);
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
   void public_set_code_stubs(UnseededNumberDictionary* value) {
@@ -1545,19 +1539,16 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length,
                                                      PretenureFlag pretenure);
 
-  // Predicate that governs global pre-tenuring decisions based on observed
-  // promotion rates of previous collections.
-  inline bool ShouldGloballyPretenure() {
-    return FLAG_pretenuring && new_space_high_promotion_mode_active_;
-  }
-
   // This is only needed for testing high promotion mode.
   void SetNewSpaceHighPromotionModeActive(bool mode) {
     new_space_high_promotion_mode_active_ = mode;
   }
 
+  // Returns the allocation mode (pre-tenuring) based on observed promotion
+  // rates of previous collections.
   inline PretenureFlag GetPretenureMode() {
-    return new_space_high_promotion_mode_active_ ? TENURED : NOT_TENURED;
+    return FLAG_pretenuring && new_space_high_promotion_mode_active_
+        ? TENURED : NOT_TENURED;
   }
 
   inline Address* NewSpaceHighPromotionModeActiveAddress() {

@@ -31,6 +31,7 @@
 #include "../include/v8.h"
 #include "../include/v8-profiler.h"
 
+#include "handles.h"
 #include "list.h"
 #include "v8utils.h"
 
@@ -156,6 +157,9 @@ class GlobalHandles {
     return number_of_global_handles_;
   }
 
+  // Returns the current number of allocated blocks
+  int block_count() const { return number_of_blocks_; }
+
   // Clear the weakness of a global handle.
   static void ClearWeakness(Object** location);
 
@@ -275,10 +279,13 @@ class GlobalHandles {
 #ifdef DEBUG
   void PrintStats();
   void Print();
+  void VerifyBlockInvariants();
 #endif
 
  private:
   explicit GlobalHandles(Isolate* isolate);
+
+  void SortBlocks(bool shouldPrune);
 
   // Migrates data from the internal representation (object_group_connections_,
   // retainer_infos_ and implicit_ref_connections_) to the public and more
@@ -293,20 +300,64 @@ class GlobalHandles {
   class Node;
   class NodeBlock;
   class NodeIterator;
+  class BlockListIterator;
+  // Base class for NodeBlock
+  class BlockList {
+   public:
+    BlockList();
+    ~BlockList() { ASSERT(IsDetached()); }
+    void Detach();
+    void InsertAsHead(BlockList* block) {
+      ASSERT(IsAnchor());
+      InsertAsNext(block);
+    }
+    void InsertAsTail(BlockList* block) {
+      ASSERT(IsAnchor());
+      prev_block_->InsertAsNext(block);
+    }
+    inline bool IsAnchor() { return first_free_ == NULL && used_nodes_ == 0; }
+    inline bool IsDetached() {
+      ASSERT_EQ(prev_block_ == this, next_block_ == this);
+      return prev_block_ == this;
+    }
+    bool HasAtLeastLength(int length);
+    bool IsUnused() { return used_nodes_ == 0; }
+    int used_nodes() const { return used_nodes_; }
+    BlockList* next() { return next_block_; }
+    BlockList* prev() { return prev_block_; }
+#ifdef DEBUG
+    int LengthOfFreeList();
+#endif
+    static void SortBlocks(GlobalHandles* global_handles, bool prune);
+
+   protected:
+    BlockList* prev_block_;
+    BlockList* next_block_;
+    Node* first_free_;
+    int used_nodes_;
+
+   private:
+    // Needed for quicksort
+    static int CompareBlocks(const void* a, const void* b);
+    void InsertAsNext(BlockList* block);
+    DISALLOW_COPY_AND_ASSIGN(BlockList);
+  };
 
   Isolate* isolate_;
 
+  // Field always containing the number of blocks allocated.
+  int number_of_blocks_;
   // Field always containing the number of handles to global objects.
   int number_of_global_handles_;
 
-  // List of all allocated node blocks.
-  NodeBlock* first_block_;
+  // Anchors for doubly linked lists of blocks
+  BlockList full_blocks_;
+  BlockList non_full_blocks_;
 
-  // List of node blocks with used nodes.
-  NodeBlock* first_used_block_;
-
-  // Free list of nodes.
-  Node* first_free_;
+  // An array of all the anchors held by GlobalHandles.
+  // This simplifies iteration across all blocks.
+  static const int kAllAnchorsSize = 2;
+  BlockList*  all_anchors_[kAllAnchorsSize];
 
   // Contains all nodes holding new space objects. Note: when the list
   // is accessed, some of the objects may have been promoted already.
@@ -328,6 +379,76 @@ class GlobalHandles {
   friend class Isolate;
 
   DISALLOW_COPY_AND_ASSIGN(GlobalHandles);
+};
+
+
+class EternalHandles {
+ public:
+  enum SingletonHandle {
+    I18N_TEMPLATE_ONE,
+    I18N_TEMPLATE_TWO,
+
+    NUMBER_OF_SINGLETON_HANDLES
+  };
+
+  EternalHandles();
+  ~EternalHandles();
+
+  int NumberOfHandles() { return size_; }
+
+  // Create an EternalHandle, returning the index.
+  int Create(Isolate* isolate, Object* object);
+
+  // Grab the handle for an existing EternalHandle.
+  inline Handle<Object> Get(int index) {
+    return Handle<Object>(GetLocation(index));
+  }
+
+  // Grab the handle for an existing SingletonHandle.
+  inline Handle<Object> GetSingleton(SingletonHandle singleton) {
+    ASSERT(Exists(singleton));
+    return Get(singleton_handles_[singleton]);
+  }
+
+  // Checks whether a SingletonHandle has been assigned.
+  inline bool Exists(SingletonHandle singleton) {
+    return singleton_handles_[singleton] != kInvalidIndex;
+  }
+
+  // Assign a SingletonHandle to an empty slot and returns the handle.
+  Handle<Object> CreateSingleton(Isolate* isolate,
+                                 Object* object,
+                                 SingletonHandle singleton) {
+    ASSERT(singleton_handles_[singleton] == kInvalidIndex);
+    singleton_handles_[singleton] = Create(isolate, object);
+    return Get(singleton_handles_[singleton]);
+  }
+
+  // Iterates over all handles.
+  void IterateAllRoots(ObjectVisitor* visitor);
+  // Iterates over all handles which might be in new space.
+  void IterateNewSpaceRoots(ObjectVisitor* visitor);
+  // Rebuilds new space list.
+  void PostGarbageCollectionProcessing(Heap* heap);
+
+ private:
+  static const int kInvalidIndex = -1;
+  static const int kShift = 8;
+  static const int kSize = 1 << kShift;
+  static const int kMask = 0xff;
+
+  // Gets the slot for an index
+  inline Object** GetLocation(int index) {
+    ASSERT(index >= 0 && index < size_);
+    return &blocks_[index >> kShift][index & kMask];
+  }
+
+  int size_;
+  List<Object**> blocks_;
+  List<int> new_space_indices_;
+  int singleton_handles_[NUMBER_OF_SINGLETON_HANDLES];
+
+  DISALLOW_COPY_AND_ASSIGN(EternalHandles);
 };
 
 

@@ -91,7 +91,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 }
 
 
-void LCodeGen::Abort(const char* reason) {
+void LCodeGen::Abort(BailoutReason reason) {
   info()->set_bailout_reason(reason);
   status_ = ABORTED;
 }
@@ -334,7 +334,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
   // 32bit data after it.
   if (!is_int24((masm()->pc_offset() / Assembler::kInstrSize) +
       deopt_jump_table_.length() * 7)) {
-    Abort("Generated code is too large");
+    Abort(kGeneratedCodeIsTooLarge);
   }
 
   if (deopt_jump_table_.length() > 0) {
@@ -423,7 +423,7 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
       ASSERT(literal->IsNumber());
       __ mov(scratch, Operand(static_cast<int32_t>(literal->Number())));
     } else if (r.IsDouble()) {
-      Abort("EmitLoadRegister: Unsupported double immediate.");
+      Abort(kEmitLoadRegisterUnsupportedDoubleImmediate);
     } else {
       ASSERT(r.IsTagged());
       __ LoadObject(scratch, literal);
@@ -461,9 +461,9 @@ DwVfpRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
       __ vcvt_f64_s32(dbl_scratch, flt_scratch);
       return dbl_scratch;
     } else if (r.IsDouble()) {
-      Abort("unsupported double immediate");
+      Abort(kUnsupportedDoubleImmediate);
     } else if (r.IsTagged()) {
-      Abort("unsupported tagged immediate");
+      Abort(kUnsupportedTaggedImmediate);
     }
   } else if (op->IsStackSlot() || op->IsArgument()) {
     // TODO(regis): Why is vldr not taking a MemOperand?
@@ -534,14 +534,14 @@ Operand LCodeGen::ToOperand(LOperand* op) {
       ASSERT(constant->HasInteger32Value());
       return Operand(constant->Integer32Value());
     } else if (r.IsDouble()) {
-      Abort("ToOperand Unsupported double immediate.");
+      Abort(kToOperandUnsupportedDoubleImmediate);
     }
     ASSERT(r.IsTagged());
     return Operand(constant->handle());
   } else if (op->IsRegister()) {
     return Operand(ToRegister(op));
   } else if (op->IsDoubleRegister()) {
-    Abort("ToOperand IsDoubleRegister unimplemented");
+    Abort(kToOperandIsDoubleRegisterUnimplemented);
     return Operand::Zero();
   }
   // Stack slots not implemented, use ToMemOperand instead.
@@ -772,7 +772,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
   if (entry == NULL) {
-    Abort("bailout was not prepared");
+    Abort(kBailoutWasNotPrepared);
     return;
   }
 
@@ -1669,7 +1669,11 @@ void LCodeGen::DoBitI(LBitI* instr) {
       __ orr(result, left, right);
       break;
     case Token::BIT_XOR:
-      __ eor(result, left, right);
+      if (right_op->IsConstantOperand() && right.immediate() == int32_t(~0)) {
+        __ mvn(result, Operand(left));
+      } else {
+        __ eor(result, left, right);
+      }
       break;
     default:
       UNREACHABLE();
@@ -1744,8 +1748,12 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         if (shift_count != 0) {
           if (instr->hydrogen_value()->representation().IsSmi() &&
               instr->can_deopt()) {
-            __ mov(result, Operand(left, LSL, shift_count - 1));
-            __ SmiTag(result, result, SetCC);
+            if (shift_count != 1) {
+              __ mov(result, Operand(left, LSL, shift_count - 1));
+              __ SmiTag(result, result, SetCC);
+            } else {
+              __ SmiTag(result, left, SetCC);
+            }
             DeoptimizeIf(vs, instr->environment());
           } else {
             __ mov(result, Operand(left, LSL, shift_count));
@@ -1932,7 +1940,7 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
     __ cmp(ip, Operand(encoding == String::ONE_BYTE_ENCODING
                            ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(eq, "Unexpected string type");
+    __ Check(eq, kUnexpectedStringType);
   }
 
   __ add(ip,
@@ -1946,13 +1954,6 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     __ add(ip, ip, Operand(index, LSL, 1));
     __ strh(value, MemOperand(ip));
   }
-}
-
-
-void LCodeGen::DoBitNotI(LBitNotI* instr) {
-  Register input = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-  __ mvn(result, Operand(input));
 }
 
 
@@ -2936,19 +2937,6 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
 }
 
 
-void LCodeGen::DoLinkObjectInList(LLinkObjectInList* instr) {
-  Register object = ToRegister(instr->object());
-  ExternalReference sites_list_address = instr->GetReference(isolate());
-
-  __ mov(ip, Operand(sites_list_address));
-  __ ldr(ip, MemOperand(ip));
-  __ str(ip, FieldMemOperand(object,
-                             instr->hydrogen()->store_field().offset()));
-  __ mov(ip, Operand(sites_list_address));
-  __ str(object, MemOperand(ip));
-}
-
-
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
@@ -3209,7 +3197,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
-      Abort("array index constant value too big.");
+      Abort(kArrayIndexConstantValueTooBig);
     }
   } else {
     key = ToRegister(instr->key());
@@ -3293,7 +3281,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
-      Abort("array index constant value too big.");
+      Abort(kArrayIndexConstantValueTooBig);
     }
   } else {
     key = ToRegister(instr->key());
@@ -3554,7 +3542,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
   LOperand* argument = instr->value();
   if (argument->IsDoubleRegister() || argument->IsDoubleStackSlot()) {
-    Abort("DoPushArgument not implemented for double type.");
+    Abort(kDoPushArgumentNotImplementedForDoubleType);
   } else {
     Register argument_reg = EmitLoadRegister(argument, ip);
     __ push(argument_reg);
@@ -3774,7 +3762,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     DwVfpRegister input = ToDoubleRegister(instr->value());
     DwVfpRegister result = ToDoubleRegister(instr->result());
     __ vabs(result, input);
-  } else if (r.IsInteger32()) {
+  } else if (r.IsSmiOrInteger32()) {
     EmitIntegerMathAbs(instr);
   } else {
     // Representation is tagged.
@@ -4328,7 +4316,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
-      Abort("array index constant value too big.");
+      Abort(kArrayIndexConstantValueTooBig);
     }
   } else {
     key = ToRegister(instr->key());
@@ -4401,7 +4389,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
-      Abort("array index constant value too big.");
+      Abort(kArrayIndexConstantValueTooBig);
     }
   } else {
     key = ToRegister(instr->key());
@@ -4424,7 +4412,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     if (masm()->emit_debug_code()) {
       __ vmrs(ip);
       __ tst(ip, Operand(kVFPDefaultNaNModeControlBit));
-      __ Assert(ne, "Default NaN mode not set");
+      __ Assert(ne, kDefaultNaNModeNotSet);
     }
     __ VFPCanonicalizeNaN(value);
   }
@@ -4651,13 +4639,6 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
   __ push(char_code);
   CallRuntimeFromDeferred(Runtime::kCharFromCode, 1, instr);
   __ StoreToSafepointRegisterSlot(r0, result);
-}
-
-
-void LCodeGen::DoStringLength(LStringLength* instr) {
-  Register string = ToRegister(instr->string());
-  Register result = ToRegister(instr->result());
-  __ ldr(result, FieldMemOperand(string, String::kLengthOffset));
 }
 
 
@@ -5230,33 +5211,67 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 }
 
 
-void LCodeGen::DoCheckMapCommon(Register map_reg,
-                                Handle<Map> map,
-                                LEnvironment* env) {
-  Label success;
-  __ CompareMap(map_reg, map, &success);
-  DeoptimizeIf(ne, env);
-  __ bind(&success);
+void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
+  {
+    PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+    __ push(object);
+    CallRuntimeFromDeferred(Runtime::kMigrateInstance, 1, instr);
+    __ StoreToSafepointRegisterSlot(r0, scratch0());
+  }
+  __ tst(scratch0(), Operand(kSmiTagMask));
+  DeoptimizeIf(eq, instr->environment());
 }
 
 
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
+  class DeferredCheckMaps: public LDeferredCode {
+   public:
+    DeferredCheckMaps(LCodeGen* codegen, LCheckMaps* instr, Register object)
+        : LDeferredCode(codegen), instr_(instr), object_(object) {
+      SetExit(check_maps());
+    }
+    virtual void Generate() {
+      codegen()->DoDeferredInstanceMigration(instr_, object_);
+    }
+    Label* check_maps() { return &check_maps_; }
+    virtual LInstruction* instr() { return instr_; }
+   private:
+    LCheckMaps* instr_;
+    Label check_maps_;
+    Register object_;
+  };
+
   if (instr->hydrogen()->CanOmitMapChecks()) return;
   Register map_reg = scratch0();
+
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
 
-  Label success;
   SmallMapList* map_set = instr->hydrogen()->map_set();
   __ ldr(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
+
+  DeferredCheckMaps* deferred = NULL;
+  if (instr->hydrogen()->has_migration_target()) {
+    deferred = new(zone()) DeferredCheckMaps(this, instr, reg);
+    __ bind(deferred->check_maps());
+  }
+
+  Label success;
   for (int i = 0; i < map_set->length() - 1; i++) {
     Handle<Map> map = map_set->at(i);
     __ CompareMap(map_reg, map, &success);
     __ b(eq, &success);
   }
+
   Handle<Map> map = map_set->last();
-  DoCheckMapCommon(map_reg, map, instr->environment());
+  __ CompareMap(map_reg, map, &success);
+  if (instr->hydrogen()->has_migration_target()) {
+    __ b(ne, deferred->entry());
+  } else {
+    DeoptimizeIf(ne, instr->environment());
+  }
+
   __ bind(&success);
 }
 
@@ -5311,25 +5326,6 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 }
 
 
-void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
-  if (instr->hydrogen()->CanOmitPrototypeChecks()) return;
-
-  Register prototype_reg = ToRegister(instr->temp());
-  Register map_reg = ToRegister(instr->temp2());
-
-  ZoneList<Handle<JSObject> >* prototypes = instr->prototypes();
-  ZoneList<Handle<Map> >* maps = instr->maps();
-
-  ASSERT(prototypes->length() == maps->length());
-
-  for (int i = 0; i < prototypes->length(); i++) {
-    __ LoadHeapObject(prototype_reg, prototypes->at(i));
-    __ ldr(map_reg, FieldMemOperand(prototype_reg, HeapObject::kMapOffset));
-    DoCheckMapCommon(map_reg, maps->at(i), instr->environment());
-  }
-}
-
-
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate: public LDeferredCode {
    public:
@@ -5353,10 +5349,12 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   if (instr->hydrogen()->MustAllocateDoubleAligned()) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
-  if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
-    ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
+  if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
+    ASSERT(!instr->hydrogen()->IsOldDataSpaceAllocation());
+    ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
     flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE);
-  } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
+  } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
+    ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
     flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_DATA_SPACE);
   }
 
@@ -5415,10 +5413,12 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     __ Push(Smi::FromInt(size));
   }
 
-  if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
-    ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
+  if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
+    ASSERT(!instr->hydrogen()->IsOldDataSpaceAllocation());
+    ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
     CallRuntimeFromDeferred(Runtime::kAllocateInOldPointerSpace, 1, instr);
-  } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
+  } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
+    ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
     CallRuntimeFromDeferred(Runtime::kAllocateInOldDataSpace, 1, instr);
   } else {
     CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);

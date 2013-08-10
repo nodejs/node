@@ -410,9 +410,9 @@ static void ReserveSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : last argument in the internal frame of the caller
   // -----------------------------------
-  __ movq(scratch, Operand(rsp, 0));
+  __ movq(scratch, StackOperandForReturnAddress(0));
   __ subq(rsp, Immediate(kFastApiCallArguments * kPointerSize));
-  __ movq(Operand(rsp, 0), scratch);
+  __ movq(StackOperandForReturnAddress(0), scratch);
   __ Move(scratch, Smi::FromInt(0));
   for (int i = 1; i <= kFastApiCallArguments; i++) {
      __ movq(Operand(rsp, i * kPointerSize), scratch);
@@ -431,8 +431,9 @@ static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   //  -- rsp[kFastApiCallArguments * 8 + 8] : last argument in the internal
   //                                          frame.
   // -----------------------------------
-  __ movq(scratch, Operand(rsp, 0));
-  __ movq(Operand(rsp, kFastApiCallArguments * kPointerSize), scratch);
+  __ movq(scratch, StackOperandForReturnAddress(0));
+  __ movq(StackOperandForReturnAddress(kFastApiCallArguments * kPointerSize),
+          scratch);
   __ addq(rsp, Immediate(kPointerSize * kFastApiCallArguments));
 }
 
@@ -829,11 +830,11 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
       object->map()->unused_property_fields() == 0) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
-    __ pop(scratch1);  // Return address.
+    __ PopReturnAddressTo(scratch1);
     __ push(receiver_reg);
     __ Push(transition);
     __ push(value_reg);
-    __ push(scratch1);
+    __ PushReturnAddressFrom(scratch1);
     __ TailCallExternalReference(
         ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
                           masm->isolate()),
@@ -1283,7 +1284,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
     Handle<ExecutableAccessorInfo> callback) {
   // Insert additional parameters into the stack frame above return address.
   ASSERT(!scratch4().is(reg));
-  __ pop(scratch4());  // Get return address to place it below.
+  __ PopReturnAddressTo(scratch4());
 
   __ push(receiver());  // receiver
   __ push(reg);  // holder
@@ -1323,7 +1324,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
 
   ASSERT(!name_arg.is(scratch4()));
   __ movq(name_arg, rsp);
-  __ push(scratch4());  // Restore return address.
+  __ PushReturnAddressFrom(scratch4());
 
   // v8::Arguments::values_ and handler for name.
   const int kStackSpace = PropertyCallbackArguments::kArgsLength + 1;
@@ -1443,10 +1444,10 @@ void BaseLoadStubCompiler::GenerateLoadInterceptor(
   } else {  // !compile_followup_inline
     // Call the runtime system to load the interceptor.
     // Check that the maps haven't changed.
-    __ pop(scratch2());  // save old return address
+    __ PopReturnAddressTo(scratch2());
     PushInterceptorArguments(masm(), receiver(), holder_reg,
                              this->name(), interceptor_holder);
-    __ push(scratch2());  // restore old return address
+    __ PushReturnAddressFrom(scratch2());
 
     ExternalReference ref = ExternalReference(
         IC_Utility(IC::kLoadPropertyWithInterceptorForLoad), isolate());
@@ -2350,8 +2351,9 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
                   name, depth, &miss);
 
   // Move the return address on top of the stack.
-  __ movq(rax, Operand(rsp, kFastApiCallArguments * kPointerSize));
-  __ movq(Operand(rsp, 0 * kPointerSize), rax);
+  __ movq(rax,
+          StackOperandForReturnAddress(kFastApiCallArguments * kPointerSize));
+  __ movq(StackOperandForReturnAddress(0), rax);
 
   GenerateFastApiCall(masm(), optimization, argc);
 
@@ -2648,12 +2650,12 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   HandlerFrontend(object, receiver(), holder, name, &success);
   __ bind(&success);
 
-  __ pop(scratch1());  // remove the return address
+  __ PopReturnAddressTo(scratch1());
   __ push(receiver());
   __ Push(callback);  // callback info
   __ Push(name);
   __ push(value());
-  __ push(scratch1());  // restore return address
+  __ PushReturnAddressFrom(scratch1());
 
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
@@ -2715,12 +2717,12 @@ void StoreStubCompiler::GenerateStoreViaSetter(
 Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
     Handle<JSObject> object,
     Handle<Name> name) {
-  __ pop(scratch1());  // remove the return address
+  __ PopReturnAddressTo(scratch1());
   __ push(receiver());
   __ push(this->name());
   __ push(value());
   __ Push(Smi::FromInt(strict_mode()));
-  __ push(scratch1());  // restore return address
+  __ PushReturnAddressFrom(scratch1());
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
@@ -2936,7 +2938,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     __ j(equal, &miss);
   } else if (FLAG_debug_code) {
     __ CompareRoot(rbx, Heap::kTheHoleValueRootIndex);
-    __ Check(not_equal, "DontDelete cells can't contain the hole");
+    __ Check(not_equal, kDontDeleteCellsCannotContainTheHole);
   }
 
   HandlerFrontendFooter(name, &success, &miss);

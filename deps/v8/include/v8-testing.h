@@ -30,42 +30,12 @@
 
 #include "v8.h"
 
-#ifdef _WIN32
-// Setup for Windows DLL export/import. See v8.h in this directory for
-// information on how to build/use V8 as a DLL.
-#if defined(BUILDING_V8_SHARED) && defined(USING_V8_SHARED)
-#error both BUILDING_V8_SHARED and USING_V8_SHARED are set - please check the\
-  build configuration to ensure that at most one of these is set
-#endif
-
-#ifdef BUILDING_V8_SHARED
-#define V8EXPORT __declspec(dllexport)
-#elif USING_V8_SHARED
-#define V8EXPORT __declspec(dllimport)
-#else
-#define V8EXPORT
-#endif
-
-#else  // _WIN32
-
-// Setup for Linux shared library export. See v8.h in this directory for
-// information on how to build/use V8 as shared library.
-#if defined(__GNUC__) && ((__GNUC__ >= 4) || \
-    (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)) && defined(V8_SHARED)
-#define V8EXPORT __attribute__ ((visibility("default")))
-#else
-#define V8EXPORT
-#endif
-
-#endif  // _WIN32
-
-
 /**
  * Testing support for the V8 JavaScript engine.
  */
 namespace v8 {
 
-class V8EXPORT Testing {
+class V8_EXPORT Testing {
  public:
   enum StressType {
     kStressTypeOpt,
@@ -99,7 +69,7 @@ class V8EXPORT Testing {
 }  // namespace v8
 
 
-#undef V8EXPORT
+#undef V8_EXPORT
 
 
 #endif  // V8_V8_TEST_H_

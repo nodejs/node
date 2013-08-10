@@ -1521,9 +1521,9 @@ void StackHandler::Unwind(Isolate* isolate,
                           FixedArray* array,
                           int offset,
                           int previous_handler_offset) const {
-  STATIC_ASSERT(StackHandlerConstants::kSlotCount == 5);
+  STATIC_ASSERT(StackHandlerConstants::kSlotCount >= 5);
   ASSERT_LE(0, offset);
-  ASSERT_GE(array->length(), offset + 5);
+  ASSERT_GE(array->length(), offset + StackHandlerConstants::kSlotCount);
   // Unwinding a stack handler into an array chains it in the opposite
   // direction, re-using the "next" slot as a "previous" link, so that stack
   // handlers can be later re-wound in the correct order.  Decode the "state"
@@ -1542,9 +1542,9 @@ int StackHandler::Rewind(Isolate* isolate,
                          FixedArray* array,
                          int offset,
                          Address fp) {
-  STATIC_ASSERT(StackHandlerConstants::kSlotCount == 5);
+  STATIC_ASSERT(StackHandlerConstants::kSlotCount >= 5);
   ASSERT_LE(0, offset);
-  ASSERT_GE(array->length(), offset + 5);
+  ASSERT_GE(array->length(), offset + StackHandlerConstants::kSlotCount);
   Smi* prev_handler_offset = Smi::cast(array->get(offset));
   Code* code = Code::cast(array->get(offset + 1));
   Smi* smi_index = Smi::cast(array->get(offset + 2));
@@ -1560,7 +1560,7 @@ int StackHandler::Rewind(Isolate* isolate,
   Memory::uintptr_at(address() + StackHandlerConstants::kStateOffset) = state;
   Memory::Object_at(address() + StackHandlerConstants::kContextOffset) =
       context;
-  Memory::Address_at(address() + StackHandlerConstants::kFPOffset) = fp;
+  SetFp(address() + StackHandlerConstants::kFPOffset, fp);
 
   *isolate->handler_address() = address();
 

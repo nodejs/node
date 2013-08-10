@@ -29,4 +29,4 @@
 
 var iterator = Intl.v8BreakIterator(['xx']);
 
-assertEquals(iterator.resolvedOptions().locale, getDefaultLocale());
+assertEquals(iterator.resolvedOptions().locale, %GetDefaultICULocale());

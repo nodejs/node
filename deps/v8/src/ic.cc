@@ -233,16 +233,22 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
 
   // The stub is not in the cache. We've ruled out all other kinds of failure
   // except for proptotype chain changes, a deprecated map, a map that's
-  // different from the one that the stub expects, or a constant global property
-  // that will become mutable. Threat all those situations as prototype failures
-  // (stay monomorphic if possible).
+  // different from the one that the stub expects, elements kind changes, or a
+  // constant global property that will become mutable. Threat all those
+  // situations as prototype failures (stay monomorphic if possible).
 
   // If the IC is shared between multiple receivers (slow dictionary mode), then
   // the map cannot be deprecated and the stub invalidated.
   if (cache_holder == OWN_MAP) {
     Map* old_map = target->FindFirstMap();
     if (old_map == map) return true;
-    if (old_map != NULL && old_map->is_deprecated()) return true;
+    if (old_map != NULL) {
+      if (old_map->is_deprecated()) return true;
+      if (IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
+                                              map->elements_kind())) {
+        return true;
+      }
+    }
   }
 
   if (receiver->IsGlobalObject()) {
@@ -384,7 +390,6 @@ void IC::Clear(Address address) {
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
     case Code::COMPARE_IC: return CompareIC::Clear(address, target);
     case Code::COMPARE_NIL_IC: return CompareNilIC::Clear(address, target);
-    case Code::UNARY_OP_IC:
     case Code::BINARY_OP_IC:
     case Code::TO_BOOLEAN_IC:
       // Clearing these is tricky and does not
@@ -2580,27 +2585,6 @@ void BinaryOpIC::StubInfoToType(int minor_key,
   *left = TypeInfoToType(left_typeinfo, isolate);
   *right = TypeInfoToType(right_typeinfo, isolate);
   *result = TypeInfoToType(result_typeinfo, isolate);
-}
-
-
-MaybeObject* UnaryOpIC::Transition(Handle<Object> object) {
-  Code::ExtraICState extra_ic_state = target()->extended_extra_ic_state();
-  UnaryOpStub stub(extra_ic_state);
-
-  stub.UpdateStatus(object);
-
-  Handle<Code> code = stub.GetCode(isolate());
-  set_target(*code);
-
-  return stub.Result(object, isolate());
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, UnaryOpIC_Miss) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
-  UnaryOpIC ic(isolate);
-  return ic.Transition(object);
 }
 
 

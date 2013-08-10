@@ -207,10 +207,10 @@ TestArbitrary(new WeakMap);
 
 
 // Test direct constructor call
-assertTrue(Set() instanceof Set);
-assertTrue(Map() instanceof Map);
-assertTrue(WeakMap() instanceof WeakMap);
-assertTrue(WeakSet() instanceof WeakSet);
+assertThrows(function() { Set(); }, TypeError);
+assertThrows(function() { Map(); }, TypeError);
+assertThrows(function() { WeakMap(); }, TypeError);
+assertThrows(function() { WeakSet(); }, TypeError);
 
 
 // Test whether NaN values as keys are treated correctly.
@@ -308,7 +308,6 @@ TestPrototype(WeakSet);
 function TestConstructor(C) {
   assertFalse(C === Object.prototype.constructor);
   assertSame(C, C.prototype.constructor);
-  assertSame(C, C().__proto__.constructor);
   assertSame(C, (new C).__proto__.constructor);
 }
 TestConstructor(Set);

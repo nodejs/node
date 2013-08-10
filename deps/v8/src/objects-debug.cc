@@ -366,9 +366,12 @@ void Map::SharedMapVerify() {
 }
 
 
-void Map::VerifyOmittedPrototypeChecks() {
-  if (!FLAG_omit_prototype_checks_for_leaf_maps) return;
-  if (HasTransitionArray() || is_dictionary_map()) {
+void Map::VerifyOmittedMapChecks() {
+  if (!FLAG_omit_map_checks_for_leaf_maps) return;
+  if (!is_stable() ||
+      is_deprecated() ||
+      HasTransitionArray() ||
+      is_dictionary_map()) {
     CHECK_EQ(0, dependent_code()->number_of_entries(
         DependentCode::kPrototypeCheckGroup));
   }
@@ -1162,10 +1165,6 @@ static bool CheckOneBackPointer(Map* current_map, Object* target) {
 
 
 bool TransitionArray::IsConsistentWithBackPointers(Map* current_map) {
-  if (HasElementsTransition() &&
-      !CheckOneBackPointer(current_map, elements_transition())) {
-    return false;
-  }
   for (int i = 0; i < number_of_transitions(); ++i) {
     if (!CheckOneBackPointer(current_map, GetTarget(i))) return false;
   }

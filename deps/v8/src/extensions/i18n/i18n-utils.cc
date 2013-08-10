@@ -141,35 +141,37 @@ void Utils::AsciiToUChar(const char* source,
 }
 
 
+static v8::Local<v8::ObjectTemplate> ToLocal(i::Handle<i::Object> handle) {
+  return v8::Utils::ToLocal(i::Handle<i::ObjectTemplateInfo>::cast(handle));
+}
+
+
+template<int internal_fields, i::EternalHandles::SingletonHandle field>
+static v8::Local<v8::ObjectTemplate> GetEternal(v8::Isolate* external) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external);
+  if (isolate->eternal_handles()->Exists(field)) {
+    return ToLocal(isolate->eternal_handles()->GetSingleton(field));
+  }
+  v8::Local<v8::ObjectTemplate> raw_template(v8::ObjectTemplate::New());
+  raw_template->SetInternalFieldCount(internal_fields);
+  return ToLocal(
+      isolate->eternal_handles()->CreateSingleton(
+        isolate,
+        *v8::Utils::OpenHandle(*raw_template),
+        field));
+}
+
+
 // static
 v8::Local<v8::ObjectTemplate> Utils::GetTemplate(v8::Isolate* isolate) {
-  i::Isolate* internal = reinterpret_cast<i::Isolate*>(isolate);
-  if (internal->heap()->i18n_template_one() ==
-      internal->heap()->the_hole_value()) {
-    v8::Local<v8::ObjectTemplate> raw_template(v8::ObjectTemplate::New());
-    raw_template->SetInternalFieldCount(1);
-    internal->heap()
-        ->SetI18nTemplateOne(*v8::Utils::OpenHandle(*raw_template));
-  }
-
-  return v8::Utils::ToLocal(i::Handle<i::ObjectTemplateInfo>::cast(
-      internal->factory()->i18n_template_one()));
+  return GetEternal<1, i::EternalHandles::I18N_TEMPLATE_ONE>(isolate);
 }
 
 
 // static
 v8::Local<v8::ObjectTemplate> Utils::GetTemplate2(v8::Isolate* isolate) {
-  i::Isolate* internal = reinterpret_cast<i::Isolate*>(isolate);
-  if (internal->heap()->i18n_template_two() ==
-      internal->heap()->the_hole_value()) {
-    v8::Local<v8::ObjectTemplate> raw_template(v8::ObjectTemplate::New());
-    raw_template->SetInternalFieldCount(2);
-    internal->heap()
-        ->SetI18nTemplateTwo(*v8::Utils::OpenHandle(*raw_template));
-  }
-
-  return v8::Utils::ToLocal(i::Handle<i::ObjectTemplateInfo>::cast(
-      internal->factory()->i18n_template_two()));
+  return GetEternal<2, i::EternalHandles::I18N_TEMPLATE_TWO>(isolate);
 }
+
 
 }  // namespace v8_i18n

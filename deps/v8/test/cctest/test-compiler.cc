@@ -105,6 +105,7 @@ static Handle<JSFunction> Compile(const char* source) {
                         Handle<String>(),
                         0,
                         0,
+                        false,
                         Handle<Context>(isolate->native_context()),
                         NULL,
                         NULL,

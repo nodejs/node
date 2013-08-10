@@ -30,8 +30,6 @@
 
 #include "break-iterator.h"
 #include "collator.h"
-#include "date-format.h"
-#include "locale.h"
 #include "natives.h"
 #include "number-format.h"
 
@@ -49,26 +47,6 @@ Extension::Extension()
 
 v8::Handle<v8::FunctionTemplate> Extension::GetNativeFunction(
     v8::Handle<v8::String> name) {
-  // Standalone, helper methods.
-  if (name->Equals(v8::String::New("NativeJSCanonicalizeLanguageTag"))) {
-    return v8::FunctionTemplate::New(JSCanonicalizeLanguageTag);
-  } else if (name->Equals(v8::String::New("NativeJSAvailableLocalesOf"))) {
-    return v8::FunctionTemplate::New(JSAvailableLocalesOf);
-  } else if (name->Equals(v8::String::New("NativeJSGetDefaultICULocale"))) {
-    return v8::FunctionTemplate::New(JSGetDefaultICULocale);
-  } else if (name->Equals(v8::String::New("NativeJSGetLanguageTagVariants"))) {
-    return v8::FunctionTemplate::New(JSGetLanguageTagVariants);
-  }
-
-  // Date format and parse.
-  if (name->Equals(v8::String::New("NativeJSCreateDateTimeFormat"))) {
-    return v8::FunctionTemplate::New(DateFormat::JSCreateDateTimeFormat);
-  } else if (name->Equals(v8::String::New("NativeJSInternalDateFormat"))) {
-    return v8::FunctionTemplate::New(DateFormat::JSInternalFormat);
-  } else if (name->Equals(v8::String::New("NativeJSInternalDateParse"))) {
-    return v8::FunctionTemplate::New(DateFormat::JSInternalParse);
-  }
-
   // Number format and parse.
   if (name->Equals(v8::String::New("NativeJSCreateNumberFormat"))) {
     return v8::FunctionTemplate::New(NumberFormat::JSCreateNumberFormat);

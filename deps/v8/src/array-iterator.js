@@ -77,16 +77,15 @@ function ArrayIteratorNext() {
     return CreateIteratorResultObject(void 0, true);
   }
 
-  var elementKey = ToString(index);
   iterator[arrayIteratorNextIndexSymbol] = index + 1;
 
   if (itemKind == ARRAY_ITERATOR_KIND_VALUES)
-    return CreateIteratorResultObject(array[elementKey], false);
+    return CreateIteratorResultObject(array[index], false);
 
   if (itemKind == ARRAY_ITERATOR_KIND_ENTRIES)
-    return CreateIteratorResultObject([elementKey, array[elementKey]], false);
+    return CreateIteratorResultObject([index, array[index]], false);
 
-  return CreateIteratorResultObject(elementKey, false);
+  return CreateIteratorResultObject(index, false);
 }
 
 function ArrayEntries() {

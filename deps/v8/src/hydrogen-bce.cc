@@ -260,12 +260,12 @@ class BoundsCheckBbData: public ZoneObject {
     HValue* index_context = IndexContext(*add, check);
     if (index_context == NULL) return false;
 
-    HConstant* new_constant = new(BasicBlock()->zone()) HConstant(
-        new_offset, representation);
+    Zone* zone = BasicBlock()->zone();
+    HConstant* new_constant = HConstant::New(zone, index_context,
+                                             new_offset, representation);
     if (*add == NULL) {
       new_constant->InsertBefore(check);
-      (*add) = HAdd::New(
-          BasicBlock()->zone(), index_context, original_value, new_constant);
+      (*add) = HAdd::New(zone, index_context, original_value, new_constant);
       (*add)->AssumeRepresentation(representation);
       (*add)->InsertBefore(check);
     } else {

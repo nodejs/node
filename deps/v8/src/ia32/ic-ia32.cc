@@ -483,7 +483,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // based on 32 bits of the map pointer and the string hash.
   if (FLAG_debug_code) {
     __ cmp(eax, FieldOperand(edx, HeapObject::kMapOffset));
-    __ Check(equal, "Map is no longer in eax.");
+    __ Check(equal, kMapIsNoLongerInEax);
   }
   __ mov(ebx, eax);  // Keep the map around for later.
   __ shr(eax, KeyedLookupCache::kMapHashShift);

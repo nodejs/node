@@ -42,7 +42,7 @@ const int Deoptimizer::table_entry_size_ = 10;
 
 
 int Deoptimizer::patch_size() {
-  return Assembler::kCallInstructionLength;
+  return Assembler::kCallSequenceLength;
 }
 
 
@@ -69,7 +69,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address call_address = instruction_start + deopt_data->Pc(i)->value();
     // There is room enough to write a long call instruction because we pad
     // LLazyBailout instructions with nops if necessary.
-    CodePatcher patcher(call_address, Assembler::kCallInstructionLength);
+    CodePatcher patcher(call_address, Assembler::kCallSequenceLength);
     patcher.masm()->Call(GetDeoptimizationEntry(isolate, i, LAZY),
                          RelocInfo::NONE64);
     ASSERT(prev_call_address == NULL ||

@@ -369,6 +369,12 @@ const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
     HeapObjectsMap::kGcRootsFirstSubrootId +
     VisitorSynchronization::kNumberOfSyncTags * HeapObjectsMap::kObjectIdStep;
 
+
+static bool AddressesMatch(void* key1, void* key2) {
+  return key1 == key2;
+}
+
+
 HeapObjectsMap::HeapObjectsMap(Heap* heap)
     : next_id_(kFirstAvailableObjectId),
       entries_map_(AddressesMatch),
@@ -393,19 +399,20 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
   ASSERT(to != NULL);
   ASSERT(from != NULL);
   if (from == to) return;
-  void* from_value = entries_map_.Remove(from, AddressHash(from));
+  void* from_value = entries_map_.Remove(from, ComputePointerHash(from));
   if (from_value == NULL) {
     // It may occur that some untracked object moves to an address X and there
     // is a tracked object at that address. In this case we should remove the
     // entry as we know that the object has died.
-    void* to_value = entries_map_.Remove(to, AddressHash(to));
+    void* to_value = entries_map_.Remove(to, ComputePointerHash(to));
     if (to_value != NULL) {
       int to_entry_info_index =
           static_cast<int>(reinterpret_cast<intptr_t>(to_value));
       entries_.at(to_entry_info_index).addr = NULL;
     }
   } else {
-    HashMap::Entry* to_entry = entries_map_.Lookup(to, AddressHash(to), true);
+    HashMap::Entry* to_entry = entries_map_.Lookup(to, ComputePointerHash(to),
+                                                   true);
     if (to_entry->value != NULL) {
       // We found the existing entry with to address for an old object.
       // Without this operation we will have two EntryInfo's with the same
@@ -425,7 +432,8 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
 
 
 SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
-  HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), false);
+  HashMap::Entry* entry = entries_map_.Lookup(addr, ComputePointerHash(addr),
+                                              false);
   if (entry == NULL) return 0;
   int entry_index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   EntryInfo& entry_info = entries_.at(entry_index);
@@ -437,7 +445,8 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
 SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
                                                 unsigned int size) {
   ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
-  HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
+  HashMap::Entry* entry = entries_map_.Lookup(addr, ComputePointerHash(addr),
+                                              true);
   if (entry->value != NULL) {
     int entry_index =
         static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
@@ -532,13 +541,14 @@ void HeapObjectsMap::RemoveDeadEntries() {
       }
       entries_.at(first_free_entry).accessed = false;
       HashMap::Entry* entry = entries_map_.Lookup(
-          entry_info.addr, AddressHash(entry_info.addr), false);
+          entry_info.addr, ComputePointerHash(entry_info.addr), false);
       ASSERT(entry);
       entry->value = reinterpret_cast<void*>(first_free_entry);
       ++first_free_entry;
     } else {
       if (entry_info.addr) {
-        entries_map_.Remove(entry_info.addr, AddressHash(entry_info.addr));
+        entries_map_.Remove(entry_info.addr,
+                            ComputePointerHash(entry_info.addr));
       }
     }
   }

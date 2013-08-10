@@ -239,7 +239,8 @@ bool OS::ArmUsingHardFloat() {
 #else
 #if defined(__ARM_PCS_VFP)
   return true;
-#elif defined(__ARM_PCS) || defined(__SOFTFP) || !defined(__VFP_FP__)
+#elif defined(__ARM_PCS) || defined(__SOFTFP__) || defined(__SOFTFP) || \
+      !defined(__VFP_FP__)
   return false;
 #else
 #error "Your version of GCC does not report the FP ABI compiled for."          \

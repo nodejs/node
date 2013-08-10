@@ -278,10 +278,12 @@ class InductionVariableBlocksTable BASE_EMBEDDED {
     }
 
     // Choose the appropriate limit.
+    Zone* zone = graph()->zone();
+    HValue* context = graph()->GetInvalidContext();
     HValue* limit = data->limit();
     if (has_upper_constant_limit) {
-      HConstant* new_limit = new(pre_header->graph()->zone()) HConstant(
-          upper_constant_limit, length->representation());
+      HConstant* new_limit = HConstant::New(zone, context,
+                                            upper_constant_limit);
       new_limit->InsertBefore(pre_header->end());
       limit = new_limit;
     }
@@ -290,15 +292,15 @@ class InductionVariableBlocksTable BASE_EMBEDDED {
     if (limit->IsInteger32Constant() &&
         limit->block() != pre_header &&
         !limit->block()->Dominates(pre_header)) {
-      HConstant* new_limit = new(pre_header->graph()->zone()) HConstant(
-          limit->GetInteger32Constant(), length->representation());
+      HConstant* new_limit = HConstant::New(zone, context,
+                                            limit->GetInteger32Constant());
       new_limit->InsertBefore(pre_header->end());
       limit = new_limit;
     }
 
     // Do the hoisting.
-    HBoundsCheck* hoisted_check = new(pre_header->zone()) HBoundsCheck(
-        limit, check->check()->length());
+    HBoundsCheck* hoisted_check = HBoundsCheck::New(
+        zone, context, limit, check->check()->length());
     hoisted_check->InsertBefore(pre_header->end());
     hoisted_check->set_allow_equality(true);
     hoisted_check->block()->graph()->isolate()->counters()->

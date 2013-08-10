@@ -192,6 +192,7 @@ endif
 
 # ----------------- available targets: --------------------
 # - "dependencies": pulls in external dependencies (currently: GYP)
+# - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
 # - any mode listed in MODES
 # - every combination <arch>.<mode>, e.g. "ia32.release"
@@ -392,7 +393,7 @@ endif
 # Replaces the old with the new environment file if they're different, which
 # will trigger GYP to regenerate Makefiles.
 $(ENVFILE): $(ENVFILE).new
-	@if test -r $(ENVFILE) && cmp $(ENVFILE).new $(ENVFILE) >/dev/null; \
+	@if test -r $(ENVFILE) && cmp $(ENVFILE).new $(ENVFILE) > /dev/null; \
 	    then rm $(ENVFILE).new; \
 	    else mv $(ENVFILE).new $(ENVFILE); fi
 
@@ -401,11 +402,17 @@ $(ENVFILE).new:
 	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS)" > $(ENVFILE).new; \
 	    echo "CXX=$(CXX)" >> $(ENVFILE).new
 
+# Heap constants for grokdump.
+DUMP_FILE = tools/v8heapconst.py
+grokdump: ia32.release
+	@cat $(DUMP_FILE).tmpl > $(DUMP_FILE)
+	@$(OUTDIR)/ia32.release/d8 --dump-heap-constants >> $(DUMP_FILE)
+
 # Dependencies.
 # Remember to keep these in sync with the DEPS file.
 dependencies:
 	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
-	    --revision 1656
+	    --revision 1685
 	svn checkout --force \
 	    https://src.chromium.org/chrome/trunk/deps/third_party/icu46 \
-	    third_party/icu --revision 213354
+	    third_party/icu --revision 214189

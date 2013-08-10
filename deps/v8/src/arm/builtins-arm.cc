@@ -119,9 +119,9 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
     // Initial map for the builtin InternalArray functions should be maps.
     __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
     __ SmiTst(r2);
-    __ Assert(ne, "Unexpected initial map for InternalArray function");
+    __ Assert(ne, kUnexpectedInitialMapForInternalArrayFunction);
     __ CompareObjectType(r2, r3, r4, MAP_TYPE);
-    __ Assert(eq, "Unexpected initial map for InternalArray function");
+    __ Assert(eq, kUnexpectedInitialMapForInternalArrayFunction);
   }
 
   // Run the native code for the InternalArray function called as a normal
@@ -147,9 +147,9 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
     // Initial map for the builtin Array functions should be maps.
     __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
     __ SmiTst(r2);
-    __ Assert(ne, "Unexpected initial map for Array function");
+    __ Assert(ne, kUnexpectedInitialMapForArrayFunction);
     __ CompareObjectType(r2, r3, r4, MAP_TYPE);
-    __ Assert(eq, "Unexpected initial map for Array function");
+    __ Assert(eq, kUnexpectedInitialMapForArrayFunction);
   }
 
   // Run the native code for the Array function called as a normal function.
@@ -178,7 +178,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, r2);
     __ cmp(function, Operand(r2));
-    __ Assert(eq, "Unexpected String function");
+    __ Assert(eq, kUnexpectedStringFunction);
   }
 
   // Load the first arguments in r0 and get rid of the rest.
@@ -224,10 +224,10 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ ldrb(r4, FieldMemOperand(map, Map::kInstanceSizeOffset));
     __ cmp(r4, Operand(JSValue::kSize >> kPointerSizeLog2));
-    __ Assert(eq, "Unexpected string wrapper instance size");
+    __ Assert(eq, kUnexpectedStringWrapperInstanceSize);
     __ ldrb(r4, FieldMemOperand(map, Map::kUnusedPropertyFieldsOffset));
     __ cmp(r4, Operand::Zero());
-    __ Assert(eq, "Unexpected unused properties of string wrapper");
+    __ Assert(eq, kUnexpectedUnusedPropertiesOfStringWrapper);
   }
   __ str(map, FieldMemOperand(r0, HeapObject::kMapOffset));
 
@@ -471,7 +471,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         // r0: offset of first field after pre-allocated fields
         if (FLAG_debug_code) {
           __ cmp(r0, r6);
-          __ Assert(le, "Unexpected number of pre-allocated property fields.");
+          __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields);
         }
         __ InitializeFieldsWithFiller(r5, r0, r7);
         // To allow for truncation.
@@ -503,7 +503,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
       // Done if no extra properties are to be allocated.
       __ b(eq, &allocated);
-      __ Assert(pl, "Property allocation count failed.");
+      __ Assert(pl, kPropertyAllocationCountFailed);
 
       // Scale the number of elements by pointer size and add the header for
       // FixedArrays to the start of the next object calculation from above.
@@ -547,7 +547,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         } else if (FLAG_debug_code) {
           __ LoadRoot(r8, Heap::kUndefinedValueRootIndex);
           __ cmp(r7, r8);
-          __ Assert(eq, "Undefined value not loaded.");
+          __ Assert(eq, kUndefinedValueNotLoaded);
         }
         __ b(&entry);
         __ bind(&loop);

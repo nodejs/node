@@ -1304,6 +1304,7 @@ void StartupSerializer::SerializeStrongReferences() {
   // No active or weak handles.
   CHECK(isolate->handle_scope_implementer()->blocks()->is_empty());
   CHECK_EQ(0, isolate->global_handles()->NumberOfWeakHandles());
+  CHECK_EQ(0, isolate->eternal_handles()->NumberOfHandles());
   // We don't support serializing installed extensions.
   CHECK(!isolate->has_installed_extensions());
 

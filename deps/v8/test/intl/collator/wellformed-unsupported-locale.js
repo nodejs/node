@@ -29,4 +29,4 @@
 
 var collator = Intl.Collator(['xx']);
 
-assertEquals(collator.resolvedOptions().locale, getDefaultLocale());
+assertEquals(collator.resolvedOptions().locale, %GetDefaultICULocale());

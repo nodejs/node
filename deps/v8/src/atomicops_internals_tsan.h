@@ -32,6 +32,12 @@
 #ifndef V8_ATOMICOPS_INTERNALS_TSAN_H_
 #define V8_ATOMICOPS_INTERNALS_TSAN_H_
 
+namespace v8 {
+namespace internal {
+
+#ifndef TSAN_INTERFACE_ATOMIC_H
+#define TSAN_INTERFACE_ATOMIC_H
+
 // This struct is not part of the public API of this module; clients may not
 // use it.  (However, it's exported via BASE_EXPORT because clients implicitly
 // do use it at link time by inlining these functions.)
@@ -46,12 +52,6 @@ extern struct AtomicOps_x86CPUFeatureStruct
     AtomicOps_Internalx86CPUFeatures;
 
 #define ATOMICOPS_COMPILER_BARRIER() __asm__ __volatile__("" : : : "memory")
-
-namespace v8 {
-namespace internal {
-
-#ifndef TSAN_INTERFACE_ATOMIC_H
-#define TSAN_INTERFACE_ATOMIC_H
 
 #ifdef __cplusplus
 extern "C" {

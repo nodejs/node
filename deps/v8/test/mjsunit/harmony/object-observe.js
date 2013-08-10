@@ -259,6 +259,16 @@ records = undefined;
 Object.deliverChangeRecords(observer.callback);
 observer.assertRecordCount(1);
 
+// Get notifier prior to observing
+reset();
+var obj = {};
+Object.getNotifier(obj);
+Object.observe(obj, observer.callback);
+obj.id = 1;
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, type: 'new', name: 'id' },
+]);
 
 // Observing a continuous stream of changes, while itermittantly unobserving.
 reset();
@@ -636,8 +646,8 @@ function recursiveObserver2(r) {
 Object.observe(obj1, recursiveObserver2);
 Object.observe(obj2, recursiveObserver2);
 ++obj1.a;
-Object.deliverChangeRecords(recursiveObserver2);
 // TODO(verwaest): Disabled because of bug 2774.
+// Object.deliverChangeRecords(recursiveObserver2);
 // assertEquals(199, recordCount);
 
 
@@ -783,6 +793,8 @@ observer.assertNotCalled();
 // Test all kinds of objects generically.
 function TestObserveConfigurable(obj, prop) {
   reset();
+  Object.observe(obj, observer.callback);
+  Object.unobserve(obj, observer.callback);
   obj[prop] = 1;
   Object.observe(obj, observer.callback);
   obj[prop] = 2;
@@ -852,6 +864,8 @@ function TestObserveConfigurable(obj, prop) {
 
 function TestObserveNonConfigurable(obj, prop, desc) {
   reset();
+  Object.observe(obj, observer.callback);
+  Object.unobserve(obj, observer.callback);
   obj[prop] = 1;
   Object.observe(obj, observer.callback);
   obj[prop] = 4;

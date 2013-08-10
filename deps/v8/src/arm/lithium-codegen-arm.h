@@ -115,7 +115,7 @@ class LCodeGen BASE_EMBEDDED {
   DwVfpRegister EmitLoadDoubleRegister(LOperand* op,
                                        SwVfpRegister flt_scratch,
                                        DwVfpRegister dbl_scratch);
-  int ToRepresentation(LConstantOperand* op, const Representation& r) const;
+  int32_t ToRepresentation(LConstantOperand* op, const Representation& r) const;
   int32_t ToInteger32(LConstantOperand* op) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
@@ -154,8 +154,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredAllocate(LAllocate* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
-
-  void DoCheckMapCommon(Register map_reg, Handle<Map> map, LEnvironment* env);
+  void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
@@ -214,7 +213,7 @@ class LCodeGen BASE_EMBEDDED {
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
-  void Abort(const char* reason);
+  void Abort(BailoutReason reason);
   void FPRINTF_CHECKING Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }

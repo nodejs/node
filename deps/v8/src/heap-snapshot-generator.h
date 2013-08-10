@@ -266,16 +266,6 @@ class HeapObjectsMap {
   void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
 
-  static bool AddressesMatch(void* key1, void* key2) {
-    return key1 == key2;
-  }
-
-  static uint32_t AddressHash(Address addr) {
-    return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr)),
-        v8::internal::kZeroHashSeed);
-  }
-
   SnapshotObjectId next_id_;
   HashMap entries_map_;
   List<EntryInfo> entries_;

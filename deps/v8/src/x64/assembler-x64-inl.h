@@ -373,13 +373,14 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 
 bool RelocInfo::IsPatchedReturnSequence() {
   // The recognized call sequence is:
-  //  movq(kScratchRegister, immediate64); call(kScratchRegister);
+  //  movq(kScratchRegister, address); call(kScratchRegister);
   // It only needs to be distinguished from a return sequence
   //  movq(rsp, rbp); pop(rbp); ret(n); int3 *6
   // The 11th byte is int3 (0xCC) in the return sequence and
   // REX.WB (0x48+register bit) for the call sequence.
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  return pc_[2 + kPointerSize] != 0xCC;
+  return pc_[Assembler::kMoveAddressIntoScratchRegisterInstructionLength] !=
+         0xCC;
 #else
   return false;
 #endif

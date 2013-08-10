@@ -786,10 +786,10 @@ void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
     // Check that we're not inside a with or catch context.
     __ lw(a1, FieldMemOperand(cp, HeapObject::kMapOffset));
     __ LoadRoot(t0, Heap::kWithContextMapRootIndex);
-    __ Check(ne, "Declaration in with context.",
+    __ Check(ne, kDeclarationInWithContext,
         a1, Operand(t0));
     __ LoadRoot(t0, Heap::kCatchContextMapRootIndex);
-    __ Check(ne, "Declaration in catch context.",
+    __ Check(ne, kDeclarationInCatchContext,
         a1, Operand(t0));
   }
 }
@@ -2234,7 +2234,7 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 
   Handle<Map> map(isolate()->native_context()->generator_result_map());
 
-  __ Allocate(map->instance_size(), a0, a2, a3, &gc_required, TAG_OBJECT);
+  __ Allocate(map->instance_size(), v0, a2, a3, &gc_required, TAG_OBJECT);
   __ jmp(&allocated);
 
   __ bind(&gc_required);
@@ -2249,19 +2249,18 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   __ li(a3, Operand(isolate()->factory()->ToBoolean(done)));
   __ li(t0, Operand(isolate()->factory()->empty_fixed_array()));
   ASSERT_EQ(map->instance_size(), 5 * kPointerSize);
-  __ sw(a1, FieldMemOperand(a0, HeapObject::kMapOffset));
-  __ sw(t0, FieldMemOperand(a0, JSObject::kPropertiesOffset));
-  __ sw(t0, FieldMemOperand(a0, JSObject::kElementsOffset));
+  __ sw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
+  __ sw(t0, FieldMemOperand(v0, JSObject::kPropertiesOffset));
+  __ sw(t0, FieldMemOperand(v0, JSObject::kElementsOffset));
   __ sw(a2,
-        FieldMemOperand(a0, JSGeneratorObject::kResultValuePropertyOffset));
+        FieldMemOperand(v0, JSGeneratorObject::kResultValuePropertyOffset));
   __ sw(a3,
-        FieldMemOperand(a0, JSGeneratorObject::kResultDonePropertyOffset));
+        FieldMemOperand(v0, JSGeneratorObject::kResultDonePropertyOffset));
 
   // Only the value field needs a write barrier, as the other values are in the
   // root set.
-  __ RecordWriteField(a0, JSGeneratorObject::kResultValuePropertyOffset,
+  __ RecordWriteField(v0, JSGeneratorObject::kResultValuePropertyOffset,
                       a2, a3, kRAHasBeenSaved, kDontSaveFPRegs);
-  __ mov(result_register(), a0);
 }
 
 
@@ -2530,7 +2529,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         // Check for an uninitialized let binding.
         __ lw(a2, location);
         __ LoadRoot(t0, Heap::kTheHoleValueRootIndex);
-        __ Check(eq, "Let binding re-initialization.", a2, Operand(t0));
+        __ Check(eq, kLetBindingReInitialization, a2, Operand(t0));
       }
       // Perform the assignment.
       __ sw(v0, location);
@@ -3493,21 +3492,21 @@ void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
                                                   Register value,
                                                   uint32_t encoding_mask) {
   __ And(at, index, Operand(kSmiTagMask));
-  __ Check(eq, "Non-smi index", at, Operand(zero_reg));
+  __ Check(eq, kNonSmiIndex, at, Operand(zero_reg));
   __ And(at, value, Operand(kSmiTagMask));
-  __ Check(eq, "Non-smi value", at, Operand(zero_reg));
+  __ Check(eq, kNonSmiValue, at, Operand(zero_reg));
 
   __ lw(at, FieldMemOperand(string, String::kLengthOffset));
-  __ Check(lt, "Index is too large", index, Operand(at));
+  __ Check(lt, kIndexIsTooLarge, index, Operand(at));
 
-  __ Check(ge, "Index is negative", index, Operand(zero_reg));
+  __ Check(ge, kIndexIsNegative, index, Operand(zero_reg));
 
   __ lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
   __ lbu(at, FieldMemOperand(at, Map::kInstanceTypeOffset));
 
   __ And(at, at, Operand(kStringRepresentationMask | kStringEncodingMask));
   __ Subu(at, at, Operand(encoding_mask));
-  __ Check(eq, "Unexpected string type", at, Operand(zero_reg));
+  __ Check(eq, kUnexpectedStringType, at, Operand(zero_reg));
 }
 
 
@@ -3882,7 +3881,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   Handle<FixedArray> jsfunction_result_caches(
       isolate()->native_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
-    __ Abort("Attempt to use undefined cache.");
+    __ Abort(kAttemptToUseUndefinedCache);
     __ LoadRoot(v0, Heap::kUndefinedValueRootIndex);
     context()->Plug(v0);
     return;
@@ -4064,7 +4063,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //   element: Current array element.
   //   elements_end: Array end.
   if (generate_debug_code_) {
-    __ Assert(gt, "No empty arrays here in EmitFastAsciiArrayJoin",
+    __ Assert(gt, kNoEmptyArraysHereInEmitFastAsciiArrayJoin,
         array_length, Operand(zero_reg));
   }
   __ bind(&loop);
@@ -4383,32 +4382,9 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       break;
     }
 
-    case Token::SUB:
-      EmitUnaryOperation(expr, "[ UnaryOperation (SUB)");
-      break;
-
-    case Token::BIT_NOT:
-      EmitUnaryOperation(expr, "[ UnaryOperation (BIT_NOT)");
-      break;
-
     default:
       UNREACHABLE();
   }
-}
-
-
-void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
-                                           const char* comment) {
-  // TODO(svenpanne): Allowing format strings in Comment would be nice here...
-  Comment cmt(masm_, comment);
-  UnaryOpStub stub(expr->op());
-  // GenericUnaryOpStub expects the argument to be in a0.
-  VisitForAccumulatorValue(expr->expression());
-  SetSourcePosition(expr->position());
-  __ mov(a0, result_register());
-  CallIC(stub.GetCode(isolate()), RelocInfo::CODE_TARGET,
-         expr->UnaryOperationFeedbackId());
-  context()->Plug(v0);
 }
 
 

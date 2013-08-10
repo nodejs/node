@@ -109,3 +109,14 @@ for(var i = 0; i < 1000; i++) {
 assertEquals(42, foo(-42));
 %OptimizeFunctionOnNextCall(foo)
 assertEquals(42, foo(-42));
+
+// Regression test for SMI input of Math.abs on X64, see:
+// https://codereview.chromium.org/21180004/
+var a = [-1, -2];
+function foo2() {
+  return Math.abs(a[0]);
+}
+assertEquals(1, foo2());
+assertEquals(1, foo2());
+%OptimizeFunctionOnNextCall(foo2);
+assertEquals(1, foo2());

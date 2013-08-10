@@ -246,6 +246,11 @@ class ZoneSplayTree: public SplayTree<Config, ZoneAllocationPolicy> {
   explicit ZoneSplayTree(Zone* zone)
       : SplayTree<Config, ZoneAllocationPolicy>(ZoneAllocationPolicy(zone)) {}
   ~ZoneSplayTree();
+
+  INLINE(void* operator new(size_t size, Zone* zone));
+
+  void operator delete(void* pointer) { UNREACHABLE(); }
+  void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
 };
 
 

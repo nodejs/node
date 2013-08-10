@@ -27,12 +27,22 @@ d8
 d8_g
 shell
 shell_g
+/_*
 /build/Debug
 /build/gyp
 /build/ipch/
 /build/Release
+/hydrogen.cfg
 /obj
 /out
+/perf.data
+/perf.data.old
+/test/benchmarks/benchmarks.status2
+/test/benchmarks/CHECKED_OUT_*
+/test/benchmarks/downloaded_*
+/test/benchmarks/kraken
+/test/benchmarks/octane
+/test/benchmarks/sunspider
 /test/cctest/cctest.status2
 /test/message/message.status2
 /test/mjsunit/mjsunit.status2
@@ -52,6 +62,7 @@ shell_g
 /tools/oom_dump/oom_dump.o
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
+/v8.log.ll
 /xcodebuild
 TAGS
 *.Makefile
@@ -59,4 +70,3 @@ GTAGS
 GRTAGS
 GSYMS
 GPATH
-/_*

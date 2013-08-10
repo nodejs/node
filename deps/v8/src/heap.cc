@@ -1014,6 +1014,8 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   }
   gc_post_processing_depth_--;
 
+  isolate_->eternal_handles()->PostGarbageCollectionProcessing(this);
+
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing();
 
@@ -2006,7 +2008,6 @@ class ScavengingVisitor : public StaticVisitorBase {
 
  private:
   enum ObjectContents  { DATA_OBJECT, POINTER_OBJECT };
-  enum SizeRestriction { SMALL, UNKNOWN_SIZE };
 
   static void RecordCopiedObject(Heap* heap, HeapObject* obj) {
     bool should_record = false;
@@ -2058,15 +2059,12 @@ class ScavengingVisitor : public StaticVisitorBase {
   }
 
 
-  template<ObjectContents object_contents,
-           SizeRestriction size_restriction,
-           int alignment>
+  template<ObjectContents object_contents, int alignment>
   static inline void EvacuateObject(Map* map,
                                     HeapObject** slot,
                                     HeapObject* object,
                                     int object_size) {
-    SLOW_ASSERT((size_restriction != SMALL) ||
-                (object_size <= Page::kMaxNonCodeHeapObjectSize));
+    SLOW_ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
     SLOW_ASSERT(object->Size() == object_size);
 
     int allocation_size = object_size;
@@ -2079,17 +2077,11 @@ class ScavengingVisitor : public StaticVisitorBase {
     if (heap->ShouldBePromoted(object->address(), object_size)) {
       MaybeObject* maybe_result;
 
-      if ((size_restriction != SMALL) &&
-          (allocation_size > Page::kMaxNonCodeHeapObjectSize)) {
-        maybe_result = heap->lo_space()->AllocateRaw(allocation_size,
-                                                     NOT_EXECUTABLE);
+      if (object_contents == DATA_OBJECT) {
+        maybe_result = heap->old_data_space()->AllocateRaw(allocation_size);
       } else {
-        if (object_contents == DATA_OBJECT) {
-          maybe_result = heap->old_data_space()->AllocateRaw(allocation_size);
-        } else {
-          maybe_result =
-              heap->old_pointer_space()->AllocateRaw(allocation_size);
-        }
+        maybe_result =
+            heap->old_pointer_space()->AllocateRaw(allocation_size);
       }
 
       Object* result = NULL;  // Initialization to please compiler.
@@ -2163,10 +2155,8 @@ class ScavengingVisitor : public StaticVisitorBase {
                                         HeapObject** slot,
                                         HeapObject* object) {
     int object_size = FixedArray::BodyDescriptor::SizeOf(map, object);
-    EvacuateObject<POINTER_OBJECT, UNKNOWN_SIZE, kObjectAlignment>(map,
-                                                 slot,
-                                                 object,
-                                                 object_size);
+    EvacuateObject<POINTER_OBJECT, kObjectAlignment>(
+        map, slot, object, object_size);
   }
 
 
@@ -2175,11 +2165,8 @@ class ScavengingVisitor : public StaticVisitorBase {
                                               HeapObject* object) {
     int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
     int object_size = FixedDoubleArray::SizeFor(length);
-    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE, kDoubleAlignment>(
-        map,
-        slot,
-        object,
-        object_size);
+    EvacuateObject<DATA_OBJECT, kDoubleAlignment>(
+        map, slot, object, object_size);
   }
 
 
@@ -2187,7 +2174,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                        HeapObject** slot,
                                        HeapObject* object) {
     int object_size = reinterpret_cast<ByteArray*>(object)->ByteArraySize();
-    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE, kObjectAlignment>(
+    EvacuateObject<DATA_OBJECT, kObjectAlignment>(
         map, slot, object, object_size);
   }
 
@@ -2197,7 +2184,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                             HeapObject* object) {
     int object_size = SeqOneByteString::cast(object)->
         SeqOneByteStringSize(map->instance_type());
-    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE, kObjectAlignment>(
+    EvacuateObject<DATA_OBJECT, kObjectAlignment>(
         map, slot, object, object_size);
   }
 
@@ -2207,7 +2194,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                               HeapObject* object) {
     int object_size = SeqTwoByteString::cast(object)->
         SeqTwoByteStringSize(map->instance_type());
-    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE, kObjectAlignment>(
+    EvacuateObject<DATA_OBJECT, kObjectAlignment>(
         map, slot, object, object_size);
   }
 
@@ -2251,7 +2238,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
 
     int object_size = ConsString::kSize;
-    EvacuateObject<POINTER_OBJECT, SMALL, kObjectAlignment>(
+    EvacuateObject<POINTER_OBJECT, kObjectAlignment>(
         map, slot, object, object_size);
   }
 
@@ -2262,7 +2249,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     static inline void VisitSpecialized(Map* map,
                                         HeapObject** slot,
                                         HeapObject* object) {
-      EvacuateObject<object_contents, SMALL, kObjectAlignment>(
+      EvacuateObject<object_contents, kObjectAlignment>(
           map, slot, object, object_size);
     }
 
@@ -2270,7 +2257,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                              HeapObject** slot,
                              HeapObject* object) {
       int object_size = map->instance_size();
-      EvacuateObject<object_contents, SMALL, kObjectAlignment>(
+      EvacuateObject<object_contents, kObjectAlignment>(
           map, slot, object, object_size);
     }
   };
@@ -3202,6 +3189,11 @@ bool Heap::CreateInitialObjects() {
   }
   set_frozen_symbol(Symbol::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateSymbol();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_elements_transition_symbol(Symbol::cast(obj));
+
   { MaybeObject* maybe_obj = SeededNumberDictionary::Allocate(this, 0, TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
@@ -3212,9 +3204,6 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_observed_symbol(Symbol::cast(obj));
-
-  set_i18n_template_one(the_hole_value());
-  set_i18n_template_two(the_hole_value());
 
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
@@ -6603,6 +6592,14 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   }
   v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
+  // Iterate over eternal handles.
+  if (mode == VISIT_ALL_IN_SCAVENGE) {
+    isolate_->eternal_handles()->IterateNewSpaceRoots(v);
+  } else {
+    isolate_->eternal_handles()->IterateAllRoots(v);
+  }
+  v->Synchronize(VisitorSynchronization::kEternalHandles);
+
   // Iterate over pointers being held by inactive threads.
   isolate_->thread_manager()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kThreadManager);
@@ -6944,6 +6941,8 @@ void Heap::TearDown() {
   isolate_->global_handles()->TearDown();
 
   external_string_table_.TearDown();
+
+  mark_compact_collector()->TearDown();
 
   new_space_.TearDown();
 

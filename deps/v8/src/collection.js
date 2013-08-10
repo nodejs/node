@@ -47,7 +47,7 @@ function SetConstructor() {
   if (%_IsConstructCall()) {
     %SetInitialize(this);
   } else {
-    return new $Set();
+    throw MakeTypeError('constructor_not_function', ['Set']);
   }
 }
 
@@ -141,7 +141,7 @@ function MapConstructor() {
   if (%_IsConstructCall()) {
     %MapInitialize(this);
   } else {
-    return new $Map();
+    throw MakeTypeError('constructor_not_function', ['Map']);
   }
 }
 
@@ -243,7 +243,7 @@ function WeakMapConstructor() {
   if (%_IsConstructCall()) {
     %WeakCollectionInitialize(this);
   } else {
-    return new $WeakMap();
+    throw MakeTypeError('constructor_not_function', ['WeakMap']);
   }
 }
 
@@ -335,7 +335,7 @@ function WeakSetConstructor() {
   if (%_IsConstructCall()) {
     %WeakCollectionInitialize(this);
   } else {
-    return new $WeakSet();
+    throw MakeTypeError('constructor_not_function', ['WeakSet']);
   }
 }
 

@@ -204,71 +204,6 @@ void CodeStub::PrintName(StringStream* stream) {
 }
 
 
-Builtins::JavaScript UnaryOpStub::ToJSBuiltin() {
-  switch (operation_) {
-    default:
-      UNREACHABLE();
-    case Token::SUB:
-      return Builtins::UNARY_MINUS;
-    case Token::BIT_NOT:
-      return Builtins::BIT_NOT;
-  }
-}
-
-
-Handle<JSFunction> UnaryOpStub::ToJSFunction(Isolate* isolate) {
-  Handle<JSBuiltinsObject> builtins(isolate->js_builtins_object());
-  Object* builtin = builtins->javascript_builtin(ToJSBuiltin());
-  return Handle<JSFunction>(JSFunction::cast(builtin), isolate);
-}
-
-
-MaybeObject* UnaryOpStub::Result(Handle<Object> object, Isolate* isolate) {
-  Handle<JSFunction> builtin_function = ToJSFunction(isolate);
-  bool caught_exception;
-  Handle<Object> result = Execution::Call(builtin_function, object,
-                                          0, NULL, &caught_exception);
-  if (caught_exception) {
-    return Failure::Exception();
-  }
-  return *result;
-}
-
-
-void UnaryOpStub::UpdateStatus(Handle<Object> object) {
-  State old_state(state_);
-  if (object->IsSmi()) {
-    state_.Add(SMI);
-    if (operation_ == Token::SUB && *object == 0) {
-      // The result (-0) has to be represented as double.
-      state_.Add(HEAP_NUMBER);
-    }
-  } else if (object->IsHeapNumber()) {
-    state_.Add(HEAP_NUMBER);
-  } else {
-    state_.Add(GENERIC);
-  }
-  TraceTransition(old_state, state_);
-}
-
-
-Handle<Type> UnaryOpStub::GetType(Isolate* isolate) {
-  if (state_.Contains(GENERIC)) {
-    return handle(Type::Any(), isolate);
-  }
-  Handle<Type> type = handle(Type::None(), isolate);
-  if (state_.Contains(SMI)) {
-    type = handle(
-        Type::Union(type, handle(Type::Smi(), isolate)), isolate);
-  }
-  if (state_.Contains(HEAP_NUMBER)) {
-    type = handle(
-        Type::Union(type, handle(Type::Double(), isolate)), isolate);
-  }
-  return type;
-}
-
-
 void BinaryOpStub::Generate(MacroAssembler* masm) {
   // Explicitly allow generation of nested stubs. It is safe here because
   // generation code does not use any raw pointers.
@@ -352,29 +287,6 @@ void BinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
 
 
 #undef __
-
-
-void UnaryOpStub::PrintBaseName(StringStream* stream) {
-  CodeStub::PrintBaseName(stream);
-  if (operation_ == Token::SUB) stream->Add("Minus");
-  if (operation_ == Token::BIT_NOT) stream->Add("Not");
-}
-
-
-void UnaryOpStub::PrintState(StringStream* stream) {
-  state_.Print(stream);
-}
-
-
-void UnaryOpStub::State::Print(StringStream* stream) const {
-  stream->Add("(");
-  SimpleListPrinter printer(stream);
-  if (IsEmpty()) printer.Add("None");
-  if (Contains(GENERIC)) printer.Add("Generic");
-  if (Contains(HEAP_NUMBER)) printer.Add("HeapNumber");
-  if (Contains(SMI)) printer.Add("Smi");
-  stream->Add(")");
-}
 
 
 void BinaryOpStub::PrintName(StringStream* stream) {

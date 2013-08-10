@@ -180,6 +180,12 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_FUNCTION_PROXY_TYPE:
       JSFunctionProxy::cast(this)->JSFunctionProxyPrint(out);
       break;
+    case JS_SET_TYPE:
+      JSSet::cast(this)->JSSetPrint(out);
+      break;
+    case JS_MAP_TYPE:
+      JSMap::cast(this)->JSMapPrint(out);
+      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapPrint(out);
       break;
@@ -488,7 +494,7 @@ void JSObject::JSObjectPrint(FILE* out) {
 
 void JSModule::JSModulePrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSModule");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - context = ");
   context()->Print(out);
   PrintF(out, " - scope_info = ");
@@ -561,6 +567,8 @@ static const char* TypeToString(InstanceType type) {
     case CODE_TYPE: return "CODE";
     case JS_ARRAY_TYPE: return "JS_ARRAY";
     case JS_PROXY_TYPE: return "JS_PROXY";
+    case JS_SET_TYPE: return "JS_SET";
+    case JS_MAP_TYPE: return "JS_MAP";
     case JS_WEAK_MAP_TYPE: return "JS_WEAK_MAP";
     case JS_WEAK_SET_TYPE: return "JS_WEAK_SET";
     case JS_REGEXP_TYPE: return "JS_REGEXP";
@@ -777,7 +785,7 @@ static const char* const weekdays[] = {
 
 void JSDate::JSDatePrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSDate");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - value = ");
   value()->Print(out);
   if (!year()->IsSmi()) {
@@ -797,7 +805,7 @@ void JSDate::JSDatePrint(FILE* out) {
 
 void JSProxy::JSProxyPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSProxy");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
   PrintF(out, " - hash = ");
@@ -808,7 +816,7 @@ void JSProxy::JSProxyPrint(FILE* out) {
 
 void JSFunctionProxy::JSFunctionProxyPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSFunctionProxy");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
   PrintF(out, " - call_trap = ");
@@ -819,9 +827,27 @@ void JSFunctionProxy::JSFunctionProxyPrint(FILE* out) {
 }
 
 
+void JSSet::JSSetPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSSet");
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - table = ");
+  table()->ShortPrint(out);
+  PrintF(out, "\n");
+}
+
+
+void JSMap::JSMapPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSMap");
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - table = ");
+  table()->ShortPrint(out);
+  PrintF(out, "\n");
+}
+
+
 void JSWeakMap::JSWeakMapPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSWeakMap");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - table = ");
   table()->ShortPrint(out);
   PrintF(out, "\n");
@@ -830,7 +856,7 @@ void JSWeakMap::JSWeakMapPrint(FILE* out) {
 
 void JSWeakSet::JSWeakSetPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSWeakSet");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - table = ");
   table()->ShortPrint(out);
   PrintF(out, "\n");
@@ -839,8 +865,8 @@ void JSWeakSet::JSWeakSetPrint(FILE* out) {
 
 void JSArrayBuffer::JSArrayBufferPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSArrayBuffer");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
-  PrintF(out, " - backing_store = -0x%p\n", backing_store());
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - backing_store = %p\n", backing_store());
   PrintF(out, " - byte_length = ");
   byte_length()->ShortPrint(out);
   PrintF(out, "\n");
@@ -878,7 +904,7 @@ void JSDataView::JSDataViewPrint(FILE* out) {
 
 void JSFunction::JSFunctionPrint(FILE* out) {
   HeapObject::PrintHeader(out, "Function");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - initial_map = ");
   if (has_initial_map()) {
     initial_map()->ShortPrint(out);

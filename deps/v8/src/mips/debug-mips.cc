@@ -142,8 +142,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
         if ((non_object_regs & (1 << r)) != 0) {
           if (FLAG_debug_code) {
             __ And(at, reg, 0xc0000000);
-            __ Assert(
-                eq, "Unable to encode value as smi", at, Operand(zero_reg));
+            __ Assert(eq, kUnableToEncodeValueAsSmi, at, Operand(zero_reg));
           }
           __ sll(reg, reg, kSmiTagSize);
         }
@@ -325,12 +324,12 @@ void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
 
 
 void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  masm->Abort("LiveEdit frame dropping is not supported on mips");
+  masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnMips);
 }
 
 
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  masm->Abort("LiveEdit frame dropping is not supported on mips");
+  masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnMips);
 }
 
 
