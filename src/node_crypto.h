@@ -31,6 +31,7 @@
 #include "node_buffer.h"
 #endif
 
+#include "env.h"
 #include "v8.h"
 
 #include <openssl/ssl.h>
@@ -58,10 +59,14 @@ class Connection;
 
 class SecureContext : ObjectWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
-  SSL_CTX* ctx_;
+  inline Environment* env() const {
+    return env_;
+  }
+
   X509_STORE* ca_store_;
+  SSL_CTX* ctx_;
 
   static const int kMaxSessionSize = 10 * 1024;
 
@@ -85,9 +90,11 @@ class SecureContext : ObjectWrap {
   static void GetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  SecureContext() : ObjectWrap() {
-    ctx_ = NULL;
-    ca_store_ = NULL;
+  explicit SecureContext(Environment* env)
+      : ObjectWrap()
+      , ca_store_(NULL)
+      , ctx_(NULL)
+      , env_(env) {
   }
 
   void FreeCTXMem() {
@@ -112,6 +119,7 @@ class SecureContext : ObjectWrap {
   }
 
  private:
+  Environment* const env_;
 };
 
 template <class Base>
@@ -122,9 +130,11 @@ class SSLWrap {
     kServer
   };
 
-  SSLWrap(SecureContext* sc, Kind kind) : kind_(kind),
-                                          next_sess_(NULL),
-                                          session_callbacks_(false) {
+  SSLWrap(Environment* env, SecureContext* sc, Kind kind)
+      : env_(env)
+      , kind_(kind)
+      , next_sess_(NULL)
+      , session_callbacks_(false) {
     ssl_ = SSL_new(sc->ctx_);
     assert(ssl_ != NULL);
   }
@@ -190,6 +200,11 @@ class SSLWrap {
                                      void* arg);
 #endif  // OPENSSL_NPN_NEGOTIATED
 
+  inline Environment* env() const {
+    return env_;
+  }
+
+  Environment* const env_;
   Kind kind_;
   SSL_SESSION* next_sess_;
   SSL* ssl_;
@@ -206,7 +221,7 @@ class SSLWrap {
 
 class Connection : public SSLWrap<Connection>, public ObjectWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   v8::Persistent<v8::Object> npnProtos_;
@@ -263,10 +278,13 @@ class Connection : public SSLWrap<Connection>, public ObjectWrap {
     return conn;
   }
 
-  Connection(SecureContext* sc, SSLWrap<Connection>::Kind kind)
-      : SSLWrap<Connection>(sc, kind),
-        hello_offset_(0) {
-    bio_read_ = bio_write_ = NULL;
+  Connection(Environment* env,
+             SecureContext* sc,
+             SSLWrap<Connection>::Kind kind)
+      : SSLWrap<Connection>(env, sc, kind)
+      , bio_read_(NULL)
+      , bio_write_(NULL)
+      , hello_offset_(0) {
     hello_parser_.Start(SSLWrap<Connection>::OnClientHello,
                         OnClientHelloParseEnd,
                         this);
@@ -296,7 +314,7 @@ class Connection : public SSLWrap<Connection>, public ObjectWrap {
 
 class CipherBase : public ObjectWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
  protected:
   enum CipherKind {
@@ -340,7 +358,7 @@ class CipherBase : public ObjectWrap {
 
 class Hmac : public ObjectWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
  protected:
   void HmacInit(const char* hash_type, const char* key, int key_len);
@@ -368,7 +386,7 @@ class Hmac : public ObjectWrap {
 
 class Hash : public ObjectWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
   bool HashInit(const char* hash_type);
   bool HashUpdate(const char* data, int len);
@@ -394,7 +412,7 @@ class Hash : public ObjectWrap {
 
 class Sign : public ObjectWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
   void SignInit(const char* sign_type);
   bool SignUpdate(const char* data, int len);
@@ -425,7 +443,7 @@ class Sign : public ObjectWrap {
 
 class Verify : public ObjectWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
   void VerifyInit(const char* verify_type);
   bool VerifyUpdate(const char* data, int len);
@@ -456,7 +474,7 @@ class Verify : public ObjectWrap {
 
 class DiffieHellman : public ObjectWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
   bool Init(int primeLength);
   bool Init(const char* p, int p_len);

@@ -22,11 +22,11 @@
 #ifndef SRC_STREAM_WRAP_H_
 #define SRC_STREAM_WRAP_H_
 
-#include "v8.h"
-#include "node.h"
+#include "env.h"
 #include "handle_wrap.h"
 #include "req_wrap.h"
 #include "string_bytes.h"
+#include "v8.h"
 
 namespace node {
 
@@ -37,8 +37,8 @@ typedef class ReqWrap<uv_shutdown_t> ShutdownWrap;
 
 class WriteWrap: public ReqWrap<uv_write_t> {
  public:
-  WriteWrap(v8::Local<v8::Object> obj, StreamWrap* wrap)
-      : ReqWrap<uv_write_t>(obj)
+  WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamWrap* wrap)
+      : ReqWrap<uv_write_t>(env, obj)
       , wrap_(wrap) {
   }
 
@@ -108,8 +108,6 @@ class StreamWrap : public HandleWrap {
       delete old;
   }
 
-  static void Initialize(v8::Handle<v8::Object> target);
-
   static void GetFD(v8::Local<v8::String>,
                     const v8::PropertyCallbackInfo<v8::Value>&);
 
@@ -148,7 +146,9 @@ class StreamWrap : public HandleWrap {
  protected:
   static size_t WriteBuffer(v8::Handle<v8::Value> val, uv_buf_t* buf);
 
-  StreamWrap(v8::Handle<v8::Object> object, uv_stream_t* stream);
+  StreamWrap(Environment* env,
+             v8::Local<v8::Object> object,
+             uv_stream_t* stream);
 
   ~StreamWrap() {
     if (callbacks_ != &default_callbacks_) {

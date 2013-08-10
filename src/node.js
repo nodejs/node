@@ -273,16 +273,15 @@
   startup.processNextTick = function() {
     var nextTickQueue = [];
 
-    // this infoBox thing is used so that the C++ code in src/node.cc
-    // can have easy access to our nextTick state, and avoid unnecessary
-    // calls into process._tickCallback.
-    // order is [length, index, inTick, lastThrew]
-    // Never write code like this without very good reason!
-    var infoBox = process._tickInfoBox;
-    var length = 0;
-    var index = 1;
-    var inTick = 2;
-    var lastThrew = 3;
+    // This tickInfo thing is used so that the C++ code in src/node.cc
+    // can have easy accesss to our nextTick state, and avoid unnecessary
+    var tickInfo = process._tickInfo;
+
+    // *Must* match Environment::TickInfo::Fields in src/env.h.
+    var kInTick = 0;
+    var kIndex = 1;
+    var kLastThrew = 2;
+    var kLength = 3;
 
     process.nextTick = nextTick;
     // needs to be accessible from cc land
@@ -290,17 +289,17 @@
     process._tickDomainCallback = _tickDomainCallback;
 
     function tickDone() {
-      if (infoBox[length] !== 0) {
-        if (infoBox[length] <= infoBox[index]) {
+      if (tickInfo[kLength] !== 0) {
+        if (tickInfo[kLength] <= tickInfo[kIndex]) {
           nextTickQueue = [];
-          infoBox[length] = 0;
+          tickInfo[kLength] = 0;
         } else {
-          nextTickQueue.splice(0, infoBox[index]);
-          infoBox[length] = nextTickQueue.length;
+          nextTickQueue.splice(0, tickInfo[kIndex]);
+          tickInfo[kLength] = nextTickQueue.length;
         }
       }
-      infoBox[inTick] = 0;
-      infoBox[index] = 0;
+      tickInfo[kInTick] = 0;
+      tickInfo[kIndex] = 0;
     }
 
     // run callbacks that have no domain
@@ -308,10 +307,10 @@
     function _tickCallback() {
       var callback, threw;
 
-      infoBox[inTick] = 1;
+      tickInfo[kInTick] = 1;
 
-      while (infoBox[index] < infoBox[length]) {
-        callback = nextTickQueue[infoBox[index]++].callback;
+      while (tickInfo[kIndex] < tickInfo[kLength]) {
+        callback = nextTickQueue[tickInfo[kIndex]++].callback;
         threw = true;
         try {
           callback();
@@ -327,22 +326,22 @@
     function _tickDomainCallback() {
       var tock, callback, domain;
 
-      infoBox[inTick] = 1;
+      tickInfo[kInTick] = 1;
 
-      while (infoBox[index] < infoBox[length]) {
-        tock = nextTickQueue[infoBox[index]++];
+      while (tickInfo[kIndex] < tickInfo[kLength]) {
+        tock = nextTickQueue[tickInfo[kIndex]++];
         callback = tock.callback;
         domain = tock.domain;
         if (domain) {
           if (domain._disposed) continue;
           domain.enter();
         }
-        infoBox[lastThrew] = 1;
+        tickInfo[kLastThrew] = 1;
         try {
           callback();
-          infoBox[lastThrew] = 0;
+          tickInfo[kLastThrew] = 0;
         } finally {
-          if (infoBox[lastThrew] === 1) tickDone();
+          if (tickInfo[kLastThrew] === 1) tickDone();
         }
         if (domain)
           domain.exit();
@@ -360,7 +359,7 @@
         callback: callback,
         domain: process.domain || null
       });
-      infoBox[length]++;
+      tickInfo[kLength]++;
     }
   };
 

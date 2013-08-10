@@ -25,6 +25,7 @@
 namespace node {
 namespace uv {
 
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Handle;
@@ -44,8 +45,9 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Initialize(Handle<Object> target) {
-  v8::HandleScope handle_scope(node_isolate);
+void Initialize(Handle<Object> target,
+                Handle<Value> unused,
+                Handle<Context> context) {
   target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "errname"),
               FunctionTemplate::New(ErrName)->GetFunction());
 #define V(name, _)                                                            \
@@ -59,4 +61,4 @@ void Initialize(Handle<Object> target) {
 }  // namespace uv
 }  // namespace node
 
-NODE_MODULE(node_uv, node::uv::Initialize)
+NODE_MODULE_CONTEXT_AWARE(node_uv, node::uv::Initialize)

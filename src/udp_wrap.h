@@ -22,15 +22,19 @@
 #ifndef SRC_UDP_WRAP_H_
 #define SRC_UDP_WRAP_H_
 
-#include "node.h"
-#include "req_wrap.h"
+#include "env.h"
 #include "handle_wrap.h"
+#include "req_wrap.h"
+#include "uv.h"
+#include "v8.h"
 
 namespace node {
 
 class UDPWrap: public HandleWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(v8::Handle<v8::Object> target,
+                         v8::Handle<v8::Value> unused,
+                         v8::Handle<v8::Context> context);
   static void GetFD(v8::Local<v8::String>,
                     const v8::PropertyCallbackInfo<v8::Value>&);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -50,11 +54,11 @@ class UDPWrap: public HandleWrap {
   static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static UDPWrap* Unwrap(v8::Local<v8::Object> obj);
 
-  static v8::Local<v8::Object> Instantiate();
+  static v8::Local<v8::Object> Instantiate(Environment* env);
   uv_udp_t* UVHandle();
 
  private:
-  explicit UDPWrap(v8::Handle<v8::Object> object);
+  UDPWrap(Environment* env, v8::Handle<v8::Object> object);
   virtual ~UDPWrap();
 
   static void DoBind(const v8::FunctionCallbackInfo<v8::Value>& args,

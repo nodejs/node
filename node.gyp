@@ -116,6 +116,8 @@
         'src/udp_wrap.cc',
         'src/uv.cc',
         # headers to make for a more pleasant IDE experience
+        'src/env.h',
+        'src/env-inl.h',
         'src/handle_wrap.h',
         'src/node.h',
         'src/node_buffer.h',
@@ -124,6 +126,7 @@
         'src/node_extensions.h',
         'src/node_file.h',
         'src/node_http_parser.h',
+        'src/node_internals.h',
         'src/node_javascript.h',
         'src/node_root_certs.h',
         'src/node_version.h',
@@ -139,6 +142,8 @@
         'src/string_bytes.h',
         'src/stream_wrap.h',
         'src/tree.h',
+        'src/util.h',
+        'src/util-inl.h',
         'deps/http_parser/http_parser.h',
         '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
         # javascript files to make for an even more pleasant IDE experience

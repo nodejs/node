@@ -20,22 +20,23 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "handle_wrap.h"
+#include "env.h"
+#include "env-inl.h"
 #include "node.h"
 #include "queue.h"
 
 namespace node {
 
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
 using v8::HandleScope;
 using v8::Local;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 // defined in node.cc
 extern QUEUE handle_wrap_queue;
-static Cached<String> close_sym;
 
 
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
@@ -73,27 +74,26 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   // guard against uninitialized handle or double close
   if (wrap == NULL || wrap->handle__ == NULL) return;
 
+  Environment* env = wrap->env();
   assert(!wrap->persistent().IsEmpty());
   uv_close(wrap->handle__, OnClose);
   wrap->handle__ = NULL;
 
   if (args[0]->IsFunction()) {
-    if (close_sym.IsEmpty() == true) {
-      close_sym = FIXED_ONE_BYTE_STRING(node_isolate, "close");
-    }
-    wrap->object()->Set(close_sym, args[0]);
+    wrap->object()->Set(env->close_string(), args[0]);
     wrap->flags_ |= kCloseCallback;
   }
 }
 
 
-HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
-  flags_ = 0;
-  handle__ = h;
+HandleWrap::HandleWrap(Environment* env,
+                       Handle<Object> object,
+                       uv_handle_t* handle)
+    : env_(env)
+    , flags_(0)
+    , handle__(handle) {
   handle__->data = this;
-
   HandleScope scope(node_isolate);
-  assert(persistent().IsEmpty());
   persistent().Reset(node_isolate, object);
   NODE_WRAP(object, this);
   QUEUE_INSERT_TAIL(&handle_wrap_queue, &handle_wrap_queue_);
@@ -108,6 +108,7 @@ HandleWrap::~HandleWrap() {
 
 void HandleWrap::OnClose(uv_handle_t* handle) {
   HandleWrap* wrap = static_cast<HandleWrap*>(handle->data);
+  Environment* env = wrap->env();
 
   // The wrap object should still be there.
   assert(wrap->persistent().IsEmpty() == false);
@@ -115,12 +116,12 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   // But the handle pointer should be gone.
   assert(wrap->handle__ == NULL);
 
-  HandleScope scope(node_isolate);
+  Context::Scope context_scope(env->context());
+  HandleScope handle_scope(env->isolate());
   Local<Object> object = wrap->object();
 
   if (wrap->flags_ & kCloseCallback) {
-    assert(close_sym.IsEmpty() == false);
-    MakeCallback(object, close_sym, 0, NULL);
+    MakeCallback(env, object, env->close_string());
   }
 
   object->SetAlignedPointerInInternalField(0, NULL);

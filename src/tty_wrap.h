@@ -22,6 +22,7 @@
 #ifndef SRC_TTY_WRAP_H_
 #define SRC_TTY_WRAP_H_
 
+#include "env.h"
 #include "handle_wrap.h"
 #include "stream_wrap.h"
 
@@ -29,13 +30,18 @@ namespace node {
 
 class TTYWrap : public StreamWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(v8::Handle<v8::Object> target,
+                         v8::Handle<v8::Value> unused,
+                         v8::Handle<v8::Context> context);
   static TTYWrap* Unwrap(v8::Local<v8::Object> obj);
 
   uv_tty_t* UVHandle();
 
  private:
-  TTYWrap(v8::Handle<v8::Object> object, int fd, bool readable);
+  TTYWrap(Environment* env,
+          v8::Handle<v8::Object> object,
+          int fd,
+          bool readable);
 
   static void GuessHandleType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsTTY(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -22,6 +22,7 @@
 #ifndef SRC_HANDLE_WRAP_H_
 #define SRC_HANDLE_WRAP_H_
 
+#include "env.h"
 #include "node.h"
 #include "queue.h"
 #include "uv.h"
@@ -58,11 +59,17 @@ class HandleWrap {
   inline uv_handle_t* GetHandle() { return handle__; }
 
  protected:
-  explicit HandleWrap(v8::Handle<v8::Object> object, uv_handle_t* handle);
+  HandleWrap(Environment* env,
+             v8::Handle<v8::Object> object,
+             uv_handle_t* handle);
   virtual ~HandleWrap();
 
+  inline Environment* env() const {
+    return env_;
+  }
+
   inline v8::Local<v8::Object> object() {
-    return PersistentToLocal(node_isolate, persistent());
+    return PersistentToLocal(env()->isolate(), persistent());
   }
 
   inline v8::Persistent<v8::Object>& persistent() {
@@ -74,10 +81,11 @@ class HandleWrap {
   static void OnClose(uv_handle_t* handle);
   v8::Persistent<v8::Object> object_;
   QUEUE handle_wrap_queue_;
+  Environment* const env_;
+  unsigned int flags_;
   // Using double underscore due to handle_ member in tcp_wrap. Probably
   // tcp_wrap should rename it's member to 'handle'.
   uv_handle_t* handle__;
-  unsigned int flags_;
 
   static const unsigned int kUnref = 1;
   static const unsigned int kCloseCallback = 2;

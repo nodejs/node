@@ -64,6 +64,6 @@
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
  */
-#define NODE_MODULE_VERSION 0x000C /* v0.12 */
+#define NODE_MODULE_VERSION 13 /* v0.12 */
 
 #endif  /* SRC_NODE_VERSION_H_ */

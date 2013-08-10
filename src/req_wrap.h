@@ -22,29 +22,31 @@
 #ifndef SRC_REQ_WRAP_H_
 #define SRC_REQ_WRAP_H_
 
-#include "node.h"
-#include "node_internals.h"
+#include "env.h"
+#include "env-inl.h"
 #include "queue.h"
+#include "util.h"
 
 namespace node {
 
 // defined in node.cc
-extern Cached<v8::String> process_symbol;
-extern Cached<v8::String> domain_symbol;
 extern QUEUE req_wrap_queue;
 
 template <typename T>
 class ReqWrap {
  public:
-  ReqWrap(v8::Handle<v8::Object> object = v8::Handle<v8::Object>()) {
-    v8::HandleScope scope(node_isolate);
-    if (object.IsEmpty()) object = v8::Object::New();
-    persistent().Reset(node_isolate, object);
+  ReqWrap(Environment* env,
+          v8::Handle<v8::Object> object = v8::Handle<v8::Object>())
+      : env_(env) {
+    v8::HandleScope handle_scope(env->isolate());
 
-    if (InDomain()) {
-      v8::Local<v8::Value> domain = GetDomain();
-      if (domain->IsObject())
-        object->Set(domain_symbol, domain);
+    if (object.IsEmpty()) {
+      object = v8::Object::New();
+    }
+    persistent().Reset(env->isolate(), object);
+
+    if (env->in_domain()) {
+      object->Set(env->domain_string(), env->domain_array()->Get(0));
     }
 
     QUEUE_INSERT_TAIL(&req_wrap_queue, &req_wrap_queue_);
@@ -64,17 +66,25 @@ class ReqWrap {
     req_.data = this;
   }
 
+  inline Environment* env() const {
+    return env_;
+  }
+
   inline v8::Local<v8::Object> object() {
-    return PersistentToLocal(node_isolate, persistent());
+    return PersistentToLocal(env()->isolate(), persistent());
   }
 
   inline v8::Persistent<v8::Object>& persistent() {
     return object_;
   }
 
-  v8::Persistent<v8::Object> object_;
+  // TODO(bnoordhuis) Make these private.
   QUEUE req_wrap_queue_;
   T req_;  // *must* be last, GetActiveRequests() in node.cc depends on it
+
+ private:
+  v8::Persistent<v8::Object> object_;
+  Environment* const env_;
 };
 
 
