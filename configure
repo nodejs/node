@@ -54,11 +54,6 @@ parser.add_option('--no-ifaddrs',
     dest='no_ifaddrs',
     help='use on deprecated SunOS systems that do not support ifaddrs.h')
 
-parser.add_option('--no-ssl2',
-    action='store_true',
-    dest='no_ssl2',
-    help='disable OpenSSL v2')
-
 # deprecated
 parser.add_option('--openssl-includes',
     action='store',
@@ -229,6 +224,11 @@ parser.add_option('--with-perfctr',
     action='store_true',
     dest='with_perfctr',
     help='build with performance counters (default is true on Windows)')
+
+parser.add_option('--with-sslv2',
+    action='store_true',
+    dest='with_sslv2',
+    help='enable SSL v2')
 
 parser.add_option('--without-dtrace',
     action='store_true',
@@ -588,7 +588,9 @@ def configure_openssl(o):
   if options.without_ssl:
     return
 
-  if options.no_ssl2:
+  # OpenSSL uses `#ifndef OPENSSL_NO_SSL2` checks so only define the
+  # macro when we want to _disable_ SSL2.
+  if not options.with_sslv2:
     o['defines'] += ['OPENSSL_NO_SSL2=1']
 
   if options.shared_openssl:
