@@ -92,8 +92,9 @@ void StreamWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 
 void StreamWrap::UpdateWriteQueueSize() {
   HandleScope scope(node_isolate);
-  object()->Set(write_queue_size_sym,
-                Integer::New(stream()->write_queue_size, node_isolate));
+  Local<Integer> write_queue_size =
+      Integer::NewFromUnsigned(stream()->write_queue_size, node_isolate);
+  object()->Set(write_queue_size_sym, write_queue_size);
 }
 
 
