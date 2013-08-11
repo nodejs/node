@@ -1126,7 +1126,7 @@ approach.
 
 ```javascript
 var util = require('util');
-var Transform = require('stream').Transform);
+var Transform = require('stream').Transform;
 util.inherits(SimpleProtocol, Transform);
 
 function SimpleProtocol(options) {
