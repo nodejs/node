@@ -207,7 +207,7 @@ inline static void ThrowUVException(int errorno,
 
 NO_RETURN void FatalError(const char* location, const char* message);
 
-#define WRAP(Object, Pointer)                                                  \
+#define NODE_WRAP(Object, Pointer)                                             \
   do {                                                                         \
     assert(!Object.IsEmpty());                                                 \
     assert(Object->InternalFieldCount() > 0);                                  \
@@ -215,7 +215,7 @@ NO_RETURN void FatalError(const char* location, const char* message);
   }                                                                            \
   while (0)
 
-#define UNWRAP(Object, TypeName, Var)                                          \
+#define NODE_UNWRAP(Object, TypeName, Var)                                     \
   do {                                                                         \
     assert(!Object.IsEmpty());                                                 \
     assert(Object->InternalFieldCount() > 0);                                  \
@@ -229,7 +229,7 @@ NO_RETURN void FatalError(const char* location, const char* message);
   }                                                                            \
   while (0)
 
-#define UNWRAP_NO_ABORT(Object, TypeName, Var)                                 \
+#define NODE_UNWRAP_NO_ABORT(Object, TypeName, Var)                            \
   do {                                                                         \
     assert(!Object.IsEmpty());                                                 \
     assert(Object->InternalFieldCount() > 0);                                  \

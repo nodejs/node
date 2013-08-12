@@ -42,7 +42,7 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   HandleWrap* wrap;
-  UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
+  NODE_UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
 
   if (wrap != NULL && wrap->handle__ != NULL) {
     uv_ref(wrap->handle__);
@@ -55,7 +55,7 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   HandleWrap* wrap;
-  UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
+  NODE_UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
 
   if (wrap != NULL && wrap->handle__ != NULL) {
     uv_unref(wrap->handle__);
@@ -68,7 +68,7 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   HandleWrap* wrap;
-  UNWRAP(args.This(), HandleWrap, wrap);
+  NODE_UNWRAP(args.This(), HandleWrap, wrap);
 
   // guard against uninitialized handle or double close
   if (wrap == NULL || wrap->handle__ == NULL) return;
@@ -95,7 +95,7 @@ HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
   HandleScope scope(node_isolate);
   assert(persistent().IsEmpty());
   persistent().Reset(node_isolate, object);
-  WRAP(object, this);
+  NODE_WRAP(object, this);
   QUEUE_INSERT_TAIL(&handle_wrap_queue, &handle_wrap_queue_);
 }
 

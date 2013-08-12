@@ -81,7 +81,7 @@ void StreamWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 #if !defined(_WIN32)
   HandleScope scope(node_isolate);
   StreamWrap* wrap;
-  UNWRAP_NO_ABORT(args.This(), StreamWrap, wrap);
+  NODE_UNWRAP_NO_ABORT(args.This(), StreamWrap, wrap);
   int fd = -1;
   if (wrap != NULL && wrap->stream() != NULL) {
     fd = wrap->stream()->io_watcher.fd;
@@ -103,7 +103,7 @@ void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   StreamWrap* wrap;
-  UNWRAP(args.This(), StreamWrap, wrap);
+  NODE_UNWRAP(args.This(), StreamWrap, wrap);
 
   int err;
   if (wrap->is_named_pipe_ipc()) {
@@ -120,7 +120,7 @@ void StreamWrap::ReadStop(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   StreamWrap* wrap;
-  UNWRAP(args.This(), StreamWrap, wrap);
+  NODE_UNWRAP(args.This(), StreamWrap, wrap);
 
   int err = uv_read_stop(wrap->stream());
   args.GetReturnValue().Set(err);
@@ -145,7 +145,7 @@ static Local<Object> AcceptHandle(uv_stream_t* pipe) {
     return Local<Object>();
 
   WrapType* wrap;
-  UNWRAP(wrap_obj, WrapType, wrap);
+  NODE_UNWRAP(wrap_obj, WrapType, wrap);
   handle = wrap->UVHandle();
 
   if (uv_accept(pipe, reinterpret_cast<uv_stream_t*>(handle)))
@@ -205,7 +205,7 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   StreamWrap* wrap;
-  UNWRAP(args.This(), StreamWrap, wrap);
+  NODE_UNWRAP(args.This(), StreamWrap, wrap);
 
   assert(args[0]->IsObject());
   assert(Buffer::HasInstance(args[1]));
@@ -243,7 +243,7 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   int err;
 
   StreamWrap* wrap;
-  UNWRAP(args.This(), StreamWrap, wrap);
+  NODE_UNWRAP(args.This(), StreamWrap, wrap);
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
@@ -293,7 +293,7 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
     if (args[2]->IsObject()) {
       Local<Object> send_handle_obj = args[2].As<Object>();
       HandleWrap* wrap;
-      UNWRAP(send_handle_obj, HandleWrap, wrap);
+      NODE_UNWRAP(send_handle_obj, HandleWrap, wrap);
       send_handle = wrap->GetHandle();
 
       // Reference StreamWrap instance to prevent it from being garbage
@@ -329,7 +329,7 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope;
 
   StreamWrap* wrap;
-  UNWRAP(args.This(), StreamWrap, wrap);
+  NODE_UNWRAP(args.This(), StreamWrap, wrap);
 
   assert(args[0]->IsObject());
   assert(args[1]->IsArray());
@@ -474,7 +474,7 @@ void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   StreamWrap* wrap;
-  UNWRAP(args.This(), StreamWrap, wrap);
+  NODE_UNWRAP(args.This(), StreamWrap, wrap);
 
   assert(args[0]->IsObject());
   Local<Object> req_wrap_obj = args[0].As<Object>();

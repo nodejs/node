@@ -88,7 +88,7 @@ void TTYWrap::Initialize(Handle<Object> target) {
 
 TTYWrap* TTYWrap::Unwrap(Local<Object> obj) {
   TTYWrap* wrap;
-  UNWRAP(obj, TTYWrap, wrap);
+  NODE_UNWRAP(obj, TTYWrap, wrap);
   return wrap;
 }
 
@@ -134,7 +134,7 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   TTYWrap* wrap;
-  UNWRAP(args.This(), TTYWrap, wrap);
+  NODE_UNWRAP(args.This(), TTYWrap, wrap);
   assert(args[0]->IsArray());
 
   int width, height;
@@ -154,7 +154,7 @@ void TTYWrap::SetRawMode(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   TTYWrap* wrap;
-  UNWRAP(args.This(), TTYWrap, wrap);
+  NODE_UNWRAP(args.This(), TTYWrap, wrap);
 
   int err = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
   args.GetReturnValue().Set(err);

@@ -130,7 +130,7 @@ void TCPWrap::Initialize(Handle<Object> target) {
 
 TCPWrap* TCPWrap::Unwrap(Local<Object> obj) {
   TCPWrap* wrap;
-  UNWRAP(obj, TCPWrap, wrap);
+  NODE_UNWRAP(obj, TCPWrap, wrap);
   return wrap;
 }
 
@@ -170,7 +170,7 @@ void TCPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
   struct sockaddr_storage address;
 
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
 
   assert(args[0]->IsObject());
   Local<Object> out = args[0].As<Object>();
@@ -193,7 +193,7 @@ void TCPWrap::GetPeerName(const FunctionCallbackInfo<Value>& args) {
   struct sockaddr_storage address;
 
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
 
   assert(args[0]->IsObject());
   Local<Object> out = args[0].As<Object>();
@@ -215,7 +215,7 @@ void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
 
   int enable = static_cast<int>(args[0]->BooleanValue());
   int err = uv_tcp_nodelay(&wrap->handle_, enable);
@@ -227,7 +227,7 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
 
   int enable = args[0]->Int32Value();
   unsigned int delay = args[1]->Uint32Value();
@@ -242,7 +242,7 @@ void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
 
   bool enable = args[0]->BooleanValue();
   int err = uv_tcp_simultaneous_accepts(&wrap->handle_, enable);
@@ -254,7 +254,7 @@ void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
 void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
   int fd = args[0]->IntegerValue();
   uv_tcp_open(&wrap->handle_, fd);
 }
@@ -264,7 +264,7 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
 
   String::AsciiValue ip_address(args[0]);
   int port = args[1]->Int32Value();
@@ -280,7 +280,7 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
 
   String::AsciiValue ip6_address(args[0]);
   int port = args[1]->Int32Value();
@@ -296,7 +296,7 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
 
   int backlog = args[0]->Int32Value();
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
@@ -327,7 +327,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
 
     // Unwrap the client javascript object.
     TCPWrap* wrap;
-    UNWRAP(client_obj, TCPWrap, wrap);
+    NODE_UNWRAP(client_obj, TCPWrap, wrap);
     uv_stream_t* client_handle = reinterpret_cast<uv_stream_t*>(&wrap->handle_);
     if (uv_accept(handle, client_handle))
       return;
@@ -368,7 +368,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
@@ -400,7 +400,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   TCPWrap* wrap;
-  UNWRAP(args.This(), TCPWrap, wrap);
+  NODE_UNWRAP(args.This(), TCPWrap, wrap);
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());

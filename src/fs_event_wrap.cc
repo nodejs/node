@@ -99,7 +99,7 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   FSEventWrap* wrap;
-  UNWRAP(args.This(), FSEventWrap, wrap);
+  NODE_UNWRAP(args.This(), FSEventWrap, wrap);
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return ThrowTypeError("Bad arguments");
@@ -173,7 +173,7 @@ void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   FSEventWrap* wrap;
-  UNWRAP_NO_ABORT(args.This(), FSEventWrap, wrap);
+  NODE_UNWRAP_NO_ABORT(args.This(), FSEventWrap, wrap);
 
   if (wrap == NULL || wrap->initialized_ == false) return;
   wrap->initialized_ = false;
