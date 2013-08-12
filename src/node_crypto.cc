@@ -254,6 +254,18 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       method = TLSv1_server_method();
     } else if (strcmp(*sslmethod, "TLSv1_client_method") == 0) {
       method = TLSv1_client_method();
+    } else if (strcmp(*sslmethod, "TLSv1_1_method") == 0) {
+      method = TLSv1_1_method();
+    } else if (strcmp(*sslmethod, "TLSv1_1_server_method") == 0) {
+      method = TLSv1_1_server_method();
+    } else if (strcmp(*sslmethod, "TLSv1_1_client_method") == 0) {
+      method = TLSv1_1_client_method();
+    } else if (strcmp(*sslmethod, "TLSv1_2_method") == 0) {
+      method = TLSv1_2_method();
+    } else if (strcmp(*sslmethod, "TLSv1_2_server_method") == 0) {
+      method = TLSv1_2_server_method();
+    } else if (strcmp(*sslmethod, "TLSv1_2_client_method") == 0) {
+      method = TLSv1_2_client_method();
     } else {
       return ThrowError("Unknown method");
     }
