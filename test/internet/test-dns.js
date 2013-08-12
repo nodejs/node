@@ -145,7 +145,7 @@ TEST(function test_reverse_bogus(done) {
   }
 
   assert.ok(error instanceof Error);
-  assert.strictEqual(error.errno, 'ENOTIMP');
+  assert.strictEqual(error.errno, 'EINVAL');
 
   done();
 });
@@ -410,17 +410,18 @@ TEST(function test_lookup_localhost_ipv4(done) {
 var getaddrinfoCallbackCalled = false;
 
 console.log('looking up nodejs.org...');
-var req = process.binding('cares_wrap').getaddrinfo('nodejs.org');
 
-req.oncomplete = function(domains) {
+var req = {};
+var err = process.binding('cares_wrap').getaddrinfo(req, 'nodejs.org', 4);
+
+req.oncomplete = function(err, domains) {
+  assert.strictEqual(err, 0);
   console.log('nodejs.org = ', domains);
   assert.ok(Array.isArray(domains));
   assert.ok(domains.length >= 1);
   assert.ok(typeof domains[0] == 'string');
   getaddrinfoCallbackCalled = true;
 };
-
-
 
 process.on('exit', function() {
   console.log(completed + ' tests completed');
