@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// test compression/decompresion with dictionary
+// test compression/decompression with dictionary
 
 var common = require('../common.js');
 var assert = require('assert');

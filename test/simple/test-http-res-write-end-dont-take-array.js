@@ -55,7 +55,7 @@ server.listen(common.PORT, function() {
   // just make a request, other tests handle responses
   http.get({port: common.PORT}, function(res) {
     res.resume();
-    // lazy serial test, becuase we can only call end once per request
+    // lazy serial test, because we can only call end once per request
     test += 1;
     // do it again to test .end(Buffer);
     http.get({port: common.PORT}, function(res) {

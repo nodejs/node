@@ -1442,13 +1442,13 @@ relativeTests.forEach(function(relativeTest) {
 });
 
 //format: [to, from, result]
-// the test: ['.//g', 'f:/a', 'f://g'] is a fundimental problem
+// the test: ['.//g', 'f:/a', 'f://g'] is a fundamental problem
 // url.parse('f:/a') does not have a host
-// url.resolve('f:/a', './/g') does not have a host becuase you have moved
+// url.resolve('f:/a', './/g') does not have a host because you have moved
 // down to the g directory.  i.e. f:     //g, however when this url is parsed
 // f:// will indicate that the host is g which is not the case.
 // it is unclear to me how to keep this information from being lost
-// it may be that a pathname of ////g should colapse to /g but this seems
+// it may be that a pathname of ////g should collapse to /g but this seems
 // to be a lot of work for an edge case.  Right now I remove the test
 if (relativeTests2[181][0] === './/g' &&
     relativeTests2[181][1] === 'f:/a' &&

@@ -85,7 +85,7 @@ putIn.run(['.clear']);
 
 var loadFile = join(common.tmpDir, 'file.does.not.exist');
 
-// shold not break
+// should not break
 putIn.write = function(data) {
   // make sure I get a failed to load message and not some crazy error
   assert.equal(data, 'Failed to load:' + loadFile + '\n');

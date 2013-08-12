@@ -84,7 +84,7 @@ if (process.argv[2] === 'child') {
     childSelfTerminate = true;
   });
 
-  // when child is listning
+  // when child is listening
   child.on('message', function(msg) {
     if (msg === 'ready') {
 

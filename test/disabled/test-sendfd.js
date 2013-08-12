@@ -34,7 +34,7 @@
 //     path, they are sent the write end of the pipe from above.
 //  3. The client is sent n JSON representations of the DATA variable, each
 //     with a different ordinal. We send these delimited by '\n' strings
-//     so that the receiving end can avoid any coalescing that hapepns
+//     so that the receiving end can avoid any coalescing that happens
 //     due to the stream nature of the socket (e.g. '{}{}' is not a valid
 //     JSON string).
 //  4. The child process receives file descriptors and JSON blobs and,

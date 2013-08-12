@@ -39,7 +39,7 @@ server.listen(options.port, options.host, function() {
     // this space intentionally left blank
   });
   req.on('error', function() {
-    // this space is intentially left blank
+    // this space is intentionally left blank
   });
   req.on('close', function() {
     server.close();

@@ -83,7 +83,7 @@
       var path = NativeModule.require('path');
       process.argv[1] = path.resolve(process.argv[1]);
 
-      // If this is a worker in cluster mode, start up the communiction
+      // If this is a worker in cluster mode, start up the communication
       // channel.
       if (process.env.NODE_UNIQUE_ID) {
         var cluster = NativeModule.require('cluster');
@@ -318,7 +318,7 @@
     var nextTickQueue = [];
 
     // this infoBox thing is used so that the C++ code in src/node.cc
-    // can have easy accesss to our nextTick state, and avoid unnecessary
+    // can have easy access to our nextTick state, and avoid unnecessary
     // calls into process._tickCallback.
     // order is [length, index, inTick, lastThrew]
     // Never write code like this without very good reason!

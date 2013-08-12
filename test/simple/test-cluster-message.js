@@ -97,7 +97,7 @@ else if (cluster.isMaster) {
   // Spawn worker
   var worker = cluster.fork();
 
-  // When a IPC message is resicved form the worker
+  // When a IPC message is received form the worker
   worker.on('message', function(message) {
     check('master', message === 'message from worker');
   });

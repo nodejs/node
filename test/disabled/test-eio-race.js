@@ -26,7 +26,7 @@ var assert = require('assert');
 var count = 100;
 var fs = require('fs');
 
-// person.jpg is 57kb. We just need some file that is sufficently large.
+// person.jpg is 57kb. We just need some file that is sufficiently large.
 var filename = require('path').join(common.fixturesDir, 'person.jpg');
 
 function tryToKillEventLoop() {
