@@ -187,7 +187,7 @@ static void After(uv_fs_t *req) {
 
           for (int i = 0; i < nnames; i++) {
             Local<String> name = String::NewFromUtf8(node_isolate, namebuf);
-            names->Set(Integer::New(i, node_isolate), name);
+            names->Set(i, name);
 #ifndef NDEBUG
             namebuf += strlen(namebuf);
             assert(*namebuf == '\0');
@@ -618,13 +618,13 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   } else {
     SYNC_CALL(readdir, *path, *path, 0 /*flags*/)
 
-    char *namebuf = static_cast<char*>(SYNC_REQ.ptr);
-    int nnames = req_wrap.req.result;
+    assert(SYNC_REQ.result >= 0);
+    char* namebuf = static_cast<char*>(SYNC_REQ.ptr);
+    uint32_t nnames = SYNC_REQ.result;
     Local<Array> names = Array::New(nnames);
 
-    for (int i = 0; i < nnames; i++) {
-      Local<String> name = String::NewFromUtf8(node_isolate, namebuf);
-      names->Set(Integer::New(i, node_isolate), name);
+    for (uint32_t i = 0; i < nnames; ++i) {
+      names->Set(i, String::NewFromUtf8(node_isolate, namebuf));
 #ifndef NDEBUG
       namebuf += strlen(namebuf);
       assert(*namebuf == '\0');

@@ -203,11 +203,10 @@ static Local<Array> HostentToAddresses(struct hostent* host) {
   Local<Array> addresses = Array::New();
 
   char ip[INET6_ADDRSTRLEN];
-  for (int i = 0; host->h_addr_list[i]; ++i) {
+  for (uint32_t i = 0; host->h_addr_list[i] != NULL; ++i) {
     uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
-
     Local<String> address = OneByteString(node_isolate, ip);
-    addresses->Set(Integer::New(i, node_isolate), address);
+    addresses->Set(i, address);
   }
 
   return scope.Close(addresses);
@@ -218,9 +217,9 @@ static Local<Array> HostentToNames(struct hostent* host) {
   HandleScope scope(node_isolate);
   Local<Array> names = Array::New();
 
-  for (int i = 0; host->h_aliases[i]; ++i) {
+  for (uint32_t i = 0; host->h_aliases[i] != NULL; ++i) {
     Local<String> address = OneByteString(node_isolate, host->h_aliases[i]);
-    names->Set(Integer::New(i, node_isolate), address);
+    names->Set(i, address);
   }
 
   return scope.Close(names);
@@ -455,16 +454,14 @@ class QueryMxWrap: public QueryWrap {
     Local<String> priority_symbol =
         FIXED_ONE_BYTE_STRING(node_isolate, "priority");
 
-    int i = 0;
-    for (struct ares_mx_reply* mx_current = mx_start;
-         mx_current;
-         mx_current = mx_current->next) {
+    ares_mx_reply* current = mx_start;
+    for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
       Local<Object> mx_record = Object::New();
       mx_record->Set(exchange_symbol,
-                     OneByteString(node_isolate, mx_current->host));
+                     OneByteString(node_isolate, current->host));
       mx_record->Set(priority_symbol,
-                     Integer::New(mx_current->priority, node_isolate));
-      mx_records->Set(Integer::New(i++, node_isolate), mx_record);
+                     Integer::New(current->priority, node_isolate));
+      mx_records->Set(i, mx_record);
     }
 
     ares_free_data(mx_start);
@@ -524,10 +521,10 @@ class QueryTxtWrap: public QueryWrap {
 
     Local<Array> txt_records = Array::New();
 
-    struct ares_txt_reply *current = txt_out;
-    for (int i = 0; current; ++i, current = current->next) {
+    ares_txt_reply* current = txt_out;
+    for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
       Local<String> txt = OneByteString(node_isolate, current->txt);
-      txt_records->Set(Integer::New(i, node_isolate), txt);
+      txt_records->Set(i, txt);
     }
 
     ares_free_data(txt_out);
@@ -573,20 +570,18 @@ class QuerySrvWrap: public QueryWrap {
     Local<String> weight_symbol =
         FIXED_ONE_BYTE_STRING(node_isolate, "weight");
 
-    int i = 0;
-    for (struct ares_srv_reply* srv_current = srv_start;
-         srv_current;
-         srv_current = srv_current->next) {
+    ares_srv_reply* current = srv_start;
+    for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
       Local<Object> srv_record = Object::New();
       srv_record->Set(name_symbol,
-                      OneByteString(node_isolate, srv_current->host));
+                      OneByteString(node_isolate, current->host));
       srv_record->Set(port_symbol,
-                      Integer::New(srv_current->port, node_isolate));
+                      Integer::New(current->port, node_isolate));
       srv_record->Set(priority_symbol,
-                      Integer::New(srv_current->priority, node_isolate));
+                      Integer::New(current->priority, node_isolate));
       srv_record->Set(weight_symbol,
-                      Integer::New(srv_current->weight, node_isolate));
-      srv_records->Set(Integer::New(i++, node_isolate), srv_record);
+                      Integer::New(current->weight, node_isolate));
+      srv_records->Set(i, srv_record);
     }
 
     ares_free_data(srv_start);
@@ -637,27 +632,22 @@ class QueryNaptrWrap: public QueryWrap {
     Local<String> preference_symbol =
         FIXED_ONE_BYTE_STRING(node_isolate, "preference");
 
-    int i = 0;
-    for (ares_naptr_reply* naptr_current = naptr_start;
-         naptr_current;
-         naptr_current = naptr_current->next) {
+    ares_naptr_reply* current = naptr_start;
+    for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
       Local<Object> naptr_record = Object::New();
-
       naptr_record->Set(flags_symbol,
-                        OneByteString(node_isolate, naptr_current->flags));
+                        OneByteString(node_isolate, current->flags));
       naptr_record->Set(service_symbol,
-                        OneByteString(node_isolate, naptr_current->service));
+                        OneByteString(node_isolate, current->service));
       naptr_record->Set(regexp_symbol,
-                        OneByteString(node_isolate, naptr_current->regexp));
+                        OneByteString(node_isolate, current->regexp));
       naptr_record->Set(replacement_symbol,
-                        OneByteString(node_isolate,
-                                      naptr_current->replacement));
-      naptr_record->Set(order_symbol, Integer::New(naptr_current->order,
-                                                   node_isolate));
+                        OneByteString(node_isolate, current->replacement));
+      naptr_record->Set(order_symbol,
+                        Integer::New(current->order, node_isolate));
       naptr_record->Set(preference_symbol,
-          Integer::New(naptr_current->preference, node_isolate));
-
-      naptr_records->Set(Integer::New(i++, node_isolate), naptr_record);
+                        Integer::New(current->preference, node_isolate));
+      naptr_records->Set(i, naptr_record);
     }
 
     ares_free_data(naptr_start);
@@ -917,7 +907,7 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
 
   ares_addr_node* cur = servers;
 
-  for (int i = 0; cur != NULL; ++i, cur = cur->next) {
+  for (uint32_t i = 0; cur != NULL; ++i, cur = cur->next) {
     char ip[INET6_ADDRSTRLEN];
 
     const void* caddr = static_cast<const void*>(&cur->addr);

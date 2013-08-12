@@ -1601,8 +1601,7 @@ void Connection::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
       for (int i = 0; i < sk_ASN1_OBJECT_num(eku); i++) {
         memset(buf, 0, sizeof(buf));
         OBJ_obj2txt(buf, sizeof(buf) - 1, sk_ASN1_OBJECT_value(eku, i), 1);
-        ext_key_usage->Set(Integer::New(i, node_isolate),
-                           OneByteString(node_isolate, buf));
+        ext_key_usage->Set(i, OneByteString(node_isolate, buf));
       }
 
       sk_ASN1_OBJECT_pop_free(eku, ASN1_OBJECT_free);
