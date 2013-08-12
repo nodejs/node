@@ -92,8 +92,6 @@ struct ClearErrorOnReturn {
   ~ClearErrorOnReturn() { ERR_clear_error(); }
 };
 
-static Cached<String> errno_symbol;
-static Cached<String> syscall_symbol;
 static Cached<String> subject_symbol;
 static Cached<String> subjectaltname_symbol;
 static Cached<String> modulus_symbol;
