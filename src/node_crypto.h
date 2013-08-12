@@ -202,9 +202,9 @@ class Connection : ObjectWrap {
   void SetShutdownFlags();
 
   static Connection* Unwrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    Connection* ss = ObjectWrap::Unwrap<Connection>(args.This());
-    ss->ClearError();
-    return ss;
+    Connection* conn = ObjectWrap::Unwrap<Connection>(args.This());
+    conn->ClearError();
+    return conn;
   }
 
   Connection() : ObjectWrap(), hello_offset_(0) {
