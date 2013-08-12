@@ -236,13 +236,7 @@ class QueryWrap {
 
   virtual ~QueryWrap() {
     assert(!persistent().IsEmpty());
-    object()->Delete(oncomplete_sym);
     persistent().Dispose();
-  }
-
-  void SetOnComplete(Handle<Value> oncomplete) {
-    assert(oncomplete->IsFunction());
-    object()->Set(oncomplete_sym, oncomplete);
   }
 
   // Subclasses should implement the appropriate Send method.
@@ -741,14 +735,10 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   assert(!args.IsConstructCall());
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
-  assert(args[2]->IsFunction());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   Local<String> string = args[1].As<String>();
-  Local<Function> callback = args[2].As<Function>();
-
   Wrap* wrap = new Wrap(req_wrap_obj);
-  wrap->SetOnComplete(callback);
 
   String::Utf8Value name(string);
   int err = wrap->Send(*name);
@@ -774,7 +764,6 @@ static void QueryWithFamily(const FunctionCallbackInfo<Value>& args) {
   Local<Function> callback = args[3].As<Function>();
 
   Wrap* wrap = new Wrap(req_wrap_obj);
-  wrap->SetOnComplete(callback);
 
   String::Utf8Value name(string);
   int err = wrap->Send(*name, family);
