@@ -748,31 +748,6 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-template <class Wrap>
-static void QueryWithFamily(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
-
-  assert(!args.IsConstructCall());
-  assert(args[0]->IsObject());
-  assert(args[1]->IsString());
-  assert(args[2]->IsInt32());
-  assert(args[3]->IsFunction());
-
-  Local<Object> req_wrap_obj = args[0].As<Object>();
-  Local<String> string = args[1].As<String>();
-  int family = args[2]->Int32Value();
-  Local<Function> callback = args[3].As<Function>();
-
-  Wrap* wrap = new Wrap(req_wrap_obj);
-
-  String::Utf8Value name(string);
-  int err = wrap->Send(*name, family);
-  if (err) delete wrap;
-
-  args.GetReturnValue().Set(err);
-}
-
-
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   HandleScope scope(node_isolate);
 
@@ -1066,7 +1041,6 @@ static void Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "querySrv", Query<QuerySrvWrap>);
   NODE_SET_METHOD(target, "queryNaptr", Query<QueryNaptrWrap>);
   NODE_SET_METHOD(target, "getHostByAddr", Query<GetHostByAddrWrap>);
-  NODE_SET_METHOD(target, "getHostByName", QueryWithFamily<GetHostByNameWrap>);
 
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
   NODE_SET_METHOD(target, "isIP", IsIP);
