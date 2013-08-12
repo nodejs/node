@@ -201,8 +201,8 @@ class Connection : ObjectWrap {
   void ClearError();
   void SetShutdownFlags();
 
-  static Connection* Unwrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    Connection* conn = ObjectWrap::Unwrap<Connection>(args.This());
+  static Connection* Unwrap(v8::Local<v8::Object> object) {
+    Connection* conn = ObjectWrap::Unwrap<Connection>(object);
     conn->ClearError();
     return conn;
   }

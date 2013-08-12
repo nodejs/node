@@ -1282,7 +1282,7 @@ void Connection::SSLInfoCallback(const SSL *ssl_, int where, int ret) {
 void Connection::EncIn(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (args.Length() < 3) {
     return ThrowTypeError("Takes 3 parameters");
@@ -1332,7 +1332,7 @@ void Connection::EncIn(const FunctionCallbackInfo<Value>& args) {
 void Connection::ClearOut(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (args.Length() < 3) {
     return ThrowTypeError("Takes 3 parameters");
@@ -1386,7 +1386,7 @@ void Connection::ClearOut(const FunctionCallbackInfo<Value>& args) {
 
 void Connection::ClearPending(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
   int bytes_pending = BIO_pending(conn->bio_read_);
   args.GetReturnValue().Set(bytes_pending);
 }
@@ -1394,7 +1394,7 @@ void Connection::ClearPending(const FunctionCallbackInfo<Value>& args) {
 
 void Connection::EncPending(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
   int bytes_pending = BIO_pending(conn->bio_write_);
   args.GetReturnValue().Set(bytes_pending);
 }
@@ -1403,7 +1403,7 @@ void Connection::EncPending(const FunctionCallbackInfo<Value>& args) {
 void Connection::EncOut(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (args.Length() < 3) {
     return ThrowTypeError("Takes 3 parameters");
@@ -1434,7 +1434,7 @@ void Connection::EncOut(const FunctionCallbackInfo<Value>& args) {
 void Connection::ClearIn(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (args.Length() < 3) {
     return ThrowTypeError("Takes 3 parameters");
@@ -1489,7 +1489,7 @@ void Connection::ClearIn(const FunctionCallbackInfo<Value>& args) {
 void Connection::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (conn->ssl_ == NULL) return;
   Local<Object> info = Object::New();
@@ -1616,7 +1616,7 @@ void Connection::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
 void Connection::GetSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (conn->ssl_ == NULL) return;
 
@@ -1637,7 +1637,7 @@ void Connection::GetSession(const FunctionCallbackInfo<Value>& args) {
 void Connection::SetSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (args.Length() < 1 ||
       (!args[0]->IsString() && !Buffer::HasInstance(args[0]))) {
@@ -1675,7 +1675,7 @@ void Connection::SetSession(const FunctionCallbackInfo<Value>& args) {
 void Connection::LoadSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (args.Length() >= 1 && Buffer::HasInstance(args[0])) {
     ssize_t slen = Buffer::Length(args[0].As<Object>());
@@ -1697,7 +1697,7 @@ void Connection::LoadSession(const FunctionCallbackInfo<Value>& args) {
 
 void Connection::IsSessionReused(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
   bool yes = conn->ssl_ && SSL_session_reused(conn->ssl_);
   args.GetReturnValue().Set(yes);
 }
@@ -1706,7 +1706,7 @@ void Connection::IsSessionReused(const FunctionCallbackInfo<Value>& args) {
 void Connection::Start(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   int rv = 0;
   if (!SSL_is_init_finished(conn->ssl_)) {
@@ -1731,7 +1731,7 @@ void Connection::Start(const FunctionCallbackInfo<Value>& args) {
 void Connection::Shutdown(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (conn->ssl_ == NULL) {
     return args.GetReturnValue().Set(false);
@@ -1746,7 +1746,7 @@ void Connection::Shutdown(const FunctionCallbackInfo<Value>& args) {
 
 void Connection::ReceivedShutdown(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
   bool yes =
       conn->ssl_ && SSL_get_shutdown(conn->ssl_) == SSL_RECEIVED_SHUTDOWN;
   args.GetReturnValue().Set(yes);
@@ -1755,7 +1755,7 @@ void Connection::ReceivedShutdown(const FunctionCallbackInfo<Value>& args) {
 
 void Connection::IsInitFinished(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
   bool yes = conn->ssl_ && SSL_is_init_finished(conn->ssl_);
   args.GetReturnValue().Set(yes);
 }
@@ -1764,7 +1764,7 @@ void Connection::IsInitFinished(const FunctionCallbackInfo<Value>& args) {
 void Connection::VerifyError(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (conn->ssl_ == NULL) {
     return args.GetReturnValue().SetNull();
@@ -1920,7 +1920,7 @@ void Connection::VerifyError(const FunctionCallbackInfo<Value>& args) {
 void Connection::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
   if (conn->ssl_ == NULL) return;
 
   OPENSSL_CONST SSL_CIPHER *c = SSL_get_current_cipher(conn->ssl_);
@@ -1938,7 +1938,7 @@ void Connection::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
 void Connection::Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (conn->ssl_ != NULL) {
     SSL_free(conn->ssl_);
@@ -1951,7 +1951,7 @@ void Connection::Close(const FunctionCallbackInfo<Value>& args) {
 void Connection::GetNegotiatedProto(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (conn->is_server_) {
     const unsigned char* npn_proto;
@@ -1974,7 +1974,7 @@ void Connection::GetNegotiatedProto(const FunctionCallbackInfo<Value>& args) {
 void Connection::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (args.Length() < 1 || !Buffer::HasInstance(args[0])) {
     return ThrowError("Must give a Buffer as first argument");
@@ -1989,7 +1989,7 @@ void Connection::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
 void Connection::GetServername(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (conn->is_server_ && !conn->servername_.IsEmpty()) {
     args.GetReturnValue().Set(conn->servername_);
@@ -2002,7 +2002,7 @@ void Connection::GetServername(const FunctionCallbackInfo<Value>& args) {
 void Connection::SetSNICallback(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Connection* conn = Connection::Unwrap(args);
+  Connection* conn = Connection::Unwrap(args.This());
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return ThrowError("Must give a Function as first argument");
