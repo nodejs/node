@@ -60,10 +60,10 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-static Cached<String> on_headers_sym;
-static Cached<String> on_headers_complete_sym;
-static Cached<String> on_body_sym;
-static Cached<String> on_message_complete_sym;
+const uint32_t kOnHeaders = 0;
+const uint32_t kOnHeadersComplete = 1;
+const uint32_t kOnBody = 2;
+const uint32_t kOnMessageComplete = 3;
 
 static Cached<String> method_sym;
 static Cached<String> status_code_sym;
@@ -255,7 +255,7 @@ class Parser : public ObjectWrap {
 
   HTTP_CB(on_headers_complete) {
     Local<Object> obj = handle(node_isolate);
-    Local<Value> cb = obj->Get(on_headers_complete_sym);
+    Local<Value> cb = obj->Get(kOnHeadersComplete);
 
     if (!cb->IsFunction())
       return 0;
@@ -315,7 +315,7 @@ class Parser : public ObjectWrap {
     HandleScope scope(node_isolate);
 
     Local<Object> obj = handle(node_isolate);
-    Local<Value> cb = obj->Get(on_body_sym);
+    Local<Value> cb = obj->Get(kOnBody);
 
     if (!cb->IsFunction())
       return 0;
@@ -344,7 +344,7 @@ class Parser : public ObjectWrap {
       Flush();  // Flush trailing HTTP headers.
 
     Local<Object> obj = handle(node_isolate);
-    Local<Value> cb = obj->Get(on_message_complete_sym);
+    Local<Value> cb = obj->Get(kOnMessageComplete);
 
     if (!cb->IsFunction())
       return 0;
@@ -506,7 +506,7 @@ class Parser : public ObjectWrap {
     HandleScope scope(node_isolate);
 
     Local<Object> obj = handle(node_isolate);
-    Local<Value> cb = obj->Get(on_headers_sym);
+    Local<Value> cb = obj->Get(kOnHeaders);
 
     if (!cb->IsFunction())
       return;
@@ -558,6 +558,14 @@ void InitHttpParser(Handle<Object> target) {
          Integer::New(HTTP_REQUEST, node_isolate));
   t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "RESPONSE"),
          Integer::New(HTTP_RESPONSE, node_isolate));
+  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnHeaders"),
+         Integer::NewFromUnsigned(kOnHeaders, node_isolate));
+  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnHeadersComplete"),
+         Integer::NewFromUnsigned(kOnHeadersComplete, node_isolate));
+  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnBody"),
+         Integer::NewFromUnsigned(kOnBody, node_isolate));
+  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnMessageComplete"),
+         Integer::NewFromUnsigned(kOnMessageComplete, node_isolate));
 
   NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
   NODE_SET_PROTOTYPE_METHOD(t, "finish", Parser::Finish);
@@ -565,15 +573,6 @@ void InitHttpParser(Handle<Object> target) {
 
   target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "HTTPParser"),
               t->GetFunction());
-
-  on_headers_sym =
-      FIXED_ONE_BYTE_STRING(node_isolate, "onHeaders");
-  on_headers_complete_sym =
-      FIXED_ONE_BYTE_STRING(node_isolate, "onHeadersComplete");
-  on_body_sym =
-      FIXED_ONE_BYTE_STRING(node_isolate, "onBody");
-  on_message_complete_sym =
-      FIXED_ONE_BYTE_STRING(node_isolate, "onMessageComplete");
 
 #define X(num, name, string)                                                  \
   name ## _sym = OneByteString(node_isolate, #string);
