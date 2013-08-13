@@ -63,18 +63,22 @@ using v8::Value;
 
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
-  explicit FSReqWrap(const char* syscall)
-    : must_free_(false)
-    , data_(NULL)
-    , syscall_(syscall) {
+  explicit FSReqWrap(const char* syscall, char* data = NULL)
+    : syscall_(syscall)
+    , data_(data) {
+  }
+
+  void ReleaseEarly() {
+    if (data_ == NULL) return;
+    delete[] data_;
+    data_ = NULL;
   }
 
   const char* syscall() { return syscall_; }
-  bool must_free_;  // request is responsible for free'ing memory oncomplete
-  char* data_;
 
  private:
   const char* syscall_;
+  char* data_;
 };
 
 
@@ -102,10 +106,7 @@ static void After(uv_fs_t *req) {
 
   FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
   assert(&req_wrap->req_ == req);
-
-  // check if data needs to be cleaned
-  if (req_wrap->must_free_ == true)
-    delete[] req_wrap->data_;
+  req_wrap->ReleaseEarly();  // Free memory that's no longer used now.
 
   // there is always at least one argument. "error"
   int argc = 1;
@@ -729,7 +730,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   char* buf = NULL;
   int64_t pos;
   size_t len;
-  bool must_free_ = false;
+  bool must_free = false;
 
   // will assign buf and len if string was external
   if (!StringBytes::GetExternalParts(string,
@@ -741,33 +742,35 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     // StorageSize may return too large a char, so correct the actual length
     // by the write size
     len = StringBytes::Write(buf, len, args[1], enc);
-    must_free_ = true;
+    must_free = true;
   }
   pos = GET_OFFSET(args[2]);
   cb = args[4];
 
-  if (cb->IsFunction()) {
-    FSReqWrap* req_wrap = new FSReqWrap("write");
-    int err = uv_fs_write(uv_default_loop(), &req_wrap->req_,
-        fd, buf, len, pos, After);
-    req_wrap->object()->Set(oncomplete_sym, cb);
-    req_wrap->must_free_ = must_free_;
-    req_wrap->Dispatched();
-    req_wrap->data_ = buf;
-    if (err < 0) {
-      uv_fs_t* req = &req_wrap->req_;
-      req->result = err;
-      req->path = NULL;
-      After(req);
-    }
-    return args.GetReturnValue().Set(req_wrap->persistent());
+  if (!cb->IsFunction()) {
+    SYNC_CALL(write, NULL, fd, buf, len, pos)
+    if (must_free) delete[] buf;
+    return args.GetReturnValue().Set(SYNC_RESULT);
   }
 
-  SYNC_CALL(write, NULL, fd, buf, len, pos)
-  args.GetReturnValue().Set(SYNC_RESULT);
+  FSReqWrap* req_wrap = new FSReqWrap("write", must_free ? buf : NULL);
+  int err = uv_fs_write(uv_default_loop(),
+                        &req_wrap->req_,
+                        fd,
+                        buf,
+                        len,
+                        pos,
+                        After);
+  req_wrap->object()->Set(oncomplete_sym, cb);
+  req_wrap->Dispatched();
+  if (err < 0) {
+    uv_fs_t* req = &req_wrap->req_;
+    req->result = err;
+    req->path = NULL;
+    After(req);
+  }
 
-  if (must_free_)
-    delete[] buf;
+  return args.GetReturnValue().Set(req_wrap->persistent());
 }
 
 
