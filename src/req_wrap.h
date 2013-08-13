@@ -74,7 +74,6 @@ class ReqWrap {
 
   v8::Persistent<v8::Object> object_;
   QUEUE req_wrap_queue_;
-  void* data_;
   T req_;  // *must* be last, GetActiveRequests() in node.cc depends on it
 };
 

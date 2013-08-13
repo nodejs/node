@@ -64,12 +64,14 @@ using v8::Value;
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
   explicit FSReqWrap(const char* syscall)
-    : must_free_(false),
-      syscall_(syscall) {
+    : must_free_(false)
+    , data_(NULL)
+    , syscall_(syscall) {
   }
 
   const char* syscall() { return syscall_; }
   bool must_free_;  // request is responsible for free'ing memory oncomplete
+  char* data_;
 
  private:
   const char* syscall_;
@@ -103,7 +105,7 @@ static void After(uv_fs_t *req) {
 
   // check if data needs to be cleaned
   if (req_wrap->must_free_ == true)
-    delete[] static_cast<char*>(req_wrap->data_);
+    delete[] req_wrap->data_;
 
   // there is always at least one argument. "error"
   int argc = 1;
