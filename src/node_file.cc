@@ -209,9 +209,6 @@ static void After(uv_fs_t *req) {
     }
   }
 
-  if (oncomplete_sym.IsEmpty()) {
-    oncomplete_sym = FIXED_ONE_BYTE_STRING(node_isolate, "oncomplete");
-  }
   MakeCallback(req_wrap->object(), oncomplete_sym, argc, argv);
 
   uv_fs_req_cleanup(&req_wrap->req_);
