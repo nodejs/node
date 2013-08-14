@@ -378,11 +378,8 @@ Example of checking for failed exec:
     var spawn = require('child_process').spawn,
         child = spawn('bad_command');
 
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', function (data) {
-      if (/^execvp\(\)/.test(data)) {
-        console.log('Failed to start child process.');
-      }
+    child.on('error', function (err) {
+      console.log('Failed to start child process.');
     });
 
 Note that if spawn receives an empty options object, it will result in
