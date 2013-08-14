@@ -309,7 +309,7 @@ class ZCtx : public ObjectWrap {
     if (args.Length() < 1 || !args[0]->IsInt32()) {
       return ThrowTypeError("Bad argument");
     }
-    node_zlib_mode mode = (node_zlib_mode) args[0]->Int32Value();
+    node_zlib_mode mode = static_cast<node_zlib_mode>(args[0]->Int32Value());
 
     if (mode < DEFLATE || mode > UNZIP) {
       return ThrowTypeError("Bad argument");
