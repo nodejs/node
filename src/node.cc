@@ -1087,6 +1087,23 @@ MakeCallback(const Handle<Object> object,
 }
 
 
+// Internal only.
+Handle<Value>
+MakeCallback(const Handle<Object> object,
+             uint32_t index,
+             int argc,
+             Handle<Value> argv[]) {
+  HandleScope scope(node_isolate);
+
+  Local<Function> callback = object->Get(index).As<Function>();
+  assert(callback->IsFunction());
+
+  if (using_domains)
+    return scope.Close(MakeDomainCallback(object, callback, argc, argv));
+  return scope.Close(MakeCallback(object, callback, argc, argv));
+}
+
+
 Handle<Value>
 MakeCallback(const Handle<Object> object,
              const Handle<String> symbol,

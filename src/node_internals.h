@@ -76,6 +76,12 @@ inline v8::Local<TypeName> PersistentToLocal(
     v8::Isolate* isolate,
     const v8::Persistent<TypeName>& persistent);
 
+v8::Handle<v8::Value> MakeCallback(
+    const v8::Handle<v8::Object> recv,
+    uint32_t index,
+    int argc,
+    v8::Handle<v8::Value>* argv);
+
 template <typename TypeName>
 v8::Handle<v8::Value> MakeCallback(
     const v8::Persistent<v8::Object>& recv,
