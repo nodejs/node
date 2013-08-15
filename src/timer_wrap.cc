@@ -22,6 +22,8 @@
 #include "node.h"
 #include "handle_wrap.h"
 
+#include <stdint.h>
+
 namespace node {
 
 using v8::Function;
@@ -35,7 +37,7 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-static Cached<String> ontimeout_sym;
+const uint32_t kOnTimeout = 0;
 
 class TimerWrap : public HandleWrap {
  public:
@@ -45,6 +47,8 @@ class TimerWrap : public HandleWrap {
     Local<FunctionTemplate> constructor = FunctionTemplate::New(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "Timer"));
+    constructor->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnTimeout"),
+                     Integer::New(kOnTimeout, node_isolate));
 
     NODE_SET_METHOD(constructor, "now", Now);
 
@@ -57,8 +61,6 @@ class TimerWrap : public HandleWrap {
     NODE_SET_PROTOTYPE_METHOD(constructor, "setRepeat", SetRepeat);
     NODE_SET_PROTOTYPE_METHOD(constructor, "getRepeat", GetRepeat);
     NODE_SET_PROTOTYPE_METHOD(constructor, "again", Again);
-
-    ontimeout_sym = FIXED_ONE_BYTE_STRING(node_isolate, "ontimeout");
 
     target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "Timer"),
                 constructor->GetFunction());
@@ -138,7 +140,7 @@ class TimerWrap : public HandleWrap {
     assert(wrap);
 
     Local<Value> argv[1] = { Integer::New(status, node_isolate) };
-    MakeCallback(wrap->object(), ontimeout_sym, ARRAY_SIZE(argv), argv);
+    MakeCallback(wrap->object(), kOnTimeout, ARRAY_SIZE(argv), argv);
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
