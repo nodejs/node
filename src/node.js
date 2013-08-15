@@ -350,13 +350,8 @@
     // run callbacks that have no domain
     // using domains will cause this to be overridden
     function _tickCallback() {
-      var callback, nextTickLength, threw;
+      var callback, threw;
 
-      if (infoBox[inTick] === 1) return;
-      if (infoBox[length] === 0) {
-        infoBox[index] = 0;
-        return;
-      }
       infoBox[inTick] = 1;
 
       while (infoBox[index] < infoBox[length]) {
@@ -374,26 +369,17 @@
     }
 
     function _tickDomainCallback() {
-      var nextTickLength, tock, callback;
+      var tock, callback, domain;
 
-      if (infoBox[lastThrew] === 1) {
-        infoBox[lastThrew] = 0;
-        return;
-      }
-
-      if (infoBox[inTick] === 1) return;
-      if (infoBox[length] === 0) {
-        infoBox[index] = 0;
-        return;
-      }
       infoBox[inTick] = 1;
 
       while (infoBox[index] < infoBox[length]) {
         tock = nextTickQueue[infoBox[index]++];
         callback = tock.callback;
-        if (tock.domain) {
-          if (tock.domain._disposed) continue;
-          tock.domain.enter();
+        domain = tock.domain;
+        if (domain) {
+          if (domain._disposed) continue;
+          domain.enter();
         }
         infoBox[lastThrew] = 1;
         try {
@@ -402,8 +388,8 @@
         } finally {
           if (infoBox[lastThrew] === 1) tickDone();
         }
-        if (tock.domain)
-          tock.domain.exit();
+        if (domain)
+          domain.exit();
       }
 
       tickDone();
