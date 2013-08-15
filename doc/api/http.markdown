@@ -15,6 +15,7 @@ HTTP message headers are represented by an object like this:
     { 'content-length': '123',
       'content-type': 'text/plain',
       'connection': 'keep-alive',
+      'host': 'mysite.com',
       'accept': '*/*' }
 
 Keys are lowercased. Values are not modified.
@@ -24,6 +25,23 @@ HTTP API is very low-level. It deals with stream handling and message
 parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
 
+Defined headers that allow multiple values are concatenated with a `,`
+character, except for the `set-cookie` and `cookie` headers which are
+represented as an array of values.  Headers such as `content-length`
+which can only have a single value are parsed accordingly, and only a
+single value is represented on the parsed object.
+
+The raw headers as they were received are retained in the `rawHeaders`
+property, which is an array of `[key, value, key2, value2, ...]`.  For
+example, the previous message header object might have a `rawHeaders`
+list like the following:
+
+    [ 'ConTent-Length', '123456',
+      'content-LENGTH', '123',
+      'content-type', 'text/plain',
+      'CONNECTION', 'keep-alive',
+      'Host', 'mysite.com',
+      'accepT', '*/*' ]
 
 ## http.STATUS_CODES
 
@@ -56,24 +74,24 @@ This is an [EventEmitter][] with the following events:
 
 Emitted each time there is a request. Note that there may be multiple requests
 per connection (in the case of keep-alive connections).
- `request` is an instance of `http.IncomingMessage` and `response` is
- an instance of `http.ServerResponse`
+`request` is an instance of `http.IncomingMessage` and `response` is
+an instance of `http.ServerResponse`
 
 ### Event: 'connection'
 
 `function (socket) { }`
 
- When a new TCP stream is established. `socket` is an object of type
- `net.Socket`. Usually users will not want to access this event. In
- particular, the socket will not emit `readable` events because of how
- the protocol parser attaches to the socket. The `socket` can also be
- accessed at `request.connection`.
+When a new TCP stream is established. `socket` is an object of type
+`net.Socket`. Usually users will not want to access this event. In
+particular, the socket will not emit `readable` events because of how
+the protocol parser attaches to the socket. The `socket` can also be
+accessed at `request.connection`.
 
 ### Event: 'close'
 
 `function () { }`
 
- Emitted when the server closes.
+Emitted when the server closes.
 
 ### Event: 'checkContinue'
 
@@ -876,9 +894,36 @@ Example:
     //   accept: '*/*' }
     console.log(request.headers);
 
+### message.rawHeaders
+
+The raw request/response headers list exactly as they were received.
+
+Note that the keys and values are in the same list.  It is *not* a
+list of tuples.  So, the even-numbered offsets are key values, and the
+odd-numbered offsets are the associated values.
+
+Header names are not lowercased, and duplicates are not merged.
+
+    // Prints something like:
+    //
+    // [ 'user-agent',
+    //   'this is invalid because there can be only one',
+    //   'User-Agent',
+    //   'curl/7.22.0',
+    //   'Host',
+    //   '127.0.0.1:8000',
+    //   'ACCEPT',
+    //   '*/*' ]
+    console.log(request.rawHeaders);
+
 ### message.trailers
 
-The request/response trailers object. Only populated after the 'end' event.
+The request/response trailers object. Only populated at the 'end' event.
+
+### message.rawTrailers
+
+The raw request/response trailer keys and values exactly as they were
+received.  Only populated at the 'end' event.
 
 ### message.setTimeout(msecs, callback)
 
