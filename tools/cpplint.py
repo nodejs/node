@@ -2283,6 +2283,7 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
   fileinfo = FileInfo(filename)
 
   line = clean_lines.lines[linenum]
+  ParseNolintSuppressions(filename, line, linenum, error)
 
   # we shouldn't include a file more than once. actually, there are a
   # handful of instances where doing so is okay, but in general it's
@@ -2292,9 +2293,10 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
     include = match.group(2)
     is_system = (match.group(1) == '<')
     if include in include_state:
-      error(filename, linenum, 'build/include', 4,
-            '"%s" already included at %s:%s' %
-            (include, filename, include_state[include]))
+      if not IsErrorSuppressedByNolint('build/include', linenum):
+        error(filename, linenum, 'build/include', 4,
+              '"%s" already included at %s:%s' %
+              (include, filename, include_state[include]))
     else:
       include_state[include] = linenum
 
@@ -2309,15 +2311,17 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
       # using a number of techniques. The include_state object keeps
       # track of the highest type seen, and complains if we see a
       # lower type after that.
-      error_message = include_state.CheckNextIncludeOrder(
-          _ClassifyInclude(fileinfo, include, is_system))
-      if error_message:
-        error(filename, linenum, 'build/include_order', 4,
-              '%s. Should be: %s.h, c system, c++ system, other.' %
-              (error_message, fileinfo.BaseName()))
+      if not IsErrorSuppressedByNolint('build/include_order', linenum):
+        error_message = include_state.CheckNextIncludeOrder(
+            _ClassifyInclude(fileinfo, include, is_system))
+        if error_message:
+          error(filename, linenum, 'build/include_order', 4,
+                '%s. Should be: %s.h, c system, c++ system, other.' %
+                (error_message, fileinfo.BaseName()))
       if not include_state.IsInAlphabeticalOrder(include):
-        error(filename, linenum, 'build/include_alpha', 4,
-              'Include "%s" not in alphabetical order' % include)
+        if not IsErrorSuppressedByNolint('build/include_alpha', linenum):
+          error(filename, linenum, 'build/include_alpha', 4,
+                'Include "%s" not in alphabetical order' % include)
 
   # Look for any of the stream classes that are part of standard C++.
   match = _RE_PATTERN_INCLUDE.match(line)
@@ -2326,8 +2330,9 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
     if Match(r'(f|ind|io|i|o|parse|pf|stdio|str|)?stream$', include):
       # Many unit tests use cout, so we exempt them.
       if not _IsTestFilename(filename):
-        error(filename, linenum, 'readability/streams', 3,
-              'Streams are highly discouraged.')
+        if not IsErrorSuppressedByNolint('readability/streams', linenum):
+          error(filename, linenum, 'readability/streams', 3,
+                'Streams are highly discouraged.')
 
 def CheckLanguage(filename, clean_lines, linenum, file_extension, include_state,
                   error):
