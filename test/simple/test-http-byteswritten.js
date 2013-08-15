@@ -26,12 +26,19 @@ var http = require('http');
 
 var body = 'hello world\n';
 
+var sawFinish = false;
+process.on('exit', function() {
+  assert(sawFinish);
+  console.log('ok');
+});
+
 var httpServer = http.createServer(function(req, res) {
+  httpServer.close();
+
   res.on('finish', function() {
+    sawFinish = true;
     assert(typeof(req.connection.bytesWritten) === 'number');
     assert(req.connection.bytesWritten > 0);
-    httpServer.close();
-    console.log('ok');
   });
   res.writeHead(200, { 'Content-Type': 'text/plain' });
 
@@ -51,6 +58,9 @@ var httpServer = http.createServer(function(req, res) {
 });
 
 httpServer.listen(common.PORT, function() {
-  http.get({ port: common.PORT });
+  // XXX(isaacs): This should not be necessary.
+  http.get({ port: common.PORT }, function(res) {
+    res.resume();
+  });
 });
 
