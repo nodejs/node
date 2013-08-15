@@ -58,9 +58,6 @@ var httpServer = http.createServer(function(req, res) {
 });
 
 httpServer.listen(common.PORT, function() {
-  // XXX(isaacs): This should not be necessary.
-  http.get({ port: common.PORT }, function(res) {
-    res.resume();
-  });
+  http.get({ port: common.PORT });
 });
 
