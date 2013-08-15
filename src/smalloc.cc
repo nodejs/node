@@ -301,11 +301,14 @@ void AllocDispose(const FunctionCallbackInfo<Value>& args) {
 void AllocDispose(Handle<Object> obj) {
   HandleScope scope(node_isolate);
 
-  if (using_alloc_cb && obj->Has(smalloc_sym)) {
-    Local<External> ext = obj->GetHiddenValue(smalloc_sym).As<External>();
-    CallbackInfo* cb_info = static_cast<CallbackInfo*>(ext->Value());
-    TargetFreeCallback(node_isolate, &cb_info->p_obj, cb_info);
-    return;
+  if (using_alloc_cb) {
+    Local<Value> ext_v = obj->GetHiddenValue(smalloc_sym);
+    if (ext_v->IsExternal()) {
+      Local<External> ext = ext_v.As<External>();
+      CallbackInfo* cb_info = static_cast<CallbackInfo*>(ext->Value());
+      TargetFreeCallback(node_isolate, &cb_info->p_obj, cb_info);
+      return;
+    }
   }
 
   char* data = static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
