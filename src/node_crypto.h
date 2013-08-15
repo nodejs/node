@@ -49,6 +49,8 @@
 namespace node {
 namespace crypto {
 
+extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
+
 static X509_STORE* root_cert_store;
 
 // Forward declaration
@@ -84,12 +86,6 @@ class SecureContext : ObjectWrap {
   static void GetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static SSL_SESSION* GetSessionCallback(SSL* s,
-                                         unsigned char* key,
-                                         int len,
-                                         int* copy);
-  static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
-
   SecureContext() : ObjectWrap() {
     ctx_ = NULL;
     ca_store_ = NULL;
@@ -119,7 +115,96 @@ class SecureContext : ObjectWrap {
  private:
 };
 
-class Connection : ObjectWrap {
+template <class Base>
+class SSLWrap {
+ public:
+  enum Kind {
+    kClient,
+    kServer
+  };
+
+  SSLWrap(SecureContext* sc, Kind kind) : kind_(kind),
+                                          next_sess_(NULL),
+                                          session_callbacks_(false) {
+    ssl_ = SSL_new(sc->ctx_);
+    assert(ssl_ != NULL);
+  }
+
+  ~SSLWrap() {
+    if (ssl_ != NULL) {
+      SSL_free(ssl_);
+      ssl_ = NULL;
+    }
+    if (next_sess_ != NULL) {
+      SSL_SESSION_free(next_sess_);
+      next_sess_ = NULL;
+    }
+
+#ifdef OPENSSL_NPN_NEGOTIATED
+    npn_protos_.Dispose();
+    selected_npn_proto_.Dispose();
+#endif
+  }
+
+  inline SSL* ssl() const { return ssl_; }
+  inline void enable_session_callbacks() { session_callbacks_ = true; }
+  inline bool is_server() const { return kind_ == kServer; }
+  inline bool is_client() const { return kind_ == kClient; }
+
+ protected:
+  static void AddMethods(v8::Handle<v8::FunctionTemplate> t);
+
+  static SSL_SESSION* GetSessionCallback(SSL* s,
+                                         unsigned char* key,
+                                         int len,
+                                         int* copy);
+  static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
+  static void OnClientHello(void* arg,
+                            const ClientHelloParser::ClientHello& hello);
+
+  static void GetPeerCertificate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoadSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsSessionReused(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsInitFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCurrentCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReceivedShutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EndParser(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+#ifdef OPENSSL_NPN_NEGOTIATED
+  static void GetNegotiatedProto(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetNPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static int AdvertiseNextProtoCallback(SSL* s,
+                                        const unsigned char** data,
+                                        unsigned int* len,
+                                        void* arg);
+  static int SelectNextProtoCallback(SSL* s,
+                                     unsigned char** out,
+                                     unsigned char* outlen,
+                                     const unsigned char* in,
+                                     unsigned int inlen,
+                                     void* arg);
+#endif  // OPENSSL_NPN_NEGOTIATED
+
+  Kind kind_;
+  SSL_SESSION* next_sess_;
+  SSL* ssl_;
+  bool session_callbacks_;
+  ClientHelloParser hello_parser_;
+
+#ifdef OPENSSL_NPN_NEGOTIATED
+  v8::Persistent<v8::Object> npn_protos_;
+  v8::Persistent<v8::Value> selected_npn_proto_;
+#endif  // OPENSSL_NPN_NEGOTIATED
+
+  friend class SecureContext;
+};
+
+class Connection : public SSLWrap<Connection>, public ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
 
@@ -142,36 +227,9 @@ class Connection : ObjectWrap {
   static void EncPending(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EncOut(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ClearIn(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPeerCertificate(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void LoadSession(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsSessionReused(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsInitFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetCurrentCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ReceivedShutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-#ifdef OPENSSL_NPN_NEGOTIATED
-  // NPN
-  static void GetNegotiatedProto(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetNPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static int AdvertiseNextProtoCallback_(SSL* s,
-                                         const unsigned char** data,
-                                         unsigned int* len,
-                                         void* arg);
-  static int SelectNextProtoCallback_(SSL* s,
-                                      unsigned char** out,
-                                      unsigned char* outlen,
-                                      const unsigned char* in,
-                                      unsigned int inlen,
-                                      void* arg);
-#endif
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   // SNI
@@ -180,8 +238,6 @@ class Connection : ObjectWrap {
   static int SelectSNIContextCallback_(SSL* s, int* ad, void* arg);
 #endif
 
-  static void OnClientHello(void* arg,
-                            const ClientHelloParser::ClientHello& hello);
   static void OnClientHelloParseEnd(void* arg);
 
   int HandleBIOError(BIO* bio, const char* func, int rv);
@@ -207,11 +263,15 @@ class Connection : ObjectWrap {
     return conn;
   }
 
-  Connection() : ObjectWrap(), hello_offset_(0) {
+  Connection(SecureContext* sc, SSLWrap<Connection>::Kind kind)
+      : SSLWrap<Connection>(sc, kind),
+        hello_offset_(0) {
     bio_read_ = bio_write_ = NULL;
     ssl_ = NULL;
-    next_sess_ = NULL;
-    hello_parser_.Start(OnClientHello, OnClientHelloParseEnd, this);
+    hello_parser_.Start(SSLWrap<Connection>::OnClientHello,
+                        OnClientHelloParseEnd,
+                        this);
+    enable_session_callbacks();
   }
 
   ~Connection() {
@@ -219,16 +279,6 @@ class Connection : ObjectWrap {
       SSL_free(ssl_);
       ssl_ = NULL;
     }
-
-    if (next_sess_ != NULL) {
-      SSL_SESSION_free(next_sess_);
-      next_sess_ = NULL;
-    }
-
-#ifdef OPENSSL_NPN_NEGOTIATED
-    npnProtos_.Dispose();
-    selectedNPNProto_.Dispose();
-#endif
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
     sniObject_.Dispose();
@@ -242,12 +292,6 @@ class Connection : ObjectWrap {
 
   BIO *bio_read_;
   BIO *bio_write_;
-  SSL *ssl_;
-
-  ClientHelloParser hello_parser_;
-
-  bool is_server_; /* coverity[member_decl] */
-  SSL_SESSION* next_sess_;
 
   uint8_t hello_data_[18432];
   size_t hello_offset_;

@@ -23,7 +23,7 @@
 #define SRC_TLS_WRAP_H_
 
 #include "node.h"
-#include "node_crypto_clienthello.h"
+#include "node_crypto.h"  // SSLWrap
 #include "queue.h"
 #include "stream_wrap.h"
 #include "v8.h"
@@ -39,13 +39,9 @@ namespace crypto {
   class SecureContext;
 }
 
-class TLSCallbacks : public StreamWrapCallbacks {
+class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
+                     public StreamWrapCallbacks {
  public:
-  enum Kind {
-    kTLSClient,
-    kTLSServer
-  };
-
   static void Initialize(v8::Handle<v8::Object> target);
 
   int DoWrite(WriteWrap* w,
@@ -60,6 +56,11 @@ class TLSCallbacks : public StreamWrapCallbacks {
               uv_buf_t buf,
               uv_handle_type pending);
   int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
+
+  // Just for compliance with Connection
+  inline v8::Local<v8::Object> handle(v8::Isolate* isolate) {
+    return object(isolate);
+  }
 
  protected:
   static const int kClearOutChunkSize = 1024;
@@ -97,49 +98,15 @@ class TLSCallbacks : public StreamWrapCallbacks {
   }
 
   v8::Handle<v8::Value> GetSSLError(int status, int* err);
-  static void OnClientHello(void* arg,
-                            const ClientHelloParser::ClientHello& hello);
   static void OnClientHelloParseEnd(void* arg);
 
   static void Wrap(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPeerCertificate(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void LoadSession(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EndParser(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetCurrentCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetVerifyMode(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsSessionReused(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableSessionCallbacks(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableHelloParser(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  // TLS Session API
-  static SSL_SESSION* GetSessionCallback(SSL* s,
-                                         unsigned char* key,
-                                         int len,
-                                         int* copy);
-  static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
-
-#ifdef OPENSSL_NPN_NEGOTIATED
-  static void GetNegotiatedProto(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetNPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static int AdvertiseNextProtoCallback(SSL* s,
-                                        const unsigned char** data,
-                                        unsigned int* len,
-                                        void* arg);
-  static int SelectNextProtoCallback(SSL* s,
-                                     unsigned char** out,
-                                     unsigned char* outlen,
-                                     const unsigned char* in,
-                                     unsigned int inlen,
-                                     void* arg);
-#endif  // OPENSSL_NPN_NEGOTIATED
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -147,19 +114,17 @@ class TLSCallbacks : public StreamWrapCallbacks {
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
-  inline v8::Local<v8::Object> object() {
-    return PersistentToLocal(node_isolate, persistent());
+  inline v8::Local<v8::Object> object(v8::Isolate* isolate) {
+    return PersistentToLocal(isolate, persistent());
   }
 
   inline v8::Persistent<v8::Object>& persistent() {
     return object_;
   }
 
-  Kind kind_;
   crypto::SecureContext* sc_;
   v8::Persistent<v8::Object> sc_handle_;
   v8::Persistent<v8::Object> object_;
-  SSL* ssl_;
   BIO* enc_in_;
   BIO* enc_out_;
   NodeBIO* clear_in_;
@@ -171,14 +136,6 @@ class TLSCallbacks : public StreamWrapCallbacks {
   bool started_;
   bool established_;
   bool shutdown_;
-  bool session_callbacks_;
-  SSL_SESSION* next_sess_;
-  ClientHelloParser hello_;
-
-#ifdef OPENSSL_NPN_NEGOTIATED
-  v8::Persistent<v8::Object> npn_protos_;
-  v8::Persistent<v8::Value> selected_npn_proto_;
-#endif  // OPENSSL_NPN_NEGOTIATED
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   v8::Persistent<v8::Value> sni_context_;
