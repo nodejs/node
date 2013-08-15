@@ -191,6 +191,25 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
 }
 
 
+void NodeBIO::TryMoveReadHead() {
+  // `read_pos_` and `write_pos_` means the position of the reader and writer
+  // inside the buffer, respectively. When they're equal - its safe to reset
+  // them, because both reader and writer will continue doing their stuff
+  // from new (zero) positions.
+  if (read_head_->read_pos_ != read_head_->write_pos_)
+    return;
+
+  // Reset positions
+  read_head_->read_pos_ = 0;
+  read_head_->write_pos_ = 0;
+
+  // Move read_head_ forward, just in case if there're still some data to
+  // read in the next buffer.
+  if (read_head_ != write_head_)
+    read_head_ = read_head_->next_;
+}
+
+
 size_t NodeBIO::Read(char* out, size_t size) {
   size_t bytes_read = 0;
   size_t expected = Length() > size ? size : Length();
@@ -213,16 +232,7 @@ size_t NodeBIO::Read(char* out, size_t size) {
     offset += avail;
     left -= avail;
 
-    // Move to next buffer
-    if (read_head_->read_pos_ == read_head_->write_pos_) {
-      read_head_->read_pos_ = 0;
-      read_head_->write_pos_ = 0;
-
-      // But not get beyond write_head_
-      if (length_ != bytes_read && read_head_ != write_head_) {
-        read_head_ = read_head_->next_;
-      }
-    }
+    TryMoveReadHead();
   }
   assert(expected == bytes_read);
   length_ -= bytes_read;
@@ -331,6 +341,10 @@ void NodeBIO::Write(const char* data, size_t size) {
       assert(write_head_->write_pos_ == kBufferLength);
       TryAllocateForWrite();
       write_head_ = write_head_->next_;
+
+      // Additionally, since we're moved to the next buffer, read head
+      // may be moved as well.
+      TryMoveReadHead();
     }
   }
   assert(left == 0);

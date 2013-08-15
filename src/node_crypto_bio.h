@@ -38,6 +38,9 @@ class NodeBIO {
 
   static BIO* New();
 
+  // Move read head to next buffer if needed
+  void TryMoveReadHead();
+
   // Allocate new buffer for write if needed
   void TryAllocateForWrite();
 
