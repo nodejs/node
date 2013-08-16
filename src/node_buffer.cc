@@ -566,9 +566,6 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> proto = proto_v.As<Object>();
 
-  bv->Set(FIXED_ONE_BYTE_STRING(node_isolate, "byteLength"),
-          FunctionTemplate::New(ByteLength)->GetFunction());
-
   NODE_SET_METHOD(proto, "asciiSlice", AsciiSlice);
   NODE_SET_METHOD(proto, "base64Slice", Base64Slice);
   NODE_SET_METHOD(proto, "binarySlice", BinarySlice);
@@ -600,6 +597,14 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   proto->Set(FIXED_ONE_BYTE_STRING(node_isolate, "offset"),
              Uint32::New(0, node_isolate),
              v8::ReadOnly);
+
+  assert(args[1]->IsObject());
+
+  Local<Object> internal = args[1].As<Object>();
+
+  internal->Set(FIXED_ONE_BYTE_STRING(node_isolate, "byteLength"),
+                FunctionTemplate::New(ByteLength)->GetFunction());
+
 }
 
 
