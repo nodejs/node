@@ -4011,7 +4011,9 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
     Buffer* buffer = Buffer::New(req->data_, req->size_, RandomBytesFree, NULL);
     argv[0] = Local<Value>::New(Null());
     argv[1] = Local<Object>::New(buffer->handle_);
+    req->data_ = NULL;
   }
+  free(req->data_);
 }
 
 
