@@ -8,10 +8,10 @@ circularObj.list = [ circularObj, circularObj ];
 // default
 var testObj = {
   "a": "b",
-  "circularRef": "[Circular]",
+  "circularRef": "[Circular ~]",
   "list": [
-    "[Circular]",
-    "[Circular]"
+    "[Circular ~]",
+    "[Circular ~]"
   ]
 };
 
@@ -90,6 +90,38 @@ function signer(key, value) {
 assert.equal(JSON.stringify(testObj, null, 2),
              stringify(circularObj, null, 2, signer));
 
+
+///////
+//multi
+var a = { x: 1 };
+a.a = a;
+var b = { x: 2 };
+b.a = a;
+
+var c = { a: a, b: b };
+var d = { list: [ a, b, c ] };
+d.d = d;
+
+var multi = {
+  "list": [
+    {
+      "x": 1,
+      "a": "[Circular ~.list.0]"
+    },
+    {
+      "x": 2,
+      "a": "[Circular ~.list.0]"
+    },
+    {
+      "a": "[Circular ~.list.0]",
+      "b": "[Circular ~.list.1]"
+    }
+  ],
+  "d": "[Circular ~]"
+};
+
+assert.equal(JSON.stringify(multi, null, 2),
+             stringify(d, null, 2));
 
 ////////
 // pass!

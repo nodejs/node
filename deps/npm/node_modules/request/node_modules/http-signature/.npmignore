@@ -1,6 +1,7 @@
 .gitmodules
-Makefile
 deps
 docs
+Makefile
+node_modules
 test
 tools

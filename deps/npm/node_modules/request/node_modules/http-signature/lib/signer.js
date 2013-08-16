@@ -20,7 +20,8 @@ var Algorithms = {
   'hmac-sha512': true
 };
 
-var Authorization = 'Signature keyId="%s",algorithm="%s",headers="%s" %s';
+var Authorization =
+  'Signature keyId="%s",algorithm="%s",headers="%s",signature="%s"';
 
 
 
@@ -101,6 +102,7 @@ module.exports = {
    *                   - {String} key required (either a PEM or HMAC key).
    *                   - {Array} headers optional; defaults to ['date'].
    *                   - {String} algorithm optional; defaults to 'rsa-sha256'.
+   *                   - {String} httpVersion optional; defaults to '1.1'.
    * @return {Boolean} true if Authorization (and optionally Date) were added.
    * @throws {TypeError} on bad parameter types (input).
    * @throws {InvalidAlgorithmError} if algorithm was bad.
@@ -113,6 +115,7 @@ module.exports = {
     assert.optionalString(options.algorithm, 'options.algorithm');
     assert.string(options.keyId, 'options.keyId');
     assert.optionalArrayOfString(options.headers, 'options.headers');
+    assert.optionalString(options.httpVersion, 'options.httpVersion');
 
     if (!request.getHeader('Date'))
       request.setHeader('Date', _rfc1123());
@@ -120,6 +123,8 @@ module.exports = {
       options.headers = ['date'];
     if (!options.algorithm)
       options.algorithm = 'rsa-sha256';
+    if (!options.httpVersion)
+      options.httpVersion = '1.1';
 
     options.algorithm = options.algorithm.toLowerCase();
 
@@ -133,18 +138,19 @@ module.exports = {
         throw new TypeError('options.headers must be an array of Strings');
 
       var h = options.headers[i].toLowerCase();
-      request.getHeader(h);
 
-      var value = request.getHeader(h);
-      if (!value) {
-        if (h === 'request-line') {
-          value = request.method + ' ' + request.path + ' HTTP/1.1';
-        } else {
+      if (h !== 'request-line') {
+        var value = request.getHeader(h);
+        if (!value) {
           throw new MissingHeaderError(h + ' was not in the request');
         }
+        stringToSign += h + ': ' + value;
+      } else {
+        value =
+        stringToSign +=
+          request.method + ' ' + request.path + ' HTTP/' + options.httpVersion;
       }
 
-      stringToSign += value;
       if ((i + 1) < options.headers.length)
         stringToSign += '\n';
     }

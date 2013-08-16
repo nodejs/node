@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "PACKAGE\.JSON" "5" "July 2013" "" ""
+.TH "PACKAGE\.JSON" "5" "August 2013" "" ""
 .
 .SH "NAME"
 \fBpackage.json\fR \-\- Specifics of npm\'s package\.json handling
@@ -91,24 +91,7 @@ Version must be parseable by node\-semver \fIhttps://github\.com/isaacs/node\-se
 with npm as a dependency\.  (\fBnpm install semver\fR to use it yourself\.)
 .
 .P
-Here\'s how npm\'s semver implementation deviates from what\'s on semver\.org:
-.
-.IP "\(bu" 4
-Versions can start with "v"
-.
-.IP "\(bu" 4
-A numeric item separated from the main three\-number version by a hyphen
-will be interpreted as a "build" number, and will \fIincrease\fR the version\.
-But, if the tag is not a number separated by a hyphen, then it\'s treated
-as a pre\-release tag, and is \fIless than\fR the version without a tag\.
-So, \fB0\.1\.2\-7 > 0\.1\.2\-7\-beta > 0\.1\.2\-6 > 0\.1\.2 > 0\.1\.2beta\fR
-.
-.IP "" 0
-.
-.P
-This is a little bit confusing to explain, but matches what you see in practice
-when people create tags in git like "v1\.2\.3" and then do "git describe" to generate
-a patch version\.
+npm help  More on version numbers and ranges at semver\.
 .
 .SH "description"
 Put a description in it\.  It\'s a string\.  This helps people discover your
@@ -460,22 +443,19 @@ npm help  See \fBnpm\-confignpm help  \fR and \fBnpm\-scripts\fR for more on pac
 configs\.
 .
 .SH "dependencies"
-Dependencies are specified with a simple hash of package name to version
-range\. The version range is EITHER a string which has one or more
-space\-separated descriptors, OR a range like "fromVersion \- toVersion"
+Dependencies are specified with a simple hash of package name to
+version range\. The version range is a string which has one or more
+space\-separated descriptors\.  Dependencies can also be identified with
+a tarball or git URL\.
 .
 .P
-\fBPlease do not put test harnesses in your \fBdependencies\fR hash\.\fR  See \fBdevDependencies\fR, below\.
+\fBPlease do not put test harnesses or transpilers in your \fBdependencies\fR hash\.\fR  See \fBdevDependencies\fR, below\.
 .
 .P
-Version range descriptors may be any of the following styles, where "version"
-is a semver compatible version identifier\.
+npm help  See semver for more details about specifying version ranges\.
 .
 .IP "\(bu" 4
 \fBversion\fR Must match \fBversion\fR exactly
-.
-.IP "\(bu" 4
-\fB=version\fR Same as just \fBversion\fR
 .
 .IP "\(bu" 4
 \fB>version\fR Must be greater than \fBversion\fR
@@ -490,10 +470,10 @@ is a semver compatible version identifier\.
 \fB<=version\fR
 .
 .IP "\(bu" 4
-\fB~version\fR See \'Tilde Version Ranges\' below
+npm help  \fB~version\fR "Approximately equivalent to version"  See semver
 .
 .IP "\(bu" 4
-\fB1\.2\.x\fR See \'X Version Ranges\' below
+\fB1\.2\.x\fR 1\.2\.0, 1\.2\.1, etc\., but not 1\.3\.0
 .
 .IP "\(bu" 4
 \fBhttp://\.\.\.\fR See \'URLs as Dependencies\' below
@@ -539,63 +519,8 @@ For example, these are all valid:
 .
 .IP "" 0
 .
-.SS "Tilde Version Ranges"
-A range specifier starting with a tilde \fB~\fR character is matched against
-a version in the following fashion\.
-.
-.IP "\(bu" 4
-The version must be at least as high as the range\.
-.
-.IP "\(bu" 4
-The version must be less than the next major revision above the range\.
-.
-.IP "" 0
-.
-.P
-For example, the following are equivalent:
-.
-.IP "\(bu" 4
-\fB"~1\.2\.3" = ">=1\.2\.3 <1\.3\.0"\fR
-.
-.IP "\(bu" 4
-\fB"~1\.2" = ">=1\.2\.0 <1\.3\.0"\fR
-.
-.IP "\(bu" 4
-\fB"~1" = ">=1\.0\.0 <1\.1\.0"\fR
-.
-.IP "" 0
-.
-.SS "X Version Ranges"
-An "x" in a version range specifies that the version number must start
-with the supplied digits, but any digit may be used in place of the x\.
-.
-.P
-The following are equivalent:
-.
-.IP "\(bu" 4
-\fB"1\.2\.x" = ">=1\.2\.0 <1\.3\.0"\fR
-.
-.IP "\(bu" 4
-\fB"1\.x\.x" = ">=1\.0\.0 <2\.0\.0"\fR
-.
-.IP "\(bu" 4
-\fB"1\.2" = "1\.2\.x"\fR
-.
-.IP "\(bu" 4
-\fB"1\.x" = "1\.x\.x"\fR
-.
-.IP "\(bu" 4
-\fB"1" = "1\.x\.x"\fR
-.
-.IP "" 0
-.
-.P
-You may not supply a comparator with a version containing an x\.  Any
-digits after the first "x" are ignored\.
-.
 .SS "URLs as Dependencies"
-Starting with npm version 0\.2\.14, you may specify a tarball URL in place
-of a version range\.
+You may specify a tarball URL in place of a version range\.
 .
 .P
 This tarball will be downloaded and installed locally to your package at
@@ -630,9 +555,37 @@ the external test or documentation framework that you use\.
 In this case, it\'s best to list these additional items in a \fBdevDependencies\fR hash\.
 .
 .P
-These things will be installed whenever the \fB\-\-dev\fR configuration flag
-is set\.  This flag is set automatically when doing \fBnpm link\fR or when doing \fBnpm install\fR from the root of a package, and can be managed like any other npm
+These things will be installed when doing \fBnpm link\fR or \fBnpm install\fR
+from the root of a package, and can be managed like any other npm
 npm help  configuration param\.  See \fBnpm\-config\fR for more on the topic\.
+.
+.P
+For build steps that are not platform\-specific, such as compiling
+CoffeeScript or other languages to JavaScript, use the \fBprepublish\fR
+script to do this, and make the required package a devDependency\.
+.
+.P
+For example:
+.
+.P
+\fBjson
+{ "name": "ethopia\-waza",
+  "description": "a delightfully fruity coffee varietal",
+  "version": "1\.2\.3",
+  "devDependencies": {
+    "coffee\-script": "~1\.6\.3"
+  },
+  "scripts": {
+    "prepublish": "coffee \-o lib/ \-c src/waza\.coffee"
+  },
+  "main": "lib/waza\.js"
+}\fR
+.
+.P
+The \fBprepublish\fR script will be run before publishing, so that users
+can consume the functionality without requiring them to compile it
+themselves\.  In dev mode (ie, locally running \fBnpm install\fR), it\'ll
+run this script as well, so that you can test it easily\.
 .
 .SH "bundledDependencies"
 Array of package names that will be bundled when publishing the package\.
@@ -680,7 +633,7 @@ You can specify the version of node that your stuff works on:
 .IP "" 4
 .
 .nf
-{ "engines" : { "node" : ">=0\.1\.27 <0\.1\.30" } }
+{ "engines" : { "node" : ">=0\.10\.3 <0\.12" } }
 .
 .fi
 .

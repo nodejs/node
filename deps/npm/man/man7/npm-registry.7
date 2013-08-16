@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-REGISTRY" "7" "July 2013" "" ""
+.TH "NPM\-REGISTRY" "7" "August 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-registry\fR \-\- The JavaScript Package Registry
@@ -55,40 +55,8 @@ registry using npm\.  What little security there is would be for nought
 otherwise\.
 .
 .SH "Do I have to use couchdb to build a registry that npm can talk to?"
-No, but it\'s way easier\.
-.
-.SH "I published something elsewhere, and want to tell the npm registry about it\."
-That is supported, but not using the npm client\.  You\'ll have to get
-your hands dirty and do some HTTP\.  The request looks something like
-this:
-.
-.IP "" 4
-.
-.nf
-PUT /my\-foreign\-package
-content\-type:application/json
-accept:application/json
-authorization:Basic $base_64_encoded
-{ "name":"my\-foreign\-package"
-, "maintainers":["owner","usernames"]
-, "description":"A package that is hosted elsewhere"
-, "keywords":["nih","my cheese smells the best"]
-, "url":"http://my\-different\-registry\.com/blerg/my\-local\-package"
-}
-.
-.fi
-.
-.IP "" 0
-.
-.P
-(Keywords and description are optional, but recommended\.  Name,
-maintainers, and url are required\.)
-.
-.P
-Then, when a user tries to install "my\-foreign\-package", it\'ll redirect
-to your registry\.  If that doesn\'t resolve to a valid package entry,
-then it\'ll fail, so please make sure that you understand the spec, and
-ask for help on the \fInpm\-@googlegroups\.com\fR mailing list\.
+No, but it\'s way easier\.  Basically, yes, you do, or you have to
+effectively implement the entire CouchDB API anyway\.
 .
 .SH "Is there a website or something to see package docs and such?"
 Yes, head over to \fIhttps://npmjs\.org/\fR

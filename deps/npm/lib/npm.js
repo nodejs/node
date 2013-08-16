@@ -146,6 +146,7 @@ var commandCache = {}
               , "edit"
               , "explore"
               , "docs"
+              , "repo"
               , "bugs"
               , "faq"
               , "root"

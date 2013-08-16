@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <title>repo</title>
+  <meta http-equiv="content-type" value="text/html;utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+
+  <body>
+    <div id="wrapper">
+<h1><a href="../api/npm-repo.html">npm-repo</a></h1> <p>Open package repository page in the browser</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<pre><code>npm.commands.repo(package, callback)</code></pre>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>This command tries to guess at the likely location of a package&#39;s
+repository URL, and then tries to open it using the <code>--browser</code>
+config param.</p>
+
+<p>Like other commands, the first parameter is an array. This command only
+uses the first element, which is expected to be a package name with an
+optional version number.</p>
+
+<p>This command will launch a browser, so this command may not be the most
+friendly for programmatic use.</p>
+</div>
+<p id="footer">repo &mdash; npm@1.3.8</p>
+<script>
+;(function () {
+var wrapper = document.getElementById("wrapper")
+var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
+  .filter(function (el) {
+    return el.parentNode === wrapper
+        && el.tagName.match(/H[1-6]/)
+        && el.id
+  })
+var l = 2
+  , toc = document.createElement("ul")
+toc.innerHTML = els.map(function (el) {
+  var i = el.tagName.charAt(1)
+    , out = ""
+  while (i > l) {
+    out += "<ul>"
+    l ++
+  }
+  while (i < l) {
+    out += "</ul>"
+    l --
+  }
+  out += "<li><a href='#" + el.id + "'>" +
+    ( el.innerText || el.text || el.innerHTML)
+    + "</a>"
+  return out
+}).join("\n")
+toc.id = "toc"
+document.body.appendChild(toc)
+})()
+</script>

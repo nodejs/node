@@ -16,36 +16,36 @@ if (typeof module !== "undefined" && module.exports) {
     module.exports = hawk;
 }
 
-// Generate an Authorization header for a given request
-
-/*
-    uri: 'http://example.com/resource?a=b'
-    method: HTTP verb (e.g. 'GET', 'POST')
-    options: {
-
-        // Required
-
-        credentials: {
-            id: 'dh37fgj492je',
-            key: 'aoijedoaijsdlaksjdl',
-            algorithm: 'sha256'                                 // 'sha1', 'sha256'
-        },
-
-        // Optional
-
-        ext: 'application-specific',                        // Application specific data sent via the ext attribute
-        timestamp: Date.now() / 1000,                       // A pre-calculated timestamp in seconds
-        nonce: '2334f34f',                                  // A pre-generated nonce
-        localtimeOffsetMsec: 400,                           // Time offset to sync with server time (ignored if timestamp provided)
-        payload: '{"some":"payload"}',                      // UTF-8 encoded string for body hash generation (ignored if hash provided)
-        contentType: 'application/json',                    // Payload content-type (ignored if hash provided)
-        hash: 'U4MKKSmiVxk37JCCrAVIjV=',                    // Pre-calculated payload hash
-        app: '24s23423f34dx',                               // Oz application id
-        dlg: '234sz34tww3sd'                                // Oz delegated-by application id
-    }
-*/
-
 hawk.client = {
+
+    // Generate an Authorization header for a given request
+
+    /*
+        uri: 'http://example.com/resource?a=b'
+        method: HTTP verb (e.g. 'GET', 'POST')
+        options: {
+    
+            // Required
+    
+            credentials: {
+                id: 'dh37fgj492je',
+                key: 'aoijedoaijsdlaksjdl',
+                algorithm: 'sha256'                                 // 'sha1', 'sha256'
+            },
+    
+            // Optional
+    
+            ext: 'application-specific',                        // Application specific data sent via the ext attribute
+            timestamp: Date.now() / 1000,                       // A pre-calculated timestamp in seconds
+            nonce: '2334f34f',                                  // A pre-generated nonce
+            localtimeOffsetMsec: 400,                           // Time offset to sync with server time (ignored if timestamp provided)
+            payload: '{"some":"payload"}',                      // UTF-8 encoded string for body hash generation (ignored if hash provided)
+            contentType: 'application/json',                    // Payload content-type (ignored if hash provided)
+            hash: 'U4MKKSmiVxk37JCCrAVIjV=',                    // Pre-calculated payload hash
+            app: '24s23423f34dx',                               // Oz application id
+            dlg: '234sz34tww3sd'                                // Oz delegated-by application id
+        }
+    */
 
     header: function (uri, method, options) {
 
@@ -212,6 +212,61 @@ hawk.client = {
 
         var calculatedHash = hawk.crypto.calculatePayloadHash(options.payload, credentials.algorithm, request.getResponseHeader('content-type'));
         return (calculatedHash === attributes.hash);
+    },
+
+    message: function (host, port, message, options) {
+
+        // Validate inputs
+
+        if (!host || typeof host !== 'string' ||
+            !port || typeof port !== 'number' ||
+            message === null || message === undefined || typeof message !== 'string' ||
+            !options || typeof options !== 'object') {
+
+            return null;
+        }
+
+        // Application time
+
+        var timestamp = options.timestamp || Math.floor((hawk.utils.now() + (options.localtimeOffsetMsec || 0)) / 1000)
+
+        // Validate credentials
+
+        var credentials = options.credentials;
+        if (!credentials ||
+            !credentials.id ||
+            !credentials.key ||
+            !credentials.algorithm) {
+
+            // Invalid credential object
+            return null;
+        }
+
+        if (hawk.crypto.algorithms.indexOf(credentials.algorithm) === -1) {
+            return null;
+        }
+
+        // Calculate signature
+
+        var artifacts = {
+            ts: timestamp,
+            nonce: options.nonce || hawk.utils.randomString(6),
+            host: host,
+            port: port,
+            hash: hawk.crypto.calculatePayloadHash(message, credentials.algorithm)
+        };
+
+        // Construct authorization
+
+        var result = {
+            id: credentials.id,
+            ts: artifacts.ts,
+            nonce: artifacts.nonce,
+            hash: artifacts.hash,
+            mac: hawk.crypto.calculateMac('message', credentials, artifacts)
+        };
+
+        return result;
     }
 };
 
@@ -235,8 +290,8 @@ hawk.crypto = {
         var normalized = 'hawk.' + hawk.crypto.headerVersion + '.' + type + '\n' +
                          options.ts + '\n' +
                          options.nonce + '\n' +
-                         options.method.toUpperCase() + '\n' +
-                         options.resource + '\n' +
+                         (options.method || '').toUpperCase() + '\n' +
+                         (options.resource || '') + '\n' +
                          options.host.toLowerCase() + '\n' +
                          options.port + '\n' +
                          (options.hash || '') + '\n';

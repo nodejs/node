@@ -17,7 +17,7 @@ thingsToFix = thingsToFix.concat(otherThingsToFix)
 function normalize (data, warn, strict) {
   if(warn === true) warn = null, strict = true
   if(!strict) strict = false
-  if(!warn) warn = function(msg) { /* noop */ }
+  if(!warn || data.private) warn = function(msg) { /* noop */ }
 
   if (data.scripts && 
       data.scripts.install === "node-gyp rebuild" && 

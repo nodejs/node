@@ -1,7 +1,7 @@
 Copyright (c) Isaac Z. Schlueter
 All rights reserved.
 
-npm is released under the Artistic 2.0 License.
+npm is released under the Artistic License 2.0.
 The text of the License follows:
 
 
@@ -119,15 +119,15 @@ you do at least ONE of the following:
     make the Source form of the Modified Version available to others
     under
 
-	(i)  the Original License or
+        (i)  the Original License or
 
-	(ii)  a license that permits the licensee to freely copy,
-	modify and redistribute the Modified Version using the same
-	licensing terms that apply to the copy that the licensee
-	received, and requires that the Source form of the Modified
-	Version, and of any works derived from it, be made freely
-	available in that license fees are prohibited but Distributor
-	Fees are allowed.
+        (ii)  a license that permits the licensee to freely copy,
+        modify and redistribute the Modified Version using the same
+        licensing terms that apply to the copy that the licensee
+        received, and requires that the Source form of the Modified
+        Version, and of any works derived from it, be made freely
+        available in that license fees are prohibited but Distributor
+        Fees are allowed.
 
 
 Distribution of Compiled Forms of the Standard Version

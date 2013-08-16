@@ -57,6 +57,44 @@ describe('Hawk', function () {
                 expect(Hawk.utils.parseHost(req, 'Host').port).to.equal(443);
                 done();
             });
+
+            it('returns port 443 for non tls node request (IPv6)', function (done) {
+
+                var req = {
+                    method: 'POST',
+                    url: '/resource/4?filter=a',
+                    headers: {
+                        host: '[123:123:123]',
+                        'content-type': 'text/plain;x=y'
+                    },
+                    connection: {
+                        encrypted: true
+                    }
+                };
+
+                expect(Hawk.utils.parseHost(req, 'Host').port).to.equal(443);
+                done();
+            });
+
+            it('parses IPv6 headers', function (done) {
+
+                var req = {
+                    method: 'POST',
+                    url: '/resource/4?filter=a',
+                    headers: {
+                        host: '[123:123:123]:8000',
+                        'content-type': 'text/plain;x=y'
+                    },
+                    connection: {
+                        encrypted: true
+                    }
+                };
+
+                var host = Hawk.utils.parseHost(req, 'Host');
+                expect(host.port).to.equal('8000');
+                expect(host.name).to.equal('[123:123:123]');
+                done();
+            });
         });
 
         describe('#version', function () {

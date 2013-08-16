@@ -10,6 +10,7 @@ npm-debug.log
 node_modules/ronn
 node_modules/tap
 node_modules/.bin
+node_modules/npm-registry-mock
 /npmrc
 /release/
 

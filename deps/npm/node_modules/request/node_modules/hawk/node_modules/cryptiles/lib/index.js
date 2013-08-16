@@ -45,6 +45,12 @@ exports.randomBits = function (bits) {
 
 exports.fixedTimeComparison = function (a, b) {
 
+    if (typeof a !== 'string' ||
+        typeof b !== 'string') {
+
+        return false;
+    }
+
     var mismatch = (a.length === b.length ? 0 : 1);
     if (mismatch) {
         b = a;

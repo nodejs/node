@@ -1,5 +1,7 @@
+# node-http-signature
+
 node-http-signature is a node.js library that has client and server components
-for Joyent's `HTTP Signature Scheme`.
+for Joyent's [HTTP Signature Scheme](http_signing.md).
 
 ## Usage
 

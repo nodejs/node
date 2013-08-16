@@ -68,18 +68,7 @@ Version must be parseable by
 [node-semver](https://github.com/isaacs/node-semver), which is bundled
 with npm as a dependency.  (`npm install semver` to use it yourself.)
 
-Here's how npm's semver implementation deviates from what's on semver.org:
-
-* Versions can start with "v"
-* A numeric item separated from the main three-number version by a hyphen
-  will be interpreted as a "build" number, and will *increase* the version.
-  But, if the tag is not a number separated by a hyphen, then it's treated
-  as a pre-release tag, and is *less than* the version without a tag.
-  So, `0.1.2-7 > 0.1.2-7-beta > 0.1.2-6 > 0.1.2 > 0.1.2beta`
-
-This is a little bit confusing to explain, but matches what you see in practice
-when people create tags in git like "v1.2.3" and then do "git describe" to generate
-a patch version.
+More on version numbers and ranges at semver(7).
 
 ## description
 
@@ -335,24 +324,23 @@ configs.
 
 ## dependencies
 
-Dependencies are specified with a simple hash of package name to version
-range. The version range is EITHER a string which has one or more
-space-separated descriptors, OR a range like "fromVersion - toVersion"
+Dependencies are specified with a simple hash of package name to
+version range. The version range is a string which has one or more
+space-separated descriptors.  Dependencies can also be identified with
+a tarball or git URL.
 
-**Please do not put test harnesses in your `dependencies` hash.**  See
-`devDependencies`, below.
+**Please do not put test harnesses or transpilers in your
+`dependencies` hash.**  See `devDependencies`, below.
 
-Version range descriptors may be any of the following styles, where "version"
-is a semver compatible version identifier.
+See semver(7) for more details about specifying version ranges.
 
 * `version` Must match `version` exactly
-* `=version` Same as just `version`
 * `>version` Must be greater than `version`
 * `>=version` etc
 * `<version`
 * `<=version`
-* `~version` See 'Tilde Version Ranges' below
-* `1.2.x` See 'X Version Ranges' below
+* `~version` "Approximately equivalent to version"  See semver(7)
+* `1.2.x` 1.2.0, 1.2.1, etc., but not 1.3.0
 * `http://...` See 'URLs as Dependencies' below
 * `*` Matches any version
 * `""` (just an empty string) Same as `*`
@@ -376,40 +364,9 @@ For example, these are all valid:
       }
     }
 
-### Tilde Version Ranges
-
-A range specifier starting with a tilde `~` character is matched against
-a version in the following fashion.
-
-* The version must be at least as high as the range.
-* The version must be less than the next major revision above the range.
-
-For example, the following are equivalent:
-
-* `"~1.2.3" = ">=1.2.3 <1.3.0"`
-* `"~1.2" = ">=1.2.0 <1.3.0"`
-* `"~1" = ">=1.0.0 <1.1.0"`
-
-### X Version Ranges
-
-An "x" in a version range specifies that the version number must start
-with the supplied digits, but any digit may be used in place of the x.
-
-The following are equivalent:
-
-* `"1.2.x" = ">=1.2.0 <1.3.0"`
-* `"1.x.x" = ">=1.0.0 <2.0.0"`
-* `"1.2" = "1.2.x"`
-* `"1.x" = "1.x.x"`
-* `"1" = "1.x.x"`
-
-You may not supply a comparator with a version containing an x.  Any
-digits after the first "x" are ignored.
-
 ### URLs as Dependencies
 
-Starting with npm version 0.2.14, you may specify a tarball URL in place
-of a version range.
+You may specify a tarball URL in place of a version range.
 
 This tarball will be downloaded and installed locally to your package at
 install time.
@@ -436,10 +393,34 @@ the external test or documentation framework that you use.
 In this case, it's best to list these additional items in a
 `devDependencies` hash.
 
-These things will be installed whenever the `--dev` configuration flag
-is set.  This flag is set automatically when doing `npm link` or when doing
-`npm install` from the root of a package, and can be managed like any other npm
+These things will be installed when doing `npm link` or `npm install`
+from the root of a package, and can be managed like any other npm
 configuration param.  See `npm-config(7)` for more on the topic.
+
+For build steps that are not platform-specific, such as compiling
+CoffeeScript or other languages to JavaScript, use the `prepublish`
+script to do this, and make the required package a devDependency.
+
+For example:
+
+```json
+{ "name": "ethopia-waza",
+  "description": "a delightfully fruity coffee varietal",
+  "version": "1.2.3",
+  "devDependencies": {
+    "coffee-script": "~1.6.3"
+  },
+  "scripts": {
+    "prepublish": "coffee -o lib/ -c src/waza.coffee"
+  },
+  "main": "lib/waza.js"
+}
+```
+
+The `prepublish` script will be run before publishing, so that users
+can consume the functionality without requiring them to compile it
+themselves.  In dev mode (ie, locally running `npm install`), it'll
+run this script as well, so that you can test it easily.
 
 ## bundledDependencies
 
@@ -481,7 +462,7 @@ Entries in `optionalDependencies` will override entries of the same name in
 
 You can specify the version of node that your stuff works on:
 
-    { "engines" : { "node" : ">=0.1.27 <0.1.30" } }
+    { "engines" : { "node" : ">=0.10.3 <0.12" } }
 
 And, like with dependencies, if you don't specify the version (or if you
 specify "\*" as the version), then any version of node will do.
@@ -576,7 +557,7 @@ overridden.
 
 ## SEE ALSO
 
-* npm-semver(7)
+* semver(7)
 * npm-init(1)
 * npm-version(1)
 * npm-config(1)
