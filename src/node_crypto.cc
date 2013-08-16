@@ -81,6 +81,7 @@ using v8::Object;
 using v8::Persistent;
 using v8::String;
 using v8::ThrowException;
+using v8::V8;
 using v8::Value;
 
 
@@ -3463,8 +3464,14 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
 
   RandomBytesRequest* req = new RandomBytesRequest();
   req->error_ = 0;
-  req->data_ = new char[size];
   req->size_ = size;
+  req->data_ = static_cast<char*>(malloc(size));
+
+  if (req->data_ == NULL) {
+    delete req;
+    V8::LowMemoryNotification();
+    return ThrowError("Out of memory");
+  }
 
   if (args[1]->IsFunction()) {
     Local<Object> obj = Object::New();
