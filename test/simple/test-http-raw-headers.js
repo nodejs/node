@@ -28,7 +28,7 @@ http.createServer(function(req, res) {
   this.close();
   var expectRawHeaders = [
     'Host',
-    'localhost:12346',
+    'localhost:' + common.PORT,
     'transfer-ENCODING',
     'CHUNKED',
     'x-BaR',
@@ -37,7 +37,7 @@ http.createServer(function(req, res) {
     'keep-alive'
   ];
   var expectHeaders = {
-    host: 'localhost:12346',
+    host: 'localhost:' + common.PORT,
     'transfer-encoding': 'CHUNKED',
     'x-bar': 'yoyoyo',
     connection: 'keep-alive'
