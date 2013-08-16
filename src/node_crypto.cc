@@ -3422,7 +3422,7 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
   if (req->error_) {
     char errmsg[256] = "Operation not supported";
 
-    if (req->error_ != (unsigned long) -1)
+    if (req->error_ != static_cast<unsigned long>(-1))
       ERR_error_string_n(req->error_, errmsg, sizeof errmsg);
 
     argv[0] = Exception::Error(OneByteString(node_isolate, errmsg));
@@ -3430,7 +3430,9 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
   } else {
     argv[0] = Null(node_isolate);
     argv[1] = Buffer::Use(req->data_, req->size_);
+    req->data_ = NULL;
   }
+  free(req->data_);
 }
 
 
