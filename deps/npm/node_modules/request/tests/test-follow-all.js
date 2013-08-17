@@ -26,6 +26,7 @@ server.listen(6767);
 
 request.post({ url: 'http://localhost:6767/foo',
                followAllRedirects: true,
+               jar: true,
                form: { foo: 'bar' } }, function (er, req, body) {
   if (er) throw er;
   assert.equal(body, 'ok: 5');

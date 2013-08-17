@@ -16,7 +16,7 @@ symbolic link from `prefix/package-name` to the current folder.
 Next, in some other location, `npm link package-name` will create a
 symlink from the local `node_modules` folder to the global symlink.
 
-Note that `package-name` is taken from `package.json` ,
+Note that `package-name` is taken from `package.json`,
 not from directory name.
 
 When creating tarballs for `npm publish`, the linked packages are

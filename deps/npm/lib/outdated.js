@@ -93,13 +93,16 @@ function outdated_ (args, dir, parentHas, cb) {
       var jsonFile = path.resolve(dir, "node_modules", pkg, "package.json")
       readJson(jsonFile, function (er, d) {
         if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
-        cb(null, er ? [] : [[d.name, d.version]])
+        cb(null, er ? [] : [[d.name, d.version, d._from]])
       })
     }, function (er, pvs) {
       if (er) return cb(er)
       has = Object.create(parentHas)
       pvs.forEach(function (pv) {
-        has[pv[0]] = pv[1]
+        has[pv[0]] = {
+          version: pv[1],
+          from: pv[2]
+        }
       })
 
       next()
@@ -129,6 +132,9 @@ function shouldUpdate (args, dir, dep, has, req, cb) {
   // if that's what we already have, or if it's not on the args list,
   // then dive into it.  Otherwise, cb() with the data.
 
+  // { version: , from: }
+  var curr = has[dep]
+
   function skip () {
     outdated_( args
              , path.resolve(dir, "node_modules", dep)
@@ -137,7 +143,7 @@ function shouldUpdate (args, dir, dep, has, req, cb) {
   }
 
   function doIt (shouldHave) {
-    cb(null, [[ dir, dep, has[dep], shouldHave, req ]])
+    cb(null, [[ dir, dep, curr.version, shouldHave, req ]])
   }
 
   if (args.length && args.indexOf(dep) === -1) {
@@ -147,7 +153,9 @@ function shouldUpdate (args, dir, dep, has, req, cb) {
   // so, we can conceivably update this.  find out if we need to.
   cache.add(dep, req, function (er, d) {
     // if this fails, then it means we can't update this thing.
-    // it's probably a thing that isn't published.
-    return (er || d.version === has[dep]) ? skip() : doIt(d.version)
+    // it's probably a thing that isn't published. otherwise
+    // check that the origin hasn't changed (#1727) and that
+    // there is no newer version available
+    return (er || (d._from === curr.from && d.version === has[dep])) ? skip() : doIt(d.version)
   })
 }

@@ -94,5 +94,15 @@ test('typos', function(t) {
 
   t.same(warnings, expect)
 
+  warnings.length = 0
+  expect = []
+
+  normalize({private: true
+            ,name:"name"
+            ,version:"1.2.5"
+            ,scripts:{server:"start",tests:"test"}}, warn)
+
+  t.same(warnings, expect)
+
   t.end();
 })

@@ -85,7 +85,7 @@ function stripData (data) {
            })
          , url: !Object.keys(data.versions || {}).length ? data.url : null
          , keywords: data.keywords || []
-         , version: Object.keys(data.versions)[0] || []
+         , version: Object.keys(data.versions || {})[0] || []
          , time: data.time
                  && data.time.modified
                  && (new Date(data.time.modified).toISOString()
@@ -133,7 +133,6 @@ function prettify (data, args) {
     var tty = require("tty")
       , stdout = process.stdout
       , cols = !tty.isatty(stdout.fd) ? Infinity
-             : stdout._handle ? stdout._handle.getWindowSize()[0]
              : process.stdout.getWindowSize()[0]
       cols = (cols == 0) ? Infinity : cols
   } catch (ex) { cols = Infinity }

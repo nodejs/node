@@ -1,6 +1,7 @@
 // Load modules
 
 var Lab = require('lab');
+var Hoek = require('hoek');
 var Hawk = require('../lib');
 var Browser = require('../lib/browser');
 var LocalStorage = require('localStorage');
@@ -678,6 +679,53 @@ describe('Browser', function () {
 
                 expect(Browser.client.authenticate(res, credentials)).to.equal(false);
                 done();
+            });
+        });
+
+        describe('#message', function () {
+            it('should generate an authorization then successfully parse it', function (done) {
+
+                credentialsFunc('123456', function (err, credentials) {
+
+                    var auth = Browser.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                    expect(auth).to.exist;
+
+                    Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials) {
+
+                        expect(err).to.not.exist;
+                        expect(credentials.user).to.equal('steve');
+                        done();
+                    });
+                });
+            });
+
+            it('should fail on missing host', function (done) {
+
+                credentialsFunc('123456', function (err, credentials) {
+
+                    var auth = Browser.client.message(null, 8080, 'some message', { credentials: credentials });
+                    expect(auth).to.not.exist;
+                    done();
+                });
+            });
+
+            it('should fail on missing credentials', function (done) {
+
+                var auth = Browser.client.message('example.com', 8080, 'some message', {});
+                expect(auth).to.not.exist;
+                done();
+            });
+
+            it('should fail on invalid algorithm', function (done) {
+
+                credentialsFunc('123456', function (err, credentials) {
+
+                    var creds = Hoek.clone(credentials);
+                    creds.algorithm = 'blah';
+                    var auth = Browser.client.message('example.com', 8080, 'some message', { credentials: creds });
+                    expect(auth).to.not.exist;
+                    done();
+                });
             });
         });
     });

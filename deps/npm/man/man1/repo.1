@@ -1,0 +1,45 @@
+.\" Generated with Ronnjs 0.3.8
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-REPO" "1" "August 2013" "" ""
+.
+.SH "NAME"
+\fBnpm-repo\fR \-\- Open package repository page in the browser
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm repo <pkgname>
+.
+.fi
+.
+.SH "DESCRIPTION"
+This command tries to guess at the likely location of a package\'s
+repository URL, and then tries to open it using the \fB\-\-browser\fR
+config param\.
+.
+.SH "CONFIGURATION"
+.
+.SS "browser"
+.
+.IP "\(bu" 4
+Default: OS X: \fB"open"\fR, Windows: \fB"start"\fR, Others: \fB"xdg\-open"\fR
+.
+.IP "\(bu" 4
+Type: String
+.
+.IP "" 0
+.
+.P
+The browser that is called by the \fBnpm repo\fR command to open websites\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help docs
+.
+.IP "\(bu" 4
+npm help config
+.
+.IP "" 0
+

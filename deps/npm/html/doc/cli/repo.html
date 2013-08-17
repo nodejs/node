@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <title>repo</title>
+  <meta http-equiv="content-type" value="text/html;utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+
+  <body>
+    <div id="wrapper">
+<h1><a href="../cli/npm-repo.html">npm-repo</a></h1> <p>Open package repository page in the browser</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<pre><code>npm repo &lt;pkgname&gt;</code></pre>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>This command tries to guess at the likely location of a package&#39;s
+repository URL, and then tries to open it using the <code>--browser</code>
+config param.</p>
+
+<h2 id="CONFIGURATION">CONFIGURATION</h2>
+
+<h3 id="browser">browser</h3>
+
+<ul><li>Default: OS X: <code>&quot;open&quot;</code>, Windows: <code>&quot;start&quot;</code>, Others: <code>&quot;xdg-open&quot;</code></li><li>Type: String</li></ul>
+
+<p>The browser that is called by the <code>npm repo</code> command to open websites.</p>
+
+<h2 id="SEE-ALSO">SEE ALSO</h2>
+
+<ul><li><a href="../cli/npm-docs.html">npm-docs(1)</a></li><li><a href="../cli/npm-config.html">npm-config(1)</a></li></ul>
+</div>
+<p id="footer">repo &mdash; npm@1.3.8</p>
+<script>
+;(function () {
+var wrapper = document.getElementById("wrapper")
+var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
+  .filter(function (el) {
+    return el.parentNode === wrapper
+        && el.tagName.match(/H[1-6]/)
+        && el.id
+  })
+var l = 2
+  , toc = document.createElement("ul")
+toc.innerHTML = els.map(function (el) {
+  var i = el.tagName.charAt(1)
+    , out = ""
+  while (i > l) {
+    out += "<ul>"
+    l ++
+  }
+  while (i < l) {
+    out += "</ul>"
+    l --
+  }
+  out += "<li><a href='#" + el.id + "'>" +
+    ( el.innerText || el.text || el.innerHTML)
+    + "</a>"
+  return out
+}).join("\n")
+toc.id = "toc"
+document.body.appendChild(toc)
+})()
+</script>

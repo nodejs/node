@@ -42,4 +42,4 @@ in your git config for this to work properly.  For example:
 
 * npm-init(1)
 * package.json(5)
-* npm-semver(7)
+* semver(7)

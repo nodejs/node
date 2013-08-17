@@ -28,6 +28,14 @@ FormData.prototype.append = function(field, value, options) {
   // all that streamy business can't handle numbers
   if (typeof value == 'number') value = ''+value;
 
+  // https://github.com/felixge/node-form-data/issues/38
+  if (util.isArray(value)) {
+    // Please convert your array into string
+    // the way web server expects it
+    this._error(new Error('Arrays are not supported.'));
+    return;
+  }
+
   var header = this._multiPartHeader(field, value, options);
   var footer = this._multiPartFooter(field, value, options);
 
@@ -42,7 +50,7 @@ FormData.prototype.append = function(field, value, options) {
 FormData.prototype._trackLength = function(header, value, options) {
   var valueLength = 0;
 
-  // used w/ trackLengthSync(), when length is known.
+  // used w/ getLengthSync(), when length is known.
   // e.g. for streaming directly from a remote server,
   // w/ a known file a size, and not wanting to wait for
   // incoming file to finish to get its size.
@@ -66,15 +74,11 @@ FormData.prototype._trackLength = function(header, value, options) {
     return;
   }
 
+  // no need to bother with the length
+  if (!options.knownLength)
   this._lengthRetrievers.push(function(next) {
 
-    // do we already know the size?
-    // 0 additional leaves value from getSyncLength()
-    if (options.knownLength != null) {
-      next(null, 0);
-
-    // check if it's local file
-    } else if (value.hasOwnProperty('fd')) {
+    if (value.hasOwnProperty('fd')) {
       fs.stat(value.path, function(err, stat) {
         if (err) {
           next(err);
@@ -197,14 +201,27 @@ FormData.prototype._generateBoundary = function() {
   this._boundary = boundary;
 };
 
-FormData.prototype.getLengthSync = function() {
-    var knownLength = this._overheadLength + this._valueLength;
+// Note: getLengthSync DOESN'T calculate streams length
+// As workaround one can calculate file size manually
+// and add it as knownLength option
+FormData.prototype.getLengthSync = function(debug) {
+  var knownLength = this._overheadLength + this._valueLength;
 
-    if (this._streams.length) {
-        knownLength += this._lastBoundary().length;
-    }
+  // Don't get confused, there are 3 "internal" streams for each keyval pair
+  // so it basically checks if there is any value added to the form
+  if (this._streams.length) {
+    knownLength += this._lastBoundary().length;
+  }
 
-    return knownLength;
+  // https://github.com/felixge/node-form-data/issues/40
+  if (this._lengthRetrievers.length) {
+    // Some async length retrivers are present
+    // therefore synchronous length calculation is false.
+    // Please use getLength(callback) to get proper length
+    this._error(new Error('Cannot calculate proper length in synchronous way.'));
+  }
+
+  return knownLength;
 };
 
 FormData.prototype.getLength = function(cb) {
@@ -277,6 +294,14 @@ FormData.prototype.submit = function(params, cb) {
 
     return request;
   }.bind(this));
+};
+
+FormData.prototype._error = function(err) {
+  if (this.error) return;
+
+  this.error = err;
+  this.pause();
+  this.emit('error', err);
 };
 
 /*

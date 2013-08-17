@@ -58,17 +58,7 @@ changes to the version.</p>
 <a href="https://github.com/isaacs/node-semver">node-semver</a>, which is bundled
 with npm as a dependency.  (<code>npm install semver</code> to use it yourself.)</p>
 
-<p>Here&#39;s how npm&#39;s semver implementation deviates from what&#39;s on semver.org:</p>
-
-<ul><li>Versions can start with &quot;v&quot;</li><li>A numeric item separated from the main three-number version by a hyphen
-will be interpreted as a &quot;build&quot; number, and will <em>increase</em> the version.
-But, if the tag is not a number separated by a hyphen, then it&#39;s treated
-as a pre-release tag, and is <em>less than</em> the version without a tag.
-So, <code>0.1.2-7 &gt; 0.1.2-7-beta &gt; 0.1.2-6 &gt; 0.1.2 &gt; 0.1.2beta</code></li></ul>
-
-<p>This is a little bit confusing to explain, but matches what you see in practice
-when people create tags in git like &quot;v1.2.3&quot; and then do &quot;git describe&quot; to generate
-a patch version.</p>
+<p>More on version numbers and ranges at <a href="../misc/semver.html">semver(7)</a>.</p>
 
 <h2 id="description">description</h2>
 
@@ -323,17 +313,17 @@ configs.</p>
 
 <h2 id="dependencies">dependencies</h2>
 
-<p>Dependencies are specified with a simple hash of package name to version
-range. The version range is EITHER a string which has one or more
-space-separated descriptors, OR a range like &quot;fromVersion - toVersion&quot;</p>
+<p>Dependencies are specified with a simple hash of package name to
+version range. The version range is a string which has one or more
+space-separated descriptors.  Dependencies can also be identified with
+a tarball or git URL.</p>
 
-<p><strong>Please do not put test harnesses in your <code>dependencies</code> hash.</strong>  See
-<code>devDependencies</code>, below.</p>
+<p><strong>Please do not put test harnesses or transpilers in your
+<code>dependencies</code> hash.</strong>  See <code>devDependencies</code>, below.</p>
 
-<p>Version range descriptors may be any of the following styles, where &quot;version&quot;
-is a semver compatible version identifier.</p>
+<p>See <a href="../misc/semver.html">semver(7)</a> for more details about specifying version ranges.</p>
 
-<ul><li><code>version</code> Must match <code>version</code> exactly</li><li><code>=version</code> Same as just <code>version</code></li><li><code>&gt;version</code> Must be greater than <code>version</code></li><li><code>&gt;=version</code> etc</li><li><code>&lt;version</code></li><li><code>&lt;=version</code></li><li><code>~version</code> See &#39;Tilde Version Ranges&#39; below</li><li><code>1.2.x</code> See &#39;X Version Ranges&#39; below</li><li><code>http://...</code> See &#39;URLs as Dependencies&#39; below</li><li><code>*</code> Matches any version</li><li><code>&quot;&quot;</code> (just an empty string) Same as <code>*</code></li><li><code>version1 - version2</code> Same as <code>&gt;=version1 &lt;=version2</code>.</li><li><code>range1 || range2</code> Passes if either range1 or range2 are satisfied.</li><li><code>git...</code> See &#39;Git URLs as Dependencies&#39; below</li></ul>
+<ul><li><code>version</code> Must match <code>version</code> exactly</li><li><code>&gt;version</code> Must be greater than <code>version</code></li><li><code>&gt;=version</code> etc</li><li><code>&lt;version</code></li><li><code>&lt;=version</code></li><li><code>~version</code> &quot;Approximately equivalent to version&quot;  See <a href="../misc/semver.html">semver(7)</a></li><li><code>1.2.x</code> 1.2.0, 1.2.1, etc., but not 1.3.0</li><li><code>http://...</code> See &#39;URLs as Dependencies&#39; below</li><li><code>*</code> Matches any version</li><li><code>&quot;&quot;</code> (just an empty string) Same as <code>*</code></li><li><code>version1 - version2</code> Same as <code>&gt;=version1 &lt;=version2</code>.</li><li><code>range1 || range2</code> Passes if either range1 or range2 are satisfied.</li><li><code>git...</code> See &#39;Git URLs as Dependencies&#39; below</li></ul>
 
 <p>For example, these are all valid:</p>
 
@@ -351,33 +341,9 @@ is a semver compatible version identifier.</p>
   }
 }</code></pre>
 
-<h3 id="Tilde-Version-Ranges">Tilde Version Ranges</h3>
-
-<p>A range specifier starting with a tilde <code>~</code> character is matched against
-a version in the following fashion.</p>
-
-<ul><li>The version must be at least as high as the range.</li><li>The version must be less than the next major revision above the range.</li></ul>
-
-<p>For example, the following are equivalent:</p>
-
-<ul><li><code>&quot;~1.2.3&quot; = &quot;&gt;=1.2.3 &lt;1.3.0&quot;</code></li><li><code>&quot;~1.2&quot; = &quot;&gt;=1.2.0 &lt;1.3.0&quot;</code></li><li><code>&quot;~1&quot; = &quot;&gt;=1.0.0 &lt;1.1.0&quot;</code></li></ul>
-
-<h3 id="X-Version-Ranges">X Version Ranges</h3>
-
-<p>An &quot;x&quot; in a version range specifies that the version number must start
-with the supplied digits, but any digit may be used in place of the x.</p>
-
-<p>The following are equivalent:</p>
-
-<ul><li><code>&quot;1.2.x&quot; = &quot;&gt;=1.2.0 &lt;1.3.0&quot;</code></li><li><code>&quot;1.x.x&quot; = &quot;&gt;=1.0.0 &lt;2.0.0&quot;</code></li><li><code>&quot;1.2&quot; = &quot;1.2.x&quot;</code></li><li><code>&quot;1.x&quot; = &quot;1.x.x&quot;</code></li><li><code>&quot;1&quot; = &quot;1.x.x&quot;</code></li></ul>
-
-<p>You may not supply a comparator with a version containing an x.  Any
-digits after the first &quot;x&quot; are ignored.</p>
-
 <h3 id="URLs-as-Dependencies">URLs as Dependencies</h3>
 
-<p>Starting with npm version 0.2.14, you may specify a tarball URL in place
-of a version range.</p>
+<p>You may specify a tarball URL in place of a version range.</p>
 
 <p>This tarball will be downloaded and installed locally to your package at
 install time.</p>
@@ -404,10 +370,34 @@ the external test or documentation framework that you use.</p>
 <p>In this case, it&#39;s best to list these additional items in a
 <code>devDependencies</code> hash.</p>
 
-<p>These things will be installed whenever the <code>--dev</code> configuration flag
-is set.  This flag is set automatically when doing <code>npm link</code> or when doing
-<code>npm install</code> from the root of a package, and can be managed like any other npm
+<p>These things will be installed when doing <code>npm link</code> or <code>npm install</code>
+from the root of a package, and can be managed like any other npm
 configuration param.  See <code><a href="../misc/npm-config.html">npm-config(7)</a></code> for more on the topic.</p>
+
+<p>For build steps that are not platform-specific, such as compiling
+CoffeeScript or other languages to JavaScript, use the <code>prepublish</code>
+script to do this, and make the required package a devDependency.</p>
+
+<p>For example:</p>
+
+<p><code>json
+{ &quot;name&quot;: &quot;ethopia-waza&quot;,
+  &quot;description&quot;: &quot;a delightfully fruity coffee varietal&quot;,
+  &quot;version&quot;: &quot;1.2.3&quot;,
+  &quot;devDependencies&quot;: {
+    &quot;coffee-script&quot;: &quot;~1.6.3&quot;
+  },
+  &quot;scripts&quot;: {
+    &quot;prepublish&quot;: &quot;coffee -o lib/ -c src/waza.coffee&quot;
+  },
+  &quot;main&quot;: &quot;lib/waza.js&quot;
+}
+</code></p>
+
+<p>The <code>prepublish</code> script will be run before publishing, so that users
+can consume the functionality without requiring them to compile it
+themselves.  In dev mode (ie, locally running <code>npm install</code>), it&#39;ll
+run this script as well, so that you can test it easily.</p>
 
 <h2 id="bundledDependencies">bundledDependencies</h2>
 
@@ -449,7 +439,7 @@ if (foo) {
 
 <p>You can specify the version of node that your stuff works on:</p>
 
-<pre><code>{ &quot;engines&quot; : { &quot;node&quot; : &quot;&gt;=0.1.27 &lt;0.1.30&quot; } }</code></pre>
+<pre><code>{ &quot;engines&quot; : { &quot;node&quot; : &quot;&gt;=0.10.3 &lt;0.12&quot; } }</code></pre>
 
 <p>And, like with dependencies, if you don&#39;t specify the version (or if you
 specify &quot;*&quot; as the version), then any version of node will do.</p>
@@ -544,9 +534,9 @@ overridden.</p>
 
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
-<ul><li><a href="../misc/npm-semver.html">npm-semver(7)</a></li><li><a href="../cli/npm-init.html">npm-init(1)</a></li><li><a href="../cli/npm-version.html">npm-version(1)</a></li><li><a href="../cli/npm-config.html">npm-config(1)</a></li><li><a href="../misc/npm-config.html">npm-config(7)</a></li><li><a href="../cli/npm-help.html">npm-help(1)</a></li><li><a href="../misc/npm-faq.html">npm-faq(7)</a></li><li><a href="../cli/npm-install.html">npm-install(1)</a></li><li><a href="../cli/npm-publish.html">npm-publish(1)</a></li><li><a href="../cli/npm-rm.html">npm-rm(1)</a></li></ul>
+<ul><li><a href="../misc/semver.html">semver(7)</a></li><li><a href="../cli/npm-init.html">npm-init(1)</a></li><li><a href="../cli/npm-version.html">npm-version(1)</a></li><li><a href="../cli/npm-config.html">npm-config(1)</a></li><li><a href="../misc/npm-config.html">npm-config(7)</a></li><li><a href="../cli/npm-help.html">npm-help(1)</a></li><li><a href="../misc/npm-faq.html">npm-faq(7)</a></li><li><a href="../cli/npm-install.html">npm-install(1)</a></li><li><a href="../cli/npm-publish.html">npm-publish(1)</a></li><li><a href="../cli/npm-rm.html">npm-rm(1)</a></li></ul>
 </div>
-<p id="footer">package.json &mdash; npm@1.3.6</p>
+<p id="footer">package.json &mdash; npm@1.3.8</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

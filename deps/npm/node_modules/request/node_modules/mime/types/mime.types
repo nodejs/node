@@ -1054,7 +1054,7 @@ application/x-font-snf				snf
 # application/x-font-sunos-news
 application/x-font-ttf				ttf ttc
 application/x-font-type1			pfa pfb pfm afm
-application/x-font-woff				woff
+application/font-woff				woff
 # application/x-font-vfont
 application/x-freearc				arc
 application/x-futuresplash			spl

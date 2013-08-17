@@ -78,7 +78,8 @@ Mime.prototype.lookup = function(path, fallback) {
  * Return file extension associated with a mime type
  */
 Mime.prototype.extension = function(mimeType) {
-  return this.extensions[mimeType];
+  var type = mimeType.match(/^\s*([^;\s]*)(?:;|\s|$)/)[1].toLowerCase();
+  return this.extensions[type];
 };
 
 // Default instance

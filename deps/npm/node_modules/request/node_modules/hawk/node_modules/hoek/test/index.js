@@ -426,6 +426,15 @@ describe('Hoek', function () {
             done();
         });
 
+        it('should return just the first common object of two arrays', function (done) {
+
+            var array1 = [1, 2, 3, 4, 4, 5, 5];
+            var array2 = [5, 4, 5, 6, 7];
+            var common = Hoek.intersect(array1, array2, true);
+            expect(common).to.equal(5);
+            done();
+        });
+
         it('should return an empty array if either input is null', function (done) {
 
             expect(Hoek.intersect([1], null).length).to.equal(0);

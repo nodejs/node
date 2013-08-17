@@ -214,6 +214,25 @@
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
+2013.08.16, Version 0.10.16 (Stable), 50b4c905a4425430ae54db4906f88982309e128d
+
+* v8: back-port fix for CVE-2013-2882
+
+* npm: Upgrade to 1.3.8
+
+* crypto: fix assert() on malformed hex input (Ben Noordhuis)
+
+* crypto: fix memory leak in randomBytes() error path (Ben Noordhuis)
+
+* events: fix memory leak, don't leak event names (Ben Noordhuis)
+
+* http: Handle hex/base64 encodings properly (isaacs)
+
+* http: improve chunked res.write(buf) performance (Ben Noordhuis)
+
+* stream: Fix double pipe error emit (Eran Hammer)
+
+
 2013.07.25, Version 0.10.15 (Stable), 2426d65af860bda7be9f0832a99601cc43c6cf63
 
 * src: fix process.getuid() return value (Ben Noordhuis)

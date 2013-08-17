@@ -1,4 +1,4 @@
-var fs = require('graceful-fs');
+var fs = require('fs');
 var test = require('tap').test;
 var glob = require('../');
 

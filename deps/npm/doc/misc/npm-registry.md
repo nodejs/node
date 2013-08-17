@@ -53,33 +53,8 @@ otherwise.
 
 ## Do I have to use couchdb to build a registry that npm can talk to?
 
-No, but it's way easier.
-
-## I published something elsewhere, and want to tell the npm registry about it.
-
-That is supported, but not using the npm client.  You'll have to get
-your hands dirty and do some HTTP.  The request looks something like
-this:
-
-    PUT /my-foreign-package
-    content-type:application/json
-    accept:application/json
-    authorization:Basic $base_64_encoded
-
-    { "name":"my-foreign-package"
-    , "maintainers":["owner","usernames"]
-    , "description":"A package that is hosted elsewhere"
-    , "keywords":["nih","my cheese smells the best"]
-    , "url":"http://my-different-registry.com/blerg/my-local-package"
-    }
-
-(Keywords and description are optional, but recommended.  Name,
-maintainers, and url are required.)
-
-Then, when a user tries to install "my-foreign-package", it'll redirect
-to your registry.  If that doesn't resolve to a valid package entry,
-then it'll fail, so please make sure that you understand the spec, and
-ask for help on the <npm-@googlegroups.com> mailing list.
+No, but it's way easier.  Basically, yes, you do, or you have to
+effectively implement the entire CouchDB API anyway.
 
 ## Is there a website or something to see package docs and such?
 

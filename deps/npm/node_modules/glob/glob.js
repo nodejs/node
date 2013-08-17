@@ -36,7 +36,7 @@
 
 module.exports = glob
 
-var fs = require("graceful-fs")
+var fs = require("fs")
 , minimatch = require("minimatch")
 , Minimatch = minimatch.Minimatch
 , inherits = require("inherits")

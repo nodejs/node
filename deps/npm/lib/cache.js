@@ -1203,17 +1203,11 @@ function lockFileName (u) {
   return path.resolve(npm.config.get("cache"), h + "-" + c + ".lock")
 }
 
-var madeCache = false
 var myLocks = {}
 function lock (u, cb) {
   // the cache dir needs to exist already for this.
-  if (madeCache) then()
-  else mkdir(npm.config.get("cache"), function (er) {
+  getCacheStat(function (er, cs) {
     if (er) return cb(er)
-    madeCache = true
-    then()
-  })
-  function then () {
     var opts = { stale: npm.config.get("cache-lock-stale")
                , retries: npm.config.get("cache-lock-retries")
                , wait: npm.config.get("cache-lock-wait") }
@@ -1223,7 +1217,7 @@ function lock (u, cb) {
       if (!er) myLocks[lf] = true
       cb(er)
     })
-  }
+  })
 }
 
 function unlock (u, cb) {

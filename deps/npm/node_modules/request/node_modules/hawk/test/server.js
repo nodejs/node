@@ -44,7 +44,7 @@ describe('Hawk', function () {
                     url: '/resource/4?filter=a',
                     host: 'example.com',
                     port: 8080,
-                    authorization: 'Hawk id="1", ts="1353788437", nonce="k3j4h2", mac="zy79QQ5/EYFmQqutVnYb73gAc/U=", ext="hello"',
+                    authorization: 'Hawk id="1", ts="1353788437", nonce="k3j4h2", mac="zy79QQ5/EYFmQqutVnYb73gAc/U=", ext="hello"'
                 };
 
                 Hawk.server.authenticate(req, credentialsFunc, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
@@ -62,10 +62,48 @@ describe('Hawk', function () {
                     url: '/resource/1?b=1&a=2',
                     host: 'example.com',
                     port: 8000,
-                    authorization: 'Hawk id="dh37fgj492je", ts="1353832234", nonce="j4h3g2", mac="m8r1rHbXN6NgO+KIIhjO7sFRyd78RNGVUwehe8Cp2dU=", ext="some-app-data"',
+                    authorization: 'Hawk id="dh37fgj492je", ts="1353832234", nonce="j4h3g2", mac="m8r1rHbXN6NgO+KIIhjO7sFRyd78RNGVUwehe8Cp2dU=", ext="some-app-data"'
                 };
 
                 Hawk.server.authenticate(req, credentialsFunc, { localtimeOffsetMsec: 1353832234000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
+
+                    expect(err).to.not.exist;
+                    expect(credentials.user).to.equal('steve');
+                    done();
+                });
+            });
+
+            it('should parse a valid authentication header (host override)', function (done) {
+
+                var req = {
+                    method: 'GET',
+                    url: '/resource/4?filter=a',
+                    headers: {
+                        host: 'example1.com:8080',
+                        authorization: 'Hawk id="1", ts="1353788437", nonce="k3j4h2", mac="zy79QQ5/EYFmQqutVnYb73gAc/U=", ext="hello"'
+                    }
+                };
+
+                Hawk.server.authenticate(req, credentialsFunc, { host: 'example.com', localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
+
+                    expect(err).to.not.exist;
+                    expect(credentials.user).to.equal('steve');
+                    done();
+                });
+            });
+
+            it('should parse a valid authentication header (host port override)', function (done) {
+
+                var req = {
+                    method: 'GET',
+                    url: '/resource/4?filter=a',
+                    headers: {
+                        host: 'example1.com:80',
+                        authorization: 'Hawk id="1", ts="1353788437", nonce="k3j4h2", mac="zy79QQ5/EYFmQqutVnYb73gAc/U=", ext="hello"'
+                    }
+                };
+
+                Hawk.server.authenticate(req, credentialsFunc, { host: 'example.com', port: 8080, localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
 
                     expect(err).to.not.exist;
                     expect(credentials.user).to.equal('steve');
@@ -80,7 +118,7 @@ describe('Hawk', function () {
                     url: '/resource/4?filter=a',
                     host: 'example.com',
                     port: 8080,
-                    authorization: 'Hawk id="123456", ts="1357926341", nonce="1AwuJD", hash="qAiXIVv+yjDATneWxZP2YCTa9aHRgQdnH9b3Wc+o3dg=", ext="some-app-data", mac="UeYcj5UoTVaAWXNvJfLVia7kU3VabxCqrccXP8sUGC4="',
+                    authorization: 'Hawk id="123456", ts="1357926341", nonce="1AwuJD", hash="qAiXIVv+yjDATneWxZP2YCTa9aHRgQdnH9b3Wc+o3dg=", ext="some-app-data", mac="UeYcj5UoTVaAWXNvJfLVia7kU3VabxCqrccXP8sUGC4="'
                 };
 
                 Hawk.server.authenticate(req, credentialsFunc, { localtimeOffsetMsec: 1357926341000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
@@ -98,7 +136,7 @@ describe('Hawk', function () {
                     url: '/resource/1?b=1&a=2',
                     host: 'example.com',
                     port: 8000,
-                    authorization: 'Hawk id="dh37fgj492je", ts="1353832234", nonce="j4h3g2", mac="m8r1rHbXN6NgO+KIIhjO7sFRyd78RNGVUwehe8Cp2dU=", ext="some-app-data"',
+                    authorization: 'Hawk id="dh37fgj492je", ts="1353832234", nonce="j4h3g2", mac="m8r1rHbXN6NgO+KIIhjO7sFRyd78RNGVUwehe8Cp2dU=", ext="some-app-data"'
                 };
 
                 Hawk.server.authenticate(req, credentialsFunc, { payload: 'body', localtimeOffsetMsec: 1353832234000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
@@ -116,7 +154,7 @@ describe('Hawk', function () {
                     url: '/resource/4?filter=a',
                     host: 'example.com',
                     port: 8080,
-                    authorization: 'Hawk id="123456", ts="1362337299", nonce="UzmxSs", ext="some-app-data", mac="wnNUxchvvryMH2RxckTdZ/gY3ijzvccx4keVvELC61w="',
+                    authorization: 'Hawk id="123456", ts="1362337299", nonce="UzmxSs", ext="some-app-data", mac="wnNUxchvvryMH2RxckTdZ/gY3ijzvccx4keVvELC61w="'
                 };
 
                 Hawk.server.authenticate(req, credentialsFunc, {}, function (err, credentials, artifacts) {
@@ -146,7 +184,7 @@ describe('Hawk', function () {
                     url: '/resource/4?filter=a',
                     host: 'example.com',
                     port: 8080,
-                    authorization: 'Hawk id="123", ts="1353788437", nonce="k3j4h2", mac="bXx7a7p1h9QYQNZ8x7QhvDQym8ACgab4m3lVSFn4DBw=", ext="hello"',
+                    authorization: 'Hawk id="123", ts="1353788437", nonce="k3j4h2", mac="bXx7a7p1h9QYQNZ8x7QhvDQym8ACgab4m3lVSFn4DBw=", ext="hello"'
                 };
 
                 var memoryCache = {};

@@ -57,8 +57,8 @@ exports.generateNormalizedString = function (type, options) {
     var normalized = 'hawk.' + exports.headerVersion + '.' + type + '\n' +
                      options.ts + '\n' +
                      options.nonce + '\n' +
-                     options.method.toUpperCase() + '\n' +
-                     options.resource + '\n' +
+                     (options.method || '').toUpperCase() + '\n' +
+                     (options.resource || '') + '\n' +
                      options.host.toLowerCase() + '\n' +
                      options.port + '\n' +
                      (options.hash || '') + '\n';

@@ -191,6 +191,10 @@ View registry info
 
 Display npm username
 
+## repo(1)
+
+Open package repository page in the browser
+
 # API Documentation
 
 ## npm(3)
@@ -344,6 +348,10 @@ View registry info
 ## npm-whoami(3)
 
 Display npm username
+
+## repo(3)
+
+Open package repository page in the browser
 
 # Files
 
