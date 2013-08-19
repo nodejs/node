@@ -19,12 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#ifndef SRC_NODE_BUFFER_H_
+#define SRC_NODE_BUFFER_H_
+
 #include "node.h"
 #include "smalloc.h"
 #include "v8.h"
-
-#ifndef SRC_NODE_BUFFER_H_
-#define SRC_NODE_BUFFER_H_
 
 namespace node {
 namespace Buffer {
