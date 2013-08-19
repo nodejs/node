@@ -604,7 +604,6 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   internal->Set(FIXED_ONE_BYTE_STRING(node_isolate, "byteLength"),
                 FunctionTemplate::New(ByteLength)->GetFunction());
-
 }
 
 
