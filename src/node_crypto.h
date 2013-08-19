@@ -267,7 +267,6 @@ class Connection : public SSLWrap<Connection>, public ObjectWrap {
       : SSLWrap<Connection>(sc, kind),
         hello_offset_(0) {
     bio_read_ = bio_write_ = NULL;
-    ssl_ = NULL;
     hello_parser_.Start(SSLWrap<Connection>::OnClientHello,
                         OnClientHelloParseEnd,
                         this);
@@ -275,11 +274,6 @@ class Connection : public SSLWrap<Connection>, public ObjectWrap {
   }
 
   ~Connection() {
-    if (ssl_ != NULL) {
-      SSL_free(ssl_);
-      ssl_ = NULL;
-    }
-
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
     sniObject_.Dispose();
     sniContext_.Dispose();
