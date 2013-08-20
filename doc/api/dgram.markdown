@@ -132,8 +132,8 @@ informing the source that the data did not reach its intended recipient).
 
 For UDP sockets, listen for datagrams on a named `port` and optional
 `address`. If `address` is not specified, the OS will try to listen on
-all addresses.  After binding is done, an "listening" event is emitted
-and the `callback`(if specified) is called. Specifying both an
+all addresses.  After binding is done, a "listening" event is emitted
+and the `callback`(if specified) is called. Specifying both a
 "listening" event listener and `callback` is not harmful but not very
 useful.
 
