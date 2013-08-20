@@ -96,7 +96,7 @@ size_t ExternalArraySize(enum ExternalArrayType type) {
 
 // copyOnto(source, source_start, dest, dest_start, copy_length)
 void CopyOnto(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  HandleScope handle_scope(node_isolate);
 
   if (!args[0]->IsObject())
     return ThrowTypeError("source must be an object");
@@ -172,7 +172,7 @@ void CopyOnto(const FunctionCallbackInfo<Value>& args) {
 // for internal use:
 //    dest._data = sliceOnto(source, dest, start, end);
 void SliceOnto(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  HandleScope handle_scope(node_isolate);
 
   Local<Object> source = args[0].As<Object>();
   Local<Object> dest = args[1].As<Object>();
@@ -212,7 +212,7 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
 // for internal use:
 //    alloc(obj, n[, type]);
 void Alloc(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  HandleScope handle_scope(node_isolate);
 
   Local<Object> obj = args[0].As<Object>();
 
@@ -250,7 +250,7 @@ void Alloc(Handle<Object> obj, size_t length, enum ExternalArrayType type) {
   char* data = static_cast<char*>(malloc(length));
   if (data == NULL) {
     FatalError("node::smalloc::Alloc(v8::Handle<v8::Object>, size_t,"
-        " ExternalArrayType)", "Out Of Memory");
+               " v8::ExternalArrayType)", "Out Of Memory");
   }
 
   Alloc(obj, data, length, type);
@@ -299,7 +299,7 @@ void AllocDispose(const FunctionCallbackInfo<Value>& args) {
 
 
 void AllocDispose(Handle<Object> obj) {
-  HandleScope scope(node_isolate);
+  HandleScope handle_scope(node_isolate);
 
   if (using_alloc_cb) {
     Local<Value> ext_v = obj->GetHiddenValue(smalloc_sym);
