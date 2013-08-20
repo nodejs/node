@@ -70,6 +70,9 @@ assert.equal(false, util.isError({ name: 'Error', message: '' }));
 assert.equal(false, util.isError([]));
 assert.equal(false, util.isError(Object.create(Error.prototype)));
 
+// isObject
+assert.ok(util.isObject({}) === true);
+
 // _extend
 assert.deepEqual(util._extend({a:1}),             {a:1});
 assert.deepEqual(util._extend({a:1}, []),         {a:1});
