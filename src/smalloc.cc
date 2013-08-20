@@ -224,10 +224,14 @@ void Alloc(const FunctionCallbackInfo<Value>& args) {
   enum ExternalArrayType array_type;
 
   // it's faster to not pass the default argument then use Uint32Value
-  if (args[2]->IsUndefined())
+  if (args[2]->IsUndefined()) {
     array_type = kExternalUnsignedByteArray;
-  else
+  } else {
     array_type = static_cast<ExternalArrayType>(args[2]->Uint32Value());
+    size_t type_length = ExternalArraySize(array_type);
+    assert(type_length * length >= length);
+    length *= type_length;
+  }
 
   Alloc(obj, length, array_type);
   args.GetReturnValue().Set(obj);
@@ -235,14 +239,10 @@ void Alloc(const FunctionCallbackInfo<Value>& args) {
 
 
 void Alloc(Handle<Object> obj, size_t length, enum ExternalArrayType type) {
-  assert(length <= kMaxLength);
-
   size_t type_size = ExternalArraySize(type);
 
+  assert(length <= kMaxLength);
   assert(type_size > 0);
-  assert(length * type_size >= length);
-
-  length *= type_size;
 
   if (length == 0)
     return Alloc(obj, NULL, length, type);
