@@ -69,7 +69,7 @@ static bool using_alloc_cb;
 
 
 // return size of external array type, or 0 if unrecognized
-static inline size_t ExternalArraySize(enum ExternalArrayType type) {
+size_t ExternalArraySize(enum ExternalArrayType type) {
   switch (type) {
     case v8::kExternalUnsignedByteArray:
       return sizeof(uint8_t);

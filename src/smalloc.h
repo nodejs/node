@@ -42,6 +42,11 @@ static const unsigned int kMaxLength = 0x3fffffff;
 NODE_EXTERN typedef void (*FreeCallback)(char* data, void* hint);
 
 /**
+ * Return byte size of external array type.
+ */
+NODE_EXTERN size_t ExternalArraySize(enum v8::ExternalArrayType type);
+
+/**
  * Allocate external memory and set to passed object. If data is passed then
  * will use that instead of allocating new.
  *
