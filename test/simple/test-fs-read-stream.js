@@ -171,10 +171,6 @@ function file7Next(){
   });
   file7.on('end', function(err) {
     assert.equal(file7.data, 'xyz\n');
-    process.nextTick(function() {
-      assert(file7.closed);
-      assert(file7.destroyed);
-    });
   });
 }
 
@@ -182,10 +178,20 @@ function file7Next(){
 var file8 = fs.createReadStream(null, {fd: 13337, autoClose: false });
 file8.on('data', function() {});
 file8.on('error', common.mustCall(function() {}));
-file8.on('end', function() {
-  process.nextTick(function() {
-    assert(!file8.closed);
-    assert(!file8.destroyed);
-    assert(file8.fd);
-  });
+
+// Make sure stream is destroyed when file does not exist.
+var file9 = fs.createReadStream('/path/to/file/that/does/not/exist');
+file9.on('data', function() {});
+file9.on('error', common.mustCall(function() {}));
+
+process.on('exit', function() {
+  assert(file7.closed);
+  assert(file7.destroyed);
+
+  assert(!file8.closed);
+  assert(!file8.destroyed);
+  assert(file8.fd);
+
+  assert(!file9.closed);
+  assert(file9.destroyed);
 });
