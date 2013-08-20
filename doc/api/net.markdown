@@ -64,6 +64,8 @@ For TCP sockets, `options` argument should be an object which specifies:
 
   - `localAddress`: Local interface to bind to for network connections.
 
+  - `family` : Version of IP stack. Defaults to `4`.
+
 For UNIX domain sockets, `options` argument should be an object which specifies:
 
   - `path`: Path the client should connect to (Required).
