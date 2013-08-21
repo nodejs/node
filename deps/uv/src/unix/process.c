@@ -73,7 +73,9 @@ static void uv__chld(uv_signal_t* handle, int signum) {
   assert(signum == SIGCHLD);
 
   for (;;) {
-    pid = waitpid(-1, &status, WNOHANG);
+    do
+      pid = waitpid(-1, &status, WNOHANG);
+    while (pid == -1 && errno == EINTR);
 
     if (pid == 0)
       return;
