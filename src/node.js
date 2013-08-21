@@ -248,9 +248,6 @@
 
   var assert;
   startup.processAssert = function() {
-    // Note that calls to assert() are pre-processed out by JS2C for the
-    // normal build of node. They persist only in the node_g build.
-    // Similarly for debug().
     assert = process.assert = function(x, msg) {
       if (!x) throw new Error(msg || 'assertion error');
     };
