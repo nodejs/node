@@ -1,4 +1,61 @@
-2013.08.06, Version 0.11.5 (Unstable)
+2013.08.21, Version 0.11.6 (Unstable)
+
+* uv: Upgrade to v0.11.8
+
+* v8: upgrade v8 to 3.20.14.1
+
+* build: disable SSLv2 by default (Ben Noordhuis)
+
+* build: don't auto-destroy existing configuration (Ben Noordhuis)
+
+* crypto: add TLS 1.1 and 1.2 to secureProtocol list (Matthias Bartelmeß)
+
+* crypto: fix memory leak in randomBytes() error path (Ben Noordhuis)
+
+* dgram: don't call into js when send cb is omitted (Ben Noordhuis)
+
+* dgram: fix regression in string argument handling (Ben Noordhuis)
+
+* domains: performance improvements (Trevor Norris)
+
+* events: EventEmitter = require('events') (Jake Verbaten)
+
+* http: Add write()/end() callbacks (isaacs)
+
+* http: Consistent 'finish' event semantics (isaacs)
+
+* http: Prefer 'binary' over 'ascii' (isaacs)
+
+* http: Support legacy agent.addRequest API (isaacs)
+
+* http: Write hex/base64 chunks properly (isaacs)
+
+* http: add agent.maxFreeSockets option (isaacs)
+
+* http: provide access to raw headers/trailers (isaacs)
+
+* http: removed headers stay removed (James Halliday)
+
+* http,timers: improve callback performance (Ben Noordhuis)
+
+* net: family option in net.connect (Vsevolod Strukchinsky)
+
+* readline: pause stdin before turning off terminal raw mode (Daniel Chatfield)
+
+* smalloc: allow different external array types (Trevor Norris)
+
+* smalloc: expose ExternalArraySize (Trevor Norris)
+
+* stream: Short-circuit buffer pushes when flowing (isaacs)
+
+* tls: handle errors on socket before releasing it (Fedor Indutny)
+
+* util: fix isPrimitive check (Trevor Norris)
+
+* util: isObject should always return boolean (Trevor Norris)
+
+
+2013.08.06, Version 0.11.5 (Unstable), 6f92da2dd106b0c63fde563284f83e08e2a521b5
 
 * v8: upgrade to 3.20.11
 
