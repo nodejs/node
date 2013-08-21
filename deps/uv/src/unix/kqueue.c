@@ -319,6 +319,7 @@ int uv_fs_event_init(uv_loop_t* loop,
 
 #if defined(__APPLE__)
   /* Nullify field to perform checks later */
+  handle->cf_cb = NULL;
   handle->cf_eventstream = NULL;
   handle->realpath = NULL;
   handle->realpath_len = 0;

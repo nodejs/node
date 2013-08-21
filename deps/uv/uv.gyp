@@ -302,6 +302,7 @@
         'test/test-util.c',
         'test/test-active.c',
         'test/test-async.c',
+        'test/test-async-null-cb.c',
         'test/test-callback-stack.c',
         'test/test-callback-order.c',
         'test/test-connection-fail.c',

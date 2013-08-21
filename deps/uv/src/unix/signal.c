@@ -37,7 +37,7 @@ typedef struct {
 RB_HEAD(uv__signal_tree_s, uv_signal_s);
 
 
-static int uv__signal_unlock();
+static int uv__signal_unlock(void);
 static void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2);
 static void uv__signal_stop(uv_signal_t* handle);

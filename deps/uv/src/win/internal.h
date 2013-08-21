@@ -29,6 +29,11 @@
 #include "winapi.h"
 #include "winsock.h"
 
+#ifdef _MSC_VER
+# define INLINE __inline
+#else
+# define INLINE inline
+#endif
 
 /*
  * Handles

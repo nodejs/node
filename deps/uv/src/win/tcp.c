@@ -436,7 +436,7 @@ static void uv_tcp_queue_read(uv_loop_t* loop, uv_tcp_t* handle) {
     handle->flags &= ~UV_HANDLE_ZERO_READ;
     handle->read_buffer = handle->alloc_cb((uv_handle_t*) handle, 65536);
     if (handle->read_buffer.len == 0) {
-      handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, buf);
+      handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, handle->read_buffer);
       return;
     }
     assert(handle->read_buffer.base != NULL);

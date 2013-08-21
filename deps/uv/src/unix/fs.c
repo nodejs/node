@@ -176,7 +176,11 @@ skip:
   tv[0].tv_usec = (unsigned long)(req->atime * 1000000) % 1000000;
   tv[1].tv_sec  = req->mtime;
   tv[1].tv_usec = (unsigned long)(req->mtime * 1000000) % 1000000;
+# if defined(__sun)
+  return futimesat(req->file, NULL, tv);
+# else
   return futimes(req->file, tv);
+# endif
 #else
   errno = ENOSYS;
   return -1;

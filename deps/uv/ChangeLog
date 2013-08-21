@@ -1,4 +1,55 @@
-2013.08.07, Version 0.11.7 (Unstable)
+2013.08.22, Version 0.11.8 (Unstable)
+
+Changes since version 0.11.7:
+
+* unix: fix missing return value warning in stream.c (Ben Noordhuis)
+
+* build: serial-tests was added in automake v1.12 (Ben Noordhuis)
+
+* windows: fix uninitialized local variable warning (Ben Noordhuis)
+
+* windows: fix missing return value warning (Ben Noordhuis)
+
+* build: fix string comparisons in autogen.sh (Ben Noordhuis)
+
+* windows: move INLINE macro, remove UNUSED (Ben Noordhuis)
+
+* unix: clean up __attribute__((quux)) usage (Ben Noordhuis)
+
+* sunos: remove futimes() macro (Ben Noordhuis)
+
+* unix: fix uv__signal_unlock() prototype (Ben Noordhuis)
+
+* unix, windows: allow NULL async callback (Ben Noordhuis)
+
+* build: apply dtrace -G to all object files (Timothy J. Fontaine)
+
+* darwin: fix indentation in uv__hrtime() (Ben Noordhuis)
+
+* darwin: create fsevents thread on demand (Ben Noordhuis)
+
+* darwin: reduce fsevents thread stack size (Ben Noordhuis)
+
+* darwin: call pthread_setname_np() if available (Ben Noordhuis)
+
+* build: fix automake serial-tests check again (Ben Noordhuis)
+
+* unix: retry waitpid() on EINTR (Ben Noordhuis)
+
+* darwin: fix ios build error (Ben Noordhuis)
+
+* darwin: fix ios compiler warning (Ben Noordhuis)
+
+* test: simplify test-ip6-addr.c (Ben Noordhuis)
+
+* unix, windows: fix ipv6 link-local address parsing (Ben Noordhuis)
+
+* fsevents: FSEvents is most likely not thread-safe (Fedor Indutny)
+
+* windows: omit stdint.h, fix msvc 2008 build error (Ben Noordhuis)
+
+
+2013.08.07, Version 0.11.7 (Unstable), 3cad361f8776f70941b39d65bd9426bcb1aa817b
 
 Changes since version 0.11.6:
 

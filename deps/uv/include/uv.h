@@ -1239,6 +1239,12 @@ struct uv_async_s {
   UV_ASYNC_PRIVATE_FIELDS
 };
 
+/*
+ * Initialize the uv_async_t handle. A NULL callback is allowed.
+ *
+ * Note that uv_async_init(), unlike other libuv functions, immediately
+ * starts the handle. To stop the handle again, close it with uv_close().
+ */
 UV_EXTERN int uv_async_init(uv_loop_t*, uv_async_t* async,
     uv_async_cb async_cb);
 

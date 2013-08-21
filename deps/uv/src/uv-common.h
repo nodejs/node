@@ -40,20 +40,10 @@
 #include "tree.h"
 #include "queue.h"
 
-
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 #define container_of(ptr, type, member) \
   ((type *) ((char *) (ptr) - offsetof(type, member)))
-
-#ifdef _MSC_VER
-# define UNUSED /* empty */
-# define INLINE __inline
-#else
-# define UNUSED __attribute__((unused))
-# define INLINE inline
-#endif
-
 
 #ifndef _WIN32
 enum {

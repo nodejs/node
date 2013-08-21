@@ -129,9 +129,7 @@ static void init_once(void) {
 }
 
 
-#if defined(__GNUC__)
-__attribute__((destructor))
-static void cleanup(void) {
+UV_DESTRUCTOR(static void cleanup(void)) {
   unsigned int i;
 
   if (initialized == 0)
@@ -153,7 +151,6 @@ static void cleanup(void) {
   nthreads = 0;
   initialized = 0;
 }
-#endif
 
 
 void uv__work_submit(uv_loop_t* loop,

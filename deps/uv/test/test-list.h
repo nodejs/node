@@ -134,6 +134,7 @@ TEST_DECLARE   (has_ref)
 TEST_DECLARE   (active)
 TEST_DECLARE   (embed)
 TEST_DECLARE   (async)
+TEST_DECLARE   (async_null_cb)
 TEST_DECLARE   (get_currentexe)
 TEST_DECLARE   (process_title)
 TEST_DECLARE   (cwd_and_chdir)
@@ -396,6 +397,7 @@ TASK_LIST_START
   TEST_ENTRY  (embed)
 
   TEST_ENTRY  (async)
+  TEST_ENTRY  (async_null_cb)
 
   TEST_ENTRY  (get_currentexe)
 

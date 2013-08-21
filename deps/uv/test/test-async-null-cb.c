@@ -20,44 +20,36 @@
  */
 
 #include "uv.h"
+#include "task.h"
 
- /*
- * Versions with an even minor version (e.g. 0.6.1 or 1.0.4) are API and ABI
- * stable. When the minor version is odd, the API can change between patch
- * releases. Make sure you update the -soname directives in config-unix.mk
- * and uv.gyp whenever you bump UV_VERSION_MAJOR or UV_VERSION_MINOR (but
- * not UV_VERSION_PATCH.)
- */
-
-#define UV_VERSION_MAJOR 0
-#define UV_VERSION_MINOR 11
-#define UV_VERSION_PATCH 8
-#define UV_VERSION_IS_RELEASE 1
+static uv_async_t async_handle;
+static uv_check_t check_handle;
+static int check_cb_called;
+static uv_thread_t thread;
 
 
-#define UV_VERSION  ((UV_VERSION_MAJOR << 16) | \
-                     (UV_VERSION_MINOR <<  8) | \
-                     (UV_VERSION_PATCH))
-
-#define UV_STRINGIFY(v) UV_STRINGIFY_HELPER(v)
-#define UV_STRINGIFY_HELPER(v) #v
-
-#define UV_VERSION_STRING_BASE  UV_STRINGIFY(UV_VERSION_MAJOR) "." \
-                                UV_STRINGIFY(UV_VERSION_MINOR) "." \
-                                UV_STRINGIFY(UV_VERSION_PATCH)
-
-#if UV_VERSION_IS_RELEASE
-# define UV_VERSION_STRING  UV_VERSION_STRING_BASE
-#else
-# define UV_VERSION_STRING  UV_VERSION_STRING_BASE "-pre"
-#endif
-
-
-unsigned int uv_version(void) {
-  return UV_VERSION;
+static void thread_cb(void* dummy) {
+  (void) &dummy;
+  uv_async_send(&async_handle);
 }
 
 
-const char* uv_version_string(void) {
-  return UV_VERSION_STRING;
+static void check_cb(uv_check_t* handle, int status) {
+  ASSERT(check_cb_called == 0);
+  uv_close((uv_handle_t*) &async_handle, NULL);
+  uv_close((uv_handle_t*) &check_handle, NULL);
+  check_cb_called++;
+}
+
+
+TEST_IMPL(async_null_cb) {
+  ASSERT(0 == uv_async_init(uv_default_loop(), &async_handle, NULL));
+  ASSERT(0 == uv_check_init(uv_default_loop(), &check_handle));
+  ASSERT(0 == uv_check_start(&check_handle, check_cb));
+  ASSERT(0 == uv_thread_create(&thread, thread_cb, NULL));
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT(0 == uv_thread_join(&thread));
+  ASSERT(1 == check_cb_called);
+  MAKE_VALGRIND_HAPPY();
+  return 0;
 }

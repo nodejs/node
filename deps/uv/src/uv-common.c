@@ -154,11 +154,12 @@ struct sockaddr_in6 uv_ip6_addr(const char* ip, int port) {
 #if defined(UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS)
   zone_index = strchr(ip, '%');
   if (zone_index != NULL) {
-    address_part_size = sizeof(address_part);
-    assert((unsigned)(zone_index - ip) < address_part_size);
-    strncpy(address_part, ip, zone_index - ip);
-    address_part[address_part_size - 1] = '\0';
+    address_part_size = zone_index - ip;
+    if (address_part_size >= sizeof(address_part))
+      address_part_size = sizeof(address_part) - 1;
 
+    memcpy(address_part, ip, address_part_size);
+    address_part[address_part_size] = '\0';
     ip = address_part;
 
     zone_index++; /* skip '%' */
@@ -473,4 +474,5 @@ int uv__getaddrinfo_translate_error(int sys_err) {
   }
   assert(!"unknown EAI_* error code");
   abort();
+  return 0;  /* Pacify compiler. */
 }

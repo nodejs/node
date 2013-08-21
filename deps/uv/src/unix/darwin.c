@@ -29,8 +29,6 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 
-#include <CoreFoundation/CFRunLoop.h>
-
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <mach-o/dyld.h> /* _NSGetExecutablePath */
@@ -38,154 +36,29 @@
 #include <sys/sysctl.h>
 #include <unistd.h>  /* sysconf */
 
-/* Forward declarations */
-static void uv__cf_loop_runner(void* arg);
-static void uv__cf_loop_cb(void* arg);
-
-typedef struct uv__cf_loop_signal_s uv__cf_loop_signal_t;
-struct uv__cf_loop_signal_s {
-  void* arg;
-  cf_loop_signal_cb cb;
-  QUEUE member;
-};
-
 
 int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
-  CFRunLoopSourceContext ctx;
-  int r;
+  loop->cf_loop = NULL;
 
   if (uv__kqueue_init(loop))
     return -errno;
-
-  loop->cf_loop = NULL;
-  if ((r = uv_mutex_init(&loop->cf_mutex)))
-    return r;
-  if ((r = uv_sem_init(&loop->cf_sem, 0)))
-    return r;
-  QUEUE_INIT(&loop->cf_signals);
-
-  memset(&ctx, 0, sizeof(ctx));
-  ctx.info = loop;
-  ctx.perform = uv__cf_loop_cb;
-  loop->cf_cb = CFRunLoopSourceCreate(NULL, 0, &ctx);
-
-  if ((r = uv_thread_create(&loop->cf_thread, uv__cf_loop_runner, loop)))
-    return r;
-
-  /* Synchronize threads */
-  uv_sem_wait(&loop->cf_sem);
-  assert(ACCESS_ONCE(CFRunLoopRef, loop->cf_loop) != NULL);
 
   return 0;
 }
 
 
 void uv__platform_loop_delete(uv_loop_t* loop) {
-  QUEUE* item;
-  uv__cf_loop_signal_t* s;
-
-  assert(loop->cf_loop != NULL);
-  uv__cf_loop_signal(loop, NULL, NULL);
-  uv_thread_join(&loop->cf_thread);
-
-  uv_sem_destroy(&loop->cf_sem);
-  uv_mutex_destroy(&loop->cf_mutex);
-
-  /* Free any remaining data */
-  while (!QUEUE_EMPTY(&loop->cf_signals)) {
-    item = QUEUE_HEAD(&loop->cf_signals);
-
-    s = QUEUE_DATA(item, uv__cf_loop_signal_t, member);
-
-    QUEUE_REMOVE(item);
-    free(s);
-  }
-}
-
-
-static void uv__cf_loop_runner(void* arg) {
-  uv_loop_t* loop;
-
-  loop = arg;
-
-  /* Get thread's loop */
-  ACCESS_ONCE(CFRunLoopRef, loop->cf_loop) = CFRunLoopGetCurrent();
-
-  CFRunLoopAddSource(loop->cf_loop,
-                     loop->cf_cb,
-                     kCFRunLoopDefaultMode);
-
-  uv_sem_post(&loop->cf_sem);
-
-  CFRunLoopRun();
-
-  CFRunLoopRemoveSource(loop->cf_loop,
-                        loop->cf_cb,
-                        kCFRunLoopDefaultMode);
-}
-
-
-static void uv__cf_loop_cb(void* arg) {
-  uv_loop_t* loop;
-  QUEUE* item;
-  QUEUE split_head;
-  uv__cf_loop_signal_t* s;
-
-  loop = arg;
-
-  uv_mutex_lock(&loop->cf_mutex);
-  QUEUE_INIT(&split_head);
-  if (!QUEUE_EMPTY(&loop->cf_signals)) {
-    QUEUE* split_pos = QUEUE_HEAD(&loop->cf_signals);
-    QUEUE_SPLIT(&loop->cf_signals, split_pos, &split_head);
-  }
-  uv_mutex_unlock(&loop->cf_mutex);
-
-  while (!QUEUE_EMPTY(&split_head)) {
-    item = QUEUE_HEAD(&split_head);
-
-    s = QUEUE_DATA(item, uv__cf_loop_signal_t, member);
-
-    /* This was a termination signal */
-    if (s->cb == NULL)
-      CFRunLoopStop(loop->cf_loop);
-    else
-      s->cb(s->arg);
-
-    QUEUE_REMOVE(item);
-    free(s);
-  }
-}
-
-
-void uv__cf_loop_signal(uv_loop_t* loop, cf_loop_signal_cb cb, void* arg) {
-  uv__cf_loop_signal_t* item;
-
-  item = malloc(sizeof(*item));
-  /* XXX: Fail */
-  if (item == NULL)
-    abort();
-
-  item->arg = arg;
-  item->cb = cb;
-
-  uv_mutex_lock(&loop->cf_mutex);
-  QUEUE_INSERT_TAIL(&loop->cf_signals, &item->member);
-  uv_mutex_unlock(&loop->cf_mutex);
-
-  assert(loop->cf_loop != NULL);
-  CFRunLoopSourceSignal(loop->cf_cb);
-  CFRunLoopWakeUp(loop->cf_loop);
+  uv__fsevents_loop_delete(loop);
 }
 
 
 uint64_t uv__hrtime(void) {
-    mach_timebase_info_data_t info;
+  mach_timebase_info_data_t info;
 
-    if (mach_timebase_info(&info) != KERN_SUCCESS)
-      abort();
+  if (mach_timebase_info(&info) != KERN_SUCCESS)
+    abort();
 
-    return mach_absolute_time() * info.numer / info.denom;
+  return mach_absolute_time() * info.numer / info.denom;
 }
 
 
