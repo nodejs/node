@@ -2525,6 +2525,22 @@ static void SignalExit(int signal) {
 }
 
 
+// Most of the time, it's best to use `console.error` to write
+// to the process.stderr stream.  However, in some cases, such as
+// when debugging the stream.Writable class or the process.nextTick
+// function, it is useful to bypass JavaScript entirely.
+static void RawDebug(const FunctionCallbackInfo<Value>& args) {
+  HandleScope scope(node_isolate);
+
+  assert(args.Length() == 1 && args[0]->IsString() &&
+         "must be called with a single string");
+
+  String::Utf8Value message(args[0]);
+  fprintf(stderr, "%s\n", *message);
+  fflush(stderr);
+}
+
+
 void Load(Handle<Object> process_l) {
   HandleScope handle_scope(node_isolate);
 
@@ -2580,6 +2596,8 @@ void Load(Handle<Object> process_l) {
   // to attach the debugger fast enought to break on exception
   // thrown during process startup.
   try_catch.SetVerbose(true);
+
+  NODE_SET_METHOD(process_l, "_rawDebug", RawDebug);
 
   Local<Value> arg = process_l;
   f->Call(global, 1, &arg);

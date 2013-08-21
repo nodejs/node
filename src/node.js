@@ -55,6 +55,8 @@
 
     startup.processChannel();
 
+    startup.processRawDebug();
+
     startup.resolveArgv0();
 
     // There are various modes that Node can run in. The most common two
@@ -649,7 +651,17 @@
       cp._forkChild(fd);
       assert(process.send);
     }
-  }
+  };
+
+
+  startup.processRawDebug = function() {
+    var format = NativeModule.require('util').format;
+    var rawDebug = process._rawDebug;
+    process._rawDebug = function() {
+      rawDebug(format.apply(null, arguments));
+    };
+  };
+
 
   startup.resolveArgv0 = function() {
     var cwd = process.cwd();
