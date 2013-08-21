@@ -3117,13 +3117,7 @@ main (void)
 
   /// REQUESTS
 
-  test_simple("hello world", HPE_INVALID_METHOD);
   test_simple("GET / HTP/1.1\r\n\r\n", HPE_INVALID_VERSION);
-
-
-  test_simple("ASDF / HTTP/1.1\r\n\r\n", HPE_INVALID_METHOD);
-  test_simple("PROPPATCHA / HTTP/1.1\r\n\r\n", HPE_INVALID_METHOD);
-  test_simple("GETA / HTTP/1.1\r\n\r\n", HPE_INVALID_METHOD);
 
   // Well-formed but incomplete
   test_simple("GET / HTTP/1.1\r\n"
@@ -3167,13 +3161,23 @@ main (void)
   }
 
   static const char *bad_methods[] = {
+      "ASDF",
       "C******",
+      "COLA",
+      "GEM",
+      "GETA",
       "M****",
+      "MKCOLA",
+      "PROPPATCHA",
+      "PUN",
+      "PX",
+      "SA",
+      "hello world",
       0 };
   for (this_method = bad_methods; *this_method; this_method++) {
     char buf[200];
     sprintf(buf, "%s / HTTP/1.1\r\n\r\n", *this_method);
-    test_simple(buf, HPE_UNKNOWN);
+    test_simple(buf, HPE_INVALID_METHOD);
   }
 
   const char *dumbfuck2 =
