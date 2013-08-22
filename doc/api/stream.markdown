@@ -871,7 +871,7 @@ SimpleProtocol.prototype._read = function(n) {
 * `options` {Object}
   * `highWaterMark` {Number} The maximum number of bytes to store in
     the internal buffer before ceasing to read from the underlying
-    resource.  Default=16kb
+    resource.  Default=16kb, or 16 for `objectMode` streams
   * `encoding` {String} If specified, then buffers will be decoded to
     strings using the specified encoding.  Default=null
   * `objectMode` {Boolean} Whether this stream should behave
@@ -987,7 +987,7 @@ how to implement Writable streams in your programs.
 
 * `options` {Object}
   * `highWaterMark` {Number} Buffer level when [`write()`][] starts
-    returning false. Default=16kb
+    returning false. Default=16kb, or 16 for `objectMode` streams
   * `decodeStrings` {Boolean} Whether or not to decode strings into
     Buffers before passing them to [`_write()`][].  Default=true
 
