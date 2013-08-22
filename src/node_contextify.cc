@@ -329,6 +329,7 @@ class ContextifyScript : ObjectWrap {
     contextify_script->Wrap(args.Holder());
     Local<String> code = args[0]->ToString();
     Local<String> filename = GetFilenameArg(args, 1);
+    bool display_exception = GetDisplayArg(args, 2);
 
     Local<Context> context = Context::GetCurrent();
     Context::Scope context_scope(context);
@@ -338,7 +339,8 @@ class ContextifyScript : ObjectWrap {
     Local<Script> v8_script = Script::New(code, filename);
 
     if (v8_script.IsEmpty()) {
-      DisplayExceptionLine(try_catch.Message());
+      if (display_exception)
+        DisplayExceptionLine(try_catch.Message());
       try_catch.ReThrow();
       return;
     }
@@ -364,8 +366,10 @@ class ContextifyScript : ObjectWrap {
       return;
     }
 
+    bool display_exception = GetDisplayArg(args, 1);
+
     // Do the eval within this context
-    EvalMachine(timeout, args, try_catch);
+    EvalMachine(timeout, display_exception, args, try_catch);
   }
 
   // args: sandbox, [timeout]
@@ -384,6 +388,8 @@ class ContextifyScript : ObjectWrap {
       return;
     }
 
+    bool display_exception = GetDisplayArg(args, 2);
+
     // Get the context from the sandbox
     Local<Context> context =
         ContextifyContext::ContextFromContextifiedSandbox(sandbox);
@@ -394,7 +400,7 @@ class ContextifyScript : ObjectWrap {
 
     // Do the eval within the context
     Context::Scope context_scope(context);
-    EvalMachine(timeout, args, try_catch);
+    EvalMachine(timeout, display_exception, args, try_catch);
   }
 
   static int64_t GetTimeoutArg(const FunctionCallbackInfo<Value>& args,
@@ -410,6 +416,16 @@ class ContextifyScript : ObjectWrap {
     return timeout;
   }
 
+  static bool GetDisplayArg(const FunctionCallbackInfo<Value>& args,
+                            const int i) {
+    bool display_exception = true;
+
+    if (args[i]->IsBoolean())
+      display_exception = args[i]->BooleanValue();
+
+    return display_exception;
+  }
+
 
   static Local<String> GetFilenameArg(const FunctionCallbackInfo<Value>& args,
                                       const int i) {
@@ -420,6 +436,7 @@ class ContextifyScript : ObjectWrap {
 
 
   static void EvalMachine(const int64_t timeout,
+                          const bool display_exception,
                           const FunctionCallbackInfo<Value>& args,
                           TryCatch& try_catch) {
     if (!ContextifyScript::InstanceOf(args.This())) {
@@ -432,7 +449,8 @@ class ContextifyScript : ObjectWrap {
     Local<Script> script = PersistentToLocal(node_isolate,
                                              wrapped_script->script_);
     if (script.IsEmpty()) {
-      DisplayExceptionLine(try_catch.Message());
+      if (display_exception)
+        DisplayExceptionLine(try_catch.Message());
       try_catch.ReThrow();
       return;
     }
@@ -452,7 +470,8 @@ class ContextifyScript : ObjectWrap {
 
     if (result.IsEmpty()) {
       // Error occurred during execution of the script.
-      DisplayExceptionLine(try_catch.Message());
+      if (display_exception)
+        DisplayExceptionLine(try_catch.Message());
       try_catch.ReThrow();
       return;
     }
