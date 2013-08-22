@@ -161,6 +161,12 @@ subject.inspect = function() { return { foo: 'bar' }; };
 
 assert.equal(util.inspect(subject), '{ foo: \'bar\' }');
 
+subject.inspect = function(depth, opts) {
+  assert.strictEqual(opts.customInspectOptions, true);
+};
+
+util.inspect(subject, { customInspectOptions: true });
+
 // util.inspect with "colors" option should produce as many lines as without it
 function test_lines(input) {
   var count_lines = function(str) {
