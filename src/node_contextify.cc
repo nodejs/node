@@ -177,9 +177,7 @@ class ContextifyContext : ObjectWrap {
 
     ContextifyContext* ctx =
         ObjectWrap::Unwrap<ContextifyContext>(hidden_context);
-    Persistent<Context> context;
-    context.Reset(node_isolate, ctx->context_);
-    return PersistentToLocal(node_isolate, context);
+    return PersistentToLocal(node_isolate, ctx->context_);
   }
 
 
