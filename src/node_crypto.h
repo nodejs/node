@@ -172,6 +172,7 @@ class SSLWrap {
   static void GetCurrentCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReceivedShutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EndParser(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Renegotiate(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   static void GetNegotiatedProto(

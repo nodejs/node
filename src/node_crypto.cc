@@ -805,6 +805,7 @@ void SSLWrap<Base>::AddMethods(Handle<FunctionTemplate> t) {
   NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", GetCurrentCipher);
   NODE_SET_PROTOTYPE_METHOD(t, "receivedShutdown", ReceivedShutdown);
   NODE_SET_PROTOTYPE_METHOD(t, "endParser", EndParser);
+  NODE_SET_PROTOTYPE_METHOD(t, "renegotiate", Renegotiate);
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   NODE_SET_PROTOTYPE_METHOD(t, "getNegotiatedProtocol", GetNegotiatedProto);
@@ -1156,6 +1157,20 @@ void SSLWrap<Base>::EndParser(const FunctionCallbackInfo<Value>& args) {
   Base* w = ObjectWrap::Unwrap<Base>(args.This());
 
   w->hello_parser_.End();
+}
+
+
+template <class Base>
+void SSLWrap<Base>::Renegotiate(const FunctionCallbackInfo<Value>& args) {
+  HandleScope scope(node_isolate);
+
+  Base* w = ObjectWrap::Unwrap<Base>(args.This());
+
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence unused variable warning.
+
+  bool yes = SSL_renegotiate(w->ssl_) == 1;
+  args.GetReturnValue().Set(yes);
 }
 
 

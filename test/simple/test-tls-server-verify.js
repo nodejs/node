@@ -39,6 +39,7 @@ var testCases =
     [{ title: 'Do not request certs. Everyone is unauthorized.',
       requestCert: false,
       rejectUnauthorized: false,
+      renegotiate: false,
       CAs: ['ca1-cert'],
       clients:
        [{ name: 'agent1', shouldReject: false, shouldAuth: false },
@@ -51,6 +52,20 @@ var testCases =
     { title: 'Allow both authed and unauthed connections with CA1',
       requestCert: true,
       rejectUnauthorized: false,
+      renegotiate: false,
+      CAs: ['ca1-cert'],
+      clients:
+       [{ name: 'agent1', shouldReject: false, shouldAuth: true },
+        { name: 'agent2', shouldReject: false, shouldAuth: false },
+        { name: 'agent3', shouldReject: false, shouldAuth: false },
+        { name: 'nocert', shouldReject: false, shouldAuth: false }
+       ]
+    },
+
+    { title: 'Do not request certs at connection. Do that later',
+      requestCert: false,
+      rejectUnauthorized: false,
+      renegotiate: true,
       CAs: ['ca1-cert'],
       clients:
        [{ name: 'agent1', shouldReject: false, shouldAuth: true },
@@ -63,6 +78,7 @@ var testCases =
     { title: 'Allow only authed connections with CA1',
       requestCert: true,
       rejectUnauthorized: true,
+      renegotiate: false,
       CAs: ['ca1-cert'],
       clients:
        [{ name: 'agent1', shouldReject: false, shouldAuth: true },
@@ -75,6 +91,7 @@ var testCases =
     { title: 'Allow only authed connections with CA1 and CA2',
       requestCert: true,
       rejectUnauthorized: true,
+      renegotiate: false,
       CAs: ['ca1-cert', 'ca2-cert'],
       clients:
        [{ name: 'agent1', shouldReject: false, shouldAuth: true },
@@ -88,6 +105,7 @@ var testCases =
     { title: 'Allow only certs signed by CA2 but not in the CRL',
       requestCert: true,
       rejectUnauthorized: true,
+      renegotiate: false,
       CAs: ['ca2-cert'],
       crl: 'ca2-crl',
       clients:
@@ -104,6 +122,7 @@ var testCases =
 
 
 var common = require('../common');
+var constants = require('constants');
 var assert = require('assert');
 var fs = require('fs');
 var tls = require('tls');
@@ -185,20 +204,23 @@ function runClient(options, cb) {
 
   var rejected = true;
   var authed = false;
+  var goodbye = false;
 
   client.stdout.setEncoding('utf8');
   client.stdout.on('data', function(d) {
     out += d;
 
-    if (/_unauthed/g.test(out)) {
+    if (!goodbye && /_unauthed/g.test(out)) {
       console.error('  * unauthed');
+      goodbye = true;
       client.stdin.end('goodbye\n');
       authed = false;
       rejected = false;
     }
 
-    if (/_authed/g.test(out)) {
+    if (!goodbye && /_authed/g.test(out)) {
       console.error('  * authed');
+      goodbye = true;
       client.stdin.end('goodbye\n');
       authed = true;
       rejected = false;
@@ -247,7 +269,34 @@ function runTest(testIndex) {
 
   var connections = 0;
 
-  var server = tls.Server(serverOptions, function(c) {
+  /*
+   * If renegotiating - session might be resumed and openssl won't request
+   * client's certificate (probably because of bug in the openssl)
+   */
+  if (tcase.renegotiate) {
+    serverOptions.secureOptions =
+        constants.SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
+  }
+
+  var renegotiated = false;
+  var server = tls.Server(serverOptions, function handleConnection(c) {
+    if (tcase.renegotiate && !renegotiated) {
+      renegotiated = true;
+      setTimeout(function() {
+        console.error('- connected, renegotiating');
+        c.write('\n_renegotiating\n');
+        return c.renegotiate({
+          requestCert: true,
+          rejectUnauthorized: false
+        }, function(err) {
+          assert(!err);
+          c.write('\n_renegotiated\n');
+          handleConnection(c);
+        });
+      }, 200);
+      return;
+    }
+
     connections++;
     if (c.authorized) {
       console.error('- authed connection: ' +
