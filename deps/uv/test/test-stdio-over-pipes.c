@@ -48,7 +48,9 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void exit_cb(uv_process_t* process, int exit_status, int term_signal) {
+static void exit_cb(uv_process_t* process,
+                    int64_t exit_status,
+                    int term_signal) {
   printf("exit_cb\n");
   exit_cb_called++;
   ASSERT(exit_status == 0);

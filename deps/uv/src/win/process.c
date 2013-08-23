@@ -758,9 +758,6 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
   } else if (!GetExitCodeProcess(handle->process_handle, &status)) {
     /* Unable to to obtain the exit code. This should never happen. */
     exit_code = uv_translate_sys_error(GetLastError());
-  } else {
-    /* Make sure the exit code is >= 0. */
-    exit_code = status & INT_MAX;
   }
 
   /* Fire the exit callback. */
@@ -836,25 +833,25 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
   err = uv_utf8_to_utf16_alloc(options.file, &application);
   if (err)
-    goto done;
+    goto immediate_failure;
 
   err = make_program_args(options.args,
                           options.flags & UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS,
                           &arguments);
   if (err)
-    goto done;
+    goto immediate_failure;
 
   if (options.env) {
      err = make_program_env(options.env, &env);
-      if (err)
-       goto done;
+     if (err)
+       goto immediate_failure;
   }
 
   if (options.cwd) {
     /* Explicit cwd */
     err = uv_utf8_to_utf16_alloc(options.cwd, &cwd);
     if (err)
-      goto done;
+      goto immediate_failure;
 
   } else {
     /* Inherit cwd */
@@ -863,45 +860,50 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     cwd_len = GetCurrentDirectoryW(0, NULL);
     if (!cwd_len) {
       err = GetLastError();
-      goto done;
+      goto immediate_failure;
     }
 
     cwd = (WCHAR*) malloc(cwd_len * sizeof(WCHAR));
     if (cwd == NULL) {
       err = ERROR_OUTOFMEMORY;
-      goto done;
+      goto immediate_failure;
     }
 
     r = GetCurrentDirectoryW(cwd_len, cwd);
     if (r == 0 || r >= cwd_len) {
       err = GetLastError();
-      goto done;
+      goto immediate_failure;
     }
   }
 
-   /* Get PATH environment variable. */
+  /* Get PATH environment variable. */
   {
     DWORD path_len, r;
 
     path_len = GetEnvironmentVariableW(L"PATH", NULL, 0);
     if (path_len == 0) {
       err = GetLastError();
-      goto done;
+      goto immediate_failure;
     }
-
 
     path = (WCHAR*) malloc(path_len * sizeof(WCHAR));
     if (path == NULL) {
       err = ERROR_OUTOFMEMORY;
-      goto done;
+      goto immediate_failure;
     }
 
     r = GetEnvironmentVariableW(L"PATH", path, path_len);
     if (r == 0 || r >= path_len) {
       err = GetLastError();
-      goto done;
+      goto immediate_failure;
     }
   }
+
+  err = uv__stdio_create(loop, &options, &process->child_stdio_buffer);
+  if (err)
+    goto immediate_failure;
+
+  /* Beyond this point, failure is reported asynchronously. */
 
   application_path = search_path(application,
                                  cwd,
@@ -909,12 +911,8 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   if (application_path == NULL) {
     /* Not found. */
     err = ERROR_FILE_NOT_FOUND;
-    goto done;
+    goto success_or_async_failure;
   }
-
-  err = uv__stdio_create(loop, &options, &process->child_stdio_buffer);
-  if (err)
-    goto done;
 
   startup.cb = sizeof(startup);
   startup.lpReserved = NULL;
@@ -1013,7 +1011,9 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     err = GetLastError();
   }
 
-done:
+  /* We get here if we successfully created a process, or when we */
+  /* encountered failure that we want to report asynchronously. */
+ success_or_async_failure:
   free(application);
   free(application_path);
   free(arguments);
@@ -1040,6 +1040,20 @@ done:
   }
 
   return 0;
+
+  /* This code path is taken when we run into an error that we want to */
+  /* report immediately. */
+ immediate_failure:
+  free(application);
+  free(application_path);
+  free(arguments);
+  free(cwd);
+  free(env);
+  free(path);
+
+  assert(process->child_stdio_buffer == NULL);
+
+  return uv_translate_sys_error(err);
 }
 
 

@@ -64,7 +64,9 @@ static void process_close_cb(uv_handle_t* handle) {
 }
 
 
-static void exit_cb(uv_process_t* process, int exit_status, int term_signal) {
+static void exit_cb(uv_process_t* process,
+                    int64_t exit_status,
+                    int term_signal) {
   ASSERT(exit_status == 42);
   ASSERT(term_signal == 0);
   uv_close((uv_handle_t*)process, process_close_cb);

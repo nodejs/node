@@ -84,7 +84,9 @@ static void on_connection(uv_stream_t* server, int status) {
 }
 
 
-static void exit_cb(uv_process_t* process, int exit_status, int term_signal) {
+static void exit_cb(uv_process_t* process,
+                    int64_t exit_status,
+                    int term_signal) {
   printf("exit_cb\n");
   exit_cb_called++;
   ASSERT(exit_status == 0);

@@ -1,4 +1,20 @@
-2013.08.22, Version 0.11.8 (Unstable)
+2013.08.24, Version 0.11.9 (Unstable)
+
+Changes since version 0.11.8:
+
+* fsevents: share FSEventStream between multiple FS watchers, which removes a
+  limit on the maximum number of file watchers that can be created on OS X.
+  (Fedor Indutny)
+
+* process: the `exit_status` parameter for a uv_process_t's exit callback now
+  is an int64_t, and no longer an int. (Bert Belder)
+
+* process: make uv_spawn() return some types of errors immediately on windows,
+  instead of passing the error code the the exit callback. This brings it on
+  par with libuv's behavior on unix. (Bert Belder)
+
+
+2013.08.22, Version 0.11.8 (Unstable), a5260462db80ab0deab6b9e6a8991dd8f5a9a2f8
 
 Changes since version 0.11.7:
 

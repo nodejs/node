@@ -52,7 +52,9 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void exit_cb(uv_process_t* process, int exit_status, int term_signal) {
+static void exit_cb(uv_process_t* process,
+                    int64_t exit_status,
+                    int term_signal) {
   printf("exit_cb\n");
   exit_cb_called++;
   ASSERT(exit_status == 1);
@@ -62,7 +64,7 @@ static void exit_cb(uv_process_t* process, int exit_status, int term_signal) {
 
 
 static void expect(uv_process_t* process,
-                   int exit_status,
+                   int64_t exit_status,
                    int term_signal,
                    int err) {
   printf("exit_cb\n");
@@ -74,20 +76,22 @@ static void expect(uv_process_t* process,
 
 
 static void exit_cb_expect_enoent(uv_process_t* process,
-                                 int exit_status,
+                                 int64_t exit_status,
                                  int term_signal) {
   expect(process, exit_status, term_signal, UV_ENOENT);
 }
 
 
 static void exit_cb_expect_eperm(uv_process_t* process,
-                                 int exit_status,
+                                 int64_t exit_status,
                                  int term_signal) {
   expect(process, exit_status, term_signal, UV_EPERM);
 }
 
 
-static void kill_cb(uv_process_t* process, int exit_status, int term_signal) {
+static void kill_cb(uv_process_t* process,
+                    int64_t exit_status,
+                    int term_signal) {
   int err;
 
   printf("exit_cb\n");
@@ -109,7 +113,7 @@ static void kill_cb(uv_process_t* process, int exit_status, int term_signal) {
   ASSERT(err == UV_ESRCH);
 }
 
-static void detach_failure_cb(uv_process_t* process, int exit_status, int term_signal) {
+static void detach_failure_cb(uv_process_t* process, int64_t exit_status, int term_signal) {
   printf("detach_cb\n");
   exit_cb_called++;
 }
@@ -886,7 +890,7 @@ TEST_IMPL(spawn_setgid_fails) {
 #ifdef _WIN32
 
 static void exit_cb_unexpected(uv_process_t* process,
-                               int exit_status,
+                               int64_t exit_status,
                                int term_signal) {
   ASSERT(0 && "should not have been called");
 }

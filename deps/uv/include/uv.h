@@ -384,7 +384,7 @@ typedef void (*uv_async_cb)(uv_async_t* handle, int status);
 typedef void (*uv_prepare_cb)(uv_prepare_t* handle, int status);
 typedef void (*uv_check_cb)(uv_check_t* handle, int status);
 typedef void (*uv_idle_cb)(uv_idle_t* handle, int status);
-typedef void (*uv_exit_cb)(uv_process_t*, int exit_status, int term_signal);
+typedef void (*uv_exit_cb)(uv_process_t*, int64_t exit_status, int term_signal);
 typedef void (*uv_walk_cb)(uv_handle_t* handle, void* arg);
 typedef void (*uv_fs_cb)(uv_fs_t* req);
 typedef void (*uv_work_cb)(uv_work_t* req);
