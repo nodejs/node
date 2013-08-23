@@ -1,4 +1,18 @@
-2013.08.22, Version 0.10.14 (Stable)
+2013.08.24, Version 0.10.15 (Stable)
+
+Changes since version 0.10.14:
+
+* fsevents: create FSEvents thread on demand (Ben Noordhuis)
+
+* fsevents: use a single thread for interacting with FSEvents, because it's not
+  thread-safe. (Fedor Indutny)
+
+* fsevents: share FSEventStream between multiple FS watchers, which removes a
+  limit on the maximum number of file watchers that can be created on OS X.
+  (Fedor Indutny)
+
+
+2013.08.22, Version 0.10.14 (Stable), 15d64132151c18b26346afa892444b95e2addad0
 
 Changes since version 0.10.13:
 
