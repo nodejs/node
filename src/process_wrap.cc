@@ -265,7 +265,9 @@ class ProcessWrap : public HandleWrap {
     args.GetReturnValue().Set(err);
   }
 
-  static void OnExit(uv_process_t* handle, int exit_status, int term_signal) {
+  static void OnExit(uv_process_t* handle,
+                     int64_t exit_status,
+                     int term_signal) {
     HandleScope scope(node_isolate);
 
     ProcessWrap* wrap = static_cast<ProcessWrap*>(handle->data);
