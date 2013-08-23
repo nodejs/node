@@ -51,7 +51,6 @@ class ContextifyContext : ObjectWrap {
  private:
   Persistent<Object> sandbox_;
   Persistent<Object> proxy_global_;
-  static Persistent<FunctionTemplate> data_wrapper_tmpl;
   static Persistent<Function> data_wrapper_ctor;
 
  public:
@@ -124,11 +123,7 @@ class ContextifyContext : ObjectWrap {
 
     Local<FunctionTemplate> function_template = FunctionTemplate::New();
     function_template->InstanceTemplate()->SetInternalFieldCount(1);
-    data_wrapper_tmpl.Reset(node_isolate, function_template);
-
-    Local<FunctionTemplate> lwrapper_tmpl =
-        PersistentToLocal(node_isolate, data_wrapper_tmpl);
-    data_wrapper_ctor.Reset(node_isolate, lwrapper_tmpl->GetFunction());
+    data_wrapper_ctor.Reset(node_isolate, function_template->GetFunction());
 
     js_tmpl.Reset(node_isolate, FunctionTemplate::New(New));
     Local<FunctionTemplate> ljs_tmpl = PersistentToLocal(node_isolate, js_tmpl);
@@ -487,7 +482,6 @@ class ContextifyScript : ObjectWrap {
 
 
 Persistent<FunctionTemplate> ContextifyContext::js_tmpl;
-Persistent<FunctionTemplate> ContextifyContext::data_wrapper_tmpl;
 Persistent<Function> ContextifyContext::data_wrapper_ctor;
 
 Persistent<FunctionTemplate> ContextifyScript::script_tmpl;
