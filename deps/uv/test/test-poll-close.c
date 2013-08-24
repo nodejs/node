@@ -59,7 +59,7 @@ TEST_IMPL(poll_close) {
     uv_poll_init_socket(uv_default_loop(), &poll_handles[i], sockets[i]);
     uv_poll_start(&poll_handles[i], UV_READABLE | UV_WRITABLE, NULL);
   }
-  
+
   for (i = 0; i < NUM_SOCKETS; i++) {
     uv_close((uv_handle_t*) &poll_handles[i], close_cb);
   }

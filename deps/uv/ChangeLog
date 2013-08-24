@@ -1,4 +1,22 @@
-2013.08.24, Version 0.11.9 (Unstable)
+2013.08.25, Version 0.11.10 (Unstable)
+
+* windows: Re-implement uv_fs_stat. The st_ctime field now contains the change
+  time, not the creation time, like on unix systems. st_dev, st_ino, st_blocks
+  and st_blksize are now also filled out. (Bert Belder)
+
+* linux: fix setsockopt(SO_REUSEPORT) error handling (Ben Noordhuis)
+
+* windows: report uv_process_t exit code correctly (Bert Belder)
+
+* windows: make uv_fs_chmod() report errors correctly (Bert Belder)
+
+* windows: make some more NT apis available for libuv's internal use (Bert
+  Belder)
+
+* windows: squelch some compiler warnings (Bert Belder)
+
+
+2013.08.24, Version 0.11.9 (Unstable), a2d29b5b068cbac93dc16138fb30a74e2669daad
 
 Changes since version 0.11.8:
 

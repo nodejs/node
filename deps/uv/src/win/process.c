@@ -729,7 +729,7 @@ static void CALLBACK exit_wait_callback(void* data, BOOLEAN didTimeout) {
 
 /* Called on main thread after a child process has exited. */
 void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
-  int exit_code;
+  int64_t exit_code;
   DWORD status;
 
   assert(handle->exit_cb_pending);
@@ -755,7 +755,9 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
   if (handle->spawn_error) {
     /* Spawning failed. */
     exit_code = uv_translate_sys_error(handle->spawn_error);
-  } else if (!GetExitCodeProcess(handle->process_handle, &status)) {
+  } else if (GetExitCodeProcess(handle->process_handle, &status)) {
+    exit_code = status;
+  } else {
     /* Unable to to obtain the exit code. This should never happen. */
     exit_code = uv_translate_sys_error(GetLastError());
   }

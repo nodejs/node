@@ -280,6 +280,53 @@ static void uv__udp_sendmsg(uv_loop_t* loop,
 }
 
 
+/* On the BSDs, SO_REUSEPORT implies SO_REUSEADDR but it also lets you share
+ * the address and port with other processes.
+ *
+ * Linux as of 3.9 has a SO_REUSEPORT socket option but with semantics that
+ * are different from the BSDs.  The address:port sharing part is taken care
+ * of by SO_REUSEADDR while SO_REUSEPORT enables fair load distribution.  (If
+ * you wonder why you need to explicitly enable that, well, it's complicated.)
+ *
+ * Because we cannot rely on SO_REUSEPORT being available on Linux, it's not
+ * considered an error when the setsockopt() system call fails.  Worst case,
+ * the program has sub-optimal load distribution characteristics but should
+ * otherwise run fine.
+ */
+static int uv__set_reuse(int fd) {
+  int yes;
+#if defined(__linux__)
+  static int no_so_reuseport;
+
+  if (no_so_reuseport)
+    goto no_so_reuseport;
+
+  yes = 1;
+  if (setsockopt(fd, SOL_SOCKET, 15 /* SO_REUSEPORT */, &yes, sizeof(yes))) {
+    if (errno != EINVAL && errno != ENOPROTOOPT)
+      return -errno;
+    no_so_reuseport = 1;
+  }
+
+no_so_reuseport:
+
+  yes = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)))
+    return -errno;
+#elif defined(SO_REUSEPORT)
+  yes = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes)))
+    return -errno;
+#else
+  yes = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)))
+    return -errno;
+#endif
+
+  return 0;
+}
+
+
 static int uv__bind(uv_udp_t* handle,
                     int domain,
                     struct sockaddr* addr,
@@ -308,27 +355,9 @@ static int uv__bind(uv_udp_t* handle,
     handle->io_watcher.fd = fd;
   }
 
-  yes = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
-    err = -errno;
+  err = uv__set_reuse(fd);
+  if (err)
     goto out;
-  }
-
-  /* On the BSDs, SO_REUSEADDR lets you reuse an address that's in the TIME_WAIT
-   * state (i.e. was until recently tied to a socket) while SO_REUSEPORT lets
-   * multiple processes bind to the same address. Yes, it's something of a
-   * misnomer but then again, SO_REUSEADDR was already taken.
-   *
-   * None of the above applies to Linux: SO_REUSEADDR implies SO_REUSEPORT on
-   * Linux and hence it does not have SO_REUSEPORT at all.
-   */
-#ifdef SO_REUSEPORT
-  yes = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes) == -1) {
-    err = -errno;
-    goto out;
-  }
-#endif
 
   if (flags & UV_UDP_IPV6ONLY) {
 #ifdef IPV6_V6ONLY
@@ -464,29 +493,15 @@ int uv__udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned flags) {
 
 
 int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
-  int yes;
+  int err;
 
   /* Check for already active socket. */
   if (handle->io_watcher.fd != -1)
     return -EALREADY;  /* FIXME(bnoordhuis) Should be -EBUSY. */
 
-  yes = 1;
-  if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes))
-    return -errno;
-
-  /* On the BSDs, SO_REUSEADDR lets you reuse an address that's in the TIME_WAIT
-   * state (i.e. was until recently tied to a socket) while SO_REUSEPORT lets
-   * multiple processes bind to the same address. Yes, it's something of a
-   * misnomer but then again, SO_REUSEADDR was already taken.
-   *
-   * None of the above applies to Linux: SO_REUSEADDR implies SO_REUSEPORT on
-   * Linux and hence it does not have SO_REUSEPORT at all.
-   */
-#ifdef SO_REUSEPORT
-  yes = 1;
-  if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes))
-    return -errno;
-#endif
+  err = uv__set_reuse(sock);
+  if (err)
+    return err;
 
   handle->io_watcher.fd = sock;
   return 0;
