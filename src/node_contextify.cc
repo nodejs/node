@@ -29,6 +29,7 @@ using v8::AccessType;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -47,18 +48,20 @@ using v8::V8;
 using v8::Value;
 
 
-class ContextifyContext : ObjectWrap {
+class ContextifyContext {
  private:
   Persistent<Object> sandbox_;
   Persistent<Object> proxy_global_;
+  Persistent<Context> context_;
   static Persistent<Function> data_wrapper_ctor;
 
  public:
-  Persistent<Context> context_;
-  static Persistent<FunctionTemplate> js_tmpl;
-
   explicit ContextifyContext(Local<Object> sandbox) :
       sandbox_(node_isolate, sandbox) {
+    HandleScope scope(node_isolate);
+    Local<Context> v8_context = CreateV8Context();
+    context_.Reset(node_isolate, v8_context);
+    proxy_global_.Reset(node_isolate, v8_context->Global());
   }
 
 
@@ -66,19 +69,6 @@ class ContextifyContext : ObjectWrap {
     context_.Dispose();
     proxy_global_.Dispose();
     sandbox_.Dispose();
-  }
-
-
-  // We override ObjectWrap::Wrap so that we can create our context after
-  // we have a reference to our "host" JavaScript object.  If we try to use
-  // handle_ in the ContextifyContext constructor, it will be empty since it's
-  // set in ObjectWrap::Wrap.
-  inline void Wrap(Local<Object> handle) {
-    HandleScope scope(node_isolate);
-    ObjectWrap::Wrap(handle);
-    Local<Context> v8_context = CreateV8Context();
-    context_.Reset(node_isolate, v8_context);
-    proxy_global_.Reset(node_isolate, v8_context->Global());
   }
 
 
@@ -125,59 +115,48 @@ class ContextifyContext : ObjectWrap {
     function_template->InstanceTemplate()->SetInternalFieldCount(1);
     data_wrapper_ctor.Reset(node_isolate, function_template->GetFunction());
 
-    js_tmpl.Reset(node_isolate, FunctionTemplate::New(New));
-    Local<FunctionTemplate> ljs_tmpl = PersistentToLocal(node_isolate, js_tmpl);
-    ljs_tmpl->InstanceTemplate()->SetInternalFieldCount(1);
-
-    Local<String> class_name
-        = FIXED_ONE_BYTE_STRING(node_isolate, "ContextifyContext");
-    ljs_tmpl->SetClassName(class_name);
-    target->Set(class_name, ljs_tmpl->GetFunction());
-
     NODE_SET_METHOD(target, "makeContext", MakeContext);
   }
 
 
-  // args[0] = the sandbox object
-  static void New(const FunctionCallbackInfo<Value>& args) {
+  static void MakeContext(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
+
     if (!args[0]->IsObject()) {
       return ThrowTypeError("sandbox argument must be an object.");
     }
-    ContextifyContext* ctx = new ContextifyContext(args[0].As<Object>());
-    ctx->Wrap(args.This());
-  }
-
-
-  static void MakeContext(const FunctionCallbackInfo<Value>& args) {
     Local<Object> sandbox = args[0].As<Object>();
 
-    Local<FunctionTemplate> ljs_tmpl = PersistentToLocal(node_isolate, js_tmpl);
-    Local<Value> constructor_args[] = { sandbox };
-    Local<Object> contextify_context_object =
-        ljs_tmpl->GetFunction()->NewInstance(1, constructor_args);
-
+    Local<External> context = External::New(new ContextifyContext(sandbox));
     Local<String> hidden_name =
         FIXED_ONE_BYTE_STRING(node_isolate, "_contextifyHidden");
-    sandbox->SetHiddenValue(hidden_name, contextify_context_object);
+    sandbox->SetHiddenValue(hidden_name, context);
   }
 
 
-  static const Local<Context> ContextFromContextifiedSandbox(
+  static ContextifyContext* ContextFromContextifiedSandbox(
       const Local<Object>& sandbox) {
     Local<String> hidden_name =
         FIXED_ONE_BYTE_STRING(node_isolate, "_contextifyHidden");
-    Local<Object> hidden_context =
-        sandbox->GetHiddenValue(hidden_name).As<Object>();
+    Local<Value> context_external_v = sandbox->GetHiddenValue(hidden_name);
+    if (context_external_v.IsEmpty() || !context_external_v->IsExternal()) {
+      return NULL;
+    }
+    Local<External> context_external = context_external_v.As<External>();
 
-    if (hidden_context.IsEmpty()) {
+    return static_cast<ContextifyContext*>(context_external->Value());
+  }
+
+  static Local<Context> V8ContextFromContextifiedSandbox(
+      const Local<Object>& sandbox) {
+    ContextifyContext* contextify_context =
+        ContextFromContextifiedSandbox(sandbox);
+    if (contextify_context == NULL) {
       ThrowTypeError("sandbox argument must have been converted to a context.");
       return Local<Context>();
     }
 
-    ContextifyContext* ctx =
-        ObjectWrap::Unwrap<ContextifyContext>(hidden_context);
-    return PersistentToLocal(node_isolate, ctx->context_);
+    return PersistentToLocal(node_isolate, contextify_context->context_);
   }
 
 
@@ -385,7 +364,7 @@ class ContextifyScript : ObjectWrap {
 
     // Get the context from the sandbox
     Local<Context> context =
-        ContextifyContext::ContextFromContextifiedSandbox(sandbox);
+        ContextifyContext::V8ContextFromContextifiedSandbox(sandbox);
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
       return;
@@ -479,9 +458,7 @@ class ContextifyScript : ObjectWrap {
 };
 
 
-Persistent<FunctionTemplate> ContextifyContext::js_tmpl;
 Persistent<Function> ContextifyContext::data_wrapper_ctor;
-
 Persistent<FunctionTemplate> ContextifyScript::script_tmpl;
 
 void InitContextify(Local<Object> target) {
