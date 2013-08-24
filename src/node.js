@@ -382,8 +382,8 @@
                'global.__dirname = __dirname;\n' +
                'global.require = require;\n' +
                'return require("vm").runInThisContext(' +
-               JSON.stringify(body) + ', ' +
-               JSON.stringify(name) + ');\n';
+               JSON.stringify(body) + ', { filename: ' +
+               JSON.stringify(name) + ' });\n';
     }
     var result = module._compile(script, name + '-wrapper');
     if (process._print_eval) console.log(result);
@@ -675,8 +675,8 @@
   // node binary, so they can be loaded faster.
 
   var ContextifyScript = process.binding('contextify').ContextifyScript;
-  function runInThisContext(code, filename) {
-    var script = new ContextifyScript(code, filename);
+  function runInThisContext(code, options) {
+    var script = new ContextifyScript(code, options);
     return script.runInThisContext();
   }
 
@@ -739,7 +739,7 @@
     var source = NativeModule.getSource(this.id);
     source = NativeModule.wrap(source);
 
-    var fn = runInThisContext(source, this.filename);
+    var fn = runInThisContext(source, { filename: this.filename });
     fn(this.exports, NativeModule.require, this, this.filename);
 
     this.loaded = true;

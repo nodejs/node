@@ -1,0 +1,17 @@
+beginning
+middle
+
+vm.js:*
+  return script.runInThisContext(options);
+                ^
+Error: boo!
+    at test.vm:1:7
+    at Object.exports.runInThisContext (vm.js:*)
+    at Object.<anonymous> (*test*message*vm_dont_display_runtime_error.js:*)
+    at Module._compile (module.js:*)
+    at Object.Module._extensions..js (module.js:*)
+    at Module.load (module.js:*)
+    at Function.Module._load (module.js:*)
+    at Function.Module.runMain (module.js:*)
+    at startup (node.js:*)
+    at node.js:*

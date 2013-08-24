@@ -4,7 +4,6 @@
 with(this){__filename}
 ^^^^
 SyntaxError: Strict mode code may not include a with statement
-    at Object.exports.createScript (vm.js:*)
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)

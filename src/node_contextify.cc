@@ -321,7 +321,7 @@ class ContextifyScript : ObjectWrap {
   }
 
 
-  // args: code, [filename]
+  // args: code, [options]
   static void New(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
@@ -331,20 +331,25 @@ class ContextifyScript : ObjectWrap {
 
     ContextifyScript *contextify_script = new ContextifyScript();
     contextify_script->Wrap(args.Holder());
+
+    TryCatch try_catch;
     Local<String> code = args[0]->ToString();
     Local<String> filename = GetFilenameArg(args, 1);
-    bool display_exception = GetDisplayArg(args, 2);
+    bool display_errors = GetDisplayErrorsArg(args, 1);
+    if (try_catch.HasCaught()) {
+      try_catch.ReThrow();
+      return;
+    }
 
     Local<Context> context = Context::GetCurrent();
     Context::Scope context_scope(context);
 
-    TryCatch try_catch;
-
     Local<Script> v8_script = Script::New(code, filename);
 
     if (v8_script.IsEmpty()) {
-      if (display_exception)
+      if (display_errors) {
         DisplayExceptionLine(try_catch.Message());
+      }
       try_catch.ReThrow();
       return;
     }
@@ -358,41 +363,39 @@ class ContextifyScript : ObjectWrap {
   }
 
 
-  // args: [timeout]
+  // args: [options]
   static void RunInThisContext(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
     // Assemble arguments
     TryCatch try_catch;
     uint64_t timeout = GetTimeoutArg(args, 0);
+    bool display_errors = GetDisplayErrorsArg(args, 0);
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
       return;
     }
 
-    bool display_exception = GetDisplayArg(args, 1);
-
     // Do the eval within this context
-    EvalMachine(timeout, display_exception, args, try_catch);
+    EvalMachine(timeout, display_errors, args, try_catch);
   }
 
-  // args: sandbox, [timeout]
+  // args: sandbox, [options]
   static void RunInContext(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
     // Assemble arguments
     TryCatch try_catch;
     if (!args[0]->IsObject()) {
-      return ThrowTypeError("sandbox argument must be an object.");
+      return ThrowTypeError("contextifiedSandbox argument must be an object.");
     }
     Local<Object> sandbox = args[0].As<Object>();
-    uint64_t timeout = GetTimeoutArg(args, 1);
+    int64_t timeout = GetTimeoutArg(args, 1);
+    bool display_errors = GetDisplayErrorsArg(args, 1);
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
       return;
     }
-
-    bool display_exception = GetDisplayArg(args, 2);
 
     // Get the context from the sandbox
     Local<Context> context =
@@ -404,43 +407,76 @@ class ContextifyScript : ObjectWrap {
 
     // Do the eval within the context
     Context::Scope context_scope(context);
-    EvalMachine(timeout, display_exception, args, try_catch);
+    EvalMachine(timeout, display_errors, args, try_catch);
   }
 
   static int64_t GetTimeoutArg(const FunctionCallbackInfo<Value>& args,
                                const int i) {
-    if (args[i]->IsUndefined()) {
-      return 0;
+    if (args[i]->IsUndefined() || args[i]->IsString()) {
+      return -1;
+    }
+    if (!args[i]->IsObject()) {
+      ThrowTypeError("options must be an object");
+      return -1;
     }
 
-    int64_t timeout = args[i]->IntegerValue();
-    if (timeout < 0) {
+    Local<String> key = FIXED_ONE_BYTE_STRING(node_isolate, "timeout");
+    Local<Value> value = args[i].As<Object>()->Get(key);
+    if (value->IsUndefined()) {
+      return -1;
+    }
+    int64_t timeout = value->IntegerValue();
+
+    if (timeout <= 0) {
       ThrowRangeError("timeout must be a positive number");
+      return -1;
     }
     return timeout;
   }
 
-  static bool GetDisplayArg(const FunctionCallbackInfo<Value>& args,
-                            const int i) {
-    bool display_exception = true;
 
-    if (args[i]->IsBoolean())
-      display_exception = args[i]->BooleanValue();
+  static bool GetDisplayErrorsArg(const FunctionCallbackInfo<Value>& args,
+                                  const int i) {
+    if (args[i]->IsUndefined() || args[i]->IsString()) {
+      return true;
+    }
+    if (!args[i]->IsObject()) {
+      ThrowTypeError("options must be an object");
+      return false;
+    }
 
-    return display_exception;
+    Local<String> key = FIXED_ONE_BYTE_STRING(node_isolate, "displayErrors");
+    Local<Value> value = args[i].As<Object>()->Get(key);
+
+    return value->IsUndefined() ? true : value->BooleanValue();
   }
 
 
   static Local<String> GetFilenameArg(const FunctionCallbackInfo<Value>& args,
                                       const int i) {
-    return !args[i]->IsUndefined()
-        ? args[i]->ToString()
-        : FIXED_ONE_BYTE_STRING(node_isolate, "evalmachine.<anonymous>");
+    Local<String> defaultFilename =
+        FIXED_ONE_BYTE_STRING(node_isolate, "evalmachine.<anonymous>");
+
+    if (args[i]->IsUndefined()) {
+      return defaultFilename;
+    }
+    if (args[i]->IsString()) {
+      return args[i].As<String>();
+    }
+    if (!args[i]->IsObject()) {
+      ThrowTypeError("options must be an object");
+      return Local<String>();
+    }
+
+    Local<String> key = FIXED_ONE_BYTE_STRING(node_isolate, "filename");
+    Local<Value> value = args[i].As<Object>()->Get(key);
+
+    return value->IsUndefined() ? defaultFilename : value->ToString();
   }
 
 
   static void EvalMachine(const int64_t timeout,
-                          const bool display_exception,
+                          const bool display_errors,
                           const FunctionCallbackInfo<Value>& args,
                           TryCatch& try_catch) {
     if (!ContextifyScript::InstanceOf(args.This())) {
@@ -452,15 +488,9 @@ class ContextifyScript : ObjectWrap {
         ObjectWrap::Unwrap<ContextifyScript>(args.This());
     Local<Script> script = PersistentToLocal(node_isolate,
                                              wrapped_script->script_);
-    if (script.IsEmpty()) {
-      if (display_exception)
-        DisplayExceptionLine(try_catch.Message());
-      try_catch.ReThrow();
-      return;
-    }
 
     Local<Value> result;
-    if (timeout) {
+    if (timeout != -1) {
       Watchdog wd(timeout);
       result = script->Run();
     } else {
@@ -474,8 +504,9 @@ class ContextifyScript : ObjectWrap {
 
     if (result.IsEmpty()) {
       // Error occurred during execution of the script.
-      if (display_exception)
+      if (display_errors) {
         DisplayExceptionLine(try_catch.Message());
+      }
       try_catch.ReThrow();
       return;
     }

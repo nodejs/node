@@ -21,49 +21,22 @@
 
 var common = require('../common');
 var assert = require('assert');
+var vm = require('vm');
 
-switch (process.argv[2]) {
-  case 'child':
-    return child();
-  case undefined:
-    return parent();
-  default:
-    throw new Error('wtf');
-}
+console.error('beginning');
 
-function parent() {
-  var spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child']);
+try {
+    vm.runInThisContext('throw new Error("boo!")', {
+        filename: 'test.vm',
+        displayErrors: false
+    });
+} catch (e) {}
 
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', function(c) {
-    console.error('%j', c);
-    throw new Error('should not get stderr data');
-  });
+console.error('middle');
 
-  child.stdout.setEncoding('utf8');
-  var out = '';
-  child.stdout.on('data', function(c) {
-    out += c;
-  });
-  child.stdout.on('end', function() {
-    assert.equal(out, '10\n');
-    console.log('ok - got expected output');
-  });
+vm.runInThisContext('throw new Error("boo!")', {
+    filename: 'test.vm',
+    displayErrors: false
+});
 
-  child.on('exit', function(c) {
-    assert(!c);
-    console.log('ok - exit success');
-  });
-}
-
-function child() {
-  var vm = require('vm');
-  try {
-    vm.runInThisContext('haf!@##&$!@$*!@', { displayErrors: false });
-  } catch (er) {
-    var caught = true;
-  }
-  assert(caught);
-  vm.runInThisContext('console.log(10)', { displayErrors: false });
-}
+console.error('end');
