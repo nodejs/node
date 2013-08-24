@@ -24,16 +24,15 @@ var assert = require('assert');
 var vm = require('vm');
 
 assert.throws(function() {
-  var ctx = vm.createContext('string is not supported');
+  vm.isContext('string is not supported');
 }, TypeError);
 
-assert.doesNotThrow(function() {
-  var ctx = vm.createContext({ a: 1 });
-  ctx = vm.createContext([0, 1, 2, 3]);
-});
+assert.strictEqual(vm.isContext({}), false);
+assert.strictEqual(vm.isContext([]), false);
 
-assert.doesNotThrow(function() {
-    var sandbox = {};
-    vm.createContext(sandbox);
-    vm.createContext(sandbox);
-});
+assert.strictEqual(vm.isContext(vm.createContext()), true);
+assert.strictEqual(vm.isContext(vm.createContext([])), true);
+
+var sandbox = { foo: 'bar' };
+vm.createContext(sandbox);
+assert.strictEqual(vm.isContext(sandbox), true);

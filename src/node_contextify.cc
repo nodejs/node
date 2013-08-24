@@ -119,6 +119,7 @@ class ContextifyContext {
     data_wrapper_ctor.Reset(node_isolate, function_template->GetFunction());
 
     NODE_SET_METHOD(target, "makeContext", MakeContext);
+    NODE_SET_METHOD(target, "isContext", IsContext);
   }
 
 
@@ -130,11 +131,31 @@ class ContextifyContext {
     }
     Local<Object> sandbox = args[0].As<Object>();
 
-    ContextifyContext* context = new ContextifyContext(sandbox);
-    Local<External> hidden_context = External::New(context);
     Local<String> hidden_name =
         FIXED_ONE_BYTE_STRING(node_isolate, "_contextifyHidden");
+
+    // Don't allow contextifying a sandbox multiple times.
+    assert(sandbox->GetHiddenValue(hidden_name).IsEmpty());
+
+    ContextifyContext* context = new ContextifyContext(sandbox);
+    Local<External> hidden_context = External::New(context);
     sandbox->SetHiddenValue(hidden_name, hidden_context);
+  }
+
+
+  static void IsContext(const FunctionCallbackInfo<Value>& args) {
+    HandleScope scope(node_isolate);
+
+    if (!args[0]->IsObject()) {
+      ThrowTypeError("sandbox must be an object");
+      return;
+    }
+    Local<Object> sandbox = args[0].As<Object>();
+
+    Local<String> hidden_name =
+        FIXED_ONE_BYTE_STRING(node_isolate, "_contextifyHidden");
+
+    args.GetReturnValue().Set(!sandbox->GetHiddenValue(hidden_name).IsEmpty());
   }
 
 
