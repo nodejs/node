@@ -35,6 +35,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::None;
 using v8::Object;
@@ -62,6 +63,8 @@ class ContextifyContext {
     Local<Context> v8_context = CreateV8Context();
     context_.Reset(node_isolate, v8_context);
     proxy_global_.Reset(node_isolate, v8_context->Global());
+    sandbox_.MakeWeak(this, SandboxFreeCallback);
+    sandbox_.MarkIndependent();
   }
 
 
@@ -127,10 +130,18 @@ class ContextifyContext {
     }
     Local<Object> sandbox = args[0].As<Object>();
 
-    Local<External> context = External::New(new ContextifyContext(sandbox));
+    ContextifyContext* context = new ContextifyContext(sandbox);
+    Local<External> hidden_context = External::New(context);
     Local<String> hidden_name =
         FIXED_ONE_BYTE_STRING(node_isolate, "_contextifyHidden");
-    sandbox->SetHiddenValue(hidden_name, context);
+    sandbox->SetHiddenValue(hidden_name, hidden_context);
+  }
+
+
+  static void SandboxFreeCallback(Isolate* isolate,
+                                  Persistent<Object>* target,
+                                  ContextifyContext* context) {
+    delete context;
   }
 
 
