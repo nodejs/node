@@ -275,7 +275,7 @@ class ProcessWrap : public HandleWrap {
     assert(&wrap->process_ == handle);
 
     Local<Value> argv[] = {
-      Integer::New(exit_status, node_isolate),
+      Number::New(node_isolate, static_cast<double>(exit_status)),
       OneByteString(node_isolate, signo_string(term_signal))
     };
 
