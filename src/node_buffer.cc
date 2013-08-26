@@ -124,19 +124,13 @@ Local<Object> New(Handle<String> string, enum encoding enc) {
 }
 
 
-// TODO(trevnorris): these have a flaw by needing to call the Buffer inst then
-// Alloc. continue to look for a better architecture.
 Local<Object> New(size_t length) {
   HandleScope scope(node_isolate);
 
   assert(length <= kMaxLength);
 
-  Handle<Value> argv[2];
-  // this is safe b/c Undefined and length fits in an SMI, so there's no risk
-  // of GC reclaiming the values prematurely.
-  argv[0] = Undefined(node_isolate);
-  argv[1] = Uint32::New(length, node_isolate);
-  Local<Object> obj = NewInstance(p_buffer_fn, ARRAY_SIZE(argv), argv);
+  Local<Value> arg = Uint32::NewFromUnsigned(length, node_isolate);
+  Local<Object> obj = NewInstance(p_buffer_fn, 1, &arg);
 
   // TODO(trevnorris): done like this to handle HasInstance since only checks
   // if external array data has been set, but would like to use a better
@@ -163,12 +157,8 @@ Local<Object> New(const char* data, size_t length) {
 
   assert(length <= kMaxLength);
 
-  Handle<Value> argv[2];
-  // this is safe b/c Undefined and length fits in an SMI, so there's no risk
-  // of GC reclaiming the values prematurely.
-  argv[0] = Undefined(node_isolate);
-  argv[1] = Uint32::New(length, node_isolate);
-  Local<Object> obj = NewInstance(p_buffer_fn, ARRAY_SIZE(argv), argv);
+  Local<Value> arg = Uint32::NewFromUnsigned(length, node_isolate);
+  Local<Object> obj = NewInstance(p_buffer_fn, 1, &arg);
 
   // TODO(trevnorris): done like this to handle HasInstance since only checks
   // if external array data has been set, but would like to use a better
@@ -197,12 +187,8 @@ Local<Object> New(char* data,
 
   assert(length <= kMaxLength);
 
-  Handle<Value> argv[2];
-  // this is safe b/c Undefined and length fits in an SMI, so there's no risk
-  // of GC reclaiming the values prematurely.
-  argv[0] = Undefined(node_isolate);
-  argv[1] = Uint32::New(length, node_isolate);
-  Local<Object> obj = NewInstance(p_buffer_fn, ARRAY_SIZE(argv), argv);
+  Local<Value> arg = Uint32::NewFromUnsigned(length, node_isolate);
+  Local<Object> obj = NewInstance(p_buffer_fn, 1, &arg);
 
   smalloc::Alloc(obj, data, length, callback, hint);
 
@@ -215,12 +201,8 @@ Local<Object> Use(char* data, uint32_t length) {
 
   assert(length <= kMaxLength);
 
-  Handle<Value> argv[2];
-  // this is safe b/c Undefined and length fits in an SMI, so there's no risk
-  // of GC reclaiming the values prematurely.
-  argv[0] = Undefined(node_isolate);
-  argv[1] = Uint32::New(length, node_isolate);
-  Local<Object> obj = NewInstance(p_buffer_fn, ARRAY_SIZE(argv), argv);
+  Local<Value> arg = Uint32::NewFromUnsigned(length, node_isolate);
+  Local<Object> obj = NewInstance(p_buffer_fn, 1, &arg);
 
   smalloc::Alloc(obj, data, length);
 
