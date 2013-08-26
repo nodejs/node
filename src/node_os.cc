@@ -21,8 +21,6 @@
 
 
 #include "node.h"
-#include "node_os.h"
-
 #include "v8.h"
 
 #include <errno.h>
@@ -45,9 +43,11 @@
 #endif  // MAXHOSTNAMELEN
 
 namespace node {
+namespace os {
 
 using v8::Array;
 using v8::FunctionCallbackInfo;
+using v8::Handle;
 using v8::HandleScope;
 using v8::Local;
 using v8::Number;
@@ -275,7 +275,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void OS::Initialize(v8::Handle<v8::Object> target) {
+void Initialize(Handle<Object> target) {
   HandleScope scope(node_isolate);
 
   NODE_SET_METHOD(target, "getEndianness", GetEndianness);
@@ -290,7 +290,7 @@ void OS::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "getInterfaceAddresses", GetInterfaceAddresses);
 }
 
-
+}  // namespace os
 }  // namespace node
 
-NODE_MODULE(node_os, node::OS::Initialize)
+NODE_MODULE(node_os, node::os::Initialize)

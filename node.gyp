@@ -125,7 +125,6 @@
         'src/node_file.h',
         'src/node_http_parser.h',
         'src/node_javascript.h',
-        'src/node_os.h',
         'src/node_root_certs.h',
         'src/node_version.h',
         'src/node_watchdog.h',
