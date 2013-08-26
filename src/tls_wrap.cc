@@ -31,9 +31,8 @@
 
 namespace node {
 
-using crypto::SecureContext;
 using crypto::SSLWrap;
-using v8::Array;
+using crypto::SecureContext;
 using v8::Boolean;
 using v8::Exception;
 using v8::Function;

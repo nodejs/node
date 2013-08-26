@@ -34,7 +34,6 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 const uint32_t kOnTimeout = 0;

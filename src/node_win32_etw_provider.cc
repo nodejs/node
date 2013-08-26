@@ -26,8 +26,8 @@
 
 namespace node {
 
-using v8::V8;
 using v8::JitCodeEvent;
+using v8::V8;
 
 HMODULE advapi;
 REGHANDLE node_provider;

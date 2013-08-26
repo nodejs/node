@@ -43,8 +43,8 @@ using v8::PropertyCallbackInfo;
 using v8::Script;
 using v8::String;
 using v8::TryCatch;
-using v8::Value;
 using v8::V8;
+using v8::Value;
 
 
 class ContextifyContext : ObjectWrap {

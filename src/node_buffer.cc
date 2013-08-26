@@ -66,7 +66,6 @@ using v8::Object;
 using v8::Persistent;
 using v8::String;
 using v8::Uint32;
-using v8::Undefined;
 using v8::Value;
 
 static Persistent<Function> p_buffer_fn;
