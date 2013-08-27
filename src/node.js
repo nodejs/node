@@ -278,10 +278,8 @@
     var tickInfo = process._tickInfo;
 
     // *Must* match Environment::TickInfo::Fields in src/env.h.
-    var kInTick = 0;
-    var kIndex = 1;
-    var kLastThrew = 2;
-    var kLength = 3;
+    var kIndex = 0;
+    var kLength = 1;
 
     process.nextTick = nextTick;
     // needs to be accessible from cc land
@@ -298,7 +296,6 @@
           tickInfo[kLength] = nextTickQueue.length;
         }
       }
-      tickInfo[kInTick] = 0;
       tickInfo[kIndex] = 0;
     }
 
@@ -306,8 +303,6 @@
     // using domains will cause this to be overridden
     function _tickCallback() {
       var callback, threw;
-
-      tickInfo[kInTick] = 1;
 
       while (tickInfo[kIndex] < tickInfo[kLength]) {
         callback = nextTickQueue[tickInfo[kIndex]++].callback;
@@ -324,9 +319,7 @@
     }
 
     function _tickDomainCallback() {
-      var tock, callback, domain;
-
-      tickInfo[kInTick] = 1;
+      var tock, callback, threw, domain;
 
       while (tickInfo[kIndex] < tickInfo[kLength]) {
         tock = nextTickQueue[tickInfo[kIndex]++];
@@ -336,12 +329,12 @@
           if (domain._disposed) continue;
           domain.enter();
         }
-        tickInfo[kLastThrew] = 1;
+        threw = true;
         try {
           callback();
-          tickInfo[kLastThrew] = 0;
+          threw = false;
         } finally {
-          if (tickInfo[kLastThrew] === 1) tickDone();
+          if (threw) tickDone();
         }
         if (domain)
           domain.exit();
