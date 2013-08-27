@@ -646,9 +646,8 @@ function recursiveObserver2(r) {
 Object.observe(obj1, recursiveObserver2);
 Object.observe(obj2, recursiveObserver2);
 ++obj1.a;
-// TODO(verwaest): Disabled because of bug 2774.
-// Object.deliverChangeRecords(recursiveObserver2);
-// assertEquals(199, recordCount);
+Object.deliverChangeRecords(recursiveObserver2);
+assertEquals(199, recordCount);
 
 
 // Observing named properties.

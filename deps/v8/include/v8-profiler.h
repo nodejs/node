@@ -61,19 +61,26 @@ class V8_EXPORT CpuProfileNode {
    * Returns total (self + children) execution time of the function,
    * in milliseconds, estimated by samples count.
    */
-  double GetTotalTime() const;
+  V8_DEPRECATED(double GetTotalTime() const);
 
   /**
    * Returns self execution time of the function, in milliseconds,
    * estimated by samples count.
    */
-  double GetSelfTime() const;
+  V8_DEPRECATED(double GetSelfTime() const);
 
   /** Returns the count of samples where function exists. */
-  double GetTotalSamplesCount() const;
+  V8_DEPRECATED(double GetTotalSamplesCount() const);
 
-  /** Returns the count of samples where function was currently executing. */
+  /** DEPRECATED. Please use GetHitCount instead.
+    * Returns the count of samples where function was currently executing.
+    */
   double GetSelfSamplesCount() const;
+
+  /**
+    * Returns the count of samples where the function was currently executing.
+    */
+  unsigned GetHitCount() const;
 
   /** Returns function entry UID. */
   unsigned GetCallUid() const;
@@ -191,6 +198,11 @@ class V8_EXPORT CpuProfiler {
    * contents become invalid after this call.
    */
   void DeleteAllCpuProfiles();
+
+  /**
+   * Tells the profiler whether the embedder is idle.
+   */
+  void SetIdle(bool is_idle);
 
  private:
   CpuProfiler();

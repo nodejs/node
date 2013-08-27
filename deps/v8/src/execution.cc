@@ -206,10 +206,12 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
   catcher.SetCaptureMessage(false);
   *caught_exception = false;
 
+  // Get isolate now, because handle might be persistent
+  // and get destroyed in the next call.
+  Isolate* isolate = func->GetIsolate();
   Handle<Object> result = Invoke(false, func, receiver, argc, args,
                                  caught_exception);
 
-  Isolate* isolate = func->GetIsolate();
   if (*caught_exception) {
     ASSERT(catcher.HasCaught());
     ASSERT(isolate->has_pending_exception());

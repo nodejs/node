@@ -333,6 +333,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(CONS_STRING_TYPE)                                                          \
   V(CONS_ASCII_STRING_TYPE)                                                    \
   V(SLICED_STRING_TYPE)                                                        \
+  V(SLICED_ASCII_STRING_TYPE)                                                  \
   V(EXTERNAL_STRING_TYPE)                                                      \
   V(EXTERNAL_ASCII_STRING_TYPE)                                                \
   V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                                   \
@@ -416,6 +417,8 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(JS_TYPED_ARRAY_TYPE)                                                       \
   V(JS_DATA_VIEW_TYPE)                                                         \
   V(JS_PROXY_TYPE)                                                             \
+  V(JS_SET_TYPE)                                                               \
+  V(JS_MAP_TYPE)                                                               \
   V(JS_WEAK_MAP_TYPE)                                                          \
   V(JS_WEAK_SET_TYPE)                                                          \
   V(JS_REGEXP_TYPE)                                                            \
@@ -783,7 +786,6 @@ enum InstanceType {
   // Pseudo-types
   FIRST_TYPE = 0x0,
   LAST_TYPE = JS_FUNCTION_TYPE,
-  INVALID_TYPE = FIRST_TYPE - 1,
   FIRST_NAME_TYPE = FIRST_TYPE,
   LAST_NAME_TYPE = SYMBOL_TYPE,
   FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_STRING_TYPE,
@@ -1074,7 +1076,7 @@ class MaybeObject BASE_EMBEDDED {
     "bad value context for arguments object value")                           \
   V(kBadValueContextForArgumentsValue,                                        \
     "bad value context for arguments value")                                  \
-  V(kBailedOutDueToDependentMap, "bailed out due to dependent map")           \
+  V(kBailedOutDueToDependencyChange, "bailed out due to dependency change")   \
   V(kBailoutWasNotPrepared, "bailout was not prepared")                       \
   V(kBinaryStubGenerateFloatingPointCode,                                     \
     "BinaryStub_GenerateFloatingPointCode")                                   \

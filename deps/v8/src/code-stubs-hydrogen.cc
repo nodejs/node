@@ -92,7 +92,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
     }
 
     ~ArrayContextChecker() {
-      checker_.ElseDeopt();
+      checker_.ElseDeopt("Array constructor called from different context");
       checker_.End();
     }
    private:
@@ -233,7 +233,7 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
     IfBuilder builder(this);
     builder.IfNot<HCompareObjectEqAndBranch, HValue*>(undefined, undefined);
     builder.Then();
-    builder.ElseDeopt();
+    builder.ElseDeopt("Forced deopt to runtime");
     return undefined;
   }
 
@@ -352,7 +352,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   HObjectAccess access = HObjectAccess::ForAllocationSiteTransitionInfo();
   HInstruction* boilerplate = Add<HLoadNamedField>(allocation_site, access);
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
-    HValue* elements = AddLoadElements(boilerplate);
+    HValue* elements = AddLoadElements(boilerplate, NULL);
 
     IfBuilder if_fixed_cow(this);
     if_fixed_cow.If<HCompareMap>(elements, factory->fixed_cow_array_map());
@@ -387,7 +387,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                length));
   }
 
-  checker.ElseDeopt();
+  checker.ElseDeopt("Uninitialized boilerplate literals");
   checker.End();
 
   return environment()->Pop();
@@ -434,7 +434,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   }
 
   environment()->Push(object);
-  checker.ElseDeopt();
+  checker.ElseDeopt("Uninitialized boilerplate in fast clone");
   checker.End();
 
   return environment()->Pop();
@@ -513,7 +513,7 @@ HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
   HObjectAccess access = casted_stub()->is_inobject() ?
       HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
       HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access, NULL));
 }
 
 
@@ -528,7 +528,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
   HObjectAccess access = casted_stub()->is_inobject() ?
       HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
       HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access, NULL));
 }
 
 
@@ -844,7 +844,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     IfBuilder builder(this);
     builder.If<HCompareObjectEqAndBranch>(cell_contents, value);
     builder.Then();
-    builder.ElseDeopt();
+    builder.ElseDeopt("Unexpected cell contents in constant global store");
     builder.End();
   } else {
     // Load the payload of the global parameter cell. A hole indicates that the
@@ -854,7 +854,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     HValue* hole_value = Add<HConstant>(hole);
     builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
     builder.Then();
-    builder.Deopt();
+    builder.Deopt("Unexpected cell contents in global store");
     builder.Else();
     Add<HStoreNamedField>(cell, access, value);
     builder.End();
@@ -878,7 +878,8 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
-    Add<HDeoptimize>(Deoptimizer::EAGER);
+    Add<HDeoptimize>("Deopt due to --trace-elements-transitions",
+                     Deoptimizer::EAGER);
   } else {
     info()->MarkAsSavesCallerDoubles();
 

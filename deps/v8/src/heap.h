@@ -736,7 +736,7 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMap(
-      Map* map, PretenureFlag pretenure = NOT_TENURED);
+      Map* map, PretenureFlag pretenure = NOT_TENURED, bool alloc_props = true);
 
   MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMapWithAllocationSite(
       Map* map, Handle<AllocationSite> allocation_site);
@@ -1254,10 +1254,7 @@ class Heap {
   void EnsureHeapIsIterable();
 
   // Notify the heap that a context has been disposed.
-  int NotifyContextDisposed() {
-    flush_monomorphic_ics_ = true;
-    return ++contexts_disposed_;
-  }
+  int NotifyContextDisposed();
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
@@ -1618,6 +1615,8 @@ class Heap {
   // Generated code can embed direct references to non-writable roots if
   // they are in new space.
   static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
+  // Generated code can treat direct references to this root as constant.
+  bool RootCanBeTreatedAsConstant(RootListIndex root_index);
 
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true,

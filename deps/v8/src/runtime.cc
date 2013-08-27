@@ -71,7 +71,10 @@
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
 #include "unicode/coll.h"
+#include "unicode/curramt.h"
 #include "unicode/datefmt.h"
+#include "unicode/dcfmtsym.h"
+#include "unicode/decimfmt.h"
 #include "unicode/dtfmtsym.h"
 #include "unicode/dtptngen.h"
 #include "unicode/locid.h"
@@ -79,7 +82,11 @@
 #include "unicode/numsys.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
+#include "unicode/uchar.h"
+#include "unicode/ucol.h"
+#include "unicode/ucurr.h"
 #include "unicode/uloc.h"
+#include "unicode/unum.h"
 #include "unicode/uversion.h"
 #endif
 
@@ -3013,6 +3020,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   JavaScriptFrame* frame = stack_iterator.frame();
 
   ASSERT_EQ(frame->function(), generator_object->function());
+  ASSERT(frame->function()->is_compiled());
 
   STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting <= 0);
   STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed <= 0);
@@ -8487,8 +8495,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (FLAG_parallel_recompilation && sync_with_compiler_thread) {
-    while (function->IsMarkedForParallelRecompilation() ||
-           function->IsInRecompileQueue() ||
+    while (function->IsInRecompileQueue() ||
            function->IsMarkedForInstallingRecompiledCode()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
       OS::Sleep(50);
@@ -11220,6 +11227,7 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
                              ? frame_inspector->GetParameter(i)
                              : isolate->heap()->undefined_value(),
                          isolate);
+    ASSERT(!value->IsTheHole());
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
@@ -11234,12 +11242,15 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
   // Second fill all stack locals.
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    Handle<Object> value(frame_inspector->GetExpression(i), isolate);
+    if (value->IsTheHole()) continue;
+
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
         SetProperty(isolate,
                     target,
                     Handle<String>(scope_info->StackLocalName(i)),
-                    Handle<Object>(frame_inspector->GetExpression(i), isolate),
+                    value,
                     NONE,
                     kNonStrictMode),
         Handle<JSObject>());
@@ -11266,6 +11277,7 @@ static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
 
   // Parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
+    ASSERT(!frame->GetParameter(i)->IsTheHole());
     HandleScope scope(isolate);
     Handle<Object> value = GetProperty(
         isolate, target, Handle<String>(scope_info->ParameterName(i)));
@@ -11274,6 +11286,7 @@ static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
 
   // Stack locals.
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    if (frame->GetExpression(i)->IsTheHole()) continue;
     HandleScope scope(isolate);
     Handle<Object> value = GetProperty(
         isolate, target, Handle<String>(scope_info->StackLocalName(i)));
@@ -12008,8 +12021,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
   JavaScriptFrameIterator frame_it(isolate, id);
   JavaScriptFrame* frame = frame_it.frame();
 
+  Handle<JSFunction> fun =
+      Handle<JSFunction>(frame->function());
   Handle<SharedFunctionInfo> shared =
-      Handle<SharedFunctionInfo>(frame->function()->shared());
+      Handle<SharedFunctionInfo>(fun->shared());
+
+  if (!isolate->debug()->EnsureDebugInfo(shared, fun)) {
+    return isolate->heap()->undefined_value();
+  }
+
   Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared);
 
   int len = 0;
@@ -12022,12 +12042,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
   int current_statement_pos = break_location_iterator.statement_position();
 
   while (!break_location_iterator.Done()) {
-    if (break_location_iterator.IsStepInLocation(isolate)) {
-      Smi* position_value = Smi::FromInt(break_location_iterator.position());
-      JSObject::SetElement(array, len,
-          Handle<Object>(position_value, isolate),
-          NONE, kNonStrictMode);
-      len++;
+    if (break_location_iterator.pc() > frame->pc()) {
+      if (break_location_iterator.IsStepInLocation(isolate)) {
+        Smi* position_value = Smi::FromInt(break_location_iterator.position());
+        JSObject::SetElement(array, len,
+            Handle<Object>(position_value, isolate),
+            NONE, kNonStrictMode);
+        len++;
+      }
     }
     // Advance iterator.
     break_location_iterator.Next();
@@ -13603,9 +13625,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateDateTimeFormat) {
                                  v8::Utils::ToLocal(local_object));
   // Make object handle weak so we can delete the data format once GC kicks in.
   wrapper.MakeWeak<void>(NULL, &DateFormat::DeleteDateFormat);
-  Handle<Object> result = Utils::OpenPersistent(wrapper);
   wrapper.ClearAndLeak();
-  return *result;
+  return *local_object;
 }
 
 
@@ -13664,6 +13685,192 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalDateParse) {
     return Failure::Exception();
   }
   return *result;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateNumberFormat) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
+
+  Handle<ObjectTemplateInfo> number_format_template =
+      I18N::GetTemplate(isolate);
+
+  // Create an empty object wrapper.
+  bool has_pending_exception = false;
+  Handle<JSObject> local_object = Execution::InstantiateObject(
+      number_format_template, &has_pending_exception);
+  if (has_pending_exception) {
+    ASSERT(isolate->has_pending_exception());
+    return Failure::Exception();
+  }
+
+  // Set number formatter as internal field of the resulting JS object.
+  icu::DecimalFormat* number_format = NumberFormat::InitializeNumberFormat(
+      isolate, locale, options, resolved);
+
+  if (!number_format) return isolate->ThrowIllegalOperation();
+
+  local_object->SetInternalField(0, reinterpret_cast<Smi*>(number_format));
+
+  RETURN_IF_EMPTY_HANDLE(isolate,
+      JSObject::SetLocalPropertyIgnoreAttributes(
+          local_object,
+          isolate->factory()->NewStringFromAscii(CStrVector("numberFormat")),
+          isolate->factory()->NewStringFromAscii(CStrVector("valid")),
+          NONE));
+
+  Persistent<v8::Object> wrapper(reinterpret_cast<v8::Isolate*>(isolate),
+                                 v8::Utils::ToLocal(local_object));
+  // Make object handle weak so we can delete the number format once GC kicks
+  // in.
+  wrapper.MakeWeak<void>(NULL, &NumberFormat::DeleteNumberFormat);
+  wrapper.ClearAndLeak();
+  return *local_object;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalNumberFormat) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, number_format_holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
+
+  bool has_pending_exception = false;
+  double value = Execution::ToNumber(number, &has_pending_exception)->Number();
+  if (has_pending_exception) {
+    ASSERT(isolate->has_pending_exception());
+    return Failure::Exception();
+  }
+
+  icu::DecimalFormat* number_format =
+      NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
+  if (!number_format) return isolate->ThrowIllegalOperation();
+
+  icu::UnicodeString result;
+  number_format->format(value, result);
+
+  return *isolate->factory()->NewStringFromTwoByte(
+      Vector<const uint16_t>(
+          reinterpret_cast<const uint16_t*>(result.getBuffer()),
+          result.length()));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalNumberParse) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, number_format_holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, number_string, 1);
+
+  v8::String::Utf8Value utf8_number(v8::Utils::ToLocal(number_string));
+  icu::UnicodeString u_number(icu::UnicodeString::fromUTF8(*utf8_number));
+  icu::DecimalFormat* number_format =
+      NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
+  if (!number_format) return isolate->ThrowIllegalOperation();
+
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Formattable result;
+  // ICU 4.6 doesn't support parseCurrency call. We need to wait for ICU49
+  // to be part of Chrome.
+  // TODO(cira): Include currency parsing code using parseCurrency call.
+  // We need to check if the formatter parses all currencies or only the
+  // one it was constructed with (it will impact the API - how to return ISO
+  // code and the value).
+  number_format->parse(u_number, result, status);
+  if (U_FAILURE(status)) return isolate->heap()->undefined_value();
+
+  switch (result.getType()) {
+  case icu::Formattable::kDouble:
+    return *isolate->factory()->NewNumber(result.getDouble());
+  case icu::Formattable::kLong:
+    return *isolate->factory()->NewNumberFromInt(result.getLong());
+  case icu::Formattable::kInt64:
+    return *isolate->factory()->NewNumber(
+        static_cast<double>(result.getInt64()));
+  default:
+    return isolate->heap()->undefined_value();
+  }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCollator) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
+
+  Handle<ObjectTemplateInfo> collator_template = I18N::GetTemplate(isolate);
+
+  // Create an empty object wrapper.
+  bool has_pending_exception = false;
+  Handle<JSObject> local_object = Execution::InstantiateObject(
+      collator_template, &has_pending_exception);
+  if (has_pending_exception) {
+    ASSERT(isolate->has_pending_exception());
+    return Failure::Exception();
+  }
+
+  // Set collator as internal field of the resulting JS object.
+  icu::Collator* collator = Collator::InitializeCollator(
+      isolate, locale, options, resolved);
+
+  if (!collator) return isolate->ThrowIllegalOperation();
+
+  local_object->SetInternalField(0, reinterpret_cast<Smi*>(collator));
+
+  RETURN_IF_EMPTY_HANDLE(isolate,
+      JSObject::SetLocalPropertyIgnoreAttributes(
+          local_object,
+          isolate->factory()->NewStringFromAscii(CStrVector("collator")),
+          isolate->factory()->NewStringFromAscii(CStrVector("valid")),
+          NONE));
+
+  Persistent<v8::Object> wrapper(reinterpret_cast<v8::Isolate*>(isolate),
+                                 v8::Utils::ToLocal(local_object));
+  // Make object handle weak so we can delete the collator once GC kicks in.
+  wrapper.MakeWeak<void>(NULL, &Collator::DeleteCollator);
+  wrapper.ClearAndLeak();
+  return *local_object;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalCompare) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, collator_holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, string1, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, string2, 2);
+
+  icu::Collator* collator = Collator::UnpackCollator(isolate, collator_holder);
+  if (!collator) return isolate->ThrowIllegalOperation();
+
+  v8::String::Value string_value1(v8::Utils::ToLocal(string1));
+  v8::String::Value string_value2(v8::Utils::ToLocal(string2));
+  const UChar* u_string1 = reinterpret_cast<const UChar*>(*string_value1);
+  const UChar* u_string2 = reinterpret_cast<const UChar*>(*string_value2);
+  UErrorCode status = U_ZERO_ERROR;
+  UCollationResult result = collator->compare(u_string1,
+                                              string_value1.length(),
+                                              u_string2,
+                                              string_value2.length(),
+                                              status);
+  if (U_FAILURE(status)) return isolate->ThrowIllegalOperation();
+
+  return *isolate->factory()->NewNumberFromInt(result);
 }
 #endif  // V8_I18N_SUPPORT
 

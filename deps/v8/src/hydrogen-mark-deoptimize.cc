@@ -34,14 +34,9 @@ void HMarkDeoptimizeOnUndefinedPhase::Run() {
   const ZoneList<HPhi*>* phi_list = graph()->phi_list();
   for (int i = 0; i < phi_list->length(); i++) {
     HPhi* phi = phi_list->at(i);
-    if (phi->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
-      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-        HValue* use_value = it.value();
-        if (!use_value->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
-          ProcessPhi(phi);
-          break;
-        }
-      }
+    if (phi->CheckFlag(HValue::kAllowUndefinedAsNaN) &&
+        !phi->CheckUsesForFlag(HValue::kAllowUndefinedAsNaN)) {
+      ProcessPhi(phi);
     }
   }
 }
@@ -67,5 +62,23 @@ void HMarkDeoptimizeOnUndefinedPhase::ProcessPhi(HPhi* phi) {
     }
   }
 }
+
+
+void HComputeChangeUndefinedToNaN::Run() {
+  const ZoneList<HBasicBlock*>* blocks(graph()->blocks());
+  for (int i = 0; i < blocks->length(); ++i) {
+    const HBasicBlock* block(blocks->at(i));
+    for (HInstruction* current = block->first(); current != NULL; ) {
+      HInstruction* next = current->next();
+      if (current->IsChange()) {
+        if (HChange::cast(current)->can_convert_undefined_to_nan()) {
+          current->SetFlag(HValue::kAllowUndefinedAsNaN);
+        }
+      }
+      current = next;
+    }
+  }
+}
+
 
 } }  // namespace v8::internal

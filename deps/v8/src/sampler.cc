@@ -619,8 +619,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
   // Avoid collecting traces while doing GC.
   if (state == GC) return;
 
-  const Address js_entry_sp =
-      Isolate::js_entry_sp(isolate->thread_local_top());
+  Address js_entry_sp = isolate->js_entry_sp();
   if (js_entry_sp == 0) {
     // Not executing JS now.
     return;

@@ -259,6 +259,7 @@ class Statement: public AstNode {
   Statement() : statement_pos_(RelocInfo::kNoPosition) {}
 
   bool IsEmpty() { return AsEmptyStatement() != NULL; }
+  virtual bool IsJump() const { return false; }
 
   void set_statement_pos(int statement_pos) { statement_pos_ = statement_pos; }
   int statement_pos() const { return statement_pos_; }
@@ -388,7 +389,7 @@ class Expression: public AstNode {
 
  protected:
   explicit Expression(Isolate* isolate)
-      : bounds_(Type::None(), Type::Any(), isolate),
+      : bounds_(Bounds::Unbounded(isolate)),
         id_(GetNextId(isolate)),
         test_id_(GetNextId(isolate)) {}
   void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
@@ -457,6 +458,11 @@ class Block: public BreakableStatement {
 
   ZoneList<Statement*>* statements() { return &statements_; }
   bool is_initializer_block() const { return is_initializer_block_; }
+
+  virtual bool IsJump() const {
+    return !statements_.is_empty() && statements_.last()->IsJump()
+        && labels() == NULL;  // Good enough as an approximation...
+  }
 
   Scope* scope() const { return scope_; }
   void set_scope(Scope* scope) { scope_ = scope; }
@@ -1008,6 +1014,7 @@ class ExpressionStatement: public Statement {
 
   void set_expression(Expression* e) { expression_ = e; }
   Expression* expression() const { return expression_; }
+  virtual bool IsJump() const { return expression_->IsThrow(); }
 
  protected:
   explicit ExpressionStatement(Expression* expression)
@@ -1018,7 +1025,16 @@ class ExpressionStatement: public Statement {
 };
 
 
-class ContinueStatement: public Statement {
+class JumpStatement: public Statement {
+ public:
+  virtual bool IsJump() const { return true; }
+
+ protected:
+  JumpStatement() {}
+};
+
+
+class ContinueStatement: public JumpStatement {
  public:
   DECLARE_NODE_TYPE(ContinueStatement)
 
@@ -1033,7 +1049,7 @@ class ContinueStatement: public Statement {
 };
 
 
-class BreakStatement: public Statement {
+class BreakStatement: public JumpStatement {
  public:
   DECLARE_NODE_TYPE(BreakStatement)
 
@@ -1048,7 +1064,7 @@ class BreakStatement: public Statement {
 };
 
 
-class ReturnStatement: public Statement {
+class ReturnStatement: public JumpStatement {
  public:
   DECLARE_NODE_TYPE(ReturnStatement)
 
@@ -1166,6 +1182,11 @@ class IfStatement: public Statement {
   Expression* condition() const { return condition_; }
   Statement* then_statement() const { return then_statement_; }
   Statement* else_statement() const { return else_statement_; }
+
+  virtual bool IsJump() const {
+    return HasThenStatement() && then_statement()->IsJump()
+        && HasElseStatement() && else_statement()->IsJump();
+  }
 
   BailoutId IfId() const { return if_id_; }
   BailoutId ThenId() const { return then_id_; }

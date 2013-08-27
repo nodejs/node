@@ -1324,3 +1324,58 @@ TEST(JsNative1JsNative2JsSample) {
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }
+
+
+// [Top down]:
+//     6     0   (root) #0 1
+//     3     3    (program) #0 2
+//     3     3    (idle) #0 3
+TEST(IdleTime) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+  cpu_profiler->StartCpuProfiling(profile_name);
+
+  i::Isolate* isolate = i::Isolate::Current();
+  i::ProfilerEventsProcessor* processor = isolate->cpu_profiler()->processor();
+  processor->AddCurrentStack(isolate);
+
+  cpu_profiler->SetIdle(true);
+
+  for (int i = 0; i < 3; i++) {
+    processor->AddCurrentStack(isolate);
+  }
+
+  cpu_profiler->SetIdle(false);
+  processor->AddCurrentStack(isolate);
+
+
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  ScopedVector<v8::Handle<v8::String> > names(3);
+  names[0] = v8::String::New(ProfileGenerator::kGarbageCollectorEntryName);
+  names[1] = v8::String::New(ProfileGenerator::kProgramEntryName);
+  names[2] = v8::String::New(ProfileGenerator::kIdleEntryName);
+  CheckChildrenNames(root, names);
+
+  const v8::CpuProfileNode* programNode =
+      GetChild(root, ProfileGenerator::kProgramEntryName);
+  CHECK_EQ(0, programNode->GetChildrenCount());
+  CHECK_GE(programNode->GetSelfSamplesCount(), 3);
+  CHECK_GE(programNode->GetHitCount(), 3);
+
+  const v8::CpuProfileNode* idleNode =
+      GetChild(root, ProfileGenerator::kIdleEntryName);
+  CHECK_EQ(0, idleNode->GetChildrenCount());
+  CHECK_GE(idleNode->GetSelfSamplesCount(), 3);
+  CHECK_GE(idleNode->GetHitCount(), 3);
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}

@@ -1290,6 +1290,7 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
     if (code_scope_info->IsFixedArray()) {
       shared_info->set_scope_info(ScopeInfo::cast(*code_scope_info));
     }
+    shared_info->DisableOptimization(kLiveEdit);
   }
 
   if (shared_info->debug_info()->IsDebugInfo()) {

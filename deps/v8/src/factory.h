@@ -301,7 +301,11 @@ class Factory {
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
   Handle<JSObject> NewJSObjectFromMap(Handle<Map> map,
-                                      PretenureFlag pretenure = NOT_TENURED);
+                                      PretenureFlag pretenure = NOT_TENURED,
+                                      bool allocate_properties = true);
+
+  Handle<JSObject> NewJSObjectFromMapForDeoptimizer(
+      Handle<Map> map, PretenureFlag pretenure = NOT_TENURED);
 
   // JS modules are pretenured.
   Handle<JSModule> NewJSModule(Handle<Context> context,

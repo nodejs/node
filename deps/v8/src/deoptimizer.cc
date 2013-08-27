@@ -602,6 +602,12 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       deferred_objects_double_values_(0),
       deferred_objects_(0),
       deferred_heap_numbers_(0),
+      jsframe_functions_(0),
+      jsframe_has_adapted_arguments_(0),
+      materialized_values_(NULL),
+      materialized_objects_(NULL),
+      materialization_value_index_(0),
+      materialization_object_index_(0),
       trace_(false) {
   // For COMPILED_STUBs called from builtins, the function pointer is a SMI
   // indicating an internal frame.
@@ -1208,7 +1214,15 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   unsigned output_offset = output_frame_size;
   for (int i = 0; i < parameter_count; ++i) {
     output_offset -= kPointerSize;
+    int deferred_object_index = deferred_objects_.length();
     DoTranslateCommand(iterator, frame_index, output_offset);
+    // The allocated receiver of a construct stub frame is passed as the
+    // receiver parameter through the translation. It might be encoding
+    // a captured object, patch the slot address for a captured object.
+    if (i == 0 && deferred_objects_.length() > deferred_object_index) {
+      ASSERT(!deferred_objects_[deferred_object_index].is_arguments());
+      deferred_objects_[deferred_object_index].patch_slot_address(top_address);
+    }
   }
 
   // Read caller's PC from the previous frame.
@@ -1633,8 +1647,92 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 }
 
 
+Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
+  int object_index = materialization_object_index_++;
+  ObjectMaterializationDescriptor desc = deferred_objects_[object_index];
+  const int length = desc.object_length();
+
+  if (desc.duplicate_object() >= 0) {
+    // Found a previously materialized object by de-duplication.
+    object_index = desc.duplicate_object();
+    materialized_objects_->Add(Handle<Object>());
+  } else if (desc.is_arguments() && ArgumentsObjectIsAdapted(object_index)) {
+    // Use the arguments adapter frame we just built to materialize the
+    // arguments object. FunctionGetArguments can't throw an exception.
+    Handle<JSFunction> function = ArgumentsObjectFunction(object_index);
+    Handle<JSObject> arguments = Handle<JSObject>::cast(
+        Accessors::FunctionGetArguments(function));
+    materialized_objects_->Add(arguments);
+    materialization_value_index_ += length;
+  } else if (desc.is_arguments()) {
+    // Construct an arguments object and copy the parameters to a newly
+    // allocated arguments object backing store.
+    Handle<JSFunction> function = ArgumentsObjectFunction(object_index);
+    Handle<JSObject> arguments =
+        isolate_->factory()->NewArgumentsObject(function, length);
+    Handle<FixedArray> array = isolate_->factory()->NewFixedArray(length);
+    ASSERT(array->length() == length);
+    arguments->set_elements(*array);
+    materialized_objects_->Add(arguments);
+    for (int i = 0; i < length; ++i) {
+      Handle<Object> value = MaterializeNextValue();
+      array->set(i, *value);
+    }
+  } else {
+    // Dispatch on the instance type of the object to be materialized.
+    Handle<Map> map = Handle<Map>::cast(MaterializeNextValue());
+    switch (map->instance_type()) {
+      case HEAP_NUMBER_TYPE: {
+        Handle<HeapNumber> number =
+            Handle<HeapNumber>::cast(MaterializeNextValue());
+        materialized_objects_->Add(number);
+        materialization_value_index_ += kDoubleSize / kPointerSize - 1;
+        break;
+      }
+      case JS_OBJECT_TYPE: {
+        Handle<JSObject> object =
+            isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED, false);
+        materialized_objects_->Add(object);
+        Handle<Object> properties = MaterializeNextValue();
+        Handle<Object> elements = MaterializeNextValue();
+        object->set_properties(FixedArray::cast(*properties));
+        object->set_elements(FixedArray::cast(*elements));
+        for (int i = 0; i < length - 3; ++i) {
+          Handle<Object> value = MaterializeNextValue();
+          object->FastPropertyAtPut(i, *value);
+        }
+        break;
+      }
+      default:
+        PrintF("[couldn't handle instance type %d]\n", map->instance_type());
+        UNREACHABLE();
+    }
+  }
+
+  return materialized_objects_->at(object_index);
+}
+
+
+Handle<Object> Deoptimizer::MaterializeNextValue() {
+  int value_index = materialization_value_index_++;
+  Handle<Object> value = materialized_values_->at(value_index);
+  if (*value == isolate_->heap()->arguments_marker()) {
+    value = MaterializeNextHeapObject();
+  }
+  return value;
+}
+
+
 void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   ASSERT_NE(DEBUGGER, bailout_type_);
+
+  // Walk all JavaScript output frames with the given frame iterator.
+  for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
+    if (frame_index != 0) it->Advance();
+    JavaScriptFrame* frame = it->frame();
+    jsframe_functions_.Add(handle(frame->function(), isolate_));
+    jsframe_has_adapted_arguments_.Add(frame->has_adapted_arguments());
+  }
 
   // Handlify all tagged object values before triggering any allocation.
   List<Handle<Object> > values(deferred_objects_tagged_values_.length());
@@ -1652,7 +1750,7 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
     HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
     Handle<Object> num = isolate_->factory()->NewNumber(d.value());
     if (trace_) {
-      PrintF("Materializing a new heap number %p [%e] in slot %p\n",
+      PrintF("Materialized a new heap number %p [%e] in slot %p\n",
              reinterpret_cast<void*>(*num),
              d.value(),
              d.slot_address());
@@ -1660,62 +1758,52 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
     Memory::Object_at(d.slot_address()) = *num;
   }
 
-  // Materialize all heap numbers required for arguments objects.
+  // Materialize all heap numbers required for arguments/captured objects.
   for (int i = 0; i < values.length(); i++) {
     if (!values.at(i)->IsTheHole()) continue;
     double double_value = deferred_objects_double_values_[i];
     Handle<Object> num = isolate_->factory()->NewNumber(double_value);
     if (trace_) {
-      PrintF("Materializing a new heap number %p [%e] for arguments object\n",
+      PrintF("Materialized a new heap number %p [%e] for object\n",
              reinterpret_cast<void*>(*num), double_value);
     }
     values.Set(i, num);
   }
 
-  // Materialize arguments objects one frame at a time.
-  for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
-    if (frame_index != 0) it->Advance();
-    JavaScriptFrame* frame = it->frame();
-    Handle<JSFunction> function(frame->function(), isolate_);
-    Handle<JSObject> arguments;
-    for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
-      if (frame->GetExpression(i) == isolate_->heap()->arguments_marker()) {
-        ObjectMaterializationDescriptor descriptor =
-            deferred_objects_.RemoveLast();
-        const int length = descriptor.object_length();
-        if (arguments.is_null()) {
-          if (frame->has_adapted_arguments()) {
-            // Use the arguments adapter frame we just built to materialize the
-            // arguments object. FunctionGetArguments can't throw an exception.
-            arguments = Handle<JSObject>::cast(
-                Accessors::FunctionGetArguments(function));
-            values.RewindBy(length);
-          } else {
-            // Construct an arguments object and copy the parameters to a newly
-            // allocated arguments object backing store.
-            arguments =
-                isolate_->factory()->NewArgumentsObject(function, length);
-            Handle<FixedArray> array =
-                isolate_->factory()->NewFixedArray(length);
-            ASSERT(array->length() == length);
-            for (int i = length - 1; i >= 0 ; --i) {
-              array->set(i, *values.RemoveLast());
-            }
-            arguments->set_elements(*array);
-          }
-        }
-        frame->SetExpression(i, *arguments);
-        ASSERT_EQ(Memory::Object_at(descriptor.slot_address()), *arguments);
-        if (trace_) {
-          PrintF("Materializing %sarguments object of length %d for %p: ",
-                 frame->has_adapted_arguments() ? "(adapted) " : "",
-                 arguments->elements()->length(),
+  // Materialize arguments/captured objects.
+  if (!deferred_objects_.is_empty()) {
+    List<Handle<Object> > materialized_objects(deferred_objects_.length());
+    materialized_objects_ = &materialized_objects;
+    materialized_values_ = &values;
+
+    while (materialization_object_index_ < deferred_objects_.length()) {
+      int object_index = materialization_object_index_;
+      ObjectMaterializationDescriptor descriptor =
+          deferred_objects_.at(object_index);
+
+      // Find a previously materialized object by de-duplication or
+      // materialize a new instance of the object if necessary. Store
+      // the materialized object into the frame slot.
+      Handle<Object> object = MaterializeNextHeapObject();
+      Memory::Object_at(descriptor.slot_address()) = *object;
+      if (trace_) {
+        if (descriptor.is_arguments()) {
+          PrintF("Materialized %sarguments object of length %d for %p: ",
+                 ArgumentsObjectIsAdapted(object_index) ? "(adapted) " : "",
+                 Handle<JSObject>::cast(object)->elements()->length(),
                  reinterpret_cast<void*>(descriptor.slot_address()));
-          arguments->ShortPrint();
-          PrintF("\n");
+        } else {
+          PrintF("Materialized captured object of size %d for %p: ",
+                 Handle<HeapObject>::cast(object)->Size(),
+                 reinterpret_cast<void*>(descriptor.slot_address()));
         }
+        object->ShortPrint();
+        PrintF("\n");
       }
     }
+
+    ASSERT(materialization_object_index_ == materialized_objects_->length());
+    ASSERT(materialization_value_index_ == materialized_values_->length());
   }
 }
 
@@ -1786,10 +1874,10 @@ static const char* TraceValueType(bool is_smi, bool is_native = false) {
 
 
 void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
-                                    int object_opcode,
+                                    int object_index,
                                     int field_index) {
   disasm::NameConverter converter;
-  Address object_slot = deferred_objects_.last().slot_address();
+  Address object_slot = deferred_objects_[object_index].slot_address();
 
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator->Next());
@@ -1802,7 +1890,6 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
     case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
     case Translation::COMPILED_STUB_FRAME:
-    case Translation::ARGUMENTS_OBJECT:
       UNREACHABLE();
       return;
 
@@ -1970,6 +2057,50 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
       }
       intptr_t value = reinterpret_cast<intptr_t>(literal);
       AddObjectTaggedValue(value);
+      return;
+    }
+
+    case Translation::DUPLICATED_OBJECT: {
+      int object_index = iterator->Next();
+      if (trace_) {
+        PrintF("      nested @0x%08" V8PRIxPTR ": [field #%d] <- ",
+               reinterpret_cast<intptr_t>(object_slot),
+               field_index);
+        isolate_->heap()->arguments_marker()->ShortPrint();
+        PrintF(" ; duplicate of object #%d\n", object_index);
+      }
+      // Use the materialization marker value as a sentinel and fill in
+      // the object after the deoptimized frame is built.
+      intptr_t value = reinterpret_cast<intptr_t>(
+          isolate_->heap()->arguments_marker());
+      AddObjectDuplication(0, object_index);
+      AddObjectTaggedValue(value);
+      return;
+    }
+
+    case Translation::ARGUMENTS_OBJECT:
+    case Translation::CAPTURED_OBJECT: {
+      int length = iterator->Next();
+      bool is_args = opcode == Translation::ARGUMENTS_OBJECT;
+      if (trace_) {
+        PrintF("      nested @0x%08" V8PRIxPTR ": [field #%d] <- ",
+               reinterpret_cast<intptr_t>(object_slot),
+               field_index);
+        isolate_->heap()->arguments_marker()->ShortPrint();
+        PrintF(" ; object (length = %d, is_args = %d)\n", length, is_args);
+      }
+      // Use the materialization marker value as a sentinel and fill in
+      // the object after the deoptimized frame is built.
+      intptr_t value = reinterpret_cast<intptr_t>(
+          isolate_->heap()->arguments_marker());
+      AddObjectStart(0, length, is_args);
+      AddObjectTaggedValue(value);
+      // We save the object values on the side and materialize the actual
+      // object after the deoptimized frame is built.
+      int object_index = deferred_objects_.length() - 1;
+      for (int i = 0; i < length; i++) {
+        DoTranslateObject(iterator, object_index, i);
+      }
       return;
     }
   }
@@ -2211,25 +2342,48 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       return;
     }
 
-    case Translation::ARGUMENTS_OBJECT: {
-      int length = iterator->Next();
+    case Translation::DUPLICATED_OBJECT: {
+      int object_index = iterator->Next();
       if (trace_) {
         PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- ",
                output_[frame_index]->GetTop() + output_offset,
                output_offset);
         isolate_->heap()->arguments_marker()->ShortPrint();
-        PrintF(" ; arguments object (length = %d)\n", length);
+        PrintF(" ; duplicate of object #%d\n", object_index);
       }
-      // Use the arguments marker value as a sentinel and fill in the arguments
-      // object after the deoptimized frame is built.
+      // Use the materialization marker value as a sentinel and fill in
+      // the object after the deoptimized frame is built.
       intptr_t value = reinterpret_cast<intptr_t>(
           isolate_->heap()->arguments_marker());
-      AddObjectStart(output_[frame_index]->GetTop() + output_offset, length);
+      AddObjectDuplication(output_[frame_index]->GetTop() + output_offset,
+                           object_index);
       output_[frame_index]->SetFrameSlot(output_offset, value);
-      // We save the argument values on the side and materialize the actual
-      // arguments object after the deoptimized frame is built.
+      return;
+    }
+
+    case Translation::ARGUMENTS_OBJECT:
+    case Translation::CAPTURED_OBJECT: {
+      int length = iterator->Next();
+      bool is_args = opcode == Translation::ARGUMENTS_OBJECT;
+      if (trace_) {
+        PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- ",
+               output_[frame_index]->GetTop() + output_offset,
+               output_offset);
+        isolate_->heap()->arguments_marker()->ShortPrint();
+        PrintF(" ; object (length = %d, is_args = %d)\n", length, is_args);
+      }
+      // Use the materialization marker value as a sentinel and fill in
+      // the object after the deoptimized frame is built.
+      intptr_t value = reinterpret_cast<intptr_t>(
+          isolate_->heap()->arguments_marker());
+      AddObjectStart(output_[frame_index]->GetTop() + output_offset,
+                     length, is_args);
+      output_[frame_index]->SetFrameSlot(output_offset, value);
+      // We save the object values on the side and materialize the actual
+      // object after the deoptimized frame is built.
+      int object_index = deferred_objects_.length() - 1;
       for (int i = 0; i < length; i++) {
-        DoTranslateObject(iterator, Translation::ARGUMENTS_OBJECT, i);
+        DoTranslateObject(iterator, object_index, i);
       }
       return;
     }
@@ -2406,7 +2560,9 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
       break;
     }
 
-    case Translation::ARGUMENTS_OBJECT: {
+    case Translation::DUPLICATED_OBJECT:
+    case Translation::ARGUMENTS_OBJECT:
+    case Translation::CAPTURED_OBJECT: {
       // Optimized code assumes that the argument object has not been
       // materialized and so bypasses it when doing arguments access.
       // We should have bailed out before starting the frame
@@ -2554,9 +2710,16 @@ Object* Deoptimizer::ComputeLiteral(int index) const {
 }
 
 
-void Deoptimizer::AddObjectStart(intptr_t slot_address, int length) {
+void Deoptimizer::AddObjectStart(intptr_t slot, int length, bool is_args) {
   ObjectMaterializationDescriptor object_desc(
-      reinterpret_cast<Address>(slot_address), length);
+      reinterpret_cast<Address>(slot), jsframe_count_, length, -1, is_args);
+  deferred_objects_.Add(object_desc);
+}
+
+
+void Deoptimizer::AddObjectDuplication(intptr_t slot, int object_index) {
+  ObjectMaterializationDescriptor object_desc(
+      reinterpret_cast<Address>(slot), jsframe_count_, -1, object_index, false);
   deferred_objects_.Add(object_desc);
 }
 
@@ -2784,6 +2947,18 @@ void Translation::BeginArgumentsObject(int args_length) {
 }
 
 
+void Translation::BeginCapturedObject(int length) {
+  buffer_->Add(CAPTURED_OBJECT, zone());
+  buffer_->Add(length, zone());
+}
+
+
+void Translation::DuplicateObject(int object_index) {
+  buffer_->Add(DUPLICATED_OBJECT, zone());
+  buffer_->Add(object_index, zone());
+}
+
+
 void Translation::StoreRegister(Register reg) {
   buffer_->Add(REGISTER, zone());
   buffer_->Add(reg.code(), zone());
@@ -2852,7 +3027,9 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
   switch (opcode) {
     case GETTER_STUB_FRAME:
     case SETTER_STUB_FRAME:
+    case DUPLICATED_OBJECT:
     case ARGUMENTS_OBJECT:
+    case CAPTURED_OBJECT:
     case REGISTER:
     case INT32_REGISTER:
     case UINT32_REGISTER:
@@ -2912,8 +3089,12 @@ const char* Translation::StringFor(Opcode opcode) {
       return "DOUBLE_STACK_SLOT";
     case LITERAL:
       return "LITERAL";
+    case DUPLICATED_OBJECT:
+      return "DUPLICATED_OBJECT";
     case ARGUMENTS_OBJECT:
       return "ARGUMENTS_OBJECT";
+    case CAPTURED_OBJECT:
+      return "CAPTURED_OBJECT";
   }
   UNREACHABLE();
   return "";
@@ -2957,7 +3138,9 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
       // Peeled off before getting here.
       break;
 
+    case Translation::DUPLICATED_OBJECT:
     case Translation::ARGUMENTS_OBJECT:
+    case Translation::CAPTURED_OBJECT:
       // This can be only emitted for local slots not for argument slots.
       break;
 

@@ -2479,6 +2479,8 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   STATIC_ASSERT(kSmiTag == 0);
   __ JumpIfNotSmi(eax, &not_smi);
 
+  // Branchless abs implementation, refer to below:
+  // http://graphics.stanford.edu/~seander/bithacks.html#IntegerAbs
   // Set ebx to 1...1 (== -1) if the argument is negative, or to 0...0
   // otherwise.
   __ mov(ebx, eax);

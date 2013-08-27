@@ -24,46 +24,26 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-#ifndef V8_EXTENSIONS_I18N_NUMBER_FORMAT_H_
-#define V8_EXTENSIONS_I18N_NUMBER_FORMAT_H_
+// Flags: --allow-natives-syntax
 
-#include "unicode/uversion.h"
-#include "v8.h"
-
-namespace U_ICU_NAMESPACE {
-class DecimalFormat;
+function Bb(w) {
+  this.width = w;
 }
 
-namespace v8_i18n {
+function ce(a, b) {
+  "number" == typeof a && (a = (b ? Math.round(a) : a) + "px");
+  return a
+}
 
-class NumberFormat {
- public:
-  static void JSCreateNumberFormat(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+function pe(a, b, c) {
+  if (b instanceof Bb) b = b.width;
+  a.width = ce(b, !0);
+}
 
-  // Helper methods for various bindings.
-
-  // Unpacks date format object from corresponding JavaScript object.
-  static icu::DecimalFormat* UnpackNumberFormat(v8::Handle<v8::Object> obj);
-
-  // Release memory we allocated for the NumberFormat once the JS object that
-  // holds the pointer gets garbage collected.
-  static void DeleteNumberFormat(v8::Isolate* isolate,
-                                 v8::Persistent<v8::Object>* object,
-                                 void* param);
-
-  // Formats number and returns corresponding string.
-  static void JSInternalFormat(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  // Parses a string and returns a number.
-  static void JSInternalParse(const v8::FunctionCallbackInfo<v8::Value>& args);
-
- private:
-  NumberFormat();
-};
-
-}  // namespace v8_i18n
-
-#endif  // V8_EXTENSIONS_I18N_NUMBER_FORMAT_H_
+var a = new Bb(1);
+var b = new Bb(5);
+pe(a, b, 0);
+pe(a, b, 0);
+%OptimizeFunctionOnNextCall(pe);
+pe(a, b, 0);

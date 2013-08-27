@@ -91,6 +91,12 @@ bool SplayTree<Config, Allocator>::FindInternal(const Key& key) {
 
 
 template<typename Config, class Allocator>
+bool SplayTree<Config, Allocator>::Contains(const Key& key) {
+  return FindInternal(key);
+}
+
+
+template<typename Config, class Allocator>
 bool SplayTree<Config, Allocator>::Find(const Key& key, Locator* locator) {
   if (FindInternal(key)) {
     locator->bind(root_);
@@ -293,9 +299,10 @@ void SplayTree<Config, Allocator>::ForEach(Callback* callback) {
 
 template <typename Config, class Allocator> template <class Callback>
 void SplayTree<Config, Allocator>::ForEachNode(Callback* callback) {
+  if (root_ == NULL) return;
   // Pre-allocate some space for tiny trees.
   List<Node*, Allocator> nodes_to_visit(10, allocator_);
-  if (root_ != NULL) nodes_to_visit.Add(root_, allocator_);
+  nodes_to_visit.Add(root_, allocator_);
   int pos = 0;
   while (pos < nodes_to_visit.length()) {
     Node* node = nodes_to_visit[pos++];

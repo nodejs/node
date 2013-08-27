@@ -86,6 +86,7 @@ class LChunkBuilder;
   V(CallNewArray)                              \
   V(CallRuntime)                               \
   V(CallStub)                                  \
+  V(CapturedObject)                            \
   V(Change)                                    \
   V(CheckFunction)                             \
   V(CheckHeapObject)                           \
@@ -96,6 +97,7 @@ class LChunkBuilder;
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareNumericAndBranch)                   \
+  V(CompareHoleAndBranch)                      \
   V(CompareGeneric)                            \
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
@@ -141,7 +143,6 @@ class LChunkBuilder;
   V(LoadKeyed)                                 \
   V(LoadKeyedGeneric)                          \
   V(LoadNamedField)                            \
-  V(LoadNamedFieldPolymorphic)                 \
   V(LoadNamedGeneric)                          \
   V(MapEnumLength)                             \
   V(MathFloorOfDiv)                            \
@@ -801,10 +802,10 @@ class HValue: public ZoneObject {
   bool CheckFlag(Flag f) const { return (flags_ & (1 << f)) != 0; }
 
   // Returns true if the flag specified is set for all uses, false otherwise.
-  bool CheckUsesForFlag(Flag f);
+  bool CheckUsesForFlag(Flag f) const;
   // Returns true if the flag specified is set for all uses, and this set
   // of uses is non-empty.
-  bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f);
+  bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const;
 
   GVNFlagSet gvn_flags() const { return gvn_flags_; }
   void SetGVNFlag(GVNFlag f) { gvn_flags_.Add(f); }
@@ -1247,19 +1248,23 @@ class HDummyUse: public HTemplateInstruction<1> {
 
 class HDeoptimize: public HTemplateInstruction<0> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HDeoptimize, Deoptimizer::BailoutType);
+  DECLARE_INSTRUCTION_FACTORY_P2(HDeoptimize, const char*,
+                                 Deoptimizer::BailoutType);
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
+  const char* reason() const { return reason_; }
   Deoptimizer::BailoutType type() { return type_; }
 
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
 
  private:
-  explicit HDeoptimize(Deoptimizer::BailoutType type) : type_(type) {}
+  explicit HDeoptimize(const char* reason, Deoptimizer::BailoutType type)
+      : reason_(reason), type_(type) {}
 
+  const char* reason_;
   Deoptimizer::BailoutType type_;
 };
 
@@ -1517,15 +1522,13 @@ class HChange: public HUnaryOperation {
   HChange(HValue* value,
           Representation to,
           bool is_truncating_to_smi,
-          bool is_truncating_to_int32,
-          bool allow_undefined_as_nan)
+          bool is_truncating_to_int32)
       : HUnaryOperation(value) {
     ASSERT(!value->representation().IsNone());
     ASSERT(!to.IsNone());
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
-    if (allow_undefined_as_nan) SetFlag(kAllowUndefinedAsNaN);
     if (is_truncating_to_smi) SetFlag(kTruncatingToSmi);
     if (is_truncating_to_int32) SetFlag(kTruncatingToInt32);
     if (value->representation().IsSmi() || value->type().IsSmi()) {
@@ -1536,15 +1539,16 @@ class HChange: public HUnaryOperation {
     }
   }
 
+  bool can_convert_undefined_to_nan() {
+    return CheckUsesForFlag(kAllowUndefinedAsNaN);
+  }
+
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
   virtual HType CalculateInferredType();
   virtual HValue* Canonicalize();
 
   Representation from() const { return value()->representation(); }
   Representation to() const { return representation(); }
-  bool allow_undefined_as_nan() const {
-    return CheckFlag(kAllowUndefinedAsNaN);
-  }
   bool deoptimize_on_minus_zero() const {
     return CheckFlag(kBailoutOnMinusZero);
   }
@@ -2453,7 +2457,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     switch (op) {
       case kMathFloor:
       case kMathRound:
-        // TODO(verwaest): Set representation to flexible int starting as smi.
         set_representation(Representation::Integer32());
         break;
       case kMathAbs:
@@ -2531,8 +2534,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
                          HValue *typecheck = NULL) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
     for (int i = 0; i < maps->length(); i++) {
-      check_map->map_set_.Add(maps->at(i), zone);
-      check_map->has_migration_target_ |= maps->at(i)->is_migration_target();
+      check_map->Add(maps->at(i), zone);
     }
     check_map->map_set_.Sort();
     return check_map;
@@ -2576,6 +2578,14 @@ class HCheckMaps: public HTemplateInstruction<2> {
   }
 
  private:
+  void Add(Handle<Map> map, Zone* zone) {
+    map_set_.Add(map, zone);
+    if (!has_migration_target_ && map->is_migration_target()) {
+      has_migration_target_ = true;
+      SetGVNFlag(kChangesNewSpacePromotion);
+    }
+  }
+
   // Clients should use one of the static New* methods above.
   HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
       : HTemplateInstruction<2>(value->type()),
@@ -2760,6 +2770,7 @@ class HCheckHeapObject: public HUnaryOperation {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HCheckHeapObject, HValue*);
 
+  virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
@@ -3018,7 +3029,7 @@ class HPhi: public HValue {
       non_phi_uses_[i] = 0;
       indirect_uses_[i] = 0;
     }
-    ASSERT(merged_index >= 0);
+    ASSERT(merged_index >= 0 || merged_index == kInvalidMergedIndex);
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
   }
@@ -3041,6 +3052,7 @@ class HPhi: public HValue {
   bool HasRealUses();
 
   bool IsReceiver() const { return merged_index_ == 0; }
+  bool HasMergedIndex() const { return merged_index_ != kInvalidMergedIndex; }
 
   int merged_index() const { return merged_index_; }
 
@@ -3103,6 +3115,9 @@ class HPhi: public HValue {
 
   void SimplifyConstantInputs();
 
+  // Marker value representing an invalid merge index.
+  static const int kInvalidMergedIndex = -1;
+
  protected:
   virtual void DeleteFromGraph();
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -3123,21 +3138,10 @@ class HPhi: public HValue {
 };
 
 
-class HArgumentsObject: public HTemplateInstruction<0> {
+// Common base class for HArgumentsObject and HCapturedObject.
+class HDematerializedObject: public HTemplateInstruction<0> {
  public:
-  static HArgumentsObject* New(Zone* zone,
-                               HValue* context,
-                               int count) {
-    return new(zone) HArgumentsObject(count, zone);
-  }
-
-  const ZoneList<HValue*>* arguments_values() const { return &values_; }
-  int arguments_count() const { return values_.length(); }
-
-  void AddArgument(HValue* argument, Zone* zone) {
-    values_.Add(NULL, zone);  // Resize list.
-    SetOperandAt(values_.length() - 1, argument);
-  }
+  HDematerializedObject(int count, Zone* zone) : values_(count, zone) {}
 
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) const { return values_[index]; }
@@ -3147,22 +3151,61 @@ class HArgumentsObject: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(ArgumentsObject)
-
  protected:
   virtual void InternalSetOperandAt(int index, HValue* value) {
     values_[index] = value;
   }
 
+  // List of values tracked by this marker.
+  ZoneList<HValue*> values_;
+
  private:
-  HArgumentsObject(int count, Zone* zone) : values_(count, zone) {
+  virtual bool IsDeletable() const { return true; }
+};
+
+
+class HArgumentsObject: public HDematerializedObject {
+ public:
+  static HArgumentsObject* New(Zone* zone, HValue* context, int count) {
+    return new(zone) HArgumentsObject(count, zone);
+  }
+
+  // The values contain a list of all elements in the arguments object
+  // including the receiver object, which is skipped when materializing.
+  const ZoneList<HValue*>* arguments_values() const { return &values_; }
+  int arguments_count() const { return values_.length(); }
+
+  void AddArgument(HValue* argument, Zone* zone) {
+    values_.Add(NULL, zone);  // Resize list.
+    SetOperandAt(values_.length() - 1, argument);
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ArgumentsObject)
+
+ private:
+  HArgumentsObject(int count, Zone* zone)
+      : HDematerializedObject(count, zone) {
     set_representation(Representation::Tagged());
     SetFlag(kIsArguments);
   }
+};
 
-  virtual bool IsDeletable() const { return true; }
 
-  ZoneList<HValue*> values_;
+class HCapturedObject: public HDematerializedObject {
+ public:
+  HCapturedObject(int length, Zone* zone)
+      : HDematerializedObject(length, zone) {
+    set_representation(Representation::Tagged());
+    values_.AddBlock(NULL, length, zone);  // Resize list.
+  }
+
+  // The values contain a list of all in-object properties inside the
+  // captured object and is index by field index. Properties in the
+  // properties or elements backing store are not tracked here.
+  const ZoneList<HValue*>* values() const { return &values_; }
+  int length() const { return values_.length(); }
+
+  DECLARE_CONCRETE_INSTRUCTION(CapturedObject)
 };
 
 
@@ -3187,8 +3230,9 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   bool InstanceOf(Handle<Map> map) {
-    return handle_->IsJSObject() &&
-        Handle<JSObject>::cast(handle_)->map() == *map;
+    Handle<Object> constant_object = handle();
+    return constant_object->IsJSObject() &&
+        Handle<JSObject>::cast(constant_object)->map() == *map;
   }
 
   bool IsSpecialDouble() const {
@@ -3299,6 +3343,7 @@ class HConstant: public HTemplateInstruction<0> {
     return external_reference_value_;
   }
 
+  bool HasBooleanValue() const { return type_.IsBoolean(); }
   bool BooleanValue() const { return boolean_value_; }
 
   virtual intptr_t Hashcode() {
@@ -3915,6 +3960,32 @@ class HCompareNumericAndBranch: public HTemplateControlInstruction<2, 2> {
 };
 
 
+class HCompareHoleAndBranch: public HTemplateControlInstruction<2, 1> {
+ public:
+  // TODO(danno): make this private when the IfBuilder properly constructs
+  // control flow instructions.
+  explicit HCompareHoleAndBranch(HValue* object) {
+    SetFlag(kFlexibleRepresentation);
+    SetFlag(kAllowUndefinedAsNaN);
+    SetOperandAt(0, object);
+  }
+
+  DECLARE_INSTRUCTION_FACTORY_P1(HCompareHoleAndBranch, HValue*);
+
+  HValue* object() { return OperandAt(0); }
+
+  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return representation();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareHoleAndBranch)
+};
+
+
 class HCompareObjectEqAndBranch: public HTemplateControlInstruction<2, 2> {
  public:
   // TODO(danno): make this private when the IfBuilder properly constructs
@@ -4296,6 +4367,11 @@ class HAdd: public HArithmeticBinaryOperation {
     } else {
       return false;
     }
+  }
+
+  virtual void RepresentationChanged(Representation to) {
+    if (to.IsTagged()) ClearFlag(kAllowUndefinedAsNaN);
+    HArithmeticBinaryOperation::RepresentationChanged(to);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Add)
@@ -5512,6 +5588,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
   }
 
   bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
+  void ClearTypeCheck() { SetOperandAt(1, object()); }
   HObjectAccess access() const { return access_; }
   Representation field_representation() const {
       return access_.representation();
@@ -5567,45 +5644,6 @@ class HLoadNamedField: public HTemplateInstruction<2> {
 
   HObjectAccess access_;
 };
-
-
-class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
- public:
-  HLoadNamedFieldPolymorphic(HValue* context,
-                             HValue* object,
-                             SmallMapList* types,
-                             Handle<String> name,
-                             Zone* zone);
-
-  HValue* context() { return OperandAt(0); }
-  HValue* object() { return OperandAt(1); }
-  SmallMapList* types() { return &types_; }
-  Handle<String> name() { return name_; }
-  bool need_generic() { return need_generic_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadNamedFieldPolymorphic)
-
-  static const int kMaxLoadPolymorphism = 4;
-
-  virtual void FinalizeUniqueValueId();
-
- protected:
-  virtual bool DataEquals(HValue* value);
-
- private:
-  SmallMapList types_;
-  Handle<String> name_;
-  ZoneList<UniqueValueId> types_unique_ids_;
-  UniqueValueId name_unique_id_;
-  bool need_generic_;
-};
-
 
 
 class HLoadNamedGeneric: public HTemplateInstruction<2> {
@@ -6007,7 +6045,6 @@ class HStoreKeyed
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind);
 
-  virtual bool HasEscapingOperandAt(int index) { return index != 0; }
   virtual Representation RequiredInputRepresentation(int index) {
     // kind_fast:       tagged[int32] = tagged
     // kind_double:     tagged[int32] = double
@@ -6526,8 +6563,11 @@ class HToFastProperties: public HUnaryOperation {
 
  private:
   explicit HToFastProperties(HValue* value) : HUnaryOperation(value) {
-    // This instruction is not marked as having side effects, but
-    // changes the map of the input operand. Use it only when creating
+    set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
+
+    // This instruction is not marked as kChangesMaps, but does
+    // change the map of the input operand. Use it only when creating
     // object literals via a runtime call.
     ASSERT(value->IsCallRuntime());
 #ifdef DEBUG
@@ -6535,7 +6575,6 @@ class HToFastProperties: public HUnaryOperation {
     ASSERT(function->function_id == Runtime::kCreateObjectLiteral ||
            function->function_id == Runtime::kCreateObjectLiteralShallow);
 #endif
-    set_representation(Representation::Tagged());
   }
 
   virtual bool IsDeletable() const { return true; }

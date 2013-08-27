@@ -548,6 +548,15 @@ namespace internal {
   F(CreateDateTimeFormat, 3, 1) \
   F(InternalDateFormat, 2, 1) \
   F(InternalDateParse, 2, 1) \
+  \
+  /* Number format and parse. */ \
+  F(CreateNumberFormat, 3, 1) \
+  F(InternalNumberFormat, 2, 1) \
+  F(InternalNumberParse, 2, 1) \
+  \
+  /* Collator. */ \
+  F(CreateCollator, 3, 1) \
+  F(InternalCompare, 3, 1) \
 
 #else
 #define RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)

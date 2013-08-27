@@ -58,6 +58,18 @@ class HMarkDeoptimizeOnUndefinedPhase : public HPhase {
 };
 
 
+class HComputeChangeUndefinedToNaN : public HPhase {
+ public:
+  explicit HComputeChangeUndefinedToNaN(HGraph* graph)
+      : HPhase("H_Compute change undefined to nan", graph) {}
+
+  void Run();
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(HComputeChangeUndefinedToNaN);
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_HYDROGEN_MARK_DEOPTIMIZE_H_

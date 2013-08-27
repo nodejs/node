@@ -1783,7 +1783,6 @@ Isolate::Isolate()
       regexp_stack_(NULL),
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
-      context_exit_happened_(false),
       initialized_from_snapshot_(false),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),

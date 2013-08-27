@@ -2923,9 +2923,7 @@ void MacroAssembler::Allocate(int object_size,
 
   // Set up allocation top address and object size registers.
   Register topaddr = scratch1;
-  Register obj_size_reg = scratch2;
   li(topaddr, Operand(allocation_top));
-  li(obj_size_reg, Operand(object_size));
 
   // This code stores a temporary value in t9.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
@@ -2944,9 +2942,23 @@ void MacroAssembler::Allocate(int object_size,
     lw(t9, MemOperand(topaddr, limit - top));
   }
 
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+    // Align the next allocation. Storing the filler map without checking top is
+    // always safe because the limit of the heap is always aligned.
+    ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
+    ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
+    And(scratch2, result, Operand(kDoubleAlignmentMask));
+    Label aligned;
+    Branch(&aligned, eq, scratch2, Operand(zero_reg));
+    li(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
+    sw(scratch2, MemOperand(result));
+    Addu(result, result, Operand(kDoubleSize / 2));
+    bind(&aligned);
+  }
+
   // Calculate new top and bail out if new space is exhausted. Use result
   // to calculate the new top.
-  Addu(scratch2, result, Operand(obj_size_reg));
+  Addu(scratch2, result, Operand(object_size));
   Branch(gc_required, Ugreater, scratch2, Operand(t9));
   sw(scratch2, MemOperand(topaddr));
 
@@ -3012,6 +3024,20 @@ void MacroAssembler::Allocate(Register object_size,
     }
     // Load allocation limit into t9. Result already contains allocation top.
     lw(t9, MemOperand(topaddr, limit - top));
+  }
+
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+    // Align the next allocation. Storing the filler map without checking top is
+    // always safe because the limit of the heap is always aligned.
+    ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
+    ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
+    And(scratch2, result, Operand(kDoubleAlignmentMask));
+    Label aligned;
+    Branch(&aligned, eq, scratch2, Operand(zero_reg));
+    li(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
+    sw(scratch2, MemOperand(result));
+    Addu(result, result, Operand(kDoubleSize / 2));
+    bind(&aligned);
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result

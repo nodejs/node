@@ -54,6 +54,60 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 }
 
 
+void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
+  if (isolate()->heap()->RootCanBeTreatedAsConstant(index)) {
+    Handle<Object> value(&isolate()->heap()->roots_array_start()[index]);
+    mov(destination, value);
+    return;
+  }
+  ExternalReference roots_array_start =
+      ExternalReference::roots_array_start(isolate());
+  mov(destination, Immediate(index));
+  mov(destination, Operand::StaticArray(destination,
+                                        times_pointer_size,
+                                        roots_array_start));
+}
+
+
+void MacroAssembler::StoreRoot(Register source,
+                               Register scratch,
+                               Heap::RootListIndex index) {
+  ASSERT(Heap::RootCanBeWrittenAfterInitialization(index));
+  ExternalReference roots_array_start =
+      ExternalReference::roots_array_start(isolate());
+  mov(scratch, Immediate(index));
+  mov(Operand::StaticArray(scratch, times_pointer_size, roots_array_start),
+      source);
+}
+
+
+void MacroAssembler::CompareRoot(Register with,
+                                 Register scratch,
+                                 Heap::RootListIndex index) {
+  ExternalReference roots_array_start =
+      ExternalReference::roots_array_start(isolate());
+  mov(scratch, Immediate(index));
+  cmp(with, Operand::StaticArray(scratch,
+                                times_pointer_size,
+                                roots_array_start));
+}
+
+
+void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
+  ASSERT(isolate()->heap()->RootCanBeTreatedAsConstant(index));
+  Handle<Object> value(&isolate()->heap()->roots_array_start()[index]);
+  cmp(with, value);
+}
+
+
+void MacroAssembler::CompareRoot(const Operand& with,
+                                 Heap::RootListIndex index) {
+  ASSERT(isolate()->heap()->RootCanBeTreatedAsConstant(index));
+  Handle<Object> value(&isolate()->heap()->roots_array_start()[index]);
+  cmp(with, value);
+}
+
+
 void MacroAssembler::InNewSpace(
     Register object,
     Register scratch,
@@ -429,21 +483,6 @@ void MacroAssembler::SafePush(const Immediate& x) {
   } else {
     push(x);
   }
-}
-
-
-void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
-  // see ROOT_ACCESSOR macro in factory.h
-  Handle<Object> value(&isolate()->heap()->roots_array_start()[index]);
-  cmp(with, value);
-}
-
-
-void MacroAssembler::CompareRoot(const Operand& with,
-                                 Heap::RootListIndex index) {
-  // see ROOT_ACCESSOR macro in factory.h
-  Handle<Object> value(&isolate()->heap()->roots_array_start()[index]);
-  cmp(with, value);
 }
 
 

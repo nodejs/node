@@ -1,3 +1,36 @@
+2013-08-14: Version 3.20.17
+
+        Fixed Math.round/floor that had bogus Smi representation
+        (Chromium issue 272564)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-13: Version 3.20.16
+
+        Fixed bug in HPhi::SimplifyConstantInput (Chromium issue 269679)
+
+        Fixed gcmole bugs in i18n code (issue 2745)
+
+        ia32: Calls to the TranscendentalCacheStub must ensure that esi is
+        set (issue 2827)
+
+        Made sure polymorphic element access creates non-replaying
+        phis. (issue 2815)
+
+        Allowed HPhis to have an invalid merge index. (issue 2815)
+
+        Fixed smi-based math floor. (Chromium issue 270268)
+
+        Deprecated self and total time getters and total sample count
+        getter on CpuProfileNode. (Chromium issue 267595)
+
+        Fixed Object.freeze, Object.observe wrt CountOperation and
+        CompoundAssignment. (issue 2774,2779)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-07: Version 3.20.14
 
         Exposed eternal handle api.

@@ -41,6 +41,7 @@ enum PerThreadAssertType {
   HANDLE_ALLOCATION_ASSERT,
   HANDLE_DEREFERENCE_ASSERT,
   DEFERRED_HANDLE_DEREFERENCE_ASSERT,
+  CODE_DEPENDENCY_CHANGE_ASSERT,
   LAST_PER_THREAD_ASSERT_TYPE
 };
 
@@ -169,6 +170,14 @@ typedef PerThreadAssertScope<DEFERRED_HANDLE_DEREFERENCE_ASSERT, false>
 // Scope to introduce an exception to DisallowDeferredHandleDereference.
 typedef PerThreadAssertScope<DEFERRED_HANDLE_DEREFERENCE_ASSERT, true>
     AllowDeferredHandleDereference;
+
+// Scope to document where we do not expect deferred handles to be dereferenced.
+typedef PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, false>
+    DisallowCodeDependencyChange;
+
+// Scope to introduce an exception to DisallowDeferredHandleDereference.
+typedef PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>
+    AllowCodeDependencyChange;
 
 } }  // namespace v8::internal
 

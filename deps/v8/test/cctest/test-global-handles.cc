@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <map>
-#include <vector>
-
 #include "global-handles.h"
 
 #include "cctest.h"
@@ -320,157 +317,6 @@ TEST(ImplicitReferences) {
 }
 
 
-static const int kBlockSize = 256;
-
-
-TEST(BlockCollection) {
-  v8::V8::Initialize();
-  Isolate* isolate = Isolate::Current();
-  GlobalHandles* global_handles = isolate->global_handles();
-  CHECK_EQ(0, global_handles->block_count());
-  CHECK_EQ(0, global_handles->global_handles_count());
-  Object* object = isolate->heap()->undefined_value();
-  const int kNumberOfBlocks = 5;
-  typedef Handle<Object> Block[kBlockSize];
-  for (int round = 0; round < 3; round++) {
-    Block blocks[kNumberOfBlocks];
-    for (int i = 0; i < kNumberOfBlocks; i++) {
-      for (int j = 0; j < kBlockSize; j++) {
-        blocks[i][j] = global_handles->Create(object);
-      }
-    }
-    CHECK_EQ(kNumberOfBlocks, global_handles->block_count());
-    for (int i = 0; i < kNumberOfBlocks; i++) {
-      for (int j = 0; j < kBlockSize; j++) {
-        global_handles->Destroy(blocks[i][j].location());
-      }
-    }
-    isolate->heap()->CollectAllAvailableGarbage("BlockCollection");
-    CHECK_EQ(0, global_handles->global_handles_count());
-    CHECK_EQ(1, global_handles->block_count());
-  }
-}
-
-
-class RandomMutationData {
- public:
-  explicit RandomMutationData(Isolate* isolate)
-      : isolate_(isolate), weak_offset_(0) {}
-
-  void Mutate(double strong_growth_tendency,
-              double weak_growth_tendency = 0.05) {
-    for (int i = 0; i < kBlockSize * 100; i++) {
-      if (rng_.next(strong_growth_tendency)) {
-        AddStrong();
-      } else if (strong_nodes_.size() != 0) {
-        size_t to_remove = rng_.next(static_cast<int>(strong_nodes_.size()));
-        RemoveStrong(to_remove);
-      }
-      if (rng_.next(weak_growth_tendency)) AddWeak();
-      if (rng_.next(0.05)) {
-#ifdef DEBUG
-        isolate_->global_handles()->VerifyBlockInvariants();
-#endif
-      }
-      if (rng_.next(0.0001)) {
-        isolate_->heap()->PerformScavenge();
-      } else if (rng_.next(0.00003)) {
-        isolate_->heap()->CollectAllAvailableGarbage();
-      }
-      CheckSizes();
-    }
-  }
-
-  void RemoveAll() {
-    while (strong_nodes_.size() != 0) {
-      RemoveStrong(strong_nodes_.size() - 1);
-    }
-    isolate_->heap()->PerformScavenge();
-    isolate_->heap()->CollectAllAvailableGarbage();
-    CheckSizes();
-  }
-
- private:
-  typedef std::vector<Object**> NodeVector;
-  typedef std::map<int32_t, Object**> NodeMap;
-
-  void CheckSizes() {
-    int stored_sizes =
-        static_cast<int>(strong_nodes_.size() + weak_nodes_.size());
-    CHECK_EQ(isolate_->global_handles()->global_handles_count(), stored_sizes);
-  }
-
-  void AddStrong() {
-    Object* object = isolate_->heap()->undefined_value();
-    Object** location = isolate_->global_handles()->Create(object).location();
-    strong_nodes_.push_back(location);
-  }
-
-  void RemoveStrong(size_t offset) {
-    isolate_->global_handles()->Destroy(strong_nodes_.at(offset));
-    strong_nodes_.erase(strong_nodes_.begin() + offset);
-  }
-
-  void AddWeak() {
-    v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Object> object = v8::Object::New();
-    int32_t offset = ++weak_offset_;
-    object->Set(7, v8::Integer::New(offset, isolate));
-    v8::Persistent<v8::Object> persistent(isolate, object);
-    persistent.MakeWeak(isolate, this, WeakCallback);
-    persistent.MarkIndependent();
-    Object** location = v8::Utils::OpenPersistent(persistent).location();
-    bool inserted =
-        weak_nodes_.insert(std::make_pair(offset, location)).second;
-    CHECK(inserted);
-  }
-
-  static void WeakCallback(v8::Isolate* isolate,
-                           v8::Persistent<v8::Object>* persistent,
-                           RandomMutationData* data) {
-    v8::Local<v8::Object> object =
-        v8::Local<v8::Object>::New(isolate, *persistent);
-    int32_t offset =
-        v8::Local<v8::Integer>::Cast(object->Get(7))->Int32Value();
-    Object** location = v8::Utils::OpenPersistent(persistent).location();
-    NodeMap& weak_nodes = data->weak_nodes_;
-    NodeMap::iterator it = weak_nodes.find(offset);
-    CHECK(it != weak_nodes.end());
-    CHECK(it->second == location);
-    weak_nodes.erase(it);
-    persistent->Dispose();
-  }
-
-  Isolate* isolate_;
-  RandomNumberGenerator rng_;
-  NodeVector strong_nodes_;
-  NodeMap weak_nodes_;
-  int32_t weak_offset_;
-};
-
-
-TEST(RandomMutation) {
-  v8::V8::Initialize();
-  Isolate* isolate = Isolate::Current();
-  CHECK_EQ(0, isolate->global_handles()->block_count());
-  HandleScope handle_scope(isolate);
-  v8::Context::Scope context_scope(
-      v8::Context::New(reinterpret_cast<v8::Isolate*>(isolate)));
-  RandomMutationData data(isolate);
-  // grow some
-  data.Mutate(0.65);
-  data.Mutate(0.55);
-  // balanced mutation
-  for (int i = 0; i < 3; i++) data.Mutate(0.50);
-  // shrink some
-  data.Mutate(0.45);
-  data.Mutate(0.35);
-  // clear everything
-  data.RemoveAll();
-}
-
-
 TEST(EternalHandles) {
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
@@ -518,4 +364,3 @@ TEST(EternalHandles) {
 
   CHECK_EQ(kArrayLength, eternals->NumberOfHandles());
 }
-

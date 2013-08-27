@@ -31,3 +31,6 @@ prefix intl
 date-format/resolved-options: FAIL
 date-format/timezone: FAIL
 general/v8Intl-exists: FAIL
+
+# TODO(jochen): The following test is flaky.
+overrides/caching: PASS || FAIL

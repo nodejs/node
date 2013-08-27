@@ -249,7 +249,8 @@ TickProcessor.VmStates = {
   GC: 1,
   COMPILER: 2,
   OTHER: 3,
-  EXTERNAL: 4
+  EXTERNAL: 4,
+  IDLE: 5
 };
 
 

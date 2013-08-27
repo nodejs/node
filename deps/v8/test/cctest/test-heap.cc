@@ -2826,6 +2826,7 @@ void ReleaseStackTraceDataTest(const char* source, const char* accessor) {
   // to check whether the data is being released since the external string
   // resource's callback is fired when the external string is GC'ed.
   FLAG_use_ic = false;  // ICs retain objects.
+  FLAG_parallel_recompilation = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   SourceResource* resource = new SourceResource(i::StrDup(source));

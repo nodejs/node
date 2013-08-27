@@ -47,8 +47,6 @@ void HRepresentationChangesPhase::InsertRepresentationChangeForUse(
   HInstruction* new_value = NULL;
   bool is_truncating_to_smi = use_value->CheckFlag(HValue::kTruncatingToSmi);
   bool is_truncating_to_int = use_value->CheckFlag(HValue::kTruncatingToInt32);
-  bool allow_undefined_as_nan =
-      use_value->CheckFlag(HValue::kAllowUndefinedAsNaN);
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
@@ -61,10 +59,8 @@ void HRepresentationChangesPhase::InsertRepresentationChangeForUse(
   }
 
   if (new_value == NULL) {
-    new_value = new(graph()->zone()) HChange(value, to,
-                                             is_truncating_to_smi,
-                                             is_truncating_to_int,
-                                             allow_undefined_as_nan);
+    new_value = new(graph()->zone()) HChange(
+        value, to, is_truncating_to_smi, is_truncating_to_int);
   }
 
   new_value->InsertBefore(next);
@@ -127,7 +123,7 @@ void HRepresentationChangesPhase::Run() {
            !(input_representation.IsInteger32() &&
              use->CheckFlag(HValue::kTruncatingToInt32))) ||
           (phi->representation().IsSmi() &&
-           !(input_representation.IsSmi() ||
+           !(input_representation.IsSmi() &&
              use->CheckFlag(HValue::kTruncatingToSmi)))) {
         if (FLAG_trace_representation) {
           PrintF("#%d Phi is not truncating because of #%d %s\n",

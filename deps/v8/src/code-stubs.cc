@@ -469,6 +469,9 @@ void CompareNilICStub::UpdateStatus(Handle<Object> object) {
 
 template<class StateType>
 void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
+  // Note: Although a no-op transition is semantically OK, it is hinting at a
+  // bug somewhere in our state transition machinery.
+  ASSERT(from != to);
   #ifdef DEBUG
   if (!FLAG_trace_ic) return;
   char buffer[100];

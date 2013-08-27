@@ -342,6 +342,7 @@ class ProfileGenerator {
 
   static const char* const kAnonymousFunctionName;
   static const char* const kProgramEntryName;
+  static const char* const kIdleEntryName;
   static const char* const kGarbageCollectorEntryName;
   // Used to represent frames for which we have no reliable way to
   // detect function.
@@ -353,6 +354,7 @@ class ProfileGenerator {
   CpuProfilesCollection* profiles_;
   CodeMap code_map_;
   CodeEntry* program_entry_;
+  CodeEntry* idle_entry_;
   CodeEntry* gc_entry_;
   CodeEntry* unresolved_entry_;
 

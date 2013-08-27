@@ -142,8 +142,9 @@ class HBasicBlock: public ZoneObject {
   }
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
-  HSimulate* AddSimulate(BailoutId ast_id,
-                         RemovableSimulate removable = FIXED_SIMULATE) {
+  HPhi* AddNewPhi(int merged_index);
+  HSimulate* AddNewSimulate(BailoutId ast_id,
+                            RemovableSimulate removable = FIXED_SIMULATE) {
     HSimulate* instr = CreateSimulate(ast_id, removable);
     AddInstruction(instr);
     return instr;
@@ -453,6 +454,10 @@ class HGraph: public ZoneObject {
     uint32_instructions_->Add(instr, zone());
   }
 
+  void IncrementInNoSideEffectsScope() { no_side_effects_scope_count_++; }
+  void DecrementInNoSideEffectsScope() { no_side_effects_scope_count_--; }
+  bool IsInsideNoSideEffectsScope() { return no_side_effects_scope_count_ > 0; }
+
  private:
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
                          int32_t integer_value);
@@ -498,6 +503,7 @@ class HGraph: public ZoneObject {
   bool depends_on_empty_array_proto_elements_;
   int type_change_checksum_;
   int maximum_environment_size_;
+  int no_side_effects_scope_count_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -970,8 +976,7 @@ class HGraphBuilder {
   explicit HGraphBuilder(CompilationInfo* info)
       : info_(info),
         graph_(NULL),
-        current_block_(NULL),
-        no_side_effects_scope_count_(0) {}
+        current_block_(NULL) {}
   virtual ~HGraphBuilder() {}
 
   HBasicBlock* current_block() const { return current_block_; }
@@ -1186,16 +1191,7 @@ class HGraphBuilder {
         AddInstruction(NewUncasted<I>(p1, p2, p3, p4, p5, p6, p7, p8)));
   }
 
-  void AddSimulate(BailoutId id,
-                   RemovableSimulate removable = FIXED_SIMULATE);
-
-  void IncrementInNoSideEffectsScope() {
-    no_side_effects_scope_count_++;
-  }
-
-  void DecrementInNoSideEffectsScope() {
-    no_side_effects_scope_count_--;
-  }
+  void AddSimulate(BailoutId id, RemovableSimulate removable = FIXED_SIMULATE);
 
  protected:
   virtual bool BuildGraph() = 0;
@@ -1258,10 +1254,10 @@ class HGraphBuilder {
   HLoadNamedField* BuildLoadNamedField(
       HValue* object,
       HObjectAccess access,
-      HValue* typecheck = NULL);
-  HInstruction* BuildLoadStringLength(HValue* object, HValue* typecheck = NULL);
+      HValue* typecheck);
+  HInstruction* BuildLoadStringLength(HValue* object, HValue* typecheck);
   HStoreNamedField* AddStoreMapConstant(HValue *object, Handle<Map>);
-  HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck = NULL);
+  HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck);
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin);
@@ -1270,7 +1266,8 @@ class HGraphBuilder {
 
   void PushAndAdd(HInstruction* instr);
 
-  void FinishExitWithHardDeoptimization(HBasicBlock* continuation);
+  void FinishExitWithHardDeoptimization(const char* reason,
+                                        HBasicBlock* continuation);
 
   void AddIncrementCounter(StatsCounter* counter,
                            HValue* context);
@@ -1374,10 +1371,10 @@ class HGraphBuilder {
     void Else();
     void End();
 
-    void Deopt();
-    void ElseDeopt() {
+    void Deopt(const char* reason);
+    void ElseDeopt(const char* reason) {
       Else();
-      Deopt();
+      Deopt(reason);
     }
 
     void Return(HValue* value);
@@ -1439,20 +1436,6 @@ class HGraphBuilder {
     HBasicBlock* exit_block_;
     Direction direction_;
     bool finished_;
-  };
-
-  class NoObservableSideEffectsScope {
-   public:
-    explicit NoObservableSideEffectsScope(HGraphBuilder* builder) :
-        builder_(builder) {
-      builder_->IncrementInNoSideEffectsScope();
-    }
-    ~NoObservableSideEffectsScope() {
-      builder_->DecrementInNoSideEffectsScope();
-    }
-
-   private:
-    HGraphBuilder* builder_;
   };
 
   HValue* BuildNewElementsCapacity(HValue* old_capacity);
@@ -1576,19 +1559,18 @@ class HGraphBuilder {
   CompilationInfo* info_;
   HGraph* graph_;
   HBasicBlock* current_block_;
-  int no_side_effects_scope_count_;
 };
 
 
 template<>
 inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
-    Deoptimizer::BailoutType type) {
+    const char* reason, Deoptimizer::BailoutType type) {
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_requested()->Increment();
     if (FLAG_always_opt) return NULL;
   }
   if (current_block()->IsDeoptimizing()) return NULL;
-  HDeoptimize* instr = New<HDeoptimize>(type);
+  HDeoptimize* instr = New<HDeoptimize>(reason, type);
   AddInstruction(instr);
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_inserted()->Increment();
@@ -1601,8 +1583,8 @@ inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
 
 template<>
 inline HDeoptimize* HGraphBuilder::Add<HDeoptimize>(
-    Deoptimizer::BailoutType type) {
-  return static_cast<HDeoptimize*>(AddUncasted<HDeoptimize>(type));
+    const char* reason, Deoptimizer::BailoutType type) {
+  return static_cast<HDeoptimize*>(AddUncasted<HDeoptimize>(reason, type));
 }
 
 
@@ -2054,7 +2036,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                           Property* expr,
                                           Handle<Map> map);
 
-  void AddCheckMap(HValue* object, Handle<Map> map);
+  HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 
   void BuildStoreNamed(Expression* expression,
                        BailoutId id,
@@ -2326,6 +2308,21 @@ class HTracer: public Malloced {
   HeapStringAllocator string_allocator_;
   StringStream trace_;
   int indent_;
+};
+
+
+class NoObservableSideEffectsScope {
+ public:
+  explicit NoObservableSideEffectsScope(HGraphBuilder* builder) :
+      builder_(builder) {
+    builder_->graph()->IncrementInNoSideEffectsScope();
+  }
+  ~NoObservableSideEffectsScope() {
+    builder_->graph()->DecrementInNoSideEffectsScope();
+  }
+
+ private:
+  HGraphBuilder* builder_;
 };
 
 

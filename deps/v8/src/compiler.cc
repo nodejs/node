@@ -120,6 +120,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     return;
   }
   mode_ = V8::UseCrankshaft() ? mode : NONOPT;
+  abort_due_to_dependency_ = false;
   if (script_->type()->value() == Script::TYPE_NATIVE) {
     MarkAsNative();
   }
@@ -446,6 +447,12 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
     }
   }
 
+  if (info()->HasAbortedDueToDependencyChange()) {
+    info_->set_bailout_reason(kBailedOutDueToDependencyChange);
+    info_->AbortOptimization();
+    return SetLastStatus(BAILED_OUT);
+  }
+
   return SetLastStatus(SUCCEEDED);
 }
 
@@ -454,6 +461,7 @@ OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
+  DisallowCodeDependencyChange no_dependency_change;
 
   ASSERT(last_status() == SUCCEEDED);
   Timer t(this, &time_taken_to_optimize_);
@@ -474,6 +482,8 @@ OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
 
 OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
   ASSERT(last_status() == SUCCEEDED);
+  ASSERT(!info()->HasAbortedDueToDependencyChange());
+  DisallowCodeDependencyChange no_dependency_change;
   {  // Scope for timer.
     Timer timer(this, &time_taken_to_codegen_);
     ASSERT(chunk_ != NULL);
@@ -485,7 +495,7 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     DisallowDeferredHandleDereference no_deferred_handle_deref;
     Handle<Code> optimized_code = chunk_->Codegen();
     if (optimized_code.is_null()) {
-      if (info()->bailout_reason() != kNoReason) {
+      if (info()->bailout_reason() == kNoReason) {
         info()->set_bailout_reason(kCodeGenerationFailed);
       }
       return AbortOptimization();
@@ -815,6 +825,7 @@ static bool InstallFullCode(CompilationInfo* info) {
   // was flushed. By setting the code object last we avoid this.
   Handle<SharedFunctionInfo> shared = info->shared_info();
   Handle<Code> code = info->code();
+  CHECK(code->kind() == Code::FUNCTION);
   Handle<JSFunction> function = info->closure();
   Handle<ScopeInfo> scope_info =
       ScopeInfo::Create(info->scope(), info->zone());
@@ -972,7 +983,9 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
 
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
     if (FLAG_trace_parallel_recompilation) {
-      PrintF("  ** Compilation queue, will retry opting on next run.\n");
+      PrintF("  ** Compilation queue full, will retry optimizing ");
+      closure->PrintName();
+      PrintF(" on next run.\n");
     }
     return;
   }
@@ -1057,7 +1070,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // the unoptimized code.
   OptimizingCompiler::Status status = optimizing_compiler->last_status();
   if (info->HasAbortedDueToDependencyChange()) {
-    info->set_bailout_reason(kBailedOutDueToDependentMap);
+    info->set_bailout_reason(kBailedOutDueToDependencyChange);
     status = optimizing_compiler->AbortOptimization();
   } else if (status != OptimizingCompiler::SUCCEEDED) {
     info->set_bailout_reason(kFailedBailedOutLastTime);

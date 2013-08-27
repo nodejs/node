@@ -19915,13 +19915,23 @@ THREADED_TEST(Regress260106) {
 }
 
 
-THREADED_TEST(JSONParse) {
+THREADED_TEST(JSONParseObject) {
   LocalContext context;
   HandleScope scope(context->GetIsolate());
-  Local<Object> obj = v8::JSON::Parse(v8_str("{\"x\":42}"));
+  Local<Value> obj = v8::JSON::Parse(v8_str("{\"x\":42}"));
   Handle<Object> global = context->Global();
   global->Set(v8_str("obj"), obj);
   ExpectString("JSON.stringify(obj)", "{\"x\":42}");
+}
+
+
+THREADED_TEST(JSONParseNumber) {
+  LocalContext context;
+  HandleScope scope(context->GetIsolate());
+  Local<Value> obj = v8::JSON::Parse(v8_str("42"));
+  Handle<Object> global = context->Global();
+  global->Set(v8_str("obj"), obj);
+  ExpectString("JSON.stringify(obj)", "42");
 }
 
 

@@ -703,6 +703,16 @@ bool Heap::CollectGarbage(AllocationSpace space,
 }
 
 
+int Heap::NotifyContextDisposed() {
+  if (FLAG_parallel_recompilation) {
+    // Flush the queued recompilation tasks.
+    isolate()->optimizing_compiler_thread()->Flush();
+  }
+  flush_monomorphic_ics_ = true;
+  return ++contexts_disposed_;
+}
+
+
 void Heap::PerformScavenge() {
   GCTracer tracer(this, NULL, NULL);
   if (incremental_marking()->IsStopped()) {
@@ -3253,6 +3263,12 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
 }
 
 
+bool Heap::RootCanBeTreatedAsConstant(RootListIndex root_index) {
+  return !RootCanBeWrittenAfterInitialization(root_index) &&
+      !InNewSpace(roots_array_start()[root_index]);
+}
+
+
 Object* RegExpResultsCache::Lookup(Heap* heap,
                                    String* key_string,
                                    Object* key_pattern,
@@ -4465,7 +4481,8 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj,
 }
 
 
-MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
+MaybeObject* Heap::AllocateJSObjectFromMap(
+    Map* map, PretenureFlag pretenure, bool allocate_properties) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
@@ -4476,11 +4493,15 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
   // Allocate the backing storage for the properties.
-  int prop_size = map->InitialPropertiesLength();
-  ASSERT(prop_size >= 0);
-  Object* properties;
-  { MaybeObject* maybe_properties = AllocateFixedArray(prop_size, pretenure);
-    if (!maybe_properties->ToObject(&properties)) return maybe_properties;
+  FixedArray* properties;
+  if (allocate_properties) {
+    int prop_size = map->InitialPropertiesLength();
+    ASSERT(prop_size >= 0);
+    { MaybeObject* maybe_properties = AllocateFixedArray(prop_size, pretenure);
+      if (!maybe_properties->To(&properties)) return maybe_properties;
+    }
+  } else {
+    properties = empty_fixed_array();
   }
 
   // Allocate the JSObject.
@@ -4492,17 +4513,15 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   if (!maybe_obj->To(&obj)) return maybe_obj;
 
   // Initialize the JSObject.
-  InitializeJSObjectFromMap(JSObject::cast(obj),
-                            FixedArray::cast(properties),
-                            map);
+  InitializeJSObjectFromMap(JSObject::cast(obj), properties, map);
   ASSERT(JSObject::cast(obj)->HasFastElements() ||
          JSObject::cast(obj)->HasExternalArrayElements());
   return obj;
 }
 
 
-MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(Map* map,
-    Handle<AllocationSite> allocation_site) {
+MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(
+    Map* map, Handle<AllocationSite> allocation_site) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
@@ -4515,9 +4534,9 @@ MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(Map* map,
   // Allocate the backing storage for the properties.
   int prop_size = map->InitialPropertiesLength();
   ASSERT(prop_size >= 0);
-  Object* properties;
+  FixedArray* properties;
   { MaybeObject* maybe_properties = AllocateFixedArray(prop_size);
-    if (!maybe_properties->ToObject(&properties)) return maybe_properties;
+    if (!maybe_properties->To(&properties)) return maybe_properties;
   }
 
   // Allocate the JSObject.
@@ -4529,9 +4548,7 @@ MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(Map* map,
   if (!maybe_obj->To(&obj)) return maybe_obj;
 
   // Initialize the JSObject.
-  InitializeJSObjectFromMap(JSObject::cast(obj),
-                            FixedArray::cast(properties),
-                            map);
+  InitializeJSObjectFromMap(JSObject::cast(obj), properties, map);
   ASSERT(JSObject::cast(obj)->HasFastElements());
   return obj;
 }

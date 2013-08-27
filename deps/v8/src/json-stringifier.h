@@ -601,6 +601,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArraySlow(
   for (int i = 0; i < length; i++) {
     if (i > 0) Append(',');
     Handle<Object> element = Object::GetElement(object, i);
+    RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, element, EXCEPTION);
     if (element->IsUndefined()) {
       AppendAscii("null");
     } else {

@@ -56,9 +56,7 @@ class GlobalHandles::Node {
     NORMAL,     // Normal global handle.
     WEAK,       // Flagged as weak but not yet finalized.
     PENDING,    // Has been recognized as only reachable by weak handles.
-    NEAR_DEATH,  // Callback has informed the handle is near death.
-
-    NUMBER_OF_STATES
+    NEAR_DEATH  // Callback has informed the handle is near death.
   };
 
   // Maps handle location (slot) to the containing node.
@@ -96,12 +94,13 @@ class GlobalHandles::Node {
   }
 #endif
 
-  void Initialize(int index, Node* first_free) {
+  void Initialize(int index, Node** first_free) {
     index_ = static_cast<uint8_t>(index);
     ASSERT(static_cast<int>(index_) == index);
     set_state(FREE);
     set_in_new_space_list(false);
-    parameter_or_next_free_.next_free = first_free;
+    parameter_or_next_free_.next_free = *first_free;
+    *first_free = this;
   }
 
   void Acquire(Object* object) {
@@ -113,6 +112,7 @@ class GlobalHandles::Node {
     set_state(NORMAL);
     parameter_or_next_free_.parameter = NULL;
     weak_reference_callback_ = NULL;
+    IncreaseBlockUses();
   }
 
   void Release() {
@@ -126,7 +126,7 @@ class GlobalHandles::Node {
     set_partially_dependent(false);
     weak_reference_callback_ = NULL;
 #endif
-    ReleaseFromBlock();
+    DecreaseBlockUses();
   }
 
   // Object slot accessors.
@@ -205,6 +205,10 @@ class GlobalHandles::Node {
   }
   void clear_partially_dependent() { set_partially_dependent(false); }
 
+  // Callback accessor.
+  // TODO(svenpanne) Re-enable or nuke later.
+  // WeakReferenceCallback callback() { return callback_; }
+
   // Callback parameter accessors.
   void set_parameter(void* parameter) {
     ASSERT(state() != FREE);
@@ -273,7 +277,8 @@ class GlobalHandles::Node {
  private:
   inline NodeBlock* FindBlock();
   inline GlobalHandles* GetGlobalHandles();
-  inline void ReleaseFromBlock();
+  inline void IncreaseBlockUses();
+  inline void DecreaseBlockUses();
 
   // Storage for object pointer.
   // Placed first to avoid offset computation.
@@ -311,153 +316,20 @@ class GlobalHandles::Node {
 };
 
 
-class GlobalHandles::BlockListIterator {
- public:
-  explicit inline BlockListIterator(BlockList* anchor)
-      : anchor_(anchor), current_(anchor->next()) {
-    ASSERT(anchor->IsAnchor());
-  }
-  inline BlockList* block() const {
-    ASSERT(!done());
-    return current_;
-  }
-  inline bool done() const {
-    ASSERT_EQ(anchor_ == current_, current_->IsAnchor());
-    return anchor_ == current_;
-  }
-  inline void Advance() {
-    ASSERT(!done());
-    current_ = current_->next();
-  }
-
- private:
-  BlockList* const anchor_;
-  BlockList* current_;
-  DISALLOW_COPY_AND_ASSIGN(BlockListIterator);
-};
-
-
-GlobalHandles::BlockList::BlockList()
-    : prev_block_(this),
-      next_block_(this),
-      first_free_(NULL),
-      used_nodes_(0) {}
-
-
-void GlobalHandles::BlockList::InsertAsNext(BlockList* const block) {
-  ASSERT(block != this);
-  ASSERT(!block->IsAnchor());
-  ASSERT(block->IsDetached());
-  block->prev_block_ = this;
-  block->next_block_ = next_block_;
-  next_block_->prev_block_ = block;
-  next_block_ = block;
-  ASSERT(!IsDetached());
-  ASSERT(!block->IsDetached());
-}
-
-
-void GlobalHandles::BlockList::Detach() {
-  ASSERT(!IsAnchor());
-  ASSERT(!IsDetached());
-  prev_block_->next_block_ = next_block_;
-  next_block_->prev_block_ = prev_block_;
-  prev_block_ = this;
-  next_block_ = this;
-  ASSERT(IsDetached());
-}
-
-
-bool GlobalHandles::BlockList::HasAtLeastLength(int length) {
-  ASSERT(IsAnchor());
-  ASSERT(length > 0);
-  for (BlockListIterator it(this); !it.done(); it.Advance()) {
-    if (--length <= 0) return true;
-  }
-  return false;
-}
-
-
-#ifdef DEBUG
-int GlobalHandles::BlockList::LengthOfFreeList() {
-  int count = 0;
-  Node* node = first_free_;
-  while (node != NULL) {
-    count++;
-    node = node->next_free();
-  }
-  return count;
-}
-#endif
-
-
-int GlobalHandles::BlockList::CompareBlocks(const void* a, const void* b) {
-  const BlockList* block_a =
-      *reinterpret_cast<const BlockList**>(reinterpret_cast<uintptr_t>(a));
-  const BlockList* block_b =
-      *reinterpret_cast<const BlockList**>(reinterpret_cast<uintptr_t>(b));
-  if (block_a->used_nodes() > block_b->used_nodes()) return -1;
-  if (block_a->used_nodes() == block_b->used_nodes()) return 0;
-  return 1;
-}
-
-
-class GlobalHandles::NodeBlock : public BlockList {
+class GlobalHandles::NodeBlock {
  public:
   static const int kSize = 256;
 
-  explicit NodeBlock(GlobalHandles* global_handles)
-      : global_handles_(global_handles) {
-    // Initialize nodes
-    Node* first_free = first_free_;
+  explicit NodeBlock(GlobalHandles* global_handles, NodeBlock* next)
+      : next_(next),
+        used_nodes_(0),
+        next_used_(NULL),
+        prev_used_(NULL),
+        global_handles_(global_handles) {}
+
+  void PutNodesOnFreeList(Node** first_free) {
     for (int i = kSize - 1; i >= 0; --i) {
       nodes_[i].Initialize(i, first_free);
-      first_free = &nodes_[i];
-    }
-    first_free_ = first_free;
-    ASSERT(!IsAnchor());
-    // Link into global_handles
-    ASSERT(global_handles->non_full_blocks_.IsDetached());
-    global_handles->non_full_blocks_.InsertAsHead(this);
-    global_handles->number_of_blocks_++;
-  }
-
-  Node* Acquire(Object* o) {
-    ASSERT(used_nodes_ < kSize);
-    ASSERT(first_free_ != NULL);
-    ASSERT(global_handles_->non_full_blocks_.next() == this);
-    // Remove from free list
-    Node* node = first_free_;
-    first_free_ = node->next_free();
-    // Increment counters
-    global_handles_->isolate()->counters()->global_handles()->Increment();
-    global_handles_->number_of_global_handles_++;
-    // Initialize node with value
-    node->Acquire(o);
-    bool now_full = ++used_nodes_ == kSize;
-    ASSERT_EQ(now_full, first_free_ == NULL);
-    if (now_full) {
-      // Move block to tail of non_full_blocks_
-      Detach();
-      global_handles_->full_blocks_.InsertAsTail(this);
-    }
-    return node;
-  }
-
-  void Release(Node* node) {
-    ASSERT(used_nodes_ > 0);
-    // Add to free list
-    node->set_next_free(first_free_);
-    first_free_ = node;
-    // Decrement counters
-    global_handles_->isolate()->counters()->global_handles()->Decrement();
-    global_handles_->number_of_global_handles_--;
-    bool was_full = used_nodes_-- == kSize;
-    ASSERT_EQ(was_full, first_free_->next_free() == NULL);
-    if (was_full) {
-      // Move this block to head of non_full_blocks_
-      Detach();
-      global_handles_->non_full_blocks_.InsertAsHead(this);
     }
   }
 
@@ -466,120 +338,46 @@ class GlobalHandles::NodeBlock : public BlockList {
     return &nodes_[index];
   }
 
-  GlobalHandles* global_handles() { return global_handles_; }
-
-  static NodeBlock* Cast(BlockList* block_list) {
-    ASSERT(!block_list->IsAnchor());
-    return static_cast<NodeBlock*>(block_list);
-  }
-
-  static NodeBlock* From(Node* node, uint8_t index) {
-    uintptr_t ptr = reinterpret_cast<uintptr_t>(node - index);
-    ptr -= OFFSET_OF(NodeBlock, nodes_);
-    NodeBlock* block = reinterpret_cast<NodeBlock*>(ptr);
-    ASSERT(block->node_at(index) == node);
-    return block;
-  }
-
- private:
-  Node nodes_[kSize];
-  GlobalHandles* global_handles_;
-};
-
-
-void GlobalHandles::BlockList::SortBlocks(GlobalHandles* global_handles,
-                                          bool prune) {
-  // Always sort at least 2 blocks
-  if (!global_handles->non_full_blocks_.HasAtLeastLength(2)) return;
-  // build a vector that could contain the upper bound of the block count
-  int number_of_blocks = global_handles->block_count();
-  // Build array of blocks and update number_of_blocks to actual count
-  ScopedVector<BlockList*> blocks(number_of_blocks);
-  {
-    int i = 0;
-    BlockList* anchor = &global_handles->non_full_blocks_;
-    for (BlockListIterator it(anchor); !it.done(); it.Advance()) {
-      blocks[i++] = it.block();
+  void IncreaseUses() {
+    ASSERT(used_nodes_ < kSize);
+    if (used_nodes_++ == 0) {
+      NodeBlock* old_first = global_handles_->first_used_block_;
+      global_handles_->first_used_block_ = this;
+      next_used_ = old_first;
+      prev_used_ = NULL;
+      if (old_first == NULL) return;
+      old_first->prev_used_ = this;
     }
-    number_of_blocks = i;
   }
-  // Nothing to do.
-  if (number_of_blocks <= 1) return;
-  // Sort blocks
-  qsort(blocks.start(), number_of_blocks, sizeof(blocks[0]), CompareBlocks);
-  // Prune empties
-  if (prune) {
-    static const double kUnusedPercentage = 0.30;
-    static const double kUsedPercentage = 1.30;
-    int total_slots = global_handles->number_of_blocks_ * NodeBlock::kSize;
-    const int total_used = global_handles->number_of_global_handles_;
-    const int target_unused = static_cast<int>(Max(
-        total_used * kUsedPercentage,
-        total_slots * kUnusedPercentage));
-    // Reverse through empty blocks. Note: always leave one block free.
-    int blocks_deleted = 0;
-    for (int i = number_of_blocks - 1; i > 0 && blocks[i]->IsUnused(); i--) {
-      // Not worth deleting
-      if (total_slots - total_used < target_unused) break;
-      blocks[i]->Detach();
-      delete blocks[i];
-      blocks_deleted++;
-      total_slots -= NodeBlock::kSize;
-    }
-    global_handles->number_of_blocks_ -= blocks_deleted;
-    number_of_blocks -= blocks_deleted;
-  }
-  // Relink all blocks
-  for (int i = 0; i < number_of_blocks; i++) {
-    blocks[i]->Detach();
-    global_handles->non_full_blocks_.InsertAsTail(blocks[i]);
-  }
-#ifdef DEBUG
-  // Check sorting
-  BlockList* anchor = &global_handles->non_full_blocks_;
-  int last_size = NodeBlock::kSize;
-  for (BlockListIterator it(anchor); !it.done(); it.Advance()) {
-    ASSERT(it.block()->used_nodes() <= last_size);
-    last_size = it.block()->used_nodes();
-  }
-#endif
-}
 
-
-#ifdef DEBUG
-void GlobalHandles::VerifyBlockInvariants() {
-  int number_of_blocks = 0;
-  int number_of_handles = 0;
-  for (int i = 0; i < kAllAnchorsSize; i++) {
-    for (BlockListIterator it(all_anchors_[i]); !it.done(); it.Advance()) {
-      BlockList* block = it.block();
-      number_of_blocks++;
-      int used_nodes = block->used_nodes();
-      number_of_handles += used_nodes;
-      int unused_nodes = block->LengthOfFreeList();
-      ASSERT_EQ(used_nodes + unused_nodes, NodeBlock::kSize);
-      if (all_anchors_[i] == &full_blocks_) {
-        ASSERT_EQ(NodeBlock::kSize, used_nodes);
-      } else {
-        ASSERT_NE(NodeBlock::kSize, used_nodes);
+  void DecreaseUses() {
+    ASSERT(used_nodes_ > 0);
+    if (--used_nodes_ == 0) {
+      if (next_used_ != NULL) next_used_->prev_used_ = prev_used_;
+      if (prev_used_ != NULL) prev_used_->next_used_ = next_used_;
+      if (this == global_handles_->first_used_block_) {
+        global_handles_->first_used_block_ = next_used_;
       }
     }
   }
-  ASSERT_EQ(number_of_handles, number_of_global_handles_);
-  ASSERT_EQ(number_of_blocks, number_of_blocks_);
-}
-#endif
 
+  GlobalHandles* global_handles() { return global_handles_; }
 
-void GlobalHandles::SortBlocks(bool shouldPrune) {
-#ifdef DEBUG
-  VerifyBlockInvariants();
-#endif
-  BlockList::SortBlocks(this, shouldPrune);
-#ifdef DEBUG
-  VerifyBlockInvariants();
-#endif
-}
+  // Next block in the list of all blocks.
+  NodeBlock* next() const { return next_; }
+
+  // Next/previous block in the list of blocks with used nodes.
+  NodeBlock* next_used() const { return next_used_; }
+  NodeBlock* prev_used() const { return prev_used_; }
+
+ private:
+  Node nodes_[kSize];
+  NodeBlock* const next_;
+  int used_nodes_;
+  NodeBlock* next_used_;
+  NodeBlock* prev_used_;
+  GlobalHandles* global_handles_;
+};
 
 
 GlobalHandles* GlobalHandles::Node::GetGlobalHandles() {
@@ -588,127 +386,93 @@ GlobalHandles* GlobalHandles::Node::GetGlobalHandles() {
 
 
 GlobalHandles::NodeBlock* GlobalHandles::Node::FindBlock() {
-  return NodeBlock::From(this, index_);
+  intptr_t ptr = reinterpret_cast<intptr_t>(this);
+  ptr = ptr - index_ * sizeof(Node);
+  NodeBlock* block = reinterpret_cast<NodeBlock*>(ptr);
+  ASSERT(block->node_at(index_) == this);
+  return block;
 }
 
 
-void GlobalHandles::Node::ReleaseFromBlock() {
-  FindBlock()->Release(this);
+void GlobalHandles::Node::IncreaseBlockUses() {
+  NodeBlock* node_block = FindBlock();
+  node_block->IncreaseUses();
+  GlobalHandles* global_handles = node_block->global_handles();
+  global_handles->isolate()->counters()->global_handles()->Increment();
+  global_handles->number_of_global_handles_++;
+}
+
+
+void GlobalHandles::Node::DecreaseBlockUses() {
+  NodeBlock* node_block = FindBlock();
+  GlobalHandles* global_handles = node_block->global_handles();
+  parameter_or_next_free_.next_free = global_handles->first_free_;
+  global_handles->first_free_ = this;
+  node_block->DecreaseUses();
+  global_handles->isolate()->counters()->global_handles()->Decrement();
+  global_handles->number_of_global_handles_--;
 }
 
 
 class GlobalHandles::NodeIterator {
  public:
   explicit NodeIterator(GlobalHandles* global_handles)
-      : all_anchors_(global_handles->all_anchors_),
-        block_(all_anchors_[0]),
-        anchor_index_(0),
-        node_index_(0) {
-    AdvanceBlock();
-  }
+      : block_(global_handles->first_used_block_),
+        index_(0) {}
 
-  bool done() const {
-    return anchor_index_ == kAllAnchorsSize;
-  }
+  bool done() const { return block_ == NULL; }
 
   Node* node() const {
     ASSERT(!done());
-    return NodeBlock::Cast(block_)->node_at(node_index_);
+    return block_->node_at(index_);
   }
 
   void Advance() {
     ASSERT(!done());
-    if (++node_index_ < NodeBlock::kSize) return;
-    node_index_ = 0;
-    AdvanceBlock();
+    if (++index_ < NodeBlock::kSize) return;
+    index_ = 0;
+    block_ = block_->next_used();
   }
-
-  typedef int CountArray[Node::NUMBER_OF_STATES];
-  static int CollectStats(GlobalHandles* global_handles, CountArray counts);
 
  private:
-  void AdvanceBlock() {
-    ASSERT(!done());
-    while (true) {
-      block_ = block_->next();
-      // block is valid
-      if (block_ != all_anchors_[anchor_index_]) {
-        ASSERT(!done());
-        ASSERT(!block_->IsAnchor());
-        // skip empty blocks
-        if (block_->IsUnused()) continue;
-        return;
-      }
-      // jump lists
-      anchor_index_++;
-      if (anchor_index_ == kAllAnchorsSize) break;
-      block_ = all_anchors_[anchor_index_];
-    }
-    ASSERT(done());
-  }
-
-  BlockList* const * const all_anchors_;
-  BlockList* block_;
-  int anchor_index_;
-  int node_index_;
+  NodeBlock* block_;
+  int index_;
 
   DISALLOW_COPY_AND_ASSIGN(NodeIterator);
 };
 
 
-int GlobalHandles::NodeIterator::CollectStats(GlobalHandles* global_handles,
-                                              CountArray counts) {
-  static const int kSize = Node::NUMBER_OF_STATES;
-  for (int i = 0; i < kSize; i++) {
-    counts[i] = 0;
-  }
-  int total = 0;
-  for (NodeIterator it(global_handles); !it.done(); it.Advance()) {
-    total++;
-    Node::State state = it.node()->state();
-    ASSERT(state >= 0 && state < kSize);
-    counts[state]++;
-  }
-  // NodeIterator skips empty blocks
-  int skipped = global_handles->number_of_blocks_ * NodeBlock::kSize - total;
-  total += skipped;
-  counts[Node::FREE] += total;
-  return total;
-}
-
-
 GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
-      number_of_blocks_(0),
       number_of_global_handles_(0),
+      first_block_(NULL),
+      first_used_block_(NULL),
+      first_free_(NULL),
       post_gc_processing_count_(0),
-      object_group_connections_(kObjectGroupConnectionsCapacity) {
-  all_anchors_[0] = &full_blocks_;
-  all_anchors_[1] = &non_full_blocks_;
-}
+      object_group_connections_(kObjectGroupConnectionsCapacity) {}
 
 
 GlobalHandles::~GlobalHandles() {
-  for (int i = 0; i < kAllAnchorsSize; i++) {
-    BlockList* block = all_anchors_[i]->next();
-    while (block != all_anchors_[i]) {
-      BlockList* tmp = block->next();
-      block->Detach();
-      delete NodeBlock::Cast(block);
-      block = tmp;
-    }
+  NodeBlock* block = first_block_;
+  while (block != NULL) {
+    NodeBlock* tmp = block->next();
+    delete block;
+    block = tmp;
   }
+  first_block_ = NULL;
 }
 
 
 Handle<Object> GlobalHandles::Create(Object* value) {
-  if (non_full_blocks_.IsDetached()) {
-    new NodeBlock(this);
-    ASSERT(!non_full_blocks_.IsDetached());
+  if (first_free_ == NULL) {
+    first_block_ = new NodeBlock(this, first_block_);
+    first_block_->PutNodesOnFreeList(&first_free_);
   }
-  ASSERT(non_full_blocks_.IsAnchor());
-  ASSERT(!non_full_blocks_.next()->IsAnchor());
-  Node* result = NodeBlock::Cast(non_full_blocks_.next())->Acquire(value);
+  ASSERT(first_free_ != NULL);
+  // Take the first node in the free list.
+  Node* result = first_free_;
+  first_free_ = result->next_free();
+  result->Acquire(value);
   if (isolate_->heap()->InNewSpace(value) &&
       !result->is_in_new_space_list()) {
     new_space_nodes_.Add(result);
@@ -898,32 +662,21 @@ bool GlobalHandles::PostGarbageCollectionProcessing(
       }
     }
   } else {
-    // Must cache all blocks, as NodeIterator can't survive mutation.
-    List<NodeBlock*> blocks(number_of_blocks_);
-    for (int i = 0; i < kAllAnchorsSize; i++) {
-      for (BlockListIterator it(all_anchors_[i]); !it.done(); it.Advance()) {
-        blocks.Add(NodeBlock::Cast(it.block()));
+    for (NodeIterator it(this); !it.done(); it.Advance()) {
+      if (!it.node()->IsRetainer()) {
+        // Free nodes do not have weak callbacks. Do not use them to compute
+        // the next_gc_likely_to_collect_more.
+        continue;
       }
-    }
-    for (int block_index = 0; block_index < blocks.length(); block_index++) {
-      NodeBlock* block = blocks[block_index];
-      for (int node_index = 0; node_index < NodeBlock::kSize; node_index++) {
-        Node* node = block->node_at(node_index);
-        if (!node->IsRetainer()) {
-          // Free nodes do not have weak callbacks. Do not use them to compute
-          // the next_gc_likely_to_collect_more.
-          continue;
+      it.node()->clear_partially_dependent();
+      if (it.node()->PostGarbageCollectionProcessing(isolate_)) {
+        if (initial_post_gc_processing_count != post_gc_processing_count_) {
+          // See the comment above.
+          return next_gc_likely_to_collect_more;
         }
-        node->clear_partially_dependent();
-        if (node->PostGarbageCollectionProcessing(isolate_)) {
-          if (initial_post_gc_processing_count != post_gc_processing_count_) {
-            // See the comment above.
-            return next_gc_likely_to_collect_more;
-          }
-        }
-        if (!node->IsRetainer()) {
-          next_gc_likely_to_collect_more = true;
-        }
+      }
+      if (!it.node()->IsRetainer()) {
+        next_gc_likely_to_collect_more = true;
       }
     }
   }
@@ -946,8 +699,6 @@ bool GlobalHandles::PostGarbageCollectionProcessing(
     }
   }
   new_space_nodes_.Rewind(last);
-  bool shouldPruneBlocks = collector != SCAVENGER;
-  SortBlocks(shouldPruneBlocks);
   return next_gc_likely_to_collect_more;
 }
 
@@ -1015,30 +766,48 @@ int GlobalHandles::NumberOfGlobalObjectWeakHandles() {
 
 
 void GlobalHandles::RecordStats(HeapStats* stats) {
-  NodeIterator::CountArray counts;
-  int total = NodeIterator::CollectStats(this, counts);
-  *stats->global_handle_count = total;
-  *stats->weak_global_handle_count = counts[Node::WEAK];
-  *stats->pending_global_handle_count = counts[Node::PENDING];
-  *stats->near_death_global_handle_count = counts[Node::NEAR_DEATH];
-  *stats->free_global_handle_count = counts[Node::FREE];
+  *stats->global_handle_count = 0;
+  *stats->weak_global_handle_count = 0;
+  *stats->pending_global_handle_count = 0;
+  *stats->near_death_global_handle_count = 0;
+  *stats->free_global_handle_count = 0;
+  for (NodeIterator it(this); !it.done(); it.Advance()) {
+    *stats->global_handle_count += 1;
+    if (it.node()->state() == Node::WEAK) {
+      *stats->weak_global_handle_count += 1;
+    } else if (it.node()->state() == Node::PENDING) {
+      *stats->pending_global_handle_count += 1;
+    } else if (it.node()->state() == Node::NEAR_DEATH) {
+      *stats->near_death_global_handle_count += 1;
+    } else if (it.node()->state() == Node::FREE) {
+      *stats->free_global_handle_count += 1;
+    }
+  }
 }
-
 
 #ifdef DEBUG
 
 void GlobalHandles::PrintStats() {
-  NodeIterator::CountArray counts;
-  int total = NodeIterator::CollectStats(this, counts);
-  size_t total_consumed = sizeof(NodeBlock) * number_of_blocks_;
+  int total = 0;
+  int weak = 0;
+  int pending = 0;
+  int near_death = 0;
+  int destroyed = 0;
+
+  for (NodeIterator it(this); !it.done(); it.Advance()) {
+    total++;
+    if (it.node()->state() == Node::WEAK) weak++;
+    if (it.node()->state() == Node::PENDING) pending++;
+    if (it.node()->state() == Node::NEAR_DEATH) near_death++;
+    if (it.node()->state() == Node::FREE) destroyed++;
+  }
+
   PrintF("Global Handle Statistics:\n");
-  PrintF("  allocated blocks = %d\n", number_of_blocks_);
-  PrintF("  allocated memory = %" V8_PTR_PREFIX "dB\n", total_consumed);
-  PrintF("  # normal     = %d\n", counts[Node::NORMAL]);
-  PrintF("  # weak       = %d\n", counts[Node::WEAK]);
-  PrintF("  # pending    = %d\n", counts[Node::PENDING]);
-  PrintF("  # near_death = %d\n", counts[Node::NEAR_DEATH]);
-  PrintF("  # free       = %d\n", counts[Node::FREE]);
+  PrintF("  allocated memory = %" V8_PTR_PREFIX "dB\n", sizeof(Node) * total);
+  PrintF("  # weak       = %d\n", weak);
+  PrintF("  # pending    = %d\n", pending);
+  PrintF("  # near_death = %d\n", near_death);
+  PrintF("  # free       = %d\n", destroyed);
   PrintF("  # total      = %d\n", total);
 }
 

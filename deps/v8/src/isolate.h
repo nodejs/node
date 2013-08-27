@@ -661,9 +661,9 @@ class Isolate {
   }
   inline Address* handler_address() { return &thread_local_top_.handler_; }
 
-  // Bottom JS entry (see StackTracer::Trace in sampler.cc).
-  static Address js_entry_sp(ThreadLocalTop* thread) {
-    return thread->js_entry_sp_;
+  // Bottom JS entry.
+  Address js_entry_sp() {
+    return thread_local_top_.js_entry_sp_;
   }
   inline Address* js_entry_sp_address() {
     return &thread_local_top_.js_entry_sp_;
@@ -1062,13 +1062,6 @@ class Isolate {
     thread_local_top_.top_lookup_result_ = top;
   }
 
-  bool context_exit_happened() {
-    return context_exit_happened_;
-  }
-  void set_context_exit_happened(bool context_exit_happened) {
-    context_exit_happened_ = context_exit_happened;
-  }
-
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   double time_millis_since_init() {
@@ -1316,10 +1309,6 @@ class Isolate {
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
-
-  // The garbage collector should be a little more aggressive when it knows
-  // that a context was recently exited.
-  bool context_exit_happened_;
 
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_;

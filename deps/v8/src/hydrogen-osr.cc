@@ -117,6 +117,7 @@ void HOsrBuilder::FinishOsrValues() {
   const ZoneList<HPhi*>* phis = osr_loop_entry_->phis();
   for (int j = 0; j < phis->length(); j++) {
     HPhi* phi = phis->at(j);
+    ASSERT(phi->HasMergedIndex());
     osr_values_->at(phi->merged_index())->set_incoming_value(phi);
   }
 }

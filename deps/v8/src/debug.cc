@@ -409,6 +409,9 @@ bool BreakLocationIterator::IsStepInLocation(Isolate* isolate) {
     HandleScope scope(debug_info_->GetIsolate());
     Address target = rinfo()->target_address();
     Handle<Code> target_code(Code::GetCodeFromTargetAddress(target));
+    if (target_code->kind() == Code::STUB) {
+      return target_code->major_key() == CodeStub::CallFunction;
+    }
     return target_code->is_call_stub() || target_code->is_keyed_call_stub();
   } else {
     return false;
@@ -2044,6 +2047,10 @@ void Debug::PrepareForBreakPoints() {
   // If preparing for the first break point make sure to deoptimize all
   // functions as debugging does not work with optimized code.
   if (!has_break_points_) {
+    if (FLAG_parallel_recompilation) {
+      isolate_->optimizing_compiler_thread()->Flush();
+    }
+
     Deoptimizer::DeoptimizeAll(isolate_);
 
     Handle<Code> lazy_compile =

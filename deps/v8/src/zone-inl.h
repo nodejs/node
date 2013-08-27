@@ -109,6 +109,12 @@ void* ZoneList<T>::operator new(size_t size, Zone* zone) {
 }
 
 
+template <typename T>
+void* ZoneSplayTree<T>::operator new(size_t size, Zone* zone) {
+  return zone->New(static_cast<int>(size));
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_ZONE_INL_H_

@@ -61,6 +61,15 @@ class MacroAssembler: public Assembler {
   // macro assembler.
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
+  // Operations on roots in the root-array.
+  void LoadRoot(Register destination, Heap::RootListIndex index);
+  void StoreRoot(Register source, Register scratch, Heap::RootListIndex index);
+  void CompareRoot(Register with, Register scratch, Heap::RootListIndex index);
+  // These methods can only be used with constant roots (i.e. non-writable
+  // and not in new space).
+  void CompareRoot(Register with, Heap::RootListIndex index);
+  void CompareRoot(const Operand& with, Heap::RootListIndex index);
+
   // ---------------------------------------------------------------------------
   // GC Support
   enum RememberedSetFinalAction {
@@ -361,10 +370,6 @@ class MacroAssembler: public Assembler {
   bool IsUnsafeImmediate(const Immediate& x);
   void SafeSet(Register dst, const Immediate& x);
   void SafePush(const Immediate& x);
-
-  // Compare against a known root, e.g. undefined, null, true, ...
-  void CompareRoot(Register with, Heap::RootListIndex index);
-  void CompareRoot(const Operand& with, Heap::RootListIndex index);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.

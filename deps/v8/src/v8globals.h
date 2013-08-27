@@ -363,7 +363,8 @@ enum StateTag {
   GC,
   COMPILER,
   OTHER,
-  EXTERNAL
+  EXTERNAL,
+  IDLE
 };
 
 

@@ -92,6 +92,8 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
     case OTHER:
     case EXTERNAL:
       return program_entry_;
+    case IDLE:
+      return idle_entry_;
     default: return NULL;
   }
 }

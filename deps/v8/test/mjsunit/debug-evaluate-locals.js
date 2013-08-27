@@ -134,7 +134,7 @@ function listener(event, exec_state, event_data, data) {
       listenerComplete = true;
     }
   } catch (e) {
-    exception = e
+    exception = e;
     print("Caught something. " + e + " " + e.stack);
   };
 };

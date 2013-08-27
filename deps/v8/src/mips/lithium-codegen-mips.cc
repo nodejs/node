@@ -268,6 +268,8 @@ bool LCodeGen::GenerateBody() {
               instr->Mnemonic());
     }
 
+    RecordAndUpdatePosition(instr->position());
+
     instr->CompileToNative(this);
   }
   EnsureSpaceForLazyDeopt();
@@ -281,6 +283,10 @@ bool LCodeGen::GenerateDeferredCode() {
   if (deferred_.length() > 0) {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
       LDeferredCode* code = deferred_[i];
+
+      int pos = instructions_->at(code->instruction_index())->position();
+      RecordAndUpdatePosition(pos);
+
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
               code->instruction_index(),
@@ -591,37 +597,57 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
       break;
   }
 
+  int object_index = 0;
+  int dematerialized_index = 0;
   for (int i = 0; i < translation_size; ++i) {
     LOperand* value = environment->values()->at(i);
-
-    // TODO(mstarzinger): Introduce marker operands to indicate that this value
-    // is not present and must be reconstructed from the deoptimizer. Currently
-    // this is only used for the arguments object.
-    if (value == NULL) {
-      int arguments_count = environment->values()->length() - translation_size;
-      translation->BeginArgumentsObject(arguments_count);
-      for (int i = 0; i < arguments_count; ++i) {
-        LOperand* value = environment->values()->at(translation_size + i);
-        AddToTranslation(translation,
-                         value,
-                         environment->HasTaggedValueAt(translation_size + i),
-                         environment->HasUint32ValueAt(translation_size + i));
-      }
-      continue;
-    }
-
-    AddToTranslation(translation,
+    AddToTranslation(environment,
+                     translation,
                      value,
                      environment->HasTaggedValueAt(i),
-                     environment->HasUint32ValueAt(i));
+                     environment->HasUint32ValueAt(i),
+                     &object_index,
+                     &dematerialized_index);
   }
 }
 
 
-void LCodeGen::AddToTranslation(Translation* translation,
+void LCodeGen::AddToTranslation(LEnvironment* environment,
+                                Translation* translation,
                                 LOperand* op,
                                 bool is_tagged,
-                                bool is_uint32) {
+                                bool is_uint32,
+                                int* object_index_pointer,
+                                int* dematerialized_index_pointer) {
+  if (op == LEnvironment::materialization_marker()) {
+    int object_index = (*object_index_pointer)++;
+    if (environment->ObjectIsDuplicateAt(object_index)) {
+      int dupe_of = environment->ObjectDuplicateOfAt(object_index);
+      translation->DuplicateObject(dupe_of);
+      return;
+    }
+    int object_length = environment->ObjectLengthAt(object_index);
+    if (environment->ObjectIsArgumentsAt(object_index)) {
+      translation->BeginArgumentsObject(object_length);
+    } else {
+      translation->BeginCapturedObject(object_length);
+    }
+    int dematerialized_index = *dematerialized_index_pointer;
+    int env_offset = environment->translation_size() + dematerialized_index;
+    *dematerialized_index_pointer += object_length;
+    for (int i = 0; i < object_length; ++i) {
+      LOperand* value = environment->values()->at(env_offset + i);
+      AddToTranslation(environment,
+                       translation,
+                       value,
+                       environment->HasTaggedValueAt(env_offset + i),
+                       environment->HasUint32ValueAt(env_offset + i),
+                       object_index_pointer,
+                       dematerialized_index_pointer);
+    }
+    return;
+  }
+
   if (op->IsStackSlot()) {
     if (is_tagged) {
       translation->StoreStackSlot(op->index());
@@ -761,7 +787,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     return;
   }
 
-  if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
+  if (info()->ShouldTrapOnDeopt()) {
     Label skip;
     if (cc != al) {
       __ Branch(&skip, NegateCondition(cc), src1, src2);
@@ -960,6 +986,14 @@ void LCodeGen::RecordPosition(int position) {
 }
 
 
+void LCodeGen::RecordAndUpdatePosition(int position) {
+  if (position >= 0 && position != old_position_) {
+    masm()->positions_recorder()->RecordPosition(position);
+    old_position_ = position;
+  }
+}
+
+
 static const char* LabelType(LLabel* label) {
   if (label->is_loop_header()) return " (loop header)";
   if (label->is_osr_entry()) return " (OSR entry)";
@@ -1154,7 +1188,6 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
     Register scratch,
     LEnvironment* environment) {
   ASSERT(!AreAliased(dividend, scratch, at, no_reg));
-  ASSERT(LChunkBuilder::HasMagicNumberForDivisor(divisor));
 
   uint32_t divisor_abs = abs(divisor);
 
@@ -2888,90 +2921,6 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 }
 
 
-void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
-                                               Register object,
-                                               Handle<Map> type,
-                                               Handle<String> name,
-                                               LEnvironment* env) {
-  LookupResult lookup(isolate());
-  type->LookupDescriptor(NULL, *name, &lookup);
-  ASSERT(lookup.IsFound() || lookup.IsCacheable());
-  if (lookup.IsField()) {
-    int index = lookup.GetLocalFieldIndexFromMap(*type);
-    int offset = index * kPointerSize;
-    if (index < 0) {
-      // Negative property indices are in-object properties, indexed
-      // from the end of the fixed part of the object.
-      __ lw(result, FieldMemOperand(object, offset + type->instance_size()));
-    } else {
-      // Non-negative property indices are in the properties array.
-      __ lw(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
-      __ lw(result, FieldMemOperand(result, offset + FixedArray::kHeaderSize));
-    }
-  } else if (lookup.IsConstant()) {
-    Handle<Object> constant(lookup.GetConstantFromMap(*type), isolate());
-    __ LoadObject(result, constant);
-  } else {
-    // Negative lookup.
-    // Check prototypes.
-    Handle<HeapObject> current(HeapObject::cast((*type)->prototype()));
-    Heap* heap = type->GetHeap();
-    while (*current != heap->null_value()) {
-      __ LoadHeapObject(result, current);
-      __ lw(result, FieldMemOperand(result, HeapObject::kMapOffset));
-      DeoptimizeIf(ne, env, result, Operand(Handle<Map>(current->map())));
-      current =
-          Handle<HeapObject>(HeapObject::cast(current->map()->prototype()));
-    }
-    __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
-  }
-}
-
-
-void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
-  Register object = ToRegister(instr->object());
-  Register result = ToRegister(instr->result());
-  Register object_map = scratch0();
-
-  int map_count = instr->hydrogen()->types()->length();
-  bool need_generic = instr->hydrogen()->need_generic();
-
-  if (map_count == 0 && !need_generic) {
-    DeoptimizeIf(al, instr->environment());
-    return;
-  }
-  Handle<String> name = instr->hydrogen()->name();
-  Label done;
-  __ lw(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
-  for (int i = 0; i < map_count; ++i) {
-    bool last = (i == map_count - 1);
-    Handle<Map> map = instr->hydrogen()->types()->at(i);
-    Label check_passed;
-    __ CompareMapAndBranch(object_map, map, &check_passed, eq, &check_passed);
-    if (last && !need_generic) {
-      DeoptimizeIf(al, instr->environment());
-      __ bind(&check_passed);
-      EmitLoadFieldOrConstantFunction(
-          result, object, map, name, instr->environment());
-    } else {
-      Label next;
-      __ Branch(&next);
-      __ bind(&check_passed);
-      EmitLoadFieldOrConstantFunction(
-          result, object, map, name, instr->environment());
-      __ Branch(&done);
-      __ bind(&next);
-    }
-  }
-  if (need_generic) {
-    __ li(a2, Operand(name));
-    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-    CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  }
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   ASSERT(ToRegister(instr->object()).is(a0));
   ASSERT(ToRegister(instr->result()).is(v0));
@@ -4456,12 +4405,13 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         scratch, GetRAState(), kDontSaveFPRegs);
   } else {
-    PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+    PushSafepointRegistersScope scope(
+        this, Safepoint::kWithRegistersAndDoubles);
     __ mov(a0, object_reg);
     __ li(a1, Operand(to_map));
     TransitionElementsKindStub stub(from_kind, to_kind);
     __ CallStub(&stub);
-    RecordSafepointWithRegisters(
+    RecordSafepointWithRegistersAndDoubles(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
   }
   __ bind(&not_applicable);
@@ -4767,7 +4717,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     __ Move(reg, scratch0(), input_reg);
     Label canonicalize;
     __ Branch(&canonicalize, ne, scratch0(), Operand(kHoleNanUpper32));
-    __ li(reg, factory()->the_hole_value());
+    __ li(reg, factory()->undefined_value());
     __ Branch(&done);
     __ bind(&canonicalize);
     __ Move(input_reg,
@@ -5172,7 +5122,7 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   AllowDeferredHandleDereference smi_check;
   if (isolate()->heap()->InNewSpace(*target)) {
     Register reg = ToRegister(instr->value());
-    Handle<Cell> cell = isolate()->factory()->NewPropertyCell(target);
+    Handle<Cell> cell = isolate()->factory()->NewCell(target);
     __ li(at, Operand(Handle<Object>(cell)));
     __ lw(at, FieldMemOperand(at, Cell::kValueOffset));
     DeoptimizeIf(ne, instr->environment(), reg,
@@ -5234,11 +5184,11 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
     __ CompareMapAndBranch(map_reg, map, &success, eq, &success);
   }
   Handle<Map> map = map_set->last();
-  __ CompareMapAndBranch(map_reg, map, &success, eq, &success);
+  // Do the CompareMap() directly within the Branch() and DeoptimizeIf().
   if (instr->hydrogen()->has_migration_target()) {
-    __ Branch(deferred->entry());
+    __ Branch(deferred->entry(), ne, map_reg, Operand(map));
   } else {
-    DeoptimizeIf(al, instr->environment());
+    DeoptimizeIf(ne, instr->environment(), map_reg, Operand(map));
   }
 
   __ bind(&success);
@@ -5675,6 +5625,8 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
   if (info()->IsStub() && type == Deoptimizer::EAGER) {
     type = Deoptimizer::LAZY;
   }
+
+  Comment(";;; deoptimize: %s", instr->hydrogen()->reason());
   DeoptimizeIf(al, instr->environment(), type, zero_reg, Operand(zero_reg));
 }
 

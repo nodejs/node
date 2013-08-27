@@ -157,7 +157,7 @@ void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 static Address GetJsEntrySp() {
   CHECK_NE(NULL, i::Isolate::Current()->thread_local_top());
-  return Isolate::js_entry_sp(i::Isolate::Current()->thread_local_top());
+  return i::Isolate::Current()->js_entry_sp();
 }
 
 

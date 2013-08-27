@@ -220,7 +220,7 @@ double ProfileNode::GetTotalMillis() const {
 
 
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %5u %*c %s%s #%d %d",
+  OS::Print("%5u %5u %*c %s%s %d #%d",
             total_ticks_, self_ticks_,
             indent, ' ',
             entry_->name_prefix(),
@@ -614,6 +614,8 @@ const char* const ProfileGenerator::kAnonymousFunctionName =
     "(anonymous function)";
 const char* const ProfileGenerator::kProgramEntryName =
     "(program)";
+const char* const ProfileGenerator::kIdleEntryName =
+    "(idle)";
 const char* const ProfileGenerator::kGarbageCollectorEntryName =
     "(garbage collector)";
 const char* const ProfileGenerator::kUnresolvedFunctionName =
@@ -624,6 +626,8 @@ ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
     : profiles_(profiles),
       program_entry_(
           profiles->NewCodeEntry(Logger::FUNCTION_TAG, kProgramEntryName)),
+      idle_entry_(
+          profiles->NewCodeEntry(Logger::FUNCTION_TAG, kIdleEntryName)),
       gc_entry_(
           profiles->NewCodeEntry(Logger::BUILTIN_TAG,
                                  kGarbageCollectorEntryName)),

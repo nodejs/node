@@ -40,4 +40,4 @@ libgcmole.so: gcmole.cc
 	-shared -o libgcmole.so gcmole.cc
 
 clean:
-	rm libgcmole.so
+	rm -f libgcmole.so

@@ -118,7 +118,9 @@ void HDeadCodeEliminationPhase::RemoveDeadInstructions() {
     HPhi* phi = worklist.RemoveLast();
     HBasicBlock* block = phi->block();
     phi->DeleteAndReplaceWith(NULL);
-    block->RecordDeletedPhi(phi->merged_index());
+    if (phi->HasMergedIndex()) {
+      block->RecordDeletedPhi(phi->merged_index());
+    }
   }
 }
 

@@ -48,7 +48,7 @@ class HGlobalValueNumberingPhase : public HPhase {
     // instructions during the first pass.
     if (FLAG_smi_only_arrays && removed_side_effects_) {
       Analyze();
-      ASSERT(!removed_side_effects_);
+      // TODO(danno): Turn this into a fixpoint iteration.
     }
   }
 

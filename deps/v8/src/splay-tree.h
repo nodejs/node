@@ -39,9 +39,9 @@ namespace internal {
 //
 //   typedef Key: the key type
 //   typedef Value: the value type
-//   static const kNoKey: the dummy key used when no key is set
-//   static const kNoValue: the dummy value used to initialize nodes
-//   int (Compare)(Key& a, Key& b) -> {-1, 0, 1}: comparison function
+//   static const Key kNoKey: the dummy key used when no key is set
+//   static Value kNoValue(): the dummy value used to initialize nodes
+//   static int (Compare)(Key& a, Key& b) -> {-1, 0, 1}: comparison function
 //
 // The tree is also parameterized by an allocation policy
 // (Allocator). The policy is used for allocating lists in the C free
@@ -74,6 +74,11 @@ class SplayTree {
     UNREACHABLE();
   }
 
+  AllocationPolicy allocator() { return allocator_; }
+
+  // Checks if there is a mapping for the key.
+  bool Contains(const Key& key);
+
   // Inserts the given key in this tree with the given value.  Returns
   // true if a node was inserted, otherwise false.  If found the locator
   // is enabled and provides access to the mapping for the key.
@@ -103,6 +108,9 @@ class SplayTree {
 
   // Remove the node with the given key from the tree.
   bool Remove(const Key& key);
+
+  // Remove all keys from the tree.
+  void Clear() { ResetRoot(); }
 
   bool is_empty() { return root_ == NULL; }
 

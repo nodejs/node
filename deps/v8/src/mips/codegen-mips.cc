@@ -205,7 +205,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Allocate new FixedDoubleArray.
   __ sll(scratch, t1, 2);
   __ Addu(scratch, scratch, FixedDoubleArray::kHeaderSize);
-  __ Allocate(scratch, t2, t3, t5, &gc_required, NO_ALLOCATION_FLAGS);
+  __ Allocate(scratch, t2, t3, t5, &gc_required, DOUBLE_ALIGNMENT);
   // t2: destination FixedDoubleArray, not tagged as heap object
 
   // Set destination FixedDoubleArray's length and map.

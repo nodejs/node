@@ -241,6 +241,7 @@ class CpuProfiler : public CodeEventListener {
 
   ProfileGenerator* generator() const { return generator_; }
   ProfilerEventsProcessor* processor() const { return processor_; }
+  Isolate* isolate() const { return isolate_; }
 
  private:
   void StartProcessorIfNotStarted();
@@ -258,7 +259,6 @@ class CpuProfiler : public CodeEventListener {
   bool need_to_stop_sampler_;
   bool is_profiling_;
 
- private:
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);
 };
 

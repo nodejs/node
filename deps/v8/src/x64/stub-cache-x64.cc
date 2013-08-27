@@ -2246,26 +2246,25 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   Label not_smi;
   STATIC_ASSERT(kSmiTag == 0);
   __ JumpIfNotSmi(rax, &not_smi);
-  __ SmiToInteger32(rax, rax);
 
+  // Branchless abs implementation, refer to below:
+  // http://graphics.stanford.edu/~seander/bithacks.html#IntegerAbs
   // Set ebx to 1...1 (== -1) if the argument is negative, or to 0...0
   // otherwise.
-  __ movl(rbx, rax);
-  __ sarl(rbx, Immediate(kBitsPerInt - 1));
+  __ movq(rbx, rax);
+  __ sar(rbx, Immediate(kBitsPerPointer - 1));
 
   // Do bitwise not or do nothing depending on ebx.
-  __ xorl(rax, rbx);
+  __ xor_(rax, rbx);
 
   // Add 1 or do nothing depending on ebx.
-  __ subl(rax, rbx);
+  __ subq(rax, rbx);
 
   // If the result is still negative, go to the slow case.
   // This only happens for the most negative smi.
   Label slow;
   __ j(negative, &slow);
 
-  // Smi case done.
-  __ Integer32ToSmi(rax, rax);
   __ ret(2 * kPointerSize);
 
   // Check if the argument is a heap number and load its value.

@@ -533,6 +533,7 @@ class LEnvironment: public ZoneObject {
         values_(value_count, zone),
         is_tagged_(value_count, zone),
         is_uint32_(value_count, zone),
+        object_mapping_(0, zone),
         outer_(outer),
         entry_(entry),
         zone_(zone) { }
@@ -573,6 +574,38 @@ class LEnvironment: public ZoneObject {
     return is_uint32_.Contains(index);
   }
 
+  void AddNewObject(int length, bool is_arguments) {
+    uint32_t encoded = LengthOrDupeField::encode(length) |
+                       IsArgumentsField::encode(is_arguments) |
+                       IsDuplicateField::encode(false);
+    object_mapping_.Add(encoded, zone());
+  }
+
+  void AddDuplicateObject(int dupe_of) {
+    uint32_t encoded = LengthOrDupeField::encode(dupe_of) |
+                       IsDuplicateField::encode(true);
+    object_mapping_.Add(encoded, zone());
+  }
+
+  int ObjectDuplicateOfAt(int index) {
+    ASSERT(ObjectIsDuplicateAt(index));
+    return LengthOrDupeField::decode(object_mapping_[index]);
+  }
+
+  int ObjectLengthAt(int index) {
+    ASSERT(!ObjectIsDuplicateAt(index));
+    return LengthOrDupeField::decode(object_mapping_[index]);
+  }
+
+  bool ObjectIsArgumentsAt(int index) {
+    ASSERT(!ObjectIsDuplicateAt(index));
+    return IsArgumentsField::decode(object_mapping_[index]);
+  }
+
+  bool ObjectIsDuplicateAt(int index) {
+    return IsDuplicateField::decode(object_mapping_[index]);
+  }
+
   void Register(int deoptimization_index,
                 int translation_index,
                 int pc_offset) {
@@ -586,6 +619,14 @@ class LEnvironment: public ZoneObject {
   }
 
   void PrintTo(StringStream* stream);
+
+  // Marker value indicating a de-materialized object.
+  static LOperand* materialization_marker() { return NULL; }
+
+  // Encoding used for the object_mapping map below.
+  class LengthOrDupeField : public BitField<int,   0, 30> { };
+  class IsArgumentsField  : public BitField<bool, 30,  1> { };
+  class IsDuplicateField  : public BitField<bool, 31,  1> { };
 
  private:
   Handle<JSFunction> closure_;
@@ -603,6 +644,10 @@ class LEnvironment: public ZoneObject {
   ZoneList<LOperand*> values_;
   GrowableBitVector is_tagged_;
   GrowableBitVector is_uint32_;
+
+  // Map with encoded information about materialization_marker operands.
+  ZoneList<uint32_t> object_mapping_;
+
   LEnvironment* outer_;
   HEnterInlined* entry_;
   Zone* zone_;
@@ -754,8 +799,7 @@ int StackSlotOffset(int index);
 
 enum NumberUntagDMode {
   NUMBER_CANDIDATE_IS_SMI,
-  NUMBER_CANDIDATE_IS_ANY_TAGGED,
-  NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE
+  NUMBER_CANDIDATE_IS_ANY_TAGGED
 };
 
 

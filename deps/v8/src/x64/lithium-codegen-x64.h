@@ -67,7 +67,8 @@ class LCodeGen BASE_EMBEDDED {
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple) {
+        expected_safepoint_kind_(Safepoint::kSimple),
+        old_position_(RelocInfo::kNoPosition) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -235,7 +236,6 @@ class LCodeGen BASE_EMBEDDED {
                          CallKind call_kind,
                          RDIState rdi_state);
 
-
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode,
                                     int argc);
@@ -246,10 +246,14 @@ class LCodeGen BASE_EMBEDDED {
                     Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
   void ApplyCheckIf(Condition cc, LBoundsCheck* check);
-  void AddToTranslation(Translation* translation,
+
+  void AddToTranslation(LEnvironment* environment,
+                        Translation* translation,
                         LOperand* op,
                         bool is_tagged,
-                        bool is_uint32);
+                        bool is_uint32,
+                        int* object_index_pointer,
+                        int* dematerialized_index_pointer);
   void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
@@ -266,7 +270,7 @@ class LCodeGen BASE_EMBEDDED {
       uint32_t additional_index = 0);
 
   void EmitIntegerMathAbs(LMathAbs* instr);
-  void EmitInteger64MathAbs(LMathAbs* instr);
+  void EmitSmiMathAbs(LMathAbs* instr);
 
   // Support for recording safepoint and position information.
   void RecordSafepoint(LPointerMap* pointers,
@@ -279,11 +283,14 @@ class LCodeGen BASE_EMBEDDED {
                                     int arguments,
                                     Safepoint::DeoptMode mode);
   void RecordPosition(int position);
+  void RecordAndUpdatePosition(int position);
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
   template<class InstrType>
   void EmitBranch(InstrType instr, Condition cc);
+  template<class InstrType>
+  void EmitFalseBranch(InstrType instr, Condition cc);
   void EmitNumberUntagD(
       Register input,
       XMMRegister result,
@@ -318,12 +325,6 @@ class LCodeGen BASE_EMBEDDED {
   // Emits optimized code for %_IsConstructCall().
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp);
-
-  void EmitLoadFieldOrConstantFunction(Register result,
-                                       Register object,
-                                       Handle<Map> type,
-                                       Handle<String> name,
-                                       LEnvironment* env);
 
   // Emits code for pushing either a tagged constant, a (non-double)
   // register, or a stack slot operand.
@@ -380,6 +381,8 @@ class LCodeGen BASE_EMBEDDED {
   LGapResolver resolver_;
 
   Safepoint::Kind expected_safepoint_kind_;
+
+  int old_position_;
 
   class PushSafepointRegistersScope BASE_EMBEDDED {
    public:

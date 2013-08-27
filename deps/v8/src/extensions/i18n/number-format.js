@@ -65,8 +65,6 @@ function getNumberOption(options, property, min, max, fallback) {
  * Useful for subclassing.
  */
 function initializeNumberFormat(numberFormat, locales, options) {
-  native function NativeJSCreateNumberFormat();
-
   if (numberFormat.hasOwnProperty('__initializedIntlObject')) {
     throw new TypeError('Trying to re-initialize NumberFormat object.');
   }
@@ -148,9 +146,9 @@ function initializeNumberFormat(numberFormat, locales, options) {
   if (internalOptions.hasOwnProperty('maximumSignificantDigits')) {
     defineWEProperty(resolved, 'maximumSignificantDigits', undefined);
   }
-  var formatter = NativeJSCreateNumberFormat(requestedLocale,
-                                             internalOptions,
-                                             resolved);
+  var formatter = %CreateNumberFormat(requestedLocale,
+                                      internalOptions,
+                                      resolved);
 
   // We can't get information about number or currency style from ICU, so we
   // assume user request was fulfilled.
@@ -269,15 +267,13 @@ function initializeNumberFormat(numberFormat, locales, options) {
  * NumberFormat.
  */
 function formatNumber(formatter, value) {
-  native function NativeJSInternalNumberFormat();
-
   // Spec treats -0 and +0 as 0.
   var number = Number(value);
   if (number === -0) {
     number = 0;
   }
 
-  return NativeJSInternalNumberFormat(formatter.formatter, number);
+  return %InternalNumberFormat(formatter.formatter, number);
 }
 
 
@@ -285,9 +281,7 @@ function formatNumber(formatter, value) {
  * Returns a Number that represents string value that was passed in.
  */
 function parseNumber(formatter, value) {
-  native function NativeJSInternalNumberParse();
-
-  return NativeJSInternalNumberParse(formatter.formatter, String(value));
+  return %InternalNumberParse(formatter.formatter, String(value));
 }
 
 

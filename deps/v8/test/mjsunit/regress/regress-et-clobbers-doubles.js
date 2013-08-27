@@ -24,45 +24,16 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-#ifndef V8_EXTENSIONS_I18N_COLLATOR_H_
-#define V8_EXTENSIONS_I18N_COLLATOR_H_
-
-#include "unicode/uversion.h"
-#include "v8.h"
-
-namespace U_ICU_NAMESPACE {
-class Collator;
-class UnicodeString;
+// Flags: --allow-natives-syntax
+function t_smi(a) {
+  a[0] = 1.5;
 }
 
-namespace v8_i18n {
-
-class Collator {
- public:
-  static void JSCreateCollator(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  // Helper methods for various bindings.
-
-  // Unpacks collator object from corresponding JavaScript object.
-  static icu::Collator* UnpackCollator(v8::Handle<v8::Object> obj);
-
-  // Release memory we allocated for the Collator once the JS object that
-  // holds the pointer gets garbage collected.
-  static void DeleteCollator(v8::Isolate* isolate,
-                             v8::Persistent<v8::Object>* object,
-                             void* param);
-
-  // Compare two strings and returns -1, 0 and 1 depending on
-  // whether string1 is smaller than, equal to or larger than string2.
-  static void JSInternalCompare(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-
- private:
-  Collator() {}
-};
-
-}  // namespace v8_i18n
-
-#endif  // V8_EXTENSIONS_I18N_COLLATOR_H_
+t_smi([1,,3]);
+t_smi([1,,3]);
+t_smi([1,,3]);
+%OptimizeFunctionOnNextCall(t_smi);
+var ta = [1,,3];
+t_smi(ta);
+assertEquals([1.5,,3], ta);

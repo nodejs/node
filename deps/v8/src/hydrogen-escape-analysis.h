@@ -38,17 +38,48 @@ namespace internal {
 class HEscapeAnalysisPhase : public HPhase {
  public:
   explicit HEscapeAnalysisPhase(HGraph* graph)
-      : HPhase("H_Escape analysis", graph), captured_(0, zone()) { }
+      : HPhase("H_Escape analysis", graph),
+        captured_(0, zone()),
+        number_of_values_(0),
+        cumulative_values_(0),
+        block_states_(graph->blocks()->length(), zone()) { }
 
   void Run() {
     CollectCapturedValues();
+    PerformScalarReplacement();
   }
 
  private:
   void CollectCapturedValues();
   void CollectIfNoEscapingUses(HInstruction* instr);
+  void PerformScalarReplacement();
+  void AnalyzeDataFlow(HInstruction* instr);
 
-  ZoneList<HValue*> captured_;
+  HCapturedObject* NewState(HInstruction* prev);
+  HCapturedObject* NewStateForAllocation(HInstruction* prev);
+  HCapturedObject* NewStateForLoopHeader(HInstruction* prev, HCapturedObject*);
+  HCapturedObject* NewStateCopy(HInstruction* prev, HCapturedObject* state);
+
+  HPhi* NewPhiAndInsert(HBasicBlock* block, HValue* incoming_value, int index);
+
+  HCapturedObject* StateAt(HBasicBlock* block) {
+    return block_states_.at(block->block_id());
+  }
+
+  void SetStateAt(HBasicBlock* block, HCapturedObject* state) {
+    block_states_.Set(block->block_id(), state);
+  }
+
+  // List of allocations captured during collection phase.
+  ZoneList<HInstruction*> captured_;
+
+  // Number of scalar values tracked during scalar replacement phase.
+  int number_of_values_;
+  int cumulative_values_;
+
+  // Map of block IDs to the data-flow state at block entry during the
+  // scalar replacement phase.
+  ZoneList<HCapturedObject*> block_states_;
 };
 
 

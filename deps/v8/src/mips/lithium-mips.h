@@ -126,7 +126,6 @@ class LCodeGen;
   V(LoadKeyed)                                  \
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
-  V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
@@ -205,9 +204,12 @@ class LCodeGen;
 class LInstruction: public ZoneObject {
  public:
   LInstruction()
-      :  environment_(NULL),
-         hydrogen_value_(NULL),
-         is_call_(false) { }
+      : environment_(NULL),
+        hydrogen_value_(NULL),
+        bit_field_(IsCallBits::encode(false)) {
+    set_position(RelocInfo::kNoPosition);
+  }
+
   virtual ~LInstruction() { }
 
   virtual void CompileToNative(LCodeGen* generator) = 0;
@@ -246,20 +248,30 @@ class LInstruction: public ZoneObject {
   LPointerMap* pointer_map() const { return pointer_map_.get(); }
   bool HasPointerMap() const { return pointer_map_.is_set(); }
 
+  // The 31 bits PositionBits is used to store the int position value. And the
+  // position value may be RelocInfo::kNoPosition (-1). The accessor always
+  // +1/-1 so that the encoded value of position in bit_field_ is always >= 0
+  // and can fit into the 31 bits PositionBits.
+  void set_position(int pos) {
+    bit_field_ = PositionBits::update(bit_field_, pos + 1);
+  }
+  int position() { return PositionBits::decode(bit_field_) - 1; }
+
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
 
   virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) { }
 
-  void MarkAsCall() { is_call_ = true; }
+  void MarkAsCall() { bit_field_ = IsCallBits::update(bit_field_, true); }
+  bool IsCall() const { return IsCallBits::decode(bit_field_); }
 
   // Interface to the register allocator and iterators.
-  bool ClobbersTemps() const { return is_call_; }
-  bool ClobbersRegisters() const { return is_call_; }
-  bool ClobbersDoubleRegisters() const { return is_call_; }
+  bool ClobbersTemps() const { return IsCall(); }
+  bool ClobbersRegisters() const { return IsCall(); }
+  bool ClobbersDoubleRegisters() const { return IsCall(); }
 
   // Interface to the register allocator and iterators.
-  bool IsMarkedAsCall() const { return is_call_; }
+  bool IsMarkedAsCall() const { return IsCall(); }
 
   virtual bool HasResult() const = 0;
   virtual LOperand* result() const = 0;
@@ -283,10 +295,13 @@ class LInstruction: public ZoneObject {
   virtual int TempCount() = 0;
   virtual LOperand* TempAt(int i) = 0;
 
+  class IsCallBits: public BitField<bool, 0, 1> {};
+  class PositionBits: public BitField<int, 1, 31> {};
+
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
-  bool is_call_;
+  int bit_field_;
 };
 
 
@@ -1489,19 +1504,6 @@ class LLoadNamedField: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadNamedFieldPolymorphic: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LLoadNamedFieldPolymorphic(LOperand* object) {
-    inputs_[0] = object;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field-polymorphic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadNamedFieldPolymorphic)
-};
-
-
 class LLoadNamedGeneric: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LLoadNamedGeneric(LOperand* object) {
@@ -2690,7 +2692,8 @@ class LChunkBuilder BASE_EMBEDDED {
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
 
   LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
-                                  int* argument_index_accumulator);
+                                  int* argument_index_accumulator,
+                                  ZoneList<HValue*>* objects_to_materialize);
 
   void VisitInstruction(HInstruction* current);
 

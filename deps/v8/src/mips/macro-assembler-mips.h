@@ -51,20 +51,6 @@ class JumpTarget;
 // MIPS generated code calls C code, it must be via t9 register.
 
 
-// Flags used for the AllocateInNewSpace functions.
-enum AllocationFlags {
-  // No special flags.
-  NO_ALLOCATION_FLAGS = 0,
-  // Return the pointer to the allocated already tagged as a heap object.
-  TAG_OBJECT = 1 << 0,
-  // The content of the result register already contains the allocation top in
-  // new space.
-  RESULT_CONTAINS_TOP = 1 << 1,
-  // Specify that the requested size of the space to allocate is specified in
-  // words instead of bytes.
-  SIZE_IN_WORDS = 1 << 2
-};
-
 // Flags used for AllocateHeapNumber
 enum TaggingMode {
   // Tag the result.

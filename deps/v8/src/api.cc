@@ -781,7 +781,6 @@ void Context::Exit() {
   i::Context* last_context =
       isolate->handle_scope_implementer()->RestoreContext();
   isolate->set_context(last_context);
-  isolate->set_context_exit_happened(true);
 }
 
 
@@ -2620,7 +2619,7 @@ bool StackFrame::IsConstructor() const {
 
 // --- J S O N ---
 
-Local<Object> JSON::Parse(Local<String> json_string) {
+Local<Value> JSON::Parse(Local<String> json_string) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::JSON::Parse");
   ENTER_V8(isolate);
@@ -2637,7 +2636,7 @@ Local<Object> JSON::Parse(Local<String> json_string) {
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(
-      i::Handle<i::JSObject>::cast(scope.CloseAndEscape(result)));
+      i::Handle<i::Object>::cast(scope.CloseAndEscape(result)));
 }
 
 
@@ -7478,8 +7477,6 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
 
 
 int CpuProfileNode::GetScriptId() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetScriptId");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   const i::CodeEntry* entry = node->entry();
   return entry->script_id();
@@ -7496,8 +7493,6 @@ Handle<String> CpuProfileNode::GetScriptResourceName() const {
 
 
 int CpuProfileNode::GetLineNumber() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetLineNumber");
   return reinterpret_cast<const i::ProfileNode*>(this)->entry()->line_number();
 }
 
@@ -7530,9 +7525,12 @@ double CpuProfileNode::GetSelfSamplesCount() const {
 }
 
 
+unsigned CpuProfileNode::GetHitCount() const {
+  return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
+}
+
+
 unsigned CpuProfileNode::GetCallUid() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetCallUid");
   return reinterpret_cast<const i::ProfileNode*>(this)->entry()->GetCallUid();
 }
 
@@ -7543,15 +7541,11 @@ unsigned CpuProfileNode::GetNodeId() const {
 
 
 int CpuProfileNode::GetChildrenCount() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetChildrenCount");
   return reinterpret_cast<const i::ProfileNode*>(this)->children()->length();
 }
 
 
 const CpuProfileNode* CpuProfileNode::GetChild(int index) const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetChild");
   const i::ProfileNode* child =
       reinterpret_cast<const i::ProfileNode*>(this)->children()->at(index);
   return reinterpret_cast<const CpuProfileNode*>(child);
@@ -7572,8 +7566,6 @@ void CpuProfile::Delete() {
 
 
 unsigned CpuProfile::GetUid() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfile::GetUid");
   return reinterpret_cast<const i::CpuProfile*>(this)->uid();
 }
 
@@ -7588,8 +7580,6 @@ Handle<String> CpuProfile::GetTitle() const {
 
 
 const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfile::GetTopDownRoot");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return reinterpret_cast<const CpuProfileNode*>(profile->top_down()->root());
 }
@@ -7644,6 +7634,19 @@ const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title) {
 
 void CpuProfiler::DeleteAllCpuProfiles() {
   reinterpret_cast<i::CpuProfiler*>(this)->DeleteAllProfiles();
+}
+
+
+void CpuProfiler::SetIdle(bool is_idle) {
+  i::Isolate* isolate = reinterpret_cast<i::CpuProfiler*>(this)->isolate();
+  i::StateTag state = isolate->current_vm_state();
+  ASSERT(state == i::EXTERNAL || state == i::IDLE);
+  if (isolate->js_entry_sp() != NULL) return;
+  if (is_idle) {
+    isolate->set_current_vm_state(i::IDLE);
+  } else if (state == i::IDLE) {
+    isolate->set_current_vm_state(i::EXTERNAL);
+  }
 }
 
 
