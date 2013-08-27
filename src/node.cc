@@ -164,7 +164,6 @@ static int option_end_index = 0;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
-static int max_stack_size = 0;
 bool using_domains = false;
 
 // used by C++ modules as well
@@ -2664,11 +2663,6 @@ static void ParseArgs(int argc, char **argv) {
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
-    } else if (strstr(arg, "--max-stack-size=") == arg) {
-      const char *p = 0;
-      p = 1 + strchr(arg, '=');
-      max_stack_size = atoi(p);
-      argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);
@@ -3026,19 +3020,6 @@ char** Init(int argc, char *argv[]) {
     v8argv[option_end_index + 1] = const_cast<char*>("v8debug");
   }
 
-  // For the normal stack which moves from high to low addresses when frames
-  // are pushed, we can compute the limit as stack_size bytes below the
-  // the address of a stack variable (e.g. &stack_var) as an approximation
-  // of the start of the stack (we're assuming that we haven't pushed a lot
-  // of frames yet).
-  if (max_stack_size != 0) {
-    uint32_t stack_var;
-    ResourceConstraints constraints;
-
-    uint32_t *stack_limit = &stack_var - (max_stack_size / sizeof(uint32_t));
-    constraints.set_stack_limit(stack_limit);
-    SetResourceConstraints(&constraints);  // Must be done before V8::Initialize
-  }
   V8::SetFlagsFromCommandLine(&v8argc, v8argv, false);
 
   const char typed_arrays_flag[] = "--harmony_typed_arrays";
