@@ -61,7 +61,7 @@ using v8::Value;
 typedef class ReqWrap<uv_getaddrinfo_t> GetAddrInfoReqWrap;
 
 struct ares_task_t {
-  UV_HANDLE_FIELDS
+  uv_loop_t* loop;
   ares_socket_t sock;
   uv_poll_t poll_watcher;
   RB_ENTRY(ares_task_t) node;
