@@ -3370,6 +3370,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   if (args[4]->IsFunction()) {
     Local<Object> obj = Object::New();
     obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "ondone"), args[4]);
+    obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "domain"), GetDomain());
     req->obj.Reset(node_isolate, obj);
     uv_queue_work(uv_default_loop(),
                   &req->work_req,
@@ -3493,6 +3494,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsFunction()) {
     Local<Object> obj = Object::New();
     obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "ondone"), args[1]);
+    obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "domain"), GetDomain());
     req->obj_.Reset(node_isolate, obj);
 
     uv_queue_work(uv_default_loop(),
