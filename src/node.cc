@@ -187,18 +187,6 @@ static struct {
   uint32_t count;
 } domain_flag;
 
-#ifdef OPENSSL_NPN_NEGOTIATED
-static bool use_npn = true;
-#else
-static bool use_npn = false;
-#endif
-
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-static bool use_sni = true;
-#else
-static bool use_sni = false;
-#endif
-
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
 
@@ -2222,10 +2210,20 @@ static Handle<Object> GetFeatures() {
   // TODO(bnoordhuis) ping libuv
   obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "ipv6"), True(node_isolate));
 
-  obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "tls_npn"),
-           Boolean::New(use_npn));
-  obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "tls_sni"),
-           Boolean::New(use_sni));
+#ifdef OPENSSL_NPN_NEGOTIATED
+  Local<Boolean> tls_npn = True(node_isolate);
+#else
+  Local<Boolean> tls_npn = False(node_isolate);
+#endif
+  obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "tls_npn"), tls_npn);
+
+#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+  Local<Boolean> tls_sni = True(node_isolate);
+#else
+  Local<Boolean> tls_sni = False(node_isolate);
+#endif
+  obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "tls_sni"), tls_sni);
+
   obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "tls"),
            Boolean::New(get_builtin_module("crypto") != NULL));
 
