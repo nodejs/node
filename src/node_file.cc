@@ -286,6 +286,7 @@ static Cached<String> blocks_symbol;
 static Cached<String> atime_symbol;
 static Cached<String> mtime_symbol;
 static Cached<String> ctime_symbol;
+static Cached<String> birthtime_symbol;
 
 Local<Object> BuildStatsObject(const uv_stat_t* s) {
   HandleScope scope(node_isolate);
@@ -304,6 +305,7 @@ Local<Object> BuildStatsObject(const uv_stat_t* s) {
     atime_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "atime");
     mtime_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "mtime");
     ctime_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "ctime");
+    birthtime_symbol = FIXED_ONE_BYTE_STRING(node_isolate, "birthtime");
   }
 
   Local<Function> constructor =
@@ -363,6 +365,7 @@ Local<Object> BuildStatsObject(const uv_stat_t* s) {
   X(atime, atim)
   X(mtime, mtim)
   X(ctime, ctim)
+  X(birthtime, birthtim)
 #undef X
 
   return scope.Close(stats);
