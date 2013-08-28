@@ -40,7 +40,7 @@ var net = require('net'),
 // absolute path to test/fixtures/a.js
 var moduleFilename = require('path').join(common.fixturesDir, 'a');
 
-common.error('repl test');
+console.error('repl test');
 
 // function for REPL to run
 invoke_me = function(arg) {
@@ -51,7 +51,7 @@ function send_expect(list) {
   if (list.length > 0) {
     var cur = list.shift();
 
-    common.error('sending ' + JSON.stringify(cur.send));
+    console.error('sending ' + JSON.stringify(cur.send));
 
     cur.client.expect = cur.expect;
     cur.client.list = list;
@@ -74,7 +74,7 @@ function error_test() {
 
   client_unix.on('data', function(data) {
     read_buffer += data.toString('ascii', 0, data.length);
-    common.error('Unix data: ' + JSON.stringify(read_buffer) + ', expecting ' +
+    console.error('Unix data: ' + JSON.stringify(read_buffer) + ', expecting ' +
                  (client_unix.expect.exec ?
                   client_unix.expect :
                   JSON.stringify(client_unix.expect)));
@@ -83,13 +83,13 @@ function error_test() {
       // if it's an exact match, then don't do the regexp
       if (read_buffer !== client_unix.expect) {
         assert.ok(read_buffer.match(client_unix.expect));
-        common.error('match');
+        console.error('match');
       }
       read_buffer = '';
       if (client_unix.list && client_unix.list.length > 0) {
         send_expect(client_unix.list);
       } else {
-        common.error('End of Error test, running TCP test.');
+        console.error('End of Error test, running TCP test.');
         tcp_test();
       }
 
@@ -100,12 +100,12 @@ function error_test() {
       if (client_unix.list && client_unix.list.length > 0) {
         send_expect(client_unix.list);
       } else {
-        common.error('End of Error test, running TCP test.\n');
+        console.error('End of Error test, running TCP test.\n');
         tcp_test();
       }
 
     } else {
-      common.error('didn\'t see prompt yet, buffering.');
+      console.error('didn\'t see prompt yet, buffering.');
     }
   });
 
@@ -119,6 +119,9 @@ function error_test() {
     // You can recover with the .break command
     { client: client_unix, send: '.break',
       expect: prompt_unix },
+    // But passing the same string to eval() should throw
+    { client: client_unix, send: 'eval("function test_func() {")',
+      expect: /^SyntaxError: Unexpected end of input/ },
     // Floating point numbers are not interpreted as REPL commands.
     { client: client_unix, send: '.1234',
       expect: '0.1234' },
@@ -233,20 +236,20 @@ function tcp_test() {
 
     client_tcp.on('data', function(data) {
       read_buffer += data.toString('ascii', 0, data.length);
-      common.error('TCP data: ' + JSON.stringify(read_buffer) +
+      console.error('TCP data: ' + JSON.stringify(read_buffer) +
                    ', expecting ' + JSON.stringify(client_tcp.expect));
       if (read_buffer.indexOf(prompt_tcp) !== -1) {
         assert.strictEqual(client_tcp.expect, read_buffer);
-        common.error('match');
+        console.error('match');
         read_buffer = '';
         if (client_tcp.list && client_tcp.list.length > 0) {
           send_expect(client_tcp.list);
         } else {
-          common.error('End of TCP test.\n');
+          console.error('End of TCP test.\n');
           clean_up();
         }
       } else {
-        common.error('didn\'t see prompt yet, buffering');
+        console.error('didn\'t see prompt yet, buffering');
       }
     });
 
@@ -302,20 +305,20 @@ function unix_test() {
 
     client_unix.on('data', function(data) {
       read_buffer += data.toString('ascii', 0, data.length);
-      common.error('Unix data: ' + JSON.stringify(read_buffer) +
+      console.error('Unix data: ' + JSON.stringify(read_buffer) +
                    ', expecting ' + JSON.stringify(client_unix.expect));
       if (read_buffer.indexOf(prompt_unix) !== -1) {
         assert.strictEqual(client_unix.expect, read_buffer);
-        common.error('match');
+        console.error('match');
         read_buffer = '';
         if (client_unix.list && client_unix.list.length > 0) {
           send_expect(client_unix.list);
         } else {
-          common.error('End of Unix test, running Error test.\n');
+          console.error('End of Unix test, running Error test.\n');
           process.nextTick(error_test);
         }
       } else {
-        common.error('didn\'t see prompt yet, buffering.');
+        console.error('didn\'t see prompt yet, buffering.');
       }
     });
 
