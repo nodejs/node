@@ -1,6 +1,6 @@
 # util
 
-    Stability: 5 - Locked
+    Stability: 4 - API Frozen
 
 These functions are in the module `'util'`. Use `require('util')` to
 access them.
