@@ -144,6 +144,7 @@ class TimerWrap : public HandleWrap {
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
+    uv_update_time(uv_default_loop());
     double now = static_cast<double>(uv_now(uv_default_loop()));
     args.GetReturnValue().Set(now);
   }
