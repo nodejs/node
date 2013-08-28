@@ -265,7 +265,7 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   NODE_UNWRAP(args.This(), PipeWrap, wrap);
 
-  int fd = args[0]->IntegerValue();
+  int fd = args[0]->Int32Value();
 
   uv_pipe_open(&wrap->handle_, fd);
 }
