@@ -244,6 +244,7 @@ emission of a [`'data'` event][].
 #### readable.setEncoding(encoding)
 
 * `encoding` {String} The encoding to use.
+* Return: `this`
 
 Call this function to cause the stream to return strings of the
 specified encoding instead of Buffer objects.  For example, if you do
@@ -268,6 +269,8 @@ readable.on('data', function(chunk) {
 
 #### readable.resume()
 
+* Return: `this`
+
 This method will cause the readable stream to resume emitting `data`
 events.
 
@@ -285,6 +288,8 @@ readable.on('end', function(chunk) {
 ```
 
 #### readable.pause()
+
+* Return: `this`
 
 This method will cause a stream in flowing mode to stop emitting
 `data` events, switching out of flowing mode.  Any data that becomes
