@@ -271,6 +271,21 @@
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
+2013.08.21, Version 0.10.17 (Stable), 469a4a5091a677df62be319675056b869c31b35c
+
+* uv: Upgrade v0.10.14
+
+* http_parser: Do not accept PUN/GEM methods as PUT/GET (Chris Dickinson)
+
+* tls: fix assertion when ssl is destroyed at read (Fedor Indutny)
+
+* stream: Throw on 'error' if listeners removed (isaacs)
+
+* dgram: fix assertion on bad send() arguments (Ben Noordhuis)
+
+* readline: pause stdin before turning off terminal raw mode (Daniel Chatfield)
+
+
 2013.08.16, Version 0.10.16 (Stable), 50b4c905a4425430ae54db4906f88982309e128d
 
 * v8: back-port fix for CVE-2013-2882

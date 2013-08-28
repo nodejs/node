@@ -54,6 +54,6 @@ deps/openssl/openssl.xml
 
 # build/release artifacts
 /*.tar.gz
-/SHASUMS.txt*
+/SHASUMS*.txt*
 
 /tools/wrk/wrk
