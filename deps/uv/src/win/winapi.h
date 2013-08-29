@@ -4104,6 +4104,10 @@
 # define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE          0x00002000
 #endif
 
+#ifndef DEVICE_TYPE
+# define DEVICE_TYPE DWORD
+#endif
+
 /* from ntifs.h */
 /* MinGW already has it, mingw-w64 does not. */
 #if defined(_MSC_VER) || defined(__MINGW64_VERSION_MAJOR)
@@ -4381,10 +4385,6 @@ typedef struct _SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION {
 
 #ifndef SystemProcessorPerformanceInformation
 # define SystemProcessorPerformanceInformation 8
-#endif
-
-#ifndef DEVICE_TYPE
-# define DEVICE_TYPE DWORD
 #endif
 
 #ifndef FILE_DEVICE_FILE_SYSTEM

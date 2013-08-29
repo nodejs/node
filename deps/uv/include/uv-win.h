@@ -250,6 +250,10 @@ typedef struct {
   uv_sem_t turnstile2;
 } uv_barrier_t;
 
+typedef struct {
+  DWORD tls_index;
+} uv_key_t;
+
 #define UV_ONCE_INIT { 0, NULL }
 
 typedef struct uv_once_s {

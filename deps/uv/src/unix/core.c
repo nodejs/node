@@ -62,9 +62,6 @@
 
 static void uv__run_pending(uv_loop_t* loop);
 
-static uv_loop_t default_loop_struct;
-static uv_loop_t* default_loop_ptr;
-
 /* Verify that uv_buf_t is ABI-compatible with struct iovec. */
 STATIC_ASSERT(sizeof(uv_buf_t) == sizeof(struct iovec));
 STATIC_ASSERT(sizeof(&((uv_buf_t*) 0)->base) ==
@@ -226,44 +223,6 @@ static void uv__run_closing_handles(uv_loop_t* loop) {
 
 int uv_is_closing(const uv_handle_t* handle) {
   return uv__is_closing(handle);
-}
-
-
-uv_loop_t* uv_default_loop(void) {
-  if (default_loop_ptr)
-    return default_loop_ptr;
-
-  if (uv__loop_init(&default_loop_struct, /* default_loop? */ 1))
-    return NULL;
-
-  return (default_loop_ptr = &default_loop_struct);
-}
-
-
-uv_loop_t* uv_loop_new(void) {
-  uv_loop_t* loop;
-
-  if ((loop = malloc(sizeof(*loop))) == NULL)
-    return NULL;
-
-  if (uv__loop_init(loop, /* default_loop? */ 0)) {
-    free(loop);
-    return NULL;
-  }
-
-  return loop;
-}
-
-
-void uv_loop_delete(uv_loop_t* loop) {
-  uv__loop_delete(loop);
-#ifndef NDEBUG
-  memset(loop, -1, sizeof *loop);
-#endif
-  if (loop == default_loop_ptr)
-    default_loop_ptr = NULL;
-  else
-    free(loop);
 }
 
 

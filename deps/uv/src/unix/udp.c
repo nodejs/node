@@ -280,40 +280,18 @@ static void uv__udp_sendmsg(uv_loop_t* loop,
 }
 
 
-/* On the BSDs, SO_REUSEPORT implies SO_REUSEADDR but it also lets you share
- * the address and port with other processes.
+/* On the BSDs, SO_REUSEPORT implies SO_REUSEADDR but with some additional
+ * refinements for programs that use multicast.
  *
  * Linux as of 3.9 has a SO_REUSEPORT socket option but with semantics that
- * are different from the BSDs.  The address:port sharing part is taken care
- * of by SO_REUSEADDR while SO_REUSEPORT enables fair load distribution.  (If
- * you wonder why you need to explicitly enable that, well, it's complicated.)
- *
- * Because we cannot rely on SO_REUSEPORT being available on Linux, it's not
- * considered an error when the setsockopt() system call fails.  Worst case,
- * the program has sub-optimal load distribution characteristics but should
- * otherwise run fine.
+ * are different from the BSDs: it _shares_ the port rather than steal it
+ * from the current listener.  While useful, it's not something we can emulate
+ * on other platforms so we don't enable it.
  */
 static int uv__set_reuse(int fd) {
   int yes;
-#if defined(__linux__)
-  static int no_so_reuseport;
 
-  if (no_so_reuseport)
-    goto no_so_reuseport;
-
-  yes = 1;
-  if (setsockopt(fd, SOL_SOCKET, 15 /* SO_REUSEPORT */, &yes, sizeof(yes))) {
-    if (errno != EINVAL && errno != ENOPROTOOPT)
-      return -errno;
-    no_so_reuseport = 1;
-  }
-
-no_so_reuseport:
-
-  yes = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)))
-    return -errno;
-#elif defined(SO_REUSEPORT)
+#if defined(SO_REUSEPORT) && !defined(__linux__)
   yes = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes)))
     return -errno;

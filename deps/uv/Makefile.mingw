@@ -12,14 +12,16 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-CFLAGS = -Wall \
-         -Wextra \
-         -Wno-unused-parameter \
-         -Iinclude \
-         -Isrc \
-         -Isrc/win \
-         -DWIN32_LEAN_AND_MEAN \
-         -D_WIN32_WINNT=0x0600
+CC = gcc
+
+CFLAGS += -Wall \
+          -Wextra \
+          -Wno-unused-parameter \
+          -Iinclude \
+          -Isrc \
+          -Isrc/win \
+          -DWIN32_LEAN_AND_MEAN \
+          -D_WIN32_WINNT=0x0600
 
 INCLUDES = include/stdint-msvc2008.h \
            include/tree.h \

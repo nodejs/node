@@ -1,4 +1,33 @@
-2013.08.25, Version 0.11.10 (Unstable)
+2013.08.30, Version 0.11.11 (Unstable)
+
+Changes since version 0.11.10:
+
+* unix, windows: add thread-local storage API (Ben Noordhuis)
+
+* linux: don't turn on SO_REUSEPORT socket option (Ben Noordhuis)
+
+* darwin: fix 10.6 build error in fsevents.c (Ben Noordhuis)
+
+* windows: make uv_shutdown() for write-only pipes work (Bert Belder)
+
+* include: update uv_udp_open() / uv_udp_bind() docs (Ben Noordhuis)
+
+* unix: req queue must be empty when destroying loop (Ben Noordhuis)
+
+* unix: move loop functions from core.c to loop.c (Ben Noordhuis)
+
+* darwin: remove CoreFoundation dependency (Ben Noordhuis)
+
+* windows: make autotools build system work with mingw (Keno Fischer)
+
+* windows: fix mingw build (Alex Crichton)
+
+* windows: tweak Makefile.mingw for easier usage (Alex Crichton)
+
+* build: remove _GNU_SOURCE macro definition (Ben Noordhuis)
+
+
+2013.08.25, Version 0.11.10 (Unstable), 742dadcb7154cc7bb89c0c228a223b767a36cf0d
 
 * windows: Re-implement uv_fs_stat. The st_ctime field now contains the change
   time, not the creation time, like on unix systems. st_dev, st_ino, st_blocks

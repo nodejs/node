@@ -15,10 +15,9 @@
 ACLOCAL_AMFLAGS = -I m4
 
 AM_CPPFLAGS = -I$(top_srcdir)/include \
-              -I$(top_srcdir)/src/unix \
               -I$(top_srcdir)/src
 
-include_HEADERS=include/uv.h include/uv-errno.h include/uv-unix.h
+include_HEADERS=include/uv.h include/uv-errno.h
 
 CLEANFILES =
 
@@ -29,8 +28,46 @@ libuv_la_SOURCES = src/fs-poll.c \
                    src/inet.c \
                    src/uv-common.c \
                    src/uv-common.h \
-                   src/version.c \
-                   src/unix/async.c \
+                   src/version.c
+
+if WINNT
+
+include_HEADERS += include/uv-win.h include/tree.h
+AM_CPPFLAGS += -I$(top_srcdir)/src/win \
+               -DWIN32_LEAN_AND_MEAN \
+               -D_WIN32_WINNT=0x0600
+LIBS += -lws2_32 -lpsapi -lphlpapi2
+libuv_la_SOURCES += src/win/async.c \
+                    src/win/core.c \
+                    src/win/dl.c \
+                    src/win/error.c \
+                    src/win/fs-event.c \
+                    src/win/fs.c \
+                    src/win/getaddrinfo.c \
+                    src/win/handle.c \
+                    src/win/loop-watcher.c \
+                    src/win/pipe.c \
+                    src/win/poll.c \
+                    src/win/process-stdio.c \
+                    src/win/process.c \
+                    src/win/req.c \
+                    src/win/signal.c \
+                    src/win/stream.c \
+                    src/win/tcp.c \
+                    src/win/thread.c \
+                    src/win/threadpool.c \
+                    src/win/timer.c \
+                    src/win/tty.c \
+                    src/win/udp.c \
+                    src/win/util.c \
+                    src/win/winapi.c \
+                    src/win/winsock.c
+
+else  # WINNT
+
+include_HEADERS += include/uv-unix.h
+AM_CPPFLAGS += -I$(top_srcdir)/src/unix
+libuv_la_SOURCES += src/unix/async.c \
                    src/unix/core.c \
                    src/unix/dl.c \
                    src/unix/fs.c \
@@ -49,6 +86,8 @@ libuv_la_SOURCES = src/fs-poll.c \
                    src/unix/timer.c \
                    src/unix/tty.c \
                    src/unix/udp.c
+
+endif  # WINNT
 
 TESTS = test/run-tests
 check_PROGRAMS = test/run-tests
@@ -158,9 +197,6 @@ libuv_la_SOURCES += src/unix/darwin.c \
                     src/unix/fsevents.c \
                     src/unix/kqueue.c \
                     src/unix/proctitle.c
-libuv_la_LDFLAGS += -framework ApplicationServices \
-                    -framework CoreServices \
-                    -framework Foundation
 endif
 
 if FREEBSD

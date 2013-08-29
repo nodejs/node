@@ -40,12 +40,34 @@ void uv__fsevents_loop_delete(uv_loop_t* loop) {
 
 #else /* TARGET_OS_IPHONE */
 
+#include <dlfcn.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <pthread.h>
 
 #include <CoreFoundation/CFRunLoop.h>
 #include <CoreServices/CoreServices.h>
+
+/* These are macros to avoid "initializer element is not constant" errors
+ * with old versions of gcc.
+ */
+#define kFSEventsModified (kFSEventStreamEventFlagItemFinderInfoMod |         \
+                           kFSEventStreamEventFlagItemModified |              \
+                           kFSEventStreamEventFlagItemInodeMetaMod |          \
+                           kFSEventStreamEventFlagItemChangeOwner |           \
+                           kFSEventStreamEventFlagItemXattrMod)
+
+#define kFSEventsRenamed  (kFSEventStreamEventFlagItemCreated |               \
+                           kFSEventStreamEventFlagItemRemoved |               \
+                           kFSEventStreamEventFlagItemRenamed)
+
+#define kFSEventsSystem   (kFSEventStreamEventFlagUserDropped |               \
+                           kFSEventStreamEventFlagKernelDropped |             \
+                           kFSEventStreamEventFlagEventIdsWrapped |           \
+                           kFSEventStreamEventFlagHistoryDone |               \
+                           kFSEventStreamEventFlagMount |                     \
+                           kFSEventStreamEventFlagUnmount |                   \
+                           kFSEventStreamEventFlagRootChanged)
 
 typedef struct uv__fsevents_event_s uv__fsevents_event_t;
 typedef struct uv__cf_loop_signal_s uv__cf_loop_signal_t;
@@ -73,26 +95,51 @@ struct uv__fsevents_event_s {
   char path[1];
 };
 
-static const int kFSEventsModified = kFSEventStreamEventFlagItemFinderInfoMod |
-                                     kFSEventStreamEventFlagItemModified |
-                                     kFSEventStreamEventFlagItemInodeMetaMod |
-                                     kFSEventStreamEventFlagItemChangeOwner |
-                                     kFSEventStreamEventFlagItemXattrMod;
-static const int kFSEventsRenamed = kFSEventStreamEventFlagItemCreated |
-                                    kFSEventStreamEventFlagItemRemoved |
-                                    kFSEventStreamEventFlagItemRenamed;
-static const int kFSEventsSystem = kFSEventStreamEventFlagUserDropped |
-                                   kFSEventStreamEventFlagKernelDropped |
-                                   kFSEventStreamEventFlagEventIdsWrapped |
-                                   kFSEventStreamEventFlagHistoryDone |
-                                   kFSEventStreamEventFlagMount |
-                                   kFSEventStreamEventFlagUnmount |
-                                   kFSEventStreamEventFlagRootChanged;
-
 /* Forward declarations */
 static void uv__cf_loop_cb(void* arg);
 static void* uv__cf_loop_runner(void* arg);
 static int uv__cf_loop_signal(uv_loop_t* loop, uv_fs_event_t* handle);
+
+/* Lazy-loaded by uv__fsevents_global_init(). */
+static CFArrayRef (*pCFArrayCreate)(CFAllocatorRef,
+                                    const void**,
+                                    CFIndex,
+                                    const CFArrayCallBacks*);
+static void (*pCFRelease)(CFTypeRef);
+static void (*pCFRunLoopAddSource)(CFRunLoopRef,
+                                   CFRunLoopSourceRef,
+                                   CFStringRef);
+static CFRunLoopRef (*pCFRunLoopGetCurrent)(void);
+static void (*pCFRunLoopRemoveSource)(CFRunLoopRef,
+                                      CFRunLoopSourceRef,
+                                      CFStringRef);
+static void (*pCFRunLoopRun)(void);
+static CFRunLoopSourceRef (*pCFRunLoopSourceCreate)(CFAllocatorRef,
+                                                    CFIndex,
+                                                    CFRunLoopSourceContext*);
+static void (*pCFRunLoopSourceSignal)(CFRunLoopSourceRef);
+static void (*pCFRunLoopStop)(CFRunLoopRef);
+static void (*pCFRunLoopWakeUp)(CFRunLoopRef);
+static CFStringRef (*pCFStringCreateWithCString)(CFAllocatorRef,
+                                                 const char*,
+                                                 CFStringEncoding);
+static CFStringEncoding (*pCFStringGetSystemEncoding)(void);
+static CFStringRef (*pkCFRunLoopDefaultMode);
+static FSEventStreamRef (*pFSEventStreamCreate)(CFAllocatorRef,
+                                                FSEventStreamCallback,
+                                                FSEventStreamContext*,
+                                                CFArrayRef,
+                                                FSEventStreamEventId,
+                                                CFTimeInterval,
+                                                FSEventStreamCreateFlags);
+static void (*pFSEventStreamFlushSync)(FSEventStreamRef);
+static void (*pFSEventStreamInvalidate)(FSEventStreamRef);
+static void (*pFSEventStreamRelease)(FSEventStreamRef);
+static void (*pFSEventStreamScheduleWithRunLoop)(FSEventStreamRef,
+                                                 CFRunLoopRef,
+                                                 CFStringRef);
+static Boolean (*pFSEventStreamStart)(FSEventStreamRef);
+static void (*pFSEventStreamStop)(FSEventStreamRef);
 
 #define UV__FSEVENTS_PROCESS(handle, block)                                   \
     do {                                                                      \
@@ -256,20 +303,20 @@ static void uv__fsevents_create_stream(uv_loop_t* loop, CFArrayRef paths) {
    * that is being watched now. Which will cause FSEventStream API to report
    * changes to files from the past.
    */
-  ref = FSEventStreamCreate(NULL,
-                            &uv__fsevents_event_cb,
-                            &ctx,
-                            paths,
-                            kFSEventStreamEventIdSinceNow,
-                            latency,
-                            flags);
+  ref = pFSEventStreamCreate(NULL,
+                             &uv__fsevents_event_cb,
+                             &ctx,
+                             paths,
+                             kFSEventStreamEventIdSinceNow,
+                             latency,
+                             flags);
   assert(ref != NULL);
 
   state = loop->cf_state;
-  FSEventStreamScheduleWithRunLoop(ref,
-                                   state->loop,
-                                   kCFRunLoopDefaultMode);
-  if (!FSEventStreamStart(ref))
+  pFSEventStreamScheduleWithRunLoop(ref,
+                                    state->loop,
+                                    *pkCFRunLoopDefaultMode);
+  if (!pFSEventStreamStart(ref))
     abort();
 
   state->fsevent_stream = ref;
@@ -286,14 +333,14 @@ static void uv__fsevents_destroy_stream(uv_loop_t* loop) {
     return;
 
   /* Flush all accumulated events */
-  FSEventStreamFlushSync(state->fsevent_stream);
+  pFSEventStreamFlushSync(state->fsevent_stream);
 
   /* Stop emitting events */
-  FSEventStreamStop(state->fsevent_stream);
+  pFSEventStreamStop(state->fsevent_stream);
 
   /* Release stream */
-  FSEventStreamInvalidate(state->fsevent_stream);
-  FSEventStreamRelease(state->fsevent_stream);
+  pFSEventStreamInvalidate(state->fsevent_stream);
+  pFSEventStreamRelease(state->fsevent_stream);
   state->fsevent_stream = NULL;
 }
 
@@ -335,9 +382,9 @@ static void uv__fsevents_reschedule(uv_fs_event_t* handle) {
       curr = QUEUE_DATA(q, uv_fs_event_t, cf_member);
 
       assert(curr->realpath != NULL);
-      paths[i] = CFStringCreateWithCString(NULL,
-                                           curr->realpath,
-                                           CFStringGetSystemEncoding());
+      paths[i] = pCFStringCreateWithCString(NULL,
+                                            curr->realpath,
+                                            pCFStringGetSystemEncoding());
       if (paths[i] == NULL)
         abort();
     }
@@ -346,7 +393,7 @@ static void uv__fsevents_reschedule(uv_fs_event_t* handle) {
 
   if (path_count != 0) {
     /* Create new FSEventStream */
-    cf_paths = CFArrayCreate(NULL, (const void**) paths, path_count, NULL);
+    cf_paths = pCFArrayCreate(NULL, (const void**) paths, path_count, NULL);
     if (cf_paths == NULL)
       abort();
     uv__fsevents_create_stream(handle->loop, cf_paths);
@@ -363,6 +410,84 @@ static void uv__fsevents_reschedule(uv_fs_event_t* handle) {
 }
 
 
+static int uv__fsevents_global_init(void) {
+  static pthread_mutex_t global_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+  static void* core_foundation_handle;
+  static void* core_services_handle;
+  int err;
+
+  err = 0;
+  pthread_mutex_lock(&global_init_mutex);
+  if (core_foundation_handle != NULL)
+    goto out;
+
+  /* The libraries are never unloaded because we currently don't have a good
+   * mechanism for keeping a reference count. It's unlikely to be an issue
+   * but if it ever becomes one, we can turn the dynamic library handles into
+   * per-event loop properties and have the dynamic linker keep track for us.
+   */
+  err = -ENOSYS;
+  core_foundation_handle = dlopen("/System/Library/Frameworks/"
+                                  "CoreFoundation.framework/"
+                                  "Versions/A/CoreFoundation",
+                                  RTLD_LAZY | RTLD_LOCAL);
+  if (core_foundation_handle == NULL)
+    goto out;
+
+  core_services_handle = dlopen("/System/Library/Frameworks/"
+                                "CoreServices.framework/"
+                                "Versions/A/CoreServices",
+                                RTLD_LAZY | RTLD_LOCAL);
+  if (core_services_handle == NULL)
+    goto out;
+
+  err = -ENOENT;
+#define V(handle, symbol)                                                     \
+  do {                                                                        \
+    p ## symbol = dlsym((handle), #symbol);                                   \
+    if (p ## symbol == NULL)                                                  \
+      goto out;                                                               \
+  }                                                                           \
+  while (0)
+  V(core_foundation_handle, CFArrayCreate);
+  V(core_foundation_handle, CFRelease);
+  V(core_foundation_handle, CFRunLoopAddSource);
+  V(core_foundation_handle, CFRunLoopGetCurrent);
+  V(core_foundation_handle, CFRunLoopRemoveSource);
+  V(core_foundation_handle, CFRunLoopRun);
+  V(core_foundation_handle, CFRunLoopSourceCreate);
+  V(core_foundation_handle, CFRunLoopSourceSignal);
+  V(core_foundation_handle, CFRunLoopStop);
+  V(core_foundation_handle, CFRunLoopWakeUp);
+  V(core_foundation_handle, CFStringCreateWithCString);
+  V(core_foundation_handle, CFStringGetSystemEncoding);
+  V(core_foundation_handle, kCFRunLoopDefaultMode);
+  V(core_services_handle, FSEventStreamCreate);
+  V(core_services_handle, FSEventStreamFlushSync);
+  V(core_services_handle, FSEventStreamInvalidate);
+  V(core_services_handle, FSEventStreamRelease);
+  V(core_services_handle, FSEventStreamScheduleWithRunLoop);
+  V(core_services_handle, FSEventStreamStart);
+  V(core_services_handle, FSEventStreamStop);
+#undef V
+  err = 0;
+
+out:
+  if (err && core_services_handle != NULL) {
+    dlclose(core_services_handle);
+    core_services_handle = NULL;
+  }
+
+  if (err && core_foundation_handle != NULL) {
+    dlclose(core_foundation_handle);
+    core_foundation_handle = NULL;
+  }
+
+  pthread_mutex_unlock(&global_init_mutex);
+  return err;
+}
+
+
 /* Runs in UV loop */
 static int uv__fsevents_loop_init(uv_loop_t* loop) {
   CFRunLoopSourceContext ctx;
@@ -373,6 +498,10 @@ static int uv__fsevents_loop_init(uv_loop_t* loop) {
 
   if (loop->cf_state != NULL)
     return 0;
+
+  err = uv__fsevents_global_init();
+  if (err)
+    return err;
 
   state = calloc(1, sizeof(*state));
   if (state == NULL)
@@ -403,7 +532,7 @@ static int uv__fsevents_loop_init(uv_loop_t* loop) {
   memset(&ctx, 0, sizeof(ctx));
   ctx.info = loop;
   ctx.perform = uv__cf_loop_cb;
-  state->signal_source = CFRunLoopSourceCreate(NULL, 0, &ctx);
+  state->signal_source = pCFRunLoopSourceCreate(NULL, 0, &ctx);
   if (state->signal_source == NULL) {
     err = -ENOMEM;
     goto fail_signal_source_create;
@@ -483,7 +612,7 @@ void uv__fsevents_loop_delete(uv_loop_t* loop) {
   state = loop->cf_state;
   uv_sem_destroy(&state->fsevent_sem);
   uv_mutex_destroy(&state->fsevent_mutex);
-  CFRelease(state->signal_source);
+  pCFRelease(state->signal_source);
   free(state);
   loop->cf_state = NULL;
 }
@@ -496,18 +625,18 @@ static void* uv__cf_loop_runner(void* arg) {
 
   loop = arg;
   state = loop->cf_state;
-  state->loop = CFRunLoopGetCurrent();
+  state->loop = pCFRunLoopGetCurrent();
 
-  CFRunLoopAddSource(state->loop,
-                     state->signal_source,
-                     kCFRunLoopDefaultMode);
+  pCFRunLoopAddSource(state->loop,
+                      state->signal_source,
+                      *pkCFRunLoopDefaultMode);
 
   uv_sem_post(&loop->cf_sem);
 
-  CFRunLoopRun();
-  CFRunLoopRemoveSource(state->loop,
-                        state->signal_source,
-                        kCFRunLoopDefaultMode);
+  pCFRunLoopRun();
+  pCFRunLoopRemoveSource(state->loop,
+                         state->signal_source,
+                         *pkCFRunLoopDefaultMode);
 
   return NULL;
 }
@@ -539,7 +668,7 @@ static void uv__cf_loop_cb(void* arg) {
 
     /* This was a termination signal */
     if (s->handle == NULL)
-      CFRunLoopStop(state->loop);
+      pCFRunLoopStop(state->loop);
     else
       uv__fsevents_reschedule(s->handle);
 
@@ -566,8 +695,8 @@ int uv__cf_loop_signal(uv_loop_t* loop, uv_fs_event_t* handle) {
 
   state = loop->cf_state;
   assert(state != NULL);
-  CFRunLoopSourceSignal(state->signal_source);
-  CFRunLoopWakeUp(state->loop);
+  pCFRunLoopSourceSignal(state->signal_source);
+  pCFRunLoopWakeUp(state->loop);
 
   return 0;
 }

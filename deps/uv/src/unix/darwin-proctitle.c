@@ -55,62 +55,111 @@ int uv__set_process_title(const char* title) {
 #if TARGET_OS_IPHONE
   return uv__pthread_setname_np(title);
 #else
-  typedef CFTypeRef (*LSGetCurrentApplicationASNType)(void);
-  typedef OSStatus (*LSSetApplicationInformationItemType)(int,
-                                                          CFTypeRef,
-                                                          CFStringRef,
-                                                          CFStringRef,
-                                                          CFDictionaryRef*);
+  CFStringRef (*pCFStringCreateWithCString)(CFAllocatorRef,
+                                            const char*,
+                                            CFStringEncoding);
+  CFBundleRef (*pCFBundleGetBundleWithIdentifier)(CFStringRef);
+  void *(*pCFBundleGetDataPointerForName)(CFBundleRef, CFStringRef);
+  void *(*pCFBundleGetFunctionPointerForName)(CFBundleRef, CFStringRef);
+  OSErr (*pGetCurrentProcess)(ProcessSerialNumber*);
+  CFTypeRef (*pLSGetCurrentApplicationASN)(void);
+  OSStatus (*pLSSetApplicationInformationItem)(int,
+                                               CFTypeRef,
+                                               CFStringRef,
+                                               CFStringRef,
+                                               CFDictionaryRef*);
+  void* application_services_handle;
+  void* core_foundation_handle;
   CFBundleRef launch_services_bundle;
-  LSGetCurrentApplicationASNType ls_get_current_application_asn;
-  LSSetApplicationInformationItemType ls_set_application_information_item;
   CFStringRef* display_name_key;
   ProcessSerialNumber psn;
   CFTypeRef asn;
-  CFStringRef display_name;
-  OSStatus err;
+  int err;
+
+  err = -ENOENT;
+  application_services_handle = dlopen("/System/Library/Frameworks/"
+                                       "ApplicationServices.framework/"
+                                       "Versions/A/ApplicationServices",
+                                       RTLD_LAZY | RTLD_LOCAL);
+  core_foundation_handle = dlopen("/System/Library/Frameworks/"
+                                  "CoreFoundation.framework/"
+                                  "Versions/A/CoreFoundation",
+                                  RTLD_LAZY | RTLD_LOCAL);
+
+  if (application_services_handle == NULL || core_foundation_handle == NULL)
+    goto out;
+
+  pGetCurrentProcess =
+      dlsym(application_services_handle, "GetCurrentProcess");
+  pCFStringCreateWithCString =
+      dlsym(core_foundation_handle, "CFStringCreateWithCString");
+  pCFBundleGetBundleWithIdentifier =
+      dlsym(core_foundation_handle, "CFBundleGetBundleWithIdentifier");
+  pCFBundleGetDataPointerForName =
+      dlsym(core_foundation_handle, "CFBundleGetDataPointerForName");
+  pCFBundleGetFunctionPointerForName =
+      dlsym(core_foundation_handle, "CFBundleGetFunctionPointerForName");
+
+  if (pGetCurrentProcess == NULL ||
+      pCFStringCreateWithCString == NULL ||
+      pCFBundleGetBundleWithIdentifier == NULL ||
+      pCFBundleGetDataPointerForName == NULL ||
+      pCFBundleGetFunctionPointerForName == NULL) {
+    goto out;
+  }
+
+#define S(s) pCFStringCreateWithCString(NULL, (s), kCFStringEncodingUTF8)
 
   launch_services_bundle =
-      CFBundleGetBundleWithIdentifier(CFSTR("com.apple.LaunchServices"));
+      pCFBundleGetBundleWithIdentifier(S("com.apple.LaunchServices"));
 
   if (launch_services_bundle == NULL)
-    return -ENOENT;
+    goto out;
 
-  ls_get_current_application_asn = (LSGetCurrentApplicationASNType)
-      CFBundleGetFunctionPointerForName(launch_services_bundle,
-                                        CFSTR("_LSGetCurrentApplicationASN"));
+  pLSGetCurrentApplicationASN =
+      pCFBundleGetFunctionPointerForName(launch_services_bundle,
+                                         S("_LSGetCurrentApplicationASN"));
 
-  if (ls_get_current_application_asn == NULL)
-    return -ENOENT;
+  if (pLSGetCurrentApplicationASN == NULL)
+    goto out;
 
-  ls_set_application_information_item = (LSSetApplicationInformationItemType)
-      CFBundleGetFunctionPointerForName(launch_services_bundle,
-                                        CFSTR("_LSSetApplicationInformationItem"));
+  pLSSetApplicationInformationItem =
+      pCFBundleGetFunctionPointerForName(launch_services_bundle,
+                                         S("_LSSetApplicationInformationItem"));
 
-  if (ls_set_application_information_item == NULL)
-    return -ENOENT;
+  if (pLSSetApplicationInformationItem == NULL)
+    goto out;
 
-  display_name_key = CFBundleGetDataPointerForName(launch_services_bundle,
-                                                   CFSTR("_kLSDisplayNameKey"));
+  display_name_key = pCFBundleGetDataPointerForName(launch_services_bundle,
+                                                    S("_kLSDisplayNameKey"));
 
   if (display_name_key == NULL || *display_name_key == NULL)
-    return -ENOENT;
+    goto out;
 
   /* Force the process manager to initialize. */
-  GetCurrentProcess(&psn);
+  pGetCurrentProcess(&psn);
 
-  display_name = CFStringCreateWithCString(NULL, title, kCFStringEncodingUTF8);
-  asn = ls_get_current_application_asn();
-  err = ls_set_application_information_item(-2,  /* Magic value. */
-                                            asn,
-                                            *display_name_key,
-                                            display_name,
-                                            NULL);
-  if (err != noErr)
-    return -ENOENT;
+  asn = pLSGetCurrentApplicationASN();
+
+  err = -EINVAL;
+  if (pLSSetApplicationInformationItem(-2,  /* Magic value. */
+                                       asn,
+                                       *display_name_key,
+                                       S(title),
+                                       NULL) != noErr) {
+    goto out;
+  }
 
   uv__pthread_setname_np(title);  /* Don't care if it fails. */
+  err = 0;
 
-  return 0;
+out:
+  if (core_foundation_handle != NULL)
+    dlclose(core_foundation_handle);
+
+  if (application_services_handle != NULL)
+    dlclose(application_services_handle);
+
+  return err;
 #endif  /* !TARGET_OS_IPHONE */
 }

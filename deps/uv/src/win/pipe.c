@@ -1594,9 +1594,9 @@ void uv_process_pipe_shutdown_req(uv_loop_t* loop, uv_pipe_t* handle,
 
   UNREGISTER_HANDLE_REQ(loop, handle, req);
 
-  /* Initialize and optionally start the eof timer. */
-  /* This makes no sense if we've already seen EOF. */
   if (handle->flags & UV_HANDLE_READABLE) {
+    /* Initialize and optionally start the eof timer. Only do this if the */
+    /* pipe is readable and we haven't seen EOF come in ourselves. */
     eof_timer_init(handle);
 
     /* If reading start the timer right now. */
@@ -1604,6 +1604,12 @@ void uv_process_pipe_shutdown_req(uv_loop_t* loop, uv_pipe_t* handle,
     if (handle->flags & UV_HANDLE_READ_PENDING) {
       eof_timer_start(handle);
     }
+
+  } else {
+    /* This pipe is not readable. We can just close it to let the other end */
+    /* know that we're done writing. */
+    CloseHandle(handle->handle);
+    handle->handle = INVALID_HANDLE_VALUE;
   }
 
   if (req->cb) {

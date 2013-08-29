@@ -680,3 +680,36 @@ void uv_barrier_wait(uv_barrier_t* barrier) {
   uv_sem_wait(&barrier->turnstile2);
   uv_sem_post(&barrier->turnstile2);
 }
+
+
+int uv_key_create(uv_key_t* key) {
+  key->tls_index = TlsAlloc();
+  if (key->tls_index == TLS_OUT_OF_INDEXES)
+    return UV_ENOMEM;
+  return 0;
+}
+
+
+void uv_key_delete(uv_key_t* key) {
+  if (TlsFree(key->tls_index) == FALSE)
+    abort();
+  key->tls_index = TLS_OUT_OF_INDEXES;
+}
+
+
+void* uv_key_get(uv_key_t* key) {
+  void* value;
+
+  value = TlsGetValue(key->tls_index);
+  if (value == NULL)
+    if (GetLastError() != ERROR_SUCCESS)
+      abort();
+
+  return value;
+}
+
+
+void uv_key_set(uv_key_t* key, void* value) {
+  if (TlsSetValue(key->tls_index, value) == FALSE)
+    abort();
+}

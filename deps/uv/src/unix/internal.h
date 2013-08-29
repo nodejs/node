@@ -150,8 +150,6 @@ int uv__async_start(uv_loop_t* loop, struct uv__async* wa, uv__async_cb cb);
 void uv__async_stop(uv_loop_t* loop, struct uv__async* wa);
 
 /* loop */
-int uv__loop_init(uv_loop_t* loop, int default_loop);
-void uv__loop_delete(uv_loop_t* loop);
 void uv__run_idle(uv_loop_t* loop);
 void uv__run_check(uv_loop_t* loop);
 void uv__run_prepare(uv_loop_t* loop);

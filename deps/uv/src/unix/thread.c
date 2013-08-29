@@ -441,3 +441,24 @@ void uv_barrier_wait(uv_barrier_t* barrier) {
 }
 
 #endif /* defined(__APPLE__) && defined(__MACH__) */
+
+int uv_key_create(uv_key_t* key) {
+  return -pthread_key_create(key, NULL);
+}
+
+
+void uv_key_delete(uv_key_t* key) {
+  if (pthread_key_delete(*key))
+    abort();
+}
+
+
+void* uv_key_get(uv_key_t* key) {
+  return pthread_getspecific(*key);
+}
+
+
+void uv_key_set(uv_key_t* key, void* value) {
+  if (pthread_setspecific(*key, value))
+    abort();
+}
