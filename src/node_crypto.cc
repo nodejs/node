@@ -118,6 +118,8 @@ static Persistent<FunctionTemplate> secure_context_constructor;
 
 static uv_rwlock_t* locks;
 
+X509_STORE* root_cert_store;
+
 // Just to generate static methods
 template class SSLWrap<TLSCallbacks>;
 template void SSLWrap<TLSCallbacks>::AddMethods(Handle<FunctionTemplate> t);
