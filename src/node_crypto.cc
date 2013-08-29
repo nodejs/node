@@ -1404,7 +1404,7 @@ int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
     return 0;
 
   } else {
-    static char ssl_error_buf[512];
+    char ssl_error_buf[512];
     ERR_error_string_n(rv, ssl_error_buf, sizeof(ssl_error_buf));
 
     HandleScope scope(node_isolate);
