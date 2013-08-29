@@ -197,6 +197,14 @@ static uv_async_t emit_debug_enabled_async;
 // Declared in node_internals.h
 Isolate* node_isolate = NULL;
 
+enum ProcessState {
+  INITIALIZING,
+  RUNNING,
+  SHUTTING_DOWN
+};
+
+static ProcessState process_state = INITIALIZING;
+
 
 class ArrayBufferAllocator : public ArrayBuffer::Allocator {
  public:
@@ -1026,6 +1034,9 @@ MakeCallback(const Handle<Object> object,
              const Handle<Function> callback,
              int argc,
              Handle<Value> argv[]) {
+  if (process_state == SHUTTING_DOWN)
+    return Undefined(node_isolate);
+
   // TODO(trevnorris) Hook for long stack traces to be made here.
   Local<Object> process = PersistentToLocal(node_isolate, process_p);
 
@@ -1714,9 +1725,66 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
 #endif  // __POSIX__ && !defined(__ANDROID__)
 
 
+void MaybeCloseNamedPipe(uv_shutdown_t* req, int status) {
+  uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(req->handle);
+  delete req;
+
+  if (status == UV_ECANCELED) {
+    return;  // Already closing.
+  }
+  if (status == UV_EPIPE) {
+    return;  // Read end went away before shutdown completed.
+  }
+  assert(status == 0);
+
+  if (uv_is_closing(handle)) {
+    return;
+  }
+
+  uv_close(handle, NULL);
+}
+
+
+void MaybeCloseHandle(uv_handle_t* handle, void* unused) {
+  if (uv_is_closing(handle)) {
+    return;
+  }
+
+  // Named pipes get special treatment: we do a shutdown first to flush
+  // pending writes.  Avoids truncated stdout/stderr output on Windows.
+  bool do_shutdown = handle->type == UV_NAMED_PIPE &&
+                     uv_is_writable(reinterpret_cast<uv_stream_t*>(handle));
+
+  if (do_shutdown == false) {
+    uv_close(handle, NULL);
+    return;
+  }
+
+  uv_shutdown_t* req = new uv_shutdown_t;
+  uv_stream_t* stream = reinterpret_cast<uv_stream_t*>(handle);
+  int err = uv_shutdown(req, stream, MaybeCloseNamedPipe);
+  if (err) {
+    assert(err == UV_ENOTCONN);
+    delete req;
+  }
+}
+
+
+void DisposeEventLoop(uv_loop_t* loop) {
+  // Don't call into JS land from now on.
+  process_state = SHUTTING_DOWN;
+  // Force-close open handles.
+  uv_walk(loop, MaybeCloseHandle, NULL);
+  uv_run(loop, UV_RUN_DEFAULT);
+  uv_loop_delete(loop);
+}
+
+
 void Exit(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  exit(args[0]->IntegerValue());
+  int32_t exit_code = args[0]->Int32Value();
+  DisposeEventLoop(uv_default_loop());
+  exit(exit_code);
 }
 
 
@@ -3170,17 +3238,15 @@ int Start(int argc, char *argv[]) {
     // there are no watchers on the loop (except for the ones that were
     // uv_unref'd) then this function exits. As long as there are active
     // watchers, it blocks.
+    process_state = RUNNING;
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
     EmitExit(process_l);
     RunAtExit();
   }
 
-#ifndef NDEBUG
-  // Clean up. Not strictly necessary.
+  DisposeEventLoop(uv_default_loop());
   V8::Dispose();
-  uv_loop_delete(uv_default_loop());
-#endif  // NDEBUG
 
   // Clean up the copy:
   free(argv_copy);
