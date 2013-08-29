@@ -321,7 +321,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 // Takes a string or buffer and loads it into a BIO.
 // Caller responsible for BIO_free_all-ing the returned object.
 static BIO* LoadBIO(Handle<Value> v) {
-  BIO *bio = BIO_new(NodeBIO::GetMethod());
+  BIO* bio = NodeBIO::New();
   if (!bio) return NULL;
 
   HandleScope scope(node_isolate);
@@ -564,7 +564,7 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
     root_cert_store = X509_STORE_new();
 
     for (int i = 0; root_certs[i]; i++) {
-      BIO *bp = BIO_new(NodeBIO::GetMethod());
+      BIO* bp = NodeBIO::New();
 
       if (!BIO_write(bp, root_certs[i], strlen(root_certs[i]))) {
         BIO_free_all(bp);
@@ -1660,8 +1660,8 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
   conn->Wrap(args.This());
 
   conn->ssl_ = SSL_new(sc->ctx_);
-  conn->bio_read_ = BIO_new(NodeBIO::GetMethod());
-  conn->bio_write_ = BIO_new(NodeBIO::GetMethod());
+  conn->bio_read_ = NodeBIO::New();
+  conn->bio_write_ = NodeBIO::New();
 
   SSL_set_app_data(conn->ssl_, conn);
 

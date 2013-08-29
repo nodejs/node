@@ -25,7 +25,7 @@
 
 namespace node {
 
-BIO_METHOD NodeBIO::method_ = {
+const BIO_METHOD NodeBIO::method = {
   BIO_TYPE_MEM,
   "node.js SSL buffer",
   NodeBIO::Write,
@@ -37,6 +37,13 @@ BIO_METHOD NodeBIO::method_ = {
   NodeBIO::Free,
   NULL
 };
+
+
+BIO* NodeBIO::New() {
+  // The const_cast doesn't violate const correctness.  OpenSSL's usage of
+  // BIO_METHOD is effectively const but BIO_new() takes a non-const argument.
+  return BIO_new(const_cast<BIO_METHOD*>(&method));
+}
 
 
 int NodeBIO::New(BIO* bio) {

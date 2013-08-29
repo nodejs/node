@@ -144,8 +144,8 @@ void TLSCallbacks::InvokeQueued(int status) {
 
 void TLSCallbacks::InitSSL() {
   // Initialize SSL
-  enc_in_ = BIO_new(NodeBIO::GetMethod());
-  enc_out_ = BIO_new(NodeBIO::GetMethod());
+  enc_in_ = NodeBIO::New();
+  enc_out_ = NodeBIO::New();
 
   SSL_set_bio(ssl_, enc_in_, enc_out_);
 
