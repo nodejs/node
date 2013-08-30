@@ -3179,7 +3179,6 @@ int Start(int argc, char *argv[]) {
 #ifndef NDEBUG
   // Clean up. Not strictly necessary.
   V8::Dispose();
-  uv_loop_delete(uv_default_loop());
 #endif  // NDEBUG
 
   // Clean up the copy:
