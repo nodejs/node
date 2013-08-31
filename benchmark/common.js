@@ -18,28 +18,30 @@ if (module === require.main) {
   var spawn = require('child_process').spawn;
 
   runBenchmarks();
+}
 
-  function runBenchmarks() {
-    var test = tests.shift();
-    if (!test)
-      return;
+function runBenchmarks() {
+  var test = tests.shift();
+  if (!test)
+    return;
 
-    if (test.match(/^[\._]/))
-      return process.nextTick(runBenchmarks);
+  if (test.match(/^[\._]/))
+    return process.nextTick(runBenchmarks);
 
-    console.error(type + '/' + test);
-    test = path.resolve(dir, test);
+  console.error(type + '/' + test);
+  test = path.resolve(dir, test);
 
-    var child = spawn(process.execPath, [ test ], { stdio: 'inherit' });
-    child.on('close', function(code) {
-      if (code)
-        process.exit(code);
-      else {
-        console.log('');
-        runBenchmarks();
-      }
-    });
-  }
+  var a = process.execArgv || [];
+  a.push(test);
+  var child = spawn(process.execPath, a, { stdio: 'inherit' });
+  child.on('close', function(code) {
+    if (code)
+      process.exit(code);
+    else {
+      console.log('');
+      runBenchmarks();
+    }
+  });
 }
 
 exports.createBenchmark = function(fn, options) {
