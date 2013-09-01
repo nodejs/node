@@ -38,7 +38,7 @@ function main(conf) {
 function runTest() {
   assert(fs.statSync(filename).size === filesize);
   var rs = fs.createReadStream(filename, {
-    bufferSize: size,
+    highWaterMark: size,
     encoding: encoding
   });
 
