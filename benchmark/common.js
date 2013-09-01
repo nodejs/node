@@ -31,8 +31,7 @@ function runBenchmarks() {
   console.error(type + '/' + test);
   test = path.resolve(dir, test);
 
-  var a = process.execArgv || [];
-  a.push(test);
+  var a = (process.execArgv || []).concat(test);
   var child = spawn(process.execPath, a, { stdio: 'inherit' });
   child.on('close', function(code) {
     if (code)
