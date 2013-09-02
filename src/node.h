@@ -120,11 +120,6 @@ NODE_EXTERN extern bool no_deprecation;
 
 NODE_EXTERN int Start(int argc, char *argv[]);
 
-char** Init(int argc, char *argv[]);
-v8::Handle<v8::Object> SetupProcessObject(int argc, char *argv[]);
-void Load(v8::Handle<v8::Object> process);
-void EmitExit(v8::Handle<v8::Object> process);
-
 /* Converts a unixtime to V8 Date */
 #define NODE_UNIXTIME_V8(t) v8::Date::New(1000*static_cast<double>(t))
 #define NODE_V8_UNIXTIME(v) (static_cast<double>((v)->NumberValue())/1000.0);

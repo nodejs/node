@@ -90,3 +90,8 @@ child.exec(nodejs + ' -p "\\-42"',
       assert.equal(stdout, '-42\n');
       assert.equal(stderr, '');
     });
+
+child.exec(nodejs + ' --use-strict -p process.execArgv',
+    function(status, stdout, stderr) {
+      assert.equal(stdout, "[ '--use-strict', '-p', 'process.execArgv' ]\n");
+    });
