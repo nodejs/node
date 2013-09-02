@@ -59,35 +59,28 @@ enum {
 # define UV__HANDLE_CLOSING   0x01
 #endif
 
-int uv__tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr);
-int uv__tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr);
-
-int uv__udp_bind(uv_udp_t* handle, struct sockaddr_in addr, unsigned flags);
-int uv__udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned flags);
+int uv__tcp_bind(uv_tcp_t* tcp,
+                 const struct sockaddr* addr,
+                 unsigned int addrlen);
 
 int uv__tcp_connect(uv_connect_t* req,
                    uv_tcp_t* handle,
-                   struct sockaddr_in address,
+                   const struct sockaddr* addr,
+                   unsigned int addrlen,
                    uv_connect_cb cb);
 
-int uv__tcp_connect6(uv_connect_t* req,
-                    uv_tcp_t* handle,
-                    struct sockaddr_in6 address,
-                    uv_connect_cb cb);
+int uv__udp_bind(uv_udp_t* handle,
+                 const struct sockaddr* addr,
+                 unsigned int  addrlen,
+                 unsigned int flags);
 
 int uv__udp_send(uv_udp_send_t* req,
                  uv_udp_t* handle,
-                 uv_buf_t bufs[],
-                 int bufcnt,
-                 struct sockaddr_in addr,
+                 const uv_buf_t bufs[],
+                 unsigned int nbufs,
+                 const struct sockaddr* addr,
+                 unsigned int addrlen,
                  uv_udp_send_cb send_cb);
-
-int uv__udp_send6(uv_udp_send_t* req,
-                  uv_udp_t* handle,
-                  uv_buf_t bufs[],
-                  int bufcnt,
-                  struct sockaddr_in6 addr,
-                  uv_udp_send_cb send_cb);
 
 int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloccb,
                        uv_udp_recv_cb recv_cb);

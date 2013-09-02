@@ -139,8 +139,11 @@ int uv_read_stop(uv_stream_t* handle) {
 }
 
 
-int uv_write(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
-    uv_write_cb cb) {
+int uv_write(uv_write_t* req,
+             uv_stream_t* handle,
+             const uv_buf_t bufs[],
+             unsigned int nbufs,
+             uv_write_cb cb) {
   uv_loop_t* loop = handle->loop;
   int err;
 
@@ -151,13 +154,13 @@ int uv_write(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
   err = ERROR_INVALID_PARAMETER;
   switch (handle->type) {
     case UV_TCP:
-      err = uv_tcp_write(loop, req, (uv_tcp_t*) handle, bufs, bufcnt, cb);
+      err = uv_tcp_write(loop, req, (uv_tcp_t*) handle, bufs, nbufs, cb);
       break;
     case UV_NAMED_PIPE:
-      err = uv_pipe_write(loop, req, (uv_pipe_t*) handle, bufs, bufcnt, cb);
+      err = uv_pipe_write(loop, req, (uv_pipe_t*) handle, bufs, nbufs, cb);
       break;
     case UV_TTY:
-      err = uv_tty_write(loop, req, (uv_tty_t*) handle, bufs, bufcnt, cb);
+      err = uv_tty_write(loop, req, (uv_tty_t*) handle, bufs, nbufs, cb);
       break;
     default:
       assert(0);
@@ -167,8 +170,12 @@ int uv_write(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
 }
 
 
-int uv_write2(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
-    uv_stream_t* send_handle, uv_write_cb cb) {
+int uv_write2(uv_write_t* req,
+              uv_stream_t* handle,
+              const uv_buf_t bufs[],
+              unsigned int nbufs,
+              uv_stream_t* send_handle,
+              uv_write_cb cb) {
   uv_loop_t* loop = handle->loop;
   int err;
 
@@ -179,7 +186,13 @@ int uv_write2(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
   err = ERROR_INVALID_PARAMETER;
   switch (handle->type) {
     case UV_NAMED_PIPE:
-      err = uv_pipe_write2(loop, req, (uv_pipe_t*) handle, bufs, bufcnt, send_handle, cb);
+      err = uv_pipe_write2(loop,
+                           req,
+                           (uv_pipe_t*) handle,
+                           bufs,
+                           nbufs,
+                           send_handle,
+                           cb);
       break;
     default:
       assert(0);

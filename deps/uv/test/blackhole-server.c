@@ -33,8 +33,8 @@ typedef struct {
 static uv_tcp_t tcp_server;
 
 static void connection_cb(uv_stream_t* stream, int status);
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size);
-static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf);
+static void alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
+static void read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf);
 static void shutdown_cb(uv_shutdown_t* req, int status);
 static void close_cb(uv_handle_t* handle);
 
@@ -60,13 +60,16 @@ static void connection_cb(uv_stream_t* stream, int status) {
 }
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
-  static char buf[65536];
-  return uv_buf_init(buf, sizeof buf);
+static void alloc_cb(uv_handle_t* handle,
+                     size_t suggested_size,
+                     uv_buf_t* buf) {
+  static char slab[65536];
+  buf->base = slab;
+  buf->len = sizeof(slab);
 }
 
 
-static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
+static void read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
   conn_rec* conn;
   int r;
 
@@ -100,12 +103,12 @@ HELPER_IMPL(tcp4_blackhole_server) {
   int r;
 
   loop = uv_default_loop();
-  addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   r = uv_tcp_init(loop, &tcp_server);
   ASSERT(r == 0);
 
-  r = uv_tcp_bind(&tcp_server, addr);
+  r = uv_tcp_bind(&tcp_server, &addr);
   ASSERT(r == 0);
 
   r = uv_listen((uv_stream_t*)&tcp_server, 128, connection_cb);

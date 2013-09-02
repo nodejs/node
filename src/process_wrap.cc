@@ -232,7 +232,7 @@ class ProcessWrap : public HandleWrap {
       options.flags |= UV_PROCESS_DETACHED;
     }
 
-    int err = uv_spawn(uv_default_loop(), &wrap->process_, options);
+    int err = uv_spawn(uv_default_loop(), &wrap->process_, &options);
 
     if (err == 0) {
       assert(wrap->process_.data == wrap);

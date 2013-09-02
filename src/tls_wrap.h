@@ -50,10 +50,12 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
               uv_stream_t* send_handle,
               uv_write_cb cb);
   void AfterWrite(WriteWrap* w);
-  uv_buf_t DoAlloc(uv_handle_t* handle, size_t suggested_size);
+  void DoAlloc(uv_handle_t* handle,
+               size_t suggested_size,
+               uv_buf_t* buf);
   void DoRead(uv_stream_t* handle,
               ssize_t nread,
-              uv_buf_t buf,
+              const uv_buf_t* buf,
               uv_handle_type pending);
   int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
 

@@ -4076,7 +4076,7 @@
 # define STATUS_HASH_NOT_PRESENT ((NTSTATUS) 0xC000A101L)
 #endif
 
-/* This is not the NTSTATUS_FROM_WIN32 that the DDK provides, because the
+/* This is not the NTSTATUS_FROM_WIN32 that the DDK provides, because the */
 /* DDK got it wrong! */
 #ifdef NTSTATUS_FROM_WIN32
 # undef NTSTATUS_FROM_WIN32

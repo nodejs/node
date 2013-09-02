@@ -53,27 +53,24 @@ static int completed_pingers = 0;
 static int64_t start_time;
 
 
-static uv_buf_t buf_alloc(uv_handle_t* tcp, size_t size) {
+static void buf_alloc(uv_handle_t* tcp, size_t size, uv_buf_t* buf) {
   buf_t* ab;
 
   ab = buf_freelist;
-
-  if (ab != NULL) {
+  if (ab != NULL)
     buf_freelist = ab->next;
-    return ab->uv_buf_t;
+  else {
+    ab = malloc(size + sizeof(*ab));
+    ab->uv_buf_t.len = size;
+    ab->uv_buf_t.base = (char*) (ab + 1);
   }
 
-  ab = (buf_t*) malloc(size + sizeof *ab);
-  ab->uv_buf_t.len = size;
-  ab->uv_buf_t.base = ((char*) ab) + sizeof *ab;
-
-  return ab->uv_buf_t;
+  *buf = ab->uv_buf_t;
 }
 
 
-static void buf_free(uv_buf_t uv_buf_t) {
-  buf_t* ab = (buf_t*) (uv_buf_t.base - sizeof *ab);
-
+static void buf_free(const uv_buf_t* buf) {
+  buf_t* ab = (buf_t*) buf->base - 1;
   ab->next = buf_freelist;
   buf_freelist = ab;
 }
@@ -123,7 +120,9 @@ static void pinger_shutdown_cb(uv_shutdown_t* req, int status) {
 }
 
 
-static void pinger_read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
+static void pinger_read_cb(uv_stream_t* tcp,
+                           ssize_t nread,
+                           const uv_buf_t* buf) {
   ssize_t i;
   pinger_t* pinger;
 
@@ -132,7 +131,7 @@ static void pinger_read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
   if (nread < 0) {
     ASSERT(nread == UV_EOF);
 
-    if (buf.base) {
+    if (buf->base) {
       buf_free(buf);
     }
 
@@ -144,7 +143,7 @@ static void pinger_read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
 
   /* Now we count the pings */
   for (i = 0; i < nread; i++) {
-    ASSERT(buf.base[i] == PING[pinger->state]);
+    ASSERT(buf->base[i] == PING[pinger->state]);
     pinger->state = (pinger->state + 1) % (sizeof(PING) - 1);
     if (pinger->state == 0) {
       pinger->pongs++;
@@ -175,12 +174,14 @@ static void pinger_connect_cb(uv_connect_t* req, int status) {
 
 
 static void pinger_new(void) {
-  int r;
-  struct sockaddr_in client_addr = uv_ip4_addr("0.0.0.0", 0);
-  struct sockaddr_in server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in client_addr;
+  struct sockaddr_in server_addr;
   pinger_t *pinger;
+  int r;
 
-  pinger = (pinger_t*)malloc(sizeof(*pinger));
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", 0, &client_addr));
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &server_addr));
+  pinger = malloc(sizeof(*pinger));
   pinger->state = 0;
   pinger->pongs = 0;
 
@@ -190,9 +191,12 @@ static void pinger_new(void) {
 
   pinger->tcp.data = pinger;
 
-  uv_tcp_bind(&pinger->tcp, client_addr);
+  uv_tcp_bind(&pinger->tcp, &client_addr);
 
-  r = uv_tcp_connect(&pinger->connect_req, &pinger->tcp, server_addr, pinger_connect_cb);
+  r = uv_tcp_connect(&pinger->connect_req,
+                     &pinger->tcp,
+                     &server_addr,
+                     pinger_connect_cb);
   ASSERT(!r);
 }
 

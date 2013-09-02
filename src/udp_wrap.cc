@@ -159,11 +159,21 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
 
   switch (family) {
   case AF_INET:
-    err = uv_udp_bind(&wrap->handle_, uv_ip4_addr(*address, port), flags);
-    break;
+    {
+      sockaddr_in addr;
+      err = uv_ip4_addr(*address, port, &addr);
+      if (err == 0)
+        err = uv_udp_bind(&wrap->handle_, &addr, flags);
+      break;
+    }
   case AF_INET6:
-    err = uv_udp_bind6(&wrap->handle_, uv_ip6_addr(*address, port), flags);
-    break;
+    {
+      sockaddr_in6 addr;
+      err = uv_ip6_addr(*address, port, &addr);
+      if (err == 0)
+        err = uv_udp_bind6(&wrap->handle_, &addr, flags);
+      break;
+    }
   default:
     assert(0 && "unexpected address family");
     abort();
@@ -270,21 +280,33 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
 
   switch (family) {
   case AF_INET:
-    err = uv_udp_send(&req_wrap->req_,
-                      &wrap->handle_,
-                      &buf,
-                      1,
-                      uv_ip4_addr(*address, port),
-                      OnSend);
-    break;
+    {
+      sockaddr_in addr;
+      err = uv_ip4_addr(*address, port, &addr);
+      if (err == 0) {
+        err = uv_udp_send(&req_wrap->req_,
+                          &wrap->handle_,
+                          &buf,
+                          1,
+                          &addr,
+                          OnSend);
+      }
+      break;
+    }
   case AF_INET6:
-    err = uv_udp_send6(&req_wrap->req_,
-                       &wrap->handle_,
-                       &buf,
-                       1,
-                       uv_ip6_addr(*address, port),
-                       OnSend);
-    break;
+    {
+      sockaddr_in6 addr;
+      err = uv_ip6_addr(*address, port, &addr);
+      if (err == 0) {
+        err = uv_udp_send6(&req_wrap->req_,
+                           &wrap->handle_,
+                           &buf,
+                           1,
+                           &addr,
+                           OnSend);
+      }
+      break;
+    }
   default:
     assert(0 && "unexpected address family");
     abort();
@@ -365,24 +387,27 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
 }
 
 
-uv_buf_t UDPWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size) {
-  char* data = static_cast<char*>(malloc(suggested_size));
-  if (data == NULL && suggested_size > 0) {
-    FatalError("node::UDPWrap::OnAlloc(uv_handle_t*, size_t)",
+void UDPWrap::OnAlloc(uv_handle_t* handle,
+                      size_t suggested_size,
+                      uv_buf_t* buf) {
+  buf->base = static_cast<char*>(malloc(suggested_size));
+  buf->len = suggested_size;
+
+  if (buf->base == NULL && suggested_size > 0) {
+    FatalError("node::UDPWrap::OnAlloc(uv_handle_t*, size_t, uv_buf_t*)",
                "Out Of Memory");
   }
-  return uv_buf_init(data, suggested_size);
 }
 
 
 void UDPWrap::OnRecv(uv_udp_t* handle,
                      ssize_t nread,
-                     uv_buf_t buf,
-                     struct sockaddr* addr,
-                     unsigned flags) {
+                     const uv_buf_t* buf,
+                     const struct sockaddr* addr,
+                     unsigned int flags) {
   if (nread == 0) {
-    if (buf.base != NULL)
-      free(buf.base);
+    if (buf->base != NULL)
+      free(buf->base);
     return;
   }
 
@@ -398,15 +423,14 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   };
 
   if (nread < 0) {
-    if (buf.base != NULL)
-      free(buf.base);
+    if (buf->base != NULL)
+      free(buf->base);
     MakeCallback(wrap_obj, onmessage_sym, ARRAY_SIZE(argv), argv);
     return;
   }
 
-  buf.base = static_cast<char*>(realloc(buf.base, nread));
-
-  argv[2] = Buffer::Use(buf.base, nread);
+  char* base = static_cast<char*>(realloc(buf->base, nread));
+  argv[2] = Buffer::Use(base, nread);
   argv[3] = AddressToJS(addr);
   MakeCallback(wrap_obj, onmessage_sym, ARRAY_SIZE(argv), argv);
 }

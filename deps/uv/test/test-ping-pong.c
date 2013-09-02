@@ -48,8 +48,9 @@ typedef struct {
 } pinger_t;
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
-  return uv_buf_init(malloc(size), size);
+static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
+  buf->base = malloc(size);
+  buf->len = size;
 }
 
 
@@ -85,7 +86,9 @@ static void pinger_write_ping(pinger_t* pinger) {
 }
 
 
-static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
+static void pinger_read_cb(uv_stream_t* stream,
+                           ssize_t nread,
+                           const uv_buf_t* buf) {
   ssize_t i;
   pinger_t* pinger;
 
@@ -95,7 +98,7 @@ static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
     ASSERT(nread == UV_EOF);
 
     puts("got EOF");
-    free(buf.base);
+    free(buf->base);
 
     uv_close((uv_handle_t*)(&pinger->stream.tcp), pinger_on_close);
 
@@ -104,7 +107,7 @@ static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
 
   /* Now we count the pings */
   for (i = 0; i < nread; i++) {
-    ASSERT(buf.base[i] == PING[pinger->state]);
+    ASSERT(buf->base[i] == PING[pinger->state]);
     pinger->state = (pinger->state + 1) % (sizeof(PING) - 1);
 
     if (pinger->state != 0)
@@ -121,7 +124,7 @@ static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
     }
   }
 
-  free(buf.base);
+  free(buf->base);
 }
 
 
@@ -145,10 +148,11 @@ static void pinger_on_connect(uv_connect_t *req, int status) {
 /* same ping-pong test, but using IPv6 connection */
 static void tcp_pinger_v6_new(void) {
   int r;
-  struct sockaddr_in6 server_addr = uv_ip6_addr("::1", TEST_PORT);
+  struct sockaddr_in6 server_addr;
   pinger_t *pinger;
 
-  pinger = (pinger_t*)malloc(sizeof(*pinger));
+  ASSERT(0 ==uv_ip6_addr("::1", TEST_PORT, &server_addr));
+  pinger = malloc(sizeof(*pinger));
   pinger->state = 0;
   pinger->pongs = 0;
 
@@ -159,8 +163,10 @@ static void tcp_pinger_v6_new(void) {
 
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
-  r = uv_tcp_connect6(&pinger->connect_req, &pinger->stream.tcp, server_addr,
-      pinger_on_connect);
+  r = uv_tcp_connect6(&pinger->connect_req,
+                      &pinger->stream.tcp,
+                      &server_addr,
+                      pinger_on_connect);
   ASSERT(!r);
 
   /* Synchronous connect callbacks are not allowed. */
@@ -170,10 +176,11 @@ static void tcp_pinger_v6_new(void) {
 
 static void tcp_pinger_new(void) {
   int r;
-  struct sockaddr_in server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in server_addr;
   pinger_t *pinger;
 
-  pinger = (pinger_t*)malloc(sizeof(*pinger));
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &server_addr));
+  pinger = malloc(sizeof(*pinger));
   pinger->state = 0;
   pinger->pongs = 0;
 
@@ -184,8 +191,10 @@ static void tcp_pinger_new(void) {
 
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
-  r = uv_tcp_connect(&pinger->connect_req, &pinger->stream.tcp, server_addr,
-      pinger_on_connect);
+  r = uv_tcp_connect(&pinger->connect_req,
+                     &pinger->stream.tcp,
+                     &server_addr,
+                     pinger_on_connect);
   ASSERT(!r);
 
   /* Synchronous connect callbacks are not allowed. */

@@ -73,11 +73,11 @@ static void exit_cb(uv_process_t* process,
 }
 
 
-static uv_buf_t on_alloc(uv_handle_t* handle, size_t suggested_size) {
-  uv_buf_t buf;
-  buf.base = output + output_used;
-  buf.len = OUTPUT_SIZE - output_used;
-  return buf;
+static void on_alloc(uv_handle_t* handle,
+                     size_t suggested_size,
+                     uv_buf_t* buf) {
+  buf->base = output + output_used;
+  buf->len = OUTPUT_SIZE - output_used;
 }
 
 
@@ -88,7 +88,7 @@ static void pipe_close_cb(uv_handle_t* pipe) {
 }
 
 
-static void on_read(uv_stream_t* pipe, ssize_t nread, uv_buf_t buf) {
+static void on_read(uv_stream_t* pipe, ssize_t nread, const uv_buf_t* buf) {
   if (nread > 0) {
     ASSERT(pipe_open == 1);
     output_used += nread;
@@ -122,7 +122,7 @@ static void spawn(void) {
   options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
   options.stdio[1].data.stream = (uv_stream_t*)&out;
 
-  r = uv_spawn(loop, &process, options);
+  r = uv_spawn(loop, &process, &options);
   ASSERT(r == 0);
 
   process_open = 1;

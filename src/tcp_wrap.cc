@@ -269,8 +269,10 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   String::AsciiValue ip_address(args[0]);
   int port = args[1]->Int32Value();
 
-  struct sockaddr_in address = uv_ip4_addr(*ip_address, port);
-  int err = uv_tcp_bind(&wrap->handle_, address);
+  sockaddr_in addr;
+  int err = uv_ip4_addr(*ip_address, port, &addr);
+  if (err == 0)
+    err = uv_tcp_bind(&wrap->handle_, &addr);
 
   args.GetReturnValue().Set(err);
 }
@@ -285,8 +287,10 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   String::AsciiValue ip6_address(args[0]);
   int port = args[1]->Int32Value();
 
-  struct sockaddr_in6 address = uv_ip6_addr(*ip6_address, port);
-  int err = uv_tcp_bind6(&wrap->handle_, address);
+  sockaddr_in6 addr;
+  int err = uv_ip6_addr(*ip6_address, port, &addr);
+  if (err == 0)
+    err = uv_tcp_bind6(&wrap->handle_, &addr);
 
   args.GetReturnValue().Set(err);
 }
@@ -378,19 +382,15 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   String::AsciiValue ip_address(args[1]);
   int port = args[2]->Uint32Value();
 
-  struct sockaddr_in address = uv_ip4_addr(*ip_address, port);
+  sockaddr_in addr;
+  int err = uv_ip4_addr(*ip_address, port, &addr);
 
-  // I hate when people program C++ like it was C, and yet I do it too.
-  // I'm too lazy to come up with the perfect class hierarchy here. Let's
-  // just do some type munging.
-  ConnectWrap* req_wrap = new ConnectWrap(req_wrap_obj);
-
-  int err = uv_tcp_connect(&req_wrap->req_,
-                           &wrap->handle_,
-                           address,
-                           AfterConnect);
-  req_wrap->Dispatched();
-  if (err) delete req_wrap;
+  if (err == 0) {
+    ConnectWrap* req_wrap = new ConnectWrap(req_wrap_obj);
+    err = uv_tcp_connect(&req_wrap->req_, &wrap->handle_, &addr, AfterConnect);
+    req_wrap->Dispatched();
+    if (err) delete req_wrap;
+  }
 
   args.GetReturnValue().Set(err);
 }
@@ -410,16 +410,15 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   String::AsciiValue ip_address(args[1]);
   int port = args[2]->Int32Value();
 
-  struct sockaddr_in6 address = uv_ip6_addr(*ip_address, port);
+  sockaddr_in6 addr;
+  int err = uv_ip6_addr(*ip_address, port, &addr);
 
-  ConnectWrap* req_wrap = new ConnectWrap(req_wrap_obj);
-
-  int err = uv_tcp_connect6(&req_wrap->req_,
-                            &wrap->handle_,
-                            address,
-                            AfterConnect);
-  req_wrap->Dispatched();
-  if (err) delete req_wrap;
+  if (err == 0) {
+    ConnectWrap* req_wrap = new ConnectWrap(req_wrap_obj);
+    err = uv_tcp_connect6(&req_wrap->req_, &wrap->handle_, &addr, AfterConnect);
+    req_wrap->Dispatched();
+    if (err) delete req_wrap;
+  }
 
   args.GetReturnValue().Set(err);
 }

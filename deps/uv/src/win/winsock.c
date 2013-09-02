@@ -20,6 +20,7 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
 
 #include "uv.h"
 #include "internal.h"
@@ -92,8 +93,13 @@ void uv_winsock_init() {
   }
 
   /* Set implicit binding address used by connectEx */
-  uv_addr_ip4_any_ = uv_ip4_addr("0.0.0.0", 0);
-  uv_addr_ip6_any_ = uv_ip6_addr("::", 0);
+  if (uv_ip4_addr("0.0.0.0", 0, &uv_addr_ip4_any_)) {
+    abort();
+  }
+
+  if (uv_ip6_addr("::", 0, &uv_addr_ip6_any_)) {
+    abort();
+  }
 
   /* Detect non-IFS LSPs */
   dummy = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);

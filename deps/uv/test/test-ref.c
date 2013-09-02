@@ -254,10 +254,11 @@ TEST_IMPL(tcp_ref2b) {
 
 
 TEST_IMPL(tcp_ref3) {
-  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in addr;
   uv_tcp_t h;
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   uv_tcp_init(uv_default_loop(), &h);
-  uv_tcp_connect(&connect_req, &h, addr, connect_and_shutdown);
+  uv_tcp_connect(&connect_req, &h, &addr, connect_and_shutdown);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(connect_cb_called == 1);
@@ -269,10 +270,11 @@ TEST_IMPL(tcp_ref3) {
 
 
 TEST_IMPL(tcp_ref4) {
-  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in addr;
   uv_tcp_t h;
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   uv_tcp_init(uv_default_loop(), &h);
-  uv_tcp_connect(&connect_req, &h, addr, connect_and_write);
+  uv_tcp_connect(&connect_req, &h, &addr, connect_and_write);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(connect_cb_called == 1);
@@ -296,10 +298,11 @@ TEST_IMPL(udp_ref) {
 
 
 TEST_IMPL(udp_ref2) {
-  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in addr;
   uv_udp_t h;
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   uv_udp_init(uv_default_loop(), &h);
-  uv_udp_bind(&h, addr, 0);
+  uv_udp_bind(&h, &addr, 0);
   uv_udp_recv_start(&h, (uv_alloc_cb)fail_cb, (uv_udp_recv_cb)fail_cb);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
@@ -310,13 +313,14 @@ TEST_IMPL(udp_ref2) {
 
 
 TEST_IMPL(udp_ref3) {
-  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in addr;
   uv_buf_t buf = uv_buf_init("PING", 4);
   uv_udp_send_t req;
   uv_udp_t h;
 
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   uv_udp_init(uv_default_loop(), &h);
-  uv_udp_send(&req, &h, &buf, 1, addr, (uv_udp_send_cb)req_cb);
+  uv_udp_send(&req, &h, &buf, 1, &addr, (uv_udp_send_cb)req_cb);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(req_cb_called == 1);
@@ -399,7 +403,7 @@ TEST_IMPL(process_ref) {
   options.args = argv;
   options.exit_cb = NULL;
 
-  r = uv_spawn(uv_default_loop(), &h, options);
+  r = uv_spawn(uv_default_loop(), &h, &options);
   ASSERT(r == 0);
 
   uv_unref((uv_handle_t*)&h);

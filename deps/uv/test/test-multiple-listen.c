@@ -45,13 +45,15 @@ static void connection_cb(uv_stream_t* tcp, int status) {
 
 
 static void start_server(void) {
-  struct sockaddr_in addr = uv_ip4_addr("0.0.0.0", TEST_PORT);
+  struct sockaddr_in addr;
   int r;
+
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
 
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
 
-  r = uv_tcp_bind(&server, addr);
+  r = uv_tcp_bind(&server, &addr);
   ASSERT(r == 0);
 
   r = uv_listen((uv_stream_t*)&server, 128, connection_cb);
@@ -72,16 +74,17 @@ static void connect_cb(uv_connect_t* req, int status) {
 
 
 static void client_connect(void) {
-  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in addr;
   uv_connect_t* connect_req = malloc(sizeof *connect_req);
   int r;
 
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   ASSERT(connect_req != NULL);
 
   r = uv_tcp_init(uv_default_loop(), &client);
   ASSERT(r == 0);
 
-  r = uv_tcp_connect(connect_req, &client, addr, connect_cb);
+  r = uv_tcp_connect(connect_req, &client, &addr, connect_cb);
   ASSERT(r == 0);
 }
 

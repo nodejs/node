@@ -56,14 +56,15 @@ static int maybe_new_socket(uv_tcp_t* handle, int domain, int flags) {
 }
 
 
-static int uv__bind(uv_tcp_t* tcp,
-                    int domain,
-                    struct sockaddr* addr,
-                    int addrsize) {
+int uv__tcp_bind(uv_tcp_t* tcp,
+                 const struct sockaddr* addr,
+                 unsigned int addrlen) {
   int err;
   int on;
 
-  err = maybe_new_socket(tcp, domain, UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+  err = maybe_new_socket(tcp,
+                         addr->sa_family,
+                         UV_STREAM_READABLE | UV_STREAM_WRITABLE);
   if (err)
     return err;
 
@@ -72,7 +73,7 @@ static int uv__bind(uv_tcp_t* tcp,
     return -errno;
 
   errno = 0;
-  if (bind(tcp->io_watcher.fd, addr, addrsize) && errno != EADDRINUSE)
+  if (bind(tcp->io_watcher.fd, addr, addrlen) && errno != EADDRINUSE)
     return -errno;
 
   tcp->delayed_error = -errno;
@@ -80,11 +81,11 @@ static int uv__bind(uv_tcp_t* tcp,
 }
 
 
-static int uv__connect(uv_connect_t* req,
-                       uv_tcp_t* handle,
-                       struct sockaddr* addr,
-                       socklen_t addrlen,
-                       uv_connect_cb cb) {
+int uv__tcp_connect(uv_connect_t* req,
+                    uv_tcp_t* handle,
+                    const struct sockaddr* addr,
+                    unsigned int addrlen,
+                    uv_connect_cb cb) {
   int err;
   int r;
 
@@ -130,22 +131,6 @@ static int uv__connect(uv_connect_t* req,
     uv__io_feed(handle->loop, &handle->io_watcher);
 
   return 0;
-}
-
-
-int uv__tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
-  return uv__bind(handle,
-                  AF_INET,
-                  (struct sockaddr*)&addr,
-                  sizeof(struct sockaddr_in));
-}
-
-
-int uv__tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
-  return uv__bind(handle,
-                  AF_INET6,
-                  (struct sockaddr*)&addr,
-                  sizeof(struct sockaddr_in6));
 }
 
 
@@ -229,22 +214,6 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   uv__io_start(tcp->loop, &tcp->io_watcher, UV__POLLIN);
 
   return 0;
-}
-
-
-int uv__tcp_connect(uv_connect_t* req,
-                    uv_tcp_t* handle,
-                    struct sockaddr_in addr,
-                    uv_connect_cb cb) {
-  return uv__connect(req, handle, (struct sockaddr*) &addr, sizeof addr, cb);
-}
-
-
-int uv__tcp_connect6(uv_connect_t* req,
-                     uv_tcp_t* handle,
-                     struct sockaddr_in6 addr,
-                     uv_connect_cb cb) {
-  return uv__connect(req, handle, (struct sockaddr*) &addr, sizeof addr, cb);
 }
 
 

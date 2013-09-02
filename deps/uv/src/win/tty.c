@@ -347,9 +347,11 @@ static void uv_tty_queue_read_line(uv_loop_t* loop, uv_tty_t* handle) {
   req = &handle->read_req;
   memset(&req->overlapped, 0, sizeof(req->overlapped));
 
-  handle->read_line_buffer = handle->alloc_cb((uv_handle_t*) handle, 8192);
+  handle->alloc_cb((uv_handle_t*) handle, 8192, &handle->read_line_buffer);
   if (handle->read_line_buffer.len == 0) {
-    handle->read_cb(handle, UV_ENOBUFS, handle->read_line_buffer);
+    handle->read_cb((uv_stream_t*) handle,
+                    UV_ENOBUFS,
+                    &handle->read_line_buffer);
     return;
   }
   assert(handle->read_line_buffer.base != NULL);
@@ -486,7 +488,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
       handle->flags &= ~UV_HANDLE_READING;
       handle->read_cb((uv_stream_t*)handle,
                       uv_translate_sys_error(GET_REQ_ERROR(req)),
-                      uv_null_buf_);
+                      &uv_null_buf_);
     }
     goto out;
   }
@@ -497,7 +499,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
     DECREASE_ACTIVE_COUNT(loop, handle);
     handle->read_cb((uv_stream_t*)handle,
                     uv_translate_sys_error(GetLastError()),
-                    uv_null_buf_);
+                    &uv_null_buf_);
     goto out;
   }
 
@@ -518,7 +520,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
         DECREASE_ACTIVE_COUNT(loop, handle);
         handle->read_cb((uv_stream_t*) handle,
                         uv_translate_sys_error(GetLastError()),
-                        buf);
+                        &buf);
         goto out;
       }
       records_left--;
@@ -638,7 +640,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
           DECREASE_ACTIVE_COUNT(loop, handle);
           handle->read_cb((uv_stream_t*) handle,
                           uv_translate_sys_error(GetLastError()),
-                          buf);
+                          &buf);
           goto out;
         }
 
@@ -684,9 +686,9 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
       if (handle->last_key_offset < handle->last_key_len) {
         /* Allocate a buffer if needed */
         if (buf_used == 0) {
-          buf = handle->alloc_cb((uv_handle_t*) handle, 1024);
+          handle->alloc_cb((uv_handle_t*) handle, 1024, &buf);
           if (buf.len == 0) {
-            handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, buf);
+            handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, &buf);
             goto out;
           }
           assert(buf.base != NULL);
@@ -696,7 +698,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
 
         /* If the buffer is full, emit it */
         if (buf_used == buf.len) {
-          handle->read_cb((uv_stream_t*) handle, buf_used, buf);
+          handle->read_cb((uv_stream_t*) handle, buf_used, &buf);
           buf = uv_null_buf_;
           buf_used = 0;
         }
@@ -717,7 +719,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
 
   /* Send the buffer back to the user */
   if (buf_used > 0) {
-    handle->read_cb((uv_stream_t*) handle, buf_used, buf);
+    handle->read_cb((uv_stream_t*) handle, buf_used, &buf);
   }
 
  out:
@@ -755,17 +757,17 @@ void uv_process_tty_read_line_req(uv_loop_t* loop, uv_tty_t* handle,
       DECREASE_ACTIVE_COUNT(loop, handle);
       handle->read_cb((uv_stream_t*) handle,
                       uv_translate_sys_error(GET_REQ_ERROR(req)),
-                      buf);
+                      &buf);
     } else {
       /* The read was cancelled, or whatever we don't care */
-      handle->read_cb((uv_stream_t*) handle, 0, buf);
+      handle->read_cb((uv_stream_t*) handle, 0, &buf);
     }
 
   } else {
     /* Read successful */
     /* TODO: read unicode, convert to utf-8 */
     DWORD bytes = req->overlapped.InternalHigh;
-    handle->read_cb((uv_stream_t*) handle, bytes, buf);
+    handle->read_cb((uv_stream_t*) handle, bytes, &buf);
   }
 
   /* Wait for more input events. */
@@ -828,10 +830,8 @@ int uv_tty_read_start(uv_tty_t* handle, uv_alloc_cb alloc_cb,
 
 
 int uv_tty_read_stop(uv_tty_t* handle) {
-  uv_loop_t* loop = handle->loop;
-
   handle->flags &= ~UV_HANDLE_READING;
-  DECREASE_ACTIVE_COUNT(loop, handle);
+  DECREASE_ACTIVE_COUNT(handle->loop, handle);
 
   /* Cancel raw read */
   if ((handle->flags & UV_HANDLE_READ_PENDING) &&
@@ -1316,13 +1316,15 @@ static int uv_tty_restore_state(uv_tty_t* handle,
 }
 
 
-static int uv_tty_write_bufs(uv_tty_t* handle, uv_buf_t bufs[], int bufcnt,
-    DWORD* error) {
+static int uv_tty_write_bufs(uv_tty_t* handle,
+                             const uv_buf_t bufs[],
+                             unsigned int nbufs,
+                             DWORD* error) {
   /* We can only write 8k characters at a time. Windows can't handle */
   /* much more characters in a single console write anyway. */
   WCHAR utf16_buf[8192];
   DWORD utf16_buf_used = 0;
-  int i;
+  unsigned int i;
 
 #define FLUSH_TEXT()                                                \
   do {                                                              \
@@ -1345,7 +1347,7 @@ static int uv_tty_write_bufs(uv_tty_t* handle, uv_buf_t bufs[], int bufcnt,
 
   EnterCriticalSection(&uv_tty_output_lock);
 
-  for (i = 0; i < bufcnt; i++) {
+  for (i = 0; i < nbufs; i++) {
     uv_buf_t buf = bufs[i];
     unsigned int j;
 
@@ -1743,8 +1745,12 @@ static int uv_tty_write_bufs(uv_tty_t* handle, uv_buf_t bufs[], int bufcnt,
 }
 
 
-int uv_tty_write(uv_loop_t* loop, uv_write_t* req, uv_tty_t* handle,
-    uv_buf_t bufs[], int bufcnt, uv_write_cb cb) {
+int uv_tty_write(uv_loop_t* loop,
+                 uv_write_t* req,
+                 uv_tty_t* handle,
+                 const uv_buf_t bufs[],
+                 unsigned int nbufs,
+                 uv_write_cb cb) {
   DWORD error;
 
   uv_req_init(loop, (uv_req_t*) req);
@@ -1758,7 +1764,7 @@ int uv_tty_write(uv_loop_t* loop, uv_write_t* req, uv_tty_t* handle,
 
   req->queued_bytes = 0;
 
-  if (!uv_tty_write_bufs(handle, bufs, bufcnt, &error)) {
+  if (!uv_tty_write_bufs(handle, bufs, nbufs, &error)) {
     SET_REQ_SUCCESS(req);
   } else {
     SET_REQ_ERROR(req, error);

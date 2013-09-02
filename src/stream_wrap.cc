@@ -127,10 +127,12 @@ void StreamWrap::ReadStop(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-uv_buf_t StreamWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size) {
+void StreamWrap::OnAlloc(uv_handle_t* handle,
+                         size_t suggested_size,
+                         uv_buf_t* buf) {
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
   assert(wrap->stream() == reinterpret_cast<uv_stream_t*>(handle));
-  return wrap->callbacks()->DoAlloc(handle, suggested_size);
+  wrap->callbacks()->DoAlloc(handle, suggested_size, buf);
 }
 
 
@@ -157,7 +159,7 @@ static Local<Object> AcceptHandle(uv_stream_t* pipe) {
 
 void StreamWrap::OnReadCommon(uv_stream_t* handle,
                               ssize_t nread,
-                              uv_buf_t buf,
+                              const uv_buf_t* buf,
                               uv_handle_type pending) {
   HandleScope scope(node_isolate);
 
@@ -179,13 +181,17 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
 }
 
 
-void StreamWrap::OnRead(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
+void StreamWrap::OnRead(uv_stream_t* handle,
+                        ssize_t nread,
+                        const uv_buf_t* buf) {
   OnReadCommon(handle, nread, buf, UV_UNKNOWN_HANDLE);
 }
 
 
-void StreamWrap::OnRead2(uv_pipe_t* handle, ssize_t nread, uv_buf_t buf,
-    uv_handle_type pending) {
+void StreamWrap::OnRead2(uv_pipe_t* handle,
+                         ssize_t nread,
+                         const uv_buf_t* buf,
+                         uv_handle_type pending) {
   OnReadCommon(reinterpret_cast<uv_stream_t*>(handle), nread, buf, pending);
 }
 
@@ -544,20 +550,23 @@ void StreamWrapCallbacks::AfterWrite(WriteWrap* w) {
 }
 
 
-uv_buf_t StreamWrapCallbacks::DoAlloc(uv_handle_t* handle,
-                                      size_t suggested_size) {
-  char* data = static_cast<char*>(malloc(suggested_size));
-  if (data == NULL && suggested_size > 0) {
-    FatalError("node::StreamWrapCallbacks::DoAlloc(uv_handle_t*, size_t)",
-               "Out Of Memory");
+void StreamWrapCallbacks::DoAlloc(uv_handle_t* handle,
+                                  size_t suggested_size,
+                                  uv_buf_t* buf) {
+  buf->base = static_cast<char*>(malloc(suggested_size));
+  buf->len = suggested_size;
+
+  if (buf->base == NULL && suggested_size > 0) {
+    FatalError(
+        "node::StreamWrapCallbacks::DoAlloc(uv_handle_t*, size_t, uv_buf_t*)",
+        "Out Of Memory");
   }
-  return uv_buf_init(data, suggested_size);
 }
 
 
 void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
                                  ssize_t nread,
-                                 uv_buf_t buf,
+                                 const uv_buf_t* buf,
                                  uv_handle_type pending) {
   HandleScope scope(node_isolate);
 
@@ -568,21 +577,21 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
   };
 
   if (nread < 0)  {
-    if (buf.base != NULL)
-      free(buf.base);
+    if (buf->base != NULL)
+      free(buf->base);
     MakeCallback(Self(), onread_sym, ARRAY_SIZE(argv), argv);
     return;
   }
 
   if (nread == 0) {
-    if (buf.base != NULL)
-      free(buf.base);
+    if (buf->base != NULL)
+      free(buf->base);
     return;
   }
 
-  buf.base = static_cast<char*>(realloc(buf.base, nread));
-  assert(static_cast<size_t>(nread) <= buf.len);
-  argv[1] = Buffer::Use(buf.base, nread);
+  char* base = static_cast<char*>(realloc(buf->base, nread));
+  assert(static_cast<size_t>(nread) <= buf->len);
+  argv[1] = Buffer::Use(base, nread);
 
   Local<Object> pending_obj;
   if (pending == UV_TCP) {

@@ -90,10 +90,10 @@ static void connection_fail(uv_connect_cb connect_cb) {
   struct sockaddr_in client_addr, server_addr;
   int r;
 
-  client_addr = uv_ip4_addr("0.0.0.0", 0);
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", 0, &client_addr));
 
   /* There should be no servers listening on this port. */
-  server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &server_addr));
 
   /* Try to connect to the server and do NUM_PINGS ping-pongs. */
   r = uv_tcp_init(uv_default_loop(), &tcp);
@@ -101,8 +101,8 @@ static void connection_fail(uv_connect_cb connect_cb) {
 
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
-  uv_tcp_bind(&tcp, client_addr);
-  r = uv_tcp_connect(&req, &tcp, server_addr, connect_cb);
+  uv_tcp_bind(&tcp, &client_addr);
+  r = uv_tcp_connect(&req, &tcp, &server_addr, connect_cb);
   ASSERT(!r);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);

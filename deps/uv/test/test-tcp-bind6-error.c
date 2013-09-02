@@ -35,18 +35,20 @@ static void close_cb(uv_handle_t* handle) {
 
 
 TEST_IMPL(tcp_bind6_error_addrinuse) {
-  struct sockaddr_in6 addr = uv_ip6_addr("::", TEST_PORT);
+  struct sockaddr_in6 addr;
   uv_tcp_t server1, server2;
   int r;
 
+  ASSERT(0 == uv_ip6_addr("::", TEST_PORT, &addr));
+
   r = uv_tcp_init(uv_default_loop(), &server1);
   ASSERT(r == 0);
-  r = uv_tcp_bind6(&server1, addr);
+  r = uv_tcp_bind6(&server1, &addr);
   ASSERT(r == 0);
 
   r = uv_tcp_init(uv_default_loop(), &server2);
   ASSERT(r == 0);
-  r = uv_tcp_bind6(&server2, addr);
+  r = uv_tcp_bind6(&server2, &addr);
   ASSERT(r == 0);
 
   r = uv_listen((uv_stream_t*)&server1, 128, NULL);
@@ -67,13 +69,15 @@ TEST_IMPL(tcp_bind6_error_addrinuse) {
 
 
 TEST_IMPL(tcp_bind6_error_addrnotavail) {
-  struct sockaddr_in6 addr = uv_ip6_addr("4:4:4:4:4:4:4:4", TEST_PORT);
+  struct sockaddr_in6 addr;
   uv_tcp_t server;
   int r;
 
+  ASSERT(0 == uv_ip6_addr("4:4:4:4:4:4:4:4", TEST_PORT, &addr));
+
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
-  r = uv_tcp_bind6(&server, addr);
+  r = uv_tcp_bind6(&server, &addr);
   ASSERT(r == UV_EADDRNOTAVAIL);
 
   uv_close((uv_handle_t*)&server, close_cb);
@@ -97,7 +101,7 @@ TEST_IMPL(tcp_bind6_error_fault) {
 
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
-  r = uv_tcp_bind6(&server, *garbage_addr);
+  r = uv_tcp_bind6(&server, garbage_addr);
   ASSERT(r == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
@@ -113,16 +117,19 @@ TEST_IMPL(tcp_bind6_error_fault) {
 /* Notes: On Linux uv_bind6(server, NULL) will segfault the program.  */
 
 TEST_IMPL(tcp_bind6_error_inval) {
-  struct sockaddr_in6 addr1 = uv_ip6_addr("::", TEST_PORT);
-  struct sockaddr_in6 addr2 = uv_ip6_addr("::", TEST_PORT_2);
+  struct sockaddr_in6 addr1;
+  struct sockaddr_in6 addr2;
   uv_tcp_t server;
   int r;
 
+  ASSERT(0 == uv_ip6_addr("::", TEST_PORT, &addr1));
+  ASSERT(0 == uv_ip6_addr("::", TEST_PORT_2, &addr2));
+
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
-  r = uv_tcp_bind6(&server, addr1);
+  r = uv_tcp_bind6(&server, &addr1);
   ASSERT(r == 0);
-  r = uv_tcp_bind6(&server, addr2);
+  r = uv_tcp_bind6(&server, &addr2);
   ASSERT(r == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
@@ -137,14 +144,15 @@ TEST_IMPL(tcp_bind6_error_inval) {
 
 
 TEST_IMPL(tcp_bind6_localhost_ok) {
-  struct sockaddr_in6 addr = uv_ip6_addr("::1", TEST_PORT);
-
+  struct sockaddr_in6 addr;
   uv_tcp_t server;
   int r;
 
+  ASSERT(0 == uv_ip6_addr("::1", TEST_PORT, &addr));
+
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
-  r = uv_tcp_bind6(&server, addr);
+  r = uv_tcp_bind6(&server, &addr);
   ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();

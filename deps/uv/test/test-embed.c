@@ -78,7 +78,10 @@ static void embed_thread_runner(void* arg) {
       ts.tv_nsec = (timeout % 1000) * 1000000;
       r = kevent(fd, NULL, 0, NULL, 0, &ts);
 #elif defined(HAVE_EPOLL)
-      r = epoll_wait(fd, NULL, 0, timeout);
+      {
+        struct epoll_event ev;
+        r = epoll_wait(fd, &ev, 1, timeout);
+      }
 #endif
     } while (r == -1 && errno == EINTR);
     uv_async_send(&embed_async);

@@ -68,7 +68,7 @@ TEST_IMPL(tcp_connect_error_after_write) {
   return 0; /* windows slackers... */
 #endif
 
-  addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   buf = uv_buf_init("TEST", 4);
 
   r = uv_tcp_init(uv_default_loop(), &conn);
@@ -77,7 +77,7 @@ TEST_IMPL(tcp_connect_error_after_write) {
   r = uv_write(&write_req, (uv_stream_t*)&conn, &buf, 1, write_cb);
   ASSERT(r == UV_EBADF);
 
-  r = uv_tcp_connect(&connect_req, &conn, addr, connect_cb);
+  r = uv_tcp_connect(&connect_req, &conn, &addr, connect_cb);
   ASSERT(r == 0);
 
   r = uv_write(&write_req, (uv_stream_t*)&conn, &buf, 1, write_cb);

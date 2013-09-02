@@ -54,7 +54,7 @@ static uv_tcp_t server;
 
 
 static void after_write(uv_write_t* req, int status);
-static void after_read(uv_stream_t*, ssize_t nread, uv_buf_t buf);
+static void after_read(uv_stream_t*, ssize_t nread, const uv_buf_t* buf);
 static void on_close(uv_handle_t* peer);
 static void on_connection(uv_stream_t*, int status);
 
@@ -124,7 +124,9 @@ static void addrsp(write_req_t* wr, char* hdr) {
   wr->buf.len += rsplen;
 }
 
-static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
+static void process_req(uv_stream_t* handle,
+                        ssize_t nread,
+                        const uv_buf_t* buf) {
   write_req_t* wr;
   dnshandle* dns = (dnshandle*)handle;
   char hdrbuf[DNSREC_LEN];
@@ -144,7 +146,7 @@ static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
     readbuf_remaining = dns->state.prevbuf_rem;
     usingprev = 1;
   } else {
-    dnsreq = buf.base;
+    dnsreq = buf->base;
     readbuf_remaining = nread;
   }
   hdrstart = dnsreq;
@@ -194,7 +196,7 @@ static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
     if (usingprev == 1) {
       /* free previous buffer */
       free(dns->state.prevbuf_ptr);
-      dnsreq = buf.base;
+      dnsreq = buf->base;
       readbuf_remaining = nread;
       usingprev = 0;
     } else {
@@ -211,27 +213,29 @@ static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 
   if (readbuf_remaining > 0) {
     /* save start of record position, so we can continue on next read */
-    dns->state.prevbuf_ptr = buf.base;
-    dns->state.prevbuf_pos = hdrstart - buf.base;
+    dns->state.prevbuf_ptr = buf->base;
+    dns->state.prevbuf_pos = hdrstart - buf->base;
     dns->state.prevbuf_rem = nread - dns->state.prevbuf_pos;
   } else {
     /* nothing left in this buffer */
     dns->state.prevbuf_ptr = NULL;
     dns->state.prevbuf_pos = 0;
     dns->state.prevbuf_rem = 0;
-    free(buf.base);
+    free(buf->base);
   }
 }
 
-static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
+static void after_read(uv_stream_t* handle,
+                       ssize_t nread,
+                       const uv_buf_t* buf) {
   uv_shutdown_t* req;
 
   if (nread < 0) {
     /* Error or EOF */
     ASSERT(nread == UV_EOF);
 
-    if (buf.base) {
-      free(buf.base);
+    if (buf->base) {
+      free(buf->base);
     }
 
     req = malloc(sizeof *req);
@@ -242,7 +246,7 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 
   if (nread == 0) {
     /* Everything OK, but nothing read. */
-    free(buf.base);
+    free(buf->base);
     return;
   }
   /* process requests and send responses */
@@ -255,11 +259,11 @@ static void on_close(uv_handle_t* peer) {
 }
 
 
-static uv_buf_t buf_alloc(uv_handle_t* handle, size_t suggested_size) {
-  uv_buf_t buf;
-  buf.base = (char*) malloc(suggested_size);
-  buf.len = suggested_size;
-  return buf;
+static void buf_alloc(uv_handle_t* handle,
+                      size_t suggested_size,
+                      uv_buf_t* buf) {
+  buf->base = malloc(suggested_size);
+  buf->len = suggested_size;
 }
 
 
@@ -289,8 +293,10 @@ static void on_connection(uv_stream_t* server, int status) {
 
 
 static int dns_start(int port) {
-  struct sockaddr_in addr = uv_ip4_addr("0.0.0.0", port);
+  struct sockaddr_in addr;
   int r;
+
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", port, &addr));
 
   r = uv_tcp_init(loop, &server);
   if (r) {
@@ -299,7 +305,7 @@ static int dns_start(int port) {
     return 1;
   }
 
-  r = uv_tcp_bind(&server, addr);
+  r = uv_tcp_bind(&server, &addr);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Bind error\n");

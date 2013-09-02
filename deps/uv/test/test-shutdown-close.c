@@ -65,13 +65,14 @@ static void connect_cb(uv_connect_t* req, int status) {
 
 
 TEST_IMPL(shutdown_close_tcp) {
-  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in addr;
   uv_tcp_t h;
   int r;
 
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   r = uv_tcp_init(uv_default_loop(), &h);
   ASSERT(r == 0);
-  r = uv_tcp_connect(&connect_req, &h, addr, connect_cb);
+  r = uv_tcp_connect(&connect_req, &h, &addr, connect_cb);
   ASSERT(r == 0);
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);

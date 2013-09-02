@@ -64,13 +64,15 @@ class UDPWrap: public HandleWrap {
   static void SetMembership(const v8::FunctionCallbackInfo<v8::Value>& args,
                             uv_membership membership);
 
-  static uv_buf_t OnAlloc(uv_handle_t* handle, size_t suggested_size);
+  static void OnAlloc(uv_handle_t* handle,
+                      size_t suggested_size,
+                      uv_buf_t* buf);
   static void OnSend(uv_udp_send_t* req, int status);
   static void OnRecv(uv_udp_t* handle,
                      ssize_t nread,
-                     uv_buf_t buf,
-                     struct sockaddr* addr,
-                     unsigned flags);
+                     const uv_buf_t* buf,
+                     const struct sockaddr* addr,
+                     unsigned int flags);
 
   uv_udp_t handle_;
 };

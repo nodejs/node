@@ -195,7 +195,7 @@ static int uv__duplicate_handle(uv_loop_t* loop, HANDLE handle, HANDLE* dup) {
 
   /* _get_osfhandle will sometimes return -2 in case of an error. This seems */
   /* to happen when fd <= 2 and the process' corresponding stdio handle is */
-  /* set to NULL. Unfortunately DuplicateHandle will happily duplicate /*
+  /* set to NULL. Unfortunately DuplicateHandle will happily duplicate */
   /* (HANDLE) -2, so this situation goes unnoticed until someone tries to */
   /* use the duplicate. Therefore we filter out known-invalid handles here. */
   if (handle == INVALID_HANDLE_VALUE ||
@@ -260,8 +260,9 @@ int uv__create_nul_handle(HANDLE* handle_ptr,
 }
 
 
-int uv__stdio_create(uv_loop_t* loop, uv_process_options_t* options,
-    BYTE** buffer_ptr) {
+int uv__stdio_create(uv_loop_t* loop,
+                     const uv_process_options_t* options,
+                     BYTE** buffer_ptr) {
   BYTE* buffer;
   int count, i;
   int err;

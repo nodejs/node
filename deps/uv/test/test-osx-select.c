@@ -30,14 +30,14 @@
 static int read_count;
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
-  static char buf[1024];
-
-  return uv_buf_init(buf, ARRAY_SIZE(buf));
+static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
+  static char slab[1024];
+  buf->base = slab;
+  buf->len = sizeof(slab);
 }
 
 
-static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
+static void read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
   fprintf(stdout, "got data %d\n", ++read_count);
 
   if (read_count == 3)

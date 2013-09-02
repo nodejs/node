@@ -38,13 +38,14 @@ static int sv_send_cb_called;
 
 static int close_cb_called;
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
+static void alloc_cb(uv_handle_t* handle,
+                     size_t suggested_size,
+                     uv_buf_t* buf) {
   static char slab[65536];
-
   CHECK_HANDLE(handle);
-  ASSERT(suggested_size <= sizeof slab);
-
-  return uv_buf_init(slab, sizeof slab);
+  ASSERT(suggested_size <= sizeof(slab));
+  buf->base = slab;
+  buf->len = sizeof(slab);
 }
 
 
@@ -67,8 +68,8 @@ static void sv_send_cb(uv_udp_send_t* req, int status) {
 
 static void cl_recv_cb(uv_udp_t* handle,
                        ssize_t nread,
-                       uv_buf_t buf,
-                       struct sockaddr* addr,
+                       const uv_buf_t* buf,
+                       const struct sockaddr* addr,
                        unsigned flags) {
   CHECK_HANDLE(handle);
   ASSERT(flags == 0);
@@ -88,7 +89,7 @@ static void cl_recv_cb(uv_udp_t* handle,
 
   ASSERT(addr != NULL);
   ASSERT(nread == 4);
-  ASSERT(!memcmp("PING", buf.base, nread));
+  ASSERT(!memcmp("PING", buf->base, nread));
 
   /* we are done with the client handle, we can close it */
   uv_close((uv_handle_t*) &client, close_cb);
@@ -99,7 +100,9 @@ TEST_IMPL(udp_multicast_join) {
   int r;
   uv_udp_send_t req;
   uv_buf_t buf;
-  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in addr;
+
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
@@ -108,7 +111,7 @@ TEST_IMPL(udp_multicast_join) {
   ASSERT(r == 0);
 
   /* bind to the desired port */
-  r = uv_udp_bind(&client, addr, 0);
+  r = uv_udp_bind(&client, &addr, 0);
   ASSERT(r == 0);
 
   /* join the multicast channel */
@@ -121,7 +124,7 @@ TEST_IMPL(udp_multicast_join) {
   buf = uv_buf_init("PING", 4);
 
   /* server sends "PING" */
-  r = uv_udp_send(&req, &server, &buf, 1, addr, sv_send_cb);
+  r = uv_udp_send(&req, &server, &buf, 1, &addr, sv_send_cb);
   ASSERT(r == 0);
 
   ASSERT(close_cb_called == 0);

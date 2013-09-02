@@ -84,7 +84,7 @@ TEST_IMPL(ip6_addr_link_local) {
          iface_index,
          device_name);
 
-    addr = uv_ip6_addr(scoped_addr, TEST_PORT);
+    ASSERT(0 == uv_ip6_addr(scoped_addr, TEST_PORT, &addr));
     LOGF("Got scope_id 0x%02x\n", addr.sin6_scope_id);
     ASSERT(iface_index == addr.sin6_scope_id);
   }

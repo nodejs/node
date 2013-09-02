@@ -79,10 +79,12 @@ class StreamWrapCallbacks {
                       uv_stream_t* send_handle,
                       uv_write_cb cb);
   virtual void AfterWrite(WriteWrap* w);
-  virtual uv_buf_t DoAlloc(uv_handle_t* handle, size_t suggested_size);
+  virtual void DoAlloc(uv_handle_t* handle,
+                       size_t suggested_size,
+                       uv_buf_t* buf);
   virtual void DoRead(uv_stream_t* handle,
                       ssize_t nread,
-                      uv_buf_t buf,
+                      const uv_buf_t* buf,
                       uv_handle_type pending);
   virtual int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
 
@@ -161,14 +163,22 @@ class StreamWrap : public HandleWrap {
  private:
   // Callbacks for libuv
   static void AfterWrite(uv_write_t* req, int status);
-  static uv_buf_t OnAlloc(uv_handle_t* handle, size_t suggested_size);
+  static void OnAlloc(uv_handle_t* handle,
+                      size_t suggested_size,
+                      uv_buf_t* buf);
   static void AfterShutdown(uv_shutdown_t* req, int status);
 
-  static void OnRead(uv_stream_t* handle, ssize_t nread, uv_buf_t buf);
-  static void OnRead2(uv_pipe_t* handle, ssize_t nread, uv_buf_t buf,
-      uv_handle_type pending);
-  static void OnReadCommon(uv_stream_t* handle, ssize_t nread,
-      uv_buf_t buf, uv_handle_type pending);
+  static void OnRead(uv_stream_t* handle,
+                     ssize_t nread,
+                     const uv_buf_t* buf);
+  static void OnRead2(uv_pipe_t* handle,
+                      ssize_t nread,
+                      const uv_buf_t* buf,
+                      uv_handle_type pending);
+  static void OnReadCommon(uv_stream_t* handle,
+                           ssize_t nread,
+                           const uv_buf_t* buf,
+                           uv_handle_type pending);
 
   template <enum encoding encoding>
   static void WriteStringImpl(const v8::FunctionCallbackInfo<v8::Value>& args);

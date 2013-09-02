@@ -1030,16 +1030,20 @@ static void uv_queue_non_overlapped_write(uv_pipe_t* handle) {
 }
 
 
-static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
-    uv_pipe_t* handle, uv_buf_t bufs[], int bufcnt,
-    uv_stream_t* send_handle, uv_write_cb cb) {
+static int uv_pipe_write_impl(uv_loop_t* loop,
+                              uv_write_t* req,
+                              uv_pipe_t* handle,
+                              const uv_buf_t bufs[],
+                              unsigned int nbufs,
+                              uv_stream_t* send_handle,
+                              uv_write_cb cb) {
   int err;
   int result;
   uv_tcp_t* tcp_send_handle;
   uv_write_t* ipc_header_req;
   uv_ipc_frame_uv_stream ipc_frame;
 
-  if (bufcnt != 1 && (bufcnt != 0 || !send_handle)) {
+  if (nbufs != 1 && (nbufs != 0 || !send_handle)) {
     return ERROR_NOT_SUPPORTED;
   }
 
@@ -1081,7 +1085,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
       }
     }
 
-    if (bufcnt == 1) {
+    if (nbufs == 1) {
       ipc_frame.header.flags |= UV_IPC_RAW_DATA;
       ipc_frame.header.raw_data_length = bufs[0].len;
     }
@@ -1189,7 +1193,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
     }
 
     /* Request queued by the kernel. */
-    req->queued_bytes = uv_count_bufs(bufs, bufcnt);
+    req->queued_bytes = uv_count_bufs(bufs, nbufs);
     handle->write_queue_size += req->queued_bytes;
   } else if (handle->flags & UV_HANDLE_BLOCKING_WRITES) {
     /* Using overlapped IO, but wait for completion before returning */
@@ -1245,7 +1249,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
       req->queued_bytes = 0;
     } else {
       /* Request queued by the kernel. */
-      req->queued_bytes = uv_count_bufs(bufs, bufcnt);
+      req->queued_bytes = uv_count_bufs(bufs, nbufs);
       handle->write_queue_size += req->queued_bytes;
     }
 
@@ -1270,19 +1274,28 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
 }
 
 
-int uv_pipe_write(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
-    uv_buf_t bufs[], int bufcnt, uv_write_cb cb) {
-  return uv_pipe_write_impl(loop, req, handle, bufs, bufcnt, NULL, cb);
+int uv_pipe_write(uv_loop_t* loop,
+                  uv_write_t* req,
+                  uv_pipe_t* handle,
+                  const uv_buf_t bufs[],
+                  unsigned int nbufs,
+                  uv_write_cb cb) {
+  return uv_pipe_write_impl(loop, req, handle, bufs, nbufs, NULL, cb);
 }
 
 
-int uv_pipe_write2(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
-    uv_buf_t bufs[], int bufcnt, uv_stream_t* send_handle, uv_write_cb cb) {
+int uv_pipe_write2(uv_loop_t* loop,
+                   uv_write_t* req,
+                   uv_pipe_t* handle,
+                   const uv_buf_t bufs[],
+                   unsigned int nbufs,
+                   uv_stream_t* send_handle,
+                   uv_write_cb cb) {
   if (!handle->ipc) {
     return WSAEINVAL;
   }
 
-  return uv_pipe_write_impl(loop, req, handle, bufs, bufcnt, send_handle, cb);
+  return uv_pipe_write_impl(loop, req, handle, bufs, nbufs, send_handle, cb);
 }
 
 
@@ -1296,9 +1309,9 @@ static void uv_pipe_read_eof(uv_loop_t* loop, uv_pipe_t* handle,
   uv_read_stop((uv_stream_t*) handle);
 
   if (handle->read2_cb) {
-    handle->read2_cb(handle, UV_EOF, uv_null_buf_, UV_UNKNOWN_HANDLE);
+    handle->read2_cb(handle, UV_EOF, &uv_null_buf_, UV_UNKNOWN_HANDLE);
   } else {
-    handle->read_cb((uv_stream_t*) handle, UV_EOF, uv_null_buf_);
+    handle->read_cb((uv_stream_t*) handle, UV_EOF, &uv_null_buf_);
   }
 }
 
@@ -1314,10 +1327,10 @@ static void uv_pipe_read_error(uv_loop_t* loop, uv_pipe_t* handle, int error,
   if (handle->read2_cb) {
     handle->read2_cb(handle,
                      uv_translate_sys_error(error),
-                     buf,
+                     &buf,
                      UV_UNKNOWN_HANDLE);
   } else {
-    handle->read_cb((uv_stream_t*)handle, uv_translate_sys_error(error), buf);
+    handle->read_cb((uv_stream_t*)handle, uv_translate_sys_error(error), &buf);
   }
 }
 
@@ -1429,12 +1442,12 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
         }
       }
 
-      buf = handle->alloc_cb((uv_handle_t*) handle, avail);
+      handle->alloc_cb((uv_handle_t*) handle, avail, &buf);
       if (buf.len == 0) {
         if (handle->read2_cb) {
-          handle->read2_cb(handle, UV_ENOBUFS, buf, UV_UNKNOWN_HANDLE);
+          handle->read2_cb(handle, UV_ENOBUFS, &buf, UV_UNKNOWN_HANDLE);
         } else if (handle->read_cb) {
-          handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, buf);
+          handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, &buf);
         }
         break;
       }
@@ -1451,10 +1464,10 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
           handle->remaining_ipc_rawdata_bytes =
             handle->remaining_ipc_rawdata_bytes - bytes;
           if (handle->read2_cb) {
-            handle->read2_cb(handle, bytes, buf,
+            handle->read2_cb(handle, bytes, &buf,
               handle->pending_ipc_info.socket_info ? UV_TCP : UV_UNKNOWN_HANDLE);
           } else if (handle->read_cb) {
-            handle->read_cb((uv_stream_t*)handle, bytes, buf);
+            handle->read_cb((uv_stream_t*)handle, bytes, &buf);
           }
 
           if (handle->pending_ipc_info.socket_info) {
@@ -1462,7 +1475,7 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
             handle->pending_ipc_info.socket_info = NULL;
           }
         } else {
-          handle->read_cb((uv_stream_t*)handle, bytes, buf);
+          handle->read_cb((uv_stream_t*)handle, bytes, &buf);
         }
 
         /* Read again only if bytes == buf.len */

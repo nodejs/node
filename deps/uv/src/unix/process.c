@@ -183,7 +183,7 @@ skip:
 
 
 /*
- * Used for initializing stdio streams like options.stdin_stream. Returns
+ * Used for initializing stdio streams like options->stdin_stream. Returns
  * zero on success.
  */
 static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
@@ -270,7 +270,7 @@ static void uv__write_int(int fd, int val) {
 }
 
 
-static void uv__process_child_init(uv_process_options_t options,
+static void uv__process_child_init(const uv_process_options_t* options,
                                    int stdio_count,
                                    int (*pipes)[2],
                                    int error_fd) {
@@ -278,7 +278,7 @@ static void uv__process_child_init(uv_process_options_t options,
   int use_fd;
   int fd;
 
-  if (options.flags & UV_PROCESS_DETACHED)
+  if (options->flags & UV_PROCESS_DETACHED)
     setsid();
 
   for (fd = 0; fd < stdio_count; fd++) {
@@ -313,29 +313,29 @@ static void uv__process_child_init(uv_process_options_t options,
       uv__nonblock(fd, 0);
   }
 
-  if (options.cwd && chdir(options.cwd)) {
+  if (options->cwd != NULL && chdir(options->cwd)) {
     uv__write_int(error_fd, -errno);
     perror("chdir()");
     _exit(127);
   }
 
-  if ((options.flags & UV_PROCESS_SETGID) && setgid(options.gid)) {
+  if ((options->flags & UV_PROCESS_SETGID) && setgid(options->gid)) {
     uv__write_int(error_fd, -errno);
     perror("setgid()");
     _exit(127);
   }
 
-  if ((options.flags & UV_PROCESS_SETUID) && setuid(options.uid)) {
+  if ((options->flags & UV_PROCESS_SETUID) && setuid(options->uid)) {
     uv__write_int(error_fd, -errno);
     perror("setuid()");
     _exit(127);
   }
 
-  if (options.env) {
-    environ = options.env;
+  if (options->env != NULL) {
+    environ = options->env;
   }
 
-  execvp(options.file, options.args);
+  execvp(options->file, options->args);
   uv__write_int(error_fd, -errno);
   perror("execvp()");
   _exit(127);
@@ -344,7 +344,7 @@ static void uv__process_child_init(uv_process_options_t options,
 
 int uv_spawn(uv_loop_t* loop,
              uv_process_t* process,
-             const uv_process_options_t options) {
+             const uv_process_options_t* options) {
   int signal_pipe[2] = { -1, -1 };
   int (*pipes)[2];
   int stdio_count;
@@ -354,17 +354,17 @@ int uv_spawn(uv_loop_t* loop,
   int err;
   int i;
 
-  assert(options.file != NULL);
-  assert(!(options.flags & ~(UV_PROCESS_DETACHED |
-                             UV_PROCESS_SETGID |
-                             UV_PROCESS_SETUID |
-                             UV_PROCESS_WINDOWS_HIDE |
-                             UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
+  assert(options->file != NULL);
+  assert(!(options->flags & ~(UV_PROCESS_DETACHED |
+                              UV_PROCESS_SETGID |
+                              UV_PROCESS_SETUID |
+                              UV_PROCESS_WINDOWS_HIDE |
+                              UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
   QUEUE_INIT(&process->queue);
 
-  stdio_count = options.stdio_count;
+  stdio_count = options->stdio_count;
   if (stdio_count < 3)
     stdio_count = 3;
 
@@ -378,8 +378,8 @@ int uv_spawn(uv_loop_t* loop,
     pipes[i][1] = -1;
   }
 
-  for (i = 0; i < options.stdio_count; i++) {
-    err = uv__process_init_stdio(options.stdio + i, pipes[i]);
+  for (i = 0; i < options->stdio_count; i++) {
+    err = uv__process_init_stdio(options->stdio + i, pipes[i]);
     if (err)
       goto error;
   }
@@ -442,13 +442,13 @@ int uv_spawn(uv_loop_t* loop,
 
   close(signal_pipe[0]);
 
-  for (i = 0; i < options.stdio_count; i++) {
-    err = uv__process_open_stream(options.stdio + i, pipes[i], i == 0);
+  for (i = 0; i < options->stdio_count; i++) {
+    err = uv__process_open_stream(options->stdio + i, pipes[i], i == 0);
     if (err == 0)
       continue;
 
     while (i--)
-      uv__process_close_stream(options.stdio + i);
+      uv__process_close_stream(options->stdio + i);
 
     goto error;
   }
@@ -457,7 +457,7 @@ int uv_spawn(uv_loop_t* loop,
   QUEUE_INSERT_TAIL(q, &process->queue);
 
   process->pid = pid;
-  process->exit_cb = options.exit_cb;
+  process->exit_cb = options->exit_cb;
   uv__handle_start(process);
 
   free(pipes);

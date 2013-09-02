@@ -67,10 +67,13 @@ static uv_os_sock_t create_udp_socket(void) {
 }
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
+static void alloc_cb(uv_handle_t* handle,
+                     size_t suggested_size,
+                     uv_buf_t* buf) {
   static char slab[65536];
-  ASSERT(suggested_size <= sizeof slab);
-  return uv_buf_init(slab, sizeof slab);
+  ASSERT(suggested_size <= sizeof(slab));
+  buf->base = slab;
+  buf->len = sizeof(slab);
 }
 
 
@@ -82,8 +85,8 @@ static void close_cb(uv_handle_t* handle) {
 
 static void recv_cb(uv_udp_t* handle,
                        ssize_t nread,
-                       uv_buf_t buf,
-                       struct sockaddr* addr,
+                       const uv_buf_t* buf,
+                       const struct sockaddr* addr,
                        unsigned flags) {
   int r;
 
@@ -102,7 +105,7 @@ static void recv_cb(uv_udp_t* handle,
 
   ASSERT(addr != NULL);
   ASSERT(nread == 4);
-  ASSERT(memcmp("PING", buf.base, nread) == 0);
+  ASSERT(memcmp("PING", buf->base, nread) == 0);
 
   r = uv_udp_recv_stop(handle);
   ASSERT(r == 0);
@@ -120,11 +123,13 @@ static void send_cb(uv_udp_send_t* req, int status) {
 
 
 TEST_IMPL(udp_open) {
-  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in addr;
   uv_buf_t buf = uv_buf_init("PING", 4);
   uv_udp_t client;
   uv_os_sock_t sock;
   int r;
+
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   startup();
   sock = create_udp_socket();
@@ -135,13 +140,13 @@ TEST_IMPL(udp_open) {
   r = uv_udp_open(&client, sock);
   ASSERT(r == 0);
 
-  r = uv_udp_bind(&client, addr, 0);
+  r = uv_udp_bind(&client, &addr, 0);
   ASSERT(r == 0);
 
   r = uv_udp_recv_start(&client, alloc_cb, recv_cb);
   ASSERT(r == 0);
 
-  r = uv_udp_send(&send_req, &client, &buf, 1, addr, send_cb);
+  r = uv_udp_send(&send_req, &client, &buf, 1, &addr, send_cb);
   ASSERT(r == 0);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);

@@ -29,9 +29,12 @@
 
 TEST_IMPL(udp_options) {
   static int invalid_ttls[] = { -1, 0, 256 };
+  struct sockaddr_in addr;
   uv_loop_t* loop;
   uv_udp_t h;
   int i, r;
+
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
 
   loop = uv_default_loop();
 
@@ -40,7 +43,7 @@ TEST_IMPL(udp_options) {
 
   uv_unref((uv_handle_t*)&h); /* don't keep the loop alive */
 
-  r = uv_udp_bind(&h, uv_ip4_addr("0.0.0.0", TEST_PORT), 0);
+  r = uv_udp_bind(&h, &addr, 0);
   ASSERT(r == 0);
 
   r = uv_udp_set_broadcast(&h, 1);

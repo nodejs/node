@@ -229,17 +229,6 @@ INLINE static void uv_fs_req_init(uv_loop_t* loop, uv_fs_t* req,
 }
 
 
-static int is_path_dir(const WCHAR* path) {
-  DWORD attr = GetFileAttributesW(path);
-
-  if (attr != INVALID_FILE_ATTRIBUTES) {
-    return attr & FILE_ATTRIBUTE_DIRECTORY ? 1 : 0;
-  } else {
-    return 0;
-  }
-}
-
-
 INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
     uint64_t* target_len_ptr) {
   char buffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
@@ -1672,7 +1661,7 @@ int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
     return uv_translate_sys_error(err);
   }
 
-  req->file_flags;
+  req->file_flags = flags;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);

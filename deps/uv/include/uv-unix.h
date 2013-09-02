@@ -199,9 +199,9 @@ typedef struct {
 
 #define UV_WRITE_PRIVATE_FIELDS                                               \
   void* queue[2];                                                             \
-  int write_index;                                                            \
+  unsigned int write_index;                                                   \
   uv_buf_t* bufs;                                                             \
-  int bufcnt;                                                                 \
+  unsigned int nbufs;                                                         \
   int error;                                                                  \
   uv_buf_t bufsml[4];                                                         \
 
@@ -213,7 +213,7 @@ typedef struct {
 #define UV_UDP_SEND_PRIVATE_FIELDS                                            \
   void* queue[2];                                                             \
   struct sockaddr_in6 addr;                                                   \
-  int bufcnt;                                                                 \
+  unsigned int nbufs;                                                         \
   uv_buf_t* bufs;                                                             \
   ssize_t status;                                                             \
   uv_udp_send_cb send_cb;                                                     \

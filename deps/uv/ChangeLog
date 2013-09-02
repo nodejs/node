@@ -1,4 +1,37 @@
-2013.08.30, Version 0.11.11 (Unstable)
+2013.09.03, Version 0.11.12 (Unstable)
+
+Changes since version 0.11.11:
+
+* test: fix epoll_wait() usage in test-embed.c (Ben Noordhuis)
+
+* include: uv_alloc_cb now takes uv_buf_t* (Ben Noordhuis)
+
+* include: uv_read{2}_cb now takes const uv_buf_t* (Ben Noordhuis)
+
+* include: uv_ip[46]_addr now takes sockaddr_in* (Ben Noordhuis)
+
+* include: uv_tcp_bind{6} now takes sockaddr_in* (Ben Noordhuis)
+
+* include: uv_tcp_connect{6} now takes sockaddr_in* (Ben Noordhuis)
+
+* include: uv_udp_recv_cb now takes const uv_buf_t* (Ben Noordhuis)
+
+* include: uv_udp_bind{6} now takes sockaddr_in* (Ben Noordhuis)
+
+* include: uv_udp_send{6} now takes sockaddr_in* (Ben Noordhuis)
+
+* include: uv_spawn takes const uv_process_options_t* (Ben Noordhuis)
+
+* include: make uv_write{2} const correct (Ben Noordhuis)
+
+* windows: fix flags assignment in uv_fs_readdir() (Ben Noordhuis)
+
+* windows: fix stray comments (Ben Noordhuis)
+
+* windows: remove unused is_path_dir() function (Ben Noordhuis)
+
+
+2013.08.30, Version 0.11.11 (Unstable), ba876d53539ed0427c52039012419cd9374c6f0d
 
 Changes since version 0.11.10:
 

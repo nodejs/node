@@ -802,8 +802,9 @@ void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle) {
 }
 
 
-int uv_spawn(uv_loop_t* loop, uv_process_t* process,
-    uv_process_options_t options) {
+int uv_spawn(uv_loop_t* loop,
+             uv_process_t* process,
+             const uv_process_options_t* options) {
   int i;
   int err = 0;
   WCHAR* path = NULL;
@@ -814,44 +815,45 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   PROCESS_INFORMATION info;
   DWORD process_flags;
 
-  if (options.flags & (UV_PROCESS_SETGID | UV_PROCESS_SETUID)) {
+  if (options->flags & (UV_PROCESS_SETGID | UV_PROCESS_SETUID)) {
     return UV_ENOTSUP;
   }
 
-  if (options.file == NULL ||
-      options.args == NULL) {
+  if (options->file == NULL ||
+      options->args == NULL) {
     return UV_EINVAL;
   }
 
-  assert(options.file != NULL);
-  assert(!(options.flags & ~(UV_PROCESS_DETACHED |
-                             UV_PROCESS_SETGID |
-                             UV_PROCESS_SETUID |
-                             UV_PROCESS_WINDOWS_HIDE |
-                             UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
+  assert(options->file != NULL);
+  assert(!(options->flags & ~(UV_PROCESS_DETACHED |
+                              UV_PROCESS_SETGID |
+                              UV_PROCESS_SETUID |
+                              UV_PROCESS_WINDOWS_HIDE |
+                              UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
 
   uv_process_init(loop, process);
-  process->exit_cb = options.exit_cb;
+  process->exit_cb = options->exit_cb;
 
-  err = uv_utf8_to_utf16_alloc(options.file, &application);
+  err = uv_utf8_to_utf16_alloc(options->file, &application);
   if (err)
     goto immediate_failure;
 
-  err = make_program_args(options.args,
-                          options.flags & UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS,
-                          &arguments);
+  err = make_program_args(
+      options->args,
+      options->flags & UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS,
+      &arguments);
   if (err)
     goto immediate_failure;
 
-  if (options.env) {
-     err = make_program_env(options.env, &env);
+  if (options->env) {
+     err = make_program_env(options->env, &env);
      if (err)
        goto immediate_failure;
   }
 
-  if (options.cwd) {
+  if (options->cwd) {
     /* Explicit cwd */
-    err = uv_utf8_to_utf16_alloc(options.cwd, &cwd);
+    err = uv_utf8_to_utf16_alloc(options->cwd, &cwd);
     if (err)
       goto immediate_failure;
 
@@ -901,7 +903,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     }
   }
 
-  err = uv__stdio_create(loop, &options, &process->child_stdio_buffer);
+  err = uv__stdio_create(loop, options, &process->child_stdio_buffer);
   if (err)
     goto immediate_failure;
 
@@ -929,7 +931,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   startup.hStdOutput = uv__stdio_handle(process->child_stdio_buffer, 1);
   startup.hStdError = uv__stdio_handle(process->child_stdio_buffer, 2);
 
-  if (options.flags & UV_PROCESS_WINDOWS_HIDE) {
+  if (options->flags & UV_PROCESS_WINDOWS_HIDE) {
     /* Use SW_HIDE to avoid any potential process window. */
     startup.wShowWindow = SW_HIDE;
   } else {
@@ -938,7 +940,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
   process_flags = CREATE_UNICODE_ENVIRONMENT;
 
-  if (options.flags & UV_PROCESS_DETACHED) {
+  if (options->flags & UV_PROCESS_DETACHED) {
     /* Note that we're not setting the CREATE_BREAKAWAY_FROM_JOB flag. That
      * means that libuv might not let you create a fully deamonized process
      * when run under job control. However the type of job control that libuv
@@ -968,7 +970,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
     /* If the process isn't spawned as detached, assign to the global job */
     /* object so windows will kill it when the parent process dies. */
-    if (!(options.flags & UV_PROCESS_DETACHED)) {
+    if (!(options->flags & UV_PROCESS_DETACHED)) {
       uv_once(&uv_global_job_handle_init_guard_, uv__init_global_job_handle);
 
       if (!AssignProcessToJobObject(uv_global_job_handle_, info.hProcess)) {
@@ -989,8 +991,8 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     }
 
     /* Set IPC pid to all IPC pipes. */
-    for (i = 0; i < options.stdio_count; i++) {
-      const uv_stdio_container_t* fdopt = &options.stdio[i];
+    for (i = 0; i < options->stdio_count; i++) {
+      const uv_stdio_container_t* fdopt = &options->stdio[i];
       if (fdopt->flags & UV_CREATE_PIPE &&
           fdopt->data.stream->type == UV_NAMED_PIPE &&
           ((uv_pipe_t*) fdopt->data.stream)->ipc) {

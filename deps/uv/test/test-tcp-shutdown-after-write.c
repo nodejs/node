@@ -49,9 +49,12 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
+static void alloc_cb(uv_handle_t* handle,
+                     size_t suggested_size,
+                     uv_buf_t* buf) {
   static char slab[64];
-  return uv_buf_init(slab, sizeof(slab));
+  buf->base = slab;
+  buf->len = sizeof(slab);
 }
 
 
@@ -70,7 +73,7 @@ static void timer_cb(uv_timer_t* handle, int status) {
 }
 
 
-static void read_cb(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
+static void read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf) {
 }
 
 
@@ -103,7 +106,7 @@ TEST_IMPL(tcp_shutdown_after_write) {
   uv_loop_t* loop;
   int r;
 
-  addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   loop = uv_default_loop();
 
   r = uv_timer_init(loop, &timer);
@@ -115,7 +118,7 @@ TEST_IMPL(tcp_shutdown_after_write) {
   r = uv_tcp_init(loop, &conn);
   ASSERT(r == 0);
 
-  r = uv_tcp_connect(&connect_req, &conn, addr, connect_cb);
+  r = uv_tcp_connect(&connect_req, &conn, &addr, connect_cb);
   ASSERT(r == 0);
 
   r = uv_run(loop, UV_RUN_DEFAULT);

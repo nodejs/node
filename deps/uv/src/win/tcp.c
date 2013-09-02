@@ -235,15 +235,14 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
 }
 
 
-static int uv__bind(uv_tcp_t* handle,
-                    int family,
-                    struct sockaddr* addr,
-                    int addrsize) {
+static int uv_tcp_try_bind(uv_tcp_t* handle,
+                           const struct sockaddr* addr,
+                           unsigned int addrlen) {
   DWORD err;
   int r;
 
   if (handle->socket == INVALID_SOCKET) {
-    SOCKET sock = socket(family, SOCK_STREAM, 0);
+    SOCKET sock = socket(addr->sa_family, SOCK_STREAM, 0);
     if (sock == INVALID_SOCKET) {
       return WSAGetLastError();
     }
@@ -255,14 +254,14 @@ static int uv__bind(uv_tcp_t* handle,
       return err;
     }
 
-    err = uv_tcp_set_socket(handle->loop, handle, sock, family, 0);
+    err = uv_tcp_set_socket(handle->loop, handle, sock, addr->sa_family, 0);
     if (err) {
       closesocket(sock);
       return err;
     }
   }
 
-  r = bind(handle->socket, addr, addrsize);
+  r = bind(handle->socket, addr, addrlen);
 
   if (r == SOCKET_ERROR) {
     err = WSAGetLastError();
@@ -278,18 +277,6 @@ static int uv__bind(uv_tcp_t* handle,
   handle->flags |= UV_HANDLE_BOUND;
 
   return 0;
-}
-
-
-int uv__tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
-  return uv_translate_sys_error(
-      uv__bind(handle, AF_INET, (struct sockaddr*) &addr, sizeof(addr)));
-}
-
-
-int uv__tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
-  return uv_translate_sys_error(
-      uv__bind(handle, AF_INET6, (struct sockaddr*) &addr, sizeof(addr)));
 }
 
 
@@ -434,9 +421,9 @@ static void uv_tcp_queue_read(uv_loop_t* loop, uv_tcp_t* handle) {
   */
   if (loop->active_tcp_streams < uv_active_tcp_streams_threshold) {
     handle->flags &= ~UV_HANDLE_ZERO_READ;
-    handle->read_buffer = handle->alloc_cb((uv_handle_t*) handle, 65536);
+    handle->alloc_cb((uv_handle_t*) handle, 65536, &handle->read_buffer);
     if (handle->read_buffer.len == 0) {
-      handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, handle->read_buffer);
+      handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, &handle->read_buffer);
       return;
     }
     assert(handle->read_buffer.base != NULL);
@@ -511,7 +498,9 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
   }
 
   if (!(handle->flags & UV_HANDLE_BOUND)) {
-    err = uv_tcp_bind(handle, uv_addr_ip4_any_);
+    err = uv_tcp_try_bind(handle,
+                          (const struct sockaddr*) &uv_addr_ip4_any_,
+                          sizeof(uv_addr_ip4_any_));
     if (err)
       return err;
   }
@@ -673,12 +662,13 @@ int uv_tcp_read_start(uv_tcp_t* handle, uv_alloc_cb alloc_cb,
 }
 
 
-int uv__tcp_connect(uv_connect_t* req,
-                    uv_tcp_t* handle,
-                    struct sockaddr_in address,
-                    uv_connect_cb cb) {
+static int uv_tcp_try_connect(uv_connect_t* req,
+                              uv_tcp_t* handle,
+                              const struct sockaddr* addr,
+                              unsigned int addrlen,
+                              uv_connect_cb cb) {
   uv_loop_t* loop = handle->loop;
-  int addrsize = sizeof(struct sockaddr_in);
+  const struct sockaddr* bind_addr;
   BOOL success;
   DWORD bytes;
   int err;
@@ -688,7 +678,14 @@ int uv__tcp_connect(uv_connect_t* req,
   }
 
   if (!(handle->flags & UV_HANDLE_BOUND)) {
-    err = uv_tcp_bind(handle, uv_addr_ip4_any_);
+    if (addrlen == sizeof(uv_addr_ip4_any_)) {
+      bind_addr = (const struct sockaddr*) &uv_addr_ip4_any_;
+    } else if (addrlen == sizeof(uv_addr_ip6_any_)) {
+      bind_addr = (const struct sockaddr*) &uv_addr_ip6_any_;
+    } else {
+      abort();
+    }
+    err = uv_tcp_try_bind(handle, bind_addr, addrlen);
     if (err)
       return err;
   }
@@ -706,8 +703,8 @@ int uv__tcp_connect(uv_connect_t* req,
   memset(&req->overlapped, 0, sizeof(req->overlapped));
 
   success = handle->func_connectex(handle->socket,
-                                   (struct sockaddr*) &address,
-                                   addrsize,
+                                   addr,
+                                   addrlen,
                                    NULL,
                                    0,
                                    &bytes,
@@ -720,61 +717,6 @@ int uv__tcp_connect(uv_connect_t* req,
     uv_insert_pending_req(loop, (uv_req_t*)req);
   } else if (UV_SUCCEEDED_WITH_IOCP(success)) {
     /* The req will be processed with IOCP. */
-    handle->reqs_pending++;
-    REGISTER_HANDLE_REQ(loop, handle, req);
-  } else {
-    return WSAGetLastError();
-  }
-
-  return 0;
-}
-
-
-int uv__tcp_connect6(uv_connect_t* req,
-                     uv_tcp_t* handle,
-                     struct sockaddr_in6 address,
-                     uv_connect_cb cb) {
-  uv_loop_t* loop = handle->loop;
-  int addrsize = sizeof(struct sockaddr_in6);
-  BOOL success;
-  DWORD bytes;
-  int err;
-
-  if (handle->flags & UV_HANDLE_BIND_ERROR) {
-    return handle->bind_error;
-  }
-
-  if (!(handle->flags & UV_HANDLE_BOUND)) {
-    err = uv_tcp_bind6(handle, uv_addr_ip6_any_);
-    if (err)
-      return err;
-  }
-
-  if (!handle->func_connectex) {
-    if (!uv_get_connectex_function(handle->socket, &handle->func_connectex)) {
-      return WSAEAFNOSUPPORT;
-    }
-  }
-
-  uv_req_init(loop, (uv_req_t*) req);
-  req->type = UV_CONNECT;
-  req->handle = (uv_stream_t*) handle;
-  req->cb = cb;
-  memset(&req->overlapped, 0, sizeof(req->overlapped));
-
-  success = handle->func_connectex(handle->socket,
-                                   (struct sockaddr*) &address,
-                                   addrsize,
-                                   NULL,
-                                   0,
-                                   &bytes,
-                                   &req->overlapped);
-
-  if (UV_SUCCEEDED_WITHOUT_IOCP(success)) {
-    handle->reqs_pending++;
-    REGISTER_HANDLE_REQ(loop, handle, req);
-    uv_insert_pending_req(loop, (uv_req_t*)req);
-  } else if (UV_SUCCEEDED_WITH_IOCP(success)) {
     handle->reqs_pending++;
     REGISTER_HANDLE_REQ(loop, handle, req);
   } else {
@@ -827,8 +769,12 @@ int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
 }
 
 
-int uv_tcp_write(uv_loop_t* loop, uv_write_t* req, uv_tcp_t* handle,
-    uv_buf_t bufs[], int bufcnt, uv_write_cb cb) {
+int uv_tcp_write(uv_loop_t* loop,
+                 uv_write_t* req,
+                 uv_tcp_t* handle,
+                 const uv_buf_t bufs[],
+                 unsigned int nbufs,
+                 uv_write_cb cb) {
   int result;
   DWORD bytes;
 
@@ -850,8 +796,8 @@ int uv_tcp_write(uv_loop_t* loop, uv_write_t* req, uv_tcp_t* handle,
   }
 
   result = WSASend(handle->socket,
-                   (WSABUF*)bufs,
-                   bufcnt,
+                   (WSABUF*) bufs,
+                   nbufs,
                    &bytes,
                    0,
                    &req->overlapped,
@@ -866,7 +812,7 @@ int uv_tcp_write(uv_loop_t* loop, uv_write_t* req, uv_tcp_t* handle,
     uv_insert_pending_req(loop, (uv_req_t*) req);
   } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
     /* Request queued by the kernel. */
-    req->queued_bytes = uv_count_bufs(bufs, bufcnt);
+    req->queued_bytes = uv_count_bufs(bufs, nbufs);
     handle->reqs_pending++;
     handle->write_reqs_pending++;
     REGISTER_HANDLE_REQ(loop, handle, req);
@@ -916,7 +862,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
 
       handle->read_cb((uv_stream_t*)handle,
                       uv_translate_sys_error(err),
-                      buf);
+                      &buf);
     }
   } else {
     if (!(handle->flags & UV_HANDLE_ZERO_READ)) {
@@ -925,7 +871,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
         /* Successful read */
         handle->read_cb((uv_stream_t*)handle,
                         req->overlapped.InternalHigh,
-                        handle->read_buffer);
+                        &handle->read_buffer);
         /* Read again only if bytes == buf.len */
         if (req->overlapped.InternalHigh < handle->read_buffer.len) {
           goto done;
@@ -940,16 +886,16 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
 
         buf.base = 0;
         buf.len = 0;
-        handle->read_cb((uv_stream_t*)handle, UV_EOF, handle->read_buffer);
+        handle->read_cb((uv_stream_t*)handle, UV_EOF, &handle->read_buffer);
         goto done;
       }
     }
 
     /* Do nonblocking reads until the buffer is empty */
     while (handle->flags & UV_HANDLE_READING) {
-      buf = handle->alloc_cb((uv_handle_t*) handle, 65536);
+      handle->alloc_cb((uv_handle_t*) handle, 65536, &buf);
       if (buf.len == 0) {
-        handle->read_cb(handle, UV_ENOBUFS, buf);
+        handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, &buf);
         break;
       }
       assert(buf.base != NULL);
@@ -964,7 +910,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
                   NULL) != SOCKET_ERROR) {
         if (bytes > 0) {
           /* Successful read */
-          handle->read_cb((uv_stream_t*)handle, bytes, buf);
+          handle->read_cb((uv_stream_t*)handle, bytes, &buf);
           /* Read again only if bytes == buf.len */
           if (bytes < buf.len) {
             break;
@@ -974,14 +920,14 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
           handle->flags &= ~(UV_HANDLE_READING | UV_HANDLE_READABLE);
           DECREASE_ACTIVE_COUNT(loop, handle);
 
-          handle->read_cb((uv_stream_t*)handle, UV_EOF, buf);
+          handle->read_cb((uv_stream_t*)handle, UV_EOF, &buf);
           break;
         }
       } else {
         err = WSAGetLastError();
         if (err == WSAEWOULDBLOCK) {
           /* Read buffer was completely empty, report a 0-byte read. */
-          handle->read_cb((uv_stream_t*)handle, 0, buf);
+          handle->read_cb((uv_stream_t*)handle, 0, &buf);
         } else {
           /* Ouch! serious error. */
           handle->flags &= ~UV_HANDLE_READING;
@@ -995,7 +941,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
 
           handle->read_cb((uv_stream_t*)handle,
                           uv_translate_sys_error(err),
-                          buf);
+                          &buf);
         }
         break;
       }
@@ -1084,7 +1030,7 @@ void uv_process_tcp_accept_req(uv_loop_t* loop, uv_tcp_t* handle,
     }
   } else {
     /* Error related to accepted socket is ignored because the server */
-    /* socket may still be healthy. If the server socket is broken
+    /* socket may still be healthy. If the server socket is broken */
     /* uv_queue_accept will detect it. */
     closesocket(req->accept_socket);
     req->accept_socket = INVALID_SOCKET;
@@ -1410,6 +1356,40 @@ int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
   if (err) {
     return uv_translate_sys_error(err);
   }
+
+  return 0;
+}
+
+
+/* This function is an egress point, i.e. it returns libuv errors rather than
+ * system errors.
+ */
+int uv__tcp_bind(uv_tcp_t* handle,
+                 const struct sockaddr* addr,
+                 unsigned int addrlen) {
+  int err;
+
+  err = uv_tcp_try_bind(handle, addr, addrlen);
+  if (err)
+    return uv_translate_sys_error(err);
+
+  return 0;
+}
+
+
+/* This function is an egress point, i.e. it returns libuv errors rather than
+ * system errors.
+ */
+int uv__tcp_connect(uv_connect_t* req,
+                    uv_tcp_t* handle,
+                    const struct sockaddr* addr,
+                    unsigned int addrlen,
+                    uv_connect_cb cb) {
+  int err;
+
+  err = uv_tcp_try_connect(req, handle, addr, addrlen, cb);
+  if (err)
+    return uv_translate_sys_error(err);
 
   return 0;
 }

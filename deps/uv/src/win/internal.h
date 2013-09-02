@@ -106,7 +106,7 @@ int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client);
 int uv_tcp_read_start(uv_tcp_t* handle, uv_alloc_cb alloc_cb,
     uv_read_cb read_cb);
 int uv_tcp_write(uv_loop_t* loop, uv_write_t* req, uv_tcp_t* handle,
-    uv_buf_t bufs[], int bufcnt, uv_write_cb cb);
+    const uv_buf_t bufs[], unsigned int nbufs, uv_write_cb cb);
 
 void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle, uv_req_t* req);
 void uv_process_tcp_write_req(uv_loop_t* loop, uv_tcp_t* handle,
@@ -150,9 +150,10 @@ int uv_pipe_read_start(uv_pipe_t* handle, uv_alloc_cb alloc_cb,
 int uv_pipe_read2_start(uv_pipe_t* handle, uv_alloc_cb alloc_cb,
     uv_read2_cb read_cb);
 int uv_pipe_write(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
-    uv_buf_t bufs[], int bufcnt, uv_write_cb cb);
+    const uv_buf_t bufs[], unsigned int nbufs, uv_write_cb cb);
 int uv_pipe_write2(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
-    uv_buf_t bufs[], int bufcnt, uv_stream_t* send_handle, uv_write_cb cb);
+    const uv_buf_t bufs[], unsigned int nbufs, uv_stream_t* send_handle,
+    uv_write_cb cb);
 
 void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
     uv_req_t* req);
@@ -179,7 +180,7 @@ int uv_tty_read_start(uv_tty_t* handle, uv_alloc_cb alloc_cb,
     uv_read_cb read_cb);
 int uv_tty_read_stop(uv_tty_t* handle);
 int uv_tty_write(uv_loop_t* loop, uv_write_t* req, uv_tty_t* handle,
-    uv_buf_t bufs[], int bufcnt, uv_write_cb cb);
+    const uv_buf_t bufs[], unsigned int nbufs, uv_write_cb cb);
 void uv_tty_close(uv_tty_t* handle);
 
 void uv_process_tty_read_req(uv_loop_t* loop, uv_tty_t* handle,
@@ -311,8 +312,9 @@ void uv_fatal_error(const int errorno, const char* syscall);
 /*
  * Process stdio handles.
  */
-int uv__stdio_create(uv_loop_t* loop, uv_process_options_t* options,
-    BYTE** buffer_ptr);
+int uv__stdio_create(uv_loop_t* loop,
+                     const uv_process_options_t* options,
+                     BYTE** buffer_ptr);
 void uv__stdio_destroy(BYTE* buffer);
 void uv__stdio_noinherit(BYTE* buffer);
 int uv__stdio_verify(BYTE* buffer, WORD size);

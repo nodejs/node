@@ -41,8 +41,8 @@ static void maybe_connect_some();
 static uv_req_t* req_alloc();
 static void req_free(uv_req_t* uv_req);
 
-static uv_buf_t buf_alloc(uv_handle_t*, size_t size);
-static void buf_free(uv_buf_t uv_buf_t);
+static void buf_alloc(uv_handle_t* handle, size_t size, uv_buf_t* buf);
+static void buf_free(const uv_buf_t* buf);
 
 static uv_loop_t* loop;
 
@@ -158,7 +158,7 @@ static void start_stats_collection(void) {
 }
 
 
-static void read_cb(uv_stream_t* stream, ssize_t bytes, uv_buf_t buf) {
+static void read_cb(uv_stream_t* stream, ssize_t bytes, const uv_buf_t* buf) {
   if (nrecv_total == 0) {
     ASSERT(start_time == 0);
     uv_update_time(loop);
@@ -240,7 +240,7 @@ static void maybe_connect_some(void) {
       ASSERT(r == 0);
 
       req = (uv_connect_t*) req_alloc();
-      r = uv_tcp_connect(req, tcp, connect_addr, connect_cb);
+      r = uv_tcp_connect(req, tcp, &connect_addr, connect_cb);
       ASSERT(r == 0);
     } else {
       pipe = &pipe_write_handles[max_connect_socket++];
@@ -331,28 +331,26 @@ typedef struct buf_list_s {
 static buf_list_t* buf_freelist = NULL;
 
 
-static uv_buf_t buf_alloc(uv_handle_t* handle, size_t size) {
-  buf_list_t* buf;
+static void buf_alloc(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
+  buf_list_t* ab;
 
-  buf = buf_freelist;
-  if (buf != NULL) {
-    buf_freelist = buf->next;
-    return buf->uv_buf_t;
+  ab = buf_freelist;
+  if (ab != NULL)
+    buf_freelist = ab->next;
+  else {
+    ab = malloc(size + sizeof(*ab));
+    ab->uv_buf_t.len = size;
+    ab->uv_buf_t.base = (char*) (ab + 1);
   }
 
-  buf = (buf_list_t*) malloc(size + sizeof *buf);
-  buf->uv_buf_t.len = (unsigned int)size;
-  buf->uv_buf_t.base = ((char*) buf) + sizeof *buf;
-
-  return buf->uv_buf_t;
+  *buf = ab->uv_buf_t;
 }
 
 
-static void buf_free(uv_buf_t uv_buf_t) {
-  buf_list_t* buf = (buf_list_t*) (uv_buf_t.base - sizeof *buf);
-
-  buf->next = buf_freelist;
-  buf_freelist = buf;
+static void buf_free(const uv_buf_t* buf) {
+  buf_list_t* ab = (buf_list_t*) buf->base - 1;
+  ab->next = buf_freelist;
+  buf_freelist = ab;
 }
 
 
@@ -362,13 +360,13 @@ HELPER_IMPL(tcp_pump_server) {
   type = TCP;
   loop = uv_default_loop();
 
-  listen_addr = uv_ip4_addr("0.0.0.0", TEST_PORT);
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &listen_addr));
 
   /* Server */
   server = (uv_stream_t*)&tcpServer;
   r = uv_tcp_init(loop, &tcpServer);
   ASSERT(r == 0);
-  r = uv_tcp_bind(&tcpServer, listen_addr);
+  r = uv_tcp_bind(&tcpServer, &listen_addr);
   ASSERT(r == 0);
   r = uv_listen((uv_stream_t*)&tcpServer, MAX_WRITE_HANDLES, connection_cb);
   ASSERT(r == 0);
@@ -408,7 +406,7 @@ static void tcp_pump(int n) {
 
   loop = uv_default_loop();
 
-  connect_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &connect_addr));
 
   /* Start making connections */
   maybe_connect_some();
