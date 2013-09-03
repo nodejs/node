@@ -273,7 +273,7 @@ size_t StringBytes::Write(char* buf,
   size_t len = 0;
   bool is_extern = GetExternalParts(val, &data, &len);
 
-  Local<String> str = val->ToString();
+  Local<String> str = val.As<String>();
   len = len < buflen ? len : buflen;
 
   int flags = String::NO_NULL_TERMINATION |
@@ -295,7 +295,10 @@ size_t StringBytes::Write(char* buf,
       break;
 
     case UTF8:
-      len = str->WriteUtf8(buf, buflen, chars_written, flags);
+      if (is_extern)
+        memcpy(buf, data, len);
+      else
+        len = str->WriteUtf8(buf, buflen, chars_written, flags);
       break;
 
     case UCS2:
@@ -403,9 +406,12 @@ size_t StringBytes::Size(Handle<Value> val, enum encoding encoding) {
   size_t data_size = 0;
   bool is_buffer = Buffer::HasInstance(val);
 
-  if (is_buffer && (encoding == BUFFER || encoding == BINARY)) {
+  if (is_buffer && (encoding == BUFFER || encoding == BINARY))
     return Buffer::Length(val);
-  }
+
+  const char* data;
+  if (GetExternalParts(val, &data, &data_size))
+    return data_size;
 
   Local<String> str = val->ToString();
 
