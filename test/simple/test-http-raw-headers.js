@@ -34,13 +34,13 @@ http.createServer(function(req, res) {
     'x-BaR',
     'yoyoyo',
     'Connection',
-    'keep-alive'
+    'close'
   ];
   var expectHeaders = {
     host: 'localhost:' + common.PORT,
     'transfer-encoding': 'CHUNKED',
     'x-bar': 'yoyoyo',
-    connection: 'keep-alive'
+    connection: 'close'
   };
 
   var expectRawTrailers = [
@@ -77,7 +77,7 @@ http.createServer(function(req, res) {
     'Date',
     'Tue, 06 Aug 2013 01:31:54 GMT',
     'Connection',
-    'keep-alive',
+    'close',
     'Transfer-Encoding',
     'chunked'
   ];
@@ -96,13 +96,13 @@ http.createServer(function(req, res) {
       'Date',
       null,
       'Connection',
-      'keep-alive',
+      'close',
       'Transfer-Encoding',
       'chunked'
     ];
     var expectHeaders = {
       date: null,
-      connection: 'keep-alive',
+      connection: 'close',
       'transfer-encoding': 'chunked'
     };
     res.rawHeaders[1] = null;

@@ -473,3 +473,11 @@ test('adding readable triggers data flow', function(t) {
     t.end();
   });
 });
+
+test('chainable', function(t) {
+  var r = new R();
+  r._read = function() {};
+  var r2 = r.setEncoding('utf8').pause().resume().pause();
+  t.equal(r, r2);
+  t.end();
+});

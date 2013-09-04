@@ -359,3 +359,9 @@ test('encoding: base64', function(t) {
     t.end();
   });
 });
+
+test('chainable', function(t) {
+  var tr = new TestReader(100);
+  t.equal(tr.setEncoding('utf8'), tr);
+  t.end();
+});
