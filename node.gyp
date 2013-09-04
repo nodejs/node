@@ -285,7 +285,6 @@
           'defines': [ '__POSIX__' ],
         }],
         [ 'OS=="mac"', {
-          'libraries': [ '-framework Carbon' ],
           'defines!': [
             'PLATFORM="mac"',
           ],
