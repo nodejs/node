@@ -1,4 +1,13 @@
-2013.08.21, Version 0.10.17 (Stable)
+2013.09.04, Version 0.10.18 (Stable)
+
+* uv: Upgrade to v0.10.15
+
+* stream: Don't crash on unset _events property (isaacs)
+
+* stream: Pass 'buffer' encoding with decoded writable chunks (isaacs)
+
+
+2013.08.21, Version 0.10.17 (Stable), 469a4a5091a677df62be319675056b869c31b35c
 
 * uv: Upgrade v0.10.14
 
