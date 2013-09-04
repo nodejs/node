@@ -183,7 +183,10 @@ TEST_IMPL(callback_stack) {
 
   nested++;
 
-  if (uv_tcp_connect(&connect_req, &client, &addr, connect_cb)) {
+  if (uv_tcp_connect(&connect_req,
+                     &client,
+                     (const struct sockaddr*) &addr,
+                     connect_cb)) {
     FATAL("uv_tcp_connect failed");
   }
   nested--;

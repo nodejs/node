@@ -115,7 +115,7 @@ TEST_IMPL(tcp_write_to_half_open_connection) {
   r = uv_tcp_init(loop, &tcp_server);
   ASSERT(r == 0);
 
-  r = uv_tcp_bind(&tcp_server, &addr);
+  r = uv_tcp_bind(&tcp_server, (const struct sockaddr*) &addr);
   ASSERT(r == 0);
 
   r = uv_listen((uv_stream_t*)&tcp_server, 1, connection_cb);
@@ -124,7 +124,10 @@ TEST_IMPL(tcp_write_to_half_open_connection) {
   r = uv_tcp_init(loop, &tcp_client);
   ASSERT(r == 0);
 
-  r = uv_tcp_connect(&connect_req, &tcp_client, &addr, connect_cb);
+  r = uv_tcp_connect(&connect_req,
+                     &tcp_client,
+                     (const struct sockaddr*) &addr,
+                     connect_cb);
   ASSERT(r == 0);
 
   r = uv_run(loop, UV_RUN_DEFAULT);

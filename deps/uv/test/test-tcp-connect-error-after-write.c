@@ -77,7 +77,10 @@ TEST_IMPL(tcp_connect_error_after_write) {
   r = uv_write(&write_req, (uv_stream_t*)&conn, &buf, 1, write_cb);
   ASSERT(r == UV_EBADF);
 
-  r = uv_tcp_connect(&connect_req, &conn, &addr, connect_cb);
+  r = uv_tcp_connect(&connect_req,
+                     &conn,
+                     (const struct sockaddr*) &addr,
+                     connect_cb);
   ASSERT(r == 0);
 
   r = uv_write(&write_req, (uv_stream_t*)&conn, &buf, 1, write_cb);

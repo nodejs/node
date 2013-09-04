@@ -117,7 +117,10 @@ BENCHMARK_IMPL(tcp_write_batch) {
   r = uv_tcp_init(loop, &tcp_client);
   ASSERT(r == 0);
 
-  r = uv_tcp_connect(&connect_req, &tcp_client, &addr, connect_cb);
+  r = uv_tcp_connect(&connect_req,
+                     &tcp_client,
+                     (const struct sockaddr*) &addr,
+                     connect_cb);
   ASSERT(r == 0);
 
   start = uv_hrtime();

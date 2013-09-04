@@ -152,12 +152,7 @@ static void sv_recv_cb(uv_udp_t* handle,
   ASSERT(req != NULL);
 
   sndbuf = uv_buf_init("PONG", 4);
-  r = uv_udp_send(req,
-                  handle,
-                  &sndbuf,
-                  1,
-                  (const struct sockaddr_in*) addr,
-                  sv_send_cb);
+  r = uv_udp_send(req, handle, &sndbuf, 1, addr, sv_send_cb);
   ASSERT(r == 0);
 
   sv_recv_cb_called++;
@@ -175,7 +170,7 @@ TEST_IMPL(udp_send_and_recv) {
   r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
 
-  r = uv_udp_bind(&server, &addr, 0);
+  r = uv_udp_bind(&server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   r = uv_udp_recv_start(&server, alloc_cb, sv_recv_cb);
@@ -189,7 +184,12 @@ TEST_IMPL(udp_send_and_recv) {
   /* client sends "PING", expects "PONG" */
   buf = uv_buf_init("PING", 4);
 
-  r = uv_udp_send(&req, &client, &buf, 1, &addr, cl_send_cb);
+  r = uv_udp_send(&req,
+                  &client,
+                  &buf,
+                  1,
+                  (const struct sockaddr*) &addr,
+                  cl_send_cb);
   ASSERT(r == 0);
 
   ASSERT(close_cb_called == 0);

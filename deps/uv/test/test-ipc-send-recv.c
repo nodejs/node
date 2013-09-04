@@ -145,7 +145,7 @@ TEST_IMPL(ipc_send_recv_tcp) {
   r = uv_tcp_init(uv_default_loop(), &ctx.send.tcp);
   ASSERT(r == 0);
 
-  r = uv_tcp_bind(&ctx.send.tcp, &addr);
+  r = uv_tcp_bind(&ctx.send.tcp, (const struct sockaddr*) &addr);
   ASSERT(r == 0);
 
   r = run_test();

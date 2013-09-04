@@ -145,7 +145,6 @@ void UDPWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 
 void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   HandleScope scope(node_isolate);
-  int err;
 
   UDPWrap* wrap;
   NODE_UNWRAP(args.This(), UDPWrap, wrap);
@@ -156,27 +155,25 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   String::Utf8Value address(args[0]);
   const int port = args[1]->Uint32Value();
   const int flags = args[2]->Uint32Value();
+  char addr[sizeof(sockaddr_in6)];
+  int err;
 
   switch (family) {
   case AF_INET:
-    {
-      sockaddr_in addr;
-      err = uv_ip4_addr(*address, port, &addr);
-      if (err == 0)
-        err = uv_udp_bind(&wrap->handle_, &addr, flags);
-      break;
-    }
+    err = uv_ip4_addr(*address, port, reinterpret_cast<sockaddr_in*>(&addr));
+    break;
   case AF_INET6:
-    {
-      sockaddr_in6 addr;
-      err = uv_ip6_addr(*address, port, &addr);
-      if (err == 0)
-        err = uv_udp_bind6(&wrap->handle_, &addr, flags);
-      break;
-    }
+    err = uv_ip6_addr(*address, port, reinterpret_cast<sockaddr_in6*>(&addr));
+    break;
   default:
     assert(0 && "unexpected address family");
     abort();
+  }
+
+  if (err == 0) {
+    err = uv_udp_bind(&wrap->handle_,
+                      reinterpret_cast<const sockaddr*>(&addr),
+                      flags);
   }
 
   args.GetReturnValue().Set(err);
@@ -248,7 +245,6 @@ void UDPWrap::DropMembership(const FunctionCallbackInfo<Value>& args) {
 
 void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   HandleScope scope(node_isolate);
-  int err;
 
   UDPWrap* wrap;
   NODE_UNWRAP(args.This(), UDPWrap, wrap);
@@ -277,39 +273,28 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
 
   uv_buf_t buf = uv_buf_init(Buffer::Data(buffer_obj) + offset,
                              length);
+  char addr[sizeof(sockaddr_in6)];
+  int err;
 
   switch (family) {
   case AF_INET:
-    {
-      sockaddr_in addr;
-      err = uv_ip4_addr(*address, port, &addr);
-      if (err == 0) {
-        err = uv_udp_send(&req_wrap->req_,
-                          &wrap->handle_,
-                          &buf,
-                          1,
-                          &addr,
-                          OnSend);
-      }
-      break;
-    }
+    err = uv_ip4_addr(*address, port, reinterpret_cast<sockaddr_in*>(&addr));
+    break;
   case AF_INET6:
-    {
-      sockaddr_in6 addr;
-      err = uv_ip6_addr(*address, port, &addr);
-      if (err == 0) {
-        err = uv_udp_send6(&req_wrap->req_,
-                           &wrap->handle_,
-                           &buf,
-                           1,
-                           &addr,
-                           OnSend);
-      }
-      break;
-    }
+    err = uv_ip6_addr(*address, port, reinterpret_cast<sockaddr_in6*>(&addr));
+    break;
   default:
     assert(0 && "unexpected address family");
     abort();
+  }
+
+  if (err == 0) {
+    err = uv_udp_send(&req_wrap->req_,
+                      &wrap->handle_,
+                      &buf,
+                      1,
+                      reinterpret_cast<const sockaddr*>(&addr),
+                      OnSend);
   }
 
   req_wrap->Dispatched();

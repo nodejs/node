@@ -1,4 +1,23 @@
-2013.09.03, Version 0.11.12 (Unstable)
+2013.09.05, Version 0.11.13 (Unstable)
+
+Changes since version 0.11.12:
+
+* unix: define _GNU_SOURCE, exposes glibc-isms (Ben Noordhuis)
+
+* windows: check for nonconforming swprintf arguments (Brent Cook)
+
+* build: include internal headers in source list (Brent Cook)
+
+* include: merge uv_tcp_bind and uv_tcp_bind6 (Ben Noordhuis)
+
+* include: merge uv_tcp_connect and uv_tcp_connect6 (Ben Noordhuis)
+
+* include: merge uv_udp_bind and uv_udp_bind6 (Ben Noordhuis)
+
+* include: merge uv_udp_send and uv_udp_send6 (Ben Noordhuis)
+
+
+2013.09.03, Version 0.11.12 (Unstable), 82d01d5f6780d178f5176a01425ec297583c0811
 
 Changes since version 0.11.11:
 

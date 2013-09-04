@@ -85,7 +85,7 @@ static void start_server(uv_loop_t* loop, uv_tcp_t* handle) {
   r = uv_tcp_init(loop, handle);
   ASSERT(r == 0);
 
-  r = uv_tcp_bind(handle, &addr);
+  r = uv_tcp_bind(handle, (const struct sockaddr*) &addr);
   ASSERT(r == 0);
 
   r = uv_listen((uv_stream_t*)handle, 128, connection_cb);
@@ -114,7 +114,10 @@ TEST_IMPL(tcp_close) {
   r = uv_tcp_init(loop, &tcp_handle);
   ASSERT(r == 0);
 
-  r = uv_tcp_connect(&connect_req, &tcp_handle, &addr, connect_cb);
+  r = uv_tcp_connect(&connect_req,
+                     &tcp_handle,
+                     (const struct sockaddr*) &addr,
+                     connect_cb);
   ASSERT(r == 0);
 
   ASSERT(write_cb_called == 0);

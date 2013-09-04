@@ -65,7 +65,10 @@ TEST_IMPL(tcp_read_stop) {
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   ASSERT(0 == uv_timer_init(uv_default_loop(), &timer_handle));
   ASSERT(0 == uv_tcp_init(uv_default_loop(), &tcp_handle));
-  ASSERT(0 == uv_tcp_connect(&connect_req, &tcp_handle, &addr, connect_cb));
+  ASSERT(0 == uv_tcp_connect(&connect_req,
+                             &tcp_handle,
+                             (const struct sockaddr*) &addr,
+                             connect_cb));
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
   MAKE_VALGRIND_HAPPY();
 

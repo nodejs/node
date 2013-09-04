@@ -19,6 +19,13 @@
  * IN THE SOFTWARE.
  */
 
+/* Expose glibc-specific EAI_* error codes. Needs to be defined before we
+ * include any headers.
+ */
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE
+#endif
+
 #include "uv.h"
 #include "uv-common.h"
 
@@ -184,75 +191,59 @@ int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size) {
 }
 
 
-int uv_tcp_bind(uv_tcp_t* handle, const struct sockaddr_in* addr) {
-  if (handle->type == UV_TCP && addr->sin_family == AF_INET)
-    return uv__tcp_bind(handle, (const struct sockaddr*) addr, sizeof(*addr));
+int uv_tcp_bind(uv_tcp_t* handle, const struct sockaddr* addr) {
+  unsigned int addrlen;
+
+  if (handle->type != UV_TCP)
+    return UV_EINVAL;
+
+  if (addr->sa_family == AF_INET)
+    addrlen = sizeof(struct sockaddr_in);
+  else if (addr->sa_family == AF_INET6)
+    addrlen = sizeof(struct sockaddr_in6);
   else
     return UV_EINVAL;
-}
 
-
-int uv_tcp_bind6(uv_tcp_t* handle, const struct sockaddr_in6* addr) {
-  if (handle->type == UV_TCP && addr->sin6_family == AF_INET6)
-    return uv__tcp_bind(handle, (const struct sockaddr*) addr, sizeof(*addr));
-  else
-    return UV_EINVAL;
+  return uv__tcp_bind(handle, addr, addrlen);
 }
 
 
 int uv_udp_bind(uv_udp_t* handle,
-                const struct sockaddr_in* addr,
+                const struct sockaddr* addr,
                 unsigned int flags) {
-  if (handle->type == UV_UDP && addr->sin_family == AF_INET) {
-    return uv__udp_bind(handle,
-                        (const struct sockaddr*) addr,
-                        sizeof(*addr),
-                        flags);
-  }
-  return UV_EINVAL;
-}
+  unsigned int addrlen;
 
+  if (handle->type != UV_UDP)
+    return UV_EINVAL;
 
-int uv_udp_bind6(uv_udp_t* handle,
-                 const struct sockaddr_in6* addr,
-                 unsigned int flags) {
-  if (handle->type == UV_UDP && addr->sin6_family == AF_INET6) {
-    return uv__udp_bind(handle,
-                        (const struct sockaddr*) addr,
-                        sizeof(*addr),
-                        flags);
-  }
-  return UV_EINVAL;
+  if (addr->sa_family == AF_INET)
+    addrlen = sizeof(struct sockaddr_in);
+  else if (addr->sa_family == AF_INET6)
+    addrlen = sizeof(struct sockaddr_in6);
+  else
+    return UV_EINVAL;
+
+  return uv__udp_bind(handle, addr, addrlen, flags);
 }
 
 
 int uv_tcp_connect(uv_connect_t* req,
                    uv_tcp_t* handle,
-                   const struct sockaddr_in* addr,
+                   const struct sockaddr* addr,
                    uv_connect_cb cb) {
-  if (handle->type == UV_TCP && addr->sin_family == AF_INET) {
-    return uv__tcp_connect(req,
-                           handle,
-                           (const struct sockaddr*) addr,
-                           sizeof(*addr),
-                           cb);
-  }
-  return UV_EINVAL;
-}
+  unsigned int addrlen;
 
+  if (handle->type != UV_TCP)
+    return UV_EINVAL;
 
-int uv_tcp_connect6(uv_connect_t* req,
-                    uv_tcp_t* handle,
-                    const struct sockaddr_in6* addr,
-                    uv_connect_cb cb) {
-  if (handle->type == UV_TCP && addr->sin6_family == AF_INET6) {
-    return uv__tcp_connect(req,
-                           handle,
-                           (const struct sockaddr*) addr,
-                           sizeof(*addr),
-                           cb);
-  }
-  return UV_EINVAL;
+  if (addr->sa_family == AF_INET)
+    addrlen = sizeof(struct sockaddr_in);
+  else if (addr->sa_family == AF_INET6)
+    addrlen = sizeof(struct sockaddr_in6);
+  else
+    return UV_EINVAL;
+
+  return uv__tcp_connect(req, handle, addr, addrlen, cb);
 }
 
 
@@ -260,37 +251,21 @@ int uv_udp_send(uv_udp_send_t* req,
                 uv_udp_t* handle,
                 const uv_buf_t bufs[],
                 unsigned int nbufs,
-                const struct sockaddr_in* addr,
+                const struct sockaddr* addr,
                 uv_udp_send_cb send_cb) {
-  if (handle->type == UV_UDP && addr->sin_family == AF_INET) {
-    return uv__udp_send(req,
-                        handle,
-                        bufs,
-                        nbufs,
-                        (const struct sockaddr*) addr,
-                        sizeof(*addr),
-                        send_cb);
-  }
-  return UV_EINVAL;
-}
+  unsigned int addrlen;
 
+  if (handle->type != UV_UDP)
+    return UV_EINVAL;
 
-int uv_udp_send6(uv_udp_send_t* req,
-                 uv_udp_t* handle,
-                 const uv_buf_t bufs[],
-                 unsigned int nbufs,
-                 const struct sockaddr_in6* addr,
-                 uv_udp_send_cb send_cb) {
-  if (handle->type == UV_UDP && addr->sin6_family == AF_INET6) {
-    return uv__udp_send(req,
-                        handle,
-                        bufs,
-                        nbufs,
-                        (const struct sockaddr*) addr,
-                        sizeof(*addr),
-                        send_cb);
-  }
-  return UV_EINVAL;
+  if (addr->sa_family == AF_INET)
+    addrlen = sizeof(struct sockaddr_in);
+  else if (addr->sa_family == AF_INET6)
+    addrlen = sizeof(struct sockaddr_in6);
+  else
+    return UV_EINVAL;
+
+  return uv__udp_send(req, handle, bufs, nbufs, addr, addrlen, send_cb);
 }
 
 

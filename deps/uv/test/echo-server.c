@@ -195,7 +195,6 @@ static void on_recv(uv_udp_t* handle,
                     unsigned flags) {
   uv_udp_send_t* req;
   uv_buf_t sndbuf;
-  int r;
 
   ASSERT(nread > 0);
   ASSERT(addr->sa_family == AF_INET);
@@ -204,13 +203,7 @@ static void on_recv(uv_udp_t* handle,
   ASSERT(req != NULL);
 
   sndbuf = *rcvbuf;
-  r = uv_udp_send(req,
-                  handle,
-                  &sndbuf,
-                  1,
-                  (const struct sockaddr_in*) addr,
-                  on_send);
-  ASSERT(r == 0);
+  ASSERT(0 == uv_udp_send(req, handle, &sndbuf, 1, addr, on_send));
 }
 
 
@@ -236,7 +229,7 @@ static int tcp4_echo_start(int port) {
     return 1;
   }
 
-  r = uv_tcp_bind(&tcpServer, &addr);
+  r = uv_tcp_bind(&tcpServer, (const struct sockaddr*) &addr);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Bind error\n");
@@ -271,7 +264,7 @@ static int tcp6_echo_start(int port) {
   }
 
   /* IPv6 is optional as not all platforms support it */
-  r = uv_tcp_bind6(&tcpServer, &addr6);
+  r = uv_tcp_bind(&tcpServer, (const struct sockaddr*) &addr6);
   if (r) {
     /* show message but return OK */
     fprintf(stderr, "IPv6 not supported\n");

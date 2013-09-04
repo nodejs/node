@@ -153,7 +153,10 @@ TEST_IMPL(tcp_writealot) {
   r = uv_tcp_init(uv_default_loop(), &client);
   ASSERT(r == 0);
 
-  r = uv_tcp_connect(&connect_req, &client, &addr, connect_cb);
+  r = uv_tcp_connect(&connect_req,
+                     &client,
+                     (const struct sockaddr*) &addr,
+                     connect_cb);
   ASSERT(r == 0);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);

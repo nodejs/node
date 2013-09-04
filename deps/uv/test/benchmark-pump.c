@@ -240,7 +240,10 @@ static void maybe_connect_some(void) {
       ASSERT(r == 0);
 
       req = (uv_connect_t*) req_alloc();
-      r = uv_tcp_connect(req, tcp, &connect_addr, connect_cb);
+      r = uv_tcp_connect(req,
+                         tcp,
+                         (const struct sockaddr*) &connect_addr,
+                         connect_cb);
       ASSERT(r == 0);
     } else {
       pipe = &pipe_write_handles[max_connect_socket++];
@@ -366,7 +369,7 @@ HELPER_IMPL(tcp_pump_server) {
   server = (uv_stream_t*)&tcpServer;
   r = uv_tcp_init(loop, &tcpServer);
   ASSERT(r == 0);
-  r = uv_tcp_bind(&tcpServer, &listen_addr);
+  r = uv_tcp_bind(&tcpServer, (const struct sockaddr*) &listen_addr);
   ASSERT(r == 0);
   r = uv_listen((uv_stream_t*)&tcpServer, MAX_WRITE_HANDLES, connection_cb);
   ASSERT(r == 0);

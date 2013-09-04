@@ -272,7 +272,7 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   sockaddr_in addr;
   int err = uv_ip4_addr(*ip_address, port, &addr);
   if (err == 0)
-    err = uv_tcp_bind(&wrap->handle_, &addr);
+    err = uv_tcp_bind(&wrap->handle_, reinterpret_cast<const sockaddr*>(&addr));
 
   args.GetReturnValue().Set(err);
 }
@@ -290,7 +290,7 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip6_address, port, &addr);
   if (err == 0)
-    err = uv_tcp_bind6(&wrap->handle_, &addr);
+    err = uv_tcp_bind(&wrap->handle_, reinterpret_cast<const sockaddr*>(&addr));
 
   args.GetReturnValue().Set(err);
 }
@@ -387,7 +387,10 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   if (err == 0) {
     ConnectWrap* req_wrap = new ConnectWrap(req_wrap_obj);
-    err = uv_tcp_connect(&req_wrap->req_, &wrap->handle_, &addr, AfterConnect);
+    err = uv_tcp_connect(&req_wrap->req_,
+                         &wrap->handle_,
+                         reinterpret_cast<const sockaddr*>(&addr),
+                         AfterConnect);
     req_wrap->Dispatched();
     if (err) delete req_wrap;
   }
@@ -415,7 +418,10 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
 
   if (err == 0) {
     ConnectWrap* req_wrap = new ConnectWrap(req_wrap_obj);
-    err = uv_tcp_connect6(&req_wrap->req_, &wrap->handle_, &addr, AfterConnect);
+    err = uv_tcp_connect(&req_wrap->req_,
+                         &wrap->handle_,
+                         reinterpret_cast<const sockaddr*>(&addr),
+                         AfterConnect);
     req_wrap->Dispatched();
     if (err) delete req_wrap;
   }

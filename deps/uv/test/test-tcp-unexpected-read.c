@@ -98,9 +98,12 @@ TEST_IMPL(tcp_unexpected_read) {
   ASSERT(0 == uv_tcp_init(loop, &server_handle));
   ASSERT(0 == uv_tcp_init(loop, &client_handle));
   ASSERT(0 == uv_tcp_init(loop, &peer_handle));
-  ASSERT(0 == uv_tcp_bind(&server_handle, &addr));
+  ASSERT(0 == uv_tcp_bind(&server_handle, (const struct sockaddr*) &addr));
   ASSERT(0 == uv_listen((uv_stream_t*) &server_handle, 1, connection_cb));
-  ASSERT(0 == uv_tcp_connect(&connect_req, &client_handle, &addr, connect_cb));
+  ASSERT(0 == uv_tcp_connect(&connect_req,
+                             &client_handle,
+                             (const struct sockaddr*) &addr,
+                             connect_cb));
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   /* This is somewhat inexact but the idea is that the event loop should not

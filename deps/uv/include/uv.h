@@ -766,8 +766,11 @@ UV_EXTERN int uv_tcp_keepalive(uv_tcp_t* handle,
  */
 UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
 
-UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle, const struct sockaddr_in* addr);
-UV_EXTERN int uv_tcp_bind6(uv_tcp_t* handle, const struct sockaddr_in6* addr);
+/*
+ * Bind the handle to an address and port.  `addr` should point to an
+ * initialized struct sockaddr_in or struct sockaddr_in6.
+ */
+UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle, const struct sockaddr* addr);
 
 UV_EXTERN int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,
     int* namelen);
@@ -775,20 +778,17 @@ UV_EXTERN int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
     int* namelen);
 
 /*
- * uv_tcp_connect, uv_tcp_connect6
- * These functions establish IPv4 and IPv6 TCP connections. Provide an
- * initialized TCP handle and an uninitialized uv_connect_t*. The callback
- * will be made when the connection is established.
+ * Establish an IPv4 or IPv6 TCP connection.  Provide an initialized TCP handle
+ * and an uninitialized uv_connect_t*.  `addr` should point to an initialized
+ * struct sockaddr_in or struct sockaddr_in6.
+ *
+ * The callback is made when the connection has been established or when a
+ * connection error happened.
  */
 UV_EXTERN int uv_tcp_connect(uv_connect_t* req,
                              uv_tcp_t* handle,
-                             const struct sockaddr_in* addr,
+                             const struct sockaddr* addr,
                              uv_connect_cb cb);
-
-UV_EXTERN int uv_tcp_connect6(uv_connect_t* req,
-                              uv_tcp_t* handle,
-                              const struct sockaddr_in6* addr,
-                              uv_connect_cb cb);
 
 /* uv_connect_t is a subclass of uv_req_t */
 struct uv_connect_s {
@@ -804,7 +804,7 @@ struct uv_connect_s {
  */
 
 enum uv_udp_flags {
-  /* Disables dual stack mode. Used with uv_udp_bind6(). */
+  /* Disables dual stack mode. */
   UV_UDP_IPV6ONLY = 1,
   /*
    * Indicates message was truncated because read buffer was too small. The
@@ -883,7 +883,8 @@ UV_EXTERN int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock);
  *
  * Arguments:
  *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
- *  addr      struct sockaddr_in with the address and port to bind to.
+ *  addr      struct sockaddr_in or struct sockaddr_in6 with the address and
+ *            port to bind to.
  *  flags     Unused.
  *
  * Returns:
@@ -898,23 +899,8 @@ UV_EXTERN int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock);
  * opt-in mechanism in future versions of libuv.
  */
 UV_EXTERN int uv_udp_bind(uv_udp_t* handle,
-                          const struct sockaddr_in* addr,
-                          unsigned flags);
-
-/*
- * Bind to a IPv6 address and port.
- *
- * Arguments:
- *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
- *  addr      struct sockaddr_in with the address and port to bind to.
- *  flags     Should be 0 or UV_UDP_IPV6ONLY.
- *
- * Returns:
- *  0 on success, or an error code < 0 on failure.
- */
-UV_EXTERN int uv_udp_bind6(uv_udp_t* handle,
-                           const struct sockaddr_in6* addr,
-                           unsigned flags);
+                          const struct sockaddr* addr,
+                          unsigned int flags);
 
 UV_EXTERN int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name,
     int* namelen);
@@ -1009,30 +995,8 @@ UV_EXTERN int uv_udp_send(uv_udp_send_t* req,
                           uv_udp_t* handle,
                           const uv_buf_t bufs[],
                           unsigned int nbufs,
-                          const struct sockaddr_in* addr,
+                          const struct sockaddr* addr,
                           uv_udp_send_cb send_cb);
-
-/*
- * Send data. If the socket has not previously been bound with `uv_udp_bind6`,
- * it is bound to ::0 (the "all interfaces" address) and a random port number.
- *
- * Arguments:
- *  req       UDP request handle. Need not be initialized.
- *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
- *  bufs      List of buffers to send.
- *  nbufs     Number of buffers in `bufs`.
- *  addr      Address of the remote peer. See `uv_ip6_addr`.
- *  send_cb   Callback to invoke when the data has been sent out.
- *
- * Returns:
- *  0 on success, or an error code < 0 on failure.
- */
-UV_EXTERN int uv_udp_send6(uv_udp_send_t* req,
-                           uv_udp_t* handle,
-                           const uv_buf_t bufs[],
-                           unsigned int nbufs,
-                           const struct sockaddr_in6* addr,
-                           uv_udp_send_cb send_cb);
 
 /*
  * Receive data. If the socket has not previously been bound with `uv_udp_bind`

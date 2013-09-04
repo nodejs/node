@@ -108,7 +108,7 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
   r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
 
-  r = uv_udp_bind6(&server, &addr6, bind_flags);
+  r = uv_udp_bind(&server, (const struct sockaddr*) &addr6, bind_flags);
   ASSERT(r == 0);
 
   r = uv_udp_recv_start(&server, alloc_cb, recv_cb);
@@ -120,7 +120,12 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
   buf = uv_buf_init("PING", 4);
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
-  r = uv_udp_send(&req_, &client, &buf, 1, &addr, send_cb);
+  r = uv_udp_send(&req_,
+                  &client,
+                  &buf,
+                  1,
+                  (const struct sockaddr*) &addr,
+                  send_cb);
   ASSERT(r == 0);
 
   r = uv_timer_init(uv_default_loop(), &timeout);

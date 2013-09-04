@@ -164,7 +164,10 @@ TEST_IMPL(tcp_open) {
   r = uv_tcp_open(&client, sock);
   ASSERT(r == 0);
 
-  r = uv_tcp_connect(&connect_req, &client, &addr, connect_cb);
+  r = uv_tcp_connect(&connect_req,
+                     &client,
+                     (const struct sockaddr*) &addr,
+                     connect_cb);
   ASSERT(r == 0);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);

@@ -204,7 +204,10 @@ static void tcp_make_connect(conn_rec* p) {
 
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
-  r = uv_tcp_connect(&tp->conn_req, (uv_tcp_t*) &p->stream, &addr, connect_cb);
+  r = uv_tcp_connect(&tp->conn_req,
+                     (uv_tcp_t*) &p->stream,
+                     (const struct sockaddr*) &addr,
+                     connect_cb);
   if (r) {
     fprintf(stderr, "uv_tcp_connect error %s\n", uv_err_name(r));
     ASSERT(0);

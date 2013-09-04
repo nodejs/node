@@ -55,7 +55,10 @@ TEST_IMPL(tcp_connect_error_fault) {
 
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
-  r = uv_tcp_connect(&req, &server, garbage_addr, connect_cb);
+  r = uv_tcp_connect(&req,
+                     &server,
+                     (const struct sockaddr*) garbage_addr,
+                     connect_cb);
   ASSERT(r == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);

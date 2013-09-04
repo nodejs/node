@@ -26,6 +26,7 @@ libuv_la_CFLAGS = @CFLAGS@
 libuv_la_LDFLAGS = -no-undefined -version-info 11:0:0
 libuv_la_SOURCES = src/fs-poll.c \
                    src/inet.c \
+                   src/queue.h \
                    src/uv-common.c \
                    src/uv-common.h \
                    src/version.c
@@ -38,6 +39,7 @@ AM_CPPFLAGS += -I$(top_srcdir)/src/win \
                -D_WIN32_WINNT=0x0600
 LIBS += -lws2_32 -lpsapi -lphlpapi2
 libuv_la_SOURCES += src/win/async.c \
+                    src/win/atomicops-inl.h \
                     src/win/core.c \
                     src/win/dl.c \
                     src/win/error.c \
@@ -45,14 +47,18 @@ libuv_la_SOURCES += src/win/async.c \
                     src/win/fs.c \
                     src/win/getaddrinfo.c \
                     src/win/handle.c \
+                    src/win/handle-inl.h \
+                    src/win/internal.h \
                     src/win/loop-watcher.c \
                     src/win/pipe.c \
                     src/win/poll.c \
                     src/win/process-stdio.c \
                     src/win/process.c \
                     src/win/req.c \
+                    src/win/req-inl.h \
                     src/win/signal.c \
                     src/win/stream.c \
+                    src/win/stream-inl.h \
                     src/win/tcp.c \
                     src/win/thread.c \
                     src/win/threadpool.c \
@@ -61,7 +67,9 @@ libuv_la_SOURCES += src/win/async.c \
                     src/win/udp.c \
                     src/win/util.c \
                     src/win/winapi.c \
-                    src/win/winsock.c
+                    src/win/winapi.h \
+                    src/win/winsock.c \
+                    src/win/winsock.h
 
 else  # WINNT
 

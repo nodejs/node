@@ -140,13 +140,18 @@ TEST_IMPL(udp_open) {
   r = uv_udp_open(&client, sock);
   ASSERT(r == 0);
 
-  r = uv_udp_bind(&client, &addr, 0);
+  r = uv_udp_bind(&client, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   r = uv_udp_recv_start(&client, alloc_cb, recv_cb);
   ASSERT(r == 0);
 
-  r = uv_udp_send(&send_req, &client, &buf, 1, &addr, send_cb);
+  r = uv_udp_send(&send_req,
+                  &client,
+                  &buf,
+                  1,
+                  (const struct sockaddr*) &addr,
+                  send_cb);
   ASSERT(r == 0);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);

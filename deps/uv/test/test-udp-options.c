@@ -43,7 +43,7 @@ TEST_IMPL(udp_options) {
 
   uv_unref((uv_handle_t*)&h); /* don't keep the loop alive */
 
-  r = uv_udp_bind(&h, &addr, 0);
+  r = uv_udp_bind(&h, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   r = uv_udp_set_broadcast(&h, 1);
