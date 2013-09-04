@@ -1,4 +1,4 @@
-2013.08.21, Version 0.11.7 (Unstable)
+2013.08.21, Version 0.11.7 (Unstable), be52549bfa5311208b5fcdb3ba09210460fa9ceb
 
 * uv: upgrade to v0.11.13
 
@@ -308,6 +308,15 @@
 * util: custom `inspect()` method may return an Object (Nathan Rajlich)
 
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
+
+
+2013.09.04, Version 0.10.18 (Stable), 67a1f0c52e0708e2596f3f2134b8386d6112561e
+
+* uv: Upgrade to v0.10.15
+
+* stream: Don't crash on unset _events property (isaacs)
+
+* stream: Pass 'buffer' encoding with decoded writable chunks (isaacs)
 
 
 2013.08.21, Version 0.10.17 (Stable), 469a4a5091a677df62be319675056b869c31b35c
