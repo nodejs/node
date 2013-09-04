@@ -42,6 +42,12 @@ server.listen(tcpPort, 'localhost', function() {
   net.createConnection(tcpPort, 'localhost').on('connect', cb);
   net.createConnection(tcpPort, cb);
   net.createConnection(tcpPort, 'localhost', cb);
+
+  assert.throws(function () {
+    net.createConnection({
+      port: 'invalid!'
+    }, cb);
+  });
 });
 
 process.on('exit', function() {
