@@ -68,7 +68,7 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   HandleWrap* wrap;
-  NODE_UNWRAP(args.This(), HandleWrap, wrap);
+  NODE_UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
 
   // guard against uninitialized handle or double close
   if (wrap == NULL || wrap->handle__ == NULL) return;
