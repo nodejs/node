@@ -41,33 +41,41 @@
 
 
 #define QUEUE_FS_TP_JOB(loop, req)                                          \
-  if (!QueueUserWorkItem(&uv_fs_thread_proc,                                \
-                         req,                                               \
-                         WT_EXECUTEDEFAULT)) {                              \
-    uv__set_sys_error((loop), GetLastError());                              \
-    return -1;                                                              \
-  }                                                                         \
-  uv__req_register(loop, req);
+  do {                                                                      \
+    if (!QueueUserWorkItem(&uv_fs_thread_proc,                              \
+                           req,                                             \
+                           WT_EXECUTEDEFAULT)) {                            \
+      uv__set_sys_error((loop), GetLastError());                            \
+      return -1;                                                            \
+    }                                                                       \
+    uv__req_register(loop, req);                                            \
+  } while (0)
 
 #define SET_UV_LAST_ERROR_FROM_REQ(req)                                     \
-  uv__set_error(req->loop, req->errorno, req->sys_errno_);
+  uv__set_error(req->loop, req->errorno, req->sys_errno_)
 
 #define SET_REQ_RESULT(req, result_value)                                   \
-  req->result = (result_value);                                             \
-  if (req->result == -1) {                                                  \
-    req->sys_errno_ = _doserrno;                                            \
-    req->errorno = uv_translate_sys_error(req->sys_errno_);                 \
-  }
+  do {                                                                      \
+    req->result = (result_value);                                           \
+    if (req->result == -1) {                                                \
+      req->sys_errno_ = _doserrno;                                          \
+      req->errorno = uv_translate_sys_error(req->sys_errno_);               \
+    }                                                                       \
+  } while (0)
 
 #define SET_REQ_WIN32_ERROR(req, sys_errno)                                 \
-  req->result = -1;                                                         \
-  req->sys_errno_ = (sys_errno);                                            \
-  req->errorno = uv_translate_sys_error(req->sys_errno_);
+  do {                                                                      \
+    req->result = -1;                                                       \
+    req->sys_errno_ = (sys_errno);                                          \
+    req->errorno = uv_translate_sys_error(req->sys_errno_);                 \
+  } while (0)
 
 #define SET_REQ_UV_ERROR(req, uv_errno, sys_errno)                          \
-  req->result = -1;                                                         \
-  req->sys_errno_ = (sys_errno);                                            \
-  req->errorno = (uv_errno);
+  do {                                                                      \
+    req->result = -1;                                                       \
+    req->sys_errno_ = (sys_errno);                                          \
+    req->errorno = (uv_errno);                                              \
+  } while (0)
 
 #define VERIFY_FD(fd, req)                                                  \
   if (fd == -1) {                                                           \
@@ -78,7 +86,7 @@
   }
 
 #define FILETIME_TO_TIME_T(filetime)                                        \
-   ((*((uint64_t*) &(filetime)) - 116444736000000000ULL) / 10000000ULL);
+   ((*((uint64_t*) &(filetime)) - 116444736000000000ULL) / 10000000ULL)
 
 #define TIME_T_TO_FILETIME(time, filetime_ptr)                              \
   do {                                                                      \
@@ -392,7 +400,7 @@ void fs__open(uv_fs_t* req) {
   DWORD disposition;
   DWORD attributes = 0;
   HANDLE file;
-  int result, current_umask;
+  int fd, current_umask;
   int flags = req->file_flags;
 
   /* Obtain the active umask. umask() never fails and returns the previous */
@@ -413,8 +421,7 @@ void fs__open(uv_fs_t* req) {
     access = FILE_GENERIC_READ | FILE_GENERIC_WRITE;
     break;
   default:
-    result  = -1;
-    goto end;
+    goto einval;
   }
 
   if (flags & _O_APPEND) {
@@ -451,8 +458,7 @@ void fs__open(uv_fs_t* req) {
     disposition = CREATE_ALWAYS;
     break;
   default:
-    result = -1;
-    goto end;
+    goto einval;
   }
 
   attributes |= FILE_ATTRIBUTE_NORMAL;
@@ -481,8 +487,7 @@ void fs__open(uv_fs_t* req) {
     attributes |= FILE_FLAG_RANDOM_ACCESS;
     break;
   default:
-    result = -1;
-    goto end;
+    goto einval;
   }
 
   /* Setting this flag makes it possible to open a directory. */
@@ -507,10 +512,29 @@ void fs__open(uv_fs_t* req) {
     }
     return;
   }
-  result = _open_osfhandle((intptr_t) file, flags);
-end:
-  SET_REQ_RESULT(req, result);
+
+  fd = _open_osfhandle((intptr_t) file, flags);
+  if (fd < 0) {
+    /* The only known failure mode for _open_osfhandle() is EMFILE, in which
+     * case GetLastError() will return zero. However we'll try to handle other
+     * errors as well, should they ever occur.
+     */
+    if (errno == EMFILE)
+      SET_REQ_UV_ERROR(req, UV_EMFILE, ERROR_TOO_MANY_OPEN_FILES);
+    else if (GetLastError() != ERROR_SUCCESS)
+      SET_REQ_WIN32_ERROR(req, GetLastError());
+    else
+      SET_REQ_WIN32_ERROR(req, UV_UNKNOWN);
+    return;
+  }
+
+  SET_REQ_RESULT(req, fd);
+  return;
+
+ einval:
+  SET_REQ_UV_ERROR(req, UV_EINVAL, ERROR_INVALID_PARAMETER);
 }
+
 
 void fs__close(uv_fs_t* req) {
   int fd = req->fd;
@@ -1062,7 +1086,6 @@ static void fs__chmod(uv_fs_t* req) {
 
 static void fs__fchmod(uv_fs_t* req) {
   int fd = req->fd;
-  int result;
   HANDLE handle;
   NTSTATUS nt_status;
   IO_STATUS_BLOCK io_status;
@@ -1070,7 +1093,7 @@ static void fs__fchmod(uv_fs_t* req) {
 
   VERIFY_FD(fd, req);
 
-  handle = (HANDLE)_get_osfhandle(fd);
+  handle = (HANDLE) _get_osfhandle(fd);
 
   nt_status = pNtQueryInformationFile(handle,
                                       &io_status,
@@ -1078,9 +1101,9 @@ static void fs__fchmod(uv_fs_t* req) {
                                       sizeof file_info,
                                       FileBasicInformation);
 
-  if (nt_status != STATUS_SUCCESS) {
-    result = -1;
-    goto done;
+  if (!NT_SUCCESS(nt_status)) {
+    SET_REQ_WIN32_ERROR(req, pRtlNtStatusToDosError(nt_status));
+    return;
   }
 
   if (req->mode & _S_IWRITE) {
@@ -1095,15 +1118,12 @@ static void fs__fchmod(uv_fs_t* req) {
                                     sizeof file_info,
                                     FileBasicInformation);
 
-  if (nt_status != STATUS_SUCCESS) {
-    result = -1;
-    goto done;
+  if (!NT_SUCCESS(nt_status)) {
+    SET_REQ_WIN32_ERROR(req, pRtlNtStatusToDosError(nt_status));
+    return;
   }
 
-  result = 0;
-
-done:
-  SET_REQ_RESULT(req, result);
+  SET_REQ_SUCCESS(req);
 }
 
 
