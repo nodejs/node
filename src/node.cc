@@ -1549,12 +1549,14 @@ static gid_t gid_by_name(Handle<Value> value) {
 
 
 static void GetUid(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(getuid());
+  // uid_t is an uint32_t on all supported platforms.
+  args.GetReturnValue().Set(static_cast<uint32_t>(getuid()));
 }
 
 
 static void GetGid(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(getgid());
+  // gid_t is an uint32_t on all supported platforms.
+  args.GetReturnValue().Set(static_cast<uint32_t>(getgid()));
 }
 
 
