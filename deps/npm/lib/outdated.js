@@ -24,6 +24,7 @@ var path = require("path")
   , cache = require("./cache.js")
   , asyncMap = require("slide").asyncMap
   , npm = require("./npm.js")
+  , url = require("url")
 
 function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
@@ -143,7 +144,7 @@ function shouldUpdate (args, dir, dep, has, req, cb) {
   }
 
   function doIt (shouldHave) {
-    cb(null, [[ dir, dep, curr.version, shouldHave, req ]])
+    cb(null, [[ dir, dep, curr && curr.version, shouldHave, req ]])
   }
 
   if (args.length && args.indexOf(dep) === -1) {
@@ -153,9 +154,18 @@ function shouldUpdate (args, dir, dep, has, req, cb) {
   // so, we can conceivably update this.  find out if we need to.
   cache.add(dep, req, function (er, d) {
     // if this fails, then it means we can't update this thing.
-    // it's probably a thing that isn't published. otherwise
-    // check that the origin hasn't changed (#1727) and that
+    // it's probably a thing that isn't published.
+    if (er) return skip()
+
+    // check that the url origin hasn't changed (#1727) and that
     // there is no newer version available
-    return (er || (d._from === curr.from && d.version === has[dep])) ? skip() : doIt(d.version)
+    var dFromUrl = d._from && url.parse(d._from).protocol
+    var cFromUrl = curr && curr.from && url.parse(curr.from).protocol
+
+    if (!curr || dFromUrl && cFromUrl && d._from !== curr.from
+        || d.version !== curr.version)
+      doIt(d.version)
+    else
+      skip()
   })
 }

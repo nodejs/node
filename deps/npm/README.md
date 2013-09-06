@@ -179,9 +179,8 @@ you should [read this](https://npmjs.org/doc/developers.html)
 
 ## Legal Stuff
 
-"npm" and "the npm registry" are owned by Isaac Z. Schlueter.  All
-rights not explicitly granted in the MIT license are reserved. See the
-included LICENSE file for more details.
+"npm" and "the npm registry" are owned by Isaac Z. Schlueter.
+All rights reserved.  See the included LICENSE file for more details.
 
 "Node.js" and "node" are trademarks owned by Joyent, Inc.  npm is not
 officially part of the Node.js project, and is neither owned by nor

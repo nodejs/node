@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "PACKAGE\.JSON" "5" "August 2013" "" ""
+.TH "PACKAGE\.JSON" "5" "September 2013" "" ""
 .
 .SH "NAME"
 \fBpackage.json\fR \-\- Specifics of npm\'s package\.json handling
@@ -493,6 +493,9 @@ npm help  \fB~version\fR "Approximately equivalent to version"  See semver
 .IP "\(bu" 4
 \fBgit\.\.\.\fR See \'Git URLs as Dependencies\' below
 .
+.IP "\(bu" 4
+\fBuser/repo\fR See \'GitHub URLs\' below
+.
 .IP "" 0
 .
 .P
@@ -545,6 +548,19 @@ git+https://user@hostname/project/blah\.git#commit\-ish
 .P
 The \fBcommit\-ish\fR can be any tag, sha, or branch which can be supplied as
 an argument to \fBgit checkout\fR\|\.  The default is \fBmaster\fR\|\.
+.
+.SH "GitHub URLs"
+As of version 1\.1\.65, you can refer to GitHub urls as just "foo": "user/foo\-project"\. For example:
+.
+.P
+\fBjson
+{
+  "name": "foo",
+  "version": "0\.0\.0",
+  "dependencies": {
+    "express": "visionmedia/express"
+  }
+}\fR
 .
 .SH "devDependencies"
 If someone is planning on downloading and using your module in their

@@ -49,7 +49,7 @@ normalizeData(packageData, warnFn)
 
 You may combine strict validation with warnings by passing `true` as the second argument, and `warnFn` as third.
 
-When `private` field is set to `true`, no warnings will be generated.
+When `private` field is set to `true`, warnings will be suppressed.
 
 ### Potential exceptions
 

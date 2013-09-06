@@ -347,6 +347,7 @@ See semver(7) for more details about specifying version ranges.
 * `version1 - version2` Same as `>=version1 <=version2`.
 * `range1 || range2` Passes if either range1 or range2 are satisfied.
 * `git...` See 'Git URLs as Dependencies' below
+* `user/repo` See 'GitHub URLs' below
 
 For example, these are all valid:
 
@@ -383,6 +384,20 @@ Git urls can be of the form:
 
 The `commit-ish` can be any tag, sha, or branch which can be supplied as
 an argument to `git checkout`.  The default is `master`.
+
+## GitHub URLs
+
+As of version 1.1.65, you can refer to GitHub urls as just "foo": "user/foo-project". For example:
+
+```json
+{
+  "name": "foo",
+  "version": "0.0.0",
+  "dependencies": {
+    "express": "visionmedia/express"
+  }
+}
+```
 
 ## devDependencies
 

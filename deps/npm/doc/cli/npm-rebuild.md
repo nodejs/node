@@ -4,6 +4,7 @@ npm-rebuild(1) -- Rebuild a package
 ## SYNOPSIS
 
     npm rebuild [<name> [<name> ...]]
+    npm rb [<name> [<name> ...]]
 
 * `<name>`:
   The package to rebuild

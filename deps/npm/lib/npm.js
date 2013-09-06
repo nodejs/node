@@ -106,6 +106,7 @@ var commandCache = {}
               , "tst": "test"
               , "find-dupes": "dedupe"
               , "ddp": "dedupe"
+              , "v": "view"
               }
 
   , aliasNames = Object.keys(aliases)
