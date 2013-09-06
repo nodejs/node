@@ -57,7 +57,7 @@ extern X509_STORE* root_cert_store;
 // Forward declaration
 class Connection;
 
-class SecureContext : ObjectWrap {
+class SecureContext : public ObjectWrap {
  public:
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 

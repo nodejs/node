@@ -30,7 +30,7 @@
 
 namespace node {
 
-class StatWatcher : ObjectWrap {
+class StatWatcher : public ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
   inline Environment* env() const { return env_; }

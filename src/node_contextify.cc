@@ -212,8 +212,8 @@ class ContextifyContext {
       const PropertyCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
-    Local<Object> data = args.Data()->ToObject();
-    ContextifyContext* ctx = ObjectWrap::Unwrap<ContextifyContext>(data);
+    ContextifyContext* ctx = NULL;
+    NODE_UNWRAP(args.Data().As<Object>(), ContextifyContext, ctx);
 
     Local<Object> sandbox = PersistentToLocal(node_isolate, ctx->sandbox_);
     Local<Value> rv = sandbox->GetRealNamedProperty(property);
@@ -236,8 +236,8 @@ class ContextifyContext {
       const PropertyCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
-    Local<Object> data = args.Data()->ToObject();
-    ContextifyContext* ctx = ObjectWrap::Unwrap<ContextifyContext>(data);
+    ContextifyContext* ctx = NULL;
+    NODE_UNWRAP(args.Data().As<Object>(), ContextifyContext, ctx);
 
     PersistentToLocal(node_isolate, ctx->sandbox_)->Set(property, value);
   }
@@ -248,8 +248,8 @@ class ContextifyContext {
       const PropertyCallbackInfo<Integer>& args) {
     HandleScope scope(node_isolate);
 
-    Local<Object> data = args.Data()->ToObject();
-    ContextifyContext* ctx = ObjectWrap::Unwrap<ContextifyContext>(data);
+    ContextifyContext* ctx = NULL;
+    NODE_UNWRAP(args.Data().As<Object>(), ContextifyContext, ctx);
 
     Local<Object> sandbox = PersistentToLocal(node_isolate, ctx->sandbox_);
     Local<Object> proxy_global = PersistentToLocal(node_isolate,
@@ -269,8 +269,8 @@ class ContextifyContext {
       const PropertyCallbackInfo<Boolean>& args) {
     HandleScope scope(node_isolate);
 
-    Local<Object> data = args.Data()->ToObject();
-    ContextifyContext* ctx = ObjectWrap::Unwrap<ContextifyContext>(data);
+    ContextifyContext* ctx = NULL;
+    NODE_UNWRAP(args.Data().As<Object>(), ContextifyContext, ctx);
 
     bool success = PersistentToLocal(node_isolate,
                                      ctx->sandbox_)->Delete(property);
@@ -286,15 +286,15 @@ class ContextifyContext {
       const PropertyCallbackInfo<Array>& args) {
     HandleScope scope(node_isolate);
 
-    Local<Object> data = args.Data()->ToObject();
-    ContextifyContext* ctx = ObjectWrap::Unwrap<ContextifyContext>(data);
+    ContextifyContext* ctx = NULL;
+    NODE_UNWRAP(args.Data().As<Object>(), ContextifyContext, ctx);
 
     Local<Object> sandbox = PersistentToLocal(node_isolate, ctx->sandbox_);
     args.GetReturnValue().Set(sandbox->GetPropertyNames());
   }
 };
 
-class ContextifyScript : ObjectWrap {
+class ContextifyScript : public ObjectWrap {
  private:
   Persistent<Script> script_;
 
