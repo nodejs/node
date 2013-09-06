@@ -233,6 +233,16 @@ To exit with a 'failure' code:
 The shell that executed node should see the exit code as 1.
 
 
+## process.exitCode
+
+A number which will be the process exit code, when the process either
+exits gracefully, or is exited via `process.exit()` without specifying
+a code.
+
+Specifying a code to `process.exit(code)` will override any previous
+setting of `process.exitCode`.
+
+
 ## process.getgid()
 
 Note: this function is only available on POSIX platforms (i.e. not Windows,

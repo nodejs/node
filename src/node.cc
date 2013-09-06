@@ -3168,11 +3168,17 @@ void EmitExit(Environment* env) {
   Local<Object> process_object = env->process_object();
   process_object->Set(FIXED_ONE_BYTE_STRING(node_isolate, "_exiting"),
                       True(node_isolate));
+
+  Handle<String> exitCode = FIXED_ONE_BYTE_STRING(node_isolate, "exitCode");
+  int code = process_object->Get(exitCode)->IntegerValue();
+
   Local<Value> args[] = {
     FIXED_ONE_BYTE_STRING(node_isolate, "exit"),
-    Integer::New(0, node_isolate)
+    Integer::New(code, node_isolate)
   };
+
   MakeCallback(env, process_object, "emit", ARRAY_SIZE(args), args);
+  exit(code);
 }
 
 
