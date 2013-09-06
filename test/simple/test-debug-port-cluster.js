@@ -41,21 +41,12 @@ child.stderr.on('data', function(data) {
 
   if (line === 'all workers are running') {
     assertOutputLines();
-    process.exit();
   } else {
     outputLines = outputLines.concat(lines);
   }
 });
 
-setTimeout(function testTimedOut() {
-  assert(false, 'test timed out.');
-}, 3000);
-
-process.on('exit', function() {
-    child.kill();
-});
-
-function assertOutputLines() {
+var assertOutputLines = common.mustCall(function() {
   var expectedLines = [
     'debugger listening on port ' + port,
     'debugger listening on port ' + (port+1),
@@ -70,4 +61,4 @@ function assertOutputLines() {
   assert.equal(outputLines.length, expectedLines.length)
   for (var i = 0; i < expectedLines.length; i++)
     assert.equal(outputLines[i], expectedLines[i]);
-}
+});
