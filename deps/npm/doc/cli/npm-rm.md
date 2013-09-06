@@ -4,7 +4,9 @@ npm-rm(1) -- Remove a package
 ## SYNOPSIS
 
     npm rm <name>
+    npm r <name>
     npm uninstall <name>
+    npm un <name>
 
 ## DESCRIPTION
 

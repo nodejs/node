@@ -4,6 +4,7 @@ npm-test(1) -- Test a package
 ## SYNOPSIS
 
       npm test <name>
+      npm tst <name>
 
 ## DESCRIPTION
 

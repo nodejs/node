@@ -4,6 +4,7 @@ npm-dedupe(1) -- Reduce duplication
 ## SYNOPSIS
 
     npm dedupe [package names...]
+    npm ddp [package names...]
 
 ## DESCRIPTION
 

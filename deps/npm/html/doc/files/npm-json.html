@@ -323,7 +323,7 @@ a tarball or git URL.</p>
 
 <p>See <a href="../misc/semver.html">semver(7)</a> for more details about specifying version ranges.</p>
 
-<ul><li><code>version</code> Must match <code>version</code> exactly</li><li><code>&gt;version</code> Must be greater than <code>version</code></li><li><code>&gt;=version</code> etc</li><li><code>&lt;version</code></li><li><code>&lt;=version</code></li><li><code>~version</code> &quot;Approximately equivalent to version&quot;  See <a href="../misc/semver.html">semver(7)</a></li><li><code>1.2.x</code> 1.2.0, 1.2.1, etc., but not 1.3.0</li><li><code>http://...</code> See &#39;URLs as Dependencies&#39; below</li><li><code>*</code> Matches any version</li><li><code>&quot;&quot;</code> (just an empty string) Same as <code>*</code></li><li><code>version1 - version2</code> Same as <code>&gt;=version1 &lt;=version2</code>.</li><li><code>range1 || range2</code> Passes if either range1 or range2 are satisfied.</li><li><code>git...</code> See &#39;Git URLs as Dependencies&#39; below</li></ul>
+<ul><li><code>version</code> Must match <code>version</code> exactly</li><li><code>&gt;version</code> Must be greater than <code>version</code></li><li><code>&gt;=version</code> etc</li><li><code>&lt;version</code></li><li><code>&lt;=version</code></li><li><code>~version</code> &quot;Approximately equivalent to version&quot;  See <a href="../misc/semver.html">semver(7)</a></li><li><code>1.2.x</code> 1.2.0, 1.2.1, etc., but not 1.3.0</li><li><code>http://...</code> See &#39;URLs as Dependencies&#39; below</li><li><code>*</code> Matches any version</li><li><code>&quot;&quot;</code> (just an empty string) Same as <code>*</code></li><li><code>version1 - version2</code> Same as <code>&gt;=version1 &lt;=version2</code>.</li><li><code>range1 || range2</code> Passes if either range1 or range2 are satisfied.</li><li><code>git...</code> See &#39;Git URLs as Dependencies&#39; below</li><li><code>user/repo</code> See &#39;GitHub URLs&#39; below</li></ul>
 
 <p>For example, these are all valid:</p>
 
@@ -360,6 +360,20 @@ git+https://user@hostname/project/blah.git#commit-ish</code></pre>
 
 <p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as
 an argument to <code>git checkout</code>.  The default is <code>master</code>.</p>
+
+<h2 id="GitHub-URLs">GitHub URLs</h2>
+
+<p>As of version 1.1.65, you can refer to GitHub urls as just &quot;foo&quot;: &quot;user/foo-project&quot;. For example:</p>
+
+<p><code>json
+{
+  &quot;name&quot;: &quot;foo&quot;,
+  &quot;version&quot;: &quot;0.0.0&quot;,
+  &quot;dependencies&quot;: {
+    &quot;express&quot;: &quot;visionmedia/express&quot;
+  }
+}
+</code></p>
 
 <h2 id="devDependencies">devDependencies</h2>
 
@@ -536,7 +550,7 @@ overridden.</p>
 
 <ul><li><a href="../misc/semver.html">semver(7)</a></li><li><a href="../cli/npm-init.html">npm-init(1)</a></li><li><a href="../cli/npm-version.html">npm-version(1)</a></li><li><a href="../cli/npm-config.html">npm-config(1)</a></li><li><a href="../misc/npm-config.html">npm-config(7)</a></li><li><a href="../cli/npm-help.html">npm-help(1)</a></li><li><a href="../misc/npm-faq.html">npm-faq(7)</a></li><li><a href="../cli/npm-install.html">npm-install(1)</a></li><li><a href="../cli/npm-publish.html">npm-publish(1)</a></li><li><a href="../cli/npm-rm.html">npm-rm(1)</a></li></ul>
 </div>
-<p id="footer">package.json &mdash; npm@1.3.8</p>
+<p id="footer">package.json &mdash; npm@1.3.10</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

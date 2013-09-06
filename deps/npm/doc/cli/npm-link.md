@@ -5,6 +5,7 @@ npm-link(1) -- Symlink a package folder
 
     npm link (in package folder)
     npm link <pkgname>
+    npm ln (with any of the previous argument usage)
 
 ## DESCRIPTION
 
