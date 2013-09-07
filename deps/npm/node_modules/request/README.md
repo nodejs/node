@@ -1,18 +1,6 @@
-# Request -- Simplified HTTP request method
+# Request -- Simplified HTTP client
 
-## Install
-
-<pre>
-  npm install request
-</pre>
-
-Or from source:
-
-<pre>
-  git clone git://github.com/mikeal/request.git 
-  cd request
-  npm link
-</pre>
+[![NPM](https://nodei.co/npm/request.png)](https://nodei.co/npm/request/)
 
 ## Super simple to use
 
@@ -56,7 +44,7 @@ http.createServer(function (req, resp) {
       req.pipe(request.put('http://mysite.com/doodle.png'))
     } else if (req.method === 'GET' || req.method === 'HEAD') {
       request.get('http://mysite.com/doodle.png').pipe(resp)
-    } 
+    }
   }
 })
 ```
@@ -150,10 +138,10 @@ var qs = require('querystring')
 request.post({url:url, oauth:oauth}, function (e, r, body) {
   // Ideally, you would take the body in the response
   // and construct a URL that a user clicks on (like a sign in button).
-  // The verifier is only available in the response after a user has 
+  // The verifier is only available in the response after a user has
   // verified with twitter that they are authorizing your app.
   var access_token = qs.parse(body)
-    , oauth = 
+    , oauth =
       { consumer_key: CONSUMER_KEY
       , consumer_secret: CONSUMER_SECRET
       , token: access_token.oauth_token
@@ -163,14 +151,14 @@ request.post({url:url, oauth:oauth}, function (e, r, body) {
     ;
   request.post({url:url, oauth:oauth}, function (e, r, body) {
     var perm_token = qs.parse(body)
-      , oauth = 
+      , oauth =
         { consumer_key: CONSUMER_KEY
         , consumer_secret: CONSUMER_SECRET
         , token: perm_token.oauth_token
         , token_secret: perm_token.oauth_token_secret
         }
       , url = 'https://api.twitter.com/1/users/show.json?'
-      , params = 
+      , params =
         { screen_name: perm_token.screen_name
         , user_id: perm_token.user_id
         }
@@ -204,7 +192,7 @@ The first argument can be either a url or an options object. The only required o
 * `encoding` - Encoding to be used on `setEncoding` of response data. If set to `null`, the body is returned as a Buffer.
 * `pool` - A hash object containing the agents for these requests. If omitted this request will use the global pool which is set to node's default maxSockets.
 * `pool.maxSockets` - Integer containing the maximum amount of sockets in the pool.
-* `timeout` - Integer containing the number of milliseconds to wait for a request to respond before aborting the request	
+* `timeout` - Integer containing the number of milliseconds to wait for a request to respond before aborting the request
 * `proxy` - An HTTP proxy to be used. Support proxy Auth with Basic Auth the same way it's supported with the `url` parameter by embedding the auth info in the uri.
 * `oauth` - Options for OAuth HMAC-SHA1 signing, see documentation above.
 * `hawk` - Options for [Hawk signing](https://github.com/hueniverse/hawk). The `credentials` key must contain the necessary signing info, [see hawk docs for details](https://github.com/hueniverse/hawk#usage-example).
@@ -221,8 +209,8 @@ The callback argument gets 3 arguments. The first is an error when applicable (u
 
 There are also shorthand methods for different HTTP METHODs and some other conveniences.
 
-### request.defaults(options)  
-  
+### request.defaults(options)
+
 This method returns a wrapper around the normal request API that defaults to whatever options you pass in to it.
 
 ### request.put
@@ -297,12 +285,12 @@ request.jar()
   request(
     { method: 'PUT'
     , uri: 'http://mikeal.iriscouch.com/testjs/' + rand
-    , multipart: 
+    , multipart:
       [ { 'content-type': 'application/json'
         ,  body: JSON.stringify({foo: 'bar', _attachments: {'message.txt': {follows: true, length: 18, 'content_type': 'text/plain' }}})
         }
       , { body: 'I am an attachment' }
-      ] 
+      ]
     }
   , function (error, response, body) {
       if(response.statusCode == 201){

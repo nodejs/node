@@ -70,8 +70,6 @@ util.inherits(Transform, Duplex);
 
 
 function TransformState(options, stream) {
-  var ts = this;
-
   this.afterTransform = function(er, data) {
     return afterTransform(stream, er, data);
   };
@@ -101,6 +99,7 @@ function afterTransform(stream, er, data) {
     cb(er);
 
   var rs = stream._readableState;
+  rs.reading = false;
   if (rs.needReadable || rs.length < rs.highWaterMark) {
     stream._read(rs.highWaterMark);
   }
@@ -136,9 +135,9 @@ function Transform(options) {
   });
 }
 
-Transform.prototype.push = function(chunk) {
+Transform.prototype.push = function(chunk, encoding) {
   this._transformState.needTransform = false;
-  return Duplex.prototype.push.call(this, chunk);
+  return Duplex.prototype.push.call(this, chunk, encoding);
 };
 
 // This is the part where you do stuff!
@@ -151,7 +150,7 @@ Transform.prototype.push = function(chunk) {
 // Call `cb(err)` when you are done with this chunk.  If you pass
 // an error, then that'll put the hurt on the whole operation.  If you
 // never call cb(), then you'll never get another chunk.
-Transform.prototype._transform = function(chunk, output, cb) {
+Transform.prototype._transform = function(chunk, encoding, cb) {
   throw new Error('not implemented');
 };
 
@@ -170,7 +169,7 @@ Transform.prototype._write = function(chunk, encoding, cb) {
 };
 
 // Doesn't matter what the args are here.
-// the output and callback functions passed to _transform do all the work.
+// _transform does all the work.
 // That we got here means that the readable side wants more data.
 Transform.prototype._read = function(n) {
   var ts = this._transformState;

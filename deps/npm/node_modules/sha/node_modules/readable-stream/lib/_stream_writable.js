@@ -68,6 +68,11 @@ function WritableState(options, stream) {
   var noDecode = options.decodeStrings === false;
   this.decodeStrings = !noDecode;
 
+  // Crypto is kind of old and crusty.  Historically, its default string
+  // encoding is 'binary' so we have to make this configurable.
+  // Everything else in the universe uses 'utf8', though.
+  this.defaultEncoding = options.defaultEncoding || 'utf8';
+
   // not an actual buffer we keep track of, but a measurement
   // of how much we're waiting to get pushed to some underlying
   // socket or file.
@@ -160,8 +165,11 @@ Writable.prototype.write = function(chunk, encoding, cb) {
     cb = encoding;
     encoding = null;
   }
-  if (!encoding)
-    encoding = 'utf8';
+
+  if (Buffer.isBuffer(chunk))
+    encoding = 'buffer';
+  else if (!encoding)
+    encoding = state.defaultEncoding;
 
   if (typeof cb !== 'function')
     cb = function() {};
@@ -240,7 +248,8 @@ function onwrite(stream, er) {
   if (er)
     onwriteError(stream, state, sync, er, cb);
   else {
-    var finished = finishMaybe(stream, state);
+    // Check if we're actually ready to finish, but don't emit yet
+    var finished = needFinish(stream, state);
 
     if (!finished && !state.bufferProcessing && state.buffer.length)
       clearBuffer(stream, state);
@@ -259,6 +268,8 @@ function afterWrite(stream, state, finished, cb) {
   if (!finished)
     onwriteDrain(stream, state);
   cb();
+  if (finished)
+    finishMaybe(stream, state);
 }
 
 // Must force callback to be called on nextTick, so that we don't
@@ -326,12 +337,21 @@ Writable.prototype.end = function(chunk, encoding, cb) {
     endWritable(this, state, cb);
 };
 
+
+function needFinish(stream, state) {
+  return (state.ending &&
+          state.length === 0 &&
+          !state.finished &&
+          !state.writing);
+}
+
 function finishMaybe(stream, state) {
-  if (state.ending && state.length === 0 && !state.finished) {
+  var need = needFinish(stream, state);
+  if (need) {
     state.finished = true;
     stream.emit('finish');
   }
-  return state.finished;
+  return need;
 }
 
 function endWritable(stream, state, cb) {

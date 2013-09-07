@@ -251,49 +251,56 @@ FormData.prototype.getLength = function(cb) {
 };
 
 FormData.prototype.submit = function(params, cb) {
+
+  var request
+    , options
+    , defaults = {
+        method : 'post',
+        port   : 80,
+        headers: this.getHeaders()
+    };
+
+  // parse provided url if it's string
+  // or treat it as options object
+  if (typeof params == 'string') {
+    params = parseUrl(params);
+
+    options = populate({
+      port: params.port,
+      path: params.pathname,
+      host: params.hostname
+    }, defaults);
+  }
+  else // use custom params
+  {
+    options = populate(params, defaults);
+  }
+
+  // https if specified, fallback to http in any other case
+  if (params.protocol == 'https:') {
+    // override default port
+    if (!params.port) options.port = 443;
+    request = https.request(options);
+  } else {
+    request = http.request(options);
+  }
+
+  // get content length and fire away
   this.getLength(function(err, length) {
 
-    var request
-      , options
-      , defaults = {
-          method : 'post',
-          port   : 80,
-          headers: this.getHeaders({'Content-Length': length})
-      };
+    // TODO: Add chunked encoding when no length (if err)
 
-    // parse provided url if it's string
-    // or treat it as options object
-    if (typeof params == 'string') {
-      params = parseUrl(params);
-
-      options = populate({
-        port: params.port,
-        path: params.pathname,
-        host: params.hostname
-      }, defaults);
-    }
-    else // use custom params
-    {
-      options = populate(params, defaults);
-    }
-
-    // https if specified, fallback to http in any other case
-    if (params.protocol == 'https:') {
-      // override default port
-      if (!params.port) options.port = 443;
-      request = https.request(options);
-    } else {
-      request = http.request(options);
-    }
+    // add content length
+    request.setHeader('Content-Length', length);
 
     this.pipe(request);
     if (cb) {
       request.on('error', cb);
       request.on('response', cb.bind(this, null));
     }
-
-    return request;
   }.bind(this));
+
+  return request;
 };
 
 FormData.prototype._error = function(err) {

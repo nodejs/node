@@ -118,6 +118,9 @@ function install (gyp, argv, callback) {
     var req = null
     var requestOpts = {
         uri: url
+      , headers: {
+          'User-Agent': 'node-gyp v' + gyp.version + ' (node ' + process.version + ')'
+        }
     }
 
     // basic support for a proxy server

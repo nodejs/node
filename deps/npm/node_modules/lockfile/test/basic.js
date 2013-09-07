@@ -13,6 +13,7 @@ test('setup', function (t) {
   try { lockFile.unlockSync('retry-lock') } catch (er) {}
   try { lockFile.unlockSync('contentious-lock') } catch (er) {}
   try { lockFile.unlockSync('stale-wait-lock') } catch (er) {}
+  try { lockFile.unlockSync('stale-windows-lock') } catch (er) {}
   t.end()
 })
 
@@ -249,6 +250,30 @@ test('wait and stale together', function (t) {
   })
 })
 
+
+test('stale windows file tunneling test', function (t) {
+  // for windows only
+  // nt file system tunneling feature will make file creation time not updated
+  var opts = { stale: 1000 }
+  lockFile.lockSync('stale-windows-lock')
+  setTimeout(next, 2000)
+  function next () {
+    var locked
+    lockFile.unlockSync('stale-windows-lock')
+    lockFile.lockSync('stale-windows-lock', opts)
+    locked = lockFile.checkSync('stale-windows-lock', opts)
+    t.ok(locked, "should be locked and not stale")
+    lockFile.lock('stale-windows-lock', opts, function (er) {
+      if (!er)
+        t.fail('got second lock?  impossible, windows file tunneling problem!')
+      else
+        t.pass('second lock failed, windows file tunneling problem fixed')
+      t.end()
+    })
+  }
+})
+
+
 test('cleanup', function (t) {
   try { lockFile.unlockSync('basic-lock') } catch (er) {}
   try { lockFile.unlockSync('sync-lock') } catch (er) {}
@@ -258,6 +283,7 @@ test('cleanup', function (t) {
   try { lockFile.unlockSync('retry-lock') } catch (er) {}
   try { lockFile.unlockSync('contentious-lock') } catch (er) {}
   try { lockFile.unlockSync('stale-wait-lock') } catch (er) {}
+  try { lockFile.unlockSync('stale-windows-lock') } catch (er) {}  
   t.end()
 })
 

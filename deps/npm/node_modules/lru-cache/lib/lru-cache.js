@@ -107,7 +107,13 @@ function LRUCache (options) {
     for (var k = mru - 1; k >= 0 && i < itemCount; k--) if (lruList[k]) {
       i++
       var hit = lruList[k]
-      fn.call(thisp, hit.value, hit.key, this)
+      if (maxAge && (Date.now() - hit.now > maxAge)) {
+        del(hit)
+        if (!allowStale) hit = undefined
+      }
+      if (hit) {
+        fn.call(thisp, hit.value, hit.key, this)
+      }
     }
   }
 

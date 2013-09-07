@@ -18,16 +18,16 @@ console.log(Object.keys(mime.types).length + ' extensions\n');
 // Test mime lookups
 //
 
-eq('text/plain', mime.lookup('text.txt'));
-eq('text/plain', mime.lookup('.text.txt'));
-eq('text/plain', mime.lookup('.txt'));
-eq('text/plain', mime.lookup('txt'));
-eq('application/octet-stream', mime.lookup('text.nope'));
-eq('fallback', mime.lookup('text.fallback', 'fallback'));
-eq('application/octet-stream', mime.lookup('constructor'));
-eq('text/plain', mime.lookup('TEXT.TXT'));
-eq('text/event-stream', mime.lookup('text/event-stream'));
-eq('application/x-web-app-manifest+json', mime.lookup('text.webapp'));
+eq('text/plain', mime.lookup('text.txt'));     // normal file
+eq('text/plain', mime.lookup('TEXT.TXT'));     // uppercase
+eq('text/plain', mime.lookup('dir/text.txt')); // dir + file
+eq('text/plain', mime.lookup('.text.txt'));    // hidden file
+eq('text/plain', mime.lookup('.txt'));         // nameless
+eq('text/plain', mime.lookup('txt'));          // extension-only
+eq('text/plain', mime.lookup('/txt'));         // extension-less ()
+eq('text/plain', mime.lookup('\\txt'));        // Windows, extension-less
+eq('application/octet-stream', mime.lookup('text.nope')); // unrecognized
+eq('fallback', mime.lookup('text.fallback', 'fallback')); // alternate default
 
 //
 // Test extensions
@@ -43,10 +43,10 @@ eq('html', mime.extension('text/html; charset=UTF-8'));
 eq('html', mime.extension('text/html ; charset=UTF-8'));
 eq('html', mime.extension('text/html;charset=UTF-8'));
 eq('html', mime.extension('text/Html;charset=UTF-8'));
-eq(undefined, mime.extension('constructor'));
+eq(undefined, mime.extension('unrecognized'));
 
 //
-// Test node types
+// Test node.types lookups
 //
 
 eq('application/font-woff', mime.lookup('file.woff'));
