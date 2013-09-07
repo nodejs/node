@@ -29,6 +29,8 @@ switch (process.argv[2]) {
     return child2();
   case 'child3':
     return child3();
+  case 'child4':
+    return child4();
   case undefined:
     return parent();
   default:
@@ -58,17 +60,30 @@ function child3() {
   process.exit(0);
 }
 
+function child4() {
+  process.exitCode = 99;
+  process.on('exit', function(code) {
+    if (code !== 8) {
+      console.log('wrong code! expected 8 for uncaughtException');
+      process.exit(99);
+    }
+  });
+  throw new Error('ok');
+}
+
 function parent() {
   test('child1', 42);
   test('child2', 42);
   test('child3', 0);
+  test('child4', 8);
 }
 
 function test(arg, exit) {
   var spawn = require('child_process').spawn;
   var node = process.execPath;
   var f = __filename;
-  spawn(node, [f, arg], {stdio: 'inherit'}).on('exit', function(code) {
+  var option = { stdio: [ 0, 1, 'ignore' ] };
+  spawn(node, [f, arg], option).on('exit', function(code) {
     assert.equal(code, exit, 'wrong exit for ' +
                  arg + '\nexpected:' + exit +
                  ' but got:' + code);
