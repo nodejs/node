@@ -63,8 +63,8 @@ function child3() {
 function child4() {
   process.exitCode = 99;
   process.on('exit', function(code) {
-    if (code !== 8) {
-      console.log('wrong code! expected 8 for uncaughtException');
+    if (code !== 1) {
+      console.log('wrong code! expected 1 for uncaughtException');
       process.exit(99);
     }
   });
@@ -75,7 +75,7 @@ function parent() {
   test('child1', 42);
   test('child2', 42);
   test('child3', 0);
-  test('child4', 8);
+  test('child4', 1);
 }
 
 function test(arg, exit) {

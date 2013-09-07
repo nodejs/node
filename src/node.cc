@@ -1957,7 +1957,7 @@ void FatalException(Handle<Value> error, Handle<Message> message) {
 
   if (false == caught->BooleanValue()) {
     ReportException(error, message);
-    exit(8);
+    exit(1);
   }
 }
 
@@ -2728,7 +2728,7 @@ static void ParseArgs(int* argc,
         eval_string = argv[index + 1];
         if (eval_string == NULL) {
           fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
-          exit(1);
+          exit(9);
         }
       } else if (argv[index + 1] != NULL && argv[index + 1][0] != '-') {
         args_consumed += 1;
@@ -3086,7 +3086,7 @@ void Init(int* argc,
   v8_argv = NULL;
 
   if (v8_argc > 1) {
-    exit(1);
+    exit(9);
   }
 
   if (debug_wait_connect) {
