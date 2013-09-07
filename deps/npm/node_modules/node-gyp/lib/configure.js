@@ -52,14 +52,14 @@ function configure (gyp, argv, callback) {
     log.verbose('check python', 'checking for Python executable "%s" in the PATH', python)
     which(python, function (err, execPath) {
       if (err) {
-        log.verbose('`which` failed for `%s`', python, err)
+        log.verbose('`which` failed', python, err)
         if (win) {
           guessPython()
         } else {
           failNoPython()
         }
       } else {
-        log.verbose('`which` succeeded for `%s`', python, execPath)
+        log.verbose('`which` succeeded', python, execPath)
         checkPythonVersion()
       }
     })

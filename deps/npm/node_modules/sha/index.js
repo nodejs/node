@@ -41,7 +41,7 @@ function check(file, expected, options, cb) {
       + 'Actual:   ' + actual))
   })
 }
-function checkSync(file, expected, options, cb) {
+function checkSync(file, expected, options) {
   expected = expected.toLowerCase().trim()
   var actual
   try {

@@ -16,6 +16,8 @@ var basicServer = http.createServer(function (req, res) {
       ok = true;
     } else if ( req.headers.authorization == 'Basic ' + new Buffer(':apassword').toString('base64')) {
       ok = true;
+    } else if ( req.headers.authorization == 'Basic ' + new Buffer('justauser').toString('base64')) {
+      ok = true;
     } else {
       // Bad auth header, don't send back WWW-Authenticate header
       ok = false;
@@ -123,6 +125,24 @@ var tests = [
       }, function(error, res, body ) {
         assert.equal(res.statusCode, 200);
         assert.equal(numBasicRequests, 8);
+        next();
+      });
+    })
+  },
+
+  function(next) {
+    assert.doesNotThrow( function() {
+      request({
+        'method': 'GET',
+        'uri': 'http://localhost:6767/allow_undefined_password/',
+        'auth': {
+          'user': 'justauser',
+          'pass': undefined,
+          'sendImmediately': false
+        }
+      }, function(error, res, body ) {
+        assert.equal(res.statusCode, 200);
+        assert.equal(numBasicRequests, 10);
         next();
       });
     })

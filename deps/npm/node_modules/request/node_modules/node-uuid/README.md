@@ -6,6 +6,7 @@ Features:
 
 * Generate RFC4122 version 1 or version 4 UUIDs
 * Runs in node.js and all browsers.
+* Registered as a [ComponentJS](https://github.com/component/component) [component](https://github.com/component/component/wiki/Components) ('broofa/node-uuid').
 * Cryptographically strong random # generation on supporting platforms
 * 1.1K minified and gzip'ed  (Want something smaller?  Check this [crazy shit](https://gist.github.com/982883) out! )
 * [Annotated source code](http://broofa.github.com/node-uuid/docs/uuid.html)
@@ -189,15 +190,18 @@ For browser performance [checkout the JSPerf tests](http://jsperf.com/node-uuid-
 
 ## Release notes
 
-v1.4
+### 1.4.0
+
 * Improved module context detection
 * Removed public RNG functions
 
-v1.3.2:
+### 1.3.2
+
 * Improve tests and handling of v1() options (Issue #24)
 * Expose RNG option to allow for perf testing with different generators
 
-v1.3:
+### 1.3.0
+
 * Support for version 1 ids, thanks to [@ctavan](https://github.com/ctavan)!
 * Support for node.js crypto API
 * De-emphasizing performance in favor of a) cryptographic quality PRNGs where available and b) more manageable code

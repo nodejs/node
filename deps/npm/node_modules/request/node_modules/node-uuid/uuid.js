@@ -1,8 +1,8 @@
 //     uuid.js
 //
-//     (c) 2010-2012 Robert Kieffer
-//     MIT License
-//     https://github.com/broofa/node-uuid
+//     Copyright (c) 2010-2012 Robert Kieffer
+//     MIT License - http://opensource.org/licenses/mit-license.php
+
 (function() {
   var _global = this;
 
@@ -224,7 +224,7 @@
   uuid.unparse = unparse;
   uuid.BufferClass = BufferClass;
 
-  if (_global.define && define.amd) {
+  if (typeof define === 'function' && define.amd) {
     // Publish as AMD module
     define(function() {return uuid;});
   } else if (typeof(module) != 'undefined' && module.exports) {
@@ -242,4 +242,4 @@
 
     _global.uuid = uuid;
   }
-}());
+}).call(this);

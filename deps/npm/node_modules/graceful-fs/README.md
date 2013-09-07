@@ -11,10 +11,9 @@ resilient to errors.
 
 graceful-fs:
 
-* keeps track of how many file descriptors are open, and by default
-  limits this to 1024. Any further requests to open a file are put in a
-  queue until new slots become available. If 1024 turns out to be too
-  much, it decreases the limit further.
+* Queues up `open` and `readdir` calls, and retries them once
+  something closes if there is an EMFILE error from too many file
+  descriptors.
 * fixes `lchmod` for Node versions prior to 0.6.2.
 * implements `fs.lutimes` if possible. Otherwise it becomes a noop.
 * ignores `EINVAL` and `EPERM` errors in `chown`, `fchown` or
@@ -25,9 +24,3 @@ graceful-fs:
 On Windows, it retries renaming a file for up to one second if `EACCESS`
 or `EPERM` error occurs, likely because antivirus software has locked
 the directory.
-
-## Configuration
-
-The maximum number of open file descriptors that graceful-fs manages may
-be adjusted by setting `fs.MAX_OPEN` to a different number. The default
-is 1024.

@@ -55,8 +55,20 @@ form.append('my_buffer', new Buffer(10));
 form.append('my_logo', request('http://nodejs.org/images/logo.png'));
 ```
 
-In order to submit this form to a web application, you can use node's http
-client interface:
+In order to submit this form to a web application, call ```submit(url, [callback])``` method:
+
+``` javascript
+form.submit('http://example.org/', function(err, res) {
+  // res – response object (http.IncomingMessage)
+});
+
+```
+
+For more advanced request manipulations ```submit()``` method returns ```http.ClientRequest``` object, or you can choose from one of the alternative submission methods.
+
+### Alternative submission methods
+
+You can use node's http client interface:
 
 ``` javascript
 var http = require('http');
@@ -102,7 +114,7 @@ form.submit('http://example.com/', function(err, res) {
 });
 ```
 
-Form-Data can recognize and fetch all the required information from common types of streams (fs.readStream, http.response and mikeal's request), for some other types of streams you'd need to provide "file"-related information manually:
+Form-Data can recognize and fetch all the required information from common types of streams (```fs.readStream```, ```http.response``` and ```mikeal's request```), for some other types of streams you'd need to provide "file"-related information manually:
 
 ``` javascript
 someModule.stream(function(err, stdout, stderr) {
