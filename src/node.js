@@ -547,7 +547,7 @@
   startup.processKillAndExit = function() {
     process.exitCode = 0;
     process.exit = function(code) {
-      if (NativeModule.require('util').isNumber(code))
+      if (code || code === 0)
         process.exitCode = code;
 
       if (!process._exiting) {
