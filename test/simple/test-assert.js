@@ -260,6 +260,7 @@ function testAssertionMessage(actual, expected) {
   } catch (e) {
     assert.equal(e.toString(),
         ['AssertionError:', expected, '==', '""'].join(' '));
+    assert.ok(e.generatedMessage, "Message not marked as generated");
   }
 }
 testAssertionMessage(undefined, '"undefined"');
@@ -299,10 +300,13 @@ try {
   assert.equal(1, 2);
 } catch (e) {
   assert.equal(e.toString().split('\n')[0], 'AssertionError: 1 == 2')
+  assert.ok(e.generatedMessage, 'Message not marked as generated');
 }
 
 try {
   assert.equal(1, 2, 'oh no');
 } catch (e) {
   assert.equal(e.toString().split('\n')[0], 'AssertionError: oh no')
+  assert.equal(e.generatedMessage, false,
+              'Message incorrectly marked as generated');
 }
