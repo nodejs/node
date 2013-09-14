@@ -38,8 +38,15 @@ var interval = setInterval(function() {
   if (Date.now() - start > 5 * 1000) {
     // wait 10 seconds.
     clearInterval(interval);
+
+    testContextLeak();
   }
 }, 1);
+
+function testContextLeak() {
+  for (var i = 0; i < 1000; i++)
+    require('vm').createContext({});
+}
 
 process.on('exit', function() {
   console.error('max mem: %dmb', Math.round(maxMem / (1024 * 1024)));

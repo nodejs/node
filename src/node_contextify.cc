@@ -66,11 +66,13 @@ class ContextifyContext {
       , sandbox_(env->isolate(), sandbox)
       , context_(env->isolate(), CreateV8Context(env))
       , proxy_global_(env->isolate(), context()->Global())
-        // Wait for both sandbox_'s and proxy_global_'s death
-      , references_(2) {
-    sandbox_.MakeWeak(this, SandboxFreeCallback);
+        // Wait for sandbox_, proxy_global_, and context_ to die
+      , references_(3) {
+    sandbox_.MakeWeak(this, WeakCallback);
     sandbox_.MarkIndependent();
-    proxy_global_.MakeWeak(this, SandboxFreeCallback);
+    context_.MakeWeak(this, WeakCallback);
+    context_.MarkIndependent();
+    proxy_global_.MakeWeak(this, WeakCallback);
     proxy_global_.MarkIndependent();
   }
 
@@ -175,9 +177,11 @@ class ContextifyContext {
   }
 
 
-  static void SandboxFreeCallback(Isolate* isolate,
-                                  Persistent<Object>* target,
-                                  ContextifyContext* context) {
+  template <class T>
+  static void WeakCallback(Isolate* isolate,
+                           Persistent<T>* target,
+                           ContextifyContext* context) {
+    target->ClearWeak();
     if (--context->references_ == 0)
       delete context;
   }
