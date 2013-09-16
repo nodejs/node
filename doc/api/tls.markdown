@@ -270,8 +270,8 @@ Creates a new client connection to the given `port` and `host` (old API) or
     the list of supplied CAs. An `'error'` event is emitted if verification
     fails. Default: `true`.
 
-  - `NPNProtocols`: An array of string or `Buffer` containing supported NPN
-    protocols. `Buffer` should have following format: `0x05hello0x05world`,
+  - `NPNProtocols`: An array of strings or `Buffer`s containing supported NPN
+    protocols. `Buffer`s should have following format: `0x05hello0x05world`,
     where first byte is next protocol name's length. (Passing array should
     usually be much simpler: `['hello', 'world']`.)
 
