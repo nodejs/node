@@ -63,7 +63,6 @@ class LChunkBuilder;
 
 
 #define HYDROGEN_CONCRETE_INSTRUCTION_LIST(V)  \
-  V(AbnormalExit)                              \
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
   V(Allocate)                                  \
@@ -1423,16 +1422,6 @@ class HReturn: public HTemplateControlInstruction<0, 3> {
     SetOperandAt(1, context);
     SetOperandAt(2, parameter_count);
   }
-};
-
-
-class HAbnormalExit: public HTemplateControlInstruction<0, 0> {
- public:
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(AbnormalExit)
 };
 
 
@@ -4081,6 +4070,7 @@ class HStringCompareAndBranch: public HTemplateControlInstruction<2, 3> {
     SetOperandAt(1, left);
     SetOperandAt(2, right);
     set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   HValue* context() { return OperandAt(0); }

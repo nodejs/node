@@ -379,7 +379,7 @@ void IC::Clear(Address address) {
   Code* target = GetTargetAtAddress(address);
 
   // Don't clear debug break inline cache as it will remove the break point.
-  if (target->is_debug_break()) return;
+  if (target->is_debug_stub()) return;
 
   switch (target->kind()) {
     case Code::LOAD_IC: return LoadIC::Clear(address, target);

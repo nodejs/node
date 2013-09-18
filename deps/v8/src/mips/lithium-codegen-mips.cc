@@ -762,7 +762,7 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
 }
 
 
-void LCodeGen::DeoptimizeIf(Condition cc,
+void LCodeGen::DeoptimizeIf(Condition condition,
                             LEnvironment* environment,
                             Deoptimizer::BailoutType bailout_type,
                             Register src1,
@@ -789,16 +789,16 @@ void LCodeGen::DeoptimizeIf(Condition cc,
 
   if (info()->ShouldTrapOnDeopt()) {
     Label skip;
-    if (cc != al) {
-      __ Branch(&skip, NegateCondition(cc), src1, src2);
+    if (condition != al) {
+      __ Branch(&skip, NegateCondition(condition), src1, src2);
     }
     __ stop("trap_on_deopt");
     __ bind(&skip);
   }
 
   ASSERT(info()->IsStub() || frame_is_built_);
-  if (cc == al && frame_is_built_) {
-    __ Call(entry, RelocInfo::RUNTIME_ENTRY, cc, src1, src2);
+  if (condition == al && frame_is_built_) {
+    __ Call(entry, RelocInfo::RUNTIME_ENTRY, condition, src1, src2);
   } else {
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
@@ -811,19 +811,19 @@ void LCodeGen::DeoptimizeIf(Condition cc,
                                               !frame_is_built_);
       deopt_jump_table_.Add(table_entry, zone());
     }
-    __ Branch(&deopt_jump_table_.last().label, cc, src1, src2);
+    __ Branch(&deopt_jump_table_.last().label, condition, src1, src2);
   }
 }
 
 
-void LCodeGen::DeoptimizeIf(Condition cc,
+void LCodeGen::DeoptimizeIf(Condition condition,
                             LEnvironment* environment,
                             Register src1,
                             const Operand& src2) {
   Deoptimizer::BailoutType bailout_type = info()->IsStub()
       ? Deoptimizer::LAZY
       : Deoptimizer::EAGER;
-  DeoptimizeIf(cc, environment, bailout_type, src1, src2);
+  DeoptimizeIf(condition, environment, bailout_type, src1, src2);
 }
 
 
@@ -1993,20 +1993,22 @@ int LCodeGen::GetNextEmittedBlock() const {
 
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr,
-                          Condition cc, Register src1, const Operand& src2) {
+                          Condition condition,
+                          Register src1,
+                          const Operand& src2) {
   int left_block = instr->TrueDestination(chunk_);
   int right_block = instr->FalseDestination(chunk_);
 
   int next_block = GetNextEmittedBlock();
-  if (right_block == left_block || cc == al) {
+  if (right_block == left_block || condition == al) {
     EmitGoto(left_block);
   } else if (left_block == next_block) {
     __ Branch(chunk_->GetAssemblyLabel(right_block),
-              NegateCondition(cc), src1, src2);
+              NegateCondition(condition), src1, src2);
   } else if (right_block == next_block) {
-    __ Branch(chunk_->GetAssemblyLabel(left_block), cc, src1, src2);
+    __ Branch(chunk_->GetAssemblyLabel(left_block), condition, src1, src2);
   } else {
-    __ Branch(chunk_->GetAssemblyLabel(left_block), cc, src1, src2);
+    __ Branch(chunk_->GetAssemblyLabel(left_block), condition, src1, src2);
     __ Branch(chunk_->GetAssemblyLabel(right_block));
   }
 }
@@ -2014,7 +2016,9 @@ void LCodeGen::EmitBranch(InstrType instr,
 
 template<class InstrType>
 void LCodeGen::EmitBranchF(InstrType instr,
-                           Condition cc, FPURegister src1, FPURegister src2) {
+                           Condition condition,
+                           FPURegister src1,
+                           FPURegister src2) {
   int right_block = instr->FalseDestination(chunk_);
   int left_block = instr->TrueDestination(chunk_);
 
@@ -2023,13 +2027,26 @@ void LCodeGen::EmitBranchF(InstrType instr,
     EmitGoto(left_block);
   } else if (left_block == next_block) {
     __ BranchF(chunk_->GetAssemblyLabel(right_block), NULL,
-               NegateCondition(cc), src1, src2);
+               NegateCondition(condition), src1, src2);
   } else if (right_block == next_block) {
-    __ BranchF(chunk_->GetAssemblyLabel(left_block), NULL, cc, src1, src2);
+    __ BranchF(chunk_->GetAssemblyLabel(left_block), NULL,
+               condition, src1, src2);
   } else {
-    __ BranchF(chunk_->GetAssemblyLabel(left_block), NULL, cc, src1, src2);
+    __ BranchF(chunk_->GetAssemblyLabel(left_block), NULL,
+               condition, src1, src2);
     __ Branch(chunk_->GetAssemblyLabel(right_block));
   }
+}
+
+
+template<class InstrType>
+void LCodeGen::EmitFalseBranchF(InstrType instr,
+                                Condition condition,
+                                FPURegister src1,
+                                FPURegister src2) {
+  int false_block = instr->FalseDestination(chunk_);
+  __ BranchF(chunk_->GetAssemblyLabel(false_block), NULL,
+             condition, src1, src2);
 }
 
 
@@ -2290,6 +2307,23 @@ void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
   Register right = ToRegister(instr->right());
 
   EmitBranch(instr, eq, left, Operand(right));
+}
+
+
+void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
+  if (instr->hydrogen()->representation().IsTagged()) {
+    Register input_reg = ToRegister(instr->object());
+    __ li(at, Operand(factory()->the_hole_value()));
+    EmitBranch(instr, eq, input_reg, Operand(at));
+    return;
+  }
+
+  DoubleRegister input_reg = ToDoubleRegister(instr->object());
+  EmitFalseBranchF(instr, eq, input_reg, input_reg);
+
+  Register scratch = scratch0();
+  __ FmoveHigh(scratch, input_reg);
+  EmitBranch(instr, eq, scratch, Operand(kHoleNanUpper32));
 }
 
 
@@ -4149,17 +4183,17 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
-void LCodeGen::ApplyCheckIf(Condition cc,
+void LCodeGen::ApplyCheckIf(Condition condition,
                             LBoundsCheck* check,
                             Register src1,
                             const Operand& src2) {
   if (FLAG_debug_code && check->hydrogen()->skip_check()) {
     Label done;
-    __ Branch(&done, NegateCondition(cc), src1, src2);
+    __ Branch(&done, NegateCondition(condition), src1, src2);
     __ stop("eliminated bounds check failed");
     __ bind(&done);
   } else {
-    DeoptimizeIf(cc, check->environment(), src1, src2);
+    DeoptimizeIf(condition, check->environment(), src1, src2);
   }
 }
 
@@ -4702,29 +4736,6 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   Register temp1 = ToRegister(instr->temp());
   Register temp2 = ToRegister(instr->temp2());
 
-  bool convert_hole = false;
-  HValue* change_input = instr->hydrogen()->value();
-  if (change_input->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(change_input);
-    convert_hole = load->UsesMustHandleHole();
-  }
-
-  Label no_special_nan_handling;
-  Label done;
-  if (convert_hole) {
-    DoubleRegister input_reg = ToDoubleRegister(instr->value());
-    __ BranchF(&no_special_nan_handling, NULL, eq, input_reg, input_reg);
-    __ Move(reg, scratch0(), input_reg);
-    Label canonicalize;
-    __ Branch(&canonicalize, ne, scratch0(), Operand(kHoleNanUpper32));
-    __ li(reg, factory()->undefined_value());
-    __ Branch(&done);
-    __ bind(&canonicalize);
-    __ Move(input_reg,
-            FixedDoubleArray::canonical_not_the_hole_nan_as_double());
-  }
-
-  __ bind(&no_special_nan_handling);
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
@@ -4738,7 +4749,6 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   __ sdc1(input_reg, MemOperand(reg, HeapNumber::kValueOffset));
   // Now that we have finished with the object's real address tag it
   __ Addu(reg, reg, kHeapObjectTag);
-  __ bind(&done);
 }
 
 
@@ -4780,7 +4790,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 DoubleRegister result_reg,
-                                bool allow_undefined_as_nan,
+                                bool can_convert_undefined_to_nan,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
@@ -4788,16 +4798,14 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
   Label load_smi, heap_number, done;
 
-  STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
-                NUMBER_CANDIDATE_IS_ANY_TAGGED);
-  if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ UntagAndJumpIfSmi(scratch, input_reg, &load_smi);
 
     // Heap number map check.
     __ lw(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
     __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
-    if (!allow_undefined_as_nan) {
+    if (!can_convert_undefined_to_nan) {
       DeoptimizeIf(ne, env, scratch, Operand(at));
     } else {
       Label heap_number, convert;
@@ -4805,10 +4813,6 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
       // Convert undefined (and hole) to NaN.
       __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-      if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE) {
-        __ Branch(&convert, eq, input_reg, Operand(at));
-        __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-      }
       DeoptimizeIf(ne, env, input_reg, Operand(at));
 
       __ bind(&convert);
@@ -4956,21 +4960,12 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   Register input_reg = ToRegister(input);
   DoubleRegister result_reg = ToDoubleRegister(result);
 
-  NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
   HValue* value = instr->hydrogen()->value();
-  if (value->type().IsSmi()) {
-    mode = NUMBER_CANDIDATE_IS_SMI;
-  } else if (value->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(value);
-    if (load->UsesMustHandleHole()) {
-      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-        mode = NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE;
-      }
-    }
-  }
+  NumberUntagDMode mode = value->representation().IsSmi()
+      ? NUMBER_CANDIDATE_IS_SMI : NUMBER_CANDIDATE_IS_ANY_TAGGED;
 
   EmitNumberUntagD(input_reg, result_reg,
-                   instr->hydrogen()->allow_undefined_as_nan(),
+                   instr->hydrogen()->can_convert_undefined_to_nan(),
                    instr->hydrogen()->deoptimize_on_minus_zero(),
                    instr->environment(),
                    mode);

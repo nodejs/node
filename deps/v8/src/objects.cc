@@ -3909,9 +3909,9 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
                   lookup->holder()->MigrateToMap(Map::cast(back));
               if (maybe_failure->IsFailure()) return maybe_failure;
             }
-            DescriptorArray* desc = transition_map->instance_descriptors();
-            int descriptor = transition_map->LastAdded();
-            representation = desc->GetDetails(descriptor).representation();
+            descriptors = transition_map->instance_descriptors();
+            representation =
+                descriptors->GetDetails(descriptor).representation();
           }
           int field_index = descriptors->GetFieldIndex(descriptor);
           result = lookup->holder()->AddFastPropertyUsingMap(
@@ -4117,9 +4117,9 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
               MaybeObject* maybe_failure = self->MigrateToMap(Map::cast(back));
               if (maybe_failure->IsFailure()) return maybe_failure;
             }
-            DescriptorArray* desc = transition_map->instance_descriptors();
-            int descriptor = transition_map->LastAdded();
-            representation = desc->GetDetails(descriptor).representation();
+            descriptors = transition_map->instance_descriptors();
+            representation =
+                descriptors->GetDetails(descriptor).representation();
           }
           int field_index = descriptors->GetFieldIndex(descriptor);
           result = self->AddFastPropertyUsingMap(

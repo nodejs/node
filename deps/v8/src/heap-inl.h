@@ -439,6 +439,43 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
 }
 
 
+bool Heap::AllowedToBeMigrated(HeapObject* object, AllocationSpace dst) {
+  // Object migration is governed by the following rules:
+  //
+  // 1) Objects in new-space can be migrated to one of the old spaces
+  //    that matches their target space or they stay in new-space.
+  // 2) Objects in old-space stay in the same space when migrating.
+  // 3) Fillers (two or more words) can migrate due to left-trimming of
+  //    fixed arrays in new-space, old-data-space and old-pointer-space.
+  // 4) Fillers (one word) can never migrate, they are skipped by
+  //    incremental marking explicitly to prevent invalid pattern.
+  //
+  // Since this function is used for debugging only, we do not place
+  // asserts here, but check everything explicitly.
+  if (object->map() == one_pointer_filler_map()) return false;
+  InstanceType type = object->map()->instance_type();
+  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+  AllocationSpace src = chunk->owner()->identity();
+  switch (src) {
+    case NEW_SPACE:
+      return dst == src || dst == TargetSpaceId(type);
+    case OLD_POINTER_SPACE:
+      return dst == src && (dst == TargetSpaceId(type) || object->IsFiller());
+    case OLD_DATA_SPACE:
+      return dst == src && dst == TargetSpaceId(type);
+    case CODE_SPACE:
+      return dst == src && type == CODE_TYPE;
+    case MAP_SPACE:
+    case CELL_SPACE:
+    case PROPERTY_CELL_SPACE:
+    case LO_SPACE:
+      return false;
+  }
+  UNREACHABLE();
+  return false;
+}
+
+
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   CopyWords(reinterpret_cast<Object**>(dst),
             reinterpret_cast<Object**>(src),

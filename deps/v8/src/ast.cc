@@ -708,7 +708,9 @@ void AstVisitor::VisitDeclarations(ZoneList<Declaration*>* declarations) {
 
 void AstVisitor::VisitStatements(ZoneList<Statement*>* statements) {
   for (int i = 0; i < statements->length(); i++) {
-    Visit(statements->at(i));
+    Statement* stmt = statements->at(i);
+    Visit(stmt);
+    if (stmt->IsJump()) break;
   }
 }
 

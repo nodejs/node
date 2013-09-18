@@ -1216,6 +1216,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
         __ cmpl(dividend, Immediate(0));
         __ j(less, &negative, Label::kNear);
         __ sarl(dividend, Immediate(power));
+        if (divisor < 0) __ negl(dividend);
         __ jmp(&done, Label::kNear);
 
         __ bind(&negative);

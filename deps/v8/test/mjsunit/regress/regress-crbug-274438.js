@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,61 +27,17 @@
 
 // Flags: --allow-natives-syntax
 
-function divp4(x) {
-  return x / 4;
+function f(a, b) {
+  var x = { a:a };
+  switch(b) { case "string": }
+  var y = { b:b };
+  return y;
 }
 
-divp4(8);
-divp4(8);
-%OptimizeFunctionOnNextCall(divp4);
-assertEquals(2, divp4(8));
-assertEquals(0.5, divp4(2));
-
-
-function divn4(x) {
-  return x / (-4);
-}
-
-divn4(8);
-divn4(8);
-%OptimizeFunctionOnNextCall(divn4);
-assertEquals(-2, divn4(8));
-// Check for (0 / -x)
-assertEquals(-0, divn4(0));
-
-
-// Check for (kMinInt / -1)
-function divn1(x) {
-  return x / (-1);
-}
-
-var two_31 = 1 << 31;
-divn1(2);
-divn1(2);
-%OptimizeFunctionOnNextCall(divn1);
-assertEquals(-2, divn1(2));
-assertEquals(two_31, divn1(-two_31));
-
-
-//Check for truncating to int32 case
-function divp4t(x) {
-  return (x / 4) | 0;
-}
-
-divp4t(8);
-divp4t(8);
-%OptimizeFunctionOnNextCall(divp4t);
-assertEquals(-1, divp4t(-5));
-assertEquals(1, divp4t(5));
-assertOptimized(divp4t);
-
-function divn4t(x) {
-  return (x / -4) | 0;
-}
-
-divn4t(8);
-divn4t(8);
-%OptimizeFunctionOnNextCall(divn4t);
-assertEquals(1, divn4t(-5));
-assertEquals(-1, divn4t(5));
-assertOptimized(divn4t);
+f("a", "b");
+f("a", "b");
+%OptimizeFunctionOnNextCall(f);
+f("a", "b");
+%SetAllocationTimeout(100, 0);
+var killer = f("bang", "bo" + "om");
+assertEquals("boom", killer.b);

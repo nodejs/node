@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,63 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --expose-debug-as debug --allow-natives-syntax --expose-gc
+// Get the Debug object exposed from the debug context global object.
+Debug = debug.Debug
 
-function divp4(x) {
-  return x / 4;
+function breakListener(event, exec_state, event_data, data) {
+  exec_state.prepareStep(Debug.StepAction.StepIn, 1);
 }
 
-divp4(8);
-divp4(8);
-%OptimizeFunctionOnNextCall(divp4);
-assertEquals(2, divp4(8));
-assertEquals(0.5, divp4(2));
+Debug.setListener(breakListener);
 
+var o = {x:function() { return 10; }};
 
-function divn4(x) {
-  return x / (-4);
+function f(o) {
+  var m = "x";
+  o[m]();
 }
 
-divn4(8);
-divn4(8);
-%OptimizeFunctionOnNextCall(divn4);
-assertEquals(-2, divn4(8));
-// Check for (0 / -x)
-assertEquals(-0, divn4(0));
+Debug.setBreakPoint(f, 2, 0);
 
+f(o);
 
-// Check for (kMinInt / -1)
-function divn1(x) {
-  return x / (-1);
+%NotifyContextDisposed();
+function g() {
+  gc();
 }
 
-var two_31 = 1 << 31;
-divn1(2);
-divn1(2);
-%OptimizeFunctionOnNextCall(divn1);
-assertEquals(-2, divn1(2));
-assertEquals(two_31, divn1(-two_31));
-
-
-//Check for truncating to int32 case
-function divp4t(x) {
-  return (x / 4) | 0;
-}
-
-divp4t(8);
-divp4t(8);
-%OptimizeFunctionOnNextCall(divp4t);
-assertEquals(-1, divp4t(-5));
-assertEquals(1, divp4t(5));
-assertOptimized(divp4t);
-
-function divn4t(x) {
-  return (x / -4) | 0;
-}
-
-divn4t(8);
-divn4t(8);
-%OptimizeFunctionOnNextCall(divn4t);
-assertEquals(1, divn4t(-5));
-assertEquals(-1, divn4t(5));
-assertOptimized(divn4t);
+g();

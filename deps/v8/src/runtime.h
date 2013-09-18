@@ -101,6 +101,7 @@ namespace internal {
   F(GetOptimizationStatus, -1, 1) \
   F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
+  F(SetAllocationTimeout, 2, 1) \
   F(AllocateInNewSpace, 1, 1) \
   F(AllocateInOldPointerSpace, 1, 1) \
   F(AllocateInOldDataSpace, 1, 1) \
@@ -110,6 +111,7 @@ namespace internal {
   F(DebugPrepareStepInIfStepping, 1, 1) \
   F(FlattenString, 1, 1) \
   F(MigrateInstance, 1, 1) \
+  F(NotifyContextDisposed, 0, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \

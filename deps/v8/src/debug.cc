@@ -1627,7 +1627,7 @@ bool Debug::StepNextContinue(BreakLocationIterator* break_location_iterator,
 // object.
 bool Debug::IsDebugBreak(Address addr) {
   Code* code = Code::GetCodeFromTargetAddress(addr);
-  return code->is_debug_break();
+  return code->is_debug_stub() && code->extra_ic_state() == DEBUG_BREAK;
 }
 
 

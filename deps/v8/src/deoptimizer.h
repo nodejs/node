@@ -166,7 +166,9 @@ class Deoptimizer : public Malloced {
 
   int output_count() const { return output_count_; }
 
-  Code::Kind compiled_code_kind() const { return compiled_code_->kind(); }
+  Handle<JSFunction> function() const { return Handle<JSFunction>(function_); }
+  Handle<Code> compiled_code() const { return Handle<Code>(compiled_code_); }
+  BailoutType bailout_type() const { return bailout_type_; }
 
   // Number of created JS frames. Not all created frames are necessarily JS.
   int jsframe_count() const { return jsframe_count_; }

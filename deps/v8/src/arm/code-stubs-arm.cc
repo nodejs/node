@@ -4430,6 +4430,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    __ SmiTag(r0);
     __ push(r0);
     __ push(r1);
     __ push(r2);
@@ -4440,6 +4441,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     __ pop(r2);
     __ pop(r1);
     __ pop(r0);
+    __ SmiUntag(r0);
   }
   __ b(&done);
 

@@ -235,6 +235,14 @@ class MacroAssembler: public Assembler {
     mfc1(dst_high, FPURegister::from_code(src.code() + 1));
   }
 
+  inline void FmoveHigh(Register dst_high, FPURegister src) {
+    mfc1(dst_high, FPURegister::from_code(src.code() + 1));
+  }
+
+  inline void FmoveLow(Register dst_low, FPURegister src) {
+    mfc1(dst_low, src);
+  }
+
   inline void Move(FPURegister dst, Register src_low, Register src_high) {
     mtc1(src_low, dst);
     mtc1(src_high, FPURegister::from_code(dst.code() + 1));

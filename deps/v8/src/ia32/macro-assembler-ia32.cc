@@ -1307,26 +1307,29 @@ void MacroAssembler::Allocate(int object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
+  ExternalReference allocation_limit =
+      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
+
   // Align the next allocation. Storing the filler map without checking top is
-  // always safe because the limit of the heap is always aligned.
+  // safe in new-space because the limit of the heap is aligned there.
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
     ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     Label aligned;
     test(result, Immediate(kDoubleAlignmentMask));
     j(zero, &aligned, Label::kNear);
+    if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      cmp(result, Operand::StaticVariable(allocation_limit));
+      j(above_equal, gc_required);
+    }
     mov(Operand(result, 0),
         Immediate(isolate()->factory()->one_pointer_filler_map()));
     add(result, Immediate(kDoubleSize / 2));
     bind(&aligned);
   }
 
-  Register top_reg = result_end.is_valid() ? result_end : result;
-
   // Calculate new top and bail out if space is exhausted.
-  ExternalReference allocation_limit =
-      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
-
+  Register top_reg = result_end.is_valid() ? result_end : result;
   if (!top_reg.is(result)) {
     mov(top_reg, result);
   }
@@ -1381,14 +1384,21 @@ void MacroAssembler::Allocate(int header_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
+  ExternalReference allocation_limit =
+      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
+
   // Align the next allocation. Storing the filler map without checking top is
-  // always safe because the limit of the heap is always aligned.
+  // safe in new-space because the limit of the heap is aligned there.
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
     ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     Label aligned;
     test(result, Immediate(kDoubleAlignmentMask));
     j(zero, &aligned, Label::kNear);
+    if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      cmp(result, Operand::StaticVariable(allocation_limit));
+      j(above_equal, gc_required);
+    }
     mov(Operand(result, 0),
         Immediate(isolate()->factory()->one_pointer_filler_map()));
     add(result, Immediate(kDoubleSize / 2));
@@ -1396,9 +1406,6 @@ void MacroAssembler::Allocate(int header_size,
   }
 
   // Calculate new top and bail out if space is exhausted.
-  ExternalReference allocation_limit =
-      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
-
   // We assume that element_count*element_size + header_size does not
   // overflow.
   if (element_count_type == REGISTER_VALUE_IS_SMI) {
@@ -1452,14 +1459,21 @@ void MacroAssembler::Allocate(Register object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
+  ExternalReference allocation_limit =
+      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
+
   // Align the next allocation. Storing the filler map without checking top is
-  // always safe because the limit of the heap is always aligned.
+  // safe in new-space because the limit of the heap is aligned there.
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
     ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     Label aligned;
     test(result, Immediate(kDoubleAlignmentMask));
     j(zero, &aligned, Label::kNear);
+    if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      cmp(result, Operand::StaticVariable(allocation_limit));
+      j(above_equal, gc_required);
+    }
     mov(Operand(result, 0),
         Immediate(isolate()->factory()->one_pointer_filler_map()));
     add(result, Immediate(kDoubleSize / 2));
@@ -1467,9 +1481,6 @@ void MacroAssembler::Allocate(Register object_size,
   }
 
   // Calculate new top and bail out if space is exhausted.
-  ExternalReference allocation_limit =
-      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
-
   if (!object_size.is(result_end)) {
     mov(result_end, object_size);
   }

@@ -163,11 +163,7 @@ void HEnvironmentLivenessAnalysisPhase::UpdateLivenessAtInstruction(
       live->Clear();
       for (int i = 0; i < enter->return_targets()->length(); ++i) {
         int return_id = enter->return_targets()->at(i)->block_id();
-        // When an AbnormalExit is involved, it can happen that the return
-        // target block doesn't actually exist.
-        if (return_id < live_at_block_start_.length()) {
-          live->Union(*live_at_block_start_[return_id]);
-        }
+        live->Union(*live_at_block_start_[return_id]);
       }
       last_simulate_ = NULL;
       break;

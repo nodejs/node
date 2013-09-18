@@ -277,16 +277,16 @@ class LCodeGen BASE_EMBEDDED {
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition cc,
+  void DeoptimizeIf(Condition condition,
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
-  void DeoptimizeIf(Condition cc,
+  void DeoptimizeIf(Condition condition,
                     LEnvironment* environment,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
-  void ApplyCheckIf(Condition cc,
+  void ApplyCheckIf(Condition condition,
                     LBoundsCheck* check,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
@@ -329,14 +329,19 @@ class LCodeGen BASE_EMBEDDED {
   void EmitGoto(int block);
   template<class InstrType>
   void EmitBranch(InstrType instr,
-                  Condition cc,
+                  Condition condition,
                   Register src1,
                   const Operand& src2);
   template<class InstrType>
   void EmitBranchF(InstrType instr,
-                   Condition cc,
+                   Condition condition,
                    FPURegister src1,
                    FPURegister src2);
+  template<class InstrType>
+  void EmitFalseBranchF(InstrType instr,
+                        Condition condition,
+                        FPURegister src1,
+                        FPURegister src2);
   void EmitCmpI(LOperand* left, LOperand* right);
   void EmitNumberUntagD(Register input,
                         DoubleRegister result,

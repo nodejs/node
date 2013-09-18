@@ -4808,12 +4808,14 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
         1 << 5  |  // a1
         1 << 6;    // a2
 
+    __ SmiTag(a0);
     __ MultiPush(kSavedRegs);
 
     CreateAllocationSiteStub create_stub;
     __ CallStub(&create_stub);
 
     __ MultiPop(kSavedRegs);
+    __ SmiUntag(a0);
   }
   __ Branch(&done);
 

@@ -1398,6 +1398,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
         __ rsb(dividend, dividend, Operand(0), LeaveCC, lt);
         __ mov(dividend, Operand(dividend, ASR, power));
         if (divisor > 0) __ rsb(dividend, dividend, Operand(0), LeaveCC, lt);
+        if (divisor < 0) __ rsb(dividend, dividend, Operand(0), LeaveCC, gt);
         return;  // Don't fall through to "__ rsb" below.
       } else {
         // Deoptimize if remainder is not 0.

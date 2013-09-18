@@ -74,6 +74,7 @@ class LCodeGen;
   V(ClassOfTestAndBranch)                       \
   V(CompareNumericAndBranch)                    \
   V(CmpObjectEqAndBranch)                       \
+  V(CmpHoleAndBranch)                           \
   V(CmpMapAndBranch)                            \
   V(CmpT)                                       \
   V(ConstantD)                                  \
@@ -887,9 +888,21 @@ class LCmpObjectEqAndBranch: public LControlInstruction<2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CmpObjectEqAndBranch,
-                               "cmp-object-eq-and-branch")
+  DECLARE_CONCRETE_INSTRUCTION(CmpObjectEqAndBranch, "cmp-object-eq-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareObjectEqAndBranch)
+};
+
+
+class LCmpHoleAndBranch: public LControlInstruction<1, 0> {
+ public:
+  explicit LCmpHoleAndBranch(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpHoleAndBranch, "cmp-hole-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareHoleAndBranch)
 };
 
 

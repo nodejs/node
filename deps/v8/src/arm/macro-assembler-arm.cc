@@ -1732,12 +1732,16 @@ void MacroAssembler::Allocate(int object_size,
 
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     // Align the next allocation. Storing the filler map without checking top is
-    // always safe because the limit of the heap is always aligned.
+    // safe in new-space because the limit of the heap is aligned there.
     ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
     ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     and_(scratch2, result, Operand(kDoubleAlignmentMask), SetCC);
     Label aligned;
     b(eq, &aligned);
+    if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      cmp(result, Operand(ip));
+      b(hs, gc_required);
+    }
     mov(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
     str(scratch2, MemOperand(result, kDoubleSize / 2, PostIndex));
     bind(&aligned);
@@ -1830,12 +1834,16 @@ void MacroAssembler::Allocate(Register object_size,
 
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     // Align the next allocation. Storing the filler map without checking top is
-    // always safe because the limit of the heap is always aligned.
+    // safe in new-space because the limit of the heap is aligned there.
     ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
     ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     and_(scratch2, result, Operand(kDoubleAlignmentMask), SetCC);
     Label aligned;
     b(eq, &aligned);
+    if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      cmp(result, Operand(ip));
+      b(hs, gc_required);
+    }
     mov(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
     str(scratch2, MemOperand(result, kDoubleSize / 2, PostIndex));
     bind(&aligned);
