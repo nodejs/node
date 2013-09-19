@@ -60,10 +60,10 @@ You have been warned.
 ## Signal Events
 
 <!--type=event-->
-<!--name=SIGINT, SIGUSR1, etc.-->
+<!--name=SIGINT, SIGHUP, etc.-->
 
 Emitted when the processes receives a signal. See sigaction(2) for a list of
-standard POSIX signal names such as SIGINT, SIGUSR1, etc.
+standard POSIX signal names such as SIGINT, SIGHUP, etc.
 
 Example of listening for `SIGINT`:
 
@@ -77,6 +77,8 @@ Example of listening for `SIGINT`:
 An easy way to send the `SIGINT` signal is with `Control-C` in most terminal
 programs.
 
+Note: SIGUSR1 is reserved by node.js to kickstart the debugger.  It's possible
+to install a listener but that won't stop the debugger from starting.
 
 ## process.stdout
 
@@ -391,7 +393,7 @@ An example of the possible output looks like:
 
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like
-'SIGINT' or 'SIGUSR1'.  If omitted, the signal will be 'SIGTERM'.
+'SIGINT' or 'SIGHUP'.  If omitted, the signal will be 'SIGTERM'.
 See kill(2) for more information.
 
 Note that just because the name of this function is `process.kill`, it is
@@ -411,6 +413,8 @@ Example of sending a signal to yourself:
 
     process.kill(process.pid, 'SIGHUP');
 
+Note: SIGUSR1 is reserved by node.js.  It can be used to kickstart the
+debugger.
 
 ## process.pid
 
