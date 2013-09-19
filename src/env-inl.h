@@ -165,6 +165,7 @@ inline Environment::Environment(v8::Local<v8::Context> context)
   v8::HandleScope handle_scope(isolate());
   set_binding_cache_object(v8::Object::New());
   set_module_load_list_array(v8::Array::New());
+  RB_INIT(&cares_task_list_);
 }
 
 inline Environment::~Environment() {
