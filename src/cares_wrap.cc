@@ -313,14 +313,42 @@ class QueryWrap {
     assert(status != ARES_SUCCESS);
     Context::Scope context_scope(env()->context());
     HandleScope handle_scope(env()->isolate());
-    Local<Value> argv[] = {
-      Integer::New(status, env()->isolate())
-    };
-    MakeCallback(env(),
-                 object(),
-                 env()->oncomplete_string(),
-                 ARRAY_SIZE(argv),
-                 argv);
+    Local<Value> arg;
+    switch (status) {
+#define V(code)                                                               \
+      case ARES_ ## code:                                                     \
+        arg = FIXED_ONE_BYTE_STRING(env()->isolate(), #code);                 \
+        break;
+      V(ENODATA)
+      V(EFORMERR)
+      V(ESERVFAIL)
+      V(ENOTFOUND)
+      V(ENOTIMP)
+      V(EREFUSED)
+      V(EBADQUERY)
+      V(EBADNAME)
+      V(EBADFAMILY)
+      V(EBADRESP)
+      V(ECONNREFUSED)
+      V(ETIMEOUT)
+      V(EOF)
+      V(EFILE)
+      V(ENOMEM)
+      V(EDESTRUCTION)
+      V(EBADSTR)
+      V(EBADFLAGS)
+      V(ENONAME)
+      V(EBADHINTS)
+      V(ENOTINITIALIZED)
+      V(ELOADIPHLPAPI)
+      V(EADDRGETNETWORKPARAMS)
+      V(ECANCELLED)
+#undef V
+      default:
+        arg = FIXED_ONE_BYTE_STRING(env()->isolate(), "UNKNOWN_ARES_ERROR");
+        break;
+    }
+    MakeCallback(env(), object(), env()->oncomplete_string(), 1, &arg);
   }
 
   // Subclasses should implement the appropriate Parse method.
