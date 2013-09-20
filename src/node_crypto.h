@@ -280,6 +280,7 @@ class Connection : ObjectWrap {
   friend class SecureContext;
 };
 
+bool EntropySource(unsigned char* buffer, size_t length);
 void InitCrypto(v8::Handle<v8::Object> target);
 
 }  // namespace crypto
