@@ -185,6 +185,14 @@ void ThrowCryptoTypeError(unsigned long err) {
 }
 
 
+bool EntropySource(unsigned char* buffer, size_t length) {
+  // RAND_bytes() can return 0 to indicate that the entropy data is not truly
+  // random. That's okay, it's still better than V8's stock source of entropy,
+  // which is /dev/urandom on UNIX platforms and the current time on Windows.
+  return RAND_bytes(buffer, length) != -1;
+}
+
+
 void SecureContext::Initialize(Environment* env, Handle<Object> target) {
   Local<FunctionTemplate> t = FunctionTemplate::New(SecureContext::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);

@@ -3224,6 +3224,12 @@ int Start(int argc, char** argv) {
   Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv);
 
   V8::Initialize();
+#if HAVE_OPENSSL
+  // V8 on Windows doesn't have a good source of entropy. Seed it from
+  // OpenSSL's pool.
+  V8::SetEntropySource(crypto::EntropySource);
+#endif
+
   {
     Locker locker(node_isolate);
     Environment* env =

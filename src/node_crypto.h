@@ -509,6 +509,7 @@ class DiffieHellman : public ObjectWrap {
   DH* dh;
 };
 
+bool EntropySource(unsigned char* buffer, size_t length);
 void InitCrypto(v8::Handle<v8::Object> target);
 
 }  // namespace crypto
