@@ -1011,6 +1011,12 @@ you can use the `require('querystring').parse` function, or pass
 
 The 3-digit HTTP response status code. E.G. `404`.
 
+### message.statusMessage
+
+**Only valid for response obtained from `http.ClientRequest`.**
+
+The HTTP response status message (reason phrase). E.G. `OK` or `Internal Server Error`.
+
 ### message.socket
 
 The `net.Socket` object associated with the connection.

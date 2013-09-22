@@ -119,6 +119,7 @@ namespace node {
   V(smalloc_p_string, "_smalloc_p")                                           \
   V(sni_context_string, "sni_context")                                        \
   V(status_code_string, "statusCode")                                         \
+  V(status_message_string, "statusMessage")                                   \
   V(subject_string, "subject")                                                \
   V(subjectaltname_string, "subjectaltname")                                  \
   V(syscall_string, "syscall")                                                \
