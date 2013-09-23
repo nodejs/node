@@ -4970,7 +4970,7 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
   int object_size = map->instance_size();
   Object* clone;
 
-  ASSERT(map->CanTrackAllocationSite());
+  ASSERT(AllocationSite::CanTrack(map->instance_type()));
   ASSERT(map->instance_type() == JS_ARRAY_TYPE);
   WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
 

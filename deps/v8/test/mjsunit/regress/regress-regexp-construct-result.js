@@ -25,78 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nouse-osr --expose-gc
+// Create a huge regexp with many alternative capture groups, most of
+// which do not capture anything, but the corresponding capture slot
+// in the result object has to exist, even though filled with undefined.
+// Having a large result array helps stressing GC.
 
-// Test loop barrier when folding allocations.
-
-function f() {
-  var elem1 = [1,2,3];
-  for (var i=0; i < 100000; i++) {
-    var bar = [1];
-  }
-  var elem2 = [1,2,3];
-  return elem2;
+var num_captures = 1000;
+var regexp_string = "(a)";
+for (var i = 0; i < num_captures - 1; i++) {
+  regexp_string += "|(b)";
 }
+var regexp = new RegExp(regexp_string);
 
-f(); f(); f();
-%OptimizeFunctionOnNextCall(f);
-var result = f();
-
-gc();
-
-assertEquals(result[2], 3);
-
-// Test allocation folding of doubles.
-
-function doubles() {
-  var elem1 = [1.1, 1.2];
-  var elem2 = [2.1, 2.2];
-  return elem2;
+for (var i = 0; i < 10; i++) {
+  var matches = regexp.exec("a");
+  var count = 0;
+  matches.forEach(function() { count++; });
+  assertEquals(num_captures + 1, count);
 }
-
-doubles(); doubles(); doubles();
-%OptimizeFunctionOnNextCall(doubles);
-result = doubles();
-
-gc();
-
-assertEquals(result[1], 2.2);
-
-// Test allocation folding of doubles into non-doubles.
-
-function doubles_int() {
-  var elem1 = [2, 3];
-  var elem2 = [2.1, 3.1];
-  return elem2;
-}
-
-doubles_int(); doubles_int(); doubles_int();
-%OptimizeFunctionOnNextCall(doubles_int);
-result = doubles_int();
-
-gc();
-
-assertEquals(result[1], 3.1);
-
-// Test allocation folding over a branch.
-
-function branch_int(left) {
-  var elem1 = [1, 2];
-  var elem2;
-  if (left) {
-    elem2 = [3, 4];
-  } else {
-    elem2 = [5, 6];
-  }
-  return elem2;
-}
-
-branch_int(1); branch_int(1); branch_int(1);
-%OptimizeFunctionOnNextCall(branch_int);
-result = branch_int(1);
-var result2 = branch_int(0);
-
-gc();
-
-assertEquals(result[1], 4);
-assertEquals(result2[1], 6);

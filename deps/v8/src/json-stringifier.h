@@ -832,14 +832,14 @@ Vector<const uc16> BasicJsonStringifier::GetCharVector(Handle<String> string) {
 void BasicJsonStringifier::SerializeString(Handle<String> object) {
   object = FlattenGetString(object);
   if (is_ascii_) {
-    if (object->IsOneByteRepresentation()) {
+    if (object->IsOneByteRepresentationUnderneath()) {
       SerializeString_<true, uint8_t>(object);
     } else {
       ChangeEncoding();
       SerializeString(object);
     }
   } else {
-    if (object->IsOneByteRepresentation()) {
+    if (object->IsOneByteRepresentationUnderneath()) {
       SerializeString_<false, uint8_t>(object);
     } else {
       SerializeString_<false, uc16>(object);
