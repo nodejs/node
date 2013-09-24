@@ -19,6 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "async-wrap.h"
+#include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"
@@ -175,11 +177,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
     argv[2] = OneByteString(node_isolate, filename);
   }
 
-  MakeCallback(env,
-               wrap->object(),
-               env->onchange_string(),
-               ARRAY_SIZE(argv),
-               argv);
+  wrap->MakeCallback(env->onchange_string(), ARRAY_SIZE(argv), argv);
 }
 
 

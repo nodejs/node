@@ -49,7 +49,7 @@ inline v8::Local<TypeName> PersistentToLocal(
 
 // Call with valid HandleScope and while inside Context scope.
 v8::Handle<v8::Value> MakeCallback(Environment* env,
-                                   const v8::Handle<v8::Object> object,
+                                   v8::Handle<v8::Object> object,
                                    const char* method,
                                    int argc = 0,
                                    v8::Handle<v8::Value>* argv = NULL);

@@ -20,6 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "handle_wrap.h"
+#include "async-wrap.h"
+#include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"
@@ -89,12 +91,11 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
 HandleWrap::HandleWrap(Environment* env,
                        Handle<Object> object,
                        uv_handle_t* handle)
-    : env_(env),
+    : AsyncWrap(env, object),
       flags_(0),
       handle__(handle) {
   handle__->data = this;
   HandleScope scope(node_isolate);
-  persistent().Reset(node_isolate, object);
   Wrap<HandleWrap>(object, this);
   QUEUE_INSERT_TAIL(&handle_wrap_queue, &handle_wrap_queue_);
 }
@@ -121,7 +122,7 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   Local<Object> object = wrap->object();
 
   if (wrap->flags_ & kCloseCallback) {
-    MakeCallback(env, object, env->close_string());
+    wrap->MakeCallback(env->close_string(), 0, NULL);
   }
 
   object->SetAlignedPointerInInternalField(0, NULL);

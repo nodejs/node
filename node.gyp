@@ -115,6 +115,8 @@
         'src/udp_wrap.cc',
         'src/uv.cc',
         # headers to make for a more pleasant IDE experience
+        'src/async-wrap.h',
+        'src/async-wrap-inl.h',
         'src/env.h',
         'src/env-inl.h',
         'src/handle_wrap.h',

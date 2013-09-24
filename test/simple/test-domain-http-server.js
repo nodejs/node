@@ -45,11 +45,10 @@ var server = http.createServer(function(req, res) {
     res.end(er.stack || er.message || 'Unknown error');
   });
 
-  var data;
   dom.run(function() {
     // Now, an action that has the potential to fail!
     // if you request 'baz', then it'll throw a JSON circular ref error.
-    data = JSON.stringify(objects[req.url.replace(/[^a-z]/g, '')]);
+    var data = JSON.stringify(objects[req.url.replace(/[^a-z]/g, '')]);
 
     // this line will throw if you pick an unknown key
     assert(data !== undefined, 'Data should not be undefined');
@@ -64,8 +63,6 @@ server.listen(common.PORT, next);
 function next() {
   console.log('listening on localhost:%d', common.PORT);
 
-  // now hit it a few times
-  var dom = domain.create();
   var requests = 0;
   var responses = 0;
 

@@ -53,6 +53,7 @@ namespace node {
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
   V(address_string, "address")                                                \
   V(atime_string, "atime")                                                    \
+  V(async_queue_string, "_asyncQueue")                                        \
   V(birthtime_string, "birthtime")                                            \
   V(blksize_string, "blksize")                                                \
   V(blocks_string, "blocks")                                                  \
@@ -131,6 +132,11 @@ namespace node {
   V(write_queue_size_string, "writeQueueSize")                                \
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
+  V(async_listener_load_function, v8::Function)                               \
+  V(async_listener_push_function, v8::Function)                               \
+  V(async_listener_run_function, v8::Function)                                \
+  V(async_listener_strip_function, v8::Function)                              \
+  V(async_listener_unload_function, v8::Function)                             \
   V(binding_cache_object, v8::Object)                                         \
   V(buffer_constructor_function, v8::Function)                                \
   V(context, v8::Context)                                                     \
@@ -163,6 +169,26 @@ RB_HEAD(ares_task_list, ares_task_t);
 
 class Environment {
  public:
+  class AsyncListener {
+   public:
+    inline uint32_t* fields();
+    inline int fields_count() const;
+    inline uint32_t count() const;
+
+   private:
+    friend class Environment;  // So we can call the constructor.
+    inline AsyncListener();
+
+    enum Fields {
+      kCount,
+      kFieldsCount
+    };
+
+    uint32_t fields_[kFieldsCount];
+
+    DISALLOW_COPY_AND_ASSIGN(AsyncListener);
+  };
+
   class DomainFlag {
    public:
     inline uint32_t* fields();
@@ -223,6 +249,7 @@ class Environment {
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
+  inline bool has_async_listeners() const;
   inline bool in_domain() const;
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
@@ -235,6 +262,7 @@ class Environment {
   static inline Environment* from_idle_check_handle(uv_check_t* handle);
   inline uv_check_t* idle_check_handle();
 
+  inline AsyncListener* async_listener();
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
 
@@ -279,6 +307,7 @@ class Environment {
   uv_idle_t immediate_idle_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
+  AsyncListener async_listener_count_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
   uv_timer_t cares_timer_handle_;

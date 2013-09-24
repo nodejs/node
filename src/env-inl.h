@@ -69,6 +69,23 @@ inline v8::Isolate* Environment::IsolateData::isolate() const {
   return isolate_;
 }
 
+inline Environment::AsyncListener::AsyncListener() {
+  for (int i = 0; i < kFieldsCount; ++i)
+    fields_[i] = 0;
+}
+
+inline uint32_t* Environment::AsyncListener::fields() {
+  return fields_;
+}
+
+inline int Environment::AsyncListener::fields_count() const {
+  return kFieldsCount;
+}
+
+inline uint32_t Environment::AsyncListener::count() const {
+  return fields_[kCount];
+}
+
 inline Environment::DomainFlag::DomainFlag() {
   for (int i = 0; i < kFieldsCount; ++i) fields_[i] = 0;
 }
@@ -86,7 +103,8 @@ inline uint32_t Environment::DomainFlag::count() const {
 }
 
 inline Environment::TickInfo::TickInfo() : in_tick_(false), last_threw_(false) {
-  for (int i = 0; i < kFieldsCount; ++i) fields_[i] = 0;
+  for (int i = 0; i < kFieldsCount; ++i)
+    fields_[i] = 0;
 }
 
 inline uint32_t* Environment::TickInfo::fields() {
@@ -187,6 +205,11 @@ inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
 
+inline bool Environment::has_async_listeners() const {
+  // The const_cast is okay, it doesn't violate conceptual const-ness.
+  return const_cast<Environment*>(this)->async_listener()->count() > 0;
+}
+
 inline bool Environment::in_domain() const {
   // The const_cast is okay, it doesn't violate conceptual const-ness.
   return using_domains() &&
@@ -225,6 +248,10 @@ inline uv_check_t* Environment::idle_check_handle() {
 
 inline uv_loop_t* Environment::event_loop() const {
   return isolate_data()->event_loop();
+}
+
+inline Environment::AsyncListener* Environment::async_listener() {
+  return &async_listener_count_;
 }
 
 inline Environment::DomainFlag* Environment::domain_flag() {

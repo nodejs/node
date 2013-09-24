@@ -19,6 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "async-wrap.h"
+#include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
@@ -138,7 +140,7 @@ class TimerWrap : public HandleWrap {
     Context::Scope context_scope(env->context());
     HandleScope handle_scope(env->isolate());
     Local<Value> argv[1] = { Integer::New(status, node_isolate) };
-    MakeCallback(env, wrap->object(), kOnTimeout, ARRAY_SIZE(argv), argv);
+    wrap->MakeCallback(kOnTimeout, ARRAY_SIZE(argv), argv);
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {

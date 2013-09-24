@@ -192,11 +192,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   };
 
   if (status != 0) {
-    MakeCallback(env,
-                 pipe_wrap->object(),
-                 env->onconnection_string(),
-                 ARRAY_SIZE(argv),
-                 argv);
+    pipe_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
     return;
   }
 
@@ -212,11 +208,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
 
   // Successful accept. Call the onconnection callback in JavaScript land.
   argv[1] = client_obj;
-  MakeCallback(env,
-               pipe_wrap->object(),
-               env->onconnection_string(),
-               ARRAY_SIZE(argv),
-               argv);
+  pipe_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
 }
 
 // TODO(bnoordhuis) Maybe share this with TCPWrap?
@@ -251,11 +243,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
     Boolean::New(writable)
   };
 
-  MakeCallback(env,
-               req_wrap_obj,
-               env->oncomplete_string(),
-               ARRAY_SIZE(argv),
-               argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
 
   delete req_wrap;
 }

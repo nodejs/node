@@ -19,55 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef SRC_REQ_WRAP_H_
-#define SRC_REQ_WRAP_H_
+var common = require('../common');
+var assert = require('assert');
 
-#include "async-wrap.h"
-#include "async-wrap-inl.h"
-#include "env.h"
-#include "env-inl.h"
-#include "queue.h"
-#include "util.h"
+// If there is an uncaughtException listener then the error thrown from
+// "before" will be considered handled, thus calling setImmediate to
+// finish execution of the nextTickQueue. This in turn will cause "before"
+// to fire again, entering into an infinite loop.
+// So the asyncQueue is cleared from the returned setImmediate in
+// _fatalException to prevent this from happening.
+var cntr = 0;
 
-namespace node {
 
-// defined in node.cc
-extern QUEUE req_wrap_queue;
-
-template <typename T>
-class ReqWrap : public AsyncWrap {
- public:
-  ReqWrap(Environment* env, v8::Handle<v8::Object> object)
-      : AsyncWrap(env, object) {
-    assert(!object.IsEmpty());
-
-    if (env->in_domain())
-      object->Set(env->domain_string(), env->domain_array()->Get(0));
-
-    QUEUE_INSERT_TAIL(&req_wrap_queue, &req_wrap_queue_);
+process.addAsyncListener(function() { }, {
+  before: function() {
+    if (++cntr > 1) {
+      // Can't throw since uncaughtException will also catch that.
+      process._rawDebug('Error: Multiple before callbacks called');
+      process.exit(1);
+    }
+    throw new Error('before');
   }
+});
 
+process.on('uncaughtException', function() { });
 
-  ~ReqWrap() {
-    QUEUE_REMOVE(&req_wrap_queue_);
-    // Assert that someone has called Dispatched()
-    assert(req_.data == this);
-    assert(!persistent().IsEmpty());
-    persistent().Dispose();
-  }
-
-  // Call this after the req has been dispatched.
-  void Dispatched() {
-    req_.data = this;
-  }
-
-  // TODO(bnoordhuis) Make these private.
-  QUEUE req_wrap_queue_;
-  T req_;  // *must* be last, GetActiveRequests() in node.cc depends on it
-};
-
-
-}  // namespace node
-
-
-#endif  // SRC_REQ_WRAP_H_
+process.nextTick();

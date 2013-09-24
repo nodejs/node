@@ -363,9 +363,8 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
     Environment* env = req_wrap->env();
     Context::Scope context_scope(env->context());
     HandleScope handle_scope(env->isolate());
-    Local<Object> req_wrap_obj = req_wrap->object();
     Local<Value> arg = Integer::New(status, node_isolate);
-    MakeCallback(env, req_wrap_obj, env->oncomplete_string(), 1, &arg);
+    req_wrap->MakeCallback(env->oncomplete_string(), 1, &arg);
   }
   delete req_wrap;
 }
@@ -405,25 +404,21 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   Local<Value> argv[] = {
     Integer::New(nread, node_isolate),
     wrap_obj,
-    Undefined(),
-    Undefined()
+    Undefined(env->isolate()),
+    Undefined(env->isolate())
   };
 
   if (nread < 0) {
     if (buf->base != NULL)
       free(buf->base);
-    MakeCallback(env,
-                 wrap_obj,
-                 env->onmessage_string(),
-                 ARRAY_SIZE(argv),
-                 argv);
+    wrap->MakeCallback(env->onmessage_string(), ARRAY_SIZE(argv), argv);
     return;
   }
 
   char* base = static_cast<char*>(realloc(buf->base, nread));
   argv[2] = Buffer::Use(env, base, nread);
   argv[3] = AddressToJS(env, addr);
-  MakeCallback(env, wrap_obj, env->onmessage_string(), ARRAY_SIZE(argv), argv);
+  wrap->MakeCallback(env->onmessage_string(), ARRAY_SIZE(argv), argv);
 }
 
 

@@ -22,6 +22,7 @@
 #ifndef SRC_HANDLE_WRAP_H_
 #define SRC_HANDLE_WRAP_H_
 
+#include "async-wrap.h"
 #include "env.h"
 #include "node.h"
 #include "queue.h"
@@ -50,7 +51,7 @@ namespace node {
 //   js/c++ boundary crossing. At the javascript layer that should all be
 //   taken care of.
 
-class HandleWrap {
+class HandleWrap : public AsyncWrap {
  public:
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -64,24 +65,10 @@ class HandleWrap {
              uv_handle_t* handle);
   virtual ~HandleWrap();
 
-  inline Environment* env() const {
-    return env_;
-  }
-
-  inline v8::Local<v8::Object> object() {
-    return PersistentToLocal(env()->isolate(), persistent());
-  }
-
-  inline v8::Persistent<v8::Object>& persistent() {
-    return object_;
-  }
-
  private:
   friend void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>&);
   static void OnClose(uv_handle_t* handle);
-  v8::Persistent<v8::Object> object_;
   QUEUE handle_wrap_queue_;
-  Environment* const env_;
   unsigned int flags_;
   // Using double underscore due to handle_ member in tcp_wrap. Probably
   // tcp_wrap should rename it's member to 'handle'.

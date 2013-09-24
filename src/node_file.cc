@@ -67,7 +67,7 @@ using v8::Value;
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
   FSReqWrap(Environment* env, const char* syscall, char* data = NULL)
-    : ReqWrap<uv_fs_t>(env),
+    : ReqWrap<uv_fs_t>(env, Object::New()),
       syscall_(syscall),
       data_(data) {
   }
@@ -214,7 +214,7 @@ static void After(uv_fs_t *req) {
     }
   }
 
-  MakeCallback(env, req_wrap->object(), env->oncomplete_string(), argc, argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), argc, argv);
 
   uv_fs_req_cleanup(&req_wrap->req_);
   delete req_wrap;
