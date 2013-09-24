@@ -2934,7 +2934,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(kind(), Code::INTERCEPTOR, name);
+  return GetICCode(kind(), Code::INTERCEPTOR, name);
 }
 
 

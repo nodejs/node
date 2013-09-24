@@ -56,7 +56,7 @@ function doubles() {
 
 doubles(); doubles(); doubles();
 %OptimizeFunctionOnNextCall(doubles);
-result = doubles();
+var result = doubles();
 
 gc();
 
@@ -72,31 +72,8 @@ function doubles_int() {
 
 doubles_int(); doubles_int(); doubles_int();
 %OptimizeFunctionOnNextCall(doubles_int);
-result = doubles_int();
+var result = doubles_int();
 
 gc();
 
 assertEquals(result[1], 3.1);
-
-// Test allocation folding over a branch.
-
-function branch_int(left) {
-  var elem1 = [1, 2];
-  var elem2;
-  if (left) {
-    elem2 = [3, 4];
-  } else {
-    elem2 = [5, 6];
-  }
-  return elem2;
-}
-
-branch_int(1); branch_int(1); branch_int(1);
-%OptimizeFunctionOnNextCall(branch_int);
-result = branch_int(1);
-var result2 = branch_int(0);
-
-gc();
-
-assertEquals(result[1], 4);
-assertEquals(result2[1], 6);

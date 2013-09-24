@@ -8241,10 +8241,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     int pointer_size,
     AllocationSiteMode mode) {
   NoObservableSideEffectsScope no_effects(this);
-  InstanceType instance_type = boilerplate_object->map()->instance_type();
-  ASSERT(instance_type == JS_ARRAY_TYPE || instance_type == JS_OBJECT_TYPE);
-  HType type = instance_type == JS_ARRAY_TYPE
-      ? HType::JSArray() : HType::JSObject();
+
   HInstruction* target = NULL;
   HInstruction* data_target = NULL;
 
@@ -8261,11 +8258,14 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     }
     if (pointer_size != 0) {
       HValue* size_in_bytes = Add<HConstant>(pointer_size);
-      target = Add<HAllocate>(size_in_bytes, type, TENURED, instance_type);
+      target = Add<HAllocate>(size_in_bytes, HType::JSObject(), TENURED,
+          JS_OBJECT_TYPE);
     }
   } else {
+    InstanceType instance_type = boilerplate_object->map()->instance_type();
     HValue* size_in_bytes = Add<HConstant>(data_size + pointer_size);
-    target = Add<HAllocate>(size_in_bytes, type, NOT_TENURED, instance_type);
+    target = Add<HAllocate>(size_in_bytes, HType::JSObject(), NOT_TENURED,
+        instance_type);
   }
 
   int offset = 0;
@@ -8287,7 +8287,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
     int* data_offset,
     AllocationSiteMode mode) {
   bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE &&
-      AllocationSite::CanTrack(boilerplate_object->map()->instance_type());
+      boilerplate_object->map()->CanTrackAllocationSite();
 
   // If using allocation sites, then the payload on the site should already
   // be filled in as a valid (boilerplate) array.
@@ -8343,7 +8343,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
 
   // Create allocation site info.
   if (mode == TRACK_ALLOCATION_SITE &&
-      AllocationSite::CanTrack(boilerplate_object->map()->instance_type())) {
+      boilerplate_object->map()->CanTrackAllocationSite()) {
     elements_offset += AllocationMemento::kSize;
     *offset += AllocationMemento::kSize;
     BuildCreateAllocationMemento(target, JSArray::kSize, allocation_site);
