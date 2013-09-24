@@ -1689,14 +1689,14 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
     SSL_CTX_set_next_protos_advertised_cb(
         sc->ctx_,
         SSLWrap<Connection>::AdvertiseNextProtoCallback,
-        NULL);
+        conn);
   } else {
     // Client should select protocol from advertised
     // If server supports NPN
     SSL_CTX_set_next_proto_select_cb(
         sc->ctx_,
         SSLWrap<Connection>::SelectNextProtoCallback,
-        NULL);
+        conn);
   }
 #endif
 
