@@ -1,4 +1,13 @@
-2013.09.06, Version 0.10.16 (Stable)
+2013.09.25, Version 0.10.17 (Stable)
+
+Changes since version 0.10.16:
+
+* build: remove GCC_WARN_ABOUT_MISSING_NEWLINE (Ben Noordhuis)
+
+* darwin: fix 10.6 build error in fsevents.c (Ben Noordhuis)
+
+
+2013.09.06, Version 0.10.16 (Stable), 2bce230d81f4853a23662cbeb26fe98010b1084b
 
 Changes since version 0.10.15:
 

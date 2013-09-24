@@ -46,6 +46,27 @@ void uv__fsevents_loop_delete(uv_loop_t* loop) {
 #include <CoreFoundation/CFRunLoop.h>
 #include <CoreServices/CoreServices.h>
 
+/* These are macros to avoid "initializer element is not constant" errors
+ * with old versions of gcc.
+ */
+#define kFSEventsModified (kFSEventStreamEventFlagItemFinderInfoMod |         \
+                           kFSEventStreamEventFlagItemModified |              \
+                           kFSEventStreamEventFlagItemInodeMetaMod |          \
+                           kFSEventStreamEventFlagItemChangeOwner |           \
+                           kFSEventStreamEventFlagItemXattrMod)
+
+#define kFSEventsRenamed  (kFSEventStreamEventFlagItemCreated |               \
+                           kFSEventStreamEventFlagItemRemoved |               \
+                           kFSEventStreamEventFlagItemRenamed)
+
+#define kFSEventsSystem   (kFSEventStreamEventFlagUserDropped |               \
+                           kFSEventStreamEventFlagKernelDropped |             \
+                           kFSEventStreamEventFlagEventIdsWrapped |           \
+                           kFSEventStreamEventFlagHistoryDone |               \
+                           kFSEventStreamEventFlagMount |                     \
+                           kFSEventStreamEventFlagUnmount |                   \
+                           kFSEventStreamEventFlagRootChanged)
+
 typedef struct uv__fsevents_event_s uv__fsevents_event_t;
 typedef struct uv__cf_loop_signal_s uv__cf_loop_signal_t;
 typedef struct uv__cf_loop_state_s uv__cf_loop_state_t;
@@ -71,22 +92,6 @@ struct uv__fsevents_event_s {
   void* next;
   char path[1];
 };
-
-static const int kFSEventsModified = kFSEventStreamEventFlagItemFinderInfoMod |
-                                     kFSEventStreamEventFlagItemModified |
-                                     kFSEventStreamEventFlagItemInodeMetaMod |
-                                     kFSEventStreamEventFlagItemChangeOwner |
-                                     kFSEventStreamEventFlagItemXattrMod;
-static const int kFSEventsRenamed = kFSEventStreamEventFlagItemCreated |
-                                    kFSEventStreamEventFlagItemRemoved |
-                                    kFSEventStreamEventFlagItemRenamed;
-static const int kFSEventsSystem = kFSEventStreamEventFlagUserDropped |
-                                   kFSEventStreamEventFlagKernelDropped |
-                                   kFSEventStreamEventFlagEventIdsWrapped |
-                                   kFSEventStreamEventFlagHistoryDone |
-                                   kFSEventStreamEventFlagMount |
-                                   kFSEventStreamEventFlagUnmount |
-                                   kFSEventStreamEventFlagRootChanged;
 
 /* Forward declarations */
 static void uv__cf_loop_cb(void* arg);
