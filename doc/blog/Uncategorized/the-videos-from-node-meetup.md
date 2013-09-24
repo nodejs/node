@@ -7,4 +7,4 @@ slug: the-videos-from-node-meetup
 
 Uber, Voxer, and Joyent described how they use Node in production
 
-<a href="http://joyeur.com/2011/08/11/node-js-meetup-distributed-web-architectures/">http://joyeur.com/2011/08/11/node-js-meetup-distributed-web-architectures/</a>
+<a href="http://www.joyent.com/blog/node-js-meetup-distributed-web-architectures/">http://www.joyent.com/blog/node-js-meetup-distributed-web-architectures/</a>

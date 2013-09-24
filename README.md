@@ -55,7 +55,7 @@ Resources for Newcomers
 ---
   - [The Wiki](https://github.com/joyent/node/wiki)
   - [nodejs.org](http://nodejs.org/)
-  - [how to install node.js and npm (node package manager)](http://joyeur.com/2010/12/10/installing-node-and-npm/)
+  - [how to install node.js and npm (node package manager)](http://www.joyent.com/blog/installing-node-and-npm/)
   - [list of modules](https://github.com/joyent/node/wiki/modules)
   - [searching the npm registry](http://npmjs.org/)
   - [list of companies and projects using node](https://github.com/joyent/node/wiki/Projects,-Applications,-and-Companies-Using-Node)
