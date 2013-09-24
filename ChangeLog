@@ -1,4 +1,21 @@
-2013.09.04, Version 0.10.18 (Stable)
+2013.09.24, Version 0.10.19 (Stable)
+
+* uv: Upgrade to v0.10.17
+
+* npm: upgrade to 1.3.11
+
+* readline: handle input starting with control chars (Eric Schrock)
+
+* configure: add mips-float-abi (soft, hard) option (Andrei Sedoi)
+
+* stream: objectMode transforms allow falsey values (isaacs)
+
+* tls: prevent duplicate values returned from read (Nathan Rajlich)
+
+* tls: NPN protocols are now local to connections (Fedor Indutny)
+
+
+2013.09.04, Version 0.10.18 (Stable), 67a1f0c52e0708e2596f3f2134b8386d6112561e
 
 * uv: Upgrade to v0.10.15
 
