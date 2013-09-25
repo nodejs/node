@@ -22,6 +22,8 @@
 #include "node_stat_watcher.h"
 #include "env.h"
 #include "env-inl.h"
+#include "weak-object.h"
+#include "weak-object-inl.h"
 
 #include <assert.h>
 #include <string.h>
@@ -61,8 +63,8 @@ static void Delete(uv_handle_t* handle) {
 }
 
 
-StatWatcher::StatWatcher(Environment* env)
-    : ObjectWrap()
+StatWatcher::StatWatcher(Environment* env, Local<Object> wrap)
+    : WeakObject(env->isolate(), wrap)
     , watcher_(new uv_fs_poll_t)
     , env_(env) {
   uv_fs_poll_init(env->event_loop(), watcher_);
@@ -91,7 +93,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
     Integer::New(status, node_isolate)
   };
   MakeCallback(env,
-               wrap->handle(node_isolate),
+               wrap->weak_object(node_isolate),
                env->onchange_string(),
                ARRAY_SIZE(argv),
                argv);
@@ -102,8 +104,7 @@ void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
   assert(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
-  StatWatcher* s = new StatWatcher(env);
-  s->Wrap(args.This());
+  new StatWatcher(env, args.This());
 }
 
 
@@ -111,23 +112,23 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   assert(args.Length() == 3);
   HandleScope scope(node_isolate);
 
-  StatWatcher* wrap = ObjectWrap::Unwrap<StatWatcher>(args.This());
+  StatWatcher* wrap = WeakObject::Unwrap<StatWatcher>(args.This());
   String::Utf8Value path(args[0]);
   const bool persistent = args[1]->BooleanValue();
   const uint32_t interval = args[2]->Uint32Value();
 
   if (!persistent) uv_unref(reinterpret_cast<uv_handle_t*>(wrap->watcher_));
   uv_fs_poll_start(wrap->watcher_, Callback, *path, interval);
-  wrap->Ref();
+  wrap->ClearWeak();
 }
 
 
 void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
-  StatWatcher* wrap = ObjectWrap::Unwrap<StatWatcher>(args.This());
+  StatWatcher* wrap = WeakObject::Unwrap<StatWatcher>(args.This());
   Environment* env = wrap->env();
   Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
-  MakeCallback(env, wrap->handle(node_isolate), env->onstop_string());
+  MakeCallback(env, wrap->weak_object(node_isolate), env->onstop_string());
   wrap->Stop();
 }
 
@@ -135,7 +136,7 @@ void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
 void StatWatcher::Stop() {
   if (!uv_is_active(reinterpret_cast<uv_handle_t*>(watcher_))) return;
   uv_fs_poll_stop(watcher_);
-  Unref();
+  MakeWeak();
 }
 
 

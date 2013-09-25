@@ -25,6 +25,8 @@
 
 #include "env.h"
 #include "env-inl.h"
+#include "weak-object.h"
+#include "weak-object-inl.h"
 #include "v8.h"
 
 #include <stdlib.h>  // free()
@@ -185,10 +187,10 @@ struct StringPtr {
 };
 
 
-class Parser : public ObjectWrap {
+class Parser : public WeakObject {
  public:
-  Parser(Environment* env, enum http_parser_type type)
-      : ObjectWrap()
+  Parser(Environment* env, Local<Object> wrap, enum http_parser_type type)
+      : WeakObject(env->isolate(), wrap)
       , env_(env)
       , current_buffer_len_(0)
       , current_buffer_data_(NULL) {
@@ -252,7 +254,7 @@ class Parser : public ObjectWrap {
 
 
   HTTP_CB(on_headers_complete) {
-    Local<Object> obj = handle(node_isolate);
+    Local<Object> obj = weak_object(node_isolate);
     Local<Value> cb = obj->Get(kOnHeadersComplete);
 
     if (!cb->IsFunction())
@@ -313,7 +315,7 @@ class Parser : public ObjectWrap {
   HTTP_DATA_CB(on_body) {
     HandleScope scope(node_isolate);
 
-    Local<Object> obj = handle(node_isolate);
+    Local<Object> obj = weak_object(node_isolate);
     Local<Value> cb = obj->Get(kOnBody);
 
     if (!cb->IsFunction())
@@ -342,7 +344,7 @@ class Parser : public ObjectWrap {
     if (num_fields_)
       Flush();  // Flush trailing HTTP headers.
 
-    Local<Object> obj = handle(node_isolate);
+    Local<Object> obj = weak_object(node_isolate);
     Local<Value> cb = obj->Get(kOnMessageComplete);
 
     if (!cb->IsFunction())
@@ -362,13 +364,10 @@ class Parser : public ObjectWrap {
   static void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
-
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
-
     assert(type == HTTP_REQUEST || type == HTTP_RESPONSE);
-    Parser* parser = new Parser(env, type);
-    parser->Wrap(args.This());
+    new Parser(env, args.This(), type);
   }
 
 
@@ -389,7 +388,7 @@ class Parser : public ObjectWrap {
   static void Execute(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
-    Parser* parser = ObjectWrap::Unwrap<Parser>(args.This());
+    Parser* parser = WeakObject::Unwrap<Parser>(args.This());
     assert(parser->current_buffer_.IsEmpty());
     assert(parser->current_buffer_len_ == 0);
     assert(parser->current_buffer_data_ == NULL);
@@ -443,7 +442,7 @@ class Parser : public ObjectWrap {
   static void Finish(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
-    Parser* parser = ObjectWrap::Unwrap<Parser>(args.This());
+    Parser* parser = WeakObject::Unwrap<Parser>(args.This());
 
     assert(parser->current_buffer_.IsEmpty());
     parser->got_exception_ = false;
@@ -476,7 +475,7 @@ class Parser : public ObjectWrap {
         static_cast<http_parser_type>(args[0]->Int32Value());
 
     assert(type == HTTP_REQUEST || type == HTTP_RESPONSE);
-    Parser* parser = ObjectWrap::Unwrap<Parser>(args.This());
+    Parser* parser = WeakObject::Unwrap<Parser>(args.This());
     // Should always be called from the same context.
     assert(env == parser->env());
     parser->Init(type);
@@ -503,7 +502,7 @@ class Parser : public ObjectWrap {
   void Flush() {
     HandleScope scope(node_isolate);
 
-    Local<Object> obj = handle(node_isolate);
+    Local<Object> obj = weak_object(node_isolate);
     Local<Value> cb = obj->Get(kOnHeaders);
 
     if (!cb->IsFunction())

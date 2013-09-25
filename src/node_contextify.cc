@@ -24,6 +24,8 @@
 #include "node_watchdog.h"
 #include "env.h"
 #include "env-inl.h"
+#include "weak-object.h"
+#include "weak-object-inl.h"
 
 namespace node {
 
@@ -304,7 +306,7 @@ class ContextifyContext {
   }
 };
 
-class ContextifyScript : public ObjectWrap {
+class ContextifyScript : public WeakObject {
  private:
   Persistent<Script> script_;
 
@@ -335,8 +337,8 @@ class ContextifyScript : public ObjectWrap {
       return ThrowError("Must call vm.Script as a constructor.");
     }
 
-    ContextifyScript *contextify_script = new ContextifyScript();
-    contextify_script->Wrap(args.Holder());
+    ContextifyScript* contextify_script =
+        new ContextifyScript(args.GetIsolate(), args.This());
 
     TryCatch try_catch;
     Local<String> code = args[0]->ToString();
@@ -497,7 +499,7 @@ class ContextifyScript : public ObjectWrap {
     }
 
     ContextifyScript* wrapped_script =
-        ObjectWrap::Unwrap<ContextifyScript>(args.This());
+        WeakObject::Unwrap<ContextifyScript>(args.This());
     Local<Script> script = PersistentToLocal(node_isolate,
                                              wrapped_script->script_);
 
@@ -524,6 +526,11 @@ class ContextifyScript : public ObjectWrap {
     }
 
     args.GetReturnValue().Set(result);
+  }
+
+
+  ContextifyScript(Isolate* isolate, Local<Object> object)
+      : WeakObject(isolate, object) {
   }
 
 

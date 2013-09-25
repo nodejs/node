@@ -19,41 +19,36 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef SRC_NODE_STAT_WATCHER_H_
-#define SRC_NODE_STAT_WATCHER_H_
+#ifndef SRC_WEAK_OBJECT_H_
+#define SRC_WEAK_OBJECT_H_
 
-#include "node_object_wrap.h"
-
-#include "env.h"
-#include "uv.h"
 #include "v8.h"
-#include "weak-object.h"
 
 namespace node {
 
-class StatWatcher : public WeakObject {
+class WeakObject {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
-  inline Environment* env() const { return env_; }
-
+  // FIXME(bnoordhuis) These methods are public only because the code base
+  // plays fast and loose with encapsulation.
+  template <typename TypeName>
+  inline static TypeName* Unwrap(v8::Local<v8::Object> object);
+  // Returns the wrapped object.  Illegal to call in your destructor.
+  inline v8::Local<v8::Object> weak_object(v8::Isolate* isolate) const;
  protected:
-  StatWatcher(Environment* env, v8::Local<v8::Object> wrap);
-  virtual ~StatWatcher();
-
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
-
+  // |object| should be an instance of a v8::ObjectTemplate that has at least
+  // one internal field reserved with v8::ObjectTemplate::SetInternalFieldCount.
+  inline WeakObject(v8::Isolate* isolate, v8::Local<v8::Object> object);
+  virtual inline ~WeakObject();
+  inline void MakeWeak();
+  inline void ClearWeak();
  private:
-  static void Callback(uv_fs_poll_t* handle,
-                       int status,
-                       const uv_stat_t* prev,
-                       const uv_stat_t* curr);
-  void Stop();
-
-  uv_fs_poll_t* watcher_;
-  Environment* const env_;
+  inline static void WeakCallback(v8::Isolate* isolate,
+                                  v8::Persistent<v8::Object>* persistent,
+                                  WeakObject* self);
+  static const int kInternalFieldIndex = 0;
+  v8::Persistent<v8::Object> weak_object_;
 };
 
 }  // namespace node
-#endif  // SRC_NODE_STAT_WATCHER_H_
+
+#endif  // SRC_WEAK_OBJECT_H_

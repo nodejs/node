@@ -144,6 +144,8 @@
         'src/tree.h',
         'src/util.h',
         'src/util-inl.h',
+        'src/weak-object.h',
+        'src/weak-object-inl.h',
         'deps/http_parser/http_parser.h',
         '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
         # javascript files to make for an even more pleasant IDE experience

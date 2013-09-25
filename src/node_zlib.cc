@@ -24,6 +24,9 @@
 
 #include "env.h"
 #include "env-inl.h"
+#include "weak-object.h"
+#include "weak-object-inl.h"
+
 #include "v8.h"
 #include "zlib.h"
 
@@ -64,11 +67,11 @@ void InitZlib(v8::Handle<v8::Object> target);
 /**
  * Deflate/Inflate
  */
-class ZCtx : public ObjectWrap {
+class ZCtx : public WeakObject {
  public:
 
-  ZCtx(Environment* env, node_zlib_mode mode)
-      : ObjectWrap()
+  ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
+      : WeakObject(env->isolate(), wrap)
       , chunk_size_(0)
       , dictionary_(NULL)
       , dictionary_len_(0)
@@ -118,7 +121,7 @@ class ZCtx : public ObjectWrap {
 
   static void Close(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = WeakObject::Unwrap<ZCtx>(args.This());
     ctx->Close();
   }
 
@@ -128,13 +131,13 @@ class ZCtx : public ObjectWrap {
     HandleScope scope(node_isolate);
     assert(args.Length() == 7);
 
-    ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = WeakObject::Unwrap<ZCtx>(args.This());
     assert(ctx->init_done_ && "write before init");
     assert(ctx->mode_ != NONE && "already finalized");
 
     assert(!ctx->write_in_progress_ && "write already in progress");
     ctx->write_in_progress_ = true;
-    ctx->Ref();
+    ctx->ClearWeak();
 
     assert(!args[0]->IsUndefined() && "must provide flush value");
 
@@ -194,7 +197,7 @@ class ZCtx : public ObjectWrap {
                   ZCtx::Process,
                   ZCtx::After);
 
-    args.GetReturnValue().Set(ctx->persistent());
+    args.GetReturnValue().Set(ctx->weak_object(node_isolate));
   }
 
 
@@ -284,11 +287,11 @@ class ZCtx : public ObjectWrap {
     ctx->write_in_progress_ = false;
 
     // call the write() cb
-    Local<Object> handle = ctx->handle(node_isolate);
+    Local<Object> handle = ctx->weak_object(node_isolate);
     Local<Value> args[2] = { avail_in, avail_out };
     MakeCallback(env, handle, env->callback_string(), ARRAY_SIZE(args), args);
 
-    ctx->Unref();
+    ctx->MakeWeak();
   }
 
   static void Error(ZCtx* ctx, const char* message) {
@@ -301,7 +304,7 @@ class ZCtx : public ObjectWrap {
       message = ctx->strm_.msg;
     }
 
-    Local<Object> handle = ctx->handle(node_isolate);
+    Local<Object> handle = ctx->weak_object(node_isolate);
     HandleScope scope(node_isolate);
     Local<Value> args[2] = {
       OneByteString(node_isolate, message),
@@ -311,7 +314,7 @@ class ZCtx : public ObjectWrap {
 
     // no hope of rescue.
     ctx->write_in_progress_ = false;
-    ctx->Unref();
+    ctx->MakeWeak();
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
@@ -327,8 +330,7 @@ class ZCtx : public ObjectWrap {
       return ThrowTypeError("Bad argument");
     }
 
-    ZCtx* ctx = new ZCtx(env, mode);
-    ctx->Wrap(args.This());
+    new ZCtx(env, args.This(), mode);
   }
 
   // just pull the ints out of the args and call the other Init
@@ -338,7 +340,7 @@ class ZCtx : public ObjectWrap {
     assert((args.Length() == 4 || args.Length() == 5) &&
            "init(windowBits, level, memLevel, strategy, [dictionary])");
 
-    ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = WeakObject::Unwrap<ZCtx>(args.This());
 
     int windowBits = args[0]->Uint32Value();
     assert((windowBits >= 8 && windowBits <= 15) && "invalid windowBits");
@@ -377,7 +379,7 @@ class ZCtx : public ObjectWrap {
 
     assert(args.Length() == 2 && "params(level, strategy)");
 
-    ZCtx* ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = WeakObject::Unwrap<ZCtx>(args.This());
 
     Params(ctx, args[0]->Int32Value(), args[1]->Int32Value());
   }
@@ -385,7 +387,7 @@ class ZCtx : public ObjectWrap {
   static void Reset(const FunctionCallbackInfo<Value> &args) {
     HandleScope scope(node_isolate);
 
-    ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = WeakObject::Unwrap<ZCtx>(args.This());
 
     Reset(ctx);
     SetDictionary(ctx);

@@ -64,8 +64,8 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
 
   // Just for compliance with Connection
-  inline v8::Local<v8::Object> handle(v8::Isolate* isolate) {
-    return object(isolate);
+  inline v8::Local<v8::Object> weak_object(v8::Isolate* isolate) {
+    return PersistentToLocal(isolate, persistent());
   }
 
  protected:
@@ -122,10 +122,6 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   static void SetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-
-  inline v8::Local<v8::Object> object(v8::Isolate* isolate) {
-    return PersistentToLocal(isolate, persistent());
-  }
 
   inline v8::Persistent<v8::Object>& persistent() {
     return object_;

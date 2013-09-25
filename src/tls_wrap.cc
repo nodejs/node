@@ -58,7 +58,7 @@ TLSCallbacks::TLSCallbacks(Environment* env,
                            Kind kind,
                            Handle<Object> sc,
                            StreamWrapCallbacks* old)
-    : SSLWrap<TLSCallbacks>(env, ObjectWrap::Unwrap<SecureContext>(sc), kind),
+    : SSLWrap<TLSCallbacks>(env, WeakObject::Unwrap<SecureContext>(sc), kind),
       StreamWrapCallbacks(old),
       enc_in_(NULL),
       enc_out_(NULL),
@@ -70,7 +70,7 @@ TLSCallbacks::TLSCallbacks(Environment* env,
       shutdown_(false) {
 
   // Persist SecureContext
-  sc_ = ObjectWrap::Unwrap<SecureContext>(sc);
+  sc_ = WeakObject::Unwrap<SecureContext>(sc);
   sc_handle_.Reset(node_isolate, sc);
 
   Local<Object> object = env->tls_wrap_constructor_function()->NewInstance();
@@ -236,7 +236,7 @@ void TLSCallbacks::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   // There should be a Context::Scope a few stack frames down.
   assert(env->context() == env->isolate()->GetCurrentContext());
   HandleScope handle_scope(env->isolate());
-  Local<Object> object = c->object(env->isolate());
+  Local<Object> object = c->weak_object(env->isolate());
 
   if (where & SSL_CB_HANDSHAKE_START) {
     Local<Value> callback = object->Get(env->onhandshakestart_string());
@@ -313,7 +313,7 @@ void TLSCallbacks::EncOutCb(uv_write_t* req, int status) {
         FIXED_ONE_BYTE_STRING(node_isolate, "write cb error, status: "),
         Integer::New(status, node_isolate)->ToString());
     MakeCallback(env,
-                 callbacks->object(node_isolate),
+                 callbacks->weak_object(node_isolate),
                  env->onerror_string(),
                  1,
                  &arg);
@@ -398,7 +398,7 @@ void TLSCallbacks::ClearOut() {
 
     if (!argv.IsEmpty()) {
       MakeCallback(env(),
-                   object(node_isolate),
+                   weak_object(node_isolate),
                    env()->onerror_string(),
                    1,
                    &argv);
@@ -437,7 +437,7 @@ bool TLSCallbacks::ClearIn() {
   Handle<Value> argv = GetSSLError(written, &err);
   if (!argv.IsEmpty()) {
     MakeCallback(env(),
-                 object(node_isolate),
+                 weak_object(node_isolate),
                  env()->onerror_string(),
                  1,
                  &argv);
@@ -504,7 +504,7 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
     Handle<Value> argv = GetSSLError(written, &err);
     if (!argv.IsEmpty()) {
       MakeCallback(env(),
-                   object(node_isolate),
+                   weak_object(node_isolate),
                    env()->onerror_string(),
                    1,
                    &argv);
@@ -688,7 +688,7 @@ int TLSCallbacks::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
 
   if (servername != NULL) {
     // Call the SNI callback and use its return value as context
-    Local<Object> object = p->object(node_isolate);
+    Local<Object> object = p->weak_object(node_isolate);
     Local<Value> ctx = object->Get(env->sni_context_string());
 
     if (!ctx->IsObject())
@@ -697,7 +697,7 @@ int TLSCallbacks::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
     p->sni_context_.Dispose();
     p->sni_context_.Reset(node_isolate, ctx);
 
-    SecureContext* sc = ObjectWrap::Unwrap<SecureContext>(ctx.As<Object>());
+    SecureContext* sc = WeakObject::Unwrap<SecureContext>(ctx.As<Object>());
     SSL_set_SSL_CTX(s, sc->ctx_);
   }
 

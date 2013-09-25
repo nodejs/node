@@ -32,6 +32,9 @@
 #endif
 
 #include "env.h"
+#include "weak-object.h"
+#include "weak-object-inl.h"
+
 #include "v8.h"
 
 #include <openssl/ssl.h>
@@ -57,7 +60,7 @@ extern X509_STORE* root_cert_store;
 // Forward declaration
 class Connection;
 
-class SecureContext : public ObjectWrap {
+class SecureContext : public WeakObject {
  public:
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
@@ -90,8 +93,8 @@ class SecureContext : public ObjectWrap {
   static void GetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  explicit SecureContext(Environment* env)
-      : ObjectWrap()
+  SecureContext(Environment* env, v8::Local<v8::Object> wrap)
+      : WeakObject(env->isolate(), wrap)
       , ca_store_(NULL)
       , ctx_(NULL)
       , env_(env) {
@@ -219,7 +222,7 @@ class SSLWrap {
   friend class SecureContext;
 };
 
-class Connection : public SSLWrap<Connection>, public ObjectWrap {
+class Connection : public SSLWrap<Connection>, public WeakObject {
  public:
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
@@ -273,15 +276,17 @@ class Connection : public SSLWrap<Connection>, public ObjectWrap {
   void SetShutdownFlags();
 
   static Connection* Unwrap(v8::Local<v8::Object> object) {
-    Connection* conn = ObjectWrap::Unwrap<Connection>(object);
+    Connection* conn = WeakObject::Unwrap<Connection>(object);
     conn->ClearError();
     return conn;
   }
 
   Connection(Environment* env,
+             v8::Local<v8::Object> wrap,
              SecureContext* sc,
              SSLWrap<Connection>::Kind kind)
       : SSLWrap<Connection>(env, sc, kind)
+      , WeakObject(env->isolate(), wrap)
       , bio_read_(NULL)
       , bio_write_(NULL)
       , hello_offset_(0) {
@@ -312,7 +317,7 @@ class Connection : public SSLWrap<Connection>, public ObjectWrap {
   friend class SecureContext;
 };
 
-class CipherBase : public ObjectWrap {
+class CipherBase : public WeakObject {
  public:
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
@@ -339,9 +344,13 @@ class CipherBase : public ObjectWrap {
   static void Final(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAutoPadding(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  explicit CipherBase(CipherKind kind) : cipher_(NULL),
-                                         initialised_(false),
-                                         kind_(kind) {
+  CipherBase(v8::Isolate* isolate,
+             v8::Local<v8::Object> wrap,
+             CipherKind kind)
+      : WeakObject(isolate, wrap)
+      , cipher_(NULL)
+      , initialised_(false)
+      , kind_(kind) {
   }
 
   ~CipherBase() {
@@ -356,7 +365,7 @@ class CipherBase : public ObjectWrap {
   CipherKind kind_;
 };
 
-class Hmac : public ObjectWrap {
+class Hmac : public WeakObject {
  public:
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
@@ -370,7 +379,10 @@ class Hmac : public ObjectWrap {
   static void HmacUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void HmacDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Hmac() : md_(NULL), initialised_(false) {
+  Hmac(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
+      : WeakObject(isolate, wrap)
+      , md_(NULL)
+      , initialised_(false) {
   }
 
   ~Hmac() {
@@ -384,7 +396,7 @@ class Hmac : public ObjectWrap {
   bool initialised_;
 };
 
-class Hash : public ObjectWrap {
+class Hash : public WeakObject {
  public:
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
@@ -396,7 +408,10 @@ class Hash : public ObjectWrap {
   static void HashUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void HashDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Hash() : md_(NULL), initialised_(false) {
+  Hash(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
+      : WeakObject(isolate, wrap)
+      , md_(NULL)
+      , initialised_(false) {
   }
 
   ~Hash() {
@@ -410,7 +425,7 @@ class Hash : public ObjectWrap {
   bool initialised_;
 };
 
-class Sign : public ObjectWrap {
+class Sign : public WeakObject {
  public:
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
@@ -427,7 +442,10 @@ class Sign : public ObjectWrap {
   static void SignUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SignFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Sign() : md_(NULL), initialised_(false) {
+  Sign(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
+      : WeakObject(isolate, wrap)
+      , md_(NULL)
+      , initialised_(false) {
   }
 
   ~Sign() {
@@ -441,7 +459,7 @@ class Sign : public ObjectWrap {
   bool initialised_;
 };
 
-class Verify : public ObjectWrap {
+class Verify : public WeakObject {
  public:
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
@@ -458,7 +476,10 @@ class Verify : public ObjectWrap {
   static void VerifyUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void VerifyFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Verify() : md_(NULL), initialised_(false) {
+  Verify(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
+      : WeakObject(isolate, wrap)
+      , md_(NULL)
+      , initialised_(false) {
   }
 
   ~Verify() {
@@ -472,7 +493,7 @@ class Verify : public ObjectWrap {
   bool initialised_;
 };
 
-class DiffieHellman : public ObjectWrap {
+class DiffieHellman : public WeakObject {
  public:
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
@@ -493,7 +514,10 @@ class DiffieHellman : public ObjectWrap {
   static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  DiffieHellman() : ObjectWrap(), initialised_(false), dh(NULL) {
+  DiffieHellman(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
+      : WeakObject(isolate, wrap)
+      , initialised_(false)
+      , dh(NULL) {
   }
 
   ~DiffieHellman() {
