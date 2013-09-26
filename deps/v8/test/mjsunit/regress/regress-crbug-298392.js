@@ -25,78 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nouse-osr --expose-gc
+function foo() {
+  return [[1,2,3], [5,6,6]];
+}
 
-// Test loop barrier when folding allocations.
+function bar() {
+  return ["foo", "bar"];
+}
 
-function f() {
-  var elem1 = [1,2,3];
-  for (var i=0; i < 100000; i++) {
-    var bar = [1];
+function baz() {
+  return [foo(), bar(), foo(), bar()];
+}
+
+function thingy() {
+  var result = [];
+  for (var i = 0; i < 50000; ++i) {
+    result.push(baz());
   }
-  var elem2 = [1,2,3];
-  return elem2;
+  return result;
 }
 
-f(); f(); f();
-%OptimizeFunctionOnNextCall(f);
-var result = f();
-
-gc();
-
-assertEquals(result[2], 3);
-
-// Test allocation folding of doubles.
-
-function doubles() {
-  var elem1 = [1.1, 1.2];
-  var elem2 = [2.1, 2.2];
-  return elem2;
+var size = thingy().length;
+if (size != 50000) {
+  throw "Error: bad size: " + size;
 }
-
-doubles(); doubles(); doubles();
-%OptimizeFunctionOnNextCall(doubles);
-result = doubles();
-
-gc();
-
-assertEquals(result[1], 2.2);
-
-// Test allocation folding of doubles into non-doubles.
-
-function doubles_int() {
-  var elem1 = [2, 3];
-  var elem2 = [2.1, 3.1];
-  return elem2;
-}
-
-doubles_int(); doubles_int(); doubles_int();
-%OptimizeFunctionOnNextCall(doubles_int);
-result = doubles_int();
-
-gc();
-
-assertEquals(result[1], 3.1);
-
-// Test allocation folding over a branch.
-
-function branch_int(left) {
-  var elem1 = [1, 2];
-  var elem2;
-  if (left) {
-    elem2 = [3, 4];
-  } else {
-    elem2 = [5, 6];
-  }
-  return elem2;
-}
-
-branch_int(1); branch_int(1); branch_int(1);
-%OptimizeFunctionOnNextCall(branch_int);
-result = branch_int(1);
-var result2 = branch_int(0);
-
-gc();
-
-assertEquals(result[1], 4);
-assertEquals(result2[1], 6);

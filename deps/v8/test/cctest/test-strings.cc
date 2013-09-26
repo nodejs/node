@@ -1017,6 +1017,36 @@ TEST(ExternalShortStringAdd) {
 }
 
 
+TEST(JSONStringifySliceMadeExternal) {
+  Isolate* isolate = Isolate::Current();
+  Zone zone(isolate);
+  CcTest::InitializeVM();
+  // Create a sliced string from a one-byte string.  The latter is turned
+  // into a two-byte external string.  Check that JSON.stringify works.
+  v8::HandleScope handle_scope(CcTest::isolate());
+  v8::Handle<v8::String> underlying =
+      CompileRun("var underlying = 'abcdefghijklmnopqrstuvwxyz';"
+                 "underlying")->ToString();
+  v8::Handle<v8::String> slice =
+      CompileRun("var slice = underlying.slice(1);"
+                 "slice")->ToString();
+  CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
+  CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
+
+  int length = underlying->Length();
+  uc16* two_byte = zone.NewArray<uc16>(length + 1);
+  underlying->Write(two_byte);
+  Resource* resource =
+      new(&zone) Resource(Vector<const uc16>(two_byte, length));
+  CHECK(underlying->MakeExternal(resource));
+  CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
+  CHECK(v8::Utils::OpenHandle(*underlying)->IsExternalTwoByteString());
+
+  CHECK_EQ("\"bcdefghijklmnopqrstuvwxyz\"",
+           *v8::String::Utf8Value(CompileRun("JSON.stringify(slice)")));
+}
+
+
 TEST(CachedHashOverflow) {
   // We incorrectly allowed strings to be tagged as array indices even if their
   // values didn't fit in the hash field.

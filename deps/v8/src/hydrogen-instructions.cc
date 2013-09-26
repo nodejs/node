@@ -2366,6 +2366,24 @@ HConstant::HConstant(Handle<Object> handle,
 }
 
 
+HConstant::HConstant(Handle<Map> handle,
+                     UniqueValueId unique_id)
+  : HTemplateInstruction<0>(HType::Tagged()),
+    handle_(handle),
+    unique_id_(unique_id),
+    has_smi_value_(false),
+    has_int32_value_(false),
+    has_double_value_(false),
+    has_external_reference_value_(false),
+    is_internalized_string_(false),
+    is_not_in_new_space_(true),
+    is_cell_(false),
+    boolean_value_(false) {
+  ASSERT(!handle.is_null());
+  Initialize(Representation::Tagged());
+}
+
+
 HConstant::HConstant(int32_t integer_value,
                      Representation r,
                      bool is_not_in_new_space,
@@ -3183,6 +3201,7 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
   ASSERT(side_effect == kChangesNewSpacePromotion);
+  Zone* zone = block()->zone();
   if (!FLAG_use_allocation_folding) return;
 
   // Try to fold allocations together with their dominating allocations.
@@ -3194,31 +3213,44 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     return;
   }
 
-  HAllocate* dominator_allocate_instr = HAllocate::cast(dominator);
-  HValue* dominator_size = dominator_allocate_instr->size();
+  HAllocate* dominator_allocate = HAllocate::cast(dominator);
+  HValue* dominator_size = dominator_allocate->size();
   HValue* current_size = size();
-  // We can just fold allocations that are guaranteed in new space.
+
   // TODO(hpayer): Add support for non-constant allocation in dominator.
-  if (!IsNewSpaceAllocation() || !current_size->IsInteger32Constant() ||
-      !dominator_allocate_instr->IsNewSpaceAllocation() ||
+  if (!current_size->IsInteger32Constant() ||
       !dominator_size->IsInteger32Constant()) {
     if (FLAG_trace_allocation_folding) {
-      PrintF("#%d (%s) cannot fold into #%d (%s)\n",
+      PrintF("#%d (%s) cannot fold into #%d (%s), dynamic allocation size\n",
           id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
     }
     return;
   }
 
+  dominator_allocate = GetFoldableDominator(dominator_allocate);
+  if (dominator_allocate == NULL) {
+    return;
+  }
+
+  ASSERT((IsNewSpaceAllocation() &&
+         dominator_allocate->IsNewSpaceAllocation()) ||
+         (IsOldDataSpaceAllocation() &&
+         dominator_allocate->IsOldDataSpaceAllocation()) ||
+         (IsOldPointerSpaceAllocation() &&
+         dominator_allocate->IsOldPointerSpaceAllocation()));
+
   // First update the size of the dominator allocate instruction.
-  int32_t dominator_size_constant =
+  dominator_size = dominator_allocate->size();
+  int32_t original_object_size =
       HConstant::cast(dominator_size)->GetInteger32Constant();
+  int32_t dominator_size_constant = original_object_size;
   int32_t current_size_constant =
       HConstant::cast(current_size)->GetInteger32Constant();
   int32_t new_dominator_size = dominator_size_constant + current_size_constant;
 
   if (MustAllocateDoubleAligned()) {
-    if (!dominator_allocate_instr->MustAllocateDoubleAligned()) {
-      dominator_allocate_instr->MakeDoubleAligned();
+    if (!dominator_allocate->MustAllocateDoubleAligned()) {
+      dominator_allocate->MakeDoubleAligned();
     }
     if ((dominator_size_constant & kDoubleAlignmentMask) != 0) {
       dominator_size_constant += kDoubleSize / 2;
@@ -3229,36 +3261,167 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   if (new_dominator_size > Page::kMaxNonCodeHeapObjectSize) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s) due to size: %d\n",
-          id(), Mnemonic(), dominator->id(), dominator->Mnemonic(),
-          new_dominator_size);
+          id(), Mnemonic(), dominator_allocate->id(),
+          dominator_allocate->Mnemonic(), new_dominator_size);
     }
     return;
   }
-  HBasicBlock* block = dominator->block();
-  Zone* zone = block->zone();
-  HInstruction* new_dominator_size_constant =
-      HConstant::New(zone, context(), new_dominator_size);
-  new_dominator_size_constant->InsertBefore(dominator_allocate_instr);
-  dominator_allocate_instr->UpdateSize(new_dominator_size_constant);
+
+  HInstruction* new_dominator_size_constant = HConstant::CreateAndInsertBefore(
+      zone, context(), new_dominator_size, dominator_allocate);
+  dominator_allocate->UpdateSize(new_dominator_size_constant);
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    dominator_allocate_instr->MakePrefillWithFiller();
+  if (FLAG_verify_heap && dominator_allocate->IsNewSpaceAllocation()) {
+    dominator_allocate->MakePrefillWithFiller();
+  } else {
+    // TODO(hpayer): This is a short-term hack to make allocation mementos
+    // work again in new space.
+    dominator_allocate->ClearNextMapWord(original_object_size);
   }
+#else
+  // TODO(hpayer): This is a short-term hack to make allocation mementos
+  // work again in new space.
+  dominator_allocate->ClearNextMapWord(original_object_size);
 #endif
+
+  dominator_allocate->clear_next_map_word_ = clear_next_map_word_;
 
   // After that replace the dominated allocate instruction.
   HInstruction* dominated_allocate_instr =
       HInnerAllocatedObject::New(zone,
                                  context(),
-                                 dominator_allocate_instr,
+                                 dominator_allocate,
                                  dominator_size_constant,
                                  type());
   dominated_allocate_instr->InsertBefore(this);
   DeleteAndReplaceWith(dominated_allocate_instr);
   if (FLAG_trace_allocation_folding) {
     PrintF("#%d (%s) folded into #%d (%s)\n",
-        id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+        id(), Mnemonic(), dominator_allocate->id(),
+        dominator_allocate->Mnemonic());
+  }
+}
+
+
+HAllocate* HAllocate::GetFoldableDominator(HAllocate* dominator) {
+  if (!IsFoldable(dominator)) {
+    // We cannot hoist old space allocations over new space allocations.
+    if (IsNewSpaceAllocation() || dominator->IsNewSpaceAllocation()) {
+      if (FLAG_trace_allocation_folding) {
+        PrintF("#%d (%s) cannot fold into #%d (%s), new space hoisting\n",
+            id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+      }
+      return NULL;
+    }
+
+    HAllocate* dominator_dominator = dominator->dominating_allocate_;
+
+    // We can hoist old data space allocations over an old pointer space
+    // allocation and vice versa. For that we have to check the dominator
+    // of the dominator allocate instruction.
+    if (dominator_dominator == NULL) {
+      dominating_allocate_ = dominator;
+      if (FLAG_trace_allocation_folding) {
+        PrintF("#%d (%s) cannot fold into #%d (%s), different spaces\n",
+            id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+      }
+      return NULL;
+    }
+
+    // We can just fold old space allocations that are in the same basic block,
+    // since it is not guaranteed that we fill up the whole allocated old
+    // space memory.
+    // TODO(hpayer): Remove this limitation and add filler maps for each each
+    // allocation as soon as we have store elimination.
+    if (block()->block_id() != dominator_dominator->block()->block_id()) {
+      if (FLAG_trace_allocation_folding) {
+        PrintF("#%d (%s) cannot fold into #%d (%s), different basic blocks\n",
+            id(), Mnemonic(), dominator_dominator->id(),
+            dominator_dominator->Mnemonic());
+      }
+      return NULL;
+    }
+
+    ASSERT((IsOldDataSpaceAllocation() &&
+           dominator_dominator->IsOldDataSpaceAllocation()) ||
+           (IsOldPointerSpaceAllocation() &&
+           dominator_dominator->IsOldPointerSpaceAllocation()));
+
+    int32_t current_size = HConstant::cast(size())->GetInteger32Constant();
+    HStoreNamedField* dominator_free_space_size =
+        dominator->filler_free_space_size_;
+    if (dominator_free_space_size != NULL) {
+      // We already hoisted one old space allocation, i.e., we already installed
+      // a filler map. Hence, we just have to update the free space size.
+      dominator->UpdateFreeSpaceFiller(current_size);
+    } else {
+      // This is the first old space allocation that gets hoisted. We have to
+      // install a filler map since the follwing allocation may cause a GC.
+      dominator->CreateFreeSpaceFiller(current_size);
+    }
+
+    // We can hoist the old space allocation over the actual dominator.
+    return dominator_dominator;
+  }
+  return dominator;
+}
+
+
+void HAllocate::UpdateFreeSpaceFiller(int32_t free_space_size) {
+  ASSERT(filler_free_space_size_ != NULL);
+  Zone* zone = block()->zone();
+  HConstant* new_free_space_size = HConstant::CreateAndInsertBefore(
+      zone,
+      context(),
+      filler_free_space_size_->value()->GetInteger32Constant() +
+          free_space_size,
+      filler_free_space_size_);
+  filler_free_space_size_->UpdateValue(new_free_space_size);
+}
+
+
+void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
+  ASSERT(filler_free_space_size_ == NULL);
+  Zone* zone = block()->zone();
+  int32_t dominator_size =
+      HConstant::cast(dominating_allocate_->size())->GetInteger32Constant();
+  HInstruction* free_space_instr =
+      HInnerAllocatedObject::New(zone, context(), dominating_allocate_,
+      dominator_size, type());
+  free_space_instr->InsertBefore(this);
+  HConstant* filler_map = HConstant::New(
+      zone,
+      context(),
+      isolate()->factory()->free_space_map(),
+      UniqueValueId(isolate()->heap()->free_space_map()));
+  filler_map->InsertAfter(free_space_instr);
+  HInstruction* store_map = HStoreNamedField::New(zone, context(),
+      free_space_instr, HObjectAccess::ForMap(), filler_map);
+  store_map->SetFlag(HValue::kHasNoObservableSideEffects);
+  store_map->InsertAfter(filler_map);
+
+  HConstant* filler_size = HConstant::CreateAndInsertAfter(
+      zone, context(), free_space_size, store_map);
+  HObjectAccess access =
+      HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset);
+  HStoreNamedField* store_size = HStoreNamedField::New(zone, context(),
+      free_space_instr, access, filler_size);
+  store_size->SetFlag(HValue::kHasNoObservableSideEffects);
+  store_size->InsertAfter(filler_size);
+  filler_free_space_size_ = store_size;
+}
+
+
+void HAllocate::ClearNextMapWord(int offset) {
+  if (clear_next_map_word_) {
+    Zone* zone = block()->zone();
+    HObjectAccess access = HObjectAccess::ForJSObjectOffset(offset);
+    HStoreNamedField* clear_next_map =
+        HStoreNamedField::New(zone, context(), this, access,
+            block()->graph()->GetConstantNull());
+    clear_next_map->ClearAllSideEffects();
+    clear_next_map->InsertAfter(this);
   }
 }
 

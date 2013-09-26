@@ -1407,7 +1407,7 @@ void LCodeGen::DoBitI(LBitI* instr) {
         break;
       case Token::BIT_XOR:
         if (right_operand == int32_t(~0)) {
-          __ not_(ToRegister(left));
+          __ notl(ToRegister(left));
         } else {
           __ xorl(ToRegister(left), Immediate(right_operand));
         }
