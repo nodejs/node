@@ -23,14 +23,16 @@
 #define SRC_WEAK_OBJECT_INL_H_
 
 #include "weak-object.h"
+#include "async-wrap.h"
+#include "async-wrap-inl.h"
 #include "util.h"
 #include "util-inl.h"
 
 namespace node {
 
-WeakObject::WeakObject(v8::Isolate* isolate, v8::Local<v8::Object> object)
-    : weak_object_(isolate, object) {
-  weak_object_.MarkIndependent();
+WeakObject::WeakObject(Environment* env, v8::Local<v8::Object> object)
+    : AsyncWrap(env, object) {
+  persistent().MarkIndependent();
 
   // The pointer is resolved as void*.
   Wrap<WeakObject>(object, this);
@@ -40,16 +42,12 @@ WeakObject::WeakObject(v8::Isolate* isolate, v8::Local<v8::Object> object)
 WeakObject::~WeakObject() {
 }
 
-v8::Local<v8::Object> WeakObject::weak_object(v8::Isolate* isolate) const {
-  return v8::Local<v8::Object>::New(isolate, weak_object_);
-}
-
 void WeakObject::MakeWeak() {
-  weak_object_.MakeWeak(this, WeakCallback);
+  persistent().MakeWeak(this, WeakCallback);
 }
 
 void WeakObject::ClearWeak() {
-  weak_object_.ClearWeak();
+  persistent().ClearWeak();
 }
 
 void WeakObject::WeakCallback(v8::Isolate* isolate,
@@ -57,7 +55,9 @@ void WeakObject::WeakCallback(v8::Isolate* isolate,
                               WeakObject* self) {
   // Dispose now instead of in the destructor to avoid child classes that call
   // `delete this` in their destructor from blowing up.
-  persistent->Dispose();
+  // Dispose the class member instead of the argument or else the IsEmpty()
+  // check in ~AsyncWrap will fail.
+  self->persistent().Dispose();
   delete self;
 }
 

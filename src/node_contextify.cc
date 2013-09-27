@@ -412,8 +412,9 @@ class ContextifyScript : public WeakObject {
       return ThrowError("Must call vm.Script as a constructor.");
     }
 
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
     ContextifyScript* contextify_script =
-        new ContextifyScript(args.GetIsolate(), args.This());
+        new ContextifyScript(env, args.This());
 
     TryCatch try_catch;
     Local<String> code = args[0]->ToString();
@@ -605,8 +606,8 @@ class ContextifyScript : public WeakObject {
   }
 
 
-  ContextifyScript(Isolate* isolate, Local<Object> object)
-      : WeakObject(isolate, object) {
+  ContextifyScript(Environment* env, Local<Object> object)
+      : WeakObject(env, object) {
   }
 
 

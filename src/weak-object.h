@@ -22,18 +22,17 @@
 #ifndef SRC_WEAK_OBJECT_H_
 #define SRC_WEAK_OBJECT_H_
 
+#include "async-wrap.h"
+#include "env.h"
 #include "v8.h"
 
 namespace node {
 
-class WeakObject {
- public:
-  // Returns the wrapped object.  Illegal to call in your destructor.
-  inline v8::Local<v8::Object> weak_object(v8::Isolate* isolate) const;
+class WeakObject : public AsyncWrap {
  protected:
   // |object| should be an instance of a v8::ObjectTemplate that has at least
   // one internal field reserved with v8::ObjectTemplate::SetInternalFieldCount.
-  inline WeakObject(v8::Isolate* isolate, v8::Local<v8::Object> object);
+  inline WeakObject(Environment* env, v8::Local<v8::Object> object);
   virtual inline ~WeakObject();
   inline void MakeWeak();
   inline void ClearWeak();
@@ -41,7 +40,6 @@ class WeakObject {
   inline static void WeakCallback(v8::Isolate* isolate,
                                   v8::Persistent<v8::Object>* persistent,
                                   WeakObject* self);
-  v8::Persistent<v8::Object> weak_object_;
 };
 
 }  // namespace node

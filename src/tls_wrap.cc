@@ -20,6 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "tls_wrap.h"
+#include "async-wrap.h"
+#include "async-wrap-inl.h"
 #include "node_buffer.h"  // Buffer
 #include "node_crypto.h"  // SecureContext
 #include "node_crypto_bio.h"  // NodeBIO
@@ -62,6 +64,7 @@ TLSCallbacks::TLSCallbacks(Environment* env,
                            StreamWrapCallbacks* old)
     : SSLWrap<TLSCallbacks>(env, Unwrap<SecureContext>(sc), kind),
       StreamWrapCallbacks(old),
+      AsyncWrap(env, env->tls_wrap_constructor_function()->NewInstance()),
       enc_in_(NULL),
       enc_out_(NULL),
       clear_in_(NULL),
@@ -75,9 +78,7 @@ TLSCallbacks::TLSCallbacks(Environment* env,
   sc_ = Unwrap<SecureContext>(sc);
   sc_handle_.Reset(node_isolate, sc);
 
-  Local<Object> object = env->tls_wrap_constructor_function()->NewInstance();
-  persistent().Reset(node_isolate, object);
-  node::Wrap<TLSCallbacks>(object, this);
+  node::Wrap<TLSCallbacks>(object(), this);
 
   // Initialize queue for clearIn writes
   QUEUE_INIT(&write_item_queue_);
@@ -237,12 +238,12 @@ void TLSCallbacks::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   // There should be a Context::Scope a few stack frames down.
   assert(env->context() == env->isolate()->GetCurrentContext());
   HandleScope handle_scope(env->isolate());
-  Local<Object> object = c->weak_object(env->isolate());
+  Local<Object> object = c->object();
 
   if (where & SSL_CB_HANDSHAKE_START) {
     Local<Value> callback = object->Get(env->onhandshakestart_string());
     if (callback->IsFunction()) {
-      MakeCallback(env, object, callback.As<Function>());
+      c->MakeCallback(callback.As<Function>(), 0, NULL);
     }
   }
 
@@ -250,7 +251,7 @@ void TLSCallbacks::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
     c->established_ = true;
     Local<Value> callback = object->Get(env->onhandshakedone_string());
     if (callback->IsFunction()) {
-      MakeCallback(env, object, callback.As<Function>());
+      c->MakeCallback(callback.As<Function>(), 0, NULL);
     }
   }
 }
@@ -313,11 +314,7 @@ void TLSCallbacks::EncOutCb(uv_write_t* req, int status) {
     Local<Value> arg = String::Concat(
         FIXED_ONE_BYTE_STRING(node_isolate, "write cb error, status: "),
         Integer::New(status, node_isolate)->ToString());
-    MakeCallback(env,
-                 callbacks->weak_object(node_isolate),
-                 env->onerror_string(),
-                 1,
-                 &arg);
+    callbacks->MakeCallback(env->onerror_string(), 1, &arg);
     callbacks->InvokeQueued(status);
     return;
   }
@@ -385,11 +382,7 @@ void TLSCallbacks::ClearOut() {
         Integer::New(read, node_isolate),
         Buffer::New(env(), out, read)
       };
-      MakeCallback(env(),
-                   Self(),
-                   env()->onread_string(),
-                   ARRAY_SIZE(argv),
-                   argv);
+      wrap()->MakeCallback(env()->onread_string(), ARRAY_SIZE(argv), argv);
     }
   } while (read > 0);
 
@@ -398,11 +391,7 @@ void TLSCallbacks::ClearOut() {
     Handle<Value> argv = GetSSLError(read, &err);
 
     if (!argv.IsEmpty()) {
-      MakeCallback(env(),
-                   weak_object(node_isolate),
-                   env()->onerror_string(),
-                   1,
-                   &argv);
+      MakeCallback(env()->onerror_string(), 1, &argv);
     }
   }
 }
@@ -437,11 +426,7 @@ bool TLSCallbacks::ClearIn() {
   int err;
   Handle<Value> argv = GetSSLError(written, &err);
   if (!argv.IsEmpty()) {
-    MakeCallback(env(),
-                 weak_object(node_isolate),
-                 env()->onerror_string(),
-                 1,
-                 &argv);
+    MakeCallback(env()->onerror_string(), 1, &argv);
   }
 
   return false;
@@ -504,11 +489,7 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
     HandleScope handle_scope(env()->isolate());
     Handle<Value> argv = GetSSLError(written, &err);
     if (!argv.IsEmpty()) {
-      MakeCallback(env(),
-                   weak_object(node_isolate),
-                   env()->onerror_string(),
-                   1,
-                   &argv);
+      MakeCallback(env()->onerror_string(), 1, &argv);
       return -1;
     }
 
@@ -547,7 +528,7 @@ void TLSCallbacks::DoRead(uv_stream_t* handle,
     Context::Scope context_scope(env()->context());
     HandleScope handle_scope(env()->isolate());
     Local<Value> arg = Integer::New(nread, node_isolate);
-    MakeCallback(env(), Self(), env()->onread_string(), 1, &arg);
+    wrap()->MakeCallback(env()->onread_string(), 1, &arg);
     return;
   }
 
@@ -685,7 +666,7 @@ int TLSCallbacks::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
 
   if (servername != NULL) {
     // Call the SNI callback and use its return value as context
-    Local<Object> object = p->weak_object(node_isolate);
+    Local<Object> object = p->object();
     Local<Value> ctx = object->Get(env->sni_context_string());
 
     if (!ctx->IsObject())

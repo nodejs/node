@@ -603,9 +603,4 @@ int StreamWrapCallbacks::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
   return uv_shutdown(&req_wrap->req_, wrap()->stream(), cb);
 }
 
-
-Handle<Object> StreamWrapCallbacks::Self() {
-  return wrap()->object();
-}
-
 }  // namespace node

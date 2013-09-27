@@ -96,6 +96,7 @@ namespace node {
   V(onclienthello_string, "onclienthello")                                    \
   V(oncomplete_string, "oncomplete")                                          \
   V(onconnection_string, "onconnection")                                      \
+  V(ondone_string, "ondone")                                                  \
   V(onerror_string, "onerror")                                                \
   V(onexit_string, "onexit")                                                  \
   V(onhandshakedone_string, "onhandshakedone")                                \
@@ -103,6 +104,7 @@ namespace node {
   V(onmessage_string, "onmessage")                                            \
   V(onnewsession_string, "onnewsession")                                      \
   V(onread_string, "onread")                                                  \
+  V(onselect_string, "onselect")                                              \
   V(onsignal_string, "onsignal")                                              \
   V(onstop_string, "onstop")                                                  \
   V(path_string, "path")                                                      \

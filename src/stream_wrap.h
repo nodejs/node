@@ -88,8 +88,6 @@ class StreamWrapCallbacks {
                       uv_handle_type pending);
   virtual int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
 
-  v8::Handle<v8::Object> Self();
-
  protected:
   inline StreamWrap* wrap() const {
     return wrap_;

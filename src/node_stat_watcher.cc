@@ -66,9 +66,8 @@ static void Delete(uv_handle_t* handle) {
 
 
 StatWatcher::StatWatcher(Environment* env, Local<Object> wrap)
-    : WeakObject(env->isolate(), wrap),
-      watcher_(new uv_fs_poll_t),
-      env_(env) {
+    : WeakObject(env, wrap),
+      watcher_(new uv_fs_poll_t) {
   uv_fs_poll_init(env->event_loop(), watcher_);
   watcher_->data = static_cast<void*>(this);
 }
@@ -94,11 +93,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
     BuildStatsObject(env, prev),
     Integer::New(status, node_isolate)
   };
-  MakeCallback(env,
-               wrap->weak_object(node_isolate),
-               env->onchange_string(),
-               ARRAY_SIZE(argv),
-               argv);
+  wrap->MakeCallback(env->onchange_string(), ARRAY_SIZE(argv), argv);
 }
 
 
@@ -131,7 +126,7 @@ void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
   Environment* env = wrap->env();
   Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
-  MakeCallback(env, wrap->weak_object(node_isolate), env->onstop_string());
+  wrap->MakeCallback(env->onstop_string(), 0, NULL);
   wrap->Stop();
 }
 

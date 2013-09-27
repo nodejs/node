@@ -73,11 +73,10 @@ class ZCtx : public WeakObject {
  public:
 
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
-      : WeakObject(env->isolate(), wrap),
+      : WeakObject(env, wrap),
         chunk_size_(0),
         dictionary_(NULL),
         dictionary_len_(0),
-        env_(env),
         err_(0),
         flush_(0),
         init_done_(false),
@@ -93,11 +92,6 @@ class ZCtx : public WeakObject {
 
   ~ZCtx() {
     Close();
-  }
-
-
-  inline Environment* env() const {
-    return env_;
   }
 
   void Close() {
@@ -200,7 +194,7 @@ class ZCtx : public WeakObject {
                   ZCtx::Process,
                   ZCtx::After);
 
-    args.GetReturnValue().Set(ctx->weak_object(node_isolate));
+    args.GetReturnValue().Set(ctx->object());
   }
 
 
@@ -290,9 +284,8 @@ class ZCtx : public WeakObject {
     ctx->write_in_progress_ = false;
 
     // call the write() cb
-    Local<Object> handle = ctx->weak_object(node_isolate);
     Local<Value> args[2] = { avail_in, avail_out };
-    MakeCallback(env, handle, env->callback_string(), ARRAY_SIZE(args), args);
+    ctx->MakeCallback(env->callback_string(), ARRAY_SIZE(args), args);
 
     ctx->Unref();
   }
@@ -307,13 +300,12 @@ class ZCtx : public WeakObject {
       message = ctx->strm_.msg;
     }
 
-    Local<Object> handle = ctx->weak_object(node_isolate);
     HandleScope scope(node_isolate);
     Local<Value> args[2] = {
       OneByteString(node_isolate, message),
       Number::New(ctx->err_)
     };
-    MakeCallback(env, handle, env->onerror_string(), ARRAY_SIZE(args), args);
+    ctx->MakeCallback(env->onerror_string(), ARRAY_SIZE(args), args);
 
     // no hope of rescue.
     ctx->write_in_progress_ = false;
@@ -540,7 +532,6 @@ class ZCtx : public WeakObject {
   int chunk_size_;
   Bytef* dictionary_;
   size_t dictionary_len_;
-  Environment* const env_;
   int err_;
   int flush_;
   bool init_done_;

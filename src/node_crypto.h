@@ -63,10 +63,6 @@ class SecureContext : public WeakObject {
  public:
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
-  inline Environment* env() const {
-    return env_;
-  }
-
   X509_STORE* ca_store_;
   SSL_CTX* ctx_;
 
@@ -93,10 +89,9 @@ class SecureContext : public WeakObject {
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
-      : WeakObject(env->isolate(), wrap),
+      : WeakObject(env, wrap),
         ca_store_(NULL),
-        ctx_(NULL),
-        env_(env) {
+        ctx_(NULL) {
   }
 
   void FreeCTXMem() {
@@ -119,9 +114,6 @@ class SecureContext : public WeakObject {
   ~SecureContext() {
     FreeCTXMem();
   }
-
- private:
-  Environment* const env_;
 };
 
 template <class Base>
@@ -202,7 +194,7 @@ class SSLWrap {
                                      void* arg);
 #endif  // OPENSSL_NPN_NEGOTIATED
 
-  inline Environment* env() const {
+  inline Environment* ssl_env() const {
     return env_;
   }
 
@@ -279,7 +271,7 @@ class Connection : public SSLWrap<Connection>, public WeakObject {
              SecureContext* sc,
              SSLWrap<Connection>::Kind kind)
       : SSLWrap<Connection>(env, sc, kind),
-        WeakObject(env->isolate(), wrap),
+        WeakObject(env, wrap),
         bio_read_(NULL),
         bio_write_(NULL),
         hello_offset_(0) {
@@ -337,10 +329,10 @@ class CipherBase : public WeakObject {
   static void Final(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAutoPadding(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  CipherBase(v8::Isolate* isolate,
+  CipherBase(Environment* env,
              v8::Local<v8::Object> wrap,
              CipherKind kind)
-      : WeakObject(isolate, wrap),
+      : WeakObject(env, wrap),
         cipher_(NULL),
         initialised_(false),
         kind_(kind) {
@@ -373,8 +365,8 @@ class Hmac : public WeakObject {
   static void HmacUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void HmacDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Hmac(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-      : WeakObject(isolate, wrap),
+  Hmac(Environment* env, v8::Local<v8::Object> wrap)
+      : WeakObject(env, wrap),
         md_(NULL),
         initialised_(false) {
   }
@@ -403,8 +395,8 @@ class Hash : public WeakObject {
   static void HashUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void HashDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Hash(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-      : WeakObject(isolate, wrap),
+  Hash(Environment* env, v8::Local<v8::Object> wrap)
+      : WeakObject(env, wrap),
         md_(NULL),
         initialised_(false) {
   }
@@ -439,8 +431,8 @@ class Sign : public WeakObject {
   static void SignUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SignFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Sign(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-      : WeakObject(isolate, wrap),
+  Sign(Environment* env, v8::Local<v8::Object> wrap)
+      : WeakObject(env, wrap),
         md_(NULL),
         initialised_(false) {
   }
@@ -474,8 +466,8 @@ class Verify : public WeakObject {
   static void VerifyUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void VerifyFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Verify(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-      : WeakObject(isolate, wrap),
+  Verify(Environment* env, v8::Local<v8::Object> wrap)
+      : WeakObject(env, wrap),
         md_(NULL),
         initialised_(false) {
   }
@@ -513,8 +505,8 @@ class DiffieHellman : public WeakObject {
   static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  DiffieHellman(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-      : WeakObject(isolate, wrap),
+  DiffieHellman(Environment* env, v8::Local<v8::Object> wrap)
+      : WeakObject(env, wrap),
         initialised_(false),
         dh(NULL) {
   }
@@ -547,8 +539,8 @@ class Certificate : public WeakObject {
   static void ExportPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExportChallenge(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Certificate(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-    : WeakObject(isolate, wrap) {
+  Certificate(Environment* env, v8::Local<v8::Object> wrap)
+    : WeakObject(env, wrap) {
   }
 };
 

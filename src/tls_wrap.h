@@ -25,6 +25,7 @@
 #include "node.h"
 #include "node_crypto.h"  // SSLWrap
 
+#include "async-wrap.h"
 #include "env.h"
 #include "queue.h"
 #include "stream_wrap.h"
@@ -42,7 +43,8 @@ namespace crypto {
 }
 
 class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
-                     public StreamWrapCallbacks {
+                     public StreamWrapCallbacks,
+                     public AsyncWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target,
                          v8::Handle<v8::Value> unused,
@@ -62,11 +64,6 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
               const uv_buf_t* buf,
               uv_handle_type pending);
   int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
-
-  // Just for compliance with Connection
-  inline v8::Local<v8::Object> weak_object(v8::Isolate* isolate) {
-    return PersistentToLocal(isolate, persistent());
-  }
 
  protected:
   static const int kClearOutChunkSize = 1024;
@@ -123,13 +120,8 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
-  inline v8::Persistent<v8::Object>& persistent() {
-    return object_;
-  }
-
   crypto::SecureContext* sc_;
   v8::Persistent<v8::Object> sc_handle_;
-  v8::Persistent<v8::Object> object_;
   BIO* enc_in_;
   BIO* enc_out_;
   NodeBIO* clear_in_;
