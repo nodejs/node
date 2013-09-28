@@ -21,6 +21,8 @@
 
 #define CARES_STATICLIB
 #include "ares.h"
+#include "async-wrap.h"
+#include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "node.h"
@@ -220,11 +222,10 @@ static Local<Array> HostentToNames(struct hostent* host) {
 }
 
 
-class QueryWrap {
+class QueryWrap : public AsyncWrap {
  public:
-  QueryWrap(Environment* env, Local<Object> req_wrap_obj) : env_(env) {
-    HandleScope scope(node_isolate);
-    persistent().Reset(node_isolate, req_wrap_obj);
+  QueryWrap(Environment* env, Local<Object> req_wrap_obj)
+      : AsyncWrap(env, req_wrap_obj) {
   }
 
   virtual ~QueryWrap() {
@@ -241,14 +242,6 @@ class QueryWrap {
   virtual int Send(const char* name, int family) {
     assert(0);
     return 0;
-  }
-
-  inline Persistent<Object>& persistent() {
-    return object_;
-  }
-
-  inline Local<Object> object() {
-    return PersistentToLocal(node_isolate, persistent());
   }
 
  protected:
@@ -289,11 +282,7 @@ class QueryWrap {
       Integer::New(0, env()->isolate()),
       answer
     };
-    MakeCallback(env(),
-                 object(),
-                 env()->oncomplete_string(),
-                 ARRAY_SIZE(argv),
-                 argv);
+    MakeCallback(env()->oncomplete_string(), ARRAY_SIZE(argv), argv);
   }
 
   void CallOnComplete(Local<Value> answer, Local<Value> family) {
@@ -304,11 +293,7 @@ class QueryWrap {
       answer,
       family
     };
-    MakeCallback(env(),
-                 object(),
-                 env()->oncomplete_string(),
-                 ARRAY_SIZE(argv),
-                 argv);
+    MakeCallback(env()->oncomplete_string(), ARRAY_SIZE(argv), argv);
   }
 
   void ParseError(int status) {
@@ -350,7 +335,7 @@ class QueryWrap {
         arg = FIXED_ONE_BYTE_STRING(env()->isolate(), "UNKNOWN_ARES_ERROR");
         break;
     }
-    MakeCallback(env(), object(), env()->oncomplete_string(), 1, &arg);
+    MakeCallback(env()->oncomplete_string(), 1, &arg);
   }
 
   // Subclasses should implement the appropriate Parse method.
@@ -361,14 +346,6 @@ class QueryWrap {
   virtual void Parse(struct hostent* host) {
     assert(0);
   };
-
-  inline Environment* env() const {
-    return env_;
-  }
-
- private:
-  Persistent<Object> object_;
-  Environment* const env_;
 };
 
 
@@ -911,11 +888,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   uv_freeaddrinfo(res);
 
   // Make the callback into JavaScript
-  MakeCallback(env,
-               req_wrap->object(),
-               env->oncomplete_string(),
-               ARRAY_SIZE(argv),
-               argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
 
   delete req_wrap;
 }
