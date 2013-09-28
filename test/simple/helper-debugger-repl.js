@@ -29,6 +29,7 @@ var port = common.PORT + 1337;
 var child;
 var buffer = '';
 var expected = [];
+var quit;
 
 function startDebugger(scriptToDebug) {
   scriptToDebug = process.env.NODE_DEBUGGER_TEST_SCRIPT ||
@@ -70,7 +71,7 @@ function startDebugger(scriptToDebug) {
   });
 
   var quitCalled = false;
-  function quit() {
+  quit = function() {
     if (quitCalled || childClosed) return;
     quitCalled = true;
     child.stdin.write('quit');
