@@ -269,9 +269,10 @@ Handle<Value> PipeWrap::Open(const Arguments& args) {
 
   UNWRAP(PipeWrap)
 
-  int fd = args[0]->IntegerValue();
-
-  uv_pipe_open(&wrap->handle_, fd);
+  if (uv_pipe_open(&wrap->handle_, args[0]->Int32Value())) {
+    uv_err_t err = uv_last_error(wrap->handle_.loop);
+    return ThrowException(UVException(err.code, "uv_pipe_open"));
+  }
 
   return scope.Close(v8::Null());
 }
