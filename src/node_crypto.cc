@@ -3450,21 +3450,62 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// TODO(bnoordhuis) Turn into proper RAII class.
-struct RandomBytesRequest {
-  ~RandomBytesRequest();
-  Environment* env_;
-  Persistent<Object> obj_;
-  unsigned long error_;  // openssl error code or zero
+// Only instantiate within a valid HandleScope.
+class RandomBytesRequest : public AsyncWrap {
+ public:
+  RandomBytesRequest(Environment* env, Local<Object> object, size_t size)
+      : AsyncWrap(env, object),
+        error_(0),
+        size_(size),
+        data_(static_cast<char*>(malloc(size))) {
+    if (data() == NULL)
+      FatalError("node::RandomBytesRequest()", "Out of Memory");
+  }
+
+  ~RandomBytesRequest() {
+    persistent().Dispose();
+  }
+
+  uv_work_t* work_req() {
+    return &work_req_;
+  }
+
+  inline size_t size() const {
+    return size_;
+  }
+
+  inline char* data() const {
+    return data_;
+  }
+
+  inline void release() {
+    free(data_);
+    size_ = 0;
+  }
+
+  inline void return_memory(char** d, size_t* len) {
+    *d = data_;
+    data_ = NULL;
+    *len = size_;
+    size_ = 0;
+  }
+
+  inline unsigned long error() const {
+    return error_;
+  }
+
+  inline void set_error(unsigned long err) {
+    error_ = err;
+  }
+
+  // TODO(trevnorris): Make private and make work with container_of macro.
   uv_work_t work_req_;
+
+ private:
+  unsigned long error_;
   size_t size_;
   char* data_;
 };
-
-
-RandomBytesRequest::~RandomBytesRequest() {
-  obj_.Dispose();
-}
 
 
 template <bool pseudoRandom>
@@ -3475,38 +3516,40 @@ void RandomBytesWork(uv_work_t* work_req) {
   int r;
 
   if (pseudoRandom == true) {
-    r = RAND_pseudo_bytes(reinterpret_cast<unsigned char*>(req->data_),
-                          req->size_);
+    r = RAND_pseudo_bytes(reinterpret_cast<unsigned char*>(req->data()),
+                          req->size());
   } else {
-    r = RAND_bytes(reinterpret_cast<unsigned char*>(req->data_), req->size_);
+    r = RAND_bytes(reinterpret_cast<unsigned char*>(req->data()), req->size());
   }
 
   // RAND_bytes() returns 0 on error. RAND_pseudo_bytes() returns 0 when the
   // result is not cryptographically strong - but that's not an error.
   if (r == 0 && pseudoRandom == false) {
-    req->error_ = ERR_get_error();
+    req->set_error(ERR_get_error());
   } else if (r == -1) {
-    req->error_ = static_cast<unsigned long>(-1);
+    req->set_error(static_cast<unsigned long>(-1));
   }
 }
 
 
 // don't call this function without a valid HandleScope
 void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
-  if (req->error_) {
+  if (req->error()) {
     char errmsg[256] = "Operation not supported";
 
-    if (req->error_ != static_cast<unsigned long>(-1))
-      ERR_error_string_n(req->error_, errmsg, sizeof errmsg);
+    if (req->error() != static_cast<unsigned long>(-1))
+      ERR_error_string_n(req->error(), errmsg, sizeof errmsg);
 
     argv[0] = Exception::Error(OneByteString(node_isolate, errmsg));
     argv[1] = Null(node_isolate);
+    req->release();
   } else {
+    char* data = NULL;
+    size_t size;
+    req->return_memory(&data, &size);
     argv[0] = Null(node_isolate);
-    argv[1] = Buffer::Use(req->data_, req->size_);
-    req->data_ = NULL;
+    argv[1] = Buffer::Use(data, size);
   }
-  free(req->data_);
 }
 
 
@@ -3515,13 +3558,12 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
   RandomBytesRequest* req = container_of(work_req,
                                          RandomBytesRequest,
                                          work_req_);
-  Environment* env = req->env_;
+  Environment* env = req->env();
   Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
   Local<Value> argv[2];
   RandomBytesCheck(req, argv);
-  Local<Object> obj = PersistentToLocal(node_isolate, req->obj_);
-  MakeCallback(env, obj, env->ondone_string(), ARRAY_SIZE(argv), argv);
+  req->MakeCallback(env->ondone_string(), ARRAY_SIZE(argv), argv);
   delete req;
 }
 
@@ -3542,34 +3584,24 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     return ThrowTypeError("size > Buffer::kMaxLength");
   }
 
-  RandomBytesRequest* req = new RandomBytesRequest();
-  req->env_ = env;
-  req->error_ = 0;
-  req->size_ = size;
-  req->data_ = static_cast<char*>(malloc(size));
-
-  if (req->data_ == NULL) {
-    delete req;
-    V8::LowMemoryNotification();
-    return ThrowError("Out of memory");
-  }
+  Local<Object> obj = Object::New();
+  RandomBytesRequest* req = new RandomBytesRequest(env, obj, size);
 
   if (args[1]->IsFunction()) {
-    Local<Object> obj = Object::New();
     obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "ondone"), args[1]);
+    // XXX(trevnorris): This will need to go with the rest of domains.
     if (env->in_domain()) {
       obj->Set(env->domain_string(), env->domain_array()->Get(0));
     }
-    req->obj_.Reset(node_isolate, obj);
 
     uv_queue_work(env->event_loop(),
-                  &req->work_req_,
+                  req->work_req(),
                   RandomBytesWork<pseudoRandom>,
                   RandomBytesAfter);
     args.GetReturnValue().Set(obj);
   } else {
     Local<Value> argv[2];
-    RandomBytesWork<pseudoRandom>(&req->work_req_);
+    RandomBytesWork<pseudoRandom>(req->work_req());
     RandomBytesCheck(req, argv);
     delete req;
 
