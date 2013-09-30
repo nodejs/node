@@ -1,4 +1,10 @@
-2013.09.24, Version 0.10.19 (Stable)
+2013.09.30, Version 0.10.20 (Stable)
+
+* tls: fix sporadic hang and partial reads (Fedor Indutny)
+  - fixes "npm ERR! cb() never called!"
+
+
+2013.09.24, Version 0.10.19 (Stable), 6b5e6a5a3ec8d994c9aab3b800b9edbf1b287904
 
 * uv: Upgrade to v0.10.17
 
