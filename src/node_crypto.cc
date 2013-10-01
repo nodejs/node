@@ -3275,74 +3275,141 @@ bool DiffieHellman::VerifyContext() {
 }
 
 
-// TODO(bnoordhuis) Turn into proper RAII class.
-struct pbkdf2_req {
-  uv_work_t work_req;
-  Environment* env;
-  int err;
-  char* pass;
-  size_t passlen;
-  char* salt;
-  size_t saltlen;
-  size_t iter;
-  char* key;
-  size_t keylen;
-  Persistent<Object> obj;
+class PBKDF2Request : public AsyncWrap {
+ public:
+  PBKDF2Request(Environment* env,
+                Local<Object> object,
+                ssize_t passlen,
+                char* pass,
+                ssize_t saltlen,
+                char* salt,
+                ssize_t iter,
+                ssize_t keylen)
+      : AsyncWrap(env, object),
+        error_(0),
+        passlen_(passlen),
+        pass_(pass),
+        saltlen_(saltlen),
+        salt_(salt),
+        keylen_(keylen),
+        key_(static_cast<char*>(malloc(keylen))),
+        iter_(iter) {
+    if (key() == NULL)
+      FatalError("node::PBKDF2Request()", "Out of Memory");
+  }
+
+  ~PBKDF2Request() {
+    persistent().Dispose();
+  }
+
+  uv_work_t* work_req() {
+    return &work_req_;
+  }
+
+  inline ssize_t passlen() const {
+    return passlen_;
+  }
+
+  inline char* pass() const {
+    return pass_;
+  }
+
+  inline ssize_t saltlen() const {
+    return saltlen_;
+  }
+
+  inline char* salt() const {
+    return salt_;
+  }
+
+  inline ssize_t keylen() const {
+    return keylen_;
+  }
+
+  inline char* key() const {
+    return key_;
+  }
+
+  inline ssize_t iter() const {
+    return iter_;
+  }
+
+  inline void release() {
+    free(pass_);
+    passlen_ = 0;
+    free(salt_);
+    saltlen_ = 0;
+    free(key_);
+    keylen_ = 0;
+  }
+
+  inline int error() const {
+    return error_;
+  }
+
+  inline void set_error(int err) {
+    error_ = err;
+  }
+
+  // TODO(trevnorris): Make private and make work with container_of macro.
+  uv_work_t work_req_;
+
+ private:
+  int error_;
+  ssize_t passlen_;
+  char* pass_;
+  ssize_t saltlen_;
+  char* salt_;
+  ssize_t keylen_;
+  char* key_;
+  ssize_t iter_;
 };
 
 
-void EIO_PBKDF2(pbkdf2_req* req) {
-  req->err = PKCS5_PBKDF2_HMAC_SHA1(
-    req->pass,
-    req->passlen,
-    (unsigned char*)req->salt,
-    req->saltlen,
-    req->iter,
-    req->keylen,
-    (unsigned char*)req->key);
-  memset(req->pass, 0, req->passlen);
-  memset(req->salt, 0, req->saltlen);
+void EIO_PBKDF2(PBKDF2Request* req) {
+  req->set_error(PKCS5_PBKDF2_HMAC_SHA1(
+    req->pass(),
+    req->passlen(),
+    reinterpret_cast<unsigned char*>(req->salt()),
+    req->saltlen(),
+    req->iter(),
+    req->keylen(),
+    reinterpret_cast<unsigned char*>(req->key())));
+  memset(req->pass(), 0, req->passlen());
+  memset(req->salt(), 0, req->saltlen());
 }
 
 
 void EIO_PBKDF2(uv_work_t* work_req) {
-  pbkdf2_req* req = container_of(work_req, pbkdf2_req, work_req);
+  PBKDF2Request* req = container_of(work_req, PBKDF2Request, work_req_);
   EIO_PBKDF2(req);
 }
 
 
-void EIO_PBKDF2After(pbkdf2_req* req, Local<Value> argv[2]) {
-  if (req->err) {
+void EIO_PBKDF2After(PBKDF2Request* req, Local<Value> argv[2]) {
+  if (req->error()) {
     argv[0] = Undefined(node_isolate);
-    argv[1] = Encode(req->key, req->keylen, BUFFER);
-    memset(req->key, 0, req->keylen);
+    argv[1] = Encode(req->key(), req->keylen(), BUFFER);
+    memset(req->key(), 0, req->keylen());
   } else {
     argv[0] = Exception::Error(
         FIXED_ONE_BYTE_STRING(node_isolate, "PBKDF2 error"));
     argv[1] = Undefined(node_isolate);
   }
-
-  delete[] req->pass;
-  delete[] req->salt;
-  delete[] req->key;
-  delete req;
 }
 
 
 void EIO_PBKDF2After(uv_work_t* work_req, int status) {
   assert(status == 0);
-  pbkdf2_req* req = container_of(work_req, pbkdf2_req, work_req);
-  Environment* env = req->env;
+  PBKDF2Request* req = container_of(work_req, PBKDF2Request, work_req_);
+  Environment* env = req->env();
   Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
-  // Create a new Local that's associated with the current HandleScope.
-  // PersistentToLocal() returns a handle that gets zeroed when we call
-  // Dispose() so don't use that.
-  Local<Object> obj = Local<Object>::New(node_isolate, req->obj);
-  req->obj.Dispose();
   Local<Value> argv[2];
   EIO_PBKDF2After(req, argv);
-  MakeCallback(env, obj, env->ondone_string(), ARRAY_SIZE(argv), argv);
+  req->MakeCallback(env->ondone_string(), ARRAY_SIZE(argv), argv);
+  req->release();
+  delete req;
 }
 
 
@@ -3359,7 +3426,8 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   ssize_t pass_written = -1;
   ssize_t salt_written = -1;
   ssize_t iter = -1;
-  pbkdf2_req* req = NULL;
+  PBKDF2Request* req = NULL;
+  Local<Object> obj;
 
   if (args.Length() != 4 && args.Length() != 5) {
     type_error = "Bad parameter";
@@ -3373,7 +3441,10 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  pass = new char[passlen];
+  pass = static_cast<char*>(malloc(passlen));
+  if (pass == NULL) {
+    FatalError("node::PBKDF2()", "Out of Memory");
+  }
   pass_written = DecodeWrite(pass, passlen, args[0], BINARY);
   assert(pass_written == passlen);
 
@@ -3384,7 +3455,10 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  salt = new char[saltlen];
+  salt = static_cast<char*>(malloc(saltlen));
+  if (salt == NULL) {
+    FatalError("node::PBKDF2()", "Out of Memory");
+  }
   salt_written = DecodeWrite(salt, saltlen, args[1], BINARY);
   assert(salt_written == saltlen);
 
@@ -3410,26 +3484,16 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  req = new pbkdf2_req;
-  req->env = env;
-  req->err = 0;
-  req->pass = pass;
-  req->passlen = passlen;
-  req->salt = salt;
-  req->saltlen = saltlen;
-  req->iter = iter;
-  req->key = new char[keylen];
-  req->keylen = keylen;
+  obj = Object::New();
+  req = new PBKDF2Request(env, obj, passlen, pass, saltlen, salt, iter, keylen);
 
   if (args[4]->IsFunction()) {
-    Local<Object> obj = Object::New();
-    obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "ondone"), args[4]);
-    if (env->in_domain()) {
+    obj->Set(env->ondone_string(), args[4]);
+    // XXX(trevnorris): This will need to go with the rest of domains.
+    if (env->in_domain())
       obj->Set(env->domain_string(), env->domain_array()->Get(0));
-    }
-    req->obj.Reset(node_isolate, obj);
     uv_queue_work(env->event_loop(),
-                  &req->work_req,
+                  req->work_req(),
                   EIO_PBKDF2,
                   EIO_PBKDF2After);
   } else {
@@ -3444,8 +3508,8 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   return;
 
  err:
-  delete[] salt;
-  delete[] pass;
+  free(salt);
+  free(pass);
   return ThrowTypeError(type_error);
 }
 
@@ -3590,10 +3654,8 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsFunction()) {
     obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "ondone"), args[1]);
     // XXX(trevnorris): This will need to go with the rest of domains.
-    if (env->in_domain()) {
+    if (env->in_domain())
       obj->Set(env->domain_string(), env->domain_array()->Get(0));
-    }
-
     uv_queue_work(env->event_loop(),
                   req->work_req(),
                   RandomBytesWork<pseudoRandom>,
