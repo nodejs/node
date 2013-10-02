@@ -51,6 +51,7 @@
 #include "string_bytes.h"
 #include "uv.h"
 #include "v8-debug.h"
+#include "v8-profiler.h"
 #include "zlib.h"
 
 #include <assert.h>
@@ -3205,6 +3206,18 @@ void EmitExit(Environment* env) {
 }
 
 
+void SetIdle(uv_prepare_t* handle, int) {
+  Environment* env = Environment::from_idle_prepare_handle(handle);
+  env->isolate()->GetCpuProfiler()->SetIdle(true);
+}
+
+
+void ClearIdle(uv_check_t* handle, int) {
+  Environment* env = Environment::from_idle_check_handle(handle);
+  env->isolate()->GetCpuProfiler()->SetIdle(false);
+}
+
+
 Environment* CreateEnvironment(Isolate* isolate,
                                int argc,
                                const char* const* argv,
@@ -3229,6 +3242,25 @@ Environment* CreateEnvironment(Isolate* isolate,
 
   SetupProcessObject(env, argc, argv, exec_argc, exec_argv);
   Load(env);
+
+  // Inform V8's CPU profiler when we're idle.  The profiler is sampling-based
+  // but not all samples are created equal; mark the wall clock time spent in
+  // epoll_wait() and friends so profiling tools can filter it out.  The samples
+  // still end up in v8.log but with state=IDLE rather than state=EXTERNAL.
+  // TODO(bnoordhuis): Only start when profiling.  OTOH, the performance impact
+  // is probably negligible.
+  // TODO(bnoordhuis) Depends on a libuv implementation detail that we should
+  // probably fortify in the API contract, namely that the last started prepare
+  // or check watcher runs first.  It's not 100% foolproof; if an add-on starts
+  // a prepare or check watcher after us, any samples attributed to its callback
+  // will be recorded with state=IDLE.
+  uv_prepare_init(env->event_loop(), env->idle_prepare_handle());
+  uv_prepare_start(env->idle_prepare_handle(), SetIdle);
+  uv_unref(reinterpret_cast<uv_handle_t*>(env->idle_prepare_handle()));
+
+  uv_check_init(env->event_loop(), env->idle_check_handle());
+  uv_check_start(env->idle_check_handle(), ClearIdle);
+  uv_unref(reinterpret_cast<uv_handle_t*>(env->idle_check_handle()));
 
   return env;
 }

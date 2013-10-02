@@ -203,6 +203,23 @@ inline uv_idle_t* Environment::immediate_idle_handle() {
   return &immediate_idle_handle_;
 }
 
+inline Environment* Environment::from_idle_prepare_handle(
+    uv_prepare_t* handle) {
+  return CONTAINER_OF(handle, Environment, idle_prepare_handle_);
+}
+
+inline uv_prepare_t* Environment::idle_prepare_handle() {
+  return &idle_prepare_handle_;
+}
+
+inline Environment* Environment::from_idle_check_handle(uv_check_t* handle) {
+  return CONTAINER_OF(handle, Environment, idle_check_handle_);
+}
+
+inline uv_check_t* Environment::idle_check_handle() {
+  return &idle_check_handle_;
+}
+
 inline uv_loop_t* Environment::event_loop() const {
   return isolate_data()->event_loop();
 }

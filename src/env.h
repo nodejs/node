@@ -232,6 +232,13 @@ class Environment {
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
+
+  static inline Environment* from_idle_prepare_handle(uv_prepare_t* handle);
+  inline uv_prepare_t* idle_prepare_handle();
+
+  static inline Environment* from_idle_check_handle(uv_check_t* handle);
+  inline uv_check_t* idle_check_handle();
+
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
 
@@ -274,6 +281,8 @@ class Environment {
   IsolateData* const isolate_data_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
+  uv_prepare_t idle_prepare_handle_;
+  uv_check_t idle_check_handle_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
   uv_timer_t cares_timer_handle_;
