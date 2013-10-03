@@ -3284,13 +3284,12 @@ Environment* CreateEnvironment(Isolate* isolate,
   // a prepare or check watcher after us, any samples attributed to its callback
   // will be recorded with state=IDLE.
   uv_prepare_init(env->event_loop(), env->idle_prepare_handle());
-  uv_prepare_start(env->idle_prepare_handle(), SetIdle);
+  uv_check_init(env->event_loop(), env->idle_check_handle());
   uv_unref(reinterpret_cast<uv_handle_t*>(env->idle_prepare_handle()));
   uv_unref(reinterpret_cast<uv_handle_t*>(env->idle_check_handle()));
 
   if (v8_is_profiling) {
-    uv_check_init(env->event_loop(), env->idle_check_handle());
-    uv_check_start(env->idle_check_handle(), ClearIdle);
+    StartProfilerIdleNotifier(env);
   }
 
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
