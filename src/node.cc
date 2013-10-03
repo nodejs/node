@@ -2294,6 +2294,40 @@ static void NeedImmediateCallbackSetter(
 }
 
 
+void SetIdle(uv_prepare_t* handle, int) {
+  Environment* env = Environment::from_idle_prepare_handle(handle);
+  env->isolate()->GetCpuProfiler()->SetIdle(true);
+}
+
+
+void ClearIdle(uv_check_t* handle, int) {
+  Environment* env = Environment::from_idle_check_handle(handle);
+  env->isolate()->GetCpuProfiler()->SetIdle(false);
+}
+
+
+void StartProfilerIdleNotifier(Environment* env) {
+  uv_prepare_start(env->idle_prepare_handle(), SetIdle);
+  uv_check_start(env->idle_check_handle(), ClearIdle);
+}
+
+
+void StopProfilerIdleNotifier(Environment* env) {
+  uv_prepare_stop(env->idle_prepare_handle());
+  uv_check_stop(env->idle_check_handle());
+}
+
+
+void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
+  StartProfilerIdleNotifier(Environment::GetCurrent(args.GetIsolate()));
+}
+
+
+void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
+  StopProfilerIdleNotifier(Environment::GetCurrent(args.GetIsolate()));
+}
+
+
 #define READONLY_PROPERTY(obj, str, var)                                      \
   do {                                                                        \
     obj->Set(OneByteString(node_isolate, str), var, v8::ReadOnly);            \
@@ -2465,6 +2499,12 @@ void SetupProcessObject(Environment* env,
                        DebugPortSetter);
 
   // define various internal methods
+  NODE_SET_METHOD(process,
+                  "_startProfilerIdleNotifier",
+                  StartProfilerIdleNotifier);
+  NODE_SET_METHOD(process,
+                  "_stopProfilerIdleNotifier",
+                  StopProfilerIdleNotifier);
   NODE_SET_METHOD(process, "_getActiveRequests", GetActiveRequests);
   NODE_SET_METHOD(process, "_getActiveHandles", GetActiveHandles);
   NODE_SET_METHOD(process, "reallyExit", Exit);
@@ -3218,18 +3258,6 @@ void EmitExit(Environment* env) {
 }
 
 
-void SetIdle(uv_prepare_t* handle, int) {
-  Environment* env = Environment::from_idle_prepare_handle(handle);
-  env->isolate()->GetCpuProfiler()->SetIdle(true);
-}
-
-
-void ClearIdle(uv_check_t* handle, int) {
-  Environment* env = Environment::from_idle_check_handle(handle);
-  env->isolate()->GetCpuProfiler()->SetIdle(false);
-}
-
-
 Environment* CreateEnvironment(Isolate* isolate,
                                int argc,
                                const char* const* argv,
@@ -3245,15 +3273,6 @@ Environment* CreateEnvironment(Isolate* isolate,
   uv_unref(
       reinterpret_cast<uv_handle_t*>(env->immediate_check_handle()));
   uv_idle_init(env->event_loop(), env->immediate_idle_handle());
-
-  Local<FunctionTemplate> process_template = FunctionTemplate::New();
-  process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "process"));
-
-  Local<Object> process_object = process_template->GetFunction()->NewInstance();
-  env->set_process_object(process_object);
-
-  SetupProcessObject(env, argc, argv, exec_argc, exec_argv);
-  Load(env);
 
   // Inform V8's CPU profiler when we're idle.  The profiler is sampling-based
   // but not all samples are created equal; mark the wall clock time spent in
@@ -3273,6 +3292,15 @@ Environment* CreateEnvironment(Isolate* isolate,
     uv_check_init(env->event_loop(), env->idle_check_handle());
     uv_check_start(env->idle_check_handle(), ClearIdle);
   }
+
+  Local<FunctionTemplate> process_template = FunctionTemplate::New();
+  process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "process"));
+
+  Local<Object> process_object = process_template->GetFunction()->NewInstance();
+  env->set_process_object(process_object);
+
+  SetupProcessObject(env, argc, argv, exec_argc, exec_argv);
+  Load(env);
 
   return env;
 }
