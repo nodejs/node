@@ -131,6 +131,7 @@ static const char* eval_string = NULL;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
+static bool v8_is_profiling = false;
 
 // used by C++ modules as well
 bool no_deprecation = false;
@@ -3076,6 +3077,17 @@ void Init(int* argc,
   const char** v8_argv;
   ParseArgs(argc, argv, exec_argc, exec_argv, &v8_argc, &v8_argv);
 
+  // TODO(bnoordhuis) Intercept --prof arguments and start the CPU profiler
+  // manually?  That would give us a little more control over its runtime
+  // behavior but it could also interfere with the user's intentions in ways
+  // we fail to anticipate.  Dillema.
+  for (int i = 1; i < v8_argc; ++i) {
+    if (strncmp(v8_argv[i], "--prof", sizeof("--prof") - 1) == 0) {
+      v8_is_profiling = true;
+      break;
+    }
+  }
+
   // The const_cast doesn't violate conceptual const-ness.  V8 doesn't modify
   // the argv array or the elements it points to.
   V8::SetFlagsFromCommandLine(&v8_argc, const_cast<char**>(v8_argv), true);
@@ -3247,8 +3259,6 @@ Environment* CreateEnvironment(Isolate* isolate,
   // but not all samples are created equal; mark the wall clock time spent in
   // epoll_wait() and friends so profiling tools can filter it out.  The samples
   // still end up in v8.log but with state=IDLE rather than state=EXTERNAL.
-  // TODO(bnoordhuis): Only start when profiling.  OTOH, the performance impact
-  // is probably negligible.
   // TODO(bnoordhuis) Depends on a libuv implementation detail that we should
   // probably fortify in the API contract, namely that the last started prepare
   // or check watcher runs first.  It's not 100% foolproof; if an add-on starts
@@ -3257,10 +3267,12 @@ Environment* CreateEnvironment(Isolate* isolate,
   uv_prepare_init(env->event_loop(), env->idle_prepare_handle());
   uv_prepare_start(env->idle_prepare_handle(), SetIdle);
   uv_unref(reinterpret_cast<uv_handle_t*>(env->idle_prepare_handle()));
-
-  uv_check_init(env->event_loop(), env->idle_check_handle());
-  uv_check_start(env->idle_check_handle(), ClearIdle);
   uv_unref(reinterpret_cast<uv_handle_t*>(env->idle_check_handle()));
+
+  if (v8_is_profiling) {
+    uv_check_init(env->event_loop(), env->idle_check_handle());
+    uv_check_start(env->idle_check_handle(), ClearIdle);
+  }
 
   return env;
 }
