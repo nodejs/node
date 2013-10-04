@@ -43,9 +43,23 @@
 /* Instance types */
 #define V8_IT_FIXEDARRAY            V8DBG_TYPE_FIXEDARRAY__FIXED_ARRAY_TYPE
 #define V8_IT_CODE                  V8DBG_TYPE_CODE__CODE_TYPE
+#define V8_IT_SCRIPT                V8DBG_TYPE_SCRIPT__SCRIPT_TYPE
 
 /* Node-specific offsets */
 #define NODE_OFF_EXTSTR_DATA        sizeof(void*)
+
+/*
+ * Not all versions of V8 have the offset for the "chars" array in the
+ * SeqTwoByteString class, but it's the same as the one for SeqOneByteString,
+ * which used to be called SeqAsciiString.
+ */
+#ifndef V8DBG_CLASS_SEQTWOBYTESTRING__CHARS__CHAR
+#ifdef V8DBG_CLASS_SEQONEBYTESTRING__CHARS__CHAR
+#define	V8DBG_CLASS_SEQTWOBYTESTRING__CHARS__CHAR V8DBG_CLASS_SEQONEBYTESTRING__CHARS__CHAR
+#else
+#define	V8DBG_CLASS_SEQTWOBYTESTRING__CHARS__CHAR V8DBG_CLASS_SEQASCIISTRING__CHARS__CHAR
+#endif
+#endif
 
 /* Heap class->field offsets */
 #define V8_OFF_HEAP(off)            ((off) - 1)
@@ -82,5 +96,7 @@
     V8_OFF_HEAP(V8DBG_CLASS_HEAPOBJECT__MAP__MAP)
 #define V8_OFF_MAP_ATTRS  \
     V8_OFF_HEAP(V8DBG_CLASS_MAP__INSTANCE_ATTRIBUTES__INT)
+#define V8_OFF_TWOBYTESTR_CHARS  \
+    V8_OFF_HEAP(V8DBG_CLASS_SEQTWOBYTESTRING__CHARS__CHAR)
 
 #endif /* V8_ABBR_H */

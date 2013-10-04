@@ -31,6 +31,9 @@
 #define	V8_MAP_PTR(ptr)		\
     ((ptr & ~V8_HeapObjectTagMask) | V8_HeapObjectTag)
 
+#define V8_TYPE_SCRIPT(type) \
+    ((type) == V8_IT_SCRIPT)
+
 /*
  * Determine the encoding and representation of a V8 string.
  */
@@ -53,8 +56,11 @@
 #define	ASCII_SEQSTR(value)	\
     (V8_TYPE_STRING(value) && V8_STRENC_ASCII(value) && V8_STRREP_SEQ(value))
 
-#define	ASCII_CONSSTR(value)	\
-    (V8_TYPE_STRING(value) && V8_STRENC_ASCII(value) && V8_STRREP_CONS(value))
+#define	TWOBYTE_SEQSTR(value)	\
+    (V8_TYPE_STRING(value) && !V8_STRENC_ASCII(value) && V8_STRREP_SEQ(value))
+
+#define	IS_CONSSTR(value)	\
+    (V8_TYPE_STRING(value) && V8_STRREP_CONS(value))
 
 #define	ASCII_EXTSTR(value)	\
     (V8_TYPE_STRING(value) && V8_STRENC_ASCII(value) && V8_STRREP_EXT(value))
@@ -123,14 +129,16 @@
  *    "len":	the string length
  *
  *    "attrs":	the type identifier for the string, which indicates the
- *    		encoding and representation.  We're only interested in ASCII
- *    		encoded strings whose representation is one of:
+ *    		encoding and representation.  We're only interested in strings
+ *    		whose representation is one of:
  *
- *	SeqString	stored directly as a char array inside the object
+ *	SeqOneByteString stored directly as a char array inside the object
  *
- *	ConsString	pointer to two strings that should be concatenated
+ *	SeqTwoByteString stored as a UTF-16 char array inside the object
  *
- * 	ExternalString	pointer to a char* outside the V8 heap
+ *	ConsString	 pointer to two strings that should be concatenated
+ *
+ * 	ExternalString	 pointer to a char* outside the V8 heap
  */
 
 /*
@@ -141,16 +149,68 @@
     this->map = V8_MAP_PTR(COPYIN_PTR(str + V8_OFF_HEAPOBJ_MAP));	\
     attrs = COPYIN_UINT8(this->map + V8_OFF_MAP_ATTRS);
 
+#define	APPEND_SEQSTR(str, len, attrs) \
+    APPEND_SEQONEBYTESTR(str, len, attrs) \
+    APPEND_SEQTWOBYTESTR(str, len, attrs)
+
 /*
- * Print out the given SeqString, or do nothing if the string is not an ASCII
- * SeqString.
+ * Print out the given SeqOneByteString, or do nothing if the string is not an ASCII
+ * SeqOneByteString.
  */
-#define	APPEND_SEQSTR(str, len, attrs) 					\
-    dtrace:helper:ustack:	\
-    /!this->done && len > 0 && ASCII_SEQSTR(attrs)/	\
-    {	\
+#define	APPEND_SEQONEBYTESTR(str, len, attrs) 				\
+    dtrace:helper:ustack:						\
+    /!this->done && len > 0 && ASCII_SEQSTR(attrs)/			\
+    {									\
 	copyinto(str + V8_OFF_STR_CHARS, len, this->buf + this->off);	\
 	this->off += len;						\
+    }
+
+/*
+ * LOOP_ITER: macro to paste "block" while "ivar" is less than "dynmax" and
+ * "statmax".  The subsequent LOOP_{4,8} macros facilitate pasting the same
+ * thing 4 and 8 times, respectively.  Like much of the rest of the code in this
+ * file, this is regrettably necessary given the constraints under which we're
+ * expected to run.
+ */
+#define	LOOP_ITER(ivar, dynmax, statmax, block) \
+	((ivar) < (dynmax)) && ((ivar) < (statmax)) && (block); (ivar)++;
+
+#define	LOOP_4(block) \
+	block \
+	block \
+	block \
+	block \
+
+#define	LOOP_8(block) \
+	LOOP_4(block) \
+	LOOP_4(block)
+
+/*
+ * Print out the given SeqTwoByteString, or do nothing if the string is not an ASCII
+ * SeqTwoByteString.  NOTE: if you bump MAX_TWOBYTESTR_CHARS, you'll also need
+ * to modify the LOOP_* macro calls below to match.
+ */
+#define	MAX_TWOBYTESTR_CHARS	128
+#define	MAX_TWOBYTESTR_BYTES	(2 * MAX_TWOBYTESTR_CHARS)
+#define	TO_ASCII(c)		((c) < 128 ? (c) : '?')
+
+#define	APPEND_SEQTWOBYTESTR(str, len, attrs) 				\
+    dtrace:helper:ustack: 						\
+    /!this->done && len > 0 && TWOBYTE_SEQSTR(attrs)/ 			\
+    {									\
+	this->i = 0;							\
+	this->stbuf = (uint16_t *)alloca(MAX_TWOBYTESTR_BYTES + 2); 	\
+	copyinto(str + V8_OFF_TWOBYTESTR_CHARS,				\
+	    MAX_TWOBYTESTR_BYTES, this->stbuf);				\
+	this->stbuf[MAX_TWOBYTESTR_BYTES - 1] = '\0';			\
+	this->stbuf[MAX_TWOBYTESTR_BYTES] = '\0';			\
+									\
+	LOOP_8(LOOP_8(LOOP_4(LOOP_ITER(this->i, len,			\
+	    MAX_TWOBYTESTR_CHARS,					\
+	    APPEND_CHR(TO_ASCII(this->stbuf[this->i]))))))		\
+									\
+	this->i = 0;							\
+	this->stbuf = 0;						\
     }
 
 /*
@@ -158,10 +218,10 @@
  * not an ASCII ExternalString.
  */
 #define	APPEND_NODESTR(str, len, attrs)					\
-    dtrace:helper:ustack:	\
-    /!this->done && len > 0 && ASCII_EXTSTR(attrs)/	\
-    {	\
-	this->resource = COPYIN_PTR(str + V8_OFF_EXTSTR_RSRC);	\
+    dtrace:helper:ustack:						\
+    /!this->done && len > 0 && ASCII_EXTSTR(attrs)/			\
+    {									\
+	this->resource = COPYIN_PTR(str + V8_OFF_EXTSTR_RSRC);		\
 	this->dataptr = COPYIN_PTR(this->resource + NODE_OFF_EXTSTR_DATA);	\
 	copyinto(this->dataptr, len, this->buf + this->off);			\
 	this->off += len;							\
@@ -226,7 +286,7 @@
  */
 #define	EXPAND_STR(str, len, attrs, s1s, s1l, s1a, s2s, s2l, s2a)	\
     dtrace:helper:ustack:	\
-    /!this->done && len > 0 && ASCII_CONSSTR(attrs)/	\
+    /!this->done && len > 0 && IS_CONSSTR(attrs)/	\
     {	\
 	len = 0;							\
 									\
@@ -316,6 +376,7 @@ dtrace:helper:ustack:
 	this->funcnamelen = 0;
 	this->funcnameattrs = 0;
 	this->script = (off_t) 0;
+	this->scriptattrs = 0;
 	this->scriptnamestr = (off_t) 0;
 	this->scriptnamelen = 0;
 	this->scriptnameattrs = 0;
@@ -477,24 +538,38 @@ dtrace:helper:ustack:
 APPEND_V8STR(this->funcnamestr, this->funcnamelen, this->funcnameattrs)
 
 /*
- * Now look for the name of the script where the function was defined.
+ * Now look for the name of the script where the function was defined.  The
+ * "script" itself may be undefined for special functions like "RegExp".
  */
 dtrace:helper:ustack:
 /!this->done/
 {
 	this->script = COPYIN_PTR(this->shared + V8_OFF_SHARED_SCRIPT);
-	this->scriptnamestr = COPYIN_PTR(this->script + V8_OFF_SCRIPT_NAME);
-	LOAD_STRFIELDS(this->scriptnamestr, this->scriptnamelen,
-	    this->scriptnameattrs);
-
-	APPEND_CHR4(' ','a','t',' ');
+	this->map = V8_MAP_PTR(COPYIN_PTR(this->script + V8_OFF_HEAPOBJ_MAP));
+	this->scriptattrs = COPYIN_UINT8(this->map + V8_OFF_MAP_ATTRS);
 }
 
 dtrace:helper:ustack:
-/!this->done && this->scriptnamelen == 0/
+/!this->done && !V8_TYPE_SCRIPT(this->scriptattrs)/
 {
-	APPEND_CHR8('<','u','n','k','n','o','w','n');
-	APPEND_CHR('>');
+	APPEND_CHR('\0');
+	this->done = 1;
+	stringof(this->buf);
+}
+
+
+dtrace:helper:ustack:
+/!this->done/
+{
+	this->scriptnamestr = COPYIN_PTR(this->script + V8_OFF_SCRIPT_NAME);
+	LOAD_STRFIELDS(this->scriptnamestr, this->scriptnamelen,
+	    this->scriptnameattrs);
+}
+
+dtrace:helper:ustack:
+/!this->done && this->scriptnamelen != 0/
+{
+	APPEND_CHR4(' ','a','t',' ');
 }
 
 APPEND_V8STR(this->scriptnamestr, this->scriptnamelen, this->scriptnameattrs)
@@ -512,6 +587,14 @@ dtrace:helper:ustack:
 }
 
 dtrace:helper:ustack:
+/!this->done && this->le_attrs != V8_IT_FIXEDARRAY && this->position == 0/
+{
+	APPEND_CHR('\0');
+	this->done = 1;
+	stringof(this->buf);
+}
+
+dtrace:helper:ustack:
 /!this->done && this->le_attrs != V8_IT_FIXEDARRAY/
 {
 	/*
@@ -519,10 +602,9 @@ dtrace:helper:ustack:
 	 * undefined because V8 has not had to compute it yet.  In this case we
 	 * just show the raw position and call it a day.
 	 */
-	APPEND_CHR8(' ','p','o','s','i','t','i','o');
-	APPEND_CHR('n');
+	APPEND_CHR4(' ','p','o','s');
 	APPEND_CHR(' ');
-	APPEND_NUM(this->position);
+	APPEND_NUM(SMI_VALUE(this->position));
 	APPEND_CHR('\0');
 	this->done = 1;
 	stringof(this->buf);
