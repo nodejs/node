@@ -290,8 +290,15 @@ with new data as it is streamed.
 ### sign.sign(private_key, [output_format])
 
 Calculates the signature on all the updated data passed through the
-sign.  `private_key` is a string containing the PEM encoded private
-key for signing.
+sign.
+
+`private_key` can be an object or a string. If `private_key` is a string, it is
+treated as the key with no passphrase.
+
+`private_key`:
+
+* `key` : A string holding the PEM encoded private key
+* `passphrase` : A string of passphrase for the private key
 
 Returns the signature in `output_format` which can be `'binary'`,
 `'hex'` or `'base64'`. If no encoding is provided, then a buffer is

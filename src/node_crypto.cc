@@ -164,6 +164,19 @@ static void crypto_lock_cb(int mode, int n, const char* file, int line) {
 }
 
 
+static int CryptoPemCallback(char *buf, int size, int rwflag, void *u) {
+  if (u) {
+    size_t buflen = static_cast<size_t>(size);
+    size_t len = strlen(static_cast<const char*>(u));
+    len = len > buflen ? buflen : len;
+    memcpy(buf, u, len);
+    return len;
+  }
+
+  return 0;
+}
+
+
 void ThrowCryptoErrorHelper(unsigned long err, bool is_type_error) {
   HandleScope scope(node_isolate);
   char errmsg[128];
@@ -342,7 +355,7 @@ static X509* LoadX509(Handle<Value> v) {
   if (!bio)
     return NULL;
 
-  X509 * x509 = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+  X509 * x509 = PEM_read_bio_X509(bio, NULL, CryptoPemCallback, NULL);
   if (!x509) {
     BIO_free_all(bio);
     return NULL;
@@ -372,7 +385,9 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
   String::Utf8Value passphrase(args[1]);
 
-  EVP_PKEY* key = PEM_read_bio_PrivateKey(bio, NULL, NULL,
+  EVP_PKEY* key = PEM_read_bio_PrivateKey(bio,
+                                          NULL,
+                                          CryptoPemCallback,
                                           len == 1 ? NULL : *passphrase);
 
   if (!key) {
@@ -399,7 +414,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX *ctx, BIO *in) {
   int ret = 0;
   X509 *x = NULL;
 
-  x = PEM_read_bio_X509_AUX(in, NULL, NULL, NULL);
+  x = PEM_read_bio_X509_AUX(in, NULL, CryptoPemCallback, NULL);
 
   if (x == NULL) {
     SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE, ERR_R_PEM_LIB);
@@ -425,7 +440,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX *ctx, BIO *in) {
       ctx->extra_certs = NULL;
     }
 
-    while ((ca = PEM_read_bio_X509(in, NULL, NULL, NULL))) {
+    while ((ca = PEM_read_bio_X509(in, NULL, CryptoPemCallback, NULL))) {
       r = SSL_CTX_add_extra_chain_cert(ctx, ca);
 
       if (!r) {
@@ -530,7 +545,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   if (!bio)
     return;
 
-  X509_CRL *x509 = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
+  X509_CRL *x509 = PEM_read_bio_X509_CRL(bio, NULL, CryptoPemCallback, NULL);
 
   if (x509 == NULL) {
     BIO_free_all(bio);
@@ -564,7 +579,7 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      X509 *x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
+      X509 *x509 = PEM_read_bio_X509(bp, NULL, CryptoPemCallback, NULL);
 
       if (x509 == NULL) {
         BIO_free_all(bp);
@@ -2634,28 +2649,57 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-bool Sign::SignFinal(unsigned char** md_value,
-                     unsigned int *md_len,
-                     const char* key_pem,
-                     int key_pem_len) {
-  if (!initialised_)
+bool Sign::SignFinal(const char* key_pem,
+                     int key_pem_len,
+                     const char* passphrase,
+                     unsigned char** sig,
+                     unsigned int *sig_len) {
+  if (!initialised_) {
+    ThrowError("Sign not initalised");
     return false;
+  }
 
   BIO* bp = NULL;
   EVP_PKEY* pkey = NULL;
+  bool fatal = true;
+
   bp = BIO_new(BIO_s_mem());
+  if (bp == NULL)
+    goto exit;
+
   if (!BIO_write(bp, key_pem, key_pem_len))
-    return false;
+    goto exit;
 
-  pkey = PEM_read_bio_PrivateKey(bp, NULL, NULL, NULL);
+  pkey = PEM_read_bio_PrivateKey(bp,
+                                 NULL,
+                                 CryptoPemCallback,
+                                 const_cast<char*>(passphrase));
   if (pkey == NULL)
-    return 0;
+    goto exit;
 
-  EVP_SignFinal(&mdctx_, *md_value, md_len, pkey);
-  EVP_MD_CTX_cleanup(&mdctx_);
+  if (EVP_SignFinal(&mdctx_, *sig, sig_len, pkey))
+    fatal = false;
+
   initialised_ = false;
-  EVP_PKEY_free(pkey);
-  BIO_free_all(bp);
+
+ exit:
+  if (pkey != NULL)
+    EVP_PKEY_free(pkey);
+  if (bp != NULL)
+    BIO_free_all(bp);
+
+  EVP_MD_CTX_cleanup(&mdctx_);
+
+  if (fatal) {
+    unsigned long err = ERR_get_error();
+    if (err) {
+      ThrowCryptoError(err);
+    } else {
+      ThrowError("PEM_read_bio_PrivateKey");
+    }
+    return false;
+  }
+
   return true;
 }
 
@@ -2668,19 +2712,26 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   unsigned char* md_value;
   unsigned int md_len;
 
+  unsigned int len = args.Length();
   enum encoding encoding = BUFFER;
-  if (args.Length() >= 2) {
+  if (len >= 2 && args[1]->IsString()) {
     encoding = ParseEncoding(args[1]->ToString(), BUFFER);
   }
 
+  String::Utf8Value passphrase(args[2]);
+
   ASSERT_IS_BUFFER(args[0]);
-  ssize_t len = Buffer::Length(args[0]);
+  size_t buf_len = Buffer::Length(args[0]);
   char* buf = Buffer::Data(args[0]);
 
   md_len = 8192;  // Maximum key size is 8192 bits
   md_value = new unsigned char[md_len];
 
-  bool r = sign->SignFinal(&md_value, &md_len, buf, len);
+  bool r = sign->SignFinal(buf,
+                           buf_len,
+                           len >= 3 && !args[2]->IsNull() ? *passphrase : NULL,
+                           &md_value,
+                           &md_len);
   if (!r) {
     delete[] md_value;
     md_value = NULL;
@@ -2811,11 +2862,11 @@ bool Verify::VerifyFinal(const char* key_pem,
   // Split this out into a separate function once we have more than one
   // consumer of public keys.
   if (strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
-    pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL);
+    pkey = PEM_read_bio_PUBKEY(bp, NULL, CryptoPemCallback, NULL);
     if (pkey == NULL)
       goto exit;
   } else if (strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
-    RSA* rsa = PEM_read_bio_RSAPublicKey(bp, NULL, NULL, NULL);
+    RSA* rsa = PEM_read_bio_RSAPublicKey(bp, NULL, CryptoPemCallback, NULL);
     if (rsa) {
       pkey = EVP_PKEY_new();
       if (pkey)
@@ -2826,7 +2877,7 @@ bool Verify::VerifyFinal(const char* key_pem,
       goto exit;
   } else {
     // X.509 fallback
-    x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
+    x509 = PEM_read_bio_X509(bp, NULL, CryptoPemCallback, NULL);
     if (x509 == NULL)
       goto exit;
 
