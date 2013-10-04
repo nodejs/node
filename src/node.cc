@@ -3158,7 +3158,7 @@ void Init(int* argc,
 
 #ifdef __POSIX__
   // Raise the open file descriptor limit.
-  {
+  {  // NOLINT (whitespace/braces)
     struct rlimit lim;
     if (getrlimit(RLIMIT_NOFILE, &lim) == 0 && lim.rlim_cur != lim.rlim_max) {
       // Do a binary search for the limit.
