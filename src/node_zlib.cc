@@ -84,7 +84,8 @@ class ZCtx : public WeakObject {
       , mode_(mode)
       , strategy_(0)
       , windowBits_(0)
-      , write_in_progress_(false) {
+      , write_in_progress_(false)
+      , refs_(0) {
   }
 
 
@@ -137,7 +138,7 @@ class ZCtx : public WeakObject {
 
     assert(!ctx->write_in_progress_ && "write already in progress");
     ctx->write_in_progress_ = true;
-    ctx->ClearWeak();
+    ctx->Ref();
 
     assert(!args[0]->IsUndefined() && "must provide flush value");
 
@@ -291,7 +292,7 @@ class ZCtx : public WeakObject {
     Local<Value> args[2] = { avail_in, avail_out };
     MakeCallback(env, handle, env->callback_string(), ARRAY_SIZE(args), args);
 
-    ctx->MakeWeak();
+    ctx->Unref();
   }
 
   static void Error(ZCtx* ctx, const char* message) {
@@ -314,7 +315,7 @@ class ZCtx : public WeakObject {
 
     // no hope of rescue.
     ctx->write_in_progress_ = false;
-    ctx->MakeWeak();
+    ctx->Unref();
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
@@ -517,6 +518,19 @@ class ZCtx : public WeakObject {
   }
 
  private:
+  void Ref() {
+    if (++refs_ == 1) {
+      ClearWeak();
+    }
+  }
+
+  void Unref() {
+    assert(refs_ > 0);
+    if (--refs_ == 0) {
+      MakeWeak();
+    }
+  }
+
   static const int kDeflateContextSize = 16384;  // approximate
   static const int kInflateContextSize = 10240;  // approximate
 
@@ -535,6 +549,7 @@ class ZCtx : public WeakObject {
   int windowBits_;
   uv_work_t work_req_;
   bool write_in_progress_;
+  unsigned int refs_;
 };
 
 
