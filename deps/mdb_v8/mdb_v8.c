@@ -1402,8 +1402,6 @@ jsstr_print_seq(uintptr_t addr, uint_t flags, char **bufp, size_t *lenp,
 
 	if (slicelen != -1)
 		nstrchrs = slicelen;
-	if (nstrchrs < 0)
-		nstrchrs = 0;
 
 	if ((flags & JSSTR_ISASCII) != 0) {
 		nstrbytes = nstrchrs;
