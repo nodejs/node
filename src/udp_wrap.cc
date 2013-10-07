@@ -119,6 +119,9 @@ void UDPWrap::Initialize(Handle<Object> target,
   NODE_SET_PROTOTYPE_METHOD(t, "ref", HandleWrap::Ref);
   NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
 
+
+  AsyncWrap::AddMethods<UDPWrap>(t);
+
   target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "UDP"), t->GetFunction());
   env->set_udp_constructor_function(t->GetFunction());
 }
