@@ -61,6 +61,8 @@
 	(((type) & V8_StringRepresentationMask) == V8_SeqStringTag)
 #define	V8_STRREP_CONS(type)	\
 	(((type) & V8_StringRepresentationMask) == V8_ConsStringTag)
+#define	V8_STRREP_SLICED(type)	\
+	(((type) & V8_StringRepresentationMask) == V8_SlicedStringTag)
 #define	V8_STRREP_EXT(type)	\
 	(((type) & V8_StringRepresentationMask) == V8_ExternalStringTag)
 
