@@ -3210,8 +3210,10 @@ class HConstant: public HTemplateInstruction<0> {
   static HConstant* CreateAndInsertAfter(Zone* zone,
                                          HValue* context,
                                          int32_t value,
+                                         Representation representation,
                                          HInstruction* instruction) {
-    HConstant* new_constant = HConstant::New(zone, context, value);
+    HConstant* new_constant =
+        HConstant::New(zone, context, value, representation);
     new_constant->InsertAfter(instruction);
     return new_constant;
   }
@@ -3219,8 +3221,10 @@ class HConstant: public HTemplateInstruction<0> {
   static HConstant* CreateAndInsertBefore(Zone* zone,
                                           HValue* context,
                                           int32_t value,
+                                          Representation representation,
                                           HInstruction* instruction) {
-    HConstant* new_constant = HConstant::New(zone, context, value);
+    HConstant* new_constant =
+        HConstant::New(zone, context, value, representation);
     new_constant->InsertBefore(instruction);
     return new_constant;
   }

@@ -3268,7 +3268,11 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   }
 
   HInstruction* new_dominator_size_constant = HConstant::CreateAndInsertBefore(
-      zone, context(), new_dominator_size, dominator_allocate);
+      zone,
+      context(),
+      new_dominator_size,
+      Representation::None(),
+      dominator_allocate);
   dominator_allocate->UpdateSize(new_dominator_size_constant);
 
 #ifdef VERIFY_HEAP
@@ -3371,11 +3375,15 @@ HAllocate* HAllocate::GetFoldableDominator(HAllocate* dominator) {
 void HAllocate::UpdateFreeSpaceFiller(int32_t free_space_size) {
   ASSERT(filler_free_space_size_ != NULL);
   Zone* zone = block()->zone();
+  // We must explicitly force Smi representation here because on x64 we
+  // would otherwise automatically choose int32, but the actual store
+  // requires a Smi-tagged value.
   HConstant* new_free_space_size = HConstant::CreateAndInsertBefore(
       zone,
       context(),
       filler_free_space_size_->value()->GetInteger32Constant() +
           free_space_size,
+      Representation::Smi(),
       filler_free_space_size_);
   filler_free_space_size_->UpdateValue(new_free_space_size);
 }
@@ -3401,10 +3409,15 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   store_map->SetFlag(HValue::kHasNoObservableSideEffects);
   store_map->InsertAfter(filler_map);
 
+  // We must explicitly force Smi representation here because on x64 we
+  // would otherwise automatically choose int32, but the actual store
+  // requires a Smi-tagged value.
   HConstant* filler_size = HConstant::CreateAndInsertAfter(
-      zone, context(), free_space_size, store_map);
+      zone, context(), free_space_size, Representation::Smi(), store_map);
+  // Must force Smi representation for x64 (see comment above).
   HObjectAccess access =
-      HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset);
+      HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset,
+          Representation::Smi());
   HStoreNamedField* store_size = HStoreNamedField::New(zone, context(),
       free_space_instr, access, filler_size);
   store_size->SetFlag(HValue::kHasNoObservableSideEffects);
