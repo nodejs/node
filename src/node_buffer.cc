@@ -59,6 +59,7 @@
 namespace node {
 namespace Buffer {
 
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -550,6 +551,25 @@ void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  HandleScope scope(node_isolate);
+
+  ARGS_THIS(args.This());
+  void* adata = malloc(obj_length);
+
+  if (adata == NULL) {
+    FatalError("node::Buffer::ToArrayBuffer("
+        "const FunctionCallbackInfo<v8::Value>&)",
+        "Out Of Memory");
+  }
+
+  memcpy(adata, obj_data, obj_length);
+
+  Local<ArrayBuffer> abuf = ArrayBuffer::New(adata, obj_length);
+  args.GetReturnValue().Set(abuf);
+}
+
+
 void ByteLength(const FunctionCallbackInfo<Value> &args) {
   HandleScope scope(node_isolate);
 
@@ -603,6 +623,8 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   NODE_SET_METHOD(proto, "writeDoubleLE", WriteDoubleLE);
   NODE_SET_METHOD(proto, "writeFloatBE", WriteFloatBE);
   NODE_SET_METHOD(proto, "writeFloatLE", WriteFloatLE);
+
+  NODE_SET_METHOD(proto, "toArrayBuffer", ToArrayBuffer);
 
   NODE_SET_METHOD(proto, "copy", Copy);
   NODE_SET_METHOD(proto, "fill", Fill);

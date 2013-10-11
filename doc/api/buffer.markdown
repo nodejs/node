@@ -671,6 +671,10 @@ buffer.
     var b = new Buffer(50);
     b.fill("h");
 
+### buf.toArrayBuffer()
+
+Creates a new `ArrayBuffer` with the copied memory of the buffer instance.
+
 ## buffer.INSPECT_MAX_BYTES
 
 * Number, Default: 50
