@@ -43,7 +43,9 @@
   Local<Object> obj = argT;                                                 \
   size_t obj_length = obj->GetIndexedPropertiesExternalArrayDataLength();   \
   char* obj_data = static_cast<char*>(                                      \
-    obj->GetIndexedPropertiesExternalArrayData());
+    obj->GetIndexedPropertiesExternalArrayData());                          \
+  if (obj_length > 0)                                                       \
+    assert(obj_data != NULL);
 
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
   size_t start;                                                             \
