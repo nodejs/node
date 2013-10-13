@@ -482,6 +482,17 @@ class Parser : public WeakObject {
   }
 
 
+  template <bool should_pause>
+  static void Pause(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    HandleScope handle_scope(args.GetIsolate());
+    Parser* parser = WeakObject::Unwrap<Parser>(args.This());
+    // Should always be called from the same context.
+    assert(env == parser->env());
+    http_parser_pause(&parser->parser_, should_pause);
+  }
+
+
  private:
 
   Local<Array> CreateHeaders() {
@@ -588,6 +599,8 @@ void InitHttpParser(Handle<Object> target,
   NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
   NODE_SET_PROTOTYPE_METHOD(t, "finish", Parser::Finish);
   NODE_SET_PROTOTYPE_METHOD(t, "reinitialize", Parser::Reinitialize);
+  NODE_SET_PROTOTYPE_METHOD(t, "pause", Parser::Pause<true>);
+  NODE_SET_PROTOTYPE_METHOD(t, "resume", Parser::Pause<false>);
 
   target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "HTTPParser"),
               t->GetFunction());
