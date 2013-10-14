@@ -78,6 +78,7 @@ class SecureContext : public WeakObject {
   static void AddCRL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddRootCerts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetCiphers(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetECDHCurve(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSessionIdContext(
       const v8::FunctionCallbackInfo<v8::Value>& args);

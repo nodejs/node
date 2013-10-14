@@ -117,9 +117,9 @@ automatically set as a listener for the [secureConnection][] event.  The
     conjunction with the `honorCipherOrder` option described below to
     prioritize the non-CBC cipher.
 
-    Defaults to `AES128-GCM-SHA256:RC4:HIGH:!MD5:!aNULL:!EDH`.
+    Defaults to `ECDHE-RSA-AES128-SHA256:AES128-GCM-SHA256:RC4:HIGH:!MD5:!aNULL:!EDH`.
     Consult the [OpenSSL cipher list format documentation] for details on the
-    format. ECDH (Elliptic Curve Diffie-Hellman) ciphers are not yet supported.
+    format.
 
 
     `AES128-GCM-SHA256` is used when node.js is linked against OpenSSL 1.0.1
@@ -128,6 +128,17 @@ automatically set as a listener for the [secureConnection][] event.  The
     **NOTE**: Previous revisions of this section suggested `AES256-SHA` as an
     acceptable cipher. Unfortunately, `AES256-SHA` is a CBC cipher and therefore
     susceptible to BEAST attacks. Do *not* use it.
+
+  - `ecdhCurve`: A string describing a named curve to use for ECDH ciphers or
+    false to disable all ECDH ciphers.
+
+    This is required to support ECDH (Elliptic Curve Diffie-Hellman) ciphers.
+    ECDH ciphers are a newer alternative to RSA. The advantages of ECDH over
+    RSA is that it offers [Forward secrecy]. Forward secrecy means that for an
+    attacker it won't be possible to decrypt your previous data exchanges if
+    they get access to your private key.
+
+    Defaults to `prime256v1`. Consult [RFC 4492] for more details.
 
   - `handshakeTimeout`: Abort the connection if the SSL/TLS handshake does not
     finish in this many milliseconds. The default is 120 seconds.
@@ -629,3 +640,5 @@ The numeric representation of the local port.
 [SSL_METHODS]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
 [tls.Server]: #tls_class_tls_server
 [SSL_CTX_set_timeout]: http://www.openssl.org/docs/ssl/SSL_CTX_set_timeout.html
+[RFC 4492]: http://www.rfc-editor.org/rfc/rfc4492.txt
+[Forward secrecy]: http://en.wikipedia.org/wiki/Perfect_forward_secrecy

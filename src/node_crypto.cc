@@ -220,6 +220,7 @@ void SecureContext::Initialize(Environment* env, Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "addCRL", SecureContext::AddCRL);
   NODE_SET_PROTOTYPE_METHOD(t, "addRootCerts", SecureContext::AddRootCerts);
   NODE_SET_PROTOTYPE_METHOD(t, "setCiphers", SecureContext::SetCiphers);
+  NODE_SET_PROTOTYPE_METHOD(t, "setECDHCurve", SecureContext::SetECDHCurve);
   NODE_SET_PROTOTYPE_METHOD(t, "setOptions", SecureContext::SetOptions);
   NODE_SET_PROTOTYPE_METHOD(t, "setSessionIdContext",
                                SecureContext::SetSessionIdContext);
@@ -611,6 +612,33 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
 
   const String::Utf8Value ciphers(args[0]);
   SSL_CTX_set_cipher_list(sc->ctx_, *ciphers);
+}
+
+
+void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
+  HandleScope scope(node_isolate);
+
+  SecureContext* sc = Unwrap<SecureContext>(args.This());
+
+  if (args.Length() != 1 || !args[0]->IsString())
+    return ThrowTypeError("First argument should be a string");
+
+  String::Utf8Value curve(args[0]);
+
+  int nid = OBJ_sn2nid(*curve);
+
+  if (nid == NID_undef)
+    return ThrowTypeError("First argument should be a valid curve name");
+
+  EC_KEY* ecdh = EC_KEY_new_by_curve_name(nid);
+
+  if (ecdh == NULL)
+    return ThrowTypeError("First argument should be a valid curve name");
+
+  SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_ECDH_USE);
+  SSL_CTX_set_tmp_ecdh(sc->ctx_, ecdh);
+
+  EC_KEY_free(ecdh);
 }
 
 
