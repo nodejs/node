@@ -489,6 +489,15 @@ public:
   }
 
 
+  template <bool should_pause>
+  static Handle<Value> Pause(const Arguments& args) {
+    HandleScope scope;
+    Parser* parser = ObjectWrap::Unwrap<Parser>(args.This());
+    http_parser_pause(&parser->parser_, should_pause);
+    return Undefined();
+  }
+
+
 private:
 
   Local<Array> CreateHeaders() {
@@ -564,6 +573,8 @@ void InitHttpParser(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
   NODE_SET_PROTOTYPE_METHOD(t, "finish", Parser::Finish);
   NODE_SET_PROTOTYPE_METHOD(t, "reinitialize", Parser::Reinitialize);
+  NODE_SET_PROTOTYPE_METHOD(t, "pause", Parser::Pause<true>);
+  NODE_SET_PROTOTYPE_METHOD(t, "resume", Parser::Pause<false>);
 
   target->Set(String::NewSymbol("HTTPParser"), t->GetFunction());
 
