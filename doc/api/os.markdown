@@ -41,6 +41,7 @@ Returns the system uptime in seconds.
 ## os.loadavg()
 
 Returns an array containing the 1, 5, and 15 minute load averages.
+This function always return `[0, 0, 0]` on Windows.
 
 ## os.totalmem()
 
