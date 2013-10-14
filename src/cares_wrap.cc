@@ -394,7 +394,7 @@ class QueryAWrap: public QueryWrap {
 
     int status = ares_parse_a_reply(buf, len, &host, NULL, NULL);
     if (status != ARES_SUCCESS) {
-      this->ParseError(status);
+      ParseError(status);
       return;
     }
 
@@ -430,7 +430,7 @@ class QueryAaaaWrap: public QueryWrap {
 
     int status = ares_parse_aaaa_reply(buf, len, &host, NULL, NULL);
     if (status != ARES_SUCCESS) {
-      this->ParseError(status);
+      ParseError(status);
       return;
     }
 
@@ -466,7 +466,7 @@ class QueryCnameWrap: public QueryWrap {
 
     int status = ares_parse_a_reply(buf, len, &host, NULL, NULL);
     if (status != ARES_SUCCESS) {
-      this->ParseError(status);
+      ParseError(status);
       return;
     }
 
@@ -504,7 +504,7 @@ class QueryMxWrap: public QueryWrap {
     struct ares_mx_reply* mx_start;
     int status = ares_parse_mx_reply(buf, len, &mx_start);
     if (status != ARES_SUCCESS) {
-      this->ParseError(status);
+      ParseError(status);
       return;
     }
 
@@ -553,7 +553,7 @@ class QueryNsWrap: public QueryWrap {
 
     int status = ares_parse_ns_reply(buf, len, &host);
     if (status != ARES_SUCCESS) {
-      this->ParseError(status);
+      ParseError(status);
       return;
     }
 
@@ -587,7 +587,7 @@ class QueryTxtWrap: public QueryWrap {
 
     int status = ares_parse_txt_reply(buf, len, &txt_out);
     if (status != ARES_SUCCESS) {
-      this->ParseError(status);
+      ParseError(status);
       return;
     }
 
@@ -629,7 +629,7 @@ class QuerySrvWrap: public QueryWrap {
     struct ares_srv_reply* srv_start;
     int status = ares_parse_srv_reply(buf, len, &srv_start);
     if (status != ARES_SUCCESS) {
-      this->ParseError(status);
+      ParseError(status);
       return;
     }
 
@@ -687,7 +687,7 @@ class QueryNaptrWrap: public QueryWrap {
     int status = ares_parse_naptr_reply(buf, len, &naptr_start);
 
     if (status != ARES_SUCCESS) {
-      this->ParseError(status);
+      ParseError(status);
       return;
     }
 
