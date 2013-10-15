@@ -21,46 +21,39 @@
 
 var common = require('../common');
 var assert = require('assert');
-var net = require('net');
 
+function onAsync0() { }
 
-// TODO(trevnorris): Test has the flaw that it's not checking if the async
-// flag has been removed on the class instance. Though currently there's
-// no way to do that.
-var listener = process.addAsyncListener(function() { });
+var set = 0;
+var asyncNoHandleError = {
+  error: function() {
+    set++;
+  }
+}
 
+var key = process.addAsyncListener(onAsync0, asyncNoHandleError);
 
-// Test timers
-
-setImmediate(function() {
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
-
-setTimeout(function() {
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
-
-setInterval(function() {
-  clearInterval(this);
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
-
-
-// Test net
-
-var server = net.createServer(function(c) {
-  c._handle.removeAsyncListener(listener);
-  assert.equal(c._handle._asyncQueue.length, 0);
+process.nextTick(function() {
+  throw 1;
 });
 
-server.listen(common.PORT, function() {
-  server._handle.removeAsyncListener(listener);
-  assert.equal(server._handle._asyncQueue.length, 0);
+process.removeAsyncListener(key);
 
-  var client = net.connect(common.PORT, function() {
-    client._handle.removeAsyncListener(listener);
-    assert.equal(client._handle._asyncQueue.length, 0);
-    client.end();
-    server.close();
-  });
+var uncaughtFired = false;
+process.on('uncaughtException', function() {
+  uncaughtFired = true;
+
+  // Throwing should call the error handler once, then propagate to
+  // uncaughtException
+  assert.equal(set, 1);
+});
+
+process.on('exit', function(code) {
+  // If the exit code isn't ok then return early to throw the stack that
+  // caused the bad return code.
+  if (code !== 0)
+    return;
+
+  assert.ok(uncaughtFired);
+  console.log('ok');
 });

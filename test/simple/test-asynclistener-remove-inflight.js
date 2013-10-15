@@ -21,46 +21,34 @@
 
 var common = require('../common');
 var assert = require('assert');
-var net = require('net');
 
+function onAsync0() { }
 
-// TODO(trevnorris): Test has the flaw that it's not checking if the async
-// flag has been removed on the class instance. Though currently there's
-// no way to do that.
-var listener = process.addAsyncListener(function() { });
+var set = 0;
+var asyncNoHandleError = {
+  before: function() {
+    set++;
+  },
+  after: function() {
+    set++;
+  }
+}
 
+var key = process.addAsyncListener(onAsync0, asyncNoHandleError);
 
-// Test timers
+process.nextTick(function() { });
 
-setImmediate(function() {
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
+process.removeAsyncListener(key);
 
-setTimeout(function() {
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
+process.on('exit', function(code) {
+  // If the exit code isn't ok then return early to throw the stack that
+  // caused the bad return code.
+  if (code !== 0)
+    return;
 
-setInterval(function() {
-  clearInterval(this);
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
-
-
-// Test net
-
-var server = net.createServer(function(c) {
-  c._handle.removeAsyncListener(listener);
-  assert.equal(c._handle._asyncQueue.length, 0);
+  // Calling removeAsyncListener *after* a callback is scheduled
+  // should not affect the handler from responding to the callback.
+  assert.equal(set, 2);
+  console.log('ok');
 });
 
-server.listen(common.PORT, function() {
-  server._handle.removeAsyncListener(listener);
-  assert.equal(server._handle._asyncQueue.length, 0);
-
-  var client = net.connect(common.PORT, function() {
-    client._handle.removeAsyncListener(listener);
-    assert.equal(client._handle._asyncQueue.length, 0);
-    client.end();
-    server.close();
-  });
-});

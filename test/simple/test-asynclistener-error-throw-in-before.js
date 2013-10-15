@@ -21,46 +21,44 @@
 
 var common = require('../common');
 var assert = require('assert');
-var net = require('net');
 
+var once = 0;
+function onAsync0() {}
 
-// TODO(trevnorris): Test has the flaw that it's not checking if the async
-// flag has been removed on the class instance. Though currently there's
-// no way to do that.
-var listener = process.addAsyncListener(function() { });
+var results = [];
+var handlers = {
+  before: function() {
+    throw 1;
+  },
+  error: function(stor, err) {
+    // Error handler must be called exactly *once*.
+    once++;
+    assert.equal(err, 1);
+    return true;
+  }
+}
 
+var key = process.addAsyncListener(onAsync0, handlers);
 
-// Test timers
+var uncaughtFired = false;
+process.on('uncaughtException', function(err) {
+  uncaughtFired = true;
 
-setImmediate(function() {
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
-
-setTimeout(function() {
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
-
-setInterval(function() {
-  clearInterval(this);
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
-
-
-// Test net
-
-var server = net.createServer(function(c) {
-  c._handle.removeAsyncListener(listener);
-  assert.equal(c._handle._asyncQueue.length, 0);
+  // Process should propagate error regardless of handlers return value.
+  assert.equal(once, 1);
 });
 
-server.listen(common.PORT, function() {
-  server._handle.removeAsyncListener(listener);
-  assert.equal(server._handle._asyncQueue.length, 0);
+process.nextTick(function() { });
 
-  var client = net.connect(common.PORT, function() {
-    client._handle.removeAsyncListener(listener);
-    assert.equal(client._handle._asyncQueue.length, 0);
-    client.end();
-    server.close();
-  });
+process.removeAsyncListener(key);
+
+process.on('exit', function(code) {
+  // If the exit code isn't ok then return early to throw the stack that
+  // caused the bad return code.
+  if (code !== 0)
+    return;
+
+  // Make sure that the uncaughtException actually fired.
+  assert.ok(uncaughtFired);
+  console.log('ok');
 });

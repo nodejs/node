@@ -21,46 +21,48 @@
 
 var common = require('../common');
 var assert = require('assert');
-var net = require('net');
 
+var active = null;
+var cntr = 0;
 
-// TODO(trevnorris): Test has the flaw that it's not checking if the async
-// flag has been removed on the class instance. Though currently there's
-// no way to do that.
-var listener = process.addAsyncListener(function() { });
+function onAsync0() {
+  return 0;
+}
 
+function onAsync1() {
+  return 1;
+}
 
-// Test timers
+var results = [];
+var asyncNoHandleError = {
+  error: function(stor) {
+    results.push(stor);
+    return true;
+  }
+};
 
-setImmediate(function() {
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
+var listeners = [
+  process.addAsyncListener(onAsync0, asyncNoHandleError),
+  process.addAsyncListener(onAsync1, asyncNoHandleError)
+];
 
-setTimeout(function() {
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
-
-setInterval(function() {
-  clearInterval(this);
-  assert.equal(this._asyncQueue.length, 0);
-}).removeAsyncListener(listener);
-
-
-// Test net
-
-var server = net.createServer(function(c) {
-  c._handle.removeAsyncListener(listener);
-  assert.equal(c._handle._asyncQueue.length, 0);
+process.nextTick(function() {
+  throw new Error();
 });
 
-server.listen(common.PORT, function() {
-  server._handle.removeAsyncListener(listener);
-  assert.equal(server._handle._asyncQueue.length, 0);
+process.removeAsyncListener(listeners[0]);
+process.removeAsyncListener(listeners[1]);
 
-  var client = net.connect(common.PORT, function() {
-    client._handle.removeAsyncListener(listener);
-    assert.equal(client._handle._asyncQueue.length, 0);
-    client.end();
-    server.close();
-  });
+process.on('exit', function(code) {
+  // If the exit code isn't ok then return early to throw the stack that
+  // caused the bad return code.
+  if (code !== 0)
+    return;
+
+  // Handling of errors should propagate to all listeners.
+  assert.equal(results[0], 0);
+  assert.equal(results[1], 1);
+  assert.equal(results.length, 2);
+
+  console.log('ok');
 });
