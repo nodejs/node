@@ -42,9 +42,9 @@ child.stderr.on('data', function(data) {
 
 var assertOutputLines = common.mustCall(function() {
   var expectedLines = [
-    'debugger listening on port ' + 5858,
-    'debugger listening on port ' + 5859,
-    'debugger listening on port ' + 5860,
+    'Debugger listening on port ' + 5858,
+    'Debugger listening on port ' + 5859,
+    'Debugger listening on port ' + 5860,
   ];
 
   // Do not assume any particular order of output messages,

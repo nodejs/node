@@ -61,17 +61,13 @@ process.on('exit', function onExit() {
 });
 
 function assertOutputLines() {
-  var startLog = process.platform === 'win32'
-                 ? 'Starting debugger agent.'
-                 : 'Hit SIGUSR1 - starting debugger agent.';
-
   var expectedLines = [
-    startLog,
-    'debugger listening on port ' + 5858,
-    startLog,
-    'debugger listening on port ' + 5859,
-    startLog,
-    'debugger listening on port ' + 5860,
+    'Starting debugger agent.',
+    'Debugger listening on port ' + 5858,
+    'Starting debugger agent.',
+    'Debugger listening on port ' + 5859,
+    'Starting debugger agent.',
+    'Debugger listening on port ' + 5860,
   ];
 
   // Do not assume any particular order of output messages,

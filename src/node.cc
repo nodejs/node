@@ -138,10 +138,8 @@ bool no_deprecation = false;
 
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
-
-static volatile bool debugger_running = false;
+static bool debugger_running;
 static uv_async_t dispatch_debug_messages_async;
-static uv_async_t emit_debug_enabled_async;
 
 // Declared in node_internals.h
 Isolate* node_isolate = NULL;
@@ -2823,85 +2821,68 @@ static void ParseArgs(int* argc,
 }
 
 
-// Called from the main thread.
-static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle, int status) {
-  v8::Debug::ProcessDebugMessages();
-}
-
-
 // Called from V8 Debug Agent TCP thread.
 static void DispatchMessagesDebugAgentCallback() {
   uv_async_send(&dispatch_debug_messages_async);
 }
 
 
-// Called from the main thread
-static void EmitDebugEnabledAsyncCallback(uv_async_t* handle, int status) {
-  Environment* env = Environment::GetCurrent(node_isolate);
+// Called from the main thread.
+static void EnableDebug(bool wait_connect) {
+  assert(debugger_running == false);
+  Isolate* isolate = node_isolate;  // TODO(bnoordhuis) Multi-isolate support.
+  Isolate::Scope isolate_scope(isolate);
+  v8::Debug::SetDebugMessageDispatchHandler(DispatchMessagesDebugAgentCallback,
+                                            false);
+  debugger_running = v8::Debug::EnableAgent("node " NODE_VERSION,
+                                            debug_port,
+                                            wait_connect);
+  if (debugger_running == false) {
+    fprintf(stderr, "Starting debugger on port %d failed\n", debug_port);
+    fflush(stderr);
+    return;
+  }
+  fprintf(stderr, "Debugger listening on port %d\n", debug_port);
+  fflush(stderr);
+
+  Environment* env = Environment::GetCurrentChecked(isolate);
+  if (env == NULL)
+    return;  // Still starting up.
+
   Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
   Local<Object> message = Object::New();
-  message->Set(FIXED_ONE_BYTE_STRING(node_isolate, "cmd"),
-               FIXED_ONE_BYTE_STRING(node_isolate, "NODE_DEBUG_ENABLED"));
-  Local<Value> args[] = {
-    FIXED_ONE_BYTE_STRING(node_isolate, "internalMessage"),
+  message->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "cmd"),
+               FIXED_ONE_BYTE_STRING(env->isolate(), "NODE_DEBUG_ENABLED"));
+  Local<Value> argv[] = {
+    FIXED_ONE_BYTE_STRING(env->isolate(), "internalMessage"),
     message
   };
-  MakeCallback(env, env->process_object(), "emit", ARRAY_SIZE(args), args);
+  MakeCallback(env, env->process_object(), "emit", ARRAY_SIZE(argv), argv);
 }
 
 
-// Called from the signal watcher callback
-static void EmitDebugEnabled() {
-  uv_async_send(&emit_debug_enabled_async);
-}
-
-
-static void EnableDebug(bool wait_connect) {
-  // If we're called from another thread, make sure to enter the right
-  // v8 isolate.
-  node_isolate->Enter();
-
-  v8::Debug::SetDebugMessageDispatchHandler(DispatchMessagesDebugAgentCallback,
-                                            false);
-
-  // Start the debug thread and it's associated TCP server on port 5858.
-  bool r = v8::Debug::EnableAgent("node " NODE_VERSION,
-                                  debug_port,
-                                  wait_connect);
-
-  // Crappy check that everything went well. FIXME
-  assert(r);
-
-  // Print out some information.
-  fprintf(stderr, "debugger listening on port %d\n", debug_port);
-  fflush(stderr);
-
-  debugger_running = true;
-
-  if (Environment::GetCurrentChecked(node_isolate) != NULL) {
-    EmitDebugEnabled();
+// Called from the main thread.
+static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle, int status) {
+  if (debugger_running == false) {
+    fprintf(stderr, "Starting debugger agent.\n");
+    EnableDebug(false);
   }
-
-  node_isolate->Exit();
+  Isolate::Scope isolate_scope(node_isolate);
+  v8::Debug::ProcessDebugMessages();
 }
 
 
 #ifdef __POSIX__
-static void EnableDebugSignalHandler(uv_signal_t* handle, int) {
-  // Break once process will return execution to v8
-  v8::Debug::DebugBreak(node_isolate);
-
-  if (!debugger_running) {
-    fprintf(stderr, "Hit SIGUSR1 - starting debugger agent.\n");
-    EnableDebug(false);
-  }
+static void EnableDebugSignalHandler(int signo) {
+  // Call only async signal-safe functions here!
+  v8::Debug::DebugBreak(*static_cast<Isolate* volatile*>(&node_isolate));
+  uv_async_send(&dispatch_debug_messages_async);
 }
 
 
 static void RegisterSignalHandler(int signal, void (*handler)(int signal)) {
   struct sigaction sa;
-
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = handler;
   sigfillset(&sa.sa_mask);
@@ -2925,22 +2906,20 @@ void DebugProcess(const FunctionCallbackInfo<Value>& args) {
     return ThrowErrnoException(errno, "kill");
   }
 }
+
+
+static int RegisterDebugSignalHandler() {
+  // FIXME(bnoordhuis) Should be per-isolate or per-context, not global.
+  RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
+  return 0;
+}
 #endif  // __POSIX__
 
 
 #ifdef _WIN32
 DWORD WINAPI EnableDebugThreadProc(void* arg) {
-  // Break once process will return execution to v8
-  if (!debugger_running) {
-    for (int i = 0; i < 1; i++) {
-      fprintf(stderr, "Starting debugger agent.\r\n");
-      fflush(stderr);
-      EnableDebug(false);
-    }
-  }
-
-  v8::Debug::DebugBreak(node_isolate);
-
+  v8::Debug::DebugBreak(*static_cast<Isolate* volatile*>(&node_isolate));
+  uv_async_send(&dispatch_debug_messages_async);
   return 0;
 }
 
@@ -3105,13 +3084,6 @@ void Init(int* argc,
                 DispatchDebugMessagesAsyncCallback);
   uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
 
-  // init async NODE_DEBUG_ENABLED emitter
-  // FIXME(bnoordhuis) Should be per-isolate or per-context, not global.
-  uv_async_init(uv_default_loop(),
-                &emit_debug_enabled_async,
-                EmitDebugEnabledAsyncCallback);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&emit_debug_enabled_async));
-
   // Parse a few arguments which are specific to Node.
   int v8_argc;
   const char** v8_argv;
@@ -3192,15 +3164,7 @@ void Init(int* argc,
   if (use_debug_agent) {
     EnableDebug(debug_wait_connect);
   } else {
-#ifdef _WIN32
     RegisterDebugSignalHandler();
-#else  // Posix
-    // FIXME(bnoordhuis) Should be per-isolate or per-context, not global.
-    static uv_signal_t signal_watcher;
-    uv_signal_init(uv_default_loop(), &signal_watcher);
-    uv_signal_start(&signal_watcher, EnableDebugSignalHandler, SIGUSR1);
-    uv_unref(reinterpret_cast<uv_handle_t*>(&signal_watcher));
-#endif  // __POSIX__
   }
 }
 

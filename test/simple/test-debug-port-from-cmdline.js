@@ -51,20 +51,16 @@ function processStderrLine(line) {
   console.log('> ' + line);
   outputLines.push(line);
 
-  if (/debugger listening/.test(line)) {
+  if (/Debugger listening/.test(line)) {
     assertOutputLines();
     process.exit();
   }
 }
 
 function assertOutputLines() {
-  var startLog = process.platform === 'win32'
-                 ? 'Starting debugger agent.'
-                 : 'Hit SIGUSR1 - starting debugger agent.';
-
   var expectedLines = [
-    startLog,
-    'debugger listening on port ' + debugPort
+    'Starting debugger agent.',
+    'Debugger listening on port ' + debugPort
   ];
 
   assert.equal(outputLines.length, expectedLines.length);

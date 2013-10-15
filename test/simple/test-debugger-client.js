@@ -182,7 +182,7 @@ function doTest(cb, done) {
     nodeProcess.stderr.resume();
     b += data;
     if (didTryConnect == false &&
-        b.match(/debugger listening on port/)) {
+        b.match(/Debugger listening on port/)) {
       didTryConnect = true;
 
       setTimeout(function() {
@@ -224,4 +224,3 @@ process.on('exit', function(code) {
   if (!code)
     assert.equal(expectedConnections, connectCount);
 });
-
