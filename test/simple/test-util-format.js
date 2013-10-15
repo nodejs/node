@@ -60,3 +60,13 @@ assert.equal(util.format('%s:%s', 'foo', 'bar'), 'foo:bar');
 assert.equal(util.format('%s:%s', 'foo', 'bar', 'baz'), 'foo:bar baz');
 assert.equal(util.format('%%%s%%', 'hi'), '%hi%');
 assert.equal(util.format('%%%s%%%%', 'hi'), '%hi%%');
+
+// Errors
+assert.equal(util.format(new Error('foo')), '[Error: foo]');
+function CustomError(msg) {
+  Error.call(this);
+  Object.defineProperty(this, 'message', { value: msg, enumerable: false });
+  Object.defineProperty(this, 'name', { value: 'CustomError', enumerable: false });
+}
+util.inherits(CustomError, Error);
+assert.equal(util.format(new CustomError('bar')), '[CustomError: bar]');
