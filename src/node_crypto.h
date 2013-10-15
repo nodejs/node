@@ -533,26 +533,6 @@ class DiffieHellman : public WeakObject {
   DH* dh;
 };
 
-class Certificate : public WeakObject {
- public:
-  static void Initialize(v8::Handle<v8::Object> target);
-
-  v8::Handle<v8::Value> CertificateInit(const char* sign_type);
-  bool VerifySpkac(const char* data, unsigned int len);
-  const char* ExportPublicKey(const char* data, unsigned int len);
-  const char* ExportChallenge(const char* data, unsigned int len);
-
- protected:
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void VerifySpkac(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ExportPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ExportChallenge(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  Certificate(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-    : WeakObject(isolate, wrap) {
-  }
-};
-
 bool EntropySource(unsigned char* buffer, size_t length);
 void InitCrypto(v8::Handle<v8::Object> target);
 
