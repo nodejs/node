@@ -393,6 +393,45 @@ TEST(function test_lookup_localhost_ipv4(done) {
 });
 
 
+TEST(function test_reverse_failure(done) {
+  var req = dns.reverse('0.0.0.0', function(err) {
+    assert(err instanceof Error);
+    assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
+    assert.strictEqual(err.hostname, '0.0.0.0');
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
+TEST(function test_lookup_failure(done) {
+  var req = dns.lookup('nosuchhostimsure', function(err) {
+    assert(err instanceof Error);
+    assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
+    assert.strictEqual(err.hostname, 'nosuchhostimsure');
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
+TEST(function test_resolve_failure(done) {
+  var req = dns.resolve4('nosuchhostimsure', function(err) {
+    assert(err instanceof Error);
+    assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
+    assert.strictEqual(err.hostname, 'nosuchhostimsure');
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
 /* Disabled because it appears to be not working on linux. */
 /* TEST(function test_lookup_localhost_ipv6(done) {
   var req = dns.lookup('localhost', 6, function(err, ip, family) {
