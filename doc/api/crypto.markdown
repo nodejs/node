@@ -474,26 +474,6 @@ such as in the generation of encryption keys.
 
 Usage is otherwise identical to `crypto.randomBytes`.
 
-## Class: Certificate
-
-The class used for working with signed public key & challenges. The most
-common usage for this series of functions is when dealing with the `<keygen>`
-element. http://www.openssl.org/docs/apps/spkac.html
-
-Returned by `crypto.Certificate`.
-
-### Certificate.verifySpkac(spkac)
-
-Returns true of false based on the validity of the SPKAC.
-
-### Certificate.exportChallenge(spkac)
-
-Exports the encoded public key from the supplied SPKAC.
-
-### Certificate.exportPublicKey(spkac)
-
-Exports the encoded challenge associated with the SPKAC.
-
 ## crypto.DEFAULT_ENCODING
 
 The default encoding to use for functions that can take either strings
