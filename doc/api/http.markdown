@@ -772,11 +772,8 @@ following additional events, methods, and properties.
 
 `function () { }`
 
-Indicates that the underlaying connection was terminated before
-`response.end()` was called or able to flush.
-
-Just like `'end'`, this event occurs only once per response. See
-[http.ServerResponse][]'s `'close'` event for more information.
+Indicates that the underlaying connection was closed.
+Just like `'end'`, this event occurs only once per response.
 
 ### message.httpVersion
 
