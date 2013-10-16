@@ -417,7 +417,8 @@ class Parser : public WeakObject {
     parser->current_buffer_data_ = NULL;
 
     // If there was an exception in one of the callbacks
-    if (parser->got_exception_) return;
+    if (parser->got_exception_)
+      return;
 
     Local<Integer> nparsed_obj = Integer::New(nparsed, node_isolate);
     // If there was a parse error in one of the callbacks
@@ -449,7 +450,8 @@ class Parser : public WeakObject {
 
     int rv = http_parser_execute(&(parser->parser_), &settings, NULL, 0);
 
-    if (parser->got_exception_) return;
+    if (parser->got_exception_)
+      return;
 
     if (rv != 0) {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);

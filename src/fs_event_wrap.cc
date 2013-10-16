@@ -181,7 +181,8 @@ void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   FSEventWrap* wrap;
   NODE_UNWRAP_NO_ABORT(args.This(), FSEventWrap, wrap);
 
-  if (wrap == NULL || wrap->initialized_ == false) return;
+  if (wrap == NULL || wrap->initialized_ == false)
+    return;
   wrap->initialized_ = false;
 
   HandleWrap::Close(args);

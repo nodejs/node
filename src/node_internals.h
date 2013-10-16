@@ -91,7 +91,8 @@ inline static int snprintf(char* buf, unsigned int len, const char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   int n = _vsprintf_p(buf, len, fmt, ap);
-  if (len) buf[len - 1] = '\0';
+  if (len)
+    buf[len - 1] = '\0';
   va_end(ap);
   return n;
 }

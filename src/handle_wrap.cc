@@ -72,7 +72,8 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   NODE_UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
 
   // guard against uninitialized handle or double close
-  if (wrap == NULL || wrap->handle__ == NULL) return;
+  if (wrap == NULL || wrap->handle__ == NULL)
+    return;
 
   Environment* env = wrap->env();
   assert(!wrap->persistent().IsEmpty());

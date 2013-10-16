@@ -400,7 +400,8 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
                          reinterpret_cast<const sockaddr*>(&addr),
                          AfterConnect);
     req_wrap->Dispatched();
-    if (err) delete req_wrap;
+    if (err)
+      delete req_wrap;
   }
 
   args.GetReturnValue().Set(err);
@@ -432,7 +433,8 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
                          reinterpret_cast<const sockaddr*>(&addr),
                          AfterConnect);
     req_wrap->Dispatched();
-    if (err) delete req_wrap;
+    if (err)
+      delete req_wrap;
   }
 
   args.GetReturnValue().Set(err);
@@ -449,7 +451,8 @@ Local<Object> AddressToJS(Environment* env,
   const sockaddr_in6 *a6;
   int port;
 
-  if (info.IsEmpty()) info = Object::New();
+  if (info.IsEmpty())
+    info = Object::New();
 
   switch (addr->sa_family) {
   case AF_INET6:

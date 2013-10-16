@@ -308,7 +308,8 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 // Caller responsible for BIO_free_all-ing the returned object.
 static BIO* LoadBIO(Handle<Value> v) {
   BIO* bio = NodeBIO::New();
-  if (!bio) return NULL;
+  if (!bio)
+    return NULL;
 
   HandleScope scope(node_isolate);
 
@@ -338,7 +339,8 @@ static X509* LoadX509(Handle<Value> v) {
   HandleScope scope(node_isolate);
 
   BIO *bio = LoadBIO(v);
-  if (!bio) return NULL;
+  if (!bio)
+    return NULL;
 
   X509 * x509 = PEM_read_bio_X509(bio, NULL, NULL, NULL);
   if (!x509) {
@@ -365,7 +367,8 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   }
 
   BIO *bio = LoadBIO(args[0]);
-  if (!bio) return;
+  if (!bio)
+    return;
 
   String::Utf8Value passphrase(args[1]);
 
@@ -448,7 +451,8 @@ int SSL_CTX_use_certificate_chain(SSL_CTX *ctx, BIO *in) {
   }
 
  end:
-  if (x != NULL) X509_free(x);
+  if (x != NULL)
+    X509_free(x);
   return ret;
 }
 
@@ -463,7 +467,8 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   }
 
   BIO* bio = LoadBIO(args[0]);
-  if (!bio) return;
+  if (!bio)
+    return;
 
   int rv = SSL_CTX_use_certificate_chain(sc->ctx_, bio);
 
@@ -495,7 +500,8 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   }
 
   X509* x509 = LoadX509(args[0]);
-  if (!x509) return;
+  if (!x509)
+    return;
 
   X509_STORE_add_cert(sc->ca_store_, x509);
   SSL_CTX_add_client_CA(sc->ctx_, x509);
@@ -521,7 +527,8 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   (void) &clear_error_on_return;  // Silence compiler warning.
 
   BIO *bio = LoadBIO(args[0]);
-  if (!bio) return;
+  if (!bio)
+    return;
 
   X509_CRL *x509 = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
 
@@ -619,7 +626,8 @@ void SecureContext::SetSessionIdContext(
   unsigned int sid_ctx_len = sessionIdContext.length();
 
   int r = SSL_CTX_set_session_id_context(sc->ctx_, sid_ctx, sid_ctx_len);
-  if (r == 1) return;
+  if (r == 1)
+    return;
 
   BIO* bio;
   BUF_MEM* mem;
@@ -1398,7 +1406,8 @@ void Connection::OnClientHelloParseEnd(void* arg) {
 
 
 int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
-  if (rv >= 0) return rv;
+  if (rv >= 0)
+    return rv;
 
   int retry = BIO_should_retry(bio);
   (void) retry;  // unused if !defined(SSL_PRINT_DEBUG)
@@ -1722,7 +1731,8 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
     } else {
       bool reject_unauthorized = args[3]->BooleanValue();
       verify_mode = SSL_VERIFY_PEER;
-      if (reject_unauthorized) verify_mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+      if (reject_unauthorized)
+        verify_mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
     }
   } else {
     // Note request_cert and reject_unauthorized are ignored for clients.
@@ -2197,7 +2207,8 @@ bool CipherBase::Update(const char* data,
                         int len,
                         unsigned char** out,
                         int* out_len) {
-  if (!initialised_) return 0;
+  if (!initialised_)
+    return 0;
   *out_len = len + EVP_CIPHER_CTX_block_size(&ctx_);
   *out = new unsigned char[*out_len];
   return EVP_CipherUpdate(&ctx_,
@@ -2243,14 +2254,16 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> buf = Buffer::New(env, reinterpret_cast<char*>(out), out_len);
-  if (out) delete[] out;
+  if (out)
+    delete[] out;
 
   args.GetReturnValue().Set(buf);
 }
 
 
 bool CipherBase::SetAutoPadding(bool auto_padding) {
-  if (!initialised_) return false;
+  if (!initialised_)
+    return false;
   return EVP_CIPHER_CTX_set_padding(&ctx_, auto_padding);
 }
 
@@ -2263,7 +2276,8 @@ void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
 
 
 bool CipherBase::Final(unsigned char** out, int *out_len) {
-  if (!initialised_) return false;
+  if (!initialised_)
+    return false;
 
   *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx_)];
   bool r = EVP_CipherFinal_ex(&ctx_, *out, out_len);
@@ -2290,7 +2304,8 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
     delete[] out_value;
     out_value = NULL;
     out_len = 0;
-    if (!r) return ThrowCryptoTypeError(ERR_get_error());
+    if (!r)
+      return ThrowCryptoTypeError(ERR_get_error());
   }
 
   args.GetReturnValue().Set(
@@ -2353,7 +2368,8 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 
 
 bool Hmac::HmacUpdate(const char* data, int len) {
-  if (!initialised_) return false;
+  if (!initialised_)
+    return false;
   HMAC_Update(&ctx_, reinterpret_cast<const unsigned char*>(data), len);
   return true;
 }
@@ -2391,7 +2407,8 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
 
 
 bool Hmac::HmacDigest(unsigned char** md_value, unsigned int* md_len) {
-  if (!initialised_) return false;
+  if (!initialised_)
+    return false;
   *md_value = new unsigned char[EVP_MAX_MD_SIZE];
   HMAC_Final(&ctx_, *md_value, md_len);
   HMAC_CTX_cleanup(&ctx_);
@@ -2457,7 +2474,8 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
 bool Hash::HashInit(const char* hash_type) {
   assert(md_ == NULL);
   md_ = EVP_get_digestbyname(hash_type);
-  if (md_ == NULL) return false;
+  if (md_ == NULL)
+    return false;
   EVP_MD_CTX_init(&mdctx_);
   EVP_DigestInit_ex(&mdctx_, md_, NULL);
   initialised_ = true;
@@ -2466,7 +2484,8 @@ bool Hash::HashInit(const char* hash_type) {
 
 
 bool Hash::HashUpdate(const char* data, int len) {
-  if (!initialised_) return false;
+  if (!initialised_)
+    return false;
   EVP_DigestUpdate(&mdctx_, data, len);
   return true;
 }
@@ -2577,7 +2596,8 @@ void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
 
 
 bool Sign::SignUpdate(const char* data, int len) {
-  if (!initialised_) return false;
+  if (!initialised_)
+    return false;
   EVP_SignUpdate(&mdctx_, data, len);
   return true;
 }
@@ -2618,15 +2638,18 @@ bool Sign::SignFinal(unsigned char** md_value,
                      unsigned int *md_len,
                      const char* key_pem,
                      int key_pem_len) {
-  if (!initialised_) return false;
+  if (!initialised_)
+    return false;
 
   BIO* bp = NULL;
   EVP_PKEY* pkey = NULL;
   bp = BIO_new(BIO_s_mem());
-  if (!BIO_write(bp, key_pem, key_pem_len)) return false;
+  if (!BIO_write(bp, key_pem, key_pem_len))
+    return false;
 
   pkey = PEM_read_bio_PrivateKey(bp, NULL, NULL, NULL);
-  if (pkey == NULL) return 0;
+  if (pkey == NULL)
+    return 0;
 
   EVP_SignFinal(&mdctx_, *md_value, md_len, pkey);
   EVP_MD_CTX_cleanup(&mdctx_);
@@ -2719,7 +2742,8 @@ void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
 
 
 bool Verify::VerifyUpdate(const char* data, int len) {
-  if (!initialised_) return false;
+  if (!initialised_)
+    return false;
   EVP_VerifyUpdate(&mdctx_, data, len);
   return true;
 }
@@ -2791,7 +2815,8 @@ bool Verify::VerifyFinal(const char* key_pem,
     RSA* rsa = PEM_read_bio_RSAPublicKey(bp, NULL, NULL, NULL);
     if (rsa) {
       pkey = EVP_PKEY_new();
-      if (pkey) EVP_PKEY_set1_RSA(pkey, rsa);
+      if (pkey)
+        EVP_PKEY_set1_RSA(pkey, rsa);
       RSA_free(rsa);
     }
     if (pkey == NULL)
@@ -2906,7 +2931,8 @@ bool DiffieHellman::Init(int primeLength) {
   dh = DH_new();
   DH_generate_parameters_ex(dh, primeLength, DH_GENERATOR_2, 0);
   bool result = VerifyContext();
-  if (!result) return false;
+  if (!result)
+    return false;
   initialised_ = true;
   return true;
 }
@@ -2916,9 +2942,11 @@ bool DiffieHellman::Init(const char* p, int p_len) {
   dh = DH_new();
   dh->p = BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, 0);
   dh->g = BN_new();
-  if (!BN_set_word(dh->g, 2)) return false;
+  if (!BN_set_word(dh->g, 2))
+    return false;
   bool result = VerifyContext();
-  if (!result) return false;
+  if (!result)
+    return false;
   initialised_ = true;
   return true;
 }
@@ -3211,11 +3239,16 @@ void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
 bool DiffieHellman::VerifyContext() {
   int codes;
-  if (!DH_check(dh, &codes)) return false;
-  if (codes & DH_CHECK_P_NOT_SAFE_PRIME) return false;
-  if (codes & DH_CHECK_P_NOT_PRIME) return false;
-  if (codes & DH_UNABLE_TO_CHECK_GENERATOR) return false;
-  if (codes & DH_NOT_SUITABLE_GENERATOR) return false;
+  if (!DH_check(dh, &codes))
+    return false;
+  if (codes & DH_CHECK_P_NOT_SAFE_PRIME)
+    return false;
+  if (codes & DH_CHECK_P_NOT_PRIME)
+    return false;
+  if (codes & DH_UNABLE_TO_CHECK_GENERATOR)
+    return false;
+  if (codes & DH_NOT_SUITABLE_GENERATOR)
+    return false;
   return true;
 }
 

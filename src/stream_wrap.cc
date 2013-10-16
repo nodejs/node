@@ -481,7 +481,8 @@ void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
   ShutdownWrap* req_wrap = new ShutdownWrap(env, req_wrap_obj);
   int err = wrap->callbacks()->DoShutdown(req_wrap, AfterShutdown);
   req_wrap->Dispatched();
-  if (err) delete req_wrap;
+  if (err)
+    delete req_wrap;
   args.GetReturnValue().Set(err);
 }
 

@@ -164,7 +164,8 @@ ArrayBufferAllocator ArrayBufferAllocator::the_singleton;
 
 
 void* ArrayBufferAllocator::Allocate(size_t length) {
-  if (length > kMaxLength) return NULL;
+  if (length > kMaxLength)
+    return NULL;
   return new char[length];
 }
 
@@ -839,7 +840,8 @@ Local<Value> WinapiErrnoException(int errorno,
 void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  if (env->using_domains()) return;
+  if (env->using_domains())
+    return;
   env->set_using_domains(true);
 
   HandleScope scope(node_isolate);
@@ -1122,7 +1124,8 @@ Handle<Value> MakeDomainCallback(const Handle<Object> object,
 enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
   HandleScope scope(node_isolate);
 
-  if (!encoding_v->IsString()) return _default;
+  if (!encoding_v->IsString())
+    return _default;
 
   String::Utf8Value encoding(encoding_v);
 
@@ -1203,7 +1206,8 @@ void DisplayExceptionLine(Handle<Message> message) {
   // then we want to show the original failure, not the secondary one.
   static bool displayed_error = false;
 
-  if (displayed_error) return;
+  if (displayed_error)
+    return;
   displayed_error = true;
 
   uv_tty_reset_mode();
@@ -1339,7 +1343,8 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 
   QUEUE_FOREACH(q, &req_wrap_queue) {
     ReqWrap<uv_req_t>* w = container_of(q, ReqWrap<uv_req_t>, req_wrap_queue_);
-    if (w->persistent().IsEmpty()) continue;
+    if (w->persistent().IsEmpty())
+      continue;
     ary->Set(i++, w->object());
   }
 
@@ -1360,10 +1365,12 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
 
   QUEUE_FOREACH(q, &handle_wrap_queue) {
     HandleWrap* w = container_of(q, HandleWrap, handle_wrap_queue_);
-    if (w->persistent().IsEmpty() || (w->flags_ & HandleWrap::kUnref)) continue;
+    if (w->persistent().IsEmpty() || (w->flags_ & HandleWrap::kUnref))
+      continue;
     Local<Object> object = w->object();
     Local<Value> owner = object->Get(owner_sym);
-    if (owner->IsUndefined()) owner = object;
+    if (owner->IsUndefined())
+      owner = object;
     ary->Set(i++, owner);
   }
 
@@ -1622,7 +1629,8 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
 
   for (int i = 0; i < ngroups; i++) {
     groups_list->Set(i, Integer::New(groups[i], node_isolate));
-    if (groups[i] == egid) seen_egid = true;
+    if (groups[i] == egid)
+      seen_egid = true;
   }
 
   delete[] groups;
@@ -1697,7 +1705,8 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   extra_group = gid_by_name(args[1]);
 
   if (extra_group == gid_not_found) {
-    if (must_free) free(user);
+    if (must_free)
+      free(user);
     return ThrowError("initgroups extra group not found");
   }
 
@@ -1724,7 +1733,8 @@ void Exit(const FunctionCallbackInfo<Value>& args) {
 static void Uptime(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   double uptime;
-  if (uv_uptime(&uptime)) return;
+  if (uv_uptime(&uptime))
+    return;
   args.GetReturnValue().Set(uptime - prog_start_time);
 }
 
@@ -1871,7 +1881,8 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
    * look for foo_bar_module, not foo-bar_module.
    */
   for (pos = symbol; *pos != '\0'; ++pos) {
-    if (*pos == '-') *pos = '_';
+    if (*pos == '-')
+      *pos = '_';
   }
 
   node_module_struct *mod;
@@ -2105,7 +2116,8 @@ static void EnvQuery(Local<String> property,
   int32_t rc = -1;  // Not found unless proven otherwise.
 #ifdef __POSIX__
   String::Utf8Value key(property);
-  if (getenv(*key)) rc = 0;
+  if (getenv(*key))
+    rc = 0;
 #else  // _WIN32
   String::Value key(property);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
@@ -2120,7 +2132,8 @@ static void EnvQuery(Local<String> property,
     }
   }
 #endif
-  if (rc != -1) info.GetReturnValue().Set(rc);
+  if (rc != -1)
+    info.GetReturnValue().Set(rc);
 }
 
 
@@ -2131,7 +2144,8 @@ static void EnvDeleter(Local<String> property,
 #ifdef __POSIX__
   String::Utf8Value key(property);
   rc = getenv(*key) != NULL;
-  if (rc) unsetenv(*key);
+  if (rc)
+    unsetenv(*key);
 #else
   String::Value key(property);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
@@ -2150,7 +2164,8 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   HandleScope scope(node_isolate);
 #ifdef __POSIX__
   int size = 0;
-  while (environ[size]) size++;
+  while (environ[size])
+    size++;
 
   Local<Array> env = Array::New(size);
 
@@ -2166,7 +2181,8 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   }
 #else  // _WIN32
   WCHAR* environment = GetEnvironmentStringsW();
-  if (environment == NULL) return;  // This should not happen.
+  if (environment == NULL)
+    return;  // This should not happen.
   Local<Array> env = Array::New();
   WCHAR* p = environment;
   int i = 0;
@@ -2394,7 +2410,8 @@ void SetupProcessObject(Environment* env,
     if ('0' <= c && c <= '9') {
       for (j = i + 1; j < l; j++) {
         c = OPENSSL_VERSION_TEXT[j];
-        if (c == ' ') break;
+        if (c == ' ')
+          break;
       }
       break;
     }
@@ -2671,7 +2688,8 @@ static void ParseDebugOpt(const char* arg) {
       return;
 
   fprintf(stderr, "Bad debug option.\n");
-  if (p) fprintf(stderr, "Debug port must be in range 1025 to 65535.\n");
+  if (p)
+    fprintf(stderr, "Debug port must be in range 1025 to 65535.\n");
 
   PrintHelp();
   exit(12);
@@ -2929,7 +2947,8 @@ static int RegisterDebugSignalHandler() {
   RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
   // If we caught a SIGUSR1 during the bootstrap process, re-raise it
   // now that the debugger infrastructure is in place.
-  if (caught_early_debug_signal) raise(SIGUSR1);
+  if (caught_early_debug_signal)
+    raise(SIGUSR1);
   return 0;
 }
 #endif  // __POSIX__

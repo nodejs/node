@@ -297,7 +297,8 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   }
 
   req_wrap->Dispatched();
-  if (err) delete req_wrap;
+  if (err)
+    delete req_wrap;
 
   args.GetReturnValue().Set(err);
 }
@@ -320,7 +321,8 @@ void UDPWrap::RecvStart(const FunctionCallbackInfo<Value>& args) {
 
   int err = uv_udp_recv_start(&wrap->handle_, OnAlloc, OnRecv);
   // UV_EALREADY means that the socket is already bound but that's okay
-  if (err == UV_EALREADY) err = 0;
+  if (err == UV_EALREADY)
+    err = 0;
   args.GetReturnValue().Set(err);
 }
 

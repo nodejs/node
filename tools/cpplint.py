@@ -1764,6 +1764,10 @@ def CheckSpacing(filename, clean_lines, linenum, error):
     error(filename, linenum, 'whitespace/operators', 4,
           'Missing spaces around =')
 
+  if Match(r'^\s*(if|while) .*[^\{,)&|\\]$', line):
+    error(filename, linenum, 'whitespace/if-one-line', 4,
+          'If\'s body on the same line as if itself')
+
   # It's ok not to have spaces around binary operators like + - * /, but if
   # there's too little whitespace, we get concerned.  It's hard to tell,
   # though, so we punt on this one for now.  TODO.

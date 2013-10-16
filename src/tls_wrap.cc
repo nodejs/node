@@ -597,7 +597,8 @@ void TLSCallbacks::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
     } else {
       bool reject_unauthorized = args[1]->IsTrue();
       verify_mode = SSL_VERIFY_PEER;
-      if (reject_unauthorized) verify_mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+      if (reject_unauthorized)
+        verify_mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
     }
   } else {
     // Note request_cert and reject_unauthorized are ignored for clients.

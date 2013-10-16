@@ -64,8 +64,10 @@ typedef class ReqWrap<uv_getaddrinfo_t> GetAddrInfoReqWrap;
 
 
 static int cmp_ares_tasks(const ares_task_t* a, const ares_task_t* b) {
-  if (a->sock < b->sock) return -1;
-  if (a->sock > b->sock) return 1;
+  if (a->sock < b->sock)
+    return -1;
+  if (a->sock > b->sock)
+    return 1;
   return 0;
 }
 
@@ -810,7 +812,8 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
   String::Utf8Value name(string);
   int err = wrap->Send(*name);
-  if (err) delete wrap;
+  if (err)
+    delete wrap;
 
   args.GetReturnValue().Set(err);
 }
@@ -974,7 +977,8 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
                            NULL,
                            &hints);
   req_wrap->Dispatched();
-  if (err) delete req_wrap;
+  if (err)
+    delete req_wrap;
 
   args.GetReturnValue().Set(err);
 }

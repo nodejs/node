@@ -39,7 +39,8 @@ using v8::Value;
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   v8::HandleScope handle_scope(node_isolate);
   int err = args[0]->Int32Value();
-  if (err >= 0) return ThrowError("err >= 0");
+  if (err >= 0)
+    return ThrowError("err >= 0");
   const char* name = uv_err_name(err);
   args.GetReturnValue().Set(OneByteString(node_isolate, name));
 }

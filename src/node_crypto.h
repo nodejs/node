@@ -354,7 +354,8 @@ class CipherBase : public WeakObject {
   }
 
   ~CipherBase() {
-    if (!initialised_) return;
+    if (!initialised_)
+      return;
     EVP_CIPHER_CTX_cleanup(&ctx_);
   }
 
@@ -386,7 +387,8 @@ class Hmac : public WeakObject {
   }
 
   ~Hmac() {
-    if (!initialised_) return;
+    if (!initialised_)
+      return;
     HMAC_CTX_cleanup(&ctx_);
   }
 
@@ -415,7 +417,8 @@ class Hash : public WeakObject {
   }
 
   ~Hash() {
-    if (!initialised_) return;
+    if (!initialised_)
+      return;
     EVP_MD_CTX_cleanup(&mdctx_);
   }
 
@@ -449,7 +452,8 @@ class Sign : public WeakObject {
   }
 
   ~Sign() {
-    if (!initialised_) return;
+    if (!initialised_)
+      return;
     EVP_MD_CTX_cleanup(&mdctx_);
   }
 
@@ -483,7 +487,8 @@ class Verify : public WeakObject {
   }
 
   ~Verify() {
-    if (!initialised_) return;
+    if (!initialised_)
+      return;
     EVP_MD_CTX_cleanup(&mdctx_);
   }
 

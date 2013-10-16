@@ -459,7 +459,8 @@ class ZCtx : public WeakObject {
   }
 
   static void SetDictionary(ZCtx* ctx) {
-    if (ctx->dictionary_ == NULL) return;
+    if (ctx->dictionary_ == NULL)
+      return;
 
     ctx->err_ = Z_OK;
 

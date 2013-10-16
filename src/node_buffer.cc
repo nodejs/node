@@ -471,7 +471,8 @@ void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   const void* data = args.This()->GetIndexedPropertiesExternalArrayData();
   const char* ptr = static_cast<const char*>(data) + offset;
   memcpy(na.bytes, ptr, sizeof(na.bytes));
-  if (endianness != GetEndianness()) Swizzle(na.bytes, sizeof(na.bytes));
+  if (endianness != GetEndianness())
+    Swizzle(na.bytes, sizeof(na.bytes));
 
   args.GetReturnValue().Set(na.val);
 }
@@ -525,7 +526,8 @@ uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   union NoAlias na = { val };
   void* data = args.This()->GetIndexedPropertiesExternalArrayData();
   char* ptr = static_cast<char*>(data) + offset;
-  if (endianness != GetEndianness()) Swizzle(na.bytes, sizeof(na.bytes));
+  if (endianness != GetEndianness())
+    Swizzle(na.bytes, sizeof(na.bytes));
   memcpy(ptr, na.bytes, sizeof(na.bytes));
   return offset + sizeof(na.bytes);
 }

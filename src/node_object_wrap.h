@@ -45,7 +45,8 @@ class NODE_EXTERN ObjectWrap {
 
 
   virtual ~ObjectWrap() {
-    if (persistent().IsEmpty()) return;
+    if (persistent().IsEmpty())
+      return;
     assert(persistent().IsNearDeath());
     persistent().ClearWeak();
     persistent().Dispose();
@@ -117,7 +118,8 @@ class NODE_EXTERN ObjectWrap {
     assert(!persistent().IsEmpty());
     assert(!persistent().IsWeak());
     assert(refs_ > 0);
-    if (--refs_ == 0) MakeWeak();
+    if (--refs_ == 0)
+      MakeWeak();
   }
 
   int refs_;  // ro

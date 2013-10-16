@@ -59,7 +59,8 @@ int NodeBIO::New(BIO* bio) {
 
 
 int NodeBIO::Free(BIO* bio) {
-  if (bio == NULL) return 0;
+  if (bio == NULL)
+    return 0;
 
   if (bio->shutdown) {
     if (bio->init && bio->ptr != NULL) {
@@ -118,10 +119,12 @@ int NodeBIO::Gets(BIO* bio, char* out, int size) {
   int i = nbio->IndexOf('\n', size);
 
   // Include '\n'
-  if (i < size) i++;
+  if (i < size)
+    i++;
 
   // Shift `i` a bit to NULL-terminate string later
-  if (size == i) i--;
+  if (size == i)
+    i--;
 
   // Flush read data
   nbio->Read(out, i);

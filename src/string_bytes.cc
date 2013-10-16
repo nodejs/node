@@ -173,26 +173,36 @@ size_t base64_decode(char* buf,
   while (src < srcEnd && dst < dstEnd) {
     int remaining = srcEnd - src;
 
-    while (unbase64(*src) < 0 && src < srcEnd) src++, remaining--;
-    if (remaining == 0 || *src == '=') break;
+    while (unbase64(*src) < 0 && src < srcEnd)
+      src++, remaining--;
+    if (remaining == 0 || *src == '=')
+      break;
     a = unbase64(*src++);
 
-    while (unbase64(*src) < 0 && src < srcEnd) src++, remaining--;
-    if (remaining <= 1 || *src == '=') break;
+    while (unbase64(*src) < 0 && src < srcEnd)
+      src++, remaining--;
+    if (remaining <= 1 || *src == '=')
+      break;
     b = unbase64(*src++);
 
     *dst++ = (a << 2) | ((b & 0x30) >> 4);
-    if (dst == dstEnd) break;
+    if (dst == dstEnd)
+      break;
 
-    while (unbase64(*src) < 0 && src < srcEnd) src++, remaining--;
-    if (remaining <= 2 || *src == '=') break;
+    while (unbase64(*src) < 0 && src < srcEnd)
+      src++, remaining--;
+    if (remaining <= 2 || *src == '=')
+      break;
     c = unbase64(*src++);
 
     *dst++ = ((b & 0x0F) << 4) | ((c & 0x3C) >> 2);
-    if (dst == dstEnd) break;
+    if (dst == dstEnd)
+      break;
 
-    while (unbase64(*src) < 0 && src < srcEnd) src++, remaining--;
-    if (remaining <= 3 || *src == '=') break;
+    while (unbase64(*src) < 0 && src < srcEnd)
+      src++, remaining--;
+    if (remaining <= 3 || *src == '=')
+      break;
     d = unbase64(*src++);
 
     *dst++ = ((c & 0x03) << 6) | (d & 0x3F);
@@ -206,9 +216,12 @@ size_t base64_decode(char* buf,
 
 template <typename TypeName>
 unsigned hex2bin(TypeName c) {
-  if (c >= '0' && c <= '9') return c - '0';
-  if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
-  if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  if (c >= 'A' && c <= 'F')
+    return 10 + (c - 'A');
+  if (c >= 'a' && c <= 'f')
+    return 10 + (c - 'a');
   return static_cast<unsigned>(-1);
 }
 
@@ -222,7 +235,8 @@ size_t hex_decode(char* buf,
   for (i = 0; i < len && i * 2 + 1 < srcLen; ++i) {
     unsigned a = hex2bin(src[i * 2 + 0]);
     unsigned b = hex2bin(src[i * 2 + 1]);
-    if (!~a || !~b) return i;
+    if (!~a || !~b)
+      return i;
     buf[i] = a * 16 + b;
   }
 
@@ -345,7 +359,8 @@ size_t StringBytes::Write(char* buf,
 
 
 bool StringBytes::IsValidString(Handle<String> string, enum encoding enc) {
-  if (enc == HEX && string->Length() % 2 != 0) return false;
+  if (enc == HEX && string->Length() % 2 != 0)
+    return false;
   // TODO(bnoordhuis) Add BASE64 check?
   return true;
 }
@@ -453,7 +468,8 @@ size_t StringBytes::Size(Handle<Value> val, enum encoding encoding) {
 
 static bool contains_non_ascii_slow(const char* buf, size_t len) {
   for (size_t i = 0; i < len; ++i) {
-    if (buf[i] & 0x80) return true;
+    if (buf[i] & 0x80)
+      return true;
   }
   return false;
 }
@@ -470,7 +486,8 @@ static bool contains_non_ascii(const char* src, size_t len) {
 
   if (unaligned > 0) {
     const unsigned n = bytes_per_word - unaligned;
-    if (contains_non_ascii_slow(src, n)) return true;
+    if (contains_non_ascii_slow(src, n))
+      return true;
     src += n;
     len -= n;
   }
@@ -485,13 +502,15 @@ static bool contains_non_ascii(const char* src, size_t len) {
   const uintptr_t* srcw = reinterpret_cast<const uintptr_t*>(src);
 
   for (size_t i = 0, n = len / bytes_per_word; i < n; ++i) {
-    if (srcw[i] & mask) return true;
+    if (srcw[i] & mask)
+      return true;
   }
 
   const unsigned remainder = len & align_mask;
   if (remainder > 0) {
     const size_t offset = len - remainder;
-    if (contains_non_ascii_slow(src + offset, remainder)) return true;
+    if (contains_non_ascii_slow(src + offset, remainder))
+      return true;
   }
 
   return false;
