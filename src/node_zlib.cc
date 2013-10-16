@@ -71,21 +71,21 @@ class ZCtx : public WeakObject {
  public:
 
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
-      : WeakObject(env->isolate(), wrap)
-      , chunk_size_(0)
-      , dictionary_(NULL)
-      , dictionary_len_(0)
-      , env_(env)
-      , err_(0)
-      , flush_(0)
-      , init_done_(false)
-      , level_(0)
-      , memLevel_(0)
-      , mode_(mode)
-      , strategy_(0)
-      , windowBits_(0)
-      , write_in_progress_(false)
-      , refs_(0) {
+      : WeakObject(env->isolate(), wrap),
+        chunk_size_(0),
+        dictionary_(NULL),
+        dictionary_len_(0),
+        env_(env),
+        err_(0),
+        flush_(0),
+        init_done_(false),
+        level_(0),
+        memLevel_(0),
+        mode_(mode),
+        strategy_(0),
+        windowBits_(0),
+        write_in_progress_(false),
+        refs_(0) {
   }
 
 

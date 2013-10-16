@@ -52,14 +52,14 @@ inline void Environment::IsolateData::Put() {
 }
 
 inline Environment::IsolateData::IsolateData(v8::Isolate* isolate)
-    : event_loop_(uv_default_loop())
-    , isolate_(isolate)
+    : event_loop_(uv_default_loop()),
+      isolate_(isolate),
 #define V(PropertyName, StringValue)                                          \
-    , PropertyName ## _index_(                                                \
-        FIXED_ONE_BYTE_STRING(isolate, StringValue).Eternalize(isolate))
+    PropertyName ## _index_(                                                  \
+        FIXED_ONE_BYTE_STRING(isolate, StringValue).Eternalize(isolate)),
     PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
-    , ref_count_(0) {
+    ref_count_(0) {
 }
 
 inline uv_loop_t* Environment::IsolateData::event_loop() const {
@@ -155,11 +155,11 @@ inline Environment* Environment::GetCurrentChecked(
 }
 
 inline Environment::Environment(v8::Local<v8::Context> context)
-    : isolate_(context->GetIsolate())
-    , isolate_data_(IsolateData::GetOrCreate(context->GetIsolate()))
-    , using_smalloc_alloc_cb_(false)
-    , using_domains_(false)
-    , context_(context->GetIsolate(), context) {
+    : isolate_(context->GetIsolate()),
+      isolate_data_(IsolateData::GetOrCreate(context->GetIsolate())),
+      using_smalloc_alloc_cb_(false),
+      using_domains_(false),
+      context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::Context::Scope context_scope(context);
   v8::HandleScope handle_scope(isolate());

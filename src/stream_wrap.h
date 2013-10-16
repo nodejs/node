@@ -38,8 +38,8 @@ typedef class ReqWrap<uv_shutdown_t> ShutdownWrap;
 class WriteWrap: public ReqWrap<uv_write_t> {
  public:
   WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamWrap* wrap)
-      : ReqWrap<uv_write_t>(env, obj)
-      , wrap_(wrap) {
+      : ReqWrap<uv_write_t>(env, obj),
+        wrap_(wrap) {
   }
 
   void* operator new(size_t size, char* storage) { return storage; }

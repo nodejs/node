@@ -64,9 +64,9 @@ static void Delete(uv_handle_t* handle) {
 
 
 StatWatcher::StatWatcher(Environment* env, Local<Object> wrap)
-    : WeakObject(env->isolate(), wrap)
-    , watcher_(new uv_fs_poll_t)
-    , env_(env) {
+    : WeakObject(env->isolate(), wrap),
+      watcher_(new uv_fs_poll_t),
+      env_(env) {
   uv_fs_poll_init(env->event_loop(), watcher_);
   watcher_->data = static_cast<void*>(this);
 }

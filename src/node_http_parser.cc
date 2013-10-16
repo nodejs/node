@@ -190,10 +190,10 @@ struct StringPtr {
 class Parser : public WeakObject {
  public:
   Parser(Environment* env, Local<Object> wrap, enum http_parser_type type)
-      : WeakObject(env->isolate(), wrap)
-      , env_(env)
-      , current_buffer_len_(0)
-      , current_buffer_data_(NULL) {
+      : WeakObject(env->isolate(), wrap),
+        env_(env),
+        current_buffer_len_(0),
+        current_buffer_data_(NULL) {
     Init(type);
   }
 

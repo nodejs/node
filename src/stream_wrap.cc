@@ -54,10 +54,10 @@ using v8::Value;
 StreamWrap::StreamWrap(Environment* env,
                        Local<Object> object,
                        uv_stream_t* stream)
-    : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(stream))
-    , stream_(stream)
-    , default_callbacks_(this)
-    , callbacks_(&default_callbacks_) {
+    : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(stream)),
+      stream_(stream),
+      default_callbacks_(this),
+      callbacks_(&default_callbacks_) {
 }
 
 

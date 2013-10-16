@@ -94,10 +94,10 @@ class SecureContext : public WeakObject {
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
-      : WeakObject(env->isolate(), wrap)
-      , ca_store_(NULL)
-      , ctx_(NULL)
-      , env_(env) {
+      : WeakObject(env->isolate(), wrap),
+        ca_store_(NULL),
+        ctx_(NULL),
+        env_(env) {
   }
 
   void FreeCTXMem() {
@@ -134,10 +134,10 @@ class SSLWrap {
   };
 
   SSLWrap(Environment* env, SecureContext* sc, Kind kind)
-      : env_(env)
-      , kind_(kind)
-      , next_sess_(NULL)
-      , session_callbacks_(false) {
+      : env_(env),
+        kind_(kind),
+        next_sess_(NULL),
+        session_callbacks_(false) {
     ssl_ = SSL_new(sc->ctx_);
     assert(ssl_ != NULL);
   }
@@ -285,11 +285,11 @@ class Connection : public SSLWrap<Connection>, public WeakObject {
              v8::Local<v8::Object> wrap,
              SecureContext* sc,
              SSLWrap<Connection>::Kind kind)
-      : SSLWrap<Connection>(env, sc, kind)
-      , WeakObject(env->isolate(), wrap)
-      , bio_read_(NULL)
-      , bio_write_(NULL)
-      , hello_offset_(0) {
+      : SSLWrap<Connection>(env, sc, kind),
+        WeakObject(env->isolate(), wrap),
+        bio_read_(NULL),
+        bio_write_(NULL),
+        hello_offset_(0) {
     hello_parser_.Start(SSLWrap<Connection>::OnClientHello,
                         OnClientHelloParseEnd,
                         this);
@@ -347,10 +347,10 @@ class CipherBase : public WeakObject {
   CipherBase(v8::Isolate* isolate,
              v8::Local<v8::Object> wrap,
              CipherKind kind)
-      : WeakObject(isolate, wrap)
-      , cipher_(NULL)
-      , initialised_(false)
-      , kind_(kind) {
+      : WeakObject(isolate, wrap),
+        cipher_(NULL),
+        initialised_(false),
+        kind_(kind) {
   }
 
   ~CipherBase() {
@@ -380,9 +380,9 @@ class Hmac : public WeakObject {
   static void HmacDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Hmac(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-      : WeakObject(isolate, wrap)
-      , md_(NULL)
-      , initialised_(false) {
+      : WeakObject(isolate, wrap),
+        md_(NULL),
+        initialised_(false) {
   }
 
   ~Hmac() {
@@ -409,9 +409,9 @@ class Hash : public WeakObject {
   static void HashDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Hash(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-      : WeakObject(isolate, wrap)
-      , md_(NULL)
-      , initialised_(false) {
+      : WeakObject(isolate, wrap),
+        md_(NULL),
+        initialised_(false) {
   }
 
   ~Hash() {
@@ -443,9 +443,9 @@ class Sign : public WeakObject {
   static void SignFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Sign(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-      : WeakObject(isolate, wrap)
-      , md_(NULL)
-      , initialised_(false) {
+      : WeakObject(isolate, wrap),
+        md_(NULL),
+        initialised_(false) {
   }
 
   ~Sign() {
@@ -477,9 +477,9 @@ class Verify : public WeakObject {
   static void VerifyFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Verify(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-      : WeakObject(isolate, wrap)
-      , md_(NULL)
-      , initialised_(false) {
+      : WeakObject(isolate, wrap),
+        md_(NULL),
+        initialised_(false) {
   }
 
   ~Verify() {
@@ -515,9 +515,9 @@ class DiffieHellman : public WeakObject {
   static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   DiffieHellman(v8::Isolate* isolate, v8::Local<v8::Object> wrap)
-      : WeakObject(isolate, wrap)
-      , initialised_(false)
-      , dh(NULL) {
+      : WeakObject(isolate, wrap),
+        initialised_(false),
+        dh(NULL) {
   }
 
   ~DiffieHellman() {

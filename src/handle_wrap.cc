@@ -89,9 +89,9 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
 HandleWrap::HandleWrap(Environment* env,
                        Handle<Object> object,
                        uv_handle_t* handle)
-    : env_(env)
-    , flags_(0)
-    , handle__(handle) {
+    : env_(env),
+      flags_(0),
+      handle__(handle) {
   handle__->data = this;
   HandleScope scope(node_isolate);
   persistent().Reset(node_isolate, object);

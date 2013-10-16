@@ -67,9 +67,9 @@ using v8::Value;
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
   FSReqWrap(Environment* env, const char* syscall, char* data = NULL)
-    : ReqWrap<uv_fs_t>(env)
-    , syscall_(syscall)
-    , data_(data) {
+    : ReqWrap<uv_fs_t>(env),
+      syscall_(syscall),
+      data_(data) {
   }
 
   void ReleaseEarly() {
