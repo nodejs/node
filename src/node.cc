@@ -2874,6 +2874,22 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle, int status) {
 
 
 #ifdef __POSIX__
+static volatile sig_atomic_t caught_early_debug_signal;
+
+
+static void EarlyDebugSignalHandler(int signo) {
+  caught_early_debug_signal = 1;
+}
+
+
+static void InstallEarlyDebugSignalHandler() {
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = EarlyDebugSignalHandler;
+  sigaction(SIGUSR1, &sa, NULL);
+}
+
+
 static void EnableDebugSignalHandler(int signo) {
   // Call only async signal-safe functions here!
   v8::Debug::DebugBreak(*static_cast<Isolate* volatile*>(&node_isolate));
@@ -2911,6 +2927,9 @@ void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 static int RegisterDebugSignalHandler() {
   // FIXME(bnoordhuis) Should be per-isolate or per-context, not global.
   RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
+  // If we caught a SIGUSR1 during the bootstrap process, re-raise it
+  // now that the debugger infrastructure is in place.
+  if (caught_early_debug_signal) raise(SIGUSR1);
   return 0;
 }
 #endif  // __POSIX__
@@ -3270,6 +3289,11 @@ Environment* CreateEnvironment(Isolate* isolate,
 
 
 int Start(int argc, char** argv) {
+#if !defined(_WIN32)
+  // Try hard not to lose SIGUSR1 signals during the bootstrap process.
+  InstallEarlyDebugSignalHandler();
+#endif
+
   assert(argc > 0);
 
   // Hack around with the argv pointer. Used for process.title = "blah".

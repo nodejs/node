@@ -181,11 +181,15 @@ function doTest(cb, done) {
     console.error('got stderr data %j', data);
     nodeProcess.stderr.resume();
     b += data;
-    if (didTryConnect == false &&
-        b.match(/Debugger listening on port/)) {
+    if (didTryConnect === false && b.match(/Debugger listening on port/)) {
       didTryConnect = true;
 
-      setTimeout(function() {
+      // The timeout is here to expose a race in the bootstrap process.
+      // Without the early SIGUSR1 debug handler, it effectively results
+      // in an infinite ECONNREFUSED loop.
+      setTimeout(tryConnect, 100);
+
+      function tryConnect() {
         // Wait for some data before trying to connect
         var c = new debug.Client();
         console.error('>>> connecting...');
@@ -202,7 +206,11 @@ function doTest(cb, done) {
             done();
           });
         });
-      });
+        c.on('error', function(err) {
+          if (err.code !== 'ECONNREFUSED') throw err;
+          setTimeout(tryConnect, 10);
+        });
+      }
     }
   });
 }
