@@ -258,11 +258,11 @@ Indicates that the underlying connection was terminated before
 Sends a HTTP/1.1 100 Continue message to the client, indicating that
 the request body should be sent. See the ['checkContinue'][] event on `Server`.
 
-### response.writeHead(statusCode, [reasonPhrase], [headers])
+### response.writeHead(statusCode, [statusMessage], [headers])
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
-Optionally one can give a human-readable `reasonPhrase` as the second
+Optionally one can give a human-readable `statusMessage` as the second
 argument.
 
 Example:
@@ -312,6 +312,20 @@ Example:
 
 After response header was sent to the client, this property indicates the
 status code which was sent out.
+
+### response.statusMessage
+
+When using implicit headers (not calling `response.writeHead()` explicitly), this property
+controls the status message that will be sent to the client when the headers get
+flushed. If this is left as `undefined` then the standard message for the status
+code will be used.
+
+Example:
+
+    response.statusMessage = 'Not found';
+
+After response header was sent to the client, this property indicates the
+status message which was sent out.
 
 ### response.setHeader(name, value)
 
