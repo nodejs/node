@@ -1,4 +1,21 @@
-2013.06.13, Version 0.8.25 (maintenance)
+2013.10.13, Version 0.8.26 (maintenance)
+
+* v8: Upgrade to 3.11.10.26
+
+* crypto: clear openssl error stack when handled (Ben Noordhuis)
+
+* crypto: clear errors from verify failure (Timothy J Fontaine)
+
+* crypto: fix memory leak in LoadPKCS12 (Fedor Indutny)
+
+* http: provide backpressure for pipeline flood (isaacs)
+
+* http_parser: expose pause/resume method for parser (Timothy J Fontaine)
+
+* readline: pause stdin before turning off terminal raw mode (Daniel Chatfield)
+
+
+2013.06.13, Version 0.8.25 (maintenance), 0b9bdb2bc7e1c872f0ea4713517fda22a4b0b202
 
 * npm: Upgrade to 1.2.30
 
