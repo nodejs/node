@@ -69,6 +69,14 @@ namespace crypto {
 
 using namespace v8;
 
+// Forcibly clear OpenSSL's error stack on return. This stops stale errors
+// from popping up later in the lifecycle of crypto operations where they
+// would cause spurious failures. It's a rather blunt method, though.
+// ERR_clear_error() isn't necessarily cheap either.
+struct ClearErrorOnReturn {
+  ~ClearErrorOnReturn() { ERR_clear_error(); }
+};
+
 static Persistent<String> errno_symbol;
 static Persistent<String> syscall_symbol;
 static Persistent<String> subject_symbol;
@@ -3405,6 +3413,8 @@ class Verify : public ObjectWrap {
 
   int VerifyFinal(char* key_pem, int key_pemLen, unsigned char* sig, int siglen) {
     if (!initialised_) return 0;
+
+    ClearErrorOnReturn clear_error_on_return;
 
     EVP_PKEY* pkey = NULL;
     BIO *bp = NULL;
