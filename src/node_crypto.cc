@@ -711,6 +711,9 @@ int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
 
 
 int Connection::HandleSSLError(const char* func, int rv) {
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence unused variable warning.
+
   if (rv >= 0) return rv;
 
   int err = SSL_get_error(ssl_, rv);
