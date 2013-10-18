@@ -141,7 +141,10 @@ static void uv__signal_handler(int signum) {
   saved_errno = errno;
   memset(&msg, 0, sizeof msg);
 
-  uv__signal_lock();
+  if (uv__signal_lock()) {
+    errno = saved_errno;
+    return;
+  }
 
   for (handle = uv__signal_first_handle(signum);
        handle != NULL && handle->signum == signum;
