@@ -3186,6 +3186,9 @@ class Verify : public ObjectWrap {
   int VerifyFinal(char* key_pem, int key_pemLen, unsigned char* sig, int siglen) {
     if (!initialised_) return 0;
 
+    ClearErrorOnReturn clear_error_on_return;
+    (void) &clear_error_on_return;  // Silence compiler warning.
+
     EVP_PKEY* pkey = NULL;
     BIO *bp = NULL;
     X509 *x509 = NULL;
