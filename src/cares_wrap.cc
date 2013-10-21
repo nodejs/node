@@ -717,6 +717,59 @@ class QueryNaptrWrap: public QueryWrap {
 };
 
 
+class QuerySoaWrap: public QueryWrap {
+ public:
+  QuerySoaWrap(Environment* env, Local<Object> req_wrap_obj)
+      : QueryWrap(env, req_wrap_obj) {
+  }
+
+  int Send(const char* name) {
+    ares_query(env()->cares_channel(),
+               name,
+               ns_c_in,
+               ns_t_soa,
+               Callback,
+               GetQueryArg());
+    return 0;
+  }
+
+ protected:
+  void Parse(unsigned char* buf, int len) {
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
+
+    ares_soa_reply* soa_out;
+    int status = ares_parse_soa_reply(buf, len, &soa_out);
+
+    if (status != ARES_SUCCESS) {
+      ParseError(status);
+      return;
+    }
+
+    Local<Object> soa_record = Object::New();
+
+    soa_record->Set(FIXED_ONE_BYTE_STRING(node_isolate, "nsname"),
+                    OneByteString(node_isolate, soa_out->nsname));
+    soa_record->Set(FIXED_ONE_BYTE_STRING(node_isolate, "hostmaster"),
+                    OneByteString(node_isolate, soa_out->hostmaster));
+    soa_record->Set(FIXED_ONE_BYTE_STRING(node_isolate, "serial"),
+                    Integer::New(soa_out->serial, node_isolate));
+    soa_record->Set(FIXED_ONE_BYTE_STRING(node_isolate, "refresh"),
+                    Integer::New(soa_out->refresh, node_isolate));
+    soa_record->Set(FIXED_ONE_BYTE_STRING(node_isolate, "retry"),
+                    Integer::New(soa_out->retry, node_isolate));
+    soa_record->Set(FIXED_ONE_BYTE_STRING(node_isolate, "expire"),
+                    Integer::New(soa_out->expire, node_isolate));
+    soa_record->Set(FIXED_ONE_BYTE_STRING(node_isolate, "minttl"),
+                    Integer::New(soa_out->minttl, node_isolate));
+
+    ares_free_data(soa_out);
+
+    this->CallOnComplete(soa_record);
+  }
+};
+
+
 class GetHostByAddrWrap: public QueryWrap {
  public:
   explicit GetHostByAddrWrap(Environment* env, Local<Object> req_wrap_obj)
@@ -1103,6 +1156,7 @@ static void Initialize(Handle<Object> target,
   NODE_SET_METHOD(target, "queryTxt", Query<QueryTxtWrap>);
   NODE_SET_METHOD(target, "querySrv", Query<QuerySrvWrap>);
   NODE_SET_METHOD(target, "queryNaptr", Query<QueryNaptrWrap>);
+  NODE_SET_METHOD(target, "querySoa", Query<QuerySoaWrap>);
   NODE_SET_METHOD(target, "getHostByAddr", Query<GetHostByAddrWrap>);
 
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
