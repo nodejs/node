@@ -80,7 +80,8 @@ HBasicBlock* HOsrBuilder::BuildPossibleOsrLoopEntry(
   osr_values_ = new(zone) ZoneList<HUnknownOSRValue*>(length, zone);
 
   for (int i = 0; i < first_expression_index; ++i) {
-    HUnknownOSRValue* osr_value = builder_->Add<HUnknownOSRValue>();
+    HUnknownOSRValue* osr_value
+        = builder_->Add<HUnknownOSRValue>(environment, i);
     environment->Bind(i, osr_value);
     osr_values_->Add(osr_value, zone);
   }
@@ -88,11 +89,20 @@ HBasicBlock* HOsrBuilder::BuildPossibleOsrLoopEntry(
   if (first_expression_index != length) {
     environment->Drop(length - first_expression_index);
     for (int i = first_expression_index; i < length; ++i) {
-      HUnknownOSRValue* osr_value = builder_->Add<HUnknownOSRValue>();
+      HUnknownOSRValue* osr_value
+          = builder_->Add<HUnknownOSRValue>(environment, i);
       environment->Push(osr_value);
       osr_values_->Add(osr_value, zone);
     }
   }
+
+  unoptimized_frame_slots_ =
+      environment->local_count() + environment->push_count();
+
+  // Keep a copy of the old environment, since the OSR values need it
+  // to figure out where exactly they are located in the unoptimized frame.
+  environment = environment->Copy();
+  builder_->current_block()->UpdateEnvironment(environment);
 
   builder_->Add<HSimulate>(osr_entry_id);
   builder_->Add<HOsrEntry>(osr_entry_id);
@@ -117,8 +127,9 @@ void HOsrBuilder::FinishOsrValues() {
   const ZoneList<HPhi*>* phis = osr_loop_entry_->phis();
   for (int j = 0; j < phis->length(); j++) {
     HPhi* phi = phis->at(j);
-    ASSERT(phi->HasMergedIndex());
-    osr_values_->at(phi->merged_index())->set_incoming_value(phi);
+    if (phi->HasMergedIndex()) {
+      osr_values_->at(phi->merged_index())->set_incoming_value(phi);
+    }
   }
 }
 

@@ -171,7 +171,7 @@ class TerminatorThread : public v8::internal::Thread {
 // Test that a single thread of JavaScript execution can be terminated
 // from the side by another thread.
 TEST(TerminateOnlyV8ThreadFromOtherThread) {
-  semaphore = v8::internal::OS::CreateSemaphore(0);
+  semaphore = new v8::internal::Semaphore(0);
   TerminatorThread thread(i::Isolate::Current());
   thread.Start();
 
@@ -187,73 +187,6 @@ TEST(TerminateOnlyV8ThreadFromOtherThread) {
   v8::Script::Compile(source)->Run();
 
   thread.Join();
-  delete semaphore;
-  semaphore = NULL;
-}
-
-
-class LoopingThread : public v8::internal::Thread {
- public:
-  LoopingThread() : Thread("LoopingThread") { }
-  void Run() {
-    v8::Locker locker(CcTest::default_isolate());
-    v8::HandleScope scope(CcTest::default_isolate());
-    v8_thread_id_ = v8::V8::GetCurrentThreadId();
-    v8::Handle<v8::ObjectTemplate> global =
-        CreateGlobalTemplate(Signal, DoLoop);
-    v8::Handle<v8::Context> context =
-        v8::Context::New(v8::Isolate::GetCurrent(), NULL, global);
-    v8::Context::Scope context_scope(context);
-    CHECK(!v8::V8::IsExecutionTerminating());
-    // Run a loop that will be infinite if thread termination does not work.
-    v8::Handle<v8::String> source =
-        v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
-    v8::Script::Compile(source)->Run();
-  }
-
-  int GetV8ThreadId() { return v8_thread_id_; }
-
- private:
-  int v8_thread_id_;
-};
-
-
-// Test that multiple threads using default isolate can be terminated
-// from another thread when using Lockers and preemption.
-TEST(TerminateMultipleV8ThreadsDefaultIsolate) {
-  {
-    v8::Locker locker(CcTest::default_isolate());
-    v8::V8::Initialize();
-    v8::Locker::StartPreemption(1);
-    semaphore = v8::internal::OS::CreateSemaphore(0);
-  }
-  const int kThreads = 2;
-  i::List<LoopingThread*> threads(kThreads);
-  for (int i = 0; i < kThreads; i++) {
-    threads.Add(new LoopingThread());
-  }
-  for (int i = 0; i < kThreads; i++) {
-    threads[i]->Start();
-  }
-  // Wait until all threads have signaled the semaphore.
-  for (int i = 0; i < kThreads; i++) {
-    semaphore->Wait();
-  }
-  {
-    v8::Locker locker(CcTest::default_isolate());
-    for (int i = 0; i < kThreads; i++) {
-      v8::V8::TerminateExecution(threads[i]->GetV8ThreadId());
-    }
-  }
-  for (int i = 0; i < kThreads; i++) {
-    threads[i]->Join();
-    delete threads[i];
-  }
-  {
-    v8::Locker locker(CcTest::default_isolate());
-    v8::Locker::StopPreemption();
-  }
-
   delete semaphore;
   semaphore = NULL;
 }
@@ -391,11 +324,11 @@ void DoLoopCancelTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // Test that a single thread of JavaScript execution can terminate
 // itself and then resume execution.
 TEST(TerminateCancelTerminateFromThreadItself) {
-  v8::HandleScope scope;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> global =
       CreateGlobalTemplate(TerminateCurrentThread, DoLoopCancelTerminate);
-  v8::Handle<v8::Context> context =
-      v8::Context::New(v8::Isolate::GetCurrent(), NULL, global);
+  v8::Handle<v8::Context> context = v8::Context::New(isolate, NULL, global);
   v8::Context::Scope context_scope(context);
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Handle<v8::String> source =
@@ -403,4 +336,3 @@ TEST(TerminateCancelTerminateFromThreadItself) {
   // Check that execution completed with correct return value.
   CHECK(v8::Script::Compile(source)->Run()->Equals(v8_str("completed")));
 }
-

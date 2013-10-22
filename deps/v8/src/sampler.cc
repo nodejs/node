@@ -27,9 +27,7 @@
 
 #include "sampler.h"
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) \
-    || defined(__NetBSD__) || defined(__sun) || defined(__ANDROID__) \
-    || defined(__native_client__)
+#if V8_OS_POSIX && !V8_OS_CYGWIN
 
 #define USE_SIGNALS
 
@@ -38,26 +36,25 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/syscall.h>
+
+#if V8_OS_MACOSX
+#include <mach/mach.h>
 // OpenBSD doesn't have <ucontext.h>. ucontext_t lives in <signal.h>
 // and is a typedef for struct sigcontext. There is no uc_mcontext.
-#if (!defined(__ANDROID__) || defined(__BIONIC_HAVE_UCONTEXT_T)) \
-    && !defined(__OpenBSD__)
+#elif(!V8_OS_ANDROID || defined(__BIONIC_HAVE_UCONTEXT_T)) \
+    && !V8_OS_OPENBSD
 #include <ucontext.h>
 #endif
 #include <unistd.h>
 
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
-#if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
+#if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
     defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
 #include <asm/sigcontext.h>
 #endif
 
-#elif defined(__MACH__)
-
-#include <mach/mach.h>
-
-#elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#elif V8_OS_WIN || V8_OS_CYGWIN
 
 #include "win32-headers.h"
 
@@ -65,7 +62,7 @@
 
 #include "v8.h"
 
-#include "cpu-profiler.h"
+#include "cpu-profiler-inl.h"
 #include "flags.h"
 #include "frames-inl.h"
 #include "log.h"
@@ -75,7 +72,7 @@
 #include "vm-state-inl.h"
 
 
-#if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T)
+#if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
 // Not all versions of Android's C library provide ucontext_t.
 // Detect this and provide custom but compatible definitions. Note that these
@@ -147,7 +144,7 @@ typedef struct ucontext {
 enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
 #endif
 
-#endif  // __ANDROID__ && !defined(__BIONIC_HAVE_UCONTEXT_T)
+#endif  // V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
 
 namespace v8 {
@@ -180,27 +177,7 @@ class Sampler::PlatformData : public PlatformDataCommon {
   pthread_t vm_tid_;
 };
 
-#elif defined(__MACH__)
-
-class Sampler::PlatformData : public PlatformDataCommon {
- public:
-  PlatformData() : profiled_thread_(mach_thread_self()) {}
-
-  ~PlatformData() {
-    // Deallocate Mach port for thread.
-    mach_port_deallocate(mach_task_self(), profiled_thread_);
-  }
-
-  thread_act_t profiled_thread() { return profiled_thread_; }
-
- private:
-  // Note: for profiled_thread_ Mach primitives are used instead of PThread's
-  // because the latter doesn't provide thread manipulation primitives required.
-  // For details, consult "Mac OS X Internals" book, Section 7.3.
-  thread_act_t profiled_thread_;
-};
-
-#elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#elif V8_OS_WIN || V8_OS_CYGWIN
 
 // ----------------------------------------------------------------------------
 // Win32 profiler support. On Cygwin we use the same sampler implementation as
@@ -271,8 +248,25 @@ class SimulatorHelper {
 
 class SignalHandler : public AllStatic {
  public:
-  static inline void EnsureInstalled() {
-    if (signal_handler_installed_) return;
+  static void SetUp() { if (!mutex_) mutex_ = new Mutex(); }
+  static void TearDown() { delete mutex_; }
+
+  static void IncreaseSamplerCount() {
+    LockGuard<Mutex> lock_guard(mutex_);
+    if (++client_count_ == 1) Install();
+  }
+
+  static void DecreaseSamplerCount() {
+    LockGuard<Mutex> lock_guard(mutex_);
+    if (--client_count_ == 0) Restore();
+  }
+
+  static bool Installed() {
+    return signal_handler_installed_;
+  }
+
+ private:
+  static void Install() {
     struct sigaction sa;
     sa.sa_sigaction = &HandleProfilerSignal;
     sigemptyset(&sa.sa_mask);
@@ -281,30 +275,31 @@ class SignalHandler : public AllStatic {
         (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
   }
 
-  static inline void Restore() {
+  static void Restore() {
     if (signal_handler_installed_) {
       sigaction(SIGPROF, &old_signal_handler_, 0);
       signal_handler_installed_ = false;
     }
   }
 
-  static inline bool Installed() {
-    return signal_handler_installed_;
-  }
-
- private:
   static void HandleProfilerSignal(int signal, siginfo_t* info, void* context);
+  // Protects the process wide state below.
+  static Mutex* mutex_;
+  static int client_count_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
 };
 
+
+Mutex* SignalHandler::mutex_ = NULL;
+int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
 
 
 void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
-#if defined(__native_client__)
+#if V8_OS_NACL
   // As Native Client does not support signal handling, profiling
   // is disabled.
   return;
@@ -322,7 +317,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   }
 
   Sampler* sampler = isolate->logger()->sampler();
-  if (sampler == NULL || !sampler->IsActive()) return;
+  if (sampler == NULL) return;
 
   RegisterState state;
 
@@ -333,10 +328,10 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-#if !defined(__OpenBSD__)
+#if !V8_OS_OPENBSD
   mcontext_t& mcontext = ucontext->uc_mcontext;
 #endif
-#if defined(__linux__) || defined(__ANDROID__)
+#if V8_OS_LINUX
 #if V8_HOST_ARCH_IA32
   state.pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
@@ -364,7 +359,29 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
 #endif  // V8_HOST_ARCH_*
-#elif defined(__FreeBSD__)
+#elif V8_OS_MACOSX
+#if V8_HOST_ARCH_X64
+#if __DARWIN_UNIX03
+  state.pc = reinterpret_cast<Address>(mcontext->__ss.__rip);
+  state.sp = reinterpret_cast<Address>(mcontext->__ss.__rsp);
+  state.fp = reinterpret_cast<Address>(mcontext->__ss.__rbp);
+#else  // !__DARWIN_UNIX03
+  state.pc = reinterpret_cast<Address>(mcontext->ss.rip);
+  state.sp = reinterpret_cast<Address>(mcontext->ss.rsp);
+  state.fp = reinterpret_cast<Address>(mcontext->ss.rbp);
+#endif  // __DARWIN_UNIX03
+#elif V8_HOST_ARCH_IA32
+#if __DARWIN_UNIX03
+  state.pc = reinterpret_cast<Address>(mcontext->__ss.__eip);
+  state.sp = reinterpret_cast<Address>(mcontext->__ss.__esp);
+  state.fp = reinterpret_cast<Address>(mcontext->__ss.__ebp);
+#else  // !__DARWIN_UNIX03
+  state.pc = reinterpret_cast<Address>(mcontext->ss.eip);
+  state.sp = reinterpret_cast<Address>(mcontext->ss.esp);
+  state.fp = reinterpret_cast<Address>(mcontext->ss.ebp);
+#endif  // __DARWIN_UNIX03
+#endif  // V8_HOST_ARCH_IA32
+#elif V8_OS_FREEBSD
 #if V8_HOST_ARCH_IA32
   state.pc = reinterpret_cast<Address>(mcontext.mc_eip);
   state.sp = reinterpret_cast<Address>(mcontext.mc_esp);
@@ -378,7 +395,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(mcontext.mc_r13);
   state.fp = reinterpret_cast<Address>(mcontext.mc_r11);
 #endif  // V8_HOST_ARCH_*
-#elif defined(__NetBSD__)
+#elif V8_OS_NETBSD
 #if V8_HOST_ARCH_IA32
   state.pc = reinterpret_cast<Address>(mcontext.__gregs[_REG_EIP]);
   state.sp = reinterpret_cast<Address>(mcontext.__gregs[_REG_ESP]);
@@ -388,7 +405,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(mcontext.__gregs[_REG_RSP]);
   state.fp = reinterpret_cast<Address>(mcontext.__gregs[_REG_RBP]);
 #endif  // V8_HOST_ARCH_*
-#elif defined(__OpenBSD__)
+#elif V8_OS_OPENBSD
 #if V8_HOST_ARCH_IA32
   state.pc = reinterpret_cast<Address>(ucontext->sc_eip);
   state.sp = reinterpret_cast<Address>(ucontext->sc_esp);
@@ -398,14 +415,14 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(ucontext->sc_rsp);
   state.fp = reinterpret_cast<Address>(ucontext->sc_rbp);
 #endif  // V8_HOST_ARCH_*
-#elif defined(__sun)
+#elif V8_OS_SOLARIS
   state.pc = reinterpret_cast<Address>(mcontext.gregs[REG_PC]);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_SP]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[REG_FP]);
-#endif  // __sun
+#endif  // V8_OS_SOLARIS
 #endif  // USE_SIMULATOR
   sampler->SampleStack(state);
-#endif  // __native_client__
+#endif  // V8_OS_NACL
 }
 
 #endif
@@ -419,12 +436,12 @@ class SamplerThread : public Thread {
       : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
-  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
-  static void TearDown() { delete mutex_; }
+  static void SetUp() { if (!mutex_) mutex_ = new Mutex(); }
+  static void TearDown() { delete mutex_; mutex_ = NULL; }
 
   static void AddActiveSampler(Sampler* sampler) {
     bool need_to_start = false;
-    ScopedLock lock(mutex_);
+    LockGuard<Mutex> lock_guard(mutex_);
     if (instance_ == NULL) {
       // Start a thread that will send SIGPROF signal to VM threads,
       // when CPU profiling will be enabled.
@@ -437,16 +454,13 @@ class SamplerThread : public Thread {
     ASSERT(instance_->interval_ == sampler->interval());
     instance_->active_samplers_.Add(sampler);
 
-#if defined(USE_SIGNALS)
-    SignalHandler::EnsureInstalled();
-#endif
     if (need_to_start) instance_->StartSynchronously();
   }
 
   static void RemoveActiveSampler(Sampler* sampler) {
     SamplerThread* instance_to_remove = NULL;
     {
-      ScopedLock lock(mutex_);
+      LockGuard<Mutex> lock_guard(mutex_);
 
       ASSERT(sampler->IsActive());
       bool removed = instance_->active_samplers_.RemoveElement(sampler);
@@ -458,9 +472,6 @@ class SamplerThread : public Thread {
       if (instance_->active_samplers_.is_empty()) {
         instance_to_remove = instance_;
         instance_ = NULL;
-#if defined(USE_SIGNALS)
-        SignalHandler::Restore();
-#endif
       }
     }
 
@@ -473,7 +484,7 @@ class SamplerThread : public Thread {
   virtual void Run() {
     while (true) {
       {
-        ScopedLock lock(mutex_);
+        LockGuard<Mutex> lock_guard(mutex_);
         if (active_samplers_.is_empty()) break;
         // When CPU profiling is enabled both JavaScript and C++ code is
         // profiled. We must not suspend.
@@ -481,7 +492,7 @@ class SamplerThread : public Thread {
           Sampler* sampler = active_samplers_.at(i);
           if (!sampler->isolate()->IsInitialized()) continue;
           if (!sampler->IsProfiling()) continue;
-          SampleContext(sampler);
+          sampler->DoSample();
         }
       }
       OS::Sleep(interval_);
@@ -489,109 +500,6 @@ class SamplerThread : public Thread {
   }
 
  private:
-#if defined(USE_SIGNALS)
-
-  void SampleContext(Sampler* sampler) {
-    if (!SignalHandler::Installed()) return;
-    pthread_t tid = sampler->platform_data()->vm_tid();
-    pthread_kill(tid, SIGPROF);
-  }
-
-#elif defined(__MACH__)
-
-  void SampleContext(Sampler* sampler) {
-    thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
-
-#if defined(USE_SIMULATOR)
-    SimulatorHelper helper;
-    Isolate* isolate = sampler->isolate();
-    if (!helper.Init(sampler, isolate)) return;
-#endif
-
-    if (KERN_SUCCESS != thread_suspend(profiled_thread)) return;
-
-#if V8_HOST_ARCH_X64
-    thread_state_flavor_t flavor = x86_THREAD_STATE64;
-    x86_thread_state64_t thread_state;
-    mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
-#if __DARWIN_UNIX03
-#define REGISTER_FIELD(name) __r ## name
-#else
-#define REGISTER_FIELD(name) r ## name
-#endif  // __DARWIN_UNIX03
-#elif V8_HOST_ARCH_IA32
-    thread_state_flavor_t flavor = i386_THREAD_STATE;
-    i386_thread_state_t thread_state;
-    mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
-#if __DARWIN_UNIX03
-#define REGISTER_FIELD(name) __e ## name
-#else
-#define REGISTER_FIELD(name) e ## name
-#endif  // __DARWIN_UNIX03
-#else
-#error Unsupported Mac OS X host architecture.
-#endif  // V8_HOST_ARCH
-
-    if (thread_get_state(profiled_thread,
-                         flavor,
-                         reinterpret_cast<natural_t*>(&thread_state),
-                         &count) == KERN_SUCCESS) {
-      RegisterState state;
-#if defined(USE_SIMULATOR)
-      helper.FillRegisters(&state);
-#else
-      state.pc = reinterpret_cast<Address>(thread_state.REGISTER_FIELD(ip));
-      state.sp = reinterpret_cast<Address>(thread_state.REGISTER_FIELD(sp));
-      state.fp = reinterpret_cast<Address>(thread_state.REGISTER_FIELD(bp));
-#endif  // USE_SIMULATOR
-#undef REGISTER_FIELD
-      sampler->SampleStack(state);
-    }
-    thread_resume(profiled_thread);
-  }
-
-#elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-
-  void SampleContext(Sampler* sampler) {
-    HANDLE profiled_thread = sampler->platform_data()->profiled_thread();
-    if (profiled_thread == NULL) return;
-
-    Isolate* isolate = sampler->isolate();
-#if defined(USE_SIMULATOR)
-    SimulatorHelper helper;
-    if (!helper.Init(sampler, isolate)) return;
-#endif
-
-    const DWORD kSuspendFailed = static_cast<DWORD>(-1);
-    if (SuspendThread(profiled_thread) == kSuspendFailed) return;
-
-    // Context used for sampling the register state of the profiled thread.
-    CONTEXT context;
-    memset(&context, 0, sizeof(context));
-    context.ContextFlags = CONTEXT_FULL;
-    if (GetThreadContext(profiled_thread, &context) != 0) {
-      RegisterState state;
-#if defined(USE_SIMULATOR)
-      helper.FillRegisters(&state);
-#else
-#if V8_HOST_ARCH_X64
-      state.pc = reinterpret_cast<Address>(context.Rip);
-      state.sp = reinterpret_cast<Address>(context.Rsp);
-      state.fp = reinterpret_cast<Address>(context.Rbp);
-#else
-      state.pc = reinterpret_cast<Address>(context.Eip);
-      state.sp = reinterpret_cast<Address>(context.Esp);
-      state.fp = reinterpret_cast<Address>(context.Ebp);
-#endif
-#endif  // USE_SIMULATOR
-      sampler->SampleStack(state);
-    }
-    ResumeThread(profiled_thread);
-  }
-
-#endif  // USE_SIGNALS
-
-
   // Protects the process wide state below.
   static Mutex* mutex_;
   static SamplerThread* instance_;
@@ -652,12 +560,18 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
 
 
 void Sampler::SetUp() {
+#if defined(USE_SIGNALS)
+  SignalHandler::SetUp();
+#endif
   SamplerThread::SetUp();
 }
 
 
 void Sampler::TearDown() {
   SamplerThread::TearDown();
+#if defined(USE_SIGNALS)
+  SignalHandler::TearDown();
+#endif
 }
 
 
@@ -665,6 +579,7 @@ Sampler::Sampler(Isolate* isolate, int interval)
     : isolate_(isolate),
       interval_(interval),
       profiling_(false),
+      has_processing_thread_(false),
       active_(false),
       is_counting_samples_(false),
       js_and_external_sample_count_(0) {
@@ -692,8 +607,24 @@ void Sampler::Stop() {
 }
 
 
+void Sampler::IncreaseProfilingDepth() {
+  NoBarrier_AtomicIncrement(&profiling_, 1);
+#if defined(USE_SIGNALS)
+  SignalHandler::IncreaseSamplerCount();
+#endif
+}
+
+
+void Sampler::DecreaseProfilingDepth() {
+#if defined(USE_SIGNALS)
+  SignalHandler::DecreaseSamplerCount();
+#endif
+  NoBarrier_AtomicIncrement(&profiling_, -1);
+}
+
+
 void Sampler::SampleStack(const RegisterState& state) {
-  TickSample* sample = isolate_->cpu_profiler()->TickSampleEvent();
+  TickSample* sample = isolate_->cpu_profiler()->StartTickSample();
   TickSample sample_obj;
   if (sample == NULL) sample = &sample_obj;
   sample->Init(isolate_, state);
@@ -703,6 +634,58 @@ void Sampler::SampleStack(const RegisterState& state) {
     }
   }
   Tick(sample);
+  if (sample != &sample_obj) {
+    isolate_->cpu_profiler()->FinishTickSample();
+  }
 }
+
+
+#if defined(USE_SIGNALS)
+
+void Sampler::DoSample() {
+  if (!SignalHandler::Installed()) return;
+  pthread_kill(platform_data()->vm_tid(), SIGPROF);
+}
+
+#elif V8_OS_WIN || V8_OS_CYGWIN
+
+void Sampler::DoSample() {
+  HANDLE profiled_thread = platform_data()->profiled_thread();
+  if (profiled_thread == NULL) return;
+
+#if defined(USE_SIMULATOR)
+  SimulatorHelper helper;
+  if (!helper.Init(this, isolate())) return;
+#endif
+
+  const DWORD kSuspendFailed = static_cast<DWORD>(-1);
+  if (SuspendThread(profiled_thread) == kSuspendFailed) return;
+
+  // Context used for sampling the register state of the profiled thread.
+  CONTEXT context;
+  memset(&context, 0, sizeof(context));
+  context.ContextFlags = CONTEXT_FULL;
+  if (GetThreadContext(profiled_thread, &context) != 0) {
+    RegisterState state;
+#if defined(USE_SIMULATOR)
+    helper.FillRegisters(&state);
+#else
+#if V8_HOST_ARCH_X64
+    state.pc = reinterpret_cast<Address>(context.Rip);
+    state.sp = reinterpret_cast<Address>(context.Rsp);
+    state.fp = reinterpret_cast<Address>(context.Rbp);
+#else
+    state.pc = reinterpret_cast<Address>(context.Eip);
+    state.sp = reinterpret_cast<Address>(context.Esp);
+    state.fp = reinterpret_cast<Address>(context.Ebp);
+#endif
+#endif  // USE_SIMULATOR
+    SampleStack(state);
+  }
+  ResumeThread(profiled_thread);
+}
+
+#endif  // USE_SIGNALS
+
 
 } }  // namespace v8::internal

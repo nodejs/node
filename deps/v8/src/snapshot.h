@@ -43,7 +43,7 @@ class Snapshot {
   static bool HaveASnapshotToStartFrom();
 
   // Create a new context using the internal partial snapshot.
-  static Handle<Context> NewContextFromSnapshot();
+  static Handle<Context> NewContextFromSnapshot(Isolate* isolate);
 
   // Returns whether or not the snapshot is enabled.
   static bool IsEnabled() { return size_ != 0; }

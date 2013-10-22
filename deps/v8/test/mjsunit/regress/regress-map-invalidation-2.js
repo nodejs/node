@@ -31,19 +31,24 @@ var c = { x: 2, y: 1 };
 
 function g() {
   var outer = { foo: 1 };
-  function f() {
+  function f(b, c) {
     var n = outer.foo;
-    for (var i = 0; i < 100000; i++) {
+    for (var i = 0; i < 10; i++) {
       n += c.x + outer.foo;
     }
-    var o2 = [{ x: 1.5, y: 1 }];
-    return o2;
+    if (b) return [{ x: 1.5, y: 1 }];
+    else return c;
   }
+  // Clear type feedback from previous stress runs.
+  %ClearFunctionTypeFeedback(f);
   return f;
 }
 
 var fun = g();
-fun();
+fun(false, c);
+fun(false, c);
+fun(false, c);
+%OptimizeFunctionOnNextCall(fun);
+fun(false, c);
+fun(true, c);
 assertOptimized(fun);
-fun();
-

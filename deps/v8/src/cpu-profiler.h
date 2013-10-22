@@ -31,6 +31,7 @@
 #include "allocation.h"
 #include "atomicops.h"
 #include "circular-queue.h"
+#include "platform/time.h"
 #include "sampler.h"
 #include "unbound-queue.h"
 
@@ -114,10 +115,6 @@ class TickSampleEventRecord {
 
   unsigned order;
   TickSample sample;
-
-  static TickSampleEventRecord* cast(void* value) {
-    return reinterpret_cast<TickSampleEventRecord*>(value);
-  }
 };
 
 
@@ -140,7 +137,9 @@ class CodeEventsContainer {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public Thread {
  public:
-  explicit ProfilerEventsProcessor(ProfileGenerator* generator);
+  ProfilerEventsProcessor(ProfileGenerator* generator,
+                          Sampler* sampler,
+                          TimeDelta period);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
@@ -156,17 +155,31 @@ class ProfilerEventsProcessor : public Thread {
   // queue (because the structure is of fixed width, but usually not all
   // stack frame entries are filled.) This method returns a pointer to the
   // next record of the buffer.
-  INLINE(TickSample* TickSampleEvent());
+  inline TickSample* StartTickSample();
+  inline void FinishTickSample();
 
  private:
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
-  bool ProcessTicks();
+
+  enum SampleProcessingResult {
+    OneSampleProcessed,
+    FoundSampleForNextCodeEvent,
+    NoSamplesInQueue
+  };
+  SampleProcessingResult ProcessOneSample();
 
   ProfileGenerator* generator_;
+  Sampler* sampler_;
   bool running_;
+  // Sampling period in microseconds.
+  const TimeDelta period_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
-  SamplingCircularQueue ticks_buffer_;
+  static const size_t kTickSampleBufferSize = 1 * MB;
+  static const size_t kTickSampleQueueLength =
+      kTickSampleBufferSize / sizeof(TickSampleEventRecord);
+  SamplingCircularQueue<TickSampleEventRecord,
+                        kTickSampleQueueLength> ticks_buffer_;
   UnboundQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
   unsigned last_code_event_id_;
   unsigned last_processed_code_event_id_;
@@ -195,6 +208,7 @@ class CpuProfiler : public CodeEventListener {
 
   virtual ~CpuProfiler();
 
+  void set_sampling_interval(TimeDelta value);
   void StartProfiling(const char* title, bool record_samples = false);
   void StartProfiling(String* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
@@ -205,7 +219,8 @@ class CpuProfiler : public CodeEventListener {
   void DeleteProfile(CpuProfile* profile);
 
   // Invoked from stack sampler (thread or signal handler.)
-  TickSample* TickSampleEvent();
+  inline TickSample* StartTickSample();
+  inline void FinishTickSample();
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.
@@ -251,12 +266,12 @@ class CpuProfiler : public CodeEventListener {
   void LogBuiltins();
 
   Isolate* isolate_;
+  TimeDelta sampling_interval_;
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
-  int saved_logging_nesting_;
-  bool need_to_stop_sampler_;
+  bool saved_is_logging_;
   bool is_profiling_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);

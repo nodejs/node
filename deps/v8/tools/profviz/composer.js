@@ -31,7 +31,7 @@ Array.prototype.top = function() {
 }
 
 
-function PlotScriptComposer(kResX, kResY) {
+function PlotScriptComposer(kResX, kResY, error_output) {
   // Constants.
   var kV8BinarySuffixes = ["/d8", "/libv8.so"];
   var kStackFrames = 8;             // Stack frames to display in the plot.
@@ -101,7 +101,7 @@ function PlotScriptComposer(kResX, kResY) {
         new TimerEvent("compile unopt", "#CC0000",  true, 0),
       'V8.RecompileSynchronous':
         new TimerEvent("recompile sync", "#CC0044",  true, 0),
-      'V8.RecompileParallel':
+      'V8.RecompileConcurrent':
         new TimerEvent("recompile async", "#CC4499", false, 1),
       'V8.CompileEval':
         new TimerEvent("compile eval", "#CC4400",  true, 0),
@@ -149,7 +149,10 @@ function PlotScriptComposer(kResX, kResY) {
 
   // Utility functions.
   function assert(something, message) {
-    if (!something) print(new Error(message).stack);
+    if (!something) {
+      var error = new Error(message);
+      error_output(error.stack);
+    }
   }
 
   function FindCodeKind(kind) {
@@ -208,70 +211,16 @@ function PlotScriptComposer(kResX, kResY) {
   // Public methods.
   this.collectData = function(input, distortion_per_entry) {
 
+    var last_timestamp = 0;
+
     // Parse functions.
     var parseTimeStamp = function(timestamp) {
+      int_timestamp = parseInt(timestamp);
+      assert(int_timestamp >= last_timestamp, "Inconsistent timestamps.");
+      last_timestamp = int_timestamp;
       distortion += distortion_per_entry;
-      return parseInt(timestamp) / 1000 - distortion;
+      return int_timestamp / 1000 - distortion;
     }
-
-    var processTimerEventStart = function(name, start) {
-      // Find out the thread id.
-      var new_event = TimerEvents[name];
-      if (new_event === undefined) return;
-      var thread_id = new_event.thread_id;
-
-      start = Math.max(last_time_stamp[thread_id] + kMinRangeLength, start);
-
-      // Last event on this thread is done with the start of this event.
-      var last_event = event_stack[thread_id].top();
-      if (last_event !== undefined) {
-        var new_range = new Range(last_time_stamp[thread_id], start);
-        last_event.ranges.push(new_range);
-      }
-      event_stack[thread_id].push(new_event);
-      last_time_stamp[thread_id] = start;
-    };
-
-    var processTimerEventEnd = function(name, end) {
-      // Find out about the thread_id.
-      var finished_event = TimerEvents[name];
-      var thread_id = finished_event.thread_id;
-      assert(finished_event === event_stack[thread_id].pop(),
-             "inconsistent event stack");
-
-      end = Math.max(last_time_stamp[thread_id] + kMinRangeLength, end);
-
-      var new_range = new Range(last_time_stamp[thread_id], end);
-      finished_event.ranges.push(new_range);
-      last_time_stamp[thread_id] = end;
-    };
-
-    var processCodeCreateEvent = function(type, kind, address, size, name) {
-      var code_entry = new CodeMap.CodeEntry(size, name);
-      code_entry.kind = kind;
-      code_map.addCode(address, code_entry);
-    };
-
-    var processCodeMoveEvent = function(from, to) {
-      code_map.moveCode(from, to);
-    };
-
-    var processCodeDeleteEvent = function(address) {
-      code_map.deleteCode(address);
-    };
-
-    var processSharedLibrary = function(name, start, end) {
-      var code_entry = new CodeMap.CodeEntry(end - start, name);
-      code_entry.kind = -2;  // External code kind.
-      for (var i = 0; i < kV8BinarySuffixes.length; i++) {
-        var suffix = kV8BinarySuffixes[i];
-        if (name.indexOf(suffix, name.length - suffix.length) >= 0) {
-          code_entry.kind = -1;  // V8 runtime code kind.
-          break;
-        }
-      }
-      code_map.addLibrary(start, code_entry);
-    };
 
     var processTimerEventStart = function(name, start) {
       // Find out the thread id.

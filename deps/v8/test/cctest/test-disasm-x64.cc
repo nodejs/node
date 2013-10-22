@@ -95,11 +95,6 @@ TEST(DisasmX64) {
     CpuFeatures::Scope fscope(CPUID);
     __ cpuid();
   }
-  {
-    CHECK(CpuFeatures::IsSupported(RDTSC));
-    CpuFeatures::Scope fscope(RDTSC);
-    __ rdtsc();
-  }
   __ movsxbq(rdx, Operand(rcx, 0));
   __ movsxwq(rdx, Operand(rcx, 0));
   __ movzxbl(rdx, Operand(rcx, 0));

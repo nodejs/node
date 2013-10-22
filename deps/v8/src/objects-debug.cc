@@ -230,7 +230,8 @@ void HeapObject::HeapObjectVerify() {
 
 void HeapObject::VerifyHeapPointer(Object* p) {
   CHECK(p->IsHeapObject());
-  CHECK(HEAP->Contains(HeapObject::cast(p)));
+  HeapObject* ho = HeapObject::cast(p);
+  CHECK(ho->GetHeap()->Contains(ho));
 }
 
 
@@ -328,20 +329,27 @@ void JSObject::JSObjectVerify() {
       }
     }
   }
-  CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
-             (elements() == GetHeap()->empty_fixed_array())),
-            (elements()->map() == GetHeap()->fixed_array_map() ||
-             elements()->map() == GetHeap()->fixed_cow_array_map()));
-  CHECK(map()->has_fast_object_elements() == HasFastObjectElements());
+
+  // TODO(hpayer): deal gracefully with partially constructed JSObjects, when
+  // allocation folding is turned off.
+  if (reinterpret_cast<Map*>(elements()) !=
+      GetHeap()->one_pointer_filler_map()) {
+    CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
+              (elements() == GetHeap()->empty_fixed_array())),
+             (elements()->map() == GetHeap()->fixed_array_map() ||
+              elements()->map() == GetHeap()->fixed_cow_array_map()));
+    CHECK(map()->has_fast_object_elements() == HasFastObjectElements());
+  }
 }
 
 
 void Map::MapVerify() {
-  CHECK(!HEAP->InNewSpace(this));
+  Heap* heap = GetHeap();
+  CHECK(!heap->InNewSpace(this));
   CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   CHECK(instance_size() == kVariableSizeSentinel ||
          (kPointerSize <= instance_size() &&
-          instance_size() < HEAP->Capacity()));
+          instance_size() < heap->Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
   SLOW_ASSERT(instance_descriptors()->IsSortedNoDuplicates());
@@ -501,7 +509,7 @@ void JSDate::JSDateVerify() {
   }
   if (cache_stamp()->IsSmi()) {
     CHECK(Smi::cast(cache_stamp())->value() <=
-          Smi::cast(Isolate::Current()->date_cache()->stamp())->value());
+          Smi::cast(GetIsolate()->date_cache()->stamp())->value());
   }
 }
 
@@ -523,7 +531,7 @@ void String::StringVerify() {
   CHECK(IsString());
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
   if (IsInternalizedString()) {
-    CHECK(!HEAP->InNewSpace(this));
+    CHECK(!GetHeap()->InNewSpace(this));
   }
   if (IsConsString()) {
     ConsString::cast(this)->ConsStringVerify();
@@ -615,7 +623,7 @@ void Oddball::OddballVerify() {
   VerifyHeapPointer(to_string());
   Object* number = to_number();
   if (number->IsHeapObject()) {
-    CHECK(number == HEAP->nan_value());
+    CHECK(number == HeapObject::cast(number)->GetHeap()->nan_value());
   } else {
     CHECK(number->IsSmi());
     int value = Smi::cast(number)->value();
@@ -675,9 +683,14 @@ void Code::VerifyEmbeddedMapsDependency() {
 void JSArray::JSArrayVerify() {
   JSObjectVerify();
   CHECK(length()->IsNumber() || length()->IsUndefined());
-  CHECK(elements()->IsUndefined() ||
-         elements()->IsFixedArray() ||
-         elements()->IsFixedDoubleArray());
+  // TODO(hpayer): deal gracefully with partially constructed JSObjects, when
+  // allocation folding is turned off.
+  if (reinterpret_cast<Map*>(elements()) !=
+      GetHeap()->one_pointer_filler_map()) {
+    CHECK(elements()->IsUndefined() ||
+          elements()->IsFixedArray() ||
+          elements()->IsFixedDoubleArray());
+  }
 }
 
 
@@ -856,6 +869,7 @@ void AccessorPair::AccessorPairVerify() {
   CHECK(IsAccessorPair());
   VerifyPointer(getter());
   VerifyPointer(setter());
+  VerifySmiField(kAccessFlagsOffset);
 }
 
 
@@ -888,6 +902,7 @@ void CallHandlerInfo::CallHandlerInfoVerify() {
 void TemplateInfo::TemplateInfoVerify() {
   VerifyPointer(tag());
   VerifyPointer(property_list());
+  VerifyPointer(property_accessors());
 }
 
 
@@ -896,7 +911,6 @@ void FunctionTemplateInfo::FunctionTemplateInfoVerify() {
   TemplateInfoVerify();
   VerifyPointer(serial_number());
   VerifyPointer(call_code());
-  VerifyPointer(property_accessors());
   VerifyPointer(prototype_template());
   VerifyPointer(parent_template());
   VerifyPointer(named_property_handler());
@@ -1042,7 +1056,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       int holes = 0;
       FixedArray* e = FixedArray::cast(elements());
       int len = e->length();
-      Heap* heap = HEAP;
+      Heap* heap = GetHeap();
       for (int i = 0; i < len; i++) {
         if (e->get(i) == heap->the_hole_value()) holes++;
       }

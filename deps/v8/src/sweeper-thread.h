@@ -43,6 +43,7 @@ namespace internal {
 class SweeperThread : public Thread {
  public:
   explicit SweeperThread(Isolate* isolate);
+  ~SweeperThread() {}
 
   void Run();
   void Stop();
@@ -50,19 +51,13 @@ class SweeperThread : public Thread {
   void WaitForSweeperThread();
   intptr_t StealMemory(PagedSpace* space);
 
-  ~SweeperThread() {
-    delete start_sweeping_semaphore_;
-    delete end_sweeping_semaphore_;
-    delete stop_semaphore_;
-  }
-
  private:
   Isolate* isolate_;
   Heap* heap_;
   MarkCompactCollector* collector_;
-  Semaphore* start_sweeping_semaphore_;
-  Semaphore* end_sweeping_semaphore_;
-  Semaphore* stop_semaphore_;
+  Semaphore start_sweeping_semaphore_;
+  Semaphore end_sweeping_semaphore_;
+  Semaphore stop_semaphore_;
   FreeList free_list_old_data_space_;
   FreeList free_list_old_pointer_space_;
   FreeList private_free_list_old_data_space_;

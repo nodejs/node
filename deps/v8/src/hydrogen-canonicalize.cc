@@ -48,6 +48,10 @@ void HCanonicalizePhase::Run() {
           if (instr->HasAtLeastOneUseWithFlagAndNoneWithout(
                   HInstruction::kTruncatingToSmi)) {
             instr->SetFlag(HInstruction::kAllUsesTruncatingToSmi);
+          } else if (instr->HasAtLeastOneUseWithFlagAndNoneWithout(
+                         HInstruction::kTruncatingToInt32)) {
+            // Avoid redundant minus zero check
+            instr->SetFlag(HInstruction::kAllUsesTruncatingToInt32);
           }
         }
       }

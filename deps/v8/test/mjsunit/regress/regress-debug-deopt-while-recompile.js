@@ -61,8 +61,8 @@ g();
 
 // Mark with builtin.
 %OptimizeFunctionOnNextCall(f);
-if (%IsParallelRecompilationSupported()) {
-  %OptimizeFunctionOnNextCall(g, "parallel");
+if (%IsConcurrentRecompilationSupported()) {
+  %OptimizeFunctionOnNextCall(g, "concurrent");
 }
 
 // Activate debugger.

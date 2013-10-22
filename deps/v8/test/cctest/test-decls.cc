@@ -56,7 +56,7 @@ class DeclarationContext {
       HandleScope scope(isolate);
       Local<Context> context = Local<Context>::New(isolate, context_);
       context->Exit();
-      context_.Dispose(isolate);
+      context_.Dispose();
     }
   }
 

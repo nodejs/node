@@ -69,6 +69,7 @@
 #include "v8.h"
 
 #include "codegen.h"
+#include "isolate-inl.h"
 #include "platform.h"
 
 namespace v8 {
@@ -79,11 +80,11 @@ static const pthread_t kNoThread = (pthread_t) 0;
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-#if defined(__APPLE__)
+#if V8_OS_MACOSX
   // Mac OS X requires all these to install so we can assume they are present.
   // These constants are defined by the CPUid instructions.
   const uint64_t one = 1;
-  return (one << SSE2) | (one << CMOV) | (one << RDTSC) | (one << CPUID);
+  return (one << SSE2) | (one << CMOV);
 #else
   return 0;  // Nothing special about the other systems.
 #endif
@@ -152,7 +153,7 @@ void OS::ProtectCode(void* address, const size_t size) {
 void OS::Guard(void* address, const size_t size) {
 #if defined(__CYGWIN__)
   DWORD oldprotect;
-  VirtualProtect(address, size, PAGE_READONLY | PAGE_GUARD, &oldprotect);
+  VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
 #else
   mprotect(address, size, PROT_NONE);
 #endif
@@ -171,17 +172,14 @@ void* OS::GetRandomMmapAddr() {
   // CpuFeatures::Probe. We don't care about randomization in this case because
   // the code page is immediately freed.
   if (isolate != NULL) {
+    uintptr_t raw_addr;
+    isolate->random_number_generator()->NextBytes(&raw_addr, sizeof(raw_addr));
 #if V8_TARGET_ARCH_X64
-    uint64_t rnd1 = V8::RandomPrivate(isolate);
-    uint64_t rnd2 = V8::RandomPrivate(isolate);
-    uint64_t raw_addr = (rnd1 << 32) ^ rnd2;
     // Currently available CPUs have 48 bits of virtual addressing.  Truncate
     // the hint address to 46 bits to give the kernel a fighting chance of
     // fulfilling our placement request.
     raw_addr &= V8_UINT64_C(0x3ffffffff000);
 #else
-    uint32_t raw_addr = V8::RandomPrivate(isolate);
-
     raw_addr &= 0x3ffff000;
 
 # ifdef __sun
@@ -216,11 +214,6 @@ size_t OS::AllocateAlignment() {
 void OS::Sleep(int milliseconds) {
   useconds_t ms = static_cast<useconds_t>(milliseconds);
   usleep(1000 * ms);
-}
-
-
-int OS::NumberOfCores() {
-  return sysconf(_SC_NPROCESSORS_ONLN);
 }
 
 
@@ -318,19 +311,7 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
 
 
 double OS::TimeCurrentMillis() {
-  struct timeval tv;
-  if (gettimeofday(&tv, NULL) < 0) return 0.0;
-  return (static_cast<double>(tv.tv_sec) * 1000) +
-         (static_cast<double>(tv.tv_usec) / 1000);
-}
-
-
-int64_t OS::Ticks() {
-  // gettimeofday has microsecond resolution.
-  struct timeval tv;
-  if (gettimeofday(&tv, NULL) < 0)
-    return 0;
-  return (static_cast<int64_t>(tv.tv_sec) * 1000000) + tv.tv_usec;
+  return Time::Now().ToJsTime();
 }
 
 
@@ -753,246 +734,6 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   int result = pthread_setspecific(pthread_key, value);
   ASSERT_EQ(0, result);
   USE(result);
-}
-
-
-class POSIXMutex : public Mutex {
- public:
-  POSIXMutex() {
-    pthread_mutexattr_t attr;
-    memset(&attr, 0, sizeof(attr));
-    int result = pthread_mutexattr_init(&attr);
-    ASSERT(result == 0);
-    result = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    ASSERT(result == 0);
-    result = pthread_mutex_init(&mutex_, &attr);
-    ASSERT(result == 0);
-    result = pthread_mutexattr_destroy(&attr);
-    ASSERT(result == 0);
-    USE(result);
-  }
-
-  virtual ~POSIXMutex() { pthread_mutex_destroy(&mutex_); }
-
-  virtual int Lock() { return pthread_mutex_lock(&mutex_); }
-
-  virtual int Unlock() { return pthread_mutex_unlock(&mutex_); }
-
-  virtual bool TryLock() {
-    int result = pthread_mutex_trylock(&mutex_);
-    // Return false if the lock is busy and locking failed.
-    if (result == EBUSY) {
-      return false;
-    }
-    ASSERT(result == 0);  // Verify no other errors.
-    return true;
-  }
-
- private:
-  pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
-};
-
-
-Mutex* OS::CreateMutex() {
-  return new POSIXMutex();
-}
-
-
-// ----------------------------------------------------------------------------
-// POSIX socket support.
-//
-
-class POSIXSocket : public Socket {
- public:
-  explicit POSIXSocket() {
-    // Create the socket.
-    socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (IsValid()) {
-      // Allow rapid reuse.
-      static const int kOn = 1;
-      int ret = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR,
-                           &kOn, sizeof(kOn));
-      ASSERT(ret == 0);
-      USE(ret);
-    }
-  }
-  explicit POSIXSocket(int socket): socket_(socket) { }
-  virtual ~POSIXSocket() { Shutdown(); }
-
-  // Server initialization.
-  bool Bind(const int port);
-  bool Listen(int backlog) const;
-  Socket* Accept() const;
-
-  // Client initialization.
-  bool Connect(const char* host, const char* port);
-
-  // Shutdown socket for both read and write.
-  bool Shutdown();
-
-  // Data Transimission
-  int Send(const char* data, int len) const;
-  int Receive(char* data, int len) const;
-
-  bool SetReuseAddress(bool reuse_address);
-
-  bool IsValid() const { return socket_ != -1; }
-
- private:
-  int socket_;
-};
-
-
-bool POSIXSocket::Bind(const int port) {
-  if (!IsValid())  {
-    return false;
-  }
-
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  addr.sin_port = htons(port);
-  int status = bind(socket_,
-                    BitCast<struct sockaddr *>(&addr),
-                    sizeof(addr));
-  return status == 0;
-}
-
-
-bool POSIXSocket::Listen(int backlog) const {
-  if (!IsValid()) {
-    return false;
-  }
-
-  int status = listen(socket_, backlog);
-  return status == 0;
-}
-
-
-Socket* POSIXSocket::Accept() const {
-  if (!IsValid()) {
-    return NULL;
-  }
-
-  int socket;
-  do {
-    socket = accept(socket_, NULL, NULL);
-  } while (socket == -1 && errno == EINTR);
-
-  if (socket == -1) {
-    return NULL;
-  } else {
-    return new POSIXSocket(socket);
-  }
-}
-
-
-bool POSIXSocket::Connect(const char* host, const char* port) {
-  if (!IsValid()) {
-    return false;
-  }
-
-  // Lookup host and port.
-  struct addrinfo *result = NULL;
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(addrinfo));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_protocol = IPPROTO_TCP;
-  int status = getaddrinfo(host, port, &hints, &result);
-  if (status != 0) {
-    return false;
-  }
-
-  // Connect.
-  do {
-    status = connect(socket_, result->ai_addr, result->ai_addrlen);
-  } while (status == -1 && errno == EINTR);
-  freeaddrinfo(result);
-  return status == 0;
-}
-
-
-bool POSIXSocket::Shutdown() {
-  if (IsValid()) {
-    // Shutdown socket for both read and write.
-    int status = shutdown(socket_, SHUT_RDWR);
-    close(socket_);
-    socket_ = -1;
-    return status == 0;
-  }
-  return true;
-}
-
-
-int POSIXSocket::Send(const char* data, int len) const {
-  if (len <= 0) return 0;
-  int written = 0;
-  while (written < len) {
-    int status = send(socket_, data + written, len - written, 0);
-    if (status == 0) {
-      break;
-    } else if (status > 0) {
-      written += status;
-    } else if (errno != EINTR) {
-      return 0;
-    }
-  }
-  return written;
-}
-
-
-int POSIXSocket::Receive(char* data, int len) const {
-  if (len <= 0) return 0;
-  int status;
-  do {
-    status = recv(socket_, data, len, 0);
-  } while (status == -1 && errno == EINTR);
-  return (status < 0) ? 0 : status;
-}
-
-
-bool POSIXSocket::SetReuseAddress(bool reuse_address) {
-  int on = reuse_address ? 1 : 0;
-  int status = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-  return status == 0;
-}
-
-
-bool Socket::SetUp() {
-  // Nothing to do on POSIX.
-  return true;
-}
-
-
-int Socket::LastError() {
-  return errno;
-}
-
-
-uint16_t Socket::HToN(uint16_t value) {
-  return htons(value);
-}
-
-
-uint16_t Socket::NToH(uint16_t value) {
-  return ntohs(value);
-}
-
-
-uint32_t Socket::HToN(uint32_t value) {
-  return htonl(value);
-}
-
-
-uint32_t Socket::NToH(uint32_t value) {
-  return ntohl(value);
-}
-
-
-Socket* OS::CreateSocket() {
-  return new POSIXSocket();
 }
 
 

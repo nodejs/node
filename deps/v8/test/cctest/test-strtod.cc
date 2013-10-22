@@ -432,7 +432,7 @@ static uint32_t DeterministicRandom() {
   static uint32_t lo = 0;
 
   // Initialization values don't have any special meaning. (They are the result
-  // of two calls to random().)
+  // of two calls to rand().)
   if (hi == 0) hi = 0xbfe166e7;
   if (lo == 0) lo = 0x64d1c3c9;
 
@@ -448,12 +448,13 @@ static const int kShortStrtodRandomCount = 2;
 static const int kLargeStrtodRandomCount = 2;
 
 TEST(RandomStrtod) {
+  srand(static_cast<unsigned int>(time(NULL)));
   char buffer[kBufferSize];
   for (int length = 1; length < 15; length++) {
     for (int i = 0; i < kShortStrtodRandomCount; ++i) {
       int pos = 0;
       for (int j = 0; j < length; ++j) {
-        buffer[pos++] = random() % 10 + '0';
+        buffer[pos++] = rand() % 10 + '0';
       }
       int exponent = DeterministicRandom() % (25*2 + 1) - 25 - length;
       buffer[pos] = '\0';
@@ -466,7 +467,7 @@ TEST(RandomStrtod) {
     for (int i = 0; i < kLargeStrtodRandomCount; ++i) {
       int pos = 0;
       for (int j = 0; j < length; ++j) {
-        buffer[pos++] = random() % 10 + '0';
+        buffer[pos++] = rand() % 10 + '0';
       }
       int exponent = DeterministicRandom() % (308*2 + 1) - 308 - length;
       buffer[pos] = '\0';

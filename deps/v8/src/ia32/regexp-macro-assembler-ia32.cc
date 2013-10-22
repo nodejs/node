@@ -711,7 +711,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // position registers.
   __ mov(Operand(ebp, kInputStartMinusOne), eax);
 
-#ifdef WIN32
+#if V8_OS_WIN
   // Ensure that we write to each stack page, in order. Skipping a page
   // on Windows can cause segmentation faults. Assuming page size is 4k.
   const int kPageSize = 4096;
@@ -721,7 +721,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
       i += kRegistersPerPage) {
     __ mov(register_location(i), eax);  // One write every page.
   }
-#endif  // WIN32
+#endif  // V8_OS_WIN
 
   Label load_char_start_regexp, start_regexp;
   // Load newline if index is at start, previous character otherwise.
@@ -1099,7 +1099,6 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
                                                    Code* re_code,
                                                    Address re_frame) {
   Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
-  ASSERT(isolate == Isolate::Current());
   if (isolate->stack_guard()->IsStackOverflow()) {
     isolate->StackOverflow();
     return EXCEPTION;

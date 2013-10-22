@@ -314,9 +314,6 @@ int main(int argc, char** argv) {
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
 
-  // Disable the i18n extension, as it doesn't support being snapshotted yet.
-  i::FLAG_enable_i18n = false;
-
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
@@ -333,8 +330,9 @@ int main(int argc, char** argv) {
     exit(1);
   }
 #endif
-  i::Serializer::Enable();
   Isolate* isolate = Isolate::GetCurrent();
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Serializer::Enable(internal_isolate);
   Persistent<Context> context;
   {
     HandleScope handle_scope(isolate);
@@ -391,21 +389,23 @@ int main(int argc, char** argv) {
   // Make sure all builtin scripts are cached.
   { HandleScope scope(isolate);
     for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
-      i::Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
+      internal_isolate->bootstrapper()->NativesSourceLookup(i);
     }
   }
   // If we don't do this then we end up with a stray root pointing at the
   // context even after we have disposed of the context.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags, "mksnapshot");
+  internal_isolate->heap()->CollectAllGarbage(
+      i::Heap::kNoGCFlags, "mksnapshot");
   i::Object* raw_context = *v8::Utils::OpenPersistent(context);
-  context.Dispose(isolate);
+  context.Dispose();
   CppByteSink sink(argv[1]);
   // This results in a somewhat smaller snapshot, probably because it gets rid
   // of some things that are cached between garbage collections.
-  i::StartupSerializer ser(&sink);
+  i::StartupSerializer ser(internal_isolate, &sink);
   ser.SerializeStrongReferences();
 
-  i::PartialSerializer partial_ser(&ser, sink.partial_sink());
+  i::PartialSerializer partial_ser(
+      internal_isolate, &ser, sink.partial_sink());
   partial_ser.Serialize(&raw_context);
 
   ser.SerializeWeakReferences();

@@ -44,7 +44,11 @@ if (!isNaN(range_end)) range_end_override = range_end;
 
 var kResX = 1600;
 var kResY = 600;
-var psc = new PlotScriptComposer(kResX, kResY);
+function log_error(text) {
+  print(text);
+  quit(1);
+}
+var psc = new PlotScriptComposer(kResX, kResY, log_error);
 psc.collectData(readline, distortion_per_entry);
 psc.findPlotRange(range_start_override, range_end_override);
 print("set terminal pngcairo size " + kResX + "," + kResY +

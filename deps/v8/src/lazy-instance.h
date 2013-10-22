@@ -91,12 +91,13 @@
 #ifndef V8_LAZY_INSTANCE_H_
 #define V8_LAZY_INSTANCE_H_
 
+#include "checks.h"
 #include "once.h"
 
 namespace v8 {
 namespace internal {
 
-#define LAZY_STATIC_INSTANCE_INITIALIZER { V8_ONCE_INIT, {} }
+#define LAZY_STATIC_INSTANCE_INITIALIZER { V8_ONCE_INIT, { {} } }
 #define LAZY_DYNAMIC_INSTANCE_INITIALIZER { V8_ONCE_INIT, 0 }
 
 // Default to static mode.
@@ -111,17 +112,15 @@ struct LeakyInstanceTrait {
 
 // Traits that define how an instance is allocated and accessed.
 
-// TODO(kalmard): __alignof__ is only defined for GCC > 4.2. Fix alignment issue
-// on MIPS with other compilers.
-#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 2))
-#define LAZY_ALIGN(x) __attribute__((aligned(__alignof__(x))))
-#else
-#define LAZY_ALIGN(x)
-#endif
 
 template <typename T>
 struct StaticallyAllocatedInstanceTrait {
-  typedef char StorageType[sizeof(T)] LAZY_ALIGN(T);
+  // 16-byte alignment fallback to be on the safe side here.
+  struct V8_ALIGNAS(T, 16) StorageType {
+    char x[sizeof(T)];
+  };
+
+  STATIC_ASSERT(V8_ALIGNOF(StorageType) >= V8_ALIGNOF(T));
 
   static T* MutableInstance(StorageType* storage) {
     return reinterpret_cast<T*>(storage);
@@ -132,8 +131,6 @@ struct StaticallyAllocatedInstanceTrait {
     ConstructTrait::Construct(MutableInstance(storage));
   }
 };
-
-#undef LAZY_ALIGN
 
 
 template <typename T>

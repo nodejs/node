@@ -34,49 +34,6 @@ namespace v8 {
 namespace internal {
 
 
-static bool Match(void* a, void* b) {
-  return a == b;
-}
-
-
-static uint32_t Hash(void* function) {
-  uintptr_t as_int = reinterpret_cast<uintptr_t>(function);
-  if (sizeof(function) == 4) return static_cast<uint32_t>(as_int);
-  uint64_t as_64 = static_cast<uint64_t>(as_int);
-  return
-      static_cast<uint32_t>(as_64 >> 32) ^
-      static_cast<uint32_t>(as_64);
-}
-
-
-CallbackTable::CallbackTable(): map_(Match, 64) {}
-
-
-bool CallbackTable::Contains(void* function) {
-  ASSERT(function != NULL);
-  return map_.Lookup(function, Hash(function), false) != NULL;
-}
-
-
-void CallbackTable::InsertCallback(Isolate* isolate,
-                           void* function,
-                           bool returns_void) {
-  if (function == NULL) return;
-  // Don't store for performance.
-  if (kStoreVoidFunctions != returns_void) return;
-  CallbackTable* table = isolate->callback_table();
-  if (table == NULL) {
-    table = new CallbackTable();
-    isolate->set_callback_table(table);
-  }
-  typedef HashMap::Entry Entry;
-  Entry* entry = table->map_.Lookup(function, Hash(function), true);
-  ASSERT(entry != NULL);
-  ASSERT(entry->value == NULL || entry->value == function);
-  entry->value = function;
-}
-
-
 template<typename T>
 template<typename V>
 v8::Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
@@ -88,109 +45,66 @@ v8::Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
 }
 
 
-v8::Handle<v8::Value> FunctionCallbackArguments::Call(InvocationCallback f) {
+v8::Handle<v8::Value> FunctionCallbackArguments::Call(FunctionCallback f) {
   Isolate* isolate = this->isolate();
-  void* f_as_void = CallbackTable::FunctionToVoidPtr(f);
-  bool new_style = CallbackTable::ReturnsVoid(isolate, f_as_void);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-  if (new_style) {
-    FunctionCallback c = reinterpret_cast<FunctionCallback>(f);
-    FunctionCallbackInfo<v8::Value> info(end(),
-                                         argv_,
-                                         argc_,
-                                         is_construct_call_);
-    c(info);
-  } else {
-    v8::Arguments args(end(),
-                       argv_,
-                       argc_,
-                       is_construct_call_);
-    v8::Handle<v8::Value> return_value = f(args);
-    if (!return_value.IsEmpty()) return return_value;
-  }
+  FunctionCallbackInfo<v8::Value> info(end(),
+                                       argv_,
+                                       argc_,
+                                       is_construct_call_);
+  f(info);
   return GetReturnValue<v8::Value>(isolate);
 }
 
 
-#define WRITE_CALL_0(OldFunction, NewFunction, ReturnValue)                    \
-v8::Handle<ReturnValue> PropertyCallbackArguments::Call(OldFunction f) {       \
+#define WRITE_CALL_0(Function, ReturnValue)                                    \
+v8::Handle<ReturnValue> PropertyCallbackArguments::Call(Function f) {          \
   Isolate* isolate = this->isolate();                                          \
-  void* f_as_void = CallbackTable::FunctionToVoidPtr(f);                       \
-  bool new_style = CallbackTable::ReturnsVoid(isolate, f_as_void);             \
   VMState<EXTERNAL> state(isolate);                                            \
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));                 \
-  if (new_style) {                                                             \
-    NewFunction c = reinterpret_cast<NewFunction>(f);                          \
-    PropertyCallbackInfo<ReturnValue> info(end());                             \
-    c(info);                                                                   \
-  } else {                                                                     \
-    v8::AccessorInfo info(end());                                              \
-    v8::Handle<ReturnValue> return_value = f(info);                            \
-    if (!return_value.IsEmpty()) return return_value;                          \
-  }                                                                            \
+  PropertyCallbackInfo<ReturnValue> info(end());                               \
+  f(info);                                                                     \
   return GetReturnValue<ReturnValue>(isolate);                                 \
 }
 
-#define WRITE_CALL_1(OldFunction, NewFunction, ReturnValue, Arg1)              \
-v8::Handle<ReturnValue> PropertyCallbackArguments::Call(OldFunction f,         \
+
+#define WRITE_CALL_1(Function, ReturnValue, Arg1)                              \
+v8::Handle<ReturnValue> PropertyCallbackArguments::Call(Function f,            \
                                                         Arg1 arg1) {           \
   Isolate* isolate = this->isolate();                                          \
-  void* f_as_void = CallbackTable::FunctionToVoidPtr(f);                       \
-  bool new_style = CallbackTable::ReturnsVoid(isolate, f_as_void);             \
   VMState<EXTERNAL> state(isolate);                                            \
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));                 \
-  if (new_style) {                                                             \
-    NewFunction c = reinterpret_cast<NewFunction>(f);                          \
-    PropertyCallbackInfo<ReturnValue> info(end());                             \
-    c(arg1, info);                                                             \
-  } else {                                                                     \
-    v8::AccessorInfo info(end());                                              \
-    v8::Handle<ReturnValue> return_value = f(arg1, info);                      \
-    if (!return_value.IsEmpty()) return return_value;                          \
-  }                                                                            \
+  PropertyCallbackInfo<ReturnValue> info(end());                               \
+  f(arg1, info);                                                               \
   return GetReturnValue<ReturnValue>(isolate);                                 \
 }
 
-#define WRITE_CALL_2(OldFunction, NewFunction, ReturnValue, Arg1, Arg2)        \
-v8::Handle<ReturnValue> PropertyCallbackArguments::Call(OldFunction f,         \
+
+#define WRITE_CALL_2(Function, ReturnValue, Arg1, Arg2)                        \
+v8::Handle<ReturnValue> PropertyCallbackArguments::Call(Function f,            \
                                                         Arg1 arg1,             \
                                                         Arg2 arg2) {           \
   Isolate* isolate = this->isolate();                                          \
-  void* f_as_void = CallbackTable::FunctionToVoidPtr(f);                       \
-  bool new_style = CallbackTable::ReturnsVoid(isolate, f_as_void);             \
   VMState<EXTERNAL> state(isolate);                                            \
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));                 \
-  if (new_style) {                                                             \
-    NewFunction c = reinterpret_cast<NewFunction>(f);                          \
-    PropertyCallbackInfo<ReturnValue> info(end());                             \
-    c(arg1, arg2, info);                                                       \
-  } else {                                                                     \
-    v8::AccessorInfo info(end());                                              \
-    v8::Handle<ReturnValue> return_value = f(arg1, arg2, info);                \
-    if (!return_value.IsEmpty()) return return_value;                          \
-  }                                                                            \
+  PropertyCallbackInfo<ReturnValue> info(end());                               \
+  f(arg1, arg2, info);                                                         \
   return GetReturnValue<ReturnValue>(isolate);                                 \
 }
 
-#define WRITE_CALL_2_VOID(OldFunction, NewFunction, ReturnValue, Arg1, Arg2)   \
-void PropertyCallbackArguments::Call(OldFunction f,                            \
+
+#define WRITE_CALL_2_VOID(Function, ReturnValue, Arg1, Arg2)                   \
+void PropertyCallbackArguments::Call(Function f,                               \
                                      Arg1 arg1,                                \
                                      Arg2 arg2) {                              \
   Isolate* isolate = this->isolate();                                          \
-  void* f_as_void = CallbackTable::FunctionToVoidPtr(f);                       \
-  bool new_style = CallbackTable::ReturnsVoid(isolate, f_as_void);             \
   VMState<EXTERNAL> state(isolate);                                            \
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));                 \
-  if (new_style) {                                                             \
-    NewFunction c = reinterpret_cast<NewFunction>(f);                          \
-    PropertyCallbackInfo<ReturnValue> info(end());                             \
-    c(arg1, arg2, info);                                                       \
-  } else {                                                                     \
-    v8::AccessorInfo info(end());                                              \
-    f(arg1, arg2, info);                                                       \
-  }                                                                            \
+  PropertyCallbackInfo<ReturnValue> info(end());                               \
+  f(arg1, arg2, info);                                                         \
 }
+
 
 FOR_EACH_CALLBACK_TABLE_MAPPING_0(WRITE_CALL_0)
 FOR_EACH_CALLBACK_TABLE_MAPPING_1(WRITE_CALL_1)

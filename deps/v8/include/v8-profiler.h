@@ -57,25 +57,15 @@ class V8_EXPORT CpuProfileNode {
    */
   int GetLineNumber() const;
 
-  /**
-   * Returns total (self + children) execution time of the function,
-   * in milliseconds, estimated by samples count.
-   */
-  V8_DEPRECATED(double GetTotalTime() const);
-
-  /**
-   * Returns self execution time of the function, in milliseconds,
-   * estimated by samples count.
-   */
-  V8_DEPRECATED(double GetSelfTime() const);
-
-  /** Returns the count of samples where function exists. */
-  V8_DEPRECATED(double GetTotalSamplesCount() const);
+  /** Returns bailout reason for the function
+    * if the optimization was disabled for it.
+    */
+  const char* GetBailoutReason() const;
 
   /** DEPRECATED. Please use GetHitCount instead.
     * Returns the count of samples where function was currently executing.
     */
-  double GetSelfSamplesCount() const;
+  V8_DEPRECATED(double GetSelfSamplesCount() const);
 
   /**
     * Returns the count of samples where the function was currently executing.
@@ -156,13 +146,11 @@ class V8_EXPORT CpuProfile {
 class V8_EXPORT CpuProfiler {
  public:
   /**
-   * A note on security tokens usage. As scripts from different
-   * origins can run inside a single V8 instance, it is possible to
-   * have functions from different security contexts intermixed in a
-   * single CPU profile. To avoid exposing function names belonging to
-   * other contexts, filtering by security token is performed while
-   * obtaining profiling results.
+   * Changes default CPU profiler sampling interval to the specified number
+   * of microseconds. Default interval is 1000us. This method must be called
+   * when there are no profiles being recorded.
    */
+  void SetSamplingInterval(int us);
 
   /**
    * Returns the number of profiles collected (doesn't include
@@ -258,17 +246,19 @@ class V8_EXPORT HeapGraphEdge {
 class V8_EXPORT HeapGraphNode {
  public:
   enum Type {
-    kHidden = 0,      // Hidden node, may be filtered when shown to user.
-    kArray = 1,       // An array of elements.
-    kString = 2,      // A string.
-    kObject = 3,      // A JS object (except for arrays and strings).
-    kCode = 4,        // Compiled code.
-    kClosure = 5,     // Function closure.
-    kRegExp = 6,      // RegExp.
-    kHeapNumber = 7,  // Number stored in the heap.
-    kNative = 8,      // Native object (not from V8 heap).
-    kSynthetic = 9    // Synthetic object, usualy used for grouping
-                      // snapshot items together.
+    kHidden = 0,        // Hidden node, may be filtered when shown to user.
+    kArray = 1,         // An array of elements.
+    kString = 2,        // A string.
+    kObject = 3,        // A JS object (except for arrays and strings).
+    kCode = 4,          // Compiled code.
+    kClosure = 5,       // Function closure.
+    kRegExp = 6,        // RegExp.
+    kHeapNumber = 7,    // Number stored in the heap.
+    kNative = 8,        // Native object (not from V8 heap).
+    kSynthetic = 9,     // Synthetic object, usualy used for grouping
+                        // snapshot items together.
+    kConsString = 10,   // Concatenated string. A pair of pointers to strings.
+    kSlicedString = 11  // Sliced string. A fragment of another string.
   };
 
   /** Returns node type (see HeapGraphNode::Type). */

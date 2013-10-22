@@ -28,6 +28,7 @@
 
 #include "i18n.h"
 
+#include "unicode/brkiter.h"
 #include "unicode/calendar.h"
 #include "unicode/coll.h"
 #include "unicode/curramt.h"
@@ -38,6 +39,7 @@
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
+#include "unicode/rbbi.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
 #include "unicode/uchar.h"
@@ -731,6 +733,69 @@ void SetResolvedCollatorSettings(Isolate* isolate,
   }
 }
 
+
+icu::BreakIterator* CreateICUBreakIterator(
+    Isolate* isolate,
+    const icu::Locale& icu_locale,
+    Handle<JSObject> options) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::BreakIterator* break_iterator = NULL;
+  icu::UnicodeString type;
+  if (!ExtractStringSetting(isolate, options, "type", &type)) return NULL;
+
+  if (type == UNICODE_STRING_SIMPLE("character")) {
+    break_iterator =
+      icu::BreakIterator::createCharacterInstance(icu_locale, status);
+  } else if (type == UNICODE_STRING_SIMPLE("sentence")) {
+    break_iterator =
+      icu::BreakIterator::createSentenceInstance(icu_locale, status);
+  } else if (type == UNICODE_STRING_SIMPLE("line")) {
+    break_iterator =
+      icu::BreakIterator::createLineInstance(icu_locale, status);
+  } else {
+    // Defualt is word iterator.
+    break_iterator =
+      icu::BreakIterator::createWordInstance(icu_locale, status);
+  }
+
+  if (U_FAILURE(status)) {
+    delete break_iterator;
+    return NULL;
+  }
+
+  return break_iterator;
+}
+
+
+void SetResolvedBreakIteratorSettings(Isolate* isolate,
+                                      const icu::Locale& icu_locale,
+                                      icu::BreakIterator* break_iterator,
+                                      Handle<JSObject> resolved) {
+  UErrorCode status = U_ZERO_ERROR;
+
+  // Set the locale
+  char result[ULOC_FULLNAME_CAPACITY];
+  status = U_ZERO_ERROR;
+  uloc_toLanguageTag(
+      icu_locale.getName(), result, ULOC_FULLNAME_CAPACITY, FALSE, &status);
+  if (U_SUCCESS(status)) {
+    JSObject::SetProperty(
+        resolved,
+        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
+        isolate->factory()->NewStringFromAscii(CStrVector(result)),
+        NONE,
+        kNonStrictMode);
+  } else {
+    // This would never happen, since we got the locale from ICU.
+    JSObject::SetProperty(
+        resolved,
+        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
+        isolate->factory()->NewStringFromAscii(CStrVector("und")),
+        NONE,
+        kNonStrictMode);
+  }
+}
+
 }  // namespace
 
 
@@ -800,14 +865,14 @@ icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
 
 
 void DateFormat::DeleteDateFormat(v8::Isolate* isolate,
-                                  Persistent<v8::Object>* object,
+                                  Persistent<v8::Value>* object,
                                   void* param) {
   // First delete the hidden C++ object.
   delete reinterpret_cast<icu::SimpleDateFormat*>(Handle<JSObject>::cast(
       v8::Utils::OpenPersistent(object))->GetInternalField(0));
 
   // Then dispose of the persistent handle to JS object.
-  object->Dispose(isolate);
+  object->Dispose();
 }
 
 
@@ -864,14 +929,14 @@ icu::DecimalFormat* NumberFormat::UnpackNumberFormat(
 
 
 void NumberFormat::DeleteNumberFormat(v8::Isolate* isolate,
-                                      Persistent<v8::Object>* object,
+                                      Persistent<v8::Value>* object,
                                       void* param) {
   // First delete the hidden C++ object.
   delete reinterpret_cast<icu::DecimalFormat*>(Handle<JSObject>::cast(
       v8::Utils::OpenPersistent(object))->GetInternalField(0));
 
   // Then dispose of the persistent handle to JS object.
-  object->Dispose(isolate);
+  object->Dispose();
 }
 
 
@@ -925,14 +990,81 @@ icu::Collator* Collator::UnpackCollator(Isolate* isolate,
 
 
 void Collator::DeleteCollator(v8::Isolate* isolate,
-                              Persistent<v8::Object>* object,
+                              Persistent<v8::Value>* object,
                               void* param) {
   // First delete the hidden C++ object.
   delete reinterpret_cast<icu::Collator*>(Handle<JSObject>::cast(
       v8::Utils::OpenPersistent(object))->GetInternalField(0));
 
   // Then dispose of the persistent handle to JS object.
-  object->Dispose(isolate);
+  object->Dispose();
+}
+
+
+icu::BreakIterator* BreakIterator::InitializeBreakIterator(
+    Isolate* isolate,
+    Handle<String> locale,
+    Handle<JSObject> options,
+    Handle<JSObject> resolved) {
+  // Convert BCP47 into ICU locale format.
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Locale icu_locale;
+  char icu_result[ULOC_FULLNAME_CAPACITY];
+  int icu_length = 0;
+  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  if (bcp47_locale.length() != 0) {
+    uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
+                        &icu_length, &status);
+    if (U_FAILURE(status) || icu_length == 0) {
+      return NULL;
+    }
+    icu_locale = icu::Locale(icu_result);
+  }
+
+  icu::BreakIterator* break_iterator = CreateICUBreakIterator(
+      isolate, icu_locale, options);
+  if (!break_iterator) {
+    // Remove extensions and try again.
+    icu::Locale no_extension_locale(icu_locale.getBaseName());
+    break_iterator = CreateICUBreakIterator(
+        isolate, no_extension_locale, options);
+
+    // Set resolved settings (locale).
+    SetResolvedBreakIteratorSettings(
+        isolate, no_extension_locale, break_iterator, resolved);
+  } else {
+    SetResolvedBreakIteratorSettings(
+        isolate, icu_locale, break_iterator, resolved);
+  }
+
+  return break_iterator;
+}
+
+
+icu::BreakIterator* BreakIterator::UnpackBreakIterator(Isolate* isolate,
+                                                       Handle<JSObject> obj) {
+  Handle<String> key =
+      isolate->factory()->NewStringFromAscii(CStrVector("breakIterator"));
+  if (obj->HasLocalProperty(*key)) {
+    return reinterpret_cast<icu::BreakIterator*>(obj->GetInternalField(0));
+  }
+
+  return NULL;
+}
+
+
+void BreakIterator::DeleteBreakIterator(v8::Isolate* isolate,
+                                        Persistent<v8::Value>* object,
+                                        void* param) {
+  // First delete the hidden C++ object.
+  delete reinterpret_cast<icu::BreakIterator*>(Handle<JSObject>::cast(
+      v8::Utils::OpenPersistent(object))->GetInternalField(0));
+
+  delete reinterpret_cast<icu::UnicodeString*>(Handle<JSObject>::cast(
+      v8::Utils::OpenPersistent(object))->GetInternalField(1));
+
+  // Then dispose of the persistent handle to JS object.
+  object->Dispose();
 }
 
 } }  // namespace v8::internal

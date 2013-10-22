@@ -99,16 +99,7 @@ TEST(DisasmIa320) {
   __ or_(edx, 3);
   __ xor_(edx, 3);
   __ nop();
-  {
-    CHECK(CpuFeatures::IsSupported(CPUID));
-    CpuFeatureScope fscope(&assm, CPUID);
-    __ cpuid();
-  }
-  {
-    CHECK(CpuFeatures::IsSupported(RDTSC));
-    CpuFeatureScope fscope(&assm, RDTSC);
-    __ rdtsc();
-  }
+  __ cpuid();
   __ movsx_b(edx, ecx);
   __ movsx_w(edx, ecx);
   __ movzx_b(edx, ecx);

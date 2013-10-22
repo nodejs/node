@@ -41,7 +41,7 @@ StatsTable::StatsTable()
 
 
 int* StatsCounter::FindLocationInStatsTable() const {
-  return Isolate::Current()->stats_table()->FindLocation(name_);
+  return isolate_->stats_table()->FindLocation(name_);
 }
 
 
@@ -60,8 +60,7 @@ void* Histogram::CreateHistogram() const {
 // Start the timer.
 void HistogramTimer::Start() {
   if (Enabled()) {
-    stop_time_ = 0;
-    start_time_ = OS::Ticks();
+    timer_.Start();
   }
   if (FLAG_log_internal_timer_events) {
     LOG(isolate(), TimerEvent(Logger::START, name()));
@@ -72,10 +71,9 @@ void HistogramTimer::Start() {
 // Stop the timer and record the results.
 void HistogramTimer::Stop() {
   if (Enabled()) {
-    stop_time_ = OS::Ticks();
     // Compute the delta between start and stop, in milliseconds.
-    int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
-    AddSample(milliseconds);
+    AddSample(static_cast<int>(timer_.Elapsed().InMilliseconds()));
+    timer_.Stop();
   }
   if (FLAG_log_internal_timer_events) {
     LOG(isolate(), TimerEvent(Logger::END, name()));

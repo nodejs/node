@@ -194,11 +194,11 @@ void MemoryChunk::set_scan_on_scavenge(bool scan) {
 }
 
 
-MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
+MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
   MemoryChunk* maybe = reinterpret_cast<MemoryChunk*>(
       OffsetFrom(addr) & ~Page::kPageAlignmentMask);
   if (maybe->owner() != NULL) return maybe;
-  LargeObjectIterator iterator(HEAP->lo_space());
+  LargeObjectIterator iterator(heap->lo_space());
   for (HeapObject* o = iterator.Next(); o != NULL; o = iterator.Next()) {
     // Fixed arrays are the only pointer-containing objects in large object
     // space.
@@ -315,12 +315,12 @@ MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
 #ifdef DEBUG
   // If we are stressing compaction we waste some memory in new space
   // in order to get more frequent GCs.
-  if (FLAG_stress_compaction && !HEAP->linear_allocation()) {
+  if (FLAG_stress_compaction && !heap()->linear_allocation()) {
     if (allocation_info_.limit - old_top >= size_in_bytes * 4) {
       int filler_size = size_in_bytes * 4;
       for (int i = 0; i < filler_size; i += kPointerSize) {
         *(reinterpret_cast<Object**>(old_top + i)) =
-            HEAP->one_pointer_filler_map();
+            heap()->one_pointer_filler_map();
       }
       old_top += filler_size;
       allocation_info_.top += filler_size;

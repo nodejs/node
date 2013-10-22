@@ -55,7 +55,7 @@ struct Effect {
   Modality modality;
   Bounds bounds;
 
-  Effect() {}
+  Effect() : modality(DEFINITE) {}
   Effect(Bounds b, Modality m = DEFINITE) : modality(m), bounds(b) {}
 
   // The unknown effect.

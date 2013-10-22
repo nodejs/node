@@ -187,6 +187,7 @@ array_store_1(a, 0, 0.5);
 assertEquals(0.5, a[0]);
 assertEquals(0.5, array_store_1([], 0, 0.5));
 
+
 // Verify that a grow store will deoptimize if the max gap (difference between
 // the end of an array capacity and a new index) is passed. The wrapper is to
 // make sure array_store_10 isn't inlined.
@@ -207,3 +208,49 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   %ClearFunctionTypeFeedback(grow_store);
 })();
 
+
+// Verify that a polymorphic store and grow IC when crankshafted is still
+// a grow IC (earlier it would revert to a standard store in the polymorphic
+// case).
+(function() {
+  function f(o, k, v) {
+    o[k] = v;
+  }
+
+  a = [3.5];
+  f(a, 1, "hi");  // DOUBLE packed array -> tagged packed grow
+  a = {};
+  a.p = "property";
+  a[0] = 1;
+  f(a, 0, 5.4);
+
+  %OptimizeFunctionOnNextCall(f);
+  // Should be a polymorphic grow stub. If not a grow stub it will deopt.
+  f(new Array("hi"), 1, 3);
+  assertOptimized(f);
+  %ClearFunctionTypeFeedback(f);
+})();
+
+
+// Now verify that a polymorphic store (non-growing) IC when crankshafted WILL
+// deopt if you pass an element out of bounds.
+(function() {
+  function f(o, k, v) {
+    o[k] = v;
+  }
+
+  a = [3.5];
+  f(a, 0, "hi");  // DOUBLE packed array -> tagged packed grow
+  a = {};
+  a.p = "property";
+  a[0] = 1;
+  f(a, 0, 5.4);
+
+  %OptimizeFunctionOnNextCall(f);
+  f(new Array("hi"), 0, 3);
+  assertOptimized(f);
+  // An attempt to grow should cause deopt
+  f(new Array("hi"), 1, 3);
+  assertUnoptimized(f);
+  %ClearFunctionTypeFeedback(f);
+})();

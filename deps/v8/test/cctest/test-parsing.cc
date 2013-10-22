@@ -313,9 +313,10 @@ TEST(StandAlonePreParserNoNatives) {
 
 TEST(RegressChromium62639) {
   v8::V8::Initialize();
+  i::Isolate* isolate = i::Isolate::Current();
 
   int marker;
-  i::Isolate::Current()->stack_guard()->SetStackLimit(
+  isolate->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   const char* program = "var x = 'something';\n"
@@ -328,7 +329,7 @@ TEST(RegressChromium62639) {
   i::Utf8ToUtf16CharacterStream stream(
       reinterpret_cast<const i::byte*>(program),
       static_cast<unsigned>(strlen(program)));
-  i::ScriptDataImpl* data = i::PreParserApi::PreParse(&stream);
+  i::ScriptDataImpl* data = i::PreParserApi::PreParse(isolate, &stream);
   CHECK(data->HasError());
   delete data;
 }
@@ -355,7 +356,7 @@ TEST(Regress928) {
   i::Handle<i::String> source(
       factory->NewStringFromAscii(i::CStrVector(program)));
   i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
-  i::ScriptDataImpl* data = i::PreParserApi::PreParse(&stream);
+  i::ScriptDataImpl* data = i::PreParserApi::PreParse(isolate, &stream);
   CHECK(!data->HasError());
 
   data->Initialize();
@@ -1066,8 +1067,8 @@ i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
       i::GetProperty(builtins, "FormatMessage");
   i::Handle<i::Object> arg_handles[] = { format, args_array };
   bool has_exception = false;
-  i::Handle<i::Object> result =
-      i::Execution::Call(format_fun, builtins, 2, arg_handles, &has_exception);
+  i::Handle<i::Object> result = i::Execution::Call(
+      isolate, format_fun, builtins, 2, arg_handles, &has_exception);
   CHECK(!has_exception);
   CHECK(result->IsString());
   for (int i = 0; i < args.length(); i++) {
@@ -1262,10 +1263,6 @@ TEST(ParserSync) {
     "\n;",
     NULL
   };
-
-  // TODO(mstarzinger): Disabled in GC stress mode for now, we should find the
-  // correct timeout for this and re-enable this test again.
-  if (i::FLAG_stress_compaction) return;
 
   i::Isolate* isolate = i::Isolate::Current();
   i::Factory* factory = isolate->factory();

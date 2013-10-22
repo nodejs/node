@@ -761,7 +761,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // position registers.
   __ movq(Operand(rbp, kInputStartMinusOne), rax);
 
-#ifdef WIN32
+#if V8_OS_WIN
   // Ensure that we have written to each stack page, in order. Skipping a page
   // on Windows can cause segmentation faults. Assuming page size is 4k.
   const int kPageSize = 4096;
@@ -771,7 +771,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
       i += kRegistersPerPage) {
     __ movq(register_location(i), rax);  // One write every page.
   }
-#endif  // WIN32
+#endif  // V8_OS_WIN
 
   // Initialize code object pointer.
   __ Move(code_object_pointer(), masm_.CodeObject());
@@ -998,7 +998,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_.GetCode(&code_desc);
-  Isolate* isolate = ISOLATE;
+  Isolate* isolate = this->isolate();
   Handle<Code> code = isolate->factory()->NewCode(
       code_desc, Code::ComputeFlags(Code::REGEXP),
       masm_.CodeObject());
@@ -1188,7 +1188,6 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
                                                   Code* re_code,
                                                   Address re_frame) {
   Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
-  ASSERT(isolate == Isolate::Current());
   if (isolate->stack_guard()->IsStackOverflow()) {
     isolate->StackOverflow();
     return EXCEPTION;

@@ -72,20 +72,6 @@ void CPU::FlushICache(void* start, size_t size) {
 #endif
 }
 
-
-void CPU::DebugBreak() {
-#ifdef _MSC_VER
-  // To avoid Visual Studio runtime support the following code can be used
-  // instead
-  // __asm { int 3 }
-  __debugbreak();
-#elif defined(__native_client__)
-  asm("hlt");
-#else
-  asm("int $3");
-#endif
-}
-
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_IA32

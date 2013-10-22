@@ -44,7 +44,7 @@ namespace internal {
 class LDeferredCode;
 class SafepointGenerator;
 
-class LCodeGen BASE_EMBEDDED {
+class LCodeGen V8_FINAL BASE_EMBEDDED {
  public:
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : zone_(info->zone()),
@@ -123,10 +123,9 @@ class LCodeGen BASE_EMBEDDED {
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
   void DoDeferredNumberTagU(LNumberTagU* instr);
-  void DoDeferredTaggedToI(LTaggedToI* instr);
+  void DoDeferredTaggedToI(LTaggedToI* instr, Label* done);
   void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
-  void DoDeferredRandom(LRandom* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredAllocate(LAllocate* instr);
@@ -190,6 +189,9 @@ class LCodeGen BASE_EMBEDDED {
   bool GenerateDeferredCode();
   bool GenerateJumpTable();
   bool GenerateSafepointTable();
+
+  // Generates the custom OSR entrypoint and sets the osr_pc_offset.
+  void GenerateOsrPrologue();
 
   enum SafepointMode {
     RECORD_SIMPLE_SAFEPOINT,
@@ -384,7 +386,7 @@ class LCodeGen BASE_EMBEDDED {
 
   int old_position_;
 
-  class PushSafepointRegistersScope BASE_EMBEDDED {
+  class PushSafepointRegistersScope V8_FINAL BASE_EMBEDDED {
    public:
     explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {
@@ -420,13 +422,14 @@ class LDeferredCode: public ZoneObject {
     codegen->AddDeferredCode(this);
   }
 
-  virtual ~LDeferredCode() { }
+  virtual ~LDeferredCode() {}
   virtual void Generate() = 0;
   virtual LInstruction* instr() = 0;
 
   void SetExit(Label* exit) { external_exit_ = exit; }
   Label* entry() { return &entry_; }
   Label* exit() { return external_exit_ != NULL ? external_exit_ : &exit_; }
+  Label* done() { return codegen_->NeedsDeferredFrame() ? &done_ : exit(); }
   int instruction_index() const { return instruction_index_; }
 
  protected:
@@ -437,6 +440,7 @@ class LDeferredCode: public ZoneObject {
   LCodeGen* codegen_;
   Label entry_;
   Label exit_;
+  Label done_;
   Label* external_exit_;
   int instruction_index_;
 };

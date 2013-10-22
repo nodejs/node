@@ -140,7 +140,6 @@ void TestMemMove(byte* area1,
 
 TEST(MemMove) {
   v8::V8::Initialize();
-  OS::SetUp();
   byte* area1 = new byte[kAreaSize];
   byte* area2 = new byte[kAreaSize];
   byte* area3 = new byte[kAreaSize];

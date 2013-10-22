@@ -170,7 +170,10 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
   PointerChunkIterator it(heap_);
   MemoryChunk* chunk;
   while ((chunk = it.next()) != NULL) {
-    if (chunk->scan_on_scavenge()) page_has_scan_on_scavenge_flag = true;
+    if (chunk->scan_on_scavenge()) {
+      page_has_scan_on_scavenge_flag = true;
+      break;
+    }
   }
 
   if (page_has_scan_on_scavenge_flag) {
@@ -218,7 +221,7 @@ void StoreBuffer::ExemptPopularPages(int prime_sample_step, int threshold) {
     if (previous_chunk != NULL && previous_chunk->Contains(addr)) {
       containing_chunk = previous_chunk;
     } else {
-      containing_chunk = MemoryChunk::FromAnyPointerAddress(addr);
+      containing_chunk = MemoryChunk::FromAnyPointerAddress(heap_, addr);
     }
     int old_counter = containing_chunk->store_buffer_counter();
     if (old_counter == threshold) {
@@ -244,7 +247,7 @@ void StoreBuffer::Filter(int flag) {
     if (previous_chunk != NULL && previous_chunk->Contains(addr)) {
       containing_chunk = previous_chunk;
     } else {
-      containing_chunk = MemoryChunk::FromAnyPointerAddress(addr);
+      containing_chunk = MemoryChunk::FromAnyPointerAddress(heap_, addr);
       previous_chunk = containing_chunk;
     }
     if (!containing_chunk->IsFlagSet(flag)) {
@@ -279,7 +282,10 @@ bool StoreBuffer::PrepareForIteration() {
   MemoryChunk* chunk;
   bool page_has_scan_on_scavenge_flag = false;
   while ((chunk = it.next()) != NULL) {
-    if (chunk->scan_on_scavenge()) page_has_scan_on_scavenge_flag = true;
+    if (chunk->scan_on_scavenge()) {
+      page_has_scan_on_scavenge_flag = true;
+      break;
+    }
   }
 
   if (page_has_scan_on_scavenge_flag) {

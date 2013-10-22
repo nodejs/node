@@ -42,15 +42,6 @@ var worker_scripts = [
 function plotWorker() {
   var worker = null;
 
-  var delegateList = {
-    "log"         : log,
-    "error"       : logError,
-    "displayplot" : displayplot,
-    "displayprof" : displayprof,
-    "range"       : setRange,
-    "script"      : scriptLoaded
-  }
-
   function initialize() {
     ui.freeze();
     worker = new Worker("worker.js");
@@ -88,6 +79,16 @@ function plotWorker() {
   this.reset = function() {
     if (worker) worker.terminate();
     initialize();
+  }
+
+  var delegateList = {
+    "log"         : log,
+    "error"       : logError,
+    "displayplot" : displayplot,
+    "displayprof" : displayprof,
+    "range"       : setRange,
+    "script"      : scriptLoaded,
+    "reset"       : this.reset
   }
 }
 
@@ -233,9 +234,6 @@ function start(event) {
 function getSelectedFile() {
   var file = ui.file.files[0];
   if (!file) throw Error("No valid file selected.");
-  if (!file.type.toString().match(/text/)) {
-    throw Error("'" + escape(file.name) + "' is not a text file.");
-  }
   return file;
 }
 

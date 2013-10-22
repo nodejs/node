@@ -196,7 +196,6 @@ class Label BASE_EMBEDDED {
   }
 
   friend class Assembler;
-  friend class RegexpAssembler;
   friend class Displacement;
   friend class RegExpMacroAssemblerIrregexp;
 };
@@ -425,7 +424,7 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Object** call_object_address());
 
   template<typename StaticVisitor> inline void Visit(Heap* heap);
-  inline void Visit(ObjectVisitor* v);
+  inline void Visit(Isolate* isolate, ObjectVisitor* v);
 
   // Patch the code with some other code.
   void PatchCode(byte* instructions, int instruction_count);
@@ -644,38 +643,21 @@ class ExternalReference BASE_EMBEDDED {
     BUILTIN_FP_INT_CALL,
 
     // Direct call to API function callback.
-    // Handle<Value> f(v8::Arguments&)
+    // void f(v8::FunctionCallbackInfo&)
     DIRECT_API_CALL,
 
-    // Call to invocation callback via InvokeInvocationCallback.
-    // Handle<Value> f(v8::Arguments&, v8::InvocationCallback)
+    // Call to function callback via InvokeFunctionCallback.
+    // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
     PROFILING_API_CALL,
 
-    // Direct call to API function callback.
-    // void f(v8::Arguments&)
-    DIRECT_API_CALL_NEW,
-
-    // Call to function callback via InvokeFunctionCallback.
-    // void f(v8::Arguments&, v8::FunctionCallback)
-    PROFILING_API_CALL_NEW,
-
     // Direct call to accessor getter callback.
-    // Handle<value> f(Local<String> property, AccessorInfo& info)
+    // void f(Local<String> property, PropertyCallbackInfo& info)
     DIRECT_GETTER_CALL,
 
-    // Call to accessor getter callback via InvokeAccessorGetter.
-    // Handle<value> f(Local<String> property, AccessorInfo& info,
-    //     AccessorGetter getter)
-    PROFILING_GETTER_CALL,
-
-    // Direct call to accessor getter callback.
-    // void f(Local<String> property, AccessorInfo& info)
-    DIRECT_GETTER_CALL_NEW,
-
     // Call to accessor getter callback via InvokeAccessorGetterCallback.
-    // void f(Local<String> property, AccessorInfo& info,
+    // void f(Local<String> property, PropertyCallbackInfo& info,
     //     AccessorGetterCallback callback)
-    PROFILING_GETTER_CALL_NEW
+    PROFILING_GETTER_CALL
   };
 
   static void SetUp();
@@ -708,7 +690,7 @@ class ExternalReference BASE_EMBEDDED {
 
   explicit ExternalReference(const SCTableReference& table_ref);
 
-  // Isolate::Current() as an external reference.
+  // Isolate as an external reference.
   static ExternalReference isolate_address(Isolate* isolate);
 
   // One-of-a-kind references. These references are not part of a general

@@ -52,7 +52,6 @@ namespace v8 {
 namespace internal {
 
 class Bootstrapper;
-class CallbackTable;
 class CodeGenerator;
 class CodeRange;
 struct CodeStubInterfaceDescriptor;
@@ -78,6 +77,7 @@ class NoAllocationStringAllocator;
 class InnerPointerToCodeCache;
 class MarkingThread;
 class PreallocatedMemoryThread;
+class RandomNumberGenerator;
 class RegExpStack;
 class SaveContext;
 class UnicodeCache;
@@ -321,7 +321,6 @@ class SystemThreadManager {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
-  V(v8::Debug::EventCallback, debug_event_callback, NULL)                      \
   V(DebuggerAgent*, debugger_agent_instance, NULL)
 #else
 
@@ -361,7 +360,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(byte*, assembler_spare_buffer, NULL)                                       \
   V(FatalErrorCallback, exception_behavior, NULL)                              \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, NULL)     \
-  V(v8::Debug::MessageHandler, message_handler, NULL)                          \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
   V(int, next_serial_number, 0)                                                \
@@ -544,10 +542,10 @@ class Isolate {
   static void EnterDefaultIsolate();
 
   // Mutex for serializing access to break control structures.
-  Mutex* break_access() { return break_access_; }
+  RecursiveMutex* break_access() { return &break_access_; }
 
   // Mutex for serializing access to debugger.
-  Mutex* debugger_access() { return debugger_access_; }
+  RecursiveMutex* debugger_access() { return &debugger_access_; }
 
   Address get_address_from_id(AddressId id);
 
@@ -1062,6 +1060,11 @@ class Isolate {
     thread_local_top_.top_lookup_result_ = top;
   }
 
+  bool IsDead() { return has_fatal_error_; }
+  void SignalFatalError() { has_fatal_error_ = true; }
+
+  bool use_crankshaft() const { return use_crankshaft_; }
+
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   double time_millis_since_init() {
@@ -1111,13 +1114,6 @@ class Isolate {
     return sweeper_thread_;
   }
 
-  CallbackTable* callback_table() {
-    return callback_table_;
-  }
-  void set_callback_table(CallbackTable* callback_table) {
-    callback_table_ = callback_table;
-  }
-
   int id() const { return static_cast<int>(id_); }
 
   HStatistics* GetHStatistics();
@@ -1130,8 +1126,17 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
+  inline RandomNumberGenerator* random_number_generator();
+
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
+
+  bool is_memory_constrained() const {
+    return is_memory_constrained_;
+  }
+  void set_is_memory_constrained(bool value) {
+    is_memory_constrained_ = value;
+  }
 
  private:
   Isolate();
@@ -1160,7 +1165,6 @@ class Isolate {
 
     PerIsolateThreadData* Lookup(Isolate* isolate, ThreadId thread_id);
     void Insert(PerIsolateThreadData* data);
-    void Remove(Isolate* isolate, ThreadId thread_id);
     void Remove(PerIsolateThreadData* data);
     void RemoveAllThreads(Isolate* isolate);
 
@@ -1195,7 +1199,7 @@ class Isolate {
 
   // This mutex protects highest_thread_id_, thread_data_table_ and
   // default_isolate_.
-  static Mutex* process_wide_mutex_;
+  static Mutex process_wide_mutex_;
 
   static Thread::LocalStorageKey per_isolate_thread_data_key_;
   static Thread::LocalStorageKey isolate_key_;
@@ -1210,10 +1214,6 @@ class Isolate {
 
   static void SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data);
-
-  // Allocate and insert PerIsolateThreadData into the ThreadDataTable
-  // (regardless of whether such data already exists).
-  PerIsolateThreadData* AllocatePerIsolateThreadData(ThreadId thread_id);
 
   // Find the PerThread for this particular (isolate, thread) combination.
   // If one does not yet exist, allocate a new one.
@@ -1263,9 +1263,9 @@ class Isolate {
   CompilationCache* compilation_cache_;
   Counters* counters_;
   CodeRange* code_range_;
-  Mutex* break_access_;
+  RecursiveMutex break_access_;
   Atomic32 debugger_initialized_;
-  Mutex* debugger_access_;
+  RecursiveMutex debugger_access_;
   Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;
@@ -1309,6 +1309,14 @@ class Isolate {
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
+  RandomNumberGenerator* random_number_generator_;
+  bool is_memory_constrained_;
+
+  // True if fatal error has been signaled for this isolate.
+  bool has_fatal_error_;
+
+  // True if we are using the Crankshaft optimizing compiler.
+  bool use_crankshaft_;
 
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_;
@@ -1363,7 +1371,6 @@ class Isolate {
   OptimizingCompilerThread optimizing_compiler_thread_;
   MarkingThread** marking_thread_;
   SweeperThread** sweeper_thread_;
-  CallbackTable* callback_table_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;
@@ -1396,15 +1403,8 @@ class SaveContext BASE_EMBEDDED {
   inline explicit SaveContext(Isolate* isolate);
 
   ~SaveContext() {
-    if (context_.is_null()) {
-      Isolate* isolate = Isolate::Current();
-      isolate->set_context(NULL);
-      isolate->set_save_context(prev_);
-    } else {
-      Isolate* isolate = context_->GetIsolate();
-      isolate->set_context(*context_);
-      isolate->set_save_context(prev_);
-    }
+    isolate_->set_context(context_.is_null() ? NULL : *context_);
+    isolate_->set_save_context(prev_);
   }
 
   Handle<Context> context() { return context_; }
@@ -1416,10 +1416,8 @@ class SaveContext BASE_EMBEDDED {
   }
 
  private:
+  Isolate* isolate_;
   Handle<Context> context_;
-#if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
-  Handle<Context> dummy_;
-#endif
   SaveContext* prev_;
   Address c_entry_fp_;
 };
@@ -1428,21 +1426,44 @@ class SaveContext BASE_EMBEDDED {
 class AssertNoContextChange BASE_EMBEDDED {
 #ifdef DEBUG
  public:
-  AssertNoContextChange() :
-      scope_(Isolate::Current()),
-      context_(Isolate::Current()->context(), Isolate::Current()) {
-  }
-
+  AssertNoContextChange()
+    : isolate_(Isolate::Current()),
+      context_(isolate_->context()) { }
   ~AssertNoContextChange() {
-    ASSERT(Isolate::Current()->context() == *context_);
+    ASSERT(isolate_->context() == *context_);
   }
 
  private:
-  HandleScope scope_;
+  Isolate* isolate_;
   Handle<Context> context_;
 #else
  public:
   AssertNoContextChange() { }
+#endif
+};
+
+
+// TODO(mstarzinger): Depracate as soon as everything is handlified.
+class AssertNoContextChangeWithHandleScope BASE_EMBEDDED {
+#ifdef DEBUG
+ public:
+  AssertNoContextChangeWithHandleScope() :
+      isolate_(Isolate::Current()),
+      scope_(isolate_),
+      context_(isolate_->context(), isolate_) {
+  }
+
+  ~AssertNoContextChangeWithHandleScope() {
+    ASSERT(isolate_->context() == *context_);
+  }
+
+ private:
+  Isolate* isolate_;
+  HandleScope scope_;
+  Handle<Context> context_;
+#else
+ public:
+  AssertNoContextChangeWithHandleScope() { }
 #endif
 };
 
@@ -1454,11 +1475,11 @@ class ExecutionAccess BASE_EMBEDDED {
   }
   ~ExecutionAccess() { Unlock(isolate_); }
 
-  static void Lock(Isolate* isolate) { isolate->break_access_->Lock(); }
-  static void Unlock(Isolate* isolate) { isolate->break_access_->Unlock(); }
+  static void Lock(Isolate* isolate) { isolate->break_access()->Lock(); }
+  static void Unlock(Isolate* isolate) { isolate->break_access()->Unlock(); }
 
   static bool TryLock(Isolate* isolate) {
-    return isolate->break_access_->TryLock();
+    return isolate->break_access()->TryLock();
   }
 
  private:
@@ -1502,12 +1523,6 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 };
 
 
-// Temporary macros for accessing current isolate and its subobjects.
-// They provide better readability, especially when used a lot in the code.
-#define HEAP (v8::internal::Isolate::Current()->heap())
-#define ISOLATE (v8::internal::Isolate::Current())
-
-
 // Tells whether the native context is marked with out of memory.
 inline bool Context::has_out_of_memory() {
   return native_context()->out_of_memory()->IsTrue();
@@ -1516,7 +1531,7 @@ inline bool Context::has_out_of_memory() {
 
 // Mark the native context with out of memory.
 inline void Context::mark_out_of_memory() {
-  native_context()->set_out_of_memory(HEAP->true_value());
+  native_context()->set_out_of_memory(GetIsolate()->heap()->true_value());
 }
 
 

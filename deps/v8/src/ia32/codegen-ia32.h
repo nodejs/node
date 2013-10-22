@@ -53,7 +53,7 @@ class CodeGenerator {
   // Print the code after compiling it.
   static void PrintCode(Handle<Code> code, CompilationInfo* info);
 
-  static bool ShouldGenerateLog(Expression* type);
+  static bool ShouldGenerateLog(Isolate* isolate, Expression* type);
 
   static bool RecordPositions(MacroAssembler* masm,
                               int pos,

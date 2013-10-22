@@ -43,7 +43,6 @@ Address IC::address() const {
   Address result = Assembler::target_address_from_return_address(pc());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  ASSERT(Isolate::Current() == isolate());
   Debug* debug = isolate()->debug();
   // First check if any break points are active if not just return the address
   // of the call.

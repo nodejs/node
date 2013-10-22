@@ -397,6 +397,18 @@ bool HValue::CheckUsesForFlag(Flag f) const {
 }
 
 
+bool HValue::CheckUsesForFlag(Flag f, HValue** value) const {
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    if (it.value()->IsSimulate()) continue;
+    if (!it.value()->CheckFlag(f)) {
+      *value = it.value();
+      return false;
+    }
+  }
+  return true;
+}
+
+
 bool HValue::HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const {
   bool return_value = false;
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
@@ -1231,6 +1243,7 @@ HValue* HMod::Canonicalize() {
 
 
 HValue* HDiv::Canonicalize() {
+  if (IsIdentityOperation(left(), right(), 1)) return left();
   return this;
 }
 
@@ -1438,15 +1451,16 @@ void HCheckMaps::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCheckFunction::PrintDataTo(StringStream* stream) {
+void HCheckValue::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" %p", *target());
+  stream->Add(" ");
+  object()->ShortPrint(stream);
 }
 
 
-HValue* HCheckFunction::Canonicalize() {
+HValue* HCheckValue::Canonicalize() {
   return (value()->IsConstant() &&
-          HConstant::cast(value())->UniqueValueIdsMatch(target_unique_id_))
+          HConstant::cast(value())->UniqueValueIdsMatch(object_unique_id_))
       ? NULL
       : this;
 }
@@ -1474,6 +1488,15 @@ void HCallStub::PrintDataTo(StringStream* stream) {
   stream->Add("%s ",
               CodeStub::MajorName(major_key_, false));
   HUnaryCall::PrintDataTo(stream);
+}
+
+
+void HUnknownOSRValue::PrintDataTo(StringStream *stream) {
+  const char* type = "expression";
+  if (environment_->is_local_index(index_)) type = "local";
+  if (environment_->is_special_index(index_)) type = "special";
+  if (environment_->is_parameter_index(index_)) type = "parameter";
+  stream->Add("%s @ %d", type, index_);
 }
 
 
@@ -2289,6 +2312,38 @@ void HSimulate::PrintDataTo(StringStream* stream) {
 }
 
 
+void HSimulate::ReplayEnvironment(HEnvironment* env) {
+  ASSERT(env != NULL);
+  env->set_ast_id(ast_id());
+  env->Drop(pop_count());
+  for (int i = values()->length() - 1; i >= 0; --i) {
+    HValue* value = values()->at(i);
+    if (HasAssignedIndexAt(i)) {
+      env->Bind(GetAssignedIndexAt(i), value);
+    } else {
+      env->Push(value);
+    }
+  }
+}
+
+
+// Replay captured objects by replacing all captured objects with the
+// same capture id in the current and all outer environments.
+void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
+  ASSERT(env != NULL);
+  while (env != NULL) {
+    for (int i = 0; i < env->length(); ++i) {
+      HValue* value = env->values()->at(i);
+      if (value->IsCapturedObject() &&
+          HCapturedObject::cast(value)->capture_id() == this->capture_id()) {
+        env->SetValueAt(i, this);
+      }
+    }
+    env = env->outer();
+  }
+}
+
+
 void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
                                          Zone* zone) {
   ASSERT(return_target->IsInlineReturnTarget());
@@ -2451,7 +2506,7 @@ static void PrepareConstant(Handle<Object> object) {
 
 void HConstant::Initialize(Representation r) {
   if (r.IsNone()) {
-    if (has_smi_value_ && kSmiValueSize == 31) {
+    if (has_smi_value_ && SmiValuesAre31Bits()) {
       r = Representation::Smi();
     } else if (has_int32_value_) {
       r = Representation::Integer32();
@@ -2529,12 +2584,13 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
 
 Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Zone* zone) {
   HConstant* res = NULL;
-  if (handle()->IsBoolean()) {
-    res = handle()->BooleanValue() ?
+  Handle<Object> handle = this->handle(zone->isolate());
+  if (handle->IsBoolean()) {
+    res = handle->BooleanValue() ?
       new(zone) HConstant(1) : new(zone) HConstant(0);
-  } else if (handle()->IsUndefined()) {
+  } else if (handle->IsUndefined()) {
     res = new(zone) HConstant(OS::nan_value());
-  } else if (handle()->IsNull()) {
+  } else if (handle->IsNull()) {
     res = new(zone) HConstant(0);
   }
   return Maybe<HConstant*>(res != NULL, res);
@@ -2550,7 +2606,7 @@ void HConstant::PrintDataTo(StringStream* stream) {
     stream->Add("%p ", reinterpret_cast<void*>(
             external_reference_value_.address()));
   } else {
-    handle()->ShortPrint(stream);
+    handle(Isolate::Current())->ShortPrint(stream);
   }
 }
 
@@ -2867,10 +2923,6 @@ void HParameter::PrintDataTo(StringStream* stream) {
 void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   access_.PrintTo(stream);
-  if (HasTypeCheck()) {
-    stream->Add(" ");
-    typecheck()->PrintNameTo(stream);
-  }
 }
 
 
@@ -2884,7 +2936,7 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
   check_map->Add(map, zone);
   if (map->CanOmitMapChecks() &&
       value->IsConstant() &&
-      HConstant::cast(value)->InstanceOf(map)) {
+      HConstant::cast(value)->HasMap(map)) {
     check_map->omit(info);
   }
   return check_map;
@@ -3103,6 +3155,7 @@ void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
               ElementsAccessor::ForKind(from_kind)->name(),
               *transitioned_map(),
               ElementsAccessor::ForKind(to_kind)->name());
+  if (IsSimpleMapChangeTransition(from_kind, to_kind)) stream->Add(" (simple)");
 }
 
 
@@ -3402,7 +3455,7 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
       zone,
       context(),
       isolate()->factory()->free_space_map(),
-      UniqueValueId(isolate()->heap()->free_space_map()));
+      UniqueValueId::free_space_map(isolate()->heap()));
   filler_map->InsertAfter(free_space_instr);
   HInstruction* store_map = HStoreNamedField::New(zone, context(),
       free_space_instr, HObjectAccess::ForMap(), filler_map);
@@ -3625,7 +3678,7 @@ HInstruction* HStringCharFromCode::New(
     Zone* zone, HValue* context, HValue* char_code) {
   if (FLAG_fold_constants && char_code->IsConstant()) {
     HConstant* c_code = HConstant::cast(char_code);
-    Isolate* isolate = Isolate::Current();
+    Isolate* isolate = zone->isolate();
     if (c_code->HasNumberValue()) {
       if (std::isfinite(c_code->DoubleValue())) {
         uint32_t code = c_code->NumberValueAsInteger32() & 0xffff;
@@ -3950,6 +4003,9 @@ Representation HPhi::RepresentationFromInputs() {
 Representation HValue::RepresentationFromUseRequirements() {
   Representation rep = Representation::None();
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    // Ignore the use requirement from never run code
+    if (it.value()->block()->IsDeoptimizing()) continue;
+
     // We check for observed_input_representation elsewhere.
     Representation use_rep =
         it.value()->RequiredInputRepresentation(it.index());
@@ -4010,7 +4066,7 @@ void HCheckHeapObject::Verify() {
 }
 
 
-void HCheckFunction::Verify() {
+void HCheckValue::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }
@@ -4037,6 +4093,15 @@ HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
     portion = kMaps;
   }
   return HObjectAccess(portion, offset, representation);
+}
+
+
+HObjectAccess HObjectAccess::ForContextSlot(int index) {
+  ASSERT(index >= 0);
+  Portion portion = kInobject;
+  int offset = Context::kHeaderSize + index * kPointerSize;
+  ASSERT_EQ(offset, Context::SlotOffset(index) + kHeapObjectTag);
+  return HObjectAccess(portion, offset, Representation::Tagged());
 }
 
 

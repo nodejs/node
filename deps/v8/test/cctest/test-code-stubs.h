@@ -41,8 +41,13 @@
 typedef int32_t STDCALL ConvertDToIFuncType(double input);
 typedef ConvertDToIFuncType* ConvertDToIFunc;
 
+typedef int32_t ConvertDToICallWrapperType(ConvertDToIFunc func, double from);
+typedef ConvertDToICallWrapperType* ConvertDToICallWrapper;
+
 int STDCALL ConvertDToICVersion(double d);
 
 void RunAllTruncationTests(ConvertDToIFunc func);
+void RunAllTruncationTests(ConvertDToICallWrapper callWrapper,
+                           ConvertDToIFunc func);
 
 #endif

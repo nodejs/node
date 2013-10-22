@@ -333,7 +333,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
   code->set_optimizable(info->IsOptimizable() &&
-                        !info->function()->flags()->Contains(kDontOptimize) &&
+                        !info->function()->dont_optimize() &&
                         info->function()->scope()->AllowsLazyCompilation());
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
@@ -350,21 +350,17 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_back_edge_table_offset(table_offset);
   code->set_back_edges_patched_for_osr(false);
   CodeGenerator::PrintCode(code, info);
-  info->SetCode(code);  // May be an empty handle.
+  info->SetCode(code);
 #ifdef ENABLE_GDB_JIT_INTERFACE
-  if (FLAG_gdbjit && !code.is_null()) {
+  if (FLAG_gdbjit) {
     GDBJITLineInfo* lineinfo =
         masm.positions_recorder()->DetachGDBJITLineInfo();
-
     GDBJIT(RegisterDetailedLineInfo(*code, lineinfo));
   }
 #endif
-  if (!code.is_null()) {
-    void* line_info =
-        masm.positions_recorder()->DetachJITHandlerData();
-    LOG_CODE_EVENT(isolate, CodeEndLinePosInfoRecordEvent(*code, line_info));
-  }
-  return !code.is_null();
+  void* line_info = masm.positions_recorder()->DetachJITHandlerData();
+  LOG_CODE_EVENT(isolate, CodeEndLinePosInfoRecordEvent(*code, line_info));
+  return true;
 }
 
 
@@ -419,7 +415,7 @@ void FullCodeGenerator::Initialize() {
                          !Snapshot::HaveASnapshotToStartFrom();
   masm_->set_emit_debug_code(generate_debug_code_);
   masm_->set_predictable_code_size(true);
-  InitializeAstVisitor();
+  InitializeAstVisitor(info_->isolate());
 }
 
 
@@ -834,7 +830,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
   } else {
     // Check if the statement will be breakable without adding a debug break
     // slot.
-    BreakableStatementChecker checker;
+    BreakableStatementChecker checker(isolate());
     checker.Check(stmt);
     // Record the statement position right here if the statement is not
     // breakable. For breakable statements the actual recording of the
@@ -860,7 +856,7 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr, int pos) {
   } else {
     // Check if the expression will be breakable without adding a debug break
     // slot.
-    BreakableStatementChecker checker;
+    BreakableStatementChecker checker(isolate());
     checker.Check(expr);
     // Record a statement position right here if the expression is not
     // breakable. For breakable expressions the actual recording of the

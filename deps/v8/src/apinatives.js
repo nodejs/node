@@ -74,25 +74,31 @@ function InstantiateFunction(data, name) {
       cache[serialNumber] = null;
       var fun = %CreateApiFunction(data);
       if (name) %FunctionSetName(fun, name);
-      cache[serialNumber] = fun;
-      var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
       var flags = %GetTemplateField(data, kApiFlagOffset);
-      // Note: Do not directly use an object template as a condition, our
-      // internal ToBoolean doesn't handle that!
-      fun.prototype = typeof prototype === 'undefined' ?
-          {} : Instantiate(prototype);
-      if (flags & (1 << kReadOnlyPrototypeBit)) {
-        %FunctionSetReadOnlyPrototype(fun);
-      }
-      %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
-      var parent = %GetTemplateField(data, kApiParentTemplateOffset);
-      // Note: Do not directly use a function template as a condition, our
-      // internal ToBoolean doesn't handle that!
-      if (!(typeof parent === 'undefined')) {
-        var parent_fun = Instantiate(parent);
-        %SetPrototype(fun.prototype, parent_fun.prototype);
+      var doNotCache = flags & (1 << kDoNotCacheBit);
+      if (!doNotCache) cache[serialNumber] = fun;
+      if (flags & (1 << kRemovePrototypeBit)) {
+        %FunctionRemovePrototype(fun);
+      } else {
+        var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
+        // Note: Do not directly use an object template as a condition, our
+        // internal ToBoolean doesn't handle that!
+        fun.prototype = typeof prototype === 'undefined' ?
+            {} : Instantiate(prototype);
+        if (flags & (1 << kReadOnlyPrototypeBit)) {
+          %FunctionSetReadOnlyPrototype(fun);
+        }
+        %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
+        var parent = %GetTemplateField(data, kApiParentTemplateOffset);
+        // Note: Do not directly use a function template as a condition, our
+        // internal ToBoolean doesn't handle that!
+        if (!(typeof parent === 'undefined')) {
+          var parent_fun = Instantiate(parent);
+          %SetPrototype(fun.prototype, parent_fun.prototype);
+        }
       }
       ConfigureTemplateInstance(fun, data);
+      if (doNotCache) return fun;
     } catch (e) {
       cache[serialNumber] = kUninitialized;
       throw e;
@@ -104,19 +110,32 @@ function InstantiateFunction(data, name) {
 
 function ConfigureTemplateInstance(obj, data) {
   var properties = %GetTemplateField(data, kApiPropertyListOffset);
-  if (properties) {
-    // Disable access checks while instantiating the object.
-    var requires_access_checks = %DisableAccessChecks(obj);
-    try {
-      for (var i = 0; i < properties[0]; i += 3) {
+  if (!properties) return;
+  // Disable access checks while instantiating the object.
+  var requires_access_checks = %DisableAccessChecks(obj);
+  try {
+    for (var i = 1; i < properties[0];) {
+      var length = properties[i];
+      if (length == 3) {
         var name = properties[i + 1];
         var prop_data = properties[i + 2];
         var attributes = properties[i + 3];
         var value = Instantiate(prop_data, name);
         %SetProperty(obj, name, value, attributes);
+      } else if (length == 5) {
+        var name = properties[i + 1];
+        var getter = properties[i + 2];
+        var setter = properties[i + 3];
+        var attribute = properties[i + 4];
+        var access_control = properties[i + 5];
+        %SetAccessorProperty(
+            obj, name, getter, setter, attribute, access_control);
+      } else {
+        throw "Bad properties array";
       }
-    } finally {
-      if (requires_access_checks) %EnableAccessChecks(obj);
+      i += length + 1;
     }
+  } finally {
+    if (requires_access_checks) %EnableAccessChecks(obj);
   }
 }

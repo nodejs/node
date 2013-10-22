@@ -211,7 +211,6 @@ assertFalse(%HaveSameMap(o18, o19));
 delete o18.to_delete;
 delete o19.to_delete;
 
-assertTrue(%HaveSameMap(o18, o19));
 assertEquals(1, o18.field2);
 assertEquals(1.6, o19.field2);
 

@@ -606,7 +606,7 @@ int DisassemblerIA32::D1D3C1Instruction(byte* data) {
     }
     ASSERT_NE(NULL, mnem);
     AppendToBuffer("%s %s,", mnem, NameOfCPURegister(rm));
-    if (imm8 > 0) {
+    if (imm8 >= 0) {
       AppendToBuffer("%d", imm8);
     } else {
       AppendToBuffer("cl");
@@ -698,6 +698,7 @@ int DisassemblerIA32::MemoryFPUInstruction(int escape_opcode,
   switch (escape_opcode) {
     case 0xD9: switch (regop) {
         case 0: mnem = "fld_s"; break;
+        case 2: mnem = "fst_s"; break;
         case 3: mnem = "fstp_s"; break;
         case 7: mnem = "fstcw"; break;
         default: UnimplementedInstruction();
@@ -743,7 +744,14 @@ int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
 
   switch (escape_opcode) {
     case 0xD8:
-      UnimplementedInstruction();
+      has_register = true;
+      switch (modrm_byte & 0xF8) {
+        case 0xC0: mnem = "fadd_i"; break;
+        case 0xE0: mnem = "fsub_i"; break;
+        case 0xC8: mnem = "fmul_i"; break;
+        case 0xF0: mnem = "fdiv_i"; break;
+        default: UnimplementedInstruction();
+      }
       break;
 
     case 0xD9:
@@ -767,6 +775,7 @@ int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
             case 0xEE: mnem = "fldz"; break;
             case 0xF0: mnem = "f2xm1"; break;
             case 0xF1: mnem = "fyl2x"; break;
+            case 0xF4: mnem = "fxtract"; break;
             case 0xF5: mnem = "fprem1"; break;
             case 0xF7: mnem = "fincstp"; break;
             case 0xF8: mnem = "fprem"; break;
@@ -815,6 +824,7 @@ int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
       has_register = true;
       switch (modrm_byte & 0xF8) {
         case 0xC0: mnem = "ffree"; break;
+        case 0xD0: mnem = "fst"; break;
         case 0xD8: mnem = "fstp"; break;
         default: UnimplementedInstruction();
       }
@@ -862,7 +872,6 @@ static const char* F0Mnem(byte f0byte) {
   switch (f0byte) {
     case 0x18: return "prefetch";
     case 0xA2: return "cpuid";
-    case 0x31: return "rdtsc";
     case 0xBE: return "movsx_b";
     case 0xBF: return "movsx_w";
     case 0xB6: return "movzx_b";
@@ -1449,6 +1458,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data += D1D3C1Instruction(data);
         break;
 
+      case 0xD8:  // fall through
       case 0xD9:  // fall through
       case 0xDA:  // fall through
       case 0xDB:  // fall through

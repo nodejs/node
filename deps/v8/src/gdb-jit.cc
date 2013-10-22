@@ -1872,7 +1872,7 @@ static void DestroyCodeEntry(JITCodeEntry* entry) {
 static void RegisterCodeEntry(JITCodeEntry* entry,
                               bool dump_if_enabled,
                               const char* name_hint) {
-#if defined(DEBUG) && !defined(WIN32)
+#if defined(DEBUG) && !V8_OS_WIN
   static int file_num = 0;
   if (FLAG_gdbjit_dump && dump_if_enabled) {
     static const int kMaxFileNameSize = 64;
@@ -2063,7 +2063,7 @@ void GDBJITInterface::AddCode(const char* name,
                               CompilationInfo* info) {
   if (!FLAG_gdbjit) return;
 
-  ScopedLock lock(mutex.Pointer());
+  LockGuard<Mutex> lock_guard(mutex.Pointer());
   DisallowHeapAllocation no_gc;
 
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
@@ -2149,7 +2149,7 @@ void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag, Code* code) {
 void GDBJITInterface::RemoveCode(Code* code) {
   if (!FLAG_gdbjit) return;
 
-  ScopedLock lock(mutex.Pointer());
+  LockGuard<Mutex> lock_guard(mutex.Pointer());
   HashMap::Entry* e = GetEntries()->Lookup(code,
                                            HashForCodeObject(code),
                                            false);
@@ -2187,7 +2187,7 @@ void GDBJITInterface::RemoveCodeRange(Address start, Address end) {
 
 void GDBJITInterface::RegisterDetailedLineInfo(Code* code,
                                                GDBJITLineInfo* line_info) {
-  ScopedLock lock(mutex.Pointer());
+  LockGuard<Mutex> lock_guard(mutex.Pointer());
   ASSERT(!IsLineInfoTagged(line_info));
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
   ASSERT(e->value == NULL);

@@ -45,10 +45,6 @@
 #include "extensions/statistics-extension.h"
 #include "code-stubs.h"
 
-#if defined(V8_I18N_SUPPORT)
-#include "extensions/i18n/i18n-extension.h"
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -98,7 +94,7 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
 
 
 void Bootstrapper::Initialize(bool create_heap_objects) {
-  extensions_cache_.Initialize(create_heap_objects);
+  extensions_cache_.Initialize(isolate_, create_heap_objects);
 }
 
 
@@ -106,9 +102,6 @@ void Bootstrapper::InitializeOncePerProcess() {
   GCExtension::Register();
   ExternalizeStringExtension::Register();
   StatisticsExtension::Register();
-#if defined(V8_I18N_SUPPORT)
-  v8_i18n::Extension::Register();
-#endif
 }
 
 
@@ -147,7 +140,7 @@ void Bootstrapper::TearDown() {
     delete_these_arrays_on_tear_down_ = NULL;
   }
 
-  extensions_cache_.Initialize(false);  // Yes, symmetrical
+  extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
 }
 
 
@@ -491,7 +484,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     // prototype, otherwise the missing initial_array_prototype will cause
     // assertions during startup.
     native_context()->set_initial_array_prototype(*prototype);
-    SetPrototype(object_fun, prototype);
+    Accessors::FunctionSetPrototype(object_fun, prototype);
   }
 
   // Allocate the empty function as the prototype for function ECMAScript
@@ -1064,6 +1057,54 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_json_object(*json_object);
   }
 
+  { // -- A r r a y B u f f e r
+    Handle<JSFunction> array_buffer_fun =
+        InstallFunction(
+            global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
+            JSArrayBuffer::kSizeWithInternalFields,
+            isolate->initial_object_prototype(),
+            Builtins::kIllegal, true, true);
+    native_context()->set_array_buffer_fun(*array_buffer_fun);
+  }
+
+  { // -- T y p e d A r r a y s
+    Handle<JSFunction> int8_fun = InstallTypedArray("Int8Array",
+        EXTERNAL_BYTE_ELEMENTS);
+    native_context()->set_int8_array_fun(*int8_fun);
+    Handle<JSFunction> uint8_fun = InstallTypedArray("Uint8Array",
+        EXTERNAL_UNSIGNED_BYTE_ELEMENTS);
+    native_context()->set_uint8_array_fun(*uint8_fun);
+    Handle<JSFunction> int16_fun = InstallTypedArray("Int16Array",
+        EXTERNAL_SHORT_ELEMENTS);
+    native_context()->set_int16_array_fun(*int16_fun);
+    Handle<JSFunction> uint16_fun = InstallTypedArray("Uint16Array",
+        EXTERNAL_UNSIGNED_SHORT_ELEMENTS);
+    native_context()->set_uint16_array_fun(*uint16_fun);
+    Handle<JSFunction> int32_fun = InstallTypedArray("Int32Array",
+        EXTERNAL_INT_ELEMENTS);
+    native_context()->set_int32_array_fun(*int32_fun);
+    Handle<JSFunction> uint32_fun = InstallTypedArray("Uint32Array",
+        EXTERNAL_UNSIGNED_INT_ELEMENTS);
+    native_context()->set_uint32_array_fun(*uint32_fun);
+    Handle<JSFunction> float_fun = InstallTypedArray("Float32Array",
+        EXTERNAL_FLOAT_ELEMENTS);
+    native_context()->set_float_array_fun(*float_fun);
+    Handle<JSFunction> double_fun = InstallTypedArray("Float64Array",
+        EXTERNAL_DOUBLE_ELEMENTS);
+    native_context()->set_double_array_fun(*double_fun);
+    Handle<JSFunction> uint8c_fun = InstallTypedArray("Uint8ClampedArray",
+        EXTERNAL_PIXEL_ELEMENTS);
+    native_context()->set_uint8c_array_fun(*uint8c_fun);
+
+    Handle<JSFunction> data_view_fun =
+        InstallFunction(
+            global, "DataView", JS_DATA_VIEW_TYPE,
+            JSDataView::kSizeWithInternalFields,
+            isolate->initial_object_prototype(),
+            Builtins::kIllegal, true, true);
+    native_context()->set_data_view_fun(*data_view_fun);
+  }
+
   {  // --- arguments_boilerplate_
     // Make sure we can recognize argument objects at runtime.
     // This is done by introducing an anonymous function with
@@ -1095,12 +1136,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                            JSObject::SetLocalPropertyIgnoreAttributes(
                                result, factory->length_string(),
                                factory->undefined_value(), DONT_ENUM,
-                               Object::FORCE_TAGGED, JSReceiver::FORCE_FIELD));
+                               Object::FORCE_TAGGED, FORCE_FIELD));
     CHECK_NOT_EMPTY_HANDLE(isolate,
                            JSObject::SetLocalPropertyIgnoreAttributes(
                                result, factory->callee_string(),
                                factory->undefined_value(), DONT_ENUM,
-                               Object::FORCE_TAGGED, JSReceiver::FORCE_FIELD));
+                               Object::FORCE_TAGGED, FORCE_FIELD));
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
@@ -1268,13 +1309,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   Handle<FixedArray> embedder_data = factory->NewFixedArray(2);
   native_context()->set_embedder_data(*embedder_data);
 
-  {
-    // Initialize the random seed slot.
-    Handle<ByteArray> zeroed_byte_array(
-        factory->NewByteArray(kRandomStateSize));
-    native_context()->set_random_seed(*zeroed_byte_array);
-    memset(zeroed_byte_array->GetDataStartAddress(), 0, kRandomStateSize);
-  }
+  // Allocate the random seed slot.
+  Handle<ByteArray> random_seed = factory->NewByteArray(kRandomStateSize);
+  native_context()->set_random_seed(*random_seed);
 }
 
 
@@ -1329,56 +1366,6 @@ void Genesis::InitializeExperimentalGlobal() {
                       isolate()->initial_object_prototype(),
                       Builtins::kIllegal, true, true);
     }
-  }
-
-  if (FLAG_harmony_array_buffer) {
-    // -- A r r a y B u f f e r
-    Handle<JSFunction> array_buffer_fun =
-        InstallFunction(
-            global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
-            JSArrayBuffer::kSizeWithInternalFields,
-            isolate()->initial_object_prototype(),
-            Builtins::kIllegal, true, true);
-    native_context()->set_array_buffer_fun(*array_buffer_fun);
-  }
-
-  if (FLAG_harmony_typed_arrays) {
-    // -- T y p e d A r r a y s
-    Handle<JSFunction> int8_fun = InstallTypedArray("Int8Array",
-        EXTERNAL_BYTE_ELEMENTS);
-    native_context()->set_int8_array_fun(*int8_fun);
-    Handle<JSFunction> uint8_fun = InstallTypedArray("Uint8Array",
-        EXTERNAL_UNSIGNED_BYTE_ELEMENTS);
-    native_context()->set_uint8_array_fun(*uint8_fun);
-    Handle<JSFunction> int16_fun = InstallTypedArray("Int16Array",
-        EXTERNAL_SHORT_ELEMENTS);
-    native_context()->set_int16_array_fun(*int16_fun);
-    Handle<JSFunction> uint16_fun = InstallTypedArray("Uint16Array",
-        EXTERNAL_UNSIGNED_SHORT_ELEMENTS);
-    native_context()->set_uint16_array_fun(*uint16_fun);
-    Handle<JSFunction> int32_fun = InstallTypedArray("Int32Array",
-        EXTERNAL_INT_ELEMENTS);
-    native_context()->set_int32_array_fun(*int32_fun);
-    Handle<JSFunction> uint32_fun = InstallTypedArray("Uint32Array",
-        EXTERNAL_UNSIGNED_INT_ELEMENTS);
-    native_context()->set_uint32_array_fun(*uint32_fun);
-    Handle<JSFunction> float_fun = InstallTypedArray("Float32Array",
-        EXTERNAL_FLOAT_ELEMENTS);
-    native_context()->set_float_array_fun(*float_fun);
-    Handle<JSFunction> double_fun = InstallTypedArray("Float64Array",
-        EXTERNAL_DOUBLE_ELEMENTS);
-    native_context()->set_double_array_fun(*double_fun);
-    Handle<JSFunction> uint8c_fun = InstallTypedArray("Uint8ClampedArray",
-        EXTERNAL_PIXEL_ELEMENTS);
-    native_context()->set_uint8c_array_fun(*uint8c_fun);
-
-    Handle<JSFunction> data_view_fun =
-        InstallFunction(
-            global, "DataView", JS_DATA_VIEW_TYPE,
-            JSDataView::kSizeWithInternalFields,
-            isolate()->initial_object_prototype(),
-            Builtins::kIllegal, true, true);
-    native_context()->set_data_view_fun(*data_view_fun);
   }
 
   if (FLAG_harmony_generators) {
@@ -1554,7 +1541,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
                      : top_context->global_object(),
                      isolate);
   bool has_pending_exception;
-  Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
+  Execution::Call(isolate, fun, receiver, 0, NULL, &has_pending_exception);
   if (has_pending_exception) return false;
   return true;
 }
@@ -1632,7 +1619,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(
                       true, true);
   Handle<JSObject> prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
-  SetPrototype(array_function, prototype);
+  Accessors::FunctionSetPrototype(array_function, prototype);
 
   InternalArrayConstructorStub internal_array_constructor_stub(isolate());
   Handle<Code> code = internal_array_constructor_stub.GetCode(isolate());
@@ -1730,7 +1717,7 @@ bool Genesis::InstallNatives() {
                         Builtins::kIllegal, false, false);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
-    SetPrototype(script_fun, prototype);
+    Accessors::FunctionSetPrototype(script_fun, prototype);
     native_context()->set_script_function(*script_fun);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
@@ -1886,7 +1873,7 @@ bool Genesis::InstallNatives() {
                         Builtins::kIllegal, false, false);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
-    SetPrototype(opaque_reference_fun, prototype);
+    Accessors::FunctionSetPrototype(opaque_reference_fun, prototype);
     native_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 
@@ -2058,16 +2045,6 @@ bool Genesis::InstallExperimentalNatives() {
     if (FLAG_harmony_observation &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
                "native object-observe.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
-    if (FLAG_harmony_array_buffer &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native arraybuffer.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
-    if (FLAG_harmony_typed_arrays &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native typedarray.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
     if (FLAG_harmony_generators &&
@@ -2306,12 +2283,6 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
   if (FLAG_track_gc_object_stats) {
     InstallExtension(isolate, "v8/statistics", &extension_states);
   }
-
-#if defined(V8_I18N_SUPPORT)
-  if (FLAG_enable_i18n) {
-    InstallExtension(isolate, "v8/i18n", &extension_states);
-  }
-#endif
 
   if (extensions == NULL) return true;
   // Install required extensions
@@ -2600,8 +2571,8 @@ Genesis::Genesis(Isolate* isolate,
     : isolate_(isolate),
       active_(isolate->bootstrapper()) {
   result_ = Handle<Context>::null();
-  // If V8 isn't running and cannot be initialized, just return.
-  if (!V8::IsRunning() && !V8::Initialize(NULL)) return;
+  // If V8 cannot be initialized, just return.
+  if (!V8::Initialize(NULL)) return;
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.
@@ -2616,7 +2587,7 @@ Genesis::Genesis(Isolate* isolate,
   // We can only de-serialize a context if the isolate was initialized from
   // a snapshot. Otherwise we have to build the context from scratch.
   if (isolate->initialized_from_snapshot()) {
-    native_context_ = Snapshot::NewContextFromSnapshot();
+    native_context_ = Snapshot::NewContextFromSnapshot(isolate);
   } else {
     native_context_ = Handle<Context>();
   }
@@ -2658,6 +2629,14 @@ Genesis::Genesis(Isolate* isolate,
   // Initialize experimental globals and install experimental natives.
   InitializeExperimentalGlobal();
   if (!InstallExperimentalNatives()) return;
+
+  // Initially seed the per-context random number generator
+  // using the per-isolate random number generator.
+  uint32_t* state = reinterpret_cast<uint32_t*>(
+      native_context()->random_seed()->GetDataStartAddress());
+  do {
+    isolate->random_number_generator()->NextBytes(state, kRandomStateSize);
+  } while (state[0] == 0 || state[1] == 0);
 
   result_ = native_context();
 }

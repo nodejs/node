@@ -58,7 +58,7 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
     mark_bit.Set();
     MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
     ASSERT(IsMarked(obj));
-    ASSERT(HEAP->Contains(obj));
+    ASSERT(obj->GetIsolate()->heap()->Contains(obj));
     marking_deque_.PushBlack(obj);
   }
 }

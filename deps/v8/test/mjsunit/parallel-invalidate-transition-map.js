@@ -26,10 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --track-fields --track-double-fields --allow-natives-syntax
-// Flags: --parallel-recompilation --parallel-recompilation-delay=100
+// Flags: --concurrent-recompilation --concurrent-recompilation-delay=100
 
-if (!%IsParallelRecompilationSupported()) {
-  print("Parallel recompilation is disabled. Skipping this test.");
+if (!%IsConcurrentRecompilationSupported()) {
+  print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
 
@@ -46,7 +46,7 @@ function add_field(obj) {
 
 add_field(new_object());
 add_field(new_object());
-%OptimizeFunctionOnNextCall(add_field, "parallel");
+%OptimizeFunctionOnNextCall(add_field, "concurrent");
 
 var o = new_object();
 // Trigger optimization in the background thread.

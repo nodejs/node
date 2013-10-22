@@ -41,9 +41,9 @@
 #include "zone-inl.h"
 
 // Adapted from http://en.wikipedia.org/wiki/Multiply-with-carry
-class RandomNumberGenerator {
+class MyRandomNumberGenerator {
  public:
-  RandomNumberGenerator() {
+  MyRandomNumberGenerator() {
     init();
   }
 
@@ -133,7 +133,7 @@ class AsciiResource: public v8::String::ExternalAsciiStringResource,
 static void InitializeBuildingBlocks(Handle<String>* building_blocks,
                                      int bb_length,
                                      bool long_blocks,
-                                     RandomNumberGenerator* rng,
+                                     MyRandomNumberGenerator* rng,
                                      Zone* zone) {
   // A list of pointers that we don't have any interest in cleaning up.
   // If they are reachable from a root then leak detection won't complain.
@@ -276,7 +276,7 @@ class ConsStringGenerationData {
   // Cached data.
   Handle<String> building_blocks_[kNumberOfBuildingBlocks];
   String* empty_string_;
-  RandomNumberGenerator rng_;
+  MyRandomNumberGenerator rng_;
   // Stats.
   ConsStringStats stats_;
   unsigned early_terminations_;

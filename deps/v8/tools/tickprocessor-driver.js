@@ -37,6 +37,18 @@ function processArguments(args) {
   }
 }
 
+function initSourceMapSupport() {
+  // Pull dev tools source maps  into our name space.
+  SourceMap = WebInspector.SourceMap;
+
+  // Overwrite the load function to load scripts synchronously.
+  SourceMap.load = function(sourceMapURL) {
+    var content = readFile(sourceMapURL);
+    var sourceMapObject = (JSON.parse(content));
+    return new SourceMap(sourceMapURL, sourceMapObject);
+  };
+}
+
 var entriesProviders = {
   'unix': UnixCppEntriesProvider,
   'windows': WindowsCppEntriesProvider,
@@ -44,6 +56,11 @@ var entriesProviders = {
 };
 
 var params = processArguments(arguments);
+var sourceMap = null;
+if (params.sourceMap) {
+  initSourceMapSupport();
+  sourceMap = SourceMap.load(params.sourceMap);
+}
 var snapshotLogProcessor;
 if (params.snapshotLogFileName) {
   snapshotLogProcessor = new SnapshotLogProcessor();
@@ -57,6 +74,7 @@ var tickProcessor = new TickProcessor(
   params.stateFilter,
   snapshotLogProcessor,
   params.distortion,
-  params.range);
+  params.range,
+  sourceMap);
 tickProcessor.processLogFile(params.logFileName);
 tickProcessor.printStatistics();

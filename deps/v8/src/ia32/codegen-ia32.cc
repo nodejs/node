@@ -177,11 +177,6 @@ UnaryMathFunction CreateSqrtFunction() {
 #undef __
 #define __ ACCESS_MASM(masm)
 
-// Keep around global pointers to these objects so that Valgrind won't complain.
-static size_t* medium_handlers = NULL;
-static size_t* small_handlers = NULL;
-
-
 enum Direction { FORWARD, BACKWARD };
 enum Alignment { MOVE_ALIGNED, MOVE_UNALIGNED };
 
@@ -253,12 +248,24 @@ void MemMoveEmitPopAndReturn(MacroAssembler* masm) {
 #define __ masm.
 
 
+class LabelConverter {
+ public:
+  explicit LabelConverter(byte* buffer) : buffer_(buffer) {}
+  int32_t address(Label* l) const {
+    return reinterpret_cast<int32_t>(buffer_) + l->pos();
+  }
+ private:
+  byte* buffer_;
+};
+
+
 OS::MemMoveFunction CreateMemMoveFunction() {
   size_t actual_size;
   // Allocate buffer in executable space.
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return NULL;
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  LabelConverter conv(buffer);
 
   // Generated code is put into a fixed, unmovable buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses
@@ -452,7 +459,7 @@ OS::MemMoveFunction CreateMemMoveFunction() {
       // Special handlers for 9 <= copy_size < 64. No assumptions about
       // alignment or move distance, so all reads must be unaligned and
       // must happen before any writes.
-      Label f9_16, f17_32, f33_48, f49_63;
+      Label medium_handlers, f9_16, f17_32, f33_48, f49_63;
 
       __ bind(&f9_16);
       __ movdbl(xmm0, Operand(src, 0));
@@ -488,11 +495,11 @@ OS::MemMoveFunction CreateMemMoveFunction() {
       __ movdqu(Operand(dst, count, times_1, -0x10), xmm3);
       MemMoveEmitPopAndReturn(&masm);
 
-      medium_handlers = new size_t[4];
-      medium_handlers[0] = reinterpret_cast<intptr_t>(buffer) + f9_16.pos();
-      medium_handlers[1] = reinterpret_cast<intptr_t>(buffer) + f17_32.pos();
-      medium_handlers[2] = reinterpret_cast<intptr_t>(buffer) + f33_48.pos();
-      medium_handlers[3] = reinterpret_cast<intptr_t>(buffer) + f49_63.pos();
+      __ bind(&medium_handlers);
+      __ dd(conv.address(&f9_16));
+      __ dd(conv.address(&f17_32));
+      __ dd(conv.address(&f33_48));
+      __ dd(conv.address(&f49_63));
 
       __ bind(&medium_size);  // Entry point into this block.
       __ mov(eax, count);
@@ -505,13 +512,12 @@ OS::MemMoveFunction CreateMemMoveFunction() {
         __ int3();
         __ bind(&ok);
       }
-      __ mov(eax, Operand(eax, times_4,
-                          reinterpret_cast<intptr_t>(medium_handlers)));
+      __ mov(eax, Operand(eax, times_4, conv.address(&medium_handlers)));
       __ jmp(eax);
     }
     {
       // Specialized copiers for copy_size <= 8 bytes.
-      Label f0, f1, f2, f3, f4, f5_8;
+      Label small_handlers, f0, f1, f2, f3, f4, f5_8;
       __ bind(&f0);
       MemMoveEmitPopAndReturn(&masm);
 
@@ -544,16 +550,16 @@ OS::MemMoveFunction CreateMemMoveFunction() {
       __ mov(Operand(dst, count, times_1, -4), edx);
       MemMoveEmitPopAndReturn(&masm);
 
-      small_handlers = new size_t[9];
-      small_handlers[0] = reinterpret_cast<intptr_t>(buffer) + f0.pos();
-      small_handlers[1] = reinterpret_cast<intptr_t>(buffer) + f1.pos();
-      small_handlers[2] = reinterpret_cast<intptr_t>(buffer) + f2.pos();
-      small_handlers[3] = reinterpret_cast<intptr_t>(buffer) + f3.pos();
-      small_handlers[4] = reinterpret_cast<intptr_t>(buffer) + f4.pos();
-      small_handlers[5] = reinterpret_cast<intptr_t>(buffer) + f5_8.pos();
-      small_handlers[6] = reinterpret_cast<intptr_t>(buffer) + f5_8.pos();
-      small_handlers[7] = reinterpret_cast<intptr_t>(buffer) + f5_8.pos();
-      small_handlers[8] = reinterpret_cast<intptr_t>(buffer) + f5_8.pos();
+      __ bind(&small_handlers);
+      __ dd(conv.address(&f0));
+      __ dd(conv.address(&f1));
+      __ dd(conv.address(&f2));
+      __ dd(conv.address(&f3));
+      __ dd(conv.address(&f4));
+      __ dd(conv.address(&f5_8));
+      __ dd(conv.address(&f5_8));
+      __ dd(conv.address(&f5_8));
+      __ dd(conv.address(&f5_8));
 
       __ bind(&small_size);  // Entry point into this block.
       if (FLAG_debug_code) {
@@ -563,8 +569,7 @@ OS::MemMoveFunction CreateMemMoveFunction() {
         __ int3();
         __ bind(&ok);
       }
-      __ mov(eax, Operand(count, times_4,
-                          reinterpret_cast<intptr_t>(small_handlers)));
+      __ mov(eax, Operand(count, times_4, conv.address(&small_handlers)));
       __ jmp(eax);
     }
   } else {

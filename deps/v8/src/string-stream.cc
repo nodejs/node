@@ -194,7 +194,8 @@ void StringStream::PrintObject(Object* o) {
     return;
   }
   if (o->IsHeapObject()) {
-    DebugObjectCache* debug_object_cache = Isolate::Current()->
+    HeapObject* ho = HeapObject::cast(o);
+    DebugObjectCache* debug_object_cache = ho->GetIsolate()->
         string_stream_debug_object_cache();
     for (int i = 0; i < debug_object_cache->length(); i++) {
       if ((*debug_object_cache)[i] == o) {
@@ -268,8 +269,8 @@ SmartArrayPointer<const char> StringStream::ToCString() const {
 }
 
 
-void StringStream::Log() {
-  LOG(ISOLATE, StringEvent("StackDump", buffer_));
+void StringStream::Log(Isolate* isolate) {
+  LOG(isolate, StringEvent("StackDump", buffer_));
 }
 
 
@@ -289,14 +290,13 @@ void StringStream::OutputToFile(FILE* out) {
 }
 
 
-Handle<String> StringStream::ToString() {
-  Factory* factory = Isolate::Current()->factory();
-  return factory->NewStringFromUtf8(Vector<const char>(buffer_, length_));
+Handle<String> StringStream::ToString(Isolate* isolate) {
+  return isolate->factory()->NewStringFromUtf8(
+      Vector<const char>(buffer_, length_));
 }
 
 
-void StringStream::ClearMentionedObjectCache() {
-  Isolate* isolate = Isolate::Current();
+void StringStream::ClearMentionedObjectCache(Isolate* isolate) {
   isolate->set_string_stream_current_security_token(NULL);
   if (isolate->string_stream_debug_object_cache() == NULL) {
     isolate->set_string_stream_debug_object_cache(
@@ -307,9 +307,8 @@ void StringStream::ClearMentionedObjectCache() {
 
 
 #ifdef DEBUG
-bool StringStream::IsMentionedObjectCacheClear() {
-  return (
-      Isolate::Current()->string_stream_debug_object_cache()->length() == 0);
+bool StringStream::IsMentionedObjectCacheClear(Isolate* isolate) {
+  return isolate->string_stream_debug_object_cache()->length() == 0;
 }
 #endif
 
@@ -351,7 +350,7 @@ void StringStream::PrintName(Object* name) {
 
 void StringStream::PrintUsingMap(JSObject* js_object) {
   Map* map = js_object->map();
-  if (!HEAP->Contains(map) ||
+  if (!js_object->GetHeap()->Contains(map) ||
       !map->IsHeapObject() ||
       !map->IsMap()) {
     Add("<Invalid map>\n");
@@ -385,7 +384,7 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
 
 
 void StringStream::PrintFixedArray(FixedArray* array, unsigned int limit) {
-  Heap* heap = HEAP;
+  Heap* heap = array->GetHeap();
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
     Object* element = array->get(i);
     if (element != heap->the_hole_value()) {
@@ -422,9 +421,9 @@ void StringStream::PrintByteArray(ByteArray* byte_array) {
 }
 
 
-void StringStream::PrintMentionedObjectCache() {
+void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
   DebugObjectCache* debug_object_cache =
-      Isolate::Current()->string_stream_debug_object_cache();
+      isolate->string_stream_debug_object_cache();
   Add("==== Key         ============================================\n\n");
   for (int i = 0; i < debug_object_cache->length(); i++) {
     HeapObject* printee = (*debug_object_cache)[i];
@@ -457,12 +456,12 @@ void StringStream::PrintMentionedObjectCache() {
 
 
 void StringStream::PrintSecurityTokenIfChanged(Object* f) {
-  Isolate* isolate = Isolate::Current();
+  if (!f->IsHeapObject()) return;
+  HeapObject* obj = HeapObject::cast(f);
+  Isolate* isolate = obj->GetIsolate();
   Heap* heap = isolate->heap();
-  if (!f->IsHeapObject() || !heap->Contains(HeapObject::cast(f))) {
-    return;
-  }
-  Map* map = HeapObject::cast(f)->map();
+  if (!heap->Contains(obj)) return;
+  Map* map = obj->map();
   if (!map->IsHeapObject() ||
       !heap->Contains(map) ||
       !map->IsMap() ||
@@ -492,48 +491,39 @@ void StringStream::PrintSecurityTokenIfChanged(Object* f) {
 
 
 void StringStream::PrintFunction(Object* f, Object* receiver, Code** code) {
-  if (f->IsHeapObject() &&
-      HEAP->Contains(HeapObject::cast(f)) &&
-      HEAP->Contains(HeapObject::cast(f)->map()) &&
-      HeapObject::cast(f)->map()->IsMap()) {
-    if (f->IsJSFunction()) {
-      JSFunction* fun = JSFunction::cast(f);
-      // Common case: on-stack function present and resolved.
-      PrintPrototype(fun, receiver);
-      *code = fun->code();
-    } else if (f->IsInternalizedString()) {
-      // Unresolved and megamorphic calls: Instead of the function
-      // we have the function name on the stack.
-      PrintName(f);
-      Add("/* unresolved */ ");
-    } else {
-      // Unless this is the frame of a built-in function, we should always have
-      // the callee function or name on the stack. If we don't, we have a
-      // problem or a change of the stack frame layout.
-      Add("%o", f);
-      Add("/* warning: no JSFunction object or function name found */ ");
-    }
-    /* } else if (is_trampoline()) {
-       Print("trampoline ");
-    */
+  if (!f->IsHeapObject()) {
+    Add("/* warning: 'function' was not a heap object */ ");
+    return;
+  }
+  Heap* heap = HeapObject::cast(f)->GetHeap();
+  if (!heap->Contains(HeapObject::cast(f))) {
+    Add("/* warning: 'function' was not on the heap */ ");
+    return;
+  }
+  if (!heap->Contains(HeapObject::cast(f)->map())) {
+    Add("/* warning: function's map was not on the heap */ ");
+    return;
+  }
+  if (!HeapObject::cast(f)->map()->IsMap()) {
+    Add("/* warning: function's map was not a valid map */ ");
+    return;
+  }
+  if (f->IsJSFunction()) {
+    JSFunction* fun = JSFunction::cast(f);
+    // Common case: on-stack function present and resolved.
+    PrintPrototype(fun, receiver);
+    *code = fun->code();
+  } else if (f->IsInternalizedString()) {
+    // Unresolved and megamorphic calls: Instead of the function
+    // we have the function name on the stack.
+    PrintName(f);
+    Add("/* unresolved */ ");
   } else {
-    if (!f->IsHeapObject()) {
-      Add("/* warning: 'function' was not a heap object */ ");
-      return;
-    }
-    if (!HEAP->Contains(HeapObject::cast(f))) {
-      Add("/* warning: 'function' was not on the heap */ ");
-      return;
-    }
-    if (!HEAP->Contains(HeapObject::cast(f)->map())) {
-      Add("/* warning: function's map was not on the heap */ ");
-      return;
-    }
-    if (!HeapObject::cast(f)->map()->IsMap()) {
-      Add("/* warning: function's map was not a valid map */ ");
-      return;
-    }
-    Add("/* warning: Invalid JSFunction object found */ ");
+    // Unless this is the frame of a built-in function, we should always have
+    // the callee function or name on the stack. If we don't, we have a
+    // problem or a change of the stack frame layout.
+    Add("%o", f);
+    Add("/* warning: no JSFunction object or function name found */ ");
   }
 }
 

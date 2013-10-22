@@ -43,24 +43,19 @@ namespace internal {
 class MarkingThread : public Thread {
  public:
   explicit MarkingThread(Isolate* isolate);
+  ~MarkingThread() {}
 
   void Run();
   void Stop();
   void StartMarking();
   void WaitForMarkingThread();
 
-  ~MarkingThread() {
-    delete start_marking_semaphore_;
-    delete end_marking_semaphore_;
-    delete stop_semaphore_;
-  }
-
  private:
   Isolate* isolate_;
   Heap* heap_;
-  Semaphore* start_marking_semaphore_;
-  Semaphore* end_marking_semaphore_;
-  Semaphore* stop_semaphore_;
+  Semaphore start_marking_semaphore_;
+  Semaphore end_marking_semaphore_;
+  Semaphore stop_semaphore_;
   volatile AtomicWord stop_thread_;
   int id_;
   static Atomic32 id_counter_;

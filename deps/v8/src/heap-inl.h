@@ -69,7 +69,7 @@ void PromotionQueue::insert(HeapObject* target, int size) {
   *(--rear_) = size;
   // Assert no overflow into live objects.
 #ifdef DEBUG
-  SemiSpace::AssertValidRange(HEAP->new_space()->top(),
+  SemiSpace::AssertValidRange(target->GetIsolate()->heap()->new_space()->top(),
                               reinterpret_cast<Address>(rear_));
 #endif
 }
@@ -508,7 +508,7 @@ void Heap::ScavengePointer(HeapObject** p) {
 
 
 void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  ASSERT(HEAP->InFromSpace(object));
+  ASSERT(object->GetIsolate()->heap()->InFromSpace(object));
 
   // We use the first word (where the map pointer usually is) of a heap
   // object to record the forwarding pointer.  A forwarding pointer can
@@ -520,11 +520,13 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
   // copied.
   if (first_word.IsForwardingAddress()) {
     HeapObject* dest = first_word.ToForwardingAddress();
-    ASSERT(HEAP->InFromSpace(*p));
+    ASSERT(object->GetIsolate()->heap()->InFromSpace(*p));
     *p = dest;
     return;
   }
 
+  // AllocationMementos are unrooted and shouldn't survive a scavenge
+  ASSERT(object->map() != object->GetHeap()->allocation_memento_map());
   // Call the slow part of scavenge object.
   return ScavengeObjectSlow(p, object);
 }
@@ -613,10 +615,10 @@ Isolate* Heap::isolate() {
 
 
 #ifdef DEBUG
-#define GC_GREEDY_CHECK() \
-  if (FLAG_gc_greedy) HEAP->GarbageCollectionGreedyCheck()
+#define GC_GREEDY_CHECK(ISOLATE) \
+  if (FLAG_gc_greedy) (ISOLATE)->heap()->GarbageCollectionGreedyCheck()
 #else
-#define GC_GREEDY_CHECK() { }
+#define GC_GREEDY_CHECK(ISOLATE) { }
 #endif
 
 // Calls the FUNCTION_CALL function and retries it up to three times
@@ -628,7 +630,7 @@ Isolate* Heap::isolate() {
 
 #define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY, OOM)\
   do {                                                                         \
-    GC_GREEDY_CHECK();                                                         \
+    GC_GREEDY_CHECK(ISOLATE);                                                  \
     MaybeObject* __maybe_object__ = FUNCTION_CALL;                             \
     Object* __object__ = NULL;                                                 \
     if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \
@@ -636,7 +638,7 @@ Isolate* Heap::isolate() {
       OOM;                                                                     \
     }                                                                          \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                     \
-    ISOLATE->heap()->CollectGarbage(Failure::cast(__maybe_object__)->          \
+    (ISOLATE)->heap()->CollectGarbage(Failure::cast(__maybe_object__)->        \
                                     allocation_space(),                        \
                                     "allocation failure");                     \
     __maybe_object__ = FUNCTION_CALL;                                          \
@@ -645,8 +647,8 @@ Isolate* Heap::isolate() {
       OOM;                                                                     \
     }                                                                          \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                     \
-    ISOLATE->counters()->gc_last_resort_from_handles()->Increment();           \
-    ISOLATE->heap()->CollectAllAvailableGarbage("last resort gc");             \
+    (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();         \
+    (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");           \
     {                                                                          \
       AlwaysAllocateScope __scope__;                                           \
       __maybe_object__ = FUNCTION_CALL;                                        \
@@ -718,15 +720,13 @@ void ExternalStringTable::Verify() {
 #ifdef DEBUG
   for (int i = 0; i < new_space_strings_.length(); ++i) {
     Object* obj = Object::cast(new_space_strings_[i]);
-    // TODO(yangguo): check that the object is indeed an external string.
     ASSERT(heap_->InNewSpace(obj));
-    ASSERT(obj != HEAP->the_hole_value());
+    ASSERT(obj != heap_->the_hole_value());
   }
   for (int i = 0; i < old_space_strings_.length(); ++i) {
     Object* obj = Object::cast(old_space_strings_[i]);
-    // TODO(yangguo): check that the object is indeed an external string.
     ASSERT(!heap_->InNewSpace(obj));
-    ASSERT(obj != HEAP->the_hole_value());
+    ASSERT(obj != heap_->the_hole_value());
   }
 #endif
 }
@@ -768,7 +768,7 @@ void Heap::CompletelyClearInstanceofCache() {
 MaybeObject* TranscendentalCache::Get(Type type, double input) {
   SubCache* cache = caches_[type];
   if (cache == NULL) {
-    caches_[type] = cache = new SubCache(type);
+    caches_[type] = cache = new SubCache(isolate_, type);
   }
   return cache->Get(input);
 }
@@ -833,25 +833,29 @@ AlwaysAllocateScope::AlwaysAllocateScope() {
   // non-handle code to call handle code. The code still works but
   // performance will degrade, so we want to catch this situation
   // in debug mode.
-  ASSERT(HEAP->always_allocate_scope_depth_ == 0);
-  HEAP->always_allocate_scope_depth_++;
+  Isolate* isolate = Isolate::Current();
+  ASSERT(isolate->heap()->always_allocate_scope_depth_ == 0);
+  isolate->heap()->always_allocate_scope_depth_++;
 }
 
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
-  HEAP->always_allocate_scope_depth_--;
-  ASSERT(HEAP->always_allocate_scope_depth_ == 0);
+  Isolate* isolate = Isolate::Current();
+  isolate->heap()->always_allocate_scope_depth_--;
+  ASSERT(isolate->heap()->always_allocate_scope_depth_ == 0);
 }
 
 
 #ifdef VERIFY_HEAP
 NoWeakEmbeddedMapsVerificationScope::NoWeakEmbeddedMapsVerificationScope() {
-  HEAP->no_weak_embedded_maps_verification_scope_depth_++;
+  Isolate* isolate = Isolate::Current();
+  isolate->heap()->no_weak_embedded_maps_verification_scope_depth_++;
 }
 
 
 NoWeakEmbeddedMapsVerificationScope::~NoWeakEmbeddedMapsVerificationScope() {
-  HEAP->no_weak_embedded_maps_verification_scope_depth_--;
+  Isolate* isolate = Isolate::Current();
+  isolate->heap()->no_weak_embedded_maps_verification_scope_depth_--;
 }
 #endif
 
@@ -860,7 +864,7 @@ void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsHeapObject()) {
       HeapObject* object = HeapObject::cast(*current);
-      CHECK(HEAP->Contains(object));
+      CHECK(object->GetIsolate()->heap()->Contains(object));
       CHECK(object->map()->IsMap());
     }
   }
@@ -868,21 +872,23 @@ void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
 
 
 double GCTracer::SizeOfHeapObjects() {
-  return (static_cast<double>(HEAP->SizeOfObjects())) / MB;
+  return (static_cast<double>(heap_->SizeOfObjects())) / MB;
 }
 
 
 DisallowAllocationFailure::DisallowAllocationFailure() {
 #ifdef DEBUG
-  old_state_ = HEAP->disallow_allocation_failure_;
-  HEAP->disallow_allocation_failure_ = true;
+  Isolate* isolate = Isolate::Current();
+  old_state_ = isolate->heap()->disallow_allocation_failure_;
+  isolate->heap()->disallow_allocation_failure_ = true;
 #endif
 }
 
 
 DisallowAllocationFailure::~DisallowAllocationFailure() {
 #ifdef DEBUG
-  HEAP->disallow_allocation_failure_ = old_state_;
+  Isolate* isolate = Isolate::Current();
+  isolate->heap()->disallow_allocation_failure_ = old_state_;
 #endif
 }
 

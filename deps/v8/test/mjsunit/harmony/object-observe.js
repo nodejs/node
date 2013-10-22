@@ -145,13 +145,8 @@ assertThrows(function() { notifier.performChange(1, function(){}); }, TypeError)
 assertThrows(function() { notifier.performChange(undefined, function(){}); }, TypeError);
 assertThrows(function() { notifier.performChange('foo', undefined); }, TypeError);
 assertThrows(function() { notifier.performChange('foo', 'bar'); }, TypeError);
-var testSelf = {};
 notifier.performChange('foo', function() {
-  assertTrue(testSelf === this);
-}, testSelf);
-var self = this;
-notifier.performChange('foo', function() {
-  assertTrue(self === this);
+  assertEquals(undefined, this);
 });
 
 var notify = notifier.notify;
@@ -400,10 +395,11 @@ Thingy.prototype = {
   increment: function(amount) {
     var notifier = Object.getNotifier(this);
 
+    var self = this;
     notifier.performChange(Thingy.INCREMENT, function() {
-      this.a += amount;
-      this.b += amount;
-    }, this);
+      self.a += amount;
+      self.b += amount;
+    });
 
     notifier.notify({
       object: this,
@@ -415,10 +411,11 @@ Thingy.prototype = {
   multiply: function(amount) {
     var notifier = Object.getNotifier(this);
 
+    var self = this;
     notifier.performChange(Thingy.MULTIPLY, function() {
-      this.a *= amount;
-      this.b *= amount;
-    }, this);
+      self.a *= amount;
+      self.b *= amount;
+    });
 
     notifier.notify({
       object: this,
@@ -430,10 +427,11 @@ Thingy.prototype = {
   incrementAndMultiply: function(incAmount, multAmount) {
     var notifier = Object.getNotifier(this);
 
+    var self = this;
     notifier.performChange(Thingy.INCREMENT_AND_MULTIPLY, function() {
-      this.increment(incAmount);
-      this.multiply(multAmount);
-    }, this);
+      self.increment(incAmount);
+      self.multiply(multAmount);
+    });
 
     notifier.notify({
       object: this,
@@ -505,10 +503,11 @@ RecursiveThingy.prototype = {
     if (!n)
       return;
     var notifier = Object.getNotifier(this);
+    var self = this;
     notifier.performChange(RecursiveThingy.MULTIPLY_FIRST_N, function() {
-      this[n-1] = this[n-1]*amount;
-      this.multiplyFirstN(amount, n-1);
-    }, this);
+      self[n-1] = self[n-1]*amount;
+      self.multiplyFirstN(amount, n-1);
+    });
 
     notifier.notify({
       object: this,
@@ -557,18 +556,19 @@ DeckSuit.prototype = {
 
   shuffle: function() {
     var notifier = Object.getNotifier(this);
+    var self = this;
     notifier.performChange(DeckSuit.SHUFFLE, function() {
-      this.reverse();
-      this.sort(function() { return Math.random()* 2 - 1; });
-      var cut = this.splice(0, 6);
-      Array.prototype.push.apply(this, cut);
-      this.reverse();
-      this.sort(function() { return Math.random()* 2 - 1; });
-      var cut = this.splice(0, 6);
-      Array.prototype.push.apply(this, cut);
-      this.reverse();
-      this.sort(function() { return Math.random()* 2 - 1; });
-    }, this);
+      self.reverse();
+      self.sort(function() { return Math.random()* 2 - 1; });
+      var cut = self.splice(0, 6);
+      Array.prototype.push.apply(self, cut);
+      self.reverse();
+      self.sort(function() { return Math.random()* 2 - 1; });
+      var cut = self.splice(0, 6);
+      Array.prototype.push.apply(self, cut);
+      self.reverse();
+      self.sort(function() { return Math.random()* 2 - 1; });
+    });
 
     notifier.notify({
       object: this,

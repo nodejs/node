@@ -259,8 +259,6 @@ Handle<JSObject> Copy(Handle<JSObject> obj);
 
 Handle<JSObject> DeepCopy(Handle<JSObject> obj);
 
-Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info);
-
 Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,
                                       Handle<JSArray> array);
 
@@ -321,9 +319,6 @@ void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
 Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
     Handle<JSFunction> constructor,
     Handle<JSGlobalProxy> global);
-
-Handle<Object> SetPrototype(Handle<JSFunction> function,
-                            Handle<Object> prototype);
 
 Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
                                        Handle<Object> key);

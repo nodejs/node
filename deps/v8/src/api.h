@@ -125,8 +125,8 @@ template <typename T> inline T ToCData(v8::internal::Object* obj) {
 
 
 template <typename T>
-inline v8::internal::Handle<v8::internal::Object> FromCData(T obj) {
-  v8::internal::Isolate* isolate = v8::internal::Isolate::Current();
+inline v8::internal::Handle<v8::internal::Object> FromCData(
+    v8::internal::Isolate* isolate, T obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   return isolate->factory()->NewForeign(
       reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(obj)));
@@ -690,19 +690,11 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
 
 // Interceptor functions called from generated inline caches to notify
 // CPU profiler that external callbacks are invoked.
-v8::Handle<v8::Value> InvokeAccessorGetter(
-    v8::Local<v8::String> property,
-    const v8::AccessorInfo& info,
-    v8::AccessorGetter getter);
-
-
 void InvokeAccessorGetterCallback(
     v8::Local<v8::String> property,
     const v8::PropertyCallbackInfo<v8::Value>& info,
     v8::AccessorGetterCallback getter);
 
-v8::Handle<v8::Value> InvokeInvocationCallback(const v8::Arguments& args,
-                                              v8::InvocationCallback callback);
 void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback);
 

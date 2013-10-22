@@ -33,7 +33,9 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#if defined(_WIN32) && !defined(__MINGW32__)
+#include "v8config.h"
+
+#if V8_OS_WIN && !V8_CC_MINGW
 
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
@@ -47,7 +49,7 @@ typedef unsigned __int64 uint64_t;
 
 #else
 
-#include <stdint.h>
+#include <stdint.h>  // NOLINT
 
 #endif
 

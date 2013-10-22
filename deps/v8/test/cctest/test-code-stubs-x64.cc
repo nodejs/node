@@ -138,8 +138,8 @@ TEST(ConvertDToI) {
   Register source_registers[] = {rsp, rax, rbx, rcx, rdx, rsi, rdi, r8, r9};
   Register dest_registers[] = {rax, rbx, rcx, rdx, rsi, rdi, r8, r9};
 
-  for (size_t s = 0; s < sizeof(*source_registers); s++) {
-    for (size_t d = 0; d < sizeof(*dest_registers); d++) {
+  for (size_t s = 0; s < sizeof(source_registers) / sizeof(Register); s++) {
+    for (size_t d = 0; d < sizeof(dest_registers) / sizeof(Register); d++) {
       RunAllTruncationTests(
           MakeConvertDToIFuncTrampoline(isolate,
                                         source_registers[s],

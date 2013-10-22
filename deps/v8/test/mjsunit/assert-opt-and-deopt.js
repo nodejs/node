@@ -25,10 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --noconcurrent-recompilation
 
-if (%IsParallelRecompilationSupported()) {
-  print("Parallel recompilation is turned on after all. Skipping this test.");
+if (%IsConcurrentRecompilationSupported()) {
+  print("Concurrent recompilation is turned on after all. Skipping this test.");
   quit();
 }
 

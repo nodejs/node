@@ -1439,4 +1439,75 @@ TEST(17) {
 }
 
 
+TEST(code_relative_offset) {
+  // Test extracting the offset of a label from the beginning of the code
+  // in a register.
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+  // Initialize a code object that will contain the code.
+  Handle<Object> code_object(isolate->heap()->undefined_value(), isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  Label start, target_away, target_faraway;
+
+  __ stm(db_w, sp, r4.bit() | r5.bit() | lr.bit());
+
+  // r3 is used as the address zero, the test will crash when we load it.
+  __ mov(r3, Operand::Zero());
+
+  // r5 will be a pointer to the start of the code.
+  __ mov(r5, Operand(code_object));
+  __ mov_label_offset(r4, &start);
+
+  __ mov_label_offset(r1, &target_faraway);
+  __ str(r1, MemOperand(sp, kPointerSize, NegPreIndex));
+
+  __ mov_label_offset(r1, &target_away);
+
+  // Jump straight to 'target_away' the first time and use the relative
+  // position the second time. This covers the case when extracting the
+  // position of a label which is linked.
+  __ mov(r2, Operand::Zero());
+  __ bind(&start);
+  __ cmp(r2, Operand::Zero());
+  __ b(eq, &target_away);
+  __ add(pc, r5, r1);
+  // Emit invalid instructions to push the label between 2^8 and 2^16
+  // instructions away. The test will crash if they are reached.
+  for (int i = 0; i < (1 << 10); i++) {
+    __ ldr(r3, MemOperand(r3));
+  }
+  __ bind(&target_away);
+  // This will be hit twice: r0 = r0 + 5 + 5.
+  __ add(r0, r0, Operand(5));
+
+  __ ldr(r1, MemOperand(sp, kPointerSize, PostIndex), ne);
+  __ add(pc, r5, r4, LeaveCC, ne);
+
+  __ mov(r2, Operand(1));
+  __ b(&start);
+  // Emit invalid instructions to push the label between 2^16 and 2^24
+  // instructions away. The test will crash if they are reached.
+  for (int i = 0; i < (1 << 21); i++) {
+    __ ldr(r3, MemOperand(r3));
+  }
+  __ bind(&target_faraway);
+  // r0 = r0 + 5 + 5 + 11
+  __ add(r0, r0, Operand(11));
+
+  __ ldm(ia_w, sp, r4.bit() | r5.bit() | pc.bit());
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(desc,
+      Code::ComputeFlags(Code::STUB), code_object);
+  CHECK(code->IsCode());
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 21, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(42, res);
+}
+
 #undef __

@@ -41,15 +41,12 @@
   extern ctype FLAG_##nam;
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
   static ctype const FLAG_##nam = def;
-#define DEFINE_implication(whenflag, thenflag)
 
 // We want to supply the actual storage and value for the flag variable in the
 // .cc file.  We only do this for writable flags.
 #elif defined(FLAG_MODE_DEFINE)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   ctype FLAG_##nam = def;
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
-#define DEFINE_implication(whenflag, thenflag)
 
 // We need to define all of our default values so that the Flag structure can
 // access them by pointer.  These are just used internally inside of one .cc,
@@ -57,27 +54,42 @@
 #elif defined(FLAG_MODE_DEFINE_DEFAULTS)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   static ctype const FLAGDEFAULT_##nam = def;
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
-#define DEFINE_implication(whenflag, thenflag)
 
 // We want to write entries into our meta data table, for internal parsing and
 // printing / etc in the flag parser code.  We only do this for writable flags.
 #elif defined(FLAG_MODE_META)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   { Flag::TYPE_##ftype, #nam, &FLAG_##nam, &FLAGDEFAULT_##nam, cmt, false },
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
-#define DEFINE_implication(whenflag, thenflag)
+#define FLAG_ALIAS(ftype, ctype, alias, nam) \
+  { Flag::TYPE_##ftype, #alias, &FLAG_##nam, &FLAGDEFAULT_##nam, \
+    "alias for --"#nam, false },
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
-#define FLAG_FULL(ftype, ctype, nam, def, cmt)
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
 #define DEFINE_implication(whenflag, thenflag) \
   if (FLAG_##whenflag) FLAG_##thenflag = true;
 
 #else
 #error No mode supplied when including flags.defs
 #endif
+
+// Dummy defines for modes where it is not relevant.
+#ifndef FLAG_FULL
+#define FLAG_FULL(ftype, ctype, nam, def, cmt)
+#endif
+
+#ifndef FLAG_READONLY
+#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
+#endif
+
+#ifndef FLAG_ALIAS
+#define FLAG_ALIAS(ftype, ctype, alias, nam)
+#endif
+
+#ifndef DEFINE_implication
+#define DEFINE_implication(whenflag, thenflag)
+#endif
+
 
 #ifdef FLAG_MODE_DECLARE
 // Structure used to hold a collection of arguments to the JavaScript code.
@@ -135,11 +147,18 @@ public:
 # define ENABLE_32DREGS_DEFAULT false
 #endif
 
-#define DEFINE_bool(nam, def, cmt) FLAG(BOOL, bool, nam, def, cmt)
-#define DEFINE_int(nam, def, cmt) FLAG(INT, int, nam, def, cmt)
-#define DEFINE_float(nam, def, cmt) FLAG(FLOAT, double, nam, def, cmt)
+#define DEFINE_bool(nam, def, cmt)   FLAG(BOOL, bool, nam, def, cmt)
+#define DEFINE_int(nam, def, cmt)    FLAG(INT, int, nam, def, cmt)
+#define DEFINE_float(nam, def, cmt)  FLAG(FLOAT, double, nam, def, cmt)
 #define DEFINE_string(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
-#define DEFINE_args(nam, def, cmt) FLAG(ARGS, JSArguments, nam, def, cmt)
+#define DEFINE_args(nam, def, cmt)   FLAG(ARGS, JSArguments, nam, def, cmt)
+
+#define DEFINE_ALIAS_bool(alias, nam)  FLAG_ALIAS(BOOL, bool, alias, nam)
+#define DEFINE_ALIAS_int(alias, nam)   FLAG_ALIAS(INT, int, alias, nam)
+#define DEFINE_ALIAS_float(alias, nam) FLAG_ALIAS(FLOAT, double, alias, nam)
+#define DEFINE_ALIAS_string(alias, nam) \
+  FLAG_ALIAS(STRING, const char*, alias, nam)
+#define DEFINE_ALIAS_args(alias, nam)  FLAG_ALIAS(ARGS, JSArguments, alias, nam)
 
 //
 // Flags in all modes.
@@ -164,9 +183,9 @@ DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
 DEFINE_bool(harmony_observation, false,
             "enable harmony object observation (implies harmony collections")
-DEFINE_bool(harmony_typed_arrays, false,
+DEFINE_bool(harmony_typed_arrays, true,
             "enable harmony typed arrays")
-DEFINE_bool(harmony_array_buffer, false,
+DEFINE_bool(harmony_array_buffer, true,
             "enable harmony array buffer")
 DEFINE_implication(harmony_typed_arrays, harmony_array_buffer)
 DEFINE_bool(harmony_generators, false, "enable harmony generators")
@@ -194,8 +213,6 @@ DEFINE_implication(harmony_observation, harmony_collections)
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
 DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
-DEFINE_bool(compiled_keyed_stores, true, "use optimizing compiler to "
-            "generate keyed store stubs")
 DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
@@ -239,6 +256,7 @@ DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             "crankshaft harvests type feedback from stub cache")
 DEFINE_bool(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_bool(trace_hydrogen, false, "trace generated hydrogen to file")
+DEFINE_string(trace_hydrogen_filter, "*", "hydrogen tracing filter")
 DEFINE_bool(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")
 DEFINE_string(trace_hydrogen_file, NULL, "trace hydrogen to given file name")
 DEFINE_string(trace_phase, "HLZ", "trace generated IR for specified phases")
@@ -305,13 +323,17 @@ DEFINE_bool(opt_safe_uint32_operations, true,
             "allow uint32 values on optimize frames if they are used only in "
             "safe operations")
 
-DEFINE_bool(parallel_recompilation, true,
+DEFINE_bool(concurrent_recompilation, true,
             "optimizing hot functions asynchronously on a separate thread")
-DEFINE_bool(trace_parallel_recompilation, false, "track parallel recompilation")
-DEFINE_int(parallel_recompilation_queue_length, 8,
-           "the length of the parallel compilation queue")
-DEFINE_int(parallel_recompilation_delay, 0,
+DEFINE_bool(trace_concurrent_recompilation, false,
+            "track concurrent recompilation")
+DEFINE_int(concurrent_recompilation_queue_length, 8,
+           "the length of the concurrent compilation queue")
+DEFINE_int(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
+DEFINE_bool(concurrent_osr, false,
+            "concurrent on-stack replacement")
+
 DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")
@@ -358,8 +380,6 @@ DEFINE_bool(enable_sse4_1, true,
             "enable use of SSE4.1 instructions if available")
 DEFINE_bool(enable_cmov, true,
             "enable use of CMOV instruction if available")
-DEFINE_bool(enable_rdtsc, true,
-            "enable use of RDTSC instruction if available")
 DEFINE_bool(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
 DEFINE_bool(enable_vfp3, ENABLE_VFP3_DEFAULT,
@@ -381,7 +401,6 @@ DEFINE_bool(enable_vldr_imm, false,
             "enable use of constant pools for double immediate (ARM only)")
 
 // bootstrapper.cc
-DEFINE_bool(enable_i18n, true, "enable i18n extension")
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
 DEFINE_bool(expose_gc, false, "expose gc extension")
@@ -435,6 +454,10 @@ DEFINE_int(max_opt_count, 10,
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
 
 DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
+
+// cpu-profiler.cc
+DEFINE_int(cpu_profiler_sampling_interval, 1000,
+           "CPU profiler sampling interval in microseconds")
 
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
@@ -521,6 +544,7 @@ DEFINE_bool(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
 // ic.cc
 DEFINE_bool(use_ic, true, "use inline caching")
+DEFINE_bool(js_accessor_ics, false, "create ics for js accessors")
 
 // macro-assembler-ia32.cc
 DEFINE_bool(native_code_counters, false,
@@ -590,7 +614,7 @@ DEFINE_int(testing_int_flag, 13, "testing_int_flag")
 DEFINE_float(testing_float_flag, 2.5, "float-flag")
 DEFINE_string(testing_string_flag, "Hello, world!", "string-flag")
 DEFINE_int(testing_prng_seed, 42, "Seed used for threading test randomness")
-#ifdef WIN32
+#ifdef _WIN32
 DEFINE_string(testing_serialization_file, "C:\\Windows\\Temp\\serdes",
               "file in which to testing_serialize heap")
 #else
@@ -665,13 +689,14 @@ DEFINE_bool(stress_compaction, false,
 DEFINE_bool(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
 
-// codegen-ia32.cc / codegen-arm.cc
+// codegen-ia32.cc / codegen-arm.cc / macro-assembler-*.cc
 DEFINE_bool(print_source, false, "pretty print source code")
 DEFINE_bool(print_builtin_source, false,
             "pretty print source code for builtins")
 DEFINE_bool(print_ast, false, "print source AST")
 DEFINE_bool(print_builtin_ast, false, "print source AST for builtins")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
+DEFINE_bool(trap_on_abort, false, "replace aborts by breakpoints")
 
 // compiler.cc
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
@@ -744,9 +769,6 @@ DEFINE_bool(log_snapshot_positions, false,
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
 DEFINE_bool(prof, false,
             "Log statistical profiling information (implies --log-code).")
-DEFINE_bool(prof_lazy, false,
-            "Used with --prof, only does sampling and logging"
-            " when profiler is active.")
 DEFINE_bool(prof_browser_mode, true,
             "Used with --prof, turns on browser-compatible mode for profiling.")
 DEFINE_bool(log_regexp, false, "Log regular expression execution.")
@@ -809,11 +831,19 @@ DEFINE_implication(print_all_code, trace_codegen)
 #undef FLAG_FULL
 #undef FLAG_READONLY
 #undef FLAG
+#undef FLAG_ALIAS
 
 #undef DEFINE_bool
 #undef DEFINE_int
 #undef DEFINE_string
+#undef DEFINE_float
+#undef DEFINE_args
 #undef DEFINE_implication
+#undef DEFINE_ALIAS_bool
+#undef DEFINE_ALIAS_int
+#undef DEFINE_ALIAS_string
+#undef DEFINE_ALIAS_float
+#undef DEFINE_ALIAS_args
 
 #undef FLAG_MODE_DECLARE
 #undef FLAG_MODE_DEFINE

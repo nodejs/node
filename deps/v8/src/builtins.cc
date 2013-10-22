@@ -132,7 +132,6 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
   MUST_USE_RESULT static MaybeObject* Builtin_##name(            \
       int args_length, Object** args_object, Isolate* isolate) { \
     name##ArgumentsType args(args_length, args_object);          \
-    ASSERT(isolate == Isolate::Current());                       \
     args.Verify();                                               \
     return Builtin_Impl_##name(args, isolate);                   \
   }                                                              \
@@ -304,11 +303,11 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
   } else {
     entry_size = kDoubleSize;
   }
-  ASSERT(elms->map() != HEAP->fixed_cow_array_map());
+  ASSERT(elms->map() != heap->fixed_cow_array_map());
   // For now this trick is only applied to fixed arrays in new and paged space.
   // In large object space the object's start must coincide with chunk
   // and thus the trick is just not applicable.
-  ASSERT(!HEAP->lo_space()->Contains(elms));
+  ASSERT(!heap->lo_space()->Contains(elms));
 
   STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
   STATIC_ASSERT(FixedArrayBase::kLengthOffset == kPointerSize);
@@ -448,7 +447,8 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
     argv[i] = args.at<Object>(i + 1);
   }
   bool pending_exception;
-  Handle<Object> result = Execution::Call(function,
+  Handle<Object> result = Execution::Call(isolate,
+                                          function,
                                           args.receiver(),
                                           argc,
                                           argv.start(),
@@ -594,7 +594,7 @@ BUILTIN(ArrayPop) {
   if (accessor->HasElement(array, array, new_length, elms_obj)) {
     maybe_result = accessor->Get(array, array, new_length, elms_obj);
   } else {
-    maybe_result = array->GetPrototype()->GetElement(len - 1);
+    maybe_result = array->GetPrototype()->GetElement(isolate, len - 1);
   }
   if (maybe_result->IsFailure()) return maybe_result;
   MaybeObject* maybe_failure =
@@ -1253,8 +1253,8 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
   if (!raw_call_data->IsUndefined()) {
     CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
     Object* callback_obj = call_data->callback();
-    v8::InvocationCallback callback =
-        v8::ToCData<v8::InvocationCallback>(callback_obj);
+    v8::FunctionCallback callback =
+        v8::ToCData<v8::FunctionCallback>(callback_obj);
     Object* data_obj = call_data->data();
     Object* result;
 
@@ -1322,8 +1322,8 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
   ASSERT(!handler->IsUndefined());
   CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);
   Object* callback_obj = call_data->callback();
-  v8::InvocationCallback callback =
-      v8::ToCData<v8::InvocationCallback>(callback_obj);
+  v8::FunctionCallback callback =
+      v8::ToCData<v8::FunctionCallback>(callback_obj);
 
   // Get the data for the call and perform the callback.
   Object* result;
@@ -1461,6 +1461,16 @@ static void Generate_StoreIC_Initialize_Strict(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_PreMonomorphic(MacroAssembler* masm) {
+  StoreIC::GeneratePreMonomorphic(masm);
+}
+
+
+static void Generate_StoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
+  StoreIC::GeneratePreMonomorphic(masm);
+}
+
+
 static void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }
@@ -1543,6 +1553,16 @@ static void Generate_KeyedStoreIC_Initialize(MacroAssembler* masm) {
 
 static void Generate_KeyedStoreIC_Initialize_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateInitialize(masm);
+}
+
+
+static void Generate_KeyedStoreIC_PreMonomorphic(MacroAssembler* masm) {
+  KeyedStoreIC::GeneratePreMonomorphic(masm);
+}
+
+
+static void Generate_KeyedStoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
+  KeyedStoreIC::GeneratePreMonomorphic(masm);
 }
 
 
@@ -1717,9 +1737,8 @@ void Builtins::InitBuiltinFunctionTable() {
 }
 
 
-void Builtins::SetUp(bool create_heap_objects) {
+void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   ASSERT(!initialized_);
-  Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
 
   // Create a scope for the handles in the builtins.
@@ -1810,6 +1829,16 @@ const char* Builtins::Lookup(byte* pc) {
     }
   }
   return NULL;
+}
+
+
+void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {
+  masm->TailCallRuntime(Runtime::kInterrupt, 0, 1);
+}
+
+
+void Builtins::Generate_StackCheck(MacroAssembler* masm) {
+  masm->TailCallRuntime(Runtime::kStackGuard, 0, 1);
 }
 
 

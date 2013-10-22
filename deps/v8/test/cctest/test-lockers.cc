@@ -41,7 +41,6 @@
 #include "parser.h"
 #include "unicode-inl.h"
 
-using ::v8::AccessorInfo;
 using ::v8::Context;
 using ::v8::Extension;
 using ::v8::Function;
@@ -130,20 +129,18 @@ class JoinableThread {
  public:
   explicit JoinableThread(const char* name)
     : name_(name),
-      semaphore_(i::OS::CreateSemaphore(0)),
+      semaphore_(0),
       thread_(this) {
   }
 
-  virtual ~JoinableThread() {
-    delete semaphore_;
-  }
+  virtual ~JoinableThread() {}
 
   void Start() {
     thread_.Start();
   }
 
   void Join() {
-    semaphore_->Wait();
+    semaphore_.Wait();
   }
 
   virtual void Run() = 0;
@@ -158,7 +155,7 @@ class JoinableThread {
 
     virtual void Run() {
       joinable_thread_->Run();
-      joinable_thread_->semaphore_->Signal();
+      joinable_thread_->semaphore_.Signal();
     }
 
    private:
@@ -166,7 +163,7 @@ class JoinableThread {
   };
 
   const char* name_;
-  i::Semaphore* semaphore_;
+  i::Semaphore semaphore_;
   ThreadWithSemaphore thread_;
 
   friend class ThreadWithSemaphore;

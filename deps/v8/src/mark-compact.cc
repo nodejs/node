@@ -74,16 +74,18 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       heap_(NULL),
       code_flusher_(NULL),
       encountered_weak_collections_(NULL),
-      code_to_deoptimize_(NULL) { }
+      have_code_to_deoptimize_(false) { }
 
 #ifdef VERIFY_HEAP
 class VerifyMarkingVisitor: public ObjectVisitor {
  public:
+  explicit VerifyMarkingVisitor(Heap* heap) : heap_(heap) {}
+
   void VisitPointers(Object** start, Object** end) {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        CHECK(HEAP->mark_compact_collector()->IsMarked(object));
+        CHECK(heap_->mark_compact_collector()->IsMarked(object));
       }
     }
   }
@@ -97,11 +99,14 @@ class VerifyMarkingVisitor: public ObjectVisitor {
       VisitPointer(rinfo->target_object_address());
     }
   }
+
+ private:
+  Heap* heap_;
 };
 
 
-static void VerifyMarking(Address bottom, Address top) {
-  VerifyMarkingVisitor visitor;
+static void VerifyMarking(Heap* heap, Address bottom, Address top) {
+  VerifyMarkingVisitor visitor(heap);
   HeapObject* object;
   Address next_object_must_be_here_or_later = bottom;
 
@@ -129,7 +134,7 @@ static void VerifyMarking(NewSpace* space) {
     NewSpacePage* page = it.next();
     Address limit = it.has_next() ? page->area_end() : end;
     CHECK(limit == end || !page->Contains(end));
-    VerifyMarking(page->area_start(), limit);
+    VerifyMarking(space->heap(), page->area_start(), limit);
   }
 }
 
@@ -139,7 +144,7 @@ static void VerifyMarking(PagedSpace* space) {
 
   while (it.has_next()) {
     Page* p = it.next();
-    VerifyMarking(p->area_start(), p->area_end());
+    VerifyMarking(space->heap(), p->area_start(), p->area_end());
   }
 }
 
@@ -153,7 +158,7 @@ static void VerifyMarking(Heap* heap) {
   VerifyMarking(heap->map_space());
   VerifyMarking(heap->new_space());
 
-  VerifyMarkingVisitor visitor;
+  VerifyMarkingVisitor visitor(heap);
 
   LargeObjectIterator it(heap->lo_space());
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
@@ -961,22 +966,10 @@ void MarkCompactCollector::Finish() {
   // objects (empty string, illegal builtin).
   isolate()->stub_cache()->Clear();
 
-  if (code_to_deoptimize_ != Smi::FromInt(0)) {
-    // Convert the linked list of Code objects into a ZoneList.
-    Zone zone(isolate());
-    ZoneList<Code*> codes(4, &zone);
-
-    Object *list = code_to_deoptimize_;
-    while (list->IsCode()) {
-      Code *code = Code::cast(list);
-      list = code->code_to_deoptimize_link();
-      codes.Add(code, &zone);
-      // Destroy the link and don't ever try to deoptimize this code again.
-      code->set_code_to_deoptimize_link(Smi::FromInt(0));
-    }
-    code_to_deoptimize_ = Smi::FromInt(0);
-
-    Deoptimizer::DeoptimizeCodeList(isolate(), &codes);
+  if (have_code_to_deoptimize_) {
+    // Some code objects were marked for deoptimization during the GC.
+    Deoptimizer::DeoptimizeMarkedCode(isolate());
+    have_code_to_deoptimize_ = false;
   }
 }
 
@@ -1420,8 +1413,8 @@ class MarkCompactMarkingVisitor
   INLINE(static void VisitUnmarkedObject(MarkCompactCollector* collector,
                                          HeapObject* obj)) {
 #ifdef DEBUG
-    ASSERT(Isolate::Current()->heap()->Contains(obj));
-    ASSERT(!HEAP->mark_compact_collector()->IsMarked(obj));
+    ASSERT(collector->heap()->Contains(obj));
+    ASSERT(!collector->heap()->mark_compact_collector()->IsMarked(obj));
 #endif
     Map* map = obj->map();
     Heap* heap = obj->GetHeap();
@@ -1795,8 +1788,6 @@ void MarkCompactCollector::PrepareThreadForCodeFlushing(Isolate* isolate,
 
 
 void MarkCompactCollector::PrepareForCodeFlushing() {
-  ASSERT(heap() == Isolate::Current()->heap());
-
   // Enable code flushing for non-incremental cycles.
   if (FLAG_flush_code && !FLAG_flush_code_incrementally) {
     EnableCodeFlushing(!was_marked_incrementally_);
@@ -2590,7 +2581,7 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
   for (int i = new_number_of_transitions * step;
        i < number_of_transitions * step;
        i++) {
-    prototype_transitions->set_undefined(heap_, header + i);
+    prototype_transitions->set_undefined(header + i);
   }
 }
 
@@ -2623,16 +2614,9 @@ void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
     ASSERT(entries->is_code_at(i));
     Code* code = entries->code_at(i);
 
-    if (IsMarked(code) && !WillBeDeoptimized(code)) {
-      // Insert the code into the code_to_deoptimize linked list.
-      Object* next = code_to_deoptimize_;
-      if (next != Smi::FromInt(0)) {
-        // Record the slot so that it is updated.
-        Object** slot = code->code_to_deoptimize_link_slot();
-        RecordSlot(slot, slot, next);
-      }
-      code->set_code_to_deoptimize_link(next);
-      code_to_deoptimize_ = code;
+    if (IsMarked(code) && !code->marked_for_deoptimization()) {
+      code->set_marked_for_deoptimization(true);
+      have_code_to_deoptimize_ = true;
     }
     entries->clear_at(i);
   }
@@ -3065,13 +3049,14 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
 };
 
 
-static inline void UpdateSlot(ObjectVisitor* v,
+static inline void UpdateSlot(Isolate* isolate,
+                              ObjectVisitor* v,
                               SlotsBuffer::SlotType slot_type,
                               Address addr) {
   switch (slot_type) {
     case SlotsBuffer::CODE_TARGET_SLOT: {
       RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, NULL);
-      rinfo.Visit(v);
+      rinfo.Visit(isolate, v);
       break;
     }
     case SlotsBuffer::CODE_ENTRY_SLOT: {
@@ -3085,17 +3070,17 @@ static inline void UpdateSlot(ObjectVisitor* v,
     }
     case SlotsBuffer::DEBUG_TARGET_SLOT: {
       RelocInfo rinfo(addr, RelocInfo::DEBUG_BREAK_SLOT, 0, NULL);
-      if (rinfo.IsPatchedDebugBreakSlotSequence()) rinfo.Visit(v);
+      if (rinfo.IsPatchedDebugBreakSlotSequence()) rinfo.Visit(isolate, v);
       break;
     }
     case SlotsBuffer::JS_RETURN_SLOT: {
       RelocInfo rinfo(addr, RelocInfo::JS_RETURN, 0, NULL);
-      if (rinfo.IsPatchedReturnSequence()) rinfo.Visit(v);
+      if (rinfo.IsPatchedReturnSequence()) rinfo.Visit(isolate, v);
       break;
     }
     case SlotsBuffer::EMBEDDED_OBJECT_SLOT: {
       RelocInfo rinfo(addr, RelocInfo::EMBEDDED_OBJECT, 0, NULL);
-      rinfo.Visit(v);
+      rinfo.Visit(isolate, v);
       break;
     }
     default:
@@ -3283,11 +3268,7 @@ void MarkCompactCollector::InvalidateCode(Code* code) {
 
 // Return true if the given code is deoptimized or will be deoptimized.
 bool MarkCompactCollector::WillBeDeoptimized(Code* code) {
-  // We assume the code_to_deoptimize_link is initialized to undefined.
-  // If it is 0, or refers to another Code object, then this code
-  // is already linked, or was already linked into the list.
-  return code->code_to_deoptimize_link() != heap()->undefined_value()
-      || code->marked_for_deoptimization();
+  return code->marked_for_deoptimization();
 }
 
 
@@ -3474,9 +3455,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     }
   }
 
-  // Update the heads of the native contexts list the code to deoptimize list.
+  // Update the head of the native contexts list in the heap.
   updating_visitor.VisitPointer(heap_->native_contexts_list_address());
-  updating_visitor.VisitPointer(&code_to_deoptimize_);
 
   heap_->string_table()->Iterate(&updating_visitor);
 
@@ -4287,7 +4267,8 @@ void SlotsBuffer::UpdateSlots(Heap* heap) {
     } else {
       ++slot_idx;
       ASSERT(slot_idx < idx_);
-      UpdateSlot(&v,
+      UpdateSlot(heap->isolate(),
+                 &v,
                  DecodeSlotType(slot),
                  reinterpret_cast<Address>(slots_[slot_idx]));
     }
@@ -4309,7 +4290,8 @@ void SlotsBuffer::UpdateSlotsWithFilter(Heap* heap) {
       ASSERT(slot_idx < idx_);
       Address pc = reinterpret_cast<Address>(slots_[slot_idx]);
       if (!IsOnInvalidatedCodeObject(pc)) {
-        UpdateSlot(&v,
+        UpdateSlot(heap->isolate(),
+                   &v,
                    DecodeSlotType(slot),
                    reinterpret_cast<Address>(slots_[slot_idx]));
       }

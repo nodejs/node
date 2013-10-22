@@ -26,10 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
-// Flags: --parallel-recompilation --parallel-recompilation-delay=100
+// Flags: --concurrent-recompilation --concurrent-recompilation-delay=100
 
-if (!%IsParallelRecompilationSupported()) {
-  print("Parallel recompilation is disabled. Skipping this test.");
+if (!%IsConcurrentRecompilationSupported()) {
+  print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
 
@@ -42,7 +42,7 @@ assertEquals(0.5, f1(arr, 0));
 assertEquals(0.5, f1(arr, 0));
 
 // Optimized code of f1 depends on initial object and array maps.
-%OptimizeFunctionOnNextCall(f1, "parallel");
+%OptimizeFunctionOnNextCall(f1, "concurrent");
 // Trigger optimization in the background thread
 assertEquals(0.5, f1(arr, 0));
 Object.prototype[1] = 1.5;  // Invalidate current initial object map.

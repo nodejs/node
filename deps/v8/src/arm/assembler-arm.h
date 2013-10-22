@@ -748,10 +748,6 @@ class Assembler : public AssemblerBase {
   // Manages the jump elimination optimization if the second parameter is true.
   int branch_offset(Label* L, bool jump_elimination_allowed);
 
-  // Puts a labels target address at the given position.
-  // The high 8 bits are set to zero.
-  void label_at_put(Label* L, int at_offset);
-
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc, or the object in a mov.
   INLINE(static Address target_pointer_address_at(Address pc));
@@ -902,6 +898,10 @@ class Assembler : public AssemblerBase {
   void mov(Register dst, Register src, SBit s = LeaveCC, Condition cond = al) {
     mov(dst, Operand(src), s, cond);
   }
+
+  // Load the position of the label relative to the generated code object
+  // pointer in a register.
+  void mov_label_offset(Register dst, Label* label);
 
   // ARMv7 instructions for loading a 32 bit immediate in two instructions.
   // This may actually emit a different mov instruction, but on an ARMv7 it
@@ -1561,7 +1561,6 @@ class Assembler : public AssemblerBase {
   void RecordRelocInfo(double data);
   void RecordRelocInfoConstantPoolEntryHelper(const RelocInfo& rinfo);
 
-  friend class RegExpMacroAssemblerARM;
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockConstPoolScope;

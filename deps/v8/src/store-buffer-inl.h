@@ -67,7 +67,7 @@ void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
     if (top >= old_limit_) {
       ASSERT(callback_ != NULL);
       (*callback_)(heap_,
-                   MemoryChunk::FromAnyPointerAddress(addr),
+                   MemoryChunk::FromAnyPointerAddress(heap_, addr),
                    kStoreBufferFullEvent);
     }
   }

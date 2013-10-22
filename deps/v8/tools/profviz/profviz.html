@@ -96,7 +96,7 @@ your computer's performance.">
         or alternatively,<br/>
         Chrome with
         <span class="tt">
-          --no-sandbox --js-flags="--prof --noprof-lazy --log-timer-events
+          --no-sandbox --js-flags="--prof --log-timer-events"
         </span> to produce <span class="tt">v8.log</span>.
       </li>
       <li>
@@ -117,6 +117,11 @@ your computer's performance.">
           command-line utility
         </a> instead.
       </li>
+    </ol>
+    If you expect multiple V8 instances to run concurrently, for example
+    with several tabs in Chrome,<br/>
+    add the V8 flag <span class="tt">--logfile=v8.%p.log</span>
+    so that each instance writes to its own log file.
     </div>
   </div>
 

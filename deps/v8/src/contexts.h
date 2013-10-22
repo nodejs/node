@@ -337,8 +337,10 @@ class Context: public FixedArray {
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
     OPTIMIZED_FUNCTIONS_LIST,  // Weak.
-    MAP_CACHE_INDEX,  // Weak.
-    NEXT_CONTEXT_LINK,  // Weak.
+    OPTIMIZED_CODE_LIST,       // Weak.
+    DEOPTIMIZED_CODE_LIST,     // Weak.
+    MAP_CACHE_INDEX,           // Weak.
+    NEXT_CONTEXT_LINK,         // Weak.
 
     // Total number of slots.
     NATIVE_CONTEXT_SLOTS,
@@ -370,7 +372,7 @@ class Context: public FixedArray {
 
   GlobalObject* global_object() {
     Object* result = get(GLOBAL_OBJECT_INDEX);
-    ASSERT(IsBootstrappingOrGlobalObject(result));
+    ASSERT(IsBootstrappingOrGlobalObject(this->GetIsolate(), result));
     return reinterpret_cast<GlobalObject*>(result);
   }
   void set_global_object(GlobalObject* object) {
@@ -428,11 +430,19 @@ class Context: public FixedArray {
   // Mark the native context with out of memory.
   inline void mark_out_of_memory();
 
-  // A native context hold a list of all functions which have been optimized.
+  // A native context holds a list of all functions with optimized code.
   void AddOptimizedFunction(JSFunction* function);
   void RemoveOptimizedFunction(JSFunction* function);
+  void SetOptimizedFunctionsListHead(Object* head);
   Object* OptimizedFunctionsListHead();
-  void ClearOptimizedFunctions();
+
+  // The native context also stores a list of all optimized code and a
+  // list of all deoptimized code, which are needed by the deoptimizer.
+  void AddOptimizedCode(Code* code);
+  void SetOptimizedCodeListHead(Object* head);
+  Object* OptimizedCodeListHead();
+  void SetDeoptimizedCodeListHead(Object* head);
+  Object* DeoptimizedCodeListHead();
 
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
 
@@ -508,7 +518,7 @@ class Context: public FixedArray {
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
   static bool IsBootstrappingOrValidParentContext(Object* object, Context* kid);
-  static bool IsBootstrappingOrGlobalObject(Object* object);
+  static bool IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object);
 #endif
 
   STATIC_CHECK(kHeaderSize == Internals::kContextHeaderSize);

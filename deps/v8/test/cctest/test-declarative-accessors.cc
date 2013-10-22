@@ -38,11 +38,11 @@ class HandleArray : public Malloced {
  public:
   static const unsigned kArraySize = 200;
   explicit HandleArray() {}
-  ~HandleArray() { Reset(v8::Isolate::GetCurrent()); }
-  void Reset(v8::Isolate* isolate) {
+  ~HandleArray() { Reset(); }
+  void Reset() {
     for (unsigned i = 0; i < kArraySize; i++) {
       if (handles_[i].IsEmpty()) continue;
-      handles_[i].Dispose(isolate);
+      handles_[i].Dispose();
       handles_[i].Clear();
     }
   }
@@ -101,7 +101,7 @@ static v8::Local<v8::ObjectTemplate> CreateConstructor(
   // Setup object template.
   if (descriptor_name != NULL && !descriptor.IsEmpty()) {
     bool added_accessor =
-        obj_template->SetAccessor(v8_str(descriptor_name), descriptor);
+        obj_template->SetDeclaredAccessor(v8_str(descriptor_name), descriptor);
     CHECK(added_accessor);
   }
   obj_template->SetInternalFieldCount((internal_field+1)*2 + 7);
@@ -124,9 +124,9 @@ static void VerifyRead(v8::Handle<v8::DeclaredAccessorDescriptor> descriptor,
       context->Global()->Get(v8_str("accessible")));
   obj->SetAlignedPointerInInternalField(internal_field, internal_object);
   bool added_accessor;
-  added_accessor = obj->SetAccessor(v8_str("y"), descriptor);
+  added_accessor = obj->SetDeclaredAccessor(v8_str("y"), descriptor);
   CHECK(added_accessor);
-  added_accessor = obj->SetAccessor(v8_str("13"), descriptor);
+  added_accessor = obj->SetDeclaredAccessor(v8_str("13"), descriptor);
   CHECK(added_accessor);
   // Test access from template getter.
   v8::Local<v8::Value> value;

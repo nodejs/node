@@ -50,9 +50,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#ifndef WIN32
-#include <stdint.h>
-#endif
 
 #include "v8.h"
 

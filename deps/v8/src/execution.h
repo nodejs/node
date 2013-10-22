@@ -42,7 +42,8 @@ enum InterruptFlag {
   PREEMPT = 1 << 3,
   TERMINATE = 1 << 4,
   GC_REQUEST = 1 << 5,
-  FULL_DEOPT = 1 << 6
+  FULL_DEOPT = 1 << 6,
+  INSTALL_CODE = 1 << 7
 };
 
 
@@ -62,7 +63,8 @@ class Execution : public AllStatic {
   // and the function called is not in strict mode, receiver is converted to
   // an object.
   //
-  static Handle<Object> Call(Handle<Object> callable,
+  static Handle<Object> Call(Isolate* isolate,
+                             Handle<Object> callable,
                              Handle<Object> receiver,
                              int argc,
                              Handle<Object> argv[],
@@ -92,28 +94,36 @@ class Execution : public AllStatic {
                                 bool* caught_exception);
 
   // ECMA-262 9.3
-  static Handle<Object> ToNumber(Handle<Object> obj, bool* exc);
+  static Handle<Object> ToNumber(
+      Isolate* isolate, Handle<Object> obj, bool* exc);
 
   // ECMA-262 9.4
-  static Handle<Object> ToInteger(Handle<Object> obj, bool* exc);
+  static Handle<Object> ToInteger(
+      Isolate* isolate, Handle<Object> obj, bool* exc);
 
   // ECMA-262 9.5
-  static Handle<Object> ToInt32(Handle<Object> obj, bool* exc);
+  static Handle<Object> ToInt32(
+      Isolate* isolate, Handle<Object> obj, bool* exc);
 
   // ECMA-262 9.6
-  static Handle<Object> ToUint32(Handle<Object> obj, bool* exc);
+  static Handle<Object> ToUint32(
+      Isolate* isolate, Handle<Object> obj, bool* exc);
 
   // ECMA-262 9.8
-  static Handle<Object> ToString(Handle<Object> obj, bool* exc);
+  static Handle<Object> ToString(
+      Isolate* isolate, Handle<Object> obj, bool* exc);
 
   // ECMA-262 9.8
-  static Handle<Object> ToDetailString(Handle<Object> obj, bool* exc);
+  static Handle<Object> ToDetailString(
+      Isolate* isolate, Handle<Object> obj, bool* exc);
 
   // ECMA-262 9.9
-  static Handle<Object> ToObject(Handle<Object> obj, bool* exc);
+  static Handle<Object> ToObject(
+      Isolate* isolate, Handle<Object> obj, bool* exc);
 
   // Create a new date object from 'time'.
-  static Handle<Object> NewDate(double time, bool* exc);
+  static Handle<Object> NewDate(
+      Isolate* isolate, double time, bool* exc);
 
   // Create a new regular expression object from 'pattern' and 'flags'.
   static Handle<JSRegExp> NewJSRegExp(Handle<String> pattern,
@@ -128,7 +138,8 @@ class Execution : public AllStatic {
       Handle<FunctionTemplateInfo> data, bool* exc);
   static Handle<JSObject> InstantiateObject(Handle<ObjectTemplateInfo> data,
                                             bool* exc);
-  static void ConfigureInstance(Handle<Object> instance,
+  static void ConfigureInstance(Isolate* isolate,
+                                Handle<Object> instance,
                                 Handle<Object> data,
                                 bool* exc);
   static Handle<String> GetStackTraceLine(Handle<Object> recv,
@@ -136,8 +147,8 @@ class Execution : public AllStatic {
                                           Handle<Object> pos,
                                           Handle<Object> is_global);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  static Object* DebugBreakHelper();
-  static void ProcessDebugMessages(bool debug_command_only);
+  static Object* DebugBreakHelper(Isolate* isolate);
+  static void ProcessDebugMessages(Isolate* isolate, bool debug_command_only);
 #endif
 
   // If the stack guard is triggered, but it is not an actual
@@ -147,14 +158,18 @@ class Execution : public AllStatic {
 
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.
-  static Handle<Object> GetFunctionDelegate(Handle<Object> object);
-  static Handle<Object> TryGetFunctionDelegate(Handle<Object> object,
+  static Handle<Object> GetFunctionDelegate(Isolate* isolate,
+                                            Handle<Object> object);
+  static Handle<Object> TryGetFunctionDelegate(Isolate* isolate,
+                                               Handle<Object> object,
                                                bool* has_pending_exception);
 
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as constructors.
-  static Handle<Object> GetConstructorDelegate(Handle<Object> object);
-  static Handle<Object> TryGetConstructorDelegate(Handle<Object> object,
+  static Handle<Object> GetConstructorDelegate(Isolate* isolate,
+                                               Handle<Object> object);
+  static Handle<Object> TryGetConstructorDelegate(Isolate* isolate,
+                                                  Handle<Object> object,
                                                   bool* has_pending_exception);
 };
 
@@ -199,6 +214,8 @@ class StackGuard {
 #endif
   bool IsGCRequest();
   void RequestGC();
+  bool IsInstallCodeRequest();
+  void RequestInstallCode();
   bool IsFullDeopt();
   void FullDeopt();
   void Continue(InterruptFlag after_what);

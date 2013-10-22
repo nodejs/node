@@ -106,6 +106,8 @@ class V8_EXPORT Debug {
      */
     virtual ClientData* GetClientData() const = 0;
 
+    virtual Isolate* GetIsolate() const = 0;
+
     virtual ~Message() {}
   };
 
@@ -150,21 +152,6 @@ class V8_EXPORT Debug {
     virtual ~EventDetails() {}
   };
 
-
-  /**
-   * Debug event callback function.
-   *
-   * \param event the type of the debug event that triggered the callback
-   *   (enum DebugEvent)
-   * \param exec_state execution state (JavaScript object)
-   * \param event_data event specific data (JavaScript object)
-   * \param data value passed by the user to SetDebugEventListener
-   */
-  typedef void (*EventCallback)(DebugEvent event,
-                                Handle<Object> exec_state,
-                                Handle<Object> event_data,
-                                Handle<Value> data);
-
   /**
    * Debug event callback function.
    *
@@ -179,23 +166,8 @@ class V8_EXPORT Debug {
    * Debug message callback function.
    *
    * \param message the debug message handler message object
-   * \param length length of the message
-   * \param client_data the data value passed when registering the message handler
-
-   * A MessageHandler does not take possession of the message string,
-   * and must not rely on the data persisting after the handler returns.
    *
-   * This message handler is deprecated. Use MessageHandler2 instead.
-   */
-  typedef void (*MessageHandler)(const uint16_t* message, int length,
-                                 ClientData* client_data);
-
-  /**
-   * Debug message callback function.
-   *
-   * \param message the debug message handler message object
-   *
-   * A MessageHandler does not take possession of the message data,
+   * A MessageHandler2 does not take possession of the message data,
    * and must not rely on the data persisting after the handler returns.
    */
   typedef void (*MessageHandler2)(const Message& message);
@@ -210,10 +182,6 @@ class V8_EXPORT Debug {
    */
   typedef void (*DebugMessageDispatchHandler)();
 
-  // Set a C debug event listener.
-  V8_DEPRECATED(static bool SetDebugEventListener(
-      EventCallback that,
-      Handle<Value> data = Handle<Value>()));
   static bool SetDebugEventListener2(EventCallback2 that,
                                      Handle<Value> data = Handle<Value>());
 
@@ -234,16 +202,12 @@ class V8_EXPORT Debug {
   // Break execution of JavaScript in the given isolate (this method
   // can be invoked from a non-VM thread) for further client command
   // execution on a VM thread. Client data is then passed in
-  // EventDetails to EventCallback at the moment when the VM actually
+  // EventDetails to EventCallback2 at the moment when the VM actually
   // stops. If no isolate is provided the default isolate is used.
   static void DebugBreakForCommand(ClientData* data = NULL,
                                    Isolate* isolate = NULL);
 
-  // Message based interface. The message protocol is JSON. NOTE the message
-  // handler thread is not supported any more parameter must be false.
-  V8_DEPRECATED(static void SetMessageHandler(
-      MessageHandler handler,
-      bool message_handler_thread = false));
+  // Message based interface. The message protocol is JSON.
   static void SetMessageHandler2(MessageHandler2 handler);
 
   // If no isolate is provided the default isolate is

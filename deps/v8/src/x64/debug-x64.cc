@@ -50,7 +50,7 @@ bool BreakLocationIterator::IsDebugBreakAtReturn()  {
 void BreakLocationIterator::SetDebugBreakAtReturn()  {
   ASSERT(Assembler::kJSReturnSequenceLength >= Assembler::kCallSequenceLength);
   rinfo()->PatchCodeWithCall(
-      Isolate::Current()->debug()->debug_break_return()->entry(),
+      debug_info_->GetIsolate()->debug()->debug_break_return()->entry(),
       Assembler::kJSReturnSequenceLength - Assembler::kCallSequenceLength);
 }
 
@@ -80,7 +80,7 @@ bool BreakLocationIterator::IsDebugBreakAtSlot() {
 void BreakLocationIterator::SetDebugBreakAtSlot() {
   ASSERT(IsDebugBreakSlot());
   rinfo()->PatchCodeWithCall(
-      Isolate::Current()->debug()->debug_break_slot()->entry(),
+      debug_info_->GetIsolate()->debug()->debug_break_slot()->entry(),
       Assembler::kDebugBreakSlotLength - Assembler::kCallSequenceLength);
 }
 
@@ -123,14 +123,8 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       if ((object_regs & (1 << r)) != 0) {
         __ push(reg);
       }
-      // Store the 64-bit value as two smis.
       if ((non_object_regs & (1 << r)) != 0) {
-        __ movq(kScratchRegister, reg);
-        __ Integer32ToSmi(reg, reg);
-        __ push(reg);
-        __ sar(kScratchRegister, Immediate(32));
-        __ Integer32ToSmi(kScratchRegister, kScratchRegister);
-        __ push(kScratchRegister);
+        __ PushInt64AsTwoSmis(reg);
       }
     }
 
@@ -155,12 +149,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       }
       // Reconstruct the 64-bit value from two smis.
       if ((non_object_regs & (1 << r)) != 0) {
-        __ pop(kScratchRegister);
-        __ SmiToInteger32(kScratchRegister, kScratchRegister);
-        __ shl(kScratchRegister, Immediate(32));
-        __ pop(reg);
-        __ SmiToInteger32(reg, reg);
-        __ or_(reg, kScratchRegister);
+        __ PopInt64AsTwoSmis(reg);
       }
     }
 

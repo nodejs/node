@@ -103,7 +103,8 @@ void ExternalizeStringExtension::Externalize(
         reinterpret_cast<char*>(data), string->length());
     result = string->MakeExternal(resource);
     if (result && !string->IsInternalizedString()) {
-      HEAP->external_string_table()->AddString(*string);
+      i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
+      isolate->heap()->external_string_table()->AddString(*string);
     }
     if (!result) delete resource;
   } else {
@@ -113,7 +114,8 @@ void ExternalizeStringExtension::Externalize(
         data, string->length());
     result = string->MakeExternal(resource);
     if (result && !string->IsInternalizedString()) {
-      HEAP->external_string_table()->AddString(*string);
+      i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
+      isolate->heap()->external_string_table()->AddString(*string);
     }
     if (!result) delete resource;
   }

@@ -106,15 +106,6 @@ void CPU::FlushICache(void* start, size_t size) {
 #endif
 }
 
-
-void CPU::DebugBreak() {
-#if !defined (__arm__)
-  UNIMPLEMENTED();  // when building ARM emulator target
-#else
-  asm volatile("bkpt 0");
-#endif
-}
-
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_ARM

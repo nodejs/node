@@ -56,8 +56,8 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
       line_number_(line_number),
       shared_id_(0),
       script_id_(v8::Script::kNoScriptId),
-      no_frame_ranges_(NULL) {
-}
+      no_frame_ranges_(NULL),
+      bailout_reason_(kEmptyBailoutReason) { }
 
 
 bool CodeEntry::is_js_function_tag(Logger::LogEventsAndTags tag) {
@@ -73,11 +73,9 @@ bool CodeEntry::is_js_function_tag(Logger::LogEventsAndTags tag) {
 ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
     : tree_(tree),
       entry_(entry),
-      total_ticks_(0),
       self_ticks_(0),
       children_(CodeEntriesMatch),
-      id_(tree->next_node_id()) {
-}
+      id_(tree->next_node_id()) { }
 
 
 CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {

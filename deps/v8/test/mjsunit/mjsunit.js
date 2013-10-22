@@ -100,7 +100,7 @@ var assertInstanceof;
 var assertUnreachable;
 
 // Assert that the function code is (not) optimized.  If "no sync" is passed
-// as second argument, we do not wait for the parallel optimization thread to
+// as second argument, we do not wait for the concurrent optimization thread to
 // finish when polling for optimization status.
 // Only works with --allow-natives-syntax.
 var assertOptimized;

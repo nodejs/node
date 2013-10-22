@@ -38,7 +38,7 @@ namespace internal {
 class LCodeGen;
 class LGapResolver;
 
-class LGapResolver BASE_EMBEDDED {
+class LGapResolver V8_FINAL BASE_EMBEDDED {
  public:
   explicit LGapResolver(LCodeGen* owner);
 

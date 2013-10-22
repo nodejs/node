@@ -48,6 +48,8 @@ namespace internal {
 // invalidate the cache whenever a prototype map is changed.  The stub
 // validates the map chain as in the mono-morphic case.
 
+
+class CallOptimization;
 class SmallMapList;
 class StubCache;
 
@@ -102,20 +104,20 @@ class StubCache {
                                 Code::StubType type,
                                 StrictModeFlag strict_mode);
 
-  Handle<Code> ComputeMonomorphicLoadIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicLoadIC(Handle<HeapObject> receiver,
                                         Handle<Code> handler,
                                         Handle<Name> name);
 
-  Handle<Code> ComputeMonomorphicKeyedLoadIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicKeyedLoadIC(Handle<HeapObject> receiver,
                                              Handle<Code> handler,
                                              Handle<Name> name);
 
-  Handle<Code> ComputeMonomorphicStoreIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicStoreIC(Handle<HeapObject> receiver,
                                          Handle<Code> handler,
                                          Handle<Name> name,
                                          StrictModeFlag strict_mode);
 
-  Handle<Code> ComputeMonomorphicKeyedStoreIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicKeyedStoreIC(Handle<HeapObject> receiver,
                                               Handle<Code> handler,
                                               Handle<Name> name,
                                               StrictModeFlag strict_mode);
@@ -135,6 +137,11 @@ class StubCache {
                                    Handle<JSObject> object,
                                    Handle<JSObject> holder,
                                    Handle<ExecutableAccessorInfo> callback);
+
+  Handle<Code> ComputeLoadCallback(Handle<Name> name,
+                                   Handle<JSObject> object,
+                                   Handle<JSObject> holder,
+                                   const CallOptimization& call_optimization);
 
   Handle<Code> ComputeLoadViaGetter(Handle<Name> name,
                                     Handle<JSObject> object,
@@ -173,6 +180,12 @@ class StubCache {
       Handle<JSObject> holder,
       Handle<ExecutableAccessorInfo> callback);
 
+  Handle<Code> ComputeKeyedLoadCallback(
+      Handle<Name> name,
+      Handle<JSObject> object,
+      Handle<JSObject> holder,
+      const CallOptimization& call_optimization);
+
   Handle<Code> ComputeKeyedLoadConstant(Handle<Name> name,
                                         Handle<JSObject> object,
                                         Handle<JSObject> holder,
@@ -207,6 +220,12 @@ class StubCache {
                                     Handle<JSObject> object,
                                     Handle<JSObject> holder,
                                     Handle<ExecutableAccessorInfo> callback,
+                                    StrictModeFlag strict_mode);
+
+  Handle<Code> ComputeStoreCallback(Handle<Name> name,
+                                    Handle<JSObject> object,
+                                    Handle<JSObject> holder,
+                                    const CallOptimization& call_optimation,
                                     StrictModeFlag strict_mode);
 
   Handle<Code> ComputeStoreViaSetter(Handle<Name> name,
@@ -388,6 +407,16 @@ class StubCache {
   Isolate* isolate() { return isolate_; }
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
+
+  // These constants describe the structure of the interceptor arguments on the
+  // stack. The arguments are pushed by the (platform-specific)
+  // PushInterceptorArguments and read by LoadPropertyWithInterceptorOnly and
+  // LoadWithInterceptor.
+  static const int kInterceptorArgsNameIndex = 0;
+  static const int kInterceptorArgsInfoIndex = 1;
+  static const int kInterceptorArgsThisIndex = 2;
+  static const int kInterceptorArgsHolderIndex = 3;
+  static const int kInterceptorArgsLength = 4;
 
  private:
   explicit StubCache(Isolate* isolate);
@@ -705,6 +734,11 @@ class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
                                    Handle<Name> name,
                                    Handle<ExecutableAccessorInfo> callback);
 
+  Handle<Code> CompileLoadCallback(Handle<JSObject> object,
+                                   Handle<JSObject> holder,
+                                   Handle<Name> name,
+                                   const CallOptimization& call_optimization);
+
   Handle<Code> CompileLoadConstant(Handle<JSObject> object,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
@@ -730,7 +764,7 @@ class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    Label* success,
-                                   Handle<ExecutableAccessorInfo> callback);
+                                   Handle<Object> callback);
   void NonexistentHandlerFrontend(Handle<JSObject> object,
                                   Handle<JSObject> last,
                                   Handle<Name> name,
@@ -744,6 +778,7 @@ class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
   void GenerateLoadConstant(Handle<Object> value);
   void GenerateLoadCallback(Register reg,
                             Handle<ExecutableAccessorInfo> callback);
+  void GenerateLoadCallback(const CallOptimization& call_optimization);
   void GenerateLoadInterceptor(Register holder_reg,
                                Handle<JSObject> object,
                                Handle<JSObject> holder,
@@ -941,6 +976,11 @@ class StoreStubCompiler: public BaseStoreStubCompiler {
                                     Handle<Name> name,
                                     Handle<ExecutableAccessorInfo> callback);
 
+  Handle<Code> CompileStoreCallback(Handle<JSObject> object,
+                                    Handle<JSObject> holder,
+                                    Handle<Name> name,
+                                    const CallOptimization& call_optimization);
+
   static void GenerateStoreViaSetter(MacroAssembler* masm,
                                      Handle<JSFunction> setter);
 
@@ -951,10 +991,6 @@ class StoreStubCompiler: public BaseStoreStubCompiler {
 
   Handle<Code> CompileStoreInterceptor(Handle<JSObject> object,
                                        Handle<Name> name);
-
-  Handle<Code> CompileStoreGlobal(Handle<GlobalObject> object,
-                                  Handle<PropertyCell> holder,
-                                  Handle<Name> name);
 
  private:
   static Register* registers();
@@ -983,18 +1019,6 @@ class KeyedStoreStubCompiler: public BaseStoreStubCompiler {
                                        MapHandleList* transitioned_maps);
 
   Handle<Code> CompileStoreElementPolymorphic(MapHandleList* receiver_maps);
-
-  static void GenerateStoreFastElement(MacroAssembler* masm,
-                                       bool is_js_array,
-                                       ElementsKind element_kind,
-                                       KeyedAccessStoreMode store_mode);
-
-  static void GenerateStoreFastDoubleElement(MacroAssembler* masm,
-                                             bool is_js_array,
-                                             KeyedAccessStoreMode store_mode);
-
-  static void GenerateStoreExternalArray(MacroAssembler* masm,
-                                         ElementsKind elements_kind);
 
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 
@@ -1039,8 +1063,6 @@ class KeyedStoreStubCompiler: public BaseStoreStubCompiler {
 #define SITE_SPECIFIC_CALL_GENERATORS(V)        \
   V(ArrayCode)
 
-
-class CallOptimization;
 
 class CallStubCompiler: public StubCompiler {
  public:
@@ -1172,6 +1194,12 @@ class CallOptimization BASE_EMBEDDED {
   // prototype chain between the two arguments.
   int GetPrototypeDepthOfExpectedType(Handle<JSObject> object,
                                       Handle<JSObject> holder) const;
+
+  bool IsCompatibleReceiver(Object* receiver) {
+    ASSERT(is_simple_api_call());
+    if (expected_receiver_type_.is_null()) return true;
+    return receiver->IsInstanceOf(*expected_receiver_type_);
+  }
 
  private:
   void Initialize(Handle<JSFunction> function);

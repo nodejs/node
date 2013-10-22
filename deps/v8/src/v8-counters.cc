@@ -49,31 +49,31 @@ Counters::Counters(Isolate* isolate) {
 #undef HM
 
 #define SC(name, caption) \
-    name##_ = StatsCounter("c:" #caption);
+    name##_ = StatsCounter(isolate, "c:" #caption);
 
     STATS_COUNTER_LIST_1(SC)
     STATS_COUNTER_LIST_2(SC)
 #undef SC
 
 #define SC(name) \
-    count_of_##name##_ = StatsCounter("c:" "V8.CountOf_" #name); \
-    size_of_##name##_ = StatsCounter("c:" "V8.SizeOf_" #name);
+    count_of_##name##_ = StatsCounter(isolate, "c:" "V8.CountOf_" #name); \
+    size_of_##name##_ = StatsCounter(isolate, "c:" "V8.SizeOf_" #name);
     INSTANCE_TYPE_LIST(SC)
 #undef SC
 
 #define SC(name) \
     count_of_CODE_TYPE_##name##_ = \
-        StatsCounter("c:" "V8.CountOf_CODE_TYPE-" #name); \
+        StatsCounter(isolate, "c:" "V8.CountOf_CODE_TYPE-" #name); \
     size_of_CODE_TYPE_##name##_ = \
-        StatsCounter("c:" "V8.SizeOf_CODE_TYPE-" #name);
+        StatsCounter(isolate, "c:" "V8.SizeOf_CODE_TYPE-" #name);
     CODE_KIND_LIST(SC)
 #undef SC
 
 #define SC(name) \
     count_of_FIXED_ARRAY_##name##_ = \
-        StatsCounter("c:" "V8.CountOf_FIXED_ARRAY-" #name); \
+        StatsCounter(isolate, "c:" "V8.CountOf_FIXED_ARRAY-" #name); \
     size_of_FIXED_ARRAY_##name##_ = \
-        StatsCounter("c:" "V8.SizeOf_FIXED_ARRAY-" #name);
+        StatsCounter(isolate, "c:" "V8.SizeOf_FIXED_ARRAY-" #name);
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 }

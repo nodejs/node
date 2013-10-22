@@ -104,11 +104,6 @@ class DuplicateFinder {
 };
 
 
-#ifdef WIN32
-#undef Yield
-#endif
-
-
 class PreParser {
  public:
   enum PreParseResult {

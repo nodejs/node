@@ -157,7 +157,7 @@ CounterMap* Shell::counter_map_;
 i::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
 CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
-i::Mutex* Shell::context_mutex_(i::OS::CreateMutex());
+i::Mutex Shell::context_mutex_;
 Persistent<Context> Shell::utility_context_;
 #endif  // V8_SHARED
 
@@ -271,10 +271,10 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
 PerIsolateData::RealmScope::~RealmScope() {
   // Drop realms to avoid keeping them alive.
   for (int i = 0; i < data_->realm_count_; ++i)
-    data_->realms_[i].Dispose(data_->isolate_);
+    data_->realms_[i].Dispose();
   delete[] data_->realms_;
   if (!data_->realm_shared_.IsEmpty())
-    data_->realm_shared_.Dispose(data_->isolate_);
+    data_->realm_shared_.Dispose();
 }
 
 
@@ -361,7 +361,7 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw("Invalid realm index");
     return;
   }
-  data->realms_[index].Dispose(isolate);
+  data->realms_[index].Dispose();
   data->realms_[index].Clear();
 }
 
@@ -420,7 +420,7 @@ void Shell::RealmSharedSet(Local<String> property,
                            const PropertyCallbackInfo<void>& info) {
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  if (!data->realm_shared_.IsEmpty()) data->realm_shared_.Dispose(isolate);
+  if (!data->realm_shared_.IsEmpty()) data->realm_shared_.Dispose();
   data->realm_shared_.Reset(isolate, value);
 }
 
@@ -766,13 +766,14 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (i::FLAG_debugger) printf("JavaScript debugger enabled\n");
   // Install the debugger object in the utility scope
-  i::Debug* debug = i::Isolate::Current()->debug();
+  i::Debug* debug = reinterpret_cast<i::Isolate*>(isolate)->debug();
   debug->Load();
   i::Handle<i::JSObject> js_debug
       = i::Handle<i::JSObject>(debug->debug_context()->global_object());
   utility_context->Global()->Set(String::New("$debug"),
                                   Utils::ToLocal(js_debug));
-  debug->debug_context()->set_security_token(HEAP->undefined_value());
+  debug->debug_context()->set_security_token(
+      reinterpret_cast<i::Isolate*>(isolate)->heap()->undefined_value());
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
   // Run the d8 shell utility script in the utility context
@@ -925,7 +926,7 @@ void Shell::InitializeDebugger(Isolate* isolate) {
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
 #ifndef V8_SHARED
   // This needs to be a critical section since this is not thread-safe
-  i::ScopedLock lock(context_mutex_);
+  i::LockGuard<i::Mutex> lock_guard(&context_mutex_);
 #endif  // V8_SHARED
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
@@ -935,7 +936,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   Context::Scope scope(context);
 
 #ifndef V8_SHARED
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = reinterpret_cast<i::Isolate*>(isolate)->factory();
   i::JSArguments js_args = i::FLAG_js_arguments;
   i::Handle<i::FixedArray> arguments_array =
       factory->NewFixedArray(js_args.argc());
@@ -1011,7 +1012,6 @@ void Shell::OnExit() {
            "-------------+\n");
     delete [] counters;
   }
-  delete context_mutex_;
   delete counters_file_;
   delete counter_map_;
 #endif  // V8_SHARED
@@ -1221,10 +1221,6 @@ void ShellThread::Run() {
 
 SourceGroup::~SourceGroup() {
 #ifndef V8_SHARED
-  delete next_semaphore_;
-  next_semaphore_ = NULL;
-  delete done_semaphore_;
-  done_semaphore_ = NULL;
   delete thread_;
   thread_ = NULL;
 #endif  // V8_SHARED
@@ -1285,7 +1281,7 @@ i::Thread::Options SourceGroup::GetThreadOptions() {
 void SourceGroup::ExecuteInThread() {
   Isolate* isolate = Isolate::New();
   do {
-    if (next_semaphore_ != NULL) next_semaphore_->Wait();
+    next_semaphore_.Wait();
     {
       Isolate::Scope iscope(isolate);
       Locker lock(isolate);
@@ -1305,7 +1301,7 @@ void SourceGroup::ExecuteInThread() {
         V8::IdleNotification(kLongIdlePauseInMs);
       }
     }
-    if (done_semaphore_ != NULL) done_semaphore_->Signal();
+    done_semaphore_.Signal();
   } while (!Shell::options.last_run);
   isolate->Dispose();
 }
@@ -1316,7 +1312,7 @@ void SourceGroup::StartExecuteInThread() {
     thread_ = new IsolateThread(this);
     thread_->Start();
   }
-  next_semaphore_->Signal();
+  next_semaphore_.Signal();
 }
 
 
@@ -1325,7 +1321,7 @@ void SourceGroup::WaitForThread() {
   if (Shell::options.last_run) {
     thread_->Join();
   } else {
-    done_semaphore_->Wait();
+    done_semaphore_.Wait();
   }
 }
 #endif  // V8_SHARED
@@ -1556,11 +1552,10 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 
 #ifdef V8_SHARED
 static void SetStandaloneFlagsViaCommandLine() {
-  int fake_argc = 3;
-  char **fake_argv = new char*[3];
+  int fake_argc = 2;
+  char **fake_argv = new char*[2];
   fake_argv[0] = NULL;
-  fake_argv[1] = strdup("--harmony-typed-arrays");
-  fake_argv[2] = strdup("--trace-hydrogen-file=hydrogen.cfg");
+  fake_argv[1] = strdup("--trace-hydrogen-file=hydrogen.cfg");
   v8::V8::SetFlagsFromCommandLine(&fake_argc, fake_argv, false);
   free(fake_argv[1]);
   delete[] fake_argv;
@@ -1649,8 +1644,6 @@ int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU();
 #ifndef V8_SHARED
-  i::FLAG_harmony_array_buffer = true;
-  i::FLAG_harmony_typed_arrays = true;
   i::FLAG_trace_hydrogen_file = "hydrogen.cfg";
 #else
   SetStandaloneFlagsViaCommandLine();

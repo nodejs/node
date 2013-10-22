@@ -154,7 +154,8 @@ static void CopyObjectToObjectElements(FixedArrayBase* from_base,
                                        ElementsKind to_kind,
                                        uint32_t to_start,
                                        int raw_copy_size) {
-  ASSERT(to_base->map() != HEAP->fixed_cow_array_map());
+  ASSERT(to_base->map() !=
+      from_base->GetIsolate()->heap()->fixed_cow_array_map());
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
@@ -492,7 +493,6 @@ static void TraceTopFrame(Isolate* isolate) {
   }
   StackFrame* raw_frame = it.frame();
   if (raw_frame->is_internal()) {
-    Isolate* isolate = Isolate::Current();
     Code* apply_builtin = isolate->builtins()->builtin(
         Builtins::kFunctionApply);
     if (raw_frame->unchecked_code() == apply_builtin) {
@@ -581,14 +581,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     // When objects are first allocated, its elements are Failures.
     if (fixed_array_base->IsFailure()) return;
     if (!fixed_array_base->IsHeapObject()) return;
-    Map* map = fixed_array_base->map();
     // Arrays that have been shifted in place can't be verified.
-    Heap* heap = holder->GetHeap();
-    if (map == heap->one_pointer_filler_map() ||
-        map == heap->two_pointer_filler_map() ||
-        map == heap->free_space_map()) {
-      return;
-    }
+    if (fixed_array_base->IsFiller()) return;
     int length = 0;
     if (holder->IsJSArray()) {
       Object* length_obj = JSArray::cast(holder)->length();

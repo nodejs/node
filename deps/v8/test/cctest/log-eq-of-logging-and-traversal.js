@@ -39,7 +39,7 @@ function parseState(s) {
 function LogProcessor() {
   LogReader.call(this, {
       'code-creation': {
-          parsers: [null, parseInt, parseInt, null, 'var-args'],
+          parsers: [null, parseInt, parseInt, parseInt, null, 'var-args'],
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },
@@ -55,8 +55,12 @@ function LogProcessor() {
 LogProcessor.prototype.__proto__ = LogReader.prototype;
 
 LogProcessor.prototype.processCodeCreation = function(
-    type, start, size, name, maybe_func) {
+    type, kind, start, size, name, maybe_func) {
   if (type != "LazyCompile" && type != "Script" && type != "Function") return;
+  // Scripts will compile into anonymous functions starting at 1:1. Adjust the
+  // name here so that it matches corrsponding function's name during the heap
+  // traversal.
+  if (type == "Script") name = " :1:1";
   // Discard types to avoid discrepancies in "LazyCompile" vs. "Function".
   type = "";
   if (maybe_func.length) {

@@ -561,13 +561,21 @@
                 'cflags!': [
                   '-O0',
                   '-O1',
-                  '-O2',
                   '-Os',
                 ],
                 'cflags': [
                   '-fdata-sections',
                   '-ffunction-sections',
-                  '-O3',
+                ],
+                'conditions': [
+                  # TODO(crbug.com/272548): Avoid -O3 in NaCl
+                  ['nacl_target_arch=="none"', {
+                    'cflags': ['-O3'],
+                    'cflags!': ['-O2'],
+                    }, {
+                    'cflags': ['-O2'],
+                    'cflags!': ['-O3'],
+                  }],
                 ],
               }],
               ['v8_optimized_debug!=0 and gcc_version==44 and clang==0', {
@@ -614,13 +622,11 @@
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags!': [
-              '-O2',
               '-Os',
             ],
             'cflags': [
               '-fdata-sections',
               '-ffunction-sections',
-              '-O3',
               '<(wno_array_bounds)',
             ],
             'conditions': [
@@ -629,6 +635,14 @@
                   # Avoid crashes with gcc 4.4 in the v8 test suite.
                   '-fno-tree-vrp',
                 ],
+              }],
+              # TODO(crbug.com/272548): Avoid -O3 in NaCl
+              ['nacl_target_arch=="none"', {
+                'cflags': ['-O3'],
+                'cflags!': ['-O2'],
+              }, {
+                'cflags': ['-O2'],
+                'cflags!': ['-O3'],
               }],
             ],
           }],

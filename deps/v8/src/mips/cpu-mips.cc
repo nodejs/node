@@ -87,14 +87,6 @@ void CPU::FlushICache(void* start, size_t size) {
 #endif  // USE_SIMULATOR.
 }
 
-
-void CPU::DebugBreak() {
-#ifdef __mips
-  asm volatile("break");
-#endif  // #ifdef __mips
-}
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_MIPS

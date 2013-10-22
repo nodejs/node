@@ -39,9 +39,9 @@ MarkingThread::MarkingThread(Isolate* isolate)
      : Thread("MarkingThread"),
        isolate_(isolate),
        heap_(isolate->heap()),
-       start_marking_semaphore_(OS::CreateSemaphore(0)),
-       end_marking_semaphore_(OS::CreateSemaphore(0)),
-       stop_semaphore_(OS::CreateSemaphore(0)) {
+       start_marking_semaphore_(0),
+       end_marking_semaphore_(0),
+       stop_semaphore_(0) {
   NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
   id_ = NoBarrier_AtomicIncrement(&id_counter_, 1);
 }
@@ -57,33 +57,33 @@ void MarkingThread::Run() {
   DisallowHandleDereference no_deref;
 
   while (true) {
-    start_marking_semaphore_->Wait();
+    start_marking_semaphore_.Wait();
 
     if (Acquire_Load(&stop_thread_)) {
-      stop_semaphore_->Signal();
+      stop_semaphore_.Signal();
       return;
     }
 
-    end_marking_semaphore_->Signal();
+    end_marking_semaphore_.Signal();
   }
 }
 
 
 void MarkingThread::Stop() {
   Release_Store(&stop_thread_, static_cast<AtomicWord>(true));
-  start_marking_semaphore_->Signal();
-  stop_semaphore_->Wait();
+  start_marking_semaphore_.Signal();
+  stop_semaphore_.Wait();
   Join();
 }
 
 
 void MarkingThread::StartMarking() {
-  start_marking_semaphore_->Signal();
+  start_marking_semaphore_.Signal();
 }
 
 
 void MarkingThread::WaitForMarkingThread() {
-  end_marking_semaphore_->Wait();
+  end_marking_semaphore_.Wait();
 }
 
 } }  // namespace v8::internal

@@ -71,6 +71,10 @@ typedef v8::internal::EnumSet<CcTestExtensionIds> CcTestExtensionFlags;
   EXTENSION_LIST(DEFINE_EXTENSION_FLAG)
 #undef DEFINE_EXTENSION_FLAG
 
+// Temporary macros for accessing current isolate and its subobjects.
+// They provide better readability, especially when used a lot in the code.
+#define HEAP (v8::internal::Isolate::Current()->heap())
+
 class CcTest {
  public:
   typedef void (TestFunction)();
@@ -90,6 +94,10 @@ class CcTest {
   }
 
   static v8::Isolate* isolate() { return default_isolate_; }
+
+  static i::Isolate* i_isolate() {
+    return reinterpret_cast<i::Isolate*>(default_isolate_);
+  }
 
   // Helper function to initialize the VM.
   static void InitializeVM(CcTestExtensionFlags extensions = NO_EXTENSIONS);
@@ -144,10 +152,10 @@ class ApiTestFuzzer: public v8::internal::Thread {
   explicit ApiTestFuzzer(int num)
       : Thread("ApiTestFuzzer"),
         test_number_(num),
-        gate_(v8::internal::OS::CreateSemaphore(0)),
+        gate_(0),
         active_(true) {
   }
-  ~ApiTestFuzzer() { delete gate_; }
+  ~ApiTestFuzzer() {}
 
   static bool fuzzing_;
   static int tests_being_run_;
@@ -155,11 +163,11 @@ class ApiTestFuzzer: public v8::internal::Thread {
   static int active_tests_;
   static bool NextThread();
   int test_number_;
-  v8::internal::Semaphore* gate_;
+  v8::internal::Semaphore gate_;
   bool active_;
   void ContextSwitch();
   static int GetNextTestNumber();
-  static v8::internal::Semaphore* all_tests_done_;
+  static v8::internal::Semaphore all_tests_done_;
 };
 
 

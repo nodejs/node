@@ -268,6 +268,11 @@ List<const char*>* FlagList::argv() {
 }
 
 
+inline char NormalizeChar(char ch) {
+  return ch == '_' ? '-' : ch;
+}
+
+
 // Helper function to parse flags: Takes an argument arg and splits it into
 // a flag name and flag value (or NULL if they are missing). is_bool is set
 // if the arg started with "-no" or "--no". The buffer may be used to NUL-
@@ -295,6 +300,7 @@ static void SplitArgument(const char* arg,
     }
     if (arg[0] == 'n' && arg[1] == 'o') {
       arg += 2;  // remove "no"
+      if (NormalizeChar(arg[0]) == '-') arg++;  // remove dash after "no".
       *is_bool = true;
     }
     *name = arg;
@@ -315,11 +321,6 @@ static void SplitArgument(const char* arg,
       *value = arg + 1;
     }
   }
-}
-
-
-inline char NormalizeChar(char ch) {
-  return ch == '_' ? '-' : ch;
 }
 
 

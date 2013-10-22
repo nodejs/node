@@ -67,12 +67,29 @@ void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
 }
 
 
-TickSample* ProfilerEventsProcessor::TickSampleEvent() {
+TickSample* CpuProfiler::StartTickSample() {
+  if (is_profiling_) return processor_->StartTickSample();
+  return NULL;
+}
+
+
+void CpuProfiler::FinishTickSample() {
+  processor_->FinishTickSample();
+}
+
+
+TickSample* ProfilerEventsProcessor::StartTickSample() {
+  void* address = ticks_buffer_.StartEnqueue();
+  if (address == NULL) return NULL;
   TickSampleEventRecord* evt =
-      new(ticks_buffer_.Enqueue()) TickSampleEventRecord(last_code_event_id_);
+      new(address) TickSampleEventRecord(last_code_event_id_);
   return &evt->sample;
 }
 
+
+void ProfilerEventsProcessor::FinishTickSample() {
+  ticks_buffer_.FinishEnqueue();
+}
 
 } }  // namespace v8::internal
 

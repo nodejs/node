@@ -291,9 +291,8 @@ JsHttpRequestProcessor::~JsHttpRequestProcessor() {
   // Dispose the persistent handles.  When noone else has any
   // references to the objects stored in the handles they will be
   // automatically reclaimed.
-  Isolate* isolate = GetIsolate();
-  context_.Dispose(isolate);
-  process_.Dispose(isolate);
+  context_.Dispose();
+  process_.Dispose();
 }
 
 

@@ -140,8 +140,8 @@ class SourceGroup {
  public:
   SourceGroup() :
 #ifndef V8_SHARED
-      next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
-      done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+      next_semaphore_(0),
+      done_semaphore_(0),
       thread_(NULL),
 #endif  // V8_SHARED
       argv_(NULL),
@@ -180,8 +180,8 @@ class SourceGroup {
   static i::Thread::Options GetThreadOptions();
   void ExecuteInThread();
 
-  i::Semaphore* next_semaphore_;
-  i::Semaphore* done_semaphore_;
+  i::Semaphore next_semaphore_;
+  i::Semaphore done_semaphore_;
   i::Thread* thread_;
 #endif  // V8_SHARED
 
@@ -390,7 +390,7 @@ class Shell : public i::AllStatic {
   static CounterCollection local_counters_;
   static CounterCollection* counters_;
   static i::OS::MemoryMappedFile* counters_file_;
-  static i::Mutex* context_mutex_;
+  static i::Mutex context_mutex_;
 
   static Counter* GetCounter(const char* name, bool is_histogram);
   static void InstallUtilityScript(Isolate* isolate);
@@ -400,8 +400,8 @@ class Shell : public i::AllStatic {
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
   static Handle<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
-  static Handle<FunctionTemplate> CreateArrayBufferTemplate(InvocationCallback);
-  static Handle<FunctionTemplate> CreateArrayTemplate(InvocationCallback);
+  static Handle<FunctionTemplate> CreateArrayBufferTemplate(FunctionCallback);
+  static Handle<FunctionTemplate> CreateArrayTemplate(FunctionCallback);
   static Handle<Value> CreateExternalArrayBuffer(Isolate* isolate,
                                                  Handle<Object> buffer,
                                                  int32_t size);

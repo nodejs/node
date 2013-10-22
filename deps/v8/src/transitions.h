@@ -119,7 +119,8 @@ class TransitionArray: public FixedArray {
   inline int Search(Name* name);
 
   // Allocates a TransitionArray.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_transitions);
+  MUST_USE_RESULT static MaybeObject* Allocate(
+      Isolate* isolate, int number_of_transitions);
 
   bool IsSimpleTransition() {
     return length() == kSimpleTransitionSize &&

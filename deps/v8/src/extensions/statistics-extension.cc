@@ -60,7 +60,7 @@ static void AddNumber(v8::Local<v8::Object> object,
 
 void StatisticsExtension::GetCounters(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
   Heap* heap = isolate->heap();
 
   if (args.Length() > 0) {  // GC if first argument evaluates to true.

@@ -30,25 +30,34 @@
 Debug = debug.Debug
 
 function DebuggerStatement() {
-  debugger;
+  debugger;  /*pause*/
 }
 
-function TestCase(fun) {
+function TestCase(fun, frame_number) {
   var exception = false;
   var codeSnippet = undefined;
   var resultPositions = undefined;
 
   function listener(event, exec_state, event_data, data) {
     try {
-      if (event == Debug.DebugEvent.Break) {
+      if (event == Debug.DebugEvent.Break ||
+          event == Debug.DebugEvent.Exception) {
         Debug.setListener(null);
-
-        var secondFrame = exec_state.frame(1);
-        codeSnippet = secondFrame.sourceLineText();
-        resultPositions = secondFrame.stepInPositions();
+        assertHasLineMark(/pause/, exec_state.frame(0));
+        assertHasLineMark(/positions/, exec_state.frame(frame_number));
+        var frame = exec_state.frame(frame_number);
+        codeSnippet = frame.sourceLineText();
+        resultPositions = frame.stepInPositions();
       }
     } catch (e) {
       exception = e
+    }
+
+    function assertHasLineMark(mark, frame) {
+        var line = frame.sourceLineText();
+        if (!mark.exec(frame.sourceLineText())) {
+            throw new Error("Line " + line + " should contain mark " + mark);
+        }
     }
   }
 
@@ -101,26 +110,98 @@ function TestCase(fun) {
       decoratedResult);
 }
 
+function TestCaseWithDebugger(fun) {
+  TestCase(fun, 1);
+}
+
+function TestCaseWithBreakpoint(fun, line_number, frame_number) {
+  var breakpointId = Debug.setBreakPoint(fun, line_number);
+  TestCase(fun, frame_number);
+  Debug.clearBreakPoint(breakpointId);
+}
+
+function TestCaseWithException(fun, frame_number) {
+  Debug.setBreakOnException();
+  TestCase(fun, frame_number);
+  Debug.clearBreakOnException();
+}
+
 
 // Test cases.
+
+// Step in position, when the function call that we are standing at is already
+// being executed.
+var fun = function() {
+  function g(p) {
+    throw String(p); /*pause*/
+  }
+  try {
+    var res = [ g(1), /*#*/g(2) ]; /*positions*/
+  } catch (e) {
+  }
+};
+TestCaseWithBreakpoint(fun, 2, 1);
+TestCaseWithException(fun, 1);
+
+
+// Step in position, when the function call that we are standing at is raising
+// an exception.
+var fun = function() {
+  var o = {
+    g: function(p) {
+      throw p;
+    }
+  };
+  try {
+    var res = [ /*#*/f(1), /*#*/g(2) ]; /*pause, positions*/
+  } catch (e) {
+  }
+};
+TestCaseWithException(fun, 0);
+
+
+// Step-in position, when already paused almost on the first call site.
+var fun = function() {
+  function g(p) {
+    throw p;
+  }
+  try {
+    var res = [ /*#*/g(Math.rand), /*#*/g(2) ]; /*pause, positions*/
+  } catch (e) {
+  }
+};
+TestCaseWithBreakpoint(fun, 5, 0);
+
+// Step-in position, when already paused on the first call site.
+var fun = function() {
+  function g() {
+    throw "Debug";
+  }
+  try {
+    var res = [ /*#*/g(), /*#*/g() ]; /*pause, positions*/
+  } catch (e) {
+  }
+};
+TestCaseWithBreakpoint(fun, 5, 0);
+
 
 // Method calls.
 var fun = function() {
   var data = {
     a: function() {}
   };
-  var res = [ DebuggerStatement(), data./*#*/a(), data[/*#*/String("a")]/*#*/(), data["a"]/*#*/(), data.a, data["a"] ];
+  var res = [ DebuggerStatement(), data./*#*/a(), data[/*#*/String("a")]/*#*/(), data["a"]/*#*/(), data.a, data["a"] ]; /*positions*/
 };
-TestCase(fun);
+TestCaseWithDebugger(fun);
 
 // Function call on a value.
 var fun = function() {
   function g(p) {
       return g;
   }
-  var res = [ DebuggerStatement(), /*#*/g(2), /*#*/g(2)/*#*/(3), /*#*/g(0)/*#*/(0)/*#*/(g) ];
+  var res = [ DebuggerStatement(), /*#*/g(2), /*#*/g(2)/*#*/(3), /*#*/g(0)/*#*/(0)/*#*/(g) ]; /*positions*/
 };
-TestCase(fun);
+TestCaseWithDebugger(fun);
 
 // Local function call, closure function call,
 // local function construction call.
@@ -128,15 +209,17 @@ var fun = (function(p) {
   return function() {
     function f(a, b) {
     }
-    var res = /*#*/f(DebuggerStatement(), /*#*/p(/*#*/new f()));
+    var res = /*#*/f(DebuggerStatement(), /*#*/p(/*#*/new f())); /*positions*/
   };
 })(Object);
-TestCase(fun);
+TestCaseWithDebugger(fun);
 
 // Global function, global object construction, calls before pause point.
 var fun = (function(p) {
   return function() {
-    var res = [ Math.abs(new Object()), DebuggerStatement(), Math./*#*/abs(4), /*#*/new Object()./*#*/toString() ];
+    var res = [ Math.abs(new Object()), DebuggerStatement(), Math./*#*/abs(4), /*#*/new Object()./*#*/toString() ]; /*positions*/
   };
 })(Object);
-TestCase(fun);
+TestCaseWithDebugger(fun);
+
+

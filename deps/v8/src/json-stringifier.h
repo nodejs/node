@@ -367,7 +367,7 @@ Handle<Object> BasicJsonStringifier::ApplyToJsonFunction(
   Handle<Object> argv[] = { key };
   bool has_exception = false;
   HandleScope scope(isolate_);
-  object = Execution::Call(fun, object, 1, argv, &has_exception);
+  object = Execution::Call(isolate_, fun, object, 1, argv, &has_exception);
   // Return empty handle to signal an exception.
   if (has_exception) return Handle<Object>::null();
   return scope.CloseAndEscape(object);
@@ -470,7 +470,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
   Handle<Object> argv[] = { key, object };
   bool has_exception = false;
   Handle<Object> result =
-      Execution::Call(builtin, object, 2, argv, &has_exception);
+      Execution::Call(isolate_, builtin, object, 2, argv, &has_exception);
   if (has_exception) return EXCEPTION;
   if (result->IsUndefined()) return UNCHANGED;
   if (deferred_key) {
@@ -495,11 +495,13 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSValue(
   bool has_exception = false;
   String* class_name = object->class_name();
   if (class_name == isolate_->heap()->String_string()) {
-    Handle<Object> value = Execution::ToString(object, &has_exception);
+    Handle<Object> value =
+        Execution::ToString(isolate_, object, &has_exception);
     if (has_exception) return EXCEPTION;
     SerializeString(Handle<String>::cast(value));
   } else if (class_name == isolate_->heap()->Number_string()) {
-    Handle<Object> value = Execution::ToNumber(object, &has_exception);
+    Handle<Object> value =
+        Execution::ToNumber(isolate_, object, &has_exception);
     if (has_exception) return EXCEPTION;
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
@@ -600,12 +602,12 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArraySlow(
     Handle<JSArray> object, int length) {
   for (int i = 0; i < length; i++) {
     if (i > 0) Append(',');
-    Handle<Object> element = Object::GetElement(object, i);
+    Handle<Object> element = Object::GetElement(isolate_, object, i);
     RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, element, EXCEPTION);
     if (element->IsUndefined()) {
       AppendAscii("null");
     } else {
-      Result result = SerializeElement(object->GetIsolate(), element, i);
+      Result result = SerializeElement(isolate_, element, i);
       if (result == SUCCESS) continue;
       if (result == UNCHANGED) {
         AppendAscii("null");
@@ -676,9 +678,10 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
         key_handle = factory_->NumberToString(Handle<Object>(key, isolate_));
         uint32_t index;
         if (key->IsSmi()) {
-          property = Object::GetElement(object, Smi::cast(key)->value());
+          property = Object::GetElement(
+              isolate_, object, Smi::cast(key)->value());
         } else if (key_handle->AsArrayIndex(&index)) {
-          property = Object::GetElement(object, index);
+          property = Object::GetElement(isolate_, object, index);
         } else {
           property = GetProperty(isolate_, object, key_handle);
         }

@@ -28,36 +28,21 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-// Define V8_INFINITY
-#define V8_INFINITY INFINITY
-
-// GCC specific stuff
-#ifdef __GNUC__
-
-#define __GNUC_VERSION_FOR_INFTY__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
+#include "../include/v8stdint.h"
 
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
 // warning flag and certain versions of GCC due to a bug:
 // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=11931
 // For now, we use the more involved template-based version from <limits>, but
 // only when compiling with GCC versions affected by the bug (2.96.x - 4.0.x)
-// __GNUC_PREREQ is not defined in GCC for Mac OS X, so we define our own macro
-#if __GNUC_VERSION_FOR_INFTY__ >= 29600 && __GNUC_VERSION_FOR_INFTY__ < 40100
-#include <limits>
-#undef V8_INFINITY
-#define V8_INFINITY std::numeric_limits<double>::infinity()
+#if V8_CC_GNU && V8_GNUC_PREREQ(2, 96, 0) && !V8_GNUC_PREREQ(4, 1, 0)
+# include <limits>  // NOLINT
+# define V8_INFINITY std::numeric_limits<double>::infinity()
+#elif V8_CC_MSVC
+# define V8_INFINITY HUGE_VAL
+#else
+# define V8_INFINITY INFINITY
 #endif
-#undef __GNUC_VERSION_FOR_INFTY__
-
-#endif  // __GNUC__
-
-#ifdef _MSC_VER
-#undef V8_INFINITY
-#define V8_INFINITY HUGE_VAL
-#endif
-
-
-#include "../include/v8stdint.h"
 
 namespace v8 {
 namespace internal {
@@ -186,27 +171,32 @@ typedef byte* Address;
 // Define our own macros for writing 64-bit constants.  This is less fragile
 // than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
 // works on compilers that don't have it (like MSVC).
-#if V8_HOST_ARCH_64_BIT
-#if defined(_MSC_VER)
-#define V8_UINT64_C(x)  (x ## UI64)
-#define V8_INT64_C(x)   (x ## I64)
-#define V8_INTPTR_C(x)  (x ## I64)
-#define V8_PTR_PREFIX "ll"
-#elif defined(__MINGW64__)
-#define V8_UINT64_C(x)  (x ## ULL)
-#define V8_INT64_C(x)   (x ## LL)
-#define V8_INTPTR_C(x)  (x ## LL)
-#define V8_PTR_PREFIX "I64"
+#if V8_CC_MSVC
+# define V8_UINT64_C(x)   (x ## UI64)
+# define V8_INT64_C(x)    (x ## I64)
+# if V8_HOST_ARCH_64_BIT
+#  define V8_INTPTR_C(x)  (x ## I64)
+#  define V8_PTR_PREFIX   "ll"
+# else
+#  define V8_INTPTR_C(x)  (x)
+#  define V8_PTR_PREFIX   ""
+# endif  // V8_HOST_ARCH_64_BIT
+#elif V8_CC_MINGW64
+# define V8_UINT64_C(x)   (x ## ULL)
+# define V8_INT64_C(x)    (x ## LL)
+# define V8_INTPTR_C(x)   (x ## LL)
+# define V8_PTR_PREFIX    "I64"
+#elif V8_HOST_ARCH_64_BIT
+# define V8_UINT64_C(x)   (x ## UL)
+# define V8_INT64_C(x)    (x ## L)
+# define V8_INTPTR_C(x)   (x ## L)
+# define V8_PTR_PREFIX    "l"
 #else
-#define V8_UINT64_C(x)  (x ## UL)
-#define V8_INT64_C(x)   (x ## L)
-#define V8_INTPTR_C(x)  (x ## L)
-#define V8_PTR_PREFIX "l"
+# define V8_UINT64_C(x)   (x ## ULL)
+# define V8_INT64_C(x)    (x ## LL)
+# define V8_INTPTR_C(x)   (x)
+# define V8_PTR_PREFIX    ""
 #endif
-#else  // V8_HOST_ARCH_64_BIT
-#define V8_INTPTR_C(x)  (x)
-#define V8_PTR_PREFIX ""
-#endif  // V8_HOST_ARCH_64_BIT
 
 // The following macro works on both 32 and 64-bit platforms.
 // Usage: instead of writing 0x1234567890123456
@@ -292,6 +282,10 @@ const int kOneByteSize    = kCharSize;
 const int kUC16Size     = sizeof(uc16);      // NOLINT
 
 
+// Round up n to be a multiple of sz, where sz is a power of 2.
+#define ROUND_UP(n, sz) (((n) + ((sz) - 1)) & ~((sz) - 1))
+
+
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This
 // corresponds to 'offsetof' (in stddef.h), except that it doesn't
@@ -330,18 +324,11 @@ F FUNCTION_CAST(Address addr) {
 }
 
 
-#if __cplusplus >= 201103L
-#define DISALLOW_BY_DELETE = delete
-#else
-#define DISALLOW_BY_DELETE
-#endif
-
-
 // A macro to disallow the evil copy constructor and operator= functions
 // This should be used in the private: declarations for a class
-#define DISALLOW_COPY_AND_ASSIGN(TypeName)           \
-  TypeName(const TypeName&) DISALLOW_BY_DELETE;      \
-  void operator=(const TypeName&) DISALLOW_BY_DELETE
+#define DISALLOW_COPY_AND_ASSIGN(TypeName)  \
+  TypeName(const TypeName&) V8_DELETE;      \
+  void operator=(const TypeName&) V8_DELETE
 
 
 // A macro to disallow all the implicit constructors, namely the
@@ -350,36 +337,18 @@ F FUNCTION_CAST(Address addr) {
 // This should be used in the private: declarations for a class
 // that wants to prevent anyone from instantiating it. This is
 // especially useful for classes containing only static methods.
-#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
-  TypeName() DISALLOW_BY_DELETE;                 \
+#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName)  \
+  TypeName() V8_DELETE;                           \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 
-// Define used for helping GCC to make better inlining. Don't bother for debug
-// builds. On GCC 3.4.5 using __attribute__((always_inline)) causes compilation
-// errors in debug build.
-#if defined(__GNUC__) && !defined(DEBUG)
-#if (__GNUC__ >= 4)
-#define INLINE(header) inline header  __attribute__((always_inline))
-#define NO_INLINE(header) header __attribute__((noinline))
-#else
-#define INLINE(header) inline __attribute__((always_inline)) header
-#define NO_INLINE(header) __attribute__((noinline)) header
-#endif
-#elif defined(_MSC_VER) && !defined(DEBUG)
-#define INLINE(header) __forceinline header
-#define NO_INLINE(header) header
-#else
-#define INLINE(header) inline header
-#define NO_INLINE(header) header
-#endif
+// Newly written code should use V8_INLINE and V8_NOINLINE directly.
+#define INLINE(declarator)    V8_INLINE declarator
+#define NO_INLINE(declarator) V8_NOINLINE declarator
 
 
-#if defined(__GNUC__) && __GNUC__ >= 4
-#define MUST_USE_RESULT __attribute__ ((warn_unused_result))
-#else
-#define MUST_USE_RESULT
-#endif
+// Newly written code should use V8_WARN_UNUSED_RESULT.
+#define MUST_USE_RESULT V8_WARN_UNUSED_RESULT
 
 
 // Define DISABLE_ASAN macros.
@@ -421,18 +390,6 @@ enum LanguageMode {
   CLASSIC_MODE,
   STRICT_MODE,
   EXTENDED_MODE
-};
-
-
-// A simple Maybe type, that can be passed by value.
-template<class T>
-struct Maybe {
-  Maybe() : has_value(false) {}
-  explicit Maybe(T t) : has_value(true), value(t) {}
-  Maybe(bool has, T t) : has_value(has), value(t) {}
-
-  bool has_value;
-  T value;
 };
 
 

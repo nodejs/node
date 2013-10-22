@@ -42,8 +42,9 @@ using namespace v8::internal;
 
 
 int STDCALL ConvertDToICVersion(double d) {
-  Address double_ptr = reinterpret_cast<Address>(&d);
-  uint32_t exponent_bits = Memory::uint32_at(double_ptr + kDoubleSize / 2);
+  union { double d; uint32_t u[2]; } dbl;
+  dbl.d = d;
+  uint32_t exponent_bits = dbl.u[1];
   int32_t shifted_mask = static_cast<int32_t>(Double::kExponentMask >> 32);
   int32_t exponent = (((exponent_bits & shifted_mask) >>
                        (Double::kPhysicalSignificandSize - 32)) -
@@ -54,8 +55,7 @@ int STDCALL ConvertDToICVersion(double d) {
     static_cast<uint32_t>(Double::kPhysicalSignificandSize);
   if (unsigned_exponent >= max_exponent) {
     if ((exponent - Double::kPhysicalSignificandSize) < 32) {
-      result = Memory::uint32_at(double_ptr) <<
-        (exponent - Double::kPhysicalSignificandSize);
+      result = dbl.u[0] << (exponent - Double::kPhysicalSignificandSize);
     }
   } else {
     uint64_t big_result =
@@ -71,12 +71,19 @@ int STDCALL ConvertDToICVersion(double d) {
 }
 
 
-void RunOneTruncationTestWithTest(ConvertDToIFunc func,
+void RunOneTruncationTestWithTest(ConvertDToICallWrapper callWrapper,
+                                  ConvertDToIFunc func,
                                   double from,
                                   double raw) {
   uint64_t to = static_cast<int64_t>(raw);
-  int result = (*func)(from);
+  int result = (*callWrapper)(func, from);
   CHECK_EQ(static_cast<int>(to), result);
+}
+
+
+int32_t DefaultCallWrapper(ConvertDToIFunc func,
+                           double from) {
+  return (*func)(from);
 }
 
 
@@ -84,9 +91,17 @@ void RunOneTruncationTestWithTest(ConvertDToIFunc func,
 // directly to a .js file and run them.
 #define NaN (OS::nan_value())
 #define Infinity (std::numeric_limits<double>::infinity())
-#define RunOneTruncationTest(p1, p2) RunOneTruncationTestWithTest(func, p1, p2)
+#define RunOneTruncationTest(p1, p2) \
+    RunOneTruncationTestWithTest(callWrapper, func, p1, p2)
+
 
 void RunAllTruncationTests(ConvertDToIFunc func) {
+  RunAllTruncationTests(DefaultCallWrapper, func);
+}
+
+
+void RunAllTruncationTests(ConvertDToICallWrapper callWrapper,
+                           ConvertDToIFunc func) {
   RunOneTruncationTest(0, 0);
   RunOneTruncationTest(0.5, 0);
   RunOneTruncationTest(-0.5, 0);

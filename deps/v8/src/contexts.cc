@@ -74,7 +74,7 @@ Context* Context::native_context() {
 
   // During bootstrapping, the global object might not be set and we
   // have to search the context chain to find the native context.
-  ASSERT(Isolate::Current()->bootstrapper()->IsActive());
+  ASSERT(this->GetIsolate()->bootstrapper()->IsActive());
   Context* current = this;
   while (!current->IsNativeContext()) {
     JSFunction* closure = JSFunction::cast(current->closure());
@@ -319,14 +319,48 @@ void Context::RemoveOptimizedFunction(JSFunction* function) {
 }
 
 
+void Context::SetOptimizedFunctionsListHead(Object* head) {
+  ASSERT(IsNativeContext());
+  set(OPTIMIZED_FUNCTIONS_LIST, head);
+}
+
+
 Object* Context::OptimizedFunctionsListHead() {
   ASSERT(IsNativeContext());
   return get(OPTIMIZED_FUNCTIONS_LIST);
 }
 
 
-void Context::ClearOptimizedFunctions() {
-  set(OPTIMIZED_FUNCTIONS_LIST, GetHeap()->undefined_value());
+void Context::AddOptimizedCode(Code* code) {
+  ASSERT(IsNativeContext());
+  ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
+  ASSERT(code->next_code_link()->IsUndefined());
+  code->set_next_code_link(get(OPTIMIZED_CODE_LIST));
+  set(OPTIMIZED_CODE_LIST, code);
+}
+
+
+void Context::SetOptimizedCodeListHead(Object* head) {
+  ASSERT(IsNativeContext());
+  set(OPTIMIZED_CODE_LIST, head);
+}
+
+
+Object* Context::OptimizedCodeListHead() {
+  ASSERT(IsNativeContext());
+  return get(OPTIMIZED_CODE_LIST);
+}
+
+
+void Context::SetDeoptimizedCodeListHead(Object* head) {
+  ASSERT(IsNativeContext());
+  set(DEOPTIMIZED_CODE_LIST, head);
+}
+
+
+Object* Context::DeoptimizedCodeListHead() {
+  ASSERT(IsNativeContext());
+  return get(DEOPTIMIZED_CODE_LIST);
 }
 
 
@@ -352,10 +386,9 @@ bool Context::IsBootstrappingOrValidParentContext(
 }
 
 
-bool Context::IsBootstrappingOrGlobalObject(Object* object) {
+bool Context::IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object) {
   // During bootstrapping we allow all objects to pass as global
   // objects. This is necessary to fix circular dependencies.
-  Isolate* isolate = Isolate::Current();
   return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
       isolate->bootstrapper()->IsActive() ||
       object->IsGlobalObject();

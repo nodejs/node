@@ -73,6 +73,24 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 }
 
 
+static void CallRuntimePassFunction(MacroAssembler* masm,
+                                    Runtime::FunctionId function_id) {
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  // Push a copy of the function onto the stack.
+  __ push(rdi);
+  // Push call kind information.
+  __ push(rcx);
+  // Function is also the parameter to the runtime call.
+  __ push(rdi);
+
+  __ CallRuntime(function_id, 1);
+  // Restore call kind information.
+  __ pop(rcx);
+  // Restore receiver.
+  __ pop(rdi);
+}
+
+
 static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
   __ movq(kScratchRegister,
           FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -84,57 +102,27 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
 
 
 void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+  // Checking whether the queued function is ready for install is optional,
+  // since we come across interrupts and stack checks elsewhere.  However,
+  // not checking may delay installing ready functions, and always checking
+  // would be quite expensive.  A good compromise is to first check against
+  // stack limit as a cue for an interrupt signal.
+  Label ok;
+  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+  __ j(above_equal, &ok);
+
+  CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
+  // Tail call to returned code.
+  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
+  __ jmp(rax);
+
+  __ bind(&ok);
   GenerateTailCallToSharedCode(masm);
 }
 
 
-void Builtins::Generate_InstallRecompiledCode(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(rdi);
-    // Push call kind information.
-    __ push(rcx);
-
-    __ push(rdi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kInstallRecompiledCode, 1);
-
-    // Restore call kind information.
-    __ pop(rcx);
-    // Restore function.
-    __ pop(rdi);
-
-    // Tear down internal frame.
-  }
-
-  // Do a tail-call of the compiled function.
-  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
-  __ jmp(rax);
-}
-
-
-void Builtins::Generate_ParallelRecompile(MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(rdi);
-    // Push call kind information.
-    __ push(rcx);
-
-    __ push(rdi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kParallelRecompile, 1);
-
-    // Restore call kind information.
-    __ pop(rcx);
-    // Restore receiver.
-    __ pop(rdi);
-
-    // Tear down internal frame.
-  }
-
+void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
+  CallRuntimePassFunction(masm, Runtime::kConcurrentRecompile);
   GenerateTailCallToSharedCode(masm);
 }
 
@@ -586,26 +574,7 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(rdi);
-    // Push call kind information.
-    __ push(rcx);
-
-    __ push(rdi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kLazyCompile, 1);
-
-    // Restore call kind information.
-    __ pop(rcx);
-    // Restore receiver.
-    __ pop(rdi);
-
-    // Tear down internal frame.
-  }
-
+  CallRuntimePassFunction(masm, Runtime::kLazyCompile);
   // Do a tail-call of the compiled function.
   __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
   __ jmp(rax);
@@ -613,26 +582,7 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
 
 
 void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(rdi);
-    // Push call kind information.
-    __ push(rcx);
-
-    __ push(rdi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kLazyRecompile, 1);
-
-    // Restore call kind information.
-    __ pop(rcx);
-    // Restore function.
-    __ pop(rdi);
-
-    // Tear down internal frame.
-  }
-
+  CallRuntimePassFunction(masm, Runtime::kLazyRecompile);
   // Do a tail-call of the compiled function.
   __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
   __ jmp(rax);
@@ -708,7 +658,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   }
 
   // Get the full codegen state from the stack and untag it.
-  __ SmiToInteger32(r10, Operand(rsp, 1 * kPointerSize));
+  __ SmiToInteger32(r10, Operand(rsp, kPCOnStackSize));
 
   // Switch on the state.
   Label not_no_registers, not_tos_rax;
@@ -717,7 +667,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ ret(1 * kPointerSize);  // Remove state.
 
   __ bind(&not_no_registers);
-  __ movq(rax, Operand(rsp, 2 * kPointerSize));
+  __ movq(rax, Operand(rsp, kPCOnStackSize + kPointerSize));
   __ cmpq(r10, Immediate(FullCodeGenerator::TOS_REG));
   __ j(not_equal, &not_tos_rax, Label::kNear);
   __ ret(2 * kPointerSize);  // Remove state, rax.
@@ -782,8 +732,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 2. Get the function to call (passed as receiver) from the stack, check
   //    if it is a function.
   Label slow, non_function;
-  // The function to call is at position n+1 on the stack.
-  __ movq(rdi, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
+  StackArgumentsAccessor args(rsp, rax);
+  __ movq(rdi, args.GetReceiverOperand());
   __ JumpIfSmi(rdi, &non_function);
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
   __ j(not_equal, &slow);
@@ -808,7 +758,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
-    __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
+    __ movq(rbx, args.GetArgumentOperand(1));
     __ JumpIfSmi(rbx, &convert_to_object, Label::kNear);
 
     __ CompareRoot(rbx, Heap::kNullValueRootIndex);
@@ -837,7 +787,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     }
 
     // Restore the function to rdi.
-    __ movq(rdi, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
+    __ movq(rdi, args.GetReceiverOperand());
     __ jmp(&patch_receiver, Label::kNear);
 
     // Use the global receiver object from the called function as the
@@ -851,7 +801,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
-    __ movq(Operand(rsp, rax, times_pointer_size, 0), rbx);
+    __ movq(args.GetArgumentOperand(1), rbx);
 
     __ jmp(&shift_arguments);
   }
@@ -868,7 +818,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //     CALL_NON_FUNCTION builtin expects the non-function callee as
   //     receiver, so overwrite the first argument which will ultimately
   //     become the receiver.
-  __ movq(Operand(rsp, rax, times_pointer_size, 0), rdi);
+  __ movq(args.GetArgumentOperand(1), rdi);
 
   // 4. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -1178,10 +1128,11 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   // Load the first argument into rax and get rid of the rest
   // (including the receiver).
+  StackArgumentsAccessor args(rsp, rax);
   Label no_arguments;
   __ testq(rax, rax);
   __ j(zero, &no_arguments);
-  __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
+  __ movq(rbx, args.GetArgumentOperand(1));
   __ PopReturnAddressTo(rcx);
   __ lea(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
   __ PushReturnAddressFrom(rcx);
@@ -1407,32 +1358,46 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
+  // Lookup the function in the JavaScript frame.
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-
-  // Pass the function to optimize as the argument to the on-stack
-  // replacement runtime function.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    // Lookup and calculate pc offset.
+    __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerPCOffset));
+    __ movq(rbx, FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset));
+    __ subq(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    __ subq(rdx, FieldOperand(rbx, SharedFunctionInfo::kCodeOffset));
+    __ Integer32ToSmi(rdx, rdx);
+
+    // Pass both function and pc offset as arguments.
     __ push(rax);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+    __ push(rdx);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 2);
   }
 
-  // If the result was -1 it means that we couldn't optimize the
-  // function. Just return and continue in the unoptimized version.
   Label skip;
-  __ SmiCompare(rax, Smi::FromInt(-1));
+  // If the code object is null, just return to the unoptimized code.
+  __ cmpq(rax, Immediate(0));
   __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 
   __ bind(&skip);
-  // Untag the AST id and push it on the stack.
-  __ SmiToInteger32(rax, rax);
-  __ push(rax);
 
-  // Generate the code for doing the frame-to-frame translation using
-  // the deoptimizer infrastructure.
-  Deoptimizer::EntryGenerator generator(masm, Deoptimizer::OSR);
-  generator.Generate();
+  // Load deoptimization data from the code object.
+  __ movq(rbx, Operand(rax, Code::kDeoptimizationDataOffset - kHeapObjectTag));
+
+  // Load the OSR entrypoint offset from the deoptimization data.
+  __ SmiToInteger32(rbx, Operand(rbx, FixedArray::OffsetOfElementAt(
+      DeoptimizationInputData::kOsrPcOffsetIndex) - kHeapObjectTag));
+
+  // Compute the target address = code_obj + header_size + osr_offset
+  __ lea(rax, Operand(rax, rbx, times_1, Code::kHeaderSize - kHeapObjectTag));
+
+  // Overwrite the return address on the stack.
+  __ movq(Operand(rsp, 0), rax);
+
+  // And "return" to the OSR entry point of the function.
+  __ ret(0);
 }
 
 

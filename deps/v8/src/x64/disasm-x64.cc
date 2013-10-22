@@ -332,10 +332,10 @@ class DisassemblerX64 {
 
  private:
   enum OperandSize {
-    BYTE_SIZE = 0,
-    WORD_SIZE = 1,
-    DOUBLEWORD_SIZE = 2,
-    QUADWORD_SIZE = 3
+    OPERAND_BYTE_SIZE = 0,
+    OPERAND_WORD_SIZE = 1,
+    OPERAND_DOUBLEWORD_SIZE = 2,
+    OPERAND_QUADWORD_SIZE = 3
   };
 
   const NameConverter& converter_;
@@ -369,10 +369,10 @@ class DisassemblerX64 {
   bool rex_w() { return (rex_ & 0x08) != 0; }
 
   OperandSize operand_size() {
-    if (byte_size_operand_) return BYTE_SIZE;
-    if (rex_w()) return QUADWORD_SIZE;
-    if (operand_size_ != 0) return WORD_SIZE;
-    return DOUBLEWORD_SIZE;
+    if (byte_size_operand_) return OPERAND_BYTE_SIZE;
+    if (rex_w()) return OPERAND_QUADWORD_SIZE;
+    if (operand_size_ != 0) return OPERAND_WORD_SIZE;
+    return OPERAND_DOUBLEWORD_SIZE;
   }
 
   char operand_size_code() {
@@ -562,19 +562,19 @@ int DisassemblerX64::PrintImmediate(byte* data, OperandSize size) {
   int64_t value;
   int count;
   switch (size) {
-    case BYTE_SIZE:
+    case OPERAND_BYTE_SIZE:
       value = *data;
       count = 1;
       break;
-    case WORD_SIZE:
+    case OPERAND_WORD_SIZE:
       value = *reinterpret_cast<int16_t*>(data);
       count = 2;
       break;
-    case DOUBLEWORD_SIZE:
+    case OPERAND_DOUBLEWORD_SIZE:
       value = *reinterpret_cast<uint32_t*>(data);
       count = 4;
       break;
-    case QUADWORD_SIZE:
+    case OPERAND_QUADWORD_SIZE:
       value = *reinterpret_cast<int32_t*>(data);
       count = 4;
       break;
@@ -682,7 +682,8 @@ int DisassemblerX64::PrintImmediateOp(byte* data) {
   AppendToBuffer("%s%c ", mnem, operand_size_code());
   int count = PrintRightOperand(data + 1);
   AppendToBuffer(",0x");
-  OperandSize immediate_size = byte_size_immediate ? BYTE_SIZE : operand_size();
+  OperandSize immediate_size =
+      byte_size_immediate ? OPERAND_BYTE_SIZE : operand_size();
   count += PrintImmediate(data + 1 + count, immediate_size);
   return 1 + count;
 }
@@ -1153,6 +1154,25 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
+    } else if (opcode == 0xC2) {
+      // Intel manual 2A, Table 3-18.
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      const char* const pseudo_op[] = {
+        "cmpeqsd",
+        "cmpltsd",
+        "cmplesd",
+        "cmpunordsd",
+        "cmpneqsd",
+        "cmpnltsd",
+        "cmpnlesd",
+        "cmpordsd"
+      };
+      AppendToBuffer("%s %s,%s",
+                     pseudo_op[current[1]],
+                     NameOfXMMRegister(regop),
+                     NameOfXMMRegister(rm));
+      current += 2;
     } else {
       UnimplementedInstruction();
     }
@@ -1229,8 +1249,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintRightXMMOperand(current);
     AppendToBuffer(", %s", NameOfXMMRegister(regop));
 
-  } else if (opcode == 0xA2 || opcode == 0x31) {
-    // RDTSC or CPUID
+  } else if (opcode == 0xA2) {
+    // CPUID
     AppendToBuffer("%s", mnemonic);
 
   } else if ((opcode & 0xF0) == 0x40) {
@@ -1294,14 +1314,14 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "nop";
     case 0x2A:  // F2/F3 prefix.
       return "cvtsi2s";
-    case 0x31:
-      return "rdtsc";
     case 0x51:  // F2 prefix.
       return "sqrtsd";
     case 0x58:  // F2 prefix.
       return "addsd";
     case 0x59:  // F2 prefix.
       return "mulsd";
+    case 0x5A:  // F2 prefix.
+      return "cvtsd2ss";
     case 0x5C:  // F2 prefix.
       return "subsd";
     case 0x5E:  // F2 prefix.
@@ -1398,15 +1418,15 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
     case MOVE_REG_INSTR: {
       byte* addr = NULL;
       switch (operand_size()) {
-        case WORD_SIZE:
+        case OPERAND_WORD_SIZE:
           addr = reinterpret_cast<byte*>(*reinterpret_cast<int16_t*>(data + 1));
           data += 3;
           break;
-        case DOUBLEWORD_SIZE:
+        case OPERAND_DOUBLEWORD_SIZE:
           addr = reinterpret_cast<byte*>(*reinterpret_cast<int32_t*>(data + 1));
           data += 5;
           break;
-        case QUADWORD_SIZE:
+        case OPERAND_QUADWORD_SIZE:
           addr = reinterpret_cast<byte*>(*reinterpret_cast<int64_t*>(data + 1));
           data += 9;
           break;
@@ -1611,11 +1631,11 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
           AppendToBuffer("mov%c %s, ",
                          operand_size_code(),
                          NameOfCPURegister(reg));
-          data += PrintImmediate(data, DOUBLEWORD_SIZE);
+          data += PrintImmediate(data, OPERAND_DOUBLEWORD_SIZE);
         } else {
           AppendToBuffer("movb %s, ",
                          NameOfByteCPURegister(reg));
-          data += PrintImmediate(data, BYTE_SIZE);
+          data += PrintImmediate(data, OPERAND_BYTE_SIZE);
         }
         break;
       }
@@ -1644,7 +1664,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
       case 0xA1:  // Fall through.
       case 0xA3:
         switch (operand_size()) {
-          case DOUBLEWORD_SIZE: {
+          case OPERAND_DOUBLEWORD_SIZE: {
             const char* memory_location = NameOfAddress(
                 reinterpret_cast<byte*>(
                     *reinterpret_cast<int32_t*>(data + 1)));
@@ -1656,7 +1676,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
             data += 5;
             break;
           }
-          case QUADWORD_SIZE: {
+          case OPERAND_QUADWORD_SIZE: {
             // New x64 instruction mov rax,(imm_64).
             const char* memory_location = NameOfAddress(
                 *reinterpret_cast<byte**>(data + 1));
@@ -1682,15 +1702,15 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
       case 0xA9: {
         int64_t value = 0;
         switch (operand_size()) {
-          case WORD_SIZE:
+          case OPERAND_WORD_SIZE:
             value = *reinterpret_cast<uint16_t*>(data + 1);
             data += 3;
             break;
-          case DOUBLEWORD_SIZE:
+          case OPERAND_DOUBLEWORD_SIZE:
             value = *reinterpret_cast<uint32_t*>(data + 1);
             data += 5;
             break;
-          case QUADWORD_SIZE:
+          case OPERAND_QUADWORD_SIZE:
             value = *reinterpret_cast<int32_t*>(data + 1);
             data += 5;
             break;

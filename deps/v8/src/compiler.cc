@@ -58,7 +58,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script,
                                  Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE)),
       script_(script),
-      osr_ast_id_(BailoutId::None()) {
+      osr_ast_id_(BailoutId::None()),
+      osr_pc_offset_(0) {
   Initialize(script->GetIsolate(), BASE, zone);
 }
 
@@ -68,7 +69,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
     : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
-      osr_ast_id_(BailoutId::None()) {
+      osr_ast_id_(BailoutId::None()),
+      osr_pc_offset_(0) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -80,7 +82,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       context_(closure->context()),
-      osr_ast_id_(BailoutId::None()) {
+      osr_ast_id_(BailoutId::None()),
+      osr_pc_offset_(0) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -90,7 +93,8 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
                                  Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE) |
              IsLazy::encode(true)),
-      osr_ast_id_(BailoutId::None()) {
+      osr_ast_id_(BailoutId::None()),
+      osr_pc_offset_(0) {
   Initialize(isolate, STUB, zone);
   code_stub_ = stub;
 }
@@ -119,7 +123,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     mode_ = STUB;
     return;
   }
-  mode_ = V8::UseCrankshaft() ? mode : NONOPT;
+  mode_ = isolate->use_crankshaft() ? mode : NONOPT;
   abort_due_to_dependency_ = false;
   if (script_->type()->value() == Script::TYPE_NATIVE) {
     MarkAsNative();
@@ -226,15 +230,9 @@ bool CompilationInfo::ShouldSelfOptimize() {
   return FLAG_self_optimization &&
       FLAG_crankshaft &&
       !function()->flags()->Contains(kDontSelfOptimize) &&
-      !function()->flags()->Contains(kDontOptimize) &&
+      !function()->dont_optimize() &&
       function()->scope()->AllowsLazyCompilation() &&
       (shared_info().is_null() || !shared_info()->optimization_disabled());
-}
-
-
-void CompilationInfo::AbortOptimization() {
-  Handle<Code> code(shared_info()->code());
-  SetCode(code);
 }
 
 
@@ -248,7 +246,7 @@ void CompilationInfo::AbortOptimization() {
 // break points has actually been set.
 static bool IsDebuggerActive(Isolate* isolate) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  return V8::UseCrankshaft() ?
+  return isolate->use_crankshaft() ?
     isolate->debug()->has_break_points() :
     isolate->debugger()->IsDebuggerActive();
 #else
@@ -266,10 +264,9 @@ void OptimizingCompiler::RecordOptimizationStats() {
   Handle<JSFunction> function = info()->closure();
   int opt_count = function->shared()->opt_count();
   function->shared()->set_opt_count(opt_count + 1);
-  double ms_creategraph =
-      static_cast<double>(time_taken_to_create_graph_) / 1000;
-  double ms_optimize = static_cast<double>(time_taken_to_optimize_) / 1000;
-  double ms_codegen = static_cast<double>(time_taken_to_codegen_) / 1000;
+  double ms_creategraph = time_taken_to_create_graph_.InMillisecondsF();
+  double ms_optimize = time_taken_to_optimize_.InMillisecondsF();
+  double ms_codegen = time_taken_to_codegen_.InMillisecondsF();
   if (FLAG_trace_opt) {
     PrintF("[optimizing ");
     function->ShortPrint();
@@ -317,14 +314,13 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 
 
 OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
-  ASSERT(V8::UseCrankshaft());
+  ASSERT(isolate()->use_crankshaft());
   ASSERT(info()->IsOptimizing());
   ASSERT(!info()->IsCompilingForDebugging());
 
   // We should never arrive here if there is no code object on the
   // shared function object.
-  Handle<Code> code(info()->shared_info()->code());
-  ASSERT(code->kind() == Code::FUNCTION);
+  ASSERT(info()->shared_info()->code()->kind() == Code::FUNCTION);
 
   // We should never arrive here if optimization has been disabled on the
   // shared function info.
@@ -334,7 +330,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // to use the Hydrogen-based optimizing compiler. We already have
   // generated code for this from the shared function object.
   if (AlwaysFullCompiler(isolate())) {
-    info()->SetCode(code);
+    info()->AbortOptimization();
     return SetLastStatus(BAILED_OUT);
   }
 
@@ -362,16 +358,16 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   }
 
   const int locals_limit = LUnallocated::kMaxFixedSlotIndex;
-  if (!info()->osr_ast_id().IsNone() &&
+  if (info()->is_osr() &&
       scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit) {
     info()->set_bailout_reason(kTooManyParametersLocals);
     return AbortOptimization();
   }
 
   // Take --hydrogen-filter into account.
-  if (!info()->closure()->PassesHydrogenFilter()) {
-      info()->SetCode(code);
-      return SetLastStatus(BAILED_OUT);
+  if (!info()->closure()->PassesFilter(FLAG_hydrogen_filter)) {
+    info()->AbortOptimization();
+    return SetLastStatus(BAILED_OUT);
   }
 
   // Recompile the unoptimized version of the code if the current version
@@ -380,9 +376,9 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // performance of the hydrogen-based compiler.
   bool should_recompile = !info()->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
-    int64_t start_ticks = 0;
+    ElapsedTimer timer;
     if (FLAG_hydrogen_stats) {
-      start_ticks = OS::Ticks();
+      timer.Start();
     }
     CompilationInfoWithZone unoptimized(info()->shared_info());
     // Note that we use the same AST that we will use for generating the
@@ -401,8 +397,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
           Logger::LAZY_COMPILE_TAG, &unoptimized, shared);
     }
     if (FLAG_hydrogen_stats) {
-      int64_t ticks = OS::Ticks() - start_ticks;
-      isolate()->GetHStatistics()->IncrementFullCodeGen(ticks);
+      isolate()->GetHStatistics()->IncrementFullCodeGen(timer.Elapsed());
     }
   }
 
@@ -411,7 +406,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // optimizable marker in the code object and optimize anyway. This
   // is safe as long as the unoptimized code has deoptimization
   // support.
-  ASSERT(FLAG_always_opt || code->optimizable());
+  ASSERT(FLAG_always_opt || info()->shared_info()->code()->optimizable());
   ASSERT(info()->shared_info()->has_deoptimization_support());
 
   if (FLAG_trace_hydrogen) {
@@ -503,12 +498,14 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     info()->SetCode(optimized_code);
   }
   RecordOptimizationStats();
+  // Add to the weak list of optimized code objects.
+  info()->context()->native_context()->AddOptimizedCode(*info()->code());
   return SetLastStatus(SUCCEEDED);
 }
 
 
 static bool GenerateCode(CompilationInfo* info) {
-  bool is_optimizing = V8::UseCrankshaft() &&
+  bool is_optimizing = info->isolate()->use_crankshaft() &&
                        !info->IsCompilingForDebugging() &&
                        info->IsOptimizing();
   if (is_optimizing) {
@@ -728,7 +725,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     }
     script->set_is_shared_cross_origin(is_shared_cross_origin);
 
-    script->set_data(script_data.is_null() ? HEAP->undefined_value()
+    script->set_data(script_data.is_null() ? isolate->heap()->undefined_value()
                                            : *script_data);
 
     // Compile the function and add it to the cache.
@@ -745,8 +742,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
       compilation_cache->PutScript(source, context, result);
     }
   } else {
-    if (result->ic_age() != HEAP->global_ic_age()) {
-      result->ResetForNewContext(HEAP->global_ic_age());
+    if (result->ic_age() != isolate->heap()->global_ic_age()) {
+      result->ResetForNewContext(isolate->heap()->global_ic_age());
     }
   }
 
@@ -808,8 +805,8 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
       }
     }
   } else {
-    if (result->ic_age() != HEAP->global_ic_age()) {
-      result->ResetForNewContext(HEAP->global_ic_age());
+    if (result->ic_age() != isolate->heap()->global_ic_age()) {
+      result->ResetForNewContext(isolate->heap()->global_ic_age());
     }
   }
 
@@ -843,18 +840,18 @@ static bool InstallFullCode(CompilationInfo* info) {
 
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
-  shared->set_dont_optimize(lit->flags()->Contains(kDontOptimize));
+  shared->set_dont_optimize_reason(lit->dont_optimize_reason());
   shared->set_dont_inline(lit->flags()->Contains(kDontInline));
   shared->set_ast_node_count(lit->ast_node_count());
 
-  if (V8::UseCrankshaft() &&
+  if (info->isolate()->use_crankshaft() &&
       !function.is_null() &&
       !shared->optimization_disabled()) {
     // If we're asked to always optimize, we compile the optimized
     // version of the function right away - unless the debugger is
     // active as it makes no sense to compile optimized code then.
     if (FLAG_always_opt &&
-        !Isolate::Current()->DebuggerHasBreakPoints()) {
+        !info->isolate()->DebuggerHasBreakPoints()) {
       CompilationInfoWithZone optimized(function);
       optimized.SetOptimizing(BailoutId::None());
       return Compiler::CompileLazy(&optimized);
@@ -884,9 +881,10 @@ static void InstallCodeCommon(CompilationInfo* info) {
 
 static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   Handle<Code> code = info->code();
-  if (FLAG_cache_optimized_code &&
-      info->osr_ast_id().IsNone() &&
-      code->kind() == Code::OPTIMIZED_FUNCTION) {
+  if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
+
+  // Cache non-OSR optimized code.
+  if (FLAG_cache_optimized_code && !info->is_osr()) {
     Handle<JSFunction> function = info->closure();
     Handle<SharedFunctionInfo> shared(function->shared());
     Handle<FixedArray> literals(function->literals());
@@ -898,9 +896,10 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 
 
 static bool InstallCodeFromOptimizedCodeMap(CompilationInfo* info) {
-  if (FLAG_cache_optimized_code &&
-      info->osr_ast_id().IsNone() &&
-      info->IsOptimizing()) {
+  if (!info->IsOptimizing()) return false;  // Nothing to look up.
+
+  // Lookup non-OSR optimized code.
+  if (FLAG_cache_optimized_code && !info->is_osr()) {
     Handle<SharedFunctionInfo> shared = info->shared_info();
     Handle<JSFunction> function = info->closure();
     ASSERT(!function.is_null());
@@ -956,12 +955,15 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
       InstallCodeCommon(info);
 
       if (info->IsOptimizing()) {
+        // Optimized code successfully created.
         Handle<Code> code = info->code();
         ASSERT(shared->scope_info() != ScopeInfo::Empty(isolate));
+        // TODO(titzer): Only replace the code if it was not an OSR compile.
         info->closure()->ReplaceCode(*code);
         InsertCodeIntoOptimizedCodeMap(info);
         return true;
-      } else {
+      } else if (!info->is_osr()) {
+        // Compilation failed. Replace with full code if not OSR compile.
         return InstallFullCode(info);
       }
     }
@@ -972,38 +974,55 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 }
 
 
-void Compiler::RecompileParallel(Handle<JSFunction> closure) {
-  ASSERT(closure->IsMarkedForParallelRecompilation());
+bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
+                                   uint32_t osr_pc_offset) {
+  bool compiling_for_osr = (osr_pc_offset != 0);
 
   Isolate* isolate = closure->GetIsolate();
-  // Here we prepare compile data for the parallel recompilation thread, but
+  // Here we prepare compile data for the concurrent recompilation thread, but
   // this still happens synchronously and interrupts execution.
   Logger::TimerEventScope timer(
       isolate, Logger::TimerEventScope::v8_recompile_synchronous);
 
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
-    if (FLAG_trace_parallel_recompilation) {
+    if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
       closure->PrintName();
       PrintF(" on next run.\n");
     }
-    return;
+    return false;
   }
 
   SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(closure));
+  Handle<SharedFunctionInfo> shared = info->shared_info();
+
+  if (compiling_for_osr) {
+    BailoutId osr_ast_id =
+        shared->code()->TranslatePcOffsetToAstId(osr_pc_offset);
+    ASSERT(!osr_ast_id.IsNone());
+    info->SetOptimizing(osr_ast_id);
+    info->set_osr_pc_offset(osr_pc_offset);
+
+    if (FLAG_trace_osr) {
+      PrintF("[COSR - attempt to queue ");
+      closure->PrintName();
+      PrintF(" at AST id %d]\n", osr_ast_id.ToInt());
+    }
+  } else {
+    info->SetOptimizing(BailoutId::None());
+  }
+
   VMState<COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
 
-  Handle<SharedFunctionInfo> shared = info->shared_info();
   int compiled_size = shared->end_position() - shared->start_position();
   isolate->counters()->total_compile_size()->Increment(compiled_size);
-  info->SetOptimizing(BailoutId::None());
 
   {
     CompilationHandleScope handle_scope(*info);
 
-    if (InstallCodeFromOptimizedCodeMap(*info)) {
-      return;
+    if (!compiling_for_osr && InstallCodeFromOptimizedCodeMap(*info)) {
+      return true;
     }
 
     if (Parser::Parse(*info)) {
@@ -1020,6 +1039,8 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
           info.Detach();
           shared->code()->set_profiler_ticks(0);
           isolate->optimizing_compiler_thread()->QueueForOptimization(compiler);
+          ASSERT(!isolate->has_pending_exception());
+          return true;
         } else if (status == OptimizingCompiler::BAILED_OUT) {
           isolate->clear_pending_exception();
           InstallFullCode(*info);
@@ -1028,38 +1049,26 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
     }
   }
 
-  if (shared->code()->back_edges_patched_for_osr()) {
-    // At this point we either put the function on recompilation queue or
-    // aborted optimization.  In either case we want to continue executing
-    // the unoptimized code without running into OSR.  If the unoptimized
-    // code has been patched for OSR, unpatch it.
-    InterruptStub interrupt_stub;
-    Handle<Code> interrupt_code = interrupt_stub.GetCode(isolate);
-    Handle<Code> replacement_code =
-        isolate->builtins()->OnStackReplacement();
-    Deoptimizer::RevertInterruptCode(shared->code(),
-                                     *interrupt_code,
-                                     *replacement_code);
-  }
-
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+  return false;
 }
 
 
-void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
+Handle<Code> Compiler::InstallOptimizedCode(
+    OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
   // The function may have already been optimized by OSR.  Simply continue.
   // Except when OSR already disabled optimization for some reason.
   if (info->shared_info()->optimization_disabled()) {
     info->AbortOptimization();
     InstallFullCode(*info);
-    if (FLAG_trace_parallel_recompilation) {
+    if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** aborting optimization for ");
       info->closure()->PrintName();
       PrintF(" as it has been disabled.\n");
     }
-    ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
-    return;
+    ASSERT(!info->closure()->IsInRecompileQueue());
+    return Handle<Code>::null();
   }
 
   Isolate* isolate = info->isolate();
@@ -1093,19 +1102,21 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
             info->closure()->context()->native_context()) == -1) {
       InsertCodeIntoOptimizedCodeMap(*info);
     }
-    if (FLAG_trace_parallel_recompilation) {
+    if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Optimized code for ");
       info->closure()->PrintName();
       PrintF(" installed.\n");
     }
   } else {
-    info->SetCode(Handle<Code>(info->shared_info()->code()));
+    info->AbortOptimization();
     InstallFullCode(*info);
   }
   // Optimized code is finally replacing unoptimized code.  Reset the latter's
   // profiler ticks to prevent too soon re-opt after a deopt.
   info->shared_info()->code()->set_profiler_ticks(0);
-  ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
+  ASSERT(!info->closure()->IsInRecompileQueue());
+  return (status == OptimizingCompiler::SUCCEEDED) ? info->code()
+                                                   : Handle<Code>::null();
 }
 
 
@@ -1193,7 +1204,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
   function_info->set_ast_node_count(lit->ast_node_count());
   function_info->set_is_function(lit->is_function());
-  function_info->set_dont_optimize(lit->flags()->Contains(kDontOptimize));
+  function_info->set_dont_optimize_reason(lit->dont_optimize_reason());
   function_info->set_dont_inline(lit->flags()->Contains(kDontInline));
   function_info->set_dont_cache(lit->flags()->Contains(kDontCache));
   function_info->set_is_generator(lit->is_generator());
@@ -1216,6 +1227,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
     int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    int column_num =
+        GetScriptColumnNumber(script, shared->start_position()) + 1;
     USE(line_num);
     if (script->name()->IsString()) {
       PROFILE(info->isolate(),
@@ -1224,7 +1237,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *shared,
                               info,
                               String::cast(script->name()),
-                              line_num));
+                              line_num,
+                              column_num));
     } else {
       PROFILE(info->isolate(),
               CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
@@ -1232,7 +1246,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *shared,
                               info,
                               info->isolate()->heap()->empty_string(),
-                              line_num));
+                              line_num,
+                              column_num));
     }
   }
 
@@ -1247,7 +1262,7 @@ CompilationPhase::CompilationPhase(const char* name, CompilationInfo* info)
     : name_(name), info_(info), zone_(info->isolate()) {
   if (FLAG_hydrogen_stats) {
     info_zone_start_allocation_size_ = info->zone()->allocation_size();
-    start_ticks_ = OS::Ticks();
+    timer_.Start();
   }
 }
 
@@ -1256,8 +1271,7 @@ CompilationPhase::~CompilationPhase() {
   if (FLAG_hydrogen_stats) {
     unsigned size = zone()->allocation_size();
     size += info_->zone()->allocation_size() - info_zone_start_allocation_size_;
-    int64_t ticks = OS::Ticks() - start_ticks_;
-    isolate()->GetHStatistics()->SaveTiming(name_, ticks, size);
+    isolate()->GetHStatistics()->SaveTiming(name_, timer_.Elapsed(), size);
   }
 }
 
@@ -1265,9 +1279,11 @@ CompilationPhase::~CompilationPhase() {
 bool CompilationPhase::ShouldProduceTraceOutput() const {
   // Trace if the appropriate trace flag is set and the phase name's first
   // character is in the FLAG_trace_phase command line parameter.
-  bool tracing_on = info()->IsStub() ?
-      FLAG_trace_hydrogen_stubs :
-      FLAG_trace_hydrogen;
+  AllowHandleDereference allow_deref;
+  bool tracing_on = info()->IsStub()
+      ? FLAG_trace_hydrogen_stubs
+      : (FLAG_trace_hydrogen &&
+         info()->closure()->PassesFilter(FLAG_trace_hydrogen_filter));
   return (tracing_on &&
       OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
 }

@@ -32,11 +32,6 @@
 
 using namespace ::v8::internal;
 
-TEST(NumberOfCores) {
-  CHECK_GT(OS::NumberOfCores(), 0);
-}
-
-
 #ifdef __GNUC__
 #define ASM __asm__ __volatile__
 

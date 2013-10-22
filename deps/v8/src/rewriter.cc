@@ -43,8 +43,8 @@ class Processor: public AstVisitor {
         result_assigned_(false),
         is_set_(false),
         in_try_(false),
-        factory_(Isolate::Current(), zone) {
-    InitializeAstVisitor();
+        factory_(zone->isolate(), zone) {
+    InitializeAstVisitor(zone->isolate());
   }
 
   virtual ~Processor() { }

@@ -87,8 +87,6 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(InRecompileQueue,               BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(InstallRecompiledCode,          BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
   V(JSConstructStubCountdown,       BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(JSConstructStubGeneric,         BUILTIN, UNINITIALIZED,             \
@@ -103,7 +101,7 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(LazyRecompile,                  BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(ParallelRecompile,              BUILTIN, UNINITIALIZED,             \
+  V(ConcurrentRecompile,            BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(NotifyDeoptimized,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -122,7 +120,7 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(KeyedLoadIC_MissForceGeneric,   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(KeyedLoadIC_Slow,               BUILTIN, UNINITIALIZED,             \
+  V(KeyedLoadIC_Slow,               STUB, MONOMORPHIC,                  \
                                     Code::kNoExtraICState)              \
   V(StoreIC_Miss,                   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -144,7 +142,7 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(LoadIC_Getter_ForDeopt,         LOAD_IC, MONOMORPHIC,               \
                                     Code::kNoExtraICState)              \
-  V(LoadIC_Slow,                    LOAD_IC, GENERIC,                   \
+  V(LoadIC_Slow,                    STUB, MONOMORPHIC,                  \
                                     Code::kNoExtraICState)              \
                                                                         \
   V(KeyedLoadIC_Initialize,         KEYED_LOAD_IC, UNINITIALIZED,       \
@@ -162,6 +160,8 @@ enum BuiltinExtraArguments {
                                                                         \
   V(StoreIC_Initialize,             STORE_IC, UNINITIALIZED,            \
                                     Code::kNoExtraICState)              \
+  V(StoreIC_PreMonomorphic,         STORE_IC, PREMONOMORPHIC,           \
+                                    Code::kNoExtraICState)              \
   V(StoreIC_Normal,                 STORE_IC, MONOMORPHIC,              \
                                     Code::kNoExtraICState)              \
   V(StoreIC_Megamorphic,            STORE_IC, MEGAMORPHIC,              \
@@ -174,6 +174,8 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(StoreIC_Initialize_Strict,      STORE_IC, UNINITIALIZED,            \
                                     kStrictMode)                        \
+  V(StoreIC_PreMonomorphic_Strict,  STORE_IC, PREMONOMORPHIC,           \
+                                    kStrictMode)                        \
   V(StoreIC_Normal_Strict,          STORE_IC, MONOMORPHIC,              \
                                     kStrictMode)                        \
   V(StoreIC_Megamorphic_Strict,     STORE_IC, MEGAMORPHIC,              \
@@ -185,10 +187,14 @@ enum BuiltinExtraArguments {
                                                                         \
   V(KeyedStoreIC_Initialize,        KEYED_STORE_IC, UNINITIALIZED,      \
                                     Code::kNoExtraICState)              \
+  V(KeyedStoreIC_PreMonomorphic,    KEYED_STORE_IC, PREMONOMORPHIC,     \
+                                    Code::kNoExtraICState)              \
   V(KeyedStoreIC_Generic,           KEYED_STORE_IC, GENERIC,            \
                                     Code::kNoExtraICState)              \
                                                                         \
   V(KeyedStoreIC_Initialize_Strict, KEYED_STORE_IC, UNINITIALIZED,      \
+                                    kStrictMode)                        \
+  V(KeyedStoreIC_PreMonomorphic_Strict, KEYED_STORE_IC, PREMONOMORPHIC, \
                                     kStrictMode)                        \
   V(KeyedStoreIC_Generic_Strict,    KEYED_STORE_IC, GENERIC,            \
                                     kStrictMode)                        \
@@ -210,6 +216,10 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
                                                                         \
   V(OnStackReplacement,             BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
+  V(InterruptCheck,                 BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
+  V(StackCheck,                     BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
@@ -288,7 +298,7 @@ class Builtins {
 
   // Generate all builtin code objects. Should be called once during
   // isolate initialization.
-  void SetUp(bool create_heap_objects);
+  void SetUp(Isolate* isolate, bool create_heap_objects);
   void TearDown();
 
   // Garbage collection support.
@@ -370,8 +380,7 @@ class Builtins {
                                CFunctionId id,
                                BuiltinExtraArguments extra_args);
   static void Generate_InRecompileQueue(MacroAssembler* masm);
-  static void Generate_InstallRecompiledCode(MacroAssembler* masm);
-  static void Generate_ParallelRecompile(MacroAssembler* masm);
+  static void Generate_ConcurrentRecompile(MacroAssembler* masm);
   static void Generate_JSConstructStubCountdown(MacroAssembler* masm);
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);
   static void Generate_JSConstructStubApi(MacroAssembler* masm);
@@ -394,6 +403,9 @@ class Builtins {
 
   static void Generate_StringConstructCode(MacroAssembler* masm);
   static void Generate_OnStackReplacement(MacroAssembler* masm);
+
+  static void Generate_InterruptCheck(MacroAssembler* masm);
+  static void Generate_StackCheck(MacroAssembler* masm);
 
 #define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)                \
   static void Generate_Make##C##CodeYoungAgainEvenMarking(   \

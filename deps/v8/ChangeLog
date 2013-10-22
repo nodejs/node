@@ -1,3 +1,216 @@
+2013-09-18: Version 3.21.17
+
+        Implemented local load/store elimination on basic blocks.
+
+        Added mutex when accessing concurrent recompilation output queue.
+        (Chromium issue 291236)
+
+        Don't lookup the cache for the result of Function::New.
+        (Chromium issue 272579)
+
+        Tweaked HConstant::EmitAtUses() to eliminate useless constant
+        generation.
+        (Chromium issue 2881)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-16: Version 3.21.16
+
+        Every place where AllocationMemento is initialized with an
+        AllocationSite is now checked to be sure a valid Site goes in. This is
+        temporary code to diagnose chromium bug 284577.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-13: Version 3.21.15
+
+        Non-JSObject heap objects are now handled using slow-path IC stub
+        guarded by the map.
+        (Chromium issue 280632)
+
+        i18n Javascript code added to the snapshot.
+        (V8 issue 2745)
+
+        Performance and stability improvements on all platforms.
+
+2013-09-12: Version 3.21.14
+
+        Added access check for observed objects.
+        (V8 issue 2778)
+
+        Cleaned up v8::ArrayBuffer::Allocator interface.
+        (V8 issue 2823)
+
+        Performance and stability improvements on all platforms.
+
+2013-09-11: Version 3.21.13
+
+        Added a ResourceConstraint for the embedder to specify that V8 is
+        running on a memory constrained device.
+        (Chromium issue 280984)
+
+        Removed HandleScope default ctor.
+        (Chromium issue 236173)
+
+        Enabled escape analysis for Hydrogen.
+
+        Correctly stringified mixed encoding indirect strings.
+        (Chromium issue 287476)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-09: Version 3.21.12
+
+        Fixed bitwise negation on x64.
+        (Chromium issue 285355)
+
+        Dropped GetCurrentThreadId() and TerminateExecution(int) from 
+	the external API.
+
+        Fixed polymorphic INTERCEPTOR StoreICs on ARM/MIPS.
+        (Chromium issue 284998)
+
+        Added check if timeout has expired after processing each sample.
+        (issue 2814,v8:2871)
+
+        Removed obsolete global V8::has_been_fooed flags.
+        (issue 2744)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-05: Version 3.21.11
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-04: Version 3.21.10
+
+        Fixed Eternal::IsEmpty logic (issue 2870).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-03: Version 3.21.9
+
+        Deprecated Persistent functions which were marked to be deprecated.
+
+        Allowed uncacheable identifiers to go generic (issue 2867).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-02: Version 3.21.8
+
+        Added scriptId to StackTrace frames (issue 2865).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-30: Version 3.21.7
+
+        Fixed casts of eternal handles.
+
+        Turned on global handle zapping.
+
+        Always visit branches during HGraph building (Chromium issue 280333).
+
+        Profiler changes: removed deprecated API, support higher sampling
+        rate on Windows.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-29: Version 3.21.6
+
+        Fixed inlined 'throw' statements interfering with live range
+        computation. (issue 2843)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-28: Version 3.21.5
+
+        Fixed compilation with recent MinGW64 versions. (issue 2300)
+
+        Added RemovePrototype to FunctionTemplate. (Chromium issue 272440)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-26: Version 3.21.4
+
+        Lowered kInitialMaxFastElementArray constant to 95K (issue 2790).
+
+        Use signals for cpu profiling on Mac OS X (issue 2814).
+
+        Deprecated CpuProfileNode::GetSelfSamplesCount (Chromium issue 267595).
+
+        Added support for higher CPU profiler sampling rate on posix systems
+        (issue 2814).
+
+        Worked around 'inlining failed' build error with older GCC 4.x releases.
+
+        Added source map support to tick processor.
+
+        Stability improvements on all platforms.
+
+
+2013-08-23: Version 3.21.3
+
+        Temporarily disabled optimization for StringWrappers to use native
+        valueOf. (issue 2855)
+
+        Fixed crash on function declarations in eval inside non-trivial local
+        scope. (issue 2594)
+
+        Rewrote SamplingCircularQueue. (issue 2814)
+
+        Fixed hidden properties on object with frozen prototype. (issue 2829)
+
+        Fix deoptimization bug. (Chromium issue 274164)
+
+        Stability improvements on all platforms.
+
+
+2013-08-22: Version 3.21.2
+
+        Stability improvements on all platforms.
+
+
+2013-08-21: Version 3.21.1
+
+        Promoted ArrayBuffer, DataView and typed arrays to non-experimental.
+        (Chromium issue 270527)
+
+        Replaced OS::MemCopy with memcpy in typed array initialization.
+        (Chromium issue 270642)
+
+        Moved i18n break iterator C++ code to runtime (issue 2745)
+
+        Fixed invalid out-of-bounds store in MacroAssembler::Allocate.
+        (Chromium issue 263515)
+
+        Fixed register misuse in Allocate() on ARM. (issue 2851)
+
+        Fixed empty handle dereference in Runtime_InternalNumberFormat.
+        (Chromium issue 275467)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-19: Version 3.21.0
+
+        Fixed GC-related crasher (Chromium issue 274438)
+
+        Reverted making Intl non-enumerable.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-14: Version 3.20.17
 
         Fixed Math.round/floor that had bogus Smi representation
@@ -31,7 +244,7 @@
         Performance and stability improvements on all platforms.
 
 
-2013-08-07: Version 3.20.14
+2013-08-07: Version 3.20.15
 
         Exposed eternal handle api.
 

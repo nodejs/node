@@ -26,10 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
-// Flags: --parallel-recompilation --parallel-recompilation-delay=50
+// Flags: --concurrent-recompilation --concurrent-recompilation-delay=50
 
-if (!%IsParallelRecompilationSupported()) {
-  print("Parallel recompilation is disabled. Skipping this test.");
+if (!%IsConcurrentRecompilationSupported()) {
+  print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
 
@@ -41,11 +41,11 @@ o.__proto__ = { __proto__: { bar: function() { return 1; } } };
 assertEquals(1, f(o));
 assertEquals(1, f(o));
 
-// Mark for parallel optimization.
-%OptimizeFunctionOnNextCall(f, "parallel");
-// Trigger optimization in the parallel thread.
+// Mark for concurrent optimization.
+%OptimizeFunctionOnNextCall(f, "concurrent");
+// Trigger optimization in the background thread.
 assertEquals(1, f(o));
-// While parallel recompilation is running, optimization not yet done.
+// While concurrent recompilation is running, optimization not yet done.
 assertUnoptimized(f, "no sync");
 // Change the prototype chain during optimization to trigger map invalidation.
 o.__proto__.__proto__ = { bar: function() { return 2; } };

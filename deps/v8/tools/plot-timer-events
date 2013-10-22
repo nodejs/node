@@ -67,4 +67,13 @@ cat $log_file |
     $tools_path/codemap.js $tools_path/profile.js $tools_path/profile_view.js \
     $tools_path/logreader.js $tools_path/tickprocessor.js \
     $tools_path/profviz/composer.js $tools_path/profviz/stdio.js \
-    -- $@ $options 2>/dev/null | gnuplot > timer-events.png
+    -- $@ $options 2>/dev/null > timer-events.plot
+
+success=$?
+if [[ $success != 0 ]] ; then
+    cat timer-events.plot
+else
+    cat timer-events.plot | gnuplot > timer-events.png
+fi
+
+rm -f timer-events.plot

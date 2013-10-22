@@ -163,7 +163,6 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
     int* output,
     int output_size,
     Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   // Ensure that the minimum stack has been allocated.
   RegExpStackScope stack_scope(isolate);
   Address stack_base = stack_scope.stack()->stack_base();
@@ -238,7 +237,6 @@ int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
     Address byte_offset2,
     size_t byte_length,
     Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
       isolate->regexp_macro_assembler_canonicalize();
   // This function is not allowed to cause a garbage collection.
@@ -271,7 +269,6 @@ int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
 Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
                                               Address* stack_base,
                                               Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   RegExpStack* regexp_stack = isolate->regexp_stack();
   size_t size = regexp_stack->stack_capacity();
   Address old_stack_base = regexp_stack->stack_base();

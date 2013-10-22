@@ -207,7 +207,6 @@ static unsigned int Pseudorandom() {
 
 
 TEST(MemoryChunk) {
-  OS::SetUp();
   Isolate* isolate = Isolate::Current();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
@@ -264,7 +263,6 @@ TEST(MemoryChunk) {
 
 
 TEST(MemoryAllocator) {
-  OS::SetUp();
   Isolate* isolate = Isolate::Current();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
@@ -314,7 +312,6 @@ TEST(MemoryAllocator) {
 
 
 TEST(NewSpace) {
-  OS::SetUp();
   Isolate* isolate = Isolate::Current();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
@@ -344,7 +341,6 @@ TEST(NewSpace) {
 
 
 TEST(OldSpace) {
-  OS::SetUp();
   Isolate* isolate = Isolate::Current();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();

@@ -1387,27 +1387,12 @@ typedef double (*SimulatorRuntimeFPIntCall)(double darg0, int32_t arg0);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
-// NOTE: the O32 abi requires a0 to hold a special pointer when returning a
-// struct from the function (which is currently the case). This means we pass
-// the first argument in a1 instead of a0.
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectApiCall)(int32_t arg0);
-// Here, we pass the first argument in a0, because this function
-// does not return a struct.
-typedef void (*SimulatorRuntimeDirectApiCallNew)(int32_t arg0);
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeProfilingApiCall)(
-    int32_t arg0, int32_t arg1);
-typedef void (*SimulatorRuntimeProfilingApiCallNew)(int32_t arg0, int32_t arg1);
+typedef void (*SimulatorRuntimeDirectApiCall)(int32_t arg0);
+typedef void (*SimulatorRuntimeProfilingApiCall)(int32_t arg0, int32_t arg1);
 
 // This signature supports direct call to accessor getter callback.
-// See comment at SimulatorRuntimeDirectApiCall.
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectGetterCall)(int32_t arg0,
-                                                                  int32_t arg1);
-// See comment at SimulatorRuntimeDirectApiCallNew.
-typedef void (*SimulatorRuntimeDirectGetterCallNew)(int32_t arg0,
-                                                    int32_t arg1);
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeProfilingGetterCall)(
-    int32_t arg0, int32_t arg1, int32_t arg2);
-typedef void (*SimulatorRuntimeProfilingGetterCallNew)(
+typedef void (*SimulatorRuntimeDirectGetterCall)(int32_t arg0, int32_t arg1);
+typedef void (*SimulatorRuntimeProfilingGetterCall)(
     int32_t arg0, int32_t arg1, int32_t arg2);
 
 // Software interrupt instructions are used by the simulator to call into the
@@ -1553,102 +1538,41 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           break;
         }
       }
-    } else if (
-        redirection->type() == ExternalReference::DIRECT_API_CALL ||
-        redirection->type() == ExternalReference::DIRECT_API_CALL_NEW) {
-      if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
-        // See comment at type definition of SimulatorRuntimeDirectApiCall
-        // for explanation of register usage.
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Call to host function at %p args %08x\n",
-              reinterpret_cast<void*>(external), arg1);
-        }
-        SimulatorRuntimeDirectApiCall target =
-            reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
-        v8::Handle<v8::Value> result = target(arg1);
-        *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
-        set_register(v0, arg0);
-      } else {
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Call to host function at %p args %08x\n",
-              reinterpret_cast<void*>(external), arg0);
-        }
-        SimulatorRuntimeDirectApiCallNew target =
-            reinterpret_cast<SimulatorRuntimeDirectApiCallNew>(external);
-        target(arg0);
+    } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
+      if (::v8::internal::FLAG_trace_sim) {
+        PrintF("Call to host function at %p args %08x\n",
+            reinterpret_cast<void*>(external), arg0);
       }
+      SimulatorRuntimeDirectApiCall target =
+          reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
+      target(arg0);
     } else if (
-        redirection->type() == ExternalReference::PROFILING_API_CALL ||
-        redirection->type() == ExternalReference::PROFILING_API_CALL_NEW) {
-      if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
-        // See comment at type definition of SimulatorRuntimeDirectApiCall
-        // for explanation of register usage.
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Call to host function at %p args %08x %08x\n",
-              reinterpret_cast<void*>(external), arg1, arg2);
-        }
-        SimulatorRuntimeProfilingApiCall target =
-            reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
-        v8::Handle<v8::Value> result = target(arg1, arg2);
-        *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
-        set_register(v0, arg0);
-      } else {
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Call to host function at %p args %08x %08x\n",
-              reinterpret_cast<void*>(external), arg0, arg1);
-        }
-        SimulatorRuntimeProfilingApiCallNew target =
-            reinterpret_cast<SimulatorRuntimeProfilingApiCallNew>(external);
-        target(arg0, arg1);
+        redirection->type() == ExternalReference::PROFILING_API_CALL) {
+      if (::v8::internal::FLAG_trace_sim) {
+        PrintF("Call to host function at %p args %08x %08x\n",
+            reinterpret_cast<void*>(external), arg0, arg1);
       }
+      SimulatorRuntimeProfilingApiCall target =
+          reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
+      target(arg0, arg1);
     } else if (
-        redirection->type() == ExternalReference::DIRECT_GETTER_CALL ||
-        redirection->type() == ExternalReference::DIRECT_GETTER_CALL_NEW) {
-      if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
-        // See comment at type definition of SimulatorRuntimeDirectGetterCall
-        // for explanation of register usage.
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Call to host function at %p args %08x %08x\n",
-              reinterpret_cast<void*>(external), arg1, arg2);
-        }
-        SimulatorRuntimeDirectGetterCall target =
-            reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-        v8::Handle<v8::Value> result = target(arg1, arg2);
-        *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
-        set_register(v0, arg0);
-      } else {
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Call to host function at %p args %08x %08x\n",
-              reinterpret_cast<void*>(external), arg0, arg1);
-        }
-        SimulatorRuntimeDirectGetterCallNew target =
-            reinterpret_cast<SimulatorRuntimeDirectGetterCallNew>(external);
-        target(arg0, arg1);
+        redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
+      if (::v8::internal::FLAG_trace_sim) {
+        PrintF("Call to host function at %p args %08x %08x\n",
+            reinterpret_cast<void*>(external), arg0, arg1);
       }
+      SimulatorRuntimeDirectGetterCall target =
+          reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
+      target(arg0, arg1);
     } else if (
-        redirection->type() == ExternalReference::PROFILING_GETTER_CALL ||
-        redirection->type() == ExternalReference::PROFILING_GETTER_CALL_NEW) {
-      if (redirection->type() == ExternalReference::PROFILING_GETTER_CALL) {
-        // See comment at type definition of SimulatorRuntimeProfilingGetterCall
-        // for explanation of register usage.
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Call to host function at %p args %08x %08x %08x\n",
-              reinterpret_cast<void*>(external), arg1, arg2, arg3);
-        }
-        SimulatorRuntimeProfilingGetterCall target =
-            reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-        v8::Handle<v8::Value> result = target(arg1, arg2, arg3);
-        *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
-        set_register(v0, arg0);
-      } else {
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Call to host function at %p args %08x %08x %08x\n",
-              reinterpret_cast<void*>(external), arg0, arg1, arg2);
-        }
-        SimulatorRuntimeProfilingGetterCallNew target =
-            reinterpret_cast<SimulatorRuntimeProfilingGetterCallNew>(external);
-        target(arg0, arg1, arg2);
+        redirection->type() == ExternalReference::PROFILING_GETTER_CALL) {
+      if (::v8::internal::FLAG_trace_sim) {
+        PrintF("Call to host function at %p args %08x %08x %08x\n",
+            reinterpret_cast<void*>(external), arg0, arg1, arg2);
       }
+      SimulatorRuntimeProfilingGetterCall target =
+          reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
+      target(arg0, arg1, arg2);
     } else {
       SimulatorRuntimeCall target =
                   reinterpret_cast<SimulatorRuntimeCall>(external);

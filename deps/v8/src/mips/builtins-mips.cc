@@ -299,6 +299,24 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 }
 
 
+static void CallRuntimePassFunction(MacroAssembler* masm,
+                                    Runtime::FunctionId function_id) {
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  // Push a copy of the function onto the stack.
+  __ push(a1);
+  // Push call kind information.
+  __ push(t1);
+  // Function is also the parameter to the runtime call.
+  __ push(a1);
+
+  __ CallRuntime(function_id, 1);
+  // Restore call kind information.
+  __ pop(t1);
+  // Restore receiver.
+  __ pop(a1);
+}
+
+
 static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
   __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kCodeOffset));
@@ -308,59 +326,27 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
 
 
 void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+  // Checking whether the queued function is ready for install is optional,
+  // since we come across interrupts and stack checks elsewhere.  However,
+  // not checking may delay installing ready functions, and always checking
+  // would be quite expensive.  A good compromise is to first check against
+  // stack limit as a cue for an interrupt signal.
+  Label ok;
+  __ LoadRoot(t0, Heap::kStackLimitRootIndex);
+  __ Branch(&ok, hs, sp, Operand(t0));
+
+  CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
+  // Tail call to returned code.
+  __ Addu(at, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Jump(at);
+
+  __ bind(&ok);
   GenerateTailCallToSharedCode(masm);
 }
 
 
-void Builtins::Generate_InstallRecompiledCode(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Preserve the function.
-    __ push(a1);
-    // Push call kind information.
-    __ push(t1);
-
-    // Push the function on the stack as the argument to the runtime function.
-    __ push(a1);
-    __ CallRuntime(Runtime::kInstallRecompiledCode, 1);
-    // Calculate the entry point.
-    __ Addu(t9, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
-
-    // Restore call kind information.
-    __ pop(t1);
-    // Restore saved function.
-    __ pop(a1);
-
-    // Tear down temporary frame.
-  }
-
-  // Do a tail-call of the compiled function.
-  __ Jump(t9);
-}
-
-
-void Builtins::Generate_ParallelRecompile(MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(a1);
-    // Push call kind information.
-    __ push(t1);
-
-    __ push(a1);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kParallelRecompile, 1);
-
-    // Restore call kind information.
-    __ pop(t1);
-    // Restore receiver.
-    __ pop(a1);
-
-    // Tear down internal frame.
-  }
-
+void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
+  CallRuntimePassFunction(masm, Runtime::kConcurrentRecompile);
   GenerateTailCallToSharedCode(masm);
 }
 
@@ -815,60 +801,17 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Preserve the function.
-    __ push(a1);
-    // Push call kind information.
-    __ push(t1);
-
-    // Push the function on the stack as the argument to the runtime function.
-    __ push(a1);
-    // Call the runtime function.
-    __ CallRuntime(Runtime::kLazyCompile, 1);
-    // Calculate the entry point.
-    __ addiu(t9, v0, Code::kHeaderSize - kHeapObjectTag);
-
-    // Restore call kind information.
-    __ pop(t1);
-    // Restore saved function.
-    __ pop(a1);
-
-    // Tear down temporary frame.
-  }
-
+  CallRuntimePassFunction(masm, Runtime::kLazyCompile);
   // Do a tail-call of the compiled function.
+  __ Addu(t9, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(t9);
 }
 
 
 void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Preserve the function.
-    __ push(a1);
-    // Push call kind information.
-    __ push(t1);
-
-    // Push the function on the stack as the argument to the runtime function.
-    __ push(a1);
-    __ CallRuntime(Runtime::kLazyRecompile, 1);
-    // Calculate the entry point.
-    __ Addu(t9, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
-
-    // Restore call kind information.
-    __ pop(t1);
-    // Restore saved function.
-    __ pop(a1);
-
-    // Tear down temporary frame.
-  }
-
+  CallRuntimePassFunction(masm, Runtime::kLazyRecompile);
   // Do a tail-call of the compiled function.
+  __ Addu(t9, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(t9);
 }
 
@@ -1000,27 +943,44 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  // Lookup the function in the JavaScript frame and push it as an
-  // argument to the on-stack replacement function.
+  // Lookup the function in the JavaScript frame.
   __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    // Lookup and calculate pc offset.
+    __ lw(a1, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+    __ lw(a2, FieldMemOperand(a0, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kCodeOffset));
+    __ Subu(a1, a1, Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ Subu(a1, a1, a2);
+    __ SmiTag(a1);
+
+    // Pass both function and pc offset as arguments.
     __ push(a0);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+    __ push(a1);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 2);
   }
 
-  // If the result was -1 it means that we couldn't optimize the
-  // function. Just return and continue in the unoptimized version.
-  __ Ret(eq, v0, Operand(Smi::FromInt(-1)));
+  // If the code object is null, just return to the unoptimized code.
+  __ Ret(eq, v0, Operand(Smi::FromInt(0)));
 
-  // Untag the AST id and push it on the stack.
-  __ SmiUntag(v0);
-  __ push(v0);
+  // Load deoptimization data from the code object.
+  // <deopt_data> = <code>[#deoptimization_data_offset]
+  __ lw(a1, MemOperand(v0, Code::kDeoptimizationDataOffset - kHeapObjectTag));
 
-  // Generate the code for doing the frame-to-frame translation using
-  // the deoptimizer infrastructure.
-  Deoptimizer::EntryGenerator generator(masm, Deoptimizer::OSR);
-  generator.Generate();
+  // Load the OSR entrypoint offset from the deoptimization data.
+  // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
+  __ lw(a1, MemOperand(a1, FixedArray::OffsetOfElementAt(
+      DeoptimizationInputData::kOsrPcOffsetIndex) - kHeapObjectTag));
+  __ SmiUntag(a1);
+
+  // Compute the target address = code_obj + header_size + osr_offset
+  // <entry_addr> = <code_obj> + #header_size + <osr_offset>
+  __ addu(v0, v0, a1);
+  __ addiu(ra, v0, Code::kHeaderSize - kHeapObjectTag);
+
+  // And "return" to the OSR entry point of the function.
+  __ Ret();
 }
 
 

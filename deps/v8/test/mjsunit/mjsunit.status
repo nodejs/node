@@ -251,8 +251,5 @@ harmony/object-observe: SKIP
 readonly: SKIP
 array-feedback: SKIP
 
-# TODO(mstarzinger): Enable once escape analysis is stabilized.
-compiler/escape-analysis: SKIP
-
 # Deopt every n garbage collections collides with the deopt every n times flag.
 regress/regress-2653: SKIP

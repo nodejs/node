@@ -475,7 +475,6 @@ class CpuFeatures : public AllStatic {
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
     if (f == CMOV && !FLAG_enable_cmov) return false;
-    if (f == RDTSC && !FLAG_enable_rdtsc) return false;
     if (f == SAHF && !FLAG_enable_sahf) return false;
     return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
   }
@@ -1176,7 +1175,6 @@ class Assembler : public AssemblerBase {
   void hlt();
   void int3();
   void nop();
-  void rdtsc();
   void ret(int imm16);
   void setcc(Condition cc, Register reg);
 
@@ -1385,6 +1383,8 @@ class Assembler : public AssemblerBase {
 
   void movmskpd(Register dst, XMMRegister src);
   void movmskps(Register dst, XMMRegister src);
+
+  void cmpltsd(XMMRegister dst, XMMRegister src);
 
   // The first argument is the reg field, the second argument is the r/m field.
   void emit_sse_operand(XMMRegister dst, XMMRegister src);

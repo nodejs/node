@@ -147,86 +147,88 @@ TEST(NoPromotion) {
 
 
 TEST(MarkCompactCollector) {
+  FLAG_incremental_marking = false;
   CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  Heap* heap = isolate->heap();
 
   v8::HandleScope sc(CcTest::isolate());
+
   // call mark-compact when heap is empty
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 1");
 
   // keep allocating garbage in new space until it fails
   const int ARRAY_SIZE = 100;
   Object* array;
   MaybeObject* maybe_array;
   do {
-    maybe_array = HEAP->AllocateFixedArray(ARRAY_SIZE);
+    maybe_array = heap->AllocateFixedArray(ARRAY_SIZE);
   } while (maybe_array->ToObject(&array));
-  HEAP->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbage(NEW_SPACE, "trigger 2");
 
-  array = HEAP->AllocateFixedArray(ARRAY_SIZE)->ToObjectChecked();
+  array = heap->AllocateFixedArray(ARRAY_SIZE)->ToObjectChecked();
 
   // keep allocating maps until it fails
   Object* mapp;
   MaybeObject* maybe_mapp;
   do {
-    maybe_mapp = HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    maybe_mapp = heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   } while (maybe_mapp->ToObject(&mapp));
-  HEAP->CollectGarbage(MAP_SPACE);
-  mapp = HEAP->AllocateMap(JS_OBJECT_TYPE,
+  heap->CollectGarbage(MAP_SPACE, "trigger 3");
+  mapp = heap->AllocateMap(JS_OBJECT_TYPE,
                            JSObject::kHeaderSize)->ToObjectChecked();
 
   // allocate a garbage
   String* func_name = String::cast(
-      HEAP->InternalizeUtf8String("theFunction")->ToObjectChecked());
+      heap->InternalizeUtf8String("theFunction")->ToObjectChecked());
   SharedFunctionInfo* function_share = SharedFunctionInfo::cast(
-      HEAP->AllocateSharedFunctionInfo(func_name)->ToObjectChecked());
+      heap->AllocateSharedFunctionInfo(func_name)->ToObjectChecked());
   JSFunction* function = JSFunction::cast(
-      HEAP->AllocateFunction(*Isolate::Current()->function_map(),
+      heap->AllocateFunction(*isolate->function_map(),
                              function_share,
-                             HEAP->undefined_value())->ToObjectChecked());
+                             heap->undefined_value())->ToObjectChecked());
   Map* initial_map =
-      Map::cast(HEAP->AllocateMap(JS_OBJECT_TYPE,
+      Map::cast(heap->AllocateMap(JS_OBJECT_TYPE,
                                   JSObject::kHeaderSize)->ToObjectChecked());
   function->set_initial_map(initial_map);
-  Isolate::Current()->context()->global_object()->SetProperty(
+  isolate->context()->global_object()->SetProperty(
       func_name, function, NONE, kNonStrictMode)->ToObjectChecked();
 
   JSObject* obj = JSObject::cast(
-      HEAP->AllocateJSObject(function)->ToObjectChecked());
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+      heap->AllocateJSObject(function)->ToObjectChecked());
+  heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 4");
 
   func_name = String::cast(
-      HEAP->InternalizeUtf8String("theFunction")->ToObjectChecked());
-  CHECK(Isolate::Current()->context()->global_object()->
-        HasLocalProperty(func_name));
-  Object* func_value = Isolate::Current()->context()->global_object()->
+      heap->InternalizeUtf8String("theFunction")->ToObjectChecked());
+  CHECK(isolate->context()->global_object()->HasLocalProperty(func_name));
+  Object* func_value = isolate->context()->global_object()->
       GetProperty(func_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   function = JSFunction::cast(func_value);
 
-  obj = JSObject::cast(HEAP->AllocateJSObject(function)->ToObjectChecked());
+  obj = JSObject::cast(heap->AllocateJSObject(function)->ToObjectChecked());
   String* obj_name =
-      String::cast(HEAP->InternalizeUtf8String("theObject")->ToObjectChecked());
-  Isolate::Current()->context()->global_object()->SetProperty(
+      String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
+  isolate->context()->global_object()->SetProperty(
       obj_name, obj, NONE, kNonStrictMode)->ToObjectChecked();
   String* prop_name =
-      String::cast(HEAP->InternalizeUtf8String("theSlot")->ToObjectChecked());
+      String::cast(heap->InternalizeUtf8String("theSlot")->ToObjectChecked());
   obj->SetProperty(prop_name,
                    Smi::FromInt(23),
                    NONE,
                    kNonStrictMode)->ToObjectChecked();
 
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 5");
 
   obj_name =
-      String::cast(HEAP->InternalizeUtf8String("theObject")->ToObjectChecked());
-  CHECK(Isolate::Current()->context()->global_object()->
-        HasLocalProperty(obj_name));
-  CHECK(Isolate::Current()->context()->global_object()->
+      String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
+  CHECK(isolate->context()->global_object()->HasLocalProperty(obj_name));
+  CHECK(isolate->context()->global_object()->
         GetProperty(obj_name)->ToObjectChecked()->IsJSObject());
-  obj = JSObject::cast(Isolate::Current()->context()->global_object()->
+  obj = JSObject::cast(isolate->context()->global_object()->
                        GetProperty(obj_name)->ToObjectChecked());
   prop_name =
-      String::cast(HEAP->InternalizeUtf8String("theSlot")->ToObjectChecked());
+      String::cast(heap->InternalizeUtf8String("theSlot")->ToObjectChecked());
   CHECK(obj->GetProperty(prop_name) == Smi::FromInt(23));
 }
 
@@ -305,7 +307,7 @@ static void WeakPointerCallback(v8::Isolate* isolate,
                                 void* id) {
   ASSERT(id == reinterpret_cast<void*>(1234));
   NumberOfWeakCalls++;
-  handle->Dispose(isolate);
+  handle->Dispose();
 }
 
 
@@ -541,7 +543,7 @@ TEST(BootUpMemoryUse) {
   intptr_t initial_memory = MemoryInUse();
   // Avoid flakiness.
   FLAG_crankshaft = false;
-  FLAG_parallel_recompilation = false;
+  FLAG_concurrent_recompilation = false;
 
   // Only Linux has the proc filesystem and only if it is mapped.  If it's not
   // there we just skip the test.
@@ -570,7 +572,7 @@ intptr_t ShortLivingIsolate() {
   v8::Isolate* isolate = v8::Isolate::New();
   { v8::Isolate::Scope isolate_scope(isolate);
     v8::Locker lock(isolate);
-    v8::HandleScope handle_scope;
+    v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     CHECK(!context.IsEmpty());
   }

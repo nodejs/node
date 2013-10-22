@@ -34,6 +34,10 @@ test-api/Bug*: FAIL
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
 
+# TODO(mstarzinger): Fail gracefully on multiple V8::Dispose calls.
+test-api/InitializeAndDisposeOnce: SKIP
+test-api/InitializeAndDisposeMultiple: SKIP
+
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.
 test-serialize/TestThatAlwaysFails: FAIL
@@ -51,6 +55,9 @@ test-weaksets/WeakSet_Shrinking: FAIL
 
 # Boot up memory use is bloated in debug mode.
 test-mark-compact/BootUpMemoryUse: PASS, PASS || FAIL if $mode == debug
+
+# Some CPU profiler tests are flaky.
+test-cpu-profiler/*: PASS || FLAKY
 
 ##############################################################################
 [ $arch == arm ]
@@ -70,6 +77,8 @@ test-serialize/DeserializeFromSecondSerializationAndRunScript2: SKIP
 test-serialize/DeserializeAndRunScript2: SKIP
 test-serialize/DeserializeFromSecondSerialization: SKIP
 
+# BUG(2874): Threading problems.
+test-api/*: PASS || FLAKY
 ##############################################################################
 [ $arch == mipsel ]
 
@@ -113,7 +122,10 @@ test-log/ProfLazyMode: SKIP
 # Native Client doesn't support sockets.
 test-debug/DebuggerAgent: SKIP
 test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
-test-sockets/Socket: SKIP
+test-socket/Socket: SKIP
 
 # Profiling doesn't work on Native Client.
 test-cpu-profiler/*: SKIP
+
+# Fails since 16322 (new test).
+test-code-stubs-arm/ConvertDToI: SKIP

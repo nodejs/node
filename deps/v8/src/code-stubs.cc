@@ -46,7 +46,7 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
       deoptimization_handler_(NULL),
-      miss_handler_(IC_Utility(IC::kUnreachable), Isolate::Current()),
+      miss_handler_(),
       has_miss_handler_(false) { }
 
 
@@ -93,8 +93,7 @@ Handle<Code> CodeStub::GetCodeCopyFromTemplate(Isolate* isolate) {
 }
 
 
-Handle<Code> PlatformCodeStub::GenerateCode() {
-  Isolate* isolate = Isolate::Current();
+Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
   Factory* factory = isolate->factory();
 
   // Generate the new code.
@@ -137,14 +136,14 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   if (UseSpecialCache()
       ? FindCodeInSpecialCache(&code, isolate)
       : FindCodeInCache(&code, isolate)) {
-    ASSERT(IsPregenerated() == code->is_pregenerated());
+    ASSERT(IsPregenerated(isolate) == code->is_pregenerated());
     return Handle<Code>(code);
   }
 
   {
     HandleScope scope(isolate);
 
-    Handle<Code> new_object = GenerateCode();
+    Handle<Code> new_object = GenerateCode(isolate);
     new_object->set_major_key(MajorKey());
     FinishCode(new_object);
     RecordCodeGeneration(*new_object, isolate);
@@ -596,19 +595,9 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case FAST_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS: {
-      KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
-                                                       is_js_array_,
-                                                       elements_kind_,
-                                                       store_mode_);
-    }
-      break;
+    case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
-      KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
-                                                             is_js_array_,
-                                                             store_mode_);
-      break;
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -618,7 +607,7 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
-      KeyedStoreStubCompiler::GenerateStoreExternalArray(masm, elements_kind_);
+      UNREACHABLE();
       break;
     case DICTIONARY_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreDictionaryElement(masm);
@@ -742,8 +731,9 @@ void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
 
 
 void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
-                                               intptr_t stack_pointer) {
-  FunctionEntryHook entry_hook = Isolate::Current()->function_entry_hook();
+                                               intptr_t stack_pointer,
+                                               Isolate* isolate) {
+  FunctionEntryHook entry_hook = isolate->function_entry_hook();
   ASSERT(entry_hook != NULL);
   entry_hook(function, stack_pointer);
 }
@@ -766,6 +756,12 @@ void ArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
   InstallDescriptor(isolate, &stub2);
   ArrayNArgumentsConstructorStub stub3(GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub3);
+}
+
+
+void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
+  FastNewClosureStub stub(STRICT_MODE, false);
+  InstallDescriptor(isolate, &stub);
 }
 
 

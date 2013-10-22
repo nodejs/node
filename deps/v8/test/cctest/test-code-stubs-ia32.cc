@@ -136,46 +136,15 @@ TEST(ConvertDToI) {
   RunAllTruncationTests(&ConvertDToICVersion);
 #endif
 
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esp, eax));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esp, ebx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esp, ecx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esp, edx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esp, edi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esp, esi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, eax, eax));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, eax, ebx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, eax, ecx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, eax, edx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, eax, edi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, eax, esi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ebx, eax));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ebx, ebx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ebx, ecx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ebx, edx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ebx, edi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ebx, esi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ecx, eax));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ecx, ebx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ecx, ecx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ecx, edx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ecx, edi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, ecx, esi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edx, eax));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edx, ebx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edx, ecx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edx, edx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edx, edi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edx, esi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esi, eax));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esi, ebx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esi, ecx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esi, edx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esi, edi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, esi, esi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edi, eax));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edi, ebx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edi, ecx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edi, edx));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edi, edi));
-  RunAllTruncationTests(MakeConvertDToIFuncTrampoline(isolate, edi, esi));
+  Register source_registers[] = {esp, eax, ebx, ecx, edx, edi, esi};
+  Register dest_registers[] = {eax, ebx, ecx, edx, edi, esi};
+
+  for (size_t s = 0; s < sizeof(source_registers) / sizeof(Register); s++) {
+    for (size_t d = 0; d < sizeof(dest_registers) / sizeof(Register); d++) {
+      RunAllTruncationTests(
+          MakeConvertDToIFuncTrampoline(isolate,
+                                        source_registers[s],
+                                        dest_registers[d]));
+    }
+  }
 }

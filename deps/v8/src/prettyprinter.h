@@ -38,7 +38,7 @@ namespace internal {
 
 class PrettyPrinter: public AstVisitor {
  public:
-  PrettyPrinter();
+  explicit PrettyPrinter(Isolate* isolate);
   virtual ~PrettyPrinter();
 
   // The following routines print a node into a string.
@@ -50,7 +50,7 @@ class PrettyPrinter: public AstVisitor {
   void Print(const char* format, ...);
 
   // Print a node to stdout.
-  static void PrintOut(AstNode* node);
+  static void PrintOut(Isolate* isolate, AstNode* node);
 
   // Individual nodes
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
@@ -82,7 +82,7 @@ class PrettyPrinter: public AstVisitor {
 // Prints the AST structure
 class AstPrinter: public PrettyPrinter {
  public:
-  AstPrinter();
+  explicit AstPrinter(Isolate* isolate);
   virtual ~AstPrinter();
 
   const char* PrintProgram(FunctionLiteral* program);

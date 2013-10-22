@@ -26,10 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --parallel-recompilation-delay=300
+// Flags: --concurrent-recompilation-delay=300
 
-if (!%IsParallelRecompilationSupported()) {
-  print("Parallel recompilation is disabled. Skipping this test.");
+if (!%IsConcurrentRecompilationSupported()) {
+  print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
 
@@ -46,8 +46,8 @@ function bar() {
 }
 
 foo();
-// Mark and trigger parallel optimization.
-%OptimizeFunctionOnNextCall(foo, "parallel");
+// Mark and trigger concurrent optimization.
+%OptimizeFunctionOnNextCall(foo, "concurrent");
 foo();
 
 // Set break points on an unrelated function. This clears both optimized
@@ -56,7 +56,7 @@ foo();
 Debug.setBreakPoint(bar, 0, 0);
 Debug.clearAllBreakPoints();
 
-// Install optimized code when parallel optimization finishes.
+// Install optimized code when concurrent optimization finishes.
 // This needs to be able to deal with shared code being a builtin.
 assertUnoptimized(foo, "sync");
 

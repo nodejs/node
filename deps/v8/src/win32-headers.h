@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef V8_WIN32_HEADERS_H_
+#define V8_WIN32_HEADERS_H_
+
 #ifndef WIN32_LEAN_AND_MEAN
 // WIN32_LEAN_AND_MEAN implies NOCRYPT and NOGDI.
 #define WIN32_LEAN_AND_MEAN
@@ -55,7 +58,6 @@
 
 #include <windows.h>
 
-#ifdef V8_WIN32_HEADERS_FULL
 #include <signal.h>  // For raise().
 #include <time.h>  // For LocalOffset() implementation.
 #include <mmsystem.h>  // For timeGetTime().
@@ -81,7 +83,6 @@
 #endif  // __MINGW32__
 #include <process.h>  // For _beginthreadex().
 #include <stdlib.h>
-#endif  // V8_WIN32_HEADERS_FULL
 
 #undef VOID
 #undef DELETE
@@ -94,5 +95,7 @@
 #undef ANY
 #undef IGNORE
 #undef GetObject
-#undef CreateMutex
 #undef CreateSemaphore
+#undef Yield
+
+#endif  // V8_WIN32_HEADERS_H_

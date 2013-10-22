@@ -60,6 +60,8 @@ class HBoundsCheckEliminationPhase : public HPhase {
 
  private:
   void EliminateRedundantBoundsChecks(HBasicBlock* bb);
+  BoundsCheckBbData* PreProcessBlock(HBasicBlock* bb);
+  void PostProcessBlock(HBasicBlock* bb, BoundsCheckBbData* data);
 
   BoundsCheckTable table_;
 

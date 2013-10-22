@@ -461,12 +461,10 @@ Handle<Code> LChunk::Codegen() {
         CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
     generator.FinishCode(code);
     code->set_is_crankshafted(true);
-    if (!code.is_null()) {
-      void* jit_handler_data =
-          assembler.positions_recorder()->DetachJITHandlerData();
-      LOG_CODE_EVENT(info()->isolate(),
-                     CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
-    }
+    void* jit_handler_data =
+        assembler.positions_recorder()->DetachJITHandlerData();
+    LOG_CODE_EVENT(info()->isolate(),
+                   CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
     return code;

@@ -1138,7 +1138,7 @@ class Oddball(HeapObject):
 
   def __str__(self):
     if self.to_string:
-      return "Oddball(%08x, <%s>)" % (self.address, self.to_string.GetChars())
+      return "Oddball(%08x, <%s>)" % (self.address, str(self.to_string))
     else:
       kind = "???"
       if 0 <= self.kind < len(Oddball.KINDS):

@@ -55,7 +55,8 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
   CodePatcher patcher(rinfo()->pc(), Assembler::kJSReturnSequenceInstructions);
   patcher.masm()->ldr(v8::internal::ip, MemOperand(v8::internal::pc, 0));
   patcher.masm()->blx(v8::internal::ip);
-  patcher.Emit(Isolate::Current()->debug()->debug_break_return()->entry());
+  patcher.Emit(
+      debug_info_->GetIsolate()->debug()->debug_break_return()->entry());
   patcher.masm()->bkpt(0);
 }
 
@@ -95,7 +96,8 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   CodePatcher patcher(rinfo()->pc(), Assembler::kDebugBreakSlotInstructions);
   patcher.masm()->ldr(v8::internal::ip, MemOperand(v8::internal::pc, 0));
   patcher.masm()->blx(v8::internal::ip);
-  patcher.Emit(Isolate::Current()->debug()->debug_break_slot()->entry());
+  patcher.Emit(
+      debug_info_->GetIsolate()->debug()->debug_break_slot()->entry());
 }
 
 

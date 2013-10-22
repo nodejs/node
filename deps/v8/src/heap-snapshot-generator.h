@@ -100,7 +100,9 @@ class HeapEntry BASE_EMBEDDED {
     kRegExp = v8::HeapGraphNode::kRegExp,
     kHeapNumber = v8::HeapGraphNode::kHeapNumber,
     kNative = v8::HeapGraphNode::kNative,
-    kSynthetic = v8::HeapGraphNode::kSynthetic
+    kSynthetic = v8::HeapGraphNode::kSynthetic,
+    kConsString = v8::HeapGraphNode::kConsString,
+    kSlicedString = v8::HeapGraphNode::kSlicedString
   };
   static const int kNoEntry;
 
@@ -235,7 +237,7 @@ class HeapObjectsMap {
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
   size_t GetUsedMemorySize() const;
 
-  static SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
+  static SnapshotObjectId GenerateId(Heap* heap, v8::RetainedObjectInfo* info);
   static inline SnapshotObjectId GetNthGcSubrootId(int delta);
 
   static const int kObjectIdStep = 2;
@@ -538,7 +540,7 @@ class NativeGroupRetainedObjectInfo;
 class NativeObjectsExplorer {
  public:
   NativeObjectsExplorer(HeapSnapshot* snapshot,
-                      SnapshottingProgressReportingInterface* progress);
+                        SnapshottingProgressReportingInterface* progress);
   virtual ~NativeObjectsExplorer();
   void AddRootEntries(SnapshotFillerInterface* filler);
   int EstimateObjectsCount();
@@ -570,6 +572,7 @@ class NativeObjectsExplorer {
 
   NativeGroupRetainedObjectInfo* FindOrAddGroupInfo(const char* label);
 
+  Isolate* isolate_;
   HeapSnapshot* snapshot_;
   HeapSnapshotsCollection* collection_;
   SnapshottingProgressReportingInterface* progress_;

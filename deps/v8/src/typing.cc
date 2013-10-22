@@ -42,7 +42,7 @@ AstTyper::AstTyper(CompilationInfo* info)
           info->isolate(),
           info->zone()),
       store_(info->zone()) {
-  InitializeAstVisitor();
+  InitializeAstVisitor(info->isolate());
 }
 
 

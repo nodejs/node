@@ -985,6 +985,8 @@ void AccessorPair::AccessorPairPrint(FILE* out) {
   getter()->ShortPrint(out);
   PrintF(out, "\n - setter: ");
   setter()->ShortPrint(out);
+  PrintF(out, "\n - flag: ");
+  access_flags()->ShortPrint(out);
 }
 
 
@@ -1068,6 +1070,8 @@ void ObjectTemplateInfo::ObjectTemplateInfoPrint(FILE* out) {
   tag()->ShortPrint(out);
   PrintF(out, "\n - property_list: ");
   property_list()->ShortPrint(out);
+  PrintF(out, "\n - property_accessors: ");
+  property_accessors()->ShortPrint(out);
   PrintF(out, "\n - constructor: ");
   constructor()->ShortPrint(out);
   PrintF(out, "\n - internal_field_count: ");

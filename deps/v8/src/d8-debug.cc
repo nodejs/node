@@ -29,8 +29,9 @@
 
 #include "d8.h"
 #include "d8-debug.h"
-#include "platform.h"
 #include "debug-agent.h"
+#include "platform.h"
+#include "platform/socket.h"
 
 
 namespace v8 {
@@ -171,21 +172,14 @@ void RunRemoteDebugger(Isolate* isolate, int port) {
 void RemoteDebugger::Run() {
   bool ok;
 
-  // Make sure that socket support is initialized.
-  ok = i::Socket::SetUp();
-  if (!ok) {
-    printf("Unable to initialize socket support %d\n", i::Socket::LastError());
-    return;
-  }
-
   // Connect to the debugger agent.
-  conn_ = i::OS::CreateSocket();
+  conn_ = new i::Socket;
   static const int kPortStrSize = 6;
   char port_str[kPortStrSize];
   i::OS::SNPrintF(i::Vector<char>(port_str, kPortStrSize), "%d", port_);
   ok = conn_->Connect("localhost", port_str);
   if (!ok) {
-    printf("Unable to connect to debug agent %d\n", i::Socket::LastError());
+    printf("Unable to connect to debug agent %d\n", i::Socket::GetLastError());
     return;
   }
 
@@ -201,7 +195,7 @@ void RemoteDebugger::Run() {
   // Process events received from debugged VM and from the keyboard.
   bool terminate = false;
   while (!terminate) {
-    event_available_->Wait();
+    event_available_.Wait();
     RemoteDebuggerEvent* event = GetEvent();
     switch (event->type()) {
       case RemoteDebuggerEvent::kMessage:
@@ -248,7 +242,7 @@ void RemoteDebugger::ConnectionClosed() {
 
 
 void RemoteDebugger::AddEvent(RemoteDebuggerEvent* event) {
-  i::ScopedLock lock(event_access_);
+  i::LockGuard<i::Mutex> lock_guard(&event_access_);
   if (head_ == NULL) {
     ASSERT(tail_ == NULL);
     head_ = event;
@@ -258,12 +252,12 @@ void RemoteDebugger::AddEvent(RemoteDebuggerEvent* event) {
     tail_->set_next(event);
     tail_ = event;
   }
-  event_available_->Signal();
+  event_available_.Signal();
 }
 
 
 RemoteDebuggerEvent* RemoteDebugger::GetEvent() {
-  i::ScopedLock lock(event_access_);
+  i::LockGuard<i::Mutex> lock_guard(&event_access_);
   ASSERT(head_ != NULL);
   RemoteDebuggerEvent* result = head_;
   head_ = head_->next();

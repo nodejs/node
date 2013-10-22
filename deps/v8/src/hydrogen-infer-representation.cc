@@ -82,24 +82,36 @@ void HInferRepresentationPhase::Run() {
       if (done.Contains(i)) continue;
 
       // Check if all uses of all connected phis in this group are truncating.
-      bool all_uses_everywhere_truncating = true;
+      bool all_uses_everywhere_truncating_int32 = true;
+      bool all_uses_everywhere_truncating_smi = true;
       for (BitVector::Iterator it(connected_phis[i]);
            !it.Done();
            it.Advance()) {
         int index = it.Current();
-        all_uses_everywhere_truncating &=
+        all_uses_everywhere_truncating_int32 &=
             phi_list->at(index)->CheckFlag(HInstruction::kTruncatingToInt32);
+        all_uses_everywhere_truncating_smi &=
+            phi_list->at(index)->CheckFlag(HInstruction::kTruncatingToSmi);
         done.Add(index);
       }
-      if (all_uses_everywhere_truncating) {
-        continue;  // Great, nothing to do.
+
+      if (!all_uses_everywhere_truncating_int32) {
+        // Clear truncation flag of this group of connected phis.
+        for (BitVector::Iterator it(connected_phis[i]);
+             !it.Done();
+             it.Advance()) {
+          int index = it.Current();
+          phi_list->at(index)->ClearFlag(HInstruction::kTruncatingToInt32);
+        }
       }
-      // Clear truncation flag of this group of connected phis.
-      for (BitVector::Iterator it(connected_phis[i]);
-           !it.Done();
-           it.Advance()) {
-        int index = it.Current();
-        phi_list->at(index)->ClearFlag(HInstruction::kTruncatingToInt32);
+      if (!all_uses_everywhere_truncating_smi) {
+        // Clear truncation flag of this group of connected phis.
+        for (BitVector::Iterator it(connected_phis[i]);
+             !it.Done();
+             it.Advance()) {
+          int index = it.Current();
+          phi_list->at(index)->ClearFlag(HInstruction::kTruncatingToSmi);
+        }
       }
     }
   }
@@ -140,8 +152,8 @@ void HInferRepresentationPhase::Run() {
   // Do a fixed point iteration, trying to improve representations
   while (!worklist_.is_empty()) {
     HValue* current = worklist_.RemoveLast();
-    in_worklist_.Remove(current->id());
     current->InferRepresentation(this);
+    in_worklist_.Remove(current->id());
   }
 
   // Lastly: any instruction that we don't have representation information

@@ -46,7 +46,8 @@ class Descriptor BASE_EMBEDDED {
  public:
   MUST_USE_RESULT MaybeObject* KeyToUniqueName() {
     if (!key_->IsUniqueName()) {
-      MaybeObject* maybe_result = HEAP->InternalizeString(String::cast(key_));
+      MaybeObject* maybe_result =
+          key_->GetIsolate()->heap()->InternalizeString(String::cast(key_));
       if (!maybe_result->To(&key_)) return maybe_result;
     }
     return key_;
@@ -422,12 +423,10 @@ class LookupResult BASE_EMBEDDED {
 
   PropertyIndex GetFieldIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
-    ASSERT(IsField());
     return PropertyIndex::NewFieldIndex(GetFieldIndexFromMap(holder()->map()));
   }
 
   int GetLocalFieldIndexFromMap(Map* map) {
-    ASSERT(IsField());
     return GetFieldIndexFromMap(map) - map->inobject_properties();
   }
 

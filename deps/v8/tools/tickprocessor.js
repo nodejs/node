@@ -153,7 +153,8 @@ function TickProcessor(
     stateFilter,
     snapshotLogProcessor,
     distortion,
-    range) {
+    range,
+    sourceMap) {
   LogReader.call(this, {
       'shared-library': { parsers: [null, parseInt, parseInt],
           processor: this.processSharedLibrary },
@@ -196,6 +197,7 @@ function TickProcessor(
   this.ignoreUnknown_ = ignoreUnknown;
   this.stateFilter_ = stateFilter;
   this.snapshotLogProcessor_ = snapshotLogProcessor;
+  this.sourceMap = sourceMap;
   this.deserializedEntriesNames_ = [];
   var ticks = this.ticks_ =
     { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
@@ -544,17 +546,52 @@ TickProcessor.prototype.processProfile = function(
   }
 };
 
+TickProcessor.prototype.getLineAndColumn = function(name) {
+  var re = /:([0-9]+):([0-9]+)$/;
+  var array = re.exec(name);
+  if (!array) {
+    return null;
+  }
+  return {line: array[1], column: array[2]};
+}
+
+TickProcessor.prototype.hasSourceMap = function() {
+  return this.sourceMap != null;
+};
+
+
+TickProcessor.prototype.formatFunctionName = function(funcName) {
+  if (!this.hasSourceMap()) {
+    return funcName;
+  }
+  var lc = this.getLineAndColumn(funcName);
+  if (lc == null) {
+    return funcName;
+  }
+  // in source maps lines and columns are zero based
+  var lineNumber = lc.line - 1;
+  var column = lc.column - 1;
+  var entry = this.sourceMap.findEntry(lineNumber, column);
+  var sourceFile = entry[2];
+  var sourceLine = entry[3] + 1;
+  var sourceColumn = entry[4] + 1;
+
+  return sourceFile + ':' + sourceLine + ':' + sourceColumn + ' -> ' + funcName;
+};
 
 TickProcessor.prototype.printEntries = function(
     profile, nonLibTicks, filterP) {
+  var that = this;
   this.processProfile(profile, filterP, function (rec) {
     if (rec.selfTime == 0) return;
     var nonLibPct = nonLibTicks != null ?
         rec.selfTime * 100.0 / nonLibTicks : 0.0;
+    var funcName = that.formatFunctionName(rec.internalFuncName);
+
     print('  ' + padLeft(rec.selfTime, 5) + '  ' +
           padLeft(rec.selfPercent.toFixed(1), 5) + '%  ' +
           padLeft(nonLibPct.toFixed(1), 5) + '%  ' +
-          rec.internalFuncName);
+          funcName);
   });
 };
 
@@ -566,9 +603,10 @@ TickProcessor.prototype.printHeavyProfile = function(profile, opt_indent) {
   this.processProfile(profile, function() { return true; }, function (rec) {
     // Cut off too infrequent callers.
     if (rec.parentTotalPercent < TickProcessor.CALL_PROFILE_CUTOFF_PCT) return;
+    var funcName = self.formatFunctionName(rec.internalFuncName);
     print('  ' + padLeft(rec.totalTime, 5) + '  ' +
           padLeft(rec.parentTotalPercent.toFixed(1), 5) + '%  ' +
-          indentStr + rec.internalFuncName);
+          indentStr + funcName);
     // Limit backtrace depth.
     if (indent < 2 * self.callGraphSize_) {
       self.printHeavyProfile(rec.children, indent + 2);
@@ -823,9 +861,11 @@ function ArgumentsProcessor(args) {
     '--snapshot-log': ['snapshotLogFileName', 'snapshot.log',
         'Specify snapshot log file to use (e.g. --snapshot-log=snapshot.log)'],
     '--range': ['range', 'auto,auto',
-                'Specify the range limit as [start],[end]'],
+        'Specify the range limit as [start],[end]'],
     '--distortion': ['distortion', 0,
-                     'Specify the logging overhead in picoseconds']
+        'Specify the logging overhead in picoseconds'],
+    '--source-map': ['sourceMap', null,
+        'Specify the source map that should be used for output']
   };
   this.argsDispatch_['--js'] = this.argsDispatch_['-j'];
   this.argsDispatch_['--gc'] = this.argsDispatch_['-g'];

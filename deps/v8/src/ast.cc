@@ -599,7 +599,7 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
     Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
     // If the function is in new space we assume it's more likely to
     // change and thus prefer the general IC code.
-    if (!HEAP->InNewSpace(*candidate)) {
+    if (!lookup->isolate()->heap()->InNewSpace(*candidate)) {
       target_ = candidate;
       return true;
     }
@@ -646,8 +646,15 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     Literal* key = property->key()->AsLiteral();
     ASSERT(key != NULL && key->value()->IsString());
     Handle<String> name = Handle<String>::cast(key->value());
+    check_type_ = oracle->GetCallCheckType(this);
     receiver_types_.Clear();
-    oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
+    if (check_type_ == RECEIVER_MAP_CHECK) {
+      oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
+      is_monomorphic_ = is_monomorphic_ && receiver_types_.length() > 0;
+    } else {
+      holder_ = GetPrototypeForPrimitiveCheck(check_type_, oracle->isolate());
+      receiver_types_.Add(handle(holder_->map()), oracle->zone());
+    }
 #ifdef DEBUG
     if (FLAG_enable_slow_asserts) {
       int length = receiver_types_.length();
@@ -657,17 +664,8 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
       }
     }
 #endif
-    check_type_ = oracle->GetCallCheckType(this);
     if (is_monomorphic_) {
-      Handle<Map> map;
-      if (receiver_types_.length() > 0) {
-        ASSERT(check_type_ == RECEIVER_MAP_CHECK);
-        map = receiver_types_.at(0);
-      } else {
-        ASSERT(check_type_ != RECEIVER_MAP_CHECK);
-        holder_ = GetPrototypeForPrimitiveCheck(check_type_, oracle->isolate());
-        map = Handle<Map>(holder_->map());
-      }
+      Handle<Map> map = receiver_types_.first();
       is_monomorphic_ = ComputeTarget(map, name);
     }
   }
@@ -860,12 +858,13 @@ bool RegExpCapture::IsAnchoredAtEnd() {
 // in as many cases as possible, to make it more difficult for incorrect
 // parses to look as correct ones which is likely if the input and
 // output formats are alike.
-class RegExpUnparser: public RegExpVisitor {
+class RegExpUnparser V8_FINAL : public RegExpVisitor {
  public:
   explicit RegExpUnparser(Zone* zone);
   void VisitCharacterRange(CharacterRange that);
   SmartArrayPointer<const char> ToString() { return stream_.ToCString(); }
-#define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*, void* data);
+#define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*,          \
+                                                  void* data) V8_OVERRIDE;
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
  private:
@@ -963,12 +962,12 @@ void* RegExpUnparser::VisitAtom(RegExpAtom* that, void* data) {
 
 void* RegExpUnparser::VisitText(RegExpText* that, void* data) {
   if (that->elements()->length() == 1) {
-    that->elements()->at(0).data.u_atom->Accept(this, data);
+    that->elements()->at(0).tree()->Accept(this, data);
   } else {
     stream()->Add("(!");
     for (int i = 0; i < that->elements()->length(); i++) {
       stream()->Add(" ");
-      that->elements()->at(i).data.u_atom->Accept(this, data);
+      that->elements()->at(i).tree()->Accept(this, data);
     }
     stream()->Add(")");
   }
@@ -1084,7 +1083,7 @@ CaseClause::CaseClause(Isolate* isolate,
 #define DONT_OPTIMIZE_NODE(NodeType) \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
-    add_flag(kDontOptimize); \
+    set_dont_optimize_reason(k##NodeType); \
     add_flag(kDontInline); \
     add_flag(kDontSelfOptimize); \
   }
@@ -1096,7 +1095,7 @@ CaseClause::CaseClause(Isolate* isolate,
 #define DONT_CACHE_NODE(NodeType) \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
-    add_flag(kDontOptimize); \
+    set_dont_optimize_reason(k##NodeType); \
     add_flag(kDontInline); \
     add_flag(kDontSelfOptimize); \
     add_flag(kDontCache); \
@@ -1182,7 +1181,6 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 
 Handle<String> Literal::ToString() {
   if (value_->IsString()) return Handle<String>::cast(value_);
-  Factory* factory = Isolate::Current()->factory();
   ASSERT(value_->IsNumber());
   char arr[100];
   Vector<char> buffer(arr, ARRAY_SIZE(arr));
@@ -1194,7 +1192,7 @@ Handle<String> Literal::ToString() {
   } else {
     str = DoubleToCString(value_->Number(), buffer);
   }
-  return factory->NewStringFromAscii(CStrVector(str));
+  return isolate_->factory()->NewStringFromAscii(CStrVector(str));
 }
 
 

@@ -43,7 +43,7 @@
 #include "deoptimizer.h"
 #include "execution.h"
 #include "ic.h"
-#include "isolate.h"
+#include "isolate-inl.h"
 #include "jsregexp.h"
 #include "lazy-instance.h"
 #include "platform.h"
@@ -119,7 +119,7 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false) {
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
-    jit_cookie_ = V8::RandomPrivate(isolate);
+    jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
 
   if (buffer == NULL) {
@@ -798,7 +798,7 @@ void RelocInfo::Print(Isolate* isolate, FILE* out) {
     target_object()->ShortPrint(out);
     PrintF(out, ")");
   } else if (rmode_ == EXTERNAL_REFERENCE) {
-    ExternalReferenceEncoder ref_encoder;
+    ExternalReferenceEncoder ref_encoder(isolate);
     PrintF(out, " (%s)  (%p)",
            ref_encoder.NameOfAddress(*target_reference_address()),
            *target_reference_address());
@@ -891,7 +891,7 @@ void ExternalReference::SetUp() {
   double_constants.the_hole_nan = BitCast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
 
-  math_exp_data_mutex = OS::CreateMutex();
+  math_exp_data_mutex = new Mutex();
 }
 
 
@@ -899,7 +899,7 @@ void ExternalReference::InitializeMathExpData() {
   // Early return?
   if (math_exp_data_initialized) return;
 
-  math_exp_data_mutex->Lock();
+  LockGuard<Mutex> lock_guard(math_exp_data_mutex);
   if (!math_exp_data_initialized) {
     // If this is changed, generated code must be adapted too.
     const int kTableSizeBits = 11;
@@ -935,7 +935,6 @@ void ExternalReference::InitializeMathExpData() {
 
     math_exp_data_initialized = true;
   }
-  math_exp_data_mutex->Unlock();
 }
 
 

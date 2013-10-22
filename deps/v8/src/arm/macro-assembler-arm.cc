@@ -829,26 +829,6 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
 }
 
 
-void MacroAssembler::ConvertNumberToInt32(Register object,
-                                          Register dst,
-                                          Register heap_number_map,
-                                          Register scratch1,
-                                          Register scratch2,
-                                          Register scratch3,
-                                          DwVfpRegister double_scratch1,
-                                          LowDwVfpRegister double_scratch2,
-                                          Label* not_number) {
-  Label done;
-  UntagAndJumpIfSmi(dst, object, &done);
-  JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
-  vldr(double_scratch1, FieldMemOperand(object, HeapNumber::kValueOffset));
-  ECMAToInt32(dst, double_scratch1,
-              scratch1, scratch2, scratch3, double_scratch2);
-
-  bind(&done);
-}
-
-
 void MacroAssembler::LoadNumber(Register object,
                                 LowDwVfpRegister dst,
                                 Register heap_number_map,
@@ -1702,15 +1682,9 @@ void MacroAssembler::Allocate(int object_size,
   ASSERT((limit - top) == kPointerSize);
   ASSERT(result.code() < ip.code());
 
-  // Set up allocation top address and object size registers.
+  // Set up allocation top address register.
   Register topaddr = scratch1;
-  Register obj_size_reg = scratch2;
   mov(topaddr, Operand(allocation_top));
-  Operand obj_size_operand = Operand(object_size);
-  if (!obj_size_operand.is_single_instruction(this)) {
-    // We are about to steal IP, so we need to load this value first
-    mov(obj_size_reg, obj_size_operand);
-  }
 
   // This code stores a temporary value in ip. This is OK, as the code below
   // does not need ip for implicit literal generation.
@@ -1734,7 +1708,7 @@ void MacroAssembler::Allocate(int object_size,
     // Align the next allocation. Storing the filler map without checking top is
     // safe in new-space because the limit of the heap is aligned there.
     ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
-    ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
+    STATIC_ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     and_(scratch2, result, Operand(kDoubleAlignmentMask), SetCC);
     Label aligned;
     b(eq, &aligned);
@@ -1748,13 +1722,25 @@ void MacroAssembler::Allocate(int object_size,
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result
-  // to calculate the new top.
-  if (obj_size_operand.is_single_instruction(this)) {
-    // We can add the size as an immediate
-    add(scratch2, result, obj_size_operand, SetCC);
-  } else {
-    // Doesn't fit in an immediate, we have to use the register
-    add(scratch2, result, obj_size_reg, SetCC);
+  // to calculate the new top. We must preserve the ip register at this
+  // point, so we cannot just use add().
+  ASSERT(object_size > 0);
+  Register source = result;
+  Condition cond = al;
+  int shift = 0;
+  while (object_size != 0) {
+    if (((object_size >> shift) & 0x03) == 0) {
+      shift += 2;
+    } else {
+      int bits = object_size & (0xff << shift);
+      object_size -= bits;
+      shift += 8;
+      Operand bits_operand(bits);
+      ASSERT(bits_operand.is_single_instruction(this));
+      add(scratch2, source, bits_operand, SetCC, cond);
+      source = scratch2;
+      cond = cc;
+    }
   }
   b(cs, gc_required);
   cmp(scratch2, Operand(ip));
@@ -2299,7 +2285,6 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
                                               ExternalReference thunk_ref,
                                               Register thunk_last_arg,
                                               int stack_space,
-                                              bool returns_handle,
                                               int return_value_offset) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
@@ -2368,15 +2353,6 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   Label leave_exit_frame;
   Label return_value_loaded;
 
-  if (returns_handle) {
-    Label load_return_value;
-    cmp(r0, Operand::Zero());
-    b(eq, &load_return_value);
-    // derefernce returned value
-    ldr(r0, MemOperand(r0));
-    b(&return_value_loaded);
-    bind(&load_return_value);
-  }
   // load value from ReturnValue
   ldr(r0, MemOperand(fp, return_value_offset*kPointerSize));
   bind(&return_value_loaded);
@@ -2532,84 +2508,76 @@ void MacroAssembler::TryInt32Floor(Register result,
   bind(&exception);
 }
 
-
-void MacroAssembler::ECMAToInt32(Register result,
-                                 DwVfpRegister double_input,
-                                 Register scratch,
-                                 Register scratch_high,
-                                 Register scratch_low,
-                                 LowDwVfpRegister double_scratch) {
-  ASSERT(!scratch_high.is(result));
-  ASSERT(!scratch_low.is(result));
-  ASSERT(!scratch_low.is(scratch_high));
-  ASSERT(!scratch.is(result) &&
-         !scratch.is(scratch_high) &&
-         !scratch.is(scratch_low));
-  ASSERT(!double_input.is(double_scratch));
-
-  Label out_of_range, only_low, negate, done;
-
+void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
+                                                DwVfpRegister double_input,
+                                                Label* done) {
+  LowDwVfpRegister double_scratch = kScratchDoubleReg;
   vcvt_s32_f64(double_scratch.low(), double_input);
   vmov(result, double_scratch.low());
 
   // If result is not saturated (0x7fffffff or 0x80000000), we are done.
-  sub(scratch, result, Operand(1));
-  cmp(scratch, Operand(0x7ffffffe));
-  b(lt, &done);
+  sub(ip, result, Operand(1));
+  cmp(ip, Operand(0x7ffffffe));
+  b(lt, done);
+}
 
-  vmov(scratch_low, scratch_high, double_input);
-  Ubfx(scratch, scratch_high,
-       HeapNumber::kExponentShift, HeapNumber::kExponentBits);
-  // Load scratch with exponent - 1. This is faster than loading
-  // with exponent because Bias + 1 = 1024 which is an *ARM* immediate value.
-  sub(scratch, scratch, Operand(HeapNumber::kExponentBias + 1));
-  // If exponent is greater than or equal to 84, the 32 less significant
-  // bits are 0s (2^84 = 1, 52 significant bits, 32 uncoded bits),
-  // the result is 0.
-  // Compare exponent with 84 (compare exponent - 1 with 83).
-  cmp(scratch, Operand(83));
-  b(ge, &out_of_range);
 
-  // If we reach this code, 31 <= exponent <= 83.
-  // So, we don't have to handle cases where 0 <= exponent <= 20 for
-  // which we would need to shift right the high part of the mantissa.
-  // Scratch contains exponent - 1.
-  // Load scratch with 52 - exponent (load with 51 - (exponent - 1)).
-  rsb(scratch, scratch, Operand(51), SetCC);
-  b(ls, &only_low);
-  // 21 <= exponent <= 51, shift scratch_low and scratch_high
-  // to generate the result.
-  mov(scratch_low, Operand(scratch_low, LSR, scratch));
-  // Scratch contains: 52 - exponent.
-  // We needs: exponent - 20.
-  // So we use: 32 - scratch = 32 - 52 + exponent = exponent - 20.
-  rsb(scratch, scratch, Operand(32));
-  Ubfx(result, scratch_high,
-       0, HeapNumber::kMantissaBitsInTopWord);
-  // Set the implicit 1 before the mantissa part in scratch_high.
-  orr(result, result, Operand(1 << HeapNumber::kMantissaBitsInTopWord));
-  orr(result, scratch_low, Operand(result, LSL, scratch));
-  b(&negate);
+void MacroAssembler::TruncateDoubleToI(Register result,
+                                       DwVfpRegister double_input) {
+  Label done;
 
-  bind(&out_of_range);
-  mov(result, Operand::Zero());
-  b(&done);
+  TryInlineTruncateDoubleToI(result, double_input, &done);
 
-  bind(&only_low);
-  // 52 <= exponent <= 83, shift only scratch_low.
-  // On entry, scratch contains: 52 - exponent.
-  rsb(scratch, scratch, Operand::Zero());
-  mov(result, Operand(scratch_low, LSL, scratch));
+  // If we fell through then inline version didn't succeed - call stub instead.
+  push(lr);
+  sub(sp, sp, Operand(kDoubleSize));  // Put input on stack.
+  vstr(double_input, MemOperand(sp, 0));
 
-  bind(&negate);
-  // If input was positive, scratch_high ASR 31 equals 0 and
-  // scratch_high LSR 31 equals zero.
-  // New result = (result eor 0) + 0 = result.
-  // If the input was negative, we have to negate the result.
-  // Input_high ASR 31 equals 0xffffffff and scratch_high LSR 31 equals 1.
-  // New result = (result eor 0xffffffff) + 1 = 0 - result.
-  eor(result, result, Operand(scratch_high, ASR, 31));
-  add(result, result, Operand(scratch_high, LSR, 31));
+  DoubleToIStub stub(sp, result, 0, true, true);
+  CallStub(&stub);
+
+  add(sp, sp, Operand(kDoubleSize));
+  pop(lr);
+
+  bind(&done);
+}
+
+
+void MacroAssembler::TruncateHeapNumberToI(Register result,
+                                           Register object) {
+  Label done;
+  LowDwVfpRegister double_scratch = kScratchDoubleReg;
+  ASSERT(!result.is(object));
+
+  vldr(double_scratch,
+       MemOperand(object, HeapNumber::kValueOffset - kHeapObjectTag));
+  TryInlineTruncateDoubleToI(result, double_scratch, &done);
+
+  // If we fell through then inline version didn't succeed - call stub instead.
+  push(lr);
+  DoubleToIStub stub(object,
+                     result,
+                     HeapNumber::kValueOffset - kHeapObjectTag,
+                     true,
+                     true);
+  CallStub(&stub);
+  pop(lr);
+
+  bind(&done);
+}
+
+
+void MacroAssembler::TruncateNumberToI(Register object,
+                                       Register result,
+                                       Register heap_number_map,
+                                       Register scratch1,
+                                       Label* not_number) {
+  Label done;
+  ASSERT(!result.is(object));
+
+  UntagAndJumpIfSmi(result, object, &done);
+  JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
+  TruncateHeapNumberToI(result, object);
 
   bind(&done);
 }
@@ -2840,6 +2808,11 @@ void MacroAssembler::Abort(BailoutReason reason) {
   if (msg != NULL) {
     RecordComment("Abort message: ");
     RecordComment(msg);
+  }
+
+  if (FLAG_trap_on_abort) {
+    stop(msg);
+    return;
   }
 #endif
 
@@ -3824,6 +3797,30 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
 }
 
 
+Register GetRegisterThatIsNotOneOf(Register reg1,
+                                   Register reg2,
+                                   Register reg3,
+                                   Register reg4,
+                                   Register reg5,
+                                   Register reg6) {
+  RegList regs = 0;
+  if (reg1.is_valid()) regs |= reg1.bit();
+  if (reg2.is_valid()) regs |= reg2.bit();
+  if (reg3.is_valid()) regs |= reg3.bit();
+  if (reg4.is_valid()) regs |= reg4.bit();
+  if (reg5.is_valid()) regs |= reg5.bit();
+  if (reg6.is_valid()) regs |= reg6.bit();
+
+  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
+    Register candidate = Register::FromAllocationIndex(i);
+    if (regs & candidate.bit()) continue;
+    return candidate;
+  }
+  UNREACHABLE();
+  return no_reg;
+}
+
+
 #ifdef DEBUG
 bool AreAliased(Register reg1,
                 Register reg2,
@@ -3848,10 +3845,13 @@ bool AreAliased(Register reg1,
 #endif
 
 
-CodePatcher::CodePatcher(byte* address, int instructions)
+CodePatcher::CodePatcher(byte* address,
+                         int instructions,
+                         FlushICache flush_cache)
     : address_(address),
       size_(instructions * Assembler::kInstrSize),
-      masm_(NULL, address, size_ + Assembler::kGap) {
+      masm_(NULL, address, size_ + Assembler::kGap),
+      flush_cache_(flush_cache) {
   // Create a new macro assembler pointing to the address of the code to patch.
   // The size is adjusted with kGap on order for the assembler to generate size
   // bytes of instructions without failing with buffer size constraints.
@@ -3861,7 +3861,9 @@ CodePatcher::CodePatcher(byte* address, int instructions)
 
 CodePatcher::~CodePatcher() {
   // Indicate that code has changed.
-  CPU::FlushICache(address_, size_);
+  if (flush_cache_ == FLUSH) {
+    CPU::FlushICache(address_, size_);
+  }
 
   // Check that the code was patched as expected.
   ASSERT(masm_.pc_ == address_ + size_);

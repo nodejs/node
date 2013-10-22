@@ -69,7 +69,7 @@ static void WeakPointerCallback(v8::Isolate* isolate,
                                 void* id) {
   ASSERT(id == reinterpret_cast<void*>(1234));
   NumberOfWeakCalls++;
-  handle->Dispose(isolate);
+  handle->Dispose();
 }
 
 

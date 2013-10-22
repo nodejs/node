@@ -39,6 +39,7 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "arm/assembler-arm-inl.h"
+#include "macro-assembler.h"
 #include "serialize.h"
 
 namespace v8 {
@@ -152,7 +153,8 @@ void CpuFeatures::Probe() {
 
 #else  // __arm__
   // Probe for additional features not already known to be available.
-  if (!IsSupported(VFP3) && FLAG_enable_vfp3 && OS::ArmCpuHasFeature(VFP3)) {
+  CPU cpu;
+  if (!IsSupported(VFP3) && FLAG_enable_vfp3 && cpu.has_vfp3()) {
     // This implementation also sets the VFP flags if runtime
     // detection of VFP returns true. VFPv3 implies ARMv7, see ARM DDI
     // 0406B, page A1-6.
@@ -161,38 +163,40 @@ void CpuFeatures::Probe() {
         static_cast<uint64_t>(1) << ARMv7;
   }
 
-  if (!IsSupported(NEON) && FLAG_enable_neon && OS::ArmCpuHasFeature(NEON)) {
+  if (!IsSupported(NEON) && FLAG_enable_neon && cpu.has_neon()) {
     found_by_runtime_probing_only_ |= 1u << NEON;
   }
 
-  if (!IsSupported(ARMv7) && FLAG_enable_armv7 && OS::ArmCpuHasFeature(ARMv7)) {
+  if (!IsSupported(ARMv7) && FLAG_enable_armv7 && cpu.architecture() >= 7) {
     found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << ARMv7;
   }
 
-  if (!IsSupported(SUDIV) && FLAG_enable_sudiv && OS::ArmCpuHasFeature(SUDIV)) {
+  if (!IsSupported(SUDIV) && FLAG_enable_sudiv && cpu.has_idiva()) {
     found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << SUDIV;
   }
 
   if (!IsSupported(UNALIGNED_ACCESSES) && FLAG_enable_unaligned_accesses
-      && OS::ArmCpuHasFeature(ARMv7)) {
+      && cpu.architecture() >= 7) {
     found_by_runtime_probing_only_ |=
         static_cast<uint64_t>(1) << UNALIGNED_ACCESSES;
   }
 
-  CpuImplementer implementer = OS::GetCpuImplementer();
-  if (implementer == QUALCOMM_IMPLEMENTER &&
-      FLAG_enable_movw_movt && OS::ArmCpuHasFeature(ARMv7)) {
+  // Use movw/movt for QUALCOMM ARMv7 cores.
+  if (cpu.implementer() == CPU::QUALCOMM &&
+      cpu.architecture() >= 7 &&
+      FLAG_enable_movw_movt) {
     found_by_runtime_probing_only_ |=
         static_cast<uint64_t>(1) << MOVW_MOVT_IMMEDIATE_LOADS;
   }
 
-  CpuPart part = OS::GetCpuPart(implementer);
-  if ((part == CORTEX_A9) || (part == CORTEX_A5)) {
+  // ARM Cortex-A9 and Cortex-A5 have 32 byte cachelines.
+  if (cpu.implementer() == CPU::ARM &&
+      (cpu.part() == CPU::ARM_CORTEX_A5 ||
+       cpu.part() == CPU::ARM_CORTEX_A9)) {
     cache_line_size_ = 32;
   }
 
-  if (!IsSupported(VFP32DREGS) && FLAG_enable_32dregs
-      && OS::ArmCpuHasFeature(VFP32DREGS)) {
+  if (!IsSupported(VFP32DREGS) && FLAG_enable_32dregs && cpu.has_vfp3_d32()) {
     found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << VFP32DREGS;
   }
 
@@ -321,15 +325,12 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 // See assembler-arm-inl.h for inlined constructors
 
 Operand::Operand(Handle<Object> handle) {
-#ifdef DEBUG
-  Isolate* isolate = Isolate::Current();
-#endif
   AllowDeferredHandleDereference using_raw_address;
   rm_ = no_reg;
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!isolate->heap()->InNewSpace(obj));
   if (obj->IsHeapObject()) {
+    ASSERT(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     imm32_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
@@ -775,9 +776,9 @@ int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
 
 int Assembler::target_at(int pos)  {
   Instr instr = instr_at(pos);
-  if ((instr & ~kImm24Mask) == 0) {
-    // Emitted label constant, not part of a branch.
-    return instr - (Code::kHeaderSize - kHeapObjectTag);
+  if (is_uint24(instr)) {
+    // Emitted link to a label, not part of a branch.
+    return instr;
   }
   ASSERT((instr & 7*B25) == 5*B25);  // b, bl, or blx imm24
   int imm26 = ((instr & kImm24Mask) << 8) >> 6;
@@ -792,11 +793,72 @@ int Assembler::target_at(int pos)  {
 
 void Assembler::target_at_put(int pos, int target_pos) {
   Instr instr = instr_at(pos);
-  if ((instr & ~kImm24Mask) == 0) {
+  if (is_uint24(instr)) {
     ASSERT(target_pos == pos || target_pos >= 0);
-    // Emitted label constant, not part of a branch.
-    // Make label relative to Code* of generated Code object.
-    instr_at_put(pos, target_pos + (Code::kHeaderSize - kHeapObjectTag));
+    // Emitted link to a label, not part of a branch.
+    // Load the position of the label relative to the generated code object
+    // pointer in a register.
+
+    // Here are the instructions we need to emit:
+    //   For ARMv7: target24 => target16_1:target16_0
+    //      movw dst, #target16_0
+    //      movt dst, #target16_1
+    //   For ARMv6: target24 => target8_2:target8_1:target8_0
+    //      mov dst, #target8_0
+    //      orr dst, dst, #target8_1 << 8
+    //      orr dst, dst, #target8_2 << 16
+
+    // We extract the destination register from the emitted nop instruction.
+    Register dst = Register::from_code(
+        Instruction::RmValue(instr_at(pos + kInstrSize)));
+    ASSERT(IsNop(instr_at(pos + kInstrSize), dst.code()));
+    uint32_t target24 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
+    ASSERT(is_uint24(target24));
+    if (is_uint8(target24)) {
+      // If the target fits in a byte then only patch with a mov
+      // instruction.
+      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+                          1,
+                          CodePatcher::DONT_FLUSH);
+      patcher.masm()->mov(dst, Operand(target24));
+    } else {
+      uint16_t target16_0 = target24 & kImm16Mask;
+      uint16_t target16_1 = target24 >> 16;
+      if (CpuFeatures::IsSupported(ARMv7)) {
+        // Patch with movw/movt.
+        if (target16_1 == 0) {
+          CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+                              1,
+                              CodePatcher::DONT_FLUSH);
+          patcher.masm()->movw(dst, target16_0);
+        } else {
+          CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+                              2,
+                              CodePatcher::DONT_FLUSH);
+          patcher.masm()->movw(dst, target16_0);
+          patcher.masm()->movt(dst, target16_1);
+        }
+      } else {
+        // Patch with a sequence of mov/orr/orr instructions.
+        uint8_t target8_0 = target16_0 & kImm8Mask;
+        uint8_t target8_1 = target16_0 >> 8;
+        uint8_t target8_2 = target16_1 & kImm8Mask;
+        if (target8_2 == 0) {
+          CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+                              2,
+                              CodePatcher::DONT_FLUSH);
+          patcher.masm()->mov(dst, Operand(target8_0));
+          patcher.masm()->orr(dst, dst, Operand(target8_1 << 8));
+        } else {
+          CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+                              3,
+                              CodePatcher::DONT_FLUSH);
+          patcher.masm()->mov(dst, Operand(target8_0));
+          patcher.masm()->orr(dst, dst, Operand(target8_1 << 8));
+          patcher.masm()->orr(dst, dst, Operand(target8_2 << 16));
+        }
+      }
+    }
     return;
   }
   int imm26 = target_pos - (pos + kPcLoadDelta);
@@ -1229,21 +1291,6 @@ int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
 }
 
 
-void Assembler::label_at_put(Label* L, int at_offset) {
-  int target_pos;
-  ASSERT(!L->is_bound());
-  if (L->is_linked()) {
-    // Point to previous instruction that uses the link.
-    target_pos = L->pos();
-  } else {
-    // First entry of the link chain points to itself.
-    target_pos = at_offset;
-  }
-  L->link_to(at_offset);
-  instr_at_put(at_offset, target_pos + (Code::kHeaderSize - kHeapObjectTag));
-}
-
-
 // Branch instructions.
 void Assembler::b(int branch_offset, Condition cond) {
   ASSERT((branch_offset & 3) == 0);
@@ -1383,6 +1430,45 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   // or MarkCode(int/NopMarkerTypes) pseudo instructions.
   ASSERT(!(src.is_reg() && src.rm().is(dst) && s == LeaveCC && cond == al));
   addrmod1(cond | MOV | s, r0, dst, src);
+}
+
+
+void Assembler::mov_label_offset(Register dst, Label* label) {
+  if (label->is_bound()) {
+    mov(dst, Operand(label->pos() + (Code::kHeaderSize - kHeapObjectTag)));
+  } else {
+    // Emit the link to the label in the code stream followed by extra nop
+    // instructions.
+    // If the label is not linked, then start a new link chain by linking it to
+    // itself, emitting pc_offset().
+    int link = label->is_linked() ? label->pos() : pc_offset();
+    label->link_to(pc_offset());
+
+    // When the label is bound, these instructions will be patched with a
+    // sequence of movw/movt or mov/orr/orr instructions. They will load the
+    // destination register with the position of the label from the beginning
+    // of the code.
+    //
+    // The link will be extracted from the first instruction and the destination
+    // register from the second.
+    //   For ARMv7:
+    //      link
+    //      mov dst, dst
+    //   For ARMv6:
+    //      link
+    //      mov dst, dst
+    //      mov dst, dst
+    //
+    // When the label gets bound: target_at extracts the link and target_at_put
+    // patches the instructions.
+    ASSERT(is_uint24(link));
+    BlockConstPoolScope block_const_pool(this);
+    emit(link);
+    nop(dst.code());
+    if (!CpuFeatures::IsSupported(ARMv7)) {
+      nop(dst.code());
+    }
+  }
 }
 
 

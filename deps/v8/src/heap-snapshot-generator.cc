@@ -175,6 +175,8 @@ const char* HeapEntry::TypeAsString() {
     case kHeapNumber: return "/number/";
     case kNative: return "/native/";
     case kSynthetic: return "/synthetic/";
+    case kConsString: return "/concatenated string/";
+    case kSlicedString: return "/sliced string/";
     default: return "???";
   }
 }
@@ -470,7 +472,7 @@ void HeapObjectsMap::StopHeapObjectsTracking() {
 
 
 void HeapObjectsMap::UpdateHeapObjectsMap() {
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+  heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::UpdateHeapObjectsMap");
   HeapIterator iterator(heap_);
   for (HeapObject* obj = iterator.next();
@@ -558,12 +560,13 @@ void HeapObjectsMap::RemoveDeadEntries() {
 }
 
 
-SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
+SnapshotObjectId HeapObjectsMap::GenerateId(Heap* heap,
+                                            v8::RetainedObjectInfo* info) {
   SnapshotObjectId id = static_cast<SnapshotObjectId>(info->GetHash());
   const char* label = info->GetLabel();
   id ^= StringHasher::HashSequentialString(label,
                                            static_cast<int>(strlen(label)),
-                                           HEAP->HashSeed());
+                                           heap->HashSeed());
   intptr_t element_count = info->GetElementCount();
   if (element_count != -1)
     id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count),
@@ -583,6 +586,7 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 
 HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
+      names_(heap),
       ids_(heap) {
 }
 
@@ -621,7 +625,7 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
 Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
     SnapshotObjectId id) {
   // First perform a full GC in order to avoid dead objects.
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+  heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::FindHeapObjectById");
   DisallowHeapAllocation no_allocation;
   HeapObject* object = NULL;
@@ -732,7 +736,7 @@ V8HeapExplorer::V8HeapExplorer(
     HeapSnapshot* snapshot,
     SnapshottingProgressReportingInterface* progress,
     v8::HeapProfiler::ObjectNameResolver* resolver)
-    : heap_(Isolate::Current()->heap()),
+    : heap_(snapshot->collection()->heap()),
       snapshot_(snapshot),
       collection_(snapshot_->collection()),
       progress_(progress),
@@ -782,6 +786,15 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     }
     return AddEntry(object, HeapEntry::kObject, name);
   } else if (object->IsString()) {
+    String* string = String::cast(object);
+    if (string->IsConsString())
+      return AddEntry(object,
+                      HeapEntry::kConsString,
+                      "(concatenated string)");
+    if (string->IsSlicedString())
+      return AddEntry(object,
+                      HeapEntry::kSlicedString,
+                      "(sliced string)");
     return AddEntry(object,
                     HeapEntry::kString,
                     collection_->names()->GetName(String::cast(object)));
@@ -1852,7 +1865,7 @@ class GlobalObjectsEnumerator : public ObjectVisitor {
 
 // Modifies heap. Must not be run during heap traversal.
 void V8HeapExplorer::TagGlobalObjects() {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = heap_->isolate();
   HandleScope scope(isolate);
   GlobalObjectsEnumerator enumerator;
   isolate->global_handles()->IterateAllRoots(&enumerator);
@@ -1921,14 +1934,16 @@ HeapEntry* BasicHeapEntriesAllocator::AllocateEntry(HeapThing ptr) {
   return snapshot_->AddEntry(
       entries_type_,
       name,
-      HeapObjectsMap::GenerateId(info),
+      HeapObjectsMap::GenerateId(collection_->heap(), info),
       size != -1 ? static_cast<int>(size) : 0);
 }
 
 
 NativeObjectsExplorer::NativeObjectsExplorer(
-    HeapSnapshot* snapshot, SnapshottingProgressReportingInterface* progress)
-    : snapshot_(snapshot),
+    HeapSnapshot* snapshot,
+    SnapshottingProgressReportingInterface* progress)
+    : isolate_(snapshot->collection()->heap()->isolate()),
+      snapshot_(snapshot),
       collection_(snapshot_->collection()),
       progress_(progress),
       embedder_queried_(false),
@@ -1973,7 +1988,7 @@ int NativeObjectsExplorer::EstimateObjectsCount() {
 
 void NativeObjectsExplorer::FillRetainedObjects() {
   if (embedder_queried_) return;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = isolate_;
   const GCType major_gc_type = kGCTypeMarkSweepCompact;
   // Record objects that are joined into ObjectGroups.
   isolate->heap()->CallGCPrologueCallbacks(
@@ -2000,7 +2015,7 @@ void NativeObjectsExplorer::FillRetainedObjects() {
 
 
 void NativeObjectsExplorer::FillImplicitReferences() {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = isolate_;
   List<ImplicitRefGroup*>* groups =
       isolate->global_handles()->implicit_ref_groups();
   for (int i = 0; i < groups->length(); ++i) {
@@ -2095,7 +2110,7 @@ NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
   uint32_t hash = StringHasher::HashSequentialString(
       label_copy,
       static_cast<int>(strlen(label_copy)),
-      HEAP->HashSeed());
+      isolate_->heap()->HashSeed());
   HashMap::Entry* entry = native_groups_.Lookup(const_cast<char*>(label_copy),
                                                 hash, true);
   if (entry->value == NULL) {
@@ -2157,7 +2172,7 @@ void NativeObjectsExplorer::SetRootNativeRootsReference() {
 
 void NativeObjectsExplorer::VisitSubtreeWrapper(Object** p, uint16_t class_id) {
   if (in_groups_.Contains(*p)) return;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = isolate_;
   v8::RetainedObjectInfo* info =
       isolate->heap_profiler()->ExecuteWrapperClassCallback(class_id, p);
   if (info == NULL) return;
@@ -2243,15 +2258,15 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   // full GC is reachable from the root when computing dominators.
   // This is not true for weakly reachable objects.
   // As a temporary solution we call GC twice.
-  Isolate::Current()->heap()->CollectAllGarbage(
+  heap_->CollectAllGarbage(
       Heap::kMakeHeapIterableMask,
       "HeapSnapshotGenerator::GenerateSnapshot");
-  Isolate::Current()->heap()->CollectAllGarbage(
+  heap_->CollectAllGarbage(
       Heap::kMakeHeapIterableMask,
       "HeapSnapshotGenerator::GenerateSnapshot");
 
 #ifdef VERIFY_HEAP
-  Heap* debug_heap = Isolate::Current()->heap();
+  Heap* debug_heap = heap_;
   CHECK(!debug_heap->old_data_space()->was_swept_conservatively());
   CHECK(!debug_heap->old_pointer_space()->was_swept_conservatively());
   CHECK(!debug_heap->code_space()->was_swept_conservatively());
@@ -2583,7 +2598,9 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("regexp") ","
             JSON_S("number") ","
             JSON_S("native") ","
-            JSON_S("synthetic")) ","
+            JSON_S("synthetic") ","
+            JSON_S("concatenated string") ","
+            JSON_S("sliced string")) ","
         JSON_S("string") ","
         JSON_S("number") ","
         JSON_S("number") ","

@@ -116,8 +116,8 @@ class StatsTable {
 class StatsCounter {
  public:
   StatsCounter() { }
-  explicit StatsCounter(const char* name)
-      : name_(name), ptr_(NULL), lookup_done_(false) { }
+  explicit StatsCounter(Isolate* isolate, const char* name)
+      : isolate_(isolate), name_(name), ptr_(NULL), lookup_done_(false) { }
 
   // Sets the counter to a specific value.
   void Set(int value) {
@@ -175,6 +175,7 @@ class StatsCounter {
  private:
   int* FindLocationInStatsTable() const;
 
+  Isolate* isolate_;
   const char* name_;
   int* ptr_;
   bool lookup_done_;
@@ -245,9 +246,7 @@ class HistogramTimer : public Histogram {
                  int max,
                  int num_buckets,
                  Isolate* isolate)
-      : Histogram(name, min, max, num_buckets, isolate),
-        start_time_(0),
-        stop_time_(0) { }
+      : Histogram(name, min, max, num_buckets, isolate) {}
 
   // Start the timer.
   void Start();
@@ -257,12 +256,11 @@ class HistogramTimer : public Histogram {
 
   // Returns true if the timer is running.
   bool Running() {
-    return Enabled() && (start_time_ != 0) && (stop_time_ == 0);
+    return Enabled() && timer_.IsStarted();
   }
 
  private:
-  int64_t start_time_;
-  int64_t stop_time_;
+  ElapsedTimer timer_;
 };
 
 // Helper class for scoping a HistogramTimer.

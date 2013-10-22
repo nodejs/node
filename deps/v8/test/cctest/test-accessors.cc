@@ -41,7 +41,6 @@ using ::v8::Local;
 using ::v8::String;
 using ::v8::Script;
 using ::v8::Function;
-using ::v8::AccessorInfo;
 using ::v8::Extension;
 
 static void handle_property(Local<String> name,
@@ -50,18 +49,51 @@ static void handle_property(Local<String> name,
   info.GetReturnValue().Set(v8_num(900));
 }
 
+static void handle_property_2(Local<String> name,
+                              const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  info.GetReturnValue().Set(v8_num(902));
+}
+
+
+static void handle_property(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  CHECK_EQ(0, info.Length());
+  info.GetReturnValue().Set(v8_num(907));
+}
+
 
 THREADED_TEST(PropertyHandler) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
   fun_templ->InstanceTemplate()->SetAccessor(v8_str("foo"), handle_property);
+  Local<v8::FunctionTemplate> getter_templ =
+      v8::FunctionTemplate::New(handle_property);
+  getter_templ->SetLength(0);
+  fun_templ->
+      InstanceTemplate()->SetAccessorProperty(v8_str("bar"), getter_templ);
+  fun_templ->InstanceTemplate()->
+      SetNativeDataProperty(v8_str("instance_foo"), handle_property);
+  fun_templ->SetNativeDataProperty(v8_str("object_foo"), handle_property_2);
   Local<Function> fun = fun_templ->GetFunction();
   env->Global()->Set(v8_str("Fun"), fun);
-  Local<Script> getter = v8_compile("var obj = new Fun(); obj.foo;");
+  Local<Script> getter;
+  Local<Script> setter;
+  // check function instance accessors
+  getter = v8_compile("var obj = new Fun(); obj.instance_foo;");
   CHECK_EQ(900, getter->Run()->Int32Value());
-  Local<Script> setter = v8_compile("obj.foo = 901;");
+  setter = v8_compile("obj.instance_foo = 901;");
   CHECK_EQ(901, setter->Run()->Int32Value());
+  getter = v8_compile("obj.bar;");
+  CHECK_EQ(907, getter->Run()->Int32Value());
+  setter = v8_compile("obj.bar = 908;");
+  CHECK_EQ(908, setter->Run()->Int32Value());
+  // check function static accessors
+  getter = v8_compile("Fun.object_foo;");
+  CHECK_EQ(902, getter->Run()->Int32Value());
+  setter = v8_compile("Fun.object_foo = 903;");
+  CHECK_EQ(903, setter->Run()->Int32Value());
 }
 
 
@@ -109,30 +141,53 @@ THREADED_TEST(GlobalVariableAccess) {
 }
 
 
-static int x_register = 0;
+static int x_register[2] = {0, 0};
 static v8::Handle<v8::Object> x_receiver;
 static v8::Handle<v8::Object> x_holder;
 
-
-static void XGetter(Local<String> name,
-                    const v8::PropertyCallbackInfo<v8::Value>& info) {
+template<class Info>
+static void XGetter(const Info& info, int offset) {
   ApiTestFuzzer::Fuzz();
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(x_receiver, info.This());
+  info.GetReturnValue().Set(v8_num(x_register[offset]));
+}
+
+
+static void XGetter(Local<String> name,
+                    const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK_EQ(x_holder, info.Holder());
-  info.GetReturnValue().Set(v8_num(x_register));
+  XGetter(info, 0);
+}
+
+
+static void XGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK_EQ(x_receiver, info.Holder());
+  XGetter(info, 1);
+}
+
+
+template<class Info>
+static void XSetter(Local<Value> value, const Info& info, int offset) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK_EQ(isolate, info.GetIsolate());
+  CHECK_EQ(x_holder, info.This());
+  CHECK_EQ(x_holder, info.Holder());
+  x_register[offset] = value->Int32Value();
 }
 
 
 static void XSetter(Local<String> name,
                     Local<Value> value,
                     const v8::PropertyCallbackInfo<void>& info) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  CHECK_EQ(isolate, info.GetIsolate());
-  CHECK_EQ(x_holder, info.This());
-  CHECK_EQ(x_holder, info.Holder());
-  x_register = value->Int32Value();
+  XSetter(value, info, 0);
+}
+
+
+static void XSetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK_EQ(1, info.Length());
+  XSetter(info[0], info, 1);
 }
 
 
@@ -140,7 +195,10 @@ THREADED_TEST(AccessorIC) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-  obj->SetAccessor(v8_str("x"), XGetter, XSetter);
+  obj->SetAccessor(v8_str("x0"), XGetter, XSetter);
+  obj->SetAccessorProperty(v8_str("x1"),
+                           v8::FunctionTemplate::New(XGetter),
+                           v8::FunctionTemplate::New(XSetter));
   x_holder = obj->NewInstance();
   context->Global()->Set(v8_str("holder"), x_holder);
   x_receiver = v8::Object::New();
@@ -148,15 +206,23 @@ THREADED_TEST(AccessorIC) {
   v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(CompileRun(
     "obj.__proto__ = holder;"
     "var result = [];"
+    "var key_0 = 'x0';"
+    "var key_1 = 'x1';"
     "for (var i = 0; i < 10; i++) {"
-    "  holder.x = i;"
-    "  result.push(obj.x);"
+    "  holder.x0 = i;"
+    "  result.push(obj.x0);"
+    "  holder.x1 = i;"
+    "  result.push(obj.x1);"
+    "  holder[key_0] = i;"
+    "  result.push(obj[key_0]);"
+    "  holder[key_1] = i;"
+    "  result.push(obj[key_1]);"
     "}"
     "result"));
-  CHECK_EQ(10, array->Length());
-  for (int i = 0; i < 10; i++) {
+  CHECK_EQ(40, array->Length());
+  for (int i = 0; i < 40; i++) {
     v8::Handle<Value> entry = array->Get(v8::Integer::New(i));
-    CHECK_EQ(v8::Integer::New(i), entry);
+    CHECK_EQ(v8::Integer::New(i/4), entry);
   }
 }
 
@@ -422,7 +488,8 @@ THREADED_TEST(StackIteration) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-  i::StringStream::ClearMentionedObjectCache();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
+  i::StringStream::ClearMentionedObjectCache(isolate);
   obj->SetAccessor(v8_str("xxx"), StackCheck);
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
   Script::Compile(String::New(
@@ -484,4 +551,19 @@ THREADED_TEST(JSONStringifyNamedInterceptorObject) {
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
   v8::Handle<v8::String> expected = v8_str("{\"regress\":\"crbug-161028\"}");
   CHECK(CompileRun("JSON.stringify(obj)")->Equals(expected));
+}
+
+
+THREADED_TEST(CrossContextAccess) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::Function> fun = v8::Function::New(isolate, handle_property);
+  LocalContext switch_context;
+  switch_context->Global()->Set(v8_str("fun"), fun);
+  v8::TryCatch try_catch;
+  CompileRun(
+      "var o = Object.create(null, { n: { get:fun } });"
+      "for (var i = 0; i < 10; i++) o.n;");
+  CHECK(!try_catch.HasCaught());
 }

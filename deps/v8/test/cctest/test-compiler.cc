@@ -116,7 +116,7 @@ static Handle<JSFunction> Compile(const char* source) {
 }
 
 
-static double Inc(int x) {
+static double Inc(Isolate* isolate, int x) {
   const char* source = "result = %d + 1;";
   EmbeddedVector<char, 512> buffer;
   OS::SNPrintF(buffer, source, x);
@@ -125,8 +125,8 @@ static double Inc(int x) {
   if (fun.is_null()) return -1;
 
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+  Handle<JSObject> global(isolate->context()->global_object());
+  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
 }
@@ -135,19 +135,19 @@ static double Inc(int x) {
 TEST(Inc) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  CHECK_EQ(4.0, Inc(3));
+  CHECK_EQ(4.0, Inc(CcTest::i_isolate(), 3));
 }
 
 
-static double Add(int x, int y) {
+static double Add(Isolate* isolate, int x, int y) {
   Handle<JSFunction> fun = Compile("result = x + y;");
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+  Handle<JSObject> global(isolate->context()->global_object());
+  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
 }
@@ -156,18 +156,18 @@ static double Add(int x, int y) {
 TEST(Add) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  CHECK_EQ(5.0, Add(2, 3));
+  CHECK_EQ(5.0, Add(CcTest::i_isolate(), 2, 3));
 }
 
 
-static double Abs(int x) {
+static double Abs(Isolate* isolate, int x) {
   Handle<JSFunction> fun = Compile("if (x < 0) result = -x; else result = x;");
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("x", Smi::FromInt(x));
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+  Handle<JSObject> global(isolate->context()->global_object());
+  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
 }
@@ -176,19 +176,19 @@ static double Abs(int x) {
 TEST(Abs) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  CHECK_EQ(3.0, Abs(-3));
+  CHECK_EQ(3.0, Abs(CcTest::i_isolate(), -3));
 }
 
 
-static double Sum(int n) {
+static double Sum(Isolate* isolate, int n) {
   Handle<JSFunction> fun =
       Compile("s = 0; while (n > 0) { s += n; n -= 1; }; result = s;");
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("n", Smi::FromInt(n));
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+  Handle<JSObject> global(isolate->context()->global_object());
+  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
 }
@@ -197,7 +197,7 @@ static double Sum(int n) {
 TEST(Sum) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  CHECK_EQ(5050.0, Sum(100));
+  CHECK_EQ(5050.0, Sum(CcTest::i_isolate(), 100));
 }
 
 
@@ -208,8 +208,9 @@ TEST(Print) {
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+  Handle<JSObject> global(CcTest::i_isolate()->context()->global_object());
+  Execution::Call(
+      CcTest::i_isolate(), fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 }
 
@@ -241,8 +242,9 @@ TEST(Stuff) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+  Handle<JSObject> global(CcTest::i_isolate()->context()->global_object());
+  Execution::Call(
+      CcTest::i_isolate(), fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   CHECK_EQ(511.0, GetGlobalProperty("r")->ToObjectChecked()->Number());
 }
@@ -258,7 +260,7 @@ TEST(UncaughtThrow) {
   bool has_pending_exception;
   Isolate* isolate = fun->GetIsolate();
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(has_pending_exception);
   CHECK_EQ(42.0, isolate->pending_exception()->ToObjectChecked()->Number());
 }
@@ -282,8 +284,9 @@ TEST(C2JSFrames) {
 
   // Run the generated code to populate the global object with 'foo'.
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  Execution::Call(fun0, global, 0, NULL, &has_pending_exception);
+  Handle<JSObject> global(isolate->context()->global_object());
+  Execution::Call(
+      isolate, fun0, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 
   Object* foo_string = isolate->factory()->InternalizeOneByteString(
@@ -295,7 +298,8 @@ TEST(C2JSFrames) {
 
   Handle<Object> argv[] = { isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("hello")) };
-  Execution::Call(Handle<JSFunction>::cast(fun1),
+  Execution::Call(isolate,
+                  Handle<JSFunction>::cast(fun1),
                   global,
                   ARRAY_SIZE(argv),
                   argv,

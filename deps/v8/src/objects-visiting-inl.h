@@ -304,7 +304,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
       && (target->ic_state() == MEGAMORPHIC || target->ic_state() == GENERIC ||
           target->ic_state() == POLYMORPHIC || heap->flush_monomorphic_ics() ||
           Serializer::enabled() || target->ic_age() != heap->global_ic_age())) {
-    IC::Clear(rinfo->pc());
+    IC::Clear(target->GetIsolate(), rinfo->pc());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   }
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
@@ -848,8 +848,9 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   IteratePointer(v, kTypeFeedbackInfoOffset);
 
   RelocIterator it(this, mode_mask);
+  Isolate* isolate = this->GetIsolate();
   for (; !it.done(); it.next()) {
-    it.rinfo()->Visit(v);
+    it.rinfo()->Visit(isolate, v);
   }
 }
 

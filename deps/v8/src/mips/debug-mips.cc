@@ -60,7 +60,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
   // li and Call pseudo-instructions emit two instructions each.
   patcher.masm()->li(v8::internal::t9,
       Operand(reinterpret_cast<int32_t>(
-          Isolate::Current()->debug()->debug_break_return()->entry())));
+        debug_info_->GetIsolate()->debug()->debug_break_return()->entry())));
   patcher.masm()->Call(v8::internal::t9);
   patcher.masm()->nop();
   patcher.masm()->nop();
@@ -105,7 +105,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   //   call t9          (jalr t9 / nop instruction pair)
   CodePatcher patcher(rinfo()->pc(), Assembler::kDebugBreakSlotInstructions);
   patcher.masm()->li(v8::internal::t9, Operand(reinterpret_cast<int32_t>(
-      Isolate::Current()->debug()->debug_break_slot()->entry())));
+      debug_info_->GetIsolate()->debug()->debug_break_slot()->entry())));
   patcher.masm()->Call(v8::internal::t9);
 }
 

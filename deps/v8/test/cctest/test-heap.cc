@@ -82,16 +82,18 @@ TEST(HeapMaps) {
 static void CheckOddball(Isolate* isolate, Object* obj, const char* string) {
   CHECK(obj->IsOddball());
   bool exc;
+  Handle<Object> handle(obj, isolate);
   Object* print_string =
-      *Execution::ToString(Handle<Object>(obj, isolate), &exc);
+      *Execution::ToString(isolate, handle, &exc);
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
   bool exc;
+  Handle<Object> handle(Smi::FromInt(value), isolate);
   Object* print_string =
-      *Execution::ToString(Handle<Object>(Smi::FromInt(value), isolate), &exc);
+      *Execution::ToString(isolate, handle, &exc);
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
@@ -100,8 +102,9 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   Object* obj = HEAP->NumberFromDouble(value)->ToObjectChecked();
   CHECK(obj->IsNumber());
   bool exc;
+  Handle<Object> handle(obj, isolate);
   Object* print_string =
-      *Execution::ToString(Handle<Object>(obj, isolate), &exc);
+      *Execution::ToString(isolate, handle, &exc);
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
@@ -398,7 +401,7 @@ static void TestWeakGlobalHandleCallback(v8::Isolate* isolate,
                                          v8::Persistent<v8::Value>* handle,
                                          void* id) {
   if (1234 == reinterpret_cast<intptr_t>(id)) WeakPointerCleared = true;
-  handle->Dispose(isolate);
+  handle->Dispose();
 }
 
 
@@ -765,7 +768,7 @@ TEST(JSArray) {
   // array[length] = name.
   array->SetElement(0, *name, NONE, kNonStrictMode)->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(1), array->length());
-  CHECK_EQ(array->GetElement(0), *name);
+  CHECK_EQ(array->GetElement(isolate, 0), *name);
 
   // Set array length with larger than smi value.
   Handle<Object> length =
@@ -782,8 +785,8 @@ TEST(JSArray) {
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
-  CHECK_EQ(array->GetElement(int_length), *name);
-  CHECK_EQ(array->GetElement(0), *name);
+  CHECK_EQ(array->GetElement(isolate, int_length), *name);
+  CHECK_EQ(array->GetElement(isolate, 0), *name);
 }
 
 
@@ -814,8 +817,8 @@ TEST(JSObjectCopy) {
   Handle<JSObject> clone = Copy(obj);
   CHECK(!clone.is_identical_to(obj));
 
-  CHECK_EQ(obj->GetElement(0), clone->GetElement(0));
-  CHECK_EQ(obj->GetElement(1), clone->GetElement(1));
+  CHECK_EQ(obj->GetElement(isolate, 0), clone->GetElement(isolate, 0));
+  CHECK_EQ(obj->GetElement(isolate, 1), clone->GetElement(isolate, 1));
 
   CHECK_EQ(obj->GetProperty(*first), clone->GetProperty(*first));
   CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*second));
@@ -829,8 +832,8 @@ TEST(JSObjectCopy) {
   clone->SetElement(0, *second, NONE, kNonStrictMode)->ToObjectChecked();
   clone->SetElement(1, *first, NONE, kNonStrictMode)->ToObjectChecked();
 
-  CHECK_EQ(obj->GetElement(1), clone->GetElement(0));
-  CHECK_EQ(obj->GetElement(0), clone->GetElement(1));
+  CHECK_EQ(obj->GetElement(isolate, 1), clone->GetElement(isolate, 0));
+  CHECK_EQ(obj->GetElement(isolate, 0), clone->GetElement(isolate, 1));
 
   CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*first));
   CHECK_EQ(obj->GetProperty(*first), clone->GetProperty(*second));
@@ -1332,7 +1335,7 @@ TEST(TestInternalWeakLists) {
     isolate->compilation_cache()->Clear();
     heap->CollectAllGarbage(Heap::kNoGCFlags);
 
-    bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
+    bool opt = (FLAG_always_opt && isolate->use_crankshaft());
 
     CHECK_EQ(i + 1, CountNativeContexts());
 
@@ -1476,7 +1479,7 @@ TEST(TestInternalWeakListsTraverseWithGC) {
     CHECK_EQ(i + 1, CountNativeContextsWithGC(isolate, i / 2 + 1));
   }
 
-  bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
+  bool opt = (FLAG_always_opt && isolate->use_crankshaft());
 
   // Compile a number of functions the length of the weak list of optimized
   // functions both with and without GCs while iterating the list.
@@ -1720,12 +1723,12 @@ TEST(LeakNativeContextViaMap) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
-    ctx1p.Dispose(isolate);
+    ctx1p.Dispose();
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose(isolate);
+  ctx2p.Dispose();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1766,12 +1769,12 @@ TEST(LeakNativeContextViaFunction) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1p.Dispose(ctx1->GetIsolate());
+    ctx1p.Dispose();
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose(isolate);
+  ctx2p.Dispose();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1810,12 +1813,12 @@ TEST(LeakNativeContextViaMapKeyed) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1p.Dispose(ctx1->GetIsolate());
+    ctx1p.Dispose();
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose(isolate);
+  ctx2p.Dispose();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1858,12 +1861,12 @@ TEST(LeakNativeContextViaMapProto) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1p.Dispose(isolate);
+    ctx1p.Dispose();
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose(isolate);
+  ctx2p.Dispose();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1876,7 +1879,7 @@ TEST(InstanceOfStubWriteBarrier) {
 #endif
 
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft()) return;
+  if (!i::Isolate::Current()->use_crankshaft()) return;
   if (i::FLAG_force_marking_deque_overflows) return;
   v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
 
@@ -1993,7 +1996,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 #endif
 
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft()) return;
+  if (!i::Isolate::Current()->use_crankshaft()) return;
   v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
 
   {
@@ -2050,7 +2053,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 #endif
 
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft()) return;
+  if (!i::Isolate::Current()->use_crankshaft()) return;
   v8::HandleScope outer_scope(CcTest::isolate());
 
   {
@@ -2089,7 +2092,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 TEST(OptimizedAllocationAlwaysInNewSpace) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2118,7 +2121,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 TEST(OptimizedPretenuringAllocationFolding) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2154,7 +2157,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
 TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2190,7 +2193,7 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
 TEST(OptimizedPretenuringObjectArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2215,7 +2218,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 TEST(OptimizedPretenuringMixedInObjectProperties) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2246,7 +2249,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 TEST(OptimizedPretenuringDoubleArrayProperties) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2271,7 +2274,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 TEST(OptimizedPretenuringdoubleArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2296,7 +2299,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
 TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2330,7 +2333,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
 TEST(OptimizedPretenuringNestedObjectLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2364,7 +2367,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
 TEST(OptimizedPretenuringNestedDoubleLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2401,7 +2404,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
 TEST(OptimizedAllocationArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2428,7 +2431,7 @@ TEST(OptimizedPretenuringCallNew) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_pretenuring_call_new = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2691,9 +2694,7 @@ TEST(Regress2211) {
     // In the first iteration, set hidden value first and identity hash second.
     // In the second iteration, reverse the order.
     if (i == 0) obj->SetHiddenValue(v8_str("key string"), value);
-    MaybeObject* maybe_obj = internal_obj->SetIdentityHash(hash,
-                                                           ALLOW_CREATION);
-    CHECK(!maybe_obj->IsFailure());
+    JSObject::SetIdentityHash(internal_obj, hash);
     if (i == 1) obj->SetHiddenValue(v8_str("key string"), value);
 
     // Check values.
@@ -2898,7 +2899,7 @@ void ReleaseStackTraceDataTest(const char* source, const char* accessor) {
   // to check whether the data is being released since the external string
   // resource's callback is fired when the external string is GC'ed.
   FLAG_use_ic = false;  // ICs retain objects.
-  FLAG_parallel_recompilation = false;
+  FLAG_concurrent_recompilation = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   SourceResource* resource = new SourceResource(i::StrDup(source));
@@ -3139,16 +3140,6 @@ TEST(Regress169209) {
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
-
-  // Experimental natives are compiled during snapshot deserialization.
-  // This test breaks because heap layout changes in a way that closure
-  // is visited before shared function info.
-  i::FLAG_harmony_typed_arrays = false;
-  i::FLAG_harmony_array_buffer = false;
-
-  // Disable loading the i18n extension which breaks the assumptions of this
-  // test about the heap layout.
-  i::FLAG_enable_i18n = false;
 
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
@@ -3427,7 +3418,7 @@ TEST(DeferredHandles) {
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
   v8::ImplementationUtilities::HandleScopeData* data =
       isolate->handle_scope_data();
   Handle<Object> init(heap->empty_string(), isolate);

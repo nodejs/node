@@ -72,6 +72,12 @@ function load_scripts(scripts) {
 }
 
 
+function log_error(text) {
+  self.postMessage({"call": "error", "args": text});
+  self.postMessage({"call": "reset"});
+}
+
+
 function run(args) {
   var file = args["file"];
   var resx = args["resx"];
@@ -121,7 +127,7 @@ function run(args) {
   var input_file_name = "input_temp";
   var output_file_name = "output.svg";
 
-  var psc = new PlotScriptComposer(resx, resy);
+  var psc = new PlotScriptComposer(resx, resy, log_error);
   var objects = 0;
 
   time("Collecting events (" + content_lines.length + " entries)",

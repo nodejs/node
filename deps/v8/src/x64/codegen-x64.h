@@ -44,8 +44,8 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 class CodeGenerator: public AstVisitor {
  public:
-  CodeGenerator() {
-    InitializeAstVisitor();
+  explicit CodeGenerator(Isolate* isolate) {
+    InitializeAstVisitor(isolate);
   }
 
   static bool MakeCode(CompilationInfo* info);
@@ -61,7 +61,7 @@ class CodeGenerator: public AstVisitor {
   // Print the code after compiling it.
   static void PrintCode(Handle<Code> code, CompilationInfo* info);
 
-  static bool ShouldGenerateLog(Expression* type);
+  static bool ShouldGenerateLog(Isolate* isolate, Expression* type);
 
   static bool RecordPositions(MacroAssembler* masm,
                               int pos,
@@ -102,6 +102,73 @@ class MathExpGenerator : public AllStatic {
  private:
   DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
 };
+
+
+enum StackArgumentsAccessorReceiverMode {
+  ARGUMENTS_CONTAIN_RECEIVER,
+  ARGUMENTS_DONT_CONTAIN_RECEIVER
+};
+
+
+class StackArgumentsAccessor BASE_EMBEDDED {
+ public:
+  StackArgumentsAccessor(
+      Register base_reg,
+      int argument_count_immediate,
+      StackArgumentsAccessorReceiverMode receiver_mode =
+          ARGUMENTS_CONTAIN_RECEIVER,
+      int extra_displacement_to_last_argument = 0)
+      : base_reg_(base_reg),
+        argument_count_reg_(no_reg),
+        argument_count_immediate_(argument_count_immediate),
+        receiver_mode_(receiver_mode),
+        extra_displacement_to_last_argument_(
+            extra_displacement_to_last_argument) { }
+
+  StackArgumentsAccessor(
+      Register base_reg,
+      Register argument_count_reg,
+      StackArgumentsAccessorReceiverMode receiver_mode =
+          ARGUMENTS_CONTAIN_RECEIVER,
+      int extra_displacement_to_last_argument = 0)
+      : base_reg_(base_reg),
+        argument_count_reg_(argument_count_reg),
+        argument_count_immediate_(0),
+        receiver_mode_(receiver_mode),
+        extra_displacement_to_last_argument_(
+            extra_displacement_to_last_argument) { }
+
+  StackArgumentsAccessor(
+      Register base_reg,
+      const ParameterCount& parameter_count,
+      StackArgumentsAccessorReceiverMode receiver_mode =
+          ARGUMENTS_CONTAIN_RECEIVER,
+      int extra_displacement_to_last_argument = 0)
+      : base_reg_(base_reg),
+        argument_count_reg_(parameter_count.is_reg() ?
+                            parameter_count.reg() : no_reg),
+        argument_count_immediate_(parameter_count.is_immediate() ?
+                                  parameter_count.immediate() : 0),
+        receiver_mode_(receiver_mode),
+        extra_displacement_to_last_argument_(
+            extra_displacement_to_last_argument) { }
+
+  Operand GetArgumentOperand(int index);
+  Operand GetReceiverOperand() {
+    ASSERT(receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER);
+    return GetArgumentOperand(0);;
+  }
+
+ private:
+  const Register base_reg_;
+  const Register argument_count_reg_;
+  const int argument_count_immediate_;
+  const StackArgumentsAccessorReceiverMode receiver_mode_;
+  const int extra_displacement_to_last_argument_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
+};
+
 
 } }  // namespace v8::internal
 

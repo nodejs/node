@@ -220,6 +220,8 @@ enum {
   kCoprocessorMask = 15 << 8,
   kOpCodeMask = 15 << 21,  // In data-processing instructions.
   kImm24Mask  = (1 << 24) - 1,
+  kImm16Mask  = (1 << 16) - 1,
+  kImm8Mask  = (1 << 8) - 1,
   kOff12Mask  = (1 << 12) - 1,
   kOff8Mask  = (1 << 8) - 1
 };

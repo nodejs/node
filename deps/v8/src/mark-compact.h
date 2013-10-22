@@ -949,7 +949,7 @@ class MarkCompactCollector {
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
   Object* encountered_weak_collections_;
-  Object* code_to_deoptimize_;
+  bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;

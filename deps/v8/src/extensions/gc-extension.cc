@@ -39,10 +39,11 @@ v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
 
 
 void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
   if (args[0]->BooleanValue()) {
-    HEAP->CollectGarbage(NEW_SPACE, "gc extension");
+    isolate->heap()->CollectGarbage(NEW_SPACE, "gc extension");
   } else {
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
+    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
   }
 }
 

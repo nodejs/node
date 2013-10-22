@@ -25,11 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --nodead-code-elimination --parallel-recompilation
+// Flags: --nodead-code-elimination --concurrent-recompilation
 // Flags: --allow-natives-syntax
 
-if (!%IsParallelRecompilationSupported()) {
-  print("Parallel recompilation is disabled. Skipping this test.");
+if (!%IsConcurrentRecompilationSupported()) {
+  print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
 
@@ -45,7 +45,7 @@ function f(x) {
 f();
 f();
 %OptimizeFunctionOnNextCall(f);
-%OptimizeFunctionOnNextCall(g, "parallel");
+%OptimizeFunctionOnNextCall(g, "concurrent");
 f(0);  // g() is disabled for optimization on inlining attempt.
 // Attempt to optimize g() should not run into any assertion.
 assertUnoptimized(g, "sync");

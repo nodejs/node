@@ -102,10 +102,11 @@ class InductionVariableBlocksTable BASE_EMBEDDED {
     int current_dominated_block_;
   };
 
-  HGraph* graph() { return graph_; }
-  HBasicBlock* loop_header() { return loop_header_; }
-  Element* at(int index) { return &(elements_.at(index)); }
-  Element* at(HBasicBlock* block) { return at(block->block_id()); }
+  HGraph* graph() const { return graph_; }
+  Counters* counters() const { return graph()->isolate()->counters(); }
+  HBasicBlock* loop_header() const { return loop_header_; }
+  Element* at(int index) const { return &(elements_.at(index)); }
+  Element* at(HBasicBlock* block) const { return at(block->block_id()); }
 
   void AddCheckAt(HBasicBlock* block) {
     at(block->block_id())->set_has_check();
@@ -258,23 +259,17 @@ class InductionVariableBlocksTable BASE_EMBEDDED {
     // all checks are done on constants: if all check are done against the same
     // constant limit we will use that instead of the induction limit.
     bool has_upper_constant_limit = true;
-    InductionVariableData::InductionVariableCheck* current_check = check;
     int32_t upper_constant_limit =
-        current_check != NULL && current_check->HasUpperLimit() ?
-        current_check->upper_limit() : 0;
-    while (current_check != NULL) {
-      if (check->HasUpperLimit()) {
-        if (check->upper_limit() != upper_constant_limit) {
-          has_upper_constant_limit = false;
-        }
-      } else {
-        has_upper_constant_limit = false;
-      }
-
-      current_check->check()->block()->graph()->isolate()->counters()->
-          bounds_checks_eliminated()->Increment();
+        check != NULL && check->HasUpperLimit() ? check->upper_limit() : 0;
+    for (InductionVariableData::InductionVariableCheck* current_check = check;
+         current_check != NULL;
+         current_check = current_check->next()) {
+      has_upper_constant_limit =
+          has_upper_constant_limit &&
+          check->HasUpperLimit() &&
+          check->upper_limit() == upper_constant_limit;
+      counters()->bounds_checks_eliminated()->Increment();
       current_check->check()->set_skip_check();
-      current_check = current_check->next();
     }
 
     // Choose the appropriate limit.
@@ -303,8 +298,7 @@ class InductionVariableBlocksTable BASE_EMBEDDED {
         zone, context, limit, check->check()->length());
     hoisted_check->InsertBefore(pre_header->end());
     hoisted_check->set_allow_equality(true);
-    hoisted_check->block()->graph()->isolate()->counters()->
-        bounds_checks_hoisted()->Increment();
+    counters()->bounds_checks_hoisted()->Increment();
   }
 
   void CollectInductionVariableData(HBasicBlock* bb) {
@@ -341,8 +335,7 @@ class InductionVariableBlocksTable BASE_EMBEDDED {
       // TODO(mmassi): skip OSR values for check->length().
       if (check->length() == data->limit() ||
           check->length() == data->additional_upper_limit()) {
-        check->block()->graph()->isolate()->counters()->
-            bounds_checks_eliminated()->Increment();
+        counters()->bounds_checks_eliminated()->Increment();
         check->set_skip_check();
         continue;
       }
@@ -407,4 +400,3 @@ void HBoundsCheckHoistingPhase::HoistRedundantBoundsChecks() {
 }
 
 } }  // namespace v8::internal
-

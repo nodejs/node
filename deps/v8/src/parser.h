@@ -170,7 +170,8 @@ class PreParserApi {
   // This interface is here instead of in preparser.h because it instantiates a
   // preparser recorder object that is suited to the parser's purposes.  Also,
   // the preparser doesn't know about ScriptDataImpl.
-  static ScriptDataImpl* PreParse(Utf16CharacterStream* source);
+  static ScriptDataImpl* PreParse(Isolate* isolate,
+                                  Utf16CharacterStream* source);
 };
 
 
@@ -855,6 +856,7 @@ class Parser BASE_EMBEDDED {
   Scanner scanner_;
   preparser::PreParser* reusable_preparser_;
   Scope* top_scope_;
+  Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   FunctionState* current_function_state_;
   Target* target_stack_;  // for break, continue statements
   v8::Extension* extension_;
@@ -893,7 +895,7 @@ class CompileTimeValue: public AllStatic {
   static bool IsCompileTimeValue(Expression* expression);
 
   // Get the value as a compile time value.
-  static Handle<FixedArray> GetValue(Expression* expression);
+  static Handle<FixedArray> GetValue(Isolate* isolate, Expression* expression);
 
   // Get the type of a compile time value returned by GetValue().
   static LiteralType GetLiteralType(Handle<FixedArray> value);

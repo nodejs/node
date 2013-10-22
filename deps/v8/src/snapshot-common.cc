@@ -116,7 +116,7 @@ bool Snapshot::HaveASnapshotToStartFrom() {
 }
 
 
-Handle<Context> Snapshot::NewContextFromSnapshot() {
+Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
   if (context_size_ == 0) {
     return Handle<Context>();
   }
@@ -132,7 +132,7 @@ Handle<Context> Snapshot::NewContextFromSnapshot() {
   deserializer.set_reservation(CELL_SPACE, context_cell_space_used_);
   deserializer.set_reservation(PROPERTY_CELL_SPACE,
                                context_property_cell_space_used_);
-  deserializer.DeserializePartial(&root);
+  deserializer.DeserializePartial(isolate, &root);
   CHECK(root->IsContext());
   return Handle<Context>(Context::cast(root));
 }

@@ -128,9 +128,13 @@ class GlobalHandles {
   // Creates a new global handle that is alive until Destroy is called.
   Handle<Object> Create(Object* value);
 
+  // Copy a global handle
+  static Handle<Object> CopyGlobal(Object** location);
+
   // Destroy a global handle.
   static void Destroy(Object** location);
 
+  typedef WeakCallbackData<v8::Value, void>::Callback WeakCallback;
   typedef WeakReferenceCallbacks<v8::Value, void>::Revivable RevivableCallback;
 
   // Make the global handle weak and set the callback parameter for the
@@ -141,7 +145,14 @@ class GlobalHandles {
   // reason is that Smi::FromInt(0) does not change during garage collection.
   static void MakeWeak(Object** location,
                        void* parameter,
-                       RevivableCallback weak_reference_callback);
+                       WeakCallback weak_callback,
+                       RevivableCallback revivable_callback);
+
+  static inline void MakeWeak(Object** location,
+                              void* parameter,
+                              RevivableCallback revivable_callback) {
+    MakeWeak(location, parameter, NULL, revivable_callback);
+  }
 
   void RecordStats(HeapStats* stats);
 
@@ -346,8 +357,8 @@ class EternalHandles {
 
   int NumberOfHandles() { return size_; }
 
-  // Create an EternalHandle, returning the index.
-  int Create(Isolate* isolate, Object* object);
+  // Create an EternalHandle, overwriting the index.
+  void Create(Isolate* isolate, Object* object, int* index);
 
   // Grab the handle for an existing EternalHandle.
   inline Handle<Object> Get(int index) {
@@ -369,8 +380,7 @@ class EternalHandles {
   Handle<Object> CreateSingleton(Isolate* isolate,
                                  Object* object,
                                  SingletonHandle singleton) {
-    ASSERT(singleton_handles_[singleton] == kInvalidIndex);
-    singleton_handles_[singleton] = Create(isolate, object);
+    Create(isolate, object, &singleton_handles_[singleton]);
     return Get(singleton_handles_[singleton]);
   }
 

@@ -39,7 +39,6 @@ RegExpStackScope::RegExpStackScope(Isolate* isolate)
 
 
 RegExpStackScope::~RegExpStackScope() {
-  ASSERT(Isolate::Current() == regexp_stack_->isolate_);
   // Reset the buffer if it has grown.
   regexp_stack_->Reset();
 }

@@ -489,7 +489,7 @@ Address StackFrame::UnpaddedFP() const {
 
 
 Code* EntryFrame::unchecked_code() const {
-  return HEAP->js_entry_code();
+  return isolate()->heap()->js_entry_code();
 }
 
 
@@ -512,7 +512,7 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
 
 
 Code* EntryConstructFrame::unchecked_code() const {
-  return HEAP->js_construct_entry_code();
+  return isolate()->heap()->js_construct_entry_code();
 }
 
 
@@ -814,8 +814,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
       PrintF("+%d", code_offset);
       SharedFunctionInfo* shared = fun->shared();
       if (print_line_number) {
-        Code* code = Code::cast(
-            v8::internal::Isolate::Current()->FindCodeObject(pc));
+        Code* code = Code::cast(isolate->FindCodeObject(pc));
         int source_pos = code->SourcePosition(pc);
         Object* maybe_script = shared->script();
         if (maybe_script->IsScript()) {

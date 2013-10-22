@@ -78,9 +78,9 @@ namespace internal {
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Smi, stack_limit, StackLimit)                                              \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
-  /* The first 32 roots above this line should be boring from a GC point of */ \
-  /* view.  This means they are never in new space and never on a page that */ \
-  /* is being compacted.                                                    */ \
+  /* The roots above this line should be boring from a GC point of view.    */ \
+  /* This means they are never in new space and never on a page that is     */ \
+  /* being compacted.                                                       */ \
   V(FixedArray, number_string_cache, NumberStringCache)                        \
   V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
   V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
@@ -199,7 +199,6 @@ namespace internal {
   V(Array_string, "Array")                                               \
   V(Object_string, "Object")                                             \
   V(proto_string, "__proto__")                                           \
-  V(StringImpl_string, "StringImpl")                                     \
   V(arguments_string, "arguments")                                       \
   V(Arguments_string, "Arguments")                                       \
   V(call_string, "call")                                                 \
@@ -209,12 +208,10 @@ namespace internal {
   V(Boolean_string, "Boolean")                                           \
   V(callee_string, "callee")                                             \
   V(constructor_string, "constructor")                                   \
-  V(code_string, ".code")                                                \
   V(result_string, ".result")                                            \
   V(dot_for_string, ".for.")                                             \
-  V(catch_var_string, ".catch-var")                                      \
-  V(empty_string, "")                                                    \
   V(eval_string, "eval")                                                 \
+  V(empty_string, "")                                                    \
   V(function_string, "function")                                         \
   V(length_string, "length")                                             \
   V(module_string, "module")                                             \
@@ -233,12 +230,10 @@ namespace internal {
   V(index_string, "index")                                               \
   V(last_index_string, "lastIndex")                                      \
   V(object_string, "object")                                             \
-  V(payload_string, "payload")                                           \
   V(literals_string, "literals")                                         \
   V(prototype_string, "prototype")                                       \
   V(string_string, "string")                                             \
   V(String_string, "String")                                             \
-  V(unknown_field_string, "unknownField")                                \
   V(symbol_string, "symbol")                                             \
   V(Symbol_string, "Symbol")                                             \
   V(Date_string, "Date")                                                 \
@@ -257,7 +252,6 @@ namespace internal {
     "KeyedStoreElementMonomorphic")                                      \
   V(stack_overflow_string, "kStackOverflowBoilerplate")                  \
   V(illegal_access_string, "illegal access")                             \
-  V(out_of_memory_string, "out-of-memory")                               \
   V(illegal_execution_state_string, "illegal execution state")           \
   V(get_string, "get")                                                   \
   V(set_string, "set")                                                   \
@@ -266,8 +260,6 @@ namespace internal {
   V(length_field_string, "%length")                                      \
   V(cell_value_string, "%cell_value")                                    \
   V(function_class_string, "Function")                                   \
-  V(properties_field_symbol, "%properties")                              \
-  V(payload_field_symbol, "%payload")                                    \
   V(illegal_argument_string, "illegal argument")                         \
   V(MakeReferenceError_string, "MakeReferenceError")                     \
   V(MakeSyntaxError_string, "MakeSyntaxError")                           \
@@ -281,7 +273,6 @@ namespace internal {
   V(illegal_continue_string, "illegal_continue")                         \
   V(unknown_label_string, "unknown_label")                               \
   V(redeclaration_string, "redeclaration")                               \
-  V(failure_string, "<failure>")                                         \
   V(space_string, " ")                                                   \
   V(exec_string, "exec")                                                 \
   V(zero_string, "0")                                                    \
@@ -523,7 +514,7 @@ class Heap {
   int InitialSemiSpaceSize() { return initial_semispace_size_; }
   intptr_t MaxOldGenerationSize() { return max_old_generation_size_; }
   intptr_t MaxExecutableSize() { return max_executable_size_; }
-  int MaxRegularSpaceAllocationSize() { return InitialSemiSpaceSize() * 3/4; }
+  int MaxRegularSpaceAllocationSize() { return InitialSemiSpaceSize() * 4/5; }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -1871,14 +1862,14 @@ class Heap {
 
   void CheckpointObjectStats();
 
-  // We don't use a ScopedLock here since we want to lock the heap
-  // only when FLAG_parallel_recompilation is true.
+  // We don't use a LockGuard here since we want to lock the heap
+  // only when FLAG_concurrent_recompilation is true.
   class RelocationLock {
    public:
     explicit RelocationLock(Heap* heap);
 
     ~RelocationLock() {
-      if (FLAG_parallel_recompilation) {
+      if (FLAG_concurrent_recompilation) {
 #ifdef DEBUG
         heap_->relocation_mutex_locked_by_optimizer_thread_ = false;
 #endif  // DEBUG
@@ -2881,7 +2872,7 @@ class TranscendentalCache {
   class SubCache {
     static const int kCacheSize = 512;
 
-    explicit SubCache(Type t);
+    explicit SubCache(Isolate* isolate, Type t);
 
     MUST_USE_RESULT inline MaybeObject* Get(double input);
 
@@ -2918,7 +2909,7 @@ class TranscendentalCache {
     DISALLOW_COPY_AND_ASSIGN(SubCache);
   };
 
-  TranscendentalCache() {
+  explicit TranscendentalCache(Isolate* isolate) : isolate_(isolate) {
     for (int i = 0; i < kNumberOfCaches; ++i) caches_[i] = NULL;
   }
 
@@ -2936,6 +2927,7 @@ class TranscendentalCache {
   // Allow access to the caches_ array as an ExternalReference.
   friend class ExternalReference;
 
+  Isolate* isolate_;
   SubCache* caches_[kNumberOfCaches];
   DISALLOW_COPY_AND_ASSIGN(TranscendentalCache);
 };

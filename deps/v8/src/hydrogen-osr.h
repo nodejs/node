@@ -40,7 +40,8 @@ namespace internal {
 class HOsrBuilder : public ZoneObject {
  public:
   explicit HOsrBuilder(HOptimizedGraphBuilder* builder)
-    : builder_(builder),
+    : unoptimized_frame_slots_(0),
+      builder_(builder),
       osr_entry_(NULL),
       osr_loop_entry_(NULL),
       osr_values_(NULL) { }
@@ -55,10 +56,16 @@ class HOsrBuilder : public ZoneObject {
   // Process the OSR values and phis after initial graph optimization.
   void FinishOsrValues();
 
+  // Return the number of slots in the unoptimized frame at the entry to OSR.
+  int UnoptimizedFrameSlots() const {
+    return unoptimized_frame_slots_;
+  }
+
  private:
   HBasicBlock* BuildLoopEntry();
   bool HasOsrEntryAt(IterationStatement* statement);
 
+  int unoptimized_frame_slots_;
   HOptimizedGraphBuilder* builder_;
   HBasicBlock* osr_entry_;
   HBasicBlock* osr_loop_entry_;

@@ -92,7 +92,7 @@ namespace internal {
 // Note that the bitset representation is closed under both Union and Intersect.
 //
 // The type representation is heap-allocated, so cannot (currently) be used in
-// a parallel compilation context.
+// a concurrent compilation context.
 
 
 #define PRIMITIVE_TYPE_LIST(V)           \

@@ -31,6 +31,7 @@
 #include <string.h>
 
 #include "../include/v8stdint.h"
+
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 
 // The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
@@ -196,6 +197,20 @@ inline void CheckEqualsHelper(const char* file,
 
 
 inline void CheckNonEqualsHelper(const char* file,
+                              int line,
+                              const char* expected_source,
+                              int64_t expected,
+                              const char* value_source,
+                              int64_t value) {
+  if (expected == value) {
+    V8_Fatal(file, line,
+             "CHECK_EQ(%s, %s) failed\n#   Expected: %f\n#   Found: %f",
+             expected_source, value_source, expected, value);
+  }
+}
+
+
+inline void CheckNonEqualsHelper(const char* file,
                                  int line,
                                  const char* expected_source,
                                  double expected,
@@ -232,7 +247,7 @@ inline void CheckNonEqualsHelper(const char* file,
 
 // Use C++11 static_assert if possible, which gives error
 // messages that are easier to understand on first sight.
-#if __cplusplus >= 201103L
+#if V8_HAS_CXX11_STATIC_ASSERT
 #define STATIC_CHECK(test) static_assert(test, #test)
 #else
 // This is inspired by the static assertion facility in boost.  This

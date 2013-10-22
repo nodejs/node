@@ -148,7 +148,7 @@ class Representation {
   bool IsHeapObject() const { return kind_ == kHeapObject; }
   bool IsExternal() const { return kind_ == kExternal; }
   bool IsSpecialization() const {
-    return kind_ == kInteger32 || kind_ == kDouble;
+    return kind_ == kInteger32 || kind_ == kDouble || kind_ == kSmi;
   }
   const char* Mnemonic() const;
 

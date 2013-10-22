@@ -37,27 +37,15 @@ namespace internal {
 
 // Forward decelrations.
 class DebuggerAgentSession;
+class Socket;
 
 
 // Debugger agent which starts a socket listener on the debugger port and
 // handles connection from a remote debugger.
 class DebuggerAgent: public Thread {
  public:
-  DebuggerAgent(const char* name, int port)
-      : Thread(name),
-        isolate_(Isolate::Current()),
-        name_(StrDup(name)), port_(port),
-        server_(OS::CreateSocket()), terminate_(false),
-        session_access_(OS::CreateMutex()), session_(NULL),
-        terminate_now_(OS::CreateSemaphore(0)),
-        listening_(OS::CreateSemaphore(0)) {
-    ASSERT(isolate_->debugger_agent_instance() == NULL);
-    isolate_->set_debugger_agent_instance(this);
-  }
-  ~DebuggerAgent() {
-     isolate_->set_debugger_agent_instance(NULL);
-     delete server_;
-  }
+  DebuggerAgent(Isolate* isolate, const char* name, int port);
+  ~DebuggerAgent();
 
   void Shutdown();
   void WaitUntilListening();
@@ -76,10 +64,10 @@ class DebuggerAgent: public Thread {
   int port_;  // Port to use for the agent.
   Socket* server_;  // Server socket for listen/accept.
   bool terminate_;  // Termination flag.
-  Mutex* session_access_;  // Mutex guarging access to session_.
+  RecursiveMutex session_access_;  // Mutex guarding access to session_.
   DebuggerAgentSession* session_;  // Current active session if any.
-  Semaphore* terminate_now_;  // Semaphore to signal termination.
-  Semaphore* listening_;
+  Semaphore terminate_now_;  // Semaphore to signal termination.
+  Semaphore listening_;
 
   friend class DebuggerAgentSession;
   friend void DebuggerAgentMessageHandler(const v8::Debug::Message& message);
@@ -116,13 +104,11 @@ class DebuggerAgentUtil {
  public:
   static const char* const kContentLength;
 
-  static SmartArrayPointer<char> ReceiveMessage(const Socket* conn);
-  static bool SendConnectMessage(const Socket* conn,
-                                 const char* embedding_host);
-  static bool SendMessage(const Socket* conn, const Vector<uint16_t> message);
-  static bool SendMessage(const Socket* conn,
-                          const v8::Handle<v8::String> message);
-  static int ReceiveAll(const Socket* conn, char* data, int len);
+  static SmartArrayPointer<char> ReceiveMessage(Socket* conn);
+  static bool SendConnectMessage(Socket* conn, const char* embedding_host);
+  static bool SendMessage(Socket* conn, const Vector<uint16_t> message);
+  static bool SendMessage(Socket* conn, const v8::Handle<v8::String> message);
+  static int ReceiveAll(Socket* conn, char* data, int len);
 };
 
 } }  // namespace v8::internal
