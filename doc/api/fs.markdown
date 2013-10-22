@@ -575,10 +575,14 @@ no-op, not an error.
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is a [fs.FSWatcher](#fs_class_fs_fswatcher).
 
-The second argument is optional. The `options` if provided should be an object
-containing a boolean member `persistent`, which indicates whether the process
-should continue to run as long as files are being watched. The default is
-`{ persistent: true }`.
+The second argument is optional. The `options` if provided should be an object.
+The supported boolean members are `persistent` and `recursive`. `persistent`
+indicates whether the process should continue to run as long as files are being
+watched. `recursive` indicates whether all subdirectories should be watched, or
+only the current directory. This applies when a directory is specified, and only
+on supported platforms (See Caveats below).
+
+The default is `{ persistent: true, recursive: false }`.
 
 The listener callback gets two arguments `(event, filename)`.  `event` is either
 'rename' or 'change', and `filename` is the name of the file which triggered
@@ -591,6 +595,10 @@ the event.
 The `fs.watch` API is not 100% consistent across platforms, and is
 unavailable in some situations.
 
+The recursive option is currently supported on OS X. Only FSEvents supports this
+type of file watching so it is unlikely any additional platforms will be added
+soon.
+
 #### Availability
 
 <!--type=misc-->
@@ -599,7 +607,8 @@ This feature depends on the underlying operating system providing a way
 to be notified of filesystem changes.
 
 * On Linux systems, this uses `inotify`.
-* On BSD systems (including OS X), this uses `kqueue`.
+* On BSD systems, this uses `kqueue`.
+* On OS X, this uses `kqueue` for files and 'FSEvents' for directories.
 * On SunOS systems (including Solaris and SmartOS), this uses `event ports`.
 * On Windows systems, this feature depends on `ReadDirectoryChangesW`.
 

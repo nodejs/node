@@ -108,12 +108,15 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
 
   String::Utf8Value path(args[0]);
 
-  int err = uv_fs_event_init(wrap->env()->event_loop(), &wrap->handle_);
+  int flags = 0;
+  if (args[1]->IsTrue())
+    flags |= UV_FS_EVENT_RECURSIVE;
 
+  int err = uv_fs_event_init(wrap->env()->event_loop(), &wrap->handle_);
   if (err == 0) {
     wrap->initialized_ = true;
 
-    err = uv_fs_event_start(&wrap->handle_, OnEvent, *path, 0);
+    err = uv_fs_event_start(&wrap->handle_, OnEvent, *path, flags);
 
     if (err == 0) {
       // Check for persistent argument
