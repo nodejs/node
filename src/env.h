@@ -316,7 +316,7 @@ class Environment {
     v8::Isolate* const isolate_;
 
 #define V(PropertyName, StringValue)                                          \
-    const int PropertyName ## _index_;
+    v8::Eternal<v8::String> PropertyName ## _;
     PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
 

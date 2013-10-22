@@ -153,7 +153,8 @@ class ArrayBufferAllocator : public ArrayBuffer::Allocator {
   static ArrayBufferAllocator the_singleton;
   virtual ~ArrayBufferAllocator() {}
   virtual void* Allocate(size_t length);
-  virtual void Free(void* data);
+  virtual void* AllocateUninitialized(size_t length);
+  virtual void Free(void* data, size_t length);
  private:
   ArrayBufferAllocator() {}
   ArrayBufferAllocator(const ArrayBufferAllocator&);
@@ -170,7 +171,14 @@ void* ArrayBufferAllocator::Allocate(size_t length) {
 }
 
 
-void ArrayBufferAllocator::Free(void* data) {
+void* ArrayBufferAllocator::AllocateUninitialized(size_t length) {
+  if (length > kMaxLength)
+    return NULL;
+  return new char[length];
+}
+
+
+void ArrayBufferAllocator::Free(void* data, size_t length) {
   delete[] static_cast<char*>(data);
 }
 

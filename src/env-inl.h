@@ -55,8 +55,7 @@ inline Environment::IsolateData::IsolateData(v8::Isolate* isolate)
     : event_loop_(uv_default_loop()),
       isolate_(isolate),
 #define V(PropertyName, StringValue)                                          \
-    PropertyName ## _index_(                                                  \
-        FIXED_ONE_BYTE_STRING(isolate, StringValue).Eternalize(isolate)),
+    PropertyName ## _(isolate, FIXED_ONE_BYTE_STRING(isolate, StringValue)),
     PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
     ref_count_(0) {
@@ -276,8 +275,8 @@ inline Environment::IsolateData* Environment::isolate_data() const {
 #define V(PropertyName, StringValue)                                          \
   inline                                                                      \
   v8::Local<v8::String> Environment::IsolateData::PropertyName() const {      \
-    return v8::Local<v8::String>::GetEternal(isolate(),                       \
-                                             PropertyName ## _index_);        \
+    /* Strings are immutable so casting away const-ness here is okay. */      \
+    return const_cast<IsolateData*>(this)->PropertyName ## _.Get(isolate());  \
   }
   PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
