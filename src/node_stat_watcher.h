@@ -22,9 +22,8 @@
 #ifndef SRC_NODE_STAT_WATCHER_H_
 #define SRC_NODE_STAT_WATCHER_H_
 
-#include "node_object_wrap.h"
-
 #include "env.h"
+#include "node.h"
 #include "uv.h"
 #include "v8.h"
 #include "weak-object.h"

@@ -25,7 +25,6 @@
 #include "node.h"
 #include "node_crypto_clienthello.h"  // ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
-#include "node_object_wrap.h"
 
 #ifdef OPENSSL_NPN_NEGOTIATED
 #include "node_buffer.h"
