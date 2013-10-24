@@ -152,7 +152,9 @@ For example:
 
     npm install sax@">=0.1.0 <0.2.0" bench supervisor
 
-The `--tag` argument will apply to all of the specified install targets.
+The `--tag` argument will apply to all of the specified install targets. If a
+tag with the given name exists, the tagged version is preferred over newer
+versions.
 
 The `--force` argument will force npm to fetch remote resources even if a
 local copy exists on disk.

@@ -36,9 +36,9 @@ the entire cache is cleared.</p></li></ul>
 
 <h2 id="DETAILS">DETAILS</h2>
 
-<p>npm stores cache data in <code>$HOME/.npm</code>.  For each package that is added
-to the cache, three pieces of information are stored in
-<code>{cache}/{name}/{version}</code>:</p>
+<p>npm stores cache data in the directory specified in <code>npm config get cache</code>.
+For each package that is added to the cache, three pieces of information are
+stored in <code>{cache}/{name}/{version}</code>:</p>
 
 <ul><li>.../package/:
 A folder containing the package contents as they appear in the tarball.</li><li>.../package.json:
@@ -58,7 +58,7 @@ they do not make an HTTP request to the registry.</p>
 
 <h3 id="cache">cache</h3>
 
-<p>Default: <code>$HOME/.npm</code> on Posix, or <code>$HOME/npm-cache</code> on Windows.</p>
+<p>Default: <code>~/.npm</code> on Posix, or <code>%AppData%/npm-cache</code> on Windows.</p>
 
 <p>The root cache folder.</p>
 
@@ -66,7 +66,7 @@ they do not make an HTTP request to the registry.</p>
 
 <ul><li><a href="../files/npm-folders.html">npm-folders(5)</a></li><li><a href="../cli/npm-config.html">npm-config(1)</a></li><li><a href="../misc/npm-config.html">npm-config(7)</a></li><li><a href="../files/npmrc.html">npmrc(5)</a></li><li><a href="../cli/npm-install.html">npm-install(1)</a></li><li><a href="../cli/npm-publish.html">npm-publish(1)</a></li><li><a href="../cli/npm-pack.html">npm-pack(1)</a></li></ul>
 </div>
-<p id="footer">npm-cache &mdash; npm@1.3.11</p>
+<p id="footer">npm-cache &mdash; npm@1.3.12</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

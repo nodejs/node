@@ -15,6 +15,7 @@ var npm = require("./npm.js")
   , log = require("npmlog")
   , opener = require("opener")
   , github = require('github-url-from-git')
+  , githubUserRepo = require("github-url-from-username-repo")
 
 function repo (args, cb) {
   if (!args.length) return cb(repo.usage)
@@ -23,7 +24,14 @@ function repo (args, cb) {
     if (er) return cb(er)
     var r = d.repository;
     if (!r) return cb(new Error('no repository'));
-    var url = github(r.url);
+    // XXX remove this when npm@v1.3.10 from node 0.10 is deprecated
+    // from https://github.com/isaacs/npm-www/issues/418
+    if (githubUserRepo(r.url))
+      r.url = githubUserRepo(r.url)
+
+    var url = github(r.url)
+    if (!url)
+      return cb(new Error('no repository: could not get url'))
     opener(url, { command: npm.config.get("browser") }, cb)
   })
 }

@@ -63,6 +63,8 @@ function ls (args, silent, cb) {
     }
     console.log(out)
 
+    if (args.length && !data._found) process.exitCode = 1
+
     // if any errors were found, then complain and exit status 1
     if (lite.problems && lite.problems.length) {
       er = lite.problems.join('\n')

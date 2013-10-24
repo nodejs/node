@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-PRUNE" "1" "September 2013" "" ""
+.TH "NPM\-PRUNE" "1" "October 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-prune\fR \-\- Remove extraneous packages
@@ -10,6 +10,7 @@
 .
 .nf
 npm prune [<name> [<name \.\.\.]]
+npm prune [<name> [<name \.\.\.]] [\-\-production]
 .
 .fi
 .
@@ -21,6 +22,10 @@ removed\.
 .P
 Extraneous packages are packages that are not listed on the parent
 package\'s dependencies list\.
+.
+.P
+If the \fB\-\-production\fR flag is specified, this command will remove the
+packages specified in your \fBdevDependencies\fR\|\.
 .
 .SH "SEE ALSO"
 .

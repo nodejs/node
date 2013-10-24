@@ -143,7 +143,7 @@ Packer.prototype.applyIgnores = function (entry, partial, entryObj) {
 
     // since it's *not* a symbolic link, if we're *already* in a bundle,
     // then we should include everything.
-    if (pp && pp.package) {
+    if (pp && pp.package && pp.basename === "node_modules") {
       return true
     }
 

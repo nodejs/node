@@ -33,9 +33,9 @@ Used to add, list, or clear the npm cache folder.
 
 ## DETAILS
 
-npm stores cache data in `$HOME/.npm`.  For each package that is added
-to the cache, three pieces of information are stored in
-`{cache}/{name}/{version}`:
+npm stores cache data in the directory specified in `npm config get cache`.
+For each package that is added to the cache, three pieces of information are
+stored in `{cache}/{name}/{version}`:
 
 * .../package/:
   A folder containing the package contents as they appear in the tarball.
@@ -57,7 +57,7 @@ they do not make an HTTP request to the registry.
 
 ### cache
 
-Default: `$HOME/.npm` on Posix, or `$HOME/npm-cache` on Windows.
+Default: `~/.npm` on Posix, or `%AppData%/npm-cache` on Windows.
 
 The root cache folder.
 

@@ -24,7 +24,7 @@ tap.test("consistent normalization", function(t) {
         clonedData = _.clone(data)
         normalize(data, warn)
         t.deepEqual(clonedData, data,
-          "Normalization of " + entryName + "is consistent.")
+          "Normalization of " + entryName + " is consistent.")
         next(null)
       }) // fs.readFile
     } // verifyConsistency

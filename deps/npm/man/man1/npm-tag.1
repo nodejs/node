@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-TAG" "1" "September 2013" "" ""
+.TH "NPM\-TAG" "1" "October 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-tag\fR \-\- Tag a published version
@@ -16,10 +16,47 @@ npm tag <name>@<version> [<tag>]
 .SH "DESCRIPTION"
 Tags the specified version of the package with the specified tag, or the \fB\-\-tag\fR config if not specified\.
 .
+.P
+A tag can be used when installing packages as a reference to a version instead
+of using a specific version number:
+.
+.IP "" 4
+.
+.nf
+npm install <name>@<tag>
+.
+.fi
+.
+.IP "" 0
+.
+.P
+When installing dependencies, a preferred tagged version may be specified:
+.
+.IP "" 4
+.
+.nf
+npm install \-\-tag <tag>
+.
+.fi
+.
+.IP "" 0
+.
+.P
+This also applies to \fBnpm dedupe\fR\|\.
+.
+.P
+Publishing a package always sets the "latest" tag to the published version\.
+.
 .SH "SEE ALSO"
 .
 .IP "\(bu" 4
 npm help publish
+.
+.IP "\(bu" 4
+npm help install
+.
+.IP "\(bu" 4
+npm help dedupe
 .
 .IP "\(bu" 4
 npm help  registry

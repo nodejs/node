@@ -248,7 +248,14 @@ function findVersions (npm, summary, cb) {
     npm.registry.get(name, function (er, data) {
       var regVersions = er ? [] : Object.keys(data.versions)
       var locMatch = bestMatch(versions, ranges)
-      var regMatch = bestMatch(regVersions, ranges)
+      var regMatch;
+      var tag = npm.config.get("tag");
+      var distTags = data["dist-tags"];
+      if (distTags && distTags[tag] && data.versions[distTags[tag]]) {
+        regMatch = distTags[tag]
+      } else {
+        regMatch = bestMatch(regVersions, ranges)
+      }
 
       cb(null, [[name, has, loc, locMatch, regMatch, locs]])
     })

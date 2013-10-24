@@ -9,6 +9,7 @@ process.title = 'starwars'
 
 var net = require('net')
   , cursor = require('../')(process.stdout)
+  , color = process.argv[2]
 
 // enable "raw mode" so that keystrokes aren't visible
 process.stdin.resume()
@@ -22,6 +23,9 @@ if (process.stdin.setRawMode) {
 var socket = net.connect(23, 'towel.blinkenlights.nl')
 
 socket.on('connect', function () {
+  if (color in cursor.fg) {
+    cursor.fg[color]()
+  }
   cursor.hide()
   socket.pipe(process.stdout)
 })
@@ -35,5 +39,8 @@ process.stdin.on('data', function (data) {
 })
 
 process.on('exit', function () {
-  cursor.show().write('\n')
+  cursor
+    .show()
+    .fg.reset()
+    .write('\n')
 })

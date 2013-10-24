@@ -1,0 +1,9 @@
+{
+  "name": "beep",
+  "version": "0.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "once": "*",
+    "ini": "*"
+  }
+}

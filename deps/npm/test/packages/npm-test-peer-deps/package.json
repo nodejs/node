@@ -3,7 +3,7 @@
   "name": "npm-test-peer-deps",
   "version": "0.0.0",
   "dependencies": {
-    "npm-test-peer-deps-file": "https://raw.github.com/gist/3971128/3f6aa37b4fa1186c2f47da9b77dcc4ec496e3483/index.js"
+    "npm-test-peer-deps-file": "https://gist.github.com/domenic/3971128/raw/7472b26a013ceb174c2d726314e9fa97465729bb/index.js"
   },
   "scripts": {
     "test": "node test.js"
