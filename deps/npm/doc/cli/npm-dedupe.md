@@ -47,6 +47,10 @@ registry.
 
 This feature is experimental, and may change in future versions.
 
+The `--tag` argument will apply to all of the affected dependencies. If a
+tag with the given name exists, the tagged version is preferred over newer
+versions.
+
 ## SEE ALSO
 
 * npm-ls(1)

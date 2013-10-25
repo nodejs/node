@@ -44,7 +44,7 @@ process.on("exit", function (code) {
 })
 
 function exit (code, noLog) {
-  exitCode = exitCode || code
+  exitCode = exitCode || process.exitCode || code
 
   var doExit = npm.config.get("_exit")
   log.verbose("exit", [code, doExit])

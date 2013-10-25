@@ -6,7 +6,7 @@ A single instance of Node runs in a single thread. To take advantage of
 multi-core systems the user will sometimes want to launch a cluster of Node
 processes to handle the load.
 
-The cluster module allows you to easily create a network of processes that
+The cluster module allows you to easily create child processes that
 all share server ports.
 
     var cluster = require('cluster');
@@ -121,13 +121,18 @@ values are `"rr"` and `"none"`.
 ## cluster.settings
 
 * {Object}
-  * `exec` {String} file path to worker file.  (Default=`__filename`)
+  * `exec` {String} file path to worker file.  (Default=`process.argv[1]`)
   * `args` {Array} string arguments passed to worker.
     (Default=`process.argv.slice(2)`)
   * `silent` {Boolean} whether or not to send output to parent's stdio.
     (Default=`false`)
 
-All settings set by the `.setupMaster` is stored in this settings object.
+After calling `.setupMaster()` (or `.fork()`) this settings object will contain
+the settings, including the default values.
+
+It is effectively frozen after being set, because `.setupMaster()` can
+only be called once.
+
 This object is not supposed to be changed or set manually, by you.
 
 ## cluster.isMaster
@@ -142,9 +147,7 @@ undefined, then `isMaster` is `true`.
 
 * {Boolean}
 
-This boolean flag is true if the process is a worker forked from a master.
-If the `process.env.NODE_UNIQUE_ID` is set to a value, then
-`isWorker` is `true`.
+True if the process is not a master (it is the negation of `cluster.isMaster`).
 
 ## Event: 'fork'
 
@@ -173,11 +176,10 @@ This can be used to log worker activity, and create you own timeout.
 
 * `worker` {Worker object}
 
-After forking a new worker, the worker should respond with a online message.
-When the master receives a online message it will emit such event.
+After forking a new worker, the worker should respond with an online message.
+When the master receives an online message it will emit this event.
 The difference between 'fork' and 'online' is that fork is emitted when the
-master tries to fork a worker, and 'online' is emitted when the worker is
-being executed.
+master forks a worker, and 'online' is emitted when the worker is running.
 
     cluster.on('online', function(worker) {
       console.log("Yay, the worker responded after it was forked");
@@ -188,9 +190,8 @@ being executed.
 * `worker` {Worker object}
 * `address` {Object}
 
-When calling `listen()` from a worker, a 'listening' event is automatically assigned
-to the server instance. When the server is listening a message is send to the master
-where the 'listening' event is emitted.
+After calling `listen()` from a worker, when the 'listening' event is emitted on
+the server, a listening event will also be emitted on `cluster` in the master.
 
 The event handler is executed with two arguments, the `worker` contains the worker
 object and the `address` object contains the following connection properties:
@@ -201,18 +202,24 @@ on more than one address.
       console.log("A worker is now connected to " + address.address + ":" + address.port);
     });
 
+The `addressType` is one of:
+
+* `4' (TCPv4)
+* `6` (TCPv6)
+* `-1` (unix domain socket)
+* `"udp4"` or `"udp6"` (UDP v4 or v6)
+
 ## Event: 'disconnect'
 
 * `worker` {Worker object}
 
-When a workers IPC channel has disconnected this event is emitted.
-This will happen when the worker dies, usually after calling
-`.kill()`.
+Emitted after the worker IPC channel has disconnected. This can occur when a
+worker exits gracefully, is killed, or is disconnected manually (such as with
+worker.disconnect()).
 
-When calling `.disconnect()`, there may be a delay between the
-`disconnect` and `exit` events.  This event can be used to detect if
-the process is stuck in a cleanup or if there are long-living
-connections.
+There may be a delay between the `disconnect` and `exit` events.  These events
+can be used to detect if the process is stuck in a cleanup or if there are
+long-living connections.
 
     cluster.on('disconnect', function(worker) {
       console.log('The worker #' + worker.id + ' has disconnected');
@@ -226,33 +233,42 @@ connections.
   the process to be killed.
 
 When any of the workers die the cluster module will emit the 'exit' event.
-This can be used to restart the worker by calling `fork()` again.
+
+This can be used to restart the worker by calling `.fork()` again.
 
     cluster.on('exit', function(worker, code, signal) {
-      var exitCode = worker.process.exitCode;
-      console.log('worker ' + worker.process.pid + ' died ('+exitCode+'). restarting...');
+      console.log('worker %d died (%s). restarting...',
+        worker.process.pid, signal || code);
       cluster.fork();
     });
 
+See [child_process event: 'exit'](child_process.html#child_process_event_exit).
+
 ## Event: 'setup'
 
-* `worker` {Worker object}
-
-When the `.setupMaster()` function has been executed this event emits.
-If `.setupMaster()` was not executed before `fork()` this function will
-call `.setupMaster()` with no arguments.
+Emitted the first time that `.setupMaster()` is called.
 
 ## cluster.setupMaster([settings])
 
 * `settings` {Object}
-  * `exec` {String} file path to worker file.  (Default=`__filename`)
+  * `exec` {String} file path to worker file.  (Default=`process.argv[1]`)
   * `args` {Array} string arguments passed to worker.
     (Default=`process.argv.slice(2)`)
   * `silent` {Boolean} whether or not to send output to parent's stdio.
     (Default=`false`)
 
-`setupMaster` is used to change the default 'fork' behavior. The new settings
-are effective immediately and permanently, they cannot be changed later on.
+`setupMaster` is used to change the default 'fork' behavior. Once called,
+the settings will be present in `cluster.settings`.
+
+Note that:
+
+* Only the first call to `.setupMaster()` has any effect, subsequent calls are
+  ignored
+* That because of the above, the *only* attribute of a worker that may be
+  customized per-worker is the `env` passed to `.fork()`
+* `.fork()` calls `.setupMaster()` internally to establish the defaults, so to
+  have any effect, `.setupMaster()` must be called *before* any calls to
+  `.fork()`
 
 Example:
 
@@ -264,22 +280,30 @@ Example:
     });
     cluster.fork();
 
+This can only be called from the master process.
+
 ## cluster.fork([env])
 
-* `env` {Object} Key/value pairs to add to child process environment.
+* `env` {Object} Key/value pairs to add to worker process environment.
 * return {Worker object}
 
-Spawn a new worker process. This can only be called from the master process.
+Spawn a new worker process.
+
+This can only be called from the master process.
 
 ## cluster.disconnect([callback])
 
-* `callback` {Function} called when all workers are disconnected and handlers are closed
+* `callback` {Function} called when all workers are disconnected and handles are
+  closed
 
-When calling this method, all workers will commit a graceful suicide. When they are
-disconnected all internal handlers will be closed, allowing the master process to
-die graceful if no other event is waiting.
+Calls `.disconnect()` on each worker in `cluster.workers`.
+
+When they are disconnected all internal handles will be closed, allowing the
+master process to die gracefully if no other event is waiting.
 
 The method takes an optional callback argument which will be called when finished.
+
+This can only be called from the master process.
 
 ## cluster.worker
 
@@ -304,6 +328,9 @@ A reference to the current worker object. Not available in the master process.
 A hash that stores the active worker objects, keyed by `id` field. Makes it
 easy to loop through all the workers. It is only available in the master
 process.
+
+A worker is removed from cluster.workers just before the `'disconnect'` or
+`'exit'` event is emitted.
 
     // Go through all workers
     function eachWorker(callback) {
@@ -343,17 +370,33 @@ cluster.workers
 * {ChildProcess object}
 
 All workers are created using `child_process.fork()`, the returned object
-from this function is stored in process.
+from this function is stored as `.process`. In a worker, the global `process`
+is stored.
 
-See: [Child Process module](child_process.html)
+See: [Child Process module](
+child_process.html#child_process_child_process_fork_modulepath_args_options)
+
+Note that workers will call `process.exit(0)` if the `'disconnect'` event occurs
+on `process` and `.suicide` is not `true`. This protects against accidental
+disconnection.
 
 ### worker.suicide
 
 * {Boolean}
 
-This property is a boolean. It is set when a worker dies after calling
-`.kill()` or immediately after calling the `.disconnect()` method.
-Until then it is `undefined`.
+Set by calling `.kill()` or `.disconnect()`, until then it is `undefined`.
+
+The boolean `worker.suicide` lets you distinguish between voluntary and accidental
+exit, the master may choose not to respawn a worker based on this value.
+
+    cluster.on('exit', function(worker, code, signal) {
+      if (worker.suicide === true) {
+        console.log('Oh, it was just suicide\' – no need to worry').
+      }
+    });
+
+    // kill worker
+    worker.kill();
 
 ### worker.send(message, [sendHandle])
 
@@ -362,8 +405,9 @@ Until then it is `undefined`.
 
 This function is equal to the send methods provided by
 `child_process.fork()`.  In the master you should use this function to
-send a message to a specific worker.  However in a worker you can also use
-`process.send(message)`, since this is the same function.
+send a message to a specific worker.
+
+In a worker you can also use `process.send(message)`, it is the same function.
 
 This example will echo back all messages from the master:
 
@@ -382,44 +426,54 @@ This example will echo back all messages from the master:
 * `signal` {String} Name of the kill signal to send to the worker
   process.
 
-This function will kill the worker, and inform the master to not spawn a
-new worker.  The boolean `suicide` lets you distinguish between voluntary
-and accidental exit.
+This function will kill the worker. In the master, it does this by disconnecting
+the `worker.process`, and once disconnected, killing with `signal`. In the
+worker, it does it by disconnecting the channel, and then exiting with code `0`.
 
-    cluster.on('exit', function(worker, code, signal) {
-      if (worker.suicide === true) {
-        console.log('Oh, it was just suicide\' – no need to worry').
-      }
-    });
+Causes `.suicide` to be set.
 
-    // kill worker
-    worker.kill();
+This method is aliased as `worker.destroy()` for backwards compatibility.
 
-This method is aliased as `worker.destroy()` for backwards
-compatibility.
+Note that in a worker, `process.kill()` exists, but it is not this function,
+it is [kill](process.html#process_process_kill_pid_signal).
 
 ### worker.disconnect()
 
-When calling this function the worker will no longer accept new connections, but
-they will be handled by any other listening worker. Existing connection will be
-allowed to exit as usual. When no more connections exist, the IPC channel to the worker
-will close allowing it to die graceful. When the IPC channel is closed the `disconnect`
-event will emit, this is then followed by the `exit` event, there is emitted when
-the worker finally die.
+In a worker, this function will close all servers, wait for the 'close' event on
+those servers, and then disconnect the IPC channel.
 
-Because there might be long living connections, it is useful to implement a timeout.
-This example ask the worker to disconnect and after 2 seconds it will destroy the
-server. An alternative would be to execute `worker.kill()` after 2 seconds, but
-that would normally not allow the worker to do any cleanup if needed.
+In the master, an internal message is sent to the worker causing it to call
+`.disconnect()` on itself.
+
+Causes `.suicide` to be set.
+
+Note that after a server is closed, it will no longer accept new connections,
+but connections may be accepted by any other listening worker. Existing
+connections will be allowed to close as usual. When no more connections exist,
+see [server.close()](net.html#net_event_close), the IPC channel to the worker
+will close allowing it to die gracefully.
+
+The above applies *only* to server connections, client connections are not
+automatically closed by workers, and disconnect does not wait for them to close
+before exiting.
+
+Note that in a worker, `process.disconnect` exists, but it is not this function,
+it is [disconnect](child_process.html#child_process_child_disconnect).
+
+Because long living server connections may block workers from disconnecting, it
+may be useful to send a message, so application specific actions may be taken to
+close them. It also may be useful to implement a timeout, killing a worker if
+the `disconnect` event has not been emitted after some time.
 
     if (cluster.isMaster) {
       var worker = cluster.fork();
       var timeout;
 
       worker.on('listening', function(address) {
+        worker.send('shutdown');
         worker.disconnect();
         timeout = setTimeout(function() {
-          worker.send('force kill');
+          worker.kill();
         }, 2000);
       });
 
@@ -430,18 +484,14 @@ that would normally not allow the worker to do any cleanup if needed.
     } else if (cluster.isWorker) {
       var net = require('net');
       var server = net.createServer(function(socket) {
-        // connection never end
+        // connections never end
       });
 
       server.listen(8000);
 
-      server.on('close', function() {
-        // cleanup
-      });
-
       process.on('message', function(msg) {
-        if (msg === 'force kill') {
-          server.close();
+        if(msg === 'shutdown') {
+          // initiate graceful close of any connections to server
         }
       });
     }
@@ -451,8 +501,8 @@ that would normally not allow the worker to do any cleanup if needed.
 * `message` {Object}
 
 This event is the same as the one provided by `child_process.fork()`.
-In the master you should use this event, however in a worker you can also use
-`process.on('message')`
+
+In a worker you can also use `process.on('message')`.
 
 As an example, here is a cluster that keeps count of the number of requests
 in the master process using the message system:
@@ -499,28 +549,29 @@ in the master process using the message system:
 
 ### Event: 'online'
 
-Same as the `cluster.on('online')` event, but emits only when the state change
-on the specified worker.
+Similar to the `cluster.on('online')` event, but specific to this worker.
 
     cluster.fork().on('online', function() {
       // Worker is online
     });
 
+It is not emitted in the worker.
+
 ### Event: 'listening'
 
 * `address` {Object}
 
-Same as the `cluster.on('listening')` event, but emits only when the state change
-on the specified worker.
+Similar to the `cluster.on('listening')` event, but specific to this worker.
 
     cluster.fork().on('listening', function(address) {
       // Worker is listening
     });
 
+It is not emitted in the worker.
+
 ### Event: 'disconnect'
 
-Same as the `cluster.on('disconnect')` event, but emits only when the state change
-on the specified worker.
+Similar to the `cluster.on('disconnect')` event, but specfic to this worker.
 
     cluster.fork().on('disconnect', function() {
       // Worker has disconnected
@@ -532,8 +583,7 @@ on the specified worker.
 * `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
   the process to be killed.
 
-Emitted by the individual worker instance, when the underlying child process
-is terminated.  See [child_process event: 'exit'](child_process.html#child_process_event_exit).
+Similar to the `cluster.on('exit')` event, but specific to this worker.
 
     var worker = cluster.fork();
     worker.on('exit', function(code, signal) {
@@ -545,3 +595,9 @@ is terminated.  See [child_process event: 'exit'](child_process.html#child_proce
         console.log("worker success!");
       }
     });
+
+### Event: 'error'
+
+This event is the same as the one provided by `child_process.fork()`.
+
+In a worker you can also use `process.on('error')`.

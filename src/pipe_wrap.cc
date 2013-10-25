@@ -280,7 +280,10 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
 
   int fd = args[0]->Int32Value();
 
-  uv_pipe_open(&wrap->handle_, fd);
+  int err = uv_pipe_open(&wrap->handle_, fd);
+
+  if (err != 0)
+    ThrowException(UVException(err, "uv_pipe_open"));
 }
 
 

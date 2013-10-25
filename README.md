@@ -33,6 +33,19 @@ Windows:
 
     vcbuild nosign
 
+You can download pre-built binaries for various operating systems from
+[http://nodejs.org/download/](http://nodejs.org/download/).  The Windows
+and OS X installers will prompt you for the location to install to.
+The tarballs are self-contained; you can extract them to a local directory
+with:
+
+    tar xzf /path/to/node-<version>-<platform>-<arch>.tar.gz
+
+Or system-wide with:
+
+    cd /usr/local && tar --strip-components 1 -xzf \
+                         /path/to/node-<version>-<platform>-<arch>.tar.gz
+
 ### To run the tests:
 
 Unix/Macintosh:

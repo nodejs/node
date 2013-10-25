@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-INSTALL" "1" "September 2013" "" ""
+.TH "NPM\-INSTALL" "1" "October 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-install\fR \-\- Install a package
@@ -264,7 +264,9 @@ npm install sax@">=0\.1\.0 <0\.2\.0" bench supervisor
 .IP "" 0
 .
 .P
-The \fB\-\-tag\fR argument will apply to all of the specified install targets\.
+The \fB\-\-tag\fR argument will apply to all of the specified install targets\. If a
+tag with the given name exists, the tagged version is preferred over newer
+versions\.
 .
 .P
 The \fB\-\-force\fR argument will force npm to fetch remote resources even if a

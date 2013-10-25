@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CACHE" "1" "September 2013" "" ""
+.TH "NPM\-CACHE" "1" "October 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-cache\fR \-\- Manipulates packages cache
@@ -41,8 +41,9 @@ the entire cache is cleared\.
 .IP "" 0
 .
 .SH "DETAILS"
-npm stores cache data in \fB$HOME/\.npm\fR\|\.  For each package that is added
-to the cache, three pieces of information are stored in \fB{cache}/{name}/{version}\fR:
+npm stores cache data in the directory specified in \fBnpm config get cache\fR\|\.
+For each package that is added to the cache, three pieces of information are
+stored in \fB{cache}/{name}/{version}\fR:
 .
 .IP "\(bu" 4
 \|\.\.\./package/:
@@ -71,7 +72,7 @@ they do not make an HTTP request to the registry\.
 .SH "CONFIGURATION"
 .
 .SS "cache"
-Default: \fB$HOME/\.npm\fR on Posix, or \fB$HOME/npm\-cache\fR on Windows\.
+Default: \fB~/\.npm\fR on Posix, or \fB%AppData%/npm\-cache\fR on Windows\.
 .
 .P
 The root cache folder\.

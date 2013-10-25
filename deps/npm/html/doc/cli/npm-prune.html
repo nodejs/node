@@ -10,7 +10,8 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<pre><code>npm prune [&lt;name&gt; [&lt;name ...]]</code></pre>
+<pre><code>npm prune [&lt;name&gt; [&lt;name ...]]
+npm prune [&lt;name&gt; [&lt;name ...]] [--production]</code></pre>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -21,11 +22,14 @@ removed.</p>
 <p>Extraneous packages are packages that are not listed on the parent
 package&#39;s dependencies list.</p>
 
+<p>If the <code>--production</code> flag is specified, this command will remove the
+packages specified in your <code>devDependencies</code>.</p>
+
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
 <ul><li><a href="../cli/npm-rm.html">npm-rm(1)</a></li><li><a href="../files/npm-folders.html">npm-folders(5)</a></li><li><a href="../cli/npm-ls.html">npm-ls(1)</a></li></ul>
 </div>
-<p id="footer">npm-prune &mdash; npm@1.3.11</p>
+<p id="footer">npm-prune &mdash; npm@1.3.12</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

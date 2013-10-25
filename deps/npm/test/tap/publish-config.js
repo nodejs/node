@@ -1,5 +1,6 @@
 var test = require('tap').test
 var fs = require('fs')
+var osenv = require('osenv')
 var pkg = process.env.npm_config_tmp || '/tmp'
 pkg += '/npm-test-publish-config'
 
@@ -41,7 +42,8 @@ test(function (t) {
         npm_config_cache_lock_wait: 1000,
         HOME: process.env.HOME,
         Path: process.env.PATH,
-        PATH: process.env.PATH
+        PATH: process.env.PATH,
+        USERPROFILE: osenv.home()
       }
     })
   })

@@ -3,8 +3,6 @@ var mkdirp = require('mkdirp')
 var fs = require('fs')
 var path = require('path')
 var fixtures = path.resolve(__dirname, 'fixtures')
-var which = require('which')
-var whichTap = which.sync('tap')
 
 var cmdShim = require('../')
 

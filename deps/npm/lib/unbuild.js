@@ -20,7 +20,10 @@ function unbuild (args, silent, cb) {
   asyncMap(args, unbuild_(silent), cb)
 }
 
-function unbuild_ (silent) { return function (folder, cb) {
+function unbuild_ (silent) { return function (folder, cb_) {
+  function cb (er) {
+    cb_(er, path.relative(npm.root, folder))
+  }
   folder = path.resolve(folder)
   delete build._didBuild[folder]
   log.info(folder, "unbuild")

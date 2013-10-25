@@ -45,6 +45,7 @@ function makePretty (p) {
     , dir = path.resolve(p[0], "node_modules", dep)
     , has = p[2]
     , want = p[3]
+    , latest = p[4]
 
   // XXX add --json support
   // Should match (more or less) the output of ls --json
@@ -61,8 +62,10 @@ function makePretty (p) {
   if (!npm.config.get("global")) {
     dir = path.relative(process.cwd(), dir)
   }
-  return dep + "@" + want + " " + dir
+  return dep + " " + dir
        + " current=" + (has || "MISSING")
+       + " wanted=" + want
+       + " latest=" + latest
 }
 
 function outdated_ (args, dir, parentHas, cb) {
@@ -78,6 +81,17 @@ function outdated_ (args, dir, parentHas, cb) {
   readJson(path.resolve(dir, "package.json"), function (er, d) {
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     deps = (er) ? true : (d.dependencies || {})
+    var doUpdate = npm.config.get("dev") ||
+                    (!npm.config.get("production") &&
+                    !Object.keys(parentHas).length &&
+                    !npm.config.get("global"))
+    if (!er && d && doUpdate) {
+      Object.keys(d.devDependencies || {}).forEach(function (k) {
+        if (!(k in parentHas)) {
+          deps[k] = d.devDependencies[k]
+        }
+      })
+    }
     return next()
   })
 
@@ -143,29 +157,35 @@ function shouldUpdate (args, dir, dep, has, req, cb) {
              , cb )
   }
 
-  function doIt (shouldHave) {
-    cb(null, [[ dir, dep, curr && curr.version, shouldHave, req ]])
+  function doIt (wanted, latest) {
+    cb(null, [[ dir, dep, curr && curr.version, wanted, latest, req ]])
   }
 
   if (args.length && args.indexOf(dep) === -1) {
     return skip()
   }
 
-  // so, we can conceivably update this.  find out if we need to.
-  cache.add(dep, req, function (er, d) {
-    // if this fails, then it means we can't update this thing.
-    // it's probably a thing that isn't published.
-    if (er) return skip()
+  var registry = npm.registry
+  // search for the latest package
+  registry.get(dep + "/latest", function (er, l) {
+    if (er) return cb()
+    // so, we can conceivably update this.  find out if we need to.
+    cache.add(dep, req, function (er, d) {
+      // if this fails, then it means we can't update this thing.
+      // it's probably a thing that isn't published.
+      if (er) return skip()
 
-    // check that the url origin hasn't changed (#1727) and that
-    // there is no newer version available
-    var dFromUrl = d._from && url.parse(d._from).protocol
-    var cFromUrl = curr && curr.from && url.parse(curr.from).protocol
+      // check that the url origin hasn't changed (#1727) and that
+      // there is no newer version available
+      var dFromUrl = d._from && url.parse(d._from).protocol
+      var cFromUrl = curr && curr.from && url.parse(curr.from).protocol
 
-    if (!curr || dFromUrl && cFromUrl && d._from !== curr.from
-        || d.version !== curr.version)
-      doIt(d.version)
-    else
-      skip()
+      if (!curr || dFromUrl && cFromUrl && d._from !== curr.from
+          || d.version !== curr.version
+          || d.version !== l.version)
+        doIt(d.version, l.version)
+      else
+        skip()
+    })
   })
 }

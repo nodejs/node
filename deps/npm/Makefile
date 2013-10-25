@@ -71,7 +71,7 @@ link: uninstall
 	node cli.js link -f
 
 clean: ronnclean doc-clean uninstall
-	rm npmrc
+	rm -rf npmrc
 	node cli.js cache clean
 
 uninstall:
@@ -154,13 +154,13 @@ html/doc/misc/%.html: doc/misc/%.md $(html_docdeps)
 ronn: node_modules/.bin/ronn
 
 node_modules/.bin/ronn:
-	node cli.js install ronn
+	node cli.js install ronn --no-global
 
 doc: man
 
 man: $(cli_docs) $(api_docs)
 
-test:
+test: doc
 	node cli.js test
 
 publish: link doc

@@ -1122,7 +1122,10 @@ function addLocalDirectory (p, name, shasum, cb) {
     getCacheStat(function (er, cs) {
       mkdir(path.dirname(tgz), function (er, made) {
         if (er) return cb(er)
-        tar.pack(tgz, p, data, false, function (er) {
+
+        var fancy = p.indexOf(npm.tmp) !== 0
+                    && p.indexOf(npm.cache) !== 0
+        tar.pack(tgz, p, data, fancy, function (er) {
           if (er) {
             log.error( "addLocalDirectory", "Could not pack %j to %j"
                      , p, tgz )

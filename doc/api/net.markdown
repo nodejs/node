@@ -118,7 +118,6 @@ The `connectListener` parameter will be added as an listener for the
 ## Class: net.Server
 
 This class is used to create a TCP or UNIX server.
-A server is a `net.Socket` that can listen for new incoming connections.
 
 ### server.listen(port, [host], [backlog], [callback])
 

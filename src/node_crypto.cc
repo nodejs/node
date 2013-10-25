@@ -2791,6 +2791,9 @@ bool Verify::VerifyFinal(const char* key_pem,
     return false;
   }
 
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
+
   EVP_PKEY* pkey = NULL;
   BIO* bp = NULL;
   X509* x509 = NULL;

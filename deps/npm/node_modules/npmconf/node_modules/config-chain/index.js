@@ -141,7 +141,7 @@ ConfigChain.prototype.get = function (key, where) {
   if (where) {
     where = this.sources[where]
     if (where) where = where.data
-    if (where && where.hasOwnProperty(key)) return where[key]
+    if (where && Object.hasOwnProperty.call(where, key)) return where[key]
     return undefined
   }
   return this.list[0][key]

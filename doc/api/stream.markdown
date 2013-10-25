@@ -881,7 +881,7 @@ SimpleProtocol.prototype._read = function(n) {
     strings using the specified encoding.  Default=null
   * `objectMode` {Boolean} Whether this stream should behave
     as a stream of objects. Meaning that stream.read(n) returns
-    a single value instead of a Buffer of size n
+    a single value instead of a Buffer of size n.  Default=false
 
 In classes that extend the Readable class, make sure to call the
 Readable constructor so that the buffering settings can be properly

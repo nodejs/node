@@ -1,4 +1,3 @@
-
 module.exports = docs
 
 docs.usage = "npm docs <pkgname>"
@@ -17,9 +16,16 @@ var npm = require("./npm.js")
 
 function docs (args, cb) {
   if (!args.length) return cb(docs.usage)
-  var n = args[0].split("@").shift()
-  registry.get(n + "/latest", 3600, function (er, d) {
-    if (er) return cb(er)
+  var project = args[0]
+  var npmName = project.split("@").shift()
+  registry.get(project + "/latest", 3600, function (er, d) {
+    if (er) {
+      if (project.split("/").length !== 2) return cb(er)
+      
+      var url = "https://github.com/" + project + "#readme"
+      return opener(url, { command: npm.config.get("browser") }, cb)
+    }
+
     var homepage = d.homepage
       , repo = d.repository || d.repositories
       , url = homepage ? homepage

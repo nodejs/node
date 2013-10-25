@@ -310,6 +310,27 @@
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
+2013.10.18, Version 0.10.21 (Stable), e2da042844a830fafb8031f6c477eb4f96195210
+
+* uv: Upgrade to v0.10.18
+
+* crypto: clear errors from verify failure (Timothy J Fontaine)
+
+* dtrace: interpret two byte strings (Dave Pacheco)
+
+* fs: fix fs.truncate() file content zeroing bug (Ben Noordhuis)
+
+* http: provide backpressure for pipeline flood (isaacs)
+
+* tls: fix premature connection termination (Ben Noordhuis)
+
+
+2013.09.30, Version 0.10.20 (Stable), d7234c8d50a1af73f60d2d3c0cc7eed17429a481
+
+* tls: fix sporadic hang and partial reads (Fedor Indutny)
+  - fixes "npm ERR! cb() never called!"
+
+
 2013.09.24, Version 0.10.19 (Stable), 6b5e6a5a3ec8d994c9aab3b800b9edbf1b287904
 
 * uv: Upgrade to v0.10.17

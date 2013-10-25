@@ -146,7 +146,7 @@ See also the `strict-ssl` config.
 
 ### cache
 
-* Default: Windows: `%APPDATA%\npm-cache`, Posix: `~/.npm`
+* Default: Windows: `%AppData%\npm-cache`, Posix: `~/.npm`
 * Type: path
 
 The location of npm's cache directory.  See `npm-cache(1)`

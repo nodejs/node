@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-OUTDATED" "1" "September 2013" "" ""
+.TH "NPM\-OUTDATED" "1" "October 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-outdated\fR \-\- Check for outdated packages
@@ -16,6 +16,11 @@ npm outdated [<name> [<name> \.\.\.]]
 .SH "DESCRIPTION"
 This command will check the registry to see if any (or, specific) installed
 packages are currently outdated\.
+.
+.P
+The resulting field \'wanted\' shows the latest version according to the
+version specified in the package\.json, the field \'latest\' the very latest
+version of the package\.
 .
 .SH "SEE ALSO"
 .
