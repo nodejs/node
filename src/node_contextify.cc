@@ -96,6 +96,79 @@ class ContextifyContext {
   }
 
 
+  // XXX(isaacs): This function only exists because of a shortcoming of
+  // the V8 SetNamedPropertyHandler function.
+  //
+  // It does not provide a way to intercept Object.defineProperty(..)
+  // calls.  As a result, these properties are not copied onto the
+  // contextified sandbox when a new global property is added via either
+  // a function declaration or a Object.defineProperty(global, ...) call.
+  //
+  // Note that any function declarations or Object.defineProperty()
+  // globals that are created asynchronously (in a setTimeout, callback,
+  // etc.) will happen AFTER the call to copy properties, and thus not be
+  // caught.
+  //
+  // The way to properly fix this is to add some sort of a
+  // Object::SetNamedDefinePropertyHandler() function that takes a callback,
+  // which receives the property name and property descriptor as arguments.
+  //
+  // Luckily, such situations are rare, and asynchronously-added globals
+  // weren't supported by Node's VM module until 0.12 anyway.  But, this
+  // should be fixed properly in V8, and this copy function should be
+  // removed once there is a better way.
+  void CopyProperties() {
+    HandleScope scope(node_isolate);
+
+    Local<Context> context = PersistentToLocal(env()->isolate(), context_);
+    Local<Object> global = context->Global()->GetPrototype()->ToObject();
+    Local<Object> sandbox = PersistentToLocal(env()->isolate(), sandbox_);
+
+    Local<Function> clone_property_method;
+
+    Local<Array> names = global->GetOwnPropertyNames();
+    int length = names->Length();
+    for (int i = 0; i < length; i++) {
+      Local<String> key = names->Get(i)->ToString();
+      bool has = sandbox->HasOwnProperty(key);
+      if (!has) {
+        // Could also do this like so:
+        //
+        // PropertyAttribute att = global->GetPropertyAttributes(key_v);
+        // Local<Value> val = global->Get(key_v);
+        // sandbox->ForceSet(key_v, val, att);
+        //
+        // However, this doesn't handle ES6-style properties configured with
+        // Object.defineProperty, and that's exactly what we're up against at
+        // this point.  ForceSet(key,val,att) only supports value properties
+        // with the ES3-style attribute flags (DontDelete/DontEnum/ReadOnly),
+        // which doesn't faithfully capture the full range of configurations
+        // that can be done using Object.defineProperty.
+        if (clone_property_method.IsEmpty()) {
+          Local<String> code = FIXED_ONE_BYTE_STRING(node_isolate,
+              "(function cloneProperty(source, key, target) {\n"
+              "  try {\n"
+              "    var desc = Object.getOwnPropertyDescriptor(source, key);\n"
+              "    if (desc.value === source) desc.value = target;\n"
+              "    Object.defineProperty(target, key, desc);\n"
+              "  } catch (e) {\n"
+              "   // Catch sealed properties errors\n"
+              "  }\n"
+              "})");
+
+          Local<String> fname = FIXED_ONE_BYTE_STRING(node_isolate,
+              "binding:script");
+          Local<Script> script = Script::Compile(code, fname);
+          clone_property_method = Local<Function>::Cast(script->Run());
+          assert(clone_property_method->IsFunction());
+        }
+        Local<Value> args[] = { global, key, sandbox };
+        clone_property_method->Call(global, ARRAY_SIZE(args), args);
+      }
+    }
+  }
+
+
   // This is an object that just keeps an internal pointer to this
   // ContextifyContext.  It's passed to the NamedPropertyHandler.  If we
   // pass the main JavaScript context object we're embedded in, then the
@@ -421,6 +494,7 @@ class ContextifyScript : public WeakObject {
                 display_errors,
                 args,
                 try_catch);
+    contextify_context->CopyProperties();
   }
 
   static int64_t GetTimeoutArg(const FunctionCallbackInfo<Value>& args,
