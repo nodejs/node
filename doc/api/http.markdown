@@ -43,6 +43,12 @@ list like the following:
       'Host', 'mysite.com',
       'accepT', '*/*' ]
 
+## http.METHODS
+
+* {Array}
+
+A list of the HTTP methods that are supported by the parser.
+
 ## http.STATUS_CODES
 
 * {Object}

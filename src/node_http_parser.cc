@@ -598,6 +598,13 @@ void InitHttpParser(Handle<Object> target,
   t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnMessageComplete"),
          Integer::NewFromUnsigned(kOnMessageComplete, node_isolate));
 
+  Local<Array> methods = Array::New();
+#define V(num, name, string)                                                  \
+    methods->Set(num, FIXED_ONE_BYTE_STRING(node_isolate, #string));
+  HTTP_METHOD_MAP(V)
+#undef V
+  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "methods"), methods);
+
   NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
   NODE_SET_PROTOTYPE_METHOD(t, "finish", Parser::Finish);
   NODE_SET_PROTOTYPE_METHOD(t, "reinitialize", Parser::Reinitialize);
