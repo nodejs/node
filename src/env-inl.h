@@ -33,9 +33,48 @@
 
 namespace node {
 
+inline Environment::GCInfo::GCInfo()
+    : type_(static_cast<v8::GCType>(0)),
+      flags_(static_cast<v8::GCCallbackFlags>(0)),
+      timestamp_(0) {
+}
+
+inline Environment::GCInfo::GCInfo(v8::Isolate* isolate,
+                                   v8::GCType type,
+                                   v8::GCCallbackFlags flags,
+                                   uint64_t timestamp)
+    : type_(type),
+      flags_(flags),
+      timestamp_(timestamp) {
+  isolate->GetHeapStatistics(&stats_);
+}
+
+inline v8::GCType Environment::GCInfo::type() const {
+  return type_;
+}
+
+inline v8::GCCallbackFlags Environment::GCInfo::flags() const {
+  return flags_;
+}
+
+inline v8::HeapStatistics* Environment::GCInfo::stats() const {
+  // TODO(bnoordhuis) Const-ify once https://codereview.chromium.org/63693005
+  // lands and makes it way into a stable release.
+  return const_cast<v8::HeapStatistics*>(&stats_);
+}
+
+inline uint64_t Environment::GCInfo::timestamp() const {
+  return timestamp_;
+}
+
+inline Environment::IsolateData* Environment::IsolateData::Get(
+    v8::Isolate* isolate) {
+  return static_cast<IsolateData*>(isolate->GetData());
+}
+
 inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
     v8::Isolate* isolate) {
-  IsolateData* isolate_data = static_cast<IsolateData*>(isolate->GetData());
+  IsolateData* isolate_data = Get(isolate);
   if (isolate_data == NULL) {
     isolate_data = new IsolateData(isolate);
     isolate->SetData(isolate_data);
@@ -59,6 +98,7 @@ inline Environment::IsolateData::IsolateData(v8::Isolate* isolate)
     PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
     ref_count_(0) {
+  QUEUE_INIT(&gc_tracker_queue_);
 }
 
 inline uv_loop_t* Environment::IsolateData::event_loop() const {
@@ -187,6 +227,7 @@ inline Environment::Environment(v8::Local<v8::Context> context)
   set_binding_cache_object(v8::Object::New());
   set_module_load_list_array(v8::Array::New());
   RB_INIT(&cares_task_list_);
+  QUEUE_INIT(&gc_tracker_queue_);
 }
 
 inline Environment::~Environment() {
