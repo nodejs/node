@@ -236,6 +236,13 @@ function errorHandler (er) {
               ].join("\n"))
     break
 
+  case "ENOPACKAGEJSON":
+    log.error("package.json", [er.message
+              ,"This is most likely not a problem with npm itself."
+              ,"npm can't find a package.json file in your current directory."
+              ].join("\n"))
+    break
+
   case "ENOTSUP":
     if (er.required) {
       log.error("notsup", [er.message

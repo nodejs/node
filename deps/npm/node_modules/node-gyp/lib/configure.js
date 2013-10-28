@@ -37,7 +37,9 @@ function configure (gyp, argv, callback) {
     checkVCExpress(function () {
       if (hasVCExpress || hasVC2012Express) {
         checkWinSDK(function () {
-          checkPython()
+          checkVSPrompt(function() {
+            checkPython()
+          })
         })
       } else {
         checkPython()
@@ -125,6 +127,22 @@ function configure (gyp, argv, callback) {
           'You can pass the --python switch to point to Python >= v2.5.0 & < 3.0.0.'))
   }
 
+  function checkVSPrompt(cb) {
+    // in the event that they have both installed, see if they are using a particular command prompt
+    if (hasVCExpress && hasVC2012Express) {
+      if (process.env["VisualStudioVersion"] === "11.0") {
+        // they are using the VS 2012 command prompt, unset the VS 2010 variables
+        hasVCExpress = false
+        hasWin71SDK = false
+      } else {
+        // otherwise, unset the VS 2012 variables
+        hasVC2012Express = false
+        hasWin8SDK = false
+      }
+    }
+    cb()
+  }
+
   function checkWinSDK(cb) {
     checkWin71SDK(function() {
       checkWin8SDK(cb)
@@ -146,12 +164,36 @@ function configure (gyp, argv, callback) {
       cb()
     })
   }
+    
+  function checkVC201264(cb) {
+    var cp = spawn('reg', ['query', 'HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\VisualStudio\\11.0\\Setup\\VC', '/v', 'ProductDir'])
+    cp.on('exit', function (code) {
+      hasVC2012Express = (code === 0)
+      cb()
+    })
+  }
+  
+  function checkVC2012(cb) {
+    var cp = spawn('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\11.0\\Setup\\VC', '/v', 'ProductDir'])
+    cp.on('exit', function (code) {
+      hasVC2012Express = (code === 0)
+      if (code !== 0) {
+        checkVC201264(cb)
+      } else {
+        cb()
+      }
+    })
+  }
 
   function checkVC2012Express64(cb) {
     var cp = spawn('reg', ['query', 'HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\VCExpress\\11.0\\Setup\\VC', '/v', 'ProductDir'])
     cp.on('exit', function (code) {
-      hasVC2012Express = (code === 0)
-      cb()
+        hasVC2012Express = (code === 0)
+        if (code !== 0) {
+            checkVC2012(cb)
+        } else {
+            cb()
+        }
     })
   }
 
@@ -178,6 +220,7 @@ function configure (gyp, argv, callback) {
   function checkVCExpress(cb) {
     spawn('reg', ['query', 'HKLM\\Software\\Microsoft\\VCExpress\\10.0\\Setup\\VC', '/v', 'ProductDir'])
          .on('exit', function (code) {
+           hasVCExpress = (code === 0)
            if (code !== 0) {
              checkVCExpress64(cb)
            } else {

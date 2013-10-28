@@ -136,14 +136,32 @@ function runPackageLifecycle (pkg, env, wd, unsafe, cb) {
 
   var note = "\n> " + pkg._id + " " + stage + " " + wd
            + "\n> " + cmd + "\n"
-  console.log(note)
-  runCmd(cmd, pkg, env, stage, wd, unsafe, cb)
+  runCmd(note, cmd, pkg, env, stage, wd, unsafe, cb)
 }
 
-function runCmd (cmd, pkg, env, stage, wd, unsafe, cb) {
+
+var running = false
+var queue = []
+function dequeue() {
+  running = false
+  if (queue.length) {
+    var r = queue.shift()
+    runCmd.apply(null, r)
+  }
+}
+
+function runCmd (note, cmd, pkg, env, stage, wd, unsafe, cb) {
+  if (running) {
+    queue.push([note, cmd, pkg, env, stage, wd, unsafe, cb])
+    return
+  }
+
+  running = true
+  log.pause()
   var user = unsafe ? null : npm.config.get("user")
     , group = unsafe ? null : npm.config.get("group")
 
+  console.log(note)
   log.verbose("unsafe-perm in lifecycle", unsafe)
 
   if (process.platform === "win32") {
@@ -159,7 +177,14 @@ function runCmd (cmd, pkg, env, stage, wd, unsafe, cb) {
   }
 }
 
-function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb) {
+function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
+
+  function cb (er) {
+    cb_.apply(null, arguments)
+    log.resume()
+    process.nextTick(dequeue)
+  }
+
   var sh = "sh"
   var shFlag = "-c"
 
@@ -174,8 +199,8 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb) {
              }
 
   if (!unsafe) {
-    conf.uid = uid
-    conf.gid = gid
+    conf.uid = uid ^ 0
+    conf.gid = gid ^ 0
   }
 
   var proc = spawn(sh, [shFlag, cmd], conf)
@@ -216,7 +241,9 @@ function runHookLifecycle (pkg, env, wd, unsafe, cb) {
 
   fs.stat(hook, function (er) {
     if (er) return cb()
-    runCmd(hook, pkg, env, stage, wd, unsafe, cb)
+    var note = "\n> " + pkg._id + " " + stage + " " + wd
+             + "\n> " + cmd
+    runCmd(note, hook, pkg, env, stage, wd, unsafe, cb)
   })
 }
 

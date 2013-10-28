@@ -43,6 +43,9 @@ after packing it up into a tarball (b).
     it installs the current package context (ie, the current working
     directory) as a global package.
 
+    By default, `npm install` will install all modules listed as
+    dependencies. With the `--production` flag,
+    npm will not install modules listed in `devDependencies`.
 
 * `npm install <folder>`:
 
