@@ -51,11 +51,6 @@ namespace node {
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
-  V(DELETE_string, "DELETE")                                                  \
-  V(GET_string, "GET")                                                        \
-  V(HEAD_string, "HEAD")                                                      \
-  V(POST_string, "POST")                                                      \
-  V(PUT_string, "PUT")                                                        \
   V(address_string, "address")                                                \
   V(atime_string, "atime")                                                    \
   V(birthtime_string, "birthtime")                                            \

@@ -64,6 +64,7 @@ using v8::Integer;
 using v8::Local;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 const uint32_t kOnHeaders = 0;
@@ -86,33 +87,6 @@ const uint32_t kOnMessageComplete = 3;
     return self->name##_(at, length);                                         \
   }                                                                           \
   int name##_(const char* at, size_t length)
-
-
-// Call this function only when there is a valid HandleScope on the stack
-// somewhere.
-inline Local<String> MethodToString(Environment* env, uint32_t method) {
-  // XXX(bnoordhuis) Predicated on the observation that 99.9% of all HTTP
-  // requests are either GET, HEAD or POST. I threw in DELETE and PUT for
-  // good measure.
-  switch (method) {
-    case HTTP_DELETE: return env->DELETE_string();
-    case HTTP_GET: return env->GET_string();
-    case HTTP_HEAD: return env->HEAD_string();
-    case HTTP_POST: return env->POST_string();
-    case HTTP_PUT: return env->PUT_string();
-  }
-
-  switch (method) {
-#define V(num, name, string)                                                  \
-    case HTTP_ ## name:                                                       \
-      return FIXED_ONE_BYTE_STRING(node_isolate, #string);
-    HTTP_METHOD_MAP(V)
-#undef V
-  }
-
-  // Unreachable, http_parser parses only a restricted set of request methods.
-  return FIXED_ONE_BYTE_STRING(node_isolate, "UNKNOWN_METHOD");
-}
 
 
 // helper class for the Parser
@@ -276,7 +250,7 @@ class Parser : public WeakObject {
     // METHOD
     if (parser_.type == HTTP_REQUEST) {
       message_info->Set(env()->method_string(),
-                        MethodToString(env(), parser_.method));
+                        Uint32::NewFromUnsigned(parser_.method));
     }
 
     // STATUS

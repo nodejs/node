@@ -28,6 +28,8 @@ var CRLF = '\r\n';
 var REQUEST = HTTPParser.REQUEST;
 var RESPONSE = HTTPParser.RESPONSE;
 
+var methods = HTTPParser.methods;
+
 var kOnHeaders = HTTPParser.kOnHeaders | 0;
 var kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
 var kOnBody = HTTPParser.kOnBody | 0;
@@ -98,7 +100,7 @@ function expectBody(expected) {
   var parser = newParser(REQUEST);
 
   parser[kOnHeadersComplete] = mustCall(function(info) {
-    assert.equal(info.method, 'GET');
+    assert.equal(info.method, methods.indexOf('GET'));
     assert.equal(info.url || parser.url, '/hello');
     assert.equal(info.versionMajor, 1);
     assert.equal(info.versionMinor, 1);
@@ -200,7 +202,7 @@ function expectBody(expected) {
   var parser = newParser(REQUEST);
 
   parser[kOnHeadersComplete] = mustCall(function(info) {
-    assert.equal(info.method, 'POST');
+    assert.equal(info.method, methods.indexOf('POST'));
     assert.equal(info.url || parser.url, '/it');
     assert.equal(info.versionMajor, 1);
     assert.equal(info.versionMinor, 1);
@@ -232,7 +234,7 @@ function expectBody(expected) {
   var parser = newParser(REQUEST);
 
   parser[kOnHeadersComplete] = mustCall(function(info) {
-    assert.equal(info.method, 'GET');
+    assert.equal(info.method, methods.indexOf('GET'));
     assert.equal(info.versionMajor, 1);
     assert.equal(info.versionMinor, 0);
     assert.deepEqual(info.headers || parser.headers,
@@ -261,7 +263,7 @@ function expectBody(expected) {
   var parser = newParser(REQUEST);
 
   parser[kOnHeadersComplete] = mustCall(function(info) {
-    assert.equal(info.method, 'GET');
+    assert.equal(info.method, methods.indexOf('GET'));
     assert.equal(info.url || parser.url, '/foo/bar/baz?quux=42#1337');
     assert.equal(info.versionMajor, 1);
     assert.equal(info.versionMinor, 0);
@@ -293,7 +295,7 @@ function expectBody(expected) {
   var parser = newParser(REQUEST);
 
   parser[kOnHeadersComplete] = mustCall(function(info) {
-    assert.equal(info.method, 'POST');
+    assert.equal(info.method, methods.indexOf('POST'));
     assert.equal(info.url || parser.url, '/it');
     assert.equal(info.versionMajor, 1);
     assert.equal(info.versionMinor, 1);
@@ -328,7 +330,7 @@ function expectBody(expected) {
   var parser = newParser(REQUEST);
 
   parser[kOnHeadersComplete] = mustCall(function(info) {
-    assert.equal(info.method, 'POST');
+    assert.equal(info.method, methods.indexOf('POST'));
     assert.equal(info.url || parser.url, '/it');
     assert.equal(info.versionMajor, 1);
     assert.equal(info.versionMinor, 1);
@@ -364,7 +366,7 @@ function expectBody(expected) {
   var parser = newParser(REQUEST);
 
   parser[kOnHeadersComplete] = mustCall(function(info) {
-    assert.equal(info.method, 'POST');
+    assert.equal(info.method, methods.indexOf('POST'));
     assert.equal(info.url || parser.url, '/it');
     assert.equal(info.versionMajor, 1);
     assert.equal(info.versionMinor, 1);
@@ -421,7 +423,7 @@ function expectBody(expected) {
     var parser = newParser(REQUEST);
 
     parser[kOnHeadersComplete] = mustCall(function(info) {
-      assert.equal(info.method, 'POST');
+      assert.equal(info.method, methods.indexOf('POST'));
       assert.equal(info.url || parser.url, '/helpme');
       assert.equal(info.versionMajor, 1);
       assert.equal(info.versionMinor, 1);
@@ -477,7 +479,7 @@ function expectBody(expected) {
   var parser = newParser(REQUEST);
 
   parser[kOnHeadersComplete] = mustCall(function(info) {
-    assert.equal(info.method, 'POST');
+    assert.equal(info.method, methods.indexOf('POST'));
     assert.equal(info.url || parser.url, '/it');
     assert.equal(info.versionMajor, 1);
     assert.equal(info.versionMinor, 1);
@@ -523,7 +525,7 @@ function expectBody(expected) {
       'pong');
 
   function onHeadersComplete1(info) {
-    assert.equal(info.method, 'PUT');
+    assert.equal(info.method, methods.indexOf('PUT'));
     assert.equal(info.url, '/this');
     assert.equal(info.versionMajor, 1);
     assert.equal(info.versionMinor, 1);
@@ -533,7 +535,7 @@ function expectBody(expected) {
   };
 
   function onHeadersComplete2(info) {
-    assert.equal(info.method, 'POST');
+    assert.equal(info.method, methods.indexOf('POST'));
     assert.equal(info.url, '/that');
     assert.equal(info.versionMajor, 1);
     assert.equal(info.versionMinor, 0);
