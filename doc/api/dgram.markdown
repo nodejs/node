@@ -74,7 +74,7 @@ Emitted when an error occurs.
 
 ### socket.send(buf, offset, length, port, address, [callback])
 
-* `buf` Buffer object.  Message to be sent
+* `buf` Buffer object or string.  Message to be sent
 * `offset` Integer. Offset in the buffer where the message starts.
 * `length` Integer. Number of bytes in the message.
 * `port` Integer. destination port
@@ -92,6 +92,11 @@ is to use the callback.
 If the socket has not been previously bound with a call to `bind`, it's
 assigned a random port number and bound to the "all interfaces" address
 (0.0.0.0 for `udp4` sockets, ::0 for `udp6` sockets).
+
+With consideration for multi-byte characters, `offset` and `length` will
+be calculated with respect to
+[byte length](buffer.html#buffer_class_method_buffer_bytelength_string_encoding)
+and not the character position.
 
 Example of sending a UDP packet to a random port on `localhost`;
 

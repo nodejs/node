@@ -25,11 +25,10 @@
 var common = require('../common');
 var assert = require('assert');
 
-var Buffer = require('buffer').Buffer,
-    fs = require('fs'),
+var fs = require('fs'),
     dgram = require('dgram'), server, client,
     server_port = 20989,
-    message_to_send = new Buffer('A message to send'),
+    message_to_send = 'A message to send',
     timer;
 
 server = dgram.createSocket('udp4');

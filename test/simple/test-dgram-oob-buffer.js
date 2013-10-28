@@ -48,5 +48,14 @@ assert.throws(function() {
 assert.throws(function() {
   socket.send(buf, 4, 4, common.PORT, '127.0.0.1', assert.fail);
 });
+assert.throws(function() {
+  socket.send('abc', 4, 1, common.PORT, '127.0.0.1', assert.fail);
+});
+assert.throws(function() {
+  socket.send('abc', 0, 4, common.PORT, '127.0.0.1', assert.fail);
+});
+assert.throws(function() {
+  socket.send('abc', -1, 2, common.PORT, '127.0.0.1', assert.fail);
+});
 
 socket.close(); // FIXME should not be necessary
