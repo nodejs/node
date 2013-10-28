@@ -171,7 +171,8 @@ function install (gyp, argv, callback) {
       }
 
       // now download the node tarball
-      var tarballUrl = distUrl + '/v' + version + '/node-v' + version + '.tar.gz'
+      var tarPath = gyp.opts['tarball'];
+      var tarballUrl = tarPath ? tarPath : distUrl + '/v' + version + '/node-v' + version + '.tar.gz'
         , badDownload = false
         , extractCount = 0
         , gunzip = zlib.createGunzip()
@@ -201,6 +202,13 @@ function install (gyp, argv, callback) {
       extracter.on('end', afterTarball)
 
       // download the tarball, gunzip and extract!
+
+      if (tarPath) {
+        var input = fs.createReadStream(tarballUrl)
+        input.pipe(gunzip).pipe(extracter)
+        return
+      }
+
       var req = download(tarballUrl)
       if (!req) return
 

@@ -256,7 +256,6 @@ FormData.prototype.submit = function(params, cb) {
     , options
     , defaults = {
         method : 'post',
-        port   : 80,
         headers: this.getHeaders()
     };
 
@@ -274,12 +273,14 @@ FormData.prototype.submit = function(params, cb) {
   else // use custom params
   {
     options = populate(params, defaults);
+    // if no port provided use default one
+    if (!options.port) {
+      options.port = options.protocol == 'https:' ? 443 : 80;
+    }
   }
 
   // https if specified, fallback to http in any other case
   if (params.protocol == 'https:') {
-    // override default port
-    if (!params.port) options.port = 443;
     request = https.request(options);
   } else {
     request = http.request(options);

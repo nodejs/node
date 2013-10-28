@@ -240,6 +240,7 @@ function readDependencies (context, where, opts, cb) {
   readJson( path.resolve(where, "package.json")
           , log.warn
           , function (er, data) {
+    if (er && er.code === "ENOENT") er.code = "ENOPACKAGEJSON"
     if (er)  return cb(er)
 
     if (opts && opts.dev) {

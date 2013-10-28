@@ -20,7 +20,7 @@ exports.usage = 'Invokes `' + (win ? 'msbuild' : 'make') + '` and builds the mod
 function build (gyp, argv, callback) {
 
   var makeCommand = gyp.opts.make || process.env.MAKE
-      || (process.platform.indexOf('bsd') != -1 ? 'gmake' : 'make')
+      || (process.platform.indexOf('bsd') != -1 && process.platform.indexOf('kfreebsd') == -1 ? 'gmake' : 'make')
     , command = win ? 'msbuild' : makeCommand
     , buildDir = path.resolve('build')
     , configPath = path.resolve(buildDir, 'config.gypi')

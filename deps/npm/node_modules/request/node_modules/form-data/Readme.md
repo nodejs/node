@@ -5,6 +5,7 @@ A module to create readable ```"multipart/form-data"``` streams. Can be used to 
 The API of this module is inspired by the [XMLHttpRequest-2 FormData Interface][xhr2-fd].
 
 [xhr2-fd]: http://dev.w3.org/2006/webapi/XMLHttpRequest-2/Overview.html#the-formdata-interface
+[streams2-thing]: http://nodejs.org/api/stream.html#stream_compatibility_with_older_node_versions
 
 ## Install
 
@@ -59,7 +60,8 @@ In order to submit this form to a web application, call ```submit(url, [callback
 
 ``` javascript
 form.submit('http://example.org/', function(err, res) {
-  // res – response object (http.IncomingMessage)
+  // res – response object (http.IncomingMessage)  //
+  res.resume(); // for node-0.10.x
 });
 
 ```
@@ -150,6 +152,7 @@ form.submit({
 ## Notes
 
 - ```getLengthSync()``` method DOESN'T calculate length for streams, use ```knownLength``` options as workaround.
+- If it feels like FormData hangs after submit and you're on ```node-0.10```, please check [Compatibility with Older Node Versions][streams2-thing]
 
 ## TODO
 

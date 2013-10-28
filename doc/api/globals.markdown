@@ -124,7 +124,9 @@ Example: running `node example.js` from `/Users/mjr`
 * {Object}
 
 A reference to the current module. In particular
-`module.exports` is the same as the `exports` object.
+`module.exports` is used for defining what a module exports and makes
+available through `require()`.
+
 `module` isn't actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.
@@ -133,10 +135,10 @@ See the [module system documentation][] for more information.
 
 <!-- type=var -->
 
-A reference to the `module.exports` object which is shared between all
-instances of the current module and made accessible through `require()`.
+A reference to the `module.exports` that is shorter to type.
 See [module system documentation][] for details on when to use `exports` and
 when to use `module.exports`.
+
 `exports` isn't actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.

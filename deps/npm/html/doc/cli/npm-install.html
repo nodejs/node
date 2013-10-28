@@ -37,7 +37,9 @@ after packing it up into a tarball (b).</p>
 
 <ul><li><p><code>npm install</code> (in package directory, no arguments):</p><p>Install the dependencies in the local node_modules folder.</p><p>In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command),
 it installs the current package context (ie, the current working
-directory) as a global package.</p></li><li><p><code>npm install &lt;folder&gt;</code>:</p><p>Install a package that is sitting in a folder on the filesystem.</p></li><li><p><code>npm install &lt;tarball file&gt;</code>:</p><p>Install a package that is sitting on the filesystem.  Note: if you just want
+directory) as a global package.</p><p>By default, <code>npm install</code> will install all modules listed as
+dependencies. With the <code>--production</code> flag,
+npm will not install modules listed in <code>devDependencies</code>.</p></li><li><p><code>npm install &lt;folder&gt;</code>:</p><p>Install a package that is sitting in a folder on the filesystem.</p></li><li><p><code>npm install &lt;tarball file&gt;</code>:</p><p>Install a package that is sitting on the filesystem.  Note: if you just want
 to link a dev directory into your npm root, you can do this more easily by
 using <code>npm link</code>.</p><p>Example:</p><pre><code>  npm install ./package.tgz</code></pre></li><li><p><code>npm install &lt;tarball url&gt;</code>:</p><p>Fetch the tarball url, and then install it.  In order to distinguish between
 this and other options, the argument must start with &quot;http://&quot; or &quot;https://&quot;</p><p>Example:</p><pre><code>  npm install https://github.com/indexzero/forever/tarball/v0.5.6</code></pre></li><li><p><code>npm install &lt;name&gt; [--save|--save-dev|--save-optional]</code>:</p><p>Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the &quot;tag&quot; config. (See
@@ -144,7 +146,7 @@ affects a real use-case, it will be investigated.</p>
 
 <ul><li><a href="../files/npm-folders.html">npm-folders(5)</a></li><li><a href="../cli/npm-update.html">npm-update(1)</a></li><li><a href="../cli/npm-link.html">npm-link(1)</a></li><li><a href="../cli/npm-rebuild.html">npm-rebuild(1)</a></li><li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li><li><a href="../cli/npm-build.html">npm-build(1)</a></li><li><a href="../cli/npm-config.html">npm-config(1)</a></li><li><a href="../misc/npm-config.html">npm-config(7)</a></li><li><a href="../files/npmrc.html">npmrc(5)</a></li><li><a href="../misc/npm-registry.html">npm-registry(7)</a></li><li><a href="../files/npm-folders.html">npm-folders(5)</a></li><li><a href="../cli/npm-tag.html">npm-tag(1)</a></li><li><a href="../cli/npm-rm.html">npm-rm(1)</a></li><li><a href="../cli/npm-shrinkwrap.html">npm-shrinkwrap(1)</a></li></ul>
 </div>
-<p id="footer">npm-install &mdash; npm@1.3.12</p>
+<p id="footer">npm-install &mdash; npm@1.3.13</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

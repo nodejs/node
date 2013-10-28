@@ -6,7 +6,7 @@ files =  semver.browser.js \
 all: $(files)
 
 clean:
-	rm $(files)
+	rm -f $(files)
 
 semver.browser.js: head.js semver.js foot.js
 	( cat head.js; \

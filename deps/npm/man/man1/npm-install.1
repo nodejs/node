@@ -69,6 +69,11 @@ In global mode (ie, with \fB\-g\fR or \fB\-\-global\fR appended to the command),
 it installs the current package context (ie, the current working
 directory) as a global package\.
 .
+.IP
+By default, \fBnpm install\fR will install all modules listed as
+dependencies\. With the \fB\-\-production\fR flag,
+npm will not install modules listed in \fBdevDependencies\fR\|\.
+.
 .IP "\(bu" 4
 \fBnpm install <folder>\fR:
 .

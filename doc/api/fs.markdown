@@ -212,8 +212,8 @@ Synchronous link(2).
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
 to the completion callback.
-`type` argument can be either `'dir'`, `'file'`, or `'junction'` (default is `'file'`).  It is only 
-used on Windows (ignored on other platforms).
+The `type` argument can be set to `'dir'`, `'file'`, or `'junction'` (default
+is `'file'`) and is only available on Windows (ignored on other platforms).
 Note that Windows junction points require the destination path to be absolute.  When using
 `'junction'`, the `destination` argument will automatically be normalized to absolute path.
 

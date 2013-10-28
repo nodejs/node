@@ -204,7 +204,7 @@ on more than one address.
 
 The `addressType` is one of:
 
-* `4' (TCPv4)
+* `4` (TCPv4)
 * `6` (TCPv6)
 * `-1` (unix domain socket)
 * `"udp4"` or `"udp6"` (UDP v4 or v6)

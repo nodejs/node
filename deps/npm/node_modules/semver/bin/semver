@@ -13,6 +13,7 @@ var argv = process.argv.slice(2)
   , version = require("../package.json").version
   , loose = false
   , semver = require("../semver")
+  , reverse = false
 
 main()
 
@@ -26,6 +27,9 @@ function main () {
       argv.unshift(a.slice(i + 1))
     }
     switch (a) {
+      case "-rv": case "-rev": case "--rev": case "--reverse":
+        reverse = true
+        break
       case "-l": case "--loose":
         loose = true
         break
@@ -77,8 +81,9 @@ function failInc () {
 function fail () { process.exit(1) }
 
 function success () {
+  var compare = reverse ? "rcompare" : "compare"
   versions.sort(function (a, b) {
-    return semver.compare(a, b, loose)
+    return semver[compare](a, b, loose)
   }).map(function (v) {
     return semver.clean(v, loose)
   }).map(function (v) {

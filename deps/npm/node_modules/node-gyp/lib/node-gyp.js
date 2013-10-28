@@ -95,6 +95,7 @@ proto.configDefs = {
   , loglevel: String  // everywhere
   , python: String    // 'configure'
   , 'dist-url': String // 'install'
+  , 'tarball': String // 'install'
   , jobs: String      // 'build'
   , thin: String      // 'configure'
 }

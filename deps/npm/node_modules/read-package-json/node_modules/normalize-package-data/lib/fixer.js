@@ -5,6 +5,7 @@ var extractDescription = require("./extract_description")
 var url = require("url")
 var typos = require("./typos")
 var coreModuleNames = require("./core_module_names")
+var githubUserRepo = require("github-url-from-username-repo")
 
 var fixer = module.exports = {
   // default warning function
@@ -28,9 +29,9 @@ var fixer = module.exports = {
       var ghurl = parseGitHubURL(r)
       if (ghurl) {
         r = ghurl.replace(/^https?:\/\//, 'git://')
-      } else if (/^[\w-]+\/[\w-]+$/.test(r)) {
+      } else if (githubUserRepo(r)) {
         // repo has 'user/reponame' filled in as repo
-        data.repository.url = "git://github.com/" + r
+        data.repository.url = githubUserRepo(r)
       }
     }
 
