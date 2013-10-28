@@ -268,13 +268,17 @@
         ['library=="shared_library"', {
           'defines': [ 'BUILDING_UV_SHARED=1' ]
         }],
+        # FIXME(bnoordhuis or tjfontaine) Unify this, it's extremely ugly.
         ['uv_use_dtrace=="true"', {
           'defines': [ 'HAVE_DTRACE=1' ],
           'dependencies': [ 'uv_dtrace_header' ],
           'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
           'conditions': [
-            ['OS != "mac"', {
-              'sources': ['src/unix/dtrace.c' ],
+            [ 'OS not in "mac linux"', {
+              'sources': [ 'src/unix/dtrace.c' ],
+            }],
+            [ 'OS=="linux"', {
+              'sources': [ '<(SHARED_INTERMEDIATE_DIR)/dtrace.o' ]
             }],
           ],
         }],
@@ -480,11 +484,12 @@
       ],
     },
 
+    # FIXME(bnoordhuis or tjfontaine) Unify this, it's extremely ugly.
     {
       'target_name': 'uv_dtrace_provider',
       'type': 'none',
       'conditions': [
-        [ 'uv_use_dtrace=="true" and OS!="mac"', {
+        [ 'uv_use_dtrace=="true" and OS not in "mac linux"', {
           'actions': [
             {
               'action_name': 'uv_dtrace_o',
@@ -499,7 +504,19 @@
                 '-o', '<@(_outputs)' ]
             }
           ]
-        } ]
+        }],
+        [ 'uv_use_dtrace=="true" and OS=="linux"', {
+          'actions': [
+            {
+              'action_name': 'uv_dtrace_o',
+              'inputs': [ 'src/unix/uv-dtrace.d' ],
+              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/dtrace.o' ],
+              'action': [
+                'dtrace', '-C', '-G', '-s', '<@(_inputs)', '-o', '<@(_outputs)'
+              ],
+            }
+          ]
+        }],
       ]
     },
 

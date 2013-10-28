@@ -22,20 +22,13 @@
 
 #ifdef HAVE_DTRACE
 #include "node_dtrace.h"
-#include <string.h>
 #include "node_provider.h"
+#include <string.h>
 #elif HAVE_ETW
 #include "node_dtrace.h"
 #include <string.h>
 #include "node_win32_etw_provider.h"
 #include "node_win32_etw_provider-inl.h"
-#elif HAVE_SYSTEMTAP
-#include <string.h>
-#include <node.h>
-#include <v8.h>
-#include <sys/sdt.h>
-#include "node_provider.h"
-#include "node_dtrace.h"
 #else
 #define NODE_HTTP_SERVER_REQUEST(arg0, arg1)
 #define NODE_HTTP_SERVER_REQUEST_ENABLED() (0)
@@ -143,10 +136,8 @@ using v8::Value;
 
 
 void DTRACE_NET_SERVER_CONNECTION(const FunctionCallbackInfo<Value>& args) {
-#ifndef HAVE_SYSTEMTAP
   if (!NODE_NET_SERVER_CONNECTION_ENABLED())
     return;
-#endif
   HandleScope scope(node_isolate);
   SLURP_CONNECTION(args[0], conn);
   NODE_NET_SERVER_CONNECTION(&conn, conn.remote, conn.port, conn.fd);
@@ -154,10 +145,8 @@ void DTRACE_NET_SERVER_CONNECTION(const FunctionCallbackInfo<Value>& args) {
 
 
 void DTRACE_NET_STREAM_END(const FunctionCallbackInfo<Value>& args) {
-#ifndef HAVE_SYSTEMTAP
   if (!NODE_NET_STREAM_END_ENABLED())
     return;
-#endif
   HandleScope scope(node_isolate);
   SLURP_CONNECTION(args[0], conn);
   NODE_NET_STREAM_END(&conn, conn.remote, conn.port, conn.fd);
@@ -165,10 +154,8 @@ void DTRACE_NET_STREAM_END(const FunctionCallbackInfo<Value>& args) {
 
 
 void DTRACE_NET_SOCKET_READ(const FunctionCallbackInfo<Value>& args) {
-#ifndef HAVE_SYSTEMTAP
   if (!NODE_NET_SOCKET_READ_ENABLED())
     return;
-#endif
   HandleScope scope(node_isolate);
   SLURP_CONNECTION(args[0], conn);
 
@@ -182,10 +169,8 @@ void DTRACE_NET_SOCKET_READ(const FunctionCallbackInfo<Value>& args) {
 
 
 void DTRACE_NET_SOCKET_WRITE(const FunctionCallbackInfo<Value>& args) {
-#ifndef HAVE_SYSTEMTAP
   if (!NODE_NET_SOCKET_WRITE_ENABLED())
     return;
-#endif
   HandleScope scope(node_isolate);
   SLURP_CONNECTION(args[0], conn);
 
@@ -201,10 +186,8 @@ void DTRACE_NET_SOCKET_WRITE(const FunctionCallbackInfo<Value>& args) {
 void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   node_dtrace_http_server_request_t req;
 
-#ifndef HAVE_SYSTEMTAP
   if (!NODE_HTTP_SERVER_REQUEST_ENABLED())
     return;
-#endif
 
   HandleScope scope(node_isolate);
   Local<Object> arg0 = Local<Object>::Cast(args[0]);
@@ -234,10 +217,8 @@ void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
 
 
 void DTRACE_HTTP_SERVER_RESPONSE(const FunctionCallbackInfo<Value>& args) {
-#ifndef HAVE_SYSTEMTAP
   if (!NODE_HTTP_SERVER_RESPONSE_ENABLED())
     return;
-#endif
   HandleScope scope(node_isolate);
   SLURP_CONNECTION(args[0], conn);
   NODE_HTTP_SERVER_RESPONSE(&conn, conn.remote, conn.port, conn.fd);
@@ -248,10 +229,8 @@ void DTRACE_HTTP_CLIENT_REQUEST(const FunctionCallbackInfo<Value>& args) {
   node_dtrace_http_client_request_t req;
   char *header;
 
-#ifndef HAVE_SYSTEMTAP
   if (!NODE_HTTP_CLIENT_REQUEST_ENABLED())
     return;
-#endif
 
   HandleScope scope(node_isolate);
 
@@ -286,10 +265,8 @@ void DTRACE_HTTP_CLIENT_REQUEST(const FunctionCallbackInfo<Value>& args) {
 
 
 void DTRACE_HTTP_CLIENT_RESPONSE(const FunctionCallbackInfo<Value>& args) {
-#ifndef HAVE_SYSTEMTAP
   if (!NODE_HTTP_CLIENT_RESPONSE_ENABLED())
     return;
-#endif
   HandleScope scope(node_isolate);
   SLURP_CONNECTION_HTTP_CLIENT_RESPONSE(args[0], args[1], conn);
   NODE_HTTP_CLIENT_RESPONSE(&conn, conn.remote, conn.port, conn.fd);
@@ -341,7 +318,7 @@ void InitDTrace(Handle<Object> target) {
   init_etw();
 #endif
 
-#if defined HAVE_DTRACE || defined HAVE_ETW || defined HAVE_SYSTEMTAP
+#if defined HAVE_DTRACE || defined HAVE_ETW
   v8::V8::AddGCPrologueCallback((GCPrologueCallback)dtrace_gc_start);
   v8::V8::AddGCEpilogueCallback((GCEpilogueCallback)dtrace_gc_done);
 #endif

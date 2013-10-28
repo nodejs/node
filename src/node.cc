@@ -35,12 +35,8 @@
 #include "node_crypto.h"
 #endif
 
-#if defined HAVE_DTRACE || defined HAVE_ETW || defined HAVE_SYSTEMTAP
+#if defined HAVE_DTRACE || defined HAVE_ETW
 #include "node_dtrace.h"
-#endif
-
-#if HAVE_SYSTEMTAP
-#include "node_provider.h"
 #endif
 
 #include "ares.h"
@@ -2656,7 +2652,7 @@ void Load(Environment* env) {
   // Add a reference to the global object
   Local<Object> global = env->context()->Global();
 
-#if defined HAVE_DTRACE || defined HAVE_ETW || defined HAVE_SYSTEMTAP
+#if defined HAVE_DTRACE || defined HAVE_ETW
   InitDTrace(global);
 #endif
 

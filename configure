@@ -459,24 +459,21 @@ def configure_node(o):
   if not is_clang and cc_version < (4,0,0):
     o['variables']['visibility'] = ''
 
-  # By default, enable DTrace on SunOS systems. Don't allow it on other
-  # systems, since it won't work.  (The MacOS build process is different than
-  # SunOS, and we haven't implemented it.)
-  if flavor in ('solaris', 'mac'):
-    o['variables']['node_use_dtrace'] = b(not options.without_dtrace)
-    o['variables']['uv_use_dtrace'] = o['variables']['node_use_dtrace']
+  if flavor in ('solaris', 'mac', 'linux'):
+    use_dtrace = not options.without_dtrace
+    # Don't enable by default on linux, it needs the sdt-devel package.
+    if flavor == 'linux':
+      if options.systemtap_includes:
+        o['include_dirs'] += [options.systemtap_includes]
+      use_dtrace = options.with_dtrace
+    o['variables']['node_use_dtrace'] = b(use_dtrace)
+    o['variables']['uv_use_dtrace'] = b(use_dtrace)
     o['variables']['uv_parent_path'] = '/deps/uv/'
-  elif flavor == 'linux':
-    o['variables']['node_use_dtrace'] = 'false'
-    o['variables']['node_use_systemtap'] = b(options.with_dtrace)
-    if options.systemtap_includes:
-      o['include_dirs'] += [options.systemtap_includes]
   elif options.with_dtrace:
     raise Exception(
        'DTrace is currently only supported on SunOS, MacOS or Linux systems.')
   else:
     o['variables']['node_use_dtrace'] = 'false'
-    o['variables']['node_use_systemtap'] = 'false'
 
   # if we're on illumos based systems wrap the helper library into the
   # executable
