@@ -1710,7 +1710,7 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   if (is_server) {
     SSL_CTX_set_tlsext_servername_callback(sc->ctx_, SelectSNIContextCallback_);
-  } else {
+  } else if (args[2]->IsString()) {
     const String::Utf8Value servername(args[2]);
     SSL_set_tlsext_host_name(conn->ssl_, *servername);
   }
