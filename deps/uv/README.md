@@ -1,37 +1,37 @@
 # libuv
 
-libuv is a platform layer for [node.js][]. Its purpose is to abstract IOCP
-on Windows and epoll/kqueue/event ports/etc. on Unix systems. We intend to
-eventually contain all platform differences in this library.
+libuv is a multi-platform support library with a focus on asynchronous I/O. It
+was primarily developed for use by [Node.js](http://node.js.org), but it's also
+used by Mozilla's [Rust language](http://www.rust-lang.org/),
+[Luvit](http://luvit.io/), [Julia](http://julialang.org/),
+[pyuv](https://crate.io/packages/pyuv/), and others.
 
-## Features
+## Feature highlights
 
- * Non-blocking TCP sockets
+ * Full-featured event loop backed by epoll, kqueue, IOCP, event ports.
 
- * Non-blocking named pipes
+ * Asynchronous TCP and UDP sockets
 
- * UDP
+ * Asynchronous DNS resolution
 
- * Timers
+ * Asynchronous file and file system operations
 
- * Child process spawning
+ * File system events
 
- * Asynchronous DNS via `uv_getaddrinfo`.
+ * ANSI escape code controlled TTY
 
- * Asynchronous file system APIs `uv_fs_*`
+ * IPC with socket sharing, using Unix domain sockets or named pipes (Windows)
 
- * High resolution time `uv_hrtime`
+ * Child processes
 
- * Current executable path look up `uv_exepath`
+ * Thread pool
 
- * Thread pool scheduling `uv_queue_work`
+ * Signal handling
 
- * ANSI escape code controlled TTY `uv_tty_t`
+ * High resolution clock
 
- * File system events using inotify, kqueue, event ports,
-   FSEvents and `ReadDirectoryChangesW`
+ * Threading and synchronization primitives
 
- * IPC and socket sharing between processes `uv_write2`
 
 ## Community
 
@@ -62,31 +62,40 @@ To build with autotools:
     $ make check
     $ make install
 
-To build with Visual Studio run the vcbuild.bat file which will
-checkout the GYP code into build/gyp and generate the uv.sln and
-related files.
+### Windows
 
-Windows users can also build from the command line using msbuild.
-This is done by running vcbuild.bat from Visual Studio command prompt.
+First, Python 2.6 or 2.7 must be installed as it is required by [GYP][].
 
-To have GYP generate build script for another system, make sure that
-you have Python 2.6 or 2.7 installed, then checkout GYP into the
+Also, the directory for the preferred Python executable must be specified
+by the `PYTHON` or `Path` environment variables.
+
+To build with Visual Studio, launch a git shell (e.g. Cmd or PowerShell)
+and run vcbuild.bat which will checkout the GYP code into build/gyp and
+generate uv.sln as well as related project files.
+
+To have GYP generate build script for another system, checkout GYP into the
 project tree manually:
 
     $ mkdir -p build
     $ git clone https://git.chromium.org/external/gyp.git build/gyp
 
-Unix users run:
+### Unix
+
+Run:
 
     $ ./gyp_uv -f make
     $ make -C out
 
-Macintosh users run:
+### OS X
+
+Run:
 
     $ ./gyp_uv -f xcode
     $ xcodebuild -project uv.xcodeproj -configuration Release -target All
 
-To build for android:
+### Android
+
+Run:
 
     $ source ./android-configure NDK_PATH gyp
     $ make -C out
@@ -103,7 +112,7 @@ Studio license.
 
 Linux using the GCC toolchain.
 
-MacOS using the GCC or XCode toolchain.
+OS X using the GCC or XCode toolchain.
 
 Solaris 121 and later using GCC toolchain.
 

@@ -34,30 +34,6 @@
 const unsigned int uv_directory_watcher_buffer_size = 4096;
 
 
-static void uv_fs_event_init_handle(uv_loop_t* loop, uv_fs_event_t* handle,
-    const char* filename, uv_fs_event_cb cb) {
-  uv__handle_init(loop, (uv_handle_t*) handle, UV_FS_EVENT);
-  handle->cb = cb;
-  handle->dir_handle = INVALID_HANDLE_VALUE;
-  handle->buffer = NULL;
-  handle->req_pending = 0;
-  handle->filew = NULL;
-  handle->short_filew = NULL;
-  handle->dirw = NULL;
-
-  uv_req_init(loop, (uv_req_t*)&handle->req);
-  handle->req.type = UV_FS_EVENT_REQ;
-  handle->req.data = (void*)handle;
-
-  handle->filename = strdup(filename);
-  if (!handle->filename) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
-  }
-
-  uv__handle_start(handle);
-}
-
-
 static void uv_fs_event_queue_readdirchanges(uv_loop_t* loop,
     uv_fs_event_t* handle) {
   assert(handle->dir_handle != INVALID_HANDLE_VALUE);
@@ -131,14 +107,42 @@ static int uv_split_path(const WCHAR* filename, WCHAR** dir,
 }
 
 
-int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
-    const char* filename, uv_fs_event_cb cb, int flags) {
+int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
+  uv__handle_init(loop, (uv_handle_t*) handle, UV_FS_EVENT);
+  handle->dir_handle = INVALID_HANDLE_VALUE;
+  handle->buffer = NULL;
+  handle->req_pending = 0;
+  handle->filew = NULL;
+  handle->short_filew = NULL;
+  handle->dirw = NULL;
+
+  uv_req_init(loop, (uv_req_t*)&handle->req);
+  handle->req.type = UV_FS_EVENT_REQ;
+  handle->req.data = handle;
+
+  return 0;
+}
+
+
+int uv_fs_event_start(uv_fs_event_t* handle,
+                      uv_fs_event_cb cb,
+                      const char* filename,
+                      unsigned int flags) {
   int name_size, is_path_dir;
   DWORD attr, last_error;
   WCHAR* dir = NULL, *dir_to_watch, *filenamew = NULL;
   WCHAR short_path[MAX_PATH];
 
-  uv_fs_event_init_handle(loop, handle, filename, cb);
+  if (uv__is_active(handle))
+    return UV_EINVAL;
+
+  handle->cb = cb;
+  handle->filename = strdup(filename);
+  if (!handle->filename) {
+    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+  }
+
+  uv__handle_start(handle);
 
   /* Convert name to UTF16. */
   name_size = uv_utf8_to_utf16(filename, NULL, 0) * sizeof(WCHAR);
@@ -213,15 +217,17 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
   }
 
   if (CreateIoCompletionPort(handle->dir_handle,
-                             loop->iocp,
+                             handle->loop->iocp,
                              (ULONG_PTR)handle,
                              0) == NULL) {
     last_error = GetLastError();
     goto error;
   }
 
-  handle->buffer = (char*)_aligned_malloc(uv_directory_watcher_buffer_size,
-    sizeof(DWORD));
+  if (!handle->buffer) {
+    handle->buffer = (char*)_aligned_malloc(uv_directory_watcher_buffer_size,
+                                            sizeof(DWORD));
+  }
   if (!handle->buffer) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
@@ -282,6 +288,41 @@ error:
 }
 
 
+int uv_fs_event_stop(uv_fs_event_t* handle) {
+  if (!uv__is_active(handle))
+    return UV_EINVAL;
+
+  if (handle->dir_handle != INVALID_HANDLE_VALUE) {
+    CloseHandle(handle->dir_handle);
+    handle->dir_handle = INVALID_HANDLE_VALUE;
+  }
+
+  uv__handle_stop(handle);
+
+  if (handle->filew) {
+    free(handle->filew);
+    handle->filew = NULL;
+  }
+
+  if (handle->short_filew) {
+    free(handle->short_filew);
+    handle->short_filew = NULL;
+  }
+
+  if (handle->filename) {
+    free(handle->filename);
+    handle->filename = NULL;
+  }
+
+  if (handle->dirw) {
+    free(handle->dirw);
+    handle->dirw = NULL;
+  }
+
+  return 0;
+}
+
+
 void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
     uv_fs_event_t* handle) {
   FILE_NOTIFY_INFORMATION* file_info;
@@ -294,12 +335,16 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
   assert(handle->req_pending);
   handle->req_pending = 0;
 
-  /* If we're closing, don't report any callbacks, and just push the handle */
-  /* onto the endgame queue. */
-  if (handle->flags & UV__HANDLE_CLOSING) {
-    uv_want_endgame(loop, (uv_handle_t*) handle);
+  /* Don't report any callbacks if:
+   * - We're closing, just push the handle onto the endgame queue
+   * - We are not active, just ignore the callback
+   */
+  if (!uv__is_active(handle)) {
+    if (handle->flags & UV__HANDLE_CLOSING) {
+      uv_want_endgame(loop, (uv_handle_t*) handle);
+    }
     return;
-  };
+  }
 
   file_info = (FILE_NOTIFY_INFORMATION*)(handle->buffer + offset);
 
@@ -456,47 +501,24 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
 
 
 void uv_fs_event_close(uv_loop_t* loop, uv_fs_event_t* handle) {
-  if (handle->dir_handle != INVALID_HANDLE_VALUE) {
-    CloseHandle(handle->dir_handle);
-    handle->dir_handle = INVALID_HANDLE_VALUE;
-  }
+  uv_fs_event_stop(handle);
+
+  uv__handle_closing(handle);
 
   if (!handle->req_pending) {
     uv_want_endgame(loop, (uv_handle_t*)handle);
   }
 
-  uv__handle_closing(handle);
 }
 
 
 void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle) {
-  if (handle->flags & UV__HANDLE_CLOSING &&
-      !handle->req_pending) {
+  if ((handle->flags & UV__HANDLE_CLOSING) && !handle->req_pending) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
 
     if (handle->buffer) {
       _aligned_free(handle->buffer);
       handle->buffer = NULL;
-    }
-
-    if (handle->filew) {
-      free(handle->filew);
-      handle->filew = NULL;
-    }
-
-    if (handle->short_filew) {
-      free(handle->short_filew);
-      handle->short_filew = NULL;
-    }
-
-    if (handle->filename) {
-      free(handle->filename);
-      handle->filename = NULL;
-    }
-
-    if (handle->dirw) {
-      free(handle->dirw);
-      handle->dirw = NULL;
     }
 
     uv__handle_close(handle);

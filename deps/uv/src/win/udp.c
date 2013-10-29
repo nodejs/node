@@ -20,6 +20,7 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
 
 #include "uv.h"
 #include "internal.h"
@@ -488,7 +489,7 @@ void uv_process_udp_recv_req(uv_loop_t* loop, uv_udp_t* handle,
                         &buf,
                         (const struct sockaddr*) &from,
                         UV_UDP_PARTIAL);
-      } if (err == WSAEWOULDBLOCK) {
+      } else if (err == WSAEWOULDBLOCK) {
         /* Kernel buffer empty */
         handle->recv_cb(handle, 0, &buf, NULL, 0);
       } else if (err != WSAECONNRESET && err != WSAENETRESET) {

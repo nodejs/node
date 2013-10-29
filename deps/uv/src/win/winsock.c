@@ -106,11 +106,11 @@ void uv_winsock_init() {
 
   if (dummy != INVALID_SOCKET) {
     opt_len = (int) sizeof protocol_info;
-    if (!getsockopt(dummy,
-                    SOL_SOCKET,
-                    SO_PROTOCOL_INFOW,
-                    (char*) &protocol_info,
-                    &opt_len) == SOCKET_ERROR)
+    if (getsockopt(dummy,
+                   SOL_SOCKET,
+                   SO_PROTOCOL_INFOW,
+                   (char*) &protocol_info,
+                   &opt_len) == SOCKET_ERROR)
       uv_fatal_error(WSAGetLastError(), "getsockopt");
 
     if (!(protocol_info.dwServiceFlags1 & XP1_IFS_HANDLES))
@@ -129,11 +129,11 @@ void uv_winsock_init() {
 
   if (dummy != INVALID_SOCKET) {
     opt_len = (int) sizeof protocol_info;
-    if (!getsockopt(dummy,
-                    SOL_SOCKET,
-                    SO_PROTOCOL_INFOW,
-                    (char*) &protocol_info,
-                    &opt_len) == SOCKET_ERROR)
+    if (getsockopt(dummy,
+                   SOL_SOCKET,
+                   SO_PROTOCOL_INFOW,
+                   (char*) &protocol_info,
+                   &opt_len) == SOCKET_ERROR)
       uv_fatal_error(WSAGetLastError(), "getsockopt");
 
     if (!(protocol_info.dwServiceFlags1 & XP1_IFS_HANDLES))

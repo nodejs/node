@@ -8,8 +8,8 @@
 core
 vgcore.*
 .buildstamp
-
-/.deps/
+.dirstamp
+.deps/
 /.libs/
 /aclocal.m4
 /ar-lib

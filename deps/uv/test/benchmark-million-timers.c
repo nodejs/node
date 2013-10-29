@@ -22,7 +22,7 @@
 #include "task.h"
 #include "uv.h"
 
-#define NUM_TIMERS (1000 * 1000)
+#define NUM_TIMERS (10 * 1000 * 1000)
 
 static int timer_cb_called;
 static int close_cb_called;
@@ -41,8 +41,10 @@ static void close_cb(uv_handle_t* handle) {
 BENCHMARK_IMPL(million_timers) {
   uv_timer_t* timers;
   uv_loop_t* loop;
-  uint64_t before;
-  uint64_t after;
+  uint64_t before_all;
+  uint64_t before_run;
+  uint64_t after_run;
+  uint64_t after_all;
   int timeout;
   int i;
 
@@ -52,25 +54,31 @@ BENCHMARK_IMPL(million_timers) {
   loop = uv_default_loop();
   timeout = 0;
 
+  before_all = uv_hrtime();
   for (i = 0; i < NUM_TIMERS; i++) {
     if (i % 1000 == 0) timeout++;
     ASSERT(0 == uv_timer_init(loop, timers + i));
     ASSERT(0 == uv_timer_start(timers + i, timer_cb, timeout, 0));
   }
 
-  before = uv_hrtime();
+  before_run = uv_hrtime();
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
-  after = uv_hrtime();
+  after_run = uv_hrtime();
 
   for (i = 0; i < NUM_TIMERS; i++)
     uv_close((uv_handle_t*) (timers + i), close_cb);
 
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
+  after_all = uv_hrtime();
+
   ASSERT(timer_cb_called == NUM_TIMERS);
   ASSERT(close_cb_called == NUM_TIMERS);
   free(timers);
 
-  LOGF("%.2f seconds\n", (after - before) / 1e9);
+  LOGF("%.2f seconds total\n", (after_all - before_all) / 1e9);
+  LOGF("%.2f seconds init\n", (before_run - before_all) / 1e9);
+  LOGF("%.2f seconds dispatch\n", (after_run - before_run) / 1e9);
+  LOGF("%.2f seconds cleanup\n", (after_all - after_run) / 1e9);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

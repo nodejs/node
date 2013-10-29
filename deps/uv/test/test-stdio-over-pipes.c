@@ -43,7 +43,6 @@ static int output_used;
 
 
 static void close_cb(uv_handle_t* handle) {
-  printf("close_cb\n");
   close_cb_called++;
 }
 

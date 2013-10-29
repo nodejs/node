@@ -75,7 +75,7 @@ int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
 
   err = uv__cloexec(fd, 1);
   if (err) {
-    close(fd);
+    uv__close(fd);
     return err;
   }
   loop->backend_fd = fd;
@@ -86,12 +86,12 @@ int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
 
 void uv__platform_loop_delete(uv_loop_t* loop) {
   if (loop->fs_fd != -1) {
-    close(loop->fs_fd);
+    uv__close(loop->fs_fd);
     loop->fs_fd = -1;
   }
 
   if (loop->backend_fd != -1) {
-    close(loop->backend_fd);
+    uv__close(loop->backend_fd);
     loop->backend_fd = -1;
   }
 }
@@ -256,7 +256,7 @@ int uv_exepath(char* buffer, size_t* size) {
   if (buffer == NULL || size == NULL)
     return -EINVAL;
 
-  (void) snprintf(buf, sizeof(buf), "/proc/%lu/path/a.out", (unsigned long) getpid());
+  snprintf(buf, sizeof(buf), "/proc/%lu/path/a.out", (unsigned long) getpid());
   res = readlink(buf, buffer, *size - 1);
   if (res == -1)
     return -errno;
@@ -352,24 +352,32 @@ static void uv__fs_event_read(uv_loop_t* loop,
 }
 
 
-int uv_fs_event_init(uv_loop_t* loop,
-                     uv_fs_event_t* handle,
-                     const char* filename,
-                     uv_fs_event_cb cb,
-                     int flags) {
-  int portfd;
-  int first_run = 0;
+int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
+  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
+  return 0;
+}
 
-  if (loop->fs_fd == -1) {
+
+int uv_fs_event_start(uv_fs_event_t* handle,
+                      uv_fs_event_cb cb,
+                      const char* filename,
+                      unsigned int flags) {
+  int portfd;
+  int first_run;
+
+  if (uv__is_active(handle))
+    return -EINVAL;
+
+  first_run = 0;
+  if (handle->loop->fs_fd == -1) {
     portfd = port_create();
     if (portfd == -1)
       return -errno;
-    loop->fs_fd = portfd;
+    handle->loop->fs_fd = portfd;
     first_run = 1;
   }
 
-  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
-  uv__handle_start(handle); /* FIXME shouldn't start automatically */
+  uv__handle_start(handle);
   handle->filename = strdup(filename);
   handle->fd = PORT_UNUSED;
   handle->cb = cb;
@@ -379,32 +387,53 @@ int uv_fs_event_init(uv_loop_t* loop,
   uv__fs_event_rearm(handle);  /* FIXME(bnoordhuis) Check return code. */
 
   if (first_run) {
-    uv__io_init(&loop->fs_event_watcher, uv__fs_event_read, portfd);
-    uv__io_start(loop, &loop->fs_event_watcher, UV__POLLIN);
+    uv__io_init(&handle->loop->fs_event_watcher, uv__fs_event_read, portfd);
+    uv__io_start(handle->loop, &handle->loop->fs_event_watcher, UV__POLLIN);
   }
 
   return 0;
 }
 
 
-void uv__fs_event_close(uv_fs_event_t* handle) {
+int uv_fs_event_stop(uv_fs_event_t* handle) {
+  if (!uv__is_active(handle))
+    return -EINVAL;
+
   if (handle->fd == PORT_FIRED || handle->fd == PORT_LOADED) {
-    port_dissociate(handle->loop->fs_fd, PORT_SOURCE_FILE, (uintptr_t)&handle->fo);
+    port_dissociate(handle->loop->fs_fd,
+                    PORT_SOURCE_FILE,
+                    (uintptr_t) &handle->fo);
   }
+
   handle->fd = PORT_DELETED;
   free(handle->filename);
   handle->filename = NULL;
   handle->fo.fo_name = NULL;
   uv__handle_stop(handle);
+
+  return 0;
+}
+
+void uv__fs_event_close(uv_fs_event_t* handle) {
+  uv_fs_event_stop(handle);
 }
 
 #else /* !defined(PORT_SOURCE_FILE) */
 
-int uv_fs_event_init(uv_loop_t* loop,
-                     uv_fs_event_t* handle,
-                     const char* filename,
-                     uv_fs_event_cb cb,
-                     int flags) {
+int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
+  return -ENOSYS;
+}
+
+
+int uv_fs_event_start(uv_fs_event_t* handle,
+                      uv_fs_event_cb cb,
+                      const char* filename,
+                      unsigned int flags) {
+  return -ENOSYS;
+}
+
+
+int uv_fs_event_stop(uv_fs_event_t* handle) {
   return -ENOSYS;
 }
 
@@ -449,7 +478,7 @@ int uv_resident_set_memory(size_t* rss) {
     *rss = (size_t)psinfo.pr_rssize * 1024;
     err = 0;
   }
-  close(fd);
+  uv__close(fd);
 
   return err;
 }
@@ -511,13 +540,13 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
       cpu_info->speed = 0;
       cpu_info->model = NULL;
     } else {
-      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "clock_MHz");
+      knp = kstat_data_lookup(ksp, (char*) "clock_MHz");
       assert(knp->data_type == KSTAT_DATA_INT32 ||
              knp->data_type == KSTAT_DATA_INT64);
       cpu_info->speed = (knp->data_type == KSTAT_DATA_INT32) ? knp->value.i32
                                                              : knp->value.i64;
 
-      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "brand");
+      knp = kstat_data_lookup(ksp, (char*) "brand");
       assert(knp->data_type == KSTAT_DATA_STRING);
       cpu_info->model = strdup(KSTAT_NAMED_STR_PTR(knp));
     }
@@ -528,7 +557,11 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   cpu_info = *cpu_infos;
   lookup_instance = 0;
-  while ((ksp = kstat_lookup(kc, (char*) "cpu", lookup_instance, (char*) "sys"))){
+  for (;;) {
+    ksp = kstat_lookup(kc, (char*) "cpu", lookup_instance, (char*) "sys");
+
+    if (ksp == NULL)
+      break;
 
     if (kstat_read(kc, ksp, NULL) == -1) {
       cpu_info->cpu_times.user = 0;
@@ -537,19 +570,19 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
       cpu_info->cpu_times.idle = 0;
       cpu_info->cpu_times.irq = 0;
     } else {
-      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "cpu_ticks_user");
+      knp = kstat_data_lookup(ksp, (char*) "cpu_ticks_user");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.user = knp->value.ui64;
 
-      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "cpu_ticks_kernel");
+      knp = kstat_data_lookup(ksp, (char*) "cpu_ticks_kernel");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.sys = knp->value.ui64;
 
-      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "cpu_ticks_idle");
+      knp = kstat_data_lookup(ksp, (char*) "cpu_ticks_idle");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.idle = knp->value.ui64;
 
-      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "intr");
+      knp = kstat_data_lookup(ksp, (char*) "intr");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.irq = knp->value.ui64;
       cpu_info->cpu_times.nice = 0;

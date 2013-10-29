@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define EXPECTED "RANG TANG DING DONG I AM THE JAPANESE SANDMAN" /* "Take eight!" */
+#define EXPECTED "RANG TANG DING DONG I AM THE JAPANESE SANDMAN"
 
 #define TEST_DURATION 5000 /* ms */
 

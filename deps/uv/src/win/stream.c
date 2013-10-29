@@ -209,10 +209,6 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
     return UV_EPIPE;
   }
 
-  if (!(handle->flags & UV_HANDLE_WRITABLE)) {
-    return UV_EPIPE;
-  }
-
   uv_req_init(loop, (uv_req_t*) req);
   req->type = UV_SHUTDOWN;
   req->handle = handle;

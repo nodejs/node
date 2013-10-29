@@ -46,6 +46,7 @@ extern "C" {
 #endif
 
 #include "uv-errno.h"
+#include <stddef.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
 # include "stdint-msvc2008.h"
@@ -53,21 +54,15 @@ extern "C" {
 # include <stdint.h>
 #endif
 
-#include <sys/types.h> /* size_t */
-
-#if defined(__SVR4) && !defined(__unix__)
-# define __unix__
-#endif
-
-#if defined(__unix__) || defined(__POSIX__) || \
-    defined(__APPLE__) || defined(_AIX)
-# include "uv-unix.h"
-#else
+#if defined(_WIN32)
 # include "uv-win.h"
+#else
+# include "uv-unix.h"
 #endif
 
 /* Expand this list if necessary. */
 #define UV_ERRNO_MAP(XX)                                                      \
+  XX(E2BIG, "argument list too long")                                         \
   XX(EACCES, "permission denied")                                             \
   XX(EADDRINUSE, "address already in use")                                    \
   XX(EADDRNOTAVAIL, "address not available")                                  \
@@ -310,7 +305,7 @@ UV_EXTERN void uv_update_time(uv_loop_t*);
  * Don't make assumptions about the starting point, you will only get
  * disappointed.
  *
- * Use uv_hrtime() if you need sub-milliseond granularity.
+ * Use uv_hrtime() if you need sub-millisecond granularity.
  */
 UV_EXTERN uint64_t uv_now(uv_loop_t*);
 
@@ -522,8 +517,24 @@ UV_EXTERN size_t uv_handle_size(uv_handle_type type);
 UV_EXTERN size_t uv_req_size(uv_req_type type);
 
 /*
- * Returns 1 if the prepare/check/idle/timer handle has been started, 0
- * otherwise. For other handle types this always returns 1.
+ * Returns non-zero if the handle is active, zero if it's inactive.
+ *
+ * What "active" means depends on the type of handle:
+ *
+ *  - A uv_async_t handle is always active and cannot be deactivated, except
+ *    by closing it with uv_close().
+ *
+ *  - A uv_pipe_t, uv_tcp_t, uv_udp_t, etc. handle - basically any handle that
+ *    deals with I/O - is active when it is doing something that involves I/O,
+ *    like reading, writing, connecting, accepting new connections, etc.
+ *
+ *  - A uv_check_t, uv_idle_t, uv_timer_t, etc. handle is active when it has
+ *    been started with a call to uv_check_start(), uv_idle_start(), etc.
+ *
+ *      Rule of thumb: if a handle of type uv_foo_t has a uv_foo_start()
+ *      function, then it's active from the moment that function is called.
+ *      Likewise, uv_foo_stop() deactivates the handle again.
+ *
  */
 UV_EXTERN int uv_is_active(const uv_handle_t* handle);
 
@@ -769,6 +780,12 @@ UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
 /*
  * Bind the handle to an address and port.  `addr` should point to an
  * initialized struct sockaddr_in or struct sockaddr_in6.
+ *
+ * When the port is already taken, you can expect to see an UV_EADDRINUSE
+ * error from either uv_tcp_bind(), uv_listen() or uv_tcp_connect().
+ *
+ * That is, a successful call to uv_tcp_bind() does not guarantee that
+ * the call to uv_listen() or uv_tcp_connect() will succeed as well.
  */
 UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle, const struct sockaddr* addr);
 
@@ -1058,8 +1075,11 @@ UV_EXTERN int uv_tty_set_mode(uv_tty_t*, int mode);
 /*
  * To be called when the program exits. Resets TTY settings to default
  * values for the next process to take over.
+ *
+ * This function is async signal-safe on UNIX platforms but can fail with error
+ * code UV_EBUSY if you call it when execution is inside uv_tty_set_mode().
  */
-UV_EXTERN void uv_tty_reset_mode(void);
+UV_EXTERN int uv_tty_reset_mode(void);
 
 /*
  * Gets the current Window size. On success zero is returned.
@@ -1098,8 +1118,20 @@ UV_EXTERN int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle, int ipc);
  */
 UV_EXTERN int uv_pipe_open(uv_pipe_t*, uv_file file);
 
+/*
+ * Bind the pipe to a file path (UNIX) or a name (Windows.)
+ *
+ * Paths on UNIX get truncated to `sizeof(sockaddr_un.sun_path)` bytes,
+ * typically between 92 and 108 bytes.
+ */
 UV_EXTERN int uv_pipe_bind(uv_pipe_t* handle, const char* name);
 
+/*
+ * Connect to the UNIX domain socket or the named pipe.
+ *
+ * Paths on UNIX get truncated to `sizeof(sockaddr_un.sun_path)` bytes,
+ * typically between 92 and 108 bytes.
+ */
 UV_EXTERN void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
     const char* name, uv_connect_cb cb);
 
@@ -1398,7 +1430,7 @@ typedef struct uv_process_options_s {
    * If non-null this represents a directory the subprocess should execute
    * in. Stands for current working directory.
    */
-  char* cwd;
+  const char* cwd;
   /*
    * Various flags that control how uv_spawn() behaves. See the definition of
    * `enum uv_process_flags` below.
@@ -1831,7 +1863,7 @@ UV_EXTERN void uv_loadavg(double avg[3]);
 
 
 /*
- * Flags to be passed to uv_fs_event_init.
+ * Flags to be passed to uv_fs_event_start.
  */
 enum uv_fs_event_flags {
   /*
@@ -1861,8 +1893,15 @@ enum uv_fs_event_flags {
 };
 
 
-UV_EXTERN int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
-    const char* filename, uv_fs_event_cb cb, int flags);
+UV_EXTERN int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle);
+
+UV_EXTERN int uv_fs_event_start(uv_fs_event_t* handle,
+                                uv_fs_event_cb cb,
+                                const char* filename,
+                                unsigned int flags);
+
+UV_EXTERN int uv_fs_event_stop(uv_fs_event_t* handle);
+
 
 /* Utility */
 

@@ -211,9 +211,9 @@ int ipc_send_recv_helper(void) {
   ASSERT(r == 0);
 
   uv_pipe_open(&ctx.channel, 0);
-  ASSERT(uv_is_readable((uv_stream_t*)&ctx.channel));
-  ASSERT(uv_is_writable((uv_stream_t*)&ctx.channel));
-  ASSERT(!uv_is_closing((uv_handle_t*)&ctx.channel));
+  ASSERT(1 == uv_is_readable((uv_stream_t*)&ctx.channel));
+  ASSERT(1 == uv_is_writable((uv_stream_t*)&ctx.channel));
+  ASSERT(0 == uv_is_closing((uv_handle_t*)&ctx.channel));
 
   r = uv_read2_start((uv_stream_t*)&ctx.channel, alloc_cb, read2_cb);
   ASSERT(r == 0);

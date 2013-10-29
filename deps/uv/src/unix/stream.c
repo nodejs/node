@@ -85,7 +85,7 @@ static int uv__open_cloexec(const char* path, int flags) {
 
   err = uv__cloexec(fd, 1);
   if (err) {
-    close(fd);
+    uv__close(fd);
     return err;
   }
 
@@ -309,7 +309,7 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
   timeout.tv_nsec = 1;
 
   ret = kevent(kq, filter, 1, events, 1, &timeout);
-  SAVE_ERRNO(close(kq));
+  uv__close(kq);
 
   if (ret == -1)
     return -errno;
@@ -357,8 +357,8 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
   return 0;
 
 fatal4:
-  close(s->fake_fd);
-  close(s->int_fd);
+  uv__close(s->fake_fd);
+  uv__close(s->int_fd);
   s->fake_fd = -1;
   s->int_fd = -1;
 fatal3:
@@ -467,13 +467,13 @@ static int uv__emfile_trick(uv_loop_t* loop, int accept_fd) {
   if (loop->emfile_fd == -1)
     return -EMFILE;
 
-  close(loop->emfile_fd);
+  uv__close(loop->emfile_fd);
 
   for (;;) {
     fd = uv__accept(accept_fd);
 
     if (fd != -1) {
-      close(fd);
+      uv__close(fd);
       continue;
     }
 
@@ -572,7 +572,7 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
                             UV_STREAM_READABLE | UV_STREAM_WRITABLE);
       if (err) {
         /* TODO handle error */
-        close(server->accepted_fd);
+        uv__close(server->accepted_fd);
         server->accepted_fd = -1;
         return err;
       }
@@ -581,7 +581,7 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
     case UV_UDP:
       err = uv_udp_open((uv_udp_t*) client, server->accepted_fd);
       if (err) {
-        close(server->accepted_fd);
+        uv__close(server->accepted_fd);
         server->accepted_fd = -1;
         return err;
       }
@@ -1092,7 +1092,6 @@ static void uv__read(uv_stream_t* stream) {
 int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
   assert((stream->type == UV_TCP || stream->type == UV_NAMED_PIPE) &&
          "uv_shutdown (unix) only supports uv_handle_t right now");
-  assert(uv__stream_fd(stream) >= 0);
 
   if (!(stream->flags & UV_STREAM_WRITABLE) ||
       stream->flags & UV_STREAM_SHUT ||
@@ -1100,6 +1099,8 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
       stream->flags & UV_CLOSING) {
     return -ENOTCONN;
   }
+
+  assert(uv__stream_fd(stream) >= 0);
 
   /* Initialize request */
   uv__req_init(stream->loop, req, UV_SHUTDOWN);
@@ -1384,12 +1385,12 @@ int uv_read_stop(uv_stream_t* stream) {
 
 
 int uv_is_readable(const uv_stream_t* stream) {
-  return stream->flags & UV_STREAM_READABLE;
+  return !!(stream->flags & UV_STREAM_READABLE);
 }
 
 
 int uv_is_writable(const uv_stream_t* stream) {
-  return stream->flags & UV_STREAM_WRITABLE;
+  return !!(stream->flags & UV_STREAM_WRITABLE);
 }
 
 
@@ -1424,8 +1425,8 @@ void uv__stream_close(uv_stream_t* handle) {
     uv_thread_join(&s->thread);
     uv_sem_destroy(&s->close_sem);
     uv_sem_destroy(&s->async_sem);
-    close(s->fake_fd);
-    close(s->int_fd);
+    uv__close(s->fake_fd);
+    uv__close(s->int_fd);
     uv_close((uv_handle_t*) &s->async, uv__stream_osx_cb_close);
 
     handle->select = NULL;
@@ -1436,11 +1437,15 @@ void uv__stream_close(uv_stream_t* handle) {
   uv_read_stop(handle);
   uv__handle_stop(handle);
 
-  close(handle->io_watcher.fd);
-  handle->io_watcher.fd = -1;
+  if (handle->io_watcher.fd != -1) {
+    /* Don't close stdio file descriptors.  Nothing good comes from it. */
+    if (handle->io_watcher.fd > STDERR_FILENO)
+      uv__close(handle->io_watcher.fd);
+    handle->io_watcher.fd = -1;
+  }
 
-  if (handle->accepted_fd >= 0) {
-    close(handle->accepted_fd);
+  if (handle->accepted_fd != -1) {
+    uv__close(handle->accepted_fd);
     handle->accepted_fd = -1;
   }
 

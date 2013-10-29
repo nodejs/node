@@ -62,7 +62,7 @@ TEST_IMPL(loop_stop) {
 
   r = uv_run(uv_default_loop(), UV_RUN_NOWAIT);
   ASSERT(r != 0);
-  ASSERT(prepare_called == 3);
+  ASSERT(prepare_called > 1);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);

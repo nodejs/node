@@ -47,7 +47,9 @@ TEST_IMPL(get_currentexe) {
   }
 
   match = strstr(buffer, path);
-  /* Verify that the path returned from uv_exepath is a subdirectory of executable_path */
+  /* Verify that the path returned from uv_exepath is a subdirectory of
+   * executable_path.
+   */
   ASSERT(match && !strcmp(match, path));
   ASSERT(size == strlen(buffer));
 

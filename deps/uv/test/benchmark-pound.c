@@ -229,7 +229,10 @@ static void pipe_make_connect(conn_rec* p) {
   r = uv_pipe_init(loop, (uv_pipe_t*)&p->stream, 0);
   ASSERT(r == 0);
 
-  uv_pipe_connect(&((pipe_conn_rec*)p)->conn_req, (uv_pipe_t*)&p->stream, TEST_PIPENAME, connect_cb);
+  uv_pipe_connect(&((pipe_conn_rec*) p)->conn_req,
+                  (uv_pipe_t*) &p->stream,
+                  TEST_PIPENAME,
+                  connect_cb);
 
 #if DEBUG
   printf("make connect %d\n", p->i);
@@ -308,20 +311,40 @@ static int pound_it(int concurrency,
 
 
 BENCHMARK_IMPL(tcp4_pound_100) {
-  return pound_it(100, "tcp", tcp_do_setup, tcp_do_connect, tcp_make_connect, NULL);
+  return pound_it(100,
+                  "tcp",
+                  tcp_do_setup,
+                  tcp_do_connect,
+                  tcp_make_connect,
+                  NULL);
 }
 
 
 BENCHMARK_IMPL(tcp4_pound_1000) {
-  return pound_it(1000, "tcp", tcp_do_setup, tcp_do_connect, tcp_make_connect, NULL);
+  return pound_it(1000,
+                  "tcp",
+                  tcp_do_setup,
+                  tcp_do_connect,
+                  tcp_make_connect,
+                  NULL);
 }
 
 
 BENCHMARK_IMPL(pipe_pound_100) {
-  return pound_it(100, "pipe", pipe_do_setup, pipe_do_connect, pipe_make_connect, NULL);
+  return pound_it(100,
+                  "pipe",
+                  pipe_do_setup,
+                  pipe_do_connect,
+                  pipe_make_connect,
+                  NULL);
 }
 
 
 BENCHMARK_IMPL(pipe_pound_1000) {
-  return pound_it(1000, "pipe", pipe_do_setup, pipe_do_connect, pipe_make_connect, NULL);
+  return pound_it(1000,
+                  "pipe",
+                  pipe_do_setup,
+                  pipe_do_connect,
+                  pipe_make_connect,
+                  NULL);
 }

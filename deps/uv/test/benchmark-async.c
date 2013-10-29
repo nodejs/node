@@ -86,7 +86,9 @@ static int test_async(int nthreads) {
     ctx->loop = uv_loop_new();
     ASSERT(ctx->loop != NULL);
     ASSERT(0 == uv_async_init(ctx->loop, &ctx->worker_async, worker_async_cb));
-    ASSERT(0 == uv_async_init(uv_default_loop(), &ctx->main_async, main_async_cb));
+    ASSERT(0 == uv_async_init(uv_default_loop(),
+                              &ctx->main_async,
+                              main_async_cb));
     ASSERT(0 == uv_thread_create(&ctx->thread, worker, ctx));
   }
 

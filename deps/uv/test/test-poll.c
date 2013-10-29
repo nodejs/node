@@ -406,9 +406,9 @@ static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
 
   /* Assert that uv_is_active works correctly for poll handles. */
   if (context->events != 0) {
-    ASSERT(uv_is_active((uv_handle_t*) handle));
+    ASSERT(1 == uv_is_active((uv_handle_t*) handle));
   } else {
-    ASSERT(!uv_is_active((uv_handle_t*) handle));
+    ASSERT(0 == uv_is_active((uv_handle_t*) handle));
   }
 }
 
@@ -418,7 +418,7 @@ static void delay_timer_cb(uv_timer_t* timer, int status) {
   int r;
 
   /* Timer should auto stop. */
-  ASSERT(!uv_is_active((uv_handle_t*) timer));
+  ASSERT(0 == uv_is_active((uv_handle_t*) timer));
 
   /* Add the requested events to the poll mask. */
   ASSERT(context->delayed_events != 0);

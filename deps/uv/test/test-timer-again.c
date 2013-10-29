@@ -57,7 +57,7 @@ static void repeat_1_cb(uv_timer_t* handle, int status) {
   r = uv_timer_again(&repeat_2);
   ASSERT(r == 0);
 
-  if (uv_now(uv_default_loop()) >= start_time + 500) {
+  if (repeat_1_cb_called == 10) {
     uv_close((uv_handle_t*)handle, close_cb);
     /* We're not calling uv_timer_again on repeat_2 any more, so after this */
     /* timer_2_cb is expected. */
@@ -78,7 +78,7 @@ static void repeat_2_cb(uv_timer_t* handle, int status) {
   repeat_2_cb_called++;
 
   if (uv_timer_get_repeat(&repeat_2) == 0) {
-    ASSERT(!uv_is_active((uv_handle_t*)handle));
+    ASSERT(0 == uv_is_active((uv_handle_t*) handle));
     uv_close((uv_handle_t*)handle, close_cb);
     return;
   }
@@ -134,7 +134,6 @@ TEST_IMPL(timer_again) {
 
   LOGF("Test took %ld ms (expected ~700 ms)\n",
        (long int)(uv_now(uv_default_loop()) - start_time));
-  ASSERT(700 <= uv_now(uv_default_loop()) - start_time);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

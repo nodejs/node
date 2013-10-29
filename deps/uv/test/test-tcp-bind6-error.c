@@ -92,7 +92,8 @@ TEST_IMPL(tcp_bind6_error_addrnotavail) {
 
 
 TEST_IMPL(tcp_bind6_error_fault) {
-  char garbage[] = "blah blah blah blah blah blah blah blah blah blah blah blah";
+  char garbage[] =
+      "blah blah blah blah blah blah blah blah blah blah blah blah";
   struct sockaddr_in6* garbage_addr;
   uv_tcp_t server;
   int r;

@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <stdlib.h>
 
 #include "uv.h"
 #include "internal.h"

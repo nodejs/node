@@ -24,6 +24,7 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "uv.h"
 #include "internal.h"
@@ -162,6 +163,7 @@ int uv_translate_sys_error(int sys_errno) {
     case WSAETIMEDOUT:                      return UV_ETIMEDOUT;
     case ERROR_NOT_SAME_DEVICE:             return UV_EXDEV;
     case ERROR_INVALID_FUNCTION:            return UV_EISDIR;
+    case ERROR_META_EXPANSION_TOO_LONG:     return UV_E2BIG;
     default:                                return UV_UNKNOWN;
   }
 }

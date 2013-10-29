@@ -110,7 +110,9 @@ int process_start(char *name, char *part, process_info_t *p, int is_helper) {
   if (!SetHandleInformation(nul, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT))
     goto error;
 
-  result = GetModuleFileNameW(NULL, (WCHAR*)&image, sizeof(image) / sizeof(WCHAR));
+  result = GetModuleFileNameW(NULL,
+                              (WCHAR*) &image,
+                              sizeof(image) / sizeof(WCHAR));
   if (result == 0 || result == sizeof(image))
     goto error;
 
@@ -214,8 +216,12 @@ int process_copy_output(process_info_t *p, int fd) {
   char buf[1024];
   char *line, *start;
 
-  if (SetFilePointer(p->stdio_out, 0, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+  if (SetFilePointer(p->stdio_out,
+                     0,
+                     0,
+                     FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
     return -1;
+  }
 
   if (tap_output)
     write(fd, "#", 1);
@@ -337,8 +343,13 @@ static int clear_line() {
   if (!SetConsoleCursorPosition(handle, coord))
     return -1;
 
-  if (!FillConsoleOutputCharacterW(handle, 0x20, info.dwSize.X, coord, &written))
+  if (!FillConsoleOutputCharacterW(handle,
+                                   0x20,
+                                   info.dwSize.X,
+                                   coord,
+                                   &written)) {
     return -1;
+  }
 
   return 0;
 }

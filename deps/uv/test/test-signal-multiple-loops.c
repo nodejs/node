@@ -34,10 +34,20 @@
 #include <string.h>
 #include <unistd.h>
 
-
-#define NUM_SIGNAL_HANDLING_THREADS 25
+/* The value of NUM_SIGNAL_HANDLING_THREADS is not arbitrary; it needs to be a
+ * multiple of three for reasons that will become clear when you scroll down.
+ * We're basically creating three different thread groups.  The total needs
+ * to be divisible by three in order for the numbers in the final check to
+ * match up.
+ */
+#define NUM_SIGNAL_HANDLING_THREADS 24
 #define NUM_LOOP_CREATING_THREADS 10
 
+enum signal_action {
+  ONLY_SIGUSR1,
+  ONLY_SIGUSR2,
+  SIGUSR1_AND_SIGUSR2
+};
 
 static uv_sem_t sem;
 static uv_mutex_t counter_lock;
@@ -70,18 +80,20 @@ static void signal2_cb(uv_signal_t* handle, int signum) {
 
 
 static void signal_handling_worker(void* context) {
-  uintptr_t mask = (uintptr_t) context;
-  uv_loop_t* loop;
+  enum signal_action action;
   uv_signal_t signal1a;
   uv_signal_t signal1b;
   uv_signal_t signal2;
+  uv_loop_t* loop;
   int r;
+
+  action = (enum signal_action) (uintptr_t) context;
 
   loop = uv_loop_new();
   ASSERT(loop != NULL);
 
   /* Setup the signal watchers and start them. */
-  if (mask & SIGUSR1) {
+  if (action == ONLY_SIGUSR1 || action == SIGUSR1_AND_SIGUSR2) {
     r = uv_signal_init(loop, &signal1a);
     ASSERT(r == 0);
     r = uv_signal_start(&signal1a, signal1_cb, SIGUSR1);
@@ -91,7 +103,8 @@ static void signal_handling_worker(void* context) {
     r = uv_signal_start(&signal1b, signal1_cb, SIGUSR1);
     ASSERT(r == 0);
   }
-  if (mask & SIGUSR2) {
+
+  if (action == ONLY_SIGUSR2 || action == SIGUSR1_AND_SIGUSR2) {
     r = uv_signal_init(loop, &signal2);
     ASSERT(r == 0);
     r = uv_signal_start(&signal2, signal2_cb, SIGUSR2);
@@ -108,13 +121,14 @@ static void signal_handling_worker(void* context) {
   ASSERT(r == 0);
 
   /* Restart the signal watchers. */
-  if (mask & SIGUSR1) {
+  if (action == ONLY_SIGUSR1 || action == SIGUSR1_AND_SIGUSR2) {
     r = uv_signal_start(&signal1a, signal1_cb, SIGUSR1);
     ASSERT(r == 0);
     r = uv_signal_start(&signal1b, signal1_cb, SIGUSR1);
     ASSERT(r == 0);
   }
-  if (mask & SIGUSR2) {
+
+  if (action == ONLY_SIGUSR2 || action == SIGUSR1_AND_SIGUSR2) {
     r = uv_signal_start(&signal2, signal2_cb, SIGUSR2);
     ASSERT(r == 0);
   }
@@ -126,11 +140,12 @@ static void signal_handling_worker(void* context) {
   ASSERT(r == 0);
 
   /* Close the watchers. */
-  if (mask & SIGUSR1) {
+  if (action == ONLY_SIGUSR1 || action == SIGUSR1_AND_SIGUSR2) {
     uv_close((uv_handle_t*) &signal1a, NULL);
     uv_close((uv_handle_t*) &signal1b, NULL);
   }
-  if (mask & SIGUSR2) {
+
+  if (action == ONLY_SIGUSR2 || action == SIGUSR1_AND_SIGUSR2) {
     uv_close((uv_handle_t*) &signal2, NULL);
   }
 
@@ -177,10 +192,12 @@ static void loop_creating_worker(void* context) {
 
 
 TEST_IMPL(signal_multiple_loops) {
-  int i, r;
   uv_thread_t loop_creating_threads[NUM_LOOP_CREATING_THREADS];
   uv_thread_t signal_handling_threads[NUM_SIGNAL_HANDLING_THREADS];
+  enum signal_action action;
   sigset_t sigset;
+  int i;
+  int r;
 
   r = uv_sem_init(&sem, 0);
   ASSERT(r == 0);
@@ -198,17 +215,15 @@ TEST_IMPL(signal_multiple_loops) {
 
   /* Create a couple of threads that actually handle signals. */
   for (i = 0; i < NUM_SIGNAL_HANDLING_THREADS; i++) {
-    uintptr_t mask;
-
     switch (i % 3) {
-      case 0: mask = SIGUSR1; break;
-      case 1: mask = SIGUSR2; break;
-      case 2: mask = SIGUSR1 | SIGUSR2; break;
+      case 0: action = ONLY_SIGUSR1; break;
+      case 1: action = ONLY_SIGUSR2; break;
+      case 2: action = SIGUSR1_AND_SIGUSR2; break;
     }
 
     r = uv_thread_create(&signal_handling_threads[i],
                          signal_handling_worker,
-                         (void*) mask);
+                         (void*) (uintptr_t) action);
     ASSERT(r == 0);
   }
 
@@ -256,8 +271,12 @@ TEST_IMPL(signal_multiple_loops) {
   printf("signal2_cb calls: %d\n", signal2_cb_counter);
   printf("loops created and destroyed: %d\n", loop_creation_counter);
 
-  ASSERT(signal1_cb_counter == 4 * NUM_SIGNAL_HANDLING_THREADS);
-  ASSERT(signal2_cb_counter == 2 * NUM_SIGNAL_HANDLING_THREADS);
+  /* The division by three reflects the fact that we spawn three different
+   * thread groups of (NUM_SIGNAL_HANDLING_THREADS / 3) threads each.
+   */
+  ASSERT(signal1_cb_counter == 8 * (NUM_SIGNAL_HANDLING_THREADS / 3));
+  ASSERT(signal2_cb_counter == 4 * (NUM_SIGNAL_HANDLING_THREADS / 3));
+
   /* We don't know exactly how much loops will be created and destroyed, but at
    * least there should be 1 for every loop creating thread.
    */

@@ -31,13 +31,17 @@ libuv_la_SOURCES = src/fs-poll.c \
                    src/uv-common.h \
                    src/version.c
 
+if SUNOS
+libuv_la_CFLAGS += -pthread
+endif
+
 if WINNT
 
 include_HEADERS += include/uv-win.h include/tree.h
 AM_CPPFLAGS += -I$(top_srcdir)/src/win \
                -DWIN32_LEAN_AND_MEAN \
                -D_WIN32_WINNT=0x0600
-LIBS += -lws2_32 -lpsapi -lphlpapi2
+LIBS += -lws2_32 -lpsapi -liphlpapi -lshell32
 libuv_la_SOURCES += src/win/async.c \
                     src/win/atomicops-inl.h \
                     src/win/core.c \
@@ -76,6 +80,7 @@ else  # WINNT
 include_HEADERS += include/uv-unix.h
 AM_CPPFLAGS += -I$(top_srcdir)/src/unix
 libuv_la_SOURCES += src/unix/async.c \
+                   src/unix/atomic-ops.h \
                    src/unix/core.c \
                    src/unix/dl.c \
                    src/unix/fs.c \
@@ -87,6 +92,7 @@ libuv_la_SOURCES += src/unix/async.c \
                    src/unix/poll.c \
                    src/unix/process.c \
                    src/unix/signal.c \
+                   src/unix/spinlock.h \
                    src/unix/stream.c \
                    src/unix/tcp.c \
                    src/unix/thread.c \
@@ -103,8 +109,6 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/dns-server.c \
                          test/echo-server.c \
                          test/run-tests.c \
-                         test/runner-unix.c \
-                         test/runner-unix.h \
                          test/runner.c \
                          test/runner.h \
                          test/task.h \
@@ -114,6 +118,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-barrier.c \
                          test/test-callback-order.c \
                          test/test-callback-stack.c \
+                         test/test-close-order.c \
                          test/test-condvar.c \
                          test/test-connection-fail.c \
                          test/test-cwd-and-chdir.c \
@@ -191,6 +196,16 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-util.c \
                          test/test-walk-handles.c
 test_run_tests_LDADD = libuv.la
+
+if WINNT
+test_run_tests_SOURCES += test/runner-win.c \
+                          test/runner-win.h
+else
+test_run_tests_SOURCES += test/runner-unix.c \
+                          test/runner-unix.h
+endif
+
+
 
 if AIX
 libuv_la_CFLAGS += -D_ALL_SOURCE -D_XOPEN_SOURCE=500

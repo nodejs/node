@@ -40,8 +40,11 @@ static int uv__udp_maybe_deferred_bind(uv_udp_t* handle, int domain);
 void uv__udp_close(uv_udp_t* handle) {
   uv__io_close(handle->loop, &handle->io_watcher);
   uv__handle_stop(handle);
-  close(handle->io_watcher.fd);
-  handle->io_watcher.fd = -1;
+
+  if (handle->io_watcher.fd != -1) {
+    uv__close(handle->io_watcher.fd);
+    handle->io_watcher.fd = -1;
+  }
 }
 
 
@@ -337,7 +340,7 @@ int uv__udp_bind(uv_udp_t* handle,
   return 0;
 
 out:
-  close(handle->io_watcher.fd);
+  uv__close(handle->io_watcher.fd);
   handle->io_watcher.fd = -1;
   return err;
 }

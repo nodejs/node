@@ -61,7 +61,6 @@ int uv__set_process_title(const char* title) {
   CFBundleRef (*pCFBundleGetBundleWithIdentifier)(CFStringRef);
   void *(*pCFBundleGetDataPointerForName)(CFBundleRef, CFStringRef);
   void *(*pCFBundleGetFunctionPointerForName)(CFBundleRef, CFStringRef);
-  OSErr (*pGetCurrentProcess)(ProcessSerialNumber*);
   CFTypeRef (*pLSGetCurrentApplicationASN)(void);
   OSStatus (*pLSSetApplicationInformationItem)(int,
                                                CFTypeRef,
@@ -72,7 +71,13 @@ int uv__set_process_title(const char* title) {
   void* core_foundation_handle;
   CFBundleRef launch_services_bundle;
   CFStringRef* display_name_key;
-  ProcessSerialNumber psn;
+  CFDictionaryRef (*pCFBundleGetInfoDictionary)(CFBundleRef);
+  CFBundleRef (*pCFBundleGetMainBundle)(void);
+  CFBundleRef hi_services_bundle;
+  OSStatus (*pSetApplicationIsDaemon)(int);
+  CFDictionaryRef (*pLSApplicationCheckIn)(int, CFDictionaryRef);
+  void (*pLSSetApplicationLaunchServicesServerConnectionStatus)(uint64_t,
+                                                                void*);
   CFTypeRef asn;
   int err;
 
@@ -89,8 +94,6 @@ int uv__set_process_title(const char* title) {
   if (application_services_handle == NULL || core_foundation_handle == NULL)
     goto out;
 
-  pGetCurrentProcess =
-      dlsym(application_services_handle, "GetCurrentProcess");
   pCFStringCreateWithCString =
       dlsym(core_foundation_handle, "CFStringCreateWithCString");
   pCFBundleGetBundleWithIdentifier =
@@ -100,8 +103,7 @@ int uv__set_process_title(const char* title) {
   pCFBundleGetFunctionPointerForName =
       dlsym(core_foundation_handle, "CFBundleGetFunctionPointerForName");
 
-  if (pGetCurrentProcess == NULL ||
-      pCFStringCreateWithCString == NULL ||
+  if (pCFStringCreateWithCString == NULL ||
       pCFBundleGetBundleWithIdentifier == NULL ||
       pCFBundleGetDataPointerForName == NULL ||
       pCFBundleGetFunctionPointerForName == NULL) {
@@ -136,8 +138,44 @@ int uv__set_process_title(const char* title) {
   if (display_name_key == NULL || *display_name_key == NULL)
     goto out;
 
-  /* Force the process manager to initialize. */
-  pGetCurrentProcess(&psn);
+  pCFBundleGetInfoDictionary = dlsym(core_foundation_handle,
+                                     "CFBundleGetInfoDictionary");
+  pCFBundleGetMainBundle = dlsym(core_foundation_handle,
+                                 "CFBundleGetMainBundle");
+  if (pCFBundleGetInfoDictionary == NULL || pCFBundleGetMainBundle == NULL)
+    goto out;
+
+  /* Black 10.9 magic, to remove (Not responding) mark in Activity Monitor */
+  hi_services_bundle =
+      pCFBundleGetBundleWithIdentifier(S("com.apple.HIServices"));
+  err = -ENOENT;
+  if (hi_services_bundle == NULL)
+    goto out;
+
+  pSetApplicationIsDaemon = pCFBundleGetFunctionPointerForName(
+      hi_services_bundle,
+      S("SetApplicationIsDaemon"));
+  pLSApplicationCheckIn = pCFBundleGetFunctionPointerForName(
+      launch_services_bundle,
+      S("_LSApplicationCheckIn"));
+  pLSSetApplicationLaunchServicesServerConnectionStatus =
+      pCFBundleGetFunctionPointerForName(
+          launch_services_bundle,
+          S("_LSSetApplicationLaunchServicesServerConnectionStatus"));
+  if (pSetApplicationIsDaemon == NULL ||
+      pLSApplicationCheckIn == NULL ||
+      pLSSetApplicationLaunchServicesServerConnectionStatus == NULL) {
+    goto out;
+  }
+
+  if (pSetApplicationIsDaemon(1) != noErr)
+    goto out;
+
+  pLSSetApplicationLaunchServicesServerConnectionStatus(0, NULL);
+
+  /* Check into process manager?! */
+  pLSApplicationCheckIn(-2,
+                        pCFBundleGetInfoDictionary(pCFBundleGetMainBundle()));
 
   asn = pLSGetCurrentApplicationASN();
 

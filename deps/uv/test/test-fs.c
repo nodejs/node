@@ -1333,7 +1333,12 @@ TEST_IMPL(fs_symlink) {
 
   close(link);
 
-  r = uv_fs_symlink(loop, &req, "test_file_symlink", "test_file_symlink_symlink", 0, NULL);
+  r = uv_fs_symlink(loop,
+                    &req,
+                    "test_file_symlink",
+                    "test_file_symlink_symlink",
+                    0,
+                    NULL);
   ASSERT(r == 0);
   uv_fs_req_cleanup(&req);
 
@@ -1343,7 +1348,12 @@ TEST_IMPL(fs_symlink) {
   uv_fs_req_cleanup(&req);
 
   /* async link */
-  r = uv_fs_symlink(loop, &req, "test_file", "test_file_symlink2", 0, symlink_cb);
+  r = uv_fs_symlink(loop,
+                    &req,
+                    "test_file",
+                    "test_file_symlink2",
+                    0,
+                    symlink_cb);
   ASSERT(r == 0);
   uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(symlink_cb_count == 1);
@@ -1362,7 +1372,12 @@ TEST_IMPL(fs_symlink) {
 
   close(link);
 
-  r = uv_fs_symlink(loop, &req, "test_file_symlink2", "test_file_symlink2_symlink", 0, NULL);
+  r = uv_fs_symlink(loop,
+                    &req,
+                    "test_file_symlink2",
+                    "test_file_symlink2_symlink",
+                    0,
+                    NULL);
   ASSERT(r == 0);
   uv_fs_req_cleanup(&req);
 

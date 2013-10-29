@@ -237,11 +237,11 @@ void uv__async_stop(uv_loop_t* loop, struct uv__async* wa) {
     return;
 
   uv__io_stop(loop, &wa->io_watcher, UV__POLLIN);
-  close(wa->io_watcher.fd);
+  uv__close(wa->io_watcher.fd);
   wa->io_watcher.fd = -1;
 
   if (wa->wfd != -1) {
-    close(wa->wfd);
+    uv__close(wa->wfd);
     wa->wfd = -1;
   }
 }

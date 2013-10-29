@@ -29,8 +29,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-static void uv__pipe_accept(uv_loop_t* loop, uv__io_t* w, unsigned int events);
-
 
 int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   uv__stream_init(loop, (uv_stream_t*)handle, UV_NAMED_PIPE);
@@ -93,11 +91,11 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
 out:
   if (bound) {
-    /* unlink() before close() to avoid races. */
+    /* unlink() before uv__close() to avoid races. */
     assert(pipe_fname != NULL);
     unlink(pipe_fname);
   }
-  close(sockfd);
+  uv__close(sockfd);
   free((void*)pipe_fname);
   return err;
 }
@@ -111,7 +109,7 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
     return -errno;
 
   handle->connection_cb = cb;
-  handle->io_watcher.cb = uv__pipe_accept;
+  handle->io_watcher.cb = uv__server_io;
   uv__io_start(handle->loop, &handle->io_watcher, UV__POLLIN);
   return 0;
 }
@@ -209,30 +207,6 @@ out:
   /* Mimic the Windows pipe implementation, always
    * return 0 and let the callback handle errors.
    */
-}
-
-
-/* TODO merge with uv__server_io()? */
-static void uv__pipe_accept(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
-  uv_pipe_t* pipe;
-  int sockfd;
-
-  pipe = container_of(w, uv_pipe_t, io_watcher);
-  assert(pipe->type == UV_NAMED_PIPE);
-
-  sockfd = uv__accept(uv__stream_fd(pipe));
-  if (sockfd == -1) {
-    if (errno != EAGAIN && errno != EWOULDBLOCK)
-      pipe->connection_cb((uv_stream_t*)pipe, -errno);
-    return;
-  }
-
-  pipe->accepted_fd = sockfd;
-  pipe->connection_cb((uv_stream_t*)pipe, 0);
-  if (pipe->accepted_fd == sockfd) {
-    /* The user hasn't called uv_accept() yet */
-    uv__io_stop(pipe->loop, &pipe->io_watcher, UV__POLLIN);
-  }
 }
 
 

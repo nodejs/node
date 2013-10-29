@@ -56,9 +56,9 @@ static void connect_cb(uv_connect_t* req, int status) {
 
   r = uv_shutdown(&shutdown_req, req->handle, shutdown_cb);
   ASSERT(r == 0);
-  ASSERT(!uv_is_closing((uv_handle_t*) req->handle));
+  ASSERT(0 == uv_is_closing((uv_handle_t*) req->handle));
   uv_close((uv_handle_t*) req->handle, close_cb);
-  ASSERT(uv_is_closing((uv_handle_t*) req->handle));
+  ASSERT(1 == uv_is_closing((uv_handle_t*) req->handle));
 
   connect_cb_called++;
 }

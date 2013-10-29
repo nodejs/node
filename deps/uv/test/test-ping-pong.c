@@ -78,7 +78,11 @@ static void pinger_write_ping(pinger_t* pinger) {
   buf = uv_buf_init(PING, sizeof(PING) - 1);
 
   req = malloc(sizeof(*req));
-  if (uv_write(req, (uv_stream_t*)&pinger->stream.tcp, &buf, 1, pinger_after_write)) {
+  if (uv_write(req,
+               (uv_stream_t*) &pinger->stream.tcp,
+               &buf,
+               1,
+               pinger_after_write)) {
     FATAL("uv_write failed");
   }
 
@@ -135,9 +139,9 @@ static void pinger_on_connect(uv_connect_t *req, int status) {
 
   ASSERT(status == 0);
 
-  ASSERT(uv_is_readable(req->handle));
-  ASSERT(uv_is_writable(req->handle));
-  ASSERT(!uv_is_closing((uv_handle_t *)req->handle));
+  ASSERT(1 == uv_is_readable(req->handle));
+  ASSERT(1 == uv_is_writable(req->handle));
+  ASSERT(0 == uv_is_closing((uv_handle_t *) req->handle));
 
   pinger_write_ping(pinger);
 

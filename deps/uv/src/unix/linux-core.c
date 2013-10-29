@@ -98,7 +98,7 @@ int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
 void uv__platform_loop_delete(uv_loop_t* loop) {
   if (loop->inotify_fd == -1) return;
   uv__io_stop(loop, &loop->inotify_read_watcher, UV__POLLIN);
-  close(loop->inotify_fd);
+  uv__close(loop->inotify_fd);
   loop->inotify_fd = -1;
 }
 
@@ -309,7 +309,7 @@ int uv_resident_set_memory(size_t* rss) {
     n = read(fd, buf, sizeof(buf) - 1);
   while (n == -1 && errno == EINTR);
 
-  SAVE_ERRNO(close(fd));
+  uv__close(fd);
   if (n == -1)
     return -errno;
   buf[n] = '\0';
@@ -368,7 +368,6 @@ int uv_uptime(double* uptime) {
     return -errno;
 
   *uptime = now.tv_sec;
-  *uptime += (double)now.tv_nsec / 1000000000.0;
   return 0;
 }
 

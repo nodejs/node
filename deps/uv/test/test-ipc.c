@@ -559,9 +559,9 @@ int ipc_helper(int listen_after_write) {
 
   uv_pipe_open(&channel, 0);
 
-  ASSERT(uv_is_readable((uv_stream_t*) &channel));
-  ASSERT(uv_is_writable((uv_stream_t*) &channel));
-  ASSERT(!uv_is_closing((uv_handle_t*) &channel));
+  ASSERT(1 == uv_is_readable((uv_stream_t*) &channel));
+  ASSERT(1 == uv_is_writable((uv_stream_t*) &channel));
+  ASSERT(0 == uv_is_closing((uv_handle_t*) &channel));
 
   r = uv_tcp_init(uv_default_loop(), &tcp_server);
   ASSERT(r == 0);
@@ -609,9 +609,9 @@ int ipc_helper_tcp_connection(void) {
 
   uv_pipe_open(&channel, 0);
 
-  ASSERT(uv_is_readable((uv_stream_t*)&channel));
-  ASSERT(uv_is_writable((uv_stream_t*)&channel));
-  ASSERT(!uv_is_closing((uv_handle_t*)&channel));
+  ASSERT(1 == uv_is_readable((uv_stream_t*) &channel));
+  ASSERT(1 == uv_is_writable((uv_stream_t*) &channel));
+  ASSERT(0 == uv_is_closing((uv_handle_t*) &channel));
 
   r = uv_tcp_init(uv_default_loop(), &tcp_server);
   ASSERT(r == 0);

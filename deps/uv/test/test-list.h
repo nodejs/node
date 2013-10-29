@@ -21,6 +21,7 @@
 
 TEST_DECLARE   (platform_output)
 TEST_DECLARE   (callback_order)
+TEST_DECLARE   (close_order)
 TEST_DECLARE   (run_once)
 TEST_DECLARE   (run_nowait)
 TEST_DECLARE   (loop_stop)
@@ -192,6 +193,7 @@ TEST_DECLARE   (fs_event_no_callback_on_close)
 TEST_DECLARE   (fs_event_immediate_close)
 TEST_DECLARE   (fs_event_close_with_pending_event)
 TEST_DECLARE   (fs_event_close_in_callback)
+TEST_DECLARE   (fs_event_start_and_close)
 TEST_DECLARE   (fs_readdir_empty_dir)
 TEST_DECLARE   (fs_readdir_file)
 TEST_DECLARE   (fs_open_dir)
@@ -242,6 +244,7 @@ TASK_LIST_START
 #if 0
   TEST_ENTRY  (callback_order)
 #endif
+  TEST_ENTRY  (close_order)
   TEST_ENTRY  (run_once)
   TEST_ENTRY  (run_nowait)
   TEST_ENTRY  (loop_stop)
@@ -486,6 +489,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_event_immediate_close)
   TEST_ENTRY  (fs_event_close_with_pending_event)
   TEST_ENTRY  (fs_event_close_in_callback)
+  TEST_ENTRY  (fs_event_start_and_close)
   TEST_ENTRY  (fs_readdir_empty_dir)
   TEST_ENTRY  (fs_readdir_file)
   TEST_ENTRY  (fs_open_dir)

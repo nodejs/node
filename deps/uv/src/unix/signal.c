@@ -141,7 +141,10 @@ static void uv__signal_handler(int signum) {
   saved_errno = errno;
   memset(&msg, 0, sizeof msg);
 
-  uv__signal_lock();
+  if (uv__signal_lock()) {
+    errno = saved_errno;
+    return;
+  }
 
   for (handle = uv__signal_first_handle(signum);
        handle != NULL && handle->signum == signum;
@@ -240,12 +243,12 @@ void uv__signal_loop_cleanup(uv_loop_t* loop) {
   }
 
   if (loop->signal_pipefd[0] != -1) {
-    close(loop->signal_pipefd[0]);
+    uv__close(loop->signal_pipefd[0]);
     loop->signal_pipefd[0] = -1;
   }
 
   if (loop->signal_pipefd[1] != -1) {
-    close(loop->signal_pipefd[1]);
+    uv__close(loop->signal_pipefd[1]);
     loop->signal_pipefd[1] = -1;
   }
 }
@@ -335,7 +338,9 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
 }
 
 
-static void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
+static void uv__signal_event(uv_loop_t* loop,
+                             uv__io_t* w,
+                             unsigned int events) {
   uv__signal_msg_t* msg;
   uv_signal_t* handle;
   char buf[sizeof(uv__signal_msg_t) * 32];

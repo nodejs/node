@@ -113,7 +113,9 @@ static void kill_cb(uv_process_t* process,
   ASSERT(err == UV_ESRCH);
 }
 
-static void detach_failure_cb(uv_process_t* process, int64_t exit_status, int term_signal) {
+static void detach_failure_cb(uv_process_t* process,
+                              int64_t exit_status,
+                              int term_signal) {
   printf("detach_cb\n");
   exit_cb_called++;
 }
@@ -167,7 +169,7 @@ TEST_IMPL(spawn_fails) {
   init_process_options("", exit_cb_expect_enoent);
   options.file = options.args[0] = "program-that-had-better-not-exist";
   ASSERT(0 == uv_spawn(uv_default_loop(), &process, &options));
-  ASSERT(0 != uv_is_active((uv_handle_t*)&process));
+  ASSERT(1 == uv_is_active((uv_handle_t*) &process));
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
   ASSERT(1 == exit_cb_called);
 
@@ -630,7 +632,11 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
   options.stdio_count = 2;
 
   /* Create a pipe that'll cause a collision. */
-  _snprintf(name, sizeof(name), "\\\\.\\pipe\\uv\\%p-%d", &out, GetCurrentProcessId());
+  _snprintf(name,
+            sizeof(name),
+            "\\\\.\\pipe\\uv\\%p-%d",
+            &out,
+            GetCurrentProcessId());
   pipe_handle = CreateNamedPipeA(name,
                                 PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
                                 PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
@@ -729,8 +735,12 @@ TEST_IMPL(argument_escaping) {
   wprintf(L"    verbatim_output: %s\n", verbatim_output);
   wprintf(L"non_verbatim_output: %s\n", non_verbatim_output);
 
-  ASSERT(wcscmp(verbatim_output, L"cmd.exe /c c:\\path\\to\\node.exe --eval \"require('c:\\\\path\\\\to\\\\test.js')\"") == 0);
-  ASSERT(wcscmp(non_verbatim_output, L"cmd.exe /c \"c:\\path\\to\\node.exe --eval \\\"require('c:\\\\path\\\\to\\\\test.js')\\\"\"") == 0);
+  ASSERT(wcscmp(verbatim_output,
+                L"cmd.exe /c c:\\path\\to\\node.exe --eval "
+                L"\"require('c:\\\\path\\\\to\\\\test.js')\"") == 0);
+  ASSERT(wcscmp(non_verbatim_output,
+                L"cmd.exe /c \"c:\\path\\to\\node.exe --eval "
+                L"\\\"require('c:\\\\path\\\\to\\\\test.js')\\\"\"") == 0);
 
   free(verbatim_output);
   free(non_verbatim_output);
@@ -758,17 +768,23 @@ TEST_IMPL(environment_creation) {
   WCHAR* env;
 
   for (i = 0; i < sizeof(environment) / sizeof(environment[0]) - 1; i++) {
-    ptr += uv_utf8_to_utf16(environment[i], ptr, expected + sizeof(expected) - ptr);
+    ptr += uv_utf8_to_utf16(environment[i],
+                            ptr,
+                            expected + sizeof(expected) - ptr);
   }
 
   memcpy(ptr, L"SYSTEMROOT=", sizeof(L"SYSTEMROOT="));
   ptr += sizeof(L"SYSTEMROOT=")/sizeof(WCHAR) - 1;
-  ptr += GetEnvironmentVariableW(L"SYSTEMROOT", ptr, expected + sizeof(expected) - ptr);
+  ptr += GetEnvironmentVariableW(L"SYSTEMROOT",
+                                 ptr,
+                                 expected + sizeof(expected) - ptr);
   ++ptr;
 
   memcpy(ptr, L"SYSTEMDRIVE=", sizeof(L"SYSTEMDRIVE="));
   ptr += sizeof(L"SYSTEMDRIVE=")/sizeof(WCHAR) - 1;
-  ptr += GetEnvironmentVariableW(L"SYSTEMDRIVE", ptr, expected + sizeof(expected) - ptr);
+  ptr += GetEnvironmentVariableW(L"SYSTEMDRIVE",
+                                 ptr,
+                                 expected + sizeof(expected) - ptr);
   ++ptr;
   *ptr = '\0';
 
@@ -946,7 +962,7 @@ TEST_IMPL(spawn_auto_unref) {
   ASSERT(0 == uv_is_closing((uv_handle_t*) &process));
   uv_close((uv_handle_t*) &process, NULL);
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
-  ASSERT(0 != uv_is_closing((uv_handle_t*) &process));
+  ASSERT(1 == uv_is_closing((uv_handle_t*) &process));
   MAKE_VALGRIND_HAPPY();
   return 0;
 }

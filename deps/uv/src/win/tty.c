@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <io.h>
 #include <string.h>
+#include <stdlib.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
 # include "stdint-msvc2008.h"
@@ -1866,7 +1867,7 @@ void uv_process_tty_connect_req(uv_loop_t* loop, uv_tty_t* handle,
 }
 
 
-void uv_tty_reset_mode(void) {
+int uv_tty_reset_mode(void) {
   /* Not necessary to do anything. */
-  ;
+  return 0;
 }

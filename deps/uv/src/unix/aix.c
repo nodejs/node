@@ -85,7 +85,7 @@ int uv_exepath(char* buffer, size_t* size) {
     return fd;
 
   res = read(fd, &ps, sizeof(ps));
-  close(fd);
+  uv__close(fd);
   if (res < 0)
     return res;
 
@@ -128,12 +128,20 @@ void uv_loadavg(double avg[3]) {
 }
 
 
-int uv_fs_event_init(uv_loop_t* loop,
-                     uv_fs_event_t* handle,
-                     const char* filename,
-                     uv_fs_event_cb cb,
-                     int flags) {
-  loop->counters.fs_event_init++;
+int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
+  return -ENOSYS;
+}
+
+
+int uv_fs_event_start(uv_fs_event_t* handle,
+                      uv_fs_event_cb cb,
+                      const char* filename,
+                      unsigned int flags) {
+  return -ENOSYS;
+}
+
+
+int uv_fs_event_stop(uv_fs_event_t* handle) {
   return -ENOSYS;
 }
 
@@ -179,7 +187,7 @@ int uv_resident_set_memory(size_t* rss) {
     *rss = (size_t)psinfo.pr_rssize * 1024;
     err = 0;
   }
-  close(fd);
+  uv__close(fd);
 
   return err;
 }
@@ -291,14 +299,14 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
   }
 
   if (ioctl(sockfd, SIOCGSIZIFCONF, &size) == -1) {
-    close(sockfd);
+    uv__close(sockfd);
     return -ENOSYS;
   }
 
   ifc.ifc_req = (struct ifreq*)malloc(size);
   ifc.ifc_len = size;
   if (ioctl(sockfd, SIOCGIFCONF, &ifc) == -1) {
-    close(sockfd);
+    uv__close(sockfd);
     return -ENOSYS;
   }
 
@@ -317,7 +325,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
 
     memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
     if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
-      close(sockfd);
+      uv__close(sockfd);
       return -ENOSYS;
     }
 
@@ -331,7 +339,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
   *addresses = (uv_interface_address_t*)
     malloc(*count * sizeof(uv_interface_address_t));
   if (!(*addresses)) {
-    close(sockfd);
+    uv__close(sockfd);
     return -ENOMEM;
   }
   address = *addresses;
@@ -348,7 +356,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
 
     memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
     if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
-      close(sockfd);
+      uv__close(sockfd);
       return -ENOSYS;
     }
 
@@ -374,7 +382,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
 
 #undef ADDR_SIZE
 
-  close(sockfd);
+  uv__close(sockfd);
   return 0;
 }
 

@@ -148,7 +148,9 @@ static void pinger_read_cb(uv_stream_t* tcp,
     if (pinger->state == 0) {
       pinger->pongs++;
       if (uv_now(loop) - start_time > TIME) {
-        uv_shutdown(&pinger->shutdown_req, (uv_stream_t*) tcp, pinger_shutdown_cb);
+        uv_shutdown(&pinger->shutdown_req,
+                    (uv_stream_t*) tcp,
+                    pinger_shutdown_cb);
         break;
       } else {
         pinger_write_ping(pinger);

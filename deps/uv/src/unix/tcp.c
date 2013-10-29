@@ -48,7 +48,7 @@ static int maybe_new_socket(uv_tcp_t* handle, int domain, int flags) {
 
   err = uv__stream_open((uv_stream_t*) handle, sockfd, flags);
   if (err) {
-    close(sockfd);
+    uv__close(sockfd);
     return err;
   }
 

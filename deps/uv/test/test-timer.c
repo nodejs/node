@@ -38,7 +38,7 @@ static void once_close_cb(uv_handle_t* handle) {
   printf("ONCE_CLOSE_CB\n");
 
   ASSERT(handle != NULL);
-  ASSERT(!uv_is_active(handle));
+  ASSERT(0 == uv_is_active(handle));
 
   once_close_cb_called++;
 }
@@ -49,7 +49,7 @@ static void once_cb(uv_timer_t* handle, int status) {
 
   ASSERT(handle != NULL);
   ASSERT(status == 0);
-  ASSERT(!uv_is_active((uv_handle_t*)handle));
+  ASSERT(0 == uv_is_active((uv_handle_t*) handle));
 
   once_cb_called++;
 
@@ -74,7 +74,7 @@ static void repeat_cb(uv_timer_t* handle, int status) {
 
   ASSERT(handle != NULL);
   ASSERT(status == 0);
-  ASSERT(uv_is_active((uv_handle_t*)handle));
+  ASSERT(1 == uv_is_active((uv_handle_t*) handle));
 
   repeat_cb_called++;
 
@@ -163,7 +163,7 @@ TEST_IMPL(timer_init) {
 
   ASSERT(0 == uv_timer_init(uv_default_loop(), &handle));
   ASSERT(0 == uv_timer_get_repeat(&handle));
-  ASSERT(!uv_is_active((uv_handle_t*)&handle));
+  ASSERT(0 == uv_is_active((uv_handle_t*) &handle));
 
   MAKE_VALGRIND_HAPPY();
   return 0;

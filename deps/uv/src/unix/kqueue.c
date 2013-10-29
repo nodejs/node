@@ -296,23 +296,30 @@ static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
 }
 
 
-int uv_fs_event_init(uv_loop_t* loop,
-                     uv_fs_event_t* handle,
-                     const char* filename,
-                     uv_fs_event_cb cb,
-                     int flags) {
+int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
+  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
+  return 0;
+}
+
+
+int uv_fs_event_start(uv_fs_event_t* handle,
+                      uv_fs_event_cb cb,
+                      const char* filename,
+                      unsigned int flags) {
 #if defined(__APPLE__)
   struct stat statbuf;
 #endif /* defined(__APPLE__) */
   int fd;
+
+  if (uv__is_active(handle))
+    return -EINVAL;
 
   /* TODO open asynchronously - but how do we report back errors? */
   fd = open(filename, O_RDONLY);
   if (fd == -1)
     return -errno;
 
-  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
-  uv__handle_start(handle); /* FIXME shouldn't start automatically */
+  uv__handle_start(handle);
   uv__io_init(&handle->event_watcher, uv__fs_event, fd);
   handle->filename = strdup(filename);
   handle->cb = cb;
@@ -335,13 +342,18 @@ int uv_fs_event_init(uv_loop_t* loop,
 fallback:
 #endif /* defined(__APPLE__) */
 
-  uv__io_start(loop, &handle->event_watcher, UV__POLLIN);
+  uv__io_start(handle->loop, &handle->event_watcher, UV__POLLIN);
 
   return 0;
 }
 
 
-void uv__fs_event_close(uv_fs_event_t* handle) {
+int uv_fs_event_stop(uv_fs_event_t* handle) {
+  if (!uv__is_active(handle))
+    return -EINVAL;
+
+  uv__handle_stop(handle);
+
 #if defined(__APPLE__)
   if (uv__fsevents_close(handle))
     uv__io_stop(handle->loop, &handle->event_watcher, UV__POLLIN);
@@ -349,11 +361,16 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
   uv__io_stop(handle->loop, &handle->event_watcher, UV__POLLIN);
 #endif /* defined(__APPLE__) */
 
-  uv__handle_stop(handle);
-
   free(handle->filename);
   handle->filename = NULL;
 
-  close(handle->event_watcher.fd);
+  uv__close(handle->event_watcher.fd);
   handle->event_watcher.fd = -1;
+
+  return 0;
+}
+
+
+void uv__fs_event_close(uv_fs_event_t* handle) {
+  uv_fs_event_stop(handle);
 }

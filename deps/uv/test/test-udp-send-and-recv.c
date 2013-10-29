@@ -54,7 +54,7 @@ static void alloc_cb(uv_handle_t* handle,
 
 static void close_cb(uv_handle_t* handle) {
   CHECK_HANDLE(handle);
-  ASSERT(uv_is_closing(handle));
+  ASSERT(1 == uv_is_closing(handle));
   close_cb_called++;
 }
 

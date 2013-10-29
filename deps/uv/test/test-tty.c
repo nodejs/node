@@ -65,12 +65,16 @@ TEST_IMPL(tty) {
 
 #else /* unix */
   ttyin_fd = open("/dev/tty", O_RDONLY, 0);
-  if (ttyin_fd < 0)
+  if (ttyin_fd < 0) {
     LOGF("Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    return TEST_SKIP;
+  }
 
   ttyout_fd = open("/dev/tty", O_WRONLY, 0);
-  if (ttyout_fd < 0)
+  if (ttyout_fd < 0) {
     LOGF("Cannot open /dev/tty as write-only: %s\n", strerror(errno));
+    return TEST_SKIP;
+  }
 #endif
 
   ASSERT(ttyin_fd >= 0);

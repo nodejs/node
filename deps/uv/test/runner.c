@@ -410,7 +410,8 @@ static int compare_task(const void* va, const void* vb) {
 }
 
 
-static int find_helpers(const task_entry_t* task, const task_entry_t** helpers) {
+static int find_helpers(const task_entry_t* task,
+                        const task_entry_t** helpers) {
   const task_entry_t* helper;
   int n_helpers;
 

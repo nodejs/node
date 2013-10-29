@@ -21,6 +21,7 @@
 
 #include "uv.h"
 #include "internal.h"
+#include "spinlock.h"
 
 #include <assert.h>
 #include <unistd.h>
@@ -28,9 +29,9 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 
-
 static int orig_termios_fd = -1;
 static struct termios orig_termios;
+static uv_spinlock_t termios_spinlock = UV_SPINLOCK_INITIALIZER;
 
 
 int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
@@ -64,18 +65,17 @@ int uv_tty_set_mode(uv_tty_t* tty, int mode) {
 
   fd = uv__stream_fd(tty);
 
-  if (mode && tty->mode == 0) {
-    /* on */
-
-    if (tcgetattr(fd, &tty->orig_termios)) {
-      goto fatal;
-    }
+  if (mode && tty->mode == 0) {  /* on */
+    if (tcgetattr(fd, &tty->orig_termios))
+      return -errno;
 
     /* This is used for uv_tty_reset_mode() */
+    uv_spinlock_lock(&termios_spinlock);
     if (orig_termios_fd == -1) {
       orig_termios = tty->orig_termios;
       orig_termios_fd = fd;
     }
+    uv_spinlock_unlock(&termios_spinlock);
 
     raw = tty->orig_termios;
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
@@ -86,26 +86,18 @@ int uv_tty_set_mode(uv_tty_t* tty, int mode) {
     raw.c_cc[VTIME] = 0;
 
     /* Put terminal in raw mode after draining */
-    if (tcsetattr(fd, TCSADRAIN, &raw)) {
-      goto fatal;
-    }
+    if (tcsetattr(fd, TCSADRAIN, &raw))
+      return -errno;
 
     tty->mode = 1;
-    return 0;
-  } else if (mode == 0 && tty->mode) {
-    /* off */
-
+  } else if (mode == 0 && tty->mode) {  /* off */
     /* Put terminal in original mode after flushing */
-    if (tcsetattr(fd, TCSAFLUSH, &tty->orig_termios)) {
-      goto fatal;
-    }
-
+    if (tcsetattr(fd, TCSAFLUSH, &tty->orig_termios))
+      return -errno;
     tty->mode = 0;
-    return 0;
   }
 
-fatal:
-  return -errno;
+  return 0;
 }
 
 
@@ -172,8 +164,21 @@ uv_handle_type uv_guess_handle(uv_file file) {
 }
 
 
-void uv_tty_reset_mode(void) {
-  if (orig_termios_fd >= 0) {
-    tcsetattr(orig_termios_fd, TCSANOW, &orig_termios);
-  }
+/* This function is async signal-safe, meaning that it's safe to call from
+ * inside a signal handler _unless_ execution was inside uv_tty_set_mode()'s
+ * critical section when the signal was raised.
+ */
+int uv_tty_reset_mode(void) {
+  int err;
+
+  if (!uv_spinlock_trylock(&termios_spinlock))
+    return -EBUSY;  /* In uv_tty_set_mode(). */
+
+  err = 0;
+  if (orig_termios_fd != -1)
+    if (tcsetattr(orig_termios_fd, TCSANOW, &orig_termios))
+      err = -errno;
+
+  uv_spinlock_unlock(&termios_spinlock);
+  return err;
 }

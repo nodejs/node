@@ -76,7 +76,7 @@ typedef struct uv__cf_loop_state_s uv__cf_loop_state_t;
 struct uv__cf_loop_state_s {
   CFRunLoopRef loop;
   CFRunLoopSourceRef signal_source;
-  volatile int fsevent_need_reschedule;
+  int fsevent_need_reschedule;
   FSEventStreamRef fsevent_stream;
   uv_sem_t fsevent_sem;
   uv_mutex_t fsevent_mutex;
@@ -360,9 +360,13 @@ static void uv__fsevents_reschedule(uv_fs_event_t* handle) {
   /* Optimization to prevent O(n^2) time spent when starting to watch
    * many files simultaneously
    */
-  if (!state->fsevent_need_reschedule)
-    return;
+  uv_mutex_lock(&state->fsevent_mutex);
+  if (state->fsevent_need_reschedule == 0) {
+    uv_mutex_unlock(&state->fsevent_mutex);
+    goto final;
+  }
   state->fsevent_need_reschedule = 0;
+  uv_mutex_unlock(&state->fsevent_mutex);
 
   /* Destroy previous FSEventStream */
   uv__fsevents_destroy_stream(handle->loop);
@@ -399,13 +403,14 @@ static void uv__fsevents_reschedule(uv_fs_event_t* handle) {
     uv__fsevents_create_stream(handle->loop, cf_paths);
   }
 
+final:
   /*
    * Main thread will block until the removal of handle from the list,
    * we must tell it when we're ready.
    *
    * NOTE: This is coupled with `uv_sem_wait()` in `uv__fsevents_close`
    */
-  if (uv__is_closing(handle))
+  if (!uv__is_active(handle))
     uv_sem_post(&state->fsevent_sem);
 }
 
@@ -547,7 +552,7 @@ static int uv__fsevents_loop_init(uv_loop_t* loop) {
     attr = NULL;
 
   if (attr != NULL)
-    if (pthread_attr_setstacksize(attr, 3 * PTHREAD_STACK_MIN))
+    if (pthread_attr_setstacksize(attr, 4 * PTHREAD_STACK_MIN))
       abort();
 
   loop->cf_state = state;

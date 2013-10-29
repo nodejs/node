@@ -196,7 +196,8 @@ TEST_IMPL(timer_ref2) {
 
 TEST_IMPL(fs_event_ref) {
   uv_fs_event_t h;
-  uv_fs_event_init(uv_default_loop(), &h, ".", (uv_fs_event_cb)fail_cb, 0);
+  uv_fs_event_init(uv_default_loop(), &h);
+  uv_fs_event_start(&h, (uv_fs_event_cb)fail_cb, ".", 0);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
