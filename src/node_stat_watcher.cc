@@ -22,6 +22,8 @@
 #include "node_stat_watcher.h"
 #include "env.h"
 #include "env-inl.h"
+#include "util.h"
+#include "util-inl.h"
 #include "weak-object.h"
 #include "weak-object-inl.h"
 
@@ -112,7 +114,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   assert(args.Length() == 3);
   HandleScope scope(node_isolate);
 
-  StatWatcher* wrap = WeakObject::Unwrap<StatWatcher>(args.This());
+  StatWatcher* wrap = UnwrapObject<StatWatcher>(args.This());
   String::Utf8Value path(args[0]);
   const bool persistent = args[1]->BooleanValue();
   const uint32_t interval = args[2]->Uint32Value();
@@ -125,7 +127,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
 
 
 void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
-  StatWatcher* wrap = WeakObject::Unwrap<StatWatcher>(args.This());
+  StatWatcher* wrap = UnwrapObject<StatWatcher>(args.This());
   Environment* env = wrap->env();
   Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());

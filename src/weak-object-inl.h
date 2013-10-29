@@ -23,13 +23,17 @@
 #define SRC_WEAK_OBJECT_INL_H_
 
 #include "weak-object.h"
+#include "util.h"
+#include "util-inl.h"
 
 namespace node {
 
 WeakObject::WeakObject(v8::Isolate* isolate, v8::Local<v8::Object> object)
     : weak_object_(isolate, object) {
   weak_object_.MarkIndependent();
-  object->SetAlignedPointerInInternalField(kInternalFieldIndex, this);
+
+  // The pointer is resolved as void*.
+  WrapObject<WeakObject>(object, this);
   MakeWeak();
 }
 
@@ -46,15 +50,6 @@ void WeakObject::MakeWeak() {
 
 void WeakObject::ClearWeak() {
   weak_object_.ClearWeak();
-}
-
-template <typename TypeName>
-TypeName* WeakObject::Unwrap(v8::Local<v8::Object> object) {
-  // Cast to WeakObject* before casting to TypeName* avoids issues with classes
-  // that have multiple base classes.
-  void* p = object->GetAlignedPointerFromInternalField(kInternalFieldIndex);
-  WeakObject* w = static_cast<WeakObject*>(p);
-  return static_cast<TypeName*>(w);
 }
 
 void WeakObject::WeakCallback(v8::Isolate* isolate,

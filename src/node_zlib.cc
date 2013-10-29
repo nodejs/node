@@ -24,6 +24,8 @@
 
 #include "env.h"
 #include "env-inl.h"
+#include "util.h"
+#include "util-inl.h"
 #include "weak-object.h"
 #include "weak-object-inl.h"
 
@@ -122,7 +124,7 @@ class ZCtx : public WeakObject {
 
   static void Close(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    ZCtx* ctx = WeakObject::Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = UnwrapObject<ZCtx>(args.This());
     ctx->Close();
   }
 
@@ -132,7 +134,7 @@ class ZCtx : public WeakObject {
     HandleScope scope(node_isolate);
     assert(args.Length() == 7);
 
-    ZCtx* ctx = WeakObject::Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = UnwrapObject<ZCtx>(args.This());
     assert(ctx->init_done_ && "write before init");
     assert(ctx->mode_ != NONE && "already finalized");
 
@@ -341,7 +343,7 @@ class ZCtx : public WeakObject {
     assert((args.Length() == 4 || args.Length() == 5) &&
            "init(windowBits, level, memLevel, strategy, [dictionary])");
 
-    ZCtx* ctx = WeakObject::Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = UnwrapObject<ZCtx>(args.This());
 
     int windowBits = args[0]->Uint32Value();
     assert((windowBits >= 8 && windowBits <= 15) && "invalid windowBits");
@@ -380,7 +382,7 @@ class ZCtx : public WeakObject {
 
     assert(args.Length() == 2 && "params(level, strategy)");
 
-    ZCtx* ctx = WeakObject::Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = UnwrapObject<ZCtx>(args.This());
 
     Params(ctx, args[0]->Int32Value(), args[1]->Int32Value());
   }
@@ -388,7 +390,7 @@ class ZCtx : public WeakObject {
   static void Reset(const FunctionCallbackInfo<Value> &args) {
     HandleScope scope(node_isolate);
 
-    ZCtx* ctx = WeakObject::Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = UnwrapObject<ZCtx>(args.This());
 
     Reset(ctx);
     SetDictionary(ctx);

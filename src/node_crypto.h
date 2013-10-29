@@ -275,7 +275,7 @@ class Connection : public SSLWrap<Connection>, public WeakObject {
   void SetShutdownFlags();
 
   static Connection* Unwrap(v8::Local<v8::Object> object) {
-    Connection* conn = WeakObject::Unwrap<Connection>(object);
+    Connection* conn = UnwrapObject<Connection>(object);
     conn->ClearError();
     return conn;
   }

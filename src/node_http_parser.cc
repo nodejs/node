@@ -25,6 +25,8 @@
 
 #include "env.h"
 #include "env-inl.h"
+#include "util.h"
+#include "util-inl.h"
 #include "weak-object.h"
 #include "weak-object-inl.h"
 #include "v8.h"
@@ -362,7 +364,7 @@ class Parser : public WeakObject {
   static void Execute(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
-    Parser* parser = WeakObject::Unwrap<Parser>(args.This());
+    Parser* parser = UnwrapObject<Parser>(args.This());
     assert(parser->current_buffer_.IsEmpty());
     assert(parser->current_buffer_len_ == 0);
     assert(parser->current_buffer_data_ == NULL);
@@ -417,7 +419,7 @@ class Parser : public WeakObject {
   static void Finish(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
 
-    Parser* parser = WeakObject::Unwrap<Parser>(args.This());
+    Parser* parser = UnwrapObject<Parser>(args.This());
 
     assert(parser->current_buffer_.IsEmpty());
     parser->got_exception_ = false;
@@ -451,7 +453,7 @@ class Parser : public WeakObject {
         static_cast<http_parser_type>(args[0]->Int32Value());
 
     assert(type == HTTP_REQUEST || type == HTTP_RESPONSE);
-    Parser* parser = WeakObject::Unwrap<Parser>(args.This());
+    Parser* parser = UnwrapObject<Parser>(args.This());
     // Should always be called from the same context.
     assert(env == parser->env());
     parser->Init(type);
@@ -462,7 +464,7 @@ class Parser : public WeakObject {
   static void Pause(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
-    Parser* parser = WeakObject::Unwrap<Parser>(args.This());
+    Parser* parser = UnwrapObject<Parser>(args.This());
     // Should always be called from the same context.
     assert(env == parser->env());
     http_parser_pause(&parser->parser_, should_pause);

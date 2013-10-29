@@ -575,7 +575,7 @@ class ContextifyScript : public WeakObject {
     }
 
     ContextifyScript* wrapped_script =
-        WeakObject::Unwrap<ContextifyScript>(args.This());
+        UnwrapObject<ContextifyScript>(args.This());
     Local<Script> script = PersistentToLocal(node_isolate,
                                              wrapped_script->script_);
 

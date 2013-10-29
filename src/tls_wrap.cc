@@ -60,7 +60,7 @@ TLSCallbacks::TLSCallbacks(Environment* env,
                            Kind kind,
                            Handle<Object> sc,
                            StreamWrapCallbacks* old)
-    : SSLWrap<TLSCallbacks>(env, WeakObject::Unwrap<SecureContext>(sc), kind),
+    : SSLWrap<TLSCallbacks>(env, UnwrapObject<SecureContext>(sc), kind),
       StreamWrapCallbacks(old),
       enc_in_(NULL),
       enc_out_(NULL),
@@ -72,7 +72,7 @@ TLSCallbacks::TLSCallbacks(Environment* env,
       shutdown_(false) {
 
   // Persist SecureContext
-  sc_ = WeakObject::Unwrap<SecureContext>(sc);
+  sc_ = UnwrapObject<SecureContext>(sc);
   sc_handle_.Reset(node_isolate, sc);
 
   Local<Object> object = env->tls_wrap_constructor_function()->NewInstance();
@@ -694,7 +694,7 @@ int TLSCallbacks::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
     p->sni_context_.Dispose();
     p->sni_context_.Reset(node_isolate, ctx);
 
-    SecureContext* sc = WeakObject::Unwrap<SecureContext>(ctx.As<Object>());
+    SecureContext* sc = UnwrapObject<SecureContext>(ctx.As<Object>());
     SSL_set_SSL_CTX(s, sc->ctx_);
   }
 

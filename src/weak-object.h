@@ -28,10 +28,6 @@ namespace node {
 
 class WeakObject {
  public:
-  // FIXME(bnoordhuis) These methods are public only because the code base
-  // plays fast and loose with encapsulation.
-  template <typename TypeName>
-  inline static TypeName* Unwrap(v8::Local<v8::Object> object);
   // Returns the wrapped object.  Illegal to call in your destructor.
   inline v8::Local<v8::Object> weak_object(v8::Isolate* isolate) const;
  protected:
@@ -45,7 +41,6 @@ class WeakObject {
   inline static void WeakCallback(v8::Isolate* isolate,
                                   v8::Persistent<v8::Object>* persistent,
                                   WeakObject* self);
-  static const int kInternalFieldIndex = 0;
   v8::Persistent<v8::Object> weak_object_;
 };
 
