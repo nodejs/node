@@ -180,7 +180,7 @@ class ContextifyContext {
     HandleScope scope(node_isolate);
     Local<Object> wrapper =
         env->script_data_constructor_function()->NewInstance();
-    WrapObject<ContextifyContext>(wrapper, this);
+    Wrap<ContextifyContext>(wrapper, this);
     return scope.Close(wrapper);
   }
 
@@ -300,7 +300,7 @@ class ContextifyContext {
     HandleScope scope(node_isolate);
 
     ContextifyContext* ctx =
-        UnwrapObject<ContextifyContext>(args.Data().As<Object>());
+        Unwrap<ContextifyContext>(args.Data().As<Object>());
 
     Local<Object> sandbox = PersistentToLocal(node_isolate, ctx->sandbox_);
     Local<Value> rv = sandbox->GetRealNamedProperty(property);
@@ -324,7 +324,7 @@ class ContextifyContext {
     HandleScope scope(node_isolate);
 
     ContextifyContext* ctx =
-        UnwrapObject<ContextifyContext>(args.Data().As<Object>());
+        Unwrap<ContextifyContext>(args.Data().As<Object>());
 
     PersistentToLocal(node_isolate, ctx->sandbox_)->Set(property, value);
   }
@@ -336,7 +336,7 @@ class ContextifyContext {
     HandleScope scope(node_isolate);
 
     ContextifyContext* ctx =
-        UnwrapObject<ContextifyContext>(args.Data().As<Object>());
+        Unwrap<ContextifyContext>(args.Data().As<Object>());
 
     Local<Object> sandbox = PersistentToLocal(node_isolate, ctx->sandbox_);
     Local<Object> proxy_global = PersistentToLocal(node_isolate,
@@ -357,7 +357,7 @@ class ContextifyContext {
     HandleScope scope(node_isolate);
 
     ContextifyContext* ctx =
-        UnwrapObject<ContextifyContext>(args.Data().As<Object>());
+        Unwrap<ContextifyContext>(args.Data().As<Object>());
 
     bool success = PersistentToLocal(node_isolate,
                                      ctx->sandbox_)->Delete(property);
@@ -374,7 +374,7 @@ class ContextifyContext {
     HandleScope scope(node_isolate);
 
     ContextifyContext* ctx =
-        UnwrapObject<ContextifyContext>(args.Data().As<Object>());
+        Unwrap<ContextifyContext>(args.Data().As<Object>());
 
     Local<Object> sandbox = PersistentToLocal(node_isolate, ctx->sandbox_);
     args.GetReturnValue().Set(sandbox->GetPropertyNames());
@@ -575,7 +575,7 @@ class ContextifyScript : public WeakObject {
     }
 
     ContextifyScript* wrapped_script =
-        UnwrapObject<ContextifyScript>(args.This());
+        Unwrap<ContextifyScript>(args.This());
     Local<Script> script = PersistentToLocal(node_isolate,
                                              wrapped_script->script_);
 

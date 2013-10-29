@@ -81,14 +81,14 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 }
 
 template <typename TypeName>
-void WrapObject(v8::Local<v8::Object> object, TypeName* pointer) {
+void Wrap(v8::Local<v8::Object> object, TypeName* pointer) {
   assert(!object.IsEmpty());
   assert(object->InternalFieldCount() > 0);
   object->SetAlignedPointerInInternalField(0, pointer);
 }
 
 template <typename TypeName>
-TypeName* UnwrapObject(v8::Local<v8::Object> object) {
+TypeName* Unwrap(v8::Local<v8::Object> object) {
   assert(!object.IsEmpty());
   assert(object->InternalFieldCount() > 0);
   void* pointer = object->GetAlignedPointerFromInternalField(0);

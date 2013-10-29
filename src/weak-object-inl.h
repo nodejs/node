@@ -33,7 +33,7 @@ WeakObject::WeakObject(v8::Isolate* isolate, v8::Local<v8::Object> object)
   weak_object_.MarkIndependent();
 
   // The pointer is resolved as void*.
-  WrapObject<WeakObject>(object, this);
+  Wrap<WeakObject>(object, this);
   MakeWeak();
 }
 

@@ -110,7 +110,7 @@ class ProcessWrap : public HandleWrap {
         Local<Object> handle = stdio->Get(handle_key).As<Object>();
         options->stdio[i].data.stream =
             reinterpret_cast<uv_stream_t*>(
-                UnwrapObject<PipeWrap>(handle)->UVHandle());
+                Unwrap<PipeWrap>(handle)->UVHandle());
       } else if (type->Equals(FIXED_ONE_BYTE_STRING(node_isolate, "wrap"))) {
         Local<String> handle_key =
             FIXED_ONE_BYTE_STRING(node_isolate, "handle");
@@ -133,7 +133,7 @@ class ProcessWrap : public HandleWrap {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
 
-    ProcessWrap* wrap = UnwrapObject<ProcessWrap>(args.This());
+    ProcessWrap* wrap = Unwrap<ProcessWrap>(args.This());
 
     Local<Object> js_options = args[0]->ToObject();
 
@@ -261,7 +261,7 @@ class ProcessWrap : public HandleWrap {
 
   static void Kill(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    ProcessWrap* wrap = UnwrapObject<ProcessWrap>(args.This());
+    ProcessWrap* wrap = Unwrap<ProcessWrap>(args.This());
 
     int signal = args[0]->Int32Value();
     int err = uv_process_kill(&wrap->process_, signal);

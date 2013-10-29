@@ -77,10 +77,10 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const unsigned char* data,
                                            int length = -1);
 
-inline static void WrapObject(v8::Local<v8::Object> object, void* pointer);
+inline void Wrap(v8::Local<v8::Object> object, void* pointer);
 
 template <typename TypeName>
-inline static TypeName* UnwrapObject(v8::Local<v8::Object> object);
+inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
 }  // namespace node
 

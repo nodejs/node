@@ -139,7 +139,7 @@ PipeWrap::PipeWrap(Environment* env, Handle<Object> object, bool ipc)
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  PipeWrap* wrap = UnwrapObject<PipeWrap>(args.This());
+  PipeWrap* wrap = Unwrap<PipeWrap>(args.This());
 
   String::AsciiValue name(args[0]);
   int err = uv_pipe_bind(&wrap->handle_, *name);
@@ -151,7 +151,7 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  PipeWrap* wrap = UnwrapObject<PipeWrap>(args.This());
+  PipeWrap* wrap = Unwrap<PipeWrap>(args.This());
 
   int instances = args[0]->Int32Value();
 
@@ -163,7 +163,7 @@ void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
 void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  PipeWrap* wrap = UnwrapObject<PipeWrap>(args.This());
+  PipeWrap* wrap = Unwrap<PipeWrap>(args.This());
 
   int backlog = args[0]->Int32Value();
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
@@ -205,7 +205,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
       env->pipe_constructor_template()->GetFunction()->NewInstance();
 
   // Unwrap the client javascript object.
-  PipeWrap* wrap = UnwrapObject<PipeWrap>(client_obj);
+  PipeWrap* wrap = Unwrap<PipeWrap>(client_obj);
   uv_stream_t* client_handle = reinterpret_cast<uv_stream_t*>(&wrap->handle_);
   if (uv_accept(handle, client_handle))
     return;
@@ -264,7 +264,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
 void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  PipeWrap* wrap = UnwrapObject<PipeWrap>(args.This());
+  PipeWrap* wrap = Unwrap<PipeWrap>(args.This());
 
   int fd = args[0]->Int32Value();
 
@@ -279,7 +279,7 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(args.GetIsolate());
 
-  PipeWrap* wrap = UnwrapObject<PipeWrap>(args.This());
+  PipeWrap* wrap = Unwrap<PipeWrap>(args.This());
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());

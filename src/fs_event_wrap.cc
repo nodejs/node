@@ -100,7 +100,7 @@ void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  FSEventWrap* wrap = UnwrapObject<FSEventWrap>(args.This());
+  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.This());
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return ThrowTypeError("Bad arguments");
@@ -179,7 +179,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  FSEventWrap* wrap = UnwrapObject<FSEventWrap>(args.This());
+  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.This());
 
   if (wrap == NULL || wrap->initialized_ == false)
     return;
