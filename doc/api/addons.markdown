@@ -342,6 +342,7 @@ Here we expose the method `plusOne` by adding it to the constructor's
 prototype:
 
     #include <node.h>
+    #include <node_object_wrap.h>
     #include "myobject.h"
 
     using namespace v8;
@@ -490,12 +491,8 @@ The implementation is similar to the above in `myobject.cc`:
       // Prototype
       tpl->PrototypeTemplate()->Set(String::NewSymbol("plusOne"),
           FunctionTemplate::New(PlusOne)->GetFunction());
-<<<<<<< HEAD
 
       constructor = Persistent<Function>::New(isolate, tpl->GetFunction());
-=======
-      constructor = Persistent<Function>::New(tpl->GetFunction());
->>>>>>> upstream/v0.10
     }
 
     Handle<Value> MyObject::New(const Arguments& args) {
@@ -560,6 +557,7 @@ In the following `addon.cc` we introduce a function `add()` that can take on two
 `MyObject` objects:
 
     #include <node.h>
+    #include <node_object_wrap.h>
     #include "myobject.h"
 
     using namespace v8;
@@ -602,6 +600,7 @@ can probe private values after unwrapping the object:
     #define MYOBJECT_H
 
     #include <node.h>
+    #include <node_object_wrap.h>
 
     class MyObject : public node::ObjectWrap {
      public:
@@ -642,12 +641,8 @@ The implementation of `myobject.cc` is similar as before:
       Local<FunctionTemplate> tpl = FunctionTemplate::New(New);
       tpl->SetClassName(String::NewSymbol("MyObject"));
       tpl->InstanceTemplate()->SetInternalFieldCount(1);
-<<<<<<< HEAD
 
       constructor = Persistent<Function>::New(isolate, tpl->GetFunction());
-=======
-      constructor = Persistent<Function>::New(tpl->GetFunction());
->>>>>>> upstream/v0.10
     }
 
     Handle<Value> MyObject::New(const Arguments& args) {
