@@ -90,11 +90,6 @@ void TTYWrap::Initialize(Handle<Object> target,
 }
 
 
-TTYWrap* TTYWrap::Unwrap(Local<Object> obj) {
-  return UnwrapObject<TTYWrap>(obj);
-}
-
-
 uv_tty_t* TTYWrap::UVHandle() {
   return &handle_;
 }

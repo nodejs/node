@@ -30,7 +30,6 @@ namespace node {
 class TCPWrap : public StreamWrap {
  public:
   static v8::Local<v8::Object> Instantiate(Environment* env);
-  static TCPWrap* Unwrap(v8::Local<v8::Object> obj);
   static void Initialize(v8::Handle<v8::Object> target,
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);

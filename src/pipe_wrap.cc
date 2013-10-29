@@ -69,11 +69,6 @@ Local<Object> PipeWrap::Instantiate(Environment* env) {
 }
 
 
-PipeWrap* PipeWrap::Unwrap(Local<Object> obj) {
-  return UnwrapObject<PipeWrap>(obj);
-}
-
-
 void PipeWrap::Initialize(Handle<Object> target,
                           Handle<Value> unused,
                           Handle<Context> context) {

@@ -121,11 +121,6 @@ void TCPWrap::Initialize(Handle<Object> target,
 }
 
 
-TCPWrap* TCPWrap::Unwrap(Local<Object> obj) {
-  return UnwrapObject<TCPWrap>(obj);
-}
-
-
 uv_tcp_t* TCPWrap::UVHandle() {
   return &handle_;
 }

@@ -427,11 +427,6 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 }
 
 
-UDPWrap* UDPWrap::Unwrap(Local<Object> obj) {
-  return UnwrapObject<UDPWrap>(obj);
-}
-
-
 Local<Object> UDPWrap::Instantiate(Environment* env) {
   // If this assert fires then Initialize hasn't been called yet.
   assert(env->udp_constructor_function().IsEmpty() == false);

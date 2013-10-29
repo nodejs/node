@@ -274,12 +274,6 @@ class Connection : public SSLWrap<Connection>, public WeakObject {
   void ClearError();
   void SetShutdownFlags();
 
-  static Connection* Unwrap(v8::Local<v8::Object> object) {
-    Connection* conn = UnwrapObject<Connection>(object);
-    conn->ClearError();
-    return conn;
-  }
-
   Connection(Environment* env,
              v8::Local<v8::Object> wrap,
              SecureContext* sc,

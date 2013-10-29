@@ -28,6 +28,8 @@
 #include "tcp_wrap.h"
 #include "tty_wrap.h"
 #include "udp_wrap.h"
+#include "util.h"
+#include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
 
@@ -37,15 +39,15 @@ namespace node {
     do {                                                                      \
       if (env->tcp_constructor_template().IsEmpty() == false &&               \
           env->tcp_constructor_template()->HasInstance(obj)) {                \
-        TCPWrap* const wrap = TCPWrap::Unwrap(obj);                           \
+        TCPWrap* const wrap = UnwrapObject<TCPWrap>(obj);                     \
         BODY                                                                  \
       } else if (env->tty_constructor_template().IsEmpty() == false &&        \
                  env->tty_constructor_template()->HasInstance(obj)) {         \
-        TTYWrap* const wrap = TTYWrap::Unwrap(obj);                           \
+        TTYWrap* const wrap = UnwrapObject<TTYWrap>(obj);                     \
         BODY                                                                  \
       } else if (env->pipe_constructor_template().IsEmpty() == false &&       \
                  env->pipe_constructor_template()->HasInstance(obj)) {        \
-        PipeWrap* const wrap = PipeWrap::Unwrap(obj);                         \
+        PipeWrap* const wrap = UnwrapObject<PipeWrap>(obj);                   \
         BODY                                                                  \
       }                                                                       \
     } while (0)

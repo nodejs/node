@@ -32,7 +32,6 @@ class PipeWrap : public StreamWrap {
   uv_pipe_t* UVHandle();
 
   static v8::Local<v8::Object> Instantiate(Environment* env);
-  static PipeWrap* Unwrap(v8::Local<v8::Object> obj);
   static void Initialize(v8::Handle<v8::Object> target,
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);

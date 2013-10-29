@@ -33,7 +33,6 @@ class TTYWrap : public StreamWrap {
   static void Initialize(v8::Handle<v8::Object> target,
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
-  static TTYWrap* Unwrap(v8::Local<v8::Object> obj);
 
   uv_tty_t* UVHandle();
 

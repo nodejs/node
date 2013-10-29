@@ -52,7 +52,6 @@ class UDPWrap: public HandleWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetBroadcast(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static UDPWrap* Unwrap(v8::Local<v8::Object> obj);
 
   static v8::Local<v8::Object> Instantiate(Environment* env);
   uv_udp_t* UVHandle();

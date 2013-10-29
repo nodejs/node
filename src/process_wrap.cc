@@ -110,7 +110,7 @@ class ProcessWrap : public HandleWrap {
         Local<Object> handle = stdio->Get(handle_key).As<Object>();
         options->stdio[i].data.stream =
             reinterpret_cast<uv_stream_t*>(
-                PipeWrap::Unwrap(handle)->UVHandle());
+                UnwrapObject<PipeWrap>(handle)->UVHandle());
       } else if (type->Equals(FIXED_ONE_BYTE_STRING(node_isolate, "wrap"))) {
         Local<String> handle_key =
             FIXED_ONE_BYTE_STRING(node_isolate, "handle");
