@@ -22,6 +22,8 @@
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
+#include "util.h"
+#include "util-inl.h"
 
 #include <stdint.h>
 
@@ -89,8 +91,7 @@ class TimerWrap : public HandleWrap {
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    TimerWrap* wrap;
-    NODE_UNWRAP(args.This(), TimerWrap, wrap);
+    TimerWrap* wrap = UnwrapObject<TimerWrap>(args.This());
 
     int64_t timeout = args[0]->IntegerValue();
     int64_t repeat = args[1]->IntegerValue();
@@ -100,8 +101,7 @@ class TimerWrap : public HandleWrap {
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    TimerWrap* wrap;
-    NODE_UNWRAP(args.This(), TimerWrap, wrap);
+    TimerWrap* wrap = UnwrapObject<TimerWrap>(args.This());
 
     int err = uv_timer_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);
@@ -109,8 +109,7 @@ class TimerWrap : public HandleWrap {
 
   static void Again(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    TimerWrap* wrap;
-    NODE_UNWRAP(args.This(), TimerWrap, wrap);
+    TimerWrap* wrap = UnwrapObject<TimerWrap>(args.This());
 
     int err = uv_timer_again(&wrap->handle_);
     args.GetReturnValue().Set(err);
@@ -118,8 +117,7 @@ class TimerWrap : public HandleWrap {
 
   static void SetRepeat(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    TimerWrap* wrap;
-    NODE_UNWRAP(args.This(), TimerWrap, wrap);
+    TimerWrap* wrap = UnwrapObject<TimerWrap>(args.This());
 
     int64_t repeat = args[0]->IntegerValue();
     uv_timer_set_repeat(&wrap->handle_, repeat);
@@ -128,8 +126,7 @@ class TimerWrap : public HandleWrap {
 
   static void GetRepeat(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    TimerWrap* wrap;
-    NODE_UNWRAP(args.This(), TimerWrap, wrap);
+    TimerWrap* wrap = UnwrapObject<TimerWrap>(args.This());
 
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
     args.GetReturnValue().Set(static_cast<double>(repeat));

@@ -173,37 +173,6 @@ NO_RETURN void FatalError(const char* location, const char* message);
 
 v8::Local<v8::Object> BuildStatsObject(Environment* env, const uv_stat_t* s);
 
-#define NODE_WRAP(Object, Pointer)                                             \
-  do {                                                                         \
-    assert(!Object.IsEmpty());                                                 \
-    assert(Object->InternalFieldCount() > 0);                                  \
-    Object->SetAlignedPointerInInternalField(0, Pointer);                      \
-  }                                                                            \
-  while (0)
-
-#define NODE_UNWRAP(Object, TypeName, Var)                                     \
-  do {                                                                         \
-    assert(!Object.IsEmpty());                                                 \
-    assert(Object->InternalFieldCount() > 0);                                  \
-    Var = static_cast<TypeName*>(                                              \
-        Object->GetAlignedPointerFromInternalField(0));                        \
-    if (!Var) {                                                                \
-      fprintf(stderr, #TypeName ": Aborting due to unwrap failure at %s:%d\n", \
-              __FILE__, __LINE__);                                             \
-      abort();                                                                 \
-    }                                                                          \
-  }                                                                            \
-  while (0)
-
-#define NODE_UNWRAP_NO_ABORT(Object, TypeName, Var)                            \
-  do {                                                                         \
-    assert(!Object.IsEmpty());                                                 \
-    assert(Object->InternalFieldCount() > 0);                                  \
-    Var = static_cast<TypeName*>(                                              \
-        Object->GetAlignedPointerFromInternalField(0));                        \
-  }                                                                            \
-  while (0)
-
 enum Endianness {
   kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
   kBigEndian

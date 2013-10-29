@@ -22,6 +22,8 @@
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
+#include "util.h"
+#include "util-inl.h"
 #include "v8.h"
 
 namespace node {
@@ -78,8 +80,7 @@ class SignalWrap : public HandleWrap {
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    SignalWrap* wrap;
-    NODE_UNWRAP(args.This(), SignalWrap, wrap);
+    SignalWrap* wrap = UnwrapObject<SignalWrap>(args.This());
 
     int signum = args[0]->Int32Value();
     int err = uv_signal_start(&wrap->handle_, OnSignal, signum);
@@ -88,8 +89,7 @@ class SignalWrap : public HandleWrap {
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
     HandleScope scope(node_isolate);
-    SignalWrap* wrap;
-    NODE_UNWRAP(args.This(), SignalWrap, wrap);
+    SignalWrap* wrap = UnwrapObject<SignalWrap>(args.This());
 
     int err = uv_signal_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);

@@ -30,6 +30,8 @@
 #include "env.h"
 #include "env-inl.h"
 #include "string_bytes.h"
+#include "util.h"
+#include "util-inl.h"
 #include "v8.h"
 
 #include <errno.h>
@@ -761,8 +763,7 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 #if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_get_tlsext_ticket_keys)
   HandleScope handle_scope(args.GetIsolate());
 
-  SecureContext* wrap;
-  NODE_UNWRAP(args.This(), SecureContext, wrap);
+  SecureContext* wrap = UnwrapObject<SecureContext>(args.This());
 
   Local<Object> buff = Buffer::New(wrap->env(), 48);
   if (SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_,
@@ -786,8 +787,7 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
     return ThrowTypeError("Bad argument");
   }
 
-  SecureContext* wrap;
-  NODE_UNWRAP(args.This(), SecureContext, wrap);
+  SecureContext* wrap = UnwrapObject<SecureContext>(args.This());
 
   if (SSL_CTX_set_tlsext_ticket_keys(wrap->ctx_,
                                      Buffer::Data(args[0]),
@@ -915,8 +915,7 @@ void SSLWrap<Base>::GetPeerCertificate(
     const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
   Environment* env = w->env();
 
   Local<Object> info = Object::New();
@@ -1050,8 +1049,7 @@ template <class Base>
 void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
 
   SSL_SESSION* sess = SSL_get_session(w->ssl_);
   if (sess == NULL)
@@ -1072,8 +1070,7 @@ template <class Base>
 void SSLWrap<Base>::SetSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
 
   if (args.Length() < 1 ||
       (!args[0]->IsString() && !Buffer::HasInstance(args[0]))) {
@@ -1111,8 +1108,7 @@ template <class Base>
 void SSLWrap<Base>::LoadSession(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
   Environment* env = w->env();
 
   if (args.Length() >= 1 && Buffer::HasInstance(args[0])) {
@@ -1144,8 +1140,7 @@ void SSLWrap<Base>::LoadSession(const FunctionCallbackInfo<Value>& args) {
 template <class Base>
 void SSLWrap<Base>::IsSessionReused(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
   bool yes = SSL_session_reused(w->ssl_);
   args.GetReturnValue().Set(yes);
 }
@@ -1154,8 +1149,7 @@ void SSLWrap<Base>::IsSessionReused(const FunctionCallbackInfo<Value>& args) {
 template <class Base>
 void SSLWrap<Base>::ReceivedShutdown(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
   bool yes = SSL_get_shutdown(w->ssl_) == SSL_RECEIVED_SHUTDOWN;
   args.GetReturnValue().Set(yes);
 }
@@ -1164,8 +1158,7 @@ void SSLWrap<Base>::ReceivedShutdown(const FunctionCallbackInfo<Value>& args) {
 template <class Base>
 void SSLWrap<Base>::EndParser(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
   w->hello_parser_.End();
 }
 
@@ -1174,8 +1167,7 @@ template <class Base>
 void SSLWrap<Base>::Renegotiate(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
 
   ClearErrorOnReturn clear_error_on_return;
   (void) &clear_error_on_return;  // Silence unused variable warning.
@@ -1188,8 +1180,7 @@ void SSLWrap<Base>::Renegotiate(const FunctionCallbackInfo<Value>& args) {
 template <class Base>
 void SSLWrap<Base>::IsInitFinished(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
   bool yes = SSL_is_init_finished(w->ssl_);
   args.GetReturnValue().Set(yes);
 }
@@ -1200,8 +1191,7 @@ template <class Base>
 void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
 
   // XXX(indutny) Do this check in JS land?
   X509* peer_cert = SSL_get_peer_certificate(w->ssl_);
@@ -1267,8 +1257,7 @@ template <class Base>
 void SSLWrap<Base>::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
   Environment* env = w->env();
 
   OPENSSL_CONST SSL_CIPHER* c = SSL_get_current_cipher(w->ssl_);
@@ -1363,8 +1352,7 @@ void SSLWrap<Base>::GetNegotiatedProto(
     const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
 
   if (w->is_client()) {
     if (w->selected_npn_proto_.IsEmpty() == false) {
@@ -1390,8 +1378,7 @@ template <class Base>
 void SSLWrap<Base>::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  Base* w = NULL;
-  NODE_UNWRAP(args.This(), Base, w);
+  Base* w = UnwrapObject<Base>(args.This());
 
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Must give a Buffer as first argument");

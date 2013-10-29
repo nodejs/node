@@ -21,6 +21,8 @@
 
 #include "env.h"
 #include "env-inl.h"
+#include "util.h"
+#include "util-inl.h"
 #include "node.h"
 #include "handle_wrap.h"
 
@@ -98,8 +100,7 @@ void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  FSEventWrap* wrap;
-  NODE_UNWRAP(args.This(), FSEventWrap, wrap);
+  FSEventWrap* wrap = UnwrapObject<FSEventWrap>(args.This());
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return ThrowTypeError("Bad arguments");
@@ -178,8 +179,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  FSEventWrap* wrap;
-  NODE_UNWRAP_NO_ABORT(args.This(), FSEventWrap, wrap);
+  FSEventWrap* wrap = UnwrapObject<FSEventWrap>(args.This());
 
   if (wrap == NULL || wrap->initialized_ == false)
     return;

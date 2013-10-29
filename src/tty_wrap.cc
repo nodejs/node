@@ -28,6 +28,8 @@
 #include "node_wrap.h"
 #include "req_wrap.h"
 #include "stream_wrap.h"
+#include "util.h"
+#include "util-inl.h"
 
 namespace node {
 
@@ -89,9 +91,7 @@ void TTYWrap::Initialize(Handle<Object> target,
 
 
 TTYWrap* TTYWrap::Unwrap(Local<Object> obj) {
-  TTYWrap* wrap;
-  NODE_UNWRAP(obj, TTYWrap, wrap);
-  return wrap;
+  return UnwrapObject<TTYWrap>(obj);
 }
 
 
@@ -135,8 +135,7 @@ void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
 void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  TTYWrap* wrap;
-  NODE_UNWRAP(args.This(), TTYWrap, wrap);
+  TTYWrap* wrap = UnwrapObject<TTYWrap>(args.This());
   assert(args[0]->IsArray());
 
   int width, height;
@@ -155,8 +154,7 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
 void TTYWrap::SetRawMode(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  TTYWrap* wrap;
-  NODE_UNWRAP(args.This(), TTYWrap, wrap);
+  TTYWrap* wrap = UnwrapObject<TTYWrap>(args.This());
 
   int err = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
   args.GetReturnValue().Set(err);

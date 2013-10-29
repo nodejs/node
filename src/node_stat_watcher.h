@@ -22,11 +22,11 @@
 #ifndef SRC_NODE_STAT_WATCHER_H_
 #define SRC_NODE_STAT_WATCHER_H_
 
-#include "env.h"
 #include "node.h"
+#include "env.h"
+#include "weak-object.h"
 #include "uv.h"
 #include "v8.h"
-#include "weak-object.h"
 
 namespace node {
 

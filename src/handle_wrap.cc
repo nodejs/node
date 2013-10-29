@@ -22,6 +22,8 @@
 #include "handle_wrap.h"
 #include "env.h"
 #include "env-inl.h"
+#include "util.h"
+#include "util-inl.h"
 #include "node.h"
 #include "queue.h"
 
@@ -42,8 +44,7 @@ extern QUEUE handle_wrap_queue;
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  HandleWrap* wrap;
-  NODE_UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
+  HandleWrap* wrap = UnwrapObject<HandleWrap>(args.This());
 
   if (wrap != NULL && wrap->handle__ != NULL) {
     uv_ref(wrap->handle__);
@@ -55,8 +56,7 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
 void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  HandleWrap* wrap;
-  NODE_UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
+  HandleWrap* wrap = UnwrapObject<HandleWrap>(args.This());
 
   if (wrap != NULL && wrap->handle__ != NULL) {
     uv_unref(wrap->handle__);
@@ -68,8 +68,7 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
-  HandleWrap* wrap;
-  NODE_UNWRAP_NO_ABORT(args.This(), HandleWrap, wrap);
+  HandleWrap* wrap = UnwrapObject<HandleWrap>(args.This());
 
   // guard against uninitialized handle or double close
   if (wrap == NULL || wrap->handle__ == NULL)
@@ -96,7 +95,7 @@ HandleWrap::HandleWrap(Environment* env,
   handle__->data = this;
   HandleScope scope(node_isolate);
   persistent().Reset(node_isolate, object);
-  NODE_WRAP(object, this);
+  WrapObject<HandleWrap>(object, this);
   QUEUE_INSERT_TAIL(&handle_wrap_queue, &handle_wrap_queue_);
 }
 

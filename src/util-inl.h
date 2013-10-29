@@ -24,6 +24,8 @@
 
 #include "util.h"
 
+#include <assert.h>
+
 namespace node {
 
 template <class TypeName>
@@ -76,6 +78,21 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                     reinterpret_cast<const uint8_t*>(data),
                                     v8::String::kNormalString,
                                     length);
+}
+
+template <typename TypeName>
+void WrapObject(v8::Local<v8::Object> object, TypeName* pointer) {
+  assert(!object.IsEmpty());
+  assert(object->InternalFieldCount() > 0);
+  object->SetAlignedPointerInInternalField(0, pointer);
+}
+
+template <typename TypeName>
+TypeName* UnwrapObject(v8::Local<v8::Object> object) {
+  assert(!object.IsEmpty());
+  assert(object->InternalFieldCount() > 0);
+  void* pointer = object->GetAlignedPointerFromInternalField(0);
+  return static_cast<TypeName*>(pointer);
 }
 
 }  // namespace node
