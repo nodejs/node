@@ -388,10 +388,10 @@ void TLSCallbacks::ClearOut() {
 
   if (read == -1) {
     int err;
-    Handle<Value> argv = GetSSLError(read, &err);
+    Handle<Value> arg = GetSSLError(read, &err);
 
-    if (!argv.IsEmpty()) {
-      MakeCallback(env()->onerror_string(), 1, &argv);
+    if (!arg.IsEmpty()) {
+      MakeCallback(env()->onerror_string(), 1, &arg);
     }
   }
 }
@@ -424,9 +424,9 @@ bool TLSCallbacks::ClearIn() {
 
   // Error or partial write
   int err;
-  Handle<Value> argv = GetSSLError(written, &err);
-  if (!argv.IsEmpty()) {
-    MakeCallback(env()->onerror_string(), 1, &argv);
+  Handle<Value> arg = GetSSLError(written, &err);
+  if (!arg.IsEmpty()) {
+    MakeCallback(env()->onerror_string(), 1, &arg);
   }
 
   return false;
@@ -487,9 +487,9 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
     int err;
     Context::Scope context_scope(env()->context());
     HandleScope handle_scope(env()->isolate());
-    Handle<Value> argv = GetSSLError(written, &err);
-    if (!argv.IsEmpty()) {
-      MakeCallback(env()->onerror_string(), 1, &argv);
+    Handle<Value> arg = GetSSLError(written, &err);
+    if (!arg.IsEmpty()) {
+      MakeCallback(env()->onerror_string(), 1, &arg);
       return -1;
     }
 

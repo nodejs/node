@@ -3489,9 +3489,6 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
 
   if (args[4]->IsFunction()) {
     obj->Set(env->ondone_string(), args[4]);
-    // XXX(trevnorris): This will need to go with the rest of domains.
-    if (env->in_domain())
-      obj->Set(env->domain_string(), env->domain_array()->Get(0));
     uv_queue_work(env->event_loop(),
                   req->work_req(),
                   EIO_PBKDF2,
@@ -3653,9 +3650,6 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
 
   if (args[1]->IsFunction()) {
     obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "ondone"), args[1]);
-    // XXX(trevnorris): This will need to go with the rest of domains.
-    if (env->in_domain())
-      obj->Set(env->domain_string(), env->domain_array()->Get(0));
     uv_queue_work(env->event_loop(),
                   req->work_req(),
                   RandomBytesWork<pseudoRandom>,

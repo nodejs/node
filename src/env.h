@@ -66,7 +66,6 @@ namespace node {
   V(ctime_string, "ctime")                                                    \
   V(dev_string, "dev")                                                        \
   V(disposed_string, "_disposed")                                             \
-  V(domain_string, "domain")                                                  \
   V(enter_string, "enter")                                                    \
   V(errno_string, "errno")                                                    \
   V(exit_string, "exit")                                                      \
@@ -142,7 +141,6 @@ namespace node {
   V(binding_cache_object, v8::Object)                                         \
   V(buffer_constructor_function, v8::Function)                                \
   V(context, v8::Context)                                                     \
-  V(domain_array, v8::Array)                                                  \
   V(module_load_list_array, v8::Array)                                        \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
   V(process_object, v8::Object)                                               \
@@ -191,26 +189,6 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(AsyncListener);
   };
 
-  class DomainFlag {
-   public:
-    inline uint32_t* fields();
-    inline int fields_count() const;
-    inline uint32_t count() const;
-
-   private:
-    friend class Environment;  // So we can call the constructor.
-    inline DomainFlag();
-
-    enum Fields {
-      kCount,
-      kFieldsCount
-    };
-
-    uint32_t fields_[kFieldsCount];
-
-    DISALLOW_COPY_AND_ASSIGN(DomainFlag);
-  };
-
   class TickInfo {
    public:
     inline uint32_t* fields();
@@ -252,7 +230,6 @@ class Environment {
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
   inline bool has_async_listeners() const;
-  inline bool in_domain() const;
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
   inline uv_check_t* immediate_check_handle();
@@ -265,7 +242,6 @@ class Environment {
   inline uv_check_t* idle_check_handle();
 
   inline AsyncListener* async_listener();
-  inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
 
   static inline Environment* from_cares_timer_handle(uv_timer_t* handle);
@@ -276,9 +252,6 @@ class Environment {
 
   inline bool using_smalloc_alloc_cb() const;
   inline void set_using_smalloc_alloc_cb(bool value);
-
-  inline bool using_domains() const;
-  inline void set_using_domains(bool value);
 
   // Strings are shared across shared contexts. The getters simply proxy to
   // the per-isolate primitive.
@@ -310,13 +283,11 @@ class Environment {
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
   AsyncListener async_listener_count_;
-  DomainFlag domain_flag_;
   TickInfo tick_info_;
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;
   ares_task_list cares_task_list_;
   bool using_smalloc_alloc_cb_;
-  bool using_domains_;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;
