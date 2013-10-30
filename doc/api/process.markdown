@@ -647,4 +647,218 @@ a diff reading, useful for benchmarks and measuring intervals:
       // benchmark took 1000000527 nanoseconds
     }, 1000);
 
+
+## Async Listeners
+
+<!-- type=misc -->
+
+    Stability: 1 - Experimental
+
+The `AsyncListener` API is the JavaScript interface for the `AsyncWrap`
+class which allows developers to be notified about key events in the
+lifetime of an asynchronous event. Node performs a lot of asynchronous
+events internally, and significant use of this API will have a **dramatic
+performance impact** on your application.
+
+
+## process.createAsyncListener(asyncListener[, callbacksObj[, storageValue]])
+
+* `asyncListener` {Function} callback fired when an asynchronous event is
+instantiated.
+* `callbacksObj` {Object} optional callbacks that will fire at specific
+times in the lifetime of the asynchronous event.
+* `storageValue` {Value} a value that will be passed as the first argument
+when the `asyncListener` callback is run, and to all subsequent callback.
+
+Returns a constructed `AsyncListener` object.
+
+To begin capturing asynchronous events pass the object to
+[`process.addAsyncListener()`][]. The same `AsyncListener` instance can
+only be added once to the active queue, and subsequent attempts to add the
+instance will be ignored.
+
+To stop capturing pass the object to [`process.removeAsyncListener()`][].
+This does _not_ mean the `AsyncListener` previously added will stop
+triggering callbacks. Once attached to an asynchronous event it will
+persist with the lifetime of the asynchronous call stack.
+
+Explanation of function parameters:
+
+`asyncListener(storageValue)`: A `Function` called when an asynchronous
+event is instantiated. If a `Value` is returned then it will be attached
+to the event and overwrite any value that had been passed to
+`process.createAsyncListener()`'s `storageValue` argument. If an initial
+`storageValue` was passed when created, then `asyncListener()` will
+receive that as a function argument.
+
+`callbacksObj`: An `Object` which may contain three optional fields:
+
+* `before(context, storageValue)`: A `Function` that is called immediately
+before the asynchronous callback is about to run. It will be passed both
+the `context` (i.e. `this`) of the calling function and the `storageValue`
+either returned from `asyncListener` or passed during construction (if
+either occurred).
+
+* `after(context, storageValue)`: A `Function` called immediately after
+the asynchronous event's callback has run. Note this will not be called
+if the callback throws and the error is not handled.
+
+* `error(storageValue, error)`: A `Function` called if the event's
+callback threw. If `error` returns `true` then Node will assume the error
+has been properly handled and resume execution normally. When multiple
+`error()` callbacks have been registered, only **one** of those callbacks
+needs to return `true` for `AsyncListener` to accept that the error has
+been handled.
+
+`storageValue`: A `Value` (i.e. anything) that will be, by default,
+attached to all new event instances. This will be overwritten if a `Value`
+is returned by `asyncListener()`.
+
+Here is an example of overwriting the `storageValue`:
+
+    process.createAsyncListener(function listener(value) {
+      // value === true
+      return false;
+    }, {
+      before: function before(context, value) {
+        // value === false
+      }
+    }, true);
+
+**Note:** The [EventEmitter][], while used to emit status of an asynchronous
+event, is not itself asynchronous. So `asyncListener()` will not fire when
+an event is added, and `before`/`after` will not fire when emitted
+callbacks are called.
+
+
+## process.addAsyncListener(asyncListener[, callbacksObj[, storageValue]])
+## process.addAsyncListener(asyncListener)
+
+Returns a constructed `AsyncListener` object and immediately adds it to
+the listening queue to begin capturing asynchronous events.
+
+Function parameters can either be the same as
+[`process.createAsyncListener()`][], or a constructed `AsyncListener`
+object.
+
+Example usage for capturing errors:
+
+    var cntr = 0;
+    var key = process.addAsyncListener(function() {
+      return { uid: cntr++ };
+    }, {
+      before: function onBefore(context, storage) {
+        // Need to remove the listener while logging or will end up
+        // with an infinite call loop.
+        process.removeAsyncListener(key);
+        console.log('uid: %s is about to run', storage.uid);
+        process.addAsyncListener(key);
+      },
+      after: function onAfter(context, storage) {
+        process.removeAsyncListener(key);
+        console.log('uid: %s is about to run', storage.uid);
+        process.addAsyncListener(key);
+      },
+      error: function onError(storage, err) {
+        // Handle known errors
+        if (err.message === 'really, it\'s ok') {
+          process.removeAsyncListener(key);
+          console.log('handled error just threw:');
+          console.log(err.stack);
+          process.addAsyncListener(key);
+          return true;
+        }
+      }
+    });
+
+    process.nextTick(function() {
+      throw new Error('really, it\'s ok');
+    });
+
+    // Output:
+    // uid: 0 is about to run
+    // handled error just threw:
+    // Error: really, it's ok
+    //     at /tmp/test2.js:27:9
+    //     at process._tickCallback (node.js:583:11)
+    //     at Function.Module.runMain (module.js:492:11)
+    //     at startup (node.js:123:16)
+    //     at node.js:1012:3
+
+## process.removeAsyncListener(asyncListener)
+
+Removes the `AsyncListener` from the listening queue.
+
+Removing the `AsyncListener` from the queue does _not_ mean asynchronous
+events called during its execution scope will stop firing callbacks. Once
+attached to an event it will persist for the entire asynchronous call
+stack. For example:
+
+    var key = process.createAsyncListener(function asyncListener() {
+      // To log we must stop listening or we'll enter infinite recursion.
+      process.removeAsyncListener(key);
+      console.log('You summoned me?');
+      process.addAsyncListener(key);
+    });
+
+    // We want to begin capturing async events some time in the future.
+    setTimeout(function() {
+      process.addAsyncListener(key);
+
+      // Perform a few additional async events.
+      setTimeout(function() {
+        setImmediate(function() {
+          process.nextTick(function() { });
+        });
+      });
+
+      // Removing the listener doesn't mean to stop capturing events that
+      // have already been added.
+      process.removeAsyncListener(key);
+    }, 100);
+
+    // Output:
+    // You summoned me?
+    // You summoned me?
+    // You summoned me?
+    // You summoned me?
+
+The fact that we logged 4 asynchronous events is an implementation detail
+of Node's [Timers][].
+
+To stop capturing from a specific asynchronous event stack
+`process.removeAsyncListener()` must be called from within the call
+stack itself. For example:
+
+    var key = process.createAsyncListener(function asyncListener() {
+      // To log we must stop listening or we'll enter infinite recursion.
+      process.removeAsyncListener(key);
+      console.log('You summoned me?');
+      process.addAsyncListener(key);
+    });
+
+    // We want to begin capturing async events some time in the future.
+    setTimeout(function() {
+      process.addAsyncListener(key);
+
+      // Perform a few additional async events.
+      setImmediate(function() {
+        // Stop capturing from this call stack.
+        process.removeAsyncListener(key);
+
+        process.nextTick(function() { });
+      });
+    }, 100);
+
+    // Output:
+    // You summoned me?
+
+The user must be explicit and always pass the `AsyncListener` they wish
+to remove. It is not possible to simply remove all listeners at once.
+
+
 [EventEmitter]: events.html#events_class_events_eventemitter
+[Timers]: timers.html
+[`process.createAsyncListener()`]: #process_process_createasynclistener_asynclistener_callbacksobj_storagevalue
+[`process.addAsyncListener()`]: #process_process_addasynclistener_asynclistener
+[`process.removeAsyncListener()`]: #process_process_removeasynclistener_asynclistener

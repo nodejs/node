@@ -174,9 +174,9 @@ already been bound to a port or domain socket.
 Listening on a file descriptor is not supported on Windows.
 
 This function is asynchronous.  When the server has been bound,
-['listening'](#event_listening_) event will be emitted.
+['listening'][] event will be emitted.
 the last parameter `callback` will be added as an listener for the
-['listening'](#event_listening_) event.
+['listening'][] event.
 
 ### server.close([callback])
 
