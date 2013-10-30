@@ -1,3 +1,46 @@
+2013.10.30, Version 0.11.8 (Unstable)
+
+* uv: Upgrade to v0.11.14
+
+* v8: upgrade 3.21.18.3
+
+* assert: indicate if exception message is generated (Glen Mailer)
+
+* buffer: add buf.toArrayBuffer() API (Trevor Norris)
+
+* cluster: fix premature 'disconnect' event (Ben Noordhuis)
+
+* crypto: add SPKAC support (Jason Gerfen)
+
+* debugger: count space for line numbers correctly (Alex Kocharin)
+
+* debugger: make busy loops SIGUSR1-interruptible (Ben Noordhuis)
+
+* debugger: repeat last command (Alex Kocharin)
+
+* debugger: show current line, fix for #6150 (Alex Kocharin)
+
+* dgram: send() can accept strings (Trevor Norris)
+
+* dns: rename domain to hostname (Ben Noordhuis)
+
+* dns: set hostname property on error object (Ben Noordhuis)
+
+* dtrace, mdb_v8: support more string, frame types (Dave Pacheco)
+
+* http: add statusMessage (Patrik Stutz)
+
+* http: expose supported methods (Ben Noordhuis)
+
+* http: provide backpressure for pipeline flood (isaacs)
+
+* process: Add exitCode property (isaacs)
+
+* tls: socket.renegotiate(options, callback) (Fedor Indutny)
+
+* util: format as Error if instanceof Error (Rod Vagg)
+
+
 2013.08.21, Version 0.11.7 (Unstable), be52549bfa5311208b5fcdb3ba09210460fa9ceb
 
 * uv: upgrade to v0.11.13
