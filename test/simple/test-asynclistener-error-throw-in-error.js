@@ -23,7 +23,7 @@ var common = require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
 
-var checkStr = 'WRITTEN ON EXIT\n';
+var checkStr = 'WRITTEN ON EXIT';
 
 if (process.argv[2] === 'child')
   runChild();
@@ -76,10 +76,10 @@ function runParent() {
 
   process.on('exit', function() {
     process._rawDebug('child ondata message:',
-                childStr.substr(0, childStr.indexOf('\n')));
+                childStr.substr(0, checkStr.length));
 
     assert.ok(childDidExit);
-    assert.notEqual(childStr.indexOf(checkStr), -1);
+    assert.equal(childStr.substr(0, checkStr.length), checkStr);
     console.log('ok');
   });
 }
