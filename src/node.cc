@@ -2261,7 +2261,6 @@ void SetupProcessObject(Environment* env,
                         int exec_argc,
                         const char* const* exec_argv) {
   HandleScope scope(node_isolate);
-  int i, j;
 
   Local<Object> process = env->process_object();
 
@@ -2311,22 +2310,25 @@ void SetupProcessObject(Environment* env,
 
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
-  int c, l = strlen(OPENSSL_VERSION_TEXT);
-  for (i = j = 0; i < l; i++) {
-    c = OPENSSL_VERSION_TEXT[i];
-    if ('0' <= c && c <= '9') {
-      for (j = i + 1; j < l; j++) {
-        c = OPENSSL_VERSION_TEXT[j];
-        if (c == ' ')
-          break;
+  {
+    size_t i, j, k;
+    int c;
+    for (i = j = 0, k = sizeof(OPENSSL_VERSION_TEXT) - 1; i < k; ++i) {
+      c = OPENSSL_VERSION_TEXT[i];
+      if ('0' <= c && c <= '9') {
+        for (j = i + 1; j < k; ++j) {
+          c = OPENSSL_VERSION_TEXT[j];
+          if (c == ' ')
+            break;
+        }
+        break;
       }
-      break;
     }
+    READONLY_PROPERTY(
+        versions,
+        "openssl",
+        OneByteString(node_isolate, &OPENSSL_VERSION_TEXT[i], j - i));
   }
-  READONLY_PROPERTY(
-      versions,
-      "openssl",
-      OneByteString(node_isolate, &OPENSSL_VERSION_TEXT[i], j - i));
 #endif
 
   // process.arch
