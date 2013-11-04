@@ -24,9 +24,9 @@ var assert = require('assert');
 var net = require('net');
 var http = require('http');
 
-// Test that the PATCH and PURGE verbs get passed through correctly
+// Test that the DELETE, PATCH and PURGE verbs get passed through correctly
 
-['PATCH', 'PURGE'].forEach(function(method, index) {
+['DELETE', 'PATCH', 'PURGE'].forEach(function(method, index) {
   var port = common.PORT + index;
 
   var server_response = '';
