@@ -2310,7 +2310,7 @@ void SetupProcessObject(Environment* env,
 
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
-  {
+  {  // NOLINT(whitespace/braces)
     size_t i, j, k;
     int c;
     for (i = j = 0, k = sizeof(OPENSSL_VERSION_TEXT) - 1; i < k; ++i) {
