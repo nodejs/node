@@ -19,48 +19,69 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef SRC_WEAK_OBJECT_INL_H_
-#define SRC_WEAK_OBJECT_INL_H_
+#ifndef SRC_BASE_OBJECT_INL_H_
+#define SRC_BASE_OBJECT_INL_H_
 
-#include "weak-object.h"
-#include "async-wrap.h"
-#include "async-wrap-inl.h"
+#include "base-object.h"
 #include "util.h"
 #include "util-inl.h"
+#include "v8.h"
+
+#include <assert.h>
 
 namespace node {
 
-WeakObject::WeakObject(Environment* env, v8::Local<v8::Object> object)
-    : AsyncWrap(env, object) {
-  persistent().MarkIndependent();
-
-  // The pointer is resolved as void*.
-  Wrap<WeakObject>(object, this);
-  MakeWeak();
+inline BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
+    : handle_(env->isolate(), handle),
+      env_(env) {
+  assert(!handle.IsEmpty());
 }
 
-WeakObject::~WeakObject() {
+
+inline BaseObject::~BaseObject() {
+  assert(handle_.IsEmpty());
 }
 
-void WeakObject::MakeWeak() {
-  persistent().MakeWeak(this, WeakCallback);
+
+inline v8::Persistent<v8::Object>& BaseObject::persistent() {
+  return handle_;
 }
 
-void WeakObject::ClearWeak() {
-  persistent().ClearWeak();
+
+inline v8::Local<v8::Object> BaseObject::object() {
+  return PersistentToLocal(env_->isolate(), handle_);
 }
 
-void WeakObject::WeakCallback(v8::Isolate* isolate,
-                              v8::Persistent<v8::Object>* persistent,
-                              WeakObject* self) {
-  // Dispose now instead of in the destructor to avoid child classes that call
-  // `delete this` in their destructor from blowing up.
-  // Dispose the class member instead of the argument or else the IsEmpty()
-  // check in ~AsyncWrap will fail.
-  self->persistent().Dispose();
+
+inline Environment* BaseObject::env() const {
+  return env_;
+}
+
+
+template <typename Type>
+inline void BaseObject::WeakCallback(
+    const v8::WeakCallbackData<v8::Object, Type>& data) {
+  Type* self = data.GetParameter();
+  self->persistent().Reset();
   delete self;
+}
+
+
+template <typename Type>
+inline void BaseObject::MakeWeak(Type* ptr) {
+  v8::HandleScope scope(env_->isolate());
+  v8::Local<v8::Object> handle = object();
+  assert(handle->InternalFieldCount() > 0);
+  Wrap<Type>(handle, ptr);
+  handle_.MarkIndependent();
+  handle_.SetWeak<Type>(ptr, WeakCallback<Type>);
+}
+
+
+inline void BaseObject::ClearWeak() {
+  handle_.ClearWeak();
 }
 
 }  // namespace node
 
-#endif  // SRC_WEAK_OBJECT_INL_H_
+#endif  // SRC_BASE_OBJECT_INL_H_

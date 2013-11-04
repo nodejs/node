@@ -23,12 +23,12 @@
 #include "node_buffer.h"
 #include "node_http_parser.h"
 
+#include "base-object.h"
+#include "base-object-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
-#include "weak-object.h"
-#include "weak-object-inl.h"
 #include "v8.h"
 
 #include <stdlib.h>  // free()
@@ -163,12 +163,13 @@ struct StringPtr {
 };
 
 
-class Parser : public WeakObject {
+class Parser : public BaseObject {
  public:
   Parser(Environment* env, Local<Object> wrap, enum http_parser_type type)
-      : WeakObject(env, wrap),
+      : BaseObject(env, wrap),
         current_buffer_len_(0),
         current_buffer_data_(NULL) {
+    MakeWeak<Parser>(this);
     Init(type);
   }
 

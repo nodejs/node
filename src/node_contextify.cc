@@ -22,12 +22,12 @@
 #include "node.h"
 #include "node_internals.h"
 #include "node_watchdog.h"
+#include "base-object.h"
+#include "base-object-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
-#include "weak-object.h"
-#include "weak-object-inl.h"
 
 namespace node {
 
@@ -381,7 +381,7 @@ class ContextifyContext {
   }
 };
 
-class ContextifyScript : public WeakObject {
+class ContextifyScript : public BaseObject {
  private:
   Persistent<Script> script_;
 
@@ -607,7 +607,8 @@ class ContextifyScript : public WeakObject {
 
 
   ContextifyScript(Environment* env, Local<Object> object)
-      : WeakObject(env, object) {
+      : BaseObject(env, object) {
+    MakeWeak<ContextifyScript>(this);
   }
 
 

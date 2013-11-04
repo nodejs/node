@@ -20,12 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_stat_watcher.h"
+#include "async-wrap.h"
+#include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
-#include "weak-object.h"
-#include "weak-object-inl.h"
 
 #include <assert.h>
 #include <string.h>
@@ -66,8 +66,9 @@ static void Delete(uv_handle_t* handle) {
 
 
 StatWatcher::StatWatcher(Environment* env, Local<Object> wrap)
-    : WeakObject(env, wrap),
+    : AsyncWrap(env, wrap),
       watcher_(new uv_fs_poll_t) {
+  MakeWeak<StatWatcher>(this);
   uv_fs_poll_init(env->event_loop(), watcher_);
   watcher_->data = static_cast<void*>(this);
 }
@@ -135,7 +136,7 @@ void StatWatcher::Stop() {
   if (!uv_is_active(reinterpret_cast<uv_handle_t*>(watcher_)))
     return;
   uv_fs_poll_stop(watcher_);
-  MakeWeak();
+  MakeWeak<StatWatcher>(this);
 }
 
 

@@ -26,6 +26,8 @@
 #include "node_crypto_groups.h"
 #include "tls_wrap.h"  // TLSCallbacks
 
+#include "async-wrap.h"
+#include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "string_bytes.h"

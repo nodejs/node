@@ -22,12 +22,13 @@
 #ifndef SRC_ASYNC_WRAP_H_
 #define SRC_ASYNC_WRAP_H_
 
+#include "base-object.h"
 #include "env.h"
 #include "v8.h"
 
 namespace node {
 
-class AsyncWrap {
+class AsyncWrap : public BaseObject {
  public:
   enum AsyncFlags {
     NO_OPTIONS = 0,
@@ -48,14 +49,6 @@ class AsyncWrap {
   inline void remove_flag(unsigned int flag);
 
   inline bool has_async_queue();
-
-  inline Environment* env() const;
-
-  // Returns the wrapped object.  Illegal to call in your destructor.
-  inline v8::Local<v8::Object> object();
-
-  // Parent class is responsible to Dispose.
-  inline v8::Persistent<v8::Object>& persistent();
 
   // Only call these within a valid HandleScope.
   inline v8::Handle<v8::Value> MakeCallback(const v8::Handle<v8::Function> cb,
@@ -79,8 +72,6 @@ class AsyncWrap {
   static inline void RemoveAsyncListener(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  v8::Persistent<v8::Object> object_;
-  Environment* const env_;
   uint32_t async_flags_;
 };
 
