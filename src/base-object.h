@@ -40,6 +40,11 @@ class BaseObject {
 
   inline Environment* env() const;
 
+  // The handle_ must have an internal field count > 0, and the first
+  // index is reserved for a pointer to this class. This is an
+  // implicit requirement, but Node does not have a case where it's
+  // required that MakeWeak() be called and the internal field not
+  // be set.
   template <typename Type>
   inline void MakeWeak(Type* ptr);
 

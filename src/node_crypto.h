@@ -120,6 +120,8 @@ class SecureContext : public BaseObject {
   }
 };
 
+// SSLWrap implicitly depends on the inheriting class' handle having an
+// internal pointer to the Base class.
 template <class Base>
 class SSLWrap {
  public:
@@ -217,6 +219,9 @@ class SSLWrap {
   friend class SecureContext;
 };
 
+// Connection inherits from AsyncWrap because SSLWrap makes calls to
+// MakeCallback, but SSLWrap doesn't store the handle itself. Instead it
+// assumes that any args.This() called will be the handle from Connection.
 class Connection : public SSLWrap<Connection>, public AsyncWrap {
  public:
   ~Connection() {
