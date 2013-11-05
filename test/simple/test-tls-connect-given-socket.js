@@ -26,8 +26,8 @@ var net = require('net');
 var fs = require('fs');
 var path = require('path');
 
-var serverConnected = false;
-var clientConnected = false;
+var serverConnected = 0;
+var clientConnected = 0;
 
 var options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
@@ -35,31 +35,39 @@ var options = {
 };
 
 var server = tls.createServer(options, function(socket) {
-  serverConnected = true;
+  serverConnected++;
   socket.end('Hello');
 }).listen(common.PORT, function() {
-  var socket = net.connect({
-    port: common.PORT,
-    rejectUnauthorized: false
-  }, function() {
+  var waiting = 2;
+  function establish(socket) {
     var client = tls.connect({
       rejectUnauthorized: false,
       socket: socket
     }, function() {
-      clientConnected = true;
+      clientConnected++;
       var data = '';
       client.on('data', function(chunk) {
         data += chunk.toString();
       });
       client.on('end', function() {
         assert.equal(data, 'Hello');
-        server.close();
+        if (--waiting === 0)
+          server.close();
       });
     });
+  }
+
+  // Already connected socket
+  var connected = net.connect(common.PORT, function() {
+    establish(connected);
   });
+
+  // Connecting socket
+  var connecting = net.connect(common.PORT);
+  establish(connecting);
 });
 
 process.on('exit', function() {
-  assert(serverConnected);
-  assert(clientConnected);
+  assert.equal(serverConnected, 2);
+  assert.equal(clientConnected, 2);
 });
