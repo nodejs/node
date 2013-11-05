@@ -65,6 +65,8 @@ TLSCallbacks::TLSCallbacks(Environment* env,
     : SSLWrap<TLSCallbacks>(env, Unwrap<SecureContext>(sc), kind),
       StreamWrapCallbacks(old),
       AsyncWrap(env, env->tls_wrap_constructor_function()->NewInstance()),
+      sc_(Unwrap<SecureContext>(sc)),
+      sc_handle_(env->isolate(), sc),
       enc_in_(NULL),
       enc_out_(NULL),
       clear_in_(NULL),
@@ -73,11 +75,6 @@ TLSCallbacks::TLSCallbacks(Environment* env,
       started_(false),
       established_(false),
       shutdown_(false) {
-
-  // Persist SecureContext
-  sc_ = Unwrap<SecureContext>(sc);
-  sc_handle_.Reset(node_isolate, sc);
-
   node::Wrap<TLSCallbacks>(object(), this);
 
   // Initialize queue for clearIn writes
