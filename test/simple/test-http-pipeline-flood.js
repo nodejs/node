@@ -51,10 +51,10 @@ function parent() {
     // kill the connection after a bit, verifying that the
     // flood of requests was eventually halted.
     console.log('got connection');
-    setTimeout(function() {
+    conn.setTimeout(200, function() {
       gotTimeout = true;
       conn.destroy();
-    }, 200);
+    });
   });
 
 
@@ -111,5 +111,8 @@ function child() {
 
   function write() {
     while (false !== conn.write(req, 'ascii'));
+    // Pause connection to throttle responses (in order to trigger GH-6214,
+    // the client need to send a lot of requests and don't read responses)
+    conn.pause();
   }
 }
