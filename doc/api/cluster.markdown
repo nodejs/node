@@ -1,6 +1,6 @@
 # Cluster
 
-    Stability: 1 - Experimental
+    Stability: 2 - Unstable
 
 A single instance of Node runs in a single thread. To take advantage of
 multi-core systems the user will sometimes want to launch a cluster of Node
