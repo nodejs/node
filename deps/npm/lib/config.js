@@ -83,9 +83,17 @@ function edit (cb) {
                        , ";;;;"
                        ]
                      )
-              .concat(Object.keys(npmconf.defaults).map(function (k) {
-                return "; " + k + " = " + npmconf.defaults[k]
-              }))
+              .concat(Object.keys(npmconf.defaults).reduce(function (arr, key) {
+                var obj = {};
+                obj[key] = npmconf.defaults[key]
+                if (key === "logstream") return arr
+                return arr.concat(
+                  ini.stringify(obj)
+                    .replace(/\n$/m, '')
+                    .replace(/^/g, '; ')
+                    .replace(/\n/g, '\n; ')
+                    .split('\n'))
+              }, []))
               .concat([""])
               .join(os.EOL)
       fs.writeFile

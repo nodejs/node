@@ -77,21 +77,25 @@ Emitted when an error occurs.
 * `buf` Buffer object or string.  Message to be sent
 * `offset` Integer. Offset in the buffer where the message starts.
 * `length` Integer. Number of bytes in the message.
-* `port` Integer. destination port
-* `address` String. destination IP
-* `callback` Function. Callback when message is done being delivered.
-  Optional.
+* `port` Integer. Destination port.
+* `address` String. Destination hostname or IP address.
+* `callback` Function. Called when the message has been sent. Optional.
 
-For UDP sockets, the destination port and IP address must be specified.  A string
-may be supplied for the `address` parameter, and it will be resolved with DNS.  An
-optional callback may be specified to detect any DNS errors and when `buf` may be
-re-used.  Note that DNS lookups will delay the time that a send takes place, at
-least until the next tick.  The only way to know for sure that a send has taken place
-is to use the callback.
+For UDP sockets, the destination port and address must be specified.  A string
+may be supplied for the `address` parameter, and it will be resolved with DNS.
 
-If the socket has not been previously bound with a call to `bind`, it's
-assigned a random port number and bound to the "all interfaces" address
-(0.0.0.0 for `udp4` sockets, ::0 for `udp6` sockets).
+If the address is omitted or is an empty string, `'0.0.0.0'` or `'::0'` is used
+instead.  Depending on the network configuration, those defaults may or may not
+work; it's best to be explicit about the destination address.
+
+If the socket has not been previously bound with a call to `bind`, it gets
+assigned a random port number and is bound to the "all interfaces" address
+(`'0.0.0.0'` for `udp4` sockets, `'::0'` for `udp6` sockets.)
+
+An optional callback may be specified to detect DNS errors or for determining
+when it's safe to reuse the `buf` object.  Note that DNS lookups delay the time
+to send for at least one tick.  The only way to know for sure that the datagram
+has been sent is by using a callback.
 
 With consideration for multi-byte characters, `offset` and `length` will
 be calculated with respect to

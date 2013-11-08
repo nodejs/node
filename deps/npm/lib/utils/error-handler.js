@@ -243,6 +243,14 @@ function errorHandler (er) {
               ].join("\n"))
     break
 
+  case "ETARGET":
+    log.error("notarget", [er.message
+              ,"This is most likely not a problem with npm itself."
+              ,"In most cases you or one of your dependencies are requesting"
+              ,"a package version that doesn't exist."
+              ].join("\n"))
+    break
+
   case "ENOTSUP":
     if (er.required) {
       log.error("notsup", [er.message
