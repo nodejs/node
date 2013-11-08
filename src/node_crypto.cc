@@ -117,6 +117,8 @@ template int SSLWrap<TLSCallbacks>::NewSessionCallback(SSL* s,
 template void SSLWrap<TLSCallbacks>::OnClientHello(
     void* arg,
     const ClientHelloParser::ClientHello& hello);
+
+#ifdef OPENSSL_NPN_NEGOTIATED
 template int SSLWrap<TLSCallbacks>::AdvertiseNextProtoCallback(
     SSL* s,
     const unsigned char** data,
@@ -129,6 +131,7 @@ template int SSLWrap<TLSCallbacks>::SelectNextProtoCallback(
     const unsigned char* in,
     unsigned int inlen,
     void* arg);
+#endif
 
 
 static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
