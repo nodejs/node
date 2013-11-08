@@ -712,12 +712,14 @@ function installTargetsError (requested, data) {
   requested = data.name + (requested ? "@'" + requested + "'" : "")
 
   targets = targets.length
-          ? "Valid install targets:\n" + JSON.stringify(targets)
+          ? "Valid install targets:\n" + JSON.stringify(targets) + "\n"
           : "No valid targets found.\n"
           + "Perhaps not compatible with your version of node?"
 
-  return new Error( "No compatible version found: "
+  var er = new Error( "No compatible version found: "
                   + requested + "\n" + targets)
+  er.code = "ETARGET"
+  return er
 }
 
 function addNameVersion (name, v, data, cb) {
