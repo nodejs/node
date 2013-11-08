@@ -436,7 +436,8 @@ def configure_node(o):
   if options.dest_os == 'android':
     o['variables']['OS'] = 'android'
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
-  o['variables']['v8_no_strict_aliasing'] = 1 # work around compiler bugs
+  o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
+  o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['node_prefix'] = os.path.expanduser(options.prefix or '')
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
