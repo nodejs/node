@@ -429,7 +429,7 @@ void StreamWrap::WriteUcs2String(const FunctionCallbackInfo<Value>& args) {
 
 
 void StreamWrap::AfterWrite(uv_write_t* req, int status) {
-  WriteWrap* req_wrap = container_of(req, WriteWrap, req_);
+  WriteWrap* req_wrap = CONTAINER_OF(req, WriteWrap, req_);
   StreamWrap* wrap = req_wrap->wrap();
   Environment* env = wrap->env();
 

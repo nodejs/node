@@ -77,7 +77,7 @@ const uint32_t kOnMessageComplete = 3;
 
 #define HTTP_CB(name)                                                         \
   static int name(http_parser* p_) {                                          \
-    Parser* self = container_of(p_, Parser, parser_);                         \
+    Parser* self = CONTAINER_OF(p_, Parser, parser_);                         \
     return self->name##_();                                                   \
   }                                                                           \
   int name##_()
@@ -85,7 +85,7 @@ const uint32_t kOnMessageComplete = 3;
 
 #define HTTP_DATA_CB(name)                                                    \
   static int name(http_parser* p_, const char* at, size_t length) {           \
-    Parser* self = container_of(p_, Parser, parser_);                         \
+    Parser* self = CONTAINER_OF(p_, Parser, parser_);                         \
     return self->name##_(at, length);                                         \
   }                                                                           \
   int name##_(const char* at, size_t length)

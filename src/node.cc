@@ -1249,7 +1249,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   int i = 0;
 
   QUEUE_FOREACH(q, &req_wrap_queue) {
-    ReqWrap<uv_req_t>* w = container_of(q, ReqWrap<uv_req_t>, req_wrap_queue_);
+    ReqWrap<uv_req_t>* w = CONTAINER_OF(q, ReqWrap<uv_req_t>, req_wrap_queue_);
     if (w->persistent().IsEmpty())
       continue;
     ary->Set(i++, w->object());
@@ -1271,7 +1271,7 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Local<String> owner_sym = FIXED_ONE_BYTE_STRING(node_isolate, "owner");
 
   QUEUE_FOREACH(q, &handle_wrap_queue) {
-    HandleWrap* w = container_of(q, HandleWrap, handle_wrap_queue_);
+    HandleWrap* w = CONTAINER_OF(q, HandleWrap, handle_wrap_queue_);
     if (w->persistent().IsEmpty() || (w->flags_ & HandleWrap::kUnref))
       continue;
     Local<Object> object = w->object();

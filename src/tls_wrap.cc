@@ -118,7 +118,7 @@ void TLSCallbacks::InvokeQueued(int status) {
   // Process old queue
   while (q != &write_item_queue_) {
     QUEUE* next = static_cast<QUEUE*>(QUEUE_NEXT(q));
-    WriteItem* wi = container_of(q, WriteItem, member_);
+    WriteItem* wi = CONTAINER_OF(q, WriteItem, member_);
     wi->cb_(&wi->w_->req_, status);
     delete wi;
     q = next;
@@ -268,7 +268,7 @@ void TLSCallbacks::EncOut() {
 
   // Split-off queue
   if (established_ && !QUEUE_EMPTY(&write_item_queue_)) {
-    pending_write_item_ = container_of(QUEUE_NEXT(&write_item_queue_),
+    pending_write_item_ = CONTAINER_OF(QUEUE_NEXT(&write_item_queue_),
                                        WriteItem,
                                        member_);
     QUEUE_INIT(&write_item_queue_);

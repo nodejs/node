@@ -88,7 +88,7 @@ static void ares_timeout(uv_timer_t* handle, int status) {
 
 
 static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
-  ares_task_t* task = container_of(watcher, ares_task_t, poll_watcher);
+  ares_task_t* task = CONTAINER_OF(watcher, ares_task_t, poll_watcher);
   Environment* env = task->env;
 
   /* Reset the idle timer */
@@ -109,7 +109,7 @@ static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
 
 
 static void ares_poll_close_cb(uv_handle_t* watcher) {
-  ares_task_t* task = container_of(watcher, ares_task_t, poll_watcher);
+  ares_task_t* task = CONTAINER_OF(watcher, ares_task_t, poll_watcher);
   free(task);
 }
 

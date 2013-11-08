@@ -3382,7 +3382,7 @@ class PBKDF2Request : public AsyncWrap {
     error_ = err;
   }
 
-  // TODO(trevnorris): Make private and make work with container_of macro.
+  // TODO(trevnorris): Make private and make work with CONTAINER_OF macro.
   uv_work_t work_req_;
 
  private:
@@ -3412,7 +3412,7 @@ void EIO_PBKDF2(PBKDF2Request* req) {
 
 
 void EIO_PBKDF2(uv_work_t* work_req) {
-  PBKDF2Request* req = container_of(work_req, PBKDF2Request, work_req_);
+  PBKDF2Request* req = CONTAINER_OF(work_req, PBKDF2Request, work_req_);
   EIO_PBKDF2(req);
 }
 
@@ -3432,7 +3432,7 @@ void EIO_PBKDF2After(PBKDF2Request* req, Local<Value> argv[2]) {
 
 void EIO_PBKDF2After(uv_work_t* work_req, int status) {
   assert(status == 0);
-  PBKDF2Request* req = container_of(work_req, PBKDF2Request, work_req_);
+  PBKDF2Request* req = CONTAINER_OF(work_req, PBKDF2Request, work_req_);
   Environment* env = req->env();
   Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
@@ -3590,7 +3590,7 @@ class RandomBytesRequest : public AsyncWrap {
     error_ = err;
   }
 
-  // TODO(trevnorris): Make private and make work with container_of macro.
+  // TODO(trevnorris): Make private and make work with CONTAINER_OF macro.
   uv_work_t work_req_;
 
  private:
@@ -3602,7 +3602,7 @@ class RandomBytesRequest : public AsyncWrap {
 
 template <bool pseudoRandom>
 void RandomBytesWork(uv_work_t* work_req) {
-  RandomBytesRequest* req = container_of(work_req,
+  RandomBytesRequest* req = CONTAINER_OF(work_req,
                                          RandomBytesRequest,
                                          work_req_);
   int r;
@@ -3647,7 +3647,7 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
 
 void RandomBytesAfter(uv_work_t* work_req, int status) {
   assert(status == 0);
-  RandomBytesRequest* req = container_of(work_req,
+  RandomBytesRequest* req = CONTAINER_OF(work_req,
                                          RandomBytesRequest,
                                          work_req_);
   Environment* env = req->env();
