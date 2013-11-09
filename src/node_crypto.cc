@@ -26,7 +26,6 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "string_bytes.h"
-#include "node_root_certs.h"
 
 #include <string.h>
 #ifdef _MSC_VER
@@ -63,6 +62,12 @@ static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
                                  | XN_FLAG_FN_SN;
 
 namespace node {
+
+const char* root_certs[] = {
+#include "node_root_certs.h"  // NOLINT(build/include_order)
+  NULL
+};
+
 namespace crypto {
 
 using namespace v8;
