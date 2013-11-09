@@ -24,7 +24,6 @@
 #include "node_crypto.h"
 #include "node_crypto_bio.h"
 #include "node_crypto_groups.h"
-#include "node_root_certs.h"
 #include "tls_wrap.h"  // TLSCallbacks
 
 #include "env.h"
@@ -101,6 +100,11 @@ struct ClearErrorOnReturn {
 };
 
 static uv_rwlock_t* locks;
+
+const char* root_certs[] = {
+#include "node_root_certs.h"  // NOLINT(build/include_order)
+  NULL
+};
 
 X509_STORE* root_cert_store;
 
