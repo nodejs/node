@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "deoptimizer.h"
 #include "heap-profiler.h"
 #include "heap-snapshot-generator-inl.h"
 
@@ -35,7 +36,8 @@ namespace internal {
 
 HeapProfiler::HeapProfiler(Heap* heap)
     : snapshots_(new HeapSnapshotsCollection(heap)),
-      next_snapshot_uid_(1) {
+      next_snapshot_uid_(1),
+      is_tracking_allocations_(false) {
 }
 
 
@@ -132,14 +134,86 @@ SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
 }
 
 
-void HeapProfiler::ObjectMoveEvent(Address from, Address to) {
-  snapshots_->ObjectMoveEvent(from, to);
+void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
+  snapshots_->ObjectMoveEvent(from, to, size);
 }
+
+
+void HeapProfiler::NewObjectEvent(Address addr, int size) {
+  snapshots_->NewObjectEvent(addr, size);
+}
+
+
+void HeapProfiler::UpdateObjectSizeEvent(Address addr, int size) {
+  snapshots_->UpdateObjectSizeEvent(addr, size);
+}
+
 
 void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
                                          RetainedObjectInfo* info) {
   // TODO(yurus, marja): Don't route this information through GlobalHandles.
   heap()->isolate()->global_handles()->SetRetainedObjectInfo(id, info);
 }
+
+
+void HeapProfiler::StartHeapAllocationsRecording() {
+  StartHeapObjectsTracking();
+  is_tracking_allocations_ = true;
+  DropCompiledCode();
+  snapshots_->UpdateHeapObjectsMap();
+}
+
+
+void HeapProfiler::StopHeapAllocationsRecording() {
+  StopHeapObjectsTracking();
+  is_tracking_allocations_ = false;
+  DropCompiledCode();
+}
+
+
+void HeapProfiler::RecordObjectAllocationFromMasm(Isolate* isolate,
+                                                  Address obj,
+                                                  int size) {
+  isolate->heap_profiler()->NewObjectEvent(obj, size);
+}
+
+
+void HeapProfiler::DropCompiledCode() {
+  Isolate* isolate = heap()->isolate();
+  HandleScope scope(isolate);
+
+  if (FLAG_concurrent_recompilation) {
+    isolate->optimizing_compiler_thread()->Flush();
+  }
+
+  Deoptimizer::DeoptimizeAll(isolate);
+
+  Handle<Code> lazy_compile =
+      Handle<Code>(isolate->builtins()->builtin(Builtins::kLazyCompile));
+
+  heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                            "switch allocations tracking");
+
+  DisallowHeapAllocation no_allocation;
+
+  HeapIterator iterator(heap());
+  HeapObject* obj = NULL;
+  while (((obj = iterator.next()) != NULL)) {
+    if (obj->IsJSFunction()) {
+      JSFunction* function = JSFunction::cast(obj);
+      SharedFunctionInfo* shared = function->shared();
+
+      if (!shared->allows_lazy_compilation()) continue;
+      if (!shared->script()->IsScript()) continue;
+
+      Code::Kind kind = function->code()->kind();
+      if (kind == Code::FUNCTION || kind == Code::BUILTIN) {
+        function->set_code(*lazy_compile);
+        shared->set_code(*lazy_compile);
+      }
+    }
+  }
+}
+
 
 } }  // namespace v8::internal

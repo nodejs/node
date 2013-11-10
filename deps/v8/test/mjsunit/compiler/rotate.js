@@ -222,3 +222,89 @@ for (var i = 0; i <= 100; i++) {
   assertEquals(1 << ((i % 32)), ROR4(1, i));
 }
 
+//---------------------------------------------------------
+// add test cases for constant operand
+//---------------------------------------------------------
+// constant operand: 20
+function ROR1_sa20(x) {
+  return (x >>> 20) | (x << 12);
+}
+
+function ROR2_sa20(x) {
+  return (x >>> 12) | (x << 20);
+}
+
+function ROR3_sa20(x, sa) {
+  return (x << 12) | (x >>> 20);
+}
+
+function ROR4_sa20(x) {
+  return (x << 20) | (x >>> 12);
+}
+
+// constant operand: 40
+function ROR1_sa40(x) {
+  return (x >>> 40) | (x << -8);
+}
+
+function ROR2_sa40(x) {
+  return (x >>> -8) | (x << 40);
+}
+
+function ROR3_sa40(x, sa) {
+  return (x << -8) | (x >>> 40);
+}
+
+function ROR4_sa40(x) {
+  return (x << 40) | (x >>> -8);
+}
+
+// ROR1_sa20
+assertEquals(ROR1(0x0000FFFF, 20), ROR1_sa20(0x0000FFFF));
+assertEquals(ROR1(0x0000FFFF, 20), ROR1_sa20(0x0000FFFF));
+%OptimizeFunctionOnNextCall(ROR1_sa20);
+assertEquals(ROR1(0x0000FFFF, 20), ROR1_sa20(0x0000FFFF));
+
+// ROR1_sa40
+assertEquals(ROR1(0x0000FFFF, 40), ROR1_sa40(0x0000FFFF));
+assertEquals(ROR1(0x0000FFFF, 40), ROR1_sa40(0x0000FFFF));
+%OptimizeFunctionOnNextCall(ROR1_sa40);
+assertEquals(ROR1(0x0000FFFF, 40), ROR1_sa40(0x0000FFFF));
+
+// ROR2_sa20
+assertEquals(ROR2(0xFFFFFFFF, 20), ROR2_sa20(0xFFFFFFFF));
+assertEquals(ROR2(0xFFFFFFFF, 20), ROR2_sa20(0xFFFFFFFF));
+%OptimizeFunctionOnNextCall(ROR2_sa20);
+assertEquals(ROR2(0xFFFFFFFF, 20), ROR2_sa20(0xFFFFFFFF));
+
+// ROR2_sa40
+assertEquals(ROR2(0x0000FFFF, 40), ROR2_sa40(0x0000FFFF));
+assertEquals(ROR2(0x0000FFFF, 40), ROR2_sa40(0x0000FFFF));
+%OptimizeFunctionOnNextCall(ROR2_sa40);
+assertEquals(ROR2(0x0000FFFF, 40), ROR2_sa40(0x0000FFFF));
+
+// ROR3_sa20
+assertEquals(ROR3(0x0000FFFF, 20), ROR3_sa20(0x0000FFFF));
+assertEquals(ROR3(0x0000FFFF, 20), ROR3_sa20(0x0000FFFF));
+%OptimizeFunctionOnNextCall(ROR3_sa20);
+assertEquals(ROR3(0x0000FFFF, 20), ROR3_sa20(0x0000FFFF));
+
+// ROR3_sa40
+assertEquals(ROR3(0x0000FFFF, 40), ROR3_sa40(0x0000FFFF));
+assertEquals(ROR3(0x0000FFFF, 40), ROR3_sa40(0x0000FFFF));
+%OptimizeFunctionOnNextCall(ROR3_sa40);
+assertEquals(ROR3(0x0000FFFF, 40), ROR3_sa40(0x0000FFFF));
+
+// ROR4_sa20
+assertEquals(ROR4(0x0000FFFF, 20), ROR4_sa20(0x0000FFFF));
+assertEquals(ROR4(0x0000FFFF, 20), ROR4_sa20(0x0000FFFF));
+%OptimizeFunctionOnNextCall(ROR4_sa20);
+assertEquals(ROR4(0x0000FFFF, 20), ROR4_sa20(0x0000FFFF));
+
+// ROR4_sa40
+assertEquals(ROR4(0xFFFFFFFF, 40), ROR4_sa40(0xFFFFFFFF));
+assertEquals(ROR4(0xFFFFFFFF, 40), ROR4_sa40(0xFFFFFFFF));
+%OptimizeFunctionOnNextCall(ROR4_sa40);
+assertEquals(ROR4(0xFFFFFFFF, 40), ROR4_sa40(0xFFFFFFFF));
+
+

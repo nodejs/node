@@ -45,8 +45,9 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
 
 
 // Give alias names to registers
-const Register cp = { 8 };  // JavaScript context pointer
-const Register kRootRegister = { 10 };  // Roots array pointer.
+const Register pp = { kRegister_r7_Code };  // Constant pool pointer.
+const Register cp = { kRegister_r8_Code };  // JavaScript context pointer.
+const Register kRootRegister = { kRegister_r10_Code };  // Roots array pointer.
 
 // Flags used for AllocateHeapNumber
 enum TaggingMode {
@@ -168,17 +169,6 @@ class MacroAssembler: public Assembler {
   void StoreRoot(Register source,
                  Heap::RootListIndex index,
                  Condition cond = al);
-
-  void LoadHeapObject(Register dst, Handle<HeapObject> object);
-
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      Move(result, object);
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -469,8 +459,13 @@ class MacroAssembler: public Assembler {
   void VFPEnsureFPSCRState(Register scratch);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
-  void VFPCanonicalizeNaN(const DwVfpRegister value,
+  void VFPCanonicalizeNaN(const DwVfpRegister dst,
+                          const DwVfpRegister src,
                           const Condition cond = al);
+  void VFPCanonicalizeNaN(const DwVfpRegister value,
+                          const Condition cond = al) {
+    VFPCanonicalizeNaN(value, value, cond);
+  }
 
   // Compare double values and move the result to the normal condition flags.
   void VFPCompareAndSetFlags(const DwVfpRegister src1,
@@ -533,6 +528,8 @@ class MacroAssembler: public Assembler {
                          LowDwVfpRegister double_scratch1,
                          Label* not_int32);
 
+  // Generates function and stub prologue code.
+  void Prologue(PrologueFrameMode frame_mode);
 
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.
@@ -541,7 +538,9 @@ class MacroAssembler: public Assembler {
   // Leave the current exit frame. Expects the return value in r0.
   // Expect the number of values, pushed prior to the exit frame, to
   // remove in a register (or no_reg, if there is nothing to remove).
-  void LeaveExitFrame(bool save_doubles, Register argument_count);
+  void LeaveExitFrame(bool save_doubles,
+                      Register argument_count,
+                      bool restore_context);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -1037,11 +1036,18 @@ class MacroAssembler: public Assembler {
   void TailCallStub(CodeStub* stub, Condition cond = al);
 
   // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f, int num_arguments);
-  void CallRuntimeSaveDoubles(Runtime::FunctionId id);
+  void CallRuntime(const Runtime::Function* f,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  void CallRuntimeSaveDoubles(Runtime::FunctionId id) {
+    const Runtime::Function* function = Runtime::FunctionForId(id);
+    CallRuntime(function, function->nargs, kSaveFPRegs);
+  }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid, int num_arguments);
+  void CallRuntime(Runtime::FunctionId id, int num_arguments) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments);
+  }
 
   // Convenience function: call an external reference.
   void CallExternalReference(const ExternalReference& ext,
@@ -1111,7 +1117,8 @@ class MacroAssembler: public Assembler {
                                 ExternalReference thunk_ref,
                                 Register thunk_last_arg,
                                 int stack_space,
-                                int return_value_offset_from_fp);
+                                MemOperand return_value_operand,
+                                MemOperand* context_restore_operand);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin);
@@ -1286,6 +1293,18 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // String utilities
 
+  // Generate code to do a lookup in the number string cache. If the number in
+  // the register object is found in the cache the generated code falls through
+  // with the result in the result register. The object and the result register
+  // can be the same. If the number is not found in the cache the code jumps to
+  // the label not_found with only the content of register object unchanged.
+  void LookupNumberStringCache(Register object,
+                               Register result,
+                               Register scratch1,
+                               Register scratch2,
+                               Register scratch3,
+                               Label* not_found);
+
   // Checks if both objects are sequential ASCII strings and jumps to label
   // if either is not. Assumes that neither object is a smi.
   void JumpIfNonSmisNotBothSequentialAsciiStrings(Register object1,
@@ -1360,9 +1379,20 @@ class MacroAssembler: public Assembler {
   // to another type.
   // On entry, receiver_reg should point to the array object.
   // scratch_reg gets clobbered.
-  // If allocation info is present, condition flags are set to eq
+  // If allocation info is present, condition flags are set to eq.
   void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg);
+                                       Register scratch_reg,
+                                       Label* no_memento_found);
+
+  void JumpIfJSArrayHasAllocationMemento(Register receiver_reg,
+                                         Register scratch_reg,
+                                         Label* memento_found) {
+    Label no_memento_found;
+    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
+                                    &no_memento_found);
+    b(eq, memento_found);
+    bind(&no_memento_found);
+  }
 
  private:
   void CallCFunctionHelper(Register function,

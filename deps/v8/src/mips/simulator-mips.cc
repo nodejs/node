@@ -2274,9 +2274,13 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           break;
         case DIV:
           // Divide by zero and overflow was not checked in the configuration
-          // step - div and divu do not raise exceptions. On division by 0 and
-          // on overflow (INT_MIN/-1), the result will be UNPREDICTABLE.
-          if (rt != 0 && !(rs == INT_MIN && rt == -1)) {
+          // step - div and divu do not raise exceptions. On division by 0
+          // the result will be UNPREDICTABLE. On overflow (INT_MIN/-1),
+          // return INT_MIN which is what the hardware does.
+          if (rs == INT_MIN && rt == -1) {
+            set_register(LO, INT_MIN);
+            set_register(HI, 0);
+          } else if (rt != 0) {
             set_register(LO, rs / rt);
             set_register(HI, rs % rt);
           }

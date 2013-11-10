@@ -39,8 +39,8 @@ void Signal(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 void TerminateCurrentThread(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(!v8::V8::IsExecutionTerminating());
-  v8::V8::TerminateExecution();
+  CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
+  v8::V8::TerminateExecution(args.GetIsolate());
 }
 
 
@@ -50,18 +50,18 @@ void Fail(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 void Loop(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
   v8::Handle<v8::String> source =
       v8::String::New("try { doloop(); fail(); } catch(e) { fail(); }");
   v8::Handle<v8::Value> result = v8::Script::Compile(source)->Run();
   CHECK(result.IsEmpty());
-  CHECK(v8::V8::IsExecutionTerminating());
+  CHECK(v8::V8::IsExecutionTerminating(args.GetIsolate()));
 }
 
 
 void DoLoop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
   v8::Script::Compile(v8::String::New("function f() {"
                                       "  var term = true;"
                                       "  try {"
@@ -79,13 +79,13 @@ void DoLoop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(try_catch.Exception()->IsNull());
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
-  CHECK(v8::V8::IsExecutionTerminating());
+  CHECK(v8::V8::IsExecutionTerminating(args.GetIsolate()));
 }
 
 
 void DoLoopNoCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
   v8::Script::Compile(v8::String::New("var term = true;"
                                       "while(true) {"
                                       "  if (term) terminate();"
@@ -95,7 +95,7 @@ void DoLoopNoCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(try_catch.Exception()->IsNull());
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
-  CHECK(v8::V8::IsExecutionTerminating());
+  CHECK(v8::V8::IsExecutionTerminating(args.GetIsolate()));
 }
 
 
@@ -115,19 +115,19 @@ v8::Handle<v8::ObjectTemplate> CreateGlobalTemplate(
 // Test that a single thread of JavaScript execution can terminate
 // itself.
 TEST(TerminateOnlyV8ThreadFromThreadItself) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::ObjectTemplate> global =
       CreateGlobalTemplate(TerminateCurrentThread, DoLoop);
   v8::Handle<v8::Context> context =
-      v8::Context::New(v8::Isolate::GetCurrent(), NULL, global);
+      v8::Context::New(CcTest::isolate(), NULL, global);
   v8::Context::Scope context_scope(context);
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source =
       v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
   v8::Script::Compile(source)->Run();
   // Test that we can run the code again after thread termination.
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   v8::Script::Compile(source)->Run();
 }
 
@@ -135,18 +135,18 @@ TEST(TerminateOnlyV8ThreadFromThreadItself) {
 // Test that a single thread of JavaScript execution can terminate
 // itself in a loop that performs no calls.
 TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::ObjectTemplate> global =
       CreateGlobalTemplate(TerminateCurrentThread, DoLoopNoCall);
   v8::Handle<v8::Context> context =
-      v8::Context::New(v8::Isolate::GetCurrent(), NULL, global);
+      v8::Context::New(CcTest::isolate(), NULL, global);
   v8::Context::Scope context_scope(context);
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source =
       v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
   v8::Script::Compile(source)->Run();
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   // Test that we can run the code again after thread termination.
   v8::Script::Compile(source)->Run();
 }
@@ -172,15 +172,15 @@ class TerminatorThread : public v8::internal::Thread {
 // from the side by another thread.
 TEST(TerminateOnlyV8ThreadFromOtherThread) {
   semaphore = new v8::internal::Semaphore(0);
-  TerminatorThread thread(i::Isolate::Current());
+  TerminatorThread thread(CcTest::i_isolate());
   thread.Start();
 
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::ObjectTemplate> global = CreateGlobalTemplate(Signal, DoLoop);
   v8::Handle<v8::Context> context =
-      v8::Context::New(v8::Isolate::GetCurrent(), NULL, global);
+      v8::Context::New(CcTest::isolate(), NULL, global);
   v8::Context::Scope context_scope(context);
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source =
       v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
@@ -197,8 +197,8 @@ int call_count = 0;
 
 void TerminateOrReturnObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (++call_count == 10) {
-    CHECK(!v8::V8::IsExecutionTerminating());
-    v8::V8::TerminateExecution();
+    CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
+    v8::V8::TerminateExecution(args.GetIsolate());
     return;
   }
   v8::Local<v8::Object> result = v8::Object::New();
@@ -209,7 +209,7 @@ void TerminateOrReturnObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void LoopGetProperty(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
   v8::Script::Compile(v8::String::New("function f() {"
                                       "  try {"
                                       "    while(true) {"
@@ -225,14 +225,14 @@ void LoopGetProperty(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(try_catch.Exception()->IsNull());
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
-  CHECK(v8::V8::IsExecutionTerminating());
+  CHECK(v8::V8::IsExecutionTerminating(args.GetIsolate()));
 }
 
 
 // Test that we correctly handle termination exceptions if they are
 // triggered by the creation of error objects in connection with ICs.
 TEST(TerminateLoadICException) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   global->Set(v8::String::New("terminate_or_return_object"),
               v8::FunctionTemplate::New(TerminateOrReturnObject));
@@ -241,16 +241,16 @@ TEST(TerminateLoadICException) {
               v8::FunctionTemplate::New(LoopGetProperty));
 
   v8::Handle<v8::Context> context =
-      v8::Context::New(v8::Isolate::GetCurrent(), NULL, global);
+      v8::Context::New(CcTest::isolate(), NULL, global);
   v8::Context::Scope context_scope(context);
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source =
       v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
   call_count = 0;
   v8::Script::Compile(source)->Run();
   // Test that we can run the code again after thread termination.
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   call_count = 0;
   v8::Script::Compile(source)->Run();
 }
@@ -258,7 +258,7 @@ TEST(TerminateLoadICException) {
 
 void ReenterAfterTermination(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
   v8::Script::Compile(v8::String::New("function f() {"
                                       "  var term = true;"
                                       "  try {"
@@ -276,7 +276,7 @@ void ReenterAfterTermination(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(try_catch.Exception()->IsNull());
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
-  CHECK(v8::V8::IsExecutionTerminating());
+  CHECK(v8::V8::IsExecutionTerminating(args.GetIsolate()));
   v8::Script::Compile(v8::String::New("function f() { fail(); } f()"))->Run();
 }
 
@@ -284,17 +284,17 @@ void ReenterAfterTermination(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // Test that reentry into V8 while the termination exception is still pending
 // (has not yet unwound the 0-level JS frame) does not crash.
 TEST(TerminateAndReenterFromThreadItself) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::ObjectTemplate> global =
       CreateGlobalTemplate(TerminateCurrentThread, ReenterAfterTermination);
   v8::Handle<v8::Context> context =
-      v8::Context::New(v8::Isolate::GetCurrent(), NULL, global);
+      v8::Context::New(CcTest::isolate(), NULL, global);
   v8::Context::Scope context_scope(context);
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Handle<v8::String> source =
       v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
   v8::Script::Compile(source)->Run();
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   // Check we can run JS again after termination.
   CHECK(v8::Script::Compile(v8::String::New("function f() { return true; }"
                                             "f()"))->Run()->IsTrue());
@@ -316,7 +316,7 @@ void DoLoopCancelTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(!try_catch.CanContinue());
   CHECK(v8::V8::IsExecutionTerminating());
   CHECK(try_catch.HasTerminated());
-  v8::V8::CancelTerminateExecution(v8::Isolate::GetCurrent());
+  v8::V8::CancelTerminateExecution(CcTest::isolate());
   CHECK(!v8::V8::IsExecutionTerminating());
 }
 
@@ -324,13 +324,13 @@ void DoLoopCancelTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // Test that a single thread of JavaScript execution can terminate
 // itself and then resume execution.
 TEST(TerminateCancelTerminateFromThreadItself) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> global =
       CreateGlobalTemplate(TerminateCurrentThread, DoLoopCancelTerminate);
   v8::Handle<v8::Context> context = v8::Context::New(isolate, NULL, global);
   v8::Context::Scope context_scope(context);
-  CHECK(!v8::V8::IsExecutionTerminating());
+  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   v8::Handle<v8::String> source =
       v8::String::New("try { doloop(); } catch(e) { fail(); } 'completed';");
   // Check that execution completed with correct return value.

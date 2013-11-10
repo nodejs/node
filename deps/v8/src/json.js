@@ -181,7 +181,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
     }
   }
   // Undefined or a callable object.
-  return void 0;
+  return UNDEFINED;
 }
 
 
@@ -236,5 +236,5 @@ function JSONSerializeAdapter(key, object) {
   var holder = {};
   holder[key] = object;
   // No need to pass the actual holder since there is no replacer function.
-  return JSONSerialize(key, holder, void 0, new InternalArray(), "", "");
+  return JSONSerialize(key, holder, UNDEFINED, new InternalArray(), "", "");
 }

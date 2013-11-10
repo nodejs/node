@@ -212,7 +212,7 @@ void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                       Code* code,
                                       SharedFunctionInfo* shared,
                                       CompilationInfo* info,
-                                      Name* source, int line) {
+                                      Name* source, int line, int column) {
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(ComputeMarker(code));
   name_buffer_->AppendString(shared->DebugName());
@@ -1232,10 +1232,11 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              SharedFunctionInfo* shared,
                              CompilationInfo* info,
                              Name* source, int line, int column) {
-  PROFILER_LOG(CodeCreateEvent(tag, code, shared, info, source, line));
+  PROFILER_LOG(CodeCreateEvent(tag, code, shared, info, source, line, column));
 
   if (!is_logging_code_events()) return;
-  CALL_LISTENERS(CodeCreateEvent(tag, code, shared, info, source, line));
+  CALL_LISTENERS(CodeCreateEvent(tag, code, shared, info, source, line,
+                                 column));
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
@@ -1610,7 +1611,12 @@ void Logger::LogCodeObject(Object* object) {
     case Code::FUNCTION:
     case Code::OPTIMIZED_FUNCTION:
       return;  // We log this later using LogCompiledFunctions.
-    case Code::BINARY_OP_IC:   // fall through
+    case Code::BINARY_OP_IC: {
+      BinaryOpStub stub(code_object->extended_extra_ic_state());
+      description = stub.GetName().Detach();
+      tag = Logger::STUB_TAG;
+      break;
+    }
     case Code::COMPARE_IC:  // fall through
     case Code::COMPARE_NIL_IC:   // fall through
     case Code::TO_BOOLEAN_IC:  // fall through
@@ -1628,6 +1634,10 @@ void Logger::LogCodeObject(Object* object) {
     case Code::BUILTIN:
       description = "A builtin from the snapshot";
       tag = Logger::BUILTIN_TAG;
+      break;
+    case Code::HANDLER:
+      description = "An IC handler from the snapshot";
+      tag = Logger::HANDLER_TAG;
       break;
     case Code::KEYED_LOAD_IC:
       description = "A keyed load IC from the snapshot";
@@ -1765,15 +1775,14 @@ void Logger::LogAccessorCallbacks() {
 
 
 static void AddIsolateIdIfNeeded(Isolate* isolate, StringStream* stream) {
-  if (isolate->IsDefaultIsolate()) return;
+  if (isolate->IsDefaultIsolate() || !FLAG_logfile_per_isolate) return;
   stream->Add("isolate-%p-", isolate);
 }
 
 
 static SmartArrayPointer<const char> PrepareLogFileName(
     Isolate* isolate, const char* file_name) {
-  if (strchr(file_name, '%') != NULL ||
-      !isolate->IsDefaultIsolate()) {
+  if (strchr(file_name, '%') != NULL || !isolate->IsDefaultIsolate()) {
     // If there's a '%' in the log file name we have to expand
     // placeholders.
     HeapStringAllocator allocator;

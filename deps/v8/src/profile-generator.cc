@@ -41,6 +41,12 @@ namespace v8 {
 namespace internal {
 
 
+bool StringsStorage::StringsMatch(void* key1, void* key2) {
+  return strcmp(reinterpret_cast<char*>(key1),
+                reinterpret_cast<char*>(key2)) == 0;
+}
+
+
 StringsStorage::StringsStorage(Heap* heap)
     : hash_seed_(heap->HashSeed()), names_(StringsMatch) {
 }
@@ -57,12 +63,15 @@ StringsStorage::~StringsStorage() {
 
 const char* StringsStorage::GetCopy(const char* src) {
   int len = static_cast<int>(strlen(src));
-  Vector<char> dst = Vector<char>::New(len + 1);
-  OS::StrNCpy(dst, src, len);
-  dst[len] = '\0';
-  uint32_t hash =
-      StringHasher::HashSequentialString(dst.start(), len, hash_seed_);
-  return AddOrDisposeString(dst.start(), hash);
+  HashMap::Entry* entry = GetEntry(src, len);
+  if (entry->value == NULL) {
+    Vector<char> dst = Vector<char>::New(len + 1);
+    OS::StrNCpy(dst, src, len);
+    dst[len] = '\0';
+    entry->key = dst.start();
+    entry->value = entry->key;
+  }
+  return reinterpret_cast<const char*>(entry->value);
 }
 
 
@@ -75,15 +84,16 @@ const char* StringsStorage::GetFormatted(const char* format, ...) {
 }
 
 
-const char* StringsStorage::AddOrDisposeString(char* str, uint32_t hash) {
-  HashMap::Entry* cache_entry = names_.Lookup(str, hash, true);
-  if (cache_entry->value == NULL) {
+const char* StringsStorage::AddOrDisposeString(char* str, int len) {
+  HashMap::Entry* entry = GetEntry(str, len);
+  if (entry->value == NULL) {
     // New entry added.
-    cache_entry->value = str;
+    entry->key = str;
+    entry->value = str;
   } else {
     DeleteArray(str);
   }
-  return reinterpret_cast<const char*>(cache_entry->value);
+  return reinterpret_cast<const char*>(entry->value);
 }
 
 
@@ -92,11 +102,9 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   int len = OS::VSNPrintF(str, format, args);
   if (len == -1) {
     DeleteArray(str.start());
-    return format;
+    return GetCopy(format);
   }
-  uint32_t hash = StringHasher::HashSequentialString(
-      str.start(), len, hash_seed_);
-  return AddOrDisposeString(str.start(), hash);
+  return AddOrDisposeString(str.start(), len);
 }
 
 
@@ -104,11 +112,11 @@ const char* StringsStorage::GetName(Name* name) {
   if (name->IsString()) {
     String* str = String::cast(name);
     int length = Min(kMaxNameSize, str->length());
+    int actual_length = 0;
     SmartArrayPointer<char> data =
-        str->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length);
-    uint32_t hash = StringHasher::HashSequentialString(
-        *data, length, name->GetHeap()->HashSeed());
-    return AddOrDisposeString(data.Detach(), hash);
+        str->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length,
+                       &actual_length);
+    return AddOrDisposeString(data.Detach(), actual_length);
   } else if (name->IsSymbol()) {
     return "<symbol>";
   }
@@ -118,6 +126,21 @@ const char* StringsStorage::GetName(Name* name) {
 
 const char* StringsStorage::GetName(int index) {
   return GetFormatted("%d", index);
+}
+
+
+const char* StringsStorage::GetFunctionName(Name* name) {
+  return BeautifyFunctionName(GetName(name));
+}
+
+
+const char* StringsStorage::GetFunctionName(const char* name) {
+  return BeautifyFunctionName(GetCopy(name));
+}
+
+
+const char* StringsStorage::BeautifyFunctionName(const char* name) {
+  return (*name == 0) ? ProfileGenerator::kAnonymousFunctionName : name;
 }
 
 
@@ -131,6 +154,12 @@ size_t StringsStorage::GetUsedMemorySize() const {
 }
 
 
+HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
+  uint32_t hash = StringHasher::HashSequentialString(str, len, hash_seed_);
+  return names_.Lookup(const_cast<char*>(str), hash, true);
+}
+
+
 const char* const CodeEntry::kEmptyNamePrefix = "";
 const char* const CodeEntry::kEmptyResourceName = "";
 const char* const CodeEntry::kEmptyBailoutReason = "";
@@ -138,15 +167,6 @@ const char* const CodeEntry::kEmptyBailoutReason = "";
 
 CodeEntry::~CodeEntry() {
   delete no_frame_ranges_;
-}
-
-
-void CodeEntry::CopyData(const CodeEntry& source) {
-  tag_ = source.tag_;
-  name_prefix_ = source.name_prefix_;
-  name_ = source.name_;
-  resource_name_ = source.resource_name_;
-  line_number_ = source.line_number_;
 }
 
 
@@ -546,12 +566,14 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(
       const char* name,
       const char* name_prefix,
       const char* resource_name,
-      int line_number) {
+      int line_number,
+      int column_number) {
   CodeEntry* code_entry = new CodeEntry(tag,
                                         name,
                                         name_prefix,
                                         resource_name,
-                                        line_number);
+                                        line_number,
+                                        column_number);
   code_entries_.Add(code_entry);
   return code_entry;
 }
@@ -659,5 +681,23 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   profiles_->AddPathToCurrentProfiles(entries);
 }
 
+
+CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
+  switch (tag) {
+    case GC:
+      return gc_entry_;
+    case JS:
+    case COMPILER:
+    // DOM events handlers are reported as OTHER / EXTERNAL entries.
+    // To avoid confusing people, let's put all these entries into
+    // one bucket.
+    case OTHER:
+    case EXTERNAL:
+      return program_entry_;
+    case IDLE:
+      return idle_entry_;
+    default: return NULL;
+  }
+}
 
 } }  // namespace v8::internal

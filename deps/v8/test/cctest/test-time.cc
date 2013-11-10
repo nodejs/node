@@ -133,7 +133,7 @@ TEST(TimeTicksIsMonotonic) {
   timer.Start();
   while (!timer.HasExpired(TimeDelta::FromMilliseconds(100))) {
     TimeTicks normal_ticks = TimeTicks::Now();
-    TimeTicks highres_ticks = TimeTicks::HighResNow();
+    TimeTicks highres_ticks = TimeTicks::HighResolutionNow();
     CHECK_GE(normal_ticks, previous_normal_ticks);
     CHECK_GE((normal_ticks - previous_normal_ticks).InMicroseconds(), 0);
     CHECK_GE(highres_ticks, previous_highres_ticks);
@@ -141,4 +141,55 @@ TEST(TimeTicksIsMonotonic) {
     previous_normal_ticks = normal_ticks;
     previous_highres_ticks = highres_ticks;
   }
+}
+
+
+template <typename T>
+static void ResolutionTest(T (*Now)(), TimeDelta target_granularity) {
+  // We're trying to measure that intervals increment in a VERY small amount
+  // of time -- according to the specified target granularity. Unfortunately,
+  // if we happen to have a context switch in the middle of our test, the
+  // context switch could easily exceed our limit. So, we iterate on this
+  // several times. As long as we're able to detect the fine-granularity
+  // timers at least once, then the test has succeeded.
+  static const TimeDelta kExpirationTimeout = TimeDelta::FromSeconds(1);
+  ElapsedTimer timer;
+  timer.Start();
+  TimeDelta delta;
+  do {
+    T start = Now();
+    T now = start;
+    // Loop until we can detect that the clock has changed. Non-HighRes timers
+    // will increment in chunks, i.e. 15ms. By spinning until we see a clock
+    // change, we detect the minimum time between measurements.
+    do {
+      now = Now();
+      delta = now - start;
+    } while (now <= start);
+    CHECK_NE(static_cast<int64_t>(0), delta.InMicroseconds());
+  } while (delta > target_granularity && !timer.HasExpired(kExpirationTimeout));
+  CHECK_LE(delta, target_granularity);
+}
+
+
+TEST(TimeNowResolution) {
+  // We assume that Time::Now() has at least 16ms resolution.
+  static const TimeDelta kTargetGranularity = TimeDelta::FromMilliseconds(16);
+  ResolutionTest<Time>(&Time::Now, kTargetGranularity);
+}
+
+
+TEST(TimeTicksNowResolution) {
+  // We assume that TimeTicks::Now() has at least 16ms resolution.
+  static const TimeDelta kTargetGranularity = TimeDelta::FromMilliseconds(16);
+  ResolutionTest<TimeTicks>(&TimeTicks::Now, kTargetGranularity);
+}
+
+
+TEST(TimeTicksHighResolutionNowResolution) {
+  if (!TimeTicks::IsHighResolutionClockWorking()) return;
+
+  // We assume that TimeTicks::HighResolutionNow() has sub-ms resolution.
+  static const TimeDelta kTargetGranularity = TimeDelta::FromMilliseconds(1);
+  ResolutionTest<TimeTicks>(&TimeTicks::HighResolutionNow, kTargetGranularity);
 }

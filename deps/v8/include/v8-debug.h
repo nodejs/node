@@ -212,9 +212,13 @@ class V8_EXPORT Debug {
 
   // If no isolate is provided the default isolate is
   // used.
+  // TODO(dcarney): remove
   static void SendCommand(const uint16_t* command, int length,
                           ClientData* client_data = NULL,
                           Isolate* isolate = NULL);
+  static void SendCommand(Isolate* isolate,
+                          const uint16_t* command, int length,
+                          ClientData* client_data = NULL);
 
   // Dispatch interface.
   static void SetHostDispatchHandler(HostDispatchHandler handler,

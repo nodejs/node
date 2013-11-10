@@ -217,14 +217,6 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   // and increments it by a word size.
   inline void Pop(Register target);
 
-  // Calls a C function and cleans up the frame alignment done by
-  // by FrameAlign. The called function *is* allowed to trigger a garbage
-  // collection, but may not take more than four arguments (no arguments
-  // passed on the stack), and the first argument will be a pointer to the
-  // return address.
-  inline void CallCFunctionUsingStub(ExternalReference function,
-                                     int num_arguments);
-
   Isolate* isolate() const { return masm_->isolate(); }
 
   MacroAssembler* masm_;

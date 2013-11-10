@@ -51,6 +51,7 @@ namespace internal {
   HT(compile_lazy, V8.CompileLazy)
 
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
+  /* Heap fragmentation. */                                           \
   HP(external_fragmentation_total,                                    \
      V8.MemoryExternalFragmentationTotal)                             \
   HP(external_fragmentation_old_pointer_space,                        \
@@ -67,12 +68,26 @@ namespace internal {
      V8.MemoryExternalFragmentationPropertyCellSpace)                 \
   HP(external_fragmentation_lo_space,                                 \
      V8.MemoryExternalFragmentationLoSpace)                           \
+  /* Percentages of heap committed to each space. */                  \
+  HP(heap_fraction_new_space,                                         \
+     V8.MemoryHeapFractionNewSpace)                                   \
+  HP(heap_fraction_old_pointer_space,                                 \
+     V8.MemoryHeapFractionOldPointerSpace)                            \
+  HP(heap_fraction_old_data_space,                                    \
+     V8.MemoryHeapFractionOldDataSpace)                               \
+  HP(heap_fraction_code_space,                                        \
+     V8.MemoryHeapFractionCodeSpace)                                  \
   HP(heap_fraction_map_space,                                         \
      V8.MemoryHeapFractionMapSpace)                                   \
   HP(heap_fraction_cell_space,                                        \
      V8.MemoryHeapFractionCellSpace)                                  \
   HP(heap_fraction_property_cell_space,                               \
      V8.MemoryHeapFractionPropertyCellSpace)                          \
+  HP(heap_fraction_lo_space,                                          \
+     V8.MemoryHeapFractionLoSpace)                                    \
+  /* Percentage of crankshafted codegen. */                           \
+  HP(codegen_fraction_crankshaft,                                     \
+     V8.CodegenFractionCrankshaft)                                    \
 
 
 #define HISTOGRAM_MEMORY_LIST(HM)                                     \
@@ -84,6 +99,8 @@ namespace internal {
      V8.MemoryHeapSampleCellSpaceCommitted)                           \
   HM(heap_sample_property_cell_space_committed,                       \
      V8.MemoryHeapSamplePropertyCellSpaceCommitted)                   \
+  HM(heap_sample_code_space_committed,                                \
+     V8.MemoryHeapSampleCodeSpaceCommitted)                           \
 
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
@@ -204,7 +221,6 @@ namespace internal {
   SC(enum_cache_hits, V8.EnumCacheHits)                               \
   SC(enum_cache_misses, V8.EnumCacheMisses)                           \
   SC(zone_segment_bytes, V8.ZoneSegmentBytes)                         \
-  SC(generic_binary_stub_calls, V8.GenericBinaryStubCalls)            \
   SC(fast_new_closure_total, V8.FastNewClosureTotal)                  \
   SC(fast_new_closure_try_optimized, V8.FastNewClosureTryOptimized)   \
   SC(fast_new_closure_install_optimized, V8.FastNewClosureInstallOptimized) \
@@ -320,6 +336,14 @@ class Counters {
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 
+#define SC(name) \
+  StatsCounter* count_of_CODE_AGE_##name() \
+    { return &count_of_CODE_AGE_##name##_; } \
+  StatsCounter* size_of_CODE_AGE_##name() \
+    { return &size_of_CODE_AGE_##name##_; }
+  CODE_AGE_LIST_WITH_NO_AGE(SC)
+#undef SC
+
   enum Id {
 #define RATE_ID(name, caption) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
@@ -344,6 +368,10 @@ class Counters {
 #define COUNTER_ID(name) kCountOfFIXED_ARRAY__##name, \
     kSizeOfFIXED_ARRAY__##name,
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COUNTER_ID)
+#undef COUNTER_ID
+#define COUNTER_ID(name) kCountOfCODE_AGE__##name, \
+    kSizeOfCODE_AGE__##name,
+    CODE_AGE_LIST_WITH_NO_AGE(COUNTER_ID)
 #undef COUNTER_ID
     stats_counter_count
   };
@@ -388,6 +416,12 @@ class Counters {
   StatsCounter size_of_FIXED_ARRAY_##name##_; \
   StatsCounter count_of_FIXED_ARRAY_##name##_;
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
+#undef SC
+
+#define SC(name) \
+  StatsCounter size_of_CODE_AGE_##name##_; \
+  StatsCounter count_of_CODE_AGE_##name##_;
+  CODE_AGE_LIST_WITH_NO_AGE(SC)
 #undef SC
 
   friend class Isolate;

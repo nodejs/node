@@ -54,7 +54,10 @@
 
     # Enable ECMAScript Internationalization API. Enabling this feature will
     # add a dependency on the ICU library.
-    'v8_enable_i18n_support%': 0,
+    'v8_enable_i18n_support%': 1,
+
+    # Enable compiler warnings when using V8_DEPRECATED apis.
+    'v8_deprecation_warnings%': 0,
   },
   'target_defaults': {
     'conditions': [
@@ -76,6 +79,9 @@
       ['v8_interpreted_regexp==1', {
         'defines': ['V8_INTERPRETED_REGEXP',],
       }],
+      ['v8_deprecation_warnings==1', {
+        'defines': ['V8_DEPRECATION_WARNINGS',],
+      }],
       ['v8_enable_i18n_support==1', {
         'defines': ['V8_I18N_SUPPORT',],
       }],
@@ -89,20 +95,28 @@
       'Debug': {
         'variables': {
           'v8_enable_extra_checks%': 1,
+          'v8_enable_handle_zapping%': 1,
         },
         'conditions': [
           ['v8_enable_extra_checks==1', {
             'defines': ['ENABLE_EXTRA_CHECKS',],
+          }],
+          ['v8_enable_handle_zapping==1', {
+            'defines': ['ENABLE_HANDLE_ZAPPING',],
           }],
         ],
       },  # Debug
       'Release': {
         'variables': {
           'v8_enable_extra_checks%': 0,
+          'v8_enable_handle_zapping%': 0,
         },
         'conditions': [
           ['v8_enable_extra_checks==1', {
             'defines': ['ENABLE_EXTRA_CHECKS',],
+          }],
+          ['v8_enable_handle_zapping==1', {
+            'defines': ['ENABLE_HANDLE_ZAPPING',],
           }],
         ],  # conditions
       },  # Release

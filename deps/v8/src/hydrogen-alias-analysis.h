@@ -88,15 +88,6 @@ class HAliasAnalyzer : public ZoneObject {
   inline bool NoAlias(HValue* a, HValue* b) {
     return Query(a, b) == kNoAlias;
   }
-
-  // Returns the actual value of an instruction. In the case of a chain
-  // of informative definitions, return the root of the chain.
-  HValue* ActualValue(HValue* obj) {
-    while (obj->IsInformativeDefinition()) {  // Walk a chain of idefs.
-      obj = obj->RedefinedOperand();
-    }
-    return obj;
-  }
 };
 
 

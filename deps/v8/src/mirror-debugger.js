@@ -117,7 +117,7 @@ function LookupMirror(handle) {
  * @returns {Mirror} the mirror reflects the undefined value
  */
 function GetUndefinedMirror() {
-  return MakeMirror(void 0);
+  return MakeMirror(UNDEFINED);
 }
 
 
@@ -482,7 +482,7 @@ ValueMirror.prototype.value = function() {
  * @extends ValueMirror
  */
 function UndefinedMirror() {
-  %_CallFunction(this, UNDEFINED_TYPE, void 0, ValueMirror);
+  %_CallFunction(this, UNDEFINED_TYPE, UNDEFINED, ValueMirror);
 }
 inherits(UndefinedMirror, ValueMirror);
 
@@ -957,7 +957,7 @@ FunctionMirror.prototype.scopeCount = function() {
 
 FunctionMirror.prototype.scope = function(index) {
   if (this.resolved()) {
-    return new ScopeMirror(void 0, this, index);
+    return new ScopeMirror(UNDEFINED, this, index);
   }
 };
 
@@ -1670,7 +1670,7 @@ FrameMirror.prototype.scopeCount = function() {
 
 
 FrameMirror.prototype.scope = function(index) {
-  return new ScopeMirror(this, void 0, index);
+  return new ScopeMirror(this, UNDEFINED, index);
 };
 
 

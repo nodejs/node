@@ -448,7 +448,7 @@ ScriptBreakPoint.prototype.set = function (script) {
 
   // If the position is not found in the script (the script might be shorter
   // than it used to be) just ignore it.
-  if (position === null) return;
+  if (IS_NULL(position)) return;
 
   // Create a break point object and set the break point.
   break_point = MakeBreakPoint(position, this);
@@ -2064,7 +2064,7 @@ DebugCommandProcessor.resolveValue_ = function(value_description) {
   } else if ("value" in value_description) {
     return value_description.value;
   } else if (value_description.type == UNDEFINED_TYPE) {
-    return void 0;
+    return UNDEFINED;
   } else if (value_description.type == NULL_TYPE) {
     return null;
   } else {

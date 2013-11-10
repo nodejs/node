@@ -36,6 +36,35 @@
 
 using namespace v8::internal;
 
+#define MAKE_HANDLES_AND_DISALLOW_ALLOCATION  \
+Isolate* isolate = CcTest::i_isolate();       \
+Factory* factory = isolate->factory();        \
+HandleScope sc(isolate);                      \
+Handle<String> handles[] = {                  \
+  factory->InternalizeUtf8String("A"),        \
+  factory->InternalizeUtf8String("B"),        \
+  factory->InternalizeUtf8String("C"),        \
+  factory->InternalizeUtf8String("D"),        \
+  factory->InternalizeUtf8String("E"),        \
+  factory->InternalizeUtf8String("F"),        \
+  factory->InternalizeUtf8String("G")         \
+};                                            \
+DisallowHeapAllocation _disable
+
+#define MAKE_UNIQUES_A_B_C        \
+  Unique<String> A(handles[0]);   \
+  Unique<String> B(handles[1]);   \
+  Unique<String> C(handles[2])
+
+#define MAKE_UNIQUES_A_B_C_D_E_F_G    \
+  Unique<String> A(handles[0]);       \
+  Unique<String> B(handles[1]);       \
+  Unique<String> C(handles[2]);       \
+  Unique<String> D(handles[3]);       \
+  Unique<String> E(handles[4]);       \
+  Unique<String> F(handles[5]);       \
+  Unique<String> G(handles[6])
+
 template <class T, class U>
 void CheckHashCodeEqual(Unique<T> a, Unique<U> b) {
   int64_t hasha = static_cast<int64_t>(a.Hashcode());
@@ -58,11 +87,9 @@ void CheckHashCodeNotEqual(Unique<T> a, Unique<U> b) {
 
 TEST(UniqueCreate) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  Handle<String> A = handles[0], B = handles[1];
 
-  Handle<String> A = factory->InternalizeUtf8String("A");
   Unique<String> HA(A);
 
   CHECK(*HA.handle() == *A);
@@ -77,7 +104,6 @@ TEST(UniqueCreate) {
   CHECK(HA2 == HA);
   CHECK_EQ(*HA2.handle(), *HA.handle());
 
-  Handle<String> B = factory->InternalizeUtf8String("B");
   Unique<String> HB(B);
 
   CheckHashCodeNotEqual(HA, HB);
@@ -93,11 +119,9 @@ TEST(UniqueCreate) {
 
 TEST(UniqueSubsume) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  Handle<String> A = handles[0];
 
-  Handle<String> A = factory->InternalizeUtf8String("A");
   Unique<String> HA(A);
 
   CHECK(*HA.handle() == *A);
@@ -116,13 +140,8 @@ TEST(UniqueSubsume) {
 
 TEST(UniqueSet_Add) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
-
-  Unique<String> A(factory->InternalizeUtf8String("A"));
-  Unique<String> B(factory->InternalizeUtf8String("B"));
-  Unique<String> C(factory->InternalizeUtf8String("C"));
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C;
 
   Zone zone(isolate);
 
@@ -146,6 +165,104 @@ TEST(UniqueSet_Add) {
 }
 
 
+TEST(UniqueSet_Remove) {
+  CcTest::InitializeVM();
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C;
+
+  Zone zone(isolate);
+
+  UniqueSet<String>* set = new(&zone) UniqueSet<String>();
+
+  set->Add(A, &zone);
+  set->Add(B, &zone);
+  set->Add(C, &zone);
+  CHECK_EQ(3, set->size());
+
+  set->Remove(A);
+  CHECK_EQ(2, set->size());
+  CHECK(!set->Contains(A));
+  CHECK(set->Contains(B));
+  CHECK(set->Contains(C));
+
+  set->Remove(A);
+  CHECK_EQ(2, set->size());
+  CHECK(!set->Contains(A));
+  CHECK(set->Contains(B));
+  CHECK(set->Contains(C));
+
+  set->Remove(B);
+  CHECK_EQ(1, set->size());
+  CHECK(!set->Contains(A));
+  CHECK(!set->Contains(B));
+  CHECK(set->Contains(C));
+
+  set->Remove(C);
+  CHECK_EQ(0, set->size());
+  CHECK(!set->Contains(A));
+  CHECK(!set->Contains(B));
+  CHECK(!set->Contains(C));
+}
+
+
+TEST(UniqueSet_Contains) {
+  CcTest::InitializeVM();
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C;
+
+  Zone zone(isolate);
+
+  UniqueSet<String>* set = new(&zone) UniqueSet<String>();
+
+  CHECK_EQ(0, set->size());
+  set->Add(A, &zone);
+  CHECK(set->Contains(A));
+  CHECK(!set->Contains(B));
+  CHECK(!set->Contains(C));
+
+  set->Add(A, &zone);
+  CHECK(set->Contains(A));
+  CHECK(!set->Contains(B));
+  CHECK(!set->Contains(C));
+
+  set->Add(B, &zone);
+  CHECK(set->Contains(A));
+  CHECK(set->Contains(B));
+
+  set->Add(C, &zone);
+  CHECK(set->Contains(A));
+  CHECK(set->Contains(B));
+  CHECK(set->Contains(C));
+}
+
+
+TEST(UniqueSet_At) {
+  CcTest::InitializeVM();
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C;
+
+  Zone zone(isolate);
+
+  UniqueSet<String>* set = new(&zone) UniqueSet<String>();
+
+  CHECK_EQ(0, set->size());
+  set->Add(A, &zone);
+  CHECK(A == set->at(0));
+
+  set->Add(A, &zone);
+  CHECK(A == set->at(0));
+
+  set->Add(B, &zone);
+  CHECK(A == set->at(0) || B == set->at(0));
+  CHECK(A == set->at(1) || B == set->at(1));
+
+  set->Add(C, &zone);
+  CHECK(A == set->at(0) || B == set->at(0) || C == set->at(0));
+  CHECK(A == set->at(1) || B == set->at(1) || C == set->at(1));
+  CHECK(A == set->at(2) || B == set->at(2) || C == set->at(2));
+}
+
+
 template <class T>
 static void CHECK_SETS(
     UniqueSet<T>* set1, UniqueSet<T>* set2, bool expected) {
@@ -158,13 +275,8 @@ static void CHECK_SETS(
 
 TEST(UniqueSet_Equals) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
-
-  Unique<String> A(factory->InternalizeUtf8String("A"));
-  Unique<String> B(factory->InternalizeUtf8String("B"));
-  Unique<String> C(factory->InternalizeUtf8String("C"));
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C;
 
   Zone zone(isolate);
 
@@ -201,13 +313,8 @@ TEST(UniqueSet_Equals) {
 
 TEST(UniqueSet_IsSubset1) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
-
-  Unique<String> A(factory->InternalizeUtf8String("A"));
-  Unique<String> B(factory->InternalizeUtf8String("B"));
-  Unique<String> C(factory->InternalizeUtf8String("C"));
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C;
 
   Zone zone(isolate);
 
@@ -241,17 +348,8 @@ TEST(UniqueSet_IsSubset1) {
 
 TEST(UniqueSet_IsSubset2) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
-
-  Unique<String> A(factory->InternalizeUtf8String("A"));
-  Unique<String> B(factory->InternalizeUtf8String("B"));
-  Unique<String> C(factory->InternalizeUtf8String("C"));
-  Unique<String> D(factory->InternalizeUtf8String("D"));
-  Unique<String> E(factory->InternalizeUtf8String("E"));
-  Unique<String> F(factory->InternalizeUtf8String("F"));
-  Unique<String> G(factory->InternalizeUtf8String("G"));
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C_D_E_F_G;
 
   Zone zone(isolate);
 
@@ -293,19 +391,10 @@ TEST(UniqueSet_IsSubsetExhaustive) {
   const int kSetSize = 6;
 
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C_D_E_F_G;
 
   Zone zone(isolate);
-
-  Unique<String> A(factory->InternalizeUtf8String("A"));
-  Unique<String> B(factory->InternalizeUtf8String("B"));
-  Unique<String> C(factory->InternalizeUtf8String("C"));
-  Unique<String> D(factory->InternalizeUtf8String("D"));
-  Unique<String> E(factory->InternalizeUtf8String("E"));
-  Unique<String> F(factory->InternalizeUtf8String("F"));
-  Unique<String> G(factory->InternalizeUtf8String("G"));
 
   Unique<String> elements[] = {
     A, B, C, D, E, F, G
@@ -325,13 +414,8 @@ TEST(UniqueSet_IsSubsetExhaustive) {
 
 TEST(UniqueSet_Intersect1) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
-
-  Unique<String> A(factory->InternalizeUtf8String("A"));
-  Unique<String> B(factory->InternalizeUtf8String("B"));
-  Unique<String> C(factory->InternalizeUtf8String("C"));
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C;
 
   Zone zone(isolate);
 
@@ -371,19 +455,10 @@ TEST(UniqueSet_IntersectExhaustive) {
   const int kSetSize = 6;
 
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C_D_E_F_G;
 
   Zone zone(isolate);
-
-  Unique<String> A(factory->InternalizeUtf8String("A"));
-  Unique<String> B(factory->InternalizeUtf8String("B"));
-  Unique<String> C(factory->InternalizeUtf8String("C"));
-  Unique<String> D(factory->InternalizeUtf8String("D"));
-  Unique<String> E(factory->InternalizeUtf8String("E"));
-  Unique<String> F(factory->InternalizeUtf8String("F"));
-  Unique<String> G(factory->InternalizeUtf8String("G"));
 
   Unique<String> elements[] = {
     A, B, C, D, E, F, G
@@ -407,13 +482,8 @@ TEST(UniqueSet_IntersectExhaustive) {
 
 TEST(UniqueSet_Union1) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
-
-  Unique<String> A(factory->InternalizeUtf8String("A"));
-  Unique<String> B(factory->InternalizeUtf8String("B"));
-  Unique<String> C(factory->InternalizeUtf8String("C"));
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C;
 
   Zone zone(isolate);
 
@@ -453,19 +523,10 @@ TEST(UniqueSet_UnionExhaustive) {
   const int kSetSize = 6;
 
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C_D_E_F_G;
 
   Zone zone(isolate);
-
-  Unique<String> A(factory->InternalizeUtf8String("A"));
-  Unique<String> B(factory->InternalizeUtf8String("B"));
-  Unique<String> C(factory->InternalizeUtf8String("C"));
-  Unique<String> D(factory->InternalizeUtf8String("D"));
-  Unique<String> E(factory->InternalizeUtf8String("E"));
-  Unique<String> F(factory->InternalizeUtf8String("F"));
-  Unique<String> G(factory->InternalizeUtf8String("G"));
 
   Unique<String> elements[] = {
     A, B, C, D, E, F, G

@@ -245,7 +245,8 @@ static bool GetTimeouts(const v8::FunctionCallbackInfo<v8::Value>& args,
     if (args[3]->IsNumber()) {
       *total_timeout = args[3]->Int32Value();
     } else {
-      ThrowException(String::New("system: Argument 4 must be a number"));
+      args.GetIsolate()->ThrowException(
+          String::New("system: Argument 4 must be a number"));
       return false;
     }
   }
@@ -253,7 +254,8 @@ static bool GetTimeouts(const v8::FunctionCallbackInfo<v8::Value>& args,
     if (args[2]->IsNumber()) {
       *read_timeout = args[2]->Int32Value();
     } else {
-      ThrowException(String::New("system: Argument 3 must be a number"));
+      args.GetIsolate()->ThrowException(
+          String::New("system: Argument 3 must be a number"));
       return false;
     }
   }
@@ -456,7 +458,8 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Handle<Array> command_args;
   if (args.Length() > 1) {
     if (!args[1]->IsArray()) {
-      ThrowException(String::New("system: Argument 2 must be an array"));
+      args.GetIsolate()->ThrowException(
+          String::New("system: Argument 2 must be an array"));
       return;
     }
     command_args = Handle<Array>::Cast(args[1]);
@@ -464,11 +467,13 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
     command_args = Array::New(0);
   }
   if (command_args->Length() > ExecArgs::kMaxArgs) {
-    ThrowException(String::New("Too many arguments to system()"));
+    args.GetIsolate()->ThrowException(
+        String::New("Too many arguments to system()"));
     return;
   }
   if (args.Length() < 1) {
-    ThrowException(String::New("Too few arguments to system()"));
+    args.GetIsolate()->ThrowException(
+        String::New("Too few arguments to system()"));
     return;
   }
 
@@ -483,11 +488,13 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int stdout_fds[2];
 
   if (pipe(exec_error_fds) != 0) {
-    ThrowException(String::New("pipe syscall failed."));
+    args.GetIsolate()->ThrowException(
+        String::New("pipe syscall failed."));
     return;
   }
   if (pipe(stdout_fds) != 0) {
-    ThrowException(String::New("pipe syscall failed."));
+    args.GetIsolate()->ThrowException(
+        String::New("pipe syscall failed."));
     return;
   }
 
@@ -531,17 +538,17 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     const char* message = "chdir() takes one argument";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   String::Utf8Value directory(args[0]);
   if (*directory == NULL) {
     const char* message = "os.chdir(): String conversion of argument failed.";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   if (chdir(*directory) != 0) {
-    ThrowException(String::New(strerror(errno)));
+    args.GetIsolate()->ThrowException(String::New(strerror(errno)));
     return;
   }
 }
@@ -550,7 +557,7 @@ void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     const char* message = "umask() takes one argument";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   if (args[0]->IsNumber()) {
@@ -560,7 +567,7 @@ void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   } else {
     const char* message = "umask() argument must be numeric";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
 }
@@ -616,18 +623,18 @@ void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
       mask = args[1]->Int32Value();
     } else {
       const char* message = "mkdirp() second argument must be numeric";
-      ThrowException(String::New(message));
+      args.GetIsolate()->ThrowException(String::New(message));
       return;
     }
   } else if (args.Length() != 1) {
     const char* message = "mkdirp() takes one or two arguments";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   String::Utf8Value directory(args[0]);
   if (*directory == NULL) {
     const char* message = "os.mkdirp(): String conversion of argument failed.";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   mkdirp(*directory, mask);
@@ -637,13 +644,13 @@ void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     const char* message = "rmdir() takes one or two arguments";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   String::Utf8Value directory(args[0]);
   if (*directory == NULL) {
     const char* message = "os.rmdir(): String conversion of argument failed.";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   rmdir(*directory);
@@ -653,7 +660,7 @@ void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 2) {
     const char* message = "setenv() takes two arguments";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   String::Utf8Value var(args[0]);
@@ -661,13 +668,13 @@ void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (*var == NULL) {
     const char* message =
         "os.setenv(): String conversion of variable name failed.";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   if (*value == NULL) {
     const char* message =
         "os.setenv(): String conversion of variable contents failed.";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   setenv(*var, *value, 1);
@@ -677,14 +684,14 @@ void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     const char* message = "unsetenv() takes one argument";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   String::Utf8Value var(args[0]);
   if (*var == NULL) {
     const char* message =
         "os.setenv(): String conversion of variable name failed.";
-    ThrowException(String::New(message));
+    args.GetIsolate()->ThrowException(String::New(message));
     return;
   }
   unsetenv(*var);

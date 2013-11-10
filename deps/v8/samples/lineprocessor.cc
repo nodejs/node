@@ -259,7 +259,7 @@ int RunMain(int argc, char* argv[]) {
 
   if (cycle_type == CycleInCpp) {
     bool res = RunCppCycle(script,
-                           v8::Context::GetCurrent(),
+                           isolate->GetCurrentContext(),
                            report_exceptions);
     return !res;
   } else {
@@ -296,7 +296,7 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
     v8::HandleScope handle_scope(isolate);
 
     v8::Handle<v8::String> input_line = ReadLine();
-    if (input_line == v8::Undefined()) {
+    if (input_line == v8::Undefined(isolate)) {
       continue;
     }
 
@@ -306,7 +306,7 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
     v8::Handle<v8::Value> result;
     {
       v8::TryCatch try_catch;
-      result = process_fun->Call(v8::Context::GetCurrent()->Global(),
+      result = process_fun->Call(isolate->GetCurrentContext()->Global(),
                                  argc, argv);
       if (try_catch.HasCaught()) {
         if (report_exceptions)
@@ -417,7 +417,7 @@ void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // function is called. Reads a string from standard input and returns.
 void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() > 0) {
-    v8::ThrowException(v8::String::New("Unexpected arguments"));
+    args.GetIsolate()->ThrowException(v8::String::New("Unexpected arguments"));
     return;
   }
   args.GetReturnValue().Set(ReadLine());
@@ -436,7 +436,7 @@ v8::Handle<v8::String> ReadLine() {
     res = fgets(buffer, kBufferSize, stdin);
   }
   if (res == NULL) {
-    v8::Handle<v8::Primitive> t = v8::Undefined();
+    v8::Handle<v8::Primitive> t = v8::Undefined(v8::Isolate::GetCurrent());
     return v8::Handle<v8::String>::Cast(t);
   }
   // Remove newline char

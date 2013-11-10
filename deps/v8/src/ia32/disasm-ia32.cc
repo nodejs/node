@@ -942,13 +942,13 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
     case SHORT_IMMEDIATE_INSTR: {
       byte* addr = reinterpret_cast<byte*>(*reinterpret_cast<int32_t*>(data+1));
-      AppendToBuffer("%s eax, %s", idesc.mnem, NameOfAddress(addr));
+      AppendToBuffer("%s eax,%s", idesc.mnem, NameOfAddress(addr));
       data += 5;
       break;
     }
 
     case BYTE_IMMEDIATE_INSTR: {
-      AppendToBuffer("%s al, 0x%x", idesc.mnem, data[1]);
+      AppendToBuffer("%s al,0x%x", idesc.mnem, data[1]);
       data += 2;
       break;
     }
@@ -1039,6 +1039,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("movaps %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
+          } else if (f0byte == 0x54) {
+            data += 2;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("andps %s,%s",
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;
@@ -1239,8 +1247,8 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               int8_t imm8 = static_cast<int8_t>(data[1]);
               AppendToBuffer("extractps %s,%s,%d",
-                             NameOfCPURegister(regop),
-                             NameOfXMMRegister(rm),
+                             NameOfCPURegister(rm),
+                             NameOfXMMRegister(regop),
                              static_cast<int>(imm8));
               data += 2;
             } else if (*data == 0x22) {

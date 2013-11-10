@@ -258,8 +258,8 @@ function addBoundMethod(obj, methodName, implementation, length) {
           // DateTimeFormat.format needs to be 0 arg method, but can stil
           // receive optional dateValue param. If one was provided, pass it
           // along.
-          if (arguments.length > 0) {
-            return implementation(that, arguments[0]);
+          if (%_ArgumentsLength() > 0) {
+            return implementation(that, %_Arguments(0));
           } else {
             return implementation(that);
           }
@@ -290,7 +290,7 @@ function addBoundMethod(obj, methodName, implementation, length) {
  * Parameter locales is treated as a priority list.
  */
 function supportedLocalesOf(service, locales, options) {
-  if (service.match(GetServiceRE()) === null) {
+  if (IS_NULL(service.match(GetServiceRE()))) {
     throw new $Error('Internal error, wrong service type: ' + service);
   }
 
@@ -447,7 +447,7 @@ function resolveLocale(service, requestedLocales, options) {
  * lookup algorithm.
  */
 function lookupMatcher(service, requestedLocales) {
-  if (service.match(GetServiceRE()) === null) {
+  if (IS_NULL(service.match(GetServiceRE()))) {
     throw new $Error('Internal error, wrong service type: ' + service);
   }
 
@@ -463,7 +463,7 @@ function lookupMatcher(service, requestedLocales) {
       if (AVAILABLE_LOCALES[service][locale] !== undefined) {
         // Return the resolved locale and extension.
         var extensionMatch = requestedLocales[i].match(GetUnicodeExtensionRE());
-        var extension = (extensionMatch === null) ? '' : extensionMatch[0];
+        var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
         return {'locale': locale, 'extension': extension, 'position': i};
       }
       // Truncate locale if possible.
@@ -535,7 +535,7 @@ function parseExtension(extension) {
  * Converts parameter to an Object if possible.
  */
 function toObject(value) {
-  if (value === undefined || value === null) {
+  if (IS_NULL_OR_UNDEFINED(value)) {
     throw new $TypeError('Value cannot be converted to an Object.');
   }
 
@@ -733,7 +733,7 @@ function toTitleCaseWord(word) {
 function canonicalizeLanguageTag(localeID) {
   // null is typeof 'object' so we have to do extra check.
   if (typeof localeID !== 'string' && typeof localeID !== 'object' ||
-      localeID === null) {
+      IS_NULL(localeID)) {
     throw new $TypeError('Language ID should be string or object.');
   }
 
@@ -978,8 +978,8 @@ function initializeCollator(collator, locales, options) {
  * @constructor
  */
 %SetProperty(Intl, 'Collator', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1038,7 +1038,7 @@ function initializeCollator(collator, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    return supportedLocalesOf('collator', locales, arguments[1]);
+    return supportedLocalesOf('collator', locales, %_Arguments(1));
   },
   DONT_ENUM
 );
@@ -1207,8 +1207,8 @@ function initializeNumberFormat(numberFormat, locales, options) {
  * @constructor
  */
 %SetProperty(Intl, 'NumberFormat', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1286,7 +1286,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    return supportedLocalesOf('numberformat', locales, arguments[1]);
+    return supportedLocalesOf('numberformat', locales, %_Arguments(1));
   },
   DONT_ENUM
 );
@@ -1367,7 +1367,7 @@ function toLDMLString(options) {
   ldmlString += appendToLDMLString(option, {'2-digit': 'ss', 'numeric': 's'});
 
   option = getOption('timeZoneName', 'string', ['short', 'long']);
-  ldmlString += appendToLDMLString(option, {short: 'v', long: 'vv'});
+  ldmlString += appendToLDMLString(option, {short: 'z', long: 'zzzz'});
 
   return ldmlString;
 }
@@ -1440,16 +1440,16 @@ function fromLDMLString(ldmlString) {
   options = appendToDateTimeObject(
       options, 'second', match, {s: 'numeric', ss: '2-digit'});
 
-  match = ldmlString.match(/v{1,2}/g);
+  match = ldmlString.match(/z|zzzz/g);
   options = appendToDateTimeObject(
-      options, 'timeZoneName', match, {v: 'short', vv: 'long'});
+      options, 'timeZoneName', match, {z: 'short', zzzz: 'long'});
 
   return options;
 }
 
 
 function appendToDateTimeObject(options, option, match, pairs) {
-  if (match === null) {
+  if (IS_NULL(match)) {
     if (!options.hasOwnProperty(option)) {
       defineWEProperty(options, option, undefined);
     }
@@ -1606,8 +1606,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  * @constructor
  */
 %SetProperty(Intl, 'DateTimeFormat', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1685,7 +1685,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    return supportedLocalesOf('dateformat', locales, arguments[1]);
+    return supportedLocalesOf('dateformat', locales, %_Arguments(1));
   },
   DONT_ENUM
 );
@@ -1751,7 +1751,7 @@ function canonicalizeTimeZoneID(tzID) {
   // We expect only _ and / beside ASCII letters.
   // All inputs should conform to Area/Location from now on.
   var match = GetTimezoneNameCheckRE().exec(tzID);
-  if (match === null) {
+  if (IS_NULL(match)) {
     throw new $RangeError('Expected Area/Location for time zone, got ' + tzID);
   }
 
@@ -1812,8 +1812,8 @@ function initializeBreakIterator(iterator, locales, options) {
  * @constructor
  */
 %SetProperty(Intl, 'v8BreakIterator', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1868,7 +1868,7 @@ function initializeBreakIterator(iterator, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    return supportedLocalesOf('breakiterator', locales, arguments[1]);
+    return supportedLocalesOf('breakiterator', locales, %_Arguments(1));
   },
   DONT_ENUM
 );
@@ -1971,12 +1971,12 @@ $Object.defineProperty($String.prototype, 'localeCompare', {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    if (this === undefined || this === null) {
+    if (IS_NULL_OR_UNDEFINED(this)) {
       throw new $TypeError('Method invoked on undefined or null value.');
     }
 
-    var locales = arguments[1];
-    var options = arguments[2];
+    var locales = %_Arguments(1);
+    var options = %_Arguments(2);
     var collator = cachedOrNewService('collator', locales, options);
     return compare(collator, this, that);
   },
@@ -2003,8 +2003,8 @@ $Object.defineProperty($Number.prototype, 'toLocaleString', {
       throw new $TypeError('Method invoked on an object that is not Number.');
     }
 
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
     var numberFormat = cachedOrNewService('numberformat', locales, options);
     return formatNumber(numberFormat, this);
   },
@@ -2049,8 +2049,8 @@ $Object.defineProperty($Date.prototype, 'toLocaleString', {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
     return toLocaleDateTime(
         this, locales, options, 'any', 'all', 'dateformatall');
   },
@@ -2074,8 +2074,8 @@ $Object.defineProperty($Date.prototype, 'toLocaleDateString', {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
     return toLocaleDateTime(
         this, locales, options, 'date', 'date', 'dateformatdate');
   },
@@ -2099,8 +2099,8 @@ $Object.defineProperty($Date.prototype, 'toLocaleTimeString', {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
     return toLocaleDateTime(
         this, locales, options, 'time', 'time', 'dateformattime');
   },

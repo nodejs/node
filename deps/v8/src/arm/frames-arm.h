@@ -64,7 +64,7 @@ const RegList kCalleeSaved =
   1 <<  4 |  //  r4 v1
   1 <<  5 |  //  r5 v2
   1 <<  6 |  //  r6 v3
-  1 <<  7 |  //  r7 v4
+  1 <<  7 |  //  r7 v4 (pp in JavaScript code)
   1 <<  8 |  //  r8 v5 (cp in JavaScript code)
   kR9Available <<  9 |  //  r9 v6
   1 << 10 |  // r10 v7

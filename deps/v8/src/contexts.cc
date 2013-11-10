@@ -259,7 +259,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
 void Context::AddOptimizedFunction(JSFunction* function) {
   ASSERT(IsNativeContext());
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
     while (!element->IsUndefined()) {

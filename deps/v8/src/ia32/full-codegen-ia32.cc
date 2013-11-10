@@ -158,10 +158,7 @@ void FullCodeGenerator::Generate() {
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
   info->set_prologue_offset(masm_->pc_offset());
-  __ push(ebp);  // Caller's frame pointer.
-  __ mov(ebp, esp);
-  __ push(esi);  // Callee's context.
-  __ push(edi);  // Callee's JS Function.
+  __ Prologue(BUILD_FUNCTION_FRAME);
   info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -1586,21 +1583,15 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      expr->depth() > 1) {
-    __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-    __ push(FieldOperand(edi, JSFunction::kLiteralsOffset));
-    __ push(Immediate(Smi::FromInt(expr->literal_index())));
-    __ push(Immediate(constant_properties));
-    __ push(Immediate(Smi::FromInt(flags)));
-    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
-  } else if (Serializer::enabled() || flags != ObjectLiteral::kFastElements ||
+      expr->depth() > 1 || Serializer::enabled() ||
+      flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(edi, JSFunction::kLiteralsOffset));
     __ push(Immediate(Smi::FromInt(expr->literal_index())));
     __ push(Immediate(constant_properties));
     __ push(Immediate(Smi::FromInt(flags)));
-    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
+    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
     __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ mov(eax, FieldOperand(edi, JSFunction::kLiteralsOffset));
@@ -3316,7 +3307,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
     __ cvtss2sd(xmm1, xmm1);
     __ xorps(xmm0, xmm1);
     __ subsd(xmm0, xmm1);
-    __ movdbl(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
+    __ movsd(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
   } else {
     // 0x4130000000000000 is 1.0 x 2^20 as a double.
     __ mov(FieldOperand(edi, HeapNumber::kExponentOffset),
@@ -3555,8 +3546,8 @@ void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(args->length(), 1);
 
-  // Load the argument on the stack and call the stub.
-  VisitForStackValue(args->at(0));
+  // Load the argument into eax and call the stub.
+  VisitForAccumulatorValue(args->at(0));
 
   NumberToStringStub stub;
   __ CallStub(&stub);
@@ -4896,6 +4887,79 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 }
 
 #undef __
+
+
+static const byte kJnsInstruction = 0x79;
+static const byte kJnsOffset = 0x11;
+static const byte kCallInstruction = 0xe8;
+static const byte kNopByteOne = 0x66;
+static const byte kNopByteTwo = 0x90;
+
+
+void BackEdgeTable::PatchAt(Code* unoptimized_code,
+                            Address pc,
+                            BackEdgeState target_state,
+                            Code* replacement_code) {
+  Address call_target_address = pc - kIntSize;
+  Address jns_instr_address = call_target_address - 3;
+  Address jns_offset_address = call_target_address - 2;
+
+  switch (target_state) {
+    case INTERRUPT:
+      //     sub <profiling_counter>, <delta>  ;; Not changed
+      //     jns ok
+      //     call <interrupt stub>
+      //   ok:
+      *jns_instr_address = kJnsInstruction;
+      *jns_offset_address = kJnsOffset;
+      break;
+    case ON_STACK_REPLACEMENT:
+    case OSR_AFTER_STACK_CHECK:
+      //     sub <profiling_counter>, <delta>  ;; Not changed
+      //     nop
+      //     nop
+      //     call <on-stack replacment>
+      //   ok:
+      *jns_instr_address = kNopByteOne;
+      *jns_offset_address = kNopByteTwo;
+      break;
+  }
+
+  Assembler::set_target_address_at(call_target_address,
+                                   replacement_code->entry());
+  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, call_target_address, replacement_code);
+}
+
+
+BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
+    Isolate* isolate,
+    Code* unoptimized_code,
+    Address pc) {
+  Address call_target_address = pc - kIntSize;
+  Address jns_instr_address = call_target_address - 3;
+  ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
+
+  if (*jns_instr_address == kJnsInstruction) {
+    ASSERT_EQ(kJnsOffset, *(call_target_address - 2));
+    ASSERT_EQ(isolate->builtins()->InterruptCheck()->entry(),
+              Assembler::target_address_at(call_target_address));
+    return INTERRUPT;
+  }
+
+  ASSERT_EQ(kNopByteOne, *jns_instr_address);
+  ASSERT_EQ(kNopByteTwo, *(call_target_address - 2));
+
+  if (Assembler::target_address_at(call_target_address) ==
+      isolate->builtins()->OnStackReplacement()->entry()) {
+    return ON_STACK_REPLACEMENT;
+  }
+
+  ASSERT_EQ(isolate->builtins()->OsrAfterStackCheck()->entry(),
+            Assembler::target_address_at(call_target_address));
+  return OSR_AFTER_STACK_CHECK;
+}
+
 
 } }  // namespace v8::internal
 

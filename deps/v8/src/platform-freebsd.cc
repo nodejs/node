@@ -43,7 +43,6 @@
 #include <sys/fcntl.h>  // open
 #include <unistd.h>     // getpagesize
 // If you don't have execinfo.h then you need devel/libexecinfo from ports.
-#include <execinfo.h>   // backtrace, backtrace_symbols
 #include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
@@ -54,7 +53,6 @@
 #include "v8.h"
 #include "v8threads.h"
 
-#include "platform-posix.h"
 #include "platform.h"
 #include "vm-state-inl.h"
 
@@ -94,11 +92,6 @@ void* OS::Allocate(const size_t requested,
   }
   *allocated = msize;
   return mbase;
-}
-
-
-void OS::DumpBacktrace() {
-  POSIXBacktraceHelper<backtrace, backtrace_symbols>::DumpBacktrace();
 }
 
 
@@ -198,10 +191,6 @@ void OS::LogSharedLibraryAddresses(Isolate* isolate) {
 void OS::SignalCodeMovingGC() {
 }
 
-
-int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
-}
 
 
 // Constants used for mmap.

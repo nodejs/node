@@ -226,7 +226,7 @@ class CppLintProcessor(SourceFileProcessor):
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'preparser', 'include', 'samples', join('test', 'cctest')]
+    return ['src', 'include', 'samples', join('test', 'cctest')]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
@@ -282,8 +282,8 @@ class SourceProcessor(SourceFileProcessor):
   Check that all files include a copyright notice and no trailing whitespaces.
   """
 
-  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', 'SConscript',
-      'SConstruct', '.status', '.gyp', '.gypi']
+  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c',
+                         '.status', '.gyp', '.gypi']
 
   # Overwriting the one in the parent class.
   def FindFilesIn(self, path):
@@ -292,7 +292,7 @@ class SourceProcessor(SourceFileProcessor):
                                 stdout=PIPE, cwd=path, shell=True)
       result = []
       for file in output.stdout.read().split():
-        for dir_part in os.path.dirname(file).split(os.sep):
+        for dir_part in os.path.dirname(file).replace(os.sep, '/').split('/'):
           if self.IgnoreDir(dir_part):
             break
         else:

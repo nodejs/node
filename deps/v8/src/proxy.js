@@ -40,7 +40,7 @@ function ProxyCreate(handler, proto) {
     throw MakeTypeError("handler_non_object", ["create"])
   if (IS_UNDEFINED(proto))
     proto = null
-  else if (!(IS_SPEC_OBJECT(proto) || proto === null))
+  else if (!(IS_SPEC_OBJECT(proto) || IS_NULL(proto)))
     throw MakeTypeError("proto_non_object", ["create"])
   return %CreateJSProxy(handler, proto)
 }
@@ -56,7 +56,7 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
     // Make sure the trap receives 'undefined' as this.
     var construct = constructTrap
     constructTrap = function() {
-      return %Apply(construct, void 0, arguments, 0, %_ArgumentsLength());
+      return %Apply(construct, UNDEFINED, arguments, 0, %_ArgumentsLength());
     }
   } else {
     throw MakeTypeError("trap_function_expected",

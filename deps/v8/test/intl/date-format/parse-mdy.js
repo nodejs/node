@@ -27,23 +27,25 @@
 
 // Testing v8Parse method for date only.
 
-var dtf = new Intl.DateTimeFormat(['en']);
+function checkDate(date) {
+  assertEquals(1974, date.getUTCFullYear());
+  assertEquals(1, date.getUTCMonth());
+  assertEquals(4, date.getUTCDate());
+}
+
+var dtf = new Intl.DateTimeFormat(['en'], {timeZone: 'America/Los_Angeles'});
 
 // Make sure we have pattern we expect (may change in the future).
 assertEquals('M/d/y', dtf.resolved.pattern);
 
-assertEquals('Sat May 04 1974 00:00:00 GMT-0007 (PDT)',
-             usePDT(String(dtf.v8Parse('5/4/74'))));
-assertEquals('Sat May 04 1974 00:00:00 GMT-0007 (PDT)',
-             usePDT(String(dtf.v8Parse('05/04/74'))));
-assertEquals('Sat May 04 1974 00:00:00 GMT-0007 (PDT)',
-             usePDT(String(dtf.v8Parse('5/04/74'))));
-assertEquals('Sat May 04 1974 00:00:00 GMT-0007 (PDT)',
-             usePDT(String(dtf.v8Parse('5/4/1974'))));
+checkDate(dtf.v8Parse('2/4/74'));
+checkDate(dtf.v8Parse('02/04/74'));
+checkDate(dtf.v8Parse('2/04/74'));
+checkDate(dtf.v8Parse('02/4/74'));
+checkDate(dtf.v8Parse('2/4/1974'));
+checkDate(dtf.v8Parse('02/4/1974'));
+checkDate(dtf.v8Parse('2/04/1974'));
+checkDate(dtf.v8Parse('02/04/1974'));
 
-// Month is numeric, so it fails on "May".
-assertEquals(undefined, dtf.v8Parse('May 4th 1974'));
-
-// Time is ignored from the input, since the pattern doesn't have it.
-assertEquals('Sat May 04 1974 00:00:00 GMT-0007 (PDT)',
-             usePDT(String(dtf.v8Parse('5/4/74 12:30:12'))));
+// Month is numeric, so it fails on "Feb".
+assertEquals(undefined, dtf.v8Parse('Feb 4th 1974'));

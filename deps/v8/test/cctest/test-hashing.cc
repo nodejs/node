@@ -151,7 +151,7 @@ void generate(MacroAssembler* masm, uint32_t key) {
 
 
 void check(i::Vector<const uint8_t> string) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -188,12 +188,12 @@ void check(i::Vector<const char> s) {
 
 
 void check(uint32_t key) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
   v8::internal::byte buffer[2048];
-  MacroAssembler masm(Isolate::Current(), buffer, sizeof buffer);
+  MacroAssembler masm(CcTest::i_isolate(), buffer, sizeof buffer);
 
   generate(&masm, key);
 
@@ -230,7 +230,7 @@ static uint32_t PseudoRandom(uint32_t i, uint32_t j) {
 
 
 TEST(StringHash) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(v8::Context::New(isolate));
 
@@ -251,7 +251,7 @@ TEST(StringHash) {
 
 
 TEST(NumberHash) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(v8::Context::New(isolate));
 

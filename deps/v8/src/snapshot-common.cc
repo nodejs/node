@@ -102,10 +102,19 @@ bool Snapshot::Initialize(const char* snapshot_file) {
     DeleteArray(str);
     return success;
   } else if (size_ > 0) {
+    ElapsedTimer timer;
+    if (FLAG_profile_deserialization) {
+      timer.Start();
+    }
     SnapshotByteSource source(raw_data_, raw_size_);
     Deserializer deserializer(&source);
     ReserveSpaceForLinkedInSnapshot(&deserializer);
-    return V8::Initialize(&deserializer);
+    bool success = V8::Initialize(&deserializer);
+    if (FLAG_profile_deserialization) {
+      double ms = timer.Elapsed().InMillisecondsF();
+      PrintF("[Snapshot loading and deserialization took %0.3f ms]\n", ms);
+    }
+    return success;
   }
   return false;
 }

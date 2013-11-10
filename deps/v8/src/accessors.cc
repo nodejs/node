@@ -78,6 +78,61 @@ MaybeObject* Accessors::ReadOnlySetAccessor(Isolate* isolate,
 }
 
 
+static V8_INLINE bool CheckForName(Handle<String> name,
+                                   String* property_name,
+                                   int offset,
+                                   int* object_offset) {
+  if (name->Equals(property_name)) {
+    *object_offset = offset;
+    return true;
+  }
+  return false;
+}
+
+
+bool Accessors::IsJSObjectFieldAccessor(
+      Handle<Map> map, Handle<String> name,
+      int* object_offset) {
+  Isolate* isolate = map->GetIsolate();
+  switch (map->instance_type()) {
+    case JS_ARRAY_TYPE:
+      return
+        CheckForName(name, isolate->heap()->length_string(),
+                     JSArray::kLengthOffset, object_offset);
+    case JS_TYPED_ARRAY_TYPE:
+      return
+        CheckForName(name, isolate->heap()->length_string(),
+                     JSTypedArray::kLengthOffset, object_offset) ||
+        CheckForName(name, isolate->heap()->byte_length_string(),
+                     JSTypedArray::kByteLengthOffset, object_offset) ||
+        CheckForName(name, isolate->heap()->byte_offset_string(),
+                     JSTypedArray::kByteOffsetOffset, object_offset) ||
+        CheckForName(name, isolate->heap()->buffer_string(),
+                     JSTypedArray::kBufferOffset, object_offset);
+    case JS_ARRAY_BUFFER_TYPE:
+      return
+        CheckForName(name, isolate->heap()->byte_length_string(),
+                     JSArrayBuffer::kByteLengthOffset, object_offset);
+    case JS_DATA_VIEW_TYPE:
+      return
+        CheckForName(name, isolate->heap()->byte_length_string(),
+                     JSDataView::kByteLengthOffset, object_offset) ||
+        CheckForName(name, isolate->heap()->byte_offset_string(),
+                     JSDataView::kByteOffsetOffset, object_offset) ||
+        CheckForName(name, isolate->heap()->buffer_string(),
+                     JSDataView::kBufferOffset, object_offset);
+    default: {
+      if (map->instance_type() < FIRST_NONSTRING_TYPE) {
+        return
+          CheckForName(name, isolate->heap()->length_string(),
+                       String::kLengthOffset, object_offset);
+      }
+      return false;
+    }
+  }
+}
+
+
 //
 // Accessors::ArrayLength
 //

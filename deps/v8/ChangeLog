@@ -1,3 +1,226 @@
+2013-10-31: Version 3.22.24
+
+        Fixed uint32-to-smi conversion in Lithium.
+        (Chromium issue 309623)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-28: Version 3.22.23
+
+        Renamed deprecated __attribute__((no_address_safety_analysis)) to
+        __attribute__((no_sanitize_address)) (Chromium issue 311283)
+
+        Defined DEBUG for v8_optimized_debug=2
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-25: Version 3.22.22
+
+        Record allocation stack traces. (Chromium issue 277984,v8:2949)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-24: Version 3.22.21
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-24: Version 3.22.20
+
+        Made Array.prototype.pop throw if the last element is not configurable.
+
+        Fixed HObjectAccess for loads from migrating prototypes.
+        (Chromium issue 305309)
+
+        Enabled preaging of code objects when --optimize-for-size.
+        (Chromium issue 280984)
+
+        Exposed v8::Function::GetDisplayName to public API.
+        (Chromium issue 17356)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-23: Version 3.22.19
+
+        Fix materialization of captured objects with field tracking.
+        (Chromium issue 298990)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-22: Version 3.22.18
+
+        Add tool to visualize machine code/lithium.
+
+        Handle misaligned loads and stores in load elimination. Do not track
+        misaligned loads and be conservative about invalidating misaligned
+        stores. (issue 2934)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-21: Version 3.22.17
+
+        Harmony: Implement Math.trunc and Math.sign. (issue 2938)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-21: Version 3.22.16
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-18: Version 3.22.15
+
+        Enabled calling the SetReference* & SetObjectGroupId functions with a
+        Persistent<SubclassOfValue>.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-17: Version 3.22.14
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-16: Version 3.22.13
+
+        Do not look up ArrayBuffer on global object in typed array constructor.
+        (issue 2931)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-15: Version 3.22.12
+
+        Added histograms to track fraction of heap spaces and percentage of
+        generated crankshaft code.
+
+        Moved v8_optimized_debug default value to standalone.gypi.
+
+        Track JS allocations as they arrive with no affection on performance
+        when tracking is switched off (Chromium issue 277984).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-14: Version 3.22.11
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-11: Version 3.22.10
+
+        Fixed timezone issues with date-time/parse-* tests.
+        (Chromium issue 2919)
+
+        Added column getter to CpuProfileNode (Chromium issue 302537)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-10: Version 3.22.9
+
+        Ensure only whitelisted stubs have sse2 versions in the snapshot.
+        (fix for chromium 304565)
+
+        Implement ArrayBuffer.isView.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-04: Version 3.22.8
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-03: Version 3.22.7
+
+        Debug: Allow stepping into on a given call frame
+        (Chromium issue 296963).
+
+        Always use timeGetTime() for TimeTicks::Now() on Windows
+        (Chromium issue 288924).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-02: Version 3.22.6
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-01: Version 3.22.5
+
+        Disabled externalization of sliced/cons strings in old pointer space
+        (Chromium issue 276357).
+
+        Turned on handle zapping for release builds
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-30: Version 3.22.4
+
+        Function::Call and Object::CallAsFunction APIs should allow v8::Value as
+        a receiver (issue 2915).
+
+        Removed unnecessary mutex (Chromium issue 291236).
+
+        Removed ArrayBufferView::BaseAddress method.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-27: Version 3.22.3
+
+        Added methods to enable configuration of ResourceConstraints based on
+        limits derived at runtime.
+        (Chromium issue 292928)
+
+        Added -optimize-for-size flag to optimize for memory size (will be used
+        by pre-aging CL), and removed the is_memory_constrained
+        ResourceConstraint.
+        (Chromium issue 292928)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-26: Version 3.22.2
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-25: Version 3.22.1
+
+        Sped up creating typed arrays from array-like objects.
+        (Chromium issue 270507)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-23: Version 3.22.0
+
+        LiveEdit to mark more closure functions for re-instantiation when scope
+        layout changes.
+        (issue 2872)
+
+        Made bounds check elimination iterative instead of recursive.
+        (Chromium issue 289706)
+
+        Turned on i18n support by default.
+
+        Set the proper instance-type on HAllocate in BuildFastLiteral.
+        (Chromium issue 284577)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-18: Version 3.21.17
 
         Implemented local load/store elimination on basic blocks.

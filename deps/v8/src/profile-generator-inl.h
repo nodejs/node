@@ -33,27 +33,19 @@
 namespace v8 {
 namespace internal {
 
-const char* StringsStorage::GetFunctionName(Name* name) {
-  return GetFunctionName(GetName(name));
-}
-
-
-const char* StringsStorage::GetFunctionName(const char* name) {
-  return strlen(name) > 0 ? name : ProfileGenerator::kAnonymousFunctionName;
-}
-
-
 CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
                      const char* name,
                      const char* name_prefix,
                      const char* resource_name,
-                     int line_number)
+                     int line_number,
+                     int column_number)
     : tag_(tag),
       builtin_id_(Builtins::builtin_count),
       name_prefix_(name_prefix),
       name_(name),
       resource_name_(resource_name),
       line_number_(line_number),
+      column_number_(column_number),
       shared_id_(0),
       script_id_(v8::Script::kNoScriptId),
       no_frame_ranges_(NULL),
@@ -76,25 +68,6 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
       self_ticks_(0),
       children_(CodeEntriesMatch),
       id_(tree->next_node_id()) { }
-
-
-CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
-  switch (tag) {
-    case GC:
-      return gc_entry_;
-    case JS:
-    case COMPILER:
-    // DOM events handlers are reported as OTHER / EXTERNAL entries.
-    // To avoid confusing people, let's put all these entries into
-    // one bucket.
-    case OTHER:
-    case EXTERNAL:
-      return program_entry_;
-    case IDLE:
-      return idle_entry_;
-    default: return NULL;
-  }
-}
 
 } }  // namespace v8::internal
 

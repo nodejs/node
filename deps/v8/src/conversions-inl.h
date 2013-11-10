@@ -355,7 +355,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
       return JunkStringValue();
     }
 
-    ASSERT(buffer_pos < kBufferSize);
+    SLOW_ASSERT(buffer_pos < kBufferSize);
     buffer[buffer_pos] = '\0';
     Vector<const char> buffer_vector(buffer, buffer_pos);
     return negative ? -Strtod(buffer_vector, 0) : Strtod(buffer_vector, 0);
@@ -692,7 +692,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     exponent--;
   }
 
-  ASSERT(buffer_pos < kBufferSize);
+  SLOW_ASSERT(buffer_pos < kBufferSize);
   buffer[buffer_pos] = '\0';
 
   double converted = Strtod(Vector<const char>(buffer, buffer_pos), exponent);

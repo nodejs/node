@@ -31,6 +31,7 @@
 
 #include "v8.h"
 
+#include "allocation-tracker.h"
 #include "cctest.h"
 #include "hashmap.h"
 #include "heap-profiler.h"
@@ -38,6 +39,12 @@
 #include "debug.h"
 #include "utils-inl.h"
 #include "../include/v8-profiler.h"
+
+using i::AllocationTraceNode;
+using i::AllocationTraceTree;
+using i::AllocationTracker;
+using i::HashMap;
+using i::Vector;
 
 namespace {
 
@@ -413,7 +420,7 @@ TEST(HeapSnapshotSlicedString) {
 
 
 TEST(HeapSnapshotConsString) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->SetInternalFieldCount(1);
@@ -422,7 +429,7 @@ TEST(HeapSnapshotConsString) {
   v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
   CHECK_EQ(1, global->InternalFieldCount());
 
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = CcTest::i_isolate()->factory();
   i::Handle<i::String> first =
       factory->NewStringFromAscii(i::CStrVector("0123456789"));
   i::Handle<i::String> second =
@@ -456,7 +463,7 @@ TEST(HeapSnapshotConsString) {
 
 
 TEST(HeapSnapshotInternalReferences) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->SetInternalFieldCount(2);
@@ -505,7 +512,7 @@ TEST(HeapSnapshotAddressReuse) {
   CompileRun(
       "for (var i = 0; i < 10000; ++i)\n"
       "  a[i] = new A();\n");
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   const v8::HeapSnapshot* snapshot2 =
       heap_profiler->TakeHeapSnapshot(v8_str("snapshot2"));
@@ -549,7 +556,7 @@ TEST(HeapEntryIdsAndArrayShift) {
       "for (var i = 0; i < 1; ++i)\n"
       "  a.shift();\n");
 
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   const v8::HeapSnapshot* snapshot2 =
       heap_profiler->TakeHeapSnapshot(v8_str("s2"));
@@ -594,7 +601,7 @@ TEST(HeapEntryIdsAndGC) {
       heap_profiler->TakeHeapSnapshot(s1_str);
   CHECK(ValidateSnapshot(snapshot1));
 
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   const v8::HeapSnapshot* snapshot2 =
       heap_profiler->TakeHeapSnapshot(s2_str);
@@ -901,7 +908,7 @@ TEST(HeapSnapshotObjectsStats) {
   // We have to call GC 6 times. In other case the garbage will be
   // the reason of flakiness.
   for (int i = 0; i < 6; ++i) {
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+    CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
   }
 
   v8::SnapshotObjectId initial_id;
@@ -1482,7 +1489,7 @@ TEST(NoHandleLeaks) {
   CompileRun("document = { URL:\"abcdefgh\" };");
 
   v8::Handle<v8::String> name(v8_str("leakz"));
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   int count_before = i::HandleScope::NumberOfHandles(isolate);
   heap_profiler->TakeHeapSnapshot(name);
   int count_after = i::HandleScope::NumberOfHandles(isolate);
@@ -1738,7 +1745,7 @@ bool HasWeakEdge(const v8::HeapGraphNode* node) {
 
 
 bool HasWeakGlobalHandle() {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(v8_str("weaks"));
@@ -1800,7 +1807,7 @@ TEST(NoDebugObjectInSnapshot) {
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
-  v8::internal::Isolate::Current()->debug()->Load();
+  CcTest::i_isolate()->debug()->Load();
   CompileRun("foo = {};");
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
@@ -2004,4 +2011,169 @@ TEST(JSFunctionHasCodeLink) {
   const v8::HeapGraphNode* code =
       GetProperty(foo_func, v8::HeapGraphEdge::kInternal, "code");
   CHECK_NE(NULL, code);
+}
+
+
+
+class HeapProfilerExtension : public v8::Extension {
+ public:
+  static const char* kName;
+  HeapProfilerExtension() : v8::Extension(kName, kSource) { }
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+      v8::Handle<v8::String> name);
+  static void FindUntrackedObjects(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+ private:
+  static const char* kSource;
+};
+
+const char* HeapProfilerExtension::kName = "v8/heap-profiler";
+
+
+const char* HeapProfilerExtension::kSource =
+    "native function findUntrackedObjects();";
+
+
+v8::Handle<v8::FunctionTemplate> HeapProfilerExtension::GetNativeFunction(
+    v8::Handle<v8::String> name) {
+  if (name->Equals(v8::String::New("findUntrackedObjects"))) {
+    return v8::FunctionTemplate::New(
+        HeapProfilerExtension::FindUntrackedObjects);
+  } else {
+    CHECK(false);
+    return v8::Handle<v8::FunctionTemplate>();
+  }
+}
+
+
+void HeapProfilerExtension::FindUntrackedObjects(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  i::HeapProfiler* heap_profiler =
+      reinterpret_cast<i::HeapProfiler*>(args.GetIsolate()->GetHeapProfiler());
+  int untracked_objects = heap_profiler->FindUntrackedObjects();
+  args.GetReturnValue().Set(untracked_objects);
+  CHECK_EQ(0, untracked_objects);
+}
+
+
+static HeapProfilerExtension kHeapProfilerExtension;
+v8::DeclareExtension kHeapProfilerExtensionDeclaration(
+    &kHeapProfilerExtension);
+
+
+// This is an example of using checking of JS allocations tracking in a test.
+TEST(HeapObjectsTracker) {
+  const char* extensions[] = { HeapProfilerExtension::kName };
+  v8::ExtensionConfiguration config(1, extensions);
+  LocalContext env(&config);
+  v8::HandleScope scope(env->GetIsolate());
+  HeapObjectsTracker tracker;
+  CompileRun("var a = 1.2");
+  CompileRun("var a = 1.2; var b = 1.0; var c = 1.0;");
+  CompileRun(
+    "var a = [];\n"
+    "for (var i = 0; i < 5; ++i)\n"
+    "    a[i] = i;\n"
+    "findUntrackedObjects();\n"
+    "for (var i = 0; i < 3; ++i)\n"
+    "    a.shift();\n"
+    "findUntrackedObjects();\n");
+}
+
+
+static const char* record_trace_tree_source =
+"var topFunctions = [];\n"
+"var global = this;\n"
+"function generateFunctions(width, depth) {\n"
+"  var script = [];\n"
+"  for (var i = 0; i < width; i++) {\n"
+"    for (var j = 0; j < depth; j++) {\n"
+"      script.push('function f_' + i + '_' + j + '(x) {\\n');\n"
+"      script.push('  try {\\n');\n"
+"      if (j < depth-2) {\n"
+"        script.push('    return f_' + i + '_' + (j+1) + '(x+1);\\n');\n"
+"      } else if (j == depth - 2) {\n"
+"        script.push('    return new f_' + i + '_' + (depth - 1) + '();\\n');\n"
+"      } else if (j == depth - 1) {\n"
+"        script.push('    this.ts = Date.now();\\n');\n"
+"      }\n"
+"      script.push('  } catch (e) {}\\n');\n"
+"      script.push('}\\n');\n"
+"      \n"
+"    }\n"
+"  }\n"
+"  var script = script.join('');\n"
+"  // throw script;\n"
+"  global.eval(script);\n"
+"  for (var i = 0; i < width; i++) {\n"
+"    topFunctions.push(this['f_' + i + '_0']);\n"
+"  }\n"
+"}\n"
+"\n"
+"var width = 3;\n"
+"var depth = 3;\n"
+"generateFunctions(width, depth);\n"
+"var instances = [];\n"
+"function start() {\n"
+"  for (var i = 0; i < width; i++) {\n"
+"    instances.push(topFunctions[i](0));\n"
+"  }\n"
+"}\n"
+"\n"
+"for (var i = 0; i < 100; i++) start();\n";
+
+
+static i::HeapSnapshot* ToInternal(const v8::HeapSnapshot* snapshot) {
+  return const_cast<i::HeapSnapshot*>(
+      reinterpret_cast<const i::HeapSnapshot*>(snapshot));
+}
+
+
+static AllocationTraceNode* FindNode(
+    AllocationTracker* tracker, const Vector<const char*>& names) {
+  AllocationTraceNode* node = tracker->trace_tree()->root();
+  for (int i = 0; node != NULL && i < names.length(); i++) {
+    const char* name = names[i];
+    Vector<AllocationTraceNode*> children = node->children();
+    node = NULL;
+    for (int j = 0; j < children.length(); j++) {
+      v8::SnapshotObjectId id = children[j]->function_id();
+      AllocationTracker::FunctionInfo* info = tracker->GetFunctionInfo(id);
+      if (info && strcmp(info->name, name) == 0) {
+        node = children[j];
+        break;
+      }
+    }
+  }
+  return node;
+}
+
+
+TEST(TrackHeapAllocations) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  heap_profiler->StartRecordingHeapAllocations();
+
+  CompileRun(record_trace_tree_source);
+
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
+      v8::String::New("Test"));
+  i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
+  AllocationTracker* tracker = collection->allocation_tracker();
+  CHECK_NE(NULL, tracker);
+  // Resolve all function locations.
+  tracker->PrepareForSerialization();
+  // Print for better diagnostics in case of failure.
+  tracker->trace_tree()->Print(tracker);
+
+  const char* names[] =
+      { "(anonymous function)", "start", "f_0_0", "f_0_1", "f_0_2" };
+  AllocationTraceNode* node =
+      FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+  CHECK_NE(NULL, node);
+  CHECK_GE(node->allocation_count(), 100);
+  CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
+  heap_profiler->StopRecordingHeapAllocations();
 }

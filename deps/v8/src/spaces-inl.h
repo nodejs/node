@@ -28,6 +28,7 @@
 #ifndef V8_SPACES_INL_H_
 #define V8_SPACES_INL_H_
 
+#include "heap-profiler.h"
 #include "isolate.h"
 #include "spaces.h"
 #include "v8memory.h"
@@ -263,21 +264,27 @@ void Page::set_prev_page(Page* page) {
 // allocation) so it can be used by all the allocation functions and for all
 // the paged spaces.
 HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
-  Address current_top = allocation_info_.top;
+  Address current_top = allocation_info_.top();
   Address new_top = current_top + size_in_bytes;
-  if (new_top > allocation_info_.limit) return NULL;
+  if (new_top > allocation_info_.limit()) return NULL;
 
-  allocation_info_.top = new_top;
+  allocation_info_.set_top(new_top);
   return HeapObject::FromAddress(current_top);
 }
 
 
 // Raw allocation.
-MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
+MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
+                                     AllocationType event) {
+  HeapProfiler* profiler = heap()->isolate()->heap_profiler();
+
   HeapObject* object = AllocateLinearly(size_in_bytes);
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
+    }
+    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
+      profiler->NewObjectEvent(object->address(), size_in_bytes);
     }
     return object;
   }
@@ -291,6 +298,9 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
     }
+    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
+      profiler->NewObjectEvent(object->address(), size_in_bytes);
+    }
     return object;
   }
 
@@ -298,6 +308,9 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
+    }
+    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
+      profiler->NewObjectEvent(object->address(), size_in_bytes);
     }
     return object;
   }
@@ -311,30 +324,35 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
 
 
 MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
-  Address old_top = allocation_info_.top;
+  Address old_top = allocation_info_.top();
 #ifdef DEBUG
   // If we are stressing compaction we waste some memory in new space
   // in order to get more frequent GCs.
   if (FLAG_stress_compaction && !heap()->linear_allocation()) {
-    if (allocation_info_.limit - old_top >= size_in_bytes * 4) {
+    if (allocation_info_.limit() - old_top >= size_in_bytes * 4) {
       int filler_size = size_in_bytes * 4;
       for (int i = 0; i < filler_size; i += kPointerSize) {
         *(reinterpret_cast<Object**>(old_top + i)) =
             heap()->one_pointer_filler_map();
       }
       old_top += filler_size;
-      allocation_info_.top += filler_size;
+      allocation_info_.set_top(allocation_info_.top() + filler_size);
     }
   }
 #endif
 
-  if (allocation_info_.limit - old_top < size_in_bytes) {
+  if (allocation_info_.limit() - old_top < size_in_bytes) {
     return SlowAllocateRaw(size_in_bytes);
   }
 
-  Object* obj = HeapObject::FromAddress(old_top);
-  allocation_info_.top += size_in_bytes;
+  HeapObject* obj = HeapObject::FromAddress(old_top);
+  allocation_info_.set_top(allocation_info_.top() + size_in_bytes);
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+
+  HeapProfiler* profiler = heap()->isolate()->heap_profiler();
+  if (profiler != NULL && profiler->is_tracking_allocations()) {
+    profiler->NewObjectEvent(obj->address(), size_in_bytes);
+  }
 
   return obj;
 }

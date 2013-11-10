@@ -39,8 +39,7 @@ from testrunner.objects import testcase
 TEST_262_ARCHIVE_REVISION = "99aac3bc1cad"  # This is the r365 revision.
 TEST_262_ARCHIVE_MD5 = "aadbd720ce9bdb4f8f3de066f4d7eea1"
 TEST_262_URL = "http://hg.ecmascript.org/tests/test262/archive/%s.tar.bz2"
-TEST_262_HARNESS = ["sta.js", "testBuiltInObject.js"]
-TEST_262_SKIP = ["intl402"]
+TEST_262_HARNESS = ["sta.js", "testBuiltInObject.js", "testIntl.js"]
 
 
 class Test262TestSuite(testsuite.TestSuite):
@@ -60,8 +59,8 @@ class Test262TestSuite(testsuite.TestSuite):
     for dirname, dirs, files in os.walk(self.testroot):
       for dotted in [x for x in dirs if x.startswith(".")]:
         dirs.remove(dotted)
-      for skipped in [x for x in dirs if x in TEST_262_SKIP]:
-        dirs.remove(skipped)
+      if context.noi18n and "intl402" in dirs:
+        dirs.remove("intl402")
       dirs.sort()
       files.sort()
       for filename in files:

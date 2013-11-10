@@ -86,19 +86,19 @@ class TestObjectVisitor : public ObjectVisitor {
 
 TEST(IterateObjectGroupsOldApi) {
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
-
+  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+  Heap* heap = CcTest::heap();
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> g1s1 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g1s2 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
 
   Handle<Object> g2s1 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g2s2 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
 
   TestRetainedObjectInfo info1;
   TestRetainedObjectInfo info2;
@@ -181,19 +181,20 @@ TEST(IterateObjectGroupsOldApi) {
 
 TEST(IterateObjectGroups) {
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+  Heap* heap = CcTest::heap();
 
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> g1s1 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g1s2 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
 
   Handle<Object> g2s1 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g2s2 =
-    global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
 
   TestRetainedObjectInfo info1;
   TestRetainedObjectInfo info2;
@@ -275,24 +276,25 @@ TEST(IterateObjectGroups) {
 
 TEST(ImplicitReferences) {
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+  Heap* heap = CcTest::heap();
 
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> g1s1 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g1c1 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g1c2 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
 
 
   Handle<Object> g2s1 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g2s2 =
-    global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g2c1 =
-    global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
 
   global_handles->SetObjectGroupId(g1s1.location(), UniqueId(1));
   global_handles->SetObjectGroupId(g2s1.location(), UniqueId(2));
@@ -319,7 +321,7 @@ TEST(ImplicitReferences) {
 
 TEST(EternalHandles) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   EternalHandles* eternal_handles = isolate->eternal_handles();
 

@@ -42,6 +42,10 @@ namespace internal {
 // If two instances of RandomNumberGenerator are created with the same seed, and
 // the same sequence of method calls is made for each, they will generate and
 // return identical sequences of numbers.
+// This class uses (probably) weak entropy by default, but it's sufficient,
+// because it is the responsibility of the embedder to install an entropy source
+// using v8::V8::SetEntropySource(), which provides reasonable entropy, see:
+// https://code.google.com/p/v8/issues/detail?id=2905
 // This class is neither reentrant nor threadsafe.
 
 class RandomNumberGenerator V8_FINAL {

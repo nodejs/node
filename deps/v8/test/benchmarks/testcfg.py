@@ -172,7 +172,7 @@ class BenchmarksTestSuite(testsuite.TestSuite):
 
     os.chdir(old_cwd)
 
-  def VariantFlags(self):
+  def VariantFlags(self, testcase, default_flags):
     # Both --nocrankshaft and --stressopt are very slow.
     return [[]]
 

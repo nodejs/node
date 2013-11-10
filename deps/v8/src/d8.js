@@ -40,7 +40,7 @@ function log10(num) {
 
 function ToInspectableObject(obj) {
   if (!obj && typeof obj === 'object') {
-    return void 0;
+    return UNDEFINED;
   } else {
     return Object(obj);
   }
@@ -333,7 +333,7 @@ function DebugRequest(cmd_line) {
   }
 
   if ((cmd === undefined) || !cmd) {
-    this.request_ = void 0;
+    this.request_ = UNDEFINED;
     return;
   }
 
@@ -492,7 +492,7 @@ function DebugRequest(cmd_line) {
     case 'trace':
     case 'tr':
       // Return undefined to indicate command handled internally (no JSON).
-      this.request_ = void 0;
+      this.request_ = UNDEFINED;
       this.traceCommand_(args);
       break;
 
@@ -500,7 +500,7 @@ function DebugRequest(cmd_line) {
     case '?':
       this.helpCommand_(args);
       // Return undefined to indicate command handled internally (no JSON).
-      this.request_ = void 0;
+      this.request_ = UNDEFINED;
       break;
 
     default:
@@ -2124,7 +2124,7 @@ function SimpleObjectToJSON_(object) {
       var property_value_json;
       switch (typeof property_value) {
         case 'object':
-          if (property_value === null) {
+          if (IS_NULL(property_value)) {
             property_value_json = 'null';
           } else if (typeof property_value.toJSONProtocol == 'function') {
             property_value_json = property_value.toJSONProtocol(true);
@@ -2217,7 +2217,7 @@ function Stringify(x, depth) {
     case "symbol":
       return "Symbol(" + (x.name ? Stringify(x.name, depth) : "") + ")"
     case "object":
-      if (x === null) return "null";
+      if (IS_NULL(x)) return "null";
       if (x.constructor && x.constructor.name === "Array") {
         var elems = [];
         for (var i = 0; i < x.length; ++i) {
@@ -2233,7 +2233,7 @@ function Stringify(x, depth) {
       var props = [];
       for (var name in x) {
         var desc = Object.getOwnPropertyDescriptor(x, name);
-        if (desc === void 0) continue;
+        if (IS_UNDEFINED(desc)) continue;
         if ("value" in desc) {
           props.push(name + ": " + Stringify(desc.value, depth - 1));
         }

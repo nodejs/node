@@ -36,7 +36,7 @@ using namespace v8::internal;
 
 TEST(BitVector) {
   v8::internal::V8::Initialize(NULL);
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   {
     BitVector v(15, &zone);
     v.Add(1);

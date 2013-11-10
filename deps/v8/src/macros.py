@@ -157,6 +157,11 @@ macro TO_NUMBER_INLINE(arg) = (IS_NUMBER(%IS_VAR(arg)) ? arg : NonNumberToNumber
 macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : ToObject(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
 
+# Constants.  The compiler constant folds them.
+const NAN = $NaN;
+const INFINITY = (1/0);
+const UNDEFINED = (void 0);
+
 # Macros implemented in Python.
 python macro CHAR_CODE(str) = ord(str[1]);
 

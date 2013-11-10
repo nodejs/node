@@ -156,8 +156,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   // -----------------------------------
   if (mode == TRACK_ALLOCATION_SITE) {
     ASSERT(allocation_memento_found != NULL);
-    masm->TestJSArrayForAllocationMemento(a2, t0, eq,
-                                          allocation_memento_found);
+    __ JumpIfJSArrayHasAllocationMemento(a2, t0, allocation_memento_found);
   }
 
   // Set transitioned map.
@@ -188,7 +187,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Register scratch = t6;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    masm->TestJSArrayForAllocationMemento(a2, t0, eq, fail);
+    __ JumpIfJSArrayHasAllocationMemento(a2, t0, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -316,7 +315,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Label entry, loop, convert_hole, gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    masm->TestJSArrayForAllocationMemento(a2, t0, eq, fail);
+    __ JumpIfJSArrayHasAllocationMemento(a2, t0, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -540,52 +539,67 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   ASSERT(!temp2.is(temp3));
   ASSERT(ExternalReference::math_exp_constants(0).address() != NULL);
 
-  Label done;
+  Label zero, infinity, done;
 
   __ li(temp3, Operand(ExternalReference::math_exp_constants(0)));
 
   __ ldc1(double_scratch1, ExpConstant(0, temp3));
-  __ Move(result, kDoubleRegZero);
-  __ BranchF(&done, NULL, ge, double_scratch1, input);
+  __ BranchF(&zero, NULL, ge, double_scratch1, input);
+
   __ ldc1(double_scratch2, ExpConstant(1, temp3));
-  __ ldc1(result, ExpConstant(2, temp3));
-  __ BranchF(&done, NULL, ge, input, double_scratch2);
+  __ BranchF(&infinity, NULL, ge, input, double_scratch2);
+
   __ ldc1(double_scratch1, ExpConstant(3, temp3));
   __ ldc1(result, ExpConstant(4, temp3));
   __ mul_d(double_scratch1, double_scratch1, input);
   __ add_d(double_scratch1, double_scratch1, result);
-  __ Move(temp2, temp1, double_scratch1);
+  __ FmoveLow(temp2, double_scratch1);
   __ sub_d(double_scratch1, double_scratch1, result);
   __ ldc1(result, ExpConstant(6, temp3));
   __ ldc1(double_scratch2, ExpConstant(5, temp3));
   __ mul_d(double_scratch1, double_scratch1, double_scratch2);
   __ sub_d(double_scratch1, double_scratch1, input);
   __ sub_d(result, result, double_scratch1);
-  __ mul_d(input, double_scratch1, double_scratch1);
-  __ mul_d(result, result, input);
-  __ srl(temp1, temp2, 11);
+  __ mul_d(double_scratch2, double_scratch1, double_scratch1);
+  __ mul_d(result, result, double_scratch2);
   __ ldc1(double_scratch2, ExpConstant(7, temp3));
   __ mul_d(result, result, double_scratch2);
   __ sub_d(result, result, double_scratch1);
-  __ ldc1(double_scratch2, ExpConstant(8, temp3));
+  // Mov 1 in double_scratch2 as math_exp_constants_array[8] == 1.
+  ASSERT(*reinterpret_cast<double*>
+         (ExternalReference::math_exp_constants(8).address()) == 1);
+  __ Move(double_scratch2, 1);
   __ add_d(result, result, double_scratch2);
-  __ li(at, 0x7ff);
-  __ And(temp2, temp2, at);
+  __ srl(temp1, temp2, 11);
+  __ Ext(temp2, temp2, 0, 11);
   __ Addu(temp1, temp1, Operand(0x3ff));
-  __ sll(temp1, temp1, 20);
 
   // Must not call ExpConstant() after overwriting temp3!
   __ li(temp3, Operand(ExternalReference::math_exp_log_table()));
   __ sll(at, temp2, 3);
-  __ addu(at, at, temp3);
-  __ lw(at, MemOperand(at));
-  __ Addu(temp3, temp3, Operand(kPointerSize));
-  __ sll(temp2, temp2, 3);
-  __ addu(temp2, temp2, temp3);
-  __ lw(temp2, MemOperand(temp2));
-  __ Or(temp1, temp1, temp2);
-  __ Move(input, at, temp1);
-  __ mul_d(result, result, input);
+  __ Addu(temp3, temp3, Operand(at));
+  __ lw(temp2, MemOperand(temp3, 0));
+  __ lw(temp3, MemOperand(temp3, kPointerSize));
+  // The first word is loaded is the lower number register.
+  if (temp2.code() < temp3.code()) {
+    __ sll(at, temp1, 20);
+    __ Or(temp1, temp3, at);
+    __ Move(double_scratch1, temp2, temp1);
+  } else {
+    __ sll(at, temp1, 20);
+    __ Or(temp1, temp2, at);
+    __ Move(double_scratch1, temp3, temp1);
+  }
+  __ mul_d(result, result, double_scratch1);
+  __ Branch(&done);
+
+  __ bind(&zero);
+  __ Move(result, kDoubleRegZero);
+  __ Branch(&done);
+
+  __ bind(&infinity);
+  __ ldc1(result, ExpConstant(2, temp3));
+
   __ bind(&done);
 }
 
@@ -624,7 +638,7 @@ bool Code::IsYoungSequence(byte* sequence) {
 void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
                                MarkingParity* parity) {
   if (IsYoungSequence(sequence)) {
-    *age = kNoAge;
+    *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
     Address target_address = Memory::Address_at(
@@ -635,16 +649,17 @@ void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
 }
 
 
-void Code::PatchPlatformCodeAge(byte* sequence,
+void Code::PatchPlatformCodeAge(Isolate* isolate,
+                                byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
   uint32_t young_length;
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  if (age == kNoAge) {
+  if (age == kNoAgeCodeAge) {
     CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {
-    Code* stub = GetCodeAgeStub(age, parity);
+    Code* stub = GetCodeAgeStub(isolate, age, parity);
     CodePatcher patcher(sequence, young_length / Assembler::kInstrSize);
     // Mark this code sequence for FindPlatformCodeAgeSequence()
     patcher.masm()->nop(Assembler::CODE_AGE_MARKER_NOP);

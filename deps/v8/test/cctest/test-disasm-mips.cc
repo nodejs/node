@@ -65,7 +65,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // in the rest of the macros.
 #define SET_UP()                                          \
   CcTest::InitializeVM();                                 \
-  Isolate* isolate = Isolate::Current();                  \
+  Isolate* isolate = CcTest::i_isolate();                  \
   HandleScope scope(isolate);                             \
   byte *buffer = reinterpret_cast<byte*>(malloc(4*1024)); \
   Assembler assm(isolate, buffer, 4*1024);                \

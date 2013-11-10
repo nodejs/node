@@ -238,7 +238,7 @@ class CpuProfiler : public CodeEventListener {
                                Code* code,
                                SharedFunctionInfo* shared,
                                CompilationInfo* info,
-                               Name* source, int line);
+                               Name* source, int line, int column);
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
                                Code* code, int args_count);
   virtual void CodeMovingGCEvent() {}

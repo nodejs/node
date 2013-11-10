@@ -29,7 +29,7 @@
 #define V8_UNICODE_H_
 
 #include <sys/types.h>
-#include <globals.h>
+#include "globals.h"
 /**
  * \file
  * Definitions and convenience functions for working with unicode.

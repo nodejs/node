@@ -71,7 +71,6 @@ function InstantiateFunction(data, name) {
    (serialNumber in cache) && (cache[serialNumber] != kUninitialized);
   if (!isFunctionCached) {
     try {
-      cache[serialNumber] = null;
       var fun = %CreateApiFunction(data);
       if (name) %FunctionSetName(fun, name);
       var flags = %GetTemplateField(data, kApiFlagOffset);

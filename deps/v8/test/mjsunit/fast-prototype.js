@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --expose-gc
 
 // TODO(mstarzinger): This test does not succeed when GCs happen in
 // between prototype transitions, we disable GC stress for now.
@@ -84,6 +84,8 @@ function test(use_new, add_first, set__proto__, same_map_as) {
   return proto;
 }
 
+// TODO(mstarzinger): This test fails easily if gc happens at the wrong time.
+gc();
 
 for (var i = 0; i < 4; i++) {
   var set__proto__ = ((i & 1) != 0);

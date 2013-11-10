@@ -30,22 +30,28 @@
 var dtf = new Intl.DateTimeFormat(['en'],
                                   {year: 'numeric', month: 'numeric',
                                    day: 'numeric', hour: 'numeric',
-                                   minute: 'numeric', second: 'numeric'});
+                                   minute: 'numeric', second: 'numeric',
+                                   timeZone: 'UTC'});
 
 // Make sure we have pattern we expect (may change in the future).
 assertEquals('M/d/y h:mm:ss a', dtf.resolved.pattern);
 
-assertEquals('Sat May 04 1974 12:30:12 GMT-0007 (PDT)',
-             usePDT(String(dtf.v8Parse('5/4/74 12:30:12 pm'))));
+var date = dtf.v8Parse('2/4/74 12:30:42 pm');
+assertEquals(1974, date.getUTCFullYear());
+assertEquals(1, date.getUTCMonth());
+assertEquals(4, date.getUTCDate());
+assertEquals(12, date.getUTCHours());
+assertEquals(30, date.getUTCMinutes());
+assertEquals(42, date.getUTCSeconds());
 
 // AM/PM were not specified.
-assertEquals(undefined, dtf.v8Parse('5/4/74 12:30:12'));
+assertEquals(undefined, dtf.v8Parse('2/4/74 12:30:12'));
 
 // Time was not specified.
-assertEquals(undefined, dtf.v8Parse('5/4/74'));
+assertEquals(undefined, dtf.v8Parse('2/4/74'));
 
-// Month is numeric, so it fails on "May".
-assertEquals(undefined, dtf.v8Parse('May 4th 1974'));
+// Month is numeric, so it fails on "Feb".
+assertEquals(undefined, dtf.v8Parse('Feb 4th 1974'));
 
 // Wrong date delimiter.
-assertEquals(undefined, dtf.v8Parse('5-4-74 12:30:12 am'));
+assertEquals(undefined, dtf.v8Parse('2-4-74 12:30:12 am'));

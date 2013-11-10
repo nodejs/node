@@ -15,7 +15,7 @@ using namespace v8::internal;
 
 TEST(Create) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   const int kNumSymbols = 30;
@@ -37,8 +37,8 @@ TEST(Create) {
 #endif
   }
 
-  HEAP->PerformScavenge();
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->PerformScavenge();
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   // All symbols should be distinct.
   for (int i = 0; i < kNumSymbols; ++i) {

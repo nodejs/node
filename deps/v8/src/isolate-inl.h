@@ -48,6 +48,11 @@ SaveContext::SaveContext(Isolate* isolate)
 }
 
 
+bool Isolate::IsCodePreAgingActive() {
+  return FLAG_optimize_for_size && FLAG_age_code && !IsDebuggerActive();
+}
+
+
 bool Isolate::IsDebuggerActive() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (!NoBarrier_Load(&debugger_initialized_)) return false;

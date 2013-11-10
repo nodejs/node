@@ -464,7 +464,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
 
   Handle<String> key = isolate->factory()->NewStringFromAscii(
       CStrVector("minimumSignificantDigits"));
-  if (resolved->HasLocalProperty(*key)) {
+  if (JSReceiver::HasLocalProperty(resolved, key)) {
     JSObject::SetProperty(
         resolved,
         isolate->factory()->NewStringFromAscii(
@@ -477,7 +477,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
 
   key = isolate->factory()->NewStringFromAscii(
       CStrVector("maximumSignificantDigits"));
-  if (resolved->HasLocalProperty(*key)) {
+  if (JSReceiver::HasLocalProperty(resolved, key)) {
     JSObject::SetProperty(
         resolved,
         isolate->factory()->NewStringFromAscii(
@@ -855,7 +855,7 @@ icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
     Handle<JSObject> obj) {
   Handle<String> key =
       isolate->factory()->NewStringFromAscii(CStrVector("dateFormat"));
-  if (obj->HasLocalProperty(*key)) {
+  if (JSReceiver::HasLocalProperty(obj, key)) {
     return reinterpret_cast<icu::SimpleDateFormat*>(
         obj->GetInternalField(0));
   }
@@ -920,7 +920,7 @@ icu::DecimalFormat* NumberFormat::UnpackNumberFormat(
     Handle<JSObject> obj) {
   Handle<String> key =
       isolate->factory()->NewStringFromAscii(CStrVector("numberFormat"));
-  if (obj->HasLocalProperty(*key)) {
+  if (JSReceiver::HasLocalProperty(obj, key)) {
     return reinterpret_cast<icu::DecimalFormat*>(obj->GetInternalField(0));
   }
 
@@ -981,7 +981,7 @@ icu::Collator* Collator::UnpackCollator(Isolate* isolate,
                                         Handle<JSObject> obj) {
   Handle<String> key =
       isolate->factory()->NewStringFromAscii(CStrVector("collator"));
-  if (obj->HasLocalProperty(*key)) {
+  if (JSReceiver::HasLocalProperty(obj, key)) {
     return reinterpret_cast<icu::Collator*>(obj->GetInternalField(0));
   }
 
@@ -1045,7 +1045,7 @@ icu::BreakIterator* BreakIterator::UnpackBreakIterator(Isolate* isolate,
                                                        Handle<JSObject> obj) {
   Handle<String> key =
       isolate->factory()->NewStringFromAscii(CStrVector("breakIterator"));
-  if (obj->HasLocalProperty(*key)) {
+  if (JSReceiver::HasLocalProperty(obj, key)) {
     return reinterpret_cast<icu::BreakIterator*>(obj->GetInternalField(0));
   }
 

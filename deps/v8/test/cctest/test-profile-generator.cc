@@ -399,7 +399,7 @@ class TestSetup {
 
 TEST(RecordTickSample) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate()->heap());
+  CpuProfilesCollection profiles(CcTest::heap());
   profiles.StartProfiling("", 1, false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -465,7 +465,7 @@ static void CheckNodeIds(ProfileNode* node, int* expectedId) {
 
 TEST(SampleIds) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate()->heap());
+  CpuProfilesCollection profiles(CcTest::heap());
   profiles.StartProfiling("", 1, true);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -513,7 +513,7 @@ TEST(SampleIds) {
 
 TEST(NoSamples) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate()->heap());
+  CpuProfilesCollection profiles(CcTest::heap());
   profiles.StartProfiling("", 1, false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -605,14 +605,14 @@ TEST(RecordStackTraceAtStartProfiling) {
   // don't appear in the stack trace.
   i::FLAG_use_inlining = false;
 
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   const char* extensions[] = { "v8/profiler" };
   v8::ExtensionConfiguration config(1, extensions);
   v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
   context->Enter();
 
-  CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
+  CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   CHECK_EQ(0, profiler->GetProfilesCount());
   CompileRun(
       "function c() { startProfiling(); }\n"
@@ -652,7 +652,7 @@ TEST(RecordStackTraceAtStartProfiling) {
 
 
 TEST(Issue51919) {
-  CpuProfilesCollection collection(CcTest::i_isolate()->heap());
+  CpuProfilesCollection collection(CcTest::heap());
   i::EmbeddedVector<char*,
       CpuProfilesCollection::kMaxSimultaneousProfiles> titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
@@ -744,7 +744,7 @@ static const char* line_number_test_source_profile_time_functions =
 "function lazy_func_at_6th_line() {}";
 
 int GetFunctionLineNumber(LocalContext* env, const char* name) {
-  CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
+  CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   CodeMap* code_map = profiler->generator()->code_map();
   i::Handle<i::JSFunction> func = v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(
@@ -761,7 +761,7 @@ TEST(LineNumber) {
 
   CcTest::InitializeVM();
   LocalContext env;
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   TestSetup test_setup;
 
   i::HandleScope scope(isolate);

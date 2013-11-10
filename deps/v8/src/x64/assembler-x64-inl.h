@@ -43,6 +43,7 @@ namespace internal {
 
 
 static const byte kCallOpcode = 0xE8;
+static const int kNoCodeAgeSequenceLength = 6;
 
 
 void Assembler::emitl(uint32_t x) {
@@ -61,11 +62,8 @@ void Assembler::emitp(void* x, RelocInfo::Mode rmode) {
 }
 
 
-void Assembler::emitq(uint64_t x, RelocInfo::Mode rmode) {
+void Assembler::emitq(uint64_t x) {
   Memory::uint64_at(pc_) = x;
-  if (!RelocInfo::IsNone(rmode)) {
-    RecordRelocInfo(rmode, x);
-  }
   pc_ += sizeof(uint64_t);
 }
 
@@ -79,7 +77,8 @@ void Assembler::emitw(uint16_t x) {
 void Assembler::emit_code_target(Handle<Code> target,
                                  RelocInfo::Mode rmode,
                                  TypeFeedbackId ast_id) {
-  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  ASSERT(RelocInfo::IsCodeTarget(rmode) ||
+      rmode == RelocInfo::CODE_AGE_SEQUENCE);
   if (rmode == RelocInfo::CODE_TARGET && !ast_id.IsNone()) {
     RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, ast_id.ToInt());
   } else {
@@ -389,6 +388,13 @@ bool RelocInfo::IsPatchedReturnSequence() {
 
 bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
   return !Assembler::IsNop(pc());
+}
+
+
+Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
+  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  ASSERT(*pc_ == kCallOpcode);
+  return origin->code_target_object_handle_at(pc_ + 1);
 }
 
 

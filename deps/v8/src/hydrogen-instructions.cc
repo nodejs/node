@@ -509,6 +509,17 @@ const char* HValue::Mnemonic() const {
 }
 
 
+bool HValue::CanReplaceWithDummyUses() {
+  return FLAG_unreachable_code_elimination &&
+      !(block()->IsReachable() ||
+        IsBlockEntry() ||
+        IsControlInstruction() ||
+        IsSimulate() ||
+        IsEnterInlined() ||
+        IsLeaveInlined());
+}
+
+
 bool HValue::IsInteger32Constant() {
   return IsConstant() && HConstant::cast(this)->HasInteger32Value();
 }
@@ -730,6 +741,10 @@ void HInstruction::InsertBefore(HInstruction* next) {
   next_ = next;
   previous_ = prev;
   SetBlock(next->block());
+  if (position() == RelocInfo::kNoPosition &&
+      next->position() != RelocInfo::kNoPosition) {
+    set_position(next->position());
+  }
 }
 
 
@@ -763,6 +778,10 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   if (next != NULL) next->previous_ = this;
   if (block->last() == previous) {
     block->set_last(this);
+  }
+  if (position() == RelocInfo::kNoPosition &&
+      previous->position() != RelocInfo::kNoPosition) {
+    set_position(previous->position());
   }
 }
 
@@ -973,6 +992,9 @@ void HCallNewArray::PrintDataTo(StringStream* stream) {
 
 void HCallRuntime::PrintDataTo(StringStream* stream) {
   stream->Add("%o ", *name());
+  if (save_doubles() == kSaveFPRegs) {
+    stream->Add("[save doubles] ");
+  }
   stream->Add("#%d", argument_count());
 }
 
@@ -1050,9 +1072,24 @@ Representation HBranch::observed_input_representation(int index) {
 }
 
 
+bool HBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  HValue* value = this->value();
+  if (value->EmitAtUses()) {
+    ASSERT(value->IsConstant());
+    ASSERT(!value->representation().IsDouble());
+    *block = HConstant::cast(value)->BooleanValue()
+        ? FirstSuccessor()
+        : SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
+}
+
+
 void HCompareMap::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" (%p)", *map());
+  stream->Add(" (%p)", *map().handle());
   HControlInstruction::PrintDataTo(stream);
 }
 
@@ -1218,8 +1255,15 @@ static bool IsIdentityOperation(HValue* arg1, HValue* arg2, int32_t identity) {
 
 
 HValue* HAdd::Canonicalize() {
-  if (IsIdentityOperation(left(), right(), 0)) return left();
-  if (IsIdentityOperation(right(), left(), 0)) return right();
+  // Adding 0 is an identity operation except in case of -0: -0 + 0 = +0
+  if (IsIdentityOperation(left(), right(), 0) &&
+      !left()->representation().IsDouble()) {  // Left could be -0.
+    return left();
+  }
+  if (IsIdentityOperation(right(), left(), 0) &&
+      !left()->representation().IsDouble()) {  // Right could be -0.
+    return right();
+  }
   return this;
 }
 
@@ -1234,6 +1278,16 @@ HValue* HMul::Canonicalize() {
   if (IsIdentityOperation(left(), right(), 1)) return left();
   if (IsIdentityOperation(right(), left(), 1)) return right();
   return this;
+}
+
+
+bool HMul::MulMinusOne() {
+  if (left()->EqualsInteger32Constant(-1) ||
+      right()->EqualsInteger32Constant(-1)) {
+    return true;
+  }
+
+  return false;
 }
 
 
@@ -1431,11 +1485,9 @@ void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
     HStoreNamedField* store = HStoreNamedField::cast(dominator);
     if (!store->has_transition() || store->object() != value()) return;
     HConstant* transition = HConstant::cast(store->transition());
-    for (int i = 0; i < map_set()->length(); i++) {
-      if (transition->UniqueValueIdsMatch(map_unique_ids_.at(i))) {
-        DeleteAndReplaceWith(NULL);
-        return;
-      }
+    if (map_set_.Contains(transition->GetUnique())) {
+      DeleteAndReplaceWith(NULL);
+      return;
     }
   }
 }
@@ -1443,9 +1495,9 @@ void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
 
 void HCheckMaps::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" [%p", *map_set()->first());
-  for (int i = 1; i < map_set()->length(); ++i) {
-    stream->Add(",%p", *map_set()->at(i));
+  stream->Add(" [%p", *map_set_.at(0).handle());
+  for (int i = 1; i < map_set_.size(); ++i) {
+    stream->Add(",%p", *map_set_.at(i).handle());
   }
   stream->Add("]%s", CanOmitMapChecks() ? "(omitted)" : "");
 }
@@ -1454,13 +1506,13 @@ void HCheckMaps::PrintDataTo(StringStream* stream) {
 void HCheckValue::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" ");
-  object()->ShortPrint(stream);
+  object().handle()->ShortPrint(stream);
 }
 
 
 HValue* HCheckValue::Canonicalize() {
   return (value()->IsConstant() &&
-          HConstant::cast(value())->UniqueValueIdsMatch(object_unique_id_))
+          HConstant::cast(value())->GetUnique() == object_)
       ? NULL
       : this;
 }
@@ -1555,6 +1607,11 @@ Range* HConstant::InferRange(Zone* zone) {
 }
 
 
+int HPhi::position() const {
+  return block()->first()->position();
+}
+
+
 Range* HPhi::InferRange(Zone* zone) {
   Representation r = representation();
   if (r.IsSmiOrInteger32()) {
@@ -1624,10 +1681,13 @@ Range* HMul::InferRange(Zone* zone) {
     Range* a = left()->range();
     Range* b = right()->range();
     Range* res = a->Copy(zone);
-    if (!res->MulAndCheckOverflow(r, b)) {
-      // Clearing the kCanOverflow flag when kAllUsesAreTruncatingToInt32
-      // would be wrong, because truncated integer multiplication is too
-      // precise and therefore not the same as converting to Double and back.
+    if (!res->MulAndCheckOverflow(r, b) ||
+        (((r.IsInteger32() && CheckFlag(kAllUsesTruncatingToInt32)) ||
+         (r.IsSmi() && CheckFlag(kAllUsesTruncatingToSmi))) &&
+         MulMinusOne())) {
+      // Truncated int multiplication is too precise and therefore not the
+      // same as converting to Double and back.
+      // Handle truncated integer multiplication by -1 special.
       ClearFlag(kCanOverflow);
     }
     res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToSmi) &&
@@ -1649,7 +1709,10 @@ Range* HDiv::InferRange(Zone* zone) {
     result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
                                   (a->CanBeMinusZero() ||
                                    (a->CanBeZero() && b->CanBeNegative())));
-    if (!a->Includes(kMinInt) || !b->Includes(-1)) {
+    if (!a->Includes(kMinInt) ||
+        !b->Includes(-1) ||
+        CheckFlag(kAllUsesTruncatingToInt32)) {
+      // It is safe to clear kCanOverflow when kAllUsesTruncatingToInt32.
       ClearFlag(HValue::kCanOverflow);
     }
 
@@ -2327,20 +2390,35 @@ void HSimulate::ReplayEnvironment(HEnvironment* env) {
 }
 
 
+static void ReplayEnvironmentNested(const ZoneList<HValue*>* values,
+                                    HCapturedObject* other) {
+  for (int i = 0; i < values->length(); ++i) {
+    HValue* value = values->at(i);
+    if (value->IsCapturedObject()) {
+      if (HCapturedObject::cast(value)->capture_id() == other->capture_id()) {
+        values->at(i) = other;
+      } else {
+        ReplayEnvironmentNested(HCapturedObject::cast(value)->values(), other);
+      }
+    }
+  }
+}
+
+
 // Replay captured objects by replacing all captured objects with the
 // same capture id in the current and all outer environments.
 void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
   ASSERT(env != NULL);
   while (env != NULL) {
-    for (int i = 0; i < env->length(); ++i) {
-      HValue* value = env->values()->at(i);
-      if (value->IsCapturedObject() &&
-          HCapturedObject::cast(value)->capture_id() == this->capture_id()) {
-        env->SetValueAt(i, this);
-      }
-    }
+    ReplayEnvironmentNested(env->values(), this);
     env = env->outer();
   }
+}
+
+
+void HCapturedObject::PrintDataTo(StringStream* stream) {
+  stream->Add("#%d ", capture_id());
+  HDematerializedObject::PrintDataTo(stream);
 }
 
 
@@ -2365,8 +2443,7 @@ static bool IsInteger32(double value) {
 
 HConstant::HConstant(Handle<Object> handle, Representation r)
   : HTemplateInstruction<0>(HType::TypeFromValue(handle)),
-    handle_(handle),
-    unique_id_(),
+    object_(Unique<Object>::CreateUninitialized(handle)),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
@@ -2375,29 +2452,28 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     is_not_in_new_space_(true),
     is_cell_(false),
     boolean_value_(handle->BooleanValue()) {
-  if (handle_->IsHeapObject()) {
+  if (handle->IsHeapObject()) {
     Heap* heap = Handle<HeapObject>::cast(handle)->GetHeap();
     is_not_in_new_space_ = !heap->InNewSpace(*handle);
   }
-  if (handle_->IsNumber()) {
-    double n = handle_->Number();
+  if (handle->IsNumber()) {
+    double n = handle->Number();
     has_int32_value_ = IsInteger32(n);
     int32_value_ = DoubleToInt32(n);
     has_smi_value_ = has_int32_value_ && Smi::IsValid(int32_value_);
     double_value_ = n;
     has_double_value_ = true;
   } else {
-    is_internalized_string_ = handle_->IsInternalizedString();
+    is_internalized_string_ = handle->IsInternalizedString();
   }
 
-  is_cell_ = !handle_.is_null() &&
-      (handle_->IsCell() || handle_->IsPropertyCell());
+  is_cell_ = !handle.is_null() &&
+      (handle->IsCell() || handle->IsPropertyCell());
   Initialize(r);
 }
 
 
-HConstant::HConstant(Handle<Object> handle,
-                     UniqueValueId unique_id,
+HConstant::HConstant(Unique<Object> unique,
                      Representation r,
                      HType type,
                      bool is_internalize_string,
@@ -2405,8 +2481,7 @@ HConstant::HConstant(Handle<Object> handle,
                      bool is_cell,
                      bool boolean_value)
   : HTemplateInstruction<0>(type),
-    handle_(handle),
-    unique_id_(unique_id),
+    object_(unique),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
@@ -2415,36 +2490,17 @@ HConstant::HConstant(Handle<Object> handle,
     is_not_in_new_space_(is_not_in_new_space),
     is_cell_(is_cell),
     boolean_value_(boolean_value) {
-  ASSERT(!handle.is_null());
+  ASSERT(!unique.handle().is_null());
   ASSERT(!type.IsTaggedNumber());
   Initialize(r);
-}
-
-
-HConstant::HConstant(Handle<Map> handle,
-                     UniqueValueId unique_id)
-  : HTemplateInstruction<0>(HType::Tagged()),
-    handle_(handle),
-    unique_id_(unique_id),
-    has_smi_value_(false),
-    has_int32_value_(false),
-    has_double_value_(false),
-    has_external_reference_value_(false),
-    is_internalized_string_(false),
-    is_not_in_new_space_(true),
-    is_cell_(false),
-    boolean_value_(false) {
-  ASSERT(!handle.is_null());
-  Initialize(Representation::Tagged());
 }
 
 
 HConstant::HConstant(int32_t integer_value,
                      Representation r,
                      bool is_not_in_new_space,
-                     Handle<Object> optional_handle)
-  : handle_(optional_handle),
-    unique_id_(),
+                     Unique<Object> object)
+  : object_(object),
     has_smi_value_(Smi::IsValid(integer_value)),
     has_int32_value_(true),
     has_double_value_(true),
@@ -2463,9 +2519,8 @@ HConstant::HConstant(int32_t integer_value,
 HConstant::HConstant(double double_value,
                      Representation r,
                      bool is_not_in_new_space,
-                     Handle<Object> optional_handle)
-  : handle_(optional_handle),
-    unique_id_(),
+                     Unique<Object> object)
+  : object_(object),
     has_int32_value_(IsInteger32(double_value)),
     has_double_value_(true),
     has_external_reference_value_(false),
@@ -2483,6 +2538,7 @@ HConstant::HConstant(double double_value,
 
 HConstant::HConstant(ExternalReference reference)
   : HTemplateInstruction<0>(HType::None()),
+    object_(Unique<Object>(Handle<Object>::null())),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
@@ -2493,14 +2549,6 @@ HConstant::HConstant(ExternalReference reference)
     boolean_value_(true),
     external_reference_value_(reference) {
   Initialize(Representation::External());
-}
-
-
-static void PrepareConstant(Handle<Object> object) {
-  if (!object->IsJSObject()) return;
-  Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-  if (!js_object->map()->is_deprecated()) return;
-  JSObject::TryMigrateInstance(js_object);
 }
 
 
@@ -2515,7 +2563,14 @@ void HConstant::Initialize(Representation r) {
     } else if (has_external_reference_value_) {
       r = Representation::External();
     } else {
-      PrepareConstant(handle_);
+      Handle<Object> object = object_.handle();
+      if (object->IsJSObject()) {
+        // Try to eagerly migrate JSObjects that have deprecated maps.
+        Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+        if (js_object->map()->is_deprecated()) {
+          JSObject::TryMigrateInstance(js_object);
+        }
+      }
       r = Representation::Tagged();
     }
   }
@@ -2526,9 +2581,12 @@ void HConstant::Initialize(Representation r) {
 
 bool HConstant::EmitAtUses() {
   ASSERT(IsLinked());
-  if (block()->graph()->has_osr()) {
-    return block()->graph()->IsStandardConstant(this);
+  if (block()->graph()->has_osr() &&
+      block()->graph()->IsStandardConstant(this)) {
+    // TODO(titzer): this seems like a hack that should be fixed by custom OSR.
+    return true;
   }
+  if (UseCount() == 0) return true;
   if (IsCell()) return false;
   if (representation().IsDouble()) return false;
   return true;
@@ -2541,17 +2599,16 @@ HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   if (r.IsDouble() && !has_double_value_) return NULL;
   if (r.IsExternal() && !has_external_reference_value_) return NULL;
   if (has_int32_value_) {
-    return new(zone) HConstant(int32_value_, r, is_not_in_new_space_, handle_);
+    return new(zone) HConstant(int32_value_, r, is_not_in_new_space_, object_);
   }
   if (has_double_value_) {
-    return new(zone) HConstant(double_value_, r, is_not_in_new_space_, handle_);
+    return new(zone) HConstant(double_value_, r, is_not_in_new_space_, object_);
   }
   if (has_external_reference_value_) {
     return new(zone) HConstant(external_reference_value_);
   }
-  ASSERT(!handle_.is_null());
-  return new(zone) HConstant(handle_,
-                             unique_id_,
+  ASSERT(!object_.handle().is_null());
+  return new(zone) HConstant(object_,
                              r,
                              type_,
                              is_internalized_string_,
@@ -2567,16 +2624,12 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
     res = new(zone) HConstant(int32_value_,
                               Representation::Integer32(),
                               is_not_in_new_space_,
-                              handle_);
+                              object_);
   } else if (has_double_value_) {
     res = new(zone) HConstant(DoubleToInt32(double_value_),
                               Representation::Integer32(),
                               is_not_in_new_space_,
-                              handle_);
-  } else {
-    ASSERT(!HasNumberValue());
-    Maybe<HConstant*> number = CopyToTruncatedNumber(zone);
-    if (number.has_value) return number.value->CopyToTruncatedInt32(zone);
+                              object_);
   }
   return Maybe<HConstant*>(res != NULL, res);
 }
@@ -2624,17 +2677,18 @@ void HBinaryOperation::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
+
+  if (representation().IsSmi() && HasNonSmiUse()) {
+    UpdateRepresentation(
+        Representation::Integer32(), h_infer, "use requirements");
+  }
+
   if (observed_output_representation_.IsNone()) {
     new_rep = RepresentationFromUses();
     UpdateRepresentation(new_rep, h_infer, "uses");
   } else {
     new_rep = RepresentationFromOutput();
     UpdateRepresentation(new_rep, h_infer, "output");
-  }
-
-  if (representation().IsSmi() && HasNonSmiUse()) {
-    UpdateRepresentation(
-        Representation::Integer32(), h_infer, "use requirements");
   }
 }
 
@@ -2662,7 +2716,7 @@ bool HBinaryOperation::IgnoreObservedOutputRepresentation(
   return ((current_rep.IsInteger32() && CheckUsesForFlag(kTruncatingToInt32)) ||
           (current_rep.IsSmi() && CheckUsesForFlag(kTruncatingToSmi))) &&
          // Mul in Integer32 mode would be too precise.
-         !this->IsMul();
+         (!this->IsMul() || HMul::cast(this)->MulMinusOne());
 }
 
 
@@ -2802,6 +2856,9 @@ Range* HShl::InferRange(Zone* zone) {
 
 
 Range* HLoadNamedField::InferRange(Zone* zone) {
+  if (access().representation().IsByte()) {
+    return new(zone) Range(0, 255);
+  }
   if (access().IsStringLength()) {
     return new(zone) Range(0, String::kMaxLength);
   }
@@ -2859,15 +2916,23 @@ void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareHoleAndBranch::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  HControlInstruction::PrintDataTo(stream);
+bool HCompareObjectEqAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (left()->IsConstant() && right()->IsConstant()) {
+    bool comparison_result =
+        HConstant::cast(left())->Equals(HConstant::cast(right()));
+    *block = comparison_result
+        ? FirstSuccessor()
+        : SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
 }
 
 
 void HCompareHoleAndBranch::InferRepresentation(
     HInferRepresentationPhase* h_infer) {
-  ChangeRepresentation(object()->representation());
+  ChangeRepresentation(value()->representation());
 }
 
 
@@ -2937,19 +3002,14 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
   if (map->CanOmitMapChecks() &&
       value->IsConstant() &&
       HConstant::cast(value)->HasMap(map)) {
-    check_map->omit(info);
+    // TODO(titzer): collect dependent map checks into a list.
+    check_map->omit_ = true;
+    if (map->CanTransition()) {
+      map->AddDependentCompilationInfo(
+          DependentCode::kPrototypeCheckGroup, info);
+    }
   }
   return check_map;
-}
-
-
-void HCheckMaps::FinalizeUniqueValueId() {
-  if (!map_unique_ids_.is_empty()) return;
-  Zone* zone = block()->zone();
-  map_unique_ids_.Initialize(map_set_.length(), zone);
-  for (int i = 0; i < map_set_.length(); i++) {
-    map_unique_ids_.Add(UniqueValueId(map_set_.at(i)), zone);
-  }
 }
 
 
@@ -3148,19 +3208,19 @@ void HStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 
 void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
-  ElementsKind from_kind = original_map()->elements_kind();
-  ElementsKind to_kind = transitioned_map()->elements_kind();
+  ElementsKind from_kind = original_map().handle()->elements_kind();
+  ElementsKind to_kind = transitioned_map().handle()->elements_kind();
   stream->Add(" %p [%s] -> %p [%s]",
-              *original_map(),
+              *original_map().handle(),
               ElementsAccessor::ForKind(from_kind)->name(),
-              *transitioned_map(),
+              *transitioned_map().handle(),
               ElementsAccessor::ForKind(to_kind)->name());
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) stream->Add(" (simple)");
 }
 
 
 void HLoadGlobalCell::PrintDataTo(StringStream* stream) {
-  stream->Add("[%p]", *cell());
+  stream->Add("[%p]", *cell().handle());
   if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
   if (details_.IsReadOnly()) stream->Add(" (read-only)");
 }
@@ -3188,7 +3248,7 @@ void HInnerAllocatedObject::PrintDataTo(StringStream* stream) {
 
 
 void HStoreGlobalCell::PrintDataTo(StringStream* stream) {
-  stream->Add("[%p] = ", *cell());
+  stream->Add("[%p] = ", *cell().handle());
   value()->PrintNameTo(stream);
   if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
   if (details_.IsReadOnly()) stream->Add(" (read-only)");
@@ -3454,8 +3514,8 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   HConstant* filler_map = HConstant::New(
       zone,
       context(),
-      isolate()->factory()->free_space_map(),
-      UniqueValueId::free_space_map(isolate()->heap()));
+      isolate()->factory()->free_space_map());
+  filler_map->FinalizeUniqueness();  // TODO(titzer): should be init'd a'ready
   filler_map->InsertAfter(free_space_instr);
   HInstruction* store_map = HStoreNamedField::New(zone, context(),
       free_space_instr, HObjectAccess::ForMap(), filler_map);
@@ -4004,7 +4064,7 @@ Representation HValue::RepresentationFromUseRequirements() {
   Representation rep = Representation::None();
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     // Ignore the use requirement from never run code
-    if (it.value()->block()->IsDeoptimizing()) continue;
+    if (it.value()->block()->IsUnreachable()) continue;
 
     // We check for observed_input_representation elsewhere.
     Representation use_rep =

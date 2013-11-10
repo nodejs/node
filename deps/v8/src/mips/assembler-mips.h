@@ -72,18 +72,25 @@ namespace internal {
 // Core register.
 struct Register {
   static const int kNumRegisters = v8::internal::kNumRegisters;
-  static const int kMaxNumAllocatableRegisters = 14;  // v0 through t7.
+  static const int kMaxNumAllocatableRegisters = 14;  // v0 through t6 and cp.
   static const int kSizeInBytes = 4;
+  static const int kCpRegister = 23;  // cp (s7) is the 23rd register.
 
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
-    return reg.code() - 2;  // zero_reg and 'at' are skipped.
+    ASSERT((reg.code() - 2) < (kMaxNumAllocatableRegisters - 1) ||
+           reg.is(from_code(kCpRegister)));
+    return reg.is(from_code(kCpRegister)) ?
+           kMaxNumAllocatableRegisters - 1 :  // Return last index for 'cp'.
+           reg.code() - 2;  // zero_reg and 'at' are skipped.
   }
 
   static Register FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
-    return from_code(index + 2);  // zero_reg and 'at' are skipped.
+    return index == kMaxNumAllocatableRegisters - 1 ?
+           from_code(kCpRegister) :  // Last index is always the 'cp' register.
+           from_code(index + 2);  // zero_reg and 'at' are skipped.
   }
 
   static const char* AllocationIndexToString(int index) {
@@ -102,7 +109,7 @@ struct Register {
       "t4",
       "t5",
       "t6",
-      "t7",
+      "s7",
     };
     return names[index];
   }
@@ -404,28 +411,49 @@ class CpuFeatures : public AllStatic {
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
-    return (supported_ & (1u << f)) != 0;
+    return Check(f, supported_);
   }
 
   static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
     ASSERT(initialized_);
-    return (found_by_runtime_probing_only_ &
-            (static_cast<uint64_t>(1) << f)) != 0;
+    return Check(f, found_by_runtime_probing_only_);
   }
 
   static bool IsSafeForSnapshot(CpuFeature f) {
-    return (IsSupported(f) &&
+    return Check(f, cross_compile_) ||
+           (IsSupported(f) &&
             (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
   }
 
+  static bool VerifyCrossCompiling() {
+    return cross_compile_ == 0;
+  }
+
+  static bool VerifyCrossCompiling(CpuFeature f) {
+    unsigned mask = flag2set(f);
+    return cross_compile_ == 0 ||
+           (cross_compile_ & mask) == mask;
+  }
+
  private:
+  static bool Check(CpuFeature f, unsigned set) {
+    return (set & flag2set(f)) != 0;
+  }
+
+  static unsigned flag2set(CpuFeature f) {
+    return 1u << f;
+  }
+
 #ifdef DEBUG
   static bool initialized_;
 #endif
   static unsigned supported_;
   static unsigned found_by_runtime_probing_only_;
 
+  static unsigned cross_compile_;
+
   friend class ExternalReference;
+  friend class PlatformFeatureScope;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 

@@ -232,6 +232,7 @@ class ShellOptions {
      interactive_shell(false),
      test_shell(false),
      dump_heap_constants(false),
+     expected_to_throw(false),
      num_isolates(1),
      isolate_sources(NULL) { }
 
@@ -256,6 +257,7 @@ class ShellOptions {
   bool interactive_shell;
   bool test_shell;
   bool dump_heap_constants;
+  bool expected_to_throw;
   int num_isolates;
   SourceGroup* isolate_sources;
 };
@@ -300,6 +302,8 @@ class Shell : public i::AllStatic {
                                                  Handle<String> command);
   static void DispatchDebugMessages();
 #endif  // ENABLE_DEBUGGER_SUPPORT
+
+  static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // V8_SHARED
 
   static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -391,6 +395,7 @@ class Shell : public i::AllStatic {
   static CounterCollection* counters_;
   static i::OS::MemoryMappedFile* counters_file_;
   static i::Mutex context_mutex_;
+  static const i::TimeTicks kInitialTicks;
 
   static Counter* GetCounter(const char* name, bool is_histogram);
   static void InstallUtilityScript(Isolate* isolate);

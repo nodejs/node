@@ -261,6 +261,13 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 
 static const int kNoCodeAgeSequenceLength = 7;
 
+
+Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
+  UNREACHABLE();  // This should never be reached on Arm.
+  return Handle<Object>();
+}
+
+
 Code* RelocInfo::code_age_stub() {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   return Code::GetCodeFromTargetAddress(

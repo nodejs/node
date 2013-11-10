@@ -193,14 +193,12 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   Register argument = r2;
   Label not_cached, argument_is_string;
-  NumberToStringStub::GenerateLookupNumberStringCache(
-      masm,
-      r0,        // Input.
-      argument,  // Result.
-      r3,        // Scratch.
-      r4,        // Scratch.
-      r5,        // Scratch.
-      &not_cached);
+  __ LookupNumberStringCache(r0,        // Input.
+                             argument,  // Result.
+                             r3,        // Scratch.
+                             r4,        // Scratch.
+                             r5,        // Scratch.
+                             &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1, r3, r4);
   __ bind(&argument_is_string);
 
@@ -447,9 +445,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r3: object size (in words)
       // r4: JSObject (not tagged)
       // r5: First in-object property of JSObject (not tagged)
-      __ add(r6, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
       ASSERT_EQ(3 * kPointerSize, JSObject::kHeaderSize);
-      __ LoadRoot(r7, Heap::kUndefinedValueRootIndex);
+      __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
       if (count_constructions) {
         __ ldr(r0, FieldMemOperand(r2, Map::kInstanceSizesOffset));
         __ Ubfx(r0, r0, Map::kPreAllocatedPropertyFieldsByte * kBitsPerByte,
@@ -457,14 +454,16 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ add(r0, r5, Operand(r0, LSL, kPointerSizeLog2));
         // r0: offset of first field after pre-allocated fields
         if (FLAG_debug_code) {
-          __ cmp(r0, r6);
+          __ add(ip, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
+          __ cmp(r0, ip);
           __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields);
         }
-        __ InitializeFieldsWithFiller(r5, r0, r7);
+        __ InitializeFieldsWithFiller(r5, r0, r6);
         // To allow for truncation.
-        __ LoadRoot(r7, Heap::kOnePointerFillerMapRootIndex);
+        __ LoadRoot(r6, Heap::kOnePointerFillerMapRootIndex);
       }
-      __ InitializeFieldsWithFiller(r5, r6, r7);
+      __ add(r0, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
+      __ InitializeFieldsWithFiller(r5, r0, r6);
 
       // Add the object tag to make the JSObject real, so that we can continue
       // and jump into the continuation code at any time from now on. Any
@@ -529,16 +528,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ add(r6, r2, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
       ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
       { Label loop, entry;
-        if (count_constructions) {
-          __ LoadRoot(r7, Heap::kUndefinedValueRootIndex);
-        } else if (FLAG_debug_code) {
-          __ LoadRoot(r8, Heap::kUndefinedValueRootIndex);
-          __ cmp(r7, r8);
-          __ Assert(eq, kUndefinedValueNotLoaded);
-        }
+        __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
         __ b(&entry);
         __ bind(&loop);
-        __ str(r7, MemOperand(r2, kPointerSize, PostIndex));
+        __ str(r0, MemOperand(r2, kPointerSize, PostIndex));
         __ bind(&entry);
         __ cmp(r2, r6);
         __ b(lt, &loop);
@@ -702,7 +695,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r2: receiver
   // r3: argc
   // r4: argv
-  // r5-r7, cp may be clobbered
+  // r5-r6, r7 (if not FLAG_enable_ool_constant_pool) and cp may be clobbered
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Clear the context before we push it when entering the internal frame.
@@ -742,7 +735,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
     __ mov(r5, Operand(r4));
     __ mov(r6, Operand(r4));
-    __ mov(r7, Operand(r4));
+    if (!FLAG_enable_ool_constant_pool) {
+      __ mov(r7, Operand(r4));
+    }
     if (kR9Available == 1) {
       __ mov(r9, Operand(r4));
     }
@@ -807,12 +802,13 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // The following registers must be saved and restored when calling through to
   // the runtime:
   //   r0 - contains return address (beginning of patch sequence)
-  //   r1 - function object
+  //   r1 - isolate
   FrameScope scope(masm, StackFrame::MANUAL);
   __ stm(db_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
-  __ PrepareCallCFunction(1, 0, r1);
+  __ PrepareCallCFunction(1, 0, r2);
+  __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ CallCFunction(
-      ExternalReference::get_make_code_young_function(masm->isolate()), 1);
+      ExternalReference::get_make_code_young_function(masm->isolate()), 2);
   __ ldm(ia_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
   __ mov(pc, r0);
 }
@@ -828,6 +824,39 @@ void Builtins::Generate_Make##C##CodeYoungAgainOddMarking(   \
 }
 CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
+
+
+void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
+  // For now, as in GenerateMakeCodeYoungAgainCommon, we are relying on the fact
+  // that make_code_young doesn't do any garbage collection which allows us to
+  // save/restore the registers without worrying about which of them contain
+  // pointers.
+
+  // The following registers must be saved and restored when calling through to
+  // the runtime:
+  //   r0 - contains return address (beginning of patch sequence)
+  //   r1 - isolate
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ stm(db_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
+  __ PrepareCallCFunction(1, 0, r2);
+  __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ CallCFunction(ExternalReference::get_mark_code_as_executed_function(
+        masm->isolate()), 2);
+  __ ldm(ia_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
+
+  // Perform prologue operations usually performed by the young code stub.
+  __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+  __ add(fp, sp, Operand(2 * kPointerSize));
+
+  // Jump to point after the code-age stub.
+  __ add(r0, r0, Operand(kNoCodeAgeSequenceLength * Assembler::kInstrSize));
+  __ mov(pc, r0);
+}
+
+
+void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
+  GenerateMakeCodeYoungAgainCommon(masm);
+}
 
 
 void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
@@ -895,21 +924,6 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  // For now, we are relying on the fact that Runtime::NotifyOSR
-  // doesn't do any garbage collection which allows us to save/restore
-  // the registers without worrying about which of them contain
-  // pointers. This seems a bit fragile.
-  __ stm(db_w, sp, kJSCallerSaved | kCalleeSaved | lr.bit() | fp.bit());
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kNotifyOSR, 0);
-  }
-  __ ldm(ia_w, sp, kJSCallerSaved | kCalleeSaved | lr.bit() | fp.bit());
-  __ Ret();
-}
-
-
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   // Lookup the function in the JavaScript frame.
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -952,6 +966,24 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ add(lr, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
 
   // And "return" to the OSR entry point of the function.
+  __ Ret();
+}
+
+
+void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
+  // We check the stack limit as indicator that recompilation might be done.
+  Label ok;
+  __ LoadRoot(ip, Heap::kStackLimitRootIndex);
+  __ cmp(sp, Operand(ip));
+  __ b(hs, &ok);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+  }
+  __ Jump(masm->isolate()->builtins()->OnStackReplacement(),
+          RelocInfo::CODE_TARGET);
+
+  __ bind(&ok);
   __ Ret();
 }
 

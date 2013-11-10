@@ -38,7 +38,7 @@ template<typename T>
 template<typename V>
 v8::Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   // Check the ReturnValue.
-  Object** handle = &this->end()[kReturnValueOffset];
+  Object** handle = &this->begin()[kReturnValueOffset];
   // Nothing was set, return empty handle as per previous behaviour.
   if ((*handle)->IsTheHole()) return v8::Handle<V>();
   return Utils::Convert<Object, V>(Handle<Object>(handle));
@@ -49,7 +49,7 @@ v8::Handle<v8::Value> FunctionCallbackArguments::Call(FunctionCallback f) {
   Isolate* isolate = this->isolate();
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-  FunctionCallbackInfo<v8::Value> info(end(),
+  FunctionCallbackInfo<v8::Value> info(begin(),
                                        argv_,
                                        argc_,
                                        is_construct_call_);
@@ -63,7 +63,7 @@ v8::Handle<ReturnValue> PropertyCallbackArguments::Call(Function f) {          \
   Isolate* isolate = this->isolate();                                          \
   VMState<EXTERNAL> state(isolate);                                            \
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));                 \
-  PropertyCallbackInfo<ReturnValue> info(end());                               \
+  PropertyCallbackInfo<ReturnValue> info(begin());                             \
   f(info);                                                                     \
   return GetReturnValue<ReturnValue>(isolate);                                 \
 }
@@ -75,7 +75,7 @@ v8::Handle<ReturnValue> PropertyCallbackArguments::Call(Function f,            \
   Isolate* isolate = this->isolate();                                          \
   VMState<EXTERNAL> state(isolate);                                            \
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));                 \
-  PropertyCallbackInfo<ReturnValue> info(end());                               \
+  PropertyCallbackInfo<ReturnValue> info(begin());                             \
   f(arg1, info);                                                               \
   return GetReturnValue<ReturnValue>(isolate);                                 \
 }
@@ -88,7 +88,7 @@ v8::Handle<ReturnValue> PropertyCallbackArguments::Call(Function f,            \
   Isolate* isolate = this->isolate();                                          \
   VMState<EXTERNAL> state(isolate);                                            \
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));                 \
-  PropertyCallbackInfo<ReturnValue> info(end());                               \
+  PropertyCallbackInfo<ReturnValue> info(begin());                             \
   f(arg1, arg2, info);                                                         \
   return GetReturnValue<ReturnValue>(isolate);                                 \
 }
@@ -101,7 +101,7 @@ void PropertyCallbackArguments::Call(Function f,                               \
   Isolate* isolate = this->isolate();                                          \
   VMState<EXTERNAL> state(isolate);                                            \
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));                 \
-  PropertyCallbackInfo<ReturnValue> info(end());                               \
+  PropertyCallbackInfo<ReturnValue> info(begin());                             \
   f(arg1, arg2, info);                                                         \
 }
 
@@ -118,4 +118,3 @@ FOR_EACH_CALLBACK_TABLE_MAPPING_2_VOID_RETURN(WRITE_CALL_2_VOID)
 
 
 } }  // namespace v8::internal
-

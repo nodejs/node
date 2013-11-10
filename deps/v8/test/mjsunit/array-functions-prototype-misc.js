@@ -31,7 +31,7 @@
  * should work on other objects too, so we test that too.
  */
 
-var LARGE = 40000000;
+var LARGE = 4000000;
 var VERYLARGE = 4000000000;
 
 // Nicer for firefox 1.5.  Unless you uncomment the following two lines,
@@ -276,7 +276,7 @@ for (var i = 0; i < a.length; i += 1000) {
 }
 
 // Take something near the end of the array.
-for (var i = 0; i < 100; i++) {
+for (var i = 0; i < 10; i++) {
   var top = a.splice(LARGE, 5);
   assertEquals(5, top.length);
   assertEquals(LARGE, top[0]);

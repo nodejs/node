@@ -396,30 +396,27 @@ void HGlobalValueNumberingPhase::ComputeBlockSideEffects() {
   for (int i = graph()->blocks()->length() - 1; i >= 0; --i) {
     // Compute side effects for the block.
     HBasicBlock* block = graph()->blocks()->at(i);
-    int id = block->block_id();
     GVNFlagSet side_effects;
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      side_effects.Add(instr->ChangesFlags());
-      if (instr->IsDeoptimize()) {
-        block_side_effects_[id].RemoveAll();
-        side_effects.RemoveAll();
-        break;
+    if (block->IsReachable() && !block->IsDeoptimizing()) {
+      int id = block->block_id();
+      for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+        HInstruction* instr = it.Current();
+        side_effects.Add(instr->ChangesFlags());
       }
-    }
-    block_side_effects_[id].Add(side_effects);
+      block_side_effects_[id].Add(side_effects);
 
-    // Loop headers are part of their loop.
-    if (block->IsLoopHeader()) {
-      loop_side_effects_[id].Add(side_effects);
-    }
+      // Loop headers are part of their loop.
+      if (block->IsLoopHeader()) {
+        loop_side_effects_[id].Add(side_effects);
+      }
 
-    // Propagate loop side effects upwards.
-    if (block->HasParentLoopHeader()) {
-      int header_id = block->parent_loop_header()->block_id();
-      loop_side_effects_[header_id].Add(block->IsLoopHeader()
-                                        ? loop_side_effects_[id]
-                                        : side_effects);
+      // Propagate loop side effects upwards.
+      if (block->HasParentLoopHeader()) {
+        int header_id = block->parent_loop_header()->block_id();
+        loop_side_effects_[header_id].Add(block->IsLoopHeader()
+                                          ? loop_side_effects_[id]
+                                          : side_effects);
+      }
     }
   }
 }
@@ -609,7 +606,8 @@ bool HGlobalValueNumberingPhase::ShouldMove(HInstruction* instr,
                                             HBasicBlock* loop_header) {
   // If we've disabled code motion or we're in a block that unconditionally
   // deoptimizes, don't move any instructions.
-  return AllowCodeMotion() && !instr->block()->IsDeoptimizing();
+  return AllowCodeMotion() && !instr->block()->IsDeoptimizing() &&
+      instr->block()->IsReachable();
 }
 
 

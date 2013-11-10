@@ -156,7 +156,7 @@ class StackArgumentsAccessor BASE_EMBEDDED {
   Operand GetArgumentOperand(int index);
   Operand GetReceiverOperand() {
     ASSERT(receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER);
-    return GetArgumentOperand(0);;
+    return GetArgumentOperand(0);
   }
 
  private:

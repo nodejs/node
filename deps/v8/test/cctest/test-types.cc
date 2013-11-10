@@ -111,8 +111,8 @@ class HandlifiedTypes {
       Null(Type::Null(), isolate),
       Undefined(Type::Undefined(), isolate),
       Number(Type::Number(), isolate),
-      Integer31(Type::Smi(), isolate),
-      Integer32(Type::Signed32(), isolate),
+      Smi(Type::Smi(), isolate),
+      Signed32(Type::Signed32(), isolate),
       Double(Type::Double(), isolate),
       Name(Type::Name(), isolate),
       UniqueName(Type::UniqueName(), isolate),
@@ -128,16 +128,18 @@ class HandlifiedTypes {
       array_map(isolate->factory()->NewMap(JS_ARRAY_TYPE, 4 * kPointerSize)),
       isolate_(isolate) {
     smi = handle(Smi::FromInt(666), isolate);
+    signed32 = isolate->factory()->NewHeapNumber(0x40000000);
     object1 = isolate->factory()->NewJSObjectFromMap(object_map);
     object2 = isolate->factory()->NewJSObjectFromMap(object_map);
     array = isolate->factory()->NewJSArray(20);
-    ObjectClass = handle(Type::Class(object_map), isolate);
-    ArrayClass = handle(Type::Class(array_map), isolate);
-    Integer31Constant = handle(Type::Constant(smi, isolate), isolate);
-    ObjectConstant1 = handle(Type::Constant(object1), isolate);
-    ObjectConstant2 = handle(Type::Constant(object2), isolate);
-    ArrayConstant1 = handle(Type::Constant(array), isolate);
-    ArrayConstant2 = handle(Type::Constant(array), isolate);
+    ObjectClass = Class(object_map);
+    ArrayClass = Class(array_map);
+    SmiConstant = Constant(smi);
+    Signed32Constant = Constant(signed32);
+    ObjectConstant1 = Constant(object1);
+    ObjectConstant2 = Constant(object2);
+    ArrayConstant1 = Constant(array);
+    ArrayConstant2 = Constant(array);
   }
 
   Handle<Type> None;
@@ -147,8 +149,8 @@ class HandlifiedTypes {
   Handle<Type> Null;
   Handle<Type> Undefined;
   Handle<Type> Number;
-  Handle<Type> Integer31;
-  Handle<Type> Integer32;
+  Handle<Type> Smi;
+  Handle<Type> Signed32;
   Handle<Type> Double;
   Handle<Type> Name;
   Handle<Type> UniqueName;
@@ -164,7 +166,8 @@ class HandlifiedTypes {
   Handle<Type> ObjectClass;
   Handle<Type> ArrayClass;
 
-  Handle<Type> Integer31Constant;
+  Handle<Type> SmiConstant;
+  Handle<Type> Signed32Constant;
   Handle<Type> ObjectConstant1;
   Handle<Type> ObjectConstant2;
   Handle<Type> ArrayConstant1;
@@ -173,11 +176,18 @@ class HandlifiedTypes {
   Handle<Map> object_map;
   Handle<Map> array_map;
 
-  Handle<v8::internal::Smi> smi;
+  Handle<i::Smi> smi;
+  Handle<HeapNumber> signed32;
   Handle<JSObject> object1;
   Handle<JSObject> object2;
   Handle<JSArray> array;
 
+  Handle<Type> Class(Handle<Map> map) {
+    return handle(Type::Class(map), isolate_);
+  }
+  Handle<Type> Constant(Handle<i::Object> value) {
+    return handle(Type::Constant(value, isolate_), isolate_);
+  }
   Handle<Type> Union(Handle<Type> type1, Handle<Type> type2) {
     return handle(Type::Union(type1, type2), isolate_);
   }
@@ -192,7 +202,7 @@ class HandlifiedTypes {
 
 TEST(Bitset) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -217,7 +227,7 @@ TEST(Bitset) {
 
 TEST(Class) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -231,17 +241,17 @@ TEST(Class) {
 
 TEST(Constant) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
-  CHECK(IsConstant(*T.Integer31Constant));
+  CHECK(IsConstant(*T.SmiConstant));
   CHECK(IsConstant(*T.ObjectConstant1));
   CHECK(IsConstant(*T.ObjectConstant2));
   CHECK(IsConstant(*T.ArrayConstant1));
   CHECK(IsConstant(*T.ArrayConstant2));
 
-  CHECK(*T.smi == AsConstant(*T.Integer31Constant));
+  CHECK(*T.smi == AsConstant(*T.SmiConstant));
   CHECK(*T.object1 == AsConstant(*T.ObjectConstant1));
   CHECK(*T.object2 == AsConstant(*T.ObjectConstant2));
   CHECK(*T.object1 != AsConstant(*T.ObjectConstant2));
@@ -252,7 +262,7 @@ TEST(Constant) {
 
 TEST(Is) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -278,12 +288,12 @@ TEST(Is) {
   CheckUnordered(T.Boolean, T.Undefined);
 
   CheckSub(T.Number, T.Any);
-  CheckSub(T.Integer31, T.Number);
-  CheckSub(T.Integer32, T.Number);
+  CheckSub(T.Smi, T.Number);
+  CheckSub(T.Signed32, T.Number);
   CheckSub(T.Double, T.Number);
-  CheckSub(T.Integer31, T.Integer32);
-  CheckUnordered(T.Integer31, T.Double);
-  CheckUnordered(T.Integer32, T.Double);
+  CheckSub(T.Smi, T.Signed32);
+  CheckUnordered(T.Smi, T.Double);
+  CheckUnordered(T.Signed32, T.Double);
 
   CheckSub(T.Name, T.Any);
   CheckSub(T.UniqueName, T.Any);
@@ -308,13 +318,18 @@ TEST(Is) {
   CheckUnordered(T.Array, T.Function);
 
   // Structured subtyping
+  CheckSub(T.None, T.ObjectClass);
+  CheckSub(T.None, T.ObjectConstant1);
+  CheckSub(T.ObjectClass, T.Any);
+  CheckSub(T.ObjectConstant1, T.Any);
+
   CheckSub(T.ObjectClass, T.Object);
   CheckSub(T.ArrayClass, T.Object);
   CheckUnordered(T.ObjectClass, T.ArrayClass);
 
-  CheckSub(T.Integer31Constant, T.Integer31);
-  CheckSub(T.Integer31Constant, T.Integer32);
-  CheckSub(T.Integer31Constant, T.Number);
+  CheckSub(T.SmiConstant, T.Smi);
+  CheckSub(T.SmiConstant, T.Signed32);
+  CheckSub(T.SmiConstant, T.Number);
   CheckSub(T.ObjectConstant1, T.Object);
   CheckSub(T.ObjectConstant2, T.Object);
   CheckSub(T.ArrayConstant1, T.Object);
@@ -332,7 +347,7 @@ TEST(Is) {
 
 TEST(Maybe) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -348,9 +363,9 @@ TEST(Maybe) {
   CheckDisjoint(T.Boolean, T.Undefined);
 
   CheckOverlap(T.Number, T.Any);
-  CheckOverlap(T.Integer31, T.Number);
+  CheckOverlap(T.Smi, T.Number);
   CheckOverlap(T.Double, T.Number);
-  CheckDisjoint(T.Integer32, T.Double);
+  CheckDisjoint(T.Signed32, T.Double);
 
   CheckOverlap(T.Name, T.Any);
   CheckOverlap(T.UniqueName, T.Any);
@@ -374,16 +389,19 @@ TEST(Maybe) {
   CheckDisjoint(T.Object, T.Proxy);
   CheckDisjoint(T.Array, T.Function);
 
+  CheckOverlap(T.ObjectClass, T.Any);
+  CheckOverlap(T.ObjectConstant1, T.Any);
+
   CheckOverlap(T.ObjectClass, T.Object);
   CheckOverlap(T.ArrayClass, T.Object);
   CheckOverlap(T.ObjectClass, T.ObjectClass);
   CheckOverlap(T.ArrayClass, T.ArrayClass);
   CheckDisjoint(T.ObjectClass, T.ArrayClass);
 
-  CheckOverlap(T.Integer31Constant, T.Integer31);
-  CheckOverlap(T.Integer31Constant, T.Integer32);
-  CheckOverlap(T.Integer31Constant, T.Number);
-  CheckDisjoint(T.Integer31Constant, T.Double);
+  CheckOverlap(T.SmiConstant, T.Smi);
+  CheckOverlap(T.SmiConstant, T.Signed32);
+  CheckOverlap(T.SmiConstant, T.Number);
+  CheckDisjoint(T.SmiConstant, T.Double);
   CheckOverlap(T.ObjectConstant1, T.Object);
   CheckOverlap(T.ObjectConstant2, T.Object);
   CheckOverlap(T.ArrayConstant1, T.Object);
@@ -403,7 +421,7 @@ TEST(Maybe) {
 
 TEST(Union) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -422,6 +440,8 @@ TEST(Union) {
   CHECK(IsUnion(Type::Union(T.ObjectClass, T.ArrayClass)));
 
   CheckEqual(T.Union(T.ObjectClass, T.ObjectClass), T.ObjectClass);
+  CheckSub(T.None, T.Union(T.ObjectClass, T.ArrayClass));
+  CheckSub(T.Union(T.ObjectClass, T.ArrayClass), T.Any);
   CheckSub(T.ObjectClass, T.Union(T.ObjectClass, T.ArrayClass));
   CheckSub(T.ArrayClass, T.Union(T.ObjectClass, T.ArrayClass));
   CheckSub(T.Union(T.ObjectClass, T.ArrayClass), T.Object);
@@ -437,6 +457,8 @@ TEST(Union) {
   CheckEqual(T.Union(T.ObjectConstant1, T.ObjectConstant1), T.ObjectConstant1);
   CheckEqual(T.Union(T.ArrayConstant1, T.ArrayConstant1), T.ArrayConstant1);
   CheckEqual(T.Union(T.ArrayConstant1, T.ArrayConstant1), T.ArrayConstant2);
+  CheckSub(T.None, T.Union(T.ObjectConstant1, T.ObjectConstant2));
+  CheckSub(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.Any);
   CheckSub(T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2));
   CheckSub(T.ObjectConstant2, T.Union(T.ObjectConstant1, T.ObjectConstant2));
   CheckSub(T.ArrayConstant2, T.Union(T.ArrayConstant1, T.ObjectConstant2));
@@ -453,32 +475,36 @@ TEST(Union) {
   CHECK(IsUnion(Type::Union(T.ObjectClass, T.Number)));
 
   CheckEqual(T.Union(T.ObjectClass, T.Object), T.Object);
+  CheckSub(T.None, T.Union(T.ObjectClass, T.Number));
   CheckSub(T.Union(T.ObjectClass, T.Number), T.Any);
-  CheckSub(T.Union(T.ObjectClass, T.Integer31), T.Union(T.Object, T.Number));
+  CheckSub(T.Union(T.ObjectClass, T.Smi), T.Union(T.Object, T.Number));
   CheckSub(T.Union(T.ObjectClass, T.Array), T.Object);
   CheckUnordered(T.Union(T.ObjectClass, T.String), T.Array);
   CheckOverlap(T.Union(T.ObjectClass, T.String), T.Object);
   CheckDisjoint(T.Union(T.ObjectClass, T.String), T.Number);
 
   // Bitset-constant
-  CHECK(IsBitset(Type::Union(T.Integer31Constant, T.Number)));
+  CHECK(IsBitset(Type::Union(T.SmiConstant, T.Number)));
   CHECK(IsBitset(Type::Union(T.ObjectConstant1, T.Object)));
   CHECK(IsUnion(Type::Union(T.ObjectConstant2, T.Number)));
 
-  CheckEqual(T.Union(T.Integer31Constant, T.Number), T.Number);
+  CheckEqual(T.Union(T.SmiConstant, T.Number), T.Number);
   CheckEqual(T.Union(T.ObjectConstant1, T.Object), T.Object);
+  CheckSub(T.None, T.Union(T.ObjectConstant1, T.Number));
   CheckSub(T.Union(T.ObjectConstant1, T.Number), T.Any);
-  CheckSub(
-      T.Union(T.ObjectConstant1, T.Integer32), T.Union(T.Object, T.Number));
+  CheckSub(T.Union(T.ObjectConstant1, T.Signed32), T.Union(T.Object, T.Number));
   CheckSub(T.Union(T.ObjectConstant1, T.Array), T.Object);
   CheckUnordered(T.Union(T.ObjectConstant1, T.String), T.Array);
   CheckOverlap(T.Union(T.ObjectConstant1, T.String), T.Object);
   CheckDisjoint(T.Union(T.ObjectConstant1, T.String), T.Number);
+  CheckEqual(T.Union(T.Signed32, T.Signed32Constant), T.Signed32);
 
   // Class-constant
   CHECK(IsUnion(Type::Union(T.ObjectConstant1, T.ObjectClass)));
   CHECK(IsUnion(Type::Union(T.ArrayClass, T.ObjectConstant2)));
 
+  CheckSub(T.None, T.Union(T.ObjectConstant1, T.ArrayClass));
+  CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass), T.Any);
   CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass), T.Object);
   CheckSub(T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ArrayClass));
   CheckSub(T.ArrayClass, T.Union(T.ObjectConstant1, T.ArrayClass));
@@ -508,6 +534,9 @@ TEST(Union) {
       T.ObjectConstant1,
       T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Double));
   CheckSub(
+      T.None,
+      T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Double));
+  CheckSub(
       T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Double),
       T.Any);
   CheckSub(
@@ -523,6 +552,12 @@ TEST(Union) {
   CheckEqual(
       T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)),
       T.Union(T.ObjectClass, T.ObjectConstant1));
+  CheckSub(
+      T.None,
+      T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)));
+  CheckSub(
+      T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)),
+      T.Any);
   CheckSub(
       T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)),
       T.Object);
@@ -547,7 +582,7 @@ TEST(Union) {
 
   // Union-union
   CHECK(IsBitset(Type::Union(
-      T.Union(T.Number, T.ArrayClass), T.Union(T.Integer32, T.Array))));
+      T.Union(T.Number, T.ArrayClass), T.Union(T.Signed32, T.Array))));
   CHECK(IsUnion(Type::Union(
       T.Union(T.Number, T.ArrayClass), T.Union(T.ObjectClass, T.ArrayClass))));
 
@@ -562,14 +597,14 @@ TEST(Union) {
           T.Union(T.ObjectConstant1, T.ArrayConstant2)),
       T.Union(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.ArrayConstant1));
   CheckEqual(
-      T.Union(T.Union(T.Number, T.ArrayClass), T.Union(T.Integer31, T.Array)),
+      T.Union(T.Union(T.Number, T.ArrayClass), T.Union(T.Smi, T.Array)),
       T.Union(T.Number, T.Array));
 }
 
 
 TEST(Intersect) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -610,12 +645,12 @@ TEST(Intersect) {
   CheckEqual(T.Intersect(T.ObjectClass, T.Number), T.None);
 
   // Bitset-constant
-  CHECK(IsBitset(Type::Intersect(T.Integer31, T.Number)));
-  CHECK(IsConstant(Type::Intersect(T.Integer31Constant, T.Number)));
+  CHECK(IsBitset(Type::Intersect(T.Smi, T.Number)));
+  CHECK(IsConstant(Type::Intersect(T.SmiConstant, T.Number)));
   CHECK(IsConstant(Type::Intersect(T.ObjectConstant1, T.Object)));
 
-  CheckEqual(T.Intersect(T.Integer31, T.Number), T.Integer31);
-  CheckEqual(T.Intersect(T.Integer31Constant, T.Number), T.Integer31Constant);
+  CheckEqual(T.Intersect(T.Smi, T.Number), T.Smi);
+  CheckEqual(T.Intersect(T.SmiConstant, T.Number), T.SmiConstant);
   CheckEqual(T.Intersect(T.ObjectConstant1, T.Object), T.ObjectConstant1);
 
   // Class-constant
@@ -642,7 +677,7 @@ TEST(Intersect) {
   CHECK(IsClass(
       Type::Intersect(T.Union(T.ArrayClass, T.ObjectConstant2), T.ArrayClass)));
   CHECK(IsClass(
-      Type::Intersect(T.Union(T.Object, T.Integer31Constant), T.ArrayClass)));
+      Type::Intersect(T.Union(T.Object, T.SmiConstant), T.ArrayClass)));
   CHECK(IsBitset(
       Type::Intersect(T.Union(T.ObjectClass, T.ArrayConstant1), T.ArrayClass)));
 
@@ -650,7 +685,7 @@ TEST(Intersect) {
       T.Intersect(T.ArrayClass, T.Union(T.ObjectConstant2, T.ArrayClass)),
       T.ArrayClass);
   CheckEqual(
-      T.Intersect(T.ArrayClass, T.Union(T.Object, T.Integer31Constant)),
+      T.Intersect(T.ArrayClass, T.Union(T.Object, T.SmiConstant)),
       T.ArrayClass);
   CheckEqual(
       T.Intersect(T.Union(T.ObjectClass, T.ArrayConstant1), T.ArrayClass),
@@ -660,7 +695,7 @@ TEST(Intersect) {
   CHECK(IsConstant(Type::Intersect(
       T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2))));
   CHECK(IsConstant(Type::Intersect(
-      T.Union(T.Number, T.ObjectClass), T.Integer31Constant)));
+      T.Union(T.Number, T.ObjectClass), T.SmiConstant)));
   CHECK(IsBitset(Type::Intersect(
       T.Union(T.ArrayConstant1, T.ObjectClass), T.ObjectConstant1)));
 
@@ -669,28 +704,28 @@ TEST(Intersect) {
           T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2)),
       T.ObjectConstant1);
   CheckEqual(
-      T.Intersect(T.Integer31Constant, T.Union(T.Number, T.ObjectConstant2)),
-      T.Integer31Constant);
+      T.Intersect(T.SmiConstant, T.Union(T.Number, T.ObjectConstant2)),
+      T.SmiConstant);
   CheckEqual(
       T.Intersect(T.Union(T.ArrayConstant1, T.ObjectClass), T.ObjectConstant1),
       T.None);
 
   // Union-union
   CHECK(IsUnion(Type::Intersect(
-      T.Union(T.Number, T.ArrayClass), T.Union(T.Integer32, T.Array))));
+      T.Union(T.Number, T.ArrayClass), T.Union(T.Signed32, T.Array))));
   CHECK(IsBitset(Type::Intersect(
-      T.Union(T.Number, T.ObjectClass), T.Union(T.Integer32, T.Array))));
+      T.Union(T.Number, T.ObjectClass), T.Union(T.Signed32, T.Array))));
 
   CheckEqual(
       T.Intersect(
           T.Union(T.Number, T.ArrayClass),
-          T.Union(T.Integer31, T.Array)),
-      T.Union(T.Integer31, T.ArrayClass));
+          T.Union(T.Smi, T.Array)),
+      T.Union(T.Smi, T.ArrayClass));
   CheckEqual(
       T.Intersect(
           T.Union(T.Number, T.ObjectClass),
-          T.Union(T.Integer32, T.Array)),
-      T.Integer32);
+          T.Union(T.Signed32, T.Array)),
+      T.Signed32);
   CheckEqual(
       T.Intersect(
           T.Union(T.ObjectConstant2, T.ObjectConstant1),

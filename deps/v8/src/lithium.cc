@@ -229,7 +229,7 @@ void LPointerMap::PrintTo(StringStream* stream) {
     if (i != 0) stream->Add(";");
     pointer_operands_[i]->PrintTo(stream);
   }
-  stream->Add("} @%d", position());
+  stream->Add("}");
 }
 
 
@@ -487,6 +487,14 @@ void LChunk::set_allocated_double_registers(BitVector* allocated_registers) {
     }
     iterator.Advance();
   }
+}
+
+
+LInstruction* LChunkBuilder::CheckElideControlInstruction(
+    HControlInstruction* instr) {
+  HBasicBlock* successor;
+  if (!instr->KnownSuccessorBlock(&successor)) return NULL;
+  return new(zone()) LGoto(successor);
 }
 
 

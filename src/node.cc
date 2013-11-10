@@ -3068,8 +3068,6 @@ void Init(int* argc,
     V8::SetFlagsFromString(expose_debug_as, sizeof(expose_debug_as) - 1);
   }
 
-  const char typed_arrays_flag[] = "--harmony_typed_arrays";
-  V8::SetFlagsFromString(typed_arrays_flag, sizeof(typed_arrays_flag) - 1);
   V8::SetArrayBufferAllocator(&ArrayBufferAllocator::the_singleton);
 
   // Fetch a reference to the main isolate, so we have a reference to it

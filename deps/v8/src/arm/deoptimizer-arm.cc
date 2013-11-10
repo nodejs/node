@@ -81,100 +81,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-static const int32_t kBranchBeforeInterrupt =  0x5a000004;
-
-// The back edge bookkeeping code matches the pattern:
-//
-//  <decrement profiling counter>
-//  2a 00 00 01       bpl ok
-//  e5 9f c? ??       ldr ip, [pc, <interrupt stub address>]
-//  e1 2f ff 3c       blx ip
-//  ok-label
-//
-// We patch the code to the following form:
-//
-//  <decrement profiling counter>
-//  e1 a0 00 00       mov r0, r0 (NOP)
-//  e5 9f c? ??       ldr ip, [pc, <on-stack replacement address>]
-//  e1 2f ff 3c       blx ip
-//  ok-label
-
-void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
-                                       Address pc_after,
-                                       Code* replacement_code) {
-  static const int kInstrSize = Assembler::kInstrSize;
-  // Turn the jump into nops.
-  CodePatcher patcher(pc_after - 3 * kInstrSize, 1);
-  patcher.masm()->nop();
-  // Replace the call address.
-  uint32_t interrupt_address_offset = Memory::uint16_at(pc_after -
-      2 * kInstrSize) & 0xfff;
-  Address interrupt_address_pointer = pc_after + interrupt_address_offset;
-  Memory::uint32_at(interrupt_address_pointer) =
-      reinterpret_cast<uint32_t>(replacement_code->entry());
-
-  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, pc_after - 2 * kInstrSize, replacement_code);
-}
-
-
-void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
-                                        Address pc_after,
-                                        Code* interrupt_code) {
-  static const int kInstrSize = Assembler::kInstrSize;
-  // Restore the original jump.
-  CodePatcher patcher(pc_after - 3 * kInstrSize, 1);
-  patcher.masm()->b(4 * kInstrSize, pl);  // ok-label is 4 instructions later.
-  ASSERT_EQ(kBranchBeforeInterrupt,
-            Memory::int32_at(pc_after - 3 * kInstrSize));
-  // Restore the original call address.
-  uint32_t interrupt_address_offset = Memory::uint16_at(pc_after -
-      2 * kInstrSize) & 0xfff;
-  Address interrupt_address_pointer = pc_after + interrupt_address_offset;
-  Memory::uint32_at(interrupt_address_pointer) =
-      reinterpret_cast<uint32_t>(interrupt_code->entry());
-
-  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, pc_after - 2 * kInstrSize, interrupt_code);
-}
-
-
-#ifdef DEBUG
-Deoptimizer::InterruptPatchState Deoptimizer::GetInterruptPatchState(
-    Isolate* isolate,
-    Code* unoptimized_code,
-    Address pc_after) {
-  static const int kInstrSize = Assembler::kInstrSize;
-  ASSERT(Memory::int32_at(pc_after - kInstrSize) == kBlxIp);
-
-  uint32_t interrupt_address_offset =
-      Memory::uint16_at(pc_after - 2 * kInstrSize) & 0xfff;
-  Address interrupt_address_pointer = pc_after + interrupt_address_offset;
-
-  if (Assembler::IsNop(Assembler::instr_at(pc_after - 3 * kInstrSize))) {
-    ASSERT(Assembler::IsLdrPcImmediateOffset(
-        Assembler::instr_at(pc_after - 2 * kInstrSize)));
-    Code* osr_builtin =
-        isolate->builtins()->builtin(Builtins::kOnStackReplacement);
-    ASSERT(reinterpret_cast<uint32_t>(osr_builtin->entry()) ==
-           Memory::uint32_at(interrupt_address_pointer));
-    return PATCHED_FOR_OSR;
-  } else {
-    // Get the interrupt stub code object to match against from cache.
-    Code* interrupt_builtin =
-        isolate->builtins()->builtin(Builtins::kInterruptCheck);
-    ASSERT(Assembler::IsLdrPcImmediateOffset(
-        Assembler::instr_at(pc_after - 2 * kInstrSize)));
-    ASSERT_EQ(kBranchBeforeInterrupt,
-              Memory::int32_at(pc_after - 3 * kInstrSize));
-    ASSERT(reinterpret_cast<uint32_t>(interrupt_builtin->entry()) ==
-           Memory::uint32_at(interrupt_address_pointer));
-    return NOT_PATCHED;
-  }
-}
-#endif  // DEBUG
-
-
 void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   // Set the register values. The values are not important as there are no
   // callee saved registers in JavaScript frames, so all registers are
@@ -201,10 +107,7 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
   ApiFunction function(descriptor->deoptimization_handler_);
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
   intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
-  int params = descriptor->register_param_count_;
-  if (descriptor->stack_parameter_count_ != NULL) {
-    params++;
-  }
+  int params = descriptor->environment_length();
   output_frame->SetRegister(r0.code(), params);
   output_frame->SetRegister(r1.code(), handler);
 }
@@ -362,8 +265,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ bind(&inner_push_loop);
   __ sub(r3, r3, Operand(sizeof(uint32_t)));
   __ add(r6, r2, Operand(r3));
-  __ ldr(r7, MemOperand(r6, FrameDescription::frame_content_offset()));
-  __ push(r7);
+  __ ldr(r6, MemOperand(r6, FrameDescription::frame_content_offset()));
+  __ push(r6);
   __ bind(&inner_loop_header);
   __ cmp(r3, Operand::Zero());
   __ b(ne, &inner_push_loop);  // test for gt?
@@ -409,9 +312,9 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ InitializeRootRegister();
 
   __ pop(ip);  // remove pc
-  __ pop(r7);  // get continuation, leave pc on stack
+  __ pop(ip);  // get continuation, leave pc on stack
   __ pop(lr);
-  __ Jump(r7);
+  __ Jump(ip);
   __ stop("Unreachable.");
 }
 

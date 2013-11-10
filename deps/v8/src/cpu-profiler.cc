@@ -64,14 +64,15 @@ void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
 
 void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
   TickSampleEventRecord record(last_code_event_id_);
-  TickSample* sample = &record.sample;
-  sample->state = isolate->current_vm_state();
-  sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
-  for (StackTraceFrameIterator it(isolate);
-       !it.done() && sample->frames_count < TickSample::kMaxFramesCount;
-       it.Advance()) {
-    sample->stack[sample->frames_count++] = it.frame()->pc();
+  RegisterState regs;
+  StackFrameIterator it(isolate);
+  if (!it.done()) {
+    StackFrame* frame = it.frame();
+    regs.sp = frame->sp();
+    regs.fp = frame->fp();
+    regs.pc = frame->pc();
   }
+  record.sample.Init(isolate, regs);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
@@ -260,7 +261,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   Code* code,
                                   SharedFunctionInfo* shared,
                                   CompilationInfo* info,
-                                  Name* source, int line) {
+                                  Name* source, int line, int column) {
   if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -270,7 +271,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       profiles_->GetFunctionName(shared->DebugName()),
       CodeEntry::kEmptyNamePrefix,
       profiles_->GetName(source),
-      line);
+      line,
+      column);
   if (info) {
     rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
   }
@@ -435,8 +437,18 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     logger->is_logging_ = false;
     generator_ = new ProfileGenerator(profiles_);
     Sampler* sampler = logger->sampler();
+#if V8_CC_MSVC && (_MSC_VER >= 1800)
+    // VS2013 reports "warning C4316: 'v8::internal::ProfilerEventsProcessor'
+    // : object allocated on the heap may not be aligned 64".  We need to
+    // figure out if this is a legitimate warning or a compiler bug.
+    #pragma warning(push)
+    #pragma warning(disable:4316)
+#endif
     processor_ = new ProfilerEventsProcessor(
         generator_, sampler, sampling_interval_);
+#if V8_CC_MSVC && (_MSC_VER >= 1800)
+    #pragma warning(pop)
+#endif
     is_profiling_ = true;
     // Enumerate stuff we already have in the heap.
     ASSERT(isolate_->heap()->HasBeenSetUp());

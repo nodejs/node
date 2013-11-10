@@ -57,7 +57,6 @@ class IntlTestSuite(testsuite.TestSuite):
     files = []
     files.append(os.path.join(self.root, "assert.js"))
     files.append(os.path.join(self.root, "utils.js"))
-    files.append(os.path.join(self.root, "date-format", "utils.js"))
     files.append(os.path.join(self.root, testcase.path + self.suffix()))
 
     flags += files

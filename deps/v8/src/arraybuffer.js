@@ -81,6 +81,10 @@ function ArrayBufferSlice(start, end) {
   return result;
 }
 
+function ArrayBufferIsView(obj) {
+  return %ArrayBufferIsView(obj);
+}
+
 function SetUpArrayBuffer() {
   %CheckIsBootstrapping();
 
@@ -92,6 +96,10 @@ function SetUpArrayBuffer() {
   %SetProperty($ArrayBuffer.prototype, "constructor", $ArrayBuffer, DONT_ENUM);
 
   InstallGetter($ArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLength);
+
+  InstallFunctions($ArrayBuffer, DONT_ENUM, $Array(
+      "isView", ArrayBufferIsView
+  ));
 
   InstallFunctions($ArrayBuffer.prototype, DONT_ENUM, $Array(
       "slice", ArrayBufferSlice

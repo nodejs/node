@@ -1063,15 +1063,56 @@ bool RegExpMacroAssemblerMIPS::CanReadUnaligned() {
 // Private methods:
 
 void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
-  static const int num_arguments = 3;
-  __ PrepareCallCFunction(num_arguments, scratch);
+  int stack_alignment = OS::ActivationFrameAlignment();
+
+  // Align the stack pointer and save the original sp value on the stack.
+  __ mov(scratch, sp);
+  __ Subu(sp, sp, Operand(kPointerSize));
+  ASSERT(IsPowerOf2(stack_alignment));
+  __ And(sp, sp, Operand(-stack_alignment));
+  __ sw(scratch, MemOperand(sp));
+
   __ mov(a2, frame_pointer());
   // Code* of self.
   __ li(a1, Operand(masm_->CodeObject()), CONSTANT_SIZE);
-  // a0 becomes return address pointer.
+
+  // We need to make room for the return address on the stack.
+  ASSERT(IsAligned(stack_alignment, kPointerSize));
+  __ Subu(sp, sp, Operand(stack_alignment));
+
+  // Stack pointer now points to cell where return address is to be written.
+  // Arguments are in registers, meaning we teat the return address as
+  // argument 5. Since DirectCEntryStub will handleallocating space for the C
+  // argument slots, we don't need to care about that here. This is how the
+  // stack will look (sp meaning the value of sp at this moment):
+  // [sp + 3] - empty slot if needed for alignment.
+  // [sp + 2] - saved sp.
+  // [sp + 1] - second word reserved for return value.
+  // [sp + 0] - first word reserved for return value.
+
+  // a0 will point to the return address, placed by DirectCEntry.
+  __ mov(a0, sp);
+
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(masm_->isolate());
-  CallCFunctionUsingStub(stack_guard_check, num_arguments);
+  __ li(t9, Operand(stack_guard_check));
+  DirectCEntryStub stub;
+  stub.GenerateCall(masm_, t9);
+
+  // DirectCEntryStub allocated space for the C argument slots so we have to
+  // drop them with the return address from the stack with loading saved sp.
+  // At this point stack must look:
+  // [sp + 7] - empty slot if needed for alignment.
+  // [sp + 6] - saved sp.
+  // [sp + 5] - second word reserved for return value.
+  // [sp + 4] - first word reserved for return value.
+  // [sp + 3] - C argument slot.
+  // [sp + 2] - C argument slot.
+  // [sp + 1] - C argument slot.
+  // [sp + 0] - C argument slot.
+  __ lw(sp, MemOperand(sp, stack_alignment + kCArgsSlotsSize));
+
+  __ li(code_pointer(), Operand(masm_->CodeObject()));
 }
 
 
@@ -1276,21 +1317,6 @@ void RegExpMacroAssemblerMIPS::CheckStackLimit() {
 }
 
 
-void RegExpMacroAssemblerMIPS::CallCFunctionUsingStub(
-    ExternalReference function,
-    int num_arguments) {
-  // Must pass all arguments in registers. The stub pushes on the stack.
-  ASSERT(num_arguments <= 4);
-  __ li(code_pointer(), Operand(function));
-  RegExpCEntryStub stub;
-  __ CallStub(&stub);
-  if (OS::ActivationFrameAlignment() != 0) {
-    __ lw(sp, MemOperand(sp, 16));
-  }
-  __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
-}
-
-
 void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
   Register offset = current_input_offset();
@@ -1309,23 +1335,6 @@ void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
     ASSERT(mode_ == UC16);
     __ lhu(current_character(), MemOperand(t5, 0));
   }
-}
-
-
-void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
-  int stack_alignment = OS::ActivationFrameAlignment();
-  if (stack_alignment < kPointerSize) stack_alignment = kPointerSize;
-  // Stack is already aligned for call, so decrement by alignment
-  // to make room for storing the return address.
-  __ Subu(sp, sp, Operand(stack_alignment + kCArgsSlotsSize));
-  const int return_address_offset = kCArgsSlotsSize;
-  __ Addu(a0, sp, return_address_offset);
-  __ sw(ra, MemOperand(a0, 0));
-  __ mov(t9, t1);
-  __ Call(t9);
-  __ lw(ra, MemOperand(sp, return_address_offset));
-  __ Addu(sp, sp, Operand(stack_alignment + kCArgsSlotsSize));
-  __ Jump(ra);
 }
 
 

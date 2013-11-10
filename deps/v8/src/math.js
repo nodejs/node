@@ -45,59 +45,51 @@ var $Math = new MathConstructor();
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
   if (%_IsSmi(x)) return x >= 0 ? x : -x;
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  x = TO_NUMBER_INLINE(x);
   if (x === 0) return 0;  // To handle -0.
   return x > 0 ? x : -x;
 }
 
 // ECMA 262 - 15.8.2.2
 function MathAcos(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %Math_acos(x);
+  return %Math_acos(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.3
 function MathAsin(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %Math_asin(x);
+  return %Math_asin(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.4
 function MathAtan(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %Math_atan(x);
+  return %Math_atan(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.5
 // The naming of y and x matches the spec, as does the order in which
 // ToNumber (valueOf) is called.
 function MathAtan2(y, x) {
-  if (!IS_NUMBER(y)) y = NonNumberToNumber(y);
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %Math_atan2(y, x);
+  return %Math_atan2(TO_NUMBER_INLINE(y), TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.6
 function MathCeil(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %Math_ceil(x);
+  return %Math_ceil(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %_MathCos(x);
+  return %_MathCos(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.8
 function MathExp(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %Math_exp(x);
+  return %Math_exp(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.9
 function MathFloor(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  x = TO_NUMBER_INLINE(x);
   // It's more common to call this with a positive number that's out
   // of range than negative numbers; check the upper bound first.
   if (x < 0x80000000 && x > 0) {
@@ -113,16 +105,15 @@ function MathFloor(x) {
 
 // ECMA 262 - 15.8.2.10
 function MathLog(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %_MathLog(x);
+  return %_MathLog(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.11
 function MathMax(arg1, arg2) {  // length == 2
   var length = %_ArgumentsLength();
   if (length == 2) {
-    if (!IS_NUMBER(arg1)) arg1 = NonNumberToNumber(arg1);
-    if (!IS_NUMBER(arg2)) arg2 = NonNumberToNumber(arg2);
+    arg1 = TO_NUMBER_INLINE(arg1);
+    arg2 = TO_NUMBER_INLINE(arg2);
     if (arg2 > arg1) return arg2;
     if (arg1 > arg2) return arg1;
     if (arg1 == arg2) {
@@ -131,9 +122,9 @@ function MathMax(arg1, arg2) {  // length == 2
       return (arg1 == 0 && !%_IsSmi(arg1) && 1 / arg1 < 0) ? arg2 : arg1;
     }
     // All comparisons failed, one of the arguments must be NaN.
-    return 0/0;  // Compiler constant-folds this to NaN.
+    return NAN;
   }
-  var r = -1/0;  // Compiler constant-folds this to -Infinity.
+  var r = -INFINITY;
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
@@ -151,8 +142,8 @@ function MathMax(arg1, arg2) {  // length == 2
 function MathMin(arg1, arg2) {  // length == 2
   var length = %_ArgumentsLength();
   if (length == 2) {
-    if (!IS_NUMBER(arg1)) arg1 = NonNumberToNumber(arg1);
-    if (!IS_NUMBER(arg2)) arg2 = NonNumberToNumber(arg2);
+    arg1 = TO_NUMBER_INLINE(arg1);
+    arg2 = TO_NUMBER_INLINE(arg2);
     if (arg2 > arg1) return arg1;
     if (arg1 > arg2) return arg2;
     if (arg1 == arg2) {
@@ -161,9 +152,9 @@ function MathMin(arg1, arg2) {  // length == 2
       return (arg1 == 0 && !%_IsSmi(arg1) && 1 / arg1 < 0) ? arg1 : arg2;
     }
     // All comparisons failed, one of the arguments must be NaN.
-    return 0/0;  // Compiler constant-folds this to NaN.
+    return NAN;
   }
-  var r = 1/0;  // Compiler constant-folds this to Infinity.
+  var r = INFINITY;
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
@@ -179,9 +170,7 @@ function MathMin(arg1, arg2) {  // length == 2
 
 // ECMA 262 - 15.8.2.13
 function MathPow(x, y) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  if (!IS_NUMBER(y)) y = NonNumberToNumber(y);
-  return %_MathPow(x, y);
+  return %_MathPow(TO_NUMBER_INLINE(x), TO_NUMBER_INLINE(y));
 }
 
 // ECMA 262 - 15.8.2.14
@@ -191,33 +180,27 @@ function MathRandom() {
 
 // ECMA 262 - 15.8.2.15
 function MathRound(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %RoundNumber(x);
+  return %RoundNumber(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %_MathSin(x);
+  return %_MathSin(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.17
 function MathSqrt(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %_MathSqrt(x);
+  return %_MathSqrt(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.18
 function MathTan(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %_MathTan(x);
+  return %_MathTan(TO_NUMBER_INLINE(x));
 }
 
 // Non-standard extension.
 function MathImul(x, y) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  if (!IS_NUMBER(y)) y = NonNumberToNumber(y);
-  return %NumberImul(x, y);
+  return %NumberImul(TO_NUMBER_INLINE(x), TO_NUMBER_INLINE(y));
 }
 
 

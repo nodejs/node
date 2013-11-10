@@ -150,7 +150,7 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
   static Persistent<Array> current_completions;
   Isolate* isolate = read_line_editor.isolate_;
   Locker lock(isolate);
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<Array> completions;
   if (state == 0) {
     Local<String> full_text = String::New(rl_line_buffer, rl_point);
@@ -167,8 +167,7 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
     String::Utf8Value str(str_obj);
     return strdup(*str);
   } else {
-    current_completions.Dispose(isolate);
-    current_completions.Clear();
+    current_completions.Reset();
     return NULL;
   }
 }

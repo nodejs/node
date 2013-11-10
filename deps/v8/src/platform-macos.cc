@@ -53,26 +53,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <cxxabi.h>
 
 #undef MAP_TYPE
 
 #include "v8.h"
 
-#include "platform-posix.h"
 #include "platform.h"
 #include "simulator.h"
 #include "vm-state-inl.h"
-
-// Manually define these here as weak imports, rather than including execinfo.h.
-// This lets us launch on 10.4 which does not have these calls.
-extern "C" {
-  extern int backtrace(void**, int) __attribute__((weak_import));
-  extern char** backtrace_symbols(void* const*, int)
-      __attribute__((weak_import));
-  extern void backtrace_symbols_fd(void* const*, int, int)
-      __attribute__((weak_import));
-}
 
 
 namespace v8 {
@@ -104,14 +92,6 @@ void* OS::Allocate(const size_t requested,
   }
   *allocated = msize;
   return mbase;
-}
-
-
-void OS::DumpBacktrace() {
-  // If weak link to execinfo lib has failed, ie because we are on 10.4, abort.
-  if (backtrace == NULL) return;
-
-  POSIXBacktraceHelper<backtrace, backtrace_symbols>::DumpBacktrace();
 }
 
 
@@ -217,14 +197,6 @@ double OS::LocalTimeOffset() {
   // tm_gmtoff includes any daylight savings offset, so subtract it.
   return static_cast<double>(t->tm_gmtoff * msPerSecond -
                              (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
-}
-
-
-int OS::StackWalk(Vector<StackFrame> frames) {
-  // If weak link to execinfo lib has failed, ie because we are on 10.4, abort.
-  if (backtrace == NULL) return 0;
-
-  return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
 }
 
 

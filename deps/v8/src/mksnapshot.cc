@@ -43,49 +43,6 @@
 
 using namespace v8;
 
-static const unsigned int kMaxCounters = 256;
-
-// A single counter in a counter collection.
-class Counter {
- public:
-  static const int kMaxNameSize = 64;
-  int32_t* Bind(const char* name) {
-    int i;
-    for (i = 0; i < kMaxNameSize - 1 && name[i]; i++) {
-      name_[i] = name[i];
-    }
-    name_[i] = '\0';
-    return &counter_;
-  }
- private:
-  int32_t counter_;
-  uint8_t name_[kMaxNameSize];
-};
-
-
-// A set of counters and associated information.  An instance of this
-// class is stored directly in the memory-mapped counters file if
-// the --save-counters options is used
-class CounterCollection {
- public:
-  CounterCollection() {
-    magic_number_ = 0xDEADFACE;
-    max_counters_ = kMaxCounters;
-    max_name_size_ = Counter::kMaxNameSize;
-    counters_in_use_ = 0;
-  }
-  Counter* GetNextCounter() {
-    if (counters_in_use_ == kMaxCounters) return NULL;
-    return &counters_[counters_in_use_++];
-  }
- private:
-  uint32_t magic_number_;
-  uint32_t max_counters_;
-  uint32_t max_name_size_;
-  uint32_t counters_in_use_;
-  Counter counters_[kMaxCounters];
-};
-
 
 class Compressor {
  public:
@@ -310,6 +267,7 @@ void DumpException(Handle<Message> message) {
 
 int main(int argc, char** argv) {
   V8::InitializeICU();
+  i::Isolate::SetCrashIfDefaultIsolateInitialized();
 
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
@@ -330,7 +288,10 @@ int main(int argc, char** argv) {
     exit(1);
   }
 #endif
-  Isolate* isolate = Isolate::GetCurrent();
+  i::FLAG_logfile_per_isolate = false;
+
+  Isolate* isolate = v8::Isolate::New();
+  isolate->Enter();
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Serializer::Enable(internal_isolate);
   Persistent<Context> context;

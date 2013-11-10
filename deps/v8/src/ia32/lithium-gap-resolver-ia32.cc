@@ -326,7 +326,7 @@ void LGapResolver::EmitMove(int index) {
         } else {
           __ push(Immediate(upper));
           __ push(Immediate(lower));
-          __ movdbl(dst, Operand(esp, 0));
+          __ movsd(dst, Operand(esp, 0));
           __ add(esp, Immediate(kDoubleSize));
         }
       } else {
@@ -360,7 +360,7 @@ void LGapResolver::EmitMove(int index) {
       } else {
         ASSERT(destination->IsDoubleStackSlot());
         Operand dst = cgen_->ToOperand(destination);
-        __ movdbl(dst, src);
+        __ movsd(dst, src);
       }
     } else {
       // load from the register onto the stack, store in destination, which must
@@ -378,12 +378,12 @@ void LGapResolver::EmitMove(int index) {
       Operand src = cgen_->ToOperand(source);
       if (destination->IsDoubleRegister()) {
         XMMRegister dst = cgen_->ToDoubleRegister(destination);
-        __ movdbl(dst, src);
+        __ movsd(dst, src);
       } else {
         // We rely on having xmm0 available as a fixed scratch register.
         Operand dst = cgen_->ToOperand(destination);
-        __ movdbl(xmm0, src);
-        __ movdbl(dst, xmm0);
+        __ movsd(xmm0, src);
+        __ movsd(dst, xmm0);
       }
     } else {
       // load from the stack slot on top of the floating point stack, and then
@@ -486,9 +486,9 @@ void LGapResolver::EmitSwap(int index) {
                                               : destination);
     Operand other =
         cgen_->ToOperand(source->IsDoubleRegister() ? destination : source);
-    __ movdbl(xmm0, other);
-    __ movdbl(other, reg);
-    __ movdbl(reg, Operand(xmm0));
+    __ movsd(xmm0, other);
+    __ movsd(other, reg);
+    __ movsd(reg, Operand(xmm0));
   } else if (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot()) {
     CpuFeatureScope scope(cgen_->masm(), SSE2);
     // Double-width memory-to-memory.  Spill on demand to use a general
@@ -499,12 +499,12 @@ void LGapResolver::EmitSwap(int index) {
     Operand src1 = cgen_->HighOperand(source);
     Operand dst0 = cgen_->ToOperand(destination);
     Operand dst1 = cgen_->HighOperand(destination);
-    __ movdbl(xmm0, dst0);  // Save destination in xmm0.
+    __ movsd(xmm0, dst0);  // Save destination in xmm0.
     __ mov(tmp, src0);  // Then use tmp to copy source to destination.
     __ mov(dst0, tmp);
     __ mov(tmp, src1);
     __ mov(dst1, tmp);
-    __ movdbl(src0, xmm0);
+    __ movsd(src0, xmm0);
 
   } else {
     // No other combinations are possible.

@@ -214,7 +214,7 @@ function test_match(result_expectation,
 
 
 // Test for different number of matches.
-for (var m = 0; m < 200; m++) {
+for (var m = 0; m < 33; m++) {
   // Create string that matches m times.
   var subject = "";
   var test_1_expectation = "";

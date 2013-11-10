@@ -600,6 +600,8 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // the stub returns.
   __ subq(Operand(rsp, 0), Immediate(5));
   __ Pushad();
+  __ movq(arg_reg_2,
+          ExternalReference::isolate_address(masm->isolate()));
   __ movq(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
   {  // NOLINT
     FrameScope scope(masm, StackFrame::MANUAL);
@@ -623,6 +625,42 @@ void Builtins::Generate_Make##C##CodeYoungAgainOddMarking(   \
 }
 CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
+
+
+void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
+  // For now, as in GenerateMakeCodeYoungAgainCommon, we are relying on the fact
+  // that make_code_young doesn't do any garbage collection which allows us to
+  // save/restore the registers without worrying about which of them contain
+  // pointers.
+  __ Pushad();
+  __ movq(arg_reg_2, ExternalReference::isolate_address(masm->isolate()));
+  __ movq(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
+  __ subq(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
+  {  // NOLINT
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(1);
+    __ CallCFunction(
+        ExternalReference::get_mark_code_as_executed_function(masm->isolate()),
+        1);
+  }
+  __ Popad();
+
+  // Perform prologue operations usually performed by the young code stub.
+  __ PopReturnAddressTo(kScratchRegister);
+  __ push(rbp);  // Caller's frame pointer.
+  __ movq(rbp, rsp);
+  __ push(rsi);  // Callee's context.
+  __ push(rdi);  // Callee's JS Function.
+  __ PushReturnAddressFrom(kScratchRegister);
+
+  // Jump to point after the code-age stub.
+  __ ret(0);
+}
+
+
+void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
+  GenerateMakeCodeYoungAgainCommon(masm);
+}
 
 
 void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
@@ -658,17 +696,17 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   }
 
   // Get the full codegen state from the stack and untag it.
-  __ SmiToInteger32(r10, Operand(rsp, kPCOnStackSize));
+  __ SmiToInteger32(kScratchRegister, Operand(rsp, kPCOnStackSize));
 
   // Switch on the state.
   Label not_no_registers, not_tos_rax;
-  __ cmpq(r10, Immediate(FullCodeGenerator::NO_REGISTERS));
+  __ cmpq(kScratchRegister, Immediate(FullCodeGenerator::NO_REGISTERS));
   __ j(not_equal, &not_no_registers, Label::kNear);
   __ ret(1 * kPointerSize);  // Remove state.
 
   __ bind(&not_no_registers);
   __ movq(rax, Operand(rsp, kPCOnStackSize + kPointerSize));
-  __ cmpq(r10, Immediate(FullCodeGenerator::TOS_REG));
+  __ cmpq(kScratchRegister, Immediate(FullCodeGenerator::TOS_REG));
   __ j(not_equal, &not_tos_rax, Label::kNear);
   __ ret(2 * kPointerSize);  // Remove state, rax.
 
@@ -689,21 +727,6 @@ void Builtins::Generate_NotifySoftDeoptimized(MacroAssembler* masm) {
 
 void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
   Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
-}
-
-
-void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  // For now, we are relying on the fact that Runtime::NotifyOSR
-  // doesn't do any garbage collection which allows us to save/restore
-  // the registers without worrying about which of them contain
-  // pointers. This seems a bit fragile.
-  __ Pushad();
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kNotifyOSR, 0);
-  }
-  __ Popad();
-  __ ret(0);
 }
 
 
@@ -894,9 +917,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // rbp[16] : function arguments
     // rbp[24] : receiver
     // rbp[32] : function
-    static const int kArgumentsOffset = 2 * kPointerSize;
-    static const int kReceiverOffset = 3 * kPointerSize;
-    static const int kFunctionOffset = 4 * kPointerSize;
+    static const int kArgumentsOffset = kFPOnStackSize + kPCOnStackSize;
+    static const int kReceiverOffset = kArgumentsOffset + kPointerSize;
+    static const int kFunctionOffset = kReceiverOffset + kPointerSize;
 
     __ push(Operand(rbp, kFunctionOffset));
     __ push(Operand(rbp, kArgumentsOffset));
@@ -1140,13 +1163,11 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   // Lookup the argument in the number to string cache.
   Label not_cached, argument_is_string;
-  NumberToStringStub::GenerateLookupNumberStringCache(
-      masm,
-      rax,  // Input.
-      rbx,  // Result.
-      rcx,  // Scratch 1.
-      rdx,  // Scratch 2.
-      &not_cached);
+  __ LookupNumberStringCache(rax,  // Input.
+                             rbx,  // Result.
+                             rcx,  // Scratch 1.
+                             rdx,  // Scratch 2.
+                             &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1);
   __ bind(&argument_is_string);
 
@@ -1397,6 +1418,23 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ movq(Operand(rsp, 0), rax);
 
   // And "return" to the OSR entry point of the function.
+  __ ret(0);
+}
+
+
+void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
+  // We check the stack limit as indicator that recompilation might be done.
+  Label ok;
+  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+  __ j(above_equal, &ok);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+  }
+  __ jmp(masm->isolate()->builtins()->OnStackReplacement(),
+         RelocInfo::CODE_TARGET);
+
+  __ bind(&ok);
   __ ret(0);
 }
 

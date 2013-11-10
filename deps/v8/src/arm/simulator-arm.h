@@ -163,6 +163,7 @@ class Simulator {
   void set_register(int reg, int32_t value);
   int32_t get_register(int reg) const;
   double get_double_from_register_pair(int reg);
+  void set_register_pair_from_double(int reg, double* value);
   void set_dw_register(int dreg, const int* dbl);
 
   // Support for VFP.
@@ -220,7 +221,9 @@ class Simulator {
   // which sets up the simulator state and grabs the result on return.
   int32_t Call(byte* entry, int argument_count, ...);
   // Alternative: call a 2-argument double function.
-  double CallFP(byte* entry, double d0, double d1);
+  void CallFP(byte* entry, double d0, double d1);
+  int32_t CallFPReturnsInt(byte* entry, double d0, double d1);
+  double CallFPReturnsDouble(byte* entry, double d0, double d1);
 
   // Push an address onto the JS stack.
   uintptr_t PushAddress(uintptr_t address);
@@ -443,6 +446,10 @@ class Simulator {
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
   reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->Call( \
       FUNCTION_ADDR(entry), 5, p0, p1, p2, p3, p4))
+
+#define CALL_GENERATED_FP_INT(entry, p0, p1) \
+  Simulator::current(Isolate::Current())->CallFPReturnsInt( \
+      FUNCTION_ADDR(entry), p0, p1)
 
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
   Simulator::current(Isolate::Current())->Call( \

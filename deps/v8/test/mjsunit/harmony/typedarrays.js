@@ -123,6 +123,7 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   var ab = new ArrayBuffer(256*elementSize);
 
   var a0 = new constr(30);
+  assertTrue(ArrayBuffer.isView(a0));
   assertSame(elementSize, a0.BYTES_PER_ELEMENT);
   assertSame(30, a0.length);
   assertSame(30*elementSize, a0.byteLength);
@@ -476,6 +477,7 @@ function TestDataViewConstructor() {
   var ab = new ArrayBuffer(256);
 
   var d1 = new DataView(ab, 1, 255);
+  assertTrue(ArrayBuffer.isView(d1));
   assertSame(ab, d1.buffer);
   assertSame(1, d1.byteOffset);
   assertSame(255, d1.byteLength);

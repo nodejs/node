@@ -95,6 +95,9 @@ void HeapObject::HeapObjectVerify() {
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayVerify();
       break;
+    case CONSTANT_POOL_ARRAY_TYPE:
+      ConstantPoolArray::cast(this)->ConstantPoolArrayVerify();
+      break;
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
@@ -303,6 +306,13 @@ void ExternalDoubleArray::ExternalDoubleArrayVerify() {
 }
 
 
+bool JSObject::ElementsAreSafeToExamine() {
+  return (FLAG_use_gvn && FLAG_use_allocation_folding) ||
+      reinterpret_cast<Map*>(elements()) !=
+      GetHeap()->one_pointer_filler_map();
+}
+
+
 void JSObject::JSObjectVerify() {
   VerifyHeapPointer(properties());
   VerifyHeapPointer(elements());
@@ -330,10 +340,9 @@ void JSObject::JSObjectVerify() {
     }
   }
 
-  // TODO(hpayer): deal gracefully with partially constructed JSObjects, when
-  // allocation folding is turned off.
-  if (reinterpret_cast<Map*>(elements()) !=
-      GetHeap()->one_pointer_filler_map()) {
+  // If a GC was caused while constructing this object, the elements
+  // pointer may point to a one pointer filler map.
+  if (ElementsAreSafeToExamine()) {
     CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
               (elements() == GetHeap()->empty_fixed_array())),
              (elements()->map() == GetHeap()->fixed_array_map() ||
@@ -435,6 +444,11 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
              ((BitCast<uint64_t>(value) & Double::kSignMask) != 0));
     }
   }
+}
+
+
+void ConstantPoolArray::ConstantPoolArrayVerify() {
+  CHECK(IsConstantPoolArray());
 }
 
 
@@ -664,15 +678,19 @@ void Code::CodeVerify() {
 }
 
 
-void Code::VerifyEmbeddedMapsDependency() {
+void Code::VerifyEmbeddedObjectsDependency() {
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (mode == RelocInfo::EMBEDDED_OBJECT &&
-      it.rinfo()->target_object()->IsMap()) {
-      Map* map = Map::cast(it.rinfo()->target_object());
-      if (map->CanTransition()) {
+    Object* obj = it.rinfo()->target_object();
+    if (IsWeakEmbeddedObject(kind(), obj)) {
+      if (obj->IsMap()) {
+        Map* map = Map::cast(obj);
         CHECK(map->dependent_code()->Contains(
+            DependentCode::kWeaklyEmbeddedGroup, this));
+      } else if (obj->IsJSObject()) {
+        Object* raw_table = GetIsolate()->heap()->weak_object_to_code_table();
+        WeakHashTable* table = WeakHashTable::cast(raw_table);
+        CHECK(DependentCode::cast(table->Lookup(obj))->Contains(
             DependentCode::kWeaklyEmbeddedGroup, this));
       }
     }
@@ -683,10 +701,9 @@ void Code::VerifyEmbeddedMapsDependency() {
 void JSArray::JSArrayVerify() {
   JSObjectVerify();
   CHECK(length()->IsNumber() || length()->IsUndefined());
-  // TODO(hpayer): deal gracefully with partially constructed JSObjects, when
-  // allocation folding is turned off.
-  if (reinterpret_cast<Map*>(elements()) !=
-      GetHeap()->one_pointer_filler_map()) {
+  // If a GC was caused while constructing this array, the elements
+  // pointer may point to a one pointer filler map.
+  if (ElementsAreSafeToExamine()) {
     CHECK(elements()->IsUndefined() ||
           elements()->IsFixedArray() ||
           elements()->IsFixedDoubleArray());

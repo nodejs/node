@@ -32,7 +32,6 @@
 // var $Number = global.Number;
 // var $Function = global.Function;
 // var $Array = global.Array;
-// var $NaN = 0/0;
 //
 // in math.js:
 // var $floor = MathFloor
@@ -95,7 +94,7 @@ function SetUpLockedPrototype(constructor, fields, methods) {
   }
   if (fields) {
     for (var i = 0; i < fields.length; i++) {
-      %SetProperty(prototype, fields[i], void 0, DONT_ENUM | DONT_DELETE);
+      %SetProperty(prototype, fields[i], UNDEFINED, DONT_ENUM | DONT_DELETE);
     }
   }
   for (var i = 0; i < methods.length; i += 2) {
@@ -148,7 +147,7 @@ function GlobalParseInt(string, radix) {
     string = TO_STRING_INLINE(string);
     radix = TO_INT32(radix);
     if (!(radix == 0 || (2 <= radix && radix <= 36))) {
-      return $NaN;
+      return NAN;
     }
   }
 
@@ -197,15 +196,16 @@ function GlobalEval(x) {
 function SetUpGlobal() {
   %CheckIsBootstrapping();
 
+  var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
+
   // ECMA 262 - 15.1.1.1.
-  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "NaN", NAN, attributes);
 
   // ECMA-262 - 15.1.1.2.
-  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "Infinity", INFINITY, attributes);
 
   // ECMA-262 - 15.1.1.3.
-  %SetProperty(global, "undefined", void 0,
-               DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "undefined", UNDEFINED, attributes);
 
   // Set up non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
@@ -475,12 +475,12 @@ function ToPropertyDescriptor(obj) {
 function ToCompletePropertyDescriptor(obj) {
   var desc = ToPropertyDescriptor(obj);
   if (IsGenericDescriptor(desc) || IsDataDescriptor(desc)) {
-    if (!desc.hasValue()) desc.setValue(void 0);
+    if (!desc.hasValue()) desc.setValue(UNDEFINED);
     if (!desc.hasWritable()) desc.setWritable(false);
   } else {
     // Is accessor descriptor.
-    if (!desc.hasGetter()) desc.setGet(void 0);
-    if (!desc.hasSetter()) desc.setSet(void 0);
+    if (!desc.hasGetter()) desc.setGet(UNDEFINED);
+    if (!desc.hasSetter()) desc.setSet(UNDEFINED);
   }
   if (!desc.hasEnumerable()) desc.setEnumerable(false);
   if (!desc.hasConfigurable()) desc.setConfigurable(false);
@@ -491,7 +491,7 @@ function ToCompletePropertyDescriptor(obj) {
 function PropertyDescriptor() {
   // Initialize here so they are all in-object and have the same map.
   // Default values from ES5 8.6.1.
-  this.value_ = void 0;
+  this.value_ = UNDEFINED;
   this.hasValue_ = false;
   this.writable_ = false;
   this.hasWritable_ = false;
@@ -499,9 +499,9 @@ function PropertyDescriptor() {
   this.hasEnumerable_ = false;
   this.configurable_ = false;
   this.hasConfigurable_ = false;
-  this.get_ = void 0;
+  this.get_ = UNDEFINED;
   this.hasGetter_ = false;
-  this.set_ = void 0;
+  this.set_ = UNDEFINED;
   this.hasSetter_ = false;
 }
 
@@ -593,7 +593,7 @@ function ConvertDescriptorArrayToDescriptor(desc_array) {
   }
 
   if (IS_UNDEFINED(desc_array)) {
-    return void 0;
+    return UNDEFINED;
   }
 
   var desc = new PropertyDescriptor();
@@ -647,10 +647,11 @@ function GetOwnProperty(obj, v) {
   var p = ToName(v);
   if (%IsJSProxy(obj)) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-    if (IS_SYMBOL(v)) return void 0;
+    if (IS_SYMBOL(v)) return UNDEFINED;
 
     var handler = %GetHandler(obj);
-    var descriptor = CallTrap1(handler, "getOwnPropertyDescriptor", void 0, p);
+    var descriptor = CallTrap1(
+                         handler, "getOwnPropertyDescriptor", UNDEFINED, p);
     if (IS_UNDEFINED(descriptor)) return descriptor;
     var desc = ToCompletePropertyDescriptor(descriptor);
     if (!desc.isConfigurable()) {
@@ -666,7 +667,7 @@ function GetOwnProperty(obj, v) {
   var props = %GetOwnProperty(ToObject(obj), p);
 
   // A false value here means that access checks failed.
-  if (props === false) return void 0;
+  if (props === false) return UNDEFINED;
 
   return ConvertDescriptorArrayToDescriptor(props);
 }
@@ -693,7 +694,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
   if (IS_SYMBOL(p)) return false;
 
   var handler = %GetHandler(obj);
-  var result = CallTrap2(handler, "defineProperty", void 0, p, attributes);
+  var result = CallTrap2(handler, "defineProperty", UNDEFINED, p, attributes);
   if (!ToBoolean(result)) {
     if (should_throw) {
       throw MakeTypeError("handler_returned_false",
@@ -710,7 +711,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 function DefineObjectProperty(obj, p, desc, should_throw) {
   var current_or_access = %GetOwnProperty(ToObject(obj), ToName(p));
   // A false value here means that access checks failed.
-  if (current_or_access === false) return void 0;
+  if (current_or_access === false) return UNDEFINED;
 
   var current = ConvertDescriptorArrayToDescriptor(current_or_access);
   var extensible = %IsExtensible(ToObject(obj));
@@ -841,7 +842,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
       flag |= READ_ONLY;
     }
 
-    var value = void 0;  // Default value is undefined.
+    var value = UNDEFINED;  // Default value is undefined.
     if (desc.hasValue()) {
       value = desc.getValue();
     } else if (!IS_UNDEFINED(current) && IsDataDescriptor(current)) {
@@ -920,7 +921,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
     // For the time being, we need a hack to prevent Object.observe from
     // generating two change records.
     obj.length = new_length;
-    desc.value_ = void 0;
+    desc.value_ = UNDEFINED;
     desc.hasValue_ = false;
     threw = !DefineObjectProperty(obj, "length", desc, should_throw) || threw;
     if (emit_splice) {
@@ -1045,7 +1046,7 @@ function ObjectGetOwnPropertyNames(obj) {
   // Special handling for proxies.
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
-    var names = CallTrap0(handler, "getOwnPropertyNames", void 0);
+    var names = CallTrap0(handler, "getOwnPropertyNames", UNDEFINED);
     return ToNameArray(names, "getOwnPropertyNames", false);
   }
 
@@ -1194,7 +1195,7 @@ function ObjectDefineProperties(obj, properties) {
 // Harmony proxies.
 function ProxyFix(obj) {
   var handler = %GetHandler(obj);
-  var props = CallTrap0(handler, "fix", void 0);
+  var props = CallTrap0(handler, "fix", UNDEFINED);
   if (IS_UNDEFINED(props)) {
     throw MakeTypeError("handler_returned_undefined", [handler, "fix"]);
   }
@@ -1560,8 +1561,8 @@ function NumberToFixed(fractionDigits) {
   }
 
   if (NUMBER_IS_NAN(x)) return "NaN";
-  if (x == 1/0) return "Infinity";
-  if (x == -1/0) return "-Infinity";
+  if (x == INFINITY) return "Infinity";
+  if (x == -INFINITY) return "-Infinity";
 
   return %NumberToFixed(x, f);
 }
@@ -1578,11 +1579,11 @@ function NumberToExponential(fractionDigits) {
     // Get the value of this number in case it's an object.
     x = %_ValueOf(this);
   }
-  var f = IS_UNDEFINED(fractionDigits) ? void 0 : TO_INTEGER(fractionDigits);
+  var f = IS_UNDEFINED(fractionDigits) ? UNDEFINED : TO_INTEGER(fractionDigits);
 
   if (NUMBER_IS_NAN(x)) return "NaN";
-  if (x == 1/0) return "Infinity";
-  if (x == -1/0) return "-Infinity";
+  if (x == INFINITY) return "Infinity";
+  if (x == -INFINITY) return "-Infinity";
 
   if (IS_UNDEFINED(f)) {
     f = -1;  // Signal for runtime function that f is not defined.
@@ -1608,8 +1609,8 @@ function NumberToPrecision(precision) {
   var p = TO_INTEGER(precision);
 
   if (NUMBER_IS_NAN(x)) return "NaN";
-  if (x == 1/0) return "Infinity";
-  if (x == -1/0) return "-Infinity";
+  if (x == INFINITY) return "Infinity";
+  if (x == -INFINITY) return "-Infinity";
 
   if (p < 1 || p > 21) {
     throw new $RangeError("toPrecision() argument must be between 1 and 21");
@@ -1654,18 +1655,18 @@ function SetUpNumber() {
                DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   // ECMA-262 section 15.7.3.3.
-  %SetProperty($Number, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty($Number, "NaN", NAN, DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   // ECMA-262 section 15.7.3.4.
   %SetProperty($Number,
                "NEGATIVE_INFINITY",
-               -1/0,
+               -INFINITY,
                DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   // ECMA-262 section 15.7.3.5.
   %SetProperty($Number,
                "POSITIVE_INFINITY",
-               1/0,
+               INFINITY,
                DONT_ENUM | DONT_DELETE | READ_ONLY);
   %ToFastProperties($Number);
 

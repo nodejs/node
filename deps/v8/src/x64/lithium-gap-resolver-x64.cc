@@ -200,7 +200,7 @@ void LGapResolver::EmitMove(int index) {
       } else if (cgen_->IsInteger32Constant(constant_source)) {
         __ movl(dst, Immediate(cgen_->ToInteger32(constant_source)));
       } else {
-        __ LoadObject(dst, cgen_->ToHandle(constant_source));
+        __ Move(dst, cgen_->ToHandle(constant_source));
       }
     } else if (destination->IsDoubleRegister()) {
       double v = cgen_->ToDouble(constant_source);
@@ -222,7 +222,7 @@ void LGapResolver::EmitMove(int index) {
         // value.
         __ movq(dst, Immediate(cgen_->ToInteger32(constant_source)));
       } else {
-        __ LoadObject(kScratchRegister, cgen_->ToHandle(constant_source));
+        __ Move(kScratchRegister, cgen_->ToHandle(constant_source));
         __ movq(dst, kScratchRegister);
       }
     }
@@ -262,7 +262,7 @@ void LGapResolver::EmitSwap(int index) {
     // Swap two general-purpose registers.
     Register src = cgen_->ToRegister(source);
     Register dst = cgen_->ToRegister(destination);
-    __ xchg(dst, src);
+    __ xchgq(dst, src);
 
   } else if ((source->IsRegister() && destination->IsStackSlot()) ||
              (source->IsStackSlot() && destination->IsRegister())) {

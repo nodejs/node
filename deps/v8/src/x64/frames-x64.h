@@ -70,11 +70,11 @@ class ExitFrameConstants : public AllStatic {
   static const int kSPOffset        = -1 * kPointerSize;
 
   static const int kCallerFPOffset  = +0 * kPointerSize;
-  static const int kCallerPCOffset  = +1 * kPointerSize;
+  static const int kCallerPCOffset  = kFPOnStackSize;
 
   // FP-relative displacement of the caller's SP.  It points just
   // below the saved PC.
-  static const int kCallerSPDisplacement = +2 * kPointerSize;
+  static const int kCallerSPDisplacement = kCallerPCOffset + kPCOnStackSize;
 };
 
 
@@ -82,7 +82,7 @@ class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.
   static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
-  static const int kLastParameterOffset = +2 * kPointerSize;
+  static const int kLastParameterOffset = kFPOnStackSize + kPCOnStackSize;
   static const int kFunctionOffset = StandardFrameConstants::kMarkerOffset;
 
   // Caller SP-relative.

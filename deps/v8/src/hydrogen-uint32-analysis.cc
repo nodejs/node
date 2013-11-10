@@ -35,8 +35,17 @@ bool HUint32AnalysisPhase::IsSafeUint32Use(HValue* val, HValue* use) {
   // Operations that operate on bits are safe.
   if (use->IsBitwise() || use->IsShl() || use->IsSar() || use->IsShr()) {
     return true;
-  } else if (use->IsChange() || use->IsSimulate()) {
-    // Conversions and deoptimization have special support for unt32.
+  } else if (use->IsSimulate()) {
+    // Deoptimization has special support for uint32.
+    return true;
+  } else if (use->IsChange()) {
+    // Conversions have special support for uint32.
+    // This ASSERT guards that the conversion in question is actually
+    // implemented. Do not extend the whitelist without adding
+    // support to LChunkBuilder::DoChange().
+    ASSERT(HChange::cast(use)->to().IsDouble() ||
+           HChange::cast(use)->to().IsSmi() ||
+           HChange::cast(use)->to().IsTagged());
     return true;
   } else if (use->IsStoreKeyed()) {
     HStoreKeyed* store = HStoreKeyed::cast(use);

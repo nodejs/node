@@ -216,11 +216,7 @@ class Sampler::PlatformData : public PlatformDataCommon {
 class SimulatorHelper {
  public:
   inline bool Init(Sampler* sampler, Isolate* isolate) {
-    ThreadId thread_id = sampler->platform_data()->profiled_thread_id();
-    Isolate::PerIsolateThreadData* per_thread_data = isolate->
-        FindPerThreadDataForThread(thread_id);
-    if (!per_thread_data) return false;
-    simulator_ = per_thread_data->simulator();
+    simulator_ = isolate->thread_local_top()->simulator_;
     // Check if there is active simulator.
     return simulator_ != NULL;
   }

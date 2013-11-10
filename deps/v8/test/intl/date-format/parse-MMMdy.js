@@ -30,19 +30,22 @@
 
 var dtf = new Intl.DateTimeFormat(['en'],
                                   {year: 'numeric', month: 'short',
-                                   day: 'numeric'});
+                                   day: 'numeric',
+                                   timeZone: 'America/Los_Angeles'});
 
 // Make sure we have pattern we expect (may change in the future).
 assertEquals('MMM d, y', dtf.resolved.pattern);
 
-assertEquals('Sat May 04 1974 00:00:00 GMT-0007 (PDT)',
-             usePDT(String(dtf.v8Parse('May 4, 1974'))));
+var date = dtf.v8Parse('Feb 4, 1974');
+assertEquals(1974, date.getUTCFullYear());
+assertEquals(1, date.getUTCMonth());
+assertEquals(4, date.getUTCDate());
 
 // Missing , in the pattern.
-assertEquals(undefined, dtf.v8Parse('May 4 1974'));
+assertEquals(undefined, dtf.v8Parse('Feb 4 1974'));
 
 // Extra "th" after 4 in the pattern.
-assertEquals(undefined, dtf.v8Parse('May 4th, 1974'));
+assertEquals(undefined, dtf.v8Parse('Feb 4th, 1974'));
 
 // Wrong pattern.
-assertEquals(undefined, dtf.v8Parse('5/4/1974'));
+assertEquals(undefined, dtf.v8Parse('2/4/1974'));

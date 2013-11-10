@@ -912,6 +912,12 @@ double Simulator::get_double_from_register_pair(int reg) {
 }
 
 
+void Simulator::set_register_pair_from_double(int reg, double* value) {
+  ASSERT((reg >= 0) && (reg < num_registers) && ((reg % 2) == 0));
+  memcpy(registers_ + reg, value, sizeof(*value));
+}
+
+
 void Simulator::set_dw_register(int dreg, const int* dbl) {
   ASSERT((dreg >= 0) && (dreg < num_d_registers));
   registers_[dreg] = dbl[0];
@@ -1026,27 +1032,22 @@ ReturnType Simulator::GetFromVFPRegister(int reg_index) {
 }
 
 
-// Runtime FP routines take up to two double arguments and zero
-// or one integer arguments. All are consructed here.
-// from r0-r3 or d0 and d1.
+// Runtime FP routines take:
+// - two double arguments
+// - one double argument and zero or one integer arguments.
+// All are consructed here from r0-r3 or d0, d1 and r0.
 void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
   if (use_eabi_hardfloat()) {
-    *x = vfp_registers_[0];
-    *y = vfp_registers_[1];
-    *z = registers_[1];
+    *x = get_double_from_d_register(0);
+    *y = get_double_from_d_register(1);
+    *z = get_register(0);
   } else {
-    // We use a char buffer to get around the strict-aliasing rules which
-    // otherwise allow the compiler to optimize away the copy.
-    char buffer[sizeof(*x)];
     // Registers 0 and 1 -> x.
-    OS::MemCopy(buffer, registers_, sizeof(*x));
-    OS::MemCopy(x, buffer, sizeof(*x));
+    *x = get_double_from_register_pair(0);
     // Register 2 and 3 -> y.
-    OS::MemCopy(buffer, registers_ + 2, sizeof(*y));
-    OS::MemCopy(y, buffer, sizeof(*y));
+    *y = get_double_from_register_pair(2);
     // Register 2 -> z
-    memcpy(buffer, registers_ + 2, sizeof(*z));
-    memcpy(z, buffer, sizeof(*z));
+    *z = get_register(2);
   }
 }
 
@@ -1718,32 +1719,6 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
          (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
          (redirection->type() == ExternalReference::BUILTIN_FP_CALL) ||
          (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL);
-      if (use_eabi_hardfloat()) {
-        // With the hard floating point calling convention, double
-        // arguments are passed in VFP registers. Fetch the arguments
-        // from there and call the builtin using soft floating point
-        // convention.
-        switch (redirection->type()) {
-        case ExternalReference::BUILTIN_FP_FP_CALL:
-        case ExternalReference::BUILTIN_COMPARE_CALL:
-          arg0 = vfp_registers_[0];
-          arg1 = vfp_registers_[1];
-          arg2 = vfp_registers_[2];
-          arg3 = vfp_registers_[3];
-          break;
-        case ExternalReference::BUILTIN_FP_CALL:
-          arg0 = vfp_registers_[0];
-          arg1 = vfp_registers_[1];
-          break;
-        case ExternalReference::BUILTIN_FP_INT_CALL:
-          arg0 = vfp_registers_[0];
-          arg1 = vfp_registers_[1];
-          arg2 = get_register(0);
-          break;
-        default:
-          break;
-        }
-      }
       // This is dodgy but it works because the C entry stubs are never moved.
       // See comment in codegen-arm.cc and bug 1242173.
       int32_t saved_lr = get_register(lr);
@@ -3816,19 +3791,27 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
 }
 
 
-double Simulator::CallFP(byte* entry, double d0, double d1) {
+void Simulator::CallFP(byte* entry, double d0, double d1) {
   if (use_eabi_hardfloat()) {
     set_d_register_from_double(0, d0);
     set_d_register_from_double(1, d1);
   } else {
-    int buffer[2];
-    ASSERT(sizeof(buffer[0]) * 2 == sizeof(d0));
-    OS::MemCopy(buffer, &d0, sizeof(d0));
-    set_dw_register(0, buffer);
-    OS::MemCopy(buffer, &d1, sizeof(d1));
-    set_dw_register(2, buffer);
+    set_register_pair_from_double(0, &d0);
+    set_register_pair_from_double(2, &d1);
   }
   CallInternal(entry);
+}
+
+
+int32_t Simulator::CallFPReturnsInt(byte* entry, double d0, double d1) {
+  CallFP(entry, d0, d1);
+  int32_t result = get_register(r0);
+  return result;
+}
+
+
+double Simulator::CallFPReturnsDouble(byte* entry, double d0, double d1) {
+  CallFP(entry, d0, d1);
   if (use_eabi_hardfloat()) {
     return get_double_from_d_register(0);
   } else {

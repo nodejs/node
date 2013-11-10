@@ -25,107 +25,112 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-prefix cctest
+[
+[ALWAYS, {
+  # All tests prefixed with 'Bug' are expected to fail.
+  'test-api/Bug*': [FAIL],
 
-# All tests prefixed with 'Bug' are expected to fail.
-test-api/Bug*: FAIL
+  ##############################################################################
+  # BUG(382): Weird test. Can't guarantee that it never times out.
+  'test-api/ApplyInterruption': [PASS, TIMEOUT],
 
-##############################################################################
-# BUG(382): Weird test. Can't guarantee that it never times out.
-test-api/ApplyInterruption: PASS || TIMEOUT
+  # TODO(mstarzinger): Fail gracefully on multiple V8::Dispose calls.
+  'test-api/InitializeAndDisposeOnce': [SKIP],
+  'test-api/InitializeAndDisposeMultiple': [SKIP],
 
-# TODO(mstarzinger): Fail gracefully on multiple V8::Dispose calls.
-test-api/InitializeAndDisposeOnce: SKIP
-test-api/InitializeAndDisposeMultiple: SKIP
+  # These tests always fail.  They are here to test test.py.  If
+  # they don't fail then test.py has failed.
+  'test-serialize/TestThatAlwaysFails': [FAIL],
+  'test-serialize/DependentTestThatAlwaysFails': [FAIL],
 
-# These tests always fail.  They are here to test test.py.  If
-# they don't fail then test.py has failed.
-test-serialize/TestThatAlwaysFails: FAIL
-test-serialize/DependentTestThatAlwaysFails: FAIL
+  # This test always fails.  It tests that LiveEdit causes abort when turned off.
+  'test-debug/LiveEditDisabled': [FAIL],
 
-# This test always fails.  It tests that LiveEdit causes abort when turned off.
-test-debug/LiveEditDisabled: FAIL
+  # TODO(gc): Temporarily disabled in the GC branch.
+  'test-log/EquivalenceOfLoggingAndTraversal': [PASS, FAIL],
 
-# TODO(gc): Temporarily disabled in the GC branch.
-test-log/EquivalenceOfLoggingAndTraversal: PASS || FAIL
+  # We do not yet shrink weak maps after they have been emptied by the GC
+  'test-weakmaps/Shrinking': [FAIL],
+  'test-weaksets/WeakSet_Shrinking': [FAIL],
 
-# We do not yet shrink weak maps after they have been emptied by the GC
-test-weakmaps/Shrinking: FAIL
-test-weaksets/WeakSet_Shrinking: FAIL
+  # Boot up memory use is bloated in debug mode.
+  'test-mark-compact/BootUpMemoryUse': [PASS, PASS, ['mode == debug', FAIL]],
 
-# Boot up memory use is bloated in debug mode.
-test-mark-compact/BootUpMemoryUse: PASS, PASS || FAIL if $mode == debug
-
-# Some CPU profiler tests are flaky.
-test-cpu-profiler/*: PASS || FLAKY
-
-##############################################################################
-[ $arch == arm ]
-
-# We cannot assume that we can throw OutOfMemory exceptions in all situations.
-# Apparently our ARM box is in such a state. Skip the test as it also runs for
-# a long time.
-test-api/OutOfMemory: SKIP
-test-api/OutOfMemoryNested: SKIP
-
-# BUG(355): Test crashes on ARM.
-test-log/ProfLazyMode: SKIP
-
-# BUG(1075): Unresolved crashes.
-test-serialize/Deserialize: SKIP
-test-serialize/DeserializeFromSecondSerializationAndRunScript2: SKIP
-test-serialize/DeserializeAndRunScript2: SKIP
-test-serialize/DeserializeFromSecondSerialization: SKIP
-
-# BUG(2874): Threading problems.
-test-api/*: PASS || FLAKY
-##############################################################################
-[ $arch == mipsel ]
-
-# BUG(2657): Test sometimes times out on MIPS simulator.
-test-thread-termination/TerminateMultipleV8ThreadsDefaultIsolate: PASS || TIMEOUT
-
-# BUG(1075): Unresolved crashes on MIPS also.
-test-serialize/Deserialize: SKIP
-test-serialize/DeserializeFromSecondSerializationAndRunScript2: SKIP
-test-serialize/DeserializeAndRunScript2: SKIP
-test-serialize/DeserializeFromSecondSerialization: SKIP
+  # This tests only that the preparser and parser agree, so there is no point in
+  # running several variants. Note that this still takes ages, because there
+  # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
+  'test-parsing/ParserSync': [PASS, NO_VARIANTS],
+}],  # ALWAYS
 
 ##############################################################################
-[ $arch == android_arm || $arch == android_ia32 ]
+['arch == arm', {
 
-# Tests crash as there is no /tmp directory in Android.
-test-log/LogAccessorCallbacks: SKIP
-test-log/LogCallbacks: SKIP
-test-log/ProfLazyMode: SKIP
+  # We cannot assume that we can throw OutOfMemory exceptions in all situations.
+  # Apparently our ARM box is in such a state. Skip the test as it also runs for
+  # a long time.
+  'test-api/OutOfMemory': [SKIP],
+  'test-api/OutOfMemoryNested': [SKIP],
 
-# platform-tls.h does not contain an ANDROID-related header.
-test-platform-tls/FastTLS: SKIP
+  # BUG(355): Test crashes on ARM.
+  'test-log/ProfLazyMode': [SKIP],
 
-# This test times out.
-test-threads/ThreadJoinSelf: SKIP
+  # BUG(1075): Unresolved crashes.
+  'test-serialize/Deserialize': [SKIP],
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
+  'test-serialize/DeserializeAndRunScript2': [SKIP],
+  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+}],  # 'arch == arm'
+##############################################################################
+['arch == mipsel', {
+
+  # BUG(2657): Test sometimes times out on MIPS simulator.
+  'test-thread-termination/TerminateMultipleV8ThreadsDefaultIsolate': [PASS, TIMEOUT],
+
+  # BUG(1075): Unresolved crashes on MIPS also.
+  'test-serialize/Deserialize': [SKIP],
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
+  'test-serialize/DeserializeAndRunScript2': [SKIP],
+  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+}],  # 'arch == mipsel'
 
 ##############################################################################
-[ $arch == nacl_ia32 || $arch == nacl_x64 ]
+['arch == android_arm or arch == android_ia32', {
 
-# NaCl builds have problems with threaded tests since Pepper_28.
-# V8 Issue 2786
-test-api/Threading1: SKIP
-test-lockers/MultithreadedParallelIsolates: SKIP
-test-lockers/ExtensionsRegistration: SKIP
+  # Tests crash as there is no /tmp directory in Android.
+  'test-log/LogAccessorCallbacks': [SKIP],
+  'test-log/LogCallbacks': [SKIP],
+  'test-log/ProfLazyMode': [SKIP],
 
-# These tests fail as there is no /tmp directory in Native Client.
-test-log/LogAccessorCallbacks: SKIP
-test-log/LogCallbacks: SKIP
-test-log/ProfLazyMode: SKIP
+  # platform-tls.h does not contain an ANDROID-related header.
+  'test-platform-tls/FastTLS': [SKIP],
 
-# Native Client doesn't support sockets.
-test-debug/DebuggerAgent: SKIP
-test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
-test-socket/Socket: SKIP
+  # This test times out.
+  'test-threads/ThreadJoinSelf': [SKIP],
+}],  # 'arch == android_arm or arch == android_ia32'
 
-# Profiling doesn't work on Native Client.
-test-cpu-profiler/*: SKIP
+##############################################################################
+['arch == nacl_ia32 or arch == nacl_x64', {
 
-# Fails since 16322 (new test).
-test-code-stubs-arm/ConvertDToI: SKIP
+  # NaCl builds have problems with threaded tests since Pepper_28.
+  # V8 Issue 2786
+  'test-api/Threading1': [SKIP],
+  'test-lockers/MultithreadedParallelIsolates': [SKIP],
+  'test-lockers/ExtensionsRegistration': [SKIP],
+
+  # These tests fail as there is no /tmp directory in Native Client.
+  'test-log/LogAccessorCallbacks': [SKIP],
+  'test-log/LogCallbacks': [SKIP],
+  'test-log/ProfLazyMode': [SKIP],
+
+  # Native Client doesn't support sockets.
+  'test-debug/DebuggerAgent': [SKIP],
+  'test-debug/DebuggerAgentProtocolOverflowHeader': [SKIP],
+  'test-socket/Socket': [SKIP],
+
+  # Profiling doesn't work on Native Client.
+  'test-cpu-profiler/*': [SKIP],
+
+  # Fails since 16322 (new test).
+  'test-code-stubs-arm/ConvertDToI': [SKIP],
+}],  # 'arch == nacl_ia32 or arch == nacl_x64'
+]

@@ -27,10 +27,14 @@
 
 // Features shared by parsing and pre-parsing scanners.
 
+#include <cmath>
+
 #include "scanner.h"
 
 #include "../include/v8stdint.h"
 #include "char-predicates-inl.h"
+#include "conversions-inl.h"
+#include "list-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1106,6 +1110,142 @@ bool Scanner::ScanRegExpFlags() {
 
   next_.location.end_pos = source_pos() - 1;
   return true;
+}
+
+
+int DuplicateFinder::AddAsciiSymbol(Vector<const char> key, int value) {
+  return AddSymbol(Vector<const byte>::cast(key), true, value);
+}
+
+
+int DuplicateFinder::AddUtf16Symbol(Vector<const uint16_t> key, int value) {
+  return AddSymbol(Vector<const byte>::cast(key), false, value);
+}
+
+
+int DuplicateFinder::AddSymbol(Vector<const byte> key,
+                               bool is_ascii,
+                               int value) {
+  uint32_t hash = Hash(key, is_ascii);
+  byte* encoding = BackupKey(key, is_ascii);
+  HashMap::Entry* entry = map_.Lookup(encoding, hash, true);
+  int old_value = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
+  entry->value =
+    reinterpret_cast<void*>(static_cast<intptr_t>(value | old_value));
+  return old_value;
+}
+
+
+int DuplicateFinder::AddNumber(Vector<const char> key, int value) {
+  ASSERT(key.length() > 0);
+  // Quick check for already being in canonical form.
+  if (IsNumberCanonical(key)) {
+    return AddAsciiSymbol(key, value);
+  }
+
+  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY;
+  double double_value = StringToDouble(unicode_constants_, key, flags, 0.0);
+  int length;
+  const char* string;
+  if (!std::isfinite(double_value)) {
+    string = "Infinity";
+    length = 8;  // strlen("Infinity");
+  } else {
+    string = DoubleToCString(double_value,
+                             Vector<char>(number_buffer_, kBufferSize));
+    length = StrLength(string);
+  }
+  return AddSymbol(Vector<const byte>(reinterpret_cast<const byte*>(string),
+                                      length), true, value);
+}
+
+
+bool DuplicateFinder::IsNumberCanonical(Vector<const char> number) {
+  // Test for a safe approximation of number literals that are already
+  // in canonical form: max 15 digits, no leading zeroes, except an
+  // integer part that is a single zero, and no trailing zeros below
+  // the decimal point.
+  int pos = 0;
+  int length = number.length();
+  if (number.length() > 15) return false;
+  if (number[pos] == '0') {
+    pos++;
+  } else {
+    while (pos < length &&
+           static_cast<unsigned>(number[pos] - '0') <= ('9' - '0')) pos++;
+  }
+  if (length == pos) return true;
+  if (number[pos] != '.') return false;
+  pos++;
+  bool invalid_last_digit = true;
+  while (pos < length) {
+    byte digit = number[pos] - '0';
+    if (digit > '9' - '0') return false;
+    invalid_last_digit = (digit == 0);
+    pos++;
+  }
+  return !invalid_last_digit;
+}
+
+
+uint32_t DuplicateFinder::Hash(Vector<const byte> key, bool is_ascii) {
+  // Primitive hash function, almost identical to the one used
+  // for strings (except that it's seeded by the length and ASCII-ness).
+  int length = key.length();
+  uint32_t hash = (length << 1) | (is_ascii ? 1 : 0) ;
+  for (int i = 0; i < length; i++) {
+    uint32_t c = key[i];
+    hash = (hash + c) * 1025;
+    hash ^= (hash >> 6);
+  }
+  return hash;
+}
+
+
+bool DuplicateFinder::Match(void* first, void* second) {
+  // Decode lengths.
+  // Length + ASCII-bit is encoded as base 128, most significant heptet first,
+  // with a 8th bit being non-zero while there are more heptets.
+  // The value encodes the number of bytes following, and whether the original
+  // was ASCII.
+  byte* s1 = reinterpret_cast<byte*>(first);
+  byte* s2 = reinterpret_cast<byte*>(second);
+  uint32_t length_ascii_field = 0;
+  byte c1;
+  do {
+    c1 = *s1;
+    if (c1 != *s2) return false;
+    length_ascii_field = (length_ascii_field << 7) | (c1 & 0x7f);
+    s1++;
+    s2++;
+  } while ((c1 & 0x80) != 0);
+  int length = static_cast<int>(length_ascii_field >> 1);
+  return memcmp(s1, s2, length) == 0;
+}
+
+
+byte* DuplicateFinder::BackupKey(Vector<const byte> bytes,
+                                 bool is_ascii) {
+  uint32_t ascii_length = (bytes.length() << 1) | (is_ascii ? 1 : 0);
+  backing_store_.StartSequence();
+  // Emit ascii_length as base-128 encoded number, with the 7th bit set
+  // on the byte of every heptet except the last, least significant, one.
+  if (ascii_length >= (1 << 7)) {
+    if (ascii_length >= (1 << 14)) {
+      if (ascii_length >= (1 << 21)) {
+        if (ascii_length >= (1 << 28)) {
+          backing_store_.Add(static_cast<byte>((ascii_length >> 28) | 0x80));
+        }
+        backing_store_.Add(static_cast<byte>((ascii_length >> 21) | 0x80u));
+      }
+      backing_store_.Add(static_cast<byte>((ascii_length >> 14) | 0x80u));
+    }
+    backing_store_.Add(static_cast<byte>((ascii_length >> 7) | 0x80u));
+  }
+  backing_store_.Add(static_cast<byte>(ascii_length & 0x7f));
+
+  backing_store_.AddBlock(bytes);
+  return backing_store_.EndSequence().start();
 }
 
 } }  // namespace v8::internal

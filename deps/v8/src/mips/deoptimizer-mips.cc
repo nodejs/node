@@ -78,88 +78,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-// This structure comes from FullCodeGenerator::EmitBackEdgeBookkeeping.
-// The back edge bookkeeping code matches the pattern:
-//
-// sltu at, sp, t0 / slt at, a3, zero_reg (in case of count based interrupts)
-// beq at, zero_reg, ok
-// lui t9, <interrupt stub address> upper
-// ori t9, <interrupt stub address> lower
-// jalr t9
-// nop
-// ok-label ----- pc_after points here
-//
-// We patch the code to the following form:
-//
-// addiu at, zero_reg, 1
-// beq at, zero_reg, ok  ;; Not changed
-// lui t9, <on-stack replacement address> upper
-// ori t9, <on-stack replacement address> lower
-// jalr t9  ;; Not changed
-// nop  ;; Not changed
-// ok-label ----- pc_after points here
-
-void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
-                                        Address pc_after,
-                                        Code* replacement_code) {
-  static const int kInstrSize = Assembler::kInstrSize;
-  // Replace the sltu instruction with load-imm 1 to at, so beq is not taken.
-  CodePatcher patcher(pc_after - 6 * kInstrSize, 1);
-  patcher.masm()->addiu(at, zero_reg, 1);
-  // Replace the stack check address in the load-immediate (lui/ori pair)
-  // with the entry address of the replacement code.
-  Assembler::set_target_address_at(pc_after - 4 * kInstrSize,
-                                   replacement_code->entry());
-
-  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, pc_after - 4 * kInstrSize, replacement_code);
-}
-
-
-void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
-                                        Address pc_after,
-                                        Code* interrupt_code) {
-  static const int kInstrSize = Assembler::kInstrSize;
-  // Restore the sltu instruction so beq can be taken again.
-  CodePatcher patcher(pc_after - 6 * kInstrSize, 1);
-  patcher.masm()->slt(at, a3, zero_reg);
-  // Restore the original call address.
-  Assembler::set_target_address_at(pc_after - 4 * kInstrSize,
-                                   interrupt_code->entry());
-
-  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, pc_after - 4 * kInstrSize, interrupt_code);
-}
-
-
-#ifdef DEBUG
-Deoptimizer::InterruptPatchState Deoptimizer::GetInterruptPatchState(
-    Isolate* isolate,
-    Code* unoptimized_code,
-    Address pc_after) {
-  static const int kInstrSize = Assembler::kInstrSize;
-  ASSERT(Assembler::IsBeq(Assembler::instr_at(pc_after - 5 * kInstrSize)));
-  if (Assembler::IsAddImmediate(
-      Assembler::instr_at(pc_after - 6 * kInstrSize))) {
-    Code* osr_builtin =
-        isolate->builtins()->builtin(Builtins::kOnStackReplacement);
-    ASSERT(reinterpret_cast<uint32_t>(
-        Assembler::target_address_at(pc_after - 4 * kInstrSize)) ==
-        reinterpret_cast<uint32_t>(osr_builtin->entry()));
-    return PATCHED_FOR_OSR;
-  } else {
-    // Get the interrupt stub code object to match against from cache.
-    Code* interrupt_builtin =
-        isolate->builtins()->builtin(Builtins::kInterruptCheck);
-    ASSERT(reinterpret_cast<uint32_t>(
-        Assembler::target_address_at(pc_after - 4 * kInstrSize)) ==
-        reinterpret_cast<uint32_t>(interrupt_builtin->entry()));
-    return NOT_PATCHED;
-  }
-}
-#endif  // DEBUG
-
-
 void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   // Set the register values. The values are not important as there are no
   // callee saved registers in JavaScript frames, so all registers are
@@ -186,10 +104,7 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
   ApiFunction function(descriptor->deoptimization_handler_);
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
   intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
-  int params = descriptor->register_param_count_;
-  if (descriptor->stack_parameter_count_ != NULL) {
-    params++;
-  }
+  int params = descriptor->environment_length();
   output_frame->SetRegister(s0.code(), params);
   output_frame->SetRegister(s1.code(), (params - 1) * kPointerSize);
   output_frame->SetRegister(s2.code(), handler);

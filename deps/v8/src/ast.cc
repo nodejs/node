@@ -82,14 +82,13 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) {
 }
 
 
-VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
-    : Expression(isolate),
+VariableProxy::VariableProxy(Isolate* isolate, Variable* var, int position)
+    : Expression(isolate, position),
       name_(var->name()),
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
       is_trivial_(false),
       is_lvalue_(false),
-      position_(RelocInfo::kNoPosition),
       interface_(var->interface()) {
   BindTo(var);
 }
@@ -100,13 +99,12 @@ VariableProxy::VariableProxy(Isolate* isolate,
                              bool is_this,
                              Interface* interface,
                              int position)
-    : Expression(isolate),
+    : Expression(isolate, position),
       name_(name),
       var_(NULL),
       is_this_(is_this),
       is_trivial_(false),
       is_lvalue_(false),
-      position_(position),
       interface_(interface) {
   // Names must be canonicalized for fast equality checks.
   ASSERT(name->IsInternalizedString());
@@ -133,15 +131,15 @@ Assignment::Assignment(Isolate* isolate,
                        Expression* target,
                        Expression* value,
                        int pos)
-    : Expression(isolate),
+    : Expression(isolate, pos),
       op_(op),
       target_(target),
       value_(value),
-      pos_(pos),
       binary_operation_(NULL),
       assignment_id_(GetNextId(isolate)),
       is_monomorphic_(false),
       is_uninitialized_(false),
+      is_pre_monomorphic_(false),
       store_mode_(STANDARD_STORE) { }
 
 
@@ -231,33 +229,6 @@ void ObjectLiteral::Property::set_emit_store(bool emit_store) {
 
 bool ObjectLiteral::Property::emit_store() {
   return emit_store_;
-}
-
-
-bool IsEqualString(void* first, void* second) {
-  ASSERT((*reinterpret_cast<String**>(first))->IsString());
-  ASSERT((*reinterpret_cast<String**>(second))->IsString());
-  Handle<String> h1(reinterpret_cast<String**>(first));
-  Handle<String> h2(reinterpret_cast<String**>(second));
-  return (*h1)->Equals(*h2);
-}
-
-
-bool IsEqualNumber(void* first, void* second) {
-  ASSERT((*reinterpret_cast<Object**>(first))->IsNumber());
-  ASSERT((*reinterpret_cast<Object**>(second))->IsNumber());
-
-  Handle<Object> h1(reinterpret_cast<Object**>(first));
-  Handle<Object> h2(reinterpret_cast<Object**>(second));
-  if (h1->IsSmi()) {
-    return h2->IsSmi() && *h1 == *h2;
-  }
-  if (h2->IsSmi()) return false;
-  Handle<HeapNumber> n1 = Handle<HeapNumber>::cast(h1);
-  Handle<HeapNumber> n2 = Handle<HeapNumber>::cast(h2);
-  ASSERT(std::isfinite(n1->value()));
-  ASSERT(std::isfinite(n2->value()));
-  return n1->value() == n2->value();
 }
 
 
@@ -456,14 +427,13 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   is_uninitialized_ = oracle->LoadIsUninitialized(this);
   if (is_uninitialized_) return;
 
+  is_pre_monomorphic_ = oracle->LoadIsPreMonomorphic(this);
   is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
+  ASSERT(!is_pre_monomorphic_ || !is_monomorphic_);
   receiver_types_.Clear();
   if (key()->IsPropertyName()) {
     FunctionPrototypeStub proto_stub(Code::LOAD_IC);
-    StringLengthStub string_stub(Code::LOAD_IC, false);
-    if (oracle->LoadIsStub(this, &string_stub)) {
-      is_string_length_ = true;
-    } else if (oracle->LoadIsStub(this, &proto_stub)) {
+    if (oracle->LoadIsStub(this, &proto_stub)) {
       is_function_prototype_ = true;
     } else {
       Literal* lit_key = key()->AsLiteral();
@@ -474,8 +444,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   } else if (oracle->LoadIsBuiltin(this, Builtins::kKeyedLoadIC_String)) {
     is_string_access_ = true;
   } else if (is_monomorphic_) {
-    receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this),
-                        zone);
+    receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this), zone);
   } else if (oracle->LoadIsPolymorphic(this)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(PropertyFeedbackId(), &receiver_types_);
@@ -490,7 +459,10 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   TypeFeedbackId id = AssignmentFeedbackId();
   is_uninitialized_ = oracle->StoreIsUninitialized(id);
   if (is_uninitialized_) return;
+
+  is_pre_monomorphic_ = oracle->StoreIsPreMonomorphic(id);
   is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
+  ASSERT(!is_pre_monomorphic_ || !is_monomorphic_);
   receiver_types_.Clear();
   if (prop->key()->IsPropertyName()) {
     Literal* lit_key = prop->key()->AsLiteral();
@@ -655,7 +627,7 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
       holder_ = GetPrototypeForPrimitiveCheck(check_type_, oracle->isolate());
       receiver_types_.Add(handle(holder_->map()), oracle->zone());
     }
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
     if (FLAG_enable_slow_asserts) {
       int length = receiver_types_.length();
       for (int i = 0; i < length; i++) {
@@ -1067,9 +1039,9 @@ CaseClause::CaseClause(Isolate* isolate,
                        Expression* label,
                        ZoneList<Statement*>* statements,
                        int pos)
-    : label_(label),
+    : AstNode(pos),
+      label_(label),
       statements_(statements),
-      position_(pos),
       compare_type_(Type::None(), isolate),
       compare_id_(AstNode::GetNextId(isolate)),
       entry_id_(AstNode::GetNextId(isolate)) {
@@ -1111,6 +1083,7 @@ REGULAR_NODE(ContinueStatement)
 REGULAR_NODE(BreakStatement)
 REGULAR_NODE(ReturnStatement)
 REGULAR_NODE(SwitchStatement)
+REGULAR_NODE(CaseClause)
 REGULAR_NODE(Conditional)
 REGULAR_NODE(Literal)
 REGULAR_NODE(ArrayLiteral)
@@ -1146,7 +1119,7 @@ DONT_OPTIMIZE_NODE(WithStatement)
 DONT_OPTIMIZE_NODE(TryCatchStatement)
 DONT_OPTIMIZE_NODE(TryFinallyStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
-DONT_OPTIMIZE_NODE(SharedFunctionInfoLiteral)
+DONT_OPTIMIZE_NODE(NativeFunctionLiteral)
 
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)

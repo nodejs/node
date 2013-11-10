@@ -28,8 +28,8 @@
 #ifndef V8_PLATFORM_ELAPSED_TIMER_H_
 #define V8_PLATFORM_ELAPSED_TIMER_H_
 
-#include "checks.h"
-#include "platform/time.h"
+#include "../checks.h"
+#include "time.h"
 
 namespace v8 {
 namespace internal {
@@ -104,7 +104,7 @@ class ElapsedTimer V8_FINAL BASE_EMBEDDED {
 
  private:
   static V8_INLINE TimeTicks Now() {
-    TimeTicks now = TimeTicks::HighResNow();
+    TimeTicks now = TimeTicks::HighResolutionNow();
     ASSERT(!now.IsNull());
     return now;
   }

@@ -27,7 +27,7 @@
 
 // Flags: --fold-constants --nodead-code-elimination
 // Flags: --expose-gc --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=300
+// Flags: --concurrent-recompilation --block-concurrent-recompilation
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
@@ -39,12 +39,14 @@ function test(fun) {
   fun();
   // Mark for concurrent optimization.
   %OptimizeFunctionOnNextCall(fun, "concurrent");
-  //Trigger optimization in the background.
+  // Kick off recompilation.
   fun();
-  //Tenure cons string.
+  // Tenure cons string after compile graph has been created.
   gc();
-  // In the mean time, concurrent recompiling is not complete yet.
+  // In the mean time, concurrent recompiling is still blocked.
   assertUnoptimized(fun, "no sync");
+  // Let concurrent recompilation proceed.
+  %UnblockConcurrentRecompilation();
   // Concurrent recompilation eventually finishes, embeds tenured cons string.
   assertOptimized(fun, "sync");
   // Visit embedded cons string during mark compact.

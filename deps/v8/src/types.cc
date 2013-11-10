@@ -128,11 +128,19 @@ int Type::LubBitset() {
       Handle<v8::internal::Object> value = this->as_constant();
       if (value->IsSmi()) return kSmi;
       map = HeapObject::cast(*value)->map();
+      if (map->instance_type() == HEAP_NUMBER_TYPE) {
+        int32_t i;
+        uint32_t u;
+        if (value->ToInt32(&i)) return Smi::IsValid(i) ? kSmi : kOtherSigned32;
+        if (value->ToUint32(&u)) return kUnsigned32;
+        return kDouble;
+      }
       if (map->instance_type() == ODDBALL_TYPE) {
         if (value->IsUndefined()) return kUndefined;
         if (value->IsNull()) return kNull;
         if (value->IsTrue() || value->IsFalse()) return kBoolean;
-        if (value->IsTheHole()) return kAny;
+        if (value->IsTheHole()) return kAny;  // TODO(rossberg): kNone?
+        UNREACHABLE();
       }
     }
     switch (map->instance_type()) {
@@ -230,8 +238,9 @@ int Type::GlbBitset() {
 
 
 // Check this <= that.
-bool Type::IsSlowCase(Type* that) {
+bool Type::SlowIs(Type* that) {
   // Fast path for bitsets.
+  if (this->is_none()) return true;
   if (that->is_bitset()) {
     return (this->LubBitset() | that->as_bitset()) == that->as_bitset();
   }
@@ -518,9 +527,13 @@ void Type::TypePrint(FILE* out) {
     }
     PrintF(out, "}");
   } else if (is_constant()) {
-    PrintF(out, "Constant(%p)", static_cast<void*>(*as_constant()));
+    PrintF(out, "Constant(%p : ", static_cast<void*>(*as_constant()));
+    from_bitset(LubBitset())->TypePrint(out);
+    PrintF(")");
   } else if (is_class()) {
-    PrintF(out, "Class(%p)", static_cast<void*>(*as_class()));
+    PrintF(out, "Class(%p < ", static_cast<void*>(*as_class()));
+    from_bitset(LubBitset())->TypePrint(out);
+    PrintF(")");
   } else if (is_union()) {
     PrintF(out, "{");
     Handle<Unioned> unioned = as_union();

@@ -259,22 +259,51 @@ class HistogramTimer : public Histogram {
     return Enabled() && timer_.IsStarted();
   }
 
+  // TODO(bmeurer): Remove this when HistogramTimerScope is fixed.
+#ifdef DEBUG
+  ElapsedTimer* timer() { return &timer_; }
+#endif
+
  private:
   ElapsedTimer timer_;
 };
 
 // Helper class for scoping a HistogramTimer.
+// TODO(bmeurer): The ifdeffery is an ugly hack around the fact that the
+// Parser is currently reentrant (when it throws an error, we call back
+// into JavaScript and all bets are off), but ElapsedTimer is not
+// reentry-safe. Fix this properly and remove |allow_nesting|.
 class HistogramTimerScope BASE_EMBEDDED {
  public:
-  explicit HistogramTimerScope(HistogramTimer* timer) :
-  timer_(timer) {
+  explicit HistogramTimerScope(HistogramTimer* timer,
+                               bool allow_nesting = false)
+#ifdef DEBUG
+      : timer_(timer),
+        skipped_timer_start_(false) {
+    if (timer_->timer()->IsStarted() && allow_nesting) {
+      skipped_timer_start_ = true;
+    } else {
+      timer_->Start();
+    }
+#else
+      : timer_(timer) {
     timer_->Start();
+#endif
   }
   ~HistogramTimerScope() {
+#ifdef DEBUG
+    if (!skipped_timer_start_) {
+      timer_->Stop();
+    }
+#else
     timer_->Stop();
+#endif
   }
  private:
   HistogramTimer* timer_;
+#ifdef DEBUG
+  bool skipped_timer_start_;
+#endif
 };
 
 

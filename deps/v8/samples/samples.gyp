@@ -28,7 +28,7 @@
 {
   'variables': {
     'v8_code': 1,
-    'v8_enable_i18n_support%': 0,
+    'v8_enable_i18n_support%': 1,
   },
   'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
   'target_defaults': {
@@ -42,13 +42,13 @@
     'conditions': [
       ['v8_enable_i18n_support==1', {
         'dependencies': [
-          '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
-          '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
+          '<(icu_gyp_path):icui18n',
+          '<(icu_gyp_path):icuuc',
         ],
       }],
       ['OS=="win" and v8_enable_i18n_support==1', {
         'dependencies': [
-          '<(DEPTH)/third_party/icu/icu.gyp:icudata',
+          '<(icu_gyp_path):icudata',
         ],
       }],
     ],

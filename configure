@@ -435,9 +435,6 @@ def configure_arm(o):
 def configure_node(o):
   if options.dest_os == 'android':
     o['variables']['OS'] = 'android'
-  o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
-  o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
-  o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['node_prefix'] = os.path.expanduser(options.prefix or '')
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
@@ -565,8 +562,13 @@ def configure_libuv(o):
 
 
 def configure_v8(o):
-  o['variables']['v8_use_snapshot'] = b(not options.without_snapshot)
   o['variables']['node_shared_v8'] = b(options.shared_v8)
+  o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
+  o['variables']['v8_enable_i18n_support'] = 0  # Don't require libicu.
+  o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
+  o['variables']['v8_optimized_debug'] = 0  # Compile with -O0 in debug builds.
+  o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
+  o['variables']['v8_use_snapshot'] = b(not options.without_snapshot)
 
   # assume shared_v8 if one of these is set?
   if options.shared_v8_libpath:

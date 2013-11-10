@@ -39,7 +39,7 @@ class PreparserTestSuite(testsuite.TestSuite):
     super(PreparserTestSuite, self).__init__(name, root)
 
   def shell(self):
-    return "preparser"
+    return "d8"
 
   def _GetExpectations(self):
     expects_file = os.path.join(self.root, "preparser.expectation")
@@ -64,7 +64,7 @@ class PreparserTestSuite(testsuite.TestSuite):
       testname = os.path.join(filename, name)
       flags = ["-e", source]
       if expectation:
-        flags += ["throws", expectation]
+        flags += ["--throws"]
       test = testcase.TestCase(self, testname, flags=flags)
       result.append(test)
     def Template(name, source):
@@ -89,7 +89,7 @@ class PreparserTestSuite(testsuite.TestSuite):
       throws = expectations.get(f, None)
       flags = [f + ".js"]
       if throws:
-        flags += ["throws", throws]
+        flags += ["--throws"]
       test = testcase.TestCase(self, f, flags=flags)
       result.append(test)
 
@@ -112,7 +112,7 @@ class PreparserTestSuite(testsuite.TestSuite):
     with open(testcase.flags[0]) as f:
       return f.read()
 
-  def VariantFlags(self):
+  def VariantFlags(self, testcase, default_flags):
     return [[]];
 
 

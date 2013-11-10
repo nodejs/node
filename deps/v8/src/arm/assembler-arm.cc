@@ -50,6 +50,7 @@ bool CpuFeatures::initialized_ = false;
 #endif
 unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
+unsigned CpuFeatures::cross_compile_ = 0;
 unsigned CpuFeatures::cache_line_size_ = 64;
 
 

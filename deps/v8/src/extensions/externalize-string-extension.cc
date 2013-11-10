@@ -75,7 +75,7 @@ v8::Handle<v8::FunctionTemplate> ExternalizeStringExtension::GetNativeFunction(
 void ExternalizeStringExtension::Externalize(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() < 1 || !args[0]->IsString()) {
-    v8::ThrowException(v8::String::New(
+    args.GetIsolate()->ThrowException(v8::String::New(
         "First parameter to externalizeString() must be a string."));
     return;
   }
@@ -84,7 +84,7 @@ void ExternalizeStringExtension::Externalize(
     if (args[1]->IsBoolean()) {
       force_two_byte = args[1]->BooleanValue();
     } else {
-      v8::ThrowException(v8::String::New(
+      args.GetIsolate()->ThrowException(v8::String::New(
         "Second parameter to externalizeString() must be a boolean."));
       return;
     }
@@ -92,7 +92,7 @@ void ExternalizeStringExtension::Externalize(
   bool result = false;
   Handle<String> string = Utils::OpenHandle(*args[0].As<v8::String>());
   if (string->IsExternalString()) {
-    v8::ThrowException(v8::String::New(
+    args.GetIsolate()->ThrowException(v8::String::New(
         "externalizeString() can't externalize twice."));
     return;
   }
@@ -120,7 +120,8 @@ void ExternalizeStringExtension::Externalize(
     if (!result) delete resource;
   }
   if (!result) {
-    v8::ThrowException(v8::String::New("externalizeString() failed."));
+    args.GetIsolate()->ThrowException(
+        v8::String::New("externalizeString() failed."));
     return;
   }
 }
@@ -129,7 +130,7 @@ void ExternalizeStringExtension::Externalize(
 void ExternalizeStringExtension::IsAscii(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1 || !args[0]->IsString()) {
-    v8::ThrowException(v8::String::New(
+    args.GetIsolate()->ThrowException(v8::String::New(
         "isAsciiString() requires a single string argument."));
     return;
   }

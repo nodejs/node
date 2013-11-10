@@ -272,7 +272,24 @@ template <int> class StaticAssertionHelper { };
 #endif
 
 
+#ifdef DEBUG
+#ifndef OPTIMIZED_DEBUG
+#define ENABLE_SLOW_ASSERTS    1
+#endif
+#endif
+
+namespace v8 {
+namespace internal {
+#ifdef ENABLE_SLOW_ASSERTS
+#define SLOW_ASSERT(condition) \
+  CHECK(!v8::internal::FLAG_enable_slow_asserts || (condition))
 extern bool FLAG_enable_slow_asserts;
+#else
+#define SLOW_ASSERT(condition) ((void) 0)
+const bool FLAG_enable_slow_asserts = false;
+#endif
+}  // namespace internal
+}  // namespace v8
 
 
 // The ASSERT macro is equivalent to CHECK except that it only
@@ -285,7 +302,6 @@ extern bool FLAG_enable_slow_asserts;
 #define ASSERT_GE(v1, v2)      CHECK_GE(v1, v2)
 #define ASSERT_LT(v1, v2)      CHECK_LT(v1, v2)
 #define ASSERT_LE(v1, v2)      CHECK_LE(v1, v2)
-#define SLOW_ASSERT(condition) CHECK(!FLAG_enable_slow_asserts || (condition))
 #else
 #define ASSERT_RESULT(expr)    (expr)
 #define ASSERT(condition)      ((void) 0)
@@ -294,7 +310,6 @@ extern bool FLAG_enable_slow_asserts;
 #define ASSERT_GE(v1, v2)      ((void) 0)
 #define ASSERT_LT(v1, v2)      ((void) 0)
 #define ASSERT_LE(v1, v2)      ((void) 0)
-#define SLOW_ASSERT(condition) ((void) 0)
 #endif
 // Static asserts has no impact on runtime performance, so they can be
 // safely enabled in release mode. Moreover, the ((void) 0) expression

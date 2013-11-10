@@ -43,13 +43,6 @@
 #include "win32-headers.h"
 #endif
 
-#if V8_OS_WIN
-// Prototype for GetTickCount64() procedure.
-extern "C" {
-typedef ULONGLONG (WINAPI *GETTICKCOUNT64PROC)(void);
-}
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -175,43 +168,43 @@ struct timespec TimeDelta::ToTimespec() const {
 // periodically resync the internal clock to the system clock.
 class Clock V8_FINAL {
  public:
-  Clock() : initial_time_(CurrentWallclockTime()),
-            initial_ticks_(TimeTicks::Now()) {}
+  Clock() : initial_ticks_(GetSystemTicks()), initial_time_(GetSystemTime()) {}
 
   Time Now() {
-    // This must be executed under lock.
+    // Time between resampling the un-granular clock for this API (1 minute).
+    const TimeDelta kMaxElapsedTime = TimeDelta::FromMinutes(1);
+
     LockGuard<Mutex> lock_guard(&mutex_);
 
-    // Calculate the time elapsed since we started our timer.
-    TimeDelta elapsed = TimeTicks::Now() - initial_ticks_;
+    // Determine current time and ticks.
+    TimeTicks ticks = GetSystemTicks();
+    Time time = GetSystemTime();
 
-    // Check if we don't need to synchronize with the wallclock yet.
-    if (elapsed.InMicroseconds() <= kMaxMicrosecondsToAvoidDrift) {
-      return initial_time_ + elapsed;
+    // Check if we need to synchronize with the system clock due to a backwards
+    // time change or the amount of time elapsed.
+    TimeDelta elapsed = ticks - initial_ticks_;
+    if (time < initial_time_ || elapsed > kMaxElapsedTime) {
+      initial_ticks_ = ticks;
+      initial_time_ = time;
+      return time;
     }
 
-    // Resynchronize with the wallclock.
-    initial_ticks_ = TimeTicks::Now();
-    initial_time_ = CurrentWallclockTime();
-    return initial_time_;
+    return initial_time_ + elapsed;
   }
 
   Time NowFromSystemTime() {
-    // This must be executed under lock.
     LockGuard<Mutex> lock_guard(&mutex_);
-
-    // Resynchronize with the wallclock.
-    initial_ticks_ = TimeTicks::Now();
-    initial_time_ = CurrentWallclockTime();
+    initial_ticks_ = GetSystemTicks();
+    initial_time_ = GetSystemTime();
     return initial_time_;
   }
 
  private:
-  // Time between resampling the un-granular clock for this API (1 minute).
-  static const int64_t kMaxMicrosecondsToAvoidDrift =
-      Time::kMicrosecondsPerMinute;
+  static TimeTicks GetSystemTicks() {
+    return TimeTicks::Now();
+  }
 
-  static Time CurrentWallclockTime() {
+  static Time GetSystemTime() {
     FILETIME ft;
     ::GetSystemTimeAsFileTime(&ft);
     return Time::FromFiletime(ft);
@@ -223,9 +216,9 @@ class Clock V8_FINAL {
 };
 
 
-static LazyDynamicInstance<Clock,
-    DefaultCreateTrait<Clock>,
-    ThreadSafeInitOnceTrait>::type clock = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
+static LazyStaticInstance<Clock,
+    DefaultConstructTrait<Clock>,
+    ThreadSafeInitOnceTrait>::type clock = LAZY_STATIC_INSTANCE_INITIALIZER;
 
 
 Time Time::Now() {
@@ -388,6 +381,7 @@ class TickClock {
  public:
   virtual ~TickClock() {}
   virtual int64_t Now() = 0;
+  virtual bool IsHighResolution() = 0;
 };
 
 
@@ -440,9 +434,13 @@ class HighResolutionTickClock V8_FINAL : public TickClock {
     int64_t ticks = (whole_seconds * Time::kMicrosecondsPerSecond) +
         ((leftover_ticks * Time::kMicrosecondsPerSecond) / ticks_per_second_);
 
-    // Make sure we never return 0 here, so that TimeTicks::HighResNow()
+    // Make sure we never return 0 here, so that TimeTicks::HighResolutionNow()
     // will never return 0.
     return ticks + 1;
+  }
+
+  virtual bool IsHighResolution() V8_OVERRIDE {
+    return true;
   }
 
  private:
@@ -450,32 +448,10 @@ class HighResolutionTickClock V8_FINAL : public TickClock {
 };
 
 
-// The GetTickCount64() API is what we actually want for the regular tick
-// clock, but this is only available starting with Windows Vista.
-class WindowsVistaTickClock V8_FINAL : public TickClock {
- public:
-  explicit WindowsVistaTickClock(GETTICKCOUNT64PROC func) : func_(func) {
-    ASSERT(func_ != NULL);
-  }
-  virtual ~WindowsVistaTickClock() {}
-
-  virtual int64_t Now() V8_OVERRIDE {
-    // Query the current ticks (in ms).
-    ULONGLONG tick_count_ms = (*func_)();
-
-    // Convert to microseconds (make sure to never return 0 here).
-    return (tick_count_ms * Time::kMicrosecondsPerMillisecond) + 1;
-  }
-
- private:
-  GETTICKCOUNT64PROC func_;
-};
-
-
 class RolloverProtectedTickClock V8_FINAL : public TickClock {
  public:
   // We initialize rollover_ms_ to 1 to ensure that we will never
-  // return 0 from TimeTicks::HighResNow() and TimeTicks::Now() below.
+  // return 0 from TimeTicks::HighResolutionNow() and TimeTicks::Now() below.
   RolloverProtectedTickClock() : last_seen_now_(0), rollover_ms_(1) {}
   virtual ~RolloverProtectedTickClock() {}
 
@@ -487,12 +463,19 @@ class RolloverProtectedTickClock V8_FINAL : public TickClock {
     // Note that we do not use GetTickCount() here, since timeGetTime() gives
     // more predictable delta values, as described here:
     // http://blogs.msdn.com/b/larryosterman/archive/2009/09/02/what-s-the-difference-between-gettickcount-and-timegettime.aspx
+    // timeGetTime() provides 1ms granularity when combined with
+    // timeBeginPeriod(). If the host application for V8 wants fast timers, it
+    // can use timeBeginPeriod() to increase the resolution.
     DWORD now = timeGetTime();
     if (now < last_seen_now_) {
       rollover_ms_ += V8_INT64_C(0x100000000);  // ~49.7 days.
     }
     last_seen_now_ = now;
     return (now + rollover_ms_) * Time::kMicrosecondsPerMillisecond;
+  }
+
+  virtual bool IsHighResolution() V8_OVERRIDE {
+    return false;
   }
 
  private:
@@ -502,27 +485,10 @@ class RolloverProtectedTickClock V8_FINAL : public TickClock {
 };
 
 
-struct CreateTickClockTrait {
-  static TickClock* Create() {
-    // Try to load GetTickCount64() from kernel32.dll (available since Vista).
-    HMODULE kernel32 = ::GetModuleHandleA("kernel32.dll");
-    ASSERT(kernel32 != NULL);
-    FARPROC proc = ::GetProcAddress(kernel32, "GetTickCount64");
-    if (proc != NULL) {
-      return new WindowsVistaTickClock(
-          reinterpret_cast<GETTICKCOUNT64PROC>(proc));
-    }
-
-    // Fallback to the rollover protected tick clock.
-    return new RolloverProtectedTickClock;
-  }
-};
-
-
-static LazyDynamicInstance<TickClock,
-    CreateTickClockTrait,
+static LazyStaticInstance<RolloverProtectedTickClock,
+    DefaultConstructTrait<RolloverProtectedTickClock>,
     ThreadSafeInitOnceTrait>::type tick_clock =
-        LAZY_DYNAMIC_INSTANCE_INITIALIZER;
+        LAZY_STATIC_INSTANCE_INITIALIZER;
 
 
 struct CreateHighResTickClockTrait {
@@ -560,21 +526,27 @@ TimeTicks TimeTicks::Now() {
 }
 
 
-TimeTicks TimeTicks::HighResNow() {
+TimeTicks TimeTicks::HighResolutionNow() {
   // Make sure we never return 0 here.
   TimeTicks ticks(high_res_tick_clock.Pointer()->Now());
   ASSERT(!ticks.IsNull());
   return ticks;
 }
 
+
+// static
+bool TimeTicks::IsHighResolutionClockWorking() {
+  return high_res_tick_clock.Pointer()->IsHighResolution();
+}
+
 #else  // V8_OS_WIN
 
 TimeTicks TimeTicks::Now() {
-  return HighResNow();
+  return HighResolutionNow();
 }
 
 
-TimeTicks TimeTicks::HighResNow() {
+TimeTicks TimeTicks::HighResolutionNow() {
   int64_t ticks;
 #if V8_OS_MACOSX
   static struct mach_timebase_info info;
@@ -606,6 +578,12 @@ TimeTicks TimeTicks::HighResNow() {
 #endif  // V8_OS_MACOSX
   // Make sure we never return 0 here.
   return TimeTicks(ticks + 1);
+}
+
+
+// static
+bool TimeTicks::IsHighResolutionClockWorking() {
+  return true;
 }
 
 #endif  // V8_OS_WIN

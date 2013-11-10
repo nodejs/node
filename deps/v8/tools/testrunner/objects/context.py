@@ -28,7 +28,7 @@
 
 class Context():
   def __init__(self, arch, mode, shell_dir, mode_flags, verbose, timeout,
-               isolates, command_prefix, extra_flags):
+               isolates, command_prefix, extra_flags, noi18n):
     self.arch = arch
     self.mode = mode
     self.shell_dir = shell_dir
@@ -38,13 +38,14 @@ class Context():
     self.isolates = isolates
     self.command_prefix = command_prefix
     self.extra_flags = extra_flags
+    self.noi18n = noi18n
 
   def Pack(self):
     return [self.arch, self.mode, self.mode_flags, self.timeout, self.isolates,
-            self.command_prefix, self.extra_flags]
+            self.command_prefix, self.extra_flags, self.noi18n]
 
   @staticmethod
   def Unpack(packed):
     # For the order of the fields, refer to Pack() above.
     return Context(packed[0], packed[1], None, packed[2], False,
-                   packed[3], packed[4], packed[5], packed[6])
+                   packed[3], packed[4], packed[5], packed[6], packed[7])

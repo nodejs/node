@@ -38,6 +38,7 @@
 #include "frames-inl.h"
 #include "hashmap.h"
 #include "platform.h"
+#include "platform/socket.h"
 #include "string-stream.h"
 #include "v8threads.h"
 

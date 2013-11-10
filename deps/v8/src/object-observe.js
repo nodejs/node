@@ -72,12 +72,12 @@ function ObservationWeakMap(map) {
 ObservationWeakMap.prototype = {
   get: function(key) {
     key = %UnwrapGlobalProxy(key);
-    if (!IS_SPEC_OBJECT(key)) return void 0;
+    if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
     return %WeakCollectionGet(this.map_, key);
   },
   set: function(key, value) {
     key = %UnwrapGlobalProxy(key);
-    if (!IS_SPEC_OBJECT(key)) return void 0;
+    if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
     %WeakCollectionSet(this.map_, key, value);
   },
   has: function(key) {
@@ -284,11 +284,6 @@ function AcceptArgIsValid(arg) {
       arg.length < 0)
     return false;
 
-  var length = arg.length;
-  for (var i = 0; i < length; i++) {
-    if (!IS_STRING(arg[i]))
-      return false;
-  }
   return true;
 }
 
@@ -497,7 +492,7 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
 
   ObjectInfoAddPerformingType(objectInfo, changeType);
   try {
-    %_CallFunction(void 0, changeFn);
+    %_CallFunction(UNDEFINED, changeFn);
   } finally {
     ObjectInfoRemovePerformingType(objectInfo, changeType);
   }
@@ -530,7 +525,7 @@ function CallbackDeliverPending(callback) {
   %MoveArrayContents(callbackInfo, delivered);
 
   try {
-    %_CallFunction(void 0, delivered, callback);
+    %_CallFunction(UNDEFINED, delivered, callback);
   } catch (ex) {}
   return true;
 }

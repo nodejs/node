@@ -31,37 +31,18 @@ namespace v8 {
 namespace internal {
 
 void HRedundantPhiEliminationPhase::Run() {
-  // We do a simple fixed point iteration without any work list, because
-  // machine-generated JavaScript can lead to a very dense Hydrogen graph with
-  // an enormous work list and will consequently result in OOM. Experiments
-  // showed that this simple algorithm is good enough, and even e.g. tracking
-  // the set or range of blocks to consider is not a real improvement.
-  bool need_another_iteration;
+  // Gather all phis from all blocks first.
   const ZoneList<HBasicBlock*>* blocks(graph()->blocks());
-  ZoneList<HPhi*> redundant_phis(blocks->length(), zone());
-  do {
-    need_another_iteration = false;
-    for (int i = 0; i < blocks->length(); ++i) {
-      HBasicBlock* block = blocks->at(i);
-      for (int j = 0; j < block->phis()->length(); j++) {
-        HPhi* phi = block->phis()->at(j);
-        HValue* replacement = phi->GetRedundantReplacement();
-        if (replacement != NULL) {
-          // Remember phi to avoid concurrent modification of the block's phis.
-          redundant_phis.Add(phi, zone());
-          for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-            HValue* value = it.value();
-            value->SetOperandAt(it.index(), replacement);
-            need_another_iteration |= value->IsPhi();
-          }
-        }
-      }
-      for (int i = 0; i < redundant_phis.length(); i++) {
-        block->RemovePhi(redundant_phis[i]);
-      }
-      redundant_phis.Clear();
+  ZoneList<HPhi*> all_phis(blocks->length(), zone());
+  for (int i = 0; i < blocks->length(); ++i) {
+    HBasicBlock* block = blocks->at(i);
+    for (int j = 0; j < block->phis()->length(); j++) {
+      all_phis.Add(block->phis()->at(j), zone());
     }
-  } while (need_another_iteration);
+  }
+
+  // Iteratively reduce all phis in the list.
+  ProcessPhis(&all_phis);
 
 #if DEBUG
   // Make sure that we *really* removed all redundant phis.
@@ -72,5 +53,36 @@ void HRedundantPhiEliminationPhase::Run() {
   }
 #endif
 }
+
+
+void HRedundantPhiEliminationPhase::ProcessBlock(HBasicBlock* block) {
+  ProcessPhis(block->phis());
+}
+
+
+void HRedundantPhiEliminationPhase::ProcessPhis(const ZoneList<HPhi*>* phis) {
+  bool updated;
+  do {
+    // Iterately replace all redundant phis in the given list.
+    updated = false;
+    for (int i = 0; i < phis->length(); i++) {
+      HPhi* phi = phis->at(i);
+      if (phi->CheckFlag(HValue::kIsDead)) continue;  // Already replaced.
+
+      HValue* replacement = phi->GetRedundantReplacement();
+      if (replacement != NULL) {
+        phi->SetFlag(HValue::kIsDead);
+        for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+          HValue* value = it.value();
+          value->SetOperandAt(it.index(), replacement);
+          // Iterate again if used in another non-dead phi.
+          updated |= value->IsPhi() && !value->CheckFlag(HValue::kIsDead);
+        }
+        phi->block()->RemovePhi(phi);
+      }
+    }
+  } while (updated);
+}
+
 
 } }  // namespace v8::internal

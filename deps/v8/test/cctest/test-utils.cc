@@ -103,35 +103,22 @@ static const int kAreaSize = 512;
 
 void TestMemMove(byte* area1,
                  byte* area2,
-                 byte* area3,
                  int src_offset,
                  int dest_offset,
                  int length) {
   for (int i = 0; i < kAreaSize; i++) {
     area1[i] = i & 0xFF;
     area2[i] = i & 0xFF;
-    area3[i] = i & 0xFF;
   }
   OS::MemMove(area1 + dest_offset, area1 + src_offset, length);
-  MoveBytes(area2 + dest_offset, area2 + src_offset, length);
-  memmove(area3 + dest_offset, area3 + src_offset, length);
-  if (memcmp(area1, area3, kAreaSize) != 0) {
+  memmove(area2 + dest_offset, area2 + src_offset, length);
+  if (memcmp(area1, area2, kAreaSize) != 0) {
     printf("OS::MemMove(): src_offset: %d, dest_offset: %d, length: %d\n",
            src_offset, dest_offset, length);
     for (int i = 0; i < kAreaSize; i++) {
-      if (area1[i] == area3[i]) continue;
+      if (area1[i] == area2[i]) continue;
       printf("diff at offset %d (%p): is %d, should be %d\n",
-             i, reinterpret_cast<void*>(area1 + i), area1[i], area3[i]);
-    }
-    CHECK(false);
-  }
-  if (memcmp(area2, area3, kAreaSize) != 0) {
-    printf("MoveBytes(): src_offset: %d, dest_offset: %d, length: %d\n",
-           src_offset, dest_offset, length);
-    for (int i = 0; i < kAreaSize; i++) {
-      if (area2[i] == area3[i]) continue;
-      printf("diff at offset %d (%p): is %d, should be %d\n",
-             i, reinterpret_cast<void*>(area2 + i), area2[i], area3[i]);
+             i, reinterpret_cast<void*>(area1 + i), area1[i], area2[i]);
     }
     CHECK(false);
   }
@@ -142,7 +129,6 @@ TEST(MemMove) {
   v8::V8::Initialize();
   byte* area1 = new byte[kAreaSize];
   byte* area2 = new byte[kAreaSize];
-  byte* area3 = new byte[kAreaSize];
 
   static const int kMinOffset = 32;
   static const int kMaxOffset = 64;
@@ -152,13 +138,12 @@ TEST(MemMove) {
   for (int src_offset = kMinOffset; src_offset <= kMaxOffset; src_offset++) {
     for (int dst_offset = kMinOffset; dst_offset <= kMaxOffset; dst_offset++) {
       for (int length = 0; length <= kMaxLength; length++) {
-        TestMemMove(area1, area2, area3, src_offset, dst_offset, length);
+        TestMemMove(area1, area2, src_offset, dst_offset, length);
       }
     }
   }
   delete[] area1;
   delete[] area2;
-  delete[] area3;
 }
 
 

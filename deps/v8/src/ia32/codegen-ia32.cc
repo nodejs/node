@@ -117,7 +117,7 @@ UnaryMathFunction CreateExpFunction() {
     CpuFeatureScope use_sse2(&masm, SSE2);
     XMMRegister input = xmm1;
     XMMRegister result = xmm2;
-    __ movdbl(input, Operand(esp, 1 * kPointerSize));
+    __ movsd(input, Operand(esp, 1 * kPointerSize));
     __ push(eax);
     __ push(ebx);
 
@@ -125,7 +125,7 @@ UnaryMathFunction CreateExpFunction() {
 
     __ pop(ebx);
     __ pop(eax);
-    __ movdbl(Operand(esp, 1 * kPointerSize), result);
+    __ movsd(Operand(esp, 1 * kPointerSize), result);
     __ fld_d(Operand(esp, 1 * kPointerSize));
     __ Ret();
   }
@@ -155,9 +155,9 @@ UnaryMathFunction CreateSqrtFunction() {
   // Move double input into registers.
   {
     CpuFeatureScope use_sse2(&masm, SSE2);
-    __ movdbl(xmm0, Operand(esp, 1 * kPointerSize));
+    __ movsd(xmm0, Operand(esp, 1 * kPointerSize));
     __ sqrtsd(xmm0, xmm0);
-    __ movdbl(Operand(esp, 1 * kPointerSize), xmm0);
+    __ movsd(Operand(esp, 1 * kPointerSize), xmm0);
     // Load result into floating point register as return value.
     __ fld_d(Operand(esp, 1 * kPointerSize));
     __ Ret();
@@ -462,10 +462,10 @@ OS::MemMoveFunction CreateMemMoveFunction() {
       Label medium_handlers, f9_16, f17_32, f33_48, f49_63;
 
       __ bind(&f9_16);
-      __ movdbl(xmm0, Operand(src, 0));
-      __ movdbl(xmm1, Operand(src, count, times_1, -8));
-      __ movdbl(Operand(dst, 0), xmm0);
-      __ movdbl(Operand(dst, count, times_1, -8), xmm1);
+      __ movsd(xmm0, Operand(src, 0));
+      __ movsd(xmm1, Operand(src, count, times_1, -8));
+      __ movsd(Operand(dst, 0), xmm0);
+      __ movsd(Operand(dst, count, times_1, -8), xmm1);
       MemMoveEmitPopAndReturn(&masm);
 
       __ bind(&f17_32);
@@ -666,8 +666,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   // -----------------------------------
   if (mode == TRACK_ALLOCATION_SITE) {
     ASSERT(allocation_memento_found != NULL);
-    __ TestJSArrayForAllocationMemento(edx, edi);
-    __ j(equal, allocation_memento_found);
+    __ JumpIfJSArrayHasAllocationMemento(edx, edi, allocation_memento_found);
   }
 
   // Set transitioned map.
@@ -694,8 +693,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Label loop, entry, convert_hole, gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationMemento(edx, edi);
-    __ j(equal, fail);
+    __ JumpIfJSArrayHasAllocationMemento(edx, edi, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -743,7 +741,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   XMMRegister the_hole_nan = xmm1;
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope use_sse2(masm, SSE2);
-    __ movdbl(the_hole_nan,
+    __ movsd(the_hole_nan,
               Operand::StaticVariable(canonical_the_hole_nan_reference));
   }
   __ jmp(&entry);
@@ -768,8 +766,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ SmiUntag(ebx);
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope fscope(masm, SSE2);
-    __ cvtsi2sd(xmm0, ebx);
-    __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
+    __ Cvtsi2sd(xmm0, ebx);
+    __ movsd(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
               xmm0);
   } else {
     __ push(ebx);
@@ -789,7 +787,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope use_sse2(masm, SSE2);
-    __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
+    __ movsd(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
               the_hole_nan);
   } else {
     __ fld_d(Operand::StaticVariable(canonical_the_hole_nan_reference));
@@ -833,8 +831,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Label loop, entry, convert_hole, gc_required, only_change_map, success;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationMemento(edx, edi);
-    __ j(equal, fail);
+    __ JumpIfJSArrayHasAllocationMemento(edx, edi, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -899,9 +896,9 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // edx: new heap number
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope fscope(masm, SSE2);
-    __ movdbl(xmm0,
+    __ movsd(xmm0,
               FieldOperand(edi, ebx, times_4, FixedDoubleArray::kHeaderSize));
-    __ movdbl(FieldOperand(edx, HeapNumber::kValueOffset), xmm0);
+    __ movsd(FieldOperand(edx, HeapNumber::kValueOffset), xmm0);
   } else {
     __ mov(esi, FieldOperand(edi, ebx, times_4, FixedDoubleArray::kHeaderSize));
     __ mov(FieldOperand(edx, HeapNumber::kValueOffset), esi);
@@ -1081,20 +1078,20 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
   Label done;
 
-  __ movdbl(double_scratch, ExpConstant(0));
+  __ movsd(double_scratch, ExpConstant(0));
   __ xorpd(result, result);
   __ ucomisd(double_scratch, input);
   __ j(above_equal, &done);
   __ ucomisd(input, ExpConstant(1));
-  __ movdbl(result, ExpConstant(2));
+  __ movsd(result, ExpConstant(2));
   __ j(above_equal, &done);
-  __ movdbl(double_scratch, ExpConstant(3));
-  __ movdbl(result, ExpConstant(4));
+  __ movsd(double_scratch, ExpConstant(3));
+  __ movsd(result, ExpConstant(4));
   __ mulsd(double_scratch, input);
   __ addsd(double_scratch, result);
   __ movd(temp2, double_scratch);
   __ subsd(double_scratch, result);
-  __ movdbl(result, ExpConstant(6));
+  __ movsd(result, ExpConstant(6));
   __ mulsd(double_scratch, ExpConstant(5));
   __ subsd(double_scratch, input);
   __ subsd(result, double_scratch);
@@ -1111,7 +1108,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ shl(temp1, 20);
   __ movd(input, temp1);
   __ pshufd(input, input, static_cast<uint8_t>(0xe1));  // Order: 11 10 00 01
-  __ movdbl(double_scratch, Operand::StaticArray(
+  __ movsd(double_scratch, Operand::StaticArray(
       temp2, times_8, ExternalReference::math_exp_log_table()));
   __ por(input, double_scratch);
   __ mulsd(result, input);
@@ -1120,7 +1117,6 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
 #undef __
 
-static const int kNoCodeAgeSequenceLength = 5;
 
 static byte* GetNoCodeAgeSequence(uint32_t* length) {
   static bool initialized = false;
@@ -1153,7 +1149,7 @@ bool Code::IsYoungSequence(byte* sequence) {
 void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
                                MarkingParity* parity) {
   if (IsYoungSequence(sequence)) {
-    *age = kNoAge;
+    *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
     sequence++;  // Skip the kCallOpcode byte
@@ -1165,16 +1161,17 @@ void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
 }
 
 
-void Code::PatchPlatformCodeAge(byte* sequence,
+void Code::PatchPlatformCodeAge(Isolate* isolate,
+                                byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
   uint32_t young_length;
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  if (age == kNoAge) {
+  if (age == kNoAgeCodeAge) {
     CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {
-    Code* stub = GetCodeAgeStub(age, parity);
+    Code* stub = GetCodeAgeStub(isolate, age, parity);
     CodePatcher patcher(sequence, young_length);
     patcher.masm()->call(stub->instruction_start(), RelocInfo::NONE32);
   }

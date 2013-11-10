@@ -25,12 +25,17 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-prefix intl
+[
+[ALWAYS, {
+  # The following tests use getDefaultTimeZone().
+  'date-format/resolved-options': [FAIL],
+  'date-format/timezone': [FAIL],
+  'general/v8Intl-exists': [FAIL],
 
-# The following tests use getDefaultTimeZone().
-date-format/resolved-options: FAIL
-date-format/timezone: FAIL
-general/v8Intl-exists: FAIL
+  # TODO(jochen): The following test is flaky.
+  'overrides/caching': [PASS, FAIL],
 
-# TODO(jochen): The following test is flaky.
-overrides/caching: PASS || FAIL
+  # BUG(2899): default locale for search fails on mac and on android.
+  'collator/default-locale': [['system == macos or arch == android_arm or arch == android_ia32', FAIL]],
+}],  # ALWAYS
+]

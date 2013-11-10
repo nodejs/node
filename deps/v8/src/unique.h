@@ -29,6 +29,7 @@
 #define V8_HYDROGEN_UNIQUE_H_
 
 #include "handles.h"
+#include "objects.h"
 #include "utils.h"
 #include "zone.h"
 
@@ -53,19 +54,30 @@ class UniqueSet;
 template <typename T>
 class Unique V8_FINAL {
  public:
-  // TODO(titzer): make private and introduce some builder/owner class.
+  // TODO(titzer): make private and introduce a uniqueness scope.
   explicit Unique(Handle<T> handle) {
     if (handle.is_null()) {
       raw_address_ = NULL;
     } else {
+      // This is a best-effort check to prevent comparing Unique<T>'s created
+      // in different GC eras; we require heap allocation to be disallowed at
+      // creation time.
+      // NOTE: we currently consider maps to be non-movable, so no special
+      // assurance is required for creating a Unique<Map>.
+      // TODO(titzer): other immortable immovable objects are also fine.
+      ASSERT(!AllowHeapAllocation::IsAllowed() || handle->IsMap());
       raw_address_ = reinterpret_cast<Address>(*handle);
-      ASSERT_NE(raw_address_, NULL);
+      ASSERT_NE(raw_address_, NULL);  // Non-null should imply non-zero address.
     }
     handle_ = handle;
   }
 
+  // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
+  Unique(Address raw_address, Handle<T> handle)
+    : raw_address_(raw_address), handle_(handle) { }
+
   // Constructor for handling automatic up casting.
-  // Ex. Unique<JSFunction> can be passed when Unique<Object> is expected.
+  // Eg. Unique<JSFunction> can be passed when Unique<Object> is expected.
   template <class S> Unique(Unique<S> uniq) {
 #ifdef DEBUG
     T* a = NULL;
@@ -74,32 +86,55 @@ class Unique V8_FINAL {
     USE(a);
 #endif
     raw_address_ = uniq.raw_address_;
-    handle_ = uniq.handle_;  // Creates a new handle sharing the same location.
+    handle_ = uniq.handle_;
   }
 
   template <typename U>
-  bool operator==(const Unique<U>& other) const {
+  inline bool operator==(const Unique<U>& other) const {
+    ASSERT(IsInitialized() && other.IsInitialized());
     return raw_address_ == other.raw_address_;
   }
 
   template <typename U>
-  bool operator!=(const Unique<U>& other) const {
+  inline bool operator!=(const Unique<U>& other) const {
+    ASSERT(IsInitialized() && other.IsInitialized());
     return raw_address_ != other.raw_address_;
   }
 
-  intptr_t Hashcode() const {
+  inline intptr_t Hashcode() const {
+    ASSERT(IsInitialized());
     return reinterpret_cast<intptr_t>(raw_address_);
   }
 
-  bool IsNull() {
+  inline bool IsNull() const {
+    ASSERT(IsInitialized());
     return raw_address_ == NULL;
   }
 
-  // Don't do this unless you have access to the heap!
-  // No, seriously! You can compare and hash and set-ify uniques that were
-  // all created at the same time; please don't dereference.
-  Handle<T> handle() {
+  inline bool IsKnownGlobal(void* global) const {
+    ASSERT(IsInitialized());
+    return raw_address_ == reinterpret_cast<Address>(global);
+  }
+
+  inline Handle<T> handle() const {
     return handle_;
+  }
+
+  template <class S> static Unique<T> cast(Unique<S> that) {
+    return Unique<T>(that.raw_address_, Handle<T>::cast(that.handle_));
+  }
+
+  inline bool IsInitialized() const {
+    return raw_address_ != NULL || handle_.is_null();
+  }
+
+  // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
+  static Unique<T> CreateUninitialized(Handle<T> handle) {
+    return Unique<T>(reinterpret_cast<Address>(NULL), handle);
+  }
+
+  static Unique<T> CreateImmovable(Handle<T> handle) {
+    return Unique<T>(reinterpret_cast<Address>(*handle), handle);
   }
 
   friend class UniqueSet<T>;  // Uses internal details for speed.
@@ -120,6 +155,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
 
   // Add a new element to this unique set. Mutates this set. O(|this|).
   void Add(Unique<T> uniq, Zone* zone) {
+    ASSERT(uniq.IsInitialized());
     // Keep the set sorted by the {raw_address} of the unique elements.
     for (int i = 0; i < size_; i++) {
       if (array_[i] == uniq) return;
@@ -137,8 +173,19 @@ class UniqueSet V8_FINAL : public ZoneObject {
     array_[size_++] = uniq;
   }
 
+  // Remove an element from this set. Mutates this set. O(|this|)
+  void Remove(Unique<T> uniq) {
+    for (int i = 0; i < size_; i++) {
+      if (array_[i] == uniq) {
+        while (++i < size_) array_[i - 1] = array_[i];
+        size_--;
+        return;
+      }
+    }
+  }
+
   // Compare this set against another set. O(|this|).
-  bool Equals(UniqueSet<T>* that) {
+  bool Equals(UniqueSet<T>* that) const {
     if (that->size_ != this->size_) return false;
     for (int i = 0; i < this->size_; i++) {
       if (this->array_[i] != that->array_[i]) return false;
@@ -146,8 +193,18 @@ class UniqueSet V8_FINAL : public ZoneObject {
     return true;
   }
 
+  // Check whether this set contains the given element. O(|this|)
+  // TODO(titzer): use binary search for large sets to make this O(log|this|)
+  template <typename U>
+  bool Contains(Unique<U> elem) const {
+    for (int i = 0; i < size_; i++) {
+      if (this->array_[i] == elem) return true;
+    }
+    return false;
+  }
+
   // Check if this set is a subset of the given set. O(|this| + |that|).
-  bool IsSubset(UniqueSet<T>* that) {
+  bool IsSubset(UniqueSet<T>* that) const {
     if (that->size_ < this->size_) return false;
     int j = 0;
     for (int i = 0; i < this->size_; i++) {
@@ -163,7 +220,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
 
   // Returns a new set representing the intersection of this set and the other.
   // O(|this| + |that|).
-  UniqueSet<T>* Intersect(UniqueSet<T>* that, Zone* zone) {
+  UniqueSet<T>* Intersect(UniqueSet<T>* that, Zone* zone) const {
     if (that->size_ == 0 || this->size_ == 0) return new(zone) UniqueSet<T>();
 
     UniqueSet<T>* out = new(zone) UniqueSet<T>();
@@ -190,7 +247,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
 
   // Returns a new set representing the union of this set and the other.
   // O(|this| + |that|).
-  UniqueSet<T>* Union(UniqueSet<T>* that, Zone* zone) {
+  UniqueSet<T>* Union(UniqueSet<T>* that, Zone* zone) const {
     if (that->size_ == 0) return this->Copy(zone);
     if (this->size_ == 0) return that->Copy(zone);
 
@@ -222,7 +279,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
   }
 
   // Makes an exact copy of this set. O(|this| + |that|).
-  UniqueSet<T>* Copy(Zone* zone) {
+  UniqueSet<T>* Copy(Zone* zone) const {
     UniqueSet<T>* copy = new(zone) UniqueSet<T>();
     copy->size_ = this->size_;
     copy->capacity_ = this->size_;
@@ -231,8 +288,17 @@ class UniqueSet V8_FINAL : public ZoneObject {
     return copy;
   }
 
-  inline int size() {
+  void Clear() {
+    size_ = 0;
+  }
+
+  inline int size() const {
     return size_;
+  }
+
+  inline Unique<T> at(int index) const {
+    ASSERT(index >= 0 && index < size_);
+    return array_[index];
   }
 
  private:

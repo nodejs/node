@@ -201,14 +201,12 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   Register argument = a2;
   Label not_cached, argument_is_string;
-  NumberToStringStub::GenerateLookupNumberStringCache(
-      masm,
-      a0,        // Input.
-      argument,  // Result.
-      a3,        // Scratch.
-      t0,        // Scratch.
-      t1,        // Scratch.
-      &not_cached);
+  __ LookupNumberStringCache(a0,        // Input.
+                             argument,  // Result.
+                             a3,        // Scratch.
+                             t0,        // Scratch.
+                             t1,        // Scratch.
+                             &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1, a3, t0);
   __ bind(&argument_is_string);
 
@@ -833,14 +831,15 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // The following registers must be saved and restored when calling through to
   // the runtime:
   //   a0 - contains return address (beginning of patch sequence)
-  //   a1 - function object
+  //   a1 - isolate
   RegList saved_regs =
       (a0.bit() | a1.bit() | ra.bit() | fp.bit()) & ~sp.bit();
   FrameScope scope(masm, StackFrame::MANUAL);
   __ MultiPush(saved_regs);
-  __ PrepareCallCFunction(1, 0, a1);
+  __ PrepareCallCFunction(1, 0, a2);
+  __ li(a1, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ CallCFunction(
-      ExternalReference::get_make_code_young_function(masm->isolate()), 1);
+      ExternalReference::get_make_code_young_function(masm->isolate()), 2);
   __ MultiPop(saved_regs);
   __ Jump(a0);
 }
@@ -856,6 +855,49 @@ void Builtins::Generate_Make##C##CodeYoungAgainOddMarking(   \
 }
 CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
+
+
+void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
+  // For now, as in GenerateMakeCodeYoungAgainCommon, we are relying on the fact
+  // that make_code_young doesn't do any garbage collection which allows us to
+  // save/restore the registers without worrying about which of them contain
+  // pointers.
+
+  __ mov(a0, ra);
+  // Adjust a0 to point to the head of the PlatformCodeAge sequence
+  __ Subu(a0, a0,
+      Operand((kNoCodeAgeSequenceLength - 1) * Assembler::kInstrSize));
+  // Restore the original return address of the function
+  __ mov(ra, at);
+
+  // The following registers must be saved and restored when calling through to
+  // the runtime:
+  //   a0 - contains return address (beginning of patch sequence)
+  //   a1 - isolate
+  RegList saved_regs =
+      (a0.bit() | a1.bit() | ra.bit() | fp.bit()) & ~sp.bit();
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ MultiPush(saved_regs);
+  __ PrepareCallCFunction(1, 0, a2);
+  __ li(a1, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ CallCFunction(
+      ExternalReference::get_mark_code_as_executed_function(masm->isolate()),
+      2);
+  __ MultiPop(saved_regs);
+
+  // Perform prologue operations usually performed by the young code stub.
+  __ Push(ra, fp, cp, a1);
+  __ Addu(fp, sp, Operand(2 * kPointerSize));
+
+  // Jump to point after the code-age stub.
+  __ Addu(a0, a0, Operand((kNoCodeAgeSequenceLength) * Assembler::kInstrSize));
+  __ Jump(a0);
+}
+
+
+void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
+  GenerateMakeCodeYoungAgainCommon(masm);
+}
 
 
 void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
@@ -925,23 +967,6 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  // For now, we are relying on the fact that Runtime::NotifyOSR
-  // doesn't do any garbage collection which allows us to save/restore
-  // the registers without worrying about which of them contain
-  // pointers. This seems a bit fragile.
-  RegList saved_regs =
-      (kJSCallerSaved | kCalleeSaved | ra.bit() | fp.bit()) & ~sp.bit();
-  __ MultiPush(saved_regs);
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kNotifyOSR, 0);
-  }
-  __ MultiPop(saved_regs);
-  __ Ret();
-}
-
-
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   // Lookup the function in the JavaScript frame.
   __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -980,6 +1005,23 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ addiu(ra, v0, Code::kHeaderSize - kHeapObjectTag);
 
   // And "return" to the OSR entry point of the function.
+  __ Ret();
+}
+
+
+void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
+  // We check the stack limit as indicator that recompilation might be done.
+  Label ok;
+  __ LoadRoot(at, Heap::kStackLimitRootIndex);
+  __ Branch(&ok, hs, sp, Operand(at));
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+  }
+  __ Jump(masm->isolate()->builtins()->OnStackReplacement(),
+          RelocInfo::CODE_TARGET);
+
+  __ bind(&ok);
   __ Ret();
 }
 

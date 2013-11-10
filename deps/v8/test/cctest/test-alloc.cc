@@ -37,7 +37,7 @@ using namespace v8::internal;
 static MaybeObject* AllocateAfterFailures() {
   static int attempts = 0;
   if (++attempts < 3) return Failure::RetryAfterGC();
-  Heap* heap = Isolate::Current()->heap();
+  Heap* heap = CcTest::heap();
 
   // New space.
   SimulateFullSpace(heap->new_space());
@@ -50,7 +50,7 @@ static MaybeObject* AllocateAfterFailures() {
   CHECK(!heap->AllocateHeapNumber(0.42)->IsFailure());
   CHECK(!heap->AllocateArgumentsObject(Smi::FromInt(87), 10)->IsFailure());
   Object* object = heap->AllocateJSObject(
-      *Isolate::Current()->object_function())->ToObjectChecked();
+      *CcTest::i_isolate()->object_function())->ToObjectChecked();
   CHECK(!heap->CopyJSObject(JSObject::cast(object))->IsFailure());
 
   // Old data space.
@@ -81,7 +81,7 @@ static MaybeObject* AllocateAfterFailures() {
   // Test that we can allocate in old pointer space and code space.
   SimulateFullSpace(heap->code_space());
   CHECK(!heap->AllocateFixedArray(100, TENURED)->IsFailure());
-  CHECK(!heap->CopyCode(Isolate::Current()->builtins()->builtin(
+  CHECK(!heap->CopyCode(CcTest::i_isolate()->builtins()->builtin(
       Builtins::kIllegal))->IsFailure());
 
   // Return success.
@@ -90,13 +90,13 @@ static MaybeObject* AllocateAfterFailures() {
 
 
 static Handle<Object> Test() {
-  CALL_HEAP_FUNCTION(Isolate::Current(), AllocateAfterFailures(), Object);
+  CALL_HEAP_FUNCTION(CcTest::i_isolate(), AllocateAfterFailures(), Object);
 }
 
 
 TEST(StressHandles) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  v8::Handle<v8::Context> env = v8::Context::New(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
   Handle<Object> o = Test();
   CHECK(o->IsSmi() && Smi::cast(*o)->value() == 42);
@@ -117,17 +117,17 @@ const AccessorDescriptor kDescriptor = {
 
 
 TEST(StressJS) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  v8::Handle<v8::Context> env = v8::Context::New(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
   Handle<JSFunction> function =
       factory->NewFunction(factory->function_string(), factory->null_value());
   // Force the creation of an initial map and set the code to
   // something empty.
   factory->NewJSObject(function);
-  function->ReplaceCode(Isolate::Current()->builtins()->builtin(
+  function->ReplaceCode(CcTest::i_isolate()->builtins()->builtin(
       Builtins::kEmptyFunction));
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());

@@ -425,7 +425,7 @@ class RegExpParser BASE_EMBEDDED {
 // Forward declaration.
 class SingletonLogger;
 
-class Parser BASE_EMBEDDED {
+class Parser : public ParserBase {
  public:
   explicit Parser(CompilationInfo* info);
   ~Parser() {
@@ -433,43 +433,11 @@ class Parser BASE_EMBEDDED {
     reusable_preparser_ = NULL;
   }
 
-  bool allow_natives_syntax() const { return allow_natives_syntax_; }
-  bool allow_lazy() const { return allow_lazy_; }
-  bool allow_modules() { return scanner().HarmonyModules(); }
-  bool allow_harmony_scoping() { return scanner().HarmonyScoping(); }
-  bool allow_generators() const { return allow_generators_; }
-  bool allow_for_of() const { return allow_for_of_; }
-  bool allow_harmony_numeric_literals() {
-    return scanner().HarmonyNumericLiterals();
-  }
-
-  void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
-  void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
-  void set_allow_modules(bool allow) { scanner().SetHarmonyModules(allow); }
-  void set_allow_harmony_scoping(bool allow) {
-    scanner().SetHarmonyScoping(allow);
-  }
-  void set_allow_generators(bool allow) { allow_generators_ = allow; }
-  void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
-  void set_allow_harmony_numeric_literals(bool allow) {
-    scanner().SetHarmonyNumericLiterals(allow);
-  }
-
   // Parses the source code represented by the compilation info and sets its
   // function literal.  Returns false (and deallocates any allocated AST
   // nodes) if parsing failed.
   static bool Parse(CompilationInfo* info) { return Parser(info).Parse(); }
   bool Parse();
-
-  // Returns NULL if parsing failed.
-  FunctionLiteral* ParseProgram();
-
-  void ReportMessageAt(Scanner::Location loc,
-                       const char* message,
-                       Vector<const char*> args);
-  void ReportMessageAt(Scanner::Location loc,
-                       const char* message,
-                       Vector<Handle<String> > args);
 
  private:
   static const int kMaxNumFunctionLocals = 131071;  // 2^17-1
@@ -568,6 +536,9 @@ class Parser BASE_EMBEDDED {
     Mode old_mode_;
   };
 
+  // Returns NULL if parsing failed.
+  FunctionLiteral* ParseProgram();
+
   FunctionLiteral* ParseLazy();
   FunctionLiteral* ParseLazy(Utf16CharacterStream* source);
 
@@ -584,6 +555,15 @@ class Parser BASE_EMBEDDED {
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
   void ReportMessage(const char* message, Vector<const char*> args);
   void ReportMessage(const char* message, Vector<Handle<String> > args);
+  void ReportMessageAt(Scanner::Location location, const char* type) {
+    ReportMessageAt(location, type, Vector<const char*>::empty());
+  }
+  void ReportMessageAt(Scanner::Location loc,
+                       const char* message,
+                       Vector<const char*> args);
+  void ReportMessageAt(Scanner::Location loc,
+                       const char* message,
+                       Vector<Handle<String> > args);
 
   void set_pre_parse_data(ScriptDataImpl *data) {
     pre_parse_data_ = data;
@@ -671,7 +651,6 @@ class Parser BASE_EMBEDDED {
   Expression* ParsePrimaryExpression(bool* ok);
   Expression* ParseArrayLiteral(bool* ok);
   Expression* ParseObjectLiteral(bool* ok);
-  ObjectLiteral::Property* ParseObjectLiteralGetSet(bool is_getter, bool* ok);
   Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
 
   // Populate the constant properties fixed array for a materialized object
@@ -711,39 +690,9 @@ class Parser BASE_EMBEDDED {
   // Magical syntax support.
   Expression* ParseV8Intrinsic(bool* ok);
 
-  INLINE(Token::Value peek()) {
-    if (stack_overflow_) return Token::ILLEGAL;
-    return scanner().peek();
-  }
-
-  INLINE(Token::Value Next()) {
-    // BUG 1215673: Find a thread safe way to set a stack limit in
-    // pre-parse mode. Otherwise, we cannot safely pre-parse from other
-    // threads.
-    if (stack_overflow_) {
-      return Token::ILLEGAL;
-    }
-    if (StackLimitCheck(isolate()).HasOverflowed()) {
-      // Any further calls to Next or peek will return the illegal token.
-      // The current call must return the next token, which might already
-      // have been peek'ed.
-      stack_overflow_ = true;
-    }
-    return scanner().Next();
-  }
-
   bool is_generator() const { return current_function_state_->is_generator(); }
 
   bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
-
-  bool peek_any_identifier();
-
-  INLINE(void Consume(Token::Value token));
-  void Expect(Token::Value token, bool* ok);
-  bool Check(Token::Value token);
-  void ExpectSemicolon(bool* ok);
-  bool CheckContextualKeyword(Vector<const char> keyword);
-  void ExpectContextualKeyword(Vector<const char> keyword, bool* ok);
 
   Handle<String> LiteralString(PretenureFlag tenured) {
     if (scanner().is_literal_ascii()) {
@@ -768,8 +717,8 @@ class Parser BASE_EMBEDDED {
   Handle<String> GetSymbol();
 
   // Get odd-ball literals.
-  Literal* GetLiteralUndefined();
-  Literal* GetLiteralTheHole();
+  Literal* GetLiteralUndefined(int position);
+  Literal* GetLiteralTheHole(int position);
 
   Handle<String> ParseIdentifier(bool* ok);
   Handle<String> ParseIdentifierOrStrictReservedWord(
@@ -788,9 +737,6 @@ class Parser BASE_EMBEDDED {
   void CheckStrictModeLValue(Expression* expression,
                              const char* error,
                              bool* ok);
-
-  // Strict mode octal literal validation.
-  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
 
   // For harmony block scoping mode: Check if the scope has conflicting var/let
   // declarations from different scopes. It covers for example
@@ -842,7 +788,7 @@ class Parser BASE_EMBEDDED {
                             Handle<String> type,
                             Vector< Handle<Object> > arguments);
 
-  preparser::PreParser::PreParseResult LazyParseFunctionLiteral(
+  PreParser::PreParseResult LazyParseFunctionLiteral(
        SingletonLogger* logger);
 
   AstNodeFactory<AstConstructionVisitor>* factory() {
@@ -854,7 +800,7 @@ class Parser BASE_EMBEDDED {
 
   Handle<Script> script_;
   Scanner scanner_;
-  preparser::PreParser* reusable_preparser_;
+  PreParser* reusable_preparser_;
   Scope* top_scope_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   FunctionState* current_function_state_;
@@ -864,11 +810,6 @@ class Parser BASE_EMBEDDED {
   FuncNameInferrer* fni_;
 
   Mode mode_;
-  bool allow_natives_syntax_;
-  bool allow_lazy_;
-  bool allow_generators_;
-  bool allow_for_of_;
-  bool stack_overflow_;
   // If true, the next (and immediately following) function literal is
   // preceded by a parenthesis.
   // Heuristically that means that the function will be called immediately,

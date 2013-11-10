@@ -29,6 +29,7 @@
 
 #include "heap-snapshot-generator-inl.h"
 
+#include "allocation-tracker.h"
 #include "heap-profiler.h"
 #include "debug.h"
 #include "types.h"
@@ -397,7 +398,7 @@ void HeapObjectsMap::SnapshotGenerationFinished() {
 }
 
 
-void HeapObjectsMap::MoveObject(Address from, Address to) {
+void HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
   ASSERT(to != NULL);
   ASSERT(from != NULL);
   if (from == to) return;
@@ -428,8 +429,36 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
     int from_entry_info_index =
         static_cast<int>(reinterpret_cast<intptr_t>(from_value));
     entries_.at(from_entry_info_index).addr = to;
+    // Size of an object can change during its life, so to keep information
+    // about the object in entries_ consistent, we have to adjust size when the
+    // object is migrated.
+    if (FLAG_heap_profiler_trace_objects) {
+      PrintF("Move object from %p to %p old size %6d new size %6d\n",
+             from,
+             to,
+             entries_.at(from_entry_info_index).size,
+             object_size);
+    }
+    entries_.at(from_entry_info_index).size = object_size;
     to_entry->value = from_value;
   }
+}
+
+
+void HeapObjectsMap::NewObject(Address addr, int size) {
+  if (FLAG_heap_profiler_trace_objects) {
+    PrintF("New object         : %p %6d. Next address is %p\n",
+           addr,
+           size,
+           addr + size);
+  }
+  ASSERT(addr != NULL);
+  FindOrAddEntry(addr, size, false);
+}
+
+
+void HeapObjectsMap::UpdateObjectSize(Address addr, int size) {
+  FindOrAddEntry(addr, size, false);
 }
 
 
@@ -445,7 +474,8 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
 
 
 SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
-                                                unsigned int size) {
+                                                unsigned int size,
+                                                bool accessed) {
   ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
   HashMap::Entry* entry = entries_map_.Lookup(addr, ComputePointerHash(addr),
                                               true);
@@ -453,14 +483,20 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
     int entry_index =
         static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
     EntryInfo& entry_info = entries_.at(entry_index);
-    entry_info.accessed = true;
+    entry_info.accessed = accessed;
+    if (FLAG_heap_profiler_trace_objects) {
+      PrintF("Update object size : %p with old size %d and new size %d\n",
+             addr,
+             entry_info.size,
+             size);
+    }
     entry_info.size = size;
     return entry_info.id;
   }
   entry->value = reinterpret_cast<void*>(entries_.length());
   SnapshotObjectId id = next_id_;
   next_id_ += kObjectIdStep;
-  entries_.Add(EntryInfo(id, addr, size));
+  entries_.Add(EntryInfo(id, addr, size, accessed));
   ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
   return id;
 }
@@ -472,6 +508,10 @@ void HeapObjectsMap::StopHeapObjectsTracking() {
 
 
 void HeapObjectsMap::UpdateHeapObjectsMap() {
+  if (FLAG_heap_profiler_trace_objects) {
+    PrintF("Begin HeapObjectsMap::UpdateHeapObjectsMap. map has %d entries.\n",
+           entries_map_.occupancy());
+  }
   heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::UpdateHeapObjectsMap");
   HeapIterator iterator(heap_);
@@ -479,8 +519,129 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
        obj != NULL;
        obj = iterator.next()) {
     FindOrAddEntry(obj->address(), obj->Size());
+    if (FLAG_heap_profiler_trace_objects) {
+      PrintF("Update object      : %p %6d. Next address is %p\n",
+             obj->address(),
+             obj->Size(),
+             obj->address() + obj->Size());
+    }
   }
   RemoveDeadEntries();
+  if (FLAG_heap_profiler_trace_objects) {
+    PrintF("End HeapObjectsMap::UpdateHeapObjectsMap. map has %d entries.\n",
+           entries_map_.occupancy());
+  }
+}
+
+
+namespace {
+
+
+struct HeapObjectInfo {
+  HeapObjectInfo(HeapObject* obj, int expected_size)
+    : obj(obj),
+      expected_size(expected_size) {
+  }
+
+  HeapObject* obj;
+  int expected_size;
+
+  bool IsValid() const { return expected_size == obj->Size(); }
+
+  void Print() const {
+    if (expected_size == 0) {
+      PrintF("Untracked object   : %p %6d. Next address is %p\n",
+             obj->address(),
+             obj->Size(),
+             obj->address() + obj->Size());
+    } else if (obj->Size() != expected_size) {
+      PrintF("Wrong size %6d: %p %6d. Next address is %p\n",
+             expected_size,
+             obj->address(),
+             obj->Size(),
+             obj->address() + obj->Size());
+    } else {
+      PrintF("Good object      : %p %6d. Next address is %p\n",
+             obj->address(),
+             expected_size,
+             obj->address() + obj->Size());
+    }
+  }
+};
+
+
+static int comparator(const HeapObjectInfo* a, const HeapObjectInfo* b) {
+  if (a->obj < b->obj) return -1;
+  if (a->obj > b->obj) return 1;
+  return 0;
+}
+
+
+}  // namespace
+
+
+int HeapObjectsMap::FindUntrackedObjects() {
+  List<HeapObjectInfo> heap_objects(1000);
+
+  HeapIterator iterator(heap_);
+  int untracked = 0;
+  for (HeapObject* obj = iterator.next();
+       obj != NULL;
+       obj = iterator.next()) {
+    HashMap::Entry* entry = entries_map_.Lookup(
+      obj->address(), ComputePointerHash(obj->address()), false);
+    if (entry == NULL) {
+      ++untracked;
+      if (FLAG_heap_profiler_trace_objects) {
+        heap_objects.Add(HeapObjectInfo(obj, 0));
+      }
+    } else {
+      int entry_index = static_cast<int>(
+          reinterpret_cast<intptr_t>(entry->value));
+      EntryInfo& entry_info = entries_.at(entry_index);
+      if (FLAG_heap_profiler_trace_objects) {
+        heap_objects.Add(HeapObjectInfo(obj,
+                         static_cast<int>(entry_info.size)));
+        if (obj->Size() != static_cast<int>(entry_info.size))
+          ++untracked;
+      } else {
+        CHECK_EQ(obj->Size(), static_cast<int>(entry_info.size));
+      }
+    }
+  }
+  if (FLAG_heap_profiler_trace_objects) {
+    PrintF("\nBegin HeapObjectsMap::FindUntrackedObjects. %d entries in map.\n",
+           entries_map_.occupancy());
+    heap_objects.Sort(comparator);
+    int last_printed_object = -1;
+    bool print_next_object = false;
+    for (int i = 0; i < heap_objects.length(); ++i) {
+      const HeapObjectInfo& object_info = heap_objects[i];
+      if (!object_info.IsValid()) {
+        ++untracked;
+        if (last_printed_object != i - 1) {
+          if (i > 0) {
+            PrintF("%d objects were skipped\n", i - 1 - last_printed_object);
+            heap_objects[i - 1].Print();
+          }
+        }
+        object_info.Print();
+        last_printed_object = i;
+        print_next_object = true;
+      } else if (print_next_object) {
+        object_info.Print();
+        print_next_object = false;
+        last_printed_object = i;
+      }
+    }
+    if (last_printed_object < heap_objects.length() - 1) {
+      PrintF("Last %d objects were skipped\n",
+             heap_objects.length() - 1 - last_printed_object);
+    }
+    PrintF("End HeapObjectsMap::FindUntrackedObjects. %d entries in map.\n\n",
+           entries_map_.occupancy());
+  }
+  return untracked;
 }
 
 
@@ -587,7 +748,8 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
       names_(heap),
-      ids_(heap) {
+      ids_(heap),
+      allocation_tracker_(NULL) {
 }
 
 
@@ -597,7 +759,26 @@ static void DeleteHeapSnapshot(HeapSnapshot** snapshot_ptr) {
 
 
 HeapSnapshotsCollection::~HeapSnapshotsCollection() {
+  delete allocation_tracker_;
   snapshots_.Iterate(DeleteHeapSnapshot);
+}
+
+
+void HeapSnapshotsCollection::StartHeapObjectsTracking() {
+  ids_.UpdateHeapObjectsMap();
+  if (allocation_tracker_ == NULL) {
+    allocation_tracker_ = new AllocationTracker(&ids_, names());
+  }
+  is_tracking_objects_ = true;
+}
+
+
+void HeapSnapshotsCollection::StopHeapObjectsTracking() {
+  ids_.StopHeapObjectsTracking();
+  if (allocation_tracker_ != NULL) {
+    delete allocation_tracker_;
+    allocation_tracker_ = NULL;
+  }
 }
 
 
@@ -641,6 +822,15 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
     }
   }
   return object != NULL ? Handle<HeapObject>(object) : Handle<HeapObject>();
+}
+
+
+void HeapSnapshotsCollection::NewObjectEvent(Address addr, int size) {
+  DisallowHeapAllocation no_allocation;
+  ids_.NewObject(addr, size);
+  if (allocation_tracker_ != NULL) {
+    allocation_tracker_->NewObjectEvent(addr, size);
+  }
 }
 
 
@@ -1301,6 +1491,10 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
                                                      AllocationSite* site) {
   SetInternalReference(site, entry, "transition_info", site->transition_info(),
                        AllocationSite::kTransitionInfoOffset);
+  SetInternalReference(site, entry, "nested_site", site->nested_site(),
+                       AllocationSite::kNestedSiteOffset);
+  SetInternalReference(site, entry, "dependent_code", site->dependent_code(),
+                       AllocationSite::kDependentCodeOffset);
 }
 
 
@@ -2438,6 +2632,10 @@ const int HeapSnapshotJSONSerializer::kEdgeFieldsCount = 3;
 const int HeapSnapshotJSONSerializer::kNodeFieldsCount = 5;
 
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
+  if (AllocationTracker* allocation_tracker =
+      snapshot_->collection()->allocation_tracker()) {
+    allocation_tracker->PrepareForSerialization();
+  }
   ASSERT(writer_ == NULL);
   writer_ = new OutputStreamWriter(stream);
   SerializeImpl();
@@ -2461,6 +2659,16 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
   SerializeEdges();
   if (writer_->aborted()) return;
   writer_->AddString("],\n");
+
+  writer_->AddString("\"trace_function_infos\":[");
+  SerializeTraceNodeInfos();
+  if (writer_->aborted()) return;
+  writer_->AddString("],\n");
+  writer_->AddString("\"trace_tree\":[");
+  SerializeTraceTree();
+  if (writer_->aborted()) return;
+  writer_->AddString("],\n");
+
   writer_->AddString("\"strings\":[");
   SerializeStrings();
   if (writer_->aborted()) return;
@@ -2472,7 +2680,7 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
 
 int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
   HashMap::Entry* cache_entry = strings_.Lookup(
-      const_cast<char*>(s), ObjectHash(s), true);
+      const_cast<char*>(s), StringHash(s), true);
   if (cache_entry->value == NULL) {
     cache_entry->value = reinterpret_cast<void*>(next_string_id_++);
   }
@@ -2621,7 +2829,20 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("shortcut") ","
             JSON_S("weak")) ","
         JSON_S("string_or_number") ","
-        JSON_S("node"))));
+        JSON_S("node")) ","
+    JSON_S("trace_function_info_fields") ":" JSON_A(
+        JSON_S("function_id") ","
+        JSON_S("name") ","
+        JSON_S("script_name") ","
+        JSON_S("script_id") ","
+        JSON_S("line") ","
+        JSON_S("column")) ","
+    JSON_S("trace_node_fields") ":" JSON_A(
+        JSON_S("id") ","
+        JSON_S("function_id") ","
+        JSON_S("count") ","
+        JSON_S("size") ","
+        JSON_S("children"))));
 #undef JSON_S
 #undef JSON_O
 #undef JSON_A
@@ -2629,6 +2850,13 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddNumber(snapshot_->entries().length());
   writer_->AddString(",\"edge_count\":");
   writer_->AddNumber(snapshot_->edges().length());
+  writer_->AddString(",\"trace_function_count\":");
+  uint32_t count = 0;
+  AllocationTracker* tracker = snapshot_->collection()->allocation_tracker();
+  if (tracker) {
+    count = tracker->id_to_function_info()->occupancy();
+  }
+  writer_->AddNumber(count);
 }
 
 
@@ -2639,6 +2867,100 @@ static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
   w->AddCharacter(hex_chars[(u >> 8) & 0xf]);
   w->AddCharacter(hex_chars[(u >> 4) & 0xf]);
   w->AddCharacter(hex_chars[u & 0xf]);
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeTraceTree() {
+  AllocationTracker* tracker = snapshot_->collection()->allocation_tracker();
+  if (!tracker) return;
+  AllocationTraceTree* traces = tracker->trace_tree();
+  SerializeTraceNode(traces->root());
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
+  // The buffer needs space for 4 unsigned ints, 4 commas, [ and \0
+  const int kBufferSize =
+      4 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
+      + 4 + 1 + 1;
+  EmbeddedVector<char, kBufferSize> buffer;
+  int buffer_pos = 0;
+  buffer_pos = utoa(node->id(), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = utoa(node->function_id(), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = utoa(node->allocation_count(), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = utoa(node->allocation_size(), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer[buffer_pos++] = '[';
+  buffer[buffer_pos++] = '\0';
+  writer_->AddString(buffer.start());
+
+  Vector<AllocationTraceNode*> children = node->children();
+  for (int i = 0; i < children.length(); i++) {
+    if (i > 0) {
+      writer_->AddCharacter(',');
+    }
+    SerializeTraceNode(children[i]);
+  }
+  writer_->AddCharacter(']');
+}
+
+
+// 0-based position is converted to 1-based during the serialization.
+static int SerializePosition(int position, const Vector<char>& buffer,
+                             int buffer_pos) {
+  if (position == -1) {
+    buffer[buffer_pos++] = '0';
+  } else {
+    ASSERT(position >= 0);
+    buffer_pos = utoa(static_cast<unsigned>(position + 1), buffer, buffer_pos);
+  }
+  return buffer_pos;
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
+  AllocationTracker* tracker = snapshot_->collection()->allocation_tracker();
+  if (!tracker) return;
+  // The buffer needs space for 6 unsigned ints, 6 commas, \n and \0
+  const int kBufferSize =
+      6 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
+      + 6 + 1 + 1;
+  EmbeddedVector<char, kBufferSize> buffer;
+  HashMap* id_to_function_info = tracker->id_to_function_info();
+  bool first_entry = true;
+  for (HashMap::Entry* p = id_to_function_info->Start();
+       p != NULL;
+       p = id_to_function_info->Next(p)) {
+    SnapshotObjectId id =
+        static_cast<SnapshotObjectId>(reinterpret_cast<intptr_t>(p->key));
+    AllocationTracker::FunctionInfo* info =
+        reinterpret_cast<AllocationTracker::FunctionInfo* >(p->value);
+    int buffer_pos = 0;
+    if (first_entry) {
+      first_entry = false;
+    } else {
+      buffer[buffer_pos++] = ',';
+    }
+    buffer_pos = utoa(id, buffer, buffer_pos);
+    buffer[buffer_pos++] = ',';
+    buffer_pos = utoa(GetStringId(info->name), buffer, buffer_pos);
+    buffer[buffer_pos++] = ',';
+    buffer_pos = utoa(GetStringId(info->script_name), buffer, buffer_pos);
+    buffer[buffer_pos++] = ',';
+    // The cast is safe because script id is a non-negative Smi.
+    buffer_pos = utoa(static_cast<unsigned>(info->script_id), buffer,
+        buffer_pos);
+    buffer[buffer_pos++] = ',';
+    buffer_pos = SerializePosition(info->line, buffer, buffer_pos);
+    buffer[buffer_pos++] = ',';
+    buffer_pos = SerializePosition(info->column, buffer, buffer_pos);
+    buffer[buffer_pos++] = '\n';
+    buffer[buffer_pos++] = '\0';
+    writer_->AddString(buffer.start());
+  }
 }
 
 
@@ -2693,37 +3015,21 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
 
 
 void HeapSnapshotJSONSerializer::SerializeStrings() {
-  List<HashMap::Entry*> sorted_strings;
-  SortHashMap(&strings_, &sorted_strings);
+  ScopedVector<const unsigned char*> sorted_strings(
+      strings_.occupancy() + 1);
+  for (HashMap::Entry* entry = strings_.Start();
+       entry != NULL;
+       entry = strings_.Next(entry)) {
+    int index = static_cast<int>(reinterpret_cast<uintptr_t>(entry->value));
+    sorted_strings[index] = reinterpret_cast<const unsigned char*>(entry->key);
+  }
   writer_->AddString("\"<dummy>\"");
-  for (int i = 0; i < sorted_strings.length(); ++i) {
+  for (int i = 1; i < sorted_strings.length(); ++i) {
     writer_->AddCharacter(',');
-    SerializeString(
-        reinterpret_cast<const unsigned char*>(sorted_strings[i]->key));
+    SerializeString(sorted_strings[i]);
     if (writer_->aborted()) return;
   }
 }
 
-
-template<typename T>
-inline static int SortUsingEntryValue(const T* x, const T* y) {
-  uintptr_t x_uint = reinterpret_cast<uintptr_t>((*x)->value);
-  uintptr_t y_uint = reinterpret_cast<uintptr_t>((*y)->value);
-  if (x_uint > y_uint) {
-    return 1;
-  } else if (x_uint == y_uint) {
-    return 0;
-  } else {
-    return -1;
-  }
-}
-
-
-void HeapSnapshotJSONSerializer::SortHashMap(
-    HashMap* map, List<HashMap::Entry*>* sorted_entries) {
-  for (HashMap::Entry* p = map->Start(); p != NULL; p = map->Next(p))
-    sorted_entries->Add(p);
-  sorted_entries->Sort(SortUsingEntryValue);
-}
 
 } }  // namespace v8::internal

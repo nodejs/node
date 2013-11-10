@@ -345,8 +345,6 @@ function testOneArrayType(allocator) {
                       -Infinity,
                       expected_array_value(7));
 
-  assertOptimized(test_various_stores);
-
   // Make sure that we haven't converted from fast double.
   assertTrue(%HasFastDoubleElements(large_array));
 }

@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "hydrogen-canonicalize.h"
+#include "hydrogen-redundant-phi.h"
 
 namespace v8 {
 namespace internal {
@@ -57,8 +58,15 @@ void HCanonicalizePhase::Run() {
       }
     }
   }
+
   // Perform actual Canonicalization pass.
+  HRedundantPhiEliminationPhase redundant_phi_eliminator(graph());
   for (int i = 0; i < blocks->length(); ++i) {
+    // Eliminate redundant phis in the block first; changes to their inputs
+    // might have made them redundant, and eliminating them creates more
+    // opportunities for constant folding and strength reduction.
+    redundant_phi_eliminator.ProcessBlock(blocks->at(i));
+    // Now canonicalize each instruction.
     for (HInstructionIterator it(blocks->at(i)); !it.Done(); it.Advance()) {
       HInstruction* instr = it.Current();
       HValue* value = instr->Canonicalize();

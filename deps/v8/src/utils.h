@@ -419,8 +419,8 @@ class Vector {
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
   Vector<T> SubVector(int from, int to) {
-    ASSERT(to <= length_);
-    ASSERT(from < to);
+    SLOW_ASSERT(to <= length_);
+    SLOW_ASSERT(from < to);
     ASSERT(0 <= from);
     return Vector<T>(start() + from, to - from);
   }

@@ -68,8 +68,4 @@ class V8_EXPORT Testing {
 
 }  // namespace v8
 
-
-#undef V8_EXPORT
-
-
 #endif  // V8_V8_TEST_H_

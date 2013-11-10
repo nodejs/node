@@ -51,7 +51,7 @@ using ::v8::internal::String;
 static void CheckFunctionName(v8::Handle<v8::Script> script,
                               const char* func_pos_src,
                               const char* ref_inferred_name) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   // Get script source.
@@ -82,7 +82,7 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   isolate->debug()->PrepareForBreakPoints();
   Object* shared_func_info_ptr =
       isolate->debug()->FindSharedFunctionInfoInScript(i_script, func_pos);
-  CHECK(shared_func_info_ptr != HEAP->undefined_value());
+  CHECK(shared_func_info_ptr != CcTest::heap()->undefined_value());
   Handle<SharedFunctionInfo> shared_func_info(
       SharedFunctionInfo::cast(shared_func_info_ptr));
 

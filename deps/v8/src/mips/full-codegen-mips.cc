@@ -171,12 +171,7 @@ void FullCodeGenerator::Generate() {
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
   info->set_prologue_offset(masm_->pc_offset());
-  // The following three instructions must remain together and unmodified for
-  // code aging to work properly.
-  __ Push(ra, fp, cp, a1);
-  __ nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-  // Adjust fp to point to caller's fp.
-  __ Addu(fp, sp, Operand(2 * kPointerSize));
+  __ Prologue(BUILD_FUNCTION_FRAME);
   info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -1653,13 +1648,11 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   __ li(a0, Operand(Smi::FromInt(flags)));
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      expr->depth() > 1) {
-    __ Push(a3, a2, a1, a0);
-    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
-  } else if (Serializer::enabled() || flags != ObjectLiteral::kFastElements ||
+      expr->depth() > 1 || Serializer::enabled() ||
+      flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ Push(a3, a2, a1, a0);
-    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
+    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
     FastCloneShallowObjectStub stub(properties_count);
     __ CallStub(&stub);
@@ -3613,8 +3606,9 @@ void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(args->length(), 1);
 
-  // Load the argument on the stack and call the stub.
-  VisitForStackValue(args->at(0));
+  // Load the argument into a0 and call the stub.
+  VisitForAccumulatorValue(args->at(0));
+  __ mov(a0, result_register());
 
   NumberToStringStub stub;
   __ CallStub(&stub);
@@ -4925,6 +4919,83 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 
 
 #undef __
+
+
+void BackEdgeTable::PatchAt(Code* unoptimized_code,
+                            Address pc,
+                            BackEdgeState target_state,
+                            Code* replacement_code) {
+  static const int kInstrSize = Assembler::kInstrSize;
+  Address branch_address = pc - 6 * kInstrSize;
+  CodePatcher patcher(branch_address, 1);
+
+  switch (target_state) {
+    case INTERRUPT:
+      // slt at, a3, zero_reg (in case of count based interrupts)
+      // beq at, zero_reg, ok
+      // lui t9, <interrupt stub address> upper
+      // ori t9, <interrupt stub address> lower
+      // jalr t9
+      // nop
+      // ok-label ----- pc_after points here
+      patcher.masm()->slt(at, a3, zero_reg);
+      break;
+    case ON_STACK_REPLACEMENT:
+    case OSR_AFTER_STACK_CHECK:
+      // addiu at, zero_reg, 1
+      // beq at, zero_reg, ok  ;; Not changed
+      // lui t9, <on-stack replacement address> upper
+      // ori t9, <on-stack replacement address> lower
+      // jalr t9  ;; Not changed
+      // nop  ;; Not changed
+      // ok-label ----- pc_after points here
+      patcher.masm()->addiu(at, zero_reg, 1);
+      break;
+  }
+  Address pc_immediate_load_address = pc - 4 * kInstrSize;
+  // Replace the stack check address in the load-immediate (lui/ori pair)
+  // with the entry address of the replacement code.
+  Assembler::set_target_address_at(pc_immediate_load_address,
+                                   replacement_code->entry());
+
+  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, pc_immediate_load_address, replacement_code);
+}
+
+
+BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
+    Isolate* isolate,
+    Code* unoptimized_code,
+    Address pc) {
+  static const int kInstrSize = Assembler::kInstrSize;
+  Address branch_address = pc - 6 * kInstrSize;
+  Address pc_immediate_load_address = pc - 4 * kInstrSize;
+
+  ASSERT(Assembler::IsBeq(Assembler::instr_at(pc - 5 * kInstrSize)));
+  if (!Assembler::IsAddImmediate(Assembler::instr_at(branch_address))) {
+    ASSERT(reinterpret_cast<uint32_t>(
+        Assembler::target_address_at(pc_immediate_load_address)) ==
+           reinterpret_cast<uint32_t>(
+               isolate->builtins()->InterruptCheck()->entry()));
+    return INTERRUPT;
+  }
+
+  ASSERT(Assembler::IsAddImmediate(Assembler::instr_at(branch_address)));
+
+  if (reinterpret_cast<uint32_t>(
+      Assembler::target_address_at(pc_immediate_load_address)) ==
+          reinterpret_cast<uint32_t>(
+              isolate->builtins()->OnStackReplacement()->entry())) {
+    return ON_STACK_REPLACEMENT;
+  }
+
+  ASSERT(reinterpret_cast<uint32_t>(
+      Assembler::target_address_at(pc_immediate_load_address)) ==
+         reinterpret_cast<uint32_t>(
+             isolate->builtins()->OsrAfterStackCheck()->entry()));
+  return OSR_AFTER_STACK_CHECK;
+}
+
 
 } }  // namespace v8::internal
 

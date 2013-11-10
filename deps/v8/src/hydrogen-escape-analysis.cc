@@ -154,9 +154,8 @@ HValue* HEscapeAnalysisPhase::NewMapCheckAndInsert(HCapturedObject* state,
   HValue* value = state->map_value();
   // TODO(mstarzinger): This will narrow a map check against a set of maps
   // down to the first element in the set. Revisit and fix this.
-  Handle<Map> map_object = mapcheck->map_set()->first();
-  UniqueValueId map_id = mapcheck->map_unique_ids()->first();
-  HCheckValue* check = HCheckValue::New(zone, NULL, value, map_object, map_id);
+  HCheckValue* check = HCheckValue::New(
+      zone, NULL, value, mapcheck->first_map(), false);
   check->InsertBefore(mapcheck);
   return check;
 }
@@ -307,7 +306,7 @@ void HEscapeAnalysisPhase::PerformScalarReplacement() {
     number_of_objects_++;
     block_states_.Clear();
 
-    // Perform actual analysis steps.
+    // Perform actual analysis step.
     AnalyzeDataFlow(allocate);
 
     cumulative_values_ += number_of_values_;
@@ -321,8 +320,13 @@ void HEscapeAnalysisPhase::Run() {
   // TODO(mstarzinger): We disable escape analysis with OSR for now, because
   // spill slots might be uninitialized. Needs investigation.
   if (graph()->has_osr()) return;
-  CollectCapturedValues();
-  PerformScalarReplacement();
+  int max_fixpoint_iteration_count = FLAG_escape_analysis_iterations;
+  for (int i = 0; i < max_fixpoint_iteration_count; i++) {
+    CollectCapturedValues();
+    if (captured_.is_empty()) break;
+    PerformScalarReplacement();
+    captured_.Clear();
+  }
 }
 
 

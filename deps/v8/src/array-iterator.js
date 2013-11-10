@@ -36,9 +36,9 @@ var ARRAY_ITERATOR_KIND_VALUES = 2;
 var ARRAY_ITERATOR_KIND_ENTRIES = 3;
 // The spec draft also has "sparse" but it is never used.
 
-var iteratorObjectSymbol = %CreateSymbol(void 0);
-var arrayIteratorNextIndexSymbol = %CreateSymbol(void 0);
-var arrayIterationKindSymbol = %CreateSymbol(void 0);
+var iteratorObjectSymbol = %CreateSymbol(UNDEFINED);
+var arrayIteratorNextIndexSymbol = %CreateSymbol(UNDEFINED);
+var arrayIterationKindSymbol = %CreateSymbol(UNDEFINED);
 
 function ArrayIterator() {}
 
@@ -74,7 +74,7 @@ function ArrayIteratorNext() {
 
   if (index >= length) {
     iterator[arrayIteratorNextIndexSymbol] = 1 / 0; // Infinity
-    return CreateIteratorResultObject(void 0, true);
+    return CreateIteratorResultObject(UNDEFINED, true);
   }
 
   iterator[arrayIteratorNextIndexSymbol] = index + 1;

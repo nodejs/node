@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=100
+// Flags: --concurrent-recompilation --block-concurrent-recompilation
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
@@ -60,8 +60,14 @@ f();
 %OptimizeFunctionOnNextCall(f, "concurrent");  // Mark with builtin.
 f();                           // Kick off concurrent recompilation.
 
+// After compile graph has been created...
 Debug.setListener(listener);   // Activate debugger.
 Debug.setBreakPoint(f, 2, 0);  // Force deopt.
+
+// At this point, concurrent recompilation is still being blocked.
+assertUnoptimized(f, "no sync");
+// Let concurrent recompilation proceed.
+%UnblockConcurrentRecompilation();
 // Sync with optimization thread.  But no optimized code is installed.
 assertUnoptimized(f, "sync");
 

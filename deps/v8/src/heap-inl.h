@@ -140,12 +140,11 @@ MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
   // Compute map and object size.
   Map* map = ascii_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
   // Allocate string.
   Object* result;
-  { MaybeObject* maybe_result = (size > Page::kMaxNonCodeHeapObjectSize)
-                   ? lo_space_->AllocateRaw(size, NOT_EXECUTABLE)
-                   : old_data_space_->AllocateRaw(size);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -174,12 +173,11 @@ MaybeObject* Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
   // Compute map and object size.
   Map* map = internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
   // Allocate string.
   Object* result;
-  { MaybeObject* maybe_result = (size > Page::kMaxNonCodeHeapObjectSize)
-                   ? lo_space_->AllocateRaw(size, NOT_EXECUTABLE)
-                   : old_data_space_->AllocateRaw(size);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -208,10 +206,17 @@ MaybeObject* Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
 }
 
 
+MaybeObject* Heap::CopyConstantPoolArray(ConstantPoolArray* src) {
+  return CopyConstantPoolArrayWithMap(src, src->map());
+}
+
+
 MaybeObject* Heap::AllocateRaw(int size_in_bytes,
                                AllocationSpace space,
                                AllocationSpace retry_space) {
-  ASSERT(AllowHandleAllocation::IsAllowed() && gc_state_ == NOT_IN_GC);
+  ASSERT(AllowHandleAllocation::IsAllowed());
+  ASSERT(AllowHeapAllocation::IsAllowed());
+  ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(space != NEW_SPACE ||
          retry_space == OLD_POINTER_SPACE ||
          retry_space == OLD_DATA_SPACE ||
@@ -288,40 +293,6 @@ void Heap::FinalizeExternalString(String* string) {
     (*resource_addr)->Dispose();
     *resource_addr = NULL;
   }
-}
-
-
-MaybeObject* Heap::AllocateRawMap() {
-#ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
-#endif
-  MaybeObject* result = map_space_->AllocateRaw(Map::kSize);
-  if (result->IsFailure()) old_gen_exhausted_ = true;
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateRawCell() {
-#ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
-#endif
-  MaybeObject* result = cell_space_->AllocateRaw(Cell::kSize);
-  if (result->IsFailure()) old_gen_exhausted_ = true;
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateRawPropertyCell() {
-#ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
-#endif
-  MaybeObject* result =
-      property_cell_space_->AllocateRaw(PropertyCell::kSize);
-  if (result->IsFailure()) old_gen_exhausted_ = true;
-  return result;
 }
 
 
@@ -525,18 +496,17 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
+  if (FLAG_trace_track_allocation_sites && object->IsJSObject()) {
+    if (AllocationMemento::FindForJSObject(JSObject::cast(object), true) !=
+        NULL) {
+      object->GetIsolate()->heap()->allocation_mementos_found_++;
+    }
+  }
+
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   ASSERT(object->map() != object->GetHeap()->allocation_memento_map());
   // Call the slow part of scavenge object.
   return ScavengeObjectSlow(p, object);
-}
-
-
-MaybeObject* Heap::AllocateEmptyJSArrayWithAllocationSite(
-      ElementsKind elements_kind,
-      Handle<AllocationSite> allocation_site) {
-  return AllocateJSArrayAndStorageWithAllocationSite(elements_kind, 0, 0,
-      allocation_site, DONT_INITIALIZE_ARRAY_ELEMENTS);
 }
 
 
@@ -847,15 +817,15 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 
 
 #ifdef VERIFY_HEAP
-NoWeakEmbeddedMapsVerificationScope::NoWeakEmbeddedMapsVerificationScope() {
+NoWeakObjectVerificationScope::NoWeakObjectVerificationScope() {
   Isolate* isolate = Isolate::Current();
-  isolate->heap()->no_weak_embedded_maps_verification_scope_depth_++;
+  isolate->heap()->no_weak_object_verification_scope_depth_++;
 }
 
 
-NoWeakEmbeddedMapsVerificationScope::~NoWeakEmbeddedMapsVerificationScope() {
+NoWeakObjectVerificationScope::~NoWeakObjectVerificationScope() {
   Isolate* isolate = Isolate::Current();
-  isolate->heap()->no_weak_embedded_maps_verification_scope_depth_--;
+  isolate->heap()->no_weak_object_verification_scope_depth_--;
 }
 #endif
 

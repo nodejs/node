@@ -189,7 +189,7 @@ function RegExpExec(string) {
   // matchIndices is either null or the lastMatchInfo array.
   var matchIndices = %_RegExpExec(this, string, i, lastMatchInfo);
 
-  if (matchIndices === null) {
+  if (IS_NULL(matchIndices)) {
     this.lastIndex = 0;
     return null;
   }
@@ -232,7 +232,7 @@ function RegExpTest(string) {
     %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, string, lastIndex]);
     // matchIndices is either null or the lastMatchInfo array.
     var matchIndices = %_RegExpExec(this, string, i, lastMatchInfo);
-    if (matchIndices === null) {
+    if (IS_NULL(matchIndices)) {
       this.lastIndex = 0;
       return false;
     }
@@ -253,7 +253,7 @@ function RegExpTest(string) {
     %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [regexp, string, lastIndex]);
     // matchIndices is either null or the lastMatchInfo array.
     var matchIndices = %_RegExpExec(regexp, string, 0, lastMatchInfo);
-    if (matchIndices === null) {
+    if (IS_NULL(matchIndices)) {
       this.lastIndex = 0;
       return false;
     }
@@ -384,7 +384,7 @@ function RegExpMakeCaptureGetter(n) {
 var lastMatchInfo = new InternalPackedArray(
     2,                 // REGEXP_NUMBER_OF_CAPTURES
     "",                // Last subject.
-    void 0,            // Last input - settable with RegExpSetInput.
+    UNDEFINED,         // Last input - settable with RegExpSetInput.
     0,                 // REGEXP_FIRST_CAPTURE + 0
     0                  // REGEXP_FIRST_CAPTURE + 1
 );

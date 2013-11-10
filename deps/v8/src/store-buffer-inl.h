@@ -41,6 +41,7 @@ Address StoreBuffer::TopAddress() {
 void StoreBuffer::Mark(Address addr) {
   ASSERT(!heap_->cell_space()->Contains(addr));
   ASSERT(!heap_->code_space()->Contains(addr));
+  ASSERT(!heap_->old_data_space()->Contains(addr));
   Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
   *top++ = addr;
   heap_->public_set_store_buffer_top(top);

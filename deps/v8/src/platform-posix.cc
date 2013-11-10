@@ -29,8 +29,6 @@
 // own but contains the parts which are the same across POSIX platforms Linux,
 // Mac OS, FreeBSD and OpenBSD.
 
-#include "platform-posix.h"
-
 #include <dlfcn.h>
 #include <pthread.h>
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
@@ -99,6 +97,48 @@ intptr_t OS::MaxVirtualMemory() {
   int result = getrlimit(RLIMIT_DATA, &limit);
   if (result != 0) return 0;
   return limit.rlim_cur;
+}
+
+
+uint64_t OS::TotalPhysicalMemory() {
+#if V8_OS_MACOSX
+  int mib[2];
+  mib[0] = CTL_HW;
+  mib[1] = HW_MEMSIZE;
+  int64_t size = 0;
+  size_t len = sizeof(size);
+  if (sysctl(mib, 2, &size, &len, NULL, 0) != 0) {
+    UNREACHABLE();
+    return 0;
+  }
+  return static_cast<uint64_t>(size);
+#elif V8_OS_FREEBSD
+  int pages, page_size;
+  size_t size = sizeof(pages);
+  sysctlbyname("vm.stats.vm.v_page_count", &pages, &size, NULL, 0);
+  sysctlbyname("vm.stats.vm.v_page_size", &page_size, &size, NULL, 0);
+  if (pages == -1 || page_size == -1) {
+    UNREACHABLE();
+    return 0;
+  }
+  return static_cast<uint64_t>(pages) * page_size;
+#elif V8_OS_CYGWIN
+  MEMORYSTATUS memory_info;
+  memory_info.dwLength = sizeof(memory_info);
+  if (!GlobalMemoryStatus(&memory_info)) {
+    UNREACHABLE();
+    return 0;
+  }
+  return static_cast<uint64_t>(memory_info.dwTotalPhys);
+#else
+  intptr_t pages = sysconf(_SC_PHYS_PAGES);
+  intptr_t page_size = sysconf(_SC_PAGESIZE);
+  if (pages == -1 || page_size == -1) {
+    UNREACHABLE();
+    return 0;
+  }
+  return static_cast<uint64_t>(pages) * page_size;
+#endif
 }
 
 

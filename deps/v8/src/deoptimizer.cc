@@ -1494,7 +1494,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   intptr_t caller_arg_count = 0;
-  bool arg_count_known = descriptor->stack_parameter_count_ == NULL;
+  bool arg_count_known = !descriptor->stack_parameter_count_.is_valid();
 
   // Build the Arguments object for the caller's parameters and a pointer to it.
   output_frame_offset -= kPointerSize;
@@ -1614,12 +1614,16 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
     }
   } else {
     // Dispatch on the instance type of the object to be materialized.
-    Handle<Map> map = Handle<Map>::cast(MaterializeNextValue());
+    // We also need to make sure that the representation of all fields
+    // in the given object are general enough to hold a tagged value.
+    Handle<Map> map = Map::GeneralizeAllFieldRepresentations(
+        Handle<Map>::cast(MaterializeNextValue()), Representation::Tagged());
     switch (map->instance_type()) {
       case HEAP_NUMBER_TYPE: {
-        Handle<HeapNumber> number =
-            Handle<HeapNumber>::cast(MaterializeNextValue());
-        materialized_objects_->Add(number);
+        Handle<HeapNumber> object = isolate_->factory()->NewHeapNumber(0.0);
+        materialized_objects_->Add(object);
+        Handle<Object> number = MaterializeNextValue();
+        object->set_value(number->Number());
         materialization_value_index_ += kDoubleSize / kPointerSize - 1;
         break;
       }
@@ -1693,28 +1697,34 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   // output frames are used to materialize arguments objects later on they need
   // to already contain valid heap numbers.
   for (int i = 0; i < deferred_heap_numbers_.length(); i++) {
-    HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
+    HeapNumberMaterializationDescriptor<Address> d = deferred_heap_numbers_[i];
     Handle<Object> num = isolate_->factory()->NewNumber(d.value());
     if (trace_) {
       PrintF("Materialized a new heap number %p [%e] in slot %p\n",
              reinterpret_cast<void*>(*num),
              d.value(),
-             d.slot_address());
+             d.destination());
     }
-    Memory::Object_at(d.slot_address()) = *num;
+    Memory::Object_at(d.destination()) = *num;
   }
 
   // Materialize all heap numbers required for arguments/captured objects.
-  for (int i = 0; i < values.length(); i++) {
-    if (!values.at(i)->IsTheHole()) continue;
-    double double_value = deferred_objects_double_values_[i];
-    Handle<Object> num = isolate_->factory()->NewNumber(double_value);
+  for (int i = 0; i < deferred_objects_double_values_.length(); i++) {
+    HeapNumberMaterializationDescriptor<int> d =
+        deferred_objects_double_values_[i];
+    Handle<Object> num = isolate_->factory()->NewNumber(d.value());
     if (trace_) {
-      PrintF("Materialized a new heap number %p [%e] for object\n",
-             reinterpret_cast<void*>(*num), double_value);
+      PrintF("Materialized a new heap number %p [%e] for object at %d\n",
+             reinterpret_cast<void*>(*num),
+             d.value(),
+             d.destination());
     }
-    values.Set(i, num);
+    ASSERT(values.at(d.destination())->IsTheHole());
+    values.Set(d.destination(), num);
   }
+
+  // Play it safe and clear all object double values before we continue.
+  deferred_objects_double_values_.Clear();
 
   // Materialize arguments/captured objects.
   if (!deferred_objects_.is_empty()) {
@@ -1765,11 +1775,11 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
   Address parameters_bottom = parameters_top + parameters_size;
   Address expressions_bottom = expressions_top + expressions_size;
   for (int i = 0; i < deferred_heap_numbers_.length(); i++) {
-    HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
+    HeapNumberMaterializationDescriptor<Address> d = deferred_heap_numbers_[i];
 
     // Check of the heap number to materialize actually belong to the frame
     // being extracted.
-    Address slot = d.slot_address();
+    Address slot = d.destination();
     if (parameters_top <= slot && slot < parameters_bottom) {
       Handle<Object> num = isolate_->factory()->NewNumber(d.value());
 
@@ -1781,7 +1791,7 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
                "for parameter slot #%d\n",
                reinterpret_cast<void*>(*num),
                d.value(),
-               d.slot_address(),
+               d.destination(),
                index);
       }
 
@@ -1797,7 +1807,7 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
                "for expression slot #%d\n",
                reinterpret_cast<void*>(*num),
                d.value(),
-               d.slot_address(),
+               d.destination(),
                index);
       }
 
@@ -2337,85 +2347,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 }
 
 
-void Deoptimizer::PatchInterruptCode(Isolate* isolate,
-                                     Code* unoptimized) {
-  DisallowHeapAllocation no_gc;
-  Code* replacement_code =
-      isolate->builtins()->builtin(Builtins::kOnStackReplacement);
-
-  // Iterate over the back edge table and patch every interrupt
-  // call to an unconditional call to the replacement code.
-  int loop_nesting_level = unoptimized->allow_osr_at_loop_nesting_level();
-
-  for (FullCodeGenerator::BackEdgeTableIterator back_edges(unoptimized, &no_gc);
-       !back_edges.Done();
-       back_edges.Next()) {
-    if (static_cast<int>(back_edges.loop_depth()) == loop_nesting_level) {
-      ASSERT_EQ(NOT_PATCHED, GetInterruptPatchState(isolate,
-                                                    unoptimized,
-                                                    back_edges.pc()));
-      PatchInterruptCodeAt(unoptimized,
-                           back_edges.pc(),
-                           replacement_code);
-    }
-  }
-
-  unoptimized->set_back_edges_patched_for_osr(true);
-  ASSERT(Deoptimizer::VerifyInterruptCode(
-             isolate, unoptimized, loop_nesting_level));
-}
-
-
-void Deoptimizer::RevertInterruptCode(Isolate* isolate,
-                                      Code* unoptimized) {
-  DisallowHeapAllocation no_gc;
-  Code* interrupt_code =
-      isolate->builtins()->builtin(Builtins::kInterruptCheck);
-
-  // Iterate over the back edge table and revert the patched interrupt calls.
-  ASSERT(unoptimized->back_edges_patched_for_osr());
-  int loop_nesting_level = unoptimized->allow_osr_at_loop_nesting_level();
-
-  for (FullCodeGenerator::BackEdgeTableIterator back_edges(unoptimized, &no_gc);
-       !back_edges.Done();
-       back_edges.Next()) {
-    if (static_cast<int>(back_edges.loop_depth()) <= loop_nesting_level) {
-      ASSERT_EQ(PATCHED_FOR_OSR, GetInterruptPatchState(isolate,
-                                                        unoptimized,
-                                                        back_edges.pc()));
-      RevertInterruptCodeAt(unoptimized, back_edges.pc(), interrupt_code);
-    }
-  }
-
-  unoptimized->set_back_edges_patched_for_osr(false);
-  unoptimized->set_allow_osr_at_loop_nesting_level(0);
-  // Assert that none of the back edges are patched anymore.
-  ASSERT(Deoptimizer::VerifyInterruptCode(isolate, unoptimized, -1));
-}
-
-
-#ifdef DEBUG
-bool Deoptimizer::VerifyInterruptCode(Isolate* isolate,
-                                      Code* unoptimized,
-                                      int loop_nesting_level) {
-  DisallowHeapAllocation no_gc;
-  for (FullCodeGenerator::BackEdgeTableIterator back_edges(unoptimized, &no_gc);
-       !back_edges.Done();
-       back_edges.Next()) {
-    uint32_t loop_depth = back_edges.loop_depth();
-    CHECK_LE(static_cast<int>(loop_depth), Code::kMaxLoopNestingMarker);
-    // Assert that all back edges for shallower loops (and only those)
-    // have already been patched.
-    CHECK_EQ((static_cast<int>(loop_depth) <= loop_nesting_level),
-             GetInterruptPatchState(isolate,
-                                    unoptimized,
-                                    back_edges.pc()) != NOT_PATCHED);
-  }
-  return true;
-}
-#endif  // DEBUG
-
-
 unsigned Deoptimizer::ComputeInputFrameSize() const {
   unsigned fixed_size = ComputeFixedSize(function_);
   // The fp-to-sp delta already takes the context and the function
@@ -2484,18 +2415,19 @@ void Deoptimizer::AddObjectDuplication(intptr_t slot, int object_index) {
 
 void Deoptimizer::AddObjectTaggedValue(intptr_t value) {
   deferred_objects_tagged_values_.Add(reinterpret_cast<Object*>(value));
-  deferred_objects_double_values_.Add(isolate()->heap()->nan_value()->value());
 }
 
 
 void Deoptimizer::AddObjectDoubleValue(double value) {
   deferred_objects_tagged_values_.Add(isolate()->heap()->the_hole_value());
-  deferred_objects_double_values_.Add(value);
+  HeapNumberMaterializationDescriptor<int> value_desc(
+      deferred_objects_tagged_values_.length() - 1, value);
+  deferred_objects_double_values_.Add(value_desc);
 }
 
 
 void Deoptimizer::AddDoubleValue(intptr_t slot_address, double value) {
-  HeapNumberMaterializationDescriptor value_desc(
+  HeapNumberMaterializationDescriptor<Address> value_desc(
       reinterpret_cast<Address>(slot_address), value);
   deferred_heap_numbers_.Add(value_desc);
 }
@@ -2814,46 +2746,11 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
 #if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
 const char* Translation::StringFor(Opcode opcode) {
+#define TRANSLATION_OPCODE_CASE(item)   case item: return #item;
   switch (opcode) {
-    case BEGIN:
-      return "BEGIN";
-    case JS_FRAME:
-      return "JS_FRAME";
-    case ARGUMENTS_ADAPTOR_FRAME:
-      return "ARGUMENTS_ADAPTOR_FRAME";
-    case CONSTRUCT_STUB_FRAME:
-      return "CONSTRUCT_STUB_FRAME";
-    case GETTER_STUB_FRAME:
-      return "GETTER_STUB_FRAME";
-    case SETTER_STUB_FRAME:
-      return "SETTER_STUB_FRAME";
-    case COMPILED_STUB_FRAME:
-      return "COMPILED_STUB_FRAME";
-    case REGISTER:
-      return "REGISTER";
-    case INT32_REGISTER:
-      return "INT32_REGISTER";
-    case UINT32_REGISTER:
-      return "UINT32_REGISTER";
-    case DOUBLE_REGISTER:
-      return "DOUBLE_REGISTER";
-    case STACK_SLOT:
-      return "STACK_SLOT";
-    case INT32_STACK_SLOT:
-      return "INT32_STACK_SLOT";
-    case UINT32_STACK_SLOT:
-      return "UINT32_STACK_SLOT";
-    case DOUBLE_STACK_SLOT:
-      return "DOUBLE_STACK_SLOT";
-    case LITERAL:
-      return "LITERAL";
-    case DUPLICATED_OBJECT:
-      return "DUPLICATED_OBJECT";
-    case ARGUMENTS_OBJECT:
-      return "ARGUMENTS_OBJECT";
-    case CAPTURED_OBJECT:
-      return "CAPTURED_OBJECT";
+    TRANSLATION_OPCODE_LIST(TRANSLATION_OPCODE_CASE)
   }
+#undef TRANSLATION_OPCODE_CASE
   UNREACHABLE();
   return "";
 }

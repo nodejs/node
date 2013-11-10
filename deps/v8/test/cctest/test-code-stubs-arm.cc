@@ -143,7 +143,7 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
                                     double from) {
 #ifdef USE_SIMULATOR
-  return reinterpret_cast<int32_t>(CALL_GENERATED_CODE(func, from, 0, 0, 0, 0));
+  return CALL_GENERATED_FP_INT(func, from, 0);
 #else
   return (*func)(from);
 #endif

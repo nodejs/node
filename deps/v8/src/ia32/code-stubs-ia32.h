@@ -217,30 +217,6 @@ class StringCompareStub: public PlatformCodeStub {
 };
 
 
-class NumberToStringStub: public PlatformCodeStub {
- public:
-  NumberToStringStub() { }
-
-  // Generate code to do a lookup in the number string cache. If the number in
-  // the register object is found in the cache the generated code falls through
-  // with the result in the result register. The object and the result register
-  // can be the same. If the number is not found in the cache the code jumps to
-  // the label not_found with only the content of register object unchanged.
-  static void GenerateLookupNumberStringCache(MacroAssembler* masm,
-                                              Register object,
-                                              Register result,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              Label* not_found);
-
- private:
-  Major MajorKey() { return NumberToString; }
-  int MinorKey() { return 0; }
-
-  void Generate(MacroAssembler* masm);
-};
-
-
 class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
@@ -468,7 +444,7 @@ class RecordWriteStub: public PlatformCodeStub {
         // Save all XMM registers except XMM0.
         for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
           XMMRegister reg = XMMRegister::from_code(i);
-          masm->movdbl(Operand(esp, (i - 1) * kDoubleSize), reg);
+          masm->movsd(Operand(esp, (i - 1) * kDoubleSize), reg);
         }
       }
     }
@@ -480,7 +456,7 @@ class RecordWriteStub: public PlatformCodeStub {
         // Restore all XMM registers except XMM0.
         for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
           XMMRegister reg = XMMRegister::from_code(i);
-          masm->movdbl(reg, Operand(esp, (i - 1) * kDoubleSize));
+          masm->movsd(reg, Operand(esp, (i - 1) * kDoubleSize));
         }
         masm->add(esp,
                   Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));

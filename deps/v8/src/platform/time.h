@@ -31,7 +31,7 @@
 #include <ctime>
 #include <limits>
 
-#include "allocation.h"
+#include "../allocation.h"
 
 // Forward declarations.
 extern "C" {
@@ -333,7 +333,10 @@ class TimeTicks V8_FINAL BASE_EMBEDDED {
   // resolution.  THIS CALL IS GENERALLY MUCH MORE EXPENSIVE THAN Now() AND
   // SHOULD ONLY BE USED WHEN IT IS REALLY NEEDED.
   // This method never returns a null TimeTicks.
-  static TimeTicks HighResNow();
+  static TimeTicks HighResolutionNow();
+
+  // Returns true if the high-resolution clock is working on this system.
+  static bool IsHighResolutionClockWorking();
 
   // Returns true if this object has not been initialized.
   bool IsNull() const { return ticks_ == 0; }

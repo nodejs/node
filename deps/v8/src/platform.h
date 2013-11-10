@@ -67,6 +67,8 @@ int signbit(double x);
 
 int strncasecmp(const char* s1, const char* s2, int n);
 
+// Visual C++ 2013 and higher implement this function.
+#if (_MSC_VER < 1800)
 inline int lrint(double flt) {
   int intgr;
 #if V8_TARGET_ARCH_IA32
@@ -83,6 +85,8 @@ inline int lrint(double flt) {
 #endif
   return intgr;
 }
+
+#endif  // _MSC_VER < 1800
 
 #endif  // V8_CC_MSVC
 
@@ -252,9 +256,6 @@ class OS {
   // Debug break.
   static void DebugBreak();
 
-  // Dump C++ current stack trace (only functional on Linux).
-  static void DumpBacktrace();
-
   // Walk the stack.
   static const int kStackWalkError = -1;
   static const int kStackWalkMaxNameLen = 256;
@@ -263,8 +264,6 @@ class OS {
     void* address;
     char text[kStackWalkMaxTextLen];
   };
-
-  static int StackWalk(Vector<StackFrame> frames);
 
   class MemoryMappedFile {
    public:
@@ -302,6 +301,9 @@ class OS {
   // of the CPU and the OS.  The bits in the answer correspond to the bit
   // positions indicated by the members of the CpuFeature enum from globals.h
   static uint64_t CpuFeaturesImpliedByPlatform();
+
+  // The total amount of physical memory available on the current system.
+  static uint64_t TotalPhysicalMemory();
 
   // Maximum size of the virtual memory.  0 means there is no artificial
   // limit.

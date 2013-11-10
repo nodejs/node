@@ -29,7 +29,7 @@
 // refer to The Open Group Base Specification for specification of the correct
 // semantics for these functions.
 // (http://www.opengroup.org/onlinepubs/000095399/)
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
 
 #include "win32-headers.h"
 #include <limits.h>        // Required for INT_MAX etc.

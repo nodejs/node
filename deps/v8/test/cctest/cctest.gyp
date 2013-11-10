@@ -56,6 +56,7 @@
         'test-circular-queue.cc',
         'test-compiler.cc',
         'test-condition-variable.cc',
+        'test-constantpool.cc',
         'test-conversions.cc',
         'test-cpu.cc',
         'test-cpu-profiler.cc',
@@ -139,13 +140,15 @@
             'test-assembler-arm.cc',
             'test-code-stubs.cc',
             'test-code-stubs-arm.cc',
-            'test-disasm-arm.cc'
+            'test-disasm-arm.cc',
+            'test-macro-assembler-arm.cc'
           ],
         }],
         ['v8_target_arch=="mipsel"', {
           'sources': [
             'test-assembler-mips.cc',
             'test-disasm-mips.cc',
+            'test-macro-assembler-mips.cc'
           ],
         }],
         [ 'OS=="linux"', {

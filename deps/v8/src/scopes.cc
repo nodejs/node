@@ -437,8 +437,8 @@ Variable* Scope::LookupFunctionVar(Handle<String> name,
         this, name, mode, true /* is valid LHS */,
         Variable::NORMAL, kCreatedInitialized);
     VariableProxy* proxy = factory->NewVariableProxy(var);
-    VariableDeclaration* declaration =
-        factory->NewVariableDeclaration(proxy, mode, this);
+    VariableDeclaration* declaration = factory->NewVariableDeclaration(
+        proxy, mode, this, RelocInfo::kNoPosition);
     DeclareFunctionVar(declaration);
     var->AllocateTo(Variable::CONTEXT, index);
     return var;

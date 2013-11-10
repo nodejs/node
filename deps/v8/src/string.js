@@ -28,7 +28,6 @@
 // This file relies on the fact that the following declaration has been made
 // in runtime.js:
 // var $String = global.String;
-// var $NaN = 0/0;
 
 // -------------------------------------------------------------------
 
@@ -574,7 +573,7 @@ function StringSlice(start, end) {
   var s_len = s.length;
   var start_i = TO_INTEGER(start);
   var end_i = s_len;
-  if (end !== void 0) {
+  if (!IS_UNDEFINED(end)) {
     end_i = TO_INTEGER(end);
   }
 
@@ -699,7 +698,7 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
         %_CallFunction(result, %_SubString(subject, start, end),
                        ArrayPushBuiltin);
       } else {
-        %_CallFunction(result, void 0, ArrayPushBuiltin);
+        %_CallFunction(result, UNDEFINED, ArrayPushBuiltin);
       }
       if (result.length === limit) break outer_loop;
     }
@@ -756,7 +755,7 @@ function StringSubstr(start, n) {
 
   // Correct n: If not given, set to string length; if explicitly
   // set to undefined, zero, or negative, returns empty string.
-  if (n === void 0) {
+  if (IS_UNDEFINED(n)) {
     len = s.length;
   } else {
     len = TO_INTEGER(n);
@@ -765,7 +764,7 @@ function StringSubstr(start, n) {
 
   // Correct start: If not given (or undefined), set to zero; otherwise
   // convert to integer and handle negative case.
-  if (start === void 0) {
+  if (IS_UNDEFINED(start)) {
     start = 0;
   } else {
     start = TO_INTEGER(start);

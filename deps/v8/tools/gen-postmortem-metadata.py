@@ -68,6 +68,7 @@ consts_misc = [
     { 'name': 'SeqStringTag',           'value': 'kSeqStringTag' },
     { 'name': 'ConsStringTag',          'value': 'kConsStringTag' },
     { 'name': 'ExternalStringTag',      'value': 'kExternalStringTag' },
+    { 'name': 'SlicedStringTag',        'value': 'kSlicedStringTag' },
 
     { 'name': 'FailureTag',             'value': 'kFailureTag' },
     { 'name': 'FailureTagMask',         'value': 'kFailureTagMask' },
@@ -87,6 +88,15 @@ consts_misc = [
         'value': 'TRANSITION' },
     { 'name': 'prop_type_mask',
         'value': 'PropertyDetails::TypeField::kMask' },
+
+    { 'name': 'prop_desc_key',
+        'value': 'DescriptorArray::kDescriptorKey' },
+    { 'name': 'prop_desc_details',
+        'value': 'DescriptorArray::kDescriptorDetails' },
+    { 'name': 'prop_desc_value',
+        'value': 'DescriptorArray::kDescriptorValue' },
+    { 'name': 'prop_desc_size',
+        'value': 'DescriptorArray::kDescriptorSize' },
 
     { 'name': 'off_fp_context',
         'value': 'StandardFrameConstants::kContextOffset' },
@@ -113,7 +123,9 @@ extras_accessors = [
     'ConsString, second, String, kSecondOffset',
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
+    'SeqTwoByteString, chars, char, kHeaderSize',
     'SharedFunctionInfo, code, Code, kCodeOffset',
+    'SlicedString, parent, String, kParentOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
 ];

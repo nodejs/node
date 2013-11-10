@@ -177,87 +177,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-static const byte kJnsInstruction = 0x79;
-static const byte kJnsOffset = 0x11;
-static const byte kCallInstruction = 0xe8;
-static const byte kNopByteOne = 0x66;
-static const byte kNopByteTwo = 0x90;
-
-// The back edge bookkeeping code matches the pattern:
-//
-//     sub <profiling_counter>, <delta>
-//     jns ok
-//     call <interrupt stub>
-//   ok:
-//
-// The patched back edge looks like this:
-//
-//     sub <profiling_counter>, <delta>  ;; Not changed
-//     nop
-//     nop
-//     call <on-stack replacment>
-//   ok:
-
-void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
-                                       Address pc_after,
-                                       Code* replacement_code) {
-  // Turn the jump into nops.
-  Address call_target_address = pc_after - kIntSize;
-  *(call_target_address - 3) = kNopByteOne;
-  *(call_target_address - 2) = kNopByteTwo;
-  // Replace the call address.
-  Assembler::set_target_address_at(call_target_address,
-                                   replacement_code->entry());
-
-  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, call_target_address, replacement_code);
-}
-
-
-void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
-                                        Address pc_after,
-                                        Code* interrupt_code) {
-  // Restore the original jump.
-  Address call_target_address = pc_after - kIntSize;
-  *(call_target_address - 3) = kJnsInstruction;
-  *(call_target_address - 2) = kJnsOffset;
-  // Restore the original call address.
-  Assembler::set_target_address_at(call_target_address,
-                                   interrupt_code->entry());
-
-  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, call_target_address, interrupt_code);
-}
-
-
-#ifdef DEBUG
-Deoptimizer::InterruptPatchState Deoptimizer::GetInterruptPatchState(
-    Isolate* isolate,
-    Code* unoptimized_code,
-    Address pc_after) {
-  Address call_target_address = pc_after - kIntSize;
-  ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
-  if (*(call_target_address - 3) == kNopByteOne) {
-    ASSERT_EQ(kNopByteTwo,      *(call_target_address - 2));
-    Code* osr_builtin =
-        isolate->builtins()->builtin(Builtins::kOnStackReplacement);
-    ASSERT_EQ(osr_builtin->entry(),
-              Assembler::target_address_at(call_target_address));
-    return PATCHED_FOR_OSR;
-  } else {
-    // Get the interrupt stub code object to match against from cache.
-    Code* interrupt_builtin =
-        isolate->builtins()->builtin(Builtins::kInterruptCheck);
-    ASSERT_EQ(interrupt_builtin->entry(),
-              Assembler::target_address_at(call_target_address));
-    ASSERT_EQ(kJnsInstruction,  *(call_target_address - 3));
-    ASSERT_EQ(kJnsOffset,       *(call_target_address - 2));
-    return NOT_PATCHED;
-  }
-}
-#endif  // DEBUG
-
-
 void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   // Set the register values. The values are not important as there are no
   // callee saved registers in JavaScript frames, so all registers are
@@ -283,16 +202,14 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
   intptr_t handler =
       reinterpret_cast<intptr_t>(descriptor->deoptimization_handler_);
-  int params = descriptor->register_param_count_;
-  if (descriptor->stack_parameter_count_ != NULL) {
-    params++;
-  }
+  int params = descriptor->environment_length();
   output_frame->SetRegister(eax.code(), params);
   output_frame->SetRegister(ebx.code(), handler);
 }
 
 
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
+  if (!CpuFeatures::IsSupported(SSE2)) return;
   for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
     double double_value = input_->GetDoubleRegister(i);
     output_frame->SetDoubleRegister(i, double_value);
@@ -330,7 +247,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
       int offset = i * kDoubleSize;
-      __ movdbl(Operand(esp, offset), xmm_reg);
+      __ movsd(Operand(esp, offset), xmm_reg);
     }
   }
 
@@ -382,8 +299,8 @@ void Deoptimizer::EntryGenerator::Generate() {
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       int dst_offset = i * kDoubleSize + double_regs_offset;
       int src_offset = i * kDoubleSize;
-      __ movdbl(xmm0, Operand(esp, src_offset));
-      __ movdbl(Operand(ebx, dst_offset), xmm0);
+      __ movsd(xmm0, Operand(esp, src_offset));
+      __ movsd(Operand(ebx, dst_offset), xmm0);
     }
   }
 
@@ -468,7 +385,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
       int src_offset = i * kDoubleSize + double_regs_offset;
-      __ movdbl(xmm_reg, Operand(ebx, src_offset));
+      __ movsd(xmm_reg, Operand(ebx, src_offset));
     }
   }
 

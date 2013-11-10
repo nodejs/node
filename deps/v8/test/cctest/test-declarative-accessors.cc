@@ -78,7 +78,7 @@ class DescriptorTestHelper {
   DescriptorTestHelper() :
       isolate_(NULL), array_(new AlignedArray), handle_array_(new HandleArray) {
     v8::V8::Initialize();
-    isolate_ = v8::Isolate::GetCurrent();
+    isolate_ = CcTest::isolate();
   }
   v8::Isolate* isolate_;
   // Data objects.

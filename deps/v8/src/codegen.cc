@@ -113,10 +113,12 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   masm->GetCode(&desc);
   Handle<Code> code =
       isolate->factory()->NewCode(desc, flags, masm->CodeObject(),
-                                  false, is_crankshafted);
+                                  false, is_crankshafted,
+                                  info->prologue_offset());
   isolate->counters()->total_compiled_code_size()->Increment(
       code->instruction_size());
-  code->set_prologue_offset(info->prologue_offset());
+  isolate->heap()->IncrementCodeGeneratedBytes(is_crankshafted,
+      code->instruction_size());
   return code;
 }
 
@@ -132,7 +134,9 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
   if (print_code) {
     // Print the source code if available.
     FunctionLiteral* function = info->function();
-    if (code->kind() == Code::OPTIMIZED_FUNCTION) {
+    bool print_source = code->kind() == Code::OPTIMIZED_FUNCTION ||
+        code->kind() == Code::FUNCTION;
+    if (print_source) {
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
         PrintF("--- Raw source ---\n");
@@ -160,12 +164,16 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     } else {
       PrintF("--- Code ---\n");
     }
+    if (print_source) {
+      PrintF("source_position = %d\n", function->start_position());
+    }
     if (info->IsStub()) {
       CodeStub::Major major_key = info->code_stub()->MajorKey();
       code->Disassemble(CodeStub::MajorName(major_key, false));
     } else {
       code->Disassemble(*function->debug_name()->ToCString());
     }
+    PrintF("--- End code ---\n");
   }
 #endif  // ENABLE_DISASSEMBLER
 }

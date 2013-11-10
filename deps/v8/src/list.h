@@ -84,7 +84,7 @@ class List {
   // backing store (e.g. Add).
   inline T& operator[](int i) const {
     ASSERT(0 <= i);
-    ASSERT(i < length_);
+    SLOW_ASSERT(i < length_);
     return data_[i];
   }
   inline T& at(int i) const { return operator[](i); }

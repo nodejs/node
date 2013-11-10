@@ -92,16 +92,25 @@ for (var i = 0; i < sizes.length; i++) {
   testLiteral(sizes[i], true);
 }
 
+
+function checkExpectedException(e) {
+  assertInstanceof(e, RangeError);
+  assertTrue(e.message.indexOf("Maximum call stack size exceeded") >= 0);
+}
+
+
 function testLiteralAndCatch(size) {
   var big_enough = false;
   try {
     testLiteral(size, false);
   } catch (e) {
+    checkExpectedException(e);
     big_enough = true;
   }
   try {
     testLiteral(size, true);
   } catch (e) {
+    checkExpectedException(e);
     big_enough = true;
   }
   return big_enough;

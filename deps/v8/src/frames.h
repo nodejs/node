@@ -922,6 +922,13 @@ class StackFrameLocator BASE_EMBEDDED {
 };
 
 
+// Used specify the type of prologue to generate.
+enum PrologueFrameMode {
+  BUILD_FUNCTION_FRAME,
+  BUILD_STUB_FRAME
+};
+
+
 // Reads all frames on the current stack and copies them into the current
 // zone memory.
 Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone);

@@ -57,11 +57,11 @@ function varname(i) {
 
 var source = "var ";
 
-for (var i = 0; i < 1000; i++) {
+for (var i = 0; i < 750; i++) {
   source += [varname(i), "=", rand(), ","].join("");
 }
 
-for (var i = 1000; i < 100000; i++) {
+for (var i = 750; i < 3000; i++) {
   source += [varname(i), "=",
              varname(randi(i)), "+",
              varname(randi(i)), ","].join("");
@@ -73,4 +73,3 @@ var f = new Function(source);
 f();
 %OptimizeFunctionOnNextCall(f);
 f();
-

@@ -82,6 +82,7 @@ class Representation {
  public:
   enum Kind {
     kNone,
+    kByte,
     kSmi,
     kInteger32,
     kDouble,
@@ -95,6 +96,7 @@ class Representation {
 
   static Representation None() { return Representation(kNone); }
   static Representation Tagged() { return Representation(kTagged); }
+  static Representation Byte() { return Representation(kByte); }
   static Representation Smi() { return Representation(kSmi); }
   static Representation Integer32() { return Representation(kInteger32); }
   static Representation Double() { return Representation(kDouble); }
@@ -139,6 +141,7 @@ class Representation {
 
   Kind kind() const { return static_cast<Kind>(kind_); }
   bool IsNone() const { return kind_ == kNone; }
+  bool IsByte() const { return kind_ == kByte; }
   bool IsTagged() const { return kind_ == kTagged; }
   bool IsSmi() const { return kind_ == kSmi; }
   bool IsSmiOrTagged() const { return IsSmi() || IsTagged(); }
@@ -148,7 +151,7 @@ class Representation {
   bool IsHeapObject() const { return kind_ == kHeapObject; }
   bool IsExternal() const { return kind_ == kExternal; }
   bool IsSpecialization() const {
-    return kind_ == kInteger32 || kind_ == kDouble || kind_ == kSmi;
+    return IsByte() || IsSmi() || IsInteger32() || IsDouble();
   }
   const char* Mnemonic() const;
 

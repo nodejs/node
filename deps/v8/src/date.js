@@ -41,7 +41,7 @@ function ThrowDateTypeError() {
 }
 
 
-var timezone_cache_time = $NaN;
+var timezone_cache_time = NAN;
 var timezone_cache_timezone;
 
 function LocalTimezone(t) {
@@ -66,10 +66,10 @@ function UTC(time) {
 
 // ECMA 262 - 15.9.1.11
 function MakeTime(hour, min, sec, ms) {
-  if (!$isFinite(hour)) return $NaN;
-  if (!$isFinite(min)) return $NaN;
-  if (!$isFinite(sec)) return $NaN;
-  if (!$isFinite(ms)) return $NaN;
+  if (!$isFinite(hour)) return NAN;
+  if (!$isFinite(min)) return NAN;
+  if (!$isFinite(sec)) return NAN;
+  if (!$isFinite(ms)) return NAN;
   return TO_INTEGER(hour) * msPerHour
       + TO_INTEGER(min) * msPerMinute
       + TO_INTEGER(sec) * msPerSecond
@@ -90,7 +90,7 @@ function TimeInYear(year) {
 //     MakeDay(2007, -33, 1) --> MakeDay(2004, 3, 1)
 //     MakeDay(2007, 14, -50) --> MakeDay(2007, 8, 11)
 function MakeDay(year, month, date) {
-  if (!$isFinite(year) || !$isFinite(month) || !$isFinite(date)) return $NaN;
+  if (!$isFinite(year) || !$isFinite(month) || !$isFinite(date)) return NAN;
 
   // Convert to integer and map -0 to 0.
   year = TO_INTEGER_MAP_MINUS_ZERO(year);
@@ -99,7 +99,7 @@ function MakeDay(year, month, date) {
 
   if (year < kMinYear || year > kMaxYear ||
       month < kMinMonth || month > kMaxMonth) {
-    return $NaN;
+    return NAN;
   }
 
   // Now we rely on year and month being SMIs.
@@ -115,15 +115,15 @@ function MakeDate(day, time) {
   // is no way that the time can be within range even after UTC
   // conversion we return NaN immediately instead of relying on
   // TimeClip to do it.
-  if ($abs(time) > MAX_TIME_BEFORE_UTC) return $NaN;
+  if ($abs(time) > MAX_TIME_BEFORE_UTC) return NAN;
   return time;
 }
 
 
 // ECMA 262 - 15.9.1.14
 function TimeClip(time) {
-  if (!$isFinite(time)) return $NaN;
-  if ($abs(time) > MAX_TIME_MS) return $NaN;
+  if (!$isFinite(time)) return NAN;
+  if ($abs(time) > MAX_TIME_MS) return NAN;
   return TO_INTEGER(time);
 }
 
@@ -132,7 +132,7 @@ function TimeClip(time) {
 // strings over and over again.
 var Date_cache = {
   // Cached time value.
-  time: $NaN,
+  time: NAN,
   // String input for which the cached time is valid.
   string: null
 };
@@ -269,7 +269,7 @@ var parse_buffer = $Array(8);
 // ECMA 262 - 15.9.4.2
 function DateParse(string) {
   var arr = %DateParseString(ToString(string), parse_buffer);
-  if (IS_NULL(arr)) return $NaN;
+  if (IS_NULL(arr)) return NAN;
 
   var day = MakeDay(arr[0], arr[1], arr[2]);
   var time = MakeTime(arr[3], arr[4], arr[5], arr[6]);
@@ -671,7 +671,7 @@ function DateGetYear() {
 function DateSetYear(year) {
   CHECK_DATE(this);
   year = ToNumber(year);
-  if (NUMBER_IS_NAN(year)) return SET_UTC_DATE_VALUE(this, $NaN);
+  if (NUMBER_IS_NAN(year)) return SET_UTC_DATE_VALUE(this, NAN);
   year = (0 <= TO_INTEGER(year) && TO_INTEGER(year) <= 99)
       ? 1900 + TO_INTEGER(year) : year;
   var t = LOCAL_DATE_VALUE(this);
@@ -746,12 +746,12 @@ function DateToJSON(key) {
 
 function ResetDateCache() {
   // Reset the timezone cache:
-  timezone_cache_time = $NaN;
+  timezone_cache_time = NAN;
   timezone_cache_timezone = undefined;
 
   // Reset the date cache:
   cache = Date_cache;
-  cache.time = $NaN;
+  cache.time = NAN;
   cache.string = null;
 }
 
@@ -762,7 +762,7 @@ function SetUpDate() {
   %CheckIsBootstrapping();
 
   %SetCode($Date, DateConstructor);
-  %FunctionSetPrototype($Date, new $Date($NaN));
+  %FunctionSetPrototype($Date, new $Date(NAN));
 
   // Set up non-enumerable properties of the Date object itself.
   InstallFunctions($Date, DONT_ENUM, $Array(

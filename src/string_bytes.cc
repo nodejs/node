@@ -256,7 +256,7 @@ bool StringBytes::GetExternalParts(Handle<Value> val,
   if (!val->IsString())
     return false;
 
-  Local<String> str = Local<String>::New(val.As<String>());
+  Local<String> str = val.As<String>();
 
   if (str->IsExternalAscii()) {
     const String::ExternalAsciiStringResource* ext;

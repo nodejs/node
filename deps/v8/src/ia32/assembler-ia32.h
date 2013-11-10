@@ -535,32 +535,54 @@ class CpuFeatures : public AllStatic {
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
+    if (Check(f, cross_compile_)) return true;
     if (f == SSE2 && !FLAG_enable_sse2) return false;
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
     if (f == CMOV && !FLAG_enable_cmov) return false;
-    return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
+    return Check(f, supported_);
   }
 
   static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
     ASSERT(initialized_);
-    return (found_by_runtime_probing_only_ &
-            (static_cast<uint64_t>(1) << f)) != 0;
+    return Check(f, found_by_runtime_probing_only_);
   }
 
   static bool IsSafeForSnapshot(CpuFeature f) {
-    return (IsSupported(f) &&
+    return Check(f, cross_compile_) ||
+           (IsSupported(f) &&
             (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
   }
 
+  static bool VerifyCrossCompiling() {
+    return cross_compile_ == 0;
+  }
+
+  static bool VerifyCrossCompiling(CpuFeature f) {
+    uint64_t mask = flag2set(f);
+    return cross_compile_ == 0 ||
+           (cross_compile_ & mask) == mask;
+  }
+
  private:
+  static bool Check(CpuFeature f, uint64_t set) {
+    return (set & flag2set(f)) != 0;
+  }
+
+  static uint64_t flag2set(CpuFeature f) {
+    return static_cast<uint64_t>(1) << f;
+  }
+
 #ifdef DEBUG
   static bool initialized_;
 #endif
   static uint64_t supported_;
   static uint64_t found_by_runtime_probing_only_;
 
+  static uint64_t cross_compile_;
+
   friend class ExternalReference;
+  friend class PlatformFeatureScope;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
@@ -852,7 +874,7 @@ class Assembler : public AssemblerBase {
   void test(Register reg, const Operand& op);
   void test_b(Register reg, const Operand& op);
   void test(const Operand& op, const Immediate& imm);
-  void test_b(Register reg, uint8_t imm8) { test_b(Operand(reg), imm8); }
+  void test_b(Register reg, uint8_t imm8);
   void test_b(const Operand& op, uint8_t imm8);
 
   void xor_(Register dst, int32_t imm32);
@@ -995,6 +1017,10 @@ class Assembler : public AssemblerBase {
 
   void cpuid();
 
+  // SSE instructions
+  void andps(XMMRegister dst, XMMRegister src);
+  void xorps(XMMRegister dst, XMMRegister src);
+
   // SSE2 instructions
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
@@ -1012,7 +1038,6 @@ class Assembler : public AssemblerBase {
   void mulsd(XMMRegister dst, const Operand& src);
   void divsd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
-  void xorps(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void andpd(XMMRegister dst, XMMRegister src);
@@ -1050,15 +1075,14 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  // Use either movsd or movlpd.
-  void movdbl(XMMRegister dst, const Operand& src);
-  void movdbl(const Operand& dst, XMMRegister src);
-
   void movd(XMMRegister dst, Register src) { movd(dst, Operand(src)); }
   void movd(XMMRegister dst, const Operand& src);
   void movd(Register dst, XMMRegister src) { movd(Operand(dst), src); }
   void movd(const Operand& dst, XMMRegister src);
   void movsd(XMMRegister dst, XMMRegister src);
+  void movsd(XMMRegister dst, const Operand& src);
+  void movsd(const Operand& dst, XMMRegister src);
+
 
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
@@ -1136,16 +1160,14 @@ class Assembler : public AssemblerBase {
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;
 
-  byte byte_at(int pos)  { return buffer_[pos]; }
+  byte byte_at(int pos) { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
  protected:
-  void movsd(XMMRegister dst, const Operand& src);
-  void movsd(const Operand& dst, XMMRegister src);
-
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
   void emit_sse_operand(Register dst, XMMRegister src);
+  void emit_sse_operand(XMMRegister dst, Register src);
 
   byte* addr_at(int pos) { return buffer_ + pos; }
 

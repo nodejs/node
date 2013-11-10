@@ -497,6 +497,8 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     }
 
     // Label the longest pauses.
+    execution_pauses =
+        RestrictRangesTo(execution_pauses, range_start, range_end);
     execution_pauses.sort(
         function(a, b) { return b.duration() - a.duration(); });
 

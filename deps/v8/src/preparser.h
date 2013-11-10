@@ -33,14 +33,178 @@
 #include "scanner.h"
 
 namespace v8 {
-
 namespace internal {
-class UnicodeCache;
-}
 
-namespace preparser {
+// Common base class shared between parser and pre-parser.
+class ParserBase {
+ public:
+  ParserBase(Scanner* scanner, uintptr_t stack_limit)
+      : scanner_(scanner),
+        stack_limit_(stack_limit),
+        stack_overflow_(false),
+        allow_lazy_(false),
+        allow_natives_syntax_(false),
+        allow_generators_(false),
+        allow_for_of_(false) { }
+  // TODO(mstarzinger): Only virtual until message reporting has been unified.
+  virtual ~ParserBase() { }
 
-typedef uint8_t byte;
+  // Getters that indicate whether certain syntactical constructs are
+  // allowed to be parsed by this instance of the parser.
+  bool allow_lazy() const { return allow_lazy_; }
+  bool allow_natives_syntax() const { return allow_natives_syntax_; }
+  bool allow_generators() const { return allow_generators_; }
+  bool allow_for_of() const { return allow_for_of_; }
+  bool allow_modules() const { return scanner()->HarmonyModules(); }
+  bool allow_harmony_scoping() const { return scanner()->HarmonyScoping(); }
+  bool allow_harmony_numeric_literals() const {
+    return scanner()->HarmonyNumericLiterals();
+  }
+
+  // Setters that determine whether certain syntactical constructs are
+  // allowed to be parsed by this instance of the parser.
+  void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
+  void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
+  void set_allow_generators(bool allow) { allow_generators_ = allow; }
+  void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
+  void set_allow_modules(bool allow) { scanner()->SetHarmonyModules(allow); }
+  void set_allow_harmony_scoping(bool allow) {
+    scanner()->SetHarmonyScoping(allow);
+  }
+  void set_allow_harmony_numeric_literals(bool allow) {
+    scanner()->SetHarmonyNumericLiterals(allow);
+  }
+
+ protected:
+  Scanner* scanner() const { return scanner_; }
+  int position() { return scanner_->location().beg_pos; }
+  int peek_position() { return scanner_->peek_location().beg_pos; }
+  bool stack_overflow() const { return stack_overflow_; }
+  void set_stack_overflow() { stack_overflow_ = true; }
+
+  INLINE(Token::Value peek()) {
+    if (stack_overflow_) return Token::ILLEGAL;
+    return scanner()->peek();
+  }
+
+  INLINE(Token::Value Next()) {
+    if (stack_overflow_) return Token::ILLEGAL;
+    {
+      int marker;
+      if (reinterpret_cast<uintptr_t>(&marker) < stack_limit_) {
+        // Any further calls to Next or peek will return the illegal token.
+        // The current call must return the next token, which might already
+        // have been peek'ed.
+        stack_overflow_ = true;
+      }
+    }
+    return scanner()->Next();
+  }
+
+  void Consume(Token::Value token) {
+    Token::Value next = Next();
+    USE(next);
+    USE(token);
+    ASSERT(next == token);
+  }
+
+  bool Check(Token::Value token) {
+    Token::Value next = peek();
+    if (next == token) {
+      Consume(next);
+      return true;
+    }
+    return false;
+  }
+
+  void Expect(Token::Value token, bool* ok) {
+    Token::Value next = Next();
+    if (next != token) {
+      ReportUnexpectedToken(next);
+      *ok = false;
+    }
+  }
+
+  bool peek_any_identifier();
+  void ExpectSemicolon(bool* ok);
+  bool CheckContextualKeyword(Vector<const char> keyword);
+  void ExpectContextualKeyword(Vector<const char> keyword, bool* ok);
+
+  // Strict mode octal literal validation.
+  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
+
+  // Determine precedence of given token.
+  static int Precedence(Token::Value token, bool accept_IN);
+
+  // Report syntax errors.
+  virtual void ReportUnexpectedToken(Token::Value token) = 0;
+  virtual void ReportMessageAt(Scanner::Location loc, const char* type) = 0;
+
+  // Used to detect duplicates in object literals. Each of the values
+  // kGetterProperty, kSetterProperty and kValueProperty represents
+  // a type of object literal property. When parsing a property, its
+  // type value is stored in the DuplicateFinder for the property name.
+  // Values are chosen so that having intersection bits means the there is
+  // an incompatibility.
+  // I.e., you can add a getter to a property that already has a setter, since
+  // kGetterProperty and kSetterProperty doesn't intersect, but not if it
+  // already has a getter or a value. Adding the getter to an existing
+  // setter will store the value (kGetterProperty | kSetterProperty), which
+  // is incompatible with adding any further properties.
+  enum PropertyKind {
+    kNone = 0,
+    // Bit patterns representing different object literal property types.
+    kGetterProperty = 1,
+    kSetterProperty = 2,
+    kValueProperty = 7,
+    // Helper constants.
+    kValueFlag = 4
+  };
+
+  // Validation per ECMA 262 - 11.1.5 "Object Initialiser".
+  class ObjectLiteralChecker {
+   public:
+    ObjectLiteralChecker(ParserBase* parser, LanguageMode mode)
+        : parser_(parser),
+          finder_(scanner()->unicode_cache()),
+          language_mode_(mode) { }
+
+    void CheckProperty(Token::Value property, PropertyKind type, bool* ok);
+
+   private:
+    ParserBase* parser() const { return parser_; }
+    Scanner* scanner() const { return parser_->scanner(); }
+
+    // Checks the type of conflict based on values coming from PropertyType.
+    bool HasConflict(PropertyKind type1, PropertyKind type2) {
+      return (type1 & type2) != 0;
+    }
+    bool IsDataDataConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 & type2) & kValueFlag) != 0;
+    }
+    bool IsDataAccessorConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 ^ type2) & kValueFlag) != 0;
+    }
+    bool IsAccessorAccessorConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 | type2) & kValueFlag) == 0;
+    }
+
+    ParserBase* parser_;
+    DuplicateFinder finder_;
+    LanguageMode language_mode_;
+  };
+
+ private:
+  Scanner* scanner_;
+  uintptr_t stack_limit_;
+  bool stack_overflow_;
+
+  bool allow_lazy_;
+  bool allow_natives_syntax_;
+  bool allow_generators_;
+  bool allow_for_of_;
+};
+
 
 // Preparsing checks a JavaScript program and emits preparse-data that helps
 // a later parsing to be faster.
@@ -54,103 +218,24 @@ typedef uint8_t byte;
 // rather it is to speed up properly written and correct programs.
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
-
-namespace i = v8::internal;
-
-class DuplicateFinder {
- public:
-  explicit DuplicateFinder(i::UnicodeCache* constants)
-      : unicode_constants_(constants),
-        backing_store_(16),
-        map_(&Match) { }
-
-  int AddAsciiSymbol(i::Vector<const char> key, int value);
-  int AddUtf16Symbol(i::Vector<const uint16_t> key, int value);
-  // Add a a number literal by converting it (if necessary)
-  // to the string that ToString(ToNumber(literal)) would generate.
-  // and then adding that string with AddAsciiSymbol.
-  // This string is the actual value used as key in an object literal,
-  // and the one that must be different from the other keys.
-  int AddNumber(i::Vector<const char> key, int value);
-
- private:
-  int AddSymbol(i::Vector<const byte> key, bool is_ascii, int value);
-  // Backs up the key and its length in the backing store.
-  // The backup is stored with a base 127 encoding of the
-  // length (plus a bit saying whether the string is ASCII),
-  // followed by the bytes of the key.
-  byte* BackupKey(i::Vector<const byte> key, bool is_ascii);
-
-  // Compare two encoded keys (both pointing into the backing store)
-  // for having the same base-127 encoded lengths and ASCII-ness,
-  // and then having the same 'length' bytes following.
-  static bool Match(void* first, void* second);
-  // Creates a hash from a sequence of bytes.
-  static uint32_t Hash(i::Vector<const byte> key, bool is_ascii);
-  // Checks whether a string containing a JS number is its canonical
-  // form.
-  static bool IsNumberCanonical(i::Vector<const char> key);
-
-  // Size of buffer. Sufficient for using it to call DoubleToCString in
-  // from conversions.h.
-  static const int kBufferSize = 100;
-
-  i::UnicodeCache* unicode_constants_;
-  // Backing store used to store strings used as hashmap keys.
-  i::SequenceCollector<unsigned char> backing_store_;
-  i::HashMap map_;
-  // Buffer used for string->number->canonical string conversions.
-  char number_buffer_[kBufferSize];
-};
-
-
-class PreParser {
+class PreParser : public ParserBase {
  public:
   enum PreParseResult {
     kPreParseStackOverflow,
     kPreParseSuccess
   };
 
-
-  PreParser(i::Scanner* scanner,
-            i::ParserRecorder* log,
+  PreParser(Scanner* scanner,
+            ParserRecorder* log,
             uintptr_t stack_limit)
-      : scanner_(scanner),
+      : ParserBase(scanner, stack_limit),
         log_(log),
         scope_(NULL),
-        stack_limit_(stack_limit),
-        strict_mode_violation_location_(i::Scanner::Location::invalid()),
+        strict_mode_violation_location_(Scanner::Location::invalid()),
         strict_mode_violation_type_(NULL),
-        stack_overflow_(false),
-        allow_lazy_(false),
-        allow_natives_syntax_(false),
-        allow_generators_(false),
-        allow_for_of_(false),
         parenthesized_function_(false) { }
 
   ~PreParser() {}
-
-  bool allow_natives_syntax() const { return allow_natives_syntax_; }
-  bool allow_lazy() const { return allow_lazy_; }
-  bool allow_modules() const { return scanner_->HarmonyModules(); }
-  bool allow_harmony_scoping() const { return scanner_->HarmonyScoping(); }
-  bool allow_generators() const { return allow_generators_; }
-  bool allow_for_of() const { return allow_for_of_; }
-  bool allow_harmony_numeric_literals() const {
-    return scanner_->HarmonyNumericLiterals();
-  }
-
-  void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
-  void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
-  void set_allow_modules(bool allow) { scanner_->SetHarmonyModules(allow); }
-  void set_allow_harmony_scoping(bool allow) {
-    scanner_->SetHarmonyScoping(allow);
-  }
-  void set_allow_generators(bool allow) { allow_generators_ = allow; }
-  void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
-  void set_allow_harmony_numeric_literals(bool allow) {
-    scanner_->SetHarmonyNumericLiterals(allow);
-  }
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -159,13 +244,13 @@ class PreParser {
   PreParseResult PreParseProgram() {
     Scope top_scope(&scope_, kTopLevelScope);
     bool ok = true;
-    int start_position = scanner_->peek_location().beg_pos;
-    ParseSourceElements(i::Token::EOS, &ok);
-    if (stack_overflow_) return kPreParseStackOverflow;
+    int start_position = scanner()->peek_location().beg_pos;
+    ParseSourceElements(Token::EOS, &ok);
+    if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
-      ReportUnexpectedToken(scanner_->current_token());
+      ReportUnexpectedToken(scanner()->current_token());
     } else if (!scope_->is_classic_mode()) {
-      CheckOctalLiteral(start_position, scanner_->location().end_pos, &ok);
+      CheckOctalLiteral(start_position, scanner()->location().end_pos, &ok);
     }
     return kPreParseSuccess;
   }
@@ -178,50 +263,11 @@ class PreParser {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseLazyFunction(i::LanguageMode mode,
+  PreParseResult PreParseLazyFunction(LanguageMode mode,
                                       bool is_generator,
-                                      i::ParserRecorder* log);
+                                      ParserRecorder* log);
 
  private:
-  // Used to detect duplicates in object literals. Each of the values
-  // kGetterProperty, kSetterProperty and kValueProperty represents
-  // a type of object literal property. When parsing a property, its
-  // type value is stored in the DuplicateFinder for the property name.
-  // Values are chosen so that having intersection bits means the there is
-  // an incompatibility.
-  // I.e., you can add a getter to a property that already has a setter, since
-  // kGetterProperty and kSetterProperty doesn't intersect, but not if it
-  // already has a getter or a value. Adding the getter to an existing
-  // setter will store the value (kGetterProperty | kSetterProperty), which
-  // is incompatible with adding any further properties.
-  enum PropertyType {
-    kNone = 0,
-    // Bit patterns representing different object literal property types.
-    kGetterProperty = 1,
-    kSetterProperty = 2,
-    kValueProperty = 7,
-    // Helper constants.
-    kValueFlag = 4
-  };
-
-  // Checks the type of conflict based on values coming from PropertyType.
-  bool HasConflict(int type1, int type2) { return (type1 & type2) != 0; }
-  bool IsDataDataConflict(int type1, int type2) {
-    return ((type1 & type2) & kValueFlag) != 0;
-  }
-  bool IsDataAccessorConflict(int type1, int type2) {
-    return ((type1 ^ type2) & kValueFlag) != 0;
-  }
-  bool IsAccessorAccessorConflict(int type1, int type2) {
-    return ((type1 | type2) & kValueFlag) == 0;
-  }
-
-
-  void CheckDuplicate(DuplicateFinder* finder,
-                      i::Token::Value property,
-                      int type,
-                      bool* ok);
-
   // These types form an algebra over syntactic categories that is just
   // rich enough to let us recognize and propagate the constructs that
   // are either being counted in the preparser data, or is important
@@ -441,7 +487,7 @@ class PreParser {
     }
 
     bool IsStringLiteral() {
-      return code_ != kUnknownStatement;
+      return code_ == kStringLiteralExpressionStatement;
     }
 
     bool IsUseStrictLiteral() {
@@ -480,7 +526,7 @@ class PreParser {
           expected_properties_(0),
           with_nesting_count_(0),
           language_mode_(
-              (prev_ != NULL) ? prev_->language_mode() : i::CLASSIC_MODE),
+              (prev_ != NULL) ? prev_->language_mode() : CLASSIC_MODE),
           is_generator_(false) {
       *variable = this;
     }
@@ -494,12 +540,12 @@ class PreParser {
     bool is_generator() { return is_generator_; }
     void set_is_generator(bool is_generator) { is_generator_ = is_generator; }
     bool is_classic_mode() {
-      return language_mode_ == i::CLASSIC_MODE;
+      return language_mode_ == CLASSIC_MODE;
     }
-    i::LanguageMode language_mode() {
+    LanguageMode language_mode() {
       return language_mode_;
     }
-    void set_language_mode(i::LanguageMode language_mode) {
+    void set_language_mode(LanguageMode language_mode) {
       language_mode_ = language_mode;
     }
 
@@ -523,13 +569,16 @@ class PreParser {
     int materialized_literal_count_;
     int expected_properties_;
     int with_nesting_count_;
-    i::LanguageMode language_mode_;
+    LanguageMode language_mode_;
     bool is_generator_;
   };
 
   // Report syntax error
-  void ReportUnexpectedToken(i::Token::Value token);
-  void ReportMessageAt(i::Scanner::Location location,
+  void ReportUnexpectedToken(Token::Value token);
+  void ReportMessageAt(Scanner::Location location, const char* type) {
+    ReportMessageAt(location, type, NULL);
+  }
+  void ReportMessageAt(Scanner::Location location,
                        const char* type,
                        const char* name_opt) {
     log_->LogMessage(location.beg_pos, location.end_pos, type, name_opt);
@@ -540,8 +589,6 @@ class PreParser {
                        const char* name_opt) {
     log_->LogMessage(start_pos, end_pos, type, name_opt);
   }
-
-  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
 
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
@@ -606,87 +653,40 @@ class PreParser {
   // Log the currently parsed string literal.
   Expression GetStringSymbol();
 
-  i::Token::Value peek() {
-    if (stack_overflow_) return i::Token::ILLEGAL;
-    return scanner_->peek();
-  }
-
-  i::Token::Value Next() {
-    if (stack_overflow_) return i::Token::ILLEGAL;
-    {
-      int marker;
-      if (reinterpret_cast<uintptr_t>(&marker) < stack_limit_) {
-        // Further calls to peek/Next will return illegal token.
-        // The current one will still be returned. It might already
-        // have been seen using peek.
-        stack_overflow_ = true;
-      }
-    }
-    return scanner_->Next();
-  }
-
-  bool peek_any_identifier();
-
-  void set_language_mode(i::LanguageMode language_mode) {
+  void set_language_mode(LanguageMode language_mode) {
     scope_->set_language_mode(language_mode);
   }
 
   bool is_classic_mode() {
-    return scope_->language_mode() == i::CLASSIC_MODE;
+    return scope_->language_mode() == CLASSIC_MODE;
   }
 
   bool is_extended_mode() {
-    return scope_->language_mode() == i::EXTENDED_MODE;
+    return scope_->language_mode() == EXTENDED_MODE;
   }
 
-  i::LanguageMode language_mode() { return scope_->language_mode(); }
-
-  void Consume(i::Token::Value token) { Next(); }
-
-  void Expect(i::Token::Value token, bool* ok) {
-    if (Next() != token) {
-      *ok = false;
-    }
-  }
-
-  bool Check(i::Token::Value token) {
-    i::Token::Value next = peek();
-    if (next == token) {
-      Consume(next);
-      return true;
-    }
-    return false;
-  }
-  void ExpectSemicolon(bool* ok);
+  LanguageMode language_mode() { return scope_->language_mode(); }
 
   bool CheckInOrOf(bool accept_OF);
 
-  static int Precedence(i::Token::Value tok, bool accept_IN);
-
-  void SetStrictModeViolation(i::Scanner::Location,
+  void SetStrictModeViolation(Scanner::Location,
                               const char* type,
                               bool* ok);
 
   void CheckDelayedStrictModeViolation(int beg_pos, int end_pos, bool* ok);
 
-  void StrictModeIdentifierViolation(i::Scanner::Location,
+  void StrictModeIdentifierViolation(Scanner::Location,
                                      const char* eval_args_type,
                                      Identifier identifier,
                                      bool* ok);
 
-  i::Scanner* scanner_;
-  i::ParserRecorder* log_;
+  ParserRecorder* log_;
   Scope* scope_;
-  uintptr_t stack_limit_;
-  i::Scanner::Location strict_mode_violation_location_;
+  Scanner::Location strict_mode_violation_location_;
   const char* strict_mode_violation_type_;
-  bool stack_overflow_;
-  bool allow_lazy_;
-  bool allow_natives_syntax_;
-  bool allow_generators_;
-  bool allow_for_of_;
   bool parenthesized_function_;
 };
-} }  // v8::preparser
+
+} }  // v8::internal
 
 #endif  // V8_PREPARSER_H

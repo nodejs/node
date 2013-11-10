@@ -131,7 +131,7 @@ bool LiveRange::HasOverlap(UseInterval* target) const {
 LiveRange::LiveRange(int id, Zone* zone)
     : id_(id),
       spilled_(false),
-      is_double_(false),
+      kind_(UNALLOCATED_REGISTERS),
       assigned_register_(kInvalidAssignment),
       last_interval_(NULL),
       first_interval_(NULL),
@@ -145,12 +145,9 @@ LiveRange::LiveRange(int id, Zone* zone)
       spill_start_index_(kMaxInt) { }
 
 
-void LiveRange::set_assigned_register(int reg,
-                                      RegisterKind register_kind,
-                                      Zone* zone) {
+void LiveRange::set_assigned_register(int reg, Zone* zone) {
   ASSERT(!HasRegisterAssigned() && !IsSpilled());
   assigned_register_ = reg;
-  is_double_ = (register_kind == DOUBLE_REGISTERS);
   ConvertOperands(zone);
 }
 
@@ -234,10 +231,15 @@ LOperand* LiveRange::CreateAssignedOperand(Zone* zone) {
   LOperand* op = NULL;
   if (HasRegisterAssigned()) {
     ASSERT(!IsSpilled());
-    if (IsDouble()) {
-      op = LDoubleRegister::Create(assigned_register(), zone);
-    } else {
-      op = LRegister::Create(assigned_register(), zone);
+    switch (Kind()) {
+      case GENERAL_REGISTERS:
+        op = LRegister::Create(assigned_register(), zone);
+        break;
+      case DOUBLE_REGISTERS:
+        op = LDoubleRegister::Create(assigned_register(), zone);
+        break;
+      default:
+        UNREACHABLE();
     }
   } else if (IsSpilled()) {
     ASSERT(!HasRegisterAssigned());
@@ -352,6 +354,7 @@ void LiveRange::SplitAt(LifetimePosition position,
   // Link the new live range in the chain before any of the other
   // ranges linked from the range before the split.
   result->parent_ = (parent_ == NULL) ? this : parent_;
+  result->kind_ = result->parent_->kind_;
   result->next_ = next_;
   next_ = result;
 
@@ -553,7 +556,7 @@ LAllocator::LAllocator(int num_values, HGraph* graph)
       reusable_slots_(8, zone()),
       next_virtual_register_(num_values),
       first_artificial_register_(num_values),
-      mode_(GENERAL_REGISTERS),
+      mode_(UNALLOCATED_REGISTERS),
       num_registers_(-1),
       graph_(graph),
       has_osr_entry_(false),
@@ -653,7 +656,8 @@ LiveRange* LAllocator::FixedLiveRangeFor(int index) {
   if (result == NULL) {
     result = new(zone()) LiveRange(FixedLiveRangeID(index), chunk()->zone());
     ASSERT(result->IsFixed());
-    SetLiveRangeAssignedRegister(result, index, GENERAL_REGISTERS);
+    result->kind_ = GENERAL_REGISTERS;
+    SetLiveRangeAssignedRegister(result, index);
     fixed_live_ranges_[index] = result;
   }
   return result;
@@ -667,7 +671,8 @@ LiveRange* LAllocator::FixedDoubleLiveRangeFor(int index) {
     result = new(zone()) LiveRange(FixedDoubleLiveRangeID(index),
                                    chunk()->zone());
     ASSERT(result->IsFixed());
-    SetLiveRangeAssignedRegister(result, index, DOUBLE_REGISTERS);
+    result->kind_ = DOUBLE_REGISTERS;
+    SetLiveRangeAssignedRegister(result, index);
     fixed_double_live_ranges_[index] = result;
   }
   return result;
@@ -1375,6 +1380,12 @@ void LAllocator::BuildLiveRanges() {
     }
 #endif
   }
+
+  for (int i = 0; i < live_ranges_.length(); ++i) {
+    if (live_ranges_[i] != NULL) {
+      live_ranges_[i]->kind_ = RequiredRegisterKind(live_ranges_[i]->id());
+    }
+  }
 }
 
 
@@ -1481,6 +1492,7 @@ void LAllocator::PopulatePointerMaps() {
 void LAllocator::AllocateGeneralRegisters() {
   LAllocatorPhase phase("L_Allocate general registers", this);
   num_registers_ = Register::NumAllocatableRegisters();
+  mode_ = GENERAL_REGISTERS;
   AllocateRegisters();
 }
 
@@ -1498,7 +1510,7 @@ void LAllocator::AllocateRegisters() {
 
   for (int i = 0; i < live_ranges_.length(); ++i) {
     if (live_ranges_[i] != NULL) {
-      if (RequiredRegisterKind(live_ranges_[i]->id()) == mode_) {
+      if (live_ranges_[i]->Kind() == mode_) {
         AddToUnhandledUnsorted(live_ranges_[i]);
       }
     }
@@ -1518,6 +1530,7 @@ void LAllocator::AllocateRegisters() {
       }
     }
   } else {
+    ASSERT(mode_ == GENERAL_REGISTERS);
     for (int i = 0; i < fixed_live_ranges_.length(); ++i) {
       LiveRange* current = fixed_live_ranges_.at(i);
       if (current != NULL) {
@@ -1812,7 +1825,7 @@ bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
       TraceAlloc("Assigning preferred reg %s to live range %d\n",
                  RegisterName(register_index),
                  current->id());
-      SetLiveRangeAssignedRegister(current, register_index, mode_);
+      SetLiveRangeAssignedRegister(current, register_index);
       return true;
     }
   }
@@ -1847,7 +1860,7 @@ bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
   TraceAlloc("Assigning free reg %s to live range %d\n",
              RegisterName(reg),
              current->id());
-  SetLiveRangeAssignedRegister(current, reg, mode_);
+  SetLiveRangeAssignedRegister(current, reg);
 
   return true;
 }
@@ -1932,7 +1945,7 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
   TraceAlloc("Assigning blocked reg %s to live range %d\n",
              RegisterName(reg),
              current->id());
-  SetLiveRangeAssignedRegister(current, reg, mode_);
+  SetLiveRangeAssignedRegister(current, reg);
 
   // This register was not free. Thus we need to find and spill
   // parts of active and inactive live regions that use the same register
@@ -2149,7 +2162,7 @@ void LAllocator::Spill(LiveRange* range) {
 
   if (!first->HasAllocatedSpillOperand()) {
     LOperand* op = TryReuseSpillSlot(range);
-    if (op == NULL) op = chunk_->GetNextSpillSlot(mode_ == DOUBLE_REGISTERS);
+    if (op == NULL) op = chunk_->GetNextSpillSlot(range->Kind());
     first->SetSpillOperand(op);
   }
   range->MakeSpilled(chunk()->zone());

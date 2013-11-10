@@ -30,7 +30,7 @@
 // This file relies on the fact that the following declaration has been made
 // in runtime.js:
 // var $Array = global.Array;
-
+var $ArrayBuffer = global.ArrayBuffer;
 
 
 // --------------- Typed Arrays ---------------------
@@ -70,15 +70,17 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
   function ConstructByLength(obj, length) {
     var l = ToPositiveInteger(length, "invalid_typed_array_length");
     var byteLength = l * elementSize;
-    var buffer = new global.ArrayBuffer(byteLength);
+    var buffer = new $ArrayBuffer(byteLength);
     %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
   }
 
   function ConstructByArrayLike(obj, arrayLike) {
     var length = arrayLike.length;
-    var l =  ToPositiveInteger(length, "invalid_typed_array_length");
+    var l = ToPositiveInteger(length, "invalid_typed_array_length");
     if(!%TypedArrayInitializeFromArrayLike(obj, arrayId, arrayLike, l)) {
       for (var i = 0; i < l; i++) {
+        // It is crucial that we let any execptions from arrayLike[i]
+        // propagate outside the function.
         obj[i] = arrayLike[i];
       }
     }

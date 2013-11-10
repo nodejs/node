@@ -193,12 +193,16 @@ void BreakableStatementChecker::VisitDebuggerStatement(
 }
 
 
+void BreakableStatementChecker::VisitCaseClause(CaseClause* clause) {
+}
+
+
 void BreakableStatementChecker::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void BreakableStatementChecker::VisitSharedFunctionInfoLiteral(
-    SharedFunctionInfoLiteral* expr) {
+void BreakableStatementChecker::VisitNativeFunctionLiteral(
+    NativeFunctionLiteral* expr) {
 }
 
 
@@ -341,8 +345,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_handler_table(*cgen.handler_table());
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  code->set_has_debug_break_slots(
-      info->isolate()->debugger()->IsDebuggerActive());
   code->set_compiled_optimizable(info->IsOptimizable());
 #endif  // ENABLE_DEBUGGER_SUPPORT
   code->set_allow_osr_at_loop_nesting_level(0);
@@ -826,7 +828,7 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (!isolate()->debugger()->IsDebuggerActive()) {
-    CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
+    CodeGenerator::RecordPositions(masm_, stmt->position());
   } else {
     // Check if the statement will be breakable without adding a debug break
     // slot.
@@ -836,7 +838,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
     // breakable. For breakable statements the actual recording of the
     // position will be postponed to the breakable code (typically an IC).
     bool position_recorded = CodeGenerator::RecordPositions(
-        masm_, stmt->statement_pos(), !checker.is_breakable());
+        masm_, stmt->position(), !checker.is_breakable());
     // If the position recording did record a new position generate a debug
     // break slot to make the statement breakable.
     if (position_recorded) {
@@ -844,15 +846,15 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
     }
   }
 #else
-  CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
+  CodeGenerator::RecordPositions(masm_, stmt->position());
 #endif
 }
 
 
-void FullCodeGenerator::SetExpressionPosition(Expression* expr, int pos) {
+void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (!isolate()->debugger()->IsDebuggerActive()) {
-    CodeGenerator::RecordPositions(masm_, pos);
+    CodeGenerator::RecordPositions(masm_, expr->position());
   } else {
     // Check if the expression will be breakable without adding a debug break
     // slot.
@@ -866,7 +868,7 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr, int pos) {
     // statement positions this is used for e.g. the condition expression of
     // a do while loop.
     bool position_recorded = CodeGenerator::RecordPositions(
-        masm_, pos, !checker.is_breakable());
+        masm_, expr->position(), !checker.is_breakable());
     // If the position recording did record a new position generate a debug
     // break slot to make the statement breakable.
     if (position_recorded) {
@@ -1293,7 +1295,7 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   // possible to break on the condition.
   __ bind(loop_statement.continue_label());
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
-  SetExpressionPosition(stmt->cond(), stmt->condition_position());
+  SetExpressionPosition(stmt->cond());
   VisitForControl(stmt->cond(),
                   &book_keeping,
                   loop_statement.break_label(),
@@ -1515,6 +1517,11 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 
+void FullCodeGenerator::VisitCaseClause(CaseClause* clause) {
+  UNREACHABLE();
+}
+
+
 void FullCodeGenerator::VisitConditional(Conditional* expr) {
   Comment cmnt(masm_, "[ Conditional");
   Label true_case, false_case, done;
@@ -1522,8 +1529,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
 
   PrepareForBailoutForId(expr->ThenId(), NO_REGISTERS);
   __ bind(&true_case);
-  SetExpressionPosition(expr->then_expression(),
-                        expr->then_expression_position());
+  SetExpressionPosition(expr->then_expression());
   if (context()->IsTest()) {
     const TestContext* for_test = TestContext::cast(context());
     VisitForControl(expr->then_expression(),
@@ -1537,8 +1543,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
 
   PrepareForBailoutForId(expr->ElseId(), NO_REGISTERS);
   __ bind(&false_case);
-  SetExpressionPosition(expr->else_expression(),
-                        expr->else_expression_position());
+  SetExpressionPosition(expr->else_expression());
   VisitInDuplicateContext(expr->else_expression());
   // If control flow falls through Visit, merge it with true case here.
   if (!context()->IsTest()) {
@@ -1567,10 +1572,33 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
-    SharedFunctionInfoLiteral* expr) {
-  Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
-  EmitNewClosure(expr->shared_function_info(), false);
+void FullCodeGenerator::VisitNativeFunctionLiteral(
+    NativeFunctionLiteral* expr) {
+  Comment cmnt(masm_, "[ NativeFunctionLiteral");
+
+  // Compute the function template for the native function.
+  Handle<String> name = expr->name();
+  v8::Handle<v8::FunctionTemplate> fun_template =
+      expr->extension()->GetNativeFunction(v8::Utils::ToLocal(name));
+  ASSERT(!fun_template.IsEmpty());
+
+  // Instantiate the function and create a shared function info from it.
+  Handle<JSFunction> fun = Utils::OpenHandle(*fun_template->GetFunction());
+  const int literals = fun->NumberOfLiterals();
+  Handle<Code> code = Handle<Code>(fun->shared()->code());
+  Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
+  bool is_generator = false;
+  Handle<SharedFunctionInfo> shared =
+      isolate()->factory()->NewSharedFunctionInfo(name, literals, is_generator,
+          code, Handle<ScopeInfo>(fun->shared()->scope_info()));
+  shared->set_construct_stub(*construct_stub);
+
+  // Copy the function data to the shared function info.
+  shared->set_function_data(fun->shared()->function_data());
+  int parameters = fun->shared()->formal_parameter_count();
+  shared->set_formal_parameter_count(parameters);
+
+  EmitNewClosure(shared, false);
 }
 
 
@@ -1613,6 +1641,100 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
 
   return false;
 }
+
+
+void BackEdgeTable::Patch(Isolate* isolate,
+                          Code* unoptimized) {
+  DisallowHeapAllocation no_gc;
+  Code* patch = isolate->builtins()->builtin(Builtins::kOnStackReplacement);
+
+  // Iterate over the back edge table and patch every interrupt
+  // call to an unconditional call to the replacement code.
+  int loop_nesting_level = unoptimized->allow_osr_at_loop_nesting_level();
+
+  BackEdgeTable back_edges(unoptimized, &no_gc);
+  for (uint32_t i = 0; i < back_edges.length(); i++) {
+    if (static_cast<int>(back_edges.loop_depth(i)) == loop_nesting_level) {
+      ASSERT_EQ(INTERRUPT, GetBackEdgeState(isolate,
+                                            unoptimized,
+                                            back_edges.pc(i)));
+      PatchAt(unoptimized, back_edges.pc(i), ON_STACK_REPLACEMENT, patch);
+    }
+  }
+
+  unoptimized->set_back_edges_patched_for_osr(true);
+  ASSERT(Verify(isolate, unoptimized, loop_nesting_level));
+}
+
+
+void BackEdgeTable::Revert(Isolate* isolate,
+                           Code* unoptimized) {
+  DisallowHeapAllocation no_gc;
+  Code* patch = isolate->builtins()->builtin(Builtins::kInterruptCheck);
+
+  // Iterate over the back edge table and revert the patched interrupt calls.
+  ASSERT(unoptimized->back_edges_patched_for_osr());
+  int loop_nesting_level = unoptimized->allow_osr_at_loop_nesting_level();
+
+  BackEdgeTable back_edges(unoptimized, &no_gc);
+  for (uint32_t i = 0; i < back_edges.length(); i++) {
+    if (static_cast<int>(back_edges.loop_depth(i)) <= loop_nesting_level) {
+      ASSERT_NE(INTERRUPT, GetBackEdgeState(isolate,
+                                            unoptimized,
+                                            back_edges.pc(i)));
+      PatchAt(unoptimized, back_edges.pc(i), INTERRUPT, patch);
+    }
+  }
+
+  unoptimized->set_back_edges_patched_for_osr(false);
+  unoptimized->set_allow_osr_at_loop_nesting_level(0);
+  // Assert that none of the back edges are patched anymore.
+  ASSERT(Verify(isolate, unoptimized, -1));
+}
+
+
+void BackEdgeTable::AddStackCheck(CompilationInfo* info) {
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = info->isolate();
+  Code* code = info->shared_info()->code();
+  Address pc = code->instruction_start() + info->osr_pc_offset();
+  ASSERT_EQ(ON_STACK_REPLACEMENT, GetBackEdgeState(isolate, code, pc));
+  Code* patch = isolate->builtins()->builtin(Builtins::kOsrAfterStackCheck);
+  PatchAt(code, pc, OSR_AFTER_STACK_CHECK, patch);
+}
+
+
+void BackEdgeTable::RemoveStackCheck(CompilationInfo* info) {
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = info->isolate();
+  Code* code = info->shared_info()->code();
+  Address pc = code->instruction_start() + info->osr_pc_offset();
+  if (GetBackEdgeState(isolate, code, pc) == OSR_AFTER_STACK_CHECK) {
+    Code* patch = isolate->builtins()->builtin(Builtins::kOnStackReplacement);
+    PatchAt(code, pc, ON_STACK_REPLACEMENT, patch);
+  }
+}
+
+
+#ifdef DEBUG
+bool BackEdgeTable::Verify(Isolate* isolate,
+                           Code* unoptimized,
+                           int loop_nesting_level) {
+  DisallowHeapAllocation no_gc;
+  BackEdgeTable back_edges(unoptimized, &no_gc);
+  for (uint32_t i = 0; i < back_edges.length(); i++) {
+    uint32_t loop_depth = back_edges.loop_depth(i);
+    CHECK_LE(static_cast<int>(loop_depth), Code::kMaxLoopNestingMarker);
+    // Assert that all back edges for shallower loops (and only those)
+    // have already been patched.
+    CHECK_EQ((static_cast<int>(loop_depth) <= loop_nesting_level),
+             GetBackEdgeState(isolate,
+                              unoptimized,
+                              back_edges.pc(i)) != INTERRUPT);
+  }
+  return true;
+}
+#endif  // DEBUG
 
 
 #undef __

@@ -1029,7 +1029,8 @@ class Map(HeapObject):
 
 class String(HeapObject):
   def LengthOffset(self):
-    return self.heap.PointerSize()
+    # First word after the map is the hash, the second is the length.
+    return self.heap.PointerSize() * 2
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
@@ -1215,18 +1216,18 @@ class DescriptorArray(object):
   def Deleted(self, value):
     return self.Decode(6, 1, value) == 1
 
-  def Storage(self, value):
-    return self.Decode(7, 11, value)
+  def FieldIndex(self, value):
+    return self.Decode(20, 11, value)
 
   def Pointer(self, value):
-    return self.Decode(18, 11, value)
+    return self.Decode(6, 11, value)
 
   def Details(self, di, value):
     return (
         di,
         self.Type(value),
         self.Attributes(value),
-        self.Storage(value),
+        self.FieldIndex(value),
         self.Pointer(value)
     )
 
@@ -1242,7 +1243,7 @@ class DescriptorArray(object):
       i = 2 + di * 3
       p.Print("0x%x" % (array.address + array.MemberOffset(i)))
       p.Print("[%i] name:    %s" % (di, array.Get(i + 0)))
-      p.Print("[%i] details: %s %s enum %i pointer %i" % \
+      p.Print("[%i] details: %s %s field-index %i pointer %i" % \
               self.Details(di, array.Get(i + 1)))
       p.Print("[%i] value:   %s" % (di, array.Get(i + 2)))
 

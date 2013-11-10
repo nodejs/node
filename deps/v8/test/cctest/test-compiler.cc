@@ -79,7 +79,7 @@ v8::DeclareExtension kPrintExtensionDeclaration(&kPrintExtension);
 
 
 static MaybeObject* GetGlobalProperty(const char* name) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
   return isolate->context()->global_object()->GetProperty(*internalized_name);
@@ -87,7 +87,7 @@ static MaybeObject* GetGlobalProperty(const char* name) {
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Handle<Object> object(value, isolate);
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
@@ -97,7 +97,7 @@ static void SetGlobalProperty(const char* name, Object* value) {
 
 
 static Handle<JSFunction> Compile(const char* source) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Handle<String> source_code(
       isolate->factory()->NewStringFromUtf8(CStrVector(source)));
   Handle<SharedFunctionInfo> shared_function =
@@ -202,8 +202,9 @@ TEST(Sum) {
 
 
 TEST(Print) {
-  CcTest::InitializeVM(PRINT_EXTENSION);
   v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> context = CcTest::NewContext(PRINT_EXTENSION);
+  v8::Context::Scope context_scope(context);
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
@@ -273,8 +274,10 @@ TEST(UncaughtThrow) {
 //   |      JS       |
 //   |   C-to-JS     |
 TEST(C2JSFrames) {
-  CcTest::InitializeVM(PRINT_EXTENSION | GC_EXTENSION);
   v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> context =
+    CcTest::NewContext(PRINT_EXTENSION | GC_EXTENSION);
+  v8::Context::Scope context_scope(context);
 
   const char* source = "function foo(a) { gc(), print(a); }";
 
@@ -312,12 +315,12 @@ TEST(C2JSFrames) {
 // source resulted in crash.
 TEST(Regression236) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<Script> script = factory->NewScript(factory->empty_string());
-  script->set_source(HEAP->undefined_value());
+  script->set_source(CcTest::heap()->undefined_value());
   CHECK_EQ(-1, GetScriptLineNumber(script, 0));
   CHECK_EQ(-1, GetScriptLineNumber(script, 100));
   CHECK_EQ(-1, GetScriptLineNumber(script, -1));
@@ -325,7 +328,7 @@ TEST(Regression236) {
 
 
 TEST(GetScriptLineNumber) {
-  CcTest::InitializeVM();
+  LocalContext context;
   v8::HandleScope scope(CcTest::isolate());
   v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
   const char function_f[] = "function f() {}";
@@ -342,7 +345,7 @@ TEST(GetScriptLineNumber) {
     v8::Handle<v8::String> script_body = v8::String::New(buffer.start());
     v8::Script::Compile(script_body, &origin)->Run();
     v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-        CcTest::env()->Global()->Get(v8::String::New("f")));
+        context->Global()->Get(v8::String::New("f")));
     CHECK_EQ(i, f->GetScriptLineNumber());
   }
 }
@@ -374,8 +377,10 @@ TEST(OptimizedCodeSharing) {
         *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
     Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
-    CHECK(fun1->IsOptimized() || !fun1->IsOptimizable());
-    CHECK(fun2->IsOptimized() || !fun2->IsOptimizable());
+    CHECK(fun1->IsOptimized()
+          || !CcTest::i_isolate()->use_crankshaft() || !fun1->IsOptimizable());
+    CHECK(fun2->IsOptimized()
+          || !CcTest::i_isolate()->use_crankshaft() || !fun2->IsOptimizable());
     CHECK_EQ(fun1->code(), fun2->code());
   }
 }
@@ -420,16 +425,16 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
 
 
 TEST(SplitConstantsInFullCompiler) {
-  CcTest::InitializeVM();
+  LocalContext context;
   v8::HandleScope scope(CcTest::isolate());
 
   CompileRun("function f() { a = 12345678 }; f();");
-  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
   CompileRun("function f(x) { a = 12345678 + x}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
   CompileRun("function f(x) { var arguments = 1; x += 12345678}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
   CompileRun("function f(x) { var arguments = 1; x = 12345678}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
 }
 #endif

@@ -130,16 +130,17 @@ void HandleScope::CloseScope(Isolate* isolate,
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
 
-  current->next = prev_next;
+  std::swap(current->next, prev_next);
   current->level--;
   if (current->limit != prev_limit) {
     current->limit = prev_limit;
     DeleteExtensions(isolate);
-  }
-
-#ifdef ENABLE_EXTRA_CHECKS
-  ZapRange(prev_next, prev_limit);
+#ifdef ENABLE_HANDLE_ZAPPING
+    ZapRange(current->next, prev_limit);
+  } else {
+    ZapRange(current->next, prev_next);
 #endif
+  }
 }
 
 

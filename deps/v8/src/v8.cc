@@ -227,19 +227,6 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_sweeper_threads = 0;
   }
 
-  if (FLAG_parallel_marking) {
-    if (FLAG_marking_threads <= 0) {
-      FLAG_marking_threads = SystemThreadManager::
-          NumberOfParallelSystemThreads(
-              SystemThreadManager::PARALLEL_MARKING);
-    }
-    if (FLAG_marking_threads == 0) {
-      FLAG_parallel_marking = false;
-    }
-  } else {
-    FLAG_marking_threads = 0;
-  }
-
   if (FLAG_concurrent_recompilation &&
       SystemThreadManager::NumberOfParallelSystemThreads(
           SystemThreadManager::PARALLEL_RECOMPILATION) == 0) {

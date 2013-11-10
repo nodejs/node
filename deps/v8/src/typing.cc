@@ -206,6 +206,11 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
 }
 
 
+void AstTyper::VisitCaseClause(CaseClause* clause) {
+  UNREACHABLE();
+}
+
+
 void AstTyper::VisitDoWhileStatement(DoWhileStatement* stmt) {
   // Collect type feedback.
   if (!stmt->cond()->ToBooleanIsTrue()) {
@@ -247,8 +252,8 @@ void AstTyper::VisitForStatement(ForStatement* stmt) {
     RECURSE(Visit(stmt->cond()));
   }
   RECURSE(Visit(stmt->body()));
-  store_.Forget();  // Control may transfer here via 'continue'.
   if (stmt->next() != NULL) {
+    store_.Forget();  // Control may transfer here via 'continue'.
     RECURSE(Visit(stmt->next()));
   }
   store_.Forget();  // Control may transfer here via termination or 'break'.
@@ -305,7 +310,7 @@ void AstTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void AstTyper::VisitSharedFunctionInfoLiteral(SharedFunctionInfoLiteral* expr) {
+void AstTyper::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
 }
 
 
@@ -543,7 +548,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
   Handle<Type> type, left_type, right_type;
   Maybe<int> fixed_right_arg;
   oracle()->BinaryType(expr->BinaryOperationFeedbackId(),
-      &left_type, &right_type, &type, &fixed_right_arg);
+      &left_type, &right_type, &type, &fixed_right_arg, expr->op());
   NarrowLowerType(expr, type);
   NarrowLowerType(expr->left(), left_type);
   NarrowLowerType(expr->right(), right_type);
@@ -577,10 +582,15 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::BIT_AND: {
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      Type* upper = Type::Union(
-          expr->left()->bounds().upper, expr->right()->bounds().upper);
-      if (!upper->Is(Type::Signed32())) upper = Type::Signed32();
-      NarrowType(expr, Bounds(Type::Smi(), upper, isolate_));
+      Handle<Type> upper(
+          Type::Union(
+              expr->left()->bounds().upper, expr->right()->bounds().upper),
+          isolate_);
+      if (!upper->Is(Type::Signed32()))
+        upper = handle(Type::Signed32(), isolate_);
+      Handle<Type> lower(Type::Intersect(
+          handle(Type::Smi(), isolate_), upper), isolate_);
+      NarrowType(expr, Bounds(lower, upper));
       break;
     }
     case Token::BIT_XOR:
@@ -593,7 +603,10 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SHR:
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      NarrowType(expr, Bounds(Type::Smi(), Type::Unsigned32(), isolate_));
+      // TODO(rossberg): The upper bound would be Unsigned32, but since there
+      // is no 'positive Smi' type for the lower bound, we use the smallest
+      // union of Smi and Unsigned32 as upper bound instead.
+      NarrowType(expr, Bounds(Type::Smi(), Type::Number(), isolate_));
       break;
     case Token::ADD: {
       RECURSE(Visit(expr->left()));
@@ -601,15 +614,17 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
       Bounds l = expr->left()->bounds();
       Bounds r = expr->right()->bounds();
       Type* lower =
-          l.lower->Is(Type::Number()) && r.lower->Is(Type::Number()) ?
-              Type::Smi() :
+          l.lower->Is(Type::None()) || r.lower->Is(Type::None()) ?
+              Type::None() :
           l.lower->Is(Type::String()) || r.lower->Is(Type::String()) ?
-              Type::String() : Type::None();
+              Type::String() :
+          l.lower->Is(Type::Number()) && r.lower->Is(Type::Number()) ?
+              Type::Smi() : Type::None();
       Type* upper =
-          l.upper->Is(Type::Number()) && r.upper->Is(Type::Number()) ?
-              Type::Number() :
           l.upper->Is(Type::String()) || r.upper->Is(Type::String()) ?
-              Type::String() : Type::NumberOrString();
+              Type::String() :
+          l.upper->Is(Type::Number()) && r.upper->Is(Type::Number()) ?
+              Type::Number() : Type::NumberOrString();
       NarrowType(expr, Bounds(lower, upper, isolate_));
       break;
     }

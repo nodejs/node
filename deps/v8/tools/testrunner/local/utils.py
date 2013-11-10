@@ -65,7 +65,7 @@ def GuessOS():
   elif system == 'Windows' or system == 'Microsoft':
     # On Windows Vista platform.system() can return 'Microsoft' with some
     # versions of Python, see http://bugs.python.org/issue1082
-    return 'win32'
+    return 'windows'
   elif system == 'FreeBSD':
     return 'freebsd'
   elif system == 'OpenBSD':
@@ -105,4 +105,4 @@ def GuessWordsize():
 
 
 def IsWindows():
-  return GuessOS() == 'win32'
+  return GuessOS() == 'windows'

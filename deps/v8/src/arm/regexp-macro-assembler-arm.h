@@ -223,11 +223,6 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   // are always 0..num_saved_registers_-1)
   int num_saved_registers_;
 
-  // Manage a small pre-allocated pool for writing label targets
-  // to for pushing backtrack addresses.
-  int backtrack_constant_pool_offset_;
-  int backtrack_constant_pool_capacity_;
-
   // Labels used internally.
   Label entry_label_;
   Label start_label_;

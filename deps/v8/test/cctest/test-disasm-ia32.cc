@@ -354,19 +354,29 @@ TEST(DisasmIa320) {
       CpuFeatureScope fscope(&assm, SSE2);
       __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
       __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ addsd(xmm1, xmm0);
-      __ mulsd(xmm1, xmm0);
-      __ subsd(xmm1, xmm0);
-      __ divsd(xmm1, xmm0);
-      __ movdbl(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ movdbl(Operand(ebx, ecx, times_4, 10000), xmm1);
-      __ ucomisd(xmm0, xmm1);
-
+      __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
+      __ movaps(xmm0, xmm1);
       // 128 bit move instructions.
       __ movdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ movdqa(Operand(ebx, ecx, times_4, 10000), xmm0);
       __ movdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ movdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
+
+      __ addsd(xmm1, xmm0);
+      __ mulsd(xmm1, xmm0);
+      __ subsd(xmm1, xmm0);
+      __ divsd(xmm1, xmm0);
+      __ ucomisd(xmm0, xmm1);
+      __ cmpltsd(xmm0, xmm1);
+
+      __ andps(xmm0, xmm1);
+      __ andpd(xmm0, xmm1);
+      __ psllq(xmm0, 17);
+      __ psllq(xmm0, xmm1);
+      __ psrlq(xmm0, 17);
+      __ psrlq(xmm0, xmm1);
+      __ por(xmm0, xmm1);
     }
   }
 
@@ -393,42 +403,13 @@ TEST(DisasmIa320) {
     }
   }
 
-  // andpd, cmpltsd, movaps, psllq, psrlq, por.
-  {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatureScope fscope(&assm, SSE2);
-      __ andpd(xmm0, xmm1);
-      __ andpd(xmm1, xmm2);
-
-      __ cmpltsd(xmm0, xmm1);
-      __ cmpltsd(xmm1, xmm2);
-
-      __ movaps(xmm0, xmm1);
-      __ movaps(xmm1, xmm2);
-
-      __ psllq(xmm0, 17);
-      __ psllq(xmm1, 42);
-
-      __ psllq(xmm0, xmm1);
-      __ psllq(xmm1, xmm2);
-
-      __ psrlq(xmm0, 17);
-      __ psrlq(xmm1, 42);
-
-      __ psrlq(xmm0, xmm1);
-      __ psrlq(xmm1, xmm2);
-
-      __ por(xmm0, xmm1);
-      __ por(xmm1, xmm2);
-    }
-  }
-
   {
     if (CpuFeatures::IsSupported(SSE2) &&
         CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
       __ pextrd(eax, xmm0, 1);
       __ pinsrd(xmm1, eax, 0);
+      __ extractps(eax, xmm1, 0);
     }
   }
 

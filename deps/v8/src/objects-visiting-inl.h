@@ -185,6 +185,8 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFixedDoubleArray, &DataObjectVisitor::Visit);
 
+  table_.Register(kVisitConstantPoolArray, &VisitConstantPoolArray);
+
   table_.Register(kVisitNativeContext, &VisitNativeContext);
 
   table_.Register(kVisitAllocationSite,
@@ -261,10 +263,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
   ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   ASSERT(!rinfo->target_object()->IsConsString());
   HeapObject* object = HeapObject::cast(rinfo->target_object());
-  if (!FLAG_weak_embedded_maps_in_optimized_code || !FLAG_collect_maps ||
-      rinfo->host()->kind() != Code::OPTIMIZED_FUNCTION ||
-      !object->IsMap() || !Map::cast(object)->CanTransition()) {
-    heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+  if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(), object)) {
     StaticVisitor::MarkObject(heap, object);
   }
 }
@@ -448,6 +448,22 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
     }
   }
   VisitSharedFunctionInfoStrongCode(heap, object);
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitConstantPoolArray(
+    Map* map, HeapObject* object) {
+  Heap* heap = map->GetHeap();
+  ConstantPoolArray* constant_pool = ConstantPoolArray::cast(object);
+  int first_ptr_offset = constant_pool->OffsetOfElementAt(
+      constant_pool->first_ptr_index());
+  int last_ptr_offset = constant_pool->OffsetOfElementAt(
+      constant_pool->first_ptr_index() + constant_pool->count_of_ptr_entries());
+  StaticVisitor::VisitPointers(
+      heap,
+      HeapObject::RawField(object, first_ptr_offset),
+      HeapObject::RawField(object, last_ptr_offset));
 }
 
 

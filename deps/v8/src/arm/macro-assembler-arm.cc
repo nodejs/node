@@ -35,6 +35,7 @@
 #include "codegen.h"
 #include "cpu-profiler.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime.h"
 
 namespace v8 {
@@ -233,7 +234,19 @@ void MacroAssembler::Push(Handle<Object> handle) {
 
 
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
-  mov(dst, Operand(value));
+  AllowDeferredHandleDereference smi_check;
+  if (value->IsSmi()) {
+    mov(dst, Operand(value));
+  } else {
+    ASSERT(value->IsHeapObject());
+    if (isolate()->heap()->InNewSpace(*value)) {
+      Handle<Cell> cell = isolate()->factory()->NewCell(value);
+      mov(dst, Operand(cell));
+      ldr(dst, FieldMemOperand(dst, Cell::kValueOffset));
+    } else {
+      mov(dst, Operand(value));
+    }
+  }
 }
 
 
@@ -394,19 +407,6 @@ void MacroAssembler::StoreRoot(Register source,
 }
 
 
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    mov(result, Operand(cell));
-    ldr(result, FieldMemOperand(result, Cell::kValueOffset));
-  } else {
-    mov(result, Operand(object));
-  }
-}
-
-
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cond,
@@ -478,11 +478,6 @@ void MacroAssembler::RecordWrite(Register object,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are cp.
-  ASSERT(!address.is(cp) && !value.is(cp));
-
   if (emit_debug_code()) {
     ldr(ip, MemOperand(address));
     cmp(ip, value);
@@ -733,9 +728,11 @@ void MacroAssembler::VFPEnsureFPSCRState(Register scratch) {
   bind(&fpscr_done);
 }
 
-void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister value,
+
+void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
+                                        const DwVfpRegister src,
                                         const Condition cond) {
-  vsub(value, value, kDoubleRegZero, cond);
+  vsub(dst, src, kDoubleRegZero, cond);
 }
 
 
@@ -919,6 +916,33 @@ void MacroAssembler::LoadNumberAsInt32(Register object,
 }
 
 
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  if (frame_mode == BUILD_STUB_FRAME) {
+    stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+    Push(Smi::FromInt(StackFrame::STUB));
+    // Adjust FP to point to saved FP.
+    add(fp, sp, Operand(2 * kPointerSize));
+  } else {
+    PredictableCodeSizeScope predictible_code_size_scope(
+        this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
+    // The following three instructions must remain together and unmodified
+    // for code aging to work properly.
+    if (isolate()->IsCodePreAgingActive()) {
+      // Pre-age the code.
+      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
+      add(r0, pc, Operand(-8));
+      ldr(pc, MemOperand(pc, -4));
+      dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+    } else {
+      stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+      nop(ip.code());
+      // Adjust FP to point to saved FP.
+      add(fp, sp, Operand(2 * kPointerSize));
+    }
+  }
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   // r0-r3: preserved
   stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
@@ -1020,7 +1044,8 @@ int MacroAssembler::ActivationFrameAlignment() {
 
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
-                                    Register argument_count) {
+                                    Register argument_count,
+                                    bool restore_context) {
   // Optionally restore all double registers.
   if (save_doubles) {
     // Calculate the stack location of the saved doubles and restore them.
@@ -1035,10 +1060,14 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   str(r3, MemOperand(ip));
 
+
   // Restore current context from top and clear it in debug mode.
-  mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
-  ldr(cp, MemOperand(ip));
+  if (restore_context) {
+    mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+    ldr(cp, MemOperand(ip));
+  }
 #ifdef DEBUG
+  mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
   str(r3, MemOperand(ip));
 #endif
 
@@ -1256,7 +1285,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  LoadHeapObject(r1, function);
+  Move(r1, function);
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to
@@ -1330,7 +1359,7 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
   STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
-  // For the JSEntry handler, we must preserve r0-r4, r5-r7 are available.
+  // For the JSEntry handler, we must preserve r0-r4, r5-r6 are available.
   // We will build up the handler from the bottom by pushing on the stack.
   // Set up the code object (r5) and the state (r6) for pushing.
   unsigned state =
@@ -1341,9 +1370,9 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
 
   // Push the frame pointer, context, state, and code object.
   if (kind == StackHandler::JS_ENTRY) {
-    mov(r7, Operand(Smi::FromInt(0)));  // Indicates no context.
+    mov(cp, Operand(Smi::FromInt(0)));  // Indicates no context.
     mov(ip, Operand::Zero());  // NULL frame pointer.
-    stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | ip.bit());
+    stm(db_w, sp, r5.bit() | r6.bit() | cp.bit() | ip.bit());
   } else {
     stm(db_w, sp, r5.bit() | r6.bit() | cp.bit() | fp.bit());
   }
@@ -2280,12 +2309,14 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
-                                              Address function_address,
-                                              ExternalReference thunk_ref,
-                                              Register thunk_last_arg,
-                                              int stack_space,
-                                              int return_value_offset) {
+void MacroAssembler::CallApiFunctionAndReturn(
+    ExternalReference function,
+    Address function_address,
+    ExternalReference thunk_ref,
+    Register thunk_last_arg,
+    int stack_space,
+    MemOperand return_value_operand,
+    MemOperand* context_restore_operand) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   const int kNextOffset = 0;
@@ -2296,13 +2327,15 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
       ExternalReference::handle_scope_level_address(isolate()),
       next_address);
 
+  ASSERT(!thunk_last_arg.is(r3));
+
   // Allocate HandleScope in callee-save registers.
-  mov(r7, Operand(next_address));
-  ldr(r4, MemOperand(r7, kNextOffset));
-  ldr(r5, MemOperand(r7, kLimitOffset));
-  ldr(r6, MemOperand(r7, kLevelOffset));
+  mov(r9, Operand(next_address));
+  ldr(r4, MemOperand(r9, kNextOffset));
+  ldr(r5, MemOperand(r9, kLimitOffset));
+  ldr(r6, MemOperand(r9, kLevelOffset));
   add(r6, r6, Operand(1));
-  str(r6, MemOperand(r7, kLevelOffset));
+  str(r6, MemOperand(r9, kLevelOffset));
 
   if (FLAG_log_timer_events) {
     FrameScope frame(this, StackFrame::MANUAL);
@@ -2313,7 +2346,6 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
     PopSafepointRegisters();
   }
 
-  ASSERT(!thunk_last_arg.is(r3));
   Label profiler_disabled;
   Label end_profiler_check;
   bool* is_profiling_flag =
@@ -2349,24 +2381,25 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   }
 
   Label promote_scheduled_exception;
+  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label return_value_loaded;
 
   // load value from ReturnValue
-  ldr(r0, MemOperand(fp, return_value_offset*kPointerSize));
+  ldr(r0, return_value_operand);
   bind(&return_value_loaded);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
-  str(r4, MemOperand(r7, kNextOffset));
+  str(r4, MemOperand(r9, kNextOffset));
   if (emit_debug_code()) {
-    ldr(r1, MemOperand(r7, kLevelOffset));
+    ldr(r1, MemOperand(r9, kLevelOffset));
     cmp(r1, r6);
     Check(eq, kUnexpectedLevelAfterReturnFromApiCall);
   }
   sub(r6, r6, Operand(1));
-  str(r6, MemOperand(r7, kLevelOffset));
-  ldr(ip, MemOperand(r7, kLimitOffset));
+  str(r6, MemOperand(r9, kLevelOffset));
+  ldr(ip, MemOperand(r9, kLimitOffset));
   cmp(r5, ip);
   b(ne, &delete_allocated_handles);
 
@@ -2377,21 +2410,29 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   ldr(r5, MemOperand(ip));
   cmp(r4, r5);
   b(ne, &promote_scheduled_exception);
+  bind(&exception_handled);
 
+  bool restore_context = context_restore_operand != NULL;
+  if (restore_context) {
+    ldr(cp, *context_restore_operand);
+  }
   // LeaveExitFrame expects unwind space to be in a register.
   mov(r4, Operand(stack_space));
-  LeaveExitFrame(false, r4);
+  LeaveExitFrame(false, r4, !restore_context);
   mov(pc, lr);
 
   bind(&promote_scheduled_exception);
-  TailCallExternalReference(
-      ExternalReference(Runtime::kPromoteScheduledException, isolate()),
-      0,
-      1);
+  {
+    FrameScope frame(this, StackFrame::INTERNAL);
+    CallExternalReference(
+        ExternalReference(Runtime::kPromoteScheduledException, isolate()),
+        0);
+  }
+  jmp(&exception_handled);
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
-  str(r5, MemOperand(r7, kLimitOffset));
+  str(r5, MemOperand(r9, kLimitOffset));
   mov(r4, r0);
   PrepareCallCFunction(1, r5);
   mov(r0, Operand(ExternalReference::isolate_address(isolate())));
@@ -2603,7 +2644,8 @@ void MacroAssembler::GetLeastBitsFromInt32(Register dst,
 
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
-                                 int num_arguments) {
+                                 int num_arguments,
+                                 SaveFPRegsMode save_doubles) {
   // All parameters are on the stack.  r0 has the return value after call.
 
   // If the expected number of arguments of the runtime function is
@@ -2620,21 +2662,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   mov(r0, Operand(num_arguments));
   mov(r1, Operand(ExternalReference(f, isolate())));
-  CEntryStub stub(1);
-  CallStub(&stub);
-}
-
-
-void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
-  CallRuntime(Runtime::FunctionForId(fid), num_arguments);
-}
-
-
-void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-  const Runtime::Function* function = Runtime::FunctionForId(id);
-  mov(r0, Operand(function->nargs));
-  mov(r1, Operand(ExternalReference(function, isolate())));
-  CEntryStub stub(1, kSaveFPRegs);
+  CEntryStub stub(1, save_doubles);
   CallStub(&stub);
 }
 
@@ -3079,6 +3107,88 @@ void MacroAssembler::JumpIfNotHeapNumber(Register object,
 }
 
 
+void MacroAssembler::LookupNumberStringCache(Register object,
+                                             Register result,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Register scratch3,
+                                             Label* not_found) {
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch3;
+
+  // Load the number string cache.
+  LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  ldr(mask, FieldMemOperand(number_string_cache, FixedArray::kLengthOffset));
+  // Divide length by two (length is a smi).
+  mov(mask, Operand(mask, ASR, kSmiTagSize + 1));
+  sub(mask, mask, Operand(1));  // Make mask.
+
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label is_smi;
+  Label load_result_from_cache;
+  JumpIfSmi(object, &is_smi);
+  CheckMap(object,
+           scratch1,
+           Heap::kHeapNumberMapRootIndex,
+           not_found,
+           DONT_DO_SMI_CHECK);
+
+  STATIC_ASSERT(8 == kDoubleSize);
+  add(scratch1,
+      object,
+      Operand(HeapNumber::kValueOffset - kHeapObjectTag));
+  ldm(ia, scratch1, scratch1.bit() | scratch2.bit());
+  eor(scratch1, scratch1, Operand(scratch2));
+  and_(scratch1, scratch1, Operand(mask));
+
+  // Calculate address of entry in string cache: each entry consists
+  // of two pointer sized fields.
+  add(scratch1,
+      number_string_cache,
+      Operand(scratch1, LSL, kPointerSizeLog2 + 1));
+
+  Register probe = mask;
+  ldr(probe, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+  JumpIfSmi(probe, not_found);
+  sub(scratch2, object, Operand(kHeapObjectTag));
+  vldr(d0, scratch2, HeapNumber::kValueOffset);
+  sub(probe, probe, Operand(kHeapObjectTag));
+  vldr(d1, probe, HeapNumber::kValueOffset);
+  VFPCompareAndSetFlags(d0, d1);
+  b(ne, not_found);  // The cache did not contain this value.
+  b(&load_result_from_cache);
+
+  bind(&is_smi);
+  Register scratch = scratch1;
+  and_(scratch, mask, Operand(object, ASR, 1));
+  // Calculate address of entry in string cache: each entry consists
+  // of two pointer sized fields.
+  add(scratch,
+      number_string_cache,
+      Operand(scratch, LSL, kPointerSizeLog2 + 1));
+
+  // Check if the entry is the smi we are looking for.
+  ldr(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  cmp(object, probe);
+  b(ne, not_found);
+
+  // Get the result from the cache.
+  bind(&load_result_from_cache);
+  ldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
+  IncrementCounter(isolate()->counters()->number_to_string_native(),
+                   1,
+                   scratch1,
+                   scratch2);
+}
+
+
 void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
     Register first,
     Register second,
@@ -3191,20 +3301,19 @@ void MacroAssembler::CopyBytes(Register src,
                                Register dst,
                                Register length,
                                Register scratch) {
-  Label align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
+  Label align_loop_1, word_loop, byte_loop, byte_loop_1, done;
 
   // Align src before copying in word size chunks.
-  bind(&align_loop);
-  cmp(length, Operand::Zero());
-  b(eq, &done);
+  cmp(length, Operand(kPointerSize));
+  b(le, &byte_loop);
+
   bind(&align_loop_1);
   tst(src, Operand(kPointerSize - 1));
   b(eq, &word_loop);
   ldrb(scratch, MemOperand(src, 1, PostIndex));
   strb(scratch, MemOperand(dst, 1, PostIndex));
   sub(length, length, Operand(1), SetCC);
-  b(ne, &byte_loop_1);
-
+  b(&align_loop_1);
   // Copy bytes in word size chunks.
   bind(&word_loop);
   if (emit_debug_code()) {
@@ -3776,8 +3885,8 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
-    Register scratch_reg) {
-  Label no_memento_available;
+    Register scratch_reg,
+    Label* no_memento_found) {
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
@@ -3785,15 +3894,14 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   add(scratch_reg, receiver_reg,
       Operand(JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
   cmp(scratch_reg, Operand(new_space_start));
-  b(lt, &no_memento_available);
+  b(lt, no_memento_found);
   mov(ip, Operand(new_space_allocation_top));
   ldr(ip, MemOperand(ip));
   cmp(scratch_reg, ip);
-  b(gt, &no_memento_available);
+  b(gt, no_memento_found);
   ldr(scratch_reg, MemOperand(scratch_reg, -AllocationMemento::kSize));
   cmp(scratch_reg,
-      Operand(Handle<Map>(isolate()->heap()->allocation_memento_map())));
-  bind(&no_memento_available);
+      Operand(isolate()->factory()->allocation_memento_map()));
 }
 
 
