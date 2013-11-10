@@ -8,8 +8,6 @@ vars = {
 }
 
 deps = {
-  "scons":
-    Var("chrome_trunk") + "/src/third_party/scons@44099",
 }
 
 deps_os = {
