@@ -191,8 +191,8 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
 template <typename TYPE>
 inline void AsyncWrap::AddAsyncListener(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   v8::HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   v8::Local<v8::Object> handle = args.This();
   v8::Local<v8::Value> listener = args[0];
@@ -211,8 +211,8 @@ inline void AsyncWrap::AddAsyncListener(
 template <typename TYPE>
 inline void AsyncWrap::RemoveAsyncListener(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   v8::HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   v8::Local<v8::Object> handle = args.This();
   v8::Local<v8::Value> listener = args[0];

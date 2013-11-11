@@ -337,8 +337,8 @@ class Parser : public WeakObject {
 
 
   static void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
     assert(type == HTTP_REQUEST || type == HTTP_RESPONSE);
@@ -445,8 +445,8 @@ class Parser : public WeakObject {
 
 
   static void Reinitialize(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
 
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
@@ -461,8 +461,8 @@ class Parser : public WeakObject {
 
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
     Parser* parser = Unwrap<Parser>(args.This());
     // Should always be called from the same context.
     assert(env == parser->env());

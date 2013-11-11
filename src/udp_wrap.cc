@@ -129,8 +129,8 @@ void UDPWrap::Initialize(Handle<Object> target,
 
 void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
   assert(args.IsConstructCall());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
   new UDPWrap(env, args.This());
 }
 
@@ -243,8 +243,8 @@ void UDPWrap::DropMembership(const FunctionCallbackInfo<Value>& args) {
 
 
 void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
 
@@ -336,8 +336,8 @@ void UDPWrap::RecvStop(const FunctionCallbackInfo<Value>& args) {
 
 
 void UDPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   struct sockaddr_storage address;
   UDPWrap* wrap = Unwrap<UDPWrap>(args.This());

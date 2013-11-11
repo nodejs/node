@@ -190,8 +190,8 @@ size_t StreamWrap::WriteBuffer(Handle<Value> val, uv_buf_t* buf) {
 
 
 void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
 
@@ -229,8 +229,8 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
 template <enum encoding encoding>
 void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
   int err;
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
@@ -313,8 +313,8 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
 
 
 void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
 
@@ -459,8 +459,8 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
 
 
 void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
 

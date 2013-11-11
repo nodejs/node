@@ -78,9 +78,6 @@ FSEventWrap::~FSEventWrap() {
 void FSEventWrap::Initialize(Handle<Object> target,
                              Handle<Value> unused,
                              Handle<Context> context) {
-  Environment* env = Environment::GetCurrent(context);
-  HandleScope handle_scope(env->isolate());
-
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "FSEvent"));
@@ -94,6 +91,7 @@ void FSEventWrap::Initialize(Handle<Object> target,
 
 void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
   assert(args.IsConstructCall());
+  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new FSEventWrap(env, args.This());
 }

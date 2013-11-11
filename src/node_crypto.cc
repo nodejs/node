@@ -245,6 +245,7 @@ void SecureContext::Initialize(Environment* env, Handle<Object> target) {
 
 
 void SecureContext::New(const FunctionCallbackInfo<Value>& args) {
+  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new SecureContext(env, args.This());
 }
@@ -2105,6 +2106,7 @@ void CipherBase::Initialize(Environment* env, Handle<Object> target) {
 
 void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
   assert(args.IsConstructCall() == true);
+  HandleScope handle_scope(args.GetIsolate());
   CipherKind kind = args[0]->IsTrue() ? kCipher : kDecipher;
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new CipherBase(env, args.This(), kind);
@@ -2241,8 +2243,8 @@ bool CipherBase::Update(const char* data,
 
 
 void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   CipherBase* cipher = Unwrap<CipherBase>(args.This());
 
@@ -2310,8 +2312,8 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
 
 
 void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   CipherBase* cipher = Unwrap<CipherBase>(args.This());
 
@@ -2348,6 +2350,7 @@ void Hmac::Initialize(Environment* env, v8::Handle<v8::Object> target) {
 
 
 void Hmac::New(const FunctionCallbackInfo<Value>& args) {
+  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new Hmac(env, args.This());
 }
@@ -2586,6 +2589,7 @@ void Sign::Initialize(Environment* env, v8::Handle<v8::Object> target) {
 
 
 void Sign::New(const FunctionCallbackInfo<Value>& args) {
+  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new Sign(env, args.This());
 }
@@ -2768,6 +2772,7 @@ void Verify::Initialize(Environment* env, v8::Handle<v8::Object> target) {
 
 
 void Verify::New(const FunctionCallbackInfo<Value>& args) {
+  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new Verify(env, args.This());
 }
@@ -3449,8 +3454,8 @@ void EIO_PBKDF2After(uv_work_t* work_req, int status) {
 
 
 void PBKDF2(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   const char* type_error = NULL;
   char* pass = NULL;
@@ -3655,8 +3660,8 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
                                          RandomBytesRequest,
                                          work_req_);
   Environment* env = req->env();
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Value> argv[2];
   RandomBytesCheck(req, argv);
   req->MakeCallback(env->ondone_string(), ARRAY_SIZE(argv), argv);
@@ -3666,8 +3671,8 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
 
 template <bool pseudoRandom>
 void RandomBytes(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   // maybe allow a buffer to write to? cuts down on object creation
   // when generating random data in a loop
@@ -3776,6 +3781,7 @@ void Certificate::Initialize(Handle<Object> target) {
 
 
 void Certificate::New(const FunctionCallbackInfo<Value>& args) {
+  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new Certificate(env, args.This());
 }

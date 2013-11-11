@@ -313,8 +313,8 @@ class ZCtx : public WeakObject {
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
 
     if (args.Length() < 1 || !args[0]->IsInt32()) {
       return ThrowTypeError("Bad argument");

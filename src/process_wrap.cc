@@ -72,8 +72,8 @@ class ProcessWrap : public HandleWrap {
     // Therefore we assert that we are not trying to call this as a
     // normal function.
     assert(args.IsConstructCall());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
     new ProcessWrap(env, args.This());
   }
 
@@ -130,8 +130,8 @@ class ProcessWrap : public HandleWrap {
   }
 
   static void Spawn(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
 
     ProcessWrap* wrap = Unwrap<ProcessWrap>(args.This());
 

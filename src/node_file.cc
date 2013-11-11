@@ -731,8 +731,8 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 //             if null, write from the current position
 // 3 enc       encoding of string
 static void WriteString(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   if (!args[0]->IsInt32())
     return ThrowTypeError("First argument must be file descriptor");

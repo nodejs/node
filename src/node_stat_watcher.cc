@@ -99,8 +99,8 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
 
 void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
   assert(args.IsConstructCall());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
   new StatWatcher(env, args.This());
 }
 

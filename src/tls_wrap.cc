@@ -181,8 +181,8 @@ void TLSCallbacks::InitSSL() {
 
 
 void TLSCallbacks::Wrap(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   if (args.Length() < 1 || !args[0]->IsObject())
     return ThrowTypeError("First argument should be a StreamWrap instance");

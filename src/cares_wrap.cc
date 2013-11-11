@@ -776,8 +776,8 @@ class GetHostByNameWrap: public QueryWrap {
 
 template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   assert(!args.IsConstructCall());
   assert(args[0]->IsObject());
@@ -911,8 +911,8 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
@@ -958,8 +958,8 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetServers(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   Local<Array> server_array = Array::New();
 
@@ -988,8 +988,8 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
 
 
 static void SetServers(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   assert(args[0]->IsArray());
 

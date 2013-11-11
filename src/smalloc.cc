@@ -297,8 +297,8 @@ void AllocDispose(const FunctionCallbackInfo<Value>& args) {
 
 
 void AllocDispose(Handle<Object> obj) {
+  HandleScope handle_scope(node_isolate);
   Environment* env = Environment::GetCurrent(node_isolate);
-  HandleScope handle_scope(env->isolate());
 
   if (env->using_smalloc_alloc_cb()) {
     Local<Value> ext_v = obj->GetHiddenValue(env->smalloc_p_string());
@@ -360,6 +360,7 @@ void Alloc(Handle<Object> obj,
            enum ExternalArrayType type) {
   assert(!obj->HasIndexedPropertiesInExternalArrayData());
 
+  HandleScope handle_scope(node_isolate);
   Environment* env = Environment::GetCurrent(node_isolate);
   env->set_using_smalloc_alloc_cb(true);
 

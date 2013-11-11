@@ -218,8 +218,8 @@ class ContextifyContext {
 
 
   static void MakeContext(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
 
     if (!args[0]->IsObject()) {
       return ThrowTypeError("sandbox argument must be an object.");
@@ -449,8 +449,8 @@ class ContextifyScript : public WeakObject {
 
   // args: [options]
   static void RunInThisContext(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
 
     // Assemble arguments
     TryCatch try_catch;

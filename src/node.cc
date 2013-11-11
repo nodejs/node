@@ -845,8 +845,8 @@ Local<Value> WinapiErrnoException(int errorno,
 
 
 void SetupAsyncListener(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   assert(args[0]->IsObject());
   assert(args[1]->IsFunction());
@@ -875,8 +875,8 @@ void SetupAsyncListener(const FunctionCallbackInfo<Value>& args) {
 
 
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   assert(args[0]->IsObject() && args[1]->IsFunction());
 
@@ -1648,8 +1648,8 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 
 
 void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   size_t rss;
   int err = uv_resident_set_memory(&rss);
@@ -1728,8 +1728,8 @@ typedef void (UV_DYNAMIC* extInit)(Handle<Object> exports);
 // when two contexts try to load the same shared object. Maybe have a shadow
 // cache that's a plain C list or hash table that's shared across contexts?
 void DLOpen(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
   char symbol[1024], *base, *pos;
   uv_lib_t lib;
   int r;
@@ -1898,8 +1898,8 @@ void OnMessage(Handle<Message> message, Handle<Value> error) {
 
 
 static void Binding(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   Local<String> module = args[0]->ToString();
   String::Utf8Value module_v(module);
@@ -2181,6 +2181,7 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 void NeedImmediateCallbackGetter(Local<String> property,
                                  const PropertyCallbackInfo<Value>& info) {
+  HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info.GetIsolate());
   const uv_check_t* immediate_check_handle = env->immediate_check_handle();
   bool active = uv_is_active(
@@ -2193,8 +2194,8 @@ static void NeedImmediateCallbackSetter(
     Local<String> property,
     Local<Value> value,
     const PropertyCallbackInfo<void>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
   HandleScope handle_scope(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info.GetIsolate());
 
   uv_check_t* immediate_check_handle = env->immediate_check_handle();
   bool active = uv_is_active(
@@ -2241,12 +2242,16 @@ void StopProfilerIdleNotifier(Environment* env) {
 
 
 void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
-  StartProfilerIdleNotifier(Environment::GetCurrent(args.GetIsolate()));
+  HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  StartProfilerIdleNotifier(env);
 }
 
 
 void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
-  StopProfilerIdleNotifier(Environment::GetCurrent(args.GetIsolate()));
+  HandleScope handle_scope(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  StopProfilerIdleNotifier(env);
 }
 
 
@@ -2761,6 +2766,7 @@ static void EnableDebug(bool wait_connect) {
   assert(debugger_running == false);
   Isolate* isolate = node_isolate;  // TODO(bnoordhuis) Multi-isolate support.
   Isolate::Scope isolate_scope(isolate);
+  HandleScope handle_scope(isolate);
   v8::Debug::SetDebugMessageDispatchHandler(DispatchMessagesDebugAgentCallback,
                                             false);
   debugger_running = v8::Debug::EnableAgent("node " NODE_VERSION,
@@ -2779,7 +2785,6 @@ static void EnableDebug(bool wait_connect) {
     return;  // Still starting up.
 
   Context::Scope context_scope(env->context());
-  HandleScope handle_scope(env->isolate());
   Local<Object> message = Object::New();
   message->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "cmd"),
                FIXED_ONE_BYTE_STRING(env->isolate(), "NODE_DEBUG_ENABLED"));

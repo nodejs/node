@@ -77,8 +77,8 @@ class TimerWrap : public HandleWrap {
     // Therefore we assert that we are not trying to call this as a
     // normal function.
     assert(args.IsConstructCall());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
     new TimerWrap(env, args.This());
   }
 
@@ -144,8 +144,8 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope handle_scope(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
     uv_update_time(env->event_loop());
     double now = static_cast<double>(uv_now(env->event_loop()));
     args.GetReturnValue().Set(now);
