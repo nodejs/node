@@ -143,8 +143,6 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
                               ssize_t nread,
                               const uv_buf_t* buf,
                               uv_handle_type pending) {
-  HandleScope scope(node_isolate);
-
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
 
   // We should not be getting this callback if someone as already called

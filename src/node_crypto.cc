@@ -864,8 +864,6 @@ SSL_SESSION* SSLWrap<Base>::GetSessionCallback(SSL* s,
                                                unsigned char* key,
                                                int len,
                                                int* copy) {
-  HandleScope scope(node_isolate);
-
   Base* w = static_cast<Base*>(SSL_get_app_data(s));
 
   *copy = 0;
@@ -878,10 +876,10 @@ SSL_SESSION* SSLWrap<Base>::GetSessionCallback(SSL* s,
 
 template <class Base>
 int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
-  HandleScope scope(node_isolate);
-
   Base* w = static_cast<Base*>(SSL_get_app_data(s));
   Environment* env = w->ssl_env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   if (!w->session_callbacks_)
     return 0;
@@ -911,10 +909,10 @@ int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
 template <class Base>
 void SSLWrap<Base>::OnClientHello(void* arg,
                                   const ClientHelloParser::ClientHello& hello) {
-  HandleScope scope(node_isolate);
-
   Base* w = static_cast<Base*>(arg);
   Environment* env = w->ssl_env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   Local<Object> hello_obj = Object::New();
   Local<Object> buff = Buffer::New(
@@ -1308,6 +1306,9 @@ int SSLWrap<Base>::AdvertiseNextProtoCallback(SSL* s,
                                               unsigned int* len,
                                               void* arg) {
   Base* w = static_cast<Base*>(arg);
+  Environment* env = w->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   if (w->npn_protos_.IsEmpty()) {
     // No initialization - no NPN protocols
@@ -1331,6 +1332,9 @@ int SSLWrap<Base>::SelectNextProtoCallback(SSL* s,
                                            unsigned int inlen,
                                            void* arg) {
   Base* w = static_cast<Base*>(arg);
+  Environment* env = w->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   // Release old protocol handler if present
   w->selected_npn_proto_.Dispose();
