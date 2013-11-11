@@ -3249,8 +3249,11 @@ int Start(int argc, char** argv) {
     Locker locker(node_isolate);
     Environment* env =
         CreateEnvironment(node_isolate, argc, argv, exec_argc, exec_argv);
+    // This Context::Scope is here so EnableDebug() can look up the current
+    // environment with Environment::GetCurrentChecked().
+    // TODO(bnoordhuis) Reorder the debugger initialization logic so it can
+    // be removed.
     Context::Scope context_scope(env->context());
-    HandleScope handle_scope(env->isolate());
     uv_run(env->event_loop(), UV_RUN_DEFAULT);
     EmitExit(env);
     RunAtExit(env);

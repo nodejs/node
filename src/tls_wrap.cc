@@ -235,9 +235,8 @@ void TLSCallbacks::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   SSL* ssl = const_cast<SSL*>(ssl_);
   TLSCallbacks* c = static_cast<TLSCallbacks*>(SSL_get_app_data(ssl));
   Environment* env = c->env();
-  // There should be a Context::Scope a few stack frames down.
-  assert(env->context() == env->isolate()->GetCurrentContext());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Object> object = c->object();
 
   if (where & SSL_CB_HANDSHAKE_START) {
