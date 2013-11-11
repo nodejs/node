@@ -367,7 +367,8 @@ class QueryAWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope(node_isolate);
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     struct hostent* host;
 
@@ -403,7 +404,8 @@ class QueryAaaaWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope(node_isolate);
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     struct hostent* host;
 
@@ -439,8 +441,8 @@ class QueryCnameWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope(node_isolate);
-
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     struct hostent* host;
 
     int status = ares_parse_a_reply(buf, len, &host, NULL, NULL);
@@ -478,7 +480,8 @@ class QueryMxWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope(node_isolate);
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     struct ares_mx_reply* mx_start;
     int status = ares_parse_mx_reply(buf, len, &mx_start);
@@ -528,6 +531,8 @@ class QueryNsWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     struct hostent* host;
 
     int status = ares_parse_ns_reply(buf, len, &host);
@@ -562,6 +567,8 @@ class QueryTxtWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     struct ares_txt_reply* txt_out;
 
     int status = ares_parse_txt_reply(buf, len, &txt_out);
@@ -603,7 +610,8 @@ class QuerySrvWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope(node_isolate);
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     struct ares_srv_reply* srv_start;
     int status = ares_parse_srv_reply(buf, len, &srv_start);
@@ -660,7 +668,8 @@ class QueryNaptrWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope(node_isolate);
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     ares_naptr_reply* naptr_start;
     int status = ares_parse_naptr_reply(buf, len, &naptr_start);
@@ -740,8 +749,8 @@ class GetHostByAddrWrap: public QueryWrap {
 
  protected:
   void Parse(struct hostent* host) {
-    HandleScope scope(node_isolate);
-
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     this->CallOnComplete(HostentToNames(host));
   }
 };
