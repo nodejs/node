@@ -117,8 +117,8 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   // But the handle pointer should be gone.
   assert(wrap->handle__ == NULL);
 
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Object> object = wrap->object();
 
   if (wrap->flags_ & kCloseCallback) {

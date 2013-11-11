@@ -297,8 +297,8 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
   assert(&tcp_wrap->handle_ == reinterpret_cast<uv_tcp_t*>(handle));
   Environment* env = tcp_wrap->env();
 
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   // We should not be getting this callback if someone as already called
   // uv_close() on the handle.
@@ -333,8 +333,8 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
   assert(req_wrap->env() == wrap->env());
   Environment* env = wrap->env();
 
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   // The wrap and request objects should still be there.
   assert(req_wrap->persistent().IsEmpty() == false);

@@ -137,8 +137,8 @@ class TimerWrap : public HandleWrap {
   static void OnTimeout(uv_timer_t* handle, int status) {
     TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);
     Environment* env = wrap->env();
-    Context::Scope context_scope(env->context());
     HandleScope handle_scope(env->isolate());
+    Context::Scope context_scope(env->context());
     Local<Value> argv[1] = { Integer::New(status, node_isolate) };
     wrap->MakeCallback(kOnTimeout, ARRAY_SIZE(argv), argv);
   }

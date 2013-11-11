@@ -431,8 +431,8 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   StreamWrap* wrap = req_wrap->wrap();
   Environment* env = wrap->env();
 
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   // The wrap and request objects should still be there.
   assert(req_wrap->persistent().IsEmpty() == false);
@@ -483,8 +483,8 @@ void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
   assert(req_wrap->persistent().IsEmpty() == false);
   assert(wrap->persistent().IsEmpty() == false);
 
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   Local<Object> req_wrap_obj = req_wrap->object();
   Local<Value> argv[3] = {
@@ -552,8 +552,8 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
                                  const uv_buf_t* buf,
                                  uv_handle_type pending) {
   Environment* env = wrap()->env();
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   Local<Value> argv[] = {
     Integer::New(nread, node_isolate),

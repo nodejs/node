@@ -255,8 +255,8 @@ class ZCtx : public WeakObject {
     ZCtx* ctx = CONTAINER_OF(work_req, ZCtx, work_req_);
     Environment* env = ctx->env();
 
-    Context::Scope context_scope(env->context());
     HandleScope handle_scope(env->isolate());
+    Context::Scope context_scope(env->context());
 
     // Acceptable error states depend on the type of zlib stream.
     switch (ctx->err_) {

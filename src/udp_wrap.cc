@@ -364,8 +364,8 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
   SendWrap* req_wrap = static_cast<SendWrap*>(req->data);
   if (req_wrap->have_callback()) {
     Environment* env = req_wrap->env();
-    Context::Scope context_scope(env->context());
     HandleScope handle_scope(env->isolate());
+    Context::Scope context_scope(env->context());
     Local<Value> arg = Integer::New(status, node_isolate);
     req_wrap->MakeCallback(env->oncomplete_string(), 1, &arg);
   }
@@ -400,8 +400,8 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   UDPWrap* wrap = static_cast<UDPWrap*>(handle->data);
   Environment* env = wrap->env();
 
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   Local<Object> wrap_obj = wrap->object();
   Local<Value> argv[] = {

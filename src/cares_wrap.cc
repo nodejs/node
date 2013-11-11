@@ -276,8 +276,8 @@ class QueryWrap : public AsyncWrap {
   }
 
   void CallOnComplete(Local<Value> answer) {
-    Context::Scope context_scope(env()->context());
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     Local<Value> argv[] = {
       Integer::New(0, env()->isolate()),
       answer
@@ -286,8 +286,8 @@ class QueryWrap : public AsyncWrap {
   }
 
   void CallOnComplete(Local<Value> answer, Local<Value> family) {
-    Context::Scope context_scope(env()->context());
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     Local<Value> argv[] = {
       Integer::New(0, env()->isolate()),
       answer,
@@ -298,8 +298,8 @@ class QueryWrap : public AsyncWrap {
 
   void ParseError(int status) {
     assert(status != ARES_SUCCESS);
-    Context::Scope context_scope(env()->context());
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     Local<Value> arg;
     switch (status) {
 #define V(code)                                                               \
@@ -800,8 +800,8 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   GetAddrInfoReqWrap* req_wrap = static_cast<GetAddrInfoReqWrap*>(req->data);
   Environment* env = req_wrap->env();
 
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   Local<Value> argv[] = {
     Integer::New(status, node_isolate),

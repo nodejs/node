@@ -1789,8 +1789,8 @@ void Connection::SSLInfoCallback(const SSL *ssl_, int where, int ret) {
   SSL* ssl = const_cast<SSL*>(ssl_);
   Connection* conn = static_cast<Connection*>(SSL_get_app_data(ssl));
   Environment* env = conn->env();
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   if (where & SSL_CB_HANDSHAKE_START) {
     conn->MakeCallback(env->onhandshakestart_string(), 0, NULL);
@@ -3447,8 +3447,8 @@ void EIO_PBKDF2After(uv_work_t* work_req, int status) {
   assert(status == 0);
   PBKDF2Request* req = CONTAINER_OF(work_req, PBKDF2Request, work_req_);
   Environment* env = req->env();
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Value> argv[2];
   EIO_PBKDF2After(req, argv);
   req->MakeCallback(env->ondone_string(), ARRAY_SIZE(argv), argv);

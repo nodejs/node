@@ -308,8 +308,8 @@ void TLSCallbacks::EncOutCb(uv_write_t* req, int status) {
       return;
 
     // Notify about error
-    Context::Scope context_scope(env->context());
     HandleScope handle_scope(env->isolate());
+    Context::Scope context_scope(env->context());
     Local<Value> arg = String::Concat(
         FIXED_ONE_BYTE_STRING(node_isolate, "write cb error, status: "),
         Integer::New(status, node_isolate)->ToString());
@@ -367,8 +367,8 @@ void TLSCallbacks::ClearOut() {
   if (!hello_parser_.IsEnded())
     return;
 
-  Context::Scope context_scope(env()->context());
   HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
 
   assert(ssl_ != NULL);
 
@@ -418,8 +418,8 @@ bool TLSCallbacks::ClearIn() {
     return true;
   }
 
-  Context::Scope context_scope(env()->context());
   HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
 
   // Error or partial write
   int err;
@@ -484,8 +484,8 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
 
   if (i != count) {
     int err;
-    Context::Scope context_scope(env()->context());
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     Handle<Value> arg = GetSSLError(written, &err);
     if (!arg.IsEmpty()) {
       MakeCallback(env()->onerror_string(), 1, &arg);
@@ -524,8 +524,8 @@ void TLSCallbacks::DoRead(uv_stream_t* handle,
   if (nread < 0)  {
     // Error should be emitted only after all data was read
     ClearOut();
-    Context::Scope context_scope(env()->context());
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     Local<Value> arg = Integer::New(nread, node_isolate);
     wrap()->MakeCallback(env()->onread_string(), 1, &arg);
     return;

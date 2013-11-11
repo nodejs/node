@@ -3155,8 +3155,8 @@ void AtExit(void (*cb)(void* arg), void* arg) {
 
 void EmitExit(Environment* env) {
   // process.emit('exit')
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Object> process_object = env->process_object();
   process_object->Set(FIXED_ONE_BYTE_STRING(node_isolate, "_exiting"),
                       True(node_isolate));

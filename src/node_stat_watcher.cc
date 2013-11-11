@@ -86,8 +86,8 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   StatWatcher* wrap = static_cast<StatWatcher*>(handle->data);
   assert(wrap->watcher_ == handle);
   Environment* env = wrap->env();
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Value> argv[] = {
     BuildStatsObject(env, curr),
     BuildStatsObject(env, prev),
@@ -124,8 +124,8 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
 void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
   StatWatcher* wrap = Unwrap<StatWatcher>(args.This());
   Environment* env = wrap->env();
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   wrap->MakeCallback(env->onstop_string(), 0, NULL);
   wrap->Stop();
 }

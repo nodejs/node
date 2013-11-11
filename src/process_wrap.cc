@@ -276,8 +276,8 @@ class ProcessWrap : public HandleWrap {
     assert(&wrap->process_ == handle);
 
     Environment* env = wrap->env();
-    Context::Scope context_scope(env->context());
     HandleScope handle_scope(env->isolate());
+    Context::Scope context_scope(env->context());
 
     Local<Value> argv[] = {
       Number::New(node_isolate, static_cast<double>(exit_status)),
