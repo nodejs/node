@@ -182,6 +182,7 @@ void ArrayBufferAllocator::Free(void* data, size_t length) {
 
 
 static void CheckImmediate(uv_check_t* handle, int status) {
+  HandleScope scope(node_isolate);
   Environment* env = Environment::from_immediate_check_handle(handle);
   Context::Scope context_scope(env->context());
   MakeCallback(env, env->process_object(), env->immediate_callback_string());
