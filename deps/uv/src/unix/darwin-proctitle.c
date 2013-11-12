@@ -36,14 +36,22 @@ int uv__set_process_title(const char* title) {
                                                           CFStringRef,
                                                           CFStringRef,
                                                           CFDictionaryRef*);
+  typedef CFDictionaryRef (*LSApplicationCheckInType)(int, CFDictionaryRef);
+  typedef OSStatus (*SetApplicationIsDaemonType)(int);
+  typedef void (*LSSetApplicationLaunchServicesServerConnectionStatusType)(
+      uint64_t, void*);
   CFBundleRef launch_services_bundle;
   LSGetCurrentApplicationASNType ls_get_current_application_asn;
   LSSetApplicationInformationItemType ls_set_application_information_item;
   CFStringRef* display_name_key;
-  ProcessSerialNumber psn;
   CFTypeRef asn;
   CFStringRef display_name;
   OSStatus err;
+  CFBundleRef hi_services_bundle;
+  LSApplicationCheckInType ls_application_check_in;
+  SetApplicationIsDaemonType set_application_is_daemon;
+  LSSetApplicationLaunchServicesServerConnectionStatusType
+      ls_set_application_launch_services_server_connection_status;
 
   launch_services_bundle =
       CFBundleGetBundleWithIdentifier(CFSTR("com.apple.LaunchServices"));
@@ -71,8 +79,36 @@ int uv__set_process_title(const char* title) {
   if (display_name_key == NULL || *display_name_key == NULL)
     return -1;
 
-  /* Force the process manager to initialize. */
-  GetCurrentProcess(&psn);
+  /* Black 10.9 magic, to remove (Not responding) mark in Activity Monitor */
+  hi_services_bundle =
+      CFBundleGetBundleWithIdentifier(CFSTR("com.apple.HIServices"));
+  if (hi_services_bundle == NULL)
+    return -1;
+
+  set_application_is_daemon = CFBundleGetFunctionPointerForName(
+      hi_services_bundle,
+      CFSTR("SetApplicationIsDaemon"));
+  ls_application_check_in = CFBundleGetFunctionPointerForName(
+      launch_services_bundle,
+      CFSTR("_LSApplicationCheckIn"));
+  ls_set_application_launch_services_server_connection_status =
+      CFBundleGetFunctionPointerForName(
+          launch_services_bundle,
+          CFSTR("_LSSetApplicationLaunchServicesServerConnectionStatus"));
+  if (set_application_is_daemon == NULL ||
+      ls_application_check_in == NULL ||
+      ls_set_application_launch_services_server_connection_status == NULL) {
+    return -1;
+  }
+
+  if (set_application_is_daemon(1) != noErr)
+    return -1;
+
+  ls_set_application_launch_services_server_connection_status(0, NULL);
+
+  /* Check into process manager?! */
+  ls_application_check_in(-2,
+                          CFBundleGetInfoDictionary(CFBundleGetMainBundle()));
 
   display_name = CFStringCreateWithCString(NULL, title, kCFStringEncodingUTF8);
   asn = ls_get_current_application_asn();

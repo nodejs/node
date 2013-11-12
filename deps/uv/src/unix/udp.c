@@ -286,6 +286,31 @@ static void uv__udp_sendmsg(uv_loop_t* loop,
 }
 
 
+/* On the BSDs, SO_REUSEPORT implies SO_REUSEADDR but with some additional
+ * refinements for programs that use multicast.
+ *
+ * Linux as of 3.9 has a SO_REUSEPORT socket option but with semantics that
+ * are different from the BSDs: it _shares_ the port rather than steal it
+ * from the current listener.  While useful, it's not something we can emulate
+ * on other platforms so we don't enable it.
+ */
+static int uv__set_reuse(int fd) {
+  int yes;
+
+#if defined(SO_REUSEPORT) && !defined(__linux__)
+  yes = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes)))
+    return -errno;
+#else
+  yes = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)))
+    return -errno;
+#endif
+
+  return 0;
+}
+
+
 static int uv__bind(uv_udp_t* handle,
                     int domain,
                     struct sockaddr* addr,
@@ -293,6 +318,7 @@ static int uv__bind(uv_udp_t* handle,
                     unsigned flags) {
   int saved_errno;
   int status;
+  int err;
   int yes;
   int fd;
 
@@ -321,27 +347,11 @@ static int uv__bind(uv_udp_t* handle,
   }
 
   fd = handle->io_watcher.fd;
-  yes = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
-    uv__set_sys_error(handle->loop, errno);
+  err = uv__set_reuse(fd);
+  if (err) {
+    uv__set_sys_error(handle->loop, -err);
     goto out;
   }
-
-  /* On the BSDs, SO_REUSEADDR lets you reuse an address that's in the TIME_WAIT
-   * state (i.e. was until recently tied to a socket) while SO_REUSEPORT lets
-   * multiple processes bind to the same address. Yes, it's something of a
-   * misnomer but then again, SO_REUSEADDR was already taken.
-   *
-   * None of the above applies to Linux: SO_REUSEADDR implies SO_REUSEPORT on
-   * Linux and hence it does not have SO_REUSEPORT at all.
-   */
-#ifdef SO_REUSEPORT
-  yes = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    goto out;
-  }
-#endif
 
   if (flags & UV_UDP_IPV6ONLY) {
 #ifdef IPV6_V6ONLY

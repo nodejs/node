@@ -91,12 +91,12 @@ Or:
 
 Unix users run
 
-    ./gyp_uv -f make
+    ./gyp_uv.py -f make
     make -C out
 
 Macintosh users run
 
-    ./gyp_uv -f xcode
+    ./gyp_uv.py -f xcode
     xcodebuild -project uv.xcodeproj -configuration Release -target All
 
 Note for UNIX users: compile your project with `-D_LARGEFILE_SOURCE` and

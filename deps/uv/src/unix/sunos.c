@@ -87,6 +87,25 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 }
 
 
+void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
+  struct port_event* events;
+  uintptr_t i;
+  uintptr_t nfds;
+
+  assert(loop->watchers != NULL);
+
+  events = (struct port_event*) loop->watchers[loop->nwatchers];
+  nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];
+  if (events == NULL)
+    return;
+
+  /* Invalidate events with same file descriptor */
+  for (i = 0; i < nfds; i++)
+    if ((int) events[i].portev_object == fd)
+      events[i].portev_object = -1;
+}
+
+
 void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct port_event events[1024];
   struct port_event* pe;
@@ -173,9 +192,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     nevents = 0;
 
+    assert(loop->watchers != NULL);
+    loop->watchers[loop->nwatchers] = (void*) events;
+    loop->watchers[loop->nwatchers + 1] = (void*) (uintptr_t) nfds;
     for (i = 0; i < nfds; i++) {
       pe = events + i;
       fd = pe->portev_object;
+
+      /* Skip invalidated events, see uv__platform_invalidate_fd */
+      if (fd == -1)
+        continue;
 
       assert(fd >= 0);
       assert((unsigned) fd < loop->nwatchers);
@@ -193,6 +219,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       if (w->pevents != 0 && ngx_queue_empty(&w->watcher_queue))
         ngx_queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
     }
+    loop->watchers[loop->nwatchers] = NULL;
+    loop->watchers[loop->nwatchers + 1] = NULL;
 
     if (nevents != 0) {
       if (nfds == ARRAY_SIZE(events) && --count != 0) {

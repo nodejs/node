@@ -223,9 +223,7 @@ int uv__fsevents_init(uv_fs_event_t* handle) {
     handle->realpath_len = strlen(handle->realpath);
 
   /* Initialize paths array */
-  path = CFStringCreateWithCString(NULL,
-                                   handle->filename,
-                                   CFStringGetSystemEncoding());
+  path = CFStringCreateWithFileSystemRepresentation(NULL, handle->filename);
   paths = CFArrayCreate(NULL, (const void**)&path, 1, NULL);
 
   latency = 0.15;
