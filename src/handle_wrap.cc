@@ -134,6 +134,8 @@ HandleWrap::~HandleWrap() {
 
 
 void HandleWrap::OnClose(uv_handle_t* handle) {
+  HandleScope scope;
+
   HandleWrap* wrap = static_cast<HandleWrap*>(handle->data);
 
   // The wrap object should still be there.
