@@ -1,4 +1,25 @@
-2013.10.18, Version 0.10.21 (Stable)
+2013.11.12, Version 0.10.22 (Stable)
+
+* npm: Upgrade to 1.3.14
+
+* uv: Upgrade to v0.10.19
+
+* child_process: don't assert on stale file descriptor events (Fedor Indutny)
+
+* darwin: Fix "Not Responding" in Mavericks activity monitor (Fedor Indutny)
+
+* debugger: Fix bug in sb() with unnamed script (Maxim Bogushevich)
+
+* repl: do not insert duplicates into completions (Maciej Małecki)
+
+* src: Fix memory leak on closed handles (Timothy J Fontaine)
+
+* tls: prevent stalls by using read(0) (Fedor Indutny)
+
+* v8: use correct timezone information on Solaris (Maciej Małecki)
+
+
+2013.10.18, Version 0.10.21 (Stable), e2da042844a830fafb8031f6c477eb4f96195210
 
 * uv: Upgrade to v0.10.18
 
