@@ -194,6 +194,11 @@ And then the child script, `'sub.js'` might look like this:
 In the child the `process` object will have a `send()` method, and `process`
 will emit objects each time it receives a message on its channel.
 
+Please note that the `send()` method on both the parent and child are
+synchronous - sending large chunks of data is not advised (pipes can be used
+instead, see
+[`child_process.spawn`](#child_process_child_process_spawn_command_args_options)).
+
 There is a special case when sending a `{cmd: 'NODE_foo'}` message. All messages
 containing a `NODE_` prefix in its `cmd` property will not be emitted in
 the `message` event, since they are internal messages used by node core.
