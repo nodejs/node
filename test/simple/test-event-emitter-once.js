@@ -47,3 +47,19 @@ process.on('exit', function() {
   assert.equal(1, times_hello_emited);
 });
 
+var times_recurse_emitted = 0;
+
+e.once('e', function() {
+	e.emit('e');
+	times_recurse_emitted++;
+});
+
+e.once('e', function() {
+	times_recurse_emitted++;
+});
+
+e.emit('e');
+
+process.on('exit', function() {
+  assert.equal(2, times_recurse_emitted);
+});
