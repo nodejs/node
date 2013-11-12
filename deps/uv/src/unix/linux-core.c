@@ -97,6 +97,25 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 }
 
 
+void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
+  struct uv__epoll_event* events;
+  uintptr_t i;
+  uintptr_t nfds;
+
+  assert(loop->watchers != NULL);
+
+  events = (struct uv__epoll_event*) loop->watchers[loop->nwatchers];
+  nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];
+  if (events == NULL)
+    return;
+
+  /* Invalidate events with same file descriptor */
+  for (i = 0; i < nfds; i++)
+    if ((int) events[i].data == fd)
+      events[i].data = -1;
+}
+
+
 void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct uv__epoll_event events[1024];
   struct uv__epoll_event* pe;
@@ -189,9 +208,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     nevents = 0;
 
+    assert(loop->watchers != NULL);
+    loop->watchers[loop->nwatchers] = (void*) events;
+    loop->watchers[loop->nwatchers + 1] = (void*) (uintptr_t) nfds;
     for (i = 0; i < nfds; i++) {
       pe = events + i;
       fd = pe->data;
+
+      /* Skip invalidated events, see uv__platform_invalidate_fd */
+      if (fd == -1)
+        continue;
 
       assert(fd >= 0);
       assert((unsigned) fd < loop->nwatchers);
@@ -208,9 +234,38 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;
       }
 
-      w->cb(loop, w, pe->events);
-      nevents++;
+      /* Give users only events they're interested in. Prevents spurious
+       * callbacks when previous callback invocation in this loop has stopped
+       * the current watcher. Also, filters out events that users has not
+       * requested us to watch.
+       */
+      pe->events &= w->pevents | UV__POLLERR | UV__POLLHUP;
+
+      /* Work around an epoll quirk where it sometimes reports just the
+       * EPOLLERR or EPOLLHUP event.  In order to force the event loop to
+       * move forward, we merge in the read/write events that the watcher
+       * is interested in; uv__read() and uv__write() will then deal with
+       * the error or hangup in the usual fashion.
+       *
+       * Note to self: happens when epoll reports EPOLLIN|EPOLLHUP, the user
+       * reads the available data, calls uv_read_stop(), then sometime later
+       * calls uv_read_start() again.  By then, libuv has forgotten about the
+       * hangup and the kernel won't report EPOLLIN again because there's
+       * nothing left to read.  If anything, libuv is to blame here.  The
+       * current hack is just a quick bandaid; to properly fix it, libuv
+       * needs to remember the error/hangup event.  We should get that for
+       * free when we switch over to edge-triggered I/O.
+       */
+      if (pe->events == UV__EPOLLERR || pe->events == UV__EPOLLHUP)
+        pe->events |= w->pevents & (UV__EPOLLIN | UV__EPOLLOUT);
+
+      if (pe->events != 0) {
+        w->cb(loop, w, pe->events);
+        nevents++;
+      }
     }
+    loop->watchers[loop->nwatchers] = NULL;
+    loop->watchers[loop->nwatchers + 1] = NULL;
 
     if (nevents != 0) {
       if (nfds == ARRAY_SIZE(events) && --count != 0) {

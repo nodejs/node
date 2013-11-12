@@ -55,6 +55,9 @@ putIn.run([
 testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, doesNotBreak);
 });
+testMe.complete('console.lo', function(error, data) {
+  assert.deepEqual(data, [['console.log'], 'console.lo']);
+});
 
 // Tab Complete will return globaly scoped variables
 putIn.run(['};']);

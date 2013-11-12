@@ -72,6 +72,7 @@ generator_additional_non_configuration_keys = [
   'mac_bundle_resources',
   'mac_framework_headers',
   'mac_framework_private_headers',
+  'mac_xctest_bundle',
   'xcode_create_dependents_test_runner',
 ]
 
@@ -480,39 +481,6 @@ sys.exit(subprocess.call(sys.argv[1:]))" """
       raise
 
 
-cached_xcode_version = None
-def InstalledXcodeVersion():
-  """Fetches the installed version of Xcode, returns empty string if it is
-  unable to figure it out."""
-
-  global cached_xcode_version
-  if not cached_xcode_version is None:
-    return cached_xcode_version
-
-  # Default to an empty string
-  cached_xcode_version = ''
-
-  # Collect the xcodebuild's version information.
-  try:
-    import subprocess
-    cmd = ['/usr/bin/xcodebuild', '-version']
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    xcodebuild_version_info = proc.communicate()[0]
-    # Any error, return empty string
-    if proc.returncode:
-      xcodebuild_version_info = ''
-  except OSError:
-    # We failed to launch the tool
-    xcodebuild_version_info = ''
-
-  # Pull out the Xcode version itself.
-  match_line = re.search('^Xcode (.*)$', xcodebuild_version_info, re.MULTILINE)
-  if match_line:
-    cached_xcode_version = match_line.group(1)
-  # Done!
-  return cached_xcode_version
-
-
 def AddSourceToTarget(source, type, pbxp, xct):
   # TODO(mark): Perhaps source_extensions and library_extensions can be made a
   # little bit fancier.
@@ -579,13 +547,13 @@ def ExpandXcodeVariables(string, expansions):
   return string
 
 
-def EscapeXCodeArgument(s):
-  """We must escape the arguments that we give to XCode so that it knows not to
-     split on spaces and to respect backslash and quote literals."""
-  s = s.replace('\\', '\\\\')
-  s = s.replace('"', '\\"')
-  return '"' + s + '"'
-
+_xcode_define_re = re.compile(r'([\\\"\' ])')
+def EscapeXcodeDefine(s):
+  """We must escape the defines that we give to XCode so that it knows not to
+     split on spaces and to respect backslash and quote literals. However, we
+     must not quote the define, or Xcode will incorrectly intepret variables
+     especially $(inherited)."""
+  return re.sub(_xcode_define_re, r'\\\1', s)
 
 
 def PerformBuild(data, configurations, params):
@@ -675,6 +643,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
       'static_library':         'com.apple.product-type.library.static',
       'executable+bundle':      'com.apple.product-type.application',
       'loadable_module+bundle': 'com.apple.product-type.bundle',
+      'loadable_module+xctest': 'com.apple.product-type.bundle.unit-test',
       'shared_library+bundle':  'com.apple.product-type.framework',
     }
 
@@ -684,11 +653,18 @@ def GenerateOutput(target_list, target_dicts, data, params):
     }
 
     type = spec['type']
-    is_bundle = int(spec.get('mac_bundle', 0))
+    is_xctest = int(spec.get('mac_xctest_bundle', 0))
+    is_bundle = int(spec.get('mac_bundle', 0)) or is_xctest
     if type != 'none':
       type_bundle_key = type
-      if is_bundle:
+      if is_xctest:
+        type_bundle_key += '+xctest'
+        assert type == 'loadable_module', (
+            'mac_xctest_bundle targets must have type loadable_module '
+            '(target %s)' % target_name)
+      elif is_bundle:
         type_bundle_key += '+bundle'
+
       xctarget_type = gyp.xcodeproj_file.PBXNativeTarget
       try:
         target_properties['productType'] = _types[type_bundle_key]
@@ -700,6 +676,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
       xctarget_type = gyp.xcodeproj_file.PBXAggregateTarget
       assert not is_bundle, (
           'mac_bundle targets cannot have type none (target "%s")' %
+          target_name)
+      assert not is_xctest, (
+          'mac_xctest_bundle targets cannot have type none (target "%s")' %
           target_name)
 
     target_product_name = spec.get('product_name')
@@ -1053,7 +1032,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
 if [ "${JOB_COUNT}" -gt 4 ]; then
   JOB_COUNT=4
 fi
-exec "${DEVELOPER_BIN_DIR}/make" -f "${PROJECT_FILE_PATH}/%s" -j "${JOB_COUNT}"
+exec xcrun make -f "${PROJECT_FILE_PATH}/%s" -j "${JOB_COUNT}"
 exit 1
 """ % makefile_name
         ssbp = gyp.xcodeproj_file.PBXShellScriptBuildPhase({
@@ -1211,9 +1190,15 @@ exit 1
         xcbc.AppendBuildSetting('FRAMEWORK_SEARCH_PATHS', include_dir)
       for include_dir in configuration.get('include_dirs', []):
         xcbc.AppendBuildSetting('HEADER_SEARCH_PATHS', include_dir)
+      for library_dir in configuration.get('library_dirs', []):
+        if library_dir not in xcode_standard_library_dirs and (
+            not xcbc.HasBuildSetting(_library_search_paths_var) or
+            library_dir not in xcbc.GetBuildSetting(_library_search_paths_var)):
+          xcbc.AppendBuildSetting(_library_search_paths_var, library_dir)
+
       if 'defines' in configuration:
         for define in configuration['defines']:
-          set_define = EscapeXCodeArgument(define)
+          set_define = EscapeXcodeDefine(define)
           xcbc.AppendBuildSetting('GCC_PREPROCESSOR_DEFINITIONS', set_define)
       if 'xcode_settings' in configuration:
         for xck, xcv in configuration['xcode_settings'].iteritems():

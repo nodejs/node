@@ -133,6 +133,7 @@ test/test-stdio-over-pipes.c
 test/test-tcp-bind-error.c
 test/test-tcp-bind6-error.c
 test/test-tcp-close-while-connecting.c
+test/test-tcp-close-accept.c
 test/test-tcp-close.c
 test/test-tcp-connect-error-after-write.c
 test/test-tcp-connect-error.c
@@ -161,6 +162,7 @@ test/test-udp-options.c
 test/test-udp-send-and-recv.c
 test/test-util.c
 test/test-walk-handles.c
+test/test-watcher-cross-stop.c
 "
 
 case `uname -s` in

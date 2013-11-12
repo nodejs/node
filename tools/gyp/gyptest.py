@@ -130,15 +130,18 @@ sys.stdout = Unbuffered(sys.stdout)
 sys.stderr = Unbuffered(sys.stderr)
 
 
+def is_test_name(f):
+  return f.startswith('gyptest') and f.endswith('.py')
+
+
 def find_all_gyptest_files(directory):
-    result = []
-    for root, dirs, files in os.walk(directory):
-      if '.svn' in dirs:
-        dirs.remove('.svn')
-      result.extend([ os.path.join(root, f) for f in files
-                     if f.startswith('gyptest') and f.endswith('.py') ])
-    result.sort()
-    return result
+  result = []
+  for root, dirs, files in os.walk(directory):
+    if '.svn' in dirs:
+      dirs.remove('.svn')
+    result.extend([ os.path.join(root, f) for f in files if is_test_name(f) ])
+  result.sort()
+  return result
 
 
 def main(argv=None):
@@ -186,6 +189,9 @@ def main(argv=None):
     if os.path.isdir(arg):
       tests.extend(find_all_gyptest_files(os.path.normpath(arg)))
     else:
+      if not is_test_name(os.path.basename(arg)):
+        print >>sys.stderr, arg, 'is not a valid gyp test name.'
+        sys.exit(1)
       tests.append(arg)
 
   if opts.list:
@@ -210,6 +216,7 @@ def main(argv=None):
   else:
     # TODO:  not duplicate this mapping from pylib/gyp/__init__.py
     format_list = {
+      'aix5':     ['make'],
       'freebsd7': ['make'],
       'freebsd8': ['make'],
       'openbsd5': ['make'],

@@ -1,4 +1,25 @@
-2013.10.19, Version 0.10.18 (Stable)
+2013.11.13, Version 0.10.19 (Stable)
+
+Changes since version 0.10.18:
+
+* darwin: avoid calling GetCurrentProcess (Fedor Indutny)
+
+* unix: update events from pevents between polls (Fedor Indutny)
+
+* fsevents: support japaneese characters in path (Chris Bank)
+
+* linux: don't turn on SO_REUSEPORT socket option (Ben Noordhuis)
+
+* build: fix windows smp build with gyp (Geert Jansen)
+
+* linux: handle EPOLLHUP without EPOLLIN/EPOLLOUT (Ben Noordhuis)
+
+* unix: fix reopened fd bug (Fedor Indutny)
+
+* core: fix fake watcher list and count preservation (Fedor Indutny)
+
+
+2013.10.19, Version 0.10.18 (Stable), 9ec52963b585e822e87bdc5de28d6143aff0d2e5
 
 Changes since version 0.10.17:
 

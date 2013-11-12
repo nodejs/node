@@ -43,6 +43,7 @@
 
 (add-to-list 'auto-mode-alist '("\\.gyp\\'" . gyp-mode))
 (add-to-list 'auto-mode-alist '("\\.gypi\\'" . gyp-mode))
+(add-to-list 'auto-mode-alist '("/\\.gclient\\'" . gyp-mode))
 
 ;;; Font-lock support
 

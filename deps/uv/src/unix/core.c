@@ -595,20 +595,33 @@ static unsigned int next_power_of_two(unsigned int val) {
 
 static void maybe_resize(uv_loop_t* loop, unsigned int len) {
   uv__io_t** watchers;
+  void* fake_watcher_list;
+  void* fake_watcher_count;
   unsigned int nwatchers;
   unsigned int i;
 
   if (len <= loop->nwatchers)
     return;
 
-  nwatchers = next_power_of_two(len);
-  watchers = realloc(loop->watchers, nwatchers * sizeof(loop->watchers[0]));
+  /* Preserve fake watcher list and count at the end of the watchers */
+  if (loop->watchers != NULL) {
+    fake_watcher_list = loop->watchers[loop->nwatchers];
+    fake_watcher_count = loop->watchers[loop->nwatchers + 1];
+  } else {
+    fake_watcher_list = NULL;
+    fake_watcher_count = NULL;
+  }
+
+  nwatchers = next_power_of_two(len + 2) - 2;
+  watchers = realloc(loop->watchers,
+                     (nwatchers + 2) * sizeof(loop->watchers[0]));
 
   if (watchers == NULL)
     abort();
-
   for (i = loop->nwatchers; i < nwatchers; i++)
     watchers[i] = NULL;
+  watchers[nwatchers] = fake_watcher_list;
+  watchers[nwatchers + 1] = fake_watcher_count;
 
   loop->watchers = watchers;
   loop->nwatchers = nwatchers;
@@ -700,6 +713,9 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 void uv__io_close(uv_loop_t* loop, uv__io_t* w) {
   uv__io_stop(loop, w, UV__POLLIN | UV__POLLOUT);
   ngx_queue_remove(&w->pending_queue);
+
+  /* Remove stale events for this file descriptor */
+  uv__platform_invalidate_fd(loop, w->fd);
 }
 
 
