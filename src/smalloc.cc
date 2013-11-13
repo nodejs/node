@@ -23,6 +23,7 @@
 
 #include "env.h"
 #include "env-inl.h"
+#include "node.h"
 #include "node_internals.h"
 #include "v8-profiler.h"
 #include "v8.h"
@@ -402,6 +403,17 @@ void TargetFreeCallback(Isolate* isolate,
 }
 
 
+void HasExternalData(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(args[0]->IsObject() &&
+                            HasExternalData(args[0].As<Object>()));
+}
+
+
+bool HasExternalData(Local<Object> obj) {
+  return obj->HasIndexedPropertiesInExternalArrayData();
+}
+
+
 class RetainedAllocInfo: public RetainedObjectInfo {
  public:
   explicit RetainedAllocInfo(Handle<Value> wrapper);
@@ -470,6 +482,8 @@ void Initialize(Handle<Object> exports,
 
   NODE_SET_METHOD(exports, "alloc", Alloc);
   NODE_SET_METHOD(exports, "dispose", AllocDispose);
+
+  NODE_SET_METHOD(exports, "hasExternalData", HasExternalData);
 
   exports->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kMaxLength"),
                Uint32::NewFromUnsigned(kMaxLength, env->isolate()));

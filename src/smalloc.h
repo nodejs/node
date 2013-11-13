@@ -101,6 +101,12 @@ NODE_EXTERN void Alloc(v8::Handle<v8::Object> obj,
  */
 NODE_EXTERN void AllocDispose(v8::Handle<v8::Object> obj);
 
+
+/**
+ * Check if the Object has externally allocated memory.
+ */
+NODE_EXTERN bool HasExternalData(v8::Local<v8::Object> obj);
+
 }  // namespace smalloc
 }  // namespace node
 

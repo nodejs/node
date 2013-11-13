@@ -156,6 +156,25 @@ copyOnto(c, 0, b, 0, 2);
 assert.equal(b[0], 0.1);
 
 
+// verify checking external if has external memory
+
+// check objects
+var b = {};
+assert.ok(!smalloc.hasExternalData(b));
+alloc(1, b);
+assert.ok(smalloc.hasExternalData(b));
+var f = function() { };
+alloc(1, f);
+assert.ok(smalloc.hasExternalData(f));
+
+// and non-objects
+assert.ok(!smalloc.hasExternalData(true));
+assert.ok(!smalloc.hasExternalData(1));
+assert.ok(!smalloc.hasExternalData('string'));
+assert.ok(!smalloc.hasExternalData(null));
+assert.ok(!smalloc.hasExternalData());
+
+
 // verify alloc throws properly
 
 // arrays are not supported
