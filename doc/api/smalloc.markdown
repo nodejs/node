@@ -2,14 +2,11 @@
 
     Stability: 1 - Experimental
 
-`Smalloc` is a light weight API that allows developers to attach external data
-to arbitrary `Object`s.
-
 ## smalloc.alloc(length[, receiver][, type])
 
-* `length` {Number} `<= kMaxLength` (maximum allowed Buffer size by v8)
-* `receiver` {Object} Optional, Default: `new Object()`
-* `type` {Enum} Optional, Default: `Uint8`
+* `length` {Number} `<= smalloc.kMaxLength`
+* `receiver` {Object}, Optional, Default: `new Object`
+* `type` {Enum}, Optional, Default: `Uint8`
 
 Returns `receiver` with allocated external array data. If no `receiver` is
 passed then a new Object will be created and returned.
@@ -49,13 +46,13 @@ possible options are listed in `smalloc.Types`. Example usage:
 
     // { '0': 0, '1': 0.1, '2': 0.2 }
 
-## smalloc.copyOnto(source, sourceStart, dest, destStart, copyLength)
+## smalloc.copyOnto(source, sourceStart, dest, destStart, copyLength);
 
-* `source` {Object} with external array allocation
-* `sourceStart` {Position} to begin copying from
-* `dest` {Object} with external array allocation
-* `destStart` {Position} to begin copying onto
-* `copyLength` {Length} of copy
+* `source` Object with external array allocation
+* `sourceStart` Position to begin copying from
+* `dest` Object with external array allocation
+* `destStart` Position to begin copying onto
+* `copyLength` Length of copy
 
 Copy memory from one external array allocation to another. No arguments are
 optional, and any violation will throw.
@@ -80,7 +77,7 @@ need to set any additional properties for this to work.
 
 ## smalloc.dispose(obj)
 
-* `obj` {Object}
+* `obj` Object
 
 Free memory that has been allocated to an object via `smalloc.alloc`.
 
