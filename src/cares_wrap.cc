@@ -58,7 +58,6 @@ using v8::Integer;
 using v8::Local;
 using v8::Null;
 using v8::Object;
-using v8::Persistent;
 using v8::String;
 using v8::Value;
 
