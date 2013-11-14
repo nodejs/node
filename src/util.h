@@ -23,7 +23,9 @@
 #define SRC_UTIL_H_
 
 #include "v8.h"
+#include <assert.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 namespace node {
 
@@ -40,6 +42,19 @@ namespace node {
 #define DISALLOW_COPY_AND_ASSIGN(TypeName)                                    \
   void operator=(const TypeName&);                                            \
   TypeName(const TypeName&)
+
+#if defined(NDEBUG)
+#define ASSERT(expression)
+#define CHECK(expression)                                                     \
+  do {                                                                        \
+    if (!(expression)) abort();                                               \
+  } while (0)
+#else
+#define ASSERT(expression)  assert(expression)
+#define CHECK(expression)   assert(expression)
+#endif
+
+#define UNREACHABLE() abort()
 
 // If persistent.IsWeak() == false, then do not call persistent.Dispose()
 // while the returned Local<T> is still in scope, it will destroy the
