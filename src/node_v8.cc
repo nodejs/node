@@ -35,6 +35,7 @@ using v8::GCCallbackFlags;
 using v8::GCType;
 using v8::Handle;
 using v8::HandleScope;
+using v8::HeapStatistics;
 using v8::Isolate;
 using v8::Local;
 using v8::Null;
@@ -178,6 +179,28 @@ void StartGarbageCollectionTracking(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  Environment* env = Environment::GetCurrent(isolate);
+  HeapStatistics s;
+  isolate->GetHeapStatistics(&s);
+  Local<Object> info = Object::New();
+  // TODO(trevnorris): Setting many object properties in C++ is a significant
+  // performance hit. Redo this to pass the results to JS and create/set the
+  // properties there.
+#define V(name)                                                               \
+  info->Set(env->name ## _string(), Uint32::NewFromUnsigned(s.name(), isolate))
+  V(total_heap_size);
+  V(total_heap_size_executable);
+  V(total_physical_size);
+  V(used_heap_size);
+  V(heap_size_limit);
+#undef V
+  args.GetReturnValue().Set(info);
+}
+
+
 void StopGarbageCollectionTracking(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
   Environment::GetCurrent(args.GetIsolate())->StopGarbageCollectionTracking();
@@ -193,6 +216,7 @@ void InitializeV8Bindings(Handle<Object> target,
   NODE_SET_METHOD(target,
                   "stopGarbageCollectionTracking",
                   StopGarbageCollectionTracking);
+  NODE_SET_METHOD(target, "getHeapStatistics", GetHeapStatistics);
 }
 
 }  // namespace node
