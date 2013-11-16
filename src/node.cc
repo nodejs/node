@@ -1150,10 +1150,10 @@ Handle<Value> MakeCallback(Handle<Object> recv,
                            const char* method,
                            int argc,
                            Handle<Value> argv[]) {
+  HandleScope handle_scope(node_isolate);  // FIXME(bnoordhuis) Isolate-ify.
   Local<Context> context = recv->CreationContext();
   Environment* env = Environment::GetCurrent(context);
   Context::Scope context_scope(context);
-  HandleScope handle_scope(env->isolate());
   return handle_scope.Close(MakeCallback(env, recv, method, argc, argv));
 }
 
@@ -1162,10 +1162,10 @@ Handle<Value> MakeCallback(Handle<Object> recv,
                            Handle<String> symbol,
                            int argc,
                            Handle<Value> argv[]) {
+  HandleScope handle_scope(node_isolate);  // FIXME(bnoordhuis) Isolate-ify.
   Local<Context> context = recv->CreationContext();
   Environment* env = Environment::GetCurrent(context);
   Context::Scope context_scope(context);
-  HandleScope handle_scope(env->isolate());
   return handle_scope.Close(MakeCallback(env, recv, symbol, argc, argv));
 }
 
@@ -1174,10 +1174,10 @@ Handle<Value> MakeCallback(Handle<Object> recv,
                            Handle<Function> callback,
                            int argc,
                            Handle<Value> argv[]) {
+  HandleScope handle_scope(node_isolate);  // FIXME(bnoordhuis) Isolate-ify.
   Local<Context> context = recv->CreationContext();
   Environment* env = Environment::GetCurrent(context);
   Context::Scope context_scope(context);
-  HandleScope handle_scope(env->isolate());
   return handle_scope.Close(
       MakeCallback(env, recv.As<Value>(), callback, argc, argv));
 }
