@@ -2578,37 +2578,37 @@ void Load(Environment* env) {
 
 static void PrintHelp();
 
-static void ParseDebugOpt(const char* arg) {
-  const char *p = 0;
+static bool ParseDebugOpt(const char* arg) {
+  const char* port = NULL;
 
-  if (strstr(arg, "--debug-port=") == arg) {
-    p = 1 + strchr(arg, '=');
-    debug_port = atoi(p);
-  } else {
+  if (!strcmp(arg, "--debug")) {
     use_debug_agent = true;
-    if (!strcmp(arg, "--debug-brk")) {
-      debug_wait_connect = true;
-      return;
-    } else if (!strcmp(arg, "--debug")) {
-      return;
-    } else if (strstr(arg, "--debug-brk=") == arg) {
-      debug_wait_connect = true;
-      p = 1 + strchr(arg, '=');
-      debug_port = atoi(p);
-    } else if (strstr(arg, "--debug=") == arg) {
-      p = 1 + strchr(arg, '=');
-      debug_port = atoi(p);
+  } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
+    use_debug_agent = true;
+    port = arg + sizeof("--debug=") - 1;
+  } else if (!strcmp(arg, "--debug-brk")) {
+    use_debug_agent = true;
+    debug_wait_connect = true;
+  } else if (!strncmp(arg, "--debug-brk=", sizeof("--debug-brk=") - 1)) {
+    use_debug_agent = true;
+    debug_wait_connect = true;
+    port = arg + sizeof("--debug-brk=") - 1;
+  } else if (!strncmp(arg, "--debug-port=", sizeof("--debug-port=") - 1)) {
+    port = arg + sizeof("--debug-port=") - 1;
+  } else {
+    return false;
+  }
+
+  if (port != NULL) {
+    debug_port = atoi(port);
+    if (debug_port < 1024 || debug_port > 65535) {
+      fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
+      PrintHelp();
+      exit(12);
     }
   }
-  if (p && debug_port > 1024 && debug_port <  65536)
-      return;
 
-  fprintf(stderr, "Bad debug option.\n");
-  if (p)
-    fprintf(stderr, "Debug port must be in range 1025 to 65535.\n");
-
-  PrintHelp();
-  exit(12);
+  return true;
 }
 
 static void PrintHelp() {
@@ -2681,8 +2681,8 @@ static void ParseArgs(int* argc,
     const char* const arg = argv[index];
     unsigned int args_consumed = 1;
 
-    if (strstr(arg, "--debug") == arg) {
-      ParseDebugOpt(arg);
+    if (ParseDebugOpt(arg)) {
+      // Done, consumed by ParseDebugOpt().
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
