@@ -108,6 +108,8 @@ HandleWrap::~HandleWrap() {
 
 
 void HandleWrap::OnClose(uv_handle_t* handle) {
+  HandleScope scope(node_isolate);
+
   HandleWrap* wrap = static_cast<HandleWrap*>(handle->data);
   Environment* env = wrap->env();
 

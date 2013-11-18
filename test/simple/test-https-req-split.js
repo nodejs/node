@@ -24,54 +24,52 @@ if (!process.versions.openssl) {
   process.exit(0);
 }
 
+// disable strict server certificate validation by the client
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 var common = require('../common');
 var assert = require('assert');
-var fs = require('fs');
+var https = require('https');
 var tls = require('tls');
-var path = require('path');
+var fs = require('fs');
 
-// https://github.com/joyent/node/issues/1218
-// uncatchable exception on TLS connection error
-(function() {
-  var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-  var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
+var seen_req = false;
 
-  var errorEmitted = false;
+var options = {
+  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+};
 
-  process.on('exit', function() {
-    assert.ok(errorEmitted);
+// Force splitting incoming data
+tls.SLAB_BUFFER_SIZE = 1;
+
+var server = https.createServer(options);
+server.on('upgrade', function(req, socket, upgrade) {
+  socket.on('data', function(data) {
+    throw new Error('Unexpected data: ' + data);
   });
+  socket.end('HTTP/1.1 200 Ok\r\n\r\n');
+  seen_req = true;
+});
 
-  var conn = tls.connect({cert: cert, key: key, port: common.PORT}, function() {
-    assert.ok(false); // callback should never be executed
-  });
-
-  conn.on('error', function() {
-    errorEmitted = true;
-  });
-})();
-
-// SSL_accept/SSL_connect error handling
-(function() {
-  var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-  var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
-
-  var errorEmitted = false;
-
-  process.on('exit', function() {
-    assert.ok(errorEmitted);
-  });
-
-  var conn = tls.connect({
-    cert: cert,
-    key: key,
+server.listen(common.PORT, function() {
+  var req = https.request({
+    host: '127.0.0.1',
     port: common.PORT,
-    ciphers: 'rick-128-roll'
+    agent: false,
+    headers: {
+      Connection: 'Upgrade',
+      Upgrade: 'Websocket'
+    }
   }, function() {
-    assert.ok(false); // callback should never be executed
+    req.socket.destroy();
+    server.close();
   });
 
-  conn.on('error', function() {
-    errorEmitted = true;
-  });
-})();
+  req.end();
+});
+
+process.on('exit', function() {
+  assert(seen_req);
+  console.log('ok');
+});

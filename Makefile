@@ -53,9 +53,9 @@ endif
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/toolchain.gypi deps/v8/build/features.gypi deps/v8/tools/gyp/v8.gyp node.gyp config.gypi
 ifeq ($(USE_NINJA),1)
 	touch out/Makefile
-	$(PYTHON) tools/gyp_node -f ninja
+	$(PYTHON) tools/gyp_node.py -f ninja
 else
-	$(PYTHON) tools/gyp_node -f make
+	$(PYTHON) tools/gyp_node.py -f make
 endif
 
 config.gypi: configure

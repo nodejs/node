@@ -695,4 +695,4 @@ elif flavor == 'win':
 else:
   gyp_args = ['-f', 'make-' + flavor]
 
-subprocess.call([sys.executable, 'tools/gyp_node'] + gyp_args)
+subprocess.call([sys.executable, 'tools/gyp_node.py'] + gyp_args)

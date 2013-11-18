@@ -169,7 +169,7 @@ _quoted = re.compile('___')
 
 # This pattern should match any character that needs to be escaped by
 # XCObject._EncodeString.  See that function.
-_escaped = re.compile('[\\\\"]|[^ -~]')
+_escaped = re.compile('[\\\\"]|[\x00-\x1f]')
 
 
 # Used by SourceTreeAndPathFromPath
@@ -557,9 +557,9 @@ class XCObject(object):
     #    10 ^J NL  is encoded as "\n"
     #    13 ^M CR  is encoded as "\n" rendering it indistinguishable from
     #              10 ^J NL
-    # All other nonprintable characters within the ASCII range (0 through 127
-    # inclusive) are encoded as "\U001f" referring to the Unicode code point in
-    # hexadecimal.  For example, character 14 (^N SO) is encoded as "\U000e".
+    # All other characters within the ASCII control character range (0 through
+    # 31 inclusive) are encoded as "\U001f" referring to the Unicode code point
+    # in hexadecimal.  For example, character 14 (^N SO) is encoded as "\U000e".
     # Characters above the ASCII range are passed through to the output encoded
     # as UTF-8 without any escaping.  These mappings are contained in the
     # class' _encode_transforms list.
@@ -1483,8 +1483,11 @@ class PBXFileReference(XCFileLikeElement, XCContainerPortal, XCRemoteObject):
         'cpp':         'sourcecode.cpp.cpp',
         'css':         'text.css',
         'cxx':         'sourcecode.cpp.cpp',
+        'dart':        'sourcecode',
         'dylib':       'compiled.mach-o.dylib',
         'framework':   'wrapper.framework',
+        'gyp':         'sourcecode',
+        'gypi':        'sourcecode',
         'h':           'sourcecode.c.h',
         'hxx':         'sourcecode.cpp.h',
         'icns':        'image.icns',
@@ -1512,8 +1515,15 @@ class PBXFileReference(XCFileLikeElement, XCContainerPortal, XCRemoteObject):
         'y':           'sourcecode.yacc',
       }
 
+      prop_map = {
+        'dart':        'explicitFileType',
+        'gyp':         'explicitFileType',
+        'gypi':        'explicitFileType',
+      }
+
       if is_dir:
         file_type = 'folder'
+        prop_name = 'lastKnownFileType'
       else:
         basename = posixpath.basename(self._properties['path'])
         (root, ext) = posixpath.splitext(basename)
@@ -1528,8 +1538,9 @@ class PBXFileReference(XCFileLikeElement, XCContainerPortal, XCRemoteObject):
         # for unrecognized files not containing text.  Xcode seems to choose
         # based on content.
         file_type = extension_map.get(ext, 'text')
+        prop_name = prop_map.get(ext, 'lastKnownFileType')
 
-      self._properties['lastKnownFileType'] = file_type
+      self._properties[prop_name] = file_type
 
 
 class PBXVariantGroup(PBXGroup, XCFileLikeElement):
@@ -2227,20 +2238,22 @@ class PBXNativeTarget(XCTarget):
   #  prefix : the prefix for the file name
   #  suffix : the suffix for the filen ame
   _product_filetypes = {
-    'com.apple.product-type.application':     ['wrapper.application',
-                                               '', '.app'],
-    'com.apple.product-type.bundle':          ['wrapper.cfbundle',
-                                               '', '.bundle'],
-    'com.apple.product-type.framework':       ['wrapper.framework',
-                                               '', '.framework'],
-    'com.apple.product-type.library.dynamic': ['compiled.mach-o.dylib',
-                                               'lib', '.dylib'],
-    'com.apple.product-type.library.static':  ['archive.ar',
-                                               'lib', '.a'],
-    'com.apple.product-type.tool':            ['compiled.mach-o.executable',
-                                               '', ''],
-    'com.googlecode.gyp.xcode.bundle':        ['compiled.mach-o.dylib',
-                                               '', '.so'],
+    'com.apple.product-type.application':       ['wrapper.application',
+                                                 '', '.app'],
+    'com.apple.product-type.bundle':            ['wrapper.cfbundle',
+                                                 '', '.bundle'],
+    'com.apple.product-type.framework':         ['wrapper.framework',
+                                                 '', '.framework'],
+    'com.apple.product-type.library.dynamic':   ['compiled.mach-o.dylib',
+                                                 'lib', '.dylib'],
+    'com.apple.product-type.library.static':    ['archive.ar',
+                                                 'lib', '.a'],
+    'com.apple.product-type.tool':              ['compiled.mach-o.executable',
+                                                 '', ''],
+    'com.apple.product-type.bundle.unit-test':  ['wrapper.cfbundle',
+                                                 '', '.xctest'],
+    'com.googlecode.gyp.xcode.bundle':          ['compiled.mach-o.dylib',
+                                                 '', '.so'],
   }
 
   def __init__(self, properties=None, id=None, parent=None,
@@ -2289,6 +2302,11 @@ class PBXNativeTarget(XCTarget):
           self.SetBuildSetting('MACH_O_TYPE', 'mh_bundle')
           self.SetBuildSetting('DYLIB_CURRENT_VERSION', '')
           self.SetBuildSetting('DYLIB_COMPATIBILITY_VERSION', '')
+          if force_extension is None:
+            force_extension = suffix[1:]
+
+        if self._properties['productType'] == \
+           'com.apple.product-type-bundle.unit.test':
           if force_extension is None:
             force_extension = suffix[1:]
 

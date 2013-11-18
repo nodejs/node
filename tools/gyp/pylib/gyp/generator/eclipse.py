@@ -22,6 +22,7 @@ import os.path
 import subprocess
 import gyp
 import gyp.common
+import gyp.msvs_emulation
 import shlex
 
 generator_wants_static_library_dependencies_adjusted = False
@@ -52,7 +53,18 @@ def CalculateVariables(default_variables, params):
   generator_flags = params.get('generator_flags', {})
   for key, val in generator_flags.items():
     default_variables.setdefault(key, val)
-  default_variables.setdefault('OS', gyp.common.GetFlavor(params))
+  flavor = gyp.common.GetFlavor(params)
+  default_variables.setdefault('OS', flavor)
+  if flavor == 'win':
+    # Copy additional generator configuration data from VS, which is shared
+    # by the Eclipse generator.
+    import gyp.generator.msvs as msvs_generator
+    generator_additional_non_configuration_keys = getattr(msvs_generator,
+        'generator_additional_non_configuration_keys', [])
+    generator_additional_path_sections = getattr(msvs_generator,
+        'generator_additional_path_sections', [])
+
+    gyp.msvs_emulation.CalculateCommonVariables(default_variables, params)
 
 
 def CalculateGeneratorInputInfo(params):
@@ -65,7 +77,7 @@ def CalculateGeneratorInputInfo(params):
 
 
 def GetAllIncludeDirectories(target_list, target_dicts,
-                             shared_intermediate_dirs, config_name):
+                             shared_intermediate_dirs, config_name, params):
   """Calculate the set of include directories to be used.
 
   Returns:
@@ -76,6 +88,9 @@ def GetAllIncludeDirectories(target_list, target_dicts,
   gyp_includes_set = set()
   compiler_includes_list = []
 
+  flavor = gyp.common.GetFlavor(params)
+  if flavor == 'win':
+    generator_flags = params.get('generator_flags', {})
   for target_name in target_list:
     target = target_dicts[target_name]
     if config_name in target['configurations']:
@@ -85,7 +100,11 @@ def GetAllIncludeDirectories(target_list, target_dicts,
       # may be done in gyp files to force certain includes to come at the end.
       # TODO(jgreenwald): Change the gyp files to not abuse cflags for this, and
       # remove this.
-      cflags = config['cflags']
+      if flavor == 'win':
+        msvs_settings = gyp.msvs_emulation.MsvsSettings(target, generator_flags)
+        cflags = msvs_settings.GetCflags(config_name)
+      else:
+        cflags = config['cflags']
       for cflag in cflags:
         include_dir = ''
         if cflag.startswith('-I'):
@@ -146,7 +165,7 @@ def GetCompilerPath(target_list, target_dicts, data):
   return 'gcc'
 
 
-def GetAllDefines(target_list, target_dicts, data, config_name):
+def GetAllDefines(target_list, target_dicts, data, config_name, params):
   """Calculate the defines for a project.
 
   Returns:
@@ -156,22 +175,33 @@ def GetAllDefines(target_list, target_dicts, data, config_name):
 
   # Get defines declared in the gyp files.
   all_defines = {}
+  flavor = gyp.common.GetFlavor(params)
+  if flavor == 'win':
+    generator_flags = params.get('generator_flags', {})
   for target_name in target_list:
     target = target_dicts[target_name]
 
+    if flavor == 'win':
+      msvs_settings = gyp.msvs_emulation.MsvsSettings(target, generator_flags)
+      extra_defines = msvs_settings.GetComputedDefines(config_name)
+    else:
+      extra_defines = []
     if config_name in target['configurations']:
       config = target['configurations'][config_name]
-      for define in config['defines']:
-        split_define = define.split('=', 1)
-        if len(split_define) == 1:
-          split_define.append('1')
-        if split_define[0].strip() in all_defines:
-          # Already defined
-          continue
-
-        all_defines[split_define[0].strip()] = split_define[1].strip()
-
+      target_defines = config['defines']
+    else:
+      target_defines = []
+    for define in target_defines + extra_defines:
+      split_define = define.split('=', 1)
+      if len(split_define) == 1:
+        split_define.append('1')
+      if split_define[0].strip() in all_defines:
+        # Already defined
+        continue
+      all_defines[split_define[0].strip()] = split_define[1].strip()
   # Get default compiler defines (if possible).
+  if flavor == 'win':
+    return all_defines  # Default defines already processed in the loop above.
   cc_target = GetCompilerPath(target_list, target_dicts, data)
   if cc_target:
     command = shlex.split(cc_target)
@@ -250,9 +280,10 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   eclipse_langs = ['C++ Source File', 'C Source File', 'Assembly Source File',
                    'GNU C++', 'GNU C', 'Assembly']
   include_dirs = GetAllIncludeDirectories(target_list, target_dicts,
-                                          shared_intermediate_dirs, config_name)
+                                          shared_intermediate_dirs, config_name,
+                                          params)
   WriteIncludePaths(out, eclipse_langs, include_dirs)
-  defines = GetAllDefines(target_list, target_dicts, data, config_name)
+  defines = GetAllDefines(target_list, target_dicts, data, config_name, params)
   WriteMacros(out, eclipse_langs, defines)
 
   out.write('</cdtprojectproperties>\n')

@@ -9,7 +9,6 @@
 These functions are executed via gyp-win-tool when using the ninja generator.
 """
 
-from ctypes import windll, wintypes
 import os
 import shutil
 import subprocess
@@ -23,31 +22,6 @@ def main(args):
   exit_code = executor.Dispatch(args)
   if exit_code is not None:
     sys.exit(exit_code)
-
-
-class LinkLock(object):
-  """A flock-style lock to limit the number of concurrent links to one.
-
-  Uses a session-local mutex based on the file's directory.
-  """
-  def __enter__(self):
-    name = 'Local\\%s' % BASE_DIR.replace('\\', '_').replace(':', '_')
-    self.mutex = windll.kernel32.CreateMutexW(
-        wintypes.c_int(0),
-        wintypes.c_int(0),
-        wintypes.create_unicode_buffer(name))
-    assert self.mutex
-    result = windll.kernel32.WaitForSingleObject(
-        self.mutex, wintypes.c_int(0xFFFFFFFF))
-    # 0x80 means another process was killed without releasing the mutex, but
-    # that this process has been given ownership. This is fine for our
-    # purposes.
-    assert result in (0, 0x80), (
-        "%s, %s" % (result, windll.kernel32.GetLastError()))
-
-  def __exit__(self, type, value, traceback):
-    windll.kernel32.ReleaseMutex(self.mutex)
-    windll.kernel32.CloseHandle(self.mutex)
 
 
 class WinTool(object):
@@ -96,15 +70,14 @@ class WinTool(object):
     '   Creating library ui.dll.lib and object ui.dll.exp'
     This happens when there are exports from the dll or exe.
     """
-    with LinkLock():
-      env = self._GetEnv(arch)
-      popen = subprocess.Popen(args, shell=True, env=env,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-      out, _ = popen.communicate()
-      for line in out.splitlines():
-        if not line.startswith('   Creating library '):
-          print line
-      return popen.returncode
+    env = self._GetEnv(arch)
+    popen = subprocess.Popen(args, shell=True, env=env,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out, _ = popen.communicate()
+    for line in out.splitlines():
+      if not line.startswith('   Creating library '):
+        print line
+    return popen.returncode
 
   def ExecManifestWrapper(self, arch, *args):
     """Run manifest tool with environment set. Strip out undesirable warning
@@ -118,6 +91,16 @@ class WinTool(object):
       if line and 'manifest authoring warning 81010002' not in line:
         print line
     return popen.returncode
+
+  def ExecManifestToRc(self, arch, *args):
+    """Creates a resource file pointing a SxS assembly manifest.
+    |args| is tuple containing path to resource file, path to manifest file
+    and resource name which can be "1" (for executables) or "2" (for DLLs)."""
+    manifest_path, resource_path, resource_name = args
+    with open(resource_path, 'wb') as output:
+      output.write('#include <windows.h>\n%s RT_MANIFEST "%s"' % (
+        resource_name,
+        os.path.abspath(manifest_path).replace('\\', '/')))
 
   def ExecMidlWrapper(self, arch, outdir, tlb, h, dlldata, iid, proxy, idl,
                       *flags):
