@@ -352,6 +352,14 @@ class HGraph V8_FINAL : public ZoneObject {
   HConstant* GetConstantNull();
   HConstant* GetInvalidContext();
 
+  bool IsConstantUndefined(HConstant* constant);
+  bool IsConstant0(HConstant* constant);
+  bool IsConstant1(HConstant* constant);
+  bool IsConstantMinus1(HConstant* constant);
+  bool IsConstantTrue(HConstant* constant);
+  bool IsConstantFalse(HConstant* constant);
+  bool IsConstantHole(HConstant* constant);
+  bool IsConstantNull(HConstant* constant);
   bool IsStandardConstant(HConstant* constant);
 
   HBasicBlock* CreateBasicBlock();
@@ -366,12 +374,16 @@ class HGraph V8_FINAL : public ZoneObject {
   int GetMaximumValueID() const { return values_.length(); }
   int GetNextBlockID() { return next_block_id_++; }
   int GetNextValueID(HValue* value) {
+    ASSERT(!disallow_adding_new_values_);
     values_.Add(value, zone());
     return values_.length() - 1;
   }
   HValue* LookupValue(int id) const {
     if (id >= 0 && id < values_.length()) return values_[id];
     return NULL;
+  }
+  void DisallowAddingNewValues() {
+    disallow_adding_new_values_ = true;
   }
 
   bool Optimize(BailoutReason* bailout_reason);
@@ -499,6 +511,7 @@ class HGraph V8_FINAL : public ZoneObject {
   int type_change_checksum_;
   int maximum_environment_size_;
   int no_side_effects_scope_count_;
+  bool disallow_adding_new_values_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };

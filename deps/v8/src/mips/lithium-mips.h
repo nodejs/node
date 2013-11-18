@@ -91,6 +91,7 @@ class LCodeGen;
   V(DoubleToI)                                  \
   V(DoubleToSmi)                                \
   V(Drop)                                       \
+  V(Dummy)                                      \
   V(DummyUse)                                   \
   V(ElementsKind)                               \
   V(ForInCacheArray)                            \
@@ -182,6 +183,7 @@ class LCodeGen;
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(Uint32ToDouble)                             \
+  V(Uint32ToSmi)                                \
   V(UnknownOSRValue)                            \
   V(ValueOf)                                    \
   V(WrapReceiver)
@@ -416,6 +418,13 @@ class LLazyBailout V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 
  private:
   int gap_instructions_size_;
+};
+
+
+class LDummy V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+ public:
+  explicit LDummy() { }
+  DECLARE_CONCRETE_INSTRUCTION(Dummy, "dummy")
 };
 
 
@@ -2049,6 +2058,19 @@ class LUint32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Uint32ToDouble, "uint32-to-double")
+};
+
+
+class LUint32ToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LUint32ToSmi(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Uint32ToSmi, "uint32-to-smi")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 

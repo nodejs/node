@@ -422,6 +422,7 @@ Representation LChunk::LookupLiteralRepresentation(
 LChunk* LChunk::NewChunk(HGraph* graph) {
   DisallowHandleAllocation no_handles;
   DisallowHeapAllocation no_gc;
+  graph->DisallowAddingNewValues();
   int values = graph->GetMaximumValueID();
   CompilationInfo* info = graph->info();
   if (values > LUnallocated::kMaxVirtualRegisters) {

@@ -14749,8 +14749,8 @@ PropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
 }
 
 
-Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
-    Handle<GlobalObject> global,
+Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
+    Handle<JSGlobalObject> global,
     Handle<Name> name) {
   ASSERT(!global->HasFastProperties());
   int entry = global->property_dictionary()->FindEntry(*name);

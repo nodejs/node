@@ -961,12 +961,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
   size_t length = NumberToSize(isolate, *length_obj);
-  size_t byte_length = length * element_size;
-  if (byte_length < length) {  // Overflow
+  if (length > (kMaxInt / element_size)) {
     return isolate->Throw(*isolate->factory()->
           NewRangeError("invalid_array_buffer_length",
             HandleVector<Object>(NULL, 0)));
   }
+  size_t byte_length = length * element_size;
 
   // NOTE: not initializing backing store.
   // We assume that the caller of this function will initialize holder

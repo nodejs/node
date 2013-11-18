@@ -5304,6 +5304,11 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 }
 
 
+void LCodeGen::DoDummy(LDummy* instr) {
+  // Nothing to see here, move on!
+}
+
+
 void LCodeGen::DoDummyUse(LDummyUse* instr) {
   // Nothing to see here, move on!
 }

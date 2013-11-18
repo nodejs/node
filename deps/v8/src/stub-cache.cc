@@ -177,12 +177,12 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   Handle<Name> cache_name = factory()->empty_string();
   Handle<JSObject> current;
   Handle<Object> next = receiver;
-  Handle<GlobalObject> global;
+  Handle<JSGlobalObject> global;
   do {
     current = Handle<JSObject>::cast(next);
     next = Handle<Object>(current->GetPrototype(), isolate_);
-    if (current->IsGlobalObject()) {
-      global = Handle<GlobalObject>::cast(current);
+    if (current->IsJSGlobalObject()) {
+      global = Handle<JSGlobalObject>::cast(current);
       cache_name = name;
     } else if (!current->HasFastProperties()) {
       cache_name = name;
@@ -1205,6 +1205,40 @@ Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<JSObject> object,
 
   HandlerFrontendFooter(name, success, &miss);
   return reg;
+}
+
+
+void LoadStubCompiler::NonexistentHandlerFrontend(
+    Handle<JSObject> object,
+    Handle<JSObject> last,
+    Handle<Name> name,
+    Label* success,
+    Handle<JSGlobalObject> global) {
+  Label miss;
+
+  Register holder =
+      HandlerFrontendHeader(object, receiver(), last, name, &miss);
+
+  if (!last->HasFastProperties() &&
+      !last->IsJSGlobalObject() &&
+      !last->IsJSGlobalProxy()) {
+    if (!name->IsUniqueName()) {
+      ASSERT(name->IsString());
+      name = factory()->InternalizeString(Handle<String>::cast(name));
+    }
+    ASSERT(last->property_dictionary()->FindEntry(*name) ==
+        NameDictionary::kNotFound);
+    GenerateDictionaryNegativeLookup(masm(), &miss, holder, name,
+                                     scratch2(), scratch3());
+  }
+
+  // If the last object in the prototype chain is a global object,
+  // check that the global property cell is empty.
+  if (!global.is_null()) {
+    GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
+  }
+
+  HandlerFrontendFooter(name, success, &miss);
 }
 
 
