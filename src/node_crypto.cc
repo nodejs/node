@@ -2122,6 +2122,8 @@ void CipherBase::Initialize(Environment* env, Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "update", Update);
   NODE_SET_PROTOTYPE_METHOD(t, "final", Final);
   NODE_SET_PROTOTYPE_METHOD(t, "setAutoPadding", SetAutoPadding);
+  NODE_SET_PROTOTYPE_METHOD(t, "getAuthTag", GetAuthTag);
+  NODE_SET_PROTOTYPE_METHOD(t, "setAuthTag", SetAuthTag);
 
   target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "CipherBase"),
               t->GetFunction());
@@ -2250,12 +2252,85 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+bool CipherBase::IsAuthenticatedMode() const {
+  // check if this cipher operates in an AEAD mode that we support.
+  if (!cipher_)
+    return false;
+  int mode = EVP_CIPHER_mode(cipher_);
+  return mode == EVP_CIPH_GCM_MODE;
+}
+
+
+bool CipherBase::GetAuthTag(char** out, unsigned int* out_len) const {
+  // only callable after Final and if encrypting.
+  if (initialised_ || kind_ != kCipher || !auth_tag_)
+    return false;
+  *out_len = auth_tag_len_;
+  *out = new char[auth_tag_len_];
+  memcpy(*out, auth_tag_, auth_tag_len_);
+  return true;
+}
+
+
+void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope handle_scope(args.GetIsolate());
+  CipherBase* cipher = Unwrap<CipherBase>(args.This());
+
+  char* out = NULL;
+  unsigned int out_len = 0;
+
+  if (cipher->GetAuthTag(&out, &out_len)) {
+    Local<Object> buf = Buffer::Use(env, out, out_len);
+    args.GetReturnValue().Set(buf);
+  } else {
+    ThrowError("Attempting to get auth tag in unsupported state");
+  }
+}
+
+
+bool CipherBase::SetAuthTag(const char* data, unsigned int len) {
+  if (!initialised_ || !IsAuthenticatedMode() || kind_ != kDecipher)
+    return false;
+  delete[] auth_tag_;
+  auth_tag_len_ = len;
+  auth_tag_ = new char[len];
+  memcpy(auth_tag_, data, len);
+  return true;
+}
+
+
+void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
+  HandleScope handle_scope(args.GetIsolate());
+
+  Local<Object> buf = args[0].As<Object>();
+  if (!buf->IsObject() || !Buffer::HasInstance(buf))
+    return ThrowTypeError("Argument must be a Buffer");
+
+  CipherBase* cipher = Unwrap<CipherBase>(args.This());
+
+  if (!cipher->SetAuthTag(Buffer::Data(buf), Buffer::Length(buf)))
+    ThrowError("Attempting to set auth tag in unsupported state");
+}
+
+
 bool CipherBase::Update(const char* data,
                         int len,
                         unsigned char** out,
                         int* out_len) {
   if (!initialised_)
     return 0;
+
+  // on first update:
+  if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_ != NULL) {
+    EVP_CIPHER_CTX_ctrl(&ctx_,
+                        EVP_CTRL_GCM_SET_TAG,
+                        auth_tag_len_,
+                        reinterpret_cast<unsigned char*>(auth_tag_));
+    delete[] auth_tag_;
+    auth_tag_ = NULL;
+  }
+
   *out_len = len + EVP_CIPHER_CTX_block_size(&ctx_);
   *out = new unsigned char[*out_len];
   return EVP_CipherUpdate(&ctx_,
@@ -2328,6 +2403,21 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
 
   *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx_)];
   bool r = EVP_CipherFinal_ex(&ctx_, *out, out_len);
+
+  if (r && kind_ == kCipher) {
+    delete[] auth_tag_;
+    auth_tag_ = NULL;
+    if (IsAuthenticatedMode()) {
+      auth_tag_len_ = EVP_GCM_TLS_TAG_LEN;  // use default tag length
+      auth_tag_ = new char[auth_tag_len_];
+      memset(auth_tag_, 0, auth_tag_len_);
+      EVP_CIPHER_CTX_ctrl(&ctx_,
+                          EVP_CTRL_GCM_GET_TAG,
+                          auth_tag_len_,
+                          reinterpret_cast<unsigned char*>(auth_tag_));
+    }
+  }
+
   EVP_CIPHER_CTX_cleanup(&ctx_);
   initialised_ = false;
 
