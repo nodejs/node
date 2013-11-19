@@ -144,7 +144,7 @@ Handle<Value> UDPWrap::GetFD(Local<String>, const AccessorInfo& args) {
   return v8::Null();
 #else
   HandleScope scope;
-  UNWRAP(UDPWrap)
+  UNWRAP_NO_ABORT(UDPWrap)
   int fd = (wrap == NULL) ? -1 : wrap->handle_.io_watcher.fd;
   return scope.Close(Integer::New(fd));
 #endif
