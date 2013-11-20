@@ -34,6 +34,10 @@ Date2.prototype.foo = 'bar';
 var after = util.inspect(d);
 assert.equal(orig, after);
 
+// test positive/negative zero
+assert.equal(util.inspect(0), '0');
+assert.equal(util.inspect(-0), '-0');
+
 // test for sparse array
 var a = ['foo', 'bar', 'baz'];
 assert.equal(util.inspect(a), '[ \'foo\', \'bar\', \'baz\' ]');
