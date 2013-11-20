@@ -1,3 +1,4 @@
+var common = require('../common-tap.js')
 var fs = require("fs")
 var test = require("tap").test
 var rimraf = require("rimraf")
@@ -42,7 +43,7 @@ test("setup", function(t) {
         return res.end(failFile)
     }
   })
-  server.listen(1337, function() {
+  server.listen(common.port, function() {
     t.pass("listening")
     t.end()
   })

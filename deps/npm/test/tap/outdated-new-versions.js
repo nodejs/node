@@ -1,14 +1,11 @@
+var common = require("../common-tap.js")
 var test = require("tap").test
 var npm = require("../../")
 var mkdirp = require("mkdirp")
 var rimraf = require("rimraf")
 
-
 var mr = require("npm-registry-mock")
 
-// config
-var port = 1331
-var address = "http://localhost:" + port
 var pkg = __dirname + "/outdated-new-versions"
 mkdirp.sync(pkg + "/cache")
 
@@ -16,8 +13,9 @@ mkdirp.sync(pkg + "/cache")
 test("dicovers new versions in outdated", function (t) {
   process.chdir(pkg)
   t.plan(2)
-  mr(port, function (s) {
-    npm.load({cache: pkg + "/cache", registry: address}, function () {
+
+  mr(common.port, function (s) {
+    npm.load({cache: pkg + "/cache", registry: common.registry}, function () {
       npm.outdated(function (er, d) {
         for (var i = 0; i < d.length; i++) {
           if (d[i][1] === "underscore")

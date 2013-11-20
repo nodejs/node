@@ -204,8 +204,10 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
   }
 
   var proc = spawn(sh, [shFlag, cmd], conf)
-  proc.on("close", function (code) {
-    if (code) {
+  proc.on("close", function (code, signal) {
+    if (signal) {
+      process.kill(process.pid, signal);
+    } else if (code) {
       var er = new Error("Exit status " + code)
     }
     if (er && !npm.ROLLBACK) {

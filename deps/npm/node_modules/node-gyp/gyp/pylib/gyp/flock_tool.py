@@ -3,8 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""These functions are executed via gyp-sun-tool when using the Makefile
-generator."""
+"""These functions are executed via gyp-flock-tool when using the Makefile
+generator.  Used on systems that don't have a built-in flock."""
 
 import fcntl
 import os
@@ -14,14 +14,12 @@ import sys
 
 
 def main(args):
-  executor = SunTool()
+  executor = FlockTool()
   executor.Dispatch(args)
 
 
-class SunTool(object):
-  """This class performs all the SunOS tooling steps. The methods can either be
-  executed directly, or dispatched from an argument list."""
-
+class FlockTool(object):
+  """This class emulates the 'flock' command."""
   def Dispatch(self, args):
     """Dispatches a string command to a method."""
     if len(args) < 1:

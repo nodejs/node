@@ -167,12 +167,17 @@ class MsvsSettings(object):
     """Get a dict of variables mapping internal VS macro names to their gyp
     equivalents."""
     target_platform = 'Win32' if self.GetArch(config) == 'x86' else 'x64'
+    target_name = self.spec.get('product_prefix', '') + \
+        self.spec.get('product_name', self.spec['target_name'])
+    target_dir = base_to_build + '\\' if base_to_build else ''
     replacements = {
-        '$(OutDir)\\': base_to_build + '\\' if base_to_build else '',
+        '$(OutDir)\\': target_dir,
+        '$(TargetDir)\\': target_dir,
         '$(IntDir)': '$!INTERMEDIATE_DIR',
         '$(InputPath)': '${source}',
         '$(InputName)': '${root}',
         '$(ProjectName)': self.spec['target_name'],
+        '$(TargetName)': target_name,
         '$(PlatformName)': target_platform,
         '$(ProjectDir)\\': '',
     }
@@ -197,7 +202,8 @@ class MsvsSettings(object):
 
   def AdjustLibraries(self, libraries):
     """Strip -l from library if it's specified with that."""
-    return [lib[2:] if lib.startswith('-l') else lib for lib in libraries]
+    libs = [lib[2:] if lib.startswith('-l') else lib for lib in libraries]
+    return [lib + '.lib' if not lib.endswith('.lib') else lib for lib in libs]
 
   def _GetAndMunge(self, field, path, default, prefix, append, map):
     """Retrieve a value from |field| at |path| or return |default|. If
@@ -289,6 +295,15 @@ class MsvsSettings(object):
       pdbname = expand_special(self.ConvertVSMacros(pdbname))
     return pdbname
 
+  def GetMapFileName(self, config, expand_special):
+    """Gets the explicitly overriden map file name for a target or returns None
+    if it's not set."""
+    config = self._TargetConfig(config)
+    map_file = self._Setting(('VCLinkerTool', 'MapFileName'), config)
+    if map_file:
+      map_file = expand_special(self.ConvertVSMacros(map_file, config=config))
+    return map_file
+
   def GetOutputName(self, config, expand_special):
     """Gets the explicitly overridden output name for a target or returns None
     if it's not overridden."""
@@ -320,8 +335,11 @@ class MsvsSettings(object):
     cl = self._GetWrapper(self, self.msvs_settings[config],
                           'VCCLCompilerTool', append=cflags)
     cl('Optimization',
-       map={'0': 'd', '1': '1', '2': '2', '3': 'x'}, prefix='/O')
+       map={'0': 'd', '1': '1', '2': '2', '3': 'x'}, prefix='/O', default='2')
     cl('InlineFunctionExpansion', prefix='/Ob')
+    cl('DisableSpecificWarnings', prefix='/wd')
+    cl('StringPooling', map={'true': '/GF'})
+    cl('EnableFiberSafeOptimizations', map={'true': '/GT'})
     cl('OmitFramePointers', map={'false': '-', 'true': ''}, prefix='/Oy')
     cl('EnableIntrinsicFunctions', map={'false': '-', 'true': ''}, prefix='/Oi')
     cl('FavorSizeOrSpeed', map={'1': 't', '2': 's'}, prefix='/O')
@@ -345,6 +363,9 @@ class MsvsSettings(object):
     cl('AdditionalOptions', prefix='')
     cflags.extend(['/FI' + f for f in self._Setting(
         ('VCCLCompilerTool', 'ForcedIncludeFiles'), config, default=[])])
+    if self.vs_version.short_name in ('2013', '2013e'):
+      # New flag required in 2013 to maintain previous PDB behavior.
+      cflags.append('/FS')
     # ninja handles parallelism by itself, don't have the compiler do it too.
     cflags = filter(lambda x: not x.startswith('/MP'), cflags)
     return cflags
@@ -402,16 +423,23 @@ class MsvsSettings(object):
     lib('AdditionalOptions')
     return libflags
 
-  def _GetDefFileAsLdflags(self, spec, ldflags, gyp_to_build_path):
-    """.def files get implicitly converted to a ModuleDefinitionFile for the
-    linker in the VS generator. Emulate that behaviour here."""
-    def_file = ''
+  def GetDefFile(self, gyp_to_build_path):
+    """Returns the .def file from sources, if any.  Otherwise returns None."""
+    spec = self.spec
     if spec['type'] in ('shared_library', 'loadable_module', 'executable'):
       def_files = [s for s in spec.get('sources', []) if s.endswith('.def')]
       if len(def_files) == 1:
-        ldflags.append('/DEF:"%s"' % gyp_to_build_path(def_files[0]))
+        return gyp_to_build_path(def_files[0])
       elif len(def_files) > 1:
         raise Exception("Multiple .def files")
+    return None
+
+  def _GetDefFileAsLdflags(self, ldflags, gyp_to_build_path):
+    """.def files get implicitly converted to a ModuleDefinitionFile for the
+    linker in the VS generator. Emulate that behaviour here."""
+    def_file = self.GetDefFile(gyp_to_build_path)
+    if def_file:
+      ldflags.append('/DEF:"%s"' % def_file)
 
   def GetLdflags(self, config, gyp_to_build_path, expand_special,
                  manifest_base_name, is_executable):
@@ -421,7 +449,7 @@ class MsvsSettings(object):
     ldflags = []
     ld = self._GetWrapper(self, self.msvs_settings[config],
                           'VCLinkerTool', append=ldflags)
-    self._GetDefFileAsLdflags(self.spec, ldflags, gyp_to_build_path)
+    self._GetDefFileAsLdflags(ldflags, gyp_to_build_path)
     ld('GenerateDebugInformation', map={'true': '/DEBUG'})
     ld('TargetMachine', map={'1': 'X86', '17': 'X64'}, prefix='/MACHINE:')
     ldflags.extend(self._GetAdditionalLibraryDirectories(
@@ -433,6 +461,10 @@ class MsvsSettings(object):
     pdb = self.GetPDBName(config, expand_special)
     if pdb:
       ldflags.append('/PDB:' + pdb)
+    map_file = self.GetMapFileName(config, expand_special)
+    ld('GenerateMapFile', map={'true': '/MAP:' + map_file if map_file
+        else '/MAP'})
+    ld('MapExports', map={'true': '/MAPINFO:EXPORTS'})
     ld('AdditionalOptions', prefix='')
     ld('SubSystem', map={'1': 'CONSOLE', '2': 'WINDOWS'}, prefix='/SUBSYSTEM:')
     ld('TerminalServerAware', map={'1': ':NO', '2': ''}, prefix='/TSAWARE')
@@ -480,17 +512,32 @@ class MsvsSettings(object):
   def _GetLdManifestFlags(self, config, name, allow_isolation):
     """Returns the set of flags that need to be added to the link to generate
     a default manifest, as well as the name of the generated file."""
-    # Add manifest flags that mirror the defaults in VS. Chromium dev builds
-    # do not currently use any non-default settings, but we could parse
-    # VCManifestTool blocks if Chromium or other projects need them in the
-    # future. Of particular note, we do not yet support EmbedManifest because
-    # it complicates incremental linking.
+    # The manifest is generated by default.
     output_name = name + '.intermediate.manifest'
     flags = [
       '/MANIFEST',
       '/ManifestFile:' + output_name,
-      '''/MANIFESTUAC:"level='asInvoker' uiAccess='false'"'''
     ]
+
+    config = self._TargetConfig(config)
+    enable_uac = self._Setting(('VCLinkerTool', 'EnableUAC'), config,
+                               default='true')
+    if enable_uac == 'true':
+      execution_level = self._Setting(('VCLinkerTool', 'UACExecutionLevel'),
+                                      config, default='0')
+      execution_level_map = {
+        '0': 'asInvoker',
+        '1': 'highestAvailable',
+        '2': 'requireAdministrator'
+      }
+
+      ui_access = self._Setting(('VCLinkerTool', 'UACUIAccess'), config,
+                                default='false')
+      flags.append('''/MANIFESTUAC:"level='%s' uiAccess='%s'"''' %
+          (execution_level_map[execution_level], ui_access))
+    else:
+      flags.append('/MANIFESTUAC:NO')
+
     if allow_isolation:
       flags.append('/ALLOWISOLATION')
     return flags, output_name
@@ -500,9 +547,6 @@ class MsvsSettings(object):
     generated by the linker."""
     files = self._Setting(('VCManifestTool', 'AdditionalManifestFiles'), config,
                           default=[])
-    if (self._Setting(
-        ('VCManifestTool', 'EmbedManifest'), config, default='') == 'true'):
-      print 'gyp/msvs_emulation.py: "EmbedManifest: true" not yet supported.'
     if isinstance(files, str):
       files = files.split(';')
     return [os.path.normpath(
@@ -515,6 +559,18 @@ class MsvsSettings(object):
     config = self._TargetConfig(config)
     uldi = self._Setting(('VCLinkerTool', 'UseLibraryDependencyInputs'), config)
     return uldi == 'true'
+
+  def IsEmbedManifest(self, config):
+    """Returns whether manifest should be linked into binary."""
+    config = self._TargetConfig(config)
+    embed = self._Setting(('VCManifestTool', 'EmbedManifest'), config)
+    return embed == 'true'
+
+  def IsLinkIncremental(self, config):
+    """Returns whether the target should be linked incrementally."""
+    config = self._TargetConfig(config)
+    link_inc = self._Setting(('VCLinkerTool', 'LinkIncremental'), config)
+    return link_inc != '1'
 
   def GetRcflags(self, config, gyp_to_ninja_path):
     """Returns the flags that need to be added to invocations of the resource
@@ -626,11 +682,12 @@ class PrecompiledHeader(object):
     files."""
     return os.path.split(self.settings.msvs_precompiled_header[self.config])[1]
 
-  def GetObjDependencies(self, sources, objs):
+  def GetObjDependencies(self, sources, objs, arch):
     """Given a list of sources files and the corresponding object files,
     returns a list of the pch files that should be depended upon. The
     additional wrapping in the return value is for interface compatability
     with make.py on Mac, and xcode_emulation.py."""
+    assert arch is None
     if not self._PchHeader():
       return []
     pch_ext = os.path.splitext(self.pch_source)[1]
@@ -639,7 +696,7 @@ class PrecompiledHeader(object):
         return [(None, None, self.output_obj)]
     return []
 
-  def GetPchBuildCommands(self):
+  def GetPchBuildCommands(self, arch):
     """Not used on Windows as there are no additional build steps required
     (instead, existing steps are modified in GetFlagsModifications below)."""
     return []
@@ -724,6 +781,14 @@ def _FormatAsEnvironmentBlock(envvar_dict):
   block += nul
   return block
 
+def _ExtractCLPath(output_of_where):
+  """Gets the path to cl.exe based on the output of calling the environment
+  setup batch file, followed by the equivalent of `where`."""
+  # Take the first line, as that's the first found in the PATH.
+  for line in output_of_where.strip().splitlines():
+    if line.startswith('LOC:'):
+      return line[len('LOC:'):].strip()
+
 def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
   """It's not sufficient to have the absolute path to the compiler, linker,
   etc. on Windows, as those tools rely on .dlls being in the PATH. We also
@@ -739,10 +804,16 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
   meet your requirement (e.g. for custom toolchains), you can pass
   "-G ninja_use_custom_environment_files" to the gyp to suppress file
   generation and use custom environment files prepared by yourself."""
+  archs = ('x86', 'x64')
   if generator_flags.get('ninja_use_custom_environment_files', 0):
-    return
+    cl_paths = {}
+    for arch in archs:
+      cl_paths[arch] = 'cl.exe'
+    return cl_paths
   vs = GetVSVersion(generator_flags)
-  for arch in ('x86', 'x64'):
+  cl_paths = {}
+  for arch in archs:
+    # Extract environment variables for subprocesses.
     args = vs.SetupScript(arch)
     args.extend(('&&', 'set'))
     popen = subprocess.Popen(
@@ -753,6 +824,15 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
     f = open_out(os.path.join(toplevel_build_dir, 'environment.' + arch), 'wb')
     f.write(env_block)
     f.close()
+
+    # Find cl.exe location for this architecture.
+    args = vs.SetupScript(arch)
+    args.extend(('&&',
+      'for', '%i', 'in', '(cl.exe)', 'do', '@echo', 'LOC:%~$PATH:i'))
+    popen = subprocess.Popen(args, shell=True, stdout=subprocess.PIPE)
+    output, _ = popen.communicate()
+    cl_paths[arch] = _ExtractCLPath(output)
+  return cl_paths
 
 def VerifyMissingSources(sources, build_dir, generator_flags, gyp_to_ninja):
   """Emulate behavior of msvs_error_on_missing_sources present in the msvs
@@ -769,3 +849,22 @@ def VerifyMissingSources(sources, build_dir, generator_flags, gyp_to_ninja):
       # path for a slightly less crazy looking output.
       cleaned_up = [os.path.normpath(x) for x in missing]
       raise Exception('Missing input files:\n%s' % '\n'.join(cleaned_up))
+
+# Sets some values in default_variables, which are required for many
+# generators, run on Windows.
+def CalculateCommonVariables(default_variables, params):
+  generator_flags = params.get('generator_flags', {})
+
+  # Set a variable so conditions can be based on msvs_version.
+  msvs_version = gyp.msvs_emulation.GetVSVersion(generator_flags)
+  default_variables['MSVS_VERSION'] = msvs_version.ShortName()
+
+  # To determine processor word size on Windows, in addition to checking
+  # PROCESSOR_ARCHITECTURE (which reflects the word size of the current
+  # process), it is also necessary to check PROCESSOR_ARCHITEW6432 (which
+  # contains the actual word size of the system when running thru WOW64).
+  if ('64' in os.environ.get('PROCESSOR_ARCHITECTURE', '') or
+      '64' in os.environ.get('PROCESSOR_ARCHITEW6432', '')):
+    default_variables['MSVS_OS_BITS'] = 64
+  else:
+    default_variables['MSVS_OS_BITS'] = 32

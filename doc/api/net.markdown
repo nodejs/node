@@ -283,12 +283,14 @@ Construct a new socket object.
 `options` is an object with the following defaults:
 
     { fd: null
-      type: null
-      allowHalfOpen: false
+      allowHalfOpen: false,
+      readable: false,
+      writable: false
     }
 
-`fd` allows you to specify the existing file descriptor of socket. `type`
-specified underlying protocol. It can be `'tcp4'`, `'tcp6'`, or `'unix'`.
+`fd` allows you to specify the existing file descriptor of socket.
+Set `readable` and/or `writable` to `true` to allow reads and/or writes on this
+socket (NOTE: Works only when `fd` is passed).
 About `allowHalfOpen`, refer to `createServer()` and `'end'` event.
 
 ### socket.connect(port, [host], [connectListener])

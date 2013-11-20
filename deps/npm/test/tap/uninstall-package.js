@@ -1,24 +1,41 @@
 var test = require("tap").test
   , npm = require("../../")
+  , rimraf = require("rimraf")
+  , mr = require("npm-registry-mock")
+  , common = require("../common-tap.js")
+  , pkg = __dirname + "/uninstall-package"
 
 test("returns a list of removed items", function (t) {
   t.plan(1)
-
-  setup(function () {
-    npm.install(".", function (err) {
-      if (err) return t.fail(err)
-      npm.uninstall("once", "ini", "lala", function (err, d) {
+  mr(common.port, function (s) {
+    setup(function () {
+      npm.install(".", function (err) {
         if (err) return t.fail(err)
-        t.same(d.sort(), ["once", "ini"].sort())
-        t.end()
+        npm.uninstall("underscore", "request", "lala", function (err, d) {
+          if (err) return t.fail(err)
+          t.same(d.sort(), ["underscore", "request"].sort())
+          s.close()
+          t.end()
+        })
       })
     })
   })
 })
 
+test("cleanup", function (t) {
+  cleanup()
+  t.end()
+})
+
 function setup (cb) {
-  process.chdir(__dirname + "/uninstall-package")
-  npm.load(function () {
+  cleanup()
+  process.chdir(pkg)
+  npm.load({cache: pkg + "/cache", registry: common.registry}, function () {
     cb()
   })
+}
+
+function cleanup () {
+  rimraf.sync(pkg + "/node_modules")
+  rimraf.sync(pkg + "/cache")
 }

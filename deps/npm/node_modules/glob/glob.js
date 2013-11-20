@@ -84,6 +84,11 @@ function Glob (pattern, options, cb) {
     return new Glob(pattern, options, cb)
   }
 
+  if (typeof options === "function") {
+    cb = options
+    options = null
+  }
+
   if (typeof cb === "function") {
     this.on("error", cb)
     this.on("end", function (matches) {
