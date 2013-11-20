@@ -117,6 +117,9 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
   if (has_async_queue()) {
     v8::Local<v8::Value> val = context.As<v8::Value>();
     env()->async_listener_unload_function()->Call(process, 1, &val);
+
+    if (try_catch.HasCaught())
+      return v8::Undefined(env()->isolate());
   }
 
   Environment::TickInfo* tick_info = env()->tick_info();
