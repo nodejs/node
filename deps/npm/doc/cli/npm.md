@@ -132,10 +132,6 @@ as expected.  The `npm-debug.log` file is also helpful to provide.
 You can also look for isaacs in #node.js on irc://irc.freenode.net.  He
 will no doubt tell you to put the output in a gist or email.
 
-## HISTORY
-
-See npm-changelog(1)
-
 ## AUTHOR
 
 [Isaac Z. Schlueter](http://blog.izs.me/) ::

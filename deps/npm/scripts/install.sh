@@ -152,14 +152,10 @@ if [ -z "$t" ]; then
   # switch based on node version.
   # note that we can only use strict sh-compatible patterns here.
   case $node_version in
-    0.[0123].* | v0.[0123].*)
+    0.[012345].* | v0.[012345].*)
       echo "You are using an outdated and unsupported version of" >&2
       echo "node ($node_version).  Please update node and try again." >&2
       exit 99
-      ;;
-    v0.[45].* | 0.[45].*)
-      echo "install npm@1.0"
-      t=1.0
       ;;
     v0.[678].* | 0.[678].*)
       echo "install npm@1.1"

@@ -1,3 +1,4 @@
+var common = require("../common-tap.js")
 var test = require("tap").test
 var npm = require("../../")
 var pkg = './ignore-shrinkwrap'
@@ -16,8 +17,8 @@ var customMocks = {
   }
 }
 
-test("ignore-shrinkwrap: using the option", function(t) {
-  mr({port: 1337, mocks: customMocks}, function (s) {
+test("ignore-shrinkwrap: using the option", function (t) {
+  mr({port: common.port, mocks: customMocks}, function (s) {
     s._server.on("request", function (req, res) {
       switch (req.url) {
         case "/shrinkwrap.js":
@@ -35,8 +36,8 @@ test("ignore-shrinkwrap: using the option", function(t) {
   })
 })
 
-test("ignore-shrinkwrap: NOT using the option", function(t) {
-  mr({port: 1337, mocks: customMocks}, function (s) {
+test("ignore-shrinkwrap: NOT using the option", function (t) {
+  mr({port: common.port, mocks: customMocks}, function (s) {
     s._server.on("request", function (req, res) {
       switch (req.url) {
         case "/shrinkwrap.js":
@@ -65,7 +66,7 @@ function createChild (ignoreShrinkwrap) {
   return spawn(node, args, {
     cwd: pkg,
     env: {
-      npm_config_registry: "http://localhost:1337",
+      npm_config_registry: common.registry,
       npm_config_cache_lock_stale: 1000,
       npm_config_cache_lock_wait: 1000,
       HOME: process.env.HOME,

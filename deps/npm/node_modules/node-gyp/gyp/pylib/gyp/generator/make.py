@@ -1,4 +1,4 @@
-# Copyright (c) 2012 Google Inc. All rights reserved.
+# Copyright (c) 2013 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -166,15 +166,11 @@ cmd_alink = rm -f $@ && ./gyp-mac-tool filter-libtool libtool $(GYP_LIBTOOLFLAGS
 quiet_cmd_link = LINK($(TOOLSET)) $@
 cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o "$@" $(LD_INPUTS) $(LIBS)
 
-# TODO(thakis): Find out and document the difference between shared_library and
-# loadable_module on mac.
 quiet_cmd_solink = SOLINK($(TOOLSET)) $@
 cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o "$@" $(LD_INPUTS) $(LIBS)
 
-# TODO(thakis): The solink_module rule is likely wrong. Xcode seems to pass
-# -bundle -single_module here (for osmesa.so).
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
-cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
+cmd_solink_module = $(LINK.$(TOOLSET)) -bundle $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
 """
 
 LINK_COMMANDS_ANDROID = """\
@@ -202,6 +198,24 @@ quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -o $@ -Wl,--start-group $(filter-out FORCE_DO_CMD, $^) -Wl,--end-group $(LIBS)
 quiet_cmd_solink_module_host = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module_host = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
+"""
+
+
+LINK_COMMANDS_AIX = """\
+quiet_cmd_alink = AR($(TOOLSET)) $@
+cmd_alink = rm -f $@ && $(AR.$(TOOLSET)) crs $@ $(filter %.o,$^)
+
+quiet_cmd_alink_thin = AR($(TOOLSET)) $@
+cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crs $@ $(filter %.o,$^)
+
+quiet_cmd_link = LINK($(TOOLSET)) $@
+cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS)
+
+quiet_cmd_solink = SOLINK($(TOOLSET)) $@
+cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS)
+
+quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
+cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
 """
 
 
@@ -250,6 +264,14 @@ all_deps :=
 
 %(make_global_settings)s
 
+CC.target ?= %(CC.target)s
+CFLAGS.target ?= $(CFLAGS)
+CXX.target ?= %(CXX.target)s
+CXXFLAGS.target ?= $(CXXFLAGS)
+LINK.target ?= %(LINK.target)s
+LDFLAGS.target ?= $(LDFLAGS)
+AR.target ?= $(AR)
+
 # C++ apps need to be linked with g++.
 #
 # Note: flock is used to seralize linking. Linking is a memory-intensive
@@ -260,14 +282,6 @@ all_deps :=
 #
 # This will allow make to invoke N linker processes as specified in -jN.
 LINK ?= %(flock)s $(builddir)/linker.lock $(CXX.target)
-
-CC.target ?= %(CC.target)s
-CFLAGS.target ?= $(CFLAGS)
-CXX.target ?= %(CXX.target)s
-CXXFLAGS.target ?= $(CXXFLAGS)
-LINK.target ?= %(LINK.target)s
-LDFLAGS.target ?= $(LDFLAGS)
-AR.target ?= $(AR)
 
 # TODO(evan): move all cross-compilation logic to gyp-time so we don't need
 # to replicate this environment fallback in make as well.
@@ -481,14 +495,6 @@ cmd_mac_package_framework = ./gyp-mac-tool package-framework "$@" $(4)
 
 quiet_cmd_infoplist = INFOPLIST $@
 cmd_infoplist = $(CC.$(TOOLSET)) -E -P -Wno-trigraphs -x c $(INFOPLIST_DEFINES) "$<" -o "$@"
-"""
-
-SHARED_HEADER_SUN_COMMANDS = """
-# gyp-sun-tool is written next to the root Makefile by gyp.
-# Use $(4) for the command, since $(2) and $(3) are used as flag by do_cmd
-# already.
-quiet_cmd_sun_tool = SUNTOOL $(4) $<
-cmd_sun_tool = ./gyp-sun-tool $(4) $< "$@"
 """
 
 
@@ -978,7 +984,13 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         self.WriteLn('%s: obj := $(abs_obj)' % outputs[0])
         self.WriteLn('%s: builddir := $(abs_builddir)' % outputs[0])
         self.WriteMakeRule(outputs, inputs + ['FORCE_DO_CMD'], actions)
+        # Spaces in rule filenames are not supported, but rule variables have
+        # spaces in them (e.g. RULE_INPUT_PATH expands to '$(abspath $<)').
+        # The spaces within the variables are valid, so remove the variables
+        # before checking.
+        variables_with_spaces = re.compile(r'\$\([^ ]* \$<\)')
         for output in outputs:
+          output = re.sub(variables_with_spaces, '', output)
           assert ' ' not in output, (
               "Spaces in rule filenames not yet supported (%s)"  % output)
         self.WriteLn('all_deps += %s' % ' '.join(outputs))
@@ -1402,7 +1414,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
           # TARGET_POSTBUILDS_$(BUILDTYPE) is added to postbuilds later on.
           gyp_to_build = gyp.common.InvertRelativePath(self.path)
-          target_postbuild = self.xcode_settings.GetTargetPostbuilds(
+          target_postbuild = self.xcode_settings.AddImplicitPostbuilds(
               configname,
               QuoteSpaces(os.path.normpath(os.path.join(gyp_to_build,
                                                         self.output))),
@@ -1413,12 +1425,14 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         else:
           ldflags = config.get('ldflags', [])
           # Compute an rpath for this output if needed.
-          if any(dep.endswith('.so') for dep in deps):
+          if any(dep.endswith('.so') or '.so.' in dep for dep in deps):
             # We want to get the literal string "$ORIGIN" into the link command,
             # so we need lots of escaping.
             ldflags.append(r'-Wl,-rpath=\$$ORIGIN/lib.%s/' % self.toolset)
             ldflags.append(r'-Wl,-rpath-link=\$(builddir)/lib.%s/' %
                            self.toolset)
+        library_dirs = config.get('library_dirs', [])
+        ldflags += [('-L%s' % library_dir) for library_dir in library_dirs]
         self.WriteList(ldflags, 'LDFLAGS_%s' % configname)
         if self.flavor == 'mac':
           self.WriteList(self.xcode_settings.GetLibtoolflags(configname),
@@ -1883,13 +1897,15 @@ def WriteAutoRegenerationRule(params, root_makefile, makefile_name,
   options = params['options']
   build_files_args = [gyp.common.RelativePath(filename, options.toplevel_dir)
                       for filename in params['build_files_arg']]
+
   gyp_binary = gyp.common.FixIfRelativePath(params['gyp_binary'],
                                             options.toplevel_dir)
   if not gyp_binary.startswith(os.sep):
     gyp_binary = os.path.join('.', gyp_binary)
+
   root_makefile.write(
       "quiet_cmd_regen_makefile = ACTION Regenerating $@\n"
-      "cmd_regen_makefile = %(cmd)s\n"
+      "cmd_regen_makefile = cd $(srcdir); %(cmd)s\n"
       "%(makefile_name)s: %(deps)s\n"
       "\t$(call do_cmd,regen_makefile)\n\n" % {
           'makefile_name': makefile_name,
@@ -1982,25 +1998,30 @@ def GenerateOutput(target_list, target_dicts, data, params):
     })
   elif flavor == 'solaris':
     header_params.update({
-        'flock': './gyp-sun-tool flock',
+        'flock': './gyp-flock-tool flock',
         'flock_index': 2,
-        'extra_commands': SHARED_HEADER_SUN_COMMANDS,
     })
   elif flavor == 'freebsd':
     # Note: OpenBSD has sysutils/flock. lockf seems to be FreeBSD specific.
     header_params.update({
         'flock': 'lockf',
     })
+  elif flavor == 'aix':
+    header_params.update({
+        'link_commands': LINK_COMMANDS_AIX,
+        'flock': './gyp-flock-tool flock',
+        'flock_index': 2,
+    })
 
   header_params.update({
     'CC.target':   GetEnvironFallback(('CC_target', 'CC'), '$(CC)'),
     'AR.target':   GetEnvironFallback(('AR_target', 'AR'), '$(AR)'),
     'CXX.target':  GetEnvironFallback(('CXX_target', 'CXX'), '$(CXX)'),
-    'LINK.target': GetEnvironFallback(('LD_target', 'LD'), '$(LINK)'),
+    'LINK.target': GetEnvironFallback(('LINK_target', 'LINK'), '$(LINK)'),
     'CC.host':     GetEnvironFallback(('CC_host',), 'gcc'),
     'AR.host':     GetEnvironFallback(('AR_host',), 'ar'),
     'CXX.host':    GetEnvironFallback(('CXX_host',), 'g++'),
-    'LINK.host':   GetEnvironFallback(('LD_host',), 'g++'),
+    'LINK.host':   GetEnvironFallback(('LINK_host',), '$(CXX.host)'),
   })
 
   build_file, _, _ = gyp.common.ParseQualifiedTarget(target_list[0])

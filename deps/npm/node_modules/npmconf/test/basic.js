@@ -68,6 +68,7 @@ test('no builtin', function (t) {
     t.equal(npmconf.rootConf.root, npmconf.defs.defaults)
     t.equal(conf.root, npmconf.defs.defaults)
     t.equal(conf.get('umask'), 022)
+    t.equal(conf.get('heading'), 'npm')
     t.end()
   })
 })

@@ -284,7 +284,7 @@ function load (npm, cli, cb) {
       var color = conf.get("color")
 
       log.level = conf.get("loglevel")
-      log.heading = "npm"
+      log.heading = conf.get("heading") || "npm"
       log.stream = conf.get("logstream")
       switch (color) {
         case "always": log.enableColor(); break

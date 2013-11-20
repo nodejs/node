@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""New implementation of Visual Studio project generation for SCons."""
+"""New implementation of Visual Studio project generation."""
 
 import os
 import random
@@ -325,14 +325,15 @@ class MSVSSolution:
     f.write('\tEndGlobalSection\r\n')
 
     # Folder mappings
-    # TODO(rspangler): Should omit this section if there are no folders
-    f.write('\tGlobalSection(NestedProjects) = preSolution\r\n')
-    for e in all_entries:
-      if not isinstance(e, MSVSFolder):
-        continue        # Does not apply to projects, only folders
-      for subentry in e.entries:
-        f.write('\t\t%s = %s\r\n' % (subentry.get_guid(), e.get_guid()))
-    f.write('\tEndGlobalSection\r\n')
+    # Omit this section if there are no folders
+    if any([e.entries for e in all_entries if isinstance(e, MSVSFolder)]):
+      f.write('\tGlobalSection(NestedProjects) = preSolution\r\n')
+      for e in all_entries:
+        if not isinstance(e, MSVSFolder):
+          continue        # Does not apply to projects, only folders
+        for subentry in e.entries:
+          f.write('\t\t%s = %s\r\n' % (subentry.get_guid(), e.get_guid()))
+      f.write('\tEndGlobalSection\r\n')
 
     f.write('EndGlobal\r\n')
 

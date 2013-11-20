@@ -1,3 +1,4 @@
+var common = require('../common-tap.js')
 var fs = require("fs")
 var test = require("tap").test
 var rimraf = require("rimraf")
@@ -25,7 +26,7 @@ test("setup", function(t) {
     s.setHeader('content-type', 'application/javascript')
     s.end(js)
   })
-  server.listen(1337, function() {
+  server.listen(common.port, function () {
     t.pass('listening')
     t.end()
   })
@@ -38,7 +39,7 @@ test("installing a peerDependencies-using package without a package.json present
   process.chdir(__dirname + "/peer-deps-without-package-json")
 
   npm.load(function () {
-    npm.install('http://localhost:1337/', function (err) {
+    npm.install(common.registry, function (err) {
       if (err) {
         t.fail(err)
       } else {

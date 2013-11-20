@@ -1,3 +1,4 @@
+var common = require('../common-tap.js')
 var test = require('tap').test
 var fs = require('fs')
 var osenv = require('osenv')
@@ -9,7 +10,7 @@ require('mkdirp').sync(pkg)
 fs.writeFileSync(pkg + '/package.json', JSON.stringify({
   name: 'npm-test-publish-config',
   version: '1.2.3',
-  publishConfig: { registry: 'http://localhost:13370' }
+  publishConfig: { registry: common.registry }
 }), 'utf8')
 
 var spawn = require('child_process').spawn
@@ -25,7 +26,7 @@ test(function (t) {
     res.statusCode = 500
     res.end('{"error":"sshhh. naptime nao. \\^O^/ <(YAWWWWN!)"}')
     child.kill()
-  }).listen(13370, function () {
+  }).listen(common.port, function () {
     t.pass('server is listening')
 
     // don't much care about listening to the child's results

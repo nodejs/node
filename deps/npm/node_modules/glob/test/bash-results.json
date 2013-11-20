@@ -295,6 +295,7 @@
     "./test/cwd-test.js",
     "./test/globstar-match.js",
     "./test/mark.js",
+    "./test/new-glob-optional-options.js",
     "./test/nocase-nomagic.js",
     "./test/pause-resume.js",
     "./test/root-nomount.js",

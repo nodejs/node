@@ -34,7 +34,7 @@ var gcData = { 'package-config:foo': 'boo' }
 
 var biData = { 'builtin-config': true }
 
-var cli = { foo: 'bar' }
+var cli = { foo: 'bar', heading: 'foo' }
 
 var expectList =
 [ cli,
@@ -67,6 +67,7 @@ test('with builtin', function (t) {
     t.same(npmconf.rootConf.list, [])
     t.equal(npmconf.rootConf.root, npmconf.defs.defaults)
     t.equal(conf.root, npmconf.defs.defaults)
+    t.equal(conf.get('heading'), 'foo')
     t.end()
   })
 })
