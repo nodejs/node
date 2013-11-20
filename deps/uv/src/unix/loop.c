@@ -96,7 +96,7 @@ static int uv__loop_init(uv_loop_t* loop, int default_loop) {
   QUEUE_INIT(&loop->watcher_queue);
 
   loop->closing_handles = NULL;
-  loop->time = uv__hrtime() / 1000000;
+  uv__update_time(loop);
   uv__async_init(&loop->async_watcher);
   loop->signal_pipefd[0] = -1;
   loop->signal_pipefd[1] = -1;

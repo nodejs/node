@@ -567,21 +567,6 @@ UV_EXTERN void uv_close(uv_handle_t* handle, uv_close_cb close_cb);
 UV_EXTERN uv_buf_t uv_buf_init(char* base, unsigned int len);
 
 
-/*
- * Utility function. Copies up to `size` characters from `src` to `dst`
- * and ensures that `dst` is properly NUL terminated unless `size` is zero.
- */
-UV_EXTERN size_t uv_strlcpy(char* dst, const char* src, size_t size);
-
-/*
- * Utility function. Appends `src` to `dst` and ensures that `dst` is
- * properly NUL terminated unless `size` is zero or `dst` does not
- * contain a NUL byte. `size` is the total length of `dst` so at most
- * `size - strlen(dst) - 1` characters will be copied from `src`.
- */
-UV_EXTERN size_t uv_strlcat(char* dst, const char* src, size_t size);
-
-
 #define UV_STREAM_FIELDS                                                      \
   /* number of bytes queued for writing */                                    \
   size_t write_queue_size;                                                    \
@@ -1504,7 +1489,17 @@ struct uv_process_s {
   UV_PROCESS_PRIVATE_FIELDS
 };
 
-/* Initializes uv_process_t and starts the process. */
+/*
+ * Initializes the uv_process_t and starts the process. If the process is
+ * successfully spawned, then this function will return 0. Otherwise, the
+ * negative error code corresponding to the reason it couldn't spawn is
+ * returned.
+ *
+ * Possible reasons for failing to spawn would include (but not be limited to)
+ * the file to execute not existing, not having permissions to use the setuid or
+ * setgid specified, or not having enough memory to allocate for the new
+ * process.
+ */
 UV_EXTERN int uv_spawn(uv_loop_t* loop,
                        uv_process_t* handle,
                        const uv_process_options_t* options);
@@ -1873,7 +1868,7 @@ enum uv_fs_event_flags {
    * flag does not affect individual files watched.
    * This flag is currently not implemented yet on any backend.
    */
- UV_FS_EVENT_WATCH_ENTRY = 1,
+  UV_FS_EVENT_WATCH_ENTRY = 1,
 
   /*
    * By default uv_fs_event will try to use a kernel interface such as inotify
@@ -1889,7 +1884,7 @@ enum uv_fs_event_flags {
    * (is ignoring) changes in it's subdirectories.
    * This flag will override this behaviour on platforms that support it.
    */
-  UV_FS_EVENT_RECURSIVE = 3
+  UV_FS_EVENT_RECURSIVE = 4
 };
 
 

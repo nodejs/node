@@ -109,9 +109,6 @@ static void uv__chld(uv_signal_t* handle, int signum) {
       if (WIFSIGNALED(process->status))
         term_signal = WTERMSIG(process->status);
 
-      if (process->errorno != 0)
-        exit_status = process->errorno;  /* execve() failed */
-
       process->exit_cb(process, exit_status, term_signal);
     }
   }
@@ -359,6 +356,7 @@ int uv_spawn(uv_loop_t* loop,
   ssize_t r;
   pid_t pid;
   int err;
+  int exec_errorno;
   int i;
 
   assert(options->file != NULL);
@@ -434,14 +432,14 @@ int uv_spawn(uv_loop_t* loop,
   uv__close(signal_pipe[1]);
 
   process->status = 0;
-  process->errorno = 0;
+  exec_errorno = 0;
   do
-    r = read(signal_pipe[0], &process->errorno, sizeof(process->errorno));
+    r = read(signal_pipe[0], &exec_errorno, sizeof(exec_errorno));
   while (r == -1 && errno == EINTR);
 
   if (r == 0)
     ; /* okay, EOF */
-  else if (r == sizeof(process->errorno))
+  else if (r == sizeof(exec_errorno))
     ; /* okay, read errorno */
   else if (r == -1 && errno == EPIPE)
     ; /* okay, got EPIPE */
@@ -461,15 +459,18 @@ int uv_spawn(uv_loop_t* loop,
     goto error;
   }
 
-  q = uv__process_queue(loop, pid);
-  QUEUE_INSERT_TAIL(q, &process->queue);
+  /* Only activate this handle if exec() happened successfully */
+  if (exec_errorno == 0) {
+    q = uv__process_queue(loop, pid);
+    QUEUE_INSERT_TAIL(q, &process->queue);
+    uv__handle_start(process);
+  }
 
   process->pid = pid;
   process->exit_cb = options->exit_cb;
-  uv__handle_start(process);
 
   free(pipes);
-  return 0;
+  return exec_errorno;
 
 error:
   if (pipes != NULL) {

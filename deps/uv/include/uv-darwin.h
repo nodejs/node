@@ -47,10 +47,10 @@
   char* realpath;                                                             \
   int realpath_len;                                                           \
   int cf_flags;                                                               \
-  void* cf_event;                                                             \
   uv_async_t* cf_cb;                                                          \
+  void* cf_events[2];                                                         \
   void* cf_member[2];                                                         \
-  uv_sem_t _cf_reserved;                                                      \
+  int cf_error;                                                               \
   uv_mutex_t cf_mutex;                                                        \
 
 #define UV_STREAM_PRIVATE_PLATFORM_FIELDS                                     \

@@ -16,5 +16,5 @@ export PLATFORM=android
 
 if [ $2 -a $2 == 'gyp' ]
   then
-    ./gyp_uv -Dtarget_arch=arm -DOS=android
+    ./gyp_uv.py -Dtarget_arch=arm -DOS=android
 fi

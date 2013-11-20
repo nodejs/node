@@ -298,7 +298,7 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
 
   kq = kqueue();
   if (kq == -1) {
-    fprintf(stderr, "(libuv) Failed to create kqueue (%d)\n", errno);
+    perror("(libuv) kqueue()");
     return -errno;
   }
 
@@ -1007,7 +1007,7 @@ static void uv__read(uv_stream_t* stream) {
       msg.msg_control = (void*)  cmsg_space;
 
       do {
-        nread = recvmsg(uv__stream_fd(stream), &msg, 0);
+        nread = uv__recvmsg(uv__stream_fd(stream), &msg, 0);
       }
       while (nread < 0 && errno == EINTR);
     }

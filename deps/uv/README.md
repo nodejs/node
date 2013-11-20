@@ -83,14 +83,14 @@ project tree manually:
 
 Run:
 
-    $ ./gyp_uv -f make
+    $ ./gyp_uv.py -f make
     $ make -C out
 
 ### OS X
 
 Run:
 
-    $ ./gyp_uv -f xcode
+    $ ./gyp_uv.py -f xcode
     $ xcodebuild -project uv.xcodeproj -configuration Release -target All
 
 ### Android

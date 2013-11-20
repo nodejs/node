@@ -1,4 +1,72 @@
-2013.10.30, Version 0.11.14 (Unstable)
+2013.11.21, Version 0.11.15 (Unstable)
+
+Changes since version 0.11.14:
+
+* fsevents: report errors to user (Fedor Indutny)
+
+* include: UV_FS_EVENT_RECURSIVE is a flag (Fedor Indutny)
+
+* linux: use CLOCK_MONOTONIC_COARSE if available (Ben Noordhuis)
+
+* build: make systemtap probes work with gyp build (Ben Noordhuis)
+
+* unix: update events from pevents between polls (Fedor Indutny)
+
+* fsevents: support japaneese characters in path (Chris Bank)
+
+* linux: don't turn on SO_REUSEPORT socket option (Ben Noordhuis)
+
+* queue: strengthen type checks (Ben Noordhuis)
+
+* include: remove uv_strlcat() and uv_strlcpy() (Ben Noordhuis)
+
+* build: fix windows smp build with gyp (Geert Jansen)
+
+* unix: return exec errors from uv_spawn, not async (Alex Crichton)
+
+* fsevents: use native character encoding file paths (Ben Noordhuis)
+
+* linux: handle EPOLLHUP without EPOLLIN/EPOLLOUT (Ben Noordhuis)
+
+* windows: use _snwprintf(), not swprintf() (Ben Noordhuis)
+
+* fsevents: use FlagNoDefer for FSEventStreamCreate (Fedor Indutny)
+
+* unix: fix reopened fd bug (Fedor Indutny)
+
+* core: fix fake watcher list and count preservation (Fedor Indutny)
+
+* unix: set close-on-exec flag on received fds (Ben Noordhuis)
+
+* netbsd, openbsd: enable futimes() wrapper (Ben Noordhuis)
+
+* unix: nicer error message when kqueue() fails (Ben Noordhuis)
+
+* samples: add socks5 proxy sample application (Ben Noordhuis)
+
+
+2013.11.13, Version 0.10.19 (Stable), 33959f7524090b8d2c6c41e2400ca77e31755059
+
+Changes since version 0.10.18:
+
+* darwin: avoid calling GetCurrentProcess (Fedor Indutny)
+
+* unix: update events from pevents between polls (Fedor Indutny)
+
+* fsevents: support japaneese characters in path (Chris Bank)
+
+* linux: don't turn on SO_REUSEPORT socket option (Ben Noordhuis)
+
+* build: fix windows smp build with gyp (Geert Jansen)
+
+* linux: handle EPOLLHUP without EPOLLIN/EPOLLOUT (Ben Noordhuis)
+
+* unix: fix reopened fd bug (Fedor Indutny)
+
+* core: fix fake watcher list and count preservation (Fedor Indutny)
+
+
+2013.10.30, Version 0.11.14 (Unstable), d7a6482f45c1b4eb4a853dbe1a9ce8090a35633a
 
 Changes since version 0.11.13:
 

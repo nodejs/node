@@ -335,7 +335,7 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   ts.tv_nsec = timeout % NANOSEC;
   r = pthread_cond_timedwait_relative_np(cond, mutex, &ts);
 #else
-  timeout += uv__hrtime();
+  timeout += uv__hrtime(UV_CLOCK_PRECISE);
   ts.tv_sec = timeout / NANOSEC;
   ts.tv_nsec = timeout % NANOSEC;
 #if defined(__ANDROID__)

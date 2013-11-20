@@ -19,20 +19,20 @@
 typedef void *QUEUE[2];
 
 /* Private macros. */
-#define QUEUE_NEXT(q)       ((*(q))[0])
-#define QUEUE_PREV(q)       ((*(q))[1])
-#define QUEUE_PREV_NEXT(q)  (QUEUE_NEXT((QUEUE *) QUEUE_PREV(q)))
-#define QUEUE_NEXT_PREV(q)  (QUEUE_PREV((QUEUE *) QUEUE_NEXT(q)))
+#define QUEUE_NEXT(q)       (*(QUEUE **) &((*(q))[0]))
+#define QUEUE_PREV(q)       (*(QUEUE **) &((*(q))[1]))
+#define QUEUE_PREV_NEXT(q)  (QUEUE_NEXT(QUEUE_PREV(q)))
+#define QUEUE_NEXT_PREV(q)  (QUEUE_PREV(QUEUE_NEXT(q)))
 
 /* Public macros. */
 #define QUEUE_DATA(ptr, type, field)                                          \
   ((type *) ((char *) (ptr) - ((char *) &((type *) 0)->field)))
 
 #define QUEUE_FOREACH(q, h)                                                   \
-  for ((q) = (QUEUE *) (*(h))[0]; (q) != (h); (q) = (QUEUE *) (*(q))[0])
+  for ((q) = QUEUE_NEXT(h); (q) != (h); (q) = QUEUE_NEXT(q))
 
 #define QUEUE_EMPTY(q)                                                        \
-  (QUEUE_NEXT(q) == (q))
+  ((const QUEUE *) (q) == (const QUEUE *) QUEUE_NEXT(q))
 
 #define QUEUE_HEAD(q)                                                         \
   (QUEUE_NEXT(q))

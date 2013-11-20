@@ -52,7 +52,7 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 }
 
 
-uint64_t uv__hrtime(void) {
+uint64_t uv__hrtime(uv_clocktype_t type) {
   mach_timebase_info_data_t info;
 
   if (mach_timebase_info(&info) != KERN_SUCCESS)

@@ -127,7 +127,6 @@ static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
   uv__handle_init(loop, (uv_handle_t*) handle, UV_PROCESS);
   handle->exit_cb = NULL;
   handle->pid = 0;
-  handle->spawn_error = 0;
   handle->exit_signal = 0;
   handle->wait_handle = INVALID_HANDLE_VALUE;
   handle->process_handle = INVALID_HANDLE_VALUE;
@@ -752,10 +751,7 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
   /* callback.*/
   uv__handle_stop(handle);
 
-  if (handle->spawn_error) {
-    /* Spawning failed. */
-    exit_code = uv_translate_sys_error(handle->spawn_error);
-  } else if (GetExitCodeProcess(handle->process_handle, &status)) {
+  if (GetExitCodeProcess(handle->process_handle, &status)) {
     exit_code = status;
   } else {
     /* Unable to to obtain the exit code. This should never happen. */
@@ -1025,25 +1021,20 @@ int uv_spawn(uv_loop_t* loop,
   free(env);
   free(path);
 
-  process->spawn_error = err;
-
   if (process->child_stdio_buffer != NULL) {
     /* Clean up child stdio handles. */
     uv__stdio_destroy(process->child_stdio_buffer);
     process->child_stdio_buffer = NULL;
   }
 
-  /* Make the handle active. It will remain active until the exit callback */
-  /* is made or the handle is closed, whichever happens first. */
-  uv__handle_start(process);
-
-  /* If an error happened, queue the exit req. */
-  if (err) {
-    process->exit_cb_pending = 1;
-    uv_insert_pending_req(loop, (uv_req_t*) &process->exit_req);
+  /* Make the handle active, but only if an error didn't happen. It will */
+  /* remain active until the exit callback is made or the handle is closed, */
+  /* whichever happens first. */
+  if (err == 0) {
+    uv__handle_start(process);
   }
 
-  return 0;
+  return err;
 
   /* This code path is taken when we run into an error that we want to */
   /* report immediately. */

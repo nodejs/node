@@ -52,8 +52,10 @@
 # include <linux/if_packet.h>
 #endif
 
-#undef NANOSEC
-#define NANOSEC ((uint64_t) 1e9)
+/* Available from 2.6.32 onwards. */
+#ifndef CLOCK_MONOTONIC_COARSE
+# define CLOCK_MONOTONIC_COARSE 6
+#endif
 
 /* This is rather annoying: CLOCK_BOOTTIME lives in <linux/time.h> but we can't
  * include that file because it conflicts with <time.h>. We'll just have to
@@ -100,6 +102,25 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
   uv__io_stop(loop, &loop->inotify_read_watcher, UV__POLLIN);
   uv__close(loop->inotify_fd);
   loop->inotify_fd = -1;
+}
+
+
+void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
+  struct uv__epoll_event* events;
+  uintptr_t i;
+  uintptr_t nfds;
+
+  assert(loop->watchers != NULL);
+
+  events = (struct uv__epoll_event*) loop->watchers[loop->nwatchers];
+  nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];
+  if (events == NULL)
+    return;
+
+  /* Invalidate events with same file descriptor */
+  for (i = 0; i < nfds; i++)
+    if ((int) events[i].data == fd)
+      events[i].data = -1;
 }
 
 
@@ -195,9 +216,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     nevents = 0;
 
+    assert(loop->watchers != NULL);
+    loop->watchers[loop->nwatchers] = (void*) events;
+    loop->watchers[loop->nwatchers + 1] = (void*) (uintptr_t) nfds;
     for (i = 0; i < nfds; i++) {
       pe = events + i;
       fd = pe->data;
+
+      /* Skip invalidated events, see uv__platform_invalidate_fd */
+      if (fd == -1)
+        continue;
 
       assert(fd >= 0);
       assert((unsigned) fd < loop->nwatchers);
@@ -214,9 +242,38 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;
       }
 
-      w->cb(loop, w, pe->events);
-      nevents++;
+      /* Give users only events they're interested in. Prevents spurious
+       * callbacks when previous callback invocation in this loop has stopped
+       * the current watcher. Also, filters out events that users has not
+       * requested us to watch.
+       */
+      pe->events &= w->pevents | UV__POLLERR | UV__POLLHUP;
+
+      /* Work around an epoll quirk where it sometimes reports just the
+       * EPOLLERR or EPOLLHUP event.  In order to force the event loop to
+       * move forward, we merge in the read/write events that the watcher
+       * is interested in; uv__read() and uv__write() will then deal with
+       * the error or hangup in the usual fashion.
+       *
+       * Note to self: happens when epoll reports EPOLLIN|EPOLLHUP, the user
+       * reads the available data, calls uv_read_stop(), then sometime later
+       * calls uv_read_start() again.  By then, libuv has forgotten about the
+       * hangup and the kernel won't report EPOLLIN again because there's
+       * nothing left to read.  If anything, libuv is to blame here.  The
+       * current hack is just a quick bandaid; to properly fix it, libuv
+       * needs to remember the error/hangup event.  We should get that for
+       * free when we switch over to edge-triggered I/O.
+       */
+      if (pe->events == UV__EPOLLERR || pe->events == UV__EPOLLHUP)
+        pe->events |= w->pevents & (UV__EPOLLIN | UV__EPOLLOUT);
+
+      if (pe->events != 0) {
+        w->cb(loop, w, pe->events);
+        nevents++;
+      }
     }
+    loop->watchers[loop->nwatchers] = NULL;
+    loop->watchers[loop->nwatchers + 1] = NULL;
 
     if (nevents != 0) {
       if (nfds == ARRAY_SIZE(events) && --count != 0) {
@@ -245,10 +302,36 @@ update_timeout:
 }
 
 
-uint64_t uv__hrtime(void) {
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (((uint64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
+uint64_t uv__hrtime(uv_clocktype_t type) {
+  static clock_t fast_clock_id = -1;
+  struct timespec t;
+  clock_t clock_id;
+
+  /* Prefer CLOCK_MONOTONIC_COARSE if available but only when it has
+   * millisecond granularity or better.  CLOCK_MONOTONIC_COARSE is
+   * serviced entirely from the vDSO, whereas CLOCK_MONOTONIC may
+   * decide to make a costly system call.
+   */
+  /* TODO(bnoordhuis) Use CLOCK_MONOTONIC_COARSE for UV_CLOCK_PRECISE
+   * when it has microsecond granularity or better (unlikely).
+   */
+  if (type == UV_CLOCK_FAST && fast_clock_id == -1) {
+    if (clock_getres(CLOCK_MONOTONIC_COARSE, &t) == 0 &&
+        t.tv_nsec <= 1 * 1000 * 1000) {
+      fast_clock_id = CLOCK_MONOTONIC_COARSE;
+    } else {
+      fast_clock_id = CLOCK_MONOTONIC;
+    }
+  }
+
+  clock_id = CLOCK_MONOTONIC;
+  if (type == UV_CLOCK_FAST)
+    clock_id = fast_clock_id;
+
+  if (clock_gettime(clock_id, &t))
+    return 0;  /* Not really possible. */
+
+  return t.tv_sec * (uint64_t) 1e9 + t.tv_nsec;
 }
 
 

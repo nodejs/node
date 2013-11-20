@@ -170,6 +170,8 @@ skip:
 #elif defined(__APPLE__)                                                      \
     || defined(__DragonFly__)                                                 \
     || defined(__FreeBSD__)                                                   \
+    || defined(__NetBSD__)                                                    \
+    || defined(__OpenBSD__)                                                   \
     || defined(__sun)
   struct timeval tv[2];
   tv[0].tv_sec  = req->atime;

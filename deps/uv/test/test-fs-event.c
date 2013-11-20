@@ -36,11 +36,21 @@
 #endif
 
 static uv_fs_event_t fs_event;
+static const char file_prefix[] = "fsevent-";
 static uv_timer_t timer;
-static int timer_cb_called = 0;
-static int close_cb_called = 0;
-static int fs_event_cb_called = 0;
-static int timer_cb_touch_called = 0;
+static int timer_cb_called;
+static int close_cb_called;
+static const int fs_event_file_count = 128;
+static int fs_event_created;
+static int fs_event_cb_called;
+#if defined(PATH_MAX)
+static char fs_event_filename[PATH_MAX];
+#else
+static char fs_event_filename[1024];
+#endif  /* defined(PATH_MAX) */
+static int timer_cb_touch_called;
+
+static void fs_event_unlink_files(uv_timer_t* handle, int status);
 
 static void create_dir(uv_loop_t* loop, const char* name) {
   int r;
@@ -107,6 +117,69 @@ static void fs_event_cb_dir(uv_fs_event_t* handle, const char* filename,
   uv_close((uv_handle_t*)handle, close_cb);
 }
 
+static void fs_event_cb_dir_multi_file(uv_fs_event_t* handle,
+                                       const char* filename,
+                                       int events,
+                                       int status) {
+  fs_event_cb_called++;
+  ASSERT(handle == &fs_event);
+  ASSERT(status == 0);
+  ASSERT(events == UV_RENAME);
+  ASSERT(filename == NULL ||
+         strncmp(filename, file_prefix, sizeof(file_prefix) - 1) == 0);
+
+  /* Stop watching dir when received events about all files:
+   * both create and close events */
+  if (fs_event_cb_called == 2 * fs_event_file_count) {
+    ASSERT(0 == uv_fs_event_stop(handle));
+    uv_close((uv_handle_t*) handle, close_cb);
+  }
+}
+
+static const char* fs_event_get_filename(int i) {
+  snprintf(fs_event_filename,
+           sizeof(fs_event_filename),
+           "watch_dir/%s%d",
+           file_prefix,
+           i);
+  return fs_event_filename;
+}
+
+static void fs_event_create_files(uv_timer_t* handle, int status) {
+  int i;
+
+  /* Already created all files */
+  if (fs_event_created == fs_event_file_count) {
+    uv_close((uv_handle_t*) &timer, close_cb);
+    return;
+  }
+
+  /* Create all files */
+  for (i = 0; i < 16; i++, fs_event_created++)
+    create_file(handle->loop, fs_event_get_filename(i));
+
+  /* And unlink them */
+  ASSERT(0 == uv_timer_start(&timer, fs_event_unlink_files, 50, 0));
+}
+
+void fs_event_unlink_files(uv_timer_t* handle, int status) {
+  int r;
+  int i;
+
+  /* NOTE: handle might be NULL if invoked not as timer callback */
+
+  /* Unlink all files */
+  for (i = 0; i < 16; i++) {
+    r = remove(fs_event_get_filename(i));
+    if (handle != NULL)
+      ASSERT(r == 0);
+  }
+
+  /* And create them again */
+  if (handle != NULL)
+    ASSERT(0 == uv_timer_start(&timer, fs_event_create_files, 50, 0));
+}
+
 static void fs_event_cb_file(uv_fs_event_t* handle, const char* filename,
   int events, int status) {
   ++fs_event_cb_called;
@@ -148,12 +221,6 @@ static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
   }
 }
 
-static void timer_cb_dir(uv_timer_t* handle, int status) {
-  ++timer_cb_called;
-  create_file(handle->loop, "watch_dir/file1");
-  uv_close((uv_handle_t*)handle, close_cb);
-}
-
 static void timer_cb_file(uv_timer_t* handle, int status) {
   ++timer_cb_called;
 
@@ -184,6 +251,7 @@ TEST_IMPL(fs_event_watch_dir) {
   int r;
 
   /* Setup */
+  fs_event_unlink_files(NULL, 0);
   remove("watch_dir/file2");
   remove("watch_dir/file1");
   remove("watch_dir/");
@@ -191,20 +259,21 @@ TEST_IMPL(fs_event_watch_dir) {
 
   r = uv_fs_event_init(loop, &fs_event);
   ASSERT(r == 0);
-  r = uv_fs_event_start(&fs_event, fs_event_cb_dir, "watch_dir", 0);
+  r = uv_fs_event_start(&fs_event, fs_event_cb_dir_multi_file, "watch_dir", 0);
   ASSERT(r == 0);
   r = uv_timer_init(loop, &timer);
   ASSERT(r == 0);
-  r = uv_timer_start(&timer, timer_cb_dir, 100, 0);
+  r = uv_timer_start(&timer, fs_event_create_files, 100, 0);
   ASSERT(r == 0);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  ASSERT(fs_event_cb_called == 1);
-  ASSERT(timer_cb_called == 1);
+  ASSERT(fs_event_cb_called == 2 * fs_event_file_count);
+  ASSERT(fs_event_created == fs_event_file_count);
   ASSERT(close_cb_called == 2);
 
   /* Cleanup */
+  fs_event_unlink_files(NULL, 0);
   remove("watch_dir/file2");
   remove("watch_dir/file1");
   remove("watch_dir/");
@@ -556,3 +625,106 @@ TEST_IMPL(fs_event_start_and_close) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+#if defined(__APPLE__)
+
+static int fs_event_error_reported;
+
+static void fs_event_error_report_cb(uv_fs_event_t* handle,
+                                     const char* filename,
+                                     int events,
+                                     int status) {
+  if (status != 0)
+    fs_event_error_reported = status;
+}
+
+static void timer_cb_nop(uv_timer_t* handle, int status) {
+  ++timer_cb_called;
+  uv_close((uv_handle_t*) handle, close_cb);
+}
+
+static void fs_event_error_report_close_cb(uv_handle_t* handle) {
+  ASSERT(handle != NULL);
+  close_cb_called++;
+
+  /* handle is allocated on-stack, no need to free it */
+}
+
+
+TEST_IMPL(fs_event_error_reporting) {
+  unsigned int i;
+  uv_loop_t* loops[1024];
+  uv_fs_event_t events[ARRAY_SIZE(loops)];
+  uv_loop_t* loop;
+  uv_fs_event_t* event;
+
+  TEST_FILE_LIMIT(ARRAY_SIZE(loops) * 3);
+
+  remove("watch_dir/");
+  create_dir(uv_default_loop(), "watch_dir");
+
+  /* Create a lot of loops, and start FSEventStream in each of them.
+   * Eventually, this should create enough streams to make FSEventStreamStart()
+   * fail.
+   */
+  for (i = 0; i < ARRAY_SIZE(loops); i++) {
+    loop = uv_loop_new();
+    event = &events[i];
+    ASSERT(loop != NULL);
+
+    loops[i] = loop;
+    timer_cb_called = 0;
+    close_cb_called = 0;
+    ASSERT(0 == uv_fs_event_init(loop, event));
+    ASSERT(0 == uv_fs_event_start(event,
+                                  fs_event_error_report_cb,
+                                  "watch_dir",
+                                  0));
+    uv_unref((uv_handle_t*) event);
+
+    /* Let loop run for some time */
+    ASSERT(0 == uv_timer_init(loop, &timer));
+    ASSERT(0 == uv_timer_start(&timer, timer_cb_nop, 2, 0));
+    uv_run(loop, UV_RUN_DEFAULT);
+    ASSERT(1 == timer_cb_called);
+    ASSERT(1 == close_cb_called);
+    if (fs_event_error_reported != 0)
+      break;
+  }
+
+  /* At least one loop should fail */
+  ASSERT(fs_event_error_reported == UV_EMFILE);
+
+  /* Stop and close all events, and destroy loops */
+  do {
+    loop = loops[i];
+    event = &events[i];
+
+    ASSERT(0 == uv_fs_event_stop(event));
+    uv_ref((uv_handle_t*) event);
+    uv_close((uv_handle_t*) event, fs_event_error_report_close_cb);
+
+    close_cb_called = 0;
+    uv_run(loop, UV_RUN_DEFAULT);
+    ASSERT(close_cb_called == 1);
+
+    uv_loop_delete(loop);
+
+    loops[i] = NULL;
+  } while (i-- != 0);
+
+  remove("watch_dir/");
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+#else  /* !defined(__APPLE__) */
+
+TEST_IMPL(fs_event_error_reporting) {
+  /* No-op, needed only for FSEvents backend */
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+#endif  /* defined(__APPLE__) */

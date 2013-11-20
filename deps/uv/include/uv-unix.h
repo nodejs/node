@@ -287,7 +287,6 @@ typedef struct {
 
 #define UV_PROCESS_PRIVATE_FIELDS                                             \
   void* queue[2];                                                             \
-  int errorno;                                                                \
   int status;                                                                 \
 
 #define UV_FS_PRIVATE_FIELDS                                                  \
