@@ -341,7 +341,7 @@
       var item, before, i;
 
       asyncStack.push(asyncQueue);
-      asyncQueue = queue;
+      asyncQueue = queue.slice();
       // Since the async listener callback is required, the number of
       // objects in the asyncQueue implies the number of async listeners
       // there are to be processed.
@@ -363,12 +363,13 @@
     // Unload one level of the async stack. Returns true if there are
     // still listeners somewhere in the stack.
     function unloadAsyncQueue(context) {
+      var queue = context._asyncQueue;
       var item, after, i;
 
       // Run "after" callbacks.
       inAsyncTick = true;
-      for (i = 0; i < asyncQueue.length; i++) {
-        item = asyncQueue[i];
+      for (i = 0; i < queue.length; i++) {
+        item = queue[i];
         if (!item.callbacks)
           continue;
         after = item.callbacks.after;
