@@ -1,3 +1,42 @@
+2013.11.20, Version 0.11.9 (Unstable)
+
+* uv: upgrade to v0.11.15 (Timothy J Fontaine)
+
+* v8: upgrade to 3.22.24.5 (Timothy J Fontaine)
+
+* buffer: remove warning when no encoding is passed (Trevor Norris)
+
+* build: make v8 use random seed for hash tables (Ben Noordhuis)
+
+* crypto: build with shared openssl without NPN (Ben Noordhuis)
+
+* crypto: update root certificates (Ben Noordhuis)
+
+* debugger: pass on v8 debug switches (Ben Noordhuis)
+
+* domain: use AsyncListener API (Trevor Norris)
+
+* fs: add recursive subdirectory support to fs.watch (Nick Simmons)
+
+* fs: make fs.watch() non-recursive by default (Ben Noordhuis)
+
+* http: cleanup freeSockets when socket destroyed (fengmk2)
+
+* http: force socket encoding to be null (isaacs)
+
+* http: make DELETE requests set `req.method` (Nathan Rajlich)
+
+* node: add AsyncListener support (Trevor Norris)
+
+* src: remove global HandleScope that hid memory leaks (Ben Noordhuis)
+
+* tls: add ECDH ciphers support (Erik Dubbelboer)
+
+* tls: do not default to 'localhost' servername (Fedor Indutny)
+
+* tls: more accurate wrapping of connecting socket (Fedor Indutny)
+
+
 2013.10.30, Version 0.11.8 (Unstable), f8d86e24f3463c36f7f3f4c3b3ec779e5b6201e1
 
 * uv: Upgrade to v0.11.14
