@@ -24,6 +24,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var util = require('util');
 
 try {
   var crypto = require('crypto');
@@ -926,7 +927,9 @@ testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
 })();
 
 function assertSorted(list) {
-  assert.deepEqual(list, list.sort());
+  // Array#sort() modifies the list in place so make a copy.
+  var sorted = util._extend([], list).sort();
+  assert.deepEqual(list, sorted);
 }
 
 // Assume that we have at least AES-128-CBC.
