@@ -220,6 +220,11 @@ parser.add_option('--with-etw',
     dest='with_etw',
     help='build with ETW (default is true on Windows)')
 
+parser.add_option('--with-icu-path',
+    action='store',
+    dest='with_icu_path',
+    help='Path to icu.gyp (ICU i18n, Chromium version only.)')
+
 parser.add_option('--with-perfctr',
     action='store_true',
     dest='with_perfctr',
@@ -564,7 +569,6 @@ def configure_libuv(o):
 def configure_v8(o):
   o['variables']['node_shared_v8'] = b(options.shared_v8)
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
-  o['variables']['v8_enable_i18n_support'] = 0  # Don't require libicu.
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0  # Compile with -O0 in debug builds.
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
@@ -627,6 +631,13 @@ def configure_winsdk(o):
         'from tools/msvs/genfiles.')
 
 
+def configure_icu(o):
+  have_icu_path = bool(options.with_icu_path)
+  o['variables']['v8_enable_i18n_support'] = int(have_icu_path)
+  if have_icu_path:
+    o['variables']['icu_gyp_path'] = options.with_icu_path
+
+
 # determine the "flavor" (operating system) we're building for,
 # leveraging gyp's GetFlavor function
 flavor_params = {}
@@ -650,7 +661,7 @@ configure_libuv(output)
 configure_v8(output)
 configure_openssl(output)
 configure_winsdk(output)
-
+configure_icu(output)
 
 # variables should be a root level element,
 # move everything else to target_defaults
