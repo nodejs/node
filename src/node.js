@@ -603,6 +603,8 @@
         }
         if (hasQueue)
           _unloadAsyncQueue(tock);
+        if (1e4 < tickInfo[kIndex])
+          tickDone();
       }
 
       tickDone();
