@@ -36,6 +36,10 @@ Emitted when:
 2. The process could not be killed, or
 3. Sending a message to the child process failed for whatever reason.
 
+Note that the `exit`-event may or may not fire after an error has occured. If
+you are listening on both events to fire a function, remember to guard against
+calling your function twice.
+
 See also [`ChildProcess#kill()`](#child_process_child_kill_signal) and
 [`ChildProcess#send()`](#child_process_child_send_message_sendhandle).
 
