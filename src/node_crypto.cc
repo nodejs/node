@@ -3468,6 +3468,7 @@ class PBKDF2Request : public AsyncWrap {
  public:
   PBKDF2Request(Environment* env,
                 Local<Object> object,
+                const EVP_MD* digest,
                 ssize_t passlen,
                 char* pass,
                 ssize_t saltlen,
@@ -3475,6 +3476,7 @@ class PBKDF2Request : public AsyncWrap {
                 ssize_t iter,
                 ssize_t keylen)
       : AsyncWrap(env, object),
+        digest_(digest),
         error_(0),
         passlen_(passlen),
         pass_(pass),
@@ -3493,6 +3495,10 @@ class PBKDF2Request : public AsyncWrap {
 
   uv_work_t* work_req() {
     return &work_req_;
+  }
+
+  inline const EVP_MD* digest() const {
+    return digest_;
   }
 
   inline ssize_t passlen() const {
@@ -3544,6 +3550,7 @@ class PBKDF2Request : public AsyncWrap {
   uv_work_t work_req_;
 
  private:
+  const EVP_MD* digest_;
   int error_;
   ssize_t passlen_;
   char* pass_;
@@ -3556,12 +3563,13 @@ class PBKDF2Request : public AsyncWrap {
 
 
 void EIO_PBKDF2(PBKDF2Request* req) {
-  req->set_error(PKCS5_PBKDF2_HMAC_SHA1(
+  req->set_error(PKCS5_PBKDF2_HMAC(
     req->pass(),
     req->passlen(),
     reinterpret_cast<unsigned char*>(req->salt()),
     req->saltlen(),
     req->iter(),
+    req->digest(),
     req->keylen(),
     reinterpret_cast<unsigned char*>(req->key())));
   memset(req->pass(), 0, req->passlen());
@@ -3606,6 +3614,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
+  const EVP_MD* digest = NULL;
   const char* type_error = NULL;
   char* pass = NULL;
   char* salt = NULL;
@@ -3618,7 +3627,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   PBKDF2Request* req = NULL;
   Local<Object> obj;
 
-  if (args.Length() != 4 && args.Length() != 5) {
+  if (args.Length() != 5 && args.Length() != 6) {
     type_error = "Bad parameter";
     goto err;
   }
@@ -3673,11 +3682,32 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  obj = Object::New();
-  req = new PBKDF2Request(env, obj, passlen, pass, saltlen, salt, iter, keylen);
+  if (args[4]->IsString()) {
+    String::Utf8Value digest_name(args[4]);
+    digest = EVP_get_digestbyname(*digest_name);
+    if (digest == NULL) {
+      type_error = "Bad digest name";
+      goto err;
+    }
+  }
 
-  if (args[4]->IsFunction()) {
-    obj->Set(env->ondone_string(), args[4]);
+  if (digest == NULL) {
+    digest = EVP_sha1();
+  }
+
+  obj = Object::New();
+  req = new PBKDF2Request(env,
+                          obj,
+                          digest,
+                          passlen,
+                          pass,
+                          saltlen,
+                          salt,
+                          iter,
+                          keylen);
+
+  if (args[5]->IsFunction()) {
+    obj->Set(env->ondone_string(), args[5]);
     // XXX(trevnorris): This will need to go with the rest of domains.
     if (env->in_domain())
       obj->Set(env->domain_string(), env->domain_array()->Get(0));

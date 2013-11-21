@@ -912,6 +912,19 @@ testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
            '\x56\xfa\x6a\xa7\x55\x48\x09\x9d\xcc\x37\xd7\xf0\x34' +
            '\x25\xe0\xc3');
 
+(function() {
+  var expected =
+      '64c486c55d30d4c5a079b8823b7d7cb37ff0556f537da8410233bcec330ed956';
+  var key = crypto.pbkdf2Sync('password', 'salt', 32, 32, 'sha256');
+  assert.equal(key.toString('hex'), expected);
+
+  crypto.pbkdf2('password', 'salt', 32, 32, 'sha256', common.mustCall(ondone));
+  function ondone(err, key) {
+    if (err) throw err;
+    assert.equal(key.toString('hex'), expected);
+  }
+})();
+
 function assertSorted(list) {
   assert.deepEqual(list, list.sort());
 }

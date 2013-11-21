@@ -487,13 +487,25 @@ Example (obtaining a shared secret):
     /* alice_secret and bob_secret should be the same */
     console.log(alice_secret == bob_secret);
 
-## crypto.pbkdf2(password, salt, iterations, keylen, callback)
+## crypto.pbkdf2(password, salt, iterations, keylen, [digest], callback)
 
-Asynchronous PBKDF2 applies pseudorandom function HMAC-SHA1 to derive
-a key of given length from the given password, salt and iterations.
-The callback gets two arguments `(err, derivedKey)`.
+Asynchronous PBKDF2 function.  Applies the selected HMAC digest function
+(default: SHA1) to derive a key of the requested length from the password,
+salt and number of iterations.  The callback gets two arguments:
+`(err, derivedKey)`.
 
-## crypto.pbkdf2Sync(password, salt, iterations, keylen)
+Example:
+
+    crypto.pbkdf2('secret', 'salt', 4096, 512, 'sha256', function(err, key) {
+      if (err)
+        throw err;
+      console.log(key.toString('hex'));  // 'c5e478d...1469e50'
+    });
+
+You can get a list of supported digest functions with
+[crypto.getHashes()](#crypto_crypto_gethashes).
+
+## crypto.pbkdf2Sync(password, salt, iterations, keylen, [digest])
 
 Synchronous PBKDF2 function.  Returns derivedKey or throws error.
 
