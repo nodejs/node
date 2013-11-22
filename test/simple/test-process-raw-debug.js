@@ -21,6 +21,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var os = require('os');
 
 switch (process.argv[2]) {
   case 'child':
@@ -44,7 +45,7 @@ function parent() {
   child.stderr.setEncoding('utf8');
 
   child.stderr.on('end', function() {
-    assert.equal(output, 'I can still debug!\n');
+    assert.equal(output, 'I can still debug!' + os.EOL);
     console.log('ok - got expected message');
   });
 
