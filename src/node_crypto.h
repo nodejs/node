@@ -190,6 +190,8 @@ class Connection : ObjectWrap {
   static v8::Handle<v8::Value> Start(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 
+  static void InitNPN(SecureContext* sc, bool is_server);
+
 #ifdef OPENSSL_NPN_NEGOTIATED
   // NPN
   static v8::Handle<v8::Value> GetNegotiatedProto(const v8::Arguments& args);

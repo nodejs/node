@@ -1189,6 +1189,7 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
         p->sniContext_ = Persistent<Value>::New(ret);
         SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(
                                 Local<Object>::Cast(ret));
+        p->InitNPN(sc, true);
         SSL_set_SSL_CTX(s, sc->ctx_);
       } else {
         return SSL_TLSEXT_ERR_NOACK;
@@ -1223,20 +1224,7 @@ Handle<Value> Connection::New(const Arguments& args) {
 
   if (is_server) SSL_set_info_callback(p->ssl_, SSLInfoCallback);
 
-#ifdef OPENSSL_NPN_NEGOTIATED
-  if (is_server) {
-    // Server should advertise NPN protocols
-    SSL_CTX_set_next_protos_advertised_cb(sc->ctx_,
-                                          AdvertiseNextProtoCallback_,
-                                          NULL);
-  } else {
-    // Client should select protocol from advertised
-    // If server supports NPN
-    SSL_CTX_set_next_proto_select_cb(sc->ctx_,
-                                     SelectNextProtoCallback_,
-                                     NULL);
-  }
-#endif
+  p->InitNPN(sc, is_server);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   if (is_server) {
@@ -1978,6 +1966,24 @@ Handle<Value> Connection::Close(const Arguments& args) {
     ss->ssl_ = NULL;
   }
   return True();
+}
+
+
+void Connection::InitNPN(SecureContext* sc, bool is_server) {
+#ifdef OPENSSL_NPN_NEGOTIATED
+  if (is_server) {
+    // Server should advertise NPN protocols
+    SSL_CTX_set_next_protos_advertised_cb(sc->ctx_,
+                                          AdvertiseNextProtoCallback_,
+                                          NULL);
+  } else {
+    // Client should select protocol from advertised
+    // If server supports NPN
+    SSL_CTX_set_next_proto_select_cb(sc->ctx_,
+                                     SelectNextProtoCallback_,
+                                     NULL);
+  }
+#endif
 }
 
 #ifdef OPENSSL_NPN_NEGOTIATED
