@@ -696,6 +696,7 @@
             'LIB_BN_ASM',
             'MD5_ASM',
             'OPENSSL_BN_ASM',
+            'OPENSSL_BN_ASM_MONT',
             'OPENSSL_CPUID_OBJ',
             'RIP_ASM',
             'RMD160_ASM',
@@ -730,12 +731,18 @@
               ]
             }],
             ['OS!="win" and OS!="mac" and target_arch=="x64"', {
+              'defines': [
+                'OPENSSL_BN_ASM_MONT5',
+                'OPENSSL_BN_ASM_GF2m',
+              ],
               'sources': [
                 'asm/x64-elf-gas/aes/aes-x86_64.s',
                 'asm/x64-elf-gas/aes/aesni-x86_64.s',
                 'asm/x64-elf-gas/aes/aesni-sha1-x86_64.s',
                 'asm/x64-elf-gas/bn/modexp512-x86_64.s',
                 'asm/x64-elf-gas/bn/x86_64-mont.s',
+                'asm/x64-elf-gas/bn/x86_64-mont5.s',
+                'asm/x64-elf-gas/bn/x86_64-gf2m.s',
                 'asm/x64-elf-gas/camellia/cmll-x86_64.s',
                 'asm/x64-elf-gas/md5/md5-x86_64.s',
                 'asm/x64-elf-gas/rc4/rc4-x86_64.s',
@@ -779,12 +786,18 @@
               ]
             }],
             ['OS=="mac" and target_arch=="x64"', {
+              'defines': [
+                'OPENSSL_BN_ASM_MONT5',
+                'OPENSSL_BN_ASM_GF2m',
+              ],
               'sources': [
                 'asm/x64-macosx-gas/aes/aes-x86_64.s',
                 'asm/x64-macosx-gas/aes/aesni-x86_64.s',
                 'asm/x64-macosx-gas/aes/aesni-sha1-x86_64.s',
                 'asm/x64-macosx-gas/bn/modexp512-x86_64.s',
                 'asm/x64-macosx-gas/bn/x86_64-mont.s',
+                'asm/x64-macosx-gas/bn/x86_64-mont5.s',
+                'asm/x64-macosx-gas/bn/x86_64-gf2m.s',
                 'asm/x64-macosx-gas/camellia/cmll-x86_64.s',
                 'asm/x64-macosx-gas/md5/md5-x86_64.s',
                 'asm/x64-macosx-gas/rc4/rc4-x86_64.s',
@@ -847,12 +860,18 @@
               ]
             }],
             ['OS=="win" and target_arch=="x64"', {
+              'defines': [
+                'OPENSSL_BN_ASM_MONT5',
+                'OPENSSL_BN_ASM_GF2m',
+              ],
               'sources': [
                 'asm/x64-win32-masm/aes/aes-x86_64.asm',
                 'asm/x64-win32-masm/aes/aesni-x86_64.asm',
                 'asm/x64-win32-masm/aes/aesni-sha1-x86_64.asm',
                 'asm/x64-win32-masm/bn/modexp512-x86_64.asm',
                 'asm/x64-win32-masm/bn/x86_64-mont.asm',
+                'asm/x64-win32-masm/bn/x86_64-mont5.asm',
+                'asm/x64-win32-masm/bn/x86_64-gf2m.asm',
                 'asm/x64-win32-masm/camellia/cmll-x86_64.asm',
                 'asm/x64-win32-masm/md5/md5-x86_64.asm',
                 'asm/x64-win32-masm/rc4/rc4-x86_64.asm',

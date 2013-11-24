@@ -26,6 +26,8 @@ OUTPUTS	= \
 	x64-elf-gas/aes/aesni-sha1-x86_64.s \
 	x64-elf-gas/bn/modexp512-x86_64.s \
 	x64-elf-gas/bn/x86_64-mont.s \
+	x64-elf-gas/bn/x86_64-mont5.s \
+	x64-elf-gas/bn/x86_64-gf2m.s \
 	x64-elf-gas/camellia/cmll-x86_64.s \
 	x64-elf-gas/md5/md5-x86_64.s \
 	x64-elf-gas/rc4/rc4-x86_64.s \
@@ -58,6 +60,8 @@ OUTPUTS	= \
 	x64-macosx-gas/aes/aesni-sha1-x86_64.s \
 	x64-macosx-gas/bn/modexp512-x86_64.s \
 	x64-macosx-gas/bn/x86_64-mont.s \
+	x64-macosx-gas/bn/x86_64-mont5.s \
+	x64-macosx-gas/bn/x86_64-gf2m.s \
 	x64-macosx-gas/camellia/cmll-x86_64.s \
 	x64-macosx-gas/md5/md5-x86_64.s \
 	x64-macosx-gas/rc4/rc4-x86_64.s \
@@ -90,6 +94,8 @@ OUTPUTS	= \
 	x64-win32-masm/aes/aesni-sha1-x86_64.asm \
 	x64-win32-masm/bn/modexp512-x86_64.asm \
 	x64-win32-masm/bn/x86_64-mont.asm \
+	x64-win32-masm/bn/x86_64-mont5.asm \
+	x64-win32-masm/bn/x86_64-gf2m.asm \
 	x64-win32-masm/camellia/cmll-x86_64.asm \
 	x64-win32-masm/md5/md5-x86_64.asm \
 	x64-win32-masm/rc4/rc4-x86_64.asm \
@@ -129,6 +135,8 @@ x64-elf-gas/aes/aesni-x86_64.s: ../openssl/crypto/aes/asm/aesni-x86_64.pl
 x64-elf-gas/aes/aesni-sha1-x86_64.s: ../openssl/crypto/aes/asm/aesni-sha1-x86_64.pl
 x64-elf-gas/bn/modexp512-x86_64.s: ../openssl/crypto/bn/asm/modexp512-x86_64.pl
 x64-elf-gas/bn/x86_64-mont.s: ../openssl/crypto/bn/asm/x86_64-mont.pl
+x64-elf-gas/bn/x86_64-mont5.s: ../openssl/crypto/bn/asm/x86_64-mont5.pl
+x64-elf-gas/bn/x86_64-gf2m.s: ../openssl/crypto/bn/asm/x86_64-gf2m.pl
 x64-elf-gas/camellia/cmll-x86_64.s: ../openssl/crypto/camellia/asm/cmll-x86_64.pl
 x64-elf-gas/md5/md5-x86_64.s: ../openssl/crypto/md5/asm/md5-x86_64.pl
 x64-elf-gas/rc4/rc4-x86_64.s: ../openssl/crypto/rc4/asm/rc4-x86_64.pl
@@ -143,6 +151,8 @@ x64-macosx-gas/aes/aesni-x86_64.s: ../openssl/crypto/aes/asm/aesni-x86_64.pl
 x64-macosx-gas/aes/aesni-sha1-x86_64.s: ../openssl/crypto/aes/asm/aesni-sha1-x86_64.pl
 x64-macosx-gas/bn/modexp512-x86_64.s: ../openssl/crypto/bn/asm/modexp512-x86_64.pl
 x64-macosx-gas/bn/x86_64-mont.s: ../openssl/crypto/bn/asm/x86_64-mont.pl
+x64-macosx-gas/bn/x86_64-mont5.s: ../openssl/crypto/bn/asm/x86_64-mont5.pl
+x64-macosx-gas/bn/x86_64-gf2m.s: ../openssl/crypto/bn/asm/x86_64-gf2m.pl
 x64-macosx-gas/camellia/cmll-x86_64.s: ../openssl/crypto/camellia/asm/cmll-x86_64.pl
 x64-macosx-gas/md5/md5-x86_64.s: ../openssl/crypto/md5/asm/md5-x86_64.pl
 x64-macosx-gas/rc4/rc4-x86_64.s: ../openssl/crypto/rc4/asm/rc4-x86_64.pl
@@ -157,6 +167,8 @@ x64-win32-masm/aes/aesni-x86_64.asm: ../openssl/crypto/aes/asm/aesni-x86_64.pl
 x64-win32-masm/aes/aesni-sha1-x86_64.asm: ../openssl/crypto/aes/asm/aesni-sha1-x86_64.pl
 x64-win32-masm/bn/modexp512-x86_64.asm: ../openssl/crypto/bn/asm/modexp512-x86_64.pl
 x64-win32-masm/bn/x86_64-mont.asm: ../openssl/crypto/bn/asm/x86_64-mont.pl
+x64-win32-masm/bn/x86_64-mont5.asm: ../openssl/crypto/bn/asm/x86_64-mont5.pl
+x64-win32-masm/bn/x86_64-gf2m.asm: ../openssl/crypto/bn/asm/x86_64-gf2m.pl
 x64-win32-masm/camellia/cmll-x86_64.asm: ../openssl/crypto/camellia/asm/cmll-x86_64.pl
 x64-win32-masm/md5/md5-x86_64.asm: ../openssl/crypto/md5/asm/md5-x86_64.pl
 x64-win32-masm/rc4/rc4-x86_64.asm: ../openssl/crypto/rc4/asm/rc4-x86_64.pl
