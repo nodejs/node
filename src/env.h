@@ -111,6 +111,7 @@ namespace node {
   V(rdev_string, "rdev")                                                      \
   V(rename_string, "rename")                                                  \
   V(rss_string, "rss")                                                        \
+  V(serial_number_string, "serialNumber")                                     \
   V(servername_string, "servername")                                          \
   V(session_id_string, "sessionId")                                           \
   V(should_keep_alive_string, "shouldKeepAlive")                              \

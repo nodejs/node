@@ -50,6 +50,7 @@ server.listen(common.PORT, function() {
     common.debug(util.inspect(peerCert));
     assert.equal(peerCert.subject.subjectAltName,
         'uniformResourceIdentifier:http://localhost:8000/alice.foaf#me');
+    assert.equal(peerCert.serialNumber, 'B9B0D332A1AA5635');
     verified = true;
     server.close();
   });

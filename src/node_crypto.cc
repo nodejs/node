@@ -1066,6 +1066,17 @@ void SSLWrap<Base>::GetPeerCertificate(
       info->Set(env->ext_key_usage_string(), ext_key_usage);
     }
 
+    if (ASN1_INTEGER* serial_number = X509_get_serialNumber(peer_cert)) {
+      if (BIGNUM* bn = ASN1_INTEGER_to_BN(serial_number, NULL)) {
+        if (char* buf = BN_bn2hex(bn)) {
+          info->Set(env->serial_number_string(),
+                    OneByteString(node_isolate, buf));
+          OPENSSL_free(buf);
+        }
+        BN_free(bn);
+      }
+    }
+
     X509_free(peer_cert);
   }
 
