@@ -71,3 +71,10 @@ e2.removeAllListeners();
 console.error(e2);
 assert.deepEqual([], e2.listeners('foo'));
 assert.deepEqual([], e2.listeners('bar'));
+
+var e3 = new events.EventEmitter();
+e3.on('removeListener', listener);
+// check for regression where removeAllListeners throws when
+// there exists a removeListener listener, but there exists
+// no listeners for the provided event type
+assert.doesNotThrow(e3.removeAllListeners.bind(e3, 'foo'));
