@@ -68,6 +68,9 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
  protected:
   static const int kClearOutChunkSize = 1024;
 
+  // Maximum number of buffers passed to uv_write()
+  static const int kSimultaneousBufferCount = 10;
+
   // Write callback queue's item
   class WriteItem {
    public:

@@ -55,6 +55,10 @@ class NodeBIO {
   // contiguous data available to read
   char* Peek(size_t* size);
 
+  // Return pointers and sizes of multiple internal data chunks available for
+  // reading
+  size_t PeekMultiple(char** out, size_t* size, size_t* count);
+
   // Find first appearance of `delim` in buffer or `limit` if `delim`
   // wasn't found.
   size_t IndexOf(char delim, size_t limit);

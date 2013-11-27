@@ -263,12 +263,17 @@ void TLSCallbacks::EncOut() {
     return;
   }
 
-  char* data = NodeBIO::FromBIO(enc_out_)->Peek(&write_size_);
-  assert(write_size_ != 0);
+  char* data[kSimultaneousBufferCount];
+  size_t size[ARRAY_SIZE(data)];
+  size_t count = ARRAY_SIZE(data);
+  write_size_ = NodeBIO::FromBIO(enc_out_)->PeekMultiple(data, size, &count);
+  assert(write_size_ != 0 && count != 0);
 
   write_req_.data = this;
-  uv_buf_t buf = uv_buf_init(data, write_size_);
-  int r = uv_write(&write_req_, wrap()->stream(), &buf, 1, EncOutCb);
+  uv_buf_t buf[ARRAY_SIZE(data)];
+  for (size_t i = 0; i < count; i++)
+    buf[i] = uv_buf_init(data[i], size[i]);
+  int r = uv_write(&write_req_, wrap()->stream(), buf, count, EncOutCb);
 
   // Ignore errors, this should be already handled in js
   if (!r) {
