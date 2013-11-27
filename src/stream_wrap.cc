@@ -412,7 +412,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
   }
 
   req_wrap->Dispatched();
-  req_wrap->object_->Set(bytes_sym, Number::New((uint32_t) data_size));
+  req_wrap->object_->Set(bytes_sym, Integer::NewFromUnsigned(data_size));
 
   wrap->UpdateWriteQueueSize();
 
