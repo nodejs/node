@@ -223,17 +223,17 @@ void NodeBIO::TryMoveReadHead() {
   // inside the buffer, respectively. When they're equal - its safe to reset
   // them, because both reader and writer will continue doing their stuff
   // from new (zero) positions.
-  if (read_head_->read_pos_ != read_head_->write_pos_)
-    return;
+  while (read_head_->read_pos_ != 0 &&
+         read_head_->read_pos_ == read_head_->write_pos_) {
+    // Reset positions
+    read_head_->read_pos_ = 0;
+    read_head_->write_pos_ = 0;
 
-  // Reset positions
-  read_head_->read_pos_ = 0;
-  read_head_->write_pos_ = 0;
-
-  // Move read_head_ forward, just in case if there're still some data to
-  // read in the next buffer.
-  if (read_head_ != write_head_)
-    read_head_ = read_head_->next_;
+    // Move read_head_ forward, just in case if there're still some data to
+    // read in the next buffer.
+    if (read_head_ != write_head_)
+      read_head_ = read_head_->next_;
+  }
 }
 
 
@@ -397,8 +397,13 @@ void NodeBIO::Commit(size_t size) {
   // Allocate new buffer if write head is full,
   // and there're no other place to go
   TryAllocateForWrite();
-  if (write_head_->write_pos_ == kBufferLength)
+  if (write_head_->write_pos_ == kBufferLength) {
     write_head_ = write_head_->next_;
+
+    // Additionally, since we're moved to the next buffer, read head
+    // may be moved as well.
+    TryMoveReadHead();
+  }
 }
 
 
