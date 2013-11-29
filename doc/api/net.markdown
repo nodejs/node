@@ -96,7 +96,7 @@ Here is an example of a client of echo server as described previously:
 To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
-    var client = net.connect({path: '/tmp/echo.sock'},
+    var client = net.connect({path: '/tmp/echo.sock'});
 
 ## net.connect(port, [host], [connectListener])
 ## net.createConnection(port, [host], [connectListener])
