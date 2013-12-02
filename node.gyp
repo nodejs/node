@@ -319,6 +319,12 @@
             'PLATFORM="sunos"',
           ],
         }],
+        [
+          'OS=="linux"', {
+            'ldflags': [
+              '-Wl,--whole-archive <(PRODUCT_DIR)/obj.target/deps/v8/tools/gyp/libv8_base.<(target_arch).a -Wl,--no-whole-archive',
+            ],
+        }],
       ],
       'msvs_settings': {
         'VCLinkerTool': {

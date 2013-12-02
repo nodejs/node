@@ -299,7 +299,7 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
 
   req_wrap->Dispatched();
   req_wrap->object()->Set(env->bytes_string(),
-                          Number::New(node_isolate, data_size));
+                          Integer::NewFromUnsigned(data_size, node_isolate));
 
   if (err) {
     req_wrap->~WriteWrap();

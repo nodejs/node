@@ -259,6 +259,17 @@ The response implements the [Writable Stream][] interface. This is an
 Indicates that the underlying connection was terminated before
 [response.end()][] was called or able to flush.
 
+### Event: 'finish'
+
+`function () { }`
+
+Emitted when the response has been sent. More specifically, this event is
+emitted when the last segment of the response headers and body have been
+handed off to the operating system for transmission over the network. It
+does not imply that the client has received anything yet.
+
+After this event, no more events will be emitted on the response object.
+
 ### response.writeContinue()
 
 Sends a HTTP/1.1 100 Continue message to the client, indicating that
@@ -433,7 +444,7 @@ If `data` is specified, it is equivalent to calling `response.write(data, encodi
 followed by `response.end()`.
 
 
-## http.request(options, callback)
+## http.request(options, [callback])
 
 Node maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.
@@ -468,6 +479,9 @@ Options:
 - `keepAliveMsecs`: {Integer} When using HTTP KeepAlive, how often to
   send TCP KeepAlive packets over sockets being kept alive.  Default =
   `1000`.  Only relevant if `keepAlive` is set to `true`.
+
+The optional `callback` parameter will be added as a one time listener for
+the ['response'][] event.
 
 `http.request()` returns an instance of the [http.ClientRequest][]
 class. The `ClientRequest` instance is a writable stream. If one needs to
@@ -523,7 +537,7 @@ There are a few special headers that should be noted.
 * Sending an Authorization header will override using the `auth` option
   to compute basic authentication.
 
-## http.get(options, callback)
+## http.get(options, [callback])
 
 Since most requests are GET requests without bodies, Node provides this
 convenience method. The only difference between this method and `http.request()`
@@ -1008,6 +1022,7 @@ authentication details.
 
 ['checkContinue']: #http_event_checkcontinue
 ['listening']: net.html#net_event_listening
+['response']: #http_event_response
 [Agent]: #http_class_http_agent
 [Buffer]: buffer.html#buffer_buffer
 [EventEmitter]: events.html#events_class_events_eventemitter
