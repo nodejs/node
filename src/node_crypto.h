@@ -161,6 +161,7 @@ class SSLWrap {
   inline bool is_client() const { return kind_ == kClient; }
 
  protected:
+  static void InitNPN(SecureContext* sc, Base* base);
   static void AddMethods(v8::Handle<v8::FunctionTemplate> t);
 
   static SSL_SESSION* GetSessionCallback(SSL* s,

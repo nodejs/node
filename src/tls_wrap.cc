@@ -141,32 +141,19 @@ void TLSCallbacks::InitSSL() {
   SSL_set_app_data(ssl_, this);
   SSL_set_info_callback(ssl_, SSLInfoCallback);
 
-  if (is_server()) {
-    SSL_set_accept_state(ssl_);
-
-#ifdef OPENSSL_NPN_NEGOTIATED
-    // Server should advertise NPN protocols
-    SSL_CTX_set_next_protos_advertised_cb(
-        sc_->ctx_,
-        SSLWrap<TLSCallbacks>::AdvertiseNextProtoCallback,
-        this);
-#endif  // OPENSSL_NPN_NEGOTIATED
-
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+  if (is_server()) {
     SSL_CTX_set_tlsext_servername_callback(sc_->ctx_, SelectSNIContextCallback);
     SSL_CTX_set_tlsext_servername_arg(sc_->ctx_, this);
+  }
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+
+  InitNPN(sc_, this);
+
+  if (is_server()) {
+    SSL_set_accept_state(ssl_);
   } else if (is_client()) {
     SSL_set_connect_state(ssl_);
-
-#ifdef OPENSSL_NPN_NEGOTIATED
-    // Client should select protocol from list of advertised
-    // If server supports NPN
-    SSL_CTX_set_next_proto_select_cb(
-        sc_->ctx_,
-        SSLWrap<TLSCallbacks>::SelectNextProtoCallback,
-        this);
-#endif  // OPENSSL_NPN_NEGOTIATED
   } else {
     // Unexpected
     abort();
@@ -672,6 +659,7 @@ int TLSCallbacks::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
     p->sni_context_.Reset(node_isolate, ctx);
 
     SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
+    InitNPN(sc, p);
     SSL_set_SSL_CTX(s, sc->ctx_);
   }
 

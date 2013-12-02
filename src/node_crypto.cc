@@ -113,6 +113,8 @@ X509_STORE* root_cert_store;
 // Just to generate static methods
 template class SSLWrap<TLSCallbacks>;
 template void SSLWrap<TLSCallbacks>::AddMethods(Handle<FunctionTemplate> t);
+template void SSLWrap<TLSCallbacks>::InitNPN(SecureContext* sc,
+                                             TLSCallbacks* base);
 template SSL_SESSION* SSLWrap<TLSCallbacks>::GetSessionCallback(
     SSL* s,
     unsigned char* key,
@@ -858,6 +860,25 @@ void SSLWrap<Base>::AddMethods(Handle<FunctionTemplate> t) {
   NODE_SET_PROTOTYPE_METHOD(t, "getNegotiatedProtocol", GetNegotiatedProto);
   NODE_SET_PROTOTYPE_METHOD(t, "setNPNProtocols", SetNPNProtocols);
 #endif  // OPENSSL_NPN_NEGOTIATED
+}
+
+
+template <class Base>
+void SSLWrap<Base>::InitNPN(SecureContext* sc, Base* base) {
+  if (base->is_server()) {
+#ifdef OPENSSL_NPN_NEGOTIATED
+    // Server should advertise NPN protocols
+    SSL_CTX_set_next_protos_advertised_cb(sc->ctx_,
+                                          AdvertiseNextProtoCallback,
+                                          base);
+#endif  // OPENSSL_NPN_NEGOTIATED
+  } else {
+#ifdef OPENSSL_NPN_NEGOTIATED
+    // Client should select protocol from list of advertised
+    // If server supports NPN
+    SSL_CTX_set_next_proto_select_cb(sc->ctx_, SelectNextProtoCallback, base);
+#endif  // OPENSSL_NPN_NEGOTIATED
+  }
 }
 
 
@@ -1695,6 +1716,7 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
       if (secure_context_constructor_template->HasInstance(ret)) {
         conn->sniContext_.Reset(node_isolate, ret);
         SecureContext* sc = Unwrap<SecureContext>(ret.As<Object>());
+        InitNPN(sc, conn);
         SSL_set_SSL_CTX(s, sc->ctx_);
       } else {
         return SSL_TLSEXT_ERR_NOACK;
@@ -1730,22 +1752,7 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
   if (is_server)
     SSL_set_info_callback(conn->ssl_, SSLInfoCallback);
 
-#ifdef OPENSSL_NPN_NEGOTIATED
-  if (is_server) {
-    // Server should advertise NPN protocols
-    SSL_CTX_set_next_protos_advertised_cb(
-        sc->ctx_,
-        SSLWrap<Connection>::AdvertiseNextProtoCallback,
-        conn);
-  } else {
-    // Client should select protocol from advertised
-    // If server supports NPN
-    SSL_CTX_set_next_proto_select_cb(
-        sc->ctx_,
-        SSLWrap<Connection>::SelectNextProtoCallback,
-        conn);
-  }
-#endif
+  InitNPN(sc, conn);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   if (is_server) {
