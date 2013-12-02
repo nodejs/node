@@ -79,9 +79,11 @@
             ],
           }],
           ['OS=="solaris"', {
-            'cflags': [ '-fno-omit-frame-pointer' ],
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
+          }],
+          ['OS!="mac" and OS!="win"', {
+            'cflags': [ '-fno-omit-frame-pointer' ],
           }],
         ],
         'msvs_settings': {
