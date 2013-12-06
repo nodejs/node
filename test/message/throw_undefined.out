@@ -1,0 +1,5 @@
+
+*test*message*throw_undefined.js:25
+throw undefined;
+      ^
+undefined
