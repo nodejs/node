@@ -91,7 +91,7 @@ function startDebugger(scriptToDebug) {
     });
 
     quit();
-  }, 5000).unref();
+  }, 10000).unref();
 
   process.once('uncaughtException', function(e) {
     console.error('UncaughtException', e, e.stack);
