@@ -831,7 +831,8 @@
         err = process._kill(pid, 0);
       } else {
         sig = sig || 'SIGTERM';
-        if (startup.lazyConstants()[sig]) {
+        if (startup.lazyConstants()[sig] &&
+            sig.slice(0, 3) === 'SIG') {
           err = process._kill(pid, startup.lazyConstants()[sig]);
         } else {
           throw new Error('Unknown signal: ' + sig);

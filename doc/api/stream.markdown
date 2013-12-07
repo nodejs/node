@@ -615,6 +615,10 @@ reader.pipe(writer);
 reader.unpipe(writer);
 ```
 
+#### Event: 'error'
+
+Emitted if there was an error when writing or piping data.
+
 ### Class: stream.Duplex
 
 Duplex streams are streams that implement both the [Readable][] and

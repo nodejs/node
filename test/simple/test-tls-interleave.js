@@ -19,30 +19,51 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 var common = require('../common');
 var assert = require('assert');
-var spawn = require('child_process').spawn;
 
-var cat = spawn('cat');
-var called;
+var tls = require('tls');
+var fs = require('fs');
 
-assert.ok(process.kill(cat.pid, 0));
+var PORT = common.PORT;
+var dir = common.fixturesDir;
+var options = { key: fs.readFileSync(dir + '/test_key.pem'),
+                cert: fs.readFileSync(dir + '/test_cert.pem'),
+                ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
 
-cat.on('exit', function() {
-  assert.throws(function() {
-    process.kill(cat.pid, 0);
-  }, Error);
+var writes = [
+  'some server data',
+  'and a separate packet',
+  'and one more',
+];
+var receivedWrites = 0;
+
+var server = tls.createServer(options, function(c) {
+  writes.forEach(function(str) {
+    c.write(str);
+  });
+}).listen(PORT, function() {
+  var c = tls.connect(PORT, { rejectUnauthorized: false }, function() {
+    c.write('some client data');
+    c.on('readable', function() {
+      var data = c.read();
+      if (data === null)
+        return;
+
+      data = data.toString();
+      while (data.length !== 0) {
+        assert.strictEqual(data.indexOf(writes[receivedWrites]), 0);
+        data = data.slice(writes[receivedWrites].length);
+
+        if (++receivedWrites === writes.length) {
+          c.end();
+          server.close();
+        }
+      }
+    });
+  });
 });
-
-cat.stdout.on('data', function() {
-  called = true;
-  process.kill(cat.pid, 'SIGKILL');
-});
-
-// EPIPE when null sig fails
-cat.stdin.write('test');
 
 process.on('exit', function() {
-  assert.ok(called);
+  assert.equal(receivedWrites, writes.length);
 });

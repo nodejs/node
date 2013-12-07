@@ -121,6 +121,8 @@ values are `"rr"` and `"none"`.
 ## cluster.settings
 
 * {Object}
+  * `execArgv` {Array} list of string arguments passed to the node executable. 
+    (Default=`process.execArgv`)
   * `exec` {String} file path to worker file.  (Default=`process.argv[1]`)
   * `args` {Array} string arguments passed to worker.
     (Default=`process.argv.slice(2)`)

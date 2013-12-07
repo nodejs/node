@@ -559,6 +559,8 @@ leaner than `child_process.exec`. It has the same options.
   * `env` {Object} Environment key-value pairs
   * `encoding` {String} (Default: 'utf8')
   * `execPath` {String} Executable used to create the child process
+  * `execArgv` {Array} List of string arguments passed to the executable
+    (Default: `process.execArgv`)
   * `silent` {Boolean} If true, prevent stdout and stderr in the spawned node
     process from being associated with the parent's (default is false)
 * Return: ChildProcess object
