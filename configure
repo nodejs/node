@@ -428,8 +428,10 @@ def compiler_version():
 def configure_arm(o):
   if options.arm_float_abi:
     arm_float_abi = options.arm_float_abi
+  elif is_arm_hard_float_abi():
+    arm_float_abi = 'hard'
   else:
-    arm_float_abi = 'hard' if is_arm_hard_float_abi() else 'default'
+    'default'
   o['variables']['armv7'] = int(is_arch_armv7())
   o['variables']['arm_fpu'] = 'vfpv3'  # V8 3.18 no longer supports VFP2.
   o['variables']['arm_neon'] = int(is_arm_neon())
