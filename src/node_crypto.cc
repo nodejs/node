@@ -1022,7 +1022,6 @@ void Connection::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", Connection::GetCurrentCipher);
   NODE_SET_PROTOTYPE_METHOD(t, "start", Connection::Start);
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Connection::Shutdown);
-  NODE_SET_PROTOTYPE_METHOD(t, "receivedShutdown", Connection::ReceivedShutdown);
   NODE_SET_PROTOTYPE_METHOD(t, "close", Connection::Close);
 
 #ifdef OPENSSL_NPN_NEGOTIATED
@@ -1763,20 +1762,6 @@ Handle<Value> Connection::Shutdown(const Arguments& args) {
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(rv));
-}
-
-
-Handle<Value> Connection::ReceivedShutdown(const Arguments& args) {
-  HandleScope scope;
-
-  Connection *ss = Connection::Unwrap(args);
-
-  if (ss->ssl_ == NULL) return False();
-  int r = SSL_get_shutdown(ss->ssl_);
-
-  if (r & SSL_RECEIVED_SHUTDOWN) return True();
-
-  return False();
 }
 
 
