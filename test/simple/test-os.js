@@ -101,10 +101,7 @@ switch (platform) {
   case 'win32':
     var filter = function(e) { return e.address == '127.0.0.1'; };
     var actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
-    // NOTE: Windows does not set a prefix or netmask on 127.0.0.1, so we
-    //       default to /32 here.  We could put in a special case to force
-    //       to /8 if desired.
-    var expected = [{ address: '127.0.0.1', netmask: '255.255.255.255',
+    var expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
                       mac: '00:00:00:00:00:00', family: 'IPv4',
                       internal: true }];
     assert.deepEqual(actual, expected);
