@@ -66,10 +66,14 @@ using v8::Value;
 
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
+  void* operator new(size_t size) { return new char[size]; }
+  void* operator new(size_t size, char* storage) { return storage; }
+
   FSReqWrap(Environment* env, const char* syscall, char* data = NULL)
     : ReqWrap<uv_fs_t>(env, Object::New()),
       syscall_(syscall),
-      data_(data) {
+      data_(data),
+      dest_len_(0) {
   }
 
   void ReleaseEarly() {
@@ -79,11 +83,16 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
     data_ = NULL;
   }
 
-  const char* syscall() { return syscall_; }
+  inline const char* syscall() const { return syscall_; }
+  inline const char* dest() const { return dest_; }
+  inline unsigned int dest_len() const { return dest_len_; }
+  inline void dest_len(unsigned int dest_len) { dest_len_ = dest_len; }
 
  private:
   const char* syscall_;
   char* data_;
+  unsigned int dest_len_;
+  char dest_[1];
 };
 
 
@@ -123,6 +132,14 @@ static void After(uv_fs_t *req) {
     // If the request doesn't have a path parameter set.
     if (req->path == NULL) {
       argv[0] = UVException(req->result, NULL, req_wrap->syscall());
+    } else if ((req->result == UV_EEXIST ||
+                req->result == UV_ENOTEMPTY ||
+                req->result == UV_EPERM) &&
+               req_wrap->dest_len() > 0) {
+      argv[0] = UVException(req->result,
+                            NULL,
+                            req_wrap->syscall(),
+                            req_wrap->dest());
     } else {
       argv[0] = UVException(req->result,
                             NULL,
@@ -232,10 +249,20 @@ struct fs_req_wrap {
 };
 
 
-#define ASYNC_CALL(func, callback, ...)                                       \
+#define ASYNC_DEST_CALL(func, callback, dest_path, ...)                       \
   Environment* env = Environment::GetCurrent(args.GetIsolate());              \
-  FSReqWrap* req_wrap = new FSReqWrap(env, #func);                            \
-  int err = uv_fs_ ## func(env->event_loop(),                                 \
+  FSReqWrap* req_wrap;                                                        \
+  char* dest_str = (dest_path);                                               \
+  int dest_len = dest_str == NULL ? 0 : strlen(dest_str);                     \
+  char* storage = new char[sizeof(*req_wrap) + dest_len];                     \
+  req_wrap = new(storage) FSReqWrap(env, #func);                              \
+  req_wrap->dest_len(dest_len);                                               \
+  if (dest_str != NULL) {                                                     \
+    memcpy(const_cast<char*>(req_wrap->dest()),                               \
+           dest_str,                                                          \
+           dest_len + 1);                                                     \
+  }                                                                           \
+  int err = uv_fs_ ## func(env->event_loop() ,                                \
                            &req_wrap->req_,                                   \
                            __VA_ARGS__,                                       \
                            After);                                            \
@@ -249,15 +276,29 @@ struct fs_req_wrap {
   }                                                                           \
   args.GetReturnValue().Set(req_wrap->persistent());
 
-#define SYNC_CALL(func, path, ...)                                            \
+#define ASYNC_CALL(func, callback, ...)                                       \
+  ASYNC_DEST_CALL(func, callback, NULL, __VA_ARGS__)                          \
+
+#define SYNC_DEST_CALL(func, path, dest, ...)                                 \
   fs_req_wrap req_wrap;                                                       \
   Environment* env = Environment::GetCurrent(args.GetIsolate());              \
   int err = uv_fs_ ## func(env->event_loop(),                                 \
-                           &req_wrap.req,                                     \
-                           __VA_ARGS__,                                       \
-                           NULL);                                             \
-  if (err < 0)                                                                \
-    return ThrowUVException(err, #func, NULL, path);                          \
+                         &req_wrap.req,                                       \
+                         __VA_ARGS__,                                         \
+                         NULL);                                               \
+  if (err < 0) {                                                              \
+    if (dest != NULL &&                                                       \
+        (err == UV_EEXIST ||                                                  \
+         err == UV_ENOTEMPTY ||                                               \
+         err == UV_EPERM)) {                                                  \
+      return ThrowUVException(err, #func, "", dest);                          \
+    } else {                                                                  \
+      return ThrowUVException(err, #func, "", path);                          \
+    }                                                                         \
+  }                                                                           \
+
+#define SYNC_CALL(func, path, ...)                                            \
+  SYNC_DEST_CALL(func, path, NULL, __VA_ARGS__)                               \
 
 #define SYNC_REQ req_wrap.req
 
@@ -438,9 +479,9 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args[3]->IsFunction()) {
-    ASYNC_CALL(symlink, args[3], *dest, *path, flags)
+    ASYNC_DEST_CALL(symlink, args[3], *dest, *dest, *path, flags)
   } else {
-    SYNC_CALL(symlink, *path, *dest, *path, flags)
+    SYNC_DEST_CALL(symlink, *path, *dest, *dest, *path, flags)
   }
 }
 
@@ -461,9 +502,9 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
   String::Utf8Value new_path(args[1]);
 
   if (args[2]->IsFunction()) {
-    ASYNC_CALL(link, args[2], *orig_path, *new_path)
+    ASYNC_DEST_CALL(link, args[2], *new_path, *orig_path, *new_path)
   } else {
-    SYNC_CALL(link, *orig_path, *orig_path, *new_path)
+    SYNC_DEST_CALL(link, *orig_path, *new_path, *orig_path, *new_path)
   }
 }
 
@@ -504,9 +545,9 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
   String::Utf8Value new_path(args[1]);
 
   if (args[2]->IsFunction()) {
-    ASYNC_CALL(rename, args[2], *old_path, *new_path)
+    ASYNC_DEST_CALL(rename, args[2], *new_path, *old_path, *new_path)
   } else {
-    SYNC_CALL(rename, *old_path, *old_path, *new_path)
+    SYNC_DEST_CALL(rename, *old_path, *new_path, *old_path, *new_path)
   }
 }
 
