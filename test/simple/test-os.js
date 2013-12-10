@@ -30,14 +30,22 @@ var os = require('os');
 process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
 process.env.TEMP = '/temp';
-var t = ( process.platform === 'win32' ? 'c:\\windows\\temp' : '/tmp' );
-assert.equal(os.tmpdir(), '/tmpdir');
-process.env.TMPDIR = '';
-assert.equal(os.tmpdir(), '/tmp');
-process.env.TMP = '';
-assert.equal(os.tmpdir(), '/temp');
-process.env.TEMP = '';
-assert.equal(os.tmpdir(), t);
+if (process.platform === 'win32') {
+  assert.equal(os.tmpdir(), '/temp');
+  process.env.TEMP = '';
+  assert.equal(os.tmpdir(), '/tmp');
+  process.env.TMP = '';
+  var expected = (process.env.SystemRoot || process.env.windir) + '\\temp';
+  assert.equal(os.tmpdir(), expected);
+} else {
+  assert.equal(os.tmpdir(), '/tmpdir');
+  process.env.TMPDIR = '';
+  assert.equal(os.tmpdir(), '/tmp');
+  process.env.TMP = '';
+  assert.equal(os.tmpdir(), '/temp');
+  process.env.TEMP = '';
+  assert.equal(os.tmpdir(), '/tmp');
+}
 
 var endianness = os.endianness();
 console.log('endianness = %s', endianness);
