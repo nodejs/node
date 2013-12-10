@@ -66,7 +66,7 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
 
  protected:
-  static const int kClearOutChunkSize = 1024;
+  static const int kClearOutChunkSize = 16384;  // 16kb
 
   // Maximum number of buffers passed to uv_write()
   static const int kSimultaneousBufferCount = 10;
