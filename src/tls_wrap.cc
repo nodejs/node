@@ -74,7 +74,8 @@ TLSCallbacks::TLSCallbacks(Environment* env,
       pending_write_item_(NULL),
       started_(false),
       established_(false),
-      shutdown_(false) {
+      shutdown_(false),
+      eof_(false) {
   node::Wrap<TLSCallbacks>(object(), this);
 
   // Initialize queue for clearIn writes
@@ -374,6 +375,13 @@ void TLSCallbacks::ClearOut() {
     }
   } while (read > 0);
 
+  int flags = SSL_get_shutdown(ssl_);
+  if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
+    eof_ = true;
+    Local<Value> arg = Integer::New(UV_EOF, node_isolate);
+    wrap()->MakeCallback(env()->onread_string(), 1, &arg);
+  }
+
   if (read == -1) {
     int err;
     Handle<Value> arg = GetSSLError(read, &err);
@@ -513,6 +521,14 @@ void TLSCallbacks::DoRead(uv_stream_t* handle,
   if (nread < 0)  {
     // Error should be emitted only after all data was read
     ClearOut();
+
+    // Ignore EOF if received close_notify
+    if (nread == UV_EOF) {
+      if (eof_)
+        return;
+      eof_ = true;
+    }
+
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
     Local<Value> arg = Integer::New(nread, node_isolate);

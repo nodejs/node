@@ -852,9 +852,9 @@ void SSLWrap<Base>::AddMethods(Handle<FunctionTemplate> t) {
   NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished", IsInitFinished);
   NODE_SET_PROTOTYPE_METHOD(t, "verifyError", VerifyError);
   NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", GetCurrentCipher);
-  NODE_SET_PROTOTYPE_METHOD(t, "receivedShutdown", ReceivedShutdown);
   NODE_SET_PROTOTYPE_METHOD(t, "endParser", EndParser);
   NODE_SET_PROTOTYPE_METHOD(t, "renegotiate", Renegotiate);
+  NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Shutdown);
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   NODE_SET_PROTOTYPE_METHOD(t, "getNegotiatedProtocol", GetNegotiatedProto);
@@ -1207,15 +1207,6 @@ void SSLWrap<Base>::IsSessionReused(const FunctionCallbackInfo<Value>& args) {
 
 
 template <class Base>
-void SSLWrap<Base>::ReceivedShutdown(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
-  Base* w = Unwrap<Base>(args.This());
-  bool yes = SSL_get_shutdown(w->ssl_) == SSL_RECEIVED_SHUTDOWN;
-  args.GetReturnValue().Set(yes);
-}
-
-
-template <class Base>
 void SSLWrap<Base>::EndParser(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
   Base* w = Unwrap<Base>(args.This());
@@ -1234,6 +1225,17 @@ void SSLWrap<Base>::Renegotiate(const FunctionCallbackInfo<Value>& args) {
 
   bool yes = SSL_renegotiate(w->ssl_) == 1;
   args.GetReturnValue().Set(yes);
+}
+
+
+template <class Base>
+void SSLWrap<Base>::Shutdown(const FunctionCallbackInfo<Value>& args) {
+  HandleScope scope(node_isolate);
+
+  Base* w = Unwrap<Base>(args.This());
+
+  int rv = SSL_shutdown(w->ssl_);
+  args.GetReturnValue().Set(rv);
 }
 
 
@@ -1619,7 +1621,6 @@ void Connection::Initialize(Environment* env, Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "clearPending", Connection::ClearPending);
   NODE_SET_PROTOTYPE_METHOD(t, "encPending", Connection::EncPending);
   NODE_SET_PROTOTYPE_METHOD(t, "start", Connection::Start);
-  NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Connection::Shutdown);
   NODE_SET_PROTOTYPE_METHOD(t, "close", Connection::Close);
 
   SSLWrap<Connection>::AddMethods(t);
@@ -2050,22 +2051,6 @@ void Connection::Start(const FunctionCallbackInfo<Value>& args) {
                            kSyscallError);
     }
   }
-  args.GetReturnValue().Set(rv);
-}
-
-
-void Connection::Shutdown(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
-
-  Connection* conn = Unwrap<Connection>(args.This());
-
-  if (conn->ssl_ == NULL) {
-    return args.GetReturnValue().Set(false);
-  }
-
-  int rv = SSL_shutdown(conn->ssl_);
-  conn->HandleSSLError("SSL_shutdown", rv, kZeroIsNotAnError, kIgnoreSyscall);
-  conn->SetShutdownFlags();
   args.GetReturnValue().Set(rv);
 }
 

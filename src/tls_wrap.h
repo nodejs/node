@@ -66,7 +66,7 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
 
  protected:
-  static const int kClearOutChunkSize = 16384;  // 16kb
+  static const int kClearOutChunkSize = 1024;
 
   // Maximum number of buffers passed to uv_write()
   static const int kSimultaneousBufferCount = 10;
@@ -136,6 +136,10 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   bool started_;
   bool established_;
   bool shutdown_;
+
+  // If true - delivered EOF to the js-land, either after `close_notify`, or
+  // after the `UV_EOF` on socket.
+  bool eof_;
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   v8::Persistent<v8::Value> sni_context_;

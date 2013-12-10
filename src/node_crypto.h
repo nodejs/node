@@ -181,9 +181,9 @@ class SSLWrap {
   static void IsInitFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetCurrentCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ReceivedShutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EndParser(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Renegotiate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   static void GetNegotiatedProto(
@@ -254,7 +254,6 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
   static void EncPending(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EncOut(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ClearIn(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
 

@@ -320,7 +320,7 @@
           ],
         }],
         [
-          'OS=="linux"', {
+          'OS=="linux" and node_shared_v8=="false"', {
             'ldflags': [
               '-Wl,--whole-archive <(PRODUCT_DIR)/obj.target/deps/v8/tools/gyp/libv8_base.<(target_arch).a -Wl,--no-whole-archive',
             ],
