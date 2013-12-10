@@ -452,6 +452,11 @@ If `data` is specified, it is equivalent to calling
 If `callback` is specified, it will be called when the response stream
 is finished.
 
+### response.finished
+
+Boolean value that indicates whether the response has completed. Starts
+as `false`. After `response.end()` executes, the value will be `true`.
+
 ## http.request(options[, callback])
 
 io.js maintains several connections per server to make HTTP requests.
