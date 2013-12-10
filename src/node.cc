@@ -165,7 +165,9 @@ ArrayBufferAllocator ArrayBufferAllocator::the_singleton;
 void* ArrayBufferAllocator::Allocate(size_t length) {
   if (length > kMaxLength)
     return NULL;
-  return new char[length];
+  char* data = new char[length];
+  memset(data, 0, length);
+  return data;
 }
 
 
