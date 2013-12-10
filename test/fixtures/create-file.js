@@ -24,4 +24,6 @@ var fs = require('fs');
 var file_name = process.argv[2];
 var file_size = parseInt(process.argv[3]);
 
-fs.truncateSync(file_name, file_size);
+var fd = fs.openSync(file_name, 'w');
+fs.ftruncateSync(fd, file_size);
+fs.closeSync(fd);
