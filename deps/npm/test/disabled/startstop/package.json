@@ -1,3 +1,0 @@
-{"name":"startstop"
-,"version":"1.2.3"
-,"scripts":{"start":"echo 'start'","stop":"echo 'stop'"}}

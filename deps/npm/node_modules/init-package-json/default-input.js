@@ -176,4 +176,6 @@ if (!package.author) {
   : prompt('author')
 }
 
-exports.license = prompt('license', 'BSD-2-Clause')
+exports.license = prompt('license', package.license ||
+                         config.get('init.license') ||
+                         'BSD-2-Clause')

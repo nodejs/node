@@ -1,0 +1,10 @@
+{
+  "name": "outdated-git",
+  "author": "Rocko Artischocko",
+  "description": "fixture",
+  "version": "0.0.1",
+  "main": "index.js",
+  "dependencies": {
+    "foo-private": "git://github.com/robertkowalski/foo-private.git"
+  }
+}

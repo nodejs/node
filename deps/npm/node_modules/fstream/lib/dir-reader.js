@@ -212,6 +212,7 @@ DirReader.prototype.getChildProps = function (stat) {
          , follow: this.follow
          , filter: this.filter
          , sort: this.props.sort
+         , hardlinks: this.props.hardlinks
          }
 }
 

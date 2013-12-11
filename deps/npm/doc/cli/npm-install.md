@@ -173,6 +173,9 @@ local space in some cases.
 The `--no-bin-links` argument will prevent npm from creating symlinks for
 any binaries the package might contain.
 
+The `--no-optional` argument will prevent optional dependencies from
+being installed.
+
 The `--no-shrinkwrap` argument, which will ignore an available
 shrinkwrap file and use the package.json instead.
 

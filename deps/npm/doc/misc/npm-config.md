@@ -406,6 +406,13 @@ The value `npm init` should use by default for the package author's email.
 
 The value `npm init` should use by default for the package author's homepage.
 
+### init.license
+
+* Default: "BSD-2-Clause"
+* Type: String
+
+The value `npm init` should use by default for the package license.
+
 ### json
 
 * Default: false

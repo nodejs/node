@@ -24,7 +24,7 @@ function help (args, cb) {
 
   // npm help foo bar baz: search topics
   if (args.length > 1 && args[0]) {
-    return npm.commands["help-search"](args, num, cb)
+    return npm.commands["help-search"](args, argnum, cb)
   }
 
   var section = npm.deref(args[0]) || args[0]

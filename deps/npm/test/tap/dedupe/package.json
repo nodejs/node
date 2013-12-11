@@ -1,0 +1,9 @@
+{
+  "author": "Dedupe tester",
+  "name": "dedupe",
+  "version": "0.0.0",
+  "dependencies": {
+    "optimist": "0.6.0",
+    "clean": "2.1.6"
+  }
+}

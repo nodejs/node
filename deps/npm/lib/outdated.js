@@ -25,14 +25,31 @@ var path = require("path")
   , asyncMap = require("slide").asyncMap
   , npm = require("./npm.js")
   , url = require("url")
+  , isGitUrl = require("./utils/is-git-url.js")
+  , color = require("ansicolors")
+  , styles = require("ansistyles")
+  , table = require("text-table")
 
 function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
   var dir = path.resolve(npm.dir, "..")
-  outdated_(args, dir, {}, function (er, list) {
+  outdated_(args, dir, {}, 0, function (er, list) {
     if (er || silent) return cb(er, list)
-    var outList = list.map(makePretty)
-    console.log(outList.join("\n"))
+    if (npm.config.get("json")) {
+      console.log(makeJSON(list))
+    } else {
+      var outList = list.map(makePretty)
+      var outTable = [[ styles.underline("Package")
+                      , styles.underline("Current")
+                      , styles.underline("Wanted")
+                      , styles.underline("Latest")
+                      , styles.underline("Location")
+                     ]].concat(outList)
+      var tableOpts = { align: ["l", "r", "r", "r", "l"]
+                      , stringLength: function(s) { return ansiTrim(s).length }
+                      }
+      console.log(table(outTable, tableOpts))
+    }
     cb(null, list)
   })
 }
@@ -62,13 +79,42 @@ function makePretty (p) {
   if (!npm.config.get("global")) {
     dir = path.relative(process.cwd(), dir)
   }
-  return dep + " " + dir
-       + " current=" + (has || "MISSING")
-       + " wanted=" + want
-       + " latest=" + latest
+  return [ has === want ? color.yellow(dep) : color.red(dep)
+         , (has || "MISSING")
+         , color.green(want)
+         , color.magenta(latest)
+         , color.brightBlack(dirToPrettyLocation(dir))
+         ]
 }
 
-function outdated_ (args, dir, parentHas, cb) {
+function ansiTrim (str) {
+  var r = new RegExp("\x1b(?:\\[(?:\\d+[ABCDEFGJKSTm]|\\d+;\\d+[Hfm]|" +
+        "\\d+;\\d+;\\d+m|6n|s|u|\\?25[lh])|\\w)", "g");
+  return str.replace(r, "")
+}
+
+function dirToPrettyLocation (dir) {
+  return dir.replace(/^node_modules[/\\]/, "")
+            .replace(/[[/\\]node_modules[/\\]/g, " > ")
+}
+
+function makeJSON (list) {
+  var out = {}
+  list.forEach(function (p) {
+    var dir = path.resolve(p[0], "node_modules", p[1])
+    if (!npm.config.get("global")) {
+      dir = path.relative(process.cwd(), dir)
+    }
+    out[p[1]] = { current: p[2]
+                , wanted: p[3]
+                , latest: p[4]
+                , location: dir
+                }
+  })
+  return JSON.stringify(out, null, 2)
+}
+
+function outdated_ (args, dir, parentHas, depth, cb) {
   // get the deps from package.json, or {<dir/node_modules/*>:"*"}
   // asyncMap over deps:
   //   shouldHave = cache.add(dep, req).version
@@ -77,6 +123,9 @@ function outdated_ (args, dir, parentHas, cb) {
   //   else if dep in args or args is empty
   //     return [dir, dep, has, shouldHave]
 
+  if (depth > npm.config.get("depth")) {
+    return cb(null, [])
+  }
   var deps = null
   readJson(path.resolve(dir, "package.json"), function (er, d) {
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
@@ -137,12 +186,12 @@ function outdated_ (args, dir, parentHas, cb) {
     // if has[dep] !== shouldHave[dep], then cb with the data
     // otherwise dive into the folder
     asyncMap(Object.keys(deps), function (dep, cb) {
-      shouldUpdate(args, dir, dep, has, deps[dep], cb)
+      shouldUpdate(args, dir, dep, has, deps[dep], depth, cb)
     }, cb)
   }
 }
 
-function shouldUpdate (args, dir, dep, has, req, cb) {
+function shouldUpdate (args, dir, dep, has, req, depth, cb) {
   // look up the most recent version.
   // if that's what we already have, or if it's not on the args list,
   // then dive into it.  Otherwise, cb() with the data.
@@ -154,6 +203,7 @@ function shouldUpdate (args, dir, dep, has, req, cb) {
     outdated_( args
              , path.resolve(dir, "node_modules", dep)
              , has
+             , depth + 1
              , cb )
   }
 
@@ -164,6 +214,9 @@ function shouldUpdate (args, dir, dep, has, req, cb) {
   if (args.length && args.indexOf(dep) === -1) {
     return skip()
   }
+
+  if (isGitUrl(url.parse(req)))
+    return doIt("git", "git")
 
   var registry = npm.registry
   // search for the latest package

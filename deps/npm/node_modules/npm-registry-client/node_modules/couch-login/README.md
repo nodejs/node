@@ -152,10 +152,28 @@ called when the token is deleted.
 
 * {String | Array | null}
 
-A certificate authority string, or an array of CA strings.  Only
+A certificate authority string (PEM encoded), or an array of CA strings.  Only
 relevant for HTTPS couches, of course.
 
 Leave as `null` to use the default ca settings built into node.
+
+### couch.cert
+
+* {String | null}
+
+A client certificate (PEM encoded) used to support secure access to servers that require client certificate.  Only
+relevant for HTTPS couches, of course.
+
+Leave as `null` when not supporting client certificates.
+
+### couch.key
+
+* {String | null}
+
+A private key string (PEM encoded) used to validate a client certificate.  Only
+relevant for HTTPS couches, of course.
+
+Leave as `null` when not supporting client certificates.
 
 ### couch.strictSSL
 

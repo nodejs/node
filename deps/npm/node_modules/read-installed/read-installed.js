@@ -206,7 +206,14 @@ function readInstalled_ (folder, parent, name, reqver, depth, maxDepth, cb) {
         return readJson(jsonFile, function (er, depData) {
           // already out of our depth, ignore errors
           if (er || !depData || !depData.version) return cb(null, obj)
-          obj.dependencies[pkg] = depData.version
+          if (depth === maxDepth) {
+            // edge case, ignore dependencies
+            depData.dependencies = {}
+            depData.peerDependencies = {}
+            obj.dependencies[pkg] = depData
+          } else {
+            obj.dependencies[pkg] = depData.version
+          }
           cb(null, obj)
         })
       }

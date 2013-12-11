@@ -36,7 +36,7 @@ test(function (t) {
     // itself functions normally.
     //
     // Make sure that we don't sit around waiting for lock files
-    child = spawn(node, [npm, 'publish'], {
+    child = spawn(node, [npm, 'publish', '--email=fancy', '--_auth=feast'], {
       cwd: pkg,
       env: {
         npm_config_cache_lock_stale: 1000,
