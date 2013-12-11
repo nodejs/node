@@ -177,7 +177,12 @@
           ],
           'conditions': [
             [ 'node_shared_openssl=="false"', {
-              'dependencies': [ './deps/openssl/openssl.gyp:openssl' ],
+              'dependencies': [
+                './deps/openssl/openssl.gyp:openssl',
+
+                # For tests
+                './deps/openssl/openssl.gyp:openssl-cli'
+              ],
             }]]
         }, {
           'defines': [ 'HAVE_OPENSSL=0' ]

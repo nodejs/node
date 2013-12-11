@@ -23,13 +23,7 @@ if (!process.versions.openssl) {
   console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
-require('child_process').exec('openssl version', function(err) {
-  if (err !== null) {
-    console.error('Skipping because openssl command is not available.');
-    process.exit(0);
-  }
-  doTest();
-});
+doTest();
 
 // This test consists of three TLS requests --
 // * The first one should result in a new connection because we don't have
@@ -83,7 +77,7 @@ function doTest() {
       '-sess_in', sessionFileName,
       '-sess_out', sessionFileName
     ];
-    var client = spawn('openssl', flags, {
+    var client = spawn(common.opensslCli, flags, {
       stdio: ['ignore', 'pipe', 'ignore']
     });
 

@@ -30,8 +30,10 @@ exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 
 if (process.platform === 'win32') {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
+  exports.opensslCli = path.join(process.execPath, '..', 'openssl-cli.exe');
 } else {
   exports.PIPE = exports.tmpDir + '/test.sock';
+  exports.opensslCli = path.join(process.execPath, '..', 'openssl-cli');
 }
 
 var util = require('util');

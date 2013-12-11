@@ -12,18 +12,6 @@
     {
       'target_name': 'openssl',
       'type': '<(library)',
-      'defines': [
-        # No clue what these are for.
-        'L_ENDIAN',
-        'PURIFY',
-        '_REENTRANT',
-
-        # Heartbeat is a TLS extension, that couldn't be turned off or
-        # asked to be not advertised. Unfortunately this is unacceptable for
-        # Microsoft's IIS, which seems to be ignoring whole ClientHello after
-        # seeing this extension.
-        'OPENSSL_NO_HEARTBEATS',
-      ],
       'sources': [
         'openssl/ssl/bio_ssl.c',
         'openssl/ssl/d1_both.c',
@@ -935,32 +923,12 @@
           ]
         }],
         ['OS=="win"', {
-          'defines': [
-            'MK1MF_BUILD',
-            'WIN32_LEAN_AND_MEAN'
-          ],
           'link_settings': {
             'libraries': [
               '-lgdi32.lib',
               '-luser32.lib',
             ]
           }
-        }, {
-          'defines': [
-            # ENGINESDIR must be defined if OPENSSLDIR is.
-            'ENGINESDIR="/dev/null"',
-            # Set to ubuntu default path for convenience. If necessary, override
-            # this at runtime with the SSL_CERT_DIR environment variable.
-            'OPENSSLDIR="/etc/ssl"',
-            'TERMIOS',
-          ],
-          'cflags': ['-Wno-missing-field-initializers'],
-        }],
-        ['is_clang==1 or gcc_version>=43', {
-          'cflags': ['-Wno-old-style-declaration'],
-        }],
-        ['OS=="solaris"', {
-          'defines': ['__EXTENSIONS__'],
         }],
         ['target_arch=="arm"', {
           'sources': ['openssl/crypto/armcap.c'],
@@ -981,7 +949,153 @@
         'include_dirs': ['openssl/include'],
       },
     },
+    {
+      'target_name': 'openssl-cli',
+      'type': 'executable',
+      'dependencies': [
+        'openssl',
+      ],
+      'defines': [
+        'MONOLITH',
+      ],
+      'sources': [
+        'openssl/apps/app_rand.c',
+        'openssl/apps/apps.c',
+        'openssl/apps/asn1pars.c',
+        'openssl/apps/ca.c',
+        'openssl/apps/ciphers.c',
+        'openssl/apps/cms.c',
+        'openssl/apps/crl.c',
+        'openssl/apps/crl2p7.c',
+        'openssl/apps/dgst.c',
+        'openssl/apps/dh.c',
+        'openssl/apps/dhparam.c',
+        'openssl/apps/dsa.c',
+        'openssl/apps/dsaparam.c',
+        'openssl/apps/ec.c',
+        'openssl/apps/ecparam.c',
+        'openssl/apps/enc.c',
+        'openssl/apps/engine.c',
+        'openssl/apps/errstr.c',
+        'openssl/apps/gendh.c',
+        'openssl/apps/gendsa.c',
+        'openssl/apps/genpkey.c',
+        'openssl/apps/genrsa.c',
+        'openssl/apps/nseq.c',
+        'openssl/apps/ocsp.c',
+        'openssl/apps/openssl.c',
+        'openssl/apps/passwd.c',
+        'openssl/apps/pkcs12.c',
+        'openssl/apps/pkcs7.c',
+        'openssl/apps/pkcs8.c',
+        'openssl/apps/pkey.c',
+        'openssl/apps/pkeyparam.c',
+        'openssl/apps/pkeyutl.c',
+        'openssl/apps/prime.c',
+        'openssl/apps/rand.c',
+        'openssl/apps/req.c',
+        'openssl/apps/rsa.c',
+        'openssl/apps/rsautl.c',
+        'openssl/apps/s_cb.c',
+        'openssl/apps/s_client.c',
+        'openssl/apps/s_server.c',
+        'openssl/apps/s_socket.c',
+        'openssl/apps/s_time.c',
+        'openssl/apps/sess_id.c',
+        'openssl/apps/smime.c',
+        'openssl/apps/speed.c',
+        'openssl/apps/spkac.c',
+        'openssl/apps/srp.c',
+        'openssl/apps/ts.c',
+        'openssl/apps/verify.c',
+        'openssl/apps/version.c',
+        'openssl/apps/x509.c',
+      ],
+      'conditions': [
+        ['OS=="solaris"', {
+          'libraries': [
+            '-lsocket',
+            '-lnsl',
+          ]
+        }],
+        ['OS=="win"', {
+          'link_settings': {
+            'libraries': [
+              '-lws2_32.lib',
+              '-lgdi32.lib',
+              '-ladvapi32.lib',
+              '-lcrypt32.lib',
+              '-luser32.lib',
+            ],
+          },
+        }]
+      ]
+    }
   ],
+  'target_defaults': {
+    'include_dirs': [
+      '.',
+      'openssl',
+      'openssl/crypto',
+      'openssl/crypto/asn1',
+      'openssl/crypto/evp',
+      'openssl/crypto/md2',
+      'openssl/crypto/modes',
+      'openssl/crypto/store',
+      'openssl/include',
+    ],
+    'defines': [
+      # No clue what these are for.
+      'L_ENDIAN',
+      'PURIFY',
+      '_REENTRANT',
+
+      # Heartbeat is a TLS extension, that couldn't be turned off or
+      # asked to be not advertised. Unfortunately this is unacceptable for
+      # Microsoft's IIS, which seems to be ignoring whole ClientHello after
+      # seeing this extension.
+      'OPENSSL_NO_HEARTBEATS',
+    ],
+    'conditions': [
+      ['OS=="win"', {
+        'defines': [
+          'MK1MF_BUILD',
+          'WIN32_LEAN_AND_MEAN',
+          'OPENSSL_SYSNAME_WIN32',
+        ],
+      }, {
+        'defines': [
+          # ENGINESDIR must be defined if OPENSSLDIR is.
+          'ENGINESDIR="/dev/null"',
+          'TERMIOS',
+        ],
+        'cflags': ['-Wno-missing-field-initializers'],
+        'conditions': [
+          ['OS=="mac"', {
+            'defines': [
+              # Set to ubuntu default path for convenience. If necessary,
+              # override this at runtime with the SSL_CERT_DIR environment
+              # variable.
+              'OPENSSLDIR="/System/Library/OpenSSL/"',
+            ],
+          }, {
+            'defines': [
+              # Set to ubuntu default path for convenience. If necessary,
+              # override this at runtime with the SSL_CERT_DIR environment
+              # variable.
+              'OPENSSLDIR="/etc/ssl"',
+            ],
+          }],
+        ]
+      }],
+      ['is_clang==1 or gcc_version>=43', {
+        'cflags': ['-Wno-old-style-declaration'],
+      }],
+      ['OS=="solaris"', {
+        'defines': ['__EXTENSIONS__'],
+      }],
+    ],
+  },
 }
 
 # Local Variables:

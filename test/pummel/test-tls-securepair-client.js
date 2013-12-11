@@ -34,21 +34,7 @@ var tls = require('tls');
 var exec = require('child_process').exec;
 var spawn = require('child_process').spawn;
 
-maybe(test1);
-
-// There is a bug with 'openssl s_server' which makes it not flush certain
-// important events to stdout when done over a pipe. Therefore we skip this
-// test for all openssl versions less than 1.0.0.
-function maybe(cb) {
-  exec('openssl version', function(err, data) {
-    if (err) throw err;
-    if (/OpenSSL 0\./.test(data)) {
-      console.error('Skipping due to old OpenSSL version.');
-      return;
-    }
-    cb();
-  });
-}
+test1();
 
 // simple/test-tls-securepair-client
 function test1() {
@@ -81,10 +67,10 @@ function test(keyfn, certfn, check, next) {
   certfn = join(common.fixturesDir, certfn);
   var cert = fs.readFileSync(certfn).toString();
 
-  var server = spawn('openssl', ['s_server',
-                                 '-accept', PORT,
-                                 '-cert', certfn,
-                                 '-key', keyfn]);
+  var server = spawn(common.opensslCli, ['s_server',
+                                         '-accept', PORT,
+                                         '-cert', certfn,
+                                         '-key', keyfn]);
   server.stdout.pipe(process.stdout);
   server.stderr.pipe(process.stdout);
 
