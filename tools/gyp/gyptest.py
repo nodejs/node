@@ -176,7 +176,7 @@ def main(argv=None):
   if opts.path:
     extra_path = [os.path.abspath(p) for p in opts.path]
     extra_path = os.pathsep.join(extra_path)
-    os.environ['PATH'] += os.pathsep + extra_path
+    os.environ['PATH'] = extra_path + os.pathsep + os.environ['PATH']
 
   if not args:
     if not opts.all:

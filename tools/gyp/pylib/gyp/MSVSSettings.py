@@ -812,6 +812,8 @@ _Same(_link, 'UACExecutionLevel',
       _Enumeration(['AsInvoker',  # /level='asInvoker'
                     'HighestAvailable',  # /level='highestAvailable'
                     'RequireAdministrator']))  # /level='requireAdministrator'
+_Same(_link, 'MinimumRequiredVersion', _string)
+_Same(_link, 'TreatLinkerWarningAsErrors', _boolean)  # /WX
 
 
 # Options found in MSVS that have been renamed in MSBuild.
@@ -850,8 +852,6 @@ _MSBuildOnly(_link, 'LinkStatus', _boolean)  # /LTCG:STATUS
 _MSBuildOnly(_link, 'PreventDllBinding', _boolean)  # /ALLOWBIND
 _MSBuildOnly(_link, 'SupportNobindOfDelayLoadedDLL', _boolean)  # /DELAY:NOBIND
 _MSBuildOnly(_link, 'TrackerLogDirectory', _folder_name)
-_MSBuildOnly(_link, 'TreatLinkerWarningAsErrors', _boolean)  # /WX
-_MSBuildOnly(_link, 'MinimumRequiredVersion', _string)
 _MSBuildOnly(_link, 'MSDOSStubFileName', _file_name)  # /STUB Visible='false'
 _MSBuildOnly(_link, 'SectionAlignment', _integer)  # /ALIGN
 _MSBuildOnly(_link, 'SpecifySectionAttributes', _string)  # /SECTION
@@ -985,6 +985,7 @@ _Same(_lib, 'OutputFile', _file_name)  # /OUT
 _Same(_lib, 'SuppressStartupBanner', _boolean)  # /NOLOGO
 _Same(_lib, 'UseUnicodeResponseFiles', _boolean)
 _Same(_lib, 'LinkTimeCodeGeneration', _boolean)  # /LTCG
+_Same(_lib, 'TargetMachine', _target_machine_enumeration)
 
 # TODO(jeanluc) _link defines the same value that gets moved to
 # ProjectReference.  We may want to validate that they are consistent.
@@ -1003,7 +1004,6 @@ _MSBuildOnly(_lib, 'MinimumRequiredVersion', _string)
 _MSBuildOnly(_lib, 'Name', _file_name)  # /NAME
 _MSBuildOnly(_lib, 'RemoveObjects', _file_list)  # /REMOVE
 _MSBuildOnly(_lib, 'SubSystem', _subsystem_enumeration)
-_MSBuildOnly(_lib, 'TargetMachine', _target_machine_enumeration)
 _MSBuildOnly(_lib, 'TrackerLogDirectory', _folder_name)
 _MSBuildOnly(_lib, 'TreatLibWarningAsErrors', _boolean)  # /WX
 _MSBuildOnly(_lib, 'Verbose', _boolean)

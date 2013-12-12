@@ -452,7 +452,7 @@ class AndroidMkWriter(object):
                      (output, path))
         self.WriteLn('\t@echo Copying: $@')
         self.WriteLn('\t$(hide) mkdir -p $(dir $@)')
-        self.WriteLn('\t$(hide) $(ACP) -r $< $@')
+        self.WriteLn('\t$(hide) $(ACP) -rpf $< $@')
         self.WriteLn()
         outputs.append(output)
     self.WriteLn('%s = %s' % (variable,

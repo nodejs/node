@@ -2278,6 +2278,7 @@ def ProcessListFiltersInDict(name, the_dict):
       continue
 
     if not isinstance(the_dict[list_key], list):
+      value = the_dict[list_key]
       raise ValueError, name + ' key ' + list_key + \
                         ' must be list, not ' + \
                         value.__class__.__name__ + ' when applying ' + \

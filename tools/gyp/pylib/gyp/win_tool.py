@@ -10,12 +10,16 @@ These functions are executed via gyp-win-tool when using the ninja generator.
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# A regex matching an argument corresponding to a PDB filename passed as an
+# argument to link.exe.
+_LINK_EXE_PDB_ARG = re.compile('/PDB:(?P<pdb>.+\.exe\.pdb)$', re.IGNORECASE)
 
 def main(args):
   executor = WinTool()
@@ -27,6 +31,35 @@ def main(args):
 class WinTool(object):
   """This class performs all the Windows tooling steps. The methods can either
   be executed directly, or dispatched from an argument list."""
+
+  def _MaybeUseSeparateMspdbsrv(self, env, args):
+    """Allows to use a unique instance of mspdbsrv.exe for the linkers linking
+    an .exe target if GYP_USE_SEPARATE_MSPDBSRV has been set."""
+    if not os.environ.get('GYP_USE_SEPARATE_MSPDBSRV'):
+      return
+
+    if len(args) < 1:
+      raise Exception("Not enough arguments")
+
+    if args[0] != 'link.exe':
+      return
+
+    # Checks if this linker produces a PDB for an .exe target. If so use the
+    # name of this PDB to generate an endpoint name for mspdbsrv.exe.
+    endpoint_name = None
+    for arg in args:
+      m = _LINK_EXE_PDB_ARG.match(arg)
+      if m:
+        endpoint_name = '%s_%d' % (m.group('pdb'), os.getpid())
+        break
+
+    if endpoint_name is None:
+      return
+
+    # Adds the appropriate environment variable. This will be read by link.exe
+    # to know which instance of mspdbsrv.exe it should connect to (if it's
+    # not set then the default endpoint is used).
+    env['_MSPDBSRV_ENDPOINT_'] = endpoint_name
 
   def Dispatch(self, args):
     """Dispatches a string command to a method."""
@@ -71,13 +104,17 @@ class WinTool(object):
     This happens when there are exports from the dll or exe.
     """
     env = self._GetEnv(arch)
-    popen = subprocess.Popen(args, shell=True, env=env,
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    out, _ = popen.communicate()
+    self._MaybeUseSeparateMspdbsrv(env, args)
+    link = subprocess.Popen(args,
+                            shell=True,
+                            env=env,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
+    out, _ = link.communicate()
     for line in out.splitlines():
       if not line.startswith('   Creating library '):
         print line
-    return popen.returncode
+    return link.returncode
 
   def ExecManifestWrapper(self, arch, *args):
     """Run manifest tool with environment set. Strip out undesirable warning
@@ -168,9 +205,7 @@ class WinTool(object):
     env = self._GetEnv(arch)
     args = open(rspfile).read()
     dir = dir[0] if dir else None
-    popen = subprocess.Popen(args, shell=True, env=env, cwd=dir)
-    popen.wait()
-    return popen.returncode
+    return subprocess.call(args, shell=True, env=env, cwd=dir)
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))

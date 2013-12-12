@@ -97,14 +97,19 @@ def CheckChangeOnCommit(input_api, output_api):
       'http://gyp-status.appspot.com/status',
       'http://gyp-status.appspot.com/current'))
 
+  import os
   import sys
   old_sys_path = sys.path
   try:
     sys.path = ['pylib', 'test/lib'] + sys.path
+    blacklist = PYLINT_BLACKLIST
+    if sys.platform == 'win32':
+      blacklist = [os.path.normpath(x).replace('\\', '\\\\')
+                   for x in PYLINT_BLACKLIST]
     report.extend(input_api.canned_checks.RunPylint(
         input_api,
         output_api,
-        black_list=PYLINT_BLACKLIST,
+        black_list=blacklist,
         disabled_warnings=PYLINT_DISABLED_WARNINGS))
   finally:
     sys.path = old_sys_path

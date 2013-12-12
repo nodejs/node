@@ -814,15 +814,18 @@ class NinjaWriter:
       cflags_c = self.msvs_settings.GetCflagsC(config_name)
       cflags_cc = self.msvs_settings.GetCflagsCC(config_name)
       extra_defines = self.msvs_settings.GetComputedDefines(config_name)
-      pdbpath = self.msvs_settings.GetCompilerPdbName(
+      # See comment at cc_command for why there's two .pdb files.
+      pdbpath_c = pdbpath_cc = self.msvs_settings.GetCompilerPdbName(
           config_name, self.ExpandSpecial)
-      if not pdbpath:
+      if not pdbpath_c:
         obj = 'obj'
         if self.toolset != 'target':
           obj += '.' + self.toolset
-        pdbpath = os.path.normpath(os.path.join(obj, self.base_dir,
-                                                self.name + '.pdb'))
-      self.WriteVariableList(ninja_file, 'pdbname', [pdbpath])
+        pdbpath = os.path.normpath(os.path.join(obj, self.base_dir, self.name))
+        pdbpath_c = pdbpath + '.c.pdb'
+        pdbpath_cc = pdbpath + '.cc.pdb'
+      self.WriteVariableList(ninja_file, 'pdbname_c', [pdbpath_c])
+      self.WriteVariableList(ninja_file, 'pdbname_cc', [pdbpath_cc])
       self.WriteVariableList(ninja_file, 'pchprefix', [self.name])
     else:
       cflags = config.get('cflags', [])
@@ -1578,18 +1581,24 @@ def _GetWinLinkRuleNameSuffix(embed_manifest, link_incremental):
 def _AddWinLinkRules(master_ninja, embed_manifest, link_incremental):
   """Adds link rules for Windows platform to |master_ninja|."""
   def FullLinkCommand(ldcmd, out, binary_type):
-    cmd = ('cmd /c %(ldcmd)s'
-           ' && %(python)s gyp-win-tool manifest-wrapper $arch'
-           ' cmd /c if exist %(out)s.manifest del %(out)s.manifest'
-           ' && %(python)s gyp-win-tool manifest-wrapper $arch'
-           ' $mt -nologo -manifest $manifests')
+    """Returns a one-liner written for cmd.exe to handle multiphase linker
+    operations including manifest file generation. The command will be
+    structured as follows:
+      cmd /c (linkcmd1 a b) && (linkcmd2 x y) && ... &&
+      if not "$manifests"=="" ((manifestcmd1 a b) && (manifestcmd2 x y) && ... )
+    Note that $manifests becomes empty when no manifest file is generated."""
+    link_commands = ['%(ldcmd)s',
+                     'if exist %(out)s.manifest del %(out)s.manifest']
+    mt_cmd = ('%(python)s gyp-win-tool manifest-wrapper'
+              ' $arch $mt -nologo -manifest $manifests')
     if embed_manifest and not link_incremental:
       # Embed manifest into a binary. If incremental linking is enabled,
       # embedding is postponed to the re-linking stage (see below).
-      cmd += ' -outputresource:%(out)s;%(resname)s'
+      mt_cmd += ' -outputresource:%(out)s;%(resname)s'
     else:
       # Save manifest as an external file.
-      cmd += ' -out:%(out)s.manifest'
+      mt_cmd += ' -out:%(out)s.manifest'
+    manifest_commands = [mt_cmd]
     if link_incremental:
       # There is no point in generating separate rule for the case when
       # incremental linking is enabled, but manifest embedding is disabled.
@@ -1597,11 +1606,14 @@ def _AddWinLinkRules(master_ninja, embed_manifest, link_incremental):
       # See also implementation of _GetWinLinkRuleNameSuffix().
       assert embed_manifest
       # Make .rc file out of manifest, compile it to .res file and re-link.
-      cmd += (' && %(python)s gyp-win-tool manifest-to-rc $arch'
-              ' %(out)s.manifest %(out)s.manifest.rc %(resname)s'
-              ' && %(python)s gyp-win-tool rc-wrapper $arch $rc'
-              ' %(out)s.manifest.rc'
-              ' && %(ldcmd)s %(out)s.manifest.res')
+      manifest_commands += [
+        ('%(python)s gyp-win-tool manifest-to-rc $arch %(out)s.manifest'
+         ' %(out)s.manifest.rc %(resname)s'),
+        '%(python)s gyp-win-tool rc-wrapper $arch $rc %(out)s.manifest.rc',
+        '%(ldcmd)s %(out)s.manifest.res']
+    cmd = 'cmd /c %s && if not "$manifests"=="" (%s)' % (
+      ' && '.join(['(%s)' % c for c in link_commands]),
+      ' && '.join(['(%s)' % c for c in manifest_commands]))
     resource_name = {
       'exe': '1',
       'dll': '2',
@@ -1656,9 +1668,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
 
   toplevel_build = os.path.join(options.toplevel_dir, build_dir)
 
-  master_ninja = ninja_syntax.Writer(
-      OpenOutput(os.path.join(toplevel_build, 'build.ninja')),
-      width=120)
+  master_ninja_file = OpenOutput(os.path.join(toplevel_build, 'build.ninja'))
+  master_ninja = ninja_syntax.Writer(master_ninja_file, width=120)
 
   # Put build-time support tools in out/{config_name}.
   gyp.common.CopyTool(flavor, toplevel_build)
@@ -1679,8 +1690,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     ld = 'link.exe'
     ld_host = '$ld'
   else:
-    cc = 'gcc'
-    cxx = 'g++'
+    cc = 'cc'
+    cxx = 'c++'
     ld = '$cc'
     ldxx = '$cxx'
     ld_host = '$cc_host'
@@ -1798,14 +1809,20 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       depfile='$out.d',
       deps=deps)
   else:
+    # TODO(scottmg) Separate pdb names is a test to see if it works around
+    # http://crbug.com/142362. It seems there's a race between the creation of
+    # the .pdb by the precompiled header step for .cc and the compilation of
+    # .c files. This should be handled by mspdbsrv, but rarely errors out with
+    #   c1xx : fatal error C1033: cannot open program database
+    # By making the rules target separate pdb files this might be avoided.
     cc_command = ('ninja -t msvc -e $arch ' +
                   '-- '
                   '$cc /nologo /showIncludes /FC '
-                  '@$out.rsp /c $in /Fo$out /Fd$pdbname ')
+                  '@$out.rsp /c $in /Fo$out /Fd$pdbname_c ')
     cxx_command = ('ninja -t msvc -e $arch ' +
                    '-- '
                    '$cxx /nologo /showIncludes /FC '
-                   '@$out.rsp /c $in /Fo$out /Fd$pdbname ')
+                   '@$out.rsp /c $in /Fo$out /Fd$pdbname_cc ')
     master_ninja.rule(
       'cc',
       description='CC $out',
@@ -2097,6 +2114,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     master_ninja.newline()
     master_ninja.build('all', 'phony', list(all_outputs))
     master_ninja.default(generator_flags.get('default_target', 'all'))
+
+  master_ninja_file.close()
 
 
 def PerformBuild(data, configurations, params):

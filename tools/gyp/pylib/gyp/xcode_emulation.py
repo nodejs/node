@@ -9,11 +9,13 @@ other build systems, such as make and ninja.
 
 import copy
 import gyp.common
+import os
 import os.path
 import re
 import shlex
 import subprocess
 import sys
+import tempfile
 from gyp.common import GypError
 
 class XcodeSettings(object):
@@ -22,6 +24,7 @@ class XcodeSettings(object):
   # Populated lazily by _SdkPath(). Shared by all XcodeSettings, so cached
   # at class-level for efficiency.
   _sdk_path_cache = {}
+  _sdk_root_cache = {}
 
   # Populated lazily by GetExtraPlistItems(). Shared by all XcodeSettings, so
   # cached at class-level for efficiency.
@@ -30,6 +33,10 @@ class XcodeSettings(object):
   # Populated lazily by GetIOSPostbuilds.  Shared by all XcodeSettings, so
   # cached at class-level for efficiency.
   _codesigning_key_cache = {}
+
+  # Populated lazily by _XcodeVersion.  Shared by all XcodeSettings, so cached
+  # at class-level for efficiency.
+  _xcode_version_cache = ()
 
   def __init__(self, spec):
     self.spec = spec
@@ -262,7 +269,7 @@ class XcodeSettings(object):
     """Returns the architectures this target should be built for."""
     # TODO: Look at VALID_ARCHS, ONLY_ACTIVE_ARCH; possibly set
     # CURRENT_ARCH / NATIVE_ARCH env vars?
-    return self.xcode_settings[configname].get('ARCHS', ['i386'])
+    return self.xcode_settings[configname].get('ARCHS', [self._DefaultArch()])
 
   def _GetStdout(self, cmdlist):
     job = subprocess.Popen(cmdlist, stdout=subprocess.PIPE)
@@ -284,9 +291,14 @@ class XcodeSettings(object):
     sdk_root = self._SdkRoot(configname)
     if sdk_root.startswith('/'):
       return sdk_root
+    return self._XcodeSdkPath(sdk_root)
+
+  def _XcodeSdkPath(self, sdk_root):
     if sdk_root not in XcodeSettings._sdk_path_cache:
-      XcodeSettings._sdk_path_cache[sdk_root] = self._GetSdkVersionInfoItem(
-          sdk_root, 'Path')
+      sdk_path = self._GetSdkVersionInfoItem(sdk_root, 'Path')
+      XcodeSettings._sdk_path_cache[sdk_root] = sdk_path
+      if sdk_root:
+        XcodeSettings._sdk_root_cache[sdk_path] = sdk_root
     return XcodeSettings._sdk_path_cache[sdk_root]
 
   def _AppendPlatformVersionMinFlags(self, lst):
@@ -377,7 +389,7 @@ class XcodeSettings(object):
     if arch is not None:
       archs = [arch]
     else:
-      archs = self._Settings().get('ARCHS', ['i386'])
+      archs = self._Settings().get('ARCHS', [self._DefaultArch()])
     if len(archs) != 1:
       # TODO: Supporting fat binaries will be annoying.
       self._WarnUnimplemented('ARCHS')
@@ -630,7 +642,7 @@ class XcodeSettings(object):
     if arch is not None:
       archs = [arch]
     else:
-      archs = self._Settings().get('ARCHS', ['i386'])
+      archs = self._Settings().get('ARCHS', [self._DefaultArch()])
     if len(archs) != 1:
       # TODO: Supporting fat binaries will be annoying.
       self._WarnUnimplemented('ARCHS')
@@ -780,33 +792,38 @@ class XcodeSettings(object):
     if not (self.isIOS and self.spec['type'] == "executable"):
       return []
 
-    identity = self.xcode_settings[configname].get('CODE_SIGN_IDENTITY', '')
-    if identity == '':
+    settings = self.xcode_settings[configname]
+    key = self._GetIOSCodeSignIdentityKey(settings)
+    if not key:
       return []
+
+    # Warn for any unimplemented signing xcode keys.
+    unimpl = ['OTHER_CODE_SIGN_FLAGS']
+    unimpl = set(unimpl) & set(self.xcode_settings[configname].keys())
+    if unimpl:
+      print 'Warning: Some codesign keys not implemented, ignoring: %s' % (
+          ', '.join(sorted(unimpl)))
+
+    return ['%s code-sign-bundle "%s" "%s" "%s" "%s"' % (
+        os.path.join('${TARGET_BUILD_DIR}', 'gyp-mac-tool'), key,
+        settings.get('CODE_SIGN_RESOURCE_RULES_PATH', ''),
+        settings.get('CODE_SIGN_ENTITLEMENTS', ''),
+        settings.get('PROVISIONING_PROFILE', ''))
+    ]
+
+  def _GetIOSCodeSignIdentityKey(self, settings):
+    identity = settings.get('CODE_SIGN_IDENTITY')
+    if not identity:
+      return None
     if identity not in XcodeSettings._codesigning_key_cache:
-      proc = subprocess.Popen(['security', 'find-identity', '-p', 'codesigning',
-                               '-v'], stdout=subprocess.PIPE)
-      output = proc.communicate()[0].strip()
-      key = None
-      for item in output.split("\n"):
-        if identity in item:
-          assert key == None, (
-              "Multiple codesigning identities for identity: %s" %
-              identity)
-          key = item.split(' ')[1]
-      XcodeSettings._codesigning_key_cache[identity] = key
-    key = XcodeSettings._codesigning_key_cache[identity]
-    if key:
-      # Warn for any unimplemented signing xcode keys.
-      unimpl = ['CODE_SIGN_RESOURCE_RULES_PATH', 'OTHER_CODE_SIGN_FLAGS',
-                'CODE_SIGN_ENTITLEMENTS']
-      keys = set(self.xcode_settings[configname].keys())
-      unimpl = set(unimpl) & keys
-      if unimpl:
-        print 'Warning: Some codesign keys not implemented, ignoring:', \
-            ' '.join(unimpl)
-      return ['codesign --force --sign %s %s' % (key, output_binary)]
-    return []
+      output = subprocess.check_output(
+          ['security', 'find-identity', '-p', 'codesigning', '-v'])
+      for line in output.splitlines():
+        if identity in line:
+          assert identity not in XcodeSettings._codesigning_key_cache, (
+              "Multiple codesigning identities for identity: %s" % identity)
+          XcodeSettings._codesigning_key_cache[identity] = line.split()[1]
+    return XcodeSettings._codesigning_key_cache.get(identity, '')
 
   def AddImplicitPostbuilds(self, configname, output, output_binary,
                             postbuilds=[], quiet=False):
@@ -848,14 +865,16 @@ class XcodeSettings(object):
     #    Component versions: DevToolsCore-1809.0; DevToolsSupport-1806.0
     #    BuildVersion: 10M2518
     # Convert that to '0463', '4H1503'.
-    version_list = self._GetStdout(['xcodebuild', '-version']).splitlines()
-    version = version_list[0]
-    build = version_list[-1]
-    # Be careful to convert "4.2" to "0420":
-    version = version.split()[-1].replace('.', '')
-    version = (version + '0' * (3 - len(version))).zfill(4)
-    build = build.split()[-1]
-    return version, build
+    if len(XcodeSettings._xcode_version_cache) == 0:
+      version_list = self._GetStdout(['xcodebuild', '-version']).splitlines()
+      version = version_list[0]
+      build = version_list[-1]
+      # Be careful to convert "4.2" to "0420":
+      version = version.split()[-1].replace('.', '')
+      version = (version + '0' * (3 - len(version))).zfill(4)
+      build = build.split()[-1]
+      XcodeSettings._xcode_version_cache = (version, build)
+    return XcodeSettings._xcode_version_cache
 
   def _XcodeIOSDeviceFamily(self, configname):
     family = self.xcode_settings[configname].get('TARGETED_DEVICE_FAMILY', '1')
@@ -872,6 +891,8 @@ class XcodeSettings(object):
       cache['DTXcodeBuild'] = xcode_build
 
       sdk_root = self._SdkRoot(configname)
+      if not sdk_root:
+        sdk_root = self._DefaultSdkRoot()
       cache['DTSDKName'] = sdk_root
       if xcode >= '0430':
         cache['DTSDKBuild'] = self._GetSdkVersionInfoItem(
@@ -896,6 +917,51 @@ class XcodeSettings(object):
       items['UIDeviceFamily'] = self._XcodeIOSDeviceFamily(configname)
     return items
 
+  def _DefaultSdkRoot(self):
+    """Returns the default SDKROOT to use.
+
+    Prior to version 5.0.0, if SDKROOT was not explicitly set in the Xcode
+    project, then the environment variable was empty. Starting with this
+    version, Xcode uses the name of the newest SDK installed.
+    """
+    if self._XcodeVersion() < '0500':
+      return ''
+    default_sdk_path = self._XcodeSdkPath('')
+    default_sdk_root = XcodeSettings._sdk_root_cache.get(default_sdk_path)
+    if default_sdk_root:
+      return default_sdk_root
+    all_sdks = self._GetStdout(['xcodebuild', '-showsdks'])
+    for line in all_sdks.splitlines():
+      items = line.split()
+      if len(items) >= 3 and items[-2] == '-sdk':
+        sdk_root = items[-1]
+        sdk_path = self._XcodeSdkPath(sdk_root)
+        if sdk_path == default_sdk_path:
+          return sdk_root
+    return ''
+
+  def _DefaultArch(self):
+    # For Mac projects, Xcode changed the default value used when ARCHS is not
+    # set from "i386" to "x86_64".
+    #
+    # For iOS projects, if ARCHS is unset, it defaults to "armv7 armv7s" when
+    # building for a device, and the simulator binaries are always build for
+    # "i386".
+    #
+    # For new projects, ARCHS is set to $(ARCHS_STANDARD_INCLUDING_64_BIT),
+    # which correspond to "armv7 armv7s arm64", and when building the simulator
+    # the architecture is either "i386" or "x86_64" depending on the simulated
+    # device (respectively 32-bit or 64-bit device).
+    #
+    # Since the value returned by this function is only used when ARCHS is not
+    # set, then on iOS we return "i386", as the default xcode project generator
+    # does not set ARCHS if it is not set in the .gyp file.
+    if self.isIOS:
+      return 'i386'
+    version, build = self._XcodeVersion()
+    if version >= '0500':
+      return 'x86_64'
+    return 'i386'
 
 class MacPrefixHeader(object):
   """A class that helps with emulating Xcode's GCC_PREFIX_HEADER feature.
