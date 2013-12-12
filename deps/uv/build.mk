@@ -74,6 +74,7 @@ TESTS= \
 	test/test-delayed-accept.o \
 	test/test-dlerror.o \
 	test/test-embed.o \
+	test/test-emfile.o \
 	test/test-error.o \
 	test/test-fail-always.o \
 	test/test-fs.o \

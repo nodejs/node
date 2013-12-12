@@ -679,8 +679,8 @@ static void uv__write_req_finish(uv_write_t* req) {
   /* Only free when there was no error. On error, we touch up write_queue_size
    * right before making the callback. The reason we don't do that right away
    * is that a write_queue_size > 0 is our only way to signal to the user that
-   * he should stop writing - which he should if we got an error. Something to
-   * revisit in future revisions of the libuv API.
+   * they should stop writing - which they should if we got an error. Something
+   * to revisit in future revisions of the libuv API.
    */
   if (req->error == 0) {
     if (req->bufs != req->bufsml)

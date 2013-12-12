@@ -102,25 +102,6 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 }
 
 
-void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
-  struct kevent* events;
-  uintptr_t i;
-  uintptr_t nfds;
-
-  assert(loop->watchers != NULL);
-
-  events = (struct kevent*) loop->watchers[loop->nwatchers];
-  nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];
-  if (events == NULL)
-    return;
-
-  /* Invalidate events with same file descriptor */
-  for (i = 0; i < nfds; i++)
-    if ((int) events[i].ident == fd)
-      events[i].ident = -1;
-}
-
-
 static void uv__cf_loop_runner(void* arg) {
   uv_loop_t* loop;
 

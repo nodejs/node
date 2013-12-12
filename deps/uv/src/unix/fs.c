@@ -302,7 +302,7 @@ static ssize_t uv__fs_sendfile_emul(uv_fs_t* req) {
    *
    * 1. Read errors are reported only if nsent==0, otherwise we return nsent.
    *    The user needs to know that some data has already been sent, to stop
-   *    him from sending it twice.
+   *    them from sending it twice.
    *
    * 2. Write errors are always reported. Write errors are bad because they
    *    mean data loss: we've read data but now we can't write it out.

@@ -218,6 +218,7 @@ TEST_DECLARE   (listen_with_simultaneous_accepts)
 TEST_DECLARE   (listen_no_simultaneous_accepts)
 TEST_DECLARE   (fs_stat_root)
 #else
+TEST_DECLARE   (emfile)
 TEST_DECLARE   (spawn_setuid_setgid)
 TEST_DECLARE   (we_get_signal)
 TEST_DECLARE   (we_get_signals)
@@ -444,6 +445,7 @@ TASK_LIST_START
   TEST_ENTRY  (listen_no_simultaneous_accepts)
   TEST_ENTRY  (fs_stat_root)
 #else
+  TEST_ENTRY  (emfile)
   TEST_ENTRY  (spawn_setuid_setgid)
   TEST_ENTRY  (we_get_signal)
   TEST_ENTRY  (we_get_signals)
