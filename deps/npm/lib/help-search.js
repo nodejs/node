@@ -157,6 +157,8 @@ function searchFiles (args, files, cb) {
 }
 
 function formatResults (args, results, cb) {
+  if (!results) return cb(null)
+
   var cols = Math.min(process.stdout.columns || Infinity, 80) + 1
 
   var out = results.map(function (res, i, results) {

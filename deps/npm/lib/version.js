@@ -65,7 +65,8 @@ function version (args, silent, cb_) {
         cb_(er)
       }
 
-      var doGit = !er && s.isDirectory()
+      var tags = npm.config.get('git-tag-version')
+      var doGit = !er && s.isDirectory() && tags
       if (!doGit) return write(data, cb)
       else checkGit(data, cb)
     })

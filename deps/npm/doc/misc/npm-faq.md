@@ -277,6 +277,7 @@ Windows:
 
 * <http://github.com/marcelklehr/nodist>
 * <https://github.com/hakobera/nvmw>
+* <https://github.com/nanjingboy/nvmw>
 
 ## How can I use npm for development?
 

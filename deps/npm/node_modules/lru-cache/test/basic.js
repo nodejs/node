@@ -327,3 +327,43 @@ test("least recently set w/ peek", function (t) {
   t.equal(cache.get("a"), undefined)
   t.end()
 })
+
+test("pop the least used item", function (t) {
+  var cache = new LRU(3)
+  , last
+
+  cache.set("a", "A")
+  cache.set("b", "B")
+  cache.set("c", "C")
+
+  t.equal(cache.length, 3)
+  t.equal(cache.max, 3)
+
+  // Ensure we pop a, c, b
+  cache.get("b", "B")
+
+  last = cache.pop()
+  t.equal(last.key, "a")
+  t.equal(last.value, "A")
+  t.equal(cache.length, 2)
+  t.equal(cache.max, 3)
+
+  last = cache.pop()
+  t.equal(last.key, "c")
+  t.equal(last.value, "C")
+  t.equal(cache.length, 1)
+  t.equal(cache.max, 3)
+
+  last = cache.pop()
+  t.equal(last.key, "b")
+  t.equal(last.value, "B")
+  t.equal(cache.length, 0)
+  t.equal(cache.max, 3)
+
+  last = cache.pop()
+  t.equal(last, null)
+  t.equal(cache.length, 0)
+  t.equal(cache.max, 3)
+
+  t.end()
+})

@@ -265,10 +265,9 @@ function errorHandler (er) {
 
   default:
     log.error("", er.stack || er.message || er)
-    log.error("", ["If you need help, you may report this log at:"
+    log.error("", ["If you need help, you may report this *entire* log,"
+                  ,"including the npm and node versions, at:"
                   ,"    <http://github.com/isaacs/npm/issues>"
-                  ,"or email it to:"
-                  ,"    <npm-@googlegroups.com>"
                   ].join("\n"))
     printStack = false
     break

@@ -1,6 +1,5 @@
 var common = require("../common-tap.js")
 var test = require("tap").test
-var npm = require("../../")
 var pkg = './ignore-shrinkwrap'
 
 var mr = require("npm-registry-mock")

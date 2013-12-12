@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "PACKAGE\.JSON" "5" "November 2013" "" ""
+.TH "PACKAGE\.JSON" "5" "December 2013" "" ""
 .
 .SH "NAME"
 \fBpackage.json\fR \-\- Specifics of npm\'s package\.json handling
@@ -143,17 +143,22 @@ You should specify a license for your package so that people know how they are
 permitted to use it, and any restrictions you\'re placing on it\.
 .
 .P
-The simplest way, assuming you\'re using a common license such as BSD or MIT, is
-to just specify the name of the license you\'re using, like this:
+The simplest way, assuming you\'re using a common license such as BSD\-3\-Clause
+or MIT, is to just specify the standard SPDX ID of the license you\'re using,
+like this:
 .
 .IP "" 4
 .
 .nf
-{ "license" : "BSD" }
+{ "license" : "BSD\-3\-Clause" }
 .
 .fi
 .
 .IP "" 0
+.
+.P
+You can check the full list of SPDX license IDs \fIhttps://spdx\.org/licenses/\fR\|\.
+Ideally you should pick one that is OSI \fIhttp://opensource\.org/licenses/alphabetical\fR approved\.
 .
 .P
 If you have more complex licensing terms, or you want to provide more detail

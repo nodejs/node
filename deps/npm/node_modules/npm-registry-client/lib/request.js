@@ -97,7 +97,7 @@ function regRequest (method, where, what, etag, nofollow, reauthed, cb_) {
       "Cannot insert data into the registry without auth"))
   }
 
-  if (auth && !token) {
+  if (auth && !token && authRequired) {
     remote.auth = new Buffer(auth, "base64").toString("utf8")
   }
 

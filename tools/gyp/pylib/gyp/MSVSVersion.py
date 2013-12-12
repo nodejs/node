@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import gyp
+import glob
 
 
 class VisualStudioVersion(object):
@@ -339,13 +340,13 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
       path = _ConvertToCygpath(path)
       # Check for full.
       full_path = os.path.join(path, 'devenv.exe')
-      express_path = os.path.join(path, 'vcexpress.exe')
+      express_path = os.path.join(path, '*express.exe')
       if not force_express and os.path.exists(full_path):
         # Add this one.
         versions.append(_CreateVersion(version_to_year[version],
             os.path.join(path, '..', '..')))
       # Check for express.
-      elif os.path.exists(express_path):
+      elif glob.glob(express_path):
         # Add this one.
         versions.append(_CreateVersion(version_to_year[version] + 'e',
             os.path.join(path, '..', '..')))

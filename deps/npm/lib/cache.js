@@ -564,7 +564,7 @@ function gitEnv () {
   if (gitEnv_) return gitEnv_
   gitEnv_ = {}
   for (var k in process.env) {
-    if (!~['GIT_PROXY_COMMAND','GIT_SSH'].indexOf(k) && k.match(/^GIT/)) continue
+    if (!~['GIT_PROXY_COMMAND','GIT_SSH','GIT_SSL_NO_VERIFY'].indexOf(k) && k.match(/^GIT/)) continue
     gitEnv_[k] = process.env[k]
   }
   return gitEnv_
@@ -872,10 +872,10 @@ function addLocalTarball (p, name, shasum, cb_) {
   if (typeof cb_ !== "function") cb_ = name, name = ""
   // if it's a tar, and not in place,
   // then unzip to .tmp, add the tmp folder, and clean up tmp
-  if (p.indexOf(npm.tmp) === 0)
+  if (pathIsInside(p, npm.tmp))
     return addTmpTarball(p, name, shasum, cb_)
 
-  if (p.indexOf(npm.cache) === 0) {
+  if (pathIsInside(p, npm.cache)) {
     if (path.basename(p) !== "package.tgz") return cb_(new Error(
       "Not a valid cache tarball name: "+p))
     return addPlacedTarball(p, name, shasum, cb_)
@@ -1117,7 +1117,7 @@ function addLocalDirectory (p, name, shasum, cb) {
   if (typeof cb !== "function") cb = name, name = ""
   // if it's a folder, then read the package.json,
   // tar it to the proper place, and add the cache tar
-  if (p.indexOf(npm.cache) === 0) return cb(new Error(
+  if (pathIsInside(p, npm.cache)) return cb(new Error(
     "Adding a cache directory to the cache will make the world implode."))
   readJson(path.join(p, "package.json"), false, function (er, data) {
     er = needName(er, data)
@@ -1135,8 +1135,8 @@ function addLocalDirectory (p, name, shasum, cb) {
       mkdir(path.dirname(tgz), function (er, made) {
         if (er) return cb(er)
 
-        var fancy = p.indexOf(npm.tmp) !== 0
-                    && p.indexOf(npm.cache) !== 0
+        var fancy = !pathIsInside(p, npm.tmp)
+                    && !pathIsInside(p, npm.cache)
         tar.pack(tgz, p, data, fancy, function (er) {
           if (er) {
             log.error( "addLocalDirectory", "Could not pack %j to %j"
@@ -1252,4 +1252,8 @@ function needVersion(er, data) {
   return er ? er
        : (data && !data.version) ? new Error("No version provided")
        : null
+}
+
+function pathIsInside (potentialChild, parent) {
+  return path.relative(parent, potentialChild).indexOf('..') === -1
 }

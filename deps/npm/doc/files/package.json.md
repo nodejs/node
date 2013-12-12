@@ -112,10 +112,15 @@ If a url is provided, it will be used by the `npm bugs` command.
 You should specify a license for your package so that people know how they are
 permitted to use it, and any restrictions you're placing on it.
 
-The simplest way, assuming you're using a common license such as BSD or MIT, is
-to just specify the name of the license you're using, like this:
+The simplest way, assuming you're using a common license such as BSD-3-Clause
+or MIT, is to just specify the standard SPDX ID of the license you're using,
+like this:
 
-    { "license" : "BSD" }
+    { "license" : "BSD-3-Clause" }
+
+You can check [the full list of SPDX license IDs](https://spdx.org/licenses/).
+Ideally you should pick one that is
+[OSI](http://opensource.org/licenses/alphabetical) approved.
 
 If you have more complex licensing terms, or you want to provide more detail
 in your package.json file, you can use the more verbose plural form, like this:

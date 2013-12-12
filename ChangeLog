@@ -1,4 +1,4 @@
-2013.11.20, Version 0.11.9 (Unstable)
+2013.11.20, Version 0.11.9 (Unstable), dcfd032bdd69dfb38c120e18438d6316ae522edc
 
 * uv: upgrade to v0.11.15 (Timothy J Fontaine)
 
@@ -390,6 +390,39 @@
 * util: custom `inspect()` method may return an Object (Nathan Rajlich)
 
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
+
+
+2013.12.12, Version 0.10.23 (Stable), 0462bc23564e7e950a70ae4577a840b04db6c7c6
+
+* uv: Upgrade to v0.10.20 (Timothy J Fontaine)
+
+* npm: Upgrade to 1.3.17 (isaacs)
+
+* gyp: update to 78b26f7 (Timothy J Fontaine)
+
+* build: include postmortem symbols on linux (Timothy J Fontaine)
+
+* crypto: Make Decipher._flush() emit errors. (Kai Groner)
+
+* dgram: fix abort when getting `fd` of closed dgram (Fedor Indutny)
+
+* events: do not accept NaN in setMaxListeners (Fedor Indutny)
+
+* events: avoid calling `once` functions twice (Tim Wood)
+
+* events: fix TypeError in removeAllListeners (Jeremy Martin)
+
+* fs: report correct path when EEXIST (Fedor Indutny)
+
+* process: enforce allowed signals for kill (Sam Roberts)
+
+* tls: emit 'end' on .receivedShutdown (Fedor Indutny)
+
+* tls: fix potential data corruption (Fedor Indutny)
+
+* tls: handle `ssl.start()` errors appropriately (Fedor Indutny)
+
+* tls: reset NPN callbacks after SNI (Fedor Indutny)
 
 
 2013.11.12, Version 0.10.22 (Stable), cbff8f091c22fb1df6b238c7a1b9145db950fa65

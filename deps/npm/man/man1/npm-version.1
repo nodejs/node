@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-VERSION" "1" "November 2013" "" ""
+.TH "NPM\-VERSION" "1" "December 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-version\fR \-\- Bump a package version
@@ -9,7 +9,7 @@
 .SH "SYNOPSIS"
 .
 .nf
-npm version [<newversion> | major | minor | patch | build]
+npm version [<newversion> | major | minor | patch]
 .
 .fi
 .
@@ -19,7 +19,7 @@ data back to the package\.json file\.
 .
 .P
 The \fBnewversion\fR argument should be a valid semver string, \fIor\fR a valid
-second argument to semver\.inc (one of "build", "patch", "minor", or
+second argument to semver\.inc (one of "patch", "minor", or
 "major")\. In the second case, the existing version will be incremented
 by 1 in the specified field\.
 .

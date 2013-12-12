@@ -9,6 +9,8 @@ These functions are executed via gyp-mac-tool when using the Makefile generator.
 """
 
 import fcntl
+import fnmatch
+import glob
 import json
 import os
 import plistlib
@@ -17,6 +19,7 @@ import shutil
 import string
 import subprocess
 import sys
+import tempfile
 
 
 def main(args):
@@ -259,6 +262,249 @@ class MacTool(object):
       os.remove(link)
     os.symlink(dest, link)
 
+  def ExecCodeSignBundle(self, key, resource_rules, entitlements, provisioning):
+    """Code sign a bundle.
+
+    This function tries to code sign an iOS bundle, following the same
+    algorithm as Xcode:
+      1. copy ResourceRules.plist from the user or the SDK into the bundle,
+      2. pick the provisioning profile that best match the bundle identifier,
+         and copy it into the bundle as embedded.mobileprovision,
+      3. copy Entitlements.plist from user or SDK next to the bundle,
+      4. code sign the bundle.
+    """
+    resource_rules_path = self._InstallResourceRules(resource_rules)
+    substitutions, overrides = self._InstallProvisioningProfile(
+        provisioning, self._GetCFBundleIdentifier())
+    entitlements_path = self._InstallEntitlements(
+        entitlements, substitutions, overrides)
+    subprocess.check_call([
+        'codesign', '--force', '--sign', key, '--resource-rules',
+        resource_rules_path, '--entitlements', entitlements_path,
+        os.path.join(
+            os.environ['TARGET_BUILD_DIR'],
+            os.environ['FULL_PRODUCT_NAME'])])
+
+  def _InstallResourceRules(self, resource_rules):
+    """Installs ResourceRules.plist from user or SDK into the bundle.
+
+    Args:
+      resource_rules: string, optional, path to the ResourceRules.plist file
+        to use, default to "${SDKROOT}/ResourceRules.plist"
+
+    Returns:
+      Path to the copy of ResourceRules.plist into the bundle.
+    """
+    source_path = resource_rules
+    target_path = os.path.join(
+        os.environ['BUILT_PRODUCTS_DIR'],
+        os.environ['CONTENTS_FOLDER_PATH'],
+        'ResourceRules.plist')
+    if not source_path:
+      source_path = os.path.join(
+          os.environ['SDKROOT'], 'ResourceRules.plist')
+    shutil.copy2(source_path, target_path)
+    return target_path
+
+  def _InstallProvisioningProfile(self, profile, bundle_identifier):
+    """Installs embedded.mobileprovision into the bundle.
+
+    Args:
+      profile: string, optional, short name of the .mobileprovision file
+        to use, if empty or the file is missing, the best file installed
+        will be used
+      bundle_identifier: string, value of CFBundleIdentifier from Info.plist
+
+    Returns:
+      A tuple containing two dictionary: variables substitutions and values
+      to overrides when generating the entitlements file.
+    """
+    source_path, provisioning_data, team_id = self._FindProvisioningProfile(
+        profile, bundle_identifier)
+    target_path = os.path.join(
+        os.environ['BUILT_PRODUCTS_DIR'],
+        os.environ['CONTENTS_FOLDER_PATH'],
+        'embedded.mobileprovision')
+    shutil.copy2(source_path, target_path)
+    substitutions = self._GetSubstitutions(bundle_identifier, team_id + '.')
+    return substitutions, provisioning_data['Entitlements']
+
+  def _FindProvisioningProfile(self, profile, bundle_identifier):
+    """Finds the .mobileprovision file to use for signing the bundle.
+
+    Checks all the installed provisioning profiles (or if the user specified
+    the PROVISIONING_PROFILE variable, only consult it) and select the most
+    specific that correspond to the bundle identifier.
+
+    Args:
+      profile: string, optional, short name of the .mobileprovision file
+        to use, if empty or the file is missing, the best file installed
+        will be used
+      bundle_identifier: string, value of CFBundleIdentifier from Info.plist
+
+    Returns:
+      A tuple of the path to the selected provisioning profile, the data of
+      the embedded plist in the provisioning profile and the team identifier
+      to use for code signing.
+
+    Raises:
+      SystemExit: if no .mobileprovision can be used to sign the bundle.
+    """
+    profiles_dir = os.path.join(
+        os.environ['HOME'], 'Library', 'MobileDevice', 'Provisioning Profiles')
+    if not os.path.isdir(profiles_dir):
+      print >>sys.stderr, (
+          'cannot find mobile provisioning for %s' % bundle_identifier)
+      sys.exit(1)
+    provisioning_profiles = None
+    if profile:
+      profile_path = os.path.join(profiles_dir, profile + '.mobileprovision')
+      if os.path.exists(profile_path):
+        provisioning_profiles = [profile_path]
+    if not provisioning_profiles:
+      provisioning_profiles = glob.glob(
+          os.path.join(profiles_dir, '*.mobileprovision'))
+    valid_provisioning_profiles = {}
+    for profile_path in provisioning_profiles:
+      profile_data = self._LoadProvisioningProfile(profile_path)
+      app_id_pattern = profile_data.get(
+          'Entitlements', {}).get('application-identifier', '')
+      for team_identifier in profile_data.get('TeamIdentifier', []):
+        app_id = '%s.%s' % (team_identifier, bundle_identifier)
+        if fnmatch.fnmatch(app_id, app_id_pattern):
+          valid_provisioning_profiles[app_id_pattern] = (
+              profile_path, profile_data, team_identifier)
+    if not valid_provisioning_profiles:
+      print >>sys.stderr, (
+          'cannot find mobile provisioning for %s' % bundle_identifier)
+      sys.exit(1)
+    # If the user has multiple provisioning profiles installed that can be
+    # used for ${bundle_identifier}, pick the most specific one (ie. the
+    # provisioning profile whose pattern is the longest).
+    selected_key = max(valid_provisioning_profiles, key=lambda v: len(v))
+    return valid_provisioning_profiles[selected_key]
+
+  def _LoadProvisioningProfile(self, profile_path):
+    """Extracts the plist embedded in a provisioning profile.
+
+    Args:
+      profile_path: string, path to the .mobileprovision file
+
+    Returns:
+      Content of the plist embedded in the provisioning profile as a dictionary.
+    """
+    with tempfile.NamedTemporaryFile() as temp:
+      subprocess.check_call([
+          'security', 'cms', '-D', '-i', profile_path, '-o', temp.name])
+      return self._LoadPlistMaybeBinary(temp.name)
+
+  def _LoadPlistMaybeBinary(self, plist_path):
+    """Loads into a memory a plist possibly encoded in binary format.
+
+    This is a wrapper around plistlib.readPlist that tries to convert the
+    plist to the XML format if it can't be parsed (assuming that it is in
+    the binary format).
+
+    Args:
+      plist_path: string, path to a plist file, in XML or binary format
+
+    Returns:
+      Content of the plist as a dictionary.
+    """
+    try:
+      # First, try to read the file using plistlib that only supports XML,
+      # and if an exception is raised, convert a temporary copy to XML and
+      # load that copy.
+      return plistlib.readPlist(plist_path)
+    except:
+      pass
+    with tempfile.NamedTemporaryFile() as temp:
+      shutil.copy2(plist_path, temp.name)
+      subprocess.check_call(['plutil', '-convert', 'xml1', temp.name])
+      return plistlib.readPlist(temp.name)
+
+  def _GetSubstitutions(self, bundle_identifier, app_identifier_prefix):
+    """Constructs a dictionary of variable substitutions for Entitlements.plist.
+
+    Args:
+      bundle_identifier: string, value of CFBundleIdentifier from Info.plist
+      app_identifier_prefix: string, value for AppIdentifierPrefix
+
+    Returns:
+      Dictionary of substitutions to apply when generating Entitlements.plist.
+    """
+    return {
+      'CFBundleIdentifier': bundle_identifier,
+      'AppIdentifierPrefix': app_identifier_prefix,
+    }
+
+  def _GetCFBundleIdentifier(self):
+    """Extracts CFBundleIdentifier value from Info.plist in the bundle.
+
+    Returns:
+      Value of CFBundleIdentifier in the Info.plist located in the bundle.
+    """
+    info_plist_path = os.path.join(
+        os.environ['TARGET_BUILD_DIR'],
+        os.environ['INFOPLIST_PATH'])
+    info_plist_data = self._LoadPlistMaybeBinary(info_plist_path)
+    return info_plist_data['CFBundleIdentifier']
+
+  def _InstallEntitlements(self, entitlements, substitutions, overrides):
+    """Generates and install the ${BundleName}.xcent entitlements file.
+
+    Expands variables "$(variable)" pattern in the source entitlements file,
+    add extra entitlements defined in the .mobileprovision file and the copy
+    the generated plist to "${BundlePath}.xcent".
+
+    Args:
+      entitlements: string, optional, path to the Entitlements.plist template
+        to use, defaults to "${SDKROOT}/Entitlements.plist"
+      substitutions: dictionary, variable substitutions
+      overrides: dictionary, values to add to the entitlements
+
+    Returns:
+      Path to the generated entitlements file.
+    """
+    source_path = entitlements
+    target_path = os.path.join(
+        os.environ['BUILT_PRODUCTS_DIR'],
+        os.environ['PRODUCT_NAME'] + '.xcent')
+    if not source_path:
+      source_path = os.path.join(
+          os.environ['SDKROOT'],
+          'Entitlements.plist')
+    shutil.copy2(source_path, target_path)
+    data = self._LoadPlistMaybeBinary(target_path)
+    data = self._ExpandVariables(data, substitutions)
+    if overrides:
+      for key in overrides:
+        if key not in data:
+          data[key] = overrides[key]
+    plistlib.writePlist(data, target_path)
+    return target_path
+
+  def _ExpandVariables(self, data, substitutions):
+    """Expands variables "$(variable)" in data.
+
+    Args:
+      data: object, can be either string, list or dictionary
+      substitutions: dictionary, variable substitutions to perform
+
+    Returns:
+      Copy of data where each references to "$(variable)" has been replaced
+      by the corresponding value found in substitutions, or left intact if
+      the key was not found.
+    """
+    if isinstance(data, str):
+      for key, value in substitutions.iteritems():
+        data = data.replace('$(%s)' % key, value)
+      return data
+    if isinstance(data, list):
+      return [self._ExpandVariables(v, substitutions) for v in data]
+    if isinstance(data, dict):
+      return {k: self._ExpandVariables(data[k], substitutions) for k in data}
+    return data
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))

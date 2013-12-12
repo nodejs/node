@@ -230,6 +230,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , "fetch-retry-maxtimeout": 60000
 
     , git: "git"
+    , "git-tag-version": true
 
     , global : false
     , globalconfig : path.resolve(globalPrefix, "etc", "npmrc")
@@ -327,6 +328,7 @@ exports.types =
   , "fetch-retry-mintimeout": Number
   , "fetch-retry-maxtimeout": Number
   , git: String
+  , "git-tag-version": Boolean
   , global : Boolean
   , globalconfig : path
   , globalignorefile: path

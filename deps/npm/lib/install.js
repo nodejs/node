@@ -72,6 +72,7 @@ var npm = require("./npm.js")
   , mkdir = require("mkdirp")
   , lifecycle = require("./utils/lifecycle.js")
   , archy = require("archy")
+  , isGitUrl = require("./utils/is-git-url.js")
 
 function install (args, cb_) {
   var hasArguments = !!args.length
@@ -690,11 +691,19 @@ function targetResolver (where, context, deps) {
         return cb(null, [])
       }
 
+      // if the target is a git repository, we always want to fetch it
+      var isGit = false
+        , maybeGit = what.split("@").pop()
+
+      if (maybeGit)
+        isGit = isGitUrl(url.parse(maybeGit))
+
       if (!er &&
           data &&
           !context.explicit &&
           context.family[data.name] === data.version &&
-          !npm.config.get("force")) {
+          !npm.config.get("force") &&
+          !isGit) {
         log.info("already installed", data.name + "@" + data.version)
         return cb(null, [])
       }

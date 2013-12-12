@@ -57,6 +57,7 @@ generator_wants_sorted_dependencies = False
 generator_additional_non_configuration_keys = []
 generator_additional_path_sections = []
 generator_extra_sources_for_rules = []
+generator_filelist_paths = None
 
 
 def CalculateVariables(default_variables, params):
@@ -102,6 +103,18 @@ def CalculateGeneratorInputInfo(params):
   if android_ndk_version:
     global generator_wants_sorted_dependencies
     generator_wants_sorted_dependencies = True
+
+  output_dir = params['options'].generator_output or \
+               params['options'].toplevel_dir
+  builddir_name = generator_flags.get('output_dir', 'out')
+  qualified_out_dir = os.path.normpath(os.path.join(
+    output_dir, builddir_name, 'gypfiles'))
+
+  global generator_filelist_paths
+  generator_filelist_paths = {
+    'toplevel': params['options'].toplevel_dir,
+    'qualified_out_dir': qualified_out_dir,
+  }
 
 
 def ensure_directory_exists(path):

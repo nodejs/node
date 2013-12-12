@@ -32,7 +32,7 @@ function update (args, cb) {
         , dep = ww[1]
         , want = ww[3]
         , what = dep + "@" + want
-        , req = ww[4]
+        , req = ww[5]
         , url = require('url')
 
       // use the initial installation method (repo, tar, git) for updating
