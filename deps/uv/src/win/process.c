@@ -832,26 +832,26 @@ int uv_spawn(uv_loop_t* loop,
 
   err = uv_utf8_to_utf16_alloc(options->file, &application);
   if (err)
-    goto immediate_failure;
+    goto done;
 
   err = make_program_args(
       options->args,
       options->flags & UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS,
       &arguments);
   if (err)
-    goto immediate_failure;
+    goto done;
 
   if (options->env) {
      err = make_program_env(options->env, &env);
      if (err)
-       goto immediate_failure;
+       goto done;
   }
 
   if (options->cwd) {
     /* Explicit cwd */
     err = uv_utf8_to_utf16_alloc(options->cwd, &cwd);
     if (err)
-      goto immediate_failure;
+      goto done;
 
   } else {
     /* Inherit cwd */
@@ -860,19 +860,19 @@ int uv_spawn(uv_loop_t* loop,
     cwd_len = GetCurrentDirectoryW(0, NULL);
     if (!cwd_len) {
       err = GetLastError();
-      goto immediate_failure;
+      goto done;
     }
 
     cwd = (WCHAR*) malloc(cwd_len * sizeof(WCHAR));
     if (cwd == NULL) {
       err = ERROR_OUTOFMEMORY;
-      goto immediate_failure;
+      goto done;
     }
 
     r = GetCurrentDirectoryW(cwd_len, cwd);
     if (r == 0 || r >= cwd_len) {
       err = GetLastError();
-      goto immediate_failure;
+      goto done;
     }
   }
 
@@ -883,27 +883,25 @@ int uv_spawn(uv_loop_t* loop,
     path_len = GetEnvironmentVariableW(L"PATH", NULL, 0);
     if (path_len == 0) {
       err = GetLastError();
-      goto immediate_failure;
+      goto done;
     }
 
     path = (WCHAR*) malloc(path_len * sizeof(WCHAR));
     if (path == NULL) {
       err = ERROR_OUTOFMEMORY;
-      goto immediate_failure;
+      goto done;
     }
 
     r = GetEnvironmentVariableW(L"PATH", path, path_len);
     if (r == 0 || r >= path_len) {
       err = GetLastError();
-      goto immediate_failure;
+      goto done;
     }
   }
 
   err = uv__stdio_create(loop, options, &process->child_stdio_buffer);
   if (err)
-    goto immediate_failure;
-
-  /* Beyond this point, failure is reported asynchronously. */
+    goto done;
 
   application_path = search_path(application,
                                  cwd,
@@ -911,7 +909,7 @@ int uv_spawn(uv_loop_t* loop,
   if (application_path == NULL) {
     /* Not found. */
     err = ERROR_FILE_NOT_FOUND;
-    goto success_or_async_failure;
+    goto done;
   }
 
   startup.cb = sizeof(startup);
@@ -950,7 +948,7 @@ int uv_spawn(uv_loop_t* loop,
     process_flags |= DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP;
   }
 
-  if (CreateProcessW(application_path,
+  if (!CreateProcessW(application_path,
                      arguments,
                      NULL,
                      NULL,
@@ -960,60 +958,67 @@ int uv_spawn(uv_loop_t* loop,
                      cwd,
                      &startup,
                      &info)) {
-    /* Spawn succeeded */
-    process->process_handle = info.hProcess;
-    process->pid = info.dwProcessId;
-
-    /* If the process isn't spawned as detached, assign to the global job */
-    /* object so windows will kill it when the parent process dies. */
-    if (!(options->flags & UV_PROCESS_DETACHED)) {
-      uv_once(&uv_global_job_handle_init_guard_, uv__init_global_job_handle);
-
-      if (!AssignProcessToJobObject(uv_global_job_handle_, info.hProcess)) {
-        /* AssignProcessToJobObject might fail if this process is under job
-         * control and the job doesn't have the
-         * JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK flag set, on a Windows version
-         * that doesn't support nested jobs.
-         *
-         * When that happens we just swallow the error and continue without
-         * establishing a kill-child-on-parent-exit relationship, otherwise
-         * there would be no way for libuv applications run under job control
-         * to spawn processes at all.
-         */
-        DWORD err = GetLastError();
-        if (err != ERROR_ACCESS_DENIED)
-          uv_fatal_error(err, "AssignProcessToJobObject");
-      }
-    }
-
-    /* Set IPC pid to all IPC pipes. */
-    for (i = 0; i < options->stdio_count; i++) {
-      const uv_stdio_container_t* fdopt = &options->stdio[i];
-      if (fdopt->flags & UV_CREATE_PIPE &&
-          fdopt->data.stream->type == UV_NAMED_PIPE &&
-          ((uv_pipe_t*) fdopt->data.stream)->ipc) {
-        ((uv_pipe_t*) fdopt->data.stream)->ipc_pid = info.dwProcessId;
-      }
-    }
-
-    /* Setup notifications for when the child process exits. */
-    result = RegisterWaitForSingleObject(&process->wait_handle,
-        process->process_handle, exit_wait_callback, (void*)process, INFINITE,
-        WT_EXECUTEINWAITTHREAD | WT_EXECUTEONLYONCE);
-    if (!result) {
-      uv_fatal_error(GetLastError(), "RegisterWaitForSingleObject");
-    }
-
-    CloseHandle(info.hThread);
-
-  } else {
     /* CreateProcessW failed. */
     err = GetLastError();
+    goto done;
   }
 
-  /* We get here if we successfully created a process, or when we */
-  /* encountered failure that we want to report asynchronously. */
- success_or_async_failure:
+  /* Spawn succeeded */
+  /* Beyond this point, failure is reported asynchronously. */
+  
+  process->process_handle = info.hProcess;
+  process->pid = info.dwProcessId;
+
+  /* If the process isn't spawned as detached, assign to the global job */
+  /* object so windows will kill it when the parent process dies. */
+  if (!(options->flags & UV_PROCESS_DETACHED)) {
+    uv_once(&uv_global_job_handle_init_guard_, uv__init_global_job_handle);
+
+    if (!AssignProcessToJobObject(uv_global_job_handle_, info.hProcess)) {
+      /* AssignProcessToJobObject might fail if this process is under job
+       * control and the job doesn't have the
+       * JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK flag set, on a Windows version
+       * that doesn't support nested jobs.
+       *
+       * When that happens we just swallow the error and continue without
+       * establishing a kill-child-on-parent-exit relationship, otherwise
+       * there would be no way for libuv applications run under job control
+       * to spawn processes at all.
+       */
+      DWORD err = GetLastError();
+      if (err != ERROR_ACCESS_DENIED)
+        uv_fatal_error(err, "AssignProcessToJobObject");
+    }
+  }
+
+  /* Set IPC pid to all IPC pipes. */
+  for (i = 0; i < options->stdio_count; i++) {
+    const uv_stdio_container_t* fdopt = &options->stdio[i];
+    if (fdopt->flags & UV_CREATE_PIPE &&
+        fdopt->data.stream->type == UV_NAMED_PIPE &&
+        ((uv_pipe_t*) fdopt->data.stream)->ipc) {
+      ((uv_pipe_t*) fdopt->data.stream)->ipc_pid = info.dwProcessId;
+    }
+  }
+
+  /* Setup notifications for when the child process exits. */
+  result = RegisterWaitForSingleObject(&process->wait_handle,
+      process->process_handle, exit_wait_callback, (void*)process, INFINITE,
+      WT_EXECUTEINWAITTHREAD | WT_EXECUTEONLYONCE);
+  if (!result) {
+    uv_fatal_error(GetLastError(), "RegisterWaitForSingleObject");
+  }
+
+  CloseHandle(info.hThread);
+
+  assert(!err);  
+  
+  /* Make the handle active. It will remain active until the exit callback */
+  /* iis made or the handle is closed, whichever happens first. */
+  uv__handle_start(process);
+
+  /* Cleanup, whether we succeeded or failed. */
+ done:
   free(application);
   free(application_path);
   free(arguments);
@@ -1026,27 +1031,6 @@ int uv_spawn(uv_loop_t* loop,
     uv__stdio_destroy(process->child_stdio_buffer);
     process->child_stdio_buffer = NULL;
   }
-
-  /* Make the handle active, but only if an error didn't happen. It will */
-  /* remain active until the exit callback is made or the handle is closed, */
-  /* whichever happens first. */
-  if (err == 0) {
-    uv__handle_start(process);
-  }
-
-  return err;
-
-  /* This code path is taken when we run into an error that we want to */
-  /* report immediately. */
- immediate_failure:
-  free(application);
-  free(application_path);
-  free(arguments);
-  free(cwd);
-  free(env);
-  free(path);
-
-  assert(process->child_stdio_buffer == NULL);
 
   return uv_translate_sys_error(err);
 }

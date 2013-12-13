@@ -260,6 +260,9 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
   int r;
 
   r = uv__loop_alive(loop);
+  if (!r)
+    uv__update_time(loop);
+
   while (r != 0 && loop->stop_flag == 0) {
     UV_TICK_START(loop, mode);
 

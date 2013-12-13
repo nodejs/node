@@ -75,7 +75,7 @@ int uv_exepath(char* buffer, size_t* size) {
   result = _NSGetExecutablePath(buffer, &usize);
   if (result) return result;
 
-  path = (char*)malloc(2 * PATH_MAX);
+  path = malloc(2 * PATH_MAX);
   fullpath = realpath(buffer, path);
   if (fullpath == NULL) {
     SAVE_ERRNO(free(path));

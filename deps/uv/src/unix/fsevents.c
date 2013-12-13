@@ -251,13 +251,15 @@ static void uv__fsevents_event_cb(ConstFSEventStreamRef streamRef,
       if (strncmp(path, handle->realpath, handle->realpath_len) != 0)
         continue;
 
-      path += handle->realpath_len;
-      len -= handle->realpath_len;
+      if (handle->realpath_len > 1 || *handle->realpath != '/') {
+        path += handle->realpath_len;
+        len -= handle->realpath_len;
 
-      /* Skip back slash */
-      if (*path != 0) {
-        path++;
-        len--;
+        /* Skip forward slash */
+        if (*path != '\0') {
+          path++;
+          len--;
+        }
       }
 
 #ifdef MAC_OS_X_VERSION_10_7
@@ -267,9 +269,9 @@ static void uv__fsevents_event_cb(ConstFSEventStreamRef streamRef,
 #endif /* MAC_OS_X_VERSION_10_7 */
 
       /* Do not emit events from subdirectories (without option set) */
-      if ((handle->cf_flags & UV_FS_EVENT_RECURSIVE) == 0) {
-        pos = strchr(path, '/');
-        if (pos != NULL && pos != path + 1)
+      if ((handle->cf_flags & UV_FS_EVENT_RECURSIVE) == 0 && *path != 0) {
+        pos = strchr(path + 1, '/');
+        if (pos != NULL)
           continue;
       }
 
@@ -588,7 +590,7 @@ static int uv__fsevents_loop_init(uv_loop_t* loop) {
 
   err = uv_mutex_init(&loop->cf_mutex);
   if (err)
-    return err;
+    goto fail_mutex_init;
 
   err = uv_sem_init(&loop->cf_sem, 0);
   if (err)
@@ -658,6 +660,8 @@ fail_fsevent_sem_init:
 
 fail_sem_init:
   uv_mutex_destroy(&loop->cf_mutex);
+
+fail_mutex_init:
   free(state);
   return err;
 }

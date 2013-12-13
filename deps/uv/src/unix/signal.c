@@ -348,6 +348,7 @@ static void uv__signal_event(uv_loop_t* loop,
   int r;
 
   bytes = 0;
+  end = 0;
 
   do {
     r = read(loop->signal_pipefd[0], buf + bytes, sizeof(buf) - bytes);

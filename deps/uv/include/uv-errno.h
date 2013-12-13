@@ -40,6 +40,8 @@
 #define UV__EAI_SERVICE     (-3010)
 #define UV__EAI_SOCKTYPE    (-3011)
 #define UV__EAI_SYSTEM      (-3012) /* TODO(bnoordhuis) Return system error. */
+#define UV__EAI_BADHINTS    (-3013)
+#define UV__EAI_PROTOCOL    (-3014)
 
 /* Only map to the system errno on non-Windows platforms. It's apparently
  * a fairly common practice for Windows programmers to redefine errno codes.

@@ -71,12 +71,15 @@ extern "C" {
   XX(EAI_ADDRFAMILY, "address family not supported")                          \
   XX(EAI_AGAIN, "temporary failure")                                          \
   XX(EAI_BADFLAGS, "bad ai_flags value")                                      \
+  XX(EAI_BADHINTS, "invalid value for hints")                                 \
   XX(EAI_CANCELED, "request canceled")                                        \
   XX(EAI_FAIL, "permanent failure")                                           \
   XX(EAI_FAMILY, "ai_family not supported")                                   \
   XX(EAI_MEMORY, "out of memory")                                             \
   XX(EAI_NODATA, "no address")                                                \
   XX(EAI_NONAME, "unknown node or service")                                   \
+  XX(EAI_OVERFLOW, "argument buffer overflow")                                \
+  XX(EAI_PROTOCOL, "resolved protocol is unknown")                            \
   XX(EAI_SERVICE, "service not available for socket type")                    \
   XX(EAI_SOCKTYPE, "socket type not supported")                               \
   XX(EAI_SYSTEM, "system error")                                              \
@@ -669,6 +672,16 @@ UV_EXTERN int uv_write2(uv_write_t* req,
                         unsigned int nbufs,
                         uv_stream_t* send_handle,
                         uv_write_cb cb);
+
+/*
+ * Same as `uv_write()`, but won't queue write request if it can't be completed
+ * immediately.
+ * Will return either:
+ * - positive number of bytes written
+ * - zero - if queued write is needed
+ * - negative error code
+ */
+UV_EXTERN int uv_try_write(uv_stream_t* handle, const char* buf, size_t length);
 
 /* uv_write_t is a subclass of uv_req_t */
 struct uv_write_s {

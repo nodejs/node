@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_PREREQ(2.57)
-AC_INIT([libuv], [0.11.15], [https://github.com/joyent/libuv/issues])
+AC_INIT([libuv], [0.11.17], [https://github.com/joyent/libuv/issues])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/libuv-extra-automake-flags.m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects] UV_EXTRA_AUTOMAKE_FLAGS)
@@ -46,5 +46,10 @@ AM_CONDITIONAL([OPENBSD], [AS_CASE([$host_os], [openbsd*], [true], [false])])
 AM_CONDITIONAL([SUNOS],   [AS_CASE([$host_os], [solaris*], [true], [false])])
 AM_CONDITIONAL([WINNT],   [AS_CASE([$host_os], [mingw*],   [true], [false])])
 PANDORA_ENABLE_DTRACE
+AC_CHECK_PROG(PKG_CONFIG, pkg-config, yes)
+AM_CONDITIONAL([HAVE_PKG_CONFIG], [test "x$PKG_CONFIG" = "xyes"])
+AS_IF([test "x$PKG_CONFIG" = "xyes"], [
+    AC_CONFIG_FILES([libuv.pc])
+])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

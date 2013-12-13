@@ -462,27 +462,22 @@ void uv__stream_destroy(uv_stream_t* stream) {
  * calling close() and accept().
  */
 static int uv__emfile_trick(uv_loop_t* loop, int accept_fd) {
-  int fd;
+  int err;
 
   if (loop->emfile_fd == -1)
     return -EMFILE;
 
   uv__close(loop->emfile_fd);
+  loop->emfile_fd = -1;
 
-  for (;;) {
-    fd = uv__accept(accept_fd);
+  do {
+    err = uv__accept(accept_fd);
+    if (err >= 0)
+      uv__close(err);
+  } while (err >= 0 || err == -EINTR);
 
-    if (fd != -1) {
-      uv__close(fd);
-      continue;
-    }
-
-    if (errno == EINTR)
-      continue;
-
-    SAVE_ERRNO(loop->emfile_fd = uv__open_cloexec("/", O_RDONLY));
-    return -errno;
-  }
+  SAVE_ERRNO(loop->emfile_fd = uv__open_cloexec("/", O_RDONLY));
+  return err;
 }
 
 
@@ -673,8 +668,8 @@ static void uv__write_req_finish(uv_write_t* req) {
   /* Only free when there was no error. On error, we touch up write_queue_size
    * right before making the callback. The reason we don't do that right away
    * is that a write_queue_size > 0 is our only way to signal to the user that
-   * he should stop writing - which he should if we got an error. Something to
-   * revisit in future revisions of the libuv API.
+   * they should stop writing - which they should if we got an error. Something
+   * to revisit in future revisions of the libuv API.
    */
   if (req->error == 0) {
     if (req->bufs != req->bufsml)
@@ -1301,6 +1296,55 @@ int uv_write(uv_write_t* req,
              unsigned int nbufs,
              uv_write_cb cb) {
   return uv_write2(req, handle, bufs, nbufs, NULL, cb);
+}
+
+
+void uv_try_write_cb(uv_write_t* req, int status) {
+  /* Should not be called */
+  abort();
+}
+
+
+int uv_try_write(uv_stream_t* stream, const char* buf, size_t size) {
+  int r;
+  int has_pollout;
+  size_t written;
+  size_t req_size;
+  uv_write_t req;
+  uv_buf_t bufstruct;
+
+  /* Connecting or already writing some data */
+  if (stream->connect_req != NULL || stream->write_queue_size != 0)
+    return 0;
+
+  has_pollout = uv__io_active(&stream->io_watcher, UV__POLLOUT);
+
+  bufstruct = uv_buf_init((char*) buf, size);
+  r = uv_write(&req, stream, &bufstruct, 1, uv_try_write_cb);
+  if (r != 0)
+    return r;
+
+  /* Remove not written bytes from write queue size */
+  written = size;
+  if (req.bufs != NULL)
+    req_size = uv__write_req_size(&req);
+  else
+    req_size = 0;
+  written -= req_size;
+  stream->write_queue_size -= req_size;
+
+  /* Unqueue request, regardless of immediateness */
+  QUEUE_REMOVE(&req.queue);
+  uv__req_unregister(stream->loop, &req);
+  if (req.bufs != req.bufsml)
+    free(req.bufs);
+  req.bufs = NULL;
+
+  /* Do not poll for writable, if we wasn't before calling this */
+  if (!has_pollout)
+    uv__io_stop(stream->loop, &stream->io_watcher, UV__POLLOUT);
+
+  return (int) written;
 }
 
 

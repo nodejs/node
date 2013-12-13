@@ -202,6 +202,12 @@ int uv_write2(uv_write_t* req,
 }
 
 
+int uv_try_write(uv_stream_t* handle, const char* buf, size_t length) {
+  /* NOTE: Won't work with overlapped writes */
+  return UV_ENOSYS;
+}
+
+
 int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   uv_loop_t* loop = handle->loop;
 

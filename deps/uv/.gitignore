@@ -3,6 +3,7 @@
 *.l[oa]
 *.opensdf
 *.orig
+*.pyc
 *.sdf
 *.suo
 core

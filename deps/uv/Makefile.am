@@ -126,6 +126,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-delayed-accept.c \
                          test/test-dlerror.c \
                          test/test-embed.c \
+                         test/test-emfile.c \
                          test/test-error.c \
                          test/test-fail-always.c \
                          test/test-fs-event.c \
@@ -138,12 +139,14 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-getsockname.c \
                          test/test-hrtime.c \
                          test/test-idle.c \
+                         test/test-ip4-addr.c \
                          test/test-ip6-addr.c \
                          test/test-ipc-send-recv.c \
                          test/test-ipc.c \
                          test/test-list.h \
                          test/test-loop-handles.c \
                          test/test-loop-stop.c \
+                         test/test-loop-time.c \
                          test/test-multiple-listen.c \
                          test/test-mutexes.c \
                          test/test-osx-select.c \
@@ -181,6 +184,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-unexpected-read.c \
                          test/test-tcp-write-to-half-open-connection.c \
                          test/test-tcp-writealot.c \
+                         test/test-tcp-try-write.c \
                          test/test-thread.c \
                          test/test-threadpool-cancel.c \
                          test/test-threadpool.c \
@@ -266,10 +270,18 @@ libuv_la_LIBADD = uv-dtrace.lo
 CLEANFILES += src/unix/uv-dtrace.o src/unix/uv-dtrace.lo
 endif
 
-SUFFIXES = .d
+if HAVE_PKG_CONFIG
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = @PACKAGE_NAME@.pc
+endif
 
+if HAVE_DTRACE
 include/uv-dtrace.h: src/unix/uv-dtrace.d
 	$(AM_V_GEN)$(DTRACE) $(DTRACEFLAGS) -h -xnolibs -s $< -o $(top_srcdir)/$@
+endif
+
+if DTRACE_NEEDS_OBJECTS
+SUFFIXES = .d
 
 src/unix/uv-dtrace.o: src/unix/uv-dtrace.d ${libuv_la_OBJECTS}
 
@@ -285,3 +297,4 @@ src/unix/uv-dtrace.o: src/unix/uv-dtrace.d ${libuv_la_OBJECTS}
 		"pic_object='uv-dtrace.o'" \
 		"non_pic_object='uv-dtrace.o'" \
 	> ${top_builddir}/uv-dtrace.lo
+endif

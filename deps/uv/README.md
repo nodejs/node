@@ -1,7 +1,7 @@
 # libuv
 
 libuv is a multi-platform support library with a focus on asynchronous I/O. It
-was primarily developed for use by [Node.js](http://node.js.org), but it's also
+was primarily developed for use by [Node.js](http://nodejs.org), but it's also
 used by Mozilla's [Rust language](http://www.rust-lang.org/),
 [Luvit](http://luvit.io/), [Julia](http://julialang.org/),
 [pyuv](https://crate.io/packages/pyuv/), and others.
@@ -103,6 +103,14 @@ Run:
 Note for UNIX users: compile your project with `-D_LARGEFILE_SOURCE` and
 `-D_FILE_OFFSET_BITS=64`. GYP builds take care of that automatically.
 
+### Running tests
+
+Run:
+
+    $ ./gyp_uv.py -f make
+    $ make -C out
+    $ ./out/Debug/run-tests
+
 ## Supported Platforms
 
 Microsoft Windows operating systems since Windows XP SP2. It can be built
@@ -116,6 +124,11 @@ OS X using the GCC or XCode toolchain.
 
 Solaris 121 and later using GCC toolchain.
 
+## patches
+
+See the [guidelines for contributing][].
+
 [node.js]: http://nodejs.org/
 [GYP]: http://code.google.com/p/gyp/
 [Visual Studio Express 2010]: http://www.microsoft.com/visualstudio/eng/products/visual-studio-2010-express
+[guidelines for contributing]: https://github.com/joyent/libuv/blob/master/CONTRIBUTING.md

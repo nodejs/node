@@ -243,7 +243,6 @@ void uv__fsevents_loop_delete(uv_loop_t* loop);
 /* OSX < 10.7 has no file events, polyfill them */
 #ifndef MAC_OS_X_VERSION_10_7
 
-static const int kFSEventStreamCreateFlagNoDefer = 0x00000002;
 static const int kFSEventStreamCreateFlagFileEvents = 0x00000010;
 static const int kFSEventStreamEventFlagItemCreated = 0x00000100;
 static const int kFSEventStreamEventFlagItemRemoved = 0x00000200;
