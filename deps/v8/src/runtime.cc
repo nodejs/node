@@ -922,6 +922,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   ASSERT(byte_length % element_size == 0);
   size_t length = byte_length / element_size;
 
+  if (length > static_cast<unsigned>(Smi::kMaxValue)) {
+    return isolate->Throw(*isolate->factory()->
+          NewRangeError("invalid_typed_array_length",
+            HandleVector<Object>(NULL, 0)));
+  }
+
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
   holder->set_weak_next(buffer->weak_first_view());
@@ -961,9 +967,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
   size_t length = NumberToSize(isolate, *length_obj);
-  if (length > (kMaxInt / element_size)) {
+
+  if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
+      (length > (kMaxInt / element_size))) {
     return isolate->Throw(*isolate->factory()->
-          NewRangeError("invalid_array_buffer_length",
+          NewRangeError("invalid_typed_array_length",
             HandleVector<Object>(NULL, 0)));
   }
   size_t byte_length = length * element_size;
@@ -6222,6 +6230,7 @@ template <class Converter>
 MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
     Isolate* isolate,
     String* s,
+    String::Encoding result_encoding,
     int length,
     int input_string_length,
     unibrow::Mapping<Converter, 128>* mapping) {
@@ -6237,13 +6246,15 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
   Object* o;
-  { MaybeObject* maybe_o = s->IsOneByteRepresentation()
+  { MaybeObject* maybe_o = result_encoding == String::ONE_BYTE_ENCODING
         ? isolate->heap()->AllocateRawOneByteString(length)
         : isolate->heap()->AllocateRawTwoByteString(length);
     if (!maybe_o->ToObject(&o)) return maybe_o;
   }
   String* result = String::cast(o);
   bool has_changed_character = false;
+
+  DisallowHeapAllocation no_gc;
 
   // Convert all characters to upper case, assuming that they will fit
   // in the buffer
@@ -6253,6 +6264,10 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   uc32 current = stream.GetNext();
+  // y with umlauts is the only character that stops fitting into one-byte
+  // when converting to uppercase.
+  static const uc32 yuml_code = 0xff;
+  bool ignore_yuml = result->IsSeqTwoByteString() || Converter::kIsToLower;
   for (int i = 0; i < length;) {
     bool has_next = stream.HasMore();
     uc32 next = has_next ? stream.GetNext() : 0;
@@ -6261,13 +6276,14 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
       // The case conversion of this character is the character itself.
       result->Set(i, current);
       i++;
-    } else if (char_length == 1) {
+    } else if (char_length == 1 && (ignore_yuml || current != yuml_code)) {
       // Common case: converting the letter resulted in one character.
       ASSERT(static_cast<uc32>(chars[0]) != current);
       result->Set(i, chars[0]);
       has_changed_character = true;
       i++;
     } else if (length == input_string_length) {
+      bool found_yuml = (current == yuml_code);
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
       // characters.  No matter, we calculate the exact length
@@ -6287,6 +6303,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
       int current_length = i + char_length + next_length;
       while (stream.HasMore()) {
         current = stream.GetNext();
+        found_yuml |= (current == yuml_code);
         // NOTE: we use 0 as the next character here because, while
         // the next character may affect what a character converts to,
         // it does not in any case affect the length of what it convert
@@ -6299,8 +6316,10 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
           return Failure::OutOfMemoryException(0x13);
         }
       }
-      // Try again with the real length.
-      return Smi::FromInt(current_length);
+      // Try again with the real length.  Return signed if we need
+      // to allocate a two-byte string for y-umlaut to uppercase.
+      return (found_yuml && !ignore_yuml) ? Smi::FromInt(-current_length)
+                                          : Smi::FromInt(current_length);
     } else {
       for (int j = 0; j < char_length; j++) {
         result->Set(i, chars[j]);
@@ -6346,121 +6365,107 @@ static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
 }
 
 
-enum AsciiCaseConversion {
-  ASCII_TO_LOWER,
-  ASCII_TO_UPPER
-};
-
-
-template <AsciiCaseConversion dir>
-struct FastAsciiConverter {
-  static bool Convert(char* dst, char* src, int length, bool* changed_out) {
+template<class Converter>
+static bool FastAsciiConvert(char* dst,
+                             char* src,
+                             int length,
+                             bool* changed_out) {
 #ifdef DEBUG
     char* saved_dst = dst;
     char* saved_src = src;
 #endif
-    // We rely on the distance between upper and lower case letters
-    // being a known power of 2.
-    ASSERT('a' - 'A' == (1 << 5));
-    // Boundaries for the range of input characters than require conversion.
-    const char lo = (dir == ASCII_TO_LOWER) ? 'A' - 1 : 'a' - 1;
-    const char hi = (dir == ASCII_TO_LOWER) ? 'Z' + 1 : 'z' + 1;
-    bool changed = false;
-    uintptr_t or_acc = 0;
-    char* const limit = src + length;
+  DisallowHeapAllocation no_gc;
+  // We rely on the distance between upper and lower case letters
+  // being a known power of 2.
+  ASSERT('a' - 'A' == (1 << 5));
+  // Boundaries for the range of input characters than require conversion.
+  static const char lo = Converter::kIsToLower ? 'A' - 1 : 'a' - 1;
+  static const char hi = Converter::kIsToLower ? 'Z' + 1 : 'z' + 1;
+  bool changed = false;
+  uintptr_t or_acc = 0;
+  char* const limit = src + length;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
-    // Process the prefix of the input that requires no conversion one
-    // (machine) word at a time.
-    while (src <= limit - sizeof(uintptr_t)) {
-      uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
-      or_acc |= w;
-      if (AsciiRangeMask(w, lo, hi) != 0) {
-        changed = true;
-        break;
-      }
-      *reinterpret_cast<uintptr_t*>(dst) = w;
-      src += sizeof(uintptr_t);
-      dst += sizeof(uintptr_t);
+  // Process the prefix of the input that requires no conversion one
+  // (machine) word at a time.
+  while (src <= limit - sizeof(uintptr_t)) {
+    uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+    or_acc |= w;
+    if (AsciiRangeMask(w, lo, hi) != 0) {
+      changed = true;
+      break;
     }
-    // Process the remainder of the input performing conversion when
-    // required one word at a time.
-    while (src <= limit - sizeof(uintptr_t)) {
-      uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
-      or_acc |= w;
-      uintptr_t m = AsciiRangeMask(w, lo, hi);
-      // The mask has high (7th) bit set in every byte that needs
-      // conversion and we know that the distance between cases is
-      // 1 << 5.
-      *reinterpret_cast<uintptr_t*>(dst) = w ^ (m >> 2);
-      src += sizeof(uintptr_t);
-      dst += sizeof(uintptr_t);
-    }
-#endif
-    // Process the last few bytes of the input (or the whole input if
-    // unaligned access is not supported).
-    while (src < limit) {
-      char c = *src;
-      or_acc |= c;
-      if (lo < c && c < hi) {
-        c ^= (1 << 5);
-        changed = true;
-      }
-      *dst = c;
-      ++src;
-      ++dst;
-    }
-    if ((or_acc & kAsciiMask) != 0) {
-      return false;
-    }
-#ifdef DEBUG
-    CheckConvert(saved_dst, saved_src, length, changed);
-#endif
-    *changed_out = changed;
-    return true;
+    *reinterpret_cast<uintptr_t*>(dst) = w;
+    src += sizeof(uintptr_t);
+    dst += sizeof(uintptr_t);
   }
-
-#ifdef DEBUG
-  static void CheckConvert(char* dst, char* src, int length, bool changed) {
-    bool expected_changed = false;
-    for (int i = 0; i < length; i++) {
-      if (dst[i] == src[i]) continue;
-      expected_changed = true;
-      if (dir == ASCII_TO_LOWER) {
-        ASSERT('A' <= src[i] && src[i] <= 'Z');
-        ASSERT(dst[i] == src[i] + ('a' - 'A'));
-      } else {
-        ASSERT(dir == ASCII_TO_UPPER);
-        ASSERT('a' <= src[i] && src[i] <= 'z');
-        ASSERT(dst[i] == src[i] - ('a' - 'A'));
-      }
-    }
-    ASSERT(expected_changed == changed);
+  // Process the remainder of the input performing conversion when
+  // required one word at a time.
+  while (src <= limit - sizeof(uintptr_t)) {
+    uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+    or_acc |= w;
+    uintptr_t m = AsciiRangeMask(w, lo, hi);
+    // The mask has high (7th) bit set in every byte that needs
+    // conversion and we know that the distance between cases is
+    // 1 << 5.
+    *reinterpret_cast<uintptr_t*>(dst) = w ^ (m >> 2);
+    src += sizeof(uintptr_t);
+    dst += sizeof(uintptr_t);
   }
 #endif
-};
+  // Process the last few bytes of the input (or the whole input if
+  // unaligned access is not supported).
+  while (src < limit) {
+    char c = *src;
+    or_acc |= c;
+    if (lo < c && c < hi) {
+      c ^= (1 << 5);
+      changed = true;
+    }
+    *dst = c;
+    ++src;
+    ++dst;
+  }
+  if ((or_acc & kAsciiMask) != 0) {
+    return false;
+  }
 
+  ASSERT(CheckFastAsciiConvert(
+             saved_dst, saved_src, length, changed, Converter::kIsToLower));
 
-struct ToLowerTraits {
-  typedef unibrow::ToLowercase UnibrowConverter;
+  *changed_out = changed;
+  return true;
+}
 
-  typedef FastAsciiConverter<ASCII_TO_LOWER> AsciiConverter;
-};
-
-
-struct ToUpperTraits {
-  typedef unibrow::ToUppercase UnibrowConverter;
-
-  typedef FastAsciiConverter<ASCII_TO_UPPER> AsciiConverter;
-};
+#ifdef DEBUG
+static bool CheckFastAsciiConvert(char* dst,
+                                  char* src,
+                                  int length,
+                                  bool changed,
+                                  bool is_to_lower) {
+  bool expected_changed = false;
+  for (int i = 0; i < length; i++) {
+    if (dst[i] == src[i]) continue;
+    expected_changed = true;
+    if (is_to_lower) {
+      ASSERT('A' <= src[i] && src[i] <= 'Z');
+      ASSERT(dst[i] == src[i] + ('a' - 'A'));
+    } else {
+      ASSERT('a' <= src[i] && src[i] <= 'z');
+      ASSERT(dst[i] == src[i] - ('a' - 'A'));
+    }
+  }
+  return (expected_changed == changed);
+}
+#endif
 
 }  // namespace
 
 
-template <typename ConvertTraits>
+template <class Converter>
 MUST_USE_RESULT static MaybeObject* ConvertCase(
     Arguments args,
     Isolate* isolate,
-    unibrow::Mapping<typename ConvertTraits::UnibrowConverter, 128>* mapping) {
+    unibrow::Mapping<Converter, 128>* mapping) {
   SealHandleScope shs(isolate);
   CONVERT_ARG_CHECKED(String, s, 0);
   s = s->TryFlattenGetString();
@@ -6482,7 +6487,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     }
     SeqOneByteString* result = SeqOneByteString::cast(o);
     bool has_changed_character;
-    bool is_ascii = ConvertTraits::AsciiConverter::Convert(
+    bool is_ascii = FastAsciiConvert<Converter>(
         reinterpret_cast<char*>(result->GetChars()),
         reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
         length,
@@ -6493,31 +6498,35 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     }
   }
 
+  String::Encoding result_encoding = s->IsOneByteRepresentation()
+      ? String::ONE_BYTE_ENCODING : String::TWO_BYTE_ENCODING;
   Object* answer;
-  { MaybeObject* maybe_answer =
-        ConvertCaseHelper(isolate, s, length, length, mapping);
+  { MaybeObject* maybe_answer = ConvertCaseHelper(
+        isolate, s, result_encoding, length, length, mapping);
     if (!maybe_answer->ToObject(&answer)) return maybe_answer;
   }
   if (answer->IsSmi()) {
-    // Retry with correct length.
-    { MaybeObject* maybe_answer =
-          ConvertCaseHelper(isolate,
-                            s, Smi::cast(answer)->value(), length, mapping);
-      if (!maybe_answer->ToObject(&answer)) return maybe_answer;
+    int new_length = Smi::cast(answer)->value();
+    if (new_length < 0) {
+      result_encoding = String::TWO_BYTE_ENCODING;
+      new_length = -new_length;
     }
+    MaybeObject* maybe_answer = ConvertCaseHelper(
+        isolate, s, result_encoding, new_length, length, mapping);
+    if (!maybe_answer->ToObject(&answer)) return maybe_answer;
   }
   return answer;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToLowerCase) {
-  return ConvertCase<ToLowerTraits>(
+  return ConvertCase(
       args, isolate, isolate->runtime_state()->to_lower_mapping());
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToUpperCase) {
-  return ConvertCase<ToUpperTraits>(
+  return ConvertCase(
       args, isolate, isolate->runtime_state()->to_upper_mapping());
 }
 
@@ -14786,6 +14795,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalArrayConstructor) {
                                 constructor,
                                 Handle<Object>::null(),
                                 caller_args);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MaxSmi) {
+  return Smi::FromInt(Smi::kMaxValue);
 }
 
 

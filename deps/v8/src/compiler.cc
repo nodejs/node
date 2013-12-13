@@ -262,8 +262,11 @@ static bool AlwaysFullCompiler(Isolate* isolate) {
 
 void RecompileJob::RecordOptimizationStats() {
   Handle<JSFunction> function = info()->closure();
-  int opt_count = function->shared()->opt_count();
-  function->shared()->set_opt_count(opt_count + 1);
+  if (!function->IsOptimized()) {
+    // Concurrent recompilation and OSR may race.  Increment only once.
+    int opt_count = function->shared()->opt_count();
+    function->shared()->set_opt_count(opt_count + 1);
+  }
   double ms_creategraph = time_taken_to_create_graph_.InMillisecondsF();
   double ms_optimize = time_taken_to_optimize_.InMillisecondsF();
   double ms_codegen = time_taken_to_codegen_.InMillisecondsF();

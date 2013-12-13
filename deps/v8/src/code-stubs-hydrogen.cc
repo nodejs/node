@@ -1241,8 +1241,6 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
                         HObjectAccess::ForSharedFunctionInfoPointer(),
                         shared_info);
   Add<HStoreNamedField>(js_function, HObjectAccess::ForFunctionContextPointer(),
-                        shared_info);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForFunctionContextPointer(),
                         context());
 
   // Initialize the code pointer in the function to be the one

@@ -3257,9 +3257,6 @@ class HDematerializedObject : public HInstruction {
 
   // List of values tracked by this marker.
   ZoneList<HValue*> values_;
-
- private:
-  virtual bool IsDeletable() const V8_FINAL V8_OVERRIDE { return true; }
 };
 
 
@@ -3287,6 +3284,8 @@ class HArgumentsObject V8_FINAL : public HDematerializedObject {
     set_representation(Representation::Tagged());
     SetFlag(kIsArguments);
   }
+
+  virtual bool IsDeletable() const V8_FINAL V8_OVERRIDE { return true; }
 };
 
 
@@ -3323,6 +3322,11 @@ class HCapturedObject V8_FINAL : public HDematerializedObject {
 
  private:
   int capture_id_;
+
+  // Note that we cannot DCE captured objects as they are used to replay
+  // the environment. This method is here as an explicit reminder.
+  // TODO(mstarzinger): Turn HSimulates into full snapshots maybe?
+  virtual bool IsDeletable() const V8_FINAL V8_OVERRIDE { return false; }
 };
 
 

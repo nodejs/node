@@ -735,6 +735,7 @@ int Heap::NotifyContextDisposed() {
     isolate()->optimizing_compiler_thread()->Flush();
   }
   flush_monomorphic_ics_ = true;
+  AgeInlineCaches();
   return ++contexts_disposed_;
 }
 
@@ -1131,8 +1132,6 @@ void Heap::MarkCompact(GCTracer* tracer) {
   gc_state_ = NOT_IN_GC;
 
   isolate_->counters()->objs_since_last_full()->Set(0);
-
-  contexts_disposed_ = 0;
 
   flush_monomorphic_ics_ = false;
 }
@@ -4080,13 +4079,12 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
     return result;
   }
 
-  Object* result;
+  SeqTwoByteString* result;
   { MaybeObject* maybe_result = AllocateRawTwoByteString(1);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!maybe_result->To<SeqTwoByteString>(&result)) return maybe_result;
   }
-  String* answer = String::cast(result);
-  answer->Set(0, code);
-  return answer;
+  result->SeqTwoByteStringSet(0, code);
+  return result;
 }
 
 
@@ -5818,12 +5816,7 @@ bool Heap::IdleNotification(int hint) {
       size_factor * IncrementalMarking::kAllocatedThreshold;
 
   if (contexts_disposed_ > 0) {
-    if (hint >= kMaxHint) {
-      // The embedder is requesting a lot of GC work after context disposal,
-      // we age inline caches so that they don't keep objects from
-      // the old context alive.
-      AgeInlineCaches();
-    }
+    contexts_disposed_ = 0;
     int mark_sweep_time = Min(TimeMarkSweepWouldTakeInMs(), 1000);
     if (hint >= mark_sweep_time && !FLAG_expose_gc &&
         incremental_marking()->IsStopped()) {
@@ -5832,8 +5825,8 @@ bool Heap::IdleNotification(int hint) {
                         "idle notification: contexts disposed");
     } else {
       AdvanceIdleIncrementalMarking(step_size);
-      contexts_disposed_ = 0;
     }
+
     // After context disposal there is likely a lot of garbage remaining, reset
     // the idle notification counters in order to trigger more incremental GCs
     // on subsequent idle notifications.

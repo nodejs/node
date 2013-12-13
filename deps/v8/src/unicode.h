@@ -235,6 +235,7 @@ struct ConnectorPunctuation {
 };
 struct ToLowercase {
   static const int kMaxWidth = 3;
+  static const bool kIsToLower = true;
   static int Convert(uchar c,
                      uchar n,
                      uchar* result,
@@ -242,6 +243,7 @@ struct ToLowercase {
 };
 struct ToUppercase {
   static const int kMaxWidth = 3;
+  static const bool kIsToLower = false;
   static int Convert(uchar c,
                      uchar n,
                      uchar* result,

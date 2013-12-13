@@ -69,6 +69,9 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
 
   function ConstructByLength(obj, length) {
     var l = ToPositiveInteger(length, "invalid_typed_array_length");
+    if (l > %MaxSmi()) {
+      throw MakeRangeError("invalid_typed_array_length");
+    }
     var byteLength = l * elementSize;
     var buffer = new $ArrayBuffer(byteLength);
     %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);

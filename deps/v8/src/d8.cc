@@ -1358,6 +1358,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     if (strcmp(argv[i], "--stress-opt") == 0) {
       options.stress_opt = true;
       argv[i] = NULL;
+    } else if (strcmp(argv[i], "--nostress-opt") == 0) {
+      options.stress_opt = false;
+      argv[i] = NULL;
     } else if (strcmp(argv[i], "--stress-deopt") == 0) {
       options.stress_deopt = true;
       argv[i] = NULL;

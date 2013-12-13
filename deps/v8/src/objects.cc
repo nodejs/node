@@ -9568,7 +9568,7 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
   if (value->IsSmi()) {
     // No optimized code map.
     ASSERT_EQ(0, Smi::cast(value)->value());
-    // Crate 3 entries per context {context, code, literals}.
+    // Create 3 entries per context {context, code, literals}.
     MaybeObject* maybe = heap->AllocateFixedArray(kInitialLength);
     if (!maybe->To(&new_code_map)) return maybe;
     new_code_map->set(kEntriesStart + 0, native_context);
@@ -11564,11 +11564,9 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
   int start = starts.at(group);
   int end = starts.at(group + 1);
   int number_of_entries = starts.number_of_entries();
-  if (start < end && entries->object_at(end - 1) == *object) {
-    // Do not append the compilation info if it is already in the array.
-    // It is sufficient to just check only the last element because
-    // we process embedded maps of an optimized code in one batch.
-    return entries;
+  // Check for existing entry to avoid duplicates.
+  for (int i = start; i < end; i++) {
+    if (entries->object_at(i) == *object) return entries;
   }
   if (entries->length() < kCodesStartIndex + number_of_entries + 1) {
     Factory* factory = entries->GetIsolate()->factory();
