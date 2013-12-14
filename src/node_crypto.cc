@@ -4069,7 +4069,54 @@ void InitCryptoOnce() {
   sk_SSL_COMP_zero(comp_methods);
   assert(sk_SSL_COMP_num(comp_methods) == 0);
 #endif
+
+#ifndef OPENSSL_NO_ENGINE
+  ERR_load_ENGINE_strings();
+  ENGINE_load_builtin_engines();
+#endif  // !OPENSSL_NO_ENGINE
 }
+
+
+#ifndef OPENSSL_NO_ENGINE
+void SetEngine(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.Length() >= 2 && args[0]->IsString());
+  unsigned int flags = args[1]->Uint32Value();
+
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
+
+  const String::Utf8Value engine_id(args[0]);
+  ENGINE* engine = ENGINE_by_id(*engine_id);
+
+  // Engine not found, try loading dynamically
+  if (engine == NULL) {
+    engine = ENGINE_by_id("dynamic");
+    if (engine != NULL) {
+      if (!ENGINE_ctrl_cmd_string(engine, "SO_PATH", *engine_id, 0) ||
+          !ENGINE_ctrl_cmd_string(engine, "LOAD", NULL, 0)) {
+        ENGINE_free(engine);
+        engine = NULL;
+      }
+    }
+  }
+
+  if (engine == NULL) {
+    int err = ERR_get_error();
+    if (err == 0) {
+      char tmp[1024];
+      snprintf(tmp, sizeof(tmp), "Engine \"%s\" was not found", *engine_id);
+      return ThrowError(tmp);
+    } else {
+      return ThrowCryptoError(err);
+    }
+  }
+
+  int r = ENGINE_set_default(engine, flags);
+  ENGINE_free(engine);
+  if (r == 0)
+    return ThrowCryptoError(ERR_get_error());
+}
+#endif  // !OPENSSL_NO_ENGINE
 
 
 // FIXME(bnoordhuis) Handle global init correctly.
@@ -4090,6 +4137,9 @@ void InitCrypto(Handle<Object> target,
   Verify::Initialize(env, target);
   Certificate::Initialize(target);
 
+#ifndef OPENSSL_NO_ENGINE
+  NODE_SET_METHOD(target, "setEngine", SetEngine);
+#endif  // !OPENSSL_NO_ENGINE
   NODE_SET_METHOD(target, "PBKDF2", PBKDF2);
   NODE_SET_METHOD(target, "randomBytes", RandomBytes<false>);
   NODE_SET_METHOD(target, "pseudoRandomBytes", RandomBytes<true>);

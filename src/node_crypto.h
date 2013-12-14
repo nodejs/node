@@ -39,6 +39,9 @@
 #include "v8.h"
 
 #include <openssl/ssl.h>
+#ifndef OPENSSL_NO_ENGINE
+# include <openssl/engine.h>
+#endif  // !OPENSSL_NO_ENGINE
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -574,6 +577,9 @@ class Certificate : public AsyncWrap {
 };
 
 bool EntropySource(unsigned char* buffer, size_t length);
+#ifndef OPENSSL_NO_ENGINE
+void SetEngine(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif  // !OPENSSL_NO_ENGINE
 void InitCrypto(v8::Handle<v8::Object> target);
 
 }  // namespace crypto

@@ -34,6 +34,9 @@
 
 #if HAVE_OPENSSL
 # include <openssl/ssl.h>
+# ifndef OPENSSL_NO_ENGINE
+#  include <openssl/engine.h>
+# endif  // !OPENSSL_NO_ENGINE
 #endif
 
 namespace node {
@@ -874,6 +877,58 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 #ifdef SSL_OP_TLS_ROLLBACK_BUG
     NODE_DEFINE_CONSTANT(target, SSL_OP_TLS_ROLLBACK_BUG);
 #endif
+
+# ifndef OPENSSL_NO_ENGINE
+
+# ifdef ENGINE_METHOD_DSA
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DSA);
+# endif
+
+# ifdef ENGINE_METHOD_DH
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DH);
+# endif
+
+# ifdef ENGINE_METHOD_RAND
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RAND);
+# endif
+
+# ifdef ENGINE_METHOD_ECDH
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ECDH);
+# endif
+
+# ifdef ENGINE_METHOD_ECDSA
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ECDSA);
+# endif
+
+# ifdef ENGINE_METHOD_CIPHERS
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_CIPHERS);
+# endif
+
+# ifdef ENGINE_METHOD_DIGESTS
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DIGESTS);
+# endif
+
+# ifdef ENGINE_METHOD_STORE
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_STORE);
+# endif
+
+# ifdef ENGINE_METHOD_PKEY_METHS
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_PKEY_METHS);
+# endif
+
+# ifdef ENGINE_METHOD_PKEY_ASN1_METHS
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_PKEY_ASN1_METHS);
+# endif
+
+# ifdef ENGINE_METHOD_ALL
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ALL);
+# endif
+
+# ifdef ENGINE_METHOD_NONE
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_NONE);
+# endif
+
+# endif  // !OPENSSL_NO_ENGINE
 
 #ifdef OPENSSL_NPN_NEGOTIATED
 #define NPN_ENABLED 1
