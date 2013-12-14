@@ -83,7 +83,12 @@ var qsWeirdObjects = [
   [{e: extendedFunction}, 'e=', {'e': ''}],
   [{d: new Date()}, 'd=', {'d': ''}],
   [{d: Date}, 'd=', {'d': ''}],
-  [{f: new Boolean(false), t: new Boolean(true)}, 'f=&t=', {'f': '', 't': ''}],
+  [{
+    f: new Boolean(false),
+    t: new Boolean(true)},
+    'f=false&t=true',
+    {'f': 'false', 't': 'true'}
+  ],
   [{f: false, t: true}, 'f=false&t=true', {'f': 'false', 't': 'true'}],
   [{n: null}, 'n=', {'n': ''}],
   [{nan: NaN}, 'nan=', {'nan': ''}],

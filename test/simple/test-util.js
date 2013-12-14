@@ -25,6 +25,35 @@ var assert = require('assert');
 var util = require('util');
 var context = require('vm').runInNewContext;
 
+// isBoolean
+assert.equal(true, util.isBoolean(true));
+assert.equal(true, util.isBoolean(false));
+assert.equal(true, util.isBoolean(Boolean()));
+assert.equal(true, util.isBoolean(new Boolean()));
+assert.equal(true, util.isBoolean(new Boolean(true)));
+assert.equal(true, util.isBoolean(context('Boolean')()));
+assert.equal(false, util.isBoolean({}));
+assert.equal(false, util.isBoolean(/regexp/));
+
+// isNumber
+assert.equal(true, util.isNumber(0));
+assert.equal(true, util.isNumber(NaN));
+assert.equal(true, util.isNumber(Number()));
+assert.equal(true, util.isNumber(new Number()));
+assert.equal(true, util.isNumber(new Number(10)));
+assert.equal(true, util.isNumber(context('Number')()));
+assert.equal(false, util.isNumber({}));
+assert.equal(false, util.isNumber(/regexp/));
+
+// isString
+assert.equal(true, util.isString('string'));
+assert.equal(true, util.isString(String()));
+assert.equal(true, util.isString(new String()));
+assert.equal(true, util.isString(new String(10)));
+assert.equal(true, util.isString(context('String')()));
+assert.equal(false, util.isString({}));
+assert.equal(false, util.isString(/regexp/));
+
 // isArray
 assert.equal(true, util.isArray([]));
 assert.equal(true, util.isArray(Array()));
