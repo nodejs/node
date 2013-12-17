@@ -29,6 +29,7 @@ tap.test("publish", function (t) {
       t.equal(o["dist-tags"].latest, pkg.version)
       t.has(o.versions[pkg.version], pkg)
       t.same(o.maintainers, [ { name: 'username', email: 'i@izs.me' } ])
+      t.same(o.maintainers, o.versions[pkg.version].maintainers)
       var att = o._attachments[ pkg.name + '-' + pkg.version + '.tgz' ]
       t.same(att.data, pd)
       var hash = crypto.createHash('sha1').update(pd, 'base64').digest('hex')

@@ -56,6 +56,7 @@ function putFirst (data, tardata, stat, username, email, cb) {
     }
 
   root.versions[ data.version ] = data
+  data.maintainers = JSON.parse(JSON.stringify(root.maintainers))
   var tag = data.tag || this.conf.get('tag') || "latest"
   root["dist-tags"][tag] = data.version
 
@@ -135,6 +136,8 @@ function putNext(newVersion, root, current, cb) {
         current[i] = root[i]
     }
   }
+  var maint = JSON.parse(JSON.stringify(root.maintainers))
+  root.versions[newVersion].maintainers = maint
 
   this.request("PUT", root.name, current, cb)
 }
