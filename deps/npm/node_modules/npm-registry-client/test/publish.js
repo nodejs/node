@@ -1,4 +1,5 @@
 var tap = require('tap')
+var crypto = require('crypto')
 var server = require('./fixtures/server.js')
 var RC = require('../')
 var client = new RC(
@@ -24,13 +25,14 @@ tap.test("publish", function (t) {
 
     req.on("end", function () {
       var o = JSON.parse(b)
-      console.error('PUT req', o)
       t.equal(o._id, "npm-registry-client")
       t.equal(o["dist-tags"].latest, pkg.version)
       t.has(o.versions[pkg.version], pkg)
       t.same(o.maintainers, [ { name: 'username', email: 'i@izs.me' } ])
       var att = o._attachments[ pkg.name + '-' + pkg.version + '.tgz' ]
       t.same(att.data, pd)
+      var hash = crypto.createHash('sha1').update(pd, 'base64').digest('hex')
+      t.equal(o.versions[pkg.version].dist.shasum, hash)
       res.statusCode = 201
       res.json({created:true})
     })

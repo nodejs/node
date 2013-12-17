@@ -65,7 +65,7 @@ function putFirst (data, tardata, stat, username, email, cb) {
 
   data._id = data.name+"@"+data.version
   data.dist = data.dist || {}
-  data.dist.shasum = crypto.createHash("sha1").update(tardata).digest("hex")
+  data.dist.shasum = crypto.createHash("sha1").update(tardata, 'base64').digest("hex")
   data.dist.tarball = url.resolve(registry, tbURI)
                          .replace(/^https:\/\//, "http://")
 

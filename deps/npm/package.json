@@ -1,5 +1,5 @@
 {
-  "version": "1.3.19",
+  "version": "1.3.20",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -57,7 +57,7 @@
     "chownr": "0",
     "npmlog": "0.0.6",
     "ansi": "~0.2.1",
-    "npm-registry-client": "~0.3.0",
+    "npm-registry-client": "~0.3.1",
     "read-package-json": "~1.1.4",
     "read-installed": "~0.2.2",
     "glob": "~3.2.6",
@@ -143,7 +143,7 @@
   "scripts": {
     "test": "node ./test/run.js && tap test/tap/*.js",
     "tap": "tap test/tap/*.js",
-    "prepublish": "node bin/npm-cli.js prune --prefix=. --no-global && rm -rf test/*/*/node_modules && make -j4 doc",
+    "prepublish": "node bin/npm-cli.js prune --prefix=. --no-global && rm -rf test/*/*/node_modules && make -j32 doc",
     "dumpconf": "env | grep npm | sort | uniq",
     "echo": "node bin/npm-cli.js"
   },
