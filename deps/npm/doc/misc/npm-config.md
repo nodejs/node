@@ -194,6 +194,13 @@ re-checking against the registry.
 Note that no purging is done unless the `npm cache clean` command is
 explicitly used, and that only GET requests use the cache.
 
+### cert
+
+* Default: `null`
+* Type: String
+
+A client certificate to pass when accessing the registry.
+
 ### color
 
 * Default: true on Posix, false on Windows
@@ -201,14 +208,6 @@ explicitly used, and that only GET requests use the cache.
 
 If false, never shows colors.  If `"always"` then always shows colors.
 If true, then only prints color codes for tty file descriptors.
-
-### coverage
-
-* Default: false
-* Type: Boolean
-
-A flag to tell test-harness to run with their coverage options enabled,
-if they respond to the `npm_config_coverage` environment variable.
 
 ### depth
 
@@ -242,6 +241,12 @@ set.
 * Type: path
 
 The command to run for `npm edit` or `npm config edit`.
+
+### email
+
+The email of the logged-in user.
+
+Set by the `npm adduser` command.  Should not be set explicitly.
 
 ### engine-strict
 
@@ -305,6 +310,13 @@ The command to use for git commands.  If git is installed on the
 computer, but is not in the `PATH`, then set this to the full path to
 the git binary.
 
+### git-tag-version
+
+* Default: `true`
+* Type: Boolean
+
+Tag the commit when using the `npm version` command.
+
 ### global
 
 * Default: false
@@ -326,17 +338,6 @@ Operates in "global" mode, so that packages are installed into the
 
 The config file to read for global config options.
 
-### globalignorefile
-
-* Default: {prefix}/etc/npmignore
-* Type: path
-
-The config file to read for global ignore patterns to apply to all users
-and all projects.
-
-If not found, but there is a "gitignore" file in the
-same directory, then that will be used instead.
-
 ### group
 
 * Default: GID of the current process
@@ -344,6 +345,13 @@ same directory, then that will be used instead.
 
 The group to use when running package scripts in global mode as the root
 user.
+
+### heading
+
+* Default: `"npm"`
+* Type: String
+
+The string that starts all the debugging log output.
 
 ### https-proxy
 
@@ -353,20 +361,12 @@ user.
 
 A proxy to use for outgoing https requests.
 
-### user-agent
+### ignore-scripts
 
-* Default: node/{process.version} {process.platform} {process.arch}
-* Type: String
+* Default: false
+* Type: Boolean
 
-Sets a User-Agent to the request header
-
-### ignore
-
-* Default: ""
-* Type: string
-
-A white-space separated list of glob patterns of files to always exclude
-from packages when building tarballs.
+If true, npm does not run scripts specified in package.json files.
 
 ### init-module
 
@@ -377,13 +377,6 @@ A module that will be loaded by the `npm init` command.  See the
 documentation for the
 [init-package-json](https://github.com/isaacs/init-package-json) module
 for more information, or npm-init(1).
-
-### init.version
-
-* Default: "0.0.0"
-* Type: semver
-
-The value `npm init` should use by default for the package version.
 
 ### init.author.name
 
@@ -424,6 +417,13 @@ This feature is currently experimental, and the output data structures
 for many commands is either not implemented in JSON yet, or subject to
 change.  Only the output from `npm ls --json` is currently valid.
 
+### key
+
+* Default: `null`
+* Type: String
+
+A client key to pass when accessing the registry.
+
 ### link
 
 * Default: false
@@ -439,6 +439,14 @@ if one of the two conditions are met:
 * The package is not already installed globally, or
 * the globally installed version is identical to the version that is
   being installed locally.
+
+### local-address
+
+* Default: undefined
+* Type: IP Address
+
+The IP address of the local interface to use when making connections
+to the npm registry.  Must be IPv4 in versions of Node prior to 0.12.
 
 ### loglevel
 
@@ -495,15 +503,7 @@ The node version to use when checking package's "engines" hash.
 * Default: false
 * Type: Boolean
 
-Run tests on installation and report results to the
-`npaturl`.
-
-### npaturl
-
-* Default: Not yet implemented
-* Type: url
-
-The url to report npat test results.
+Run tests on installation.
 
 ### onload-script
 
@@ -763,16 +763,6 @@ The username on the npm registry.  Set with `npm adduser`
 
 The location of user-level configuration settings.
 
-### userignorefile
-
-* Default: ~/.npmignore
-* Type: path
-
-The location of a user-level ignore file to apply to all packages.
-
-If not found, but there is a .gitignore file in the same directory, then
-that will be used instead.
-
 ### umask
 
 * Default: 022
@@ -784,6 +774,13 @@ and folders.
 Folders and executables are given a mode which is `0777` masked against
 this value.  Other files are given a mode which is `0666` masked against
 this value.  Thus, the defaults are `0755` and `0644` respectively.
+
+### user-agent
+
+* Default: node/{process.version} {process.platform} {process.arch}
+* Type: String
+
+Sets a User-Agent to the request header
 
 ### version
 
@@ -812,17 +809,6 @@ Only relevant when specified explicitly on the command line.
 The program to use to view help content.
 
 Set to `"browser"` to view html help content in the default web browser.
-
-### yes
-
-* Default: null
-* Type: Boolean or null
-
-If set to `null`, then prompt the user for responses in some
-circumstances.
-
-If set to `true`, then answer "yes" to any prompt.  If set to `false`
-then answer "no" to any prompt.
 
 ## SEE ALSO
 

@@ -348,6 +348,19 @@ re\-checking against the registry\.
 Note that no purging is done unless the \fBnpm cache clean\fR command is
 explicitly used, and that only GET requests use the cache\.
 .
+.SS "cert"
+.
+.IP "\(bu" 4
+Default: \fBnull\fR
+.
+.IP "\(bu" 4
+Type: String
+.
+.IP "" 0
+.
+.P
+A client certificate to pass when accessing the registry\.
+.
 .SS "color"
 .
 .IP "\(bu" 4
@@ -361,20 +374,6 @@ Type: Boolean or \fB"always"\fR
 .P
 If false, never shows colors\.  If \fB"always"\fR then always shows colors\.
 If true, then only prints color codes for tty file descriptors\.
-.
-.SS "coverage"
-.
-.IP "\(bu" 4
-Default: false
-.
-.IP "\(bu" 4
-Type: Boolean
-.
-.IP "" 0
-.
-.P
-A flag to tell test\-harness to run with their coverage options enabled,
-if they respond to the \fBnpm_config_coverage\fR environment variable\.
 .
 .SS "depth"
 .
@@ -432,6 +431,12 @@ Type: path
 .
 .P
 The command to run for \fBnpm edit\fR or \fBnpm config edit\fR\|\.
+.
+.SS "email"
+The email of the logged\-in user\.
+.
+.P
+Set by the \fBnpm adduser\fR command\.  Should not be set explicitly\.
 .
 .SS "engine\-strict"
 .
@@ -546,6 +551,19 @@ The command to use for git commands\.  If git is installed on the
 computer, but is not in the \fBPATH\fR, then set this to the full path to
 the git binary\.
 .
+.SS "git\-tag\-version"
+.
+.IP "\(bu" 4
+Default: \fBtrue\fR
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Tag the commit when using the \fBnpm version\fR command\.
+.
 .SS "global"
 .
 .IP "\(bu" 4
@@ -584,24 +602,6 @@ Type: path
 .P
 The config file to read for global config options\.
 .
-.SS "globalignorefile"
-.
-.IP "\(bu" 4
-Default: {prefix}/etc/npmignore
-.
-.IP "\(bu" 4
-Type: path
-.
-.IP "" 0
-.
-.P
-The config file to read for global ignore patterns to apply to all users
-and all projects\.
-.
-.P
-If not found, but there is a "gitignore" file in the
-same directory, then that will be used instead\.
-.
 .SS "group"
 .
 .IP "\(bu" 4
@@ -616,6 +616,19 @@ Type: String or Number
 The group to use when running package scripts in global mode as the root
 user\.
 .
+.SS "heading"
+.
+.IP "\(bu" 4
+Default: \fB"npm"\fR
+.
+.IP "\(bu" 4
+Type: String
+.
+.IP "" 0
+.
+.P
+The string that starts all the debugging log output\.
+.
 .SS "https\-proxy"
 .
 .IP "\(bu" 4
@@ -629,32 +642,18 @@ Type: url
 .P
 A proxy to use for outgoing https requests\.
 .
-.SS "user\-agent"
+.SS "ignore\-scripts"
 .
 .IP "\(bu" 4
-Default: node/{process\.version} {process\.platform} {process\.arch}
+Default: false
 .
 .IP "\(bu" 4
-Type: String
+Type: Boolean
 .
 .IP "" 0
 .
 .P
-Sets a User\-Agent to the request header
-.
-.SS "ignore"
-.
-.IP "\(bu" 4
-Default: ""
-.
-.IP "\(bu" 4
-Type: string
-.
-.IP "" 0
-.
-.P
-A white\-space separated list of glob patterns of files to always exclude
-from packages when building tarballs\.
+If true, npm does not run scripts specified in package\.json files\.
 .
 .SS "init\-module"
 .
@@ -670,19 +669,6 @@ Type: path
 A module that will be loaded by the \fBnpm init\fR command\.  See the
 documentation for the init\-package\-json \fIhttps://github\.com/isaacs/init\-package\-json\fR module
 npm help for more information, or npm\-init\.
-.
-.SS "init\.version"
-.
-.IP "\(bu" 4
-Default: "0\.0\.0"
-.
-.IP "\(bu" 4
-Type: semver
-.
-.IP "" 0
-.
-.P
-The value \fBnpm init\fR should use by default for the package version\.
 .
 .SS "init\.author\.name"
 .
@@ -754,6 +740,19 @@ This feature is currently experimental, and the output data structures
 for many commands is either not implemented in JSON yet, or subject to
 change\.  Only the output from \fBnpm ls \-\-json\fR is currently valid\.
 .
+.SS "key"
+.
+.IP "\(bu" 4
+Default: \fBnull\fR
+.
+.IP "\(bu" 4
+Type: String
+.
+.IP "" 0
+.
+.P
+A client key to pass when accessing the registry\.
+.
 .SS "link"
 .
 .IP "\(bu" 4
@@ -781,6 +780,20 @@ the globally installed version is identical to the version that is
 being installed locally\.
 .
 .IP "" 0
+.
+.SS "local\-address"
+.
+.IP "\(bu" 4
+Default: undefined
+.
+.IP "\(bu" 4
+Type: IP Address
+.
+.IP "" 0
+.
+.P
+The IP address of the local interface to use when making connections
+to the npm registry\.  Must be IPv4 in versions of Node prior to 0\.12\.
 .
 .SS "loglevel"
 .
@@ -877,20 +890,7 @@ Type: Boolean
 .IP "" 0
 .
 .P
-Run tests on installation and report results to the \fBnpaturl\fR\|\.
-.
-.SS "npaturl"
-.
-.IP "\(bu" 4
-Default: Not yet implemented
-.
-.IP "\(bu" 4
-Type: url
-.
-.IP "" 0
-.
-.P
-The url to report npat test results\.
+Run tests on installation\.
 .
 .SS "onload\-script"
 .
@@ -1340,23 +1340,6 @@ Type: path
 .P
 The location of user\-level configuration settings\.
 .
-.SS "userignorefile"
-.
-.IP "\(bu" 4
-Default: ~/\.npmignore
-.
-.IP "\(bu" 4
-Type: path
-.
-.IP "" 0
-.
-.P
-The location of a user\-level ignore file to apply to all packages\.
-.
-.P
-If not found, but there is a \.gitignore file in the same directory, then
-that will be used instead\.
-.
 .SS "umask"
 .
 .IP "\(bu" 4
@@ -1375,6 +1358,19 @@ and folders\.
 Folders and executables are given a mode which is \fB0777\fR masked against
 this value\.  Other files are given a mode which is \fB0666\fR masked against
 this value\.  Thus, the defaults are \fB0755\fR and \fB0644\fR respectively\.
+.
+.SS "user\-agent"
+.
+.IP "\(bu" 4
+Default: node/{process\.version} {process\.platform} {process\.arch}
+.
+.IP "\(bu" 4
+Type: String
+.
+.IP "" 0
+.
+.P
+Sets a User\-Agent to the request header
 .
 .SS "version"
 .
@@ -1424,24 +1420,6 @@ The program to use to view help content\.
 .
 .P
 Set to \fB"browser"\fR to view html help content in the default web browser\.
-.
-.SS "yes"
-.
-.IP "\(bu" 4
-Default: null
-.
-.IP "\(bu" 4
-Type: Boolean or null
-.
-.IP "" 0
-.
-.P
-If set to \fBnull\fR, then prompt the user for responses in some
-circumstances\.
-.
-.P
-If set to \fBtrue\fR, then answer "yes" to any prompt\.  If set to \fBfalse\fR
-then answer "no" to any prompt\.
 .
 .SH "SEE ALSO"
 .

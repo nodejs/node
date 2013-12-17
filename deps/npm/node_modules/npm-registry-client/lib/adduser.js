@@ -87,7 +87,7 @@ function adduser (username, password, email, cb) {
                 return cb(er, data, json, response)
               }
               Object.keys(data).forEach(function (k) {
-                if (!userobj[k]) {
+                if (!userobj[k] || k === 'roles') {
                   userobj[k] = data[k]
                 }
               })

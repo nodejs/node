@@ -83,6 +83,7 @@ var mkdir = require("mkdirp")
   , chmodr = require("chmodr")
   , which = require("which")
   , isGitUrl = require("./utils/is-git-url.js")
+  , pathIsInside = require("path-is-inside")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -1252,8 +1253,4 @@ function needVersion(er, data) {
   return er ? er
        : (data && !data.version) ? new Error("No version provided")
        : null
-}
-
-function pathIsInside (potentialChild, parent) {
-  return path.relative(parent, potentialChild).indexOf('..') === -1
 }

@@ -31,7 +31,7 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
   if (!pkg) return cb(new Error("Invalid package data"))
 
   log.info(stage, pkg._id)
-  if (!pkg.scripts) pkg.scripts = {}
+  if (!pkg.scripts || npm.config.get('ignore-scripts')) pkg.scripts = {}
 
   validWd(wd || path.resolve(npm.dir, pkg.name), function (er, wd) {
     if (er) return cb(er)

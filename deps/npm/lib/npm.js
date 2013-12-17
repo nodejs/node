@@ -176,7 +176,7 @@ var commandCache = {}
 Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
   Object.defineProperty(npm.commands, c, { get : function () {
     if (!loaded) throw new Error(
-      "Call npm.load(conf, cb) before using this command.\n"+
+      "Call npm.load(config, cb) before using this command.\n"+
       "See the README.md or cli.js for example usage.")
     var a = npm.deref(c)
     if (c === "la" || c === "ll") {
@@ -276,16 +276,16 @@ function load (npm, cli, cb) {
     //console.error("about to look up configs")
 
     var builtin = path.resolve(__dirname, "..", "npmrc")
-    npmconf.load(cli, builtin, function (er, conf) {
-      if (er === conf) er = null
+    npmconf.load(cli, builtin, function (er, config) {
+      if (er === config) er = null
 
-      npm.config = conf
+      npm.config = config
 
-      var color = conf.get("color")
+      var color = config.get("color")
 
-      log.level = conf.get("loglevel")
-      log.heading = conf.get("heading") || "npm"
-      log.stream = conf.get("logstream")
+      log.level = config.get("loglevel")
+      log.heading = config.get("heading") || "npm"
+      log.stream = config.get("logstream")
       switch (color) {
         case "always": log.enableColor(); break
         case false: log.disableColor(); break
@@ -313,12 +313,12 @@ function load (npm, cli, cb) {
 
       // at this point the configs are all set.
       // go ahead and spin up the registry client.
-      var token = conf.get("_token")
+      var token = config.get("_token")
       if (typeof token === "string") {
         try {
           token = JSON.parse(token)
-          conf.set("_token", token, "user")
-          conf.save("user")
+          config.set("_token", token, "user")
+          config.save("user")
         } catch (e) { token = null }
       }
 
@@ -339,18 +339,18 @@ function load (npm, cli, cb) {
                   , umask: umask }
 
       chain([ [ loadPrefix, npm, cli ]
-            , [ setUser, conf, conf.root ]
+            , [ setUser, config, config.root ]
             , [ loadUid, npm ]
             ], cb)
     })
   })
 }
 
-function loadPrefix (npm, conf, cb) {
+function loadPrefix (npm, config, cb) {
   // try to guess at a good node_modules location.
   var p
     , gp
-  if (!Object.prototype.hasOwnProperty.call(conf, "prefix")) {
+  if (!Object.prototype.hasOwnProperty.call(config, "prefix")) {
     p = process.cwd()
   } else {
     p = npm.config.get("prefix")

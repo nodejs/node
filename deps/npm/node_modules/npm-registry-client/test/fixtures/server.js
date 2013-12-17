@@ -17,10 +17,10 @@ function handler (req, res) {
   , mu = req.method + ' ' + req.url
 
   var k = server._expect[mu] ? mu : server._expect[u] ? u : null
-  if (!k) throw Error('unexpected request', req.method, req.url)
+  if (!k) throw Error('unexpected request: ' + req.method + ' ' + req.url)
 
   var fn = server._expect[k].shift()
-  if (!fn) throw Error('unexpected request', req.method, req.url)
+  if (!fn) throw Error('unexpected request' + req.method + ' ' + req.url)
 
 
   var remain = (Object.keys(server._expect).reduce(function (s, k) {

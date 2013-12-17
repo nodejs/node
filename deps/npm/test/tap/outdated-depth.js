@@ -1,9 +1,10 @@
 var common = require('../common-tap')
+  , path = require('path')
   , test = require('tap').test
   , rimraf = require('rimraf')
   , npm = require('../../')
   , mr = require('npm-registry-mock')
-  , pkg = __dirname + '/outdated-depth'
+  , pkg = path.resolve(__dirname, 'outdated-depth')
 
 function cleanup () {
   rimraf.sync(pkg + '/node_modules')

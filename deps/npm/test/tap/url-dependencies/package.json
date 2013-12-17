@@ -1,0 +1,8 @@
+{
+  "author": "Steve Mason",
+  "name": "url-dependencies",
+  "version": "0.0.0",
+  "dependencies": {
+    "underscore": "http://localhost:1337/underscore/-/underscore-1.3.1.tgz"
+  }
+}
