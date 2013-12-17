@@ -628,4 +628,4 @@ void InitContextify(Handle<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE(node_contextify, node::InitContextify);
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(contextify, node::InitContextify);

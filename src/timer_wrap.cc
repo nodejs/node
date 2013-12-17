@@ -157,4 +157,4 @@ class TimerWrap : public HandleWrap {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE(node_timer_wrap, node::TimerWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(timer_wrap, node::TimerWrap::Initialize)

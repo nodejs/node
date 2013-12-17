@@ -550,7 +550,8 @@ class ZCtx : public AsyncWrap {
 
 void InitZlib(Handle<Object> target,
               Handle<Value> unused,
-              Handle<Context> context) {
+              Handle<Context> context,
+              void* priv) {
   Local<FunctionTemplate> z = FunctionTemplate::New(ZCtx::New);
 
   z->InstanceTemplate()->SetInternalFieldCount(1);
@@ -608,4 +609,4 @@ void InitZlib(Handle<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE(node_zlib, node::InitZlib)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(zlib, node::InitZlib)

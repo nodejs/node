@@ -465,4 +465,4 @@ Local<Object> AddressToJS(Environment* env,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE(node_tcp_wrap, node::TCPWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(tcp_wrap, node::TCPWrap::Initialize)

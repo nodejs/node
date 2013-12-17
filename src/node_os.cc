@@ -302,4 +302,4 @@ void Initialize(Handle<Object> target,
 }  // namespace os
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE(node_os, node::os::Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(os, node::os::Initialize)

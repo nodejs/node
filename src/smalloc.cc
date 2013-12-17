@@ -496,4 +496,4 @@ void Initialize(Handle<Object> exports,
 }  // namespace smalloc
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE(node_smalloc, node::smalloc::Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(smalloc, node::smalloc::Initialize)

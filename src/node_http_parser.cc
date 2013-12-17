@@ -563,7 +563,8 @@ const struct http_parser_settings Parser::settings = {
 
 void InitHttpParser(Handle<Object> target,
                     Handle<Value> unused,
-                    Handle<Context> context) {
+                    Handle<Context> context,
+                    void* priv) {
   Local<FunctionTemplate> t = FunctionTemplate::New(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "HTTPParser"));
@@ -600,4 +601,4 @@ void InitHttpParser(Handle<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE(node_http_parser, node::InitHttpParser)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(http_parser, node::InitHttpParser)

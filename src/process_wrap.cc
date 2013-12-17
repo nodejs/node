@@ -293,4 +293,4 @@ class ProcessWrap : public HandleWrap {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE(node_process_wrap, node::ProcessWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(process_wrap, node::ProcessWrap::Initialize)

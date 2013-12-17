@@ -205,28 +205,32 @@ const char *signo_string(int errorno);
 
 typedef void (*addon_register_func)(
     v8::Handle<v8::Object> exports,
-    v8::Handle<v8::Value> module);
+    v8::Handle<v8::Value> module,
+    void* priv);
 
 typedef void (*addon_context_register_func)(
     v8::Handle<v8::Object> exports,
     v8::Handle<v8::Value> module,
-    v8::Handle<v8::Context> context);
+    v8::Handle<v8::Context> context,
+    void* priv);
 
-struct node_module_struct {
-  int version;
-  void *dso_handle;
-  const char *filename;
-  node::addon_register_func register_func;
-  node::addon_context_register_func register_context_func;
-  const char *modname;
+#define NM_F_BUILTIN 0x01
+
+struct node_module {
+  int nm_version;
+  unsigned int nm_flags;
+  void* nm_dso_handle;
+  const char* nm_filename;
+  node::addon_register_func nm_register_func;
+  node::addon_context_register_func nm_context_register_func;
+  const char* nm_modname;
+  void* nm_priv;
+  struct node_module* nm_link;
 };
 
-node_module_struct* get_builtin_module(const char *name);
+node_module* get_builtin_module(const char *name);
 
-#define NODE_STANDARD_MODULE_STUFF \
-          NODE_MODULE_VERSION,     \
-          NULL,                    \
-          __FILE__
+extern "C" NODE_EXTERN void node_module_register(void* mod);
 
 #ifdef _WIN32
 # define NODE_MODULE_EXPORT __declspec(dllexport)
@@ -234,30 +238,70 @@ node_module_struct* get_builtin_module(const char *name);
 # define NODE_MODULE_EXPORT /* empty */
 #endif
 
-#define NODE_MODULE(modname, regfunc)                                 \
+#if defined(_MSC_VER)
+#pragma section(".CRT$XCU", read)
+#define NODE_C_CTOR(fn)                                               \
+  static void __cdecl fn(void);                                       \
+  __declspec(allocate(".CRT$XCU")) static void (__cdecl*fn ## _)(void) = fn; \
+  static void __cdecl fn(void)
+#else
+#define NODE_C_CTOR(fn)                                               \
+  static void fn(void) __attribute__((constructor));                  \
+  static void fn(void)
+#endif
+
+#define NODE_MODULE_X(modstr, regfunc, priv, flags)                   \
   extern "C" {                                                        \
-    NODE_MODULE_EXPORT node::node_module_struct modname ## _module =  \
+    static node::node_module _module =                                \
     {                                                                 \
-      NODE_STANDARD_MODULE_STUFF,                                     \
+      NODE_MODULE_VERSION,                                            \
+      flags,                                                          \
+      NULL,                                                           \
+      __FILE__,                                                       \
       (node::addon_register_func) (regfunc),                          \
       NULL,                                                           \
-      NODE_STRINGIFY(modname)                                         \
+      modstr,                                                         \
+      priv,                                                           \
+      NULL                                                            \
     };                                                                \
+    NODE_C_CTOR(_register) {                                          \
+      node_module_register(&_module);                                 \
+    }                                                                 \
   }
+
+#define NODE_MODULE_CONTEXT_AWARE_X(modstr, regfunc, priv, flags)     \
+  extern "C" {                                                        \
+    static node::node_module _module =                                \
+    {                                                                 \
+      NODE_MODULE_VERSION,                                            \
+      flags,                                                          \
+      NULL,                                                           \
+      __FILE__,                                                       \
+      NULL,                                                           \
+      (node::addon_context_register_func) (regfunc),                  \
+      modstr,                                                         \
+      priv,                                                           \
+      NULL                                                            \
+    };                                                                \
+    NODE_C_CTOR(_register) {                                          \
+      node_module_register(&_module);                                 \
+    }                                                                 \
+  }
+
+#define NODE_MODULE(modname, regfunc)                                 \
+  NODE_MODULE_X(NODE_STRINGIFY(modname), regfunc, NULL, 0)
 
 #define NODE_MODULE_CONTEXT_AWARE(modname, regfunc)                   \
-  extern "C" {                                                        \
-    NODE_MODULE_EXPORT node::node_module_struct modname ## _module =  \
-    {                                                                 \
-      NODE_STANDARD_MODULE_STUFF,                                     \
-      NULL,                                                           \
-      (regfunc),                                                      \
-      NODE_STRINGIFY(modname)                                         \
-    };                                                                \
-  }
+  NODE_MODULE_CONTEXT_AWARE_X(NODE_STRINGIFY(modname), regfunc, NULL, 0)
 
-#define NODE_MODULE_DECL(modname) \
-  extern "C" node::node_module_struct modname ## _module;
+#define NODE_MODULE_CONTEXT_AWARE_BUILTIN(modname, regfunc)           \
+  NODE_MODULE_CONTEXT_AWARE_X(NODE_STRINGIFY(modname),                \
+  regfunc, NULL, NM_F_BUILTIN)
+
+/*
+ * For backward compatibility in add-on modules.
+ */
+#define NODE_MODULE_DECL /* nothing */
 
 /* Called after the event loop exits but before the VM is disposed.
  * Callbacks are run in reverse order of registration, i.e. newest first.

@@ -130,6 +130,9 @@ static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
 static bool v8_is_profiling = false;
+static node_module* modpending;
+static node_module* modlist_builtin;
+static node_module* modlist_addon;
 
 // used by C++ modules as well
 bool no_deprecation = false;
@@ -1882,6 +1885,29 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(tuple);
 }
 
+extern "C" void node_module_register(void* m) {
+  struct node_module* mp = reinterpret_cast<struct node_module*>(m);
+
+  if (mp->nm_flags & NM_F_BUILTIN) {
+    mp->nm_link = modlist_builtin;
+    modlist_builtin = mp;
+  } else {
+    assert(modpending == NULL);
+    modpending = mp;
+  }
+}
+
+struct node_module* get_builtin_module(const char* name) {
+  struct node_module* mp;
+
+  for (mp = modlist_builtin; mp != NULL; mp = mp->nm_link) {
+    if (strcmp(mp->nm_modname, name) == 0)
+      break;
+  }
+
+  assert(mp == NULL || (mp->nm_flags & NM_F_BUILTIN) != 0);
+  return (mp);
+}
 
 typedef void (UV_DYNAMIC* extInit)(Handle<Object> exports);
 
@@ -1894,12 +1920,12 @@ typedef void (UV_DYNAMIC* extInit)(Handle<Object> exports);
 void DLOpen(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  char symbol[1024], *base, *pos;
+  struct node_module* mp;
   uv_lib_t lib;
-  int r;
 
   if (args.Length() < 2) {
-    return ThrowError("process.dlopen takes exactly 2 arguments.");
+    ThrowError("process.dlopen takes exactly 2 arguments.");
+    return;
   }
 
   Local<Object> module = args[0]->ToObject();  // Cast
@@ -1918,68 +1944,43 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  String::Utf8Value path(args[1]);
-  base = *path;
-
-  /* Find the shared library filename within the full path. */
-#ifdef __POSIX__
-  pos = strrchr(base, '/');
-  if (pos != NULL) {
-    base = pos + 1;
-  }
-#else  // Windows
-  for (;;) {
-    pos = strpbrk(base, "\\/:");
-    if (pos == NULL) {
-      break;
-    }
-    base = pos + 1;
-  }
-#endif  // __POSIX__
-
-  /* Strip the .node extension. */
-  pos = strrchr(base, '.');
-  if (pos != NULL) {
-    *pos = '\0';
-  }
-
-  /* Add the `_module` suffix to the extension name. */
-  r = snprintf(symbol, sizeof symbol, "%s_module", base);
-  if (r <= 0 || static_cast<size_t>(r) >= sizeof symbol) {
-    return ThrowError("Out of memory.");
-  }
-
-  /* Replace dashes with underscores. When loading foo-bar.node,
-   * look for foo_bar_module, not foo-bar_module.
+  /*
+   * Objects containing v14 or later modules will have registered themselves
+   * on the pending list.  Activate all of them now.  At present, only one
+   * module per object is supported.
    */
-  for (pos = symbol; *pos != '\0'; ++pos) {
-    if (*pos == '-')
-      *pos = '_';
-  }
+  mp = modpending;
+  modpending = NULL;
 
-  node_module_struct *mod;
-  if (uv_dlsym(&lib, symbol, reinterpret_cast<void**>(&mod))) {
-    char errmsg[1024];
-    snprintf(errmsg, sizeof(errmsg), "Symbol %s not found.", symbol);
-    return ThrowError(errmsg);
+  if (mp == NULL) {
+    ThrowError("Module did not self-register.");
+    return;
   }
-
-  if (mod->version != NODE_MODULE_VERSION) {
+  if (mp->nm_version != NODE_MODULE_VERSION) {
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
              "Module version mismatch. Expected %d, got %d.",
-             NODE_MODULE_VERSION, mod->version);
-    return ThrowError(errmsg);
+             NODE_MODULE_VERSION, mp->nm_version);
+    ThrowError(errmsg);
+    return;
+  }
+  if (mp->nm_flags & NM_F_BUILTIN) {
+    ThrowError("Built-in module self-registered.");
+    return;
   }
 
-  // Execute the C++ module
-  if (mod->register_context_func != NULL) {
-    mod->register_context_func(exports, module, env->context());
-  } else if (mod->register_func != NULL) {
-    mod->register_func(exports, module);
+  mp->nm_dso_handle = lib.handle;
+  mp->nm_link = modlist_addon;
+  modlist_addon = mp;
+
+  if (mp->nm_context_register_func != NULL) {
+    mp->nm_context_register_func(exports, module, env->context(), mp->nm_priv);
+  } else if (mp->nm_register_func != NULL) {
+    mp->nm_register_func(exports, module, mp->nm_priv);
   } else {
-    return ThrowError("Module has no declared entry point.");
+    ThrowError("Module has no declared entry point.");
+    return;
   }
 
   // Tell coverity that 'handle' should not be freed when we return.
@@ -2082,14 +2083,15 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   uint32_t l = modules->Length();
   modules->Set(l, OneByteString(node_isolate, buf));
 
-  node_module_struct* mod = get_builtin_module(*module_v);
+  node_module* mod = get_builtin_module(*module_v);
   if (mod != NULL) {
     exports = Object::New();
     // Internal bindings don't have a "module" object, only exports.
-    assert(mod->register_func == NULL);
-    assert(mod->register_context_func != NULL);
+    assert(mod->nm_register_func == NULL);
+    assert(mod->nm_context_register_func != NULL);
     Local<Value> unused = Undefined(env->isolate());
-    mod->register_context_func(exports, unused, env->context());
+    mod->nm_context_register_func(exports, unused,
+      env->context(), mod->nm_priv);
     cache->Set(module, exports);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New();

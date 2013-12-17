@@ -1053,7 +1053,8 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
 
 void InitFs(Handle<Object> target,
             Handle<Value> unused,
-            Handle<Context> context) {
+            Handle<Context> context,
+            void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   // Initialize the stats object
@@ -1097,4 +1098,4 @@ void InitFs(Handle<Object> target,
 
 }  // end namespace node
 
-NODE_MODULE_CONTEXT_AWARE(node_fs, node::InitFs)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(fs, node::InitFs)

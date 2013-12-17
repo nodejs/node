@@ -62,4 +62,4 @@ void Initialize(Handle<Object> target,
 }  // namespace uv
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE(node_uv, node::uv::Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(uv, node::uv::Initialize)
