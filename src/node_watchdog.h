@@ -45,7 +45,6 @@ class Watchdog {
   uv_loop_t* loop_;
   uv_async_t async_;
   uv_timer_t timer_;
-  bool thread_created_;
   bool destroyed_;
 };
 
