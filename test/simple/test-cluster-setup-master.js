@@ -39,6 +39,12 @@ if (cluster.isWorker) {
 
   var totalWorkers = 2;
 
+  // Setup master
+  cluster.setupMaster({
+    args: ['custom argument'],
+    silent: true
+  });
+
   cluster.once('setup', function() {
     checks.setupEvent = true;
 
@@ -49,12 +55,6 @@ if (cluster.isWorker) {
         settings.exec === process.argv[1]) {
       checks.settingsObject = true;
     }
-  });
-
-  // Setup master
-  cluster.setupMaster({
-    args: ['custom argument'],
-    silent: true
   });
 
   var correctIn = 0;
