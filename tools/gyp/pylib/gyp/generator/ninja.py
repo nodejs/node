@@ -1039,13 +1039,18 @@ class NinjaWriter:
     elif self.flavor == 'win':
       manifest_name = self.GypPathToUniqueOutput(
           self.ComputeOutputFileName(spec))
-      ldflags, manifest_files = self.msvs_settings.GetLdflags(config_name,
-          self.GypPathToNinja, self.ExpandSpecial, manifest_name, is_executable)
+      ldflags, intermediate_manifest, manifest_files = \
+          self.msvs_settings.GetLdflags(config_name, self.GypPathToNinja,
+                                        self.ExpandSpecial, manifest_name,
+                                        is_executable, self.toplevel_build)
       ldflags = env_ldflags + ldflags
       self.WriteVariableList(ninja_file, 'manifests', manifest_files)
+      implicit_deps = implicit_deps.union(manifest_files)
+      if intermediate_manifest:
+        self.WriteVariableList(
+            ninja_file, 'intermediatemanifest', [intermediate_manifest])
       command_suffix = _GetWinLinkRuleNameSuffix(
-          self.msvs_settings.IsEmbedManifest(config_name),
-          self.msvs_settings.IsLinkIncremental(config_name))
+          self.msvs_settings.IsEmbedManifest(config_name))
       def_file = self.msvs_settings.GetDefFile(self.GypPathToNinja)
       if def_file:
         implicit_deps.add(def_file)
@@ -1505,10 +1510,7 @@ def CalculateGeneratorInputInfo(params):
 
 def OpenOutput(path, mode='w'):
   """Open |path| for writing, creating directories if necessary."""
-  try:
-    os.makedirs(os.path.dirname(path))
-  except OSError:
-    pass
+  gyp.common.EnsureDirExists(path)
   return open(path, mode)
 
 
@@ -1567,63 +1569,28 @@ def GetDefaultConcurrentLinks():
     return 1
 
 
-def _GetWinLinkRuleNameSuffix(embed_manifest, link_incremental):
+def _GetWinLinkRuleNameSuffix(embed_manifest):
   """Returns the suffix used to select an appropriate linking rule depending on
-  whether the manifest embedding and/or incremental linking is enabled."""
-  suffix = ''
-  if embed_manifest:
-    suffix += '_embed'
-    if link_incremental:
-      suffix += '_inc'
-  return suffix
+  whether the manifest embedding is enabled."""
+  return '_embed' if embed_manifest else ''
 
 
-def _AddWinLinkRules(master_ninja, embed_manifest, link_incremental):
+def _AddWinLinkRules(master_ninja, embed_manifest):
   """Adds link rules for Windows platform to |master_ninja|."""
   def FullLinkCommand(ldcmd, out, binary_type):
-    """Returns a one-liner written for cmd.exe to handle multiphase linker
-    operations including manifest file generation. The command will be
-    structured as follows:
-      cmd /c (linkcmd1 a b) && (linkcmd2 x y) && ... &&
-      if not "$manifests"=="" ((manifestcmd1 a b) && (manifestcmd2 x y) && ... )
-    Note that $manifests becomes empty when no manifest file is generated."""
-    link_commands = ['%(ldcmd)s',
-                     'if exist %(out)s.manifest del %(out)s.manifest']
-    mt_cmd = ('%(python)s gyp-win-tool manifest-wrapper'
-              ' $arch $mt -nologo -manifest $manifests')
-    if embed_manifest and not link_incremental:
-      # Embed manifest into a binary. If incremental linking is enabled,
-      # embedding is postponed to the re-linking stage (see below).
-      mt_cmd += ' -outputresource:%(out)s;%(resname)s'
-    else:
-      # Save manifest as an external file.
-      mt_cmd += ' -out:%(out)s.manifest'
-    manifest_commands = [mt_cmd]
-    if link_incremental:
-      # There is no point in generating separate rule for the case when
-      # incremental linking is enabled, but manifest embedding is disabled.
-      # In that case the basic rule should be used (e.g. 'link').
-      # See also implementation of _GetWinLinkRuleNameSuffix().
-      assert embed_manifest
-      # Make .rc file out of manifest, compile it to .res file and re-link.
-      manifest_commands += [
-        ('%(python)s gyp-win-tool manifest-to-rc $arch %(out)s.manifest'
-         ' %(out)s.manifest.rc %(resname)s'),
-        '%(python)s gyp-win-tool rc-wrapper $arch $rc %(out)s.manifest.rc',
-        '%(ldcmd)s %(out)s.manifest.res']
-    cmd = 'cmd /c %s && if not "$manifests"=="" (%s)' % (
-      ' && '.join(['(%s)' % c for c in link_commands]),
-      ' && '.join(['(%s)' % c for c in manifest_commands]))
     resource_name = {
       'exe': '1',
       'dll': '2',
     }[binary_type]
-    return cmd % {'python': sys.executable,
-                  'out': out,
-                  'ldcmd': ldcmd,
-                  'resname': resource_name}
-
-  rule_name_suffix = _GetWinLinkRuleNameSuffix(embed_manifest, link_incremental)
+    return '%(python)s gyp-win-tool link-with-manifests $arch %(embed)s ' \
+           '%(out)s "%(ldcmd)s" %(resname)s $mt $rc "$intermediatemanifest" ' \
+           '$manifests' % {
+               'python': sys.executable,
+               'out': out,
+               'ldcmd': ldcmd,
+               'resname': resource_name,
+               'embed': embed_manifest }
+  rule_name_suffix = _GetWinLinkRuleNameSuffix(embed_manifest)
   dlldesc = 'LINK%s(DLL) $dll' % rule_name_suffix.upper()
   dllcmd = ('%s gyp-win-tool link-wrapper $arch '
             '$ld /nologo $implibflag /DLL /OUT:$dll '
@@ -1915,12 +1882,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
                  sys.executable),
         rspfile='$out.rsp',
         rspfile_content='$in_newline $libflags')
-    _AddWinLinkRules(master_ninja, embed_manifest=True, link_incremental=True)
-    _AddWinLinkRules(master_ninja, embed_manifest=True, link_incremental=False)
-    _AddWinLinkRules(master_ninja, embed_manifest=False, link_incremental=False)
-    # Do not generate rules for embed_manifest=False and link_incremental=True
-    # because in that case rules for (False, False) should be used (see
-    # implementation of _GetWinLinkRuleNameSuffix()).
+    _AddWinLinkRules(master_ninja, embed_manifest=True)
+    _AddWinLinkRules(master_ninja, embed_manifest=False)
   else:
     master_ninja.rule(
       'objc',

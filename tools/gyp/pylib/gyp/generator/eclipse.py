@@ -270,9 +270,9 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   shared_intermediate_dirs = [os.path.join(toplevel_build, 'obj', 'gen'),
                               os.path.join(toplevel_build, 'gen')]
 
-  if not os.path.exists(toplevel_build):
-    os.makedirs(toplevel_build)
-  out = open(os.path.join(toplevel_build, 'eclipse-cdt-settings.xml'), 'w')
+  out_name = os.path.join(toplevel_build, 'eclipse-cdt-settings.xml')
+  gyp.common.EnsureDirExists(out_name)
+  out = open(out_name, 'w')
 
   out.write('<?xml version="1.0" encoding="UTF-8"?>\n')
   out.write('<cdtprojectproperties>\n')
