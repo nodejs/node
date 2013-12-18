@@ -1,4 +1,11 @@
-2013.12.13, Version 0.10.20 (Stable)
+2013.12.19, Version 0.10.21 (Stable)
+
+Changes since version 0.10.20:
+
+* unix: fix a possible memory leak in uv_fs_readdir (Alex Crichton)
+
+
+2013.12.13, Version 0.10.20 (Stable), 04141464dd0fba90ace9aa6f7003ce139b888a40
 
 Changes since version 0.10.19:
 

@@ -202,9 +202,12 @@ static ssize_t uv__fs_readdir(uv_fs_t* req) {
   int i;
   int n;
 
+  dents = NULL;
   n = scandir(req->path, &dents, uv__fs_readdir_filter, alphasort);
 
-  if (n == -1 || n == 0)
+  if (n == 0)
+    goto out; /* osx still needs to deallocate some memory */
+  else if (n == -1)
     return n;
 
   len = 0;
@@ -232,7 +235,7 @@ static ssize_t uv__fs_readdir(uv_fs_t* req) {
 
 out:
   saved_errno = errno;
-  {
+  if (dents != NULL) {
     for (i = 0; i < n; i++)
       free(dents[i]);
     free(dents);
