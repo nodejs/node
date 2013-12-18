@@ -117,12 +117,6 @@ def CalculateGeneratorInputInfo(params):
   }
 
 
-def ensure_directory_exists(path):
-  dir = os.path.dirname(path)
-  if dir and not os.path.exists(dir):
-    os.makedirs(dir)
-
-
 # The .d checking code below uses these functions:
 # wildcard, sort, foreach, shell, wordlist
 # wildcard can handle spaces, the rest can't.
@@ -691,7 +685,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       spec, configs: gyp info
       part_of_all: flag indicating this target is part of 'all'
     """
-    ensure_directory_exists(output_filename)
+    gyp.common.EnsureDirExists(output_filename)
 
     self.fp = open(output_filename, 'w')
 
@@ -820,7 +814,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       targets: list of "all" targets for this sub-project
       build_dir: build output directory, relative to the sub-project
     """
-    ensure_directory_exists(output_filename)
+    gyp.common.EnsureDirExists(output_filename)
     self.fp = open(output_filename, 'w')
     self.fp.write(header)
     # For consistency with other builders, put sub-project build output in the
@@ -2056,8 +2050,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
       make_global_settings += (
           'ifneq (,$(filter $(origin %s), undefined default))\n' % key)
       # Let gyp-time envvars win over global settings.
-      if key in os.environ:
-        value = os.environ[key]
+      env_key = key.replace('.', '_')  # CC.host -> CC_host
+      if env_key in os.environ:
+        value = os.environ[env_key]
       make_global_settings += '  %s = %s\n' % (key, value)
       make_global_settings += 'endif\n'
     else:
@@ -2067,7 +2062,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
   header_params['make_global_settings'] = make_global_settings
 
-  ensure_directory_exists(makefile_path)
+  gyp.common.EnsureDirExists(makefile_path)
   root_makefile = open(makefile_path, 'w')
   root_makefile.write(SHARED_HEADER % header_params)
   # Currently any versions have the same effect, but in future the behavior

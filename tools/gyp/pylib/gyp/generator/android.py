@@ -145,7 +145,7 @@ class AndroidMkWriter(object):
       spec, configs: gyp info
       part_of_all: flag indicating this target is part of 'all'
     """
-    make.ensure_directory_exists(output_filename)
+    gyp.common.EnsureDirExists(output_filename)
 
     self.fp = open(output_filename, 'w')
 
@@ -983,7 +983,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
   makefile_path = os.path.join(options.toplevel_dir, makefile_name)
   assert not options.generator_output, (
       'The Android backend does not support options.generator_output.')
-  make.ensure_directory_exists(makefile_path)
+  gyp.common.EnsureDirExists(makefile_path)
   root_makefile = open(makefile_path, 'w')
 
   root_makefile.write(header)

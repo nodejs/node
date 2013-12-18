@@ -118,13 +118,6 @@ def NormjoinPath(base_path, rel_path):
   return os.path.normpath(os.path.join(base_path, rel_path))
 
 
-def EnsureDirectoryExists(path):
-  """Python version of 'mkdir -p'."""
-  dirPath = os.path.dirname(path)
-  if dirPath and not os.path.exists(dirPath):
-    os.makedirs(dirPath)
-
-
 def CMakeStringEscape(a):
   """Escapes the string 'a' for use inside a CMake string.
 
@@ -1041,7 +1034,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
   toplevel_build = os.path.join(options.toplevel_dir, build_dir)
 
   output_file = os.path.join(toplevel_build, 'CMakeLists.txt')
-  EnsureDirectoryExists(output_file)
+  gyp.common.EnsureDirExists(output_file)
 
   output = open(output_file, 'w')
   output.write('cmake_minimum_required(VERSION 2.8.8 FATAL_ERROR)\n')

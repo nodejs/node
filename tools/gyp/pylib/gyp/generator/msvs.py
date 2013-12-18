@@ -22,6 +22,16 @@ import gyp.MSVSUtil as MSVSUtil
 import gyp.MSVSVersion as MSVSVersion
 from gyp.common import GypError
 
+# TODO: Remove once bots are on 2.7, http://crbug.com/241769
+def _import_OrderedDict():
+  import collections
+  try:
+    return collections.OrderedDict
+  except AttributeError:
+    import gyp.ordered_dict
+    return gyp.ordered_dict.OrderedDict
+OrderedDict = _import_OrderedDict()
+
 
 # Regular expression for validating Visual Studio GUIDs.  If the GUID
 # contains lowercase hex letters, MSVS will be fine. However,
@@ -220,7 +230,6 @@ def _ConvertSourcesToFilterHierarchy(sources, prefix=None, excluded=None,
   if not prefix: prefix = []
   result = []
   excluded_result = []
-  folders = collections.OrderedDict()
   # Gather files into the final result, excluded, or folders.
   for s in sources:
     if len(s) == 1:
@@ -230,22 +239,16 @@ def _ConvertSourcesToFilterHierarchy(sources, prefix=None, excluded=None,
       else:
         result.append(filename)
     else:
-      if not folders.get(s[0]):
-        folders[s[0]] = []
-      folders[s[0]].append(s[1:])
+      contents = _ConvertSourcesToFilterHierarchy([s[1:]], prefix + [s[0]],
+                                                  excluded=excluded,
+                                                  list_excluded=list_excluded)
+      contents = MSVSProject.Filter(s[0], contents=contents)
+      result.append(contents)
   # Add a folder for excluded files.
   if excluded_result and list_excluded:
     excluded_folder = MSVSProject.Filter('_excluded_files',
                                          contents=excluded_result)
     result.append(excluded_folder)
-  # Populate all the folders.
-  for f in folders:
-    contents = _ConvertSourcesToFilterHierarchy(folders[f], prefix=prefix + [f],
-                                                excluded=excluded,
-                                                list_excluded=list_excluded)
-    contents = MSVSProject.Filter(f, contents=contents)
-    result.append(contents)
-
   return result
 
 
@@ -941,9 +944,7 @@ def _GenerateMSVSProject(project, options, version, generator_flags):
     generator_flags: dict of generator-specific flags.
   """
   spec = project.spec
-  vcproj_dir = os.path.dirname(project.path)
-  if vcproj_dir and not os.path.exists(vcproj_dir):
-    os.makedirs(vcproj_dir)
+  gyp.common.EnsureDirExists(project.path)
 
   platforms = _GetUniquePlatforms(spec)
   p = MSVSProject.Writer(project.path, version, spec['target_name'],
@@ -3096,9 +3097,7 @@ def _GenerateMSBuildProject(project, options, version, generator_flags):
   spec = project.spec
   configurations = spec['configurations']
   project_dir, project_file_name = os.path.split(project.path)
-  msbuildproj_dir = os.path.dirname(project.path)
-  if msbuildproj_dir and not os.path.exists(msbuildproj_dir):
-    os.makedirs(msbuildproj_dir)
+  gyp.common.EnsureDirExists(project.path)
   # Prepare list of sources and excluded sources.
   gyp_path = _NormalizedSource(project.build_file)
   relative_path_of_gyp_file = gyp.common.RelativePath(gyp_path, project_dir)

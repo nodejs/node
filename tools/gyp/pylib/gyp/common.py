@@ -391,6 +391,14 @@ def WriteOnDiff(filename):
   return Writer()
 
 
+def EnsureDirExists(path):
+  """Make sure the directory for |path| exists."""
+  try:
+    os.makedirs(os.path.dirname(path))
+  except OSError:
+    pass
+
+
 def GetFlavor(params):
   """Returns |params.flavor| if it's set, the system's default flavor else."""
   flavors = {
