@@ -6364,6 +6364,28 @@ static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
   return (tmp1 & tmp2 & (kOneInEveryByte * 0x80));
 }
 
+#ifdef DEBUG
+static bool CheckFastAsciiConvert(char* dst,
+                                  char* src,
+                                  int length,
+                                  bool changed,
+                                  bool is_to_lower) {
+  bool expected_changed = false;
+  for (int i = 0; i < length; i++) {
+    if (dst[i] == src[i]) continue;
+    expected_changed = true;
+    if (is_to_lower) {
+      ASSERT('A' <= src[i] && src[i] <= 'Z');
+      ASSERT(dst[i] == src[i] + ('a' - 'A'));
+    } else {
+      ASSERT('a' <= src[i] && src[i] <= 'z');
+      ASSERT(dst[i] == src[i] - ('a' - 'A'));
+    }
+  }
+  return (expected_changed == changed);
+}
+#endif
+
 
 template<class Converter>
 static bool FastAsciiConvert(char* dst,
@@ -6435,28 +6457,6 @@ static bool FastAsciiConvert(char* dst,
   *changed_out = changed;
   return true;
 }
-
-#ifdef DEBUG
-static bool CheckFastAsciiConvert(char* dst,
-                                  char* src,
-                                  int length,
-                                  bool changed,
-                                  bool is_to_lower) {
-  bool expected_changed = false;
-  for (int i = 0; i < length; i++) {
-    if (dst[i] == src[i]) continue;
-    expected_changed = true;
-    if (is_to_lower) {
-      ASSERT('A' <= src[i] && src[i] <= 'Z');
-      ASSERT(dst[i] == src[i] + ('a' - 'A'));
-    } else {
-      ASSERT('a' <= src[i] && src[i] <= 'z');
-      ASSERT(dst[i] == src[i] - ('a' - 'A'));
-    }
-  }
-  return (expected_changed == changed);
-}
-#endif
 
 }  // namespace
 
