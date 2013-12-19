@@ -25,6 +25,7 @@ var path = require('path');
 var match = false;
 
 var isDebug = process.features.debug;
+var isWindows = process.platform === 'win32';
 
 var debugPaths = [path.normalize(path.join(__dirname, '..', '..',
                                            'out', 'Debug', 'node')),
@@ -39,13 +40,21 @@ console.error('debugPaths: ' + debugPaths);
 console.error('defaultPaths: ' + defaultPaths);
 console.error('process.execPath: ' + process.execPath);
 
+function pathStartsWith(a, b) {
+  if (isWindows)
+    return (a.toLowerCase().indexOf(b.toLowerCase()) == 0);
+  else
+    return (a.indexOf(b) == 0);
+}
+
+
 if (isDebug) {
   debugPaths.forEach(function(path) {
-    match = match || process.execPath.indexOf(path) == 0;
+    match = match || pathStartsWith(process.execPath, path);
   });
 } else {
   defaultPaths.forEach(function(path) {
-    match = match || process.execPath.indexOf(path) == 0;
+    match = match || pathStartsWith(process.execPath, path);
   });
 }
 
