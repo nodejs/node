@@ -1,4 +1,3 @@
-
 // utilities for working with the js-registry site.
 
 module.exports = RegClient
@@ -60,6 +59,8 @@ function RegClient (conf) {
     this.couchLogin.proxy = this.conf.get('proxy')
     this.couchLogin.strictSSL = this.conf.get('strict-ssl')
     this.couchLogin.ca = this.conf.get('ca')
+    this.couchLogin.cert = this.conf.get('cert')
+    this.couchLogin.key = this.conf.get('key')
   }
 
   this.log = conf.log || conf.get('log') || npmlog

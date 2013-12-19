@@ -1,5 +1,5 @@
 {
-  "version": "1.3.17",
+  "version": "1.3.21",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -39,10 +39,10 @@
     "slide": "~1.1.5",
     "abbrev": "~1.0.4",
     "graceful-fs": "~2.0.0",
-    "minimatch": "~0.2.12",
+    "minimatch": "~0.2.14",
     "nopt": "~2.1.2",
     "rimraf": "~2.2.5",
-    "request": "~2.29.0",
+    "request": "~2.30.0",
     "which": "1",
     "tar": "~0.1.19",
     "fstream": "~0.1.25",
@@ -57,7 +57,7 @@
     "chownr": "0",
     "npmlog": "0.0.6",
     "ansi": "~0.2.1",
-    "npm-registry-client": "~0.2.30",
+    "npm-registry-client": "~0.3.2",
     "read-package-json": "~1.1.4",
     "read-installed": "~0.2.2",
     "glob": "~3.2.6",
@@ -78,7 +78,8 @@
     "github-url-from-username-repo": "0.0.2",
     "text-table": "~0.2.0",
     "ansicolors": "~0.3.2",
-    "ansistyles": "~0.1.3"
+    "ansistyles": "~0.1.3",
+    "path-is-inside": "~1.0.0"
   },
   "bundleDependencies": [
     "semver",
@@ -127,7 +128,8 @@
     "normalize-package-data",
     "text-table",
     "ansicolors",
-    "ansistyles"
+    "ansistyles",
+    "path-is-inside"
   ],
   "devDependencies": {
     "ronn": "~0.3.6",
@@ -141,7 +143,7 @@
   "scripts": {
     "test": "node ./test/run.js && tap test/tap/*.js",
     "tap": "tap test/tap/*.js",
-    "prepublish": "node bin/npm-cli.js prune --prefix=. --no-global && rm -rf test/*/*/node_modules && make -j4 doc",
+    "prepublish": "node bin/npm-cli.js prune --prefix=. --no-global && rm -rf test/*/*/node_modules && make -j32 doc",
     "dumpconf": "env | grep npm | sort | uniq",
     "echo": "node bin/npm-cli.js"
   },

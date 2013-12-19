@@ -31,7 +31,7 @@ test("npm version <semver> without git tag", function (t) {
           return _cb(null, Boolean(~out.indexOf(tag)))
         })
       }
-      
+
       var child = spawn(git, ['init'])
       child.stdout.pipe(process.stdout)
       child.on('exit', function() {
@@ -53,6 +53,9 @@ test("npm version <semver> without git tag", function (t) {
 })
 
 test('cleanup', function(t) {
+  // windows fix for locked files
+  process.chdir(osenv.tmpdir())
+
   rimraf.sync(pkg)
   t.end()
 })

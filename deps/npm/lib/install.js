@@ -136,6 +136,7 @@ function install (args, cb_) {
                       , ancestors: {}
                       , explicit: false
                       , parent: data
+                      , root: true
                       , wrap: null }
 
         if (data.name === path.basename(where) &&
@@ -172,6 +173,7 @@ function install (args, cb_) {
                     , ancestors: {}
                     , explicit: true
                     , parent: data
+                    , root: true
                     , wrap: null }
       if (data) {
         context.family[data.name] = context.ancestors[data.name] = data.version
@@ -578,7 +580,9 @@ function installMany (what, where, context, cb) {
       var newPrev = Object.create(context.family)
         , newAnc = Object.create(context.ancestors)
 
-      newAnc[data.name] = data.version
+      if (!context.root) {
+        newAnc[data.name] = data.version
+      }
       targets.forEach(function (t) {
         newPrev[t.name] = t.version
       })
@@ -627,7 +631,8 @@ function targetResolver (where, context, deps) {
         // otherwise, make sure that it's a semver match with what we want.
         var bd = parent.bundleDependencies
         if (bd && bd.indexOf(d.name) !== -1 ||
-            semver.satisfies(d.version, deps[d.name] || "*", true)) {
+            semver.satisfies(d.version, deps[d.name] || "*", true) ||
+            deps[d.name] === d._resolved) {
           return cb(null, d.name)
         }
 
@@ -1032,10 +1037,10 @@ function write (target, targetFolder, context, cb_) {
             family)
         var depsTargetFolder = targetFolder
         var depsContext = { family: family
-                         , ancestors: context.ancestors
-                         , parent: target
-                         , explicit: false
-                         , wrap: wrap }
+                          , ancestors: context.ancestors
+                          , parent: target
+                          , explicit: false
+                          , wrap: wrap }
 
         var peerDeps = prepareForInstallMany(data, "peerDependencies", bundled,
             wrap, family)

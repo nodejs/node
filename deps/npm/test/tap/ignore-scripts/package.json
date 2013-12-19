@@ -1,0 +1,30 @@
+{
+  "author": "Milton the Aussie",
+  "name": "ignore-scripts",
+  "version": "0.0.0",
+  "scripts": {
+    "prepublish": "exit 123",
+    "publish": "exit 123",
+    "postpublish": "exit 123",
+    "preinstall": "exit 123",
+    "postinstall": "exit 123",
+    "preuninstall": "exit 123",
+    "uninstall": "exit 123",
+    "postuninstall": "exit 123",
+    "preupdate": "exit 123",
+    "update": "exit 123",
+    "postupdate": "exit 123",
+    "pretest": "exit 123",
+    "test": "exit 123",
+    "posttest": "exit 123",
+    "prestop": "exit 123",
+    "stop": "exit 123",
+    "poststop": "exit 123",
+    "prestart": "exit 123",
+    "start": "exit 123",
+    "poststart": "exit 123",
+    "prerestart": "exit 123",
+    "restart": "exit 123",
+    "postrestart": "exit 123"
+  }
+}

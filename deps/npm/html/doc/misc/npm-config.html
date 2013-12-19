@@ -168,19 +168,18 @@ re-checking against the registry.</p>
 <p>Note that no purging is done unless the <code>npm cache clean</code> command is
 explicitly used, and that only GET requests use the cache.</p>
 
+<h3 id="cert">cert</h3>
+
+<ul><li>Default: <code>null</code></li><li>Type: String</li></ul>
+
+<p>A client certificate to pass when accessing the registry.</p>
+
 <h3 id="color">color</h3>
 
 <ul><li>Default: true on Posix, false on Windows</li><li>Type: Boolean or <code>&quot;always&quot;</code></li></ul>
 
 <p>If false, never shows colors.  If <code>&quot;always&quot;</code> then always shows colors.
 If true, then only prints color codes for tty file descriptors.</p>
-
-<h3 id="coverage">coverage</h3>
-
-<ul><li>Default: false</li><li>Type: Boolean</li></ul>
-
-<p>A flag to tell test-harness to run with their coverage options enabled,
-if they respond to the <code>npm_config_coverage</code> environment variable.</p>
 
 <h3 id="depth">depth</h3>
 
@@ -210,6 +209,12 @@ set.</p>
 or <code>&quot;notepad&quot;</code> on Windows.</li><li>Type: path</li></ul>
 
 <p>The command to run for <code>npm edit</code> or <code>npm config edit</code>.</p>
+
+<h3 id="email">email</h3>
+
+<p>The email of the logged-in user.</p>
+
+<p>Set by the <code>npm adduser</code> command.  Should not be set explicitly.</p>
 
 <h3 id="engine-strict">engine-strict</h3>
 
@@ -263,6 +268,12 @@ packages.</p>
 computer, but is not in the <code>PATH</code>, then set this to the full path to
 the git binary.</p>
 
+<h3 id="git-tag-version">git-tag-version</h3>
+
+<ul><li>Default: <code>true</code></li><li>Type: Boolean</li></ul>
+
+<p>Tag the commit when using the <code>npm version</code> command.</p>
+
 <h3 id="global">global</h3>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
@@ -280,22 +291,18 @@ current working directory.</li><li>bin files are linked to <code>{prefix}/bin</c
 
 <p>The config file to read for global config options.</p>
 
-<h3 id="globalignorefile">globalignorefile</h3>
-
-<ul><li>Default: {prefix}/etc/npmignore</li><li>Type: path</li></ul>
-
-<p>The config file to read for global ignore patterns to apply to all users
-and all projects.</p>
-
-<p>If not found, but there is a &quot;gitignore&quot; file in the
-same directory, then that will be used instead.</p>
-
 <h3 id="group">group</h3>
 
 <ul><li>Default: GID of the current process</li><li>Type: String or Number</li></ul>
 
 <p>The group to use when running package scripts in global mode as the root
 user.</p>
+
+<h3 id="heading">heading</h3>
+
+<ul><li>Default: <code>&quot;npm&quot;</code></li><li>Type: String</li></ul>
+
+<p>The string that starts all the debugging log output.</p>
 
 <h3 id="https-proxy">https-proxy</h3>
 
@@ -304,18 +311,11 @@ user.</p>
 
 <p>A proxy to use for outgoing https requests.</p>
 
-<h3 id="user-agent">user-agent</h3>
+<h3 id="ignore-scripts">ignore-scripts</h3>
 
-<ul><li>Default: node/{process.version} {process.platform} {process.arch}</li><li>Type: String</li></ul>
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
 
-<p>Sets a User-Agent to the request header</p>
-
-<h3 id="ignore">ignore</h3>
-
-<ul><li>Default: &quot;&quot;</li><li>Type: string</li></ul>
-
-<p>A white-space separated list of glob patterns of files to always exclude
-from packages when building tarballs.</p>
+<p>If true, npm does not run scripts specified in package.json files.</p>
 
 <h3 id="init-module">init-module</h3>
 
@@ -325,12 +325,6 @@ from packages when building tarballs.</p>
 documentation for the
 <a href="https://github.com/isaacs/init-package-json">init-package-json</a> module
 for more information, or <a href="../cli/npm-init.html">npm-init(1)</a>.</p>
-
-<h3 id="init-version">init.version</h3>
-
-<ul><li>Default: &quot;0.0.0&quot;</li><li>Type: semver</li></ul>
-
-<p>The value <code>npm init</code> should use by default for the package version.</p>
 
 <h3 id="init-author-name">init.author.name</h3>
 
@@ -366,6 +360,12 @@ for more information, or <a href="../cli/npm-init.html">npm-init(1)</a>.</p>
 for many commands is either not implemented in JSON yet, or subject to
 change.  Only the output from <code>npm ls --json</code> is currently valid.</p>
 
+<h3 id="key">key</h3>
+
+<ul><li>Default: <code>null</code></li><li>Type: String</li></ul>
+
+<p>A client key to pass when accessing the registry.</p>
+
 <h3 id="link">link</h3>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
@@ -379,6 +379,13 @@ if one of the two conditions are met:</p>
 
 <ul><li>The package is not already installed globally, or</li><li>the globally installed version is identical to the version that is
 being installed locally.</li></ul>
+
+<h3 id="local-address">local-address</h3>
+
+<ul><li>Default: undefined</li><li>Type: IP Address</li></ul>
+
+<p>The IP address of the local interface to use when making connections
+to the npm registry.  Must be IPv4 in versions of Node prior to 0.12.</p>
 
 <h3 id="loglevel">loglevel</h3>
 
@@ -428,14 +435,7 @@ colored output if it is a TTY.</p>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
 
-<p>Run tests on installation and report results to the
-<code>npaturl</code>.</p>
-
-<h3 id="npaturl">npaturl</h3>
-
-<ul><li>Default: Not yet implemented</li><li>Type: url</li></ul>
-
-<p>The url to report npat test results.</p>
+<p>Run tests on installation.</p>
 
 <h3 id="onload-script">onload-script</h3>
 
@@ -664,15 +664,6 @@ instead of complete help when doing <code><a href="../cli/npm-help.html">npm-hel
 
 <p>The location of user-level configuration settings.</p>
 
-<h3 id="userignorefile">userignorefile</h3>
-
-<ul><li>Default: ~/.npmignore</li><li>Type: path</li></ul>
-
-<p>The location of a user-level ignore file to apply to all packages.</p>
-
-<p>If not found, but there is a .gitignore file in the same directory, then
-that will be used instead.</p>
-
 <h3 id="umask">umask</h3>
 
 <ul><li>Default: 022</li><li>Type: Octal numeric string</li></ul>
@@ -683,6 +674,12 @@ and folders.</p>
 <p>Folders and executables are given a mode which is <code>0777</code> masked against
 this value.  Other files are given a mode which is <code>0666</code> masked against
 this value.  Thus, the defaults are <code>0755</code> and <code>0644</code> respectively.</p>
+
+<h3 id="user-agent">user-agent</h3>
+
+<ul><li>Default: node/{process.version} {process.platform} {process.arch}</li><li>Type: String</li></ul>
+
+<p>Sets a User-Agent to the request header</p>
 
 <h3 id="version">version</h3>
 
@@ -709,21 +706,11 @@ hash, and exit successfully.</p>
 
 <p>Set to <code>&quot;browser&quot;</code> to view html help content in the default web browser.</p>
 
-<h3 id="yes">yes</h3>
-
-<ul><li>Default: null</li><li>Type: Boolean or null</li></ul>
-
-<p>If set to <code>null</code>, then prompt the user for responses in some
-circumstances.</p>
-
-<p>If set to <code>true</code>, then answer &quot;yes&quot; to any prompt.  If set to <code>false</code>
-then answer &quot;no&quot; to any prompt.</p>
-
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
 <ul><li><a href="../cli/npm-config.html">npm-config(1)</a></li><li><a href="../misc/npm-config.html">npm-config(7)</a></li><li><a href="../files/npmrc.html">npmrc(5)</a></li><li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li><li><a href="../files/npm-folders.html">npm-folders(5)</a></li><li><a href="../cli/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">npm-config &mdash; npm@1.3.17</p>
+<p id="footer">npm-config &mdash; npm@1.3.21</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")
