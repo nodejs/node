@@ -44,14 +44,18 @@ namespace node {
   TypeName(const TypeName&)
 
 #if defined(NDEBUG)
-#define ASSERT(expression)
-#define CHECK(expression)                                                     \
+# define ASSERT(expression)
+# define CHECK(expression)                                                    \
   do {                                                                        \
     if (!(expression)) abort();                                               \
   } while (0)
+# define CHECK_EQ(a, b) CHECK((a) == (b))
+# define CHECK_NE(a, b) CHECK((a) != (b))
 #else
-#define ASSERT(expression)  assert(expression)
-#define CHECK(expression)   assert(expression)
+# define ASSERT(expression)  assert(expression)
+# define CHECK(expression)   assert(expression)
+# define CHECK_EQ(a, b)      assert((a) == (b))
+# define CHECK_NE(a, b)      assert((a) != (b))
 #endif
 
 #define UNREACHABLE() abort()

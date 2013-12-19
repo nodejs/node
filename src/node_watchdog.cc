@@ -33,16 +33,16 @@ Watchdog::Watchdog(uint64_t ms) : destroyed_(false) {
   CHECK(loop_);
 
   int rc = uv_async_init(loop_, &async_, &Watchdog::Async);
-  CHECK(0 == rc);  // NOLINT(readability/check)
+  CHECK_EQ(0, rc);
 
   rc = uv_timer_init(loop_, &timer_);
-  CHECK(0 == rc);  // NOLINT(readability/check)
+  CHECK_EQ(0, rc);
 
   rc = uv_timer_start(&timer_, &Watchdog::Timer, ms, 0);
-  CHECK(0 == rc);  // NOLINT(readability/check)
+  CHECK_EQ(0, rc);
 
   rc = uv_thread_create(&thread_, &Watchdog::Run, this);
-  CHECK(0 == rc);  // NOLINT(readability/check)
+  CHECK_EQ(0, rc);
 }
 
 
