@@ -540,6 +540,11 @@ If `tlsSocket.authorized === false` then the error can be found in
 `tlsSocket.authorizationError`. Also if NPN was used - you can check
 `tlsSocket.npnProtocol` for negotiated protocol.
 
+### tlsSocket.encrypted
+
+Static boolean value, always `true`. May be used to distinguish TLS sockets
+from regular ones.
+
 ### tlsSocket.authorized
 
 A boolean that is `true` if the peer certificate was signed by one of the
