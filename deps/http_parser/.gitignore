@@ -1,3 +1,4 @@
+/out/
 core
 tags
 *.o
@@ -5,7 +6,9 @@ test
 test_g
 test_fast
 url_parser
+parsertrace
+parsertrace_g
 *.mk
 *.Makefile
-*.so
+*.so.*
 *.a

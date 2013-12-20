@@ -1,16 +1,46 @@
+# Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+# IN THE SOFTWARE.
+
+PLATFORM ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
+SONAME ?= libhttp_parser.so.2.2
+
 CC?=gcc
 AR?=ar
 
 CPPFLAGS += -I.
-CPPFLAGS_DEBUG = $(CPPFLAGS) -DHTTP_PARSER_STRICT=1 -DHTTP_PARSER_DEBUG=1
+CPPFLAGS_DEBUG = $(CPPFLAGS) -DHTTP_PARSER_STRICT=1
 CPPFLAGS_DEBUG += $(CPPFLAGS_DEBUG_EXTRA)
-CPPFLAGS_FAST = $(CPPFLAGS) -DHTTP_PARSER_STRICT=0 -DHTTP_PARSER_DEBUG=0
+CPPFLAGS_FAST = $(CPPFLAGS) -DHTTP_PARSER_STRICT=0
 CPPFLAGS_FAST += $(CPPFLAGS_FAST_EXTRA)
 
 CFLAGS += -Wall -Wextra -Werror
 CFLAGS_DEBUG = $(CFLAGS) -O0 -g $(CFLAGS_DEBUG_EXTRA)
 CFLAGS_FAST = $(CFLAGS) -O3 $(CFLAGS_FAST_EXTRA)
 CFLAGS_LIB = $(CFLAGS_FAST) -fPIC
+
+LDFLAGS_LIB = $(LDFLAGS) -shared
+
+ifneq (darwin,$(PLATFORM))
+# TODO(bnoordhuis) The native SunOS linker expects -h rather than -soname...
+LDFLAGS_LIB += -Wl,-soname=$(SONAME)
+endif
 
 test: test_g test_fast
 	./test_g
@@ -31,12 +61,6 @@ test_fast: http_parser.o test.o http_parser.h
 test.o: test.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) -c test.c -o $@
 
-url_parser: http_parser_g.o url_parser.o
-	$(CC) $(CFLAGS_DEBUG) $(LDFLAGS) http_parser_g.o url_parser.o -o $@
-
-url_parser.o: url_parser.c http_parser.h Makefile
-	$(CC) $(CPPFLAGS_DEBUG) $(CFLAGS_DEBUG) -c url_parser.c -o $@
-
 http_parser.o: http_parser.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) -c http_parser.c
 
@@ -50,15 +74,32 @@ libhttp_parser.o: http_parser.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_LIB) -c http_parser.c -o libhttp_parser.o
 
 library: libhttp_parser.o
-	$(CC) -shared -o libhttp_parser.so libhttp_parser.o
+	$(CC) $(LDFLAGS_LIB) -o $(SONAME) $<
 
 package: http_parser.o
 	$(AR) rcs libhttp_parser.a http_parser.o
+
+url_parser: http_parser.o contrib/url_parser.c
+	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) $^ -o $@
+
+url_parser_g: http_parser_g.o contrib/url_parser.c
+	$(CC) $(CPPFLAGS_DEBUG) $(CFLAGS_DEBUG) $^ -o $@
+
+parsertrace: http_parser.o contrib/parsertrace.c
+	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) $^ -o parsertrace
+
+parsertrace_g: http_parser_g.o contrib/parsertrace.c
+	$(CC) $(CPPFLAGS_DEBUG) $(CFLAGS_DEBUG) $^ -o parsertrace_g
 
 tags: http_parser.c http_parser.h test.c
 	ctags $^
 
 clean:
-	rm -f *.o *.a test test_fast test_g url_parser http_parser.tar tags libhttp_parser.so libhttp_parser.o
+	rm -f *.o *.a tags test test_fast test_g \
+		http_parser.tar libhttp_parser.so.* \
+		url_parser url_parser_g parsertrace parsertrace_g
+
+contrib/url_parser.c:	http_parser.h
+contrib/parsertrace.c:	http_parser.h
 
 .PHONY: clean package test-run test-run-timed test-valgrind

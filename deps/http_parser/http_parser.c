@@ -51,18 +51,10 @@
 # define ELEM_AT(a, i, v) ((unsigned int) (i) < ARRAY_SIZE(a) ? (a)[(i)] : (v))
 #endif
 
-#if HTTP_PARSER_DEBUG
-#define SET_ERRNO(e)                                                 \
-do {                                                                 \
-  parser->http_errno = (e);                                          \
-  parser->error_lineno = __LINE__;                                   \
-} while (0)
-#else
 #define SET_ERRNO(e)                                                 \
 do {                                                                 \
   parser->http_errno = (e);                                          \
 } while(0)
-#endif
 
 
 /* Run the notify callback FOR, returning ER if it fails */
@@ -256,6 +248,7 @@ enum state
   , s_res_http_minor
   , s_res_first_status_code
   , s_res_status_code
+  , s_res_status_start
   , s_res_status
   , s_res_line_almost_done
 
@@ -589,6 +582,7 @@ size_t http_parser_execute (http_parser *parser,
   const char *header_value_mark = 0;
   const char *url_mark = 0;
   const char *body_mark = 0;
+  const char *status_mark = 0;
 
   /* We're in an error state. Don't bother doing anything. */
   if (HTTP_PARSER_ERRNO(parser) != HPE_OK) {
@@ -635,6 +629,9 @@ size_t http_parser_execute (http_parser *parser,
   case s_req_fragment:
     url_mark = data;
     break;
+  case s_res_status:
+    status_mark = data;
+    break;
   }
 
   for (p=data; p != data + len; p++) {
@@ -642,7 +639,17 @@ size_t http_parser_execute (http_parser *parser,
 
     if (PARSING_HEADER(parser->state)) {
       ++parser->nread;
-      /* Buffer overflow attack */
+      /* Don't allow the total size of the HTTP headers (including the status
+       * line) to exceed HTTP_MAX_HEADER_SIZE.  This check is here to protect
+       * embedders against denial-of-service attacks where the attacker feeds
+       * us a never-ending header that the embedder keeps buffering.
+       *
+       * This check is arguably the responsibility of embedders but we're doing
+       * it on the embedder's behalf because most won't bother and this way we
+       * make the web a little safer.  HTTP_MAX_HEADER_SIZE is still far bigger
+       * than any reasonable request or response so this should never affect
+       * day-to-day operation.
+       */
       if (parser->nread > HTTP_MAX_HEADER_SIZE) {
         SET_ERRNO(HPE_HEADER_OVERFLOW);
         goto error;
@@ -831,7 +838,7 @@ size_t http_parser_execute (http_parser *parser,
         if (!IS_NUM(ch)) {
           switch (ch) {
             case ' ':
-              parser->state = s_res_status;
+              parser->state = s_res_status_start;
               break;
             case CR:
               parser->state = s_res_line_almost_done;
@@ -857,9 +864,8 @@ size_t http_parser_execute (http_parser *parser,
         break;
       }
 
-      case s_res_status:
-        /* the human readable status. e.g. "NOT FOUND"
-         * we are not humans so just ignore this */
+      case s_res_status_start:
+      {
         if (ch == CR) {
           parser->state = s_res_line_almost_done;
           break;
@@ -869,6 +875,26 @@ size_t http_parser_execute (http_parser *parser,
           parser->state = s_header_field_start;
           break;
         }
+
+        MARK(status);
+        parser->state = s_res_status;
+        parser->index = 0;
+        break;
+      }
+
+      case s_res_status:
+        if (ch == CR) {
+          parser->state = s_res_line_almost_done;
+          CALLBACK_DATA(status);
+          break;
+        }
+
+        if (ch == LF) {
+          parser->state = s_header_field_start;
+          CALLBACK_DATA(status);
+          break;
+        }
+
         break;
 
       case s_res_line_almost_done:
@@ -1851,12 +1877,14 @@ size_t http_parser_execute (http_parser *parser,
   assert(((header_field_mark ? 1 : 0) +
           (header_value_mark ? 1 : 0) +
           (url_mark ? 1 : 0)  +
-          (body_mark ? 1 : 0)) <= 1);
+          (body_mark ? 1 : 0) +
+          (status_mark ? 1 : 0)) <= 1);
 
   CALLBACK_DATA_NOADVANCE(header_field);
   CALLBACK_DATA_NOADVANCE(header_value);
   CALLBACK_DATA_NOADVANCE(url);
   CALLBACK_DATA_NOADVANCE(body);
+  CALLBACK_DATA_NOADVANCE(status);
 
   return len;
 
@@ -1987,7 +2015,7 @@ http_parse_host_char(enum http_host_state s, const char ch) {
 
     /* FALLTHROUGH */
     case s_http_host_v6_start:
-      if (IS_HEX(ch) || ch == ':') {
+      if (IS_HEX(ch) || ch == ':' || ch == '.') {
         return s_http_host_v6;
       }
 
@@ -2191,4 +2219,16 @@ http_parser_pause(http_parser *parser, int paused) {
   } else {
     assert(0 && "Attempting to pause parser in error state");
   }
+}
+
+int
+http_body_is_final(const struct http_parser *parser) {
+    return parser->state == s_message_done;
+}
+
+unsigned long
+http_parser_version(void) {
+  return HTTP_PARSER_VERSION_MAJOR * 0x10000 |
+         HTTP_PARSER_VERSION_MINOR * 0x00100 |
+         HTTP_PARSER_VERSION_PATCH * 0x00001;
 }
