@@ -1178,7 +1178,7 @@ static void ReportException(Handle<Value> er, Handle<Message> message) {
 
   Local<Value> trace_value;
 
-  if (er->IsUndefined()) {
+  if (er->IsUndefined() || er->IsNull()) {
     trace_value = Undefined(node_isolate);
   } else {
     trace_value =

@@ -1,0 +1,5 @@
+
+*test*message*throw_null.js:25
+throw null;
+^      
+null
