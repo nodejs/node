@@ -261,3 +261,18 @@ assert.equal(result, 'return value');
 var fst = fs.createReadStream('stream for nonexistent file')
 d.add(fst)
 expectCaught++;
+
+[42, null, , false, function(){}, 'string'].forEach(function(something) {
+  var d = new domain.Domain();
+  d.run(function() {
+    process.nextTick(function() {
+      throw something;
+    });
+    expectCaught++;
+  });
+
+  d.on('error', function(er) {
+    assert.strictEqual(something, er);
+    caught++;
+  });
+});
