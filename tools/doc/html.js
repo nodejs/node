@@ -122,9 +122,15 @@ function parseLists(input) {
 
 
 function parseListItem(text) {
-  text = text.replace(/\{([^\}]+)\}/, '<span class="type">$1</span>');
+  var parts = text.split('`');
+  var i;
+
+  for (i = 0; i < parts.length; i += 2) {
+    parts[i] = parts[i].replace(/\{([^\}]+)\}/, '<span class="type">$1</span>');
+  }
+
   //XXX maybe put more stuff here?
-  return text;
+  return parts.join('`');
 }
 
 function parseAPIHeader(text) {
