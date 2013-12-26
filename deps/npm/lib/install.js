@@ -714,7 +714,7 @@ function targetResolver (where, context, deps) {
       }
 
       if (data && !data._from) data._from = what
-
+      if (er && parent && parent.name) er.parent = parent.name
       return cb(er, data || [])
     })
   }
