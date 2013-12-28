@@ -124,7 +124,7 @@ qsWeirdObjects.forEach(function(testCase) {
 });
 
 qsNoMungeTestCases.forEach(function(testCase) {
-  assert.deepEqual(testCase[0], qs.stringify(testCase[1], '&', '=', false));
+  assert.deepEqual(testCase[0], qs.stringify(testCase[1], '&', '='));
 });
 
 // test the nested qs-in-qs case
