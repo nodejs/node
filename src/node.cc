@@ -2867,7 +2867,9 @@ static void ParseArgs(int* argc,
           fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
           exit(9);
         }
-      } else if (argv[index + 1] != NULL && argv[index + 1][0] != '-') {
+      } else if ((index + 1 < nargs) &&
+                 argv[index + 1] != NULL &&
+                 argv[index + 1][0] != '-') {
         args_consumed += 1;
         eval_string = argv[index + 1];
         if (strncmp(eval_string, "\\-", 2) == 0) {
