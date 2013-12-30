@@ -15,7 +15,7 @@ The username, password, and email are read in from prompts.
 You may use this command to change your email address, but not username
 or password.
 
-To reset your password, go to <http://admin.npmjs.org/>
+To reset your password, go to <https://npmjs.org/forgot>
 
 You may use this command multiple times with the same user account to
 authorize on a new machine.

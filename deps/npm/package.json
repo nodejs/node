@@ -1,5 +1,5 @@
 {
-  "version": "1.3.21",
+  "version": "1.3.22",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -134,7 +134,7 @@
   "devDependencies": {
     "ronn": "~0.3.6",
     "tap": "~0.4.0",
-    "npm-registry-mock": "~0.5.3"
+    "npm-registry-mock": "~0.5.4"
   },
   "engines": {
     "node": ">=0.6",

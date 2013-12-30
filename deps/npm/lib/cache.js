@@ -287,6 +287,10 @@ function fetchAndShaCheck (u, tmp, shasum, cb) {
     if (!shasum) return cb(null, response)
     // validate that the url we just downloaded matches the expected shasum.
     sha.check(tmp, shasum, function (er) {
+      if (er != null && er.message) {
+        // add original filename for better debuggability
+        er.message = er.message + '\n' + 'From:     ' + u
+      }
       return cb(er, response, shasum)
     })
   })

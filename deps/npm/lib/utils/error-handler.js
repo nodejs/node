@@ -149,6 +149,9 @@ function errorHandler (er) {
     if (er.pkgid && er.pkgid !== "-") {
       var msg = ["'"+er.pkgid+"' is not in the npm registry."
                 ,"You should bug the author to publish it"]
+      if (er.parent) {
+        msg.push("It was specified as a dependency of '"+er.parent+"'")
+      }
       if (er.pkgid.match(/^node[\.\-]|[\.\-]js$/)) {
         var s = er.pkgid.replace(/^node[\.\-]|[\.\-]js$/g, "")
         if (s !== er.pkgid) {

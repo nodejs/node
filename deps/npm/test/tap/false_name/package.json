@@ -1,8 +1,8 @@
 {
-  "name": "buffer-equal",
+  "name": "test-package",
   "version": "0.0.0",
   "main": "index.js",
   "dependencies": {
-    "tap": "0.2.5"
+    "test-package-with-one-dep": "0.0.0"
   }
 }

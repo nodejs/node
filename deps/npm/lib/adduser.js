@@ -18,9 +18,9 @@ function adduser (args, cb) {
   if (!crypto) return cb(new Error(
     "You must compile node with ssl support to use the adduser feature"))
 
-  var c = { u : npm.config.get("username")
-          , p : npm.config.get("_password")
-          , e : npm.config.get("email")
+  var c = { u : npm.config.get("username") || ""
+          , p : npm.config.get("_password") || ""
+          , e : npm.config.get("email") || ""
           }
     , changed = false
     , u = {}

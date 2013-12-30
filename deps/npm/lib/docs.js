@@ -25,7 +25,7 @@ function docs (args, cb) {
   var project = args[0] || '.'
     , package = path.resolve(process.cwd(), "package.json")
 
-  if (project === '.') {
+  if (project === '.' || project === './') {
     try {
       var json = require(package)
       if (!json.name) throw new Error('package.json does not have a valid "name" property')

@@ -145,6 +145,7 @@ def files(action):
   if 'true' == variables.get('node_install_npm'): npm_files(action)
 
   action([
+    'common.gypi',
     'config.gypi',
     'src/node.h',
     'src/node_buffer.h',
