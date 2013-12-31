@@ -41,9 +41,14 @@ child.stderr.on('data', function(data) {
 
   if (line === 'all workers are running') {
     assertOutputLines();
+    process.exit();
   } else {
     outputLines = outputLines.concat(lines);
   }
+});
+
+process.on('exit', function onExit() {
+  child.kill();
 });
 
 var assertOutputLines = common.mustCall(function() {

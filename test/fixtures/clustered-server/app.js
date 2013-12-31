@@ -13,9 +13,6 @@ if (cluster.isMaster) {
   cluster.on('online', function() {
     if (++workersOnline === NUMBER_OF_WORKERS) {
       console.error('all workers are running');
-      for (var key in cluster.workers) {
-        cluster.workers[key].disconnect();
-      }
     }
   });
 
