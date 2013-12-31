@@ -273,6 +273,12 @@ UV_EXTERN uv_loop_t* uv_default_loop(void);
 UV_EXTERN int uv_run(uv_loop_t*, uv_run_mode mode);
 
 /*
+ * This function checks whether the reference count, the number of active
+ * handles or requests left in the event loop, is non-zero.
+ */
+UV_EXTERN int uv_loop_alive(const uv_loop_t* loop);
+
+/*
  * This function will stop the event loop by forcing uv_run to end
  * as soon as possible, but not sooner than the next loop iteration.
  * If this function was called before blocking for i/o, the loop won't
@@ -681,7 +687,9 @@ UV_EXTERN int uv_write2(uv_write_t* req,
  * - zero - if queued write is needed
  * - negative error code
  */
-UV_EXTERN int uv_try_write(uv_stream_t* handle, const char* buf, size_t length);
+UV_EXTERN int uv_try_write(uv_stream_t* handle,
+                           const uv_buf_t bufs[],
+                           unsigned int nbufs);
 
 /* uv_write_t is a subclass of uv_req_t */
 struct uv_write_s {

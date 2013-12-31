@@ -145,6 +145,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-ipc.c \
                          test/test-list.h \
                          test/test-loop-handles.c \
+                         test/test-loop-alive.c \
                          test/test-loop-stop.c \
                          test/test-loop-time.c \
                          test/test-multiple-listen.c \
@@ -154,6 +155,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-ping-pong.c \
                          test/test-pipe-bind-error.c \
                          test/test-pipe-connect-error.c \
+                         test/test-pipe-server-close.c \
                          test/test-platform-output.c \
                          test/test-poll-close.c \
                          test/test-poll.c \

@@ -1,3 +1,20 @@
+2013.12.32, Version 0.11.17 (Unstable)
+
+Changes since version 0.11.16:
+
+* stream: allow multiple buffers for uv_try_write (Fedor Indutny)
+
+* unix: fix a possible memory leak in uv_fs_readdir (Alex Crichton)
+
+* unix, windows: add uv_loop_alive() function (Sam Roberts)
+
+* windows: avoid assertion failure when pipe server is closed (Bert Belder)
+
+* osx: Fix a possible segfault in uv__io_poll (Alex Crichton)
+
+* stream: fix uv__stream_osx_select (Fedor Indutny)
+
+
 2013.12.14, Version 0.11.16 (Unstable), ae0ed8c49d0d313c935c22077511148b6e8408a4
 
 Changes since version 0.11.15:

@@ -4,7 +4,7 @@ libuv is a multi-platform support library with a focus on asynchronous I/O. It
 was primarily developed for use by [Node.js](http://nodejs.org), but it's also
 used by Mozilla's [Rust language](http://www.rust-lang.org/),
 [Luvit](http://luvit.io/), [Julia](http://julialang.org/),
-[pyuv](https://crate.io/packages/pyuv/), and others.
+[pyuv](https://crate.io/packages/pyuv/), and [others](https://github.com/joyent/libuv/wiki/Projects-that-use-libuv).
 
 ## Feature highlights
 
@@ -41,12 +41,14 @@ used by Mozilla's [Rust language](http://www.rust-lang.org/),
 
  * [include/uv.h](https://github.com/joyent/libuv/blob/master/include/uv.h)
    &mdash; API documentation in the form of detailed header comments.
- * [An Introduction to libuv](http://nikhilm.github.com/uvbook/) &mdash; An
-   overview of libuv with tutorials.
- * [LXJS 2012 talk](http://www.youtube.com/watch?v=nGn60vDSxQ4) - High-level
-   introductory talk about libuv.
- * [Tests and benchmarks](https://github.com/joyent/libuv/tree/master/test) -
-   API specification and usage examples.
+ * [An Introduction to libuv](http://nikhilm.github.com/uvbook/)
+   &mdash; An overview of libuv with tutorials.
+ * [LXJS 2012 talk](http://www.youtube.com/watch?v=nGn60vDSxQ4)
+   &mdash; High-level introductory talk about libuv.
+ * [Tests and benchmarks](https://github.com/joyent/libuv/tree/master/test)
+   &mdash; API specification and usage examples.
+ * [libuv-dox](https://github.com/thlorenz/libuv-dox)
+   &mdash; Documenting types and methods of libuv, mostly by reading uv.h.
 
 ## Build Instructions
 

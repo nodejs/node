@@ -61,7 +61,8 @@ static void connect_cb(uv_connect_t* req, int status) {
   connect_cb_called++;
 
   do {
-    r = uv_try_write((uv_stream_t*) &client, zeroes, sizeof(zeroes));
+    buf = uv_buf_init(zeroes, sizeof(zeroes));
+    r = uv_try_write((uv_stream_t*) &client, &buf, 1);
     ASSERT(r >= 0);
     bytes_written += r;
 

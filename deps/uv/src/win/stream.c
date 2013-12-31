@@ -202,7 +202,9 @@ int uv_write2(uv_write_t* req,
 }
 
 
-int uv_try_write(uv_stream_t* handle, const char* buf, size_t length) {
+int uv_try_write(uv_stream_t* stream,
+                 const uv_buf_t bufs[],
+                 unsigned int nbufs) {
   /* NOTE: Won't work with overlapped writes */
   return UV_ENOSYS;
 }

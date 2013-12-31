@@ -256,10 +256,15 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
 }
 
 
-static int uv__loop_alive(uv_loop_t* loop) {
+static int uv__loop_alive(const uv_loop_t* loop) {
   return loop->active_handles > 0 ||
          !QUEUE_EMPTY(&loop->active_reqs) ||
          loop->endgame_handles != NULL;
+}
+
+
+int uv_loop_alive(const uv_loop_t* loop) {
+    return uv__loop_alive(loop);
 }
 
 

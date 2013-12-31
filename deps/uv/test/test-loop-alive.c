@@ -22,25 +22,47 @@
 #include "uv.h"
 #include "task.h"
 
-#include <stdio.h>
-#include <string.h>
+static uv_timer_t timer_handle;
+
+static void timer_cb(uv_timer_t* handle, int status) {
+  ASSERT(handle);
+  ASSERT(status == 0);
+}
 
 
-TEST_IMPL(ip4_addr) {
+static uv_work_t work_req;
 
-  struct sockaddr_in addr;
+static void work_cb(uv_work_t* req) {
+  ASSERT(req);
+}
 
-  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
-  ASSERT(0 == uv_ip4_addr("255.255.255.255", TEST_PORT, &addr));
-  ASSERT(UV_EINVAL == uv_ip4_addr("255.255.255*000", TEST_PORT, &addr));
-  ASSERT(UV_EINVAL == uv_ip4_addr("255.255.255.256", TEST_PORT, &addr));
-  ASSERT(UV_EINVAL == uv_ip4_addr("2555.0.0.0", TEST_PORT, &addr));
-  ASSERT(UV_EINVAL == uv_ip4_addr("255", TEST_PORT, &addr));
+static void after_work_cb(uv_work_t* req, int status) {
+  ASSERT(req);
+  ASSERT(status == 0);
+}
 
-  /* for broken address family */
-  ASSERT(UV_EAFNOSUPPORT == uv_inet_pton(42, "127.0.0.1",
-    &addr.sin_addr.s_addr));
 
-  MAKE_VALGRIND_HAPPY();
+TEST_IMPL(loop_alive) {
+  int r;
+  ASSERT(!uv_loop_alive(uv_default_loop()));
+
+  /* loops with handles are alive */
+  uv_timer_init(uv_default_loop(), &timer_handle);
+  uv_timer_start(&timer_handle, timer_cb, 100, 0);
+  ASSERT(uv_loop_alive(uv_default_loop()));
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+  ASSERT(!uv_loop_alive(uv_default_loop()));
+
+  /* loops with requests are alive */
+  r = uv_queue_work(uv_default_loop(), &work_req, work_cb, after_work_cb);
+  ASSERT(r == 0);
+  ASSERT(uv_loop_alive(uv_default_loop()));
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+  ASSERT(!uv_loop_alive(uv_default_loop()));
+
   return 0;
 }
