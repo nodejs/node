@@ -704,7 +704,7 @@ which has been transmitted are equal or not.
 The request implements the [Writable Stream][] interface. This is an
 [EventEmitter][] with the following events:
 
-### Event 'response'
+### Event: 'response'
 
 `function (response) { }`
 
