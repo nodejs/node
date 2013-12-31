@@ -6364,6 +6364,7 @@ static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
   return (tmp1 & tmp2 & (kOneInEveryByte * 0x80));
 }
 
+
 #ifdef DEBUG
 static bool CheckFastAsciiConvert(char* dst,
                                   char* src,
