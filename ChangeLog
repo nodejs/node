@@ -1,3 +1,56 @@
+2013.12.31, Version 0.11.10 (Unstable)
+
+* http_parser: update to 2.2
+
+* uv: Upgrade to v0.11.17
+
+* v8: Upgrade to 3.22.24.10
+
+* buffer: optimize writeInt* methods (Paul Loyd)
+
+* child_process: better error handling (Alexis Campailla)
+
+* cluster: do not synchronously emit 'setup' event (Sam Roberts)
+
+* cluster: restore backwards compatibility and various fixes (Sam Roberts)
+
+* crypto: remove unnecessary OpenSSL_add_all_digests (Yorkie)
+
+* crypto: support GCM authenticated encryption mode. (Ingmar Runge)
+
+* dns: add resolveSoa and 'SOA' rrtype (Tuğrul Topuz)
+
+* events: move EE c'tor guts to EventEmitter.init (Bert Belder)
+
+* http: DELETE shouldn't default to chunked encoding (Lalit Kapoor)
+
+* http: parse the status message in a http response. (Cam Swords)
+
+* node: fix removing AsyncListener in callback (Vladimir Kurchatkin)
+
+* node: follow specification, zero-fill ArrayBuffers (Trevor Norris)
+
+* openssl: use ASM optimized routines (Fedor Indutny)
+
+* process: allow nextTick infinite recursion (Trevor Norris)
+
+* querystring: remove `name` from `stringify()` (Yorkie)
+
+* timers: setImmediate v8 optimization fix (pflannery)
+
+* tls: add serialNumber to getPeerCertificate() (Ben Noordhuis)
+
+* tls: reintroduce socket.encrypted (Fedor Indutny)
+
+* tls: fix handling of asterisk in SNI context (Fedor Indutny)
+
+* util: Format negative zero as '-0' (David Chan)
+
+* vm: fix race condition in timeout (Alexis Campailla)
+
+* windows: fix dns lookup of localhost with ipv6 (Alexis Campailla)
+
+
 2013.11.20, Version 0.11.9 (Unstable), dcfd032bdd69dfb38c120e18438d6316ae522edc
 
 * uv: upgrade to v0.11.15 (Timothy J Fontaine)
