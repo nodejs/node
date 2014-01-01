@@ -751,7 +751,7 @@ util.inherits(SimpleProtocol, Readable);
 
 function SimpleProtocol(source, options) {
   if (!(this instanceof SimpleProtocol))
-    return new SimpleProtocol(options);
+    return new SimpleProtocol(source, options);
 
   Readable.call(this, options);
   this._inBody = false;
