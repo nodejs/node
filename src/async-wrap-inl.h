@@ -38,7 +38,7 @@ namespace node {
 inline AsyncWrap::AsyncWrap(Environment* env, v8::Handle<v8::Object> object)
     : BaseObject(env, object),
       async_flags_(NO_OPTIONS) {
-  if (!env->has_async_listeners())
+  if (!env->has_async_listener())
     return;
 
   // TODO(trevnorris): Do we really need to TryCatch this call?
@@ -49,7 +49,7 @@ inline AsyncWrap::AsyncWrap(Environment* env, v8::Handle<v8::Object> object)
   env->async_listener_run_function()->Call(env->process_object(), 1, &val);
 
   if (!try_catch.HasCaught())
-    async_flags_ |= ASYNC_LISTENERS;
+    async_flags_ |= HAS_ASYNC_LISTENER;
 }
 
 
@@ -83,8 +83,8 @@ inline void AsyncWrap::remove_flag(unsigned int flag) {
 }
 
 
-inline bool AsyncWrap::has_async_queue() {
-  return async_flags() & ASYNC_LISTENERS;
+inline bool AsyncWrap::has_async_listener() {
+  return async_flags() & HAS_ASYNC_LISTENER;
 }
 
 
@@ -103,7 +103,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
 
-  if (has_async_queue()) {
+  if (has_async_listener()) {
     v8::Local<v8::Value> val = context.As<v8::Value>();
     env()->async_listener_load_function()->Call(process, 1, &val);
 
@@ -143,7 +143,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
       return Undefined(env()->isolate());
   }
 
-  if (has_async_queue()) {
+  if (has_async_listener()) {
     v8::Local<v8::Value> val = context.As<v8::Value>();
     env()->async_listener_unload_function()->Call(process, 1, &val);
 
@@ -192,7 +192,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
 
-  if (has_async_queue()) {
+  if (has_async_listener()) {
     v8::Local<v8::Value> val = context.As<v8::Value>();
     env()->async_listener_load_function()->Call(process, 1, &val);
 
@@ -206,7 +206,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
     return Undefined(env()->isolate());
   }
 
-  if (has_async_queue()) {
+  if (has_async_listener()) {
     v8::Local<v8::Value> val = context.As<v8::Value>();
     env()->async_listener_unload_function()->Call(process, 1, &val);
 
@@ -227,9 +227,6 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
 
   tick_info->set_in_tick(true);
 
-  // TODO(trevnorris): Consider passing "context" to _tickCallback so it
-  // can then be passed as the first argument to the nextTick callback.
-  // That should greatly help needing to create closures.
   env()->tick_callback_function()->Call(process, 0, NULL);
 
   tick_info->set_in_tick(false);
@@ -283,7 +280,7 @@ inline void AsyncWrap::AddAsyncListener(
   Type* wrap = static_cast<Type*>(
       handle->GetAlignedPointerFromInternalField(0));
   assert(wrap != NULL);
-  wrap->set_flag(ASYNC_LISTENERS);
+  wrap->set_flag(HAS_ASYNC_LISTENER);
 }
 
 
@@ -305,7 +302,7 @@ inline void AsyncWrap::RemoveAsyncListener(
     Type* wrap = static_cast<Type*>(
         handle->GetAlignedPointerFromInternalField(0));
     assert(wrap != NULL);
-    wrap->remove_flag(ASYNC_LISTENERS);
+    wrap->remove_flag(HAS_ASYNC_LISTENER);
   }
 }
 

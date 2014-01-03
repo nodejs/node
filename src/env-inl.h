@@ -82,8 +82,8 @@ inline int Environment::AsyncListener::fields_count() const {
   return kFieldsCount;
 }
 
-inline uint32_t Environment::AsyncListener::count() const {
-  return fields_[kCount];
+inline bool Environment::AsyncListener::has_listener() const {
+  return fields_[kHasListener] > 0;
 }
 
 inline Environment::DomainFlag::DomainFlag() {
@@ -205,9 +205,9 @@ inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
 
-inline bool Environment::has_async_listeners() const {
+inline bool Environment::has_async_listener() const {
   // The const_cast is okay, it doesn't violate conceptual const-ness.
-  return const_cast<Environment*>(this)->async_listener()->count() > 0;
+  return const_cast<Environment*>(this)->async_listener()->has_listener();
 }
 
 inline bool Environment::in_domain() const {

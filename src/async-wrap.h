@@ -32,7 +32,7 @@ class AsyncWrap : public BaseObject {
  public:
   enum AsyncFlags {
     NO_OPTIONS = 0,
-    ASYNC_LISTENERS = 1
+    HAS_ASYNC_LISTENER = 1
   };
 
   inline AsyncWrap(Environment* env, v8::Handle<v8::Object> object);
@@ -48,7 +48,7 @@ class AsyncWrap : public BaseObject {
 
   inline void remove_flag(unsigned int flag);
 
-  inline bool has_async_queue();
+  inline bool has_async_listener();
 
   // Only call these within a valid HandleScope.
   inline v8::Handle<v8::Value> MakeCallback(const v8::Handle<v8::Function> cb,
@@ -62,6 +62,8 @@ class AsyncWrap : public BaseObject {
                                             v8::Handle<v8::Value>* argv);
 
  private:
+  inline AsyncWrap();
+
   // TODO(trevnorris): BURN IN FIRE! Remove this as soon as a suitable
   // replacement is committed.
   inline v8::Handle<v8::Value> MakeDomainCallback(
