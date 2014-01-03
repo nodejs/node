@@ -29,8 +29,6 @@ var errorMsgs = [];
 var caught = 0;
 var expectCaught = 0;
 
-function asyncL() { }
-
 var callbacksObj = {
   error: function(value, er) {
     var idx = errorMsgs.indexOf(er.message);
@@ -47,7 +45,7 @@ var callbacksObj = {
   }
 };
 
-var listener = process.addAsyncListener(asyncL, callbacksObj);
+var listener = process.addAsyncListener(callbacksObj);
 
 process.on('exit', function(code) {
   process.removeAsyncListener(listener);

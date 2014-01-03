@@ -27,8 +27,6 @@ var removeListener = process.removeAsyncListener;
 var caught = [];
 var expect = [];
 
-function asyncL(a) {}
-
 var callbacksObj = {
   error: function(value, er) {
     process._rawDebug('caught', er.message);
@@ -37,7 +35,7 @@ var callbacksObj = {
   }
 };
 
-var listener = process.createAsyncListener(asyncL, callbacksObj);
+var listener = process.createAsyncListener(callbacksObj);
 
 process.on('exit', function(code) {
   removeListener(listener);

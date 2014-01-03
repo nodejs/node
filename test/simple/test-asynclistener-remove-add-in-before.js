@@ -23,6 +23,9 @@ var common = require('../common');
 var assert = require('assert');
 var val;
 var callbacks = {
+  create: function() {
+    return 42;
+  },
   before: function() {
     process.removeAsyncListener(listener);
     process.addAsyncListener(listener);
@@ -32,14 +35,12 @@ var callbacks = {
   }
 };
 
-var listener = process.addAsyncListener(function() {
-  return 66;
-}, callbacks);
+var listener = process.addAsyncListener(callbacks);
 
 process.nextTick(function() {});
 
 process.on('exit', function(status) {
   process.removeAsyncListener(listener);
   assert.equal(status, 0);
-  assert.equal(val, 66);
+  assert.equal(val, 42);
 });

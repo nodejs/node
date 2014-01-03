@@ -688,68 +688,68 @@ a diff reading, useful for benchmarks and measuring intervals:
 The `AsyncListener` API is the JavaScript interface for the `AsyncWrap`
 class which allows developers to be notified about key events in the
 lifetime of an asynchronous event. Node performs a lot of asynchronous
-events internally, and significant use of this API will have a **dramatic
-performance impact** on your application.
+events internally, and significant use of this API may have a
+**significant performance impact** on your application.
 
 
-## process.createAsyncListener(asyncListener[, callbacksObj[, storageValue]])
+## process.createAsyncListener(callbacksObj[, userData])
 
-* `asyncListener` {Function} callback fired when an asynchronous event is
-instantiated.
-* `callbacksObj` {Object} optional callbacks that will fire at specific
-times in the lifetime of the asynchronous event.
-* `storageValue` {Value} a value that will be passed as the first argument
-when the `asyncListener` callback is run, and to all subsequent callback.
+* `callbacksObj` {Object} Contains optional callbacks that will fire at
+specific times in the life cycle of the asynchronous event.
+* `userData` {Value} a value that will be passed to all callbacks.
 
 Returns a constructed `AsyncListener` object.
 
-To begin capturing asynchronous events pass the object to
-[`process.addAsyncListener()`][]. The same `AsyncListener` instance can
-only be added once to the active queue, and subsequent attempts to add the
-instance will be ignored.
+To begin capturing asynchronous events pass either the `callbacksObj` or
+and existing `AsyncListener` instance to [`process.addAsyncListener()`][].
+The same `AsyncListener` instance can only be added once to the active
+queue, and subsequent attempts to add the instance will be ignored.
 
-To stop capturing pass the object to [`process.removeAsyncListener()`][].
-This does _not_ mean the `AsyncListener` previously added will stop
-triggering callbacks. Once attached to an asynchronous event it will
-persist with the lifetime of the asynchronous call stack.
+To stop capturing pass the `AsyncListener` instance to
+[`process.removeAsyncListener()`][]. This does _not_ mean the
+`AsyncListener` previously added will stop triggering callbacks. Once
+attached to an asynchronous event it will persist with the lifetime of the
+asynchronous call stack.
 
 Explanation of function parameters:
 
-`asyncListener(storageValue)`: A `Function` called when an asynchronous
-event is instantiated. If a `Value` is returned then it will be attached
-to the event and overwrite any value that had been passed to
-`process.createAsyncListener()`'s `storageValue` argument. If an initial
-`storageValue` was passed when created, then `asyncListener()` will
-receive that as a function argument.
 
 `callbacksObj`: An `Object` which may contain three optional fields:
 
-* `before(context, storageValue)`: A `Function` that is called immediately
+* `create(userData)`: A `Function` called when an asynchronous
+event is instantiated. If a `Value` is returned then it will be attached
+to the event and overwrite any value that had been passed to
+`process.createAsyncListener()`'s `userData` argument. If an initial
+`userData` was passed when created, then `create()` will
+receive that as a function argument.
+
+* `before(context, userData)`: A `Function` that is called immediately
 before the asynchronous callback is about to run. It will be passed both
-the `context` (i.e. `this`) of the calling function and the `storageValue`
-either returned from `asyncListener` or passed during construction (if
+the `context` (i.e. `this`) of the calling function and the `userData`
+either returned from `create()` or passed during construction (if
 either occurred).
 
-* `after(context, storageValue)`: A `Function` called immediately after
+* `after(context, userData)`: A `Function` called immediately after
 the asynchronous event's callback has run. Note this will not be called
 if the callback throws and the error is not handled.
 
-* `error(storageValue, error)`: A `Function` called if the event's
-callback threw. If `error` returns `true` then Node will assume the error
-has been properly handled and resume execution normally. When multiple
-`error()` callbacks have been registered, only **one** of those callbacks
-needs to return `true` for `AsyncListener` to accept that the error has
-been handled.
+* `error(userData, error)`: A `Function` called if the event's
+callback threw. If this registered callback returns `true` then Node will
+assume the error has been properly handled and resume execution normally.
+When multiple `error()` callbacks have been registered only **one** of
+those callbacks needs to return `true` for `AsyncListener` to accept that
+the error has been handled, but all `error()` callbacks will always be run.
 
-`storageValue`: A `Value` (i.e. anything) that will be, by default,
+`userData`: A `Value` (i.e. anything) that will be, by default,
 attached to all new event instances. This will be overwritten if a `Value`
-is returned by `asyncListener()`.
+is returned by `create()`.
 
-Here is an example of overwriting the `storageValue`:
+Here is an example of overwriting the `userData`:
 
-    process.createAsyncListener(function listener(value) {
-      // value === true
-      return false;
+    process.createAsyncListener({
+      create: function listener(value) {
+        // value === true
+        return false;
     }, {
       before: function before(context, value) {
         // value === false
@@ -757,12 +757,12 @@ Here is an example of overwriting the `storageValue`:
     }, true);
 
 **Note:** The [EventEmitter][], while used to emit status of an asynchronous
-event, is not itself asynchronous. So `asyncListener()` will not fire when
+event, is not itself asynchronous. So `create()` will not fire when
 an event is added, and `before`/`after` will not fire when emitted
 callbacks are called.
 
 
-## process.addAsyncListener(asyncListener[, callbacksObj[, storageValue]])
+## process.addAsyncListener(callbacksObj[, userData])
 ## process.addAsyncListener(asyncListener)
 
 Returns a constructed `AsyncListener` object and immediately adds it to
@@ -774,36 +774,32 @@ object.
 
 Example usage for capturing errors:
 
+    var fs = require('fs');
+
     var cntr = 0;
-    var key = process.addAsyncListener(function() {
-      return { uid: cntr++ };
-    }, {
+    var key = process.addAsyncListener({
+      create: function onCreate() {
+        return { uid: cntr++ };
+      },
       before: function onBefore(context, storage) {
-        // Need to remove the listener while logging or will end up
-        // with an infinite call loop.
-        process.removeAsyncListener(key);
-        console.log('uid: %s is about to run', storage.uid);
-        process.addAsyncListener(key);
+        // Write directly to stdout or we'll enter a recursive loop
+        fs.writeSync(1, 'uid: ' + storage.uid + ' is about to run\n');
       },
       after: function onAfter(context, storage) {
-        process.removeAsyncListener(key);
-        console.log('uid: %s is about to run', storage.uid);
-        process.addAsyncListener(key);
+        fs.writeSync(1, 'uid: ' + storage.uid + ' is about to run\n');
       },
       error: function onError(storage, err) {
         // Handle known errors
-        if (err.message === 'really, it\'s ok') {
-          process.removeAsyncListener(key);
-          console.log('handled error just threw:');
-          console.log(err.stack);
-          process.addAsyncListener(key);
+        if (err.message === 'everything is fine') {
+          fs.writeSync(1, 'handled error just threw:\n');
+          fs.writeSync(1, err.stack + '\n');
           return true;
         }
       }
     });
 
     process.nextTick(function() {
-      throw new Error('really, it\'s ok');
+      throw new Error('everything is fine');
     });
 
     // Output:
@@ -820,16 +816,19 @@ Example usage for capturing errors:
 
 Removes the `AsyncListener` from the listening queue.
 
-Removing the `AsyncListener` from the queue does _not_ mean asynchronous
-events called during its execution scope will stop firing callbacks. Once
-attached to an event it will persist for the entire asynchronous call
-stack. For example:
+Removing the `AsyncListener` from the active queue does _not_ mean the
+`asyncListener` callbacks will cease to fire on the events they've been
+registered. Subsequently, any asynchronous events fired during the
+execution of a callback will also have the same `asyncListener` callbacks
+attached for future execution. For example:
 
-    var key = process.createAsyncListener(function asyncListener() {
-      // To log we must stop listening or we'll enter infinite recursion.
-      process.removeAsyncListener(key);
-      console.log('You summoned me?');
-      process.addAsyncListener(key);
+    var fs = require('fs');
+
+    var key = process.createAsyncListener({
+      create: function asyncListener() {
+        // Write directly to stdout or we'll enter a recursive loop
+        fs.writeSync(1, 'You summoned me?\n');
+      }
     });
 
     // We want to begin capturing async events some time in the future.
@@ -861,11 +860,13 @@ To stop capturing from a specific asynchronous event stack
 `process.removeAsyncListener()` must be called from within the call
 stack itself. For example:
 
-    var key = process.createAsyncListener(function asyncListener() {
-      // To log we must stop listening or we'll enter infinite recursion.
-      process.removeAsyncListener(key);
-      console.log('You summoned me?');
-      process.addAsyncListener(key);
+    var fs = require('fs');
+
+    var key = process.createAsyncListener({
+      create: function asyncListener() {
+        // Write directly to stdout or we'll enter a recursive loop
+        fs.writeSync(1, 'You summoned me?\n');
+      }
     });
 
     // We want to begin capturing async events some time in the future.

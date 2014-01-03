@@ -311,18 +311,21 @@
       inAsyncTick = true;
       for (i = 0; i < asyncQueue.length; i++) {
         queueItem = asyncQueue[i];
+        if (!queueItem.callbacks.create) {
+          queue[i] = queueItem;
+          continue;
+        }
         // Not passing "this" context because it hasn't actually been
         // instantiated yet, so accessing some of the object properties
         // can cause a segfault.
         // Passing the original value will allow users to manipulate the
         // original value object, while also allowing them to return a
         // new value for current async call tracking.
-        value = queueItem.listener(queueItem.value);
+        value = queueItem.callbacks.create(queueItem.value);
         if (typeof value !== 'undefined') {
           item = {
             callbacks: queueItem.callbacks,
             value: value,
-            listener: queueItem.listener,
             uid: queueItem.uid
           };
         } else {
@@ -388,22 +391,19 @@
 
     // Create new async listener object. Useful when instantiating a new
     // object and want the listener instance, but not add it to the stack.
-    function createAsyncListener(listener, callbacks, value) {
+    function createAsyncListener(callbacks, value) {
       return {
         callbacks: callbacks,
         value: value,
-        listener: listener,
         uid: uid++
       };
     }
 
     // Add a listener to the current queue.
-    function addAsyncListener(listener, callbacks, value) {
+    function addAsyncListener(callbacks, value) {
       // Accept new listeners or previous created listeners.
-      if (typeof listener === 'function')
-        callbacks = createAsyncListener(listener, callbacks, value);
-      else
-        callbacks = listener;
+      if (typeof callbacks.uid !== 'number')
+        callbacks = createAsyncListener(callbacks, value);
 
       var inQueue = false;
       // The asyncQueue will be small. Probably always <= 3 items.

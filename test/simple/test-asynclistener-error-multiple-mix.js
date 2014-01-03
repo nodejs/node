@@ -22,8 +22,6 @@
 var common = require('../common');
 var assert = require('assert');
 
-function onAsync() {}
-
 var results = [];
 var asyncNoHandleError = {
   error: function(stor) {
@@ -39,8 +37,8 @@ var asyncHandleError = {
 };
 
 var listeners = [
-  process.addAsyncListener(onAsync, asyncHandleError),
-  process.addAsyncListener(onAsync, asyncNoHandleError)
+  process.addAsyncListener(asyncHandleError),
+  process.addAsyncListener(asyncNoHandleError)
 ];
 
 // Even if an error handler returns true, both should fire.

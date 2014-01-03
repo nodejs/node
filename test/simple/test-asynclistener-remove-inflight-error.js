@@ -22,8 +22,6 @@
 var common = require('../common');
 var assert = require('assert');
 
-function onAsync0() { }
-
 var set = 0;
 var asyncNoHandleError = {
   error: function() {
@@ -31,7 +29,7 @@ var asyncNoHandleError = {
   }
 }
 
-var key = process.addAsyncListener(onAsync0, asyncNoHandleError);
+var key = process.addAsyncListener(asyncNoHandleError);
 
 process.nextTick(function() {
   throw 1;

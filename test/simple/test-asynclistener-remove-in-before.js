@@ -31,7 +31,7 @@ var callbacks = {
   }
 };
 
-var listener = process.addAsyncListener(function() {}, callbacks);
+var listener = process.addAsyncListener(callbacks);
 
 process.nextTick(function() {});
 

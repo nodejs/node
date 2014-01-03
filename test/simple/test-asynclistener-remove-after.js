@@ -27,7 +27,7 @@ var net = require('net');
 // TODO(trevnorris): Test has the flaw that it's not checking if the async
 // flag has been removed on the class instance. Though currently there's
 // no way to do that.
-var listener = process.addAsyncListener(function() { });
+var listener = process.addAsyncListener({ create: function() { }});
 
 
 // Test timers

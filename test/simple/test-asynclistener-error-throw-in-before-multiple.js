@@ -23,8 +23,6 @@ var common = require('../common');
 var assert = require('assert');
 
 var once = 0;
-function onAsync0() { }
-function onAsync1() { }
 
 var results = [];
 var handlers = {
@@ -52,8 +50,8 @@ var handlers1 = {
 }
 
 var listeners = [
-  process.addAsyncListener(onAsync0, handlers),
-  process.addAsyncListener(onAsync1, handlers1)
+  process.addAsyncListener(handlers),
+  process.addAsyncListener(handlers1)
 ];
 
 var uncaughtFired = false;

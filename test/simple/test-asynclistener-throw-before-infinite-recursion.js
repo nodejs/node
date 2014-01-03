@@ -31,7 +31,7 @@ var assert = require('assert');
 var cntr = 0;
 
 
-process.addAsyncListener(function() { }, {
+process.addAsyncListener({
   before: function() {
     if (++cntr > 1) {
       // Can't throw since uncaughtException will also catch that.

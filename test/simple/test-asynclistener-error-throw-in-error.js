@@ -34,7 +34,7 @@ else
 function runChild() {
   var cntr = 0;
 
-  var key = process.addAsyncListener(function() { }, {
+  var key = process.addAsyncListener({
     error: function onError() {
       cntr++;
       throw new Error('onError');

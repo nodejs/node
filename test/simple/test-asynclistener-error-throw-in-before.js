@@ -23,7 +23,6 @@ var common = require('../common');
 var assert = require('assert');
 
 var once = 0;
-function onAsync0() {}
 
 var results = [];
 var handlers = {
@@ -38,7 +37,7 @@ var handlers = {
   }
 }
 
-var key = process.addAsyncListener(onAsync0, handlers);
+var key = process.addAsyncListener(handlers);
 
 var uncaughtFired = false;
 process.on('uncaughtException', function(err) {

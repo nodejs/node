@@ -30,8 +30,6 @@ var caught = 0;
 var expectCaught = 0;
 var exitCbRan = false;
 
-function asyncL() { }
-
 var callbacksObj = {
   error: function(value, er) {
     var idx = errorMsgs.indexOf(er.message);
@@ -48,7 +46,7 @@ var callbacksObj = {
   }
 };
 
-var listener = process.createAsyncListener(asyncL, callbacksObj);
+var listener = process.createAsyncListener(callbacksObj);
 
 process.on('exit', function(code) {
   // Just in case.
