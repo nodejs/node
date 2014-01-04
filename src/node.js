@@ -495,7 +495,7 @@
       var inQueue = false;
       // The asyncQueue will be small. Probably always <= 3 items.
       for (var i = 0; i < queue.length; i++) {
-        if (obj.uid === queue.uid) {
+        if (obj.uid === queue[i].uid) {
           inQueue = true;
           break;
         }
