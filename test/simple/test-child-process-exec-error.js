@@ -28,6 +28,7 @@ function test(fun, code) {
 
   fun('does-not-exist', function(err) {
     assert.equal(err.code, code);
+    assert(/does\-not\-exist/.test(err.cmd));
     errors++;
   });
 
