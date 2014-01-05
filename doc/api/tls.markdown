@@ -76,6 +76,31 @@ handshake extensions allowing you:
     certificates.
 
 
+## Perfect Forward Secrecy
+
+<!-- type=misc -->
+
+The term "[Forward Secrecy]" or "Perfect Forward Secrecy" describes a feature of
+key-agreement (i.e. key-exchange) methods. Practically it means that even if the
+private key of a (your) server is compromised, communication can only be
+decrypted by eavesdroppers if they manage to obtain the key-pair specifically
+generated for each session.
+
+This is achieved by randomly generating a key pair for key-agreement on every
+handshake (in contrary to the same key for all sessions). Methods implementing
+this technique, thus offering Perfect Forward Secrecy, are called "ephemeral".
+
+Currently two methods are commonly used to achieve Perfect Forward Secrecy (note 
+the character "E" appended to the traditional abbreviations):
+
+  * [DHE] - An ephemeral version of the Diffie Hellman key-agreement protocol.
+  * [ECDHE] - An ephemeral version of the Elliptic Curve Diffie Hellman
+    key-agreement protocol.
+
+Ephemeral methods may have some performance drawbacks, because key generation
+is expensive.
+
+
 ## tls.getCiphers()
 
 Returns an array with the names of the supported SSL ciphers.
@@ -127,16 +152,10 @@ automatically set as a listener for the [secureConnection][] event.  The
 
     **NOTE**: Previous revisions of this section suggested `AES256-SHA` as an
     acceptable cipher. Unfortunately, `AES256-SHA` is a CBC cipher and therefore
-    susceptible to BEAST attacks. Do *not* use it.
+    susceptible to [BEAST attacks]. Do *not* use it.
 
-  - `ecdhCurve`: A string describing a named curve to use for ECDH ciphers or
-    false to disable all ECDH ciphers.
-
-    This is required to support ECDH (Elliptic Curve Diffie-Hellman) ciphers.
-    ECDH ciphers are a newer alternative to RSA. The advantages of ECDH over
-    RSA is that it offers [Forward secrecy]. Forward secrecy means that for an
-    attacker it won't be possible to decrypt your previous data exchanges if
-    they get access to your private key.
+  - `ecdhCurve`: A string describing a named curve to use for ECDH key agreement
+    or false to disable ECDH.
 
     Defaults to `prime256v1`. Consult [RFC 4492] for more details.
 
@@ -648,3 +667,5 @@ The numeric representation of the local port.
 [SSL_CTX_set_timeout]: http://www.openssl.org/docs/ssl/SSL_CTX_set_timeout.html
 [RFC 4492]: http://www.rfc-editor.org/rfc/rfc4492.txt
 [Forward secrecy]: http://en.wikipedia.org/wiki/Perfect_forward_secrecy
+[DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
+[ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
