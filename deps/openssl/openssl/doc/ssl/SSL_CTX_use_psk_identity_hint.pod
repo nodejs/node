@@ -81,6 +81,8 @@ SSL_CTX_use_psk_identity_hint() and SSL_use_psk_identity_hint() return
 
 Return values from the server callback are interpreted as follows:
 
+=over 4
+
 =item > 0
 
 PSK identity was found and the server callback has provided the PSK
@@ -98,5 +100,7 @@ completely.
 
 PSK identity was not found. An "unknown_psk_identity" alert message
 will be sent and the connection setup fails.
+
+=back
 
 =cut

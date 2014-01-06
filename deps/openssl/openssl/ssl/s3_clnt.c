@@ -655,7 +655,7 @@ int ssl3_client_hello(SSL *s)
 	unsigned char *buf;
 	unsigned char *p,*d;
 	int i;
-	unsigned long Time,l;
+	unsigned long l;
 #ifndef OPENSSL_NO_COMP
 	int j;
 	SSL_COMP *comp;
@@ -680,9 +680,8 @@ int ssl3_client_hello(SSL *s)
 		/* else use the pre-loaded session */
 
 		p=s->s3->client_random;
-		Time=(unsigned long)time(NULL);			/* Time */
-		l2n(Time,p);
-		if (RAND_pseudo_bytes(p,SSL3_RANDOM_SIZE-4) <= 0)
+
+		if (ssl_fill_hello_random(s, 0, p, SSL3_RANDOM_SIZE) <= 0)
 			goto err;
 
 		/* Do the message type and length last */

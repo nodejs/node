@@ -5,11 +5,17 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
-  Major changes between OpenSSL 1.0.1d and OpenSSL 1.0.1e:
+  Major changes between OpenSSL 1.0.1e and OpenSSL 1.0.1f [6 Jan 2014]
+
+      o Fix for TLS record tampering bug CVE-2013-4353
+      o Fix for TLS version checking bug CVE-2013-6449
+      o Fix for DTLS retransmission bug CVE-2013-6450
+
+  Major changes between OpenSSL 1.0.1d and OpenSSL 1.0.1e [11 Feb 2013]:
 
       o Corrected fix for CVE-2013-0169
 
-  Major changes between OpenSSL 1.0.1c and OpenSSL 1.0.1d:
+  Major changes between OpenSSL 1.0.1c and OpenSSL 1.0.1d [4 Feb 2013]:
 
       o Fix renegotiation in TLS 1.1, 1.2 by using the correct TLS version.
       o Include the fips configuration module.
@@ -17,24 +23,24 @@
       o Fix for SSL/TLS/DTLS CBC plaintext recovery attack CVE-2013-0169
       o Fix for TLS AESNI record handling flaw CVE-2012-2686
 
-  Major changes between OpenSSL 1.0.1b and OpenSSL 1.0.1c:
+  Major changes between OpenSSL 1.0.1b and OpenSSL 1.0.1c [10 May 2012]:
 
       o Fix TLS/DTLS record length checking bug CVE-2012-2333
       o Don't attempt to use non-FIPS composite ciphers in FIPS mode.
 
-  Major changes between OpenSSL 1.0.1a and OpenSSL 1.0.1b:
+  Major changes between OpenSSL 1.0.1a and OpenSSL 1.0.1b [26 Apr 2012]:
 
       o Fix compilation error on non-x86 platforms.
       o Make FIPS capable OpenSSL ciphers work in non-FIPS mode.
       o Fix SSL_OP_NO_TLSv1_1 clash with SSL_OP_ALL in OpenSSL 1.0.0
 
-  Major changes between OpenSSL 1.0.1 and OpenSSL 1.0.1a:
+  Major changes between OpenSSL 1.0.1 and OpenSSL 1.0.1a [19 Apr 2012]:
 
       o Fix for ASN1 overflow bug CVE-2012-2110
       o Workarounds for some servers that hang on long client hellos.
       o Fix SEGV in AES code.
 
-  Major changes between OpenSSL 1.0.0h and OpenSSL 1.0.1:
+  Major changes between OpenSSL 1.0.0h and OpenSSL 1.0.1 [14 Mar 2012]:
 
       o TLS/DTLS heartbeat support.
       o SCTP support.
@@ -47,17 +53,30 @@
       o Preliminary FIPS capability for unvalidated 2.0 FIPS module.
       o SRP support.
 
-  Major changes between OpenSSL 1.0.0g and OpenSSL 1.0.0h:
+  Major changes between OpenSSL 1.0.0j and OpenSSL 1.0.0k [5 Feb 2013]:
+
+      o Fix for SSL/TLS/DTLS CBC plaintext recovery attack CVE-2013-0169
+      o Fix OCSP bad key DoS attack CVE-2013-0166
+
+  Major changes between OpenSSL 1.0.0i and OpenSSL 1.0.0j [10 May 2012]:
+
+      o Fix DTLS record length checking bug CVE-2012-2333
+
+  Major changes between OpenSSL 1.0.0h and OpenSSL 1.0.0i [19 Apr 2012]:
+
+      o Fix for ASN1 overflow bug CVE-2012-2110
+
+  Major changes between OpenSSL 1.0.0g and OpenSSL 1.0.0h [12 Mar 2012]:
 
       o Fix for CMS/PKCS#7 MMA CVE-2012-0884
       o Corrected fix for CVE-2011-4619
       o Various DTLS fixes.
 
-  Major changes between OpenSSL 1.0.0f and OpenSSL 1.0.0g:
+  Major changes between OpenSSL 1.0.0f and OpenSSL 1.0.0g [18 Jan 2012]:
 
       o Fix for DTLS DoS issue CVE-2012-0050
 
-  Major changes between OpenSSL 1.0.0e and OpenSSL 1.0.0f:
+  Major changes between OpenSSL 1.0.0e and OpenSSL 1.0.0f [4 Jan 2012]:
 
       o Fix for DTLS plaintext recovery attack CVE-2011-4108
       o Clear block padding bytes of SSL 3.0 records CVE-2011-4576
@@ -65,7 +84,7 @@
       o Check parameters are not NULL in GOST ENGINE CVE-2012-0027
       o Check for malformed RFC3779 data CVE-2011-4577
 
-  Major changes between OpenSSL 1.0.0d and OpenSSL 1.0.0e:
+  Major changes between OpenSSL 1.0.0d and OpenSSL 1.0.0e [6 Sep 2011]:
 
       o Fix for CRL vulnerability issue CVE-2011-3207
       o Fix for ECDH crashes CVE-2011-3210
@@ -73,11 +92,11 @@
       o Support ECDH ciphersuites for certificates using SHA2 algorithms.
       o Various DTLS fixes.
 
-  Major changes between OpenSSL 1.0.0c and OpenSSL 1.0.0d:
+  Major changes between OpenSSL 1.0.0c and OpenSSL 1.0.0d [8 Feb 2011]:
 
       o Fix for security issue CVE-2011-0014
 
-  Major changes between OpenSSL 1.0.0b and OpenSSL 1.0.0c:
+  Major changes between OpenSSL 1.0.0b and OpenSSL 1.0.0c [2 Dec 2010]:
 
       o Fix for security issue CVE-2010-4180
       o Fix for CVE-2010-4252
@@ -85,18 +104,18 @@
       o Fix various platform compilation issues.
       o Corrected fix for security issue CVE-2010-3864.
 
-  Major changes between OpenSSL 1.0.0a and OpenSSL 1.0.0b:
+  Major changes between OpenSSL 1.0.0a and OpenSSL 1.0.0b [16 Nov 2010]:
 
       o Fix for security issue CVE-2010-3864.
       o Fix for CVE-2010-2939
       o Fix WIN32 build system for GOST ENGINE.
 
-  Major changes between OpenSSL 1.0.0 and OpenSSL 1.0.0a:
+  Major changes between OpenSSL 1.0.0 and OpenSSL 1.0.0a [1 Jun 2010]:
 
       o Fix for security issue CVE-2010-1633.
       o GOST MAC and CFB fixes.
 
-  Major changes between OpenSSL 0.9.8n and OpenSSL 1.0.0:
+  Major changes between OpenSSL 0.9.8n and OpenSSL 1.0.0 [29 Mar 2010]:
 
       o RFC3280 path validation: sufficient to process PKITS tests.
       o Integrated support for PVK files and keyblobs.
@@ -119,20 +138,55 @@
       o Opaque PRF Input TLS extension support.
       o Updated time routines to avoid OS limitations.
 
-  Major changes between OpenSSL 0.9.8q and OpenSSL 0.9.8r:
+  Major changes between OpenSSL 0.9.8x and OpenSSL 0.9.8y [5 Feb 2013]:
+
+      o Fix for SSL/TLS/DTLS CBC plaintext recovery attack CVE-2013-0169
+      o Fix OCSP bad key DoS attack CVE-2013-0166
+
+  Major changes between OpenSSL 0.9.8w and OpenSSL 0.9.8x [10 May 2012]:
+
+      o Fix DTLS record length checking bug CVE-2012-2333
+
+  Major changes between OpenSSL 0.9.8v and OpenSSL 0.9.8w [23 Apr 2012]:
+
+      o Fix for CVE-2012-2131 (corrected fix for 0.9.8 and CVE-2012-2110)
+
+  Major changes between OpenSSL 0.9.8u and OpenSSL 0.9.8v [19 Apr 2012]:
+
+      o Fix for ASN1 overflow bug CVE-2012-2110
+
+  Major changes between OpenSSL 0.9.8t and OpenSSL 0.9.8u [12 Mar 2012]:
+
+      o Fix for CMS/PKCS#7 MMA CVE-2012-0884
+      o Corrected fix for CVE-2011-4619
+      o Various DTLS fixes.
+
+  Major changes between OpenSSL 0.9.8s and OpenSSL 0.9.8t [18 Jan 2012]:
+
+      o Fix for DTLS DoS issue CVE-2012-0050
+
+  Major changes between OpenSSL 0.9.8r and OpenSSL 0.9.8s [4 Jan 2012]:
+
+      o Fix for DTLS plaintext recovery attack CVE-2011-4108
+      o Fix policy check double free error CVE-2011-4109
+      o Clear block padding bytes of SSL 3.0 records CVE-2011-4576
+      o Only allow one SGC handshake restart for SSL/TLS CVE-2011-4619
+      o Check for malformed RFC3779 data CVE-2011-4577
+
+  Major changes between OpenSSL 0.9.8q and OpenSSL 0.9.8r [8 Feb 2011]:
 
       o Fix for security issue CVE-2011-0014
 
-  Major changes between OpenSSL 0.9.8p and OpenSSL 0.9.8q:
+  Major changes between OpenSSL 0.9.8p and OpenSSL 0.9.8q [2 Dec 2010]:
 
       o Fix for security issue CVE-2010-4180
       o Fix for CVE-2010-4252
 
-  Major changes between OpenSSL 0.9.8o and OpenSSL 0.9.8p:
+  Major changes between OpenSSL 0.9.8o and OpenSSL 0.9.8p [16 Nov 2010]:
 
       o Fix for security issue CVE-2010-3864.
 
-  Major changes between OpenSSL 0.9.8n and OpenSSL 0.9.8o:
+  Major changes between OpenSSL 0.9.8n and OpenSSL 0.9.8o [1 Jun 2010]:
 
       o Fix for security issue CVE-2010-0742.
       o Various DTLS fixes.
@@ -140,12 +194,12 @@
       o Fix for no-rc4 compilation.
       o Chil ENGINE unload workaround.
 
-  Major changes between OpenSSL 0.9.8m and OpenSSL 0.9.8n:
+  Major changes between OpenSSL 0.9.8m and OpenSSL 0.9.8n [24 Mar 2010]:
 
       o CFB cipher definition fixes.
       o Fix security issues CVE-2010-0740 and CVE-2010-0433.
 
-  Major changes between OpenSSL 0.9.8l and OpenSSL 0.9.8m:
+  Major changes between OpenSSL 0.9.8l and OpenSSL 0.9.8m [25 Feb 2010]:
 
       o Cipher definition fixes.
       o Workaround for slow RAND_poll() on some WIN32 versions.
@@ -157,33 +211,33 @@
       o Ticket and SNI coexistence fixes.
       o Many fixes to DTLS handling. 
 
-  Major changes between OpenSSL 0.9.8k and OpenSSL 0.9.8l:
+  Major changes between OpenSSL 0.9.8k and OpenSSL 0.9.8l [5 Nov 2009]:
 
       o Temporary work around for CVE-2009-3555: disable renegotiation.
 
-  Major changes between OpenSSL 0.9.8j and OpenSSL 0.9.8k:
+  Major changes between OpenSSL 0.9.8j and OpenSSL 0.9.8k [25 Mar 2009]:
 
       o Fix various build issues.
       o Fix security issues (CVE-2009-0590, CVE-2009-0591, CVE-2009-0789)
 
-  Major changes between OpenSSL 0.9.8i and OpenSSL 0.9.8j:
+  Major changes between OpenSSL 0.9.8i and OpenSSL 0.9.8j [7 Jan 2009]:
 
       o Fix security issue (CVE-2008-5077)
       o Merge FIPS 140-2 branch code.
 
-  Major changes between OpenSSL 0.9.8g and OpenSSL 0.9.8h:
+  Major changes between OpenSSL 0.9.8g and OpenSSL 0.9.8h [28 May 2008]:
 
       o CryptoAPI ENGINE support.
       o Various precautionary measures.
       o Fix for bugs affecting certificate request creation.
       o Support for local machine keyset attribute in PKCS#12 files.
 
-  Major changes between OpenSSL 0.9.8f and OpenSSL 0.9.8g:
+  Major changes between OpenSSL 0.9.8f and OpenSSL 0.9.8g [19 Oct 2007]:
 
       o Backport of CMS functionality to 0.9.8.
       o Fixes for bugs introduced with 0.9.8f.
 
-  Major changes between OpenSSL 0.9.8e and OpenSSL 0.9.8f:
+  Major changes between OpenSSL 0.9.8e and OpenSSL 0.9.8f [11 Oct 2007]:
 
       o Add gcc 4.2 support.
       o Add support for AES and SSE2 assembly lanugauge optimization
@@ -194,23 +248,23 @@
       o RFC4507bis support.
       o TLS Extensions support.
 
-  Major changes between OpenSSL 0.9.8d and OpenSSL 0.9.8e:
+  Major changes between OpenSSL 0.9.8d and OpenSSL 0.9.8e [23 Feb 2007]:
 
       o Various ciphersuite selection fixes.
       o RFC3779 support.
 
-  Major changes between OpenSSL 0.9.8c and OpenSSL 0.9.8d:
+  Major changes between OpenSSL 0.9.8c and OpenSSL 0.9.8d [28 Sep 2006]:
 
       o Introduce limits to prevent malicious key DoS  (CVE-2006-2940)
       o Fix security issues (CVE-2006-2937, CVE-2006-3737, CVE-2006-4343)
       o Changes to ciphersuite selection algorithm
 
-  Major changes between OpenSSL 0.9.8b and OpenSSL 0.9.8c:
+  Major changes between OpenSSL 0.9.8b and OpenSSL 0.9.8c [5 Sep 2006]:
 
       o Fix Daniel Bleichenbacher forged signature attack, CVE-2006-4339
       o New cipher Camellia
 
-  Major changes between OpenSSL 0.9.8a and OpenSSL 0.9.8b:
+  Major changes between OpenSSL 0.9.8a and OpenSSL 0.9.8b [4 May 2006]:
 
       o Cipher string fixes.
       o Fixes for VC++ 2005.
@@ -220,12 +274,12 @@
       o Built in dynamic engine compilation support on Win32.
       o Fixes auto dynamic engine loading in Win32.
 
-  Major changes between OpenSSL 0.9.8 and OpenSSL 0.9.8a:
+  Major changes between OpenSSL 0.9.8 and OpenSSL 0.9.8a [11 Oct 2005]:
 
       o Fix potential SSL 2.0 rollback, CVE-2005-2969
       o Extended Windows CE support
 
-  Major changes between OpenSSL 0.9.7g and OpenSSL 0.9.8:
+  Major changes between OpenSSL 0.9.7g and OpenSSL 0.9.8 [5 Jul 2005]:
 
       o Major work on the BIGNUM library for higher efficiency and to
         make operations more streamlined and less contradictory.  This
@@ -299,36 +353,36 @@
       o Added initial support for Win64.
       o Added alternate pkg-config files.
 
-  Major changes between OpenSSL 0.9.7l and OpenSSL 0.9.7m:
+  Major changes between OpenSSL 0.9.7l and OpenSSL 0.9.7m [23 Feb 2007]:
 
       o FIPS 1.1.1 module linking.
       o Various ciphersuite selection fixes.
 
-  Major changes between OpenSSL 0.9.7k and OpenSSL 0.9.7l:
+  Major changes between OpenSSL 0.9.7k and OpenSSL 0.9.7l [28 Sep 2006]:
 
       o Introduce limits to prevent malicious key DoS  (CVE-2006-2940)
       o Fix security issues (CVE-2006-2937, CVE-2006-3737, CVE-2006-4343)
 
-  Major changes between OpenSSL 0.9.7j and OpenSSL 0.9.7k:
+  Major changes between OpenSSL 0.9.7j and OpenSSL 0.9.7k [5 Sep 2006]:
 
       o Fix Daniel Bleichenbacher forged signature attack, CVE-2006-4339
 
-  Major changes between OpenSSL 0.9.7i and OpenSSL 0.9.7j:
+  Major changes between OpenSSL 0.9.7i and OpenSSL 0.9.7j [4 May 2006]:
 
       o Visual C++ 2005 fixes.
       o Update Windows build system for FIPS.
 
-  Major changes between OpenSSL 0.9.7h and OpenSSL 0.9.7i:
+  Major changes between OpenSSL 0.9.7h and OpenSSL 0.9.7i [14 Oct 2005]:
 
       o Give EVP_MAX_MD_SIZE it's old value, except for a FIPS build.
 
-  Major changes between OpenSSL 0.9.7g and OpenSSL 0.9.7h:
+  Major changes between OpenSSL 0.9.7g and OpenSSL 0.9.7h [11 Oct 2005]:
 
       o Fix SSL 2.0 Rollback, CVE-2005-2969
       o Allow use of fixed-length exponent on DSA signing
       o Default fixed-window RSA, DSA, DH private-key operations
 
-  Major changes between OpenSSL 0.9.7f and OpenSSL 0.9.7g:
+  Major changes between OpenSSL 0.9.7f and OpenSSL 0.9.7g [11 Apr 2005]:
 
       o More compilation issues fixed.
       o Adaptation to more modern Kerberos API.
@@ -337,7 +391,7 @@
       o More constification.
       o Added processing of proxy certificates (RFC 3820).
 
-  Major changes between OpenSSL 0.9.7e and OpenSSL 0.9.7f:
+  Major changes between OpenSSL 0.9.7e and OpenSSL 0.9.7f [22 Mar 2005]:
 
       o Several compilation issues fixed.
       o Many memory allocation failure checks added.
@@ -345,12 +399,12 @@
       o Mandatory basic checks on certificates.
       o Performance improvements.
 
-  Major changes between OpenSSL 0.9.7d and OpenSSL 0.9.7e:
+  Major changes between OpenSSL 0.9.7d and OpenSSL 0.9.7e [25 Oct 2004]:
 
       o Fix race condition in CRL checking code.
       o Fixes to PKCS#7 (S/MIME) code.
 
-  Major changes between OpenSSL 0.9.7c and OpenSSL 0.9.7d:
+  Major changes between OpenSSL 0.9.7c and OpenSSL 0.9.7d [17 Mar 2004]:
 
       o Security: Fix Kerberos ciphersuite SSL/TLS handshaking bug
       o Security: Fix null-pointer assignment in do_change_cipher_spec()
@@ -358,14 +412,14 @@
       o Multiple X509 verification fixes
       o Speed up HMAC and other operations
 
-  Major changes between OpenSSL 0.9.7b and OpenSSL 0.9.7c:
+  Major changes between OpenSSL 0.9.7b and OpenSSL 0.9.7c [30 Sep 2003]:
 
       o Security: fix various ASN1 parsing bugs.
       o New -ignore_err option to OCSP utility.
       o Various interop and bug fixes in S/MIME code.
       o SSL/TLS protocol fix for unrequested client certificates.
 
-  Major changes between OpenSSL 0.9.7a and OpenSSL 0.9.7b:
+  Major changes between OpenSSL 0.9.7a and OpenSSL 0.9.7b [10 Apr 2003]:
 
       o Security: counter the Klima-Pokorny-Rosa extension of
         Bleichbacher's attack 
@@ -376,7 +430,7 @@
       o ASN.1: treat domainComponent correctly.
       o Documentation: fixes and additions.
 
-  Major changes between OpenSSL 0.9.7 and OpenSSL 0.9.7a:
+  Major changes between OpenSSL 0.9.7 and OpenSSL 0.9.7a [19 Feb 2003]:
 
       o Security: Important security related bugfixes.
       o Enhanced compatibility with MIT Kerberos.
@@ -387,7 +441,7 @@
       o SSL/TLS: now handles manual certificate chain building.
       o SSL/TLS: certain session ID malfunctions corrected.
 
-  Major changes between OpenSSL 0.9.6 and OpenSSL 0.9.7:
+  Major changes between OpenSSL 0.9.6 and OpenSSL 0.9.7 [30 Dec 2002]:
 
       o New library section OCSP.
       o Complete rewrite of ASN1 code.
@@ -433,23 +487,23 @@
       o SSL/TLS: add callback to retrieve SSL/TLS messages.
       o SSL/TLS: support AES cipher suites (RFC3268).
 
-  Major changes between OpenSSL 0.9.6j and OpenSSL 0.9.6k:
+  Major changes between OpenSSL 0.9.6j and OpenSSL 0.9.6k [30 Sep 2003]:
 
       o Security: fix various ASN1 parsing bugs.
       o SSL/TLS protocol fix for unrequested client certificates.
 
-  Major changes between OpenSSL 0.9.6i and OpenSSL 0.9.6j:
+  Major changes between OpenSSL 0.9.6i and OpenSSL 0.9.6j [10 Apr 2003]:
 
       o Security: counter the Klima-Pokorny-Rosa extension of
         Bleichbacher's attack 
       o Security: make RSA blinding default.
       o Build: shared library support fixes.
 
-  Major changes between OpenSSL 0.9.6h and OpenSSL 0.9.6i:
+  Major changes between OpenSSL 0.9.6h and OpenSSL 0.9.6i [19 Feb 2003]:
 
       o Important security related bugfixes.
 
-  Major changes between OpenSSL 0.9.6g and OpenSSL 0.9.6h:
+  Major changes between OpenSSL 0.9.6g and OpenSSL 0.9.6h [5 Dec 2002]:
 
       o New configuration targets for Tandem OSS and A/UX.
       o New OIDs for Microsoft attributes.
@@ -463,25 +517,25 @@
       o Fixes for smaller building problems.
       o Updates of manuals, FAQ and other instructive documents.
 
-  Major changes between OpenSSL 0.9.6f and OpenSSL 0.9.6g:
+  Major changes between OpenSSL 0.9.6f and OpenSSL 0.9.6g [9 Aug 2002]:
 
       o Important building fixes on Unix.
 
-  Major changes between OpenSSL 0.9.6e and OpenSSL 0.9.6f:
+  Major changes between OpenSSL 0.9.6e and OpenSSL 0.9.6f [8 Aug 2002]:
 
       o Various important bugfixes.
 
-  Major changes between OpenSSL 0.9.6d and OpenSSL 0.9.6e:
+  Major changes between OpenSSL 0.9.6d and OpenSSL 0.9.6e [30 Jul 2002]:
 
       o Important security related bugfixes.
       o Various SSL/TLS library bugfixes.
 
-  Major changes between OpenSSL 0.9.6c and OpenSSL 0.9.6d:
+  Major changes between OpenSSL 0.9.6c and OpenSSL 0.9.6d [9 May 2002]:
 
       o Various SSL/TLS library bugfixes.
       o Fix DH parameter generation for 'non-standard' generators.
 
-  Major changes between OpenSSL 0.9.6b and OpenSSL 0.9.6c:
+  Major changes between OpenSSL 0.9.6b and OpenSSL 0.9.6c [21 Dec 2001]:
 
       o Various SSL/TLS library bugfixes.
       o BIGNUM library fixes.
@@ -494,7 +548,7 @@
         Broadcom and Cryptographic Appliance's keyserver
         [in 0.9.6c-engine release].
 
-  Major changes between OpenSSL 0.9.6a and OpenSSL 0.9.6b:
+  Major changes between OpenSSL 0.9.6a and OpenSSL 0.9.6b [9 Jul 2001]:
 
       o Security fix: PRNG improvements.
       o Security fix: RSA OAEP check.
@@ -511,7 +565,7 @@
       o Increase default size for BIO buffering filter.
       o Compatibility fixes in some scripts.
 
-  Major changes between OpenSSL 0.9.6 and OpenSSL 0.9.6a:
+  Major changes between OpenSSL 0.9.6 and OpenSSL 0.9.6a [5 Apr 2001]:
 
       o Security fix: change behavior of OpenSSL to avoid using
         environment variables when running as root.
@@ -536,7 +590,7 @@
       o New function BN_rand_range().
       o Add "-rand" option to openssl s_client and s_server.
 
-  Major changes between OpenSSL 0.9.5a and OpenSSL 0.9.6:
+  Major changes between OpenSSL 0.9.5a and OpenSSL 0.9.6 [10 Oct 2000]:
 
       o Some documentation for BIO and SSL libraries.
       o Enhanced chain verification using key identifiers.
@@ -551,7 +605,7 @@
     [1] The support for external crypto devices is currently a separate
         distribution.  See the file README.ENGINE.
 
-  Major changes between OpenSSL 0.9.5 and OpenSSL 0.9.5a:
+  Major changes between OpenSSL 0.9.5 and OpenSSL 0.9.5a [1 Apr 2000]:
 
       o Bug fixes for Win32, SuSE Linux, NeXTSTEP and FreeBSD 2.2.8 
       o Shared library support for HPUX and Solaris-gcc
@@ -560,7 +614,7 @@
       o New 'rand' application
       o New way to check for existence of algorithms from scripts
 
-  Major changes between OpenSSL 0.9.4 and OpenSSL 0.9.5:
+  Major changes between OpenSSL 0.9.4 and OpenSSL 0.9.5 [25 May 2000]:
 
       o S/MIME support in new 'smime' command
       o Documentation for the OpenSSL command line application
@@ -596,7 +650,7 @@
       o Enhanced support for Alpha Linux
       o Experimental MacOS support
 
-  Major changes between OpenSSL 0.9.3 and OpenSSL 0.9.4:
+  Major changes between OpenSSL 0.9.3 and OpenSSL 0.9.4 [9 Aug 1999]:
 
       o Transparent support for PKCS#8 format private keys: these are used
         by several software packages and are more secure than the standard
@@ -607,7 +661,7 @@
       o New pipe-like BIO that allows using the SSL library when actual I/O
         must be handled by the application (BIO pair)
 
-  Major changes between OpenSSL 0.9.2b and OpenSSL 0.9.3:
+  Major changes between OpenSSL 0.9.2b and OpenSSL 0.9.3 [24 May 1999]:
       o Lots of enhancements and cleanups to the Configuration mechanism
       o RSA OEAP related fixes
       o Added `openssl ca -revoke' option for revoking a certificate
@@ -621,7 +675,7 @@
       o Sparc assembler bignum implementation, optimized hash functions
       o Option to disable selected ciphers
 
-  Major changes between OpenSSL 0.9.1c and OpenSSL 0.9.2b:
+  Major changes between OpenSSL 0.9.1c and OpenSSL 0.9.2b [22 Mar 1999]:
       o Fixed a security hole related to session resumption
       o Fixed RSA encryption routines for the p < q case
       o "ALL" in cipher lists now means "everything except NULL ciphers"
@@ -643,7 +697,7 @@
       o Lots of memory leak fixes.
       o Lots of bug fixes.
 
-  Major changes between SSLeay 0.9.0b and OpenSSL 0.9.1c:
+  Major changes between SSLeay 0.9.0b and OpenSSL 0.9.1c [23 Dec 1998]:
       o Integration of the popular NO_RSA/NO_DSA patches
       o Initial support for compression inside the SSL record layer
       o Added BIO proxy and filtering functionality

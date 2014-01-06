@@ -29,10 +29,7 @@ typedef unsigned char u8;
 #if defined(__i386)	|| defined(__i386__)	|| \
     defined(__x86_64)	|| defined(__x86_64__)	|| \
     defined(_M_IX86)	|| defined(_M_AMD64)	|| defined(_M_X64) || \
-    defined(__s390__)	|| defined(__s390x__)	|| \
-    ( (defined(__arm__)	|| defined(__arm)) && \
-      (defined(__ARM_ARCH_7__)	|| defined(__ARM_ARCH_7A__) || \
-       defined(__ARM_ARCH_7R__)	|| defined(__ARM_ARCH_7M__)) )
+    defined(__s390__)	|| defined(__s390x__)
 # undef STRICT_ALIGNMENT
 #endif
 
@@ -101,8 +98,8 @@ typedef struct { u64 hi,lo; } u128;
 
 struct gcm128_context {
 	/* Following 6 names follow names in GCM specification */
-	union { u64 u[2]; u32 d[4]; u8 c[16]; }	Yi,EKi,EK0,len,
-						Xi,H;
+	union { u64 u[2]; u32 d[4]; u8 c[16]; size_t t[16/sizeof(size_t)]; }
+	  Yi,EKi,EK0,len,Xi,H;
 	/* Relative position of Xi, H and pre-computed Htable is used
 	 * in some assembler modules, i.e. don't change the order! */
 #if TABLE_BITS==8

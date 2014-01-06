@@ -415,8 +415,10 @@ sub run_smime_tests {
 }
 
 sub cmp_files {
+    use FileHandle;
     my ( $f1, $f2 ) = @_;
-    my ( $fp1, $fp2 );
+    my $fp1 = FileHandle->new();
+    my $fp2 = FileHandle->new();
 
     my ( $rd1, $rd2 );
 

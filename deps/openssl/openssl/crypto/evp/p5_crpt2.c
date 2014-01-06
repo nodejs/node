@@ -85,19 +85,24 @@ int PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 	unsigned char digtmp[EVP_MAX_MD_SIZE], *p, itmp[4];
 	int cplen, j, k, tkeylen, mdlen;
 	unsigned long i = 1;
-	HMAC_CTX hctx;
+	HMAC_CTX hctx_tpl, hctx;
 
 	mdlen = EVP_MD_size(digest);
 	if (mdlen < 0)
 		return 0;
 
-	HMAC_CTX_init(&hctx);
+	HMAC_CTX_init(&hctx_tpl);
 	p = out;
 	tkeylen = keylen;
 	if(!pass)
 		passlen = 0;
 	else if(passlen == -1)
 		passlen = strlen(pass);
+	if (!HMAC_Init_ex(&hctx_tpl, pass, passlen, digest, NULL))
+		{
+		HMAC_CTX_cleanup(&hctx_tpl);
+		return 0;
+		}
 	while(tkeylen)
 		{
 		if(tkeylen > mdlen)
@@ -111,19 +116,36 @@ int PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 		itmp[1] = (unsigned char)((i >> 16) & 0xff);
 		itmp[2] = (unsigned char)((i >> 8) & 0xff);
 		itmp[3] = (unsigned char)(i & 0xff);
-		if (!HMAC_Init_ex(&hctx, pass, passlen, digest, NULL)
-			|| !HMAC_Update(&hctx, salt, saltlen)
-			|| !HMAC_Update(&hctx, itmp, 4)
-			|| !HMAC_Final(&hctx, digtmp, NULL))
+		if (!HMAC_CTX_copy(&hctx, &hctx_tpl))
 			{
+			HMAC_CTX_cleanup(&hctx_tpl);
+			return 0;
+			}
+		if (!HMAC_Update(&hctx, salt, saltlen)
+		    || !HMAC_Update(&hctx, itmp, 4)
+		    || !HMAC_Final(&hctx, digtmp, NULL))
+			{
+			HMAC_CTX_cleanup(&hctx_tpl);
 			HMAC_CTX_cleanup(&hctx);
 			return 0;
 			}
+		HMAC_CTX_cleanup(&hctx);
 		memcpy(p, digtmp, cplen);
 		for(j = 1; j < iter; j++)
 			{
-			HMAC(digest, pass, passlen,
-				 digtmp, mdlen, digtmp, NULL);
+			if (!HMAC_CTX_copy(&hctx, &hctx_tpl))
+				{
+				HMAC_CTX_cleanup(&hctx_tpl);
+				return 0;
+				}
+			if (!HMAC_Update(&hctx, digtmp, mdlen)
+			    || !HMAC_Final(&hctx, digtmp, NULL))
+				{
+				HMAC_CTX_cleanup(&hctx_tpl);
+				HMAC_CTX_cleanup(&hctx);
+				return 0;
+				}
+			HMAC_CTX_cleanup(&hctx);
 			for(k = 0; k < cplen; k++)
 				p[k] ^= digtmp[k];
 			}
@@ -131,7 +153,7 @@ int PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 		i++;
 		p+= cplen;
 		}
-	HMAC_CTX_cleanup(&hctx);
+	HMAC_CTX_cleanup(&hctx_tpl);
 #ifdef DEBUG_PKCS5V2
 	fprintf(stderr, "Password:\n");
 	h__dump (pass, passlen);

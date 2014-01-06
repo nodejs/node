@@ -2054,8 +2054,8 @@ my $mark=&DWP(76+240,"esp");	# copy of aes_key->rounds
 	&test	($s2,15);
 	&jnz	(&label("slow_way"));
 					if (!$x86only) {
-	#&bt	(&DWP(0,$s0),28);	# check for hyper-threading bit
-	#&jc	(&label("slow_way"));
+	&bt	(&DWP(0,$s0),28);	# check for hyper-threading bit
+	&jc	(&label("slow_way"));
 					}
 	# pre-allocate aligned stack frame...
 	&lea	($acc,&DWP(-80-244,"esp"));

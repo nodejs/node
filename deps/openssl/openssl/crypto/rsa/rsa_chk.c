@@ -59,6 +59,12 @@ int RSA_check_key(const RSA *key)
 	BN_CTX *ctx;
 	int r;
 	int ret=1;
+
+	if (!key->p || !key->q || !key->n || !key->e || !key->d)
+		{
+		RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_VALUE_MISSING);
+		return 0;
+		}
 	
 	i = BN_new();
 	j = BN_new();

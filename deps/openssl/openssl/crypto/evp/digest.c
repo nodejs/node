@@ -366,8 +366,11 @@ int EVP_Digest(const void *data, size_t count,
 
 void EVP_MD_CTX_destroy(EVP_MD_CTX *ctx)
 	{
-	EVP_MD_CTX_cleanup(ctx);
-	OPENSSL_free(ctx);
+	if (ctx)
+		{
+		EVP_MD_CTX_cleanup(ctx);
+		OPENSSL_free(ctx);
+		}
 	}
 
 /* This call frees resources associated with the context */

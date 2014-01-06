@@ -87,7 +87,7 @@ int CRYPTO_ccm128_setiv(CCM128_CONTEXT *ctx,
 		ctx->nonce.c[11] = (u8)(mlen>>(32%(sizeof(mlen)*8)));
 	}
 	else
-		*(u32*)(&ctx->nonce.c[8]) = 0;
+		ctx->nonce.u[1] = 0;
 
 	ctx->nonce.c[12] = (u8)(mlen>>24);
 	ctx->nonce.c[13] = (u8)(mlen>>16);

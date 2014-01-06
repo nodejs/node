@@ -276,10 +276,11 @@ int dtls1_accept(SSL *s)
 		case SSL3_ST_SW_HELLO_REQ_B:
 
 			s->shutdown=0;
+			dtls1_clear_record_buffer(s);
 			dtls1_start_timer(s);
 			ret=dtls1_send_hello_request(s);
 			if (ret <= 0) goto end;
-			s->s3->tmp.next_state=SSL3_ST_SW_HELLO_REQ_C;
+			s->s3->tmp.next_state=SSL3_ST_SR_CLNT_HELLO_A;
 			s->state=SSL3_ST_SW_FLUSH;
 			s->init_num=0;
 
@@ -721,10 +722,13 @@ int dtls1_accept(SSL *s)
 			if (ret <= 0) goto end;
 
 #ifndef OPENSSL_NO_SCTP
-			/* Change to new shared key of SCTP-Auth,
-			 * will be ignored if no SCTP used.
-			 */
-			BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_SCTP_NEXT_AUTH_KEY, 0, NULL);
+			if (!s->hit)
+				{
+				/* Change to new shared key of SCTP-Auth,
+				 * will be ignored if no SCTP used.
+				 */
+				BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_SCTP_NEXT_AUTH_KEY, 0, NULL);
+				}
 #endif
 
 			s->state=SSL3_ST_SW_FINISHED_A;
@@ -749,7 +753,16 @@ int dtls1_accept(SSL *s)
 			if (ret <= 0) goto end;
 			s->state=SSL3_ST_SW_FLUSH;
 			if (s->hit)
+				{
 				s->s3->tmp.next_state=SSL3_ST_SR_FINISHED_A;
+
+#ifndef OPENSSL_NO_SCTP
+				/* Change to new shared key of SCTP-Auth,
+				 * will be ignored if no SCTP used.
+				 */
+				BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_SCTP_NEXT_AUTH_KEY, 0, NULL);
+#endif
+				}
 			else
 				{
 				s->s3->tmp.next_state=SSL_ST_OK;
@@ -912,15 +925,13 @@ int dtls1_send_server_hello(SSL *s)
 	unsigned char *p,*d;
 	int i;
 	unsigned int sl;
-	unsigned long l,Time;
+	unsigned long l;
 
 	if (s->state == SSL3_ST_SW_SRVR_HELLO_A)
 		{
 		buf=(unsigned char *)s->init_buf->data;
 		p=s->s3->server_random;
-		Time=(unsigned long)time(NULL);			/* Time */
-		l2n(Time,p);
-		RAND_pseudo_bytes(p,SSL3_RANDOM_SIZE-4);
+		ssl_fill_hello_random(s, 1, p, SSL3_RANDOM_SIZE);
 		/* Do the message type and length last */
 		d=p= &(buf[DTLS1_HM_HEADER_LENGTH]);
 

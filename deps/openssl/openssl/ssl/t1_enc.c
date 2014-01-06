@@ -414,15 +414,20 @@ int tls1_change_cipher_state(SSL *s, int which)
 			s->mac_flags |= SSL_MAC_FLAG_WRITE_MAC_STREAM;
 			else
 			s->mac_flags &= ~SSL_MAC_FLAG_WRITE_MAC_STREAM;
-		if (s->enc_write_ctx != NULL)
+		if (s->enc_write_ctx != NULL && !SSL_IS_DTLS(s))
 			reuse_dd = 1;
-		else if ((s->enc_write_ctx=OPENSSL_malloc(sizeof(EVP_CIPHER_CTX))) == NULL)
+		else if ((s->enc_write_ctx=EVP_CIPHER_CTX_new()) == NULL)
 			goto err;
-		else
-			/* make sure it's intialized in case we exit later with an error */
-			EVP_CIPHER_CTX_init(s->enc_write_ctx);
 		dd= s->enc_write_ctx;
-		mac_ctx = ssl_replace_hash(&s->write_hash,NULL);
+		if (SSL_IS_DTLS(s))
+			{
+			mac_ctx = EVP_MD_CTX_create();
+			if (!mac_ctx)
+				goto err;
+			s->write_hash = mac_ctx;
+			}
+		else
+			mac_ctx = ssl_replace_hash(&s->write_hash,NULL);
 #ifndef OPENSSL_NO_COMP
 		if (s->compress != NULL)
 			{
@@ -915,18 +920,19 @@ int tls1_final_finish_mac(SSL *s,
 		if (mask & ssl_get_algorithm2(s))
 			{
 			int hashsize = EVP_MD_size(md);
-			if (hashsize < 0 || hashsize > (int)(sizeof buf - (size_t)(q-buf)))
+			EVP_MD_CTX *hdgst = s->s3->handshake_dgst[idx];
+			if (!hdgst || hashsize < 0 || hashsize > (int)(sizeof buf - (size_t)(q-buf)))
 				{
 				/* internal error: 'buf' is too small for this cipersuite! */
 				err = 1;
 				}
 			else
 				{
-				EVP_MD_CTX_copy_ex(&ctx,s->s3->handshake_dgst[idx]);
-				EVP_DigestFinal_ex(&ctx,q,&i);
-				if (i != (unsigned int)hashsize) /* can't really happen */
+				if (!EVP_MD_CTX_copy_ex(&ctx, hdgst) ||
+					!EVP_DigestFinal_ex(&ctx,q,&i) ||
+					(i != (unsigned int)hashsize))
 					err = 1;
-				q+=i;
+				q+=hashsize;
 				}
 			}
 		}

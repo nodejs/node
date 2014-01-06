@@ -2,9 +2,31 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.1e and 1.0.1f [6 Jan 2014]
+
+  *) Fix for TLS record tampering bug. A carefully crafted invalid 
+     handshake could crash OpenSSL with a NULL pointer exception.
+     Thanks to Anton Johansson for reporting this issues.
+     (CVE-2013-4353)
+
+  *) Keep original DTLS digest and encryption contexts in retransmission
+     structures so we can use the previous session parameters if they need
+     to be resent. (CVE-2013-6450)
+     [Steve Henson]
+
+  *) Add option SSL_OP_SAFARI_ECDHE_ECDSA_BUG (part of SSL_OP_ALL) which
+     avoids preferring ECDHE-ECDSA ciphers when the client appears to be
+     Safari on OS X.  Safari on OS X 10.8..10.8.3 advertises support for
+     several ECDHE-ECDSA ciphers, but fails to negotiate them.  The bug
+     is fixed in OS X 10.8.4, but Apple have ruled out both hot fixing
+     10.8..10.8.3 and forcing users to upgrade to 10.8.4 or newer.
+     [Rob Stradling, Adam Langley]
+
  Changes between 1.0.1d and 1.0.1e [11 Feb 2013]
 
-  *)
+  *) Correct fix for CVE-2013-0169. The original didn't work on AES-NI
+     supporting platforms or when small records were transferred.
+     [Andy Polyakov, Steve Henson]
 
  Changes between 1.0.1c and 1.0.1d [5 Feb 2013]
 
@@ -403,6 +425,63 @@
        Add explicit IV handling (ported from DTLS code).
        Add command line options to s_client/s_server.
      [Steve Henson]
+
+ Changes between 1.0.0j and 1.0.0k [5 Feb 2013]
+
+  *) Make the decoding of SSLv3, TLS and DTLS CBC records constant time.
+
+     This addresses the flaw in CBC record processing discovered by 
+     Nadhem Alfardan and Kenny Paterson. Details of this attack can be found
+     at: http://www.isg.rhul.ac.uk/tls/     
+
+     Thanks go to Nadhem Alfardan and Kenny Paterson of the Information
+     Security Group at Royal Holloway, University of London
+     (www.isg.rhul.ac.uk) for discovering this flaw and Adam Langley and
+     Emilia Käsper for the initial patch.
+     (CVE-2013-0169)
+     [Emilia Käsper, Adam Langley, Ben Laurie, Andy Polyakov, Steve Henson]
+
+  *) Return an error when checking OCSP signatures when key is NULL.
+     This fixes a DoS attack. (CVE-2013-0166)
+     [Steve Henson]
+
+  *) Call OCSP Stapling callback after ciphersuite has been chosen, so
+     the right response is stapled. Also change SSL_get_certificate()
+     so it returns the certificate actually sent.
+     See http://rt.openssl.org/Ticket/Display.html?id=2836.
+     (This is a backport)
+     [Rob Stradling <rob.stradling@comodo.com>]
+
+  *) Fix possible deadlock when decoding public keys.
+     [Steve Henson]
+
+ Changes between 1.0.0i and 1.0.0j [10 May 2012]
+
+  [NB: OpenSSL 1.0.0i and later 1.0.0 patch levels were released after
+  OpenSSL 1.0.1.]
+
+  *) Sanity check record length before skipping explicit IV in DTLS
+     to fix DoS attack.
+
+     Thanks to Codenomicon for discovering this issue using Fuzz-o-Matic
+     fuzzing as a service testing platform.
+     (CVE-2012-2333)
+     [Steve Henson]
+
+  *) Initialise tkeylen properly when encrypting CMS messages.
+     Thanks to Solar Designer of Openwall for reporting this issue.
+     [Steve Henson]
+
+ Changes between 1.0.0h and 1.0.0i [19 Apr 2012]
+
+  *) Check for potentially exploitable overflows in asn1_d2i_read_bio
+     BUF_mem_grow and BUF_mem_grow_clean. Refuse attempts to shrink buffer
+     in CRYPTO_realloc_clean.
+
+     Thanks to Tavis Ormandy, Google Security Team, for discovering this
+     issue and to Adam Langley <agl@chromium.org> for fixing it.
+     (CVE-2012-2110)
+     [Adam Langley (Google), Tavis Ormandy, Google Security Team]
 
  Changes between 1.0.0g and 1.0.0h [12 Mar 2012]
 
@@ -1394,6 +1473,86 @@
   *) Change 'Configure' script to enable Camellia by default.
      [NTT]
 
+ Changes between 0.9.8x and 0.9.8y [5 Feb 2013]
+
+  *) Make the decoding of SSLv3, TLS and DTLS CBC records constant time.
+
+     This addresses the flaw in CBC record processing discovered by 
+     Nadhem Alfardan and Kenny Paterson. Details of this attack can be found
+     at: http://www.isg.rhul.ac.uk/tls/     
+
+     Thanks go to Nadhem Alfardan and Kenny Paterson of the Information
+     Security Group at Royal Holloway, University of London
+     (www.isg.rhul.ac.uk) for discovering this flaw and Adam Langley and
+     Emilia Käsper for the initial patch.
+     (CVE-2013-0169)
+     [Emilia Käsper, Adam Langley, Ben Laurie, Andy Polyakov, Steve Henson]
+
+  *) Return an error when checking OCSP signatures when key is NULL.
+     This fixes a DoS attack. (CVE-2013-0166)
+     [Steve Henson]
+
+  *) Call OCSP Stapling callback after ciphersuite has been chosen, so
+     the right response is stapled. Also change SSL_get_certificate()
+     so it returns the certificate actually sent.
+     See http://rt.openssl.org/Ticket/Display.html?id=2836.
+     (This is a backport)
+     [Rob Stradling <rob.stradling@comodo.com>]
+
+  *) Fix possible deadlock when decoding public keys.
+     [Steve Henson]
+
+ Changes between 0.9.8w and 0.9.8x [10 May 2012]
+
+  *) Sanity check record length before skipping explicit IV in DTLS
+     to fix DoS attack.
+
+     Thanks to Codenomicon for discovering this issue using Fuzz-o-Matic
+     fuzzing as a service testing platform.
+     (CVE-2012-2333)
+     [Steve Henson]
+
+  *) Initialise tkeylen properly when encrypting CMS messages.
+     Thanks to Solar Designer of Openwall for reporting this issue.
+     [Steve Henson]
+
+ Changes between 0.9.8v and 0.9.8w [23 Apr 2012]
+
+  *) The fix for CVE-2012-2110 did not take into account that the 
+     'len' argument to BUF_MEM_grow and BUF_MEM_grow_clean is an
+     int in OpenSSL 0.9.8, making it still vulnerable. Fix by 
+     rejecting negative len parameter. (CVE-2012-2131)
+     [Tomas Hoger <thoger@redhat.com>]
+
+ Changes between 0.9.8u and 0.9.8v [19 Apr 2012]
+
+  *) Check for potentially exploitable overflows in asn1_d2i_read_bio
+     BUF_mem_grow and BUF_mem_grow_clean. Refuse attempts to shrink buffer
+     in CRYPTO_realloc_clean.
+
+     Thanks to Tavis Ormandy, Google Security Team, for discovering this
+     issue and to Adam Langley <agl@chromium.org> for fixing it.
+     (CVE-2012-2110)
+     [Adam Langley (Google), Tavis Ormandy, Google Security Team]
+
+ Changes between 0.9.8t and 0.9.8u [12 Mar 2012]
+
+  *) Fix MMA (Bleichenbacher's attack on PKCS #1 v1.5 RSA padding) weakness
+     in CMS and PKCS7 code. When RSA decryption fails use a random key for
+     content decryption and always return the same error. Note: this attack
+     needs on average 2^20 messages so it only affects automated senders. The
+     old behaviour can be reenabled in the CMS code by setting the
+     CMS_DEBUG_DECRYPT flag: this is useful for debugging and testing where
+     an MMA defence is not necessary.
+     Thanks to Ivan Nestlerode <inestlerode@us.ibm.com> for discovering
+     this issue. (CVE-2012-0884)
+     [Steve Henson]
+
+  *) Fix CVE-2011-4619: make sure we really are receiving a 
+     client hello before rejecting multiple SGC restarts. Thanks to
+     Ivan Nestlerode <inestlerode@us.ibm.com> for discovering this bug.
+     [Steve Henson]
+
  Changes between 0.9.8s and 0.9.8t [18 Jan 2012]
 
   *) Fix for DTLS DoS issue introduced by fix for CVE-2011-4109.
@@ -1401,7 +1560,7 @@
      Development, Cisco Systems, Inc. for discovering this bug and
      preparing a fix. (CVE-2012-0050)
      [Antonio Martin]
-  
+
  Changes between 0.9.8r and 0.9.8s [4 Jan 2012]
 
   *) Nadhem Alfardan and Kenny Paterson have discovered an extension

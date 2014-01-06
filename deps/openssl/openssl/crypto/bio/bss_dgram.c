@@ -906,8 +906,8 @@ BIO *BIO_new_dgram_sctp(int fd, int close_flag)
 	memset(authchunks, 0, sizeof(sockopt_len));
 	ret = getsockopt(fd, IPPROTO_SCTP, SCTP_LOCAL_AUTH_CHUNKS, authchunks, &sockopt_len);
 	OPENSSL_assert(ret >= 0);
-	
-	for (p = (unsigned char*) authchunks + sizeof(sctp_assoc_t);
+
+	for (p = (unsigned char*) authchunks->gauth_chunks;
 	     p < (unsigned char*) authchunks + sockopt_len;
 	     p += sizeof(uint8_t))
 		{
@@ -1197,7 +1197,7 @@ static int dgram_sctp_read(BIO *b, char *out, int outl)
 			ii = getsockopt(b->num, IPPROTO_SCTP, SCTP_PEER_AUTH_CHUNKS, authchunks, &optlen);
 			OPENSSL_assert(ii >= 0);
 
-			for (p = (unsigned char*) authchunks + sizeof(sctp_assoc_t);
+			for (p = (unsigned char*) authchunks->gauth_chunks;
 				 p < (unsigned char*) authchunks + optlen;
 				 p += sizeof(uint8_t))
 				{

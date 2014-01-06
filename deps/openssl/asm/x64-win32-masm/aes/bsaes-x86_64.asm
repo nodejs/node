@@ -365,7 +365,6 @@ $L$enc_sbox::
 	pxor	xmm7,xmm11
 	pshufd	xmm1,xmm3,04Eh
 	pxor	xmm8,xmm12
-
 	pxor	xmm2,xmm10
 	pxor	xmm6,xmm14
 	pxor	xmm5,xmm13
@@ -798,148 +797,86 @@ $L$dec_sbox::
 	dec	r10d
 	jl	$L$dec_done
 
-	pshufd	xmm14,xmm4,093h
-	movdqa	xmm9,xmm5
-	pxor	xmm4,xmm6
-	pxor	xmm5,xmm6
-	pshufd	xmm7,xmm15,093h
-	movdqa	xmm12,xmm6
-	pxor	xmm6,xmm15
-	pxor	xmm15,xmm0
-	pshufd	xmm8,xmm0,093h
-	pxor	xmm0,xmm5
-	pxor	xmm15,xmm2
-	pxor	xmm0,xmm3
-	pshufd	xmm10,xmm3,093h
-	pxor	xmm5,xmm15
-	pxor	xmm3,xmm4
-	pxor	xmm4,xmm2
-	pshufd	xmm13,xmm2,093h
-	movdqa	xmm11,xmm1
-	pxor	xmm2,xmm1
-	pxor	xmm1,xmm3
-	pxor	xmm3,xmm4
-	pxor	xmm2,xmm12
-	pxor	xmm3,xmm9
-	pxor	xmm3,xmm11
-	pshufd	xmm12,xmm12,093h
-
-	pxor	xmm6,xmm4
-	pxor	xmm4,xmm7
-	pxor	xmm6,xmm8
-	pshufd	xmm9,xmm9,093h
-	pxor	xmm4,xmm12
-	pxor	xmm6,xmm13
-	pxor	xmm4,xmm14
-	pshufd	xmm11,xmm11,093h
-	pxor	xmm14,xmm13
-	pxor	xmm6,xmm4
-
-	pxor	xmm5,xmm7
-	pshufd	xmm7,xmm7,093h
-	pxor	xmm15,xmm8
-	pxor	xmm0,xmm8
-	pxor	xmm15,xmm9
-	pshufd	xmm8,xmm8,093h
-	pxor	xmm5,xmm9
-	pxor	xmm3,xmm9
-	pxor	xmm15,xmm14
-	pshufd	xmm9,xmm9,093h
-	pxor	xmm5,xmm10
-	pxor	xmm1,xmm10
-	pxor	xmm0,xmm10
-	pshufd	xmm10,xmm10,093h
-	pxor	xmm2,xmm11
-	pxor	xmm3,xmm11
-	pxor	xmm2,xmm14
-	pxor	xmm5,xmm12
-	pxor	xmm0,xmm11
-	pxor	xmm14,xmm12
-
-	pxor	xmm3,xmm14
-	pshufd	xmm11,xmm11,093h
-	pxor	xmm1,xmm14
-	pxor	xmm0,xmm14
-
-	pxor	xmm14,xmm12
-	pshufd	xmm12,xmm12,093h
-	pxor	xmm14,xmm13
-
-
-	pxor	xmm0,xmm2
-	pxor	xmm2,xmm11
-	pshufd	xmm13,xmm13,093h
-	pxor	xmm15,xmm7
-	pxor	xmm2,xmm12
-	pxor	xmm15,xmm9
-	pshufd	xmm14,xmm14,093h
-
-	pxor	xmm5,xmm6
-	pxor	xmm6,xmm8
-	pxor	xmm4,xmm7
-	pxor	xmm5,xmm7
-	pxor	xmm6,xmm12
-	pxor	xmm4,xmm12
-	pxor	xmm6,xmm14
-	pshufd	xmm7,xmm7,093h
-	pxor	xmm4,xmm13
-	pxor	xmm5,xmm6
-	pxor	xmm0,xmm8
-	pshufd	xmm8,xmm8,093h
-
-	pxor	xmm2,xmm14
-	pxor	xmm0,xmm9
-	pxor	xmm3,xmm9
-	pshufd	xmm9,xmm9,093h
+	pshufd	xmm7,xmm15,04Eh
+	pshufd	xmm13,xmm2,04Eh
+	pxor	xmm7,xmm15
+	pshufd	xmm14,xmm4,04Eh
+	pxor	xmm13,xmm2
+	pshufd	xmm8,xmm0,04Eh
+	pxor	xmm14,xmm4
+	pshufd	xmm9,xmm5,04Eh
+	pxor	xmm8,xmm0
+	pshufd	xmm10,xmm3,04Eh
+	pxor	xmm9,xmm5
 	pxor	xmm15,xmm13
-	pxor	xmm13,xmm10
-	pxor	xmm0,xmm2
-	pxor	xmm5,xmm13
-
-	pxor	xmm1,xmm13
-	pxor	xmm3,xmm12
-	pxor	xmm1,xmm11
-	pshufd	xmm11,xmm11,093h
-	pxor	xmm3,xmm13
-	pxor	xmm1,xmm14
-	pxor	xmm13,xmm10
-
-	pshufd	xmm12,xmm12,093h
-	pshufd	xmm13,xmm13,093h
-	pshufd	xmm14,xmm14,093h
-	pshufd	xmm10,xmm10,093h
-
-
-	pxor	xmm0,xmm6
-	pxor	xmm8,xmm6
-	pxor	xmm7,xmm12
-	pxor	xmm8,xmm12
+	pxor	xmm0,xmm13
+	pshufd	xmm11,xmm1,04Eh
+	pxor	xmm10,xmm3
 	pxor	xmm5,xmm7
-	pxor	xmm7,xmm4
-	pxor	xmm8,xmm13
-	pxor	xmm13,xmm14
-	pxor	xmm0,xmm8
-	pxor	xmm2,xmm11
-	pxor	xmm11,xmm0
-	pxor	xmm1,xmm10
-	pxor	xmm10,xmm5
-	pxor	xmm3,xmm9
-	pxor	xmm9,xmm15
-	pxor	xmm10,xmm14
-	pxor	xmm12,xmm3
-	pxor	xmm9,xmm13
-	pxor	xmm12,xmm13
-	pxor	xmm13,xmm1
-	pxor	xmm14,xmm2
+	pxor	xmm3,xmm8
+	pshufd	xmm12,xmm6,04Eh
+	pxor	xmm11,xmm1
+	pxor	xmm0,xmm14
+	pxor	xmm1,xmm9
+	pxor	xmm12,xmm6
 
-	movdqa	xmm15,xmm7
-	movdqa	xmm0,xmm8
-	movdqa	xmm1,xmm9
-	movdqa	xmm2,xmm10
-	movdqa	xmm3,xmm11
-	movdqa	xmm4,xmm12
+	pxor	xmm5,xmm14
+	pxor	xmm3,xmm13
+	pxor	xmm1,xmm13
+	pxor	xmm6,xmm10
+	pxor	xmm2,xmm11
+	pxor	xmm1,xmm14
+	pxor	xmm6,xmm14
+	pxor	xmm4,xmm12
+	pshufd	xmm7,xmm15,093h
+	pshufd	xmm8,xmm0,093h
+	pxor	xmm15,xmm7
+	pshufd	xmm9,xmm5,093h
+	pxor	xmm0,xmm8
+	pshufd	xmm10,xmm3,093h
+	pxor	xmm5,xmm9
+	pshufd	xmm11,xmm1,093h
+	pxor	xmm3,xmm10
+	pshufd	xmm12,xmm6,093h
+	pxor	xmm1,xmm11
+	pshufd	xmm13,xmm2,093h
+	pxor	xmm6,xmm12
+	pshufd	xmm14,xmm4,093h
+	pxor	xmm2,xmm13
+	pxor	xmm4,xmm14
+
+	pxor	xmm8,xmm15
+	pxor	xmm7,xmm4
+	pxor	xmm8,xmm4
+	pshufd	xmm15,xmm15,04Eh
+	pxor	xmm9,xmm0
+	pshufd	xmm0,xmm0,04Eh
+	pxor	xmm12,xmm1
+	pxor	xmm15,xmm7
+	pxor	xmm13,xmm6
+	pxor	xmm0,xmm8
+	pxor	xmm11,xmm3
+	pshufd	xmm7,xmm1,04Eh
+	pxor	xmm14,xmm2
+	pshufd	xmm8,xmm6,04Eh
+	pxor	xmm10,xmm5
+	pshufd	xmm1,xmm3,04Eh
+	pxor	xmm10,xmm4
+	pshufd	xmm6,xmm4,04Eh
+	pxor	xmm11,xmm4
+	pshufd	xmm3,xmm2,04Eh
+	pxor	xmm7,xmm11
+	pshufd	xmm2,xmm5,04Eh
+	pxor	xmm8,xmm12
+	pxor	xmm10,xmm1
+	pxor	xmm6,xmm14
+	pxor	xmm13,xmm3
+	movdqa	xmm3,xmm7
+	pxor	xmm2,xmm9
 	movdqa	xmm5,xmm13
-	movdqa	xmm6,xmm14
+	movdqa	xmm4,xmm8
+	movdqa	xmm1,xmm2
+	movdqa	xmm2,xmm10
 	movdqa	xmm7,XMMWORD PTR[((-16))+r11]
 	jnz	$L$dec_loop
 	movdqa	xmm7,XMMWORD PTR[((-32))+r11]
@@ -1640,7 +1577,7 @@ $L$xts_enc_prologue::
 	push	r15
 	lea	rsp,QWORD PTR[((-72))+rsp]
 	mov	r10,QWORD PTR[160+rsp]
-	mov	r11d,DWORD PTR[168+rsp]
+	mov	r11,QWORD PTR[168+rsp]
 	lea	rsp,QWORD PTR[((-160))+rsp]
 	movaps	XMMWORD PTR[64+rsp],xmm6
 	movaps	XMMWORD PTR[80+rsp],xmm7
@@ -2120,7 +2057,7 @@ $L$xts_dec_prologue::
 	push	r15
 	lea	rsp,QWORD PTR[((-72))+rsp]
 	mov	r10,QWORD PTR[160+rsp]
-	mov	r11d,DWORD PTR[168+rsp]
+	mov	r11,QWORD PTR[168+rsp]
 	lea	rsp,QWORD PTR[((-160))+rsp]
 	movaps	XMMWORD PTR[64+rsp],xmm6
 	movaps	XMMWORD PTR[80+rsp],xmm7

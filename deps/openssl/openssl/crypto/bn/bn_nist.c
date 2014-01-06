@@ -286,26 +286,25 @@ const BIGNUM *BN_get0_nist_prime_521(void)
 	}
 
 
-static void nist_cp_bn_0(BN_ULONG *buf, BN_ULONG *a, int top, int max)
+static void nist_cp_bn_0(BN_ULONG *dst, const BN_ULONG *src, int top, int max)
 	{
 	int i;
-	BN_ULONG *_tmp1 = (buf), *_tmp2 = (a);
 
 #ifdef BN_DEBUG
 	OPENSSL_assert(top <= max);
 #endif
-	for (i = (top); i != 0; i--)
-		*_tmp1++ = *_tmp2++;
-	for (i = (max) - (top); i != 0; i--)
-		*_tmp1++ = (BN_ULONG) 0;
+	for (i = 0; i < top; i++)
+		dst[i] = src[i];
+	for (; i < max; i++)
+		dst[i] = 0;
 	}
 
-static void nist_cp_bn(BN_ULONG *buf, BN_ULONG *a, int top)
+static void nist_cp_bn(BN_ULONG *dst, const BN_ULONG *src, int top)
 	{ 
 	int i;
-	BN_ULONG *_tmp1 = (buf), *_tmp2 = (a);
-	for (i = (top); i != 0; i--)
-		*_tmp1++ = *_tmp2++;
+
+	for (i = 0; i < top; i++)
+		dst[i] = src[i];
 	}
 
 #if BN_BITS2 == 64
@@ -451,8 +450,9 @@ int BN_nist_mod_192(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
 	 */
 	mask  = 0-(PTR_SIZE_INT)bn_sub_words(c_d,r_d,_nist_p_192[0],BN_NIST_192_TOP);
 	mask &= 0-(PTR_SIZE_INT)carry;
+	res   = c_d;
 	res   = (BN_ULONG *)
-	 (((PTR_SIZE_INT)c_d&~mask) | ((PTR_SIZE_INT)r_d&mask));
+	 (((PTR_SIZE_INT)res&~mask) | ((PTR_SIZE_INT)r_d&mask));
 	nist_cp_bn(r_d, res, BN_NIST_192_TOP);
 	r->top = BN_NIST_192_TOP;
 	bn_correct_top(r);
@@ -479,8 +479,11 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
 	int	top = a->top, i;
 	int	carry;
 	BN_ULONG *r_d, *a_d = a->d;
-	BN_ULONG buf[BN_NIST_224_TOP],
-		 c_d[BN_NIST_224_TOP],
+	union	{
+		BN_ULONG	bn[BN_NIST_224_TOP];
+		unsigned int	ui[BN_NIST_224_TOP*sizeof(BN_ULONG)/sizeof(unsigned int)];
+		} buf;
+	BN_ULONG c_d[BN_NIST_224_TOP],
 		*res;
 	PTR_SIZE_INT mask;
 	union { bn_addsub_f f; PTR_SIZE_INT p; } u;
@@ -519,18 +522,18 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
 	/* copy upper 256 bits of 448 bit number ... */
 	nist_cp_bn_0(c_d, a_d + (BN_NIST_224_TOP-1), top - (BN_NIST_224_TOP-1), BN_NIST_224_TOP);
 	/* ... and right shift by 32 to obtain upper 224 bits */
-	nist_set_224(buf, c_d, 14, 13, 12, 11, 10, 9, 8);
+	nist_set_224(buf.bn, c_d, 14, 13, 12, 11, 10, 9, 8);
 	/* truncate lower part to 224 bits too */
 	r_d[BN_NIST_224_TOP-1] &= BN_MASK2l;
 #else
-	nist_cp_bn_0(buf, a_d + BN_NIST_224_TOP, top - BN_NIST_224_TOP, BN_NIST_224_TOP);
+	nist_cp_bn_0(buf.bn, a_d + BN_NIST_224_TOP, top - BN_NIST_224_TOP, BN_NIST_224_TOP);
 #endif
 
 #if defined(NIST_INT64) && BN_BITS2!=64
 	{
 	NIST_INT64		acc;	/* accumulator */
 	unsigned int		*rp=(unsigned int *)r_d;
-	const unsigned int	*bp=(const unsigned int *)buf;
+	const unsigned int	*bp=(const unsigned int *)buf.ui;
 
 	acc  = rp[0];	acc -= bp[7-7];
 			acc -= bp[11-7]; rp[0] = (unsigned int)acc; acc >>= 32;
@@ -565,13 +568,13 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
 	{
 	BN_ULONG t_d[BN_NIST_224_TOP];
 
-	nist_set_224(t_d, buf, 10, 9, 8, 7, 0, 0, 0);
+	nist_set_224(t_d, buf.bn, 10, 9, 8, 7, 0, 0, 0);
 	carry = (int)bn_add_words(r_d, r_d, t_d, BN_NIST_224_TOP);
-	nist_set_224(t_d, buf, 0, 13, 12, 11, 0, 0, 0);
+	nist_set_224(t_d, buf.bn, 0, 13, 12, 11, 0, 0, 0);
 	carry += (int)bn_add_words(r_d, r_d, t_d, BN_NIST_224_TOP);
-	nist_set_224(t_d, buf, 13, 12, 11, 10, 9, 8, 7);
+	nist_set_224(t_d, buf.bn, 13, 12, 11, 10, 9, 8, 7);
 	carry -= (int)bn_sub_words(r_d, r_d, t_d, BN_NIST_224_TOP);
-	nist_set_224(t_d, buf, 0, 0, 0, 0, 13, 12, 11);
+	nist_set_224(t_d, buf.bn, 0, 0, 0, 0, 13, 12, 11);
 	carry -= (int)bn_sub_words(r_d, r_d, t_d, BN_NIST_224_TOP);
 
 #if BN_BITS2==64
@@ -606,7 +609,8 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
 	/* otherwise it's effectively same as in BN_nist_mod_192... */
 	mask  = 0-(PTR_SIZE_INT)(*u.f)(c_d,r_d,_nist_p_224[0],BN_NIST_224_TOP);
 	mask &= 0-(PTR_SIZE_INT)carry;
-	res   = (BN_ULONG *)(((PTR_SIZE_INT)c_d&~mask) |
+	res   = c_d;
+	res   = (BN_ULONG *)(((PTR_SIZE_INT)res&~mask) |
 	 ((PTR_SIZE_INT)r_d&mask));
 	nist_cp_bn(r_d, res, BN_NIST_224_TOP);
 	r->top = BN_NIST_224_TOP;
@@ -805,7 +809,8 @@ int BN_nist_mod_256(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
 
 	mask  = 0-(PTR_SIZE_INT)(*u.f)(c_d,r_d,_nist_p_256[0],BN_NIST_256_TOP);
 	mask &= 0-(PTR_SIZE_INT)carry;
-	res   = (BN_ULONG *)(((PTR_SIZE_INT)c_d&~mask) |
+	res   = c_d;
+	res   = (BN_ULONG *)(((PTR_SIZE_INT)res&~mask) |
 	 ((PTR_SIZE_INT)r_d&mask));
 	nist_cp_bn(r_d, res, BN_NIST_256_TOP);
 	r->top = BN_NIST_256_TOP;
@@ -1026,7 +1031,8 @@ int BN_nist_mod_384(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
 
 	mask  = 0-(PTR_SIZE_INT)(*u.f)(c_d,r_d,_nist_p_384[0],BN_NIST_384_TOP);
 	mask &= 0-(PTR_SIZE_INT)carry;
-	res   = (BN_ULONG *)(((PTR_SIZE_INT)c_d&~mask) |
+	res   = c_d;
+	res   = (BN_ULONG *)(((PTR_SIZE_INT)res&~mask) |
 	 ((PTR_SIZE_INT)r_d&mask));
 	nist_cp_bn(r_d, res, BN_NIST_384_TOP);
 	r->top = BN_NIST_384_TOP;
@@ -1092,7 +1098,8 @@ int BN_nist_mod_521(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
 
 	bn_add_words(r_d,r_d,t_d,BN_NIST_521_TOP);
 	mask = 0-(PTR_SIZE_INT)bn_sub_words(t_d,r_d,_nist_p_521,BN_NIST_521_TOP);
-	res  = (BN_ULONG *)(((PTR_SIZE_INT)t_d&~mask) |
+	res  = t_d;
+	res  = (BN_ULONG *)(((PTR_SIZE_INT)res&~mask) |
 	 ((PTR_SIZE_INT)r_d&mask));
 	nist_cp_bn(r_d,res,BN_NIST_521_TOP);
 	r->top = BN_NIST_521_TOP;

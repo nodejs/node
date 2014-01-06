@@ -4,7 +4,7 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=1.0.1e
+VERSION=1.0.1f
 MAJOR=1
 MINOR=0.1
 SHLIB_VERSION_NUMBER=1.0.0
@@ -304,7 +304,8 @@ libcrypto$(SHLIB_EXT): libcrypto.a fips_premain_dso$(EXE_EXT)
 			FIPSLD_CC="$(CC)"; CC=$(FIPSDIR)/bin/fipsld; \
 			export CC FIPSLD_CC FIPSLD_LIBCRYPTO; \
 		fi; \
-		$(MAKE) -e SHLIBDIRS=crypto build-shared; \
+		$(MAKE) -e SHLIBDIRS=crypto  CC=$${CC:-$(CC)} build-shared; \
+		touch -c fips_premain_dso$(EXE_EXT); \
 	else \
 		echo "There's no support for shared libraries on this platform" >&2; \
 		exit 1; \

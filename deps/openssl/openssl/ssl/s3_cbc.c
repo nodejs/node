@@ -148,7 +148,7 @@ int tls1_cbc_remove_padding(const SSL* s,
 	unsigned padding_length, good, to_check, i;
 	const unsigned overhead = 1 /* padding length byte */ + mac_size;
 	/* Check if version requires explicit IV */
-	if (s->version >= TLS1_1_VERSION || s->version == DTLS1_VERSION)
+	if (s->version >= TLS1_1_VERSION || s->version == DTLS1_BAD_VER)
 		{
 		/* These lengths are all public so we can test them in
 		 * non-constant time.

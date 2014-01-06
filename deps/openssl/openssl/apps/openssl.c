@@ -117,6 +117,7 @@
 #include "apps.h"
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
+#include <openssl/rand.h>
 #include <openssl/lhash.h>
 #include <openssl/conf.h>
 #include <openssl/x509.h>

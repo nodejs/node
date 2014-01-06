@@ -40,7 +40,7 @@
 # of arithmetic operations, most notably multiplications. It requires
 # more memory references, most notably to tp[num], but this doesn't
 # seem to exhaust memory port capacity. And indeed, dedicated PA-RISC
-# 2.0 code path, provides virtually same performance as pa-risc2[W].s:
+# 2.0 code path provides virtually same performance as pa-risc2[W].s:
 # it's ~10% better for shortest key length and ~10% worse for longest
 # one.
 #
@@ -987,6 +987,8 @@ foreach (split("\n",$code)) {
 	s/(xmpyu\s+)($fai|$fni)([LR])/$1.$2.($3 eq "L"?"R":"L")/e if ($BN_SZ==8);
 	# assemble 2.0 instructions in 32-bit mode...
 	s/^\s+([a-z]+)([\S]*)\s+([\S]*)/&assemble($1,$2,$3)/e if ($BN_SZ==4);
+
+	s/\bbv\b/bve/gm	if ($SIZE_T==8);
 
 	print $_,"\n";
 }

@@ -827,8 +827,8 @@ $L$gather::
 	lea	rcx,QWORD PTR[8+rcx]
 	sub	rdx,1
 	jnz	$L$gather
-	movaps	XMMWORD PTR[rsp],xmm6
-	movaps	XMMWORD PTR[16+rsp],xmm7
+	movaps	xmm6,XMMWORD PTR[rsp]
+	movaps	xmm7,XMMWORD PTR[16+rsp]
 	lea	rsp,QWORD PTR[40+rsp]
 	DB	0F3h,0C3h		;repret
 $L$SEH_end_bn_gather5::

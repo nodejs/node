@@ -87,10 +87,6 @@ extern gost_subst_block Gost28147_CryptoProParamSetB;
 extern gost_subst_block Gost28147_CryptoProParamSetC;
 extern gost_subst_block Gost28147_CryptoProParamSetD;
 extern const byte CryptoProKeyMeshingKey[]; 
-#if __LONG_MAX__ > 2147483647L 
 typedef unsigned int word32; 
-#else 
-typedef unsigned long word32; 
-#endif 
 
 #endif

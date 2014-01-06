@@ -214,6 +214,12 @@ dtls1_hm_fragment_new(unsigned long frag_len, int reassembly)
 static void
 dtls1_hm_fragment_free(hm_fragment *frag)
 	{
+
+	if (frag->msg_header.is_ccs)
+		{
+		EVP_CIPHER_CTX_free(frag->msg_header.saved_retransmit_state.enc_write_ctx);
+		EVP_MD_CTX_destroy(frag->msg_header.saved_retransmit_state.write_hash);
+		}
 	if (frag->fragment) OPENSSL_free(frag->fragment);
 	if (frag->reassembly) OPENSSL_free(frag->reassembly);
 	OPENSSL_free(frag);
@@ -313,9 +319,10 @@ int dtls1_do_write(SSL *s, int type)
 				s->init_off -= DTLS1_HM_HEADER_LENGTH;
 				s->init_num += DTLS1_HM_HEADER_LENGTH;
 
-				/* write atleast DTLS1_HM_HEADER_LENGTH bytes */
-				if ( len <= DTLS1_HM_HEADER_LENGTH)  
-					len += DTLS1_HM_HEADER_LENGTH;
+				if ( s->init_num > curr_mtu)
+					len = curr_mtu;
+				else
+					len = s->init_num;
 				}
 
 			dtls1_fix_message_header(s, frag_off, 

@@ -88,9 +88,10 @@ As of OpenSSL 0.9.8q and 1.0.0c, this option has no effect.
 
 ...
 
-=item SSL_OP_MSIE_SSLV2_RSA_PADDING
+=item SSL_OP_SAFARI_ECDHE_ECDSA_BUG
 
-As of OpenSSL 0.9.7h and 0.9.8a, this option has no effect.
+Don't prefer ECDHE-ECDSA ciphers when the client appears to be Safari on OS X.
+OS X 10.8..10.8.3 has broken support for ECDHE-ECDSA ciphers.
 
 =item SSL_OP_SSLEAY_080_CLIENT_DH_BUG
 

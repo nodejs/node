@@ -7,13 +7,14 @@
 
 #include <openssl/pem.h>
 #include <openssl/conf.h>
+#include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif
 
 int mkreq(X509_REQ **x509p, EVP_PKEY **pkeyp, int bits, int serial, int days);
-int add_ext(STACK_OF(X509_REQUEST) *sk, int nid, char *value);
+int add_ext(STACK_OF(X509_EXTENSION) *sk, int nid, char *value);
 
 int main(int argc, char **argv)
 	{
@@ -148,7 +149,7 @@ err:
  * because we wont reference any other sections.
  */
 
-int add_ext(STACK_OF(X509_REQUEST) *sk, int nid, char *value)
+int add_ext(STACK_OF(X509_EXTENSION) *sk, int nid, char *value)
 	{
 	X509_EXTENSION *ex;
 	ex = X509V3_EXT_conf_nid(NULL, NULL, nid, value);

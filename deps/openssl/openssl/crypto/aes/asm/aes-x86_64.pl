@@ -1684,8 +1684,8 @@ AES_cbc_encrypt:
 	jb	.Lcbc_slow_prologue
 	test	\$15,%rdx
 	jnz	.Lcbc_slow_prologue
-	#bt	\$28,%r10d
-	#jc	.Lcbc_slow_prologue
+	bt	\$28,%r10d
+	jc	.Lcbc_slow_prologue
 
 	# allocate aligned stack frame...
 	lea	-88-248(%rsp),$key

@@ -54,7 +54,6 @@ die "can't locate x86_64-xlate.pl";
 open OUT,"| \"$^X\" $xlate $flavour $output";
 *STDOUT=*OUT;
 
-# assume 512
 $func="sha512_block_data_order";
 $TABLE="K512";
 $SZ=8;

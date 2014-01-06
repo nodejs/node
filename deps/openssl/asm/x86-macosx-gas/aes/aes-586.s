@@ -2219,6 +2219,8 @@ L014picked_te:
 	jb	L015slow_way
 	testl	$15,%ecx
 	jnz	L015slow_way
+	btl	$28,(%eax)
+	jc	L015slow_way
 	leal	-324(%esp),%esi
 	andl	$-64,%esi
 	movl	%ebp,%eax

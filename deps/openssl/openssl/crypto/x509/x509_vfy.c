@@ -694,6 +694,7 @@ static int check_cert(X509_STORE_CTX *ctx)
 	X509_CRL *crl = NULL, *dcrl = NULL;
 	X509 *x;
 	int ok, cnum;
+	unsigned int last_reasons;
 	cnum = ctx->error_depth;
 	x = sk_X509_value(ctx->chain, cnum);
 	ctx->current_cert = x;
@@ -702,6 +703,7 @@ static int check_cert(X509_STORE_CTX *ctx)
 	ctx->current_reasons = 0;
 	while (ctx->current_reasons != CRLDP_ALL_REASONS)
 		{
+		last_reasons = ctx->current_reasons;
 		/* Try to retrieve relevant CRL */
 		if (ctx->get_crl)
 			ok = ctx->get_crl(ctx, &crl, x);
@@ -745,6 +747,15 @@ static int check_cert(X509_STORE_CTX *ctx)
 		X509_CRL_free(dcrl);
 		crl = NULL;
 		dcrl = NULL;
+		/* If reasons not updated we wont get anywhere by
+		 * another iteration, so exit loop.
+		 */
+		if (last_reasons == ctx->current_reasons)
+			{
+			ctx->error = X509_V_ERR_UNABLE_TO_GET_CRL;
+			ok = ctx->verify_cb(0, ctx);
+			goto err;
+			}
 		}
 	err:
 	X509_CRL_free(crl);

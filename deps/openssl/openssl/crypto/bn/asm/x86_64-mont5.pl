@@ -901,8 +901,8 @@ $code.=<<___;
 	jnz	.Lgather
 ___
 $code.=<<___ if ($win64);
-	movaps	%xmm6,(%rsp)
-	movaps	%xmm7,0x10(%rsp)
+	movaps	(%rsp),%xmm6
+	movaps	0x10(%rsp),%xmm7
 	lea	0x28(%rsp),%rsp
 ___
 $code.=<<___;

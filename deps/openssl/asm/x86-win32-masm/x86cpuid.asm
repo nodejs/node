@@ -2,7 +2,7 @@ TITLE	x86cpuid.asm
 IF @Version LT 800
 ECHO MASM version 8.00 or later is strongly recommended.
 ENDIF
-.686
+.486
 .MODEL	FLAT
 OPTION	DOTNAME
 IF @Version LT 800
@@ -69,6 +69,7 @@ $L_OPENSSL_ia32_cpuid_begin::
 	movzx	esi,cl
 	inc	esi
 	mov	eax,1
+	xor	ecx,ecx
 	cpuid
 	bt	edx,28
 	jnc	$L002generic
@@ -90,6 +91,7 @@ $L001intel:
 	and	edi,4095
 $L003nocacheinfo:
 	mov	eax,1
+	xor	ecx,ecx
 	cpuid
 	and	edx,3220176895
 	cmp	ebp,0

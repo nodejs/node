@@ -188,6 +188,7 @@ extern BIO *bio_err;
 			do { CONF_modules_unload(1); destroy_ui_method(); \
 			OBJ_cleanup(); EVP_cleanup(); ENGINE_cleanup(); \
 			CRYPTO_cleanup_all_ex_data(); ERR_remove_thread_state(NULL); \
+			RAND_cleanup(); \
 			ERR_free_strings(); zlib_cleanup();} while(0)
 #  else
 #    define apps_startup() \
@@ -198,6 +199,7 @@ extern BIO *bio_err;
 			do { CONF_modules_unload(1); destroy_ui_method(); \
 			OBJ_cleanup(); EVP_cleanup(); \
 			CRYPTO_cleanup_all_ex_data(); ERR_remove_thread_state(NULL); \
+			RAND_cleanup(); \
 			ERR_free_strings(); zlib_cleanup(); } while(0)
 #  endif
 #endif

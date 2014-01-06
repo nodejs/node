@@ -328,10 +328,11 @@ static int aesni_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
 				if (res!=SHA_CBLOCK) continue;
 
-				mask = 0-((inp_len+8-j)>>(sizeof(j)*8-1));
+				/* j is not incremented yet */
+				mask = 0-((inp_len+7-j)>>(sizeof(j)*8-1));
 				data->u[SHA_LBLOCK-1] |= bitlen&mask;
 				sha1_block_data_order(&key->md,data,1);
-				mask &= 0-((j-inp_len-73)>>(sizeof(j)*8-1));
+				mask &= 0-((j-inp_len-72)>>(sizeof(j)*8-1));
 				pmac->u[0] |= key->md.h0 & mask;
 				pmac->u[1] |= key->md.h1 & mask;
 				pmac->u[2] |= key->md.h2 & mask;

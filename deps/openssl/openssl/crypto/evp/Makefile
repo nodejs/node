@@ -67,7 +67,7 @@ files:
 links:
 	@$(PERL) $(TOP)/util/mklink.pl ../../include/openssl $(EXHEADER)
 	@$(PERL) $(TOP)/util/mklink.pl ../../test $(TEST)
-	[ ! -f $(TESTDATA) ] || cp $(TESTDATA) ../../test
+	@[ -f $(TESTDATA) ] && cp $(TESTDATA) ../../test && echo "$(TESTDATA) -> ../../test/$(TESTDATA)"
 	@$(PERL) $(TOP)/util/mklink.pl ../../apps $(APPS)
 
 install:
