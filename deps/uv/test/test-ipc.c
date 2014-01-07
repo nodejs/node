@@ -439,7 +439,7 @@ static void on_tcp_child_process_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t 
       return;
     }
 
-    printf("error recving on tcp connection: %s\n", 
+    printf("error recving on tcp connection: %s\n",
       uv_strerror(uv_last_error(tcp->loop)));
     abort();
   }

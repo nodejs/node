@@ -1480,6 +1480,13 @@ void uv_process_pipe_accept_req(uv_loop_t* loop, uv_pipe_t* handle,
 
   assert(handle->type == UV_NAMED_PIPE);
 
+  if (handle->flags & UV__HANDLE_CLOSING) {
+    /* The req->pipeHandle should be freed already in uv_pipe_cleanup(). */
+    assert(req->pipeHandle == INVALID_HANDLE_VALUE);
+    DECREASE_PENDING_REQ_COUNT(handle);
+    return;
+  }
+
   if (REQ_SUCCESS(req)) {
     assert(req->pipeHandle != INVALID_HANDLE_VALUE);
     req->next_pending = handle->pending_accepts;

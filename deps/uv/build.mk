@@ -98,6 +98,7 @@ TESTS= \
 	test/test-ping-pong.o \
 	test/test-pipe-bind-error.o \
 	test/test-pipe-connect-error.o \
+	test/test-pipe-server-close.o \
 	test/test-platform-output.o \
 	test/test-poll.o \
 	test/test-poll-close.o \
