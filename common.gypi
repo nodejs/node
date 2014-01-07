@@ -103,6 +103,10 @@
         },
       }
     },
+    # Forcibly disable -Werror.  We support a wide range of compilers, it's
+    # simply not feasible to squelch all warnings, never mind that the
+    # libraries in deps/ are not under our control.
+    'cflags!': ['-Werror'],
     'msvs_settings': {
       'VCCLCompilerTool': {
         'StringPooling': 'true', # pool string literals
