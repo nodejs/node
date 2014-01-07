@@ -1,12 +1,12 @@
 var test = require("tap").test
 var rimraf = require("rimraf")
-
+var path = require("path")
+var osenv = require("osenv")
 var mr = require("npm-registry-mock")
-
 var spawn = require("child_process").spawn
 var npm = require.resolve("../../bin/npm-cli.js")
 var node = process.execPath
-var pkg = "./url-dependencies"
+var pkg = path.resolve(__dirname, "url-dependencies")
 
 var mockRoutes = {
   "get": {
@@ -15,7 +15,7 @@ var mockRoutes = {
 }
 
 test("url-dependencies: download first time", function(t) {
-  rimraf.sync(__dirname + "/url-dependencies/node_modules")
+  cleanup()
 
   performInstall(function(output){
     if(!tarballWasFetched(output)){
@@ -28,7 +28,7 @@ test("url-dependencies: download first time", function(t) {
 })
 
 test("url-dependencies: do not download subsequent times", function(t) {
-  rimraf.sync(__dirname + "/url-dependencies/node_modules")
+  cleanup()
 
   performInstall(function(){
     performInstall(function(output){
@@ -69,4 +69,10 @@ function performInstall (cb) {
       cb(output)
     })
   })
+}
+
+function cleanup() {
+  // windows fix for locked files
+  process.chdir(osenv.tmpdir())
+  rimraf.sync(path.resolve(pkg, "node_modules"))
 }

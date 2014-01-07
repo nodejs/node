@@ -175,7 +175,8 @@ function install (args, cb_) {
                     , parent: data
                     , root: true
                     , wrap: null }
-      if (data) {
+      if (data && data.name === path.basename(where) &&
+          path.basename(path.dirname(where)) === "node_modules") {
         context.family[data.name] = context.ancestors[data.name] = data.version
       }
       var fn = npm.config.get("global") ? installMany : installManyTop
