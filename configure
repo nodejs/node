@@ -431,7 +431,7 @@ def configure_arm(o):
   elif is_arm_hard_float_abi():
     arm_float_abi = 'hard'
   else:
-    'default'
+    arm_float_abi = 'default'
   o['variables']['armv7'] = int(is_arch_armv7())
   o['variables']['arm_fpu'] = 'vfpv3'  # V8 3.18 no longer supports VFP2.
   o['variables']['arm_neon'] = int(is_arm_neon())
