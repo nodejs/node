@@ -82,7 +82,7 @@ TITLE	$_[0].asm
 IF \@Version LT 800
 ECHO MASM version 8.00 or later is strongly recommended.
 ENDIF
-.486
+.686
 .MODEL	FLAT
 OPTION	DOTNAME
 IF \@Version LT 800
