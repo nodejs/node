@@ -86,6 +86,22 @@ inline uint32_t Environment::AsyncListener::count() const {
   return fields_[kCount];
 }
 
+inline Environment::DomainFlag::DomainFlag() {
+  for (int i = 0; i < kFieldsCount; ++i) fields_[i] = 0;
+}
+
+inline uint32_t* Environment::DomainFlag::fields() {
+  return fields_;
+}
+
+inline int Environment::DomainFlag::fields_count() const {
+  return kFieldsCount;
+}
+
+inline uint32_t Environment::DomainFlag::count() const {
+  return fields_[kCount];
+}
+
 inline Environment::TickInfo::TickInfo() : in_tick_(false), last_threw_(false) {
   for (int i = 0; i < kFieldsCount; ++i)
     fields_[i] = 0;
@@ -163,6 +179,7 @@ inline Environment::Environment(v8::Local<v8::Context> context)
     : isolate_(context->GetIsolate()),
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate())),
       using_smalloc_alloc_cb_(false),
+      using_domains_(false),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());
@@ -191,6 +208,12 @@ inline v8::Isolate* Environment::isolate() const {
 inline bool Environment::has_async_listeners() const {
   // The const_cast is okay, it doesn't violate conceptual const-ness.
   return const_cast<Environment*>(this)->async_listener()->count() > 0;
+}
+
+inline bool Environment::in_domain() const {
+  // The const_cast is okay, it doesn't violate conceptual const-ness.
+  return using_domains() &&
+         const_cast<Environment*>(this)->domain_flag()->count() > 0;
 }
 
 inline Environment* Environment::from_immediate_check_handle(
@@ -231,6 +254,10 @@ inline Environment::AsyncListener* Environment::async_listener() {
   return &async_listener_count_;
 }
 
+inline Environment::DomainFlag* Environment::domain_flag() {
+  return &domain_flag_;
+}
+
 inline Environment::TickInfo* Environment::tick_info() {
   return &tick_info_;
 }
@@ -241,6 +268,14 @@ inline bool Environment::using_smalloc_alloc_cb() const {
 
 inline void Environment::set_using_smalloc_alloc_cb(bool value) {
   using_smalloc_alloc_cb_ = value;
+}
+
+inline bool Environment::using_domains() const {
+  return using_domains_;
+}
+
+inline void Environment::set_using_domains(bool value) {
+  using_domains_ = value;
 }
 
 inline Environment* Environment::from_cares_timer_handle(uv_timer_t* handle) {

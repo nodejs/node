@@ -62,6 +62,13 @@ class AsyncWrap : public BaseObject {
                                             v8::Handle<v8::Value>* argv);
 
  private:
+  // TODO(trevnorris): BURN IN FIRE! Remove this as soon as a suitable
+  // replacement is committed.
+  inline v8::Handle<v8::Value> MakeDomainCallback(
+      const v8::Handle<v8::Function> cb,
+      int argc,
+      v8::Handle<v8::Value>* argv);
+
   // Add an async listener to an existing handle.
   template <typename Type>
   static inline void AddAsyncListener(

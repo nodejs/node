@@ -224,11 +224,14 @@
       // First run through error handlers from asyncListener.
       var caught = _errorHandler(er);
 
+      if (process.domain && process.domain._errorHandler)
+        caught = process.domain._errorHandler(er) || caught;
+
       if (!caught)
         caught = process.emit('uncaughtException', er);
 
-      // If someone handled it, then great. Otherwise die in C++ since
-      // that means we'll exit the process, emit the 'exit' event.
+      // If someone handled it, then great.  otherwise, die in C++ land
+      // since that means that we'll exit the process, emit the 'exit' event
       if (!caught) {
         try {
           if (!process._exiting) {
@@ -568,6 +571,7 @@
     process.nextTick = nextTick;
     // Needs to be accessible from beyond this scope.
     process._tickCallback = _tickCallback;
+    process._tickDomainCallback = _tickDomainCallback;
 
     process._setupNextTick(tickInfo, _tickCallback);
 
@@ -585,6 +589,7 @@
     }
 
     // Run callbacks that have no domain.
+    // Using domains will cause this to be overridden.
     function _tickCallback() {
       var callback, hasQueue, threw, tock;
 
@@ -611,6 +616,35 @@
       tickDone();
     }
 
+    function _tickDomainCallback() {
+      var callback, domain, hasQueue, threw, tock;
+
+      while (tickInfo[kIndex] < tickInfo[kLength]) {
+        tock = nextTickQueue[tickInfo[kIndex]++];
+        callback = tock.callback;
+        domain = tock.domain;
+        hasQueue = !!tock._asyncQueue;
+        if (hasQueue)
+          _loadAsyncQueue(tock);
+        if (domain)
+          domain.enter();
+        threw = true;
+        try {
+          callback();
+          threw = false;
+        } finally {
+          if (threw)
+            tickDone();
+        }
+        if (hasQueue)
+          _unloadAsyncQueue(tock);
+        if (domain)
+          domain.exit();
+      }
+
+      tickDone();
+    }
+
     function nextTick(callback) {
       // on the way out, don't bother. it won't get fired anyway.
       if (process._exiting)
@@ -618,6 +652,7 @@
 
       var obj = {
         callback: callback,
+        domain: process.domain || null,
         _asyncQueue: undefined
       };
 

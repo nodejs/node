@@ -876,11 +876,54 @@ void SetupAsyncListener(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+
+  if (env->using_domains())
+    return;
+  env->set_using_domains(true);
+
+  HandleScope scope(node_isolate);
+  Local<Object> process_object = env->process_object();
+
+  Local<String> tick_callback_function_key =
+      FIXED_ONE_BYTE_STRING(node_isolate, "_tickDomainCallback");
+  Local<Function> tick_callback_function =
+      process_object->Get(tick_callback_function_key).As<Function>();
+
+  if (!tick_callback_function->IsFunction()) {
+    fprintf(stderr, "process._tickDomainCallback assigned to non-function\n");
+    abort();
+  }
+
+  process_object->Set(FIXED_ONE_BYTE_STRING(node_isolate, "_tickCallback"),
+                      tick_callback_function);
+  env->set_tick_callback_function(tick_callback_function);
+
+  assert(args[0]->IsArray());
+  assert(args[1]->IsObject());
+
+  env->set_domain_array(args[0].As<Array>());
+
+  Local<Object> domain_flag_obj = args[1].As<Object>();
+  Environment::DomainFlag* domain_flag = env->domain_flag();
+  domain_flag_obj->SetIndexedPropertiesToExternalArrayData(
+      domain_flag->fields(),
+      kExternalUnsignedIntArray,
+      domain_flag->fields_count());
+
+  // Do a little housekeeping.
+  env->process_object()->Delete(
+      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupDomainUse"));
+}
+
+
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  assert(args[0]->IsObject() && args[1]->IsFunction());
+  assert(args[0]->IsObject());
+  assert(args[1]->IsFunction());
 
   // Values use to cross communicate with processNextTick.
   Local<Object> tick_info_obj = args[0].As<Object>();
@@ -897,11 +940,114 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+Handle<Value> MakeDomainCallback(Environment* env,
+                                 Handle<Object> object,
+                                 const Handle<Function> callback,
+                                 int argc,
+                                 Handle<Value> argv[]) {
+  // If you hit this assertion, you forgot to enter the v8::Context first.
+  assert(env->context() == env->isolate()->GetCurrentContext());
+
+  Local<Object> process = env->process_object();
+  Local<Value> domain_v = object->Get(env->domain_string());
+  Local<Object> domain;
+
+  TryCatch try_catch;
+  try_catch.SetVerbose(true);
+
+  // TODO(trevnorris): This is sucky for performance. Fix it.
+  bool has_async_queue = object->Has(env->async_queue_string());
+  if (has_async_queue) {
+    Local<Value> argv[] = { object };
+    env->async_listener_load_function()->Call(process, ARRAY_SIZE(argv), argv);
+
+    if (try_catch.HasCaught())
+      return Undefined(node_isolate);
+  }
+
+  bool has_domain = domain_v->IsObject();
+  if (has_domain) {
+    domain = domain_v.As<Object>();
+
+    if (domain->Get(env->disposed_string())->IsTrue()) {
+      // domain has been disposed of.
+      return Undefined(node_isolate);
+    }
+
+    Local<Function> enter =
+        domain->Get(env->enter_string()).As<Function>();
+    assert(enter->IsFunction());
+    enter->Call(domain, 0, NULL);
+
+    if (try_catch.HasCaught()) {
+      return Undefined(node_isolate);
+    }
+  }
+
+  Local<Value> ret = callback->Call(object, argc, argv);
+
+  if (try_catch.HasCaught()) {
+    return Undefined(node_isolate);
+  }
+
+  if (has_domain) {
+    Local<Function> exit =
+        domain->Get(env->exit_string()).As<Function>();
+    assert(exit->IsFunction());
+    exit->Call(domain, 0, NULL);
+
+    if (try_catch.HasCaught()) {
+      return Undefined(node_isolate);
+    }
+  }
+
+  if (has_async_queue) {
+    Local<Value> val = object.As<Value>();
+    env->async_listener_unload_function()->Call(process, 1, &val);
+
+    if (try_catch.HasCaught())
+      return Undefined(node_isolate);
+  }
+
+  Environment::TickInfo* tick_info = env->tick_info();
+
+  if (tick_info->last_threw() == 1) {
+    tick_info->set_last_threw(0);
+    return ret;
+  }
+
+  if (tick_info->in_tick()) {
+    return ret;
+  }
+
+  if (tick_info->length() == 0) {
+    tick_info->set_index(0);
+    return ret;
+  }
+
+  tick_info->set_in_tick(true);
+
+  env->tick_callback_function()->Call(process, 0, NULL);
+
+  tick_info->set_in_tick(false);
+
+  if (try_catch.HasCaught()) {
+    tick_info->set_last_threw(true);
+    return Undefined(node_isolate);
+  }
+
+  return ret;
+}
+
+
 Handle<Value> MakeCallback(Environment* env,
                            Handle<Object> object,
                            const Handle<Function> callback,
                            int argc,
                            Handle<Value> argv[]) {
+  if (env->using_domains())
+    return MakeDomainCallback(env, object, callback, argc, argv);
+
   // If you hit this assertion, you forgot to enter the v8::Context first.
   assert(env->context() == env->isolate()->GetCurrentContext());
 
@@ -1028,6 +1174,19 @@ Handle<Value> MakeCallback(const Handle<Object> object,
   Context::Scope context_scope(context);
   HandleScope handle_scope(env->isolate());
   return handle_scope.Close(MakeCallback(env, object, callback, argc, argv));
+}
+
+
+Handle<Value> MakeDomainCallback(const Handle<Object> object,
+                                 const Handle<Function> callback,
+                                 int argc,
+                                 Handle<Value> argv[]) {
+  Local<Context> context = object->CreationContext();
+  Environment* env = Environment::GetCurrent(context);
+  Context::Scope context_scope(context);
+  HandleScope handle_scope(env->isolate());
+  return handle_scope.Close(
+      MakeDomainCallback(env, object, callback, argc, argv));
 }
 
 
@@ -2482,6 +2641,7 @@ void SetupProcessObject(Environment* env,
 
   NODE_SET_METHOD(process, "_setupAsyncListener", SetupAsyncListener);
   NODE_SET_METHOD(process, "_setupNextTick", SetupNextTick);
+  NODE_SET_METHOD(process, "_setupDomainUse", SetupDomainUse);
 
   // values use to cross communicate with processNextTick
   Local<Object> tick_info_obj = Object::New();
