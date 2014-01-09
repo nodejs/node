@@ -1914,7 +1914,7 @@ static void OnFatalError(const char* location, const char* message) {
   } else {
     fprintf(stderr, "FATAL ERROR: %s\n", message);
   }
-  exit(5);
+  abort();
 }
 
 void FatalException(TryCatch &try_catch) {
