@@ -110,6 +110,21 @@ assert.doesNotThrow(function() {
 var x = { inspect: util.inspect };
 assert.ok(util.inspect(x).indexOf('inspect') != -1);
 
+// util.inspect should not display the escaped value of a key.
+var w = {
+  '\\': 1,
+  '\\\\': 2,
+  '\\\\\\': 3,
+  '\\\\\\\\': 4,
+}
+
+var y = ['a', 'b', 'c'];
+y['\\\\\\'] = 'd';
+
+assert.ok(util.inspect(w),
+          '{ \'\\\': 1, \'\\\\\': 2, \'\\\\\\\': 3, \'\\\\\\\\\': 4 }');
+assert.ok(util.inspect(y), '[ \'a\', \'b\', \'c\', \'\\\\\\\': \'d\' ]');
+
 // util.inspect.styles and util.inspect.colors
 function test_color_style(style, input, implicit) {
   var color_name = util.inspect.styles[style];
