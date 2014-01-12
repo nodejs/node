@@ -207,10 +207,13 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
 
   uv_err_t err = uv_interface_addresses(&interfaces, &count);
 
+  ret = Object::New();
+
+  if (err.code == UV_ENOSYS)
+    return scope.Close(ret);
+
   if (err.code != UV_OK)
     return ThrowException(UVException(err.code, "uv_interface_addresses"));
-
-  ret = Object::New();
 
   for (i = 0; i < count; i++) {
     name = String::New(interfaces[i].name);
