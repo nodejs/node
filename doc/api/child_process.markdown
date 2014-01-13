@@ -411,7 +411,9 @@ index corresponds to a fd in the child.  The value is one of the following:
 4. `Stream` object - Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
    file descriptor is duplicated in the child process to the fd that 
-   corresponds to the index in the `stdio` array.
+   corresponds to the index in the `stdio` array. Note that the stream must
+   have an underlying descriptor (file streams do not until the `'open'`
+   event has occurred).
 5. Positive integer - The integer value is interpreted as a file descriptor 
    that is is currently open in the parent process. It is shared with the child
    process, similar to how `Stream` objects can be shared.
