@@ -1037,12 +1037,13 @@ class NinjaWriter:
           self.GypPathToNinja, arch)
       ldflags = env_ldflags + ldflags
     elif self.flavor == 'win':
-      manifest_name = self.GypPathToUniqueOutput(
+      manifest_base_name = self.GypPathToUniqueOutput(
           self.ComputeOutputFileName(spec))
       ldflags, intermediate_manifest, manifest_files = \
           self.msvs_settings.GetLdflags(config_name, self.GypPathToNinja,
-                                        self.ExpandSpecial, manifest_name,
-                                        is_executable, self.toplevel_build)
+                                        self.ExpandSpecial, manifest_base_name,
+                                        output, is_executable,
+                                        self.toplevel_build)
       ldflags = env_ldflags + ldflags
       self.WriteVariableList(ninja_file, 'manifests', manifest_files)
       implicit_deps = implicit_deps.union(manifest_files)
@@ -1095,16 +1096,27 @@ class NinjaWriter:
       extra_bindings.append(('lib',
                             gyp.common.EncodePOSIXShellArgument(output)))
       if self.flavor == 'win':
-        extra_bindings.append(('dll', output))
+        extra_bindings.append(('binary', output))
         if '/NOENTRY' not in ldflags:
           self.target.import_lib = output + '.lib'
           extra_bindings.append(('implibflag',
                                  '/IMPLIB:%s' % self.target.import_lib))
+          pdbname = self.msvs_settings.GetPDBName(
+              config_name, self.ExpandSpecial, output + '.pdb')
           output = [output, self.target.import_lib]
+          if pdbname:
+            output.append(pdbname)
       elif not self.is_mac_bundle:
         output = [output, output + '.TOC']
       else:
         command = command + '_notoc'
+    elif self.flavor == 'win':
+      extra_bindings.append(('binary', output))
+      pdbname = self.msvs_settings.GetPDBName(
+          config_name, self.ExpandSpecial, output + '.pdb')
+      if pdbname:
+        output = [output, pdbname]
+
 
     if len(solibs):
       extra_bindings.append(('solibs', gyp.common.EncodePOSIXShellList(solibs)))
@@ -1545,7 +1557,10 @@ def GetDefaultConcurrentLinks():
 
     mem_limit = max(1, stat.ullTotalPhys / (4 * (2 ** 30)))  # total / 4GB
     hard_cap = max(1, int(os.getenv('GYP_LINK_CONCURRENCY_MAX', 2**32)))
-    return min(mem_limit, hard_cap)
+    # return min(mem_limit, hard_cap)
+    # TODO(scottmg): Temporary speculative fix for OOM on builders
+    # See http://crbug.com/333000.
+    return 2
   elif sys.platform.startswith('linux'):
     with open("/proc/meminfo") as meminfo:
       memtotal_re = re.compile(r'^MemTotal:\s*(\d*)\s*kB')
@@ -1591,33 +1606,35 @@ def _AddWinLinkRules(master_ninja, embed_manifest):
                'resname': resource_name,
                'embed': embed_manifest }
   rule_name_suffix = _GetWinLinkRuleNameSuffix(embed_manifest)
-  dlldesc = 'LINK%s(DLL) $dll' % rule_name_suffix.upper()
-  dllcmd = ('%s gyp-win-tool link-wrapper $arch '
-            '$ld /nologo $implibflag /DLL /OUT:$dll '
-            '/PDB:$dll.pdb @$dll.rsp' % sys.executable)
-  dllcmd = FullLinkCommand(dllcmd, '$dll', 'dll')
+  use_separate_mspdbsrv = (
+      int(os.environ.get('GYP_USE_SEPARATE_MSPDBSRV', '0')) != 0)
+  dlldesc = 'LINK%s(DLL) $binary' % rule_name_suffix.upper()
+  dllcmd = ('%s gyp-win-tool link-wrapper $arch %s '
+            '$ld /nologo $implibflag /DLL /OUT:$binary '
+            '@$binary.rsp' % (sys.executable, use_separate_mspdbsrv))
+  dllcmd = FullLinkCommand(dllcmd, '$binary', 'dll')
   master_ninja.rule('solink' + rule_name_suffix,
                     description=dlldesc, command=dllcmd,
-                    rspfile='$dll.rsp',
+                    rspfile='$binary.rsp',
                     rspfile_content='$libs $in_newline $ldflags',
                     restat=True,
                     pool='link_pool')
   master_ninja.rule('solink_module' + rule_name_suffix,
                     description=dlldesc, command=dllcmd,
-                    rspfile='$dll.rsp',
+                    rspfile='$binary.rsp',
                     rspfile_content='$libs $in_newline $ldflags',
                     restat=True,
                     pool='link_pool')
   # Note that ldflags goes at the end so that it has the option of
   # overriding default settings earlier in the command line.
-  exe_cmd = ('%s gyp-win-tool link-wrapper $arch '
-             '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' %
-              sys.executable)
-  exe_cmd = FullLinkCommand(exe_cmd, '$out', 'exe')
+  exe_cmd = ('%s gyp-win-tool link-wrapper $arch %s '
+             '$ld /nologo /OUT:$binary @$binary.rsp' %
+              (sys.executable, use_separate_mspdbsrv))
+  exe_cmd = FullLinkCommand(exe_cmd, '$binary', 'exe')
   master_ninja.rule('link' + rule_name_suffix,
-                    description='LINK%s $out' % rule_name_suffix.upper(),
+                    description='LINK%s $binary' % rule_name_suffix.upper(),
                     command=exe_cmd,
-                    rspfile='$out.rsp',
+                    rspfile='$binary.rsp',
                     rspfile_content='$in_newline $libs $ldflags',
                     pool='link_pool')
 
@@ -1877,7 +1894,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     master_ninja.rule(
         'alink',
         description='LIB $out',
-        command=('%s gyp-win-tool link-wrapper $arch '
+        command=('%s gyp-win-tool link-wrapper $arch False '
                  '$ar /nologo /ignore:4221 /OUT:$out @$out.rsp' %
                  sys.executable),
         rspfile='$out.rsp',
@@ -2027,7 +2044,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
 
     this_make_global_settings = data[build_file].get('make_global_settings', [])
     assert make_global_settings == this_make_global_settings, (
-        "make_global_settings needs to be the same for all targets.")
+        "make_global_settings needs to be the same for all targets. %s vs. %s" %
+        (this_make_global_settings, make_global_settings))
 
     spec = target_dicts[qualified_target]
     if flavor == 'mac':

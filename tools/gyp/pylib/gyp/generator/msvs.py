@@ -209,13 +209,14 @@ def _FixPaths(paths):
 
 
 def _ConvertSourcesToFilterHierarchy(sources, prefix=None, excluded=None,
-                                     list_excluded=True):
+                                     list_excluded=True, msvs_version=None):
   """Converts a list split source file paths into a vcproj folder hierarchy.
 
   Arguments:
     sources: A list of source file paths split.
     prefix: A list of source file path layers meant to apply to each of sources.
     excluded: A set of excluded files.
+    msvs_version: A MSVSVersion object.
 
   Returns:
     A hierarchy of filenames and MSVSProject.Filter objects that matches the
@@ -230,6 +231,7 @@ def _ConvertSourcesToFilterHierarchy(sources, prefix=None, excluded=None,
   if not prefix: prefix = []
   result = []
   excluded_result = []
+  folders = OrderedDict()
   # Gather files into the final result, excluded, or folders.
   for s in sources:
     if len(s) == 1:
@@ -238,10 +240,17 @@ def _ConvertSourcesToFilterHierarchy(sources, prefix=None, excluded=None,
         excluded_result.append(filename)
       else:
         result.append(filename)
+    elif msvs_version and not msvs_version.UsesVcxproj():
+      # For MSVS 2008 and earlier, we need to process all files before walking
+      # the sub folders.
+      if not folders.get(s[0]):
+        folders[s[0]] = []
+      folders[s[0]].append(s[1:])
     else:
       contents = _ConvertSourcesToFilterHierarchy([s[1:]], prefix + [s[0]],
                                                   excluded=excluded,
-                                                  list_excluded=list_excluded)
+                                                  list_excluded=list_excluded,
+                                                  msvs_version=msvs_version)
       contents = MSVSProject.Filter(s[0], contents=contents)
       result.append(contents)
   # Add a folder for excluded files.
@@ -249,6 +258,17 @@ def _ConvertSourcesToFilterHierarchy(sources, prefix=None, excluded=None,
     excluded_folder = MSVSProject.Filter('_excluded_files',
                                          contents=excluded_result)
     result.append(excluded_folder)
+
+  if msvs_version and msvs_version.UsesVcxproj():
+    return result
+
+  # Populate all the folders.
+  for f in folders:
+    contents = _ConvertSourcesToFilterHierarchy(folders[f], prefix=prefix + [f],
+                                                excluded=excluded,
+                                                list_excluded=list_excluded)
+    contents = MSVSProject.Filter(f, contents=contents)
+    result.append(contents)
   return result
 
 
@@ -971,8 +991,9 @@ def _GenerateMSVSProject(project, options, version, generator_flags):
                         actions_to_add)
   list_excluded = generator_flags.get('msvs_list_excluded_files', True)
   sources, excluded_sources, excluded_idl = (
-      _AdjustSourcesAndConvertToFilterHierarchy(
-          spec, options, project_dir, sources, excluded_sources, list_excluded))
+      _AdjustSourcesAndConvertToFilterHierarchy(spec, options, project_dir,
+                                                sources, excluded_sources,
+                                                list_excluded, version))
 
   # Add in files.
   missing_sources = _VerifySourcesExist(sources, project_dir)
@@ -1416,7 +1437,7 @@ def _PrepareListOfSources(spec, generator_flags, gyp_file):
 
 
 def _AdjustSourcesAndConvertToFilterHierarchy(
-    spec, options, gyp_dir, sources, excluded_sources, list_excluded):
+    spec, options, gyp_dir, sources, excluded_sources, list_excluded, version):
   """Adjusts the list of sources and excluded sources.
 
   Also converts the sets to lists.
@@ -1427,6 +1448,7 @@ def _AdjustSourcesAndConvertToFilterHierarchy(
     gyp_dir: The path to the gyp file being processed.
     sources: A set of sources to be included for this project.
     excluded_sources: A set of sources to be excluded for this project.
+    version: A MSVSVersion object.
   Returns:
     A trio of (list of sources, list of excluded sources,
                path of excluded IDL file)
@@ -1451,7 +1473,8 @@ def _AdjustSourcesAndConvertToFilterHierarchy(
   # Convert to folders and the right slashes.
   sources = [i.split('\\') for i in sources]
   sources = _ConvertSourcesToFilterHierarchy(sources, excluded=fully_excluded,
-                                             list_excluded=list_excluded)
+                                             list_excluded=list_excluded,
+                                             msvs_version=version)
 
   # Prune filters with a single child to flatten ugly directory structures
   # such as ../../src/modules/module1 etc.
@@ -3126,7 +3149,7 @@ def _GenerateMSBuildProject(project, options, version, generator_flags):
       _AdjustSourcesAndConvertToFilterHierarchy(spec, options,
                                                 project_dir, sources,
                                                 excluded_sources,
-                                                list_excluded))
+                                                list_excluded, version))
 
   # Don't add actions if we are using an external builder like ninja.
   if not spec.get('msvs_external_builder'):

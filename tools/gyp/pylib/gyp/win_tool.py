@@ -18,9 +18,9 @@ import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# A regex matching an argument corresponding to a PDB filename passed as an
-# argument to link.exe.
-_LINK_EXE_PDB_ARG = re.compile('/PDB:(?P<pdb>.+\.exe\.pdb)$', re.IGNORECASE)
+# A regex matching an argument corresponding to the output filename passed to
+# link.exe.
+_LINK_EXE_OUT_ARG = re.compile('/OUT:(?P<out>.+)$', re.IGNORECASE)
 
 def main(args):
   executor = WinTool()
@@ -33,25 +33,22 @@ class WinTool(object):
   """This class performs all the Windows tooling steps. The methods can either
   be executed directly, or dispatched from an argument list."""
 
-  def _MaybeUseSeparateMspdbsrv(self, env, args):
-    """Allows to use a unique instance of mspdbsrv.exe for the linkers linking
-    an .exe target if GYP_USE_SEPARATE_MSPDBSRV has been set."""
-    if not os.environ.get('GYP_USE_SEPARATE_MSPDBSRV'):
-      return
-
+  def _UseSeparateMspdbsrv(self, env, args):
+    """Allows to use a unique instance of mspdbsrv.exe per linker instead of a
+    shared one."""
     if len(args) < 1:
       raise Exception("Not enough arguments")
 
     if args[0] != 'link.exe':
       return
 
-    # Checks if this linker produces a PDB for an .exe target. If so use the
-    # name of this PDB to generate an endpoint name for mspdbsrv.exe.
+    # Use the output filename passed to the linker to generate an endpoint name
+    # for mspdbsrv.exe.
     endpoint_name = None
     for arg in args:
-      m = _LINK_EXE_PDB_ARG.match(arg)
+      m = _LINK_EXE_OUT_ARG.match(arg)
       if m:
-        endpoint_name = '%s_%d' % (m.group('pdb'), os.getpid())
+        endpoint_name = '%s_%d' % (m.group('out'), os.getpid())
         break
 
     if endpoint_name is None:
@@ -99,13 +96,14 @@ class WinTool(object):
     else:
       shutil.copy2(source, dest)
 
-  def ExecLinkWrapper(self, arch, *args):
+  def ExecLinkWrapper(self, arch, use_separate_mspdbsrv, *args):
     """Filter diagnostic output from link that looks like:
     '   Creating library ui.dll.lib and object ui.dll.exp'
     This happens when there are exports from the dll or exe.
     """
     env = self._GetEnv(arch)
-    self._MaybeUseSeparateMspdbsrv(env, args)
+    if use_separate_mspdbsrv == 'True':
+      self._UseSeparateMspdbsrv(env, args)
     link = subprocess.Popen(args,
                             shell=True,
                             env=env,
@@ -280,6 +278,11 @@ class WinTool(object):
     """Runs an action command line from a response file using the environment
     for |arch|. If |dir| is supplied, use that as the working directory."""
     env = self._GetEnv(arch)
+    # TODO(scottmg): This is a temporary hack to get some specific variables
+    # through to actions that are set after gyp-time. http://crbug.com/333738.
+    for k, v in os.environ.iteritems():
+      if k not in env:
+        env[k] = v
     args = open(rspfile).read()
     dir = dir[0] if dir else None
     return subprocess.call(args, shell=True, env=env, cwd=dir)

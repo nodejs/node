@@ -166,6 +166,8 @@ class OrderedDict(dict):
         for k in self:
             yield (k, self[k])
 
+    # Suppress 'OrderedDict.update: Method has no argument':
+    # pylint: disable=E0211
     def update(*args, **kwds):
         '''od.update(E, **F) -> None.  Update od from dict/iterable E and F.
 
