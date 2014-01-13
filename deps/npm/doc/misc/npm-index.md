@@ -115,6 +115,10 @@ Publish a package
 
 Rebuild a package
 
+## npm-repo(1)
+
+Open package repository page in the browser
+
 ## npm-restart(1)
 
 Start a package
@@ -190,10 +194,6 @@ View registry info
 ## npm-whoami(1)
 
 Display npm username
-
-## repo(1)
-
-Open package repository page in the browser
 
 # API Documentation
 
@@ -285,6 +285,10 @@ Publish a package
 
 Rebuild a package
 
+## npm-repo(3)
+
+Open package repository page in the browser
+
 ## npm-restart(3)
 
 Start a package
@@ -348,10 +352,6 @@ View registry info
 ## npm-whoami(3)
 
 Display npm username
-
-## repo(3)
-
-Open package repository page in the browser
 
 # Files
 

@@ -93,7 +93,7 @@ function readPassword (c, u, cb) {
 function readEmail (c, u, cb) {
   var v = userValidate.email
 
-  read({prompt: "Email: ", default: c.e}, function (er, em) {
+  read({prompt: "Email: (this IS public) ", default: c.e}, function (er, em) {
     if (er) {
       return cb(er.message === "cancelled" ? er.message : er)
     }

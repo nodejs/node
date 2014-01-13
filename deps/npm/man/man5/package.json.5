@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "PACKAGE\.JSON" "5" "December 2013" "" ""
+.TH "PACKAGE\.JSON" "5" "January 2014" "" ""
 .
 .SH "NAME"
 \fBpackage.json\fR \-\- Specifics of npm\'s package\.json handling
@@ -13,41 +13,6 @@ file\.  It must be actual JSON, not just a JavaScript object literal\.
 .P
 A lot of the behavior described in this document is affected by the config
 npm help  settings described in \fBnpm\-config\fR\|\.
-.
-.SH "DEFAULT VALUES"
-npm will default some values based on package contents\.
-.
-.IP "\(bu" 4
-\fB"scripts": {"start": "node server\.js"}\fR
-.
-.IP
-If there is a \fBserver\.js\fR file in the root of your package, then npm
-will default the \fBstart\fR command to \fBnode server\.js\fR\|\.
-.
-.IP "\(bu" 4
-\fB"scripts":{"preinstall": "node\-waf clean || true; node\-waf configure build"}\fR
-.
-.IP
-If there is a \fBwscript\fR file in the root of your package, npm will
-default the \fBpreinstall\fR command to compile using node\-waf\.
-.
-.IP "\(bu" 4
-\fB"scripts":{"preinstall": "node\-gyp rebuild"}\fR
-.
-.IP
-If there is a \fBbinding\.gyp\fR file in the root of your package, npm will
-default the \fBpreinstall\fR command to compile using node\-gyp\.
-.
-.IP "\(bu" 4
-\fB"contributors": [\.\.\.]\fR
-.
-.IP
-If there is an \fBAUTHORS\fR file in the root of your package, npm will
-treat each line as a \fBName <email> (url)\fR format, where email and url
-are optional\.  Lines which start with a \fB#\fR or are blank, will be
-ignored\.
-.
-.IP "" 0
 .
 .SH "name"
 The \fImost\fR important things in your package\.json are the name and version fields\.
@@ -161,24 +126,8 @@ You can check the full list of SPDX license IDs \fIhttps://spdx\.org/licenses/\f
 Ideally you should pick one that is OSI \fIhttp://opensource\.org/licenses/alphabetical\fR approved\.
 .
 .P
-If you have more complex licensing terms, or you want to provide more detail
-in your package\.json file, you can use the more verbose plural form, like this:
-.
-.IP "" 4
-.
-.nf
-"licenses" : [
-  { "type" : "MyLicense"
-  , "url" : "http://github\.com/owner/project/path/to/license"
-  }
-]
-.
-.fi
-.
-.IP "" 0
-.
-.P
-It\'s also a good idea to include a license file at the top level in your package\.
+It\'s also a good idea to include a LICENSE file at the top level in
+your package\.
 .
 .SH "people fields: author, contributors"
 The "author" is one person\.  "contributors" is an array of people\.  A "person"
@@ -793,6 +742,34 @@ Any config values can be overridden, but of course only "tag" and
 .P
 npm help  See \fBnpm\-config\fR to see the list of config options that can be
 overridden\.
+.
+.SH "DEFAULT VALUES"
+npm will default some values based on package contents\.
+.
+.IP "\(bu" 4
+\fB"scripts": {"start": "node server\.js"}\fR
+.
+.IP
+If there is a \fBserver\.js\fR file in the root of your package, then npm
+will default the \fBstart\fR command to \fBnode server\.js\fR\|\.
+.
+.IP "\(bu" 4
+\fB"scripts":{"preinstall": "node\-gyp rebuild"}\fR
+.
+.IP
+If there is a \fBbinding\.gyp\fR file in the root of your package, npm will
+default the \fBpreinstall\fR command to compile using node\-gyp\.
+.
+.IP "\(bu" 4
+\fB"contributors": [\.\.\.]\fR
+.
+.IP
+If there is an \fBAUTHORS\fR file in the root of your package, npm will
+treat each line as a \fBName <email> (url)\fR format, where email and url
+are optional\.  Lines which start with a \fB#\fR or are blank, will be
+ignored\.
+.
+.IP "" 0
 .
 .SH "SEE ALSO"
 .

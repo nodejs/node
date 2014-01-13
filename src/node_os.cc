@@ -222,11 +222,14 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   Local<Array> ifarr;
 
   int err = uv_interface_addresses(&interfaces, &count);
-  if (err) {
-    return ThrowUVException(err, "uv_interface_addresses");
-  }
 
   ret = Object::New();
+
+  if (err == UV_ENOSYS) {
+    args.GetReturnValue().Set(ret);
+  } else if (err) {
+    return ThrowUVException(err, "uv_interface_addresses");
+  }
 
   for (i = 0; i < count; i++) {
     name = OneByteString(node_isolate, interfaces[i].name);
