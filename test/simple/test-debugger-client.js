@@ -197,9 +197,14 @@ function doTest(cb, done) {
           connectCount++;
           console.log('ready!');
           cb(c, function() {
-            console.error('>>> killing node process %d\n\n', nodeProcess.pid);
-            nodeProcess.kill();
-            done();
+            c.end();
+            c.on('end', function() {
+              console.error(
+                  '>>> killing node process %d\n\n',
+                  nodeProcess.pid);
+              nodeProcess.kill();
+              done();
+            });
           });
         });
       });
