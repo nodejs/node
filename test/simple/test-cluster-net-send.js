@@ -38,6 +38,9 @@ if (process.argv[2] !== 'child') {
     handle.on('data', function(data) {
       called = true;
       assert.equal(data.toString(), 'hello');
+    });
+
+    handle.on('end', function() {
       worker.kill();
     });
   });
