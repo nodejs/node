@@ -40,7 +40,7 @@ child.stderr.on('data', function(data) {
 
   if (waitingForDebuggers) {
     outputLines = outputLines.concat(lines);
-    outputTimerId = setTimeout(onNoMoreLines, 200);
+    outputTimerId = setTimeout(onNoMoreLines, 800);
   } else if (line === 'all workers are running') {
     waitingForDebuggers = true;
     process._debugProcess(child.pid);
@@ -54,7 +54,7 @@ function onNoMoreLines() {
 
 setTimeout(function testTimedOut() {
   assert(false, 'test timed out.');
-}, 3000);
+}, 6000);
 
 process.on('exit', function onExit() {
     child.kill();
