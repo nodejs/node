@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var repl = require('../simple/helper-debugger-repl.js');
+var repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('break-in-module/main.js');
 

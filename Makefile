@@ -131,6 +131,9 @@ test-pummel: all
 test-internet: all
 	$(PYTHON) tools/test.py internet
 
+test-debugger: all
+	$(PYTHON) tools/test.py debugger
+
 test-npm: node
 	./node deps/npm/test/run.js
 
