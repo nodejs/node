@@ -50,15 +50,15 @@ function test1() {
       case 1:
         return r.push(buf);
       case 2:
-        setTimeout(r.read.bind(r, 0), 10);
+        setTimeout(r.read.bind(r, 0), 50);
         return r.push(new Buffer(0)); // Not-EOF!
       case 3:
-        setTimeout(r.read.bind(r, 0), 10);
+        setTimeout(r.read.bind(r, 0), 50);
         return process.nextTick(function() {
           return r.push(new Buffer(0));
         });
       case 4:
-        setTimeout(r.read.bind(r, 0), 10);
+        setTimeout(r.read.bind(r, 0), 50);
         return setTimeout(function() {
           return r.push(new Buffer(0));
         });
