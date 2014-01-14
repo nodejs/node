@@ -65,7 +65,7 @@ child.stdout.once('data', function() {
                       '  });\n' +
                       '});"";\n');
 
-    setTimeout(child.stdin.end.bind(child.stdin), 50);
+    setTimeout(child.stdin.end.bind(child.stdin), 200);
   }
 });
 
