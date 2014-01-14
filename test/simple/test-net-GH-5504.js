@@ -93,7 +93,7 @@ function parent() {
     setTimeout(function() {
       throw new Error('hang');
     });
-  }, 1000).unref();
+  }, 4000).unref();
 
   var s = spawn(node, [__filename, 'server'], opt);
   var c;
