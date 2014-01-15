@@ -203,11 +203,11 @@ NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(int errorno,
 const char *signo_string(int errorno);
 
 
-NODE_EXTERN typedef void (*addon_register_func)(
+typedef void (*addon_register_func)(
     v8::Handle<v8::Object> exports,
     v8::Handle<v8::Value> module);
 
-NODE_EXTERN typedef void (*addon_context_register_func)(
+typedef void (*addon_context_register_func)(
     v8::Handle<v8::Object> exports,
     v8::Handle<v8::Value> module,
     v8::Handle<v8::Context> context);
