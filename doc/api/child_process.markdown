@@ -531,7 +531,7 @@ amount of data allowed on stdout or stderr - if this value is exceeded then
 the child process is killed.
 
 
-## child_process.execFile(file, args, options, callback)
+## child_process.execFile(file, [args], [options], [callback])
 
 * `file` {String} The filename of the program to run
 * `args` {Array} List of string arguments
