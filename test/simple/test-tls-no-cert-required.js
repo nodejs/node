@@ -25,14 +25,11 @@ if (!process.versions.openssl) {
 }
 
 var common = require('../common');
-var assert = require('assert');
-var https = require('https');
 var tls = require('tls');
 
-assert.throws(function() {
-  tls.createServer({ /* empty */}).listen(0);
-}, /missing.+certificate/i);
-
-assert.throws(function() {
-  https.createServer({ /* empty */}).listen(0);
-}, /missing.+certificate/i);
+// Omitting the cert or pfx option to tls.createServer() should not throw.
+// AECDH-NULL-SHA is a no-authentication/no-encryption cipher and hence
+// doesn't need a certificate.
+tls.createServer({ ciphers: 'AECDH-NULL-SHA' }).listen(0, function() {
+  this.close();
+});
