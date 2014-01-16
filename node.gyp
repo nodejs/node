@@ -293,7 +293,7 @@
         [
           'OS=="linux" and node_shared_v8=="false"', {
             'ldflags': [
-              '-Wl,--whole-archive <(PRODUCT_DIR)/obj.target/deps/v8/tools/gyp/libv8_base.a -Wl,--no-whole-archive',
+              '-Wl,--whole-archive <(V8_BASE) -Wl,--no-whole-archive',
             ],
         }],
       ],
@@ -427,10 +427,10 @@
               'action_name': 'node_dtrace_provider_o',
               'inputs': [
                 'src/node_provider.d',
-                '<(PRODUCT_DIR)/obj.target/node/src/node_dtrace.o'
+                '<(OBJ_DIR)/node/src/node_dtrace.o'
               ],
               'outputs': [
-                '<(PRODUCT_DIR)/obj.target/node/src/node_dtrace_provider.o'
+                '<(OBJ_DIR)/node/src/node_dtrace_provider.o'
               ],
               'action': [ 'dtrace', '-G', '-xnolibs', '-s', '<@(_inputs)',
                 '-o', '<@(_outputs)' ]
@@ -448,7 +448,7 @@
             {
               'action_name': 'node_dtrace_ustack_constants',
               'inputs': [
-                '<(PRODUCT_DIR)/obj.target/deps/v8/tools/gyp/libv8_base.a'
+                '<(V8_BASE)'
               ],
               'outputs': [
                 '<(SHARED_INTERMEDIATE_DIR)/v8constants.h'
@@ -466,7 +466,7 @@
                 '<(SHARED_INTERMEDIATE_DIR)/v8constants.h'
               ],
               'outputs': [
-                '<(PRODUCT_DIR)/obj.target/node/src/node_dtrace_ustack.o'
+                '<(OBJ_DIR)/node/src/node_dtrace_ustack.o'
               ],
               'conditions': [
                 [ 'target_arch=="ia32"', {
