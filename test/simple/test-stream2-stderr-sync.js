@@ -48,82 +48,42 @@ function parent() {
   });
 }
 
-function child0() {
-  // Just a very simple wrapper around TTY(2)
-  // Essentially the same as stderr, but without all the net stuff.
-  var Writable = require('stream').Writable;
-  var util = require('util');
-
-  // a lowlevel stderr writer
-  var TTY = process.binding('tty_wrap').TTY;
-  var handle = new TTY(2, false);
-
-  util.inherits(W, Writable);
-
-  function W(opts) {
-    Writable.call(this, opts);
-  }
-
-  W.prototype._write = function(chunk, encoding, cb) {
-    var req = { oncomplete: afterWrite };
-    var err = handle.writeUtf8String(req, chunk.toString() + '\n');
-    if (err) throw errnoException(err, 'write');
-    // here's the problem.
-    // it needs to tell the Writable machinery that it's ok to write
-    // more, but that the current buffer length is handle.writeQueueSize
-    if (req.writeQueueSize === 0)
-      req.cb = cb;
-    else
-      cb();
-  }
-  function afterWrite(status, handle, req) {
-    if (req.cb)
-      req.cb();
-  }
-
-  var w = new W
-  w.write('child 0');
-  w.write('foo');
-  w.write('bar');
-  w.write('baz');
-}
-
 // using console.error
-function child1() {
-  console.error('child 1');
+function child0() {
+  console.error('child 0');
   console.error('foo');
   console.error('bar');
   console.error('baz');
 }
 
 // using process.stderr
-function child2() {
-  process.stderr.write('child 2\n');
+function child1() {
+  process.stderr.write('child 1\n');
   process.stderr.write('foo\n');
   process.stderr.write('bar\n');
   process.stderr.write('baz\n');
 }
 
 // using a net socket
-function child3() {
+function child2() {
   var net = require('net');
   var socket = new net.Socket({ fd: 2 });
-  socket.write('child 3\n');
+  socket.write('child 2\n');
   socket.write('foo\n');
   socket.write('bar\n');
   socket.write('baz\n');
 }
 
 
+function child3() {
+  console.error('child 3\nfoo\nbar\nbaz');
+}
+
 function child4() {
-  console.error('child 4\nfoo\nbar\nbaz');
+  process.stderr.write('child 4\nfoo\nbar\nbaz\n');
 }
 
-function child5() {
-  process.stderr.write('child 5\nfoo\nbar\nbaz\n');
-}
-
-var children = [ child0, child1, child2, child3, child4, child5 ];
+var children = [ child0, child1, child2, child3, child4 ];
 
 if (!process.argv[2]) {
   parent();
