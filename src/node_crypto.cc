@@ -83,6 +83,7 @@ using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Null;
 using v8::Object;
@@ -1248,32 +1249,31 @@ void SSLWrap<Base>::IsInitFinished(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-#define CASE_X509_ERR(CODE) case X509_V_ERR_##CODE: reason = #CODE; break;
 template <class Base>
 void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
   Base* w = Unwrap<Base>(args.This());
 
-  // XXX(indutny) Do this check in JS land?
-  X509* peer_cert = SSL_get_peer_certificate(w->ssl_);
-  if (peer_cert == NULL) {
-    // We requested a certificate and they did not send us one.
-    // Definitely an error.
-    // XXX(indutny) is this the right error message?
-    Local<String> s =
-        FIXED_ONE_BYTE_STRING(node_isolate, "UNABLE_TO_GET_ISSUER_CERT");
-    return args.GetReturnValue().Set(Exception::Error(s));
+  // XXX(bnoordhuis) The UNABLE_TO_GET_ISSUER_CERT error when there is no
+  // peer certificate is questionable but it's compatible with what was
+  // here before.
+  long x509_verify_error = X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT;
+  if (X509* peer_cert = SSL_get_peer_certificate(w->ssl_)) {
+    X509_free(peer_cert);
+    x509_verify_error = SSL_get_verify_result(w->ssl_);
   }
-  X509_free(peer_cert);
 
-  long x509_verify_error = SSL_get_verify_result(w->ssl_);
+  if (x509_verify_error == X509_V_OK)
+    return args.GetReturnValue().SetNull();
 
-  const char* reason = NULL;
-  Local<String> s;
+  // XXX(bnoordhuis) X509_verify_cert_error_string() is not actually thread-safe
+  // in the presence of invalid error codes.  Probably academical but something
+  // to keep in mind if/when node ever grows multi-isolate capabilities.
+  const char* reason = X509_verify_cert_error_string(x509_verify_error);
+  const char* code = reason;
+#define CASE_X509_ERR(CODE) case X509_V_ERR_##CODE: code = #CODE; break;
   switch (x509_verify_error) {
-    case X509_V_OK:
-      return args.GetReturnValue().SetNull();
     CASE_X509_ERR(UNABLE_TO_GET_ISSUER_CERT)
     CASE_X509_ERR(UNABLE_TO_GET_CRL)
     CASE_X509_ERR(UNABLE_TO_DECRYPT_CERT_SIGNATURE)
@@ -1301,18 +1301,17 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
     CASE_X509_ERR(INVALID_PURPOSE)
     CASE_X509_ERR(CERT_UNTRUSTED)
     CASE_X509_ERR(CERT_REJECTED)
-    default:
-      s = OneByteString(node_isolate,
-                        X509_verify_cert_error_string(x509_verify_error));
-      break;
   }
-
-  if (s.IsEmpty())
-    s = OneByteString(node_isolate, reason);
-
-  args.GetReturnValue().Set(Exception::Error(s));
-}
 #undef CASE_X509_ERR
+
+  Isolate* isolate = args.GetIsolate();
+  Local<String> reason_string = OneByteString(isolate, reason);
+  Local<Value> exception_value = Exception::Error(reason_string);
+  Local<Object> exception_object = exception_value->ToObject();
+  exception_object->Set(FIXED_ONE_BYTE_STRING(isolate, "code"),
+                        OneByteString(isolate, code));
+  args.GetReturnValue().Set(exception_object);
+}
 
 
 template <class Base>

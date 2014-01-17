@@ -294,7 +294,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
 
   - `rejectUnauthorized`: If `true`, the server certificate is verified against
     the list of supplied CAs. An `'error'` event is emitted if verification
-    fails. Default: `true`.
+    fails; `err.code` contains the OpenSSL error code. Default: `true`.
 
   - `NPNProtocols`: An array of strings or `Buffer`s containing supported NPN
     protocols. `Buffer`s should have following format: `0x05hello0x05world`,
