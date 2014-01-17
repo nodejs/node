@@ -30,16 +30,16 @@ var server = http.createServer(function(req, res) {
     res.end('Success');
   });
 
-  server.close(function() {
-    start = process.hrtime();
-  });
+  server.close();
 });
 
 server.listen(common.PORT, 'localhost', function() {
   var interval_id = setInterval(function() {
-    if (new Date().getMilliseconds() > 100)
+    start = new Date();
+    if (start.getMilliseconds() > 100)
       return;
 
+    console.log(start.toISOString());
     var req = http.request({
       'host': 'localhost',
       'port': common.PORT,
@@ -53,8 +53,9 @@ server.listen(common.PORT, 'localhost', function() {
 });
 
 process.on('exit', function() {
-  var d = process.hrtime(start);
-  assert.equal(d[0], 0);
-  assert(d[1] / 1e9 < 0.03);
+  var end = new Date();
+  console.log(end.toISOString());
+  assert.equal(start.getSeconds(), end.getSeconds());
+  assert(end.getMilliseconds() < 900);
   console.log('ok');
 });
