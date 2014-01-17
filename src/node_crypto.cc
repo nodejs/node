@@ -857,6 +857,10 @@ void SSLWrap<Base>::AddMethods(Handle<FunctionTemplate> t) {
   NODE_SET_PROTOTYPE_METHOD(t, "renegotiate", Renegotiate);
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Shutdown);
 
+#ifdef SSL_set_max_send_fragment
+  NODE_SET_PROTOTYPE_METHOD(t, "setMaxSendFragment", SetMaxSendFragment);
+#endif  // SSL_set_max_send_fragment
+
 #ifdef OPENSSL_NPN_NEGOTIATED
   NODE_SET_PROTOTYPE_METHOD(t, "getNegotiatedProtocol", GetNegotiatedProto);
   NODE_SET_PROTOTYPE_METHOD(t, "setNPNProtocols", SetNPNProtocols);
@@ -1238,6 +1242,21 @@ void SSLWrap<Base>::Shutdown(const FunctionCallbackInfo<Value>& args) {
   int rv = SSL_shutdown(w->ssl_);
   args.GetReturnValue().Set(rv);
 }
+
+
+#ifdef SSL_set_max_send_fragment
+template <class Base>
+void SSLWrap<Base>::SetMaxSendFragment(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  HandleScope scope(node_isolate);
+  CHECK(args.Length() >= 1 && args[0]->IsNumber());
+
+  Base* w = Unwrap<Base>(args.This());
+
+  int rv = SSL_set_max_send_fragment(w->ssl_, args[0]->Int32Value());
+  args.GetReturnValue().Set(rv);
+}
+#endif  // SSL_set_max_send_fragment
 
 
 template <class Base>
