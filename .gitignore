@@ -42,6 +42,7 @@ ipch/
 /dist-osx
 /npm.wxs
 /tools/msvs/npm.wixobj
+/test/addons/doc-*/
 email.md
 deps/v8-*
 ./node_modules

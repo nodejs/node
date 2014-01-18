@@ -3,9 +3,10 @@
 
 using namespace v8;
 
-Handle<Value> Method(const Arguments& args) {
-  HandleScope scope;
-  return scope.Close(String::New("world"));
+void Method(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  args.GetReturnValue().Set(String::NewFromUtf8(isolate, "world"));
 }
 
 void init(Handle<Object> target) {

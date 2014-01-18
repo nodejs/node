@@ -100,26 +100,38 @@ test/gc/node_modules/weak/build/Release/weakref.node:
 		--directory="$(shell pwd)/test/gc/node_modules/weak" \
 		--nodedir="$(shell pwd)"
 
+build-addons:
+	@if [ ! -f node ]; then make all; fi
+	rm -rf test/addons/doc-*/
+	./node tools/doc/addon-verify.js
+	$(foreach dir, \
+			$(sort $(dir $(wildcard test/addons/*/*.gyp))), \
+			./node deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+					--directory="$(shell pwd)/$(dir)" \
+					--nodedir="$(shell pwd)" && ) echo "build done"
+
 test-gc: all test/gc/node_modules/weak/build/Release/weakref.node
 	$(PYTHON) tools/test.py --mode=release gc
 
-test-all: all test/gc/node_modules/weak/build/Release/weakref.node
+test-build: all build-addons
+
+test-all: test-build test/gc/node_modules/weak/build/Release/weakref.node
 	$(PYTHON) tools/test.py --mode=debug,release
 	make test-npm
 
-test-all-http1: all
+test-all-http1: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --use-http1
 
-test-all-valgrind: all
+test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
-test-release: all
+test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
 
-test-debug: all
+test-debug: test-build
 	$(PYTHON) tools/test.py --mode=debug
 
-test-message: all
+test-message: test-build
 	$(PYTHON) tools/test.py message
 
 test-simple: all
@@ -139,6 +151,9 @@ test-npm: node
 
 test-npm-publish: node
 	npm_package_config_publishtest=true ./node deps/npm/test/run.js
+
+test-addons: test-build
+	$(PYTHON) tools/test.py --mode=release addons
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
@@ -418,4 +433,4 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean tar binary release-only bench-http-simple bench-idle bench-all bench bench-misc bench-array bench-buffer bench-net bench-http bench-fs bench-tls
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all test-addons build-addons website-upload pkg blog blogclean tar binary release-only bench-http-simple bench-idle bench-all bench bench-misc bench-array bench-buffer bench-net bench-http bench-fs bench-tls

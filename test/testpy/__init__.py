@@ -134,3 +134,28 @@ class SimpleTestConfiguration(test.TestConfiguration):
     status_file = join(self.root, '%s.status' % (self.section))
     if exists(status_file):
       test.ReadConfigurationInto(status_file, sections, defs)
+
+class AddonTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=[]):
+    super(AddonTestConfiguration, self).__init__(context, root, section)
+
+  def Ls(self, path):
+    def SelectTest(name):
+      return name.endswith('.js')
+
+    result = []
+    for subpath in os.listdir(path):
+      if os.path.isdir(join(path, subpath)):
+        for f in os.listdir(join(path, subpath)):
+          if SelectTest(f):
+            result.append([subpath, f[:-3]])
+    return result
+
+  def ListTests(self, current_path, path, mode):
+    all_tests = [current_path + t for t in self.Ls(join(self.root))]
+    result = []
+    for test in all_tests:
+      if self.Contains(path, test):
+        file_path = join(self.root, reduce(join, test[1:], "") + ".js")
+        result.append(SimpleTestCase(test, file_path, mode, self.context, self))
+    return result

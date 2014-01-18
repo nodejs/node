@@ -13,21 +13,23 @@ struct async_req {
   Persistent<Function> callback;
 };
 
-void DoAsync (uv_work_t *r) {
-  async_req *req = reinterpret_cast<async_req *>(r->data);
+void DoAsync(uv_work_t* r) {
+  async_req* req = reinterpret_cast<async_req*>(r->data);
   sleep(1); // simulate CPU intensive process...
   req->output = req->input * 2;
 }
 
-void AfterAsync (uv_work_t *r) {
-  HandleScope scope;
-  async_req *req = reinterpret_cast<async_req *>(r->data);
+void AfterAsync(uv_work_t* r) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  async_req* req = reinterpret_cast<async_req*>(r->data);
 
   Handle<Value> argv[2] = { Null(), Integer::New(req->output) };
 
   TryCatch try_catch;
 
-  req->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+  Local<Function> callback = Local<Function>::New(isolate, req->callback);
+  callback->Call(Context::GetCurrent()->Global(), 2, argv);
 
   // cleanup
   req->callback.Dispose();
@@ -38,24 +40,23 @@ void AfterAsync (uv_work_t *r) {
   }
 }
 
-Handle<Value> Method(const Arguments& args) {
-  HandleScope scope;
+void Method(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
-  async_req *req = new async_req;
+  async_req* req = new async_req;
   req->req.data = req;
 
   req->input = args[0]->IntegerValue();
   req->output = 0;
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
-  req->callback = Persistent<Function>::New(callback);
+  req->callback.Reset(isolate, callback);
 
   uv_queue_work(uv_default_loop(),
                 &req->req,
                 DoAsync,
                 (uv_after_work_cb)AfterAsync);
-
-  return Undefined();
 }
 
 void init(Handle<Object> exports, Handle<Object> module) {
