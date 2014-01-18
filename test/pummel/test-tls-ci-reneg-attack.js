@@ -25,6 +25,11 @@ var spawn = require('child_process').spawn;
 var tls = require('tls');
 var fs = require('fs');
 
+if (!common.opensslCli) {
+  console.error('Skipping because node compiled without OpenSSL CLI.');
+  process.exit(0);
+}
+
 // renegotiation limits to test
 var LIMITS = [0, 1, 2, 3, 5, 10, 16];
 

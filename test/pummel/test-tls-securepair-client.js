@@ -18,13 +18,15 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
+var common = require('../common');
+
+if (!common.opensslCli) {
+  console.error('Skipping because node compiled without OpenSSL CLI.');
   process.exit(0);
 }
 
-var common = require('../common');
 var join = require('path').join;
 var net = require('net');
 var assert = require('assert');

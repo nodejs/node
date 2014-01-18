@@ -19,11 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+var common = require('../common');
 
-
-
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
+if (!common.opensslCli) {
+  console.error('Skipping because node compiled without OpenSSL CLI.');
   process.exit(0);
 }
 
@@ -121,7 +120,6 @@ var testCases =
     ];
 
 
-var common = require('../common');
 var constants = require('constants');
 var assert = require('assert');
 var fs = require('fs');

@@ -20,6 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 var common = require('../common');
+
+if (!common.opensslCli) {
+  console.error('Skipping because node compiled without OpenSSL CLI.');
+  process.exit(0);
+}
+
 var assert = require('assert');
 var exec = require('child_process').exec;
 var tls = require('tls');
