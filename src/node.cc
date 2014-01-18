@@ -3315,7 +3315,7 @@ void AtExit(void (*cb)(void* arg), void* arg) {
 }
 
 
-void EmitExit(Environment* env) {
+int EmitExit(Environment* env) {
   // process.emit('exit')
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -3332,7 +3332,7 @@ void EmitExit(Environment* env) {
   };
 
   MakeCallback(env, process_object, "emit", ARRAY_SIZE(args), args);
-  exit(code);
+  return code;
 }
 
 
@@ -3406,6 +3406,7 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif
 
+  int code;
   V8::Initialize();
   {
     Locker locker(node_isolate);
@@ -3417,7 +3418,7 @@ int Start(int argc, char** argv) {
     // be removed.
     Context::Scope context_scope(env->context());
     uv_run(env->event_loop(), UV_RUN_DEFAULT);
-    EmitExit(env);
+    code = EmitExit(env);
     RunAtExit(env);
     env->Dispose();
     env = NULL;
@@ -3431,7 +3432,7 @@ int Start(int argc, char** argv) {
   delete[] exec_argv;
   exec_argv = NULL;
 
-  return 0;
+  return code;
 }
 
 

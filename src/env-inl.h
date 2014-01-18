@@ -190,6 +190,8 @@ inline Environment::Environment(v8::Local<v8::Context> context)
 }
 
 inline Environment::~Environment() {
+  v8::HandleScope handle_scope(isolate());
+
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, NULL);
 #define V(PropertyName, TypeName) PropertyName ## _.Dispose();
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
