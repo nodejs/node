@@ -446,23 +446,50 @@ class Hash : public BaseObject {
   bool initialised_;
 };
 
-class Sign : public BaseObject {
+class SignBase : public BaseObject {
  public:
-  ~Sign() {
+  typedef enum {
+    kSignOk,
+    kSignUnknownDigest,
+    kSignInit,
+    kSignNotInitialised,
+    kSignUpdate,
+    kSignPrivateKey,
+    kSignPublicKey
+  } Error;
+
+  SignBase(Environment* env, v8::Local<v8::Object> wrap)
+      : BaseObject(env, wrap),
+        md_(NULL),
+        initialised_(false) {
+  }
+
+  ~SignBase() {
     if (!initialised_)
       return;
     EVP_MD_CTX_cleanup(&mdctx_);
   }
 
+ protected:
+  static void CheckThrow(Error error);
+
+  EVP_MD_CTX mdctx_; /* coverity[member_decl] */
+  const EVP_MD* md_; /* coverity[member_decl] */
+  bool initialised_;
+};
+
+class Sign : public SignBase {
+ public:
+
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
-  void SignInit(const char* sign_type);
-  bool SignUpdate(const char* data, int len);
-  bool SignFinal(const char* key_pem,
-                 int key_pem_len,
-                 const char* passphrase,
-                 unsigned char** sig,
-                 unsigned int *sig_len);
+  Error SignInit(const char* sign_type);
+  Error SignUpdate(const char* data, int len);
+  Error SignFinal(const char* key_pem,
+                  int key_pem_len,
+                  const char* passphrase,
+                  unsigned char** sig,
+                  unsigned int *sig_len);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -470,35 +497,22 @@ class Sign : public BaseObject {
   static void SignUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SignFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Sign(Environment* env, v8::Local<v8::Object> wrap)
-      : BaseObject(env, wrap),
-        md_(NULL),
-        initialised_(false) {
+  Sign(Environment* env, v8::Local<v8::Object> wrap) : SignBase(env, wrap) {
     MakeWeak<Sign>(this);
   }
-
- private:
-  EVP_MD_CTX mdctx_; /* coverity[member_decl] */
-  const EVP_MD* md_; /* coverity[member_decl] */
-  bool initialised_;
 };
 
-class Verify : public BaseObject {
+class Verify : public SignBase {
  public:
-  ~Verify() {
-    if (!initialised_)
-      return;
-    EVP_MD_CTX_cleanup(&mdctx_);
-  }
-
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
-  void VerifyInit(const char* verify_type);
-  bool VerifyUpdate(const char* data, int len);
-  bool VerifyFinal(const char* key_pem,
-                   int key_pem_len,
-                   const char* sig,
-                   int siglen);
+  Error VerifyInit(const char* verify_type);
+  Error VerifyUpdate(const char* data, int len);
+  Error VerifyFinal(const char* key_pem,
+                    int key_pem_len,
+                    const char* sig,
+                    int siglen,
+                    bool* verify_result);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -506,17 +520,9 @@ class Verify : public BaseObject {
   static void VerifyUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void VerifyFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  Verify(Environment* env, v8::Local<v8::Object> wrap)
-      : BaseObject(env, wrap),
-        md_(NULL),
-        initialised_(false) {
+  Verify(Environment* env, v8::Local<v8::Object> wrap) : SignBase(env, wrap) {
     MakeWeak<Verify>(this);
   }
-
- private:
-  EVP_MD_CTX mdctx_; /* coverity[member_decl] */
-  const EVP_MD* md_; /* coverity[member_decl] */
-  bool initialised_;
 };
 
 class DiffieHellman : public BaseObject {
