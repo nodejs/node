@@ -35,9 +35,12 @@
 
 namespace node {
 
-inline AsyncWrap::AsyncWrap(Environment* env, v8::Handle<v8::Object> object)
+inline AsyncWrap::AsyncWrap(Environment* env,
+                            v8::Handle<v8::Object> object,
+                            ProviderType provider)
     : BaseObject(env, object),
-      async_flags_(NO_OPTIONS) {
+      async_flags_(NO_OPTIONS),
+      provider_type_(provider) {
   if (!env->has_async_listener())
     return;
 
@@ -56,14 +59,13 @@ inline AsyncWrap::AsyncWrap(Environment* env, v8::Handle<v8::Object> object)
 inline AsyncWrap::~AsyncWrap() {
 }
 
-
-inline uint32_t AsyncWrap::async_flags() const {
-  return async_flags_;
+inline uint32_t AsyncWrap::provider_type() const {
+  return provider_type_;
 }
 
 
 inline bool AsyncWrap::has_async_listener() {
-  return async_flags() & HAS_ASYNC_LISTENER;
+  return async_flags_ & HAS_ASYNC_LISTENER;
 }
 
 

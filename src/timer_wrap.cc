@@ -83,7 +83,10 @@ class TimerWrap : public HandleWrap {
   }
 
   TimerWrap(Environment* env, Handle<Object> object)
-      : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(&handle_)) {
+      : HandleWrap(env,
+                   object,
+                   reinterpret_cast<uv_handle_t*>(&handle_),
+                   AsyncWrap::PROVIDER_TIMERWRAP) {
     int r = uv_timer_init(env->event_loop(), &handle_);
     assert(r == 0);
   }

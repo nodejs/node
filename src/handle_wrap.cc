@@ -90,8 +90,9 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
 
 HandleWrap::HandleWrap(Environment* env,
                        Handle<Object> object,
-                       uv_handle_t* handle)
-    : AsyncWrap(env, object),
+                       uv_handle_t* handle,
+                       AsyncWrap::ProviderType provider)
+    : AsyncWrap(env, object, provider),
       flags_(0),
       handle__(handle) {
   handle__->data = this;

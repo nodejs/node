@@ -224,7 +224,7 @@ static Local<Array> HostentToNames(struct hostent* host) {
 class QueryWrap : public AsyncWrap {
  public:
   QueryWrap(Environment* env, Local<Object> req_wrap_obj)
-      : AsyncWrap(env, req_wrap_obj) {
+      : AsyncWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_CARES) {
   }
 
   virtual ~QueryWrap() {
@@ -997,7 +997,10 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
     abort();
   }
 
-  GetAddrInfoReqWrap* req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj);
+  GetAddrInfoReqWrap* req_wrap =
+    new GetAddrInfoReqWrap(env,
+                           req_wrap_obj,
+                           AsyncWrap::PROVIDER_GETADDRINFOREQWRAP);
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));

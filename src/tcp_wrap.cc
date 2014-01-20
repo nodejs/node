@@ -139,7 +139,10 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 
 TCPWrap::TCPWrap(Environment* env, Handle<Object> object)
-    : StreamWrap(env, object, reinterpret_cast<uv_stream_t*>(&handle_)) {
+    : StreamWrap(env,
+                 object,
+                 reinterpret_cast<uv_stream_t*>(&handle_),
+                 AsyncWrap::PROVIDER_TCPWRAP) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
   assert(r == 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.
@@ -377,7 +380,9 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip4_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    ConnectWrap* req_wrap = new ConnectWrap(env, req_wrap_obj);
+    ConnectWrap* req_wrap = new ConnectWrap(env,
+                                            req_wrap_obj,
+                                            AsyncWrap::PROVIDER_CONNECTWRAP);
     err = uv_tcp_connect(&req_wrap->req_,
                          &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),
@@ -409,7 +414,9 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip6_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    ConnectWrap* req_wrap = new ConnectWrap(env, req_wrap_obj);
+    ConnectWrap* req_wrap = new ConnectWrap(env,
+                                            req_wrap_obj,
+                                            AsyncWrap::PROVIDER_CONNECTWRAP);
     err = uv_tcp_connect(&req_wrap->req_,
                          &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),

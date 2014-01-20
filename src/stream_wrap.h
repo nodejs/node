@@ -37,6 +37,8 @@ typedef class ReqWrap<uv_shutdown_t> ShutdownWrap;
 
 class WriteWrap: public ReqWrap<uv_write_t> {
  public:
+  // TODO(trevnorris): WrapWrap inherits from ReqWrap, which I've globbed
+  // into the same provider. How should these be broken apart?
   WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamWrap* wrap)
       : ReqWrap<uv_write_t>(env, obj),
         wrap_(wrap) {
@@ -150,7 +152,8 @@ class StreamWrap : public HandleWrap {
 
   StreamWrap(Environment* env,
              v8::Local<v8::Object> object,
-             uv_stream_t* stream);
+             uv_stream_t* stream,
+             AsyncWrap::ProviderType provider);
 
   ~StreamWrap() {
     if (callbacks_ != &default_callbacks_) {

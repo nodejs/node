@@ -57,8 +57,9 @@ using v8::Value;
 
 StreamWrap::StreamWrap(Environment* env,
                        Local<Object> object,
-                       uv_stream_t* stream)
-    : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(stream)),
+                       uv_stream_t* stream,
+                       AsyncWrap::ProviderType provider)
+    : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(stream), provider),
       stream_(stream),
       default_callbacks_(this),
       callbacks_(&default_callbacks_) {
@@ -528,7 +529,9 @@ void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
   assert(args[0]->IsObject());
   Local<Object> req_wrap_obj = args[0].As<Object>();
 
-  ShutdownWrap* req_wrap = new ShutdownWrap(env, req_wrap_obj);
+  ShutdownWrap* req_wrap = new ShutdownWrap(env,
+                                            req_wrap_obj,
+                                            AsyncWrap::PROVIDER_SHUTDOWNWRAP);
   int err = wrap->callbacks()->DoShutdown(req_wrap, AfterShutdown);
   req_wrap->Dispatched();
   if (err)

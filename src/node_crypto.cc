@@ -3498,7 +3498,7 @@ class PBKDF2Request : public AsyncWrap {
                 char* salt,
                 ssize_t iter,
                 ssize_t keylen)
-      : AsyncWrap(env, object),
+      : AsyncWrap(env, object, AsyncWrap::PROVIDER_CRYPTO),
         digest_(digest),
         error_(0),
         passlen_(passlen),
@@ -3760,7 +3760,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
 class RandomBytesRequest : public AsyncWrap {
  public:
   RandomBytesRequest(Environment* env, Local<Object> object, size_t size)
-      : AsyncWrap(env, object),
+      : AsyncWrap(env, object, AsyncWrap::PROVIDER_CRYPTO),
         error_(0),
         size_(size),
         data_(static_cast<char*>(malloc(size))) {

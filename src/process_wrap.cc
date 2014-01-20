@@ -78,7 +78,10 @@ class ProcessWrap : public HandleWrap {
   }
 
   ProcessWrap(Environment* env, Handle<Object> object)
-      : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(&process_)) {
+      : HandleWrap(env,
+                   object,
+                   reinterpret_cast<uv_handle_t*>(&process_),
+                   AsyncWrap::PROVIDER_PROCESSWRAP) {
   }
 
   ~ProcessWrap() {

@@ -128,7 +128,10 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 
 PipeWrap::PipeWrap(Environment* env, Handle<Object> object, bool ipc)
-    : StreamWrap(env, object, reinterpret_cast<uv_stream_t*>(&handle_)) {
+    : StreamWrap(env,
+                 object,
+                 reinterpret_cast<uv_stream_t*>(&handle_),
+                 AsyncWrap::PROVIDER_PIPEWRAP) {
   int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
   assert(r == 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.
@@ -275,7 +278,9 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Local<Object> req_wrap_obj = args[0].As<Object>();
   String::AsciiValue name(args[1]);
 
-  ConnectWrap* req_wrap = new ConnectWrap(env, req_wrap_obj);
+  ConnectWrap* req_wrap = new ConnectWrap(env,
+                                          req_wrap_obj,
+                                          AsyncWrap::PROVIDER_CONNECTWRAP);
   uv_pipe_connect(&req_wrap->req_,
                   &wrap->handle_,
                   *name,

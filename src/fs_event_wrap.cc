@@ -65,7 +65,10 @@ class FSEventWrap: public HandleWrap {
 
 
 FSEventWrap::FSEventWrap(Environment* env, Handle<Object> object)
-    : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(&handle_)) {
+    : HandleWrap(env,
+                 object,
+                 reinterpret_cast<uv_handle_t*>(&handle_),
+                 AsyncWrap::PROVIDER_FSEVENTWRAP) {
   initialized_ = false;
 }
 

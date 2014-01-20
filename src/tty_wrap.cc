@@ -174,7 +174,10 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 
 TTYWrap::TTYWrap(Environment* env, Handle<Object> object, int fd, bool readable)
-    : StreamWrap(env, object, reinterpret_cast<uv_stream_t*>(&handle_)) {
+    : StreamWrap(env,
+                 object,
+                 reinterpret_cast<uv_stream_t*>(&handle_),
+                 AsyncWrap::PROVIDER_TTYWRAP) {
   uv_tty_init(env->event_loop(), &handle_, fd, readable);
 }
 

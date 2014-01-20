@@ -297,7 +297,7 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
              SecureContext* sc,
              SSLWrap<Connection>::Kind kind)
       : SSLWrap<Connection>(env, sc, kind),
-        AsyncWrap(env, wrap),
+        AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO),
         bio_read_(NULL),
         bio_write_(NULL),
         hello_offset_(0) {
@@ -583,7 +583,7 @@ class Certificate : public AsyncWrap {
   static void ExportChallenge(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Certificate(Environment* env, v8::Local<v8::Object> wrap)
-      : AsyncWrap(env, wrap) {
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO) {
     MakeWeak<Certificate>(this);
   }
 };

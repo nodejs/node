@@ -74,7 +74,7 @@ class ZCtx : public AsyncWrap {
  public:
 
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
-      : AsyncWrap(env, wrap),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
         chunk_size_(0),
         dictionary_(NULL),
         dictionary_len_(0),

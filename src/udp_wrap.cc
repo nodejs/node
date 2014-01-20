@@ -73,7 +73,10 @@ inline bool SendWrap::have_callback() const {
 
 
 UDPWrap::UDPWrap(Environment* env, Handle<Object> object)
-    : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(&handle_)) {
+    : HandleWrap(env,
+                 object,
+                 reinterpret_cast<uv_handle_t*>(&handle_),
+                 AsyncWrap::PROVIDER_UDPWRAP) {
   int r = uv_udp_init(env->event_loop(), &handle_);
   assert(r == 0);  // can't fail anyway
 }
