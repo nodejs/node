@@ -29,6 +29,8 @@
 
 namespace node {
 
+extern int WRITE_UTF8_FLAGS;
+
 using v8::Handle;
 using v8::Local;
 using v8::String;

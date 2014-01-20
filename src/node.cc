@@ -176,6 +176,8 @@ static uv_async_t dispatch_debug_messages_async;
 // Declared in node_internals.h
 Isolate* node_isolate = NULL;
 
+int WRITE_UTF8_FLAGS = v8::String::HINT_MANY_WRITES_EXPECTED |
+                       v8::String::NO_NULL_TERMINATION;
 
 static void Spin(uv_idle_t* handle, int status) {
   assert((uv_idle_t*) handle == &tick_spinner);
@@ -3042,6 +3044,11 @@ static char **copy_argv(int argc, char **argv) {
 }
 
 int Start(int argc, char *argv[]) {
+  const char* replaceInvalid = getenv("NODE_INVALID_UTF8");
+
+  if (replaceInvalid == NULL)
+    WRITE_UTF8_FLAGS |= String::REPLACE_INVALID_UTF8;
+
   // Hack aroung with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 

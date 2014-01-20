@@ -199,7 +199,7 @@ size_t StringBytes::Write(char* buf,
       break;
 
     case UTF8:
-      len = str->WriteUtf8(buf, buflen, chars_written, flags);
+      len = str->WriteUtf8(buf, buflen, chars_written, WRITE_UTF8_FLAGS);
       break;
 
     case UCS2:
