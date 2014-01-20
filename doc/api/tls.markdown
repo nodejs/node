@@ -146,9 +146,15 @@ automatically set as a listener for the [secureConnection][] event.  The
     Consult the [OpenSSL cipher list format documentation] for details on the
     format.
 
+    `ECDHE-RSA-AES128-SHA256` and `AES128-GCM-SHA256` are TLS v1.2 ciphers and
+    used when node.js is linked against OpenSSL 1.0.1 or newer, such as the
+    bundled version of OpenSSL.  Note that it is still possible for a TLS v1.2
+    client to negotiate a weaker cipher unless `honorCipherOrder` is enabled.
 
-    `AES128-GCM-SHA256` is used when node.js is linked against OpenSSL 1.0.1
-    or newer and the client speaks TLS 1.2, RC4 is used as a secure fallback.
+    `RC4` is used as a fallback for clients that speak on older version of
+    the TLS protocol.  `RC4` has in recent years come under suspicion and
+    should be considered compromised for anything that is truly sensitive.
+    It is speculated that state-level actors posess the ability to break it.
 
     **NOTE**: Previous revisions of this section suggested `AES256-SHA` as an
     acceptable cipher. Unfortunately, `AES256-SHA` is a CBC cipher and therefore
