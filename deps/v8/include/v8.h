@@ -1064,7 +1064,11 @@ class String : public Primitive {
   enum WriteOptions {
     NO_OPTIONS = 0,
     HINT_MANY_WRITES_EXPECTED = 1,
-    NO_NULL_TERMINATION = 2
+    NO_NULL_TERMINATION = 2,
+    // Used by WriteUtf8 to replace orphan surrogate code units with the
+    // unicode replacement character. Needs to be set to guarantee valid UTF-8
+    // output.
+    REPLACE_INVALID_UTF8 = 8
   };
 
   // 16-bit character codes.

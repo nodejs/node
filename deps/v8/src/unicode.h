@@ -117,6 +117,9 @@ class Buffer {
 
 class Utf16 {
  public:
+  static inline bool IsSurrogatePair(int lead, int trail) {
+    return IsLeadSurrogate(lead) && IsTrailSurrogate(trail);
+  }
   static inline bool IsLeadSurrogate(int code) {
     if (code == kNoPreviousCharacter) return false;
     return (code & 0xfc00) == 0xd800;
@@ -152,13 +155,19 @@ class Utf16 {
 class Utf8 {
  public:
   static inline uchar Length(uchar chr, int previous);
-  static inline unsigned Encode(
-      char* out, uchar c, int previous);
+  static inline unsigned Encode(char* out,
+                                uchar c,
+                                int previous,
+                                bool replace_invalid = false);
   static const byte* ReadBlock(Buffer<const char*> str, byte* buffer,
       unsigned capacity, unsigned* chars_read, unsigned* offset);
   static uchar CalculateValue(const byte* str,
                               unsigned length,
                               unsigned* cursor);
+
+
+  // The unicode replacement character, used to signal invalid unicode
+  // sequences (e.g. an orphan surrogate) when converting to a UTF-8 encoding.
   static const uchar kBadChar = 0xFFFD;
   static const unsigned kMaxEncodedSize   = 4;
   static const unsigned kMaxOneByteChar   = 0x7f;
@@ -170,6 +179,9 @@ class Utf8 {
   // that match are coded as a 4 byte UTF-8 sequence.
   static const unsigned kBytesSavedByCombiningSurrogates = 2;
   static const unsigned kSizeOfUnmatchedSurrogate = 3;
+  // The maximum size a single UTF-16 code unit may take up when encoded as
+  // UTF-8.
+  static const unsigned kMax16BitCodeUnitSize  = 3;
 
  private:
   template <unsigned s> friend class Utf8InputBuffer;
