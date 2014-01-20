@@ -12,13 +12,14 @@ var common = require('../common-tap')
 
 function run (command, t, parse) {
   var c = ''
+    , e = ''
     , node = process.execPath
     , child = spawn(node, [npm, command], {
       cwd: pkg
     })
 
     child.stderr.on('data', function (chunk) {
-      throw new Error('npm ' + command + ' stderr: ' + chunk.toString())
+      e += chunk
     })
 
     child.stdout.on('data', function (chunk) {
@@ -26,6 +27,9 @@ function run (command, t, parse) {
     })
 
     child.stdout.on('end', function () {
+      if (e) {
+        throw new Error('npm ' + command + ' stderr: ' + e.toString())
+      }
       if (parse) {
         // custom parsing function
         c = parse(c)

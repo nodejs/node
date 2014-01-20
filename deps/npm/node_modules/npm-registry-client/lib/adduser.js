@@ -129,7 +129,7 @@ function done (cb, pre) {
       this.log.warn("adduser", "Incorrect username or password\n"
               +"You can reset your account by visiting:\n"
               +"\n"
-              +"    http://admin.npmjs.org/reset\n")
+              +"    https://npmjs.org/forgot\n")
     }
 
     return cb(error)

@@ -13,19 +13,19 @@ var readInstalled = require("read-installed")
 prune.completion = require("./utils/completion/installed-deep.js")
 
 function prune (args, cb) {
+  //check if is a valid package.json file
   var jsonFile = path.resolve(npm.dir, "..", "package.json" )
-  readJson(jsonFile, log.warn, function (er, packageData) {
+  readJson(jsonFile, log.warn, function (er, data) {
     if (er) return cb(er)
+    next()
+  })
+
+  function next() {
     readInstalled(npm.prefix, npm.config.get("depth"), function (er, data) {
       if (er) return cb(er)
-      if (npm.config.get("production")) {
-        Object.keys(packageData.devDependencies || {}).forEach(function (k) {
-          if (data.dependencies[k]) data.dependencies[k].extraneous = true
-        })
-      }
       prune_(args, data, cb)
     })
-  })
+  }
 }
 
 function prune_ (args, data, cb) {

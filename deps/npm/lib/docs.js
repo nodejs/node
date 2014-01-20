@@ -5,7 +5,6 @@ docs.usage += "\n"
 docs.usage += "npm docs ."
 
 docs.completion = function (opts, cb) {
-  if (opts.conf.argv.remain.length > 2) return cb()
   registry.get("/-/short", 60000, function (er, list) {
     return cb(null, list || [])
   })
@@ -22,8 +21,20 @@ function url (json) {
 }
 
 function docs (args, cb) {
-  var project = args[0] || '.'
-    , package = path.resolve(process.cwd(), "package.json")
+  args = args || []
+  var pending = args.length
+  if (!pending) return getDoc('.', cb)
+  args.forEach(function(proj) {
+    getDoc(proj, function(err) {
+      if (err) return cb(err)
+      --pending || cb()
+    })
+  })
+}
+
+function getDoc (project, cb) {
+  project = project || '.'
+  var package = path.resolve(process.cwd(), "package.json")
 
   if (project === '.' || project === './') {
     try {

@@ -637,8 +637,16 @@ function targetResolver (where, context, deps) {
           return cb(null, d.name)
         }
 
-        // something is there, but it's not satisfactory.  Clobber it.
-        return cb(null, [])
+        // see if the package had been previously linked
+        fs.lstat(path.resolve(nm, pkg), function(err, s) {
+          if (err) return cb(null, [])
+          if (s.isSymbolicLink()) {
+            return cb(null, d.name)
+          }
+
+          // something is there, but it's not satisfactory.  Clobber it.
+          return cb(null, [])
+        })
       })
     }, function (er, inst) {
       // this is the list of things that are valid and should be ignored.
@@ -689,6 +697,12 @@ function targetResolver (where, context, deps) {
       what = what + "@" + deps[what]
     }
 
+    // This is where we actually fetch the package, if it's not already
+    // in the cache.
+    // If it's a git repo, then we want to install it, even if the parent
+    // already has a matching copy.
+    // If it's not a git repo, and the parent already has that pkg, then
+    // we can skip installing it again.
     cache.add(what, function (er, data) {
       if (er && parent && parent.optionalDependencies &&
           parent.optionalDependencies.hasOwnProperty(what.split("@")[0])) {
@@ -697,9 +711,8 @@ function targetResolver (where, context, deps) {
         return cb(null, [])
       }
 
-      // if the target is a git repository, we always want to fetch it
       var isGit = false
-        , maybeGit = what.split("@").pop()
+        , maybeGit = what.split("@").slice(1).join()
 
       if (maybeGit)
         isGit = isGitUrl(url.parse(maybeGit))

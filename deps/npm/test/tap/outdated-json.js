@@ -4,10 +4,11 @@ var common = require("../common-tap.js")
   , npm = require("../../")
   , mr = require("npm-registry-mock")
   , path = require("path")
+  , osenv = require("osenv")
   , spawn = require('child_process').spawn
   , node = process.execPath
   , npmc = require.resolve('../../')
-  , pkg = __dirname + '/outdated-new-versions'
+  , pkg = path.resolve(__dirname, 'outdated-new-versions')
   , args = [ npmc
            , 'outdated'
            , '--json'
@@ -65,6 +66,8 @@ test("cleanup", function (t) {
 })
 
 function cleanup () {
+  // windows fix for locked files
+  process.chdir(osenv.tmpdir())
   rimraf.sync(pkg + "/node_modules")
   rimraf.sync(pkg + "/cache")
 }

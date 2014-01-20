@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+
+if (process.argv.length === 8)
+  console.log('npm-test-fine')

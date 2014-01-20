@@ -3,6 +3,7 @@ module.exports = exports = search
 
 var npm = require("./npm.js")
   , registry = npm.registry
+  , columnify = require('columnify')
 
 search.usage = "npm search [some search terms ...]"
 
@@ -91,7 +92,8 @@ function stripData (data) {
                  && (new Date(data.time.modified).toISOString()
                      .split("T").join(" ")
                      .replace(/:[0-9]{2}\.[0-9]{3}Z$/, ""))
-                 || "(prehistoric)"
+                     .slice(0, -5) // remove time
+                 || "prehistoric"
          }
 }
 
@@ -129,102 +131,77 @@ function match (words, arg) {
 }
 
 function prettify (data, args) {
-  try {
-    var tty = require("tty")
-      , stdout = process.stdout
-      , cols = !tty.isatty(stdout.fd) ? Infinity
-             : process.stdout.getWindowSize()[0]
-      cols = (cols == 0) ? Infinity : cols
-  } catch (ex) { cols = Infinity }
-
-  // name, desc, author, keywords
-  var longest = []
-    , spaces
-    , maxLen = npm.config.get("description")
-             ? [20, 60, 20, 20, 10, Infinity]
-             : [20, 20, 20, 10, Infinity]
-    , headings = npm.config.get("description")
-               ? ["NAME", "DESCRIPTION", "AUTHOR", "DATE", "VERSION", "KEYWORDS"]
-               : ["NAME", "AUTHOR", "DATE", "VERSION", "KEYWORDS"]
-    , lines
-    , searchsort = (npm.config.get("searchsort") || "NAME").toLowerCase()
-    , sortFields = { name: 0
-                   , description: 1
-                   , author: 2
-                   , date: 3
-                   , version: 4
-                   , keywords: 5 }
+  var searchsort = (npm.config.get("searchsort") || "NAME").toLowerCase()
+    , sortField = searchsort.replace(/^\-+/, "")
     , searchRev = searchsort.charAt(0) === "-"
-    , sortField = sortFields[searchsort.replace(/^\-+/, "")]
+    , truncate = !npm.config.get("long")
 
-  lines = Object.keys(data).map(function (d) {
-    return data[d]
-  }).map(function (data) {
-    // turn a pkg data into a string
-    // [name,who,desc,targets,keywords] tuple
-    // also set longest to the longest name
-    if (typeof data.keywords === "string") {
-      data.keywords = data.keywords.split(/[,\s]+/)
-    }
-    if (!Array.isArray(data.keywords)) data.keywords = []
-    var l = [ data.name
-            , data.description || ""
-            , data.maintainers.join(" ")
-            , data.time
-            , data.version || ""
-            , (data.keywords || []).join(" ")
-            ]
-    l.forEach(function (s, i) {
-      var len = s.length
-      longest[i] = Math.min(maxLen[i] || Infinity
-                           ,Math.max(longest[i] || 0, len))
-      if (len > longest[i]) {
-        l._undent = l._undent || []
-        l._undent[i] = len - longest[i]
-      }
-      l[i] = ('' + l[i]).replace(/\s+/g, " ")
-    })
-    return l
-  }).sort(function (a, b) {
-    // a and b are "line" objects of [name, desc, maint, time, kw]
-    var aa = a[sortField].toLowerCase()
-      , bb = b[sortField].toLowerCase()
-    return aa === bb ? 0
-         : aa < bb ? (searchRev ? 1 : -1)
-         : (searchRev ? -1 : 1)
-  }).map(function (line) {
-    return line.map(function (s, i) {
-      spaces = spaces || longest.map(function (n) {
-        return new Array(n + 2).join(" ")
-      })
-      var len = s.length
-      if (line._undent && line._undent[i - 1]) {
-        len += line._undent[i - 1] - 1
-      }
-      return s + spaces[i].substr(len)
-    }).join(" ").substr(0, cols).trim()
-  }).map(function (line) {
-    // colorize!
-    args.forEach(function (arg, i) {
-      line = addColorMarker(line, arg, i)
-    })
-    return colorize(line).trim()
-  })
-
-  if (lines.length === 0) {
+  if (Object.keys(data).length === 0) {
     return "No match found for "+(args.map(JSON.stringify).join(" "))
   }
 
-  // build the heading padded to the longest in each field
-  return headings.map(function (h, i) {
-    var space = Math.max(2, 3 + (longest[i] || 0) - h.length)
-    return h + (new Array(space).join(" "))
-  }).join("").substr(0, cols).trim() + "\n" + lines.join("\n")
+  var lines = Object.keys(data).map(function (d) {
+    // strip keyname
+    return data[d]
+  }).map(function(dat) {
+    dat.author = dat.maintainers
+    delete dat.maintainers
+    dat.date = dat.time
+    delete dat.time
+    return dat
+  }).map(function(dat) {
+    // split keywords on whitespace or ,
+    if (typeof dat.keywords === "string") {
+      dat.keywords = dat.keywords.split(/[,\s]+/)
+    }
+    if (Array.isArray(dat.keywords)) {
+      dat.keywords = dat.keywords.join(' ')
+    }
 
+    // split author on whitespace or ,
+    if (typeof dat.author === "string") {
+      dat.author = dat.author.split(/[,\s]+/)
+    }
+    if (Array.isArray(dat.author)) {
+      dat.author = dat.author.join(' ')
+    }
+    return dat
+  })
+
+  lines.sort(function(a, b) {
+    var aa = a[sortField].toLowerCase()
+      , bb = b[sortField].toLowerCase()
+    return aa === bb ? 0
+         : aa < bb ? -1 : 1
+  })
+
+  if (searchRev) lines.reverse()
+
+  var columns = npm.config.get("description")
+               ? ["name", "description", "author", "date", "version", "keywords"]
+               : ["name", "author", "date", "version", "keywords"]
+
+  var output = columnify(lines, {
+        include: columns
+      , truncate: truncate
+      , config: {
+          name: { maxWidth: 40, truncate: false, truncateMarker: '' }
+        , description: { maxWidth: 60 }
+        , author: { maxWidth: 20 }
+        , date: { maxWidth: 11 }
+        , version: { maxWidth: 11 }
+        , keywords: { maxWidth: Infinity }
+      }
+  })
+  output = trimToMaxWidth(output)
+  output = highlightSearchTerms(output, args)
+
+  return output
 }
 
 var colors = [31, 33, 32, 36, 34, 35 ]
   , cl = colors.length
+
 function addColorMarker (str, arg, i) {
   var m = i % cl + 1
     , markStart = String.fromCharCode(m)
@@ -259,4 +236,30 @@ function colorize (line) {
   }
   var uncolor = npm.color ? "\033[0m" : ""
   return line.split("\u0000").join(uncolor)
+}
+
+function getMaxWidth() {
+  try {
+    var tty = require("tty")
+      , stdout = process.stdout
+      , cols = !tty.isatty(stdout.fd) ? Infinity
+             : process.stdout.getWindowSize()[0]
+      cols = (cols == 0) ? Infinity : cols
+  } catch (ex) { cols = Infinity }
+  return cols
+}
+
+function trimToMaxWidth(str) {
+  var maxWidth = getMaxWidth()
+  return str.split('\n').map(function(line) {
+    return line.slice(0, maxWidth)
+  }).join('\n')
+}
+
+function highlightSearchTerms(str, terms) {
+  terms.forEach(function (arg, i) {
+    str = addColorMarker(str, arg, i)
+  })
+
+  return colorize(str).trim()
 }

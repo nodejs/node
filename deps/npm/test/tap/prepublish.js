@@ -58,16 +58,21 @@ test('test', function (t) {
     env: env
   })
   child.stdout.setEncoding('utf8')
-  child.stderr.on('data', function(chunk) {
-    throw new Error('got stderr data: ' + JSON.stringify('' + chunk))
-  })
+  child.stderr.on('data', onerr)
   child.stdout.on('data', ondata)
   child.on('close', onend)
   var c = ''
+    , e = ''
   function ondata (chunk) {
     c += chunk
   }
+  function onerr (chunk) {
+    e += chunk
+  }
   function onend () {
+    if (e) {
+      throw new Error('got stderr data: ' + JSON.stringify('' + e))
+    }
     c = c.trim()
     var regex = new RegExp("" +
       "> npm-test-prepublish@1.2.5 prepublish [^\\r\\n]+\\r?\\n" +
