@@ -174,12 +174,13 @@ automatically set as a listener for the [secureConnection][] event.  The
   - `honorCipherOrder` : When choosing a cipher, use the server's preferences
     instead of the client preferences.
 
-    Note that if SSLv2 is used, the server will send its list of preferences
-    to the client, and the client chooses the cipher.
-
     Although, this option is disabled by default, it is *recommended* that you
     use this option in conjunction with the `ciphers` option to mitigate
     BEAST attacks.
+
+    Note: If SSLv2 is used, the server will send its list of preferences to the
+    client, and the client chooses the cipher.  Support for SSLv2 is disabled
+    unless node.js was configured with `./configure --with-sslv2`.
 
   - `requestCert`: If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Default:
