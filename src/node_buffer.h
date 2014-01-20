@@ -62,6 +62,8 @@ namespace node {
 
  */
 
+extern int WRITE_UTF8_FLAGS;
+
 
 class NODE_EXTERN Buffer: public ObjectWrap {
  public:

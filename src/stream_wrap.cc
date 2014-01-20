@@ -356,8 +356,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
       break;
 
     case kUtf8:
-      data_size = string->WriteUtf8(data, -1, NULL,
-          String::NO_NULL_TERMINATION | String::HINT_MANY_WRITES_EXPECTED);
+      data_size = string->WriteUtf8(data, -1, NULL, node::WRITE_UTF8_FLAGS);
       break;
 
     case kUcs2: {

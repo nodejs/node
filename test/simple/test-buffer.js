@@ -696,6 +696,18 @@ assert.equal(buf[3], 0xFF);
   assert.equal(buf[3], 0xFF);
 });
 
+// test unmatched surrogates not producing invalid utf8 output
+// ef bf bd = utf-8 representation of unicode replacement character
+// see https://codereview.chromium.org/121173009/
+buf = new Buffer('ab\ud800cd', 'utf8');
+assert.equal(buf[0], 0x61);
+assert.equal(buf[1], 0x62);
+assert.equal(buf[2], 0xef);
+assert.equal(buf[3], 0xbf);
+assert.equal(buf[4], 0xbd);
+assert.equal(buf[5], 0x63);
+assert.equal(buf[6], 0x64);
+
 // test for buffer overrun
 buf = new Buffer([0, 0, 0, 0, 0]); // length: 5
 var sub = buf.slice(0, 4);         // length: 4

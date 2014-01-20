@@ -178,6 +178,9 @@ static double prog_start_time;
 static int64_t tick_times[RPM_SAMPLES];
 static int tick_time_head;
 
+int WRITE_UTF8_FLAGS = v8::String::HINT_MANY_WRITES_EXPECTED |
+                       v8::String::NO_NULL_TERMINATION;
+
 static void CheckStatus(uv_timer_t* watcher, int status);
 
 static void StartGCTimer () {
@@ -2931,6 +2934,11 @@ static char **copy_argv(int argc, char **argv) {
 }
 
 int Start(int argc, char *argv[]) {
+  const char* replaceInvalid = getenv("NODE_INVALID_UTF8");
+
+  if (replaceInvalid == NULL)
+    node::WRITE_UTF8_FLAGS |= String::REPLACE_INVALID_UTF8;
+
   // Hack aroung with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 

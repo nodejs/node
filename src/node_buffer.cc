@@ -493,8 +493,8 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
   int written = s->WriteUtf8(p,
                              max_length,
                              &char_written,
-                             (String::HINT_MANY_WRITES_EXPECTED |
-                              String::NO_NULL_TERMINATION));
+                             node::WRITE_UTF8_FLAGS);
+                              
 
   constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(char_written));
