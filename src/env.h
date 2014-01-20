@@ -136,10 +136,8 @@ namespace node {
   V(write_queue_size_string, "writeQueueSize")                                \
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
-  V(async_listener_load_function, v8::Function)                               \
-  V(async_listener_push_function, v8::Function)                               \
   V(async_listener_run_function, v8::Function)                                \
-  V(async_listener_strip_function, v8::Function)                              \
+  V(async_listener_load_function, v8::Function)                               \
   V(async_listener_unload_function, v8::Function)                             \
   V(binding_cache_object, v8::Object)                                         \
   V(buffer_constructor_function, v8::Function)                                \

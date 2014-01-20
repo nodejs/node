@@ -854,14 +854,10 @@ void SetupAsyncListener(const FunctionCallbackInfo<Value>& args) {
   assert(args[1]->IsFunction());
   assert(args[2]->IsFunction());
   assert(args[3]->IsFunction());
-  assert(args[4]->IsFunction());
-  assert(args[5]->IsFunction());
 
   env->set_async_listener_run_function(args[1].As<Function>());
   env->set_async_listener_load_function(args[2].As<Function>());
   env->set_async_listener_unload_function(args[3].As<Function>());
-  env->set_async_listener_push_function(args[4].As<Function>());
-  env->set_async_listener_strip_function(args[5].As<Function>());
 
   Local<Object> async_listener_flag_obj = args[0].As<Object>();
   Environment::AsyncListener* async_listener = env->async_listener();

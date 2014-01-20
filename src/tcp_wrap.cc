@@ -116,8 +116,6 @@ void TCPWrap::Initialize(Handle<Object> target,
                             SetSimultaneousAccepts);
 #endif
 
-  AsyncWrap::AddMethods<TCPWrap>(t);
-
   target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "TCP"), t->GetFunction());
   env->set_tcp_constructor_template(t);
 }

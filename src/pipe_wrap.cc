@@ -111,8 +111,6 @@ void PipeWrap::Initialize(Handle<Object> target,
   NODE_SET_PROTOTYPE_METHOD(t, "setPendingInstances", SetPendingInstances);
 #endif
 
-  AsyncWrap::AddMethods<PipeWrap>(t);
-
   target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "Pipe"), t->GetFunction());
   env->set_pipe_constructor_template(t);
 }

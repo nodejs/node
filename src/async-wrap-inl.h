@@ -57,29 +57,8 @@ inline AsyncWrap::~AsyncWrap() {
 }
 
 
-template <typename Type>
-inline void AsyncWrap::AddMethods(v8::Handle<v8::FunctionTemplate> t) {
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "addAsyncListener",
-                            AddAsyncListener<Type>);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "removeAsyncListener",
-                            RemoveAsyncListener<Type>);
-}
-
-
 inline uint32_t AsyncWrap::async_flags() const {
   return async_flags_;
-}
-
-
-inline void AsyncWrap::set_flag(unsigned int flag) {
-  async_flags_ |= flag;
-}
-
-
-inline void AsyncWrap::remove_flag(unsigned int flag) {
-  async_flags_ &= ~flag;
 }
 
 
@@ -261,49 +240,6 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
   assert(cb->IsFunction());
 
   return MakeCallback(cb, argc, argv);
-}
-
-
-template <typename Type>
-inline void AsyncWrap::AddAsyncListener(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::HandleScope handle_scope(args.GetIsolate());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-
-  v8::Local<v8::Object> handle = args.This();
-  v8::Local<v8::Value> listener = args[0];
-  assert(listener->IsObject());
-  assert(handle->InternalFieldCount() > 0);
-
-  env->async_listener_push_function()->Call(handle, 1, &listener);
-
-  Type* wrap = static_cast<Type*>(
-      handle->GetAlignedPointerFromInternalField(0));
-  assert(wrap != NULL);
-  wrap->set_flag(HAS_ASYNC_LISTENER);
-}
-
-
-template <typename Type>
-inline void AsyncWrap::RemoveAsyncListener(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::HandleScope handle_scope(args.GetIsolate());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-
-  v8::Local<v8::Object> handle = args.This();
-  v8::Local<v8::Value> listener = args[0];
-  assert(listener->IsObject());
-  assert(handle->InternalFieldCount() > 0);
-
-  v8::Local<v8::Value> ret =
-      env->async_listener_strip_function()->Call(handle, 1, &listener);
-
-  if (ret->IsFalse()) {
-    Type* wrap = static_cast<Type*>(
-        handle->GetAlignedPointerFromInternalField(0));
-    assert(wrap != NULL);
-    wrap->remove_flag(HAS_ASYNC_LISTENER);
-  }
 }
 
 }  // namespace node

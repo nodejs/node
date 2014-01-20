@@ -39,14 +39,7 @@ class AsyncWrap : public BaseObject {
 
   inline ~AsyncWrap();
 
-  template <typename Type>
-  static inline void AddMethods(v8::Handle<v8::FunctionTemplate> t);
-
   inline uint32_t async_flags() const;
-
-  inline void set_flag(unsigned int flag);
-
-  inline void remove_flag(unsigned int flag);
 
   inline bool has_async_listener();
 
@@ -70,16 +63,6 @@ class AsyncWrap : public BaseObject {
       const v8::Handle<v8::Function> cb,
       int argc,
       v8::Handle<v8::Value>* argv);
-
-  // Add an async listener to an existing handle.
-  template <typename Type>
-  static inline void AddAsyncListener(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  // Remove an async listener to an existing handle.
-  template <typename Type>
-  static inline void RemoveAsyncListener(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   uint32_t async_flags_;
 };

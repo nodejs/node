@@ -311,9 +311,7 @@
     process._setupAsyncListener(asyncFlags,
                                 runAsyncQueue,
                                 loadAsyncQueue,
-                                unloadAsyncQueue,
-                                pushListener,
-                                stripListener);
+                                unloadAsyncQueue);
 
     // Load the currently executing context as the current context, and
     // create a new asyncQueue that can receive any added queue items
@@ -605,59 +603,6 @@
       if ((asyncQueue && asyncQueue.length > 0) ||
           (currentContext && currentContext._asyncQueue.length))
         asyncFlags[kHasListener] = 1;
-    }
-
-    // Used by AsyncWrap::AddAsyncListener() to add an individual listener
-    // to the async queue. It will check the uid of the listener and only
-    // allow it to be added once.
-    function pushListener(obj) {
-      if (!this._asyncQueue) {
-        this._asyncQueue = [obj];
-        this._asyncData = new Array();
-        this._asyncData[obj.uid] = obj.data;
-        this._asyncFlags = obj.flags;
-        return;
-      }
-
-      if (!this._asyncData)
-        this._asyncData = new Array();
-
-      var queue = this._asyncQueue;
-      var inQueue = false;
-      // The asyncQueue will be small. Probably always <= 3 items.
-      for (var i = 0; i < queue.length; i++) {
-        if (obj.uid === queue[i].uid) {
-          inQueue = true;
-          break;
-        }
-      }
-
-      // Not in the queue so push it on and set the default storage.
-      if (!inQueue) {
-        queue.push(obj);
-        this._asyncData[obj.uid] = obj.data;
-        this._asyncFlags |= obj.flags;
-      }
-    }
-
-    // Used by AsyncWrap::RemoveAsyncListener() to remove an individual
-    // listener from the async queue, and return whether there are still
-    // listeners in the queue.
-    function stripListener(obj) {
-      // No queue exists, so nothing to do.
-      if (!this._asyncQueue)
-        return false;
-
-      var queue = this._asyncQueue;
-
-      // The asyncQueue will be small. Probably always <= 3 items.
-      for (var i = 0; i < queue.length; i++) {
-        if (obj.uid === queue[i].uid) {
-          this._asyncData[queue[i].uid] = undefined;
-          queue.splice(i, 1);
-          return queue.length > 0;
-        }
-      }
     }
   };
 
