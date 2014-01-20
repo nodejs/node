@@ -3759,7 +3759,8 @@ static int RecursivelySerializeToUtf8(i::String* string,
                                       int end,
                                       int recursion_budget,
                                       int32_t previous_character,
-                                      int32_t* last_character) {
+                                      int32_t* last_character,
+                                      bool replace_invalid_utf8) {
   int utf8_bytes = 0;
   while (true) {
     if (string->IsAsciiRepresentation()) {
@@ -3775,7 +3776,10 @@ static int RecursivelySerializeToUtf8(i::String* string,
         for (int i = start; i < end; i++) {
           uint16_t character = data[i];
           current +=
-              unibrow::Utf8::Encode(current, character, previous_character);
+              unibrow::Utf8::Encode(current,
+                                    character,
+                                    previous_character,
+                                    replace_invalid_utf8);
           previous_character = character;
         }
         *last_character = previous_character;
@@ -3788,7 +3792,10 @@ static int RecursivelySerializeToUtf8(i::String* string,
         for (int i = start; i < end; i++) {
           uint16_t character = data[i];
           current +=
-              unibrow::Utf8::Encode(current, character, previous_character);
+              unibrow::Utf8::Encode(current,
+                                    character,
+                                    previous_character,
+                                    replace_invalid_utf8);
           previous_character = character;
         }
         *last_character = previous_character;
@@ -3824,7 +3831,8 @@ static int RecursivelySerializeToUtf8(i::String* string,
                                          boundary,
                                          recursion_budget - 1,
                                          previous_character,
-                                         &previous_character);
+                                         &previous_character,
+                                         replace_invalid_utf8);
           if (extra_utf8_bytes < 0) return extra_utf8_bytes;
           buffer += extra_utf8_bytes;
           utf8_bytes += extra_utf8_bytes;
@@ -3879,7 +3887,10 @@ int String::WriteUtf8(char* buffer,
     return len;
   }
 
-  if (capacity == -1 || capacity / 3 >= string_length) {
+  bool replace_invalid_utf8 = (options & REPLACE_INVALID_UTF8);
+  int max16BitCodeUnitSize = unibrow::Utf8::kMax16BitCodeUnitSize;
+
+  if (capacity == -1 || capacity / max16BitCodeUnitSize >= string_length) {
     int32_t previous = unibrow::Utf16::kNoPreviousCharacter;
     const int kMaxRecursion = 100;
     int utf8_bytes =
@@ -3889,7 +3900,8 @@ int String::WriteUtf8(char* buffer,
                                    string_length,
                                    kMaxRecursion,
                                    previous,
-                                   &previous);
+                                   &previous,
+                                   replace_invalid_utf8);
     if (utf8_bytes >= 0) {
       // Success serializing with recursion.
       if ((options & NO_NULL_TERMINATION) == 0 &&
@@ -3942,14 +3954,16 @@ int String::WriteUtf8(char* buffer,
     char intermediate[unibrow::Utf8::kMaxEncodedSize];
     for (; i < len && pos < capacity; i++) {
       i::uc32 c = write_input_buffer.GetNext();
-      if (unibrow::Utf16::IsTrailSurrogate(c) &&
-          unibrow::Utf16::IsLeadSurrogate(previous)) {
+      if (unibrow::Utf16::IsSurrogatePair(previous, c)) {
         // We can't use the intermediate buffer here because the encoding
         // of surrogate pairs is done under assumption that you can step
         // back and fix the UTF8 stream.  Luckily we only need space for one
         // more byte, so there is always space.
         ASSERT(pos < capacity);
-        int written = unibrow::Utf8::Encode(buffer + pos, c, previous);
+        int written = unibrow::Utf8::Encode(buffer + pos,
+                                            c,
+                                            previous,
+                                            replace_invalid_utf8);
         ASSERT(written == 1);
         pos += written;
         nchars++;
@@ -3957,7 +3971,8 @@ int String::WriteUtf8(char* buffer,
         int written =
             unibrow::Utf8::Encode(intermediate,
                                   c,
-                                  unibrow::Utf16::kNoPreviousCharacter);
+                                  unibrow::Utf16::kNoPreviousCharacter,
+                                  replace_invalid_utf8);
         if (pos + written <= capacity) {
           for (int j = 0; j < written; j++) {
             buffer[pos + j] = intermediate[j];
