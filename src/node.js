@@ -366,11 +366,14 @@
         }
       }
 
-
       // Then run through all items in the asyncQueue
       if (asyncQueue) {
         for (i = 0; i < asyncQueue.length; i++) {
           queueItem = asyncQueue[i];
+          // Quick way to check if an AL instance with the same uid was
+          // already run from currentContext.
+          if (data[queueItem.uid] !== undefined)
+            continue;
           queue[queue.length] = queueItem;
           context._asyncFlags |= queueItem.flags;
           if ((queueItem.flags & HAS_CREATE_AL) === 0) {
@@ -519,12 +522,13 @@
       }
 
       this.uid = ++alUid;
-      this.data = data;
+      this.data = data === undefined ? null : data;
     }
     AsyncListenerInst.prototype.create = undefined;
     AsyncListenerInst.prototype.before = undefined;
     AsyncListenerInst.prototype.after = undefined;
     AsyncListenerInst.prototype.error = undefined;
+    AsyncListenerInst.prototype.data = undefined;
     AsyncListenerInst.prototype.uid = 0;
     AsyncListenerInst.prototype.flags = 0;
 
