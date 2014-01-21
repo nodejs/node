@@ -260,8 +260,7 @@
     // arrays. Please *do not* change these to simple bracket notation.
 
     // Track the active queue of AsyncListeners that have been added.
-    var asyncStack = new Array();
-    var asyncQueue = undefined;
+    var asyncQueue = new Array();
 
     // Keep the stack of all contexts that have been loaded in the
     // execution chain of asynchronous events.
@@ -320,18 +319,13 @@
       contextStack.push(currentContext);
       currentContext = ctx;
 
-      asyncStack.push(asyncQueue);
-      asyncQueue = new Array();
-
       asyncFlags[kHasListener] = 1;
     }
 
     function unloadContext() {
       currentContext = contextStack.pop();
-      asyncQueue = asyncStack.pop();
 
-      if (typeof currentContext === 'undefined' &&
-          typeof asyncQueue === 'undefined')
+      if (currentContext === undefined && asyncQueue.length === 0)
         asyncFlags[kHasListener] = 0;
     }
 
@@ -549,11 +543,6 @@
 
     // Add a listener to the current queue.
     function addAsyncListener(callbacks, data) {
-      if (!asyncQueue) {
-        asyncStack.push(asyncQueue);
-        asyncQueue = new Array();
-      }
-
       // Fast track if a new AsyncListenerInst has to be created.
       if (!(callbacks instanceof AsyncListenerInst)) {
         callbacks = createAsyncListener(callbacks, data);
@@ -580,34 +569,21 @@
       return callbacks;
     }
 
-    // Remove listener from the current queue and the entire stack.
+    // Remove listener from the current queue. Though this will not remove
+    // the listener from the current context. So callback propagation will
+    // continue.
     function removeAsyncListener(obj) {
-      var i, j;
-
-      if (asyncQueue) {
-        for (i = 0; i < asyncQueue.length; i++) {
-          if (obj === asyncQueue[i]) {
-            asyncQueue.splice(i, 1);
-            break;
-          }
+      for (var i = 0; i < asyncQueue.length; i++) {
+        if (obj === asyncQueue[i]) {
+          asyncQueue.splice(i, 1);
+          break;
         }
       }
 
-      // TODO(trevnorris): Why remove the AL from the entire stack?
-      for (i = 0; i < asyncStack.length; i++) {
-        if (asyncStack[i] === undefined)
-          continue;
-        for (j = 0; j < asyncStack[i].length; j++) {
-          if (obj === asyncStack[i][j]) {
-            asyncStack[i].splice(j, 1);
-            break;
-          }
-        }
-      }
-
-      if ((asyncQueue && asyncQueue.length > 0) ||
-          (currentContext && currentContext._asyncQueue.length))
+      if (asyncQueue.length > 0 || currentContext !== undefined)
         asyncFlags[kHasListener] = 1;
+      else
+        asyncFlags[kHasListener] = 0;
     }
   };
 
