@@ -351,7 +351,7 @@
         for (i = 0; i < ccQueue.length; i++) {
           queueItem = ccQueue[i];
           queue[queue.length] = queueItem;
-          if ((queueItem.flags & HAS_CREATE_AL) === 0) {
+          if ((queueItem.callback_flags & HAS_CREATE_AL) === 0) {
             data[queueItem.uid] = queueItem.data;
             continue;
           }
@@ -369,8 +369,8 @@
           if (data[queueItem.uid] !== undefined)
             continue;
           queue[queue.length] = queueItem;
-          context._asyncFlags |= queueItem.flags;
-          if ((queueItem.flags & HAS_CREATE_AL) === 0) {
+          context._asyncFlags |= queueItem.callback_flags;
+          if ((queueItem.callback_flags & HAS_CREATE_AL) === 0) {
             data[queueItem.uid] = queueItem.data;
             continue;
           }
@@ -397,7 +397,7 @@
       inAsyncTick = true;
       for (i = 0; i < queue.length; i++) {
         queueItem = queue[i];
-        if ((queueItem.flags & HAS_BEFORE_AL) > 0)
+        if ((queueItem.callback_flags & HAS_BEFORE_AL) > 0)
           queueItem.before(context, data[queueItem.uid]);
       }
       inAsyncTick = false;
@@ -418,7 +418,7 @@
       inAsyncTick = true;
       for (i = 0; i < queue.length; i++) {
         queueItem = queue[i];
-        if ((queueItem.flags & HAS_AFTER_AL) > 0)
+        if ((queueItem.callback_flags & HAS_AFTER_AL) > 0)
           queueItem.after(context, data[queueItem.uid]);
       }
       inAsyncTick = false;
@@ -445,7 +445,7 @@
         var data = currentContext._asyncData;
         for (i = 0; i < queue.length; i++) {
           queueItem = queue[i];
-          if ((queueItem.flags & HAS_ERROR_AL) === 0)
+          if ((queueItem.callback_flags & HAS_ERROR_AL) === 0)
             continue;
           try {
             threw = true;
@@ -469,7 +469,7 @@
       if (asyncQueue) {
         for (i = 0; i < asyncQueue.length; i++) {
           queueItem = asyncQueue[i];
-          if ((queueItem.flags & HAS_ERROR_AL) === 0 ||
+          if ((queueItem.callback_flags & HAS_ERROR_AL) === 0 ||
               (data && data[queueItem.uid] !== undefined))
             continue;
           try {
@@ -501,19 +501,19 @@
     function AsyncListenerInst(callbacks, data) {
       if (typeof callbacks.create === 'function') {
         this.create = callbacks.create;
-        this.flags |= HAS_CREATE_AL;
+        this.callback_flags |= HAS_CREATE_AL;
       }
       if (typeof callbacks.before === 'function') {
         this.before = callbacks.before;
-        this.flags |= HAS_BEFORE_AL;
+        this.callback_flags |= HAS_BEFORE_AL;
       }
       if (typeof callbacks.after === 'function') {
         this.after = callbacks.after;
-        this.flags |= HAS_AFTER_AL;
+        this.callback_flags |= HAS_AFTER_AL;
       }
       if (typeof callbacks.error === 'function') {
         this.error = callbacks.error;
-        this.flags |= HAS_ERROR_AL;
+        this.callback_flags |= HAS_ERROR_AL;
       }
 
       this.uid = ++alUid;
@@ -525,7 +525,7 @@
     AsyncListenerInst.prototype.error = undefined;
     AsyncListenerInst.prototype.data = undefined;
     AsyncListenerInst.prototype.uid = 0;
-    AsyncListenerInst.prototype.flags = 0;
+    AsyncListenerInst.prototype.callback_flags = 0;
 
     // Create new async listener object. Useful when instantiating a new
     // object and want the listener instance, but not add it to the stack.
