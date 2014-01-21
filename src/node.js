@@ -475,7 +475,8 @@
       if (asyncQueue) {
         for (i = 0; i < asyncQueue.length; i++) {
           queueItem = asyncQueue[i];
-          if ((queueItem.flags & HAS_ERROR_AL) === 0)
+          if ((queueItem.flags & HAS_ERROR_AL) === 0 ||
+              (data && data[queueItem.uid] !== undefined))
             continue;
           try {
             threw = true;
