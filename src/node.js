@@ -564,7 +564,7 @@
       var inQueue = false;
       // The asyncQueue will be small. Probably always <= 3 items.
       for (var i = 0; i < asyncQueue.length; i++) {
-        if (callbacks.uid === asyncQueue[i].uid) {
+        if (callbacks === asyncQueue[i]) {
           inQueue = true;
           break;
         }
@@ -585,7 +585,7 @@
 
       if (asyncQueue) {
         for (i = 0; i < asyncQueue.length; i++) {
-          if (obj.uid === asyncQueue[i].uid) {
+          if (obj === asyncQueue[i]) {
             asyncQueue.splice(i, 1);
             break;
           }
@@ -597,7 +597,7 @@
         if (asyncStack[i] === undefined)
           continue;
         for (j = 0; j < asyncStack[i].length; j++) {
-          if (obj.uid === asyncStack[i][j].uid) {
+          if (obj === asyncStack[i][j]) {
             asyncStack[i].splice(j, 1);
             break;
           }
