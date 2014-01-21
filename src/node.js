@@ -283,6 +283,7 @@
 
     // Needs to be the same as src/env.h
     var kHasListener = 0;
+    var kWatchedProviders = 1;
 
     // Flags to determine what async listeners are available.
     var HAS_CREATE_AL = 1 << 0;

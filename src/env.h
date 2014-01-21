@@ -191,6 +191,7 @@ class Environment {
     inline uint32_t* fields();
     inline int fields_count() const;
     inline bool has_listener() const;
+    inline uint32_t watched_providers() const;
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -198,6 +199,7 @@ class Environment {
 
     enum Fields {
       kHasListener,
+      kWatchedProviders,
       kFieldsCount
     };
 
@@ -272,6 +274,7 @@ class Environment {
   inline uv_loop_t* event_loop() const;
   inline bool has_async_listener() const;
   inline bool in_domain() const;
+  inline uint32_t watched_providers() const;
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
   inline uv_check_t* immediate_check_handle();

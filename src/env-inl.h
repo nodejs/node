@@ -126,6 +126,10 @@ inline bool Environment::AsyncListener::has_listener() const {
   return fields_[kHasListener] > 0;
 }
 
+inline uint32_t Environment::AsyncListener::watched_providers() const {
+  return fields_[kWatchedProviders];
+}
+
 inline Environment::DomainFlag::DomainFlag() {
   for (int i = 0; i < kFieldsCount; ++i) fields_[i] = 0;
 }
@@ -251,6 +255,11 @@ inline v8::Isolate* Environment::isolate() const {
 inline bool Environment::has_async_listener() const {
   // The const_cast is okay, it doesn't violate conceptual const-ness.
   return const_cast<Environment*>(this)->async_listener()->has_listener();
+}
+
+inline uint32_t Environment::watched_providers() const {
+  // The const_cast is okay, it doesn't violate conceptual const-ness.
+  return const_cast<Environment*>(this)->async_listener()->watched_providers();
 }
 
 inline bool Environment::in_domain() const {
