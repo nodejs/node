@@ -49,7 +49,7 @@ var rli = readline.createInterface({
   output: stream,
   terminal: true
 });
-assert(rli.terminal)
+assert(rli.terminal);
 assert(rawModeCalled);
 assert(resumeCalled);
 assert(!pauseCalled);
@@ -85,7 +85,6 @@ assert(rawModeCalled);
 assert(!resumeCalled);
 assert(pauseCalled);
 
-assert.deepEqual(stream.listeners('end'), []);
 assert.deepEqual(stream.listeners('keypress'), []);
 // one data listener for the keypress events.
 assert.equal(stream.listeners('data').length, 1);
