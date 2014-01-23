@@ -198,6 +198,9 @@ class LCodeGen: public LCodeGenBase {
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 
+  void SaveCallerDoubles();
+  void RestoreCallerDoubles();
+
   // Code generation passes.  Returns true if code generation should
   // continue.
   void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;

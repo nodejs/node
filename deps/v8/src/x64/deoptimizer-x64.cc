@@ -126,6 +126,11 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 }
 
 
+Code* Deoptimizer::NotifyStubFailureBuiltin() {
+  return isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
+}
+
+
 #define __ masm()->
 
 void Deoptimizer::EntryGenerator::Generate() {

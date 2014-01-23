@@ -289,6 +289,7 @@ class Simulator {
                              int64_t& i64hilo,
                              uint64_t& u64hilo,
                              int32_t& next_pc,
+                             int32_t& return_addr_reg,
                              bool& do_interrupt);
 
   void DecodeTypeImmediate(Instruction* instr);

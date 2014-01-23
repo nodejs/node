@@ -132,7 +132,7 @@ function TimeClip(time) {
 // strings over and over again.
 var Date_cache = {
   // Cached time value.
-  time: NAN,
+  time: 0,
   // String input for which the cached time is valid.
   string: null
 };

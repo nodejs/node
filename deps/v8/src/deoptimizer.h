@@ -412,6 +412,10 @@ class Deoptimizer : public Malloced {
   // at the dynamic alignment state slot inside the frame.
   bool HasAlignmentPadding(JSFunction* function);
 
+  // Select the version of NotifyStubFailure builtin that either saves or
+  // doesn't save the double registers depending on CPU features.
+  Code* NotifyStubFailureBuiltin();
+
   Isolate* isolate_;
   JSFunction* function_;
   Code* compiled_code_;

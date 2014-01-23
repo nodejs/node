@@ -231,6 +231,13 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 }
 
 
+Code* Deoptimizer::NotifyStubFailureBuiltin() {
+  Builtins::Name name = CpuFeatures::IsSupported(SSE2) ?
+      Builtins::kNotifyStubFailureSaveDoubles : Builtins::kNotifyStubFailure;
+  return isolate_->builtins()->builtin(name);
+}
+
+
 #define __ masm()->
 
 void Deoptimizer::EntryGenerator::Generate() {

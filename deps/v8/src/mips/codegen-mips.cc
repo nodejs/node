@@ -641,8 +641,8 @@ void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
     *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
-    Address target_address = Memory::Address_at(
-        sequence + Assembler::kInstrSize * (kNoCodeAgeSequenceLength - 1));
+    Address target_address = Assembler::target_address_at(
+        sequence + Assembler::kInstrSize);
     Code* stub = GetCodeFromTargetAddress(target_address);
     GetCodeAgeAndParity(stub, age, parity);
   }
@@ -661,17 +661,18 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);
     CodePatcher patcher(sequence, young_length / Assembler::kInstrSize);
-    // Mark this code sequence for FindPlatformCodeAgeSequence()
+    // Mark this code sequence for FindPlatformCodeAgeSequence().
     patcher.masm()->nop(Assembler::CODE_AGE_MARKER_NOP);
-    // Save the function's original return address
-    // (it will be clobbered by Call(t9))
-    patcher.masm()->mov(at, ra);
-    // Load the stub address to t9 and call it
-    patcher.masm()->li(t9,
-        Operand(reinterpret_cast<uint32_t>(stub->instruction_start())));
-    patcher.masm()->Call(t9);
-    // Record the stub address in the empty space for GetCodeAgeAndParity()
-    patcher.masm()->dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+    // Load the stub address to t9 and call it,
+    // GetCodeAgeAndParity() extracts the stub address from this instruction.
+    patcher.masm()->li(
+        t9,
+        Operand(reinterpret_cast<uint32_t>(stub->instruction_start())),
+        CONSTANT_SIZE);
+    patcher.masm()->nop();  // Prevent jalr to jal optimization.
+    patcher.masm()->jalr(t9, a0);
+    patcher.masm()->nop();  // Branch delay slot nop.
+    patcher.masm()->nop();  // Pad the empty space.
   }
 }
 

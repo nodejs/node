@@ -111,6 +111,38 @@ void LCodeGen::MakeSureStackPagesMapped(int offset) {
 #endif
 
 
+void LCodeGen::SaveCallerDoubles() {
+  ASSERT(info()->saves_caller_doubles());
+  ASSERT(NeedsEagerFrame());
+  Comment(";;; Save clobbered callee double registers");
+  int count = 0;
+  BitVector* doubles = chunk()->allocated_double_registers();
+  BitVector::Iterator save_iterator(doubles);
+  while (!save_iterator.Done()) {
+    __ movsd(MemOperand(rsp, count * kDoubleSize),
+             XMMRegister::FromAllocationIndex(save_iterator.Current()));
+    save_iterator.Advance();
+    count++;
+  }
+}
+
+
+void LCodeGen::RestoreCallerDoubles() {
+  ASSERT(info()->saves_caller_doubles());
+  ASSERT(NeedsEagerFrame());
+  Comment(";;; Restore clobbered callee double registers");
+  BitVector* doubles = chunk()->allocated_double_registers();
+  BitVector::Iterator save_iterator(doubles);
+  int count = 0;
+  while (!save_iterator.Done()) {
+    __ movsd(XMMRegister::FromAllocationIndex(save_iterator.Current()),
+             MemOperand(rsp, count * kDoubleSize));
+    save_iterator.Advance();
+    count++;
+  }
+}
+
+
 bool LCodeGen::GeneratePrologue() {
   ASSERT(is_generating());
 
@@ -173,16 +205,7 @@ bool LCodeGen::GeneratePrologue() {
     }
 
     if (info()->saves_caller_doubles()) {
-      Comment(";;; Save clobbered callee double registers");
-      int count = 0;
-      BitVector* doubles = chunk()->allocated_double_registers();
-      BitVector::Iterator save_iterator(doubles);
-      while (!save_iterator.Done()) {
-        __ movsd(MemOperand(rsp, count * kDoubleSize),
-                 XMMRegister::FromAllocationIndex(save_iterator.Current()));
-        save_iterator.Advance();
-        count++;
-      }
+      SaveCallerDoubles();
     }
   }
 
@@ -261,6 +284,7 @@ bool LCodeGen::GenerateJumpTable() {
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     }
     if (jump_table_[i].needs_frame) {
+      ASSERT(!info()->saves_caller_doubles());
       __ movq(kScratchRegister, ExternalReference::ForDeoptEntry(entry));
       if (needs_frame.is_bound()) {
         __ jmp(&needs_frame);
@@ -279,6 +303,10 @@ bool LCodeGen::GenerateJumpTable() {
         __ call(kScratchRegister);
       }
     } else {
+      if (info()->saves_caller_doubles()) {
+        ASSERT(info()->IsStub());
+        RestoreCallerDoubles();
+      }
       __ call(entry, RelocInfo::RUNTIME_ENTRY);
     }
   }
@@ -661,7 +689,10 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   }
 
   ASSERT(info()->IsStub() || frame_is_built_);
-  if (cc == no_condition && frame_is_built_) {
+  // Go through jump table if we need to handle condition, build frame, or
+  // restore caller doubles.
+  if (cc == no_condition && frame_is_built_ &&
+      !info()->saves_caller_doubles()) {
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     // We often have several deopts to the same entry, reuse the last
@@ -2551,16 +2582,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
   if (info()->saves_caller_doubles()) {
-    ASSERT(NeedsEagerFrame());
-    BitVector* doubles = chunk()->allocated_double_registers();
-    BitVector::Iterator save_iterator(doubles);
-    int count = 0;
-    while (!save_iterator.Done()) {
-      __ movsd(XMMRegister::FromAllocationIndex(save_iterator.Current()),
-               MemOperand(rsp, count * kDoubleSize));
-      save_iterator.Advance();
-      count++;
-    }
+    RestoreCallerDoubles();
   }
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {

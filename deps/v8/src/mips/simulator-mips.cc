@@ -1722,6 +1722,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
                                       int64_t& i64hilo,
                                       uint64_t& u64hilo,
                                       int32_t& next_pc,
+                                      int32_t& return_addr_reg,
                                       bool& do_interrupt) {
   // Every local variable declared here needs to be const.
   // This is to make sure that changed values are sent back to
@@ -1782,6 +1783,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
         case JR:
         case JALR:
           next_pc = get_register(instr->RsValue());
+          return_addr_reg = instr->RdValue();
           break;
         case SLL:
           alu_out = rt << sa;
@@ -1986,6 +1988,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
   int32_t current_pc = get_pc();
   // Next pc
   int32_t next_pc = 0;
+  int32_t return_addr_reg = 31;
 
   // Set up the variables if needed before executing the instruction.
   ConfigureTypeRegister(instr,
@@ -1993,6 +1996,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
                         i64hilo,
                         u64hilo,
                         next_pc,
+                        return_addr_reg,
                         do_interrupt);
 
   // ---------- Raise exceptions triggered.
@@ -2258,7 +2262,8 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           Instruction* branch_delay_instr = reinterpret_cast<Instruction*>(
               current_pc+Instruction::kInstrSize);
           BranchDelayInstructionDecode(branch_delay_instr);
-          set_register(31, current_pc + 2 * Instruction::kInstrSize);
+          set_register(return_addr_reg,
+                       current_pc + 2 * Instruction::kInstrSize);
           set_pc(next_pc);
           pc_modified_ = true;
           break;
