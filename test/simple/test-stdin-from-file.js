@@ -28,7 +28,7 @@ var join = require('path').join;
 var childProccess = require('child_process');
 var fs = require('fs');
 
-var stdoutScript = join(common.fixturesDir, 'echo.js');
+var stdoutScript = join(common.fixturesDir, 'echo-close-check.js');
 var tmpFile = join(common.fixturesDir, 'stdin.txt');
 
 var cmd = '"' + process.argv[0] + '" "' + stdoutScript + '" < "' +
