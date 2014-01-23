@@ -263,6 +263,61 @@ TEST_IMPL(spawn_stdout_to_file) {
 }
 
 
+TEST_IMPL(spawn_stdout_and_stderr_to_file) {
+  int r;
+  uv_file file;
+  uv_fs_t fs_req;
+  uv_stdio_container_t stdio[3];
+
+  /* Setup. */
+  unlink("stdout_file");
+
+  init_process_options("spawn_helper6", exit_cb);
+
+  r = uv_fs_open(uv_default_loop(), &fs_req, "stdout_file", O_CREAT | O_RDWR,
+      S_IREAD | S_IWRITE, NULL);
+  ASSERT(r != -1);
+  uv_fs_req_cleanup(&fs_req);
+
+  file = r;
+
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_IGNORE;
+  options.stdio[1].flags = UV_INHERIT_FD;
+  options.stdio[1].data.fd = file;
+  options.stdio[2].flags = UV_INHERIT_FD;
+  options.stdio[2].data.fd = file;
+  options.stdio_count = 3;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  r = uv_fs_read(uv_default_loop(), &fs_req, file, output, sizeof(output),
+      0, NULL);
+  ASSERT(r == 27);
+  uv_fs_req_cleanup(&fs_req);
+
+  r = uv_fs_close(uv_default_loop(), &fs_req, file, NULL);
+  ASSERT(r == 0);
+  uv_fs_req_cleanup(&fs_req);
+
+  printf("output is: %s", output);
+  ASSERT(strcmp("hello world\nhello errworld\n", output) == 0);
+
+  /* Cleanup. */
+  unlink("stdout_file");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
 TEST_IMPL(spawn_stdin) {
   int r;
   uv_pipe_t out;
@@ -520,6 +575,53 @@ TEST_IMPL(spawn_and_ping) {
   uv_pipe_t in, out;
   uv_buf_t buf;
   uv_stdio_container_t stdio[2];
+  int r;
+
+  init_process_options("spawn_helper3", exit_cb);
+  buf = uv_buf_init("TEST", 4);
+
+  uv_pipe_init(uv_default_loop(), &out, 0);
+  uv_pipe_init(uv_default_loop(), &in, 0);
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options.stdio[0].data.stream = (uv_stream_t*)&in;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio_count = 2;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  /* Sending signum == 0 should check if the
+   * child process is still alive, not kill it.
+   */
+  r = uv_process_kill(&process, 0);
+  ASSERT(r == 0);
+
+  r = uv_write(&write_req, (uv_stream_t*)&in, &buf, 1, write_cb);
+  ASSERT(r == 0);
+
+  r = uv_read_start((uv_stream_t*)&out, on_alloc, on_read);
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 0);
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(strcmp(output, "TEST") == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(spawn_same_stdout_stderr) {
+  uv_write_t write_req;
+  uv_pipe_t in, out;
+  uv_buf_t buf;
+  uv_stdio_container_t stdio[3];
   int r;
 
   init_process_options("spawn_helper3", exit_cb);

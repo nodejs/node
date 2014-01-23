@@ -223,7 +223,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   uint64_t info[CPUSTATES];
   char model[512];
   int numcpus = 1;
-  static int which[] = {CTL_HW,HW_MODEL,0};
+  int which[] = {CTL_HW,HW_MODEL,0};
   size_t size;
   int i;
   uv_cpu_info_t* cpu_info;

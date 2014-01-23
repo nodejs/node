@@ -601,9 +601,9 @@ static int read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
 
     /* skip "cpu<num> " marker */
     {
-      unsigned int n = num;
+      unsigned int n;
+      assert(sscanf(buf, "cpu%u ", &n) == 1);
       for (len = sizeof("cpu0"); n /= 10; len++);
-      assert(sscanf(buf, "cpu%u ", &n) == 1 && n == num);
     }
 
     /* Line contains user, nice, system, idle, iowait, irq, softirq, steal,
@@ -630,6 +630,7 @@ static int read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
     ci[num++].cpu_times = ts;
   }
   fclose(fp);
+  assert(num == numcpus);
 
   return 0;
 }

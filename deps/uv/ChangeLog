@@ -1,4 +1,15 @@
-2014.01.08, Version 0.10.22 (Stable)
+2014.01.23, Version 0.10.23 (Stable)
+
+Changes since version 0.10.22:
+
+* linux: relax assumption on /proc/stat parsing (Luca Bruno)
+
+* openbsd: fix obvious bug in uv_cpu_info (Fedor Indutny)
+
+* process: close stdio after dup2'ing it (Fedor Indutny)
+
+
+2014.01.08, Version 0.10.22 (Stable), f526c90eeff271d9323a9107b9a64a4671fd3103
 
 Changes since version 0.10.21:
 
