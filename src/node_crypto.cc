@@ -972,6 +972,9 @@ void SSLWrap<Base>::GetPeerCertificate(
   Base* w = Unwrap<Base>(args.This());
   Environment* env = w->ssl_env();
 
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence unused variable warning.
+
   Local<Object> info = Object::New();
   X509* peer_cert = SSL_get_peer_certificate(w->ssl_);
   if (peer_cert != NULL) {

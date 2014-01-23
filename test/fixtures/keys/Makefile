@@ -1,4 +1,4 @@
-all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem ca2-crl.pem
+all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem ca2-crl.pem ec-cert.pem
 
 
 #
@@ -129,6 +129,19 @@ ca2-crl.pem: ca2-key.pem ca2-cert.pem ca2.cnf
 		-gencrl \
 		-out ca2-crl.pem \
 		-passin 'pass:password'
+
+ec-key.pem:
+	openssl ecparam -genkey -out ec-key.pem -name prime256v1
+
+ec-csr.pem: ec-key.pem
+	openssl req -new -config ec.cnf -key ec-key.pem -out ec-csr.pem
+
+ec-cert.pem: ec-csr.pem ec-key.pem
+	openssl x509 -req \
+		-days 9999 \
+		-in ec-csr.pem \
+		-signkey ec-key.pem \
+		-out ec-cert.pem
 
 clean:
 	rm -f *.pem *.srl ca2-database.txt ca2-serial
