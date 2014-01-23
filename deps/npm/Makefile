@@ -192,9 +192,6 @@ doc-publish: doc
     html/doc/* \
     node@npmjs.org:/home/node/npm-www/doc
 	rsync -vazu --stats --no-implied-dirs --delete \
-    html/static/webfonts/ \
-    node@npmjs.org:/home/node/npm-www/static/webfonts
-	rsync -vazu --stats --no-implied-dirs --delete \
     html/static/style.css \
     node@npmjs.org:/home/node/npm-www/static/
 	#cleanup
