@@ -208,7 +208,7 @@ void TLSCallbacks::Receive(const FunctionCallbackInfo<Value>& args) {
   uv_stream_t* stream = wrap->wrap()->stream();
 
   // Copy given buffer entirely or partiall if handle becomes closed
-  while (len > 0 && !uv_is_closing((uv_handle_t*) stream)) {
+  while (len > 0 && !uv_is_closing(reinterpret_cast<uv_handle_t*>(stream))) {
     wrap->DoAlloc(reinterpret_cast<uv_handle_t*>(stream), len, &buf);
     size_t copy = buf.len > len ? len : buf.len;
     memcpy(buf.base, data, copy);
