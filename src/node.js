@@ -771,7 +771,7 @@
 
       case 'FILE':
         var fs = NativeModule.require('fs');
-        stream = new fs.SyncWriteStream(fd);
+        stream = new fs.SyncWriteStream(fd, { autoClose: false });
         stream._type = 'fs';
         break;
 
@@ -858,7 +858,7 @@
 
         case 'FILE':
           var fs = NativeModule.require('fs');
-          stdin = new fs.ReadStream(null, { fd: fd });
+          stdin = new fs.ReadStream(null, { fd: fd, autoClose: false });
           break;
 
         case 'PIPE':
