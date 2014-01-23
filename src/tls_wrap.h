@@ -110,6 +110,7 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   static void OnClientHelloParseEnd(void* arg);
 
   static void Wrap(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Receive(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetVerifyMode(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableSessionCallbacks(

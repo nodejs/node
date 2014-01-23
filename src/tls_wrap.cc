@@ -195,6 +195,31 @@ void TLSCallbacks::Wrap(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void TLSCallbacks::Receive(const FunctionCallbackInfo<Value>& args) {
+  HandleScope handle_scope(args.GetIsolate());
+
+  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.This());
+
+  CHECK(Buffer::HasInstance(args[0]));
+  char* data = Buffer::Data(args[0]);
+  size_t len = Buffer::Length(args[0]);
+
+  uv_buf_t buf;
+  uv_stream_t* stream = wrap->wrap()->stream();
+
+  // Copy given buffer entirely or partiall if handle becomes closed
+  while (len > 0 && !uv_is_closing((uv_handle_t*) stream)) {
+    wrap->DoAlloc(reinterpret_cast<uv_handle_t*>(stream), len, &buf);
+    size_t copy = buf.len > len ? len : buf.len;
+    memcpy(buf.base, data, copy);
+    wrap->DoRead(stream, buf.len, &buf, UV_UNKNOWN_HANDLE);
+
+    data += copy;
+    len -= copy;
+  }
+}
+
+
 void TLSCallbacks::Start(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(node_isolate);
 
@@ -700,6 +725,7 @@ void TLSCallbacks::Initialize(Handle<Object> target,
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "TLSWrap"));
 
+  NODE_SET_PROTOTYPE_METHOD(t, "receive", Receive);
   NODE_SET_PROTOTYPE_METHOD(t, "start", Start);
   NODE_SET_PROTOTYPE_METHOD(t, "setVerifyMode", SetVerifyMode);
   NODE_SET_PROTOTYPE_METHOD(t,
