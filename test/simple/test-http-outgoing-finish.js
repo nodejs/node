@@ -69,7 +69,7 @@ function write(out) {
     endCb = true;
     console.error('%s endCb', name);
     process.nextTick(function() {
-      assert(endCb, name + ' got endCb event before finishEvent!');
+      assert(finishEvent, name + ' got endCb event before finishEvent!');
       console.log('ok - %s endCb', name);
     });
   });
