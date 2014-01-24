@@ -25,8 +25,10 @@ var assert = require('assert');
 var http = require('http');
 
 http.createServer(function(req, res) {
-  write(res);
   req.resume();
+  req.on('end', function() {
+    write(res);
+  });
   this.close();
 }).listen(common.PORT, function() {
   var req = http.request({
