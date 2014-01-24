@@ -83,7 +83,7 @@ var server = tls.createServer({ ca: ca, cert: cert, key: key }, function(conn) {
     connectError = err;
     this.destroy();
     server.close();
-  });
+  }).write('123');
 });
 
 process.on('exit', function() {

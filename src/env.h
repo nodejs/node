@@ -69,6 +69,7 @@ namespace node {
   V(domain_string, "domain")                                                  \
   V(enter_string, "enter")                                                    \
   V(errno_string, "errno")                                                    \
+  V(error_string, "error")                                                    \
   V(exit_string, "exit")                                                      \
   V(exponent_string, "exponent")                                              \
   V(exports_string, "exports")                                                \

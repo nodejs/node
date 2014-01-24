@@ -215,6 +215,9 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   req_wrap->Dispatched();
   req_wrap_obj->Set(env->bytes_string(),
                     Integer::NewFromUnsigned(length, node_isolate));
+  const char* msg = wrap->callbacks()->Error();
+  if (msg != NULL)
+    req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
 
   if (err) {
     req_wrap->~WriteWrap();
@@ -300,6 +303,9 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   req_wrap->Dispatched();
   req_wrap->object()->Set(env->bytes_string(),
                           Integer::NewFromUnsigned(data_size, node_isolate));
+  const char* msg = wrap->callbacks()->Error();
+  if (msg != NULL)
+    req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
 
   if (err) {
     req_wrap->~WriteWrap();
@@ -401,6 +407,9 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
   req_wrap->Dispatched();
   req_wrap->object()->Set(env->bytes_string(),
                           Number::New(node_isolate, bytes));
+  const char* msg = wrap->callbacks()->Error();
+  if (msg != NULL)
+    req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
 
   if (err) {
     req_wrap->~WriteWrap();
@@ -441,13 +450,18 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   // Unref handle property
   Local<Object> req_wrap_obj = req_wrap->object();
   req_wrap_obj->Delete(env->handle_string());
-  wrap->callbacks_->AfterWrite(req_wrap);
+  wrap->callbacks()->AfterWrite(req_wrap);
 
   Local<Value> argv[] = {
     Integer::New(status, node_isolate),
     wrap->object(),
-    req_wrap_obj
+    req_wrap_obj,
+    Undefined()
   };
+
+  const char* msg = wrap->callbacks()->Error();
+  if (msg != NULL)
+    argv[3] = OneByteString(env->isolate(), msg);
 
   req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
 
@@ -496,6 +510,11 @@ void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
   req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
 
   delete req_wrap;
+}
+
+
+const char* StreamWrapCallbacks::Error() {
+  return NULL;
 }
 
 
