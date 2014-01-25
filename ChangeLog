@@ -1,4 +1,4 @@
-2013.12.31, Version 0.11.10 (Unstable)
+2013.12.31, Version 0.11.10 (Unstable), 66931791f06207d1cdfea5ec1529edf3c94026d3
 
 * http_parser: update to 2.2
 
@@ -443,6 +443,25 @@
 * util: custom `inspect()` method may return an Object (Nathan Rajlich)
 
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
+
+
+2014.01.23, Version 0.10.25 (Stable), b0e5f195dfce3e2b99f5091373d49f6616682596
+
+* uv: Upgrade to v0.10.23
+
+* npm: Upgrade to v1.3.24
+
+* v8: Fix enumeration for objects with lots of properties
+
+* child_process: fix spawn() optional arguments (Sam Roberts)
+
+* cluster: report more errors to workers (Fedor Indutny)
+
+* domains: exit() only affects active domains (Ryan Graham)
+
+* src: OnFatalError handler must abort() (Timothy J Fontaine)
+
+* stream: writes may return false but forget to emit drain (Yang Tianyang)
 
 
 2013.12.18, Version 0.10.24 (Stable), b7fd6bc899ccb629d790c47aee06aba87e535c41

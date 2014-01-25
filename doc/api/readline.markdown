@@ -39,7 +39,7 @@ the following values:
    treated like a TTY, and have ANSI/VT100 escape codes written to it.
    Defaults to checking `isTTY` on the `output` stream upon instantiation.
 
-The `completer` function is given a the current line entered by the user, and
+The `completer` function is given the current line entered by the user, and
 is supposed to return an Array with 2 entries:
 
  1. An Array with matching entries for the completion.

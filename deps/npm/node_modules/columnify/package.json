@@ -1,0 +1,42 @@
+{
+  "name": "columnify",
+  "version": "0.1.2",
+  "description": "Render data in text columns, supports in-column text-wrap.",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test"
+  },
+  "author": {
+    "name": "Tim Oxley"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "tape": "~2.3.0",
+    "tap": "~0.4.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/timoxley/columnify.git"
+  },
+  "keywords": [
+    "column",
+    "text",
+    "ansi",
+    "console",
+    "terminal",
+    "wrap",
+    "table"
+  ],
+  "bugs": {
+    "url": "https://github.com/timoxley/columnify/issues"
+  },
+  "homepage": "https://github.com/timoxley/columnify",
+  "readme": "# columnify\n\n[![Build Status](https://travis-ci.org/timoxley/columnify.png?branch=master)](https://travis-ci.org/timoxley/columnify)\n\nCreate text-based columns suitable for console output. \nSupports minimum and maximum column widths via truncation and text wrapping.\n\nDesigned to [handle sensible wrapping in npm search results](https://github.com/isaacs/npm/pull/2328).\n\n`npm search` before & after integrating columnify:\n\n![npm-tidy-search](https://f.cloud.github.com/assets/43438/1848959/ae02ad04-76a1-11e3-8255-4781debffc26.gif)\n\n## Installation & Update\n\n```\n$ npm install --save columnify@latest\n```\n\n## Usage\n\n```js\nvar columnify = require('columnify')\nvar columns = columnify(data, options)\nconsole.log(columns)\n```\n\n## Examples\n\n### Simple Columns\n\nText is aligned under column headings. Columns are automatically resized\nto fit the content of the largest cell.  Each cell will be padded with\nspaces to fill the available space and ensure column contents are\nleft-aligned.\n\n```js\nvar columnify = require('columnify')\n\nvar columns = columnify([{\n  name: 'mod1',\n  version: '0.0.1'\n}, {\n  name: 'module2',\n  version: '0.2.0'\n}])\n\nconsole.log(columns)\n```\n```\nNAME    VERSION\nmod1    0.0.1  \nmodule2 0.2.0  \n```\n\n### Wrapping Column Cells\n\nYou can define the maximum width before wrapping for individual cells in\ncolumns. Minimum width is also supported. Wrapping will happen at word\nboundaries. Empty cells or those which do not fill the max/min width\nwill be padded with spaces.\n\n```js\nvar columnify = require('columnify')\n\nvar columns = columnify([{\n  name: 'mod1',\n  description: 'some description which happens to be far larger than the max',\n  version: '0.0.1',\n}, {\n  name: 'module-two',\n  description: 'another description larger than the max',\n  version: '0.2.0',\n})\n\nconsole.log(columns)\n```\n```\nNAME       DESCRIPTION                    VERSION\nmod1       some description which happens 0.0.1\n           to be far larger than the max\nmodule-two another description larger     0.2.0\n           than the max\n```\n\n### Truncated Columns\n\nYou can disable wrapping and instead truncate content at the maximum\ncolumn width. Truncation respects word boundaries.  A truncation marker,\n`…` will appear next to the last word in any truncated line.\n\n```js\nvar columns = columnify(data, {\n  truncate: true,\n  config: {\n    description: {\n      maxWidth: 20\n    }\n  }\n})\n\nconsole.log(columns)\n```\n\n```\nNAME       DESCRIPTION          VERSION\nmod1       some description…    0.0.1  \nmodule-two another description… 0.2.0  \n```\n\n\n### Custom Truncation Marker\n\nYou can change the truncation marker to something other than the default\n`…`.\n\n```js\nvar columns = columnify(data, {\n  truncate: true,\n  truncateMarker: '>',\n  widths: {\n    description: {\n      maxWidth: 20\n    }\n  }\n})\n\nconsole.log(columns)\n```\n\n```\nNAME       DESCRIPTION          VERSION\nmod1       some description>    0.0.1  \nmodule-two another description> 0.2.0  \n```\n\n### Custom Column Splitter\n\nIf your columns need some bling, you can split columns with custom\ncharacters.\n\n```js\n\nvar columns = columnify(data, {\n  columnSplitter: ' | '\n})\n\nconsole.log(columns)\n```\n```\nNAME       | DESCRIPTION                                                  | VERSION\nmod1       | some description which happens to be far larger than the max | 0.0.1\nmodule-two | another description larger than the max                      | 0.2.0\n```\n\n### Filtering & Ordering Columns\n\nBy default, all properties are converted into columns, whether or not\nthey exist on every object or not.\n\nTo explicitly specify which columns to include, and in which order,\nsupply an \"include\" array:\n\n```js\nvar data = [{\n  name: 'module1',\n  description: 'some description',\n  version: '0.0.1',\n}, {\n  name: 'module2',\n  description: 'another description',\n  version: '0.2.0',\n}]\n\nvar columns = columnify(data, {\n  include: ['name', 'version'] // note description not included\n})\n\nconsole.log(columns)\n```\n\n```\nNAME    VERSION\nmodule1 0.0.1\nmodule2 0.2.0\n```\n## License\n\nMIT\n",
+  "readmeFilename": "Readme.md",
+  "_id": "columnify@0.1.2",
+  "dist": {
+    "shasum": "ab1a1f1e37b26ba4b87c6920fb717fe51c827042"
+  },
+  "_from": "columnify@0.1.2",
+  "_resolved": "https://registry.npmjs.org/columnify/-/columnify-0.1.2.tgz"
+}

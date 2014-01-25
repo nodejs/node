@@ -5,6 +5,7 @@
   "version": "0.0.1",
   "main": "index.js",
   "dependencies": {
-    "foo-private": "git://github.com/robertkowalski/foo-private.git"
+    "foo-private": "git://github.com/robertkowalski/foo-private.git",
+    "foo-private-credentials": "git://user:pass@github.com/robertkowalski/foo-private.git"
   }
 }

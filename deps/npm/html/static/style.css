@@ -1,24 +1,3 @@
-/*
-
-Webfont: Gubblebum Blocky by Jelloween
-License: http://www.myfonts.com/viewlicense?type=web&buildid=2303021
-Webfonts copyright: Copyright (c) 2007 by Tjarda Koster. All rights reserved.
-
-"Gubblebum Blocky" font
-Copyright (c) 2007 by Tjarda Koster, http://jelloween.deviantart.com
-included for use in the npm website and documentation,
-used with permission.
-
-*/
-
-@font-face {
-  font-family: gubblefont;
-  src: url('webfonts/23242D_3_0.eot');
-  src: url('webfonts/23242D_3_0.eot?#iefix') format('embedded-opentype'),
-       url('webfonts/23242D_3_0.woff') format('woff'),
-       url('webfonts/23242D_3_0.ttf') format('truetype');
-}
-
 /* reset */
 * {
     margin:0;
@@ -169,7 +148,7 @@ h1 {
   background:#fff;
 }
 h1 a, h1 a:visited {
-  font-family:gubblefont, Gubblebum-Blocky, GubbleBum Blocky, GubbleBum, monospace;
+  font-family:monospace;
   font-size:60px;
   color:#900;
   display:block;

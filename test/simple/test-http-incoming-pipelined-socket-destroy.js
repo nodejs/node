@@ -33,11 +33,13 @@ var server = http.createServer(function(req, res) {
     case '/1':
       return setTimeout(function() {
         req.socket.destroy();
+        server.emit('requestDone');
       });
 
     case '/2':
       return process.nextTick(function() {
         res.destroy();
+        server.emit('requestDone');
       });
 
     // in one case, actually send a response in 2 chunks
@@ -45,18 +47,19 @@ var server = http.createServer(function(req, res) {
       res.write('hello ');
       return setTimeout(function() {
         res.end('world!');
+        server.emit('requestDone');
       });
 
     default:
-      return res.destroy();
+      res.destroy();
+      server.emit('requestDone');
   }
 });
 
 
 // Make a bunch of requests pipelined on the same socket
-function generator() {
-  var reqs = [ 3, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 ];
-  return reqs.map(function(r) {
+function generator(seeds) {
+  return seeds.map(function(r) {
     return 'GET /' + r + ' HTTP/1.1\r\n' +
            'Host: localhost:' + common.PORT + '\r\n' +
            '\r\n' +
@@ -66,13 +69,18 @@ function generator() {
 
 
 server.listen(common.PORT, function() {
+  var seeds = [ 3, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 ];
   var client = net.connect({ port: common.PORT });
+  var done = 0;
+  server.on('requestDone', function() {
+    if (++done == seeds.length) {
+      server.close();
+    }
+  });
 
   // immediately write the pipelined requests.
   // Some of these will not have a socket to destroy!
-  client.write(generator(), function() {
-    server.close();
-  });
+  client.write(generator(seeds));
 });
 
 process.on('exit', function(c) {

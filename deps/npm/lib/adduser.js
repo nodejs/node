@@ -37,7 +37,7 @@ function adduser (args, cb) {
 
 function readUsername (c, u, cb) {
   var v = userValidate.username
-  read({prompt: "Username: ", default: c.u}, function (er, un) {
+  read({prompt: "Username: ", default: c.u || ""}, function (er, un) {
     if (er) {
       return cb(er.message === "cancelled" ? er.message : er)
     }
@@ -92,8 +92,8 @@ function readPassword (c, u, cb) {
 
 function readEmail (c, u, cb) {
   var v = userValidate.email
-
-  read({prompt: "Email: (this IS public) ", default: c.e}, function (er, em) {
+  var r = { prompt: "Email: (this IS public) ", default: c.e || "" }
+  read(r, function (er, em) {
     if (er) {
       return cb(er.message === "cancelled" ? er.message : er)
     }

@@ -10,7 +10,7 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<pre><code>npm search [search terms ...]
+<pre><code>npm search [--long] [search terms ...]
 npm s [search terms ...]
 npm se [search terms ...]</code></pre>
 
@@ -22,11 +22,22 @@ npm se [search terms ...]</code></pre>
 A trailing <code>/</code> will be ignored in this case.  (Note that many regular
 expression characters must be escaped or quoted in most shells.)</p>
 
+<h2 id="CONFIGURATION">CONFIGURATION</h2>
+
+<h3 id="long">long</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>Display full package descriptions and other long text across multiple
+lines. When disabled (default) search results are truncated to fit
+neatly on a single line. Modules with extremely long names will
+fall on multiple lines.</p>
+
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
 <ul><li><a href="../misc/npm-registry.html">npm-registry(7)</a></li><li><a href="../cli/npm-config.html">npm-config(1)</a></li><li><a href="../misc/npm-config.html">npm-config(7)</a></li><li><a href="../files/npmrc.html">npmrc(5)</a></li><li><a href="../cli/npm-view.html">npm-view(1)</a></li></ul>
 </div>
-<p id="footer">npm-search &mdash; npm@1.3.23</p>
+<p id="footer">npm-search &mdash; npm@1.3.25</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

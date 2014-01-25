@@ -110,7 +110,7 @@ function rmdir (p, originalEr, cb) {
   // if we guessed wrong, and it's not a directory, then
   // raise the original error.
   fs.rmdir(p, function (er) {
-    if (er && (er.code === "ENOTEMPTY" || er.code === "EEXIST"))
+    if (er && (er.code === "ENOTEMPTY" || er.code === "EEXIST" || er.code === "EPERM"))
       rmkids(p, cb)
     else if (er && er.code === "ENOTDIR")
       cb(originalEr)
@@ -165,7 +165,7 @@ function rmdirSync (p, originalEr) {
       return
     if (er.code === "ENOTDIR")
       throw originalEr
-    if (er.code === "ENOTEMPTY" || er.code === "EEXIST")
+    if (er.code === "ENOTEMPTY" || er.code === "EEXIST" || er.code === "EPERM")
       rmkidsSync(p)
   }
 }

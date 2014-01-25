@@ -185,14 +185,6 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
     process.nextTick(dequeue)
   }
 
-  var sh = "sh"
-  var shFlag = "-c"
-
-  if (process.platform === "win32") {
-    sh = "cmd"
-    shFlag = "/c"
-  }
-
   var conf = { cwd: wd
              , env: env
              , stdio: [ 0, 1, 2 ]
@@ -201,6 +193,15 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
   if (!unsafe) {
     conf.uid = uid ^ 0
     conf.gid = gid ^ 0
+  }
+
+  var sh = "sh"
+  var shFlag = "-c"
+
+  if (process.platform === "win32") {
+    sh = "cmd"
+    shFlag = "/c"
+    conf.windowsVerbatimArguments = true
   }
 
   var proc = spawn(sh, [shFlag, cmd], conf)

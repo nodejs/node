@@ -3,7 +3,7 @@ npm-search(1) -- Search for packages
 
 ## SYNOPSIS
 
-    npm search [search terms ...]
+    npm search [--long] [search terms ...]
     npm s [search terms ...]
     npm se [search terms ...]
 
@@ -14,6 +14,18 @@ Search the registry for packages matching the search terms.
 If a term starts with `/`, then it's interpreted as a regular expression.
 A trailing `/` will be ignored in this case.  (Note that many regular
 expression characters must be escaped or quoted in most shells.)
+
+## CONFIGURATION
+
+### long
+
+* Default: false
+* Type: Boolean
+
+Display full package descriptions and other long text across multiple
+lines. When disabled (default) search results are truncated to fit
+neatly on a single line. Modules with extremely long names will
+fall on multiple lines.
 
 ## SEE ALSO
 

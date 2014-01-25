@@ -20,6 +20,7 @@ test('typos', function(t) {
       'devDepenencies should probably be devDependencies.',
       'devdependencies should probably be devDependencies.',
       'repostitory should probably be repository.',
+      'repo should probably be repository.',
       'prefereGlobal should probably be preferGlobal.',
       'hompage should probably be homepage.',
       'hampage should probably be homepage.',
@@ -38,6 +39,7 @@ test('typos', function(t) {
             ,"devDepenencies": "devDependencies"
             ,"devdependencies": "devDependencies"
             ,"repostitory": "repository"
+            ,"repo": "repository"
             ,"prefereGlobal": "preferGlobal"
             ,"hompage": "homepage"
             ,"hampage": "homepage"

@@ -140,9 +140,9 @@ Note:
   `SIGHUP` is to terminate node, but once a listener has been installed its
   default behaviour will be removed.
 - `SIGTERM` is not supported on Windows, it can be listened on.
-- `SIGINT` is supported on all platforms, and can usually be generated with
-  `CTRL+C` (though this may be configurable). It is not generated when terminal
-  raw mode is enabled.
+- `SIGINT` from the terminal is supported on all platforms, and can usually be
+  generated with `CTRL+C` (though this may be configurable). It is not generated
+  when terminal raw mode is enabled.
 - `SIGBREAK` is delivered on Windows when `CTRL+BREAK` is pressed, on non-Windows
   platforms it can be listened on, but there is no way to send or generate it.
 - `SIGWINCH` is delivered when the console has been resized. On Windows, this will
@@ -151,6 +151,12 @@ Note:
 - `SIGKILL` cannot have a listener installed, it will unconditionally terminate
   node on all platforms.
 - `SIGSTOP` cannot have a listener installed.
+
+Note that Windows does not support sending Signals, but node offers some
+emulation with `process.kill()`, and `child_process.kill()`:
+- Sending signal `0` can be used to search for the existence of a process
+- Sending `SIGINT`, `SIGTERM`, and `SIGKILL` cause the unconditional exit of the
+  target process.
 
 ## process.stdout
 
@@ -483,7 +489,7 @@ An example of the possible output looks like:
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like
 'SIGINT' or 'SIGHUP'.  If omitted, the signal will be 'SIGTERM'.
-See kill(2) for more information.
+See [Signal Events](#process_signal_events) and kill(2) for more information.
 
 Will throw an error if target does not exist, and as a special case, a signal of
 `0` can be used to test for the existence of a process.

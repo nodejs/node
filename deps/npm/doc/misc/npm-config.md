@@ -480,7 +480,7 @@ colored output if it is a TTY.
 * Default: false
 * Type: Boolean
 
-Show extended information in `npm ls`
+Show extended information in `npm ls` and `npm search`.
 
 ### message
 

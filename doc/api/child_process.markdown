@@ -535,7 +535,7 @@ amount of data allowed on stdout or stderr - if this value is exceeded then
 the child process is killed.
 
 
-## child_process.execFile(file, args, options, callback)
+## child_process.execFile(file, [args], [options], [callback])
 
 * `file` {String} The filename of the program to run
 * `args` {Array} List of string arguments
@@ -568,8 +568,10 @@ leaner than `child_process.exec`. It has the same options.
   * `execPath` {String} Executable used to create the child process
   * `execArgv` {Array} List of string arguments passed to the executable
     (Default: `process.execArgv`)
-  * `silent` {Boolean} If true, prevent stdout and stderr in the spawned node
-    process from being associated with the parent's (default is false)
+  * `silent` {Boolean} If true, stdin, stdout, and stderr of the child will be
+    piped to the parent, otherwise they will be inherited from the parent, see
+    the "pipe" and "inherit" options for `spawn()`'s `stdio` for more details
+    (default is false)
 * Return: ChildProcess object
 
 This is a special case of the `spawn()` functionality for spawning Node

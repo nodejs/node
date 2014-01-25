@@ -14,7 +14,7 @@ body {
   },
   "main": "read-json.js",
   "scripts": {
-    "test": "tap test/*.js"
+    "test": "./node_modules/.bin/tap test/*.js"
   },
   "dependencies": {
     "glob": "~3.1.9",
