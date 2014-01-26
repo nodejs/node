@@ -3005,9 +3005,15 @@ class Sign : public ObjectWrap {
     if(!BIO_write(bp, key_pem, key_pemLen)) return 0;
 
     pkey = PEM_read_bio_PrivateKey( bp, NULL, NULL, NULL );
-    if (pkey == NULL) return 0;
+    if (pkey == NULL) {
+      ERR_print_errors_fp(stderr);
+      return 0;
+    }
 
-    EVP_SignFinal(&mdctx, *md_value, md_len, pkey);
+    if (!EVP_SignFinal(&mdctx, *md_value, md_len, pkey)) {
+      ERR_print_errors_fp(stderr);
+      return 0;
+    }
     EVP_MD_CTX_cleanup(&mdctx);
     initialised_ = false;
     EVP_PKEY_free(pkey);
@@ -3107,8 +3113,11 @@ class Sign : public ObjectWrap {
 
     int r = sign->SignFinal(&md_value, &md_len, buf, len);
     if (r == 0) {
+      delete [] buf;
+      delete [] md_value;
       md_value = NULL;
       md_len = r;
+      return ThrowException(Exception::Error(String::New("SignFinal error")));
     }
 
     delete [] buf;

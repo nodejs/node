@@ -937,3 +937,16 @@ assert.throws(function() {
 assert.throws(function() {
   crypto.createVerify('RSA-SHA1').update('0', 'hex');
 }, /Bad input string/);
+
+assert.throws(function() {
+  var private = [
+    '-----BEGIN RSA PRIVATE KEY-----',
+    'MIGrAgEAAiEA+3z+1QNF2/unumadiwEr+C5vfhezsb3hp4jAnCNRpPcCAwEAAQIgQNriSQK4',
+    'EFwczDhMZp2dvbcz7OUUyt36z3S4usFPHSECEQD/41K7SujrstBfoCPzwC1xAhEA+5kt4BJy',
+    'eKN7LggbF3Dk5wIQN6SL+fQ5H/+7NgARsVBp0QIRANxYRukavs4QvuyNhMx+vrkCEQCbf6j/',
+    'Ig6/HueCK/0Jkmp+',
+    '-----END RSA PRIVATE KEY-----',
+    ''
+  ].join('\n');
+  crypto.createSign('RSA-SHA256').update('test').sign(private);
+}, /SignFinal/);
