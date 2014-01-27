@@ -43,12 +43,12 @@ TEST_IMPL(tcp_bind6_error_addrinuse) {
 
   r = uv_tcp_init(uv_default_loop(), &server1);
   ASSERT(r == 0);
-  r = uv_tcp_bind(&server1, (const struct sockaddr*) &addr);
+  r = uv_tcp_bind(&server1, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   r = uv_tcp_init(uv_default_loop(), &server2);
   ASSERT(r == 0);
-  r = uv_tcp_bind(&server2, (const struct sockaddr*) &addr);
+  r = uv_tcp_bind(&server2, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   r = uv_listen((uv_stream_t*)&server1, 128, NULL);
@@ -77,7 +77,7 @@ TEST_IMPL(tcp_bind6_error_addrnotavail) {
 
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
-  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr);
+  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == UV_EADDRNOTAVAIL);
 
   uv_close((uv_handle_t*)&server, close_cb);
@@ -102,7 +102,7 @@ TEST_IMPL(tcp_bind6_error_fault) {
 
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
-  r = uv_tcp_bind(&server, (const struct sockaddr*) garbage_addr);
+  r = uv_tcp_bind(&server, (const struct sockaddr*) garbage_addr, 0);
   ASSERT(r == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
@@ -128,9 +128,9 @@ TEST_IMPL(tcp_bind6_error_inval) {
 
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
-  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr1);
+  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr1, 0);
   ASSERT(r == 0);
-  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr2);
+  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr2, 0);
   ASSERT(r == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
@@ -153,7 +153,7 @@ TEST_IMPL(tcp_bind6_localhost_ok) {
 
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
-  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr);
+  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();

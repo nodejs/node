@@ -36,7 +36,7 @@ uv_handle_type uv_guess_handle(uv_file file) {
     return UV_UNKNOWN_HANDLE;
   }
 
-  handle = (HANDLE) _get_osfhandle(file);
+  handle = uv__get_osfhandle(file);
 
   switch (GetFileType(handle)) {
     case FILE_TYPE_CHAR:

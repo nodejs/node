@@ -253,8 +253,11 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
   sockaddr_in addr;
   int err = uv_ip4_addr(*ip_address, port, &addr);
-  if (err == 0)
-    err = uv_tcp_bind(&wrap->handle_, reinterpret_cast<const sockaddr*>(&addr));
+  if (err == 0) {
+    err = uv_tcp_bind(&wrap->handle_,
+                      reinterpret_cast<const sockaddr*>(&addr),
+                      0);
+  }
 
   args.GetReturnValue().Set(err);
 }
@@ -270,8 +273,11 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip6_address, port, &addr);
-  if (err == 0)
-    err = uv_tcp_bind(&wrap->handle_, reinterpret_cast<const sockaddr*>(&addr));
+  if (err == 0) {
+    err = uv_tcp_bind(&wrap->handle_,
+                      reinterpret_cast<const sockaddr*>(&addr),
+                      0);
+  }
 
   args.GetReturnValue().Set(err);
 }

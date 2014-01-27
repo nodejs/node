@@ -482,7 +482,7 @@ static int uv__slow_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
 
 
 int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
-  return uv_poll_init_socket(loop, handle, (SOCKET) _get_osfhandle(fd));
+  return uv_poll_init_socket(loop, handle, (SOCKET) uv__get_osfhandle(fd));
 }
 
 

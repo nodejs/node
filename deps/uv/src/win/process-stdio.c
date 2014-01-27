@@ -26,6 +26,7 @@
 
 #include "uv.h"
 #include "internal.h"
+#include "handle-inl.h"
 
 
 /*
@@ -230,7 +231,7 @@ static int uv__duplicate_fd(uv_loop_t* loop, int fd, HANDLE* dup) {
     return ERROR_INVALID_HANDLE;
   }
 
-  handle = (HANDLE) _get_osfhandle(fd);
+  handle = uv__get_osfhandle(fd);
   return uv__duplicate_handle(loop, handle, dup);
 }
 

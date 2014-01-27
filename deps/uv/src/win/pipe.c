@@ -1727,7 +1727,7 @@ static void eof_timer_close_cb(uv_handle_t* handle) {
 
 
 int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
-  HANDLE os_handle = (HANDLE)_get_osfhandle(file);
+  HANDLE os_handle = uv__get_osfhandle(file);
 
   if (os_handle == INVALID_HANDLE_VALUE ||
       uv_set_pipe_handle(pipe->loop, pipe, os_handle, 0) == -1) {

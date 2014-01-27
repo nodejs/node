@@ -34,6 +34,7 @@
 #include "uv.h"
 #include "internal.h"
 #include "req-inl.h"
+#include "handle-inl.h"
 
 
 #define UV_FS_FREE_PATHS         0x0002
@@ -548,9 +549,10 @@ void fs__read(uv_fs_t* req) {
 
   VERIFY_FD(fd, req);
 
-  handle = (HANDLE) _get_osfhandle(fd);
+  handle = uv__get_osfhandle(fd);
+  
   if (handle == INVALID_HANDLE_VALUE) {
-    SET_REQ_RESULT(req, -1);
+    SET_REQ_WIN32_ERROR(req, ERROR_INVALID_HANDLE);
     return;
   }
 
@@ -595,9 +597,9 @@ void fs__write(uv_fs_t* req) {
 
   VERIFY_FD(fd, req);
 
-  handle = (HANDLE) _get_osfhandle(fd);
+  handle = uv__get_osfhandle(fd);
   if (handle == INVALID_HANDLE_VALUE) {
-    SET_REQ_RESULT(req, -1);
+    SET_REQ_WIN32_ERROR(req, ERROR_INVALID_HANDLE);
     return;
   }
 
@@ -1004,7 +1006,7 @@ static void fs__fstat(uv_fs_t* req) {
 
   VERIFY_FD(fd, req);
 
-  handle = (HANDLE) _get_osfhandle(fd);
+  handle = uv__get_osfhandle(fd);
 
   if (handle == INVALID_HANDLE_VALUE) {
     SET_REQ_WIN32_ERROR(req, ERROR_INVALID_HANDLE);
@@ -1037,7 +1039,7 @@ INLINE static void fs__sync_impl(uv_fs_t* req) {
 
   VERIFY_FD(fd, req);
 
-  result = FlushFileBuffers((HANDLE) _get_osfhandle(fd)) ? 0 : -1;
+  result = FlushFileBuffers(uv__get_osfhandle(fd)) ? 0 : -1;
   if (result == -1) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
   } else {
@@ -1065,7 +1067,7 @@ static void fs__ftruncate(uv_fs_t* req) {
 
   VERIFY_FD(fd, req);
 
-  handle = (HANDLE)_get_osfhandle(fd);
+  handle = uv__get_osfhandle(fd);
 
   eof_info.EndOfFile.QuadPart = req->offset;
 
@@ -1145,7 +1147,7 @@ static void fs__fchmod(uv_fs_t* req) {
 
   VERIFY_FD(fd, req);
 
-  handle = (HANDLE) _get_osfhandle(fd);
+  handle = uv__get_osfhandle(fd);
 
   nt_status = pNtQueryInformationFile(handle,
                                       &io_status,
@@ -1226,7 +1228,7 @@ static void fs__futime(uv_fs_t* req) {
   HANDLE handle;
   VERIFY_FD(fd, req);
 
-  handle = (HANDLE) _get_osfhandle(fd);
+  handle = uv__get_osfhandle(fd);
 
   if (handle == INVALID_HANDLE_VALUE) {
     SET_REQ_WIN32_ERROR(req, ERROR_INVALID_HANDLE);

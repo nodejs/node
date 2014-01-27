@@ -783,6 +783,11 @@ UV_EXTERN int uv_tcp_keepalive(uv_tcp_t* handle,
  */
 UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
 
+enum uv_tcp_flags {
+  /* Used with uv_tcp_bind, when an IPv6 address is used */
+  UV_TCP_IPV6ONLY = 1
+};
+
 /*
  * Bind the handle to an address and port.  `addr` should point to an
  * initialized struct sockaddr_in or struct sockaddr_in6.
@@ -793,8 +798,9 @@ UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
  * That is, a successful call to uv_tcp_bind() does not guarantee that
  * the call to uv_listen() or uv_tcp_connect() will succeed as well.
  */
-UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle, const struct sockaddr* addr);
-
+UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle,
+                          const struct sockaddr* addr,
+                          unsigned int flags);
 UV_EXTERN int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,
     int* namelen);
 UV_EXTERN int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,

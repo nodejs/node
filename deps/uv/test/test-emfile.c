@@ -49,7 +49,7 @@ TEST_IMPL(emfile) {
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   ASSERT(0 == uv_tcp_init(loop, &server_handle));
   ASSERT(0 == uv_tcp_init(loop, &client_handle));
-  ASSERT(0 == uv_tcp_bind(&server_handle, (const struct sockaddr*) &addr));
+  ASSERT(0 == uv_tcp_bind(&server_handle, (const struct sockaddr*) &addr, 0));
   ASSERT(0 == uv_listen((uv_stream_t*) &server_handle, 8, connection_cb));
 
   /* Lower the file descriptor limit and use up all fds save one. */

@@ -53,7 +53,7 @@ static void start_server(void) {
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
 
-  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr);
+  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   r = uv_listen((uv_stream_t*)&server, 128, connection_cb);

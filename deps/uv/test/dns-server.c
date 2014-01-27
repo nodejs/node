@@ -311,7 +311,7 @@ static int dns_start(int port) {
     return 1;
   }
 
-  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr);
+  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr, 0);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Bind error\n");

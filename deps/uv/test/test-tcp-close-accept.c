@@ -156,7 +156,7 @@ TEST_IMPL(tcp_close_accept) {
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   ASSERT(0 == uv_tcp_init(loop, &tcp_server));
-  ASSERT(0 == uv_tcp_bind(&tcp_server, (const struct sockaddr*) &addr));
+  ASSERT(0 == uv_tcp_bind(&tcp_server, (const struct sockaddr*) &addr, 0));
   ASSERT(0 == uv_listen((uv_stream_t*) &tcp_server,
                         ARRAY_SIZE(tcp_outgoing),
                         connection_cb));

@@ -155,7 +155,7 @@ static void do_bind(uv_getaddrinfo_t *req, int status, struct addrinfo *addrs) {
     CHECK(0 == uv_tcp_init(loop, &sx->tcp_handle));
 
     what = "uv_tcp_bind";
-    err = uv_tcp_bind(&sx->tcp_handle, &s.addr);
+    err = uv_tcp_bind(&sx->tcp_handle, &s.addr, 0);
     if (err == 0) {
       what = "uv_listen";
       err = uv_listen((uv_stream_t *) &sx->tcp_handle, 128, on_connection);

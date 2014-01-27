@@ -1,4 +1,45 @@
-2013.12.32, Version 0.11.17 (Unstable)
+2014.01.23, Version 0.11.18 (Unstable)
+
+Changes since version 0.11.17:
+
+* osx: Fix a possible segfault in uv__io_poll (Alex Crichton)
+
+* windows: improved handling of invalid FDs (Alexis Campailla)
+
+* doc: adding ARCHS flag to OS X build command (Nathan Sweet)
+
+* tcp: reveal bind-time errors before listen (Alexis Campailla)
+
+* tcp: uv_tcp_dualstack() (Fedor Indutny)
+
+* linux: relax assumption on /proc/stat parsing (Luca Bruno)
+
+* openbsd: fix obvious bug in uv_cpu_info (Fedor Indutny)
+
+* process: close stdio after dup2'ing it (Fedor Indutny)
+
+* linux: move sscanf() out of the assert() (Trevor Norris)
+
+
+2014.01.23, Version 0.10.23 (Stable)
+
+Changes since version 0.10.22:
+
+* linux: relax assumption on /proc/stat parsing (Luca Bruno)
+
+* openbsd: fix obvious bug in uv_cpu_info (Fedor Indutny)
+
+* process: close stdio after dup2'ing it (Fedor Indutny)
+
+
+2014.01.08, Version 0.10.22 (Stable), f526c90eeff271d9323a9107b9a64a4671fd3103
+
+Changes since version 0.10.21:
+
+* windows: avoid assertion failure when pipe server is closed (Bert Belder)
+
+
+2013.12.32, Version 0.11.17 (Unstable), 589c224d4c2e79fec65db01d361948f1e4976858
 
 Changes since version 0.11.16:
 

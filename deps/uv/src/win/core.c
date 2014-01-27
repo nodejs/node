@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <crtdbg.h>
 
 #include "uv.h"
 #include "internal.h"
@@ -39,6 +40,32 @@ static uv_loop_t uv_default_loop_;
 /* uv_once intialization guards */
 static uv_once_t uv_init_guard_ = UV_ONCE_INIT;
 static uv_once_t uv_default_loop_init_guard_ = UV_ONCE_INIT;
+
+
+#ifdef _DEBUG
+/* Our crt debug report handler allows us to temporarily disable asserts */
+/* just for the current thread. */
+
+__declspec( thread ) int uv__crt_assert_enabled = TRUE;
+
+static int uv__crt_dbg_report_handler(int report_type, char *message, int *ret_val) {
+  if (uv__crt_assert_enabled || report_type != _CRT_ASSERT)
+    return FALSE;
+  
+  if (ret_val) {
+    /* Set ret_val to 0 to continue with normal execution. */
+    /* Set ret_val to 1 to trigger a breakpoint. */
+
+    if(IsDebuggerPresent())     
+      *ret_val = 1;  
+    else
+      *ret_val = 0;  
+  }
+
+  /* Don't call _CrtDbgReport. */
+  return TRUE;
+}
+#endif
 
 
 static void uv__crt_invalid_parameter_handler(const wchar_t* expression,
@@ -57,6 +84,13 @@ static void uv_init(void) {
   /* passed. The main issue is that invalid FDs will trigger this behavior. */
 #if !defined(__MINGW32__) || __MSVCRT_VERSION__ >= 0x800
   _set_invalid_parameter_handler(uv__crt_invalid_parameter_handler);
+#endif
+
+  /* We also need to setup our debug report handler because some CRT */
+  /* functions (eg _get_osfhandle) raise an assert when called with invalid */
+  /* FDs even though they return the proper error code in the release build. */
+#ifdef _DEBUG
+  _CrtSetReportHook(uv__crt_dbg_report_handler);
 #endif
 
   /* Fetch winapi function pointers. This must be done first because other */

@@ -35,6 +35,25 @@
 # define INLINE inline
 #endif
 
+
+#ifdef _DEBUG
+extern __declspec( thread ) int uv__crt_assert_enabled;
+
+#define UV_BEGIN_DISABLE_CRT_ASSERT()                           \
+  {                                                             \
+    int uv__saved_crt_assert_enabled = uv__crt_assert_enabled;  \
+    uv__crt_assert_enabled = FALSE;
+  
+
+#define UV_END_DISABLE_CRT_ASSERT()                             \
+    uv__crt_assert_enabled = uv__saved_crt_assert_enabled;      \
+  }
+
+#else
+#define UV_BEGIN_DISABLE_CRT_ASSERT()
+#define UV_END_DISABLE_CRT_ASSERT()
+#endif
+
 /*
  * Handles
  * (also see handle-inl.h)

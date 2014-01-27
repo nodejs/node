@@ -379,7 +379,7 @@ HELPER_IMPL(tcp_pump_server) {
   server = (uv_stream_t*)&tcpServer;
   r = uv_tcp_init(loop, &tcpServer);
   ASSERT(r == 0);
-  r = uv_tcp_bind(&tcpServer, (const struct sockaddr*) &listen_addr);
+  r = uv_tcp_bind(&tcpServer, (const struct sockaddr*) &listen_addr, 0);
   ASSERT(r == 0);
   r = uv_listen((uv_stream_t*)&tcpServer, MAX_WRITE_HANDLES, connection_cb);
   ASSERT(r == 0);

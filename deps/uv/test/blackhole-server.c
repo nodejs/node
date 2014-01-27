@@ -108,7 +108,7 @@ HELPER_IMPL(tcp4_blackhole_server) {
   r = uv_tcp_init(loop, &tcp_server);
   ASSERT(r == 0);
 
-  r = uv_tcp_bind(&tcp_server, (const struct sockaddr*) &addr);
+  r = uv_tcp_bind(&tcp_server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   r = uv_listen((uv_stream_t*)&tcp_server, 128, connection_cb);

@@ -61,7 +61,8 @@ enum {
 
 int uv__tcp_bind(uv_tcp_t* tcp,
                  const struct sockaddr* addr,
-                 unsigned int addrlen);
+                 unsigned int addrlen,
+                 unsigned int flags);
 
 int uv__tcp_connect(uv_connect_t* req,
                    uv_tcp_t* handle,
