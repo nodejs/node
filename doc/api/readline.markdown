@@ -281,3 +281,23 @@ line interface:
       process.exit(0);
     });
 
+## readline.cursorTo(stream, x, y)
+
+Move cursor to the specified position in a given TTY stream.
+
+## readline.moveCursor(stream, dx, dy)
+
+Move cursor relative to it's current position in a given TTY stream.
+
+## readline.clearLine(stream, dir)
+
+Clears current line of given TTY stream in a specified direction.
+`dir` should have one of following values:
+
+* `-1` - to the left from cursor
+* `1` - to the right from cursor
+* `0` - the entire line
+
+## readline.clearScreenDown(stream)
+
+Clears the screen from the current position of the cursor down.
