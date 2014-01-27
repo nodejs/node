@@ -49,29 +49,29 @@ inline v8::Local<TypeName> PersistentToLocal(
 
 // Call with valid HandleScope and while inside Context scope.
 v8::Handle<v8::Value> MakeCallback(Environment* env,
-                                   v8::Handle<v8::Object> object,
+                                   v8::Handle<v8::Object> recv,
                                    const char* method,
                                    int argc = 0,
                                    v8::Handle<v8::Value>* argv = NULL);
 
 // Call with valid HandleScope and while inside Context scope.
 v8::Handle<v8::Value> MakeCallback(Environment* env,
-                                   const v8::Handle<v8::Object> object,
+                                   v8::Handle<v8::Object> recv,
                                    uint32_t index,
                                    int argc = 0,
                                    v8::Handle<v8::Value>* argv = NULL);
 
 // Call with valid HandleScope and while inside Context scope.
 v8::Handle<v8::Value> MakeCallback(Environment* env,
-                                   const v8::Handle<v8::Object> object,
-                                   const v8::Handle<v8::String> symbol,
+                                   v8::Handle<v8::Object> recv,
+                                   v8::Handle<v8::String> symbol,
                                    int argc = 0,
                                    v8::Handle<v8::Value>* argv = NULL);
 
 // Call with valid HandleScope and while inside Context scope.
 v8::Handle<v8::Value> MakeCallback(Environment* env,
-                                   const v8::Handle<v8::Object> object,
-                                   const v8::Handle<v8::Function> callback,
+                                   v8::Handle<v8::Value> recv,
+                                   v8::Handle<v8::Function> callback,
                                    int argc = 0,
                                    v8::Handle<v8::Value>* argv = NULL);
 
