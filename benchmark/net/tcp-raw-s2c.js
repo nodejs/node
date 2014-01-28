@@ -68,7 +68,7 @@ function server() {
       write();
 
     function write() {
-      var writeReq = { oncomplete: afterWrite };
+      var writeReq = { async: false, oncomplete: afterWrite };
       var err;
       switch (type) {
         case 'buf':
@@ -82,8 +82,13 @@ function server() {
           break;
       }
 
-      if (err)
+      if (err) {
         fail(err, 'write');
+      } else if (!writeReq.async) {
+        process.nextTick(function() {
+          afterWrite(null, clientHandle, writeReq);
+        });
+      }
     }
 
     function afterWrite(err, handle, req) {

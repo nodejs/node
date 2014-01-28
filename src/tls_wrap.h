@@ -51,6 +51,7 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
                          v8::Handle<v8::Context> context);
 
   const char* Error();
+  int TryWrite(uv_buf_t** bufs, size_t* count);
   int DoWrite(WriteWrap* w,
               uv_buf_t* bufs,
               size_t count,

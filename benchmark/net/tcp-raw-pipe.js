@@ -51,7 +51,7 @@ function server() {
       if (nread < 0)
         fail(nread, 'read');
 
-      var writeReq = {};
+      var writeReq = { async: false };
       err = clientHandle.writeBuffer(writeReq, buffer);
 
       if (err)

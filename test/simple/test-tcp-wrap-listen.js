@@ -55,7 +55,7 @@ server.onconnection = function(err, client) {
 
       assert.equal(0, client.writeQueueSize);
 
-      var req = {};
+      var req = { async: false };
       var err = client.writeBuffer(req, buffer);
       assert.equal(err, 0);
       client.pendingWrites.push(req);
@@ -64,7 +64,12 @@ server.onconnection = function(err, client) {
       // 11 bytes should flush
       assert.equal(0, client.writeQueueSize);
 
-      req.oncomplete = function(status, client_, req_) {
+      if (req.async && client.writeQueueSize != 0)
+        req.oncomplete = done;
+      else
+        process.nextTick(done.bind(null, 0, client, req));
+
+      function done(status, client_, req_) {
         assert.equal(req, client.pendingWrites.shift());
 
         // Check parameters.

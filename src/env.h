@@ -53,6 +53,7 @@ namespace node {
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
   V(address_string, "address")                                                \
   V(atime_string, "atime")                                                    \
+  V(async, "async")                                                           \
   V(async_queue_string, "_asyncQueue")                                        \
   V(birthtime_string, "birthtime")                                            \
   V(blksize_string, "blksize")                                                \
