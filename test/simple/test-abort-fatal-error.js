@@ -41,7 +41,7 @@ exec(cmdline, function(err, stdout, stderr) {
     return;
   }
 
-  if (err.code !== 134 || err.signal !== 'SIGABRT') {
+  if (err.code !== 134 && err.signal !== 'SIGABRT') {
     console.log(stdout);
     console.log(stderr);
     console.log(err);
