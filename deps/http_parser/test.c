@@ -2938,7 +2938,7 @@ test_header_content_length_overflow_error (void)
   "HTTP/1.1 200 OK\r\n"                                                       \
   "Content-Length: " #size "\r\n"                                             \
   "\r\n"
-  const char a[] = X(18446744073709551614); /* 2^64-2 */
+  const char a[] = X(1844674407370955160);  /* 2^64 / 10 - 1 */
   const char b[] = X(18446744073709551615); /* 2^64-1 */
   const char c[] = X(18446744073709551616); /* 2^64   */
 #undef X
@@ -2956,7 +2956,7 @@ test_chunk_content_length_overflow_error (void)
     "\r\n"                                                                    \
     #size "\r\n"                                                              \
     "..."
-  const char a[] = X(FFFFFFFFFFFFFFFE);  /* 2^64-2 */
+  const char a[] = X(FFFFFFFFFFFFFFE);   /* 2^64 / 16 - 1 */
   const char b[] = X(FFFFFFFFFFFFFFFF);  /* 2^64-1 */
   const char c[] = X(10000000000000000); /* 2^64   */
 #undef X

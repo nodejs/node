@@ -1509,8 +1509,8 @@ size_t http_parser_execute (http_parser *parser,
             t *= 10;
             t += ch - '0';
 
-            /* Overflow? */
-            if (t < parser->content_length || t == ULLONG_MAX) {
+            /* Overflow? Test against a conservative limit for simplicity. */
+            if ((ULLONG_MAX - 10) / 10 < parser->content_length) {
               SET_ERRNO(HPE_INVALID_CONTENT_LENGTH);
               goto error;
             }
@@ -1782,8 +1782,8 @@ size_t http_parser_execute (http_parser *parser,
         t *= 16;
         t += unhex_val;
 
-        /* Overflow? */
-        if (t < parser->content_length || t == ULLONG_MAX) {
+        /* Overflow? Test against a conservative limit for simplicity. */
+        if ((ULLONG_MAX - 16) / 16 < parser->content_length) {
           SET_ERRNO(HPE_INVALID_CONTENT_LENGTH);
           goto error;
         }

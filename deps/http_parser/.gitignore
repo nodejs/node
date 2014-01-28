@@ -12,3 +12,16 @@ parsertrace_g
 *.Makefile
 *.so.*
 *.a
+
+
+# Visual Studio uglies
+*.suo
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.opensdf
+*.ncrunchsolution*
+*.sdf
+*.vsp
+*.psess
