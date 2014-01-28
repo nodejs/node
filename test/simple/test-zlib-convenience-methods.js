@@ -58,8 +58,22 @@ var opts = {
     });
   });
 
+  var result = zlib[method[0]](expect, opts);
+  result = zlib[method[1]](result, opts);
+  assert.equal(result, expect,
+    'Should get original string after ' +
+    method[0] + '/' + method[1] + ' with options.');
+  hadRun++;
+
+  result = zlib[method[0]](expect);
+  result = zlib[method[1]](result);
+  assert.equal(result, expect,
+    'Should get original string after ' +
+    method[0] + '/' + method[1] + ' without options.');
+  hadRun++;
+
 });
 
 process.on('exit', function() {
-  assert.equal(hadRun, 8, 'expect 8 compressions');
+  assert.equal(hadRun, 16, 'expect 16 compressions');
 });
