@@ -1472,6 +1472,8 @@ class HReturn V8_FINAL : public HTemplateControlInstruction<0, 3> {
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P1(HReturn, HValue*);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    // TODO(titzer): require an Int32 input for faster returns.
+    if (index == 2) return Representation::Smi();
     return Representation::Tagged();
   }
 

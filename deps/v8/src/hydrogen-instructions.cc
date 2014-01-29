@@ -1371,7 +1371,6 @@ HValue* HUnaryMathOperation::Canonicalize() {
 
   if (op() == kMathFloor) {
     HValue* val = value();
-    if (val->IsChange()) val = HChange::cast(val)->value();
     if (val->IsDiv() && (val->UseCount() == 1)) {
       HDiv* hdiv = HDiv::cast(val);
       HValue* left = hdiv->left();
@@ -1410,17 +1409,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
       }
       HMathFloorOfDiv* instr =
           HMathFloorOfDiv::New(block()->zone(), context(), new_left, new_right);
-      // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
       instr->InsertBefore(this);
-      ReplaceAllUsesWith(instr);
-      Kill();
-      // We know the division had no other uses than this HMathFloor. Delete it.
-      // Dead code elimination will deal with |left| and |right| if
-      // appropriate.
-      hdiv->DeleteAndReplaceWith(NULL);
-
-      // Return NULL to remove this instruction from the graph.
-      return NULL;
+      return instr;
     }
   }
   return this;
@@ -2463,6 +2453,7 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     has_smi_value_ = has_int32_value_ && Smi::IsValid(int32_value_);
     double_value_ = n;
     has_double_value_ = true;
+    // TODO(titzer): if this heap number is new space, tenure a new one.
   } else {
     is_internalized_string_ = handle->IsInternalizedString();
   }
@@ -2660,6 +2651,9 @@ void HConstant::PrintDataTo(StringStream* stream) {
             external_reference_value_.address()));
   } else {
     handle(Isolate::Current())->ShortPrint(stream);
+  }
+  if (!is_not_in_new_space_) {
+    stream->Add("[new space] ");
   }
 }
 
