@@ -1,3 +1,56 @@
+2014.01.29, Version 0.11.11 (Unstable)
+
+* v8: Upgrade to 3.22.24.19
+
+* http_parser: Upgrade to 2.2.1
+
+* openssl: Upgrade to 1.0.1f
+
+* uv: Upgrade to 0.11.18
+
+* async-listener: revamp of subsystem (Trevor Norris)
+
+* node: do not ever close stdio (Fedor Indutny)
+
+* http: use writev on chunked encoding (Trevor Norris)
+
+* async_wrap/timers: remove Add/RemoveAsyncListener (Trevor Norris)
+
+* child_process: better error reporting for exec (Fedor Indutny)
+
+* crypto: add newline to cert and key if not present (Fedor Indutny)
+
+* crypto: clear error in GetPeerCertificate (Fedor Indutny)
+
+* crypto: honor default ciphers in client mode (Jacob Hoffman-Andrews)
+
+* crypto: introduce .setEngine(engine, [flags]) (Fedor Indutny)
+
+* crypto: support custom pbkdf2 digest methods (Ben Noordhuis)
+
+* domain: fix off-by-one in Domain.exit() (Ryan Graham)
+
+* http: concatenate duplicate headers by default (Alex Kocharin)
+
+* http: do not emit EOF non-readable socket (Fedor Indutny)
+
+* node: fix argument parsing with -p arg (Alexis Campailla)
+
+* path: improve POSIX path.join() performance (Jo Liss)
+
+* tls: emit `clientError` on early socket close (Fedor Indutny)
+
+* tls: introduce `.setMaxSendFragment(size)` (Fedor Indutny)
+
+* tls: make cert/pfx optional in tls.createServer() (Ben Noordhuis)
+
+* tls: process accumulated input (Fedor Indutny)
+
+* tls: show human-readable error messages (Ben Noordhuis)
+
+* util: handle escaped forward slashes correctly (Tom Gallacher)
+
+
 2013.12.31, Version 0.11.10 (Unstable), 66931791f06207d1cdfea5ec1529edf3c94026d3
 
 * http_parser: update to 2.2
