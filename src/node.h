@@ -122,6 +122,17 @@ NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
 # endif
 #endif
 
+#ifdef _WIN32
+// TODO(tjfontaine) consider changing the usage of ssize_t to ptrdiff_t
+#if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
+typedef intptr_t ssize_t;
+# define _SSIZE_T_
+# define _SSIZE_T_DEFINED
+#endif
+#else  // !_WIN32
+# include <sys/types.h>  // size_t, ssize_t
+#endif  // _WIN32
+
 
 namespace node {
 
@@ -183,17 +194,6 @@ void DisplayExceptionLine(v8::Handle<v8::Message> message);
 
 NODE_EXTERN v8::Local<v8::Value> Encode(const void *buf, size_t len,
                                         enum encoding encoding = BINARY);
-
-#ifdef _WIN32
-// TODO(tjfontaine) consider changing the usage of ssize_t to ptrdiff_t
-#if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
-typedef intptr_t ssize_t;
-# define _SSIZE_T_
-# define _SSIZE_T_DEFINED
-#endif
-#else  // !_WIN32
-# include <sys/types.h>  // size_t, ssize_t
-#endif  // _WIN32
 
 // Returns -1 if the handle was not valid for decoding
 NODE_EXTERN ssize_t DecodeBytes(v8::Handle<v8::Value>,
