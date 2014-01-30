@@ -71,6 +71,8 @@ int signbit(double x);
 
 int strncasecmp(const char* s1, const char* s2, int n);
 
+// Visual C++ 2013 and higher implement this function.
+#if (_MSC_VER < 1800)
 inline int lrint(double flt) {
   int intgr;
 #if defined(V8_TARGET_ARCH_IA32)
@@ -88,6 +90,7 @@ inline int lrint(double flt) {
   return intgr;
 }
 
+#endif  // _MSC_VER < 1800
 
 #endif  // _MSC_VER
 

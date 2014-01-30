@@ -44,8 +44,8 @@
 
 namespace v8 {
 
-#ifdef _MSC_VER
-// Usually defined in math.h, but not in MSVC.
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
+// Usually defined in math.h, but not in MSVC until VS2013+.
 // Abstracted to work
 int isfinite(double value);
 #endif
