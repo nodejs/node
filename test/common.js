@@ -139,6 +139,15 @@ if (global.ArrayBuffer) {
   knownGlobals.push(DataView);
 }
 
+// Harmony features.
+if (global.Proxy) {
+  knownGlobals.push(Proxy);
+}
+
+if (global.Symbol) {
+  knownGlobals.push(Symbol);
+}
+
 function leakedGlobals() {
   var leaked = [];
 
