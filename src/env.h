@@ -120,6 +120,7 @@ namespace node {
   V(should_keep_alive_string, "shouldKeepAlive")                              \
   V(size_string, "size")                                                      \
   V(smalloc_p_string, "_smalloc_p")                                           \
+  V(sni_context_err_string, "Invalid SNI context")                            \
   V(sni_context_string, "sni_context")                                        \
   V(status_code_string, "statusCode")                                         \
   V(status_message_string, "statusMessage")                                   \
