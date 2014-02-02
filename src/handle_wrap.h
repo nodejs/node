@@ -36,8 +36,8 @@ namespace node {
 // - Do not throw from handle methods. Set errno.
 //
 // - MakeCallback may only be made directly off the event loop.
-//   That is there can be no JavaScript stack frames underneith it.
-//   (Is there anyway to assert that?)
+//   That is there can be no JavaScript stack frames underneath it.
+//   (Is there any way to assert that?)
 //
 // - No use of v8::WeakReferenceCallback. The close callback signifies that
 //   we're done with a handle - external resources can be freed.
