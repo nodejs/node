@@ -58,15 +58,15 @@ var opts = {
     });
   });
 
-  var result = zlib[method[0]](expect, opts);
-  result = zlib[method[1]](result, opts);
+  var result = zlib[method[0] + 'Sync'](expect, opts);
+  result = zlib[method[1] + 'Sync'](result, opts);
   assert.equal(result, expect,
     'Should get original string after ' +
     method[0] + '/' + method[1] + ' with options.');
   hadRun++;
 
-  result = zlib[method[0]](expect);
-  result = zlib[method[1]](result);
+  result = zlib[method[0] + 'Sync'](expect);
+  result = zlib[method[1] + 'Sync'](result);
   assert.equal(result, expect,
     'Should get original string after ' +
     method[0] + '/' + method[1] + ' without options.');

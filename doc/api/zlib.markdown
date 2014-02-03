@@ -195,36 +195,44 @@ the header.
 <!--type=misc-->
 
 All of these take a string or buffer as the first argument, an optional second
-argument to supply options to the zlib classes and an optional callback. If a
-callback is supplied, they will call it asynchronously with
-`callback(error, result)`, otherwise they will return the result or throw the
-error synchronously.
+argument to supply options to the zlib classes and will call the supplied
+callback with `callback(error, result)`.
 
-## zlib.deflate(buf, [options], [callback])
+Every method has a `*Sync` counterpart, which accept the same arguments, but
+without a callback.
+
+## zlib.deflate(buf, [options], callback)
+## zlib.deflateSync(buf, [options])
 
 Compress a string with Deflate.
 
-## zlib.deflateRaw(buf, [options], [callback])
+## zlib.deflateRaw(buf, [options], callback)
+## zlib.deflateRawSync(buf, [options])
 
 Compress a string with DeflateRaw.
 
-## zlib.gzip(buf, [options], [callback])
+## zlib.gzip(buf, [options], callback)
+## zlib.gzipSync(buf, [options])
 
 Compress a string with Gzip.
 
-## zlib.gunzip(buf, [options], [callback])
+## zlib.gunzip(buf, [options], callback)
+## zlib.gunzipSync(buf, [options])
 
 Decompress a raw Buffer with Gunzip.
 
-## zlib.inflate(buf, [options], [callback])
+## zlib.inflate(buf, [options], callback)
+## zlib.inflateSync(buf, [options])
 
 Decompress a raw Buffer with Inflate.
 
-## zlib.inflateRaw(buf, [options], [callback])
+## zlib.inflateRaw(buf, [options], callback)
+## zlib.inflateRawSync(buf, [options])
 
 Decompress a raw Buffer with InflateRaw.
 
-## zlib.unzip(buf, [options], [callback])
+## zlib.unzip(buf, [options], callback)
+## zlib.unzipSync(buf, [options])
 
 Decompress a raw Buffer with Unzip.
 
