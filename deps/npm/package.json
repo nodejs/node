@@ -1,5 +1,5 @@
 {
-  "version": "1.3.25",
+  "version": "1.3.26",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -57,7 +57,7 @@
     "chownr": "0",
     "npmlog": "0.0.6",
     "ansi": "~0.2.1",
-    "npm-registry-client": "~0.3.3",
+    "npm-registry-client": "~0.3.5",
     "read-package-json": "~1.1.6",
     "read-installed": "~0.2.2",
     "glob": "~3.2.6",

@@ -25,7 +25,7 @@ function bugs (args, cb) {
     else if (er) return cb (er)
     if (!s.isDirectory()) return callRegistry(n, cb)
     readJson(path.resolve(n, "package.json"), function(er, d) {
-      if (er) return cb(err)
+      if (er) return cb(er)
       getUrlAndOpen(d, cb)
     })
   })
