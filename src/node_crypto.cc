@@ -856,6 +856,7 @@ void SSLWrap<Base>::AddMethods(Handle<FunctionTemplate> t) {
   NODE_SET_PROTOTYPE_METHOD(t, "endParser", EndParser);
   NODE_SET_PROTOTYPE_METHOD(t, "renegotiate", Renegotiate);
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Shutdown);
+  NODE_SET_PROTOTYPE_METHOD(t, "getTLSTicket", GetTLSTicket);
 
 #ifdef SSL_set_max_send_fragment
   NODE_SET_PROTOTYPE_METHOD(t, "setMaxSendFragment", SetMaxSendFragment);
@@ -1129,7 +1130,7 @@ void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
   unsigned char* sbuf = new unsigned char[slen];
   unsigned char* p = sbuf;
   i2d_SSL_SESSION(sess, &p);
-  args.GetReturnValue().Set(Encode(sbuf, slen, BINARY));
+  args.GetReturnValue().Set(Encode(sbuf, slen, BUFFER));
   delete[] sbuf;
 }
 
@@ -1244,6 +1245,25 @@ void SSLWrap<Base>::Shutdown(const FunctionCallbackInfo<Value>& args) {
 
   int rv = SSL_shutdown(w->ssl_);
   args.GetReturnValue().Set(rv);
+}
+
+
+template <class Base>
+void SSLWrap<Base>::GetTLSTicket(const FunctionCallbackInfo<Value>& args) {
+  HandleScope scope(args.GetIsolate());
+
+  Base* w = Unwrap<Base>(args.This());
+  Environment* env = w->ssl_env();
+
+  SSL_SESSION* sess = SSL_get_session(w->ssl_);
+  if (sess == NULL || sess->tlsext_tick == NULL)
+    return;
+
+  Local<Object> buf = Buffer::New(env,
+                                  reinterpret_cast<char*>(sess->tlsext_tick),
+                                  sess->tlsext_ticklen);
+
+  args.GetReturnValue().Set(buf);
 }
 
 
