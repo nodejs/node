@@ -792,7 +792,7 @@ Example usage for capturing errors:
         fs.writeSync(1, 'uid: ' + storage.uid + ' is about to run\n');
       },
       after: function onAfter(context, storage) {
-        fs.writeSync(1, 'uid: ' + storage.uid + ' is about to run\n');
+        fs.writeSync(1, 'uid: ' + storage.uid + ' ran\n');
       },
       error: function onError(storage, err) {
         // Handle known errors
