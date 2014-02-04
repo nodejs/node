@@ -64,7 +64,7 @@ server.onconnection = function(err, client) {
       // 11 bytes should flush
       assert.equal(0, client.writeQueueSize);
 
-      if (req.async && client.writeQueueSize != 0)
+      if (req.async)
         req.oncomplete = done;
       else
         process.nextTick(done.bind(null, 0, client, req));
