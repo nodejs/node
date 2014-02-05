@@ -1320,7 +1320,7 @@ Handle<Value> Connection::EncIn(const Arguments& args) {
 
   size_t off = args[1]->Int32Value();
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer_length) {
+  if (!Buffer::IsWithinBounds(off, len, buffer_length)) {
     return ThrowException(Exception::Error(
           String::New("off + len > buffer.length")));
   }
@@ -1361,7 +1361,7 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
 
   size_t off = args[1]->Int32Value();
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer_length) {
+  if (!Buffer::IsWithinBounds(off, len, buffer_length)) {
     return ThrowException(Exception::Error(
           String::New("off + len > buffer.length")));
   }
@@ -1437,7 +1437,7 @@ Handle<Value> Connection::EncOut(const Arguments& args) {
 
   size_t off = args[1]->Int32Value();
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer_length) {
+  if (!Buffer::IsWithinBounds(off, len, buffer_length)) {
     return ThrowException(Exception::Error(
           String::New("off + len > buffer.length")));
   }
@@ -1471,7 +1471,7 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
 
   size_t off = args[1]->Int32Value();
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer_length) {
+  if (!Buffer::IsWithinBounds(off, len, buffer_length)) {
     return ThrowException(Exception::Error(
           String::New("off + len > buffer.length")));
   }

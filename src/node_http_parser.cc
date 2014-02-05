@@ -410,7 +410,7 @@ public:
     }
 
     size_t len = args[2]->Int32Value();
-    if (off+len > buffer_len) {
+    if (!Buffer::IsWithinBounds(off, len, buffer_len)) {
       return ThrowException(Exception::Error(
             String::New("off + len > buffer.length")));
     }

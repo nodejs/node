@@ -733,7 +733,7 @@ static Handle<Value> Write(const Arguments& args) {
   }
 
   ssize_t len = args[3]->Int32Value();
-  if (off + len > buffer_length) {
+  if (!Buffer::IsWithinBounds(off, len, buffer_length)) {
     return ThrowException(Exception::Error(
           String::New("off + len > buffer.length")));
   }
@@ -796,7 +796,7 @@ static Handle<Value> Read(const Arguments& args) {
   }
 
   len = args[3]->Int32Value();
-  if (off + len > buffer_length) {
+  if (!Buffer::IsWithinBounds(off, len, buffer_length)) {
     return ThrowException(Exception::Error(
           String::New("Length extends beyond buffer")));
   }

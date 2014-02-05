@@ -93,6 +93,20 @@ class NODE_EXTERN Buffer: public ObjectWrap {
     return Buffer::Length(b->handle_);
   }
 
+  // This is verbose to be explicit with inline commenting
+  static inline bool IsWithinBounds(size_t off, size_t len, size_t max) {
+    // Asking to seek too far into the buffer
+    // check to avoid wrapping in subsequent subtraction
+    if (off > max)
+      return false;
+
+    // Asking for more than is left over in the buffer
+    if (max - off < len)
+      return false;
+
+    // Otherwise we're in bounds
+    return true;
+  }
 
   ~Buffer();
 

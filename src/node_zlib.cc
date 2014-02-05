@@ -155,7 +155,7 @@ class ZCtx : public ObjectWrap {
       in_off = args[2]->Uint32Value();
       in_len = args[3]->Uint32Value();
 
-      assert(in_off + in_len <= Buffer::Length(in_buf));
+      assert(Buffer::IsWithinBounds(in_off, in_len, Buffer::Length(in_buf)));
       in = reinterpret_cast<Bytef *>(Buffer::Data(in_buf) + in_off);
     }
 
@@ -163,7 +163,7 @@ class ZCtx : public ObjectWrap {
     Local<Object> out_buf = args[4]->ToObject();
     out_off = args[5]->Uint32Value();
     out_len = args[6]->Uint32Value();
-    assert(out_off + out_len <= Buffer::Length(out_buf));
+    assert(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
     out = reinterpret_cast<Bytef *>(Buffer::Data(out_buf) + out_off);
 
     // build up the work request
