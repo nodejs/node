@@ -1,5 +1,4 @@
 [eval]
-
 [eval]:1
 with(this){__filename}
 ^^^^
@@ -12,7 +11,6 @@ SyntaxError: Strict mode code may not include a with statement
     at node.js:*:*
 42
 42
-
 [eval]:1
 throw new Error("hello")
       ^
@@ -24,7 +22,6 @@ Error: hello
     at evalScript (node.js:*:*)
     at startup (node.js:*:*)
     at node.js:*:*
-
 [eval]:1
 throw new Error("hello")
       ^
@@ -37,7 +34,6 @@ Error: hello
     at startup (node.js:*:*)
     at node.js:*:*
 100
-
 [eval]:1
 var x = 100; y = x;
                ^
@@ -49,12 +45,10 @@ ReferenceError: y is not defined
     at evalScript (node.js:*:*)
     at startup (node.js:*:*)
     at node.js:*:*
-
 [eval]:1
 var ______________________________________________; throw 10
                                                     ^
 10
-
 [eval]:1
 var ______________________________________________; throw 10
                                                     ^

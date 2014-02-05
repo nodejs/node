@@ -92,6 +92,7 @@ namespace node {
   V(ipv6_string, "IPv6")                                                      \
   V(issuer_string, "issuer")                                                  \
   V(mark_sweep_compact_string, "mark-sweep-compact")                          \
+  V(message_string, "message")                                                \
   V(method_string, "method")                                                  \
   V(mode_string, "mode")                                                      \
   V(modulus_string, "modulus")                                                \
@@ -115,6 +116,7 @@ namespace node {
   V(onstop_string, "onstop")                                                  \
   V(path_string, "path")                                                      \
   V(port_string, "port")                                                      \
+  V(processed_string, "processed")                                            \
   V(rdev_string, "rdev")                                                      \
   V(rename_string, "rename")                                                  \
   V(rss_string, "rss")                                                        \
@@ -127,6 +129,7 @@ namespace node {
   V(smalloc_p_string, "_smalloc_p")                                           \
   V(sni_context_err_string, "Invalid SNI context")                            \
   V(sni_context_string, "sni_context")                                        \
+  V(stack_string, "stack")                                                    \
   V(status_code_string, "statusCode")                                         \
   V(status_message_string, "statusMessage")                                   \
   V(subject_string, "subject")                                                \
@@ -302,6 +305,9 @@ class Environment {
   inline bool using_domains() const;
   inline void set_using_domains(bool value);
 
+  inline bool printed_error() const;
+  inline void set_printed_error(bool value);
+
   // Strings are shared across shared contexts. The getters simply proxy to
   // the per-isolate primitive.
 #define V(PropertyName, StringValue)                                          \
@@ -343,6 +349,7 @@ class Environment {
   bool using_smalloc_alloc_cb_;
   bool using_domains_;
   QUEUE gc_tracker_queue_;
+  bool printed_error_;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;

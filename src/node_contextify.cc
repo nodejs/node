@@ -453,7 +453,7 @@ class ContextifyScript : public BaseObject {
 
     if (v8_script.IsEmpty()) {
       if (display_errors) {
-        DisplayExceptionLine(try_catch.Message());
+        AppendExceptionLine(env, try_catch.Exception(), try_catch.Message());
       }
       try_catch.ReThrow();
       return;
@@ -622,7 +622,7 @@ class ContextifyScript : public BaseObject {
     if (result.IsEmpty()) {
       // Error occurred during execution of the script.
       if (display_errors) {
-        DisplayExceptionLine(try_catch.Message());
+        AppendExceptionLine(env, try_catch.Exception(), try_catch.Message());
       }
       try_catch.ReThrow();
       return false;

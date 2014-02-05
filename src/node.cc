@@ -1275,80 +1275,120 @@ ssize_t DecodeWrite(char *buf,
   return StringBytes::Write(buf, buflen, val, encoding, NULL);
 }
 
-void DisplayExceptionLine(Handle<Message> message) {
-  // Prevent re-entry into this function.  For example, if there is
-  // a throw from a program in vm.runInThisContext(code, filename, true),
-  // then we want to show the original failure, not the secondary one.
-  static bool displayed_error = false;
-
-  if (displayed_error)
+void AppendExceptionLine(Environment* env,
+                         Handle<Value> er,
+                         Handle<Message> message) {
+  if (message.IsEmpty())
     return;
-  displayed_error = true;
 
-  uv_tty_reset_mode();
+  HandleScope scope(env->isolate());
+  Local<Object> err_obj;
+  if (!er.IsEmpty() && er->IsObject()) {
+    err_obj = er.As<Object>();
 
-  fprintf(stderr, "\n");
-
-  if (!message.IsEmpty()) {
-    // Print (filename):(line number): (message).
-    String::Utf8Value filename(message->GetScriptResourceName());
-    const char* filename_string = *filename;
-    int linenum = message->GetLineNumber();
-    fprintf(stderr, "%s:%i\n", filename_string, linenum);
-    // Print line of source code.
-    String::Utf8Value sourceline(message->GetSourceLine());
-    const char* sourceline_string = *sourceline;
-
-    // Because of how node modules work, all scripts are wrapped with a
-    // "function (module, exports, __filename, ...) {"
-    // to provide script local variables.
-    //
-    // When reporting errors on the first line of a script, this wrapper
-    // function is leaked to the user. There used to be a hack here to
-    // truncate off the first 62 characters, but it caused numerous other
-    // problems when vm.runIn*Context() methods were used for non-module
-    // code.
-    //
-    // If we ever decide to re-instate such a hack, the following steps
-    // must be taken:
-    //
-    // 1. Pass a flag around to say "this code was wrapped"
-    // 2. Update the stack frame output so that it is also correct.
-    //
-    // It would probably be simpler to add a line rather than add some
-    // number of characters to the first line, since V8 truncates the
-    // sourceline to 78 characters, and we end up not providing very much
-    // useful debugging info to the user if we remove 62 characters.
-
-    int start = message->GetStartColumn();
-    int end = message->GetEndColumn();
-
-    fprintf(stderr, "%s\n", sourceline_string);
-    // Print wavy underline (GetUnderline is deprecated).
-    for (int i = 0; i < start; i++) {
-      fputc((sourceline_string[i] == '\t') ? '\t' : ' ', stderr);
-    }
-    for (int i = start; i < end; i++) {
-      fputc('^', stderr);
-    }
-    fputc('\n', stderr);
+    // Do it only once per message
+    if (!err_obj->GetHiddenValue(env->processed_string()).IsEmpty())
+      return;
+    err_obj->SetHiddenValue(env->processed_string(), True(env->isolate()));
   }
+
+  static char arrow[1024];
+
+  // Print (filename):(line number): (message).
+  String::Utf8Value filename(message->GetScriptResourceName());
+  const char* filename_string = *filename;
+  int linenum = message->GetLineNumber();
+  // Print line of source code.
+  String::Utf8Value sourceline(message->GetSourceLine());
+  const char* sourceline_string = *sourceline;
+
+  // Because of how node modules work, all scripts are wrapped with a
+  // "function (module, exports, __filename, ...) {"
+  // to provide script local variables.
+  //
+  // When reporting errors on the first line of a script, this wrapper
+  // function is leaked to the user. There used to be a hack here to
+  // truncate off the first 62 characters, but it caused numerous other
+  // problems when vm.runIn*Context() methods were used for non-module
+  // code.
+  //
+  // If we ever decide to re-instate such a hack, the following steps
+  // must be taken:
+  //
+  // 1. Pass a flag around to say "this code was wrapped"
+  // 2. Update the stack frame output so that it is also correct.
+  //
+  // It would probably be simpler to add a line rather than add some
+  // number of characters to the first line, since V8 truncates the
+  // sourceline to 78 characters, and we end up not providing very much
+  // useful debugging info to the user if we remove 62 characters.
+
+  int start = message->GetStartColumn();
+  int end = message->GetEndColumn();
+
+  int off = snprintf(arrow,
+                     sizeof(arrow),
+                     "%s:%i\n%s\n",
+                     filename_string,
+                     linenum,
+                     sourceline_string);
+  assert(off >= 0);
+
+  // Print wavy underline (GetUnderline is deprecated).
+  for (int i = 0; i < start; i++) {
+    assert(static_cast<size_t>(off) < sizeof(arrow));
+    arrow[off++] = (sourceline_string[i] == '\t') ? '\t' : ' ';
+  }
+  for (int i = start; i < end; i++) {
+    assert(static_cast<size_t>(off) < sizeof(arrow));
+    arrow[off++] = '^';
+  }
+  assert(static_cast<size_t>(off) < sizeof(arrow) - 1);
+  arrow[off++] = '\n';
+  arrow[off] = '\0';
+
+  Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow);
+  Local<Value> msg;
+  Local<Value> stack;
+
+  // Allocation failed, just print it out
+  if (arrow_str.IsEmpty() || err_obj.IsEmpty() || !err_obj->IsNativeError())
+    goto print;
+
+  msg = err_obj->Get(env->message_string());
+  stack = err_obj->Get(env->stack_string());
+
+  if (msg.IsEmpty() || stack.IsEmpty())
+    goto print;
+
+  err_obj->Set(env->message_string(),
+               String::Concat(arrow_str, msg->ToString()));
+  err_obj->Set(env->stack_string(),
+               String::Concat(arrow_str, stack->ToString()));
+  return;
+
+ print:
+  if (env->printed_error())
+    return;
+  env->set_printed_error(true);
+  uv_tty_reset_mode();
+  fprintf(stderr, "\n%s", arrow);
 }
 
 
-static void ReportException(Handle<Value> er, Handle<Message> message) {
-  HandleScope scope(node_isolate);
+static void ReportException(Environment* env,
+                            Handle<Value> er,
+                            Handle<Message> message) {
+  HandleScope scope(env->isolate());
 
-  DisplayExceptionLine(message);
+  AppendExceptionLine(env, er, message);
 
   Local<Value> trace_value;
 
-  if (er->IsUndefined() || er->IsNull()) {
-    trace_value = Undefined(node_isolate);
-  } else {
-    trace_value =
-        er->ToObject()->Get(FIXED_ONE_BYTE_STRING(node_isolate, "stack"));
-  }
+  if (er->IsUndefined() || er->IsNull())
+    trace_value = Undefined(env->isolate());
+  else
+    trace_value = er->ToObject()->Get(env->stack_string());
 
   String::Utf8Value trace(trace_value);
 
@@ -1364,8 +1404,8 @@ static void ReportException(Handle<Value> er, Handle<Message> message) {
 
     if (er->IsObject()) {
       Local<Object> err_obj = er.As<Object>();
-      message = err_obj->Get(FIXED_ONE_BYTE_STRING(node_isolate, "message"));
-      name = err_obj->Get(FIXED_ONE_BYTE_STRING(node_isolate, "name"));
+      message = err_obj->Get(env->message_string());
+      name = err_obj->Get(FIXED_ONE_BYTE_STRING(env->isolate(), "name"));
     }
 
     if (message.IsEmpty() ||
@@ -1386,14 +1426,16 @@ static void ReportException(Handle<Value> er, Handle<Message> message) {
 }
 
 
-static void ReportException(const TryCatch& try_catch) {
-  ReportException(try_catch.Exception(), try_catch.Message());
+static void ReportException(Environment* env, const TryCatch& try_catch) {
+  ReportException(env, try_catch.Exception(), try_catch.Message());
 }
 
 
 // Executes a str within the current v8 context.
-Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
-  HandleScope scope(node_isolate);
+static Local<Value> ExecuteString(Environment* env,
+                                  Handle<String> source,
+                                  Handle<Value> filename) {
+  HandleScope scope(env->isolate());
   TryCatch try_catch;
 
   // try_catch must be nonverbose to disable FatalException() handler,
@@ -1402,13 +1444,13 @@ Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
 
   Local<v8::Script> script = v8::Script::Compile(source, filename);
   if (script.IsEmpty()) {
-    ReportException(try_catch);
+    ReportException(env, try_catch);
     exit(3);
   }
 
   Local<Value> result = script->Run();
   if (result.IsEmpty()) {
-    ReportException(try_catch);
+    ReportException(env, try_catch);
     exit(4);
   }
 
@@ -2025,7 +2067,7 @@ void FatalException(Handle<Value> error, Handle<Message> message) {
   if (!fatal_exception_function->IsFunction()) {
     // failed before the process._fatalException function was added!
     // this is probably pretty bad.  Nothing to do but report and exit.
-    ReportException(error, message);
+    ReportException(env, error, message);
     exit(6);
   }
 
@@ -2040,12 +2082,12 @@ void FatalException(Handle<Value> error, Handle<Message> message) {
 
   if (fatal_try_catch.HasCaught()) {
     // the fatal exception function threw, so we must exit
-    ReportException(fatal_try_catch);
+    ReportException(env, fatal_try_catch);
     exit(7);
   }
 
   if (false == caught->BooleanValue()) {
-    ReportException(error, message);
+    ReportException(env, error, message);
     exit(1);
   }
 }
@@ -2705,10 +2747,10 @@ void Load(Environment* env) {
   // are not safe to ignore.
   try_catch.SetVerbose(false);
 
-  Local<String> script_name = FIXED_ONE_BYTE_STRING(node_isolate, "node.js");
-  Local<Value> f_value = ExecuteString(MainSource(), script_name);
+  Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(), "node.js");
+  Local<Value> f_value = ExecuteString(env, MainSource(), script_name);
   if (try_catch.HasCaught())  {
-    ReportException(try_catch);
+    ReportException(env, try_catch);
     exit(10);
   }
   assert(f_value->IsFunction());

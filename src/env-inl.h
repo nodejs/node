@@ -224,6 +224,7 @@ inline Environment::Environment(v8::Local<v8::Context> context)
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate())),
       using_smalloc_alloc_cb_(false),
       using_domains_(false),
+      printed_error_(false),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());
@@ -328,6 +329,14 @@ inline bool Environment::using_domains() const {
 
 inline void Environment::set_using_domains(bool value) {
   using_domains_ = value;
+}
+
+inline bool Environment::printed_error() const {
+  return printed_error_;
+}
+
+inline void Environment::set_printed_error(bool value) {
+  printed_error_ = value;
 }
 
 inline Environment* Environment::from_cares_timer_handle(uv_timer_t* handle) {

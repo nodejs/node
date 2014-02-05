@@ -1,5 +1,4 @@
 before
-
 *test*message*throw_in_line_with_tabs.js:32
 	throw ({ foo: 'bar' });
 	^

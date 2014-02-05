@@ -1,5 +1,4 @@
 before
-
 *test*message*throw_non_error.js:31
 throw ({ foo: 'bar' });
 ^

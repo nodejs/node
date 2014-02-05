@@ -155,6 +155,10 @@ inline static void ThrowUVException(int errorno,
   v8::ThrowException(UVException(errorno, syscall, message, path));
 }
 
+void AppendExceptionLine(Environment* env,
+                         v8::Handle<v8::Value> er,
+                         v8::Handle<v8::Message> message);
+
 NO_RETURN void FatalError(const char* location, const char* message);
 
 v8::Local<v8::Object> BuildStatsObject(Environment* env, const uv_stat_t* s);
