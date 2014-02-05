@@ -21,6 +21,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var tracing = require('tracing');
 
 // If there is an uncaughtException listener then the error thrown from
 // "before" will be considered handled, thus calling setImmediate to
@@ -31,7 +32,7 @@ var assert = require('assert');
 var cntr = 0;
 
 
-process.addAsyncListener({
+tracing.addAsyncListener({
   before: function() {
     if (++cntr > 1) {
       // Can't throw since uncaughtException will also catch that.

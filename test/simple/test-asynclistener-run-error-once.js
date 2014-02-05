@@ -22,9 +22,10 @@
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
+var tracing = require('tracing');
 
 var cntr = 0;
-var al = process.addAsyncListener({
+var al = tracing.addAsyncListener({
   error: function(stor, er) {
     cntr++;
     process._rawDebug('Handling error: ' + er.message);
@@ -33,7 +34,7 @@ var al = process.addAsyncListener({
 });
 
 process.on('exit', function(status) {
-  process.removeAsyncListener(al);
+  tracing.removeAsyncListener(al);
 
   assert.equal(status, 0);
   assert.equal(cntr, 1);

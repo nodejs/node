@@ -21,6 +21,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var tracing = require('tracing');
 var set = 0;
 
 var asyncNoHandleError = {
@@ -32,9 +33,9 @@ var asyncNoHandleError = {
   }
 }
 
-var key = process.addAsyncListener(asyncNoHandleError);
+var key = tracing.addAsyncListener(asyncNoHandleError);
 
-process.removeAsyncListener(key);
+tracing.removeAsyncListener(key);
 
 process.nextTick(function() { });
 

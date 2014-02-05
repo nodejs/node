@@ -21,6 +21,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var tracing = require('tracing');
 
 var active = null;
 var cntr = 0;
@@ -49,16 +50,16 @@ var asyncNoHandleError1 = {
 };
 
 var listeners = [
-  process.addAsyncListener(asyncNoHandleError0),
-  process.addAsyncListener(asyncNoHandleError1)
+  tracing.addAsyncListener(asyncNoHandleError0),
+  tracing.addAsyncListener(asyncNoHandleError1)
 ];
 
 process.nextTick(function() {
   throw new Error();
 });
 
-process.removeAsyncListener(listeners[0]);
-process.removeAsyncListener(listeners[1]);
+tracing.removeAsyncListener(listeners[0]);
+tracing.removeAsyncListener(listeners[1]);
 
 process.on('exit', function(code) {
   // If the exit code isn't ok then return early to throw the stack that

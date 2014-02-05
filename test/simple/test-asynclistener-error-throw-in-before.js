@@ -21,6 +21,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var tracing = require('tracing');
 
 var once = 0;
 
@@ -37,7 +38,7 @@ var handlers = {
   }
 }
 
-var key = process.addAsyncListener(handlers);
+var key = tracing.addAsyncListener(handlers);
 
 var uncaughtFired = false;
 process.on('uncaughtException', function(err) {
@@ -49,7 +50,7 @@ process.on('uncaughtException', function(err) {
 
 process.nextTick(function() { });
 
-process.removeAsyncListener(key);
+tracing.removeAsyncListener(key);
 
 process.on('exit', function(code) {
   // If the exit code isn't ok then return early to throw the stack that

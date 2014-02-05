@@ -22,6 +22,7 @@
 var common = require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
+var tracing = require('tracing');
 
 var checkStr = 'WRITTEN ON EXIT';
 
@@ -34,7 +35,7 @@ else
 function runChild() {
   var cntr = 0;
 
-  var key = process.addAsyncListener({
+  var key = tracing.addAsyncListener({
     error: function onError() {
       cntr++;
       throw new Error('onError');

@@ -24,6 +24,7 @@ var assert = require('assert');
 var dns = require('dns');
 var fs = require('fs');
 var net = require('net');
+var tracing = require('tracing');
 
 var errorMsgs = [];
 var caught = 0;
@@ -45,10 +46,10 @@ var callbacksObj = {
   }
 };
 
-var listener = process.addAsyncListener(callbacksObj);
+var listener = tracing.addAsyncListener(callbacksObj);
 
 process.on('exit', function(code) {
-  process.removeAsyncListener(listener);
+  tracing.removeAsyncListener(listener);
 
   if (code > 0)
     return;

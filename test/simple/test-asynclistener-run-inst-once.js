@@ -21,9 +21,10 @@
 
 var common = require('../common');
 var assert = require('assert');
+var tracing = require('tracing');
 
 var cntr = 0;
-var al = process.createAsyncListener({
+var al = tracing.createAsyncListener({
   create: function() { cntr++; },
 });
 
@@ -32,12 +33,12 @@ process.on('exit', function() {
   console.log('ok');
 });
 
-process.addAsyncListener(al);
+tracing.addAsyncListener(al);
 
 process.nextTick(function() {
-  process.addAsyncListener(al);
+  tracing.addAsyncListener(al);
   process.nextTick(function() {
-    process.addAsyncListener(al);
+    tracing.addAsyncListener(al);
     process.nextTick(function() {
       process.nextTick(function() { });
     });

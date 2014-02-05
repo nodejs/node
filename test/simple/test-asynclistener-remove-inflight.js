@@ -21,6 +21,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var tracing = require('tracing');
 
 var set = 0;
 var asyncNoHandleError = {
@@ -32,11 +33,11 @@ var asyncNoHandleError = {
   }
 }
 
-var key = process.addAsyncListener(asyncNoHandleError);
+var key = tracing.addAsyncListener(asyncNoHandleError);
 
 process.nextTick(function() { });
 
-process.removeAsyncListener(key);
+tracing.removeAsyncListener(key);
 
 process.on('exit', function(code) {
   // If the exit code isn't ok then return early to throw the stack that

@@ -21,9 +21,10 @@
 
 var common = require('../common');
 var assert = require('assert');
+var tracing = require('tracing');
 
-var addListener = process.addAsyncListener;
-var removeListener = process.removeAsyncListener;
+var addListener = tracing.addAsyncListener;
+var removeListener = tracing.removeAsyncListener;
 var caught = [];
 var expect = [];
 
@@ -35,7 +36,7 @@ var callbacksObj = {
   }
 };
 
-var listener = process.createAsyncListener(callbacksObj);
+var listener = tracing.createAsyncListener(callbacksObj);
 
 process.on('exit', function(code) {
   removeListener(listener);
