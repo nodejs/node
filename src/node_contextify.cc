@@ -69,15 +69,23 @@ class ContextifyContext {
       : env_(env),
         sandbox_(env->isolate(), sandbox),
         context_(env->isolate(), CreateV8Context(env)),
-        proxy_global_(env->isolate(), context()->Global()),
         // Wait for sandbox_, proxy_global_, and context_ to die
-        references_(3) {
+        references_(0) {
     sandbox_.MakeWeak(this, WeakCallback);
     sandbox_.MarkIndependent();
+    references_++;
+
+    // Allocation failure or maximum call stack size reached
+    if (context_.IsEmpty())
+      return;
     context_.MakeWeak(this, WeakCallback);
     context_.MarkIndependent();
+    references_++;
+
+    proxy_global_.Reset(env->isolate(), context()->Global());
     proxy_global_.MakeWeak(this, WeakCallback);
     proxy_global_.MarkIndependent();
+    references_++;
   }
 
 
@@ -180,6 +188,9 @@ class ContextifyContext {
     HandleScope scope(node_isolate);
     Local<Object> wrapper =
         env->script_data_constructor_function()->NewInstance();
+    if (wrapper.IsEmpty())
+      return scope.Close(Handle<Value>());
+
     Wrap<ContextifyContext>(wrapper, this);
     return scope.Close(wrapper);
   }
@@ -232,7 +243,17 @@ class ContextifyContext {
     // Don't allow contextifying a sandbox multiple times.
     assert(sandbox->GetHiddenValue(hidden_name).IsEmpty());
 
+    TryCatch try_catch;
     ContextifyContext* context = new ContextifyContext(env, sandbox);
+
+    if (try_catch.HasCaught()) {
+      try_catch.ReThrow();
+      return;
+    }
+
+    if (context->context().IsEmpty())
+      return;
+
     Local<External> hidden_context = External::New(context);
     sandbox->SetHiddenValue(hidden_name, hidden_context);
   }
@@ -490,14 +511,18 @@ class ContextifyScript : public BaseObject {
           "sandbox argument must have been converted to a context.");
     }
 
+    if (contextify_context->context().IsEmpty())
+      return;
+
     // Do the eval within the context
     Context::Scope context_scope(contextify_context->context());
-    EvalMachine(contextify_context->env(),
-                timeout,
-                display_errors,
-                args,
-                try_catch);
-    contextify_context->CopyProperties();
+    if (EvalMachine(contextify_context->env(),
+                    timeout,
+                    display_errors,
+                    args,
+                    try_catch)) {
+      contextify_context->CopyProperties();
+    }
   }
 
   static int64_t GetTimeoutArg(const FunctionCallbackInfo<Value>& args,
@@ -565,14 +590,14 @@ class ContextifyScript : public BaseObject {
   }
 
 
-  static void EvalMachine(Environment* env,
+  static bool EvalMachine(Environment* env,
                           const int64_t timeout,
                           const bool display_errors,
                           const FunctionCallbackInfo<Value>& args,
                           TryCatch& try_catch) {
     if (!ContextifyScript::InstanceOf(env, args.This())) {
-      return ThrowTypeError(
-          "Script methods can only be called on script instances.");
+      ThrowTypeError("Script methods can only be called on script instances.");
+      return false;
     }
 
     ContextifyScript* wrapped_script =
@@ -590,7 +615,8 @@ class ContextifyScript : public BaseObject {
 
     if (try_catch.HasCaught() && try_catch.HasTerminated()) {
       V8::CancelTerminateExecution(args.GetIsolate());
-      return ThrowError("Script execution timed out.");
+      ThrowError("Script execution timed out.");
+      return false;
     }
 
     if (result.IsEmpty()) {
@@ -599,10 +625,11 @@ class ContextifyScript : public BaseObject {
         DisplayExceptionLine(try_catch.Message());
       }
       try_catch.ReThrow();
-      return;
+      return false;
     }
 
     args.GetReturnValue().Set(result);
+    return true;
   }
 
 
