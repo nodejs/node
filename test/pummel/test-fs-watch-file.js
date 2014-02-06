@@ -27,6 +27,7 @@ var fs = require('fs');
 var watchSeenOne = 0;
 var watchSeenTwo = 0;
 var watchSeenThree = 0;
+var watchSeenFour = 0;
 
 var startDir = process.cwd();
 var testDir = common.tmpDir;
@@ -40,14 +41,17 @@ var filepathTwoAbs = path.join(testDir, filenameTwo);
 
 var filenameThree = 'charm'; // because the third time is
 
+var filenameFour = 'get';
 
 process.on('exit', function() {
   fs.unlinkSync(filepathOne);
   fs.unlinkSync(filepathTwoAbs);
   fs.unlinkSync(filenameThree);
+  fs.unlinkSync(filenameFour);
   assert.equal(1, watchSeenOne);
   assert.equal(2, watchSeenTwo);
   assert.equal(1, watchSeenThree);
+  assert.equal(1, watchSeenFour);
 });
 
 
@@ -126,3 +130,22 @@ assert.doesNotThrow(
 setTimeout(function() {
   fs.writeFileSync(filenameThree, 'pardner');
 }, 1000);
+
+setTimeout(function() {
+  fs.writeFileSync(filenameFour, 'hey');
+}, 200);
+
+setTimeout(function() {
+  fs.writeFileSync(filenameFour, 'hey');
+}, 500);
+
+assert.doesNotThrow(
+    function() {
+      function a(curr, prev) {
+        ++watchSeenFour;
+        assert.equal(1, watchSeenFour);
+        fs.unwatchFile("." + path.sep + filenameFour, a);
+      }
+      fs.watchFile(filenameFour, a);
+    }
+);
