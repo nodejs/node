@@ -71,12 +71,11 @@ function parent() {
     assert(gotTimeout);
     assert(childClosed);
     assert.equal(connections, 1);
-    // 1213 works out to be the number of requests we end up processing
-    // before the outgoing connection backs up and requires a drain.
-    // however, to avoid being unnecessarily tied to a specific magic number,
-    // and making the test brittle, just assert that it's "a lot", which we
-    // can safely assume is more than 500.
-    assert(requests >= 500);
+    // The number of requests we end up processing before the outgoing
+    // connection backs up and requires a drain is implementation-dependent.
+    // We can safely assume is more than 250.
+    console.log('server got %d requests', requests);
+    assert(requests >= 250);
     console.log('ok');
   });
 }
