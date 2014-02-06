@@ -213,3 +213,25 @@ test_lines({
   very_long_key: 'very_long_value',
   even_longer_key: ['with even longer value in array']
 });
+
+// test boxed primitives output the correct values
+assert.equal(util.inspect(new String('test')), '[String: \'test\']');
+assert.equal(util.inspect(new Boolean(false)), '[Boolean: false]');
+assert.equal(util.inspect(new Boolean(true)), '[Boolean: true]');
+assert.equal(util.inspect(new Number(0)), '[Number: 0]');
+assert.equal(util.inspect(new Number(-0)), '[Number: -0]');
+assert.equal(util.inspect(new Number(-1.1)), '[Number: -1.1]');
+assert.equal(util.inspect(new Number(13.37)), '[Number: 13.37]');
+
+// test boxed primitives with own properties
+var str = new String('baz');
+str.foo = 'bar';
+assert.equal(util.inspect(str), '{ [String: \'baz\'] foo: \'bar\' }');
+
+var bool = new Boolean(true);
+bool.foo = 'bar';
+assert.equal(util.inspect(bool), '{ [Boolean: true] foo: \'bar\' }');
+
+var num = new Number(13.37);
+num.foo = 'bar';
+assert.equal(util.inspect(num), '{ [Number: 13.37] foo: \'bar\' }');
