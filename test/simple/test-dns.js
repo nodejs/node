@@ -60,3 +60,13 @@ assert.deepEqual(dns.getServers(), portsExpected);
 
 assert.doesNotThrow(function () { dns.setServers([]); });
 assert.deepEqual(dns.getServers(), []);
+
+assert.throws(
+  function() {
+    dns.resolve('test.com', [], new Function);
+  },
+  function(err) {
+    return !(err instanceof TypeError);
+  },
+  "Unexpected error"
+);
