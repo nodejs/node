@@ -72,6 +72,7 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
   var registry = npm.registry
   if (data.publishConfig) {
     var pubConf = new Conf(npm.config)
+    pubConf.save = npm.config.save.bind(npm.config)
 
     // don't modify the actual publishConfig object, in case we have
     // to set a login token or some other data.

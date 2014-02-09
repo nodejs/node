@@ -117,6 +117,7 @@ function putNext(newVersion, root, current, cb) {
   }
 
   current.versions[newVersion] = root.versions[newVersion]
+  current._attachments = current._attachments || {}
   for (var i in root) {
     switch (i) {
       // objects that copy over the new stuffs

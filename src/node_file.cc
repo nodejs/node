@@ -748,7 +748,7 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
     return ThrowRangeError("length out of bounds");
   if (off + len < off)
     return ThrowRangeError("off + len overflow");
-  if (off + len > buffer_length)
+  if (!Buffer::IsWithinBounds(off, len, buffer_length))
     return ThrowRangeError("off + len > buffer.length");
 
   buf += off;
@@ -871,9 +871,8 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   }
 
   len = args[3]->Int32Value();
-  if (off + len > buffer_length) {
-    return ThrowError("Length extends beyond buffer");
-  }
+  if (!Buffer::IsWithinBounds(off, len, buffer_length))
+    return ThrowRangeError("Length extends beyond buffer");
 
   pos = GET_OFFSET(args[4]);
 

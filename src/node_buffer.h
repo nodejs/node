@@ -60,6 +60,21 @@ NODE_EXTERN v8::Local<v8::Object> New(char* data,
 // TODO(trevnorris): should be New() for consistency
 NODE_EXTERN v8::Local<v8::Object> Use(char* data, uint32_t len);
 
+// This is verbose to be explicit with inline commenting
+static inline bool IsWithinBounds(size_t off, size_t len, size_t max) {
+  // Asking to seek too far into the buffer
+  // check to avoid wrapping in subsequent subtraction
+  if (off > max)
+    return false;
+
+  // Asking for more than is left over in the buffer
+  if (max - off < len)
+    return false;
+
+  // Otherwise we're in bounds
+  return true;
+}
+
 // Internal. Not for public consumption. We can't define these in
 // src/node_internals.h due to a circular dependency issue with
 // the smalloc.h and node_internals.h headers.

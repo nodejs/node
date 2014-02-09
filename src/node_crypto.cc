@@ -1882,9 +1882,9 @@ void Connection::EncIn(const FunctionCallbackInfo<Value>& args) {
 
   size_t off = args[1]->Int32Value();
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer_length) {
+
+  if (!Buffer::IsWithinBounds(off, len, buffer_length))
     return ThrowError("off + len > buffer.length");
-  }
 
   int bytes_written;
   char* data = buffer_data + off;
@@ -1932,9 +1932,9 @@ void Connection::ClearOut(const FunctionCallbackInfo<Value>& args) {
 
   size_t off = args[1]->Int32Value();
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer_length) {
+
+  if (!Buffer::IsWithinBounds(off, len, buffer_length))
     return ThrowError("off + len > buffer.length");
-  }
 
   if (!SSL_is_init_finished(conn->ssl_)) {
     int rv;
@@ -2003,9 +2003,9 @@ void Connection::EncOut(const FunctionCallbackInfo<Value>& args) {
 
   size_t off = args[1]->Int32Value();
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer_length) {
+
+  if (!Buffer::IsWithinBounds(off, len, buffer_length))
     return ThrowError("off + len > buffer.length");
-  }
 
   int bytes_read = BIO_read(conn->bio_write_, buffer_data + off, len);
 
@@ -2034,9 +2034,9 @@ void Connection::ClearIn(const FunctionCallbackInfo<Value>& args) {
 
   size_t off = args[1]->Int32Value();
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer_length) {
+
+  if (!Buffer::IsWithinBounds(off, len, buffer_length))
     return ThrowError("off + len > buffer.length");
-  }
 
   if (!SSL_is_init_finished(conn->ssl_)) {
     int rv;
