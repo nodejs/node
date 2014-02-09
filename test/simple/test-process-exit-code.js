@@ -31,6 +31,8 @@ switch (process.argv[2]) {
     return child3();
   case 'child4':
     return child4();
+  case 'child5':
+    return child5();
   case undefined:
     return parent();
   default:
@@ -71,11 +73,20 @@ function child4() {
   throw new Error('ok');
 }
 
+function child5() {
+  process.exitCode = 95;
+  process.on('exit', function(code) {
+    assert.equal(code, 95);
+    process.exitCode = 99;
+  });
+}
+
 function parent() {
   test('child1', 42);
   test('child2', 42);
   test('child3', 0);
   test('child4', 1);
+  test('child5', 99);
 }
 
 function test(arg, exit) {
