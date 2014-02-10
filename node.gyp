@@ -104,6 +104,7 @@
         'src/pipe_wrap.cc',
         'src/signal_wrap.cc',
         'src/smalloc.cc',
+        'src/spawn_sync.cc',
         'src/string_bytes.cc',
         'src/stream_wrap.cc',
         'src/tcp_wrap.cc',
