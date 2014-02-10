@@ -30,15 +30,17 @@ var assert = require('assert'),
 // We're trying to reproduce:
 // $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/a/
 
-var grep = spawn('grep', ['o']),
-    sed = spawn('sed', ['s/o/O/']),
-    echo;
+var grep, sed, echo;
 
 if (is_windows) {
+  grep = spawn('grep', ['--binary', 'o']),
+  sed = spawn('sed', ['--binary', 's/o/O/']),
   echo = spawn('cmd.exe',
                ['/c', 'echo', 'hello&&', 'echo',
                 'node&&', 'echo', 'and&&', 'echo', 'world']);
 } else {
+  grep = spawn('grep', ['o']),
+  sed = spawn('sed', ['s/o/O/']),
   echo = spawn('echo', ['hello\nnode\nand\nworld\n']);
 }
 
