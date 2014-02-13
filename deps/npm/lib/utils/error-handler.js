@@ -270,7 +270,7 @@ function errorHandler (er) {
     log.error("", er.stack || er.message || er)
     log.error("", ["If you need help, you may report this *entire* log,"
                   ,"including the npm and node versions, at:"
-                  ,"    <http://github.com/isaacs/npm/issues>"
+                  ,"    <http://github.com/npm/npm/issues>"
                   ].join("\n"))
     printStack = false
     break

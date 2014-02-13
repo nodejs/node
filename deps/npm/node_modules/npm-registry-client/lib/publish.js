@@ -106,14 +106,17 @@ function putFirst (data, tardata, stat, username, email, cb) {
 function putNext(newVersion, root, current, cb) {
   // already have the tardata on the root object
   // just merge in existing stuff
-  // if the version already exists, and not a --force, then raise error
-  var force = this.conf.get('force')
   var curVers = Object.keys(current.versions || {}).map(function (v) {
     return semver.clean(v, true)
-  })
+  }).concat(Object.keys(current.time || {}).map(function(v) {
+    if (semver.valid(v, true))
+      return semver.clean(v, true)
+  }).filter(function(v) {
+    return v
+  }))
 
-  if (!force && curVers.indexOf(newVersion) !== -1) {
-    return cb(conflictError(root.name))
+  if (curVers.indexOf(newVersion) !== -1) {
+    return cb(conflictError(root.name, newVersion))
   }
 
   current.versions[newVersion] = root.versions[newVersion]
@@ -143,9 +146,10 @@ function putNext(newVersion, root, current, cb) {
   this.request("PUT", root.name, current, cb)
 }
 
-function conflictError (pkgid) {
-  var e = new Error("cannot modify existing version")
+function conflictError (pkgid, version) {
+  var e = new Error("cannot modify pre-existing version")
   e.code = "EPUBLISHCONFLICT"
   e.pkgid = pkgid
+  e.version = version
   return e
 }

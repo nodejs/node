@@ -401,7 +401,7 @@ The value `npm init` should use by default for the package author's homepage.
 
 ### init.license
 
-* Default: "BSD-2-Clause"
+* Default: "ISC"
 * Type: String
 
 The value `npm init` should use by default for the package license.
@@ -466,7 +466,7 @@ The default is "http", which shows http, warn, and error output.
 * Type: Stream
 
 This is the stream that is passed to the
-[npmlog](https://github.com/isaacs/npmlog) module at run time.
+[npmlog](https://github.com/npm/npmlog) module at run time.
 
 It cannot be set from the command line, but if you are using npm
 programmatically, you may wish to send logs to somewhere other than

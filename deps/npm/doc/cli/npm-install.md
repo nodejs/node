@@ -146,9 +146,9 @@ after packing it up into a tarball (b).
 
     Examples:
 
-          git+ssh://git@github.com:isaacs/npm.git#v1.0.27
-          git+https://isaacs@github.com/isaacs/npm.git
-          git://github.com/isaacs/npm.git#v1.0.27
+          git+ssh://git@github.com:npm/npm.git#v1.0.27
+          git+https://isaacs@github.com/npm/npm.git
+          git://github.com/npm/npm.git#v1.0.27
 
 You may combine multiple arguments, and even multiple types of arguments.
 For example:

@@ -5,7 +5,6 @@ module.exports = RegClient
 var fs = require('fs')
 , url = require('url')
 , path = require('path')
-, CouchLogin = require('couch-login')
 , npmlog
 
 try {
@@ -47,22 +46,6 @@ function RegClient (conf) {
   }
 
   if (!conf.get('cache')) throw new Error("Cache dir is required")
-
-  var auth = this.conf.get('_auth')
-  var alwaysAuth = this.conf.get('always-auth')
-  if (auth && !alwaysAuth && registry) {
-    // if we're always authing, then we just send the
-    // user/pass on every thing.  otherwise, create a
-    // session, and use that.
-    var token = this.conf.get('_token')
-    this.couchLogin = new CouchLogin(registry, token)
-    this.couchLogin.proxy = this.conf.get('proxy')
-    this.couchLogin.strictSSL = this.conf.get('strict-ssl')
-    this.couchLogin.ca = this.conf.get('ca')
-    this.couchLogin.cert = this.conf.get('cert')
-    this.couchLogin.key = this.conf.get('key')
-  }
-
   this.log = conf.log || conf.get('log') || npmlog
 }
 

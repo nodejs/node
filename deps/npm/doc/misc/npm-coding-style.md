@@ -133,7 +133,7 @@ string message to the callback.  Stack traces are handy.
 
 ## Logging
 
-Logging is done using the [npmlog](https://github.com/isaacs/npmlog)
+Logging is done using the [npmlog](https://github.com/npm/npmlog)
 utility.
 
 Please clean up logs when they are no longer helpful.  In particular,

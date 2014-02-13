@@ -21,8 +21,8 @@ cache folders:
 1. urls: http!/server.com/path/to/thing
 2. c:\path\to\thing: file!/c!/path/to/thing
 3. /path/to/thing: file!/path/to/thing
-4. git@ private: git_github.com!isaacs/npm
-5. git://public: git!/github.com/isaacs/npm
+4. git@ private: git_github.com!npm/npm
+5. git://public: git!/github.com/npm/npm
 6. git+blah:// git-blah!/server.com/foo/bar
 
 adding a folder:
@@ -508,8 +508,29 @@ function archiveGitRemote (p, u, co, origUrl, cb) {
     }
     log.verbose("git fetch -a origin ("+u+")", stdout)
     tmp = path.join(npm.tmp, Date.now()+"-"+Math.random(), "tmp.tgz")
-    resolveHead()
+    verifyOwnership()
   })
+
+  function verifyOwnership() {
+    if (process.platform === "win32") {
+      log.silly("verifyOwnership", "skipping for windows")
+      resolveHead()
+    } else {
+      getCacheStat(function(er, cs) {
+        if (er) {
+          log.error("Could not get cache stat")
+          return cb(er)
+        }
+        chownr(p, cs.uid, cs.gid, function(er) {
+          if (er) {
+            log.error("Failed to change folder ownership under npm cache for %s", p)
+            return cb(er)
+          }
+          resolveHead()
+        })
+      })
+    }
+  }
 
   function resolveHead () {
     exec(git, resolve, {cwd: p, env: env}, function (er, stdout, stderr) {
@@ -523,7 +544,7 @@ function archiveGitRemote (p, u, co, origUrl, cb) {
       parsed.hash = stdout
       resolved = url.format(parsed)
 
-      // https://github.com/isaacs/npm/issues/3224
+      // https://github.com/npm/npm/issues/3224
       // node incorrectly sticks a / at the start of the path
       // We know that the host won't change, so split and detect this
       var spo = origUrl.split(parsed.host)

@@ -61,6 +61,12 @@ Show parseable output instead of tree view.
 List packages in the global install prefix instead of in the current
 project.
 
+### depth
+
+* Type: Int
+
+Max display depth of the dependency tree.
+
 ## SEE ALSO
 
 * npm-config(1)
