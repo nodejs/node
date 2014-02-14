@@ -220,7 +220,7 @@ If this concerns you, inspect the source before using packages.
 When you find issues, please report them:
 
 * web:
-  <https://github.com/isaacs/npm/issues>
+  <https://github.com/npm/npm/issues>
 * email:
   <npm-@googlegroups.com>
 

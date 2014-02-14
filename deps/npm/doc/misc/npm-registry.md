@@ -14,7 +14,7 @@ account information.
 The official public npm registry is at <http://registry.npmjs.org/>.  It
 is powered by a CouchDB database at
 <http://isaacs.iriscouch.com/registry>.  The code for the couchapp is
-available at <http://github.com/isaacs/npmjs.org>.  npm user accounts
+available at <http://github.com/npm/npmjs.org>.  npm user accounts
 are CouchDB users, stored in the <http://isaacs.iriscouch.com/_users>
 database.
 

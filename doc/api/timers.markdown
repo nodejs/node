@@ -8,7 +8,7 @@ this module in order to use them.
 ## setTimeout(callback, delay, [arg], [...])
 
 To schedule execution of a one-time `callback` after `delay` milliseconds. Returns a
-`timeoutId` for possible use with `clearTimeout()`. Optionally you can
+`timeoutObject` for possible use with `clearTimeout()`. Optionally you can
 also pass arguments to the callback.
 
 It is important to note that your callback will probably not be called in exactly
@@ -16,17 +16,17 @@ It is important to note that your callback will probably not be called in exactl
 the callback will fire, nor of the ordering things will fire in. The callback will
 be called as close as possible to the time specified.
 
-## clearTimeout(timeoutId)
+## clearTimeout(timeoutObject)
 
 Prevents a timeout from triggering.
 
 ## setInterval(callback, delay, [arg], [...])
 
 To schedule the repeated execution of `callback` every `delay` milliseconds.
-Returns a `intervalId` for possible use with `clearInterval()`. Optionally
+Returns a `intervalObject` for possible use with `clearInterval()`. Optionally
 you can also pass arguments to the callback.
 
-## clearInterval(intervalId)
+## clearInterval(intervalObject)
 
 Stops a interval from triggering.
 
@@ -51,7 +51,7 @@ request the timer hold the program open. If the timer is already `ref`d calling
 
 To schedule the "immediate" execution of `callback` after I/O events
 callbacks and before `setTimeout` and `setInterval` . Returns an
-`immediateId` for possible use with `clearImmediate()`. Optionally you
+`immediateObject` for possible use with `clearImmediate()`. Optionally you
 can also pass arguments to the callback.
 
 Callbacks for immediates are queued in the order in which they were created.
@@ -59,6 +59,6 @@ The entire callback queue is processed every event loop iteration. If you queue
 an immediate from a inside an executing callback that immediate won't fire
 until the next event loop iteration.
 
-## clearImmediate(immediateId)
+## clearImmediate(immediateObject)
 
 Stops an immediate from triggering.

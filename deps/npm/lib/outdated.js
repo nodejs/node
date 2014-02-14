@@ -199,7 +199,9 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
   // { version: , from: }
   var curr = has[dep]
 
-  function skip () {
+  function skip (er) {
+    // show user that no viable version can be found
+    if (er) return cb(er)
     outdated_( args
              , path.resolve(dir, "node_modules", dep)
              , has
@@ -226,7 +228,13 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
     cache.add(dep, req, function (er, d) {
       // if this fails, then it means we can't update this thing.
       // it's probably a thing that isn't published.
-      if (er) return skip()
+      if (er) {
+        if (er.code && er.code === 'ETARGET') {
+          // no viable version found
+          return skip(er)
+        }
+        return skip()
+      }
 
       // check that the url origin hasn't changed (#1727) and that
       // there is no newer version available

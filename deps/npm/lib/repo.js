@@ -37,7 +37,7 @@ function getUrlAndOpen (d, cb) {
   var r = d.repository;
   if (!r) return cb(new Error('no repository'));
   // XXX remove this when npm@v1.3.10 from node 0.10 is deprecated
-  // from https://github.com/isaacs/npm-www/issues/418
+  // from https://github.com/npm/npm-www/issues/418
   if (githubUserRepo(r.url))
     r.url = githubUserRepo(r.url)
   var url = github(r.url)

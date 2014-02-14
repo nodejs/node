@@ -1,4 +1,4 @@
-Copyright (c) Isaac Z. Schlueter
+Copyright (c) npm, Inc. and Contributors
 All rights reserved.
 
 npm is released under the Artistic License 2.0.
@@ -214,7 +214,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --------
 
 
-"Node.js" and "node" trademark Joyent, Inc. npm is not officially
+"Node.js" and "node" trademark Joyent, Inc.  npm is not officially
 part of the Node.js project, and is neither owned by nor
 officially affiliated with Joyent, Inc.
 

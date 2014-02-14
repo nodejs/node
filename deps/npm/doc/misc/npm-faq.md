@@ -315,12 +315,12 @@ in a web browser.  This will also tell you if you are just unable to
 access the internet for some reason.
 
 If the registry IS down, let me know by emailing <i@izs.me> or posting
-an issue at <https://github.com/isaacs/npm/issues>.  We'll have
+an issue at <https://github.com/npm/npm/issues>.  We'll have
 someone kick it or something.
 
 ## Why no namespaces?
 
-Please see this discussion: <https://github.com/isaacs/npm/issues/798>
+Please see this discussion: <https://github.com/npm/npm/issues/798>
 
 tl;dr - It doesn't actually make things better, and can make them worse.
 
@@ -338,7 +338,7 @@ There is not sufficient need to impose namespace rules on everyone.
 
 Post an issue on the github project:
 
-* <https://github.com/isaacs/npm/issues>
+* <https://github.com/npm/npm/issues>
 
 ## Why does npm hate me?
 

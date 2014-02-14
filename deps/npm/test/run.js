@@ -181,43 +181,8 @@ function main (cb) {
       // Windows can't handle npm rm npm due to file-in-use issues.
       thingsToChain.push([exec, "npm rm npm"])
     }
-    thingsToChain.push(publishTest)
 
     chain(thingsToChain, cb)
-  }
-
-  function publishTest (cb) {
-    if (process.env.npm_package_config_publishtest !== "true") {
-      console.error("To test publishing: "+
-                    "npm config set npm:publishtest true")
-      return cb()
-    }
-
-    chain
-      ( [ setup
-        , [ execChain, packages.filter(function (p) {
-              return !p.match(/private/)
-            }).map(function (p) {
-              return [ "npm publish packages/"+p
-                     , "npm install "+p
-                     , "npm unpublish "+p+" --force"
-                     ]
-            }) ]
-        , publishPrivateTest
-        ], cb )
-
-  }
-
-  function publishPrivateTest (cb) {
-    exec("npm publish packages/npm-test-private -s", true, function (er) {
-      if (er) {
-        exec( "npm unpublish npm-test-private --force"
-            , function (e2) {
-          cb(er || e2)
-        })
-      }
-      cleanup(cb)
-    })
   }
 }
 
