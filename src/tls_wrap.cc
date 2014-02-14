@@ -81,6 +81,7 @@ TLSCallbacks::TLSCallbacks(Environment* env,
       established_(false),
       shutdown_(false),
       error_(NULL),
+      cycle_depth_(0),
       eof_(false) {
   node::Wrap<TLSCallbacks>(object(), this);
 
@@ -155,6 +156,11 @@ bool TLSCallbacks::InvokeQueued(int status) {
   }
 
   return true;
+}
+
+
+void TLSCallbacks::NewSessionDoneCb() {
+  Cycle();
 }
 
 
@@ -307,6 +313,10 @@ void TLSCallbacks::EncOut() {
 
   // Write in progress
   if (write_size_ != 0)
+    return;
+
+  // Wait for `newSession` callback to be invoked
+  if (is_waiting_new_session())
     return;
 
   // Split-off queue

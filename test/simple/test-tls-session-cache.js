@@ -64,12 +64,16 @@ function doTest(testOptions, callback) {
     ++requestCount;
     cleartext.end();
   });
-  server.on('newSession', function(id, data) {
-    assert.ok(!session);
-    session = {
-      id: id,
-      data: data
-    };
+  server.on('newSession', function(id, data, cb) {
+    // Emulate asynchronous store
+    setTimeout(function() {
+      assert.ok(!session);
+      session = {
+        id: id,
+        data: data
+      };
+      cb();
+    }, 1000);
   });
   server.on('resumeSession', function(id, callback) {
     ++resumeCount;

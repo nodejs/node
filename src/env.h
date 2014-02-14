@@ -121,6 +121,7 @@ namespace node {
   V(onhandshakestart_string, "onhandshakestart")                              \
   V(onmessage_string, "onmessage")                                            \
   V(onnewsession_string, "onnewsession")                                      \
+  V(onnewsessiondone_string, "onnewsessiondone")                              \
   V(onread_string, "onread")                                                  \
   V(onselect_string, "onselect")                                              \
   V(onsignal_string, "onsignal")                                              \

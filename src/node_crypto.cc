@@ -857,6 +857,7 @@ void SSLWrap<Base>::AddMethods(Handle<FunctionTemplate> t) {
   NODE_SET_PROTOTYPE_METHOD(t, "renegotiate", Renegotiate);
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Shutdown);
   NODE_SET_PROTOTYPE_METHOD(t, "getTLSTicket", GetTLSTicket);
+  NODE_SET_PROTOTYPE_METHOD(t, "newSessionDone", NewSessionDone);
 
 #ifdef SSL_set_max_send_fragment
   NODE_SET_PROTOTYPE_METHOD(t, "setMaxSendFragment", SetMaxSendFragment);
@@ -929,6 +930,7 @@ int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
                                       reinterpret_cast<char*>(sess->session_id),
                                       sess->session_id_length);
   Local<Value> argv[] = { session, buff };
+  w->new_session_wait_ = true;
   w->MakeCallback(env->onnewsession_string(), ARRAY_SIZE(argv), argv);
 
   return 0;
@@ -1264,6 +1266,16 @@ void SSLWrap<Base>::GetTLSTicket(const FunctionCallbackInfo<Value>& args) {
                                   sess->tlsext_ticklen);
 
   args.GetReturnValue().Set(buf);
+}
+
+
+template <class Base>
+void SSLWrap<Base>::NewSessionDone(const FunctionCallbackInfo<Value>& args) {
+  HandleScope scope(args.GetIsolate());
+
+  Base* w = Unwrap<Base>(args.This());
+  w->new_session_wait_ = false;
+  w->NewSessionDoneCb();
 }
 
 
@@ -1648,6 +1660,13 @@ void Connection::SetShutdownFlags() {
         FIXED_ONE_BYTE_STRING(node_isolate, "receivedShutdown");
     object()->Set(received_shutdown_key, True(node_isolate));
   }
+}
+
+
+void Connection::NewSessionDoneCb() {
+  HandleScope scope(env()->isolate());
+
+  MakeCallback(env()->onnewsessiondone_string(), 0, NULL);
 }
 
 

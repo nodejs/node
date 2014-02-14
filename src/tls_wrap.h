@@ -102,11 +102,18 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   void ClearOut();
   void MakePending();
   bool InvokeQueued(int status);
+  void NewSessionDoneCb();
 
   inline void Cycle() {
-    ClearIn();
-    ClearOut();
-    EncOut();
+    // Prevent recursion
+    if (++cycle_depth_ > 1)
+      return;
+
+    for (; cycle_depth_ > 0; cycle_depth_--) {
+      ClearIn();
+      ClearOut();
+      EncOut();
+    }
   }
 
   v8::Local<v8::Value> GetSSLError(int status, int* err, const char** msg);
@@ -144,6 +151,7 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   bool established_;
   bool shutdown_;
   const char* error_;
+  int cycle_depth_;
 
   // If true - delivered EOF to the js-land, either after `close_notify`, or
   // after the `UV_EOF` on socket.
@@ -155,6 +163,8 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
 
   static size_t error_off_;
   static char error_buf_[1024];
+
+  friend class SSLWrap<TLSCallbacks>;
 };
 
 }  // namespace node
