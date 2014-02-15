@@ -44,6 +44,10 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
 
   var server = tls.createServer(soptions, function(cleartextStream) {
     nconns++;
+
+    // End socket to send CLOSE_NOTIFY and TCP FIN packet, otherwise
+    // it may hang for ~30 seconds in FIN_WAIT_1 state (at least on OSX).
+    cleartextStream.end();
   });
   server.listen(common.PORT, localhost, function() {
     var coptions = {
