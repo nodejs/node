@@ -37,14 +37,23 @@ var r1 = repl.start({
   output: stream,
   terminal: true
 });
+
+assert.equal(r1.input, stream);
+assert.equal(r1.output, stream);
+assert.equal(r1.input, r1.inputStream);
+assert.equal(r1.output, r1.outputStream);
+assert.equal(r1.terminal, true);
+assert.equal(r1.useColors, r1.terminal);
+assert.equal(r1.useGlobal, false);
+assert.equal(r1.ignoreUndefined, false);
+
+// test r1 for backwards compact
 assert.equal(r1.rli.input, stream);
 assert.equal(r1.rli.output, stream);
 assert.equal(r1.rli.input, r1.inputStream);
 assert.equal(r1.rli.output, r1.outputStream);
 assert.equal(r1.rli.terminal, true);
 assert.equal(r1.useColors, r1.rli.terminal);
-assert.equal(r1.useGlobal, false);
-assert.equal(r1.ignoreUndefined, false);
 
 // 2
 function writer() {}
@@ -59,12 +68,20 @@ var r2 = repl.start({
   eval: evaler,
   writer: writer
 });
+assert.equal(r2.input, stream);
+assert.equal(r2.output, stream);
+assert.equal(r2.input, r2.inputStream);
+assert.equal(r2.output, r2.outputStream);
+assert.equal(r2.terminal, false);
+assert.equal(r2.useColors, true);
+assert.equal(r2.useGlobal, true);
+assert.equal(r2.ignoreUndefined, true);
+assert.equal(r2.writer, writer);
+
+// test r2 for backwards compact
 assert.equal(r2.rli.input, stream);
 assert.equal(r2.rli.output, stream);
 assert.equal(r2.rli.input, r2.inputStream);
 assert.equal(r2.rli.output, r2.outputStream);
 assert.equal(r2.rli.terminal, false);
-assert.equal(r2.useColors, true);
-assert.equal(r2.useGlobal, true);
-assert.equal(r2.ignoreUndefined, true);
-assert.equal(r2.writer, writer);
+

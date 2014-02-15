@@ -21,13 +21,29 @@
 
 var common = require('../common'),
     assert = require('assert'),
-    repl = require('repl');
+    spawn = require('child_process').spawn,
+    os = require('os'),
+    util = require('util');
 
-// https://github.com/joyent/node/issues/3226
+var args = [
+  '-e',
+  'var e = new (require("repl")).REPLServer("foo.. "); e.context.e = e;',
+];
 
-require.cache.something = 1;
-assert.equal(require.cache.something, 1);
+var p = "bar.. ";
 
-repl.start({ useGlobal: false }).close();
+var child = spawn(process.execPath, args);
 
-assert.equal(require.cache.something, 1);
+child.stdout.setEncoding('utf8');
+
+var data = '';
+child.stdout.on('data', function(d) { data += d });
+
+child.stdin.end(util.format("e.setPrompt('%s');%s", p, os.EOL));
+
+child.on('close', function(code, signal) {
+  assert.strictEqual(code, 0);
+  assert.ok(!signal);
+  var lines = data.split(/\n/);
+  assert.strictEqual(lines.pop(), p);
+});
