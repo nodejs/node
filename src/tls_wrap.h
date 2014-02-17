@@ -67,6 +67,8 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
               uv_handle_type pending);
   int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
 
+  void NewSessionDoneCb();
+
  protected:
   static const int kClearOutChunkSize = 1024;
 
@@ -102,7 +104,6 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   void ClearOut();
   void MakePending();
   bool InvokeQueued(int status);
-  void NewSessionDoneCb();
 
   inline void Cycle() {
     // Prevent recursion
@@ -163,8 +164,6 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
 
   static size_t error_off_;
   static char error_buf_[1024];
-
-  friend class SSLWrap<TLSCallbacks>;
 };
 
 }  // namespace node

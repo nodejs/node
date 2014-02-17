@@ -247,6 +247,7 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
   }
 
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  void NewSessionDoneCb();
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   v8::Persistent<v8::Object> npnProtos_;
@@ -295,7 +296,6 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
 
   void ClearError();
   void SetShutdownFlags();
-  void NewSessionDoneCb();
 
   Connection(Environment* env,
              v8::Local<v8::Object> wrap,
@@ -324,7 +324,6 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
 
   friend class ClientHelloParser;
   friend class SecureContext;
-  friend class SSLWrap<Connection>;
 };
 
 class CipherBase : public BaseObject {
