@@ -169,51 +169,54 @@ help config` to learn about all the options you can set there.
 
 ## More Docs
 
-Check out the [docs](https://npmjs.org/doc/),
-especially the [faq](https://npmjs.org/doc/faq.html).
+Check out the [docs](https://www.npmjs.org/doc/),
+especially the [faq](https://www.npmjs.org/doc/faq.html).
 
 You can use the `npm help` command to read any of them.
 
 If you're a developer, and you want to use npm to publish your program,
-you should [read this](https://npmjs.org/doc/developers.html)
+you should [read this](https://www.npmjs.org/doc/developers.html)
 
 ## Legal Stuff
 
-"npm" and "the npm registry" are owned by Isaac Z. Schlueter.
+"npm" and "The npm Registry" are owned by npm, Inc.
 All rights reserved.  See the included LICENSE file for more details.
 
-"Node.js" and "node" are trademarks owned by Joyent, Inc.  npm is not
-officially part of the Node.js project, and is neither owned by nor
-officially affiliated with Joyent, Inc.
+"Node.js" and "node" are trademarks owned by Joyent, Inc.
 
-The packages in the npm registry are not part of npm itself, and are the
-sole property of their respective maintainers.  While every effort is
-made to ensure accountability, there is absolutely no guarantee,
-warrantee, or assertion made as to the quality, fitness for a specific
-purpose, or lack of malice in any given npm package.  Modules
-published on the npm registry are not affiliated with or endorsed by
-Joyent, Inc., Isaac Z. Schlueter, Ryan Dahl, or the Node.js project.
+Modules published on the npm registry are not officially endorsed by
+npm, Inc. or the Node.js project.
 
-If you have a complaint about a package in the npm registry, and cannot
-resolve it with the package owner, please express your concerns to
-Isaac Z. Schlueter at <i@izs.me>.
+Data published to the npm registry is not part of npm itself, and is
+the sole property of the publisher.  While every effort is made to
+ensure accountability, there is absolutely no guarantee, warrantee, or
+assertion expressed or implied as to the quality, fitness for a
+specific purpose, or lack of malice in any given npm package.
 
-### In plain english
+If you have a complaint about a package in the public npm registry,
+and cannot [resolve it with the package
+owner](https://www.npmjs.org/doc/misc/npm-disputes.html), please email
+<support@npmjs.com> and explain the situation.
 
-This is mine; not my employer's, not Node's, not Joyent's, not Ryan
-Dahl's.
+Any data published to The npm Registry (including user account
+information) may be removed or modified at the sole discretion of the
+npm server administrators.
+
+### In plainer english
+
+npm is the property of npm, Inc.
 
 If you publish something, it's yours, and you are solely accountable
-for it.  Not me, not Node, not Joyent, not Ryan Dahl.
+for it.
 
-If other people publish something, it's theirs.  Not mine, not Node's,
-not Joyent's, not Ryan Dahl's.
+If other people publish something, it's theirs.
 
-Yes, you can publish something evil.  It will be removed promptly if
-reported, and we'll lose respect for you.  But there is no vetting
-process for published modules.
+Users can publish Bad Stuff.  It will be removed promptly if reported.
+But there is no vetting process for published modules, and you use
+them at your own risk.  Please inspect the source.
 
-If this concerns you, inspect the source before using packages.
+If you publish Bad Stuff, we may delete it from the registry, or even
+ban your account in extreme cases.  So don't do that.
 
 ## BUGS
 

@@ -5,12 +5,21 @@ structure with all the data.
 
 npm uses this.
 
+## 1.0.0
+
+Breaking changes in `1.0.0`:
+
+The second argument is now an `Object` that contains the following keys:
+
+ * `depth` optional, defaults to Infinity
+ * `log` optional log Function
+ * `dev` optional, dev=true to mark devDeps as extraneous
+
 ## Usage
 
 ```javascript
 var readInstalled = require("read-installed")
-// depth is optional, defaults to Infinity
-readInstalled(folder, depth, logFunction, function (er, data) {
+readInstalled(folder, { depth, log, dev }, function (er, data) {
   ...
 })
 ```

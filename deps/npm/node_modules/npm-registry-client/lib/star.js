@@ -7,7 +7,7 @@ function star (package, starred, cb) {
 
   var users = {}
 
-  this.request("GET", package, function (er, fullData) {
+  this.request("GET", package + '?write=true', function (er, fullData) {
     if (er) return cb(er)
 
     fullData = { _id: fullData._id

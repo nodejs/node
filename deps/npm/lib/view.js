@@ -56,7 +56,7 @@ function view (args, silent, cb) {
   if (name === ".") return cb(view.usage)
 
   // get the data about this package
-  registry.get(name, 600, function (er, data) {
+  registry.get(name, function (er, data) {
     if (er) return cb(er)
     if (data["dist-tags"].hasOwnProperty(version)) {
       version = data["dist-tags"][version]

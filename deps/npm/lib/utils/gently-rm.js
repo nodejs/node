@@ -9,6 +9,22 @@ var rimraf = require("rimraf")
   , path = require("path")
 
 function gentlyRm (p, gently, cb) {
+  if (!cb) cb = gently, gently = null
+
+  // never rm the root, prefix, or bin dirs.
+  // just a safety precaution.
+  p = path.resolve(p)
+  if (p === npm.dir ||
+      p === npm.root ||
+      p === npm.bin ||
+      p === npm.prefix ||
+      p === npm.globalDir ||
+      p === npm.globalRoot ||
+      p === npm.globalBin ||
+      p === npm.globalPrefix) {
+    return cb(new Error("May not delete: " + p))
+  }
+
   if (npm.config.get("force") || !gently) {
     return rimraf(p, cb)
   }

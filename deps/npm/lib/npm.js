@@ -31,7 +31,15 @@ var EventEmitter = require("events").EventEmitter
   , chain = slide.chain
   , RegClient = require("npm-registry-client")
 
-npm.config = {loaded: false}
+npm.config = {
+  loaded: false,
+  get: function() {
+    throw new Error('npm.load() required')
+  },
+  set: function() {
+    throw new Error('npm.load() required')
+  }
+}
 
 // /usr/local is often a read-only fs, which is not
 // well handled by node or mkdirp.  Just double-check

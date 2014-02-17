@@ -32,7 +32,7 @@ tap.test("update a user acct", function (t) {
     res.json({error: "conflict"})
   })
 
-  server.expect("GET", "/-/user/org.couchdb.user:username", function (req, res) {
+  server.expect("GET", "/-/user/org.couchdb.user:username?write=true", function (req, res) {
     t.equal(req.method, "GET")
     res.json(userdata)
   })

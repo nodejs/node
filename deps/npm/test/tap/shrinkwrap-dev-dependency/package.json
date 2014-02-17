@@ -1,0 +1,12 @@
+{
+  "author": "Domenic Denicola",
+  "name": "npm-test-shrinkwrap-dev-dependency",
+  "version": "0.0.0",
+  "dependencies": {
+    "request": "0.9.0",
+    "underscore": "1.3.1"
+  },
+  "devDependencies": {
+    "underscore": "1.5.1"
+  }
+}

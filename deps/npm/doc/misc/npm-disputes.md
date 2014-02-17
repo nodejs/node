@@ -4,7 +4,7 @@ npm-disputes(7) -- Handling Module Name Disputes
 ## SYNOPSIS
 
 1. Get the author email with `npm owner ls <pkgname>`
-2. Email the author, CC <i@izs.me>.
+2. Email the author, CC <support@npmjs.com>
 3. After a few weeks, if there's no resolution, we'll sort it out.
 
 Don't squat on package names.  Publish code or move out of the way.
@@ -42,15 +42,16 @@ Joe's appropriate course of action in each case is the same.
 
 1. `npm owner ls foo`.  This will tell Joe the email address of the
    owner (Bob).
-2. Joe emails Bob, explaining the situation **as respectfully as possible**,
-   and what he would like to do with the module name.  He adds
-   isaacs <i@izs.me> to the CC list of the email.  Mention in the email
-   that Bob can run `npm owner add joe foo` to add Joe as an owner of
-   the `foo` package.
+2. Joe emails Bob, explaining the situation **as respectfully as
+   possible**, and what he would like to do with the module name.  He
+   adds the npm support staff <support@npmjs.com> to the CC list of
+   the email.  Mention in the email that Bob can run `npm owner add
+   joe foo` to add Joe as an owner of the `foo` package.
 3. After a reasonable amount of time, if Bob has not responded, or if
-   Bob and Joe can't come to any sort of resolution, email isaacs
-   <i@izs.me> and we'll sort it out.  ("Reasonable" is usually about 4
-   weeks, but extra time is allowed around common holidays.)
+   Bob and Joe can't come to any sort of resolution, email support
+   <support@npmjs.com> and we'll sort it out.  ("Reasonable" is
+   usually at least 4 weeks, but extra time is allowed around common
+   holidays.)
 
 ## REASONING
 

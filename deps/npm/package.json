@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.4.3",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -38,9 +38,9 @@
     "ini": "~1.1.0",
     "slide": "~1.1.5",
     "abbrev": "~1.0.4",
-    "graceful-fs": "~2.0.0",
+    "graceful-fs": "^2.0.2",
     "minimatch": "~0.2.14",
-    "nopt": "~2.1.2",
+    "nopt": "^2.2.0",
     "rimraf": "~2.2.5",
     "request": "~2.30.0",
     "which": "1",
@@ -57,10 +57,10 @@
     "chownr": "0",
     "npmlog": "0.0.6",
     "ansi": "~0.2.1",
-    "npm-registry-client": "~0.4.0",
+    "npm-registry-client": "^0.4.4",
     "read-package-json": "~1.1.7",
-    "read-installed": "~0.2.2",
-    "glob": "~3.2.6",
+    "read-installed": "~1.0.0",
+    "glob": "3.2.7",
     "init-package-json": "0.0.14",
     "osenv": "0",
     "lockfile": "~0.4.0",

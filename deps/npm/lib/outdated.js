@@ -9,6 +9,9 @@ Does the following:
 If no packages are specified, then run for all installed
 packages.
 
+--parseable creates output like this:
+<fullpath>:<name@wanted>:<name@installed>:<name@latest>
+
 */
 
 module.exports = outdated
@@ -29,6 +32,8 @@ var path = require("path")
   , color = require("ansicolors")
   , styles = require("ansistyles")
   , table = require("text-table")
+  , semver = require("semver")
+  , os = require("os")
 
 function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
@@ -37,14 +42,23 @@ function outdated (args, silent, cb) {
     if (er || silent) return cb(er, list)
     if (npm.config.get("json")) {
       console.log(makeJSON(list))
+    } else if (npm.config.get("parseable")) {
+      console.log(makeParseable(list));
     } else {
       var outList = list.map(makePretty)
-      var outTable = [[ styles.underline("Package")
-                      , styles.underline("Current")
-                      , styles.underline("Wanted")
-                      , styles.underline("Latest")
-                      , styles.underline("Location")
+      var outTable = [[ "Package"
+                      , "Current"
+                      , "Wanted"
+                      , "Latest"
+                      , "Location"
                      ]].concat(outList)
+
+      if (npm.color) {
+        outTable[0] = outTable[0].map(function(heading) {
+          return styles.underline(heading)
+        })
+      }
+
       var tableOpts = { align: ["l", "r", "r", "r", "l"]
                       , stringLength: function(s) { return ansiTrim(s).length }
                       }
@@ -54,37 +68,34 @@ function outdated (args, silent, cb) {
   })
 }
 
-// [[ dir, dep, has, want ]]
+// [[ dir, dep, has, want, latest ]]
 function makePretty (p) {
   var parseable = npm.config.get("parseable")
-    , long = npm.config.get("long")
     , dep = p[1]
     , dir = path.resolve(p[0], "node_modules", dep)
     , has = p[2]
     , want = p[3]
     , latest = p[4]
 
-  // XXX add --json support
-  // Should match (more or less) the output of ls --json
-
-  if (parseable) {
-    var str = dir
-    if (npm.config.get("long")) {
-      str += ":" + dep + "@" + want
-           + ":" + (has ? (dep + "@" + has) : "MISSING")
-    }
-    return str
-  }
-
   if (!npm.config.get("global")) {
     dir = path.relative(process.cwd(), dir)
   }
-  return [ has === want ? color.yellow(dep) : color.red(dep)
-         , (has || "MISSING")
-         , color.green(want)
-         , color.magenta(latest)
-         , color.brightBlack(dirToPrettyLocation(dir))
-         ]
+
+  var columns = [ dep
+                , has || "MISSING"
+                , want
+                , latest
+                , dirToPrettyLocation(dir)
+                ]
+
+  if (npm.color) {
+    columns[0] = color[has === want ? "yellow" : "red"](columns[0]) // dep
+    columns[2] = color.green(columns[2]) // want
+    columns[3] = color.magenta(columns[3]) // latest
+    columns[4] = color.brightBlack(columns[4]) // dir
+  }
+
+  return columns
 }
 
 function ansiTrim (str) {
@@ -96,6 +107,22 @@ function ansiTrim (str) {
 function dirToPrettyLocation (dir) {
   return dir.replace(/^node_modules[/\\]/, "")
             .replace(/[[/\\]node_modules[/\\]/g, " > ")
+}
+
+function makeParseable (list) {
+  return list.map(function (p) {
+    var dep = p[1]
+      , dir = path.resolve(p[0], "node_modules", dep)
+      , has = p[2]
+      , want = p[3]
+      , latest = p[4];
+
+    return [ dir
+           , dep + "@" + want
+           , (has ? (dep + "@" + has) : "MISSING")
+           , dep + "@" + latest
+           ].join(":")
+  }).join(os.EOL)
 }
 
 function makeJSON (list) {
@@ -222,10 +249,33 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
 
   var registry = npm.registry
   // search for the latest package
-  registry.get(dep + "/latest", function (er, l) {
+  registry.get(dep, function (er, d) {
     if (er) return cb()
-    // so, we can conceivably update this.  find out if we need to.
-    cache.add(dep, req, function (er, d) {
+    if (!d || !d['dist-tags'] || !d.versions) return cb()
+    var l = d.versions[d['dist-tags'].latest]
+    if (!l) return cb()
+
+    // set to true if found in doc
+    var found = false
+
+    var r = req
+    if (d['dist-tags'][req])
+      r = d['dist-tags'][req]
+
+    if (semver.validRange(r, true)) {
+      // some kind of semver range.
+      // see if it's in the doc.
+      var vers = Object.keys(d.versions)
+      var v = semver.maxSatisfying(vers, r, true)
+      if (v) {
+        return onCacheAdd(null, d.versions[v])
+      }
+    }
+
+    // We didn't find the version in the doc.  See if cache can find it.
+    cache.add(dep, req, onCacheAdd)
+
+    function onCacheAdd(er, d) {
       // if this fails, then it means we can't update this thing.
       // it's probably a thing that isn't published.
       if (er) {
@@ -247,6 +297,7 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
         doIt(d.version, l.version)
       else
         skip()
-    })
+    }
+
   })
 }
