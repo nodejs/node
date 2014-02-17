@@ -125,9 +125,13 @@ Example: the definition of `console.log`
     };
 
 `process.stderr` and `process.stdout` are unlike other streams in Node in
-that writes to them are usually blocking.  They are blocking in the case
-that they refer to regular files or TTY file descriptors. In the case they
-refer to pipes, they are non-blocking like other streams.
+that writes to them are usually blocking.
+
+- They are blocking in the case that they refer to regular files or TTY file
+  descriptors.
+- In the case they refer to pipes:
+  - They are blocking in Linux/Unix.
+  - They are non-blocking like other streams in Windows.
 
 To check if Node is being run in a TTY context, read the `isTTY` property
 on `process.stderr`, `process.stdout`, or `process.stdin`:
@@ -149,9 +153,13 @@ See [the tty docs](tty.html#tty_tty) for more information.
 A writable stream to stderr.
 
 `process.stderr` and `process.stdout` are unlike other streams in Node in
-that writes to them are usually blocking.  They are blocking in the case
-that they refer to regular files or TTY file descriptors. In the case they
-refer to pipes, they are non-blocking like other streams.
+that writes to them are usually blocking.
+
+- They are blocking in the case that they refer to regular files or TTY file
+  descriptors.
+- In the case they refer to pipes:
+  - They are blocking in Linux/Unix.
+  - They are non-blocking like other streams in Windows.
 
 
 ## process.stdin
