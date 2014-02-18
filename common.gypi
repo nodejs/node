@@ -66,9 +66,6 @@
           ['OS=="solaris"', {
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
-          }, {
-            # Doesn't work with the Solaris linker.
-            'ldflags': [ '-Wl,--gc-sections' ],
           }],
           ['clang == 0 and gcc_version >= 40', {
             'cflags': [ '-fno-tree-vrp' ],  # Work around compiler bug.
