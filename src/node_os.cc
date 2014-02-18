@@ -50,6 +50,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
 using v8::HandleScope;
+using v8::Integer;
 using v8::Local;
 using v8::Number;
 using v8::Object;
@@ -271,6 +272,12 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     o->Set(FIXED_ONE_BYTE_STRING(node_isolate, "family"), family);
     o->Set(FIXED_ONE_BYTE_STRING(node_isolate, "mac"),
            FIXED_ONE_BYTE_STRING(node_isolate, mac));
+
+    if (interfaces[i].address.address4.sin_family == AF_INET6) {
+      uint32_t scopeid = interfaces[i].address.address6.sin6_scope_id;
+      o->Set(FIXED_ONE_BYTE_STRING(node_isolate, "scopeid"),
+        Integer::NewFromUnsigned(scopeid));
+    }
 
     const bool internal = interfaces[i].is_internal;
     o->Set(FIXED_ONE_BYTE_STRING(node_isolate, "internal"),
