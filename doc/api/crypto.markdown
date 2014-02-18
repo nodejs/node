@@ -388,22 +388,38 @@ the data and public key.
 Note: `verifier` object can not be used after `verify()` method has been
 called.
 
-## crypto.createDiffieHellman(prime_length)
+## crypto.createDiffieHellman(prime_length, [generator])
 
 Creates a Diffie-Hellman key exchange object and generates a prime of
-the given bit length. The generator used is `2`.
+`prime_length` bits and using an optional specific numeric `generator`.
+If no `generator` is specified, then `2` is used.
 
-## crypto.createDiffieHellman(prime, [encoding])
+## crypto.createDiffieHellman(prime, [prime_encoding], [generator], [generator_encoding])
 
-Creates a Diffie-Hellman key exchange object using the supplied prime.
-The generator used is `2`. Encoding can be `'binary'`, `'hex'`, or
-`'base64'`.  If no encoding is specified, then a buffer is expected.
+Creates a Diffie-Hellman key exchange object using the supplied `prime` and an
+optional specific `generator`.
+`generator` can be a number, string, or Buffer.
+If no `generator` is specified, then `2` is used.
+`prime_encoding` and `generator_encoding` can be `'binary'`, `'hex'`, or `'base64'`.
+If no `prime_encoding` is specified, then a Buffer is expected for `prime`.
+If no `generator_encoding` is specified, then a Buffer is expected for `generator`.
 
 ## Class: DiffieHellman
 
 The class for creating Diffie-Hellman key exchanges.
 
 Returned by `crypto.createDiffieHellman`.
+
+### diffieHellman.verifyError
+
+A bit field containing any warnings and/or errors as a result of a check performed
+during initialization. The following values are valid for this property
+(defined in `constants` module):
+
+* `DH_CHECK_P_NOT_SAFE_PRIME`
+* `DH_CHECK_P_NOT_PRIME`
+* `DH_UNABLE_TO_CHECK_GENERATOR`
+* `DH_NOT_SUITABLE_GENERATOR`
 
 ### diffieHellman.generateKeys([encoding])
 

@@ -88,6 +88,8 @@ using v8::Local;
 using v8::Null;
 using v8::Object;
 using v8::Persistent;
+using v8::PropertyAttribute;
+using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::ThrowException;
 using v8::V8;
@@ -3158,6 +3160,9 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
 
+  static enum PropertyAttribute attributes =
+      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   NODE_SET_PROTOTYPE_METHOD(t, "generateKeys", GenerateKeys);
@@ -3168,6 +3173,13 @@ void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "getPrivateKey", GetPrivateKey);
   NODE_SET_PROTOTYPE_METHOD(t, "setPublicKey", SetPublicKey);
   NODE_SET_PROTOTYPE_METHOD(t, "setPrivateKey", SetPrivateKey);
+
+  t->InstanceTemplate()->SetAccessor(env->verify_error_string(),
+                                     DiffieHellman::VerifyErrorGetter,
+                                     NULL,
+                                     Handle<Value>(),
+                                     v8::DEFAULT,
+                                     attributes);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"),
               t->GetFunction());
@@ -3182,14 +3194,21 @@ void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t2, "getPublicKey", GetPublicKey);
   NODE_SET_PROTOTYPE_METHOD(t2, "getPrivateKey", GetPrivateKey);
 
+  t2->InstanceTemplate()->SetAccessor(env->verify_error_string(),
+                                      DiffieHellman::VerifyErrorGetter,
+                                      NULL,
+                                      Handle<Value>(),
+                                      v8::DEFAULT,
+                                      attributes);
+
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellmanGroup"),
               t2->GetFunction());
 }
 
 
-bool DiffieHellman::Init(int primeLength) {
+bool DiffieHellman::Init(int primeLength, int g) {
   dh = DH_new();
-  DH_generate_parameters_ex(dh, primeLength, DH_GENERATOR_2, 0);
+  DH_generate_parameters_ex(dh, primeLength, g, 0);
   bool result = VerifyContext();
   if (!result)
     return false;
@@ -3198,11 +3217,11 @@ bool DiffieHellman::Init(int primeLength) {
 }
 
 
-bool DiffieHellman::Init(const char* p, int p_len) {
+bool DiffieHellman::Init(const char* p, int p_len, int g) {
   dh = DH_new();
   dh->p = BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, 0);
   dh->g = BN_new();
-  if (!BN_set_word(dh->g, 2))
+  if (!BN_set_word(dh->g, g))
     return false;
   bool result = VerifyContext();
   if (!result)
@@ -3216,6 +3235,9 @@ bool DiffieHellman::Init(const char* p, int p_len, const char* g, int g_len) {
   dh = DH_new();
   dh->p = BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, 0);
   dh->g = BN_bin2bn(reinterpret_cast<const unsigned char*>(g), g_len, 0);
+  bool result = VerifyContext();
+  if (!result)
+    return false;
   initialised_ = true;
   return true;
 }
@@ -3232,6 +3254,8 @@ void DiffieHellman::DiffieHellmanGroup(
     return ThrowError("No group name given");
   }
 
+  bool initialized = false;
+
   const String::Utf8Value group_name(args[0]);
   for (unsigned int i = 0; i < ARRAY_SIZE(modp_groups); ++i) {
     const modp_group* it = modp_groups + i;
@@ -3239,10 +3263,12 @@ void DiffieHellman::DiffieHellmanGroup(
     if (strcasecmp(*group_name, it->name) != 0)
       continue;
 
-    diffieHellman->Init(it->prime,
-                        it->prime_size,
-                        it->gen,
-                        it->gen_size);
+    initialized = diffieHellman->Init(it->prime,
+                                      it->prime_size,
+                                      it->gen,
+                                      it->gen_size);
+    if (!initialized)
+      ThrowError("Initialization failed");
     return;
   }
 
@@ -3258,12 +3284,23 @@ void DiffieHellman::New(const FunctionCallbackInfo<Value>& args) {
       new DiffieHellman(env, args.This());
   bool initialized = false;
 
-  if (args.Length() > 0) {
+  if (args.Length() == 2) {
     if (args[0]->IsInt32()) {
-      initialized = diffieHellman->Init(args[0]->Int32Value());
+      if (args[1]->IsInt32()) {
+        initialized = diffieHellman->Init(args[0]->Int32Value(),
+                                          args[1]->Int32Value());
+      }
     } else {
-      initialized = diffieHellman->Init(Buffer::Data(args[0]),
-                                        Buffer::Length(args[0]));
+      if (args[1]->IsInt32()) {
+        initialized = diffieHellman->Init(Buffer::Data(args[0]),
+                                          Buffer::Length(args[0]),
+                                          args[1]->Int32Value());
+      } else {
+        initialized = diffieHellman->Init(Buffer::Data(args[0]),
+                                          Buffer::Length(args[0]),
+                                          Buffer::Data(args[1]),
+                                          Buffer::Length(args[1]));
+      }
     }
   }
 
@@ -3490,18 +3527,24 @@ void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void DiffieHellman::VerifyErrorGetter(Local<String> property,
+                                      const PropertyCallbackInfo<Value>& args) {
+  HandleScope scope(args.GetIsolate());
+
+  DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.This());
+
+  if (!diffieHellman->initialised_)
+    return ThrowError("Not initialized");
+
+  args.GetReturnValue().Set(diffieHellman->verifyError_);
+}
+
+
 bool DiffieHellman::VerifyContext() {
   int codes;
   if (!DH_check(dh, &codes))
     return false;
-  if (codes & DH_CHECK_P_NOT_SAFE_PRIME)
-    return false;
-  if (codes & DH_CHECK_P_NOT_PRIME)
-    return false;
-  if (codes & DH_UNABLE_TO_CHECK_GENERATOR)
-    return false;
-  if (codes & DH_NOT_SUITABLE_GENERATOR)
-    return false;
+  verifyError_ = codes;
   return true;
 }
 

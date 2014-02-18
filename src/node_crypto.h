@@ -541,8 +541,8 @@ class DiffieHellman : public BaseObject {
 
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
-  bool Init(int primeLength);
-  bool Init(const char* p, int p_len);
+  bool Init(int primeLength, int g);
+  bool Init(const char* p, int p_len, int g);
   bool Init(const char* p, int p_len, const char* g, int g_len);
 
  protected:
@@ -557,10 +557,14 @@ class DiffieHellman : public BaseObject {
   static void ComputeSecret(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void VerifyErrorGetter(
+      v8::Local<v8::String> property,
+      const v8::PropertyCallbackInfo<v8::Value>& args);
 
   DiffieHellman(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
         initialised_(false),
+        verifyError_(0),
         dh(NULL) {
     MakeWeak<DiffieHellman>(this);
   }
@@ -569,6 +573,7 @@ class DiffieHellman : public BaseObject {
   bool VerifyContext();
 
   bool initialised_;
+  int verifyError_;
   DH* dh;
 };
 

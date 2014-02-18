@@ -167,6 +167,7 @@ namespace node {
   V(used_heap_size_string, "used_heap_size")                                  \
   V(valid_from_string, "valid_from")                                          \
   V(valid_to_string, "valid_to")                                              \
+  V(verify_error_string, "verifyError")                                       \
   V(version_major_string, "versionMajor")                                     \
   V(version_minor_string, "versionMinor")                                     \
   V(version_string, "version")                                                \
