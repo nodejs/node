@@ -1,4 +1,26 @@
-2014.01.23, Version 0.10.23 (Stable)
+2014.02.19, Version 0.10.25 (Stable)
+
+Changes since version 0.10.24:
+
+* stream: start thread after assignments (Oguz Bastemur)
+
+* unix: correct error when calling uv_shutdown twice (Saúl Ibarra Corretgé)
+
+* windows: freeze in uv_tcp_endgame (Alexis Campailla)
+
+* sunos: handle rearm errors (Fedor Indutny)
+
+
+2014.01.30, Version 0.10.24 (Stable), aecd296b6bce9b40f06a61c5c94e43d45ac7308a
+
+Changes since version 0.10.23:
+
+* linux: move sscanf() out of the assert() (Trevor Norris)
+
+* linux: fix C99/C++ comment (Fedor Indutny)
+
+
+2014.01.23, Version 0.10.23 (Stable), dbd218e699fec8be311d85e4788be9e28ae884f8
 
 Changes since version 0.10.22:
 

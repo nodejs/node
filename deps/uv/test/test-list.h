@@ -94,6 +94,7 @@ TEST_DECLARE   (connection_fail_doesnt_auto_close)
 TEST_DECLARE   (shutdown_close_tcp)
 TEST_DECLARE   (shutdown_close_pipe)
 TEST_DECLARE   (shutdown_eof)
+TEST_DECLARE   (shutdown_twice)
 TEST_DECLARE   (callback_stack)
 TEST_DECLARE   (error_message)
 TEST_DECLARE   (timer)
@@ -343,6 +344,9 @@ TASK_LIST_START
 
   TEST_ENTRY  (shutdown_eof)
   TEST_HELPER (shutdown_eof, tcp4_echo_server)
+
+  TEST_ENTRY  (shutdown_twice)
+  TEST_HELPER (shutdown_twice, tcp4_echo_server)
 
   TEST_ENTRY  (callback_stack)
   TEST_HELPER (callback_stack, tcp4_echo_server)

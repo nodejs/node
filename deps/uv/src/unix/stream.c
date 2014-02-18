@@ -282,6 +282,7 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
   int fds[2];
   int ret;
   int kq;
+  int old_fd;
 
   kq = kqueue();
   if (kq == -1) {
@@ -333,16 +334,20 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
   s->fake_fd = fds[0];
   s->int_fd = fds[1];
 
-  if (uv_thread_create(&s->thread, uv__stream_osx_select, stream))
-    goto fatal4;
-
+  old_fd = *fd;
   s->stream = stream;
   stream->select = s;
   *fd = s->fake_fd;
 
+  if (uv_thread_create(&s->thread, uv__stream_osx_select, stream))
+    goto fatal4;
+
   return 0;
 
 fatal4:
+  s->stream = NULL;
+  stream->select = NULL;
+  *fd = old_fd;
   close(s->fake_fd);
   close(s->int_fd);
   s->fake_fd = -1;
@@ -1075,6 +1080,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
 
   if (!(stream->flags & UV_STREAM_WRITABLE) ||
       stream->flags & UV_STREAM_SHUT ||
+      stream->flags & UV_STREAM_SHUTTING ||
       stream->flags & UV_CLOSED ||
       stream->flags & UV_CLOSING) {
     uv__set_artificial_error(stream->loop, UV_ENOTCONN);

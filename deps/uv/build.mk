@@ -109,6 +109,7 @@ TESTS= \
 	test/test-semaphore.o \
 	test/test-shutdown-close.o \
 	test/test-shutdown-eof.o \
+	test/test-shutdown-twice.o \
 	test/test-signal.o \
 	test/test-signal-multiple-loops.o \
 	test/test-spawn.o \

@@ -303,9 +303,9 @@ void uv_loadavg(double avg[3]) {
 
 #if defined(PORT_SOURCE_FILE)
 
-static void uv__fs_event_rearm(uv_fs_event_t *handle) {
+static int uv__fs_event_rearm(uv_fs_event_t* handle) {
   if (handle->fd == -1)
-    return;
+    return 0;
 
   if (port_associate(handle->loop->fs_fd,
                      PORT_SOURCE_FILE,
@@ -313,8 +313,10 @@ static void uv__fs_event_rearm(uv_fs_event_t *handle) {
                      FILE_ATTRIB | FILE_MODIFIED,
                      handle) == -1) {
     uv__set_sys_error(handle->loop, errno);
+    return -1;
   }
   handle->fd = PORT_LOADED;
+  return 0;
 }
 
 
@@ -361,11 +363,12 @@ static void uv__fs_event_read(uv_loop_t* loop,
     assert(events != 0);
     handle->fd = PORT_FIRED;
     handle->cb(handle, NULL, events, 0);
+
+    if (handle->fd != PORT_DELETED)
+      if (uv__fs_event_rearm(handle) != 0)
+        handle->cb(handle, NULL, 0, -1);
   }
   while (handle->fd != PORT_DELETED);
-
-  if (handle != NULL && handle->fd != PORT_DELETED)
-    uv__fs_event_rearm(handle);
 }
 
 
@@ -387,14 +390,16 @@ int uv_fs_event_init(uv_loop_t* loop,
   }
 
   uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
-  uv__handle_start(handle); /* FIXME shouldn't start automatically */
   handle->filename = strdup(filename);
   handle->fd = PORT_UNUSED;
   handle->cb = cb;
 
   memset(&handle->fo, 0, sizeof handle->fo);
   handle->fo.fo_name = handle->filename;
-  uv__fs_event_rearm(handle);
+  if (uv__fs_event_rearm(handle) != 0)
+    return -1;
+
+  uv__handle_start(handle); /* FIXME shouldn't start automatically */
 
   if (first_run) {
     uv__io_init(&loop->fs_event_watcher, uv__fs_event_read, portfd);
