@@ -26,11 +26,6 @@ var util = require('util');
 
 var spawnSync = require('child_process').spawnSync;
 
-function checkRet(ret) {
-  assert.strictEqual(ret.status, 0);
-  assert.strictEqual(ret.error, undefined);
-}
-
 var msgOut = 'this is stdout';
 var msgErr = 'this is stderr';
 
@@ -50,13 +45,13 @@ if (process.argv.indexOf('spawnchild') !== -1) {
   switch (process.argv[3]) {
     case '1':
       ret = spawnSync(process.execPath, args, { stdio: 'inherit' });
-      checkRet(ret);
+      common.checkSpawnSyncRet(ret);
       break;
     case '2':
       ret = spawnSync(process.execPath, args, {
         stdio: ['inherit', 'inherit', 'inherit']
       });
-      checkRet(ret);
+      common.checkSpawnSyncRet(ret);
       break;
   }
   process.exit(0);
@@ -65,7 +60,7 @@ if (process.argv.indexOf('spawnchild') !== -1) {
 
 
 function verifyBufOutput(ret) {
-  checkRet(ret);
+  common.checkSpawnSyncRet(ret);
   assert.deepEqual(ret.stdout, msgOutBuf);
   assert.deepEqual(ret.stderr, msgErrBuf);
 }
@@ -89,7 +84,7 @@ options = {
 
 ret = spawnSync('cat', [], options);
 
-checkRet(ret);
+common.checkSpawnSyncRet(ret);
 assert.strictEqual(ret.stdout.toString('utf8'), options.input);
 assert.strictEqual(ret.stderr.toString('utf8'), '');
 
@@ -99,7 +94,7 @@ options = {
 
 ret = spawnSync('cat', [], options);
 
-checkRet(ret);
+common.checkSpawnSyncRet(ret);
 assert.deepEqual(ret.stdout, options.input);
 assert.deepEqual(ret.stderr, new Buffer(''));
 
@@ -107,7 +102,7 @@ verifyBufOutput(spawnSync(process.execPath, args));
 
 ret = spawnSync(process.execPath, args, { encoding: 'utf8' });
 
-checkRet(ret);
+common.checkSpawnSyncRet(ret);
 assert.strictEqual(ret.stdout, msgOut + '\n');
 assert.strictEqual(ret.stderr, msgErr + '\n');
 

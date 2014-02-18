@@ -214,3 +214,8 @@ exports.mustCall = function(fn, expected) {
     return fn.apply(this, arguments);
   };
 };
+
+exports.checkSpawnSyncRet = function(ret) {
+  assert.strictEqual(ret.status, 0);
+  assert.strictEqual(ret.error, undefined);
+};
