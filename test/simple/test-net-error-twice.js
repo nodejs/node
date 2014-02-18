@@ -36,15 +36,18 @@ var srv = net.createServer(function onConnection(conn) {
     if (errs.length > 1 && errs[0] === errs[1])
       assert(false, "We should not be emitting the same error twice");
   });
+  conn.on('close', function() {
+    srv.unref();
+  });
 }).listen(common.PORT, function () {
   var client = net.connect({ port: common.PORT });
 
   client.on('connect', function () {
-    client.resume();
     client.destroy();
   });
-}).unref();
+});
 
 process.on('exit', function() {
+  console.log(errs);
   assert.equal(errs.length, 1);
 });
