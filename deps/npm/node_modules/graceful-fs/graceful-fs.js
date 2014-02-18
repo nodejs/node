@@ -86,6 +86,8 @@ ReaddirReq.prototype.process = function() {
 }
 
 ReaddirReq.prototype.done = function(er, files) {
+  if (files && files.sort)
+    files = files.sort()
   Req.prototype.done.call(this, er, files)
   onclose()
 }

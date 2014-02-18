@@ -87,17 +87,24 @@ class ZCtx : public AsyncWrap {
         strategy_(0),
         windowBits_(0),
         write_in_progress_(false),
+        pending_close_(false),
         refs_(0) {
     MakeWeak<ZCtx>(this);
   }
 
 
   ~ZCtx() {
+    assert(!write_in_progress_ && "write in progress");
     Close();
   }
 
   void Close() {
-    assert(!write_in_progress_ && "write in progress");
+    if (write_in_progress_) {
+      pending_close_ = true;
+      return;
+    }
+
+    pending_close_ = false;
     assert(init_done_ && "close before init");
     assert(mode_ <= UNZIP);
 
@@ -136,6 +143,7 @@ class ZCtx : public AsyncWrap {
     assert(ctx->mode_ != NONE && "already finalized");
 
     assert(!ctx->write_in_progress_ && "write already in progress");
+    assert(!ctx->pending_close_ && "close is pending");
     ctx->write_in_progress_ = true;
     ctx->Ref();
 
@@ -323,6 +331,8 @@ class ZCtx : public AsyncWrap {
     ctx->MakeCallback(env->callback_string(), ARRAY_SIZE(args), args);
 
     ctx->Unref();
+    if (ctx->pending_close_)
+      ctx->Close();
   }
 
   static void Error(ZCtx* ctx, const char* message) {
@@ -345,6 +355,8 @@ class ZCtx : public AsyncWrap {
     // no hope of rescue.
     ctx->write_in_progress_ = false;
     ctx->Unref();
+    if (ctx->pending_close_)
+      ctx->Close();
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
@@ -578,6 +590,7 @@ class ZCtx : public AsyncWrap {
   int windowBits_;
   uv_work_t work_req_;
   bool write_in_progress_;
+  bool pending_close_;
   unsigned int refs_;
 };
 

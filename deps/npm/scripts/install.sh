@@ -17,7 +17,16 @@ if [ "x$0" = "xsh" ]; then
   # on some systems, you can just do cat>npm-install.sh
   # which is a bit cuter.  But on others, &1 is already closed,
   # so catting to another script file won't do anything.
-  curl -s https://npmjs.org/install.sh > npm-install-$$.sh
+  # Follow Location: headers, and fail on errors
+  curl -f -L -s https://www.npmjs.org/install.sh > npm-install-$$.sh
+  ret=$?
+  if [ $ret -eq 0 ]; then
+    (exit 0)
+  else
+    rm npm-install-$$.sh
+    echo "Failed to download script" >&2
+    exit $ret
+  fi
   sh npm-install-$$.sh
   ret=$?
   rm npm-install-$$.sh

@@ -16,7 +16,7 @@ var util = require("util")
 var RegClient = require("npm-registry-client")
 var npmconf = require("npmconf")
 var semver = require("semver")
-var rimraf = require("rimraf")
+var rm = require("./utils/gently-rm.js")
 var log = require("npmlog")
 var npm = require("./npm.js")
 
@@ -208,7 +208,7 @@ function installAndRetest (set, filter, dir, unavoidable, silent, cb) {
 
   }, function (er, installed) {
     if (er) return cb(er)
-    asyncMap(remove, rimraf, function (er) {
+    asyncMap(remove, rm, function (er) {
       if (er) return cb(er)
       remove.forEach(function (r) {
         log.info("rm", r)
@@ -249,10 +249,10 @@ function findVersions (npm, summary, cb) {
       var regVersions = er ? [] : Object.keys(data.versions)
       var locMatch = bestMatch(versions, ranges)
       var regMatch;
-      var tag = npm.config.get("tag");
-      var distTags = data["dist-tags"];
-      if (distTags && distTags[tag] && data.versions[distTags[tag]]) {
-        regMatch = distTags[tag]
+      var tag = npm.config.get("tag")
+      var distTag = data["dist-tags"] && data["dist-tags"][tag]
+      if (distTag && data.versions[distTag] && matches(distTag, ranges)) {
+        regMatch = distTag
       } else {
         regMatch = bestMatch(regVersions, ranges)
       }
@@ -262,11 +262,15 @@ function findVersions (npm, summary, cb) {
   }, cb)
 }
 
+function matches (version, ranges) {
+  return !ranges.some(function (r) {
+    return !semver.satisfies(version, r, true)
+  })
+}
+
 function bestMatch (versions, ranges) {
   return versions.filter(function (v) {
-    return !ranges.some(function (r) {
-      return !semver.satisfies(v, r, true)
-    })
+    return matches(v, ranges)
   }).sort(semver.compareLoose).pop()
 }
 

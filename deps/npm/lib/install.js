@@ -187,7 +187,7 @@ function install (args, cb_) {
 }
 
 function findPeerInvalid (where, cb) {
-  readInstalled(where, log.warn, function (er, data) {
+  readInstalled(where, { log: log.warn }, function (er, data) {
     if (er) return cb(er)
 
     cb(null, findPeerInvalid_(data.dependencies, []))
@@ -351,7 +351,7 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
       }).reduce(function (set, k) {
         var rangeDescriptor = semver.valid(k[1], true) &&
                               semver.gte(k[1], "0.1.0", true)
-                            ? "~" : ""
+                            ? "^" : ""
         set[k[0]] = rangeDescriptor + k[1]
         return set
       }, {})

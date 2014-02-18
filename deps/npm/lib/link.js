@@ -8,7 +8,7 @@ var npm = require("./npm.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
   , path = require("path")
-  , rm = require("rimraf")
+  , rm = require("./utils/gently-rm.js")
   , build = require("./build.js")
 
 module.exports = link
@@ -121,6 +121,10 @@ function linkPkg (folder, cb_) {
       return cb_(er, [[d && d._id, target, null, null]])
     }
     if (er) return cb(er)
+    if (!d.name) {
+      er = new Error("Package must have a name field to be linked")
+      return cb(er)
+    }
     var target = path.resolve(npm.globalDir, d.name)
     rm(target, function (er) {
       if (er) return cb(er)

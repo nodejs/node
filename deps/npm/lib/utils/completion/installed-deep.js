@@ -6,12 +6,16 @@ var npm = require("../../npm.js")
 function installedDeep (opts, cb) {
   var local
     , global
+    , depth = npm.config.get("depth")
+    , opt = { depth: depth }
+
   if (npm.config.get("global")) local = [], next()
-  else readInstalled(npm.prefix, npm.config.get("depth"), function (er, data) {
+  else readInstalled(npm.prefix, opt, function (er, data) {
     local = getNames(data || {})
     next()
   })
-  readInstalled(npm.config.get("prefix"), npm.config.get("depth"), function (er, data) {
+
+  readInstalled(npm.config.get("prefix"), opt, function (er, data) {
     global = getNames(data || {})
     next()
   })

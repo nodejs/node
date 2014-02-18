@@ -21,7 +21,8 @@ function prune (args, cb) {
   })
 
   function next() {
-    readInstalled(npm.prefix, npm.config.get("depth"), function (er, data) {
+    var opt = { depth: npm.config.get("depth"), dev: npm.config.get("production") }
+    readInstalled(npm.prefix, opt, function (er, data) {
       if (er) return cb(er)
       prune_(args, data, cb)
     })

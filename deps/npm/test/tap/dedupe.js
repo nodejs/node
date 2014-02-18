@@ -6,7 +6,7 @@ var test = require("tap").test
   , rimraf = require("rimraf")
 
 test("dedupe finds the common module and moves it up one level", function (t) {
-  t.plan(1)
+  t.plan(2)
 
   setup(function () {
     npm.install(".", function (err) {
@@ -14,6 +14,7 @@ test("dedupe finds the common module and moves it up one level", function (t) {
       npm.dedupe(function(err) {
         if (err) return t.fail(err)
         t.ok(existsSync(path.join(__dirname, "dedupe", "node_modules", "minimist")))
+        t.ok(!existsSync(path.join(__dirname, "dedupe", "node_modules", "prime")))
       })
     })
   })

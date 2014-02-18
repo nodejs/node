@@ -14,7 +14,8 @@ var semver = require("semver")
 function unpublish (name, ver, cb) {
   if (typeof cb !== "function") cb = ver, ver = null
 
-  this.get(name, null, -1, true, function (er, data) {
+  var u = name + '?write=true'
+  this.get(u, null, -1, true, function (er, data) {
     if (er) {
       this.log.info("unpublish", name+" not published")
       return cb()

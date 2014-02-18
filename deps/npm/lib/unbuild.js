@@ -2,7 +2,7 @@ module.exports = unbuild
 unbuild.usage = "npm unbuild <folder>\n(this is plumbing)"
 
 var readJson = require("read-package-json")
-  , rm = require("rimraf")
+  , rm = require("./utils/gently-rm.js")
   , gentlyRm = require("./utils/gently-rm.js")
   , npm = require("./npm.js")
   , path = require("path")

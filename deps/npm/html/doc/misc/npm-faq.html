@@ -10,7 +10,7 @@
 
 <h2 id="Where-can-I-find-these-docs-in-HTML">Where can I find these docs in HTML?</h2>
 
-<p><a href="https://npmjs.org/doc/">https://npmjs.org/doc/</a>, or run:</p>
+<p><a href="https://www.npmjs.org/doc/">https://www.npmjs.org/doc/</a>, or run:</p>
 
 <pre><code>npm config set viewer browser</code></pre>
 
@@ -74,7 +74,8 @@ program that uses it.</p>
 
 <h2 id="Whatever-I-really-want-the-old-style-everything-global-style">Whatever, I really want the old style &#39;everything global&#39; style.</h2>
 
-<p>Write your own package manager, then.  It&#39;s not that hard.</p>
+<p>Write your own package manager.  You could probably even wrap up <code>npm</code>
+in a shell script if you really wanted to.</p>
 
 <p>npm will not help you do something that is known to be a bad idea.</p>
 
@@ -302,13 +303,17 @@ that has a package.json in its root, or a git url.
 
 <p>Either the registry is down, or node&#39;s DNS isn&#39;t able to reach out.</p>
 
-<p>To check if the registry is down, open up <a href="http://registry.npmjs.org/">http://registry.npmjs.org/</a>
-in a web browser.  This will also tell you if you are just unable to
-access the internet for some reason.</p>
+<p>To check if the registry is down, open up
+<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a> in a web browser.  This will also tell
+you if you are just unable to access the internet for some reason.</p>
 
-<p>If the registry IS down, let me know by emailing <a href="mailto:i@izs.me">i@izs.me</a> or posting
-an issue at <a href="https://github.com/npm/npm/issues">https://github.com/npm/npm/issues</a>.  We&#39;ll have
-someone kick it or something.</p>
+<p>If the registry IS down, let us know by emailing <a href="mailto:support@npmjs.com">support@npmjs.com</a>
+or posting an issue at <a href="https://github.com/npm/npm/issues">https://github.com/npm/npm/issues</a>.  If it&#39;s
+down for the world (and not just on your local network) then we&#39;re
+probably already being pinged about it.</p>
+
+<p>You can also often get a faster response by visiting the #npm channel
+on Freenode IRC.</p>
 
 <h2 id="Why-no-namespaces">Why no namespaces?</h2>
 
@@ -322,9 +327,12 @@ There is not sufficient need to impose namespace rules on everyone.</p>
 
 <h2 id="Who-does-npm">Who does npm?</h2>
 
-<p><code>npm view npm author</code></p>
+<p>npm was originally written by Isaac Z. Schlueter, and many others have
+contributed to it, some of them quite substantially.</p>
 
-<p><code>npm view npm contributors</code></p>
+<p>The npm open source project, The npm Registry, and <a href="https://www.npmjs.org">the community
+website</a> are maintained and operated by the
+good folks at <a href="https://www.npmjs.com">npm, Inc.</a></p>
 
 <h2 id="I-have-a-question-or-request-not-addressed-here-Where-should-I-put-it">I have a question or request not addressed here. Where should I put it?</h2>
 
@@ -340,7 +348,7 @@ There is not sufficient need to impose namespace rules on everyone.</p>
 
 <ul><li><a href="../cli/npm.html">npm(1)</a></li><li><a href="../misc/npm-developers.html">npm-developers(7)</a></li><li><a href="../files/package.json.html">package.json(5)</a></li><li><a href="../cli/npm-config.html">npm-config(1)</a></li><li><a href="../misc/npm-config.html">npm-config(7)</a></li><li><a href="../files/npmrc.html">npmrc(5)</a></li><li><a href="../misc/npm-config.html">npm-config(7)</a></li><li><a href="../files/npm-folders.html">npm-folders(5)</a></li></ul>
 </div>
-<p id="footer">npm-faq &mdash; npm@1.4.0</p>
+<p id="footer">npm-faq &mdash; npm@1.4.3</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

@@ -14,7 +14,7 @@ function deprecate (name, ver, message, cb) {
 
   var users = {}
 
-  this.get(name, function (er, data) {
+  this.get(name + '?write=true', function (er, data) {
     if (er) return cb(er)
     // filter all the versions that match
     Object.keys(data.versions).filter(function (v) {

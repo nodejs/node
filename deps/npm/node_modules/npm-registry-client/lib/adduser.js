@@ -81,7 +81,8 @@ function adduser (username, password, email, cb) {
 
         this.log.verbose("adduser", "update existing user")
         return this.request('GET'
-          , '/-/user/org.couchdb.user:'+encodeURIComponent(username)
+          , '/-/user/org.couchdb.user:'+encodeURIComponent(username) +
+            '?write=true'
           , function (er, data, json, response) {
               if (er || data.error) {
                 return cb(er, data, json, response)

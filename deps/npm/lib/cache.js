@@ -64,7 +64,7 @@ var mkdir = require("mkdirp")
   , fetch = require("./utils/fetch.js")
   , npm = require("./npm.js")
   , fs = require("graceful-fs")
-  , rm = require("rimraf")
+  , rm = require("./utils/gently-rm.js")
   , readJson = require("read-package-json")
   , registry = npm.registry
   , log = require("npmlog")
@@ -249,16 +249,48 @@ function add (args, cb) {
   var p = url.parse(spec) || {}
   log.verbose("parsed url", p)
 
-  // it could be that we got name@http://blah
+  // If there's a /, and it's a path, then install the path.
+  // If not, and there's a @, it could be that we got name@http://blah
   // in that case, we will not have a protocol now, but if we
   // split and check, we will.
-  if (!name && !p.protocol && spec.indexOf("@") !== -1) {
-    spec = spec.split("@")
-    name = spec.shift()
-    spec = spec.join("@")
-    return add([name, spec], cb)
+  if (!name && !p.protocol) {
+    if (spec.indexOf("/") !== -1 ||
+        process.platform === "win32" && spec.indexOf("\\") !== -1) {
+      return maybeFile(spec, p, cb)
+    } else if (spec.indexOf("@") !== -1) {
+      return maybeAt(spec, cb)
+    }
   }
 
+  add_(name, spec, p, cb)
+}
+
+function maybeFile (spec, p, cb) {
+  fs.stat(spec, function (er, stat) {
+    if (!er) {
+      // definitely a local thing
+      addLocal(spec, cb)
+    } else if (er && spec.indexOf("@") !== -1) {
+      // bar@baz/loofa
+      maybeAt(spec, cb)
+    } else {
+      // Already know it's not a url, so must be local
+      addLocal(spec, cb)
+    }
+  })
+}
+
+function maybeAt (spec, cb) {
+  var tmp = spec.split("@")
+
+  // split name@2.3.4 only if name is a valid package name,
+  // don't split in case of "./test@example.com/" (local path)
+  var name = tmp.shift()
+  spec = tmp.join("@")
+  return add([name, spec], cb)
+}
+
+function add_ (name, spec, p, cb) {
   switch (p.protocol) {
     case "http:":
     case "https:":
@@ -378,41 +410,40 @@ function addRemoteGit (u, parsed, name, silent, cb_) {
   iF.push(cb_)
   if (iF.length > 1) return
 
+  // git is so tricky!
+  // if the path is like ssh://foo:22/some/path then it works, but
+  // it needs the ssh://
+  // If the path is like ssh://foo:some/path then it works, but
+  // only if you remove the ssh://
+  var origUrl = u
+  u = u.replace(/^git\+/, "")
+       .replace(/#.*$/, "")
+
+  // ssh paths that are scp-style urls don't need the ssh://
+  if (parsed.pathname.match(/^\/?:/)) {
+    u = u.replace(/^ssh:\/\//, "")
+  }
+
   function cb (er, data) {
     unlock(u, function () {
       var c
       while (c = iF.shift()) c(er, data)
-      delete inFlightURLs[u]
+      delete inFlightURLs[origUrl]
     })
   }
-
-  var p, co // cachePath, git-ref we want to check out
 
   lock(u, function (er) {
     if (er) return cb(er)
 
     // figure out what we should check out.
     var co = parsed.hash && parsed.hash.substr(1) || "master"
-    // git is so tricky!
-    // if the path is like ssh://foo:22/some/path then it works, but
-    // it needs the ssh://
-    // If the path is like ssh://foo:some/path then it works, but
-    // only if you remove the ssh://
-    var origUrl = u
-    u = u.replace(/^git\+/, "")
-         .replace(/#.*$/, "")
-
-    // ssh paths that are scp-style urls don't need the ssh://
-    if (parsed.pathname.match(/^\/?:/)) {
-      u = u.replace(/^ssh:\/\//, "")
-    }
 
     var v = crypto.createHash("sha1").update(u).digest("hex").slice(0, 8)
     v = u.replace(/[^a-zA-Z0-9]+/g, '-') + '-' + v
 
     log.verbose("addRemoteGit", [u, co])
 
-    p = path.join(npm.config.get("cache"), "_git-remotes", v)
+    var p = path.join(npm.config.get("cache"), "_git-remotes", v)
 
     checkGitDir(p, u, co, origUrl, silent, function(er, data) {
       chmodr(p, npm.modes.file, function(erChmod) {
@@ -1263,9 +1294,15 @@ function lock (u, cb) {
 
 function unlock (u, cb) {
   var lf = lockFileName(u)
-  if (!myLocks[lf]) return process.nextTick(cb)
-  myLocks[lf] = false
-  lockFile.unlock(lockFileName(u), cb)
+    , locked = myLocks[lf]
+  if (locked === false) {
+    return process.nextTick(cb)
+  } else if (locked === true) {
+    myLocks[lf] = false
+    lockFile.unlock(lockFileName(u), cb)
+  } else {
+    throw new Error("Attempt to unlock " + u + ", which hasn't been locked")
+  }
 }
 
 function needName(er, data) {
