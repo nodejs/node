@@ -498,6 +498,35 @@
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
+2014.02.18, Version 0.10.26 (Stable), cc56c62ed879ad4f93b1fdab3235c43e60f48b7e
+
+* uv: Upgrade to v0.10.25 (Timothy J Fontaine)
+
+* npm: upgrade to 1.4.3 (isaacs)
+
+* v8: support compiling with VS2013 (Fedor Indutny)
+
+* cares: backport TXT parsing fix (Fedor Indutny)
+
+* crypto: throw on SignFinal failure (Fedor Indutny)
+
+* crypto: update root certificates (Ben Noordhuis)
+
+* debugger: Fix breakpoint not showing after restart (Farid Neshat)
+
+* fs: make unwatchFile() insensitive to path (iamdoron)
+
+* net: do not re-emit stream errors (Fedor Indutny)
+
+* net: make Socket destroy() re-entrance safe (Jun Ma)
+
+* net: reset `endEmitted` on reconnect (Fedor Indutny)
+
+* node: do not close stdio implicitly (Fedor Indutny)
+
+* zlib: avoid assertion in close (Fedor Indutny)
+
+
 2014.01.23, Version 0.10.25 (Stable), b0e5f195dfce3e2b99f5091373d49f6616682596
 
 * uv: Upgrade to v0.10.23
