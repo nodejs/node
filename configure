@@ -491,6 +491,8 @@ def configure_node(o):
   # SunOS, and we haven't implemented it.)
   if flavor in ('solaris', 'mac'):
     o['variables']['node_use_dtrace'] = b(not options.without_dtrace)
+  elif flavor == 'freebsd':
+    o['variables']['node_use_dtrace'] = b(options.with_dtrace)
   elif flavor == 'linux':
     o['variables']['node_use_dtrace'] = 'false'
     o['variables']['node_use_systemtap'] = b(options.with_dtrace)
