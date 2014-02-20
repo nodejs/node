@@ -341,7 +341,7 @@ Handle<Value> DTRACE_HTTP_CLIENT_RESPONSE(const Arguments& args) {
 
 #define NODE_PROBE(name) #name, name, Persistent<FunctionTemplate>()
 
-static int dtrace_gc_start(GCType type, GCCallbackFlags flags) {
+int dtrace_gc_start(GCType type, GCCallbackFlags flags) {
 #ifdef HAVE_SYSTEMTAP
   NODE_GC_START();
 #else
@@ -354,7 +354,7 @@ static int dtrace_gc_start(GCType type, GCCallbackFlags flags) {
   return 0;
 }
 
-static int dtrace_gc_done(GCType type, GCCallbackFlags flags) {
+int dtrace_gc_done(GCType type, GCCallbackFlags flags) {
 #ifdef HAVE_SYSTEMTAP
   NODE_GC_DONE();
 #else
