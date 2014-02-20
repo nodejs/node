@@ -129,10 +129,8 @@ def subdir_files(path, dest, action):
 def files(action):
   action(['out/Release/node'], 'bin/node')
 
-  # install unconditionally, checking if the platform supports dtrace doesn't
-  # work when cross-compiling and besides, there's at least one linux flavor
-  # with dtrace support now (oracle's "unbreakable" linux)
-  action(['out/Release/node.d'], 'lib/dtrace/node.d')
+  if 'true' == variables.get('node_use_dtrace'):
+    action(['out/Release/node.d'], 'lib/dtrace/node.d')
 
   if 'freebsd' in sys.platform or 'openbsd' in sys.platform:
     action(['doc/node.1'], 'man/man1/')
