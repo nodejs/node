@@ -61,18 +61,46 @@
 #include "v8.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
+#define NODE_DEPRECATED(msg, fn) V8_DEPRECATED(msg, fn)
+
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
 namespace node {
 
-NODE_EXTERN v8::Local<v8::Value> ErrnoException(int errorno,
+NODE_EXTERN v8::Local<v8::Value> ErrnoException(v8::Isolate* isolate,
+                                                int errorno,
                                                 const char* syscall = NULL,
                                                 const char* message = NULL,
                                                 const char* path = NULL);
-NODE_EXTERN v8::Local<v8::Value> UVException(int errorno,
+NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
+                                             int errorno,
                                              const char* syscall = NULL,
                                              const char* message = NULL,
                                              const char* path = NULL);
+
+NODE_DEPRECATED("Use UVException(isolate, ...)",
+                inline v8::Local<v8::Value> ErrnoException(
+      int errorno,
+      const char* syscall = NULL,
+      const char* message = NULL,
+      const char* path = NULL) {
+  return ErrnoException(v8::Isolate::GetCurrent(),
+                        errorno,
+                        syscall,
+                        message,
+                        path);
+})
+
+inline v8::Local<v8::Value> UVException(int errorno,
+                                        const char* syscall = NULL,
+                                        const char* message = NULL,
+                                        const char* path = NULL) {
+  return UVException(v8::Isolate::GetCurrent(),
+                     errorno,
+                     syscall,
+                     message,
+                     path);
+}
 
 /*
  * MakeCallback doesn't have a HandleScope. That means the callers scope
@@ -187,27 +215,79 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Handle<v8::FunctionTemplate> recv,
 #define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
 
 enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX, BUFFER};
-enum encoding ParseEncoding(v8::Handle<v8::Value> encoding_v,
+enum encoding ParseEncoding(v8::Isolate* isolate,
+                            v8::Handle<v8::Value> encoding_v,
                             enum encoding _default = BINARY);
-NODE_EXTERN void FatalException(const v8::TryCatch& try_catch);
+NODE_DEPRECATED("Use ParseEncoding(isolate, ...)",
+                inline enum encoding ParseEncoding(
+      v8::Handle<v8::Value> encoding_v,
+      enum encoding _default = BINARY) {
+  return ParseEncoding(v8::Isolate::GetCurrent(), encoding_v, _default);
+})
 
-NODE_EXTERN v8::Local<v8::Value> Encode(const void *buf, size_t len,
+NODE_EXTERN void FatalException(v8::Isolate* isolate,
+                                const v8::TryCatch& try_catch);
+
+NODE_DEPRECATED("Use FatalException(isolate, ...)",
+                inline void FatalException(const v8::TryCatch& try_catch) {
+  return FatalException(v8::Isolate::GetCurrent(), try_catch);
+})
+
+NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
+                                        const void* buf,
+                                        size_t len,
                                         enum encoding encoding = BINARY);
+NODE_DEPRECATED("Use Encode(isolate, ...)",
+                inline v8::Local<v8::Value> Encode(
+    const void* buf,
+    size_t len,
+    enum encoding encoding = BINARY) {
+  return Encode(v8::Isolate::GetCurrent(), buf, len, encoding);
+})
 
 // Returns -1 if the handle was not valid for decoding
-NODE_EXTERN ssize_t DecodeBytes(v8::Handle<v8::Value>,
+NODE_EXTERN ssize_t DecodeBytes(v8::Isolate* isolate,
+                                v8::Handle<v8::Value>,
                                 enum encoding encoding = BINARY);
+NODE_DEPRECATED("Use DecodeBytes(isolate, ...)",
+                inline ssize_t DecodeBytes(
+    v8::Handle<v8::Value> val,
+    enum encoding encoding = BINARY) {
+  return DecodeBytes(v8::Isolate::GetCurrent(), val, encoding);
+})
 
 // returns bytes written.
-NODE_EXTERN ssize_t DecodeWrite(char *buf,
+NODE_EXTERN ssize_t DecodeWrite(v8::Isolate* isolate,
+                                char* buf,
                                 size_t buflen,
                                 v8::Handle<v8::Value>,
                                 enum encoding encoding = BINARY);
+NODE_DEPRECATED("Use DecodeWrite(isolate, ...)",
+                inline ssize_t DecodeWrite(char* buf,
+                                           size_t buflen,
+                                           v8::Handle<v8::Value> val,
+                                           enum encoding encoding = BINARY) {
+  return DecodeWrite(v8::Isolate::GetCurrent(), buf, buflen, val, encoding);
+})
 
 #ifdef _WIN32
-NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(int errorno,
-    const char *syscall = NULL,  const char *msg = "",
+NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
+    v8::Isolate* isolate,
+    int errorno,
+    const char *syscall = NULL,
+    const char *msg = "",
     const char *path = NULL);
+
+NODE_DEPRECATED("Use WinapiErrnoException(isolate, ...)",
+                inline v8::Local<v8::Value> WinapiErrnoException(int errorno,
+    const char *syscall = NULL,  const char *msg = "",
+    const char *path = NULL) {
+  return WinapiErrnoException(v8::Isolate::GetCurrent(),
+                              errorno,
+                              syscall,
+                              msg,
+                              path);
+})
 #endif
 
 const char *signo_string(int errorno);

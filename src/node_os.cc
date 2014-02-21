@@ -22,6 +22,8 @@
 
 #include "node.h"
 #include "v8.h"
+#include "env.h"
+#include "env-inl.h"
 
 #include <errno.h>
 #include <string.h>
@@ -59,14 +61,16 @@ using v8::Value;
 
 
 static void GetEndianness(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   const char* rval = IsBigEndian() ? "BE" : "LE";
-  args.GetReturnValue().Set(OneByteString(node_isolate, rval));
+  args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
 }
 
 
 static void GetHostname(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   char buf[MAXHOSTNAMELEN + 1];
 
   if (gethostname(buf, sizeof(buf))) {
@@ -75,40 +79,42 @@ static void GetHostname(const FunctionCallbackInfo<Value>& args) {
 #else  // __MINGW32__
     int errorno = WSAGetLastError();
 #endif  // __POSIX__
-    return ThrowErrnoException(errorno, "gethostname");
+    return env->ThrowErrnoException(errorno, "gethostname");
   }
   buf[sizeof(buf) - 1] = '\0';
 
-  args.GetReturnValue().Set(OneByteString(node_isolate, buf));
+  args.GetReturnValue().Set(OneByteString(env->isolate(), buf));
 }
 
 
 static void GetOSType(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   const char* rval;
 
 #ifdef __POSIX__
   struct utsname info;
   if (uname(&info) < 0) {
-    return ThrowErrnoException(errno, "uname");
+    return env->ThrowErrnoException(errno, "uname");
   }
   rval = info.sysname;
 #else  // __MINGW32__
   rval ="Windows_NT";
 #endif  // __POSIX__
 
-  args.GetReturnValue().Set(OneByteString(node_isolate, rval));
+  args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
 }
 
 
 static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   const char* rval;
 
 #ifdef __POSIX__
   struct utsname info;
   if (uname(&info) < 0) {
-    return ThrowErrnoException(errno, "uname");
+    return env->ThrowErrnoException(errno, "uname");
   }
   rval = info.release;
 #else  // __MINGW32__
@@ -128,12 +134,13 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   rval = release;
 #endif  // __POSIX__
 
-  args.GetReturnValue().Set(OneByteString(node_isolate, rval));
+  args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
 }
 
 
 static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   uv_cpu_info_t* cpu_infos;
   int count, i;
 
@@ -146,23 +153,23 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
     uv_cpu_info_t* ci = cpu_infos + i;
 
     Local<Object> times_info = Object::New();
-    times_info->Set(FIXED_ONE_BYTE_STRING(node_isolate, "user"),
-                    Number::New(node_isolate, ci->cpu_times.user));
-    times_info->Set(FIXED_ONE_BYTE_STRING(node_isolate, "nice"),
-                    Number::New(node_isolate, ci->cpu_times.nice));
-    times_info->Set(FIXED_ONE_BYTE_STRING(node_isolate, "sys"),
-                    Number::New(node_isolate, ci->cpu_times.sys));
-    times_info->Set(FIXED_ONE_BYTE_STRING(node_isolate, "idle"),
-                    Number::New(node_isolate, ci->cpu_times.idle));
-    times_info->Set(FIXED_ONE_BYTE_STRING(node_isolate, "irq"),
-                    Number::New(node_isolate, ci->cpu_times.irq));
+    times_info->Set(env->user_string(),
+                    Number::New(env->isolate(), ci->cpu_times.user));
+    times_info->Set(env->nice_string(),
+                    Number::New(env->isolate(), ci->cpu_times.nice));
+    times_info->Set(env->sys_string(),
+                    Number::New(env->isolate(), ci->cpu_times.sys));
+    times_info->Set(env->idle_string(),
+                    Number::New(env->isolate(), ci->cpu_times.idle));
+    times_info->Set(env->irq_string(),
+                    Number::New(env->isolate(), ci->cpu_times.irq));
 
     Local<Object> cpu_info = Object::New();
-    cpu_info->Set(FIXED_ONE_BYTE_STRING(node_isolate, "model"),
-                  OneByteString(node_isolate, ci->model));
-    cpu_info->Set(FIXED_ONE_BYTE_STRING(node_isolate, "speed"),
-                  Number::New(node_isolate, ci->speed));
-    cpu_info->Set(FIXED_ONE_BYTE_STRING(node_isolate, "times"), times_info);
+    cpu_info->Set(env->model_string(),
+                  OneByteString(env->isolate(), ci->model));
+    cpu_info->Set(env->speed_string(),
+                  Number::New(env->isolate(), ci->speed));
+    cpu_info->Set(env->times_string(), times_info);
 
     (*cpus)->Set(i, cpu_info);
   }
@@ -173,7 +180,8 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   double amount = uv_get_free_memory();
   if (amount < 0)
     return;
@@ -182,7 +190,8 @@ static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   double amount = uv_get_total_memory();
   if (amount < 0)
     return;
@@ -191,7 +200,8 @@ static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   double uptime;
   int err = uv_uptime(&uptime);
   if (err == 0)
@@ -200,7 +210,8 @@ static void GetUptime(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   double loadavg[3];
   uv_loadavg(loadavg);
   Local<Array> loads = Array::New(3);
@@ -212,7 +223,8 @@ static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   uv_interface_address_t* interfaces;
   int count, i;
   char ip[INET6_ADDRSTRLEN];
@@ -229,11 +241,11 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   if (err == UV_ENOSYS) {
     args.GetReturnValue().Set(ret);
   } else if (err) {
-    return ThrowUVException(err, "uv_interface_addresses");
+    return env->ThrowUVException(err, "uv_interface_addresses");
   }
 
   for (i = 0; i < count; i++) {
-    name = OneByteString(node_isolate, interfaces[i].name);
+    name = OneByteString(env->isolate(), interfaces[i].name);
     if (ret->Has(name)) {
       ifarr = Local<Array>::Cast(ret->Get(name));
     } else {
@@ -254,34 +266,30 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     if (interfaces[i].address.address4.sin_family == AF_INET) {
       uv_ip4_name(&interfaces[i].address.address4, ip, sizeof(ip));
       uv_ip4_name(&interfaces[i].netmask.netmask4, netmask, sizeof(netmask));
-      family = FIXED_ONE_BYTE_STRING(node_isolate, "IPv4");
+      family = env->ipv4_string();
     } else if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uv_ip6_name(&interfaces[i].address.address6, ip, sizeof(ip));
       uv_ip6_name(&interfaces[i].netmask.netmask6, netmask, sizeof(netmask));
-      family = FIXED_ONE_BYTE_STRING(node_isolate, "IPv6");
+      family = env->ipv6_string();
     } else {
       strncpy(ip, "<unknown sa family>", INET6_ADDRSTRLEN);
-      family = FIXED_ONE_BYTE_STRING(node_isolate, "<unknown>");
+      family = env->unknown_string();
     }
 
     o = Object::New();
-    o->Set(FIXED_ONE_BYTE_STRING(node_isolate, "address"),
-           OneByteString(node_isolate, ip));
-    o->Set(FIXED_ONE_BYTE_STRING(node_isolate, "netmask"),
-           OneByteString(node_isolate, netmask));
-    o->Set(FIXED_ONE_BYTE_STRING(node_isolate, "family"), family);
-    o->Set(FIXED_ONE_BYTE_STRING(node_isolate, "mac"),
-           FIXED_ONE_BYTE_STRING(node_isolate, mac));
+    o->Set(env->address_string(), OneByteString(env->isolate(), ip));
+    o->Set(env->netmask_string(), OneByteString(env->isolate(), netmask));
+    o->Set(env->family_string(), family);
+    o->Set(env->mac_string(), FIXED_ONE_BYTE_STRING(env->isolate(), mac));
 
     if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uint32_t scopeid = interfaces[i].address.address6.sin6_scope_id;
-      o->Set(FIXED_ONE_BYTE_STRING(node_isolate, "scopeid"),
-        Integer::NewFromUnsigned(scopeid));
+      o->Set(env->scopeid_string(), Integer::NewFromUnsigned(scopeid));
     }
 
     const bool internal = interfaces[i].is_internal;
-    o->Set(FIXED_ONE_BYTE_STRING(node_isolate, "internal"),
-           internal ? True(node_isolate) : False(node_isolate));
+    o->Set(env->internal_string(),
+           internal ? True(env->isolate()) : False(env->isolate()));
 
     ifarr->Set(ifarr->Length(), o);
   }

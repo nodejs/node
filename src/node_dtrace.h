@@ -24,6 +24,7 @@
 
 #include "node.h"
 #include "v8.h"
+#include "env.h"
 
 extern "C" {
 /*
@@ -74,7 +75,7 @@ typedef struct {
 
 namespace node {
 
-void InitDTrace(v8::Handle<v8::Object> target);
+void InitDTrace(Environment* env, v8::Handle<v8::Object> target);
 
 }  // namespace node
 

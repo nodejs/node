@@ -21,6 +21,8 @@
 
 #include "uv.h"
 #include "node.h"
+#include "env.h"
+#include "env-inl.h"
 
 namespace node {
 namespace uv {
@@ -37,23 +39,25 @@ using v8::Value;
 
 
 void ErrName(const FunctionCallbackInfo<Value>& args) {
-  v8::HandleScope handle_scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   int err = args[0]->Int32Value();
   if (err >= 0)
-    return ThrowError("err >= 0");
+    return env->ThrowError("err >= 0");
   const char* name = uv_err_name(err);
-  args.GetReturnValue().Set(OneByteString(node_isolate, name));
+  args.GetReturnValue().Set(OneByteString(env->isolate(), name));
 }
 
 
 void Initialize(Handle<Object> target,
                 Handle<Value> unused,
                 Handle<Context> context) {
-  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "errname"),
+  Environment* env = Environment::GetCurrent(context);
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "errname"),
               FunctionTemplate::New(ErrName)->GetFunction());
 #define V(name, _)                                                            \
-  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "UV_" # name),              \
-              Integer::New(UV_ ## name, node_isolate));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UV_" # name),            \
+              Integer::New(UV_ ## name, env->isolate()));
   UV_ERRNO_MAP(V)
 #undef V
 }

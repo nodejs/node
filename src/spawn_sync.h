@@ -196,8 +196,8 @@ class SyncProcessRunner {
 
   static bool IsSet(Local<Value> value);
   template <typename t> static bool CheckRange(Local<Value> js_value);
-  static int CopyJsString(Local<Value> js_value, const char** target);
-  static int CopyJsStringArray(Local<Value> js_value, char** target);
+  int CopyJsString(Local<Value> js_value, const char** target);
+  int CopyJsStringArray(Local<Value> js_value, char** target);
 
   static void ExitCallback(uv_process_t* handle,
                            int64_t exit_status,

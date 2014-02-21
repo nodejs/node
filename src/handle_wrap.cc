@@ -44,7 +44,8 @@ extern QUEUE handle_wrap_queue;
 
 
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   HandleWrap* wrap = Unwrap<HandleWrap>(args.This());
 
@@ -56,7 +57,8 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
 
 
 void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   HandleWrap* wrap = Unwrap<HandleWrap>(args.This());
 
@@ -68,7 +70,8 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 
 
 void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   HandleWrap* wrap = Unwrap<HandleWrap>(args.This());
 
@@ -76,7 +79,6 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   if (wrap == NULL || wrap->handle__ == NULL)
     return;
 
-  Environment* env = wrap->env();
   assert(!wrap->persistent().IsEmpty());
   uv_close(wrap->handle__, OnClose);
   wrap->handle__ = NULL;
@@ -96,7 +98,7 @@ HandleWrap::HandleWrap(Environment* env,
       flags_(0),
       handle__(handle) {
   handle__->data = this;
-  HandleScope scope(node_isolate);
+  HandleScope scope(env->isolate());
   Wrap<HandleWrap>(object, this);
   QUEUE_INSERT_TAIL(&handle_wrap_queue, &handle_wrap_queue_);
 }
@@ -109,10 +111,9 @@ HandleWrap::~HandleWrap() {
 
 
 void HandleWrap::OnClose(uv_handle_t* handle) {
-  HandleScope scope(node_isolate);
-
   HandleWrap* wrap = static_cast<HandleWrap*>(handle->data);
   Environment* env = wrap->env();
+  HandleScope scope(env->isolate());
 
   // The wrap object should still be there.
   assert(wrap->persistent().IsEmpty() == false);

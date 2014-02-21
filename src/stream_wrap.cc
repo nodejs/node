@@ -68,7 +68,8 @@ StreamWrap::StreamWrap(Environment* env,
 
 void StreamWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 #if !defined(_WIN32)
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
   int fd = -1;
   if (wrap != NULL && wrap->stream() != NULL) {
@@ -80,15 +81,16 @@ void StreamWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 
 
 void StreamWrap::UpdateWriteQueueSize() {
-  HandleScope scope(node_isolate);
+  HandleScope scope(env()->isolate());
   Local<Integer> write_queue_size =
-      Integer::NewFromUnsigned(stream()->write_queue_size, node_isolate);
+      Integer::NewFromUnsigned(stream()->write_queue_size, env()->isolate());
   object()->Set(env()->write_queue_size_string(), write_queue_size);
 }
 
 
 void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
 
@@ -104,7 +106,8 @@ void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
 
 
 void StreamWrap::ReadStop(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
 
@@ -124,7 +127,7 @@ void StreamWrap::OnAlloc(uv_handle_t* handle,
 
 template <class WrapType, class UVType>
 static Local<Object> AcceptHandle(Environment* env, uv_stream_t* pipe) {
-  HandleScope scope(node_isolate);
+  HandleScope scope(env->isolate());
   Local<Object> wrap_obj;
   UVType* handle;
 
@@ -227,7 +230,7 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
                                    NULL,
                                    StreamWrap::AfterWrite);
   req_wrap->Dispatched();
-  req_wrap_obj->Set(env->async(), True(node_isolate));
+  req_wrap_obj->Set(env->async(), True(env->isolate()));
 
   if (err) {
     req_wrap->~WriteWrap();
@@ -239,7 +242,7 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   if (msg != NULL)
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
   req_wrap_obj->Set(env->bytes_string(),
-                    Integer::NewFromUnsigned(length, node_isolate));
+                    Integer::NewFromUnsigned(length, env->isolate()));
   args.GetReturnValue().Set(err);
 }
 
@@ -263,9 +266,9 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   // computing their actual size, rather than tripling the storage.
   size_t storage_size;
   if (encoding == UTF8 && string->Length() > 65535)
-    storage_size = StringBytes::Size(string, encoding);
+    storage_size = StringBytes::Size(env->isolate(), string, encoding);
   else
-    storage_size = StringBytes::StorageSize(string, encoding);
+    storage_size = StringBytes::StorageSize(env->isolate(), string, encoding);
 
   if (storage_size > INT_MAX) {
     args.GetReturnValue().Set(UV_ENOBUFS);
@@ -283,7 +286,8 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   bool try_write = storage_size + 15 <= sizeof(stack_storage) &&
                    (!wrap->is_named_pipe_ipc() || !args[2]->IsObject());
   if (try_write) {
-    data_size = StringBytes::Write(stack_storage,
+    data_size = StringBytes::Write(env->isolate(),
+                                   stack_storage,
                                    storage_size,
                                    string,
                                    encoding);
@@ -313,7 +317,11 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
     data_size = buf.len;
   } else {
     // Write it
-    data_size = StringBytes::Write(data, storage_size, string, encoding);
+    data_size = StringBytes::Write(env->isolate(),
+                                   data,
+                                   storage_size,
+                                   string,
+                                   encoding);
   }
 
   assert(data_size <= storage_size);
@@ -348,7 +356,7 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   }
 
   req_wrap->Dispatched();
-  req_wrap->object()->Set(env->async(), True(node_isolate));
+  req_wrap->object()->Set(env->async(), True(env->isolate()));
 
   if (err) {
     req_wrap->~WriteWrap();
@@ -360,7 +368,7 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   if (msg != NULL)
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
   req_wrap_obj->Set(env->bytes_string(),
-                    Integer::NewFromUnsigned(data_size, node_isolate));
+                    Integer::NewFromUnsigned(data_size, env->isolate()));
   args.GetReturnValue().Set(err);
 }
 
@@ -395,9 +403,9 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
     enum encoding encoding = ParseEncoding(chunks->Get(i * 2 + 1));
     size_t chunk_size;
     if (encoding == UTF8 && string->Length() > 65535)
-      chunk_size = StringBytes::Size(string, encoding);
+      chunk_size = StringBytes::Size(env->isolate(), string, encoding);
     else
-      chunk_size = StringBytes::StorageSize(string, encoding);
+      chunk_size = StringBytes::StorageSize(env->isolate(), string, encoding);
 
     storage_size += chunk_size + 15;
   }
@@ -436,7 +444,11 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
 
     Handle<String> string = chunk->ToString();
     enum encoding encoding = ParseEncoding(chunks->Get(i * 2 + 1));
-    str_size = StringBytes::Write(str_storage, str_size, string, encoding);
+    str_size = StringBytes::Write(env->isolate(),
+                                  str_storage,
+                                  str_size,
+                                  string,
+                                  encoding);
     bufs[i].base = str_storage;
     bufs[i].len = str_size;
     offset += str_size;
@@ -454,9 +466,9 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
     delete[] bufs;
 
   req_wrap->Dispatched();
-  req_wrap->object()->Set(env->async(), True(node_isolate));
+  req_wrap->object()->Set(env->async(), True(env->isolate()));
   req_wrap->object()->Set(env->bytes_string(),
-                          Number::New(node_isolate, bytes));
+                          Number::New(env->isolate(), bytes));
   const char* msg = wrap->callbacks()->Error();
   if (msg != NULL)
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
@@ -503,7 +515,7 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   wrap->callbacks()->AfterWrite(req_wrap);
 
   Local<Value> argv[] = {
-    Integer::New(status, node_isolate),
+    Integer::New(status, env->isolate()),
     wrap->object(),
     req_wrap_obj,
     Undefined()
@@ -554,7 +566,7 @@ void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
 
   Local<Object> req_wrap_obj = req_wrap->object();
   Local<Value> argv[3] = {
-    Integer::New(status, node_isolate),
+    Integer::New(status, env->isolate()),
     wrap->object(),
     req_wrap_obj
   };
@@ -668,7 +680,7 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
   Context::Scope context_scope(env->context());
 
   Local<Value> argv[] = {
-    Integer::New(nread, node_isolate),
+    Integer::New(nread, env->isolate()),
     Undefined(),
     Undefined()
   };

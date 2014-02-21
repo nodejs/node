@@ -54,6 +54,7 @@ namespace node {
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
+  V(argv_string, "argv")                                                      \
   V(async_queue_string, "_asyncQueue")                                        \
   V(async, "async")                                                           \
   V(atime_string, "atime")                                                    \
@@ -62,21 +63,35 @@ namespace node {
   V(blocks_string, "blocks")                                                  \
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
+  V(bytes_parsed_string, "bytesParsed")                                       \
+  V(byte_length_string, "byteLength")                                         \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
   V(close_string, "close")                                                    \
   V(code_string, "code")                                                      \
   V(ctime_string, "ctime")                                                    \
   V(cwd_string, "cwd")                                                        \
+  V(debug_port_string, "debugPort")                                           \
+  V(debug_string, "debug")                                                    \
   V(detached_string, "detached")                                              \
   V(dev_string, "dev")                                                        \
   V(disposed_string, "_disposed")                                             \
   V(domain_string, "domain")                                                  \
+  V(exchange_string, "exchange")                                              \
+  V(idle_string, "idle")                                                      \
+  V(irq_string, "irq")                                                        \
   V(enter_string, "enter")                                                    \
   V(env_pairs_string, "envPairs")                                             \
+  V(env_string, "env")                                                        \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
+  V(events_string, "_events")                                                 \
+  V(exec_argv_string, "execArgv")                                             \
+  V(exec_path_string, "execPath")                                             \
+  V(exiting_string, "_exiting")                                               \
+  V(exit_code_string, "exitCode")                                             \
   V(exit_string, "exit")                                                      \
+  V(expire_string, "expire")                                                  \
   V(exponent_string, "exponent")                                              \
   V(exports_string, "exports")                                                \
   V(ext_key_usage_string, "ext_key_usage")                                    \
@@ -86,30 +101,42 @@ namespace node {
   V(file_string, "file")                                                      \
   V(fingerprint_string, "fingerprint")                                        \
   V(flags_string, "flags")                                                    \
+  V(fsevent_string, "FSEvent")                                                \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
   V(headers_string, "headers")                                                \
   V(heap_size_limit_string, "heap_size_limit")                                \
   V(heap_total_string, "heapTotal")                                           \
   V(heap_used_string, "heapUsed")                                             \
+  V(hostmaster_string, "hostmaster")                                          \
   V(ignore_string, "ignore")                                                  \
   V(immediate_callback_string, "_immediateCallback")                          \
   V(inherit_string, "inherit")                                                \
   V(ino_string, "ino")                                                        \
   V(input_string, "input")                                                    \
+  V(internal_string, "internal")                                              \
   V(ipv4_string, "IPv4")                                                      \
+  V(ipv6_lc_string, "ipv6")                                                   \
   V(ipv6_string, "IPv6")                                                      \
   V(issuer_string, "issuer")                                                  \
   V(kill_signal_string, "killSignal")                                         \
+  V(mac_string, "mac")                                                        \
   V(mark_sweep_compact_string, "mark-sweep-compact")                          \
   V(max_buffer_string, "maxBuffer")                                           \
   V(message_string, "message")                                                \
   V(method_string, "method")                                                  \
+  V(minttl_string, "minttl")                                                  \
   V(mode_string, "mode")                                                      \
+  V(model_string, "model")                                                    \
   V(modulus_string, "modulus")                                                \
   V(mtime_string, "mtime")                                                    \
   V(name_string, "name")                                                      \
+  V(need_imm_cb_string, "_needImmediateCallback")                             \
+  V(netmask_string, "netmask")                                                \
+  V(nice_string, "nice")                                                      \
   V(nlink_string, "nlink")                                                    \
+  V(nsname_string, "nsname")                                                  \
+  V(offset_string, "offset")                                                  \
   V(onchange_string, "onchange")                                              \
   V(onclienthello_string, "onclienthello")                                    \
   V(oncomplete_string, "oncomplete")                                          \
@@ -127,17 +154,33 @@ namespace node {
   V(onsignal_string, "onsignal")                                              \
   V(onstop_string, "onstop")                                                  \
   V(output_string, "output")                                                  \
+  V(order_string, "order")                                                    \
+  V(owner_string, "owner")                                                    \
+  V(parse_error_string, "Parse Error")                                        \
   V(path_string, "path")                                                      \
+  V(pbkdf2_error_string, "PBKDF2 Error")                                      \
   V(pid_string, "pid")                                                        \
   V(pipe_string, "pipe")                                                      \
   V(port_string, "port")                                                      \
+  V(preference_string, "preference")                                          \
+  V(priority_string, "priority")                                              \
   V(processed_string, "processed")                                            \
+  V(prototype_string, "prototype")                                            \
   V(rdev_string, "rdev")                                                      \
   V(readable_string, "readable")                                              \
+  V(received_shutdown_string, "receivedShutdown")                             \
+  V(refresh_string, "refresh")                                                \
+  V(regexp_string, "regexp")                                                  \
   V(rename_string, "rename")                                                  \
+  V(replacement_string, "replacement")                                        \
+  V(retry_string, "retry")                                                    \
   V(rss_string, "rss")                                                        \
+  V(serial_string, "serial")                                                  \
   V(scavenge_string, "scavenge")                                              \
+  V(scopeid_string, "scopeid")                                                \
+  V(sent_shutdown_string, "sentShutdown")                                     \
   V(serial_number_string, "serialNumber")                                     \
+  V(service_string, "service")                                                \
   V(servername_string, "servername")                                          \
   V(session_id_string, "sessionId")                                           \
   V(should_keep_alive_string, "shouldKeepAlive")                              \
@@ -146,6 +189,7 @@ namespace node {
   V(smalloc_p_string, "_smalloc_p")                                           \
   V(sni_context_err_string, "Invalid SNI context")                            \
   V(sni_context_string, "sni_context")                                        \
+  V(speed_string, "speed")                                                    \
   V(stack_string, "stack")                                                    \
   V(status_code_string, "statusCode")                                         \
   V(status_message_string, "statusMessage")                                   \
@@ -153,27 +197,43 @@ namespace node {
   V(stdio_string, "stdio")                                                    \
   V(subject_string, "subject")                                                \
   V(subjectaltname_string, "subjectaltname")                                  \
+  V(sys_string, "sys")                                                        \
   V(syscall_string, "syscall")                                                \
+  V(tick_callback_string, "_tickCallback")                                    \
+  V(tick_domain_cb_string, "_tickDomainCallback")                             \
+  V(tick_info_string, "_tickInfo")                                            \
   V(timeout_string, "timeout")                                                \
+  V(times_string, "times")                                                    \
   V(timestamp_string, "timestamp")                                            \
+  V(title_string, "title")                                                    \
+  V(tls_npn_string, "tls_npn")                                                \
+  V(tls_sni_string, "tls_sni")                                                \
+  V(tls_string, "tls")                                                        \
   V(tls_ticket_string, "tlsTicket")                                           \
   V(total_heap_size_executable_string, "total_heap_size_executable")          \
   V(total_heap_size_string, "total_heap_size")                                \
   V(total_physical_size_string, "total_physical_size")                        \
   V(type_string, "type")                                                      \
   V(uid_string, "uid")                                                        \
+  V(unknown_string, "<unknown>")                                              \
   V(upgrade_string, "upgrade")                                                \
   V(url_string, "url")                                                        \
   V(used_heap_size_string, "used_heap_size")                                  \
+  V(user_string, "user")                                                      \
+  V(uv_string, "uv")                                                          \
   V(valid_from_string, "valid_from")                                          \
   V(valid_to_string, "valid_to")                                              \
   V(verify_error_string, "verifyError")                                       \
   V(version_major_string, "versionMajor")                                     \
   V(version_minor_string, "versionMinor")                                     \
   V(version_string, "version")                                                \
+  V(weight_string, "weight")                                                  \
   V(windows_verbatim_arguments_string, "windowsVerbatimArguments")            \
+  V(wrap_string, "wrap")                                                      \
   V(writable_string, "writable")                                              \
   V(write_queue_size_string, "writeQueueSize")                                \
+  V(x_forwarded_string, "x-forwarded-for")                                    \
+  V(zero_return_string, "ZERO_RETURN")                                        \
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
   V(async_listener_run_function, v8::Function)                                \
@@ -330,6 +390,23 @@ class Environment {
 
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
+
+  inline void ThrowError(const char* errmsg);
+  inline void ThrowTypeError(const char* errmsg);
+  inline void ThrowRangeError(const char* errmsg);
+  inline void ThrowErrnoException(int errorno,
+                                  const char* syscall = NULL,
+                                  const char* message = NULL,
+                                  const char* path = NULL);
+  inline void ThrowUVException(int errorno,
+                               const char* syscall = NULL,
+                               const char* message = NULL,
+                               const char* path = NULL);
+
+  // Convenience methods for contextify
+  inline static void ThrowError(v8::Isolate* isolate, const char* errmsg);
+  inline static void ThrowTypeError(v8::Isolate* isolate, const char* errmsg);
+  inline static void ThrowRangeError(v8::Isolate* isolate, const char* errmsg);
 
   // Strings are shared across shared contexts. The getters simply proxy to
   // the per-isolate primitive.

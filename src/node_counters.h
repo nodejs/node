@@ -43,10 +43,11 @@
 #endif
 
 #include "v8.h"
+#include "env.h"
 
 namespace node {
 
-void InitPerfCounters(v8::Handle<v8::Object> target);
+void InitPerfCounters(Environment* env, v8::Handle<v8::Object> target);
 void TermPerfCounters(v8::Handle<v8::Object> target);
 
 }  // namespace node

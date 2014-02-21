@@ -54,7 +54,7 @@ namespace node {
 
 inline uv_stream_t* HandleToStream(Environment* env,
                                    v8::Local<v8::Object> obj) {
-  v8::HandleScope scope(node_isolate);
+  v8::HandleScope scope(env->isolate());
 
   WITH_GENERIC_STREAM(env, obj, {
     return reinterpret_cast<uv_stream_t*>(wrap->UVHandle());

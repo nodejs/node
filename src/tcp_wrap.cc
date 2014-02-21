@@ -70,12 +70,12 @@ void TCPWrap::Initialize(Handle<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "TCP"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(FIXED_ONE_BYTE_STRING(node_isolate, "fd"),
+  t->InstanceTemplate()->SetAccessor(env->fd_string(),
                                      StreamWrap::GetFD,
                                      NULL,
                                      Handle<Value>(),
@@ -116,7 +116,7 @@ void TCPWrap::Initialize(Handle<Object> target,
                             SetSimultaneousAccepts);
 #endif
 
-  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "TCP"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"), t->GetFunction());
   env->set_tcp_constructor_template(t);
 }
 
@@ -202,7 +202,8 @@ void TCPWrap::GetPeerName(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
 
@@ -213,7 +214,8 @@ void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
 
@@ -227,7 +229,8 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
 
 #ifdef _WIN32
 void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
 
@@ -239,7 +242,8 @@ void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
   int fd = args[0]->IntegerValue();
   uv_tcp_open(&wrap->handle_, fd);
@@ -247,7 +251,8 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
 
@@ -267,7 +272,8 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
 
@@ -287,7 +293,8 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
 
@@ -312,7 +319,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
   assert(tcp_wrap->persistent().IsEmpty() == false);
 
   Local<Value> argv[2] = {
-    Integer::New(status, node_isolate),
+    Integer::New(status, env->isolate()),
     Undefined()
   };
 
@@ -349,11 +356,11 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
 
   Local<Object> req_wrap_obj = req_wrap->object();
   Local<Value> argv[5] = {
-    Integer::New(status, node_isolate),
+    Integer::New(status, env->isolate()),
     wrap->object(),
     req_wrap_obj,
-    v8::True(node_isolate),
-    v8::True(node_isolate)
+    v8::True(env->isolate()),
+    v8::True(env->isolate())
   };
 
   req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
@@ -434,7 +441,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
 Local<Object> AddressToJS(Environment* env,
                           const sockaddr* addr,
                           Local<Object> info) {
-  HandleScope scope(node_isolate);
+  HandleScope scope(env->isolate());
   char ip[INET6_ADDRSTRLEN];
   const sockaddr_in *a4;
   const sockaddr_in6 *a6;
@@ -448,22 +455,22 @@ Local<Object> AddressToJS(Environment* env,
     a6 = reinterpret_cast<const sockaddr_in6*>(addr);
     uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
     port = ntohs(a6->sin6_port);
-    info->Set(env->address_string(), OneByteString(node_isolate, ip));
+    info->Set(env->address_string(), OneByteString(env->isolate(), ip));
     info->Set(env->family_string(), env->ipv6_string());
-    info->Set(env->port_string(), Integer::New(port, node_isolate));
+    info->Set(env->port_string(), Integer::New(port, env->isolate()));
     break;
 
   case AF_INET:
     a4 = reinterpret_cast<const sockaddr_in*>(addr);
     uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
     port = ntohs(a4->sin_port);
-    info->Set(env->address_string(), OneByteString(node_isolate, ip));
+    info->Set(env->address_string(), OneByteString(env->isolate(), ip));
     info->Set(env->family_string(), env->ipv4_string());
-    info->Set(env->port_string(), Integer::New(port, node_isolate));
+    info->Set(env->port_string(), Integer::New(port, env->isolate()));
     break;
 
   default:
-    info->Set(env->address_string(), String::Empty(node_isolate));
+    info->Set(env->address_string(), String::Empty(env->isolate()));
   }
 
   return scope.Close(info);

@@ -940,6 +940,7 @@ bool SyncProcessRunner::CheckRange(Local<Value> js_value) {
 
 int SyncProcessRunner::CopyJsString(Local<Value> js_value,
                                     const char** target) {
+  Isolate* isolate = env()->isolate();
   Local<String> js_string;
   size_t size, written;
   char* buffer;
@@ -950,11 +951,11 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
     js_string = js_value->ToString();
 
   // Include space for null terminator byte.
-  size = StringBytes::StorageSize(js_string, UTF8) + 1;
+  size = StringBytes::StorageSize(isolate, js_string, UTF8) + 1;
 
   buffer = new char[size];
 
-  written = StringBytes::Write(buffer, -1, js_string, UTF8);
+  written = StringBytes::Write(isolate, buffer, -1, js_string, UTF8);
   buffer[written] = '\0';
 
   *target = buffer;
@@ -964,6 +965,7 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
 
 int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
                                          char** target) {
+  Isolate* isolate = env()->isolate();
   Local<Array> js_array;
   uint32_t length;
   size_t list_size, data_size, data_offset;
@@ -991,7 +993,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   // after every string. Align strings to cache lines.
   data_size = 0;
   for (uint32_t i = 0; i < length; i++) {
-    data_size += StringBytes::StorageSize(js_array->Get(i), UTF8) + 1;
+    data_size += StringBytes::StorageSize(isolate, js_array->Get(i), UTF8) + 1;
     data_size = ROUND_UP(data_size, sizeof(void*));  // NOLINT(runtime/sizeof)
   }
 
@@ -1002,7 +1004,8 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
 
   for (uint32_t i = 0; i < length; i++) {
     list[i] = buffer + data_offset;
-    data_offset += StringBytes::Write(buffer + data_offset,
+    data_offset += StringBytes::Write(isolate,
+                                      buffer + data_offset,
                                       -1,
                                       js_array->Get(i),
                                       UTF8);

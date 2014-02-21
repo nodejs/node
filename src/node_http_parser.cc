@@ -149,11 +149,11 @@ struct StringPtr {
   }
 
 
-  Local<String> ToString() const {
+  Local<String> ToString(Environment* env) const {
     if (str_)
-      return OneByteString(node_isolate, str_, size_);
+      return OneByteString(env->isolate(), str_, size_);
     else
-      return String::Empty(node_isolate);
+      return String::Empty(env->isolate());
   }
 
 
@@ -252,7 +252,7 @@ class Parser : public BaseObject {
       // Fast case, pass headers and URL to JS land.
       message_info->Set(env()->headers_string(), CreateHeaders());
       if (parser_.type == HTTP_REQUEST)
-        message_info->Set(env()->url_string(), url_.ToString());
+        message_info->Set(env()->url_string(), url_.ToString(env()));
     }
     num_fields_ = num_values_ = 0;
 
@@ -265,24 +265,24 @@ class Parser : public BaseObject {
     // STATUS
     if (parser_.type == HTTP_RESPONSE) {
       message_info->Set(env()->status_code_string(),
-                        Integer::New(parser_.status_code, node_isolate));
+                        Integer::New(parser_.status_code, env()->isolate()));
       message_info->Set(env()->status_message_string(),
-                        status_message_.ToString());
+                        status_message_.ToString(env()));
     }
 
     // VERSION
     message_info->Set(env()->version_major_string(),
-                      Integer::New(parser_.http_major, node_isolate));
+                      Integer::New(parser_.http_major, env()->isolate()));
     message_info->Set(env()->version_minor_string(),
-                      Integer::New(parser_.http_minor, node_isolate));
+                      Integer::New(parser_.http_minor, env()->isolate()));
 
     message_info->Set(env()->should_keep_alive_string(),
-                      http_should_keep_alive(&parser_) ? True(node_isolate)
-                                                       : False(node_isolate));
+                      http_should_keep_alive(&parser_) ?
+                          True(env()->isolate()) : False(env()->isolate()));
 
     message_info->Set(env()->upgrade_string(),
-                      parser_.upgrade ? True(node_isolate)
-                                      : False(node_isolate));
+                      parser_.upgrade ? True(env()->isolate())
+                                      : False(env()->isolate()));
 
     Local<Value> argv[1] = { message_info };
     Local<Value> head_response =
@@ -298,7 +298,7 @@ class Parser : public BaseObject {
 
 
   HTTP_DATA_CB(on_body) {
-    HandleScope scope(node_isolate);
+    HandleScope scope(env()->isolate());
 
     Local<Object> obj = object();
     Local<Value> cb = obj->Get(kOnBody);
@@ -308,8 +308,8 @@ class Parser : public BaseObject {
 
     Local<Value> argv[3] = {
       current_buffer_,
-      Integer::NewFromUnsigned(at - current_buffer_data_, node_isolate),
-      Integer::NewFromUnsigned(length, node_isolate)
+      Integer::NewFromUnsigned(at - current_buffer_data_, env()->isolate()),
+      Integer::NewFromUnsigned(length, env()->isolate())
     };
 
     Local<Value> r = cb.As<Function>()->Call(obj, ARRAY_SIZE(argv), argv);
@@ -324,7 +324,7 @@ class Parser : public BaseObject {
 
 
   HTTP_CB(on_message_complete) {
-    HandleScope scope(node_isolate);
+    HandleScope scope(env()->isolate());
 
     if (num_fields_)
       Flush();  // Flush trailing HTTP headers.
@@ -372,7 +372,8 @@ class Parser : public BaseObject {
 
   // var bytesParsed = parser->execute(buffer);
   static void Execute(const FunctionCallbackInfo<Value>& args) {
-    HandleScope scope(node_isolate);
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    HandleScope scope(env->isolate());
 
     Parser* parser = Unwrap<Parser>(args.This());
     assert(parser->current_buffer_.IsEmpty());
@@ -406,18 +407,17 @@ class Parser : public BaseObject {
     if (parser->got_exception_)
       return;
 
-    Local<Integer> nparsed_obj = Integer::New(nparsed, node_isolate);
+    Local<Integer> nparsed_obj = Integer::New(nparsed, env->isolate());
     // If there was a parse error in one of the callbacks
     // TODO(bnoordhuis) What if there is an error on EOF?
     if (!parser->parser_.upgrade && nparsed != buffer_len) {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
 
-      Local<Value> e = Exception::Error(
-          FIXED_ONE_BYTE_STRING(node_isolate, "Parse Error"));
+      Local<Value> e = Exception::Error(env->parse_error_string());
       Local<Object> obj = e->ToObject();
-      obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "bytesParsed"), nparsed_obj);
-      obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "code"),
-               OneByteString(node_isolate, http_errno_name(err)));
+      obj->Set(env->bytes_parsed_string(), nparsed_obj);
+      obj->Set(env->code_string(),
+               OneByteString(env->isolate(), http_errno_name(err)));
 
       args.GetReturnValue().Set(e);
     } else {
@@ -427,7 +427,8 @@ class Parser : public BaseObject {
 
 
   static void Finish(const FunctionCallbackInfo<Value>& args) {
-    HandleScope scope(node_isolate);
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    HandleScope scope(env->isolate());
 
     Parser* parser = Unwrap<Parser>(args.This());
 
@@ -442,13 +443,11 @@ class Parser : public BaseObject {
     if (rv != 0) {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
 
-      Local<Value> e = Exception::Error(
-          FIXED_ONE_BYTE_STRING(node_isolate, "Parse Error"));
+      Local<Value> e = env->parse_error_string();
       Local<Object> obj = e->ToObject();
-      obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "bytesParsed"),
-               Integer::New(0, node_isolate));
-      obj->Set(FIXED_ONE_BYTE_STRING(node_isolate, "code"),
-               OneByteString(node_isolate, http_errno_name(err)));
+      obj->Set(env->bytes_parsed_string(), Integer::New(0, env->isolate()));
+      obj->Set(env->code_string(),
+               OneByteString(env->isolate(), http_errno_name(err)));
 
       args.GetReturnValue().Set(e);
     }
@@ -489,8 +488,8 @@ class Parser : public BaseObject {
     Local<Array> headers = Array::New(2 * num_values_);
 
     for (int i = 0; i < num_values_; ++i) {
-      headers->Set(2 * i, fields_[i].ToString());
-      headers->Set(2 * i + 1, values_[i].ToString());
+      headers->Set(2 * i, fields_[i].ToString(env()));
+      headers->Set(2 * i + 1, values_[i].ToString(env()));
     }
 
     return headers;
@@ -499,7 +498,7 @@ class Parser : public BaseObject {
 
   // spill headers and request path to JS land
   void Flush() {
-    HandleScope scope(node_isolate);
+    HandleScope scope(env()->isolate());
 
     Local<Object> obj = object();
     Local<Value> cb = obj->Get(kOnHeaders);
@@ -509,7 +508,7 @@ class Parser : public BaseObject {
 
     Local<Value> argv[2] = {
       CreateHeaders(),
-      url_.ToString()
+      url_.ToString(env())
     };
 
     Local<Value> r = cb.As<Function>()->Call(obj, ARRAY_SIZE(argv), argv);
@@ -565,29 +564,30 @@ void InitHttpParser(Handle<Object> target,
                     Handle<Value> unused,
                     Handle<Context> context,
                     void* priv) {
+  Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> t = FunctionTemplate::New(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "HTTPParser"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"));
 
-  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "REQUEST"),
-         Integer::New(HTTP_REQUEST, node_isolate));
-  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "RESPONSE"),
-         Integer::New(HTTP_RESPONSE, node_isolate));
-  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnHeaders"),
-         Integer::NewFromUnsigned(kOnHeaders, node_isolate));
-  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnHeadersComplete"),
-         Integer::NewFromUnsigned(kOnHeadersComplete, node_isolate));
-  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnBody"),
-         Integer::NewFromUnsigned(kOnBody, node_isolate));
-  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnMessageComplete"),
-         Integer::NewFromUnsigned(kOnMessageComplete, node_isolate));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "REQUEST"),
+         Integer::New(HTTP_REQUEST, env->isolate()));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "RESPONSE"),
+         Integer::New(HTTP_RESPONSE, env->isolate()));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnHeaders"),
+         Integer::NewFromUnsigned(kOnHeaders, env->isolate()));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnHeadersComplete"),
+         Integer::NewFromUnsigned(kOnHeadersComplete, env->isolate()));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnBody"),
+         Integer::NewFromUnsigned(kOnBody, env->isolate()));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnMessageComplete"),
+         Integer::NewFromUnsigned(kOnMessageComplete, env->isolate()));
 
   Local<Array> methods = Array::New();
 #define V(num, name, string)                                                  \
-    methods->Set(num, FIXED_ONE_BYTE_STRING(node_isolate, #string));
+    methods->Set(num, FIXED_ONE_BYTE_STRING(env->isolate(), #string));
   HTTP_METHOD_MAP(V)
 #undef V
-  t->Set(FIXED_ONE_BYTE_STRING(node_isolate, "methods"), methods);
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
   NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
   NODE_SET_PROTOTYPE_METHOD(t, "finish", Parser::Finish);
@@ -595,7 +595,7 @@ void InitHttpParser(Handle<Object> target,
   NODE_SET_PROTOTYPE_METHOD(t, "pause", Parser::Pause<true>);
   NODE_SET_PROTOTYPE_METHOD(t, "resume", Parser::Pause<false>);
 
-  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "HTTPParser"),
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
               t->GetFunction());
 }
 

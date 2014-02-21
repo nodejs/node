@@ -49,11 +49,12 @@ class TimerWrap : public HandleWrap {
   static void Initialize(Handle<Object> target,
                          Handle<Value> unused,
                          Handle<Context> context) {
+    Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = FunctionTemplate::New(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
-    constructor->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "Timer"));
-    constructor->Set(FIXED_ONE_BYTE_STRING(node_isolate, "kOnTimeout"),
-                     Integer::New(kOnTimeout, node_isolate));
+    constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Timer"));
+    constructor->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnTimeout"),
+                     Integer::New(kOnTimeout, env->isolate()));
 
     NODE_SET_METHOD(constructor, "now", Now);
 
@@ -67,7 +68,7 @@ class TimerWrap : public HandleWrap {
     NODE_SET_PROTOTYPE_METHOD(constructor, "getRepeat", GetRepeat);
     NODE_SET_PROTOTYPE_METHOD(constructor, "again", Again);
 
-    target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "Timer"),
+    target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Timer"),
                 constructor->GetFunction());
   }
 
@@ -95,7 +96,8 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
-    HandleScope scope(node_isolate);
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.This());
 
     int64_t timeout = args[0]->IntegerValue();
@@ -105,7 +107,8 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
-    HandleScope scope(node_isolate);
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.This());
 
     int err = uv_timer_stop(&wrap->handle_);
@@ -113,7 +116,8 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Again(const FunctionCallbackInfo<Value>& args) {
-    HandleScope scope(node_isolate);
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.This());
 
     int err = uv_timer_again(&wrap->handle_);
@@ -121,7 +125,8 @@ class TimerWrap : public HandleWrap {
   }
 
   static void SetRepeat(const FunctionCallbackInfo<Value>& args) {
-    HandleScope scope(node_isolate);
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.This());
 
     int64_t repeat = args[0]->IntegerValue();
@@ -130,7 +135,8 @@ class TimerWrap : public HandleWrap {
   }
 
   static void GetRepeat(const FunctionCallbackInfo<Value>& args) {
-    HandleScope scope(node_isolate);
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.This());
 
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
@@ -142,7 +148,7 @@ class TimerWrap : public HandleWrap {
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    Local<Value> argv[1] = { Integer::New(status, node_isolate) };
+    Local<Value> argv[1] = { Integer::New(status, env->isolate()) };
     wrap->MakeCallback(kOnTimeout, ARRAY_SIZE(argv), argv);
   }
 

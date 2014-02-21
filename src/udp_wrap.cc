@@ -93,11 +93,11 @@ void UDPWrap::Initialize(Handle<Object> target,
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "UDP"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"));
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(FIXED_ONE_BYTE_STRING(node_isolate, "fd"),
+  t->InstanceTemplate()->SetAccessor(env->fd_string(),
                                      UDPWrap::GetFD,
                                      NULL,
                                      Handle<Value>(),
@@ -122,7 +122,7 @@ void UDPWrap::Initialize(Handle<Object> target,
   NODE_SET_PROTOTYPE_METHOD(t, "ref", HandleWrap::Ref);
   NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
 
-  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "UDP"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"), t->GetFunction());
   env->set_udp_constructor_function(t->GetFunction());
 }
 
@@ -137,7 +137,8 @@ void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 void UDPWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 #if !defined(_WIN32)
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
   int fd = (wrap == NULL) ? -1 : wrap->handle_.io_watcher.fd;
   args.GetReturnValue().Set(fd);
@@ -146,7 +147,8 @@ void UDPWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 
 
 void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
 
@@ -193,7 +195,7 @@ void UDPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 
 #define X(name, fn)                                                           \
   void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {               \
-    HandleScope scope(node_isolate);                                          \
+    HandleScope scope(args.GetIsolate());                                     \
     UDPWrap* wrap = Unwrap<UDPWrap>(args.This());                             \
     assert(args.Length() == 1);                                               \
     int flag = args[0]->Int32Value();                                         \
@@ -211,7 +213,8 @@ X(SetMulticastLoopback, uv_udp_set_multicast_loop)
 
 void UDPWrap::SetMembership(const FunctionCallbackInfo<Value>& args,
                             uv_membership membership) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
 
   assert(args.Length() == 2);
@@ -315,7 +318,8 @@ void UDPWrap::Send6(const FunctionCallbackInfo<Value>& args) {
 
 
 void UDPWrap::RecvStart(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
 
   int err = uv_udp_recv_start(&wrap->handle_, OnAlloc, OnRecv);
@@ -327,7 +331,8 @@ void UDPWrap::RecvStart(const FunctionCallbackInfo<Value>& args) {
 
 
 void UDPWrap::RecvStop(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
 
   int r = uv_udp_recv_stop(&wrap->handle_);
@@ -366,7 +371,7 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
     Environment* env = req_wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    Local<Value> arg = Integer::New(status, node_isolate);
+    Local<Value> arg = Integer::New(status, env->isolate());
     req_wrap->MakeCallback(env->oncomplete_string(), 1, &arg);
   }
   delete req_wrap;
@@ -405,7 +410,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
   Local<Object> wrap_obj = wrap->object();
   Local<Value> argv[] = {
-    Integer::New(nread, node_isolate),
+    Integer::New(nread, env->isolate()),
     wrap_obj,
     Undefined(env->isolate()),
     Undefined(env->isolate())

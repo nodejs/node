@@ -23,6 +23,7 @@
 #define SRC_ENV_INL_H_
 
 #include "env.h"
+#include "node.h"
 #include "util.h"
 #include "util-inl.h"
 #include "uv.h"
@@ -362,6 +363,57 @@ inline ares_task_list* Environment::cares_task_list() {
 
 inline Environment::IsolateData* Environment::isolate_data() const {
   return isolate_data_;
+}
+
+// this would have been a template function were it not for the fact that g++
+// sometimes fails to resolve it...
+#define THROW_ERROR(fun)                                                      \
+  do {                                                                        \
+    v8::HandleScope scope(isolate);                                           \
+    v8::ThrowException(fun(OneByteString(isolate, errmsg)));                 \
+  }                                                                           \
+  while (0)
+
+inline void Environment::ThrowError(v8::Isolate* isolate, const char* errmsg) {
+  THROW_ERROR(v8::Exception::Error);
+}
+
+inline void Environment::ThrowTypeError(v8::Isolate* isolate,
+                                        const char* errmsg) {
+  THROW_ERROR(v8::Exception::TypeError);
+}
+
+inline void Environment::ThrowRangeError(v8::Isolate* isolate,
+                                         const char* errmsg) {
+  THROW_ERROR(v8::Exception::RangeError);
+}
+
+inline void Environment::ThrowError(const char* errmsg) {
+  ThrowError(isolate(), errmsg);
+}
+
+inline void Environment::ThrowTypeError(const char* errmsg) {
+  ThrowTypeError(isolate(), errmsg);
+}
+
+inline void Environment::ThrowRangeError(const char* errmsg) {
+  ThrowRangeError(isolate(), errmsg);
+}
+
+inline void Environment::ThrowErrnoException(int errorno,
+                                             const char* syscall,
+                                             const char* message,
+                                             const char* path) {
+  v8::ThrowException(
+      ErrnoException(isolate(), errorno, syscall, message, path));
+}
+
+inline void Environment::ThrowUVException(int errorno,
+                                          const char* syscall,
+                                          const char* message,
+                                          const char* path) {
+  v8::ThrowException(
+      UVException(isolate(), errorno, syscall, message, path));
 }
 
 #define V(PropertyName, StringValue)                                          \

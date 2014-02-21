@@ -45,17 +45,17 @@ using v8::String;
 using v8::Value;
 
 
-void StatWatcher::Initialize(Handle<Object> target) {
-  HandleScope scope(node_isolate);
+void StatWatcher::Initialize(Environment* env, Handle<Object> target) {
+  HandleScope scope(env->isolate());
 
   Local<FunctionTemplate> t = FunctionTemplate::New(StatWatcher::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "StatWatcher"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher"));
 
   NODE_SET_PROTOTYPE_METHOD(t, "start", StatWatcher::Start);
   NODE_SET_PROTOTYPE_METHOD(t, "stop", StatWatcher::Stop);
 
-  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "StatWatcher"),
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher"),
               t->GetFunction());
 }
 
@@ -92,7 +92,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   Local<Value> argv[] = {
     BuildStatsObject(env, curr),
     BuildStatsObject(env, prev),
-    Integer::New(status, node_isolate)
+    Integer::New(status, env->isolate())
   };
   wrap->MakeCallback(env->onchange_string(), ARRAY_SIZE(argv), argv);
 }
@@ -108,7 +108,8 @@ void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
 
 void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   assert(args.Length() == 3);
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   StatWatcher* wrap = Unwrap<StatWatcher>(args.This());
   String::Utf8Value path(args[0]);

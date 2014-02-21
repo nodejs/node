@@ -167,7 +167,7 @@ class SSLWrap {
 
  protected:
   static void InitNPN(SecureContext* sc, Base* base);
-  static void AddMethods(v8::Handle<v8::FunctionTemplate> t);
+  static void AddMethods(Environment* env, v8::Handle<v8::FunctionTemplate> t);
 
   static SSL_SESSION* GetSessionCallback(SSL* s,
                                          unsigned char* key,
@@ -477,7 +477,7 @@ class SignBase : public BaseObject {
   }
 
  protected:
-  static void CheckThrow(Error error);
+  void CheckThrow(Error error);
 
   EVP_MD_CTX mdctx_; /* coverity[member_decl] */
   const EVP_MD* md_; /* coverity[member_decl] */
@@ -579,7 +579,7 @@ class DiffieHellman : public BaseObject {
 
 class Certificate : public AsyncWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
   v8::Handle<v8::Value> CertificateInit(const char* sign_type);
   bool VerifySpkac(const char* data, unsigned int len);

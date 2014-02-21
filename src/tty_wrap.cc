@@ -54,12 +54,12 @@ void TTYWrap::Initialize(Handle<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(node_isolate, "TTY"));
+  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(FIXED_ONE_BYTE_STRING(node_isolate, "fd"),
+  t->InstanceTemplate()->SetAccessor(env->fd_string(),
                                      StreamWrap::GetFD,
                                      NULL,
                                      Handle<Value>(),
@@ -85,7 +85,7 @@ void TTYWrap::Initialize(Handle<Object> target,
   NODE_SET_METHOD(target, "isTTY", IsTTY);
   NODE_SET_METHOD(target, "guessHandleType", GuessHandleType);
 
-  target->Set(FIXED_ONE_BYTE_STRING(node_isolate, "TTY"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"), t->GetFunction());
   env->set_tty_constructor_template(t);
 }
 
@@ -96,7 +96,8 @@ uv_tty_t* TTYWrap::UVHandle() {
 
 
 void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   int fd = args[0]->Int32Value();
   assert(fd >= 0);
 
@@ -114,12 +115,13 @@ void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
     abort();
   }
 
-  args.GetReturnValue().Set(OneByteString(node_isolate, type));
+  args.GetReturnValue().Set(OneByteString(env->isolate(), type));
 }
 
 
 void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
   int fd = args[0]->Int32Value();
   assert(fd >= 0);
   bool rc = uv_guess_handle(fd) == UV_TTY;
@@ -128,7 +130,8 @@ void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
 
 
 void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   TTYWrap* wrap = Unwrap<TTYWrap>(args.This());
   assert(args[0]->IsArray());
@@ -138,8 +141,8 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
 
   if (err == 0) {
     Local<v8::Array> a = args[0].As<Array>();
-    a->Set(0, Integer::New(width, node_isolate));
-    a->Set(1, Integer::New(height, node_isolate));
+    a->Set(0, Integer::New(width, env->isolate()));
+    a->Set(1, Integer::New(height, env->isolate()));
   }
 
   args.GetReturnValue().Set(err);
@@ -147,7 +150,8 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
 
 
 void TTYWrap::SetRawMode(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(node_isolate);
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
 
   TTYWrap* wrap = Unwrap<TTYWrap>(args.This());
 

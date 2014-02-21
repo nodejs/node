@@ -34,7 +34,7 @@ class StatWatcher : public AsyncWrap {
  public:
   virtual ~StatWatcher();
 
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
  protected:
   StatWatcher(Environment* env, v8::Local<v8::Object> wrap);

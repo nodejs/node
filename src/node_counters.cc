@@ -21,6 +21,8 @@
 
 #include "node_counters.h"
 #include "uv.h"
+#include "env.h"
+#include "env-inl.h"
 
 #include <string.h>
 
@@ -96,8 +98,8 @@ static void counter_gc_done(GCType type, GCCallbackFlags flags) {
 }
 
 
-void InitPerfCounters(Handle<Object> target) {
-  HandleScope scope(node_isolate);
+void InitPerfCounters(Environment* env, Handle<Object> target) {
+  HandleScope scope(env->isolate());
 
   static struct {
     const char* name;
@@ -114,7 +116,7 @@ void InitPerfCounters(Handle<Object> target) {
   };
 
   for (int i = 0; i < ARRAY_SIZE(tab); i++) {
-    Local<String> key = OneByteString(node_isolate, tab[i].name);
+    Local<String> key = OneByteString(env->isolate(), tab[i].name);
     Local<Value> val = FunctionTemplate::New(tab[i].func)->GetFunction();
     target->Set(key, val);
   }
