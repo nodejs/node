@@ -2,6 +2,7 @@
 // but with an on('error') handler that does nothing.
 
 function serverHandler(req, res) {
+  req.resume();
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('Hello World\n');
 }
@@ -23,27 +24,34 @@ var server = http.createServer(serverHandler);
 server.listen(PORT, getall);
 
 function getall() {
-  for (var i = 0; i < todo; i++) {
-    (function(){
-      function cb(res) {
-        done+=1;
-        statusLater();
-      }
-      function onerror(er) {
-        throw er;
-      }
+  if (count >= todo)
+    return;
 
-      var req = http.get({
-        hostname: 'localhost',
-        pathname: '/',
-        port: PORT
-      }, cb).on('error', onerror);
+  (function(){
+    function cb(res) {
+      res.resume();
+      done+=1;
+      statusLater();
+    }
+    function onerror(er) {
+      throw er;
+    }
 
-      count++;
-      weak(req, afterGC);
-    })()
-  }
+    var req = http.get({
+      hostname: 'localhost',
+      pathname: '/',
+      port: PORT
+    }, cb).on('error', onerror);
+
+    count++;
+    weak(req, afterGC);
+  })()
+
+  setImmediate(getall);
 }
+
+for (var i = 0; i < 10; i++)
+  getall();
 
 function afterGC(){
   countGC ++;
@@ -62,7 +70,7 @@ function status() {
   console.log('Collected: %d/%d', countGC, count);
   if (done === todo) {
     console.log('All should be collected now.');
-    assert(count === countGC);
+    assert.strictEqual(count, countGC);
     process.exit(0);
   }
 }

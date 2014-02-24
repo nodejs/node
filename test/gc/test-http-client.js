@@ -23,36 +23,38 @@ server.listen(PORT, getall);
 
 
 function getall() {
-  for (var i = 0; i < todo; i++) {
-    (function(){
-      function cb(res) {
-        console.error('in cb')
-        done+=1;
-        res.on('end', statusLater);
-      }
+  if (count >= todo)
+    return;
 
-      var req = http.get({
-        hostname: 'localhost',
-        pathname: '/',
-        port: PORT
-      }, cb)
+  (function(){
+    function cb(res) {
+      res.resume();
+      console.error('in cb')
+      done+=1;
+      res.on('end', gc);
+    }
 
-      count++;
-      weak(req, afterGC);
-    })()
-  }
+    var req = http.get({
+      hostname: 'localhost',
+      pathname: '/',
+      port: PORT
+    }, cb)
+
+    count++;
+    weak(req, afterGC);
+  })()
+
+  setImmediate(getall);
 }
+
+for (var i = 0; i < 10; i++)
+  getall();
 
 function afterGC(){
   countGC ++;
 }
 
-var timer;
-function statusLater() {
-  gc();
-  if (timer) clearTimeout(timer);
-  timer = setTimeout(status, 1);
-}
+setInterval(status, 1000).unref();
 
 function status() {
   gc();

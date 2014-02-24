@@ -3,6 +3,7 @@
 
 function serverHandler(req, res) {
   setTimeout(function () {
+    req.resume();
     res.writeHead(200)
     res.end('hello\n');
   }, 100);
@@ -25,28 +26,35 @@ var server = http.createServer(serverHandler);
 server.listen(PORT, getall);
 
 function getall() {
-  for (var i = 0; i < todo; i++) {
-    (function(){
-      function cb() {
-        done+=1;
-        statusLater();
-      }
+  if (count >= todo)
+    return;
 
-      var req = http.get({
-        hostname: 'localhost',
-        pathname: '/',
-        port: PORT
-      }, cb);
-      req.on('error', cb);
-      req.setTimeout(10, function(){
-        console.log('timeout (expected)')
-      });
+  (function(){
+    function cb(res) {
+      res.resume();
+      done+=1;
+      statusLater();
+    }
 
-      count++;
-      weak(req, afterGC);
-    })()
-  }
+    var req = http.get({
+      hostname: 'localhost',
+      pathname: '/',
+      port: PORT
+    }, cb);
+    req.on('error', cb);
+    req.setTimeout(10, function(){
+      console.log('timeout (expected)')
+    });
+
+    count++;
+    weak(req, afterGC);
+  })()
+
+  setImmediate(getall);
 }
+
+for(var i = 0; i < 10; i++)
+  getall();
 
 function afterGC(){
   countGC ++;

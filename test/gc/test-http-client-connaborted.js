@@ -22,24 +22,30 @@ var server = http.createServer(serverHandler);
 server.listen(PORT, getall);
 
 function getall() {
-  for (var i = 0; i < todo; i++) {
-    (function(){
-      function cb(res) {
-        done+=1;
-        statusLater();
-      }
+  if (count >= todo)
+    return;
 
-      var req = http.get({
-        hostname: 'localhost',
-        pathname: '/',
-        port: PORT
-      }, cb).on('error', cb);
+  (function(){
+    function cb(res) {
+      done+=1;
+      statusLater();
+    }
 
-      count++;
-      weak(req, afterGC);
-    })()
-  }
+    var req = http.get({
+      hostname: 'localhost',
+      pathname: '/',
+      port: PORT
+    }, cb).on('error', cb);
+
+    count++;
+    weak(req, afterGC);
+  })()
+
+  setImmediate(getall);
 }
+
+for (var i = 0; i < 10; i++)
+  getall();
 
 function afterGC(){
   countGC ++;

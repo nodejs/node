@@ -3,7 +3,15 @@
 
 function serverHandler(sock) {
   sock.setTimeout(120000);
-  setTimeout(function () {
+  sock.resume();
+  var timer;
+  sock.on('close', function() {
+    clearTimeout(timer);
+  });
+  sock.on('error', function(err) {
+    assert.strictEqual(err.code, 'ECONNRESET');
+  });
+  timer = setTimeout(function () {
     sock.end('hello\n');
   }, 100);
 }
@@ -24,32 +32,34 @@ var server = net.createServer(serverHandler);
 server.listen(PORT, getall);
 
 function getall() {
-  for (var i = 0; i < todo; i++) {
-    (function(){
-      var req = net.connect(PORT, '127.0.0.1');
-      req.setTimeout(10, function() {
-        console.log('timeout (expected)')
-        req.destroy();
-        done++;
-        statusLater();
-      });
+  if (count >= todo)
+    return;
 
-      count++;
-      weak(req, afterGC);
-    })();
-  }
+  (function(){
+    var req = net.connect(PORT, '127.0.0.1');
+    req.resume();
+    req.setTimeout(10, function() {
+      //console.log('timeout (expected)')
+      req.destroy();
+      done++;
+      gc();
+    });
+
+    count++;
+    weak(req, afterGC);
+  })();
+
+  setImmediate(getall);
 }
+
+for (var i = 0; i < 10; i++)
+  getall();
 
 function afterGC(){
   countGC ++;
 }
 
-var timer;
-function statusLater() {
-  gc();
-  if (timer) clearTimeout(timer);
-  timer = setTimeout(status, 1);
-}
+setInterval(status, 100).unref();
 
 function status() {
   gc();
