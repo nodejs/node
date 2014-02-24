@@ -810,11 +810,12 @@ static const char *winapi_strerror(const int errorno) {
 }
 
 
-Local<Value> WinapiErrnoException(Environment* env,
+Local<Value> WinapiErrnoException(Isolate* isolate,
                                   int errorno,
                                   const char* syscall,
                                   const char* msg,
                                   const char* path) {
+  Environment* env = Environment::GetCurrent(isolate);
   Local<Value> e;
   if (!msg || !msg[0]) {
     msg = winapi_strerror(errorno);
@@ -823,37 +824,28 @@ Local<Value> WinapiErrnoException(Environment* env,
 
   if (path) {
     Local<String> cons1 =
-        String::Concat(message, FIXED_ONE_BYTE_STRING(env->isolate(), " '"));
+        String::Concat(message, FIXED_ONE_BYTE_STRING(isolate, " '"));
     Local<String> cons2 =
-        String::Concat(cons1, String::NewFromUtf8(env->isolate(), path));
+        String::Concat(cons1, String::NewFromUtf8(isolate, path));
     Local<String> cons3 =
-        String::Concat(cons2, FIXED_ONE_BYTE_STRING(env->isolate(), "'"));
+        String::Concat(cons2, FIXED_ONE_BYTE_STRING(isolate, "'"));
     e = Exception::Error(cons3);
   } else {
     e = Exception::Error(message);
   }
 
   Local<Object> obj = e->ToObject();
-  obj->Set(env->errno_string(), Integer::New(errorno, env->isolate()));
+  obj->Set(env->errno_string(), Integer::New(errorno, isolate));
 
   if (path != NULL) {
-    obj->Set(env->path_string(), String::NewFromUtf8(env->isolate(), path));
+    obj->Set(env->path_string(), String::NewFromUtf8(isolate, path));
   }
 
   if (syscall != NULL) {
-    obj->Set(env->syscall_string(), OneByteString(env->isolate(), syscall));
+    obj->Set(env->syscall_string(), OneByteString(isolate, syscall));
   }
 
   return e;
-}
-
-
-Local<Value> WinapiErrnoException(int errorno,
-                                  const char* syscall,
-                                  const char* msg,
-                                  const char* path) {
-  Environment* env = Environment::GetCurrent(Isolate::GetCurrent());
-  return WinapiErrnoException(env, errorno, syscall, msg, path);
 }
 #endif
 
@@ -3188,8 +3180,9 @@ static int RegisterDebugSignalHandler() {
 
 
 static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
+  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(isolate);
+  HandleScope scope(isolate);
   DWORD pid;
   HANDLE process = NULL;
   HANDLE thread = NULL;
@@ -3210,8 +3203,8 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
                         FALSE,
                         pid);
   if (process == NULL) {
-    env->ThrowException(
-        WinapiErrnoException(env, GetLastError(), "OpenProcess"));
+    isolate->ThrowException(
+        WinapiErrnoException(isolate, GetLastError(), "OpenProcess"));
     goto out;
   }
 
@@ -3224,7 +3217,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 
   mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, mapping_name);
   if (mapping == NULL) {
-    env->ThrowException(WinapiErrnoException(env,
+    isolate->ThrowException(WinapiErrnoException(isolate,
                                              GetLastError(),
                                              "OpenFileMappingW"));
     goto out;
@@ -3237,8 +3230,8 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
                     0,
                     sizeof *handler));
   if (handler == NULL || *handler == NULL) {
-    env->ThrowException(
-        WinapiErrnoException(env, GetLastError(), "MapViewOfFile"));
+    isolate->ThrowException(
+        WinapiErrnoException(isolate, GetLastError(), "MapViewOfFile"));
     goto out;
   }
 
@@ -3250,17 +3243,17 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
                               0,
                               NULL);
   if (thread == NULL) {
-    env->ThrowException(WinapiErrnoException(env,
-                                             GetLastError(),
-                                             "CreateRemoteThread"));
+    isolate->ThrowException(WinapiErrnoException(isolate,
+                                                 GetLastError(),
+                                                 "CreateRemoteThread"));
     goto out;
   }
 
   // Wait for the thread to terminate
   if (WaitForSingleObject(thread, INFINITE) != WAIT_OBJECT_0) {
-    env->ThrowException(WinapiErrnoException(env,
-                                             GetLastError(),
-                                             "WaitForSingleObject"));
+    isolate->ThrowException(WinapiErrnoException(isolate,
+                                                 GetLastError(),
+                                                 "WaitForSingleObject"));
     goto out;
   }
 
