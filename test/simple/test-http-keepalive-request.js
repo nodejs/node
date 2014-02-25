@@ -54,9 +54,10 @@ function makeRequest(n) {
     return;
   }
 
-  var req = agent.request({
+  var req = http.request({
     port: common.PORT,
-    path: '/' + n
+    path: '/' + n,
+    agent: agent
   });
 
   req.end();

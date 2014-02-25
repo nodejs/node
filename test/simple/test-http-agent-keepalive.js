@@ -29,7 +29,7 @@ var agent = new Agent({
   keepAlive: true,
   keepAliveMsecs: 1000,
   maxSockets: 5,
-  maxFreeSockets: 5,
+  maxFreeSockets: 5
 });
 
 var server = http.createServer(function (req, res) {
@@ -47,9 +47,10 @@ var server = http.createServer(function (req, res) {
 });
 
 function get(path, callback) {
-  return agent.get({
+  return http.get({
     host: 'localhost',
     port: common.PORT,
+    agent: agent,
     path: path
   }, callback);
 }

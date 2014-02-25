@@ -44,7 +44,7 @@ var agent = http.Agent({
 // then 10 more when they all finish.
 function makeReqs(n, cb) {
   for (var i = 0; i < n; i++)
-    makeReq(i, then)
+    makeReq(i, then);
 
   function then(er) {
     if (er)
@@ -55,7 +55,11 @@ function makeReqs(n, cb) {
 }
 
 function makeReq(i, cb) {
-  agent.request({ port: common.PORT, path: '/' + i }, function(res) {
+  http.request({
+    port: common.PORT,
+    path: '/' + i,
+    agent: agent
+  }, function(res) {
     var data = '';
     res.setEncoding('ascii');
     res.on('data', function(c) {
