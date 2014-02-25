@@ -145,8 +145,8 @@ int NodeBIO::Gets(BIO* bio, char* out, int size) {
 
   int i = nbio->IndexOf('\n', size);
 
-  // Include '\n'
-  if (i < size)
+  // Include '\n', if it's there.  If not, don't read off the end.
+  if (i < size && i >= 0 && static_cast<size_t>(i) < nbio->Length())
     i++;
 
   // Shift `i` a bit to NULL-terminate string later
