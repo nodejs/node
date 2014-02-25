@@ -40,10 +40,13 @@ fs.watchFile(FILENAME, {interval:TIMEOUT - 250}, function(curr, prev) {
   console.log([curr, prev]);
   switch (++nevents) {
   case 1:
+    assert.equal(fs.existsSync(FILENAME), false);
+    break;
   case 2:
+  case 3:
     assert.equal(fs.existsSync(FILENAME), true);
     break;
-  case 3:
+  case 4:
     assert.equal(fs.existsSync(FILENAME), false);
     fs.unwatchFile(FILENAME);
     break;
@@ -53,21 +56,24 @@ fs.watchFile(FILENAME, {interval:TIMEOUT - 250}, function(curr, prev) {
 });
 
 process.on('exit', function() {
-  assert.equal(nevents, 3);
+  assert.equal(nevents, 4);
 });
 
 setTimeout(createFile, TIMEOUT);
 
 function createFile() {
+  console.log('creating file');
   fs.writeFileSync(FILENAME, "test");
   setTimeout(touchFile, TIMEOUT);
 }
 
 function touchFile() {
+  console.log('touch file');
   fs.writeFileSync(FILENAME, "test");
   setTimeout(removeFile, TIMEOUT);
 }
 
 function removeFile() {
+  console.log('remove file');
   fs.unlinkSync(FILENAME);
 }
