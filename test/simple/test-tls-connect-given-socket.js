@@ -55,6 +55,8 @@ var server = tls.createServer(options, function(socket) {
           server.close();
       });
     });
+    assert(client.readable);
+    assert(client.writable);
   }
 
   // Already connected socket
