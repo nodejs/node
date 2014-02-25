@@ -1,5 +1,5 @@
 CFLAGS  := -std=c99 -Wall -O2 -D_REENTRANT
-LIBS    := -lpthread -lm -lcrypto -lssl
+LIBS    := -lpthread -lm -lopenssl
 
 TARGET  := $(shell uname -s | tr [A-Z] [a-z] 2>/dev/null || echo unknown)
 
@@ -25,8 +25,8 @@ OBJ  := $(patsubst %.c,$(ODIR)/%.o,$(SRC)) $(ODIR)/bytecode.o
 
 LDIR     = deps/luajit/src
 LIBS    := -lluajit $(LIBS)
-CFLAGS  += -I $(LDIR)
-LDFLAGS += -L $(LDIR)
+CFLAGS  += -I $(LDIR) -I ../../deps/openssl/openssl/include/
+LDFLAGS += -L $(LDIR) -L ../../out/Release/
 
 all: $(BIN)
 
