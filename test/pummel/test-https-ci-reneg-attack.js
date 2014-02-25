@@ -67,8 +67,11 @@ function test(next) {
     var args = ('s_client -connect 127.0.0.1:' + common.PORT).split(' ');
     var child = spawn(common.opensslCli, args);
 
-    child.stdout.pipe(process.stdout);
-    child.stderr.pipe(process.stderr);
+    //child.stdout.pipe(process.stdout);
+    //child.stderr.pipe(process.stderr);
+
+    child.stdout.resume();
+    child.stderr.resume();
 
     // count handshakes, start the attack after the initial handshake is done
     var handshakes = 0;
@@ -89,7 +92,14 @@ function test(next) {
 
     var closed = false;
     child.stdin.on('error', function(err) {
-      assert.equal(err.code, 'ECONNRESET');
+      switch (err.code) {
+        case 'ECONNRESET':
+        case 'EPIPE':
+          break;
+        default:
+          assert.equal(err.code, 'ECONNRESET');
+          break;
+      }
       closed = true;
     });
     child.stdin.on('close', function() {
