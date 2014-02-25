@@ -25,8 +25,8 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var ROUNDS = 5;
-var ATTEMPTS_PER_ROUND = 200;
+var ROUNDS = 10;
+var ATTEMPTS_PER_ROUND = 100;
 var rounds = 1;
 var reqs = 0;
 
