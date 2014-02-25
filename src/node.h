@@ -332,7 +332,8 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 #pragma section(".CRT$XCU", read)
 #define NODE_C_CTOR(fn)                                               \
   static void __cdecl fn(void);                                       \
-  __declspec(allocate(".CRT$XCU")) static void (__cdecl*fn ## _)(void) = fn; \
+  __declspec(dllexport, allocate(".CRT$XCU"))                         \
+      void (__cdecl*fn ## _)(void) = fn;                              \
   static void __cdecl fn(void)
 #else
 #define NODE_C_CTOR(fn)                                               \
@@ -340,7 +341,7 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
   static void fn(void)
 #endif
 
-#define NODE_MODULE_X(modstr, regfunc, priv, flags)                   \
+#define NODE_MODULE_X(modname, regfunc, priv, flags)                  \
   extern "C" {                                                        \
     static node::node_module _module =                                \
     {                                                                 \
@@ -350,16 +351,16 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
       __FILE__,                                                       \
       (node::addon_register_func) (regfunc),                          \
       NULL,                                                           \
-      modstr,                                                         \
+      NODE_STRINGIFY(modname),                                        \
       priv,                                                           \
       NULL                                                            \
     };                                                                \
-    NODE_C_CTOR(_register) {                                          \
+    NODE_C_CTOR(_register_ ## modname) {                              \
       node_module_register(&_module);                                 \
     }                                                                 \
   }
 
-#define NODE_MODULE_CONTEXT_AWARE_X(modstr, regfunc, priv, flags)     \
+#define NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, priv, flags)    \
   extern "C" {                                                        \
     static node::node_module _module =                                \
     {                                                                 \
@@ -369,24 +370,23 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
       __FILE__,                                                       \
       NULL,                                                           \
       (node::addon_context_register_func) (regfunc),                  \
-      modstr,                                                         \
+      NODE_STRINGIFY(modname),                                        \
       priv,                                                           \
       NULL                                                            \
     };                                                                \
-    NODE_C_CTOR(_register) {                                          \
+    NODE_C_CTOR(_register_ ## modname) {                              \
       node_module_register(&_module);                                 \
     }                                                                 \
   }
 
 #define NODE_MODULE(modname, regfunc)                                 \
-  NODE_MODULE_X(NODE_STRINGIFY(modname), regfunc, NULL, 0)
+  NODE_MODULE_X(modname, regfunc, NULL, 0)
 
 #define NODE_MODULE_CONTEXT_AWARE(modname, regfunc)                   \
-  NODE_MODULE_CONTEXT_AWARE_X(NODE_STRINGIFY(modname), regfunc, NULL, 0)
+  NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, 0)
 
 #define NODE_MODULE_CONTEXT_AWARE_BUILTIN(modname, regfunc)           \
-  NODE_MODULE_CONTEXT_AWARE_X(NODE_STRINGIFY(modname),                \
-  regfunc, NULL, NM_F_BUILTIN)
+  NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, NM_F_BUILTIN)   \
 
 /*
  * For backward compatibility in add-on modules.
