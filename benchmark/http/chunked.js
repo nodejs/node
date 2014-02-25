@@ -21,7 +21,7 @@ function main(conf) {
   var chunk = new Buffer(conf.size);
   chunk.fill('8');
 
-  var args = ['-r', 5000, '-t', 8, '-c', conf.c];
+  var args = ['-d', '10s', '-t', 8, '-c', conf.c];
 
   var server = http.createServer(function(req, res) {
     function send(left) {
