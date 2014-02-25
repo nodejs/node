@@ -456,7 +456,16 @@ TEST(function test_lookup_failure(done) {
 TEST(function test_resolve_failure(done) {
   var req = dns.resolve4('nosuchhostimsure', function(err) {
     assert(err instanceof Error);
-    assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
+
+    switch(err.code) {
+      case 'ENOTFOUND':
+      case 'ESERVFAIL':
+        break;
+      default:
+        assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
+        break;
+    }
+
     assert.strictEqual(err.hostname, 'nosuchhostimsure');
 
     done();
