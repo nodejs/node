@@ -24,11 +24,13 @@
 extern "C" {
 #endif
 
-#define HTTP_PARSER_VERSION_MAJOR 1
-#define HTTP_PARSER_VERSION_MINOR 0
+#define HTTP_PARSER_VERSION_MAJOR 2
+#define HTTP_PARSER_VERSION_MINOR 1
 
 #include <sys/types.h>
 #if defined(_WIN32) && !defined(__MINGW32__) && (!defined(_MSC_VER) || _MSC_VER<1600)
+#include <BaseTsd.h>
+#include <stddef.h>
 typedef __int8 int8_t;
 typedef unsigned __int8 uint8_t;
 typedef __int16 int16_t;
@@ -37,9 +39,6 @@ typedef __int32 int32_t;
 typedef unsigned __int32 uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-
-typedef unsigned int size_t;
-typedef int ssize_t;
 #else
 #include <stdint.h>
 #endif
@@ -50,14 +49,6 @@ typedef int ssize_t;
 #ifndef HTTP_PARSER_STRICT
 # define HTTP_PARSER_STRICT 1
 #endif
-
-/* Compile with -DHTTP_PARSER_DEBUG=1 to add extra debugging information to
- * the error reporting facility.
- */
-#ifndef HTTP_PARSER_DEBUG
-# define HTTP_PARSER_DEBUG 0
-#endif
-
 
 /* Maximium header size allowed */
 #define HTTP_MAX_HEADER_SIZE (80*1024)
@@ -77,7 +68,7 @@ typedef struct http_parser_settings http_parser_settings;
  * chunked' headers that indicate the presence of a body.
  *
  * http_data_cb does not return data chunks. It will be call arbitrarally
- * many times for each string. E.G. you might get 10 callbacks for "on_path"
+ * many times for each string. E.G. you might get 10 callbacks for "on_url"
  * each providing just a few characters more data.
  */
 typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);
@@ -85,43 +76,44 @@ typedef int (*http_cb) (http_parser*);
 
 
 /* Request Methods */
-#define HTTP_METHOD_MAP(XX) \
-  XX(0, DELETE) \
-  XX(1, GET) \
-  XX(2, HEAD) \
-  XX(3, POST) \
-  XX(4, PUT) \
-  /* pathological */ \
-  XX(5, CONNECT) \
-  XX(6, OPTIONS) \
-  XX(7, TRACE) \
-  /* webdav */ \
-  XX(8, COPY) \
-  XX(9, LOCK) \
-  XX(10, MKCOL) \
-  XX(11, MOVE) \
-  XX(12, PROPFIND) \
-  XX(13, PROPPATCH) \
-  XX(14, UNLOCK) \
-  /* subversion */ \
-  XX(15, REPORT) \
-  XX(16, MKACTIVITY) \
-  XX(17, CHECKOUT) \
-  XX(18, MERGE) \
-  /* upnp */ \
-  XX(19, MSEARCH) \
-  XX(20, NOTIFY) \
-  XX(21, SUBSCRIBE) \
-  XX(22, UNSUBSCRIBE) \
-  /* RFC-5789 */ \
-  XX(23, PATCH) \
-  XX(24, PURGE) \
+#define HTTP_METHOD_MAP(XX)         \
+  XX(0,  DELETE,      DELETE)       \
+  XX(1,  GET,         GET)          \
+  XX(2,  HEAD,        HEAD)         \
+  XX(3,  POST,        POST)         \
+  XX(4,  PUT,         PUT)          \
+  /* pathological */                \
+  XX(5,  CONNECT,     CONNECT)      \
+  XX(6,  OPTIONS,     OPTIONS)      \
+  XX(7,  TRACE,       TRACE)        \
+  /* webdav */                      \
+  XX(8,  COPY,        COPY)         \
+  XX(9,  LOCK,        LOCK)         \
+  XX(10, MKCOL,       MKCOL)        \
+  XX(11, MOVE,        MOVE)         \
+  XX(12, PROPFIND,    PROPFIND)     \
+  XX(13, PROPPATCH,   PROPPATCH)    \
+  XX(14, SEARCH,      SEARCH)       \
+  XX(15, UNLOCK,      UNLOCK)       \
+  /* subversion */                  \
+  XX(16, REPORT,      REPORT)       \
+  XX(17, MKACTIVITY,  MKACTIVITY)   \
+  XX(18, CHECKOUT,    CHECKOUT)     \
+  XX(19, MERGE,       MERGE)        \
+  /* upnp */                        \
+  XX(20, MSEARCH,     M-SEARCH)     \
+  XX(21, NOTIFY,      NOTIFY)       \
+  XX(22, SUBSCRIBE,   SUBSCRIBE)    \
+  XX(23, UNSUBSCRIBE, UNSUBSCRIBE)  \
+  /* RFC-5789 */                    \
+  XX(24, PATCH,       PATCH)        \
+  XX(25, PURGE,       PURGE)        \
 
 enum http_method
   {
-#define XX(num, name) HTTP_##name = num,
+#define XX(num, name, string) HTTP_##name = num,
   HTTP_METHOD_MAP(XX)
-#undef X
+#undef XX
   };
 
 
@@ -149,6 +141,7 @@ enum flags
                                                                      \
   /* Callback-related errors */                                      \
   XX(CB_message_begin, "the on_message_begin callback failed")       \
+  XX(CB_status_complete, "the on_status_complete callback failed")   \
   XX(CB_url, "the on_url callback failed")                           \
   XX(CB_header_field, "the on_header_field callback failed")         \
   XX(CB_header_value, "the on_header_value callback failed")         \
@@ -195,13 +188,6 @@ enum http_errno {
 /* Get an http_errno value from an http_parser */
 #define HTTP_PARSER_ERRNO(p)            ((enum http_errno) (p)->http_errno)
 
-/* Get the line number that generated the current error */
-#if HTTP_PARSER_DEBUG
-#define HTTP_PARSER_ERRNO_LINE(p)       ((p)->error_lineno)
-#else
-#define HTTP_PARSER_ERRNO_LINE(p)       0
-#endif
-
 
 struct http_parser {
   /** PRIVATE **/
@@ -228,10 +214,6 @@ struct http_parser {
    */
   unsigned char upgrade : 1;
 
-#if HTTP_PARSER_DEBUG
-  uint32_t error_lineno;
-#endif
-
   /** PUBLIC **/
   void *data; /* A pointer to get hook to the "connection" or "socket" object */
 };
@@ -240,6 +222,7 @@ struct http_parser {
 struct http_parser_settings {
   http_cb      on_message_begin;
   http_data_cb on_url;
+  http_cb      on_status_complete;
   http_data_cb on_header_field;
   http_data_cb on_header_value;
   http_cb      on_headers_complete;
@@ -255,7 +238,8 @@ enum http_parser_url_fields
   , UF_PATH             = 3
   , UF_QUERY            = 4
   , UF_FRAGMENT         = 5
-  , UF_MAX              = 6
+  , UF_USERINFO         = 6
+  , UF_MAX              = 7
   };
 
 
@@ -287,12 +271,12 @@ size_t http_parser_execute(http_parser *parser,
 
 
 /* If http_should_keep_alive() in the on_headers_complete or
- * on_message_complete callback returns true, then this will be should be
+ * on_message_complete callback returns 0, then this should be
  * the last message on the connection.
  * If you are the server, respond with the "Connection: close" header.
  * If you are the client, close the connection.
  */
-int http_should_keep_alive(http_parser *parser);
+int http_should_keep_alive(const http_parser *parser);
 
 /* Returns a string version of the HTTP method. */
 const char *http_method_str(enum http_method m);
@@ -310,6 +294,9 @@ int http_parser_parse_url(const char *buf, size_t buflen,
 
 /* Pause or un-pause the parser; a nonzero value pauses */
 void http_parser_pause(http_parser *parser, int paused);
+
+/* Checks if this is the final chunk of the body. */
+int http_body_is_final(const http_parser *parser);
 
 #ifdef __cplusplus
 }

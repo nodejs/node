@@ -1,0 +1,187 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>Lua/C API Extensions</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Mike Pall">
+<meta name="Copyright" content="Copyright (C) 2005-2013, Mike Pall">
+<meta name="Language" content="en">
+<link rel="stylesheet" type="text/css" href="bluequad.css" media="screen">
+<link rel="stylesheet" type="text/css" href="bluequad-print.css" media="print">
+</head>
+<body>
+<div id="site">
+<a href="http://luajit.org"><span>Lua<span id="logo">JIT</span></span></a>
+</div>
+<div id="head">
+<h1>Lua/C API Extensions</h1>
+</div>
+<div id="nav">
+<ul><li>
+<a href="luajit.html">LuaJIT</a>
+<ul><li>
+<a href="http://luajit.org/download.html">Download <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="install.html">Installation</a>
+</li><li>
+<a href="running.html">Running</a>
+</li></ul>
+</li><li>
+<a href="extensions.html">Extensions</a>
+<ul><li>
+<a href="ext_ffi.html">FFI Library</a>
+<ul><li>
+<a href="ext_ffi_tutorial.html">FFI Tutorial</a>
+</li><li>
+<a href="ext_ffi_api.html">ffi.* API</a>
+</li><li>
+<a href="ext_ffi_semantics.html">FFI Semantics</a>
+</li></ul>
+</li><li>
+<a href="ext_jit.html">jit.* Library</a>
+</li><li>
+<a class="current" href="ext_c_api.html">Lua/C API</a>
+</li></ul>
+</li><li>
+<a href="status.html">Status</a>
+<ul><li>
+<a href="changes.html">Changes</a>
+</li></ul>
+</li><li>
+<a href="faq.html">FAQ</a>
+</li><li>
+<a href="http://luajit.org/performance.html">Performance <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://wiki.luajit.org/">Wiki <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://luajit.org/list.html">Mailing List <span class="ext">&raquo;</span></a>
+</li></ul>
+</div>
+<div id="main">
+<p>
+LuaJIT adds some extensions to the standard Lua/C API. The LuaJIT include
+directory must be in the compiler search path (<tt>-I<i>path</i></tt>)
+to be able to include the required header for C code:
+</p>
+<pre class="code">
+#include "luajit.h"
+</pre>
+<p>
+Or for C++ code:
+</p>
+<pre class="code">
+#include "lua.hpp"
+</pre>
+
+<h2 id="luaJIT_setmode"><tt>luaJIT_setmode(L, idx, mode)</tt>
+&mdash; Control VM</h2>
+<p>
+This is a C API extension to allow control of the VM from C code. The
+full prototype of <tt>LuaJIT_setmode</tt> is:
+</p>
+<pre class="code">
+LUA_API int luaJIT_setmode(lua_State *L, int idx, int mode);
+</pre>
+<p>
+The returned status is either success (<tt>1</tt>) or failure (<tt>0</tt>).
+The second argument is either <tt>0</tt> or a stack index (similar to the
+other Lua/C API functions).
+</p>
+<p>
+The third argument specifies the mode, which is 'or'ed with a flag.
+The flag can be <tt>LUAJIT_MODE_OFF</tt> to turn a feature on,
+<tt>LUAJIT_MODE_ON</tt> to turn a feature off, or
+<tt>LUAJIT_MODE_FLUSH</tt> to flush cached code.
+</p>
+<p>
+The following modes are defined:
+</p>
+
+<h3 id="mode_engine"><tt>luaJIT_setmode(L, 0, LUAJIT_MODE_ENGINE|flag)</tt></h3>
+<p>
+Turn the whole JIT compiler on or off or flush the whole cache of compiled code.
+</p>
+
+<h3 id="mode_func"><tt>luaJIT_setmode(L, idx, LUAJIT_MODE_FUNC|flag)</tt><br>
+<tt>luaJIT_setmode(L, idx, LUAJIT_MODE_ALLFUNC|flag)</tt><br>
+<tt>luaJIT_setmode(L, idx, LUAJIT_MODE_ALLSUBFUNC|flag)</tt></h3>
+<p>
+This sets the mode for the function at the stack index <tt>idx</tt> or
+the parent of the calling function (<tt>idx = 0</tt>). It either
+enables JIT compilation for a function, disables it and flushes any
+already compiled code or only flushes already compiled code. This
+applies recursively to all sub-functions of the function with
+<tt>LUAJIT_MODE_ALLFUNC</tt> or only to the sub-functions with
+<tt>LUAJIT_MODE_ALLSUBFUNC</tt>.
+</p>
+
+<h3 id="mode_trace"><tt>luaJIT_setmode(L, trace,<br>
+&nbsp;&nbsp;LUAJIT_MODE_TRACE|LUAJIT_MODE_FLUSH)</tt></h3>
+<p>
+Flushes the specified root trace and all of its side traces from the cache.
+The code for the trace will be retained as long as there are any other
+traces which link to it.
+</p>
+
+<h3 id="mode_wrapcfunc"><tt>luaJIT_setmode(L, idx, LUAJIT_MODE_WRAPCFUNC|flag)</tt></h3>
+<p>
+This mode defines a wrapper function for calls to C functions. If
+called with <tt>LUAJIT_MODE_ON</tt>, the stack index at <tt>idx</tt>
+must be a <tt>lightuserdata</tt> object holding a pointer to the wrapper
+function. From now on all C functions are called through the wrapper
+function. If called with <tt>LUAJIT_MODE_OFF</tt> this mode is turned
+off and all C functions are directly called.
+</p>
+<p>
+The wrapper function can be used for debugging purposes or to catch
+and convert foreign exceptions. But please read the section on
+<a href="extensions.html#exceptions">C++&nbsp;exception interoperability</a>
+first. Recommended usage can be seen in this C++ code excerpt:
+</p>
+<pre class="code">
+#include &lt;exception&gt;
+#include "lua.hpp"
+
+// Catch C++ exceptions and convert them to Lua error messages.
+// Customize as needed for your own exception classes.
+static int wrap_exceptions(lua_State *L, lua_CFunction f)
+{
+  try {
+    return f(L);  // Call wrapped function and return result.
+  } catch (const char *s) {  // Catch and convert exceptions.
+    lua_pushstring(L, s);
+  } catch (std::exception& e) {
+    lua_pushstring(L, e.what());
+  } catch (...) {
+    lua_pushliteral(L, "caught (...)");
+  }
+  return lua_error(L);  // Rethrow as a Lua error.
+}
+
+static int myinit(lua_State *L)
+{
+  ...
+  // Define wrapper function and enable it.
+  lua_pushlightuserdata(L, (void *)wrap_exceptions);
+  luaJIT_setmode(L, -1, LUAJIT_MODE_WRAPCFUNC|LUAJIT_MODE_ON);
+  lua_pop(L, 1);
+  ...
+}
+</pre>
+<p>
+Note that you can only define <b>a single global wrapper function</b>,
+so be careful when using this mechanism from multiple C++ modules.
+Also note that this mechanism is not without overhead.
+</p>
+<br class="flush">
+</div>
+<div id="foot">
+<hr class="hide">
+Copyright &copy; 2005-2013 Mike Pall
+<span class="noprint">
+&middot;
+<a href="contact.html">Contact</a>
+</span>
+</div>
+</body>
+</html>

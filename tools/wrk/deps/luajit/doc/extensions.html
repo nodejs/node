@@ -1,0 +1,408 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>Extensions</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Mike Pall">
+<meta name="Copyright" content="Copyright (C) 2005-2013, Mike Pall">
+<meta name="Language" content="en">
+<link rel="stylesheet" type="text/css" href="bluequad.css" media="screen">
+<link rel="stylesheet" type="text/css" href="bluequad-print.css" media="print">
+<style type="text/css">
+table.exc {
+  line-height: 1.2;
+}
+tr.exchead td {
+  font-weight: bold;
+}
+td.excplatform {
+  width: 48%;
+}
+td.exccompiler {
+  width: 29%;
+}
+td.excinterop {
+  width: 23%;
+}
+</style>
+</head>
+<body>
+<div id="site">
+<a href="http://luajit.org"><span>Lua<span id="logo">JIT</span></span></a>
+</div>
+<div id="head">
+<h1>Extensions</h1>
+</div>
+<div id="nav">
+<ul><li>
+<a href="luajit.html">LuaJIT</a>
+<ul><li>
+<a href="http://luajit.org/download.html">Download <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="install.html">Installation</a>
+</li><li>
+<a href="running.html">Running</a>
+</li></ul>
+</li><li>
+<a class="current" href="extensions.html">Extensions</a>
+<ul><li>
+<a href="ext_ffi.html">FFI Library</a>
+<ul><li>
+<a href="ext_ffi_tutorial.html">FFI Tutorial</a>
+</li><li>
+<a href="ext_ffi_api.html">ffi.* API</a>
+</li><li>
+<a href="ext_ffi_semantics.html">FFI Semantics</a>
+</li></ul>
+</li><li>
+<a href="ext_jit.html">jit.* Library</a>
+</li><li>
+<a href="ext_c_api.html">Lua/C API</a>
+</li></ul>
+</li><li>
+<a href="status.html">Status</a>
+<ul><li>
+<a href="changes.html">Changes</a>
+</li></ul>
+</li><li>
+<a href="faq.html">FAQ</a>
+</li><li>
+<a href="http://luajit.org/performance.html">Performance <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://wiki.luajit.org/">Wiki <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://luajit.org/list.html">Mailing List <span class="ext">&raquo;</span></a>
+</li></ul>
+</div>
+<div id="main">
+<p>
+LuaJIT is fully upwards-compatible with Lua 5.1. It supports all
+<a href="http://www.lua.org/manual/5.1/manual.html#5"><span class="ext">&raquo;</span>&nbsp;standard Lua
+library functions</a> and the full set of
+<a href="http://www.lua.org/manual/5.1/manual.html#3"><span class="ext">&raquo;</span>&nbsp;Lua/C API
+functions</a>.
+</p>
+<p>
+LuaJIT is also fully ABI-compatible to Lua 5.1 at the linker/dynamic
+loader level. This means you can compile a C&nbsp;module against the
+standard Lua headers and load the same shared library from either Lua
+or LuaJIT.
+</p>
+<p>
+LuaJIT extends the standard Lua VM with new functionality and adds
+several extension modules. Please note this page is only about
+<em>functional</em> enhancements and not about performance enhancements,
+such as the optimized VM, the faster interpreter or the JIT compiler.
+</p>
+
+<h2 id="modules">Extensions Modules</h2>
+<p>
+LuaJIT comes with several built-in extension modules:
+</p>
+
+<h3 id="bit"><tt>bit.*</tt> &mdash; Bitwise operations</h3>
+<p>
+LuaJIT supports all bitwise operations as defined by
+<a href="http://bitop.luajit.org"><span class="ext">&raquo;</span>&nbsp;Lua BitOp</a>:
+</p>
+<pre class="code">
+bit.tobit  bit.tohex  bit.bnot    bit.band bit.bor  bit.bxor
+bit.lshift bit.rshift bit.arshift bit.rol  bit.ror  bit.bswap
+</pre>
+<p>
+This module is a LuaJIT built-in &mdash; you don't need to download or
+install Lua BitOp. The Lua BitOp site has full documentation for all
+<a href="http://bitop.luajit.org/api.html"><span class="ext">&raquo;</span>&nbsp;Lua BitOp API functions</a>.
+</p>
+<p>
+Please make sure to <tt>require</tt> the module before using any of
+its functions:
+</p>
+<pre class="code">
+local bit = require("bit")
+</pre>
+<p>
+An already installed Lua BitOp module is ignored by LuaJIT.
+This way you can use bit operations from both Lua and LuaJIT on a
+shared installation.
+</p>
+
+<h3 id="ffi"><tt>ffi.*</tt> &mdash; FFI library</h3>
+<p>
+The <a href="ext_ffi.html">FFI library</a> allows calling external
+C&nbsp;functions and the use of C&nbsp;data structures from pure Lua
+code.
+</p>
+
+<h3 id="jit"><tt>jit.*</tt> &mdash; JIT compiler control</h3>
+<p>
+The functions in this module
+<a href="ext_jit.html">control the behavior of the JIT compiler engine</a>.
+</p>
+
+<h3 id="c_api">C API extensions</h3>
+<p>
+LuaJIT adds some
+<a href="ext_c_api.html">extra functions to the Lua/C API</a>.
+</p>
+
+<h2 id="library">Enhanced Standard Library Functions</h2>
+
+<h3 id="xpcall"><tt>xpcall(f, err [,args...])</tt> passes arguments</h3>
+<p>
+Unlike the standard implementation in Lua 5.1, <tt>xpcall()</tt>
+passes any arguments after the error function to the function
+which is called in a protected context.
+</p>
+
+<h3 id="load"><tt>loadfile()</tt> etc. handle UTF-8 source code</h3>
+<p>
+Non-ASCII characters are handled transparently by the Lua source code parser.
+This allows the use of UTF-8 characters in identifiers and strings.
+A UTF-8 BOM is skipped at the start of the source code.
+</p>
+
+<h3 id="tostring"><tt>tostring()</tt> etc. canonicalize NaN and &plusmn;Inf</h3>
+<p>
+All number-to-string conversions consistently convert non-finite numbers
+to the same strings on all platforms. NaN results in <tt>"nan"</tt>,
+positive infinity results in <tt>"inf"</tt> and negative infinity results
+in <tt>"-inf"</tt>.
+</p>
+
+<h3 id="tonumber"><tt>tonumber()</tt> etc. use builtin string to number conversion</h3>
+<p>
+All string-to-number conversions consistently convert integer and
+floating-point inputs in decimal and hexadecimal on all platforms.
+<tt>strtod()</tt> is <em>not</em> used anymore, which avoids numerous
+problems with poor C library implementations. The builtin conversion
+function provides full precision according to the IEEE-754 standard, it
+works independently of the current locale and it supports hex floating-point
+numbers (e.g. <tt>0x1.5p-3</tt>).
+</p>
+
+<h3 id="string_dump"><tt>string.dump(f [,strip])</tt> generates portable bytecode</h3>
+<p>
+An extra argument has been added to <tt>string.dump()</tt>. If set to
+<tt>true</tt>, 'stripped' bytecode without debug information is
+generated. This speeds up later bytecode loading and reduces memory
+usage. See also the
+<a href="running.html#opt_b"><tt>-b</tt> command line option</a>.
+</p>
+<p>
+The generated bytecode is portable and can be loaded on any architecture
+that LuaJIT supports, independent of word size or endianess. However the
+bytecode compatibility versions must match. Bytecode stays compatible
+for dot releases (x.y.0 &rarr; x.y.1), but may change with major or
+minor releases (2.0 &rarr; 2.1) or between any beta release. Foreign
+bytecode (e.g. from Lua 5.1) is incompatible and cannot be loaded.
+</p>
+
+<h3 id="math_random">Enhanced PRNG for <tt>math.random()</tt></h3>
+<p>
+LuaJIT uses a Tausworthe PRNG with period 2^223 to implement
+<tt>math.random()</tt> and <tt>math.randomseed()</tt>. The quality of
+the PRNG results is much superior compared to the standard Lua
+implementation which uses the platform-specific ANSI rand().
+</p>
+<p>
+The PRNG generates the same sequences from the same seeds on all
+platforms and makes use of all bits in the seed argument.
+<tt>math.random()</tt> without arguments generates 52 pseudo-random bits
+for every call. The result is uniformly distributed between 0.0 and 1.0.
+It's correctly scaled up and rounded for <tt>math.random(n&nbsp;[,m])</tt> to
+preserve uniformity.
+</p>
+
+<h3 id="io"><tt>io.*</tt> functions handle 64&nbsp;bit file offsets</h3>
+<p>
+The file I/O functions in the standard <tt>io.*</tt> library handle
+64&nbsp;bit file offsets. In particular this means it's possible
+to open files larger than 2&nbsp;Gigabytes and to reposition or obtain
+the current file position for offsets beyond 2&nbsp;GB
+(<tt>fp:seek()</tt> method).
+</p>
+
+<h3 id="debug_meta"><tt>debug.*</tt> functions identify metamethods</h3>
+<p>
+<tt>debug.getinfo()</tt> and <tt>lua_getinfo()</tt> also return information
+about invoked metamethods. The <tt>namewhat</tt> field is set to
+<tt>"metamethod"</tt> and the <tt>name</tt> field has the name of
+the corresponding metamethod (e.g. <tt>"__index"</tt>).
+</p>
+
+<h2 id="resumable">Fully Resumable VM</h2>
+<p>
+The LuaJIT VM is fully resumable. This means you can yield from a
+coroutine even across contexts, where this would not possible with
+the standard Lua&nbsp;5.1 VM: e.g. you can yield across <tt>pcall()</tt>
+and <tt>xpcall()</tt>, across iterators and across metamethods.
+</p>
+
+<h2 id="lua52">Extensions from Lua 5.2</h2>
+<p>
+LuaJIT supports some language and library extensions from Lua&nbsp;5.2.
+Features that are unlikely to break existing code are unconditionally
+enabled:
+</p>
+<ul>
+<li><tt>goto</tt> and <tt>::labels::</tt>.</li>
+<li>Hex escapes <tt>'\x3F'</tt> and <tt>'\*'</tt> escape in strings.</li>
+<li><tt>load(string|reader [, chunkname [,mode [,env]]])</tt>.</li>
+<li><tt>loadstring()</tt> is an alias for <tt>load()</tt>.</li>
+<li><tt>loadfile(filename [,mode [,env]])</tt>.</li>
+<li><tt>math.log(x [,base])</tt>.
+<li><tt>string.rep(s, n [,sep])</tt>.
+<li><tt>string.format()</tt>: <tt>%q</tt> reversible.
+<tt>%s</tt> checks <tt>__tostring</tt>.
+<tt>%a</tt> and <tt>"%A</tt> added.</li>
+<li>String matching pattern <tt>%g</tt> added.</li>
+<li><tt>io.read("*L")</tt>.</li>
+<li><tt>io.lines()</tt> and <tt>file:lines()</tt> process
+<tt>io.read()</tt> options.</li>
+<li><tt>os.exit(status|true|false [,close])</tt>.</li>
+<li><tt>package.searchpath(name, path [, sep [, rep]])</tt>.</li>
+<li><tt>package.loadlib(name, "*")</tt>.</li>
+<li><tt>debug.getinfo()</tt> returns <tt>nparams</tt> and <tt>isvararg</tt>
+for option <tt>"u"</tt>.</li>
+<li><tt>debug.getlocal()</tt> accepts function instead of level.</li>
+<li><tt>debug.getlocal()</tt> and <tt>debug.setlocal()</tt> accept negative
+indexes for varargs.</li>
+<li><tt>debug.getupvalue()</tt> and <tt>debug.setupvalue()</tt> handle
+C&nbsp;functions.</li>
+<li><tt>debug.upvalueid()</tt> and <tt>debug.upvaluejoin()</tt>.</li>
+<li>Command line option <tt>-E</tt>.</li>
+<li>Command line checks <tt>__tostring</tt> for errors.</li>
+</ul>
+<p>
+Other features are only enabled, if LuaJIT is built with
+<tt>-DLUAJIT_ENABLE_LUA52COMPAT</tt>:
+</p>
+<ul>
+<li><tt>goto</tt> is a keyword and not a valid variable name anymore.</li>
+<li><tt>break</tt> can be placed anywhere. Empty statements (<tt>;;</tt>)
+are allowed.</li>
+<li><tt>__lt</tt>, <tt>__le</tt> are invoked for mixed types.</li>
+<li><tt>__len</tt> for tables. <tt>rawlen()</tt> library function.</li>
+<li><tt>pairs()</tt> and <tt>ipairs()</tt> check for <tt>__pairs</tt> and
+<tt>__ipairs</tt>.</li>
+<li><tt>coroutine.running()</tt> returns two results.</li>
+<li><tt>table.pack()</tt> and <tt>table.unpack()</tt>
+(same as <tt>unpack()</tt>).</li>
+<li><tt>io.write()</tt> and <tt>file:write()</tt> return file handle
+instead of <tt>true</tt>.</li>
+<li><tt>os.execute()</tt> and <tt>pipe:close()</tt> return detailed
+exit status.</li>
+<li><tt>debug.setmetatable()</tt> returns object.</li>
+<li><tt>debug.getuservalue()</tt> and <tt>debug.setuservalue()</tt>.</li>
+<li>Remove <tt>math.mod()</tt>, <tt>string.gfind()</tt>.
+</ul>
+<p>
+Note: this provides only partial compatibility with Lua 5.2 at the
+language and Lua library level. LuaJIT is API+ABI-compatible with
+Lua&nbsp;5.1, which prevents implementing features that would otherwise
+break the Lua/C API and ABI (e.g. <tt>_ENV</tt>).
+</p>
+
+<h2 id="exceptions">C++ Exception Interoperability</h2>
+<p>
+LuaJIT has built-in support for interoperating with C++&nbsp;exceptions.
+The available range of features depends on the target platform and
+the toolchain used to compile LuaJIT:
+</p>
+<table class="exc">
+<tr class="exchead">
+<td class="excplatform">Platform</td>
+<td class="exccompiler">Compiler</td>
+<td class="excinterop">Interoperability</td>
+</tr>
+<tr class="odd separate">
+<td class="excplatform">POSIX/x64, DWARF2 unwinding</td>
+<td class="exccompiler">GCC 4.3+</td>
+<td class="excinterop"><b style="color: #00a000;">Full</b></td>
+</tr>
+<tr class="even">
+<td class="excplatform">Other platforms, DWARF2 unwinding</td>
+<td class="exccompiler">GCC</td>
+<td class="excinterop"><b style="color: #c06000;">Limited</b></td>
+</tr>
+<tr class="odd">
+<td class="excplatform">Windows/x64</td>
+<td class="exccompiler">MSVC or WinSDK</td>
+<td class="excinterop"><b style="color: #00a000;">Full</b></td>
+</tr>
+<tr class="even">
+<td class="excplatform">Windows/x86</td>
+<td class="exccompiler">Any</td>
+<td class="excinterop"><b style="color: #a00000;">No</b></td>
+</tr>
+<tr class="odd">
+<td class="excplatform">Other platforms</td>
+<td class="exccompiler">Other compilers</td>
+<td class="excinterop"><b style="color: #a00000;">No</b></td>
+</tr>
+</table>
+<p>
+<b style="color: #00a000;">Full interoperability</b> means:
+</p>
+<ul>
+<li>C++&nbsp;exceptions can be caught on the Lua side with <tt>pcall()</tt>,
+<tt>lua_pcall()</tt> etc.</li>
+<li>C++&nbsp;exceptions will be converted to the generic Lua error
+<tt>"C++&nbsp;exception"</tt>, unless you use the
+<a href="ext_c_api.html#mode_wrapcfunc">C&nbsp;call wrapper</a> feature.</li>
+<li>It's safe to throw C++&nbsp;exceptions across non-protected Lua frames
+on the C&nbsp;stack. The contents of the C++&nbsp;exception object
+pass through unmodified.</li>
+<li>Lua errors can be caught on the C++ side with <tt>catch(...)</tt>.
+The corresponding Lua error message can be retrieved from the Lua stack.</li>
+<li>Throwing Lua errors across C++ frames is safe. C++ destructors
+will be called.</li>
+</ul>
+<p>
+<b style="color: #c06000;">Limited interoperability</b> means:
+</p>
+<ul>
+<li>C++&nbsp;exceptions can be caught on the Lua side with <tt>pcall()</tt>,
+<tt>lua_pcall()</tt> etc.</li>
+<li>C++&nbsp;exceptions will be converted to the generic Lua error
+<tt>"C++&nbsp;exception"</tt>, unless you use the
+<a href="ext_c_api.html#mode_wrapcfunc">C&nbsp;call wrapper</a> feature.</li>
+<li>C++&nbsp;exceptions will be caught by non-protected Lua frames and
+are rethrown as a generic Lua error. The C++&nbsp;exception object will
+be destroyed.</li>
+<li>Lua errors <b>cannot</b> be caught on the C++ side.</li>
+<li>Throwing Lua errors across C++ frames will <b>not</b> call
+C++ destructors.</li>
+</ul>
+
+<p>
+<b style="color: #a00000;">No interoperability</b> means:
+</p>
+<ul>
+<li>It's <b>not</b> safe to throw C++&nbsp;exceptions across Lua frames.</li>
+<li>C++&nbsp;exceptions <b>cannot</b> be caught on the Lua side.</li>
+<li>Lua errors <b>cannot</b> be caught on the C++ side.</li>
+<li>Throwing Lua errors across C++ frames will <b>not</b> call
+C++ destructors.</li>
+<li>Additionally, on Windows/x86 with SEH-based C++&nbsp;exceptions:
+it's <b>not</b> safe to throw a Lua error across any frames containing
+a C++ function with any try/catch construct or using variables with
+(implicit) destructors. This also applies to any functions which may be
+inlined in such a function. It doesn't matter whether <tt>lua_error()</tt>
+is called inside or outside of a try/catch or whether any object actually
+needs to be destroyed: the SEH chain is corrupted and this will eventually
+lead to the termination of the process.</li>
+</ul>
+<br class="flush">
+</div>
+<div id="foot">
+<hr class="hide">
+Copyright &copy; 2005-2013 Mike Pall
+<span class="noprint">
+&middot;
+<a href="contact.html">Contact</a>
+</span>
+</div>
+</body>
+</html>

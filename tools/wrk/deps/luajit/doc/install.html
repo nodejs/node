@@ -1,0 +1,613 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>Installation</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Mike Pall">
+<meta name="Copyright" content="Copyright (C) 2005-2013, Mike Pall">
+<meta name="Language" content="en">
+<link rel="stylesheet" type="text/css" href="bluequad.css" media="screen">
+<link rel="stylesheet" type="text/css" href="bluequad-print.css" media="print">
+<style type="text/css">
+table.compat {
+  line-height: 1.2;
+  font-size: 80%;
+}
+table.compat td {
+  border: 1px solid #bfcfff;
+  height: 2.5em;
+}
+table.compat tr.compathead td {
+  font-weight: bold;
+  border-bottom: 2px solid #bfcfff;
+}
+tr.compathead td.compatos {
+  vertical-align: top;
+}
+table.compat td.compatcpu {
+  width: 18%;
+  border-right: 2px solid #bfcfff;
+}
+td.compatos {
+  width: 21%;
+  vertical-align: middle;
+}
+td.compatno {
+  background-color: #d0d0d0;
+}
+</style>
+</head>
+<body>
+<div id="site">
+<a href="http://luajit.org"><span>Lua<span id="logo">JIT</span></span></a>
+</div>
+<div id="head">
+<h1>Installation</h1>
+</div>
+<div id="nav">
+<ul><li>
+<a href="luajit.html">LuaJIT</a>
+<ul><li>
+<a href="http://luajit.org/download.html">Download <span class="ext">&raquo;</span></a>
+</li><li>
+<a class="current" href="install.html">Installation</a>
+</li><li>
+<a href="running.html">Running</a>
+</li></ul>
+</li><li>
+<a href="extensions.html">Extensions</a>
+<ul><li>
+<a href="ext_ffi.html">FFI Library</a>
+<ul><li>
+<a href="ext_ffi_tutorial.html">FFI Tutorial</a>
+</li><li>
+<a href="ext_ffi_api.html">ffi.* API</a>
+</li><li>
+<a href="ext_ffi_semantics.html">FFI Semantics</a>
+</li></ul>
+</li><li>
+<a href="ext_jit.html">jit.* Library</a>
+</li><li>
+<a href="ext_c_api.html">Lua/C API</a>
+</li></ul>
+</li><li>
+<a href="status.html">Status</a>
+<ul><li>
+<a href="changes.html">Changes</a>
+</li></ul>
+</li><li>
+<a href="faq.html">FAQ</a>
+</li><li>
+<a href="http://luajit.org/performance.html">Performance <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://wiki.luajit.org/">Wiki <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://luajit.org/list.html">Mailing List <span class="ext">&raquo;</span></a>
+</li></ul>
+</div>
+<div id="main">
+<p>
+LuaJIT is only distributed as a source package. This page explains
+how to build and install LuaJIT with different operating systems
+and C&nbsp;compilers.
+</p>
+<p>
+For the impatient (on POSIX systems):
+</p>
+<pre class="code">
+make &amp;&amp; sudo make install
+</pre>
+<p>
+LuaJIT currently builds out-of-the box on most systems.
+Here's the compatibility matrix for the supported combinations of
+operating systems, CPUs and compilers:
+</p>
+<table class="compat">
+<tr class="compathead">
+<td class="compatcpu">CPU / OS</td>
+<td class="compatos"><a href="#posix">Linux</a> or<br><a href="#android">Android</a></td>
+<td class="compatos"><a href="#posix">*BSD, Other</a></td>
+<td class="compatos"><a href="#posix">OSX 10.4+</a> or<br><a href="#ios">iOS 3.0+</a></td>
+<td class="compatos"><a href="#windows">Windows<br>XP/Vista/7</a></td>
+</tr>
+<tr class="odd separate">
+<td class="compatcpu">x86 (32 bit)</td>
+<td class="compatos">GCC 4.x<br>GCC 3.4</td>
+<td class="compatos">GCC 4.x<br>GCC 3.4</td>
+<td class="compatos">GCC 4.x<br>GCC 3.4</td>
+<td class="compatos">MSVC, MSVC/EE<br>WinSDK<br>MinGW, Cygwin</td>
+</tr>
+<tr class="even">
+<td class="compatcpu">x64 (64 bit)</td>
+<td class="compatos">GCC 4.x</td>
+<td class="compatos compatno">&nbsp;</td>
+<td class="compatos">GCC 4.x</td>
+<td class="compatos">MSVC + SDK v7.0<br>WinSDK v7.0</td>
+</tr>
+<tr class="odd">
+<td class="compatcpu"><a href="#cross2">ARMv5+<br>ARM9E+</a></td>
+<td class="compatos">GCC 4.2+</td>
+<td class="compatos">GCC 4.2+</td>
+<td class="compatos">GCC 4.2+</td>
+<td class="compatos compatno">&nbsp;</td>
+</tr>
+<tr class="even">
+<td class="compatcpu"><a href="#cross2">PPC</a></td>
+<td class="compatos">GCC 4.3+</td>
+<td class="compatos">GCC 4.3+<br>GCC 4.1 (<a href="#ps3">PS3</a>)</td>
+<td class="compatos compatno">&nbsp;</td>
+<td class="compatos">XEDK (<a href="#xbox360">Xbox 360</a>)</td>
+</tr>
+<tr class="odd">
+<td class="compatcpu"><a href="#cross2">PPC/e500v2</a></td>
+<td class="compatos">GCC 4.3+</td>
+<td class="compatos">GCC 4.3+</td>
+<td class="compatos compatno">&nbsp;</td>
+<td class="compatos compatno">&nbsp;</td>
+</tr>
+<tr class="even">
+<td class="compatcpu"><a href="#cross2">MIPS</a></td>
+<td class="compatos">GCC 4.3+</td>
+<td class="compatos">GCC 4.3+</td>
+<td class="compatos compatno">&nbsp;</td>
+<td class="compatos compatno">&nbsp;</td>
+</tr>
+</table>
+
+<h2>Configuring LuaJIT</h2>
+<p>
+The standard configuration should work fine for most installations.
+Usually there is no need to tweak the settings. The following files
+hold all user-configurable settings:
+</p>
+<ul>
+<li><tt>src/luaconf.h</tt> sets some configuration variables.</li>
+<li><tt>Makefile</tt> has settings for <b>installing</b> LuaJIT (POSIX
+only).</li>
+<li><tt>src/Makefile</tt> has settings for <b>compiling</b> LuaJIT
+under POSIX, MinGW or Cygwin.</li>
+<li><tt>src/msvcbuild.bat</tt> has settings for compiling LuaJIT with
+MSVC or WinSDK.</li>
+</ul>
+<p>
+Please read the instructions given in these files, before changing
+any settings.
+</p>
+
+<h2 id="posix">POSIX Systems (Linux, OSX, *BSD etc.)</h2>
+<h3>Prerequisites</h3>
+<p>
+Depending on your distribution, you may need to install a package for
+GCC, the development headers and/or a complete SDK. E.g. on a current
+Debian/Ubuntu, install <tt>libc6-dev</tt> with the package manager.
+</p>
+<p>
+Download the current source package of LuaJIT (pick the .tar.gz),
+if you haven't already done so. Move it to a directory of your choice,
+open a terminal window and change to this directory. Now unpack the archive
+and change to the newly created directory:
+</p>
+<pre class="code">
+tar zxf LuaJIT-2.0.2.tar.gz
+cd LuaJIT-2.0.2</pre>
+<h3>Building LuaJIT</h3>
+<p>
+The supplied Makefiles try to auto-detect the settings needed for your
+operating system and your compiler. They need to be run with GNU Make,
+which is probably the default on your system, anyway. Simply run:
+</p>
+<pre class="code">
+make
+</pre>
+<p>
+This always builds a native x86, x64 or PPC binary, depending on the host OS
+you're running this command on. Check the section on
+<a href="#cross">cross-compilation</a> for more options.
+</p>
+<p>
+By default, modules are only searched under the prefix <tt>/usr/local</tt>.
+You can add an extra prefix to the search paths by appending the
+<tt>PREFIX</tt> option, e.g.:
+</p>
+<pre class="code">
+make PREFIX=/home/myself/lj2
+</pre>
+<p>
+Note for OSX: if the <tt>MACOSX_DEPLOYMENT_TARGET</tt> environment
+variable is not set, then it's forced to <tt>10.4</tt>.
+</p>
+<h3>Installing LuaJIT</h3>
+<p>
+The top-level Makefile installs LuaJIT by default under
+<tt>/usr/local</tt>, i.e. the executable ends up in
+<tt>/usr/local/bin</tt> and so on. You need root privileges
+to write to this path. So, assuming sudo is installed on your system,
+run the following command and enter your sudo password:
+</p>
+<pre class="code">
+sudo make install
+</pre>
+<p>
+Otherwise specify the directory prefix as an absolute path, e.g.:
+</p>
+<pre class="code">
+make install PREFIX=/home/myself/lj2
+</pre>
+<p>
+Obviously the prefixes given during build and installation need to be the same.
+</p>
+
+<h2 id="windows">Windows Systems</h2>
+<h3>Prerequisites</h3>
+<p>
+Either install one of the open source SDKs
+(<a href="http://mingw.org/"><span class="ext">&raquo;</span>&nbsp;MinGW</a> or
+<a href="http://www.cygwin.com/"><span class="ext">&raquo;</span>&nbsp;Cygwin</a>), which come with a modified
+GCC plus the required development headers.
+</p>
+<p>
+Or install Microsoft's Visual C++ (MSVC). The freely downloadable
+<a href="http://www.microsoft.com/Express/VC/"><span class="ext">&raquo;</span>&nbsp;Express Edition</a>
+works just fine, but only contains an x86 compiler.
+</p>
+<p>
+The freely downloadable
+<a href="http://msdn.microsoft.com/en-us/windowsserver/bb980924.aspx"><span class="ext">&raquo;</span>&nbsp;Windows SDK</a>
+only comes with command line tools, but this is all you need to build LuaJIT.
+It contains x86 and x64 compilers.
+</p>
+<p>
+Next, download the source package and unpack it using an archive manager
+(e.g. the Windows Explorer) to a directory of your choice.
+</p>
+<h3>Building with MSVC</h3>
+<p>
+Open a "Visual Studio .NET Command Prompt", <tt>cd</tt> to the
+directory where you've unpacked the sources and run these commands:
+</p>
+<pre class="code">
+cd src
+msvcbuild
+</pre>
+<p>
+Then follow the installation instructions below.
+</p>
+<h3>Building with the Windows SDK</h3>
+<p>
+Open a "Windows SDK Command Shell" and select the x86 compiler:
+</p>
+<pre class="code">
+setenv /release /x86
+</pre>
+<p>
+Or select the x64 compiler:
+</p>
+<pre class="code">
+setenv /release /x64
+</pre>
+<p>
+Then <tt>cd</tt> to the directory where you've unpacked the sources
+and run these commands:
+</p>
+<pre class="code">
+cd src
+msvcbuild
+</pre>
+<p>
+Then follow the installation instructions below.
+</p>
+<h3>Building with MinGW or Cygwin</h3>
+<p>
+Open a command prompt window and make sure the MinGW or Cygwin programs
+are in your path. Then <tt>cd</tt> to the directory where
+you've unpacked the sources and run this command for MinGW:
+</p>
+<pre class="code">
+mingw32-make
+</pre>
+<p>
+Or this command for Cygwin:
+</p>
+<pre class="code">
+make
+</pre>
+<p>
+Then follow the installation instructions below.
+</p>
+<h3>Installing LuaJIT</h3>
+<p>
+Copy <tt>luajit.exe</tt> and <tt>lua51.dll</tt> (built in the <tt>src</tt>
+directory) to a newly created directory (any location is ok).
+Add <tt>lua</tt> and <tt>lua\jit</tt> directories below it and copy
+all Lua files from the <tt>src\jit</tt> directory of the distribution
+to the latter directory.
+</p>
+<p>
+There are no hardcoded
+absolute path names &mdash; all modules are loaded relative to the
+directory where <tt>luajit.exe</tt> is installed
+(see <tt>src/luaconf.h</tt>).
+</p>
+
+<h2 id="cross">Cross-compiling LuaJIT</h2>
+<p>
+The GNU Makefile-based build system allows cross-compiling on any host
+for any supported target, as long as both architectures have the same
+pointer size. If you want to cross-compile to any 32 bit target on an
+x64 OS, you need to install the multilib development package (e.g.
+<tt>libc6-dev-i386</tt> on Debian/Ubuntu) and build a 32 bit host part
+(<tt>HOST_CC="gcc -m32"</tt>).
+</p>
+<p>
+You need to specify <tt>TARGET_SYS</tt> whenever the host OS and the
+target OS differ, or you'll get assembler or linker errors. E.g. if
+you're compiling on a Windows or OSX host for embedded Linux or Android,
+you need to add <tt>TARGET_SYS=Linux</tt> to the examples below. For a
+minimal target OS, you may need to disable the built-in allocator in
+<tt>src/Makefile</tt> and use <tt>TARGET_SYS=Other</tt>. The examples
+below only show some popular targets &mdash; please check the comments
+in <tt>src/Makefile</tt> for more details.
+</p>
+<pre class="code">
+# Cross-compile to a 32 bit binary on a multilib x64 OS
+make CC="gcc -m32"
+
+# Cross-compile on Debian/Ubuntu for Windows (mingw32 package)
+make HOST_CC="gcc -m32" CROSS=i586-mingw32msvc- TARGET_SYS=Windows
+</pre>
+<p id="cross2">
+The <tt>CROSS</tt> prefix allows specifying a standard GNU cross-compile
+toolchain (Binutils, GCC and a matching libc). The prefix may vary
+depending on the <tt>--target</tt> the toolchain was built for (note the
+<tt>CROSS</tt> prefix has a trailing <tt>"-"</tt>). The examples below
+use the canonical toolchain triplets for Linux.
+</p>
+<p>
+Since there's often no easy way to detect CPU features at runtime, it's
+important to compile with the proper CPU or architecture settings. You
+can specify these when building the toolchain yourself. Or add
+<tt>-mcpu=...</tt> or <tt>-march=...</tt> to <tt>TARGET_CFLAGS</tt>. For
+ARM it's important to have the correct <tt>-mfloat-abi=...</tt> setting,
+too. Otherwise LuaJIT may not run at the full performance of your target
+CPU.
+</p>
+<pre class="code">
+# ARM soft-float
+make HOST_CC="gcc -m32" CROSS=arm-linux-gnueabi- \
+     TARGET_CFLAGS="-mfloat-abi=soft"
+
+# ARM soft-float ABI with VFP (example for Cortex-A8)
+make HOST_CC="gcc -m32" CROSS=arm-linux-gnueabi- \
+     TARGET_CFLAGS="-mcpu=cortex-a8 -mfloat-abi=softfp"
+
+# ARM hard-float ABI with VFP (armhf, requires recent toolchain)
+make HOST_CC="gcc -m32" CROSS=arm-linux-gnueabihf-
+
+# PPC
+make HOST_CC="gcc -m32" CROSS=powerpc-linux-gnu-
+# PPC/e500v2 (fast interpreter only)
+make HOST_CC="gcc -m32" CROSS=powerpc-e500v2-linux-gnuspe-
+
+# MIPS big-endian
+make HOST_CC="gcc -m32" CROSS=mips-linux-
+# MIPS little-endian
+make HOST_CC="gcc -m32" CROSS=mipsel-linux-
+</pre>
+<p>
+You can cross-compile for <b id="android">Android</b> using the <a href="http://developer.android.com/sdk/ndk/index.html"><span class="ext">&raquo;</span>&nbsp;Android NDK</a>.
+The environment variables need to match the install locations and the
+desired target platform. E.g. Android&nbsp;4.0 corresponds to ABI level&nbsp;14.
+For details check the folder <tt>docs</tt> in the NDK directory.
+</p>
+<p>
+Only a few common variations for the different CPUs, ABIs and platforms
+are listed. Please use your own judgement for which combination you want
+to build/deploy or which lowest common denominator you want to pick:
+</p>
+<pre class="code">
+# Android/ARM, armeabi (ARMv5TE soft-float), Android 2.2+ (Froyo)
+NDK=/opt/android/ndk
+NDKABI=8
+NDKVER=$NDK/toolchains/arm-linux-androideabi-4.6
+NDKP=$NDKVER/prebuilt/linux-x86/bin/arm-linux-androideabi-
+NDKF="--sysroot $NDK/platforms/android-$NDKABI/arch-arm"
+make HOST_CC="gcc -m32" CROSS=$NDKP TARGET_FLAGS="$NDKF"
+
+# Android/ARM, armeabi-v7a (ARMv7 VFP), Android 4.0+ (ICS)
+NDK=/opt/android/ndk
+NDKABI=14
+NDKVER=$NDK/toolchains/arm-linux-androideabi-4.6
+NDKP=$NDKVER/prebuilt/linux-x86/bin/arm-linux-androideabi-
+NDKF="--sysroot $NDK/platforms/android-$NDKABI/arch-arm"
+NDKARCH="-march=armv7-a -mfloat-abi=softfp -Wl,--fix-cortex-a8"
+make HOST_CC="gcc -m32" CROSS=$NDKP TARGET_FLAGS="$NDKF $NDKARCH"
+
+# Android/MIPS, mips (MIPS32R1 hard-float), Android 4.0+ (ICS)
+NDK=/opt/android/ndk
+NDKABI=14
+NDKVER=$NDK/toolchains/mipsel-linux-android-4.6
+NDKP=$NDKVER/prebuilt/linux-x86/bin/mipsel-linux-android-
+NDKF="--sysroot $NDK/platforms/android-$NDKABI/arch-mips"
+make HOST_CC="gcc -m32" CROSS=$NDKP TARGET_FLAGS="$NDKF"
+
+# Android/x86, x86 (i686 SSE3), Android 4.0+ (ICS)
+NDK=/opt/android/ndk
+NDKABI=14
+NDKVER=$NDK/toolchains/x86-4.6
+NDKP=$NDKVER/prebuilt/linux-x86/bin/i686-linux-android-
+NDKF="--sysroot $NDK/platforms/android-$NDKABI/arch-x86"
+make HOST_CC="gcc -m32" CROSS=$NDKP TARGET_FLAGS="$NDKF"
+</pre>
+<p>
+You can cross-compile for <b id="ios">iOS 3.0+</b> (iPhone/iPad) using the <a href="http://developer.apple.com/devcenter/ios/index.action"><span class="ext">&raquo;</span>&nbsp;iOS SDK</a>.
+The environment variables need to match the iOS SDK version:
+</p>
+<p style="font-size: 8pt;">
+Note: <b>the JIT compiler is disabled for iOS</b>, because regular iOS Apps
+are not allowed to generate code at runtime. You'll only get the performance
+of the LuaJIT interpreter on iOS. This is still faster than plain Lua, but
+much slower than the JIT compiler. Please complain to Apple, not me.
+Or use Android. :-p
+</p>
+<pre class="code">
+IXCODE=`xcode-select -print-path`
+ISDK=$IXCODE/Platforms/iPhoneOS.platform/Developer
+ISDKVER=iPhoneOS6.0.sdk
+ISDKP=$ISDK/usr/bin/
+ISDKF="-arch armv7 -isysroot $ISDK/SDKs/$ISDKVER"
+make HOST_CC="gcc -m32 -arch i386" CROSS=$ISDKP TARGET_FLAGS="$ISDKF" \
+     TARGET_SYS=iOS
+</pre>
+<p>
+You can cross-compile for <b id="ps3">PS3</b> using the PS3&nbsp;SDK from
+a Linux host or a Windows host (requires 32 bit MinGW (GCC) on the host,
+too). Due to restrictions on consoles, the JIT compiler is disabled and
+only the fast interpreter is built:
+</p>
+<pre class="code">
+make HOST_CC="gcc -m32" CROSS=ppu-lv2-
+</pre>
+<p>
+You can cross-compile for <b id="xbox360">Xbox 360</b> using the
+Xbox&nbsp;360 SDK (MSVC + XEDK). Due to restrictions on consoles, the
+JIT compiler is disabled and only the fast interpreter is built.
+</p>
+<p>
+Open a "Visual Studio .NET Command Prompt" (32&nbsp;bit host compiler),
+<tt>cd</tt> to the directory where you've unpacked the sources and run
+the following commands. This builds a static library <tt>luajit20.lib</tt>,
+which can be linked against your game, just like the Lua library.
+</p>
+<pre class="code">
+cd src
+xedkbuild
+</pre>
+
+<h2 id="embed">Embedding LuaJIT</h2>
+<p>
+LuaJIT is API-compatible with Lua 5.1. If you've already embedded Lua
+into your application, you probably don't need to do anything to switch
+to LuaJIT, except link with a different library:
+</p>
+<ul>
+<li>It's strongly suggested to build LuaJIT separately using the supplied
+build system. Please do <em>not</em> attempt to integrate the individual
+source files into your build tree. You'll most likely get the internal build
+dependencies wrong or mess up the compiler flags. Treat LuaJIT like any
+other external library and link your application with either the dynamic
+or static library, depending on your needs.</li>
+<li>If you want to load C modules compiled for plain Lua
+with <tt>require()</tt>, you need to make sure the public symbols
+(e.g. <tt>lua_pushnumber</tt>) are exported, too:
+<ul><li>On POSIX systems you can either link to the shared library
+or link the static library into your application. In the latter case
+you'll need to export all public symbols from your main executable
+(e.g. <tt>-Wl,-E</tt> on Linux) and add the external dependencies
+(e.g. <tt>-lm -ldl</tt> on Linux).</li>
+<li>Since Windows symbols are bound to a specific DLL name, you need to
+link to the <tt>lua51.dll</tt> created by the LuaJIT build (do not rename
+the DLL). You may link LuaJIT statically on Windows only if you don't
+intend to load Lua/C modules at runtime.
+</li></ul>
+</li>
+<li>
+If you're building a 64 bit application on OSX which links directly or
+indirectly against LuaJIT, you need to link your main executable
+with these flags:
+<pre class="code">
+-pagezero_size 10000 -image_base 100000000
+</pre>
+Also, it's recommended to <tt>rebase</tt> all (self-compiled) shared libraries
+which are loaded at runtime on OSX/x64 (e.g. C extension modules for Lua).
+See: <tt>man rebase</tt>
+</li>
+</ul>
+<p>Additional hints for initializing LuaJIT using the C API functions:</p>
+<ul>
+<li>Here's a
+<a href="http://lua-users.org/wiki/SimpleLuaApiExample"><span class="ext">&raquo;</span>&nbsp;simple example</a>
+for embedding Lua or LuaJIT into your application.</li>
+<li>Make sure you use <tt>luaL_newstate</tt>. Avoid using
+<tt>lua_newstate</tt>, since this uses the (slower) default memory
+allocator from your system (no support for this on x64).</li>
+<li>Make sure you use <tt>luaL_openlibs</tt> and not the old Lua 5.0 style
+of calling <tt>luaopen_base</tt> etc. directly.</li>
+<li>To change or extend the list of standard libraries to load, copy
+<tt>src/lib_init.c</tt> to your project and modify it accordingly.
+Make sure the <tt>jit</tt> library is loaded or the JIT compiler
+will not be activated.</li>
+<li>The <tt>bit.*</tt> module for bitwise operations
+is already built-in. There's no need to statically link
+<a href="http://bitop.luajit.org/"><span class="ext">&raquo;</span>&nbsp;Lua BitOp</a> to your application.</li>
+</ul>
+
+<h2 id="distro">Hints for Distribution Maintainers</h2>
+<p>
+The LuaJIT build system has extra provisions for the needs of most
+POSIX-based distributions. If you're a package maintainer for
+a distribution, <em>please</em> make use of these features and
+avoid patching, subverting, autotoolizing or messing up the build system
+in unspeakable ways.
+</p>
+<p>
+There should be absolutely no need to patch <tt>luaconf.h</tt> or any
+of the Makefiles. And please do not hand-pick files for your packages &mdash;
+simply use whatever <tt>make install</tt> creates. There's a reason
+for all of the files <em>and</em> directories it creates.
+</p>
+<p>
+The build system uses GNU make and auto-detects most settings based on
+the host you're building it on. This should work fine for native builds,
+even when sandboxed. You may need to pass some of the following flags to
+<em>both</em> the <tt>make</tt> and the <tt>make install</tt> command lines
+for a regular distribution build:
+</p>
+<ul>
+<li><tt>PREFIX</tt> overrides the installation path and should usually
+be set to <tt>/usr</tt>. Setting this also changes the module paths and
+the <tt>-rpath</tt> of the shared library.</li>
+<li><tt>DESTDIR</tt> is an absolute path which allows you to install
+to a shadow tree instead of the root tree of the build system.</li>
+<li>Have a look at the top-level <tt>Makefile</tt> and <tt>src/Makefile</tt>
+for additional variables to tweak. The following variables <em>may</em> be
+overridden, but it's <em>not</em> recommended, except for special needs
+like cross-builds:
+<tt>BUILDMODE, CC, HOST_CC, STATIC_CC, DYNAMIC_CC, CFLAGS, HOST_CFLAGS,
+TARGET_CFLAGS, LDFLAGS, HOST_LDFLAGS, TARGET_LDFLAGS, TARGET_SHLDFLAGS,
+TARGET_FLAGS, LIBS, HOST_LIBS, TARGET_LIBS, CROSS, HOST_SYS, TARGET_SYS
+</tt></li>
+</ul>
+<p>
+The build system has a special target for an amalgamated build, i.e.
+<tt>make amalg</tt>. This compiles the LuaJIT core as one huge C file
+and allows GCC to generate faster and shorter code. Alas, this requires
+lots of memory during the build. This may be a problem for some users,
+that's why it's not enabled by default. But it shouldn't be a problem for
+most build farms. It's recommended that binary distributions use this
+target for their LuaJIT builds.
+</p>
+<p>
+The tl;dr version of the above:
+</p>
+<pre class="code">
+make amalg PREFIX=/usr && \
+make install PREFIX=/usr DESTDIR=/tmp/buildroot
+</pre>
+<p>
+Finally, if you encounter any difficulties, please
+<a href="contact.html">contact me</a> first, instead of releasing a broken
+package onto unsuspecting users. Because they'll usually gonna complain
+to me (the upstream) and not you (the package maintainer), anyway.
+</p>
+<br class="flush">
+</div>
+<div id="foot">
+<hr class="hide">
+Copyright &copy; 2005-2013 Mike Pall
+<span class="noprint">
+&middot;
+<a href="contact.html">Contact</a>
+</span>
+</div>
+</body>
+</html>

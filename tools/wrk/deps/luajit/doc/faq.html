@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>Frequently Asked Questions (FAQ)</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Mike Pall">
+<meta name="Copyright" content="Copyright (C) 2005-2013, Mike Pall">
+<meta name="Language" content="en">
+<link rel="stylesheet" type="text/css" href="bluequad.css" media="screen">
+<link rel="stylesheet" type="text/css" href="bluequad-print.css" media="print">
+<style type="text/css">
+dd { margin-left: 1.5em; }
+</style>
+</head>
+<body>
+<div id="site">
+<a href="http://luajit.org"><span>Lua<span id="logo">JIT</span></span></a>
+</div>
+<div id="head">
+<h1>Frequently Asked Questions (FAQ)</h1>
+</div>
+<div id="nav">
+<ul><li>
+<a href="luajit.html">LuaJIT</a>
+<ul><li>
+<a href="http://luajit.org/download.html">Download <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="install.html">Installation</a>
+</li><li>
+<a href="running.html">Running</a>
+</li></ul>
+</li><li>
+<a href="extensions.html">Extensions</a>
+<ul><li>
+<a href="ext_ffi.html">FFI Library</a>
+<ul><li>
+<a href="ext_ffi_tutorial.html">FFI Tutorial</a>
+</li><li>
+<a href="ext_ffi_api.html">ffi.* API</a>
+</li><li>
+<a href="ext_ffi_semantics.html">FFI Semantics</a>
+</li></ul>
+</li><li>
+<a href="ext_jit.html">jit.* Library</a>
+</li><li>
+<a href="ext_c_api.html">Lua/C API</a>
+</li></ul>
+</li><li>
+<a href="status.html">Status</a>
+<ul><li>
+<a href="changes.html">Changes</a>
+</li></ul>
+</li><li>
+<a class="current" href="faq.html">FAQ</a>
+</li><li>
+<a href="http://luajit.org/performance.html">Performance <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://wiki.luajit.org/">Wiki <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://luajit.org/list.html">Mailing List <span class="ext">&raquo;</span></a>
+</li></ul>
+</div>
+<div id="main">
+<dl>
+<dt>Q: Where can I learn more about LuaJIT and Lua?</dt>
+<dd>
+<ul style="padding: 0;">
+<li>The <a href="http://luajit.org/list.html"><span class="ext">&raquo;</span>&nbsp;LuaJIT mailing list</a> focuses on topics
+related to LuaJIT.</li>
+<li>The <a href="http://wiki.luajit.org/"><span class="ext">&raquo;</span>&nbsp;LuaJIT wiki</a> gathers community
+resources about LuaJIT.</li>
+<li>News about Lua itself can be found at the
+<a href="http://www.lua.org/lua-l.html"><span class="ext">&raquo;</span>&nbsp;Lua mailing list</a>.
+The mailing list archives are worth checking out for older postings
+about LuaJIT.</li>
+<li>The <a href="http://lua.org"><span class="ext">&raquo;</span>&nbsp;main Lua.org site</a> has complete
+<a href="http://www.lua.org/docs.html"><span class="ext">&raquo;</span>&nbsp;documentation</a> of the language
+and links to books and papers about Lua.</li>
+<li>The community-managed <a href="http://lua-users.org/wiki/"><span class="ext">&raquo;</span>&nbsp;Lua Wiki</a>
+has information about diverse topics.</li>
+</ul>
+</dl>
+
+<dl>
+<dt>Q: Where can I learn more about the compiler technology used by LuaJIT?</dt>
+<dd>
+I'm planning to write more documentation about the internals of LuaJIT.
+In the meantime, please use the following Google Scholar searches
+to find relevant papers:<br>
+Search for: <a href="http://scholar.google.com/scholar?q=Trace+Compiler"><span class="ext">&raquo;</span>&nbsp;Trace Compiler</a><br>
+Search for: <a href="http://scholar.google.com/scholar?q=JIT+Compiler"><span class="ext">&raquo;</span>&nbsp;JIT Compiler</a><br>
+Search for: <a href="http://scholar.google.com/scholar?q=Dynamic+Language+Optimizations"><span class="ext">&raquo;</span>&nbsp;Dynamic Language Optimizations</a><br>
+Search for: <a href="http://scholar.google.com/scholar?q=SSA+Form"><span class="ext">&raquo;</span>&nbsp;SSA Form</a><br>
+Search for: <a href="http://scholar.google.com/scholar?q=Linear+Scan+Register+Allocation"><span class="ext">&raquo;</span>&nbsp;Linear Scan Register Allocation</a><br>
+Here is a list of the <a href="http://article.gmane.org/gmane.comp.lang.lua.general/58908"><span class="ext">&raquo;</span>&nbsp;innovative features in LuaJIT</a>.<br>
+And, you know, reading the source is of course the only way to enlightenment. :-)
+</dd>
+</dl>
+
+<dl>
+<dt>Q: Why do I get this error: "attempt to index global 'arg' (a nil value)"?<br>
+Q: My vararg functions fail after switching to LuaJIT!</dt>
+<dd>LuaJIT is compatible to the Lua 5.1 language standard. It doesn't
+support the implicit <tt>arg</tt> parameter for old-style vararg
+functions from Lua 5.0.<br>Please convert your code to the
+<a href="http://www.lua.org/manual/5.1/manual.html#2.5.9"><span class="ext">&raquo;</span>&nbsp;Lua 5.1
+vararg syntax</a>.</dd>
+</dl>
+
+<dl>
+<dt>Q: Why do I get this error: "bad FPU precision"?<br>
+<dt>Q: I get weird behavior after initializing Direct3D.<br>
+<dt>Q: Some FPU operations crash after I load a Delphi DLL.<br>
+</dt>
+<dd>
+
+DirectX/Direct3D (up to version 9) sets the x87 FPU to single-precision
+mode by default. This violates the Windows ABI and interferes with the
+operation of many programs &mdash; LuaJIT is affected, too. Please make
+sure you always use the <tt>D3DCREATE_FPU_PRESERVE</tt> flag when
+initializing Direct3D.<br>
+
+Direct3D version 10 or higher do not show this behavior anymore.
+Consider testing your application with older versions, too.<br>
+
+Similarly, the Borland/Delphi runtime modifies the FPU control word and
+enables FP exceptions. Of course this violates the Windows ABI, too.
+Please check the Delphi docs for the Set8087CW method.
+
+</dl>
+
+<dl>
+<dt>Q: Sometimes Ctrl-C fails to stop my Lua program. Why?</dt>
+<dd>The interrupt signal handler sets a Lua debug hook. But this is
+currently ignored by compiled code (this will eventually be fixed). If
+your program is running in a tight loop and never falls back to the
+interpreter, the debug hook never runs and can't throw the
+"interrupted!" error.<br> In the meantime you have to press Ctrl-C
+twice to get stop your program. That's similar to when it's stuck
+running inside a C function under the Lua interpreter.</dd>
+</dl>
+
+<dl>
+<dt>Q: Why doesn't my favorite power-patch for Lua apply against LuaJIT?</dt>
+<dd>Because it's a completely redesigned VM and has very little code
+in common with Lua anymore. Also, if the patch introduces changes to
+the Lua semantics, these would need to be reflected everywhere in the
+VM, from the interpreter up to all stages of the compiler.<br> Please
+use only standard Lua language constructs. For many common needs you
+can use source transformations or use wrapper or proxy functions.
+The compiler will happily optimize away such indirections.</dd>
+</dl>
+
+<dl>
+<dt>Q: Lua runs everywhere. Why doesn't LuaJIT support my CPU?</dt>
+<dd>Because it's a compiler &mdash; it needs to generate native
+machine code. This means the code generator must be ported to each
+architecture. And the fast interpreter is written in assembler and
+must be ported, too. This is quite an undertaking.<br>
+The <a href="install.html">install documentation</a> shows the supported
+architectures. Other architectures will follow based on sufficient user
+demand and/or sponsoring.</dd>
+</dl>
+
+<dl>
+<dt>Q: When will feature X be added? When will the next version be released?</dt>
+<dd>When it's ready.<br>
+C'mon, it's open source &mdash; I'm doing it on my own time and you're
+getting it for free. You can either contribute a patch or sponsor
+the development of certain features, if they are important to you.
+</dd>
+</dl>
+<br class="flush">
+</div>
+<div id="foot">
+<hr class="hide">
+Copyright &copy; 2005-2013 Mike Pall
+<span class="noprint">
+&middot;
+<a href="contact.html">Contact</a>
+</span>
+</div>
+</body>
+</html>

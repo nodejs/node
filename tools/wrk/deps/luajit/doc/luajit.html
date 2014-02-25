@@ -1,0 +1,228 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>LuaJIT</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Mike Pall">
+<meta name="Copyright" content="Copyright (C) 2005-2013, Mike Pall">
+<meta name="Language" content="en">
+<link rel="stylesheet" type="text/css" href="bluequad.css" media="screen">
+<link rel="stylesheet" type="text/css" href="bluequad-print.css" media="print">
+<meta name="description" content="LuaJIT is a Just-In-Time (JIT) compiler for the Lua language.">
+<style type="text/css">
+table.feature {
+  width: inherit;
+  line-height: 1.2;
+  margin: 0;
+}
+table.feature td {
+  width: 80px;
+  height: 40px;
+  vertical-align: middle;
+  text-align: center;
+  font-weight: bold;
+  border: 4px solid #e6ecff;
+  border-radius: 12px;
+}
+table.os td {
+  background: #7080d0;
+  background-image: linear-gradient(#4060c0 10%, #b0b0ff 95%);
+  background-image: -moz-linear-gradient(#4060c0 10%, #b0b0ff 95%);
+  background-image: -webkit-linear-gradient(#4060c0 10%, #b0b0ff 95%);
+  background-image: -o-linear-gradient(#4060c0 10%, #b0b0ff 95%);
+  background-image: -ms-linear-gradient(#4060c0 10%, #b0b0ff 95%);
+}
+table.os1 td {
+  color: #ffff80;
+}
+table.os2 td {
+  color: #ffa040;
+}
+table.compiler td {
+  color: #2080ff;
+  background: #62bf41;
+  background-image: linear-gradient(#62bf41 10%, #b0ffb0 95%);
+  background-image: -moz-linear-gradient(#62bf41 10%, #b0ffb0 95%);
+  background-image: -webkit-linear-gradient(#62bf41 10%, #b0ffb0 95%);
+  background-image: -o-linear-gradient(#62bf41 10%, #b0ffb0 95%);
+  background-image: -ms-linear-gradient(#62bf41 10%, #b0ffb0 95%);
+}
+table.cpu td {
+  color: #ffff00;
+  background: #cf7251;
+  background-image: linear-gradient(#bf6241 10%, #ffb0b0 95%);
+  background-image: -moz-linear-gradient(#bf6241 10%, #ffb0b0 95%);
+  background-image: -webkit-linear-gradient(#bf6241 10%, #ffb0b0 95%);
+  background-image: -o-linear-gradient(#bf6241 10%, #ffb0b0 95%);
+  background-image: -ms-linear-gradient(#bf6241 10%, #ffb0b0 95%);
+}
+table.fcompat td {
+  color: #2060e0;
+  background: #61cfcf;
+  background-image: linear-gradient(#41bfbf 10%, #b0ffff 95%);
+  background-image: -moz-linear-gradient(#41bfbf 10%, #b0ffff 95%);
+  background-image: -webkit-linear-gradient(#41bfbf 10%, #b0ffff 95%);
+  background-image: -o-linear-gradient(#41bfbf 10%, #b0ffff 95%);
+  background-image: -ms-linear-gradient(#41bfbf 10%, #b0ffff 95%);
+}
+table.stats td {
+  color: #ffffff;
+  background: #a0a0a0;
+  background-image: linear-gradient(#808080 10%, #d0d0d0 95%);
+  background-image: -moz-linear-gradient(#808080 10%, #d0d0d0 95%);
+  background-image: -webkit-linear-gradient(#808080 10%, #d0d0d0 95%);
+  background-image: -o-linear-gradient(#808080 10%, #d0d0d0 95%);
+  background-image: -ms-linear-gradient(#808080 10%, #d0d0d0 95%);
+}
+table.stats td.speed {
+  color: #ff4020;
+}
+table.stats td.kb {
+  color: #ffff80;
+  background: #808080;
+  background-image: linear-gradient(#606060 10%, #c0c0c0 95%);
+  background-image: -moz-linear-gradient(#606060 10%, #c0c0c0 95%);
+  background-image: -webkit-linear-gradient(#606060 10%, #c0c0c0 95%);
+  background-image: -o-linear-gradient(#606060 10%, #c0c0c0 95%);
+  background-image: -ms-linear-gradient(#606060 10%, #c0c0c0 95%);
+}
+table.feature small {
+  font-size: 50%;
+}
+</style>
+</head>
+<body>
+<div id="site">
+<a href="http://luajit.org"><span>Lua<span id="logo">JIT</span></span></a>
+</div>
+<div id="head">
+<h1>LuaJIT</h1>
+</div>
+<div id="nav">
+<ul><li>
+<a class="current" href="luajit.html">LuaJIT</a>
+<ul><li>
+<a href="http://luajit.org/download.html">Download <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="install.html">Installation</a>
+</li><li>
+<a href="running.html">Running</a>
+</li></ul>
+</li><li>
+<a href="extensions.html">Extensions</a>
+<ul><li>
+<a href="ext_ffi.html">FFI Library</a>
+<ul><li>
+<a href="ext_ffi_tutorial.html">FFI Tutorial</a>
+</li><li>
+<a href="ext_ffi_api.html">ffi.* API</a>
+</li><li>
+<a href="ext_ffi_semantics.html">FFI Semantics</a>
+</li></ul>
+</li><li>
+<a href="ext_jit.html">jit.* Library</a>
+</li><li>
+<a href="ext_c_api.html">Lua/C API</a>
+</li></ul>
+</li><li>
+<a href="status.html">Status</a>
+<ul><li>
+<a href="changes.html">Changes</a>
+</li></ul>
+</li><li>
+<a href="faq.html">FAQ</a>
+</li><li>
+<a href="http://luajit.org/performance.html">Performance <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://wiki.luajit.org/">Wiki <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://luajit.org/list.html">Mailing List <span class="ext">&raquo;</span></a>
+</li></ul>
+</div>
+<div id="main">
+<p>
+LuaJIT is a <b>Just-In-Time Compiler</b> (JIT) for the
+<a href="http://www.lua.org/"><span class="ext">&raquo;</span>&nbsp;Lua</a> programming language.
+Lua is a powerful, dynamic and light-weight programming language.
+It may be embedded or used as a general-purpose, stand-alone language.
+</p>
+<p>
+LuaJIT is Copyright &copy; 2005-2013 Mike Pall, released under the
+<a href="http://www.opensource.org/licenses/mit-license.php"><span class="ext">&raquo;</span>&nbsp;MIT open source license</a>.
+</p>
+<p>
+</p>
+
+<h2>Compatibility</h2>
+<table class="feature os os1">
+<tr><td>Windows</td><td>Linux</td><td>BSD</td><td>OSX</td><td>POSIX</td></tr>
+</table>
+<table class="feature os os2">
+<tr><td><span style="font-size:90%;">Embedded</span></td><td>Android</td><td>iOS</td><td>PS3</td><td>Xbox 360</td></tr>
+</table>
+<table class="feature compiler">
+<tr><td>GCC</td><td>CLANG<br>LLVM</td><td>MSVC</td></tr>
+</table>
+<table class="feature cpu">
+<tr><td>x86</td><td>x64</td><td>ARM</td><td>PPC</td><td>e500</td><td>MIPS</td></tr>
+</table>
+<table class="feature fcompat">
+<tr><td>Lua&nbsp;5.1<br>API+ABI</td><td>+&nbsp;JIT</td><td>+&nbsp;BitOp</td><td>+&nbsp;FFI</td><td>Drop-in<br>DLL/.so</td></tr>
+</table>
+
+<h2>Overview</h2>
+<table class="feature stats">
+<tr>
+<td class="speed">3x<br>-&nbsp;&nbsp;100x</td>
+<td class="kb">115&nbsp;<small>KB</small><br>VM</td>
+<td class="kb">90&nbsp;<small>KB</small><br>JIT</td>
+<td class="kloc">63&nbsp;<small>KLOC</small><br>C</td>
+<td class="kloc">24&nbsp;<small>KLOC</small><br>ASM</td>
+<td class="kloc">11&nbsp;<small>KLOC</small><br>Lua</td>
+</tr>
+</table>
+<p style="margin-top: 1em;">
+LuaJIT has been successfully used as a <b>scripting middleware</b> in
+games, appliances, network and graphics apps, numerical simulations,
+trading platforms and many other specialty applications. It scales from
+embedded devices, smartphones, desktops up to server farms. It combines
+high flexibility with <a href="http://luajit.org/performance.html"><span class="ext">&raquo;</span>&nbsp;high performance</a>
+and an unmatched <b>low memory footprint</b>.
+</p>
+<p>
+LuaJIT has been in continuous development since 2005. It's widely
+considered to be <b>one of the fastest dynamic language
+implementations</b>. It has outperformed other dynamic languages on many
+cross-language benchmarks since its first release &mdash; often by a
+substantial margin.
+</p>
+<p>
+For <b>LuaJIT 2.0</b>, the whole VM has been rewritten from the ground up
+and relentlessly optimized for performance. It combines a <b>high-speed
+interpreter</b>, written in assembler, with a <b>state-of-the-art JIT
+compiler</b>.
+</p>
+<p>
+An innovative <b>trace compiler</b> is integrated with advanced,
+SSA-based optimizations and highly tuned code generation backends.
+A substantial reduction of the overhead associated with dynamic languages
+allows it to break into the performance range traditionally reserved for
+offline, static language compilers.
+</p>
+
+<h2>More ...</h2>
+<p>
+Please select a sub-topic in the navigation bar to learn more about LuaJIT.
+</p>
+<br class="flush">
+</div>
+<div id="foot">
+<hr class="hide">
+Copyright &copy; 2005-2013 Mike Pall
+<span class="noprint">
+&middot;
+<a href="contact.html">Contact</a>
+</span>
+</div>
+</body>
+</html>

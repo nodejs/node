@@ -1,0 +1,88 @@
+.TH luajit 1 "" "" "LuaJIT documentation"
+.SH NAME
+luajit \- Just-In-Time Compiler for the Lua Language
+\fB
+.SH SYNOPSIS
+.B luajit
+[\fIoptions\fR]... [\fIscript\fR [\fIargs\fR]...]
+.SH "WEB SITE"
+.IR http://luajit.org
+.SH DESCRIPTION
+.PP
+This is the command-line program to run Lua programs with \fBLuaJIT\fR.
+.PP
+\fBLuaJIT\fR is a just-in-time (JIT) compiler for the Lua language.
+The virtual machine (VM) is based on a fast interpreter combined with
+a trace compiler. It can significantly improve the performance of Lua programs.
+.PP
+\fBLuaJIT\fR is API\- and ABI-compatible with the VM of the standard
+Lua\ 5.1 interpreter. When embedding the VM into an application,
+the built library can be used as a drop-in replacement.
+.SH OPTIONS
+.TP
+.BI "\-e " chunk
+Run the given chunk of Lua code.
+.TP
+.BI "\-l " library
+Load the named library, just like \fBrequire("\fR\fIlibrary\fR\fB")\fR.
+.TP
+.BI "\-b " ...
+Save or list bytecode. Run without arguments to get help on options.
+.TP
+.BI "\-j " command
+Perform LuaJIT control command (optional space after \fB\-j\fR).
+.TP
+.BI "\-O" [opt]
+Control LuaJIT optimizations.
+.TP
+.B "\-i"
+Run in interactive mode.
+.TP
+.B "\-v"
+Show \fBLuaJIT\fR version.
+.TP
+.B "\-E"
+Ignore environment variables.
+.TP
+.B "\-\-"
+Stop processing options.
+.TP
+.B "\-"
+Read script from stdin instead.
+.PP
+After all options are processed, the given \fIscript\fR is run.
+The arguments are passed in the global \fIarg\fR table.
+.PP
+Interactive mode is only entered, if no \fIscript\fR and no \fB\-e\fR
+option is given. Interactive mode can be left with EOF (\fICtrl\-Z\fB).
+.SH EXAMPLES
+.TP
+luajit hello.lua world
+
+Prints "Hello world", assuming \fIhello.lua\fR contains:
+.br
+  print("Hello", arg[1])
+.TP
+luajit \-e "local x=0; for i=1,1e9 do x=x+i end; print(x)"
+
+Calculates the sum of the numbers from 1 to 1000000000.
+.br
+And finishes in a reasonable amount of time, too.
+.TP
+luajit \-jv \-e "for i=1,10 do for j=1,10 do for k=1,100 do end end end"
+
+Runs some nested loops and shows the resulting traces.
+.SH COPYRIGHT
+.PP
+\fBLuaJIT\fR is Copyright \(co 2005-2013 Mike Pall.
+.br
+\fBLuaJIT\fR is open source software, released under the MIT license.
+.SH SEE ALSO
+.PP
+More details in the provided HTML docs or at:
+.IR http://luajit.org
+.br
+More about the Lua language can be found at:
+.IR http://lua.org/docs.html
+.PP
+lua(1)

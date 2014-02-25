@@ -1,0 +1,892 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>LuaJIT Change History</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Mike Pall">
+<meta name="Copyright" content="Copyright (C) 2005-2013, Mike Pall">
+<meta name="Language" content="en">
+<link rel="stylesheet" type="text/css" href="bluequad.css" media="screen">
+<link rel="stylesheet" type="text/css" href="bluequad-print.css" media="print">
+<style type="text/css">
+div.major { max-width: 600px; padding: 1em; margin: 1em 0 1em 0; }
+</style>
+</head>
+<body>
+<div id="site">
+<a href="http://luajit.org"><span>Lua<span id="logo">JIT</span></span></a>
+</div>
+<div id="head">
+<h1>LuaJIT Change History</h1>
+</div>
+<div id="nav">
+<ul><li>
+<a href="luajit.html">LuaJIT</a>
+<ul><li>
+<a href="http://luajit.org/download.html">Download <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="install.html">Installation</a>
+</li><li>
+<a href="running.html">Running</a>
+</li></ul>
+</li><li>
+<a href="extensions.html">Extensions</a>
+<ul><li>
+<a href="ext_ffi.html">FFI Library</a>
+<ul><li>
+<a href="ext_ffi_tutorial.html">FFI Tutorial</a>
+</li><li>
+<a href="ext_ffi_api.html">ffi.* API</a>
+</li><li>
+<a href="ext_ffi_semantics.html">FFI Semantics</a>
+</li></ul>
+</li><li>
+<a href="ext_jit.html">jit.* Library</a>
+</li><li>
+<a href="ext_c_api.html">Lua/C API</a>
+</li></ul>
+</li><li>
+<a href="status.html">Status</a>
+<ul><li>
+<a class="current" href="changes.html">Changes</a>
+</li></ul>
+</li><li>
+<a href="faq.html">FAQ</a>
+</li><li>
+<a href="http://luajit.org/performance.html">Performance <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://wiki.luajit.org/">Wiki <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://luajit.org/list.html">Mailing List <span class="ext">&raquo;</span></a>
+</li></ul>
+</div>
+<div id="main">
+<p>
+This is a list of changes between the released versions of LuaJIT.<br>
+The current <span style="color: #0000c0;">stable version</span> is <strong>LuaJIT&nbsp;2.0.2</strong>.<br>
+</p>
+<p>
+Please check the
+<a href="http://luajit.org/changes.html"><span class="ext">&raquo;</span>&nbsp;Online Change History</a>
+to see whether newer versions are available.
+</p>
+
+<div class="major" style="background: #d0d0ff;">
+<h2 id="LuaJIT-2.0.2">LuaJIT 2.0.2 &mdash; 2013-06-03</h2>
+<ul>
+<li>Fix memory access check for fast string interning.</li>
+<li>Fix MSVC intrinsics for older versions.</li>
+<li>Add missing GC steps for <tt>io.*</tt> functions.</li>
+<li>Fix spurious red zone overflows in machine code generation.</li>
+<li>Fix jump-range constrained mcode allocation.</li>
+<li>Inhibit DSE for implicit loads via calls.</li>
+<li>Fix builtin string to number conversion for overflow digits.</li>
+<li>Fix optional argument handling while recording builtins.</li>
+<li>Fix optional argument handling in <tt>table.concat()</tt>.</li>
+<li>Add partial support for building with MingW64 GCC 4.8-SEH.</li>
+<li>Add missing PHI barrier to <tt>string.sub(str, a, b) == kstr</tt> FOLD rule.</li>
+<li>Fix compatibility issues with Illumos.</li>
+<li>ARM: Fix cache flush/sync for exit stubs of JIT-compiled code.</li>
+<li>MIPS: Fix cache flush/sync for JIT-compiled code jump area.</li>
+<li>PPC: Add <tt>plt</tt> suffix for external calls from assembler code.</li>
+<li>FFI: Fix snapshot substitution in SPLIT pass.</li>
+<li>FFI/x86: Fix register allocation for 64 bit comparisons.</li>
+<li>FFI: Fix tailcall in lowest frame to C&nbsp;function with bool result.</li>
+<li>FFI: Ignore <tt>long</tt> type specifier in <tt>ffi.istype()</tt>.</li>
+<li>FFI: Fix calling conventions for 32 bit OSX and iOS simulator (struct returns).</li>
+<li>FFI: Fix calling conventions for ARM hard-float EABI (nested structs).</li>
+<li>FFI: Improve error messages for arithmetic and comparison operators.</li>
+<li>FFI: Insert no-op type conversion for pointer to integer cast.</li>
+<li>FFI: Fix unroll limit for <tt>ffi.fill()</tt>.</li>
+<li>FFI: Must sink <tt>XBAR</tt> together with <tt>XSTORE</tt>s.</li>
+<li>FFI: Preserve intermediate string for <tt>const&nbsp;char&nbsp;*</tt> conversion.</li>
+</ul>
+
+<h2 id="LuaJIT-2.0.1">LuaJIT 2.0.1 &mdash; 2013-02-19</h2>
+<ul>
+<li>Don't clear frame for out-of-memory error.</li>
+<li>Leave hook when resume catches error thrown from hook.</li>
+<li>Add missing GC steps for template table creation.</li>
+<li>Fix discharge order of comparisons in Lua parser.</li>
+<li>Improve buffer handling for <tt>io.read()</tt>.</li>
+<li>OSX: Add support for Mach-O object files to <tt>-b</tt> option.</li>
+<li>Fix PS3 port.</li>
+<li>Fix/enable Xbox 360 port.</li>
+<li>x86/x64: Always mark ref for shift count as non-weak.</li>
+<li>x64: Don't fuse implicitly 32-to-64 extended operands.</li>
+<li>ARM: Fix armhf call argument handling.</li>
+<li>ARM: Fix code generation for integer math.min/math.max.</li>
+<li>PPC/e500: Fix <tt>lj_vm_floor()</tt> for Inf/NaN.</li>
+<li>FFI: Change priority of table initializer variants for structs.</li>
+<li>FFI: Fix code generation for bool call result check on x86/x64.</li>
+<li>FFI: Load FFI library on-demand for bytecode with cdata literals.</li>
+<li>FFI: Fix handling of qualified transparent structs/unions.</li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0">LuaJIT 2.0.0 &mdash; 2012-11-08</h2>
+<ul>
+<li>Correctness and completeness:
+<ul>
+  <li>Fix Android/x86 build.</li>
+  <li>Fix recording of equality comparisons with <tt>__eq</tt> metamethods.</li>
+  <li>Fix detection of immutable upvalues.</li>
+  <li>Replace error with PANIC for callbacks from JIT-compiled code.</li>
+  <li>Fix builtin string to number conversion for <tt>INT_MIN</tt>.</li>
+  <li>Don't create unneeded array part for template tables.</li>
+  <li>Fix <tt>CONV.num.int</tt> sinking.</li>
+  <li>Don't propagate implicitly widened number to index metamethods.</li>
+  <li>ARM: Fix ordered comparisons of number vs. non-number.</li>
+  <li>FFI: Fix code generation for replay of sunk float fields.</li>
+  <li>FFI: Fix signedness of bool.</li>
+  <li>FFI: Fix recording of bool call result check on x86/x64.</li>
+  <li>FFI: Fix stack-adjustment for <tt>__thiscall</tt> callbacks.</li>
+</ul></li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta11">LuaJIT 2.0.0-beta11 &mdash; 2012-10-16</h2>
+<ul>
+<li>New features:
+<ul>
+  <li>Use ARM VFP instructions, if available (build-time detection).</li>
+  <li>Add support for ARM hard-float EABI (<tt>armhf</tt>).</li>
+  <li>Add PS3 port.</li>
+  <li>Add many features from Lua&nbsp;5.2, e.g. <tt>goto</tt>/labels.
+  Refer to <a href="extensions.html#lua52">this list</a>.</li>
+  <li>FFI: Add parameterized C types.</li>
+  <li>FFI: Add support for copy constructors.</li>
+  <li>FFI: Equality comparisons never raise an error (treat as unequal instead).</li>
+  <li>FFI: Box all accessed or returned enums.</li>
+  <li>FFI: Check for <tt>__new</tt> metamethod when calling a constructor.</li>
+  <li>FFI: Handle <tt>__pairs</tt>/<tt>__ipairs</tt> metamethods for cdata objects.</li>
+  <li>FFI: Convert <tt>io.*</tt> file handle to <tt>FILE *</tt> pointer (but as a <tt>void *</tt>).</li>
+  <li>FFI: Detect and support type punning through unions.</li>
+  <li>FFI: Improve various error messages.</li>
+</ul></li>
+<li>Build-system reorganization:
+<ul>
+  <li>Reorganize directory layout:<br>
+  <tt>lib/*</tt> &rarr; <tt>src/jit/*</tt><br>
+  <tt>src/buildvm_*.dasc</tt> &rarr; <tt>src/vm_*.dasc</tt><br>
+  <tt>src/buildvm_*.h</tt> &rarr; removed<br>
+  <tt>src/buildvm*</tt> &rarr; <tt>src/host/*</tt></li>
+  <li>Add minified Lua interpreter plus Lua BitOp (<tt>minilua</tt>) to run DynASM.</li>
+  <li>Change DynASM bit operations to use Lua BitOp</li>
+  <li>Translate only <tt>vm_*.dasc</tt> for detected target architecture.</li>
+  <li>Improve target detection for <tt>msvcbuild.bat</tt>.</li>
+  <li>Fix build issues on Cygwin and MinGW with optional MSys.</li>
+  <li>Handle cross-compiles with FPU/no-FPU or hard-fp/soft-fp ABI mismatch.</li>
+  <li>Remove some library functions for no-JIT/no-FFI builds.</li>
+  <li>Add uninstall target to top-level Makefile.</li>
+</ul></li>
+<li>Correctness and completeness:
+<ul>
+  <li>Preserve snapshot #0 PC for all traces.</li>
+  <li>Fix argument checks for <tt>coroutine.create()</tt>.</li>
+  <li>Command line prints version and JIT status to <tt>stdout</tt>, not <tt>stderr</tt>.</li>
+  <li>Fix userdata <tt>__gc</tt> separations at Lua state close.</li>
+  <li>Fix <tt>TDUP</tt> to <tt>HLOAD</tt> forwarding for <tt>LJ_DUALNUM</tt> builds.</li>
+  <li>Fix buffer check in bytecode writer.</li>
+  <li>Make <tt>os.date()</tt> thread-safe.</li>
+  <li>Add missing declarations for MSVC intrinsics.</li>
+  <li>Fix dispatch table modifications for return hooks.</li>
+  <li>Workaround for MSVC conversion bug (<tt>double</tt> &rarr; <tt>uint32_t</tt> &rarr; <tt>int32_t</tt>).</li>
+  <li>Fix FOLD rule <tt>(i-j)-i => 0-j</tt>.</li>
+  <li>Never use DWARF unwinder on Windows.</li>
+  <li>Fix shrinking of direct mapped blocks in builtin allocator.</li>
+  <li>Limit recursion depth in <tt>string.match()</tt> et al.</li>
+  <li>Fix late despecialization of <tt>ITERN</tt> after loop has been entered.</li>
+  <li>Fix <tt>'f'</tt> and <tt>'L'</tt> options for <tt>debug.getinfo()</tt> and <tt>lua_getinfo()</tt>.</li>
+  <li>Fix <tt>package.searchpath()</tt>.</li>
+  <li>OSX: Change dylib names to be consistent with other platforms.</li>
+  <li>Android: Workaround for broken <tt>sprintf("%g",&nbsp;-0.0)</tt>.</li>
+  <li>x86: Remove support for ancient CPUs without <tt>CMOV</tt> (before Pentium Pro).</li>
+  <li>x86: Fix register allocation for calls returning register pair.</li>
+  <li>x86/x64: Fix fusion of unsigned byte comparisons with swapped operands.</li>
+  <li>ARM: Fix <tt>tonumber()</tt> argument check.</li>
+  <li>ARM: Fix modulo operator and <tt>math.floor()</tt>/<tt>math.ceil()</tt> for <tt>inf</tt>/<tt>nan</tt>.</li>
+  <li>ARM: Invoke SPLIT pass for leftover <tt>IR_TOBIT</tt>.</li>
+  <li>ARM: Fix BASE register coalescing.</li>
+  <li>PPC: Fix interpreter state setup in callbacks.</li>
+  <li>PPC: Fix <tt>string.sub()</tt> range check.</li>
+  <li>MIPS: Support generation of MIPS/MIPSEL bytecode object files.</li>
+  <li>MIPS: Fix calls to <tt>floor()</tt>/<tt>ceil()</tt><tt>/trunc()</tt>.</li>
+  <li>ARM/PPC: Detect more target architecture variants.</li>
+  <li>ARM/PPC/e500/MIPS: Fix tailcalls from fast functions, esp. <tt>tostring()</tt>.</li>
+  <li>ARM/PPC/MIPS: Fix rematerialization of FP constants.</li>
+  <li>FFI: Don't call <tt>FreeLibrary()</tt> on our own EXE/DLL.</li>
+  <li>FFI: Resolve metamethods for constructors, too.</li>
+  <li>FFI: Properly disable callbacks on iOS (would require executable memory).</li>
+  <li>FFI: Fix cdecl string parsing during recording.</li>
+  <li>FFI: Show address pointed to for <tt>tostring(ref)</tt>, too.</li>
+  <li>FFI: Fix alignment of C call argument/return structure.</li>
+  <li>FFI: Initialize all fields of standard types.</li>
+  <li>FFI: Fix callback handling when new C&nbsp;types are declared in callback.</li>
+  <li>FFI: Fix recording of constructors for pointers.</li>
+  <li>FFI: Always resolve metamethods for pointers to structs.</li>
+  <li>FFI: Correctly propagate alignment when interning nested types.</li>
+</ul></li>
+<li>Structural and performance enhancements:
+<ul>
+  <li>Add allocation sinking and store sinking optimization.</li>
+  <li>Constify immutable upvalues.</li>
+  <li>Add builtin string to integer or FP number conversion. Improves cross-platform consistency and correctness.</li>
+  <li>Create string hash slots in template tables for non-const values, too. Avoids later table resizes.</li>
+  <li>Eliminate <tt>HREFK</tt> guard for template table references.</li>
+  <li>Add various new FOLD rules.</li>
+  <li>Don't use stack unwinding for <tt>lua_yield()</tt> (slow on x64).</li>
+  <li>ARM, PPC, MIPS: Improve <tt>XLOAD</tt> operand fusion and register hinting.</li>
+  <li>PPC, MIPS: Compile <tt>math.sqrt()</tt> to sqrt instruction, if available.</li>
+  <li>FFI: Fold <tt>KPTR</tt> + constant offset in SPLIT pass.</li>
+  <li>FFI: Optimize/inline <tt>ffi.copy()</tt> and <tt>ffi.fill()</tt>.</li>
+  <li>FFI: Compile and optimize array/struct copies.</li>
+  <li>FFI: Compile <tt>ffi.typeof(cdata|ctype)</tt>, <tt>ffi.sizeof()</tt>, <tt>ffi.alignof()</tt>, <tt>ffi.offsetof()</tt> and <tt>ffi.gc()</tt>.</li>
+</ul></li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta10">LuaJIT 2.0.0-beta10 &mdash; 2012-05-09</h2>
+<ul>
+<li>New features:
+<ul>
+<li>The MIPS of LuaJIT is complete. It requires a CPU conforming to the
+MIPS32&nbsp;R1 architecture with hardware FPU. O32 hard-fp ABI,
+little-endian or big-endian.</li>
+<li>Auto-detect target arch via cross-compiler. No need for
+<tt>TARGET=arch</tt> anymore.</li>
+<li>Make DynASM compatible with Lua 5.2.</li>
+<li>From Lua 5.2: Try <tt>__tostring</tt> metamethod on non-string error
+messages..</li>
+</ul></li>
+<li>Correctness and completeness:
+<ul>
+<li>Fix parsing of hex literals with exponents.</li>
+<li>Fix bytecode dump for certain number constants.</li>
+<li>Fix argument type in error message for relative arguments.</li>
+<li>Fix argument error handling on Lua stacks without a frame.</li>
+<li>Add missing mcode limit check in assembler backend.</li>
+<li>Fix compilation on OpenBSD.</li>
+<li>Avoid recursive GC steps after GC-triggered trace exit.</li>
+<li>Replace <tt>&lt;unwind.h&gt;</tt> definitions with our own.</li>
+<li>Fix OSX build issues. Bump minimum required OSX version to 10.4.</li>
+<li>Fix discharge order of comparisons in Lua parser.</li>
+<li>Ensure running <tt>__gc</tt> of userdata created in <tt>__gc</tt>
+at state close.</li>
+<li>Limit number of userdata <tt>__gc</tt> separations at state close.</li>
+<li>Fix bytecode <tt>JMP</tt> slot range when optimizing
+<tt>and</tt>/<tt>or</tt> with constant LHS.</li>
+<li>Fix DSE of <tt>USTORE</tt>.</li>
+<li>Make <tt>lua_concat()</tt> work from C&nbsp;hook with partial frame.</li>
+<li>Add required PHIs for implicit conversions, e.g. via <tt>XREF</tt>
+forwarding.</li>
+<li>Add more comparison variants to Valgrind suppressions file.</li>
+<li>Disable loading bytecode with an extra header (BOM or <tt>#!</tt>).</li>
+<li>Fix PHI stack slot syncing.</li>
+<li>ARM: Reorder type/value tests to silence Valgrind.</li>
+<li>ARM: Fix register allocation for <tt>ldrd</tt>-optimized
+<tt>HREFK</tt>.</li>
+<li>ARM: Fix conditional branch fixup for <tt>OBAR</tt>.</li>
+<li>ARM: Invoke SPLIT pass for <tt>double</tt> args in FFI call.</li>
+<li>ARM: Handle all <tt>CALL*</tt> ops with <tt>double</tt> results in
+SPLIT pass.</li>
+<li>ARM: Fix rejoin of <tt>POW</tt> in SPLIT pass.</li>
+<li>ARM: Fix compilation of <tt>math.sinh</tt>, <tt>math.cosh</tt>,
+<tt>math.tanh</tt>.</li>
+<li>ARM, PPC: Avoid pointless arg clearing in <tt>BC_IFUNCF</tt>.</li>
+<li>PPC: Fix resume after yield from hook.</li>
+<li>PPC: Fix argument checking for <tt>rawget()</tt>.</li>
+<li>PPC: Fix fusion of floating-point <tt>XLOAD</tt>/<tt>XSTORE</tt>.</li>
+<li>PPC: Fix <tt>HREFK</tt> code generation for huge tables.</li>
+<li>PPC: Use builtin D-Cache/I-Cache sync code.</li>
+</ul></li>
+<li>FFI library:
+<ul>
+<li>Ignore empty statements in <tt>ffi.cdef()</tt>.</li>
+<li>Ignore number parsing errors while skipping definitions.</li>
+<li>Don't touch frame in callbacks with tailcalls to fast functions.</li>
+<li>Fix library unloading on POSIX systems.</li>
+<li>Finalize cdata before userdata when closing the state.</li>
+<li>Change <tt>ffi.load()</tt> library name resolution for Cygwin.</li>
+<li>Fix resolving of function name redirects on Windows/x86.</li>
+<li>Fix symbol resolving error messages on Windows.</li>
+<li>Fix blacklisting of C functions calling callbacks.</li>
+<li>Fix result type of pointer difference.</li>
+<li>Use correct PC in FFI metamethod error message.</li>
+<li>Allow <tt>'typedef _Bool int BOOL;'</tt> for the Windows API.</li>
+<li>Don't record test for bool result of call, if ignored.</li>
+</ul></li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta9">LuaJIT 2.0.0-beta9 &mdash; 2011-12-14</h2>
+<ul>
+<li>New features:
+<ul>
+<li>PPC port of LuaJIT is complete. Default is the dual-number port
+(usually faster). Single-number port selectable via <tt>src/Makefile</tt>
+at build time.</li>
+<li>Add FFI callback support.</li>
+<li>Extend <tt>-b</tt> to generate <tt>.c</tt>, <tt>.h</tt> or <tt>.obj/.o</tt>
+files with embedded bytecode.</li>
+<li>Allow loading embedded bytecode with <tt>require()</tt>.</li>
+<li>From Lua 5.2: Change to <tt>'\z'</tt> escape. Reject undefined escape
+sequences.</li>
+</ul></li>
+<li>Correctness and completeness:
+<ul>
+<li>Fix OSX 10.7 build. Fix <tt>install_name</tt> and versioning on OSX.</li>
+<li>Fix iOS build.</li>
+<li>Install <tt>dis_arm.lua</tt>, too.</li>
+<li>Mark installed shared library as executable.</li>
+<li>Add debug option to <tt>msvcbuild.bat</tt> and improve error handling.</li>
+<li>Fix data-flow analysis for iterators.</li>
+<li>Fix forced unwinding triggered by external unwinder.</li>
+<li>Record missing <tt>for</tt> loop slot loads (return to lower frame).</li>
+<li>Always use ANSI variants of Windows system functions.</li>
+<li>Fix GC barrier for multi-result table constructor (<tt>TSETM</tt>).</li>
+<li>Fix/add various FOLD rules.</li>
+<li>Add potential PHI for number conversions due to type instability.</li>
+<li>Do not eliminate PHIs only referenced from other PHIs.</li>
+<li>Correctly anchor implicit number to string conversions in Lua/C API.</li>
+<li>Fix various stack limit checks.</li>
+<li>x64: Use thread-safe exceptions for external unwinding (GCC platforms).</li>
+<li>x64: Fix result type of cdata index conversions.</li>
+<li>x64: Fix <tt>math.random()</tt> and <tt>bit.bswap()</tt> code generation.</li>
+<li>x64: Fix <tt>lightuserdata</tt> comparisons.</li>
+<li>x64: Always extend stack-passed arguments to pointer size.</li>
+<li>ARM: Many fixes to code generation backend.</li>
+<li>PPC/e500: Fix dispatch for binop metamethods.</li>
+<li>PPC/e500: Save/restore condition registers when entering/leaving the VM.</li>
+<li>PPC/e500: Fix write barrier in stores of strings to upvalues.</li>
+</ul></li>
+<li>FFI library:
+<ul>
+<li>Fix C comment parsing.</li>
+<li>Fix snapshot optimization for cdata comparisons.</li>
+<li>Fix recording of const/enum lookups in namespaces.</li>
+<li>Fix call argument and return handling for <tt>I8/U8/I16/U16</tt> types.</li>
+<li>Fix unfused loads of float fields.</li>
+<li>Fix <tt>ffi.string()</tt> recording.</li>
+<li>Save <tt>GetLastError()</tt> around <tt>ffi.load()</tt> and symbol
+resolving, too.</li>
+<li>Improve ld script detection in <tt>ffi.load()</tt>.</li>
+<li>Record loads/stores to external variables in namespaces.</li>
+<li>Compile calls to stdcall, fastcall and vararg functions.</li>
+<li>Treat function ctypes like pointers in comparisons.</li>
+<li>Resolve <tt>__call</tt> metamethod for pointers, too.</li>
+<li>Record C function calls with bool return values.</li>
+<li>Record <tt>ffi.errno()</tt>.</li>
+<li>x86: Fix number to <tt>uint32_t</tt> conversion rounding.</li>
+<li>x86: Fix 64 bit arithmetic in assembler backend.</li>
+<li>x64: Fix struct-by-value calling conventions.</li>
+<li>ARM: Ensure invocation of SPLIT pass for float conversions.</li>
+</ul></li>
+<li>Structural and performance enhancements:
+<ul>
+<li>Display trace types with <tt>-jv</tt> and <tt>-jdump</tt>.</li>
+<li>Record isolated calls. But prefer recording loops over calls.</li>
+<li>Specialize to prototype for non-monomorphic functions. Solves the
+trace-explosion problem for closure-heavy programming styles.</li>
+<li>Always generate a portable <tt>vmdef.lua</tt>. Easier for distros.</li>
+</ul></li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta8">LuaJIT 2.0.0-beta8 &mdash; 2011-06-23</h2>
+<ul>
+<li>New features:
+<ul>
+<li>Soft-float ARM port of LuaJIT is complete.</li>
+<li>Add support for bytecode loading/saving and <tt>-b</tt> command line
+option.</li>
+<li>From Lua 5.2: <tt>__len</tt> metamethod for tables
+(disabled by default).</li>
+</ul></li>
+<li>Correctness and completeness:
+<ul>
+<li>ARM: Misc. fixes for interpreter.</li>
+<li>x86/x64: Fix <tt>bit.*</tt> argument checking in interpreter.</li>
+<li>Catch early out-of-memory in memory allocator initialization.</li>
+<li>Fix data-flow analysis for paths leading to an upvalue close.</li>
+<li>Fix check for missing arguments in <tt>string.format()</tt>.</li>
+<li>Fix Solaris/x86 build (note: not a supported target).</li>
+<li>Fix recording of loops with instable directions in side traces.</li>
+<li>x86/x64: Fix fusion of comparisons with <tt>u8</tt>/<tt>u16</tt>
+<tt>XLOAD</tt>.</li>
+<li>x86/x64: Fix register allocation for variable shifts.</li>
+</ul></li>
+<li>FFI library:
+<ul>
+<li>Add <tt>ffi.errno()</tt>. Save <tt>errno</tt>/<tt>GetLastError()</tt>
+around allocations etc.</li>
+<li>Fix <tt>__gc</tt> for VLA/VLS cdata objects.</li>
+<li>Fix recording of casts from 32 bit cdata pointers to integers.</li>
+<li><tt>tonumber(cdata)</tt> returns <tt>nil</tt> for non-numbers.</li>
+<li>Show address pointed to for <tt>tostring(pointer)</tt>.</li>
+<li>Print <tt>NULL</tt> pointers as <tt>"cdata&lt;... *&gt;: NULL"</tt>.</li>
+<li>Support <tt>__tostring</tt> metamethod for pointers to structs, too.</li>
+</ul></li>
+<li>Structural and performance enhancements:
+<ul>
+<li>More tuning for loop unrolling heuristics.</li>
+<li>Flatten and compress in-memory debug info (saves ~70%).</li>
+</ul></li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta7">LuaJIT 2.0.0-beta7 &mdash; 2011-05-05</h2>
+<ul>
+<li>New features:
+<ul>
+<li>ARM port of the LuaJIT interpreter is complete.</li>
+<li>FFI library: Add <tt>ffi.gc()</tt>, <tt>ffi.metatype()</tt>,
+<tt>ffi.istype()</tt>.</li>
+<li>FFI library: Resolve ld script redirection in <tt>ffi.load()</tt>.</li>
+<li>From Lua 5.2: <tt>package.searchpath()</tt>, <tt>fp:read("*L")</tt>,
+<tt>load(string)</tt>.</li>
+<li>From Lua 5.2, disabled by default: empty statement,
+<tt>table.unpack()</tt>, modified <tt>coroutine.running()</tt>.</li>
+</ul></li>
+<li>Correctness and completeness:
+<ul>
+<li>FFI library: numerous fixes.</li>
+<li>Fix type mismatches in store-to-load forwarding.</li>
+<li>Fix error handling within metamethods.</li>
+<li>Fix <tt>table.maxn()</tt>.</li>
+<li>Improve accuracy of <tt>x^-k</tt> on x64.</li>
+<li>Fix code generation for Intel Atom in x64 mode.</li>
+<li>Fix narrowing of POW.</li>
+<li>Fix recording of retried fast functions.</li>
+<li>Fix code generation for <tt>bit.bnot()</tt> and multiplies.</li>
+<li>Fix error location within cpcall frames.</li>
+<li>Add workaround for old libgcc unwind bug.</li>
+<li>Fix <tt>lua_yield()</tt> and <tt>getmetatable(lightuserdata)</tt> on x64.</li>
+<li>Misc. fixes for PPC/e500 interpreter.</li>
+<li>Fix stack slot updates for down-recursion.</li>
+</ul></li>
+<li>Structural and performance enhancements:
+<ul>
+<li>Add dual-number mode (int/double) for the VM. Enabled for ARM.</li>
+<li>Improve narrowing of arithmetic operators and <tt>for</tt> loops.</li>
+<li>Tune loop unrolling heuristics and increase trace recorder limits.</li>
+<li>Eliminate dead slots in snapshots using bytecode data-flow analysis.</li>
+<li>Avoid phantom stores to proxy tables.</li>
+<li>Optimize lookups in empty proxy tables.</li>
+<li>Improve bytecode optimization of <tt>and</tt>/<tt>or</tt> operators.</li>
+</ul></li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta6">LuaJIT 2.0.0-beta6 &mdash; 2011-02-11</h2>
+<ul>
+<li>New features:
+<ul>
+<li>PowerPC/e500v2 port of the LuaJIT interpreter is complete.</li>
+<li>Various minor features from Lua 5.2: Hex escapes in literals,
+<tt>'\*'</tt> escape, reversible <tt>string.format("%q",s)</tt>,
+<tt>"%g"</tt> pattern, <tt>table.sort</tt> checks callbacks,
+<tt>os.exit(status|true|false[,close])</tt>.</li>
+<li>Lua 5.2 <tt>__pairs</tt> and <tt>__ipairs</tt> metamethods
+(disabled by default).</li>
+<li>Initial release of the FFI library.</li>
+</ul></li>
+<li>Correctness and completeness:
+<ul>
+<li>Fix <tt>string.format()</tt> for non-finite numbers.</li>
+<li>Fix memory leak when compiled to use the built-in allocator.</li>
+<li>x86/x64: Fix unnecessary resize in <tt>TSETM</tt> bytecode.</li>
+<li>Fix various GC issues with traces and <tt>jit.flush()</tt>.</li>
+<li>x64: Fix fusion of indexes for array references.</li>
+<li>x86/x64: Fix stack overflow handling for coroutine results.</li>
+<li>Enable low-2GB memory allocation on FreeBSD/x64.</li>
+<li>Fix <tt>collectgarbage("count")</tt> result if more than 2GB is in use.</li>
+<li>Fix parsing of hex floats.</li>
+<li>x86/x64: Fix loop branch inversion with trailing
+<tt>HREF+NE/EQ</tt>.</li>
+<li>Add <tt>jit.os</tt> string.</li>
+<li><tt>coroutine.create()</tt> permits running C functions, too.</li>
+<li>Fix OSX build to work with newer ld64 versions.</li>
+<li>Fix bytecode optimization of <tt>and</tt>/<tt>or</tt> operators.</li>
+</ul></li>
+<li>Structural and performance enhancements:
+<ul>
+<li>Emit specialized bytecode for <tt>pairs()</tt>/<tt>next()</tt>.</li>
+<li>Improve bytecode coalescing of <tt>nil</tt> constants.</li>
+<li>Compile calls to vararg functions.</li>
+<li>Compile <tt>select()</tt>.</li>
+<li>Improve alias analysis, esp. for loads from allocations.</li>
+<li>Tuning of various compiler heuristics.</li>
+<li>Refactor and extend IR conversion instructions.</li>
+<li>x86/x64: Various backend enhancements related to the FFI.</li>
+<li>Add SPLIT pass to split 64 bit IR instructions for 32 bit CPUs.</li>
+</ul></li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta5">LuaJIT 2.0.0-beta5 &mdash; 2010-08-24</h2>
+<ul>
+<li>Correctness and completeness:
+<ul>
+<li>Fix trace exit dispatch to function headers.</li>
+<li>Fix Windows and OSX builds with LUAJIT_DISABLE_JIT.</li>
+<li>Reorganize and fix placement of generated machine code on x64.</li>
+<li>Fix TNEW in x64 interpreter.</li>
+<li>Do not eliminate PHIs for values only referenced from side exits.</li>
+<li>OS-independent canonicalization of strings for non-finite numbers.</li>
+<li>Fix <tt>string.char()</tt> range check on x64.</li>
+<li>Fix <tt>tostring()</tt> resolving within <tt>print()</tt>.</li>
+<li>Fix error handling for <tt>next()</tt>.</li>
+<li>Fix passing of constant arguments to external calls on x64.</li>
+<li>Fix interpreter argument check for two-argument SSE math functions.</li>
+<li>Fix C frame chain corruption caused by <tt>lua_cpcall()</tt>.</li>
+<li>Fix return from <tt>pcall()</tt> within active hook.</li>
+</ul></li>
+<li>Structural and performance enhancements:
+<ul>
+<li>Replace on-trace GC frame syncing with interpreter exit.</li>
+<li>Improve hash lookup specialization by not removing dead keys during GC.</li>
+<li>Turn traces into true GC objects.</li>
+<li>Avoid starting a GC cycle immediately after library init.</li>
+<li>Add weak guards to improve dead-code elimination.</li>
+<li>Speed up string interning.</li>
+</ul></li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta4">LuaJIT 2.0.0-beta4 &mdash; 2010-03-28</h2>
+<ul>
+<li>Correctness and completeness:
+<ul>
+<li>Fix precondition for on-trace creation of table keys.</li>
+<li>Fix <tt>{f()}</tt> on x64 when table is resized.</li>
+<li>Fix folding of ordered comparisons with same references.</li>
+<li>Fix snapshot restores for multi-result bytecodes.</li>
+<li>Fix potential hang when recording bytecode with nested closures.</li>
+<li>Fix recording of <tt>getmetatable()</tt>, <tt>tonumber()</tt> and bad argument types.</li>
+<li>Fix SLOAD fusion across returns to lower frames.</li>
+</ul></li>
+<li>Structural and performance enhancements:
+<ul>
+<li>Add array bounds check elimination. <tt>-Oabc</tt> is enabled by default.</li>
+<li>More tuning for x64, e.g. smaller table objects.</li>
+</ul></li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta3">LuaJIT 2.0.0-beta3 &mdash; 2010-03-07</h2>
+<ul>
+<li>LuaJIT x64 port:
+<ul>
+<li>Port integrated memory allocator to Linux/x64, Windows/x64 and OSX/x64.</li>
+<li>Port interpreter and JIT compiler to x64.</li>
+<li>Port DynASM to x64.</li>
+<li>Many 32/64 bit cleanups in the VM.</li>
+<li>Allow building the interpreter with either x87 or SSE2 arithmetics.</li>
+<li>Add external unwinding and C++ exception interop (default on x64).</li>
+</ul></li>
+<li>Correctness and completeness:
+<ul>
+<li>Fix constructor bytecode generation for certain conditional values.</li>
+<li>Fix some cases of ordered string comparisons.</li>
+<li>Fix <tt>lua_tocfunction()</tt>.</li>
+<li>Fix cutoff register in JMP bytecode for some conditional expressions.</li>
+<li>Fix PHI marking algorithm for references from variant slots.</li>
+<li>Fix <tt>package.cpath</tt> for non-default PREFIX.</li>
+<li>Fix DWARF2 frame unwind information for interpreter on OSX.</li>
+<li>Drive the GC forward on string allocations in the parser.</li>
+<li>Implement call/return hooks (zero-cost if disabled).</li>
+<li>Implement yield from C hooks.</li>
+<li>Disable JIT compiler on older non-SSE2 CPUs instead of aborting.</li>
+</ul></li>
+<li>Structural and performance enhancements:
+<ul>
+<li>Compile recursive code (tail-, up- and down-recursion).</li>
+<li>Improve heuristics for bytecode penalties and blacklisting.</li>
+<li>Split CALL/FUNC recording and clean up fast function call semantics.</li>
+<li>Major redesign of internal function call handling.</li>
+<li>Improve FOR loop const specialization and integerness checks.</li>
+<li>Switch to pre-initialized stacks. Avoid frame-clearing.</li>
+<li>Colocation of prototypes and related data: bytecode, constants, debug info.</li>
+<li>Cleanup parser and streamline bytecode generation.</li>
+<li>Add support for weak IR references to register allocator.</li>
+<li>Switch to compressed, extensible snapshots.</li>
+<li>Compile returns to frames below the start frame.</li>
+<li>Improve alias analysis of upvalues using a disambiguation hash value.</li>
+<li>Compile floor/ceil/trunc to SSE2 helper calls or SSE4.1 instructions.</li>
+<li>Add generic C call handling to IR and backend.</li>
+<li>Improve KNUM fuse vs. load heuristics.</li>
+<li>Compile various <tt>io.*()</tt> functions.</li>
+<li>Compile <tt>math.sinh()</tt>, <tt>math.cosh()</tt>, <tt>math.tanh()</tt>
+and <tt>math.random()</tt>.</li>
+</ul></li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta2">LuaJIT 2.0.0-beta2 &mdash; 2009-11-09</h2>
+<ul>
+<li>Reorganize build system. Build static+shared library on POSIX.</li>
+<li>Allow C++ exception conversion on all platforms
+using a wrapper function.</li>
+<li>Automatically catch C++ exceptions and rethrow Lua error
+(DWARF2 only).</li>
+<li>Check for the correct x87 FPU precision at strategic points.</li>
+<li>Always use wrappers for libm functions.</li>
+<li>Resurrect metamethod name strings before copying them.</li>
+<li>Mark current trace, even if compiler is idle.</li>
+<li>Ensure FILE metatable is created only once.</li>
+<li>Fix type comparisons when different integer types are involved.</li>
+<li>Fix <tt>getmetatable()</tt> recording.</li>
+<li>Fix TDUP with dead keys in template table.</li>
+<li><tt>jit.flush(tr)</tt> returns status.
+Prevent manual flush of a trace that's still linked.</li>
+<li>Improve register allocation heuristics for invariant references.</li>
+<li>Compile the push/pop variants of <tt>table.insert()</tt> and
+<tt>table.remove()</tt>.</li>
+<li>Compatibility with MSVC <tt>link&nbsp/debug</tt>.</li>
+<li>Fix <tt>lua_iscfunction()</tt>.</li>
+<li>Fix <tt>math.random()</tt> when compiled with <tt>-fpic</tt> (OSX).</li>
+<li>Fix <tt>table.maxn()</tt>.</li>
+<li>Bump <tt>MACOSX_DEPLOYMENT_TARGET</tt> to <tt>10.4</tt></li>
+<li><tt>luaL_check*()</tt> and <tt>luaL_opt*()</tt> now support
+negative arguments, too.<br>
+This matches the behavior of Lua 5.1, but not the specification.</li>
+</ul>
+
+<h2 id="LuaJIT-2.0.0-beta1">LuaJIT 2.0.0-beta1 &mdash; 2009-10-31</h2>
+<ul>
+<li>This is the first public release of LuaJIT 2.0.</li>
+<li>The whole VM has been rewritten from the ground up, so there's
+no point in listing differences over earlier versions.</li>
+</ul>
+</div>
+
+<div class="major" style="background: #ffff80;">
+<h2 id="LuaJIT-1.1.8">LuaJIT 1.1.8 &mdash; 2012-04-16</h2>
+<ul>
+<li>Merged with Lua 5.1.5. Also integrated fixes for all
+<a href="http://www.lua.org/bugs.html#5.1.5"><span class="ext">&raquo;</span>&nbsp;<span class="ext">&raquo;</span>&nbsp;currently known bugs in Lua 5.1.5</a>.</li>
+</ul>
+
+<h2 id="LuaJIT-1.1.7">LuaJIT 1.1.7 &mdash; 2011-05-05</h2>
+<ul>
+<li>Added fixes for the
+<a href="http://www.lua.org/bugs.html#5.1.4"><span class="ext">&raquo;</span>&nbsp;currently known bugs in Lua 5.1.4</a>.</li>
+</ul>
+
+<h2 id="LuaJIT-1.1.6">LuaJIT 1.1.6 &mdash; 2010-03-28</h2>
+<ul>
+<li>Added fixes for the
+<a href="http://www.lua.org/bugs.html#5.1.4"><span class="ext">&raquo;</span>&nbsp;currently known bugs in Lua 5.1.4</a>.</li>
+<li>Removed wrong GC check in <tt>jit_createstate()</tt>.
+Thanks to Tim Mensch.</li>
+<li>Fixed bad assertions while compiling <tt>table.insert()</tt> and
+<tt>table.remove()</tt>.</li>
+</ul>
+
+<h2 id="LuaJIT-1.1.5">LuaJIT 1.1.5 &mdash; 2008-10-25</h2>
+<ul>
+<li>Merged with Lua 5.1.4. Fixes all
+<a href="http://www.lua.org/bugs.html#5.1.3"><span class="ext">&raquo;</span>&nbsp;known bugs in Lua 5.1.3</a>.</li>
+</ul>
+
+<h2 id="LuaJIT-1.1.4">LuaJIT 1.1.4 &mdash; 2008-02-05</h2>
+<ul>
+<li>Merged with Lua 5.1.3. Fixes all
+<a href="http://www.lua.org/bugs.html#5.1.2"><span class="ext">&raquo;</span>&nbsp;known bugs in Lua 5.1.2</a>.</li>
+<li>Fixed possible (but unlikely) stack corruption while compiling
+<tt>k^x</tt> expressions.</li>
+<li>Fixed DynASM template for cmpss instruction.</li>
+</ul>
+
+<h2 id="LuaJIT-1.1.3">LuaJIT 1.1.3 &mdash; 2007-05-24</h2>
+<ul>
+<li>Merged with Lua 5.1.2. Fixes all
+<a href="http://www.lua.org/bugs.html#5.1.1"><span class="ext">&raquo;</span>&nbsp;known bugs in Lua 5.1.1</a>.</li>
+<li>Merged pending Lua 5.1.x fixes: "return -nil" bug, spurious count hook call.</li>
+<li>Remove a (sometimes) wrong assertion in <tt>luaJIT_findpc()</tt>.</li>
+<li>DynASM now allows labels for displacements and <tt>.aword</tt>.</li>
+<li>Fix some compiler warnings for DynASM glue (internal API change).</li>
+<li>Correct naming for SSSE3 (temporarily known as SSE4) in DynASM and x86 disassembler.</li>
+<li>The loadable debug modules now handle redirection to stdout
+(e.g. <tt>-j&nbsp;trace=-</tt>).</li>
+</ul>
+
+<h2 id="LuaJIT-1.1.2">LuaJIT 1.1.2 &mdash; 2006-06-24</h2>
+<ul>
+<li>Fix MSVC inline assembly: use only local variables with
+<tt>lua_number2int()</tt>.</li>
+<li>Fix "attempt to call a thread value" bug on Mac OS X:
+make values of consts used as lightuserdata keys unique
+to avoid joining by the compiler/linker.</li>
+</ul>
+
+<h2 id="LuaJIT-1.1.1">LuaJIT 1.1.1 &mdash; 2006-06-20</h2>
+<ul>
+<li>Merged with Lua 5.1.1. Fixes all
+<a href="http://www.lua.org/bugs.html#5.1"><span class="ext">&raquo;</span>&nbsp;known bugs in Lua 5.1</a>.</li>
+<li>Enforce (dynamic) linker error for EXE/DLL version mismatches.</li>
+<li>Minor changes to DynASM: faster pre-processing, smaller encoding
+for some immediates.</li>
+</ul>
+<p>
+This release is in sync with Coco 1.1.1 (see the
+<a href="http://coco.luajit.org/changes.html"><span class="ext">&raquo;</span>&nbsp;Coco Change History</a>).
+</p>
+
+<h2 id="LuaJIT-1.1.0">LuaJIT 1.1.0 &mdash; 2006-03-13</h2>
+<ul>
+<li>Merged with Lua 5.1 (final).</li>
+
+<li>New JIT call frame setup:
+<ul>
+<li>The C stack is kept 16 byte aligned (faster).
+Mandatory for Mac OS X on Intel, too.</li>
+<li>Faster calling conventions for internal C helper functions.</li>
+<li>Better instruction scheduling for function prologue, OP_CALL and
+OP_RETURN.</li>
+</ul></li>
+
+<li>Miscellaneous optimizations:
+<ul>
+<li>Faster loads of FP constants. Remove narrow-to-wide store-to-load
+forwarding stalls.</li>
+<li>Use (scalar) SSE2 ops (if the CPU supports it) to speed up slot moves
+and FP to integer conversions.</li>
+<li>Optimized the two-argument form of <tt>OP_CONCAT</tt> (<tt>a..b</tt>).</li>
+<li>Inlined <tt>OP_MOD</tt> (<tt>a%b</tt>).
+With better accuracy than the C variant, too.</li>
+<li>Inlined <tt>OP_POW</tt> (<tt>a^b</tt>). Unroll <tt>x^k</tt> or
+use <tt>k^x = 2^(log2(k)*x)</tt> or call <tt>pow()</tt>.</li>
+</ul></li>
+
+<li>Changes in the optimizer:
+<ul>
+<li>Improved hinting for table keys derived from table values
+(<tt>t1[t2[x]]</tt>).</li>
+<li>Lookup hinting now works with arbitrary object types and
+supports index chains, too.</li>
+<li>Generate type hints for arithmetic and comparison operators,
+OP_LEN, OP_CONCAT and OP_FORPREP.</li>
+<li>Remove several hint definitions in favour of a generic COMBINE hint.</li>
+<li>Complete rewrite of <tt>jit.opt_inline</tt> module
+(ex <tt>jit.opt_lib</tt>).</li>
+</ul></li>
+
+<li>Use adaptive deoptimization:
+<ul>
+<li>If runtime verification of a contract fails, the affected
+instruction is recompiled and patched on-the-fly.
+Regular programs will trigger deoptimization only occasionally.</li>
+<li>This avoids generating code for uncommon fallback cases
+most of the time. Generated code is up to 30% smaller compared to
+LuaJIT&nbsp;1.0.3.</li>
+<li>Deoptimization is used for many opcodes and contracts:
+<ul>
+<li>OP_CALL, OP_TAILCALL: type mismatch for callable.</li>
+<li>Inlined calls: closure mismatch, parameter number and type mismatches.</li>
+<li>OP_GETTABLE, OP_SETTABLE: table or key type and range mismatches.</li>
+<li>All arithmetic and comparison operators, OP_LEN, OP_CONCAT,
+OP_FORPREP: operand type and range mismatches.</li>
+</ul></li>
+<li>Complete redesign of the debug and traceback info
+(bytecode &harr; mcode) to support deoptimization.
+Much more flexible and needs only 50% of the space.</li>
+<li>The modules <tt>jit.trace</tt>, <tt>jit.dumphints</tt> and
+<tt>jit.dump</tt> handle deoptimization.</li>
+</ul></li>
+
+<li>Inlined many popular library functions
+(for commonly used arguments only):
+<ul>
+<li>Most <tt>math.*</tt> functions (the 18 most used ones)
+[2x-10x faster].</li>
+<li><tt>string.len</tt>, <tt>string.sub</tt> and <tt>string.char</tt>
+[2x-10x faster].</li>
+<li><tt>table.insert</tt>, <tt>table.remove</tt> and <tt>table.getn</tt>
+[3x-5x faster].</li>
+<li><tt>coroutine.yield</tt> and <tt>coroutine.resume</tt>
+[3x-5x faster].</li>
+<li><tt>pairs</tt>, <tt>ipairs</tt> and the corresponding iterators
+[8x-15x faster].</li>
+</ul></li>
+
+<li>Changes in the core and loadable modules and the stand-alone executable:
+<ul>
+<li>Added <tt>jit.version</tt>, <tt>jit.version_num</tt>
+and <tt>jit.arch</tt>.</li>
+<li>Reorganized some internal API functions (<tt>jit.util.*mcode*</tt>).</li>
+<li>The <tt>-j dump</tt> output now shows JSUB names, too.</li>
+<li>New x86 disassembler module written in pure Lua. No dependency
+on ndisasm anymore. Flexible API, very compact (500 lines)
+and complete (x87, MMX, SSE, SSE2, SSE3, SSSE3, privileged instructions).</li>
+<li><tt>luajit -v</tt> prints the LuaJIT version and copyright
+on a separate line.</li>
+</ul></li>
+
+<li>Added SSE, SSE2, SSE3 and SSSE3 support to DynASM.</li>
+<li>Miscellaneous doc changes. Added a section about
+<a href="install.html#embedding">embedding LuaJIT</a>.</li>
+</ul>
+<p>
+This release is in sync with Coco 1.1.0 (see the
+<a href="http://coco.luajit.org/changes.html"><span class="ext">&raquo;</span>&nbsp;Coco Change History</a>).
+</p>
+</div>
+
+<div class="major" style="background: #ffffd0;">
+<h2 id="LuaJIT-1.0.3">LuaJIT 1.0.3 &mdash; 2005-09-08</h2>
+<ul>
+<li>Even more docs.</li>
+<li>Unified closure checks in <tt>jit.*</tt>.</li>
+<li>Fixed some range checks in <tt>jit.util.*</tt>.</li>
+<li>Fixed __newindex call originating from <tt>jit_settable_str()</tt>.</li>
+<li>Merged with Lua 5.1 alpha (including early bug fixes).</li>
+</ul>
+<p>
+This is the first public release of LuaJIT.
+</p>
+
+<h2 id="LuaJIT-1.0.2">LuaJIT 1.0.2 &mdash; 2005-09-02</h2>
+<ul>
+<li>Add support for flushing the Valgrind translation cache <br>
+(<tt>MYCFLAGS= -DUSE_VALGRIND</tt>).</li>
+<li>Add support for freeing executable mcode memory to the <tt>mmap()</tt>-based
+variant for POSIX systems.</li>
+<li>Reorganized the C&nbsp;function signature handling in
+<tt>jit.opt_lib</tt>.</li>
+<li>Changed to index-based hints for inlining C&nbsp;functions.
+Still no support in the backend for inlining.</li>
+<li>Hardcode <tt>HEAP_CREATE_ENABLE_EXECUTE</tt> value if undefined.</li>
+<li>Misc. changes to the <tt>jit.*</tt> modules.</li>
+<li>Misc. changes to the Makefiles.</li>
+<li>Lots of new docs.</li>
+<li>Complete doc reorg.</li>
+</ul>
+<p>
+Not released because Lua 5.1 alpha came out today.
+</p>
+
+<h2 id="LuaJIT-1.0.1">LuaJIT 1.0.1 &mdash; 2005-08-31</h2>
+<ul>
+<li>Missing GC step in <tt>OP_CONCAT</tt>.</li>
+<li>Fix result handling for C &ndash;> JIT calls.</li>
+<li>Detect CPU feature bits.</li>
+<li>Encode conditional moves (<tt>fucomip</tt>) only when supported.</li>
+<li>Add fallback instructions for FP compares.</li>
+<li>Add support for <tt>LUA_COMPAT_VARARG</tt>. Still disabled by default.</li>
+<li>MSVC needs a specific place for the <tt>CALLBACK</tt> attribute
+(David Burgess).</li>
+<li>Misc. doc updates.</li>
+</ul>
+<p>
+Interim non-public release.
+Special thanks to Adam D. Moss for reporting most of the bugs.
+</p>
+
+<h2 id="LuaJIT-1.0.0">LuaJIT 1.0.0 &mdash; 2005-08-29</h2>
+<p>
+This is the initial non-public release of LuaJIT.
+</p>
+</div>
+<br class="flush">
+</div>
+<div id="foot">
+<hr class="hide">
+Copyright &copy; 2005-2013 Mike Pall
+<span class="noprint">
+&middot;
+<a href="contact.html">Contact</a>
+</span>
+</div>
+</body>
+</html>

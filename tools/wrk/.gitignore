@@ -1,2 +1,14 @@
-obj/*
-/wrk
+*.o
+*.a
+wrk
+deps/luajit/src/host/buildvm
+deps/luajit/src/host/buildvm_arch.h
+deps/luajit/src/host/minilua
+deps/luajit/src/jit/vmdef.lua
+deps/luajit/src/lj_bcdef.h
+deps/luajit/src/lj_ffdef.h
+deps/luajit/src/lj_folddef.h
+deps/luajit/src/lj_libdef.h
+deps/luajit/src/lj_recdef.h
+deps/luajit/src/lj_vm.s
+deps/luajit/src/luajit

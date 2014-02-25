@@ -62,10 +62,10 @@ static int scan_units(char *s, uint64_t *n, units *m) {
 
     if ((c = sscanf(s, "%"SCNu64"%2s", &base, unit)) < 1) return -1;
 
-    if (c == 2) {
+    if (c == 2 && strncasecmp(unit, m->base, 3)) {
         for (i = 0; m->units[i] != NULL; i++) {
             scale *= m->scale;
-            if (!strncasecmp(unit, m->units[i], sizeof(unit))) break;
+            if (!strncasecmp(unit, m->units[i], 3)) break;
         }
         if (m->units[i] == NULL) return -1;
     }
@@ -91,6 +91,14 @@ char *format_time_us(long double n) {
     return format_units(n, units, 2);
 }
 
+char *format_time_s(long double n) {
+    return format_units(n, &time_units_s, 0);
+}
+
 int scan_metric(char *s, uint64_t *n) {
     return scan_units(s, n, &metric_units);
+}
+
+int scan_time(char *s, uint64_t *n) {
+    return scan_units(s, n, &time_units_s);
 }

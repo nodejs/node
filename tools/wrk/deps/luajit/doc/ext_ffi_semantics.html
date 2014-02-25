@@ -1,0 +1,1243 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>FFI Semantics</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Mike Pall">
+<meta name="Copyright" content="Copyright (C) 2005-2013, Mike Pall">
+<meta name="Language" content="en">
+<link rel="stylesheet" type="text/css" href="bluequad.css" media="screen">
+<link rel="stylesheet" type="text/css" href="bluequad-print.css" media="print">
+<style type="text/css">
+table.convtable { line-height: 1.2; }
+tr.convhead td { font-weight: bold; }
+td.convop { font-style: italic; width: 40%; }
+</style>
+</head>
+<body>
+<div id="site">
+<a href="http://luajit.org"><span>Lua<span id="logo">JIT</span></span></a>
+</div>
+<div id="head">
+<h1>FFI Semantics</h1>
+</div>
+<div id="nav">
+<ul><li>
+<a href="luajit.html">LuaJIT</a>
+<ul><li>
+<a href="http://luajit.org/download.html">Download <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="install.html">Installation</a>
+</li><li>
+<a href="running.html">Running</a>
+</li></ul>
+</li><li>
+<a href="extensions.html">Extensions</a>
+<ul><li>
+<a href="ext_ffi.html">FFI Library</a>
+<ul><li>
+<a href="ext_ffi_tutorial.html">FFI Tutorial</a>
+</li><li>
+<a href="ext_ffi_api.html">ffi.* API</a>
+</li><li>
+<a class="current" href="ext_ffi_semantics.html">FFI Semantics</a>
+</li></ul>
+</li><li>
+<a href="ext_jit.html">jit.* Library</a>
+</li><li>
+<a href="ext_c_api.html">Lua/C API</a>
+</li></ul>
+</li><li>
+<a href="status.html">Status</a>
+<ul><li>
+<a href="changes.html">Changes</a>
+</li></ul>
+</li><li>
+<a href="faq.html">FAQ</a>
+</li><li>
+<a href="http://luajit.org/performance.html">Performance <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://wiki.luajit.org/">Wiki <span class="ext">&raquo;</span></a>
+</li><li>
+<a href="http://luajit.org/list.html">Mailing List <span class="ext">&raquo;</span></a>
+</li></ul>
+</div>
+<div id="main">
+<p>
+This page describes the detailed semantics underlying the FFI library
+and its interaction with both Lua and C&nbsp;code.
+</p>
+<p>
+Given that the FFI library is designed to interface with C&nbsp;code
+and that declarations can be written in plain C&nbsp;syntax, <b>it
+closely follows the C&nbsp;language semantics</b>, wherever possible.
+Some minor concessions are needed for smoother interoperation with Lua
+language semantics.
+</p>
+<p>
+Please don't be overwhelmed by the contents of this page &mdash; this
+is a reference and you may need to consult it, if in doubt. It doesn't
+hurt to skim this page, but most of the semantics "just work" as you'd
+expect them to work. It should be straightforward to write
+applications using the LuaJIT FFI for developers with a C or C++
+background.
+</p>
+
+<h2 id="clang">C Language Support</h2>
+<p>
+The FFI library has a built-in C&nbsp;parser with a minimal memory
+footprint. It's used by the <a href="ext_ffi_api.html">ffi.* library
+functions</a> to declare C&nbsp;types or external symbols.
+</p>
+<p>
+It's only purpose is to parse C&nbsp;declarations, as found e.g. in
+C&nbsp;header files. Although it does evaluate constant expressions,
+it's <em>not</em> a C&nbsp;compiler. The body of <tt>inline</tt>
+C&nbsp;function definitions is simply ignored.
+</p>
+<p>
+Also, this is <em>not</em> a validating C&nbsp;parser. It expects and
+accepts correctly formed C&nbsp;declarations, but it may choose to
+ignore bad declarations or show rather generic error messages. If in
+doubt, please check the input against your favorite C&nbsp;compiler.
+</p>
+<p>
+The C&nbsp;parser complies to the <b>C99 language standard</b> plus
+the following extensions:
+</p>
+<ul>
+
+<li>The <tt>'\e'</tt> escape in character and string literals.</li>
+
+<li>The C99/C++ boolean type, declared with the keywords <tt>bool</tt>
+or <tt>_Bool</tt>.</li>
+
+<li>Complex numbers, declared with the keywords <tt>complex</tt> or
+<tt>_Complex</tt>.</li>
+
+<li>Two complex number types: <tt>complex</tt> (aka
+<tt>complex&nbsp;double</tt>) and <tt>complex&nbsp;float</tt>.</li>
+
+<li>Vector types, declared with the GCC <tt>mode</tt> or
+<tt>vector_size</tt> attribute.</li>
+
+<li>Unnamed ('transparent') <tt>struct</tt>/<tt>union</tt> fields
+inside a <tt>struct</tt>/<tt>union</tt>.</li>
+
+<li>Incomplete <tt>enum</tt> declarations, handled like incomplete
+<tt>struct</tt> declarations.</li>
+
+<li>Unnamed <tt>enum</tt> fields inside a
+<tt>struct</tt>/<tt>union</tt>. This is similar to a scoped C++
+<tt>enum</tt>, except that declared constants are visible in the
+global namespace, too.</li>
+
+<li>Scoped <tt>static&nbsp;const</tt> declarations inside a
+<tt>struct</tt>/<tt>union</tt> (from C++).</li>
+
+<li>Zero-length arrays (<tt>[0]</tt>), empty
+<tt>struct</tt>/<tt>union</tt>, variable-length arrays (VLA,
+<tt>[?]</tt>) and variable-length structs (VLS, with a trailing
+VLA).</li>
+
+<li>C++ reference types (<tt>int&nbsp;&amp;x</tt>).</li>
+
+<li>Alternate GCC keywords with '<tt>__</tt>', e.g.
+<tt>__const__</tt>.</li>
+
+<li>GCC <tt>__attribute__</tt> with the following attributes:
+<tt>aligned</tt>, <tt>packed</tt>, <tt>mode</tt>,
+<tt>vector_size</tt>, <tt>cdecl</tt>, <tt>fastcall</tt>,
+<tt>stdcall</tt>, <tt>thiscall</tt>.</li>
+
+<li>The GCC <tt>__extension__</tt> keyword and the GCC
+<tt>__alignof__</tt> operator.</li>
+
+<li>GCC <tt>__asm__("symname")</tt> symbol name redirection for
+function declarations.</li>
+
+<li>MSVC keywords for fixed-length types: <tt>__int8</tt>,
+<tt>__int16</tt>, <tt>__int32</tt> and <tt>__int64</tt>.</li>
+
+<li>MSVC <tt>__cdecl</tt>, <tt>__fastcall</tt>, <tt>__stdcall</tt>,
+<tt>__thiscall</tt>, <tt>__ptr32</tt>, <tt>__ptr64</tt>,
+<tt>__declspec(align(n))</tt> and <tt>#pragma&nbsp;pack</tt>.</li>
+
+<li>All other GCC/MSVC-specific attributes are ignored.</li>
+
+</ul>
+<p>
+The following C&nbsp;types are pre-defined by the C&nbsp;parser (like
+a <tt>typedef</tt>, except re-declarations will be ignored):
+</p>
+<ul>
+
+<li>Vararg handling: <tt>va_list</tt>, <tt>__builtin_va_list</tt>,
+<tt>__gnuc_va_list</tt>.</li>
+
+<li>From <tt>&lt;stddef.h&gt;</tt>: <tt>ptrdiff_t</tt>,
+<tt>size_t</tt>, <tt>wchar_t</tt>.</li>
+
+<li>From <tt>&lt;stdint.h&gt;</tt>: <tt>int8_t</tt>, <tt>int16_t</tt>,
+<tt>int32_t</tt>, <tt>int64_t</tt>, <tt>uint8_t</tt>,
+<tt>uint16_t</tt>, <tt>uint32_t</tt>, <tt>uint64_t</tt>,
+<tt>intptr_t</tt>, <tt>uintptr_t</tt>.</li>
+
+</ul>
+<p>
+You're encouraged to use these types in preference to
+compiler-specific extensions or target-dependent standard types.
+E.g. <tt>char</tt> differs in signedness and <tt>long</tt> differs in
+size, depending on the target architecture and platform ABI.
+</p>
+<p>
+The following C&nbsp;features are <b>not</b> supported:
+</p>
+<ul>
+
+<li>A declaration must always have a type specifier; it doesn't
+default to an <tt>int</tt> type.</li>
+
+<li>Old-style empty function declarations (K&amp;R) are not allowed.
+All C&nbsp;functions must have a proper prototype declaration. A
+function declared without parameters (<tt>int&nbsp;foo();</tt>) is
+treated as a function taking zero arguments, like in C++.</li>
+
+<li>The <tt>long double</tt> C&nbsp;type is parsed correctly, but
+there's no support for the related conversions, accesses or arithmetic
+operations.</li>
+
+<li>Wide character strings and character literals are not
+supported.</li>
+
+<li><a href="#status">See below</a> for features that are currently
+not implemented.</li>
+
+</ul>
+
+<h2 id="convert">C Type Conversion Rules</h2>
+
+<h3 id="convert_tolua">Conversions from C&nbsp;types to Lua objects</h3>
+<p>
+These conversion rules apply for <em>read accesses</em> to
+C&nbsp;types: indexing pointers, arrays or
+<tt>struct</tt>/<tt>union</tt> types; reading external variables or
+constant values; retrieving return values from C&nbsp;calls:
+</p>
+<table class="convtable">
+<tr class="convhead">
+<td class="convin">Input</td>
+<td class="convop">Conversion</td>
+<td class="convout">Output</td>
+</tr>
+<tr class="odd separate">
+<td class="convin"><tt>int8_t</tt>, <tt>int16_t</tt></td><td class="convop">&rarr;<sup>sign-ext</sup> <tt>int32_t</tt> &rarr; <tt>double</tt></td><td class="convout">number</td></tr>
+<tr class="even">
+<td class="convin"><tt>uint8_t</tt>, <tt>uint16_t</tt></td><td class="convop">&rarr;<sup>zero-ext</sup> <tt>int32_t</tt> &rarr; <tt>double</tt></td><td class="convout">number</td></tr>
+<tr class="odd">
+<td class="convin"><tt>int32_t</tt>, <tt>uint32_t</tt></td><td class="convop">&rarr; <tt>double</tt></td><td class="convout">number</td></tr>
+<tr class="even">
+<td class="convin"><tt>int64_t</tt>, <tt>uint64_t</tt></td><td class="convop">boxed value</td><td class="convout">64 bit int cdata</td></tr>
+<tr class="odd separate">
+<td class="convin"><tt>double</tt>, <tt>float</tt></td><td class="convop">&rarr; <tt>double</tt></td><td class="convout">number</td></tr>
+<tr class="even separate">
+<td class="convin"><tt>bool</tt></td><td class="convop">0 &rarr; <tt>false</tt>, otherwise <tt>true</tt></td><td class="convout">boolean</td></tr>
+<tr class="odd separate">
+<td class="convin"><tt>enum</tt></td><td class="convop">boxed value</td><td class="convout">enum cdata</td></tr>
+<tr class="even">
+<td class="convin">Complex number</td><td class="convop">boxed value</td><td class="convout">complex cdata</td></tr>
+<tr class="odd">
+<td class="convin">Vector</td><td class="convop">boxed value</td><td class="convout">vector cdata</td></tr>
+<tr class="even">
+<td class="convin">Pointer</td><td class="convop">boxed value</td><td class="convout">pointer cdata</td></tr>
+<tr class="odd separate">
+<td class="convin">Array</td><td class="convop">boxed reference</td><td class="convout">reference cdata</td></tr>
+<tr class="even">
+<td class="convin"><tt>struct</tt>/<tt>union</tt></td><td class="convop">boxed reference</td><td class="convout">reference cdata</td></tr>
+</table>
+<p>
+Bitfields are treated like their underlying type.
+</p>
+<p>
+Reference types are dereferenced <em>before</em> a conversion can take
+place &mdash; the conversion is applied to the C&nbsp;type pointed to
+by the reference.
+</p>
+
+<h3 id="convert_fromlua">Conversions from Lua objects to C&nbsp;types</h3>
+<p>
+These conversion rules apply for <em>write accesses</em> to
+C&nbsp;types: indexing pointers, arrays or
+<tt>struct</tt>/<tt>union</tt> types; initializing cdata objects;
+casts to C&nbsp;types; writing to external variables; passing
+arguments to C&nbsp;calls:
+</p>
+<table class="convtable">
+<tr class="convhead">
+<td class="convin">Input</td>
+<td class="convop">Conversion</td>
+<td class="convout">Output</td>
+</tr>
+<tr class="odd separate">
+<td class="convin">number</td><td class="convop">&rarr;</td><td class="convout"><tt>double</tt></td></tr>
+<tr class="even">
+<td class="convin">boolean</td><td class="convop"><tt>false</tt> &rarr; 0, <tt>true</tt> &rarr; 1</td><td class="convout"><tt>bool</tt></td></tr>
+<tr class="odd separate">
+<td class="convin">nil</td><td class="convop"><tt>NULL</tt> &rarr;</td><td class="convout"><tt>(void *)</tt></td></tr>
+<tr class="even">
+<td class="convin">lightuserdata</td><td class="convop">lightuserdata address &rarr;</td><td class="convout"><tt>(void *)</tt></td></tr>
+<tr class="odd">
+<td class="convin">userdata</td><td class="convop">userdata payload &rarr;</td><td class="convout"><tt>(void *)</tt></td></tr>
+<tr class="even">
+<td class="convin">io.* file</td><td class="convop">get FILE * handle &rarr;</td><td class="convout"><tt>(void *)</tt></td></tr>
+<tr class="odd separate">
+<td class="convin">string</td><td class="convop">match against <tt>enum</tt> constant</td><td class="convout"><tt>enum</tt></td></tr>
+<tr class="even">
+<td class="convin">string</td><td class="convop">copy string data + zero-byte</td><td class="convout"><tt>int8_t[]</tt>, <tt>uint8_t[]</tt></td></tr>
+<tr class="odd">
+<td class="convin">string</td><td class="convop">string data &rarr;</td><td class="convout"><tt>const char[]</tt></td></tr>
+<tr class="even separate">
+<td class="convin">function</td><td class="convop"><a href="#callback">create callback</a> &rarr;</td><td class="convout">C function type</td></tr>
+<tr class="odd separate">
+<td class="convin">table</td><td class="convop"><a href="#init_table">table initializer</a></td><td class="convout">Array</td></tr>
+<tr class="even">
+<td class="convin">table</td><td class="convop"><a href="#init_table">table initializer</a></td><td class="convout"><tt>struct</tt>/<tt>union</tt></td></tr>
+<tr class="odd separate">
+<td class="convin">cdata</td><td class="convop">cdata payload &rarr;</td><td class="convout">C type</td></tr>
+</table>
+<p>
+If the result type of this conversion doesn't match the
+C&nbsp;type of the destination, the
+<a href="#convert_between">conversion rules between C&nbsp;types</a>
+are applied.
+</p>
+<p>
+Reference types are immutable after initialization ("no re-seating of
+references"). For initialization purposes or when passing values to
+reference parameters, they are treated like pointers. Note that unlike
+in C++, there's no way to implement automatic reference generation of
+variables under the Lua language semantics. If you want to call a
+function with a reference parameter, you need to explicitly pass a
+one-element array.
+</p>
+
+<h3 id="convert_between">Conversions between C&nbsp;types</h3>
+<p>
+These conversion rules are more or less the same as the standard
+C&nbsp;conversion rules. Some rules only apply to casts, or require
+pointer or type compatibility:
+</p>
+<table class="convtable">
+<tr class="convhead">
+<td class="convin">Input</td>
+<td class="convop">Conversion</td>
+<td class="convout">Output</td>
+</tr>
+<tr class="odd separate">
+<td class="convin">Signed integer</td><td class="convop">&rarr;<sup>narrow or sign-extend</sup></td><td class="convout">Integer</td></tr>
+<tr class="even">
+<td class="convin">Unsigned integer</td><td class="convop">&rarr;<sup>narrow or zero-extend</sup></td><td class="convout">Integer</td></tr>
+<tr class="odd">
+<td class="convin">Integer</td><td class="convop">&rarr;<sup>round</sup></td><td class="convout"><tt>double</tt>, <tt>float</tt></td></tr>
+<tr class="even">
+<td class="convin"><tt>double</tt>, <tt>float</tt></td><td class="convop">&rarr;<sup>trunc</sup> <tt>int32_t</tt> &rarr;<sup>narrow</sup></td><td class="convout"><tt>(u)int8_t</tt>, <tt>(u)int16_t</tt></td></tr>
+<tr class="odd">
+<td class="convin"><tt>double</tt>, <tt>float</tt></td><td class="convop">&rarr;<sup>trunc</sup></td><td class="convout"><tt>(u)int32_t</tt>, <tt>(u)int64_t</tt></td></tr>
+<tr class="even">
+<td class="convin"><tt>double</tt>, <tt>float</tt></td><td class="convop">&rarr;<sup>round</sup></td><td class="convout"><tt>float</tt>, <tt>double</tt></td></tr>
+<tr class="odd separate">
+<td class="convin">Number</td><td class="convop">n == 0 &rarr; 0, otherwise 1</td><td class="convout"><tt>bool</tt></td></tr>
+<tr class="even">
+<td class="convin"><tt>bool</tt></td><td class="convop"><tt>false</tt> &rarr; 0, <tt>true</tt> &rarr; 1</td><td class="convout">Number</td></tr>
+<tr class="odd separate">
+<td class="convin">Complex number</td><td class="convop">convert real part</td><td class="convout">Number</td></tr>
+<tr class="even">
+<td class="convin">Number</td><td class="convop">convert real part, imag = 0</td><td class="convout">Complex number</td></tr>
+<tr class="odd">
+<td class="convin">Complex number</td><td class="convop">convert real and imag part</td><td class="convout">Complex number</td></tr>
+<tr class="even separate">
+<td class="convin">Number</td><td class="convop">convert scalar and replicate</td><td class="convout">Vector</td></tr>
+<tr class="odd">
+<td class="convin">Vector</td><td class="convop">copy (same size)</td><td class="convout">Vector</td></tr>
+<tr class="even separate">
+<td class="convin"><tt>struct</tt>/<tt>union</tt></td><td class="convop">take base address (compat)</td><td class="convout">Pointer</td></tr>
+<tr class="odd">
+<td class="convin">Array</td><td class="convop">take base address (compat)</td><td class="convout">Pointer</td></tr>
+<tr class="even">
+<td class="convin">Function</td><td class="convop">take function address</td><td class="convout">Function pointer</td></tr>
+<tr class="odd separate">
+<td class="convin">Number</td><td class="convop">convert via <tt>uintptr_t</tt> (cast)</td><td class="convout">Pointer</td></tr>
+<tr class="even">
+<td class="convin">Pointer</td><td class="convop">convert address (compat/cast)</td><td class="convout">Pointer</td></tr>
+<tr class="odd">
+<td class="convin">Pointer</td><td class="convop">convert address (cast)</td><td class="convout">Integer</td></tr>
+<tr class="even">
+<td class="convin">Array</td><td class="convop">convert base address (cast)</td><td class="convout">Integer</td></tr>
+<tr class="odd separate">
+<td class="convin">Array</td><td class="convop">copy (compat)</td><td class="convout">Array</td></tr>
+<tr class="even">
+<td class="convin"><tt>struct</tt>/<tt>union</tt></td><td class="convop">copy (identical type)</td><td class="convout"><tt>struct</tt>/<tt>union</tt></td></tr>
+</table>
+<p>
+Bitfields or <tt>enum</tt> types are treated like their underlying
+type.
+</p>
+<p>
+Conversions not listed above will raise an error. E.g. it's not
+possible to convert a pointer to a complex number or vice versa.
+</p>
+
+<h3 id="convert_vararg">Conversions for vararg C&nbsp;function arguments</h3>
+<p>
+The following default conversion rules apply when passing Lua objects
+to the variable argument part of vararg C&nbsp;functions:
+</p>
+<table class="convtable">
+<tr class="convhead">
+<td class="convin">Input</td>
+<td class="convop">Conversion</td>
+<td class="convout">Output</td>
+</tr>
+<tr class="odd separate">
+<td class="convin">number</td><td class="convop">&rarr;</td><td class="convout"><tt>double</tt></td></tr>
+<tr class="even">
+<td class="convin">boolean</td><td class="convop"><tt>false</tt> &rarr; 0, <tt>true</tt> &rarr; 1</td><td class="convout"><tt>bool</tt></td></tr>
+<tr class="odd separate">
+<td class="convin">nil</td><td class="convop"><tt>NULL</tt> &rarr;</td><td class="convout"><tt>(void *)</tt></td></tr>
+<tr class="even">
+<td class="convin">userdata</td><td class="convop">userdata payload &rarr;</td><td class="convout"><tt>(void *)</tt></td></tr>
+<tr class="odd">
+<td class="convin">lightuserdata</td><td class="convop">lightuserdata address &rarr;</td><td class="convout"><tt>(void *)</tt></td></tr>
+<tr class="even separate">
+<td class="convin">string</td><td class="convop">string data &rarr;</td><td class="convout"><tt>const char *</tt></td></tr>
+<tr class="odd separate">
+<td class="convin"><tt>float</tt> cdata</td><td class="convop">&rarr;</td><td class="convout"><tt>double</tt></td></tr>
+<tr class="even">
+<td class="convin">Array cdata</td><td class="convop">take base address</td><td class="convout">Element pointer</td></tr>
+<tr class="odd">
+<td class="convin"><tt>struct</tt>/<tt>union</tt> cdata</td><td class="convop">take base address</td><td class="convout"><tt>struct</tt>/<tt>union</tt> pointer</td></tr>
+<tr class="even">
+<td class="convin">Function cdata</td><td class="convop">take function address</td><td class="convout">Function pointer</td></tr>
+<tr class="odd">
+<td class="convin">Any other cdata</td><td class="convop">no conversion</td><td class="convout">C type</td></tr>
+</table>
+<p>
+To pass a Lua object, other than a cdata object, as a specific type,
+you need to override the conversion rules: create a temporary cdata
+object with a constructor or a cast and initialize it with the value
+to pass:
+</p>
+<p>
+Assuming <tt>x</tt> is a Lua number, here's how to pass it as an
+integer to a vararg function:
+</p>
+<pre class="code">
+ffi.cdef[[
+int printf(const char *fmt, ...);
+]]
+ffi.C.printf("integer value: %d\n", ffi.new("int", x))
+</pre>
+<p>
+If you don't do this, the default Lua number &rarr; <tt>double</tt>
+conversion rule applies. A vararg C&nbsp;function expecting an integer
+will see a garbled or uninitialized value.
+</p>
+
+<h2 id="init">Initializers</h2>
+<p>
+Creating a cdata object with
+<a href="ext_ffi_api.html#ffi_new"><tt>ffi.new()</tt></a> or the
+equivalent constructor syntax always initializes its contents, too.
+Different rules apply, depending on the number of optional
+initializers and the C&nbsp;types involved:
+</p>
+<ul>
+<li>If no initializers are given, the object is filled with zero bytes.</li>
+
+<li>Scalar types (numbers and pointers) accept a single initializer.
+The Lua object is <a href="#convert_fromlua">converted to the scalar
+C&nbsp;type</a>.</li>
+
+<li>Valarrays (complex numbers and vectors) are treated like scalars
+when a single initializer is given. Otherwise they are treated like
+regular arrays.</li>
+
+<li>Aggregate types (arrays and structs) accept either a single cdata
+initializer of the same type (copy constructor), a single
+<a href="#init_table">table initializer</a>, or a flat list of
+initializers.</li>
+
+<li>The elements of an array are initialized, starting at index zero.
+If a single initializer is given for an array, it's repeated for all
+remaining elements. This doesn't happen if two or more initializers
+are given: all remaining uninitialized elements are filled with zero
+bytes.</li>
+
+<li>Byte arrays may also be initialized with a Lua string. This copies
+the whole string plus a terminating zero-byte. The copy stops early only
+if the array has a known, fixed size.</li>
+
+<li>The fields of a <tt>struct</tt> are initialized in the order of
+their declaration. Uninitialized fields are filled with zero
+bytes.</li>
+
+<li>Only the first field of a <tt>union</tt> can be initialized with a
+flat initializer.</li>
+
+<li>Elements or fields which are aggregates themselves are initialized
+with a <em>single</em> initializer, but this may be a table
+initializer or a compatible aggregate.</li>
+
+<li>Excess initializers cause an error.</li>
+
+</ul>
+
+<h2 id="init_table">Table Initializers</h2>
+<p>
+The following rules apply if a Lua table is used to initialize an
+Array or a <tt>struct</tt>/<tt>union</tt>:
+</p>
+<ul>
+
+<li>If the table index <tt>[0]</tt> is non-<tt>nil</tt>, then the
+table is assumed to be zero-based. Otherwise it's assumed to be
+one-based.</li>
+
+<li>Array elements, starting at index zero, are initialized one-by-one
+with the consecutive table elements, starting at either index
+<tt>[0]</tt> or <tt>[1]</tt>. This process stops at the first
+<tt>nil</tt> table element.</li>
+
+<li>If exactly one array element was initialized, it's repeated for
+all the remaining elements. Otherwise all remaining uninitialized
+elements are filled with zero bytes.</li>
+
+<li>The above logic only applies to arrays with a known fixed size.
+A VLA is only initialized with the element(s) given in the table.
+Depending on the use case, you may need to explicitly add a
+<tt>NULL</tt> or <tt>0</tt> terminator to a VLA.</li>
+
+<li>A <tt>struct</tt>/<tt>union</tt> can be initialized in the
+order of the declaration of its fields. Each field is initialized with
+consecutive table elements, starting at either index <tt>[0]</tt>
+or <tt>[1]</tt>. This process stops at the first <tt>nil</tt> table
+element.</li>
+
+<li>Otherwise, if neither index <tt>[0]</tt> nor <tt>[1]</tt> is present,
+a <tt>struct</tt>/<tt>union</tt> is initialized by looking up each field
+name (as a string key) in the table. Each non-<tt>nil</tt> value is
+used to initialize the corresponding field.</li>
+
+<li>Uninitialized fields of a <tt>struct</tt> are filled with zero
+bytes, except for the trailing VLA of a VLS.</li>
+
+<li>Initialization of a <tt>union</tt> stops after one field has been
+initialized. If no field has been initialized, the <tt>union</tt> is
+filled with zero bytes.</li>
+
+<li>Elements or fields which are aggregates themselves are initialized
+with a <em>single</em> initializer, but this may be a nested table
+initializer (or a compatible aggregate).</li>
+
+<li>Excess initializers for an array cause an error. Excess
+initializers for a <tt>struct</tt>/<tt>union</tt> are ignored.
+Unrelated table entries are ignored, too.</li>
+
+</ul>
+<p>
+Example:
+</p>
+<pre class="code">
+local ffi = require("ffi")
+
+ffi.cdef[[
+struct foo { int a, b; };
+union bar { int i; double d; };
+struct nested { int x; struct foo y; };
+]]
+
+ffi.new("int[3]", {})            --> 0, 0, 0
+ffi.new("int[3]", {1})           --> 1, 1, 1
+ffi.new("int[3]", {1,2})         --> 1, 2, 0
+ffi.new("int[3]", {1,2,3})       --> 1, 2, 3
+ffi.new("int[3]", {[0]=1})       --> 1, 1, 1
+ffi.new("int[3]", {[0]=1,2})     --> 1, 2, 0
+ffi.new("int[3]", {[0]=1,2,3})   --> 1, 2, 3
+ffi.new("int[3]", {[0]=1,2,3,4}) --> error: too many initializers
+
+ffi.new("struct foo", {})            --> a = 0, b = 0
+ffi.new("struct foo", {1})           --> a = 1, b = 0
+ffi.new("struct foo", {1,2})         --> a = 1, b = 2
+ffi.new("struct foo", {[0]=1,2})     --> a = 1, b = 2
+ffi.new("struct foo", {b=2})         --> a = 0, b = 2
+ffi.new("struct foo", {a=1,b=2,c=3}) --> a = 1, b = 2  'c' is ignored
+
+ffi.new("union bar", {})        --> i = 0, d = 0.0
+ffi.new("union bar", {1})       --> i = 1, d = ?
+ffi.new("union bar", {[0]=1,2}) --> i = 1, d = ?    '2' is ignored
+ffi.new("union bar", {d=2})     --> i = ?, d = 2.0
+
+ffi.new("struct nested", {1,{2,3}})     --> x = 1, y.a = 2, y.b = 3
+ffi.new("struct nested", {x=1,y={2,3}}) --> x = 1, y.a = 2, y.b = 3
+</pre>
+
+<h2 id="cdata_ops">Operations on cdata Objects</h2>
+<p>
+All of the standard Lua operators can be applied to cdata objects or a
+mix of a cdata object and another Lua object. The following list shows
+the pre-defined operations.
+</p>
+<p>
+Reference types are dereferenced <em>before</em> performing each of
+the operations below &mdash; the operation is applied to the
+C&nbsp;type pointed to by the reference.
+</p>
+<p>
+The pre-defined operations are always tried first before deferring to a
+metamethod or index table (if any) for the corresponding ctype (except
+for <tt>__new</tt>). An error is raised if the metamethod lookup or
+index table lookup fails.
+</p>
+
+<h3 id="cdata_array">Indexing a cdata object</h3>
+<ul>
+
+<li><b>Indexing a pointer/array</b>: a cdata pointer/array can be
+indexed by a cdata number or a Lua number. The element address is
+computed as the base address plus the number value multiplied by the
+element size in bytes. A read access loads the element value and
+<a href="#convert_tolua">converts it to a Lua object</a>. A write
+access <a href="#convert_fromlua">converts a Lua object to the element
+type</a> and stores the converted value to the element. An error is
+raised if the element size is undefined or a write access to a
+constant element is attempted.</li>
+
+<li><b>Dereferencing a <tt>struct</tt>/<tt>union</tt> field</b>: a
+cdata <tt>struct</tt>/<tt>union</tt> or a pointer to a
+<tt>struct</tt>/<tt>union</tt> can be dereferenced by a string key,
+giving the field name. The field address is computed as the base
+address plus the relative offset of the field. A read access loads the
+field value and <a href="#convert_tolua">converts it to a Lua
+object</a>. A write access <a href="#convert_fromlua">converts a Lua
+object to the field type</a> and stores the converted value to the
+field. An error is raised if a write access to a constant
+<tt>struct</tt>/<tt>union</tt> or a constant field is attempted.
+Scoped enum constants or static constants are treated like a constant
+field.</li>
+
+<li><b>Indexing a complex number</b>: a complex number can be indexed
+either by a cdata number or a Lua number with the values 0 or 1, or by
+the strings <tt>"re"</tt> or <tt>"im"</tt>. A read access loads the
+real part (<tt>[0]</tt>, <tt>.re</tt>) or the imaginary part
+(<tt>[1]</tt>, <tt>.im</tt>) part of a complex number and
+<a href="#convert_tolua">converts it to a Lua number</a>. The
+sub-parts of a complex number are immutable &mdash; assigning to an
+index of a complex number raises an error. Accessing out-of-bound
+indexes returns unspecified results, but is guaranteed not to trigger
+memory access violations.</li>
+
+<li><b>Indexing a vector</b>: a vector is treated like an array for
+indexing purposes, except the vector elements are immutable &mdash;
+assigning to an index of a vector raises an error.</li>
+
+</ul>
+<p>
+A ctype object can be indexed with a string key, too. The only
+pre-defined operation is reading scoped constants of
+<tt>struct</tt>/<tt>union</tt> types. All other accesses defer
+to the corresponding metamethods or index tables (if any).
+</p>
+<p>
+Note: since there's (deliberately) no address-of operator, a cdata
+object holding a value type is effectively immutable after
+initialization. The JIT compiler benefits from this fact when applying
+certain optimizations.
+</p>
+<p>
+As a consequence, the <em>elements</em> of complex numbers and
+vectors are immutable. But the elements of an aggregate holding these
+types <em>may</em> be modified of course. I.e. you cannot assign to
+<tt>foo.c.im</tt>, but you can assign a (newly created) complex number
+to <tt>foo.c</tt>.
+</p>
+<p>
+The JIT compiler implements strict aliasing rules: accesses to different
+types do <b>not</b> alias, except for differences in signedness (this
+applies even to <tt>char</tt> pointers, unlike C99). Type punning
+through unions is explicitly detected and allowed.
+</p>
+
+<h3 id="cdata_call">Calling a cdata object</h3>
+<ul>
+
+<li><b>Constructor</b>: a ctype object can be called and used as a
+<a href="ext_ffi_api.html#ffi_new">constructor</a>. This is equivalent
+to <tt>ffi.new(ct, ...)</tt>, unless a <tt>__new</tt> metamethod is
+defined. The <tt>__new</tt> metamethod is called with the ctype object
+plus any other arguments passed to the contructor. Note that you have to
+use <tt>ffi.new</tt> inside of it, since calling <tt>ct(...)</tt> would
+cause infinite recursion.</li>
+
+<li><b>C&nbsp;function call</b>: a cdata function or cdata function
+pointer can be called. The passed arguments are
+<a href="#convert_fromlua">converted to the C&nbsp;types</a> of the
+parameters given by the function declaration. Arguments passed to the
+variable argument part of vararg C&nbsp;function use
+<a href="#convert_vararg">special conversion rules</a>. This
+C&nbsp;function is called and the return value (if any) is
+<a href="#convert_tolua">converted to a Lua object</a>.<br>
+On Windows/x86 systems, <tt>__stdcall</tt> functions are automatically
+detected and a function declared as <tt>__cdecl</tt> (the default) is
+silently fixed up after the first call.</li>
+
+</ul>
+
+<h3 id="cdata_arith">Arithmetic on cdata objects</h3>
+<ul>
+
+<li><b>Pointer arithmetic</b>: a cdata pointer/array and a cdata
+number or a Lua number can be added or subtracted. The number must be
+on the right hand side for a subtraction. The result is a pointer of
+the same type with an address plus or minus the number value
+multiplied by the element size in bytes. An error is raised if the
+element size is undefined.</li>
+
+<li><b>Pointer difference</b>: two compatible cdata pointers/arrays
+can be subtracted. The result is the difference between their
+addresses, divided by the element size in bytes. An error is raised if
+the element size is undefined or zero.</li>
+
+<li><b>64&nbsp;bit integer arithmetic</b>: the standard arithmetic
+operators (<tt>+&nbsp;-&nbsp;*&nbsp;/&nbsp;%&nbsp;^</tt> and unary
+minus) can be applied to two cdata numbers, or a cdata number and a
+Lua number. If one of them is an <tt>uint64_t</tt>, the other side is
+converted to an <tt>uint64_t</tt> and an unsigned arithmetic operation
+is performed. Otherwise both sides are converted to an
+<tt>int64_t</tt> and a signed arithmetic operation is performed. The
+result is a boxed 64&nbsp;bit cdata object.<br>
+
+If one of the operands is an <tt>enum</tt> and the other operand is a
+string, the string is converted to the value of a matching <tt>enum</tt>
+constant before the above conversion.<br>
+
+These rules ensure that 64&nbsp;bit integers are "sticky". Any
+expression involving at least one 64&nbsp;bit integer operand results
+in another one. The undefined cases for the division, modulo and power
+operators return <tt>2LL&nbsp;^&nbsp;63</tt> or
+<tt>2ULL&nbsp;^&nbsp;63</tt>.<br>
+
+You'll have to explicitly convert a 64&nbsp;bit integer to a Lua
+number (e.g. for regular floating-point calculations) with
+<tt>tonumber()</tt>. But note this may incur a precision loss.</li>
+
+</ul>
+
+<h3 id="cdata_comp">Comparisons of cdata objects</h3>
+<ul>
+
+<li><b>Pointer comparison</b>: two compatible cdata pointers/arrays
+can be compared. The result is the same as an unsigned comparison of
+their addresses. <tt>nil</tt> is treated like a <tt>NULL</tt> pointer,
+which is compatible with any other pointer type.</li>
+
+<li><b>64&nbsp;bit integer comparison</b>: two cdata numbers, or a
+cdata number and a Lua number can be compared with each other. If one
+of them is an <tt>uint64_t</tt>, the other side is converted to an
+<tt>uint64_t</tt> and an unsigned comparison is performed. Otherwise
+both sides are converted to an <tt>int64_t</tt> and a signed
+comparison is performed.<br>
+
+If one of the operands is an <tt>enum</tt> and the other operand is a
+string, the string is converted to the value of a matching <tt>enum</tt>
+constant before the above conversion.<br>
+
+<li><b>Comparisons for equality/inequality</b> never raise an error.
+Even incompatible pointers can be compared for equality by address. Any
+other incompatible comparison (also with non-cdata objects) treats the
+two sides as unequal.</li>
+
+</ul>
+
+<h3 id="cdata_key">cdata objects as table keys</h3>
+<p>
+Lua tables may be indexed by cdata objects, but this doesn't provide
+any useful semantics &mdash; <b>cdata objects are unsuitable as table
+keys!</b>
+</p>
+<p>
+A cdata object is treated like any other garbage-collected object and
+is hashed and compared by its address for table indexing. Since
+there's no interning for cdata value types, the same value may be
+boxed in different cdata objects with different addresses. Thus
+<tt>t[1LL+1LL]</tt> and <tt>t[2LL]</tt> usually <b>do not</b> point to
+the same hash slot and they certainly <b>do not</b> point to the same
+hash slot as <tt>t[2]</tt>.
+</p>
+<p>
+It would seriously drive up implementation complexity and slow down
+the common case, if one were to add extra handling for by-value
+hashing and comparisons to Lua tables. Given the ubiquity of their use
+inside the VM, this is not acceptable.
+</p>
+<p>
+There are three viable alternatives, if you really need to use cdata
+objects as keys:
+</p>
+<ul>
+
+<li>If you can get by with the precision of Lua numbers
+(52&nbsp;bits), then use <tt>tonumber()</tt> on a cdata number or
+combine multiple fields of a cdata aggregate to a Lua number. Then use
+the resulting Lua number as a key when indexing tables.<br>
+One obvious benefit: <tt>t[tonumber(2LL)]</tt> <b>does</b> point to
+the same slot as <tt>t[2]</tt>.</li>
+
+<li>Otherwise use either <tt>tostring()</tt> on 64&nbsp;bit integers
+or complex numbers or combine multiple fields of a cdata aggregate to
+a Lua string (e.g. with
+<a href="ext_ffi_api.html#ffi_string"><tt>ffi.string()</tt></a>). Then
+use the resulting Lua string as a key when indexing tables.</li>
+
+<li>Create your own specialized hash table implementation using the
+C&nbsp;types provided by the FFI library, just like you would in
+C&nbsp;code. Ultimately this may give much better performance than the
+other alternatives or what a generic by-value hash table could
+possibly provide.</li>
+
+</ul>
+
+<h2 id="param">Parameterized Types</h2>
+<p>
+To facilitate some abstractions, the two functions
+<a href="ext_ffi_api.html#ffi_typeof"><tt>ffi.typeof</tt></a> and
+<a href="ext_ffi_api.html#ffi_cdef"><tt>ffi.cdef</tt></a> support
+parameterized types in C&nbsp;declarations. Note: none of the other API
+functions taking a cdecl allow this.
+</p>
+<p>
+Any place you can write a <b><tt>typedef</tt> name</b>, an
+<b>identifier</b> or a <b>number</b> in a declaration, you can write
+<tt>$</tt> (the dollar sign) instead. These placeholders are replaced in
+order of appearance with the arguments following the cdecl string:
+</p>
+<pre class="code">
+-- Declare a struct with a parameterized field type and name:
+ffi.cdef([[
+typedef struct { $ $; } foo_t;
+]], type1, name1)
+
+-- Anonymous struct with dynamic names:
+local bar_t = ffi.typeof("struct { int $, $; }", name1, name2)
+-- Derived pointer type:
+local bar_ptr_t = ffi.typeof("$ *", bar_t)
+
+-- Parameterized dimensions work even where a VLA won't work:
+local matrix_t = ffi.typeof("uint8_t[$][$]", width, height)
+</pre>
+<p>
+Caveat: this is <em>not</em> simple text substitution! A passed ctype or
+cdata object is treated like the underlying type, a passed string is
+considered an identifier and a number is considered a number. You must
+not mix this up: e.g. passing <tt>"int"</tt> as a string doesn't work in
+place of a type, you'd need to use <tt>ffi.typeof("int")</tt> instead.
+</p>
+<p>
+The main use for parameterized types are libraries implementing abstract
+data types
+(<a href="http://www.freelists.org/post/luajit/ffi-type-of-pointer-to,8"><span class="ext">&raquo;</span>&nbsp;example</a>),
+similar to what can be achieved with C++ template metaprogramming.
+Another use case are derived types of anonymous structs, which avoids
+pollution of the global struct namespace.
+</p>
+<p>
+Please note that parameterized types are a nice tool and indispensable
+for certain use cases. But you'll want to use them sparingly in regular
+code, e.g. when all types are actually fixed.
+</p>
+
+<h2 id="gc">Garbage Collection of cdata Objects</h2>
+<p>
+All explicitly (<tt>ffi.new()</tt>, <tt>ffi.cast()</tt> etc.) or
+implicitly (accessors) created cdata objects are garbage collected.
+You need to ensure to retain valid references to cdata objects
+somewhere on a Lua stack, an upvalue or in a Lua table while they are
+still in use. Once the last reference to a cdata object is gone, the
+garbage collector will automatically free the memory used by it (at
+the end of the next GC cycle).
+</p>
+<p>
+Please note that pointers themselves are cdata objects, however they
+are <b>not</b> followed by the garbage collector. So e.g. if you
+assign a cdata array to a pointer, you must keep the cdata object
+holding the array alive as long as the pointer is still in use:
+</p>
+<pre class="code">
+ffi.cdef[[
+typedef struct { int *a; } foo_t;
+]]
+
+local s = ffi.new("foo_t", ffi.new("int[10]")) -- <span style="color:#c00000;">WRONG!</span>
+
+local a = ffi.new("int[10]") -- <span style="color:#00a000;">OK</span>
+local s = ffi.new("foo_t", a)
+-- Now do something with 's', but keep 'a' alive until you're done.
+</pre>
+<p>
+Similar rules apply for Lua strings which are implicitly converted to
+<tt>"const&nbsp;char&nbsp;*"</tt>: the string object itself must be
+referenced somewhere or it'll be garbage collected eventually. The
+pointer will then point to stale data, which may have already been
+overwritten. Note that <em>string literals</em> are automatically kept
+alive as long as the function containing it (actually its prototype)
+is not garbage collected.
+</p>
+<p>
+Objects which are passed as an argument to an external C&nbsp;function
+are kept alive until the call returns. So it's generally safe to
+create temporary cdata objects in argument lists. This is a common
+idiom for <a href="#convert_vararg">passing specific C&nbsp;types to
+vararg functions</a>.
+</p>
+<p>
+Memory areas returned by C functions (e.g. from <tt>malloc()</tt>)
+must be manually managed, of course (or use
+<a href="ext_ffi_api.html#ffi_gc"><tt>ffi.gc()</tt></a>). Pointers to
+cdata objects are indistinguishable from pointers returned by C
+functions (which is one of the reasons why the GC cannot follow them).
+</p>
+
+<h2 id="callback">Callbacks</h2>
+<p>
+The LuaJIT FFI automatically generates special callback functions
+whenever a Lua function is converted to a C&nbsp;function pointer. This
+associates the generated callback function pointer with the C&nbsp;type
+of the function pointer and the Lua function object (closure).
+</p>
+<p>
+This can happen implicitly due to the usual conversions, e.g. when
+passing a Lua function to a function pointer argument. Or you can use
+<tt>ffi.cast()</tt> to explicitly cast a Lua function to a
+C&nbsp;function pointer.
+</p>
+<p>
+Currently only certain C&nbsp;function types can be used as callback
+functions. Neither C&nbsp;vararg functions nor functions with
+pass-by-value aggregate argument or result types are supported. There
+are no restrictions for the kind of Lua functions that can be called
+from the callback &mdash; no checks for the proper number of arguments
+are made. The return value of the Lua function will be converted to the
+result type and an error will be thrown for invalid conversions.
+</p>
+<p>
+It's allowed to throw errors across a callback invocation, but it's not
+advisable in general. Do this only if you know the C&nbsp;function, that
+called the callback, copes with the forced stack unwinding and doesn't
+leak resources.
+</p>
+<p>
+One thing that's not allowed, is to let an FFI call into a C&nbsp;function
+get JIT-compiled, which in turn calls a callback, calling into Lua again.
+Usually this attempt is caught by the interpreter first and the
+C&nbsp;function is blacklisted for compilation.
+</p>
+<p>
+However, this heuristic may fail under specific circumstances: e.g. a
+message polling function might not run Lua callbacks right away and the call
+gets JIT-compiled. If it later happens to call back into Lua (e.g. a rarely
+invoked error callback), you'll get a VM PANIC with the message
+<tt>"bad callback"</tt>. Then you'll need to manually turn off
+JIT-compilation with
+<a href="ext_jit.html#jit_onoff_func"><tt>jit.off()</tt></a> for the
+surrounding Lua function that invokes such a message polling function (or
+similar).
+</p>
+
+<h3 id="callback_resources">Callback resource handling</h3>
+<p>
+Callbacks take up resources &mdash; you can only have a limited number
+of them at the same time (500&nbsp;-&nbsp;1000, depending on the
+architecture). The associated Lua functions are anchored to prevent
+garbage collection, too.
+</p>
+<p>
+<b>Callbacks due to implicit conversions are permanent!</b> There is no
+way to guess their lifetime, since the C&nbsp;side might store the
+function pointer for later use (typical for GUI toolkits). The associated
+resources cannot be reclaimed until termination:
+</p>
+<pre class="code">
+ffi.cdef[[
+typedef int (__stdcall *WNDENUMPROC)(void *hwnd, intptr_t l);
+int EnumWindows(WNDENUMPROC func, intptr_t l);
+]]
+
+-- Implicit conversion to a callback via function pointer argument.
+local count = 0
+ffi.C.EnumWindows(function(hwnd, l)
+  count = count + 1
+  return true
+end, 0)
+-- The callback is permanent and its resources cannot be reclaimed!
+-- Ok, so this may not be a problem, if you do this only once.
+</pre>
+<p>
+Note: this example shows that you <em>must</em> properly declare
+<tt>__stdcall</tt> callbacks on Windows/x86 systems. The calling
+convention cannot be automatically detected, unlike for
+<tt>__stdcall</tt> calls <em>to</em> Windows functions.
+</p>
+<p>
+For some use cases it's necessary to free up the resources or to
+dynamically redirect callbacks. Use an explicit cast to a
+C&nbsp;function pointer and keep the resulting cdata object. Then use
+the <a href="ext_ffi_api.html#callback_free"><tt>cb:free()</tt></a>
+or <a href="ext_ffi_api.html#callback_set"><tt>cb:set()</tt></a> methods
+on the cdata object:
+</p>
+<pre class="code">
+-- Explicitly convert to a callback via cast.
+local count = 0
+local cb = ffi.cast("WNDENUMPROC", function(hwnd, l)
+  count = count + 1
+  return true
+end)
+
+-- Pass it to a C function.
+ffi.C.EnumWindows(cb, 0)
+-- EnumWindows doesn't need the callback after it returns, so free it.
+
+cb:free()
+-- The callback function pointer is no longer valid and its resources
+-- will be reclaimed. The created Lua closure will be garbage collected.
+</pre>
+
+<h3 id="callback_performance">Callback performance</h3>
+<p>
+<b>Callbacks are slow!</b> First, the C&nbsp;to Lua transition itself
+has an unavoidable cost, similar to a <tt>lua_call()</tt> or
+<tt>lua_pcall()</tt>. Argument and result marshalling add to that cost.
+And finally, neither the C&nbsp;compiler nor LuaJIT can inline or
+optimize across the language barrier and hoist repeated computations out
+of a callback function.
+</p>
+<p>
+Do not use callbacks for performance-sensitive work: e.g. consider a
+numerical integration routine which takes a user-defined function to
+integrate over. It's a bad idea to call a user-defined Lua function from
+C&nbsp;code millions of times. The callback overhead will be absolutely
+detrimental for performance.
+</p>
+<p>
+It's considerably faster to write the numerical integration routine
+itself in Lua &mdash; the JIT compiler will be able to inline the
+user-defined function and optimize it together with its calling context,
+with very competitive performance.
+</p>
+<p>
+As a general guideline: <b>use callbacks only when you must</b>, because
+of existing C&nbsp;APIs. E.g. callback performance is irrelevant for a
+GUI application, which waits for user input most of the time, anyway.
+</p>
+<p>
+For new designs <b>avoid push-style APIs</b>: a C&nbsp;function repeatedly
+calling a callback for each result. Instead <b>use pull-style APIs</b>:
+call a C&nbsp;function repeatedly to get a new result. Calls from Lua
+to C via the FFI are much faster than the other way round. Most well-designed
+libraries already use pull-style APIs (read/write, get/put).
+</p>
+
+<h2 id="clib">C Library Namespaces</h2>
+<p>
+A C&nbsp;library namespace is a special kind of object which allows
+access to the symbols contained in shared libraries or the default
+symbol namespace. The default
+<a href="ext_ffi_api.html#ffi_C"><tt>ffi.C</tt></a> namespace is
+automatically created when the FFI library is loaded. C&nbsp;library
+namespaces for specific shared libraries may be created with the
+<a href="ext_ffi_api.html#ffi_load"><tt>ffi.load()</tt></a> API
+function.
+</p>
+<p>
+Indexing a C&nbsp;library namespace object with a symbol name (a Lua
+string) automatically binds it to the library. First the symbol type
+is resolved &mdash; it must have been declared with
+<a href="ext_ffi_api.html#ffi_cdef"><tt>ffi.cdef</tt></a>. Then the
+symbol address is resolved by searching for the symbol name in the
+associated shared libraries or the default symbol namespace. Finally,
+the resulting binding between the symbol name, the symbol type and its
+address is cached. Missing symbol declarations or nonexistent symbol
+names cause an error.
+</p>
+<p>
+This is what happens on a <b>read access</b> for the different kinds of
+symbols:
+</p>
+<ul>
+
+<li>External functions: a cdata object with the type of the function
+and its address is returned.</li>
+
+<li>External variables: the symbol address is dereferenced and the
+loaded value is <a href="#convert_tolua">converted to a Lua object</a>
+and returned.</li>
+
+<li>Constant values (<tt>static&nbsp;const</tt> or <tt>enum</tt>
+constants): the constant is <a href="#convert_tolua">converted to a
+Lua object</a> and returned.</li>
+
+</ul>
+<p>
+This is what happens on a <b>write access</b>:
+</p>
+<ul>
+
+<li>External variables: the value to be written is
+<a href="#convert_fromlua">converted to the C&nbsp;type</a> of the
+variable and then stored at the symbol address.</li>
+
+<li>Writing to constant variables or to any other symbol type causes
+an error, like any other attempted write to a constant location.</li>
+
+</ul>
+<p>
+C&nbsp;library namespaces themselves are garbage collected objects. If
+the last reference to the namespace object is gone, the garbage
+collector will eventually release the shared library reference and
+remove all memory associated with the namespace. Since this may
+trigger the removal of the shared library from the memory of the
+running process, it's generally <em>not safe</em> to use function
+cdata objects obtained from a library if the namespace object may be
+unreferenced.
+</p>
+<p>
+Performance notice: the JIT compiler specializes to the identity of
+namespace objects and to the strings used to index it. This
+effectively turns function cdata objects into constants. It's not
+useful and actually counter-productive to explicitly cache these
+function objects, e.g. <tt>local strlen = ffi.C.strlen</tt>. OTOH it
+<em>is</em> useful to cache the namespace itself, e.g. <tt>local C =
+ffi.C</tt>.
+</p>
+
+<h2 id="policy">No Hand-holding!</h2>
+<p>
+The FFI library has been designed as <b>a low-level library</b>. The
+goal is to interface with C&nbsp;code and C&nbsp;data types with a
+minimum of overhead. This means <b>you can do anything you can do
+from&nbsp;C</b>: access all memory, overwrite anything in memory, call
+machine code at any memory address and so on.
+</p>
+<p>
+The FFI library provides <b>no memory safety</b>, unlike regular Lua
+code. It will happily allow you to dereference a <tt>NULL</tt>
+pointer, to access arrays out of bounds or to misdeclare
+C&nbsp;functions. If you make a mistake, your application might crash,
+just like equivalent C&nbsp;code would.
+</p>
+<p>
+This behavior is inevitable, since the goal is to provide full
+interoperability with C&nbsp;code. Adding extra safety measures, like
+bounds checks, would be futile. There's no way to detect
+misdeclarations of C&nbsp;functions, since shared libraries only
+provide symbol names, but no type information. Likewise there's no way
+to infer the valid range of indexes for a returned pointer.
+</p>
+<p>
+Again: the FFI library is a low-level library. This implies it needs
+to be used with care, but it's flexibility and performance often
+outweigh this concern. If you're a C or C++ developer, it'll be easy
+to apply your existing knowledge. OTOH writing code for the FFI
+library is not for the faint of heart and probably shouldn't be the
+first exercise for someone with little experience in Lua, C or C++.
+</p>
+<p>
+As a corollary of the above, the FFI library is <b>not safe for use by
+untrusted Lua code</b>. If you're sandboxing untrusted Lua code, you
+definitely don't want to give this code access to the FFI library or
+to <em>any</em> cdata object (except 64&nbsp;bit integers or complex
+numbers). Any properly engineered Lua sandbox needs to provide safety
+wrappers for many of the standard Lua library functions &mdash;
+similar wrappers need to be written for high-level operations on FFI
+data types, too.
+</p>
+
+<h2 id="status">Current Status</h2>
+<p>
+The initial release of the FFI library has some limitations and is
+missing some features. Most of these will be fixed in future releases.
+</p>
+<p>
+<a href="#clang">C language support</a> is
+currently incomplete:
+</p>
+<ul>
+<li>C&nbsp;declarations are not passed through a C&nbsp;pre-processor,
+yet.</li>
+<li>The C&nbsp;parser is able to evaluate most constant expressions
+commonly found in C&nbsp;header files. However it doesn't handle the
+full range of C&nbsp;expression semantics and may fail for some
+obscure constructs.</li>
+<li><tt>static const</tt> declarations only work for integer types
+up to 32&nbsp;bits. Neither declaring string constants nor
+floating-point constants is supported.</li>
+<li>Packed <tt>struct</tt> bitfields that cross container boundaries
+are not implemented.</li>
+<li>Native vector types may be defined with the GCC <tt>mode</tt> or
+<tt>vector_size</tt> attribute. But no operations other than loading,
+storing and initializing them are supported, yet.</li>
+<li>The <tt>volatile</tt> type qualifier is currently ignored by
+compiled code.</li>
+<li><a href="ext_ffi_api.html#ffi_cdef"><tt>ffi.cdef</tt></a> silently
+ignores all re-declarations.</li>
+</ul>
+<p>
+The JIT compiler already handles a large subset of all FFI operations.
+It automatically falls back to the interpreter for unimplemented
+operations (you can check for this with the
+<a href="running.html#opt_j"><tt>-jv</tt></a> command line option).
+The following operations are currently not compiled and may exhibit
+suboptimal performance, especially when used in inner loops:
+</p>
+<ul>
+<li>Bitfield accesses and initializations.</li>
+<li>Vector operations.</li>
+<li>Table initializers.</li>
+<li>Initialization of nested <tt>struct</tt>/<tt>union</tt> types.</li>
+<li>Allocations of variable-length arrays or structs.</li>
+<li>Allocations of C&nbsp;types with a size &gt; 128&nbsp;bytes or an
+alignment &gt; 8&nbsp;bytes.</li>
+<li>Conversions from lightuserdata to <tt>void&nbsp;*</tt>.</li>
+<li>Pointer differences for element sizes that are not a power of
+two.</li>
+<li>Calls to C&nbsp;functions with aggregates passed or returned by
+value.</li>
+<li>Calls to ctype metamethods which are not plain functions.</li>
+<li>ctype <tt>__newindex</tt> tables and non-string lookups in ctype
+<tt>__index</tt> tables.</li>
+<li><tt>tostring()</tt> for cdata types.</li>
+<li>Calls to <tt>ffi.cdef()</tt>, <tt>ffi.load()</tt> and
+<tt>ffi.metatype()</tt>.</li>
+</ul>
+<p>
+Other missing features:
+</p>
+<ul>
+<li>Bit operations for 64&nbsp;bit types.</li>
+<li>Arithmetic for <tt>complex</tt> numbers.</li>
+<li>Passing structs by value to vararg C&nbsp;functions.</li>
+<li><a href="extensions.html#exceptions">C++ exception interoperability</a>
+does not extend to C&nbsp;functions called via the FFI, if the call is
+compiled.</li>
+</ul>
+<br class="flush">
+</div>
+<div id="foot">
+<hr class="hide">
+Copyright &copy; 2005-2013 Mike Pall
+<span class="noprint">
+&middot;
+<a href="contact.html">Contact</a>
+</span>
+</div>
+</body>
+</html>
