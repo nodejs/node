@@ -137,7 +137,7 @@ test-message: test-build
 test-simple: all
 	$(PYTHON) tools/test.py simple
 
-test-pummel: all
+test-pummel: all wrk
 	$(PYTHON) tools/test.py pummel
 
 test-internet: all
