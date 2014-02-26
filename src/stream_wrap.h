@@ -126,6 +126,8 @@ class StreamWrap : public HandleWrap {
   static void WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   inline StreamWrapCallbacks* callbacks() const {
     return callbacks_;
   }

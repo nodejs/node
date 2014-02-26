@@ -87,7 +87,6 @@ void StreamWrap::UpdateWriteQueueSize() {
   object()->Set(env()->write_queue_size_string(), write_queue_size);
 }
 
-
 void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
@@ -496,6 +495,17 @@ void StreamWrap::WriteUcs2String(const FunctionCallbackInfo<Value>& args) {
   WriteStringImpl<UCS2>(args);
 }
 
+void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
+
+  assert(args.Length() > 0);
+  int err = uv_stream_set_blocking(wrap->stream(), args[0]->IsTrue());
+
+  args.GetReturnValue().Set(err);
+}
 
 void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   WriteWrap* req_wrap = CONTAINER_OF(req, WriteWrap, req_);
