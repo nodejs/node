@@ -560,6 +560,9 @@ def configure_libuv(o):
   # assume shared libuv if one of these is set?
   if options.shared_libuv_libpath:
     o['libraries'] += ['-L%s' % options.shared_libuv_libpath]
+  else:
+    o['variables']['uv_library'] = 'static_library'
+
   if options.shared_libuv_libname:
     o['libraries'] += ['-l%s' % options.shared_libuv_libname]
   elif options.shared_libuv:

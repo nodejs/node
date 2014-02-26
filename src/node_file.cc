@@ -769,12 +769,14 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
   buf += off;
 
+  uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
+
   if (cb->IsFunction()) {
-    ASYNC_CALL(write, cb, fd, buf, len, pos)
+    ASYNC_CALL(write, cb, fd, &uvbuf, 1, pos)
     return;
   }
 
-  SYNC_CALL(write, NULL, fd, buf, len, pos)
+  SYNC_CALL(write, NULL, fd, &uvbuf, 1, pos)
   args.GetReturnValue().Set(SYNC_RESULT);
 }
 
@@ -818,8 +820,10 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   pos = GET_OFFSET(args[2]);
   cb = args[4];
 
+  uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
+
   if (!cb->IsFunction()) {
-    SYNC_CALL(write, NULL, fd, buf, len, pos)
+    SYNC_CALL(write, NULL, fd, &uvbuf, 1, pos)
     if (must_free)
       delete[] buf;
     return args.GetReturnValue().Set(SYNC_RESULT);
@@ -829,8 +833,8 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   int err = uv_fs_write(env->event_loop(),
                         &req_wrap->req_,
                         fd,
-                        buf,
-                        len,
+                        &uvbuf,
+                        1,
                         pos,
                         After);
   req_wrap->object()->Set(env->oncomplete_string(), cb);
@@ -896,12 +900,14 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
 
   buf = buffer_data + off;
 
+  uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
+
   cb = args[5];
 
   if (cb->IsFunction()) {
-    ASYNC_CALL(read, cb, fd, buf, len, pos);
+    ASYNC_CALL(read, cb, fd, &uvbuf, 1, pos);
   } else {
-    SYNC_CALL(read, 0, fd, buf, len, pos)
+    SYNC_CALL(read, 0, fd, &uvbuf, 1, pos)
     args.GetReturnValue().Set(SYNC_RESULT);
   }
 }
