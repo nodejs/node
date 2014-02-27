@@ -126,7 +126,7 @@ void AppendExceptionLine(Environment* env,
 
 NO_RETURN void FatalError(const char* location, const char* message);
 
-v8::Local<v8::Object> BuildStatsObject(Environment* env, const uv_stat_t* s);
+v8::Local<v8::Value> BuildStatsObject(Environment* env, const uv_stat_t* s);
 
 enum Endianness {
   kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.

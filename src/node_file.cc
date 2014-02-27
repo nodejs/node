@@ -323,16 +323,11 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-Local<Object> BuildStatsObject(Environment* env, const uv_stat_t* s) {
+Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
   // If you hit this assertion, you forgot to enter the v8::Context first.
   assert(env->context() == env->isolate()->GetCurrentContext());
 
   EscapableHandleScope handle_scope(env->isolate());
-
-  Local<Object> stats = env->stats_constructor_function()->NewInstance();
-  if (stats.IsEmpty()) {
-    return handle_scope.Escape(Local<Object>());
-  }
 
   // The code below is very nasty-looking but it prevents a segmentation fault
   // when people run JS code like the snippet below. It's apparently more
@@ -345,13 +340,13 @@ Local<Object> BuildStatsObject(Environment* env, const uv_stat_t* s) {
   //
   // We need to check the return value of Integer::New() and Date::New()
   // and make sure that we bail out when V8 returns an empty handle.
+
+  // Integers.
 #define X(name)                                                               \
-  {                                                                           \
-    Local<Value> val = Integer::New(env->isolate(), s->st_##name);            \
-    if (val.IsEmpty())                                                        \
-      return handle_scope.Escape(Local<Object>());                            \
-    stats->Set(env->name ## _string(), val);                                  \
-  }
+  Local<Value> name = Integer::New(env->isolate(), s->st_##name);             \
+  if (name.IsEmpty())                                                         \
+    return handle_scope.Escape(Local<Object>());                              \
+
   X(dev)
   X(mode)
   X(nlink)
@@ -360,38 +355,66 @@ Local<Object> BuildStatsObject(Environment* env, const uv_stat_t* s) {
   X(rdev)
 # if defined(__POSIX__)
   X(blksize)
+# else
+  Local<Value> blksize = Undefined(env->isolate());
 # endif
 #undef X
 
+  // Numbers.
 #define X(name)                                                               \
-  {                                                                           \
-    Local<Value> val = Number::New(env->isolate(),                            \
-                                   static_cast<double>(s->st_##name));        \
-    if (val.IsEmpty())                                                        \
-      return handle_scope.Escape(Local<Object>());                            \
-    stats->Set(env->name ## _string(), val);                                  \
-  }
+  Local<Value> name = Number::New(env->isolate(),                             \
+                                  static_cast<double>(s->st_##name));         \
+  if (name.IsEmpty())                                                         \
+    return handle_scope.Escape(Local<Object>());                              \
+
   X(ino)
   X(size)
 # if defined(__POSIX__)
   X(blocks)
+# else
+  Local<Value> blocks = Undefined(env->isolate());
 # endif
 #undef X
 
-#define X(name, rec)                                                          \
-  {                                                                           \
-    double msecs = static_cast<double>(s->st_##rec.tv_sec) * 1000;            \
-    msecs += static_cast<double>(s->st_##rec.tv_nsec / 1000000);              \
-    Local<Value> val = v8::Date::New(env->isolate(), msecs);                  \
-    if (val.IsEmpty())                                                        \
-      return handle_scope.Escape(Local<Object>());                            \
-    stats->Set(env->name ## _string(), val);                                  \
-  }
-  X(atime, atim)
-  X(mtime, mtim)
-  X(ctime, ctim)
-  X(birthtime, birthtim)
+  // Dates.
+#define X(name)                                                               \
+  Local<Value> name##_msec =                                                  \
+    Number::New(env->isolate(),                                               \
+        (static_cast<double>(s->st_##name.tv_sec) * 1000) +                   \
+        (static_cast<double>(s->st_##name.tv_nsec / 1000000)));               \
+                                                                              \
+  if (name##_msec.IsEmpty())                                                  \
+    return handle_scope.Escape(Local<Object>());                              \
+
+  X(atim)
+  X(mtim)
+  X(ctim)
+  X(birthtim)
 #undef X
+
+  // Pass stats as the first argument, this is the object we are modifying.
+  Local<Value> argv[] = {
+    dev,
+    mode,
+    nlink,
+    uid,
+    gid,
+    rdev,
+    ino,
+    size,
+    blocks,
+    atim_msec,
+    mtim_msec,
+    ctim_msec,
+    birthtim_msec
+  };
+
+  // Call out to JavaScript to create the stats object.
+  Local<Value> stats =
+    env->fs_stats_constructor_function()->NewInstance(ARRAY_SIZE(argv), argv);
+
+  if (stats.IsEmpty())
+    return handle_scope.Escape(Local<Object>());
 
   return handle_scope.Escape(stats);
 }
@@ -1081,6 +1104,13 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void FSInitialize(const FunctionCallbackInfo<Value>& args) {
+  Local<Function> stats_constructor = args[0].As<Function>();
+  assert(stats_constructor->IsFunction());
+
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  env->set_fs_stats_constructor_function(stats_constructor);
+}
 
 void InitFs(Handle<Object> target,
             Handle<Value> unused,
@@ -1088,11 +1118,10 @@ void InitFs(Handle<Object> target,
             void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  // Initialize the stats object
-  Local<Function> constructor =
-      FunctionTemplate::New(env->isolate())->GetFunction();
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Stats"), constructor);
-  env->set_stats_constructor_function(constructor);
+  // Function which creates a new Stats object.
+  target->Set(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "FSInitialize"),
+      FunctionTemplate::New(env->isolate(), FSInitialize)->GetFunction());
 
   NODE_SET_METHOD(target, "close", Close);
   NODE_SET_METHOD(target, "open", Open);
