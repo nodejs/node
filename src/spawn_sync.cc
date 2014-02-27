@@ -1025,6 +1025,7 @@ void SyncProcessRunner::ExitCallback(uv_process_t* handle,
                                      int64_t exit_status,
                                      int term_signal) {
   SyncProcessRunner* self = reinterpret_cast<SyncProcessRunner*>(handle->data);
+  uv_close(reinterpret_cast<uv_handle_t*>(handle), NULL);
   self->OnExit(exit_status, term_signal);
 }
 
