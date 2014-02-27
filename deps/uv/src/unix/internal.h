@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <stdlib.h> /* abort */
 #include <string.h> /* strrchr */
+#include <fcntl.h>  /* O_CLOEXEC, may be */
 
 #if defined(__STRICT_ANSI__)
 # define inline __inline
@@ -109,6 +110,14 @@
 
 #ifndef UV__POLLHUP
 # define UV__POLLHUP  8
+#endif
+
+#if !defined(O_CLOEXEC) && defined(__FreeBSD__)
+/*
+ * It may be that we are just missing `__POSIX_VISIBLE >= 200809`.
+ * Try using fixed value const and give up, if it doesn't work
+ */
+# define O_CLOEXEC 0x00100000
 #endif
 
 /* handle flags */

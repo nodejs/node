@@ -444,3 +444,23 @@ int uv__getaddrinfo_translate_error(int sys_err) {
   abort();
   return 0;  /* Pacify compiler. */
 }
+
+int uv_fs_event_getpath(uv_fs_event_t* handle, char* buf, size_t* len) {
+  size_t required_len;
+
+  if (!uv__is_active(handle)) {
+    *len = 0;
+    return UV_EINVAL;
+  }
+
+  required_len = strlen(handle->path) + 1;
+  if (required_len > *len) {
+    *len = required_len;
+    return UV_ENOBUFS;
+  }
+
+  memcpy(buf, handle->path, required_len);
+  *len = required_len;
+
+  return 0;
+}

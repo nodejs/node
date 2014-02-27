@@ -585,6 +585,46 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
 }
 
 
+int uv_udp_set_multicast_interface(uv_udp_t* handle, const char* interface_addr) {
+  struct in_addr addr;
+  int err;
+
+  memset(&addr, 0, sizeof addr);
+
+  if (handle->flags & UV_HANDLE_IPV6) {
+    return UV_ENOSYS;
+  }
+
+  /* If the socket is unbound, bind to inaddr_any. */
+  if (!(handle->flags & UV_HANDLE_BOUND)) {
+    err = uv_udp_try_bind(handle,
+                          (const struct sockaddr*) &uv_addr_ip4_any_,
+                          sizeof(uv_addr_ip4_any_),
+                          0);
+    if (err)
+      return uv_translate_sys_error(err);
+  }
+
+  if (interface_addr) {
+    err = uv_inet_pton(AF_INET, interface_addr, &addr.s_addr);
+    if (err)
+      return err;
+  } else {
+    addr.s_addr = htonl(INADDR_ANY);
+  }
+
+  if (setsockopt(handle->socket,
+                 IPPROTO_IP,
+                 IP_MULTICAST_IF,
+                 (char*) &addr,
+                 sizeof addr) == SOCKET_ERROR) {
+    return uv_translate_sys_error(WSAGetLastError());
+  }
+
+  return 0;
+}
+
+
 int uv_udp_set_broadcast(uv_udp_t* handle, int value) {
   BOOL optval = (BOOL) value;
   int err;

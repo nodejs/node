@@ -271,7 +271,11 @@ static int uv_tcp_try_bind(uv_tcp_t* handle,
     /* TODO: how to handle errors? This may fail if there is no ipv4 stack */
     /* available, or when run on XP/2003 which have no support for dualstack */
     /* sockets. For now we're silently ignoring the error. */
-    setsockopt(handle->socket, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof on);
+    setsockopt(handle->socket,
+               IPPROTO_IPV6,
+               IPV6_V6ONLY,
+               (const char*)&on,
+               sizeof on);
   }
 #endif
 
@@ -575,6 +579,7 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
       req->accept_socket = INVALID_SOCKET;
       req->data = handle;
       req->wait_handle = INVALID_HANDLE_VALUE;
+      req->event_handle = NULL;
     }
   }
 
@@ -988,9 +993,11 @@ void uv_process_tcp_write_req(uv_loop_t* loop, uv_tcp_t* handle,
   if (handle->flags & UV_HANDLE_EMULATE_IOCP) {
     if (req->wait_handle != INVALID_HANDLE_VALUE) {
       UnregisterWait(req->wait_handle);
+      req->wait_handle = INVALID_HANDLE_VALUE;
     }
     if (req->event_handle) {
       CloseHandle(req->event_handle);
+      req->event_handle = NULL;
     }
   }
 

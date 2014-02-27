@@ -199,6 +199,26 @@
 # endif
 #endif /* __NR_utimensat */
 
+#ifndef __NR_preadv
+# if defined(__x86_64__)
+#  define __NR_preadv 295
+# elif defined(__i386__)
+#  define __NR_preadv 333
+# elif defined(__arm__)
+#  define __NR_preadv (UV_SYSCALL_BASE + 361)
+# endif
+#endif /* __NR_preadv */
+
+#ifndef __NR_pwritev
+# if defined(__x86_64__)
+#  define __NR_pwritev 296
+# elif defined(__i386__)
+#  define __NR_pwritev 334
+# elif defined(__arm__)
+#  define __NR_pwritev (UV_SYSCALL_BASE + 362)
+# endif
+#endif /* __NR_pwritev */
+
 
 int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
 #if defined(__i386__)
@@ -382,6 +402,22 @@ int uv__utimesat(int dirfd,
 {
 #if defined(__NR_utimensat)
   return syscall(__NR_utimensat, dirfd, path, times, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+ssize_t uv__preadv(int fd, const struct iovec *iov, int iovcnt, off_t offset) {
+#if defined(__NR_preadv)
+  return syscall(__NR_preadv, fd, iov, iovcnt, offset);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset) {
+#if defined(__NR_pwritev)
+  return syscall(__NR_pwritev, fd, iov, iovcnt, offset);
 #else
   return errno = ENOSYS, -1;
 #endif

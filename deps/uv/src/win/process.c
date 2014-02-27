@@ -811,6 +811,9 @@ int uv_spawn(uv_loop_t* loop,
   PROCESS_INFORMATION info;
   DWORD process_flags;
 
+  uv_process_init(loop, process);
+  process->exit_cb = options->exit_cb;
+
   if (options->flags & (UV_PROCESS_SETGID | UV_PROCESS_SETUID)) {
     return UV_ENOTSUP;
   }
@@ -826,9 +829,6 @@ int uv_spawn(uv_loop_t* loop,
                               UV_PROCESS_SETUID |
                               UV_PROCESS_WINDOWS_HIDE |
                               UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
-
-  uv_process_init(loop, process);
-  process->exit_cb = options->exit_cb;
 
   err = uv_utf8_to_utf16_alloc(options->file, &application);
   if (err)

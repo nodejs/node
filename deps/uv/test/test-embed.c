@@ -108,15 +108,14 @@ static void embed_timer_cb(uv_timer_t* timer, int status) {
 
 TEST_IMPL(embed) {
 #if defined(HAVE_KQUEUE) || defined(HAVE_EPOLL)
-  uv_loop_t* external;
+  uv_loop_t external;
 
-  external = uv_loop_new();
-  ASSERT(external != NULL);
+  ASSERT(0 == uv_loop_init(&external));
 
   embed_timer_called = 0;
   embed_closed = 0;
 
-  uv_async_init(external, &embed_async, embed_cb);
+  uv_async_init(&external, &embed_async, embed_cb);
 
   /* Start timer in default loop */
   uv_timer_init(uv_default_loop(), &embed_timer);
@@ -127,10 +126,10 @@ TEST_IMPL(embed) {
   uv_thread_create(&embed_thread, embed_thread_runner, NULL);
 
   /* But run external loop */
-  uv_run(external, UV_RUN_DEFAULT);
+  uv_run(&external, UV_RUN_DEFAULT);
 
   uv_thread_join(&embed_thread);
-  uv_loop_delete(external);
+  uv_loop_close(&external);
 
   ASSERT(embed_timer_called == 1);
 #endif

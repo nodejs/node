@@ -133,7 +133,7 @@ OS X using the GCC or XCode toolchain.
 
 Solaris 121 and later using GCC toolchain.
 
-## patches
+## Patches
 
 See the [guidelines for contributing][].
 

@@ -112,8 +112,9 @@ static void do_work(void* arg) {
   int r;
   struct test_thread* thread = arg;
 
-  loop = uv_loop_new();
+  loop = malloc(sizeof *loop);
   ASSERT(loop != NULL);
+  ASSERT(0 == uv_loop_init(loop));
 
   for (i = 0; i < ARRAY_SIZE(getaddrinfo_reqs); i++) {
     struct getaddrinfo_req* req = getaddrinfo_reqs + i;
@@ -132,7 +133,8 @@ static void do_work(void* arg) {
   r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  uv_loop_delete(loop);
+  ASSERT(0 == uv_loop_close(loop));
+  free(loop);
   thread->thread_called = 1;
 }
 

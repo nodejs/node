@@ -36,6 +36,7 @@
 #include <iphlpapi.h>
 #include <psapi.h>
 #include <tlhelp32.h>
+#include <windows.h>
 
 
 /*
@@ -987,4 +988,40 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
 void uv_free_interface_addresses(uv_interface_address_t* addresses,
     int count) {
   free(addresses);
+}
+
+
+int uv_getrusage(uv_rusage_t *uv_rusage) {
+  FILETIME createTime, exitTime, kernelTime, userTime;
+  SYSTEMTIME kernelSystemTime, userSystemTime;
+  int ret;
+
+  ret = GetProcessTimes(GetCurrentProcess(), &createTime, &exitTime, &kernelTime, &userTime);
+  if (ret == 0) {
+    return uv_translate_sys_error(GetLastError());
+  }
+
+  ret = FileTimeToSystemTime(&kernelTime, &kernelSystemTime);
+  if (ret == 0) {
+    return uv_translate_sys_error(GetLastError());
+  }
+
+  ret = FileTimeToSystemTime(&userTime, &userSystemTime);
+  if (ret == 0) {
+    return uv_translate_sys_error(GetLastError());
+  }
+
+  memset(uv_rusage, 0, sizeof(*uv_rusage));
+
+  uv_rusage->ru_utime.tv_sec = userSystemTime.wHour * 3600 +
+                               userSystemTime.wMinute * 60 +
+                               userSystemTime.wSecond;
+  uv_rusage->ru_utime.tv_usec = userSystemTime.wMilliseconds * 1000;
+
+  uv_rusage->ru_stime.tv_sec = kernelSystemTime.wHour * 3600 +
+                               kernelSystemTime.wMinute * 60 +
+                               kernelSystemTime.wSecond;
+  uv_rusage->ru_stime.tv_usec = kernelSystemTime.wMilliseconds * 1000;
+
+  return 0;
 }

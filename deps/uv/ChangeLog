@@ -1,4 +1,105 @@
-2014.01.23, Version 0.11.18 (Unstable)
+2014.02.28, Version 0.11.21 (Unstable)
+
+Changes since version 0.11.20:
+
+* unix: fix uv_fs_write when using an empty buffer (Saúl Ibarra Corretgé)
+
+* unix, windows: add assertion in uv_loop_delete (Saúl Ibarra Corretgé)
+
+
+2014.02.27, Version 0.11.20 (Unstable), 88355e081b51c69ee1e2b6b0015a4e3d38bd0579
+
+Changes since version 0.11.19:
+
+* stream: start thread after assignments (Oguz Bastemur)
+
+* fs: `uv__cloexec()` opened fd (Fedor Indutny)
+
+* gyp: qualify `library` variable (Fedor Indutny)
+
+* unix, win: add uv_udp_set_multicast_interface() (Austin Foxley)
+
+* unix: fix uv_tcp_nodelay return value in case of error (Saúl Ibarra Corretgé)
+
+* unix: call setgoups before calling setuid/setgid (Saúl Ibarra Corretgé)
+
+* include: mark close_cb field as private (Saúl Ibarra Corretgé)
+
+* unix, windows: map EFBIG errno (Saúl Ibarra Corretgé)
+
+* unix: correct error when calling uv_shutdown twice (Keno Fischer)
+
+* windows: fix building on MinGW (Alex Crichton)
+
+* windows: always initialize uv_process_t (Alex Crichton)
+
+* include: expose libuv version in header files (Saúl Ibarra Corretgé)
+
+* fs: vectored IO API for filesystem read/write (Benjamin Saunders)
+
+* windows: freeze in uv_tcp_endgame (Alexis Campailla)
+
+* sunos: handle rearm errors (Fedor Indutny)
+
+* unix: use a heap for timers (Ben Noordhuis)
+
+* linux: always deregister closing fds from epoll (Geoffry Song)
+
+* linux: include grp.h for setgroups() (William Light)
+
+* unix, windows: add uv_loop_init and uv_loop_close (Saúl Ibarra Corretgé)
+
+* unix, windows: add uv_getrusage() function (Oleg Efimov)
+
+* win: minor error handle fix to uv_pipe_write_impl (Rasmus Pedersen)
+
+* heap: fix node removal (Keno Fischer)
+
+* win: fix C99/C++ comment (Rasmus Pedersen)
+
+* fs: vectored IO API for filesystem read/write (Benjamin Saunders)
+
+* unix, windows: add uv_pipe_getsockname (Saúl Ibarra Corretgé)
+
+* unix, windows: map ENOPROTOOPT errno (Saúl Ibarra Corretgé)
+
+* errno: add ETXTBSY (Fedor Indutny)
+
+* fsevent: rename filename field to path (Saúl Ibarra Corretgé)
+
+* unix, windows: add uv_fs_event_getpath (Saúl Ibarra Corretgé)
+
+* unix, windows: add uv_fs_poll_getpath (Saúl Ibarra Corretgé)
+
+* unix, windows: map ERANGE errno (Saúl Ibarra Corretgé)
+
+* unix, windows: set required size on UV_ENOBUFS (Saúl Ibarra Corretgé)
+
+* unix, windows: clarify what uv_stream_set_blocking does (Saúl Ibarra
+  Corretgé)
+
+* fs: use preadv on Linux if available (Brian White)
+
+
+2014.01.30, Version 0.11.19 (Unstable), 336a1825309744f920230ec3e427e78571772347
+
+Changes since version 0.11.18:
+
+* linux: move sscanf() out of the assert() (Trevor Norris)
+
+* linux: fix C99/C++ comment (Fedor Indutny)
+
+
+2014.01.30, Version 0.10.24 (Stable), aecd296b6bce9b40f06a61c5c94e43d45ac7308a
+
+Changes since version 0.10.23:
+
+* linux: move sscanf() out of the assert() (Trevor Norris)
+
+* linux: fix C99/C++ comment (Fedor Indutny)
+
+
+2014.01.23, Version 0.11.18 (Unstable), d47962e9d93d4a55a9984623feaf546406c9cdbb
 
 Changes since version 0.11.17:
 
@@ -21,7 +122,7 @@ Changes since version 0.11.17:
 * linux: move sscanf() out of the assert() (Trevor Norris)
 
 
-2014.01.23, Version 0.10.23 (Stable)
+2014.01.23, Version 0.10.23 (Stable), dbd218e699fec8be311d85e4788be9e28ae884f8
 
 Changes since version 0.10.22:
 

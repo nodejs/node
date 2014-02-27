@@ -26,7 +26,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if !defined(__MINGW32__)
 #include <crtdbg.h>
+#endif
 
 #include "uv.h"
 #include "internal.h"
@@ -42,7 +44,7 @@ static uv_once_t uv_init_guard_ = UV_ONCE_INIT;
 static uv_once_t uv_default_loop_init_guard_ = UV_ONCE_INIT;
 
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(__MINGW32__)
 /* Our crt debug report handler allows us to temporarily disable asserts */
 /* just for the current thread. */
 
@@ -89,7 +91,7 @@ static void uv_init(void) {
   /* We also need to setup our debug report handler because some CRT */
   /* functions (eg _get_osfhandle) raise an assert when called with invalid */
   /* FDs even though they return the proper error code in the release build. */
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(__MINGW32__)
   _CrtSetReportHook(uv__crt_dbg_report_handler);
 #endif
 
@@ -114,12 +116,14 @@ static void uv_init(void) {
 }
 
 
-static void uv_loop_init(uv_loop_t* loop) {
+int uv_loop_init(uv_loop_t* loop) {
+  /* Initialize libuv itself first */
+  uv__once_init();
+
   /* Create an I/O completion port */
   loop->iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
-  if (loop->iocp == NULL) {
-    uv_fatal_error(GetLastError(), "CreateIoCompletionPort");
-  }
+  if (loop->iocp == NULL)
+    return uv_translate_sys_error(GetLastError());
 
   /* To prevent uninitialized memory access, loop->time must be intialized */
   /* to zero before calling uv_update_time for the first time. */
@@ -152,6 +156,8 @@ static void uv_loop_init(uv_loop_t* loop) {
 
   loop->timer_counter = 0;
   loop->stop_flag = 0;
+
+  return 0;
 }
 
 
@@ -175,35 +181,50 @@ uv_loop_t* uv_default_loop(void) {
 }
 
 
+int uv_loop_close(uv_loop_t* loop) {
+  QUEUE* q;
+  uv_handle_t* h;
+  if (!QUEUE_EMPTY(&(loop)->active_reqs))
+    return UV_EBUSY;
+  QUEUE_FOREACH(q, &loop->handle_queue) {
+    h = QUEUE_DATA(q, uv_handle_t, handle_queue);
+    if (!(h->flags & UV__HANDLE_INTERNAL))
+      return UV_EBUSY;
+  }
+  if (loop != &uv_default_loop_) {
+    int i;
+    for (i = 0; i < ARRAY_SIZE(loop->poll_peer_sockets); i++) {
+      SOCKET sock = loop->poll_peer_sockets[i];
+      if (sock != 0 && sock != INVALID_SOCKET)
+        closesocket(sock);
+    }
+  }
+  /* TODO: cleanup default loop*/
+  return 0;
+}
+
+
 uv_loop_t* uv_loop_new(void) {
   uv_loop_t* loop;
 
-  /* Initialize libuv itself first */
-  uv__once_init();
-
   loop = (uv_loop_t*)malloc(sizeof(uv_loop_t));
-
-  if (!loop) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+  if (loop == NULL) {
+    return NULL;
   }
 
-  uv_loop_init(loop);
+  if (uv_loop_init(loop)) {
+    free(loop);
+    return NULL;
+  }
+
   return loop;
 }
 
 
 void uv_loop_delete(uv_loop_t* loop) {
-  if (loop != &uv_default_loop_) {
-    int i;
-    for (i = 0; i < ARRAY_SIZE(loop->poll_peer_sockets); i++) {
-      SOCKET sock = loop->poll_peer_sockets[i];
-      if (sock != 0 && sock != INVALID_SOCKET) {
-        closesocket(sock);
-      }
-    }
-
+  assert(uv_loop_close(loop) == 0);
+  if (loop != &uv_default_loop_)
     free(loop);
-  }
 }
 
 

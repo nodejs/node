@@ -41,8 +41,8 @@
 #define TEST_PORT_2 9124
 
 #ifdef _WIN32
-# define TEST_PIPENAME "\\\\.\\pipe\\uv-test"
-# define TEST_PIPENAME_2 "\\\\.\\pipe\\uv-test2"
+# define TEST_PIPENAME "\\\\?\\pipe\\uv-test"
+# define TEST_PIPENAME_2 "\\\\?\\pipe\\uv-test2"
 #else
 # define TEST_PIPENAME "/tmp/uv-test-sock"
 # define TEST_PIPENAME_2 "/tmp/uv-test-sock2"

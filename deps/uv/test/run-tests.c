@@ -36,9 +36,6 @@
 /* Actual tests and helpers are defined in test-list.h */
 #include "test-list.h"
 
-/* The time in milliseconds after which a single test times out. */
-#define TEST_TIMEOUT  5000
-
 int ipc_helper(int listen_after_write);
 int ipc_helper_tcp_connection(void);
 int ipc_send_recv_helper(void);
@@ -53,7 +50,7 @@ int main(int argc, char **argv) {
   argv = uv_setup_args(argc, argv);
 
   switch (argc) {
-  case 1: return run_tests(TEST_TIMEOUT, 0);
+  case 1: return run_tests(0);
   case 2: return maybe_run_test(argc, argv);
   case 3: return run_test_part(argv[1], argv[2]);
   default:
@@ -155,5 +152,16 @@ static int maybe_run_test(int argc, char **argv) {
     return 1;
   }
 
-  return run_test(argv[1], TEST_TIMEOUT, 0, 1);
+#ifndef _WIN32
+  if (strcmp(argv[1], "spawn_helper8") == 0) {
+    int fd;
+    ASSERT(sizeof(fd) == read(0, &fd, sizeof(fd)));
+    ASSERT(fd > 2);
+    ASSERT(-1 == write(fd, "x", 1));
+
+    return 1;
+  }
+#endif  /* !_WIN32 */
+
+  return run_test(argv[1], 0, 1);
 }

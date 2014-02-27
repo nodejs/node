@@ -25,6 +25,7 @@ TEST_DECLARE   (close_order)
 TEST_DECLARE   (run_once)
 TEST_DECLARE   (run_nowait)
 TEST_DECLARE   (loop_alive)
+TEST_DECLARE   (loop_close)
 TEST_DECLARE   (loop_stop)
 TEST_DECLARE   (loop_update_time)
 TEST_DECLARE   (barrier_1)
@@ -81,6 +82,7 @@ TEST_DECLARE   (tcp_bind6_localhost_ok)
 TEST_DECLARE   (udp_send_and_recv)
 TEST_DECLARE   (udp_multicast_join)
 TEST_DECLARE   (udp_multicast_ttl)
+TEST_DECLARE   (udp_multicast_interface)
 TEST_DECLARE   (udp_dgram_too_big)
 TEST_DECLARE   (udp_dual_stack)
 TEST_DECLARE   (udp_ipv6_only)
@@ -92,12 +94,15 @@ TEST_DECLARE   (pipe_bind_error_inval)
 TEST_DECLARE   (pipe_listen_without_bind)
 TEST_DECLARE   (pipe_connect_bad_name)
 TEST_DECLARE   (pipe_connect_to_file)
+TEST_DECLARE   (pipe_getsockname)
+TEST_DECLARE   (pipe_getsockname_abstract)
 TEST_DECLARE   (pipe_server_close)
 TEST_DECLARE   (connection_fail)
 TEST_DECLARE   (connection_fail_doesnt_auto_close)
 TEST_DECLARE   (shutdown_close_tcp)
 TEST_DECLARE   (shutdown_close_pipe)
 TEST_DECLARE   (shutdown_eof)
+TEST_DECLARE   (shutdown_twice)
 TEST_DECLARE   (callback_stack)
 TEST_DECLARE   (error_message)
 TEST_DECLARE   (timer)
@@ -171,12 +176,14 @@ TEST_DECLARE   (spawn_stdout_to_file)
 TEST_DECLARE   (spawn_stdout_and_stderr_to_file)
 TEST_DECLARE   (spawn_auto_unref)
 TEST_DECLARE   (fs_poll)
+TEST_DECLARE   (fs_poll_getpath)
 TEST_DECLARE   (kill)
 TEST_DECLARE   (fs_file_noent)
 TEST_DECLARE   (fs_file_nametoolong)
 TEST_DECLARE   (fs_file_loop)
 TEST_DECLARE   (fs_file_async)
 TEST_DECLARE   (fs_file_sync)
+TEST_DECLARE   (fs_file_write_null_buffer)
 TEST_DECLARE   (fs_async_dir)
 TEST_DECLARE   (fs_async_sendfile)
 TEST_DECLARE   (fs_fstat)
@@ -202,6 +209,7 @@ TEST_DECLARE   (fs_event_close_with_pending_event)
 TEST_DECLARE   (fs_event_close_in_callback)
 TEST_DECLARE   (fs_event_start_and_close)
 TEST_DECLARE   (fs_event_error_reporting)
+TEST_DECLARE   (fs_event_getpath)
 TEST_DECLARE   (fs_readdir_empty_dir)
 TEST_DECLARE   (fs_readdir_file)
 TEST_DECLARE   (fs_open_dir)
@@ -233,10 +241,12 @@ TEST_DECLARE   (fs_stat_root)
 #else
 TEST_DECLARE   (emfile)
 TEST_DECLARE   (close_fd)
+TEST_DECLARE   (spawn_fs_open)
 TEST_DECLARE   (spawn_setuid_setgid)
 TEST_DECLARE   (we_get_signal)
 TEST_DECLARE   (we_get_signals)
 TEST_DECLARE   (signal_multiple_loops)
+TEST_DECLARE   (closed_fd_events)
 #endif
 #ifdef __APPLE__
 TEST_DECLARE   (osx_select)
@@ -248,7 +258,7 @@ HELPER_DECLARE (pipe_echo_server)
 
 
 TASK_LIST_START
-  TEST_OUTPUT_ENTRY  (platform_output)
+  TEST_ENTRY_CUSTOM (platform_output, 0, 1, 5000)
 
 #if 0
   TEST_ENTRY  (callback_order)
@@ -257,6 +267,7 @@ TASK_LIST_START
   TEST_ENTRY  (run_once)
   TEST_ENTRY  (run_nowait)
   TEST_ENTRY  (loop_alive)
+  TEST_ENTRY  (loop_close)
   TEST_ENTRY  (loop_stop)
   TEST_ENTRY  (loop_update_time)
   TEST_ENTRY  (barrier_1)
@@ -349,6 +360,8 @@ TASK_LIST_START
   TEST_ENTRY  (pipe_bind_error_addrnotavail)
   TEST_ENTRY  (pipe_bind_error_inval)
   TEST_ENTRY  (pipe_listen_without_bind)
+  TEST_ENTRY  (pipe_getsockname)
+  TEST_ENTRY  (pipe_getsockname_abstract)
 
   TEST_ENTRY  (connection_fail)
   TEST_ENTRY  (connection_fail_doesnt_auto_close)
@@ -360,6 +373,9 @@ TASK_LIST_START
 
   TEST_ENTRY  (shutdown_eof)
   TEST_HELPER (shutdown_eof, tcp4_echo_server)
+
+  TEST_ENTRY  (shutdown_twice)
+  TEST_HELPER (shutdown_twice, tcp4_echo_server)
 
   TEST_ENTRY  (callback_stack)
   TEST_HELPER (callback_stack, tcp4_echo_server)
@@ -432,7 +448,8 @@ TASK_LIST_START
 
   TEST_ENTRY  (hrtime)
 
-  TEST_ENTRY  (getaddrinfo_fail)
+  TEST_ENTRY_CUSTOM (getaddrinfo_fail, 0, 0, 10000)
+
   TEST_ENTRY  (getaddrinfo_basic)
   TEST_ENTRY  (getaddrinfo_concurrent)
 
@@ -460,6 +477,7 @@ TASK_LIST_START
   TEST_ENTRY  (spawn_stdout_and_stderr_to_file)
   TEST_ENTRY  (spawn_auto_unref)
   TEST_ENTRY  (fs_poll)
+  TEST_ENTRY  (fs_poll_getpath)
   TEST_ENTRY  (kill)
 
 #ifdef _WIN32
@@ -472,10 +490,12 @@ TASK_LIST_START
 #else
   TEST_ENTRY  (emfile)
   TEST_ENTRY  (close_fd)
+  TEST_ENTRY  (spawn_fs_open)
   TEST_ENTRY  (spawn_setuid_setgid)
   TEST_ENTRY  (we_get_signal)
   TEST_ENTRY  (we_get_signals)
   TEST_ENTRY  (signal_multiple_loops)
+  TEST_ENTRY  (closed_fd_events)
 #endif
 
 #ifdef __APPLE__
@@ -487,6 +507,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_file_loop)
   TEST_ENTRY  (fs_file_async)
   TEST_ENTRY  (fs_file_sync)
+  TEST_ENTRY  (fs_file_write_null_buffer)
   TEST_ENTRY  (fs_async_dir)
   TEST_ENTRY  (fs_async_sendfile)
   TEST_ENTRY  (fs_fstat)
@@ -511,6 +532,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_event_close_in_callback)
   TEST_ENTRY  (fs_event_start_and_close)
   TEST_ENTRY  (fs_event_error_reporting)
+  TEST_ENTRY  (fs_event_getpath)
   TEST_ENTRY  (fs_readdir_empty_dir)
   TEST_ENTRY  (fs_readdir_file)
   TEST_ENTRY  (fs_open_dir)

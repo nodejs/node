@@ -118,6 +118,31 @@ int uv_fs_poll_stop(uv_fs_poll_t* handle) {
 }
 
 
+int uv_fs_poll_getpath(uv_fs_poll_t* handle, char* buf, size_t* len) {
+  struct poll_ctx* ctx;
+  size_t required_len;
+
+  if (!uv__is_active(handle)) {
+    *len = 0;
+    return UV_EINVAL;
+  }
+
+  ctx = handle->poll_ctx;
+  assert(ctx != NULL);
+
+  required_len = strlen(ctx->path) + 1;
+  if (required_len > *len) {
+    *len = required_len;
+    return UV_ENOBUFS;
+  }
+
+  memcpy(buf, ctx->path, required_len);
+  *len = required_len;
+
+  return 0;
+}
+
+
 void uv__fs_poll_close(uv_fs_poll_t* handle) {
   uv_fs_poll_stop(handle);
 }

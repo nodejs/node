@@ -20,35 +20,41 @@
 
 #include "uv.h"
 #include "internal.h"
+#include "heap-inl.h"
+
 #include <assert.h>
 #include <limits.h>
 
 
-static int uv__timer_cmp(const uv_timer_t* a, const uv_timer_t* b) {
+static int timer_less_than(const struct heap_node* ha,
+                           const struct heap_node* hb) {
+  const uv_timer_t* a;
+  const uv_timer_t* b;
+
+  a = container_of(ha, const uv_timer_t, heap_node);
+  b = container_of(hb, const uv_timer_t, heap_node);
+
   if (a->timeout < b->timeout)
-    return -1;
-  if (a->timeout > b->timeout)
     return 1;
-  /*
-   *  compare start_id when both has the same timeout. start_id is
-   *  allocated with loop->timer_counter in uv_timer_start().
+  if (b->timeout < a->timeout)
+    return 0;
+
+  /* Compare start_id when both have the same timeout. start_id is
+   * allocated with loop->timer_counter in uv_timer_start().
    */
   if (a->start_id < b->start_id)
-    return -1;
-  if (a->start_id > b->start_id)
     return 1;
+  if (b->start_id < a->start_id)
+    return 0;
+
   return 0;
 }
-
-
-RB_GENERATE_STATIC(uv__timers, uv_timer_s, tree_entry, uv__timer_cmp)
 
 
 int uv_timer_init(uv_loop_t* loop, uv_timer_t* handle) {
   uv__handle_init(loop, (uv_handle_t*)handle, UV_TIMER);
   handle->timer_cb = NULL;
   handle->repeat = 0;
-
   return 0;
 }
 
@@ -72,7 +78,9 @@ int uv_timer_start(uv_timer_t* handle,
   /* start_id is the second index to be compared in uv__timer_cmp() */
   handle->start_id = handle->loop->timer_counter++;
 
-  RB_INSERT(uv__timers, &handle->loop->timer_handles, handle);
+  heap_insert((struct heap*) &handle->loop->timer_heap,
+              (struct heap_node*) &handle->heap_node,
+              timer_less_than);
   uv__handle_start(handle);
 
   return 0;
@@ -83,7 +91,9 @@ int uv_timer_stop(uv_timer_t* handle) {
   if (!uv__is_active(handle))
     return 0;
 
-  RB_REMOVE(uv__timers, &handle->loop->timer_handles, handle);
+  heap_remove((struct heap*) &handle->loop->timer_heap,
+              (struct heap_node*) &handle->heap_node,
+              timer_less_than);
   uv__handle_stop(handle);
 
   return 0;
@@ -114,15 +124,15 @@ uint64_t uv_timer_get_repeat(const uv_timer_t* handle) {
 
 
 int uv__next_timeout(const uv_loop_t* loop) {
+  const struct heap_node* heap_node;
   const uv_timer_t* handle;
   uint64_t diff;
 
-  /* RB_MIN expects a non-const tree root. That's okay, it doesn't modify it. */
-  handle = RB_MIN(uv__timers, (struct uv__timers*) &loop->timer_handles);
-
-  if (handle == NULL)
+  heap_node = heap_min((const struct heap*) &loop->timer_heap);
+  if (heap_node == NULL)
     return -1; /* block indefinitely */
 
+  handle = container_of(heap_node, const uv_timer_t, heap_node);
   if (handle->timeout <= loop->time)
     return 0;
 
@@ -135,9 +145,15 @@ int uv__next_timeout(const uv_loop_t* loop) {
 
 
 void uv__run_timers(uv_loop_t* loop) {
+  struct heap_node* heap_node;
   uv_timer_t* handle;
 
-  while ((handle = RB_MIN(uv__timers, &loop->timer_handles))) {
+  for (;;) {
+    heap_node = heap_min((struct heap*) &loop->timer_heap);
+    if (heap_node == NULL)
+      break;
+
+    handle = container_of(heap_node, uv_timer_t, heap_node);
     if (handle->timeout > loop->time)
       break;
 

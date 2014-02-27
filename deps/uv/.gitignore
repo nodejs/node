@@ -43,12 +43,13 @@ Makefile.in
 /out/
 /build/gyp
 
-/run-tests
-/run-tests.exe
-/run-tests.dSYM
-/run-benchmarks
-/run-benchmarks.exe
-/run-benchmarks.dSYM
+/test/.libs/
+/test/run-tests
+/test/run-tests.exe
+/test/run-tests.dSYM
+/test/run-benchmarks
+/test/run-benchmarks.exe
+/test/run-benchmarks.dSYM
 
 *.sln
 *.vcproj

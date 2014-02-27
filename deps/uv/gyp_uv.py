@@ -88,8 +88,8 @@ if __name__ == '__main__':
   if not any(a.startswith('-Dtarget_arch=') for a in args):
     args.append('-Dtarget_arch=%s' % host_arch())
 
-  if not any(a.startswith('-Dlibrary=') for a in args):
-    args.append('-Dlibrary=static_library')
+  if not any(a.startswith('-Duv_library=') for a in args):
+    args.append('-Duv_library=static_library')
 
   if not any(a.startswith('-Dcomponent=') for a in args):
     args.append('-Dcomponent=static_library')

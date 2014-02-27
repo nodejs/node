@@ -44,6 +44,10 @@ static const int64_t eof_timeout = 50; /* ms */
 
 static const int default_pending_pipe_instances = 4;
 
+/* Pipe prefix */
+static char pipe_prefix[] = "\\\\?\\pipe";
+static const int pipe_prefix_len = sizeof(pipe_prefix) - 1;
+
 /* IPC protocol flags. */
 #define UV_IPC_RAW_DATA       0x0001
 #define UV_IPC_TCP_SERVER     0x0002
@@ -70,7 +74,7 @@ static void eof_timer_close_cb(uv_handle_t* handle);
 
 
 static void uv_unique_pipe_name(char* ptr, char* name, size_t size) {
-  _snprintf(name, size, "\\\\.\\pipe\\uv\\%p-%u", ptr, GetCurrentProcessId());
+  _snprintf(name, size, "\\\\?\\pipe\\uv\\%p-%u", ptr, GetCurrentProcessId());
 }
 
 
@@ -433,7 +437,8 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   }
 
   if (!uv_utf8_to_utf16(name, handle->name, nameSize / sizeof(WCHAR))) {
-    return uv_translate_sys_error(GetLastError());
+    err = GetLastError();
+    goto error;
   }
 
   /*
@@ -1174,6 +1179,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
                        NULL);
 
     if (!result) {
+      err = GetLastError();
       return err;
     } else {
       /* Request completed immediately. */
@@ -1744,4 +1750,112 @@ int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
     assert(pipe->ipc_pid != -1);
   }
   return 0;
+}
+
+
+int uv_pipe_getsockname(const uv_pipe_t* handle, char* buf, size_t* len) {
+  NTSTATUS nt_status;
+  IO_STATUS_BLOCK io_status;
+  FILE_NAME_INFORMATION tmp_name_info;
+  FILE_NAME_INFORMATION* name_info;
+  WCHAR* name_buf;
+  unsigned int addrlen;
+  unsigned int name_size;
+  unsigned int name_len;
+  int err;
+
+  name_info = NULL;
+
+  if (handle->handle == INVALID_HANDLE_VALUE) {
+    *len = 0;
+    return UV_EINVAL;
+  }
+
+  nt_status = pNtQueryInformationFile(handle->handle,
+                                      &io_status,
+                                      &tmp_name_info,
+                                      sizeof tmp_name_info,
+                                      FileNameInformation);
+  if (nt_status == STATUS_BUFFER_OVERFLOW) {
+    name_size = sizeof(*name_info) + tmp_name_info.FileNameLength;
+    name_info = malloc(name_size);
+    if (!name_info) {
+      *len = 0;
+      return UV_ENOMEM;
+    }
+
+    nt_status = pNtQueryInformationFile(handle->handle,
+                                        &io_status,
+                                        name_info,
+                                        name_size,
+                                        FileNameInformation);
+  }
+
+  if (nt_status != STATUS_SUCCESS) {
+    *len = 0;
+    err = uv_translate_sys_error(pRtlNtStatusToDosError(nt_status));
+    goto error;
+  }
+
+  if (!name_info) {
+    /* the struct on stack was used */
+    name_buf = tmp_name_info.FileName;
+    name_len = tmp_name_info.FileNameLength;
+  } else {
+    name_buf = name_info->FileName;
+    name_len = name_info->FileNameLength;
+  }
+
+  if (name_len == 0) {
+    *len = 0;
+    err = 0;
+    goto error;
+  }
+
+  name_len /= sizeof(WCHAR);
+
+  /* check how much space we need */
+  addrlen = WideCharToMultiByte(CP_UTF8,
+                                0,
+                                name_buf,
+                                name_len,
+                                NULL,
+                                0,
+                                NULL,
+                                NULL);
+  if (!addrlen) {
+    *len = 0;
+    err = uv_translate_sys_error(GetLastError());
+    goto error;
+  } else if (pipe_prefix_len + addrlen + 1 > *len) {
+    /* "\\\\.\\pipe" + name + '\0' */
+    *len = pipe_prefix_len + addrlen + 1;
+    err = UV_ENOBUFS;
+    goto error;
+  }
+
+  memcpy(buf, pipe_prefix, pipe_prefix_len);
+  addrlen = WideCharToMultiByte(CP_UTF8,
+                                0,
+                                name_buf,
+                                name_len,
+                                buf+pipe_prefix_len,
+                                *len-pipe_prefix_len,
+                                NULL,
+                                NULL);
+  if (!addrlen) {
+    *len = 0;
+    err = uv_translate_sys_error(GetLastError());
+    goto error;
+  }
+
+  addrlen += pipe_prefix_len;
+  buf[addrlen++] = '\0';
+  *len = addrlen;
+
+  return 0;
+
+error:
+  free(name_info);
+  return err;
 }

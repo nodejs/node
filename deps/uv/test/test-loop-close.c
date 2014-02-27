@@ -20,30 +20,35 @@
  */
 
 #include "uv.h"
+#include "task.h"
 
-#define UV_VERSION  ((UV_VERSION_MAJOR << 16) | \
-                     (UV_VERSION_MINOR <<  8) | \
-                     (UV_VERSION_PATCH))
+static uv_timer_t timer_handle;
 
-#define UV_STRINGIFY(v) UV_STRINGIFY_HELPER(v)
-#define UV_STRINGIFY_HELPER(v) #v
-
-#define UV_VERSION_STRING_BASE  UV_STRINGIFY(UV_VERSION_MAJOR) "." \
-                                UV_STRINGIFY(UV_VERSION_MINOR) "." \
-                                UV_STRINGIFY(UV_VERSION_PATCH)
-
-#if UV_VERSION_IS_RELEASE
-# define UV_VERSION_STRING  UV_VERSION_STRING_BASE
-#else
-# define UV_VERSION_STRING  UV_VERSION_STRING_BASE "-pre"
-#endif
-
-
-unsigned int uv_version(void) {
-  return UV_VERSION;
+static void timer_cb(uv_timer_t* handle, int status) {
+  ASSERT(handle);
+  ASSERT(status == 0);
+  uv_stop(handle->loop);
 }
 
 
-const char* uv_version_string(void) {
-  return UV_VERSION_STRING;
+TEST_IMPL(loop_close) {
+  int r;
+  uv_loop_t loop;
+
+  ASSERT(0 == uv_loop_init(&loop));
+
+  uv_timer_init(&loop, &timer_handle);
+  uv_timer_start(&timer_handle, timer_cb, 100, 100);
+
+  ASSERT(UV_EBUSY == uv_loop_close(&loop));
+
+  uv_run(&loop, UV_RUN_DEFAULT);
+
+  uv_close((uv_handle_t*) &timer_handle, NULL);
+  r = uv_run(&loop, UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+
+  ASSERT(0 == uv_loop_close(&loop));
+
+  return 0;
 }

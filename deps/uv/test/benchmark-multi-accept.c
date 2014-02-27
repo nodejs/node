@@ -249,27 +249,26 @@ static void get_listen_handle(uv_loop_t* loop, uv_stream_t* server_handle) {
 
 static void server_cb(void *arg) {
   struct server_ctx *ctx;
-  uv_loop_t* loop;
+  uv_loop_t loop;
 
   ctx = arg;
-  loop = uv_loop_new();
-  ASSERT(loop != NULL);
+  ASSERT(0 == uv_loop_init(&loop));
 
-  ASSERT(0 == uv_async_init(loop, &ctx->async_handle, sv_async_cb));
+  ASSERT(0 == uv_async_init(&loop, &ctx->async_handle, sv_async_cb));
   uv_unref((uv_handle_t*) &ctx->async_handle);
 
   /* Wait until the main thread is ready. */
   uv_sem_wait(&ctx->semaphore);
-  get_listen_handle(loop, (uv_stream_t*) &ctx->server_handle);
+  get_listen_handle(&loop, (uv_stream_t*) &ctx->server_handle);
   uv_sem_post(&ctx->semaphore);
 
   /* Now start the actual benchmark. */
   ASSERT(0 == uv_listen((uv_stream_t*) &ctx->server_handle,
                         128,
                         sv_connection_cb));
-  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
+  ASSERT(0 == uv_run(&loop, UV_RUN_DEFAULT));
 
-  uv_loop_delete(loop);
+  uv_loop_close(&loop);
 }
 
 

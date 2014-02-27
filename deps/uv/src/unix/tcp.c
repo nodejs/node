@@ -232,7 +232,9 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
 
 
 int uv__tcp_nodelay(int fd, int on) {
-  return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
+  if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)))
+    return -errno;
+  return 0;
 }
 
 

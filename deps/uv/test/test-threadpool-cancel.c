@@ -86,7 +86,7 @@ static void saturate_threadpool(void) {
      * the thread pool is saturated. As with any timing dependent test,
      * this is obviously not ideal.
      */
-    if (uv_cond_timedwait(&signal_cond, &signal_mutex, 350 * 1e6)) {
+    if (uv_cond_timedwait(&signal_cond, &signal_mutex, (uint64_t)(350 * 1e6))) {
       ASSERT(0 == uv_cancel((uv_req_t*) req));
       break;
     }

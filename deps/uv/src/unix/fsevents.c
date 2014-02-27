@@ -795,7 +795,7 @@ int uv__fsevents_init(uv_fs_event_t* handle) {
     return err;
 
   /* Get absolute path to file */
-  handle->realpath = realpath(handle->filename, NULL);
+  handle->realpath = realpath(handle->path, NULL);
   if (handle->realpath == NULL)
     return -errno;
   handle->realpath_len = strlen(handle->realpath);

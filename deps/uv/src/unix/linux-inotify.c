@@ -124,7 +124,7 @@ static void uv__inotify_read(uv_loop_t* loop,
   const char* path;
   ssize_t size;
   const char *p;
-  /* needs to be large enough for sizeof(inotify_event) + strlen(filename) */
+  /* needs to be large enough for sizeof(inotify_event) + strlen(path) */
   char buf[4096];
 
   while (1) {
@@ -219,7 +219,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 no_insert:
   uv__handle_start(handle);
   QUEUE_INSERT_TAIL(&w->watchers, &handle->watchers);
-  handle->filename = w->path;
+  handle->path = w->path;
   handle->cb = cb;
   handle->wd = wd;
 
@@ -237,7 +237,7 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   assert(w != NULL);
 
   handle->wd = -1;
-  handle->filename = NULL;
+  handle->path = NULL;
   uv__handle_stop(handle);
   QUEUE_REMOVE(&handle->watchers);
 

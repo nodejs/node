@@ -539,13 +539,14 @@ void fs__close(uv_fs_t* req) {
 
 void fs__read(uv_fs_t* req) {
   int fd = req->fd;
-  size_t length = req->length;
   int64_t offset = req->offset;
   HANDLE handle;
   OVERLAPPED overlapped, *overlapped_ptr;
   LARGE_INTEGER offset_;
   DWORD bytes;
   DWORD error;
+  int result;
+  unsigned int index;
 
   VERIFY_FD(fd, req);
 
@@ -553,11 +554,6 @@ void fs__read(uv_fs_t* req) {
   
   if (handle == INVALID_HANDLE_VALUE) {
     SET_REQ_WIN32_ERROR(req, ERROR_INVALID_HANDLE);
-    return;
-  }
-
-  if (length > INT_MAX) {
-    SET_REQ_WIN32_ERROR(req, ERROR_INSUFFICIENT_BUFFER);
     return;
   }
 
@@ -573,7 +569,20 @@ void fs__read(uv_fs_t* req) {
     overlapped_ptr = NULL;
   }
 
-  if (ReadFile(handle, req->buf, req->length, &bytes, overlapped_ptr)) {
+  index = 0;
+  bytes = 0;
+  do {
+    DWORD incremental_bytes;
+    result = ReadFile(handle,
+                      req->bufs[index].base,
+                      req->bufs[index].len,
+                      &incremental_bytes,
+                      overlapped_ptr);
+    bytes += incremental_bytes;
+    ++index;
+  } while (result && index < req->nbufs);
+
+  if (result || bytes > 0) {
     SET_REQ_RESULT(req, bytes);
   } else {
     error = GetLastError();
@@ -588,23 +597,19 @@ void fs__read(uv_fs_t* req) {
 
 void fs__write(uv_fs_t* req) {
   int fd = req->fd;
-  size_t length = req->length;
   int64_t offset = req->offset;
   HANDLE handle;
   OVERLAPPED overlapped, *overlapped_ptr;
   LARGE_INTEGER offset_;
   DWORD bytes;
+  int result;
+  unsigned int index;
 
   VERIFY_FD(fd, req);
 
   handle = uv__get_osfhandle(fd);
   if (handle == INVALID_HANDLE_VALUE) {
     SET_REQ_WIN32_ERROR(req, ERROR_INVALID_HANDLE);
-    return;
-  }
-
-  if (length > INT_MAX) {
-    SET_REQ_WIN32_ERROR(req, ERROR_INSUFFICIENT_BUFFER);
     return;
   }
 
@@ -620,7 +625,20 @@ void fs__write(uv_fs_t* req) {
     overlapped_ptr = NULL;
   }
 
-  if (WriteFile(handle, req->buf, length, &bytes, overlapped_ptr)) {
+  index = 0;
+  bytes = 0;
+  do {
+    DWORD incremental_bytes;
+    result = WriteFile(handle,
+                       req->bufs[index].base,
+                       req->bufs[index].len,
+                       &incremental_bytes,
+                       overlapped_ptr);
+    bytes += incremental_bytes;
+    ++index;
+  } while (result && index < req->nbufs);
+
+  if (result || bytes > 0) {
     SET_REQ_RESULT(req, bytes);
   } else {
     SET_REQ_WIN32_ERROR(req, GetLastError());
@@ -1087,7 +1105,7 @@ static void fs__ftruncate(uv_fs_t* req) {
 
 static void fs__sendfile(uv_fs_t* req) {
   int fd_in = req->fd, fd_out = req->fd_out;
-  size_t length = req->length;
+  size_t length = req->bufsml[0].len;
   int64_t offset = req->offset;
   const size_t max_buf_size = 65536;
   size_t buf_size = length < max_buf_size ? length : max_buf_size;
@@ -1283,23 +1301,23 @@ static void fs__create_junction(uv_fs_t* req, const WCHAR* path,
     return;
   }
 
-  // Do a pessimistic calculation of the required buffer size
+  /* Do a pessimistic calculation of the required buffer size */
   needed_buf_size =
       FIELD_OFFSET(REPARSE_DATA_BUFFER, MountPointReparseBuffer.PathBuffer) +
       JUNCTION_PREFIX_LEN * sizeof(WCHAR) +
       2 * (target_len + 2) * sizeof(WCHAR);
 
-  // Allocate the buffer
+  /* Allocate the buffer */
   buffer = (REPARSE_DATA_BUFFER*)malloc(needed_buf_size);
   if (!buffer) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
 
-  // Grab a pointer to the part of the buffer where filenames go
+  /* Grab a pointer to the part of the buffer where filenames go */
   path_buf = (WCHAR*)&(buffer->MountPointReparseBuffer.PathBuffer);
   path_buf_len = 0;
 
-  // Copy the substitute (internal) target path
+  /* Copy the substitute (internal) target path */
   start = path_buf_len;
 
   wcsncpy((WCHAR*)&path_buf[path_buf_len], JUNCTION_PREFIX,
@@ -1323,14 +1341,14 @@ static void fs__create_junction(uv_fs_t* req, const WCHAR* path,
   path_buf[path_buf_len++] = L'\\';
   len = path_buf_len - start;
 
-  // Set the info about the substitute name
+  /* Set the info about the substitute name */
   buffer->MountPointReparseBuffer.SubstituteNameOffset = start * sizeof(WCHAR);
   buffer->MountPointReparseBuffer.SubstituteNameLength = len * sizeof(WCHAR);
 
-  // Insert null terminator
+  /* Insert null terminator */
   path_buf[path_buf_len++] = L'\0';
 
-  // Copy the print name of the target path
+  /* Copy the print name of the target path */
   start = path_buf_len;
   add_slash = 0;
   for (i = is_long_path ? LONG_PATH_PREFIX_LEN : 0; path[i] != L'\0'; i++) {
@@ -1352,32 +1370,32 @@ static void fs__create_junction(uv_fs_t* req, const WCHAR* path,
     len++;
   }
 
-  // Set the info about the print name
+  /* Set the info about the print name */
   buffer->MountPointReparseBuffer.PrintNameOffset = start * sizeof(WCHAR);
   buffer->MountPointReparseBuffer.PrintNameLength = len * sizeof(WCHAR);
 
-  // Insert another null terminator
+  /* Insert another null terminator */
   path_buf[path_buf_len++] = L'\0';
 
-  // Calculate how much buffer space was actually used
+  /* Calculate how much buffer space was actually used */
   used_buf_size = FIELD_OFFSET(REPARSE_DATA_BUFFER, MountPointReparseBuffer.PathBuffer) +
     path_buf_len * sizeof(WCHAR);
   used_data_size = used_buf_size -
     FIELD_OFFSET(REPARSE_DATA_BUFFER, MountPointReparseBuffer);
 
-  // Put general info in the data buffer
+  /* Put general info in the data buffer */
   buffer->ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
   buffer->ReparseDataLength = used_data_size;
   buffer->Reserved = 0;
 
-  // Create a new directory
+  /* Create a new directory */
   if (!CreateDirectoryW(new_path, NULL)) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
     goto error;
   }
   created = 1;
 
-  // Open the directory
+  /* Open the directory */
   handle = CreateFileW(new_path,
                        GENERIC_ALL,
                        0,
@@ -1391,7 +1409,7 @@ static void fs__create_junction(uv_fs_t* req, const WCHAR* path,
     goto error;
   }
 
-  // Create the actual reparse point
+  /* Create the actual reparse point */
   if (!DeviceIoControl(handle,
                        FSCTL_SET_REPARSE_POINT,
                        buffer,
@@ -1404,7 +1422,7 @@ static void fs__create_junction(uv_fs_t* req, const WCHAR* path,
     goto error;
   }
 
-  // Clean up
+  /* Clean up */
   CloseHandle(handle);
   free(buffer);
 
@@ -1569,13 +1587,27 @@ int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file fd, uv_fs_cb cb) {
 }
 
 
-int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file fd, void* buf,
-    size_t length, int64_t offset, uv_fs_cb cb) {
+int uv_fs_read(uv_loop_t* loop,
+               uv_fs_t* req,
+               uv_file fd,
+               const uv_buf_t bufs[],
+               unsigned int nbufs,
+               int64_t offset,
+               uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_READ, cb);
 
   req->fd = fd;
-  req->buf = buf;
-  req->length = length;
+
+  req->nbufs = nbufs;
+  req->bufs = req->bufsml;
+  if (nbufs > ARRAY_SIZE(req->bufsml))
+    req->bufs = malloc(nbufs * sizeof(*bufs));
+
+  if (req->bufs == NULL)
+    return UV_ENOMEM;
+
+  memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
+
   req->offset = offset;
 
   if (cb) {
@@ -1588,13 +1620,27 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file fd, void* buf,
 }
 
 
-int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file fd, const void* buf,
-    size_t length, int64_t offset, uv_fs_cb cb) {
+int uv_fs_write(uv_loop_t* loop,
+                uv_fs_t* req,
+                uv_file fd,
+                const uv_buf_t bufs[],
+                unsigned int nbufs,
+                int64_t offset,
+                uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_WRITE, cb);
 
   req->fd = fd;
-  req->buf = (void*) buf;
-  req->length = length;
+
+  req->nbufs = nbufs;
+  req->bufs = req->bufsml;
+  if (nbufs > ARRAY_SIZE(req->bufsml))
+    req->bufs = malloc(nbufs * sizeof(*bufs));
+
+  if (req->bufs == NULL)
+    return UV_ENOMEM;
+
+  memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
+
   req->offset = offset;
 
   if (cb) {
@@ -1922,7 +1968,7 @@ int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file fd_out,
   req->fd = fd_in;
   req->fd_out = fd_out;
   req->offset = in_offset;
-  req->length = length;
+  req->bufsml[0].len = length;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);

@@ -84,28 +84,27 @@ static void signal_handling_worker(void* context) {
   uv_signal_t signal1a;
   uv_signal_t signal1b;
   uv_signal_t signal2;
-  uv_loop_t* loop;
+  uv_loop_t loop;
   int r;
 
   action = (enum signal_action) (uintptr_t) context;
 
-  loop = uv_loop_new();
-  ASSERT(loop != NULL);
+  ASSERT(0 == uv_loop_init(&loop));
 
   /* Setup the signal watchers and start them. */
   if (action == ONLY_SIGUSR1 || action == SIGUSR1_AND_SIGUSR2) {
-    r = uv_signal_init(loop, &signal1a);
+    r = uv_signal_init(&loop, &signal1a);
     ASSERT(r == 0);
     r = uv_signal_start(&signal1a, signal1_cb, SIGUSR1);
     ASSERT(r == 0);
-    r = uv_signal_init(loop, &signal1b);
+    r = uv_signal_init(&loop, &signal1b);
     ASSERT(r == 0);
     r = uv_signal_start(&signal1b, signal1_cb, SIGUSR1);
     ASSERT(r == 0);
   }
 
   if (action == ONLY_SIGUSR2 || action == SIGUSR1_AND_SIGUSR2) {
-    r = uv_signal_init(loop, &signal2);
+    r = uv_signal_init(&loop, &signal2);
     ASSERT(r == 0);
     r = uv_signal_start(&signal2, signal2_cb, SIGUSR2);
     ASSERT(r == 0);
@@ -117,7 +116,7 @@ static void signal_handling_worker(void* context) {
   /* Wait for all signals. The signal callbacks stop the watcher, so uv_run
    * will return when all signal watchers caught a signal.
    */
-  r = uv_run(loop, UV_RUN_DEFAULT);
+  r = uv_run(&loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   /* Restart the signal watchers. */
@@ -136,7 +135,7 @@ static void signal_handling_worker(void* context) {
   /* Wait for signals once more. */
   uv_sem_post(&sem);
 
-  r = uv_run(loop, UV_RUN_DEFAULT);
+  r = uv_run(&loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   /* Close the watchers. */
@@ -150,10 +149,10 @@ static void signal_handling_worker(void* context) {
   }
 
   /* Wait for the signal watchers to close. */
-  r = uv_run(loop, UV_RUN_DEFAULT);
+  r = uv_run(&loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  uv_loop_delete(loop);
+  uv_loop_close(&loop);
 }
 
 
@@ -166,12 +165,13 @@ static void loop_creating_worker(void* context) {
   (void) context;
 
   do {
-    uv_loop_t* loop;
+    uv_loop_t *loop;
     uv_signal_t signal;
     int r;
 
-    loop = uv_loop_new();
+    loop = malloc(sizeof(*loop));
     ASSERT(loop != NULL);
+    ASSERT(0 == uv_loop_init(loop));
 
     r = uv_signal_init(loop, &signal);
     ASSERT(r == 0);
@@ -184,7 +184,7 @@ static void loop_creating_worker(void* context) {
     r = uv_run(loop, UV_RUN_DEFAULT);
     ASSERT(r == 0);
 
-    uv_loop_delete(loop);
+    uv_loop_close(loop);
 
     increment_counter(&loop_creation_counter);
   } while (!stop);
