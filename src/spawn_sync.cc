@@ -22,6 +22,7 @@
 #include "spawn_sync.h"
 #include "env-inl.h"
 #include "string_bytes.h"
+#include "util.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -450,9 +451,10 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   assert(lifecycle_ == kUninitialized);
   lifecycle_ = kInitialized;
 
-  uv_loop_ = uv_loop_new();
+  uv_loop_ = new uv_loop_t;
   if (uv_loop_ == NULL)
     return SetError(UV_ENOMEM);
+  CHECK_EQ(uv_loop_init(uv_loop_), 0);
 
   r = ParseOptions(options);
   if (r < 0)
@@ -515,7 +517,9 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
     if (r < 0)
       abort();
 
-    uv_loop_delete(uv_loop_);
+    CHECK_EQ(uv_loop_close(uv_loop_), 0);
+    delete uv_loop_;
+    uv_loop_ = NULL;
 
   } else {
     // If the loop doesn't exist, neither should any pipes or timers.

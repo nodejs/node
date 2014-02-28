@@ -29,10 +29,13 @@ using v8::V8;
 
 
 Watchdog::Watchdog(uint64_t ms) : destroyed_(false) {
-  loop_ = uv_loop_new();
+  int rc;
+  loop_ = new uv_loop_t;
   CHECK(loop_);
+  rc = uv_loop_init(loop_);
+  CHECK_EQ(0, rc);
 
-  int rc = uv_async_init(loop_, &async_, &Watchdog::Async);
+  rc = uv_async_init(loop_, &async_, &Watchdog::Async);
   CHECK_EQ(0, rc);
 
   rc = uv_timer_init(loop_, &timer_);
@@ -69,7 +72,10 @@ void Watchdog::Destroy() {
   // UV_RUN_DEFAULT so that libuv has a chance to clean up.
   uv_run(loop_, UV_RUN_DEFAULT);
 
-  uv_loop_delete(loop_);
+  int rc = uv_loop_close(loop_);
+  CHECK_EQ(0, rc);
+  delete loop_;
+  loop_ = NULL;
 
   destroyed_ = true;
 }
