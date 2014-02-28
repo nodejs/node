@@ -24,9 +24,11 @@
 
 #include "node.h"
 #include "v8.h"
-#include "env.h"
 
 namespace node {
+
+// Forward declaration
+class Environment;
 
 /**
  * Simple memory allocator.
