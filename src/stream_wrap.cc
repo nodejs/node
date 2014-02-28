@@ -215,7 +215,9 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   uv_buf_t* bufs = &buf;
   size_t count = 1;
   int err = wrap->callbacks()->TryWrite(&bufs, &count);
-  if (err == 0)
+  if (err != 0)
+    goto done;
+  if (count == 0)
     goto done;
   assert(count == 1);
 
@@ -296,11 +298,15 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
     size_t count = 1;
     err = wrap->callbacks()->TryWrite(&bufs, &count);
 
-    // Success
-    if (err == 0)
+    // Failure
+    if (err != 0)
       goto done;
 
-    // Failure, or partial write
+    // Success
+    if (count == 0)
+      goto done;
+
+    // Partial write
     assert(count == 1);
   }
 
@@ -603,6 +609,8 @@ int StreamWrapCallbacks::TryWrite(uv_buf_t** bufs, size_t* count) {
   size_t vcount = *count;
 
   err = uv_try_write(wrap()->stream(), vbufs, vcount);
+  if (err == UV_ENOSYS)
+    return 0;
   if (err < 0)
     return err;
 
@@ -626,10 +634,7 @@ int StreamWrapCallbacks::TryWrite(uv_buf_t** bufs, size_t* count) {
   *bufs = vbufs;
   *count = vcount;
 
-  if (vcount == 0)
-    return 0;
-  else
-    return -1;
+  return 0;
 }
 
 
