@@ -464,13 +464,15 @@ def configure_node(o):
   if not is_clang and cc_version < (4,0,0):
     o['variables']['visibility'] = ''
 
-  if flavor in ('solaris', 'mac', 'linux'):
+  if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
     use_dtrace = not options.without_dtrace
-    # Don't enable by default on linux, it needs the sdt-devel package.
+    # Don't enable by default on linux and freebsd
+    if flavor in ('linux', 'freebsd'):
+      use_dtrace = options.with_dtrace
+
     if flavor == 'linux':
       if options.systemtap_includes:
         o['include_dirs'] += [options.systemtap_includes]
-      use_dtrace = options.with_dtrace
     o['variables']['node_use_dtrace'] = b(use_dtrace)
     o['variables']['uv_use_dtrace'] = b(use_dtrace)
     o['variables']['uv_parent_path'] = '/deps/uv/'

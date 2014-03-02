@@ -287,7 +287,7 @@ void DTRACE_HTTP_CLIENT_RESPONSE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static int dtrace_gc_start(GCType type, GCCallbackFlags flags) {
+int dtrace_gc_start(GCType type, GCCallbackFlags flags) {
   NODE_GC_START(type, flags);
   /*
    * We avoid the tail-call elimination of the USDT probe (which screws up
@@ -297,7 +297,7 @@ static int dtrace_gc_start(GCType type, GCCallbackFlags flags) {
 }
 
 
-static int dtrace_gc_done(GCType type, GCCallbackFlags flags) {
+int dtrace_gc_done(GCType type, GCCallbackFlags flags) {
   NODE_GC_DONE(type, flags);
   return 0;
 }
