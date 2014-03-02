@@ -1541,19 +1541,21 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(env->isolate());
 #ifdef _WIN32
   /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
-  char buf[MAX_PATH * 4 + 1];
+  char buf[MAX_PATH * 4];
 #else
-  char buf[PATH_MAX + 1];
+  char buf[PATH_MAX];
 #endif
 
-  int err = uv_cwd(buf, ARRAY_SIZE(buf) - 1);
+  size_t cwd_len = sizeof(buf);
+  int err = uv_cwd(buf, &cwd_len);
   if (err) {
     return env->ThrowUVException(err, "uv_cwd");
   }
 
-  buf[ARRAY_SIZE(buf) - 1] = '\0';
-  Local<String> cwd = String::NewFromUtf8(env->isolate(), buf);
-
+  Local<String> cwd = String::NewFromUtf8(env->isolate(),
+                                          buf,
+                                          String::kNormalString,
+                                          cwd_len);
   args.GetReturnValue().Set(cwd);
 }
 
