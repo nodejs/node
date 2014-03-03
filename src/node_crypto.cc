@@ -2478,7 +2478,7 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
     return false;
 
   *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx_)];
-  bool r = EVP_CipherFinal_ex(&ctx_, *out, out_len);
+  int r = EVP_CipherFinal_ex(&ctx_, *out, out_len);
 
   if (r && kind_ == kCipher) {
     delete[] auth_tag_;
@@ -2497,7 +2497,7 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
   EVP_CIPHER_CTX_cleanup(&ctx_);
   initialised_ = false;
 
-  return r;
+  return r == 1;
 }
 
 
