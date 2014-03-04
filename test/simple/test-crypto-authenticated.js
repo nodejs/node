@@ -41,11 +41,17 @@ crypto.DEFAULT_ENCODING = 'buffer';
 //
 
 var TEST_CASES = [
-  { algo: 'aes-128-gcm', key: 'ipxp9a6i1Mb4USb4', iv: 'X6sIq117H0vR',
-    plain: 'Hello World!', ct: '4BE13896F64DFA2C2D0F2C76',
+  { algo: 'aes-128-gcm', key: 'ipxp9a6i1Mb4USb4',
+    iv: 'X6sIq117H0vR', plain: 'Hello World!',
+    ct: '4BE13896F64DFA2C2D0F2C76',
     tag: '272B422F62EB545EAA15B5FF84092447', tampered: false },
-  { algo: 'aes-128-gcm', key: 'ipxp9a6i1Mb4USb4', iv: 'X6sIq117H0vR',
-    plain: 'Hello World!', ct: '4BE13596F64DFA2C2D0FAC76',
+  { algo: 'aes-128-gcm', key: 'ipxp9a6i1Mb4USb4',
+    iv: 'X6sIq117H0vR', plain: 'Hello World!',
+    ct: '4BE13896F64DFA2C2D0F2C76', aad: '000000FF',
+    tag: 'BA2479F66275665A88CB7B15F43EB005', tampered: false },
+  { algo: 'aes-128-gcm', key: 'ipxp9a6i1Mb4USb4',
+    iv: 'X6sIq117H0vR', plain: 'Hello World!',
+    ct: '4BE13596F64DFA2C2D0FAC76',
     tag: '272B422F62EB545EAA15B5FF84092447', tampered: true },
   { algo: 'aes-256-gcm', key: '3zTvzr3p67VC61jmV54rIYu1545x4TlY',
     iv: '60iP0h6vJoEa', plain: 'Hello node.js world!',
@@ -69,6 +75,8 @@ for (var i in TEST_CASES) {
 
   (function() {
     var encrypt = crypto.createCipheriv(test.algo, test.key, test.iv);
+    if (test.aad)
+      encrypt.setAAD(new Buffer(test.aad, 'hex'));
     var hex = encrypt.update(test.plain, 'ascii', 'hex');
     hex += encrypt.final('hex');
     var auth_tag = encrypt.getAuthTag();
@@ -82,6 +90,8 @@ for (var i in TEST_CASES) {
   (function() {
     var decrypt = crypto.createDecipheriv(test.algo, test.key, test.iv);
     decrypt.setAuthTag(new Buffer(test.tag, 'hex'));
+    if (test.aad)
+      decrypt.setAAD(new Buffer(test.aad, 'hex'));
     var msg = decrypt.update(test.ct, 'hex', 'ascii');
     if (!test.tampered) {
       msg += decrypt.final('ascii');

@@ -250,6 +250,12 @@ method returns a `Buffer` that represents the _authentication tag_ that
 has been computed from the given data. Should be called after
 encryption has been completed using the `final` method!
 
+### cipher.setAAD(buffer)
+
+For authenticated encryption modes (currently supported: GCM), this
+method sets the value used for the additional authenticated data (AAD) input
+parameter.
+
 
 ## crypto.createDecipher(algorithm, password)
 
@@ -307,6 +313,12 @@ method must be used to pass in the received _authentication tag_.
 If no tag is provided or if the ciphertext has been tampered with,
 `final` will throw, thus indicating that the ciphertext should
 be discarded due to failed authentication.
+
+### decipher.setAAD(buffer)
+
+For authenticated encryption modes (currently supported: GCM), this
+method sets the value used for the additional authenticated data (AAD) input
+parameter.
 
 
 ## crypto.createSign(algorithm)

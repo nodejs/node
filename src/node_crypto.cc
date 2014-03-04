@@ -2194,6 +2194,7 @@ void CipherBase::Initialize(Environment* env, Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "setAutoPadding", SetAutoPadding);
   NODE_SET_PROTOTYPE_METHOD(t, "getAuthTag", GetAuthTag);
   NODE_SET_PROTOTYPE_METHOD(t, "setAuthTag", SetAuthTag);
+  NODE_SET_PROTOTYPE_METHOD(t, "setAAD", SetAAD);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "CipherBase"),
               t->GetFunction());
@@ -2383,6 +2384,35 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
   if (!cipher->SetAuthTag(Buffer::Data(buf), Buffer::Length(buf)))
     env->ThrowError("Attempting to set auth tag in unsupported state");
+}
+
+
+bool CipherBase::SetAAD(const char* data, unsigned int len) {
+  if (!initialised_ || !IsAuthenticatedMode())
+    return false;
+  int outlen;
+  if (!EVP_CipherUpdate(&ctx_,
+                        NULL,
+                        &outlen,
+                        reinterpret_cast<const unsigned char*>(data),
+                        len)) {
+    ThrowCryptoTypeError(env(), ERR_get_error());
+    return false;
+  }
+  return true;
+}
+
+
+void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope handle_scope(env->isolate());
+
+  ASSERT_IS_BUFFER(args[0]);
+
+  CipherBase* cipher = Unwrap<CipherBase>(args.This());
+
+  if (!cipher->SetAAD(Buffer::Data(args[0]), Buffer::Length(args[0])))
+    env->ThrowError("Attempting to set AAD in unsupported state");
 }
 
 

@@ -356,6 +356,7 @@ class CipherBase : public BaseObject {
   bool IsAuthenticatedMode() const;
   bool GetAuthTag(char** out, unsigned int* out_len) const;
   bool SetAuthTag(const char* data, unsigned int len);
+  bool SetAAD(const char* data, unsigned int len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -366,6 +367,7 @@ class CipherBase : public BaseObject {
 
   static void GetAuthTag(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAuthTag(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetAAD(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   CipherBase(Environment* env,
              v8::Local<v8::Object> wrap,
