@@ -918,7 +918,7 @@ Handle<Value> UsingDomains(const Arguments& args) {
   Local<Function> tdc = tdc_v.As<Function>();
   Local<Function> ndt = ndt_v.As<Function>();
   process->Set(String::New("_tickCallback"), tdc);
-  process->Set(String::New("nextTick"), ndt);
+  process->Set(String::New("_currentTickHandler"), ndt);
   process_tickCallback.Dispose();  // Possibly already set by MakeCallback().
   process_tickCallback = Persistent<Function>::New(tdc);
   return Undefined();

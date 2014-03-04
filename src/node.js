@@ -331,8 +331,12 @@
     var index = 1;
     var depth = 2;
 
-    process.nextTick = nextTick;
+    process.nextTick = function nextTick(cb) {
+      process._currentTickHandler(cb);
+    };
+
     // needs to be accessible from cc land
+    process._currentTickHandler = _nextTick;
     process._nextDomainTick = _nextDomainTick;
     process._tickCallback = _tickCallback;
     process._tickDomainCallback = _tickDomainCallback;
@@ -472,7 +476,7 @@
       tickDone(0);
     }
 
-    function nextTick(callback) {
+    function _nextTick(callback) {
       // on the way out, don't bother. it won't get fired anyway.
       if (process._exiting)
         return;
