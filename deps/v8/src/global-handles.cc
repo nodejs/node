@@ -610,7 +610,7 @@ void GlobalHandles::IterateAllRoots(ObjectVisitor* v) {
 
 void GlobalHandles::IterateAllRootsWithClassIds(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
-    if (it.node()->has_wrapper_class_id() && it.node()->IsRetainer()) {
+    if (it.node()->IsRetainer() && it.node()->has_wrapper_class_id()) {
       v->VisitEmbedderReference(it.node()->location(),
                                 it.node()->wrapper_class_id());
     }
