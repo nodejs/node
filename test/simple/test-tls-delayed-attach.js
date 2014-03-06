@@ -28,7 +28,6 @@ var assert = require('assert');
 var fs = require('fs');
 var net = require('net');
 var tls = require('tls');
-var crypto = require('crypto');
 
 var common = require('../common');
 
@@ -45,7 +44,7 @@ var server = net.createServer(function(c) {
   setTimeout(function() {
     var s = new tls.TLSSocket(c, {
       isServer: true,
-      credentials: crypto.createCredentials(options)
+      secureContext: tls.createSecureContext(options)
     });
 
     s.on('data', function(chunk) {

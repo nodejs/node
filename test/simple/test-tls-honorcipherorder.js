@@ -30,7 +30,7 @@ var SSL_Method = 'TLSv1_method';
 var localhost = '127.0.0.1';
 
 process.on('exit', function() {
-  assert.equal(nconns, 5);
+  assert.equal(nconns, 6);
 });
 
 function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
@@ -38,7 +38,7 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
     secureProtocol: SSL_Method,
     key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
     cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
-    ciphers: 'DES-CBC-SHA:AES256-SHA:RC4-SHA',
+    ciphers: 'DES-CBC-SHA:AES256-SHA:RC4-SHA:ECDHE-RSA-AES256-SHA',
     honorCipherOrder: !!honorCipherOrder
   };
 
@@ -96,5 +96,12 @@ function test5() {
   // Client did not explicitly set ciphers. Ensure that client defaults to
   // sane ciphers. Even though server gives top priority to DES-CBC-SHA
   // it should not be negotiated because it's not in default client ciphers.
-  test(true, null, 'AES256-SHA');
+  test(true, null, 'AES256-SHA', test6);
+}
+
+function test6() {
+  // Ensure that `tls.DEFAULT_CIPHERS` is used
+  SSL_Method = 'TLSv1_2_method';
+  tls.DEFAULT_CIPHERS = 'ECDHE-RSA-AES256-SHA';
+  test(true, null, 'ECDHE-RSA-AES256-SHA');
 }

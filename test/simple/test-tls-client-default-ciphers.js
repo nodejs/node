@@ -19,13 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var crypto = require('crypto');
 var assert = require('assert');
 var tls = require('tls');
 
 function test1() {
   var ciphers = '';
-  crypto.createCredentials = function(options) {
+  tls.createSecureContext = function(options) {
     ciphers = options.ciphers
   }
   tls.connect(443);
