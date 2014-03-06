@@ -634,14 +634,13 @@ class ContextifyScript : public BaseObject {
                           const bool display_errors,
                           const FunctionCallbackInfo<Value>& args,
                           TryCatch& try_catch) {
-    if (!ContextifyScript::InstanceOf(env, args.This())) {
+    if (!ContextifyScript::InstanceOf(env, args.Holder())) {
       env->ThrowTypeError(
           "Script methods can only be called on script instances.");
       return false;
     }
 
-    ContextifyScript* wrapped_script =
-        Unwrap<ContextifyScript>(args.This());
+    ContextifyScript* wrapped_script = Unwrap<ContextifyScript>(args.Holder());
     Local<UnboundScript> unbound_script =
         PersistentToLocal(env->isolate(), wrapped_script->script_);
     Local<Script> script = unbound_script->BindToCurrentContext();

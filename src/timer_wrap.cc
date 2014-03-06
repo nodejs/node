@@ -99,7 +99,7 @@ class TimerWrap : public HandleWrap {
   static void Start(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.This());
+    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int64_t timeout = args[0]->IntegerValue();
     int64_t repeat = args[1]->IntegerValue();
@@ -110,7 +110,7 @@ class TimerWrap : public HandleWrap {
   static void Stop(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.This());
+    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int err = uv_timer_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);
@@ -119,7 +119,7 @@ class TimerWrap : public HandleWrap {
   static void Again(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.This());
+    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int err = uv_timer_again(&wrap->handle_);
     args.GetReturnValue().Set(err);
@@ -128,7 +128,7 @@ class TimerWrap : public HandleWrap {
   static void SetRepeat(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.This());
+    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int64_t repeat = args[0]->IntegerValue();
     uv_timer_set_repeat(&wrap->handle_, repeat);
@@ -138,7 +138,7 @@ class TimerWrap : public HandleWrap {
   static void GetRepeat(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.This());
+    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
     args.GetReturnValue().Set(static_cast<double>(repeat));

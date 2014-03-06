@@ -401,7 +401,7 @@ prototype:
       Isolate* isolate = Isolate::GetCurrent();
       HandleScope scope(isolate);
 
-      MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.This());
+      MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.Holder());
       obj->value_ += 1;
 
       args.GetReturnValue().Set(Number::New(isolate, obj->value_));
@@ -539,7 +539,7 @@ The implementation is similar to the above in `myobject.cc`:
       Isolate* isolate = Isolate::GetCurrent();
       HandleScope scope(isolate);
 
-      MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.This());
+      MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.Holder());
       obj->value_ += 1;
 
       args.GetReturnValue().Set(Number::New(isolate, obj->value_));

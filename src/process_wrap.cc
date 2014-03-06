@@ -134,7 +134,7 @@ class ProcessWrap : public HandleWrap {
     HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-    ProcessWrap* wrap = Unwrap<ProcessWrap>(args.This());
+    ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
 
     Local<Object> js_options = args[0]->ToObject();
 
@@ -256,7 +256,7 @@ class ProcessWrap : public HandleWrap {
   static void Kill(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
-    ProcessWrap* wrap = Unwrap<ProcessWrap>(args.This());
+    ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
 
     int signal = args[0]->Int32Value();
     int err = uv_process_kill(&wrap->process_, signal);

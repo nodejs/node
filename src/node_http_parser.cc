@@ -376,7 +376,7 @@ class Parser : public BaseObject {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
 
-    Parser* parser = Unwrap<Parser>(args.This());
+    Parser* parser = Unwrap<Parser>(args.Holder());
     assert(parser->current_buffer_.IsEmpty());
     assert(parser->current_buffer_len_ == 0);
     assert(parser->current_buffer_data_ == NULL);
@@ -431,7 +431,7 @@ class Parser : public BaseObject {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
 
-    Parser* parser = Unwrap<Parser>(args.This());
+    Parser* parser = Unwrap<Parser>(args.Holder());
 
     assert(parser->current_buffer_.IsEmpty());
     parser->got_exception_ = false;
@@ -463,7 +463,7 @@ class Parser : public BaseObject {
         static_cast<http_parser_type>(args[0]->Int32Value());
 
     assert(type == HTTP_REQUEST || type == HTTP_RESPONSE);
-    Parser* parser = Unwrap<Parser>(args.This());
+    Parser* parser = Unwrap<Parser>(args.Holder());
     // Should always be called from the same context.
     assert(env == parser->env());
     parser->Init(type);
@@ -474,7 +474,7 @@ class Parser : public BaseObject {
   static void Pause(const FunctionCallbackInfo<Value>& args) {
     HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
-    Parser* parser = Unwrap<Parser>(args.This());
+    Parser* parser = Unwrap<Parser>(args.Holder());
     // Should always be called from the same context.
     assert(env == parser->env());
     http_parser_pause(&parser->parser_, should_pause);

@@ -71,7 +71,7 @@ void StreamWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 #if !defined(_WIN32)
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
-  StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
   int fd = -1;
   if (wrap != NULL && wrap->stream() != NULL) {
     fd = wrap->stream()->io_watcher.fd;
@@ -92,7 +92,7 @@ void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
 
   int err = uv_read_start(wrap->stream(), OnAlloc, OnRead);
 
@@ -104,7 +104,7 @@ void StreamWrap::ReadStop(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
 
   int err = uv_read_stop(wrap->stream());
   args.GetReturnValue().Set(err);
@@ -192,7 +192,7 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
 
   assert(args[0]->IsObject());
   assert(Buffer::HasInstance(args[1]));
@@ -250,7 +250,7 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   int err;
 
-  StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
@@ -378,7 +378,7 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
 
   assert(args[0]->IsObject());
   assert(args[1]->IsArray());
@@ -501,7 +501,7 @@ void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
 
   assert(args.Length() > 0);
   int err = uv_stream_set_blocking(wrap->stream(), args[0]->IsTrue());
@@ -548,7 +548,7 @@ void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
 
   assert(args[0]->IsObject());
   Local<Object> req_wrap_obj = args[0].As<Object>();

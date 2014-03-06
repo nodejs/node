@@ -47,7 +47,7 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.This());
+  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
   if (wrap != NULL && wrap->handle__ != NULL) {
     uv_ref(wrap->handle__);
@@ -60,7 +60,7 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.This());
+  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
   if (wrap != NULL && wrap->handle__ != NULL) {
     uv_unref(wrap->handle__);
@@ -73,7 +73,7 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.This());
+  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
   // guard against uninitialized handle or double close
   if (wrap == NULL || wrap->handle__ == NULL)
