@@ -90,6 +90,7 @@ function doTest(testOptions, callback) {
       's_client',
       '-tls1',
       '-connect', 'localhost:' + common.PORT,
+      '-servername', 'ohgod',
       '-key', join(common.fixturesDir, 'agent.key'),
       '-cert', join(common.fixturesDir, 'agent.crt'),
       '-reconnect'
