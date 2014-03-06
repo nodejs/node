@@ -29,6 +29,7 @@ var constants = require('constants');
 
 try {
   var crypto = require('crypto');
+  var tls = require('tls');
 } catch (e) {
   console.log('Not compiled with OPENSSL support.');
   process.exit();
@@ -49,11 +50,13 @@ var rsaPubPem = fs.readFileSync(common.fixturesDir + '/test_rsa_pubkey.pem',
 var rsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_rsa_privkey.pem',
     'ascii');
 
+// TODO(indutny): Move to a separate test eventually
 try {
-  var credentials = crypto.createCredentials(
-                                             {key: keyPem,
-                                               cert: certPem,
-                                               ca: caPem});
+  var context = tls.createSecureContext({
+    key: keyPem,
+    cert: certPem,
+    ca: caPem
+  });
 } catch (e) {
   console.log('Not compiled with OPENSSL support.');
   process.exit();
@@ -61,19 +64,19 @@ try {
 
 // PFX tests
 assert.doesNotThrow(function() {
-  crypto.createCredentials({pfx:certPfx, passphrase:'sample'});
+  tls.createSecureContext({pfx:certPfx, passphrase:'sample'});
 });
 
 assert.throws(function() {
-  crypto.createCredentials({pfx:certPfx});
+  tls.createSecureContext({pfx:certPfx});
 }, 'mac verify failure');
 
 assert.throws(function() {
-  crypto.createCredentials({pfx:certPfx, passphrase:'test'});
+  tls.createSecureContext({pfx:certPfx, passphrase:'test'});
 }, 'mac verify failure');
 
 assert.throws(function() {
-  crypto.createCredentials({pfx:'sample', passphrase:'test'});
+  tls.createSecureContext({pfx:'sample', passphrase:'test'});
 }, 'not enough data');
 
 // Test HMAC

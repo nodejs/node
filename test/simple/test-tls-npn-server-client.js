@@ -28,8 +28,7 @@ if (!process.features.tls_npn) {
 var common = require('../common'),
     assert = require('assert'),
     fs = require('fs'),
-    tls = require('tls'),
-    crypto = require('crypto');
+    tls = require('tls');
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');
@@ -43,12 +42,12 @@ var serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   crl: loadPEM('ca2-crl'),
-  SNICallback: function() {
-    return crypto.createCredentials({
+  SNICallback: function(servername, cb) {
+    cb(null, tls.createSecureContext({
       key: loadPEM('agent2-key'),
       cert: loadPEM('agent2-cert'),
       crl: loadPEM('ca2-crl'),
-    }).context;
+    }));
   },
   NPNProtocols: ['a', 'b', 'c']
 };

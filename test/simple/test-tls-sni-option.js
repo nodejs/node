@@ -27,7 +27,6 @@ if (!process.features.tls_sni) {
 
 var common = require('../common'),
     assert = require('assert'),
-    crypto = require('crypto'),
     fs = require('fs'),
     tls = require('tls');
 
@@ -43,15 +42,15 @@ var serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   SNICallback: function(servername, callback) {
-    var credentials = SNIContexts[servername];
+    var context = SNIContexts[servername];
 
     // Just to test asynchronous callback
     setTimeout(function() {
-      if (credentials) {
-        if (credentials.emptyRegression)
+      if (context) {
+        if (context.emptyRegression)
           callback(null, {});
         else
-          callback(null, crypto.createCredentials(credentials).context);
+          callback(null, tls.createSecureContext(context));
       } else {
         callback(null, null);
       }

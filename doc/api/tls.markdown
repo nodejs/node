@@ -197,7 +197,7 @@ automatically set as a listener for the [secureConnection][] event.  The
     supports SNI TLS extension. Two argument will be passed to it: `servername`,
     and `cb`. `SNICallback` should invoke `cb(null, ctx)`, where `ctx` is a
     SecureContext instance.
-    (You can use `crypto.createCredentials(...).context` to get proper
+    (You can use `tls.createSecureContext(...)` to get proper
     SecureContext). If `SNICallback` wasn't provided - default callback with
     high-level API will be used (see below).
 
@@ -391,8 +391,8 @@ Construct a new TLSSocket object from existing TCP socket.
 
 `options` is an object that might contain following properties:
 
-  - `credentials`: An optional credentials object from
-     `crypto.createCredentials( ... )`
+  - `secureContext`: An optional TLS context object from
+     `tls.createSecureContext( ... )`
 
   - `isServer`: If true - TLS socket will be instantiated in server-mode
 
@@ -408,7 +408,7 @@ Construct a new TLSSocket object from existing TCP socket.
 
   - `session`: Optional, a `Buffer` instance, containing TLS session
 
-## tls.createSecurePair([credentials], [isServer], [requestCert], [rejectUnauthorized])
+## tls.createSecurePair([context], [isServer], [requestCert], [rejectUnauthorized])
 
     Stability: 0 - Deprecated. Use tls.TLSSocket instead.
 
@@ -417,7 +417,7 @@ encrypted data, and one reads/writes cleartext data.
 Generally the encrypted one is piped to/from an incoming encrypted data stream,
 and the cleartext one is used as a replacement for the initial encrypted stream.
 
- - `credentials`: A credentials object from crypto.createCredentials( ... )
+ - `credentials`: A secure context object from tls.createSecureContext( ... )
 
  - `isServer`: A boolean indicating whether this tls connection should be
    opened as a server or a client.
@@ -532,10 +532,10 @@ Returns the bound address, the address family name and port of the
 server as reported by the operating system.  See [net.Server.address()][] for
 more information.
 
-### server.addContext(hostname, credentials)
+### server.addContext(hostname, context)
 
 Add secure context that will be used if client request's SNI hostname is
-matching passed `hostname` (wildcards can be used). `credentials` can contain
+matching passed `hostname` (wildcards can be used). `context` can contain
 `key`, `cert` and `ca`.
 
 ### server.maxConnections

@@ -58,11 +58,13 @@ var dsaKeyPemEncrypted = fs.readFileSync(
   common.fixturesDir + '/test_dsa_privkey_encrypted.pem', 'ascii');
 
 
+// TODO(indunty): move to a separate test eventually
 try {
-  var credentials = crypto.createCredentials(
-                                             {key: keyPem,
-                                               cert: certPem,
-                                               ca: caPem});
+  var context = tls.createSecureContext({
+    key: keyPem,
+    cert: certPem,
+    ca: caPem
+  });
 } catch (e) {
   console.log('Not compiled with OPENSSL support.');
   process.exit();
@@ -70,19 +72,19 @@ try {
 
 // PFX tests
 assert.doesNotThrow(function() {
-  crypto.createCredentials({pfx:certPfx, passphrase:'sample'});
+  crypto.createSecureContext({pfx:certPfx, passphrase:'sample'});
 });
 
 assert.throws(function() {
-  crypto.createCredentials({pfx:certPfx});
+  tls.createSecureContext({pfx:certPfx});
 }, 'mac verify failure');
 
 assert.throws(function() {
-  crypto.createCredentials({pfx:certPfx, passphrase:'test'});
+  tls.createSecureContext({pfx:certPfx, passphrase:'test'});
 }, 'mac verify failure');
 
 assert.throws(function() {
-  crypto.createCredentials({pfx:'sample', passphrase:'test'});
+  tls.createSecureContext({pfx:'sample', passphrase:'test'});
 }, 'not enough data');
 
 // Test HMAC
