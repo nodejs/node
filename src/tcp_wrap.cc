@@ -161,7 +161,7 @@ void TCPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   struct sockaddr_storage address;
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
   assert(args[0]->IsObject());
   Local<Object> out = args[0].As<Object>();
@@ -184,7 +184,7 @@ void TCPWrap::GetPeerName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   struct sockaddr_storage address;
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
   assert(args[0]->IsObject());
   Local<Object> out = args[0].As<Object>();
@@ -206,7 +206,7 @@ void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
   int enable = static_cast<int>(args[0]->BooleanValue());
   int err = uv_tcp_nodelay(&wrap->handle_, enable);
@@ -218,7 +218,7 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
   int enable = args[0]->Int32Value();
   unsigned int delay = args[1]->Uint32Value();
@@ -233,7 +233,7 @@ void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
   bool enable = args[0]->BooleanValue();
   int err = uv_tcp_simultaneous_accepts(&wrap->handle_, enable);
@@ -245,7 +245,7 @@ void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
 void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
   int fd = args[0]->IntegerValue();
   uv_tcp_open(&wrap->handle_, fd);
 }
@@ -255,7 +255,7 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
   String::Utf8Value ip_address(args[0]);
   int port = args[1]->Int32Value();
@@ -276,7 +276,7 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
   String::Utf8Value ip6_address(args[0]);
   int port = args[1]->Int32Value();
@@ -297,7 +297,7 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
   int backlog = args[0]->Int32Value();
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
@@ -374,7 +374,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
@@ -408,7 +408,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
+  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());

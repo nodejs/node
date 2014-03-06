@@ -146,7 +146,7 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  PipeWrap* wrap = Unwrap<PipeWrap>(args.This());
+  PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
 
   String::Utf8Value name(args[0]);
   int err = uv_pipe_bind(&wrap->handle_, *name);
@@ -159,7 +159,7 @@ void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  PipeWrap* wrap = Unwrap<PipeWrap>(args.This());
+  PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
 
   int instances = args[0]->Int32Value();
 
@@ -172,7 +172,7 @@ void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  PipeWrap* wrap = Unwrap<PipeWrap>(args.This());
+  PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
 
   int backlog = args[0]->Int32Value();
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
@@ -261,7 +261,7 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  PipeWrap* wrap = Unwrap<PipeWrap>(args.This());
+  PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
 
   int fd = args[0]->Int32Value();
 
@@ -276,7 +276,7 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  PipeWrap* wrap = Unwrap<PipeWrap>(args.This());
+  PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());

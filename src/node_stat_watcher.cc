@@ -112,7 +112,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  StatWatcher* wrap = Unwrap<StatWatcher>(args.This());
+  StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
   String::Utf8Value path(args[0]);
   const bool persistent = args[1]->BooleanValue();
   const uint32_t interval = args[2]->Uint32Value();
@@ -125,7 +125,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
 
 
 void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
-  StatWatcher* wrap = Unwrap<StatWatcher>(args.This());
+  StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
   Environment* env = wrap->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());

@@ -243,7 +243,7 @@ void TLSCallbacks::Wrap(const FunctionCallbackInfo<Value>& args) {
 void TLSCallbacks::Receive(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
 
-  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.This());
+  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
   CHECK(Buffer::HasInstance(args[0]));
   char* data = Buffer::Data(args[0]);
@@ -269,7 +269,7 @@ void TLSCallbacks::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.This());
+  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
   if (wrap->started_)
     return env->ThrowError("Already started.");
@@ -673,7 +673,7 @@ void TLSCallbacks::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.This());
+  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
   if (args.Length() < 2 || !args[0]->IsBoolean() || !args[1]->IsBoolean())
     return env->ThrowTypeError("Bad arguments, expected two booleans");
@@ -705,7 +705,7 @@ void TLSCallbacks::EnableSessionCallbacks(
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.This());
+  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
   wrap->enable_session_callbacks();
   EnableHelloParser(args);
@@ -716,7 +716,7 @@ void TLSCallbacks::EnableHelloParser(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.This());
+  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
   wrap->hello_parser_.Start(SSLWrap<TLSCallbacks>::OnClientHello,
                             OnClientHelloParseEnd,
@@ -735,7 +735,7 @@ void TLSCallbacks::GetServername(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.This());
+  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
   const char* servername = SSL_get_servername(wrap->ssl_,
                                               TLSEXT_NAMETYPE_host_name);
@@ -751,7 +751,7 @@ void TLSCallbacks::SetServername(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.This());
+  TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
   if (args.Length() < 1 || !args[0]->IsString())
     return env->ThrowTypeError("First argument should be a string");

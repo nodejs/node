@@ -106,7 +106,7 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.This());
+  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return env->ThrowTypeError("Bad arguments");
@@ -189,7 +189,7 @@ void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.This());
+  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 
   if (wrap == NULL || wrap->initialized_ == false)
     return;

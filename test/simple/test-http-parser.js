@@ -556,3 +556,15 @@ function expectBody(expected) {
   parser[kOnHeadersComplete] = onHeadersComplete2;
   parser.execute(req2, 0, req2.length);
 })();
+
+// Test parser 'this' safety
+// https://github.com/joyent/node/issues/6690
+assert.throws(function() {
+  var request = Buffer(
+      'GET /hello HTTP/1.1' + CRLF +
+      CRLF);
+
+  var parser = newParser(REQUEST);
+  var notparser = { execute: parser.execute };
+  notparser.execute(request, 0, request.length);
+}, TypeError);

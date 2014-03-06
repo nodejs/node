@@ -130,7 +130,7 @@ class ZCtx : public AsyncWrap {
   static void Close(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
-    ZCtx* ctx = Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
     ctx->Close();
   }
 
@@ -142,7 +142,7 @@ class ZCtx : public AsyncWrap {
     HandleScope scope(env->isolate());
     assert(args.Length() == 7);
 
-    ZCtx* ctx = Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
     assert(ctx->init_done_ && "write before init");
     assert(ctx->mode_ != NONE && "already finalized");
 
@@ -393,7 +393,7 @@ class ZCtx : public AsyncWrap {
     assert((args.Length() == 4 || args.Length() == 5) &&
            "init(windowBits, level, memLevel, strategy, [dictionary])");
 
-    ZCtx* ctx = Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
 
     int windowBits = args[0]->Uint32Value();
     assert((windowBits >= 8 && windowBits <= 15) && "invalid windowBits");
@@ -433,7 +433,7 @@ class ZCtx : public AsyncWrap {
 
     assert(args.Length() == 2 && "params(level, strategy)");
 
-    ZCtx* ctx = Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
 
     Params(ctx, args[0]->Int32Value(), args[1]->Int32Value());
   }
@@ -442,7 +442,7 @@ class ZCtx : public AsyncWrap {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
 
-    ZCtx* ctx = Unwrap<ZCtx>(args.This());
+    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
 
     Reset(ctx);
     SetDictionary(ctx);
