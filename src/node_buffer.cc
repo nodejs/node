@@ -607,6 +607,27 @@ void ByteLength(const FunctionCallbackInfo<Value> &args) {
 }
 
 
+void Compare(const FunctionCallbackInfo<Value> &args) {
+  Local<Object> obj_a = args[0].As<Object>();
+  char* obj_a_data =
+      static_cast<char*>(obj_a->GetIndexedPropertiesExternalArrayData());
+  size_t obj_a_len = obj_a->GetIndexedPropertiesExternalArrayDataLength();
+
+  Local<Object> obj_b = args[1].As<Object>();
+  char* obj_b_data =
+      static_cast<char*>(obj_b->GetIndexedPropertiesExternalArrayData());
+  size_t obj_b_len = obj_b->GetIndexedPropertiesExternalArrayDataLength();
+
+  size_t cmp_length = MIN(obj_a_len, obj_b_len);
+
+  int32_t val = memcmp(obj_a_data, obj_b_data, cmp_length);
+  if (!val)
+    val = obj_a_len - obj_b_len;
+
+  args.GetReturnValue().Set(val);
+}
+
+
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
@@ -663,6 +684,9 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   internal->Set(env->byte_length_string(),
                 FunctionTemplate::New(
                     env->isolate(), ByteLength)->GetFunction());
+  internal->Set(env->compare_string(),
+                FunctionTemplate::New(
+                    env->isolate(), Compare)->GetFunction());
 }
 
 

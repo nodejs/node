@@ -115,6 +115,18 @@ If totalLength is not provided, it is read from the buffers in the list.
 However, this adds an additional loop to the function, so it is faster
 to provide the length explicitly.
 
+### Class Method: Buffer.compare(buf1, buf2)
+
+* `buf1` {Buffer}
+* `buf2` {Buffer}
+
+The same as [`buf1.compare(buf2)`](#buffer_buf_compare_otherbuffer). Useful
+for sorting an Array of Buffers:
+
+    var arr = [Buffer('1234'), Buffer('0123')];
+    arr.sort(Buffer.compare);
+
+
 ### buf.length
 
 * Number
@@ -206,6 +218,21 @@ Example: copy an ASCII string into a buffer, one byte at a time:
     console.log(buf);
 
     // node.js
+
+### buf.equals(otherBuffer)
+
+* `otherBuffer` {Buffer}
+
+Returns a boolean of whether `this` and `otherBuffer` have the same
+bytes.
+
+### buf.compare(otherBuffer)
+
+* `otherBuffer` {Buffer}
+
+Returns a number indicating whether `this` comes before or after or is
+the same as the `otherBuffer` in sort order.
+
 
 ### buf.copy(targetBuffer, [targetStart], [sourceStart], [sourceEnd])
 

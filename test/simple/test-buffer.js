@@ -1037,3 +1037,48 @@ assert.equal(
   crypto.createHash('sha1').update(b1).digest('hex'),
   crypto.createHash('sha1').update(b2).digest('hex')
 );
+
+// Test Compare
+var b = new Buffer(1).fill('a');
+var c = new Buffer(1).fill('c');
+var d = new Buffer(2).fill('aa');
+
+assert.equal(b.compare(c), -2);
+assert.equal(c.compare(d), 2);
+assert.equal(d.compare(b), 1);
+assert.equal(b.compare(d), -1);
+
+assert.equal(Buffer.compare(b, c), 2);
+assert.equal(Buffer.compare(c, d), -2);
+assert.equal(Buffer.compare(d, b), -1);
+assert.equal(Buffer.compare(b, d), 1);
+
+assert.throws(function() {
+  var b = new Buffer(1);
+  Buffer.compare(b, 'abc');
+});
+
+assert.throws(function() {
+  var b = new Buffer(1);
+  Buffer.compare('abc', b);
+});
+
+assert.throws(function() {
+  var b = new Buffer(1);
+  b.compare('abc');
+});
+
+// Test Equals
+var b = new Buffer(5).fill('abcdf');
+var c = new Buffer(5).fill('abcdf');
+var d = new Buffer(5).fill('abcde');
+var e = new Buffer(6).fill('abcdef');
+
+assert.ok(b.equals(c));
+assert.ok(!c.equals(d));
+assert.ok(!d.equals(e));
+
+assert.throws(function() {
+  var b = new Buffer(1);
+  b.equals('abc');
+});

@@ -69,6 +69,7 @@ namespace node {
   V(change_string, "change")                                                  \
   V(close_string, "close")                                                    \
   V(code_string, "code")                                                      \
+  V(compare_string, "compare")                                                \
   V(ctime_string, "ctime")                                                    \
   V(cwd_string, "cwd")                                                        \
   V(debug_port_string, "debugPort")                                           \
