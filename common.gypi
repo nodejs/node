@@ -1,5 +1,6 @@
 {
   'variables': {
+    'werror': '',                    # Turn off -Werror in V8 build.
     'visibility%': 'hidden',         # V8's visibility setting
     'target_arch%': 'ia32',          # set v8's target architecture
     'host_arch%': 'ia32',            # set v8's host architecture
