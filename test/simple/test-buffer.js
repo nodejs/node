@@ -24,6 +24,7 @@ var assert = require('assert');
 
 var Buffer = require('buffer').Buffer;
 var SlowBuffer = require('buffer').SlowBuffer;
+var smalloc = require('smalloc');
 
 // counter to ensure unique value is always copied
 var cntr = 0;
@@ -993,3 +994,12 @@ for (var i = 0; i < 5; i++)
 b.fill('ghijk');
 for (var i = 0; i < 5; i++)
   assert.notEqual(d[i], b[i]);
+
+
+assert.throws(function () {
+  new Buffer(smalloc.kMaxLength + 1);
+}, RangeError);
+
+assert.throws(function () {
+  new SlowBuffer(smalloc.kMaxLength + 1);
+}, RangeError);
