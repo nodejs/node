@@ -206,6 +206,32 @@ FakeInput.prototype.end = function() {};
   assert.equal(callCount, 1);
   rli.close();
 
+  if (terminal) {
+    // question
+    fi = new FakeInput();
+    rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+    expectedLines = ['foo'];
+    rli.question(expectedLines[0], function() {
+      rli.close();
+    });
+    var cursorPos = rli._getCursorPos();
+    assert.equal(cursorPos.rows, 0);
+    assert.equal(cursorPos.cols, expectedLines[0].length);
+    rli.close();
+
+    // sending a multi-line question
+    fi = new FakeInput();
+    rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+    expectedLines = ['foo', 'bar'];
+    rli.question(expectedLines.join('\n'), function() {
+      rli.close();
+    });
+    var cursorPos = rli._getCursorPos();
+    assert.equal(cursorPos.rows, expectedLines.length - 1);
+    assert.equal(cursorPos.cols, expectedLines.slice(-1)[0].length);
+    rli.close();
+  }
+
   // wide characters should be treated as two columns.
   assert.equal(readline.isFullWidthCodePoint('a'.charCodeAt(0)), false);
   assert.equal(readline.isFullWidthCodePoint('あ'.charCodeAt(0)), true);
