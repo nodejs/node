@@ -49,3 +49,10 @@ expected = '<Buffer 31 32>';
 
 assert.strictEqual(util.inspect(b), expected);
 assert.strictEqual(util.inspect(s), expected);
+
+buffer.INSPECT_MAX_BYTES = Infinity;
+
+assert.doesNotThrow(function() {
+  assert.strictEqual(util.inspect(b), expected);
+  assert.strictEqual(util.inspect(s), expected);
+});
