@@ -325,7 +325,7 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 #ifdef _WIN32
 # define NODE_MODULE_EXPORT __declspec(dllexport)
 #else
-# define NODE_MODULE_EXPORT /* empty */
+# define NODE_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 
 #if defined(_MSC_VER)
