@@ -867,6 +867,8 @@ assert.notEqual(-1, crypto.getHashes().indexOf('sha1'));
 assert.notEqual(-1, crypto.getHashes().indexOf('sha'));
 assert.equal(-1, crypto.getHashes().indexOf('SHA1'));
 assert.equal(-1, crypto.getHashes().indexOf('SHA'));
+assert.notEqual(-1, crypto.getHashes().indexOf('RSA-SHA1'));
+assert.equal(-1, crypto.getHashes().indexOf('rsa-sha1'));
 assertSorted(crypto.getHashes());
 
 // Base64 padding regression test, see #4837.
