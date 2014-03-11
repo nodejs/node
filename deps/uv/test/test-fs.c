@@ -1465,8 +1465,10 @@ TEST_IMPL(fs_symlink_dir) {
 #ifdef _WIN32
   {
     static char src_path_buf[PATHMAX];
+    size_t size;
+    size = sizeof(src_path_buf);
     strcpy(src_path_buf, "\\\\?\\");
-    uv_cwd(src_path_buf + 4, sizeof(src_path_buf));
+    uv_cwd(src_path_buf + 4, &size);
     strcat(src_path_buf, "\\test_dir\\");
     test_dir = src_path_buf;
   }

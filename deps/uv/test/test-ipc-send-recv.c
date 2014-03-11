@@ -60,15 +60,20 @@ static void alloc_cb(uv_handle_t* handle,
 }
 
 
-static void recv_cb(uv_pipe_t* handle,
+static void recv_cb(uv_stream_t* handle,
                     ssize_t nread,
-                    const uv_buf_t* buf,
-                    uv_handle_type pending) {
+                    const uv_buf_t* buf) {
+  uv_handle_type pending;
+  uv_pipe_t* pipe;
   int r;
 
-  ASSERT(pending == ctx.expected_type);
-  ASSERT(handle == &ctx.channel);
+  pipe = (uv_pipe_t*) handle;
+  ASSERT(pipe == &ctx.channel);
   ASSERT(nread >= 0);
+  ASSERT(1 == uv_pipe_pending_count(pipe));
+
+  pending = uv_pipe_pending_type(pipe);
+  ASSERT(pending == ctx.expected_type);
 
   if (pending == UV_NAMED_PIPE)
     r = uv_pipe_init(ctx.channel.loop, &ctx.recv.pipe, 0);
@@ -78,7 +83,7 @@ static void recv_cb(uv_pipe_t* handle,
     abort();
   ASSERT(r == 0);
 
-  r = uv_accept((uv_stream_t*)&ctx.channel, &ctx.recv.stream);
+  r = uv_accept(handle, &ctx.recv.stream);
   ASSERT(r == 0);
 
   uv_close((uv_handle_t*)&ctx.channel, NULL);
@@ -103,7 +108,7 @@ static int run_test(void) {
                 NULL);
   ASSERT(r == 0);
 
-  r = uv_read2_start((uv_stream_t*)&ctx.channel, alloc_cb, recv_cb);
+  r = uv_read_start((uv_stream_t*)&ctx.channel, alloc_cb, recv_cb);
   ASSERT(r == 0);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
@@ -165,16 +170,21 @@ static void write2_cb(uv_write_t* req, int status) {
 }
 
 
-static void read2_cb(uv_pipe_t* handle,
-                     ssize_t nread,
-                     const uv_buf_t* rdbuf,
-                     uv_handle_type pending) {
+static void read_cb(uv_stream_t* handle,
+                    ssize_t nread,
+                    const uv_buf_t* rdbuf) {
   uv_buf_t wrbuf;
+  uv_pipe_t* pipe;
+  uv_handle_type pending;
   int r;
 
-  ASSERT(pending == UV_NAMED_PIPE || pending == UV_TCP);
-  ASSERT(handle == &ctx.channel);
+  pipe = (uv_pipe_t*) handle;
+  ASSERT(pipe == &ctx.channel);
   ASSERT(nread >= 0);
+  ASSERT(1 == uv_pipe_pending_count(pipe));
+
+  pending = uv_pipe_pending_type(pipe);
+  ASSERT(pending == UV_NAMED_PIPE || pending == UV_TCP);
 
   wrbuf = uv_buf_init(".", 1);
 
@@ -186,7 +196,7 @@ static void read2_cb(uv_pipe_t* handle,
     abort();
   ASSERT(r == 0);
 
-  r = uv_accept((uv_stream_t*)handle, &ctx.recv.stream);
+  r = uv_accept(handle, &ctx.recv.stream);
   ASSERT(r == 0);
 
   r = uv_write2(&ctx.write_req,
@@ -215,7 +225,7 @@ int ipc_send_recv_helper(void) {
   ASSERT(1 == uv_is_writable((uv_stream_t*)&ctx.channel));
   ASSERT(0 == uv_is_closing((uv_handle_t*)&ctx.channel));
 
-  r = uv_read2_start((uv_stream_t*)&ctx.channel, alloc_cb, read2_cb);
+  r = uv_read_start((uv_stream_t*)&ctx.channel, alloc_cb, read_cb);
   ASSERT(r == 0);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);

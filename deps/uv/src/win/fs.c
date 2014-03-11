@@ -97,8 +97,10 @@
 
 #define TIME_T_TO_FILETIME(time, filetime_ptr)                              \
   do {                                                                      \
-    *(uint64_t*) (filetime_ptr) = ((int64_t) (time) * 10000000LL) +         \
+    uint64_t bigtime = ((int64_t) (time) * 10000000LL) +                    \
                                   116444736000000000ULL;                    \
+    (filetime_ptr)->dwLowDateTime = bigtime & 0xFFFFFFFF;                   \
+    (filetime_ptr)->dwHighDateTime = bigtime >> 32;                         \
   } while(0)
 
 #define IS_SLASH(c) ((c) == L'\\' || (c) == L'/')
@@ -121,7 +123,7 @@ INLINE static int fs__capture_path(uv_loop_t* loop, uv_fs_t* req,
     const char* path, const char* new_path, const int copy_path) {
   char* buf;
   char* pos;
-  ssize_t buf_sz = 0, path_len, pathw_len, new_pathw_len;
+  ssize_t buf_sz = 0, path_len, pathw_len = 0, new_pathw_len = 0;
 
   /* new_path can only be set if path is also set. */
   assert(new_path == NULL || path != NULL);
@@ -181,7 +183,7 @@ INLINE static int fs__capture_path(uv_loop_t* loop, uv_fs_t* req,
                                   -1,
                                   (WCHAR*) pos,
                                   pathw_len);
-    assert(r == pathw_len);
+    assert(r == (DWORD) pathw_len);
     req->pathw = (WCHAR*) pos;
     pos += r * sizeof(WCHAR);
   } else {
@@ -195,7 +197,7 @@ INLINE static int fs__capture_path(uv_loop_t* loop, uv_fs_t* req,
                                   -1,
                                   (WCHAR*) pos,
                                   new_pathw_len);
-    assert(r == new_pathw_len);
+    assert(r == (DWORD) new_pathw_len);
     req->new_pathw = (WCHAR*) pos;
     pos += r * sizeof(WCHAR);
   } else {
@@ -861,9 +863,13 @@ INLINE static int fs__stat_handle(HANDLE handle, uv_stat_t* statbuf) {
                                             FileFsVolumeInformation);
 
   /* Buffer overflow (a warning status code) is expected here. */
-  if (NT_ERROR(nt_status)) {
+  if (io_status.Status == STATUS_NOT_IMPLEMENTED) {
+    statbuf->st_dev = 0;
+  } else if (NT_ERROR(nt_status)) {
     SetLastError(pRtlNtStatusToDosError(nt_status));
     return -1;
+  } else {
+    statbuf->st_dev = volume_info.VolumeSerialNumber;
   }
 
   /* Todo: st_mode should probably always be 0666 for everyone. We might also
@@ -919,8 +925,6 @@ INLINE static int fs__stat_handle(HANDLE handle, uv_stat_t* statbuf) {
       file_info.StandardInformation.AllocationSize.QuadPart >> 9ULL;
 
   statbuf->st_nlink = file_info.StandardInformation.NumberOfLinks;
-
-  statbuf->st_dev = volume_info.VolumeSerialNumber;
 
   /* The st_blksize is supposed to be the 'optimal' number of bytes for reading
    * and writing to the disk. That is, for any definition of 'optimal' - it's

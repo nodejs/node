@@ -30,7 +30,7 @@ static uv_tcp_t tcp_server;
 static uv_tcp_t tcp_connection;
 
 static int exit_cb_called;
-static int read2_cb_called;
+static int read_cb_called;
 static int tcp_write_cb_called;
 static int tcp_read_cb_called;
 static int on_pipe_read_called;
@@ -138,12 +138,15 @@ static void make_many_connections(void) {
 }
 
 
-static void on_read(uv_pipe_t* pipe,
+static void on_read(uv_stream_t* handle,
                     ssize_t nread,
-                    const uv_buf_t* buf,
-                    uv_handle_type pending) {
+                    const uv_buf_t* buf) {
   int r;
+  uv_pipe_t* pipe;
+  uv_handle_type pending;
   uv_buf_t outbuf;
+
+  pipe = (uv_pipe_t*) handle;
 
   if (nread == 0) {
     /* Everything OK, but nothing read. */
@@ -163,9 +166,11 @@ static void on_read(uv_pipe_t* pipe,
 
   fprintf(stderr, "got %d bytes\n", (int)nread);
 
+  pending = uv_pipe_pending_type(pipe);
   if (!tcp_server_listening) {
+    ASSERT(1 == uv_pipe_pending_count(pipe));
     ASSERT(nread > 0 && buf->base && pending != UV_UNKNOWN_HANDLE);
-    read2_cb_called++;
+    read_cb_called++;
 
     /* Accept the pending TCP server, and start listening on it. */
     ASSERT(pending == UV_TCP);
@@ -191,6 +196,7 @@ static void on_read(uv_pipe_t* pipe,
     make_many_connections();
   } else if (memcmp("accepted_connection\n", buf->base, nread) == 0) {
     /* Remote server has accepted a connection.  Close the channel. */
+    ASSERT(0 == uv_pipe_pending_count(pipe));
     ASSERT(pending == UV_UNKNOWN_HANDLE);
     remote_conn_accepted = 1;
     uv_close((uv_handle_t*)&channel, NULL);
@@ -267,13 +273,15 @@ static void on_tcp_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
 }
 
 
-static void on_read_connection(uv_pipe_t* pipe,
+static void on_read_connection(uv_stream_t* handle,
                                ssize_t nread,
-                               const uv_buf_t* buf,
-                               uv_handle_type pending) {
+                               const uv_buf_t* buf) {
   int r;
   uv_buf_t outbuf;
+  uv_pipe_t* pipe;
+  uv_handle_type pending;
 
+  pipe = (uv_pipe_t*) handle;
   if (nread == 0) {
     /* Everything OK, but nothing read. */
     free(buf->base);
@@ -292,15 +300,18 @@ static void on_read_connection(uv_pipe_t* pipe,
 
   fprintf(stderr, "got %d bytes\n", (int)nread);
 
+  ASSERT(1 == uv_pipe_pending_count(pipe));
+  pending = uv_pipe_pending_type(pipe);
+
   ASSERT(nread > 0 && buf->base && pending != UV_UNKNOWN_HANDLE);
-  read2_cb_called++;
+  read_cb_called++;
 
   /* Accept the pending TCP connection */
   ASSERT(pending == UV_TCP);
   r = uv_tcp_init(uv_default_loop(), &tcp_connection);
   ASSERT(r == 0);
 
-  r = uv_accept((uv_stream_t*)pipe, (uv_stream_t*)&tcp_connection);
+  r = uv_accept(handle, (uv_stream_t*)&tcp_connection);
   ASSERT(r == 0);
 
   /* Make sure that the expected data is correctly multiplexed. */
@@ -319,12 +330,12 @@ static void on_read_connection(uv_pipe_t* pipe,
 }
 
 
-static int run_ipc_test(const char* helper, uv_read2_cb read_cb) {
+static int run_ipc_test(const char* helper, uv_read_cb read_cb) {
   uv_process_t process;
   int r;
 
   spawn_helper(&channel, &process, helper);
-  uv_read2_start((uv_stream_t*)&channel, on_alloc, read_cb);
+  uv_read_start((uv_stream_t*)&channel, on_alloc, read_cb);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
@@ -338,7 +349,7 @@ TEST_IMPL(ipc_listen_before_write) {
   int r = run_ipc_test("ipc_helper_listen_before_write", on_read);
   ASSERT(local_conn_accepted == 1);
   ASSERT(remote_conn_accepted == 1);
-  ASSERT(read2_cb_called == 1);
+  ASSERT(read_cb_called == 1);
   ASSERT(exit_cb_called == 1);
   return r;
 }
@@ -348,7 +359,7 @@ TEST_IMPL(ipc_listen_after_write) {
   int r = run_ipc_test("ipc_helper_listen_after_write", on_read);
   ASSERT(local_conn_accepted == 1);
   ASSERT(remote_conn_accepted == 1);
-  ASSERT(read2_cb_called == 1);
+  ASSERT(read_cb_called == 1);
   ASSERT(exit_cb_called == 1);
   return r;
 }
@@ -356,7 +367,7 @@ TEST_IMPL(ipc_listen_after_write) {
 
 TEST_IMPL(ipc_tcp_connection) {
   int r = run_ipc_test("ipc_helper_tcp_connection", on_read_connection);
-  ASSERT(read2_cb_called == 1);
+  ASSERT(read_cb_called == 1);
   ASSERT(tcp_write_cb_called == 1);
   ASSERT(tcp_read_cb_called == 1);
   ASSERT(exit_cb_called == 1);

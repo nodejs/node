@@ -70,11 +70,13 @@ static int uv__crt_dbg_report_handler(int report_type, char *message, int *ret_v
 #endif
 
 
+#if !defined(__MINGW32__) || __MSVCRT_VERSION__ >= 0x800
 static void uv__crt_invalid_parameter_handler(const wchar_t* expression,
     const wchar_t* function, const wchar_t * file, unsigned int line,
     uintptr_t reserved) {
   /* No-op. */
 }
+#endif
 
 
 static void uv_init(void) {
@@ -192,7 +194,7 @@ int uv_loop_close(uv_loop_t* loop) {
       return UV_EBUSY;
   }
   if (loop != &uv_default_loop_) {
-    int i;
+    size_t i;
     for (i = 0; i < ARRAY_SIZE(loop->poll_peer_sockets); i++) {
       SOCKET sock = loop->poll_peer_sockets[i];
       if (sock != 0 && sock != INVALID_SOCKET)

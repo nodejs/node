@@ -85,6 +85,7 @@ static void uv__fast_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
     handle->mask_events_2 = 0;
   } else {
     assert(0);
+    return;
   }
 
   /* Setting Exclusive to TRUE makes the other poll request return if there */
@@ -119,7 +120,7 @@ static void uv__fast_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
 
 static int uv__fast_poll_cancel_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
   AFD_POLL_INFO afd_poll_info;
-  DWORD result;
+  int result;
 
   afd_poll_info.Exclusive = TRUE;
   afd_poll_info.NumberOfHandles = 1;
@@ -158,6 +159,7 @@ static void uv__fast_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
     mask_events = handle->mask_events_2;
   } else {
     assert(0);
+    return;
   }
 
   /* Report an error unless the select was just interrupted. */
@@ -281,7 +283,7 @@ static SOCKET uv__fast_poll_get_peer_socket(uv_loop_t* loop,
   SOCKET peer_socket;
 
   index = -1;
-  for (i = 0; i < ARRAY_SIZE(uv_msafd_provider_ids); i++) {
+  for (i = 0; (size_t) i < ARRAY_SIZE(uv_msafd_provider_ids); i++) {
     if (memcmp((void*) &protocol_info->ProviderId,
                (void*) &uv_msafd_provider_ids[i],
                sizeof protocol_info->ProviderId) == 0) {
@@ -392,6 +394,7 @@ static void uv__slow_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
     handle->mask_events_2 = 0;
   } else {
     assert(0);
+    return;
   }
 
   if (!QueueUserWorkItem(uv__slow_poll_thread_proc,
@@ -418,6 +421,7 @@ static void uv__slow_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
     mask_events = handle->mask_events_2;
   } else {
     assert(0);
+    return;
   }
 
   if (!REQ_SUCCESS(req)) {

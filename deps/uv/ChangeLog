@@ -1,4 +1,41 @@
-2014.02.28, Version 0.11.21 (Unstable)
+2014.03.11, Version 0.11.22 (Unstable)
+
+Changes since version 0.11.21:
+
+* unix, windows: map ERANGE errno (Saúl Ibarra Corretgé)
+
+* unix, windows: make uv_cwd be consistent with uv_exepath (Saúl Ibarra
+  Corretgé)
+
+* process: remove debug perror() prints (Fedor Indutny)
+
+* windows: fall back for volume info query (Isaiah Norton)
+
+* pipe: allow queueing pending handles (Fedor Indutny)
+
+* windows: fix winsock status codes for address errors (Raul Martins)
+
+* windows: Remove unused variable from uv__pipe_insert_pending_socket (David
+  Capello)
+
+* unix: workaround broken pthread_sigmask on Android (Paul Tan)
+
+* error: add ENXIO for O_NONBLOCK FIFO open() (Fedor Indutny)
+
+* freebsd: use accept4, introduced in version 10 (Saúl Ibarra Corretgé)
+
+* windows: fix warnings of MinGW -Wall -O3 (StarWing)
+
+* openbsd, osx: fix compilation warning on scandir (Saúl Ibarra Corretgé)
+
+* linux: always deregister closing fds from epoll (Geoffry Song)
+
+* unix: reopen tty as /dev/tty (Saúl Ibarra Corretgé)
+
+* kqueue: invalidate fd in uv_fs_event_t (Fedor Indutny)
+
+
+2014.02.28, Version 0.11.21 (Unstable), 3ef958158ae1019e027ebaa93114160099db5206
 
 Changes since version 0.11.20:
 
@@ -89,6 +126,14 @@ Changes since version 0.11.18:
 
 * linux: fix C99/C++ comment (Fedor Indutny)
 
+
+2014.02.19, Version 0.10.25 (Stable), d778dc588507588b12b9f9d2905078db542ed751
+
+Changes since version 0.10.24:
+
+* stream: start thread after assignments (Oguz Bastemur)
+
+* unix: correct error when calling uv_shutdown twice (Saúl Ibarra Corretgé)
 
 2014.01.30, Version 0.10.24 (Stable), aecd296b6bce9b40f06a61c5c94e43d45ac7308a
 

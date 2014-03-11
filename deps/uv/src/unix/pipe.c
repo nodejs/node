@@ -246,3 +246,31 @@ int uv_pipe_getsockname(const uv_pipe_t* handle, char* buf, size_t* len) {
 
 void uv_pipe_pending_instances(uv_pipe_t* handle, int count) {
 }
+
+
+int uv_pipe_pending_count(uv_pipe_t* handle) {
+  uv__stream_queued_fds_t* queued_fds;
+
+  if (!handle->ipc)
+    return 0;
+
+  if (handle->accepted_fd == -1)
+    return 0;
+
+  if (handle->queued_fds == NULL)
+    return 1;
+
+  queued_fds = handle->queued_fds;
+  return queued_fds->offset + 1;
+}
+
+
+uv_handle_type uv_pipe_pending_type(uv_pipe_t* handle) {
+  if (!handle->ipc)
+    return UV_UNKNOWN_HANDLE;
+
+  if (handle->accepted_fd == -1)
+    return UV_UNKNOWN_HANDLE;
+  else
+    return uv__handle_type(handle->accepted_fd);
+}

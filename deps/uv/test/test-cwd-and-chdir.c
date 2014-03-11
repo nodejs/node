@@ -33,8 +33,8 @@ TEST_IMPL(cwd_and_chdir) {
   char* last_slash;
   int err;
 
-  size = sizeof(buffer_orig) / sizeof(buffer_orig[0]);
-  err = uv_cwd(buffer_orig, size);
+  size = sizeof(buffer_orig);
+  err = uv_cwd(buffer_orig, &size);
   ASSERT(err == 0);
 
   /* Remove trailing slash unless at a root directory. */
@@ -55,7 +55,7 @@ TEST_IMPL(cwd_and_chdir) {
   err = uv_chdir(buffer_orig);
   ASSERT(err == 0);
 
-  err = uv_cwd(buffer_new, size);
+  err = uv_cwd(buffer_new, &size);
   ASSERT(err == 0);
 
   ASSERT(strcmp(buffer_orig, buffer_new) == 0);

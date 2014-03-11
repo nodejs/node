@@ -29,6 +29,29 @@
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/* Android versions < 4.1 have a broken pthread_sigmask.
+ * Note that this block of code must come before any inclusion of
+ * pthread-fixes.h so that the real pthread_sigmask can be referenced.
+ * */
+#include <errno.h>
+#include <pthread.h>
+
+int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset) {
+  static int workaround;
+
+  if (workaround) {
+    return sigprocmask(how, set, oset);
+  } else if (pthread_sigmask(how, set, oset)) {
+    if (errno == EINVAL && sigprocmask(how, set, oset) == 0) {
+      workaround = 1;
+      return 0;
+    } else {
+      return -1;
+    }
+  } else {
+    return 0;
+  }
+}
 
 /*Android doesn't provide pthread_barrier_t for now.*/
 #ifndef PTHREAD_BARRIER_SERIAL_THREAD

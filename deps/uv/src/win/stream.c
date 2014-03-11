@@ -96,31 +96,6 @@ int uv_read_start(uv_stream_t* handle, uv_alloc_cb alloc_cb,
 }
 
 
-int uv_read2_start(uv_stream_t* handle, uv_alloc_cb alloc_cb,
-    uv_read2_cb read_cb) {
-  int err;
-
-  if (handle->flags & UV_HANDLE_READING) {
-    return UV_EALREADY;
-  }
-
-  if (!(handle->flags & UV_HANDLE_READABLE)) {
-    return UV_ENOTCONN;
-  }
-
-  err = ERROR_INVALID_PARAMETER;
-  switch (handle->type) {
-    case UV_NAMED_PIPE:
-      err = uv_pipe_read2_start((uv_pipe_t*)handle, alloc_cb, read_cb);
-      break;
-    default:
-      assert(0);
-  }
-
-  return uv_translate_sys_error(err);
-}
-
-
 int uv_read_stop(uv_stream_t* handle) {
   int err;
 

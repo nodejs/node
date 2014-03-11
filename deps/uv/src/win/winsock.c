@@ -40,7 +40,8 @@ struct sockaddr_in6 uv_addr_ip6_any_;
  */
 static BOOL uv_get_extension_function(SOCKET socket, GUID guid,
     void **target) {
-  DWORD result, bytes;
+  int result;
+  DWORD bytes;
 
   result = WSAIoctl(socket,
                     SIO_GET_EXTENSION_FUNCTION_POINTER,
@@ -166,13 +167,12 @@ int uv_ntstatus_to_winsock_error(NTSTATUS status) {
     case STATUS_COMMITMENT_LIMIT:
     case STATUS_WORKING_SET_QUOTA:
     case STATUS_NO_MEMORY:
-    case STATUS_CONFLICTING_ADDRESSES:
     case STATUS_QUOTA_EXCEEDED:
     case STATUS_TOO_MANY_PAGING_FILES:
     case STATUS_REMOTE_RESOURCES:
-    case STATUS_TOO_MANY_ADDRESSES:
       return WSAENOBUFS;
 
+    case STATUS_TOO_MANY_ADDRESSES:
     case STATUS_SHARING_VIOLATION:
     case STATUS_ADDRESS_ALREADY_EXISTS:
       return WSAEADDRINUSE;
@@ -241,6 +241,7 @@ int uv_ntstatus_to_winsock_error(NTSTATUS status) {
     case STATUS_PIPE_DISCONNECTED:
       return WSAESHUTDOWN;
 
+    case STATUS_CONFLICTING_ADDRESSES:
     case STATUS_INVALID_ADDRESS:
     case STATUS_INVALID_ADDRESS_COMPONENT:
       return WSAEADDRNOTAVAIL;

@@ -698,7 +698,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
         buf.base[buf_used++] = handle->last_key[handle->last_key_offset++];
 
         /* If the buffer is full, emit it */
-        if (buf_used == buf.len) {
+        if ((size_t) buf_used == buf.len) {
           handle->read_cb((uv_stream_t*) handle, buf_used, &buf);
           buf = uv_null_buf_;
           buf_used = 0;

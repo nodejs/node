@@ -7,5 +7,5 @@ Name: @PACKAGE_NAME@
 Version: @PACKAGE_VERSION@
 Description: multi-platform support library with a focus on asynchronous I/O.
 
-Libs: -L${libdir} -luv
+Libs: -L${libdir} -luv @LIBS@
 Cflags: -I${includedir}

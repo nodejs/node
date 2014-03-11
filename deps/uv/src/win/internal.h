@@ -166,8 +166,6 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client);
 int uv_pipe_read_start(uv_pipe_t* handle, uv_alloc_cb alloc_cb,
     uv_read_cb read_cb);
-int uv_pipe_read2_start(uv_pipe_t* handle, uv_alloc_cb alloc_cb,
-    uv_read2_cb read_cb);
 int uv_pipe_write(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
     const uv_buf_t bufs[], unsigned int nbufs, uv_write_cb cb);
 int uv_pipe_write2(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
@@ -325,7 +323,7 @@ void uv__fs_poll_endgame(uv_loop_t* loop, uv_fs_poll_t* handle);
 void uv__util_init();
 
 int uv_parent_pid();
-void uv_fatal_error(const int errorno, const char* syscall);
+__declspec(noreturn) void uv_fatal_error(const int errorno, const char* syscall);
 
 
 /*

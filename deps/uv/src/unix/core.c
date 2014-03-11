@@ -59,6 +59,15 @@
 # include <sys/filio.h>
 # include <sys/ioctl.h>
 # include <sys/wait.h>
+# define UV__O_CLOEXEC O_CLOEXEC
+# if __FreeBSD__ >= 10
+#  define uv__accept4 accept4
+#  define UV__SOCK_NONBLOCK SOCK_NONBLOCK
+#  define UV__SOCK_CLOEXEC  SOCK_CLOEXEC
+# endif
+# if !defined(F_DUP2FD_CLOEXEC) && defined(_F_DUP2FD_CLOEXEC)
+#  define F_DUP2FD_CLOEXEC  _F_DUP2FD_CLOEXEC
+# endif
 #endif
 
 static void uv__run_pending(uv_loop_t* loop);
@@ -371,7 +380,7 @@ int uv__accept(int sockfd) {
   assert(sockfd >= 0);
 
   while (1) {
-#if defined(__linux__)
+#if defined(__linux__) || __FreeBSD__ >= 10
     static int no_accept4;
 
     if (no_accept4)
@@ -589,16 +598,14 @@ ssize_t uv__recvmsg(int fd, struct msghdr* msg, int flags) {
 }
 
 
-int uv_cwd(char* buffer, size_t size) {
-  if (buffer == NULL)
+int uv_cwd(char* buffer, size_t* size) {
+  if (buffer == NULL || size == NULL)
     return -EINVAL;
 
-  if (size == 0)
-    return -EINVAL;
-
-  if (getcwd(buffer, size) == NULL)
+  if (getcwd(buffer, *size) == NULL)
     return -errno;
 
+  *size = strlen(buffer);
   return 0;
 }
 
@@ -816,4 +823,94 @@ int uv_getrusage(uv_rusage_t* rusage) {
   rusage->ru_nivcsw = usage.ru_nivcsw;
 
   return 0;
+}
+
+
+int uv__open_cloexec(const char* path, int flags) {
+  int err;
+  int fd;
+
+#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD__ >= 9)
+  static int no_cloexec;
+
+  if (!no_cloexec) {
+    fd = open(path, flags | UV__O_CLOEXEC);
+    if (fd != -1)
+      return fd;
+
+    if (errno != EINVAL)
+      return -errno;
+
+    /* O_CLOEXEC not supported. */
+    no_cloexec = 1;
+  }
+#endif
+
+  fd = open(path, flags);
+  if (fd == -1)
+    return -errno;
+
+  err = uv__cloexec(fd, 1);
+  if (err) {
+    uv__close(fd);
+    return err;
+  }
+
+  return fd;
+}
+
+
+int uv__dup2_cloexec(int oldfd, int newfd) {
+  int r;
+#if defined(__FreeBSD__) && __FreeBSD__ >= 10
+  do
+    r = dup3(oldfd, newfd, O_CLOEXEC);
+  while (r == -1 && errno == EINTR);
+  if (r == -1)
+    return -errno;
+  return r;
+#elif defined(__FreeBSD__) && defined(F_DUP2FD_CLOEXEC)
+  do
+    r = fcntl(oldfd, F_DUP2FD_CLOEXEC, newfd);
+  while (r == -1 && errno == EINTR);
+  if (r != -1)
+    return r;
+  if (errno != EINVAL)
+    return -errno;
+  /* Fall through. */
+#elif defined(__linux__)
+  static int no_dup3;
+  if (!no_dup3) {
+    do
+      r = uv__dup3(oldfd, newfd, UV__O_CLOEXEC);
+    while (r == -1 && (errno == EINTR || errno == EBUSY));
+    if (r != -1)
+      return r;
+    if (errno != ENOSYS)
+      return -errno;
+    /* Fall through. */
+    no_dup3 = 1;
+  }
+#endif
+  {
+    int err;
+    do
+      r = dup2(oldfd, newfd);
+#if defined(__linux__)
+    while (r == -1 && (errno == EINTR || errno == EBUSY));
+#else
+    while (r == -1 && errno == EINTR);
+#endif
+
+    if (r == -1)
+      return -errno;
+
+    err = uv__cloexec(newfd, 1);
+    if (err) {
+      uv__close(newfd);
+      return err;
+    }
+
+    return r;
+  }
 }

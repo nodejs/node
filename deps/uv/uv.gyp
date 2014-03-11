@@ -338,6 +338,7 @@
         'test/test-pipe-bind-error.c',
         'test/test-pipe-connect-error.c',
         'test/test-pipe-getsockname.c',
+        'test/test-pipe-sendmsg.c',
         'test/test-pipe-server-close.c',
         'test/test-platform-output.c',
         'test/test-poll.c',

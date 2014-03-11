@@ -78,7 +78,8 @@ int uv__signal_dispatch(int signum) {
   for (handle = RB_NFIND(uv_signal_tree_s, &uv__signal_tree, &lookup);
        handle != NULL && handle->signum == signum;
        handle = RB_NEXT(uv_signal_tree_s, &uv__signal_tree, handle)) {
-    unsigned long previous = InterlockedExchange(&handle->pending_signum, signum);
+    unsigned long previous = InterlockedExchange(
+            (volatile LONG*) &handle->pending_signum, signum);
 
     if (!previous) {
       POST_COMPLETION_FOR_REQ(handle->loop, &handle->signal_req);
@@ -307,12 +308,13 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
 
 void uv_process_signal_req(uv_loop_t* loop, uv_signal_t* handle,
     uv_req_t* req) {
-  unsigned long dispatched_signum;
+  long dispatched_signum;
 
   assert(handle->type == UV_SIGNAL);
   assert(req->type == UV_SIGNAL_REQ);
 
-  dispatched_signum = InterlockedExchange(&handle->pending_signum, 0);
+  dispatched_signum = InterlockedExchange(
+          (volatile LONG*) &handle->pending_signum, 0);
   assert(dispatched_signum != 0);
 
   /* Check if the pending signal equals the signum that we are watching for. */

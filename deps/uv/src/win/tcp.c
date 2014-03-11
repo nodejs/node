@@ -1099,9 +1099,9 @@ int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info,
     int tcp_connection) {
   int err;
 
-  SOCKET socket = WSASocketW(AF_INET,
-                             SOCK_STREAM,
-                             IPPROTO_IP,
+  SOCKET socket = WSASocketW(FROM_PROTOCOL_INFO,
+                             FROM_PROTOCOL_INFO,
+                             FROM_PROTOCOL_INFO,
                              socket_protocol_info,
                              0,
                              WSA_FLAG_OVERLAPPED);

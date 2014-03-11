@@ -394,4 +394,10 @@
 # define UV__ERANGE (-4034)
 #endif
 
+#if defined(ENXIO) && !defined(_WIN32)
+# define UV__ENXIO (-ENXIO)
+#else
+# define UV__ENXIO (-4033)
+#endif
+
 #endif /* UV_ERRNO_H_ */

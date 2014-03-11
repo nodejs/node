@@ -624,7 +624,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   char** env;
   size_t env_len = 1; /* room for closing null */
   int len;
-  int i;
+  size_t i;
   DWORD var_size;
 
   env_var_t required_vars[] = {

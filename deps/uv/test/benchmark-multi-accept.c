@@ -83,10 +83,9 @@ static void ipc_connection_cb(uv_stream_t* ipc_pipe, int status);
 static void ipc_write_cb(uv_write_t* req, int status);
 static void ipc_close_cb(uv_handle_t* handle);
 static void ipc_connect_cb(uv_connect_t* req, int status);
-static void ipc_read2_cb(uv_pipe_t* ipc_pipe,
-                         ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type type);
+static void ipc_read_cb(uv_stream_t* handle,
+                        ssize_t nread,
+                        const uv_buf_t* buf);
 static void ipc_alloc_cb(uv_handle_t* handle,
                          size_t suggested_size,
                          uv_buf_t* buf);
@@ -155,9 +154,9 @@ static void ipc_connect_cb(uv_connect_t* req, int status) {
   struct ipc_client_ctx* ctx;
   ctx = container_of(req, struct ipc_client_ctx, connect_req);
   ASSERT(0 == status);
-  ASSERT(0 == uv_read2_start((uv_stream_t*) &ctx->ipc_pipe,
-                             ipc_alloc_cb,
-                             ipc_read2_cb));
+  ASSERT(0 == uv_read_start((uv_stream_t*) &ctx->ipc_pipe,
+                            ipc_alloc_cb,
+                            ipc_read_cb));
 }
 
 
@@ -171,16 +170,20 @@ static void ipc_alloc_cb(uv_handle_t* handle,
 }
 
 
-static void ipc_read2_cb(uv_pipe_t* ipc_pipe,
-                         ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type type) {
+static void ipc_read_cb(uv_stream_t* handle,
+                        ssize_t nread,
+                        const uv_buf_t* buf) {
   struct ipc_client_ctx* ctx;
   uv_loop_t* loop;
+  uv_handle_type type;
+  uv_pipe_t* ipc_pipe;
 
+  ipc_pipe = (uv_pipe_t*) handle;
   ctx = container_of(ipc_pipe, struct ipc_client_ctx, ipc_pipe);
   loop = ipc_pipe->loop;
 
+  ASSERT(1 == uv_pipe_pending_count(ipc_pipe));
+  type = uv_pipe_pending_type(ipc_pipe);
   if (type == UV_TCP)
     ASSERT(0 == uv_tcp_init(loop, (uv_tcp_t*) ctx->server_handle));
   else if (type == UV_NAMED_PIPE)
@@ -188,7 +191,7 @@ static void ipc_read2_cb(uv_pipe_t* ipc_pipe,
   else
     ASSERT(0);
 
-  ASSERT(0 == uv_accept((uv_stream_t*) &ctx->ipc_pipe, ctx->server_handle));
+  ASSERT(0 == uv_accept(handle, ctx->server_handle));
   uv_close((uv_handle_t*) &ctx->ipc_pipe, NULL);
 }
 

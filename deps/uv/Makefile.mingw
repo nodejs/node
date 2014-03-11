@@ -12,7 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-CC = gcc
+CC ?= gcc
 
 CFLAGS += -Wall \
           -Wextra \
@@ -72,8 +72,11 @@ OBJS = src/fs-poll.o \
 
 all: libuv.a
 
+clean:
+	-$(RM) $(OBJS) libuv.a
+
 libuv.a: $(OBJS)
 	$(AR) crs $@ $^
 
-# FIXME(bnoordhuis) Don't rebuild everything when a source file changes.
-$(OBJS): $(OBJS:.o=.c) $(INCLUDES)
+$(OBJS): %.o : %.c $(INCLUDES)
+	$(CC) $(CFLAGS) -c -o $@ $<

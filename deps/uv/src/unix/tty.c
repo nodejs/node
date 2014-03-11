@@ -35,26 +35,61 @@ static uv_spinlock_t termios_spinlock = UV_SPINLOCK_INITIALIZER;
 
 
 int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
-  uv__stream_init(loop, (uv_stream_t*)tty, UV_TTY);
+  int flags;
+  int newfd;
+  int r;
+
+  newfd = -1;
+
+  uv__stream_init(loop, (uv_stream_t*) tty, UV_TTY);
+
+  /* Reopen the file descriptor when it refers to a tty. This lets us put the
+   * tty in non-blocking mode without affecting other processes that share it
+   * with us.
+   *
+   * Example: `node | cat` - if we put our fd 0 in non-blocking mode, it also
+   * affects fd 1 of `cat` because both file descriptors refer to the same
+   * struct file in the kernel. When we reopen our fd 0, it points to a
+   * different struct file, hence changing its properties doesn't affect
+   * other processes.
+   */
+  if (isatty(fd)) {
+    newfd = uv__open_cloexec("/dev/tty", O_RDWR);
+
+    if (newfd == -1)
+      return -errno;
+
+    r = uv__dup2_cloexec(newfd, fd);
+    if (r < 0 && r != -EINVAL) {
+      /* EINVAL means newfd == fd which could conceivably happen if another
+       * thread called close(fd) between our calls to isatty() and open().
+       * That's a rather unlikely event but let's handle it anyway.
+       */
+      uv__close(newfd);
+      return r;
+    }
+
+    fd = newfd;
+  }
 
 #if defined(__APPLE__)
-  {
-    int err = uv__stream_try_select((uv_stream_t*) tty, &fd);
-    if (err)
-      return err;
+  r = uv__stream_try_select((uv_stream_t*) tty, &fd);
+  if (r) {
+    if (newfd != -1)
+      uv__close(newfd);
+    return r;
   }
-#endif /* defined(__APPLE__) */
+#endif
 
-  if (readable) {
-    uv__nonblock(fd, 1);
-    uv__stream_open((uv_stream_t*)tty, fd, UV_STREAM_READABLE);
-  } else {
-    /* Note: writable tty we set to blocking mode. */
-    uv__stream_open((uv_stream_t*)tty, fd, UV_STREAM_WRITABLE);
-    tty->flags |= UV_STREAM_BLOCKING;
-  }
+  if (readable)
+    flags = UV_STREAM_READABLE;
+  else
+    flags = UV_STREAM_WRITABLE;
 
+  uv__nonblock(fd, 1);
+  uv__stream_open((uv_stream_t*) tty, fd, flags);
   tty->mode = 0;
+
   return 0;
 }
 

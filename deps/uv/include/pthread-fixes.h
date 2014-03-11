@@ -56,4 +56,17 @@ int pthread_barrier_destroy(pthread_barrier_t *barrier);
 #endif  /* defined(PTHREAD_BARRIER_SERIAL_THREAD) */
 
 int pthread_yield(void);
+
+/* Workaround pthread_sigmask() returning EINVAL on versions < 4.1 by
+ * replacing all calls to pthread_sigmask with sigprocmask. See:
+ * https://android.googlesource.com/platform/bionic/+/9bf330b5
+ * https://code.google.com/p/android/issues/detail?id=15337
+ */
+int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
+
+#ifdef pthread_sigmask
+#undef pthread_sigmask
+#endif
+#define pthread_sigmask(how, set, oldset) uv__pthread_sigmask(how, set, oldset)
+
 #endif  /* GOOGLE_BREAKPAD_COMMON_ANDROID_TESTING_PTHREAD_FIXES_H */
