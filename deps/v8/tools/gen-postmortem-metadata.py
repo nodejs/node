@@ -106,6 +106,14 @@ consts_misc = [
         'value': 'JavaScriptFrameConstants::kFunctionOffset' },
     { 'name': 'off_fp_args',
         'value': 'JavaScriptFrameConstants::kLastParameterOffset' },
+
+    { 'name': 'elements_kind_shift',
+        'value': 'Map::kElementsKindShift' },
+    { 'name': 'elements_kind_bitcount',
+        'value': 'Map::kElementsKindBitCount' },
+    { 'name': 'elements_fast_elements', 'value': 'FAST_ELEMENTS' },
+    { 'name': 'elements_fast_holey_elements', 'value': 'FAST_HOLEY_ELEMENTS' },
+    { 'name': 'elements_dictionary_elements', 'value': 'DICTIONARY_ELEMENTS' },
 ];
 
 #

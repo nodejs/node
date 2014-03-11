@@ -90,6 +90,14 @@ dtrace.on('exit', function (code) {
    */
   var mdb = spawn('mdb', args, { stdio: 'pipe' });
 
+  var mod = util.format('::load %s\n',
+                        path.join(__dirname,
+                                  '..',
+                                  '..',
+                                  'out',
+                                  'Release',
+                                  'mdb_v8.so'));
+
   mdb.on('exit', function (code) {
     var retained = '; core retained as ' + corefile;
 
@@ -157,7 +165,7 @@ dtrace.on('exit', function (code) {
       console.log('mdb (second) stderr: ' + data);
     });
 
-    mdb.stdin.write('::load v8.so\n');
+    mdb.stdin.write(mod);
     mdb.stdin.write(straddr + '::v8str\n');
     mdb.stdin.end();
   });
@@ -170,7 +178,7 @@ dtrace.on('exit', function (code) {
     console.log('mdb stderr: ' + data);
   });
 
-  mdb.stdin.write('::load v8.so\n');
+  mdb.stdin.write(mod);
   mdb.stdin.write('::jsstack -v\n');
   mdb.stdin.end();
 });

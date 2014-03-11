@@ -22,6 +22,7 @@
 var common = require('../common');
 var assert = require('assert');
 var os = require('os');
+var path = require('path');
 var util = require('util');
 
 if (os.type() != 'SunOS') {
@@ -89,7 +90,14 @@ gcore.on('exit', function (code) {
     console.log('mdb stderr: ' + data);
   });
 
-  mdb.stdin.write('::load v8.so\n');
+  var mod = util.format('::load %s\n',
+                        path.join(__dirname,
+                                  '..',
+                                  '..',
+                                  'out',
+                                  'Release',
+                                  'mdb_v8.so'));
+  mdb.stdin.write(mod);
   mdb.stdin.write('::findjsobjects -c LanguageH | ');
   mdb.stdin.write('::findjsobjects | ::jsprint\n');
   mdb.stdin.write('::findjsobjects -p OBEY | ');
