@@ -1,4 +1,67 @@
-2014.01.29, Version 0.11.11 (Unstable)
+2014.03.11, Version 0.11.12 (Unstable)
+
+* uv: Upgrade to v0.11.22 (Timothy J Fontaine)
+
+* buffer: allow toString to accept Infinity for end (Brian White)
+
+* child_process: add spawnSync/execSync (Bert Belder, Timothy J Fontaine)
+
+* cluster: handle bind errors on Windows (Alexis Campailla)
+
+* contextify: handle infinite recursion errors (Fedor Indutny)
+
+* crypto: allow custom generator for DiffieHellman (Brian White)
+
+* crypto: allow setting add'l authenticated data (Brian White)
+
+* crypto: fix CipherFinal return value check (Brian White)
+
+* crypto: make NewSessionDoneCb public (Fedor Indutny)
+
+* dgram: pass the bytes sent to the send callback (Timothy J Fontaine)
+
+* dns: validate arguments in resolver (Kenan Sulayman)
+
+* dns: verify argument is valid function in resolve (Kenan Sulayman)
+
+* http: avoid duplicate keys in writeHead (David Björklund)
+
+* net: add localPort to connect options (Timothy J Fontaine)
+
+* node: do not print SyntaxError hints to stderr (Fedor Indutny)
+
+* node: invoke `beforeExit` again if loop was active (Fedor Indutny)
+
+* node: make AsyncListenerInst field more explicit (Trevor Norris)
+
+* os: networkInterfaces include scopeid for ipv6 (Xidorn Quan)
+
+* process: allow changing `exitCode` in `on('exit')` (Fedor Indutny)
+
+* readline: fix `line` event, if input emit 'end' (Yazhong Liu)
+
+* src: add tracing.v8.on('gc') statistics hooks (Ben Noordhuis)
+
+* src: add v8.getHeapStatistics() function (Ben Noordhuis)
+
+* src: emit 'beforeExit' event on process object (Ben Noordhuis)
+
+* src: move AsyncListener from process to tracing (Trevor Norris)
+
+* tls: fix crash in SNICallback (Fedor Indutny)
+
+* tls: introduce asynchronous `newSession` (Fedor Indutny)
+
+* util: show meaningful values for boxed primitives (Nathan Rajlich)
+
+* vm: don't copy Proxy object from parent context (Ben Noordhuis)
+
+* windows: make stdout/sterr pipes blocking (Alexis Campailla)
+
+* zlib: add sync versions for convenience methods (Nikolai Vavilov)
+
+
+2014.01.29, Version 0.11.11 (Unstable), b46e77421581ea358e221a8a843d057c747f7e90
 
 * v8: Upgrade to 3.22.24.19
 
