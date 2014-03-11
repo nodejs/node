@@ -93,12 +93,7 @@ void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.This());
 
-  int err;
-  if (wrap->is_named_pipe_ipc()) {
-    err = uv_read2_start(wrap->stream(), OnAlloc, OnRead2);
-  } else {
-    err = uv_read_start(wrap->stream(), OnAlloc, OnRead);
-  }
+  int err = uv_read_start(wrap->stream(), OnAlloc, OnRead);
 
   args.GetReturnValue().Set(err);
 }
@@ -169,15 +164,15 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
 void StreamWrap::OnRead(uv_stream_t* handle,
                         ssize_t nread,
                         const uv_buf_t* buf) {
-  OnReadCommon(handle, nread, buf, UV_UNKNOWN_HANDLE);
-}
+  StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
+  uv_handle_type type = UV_UNKNOWN_HANDLE;
 
+  if (wrap->is_named_pipe_ipc() &&
+      uv_pipe_pending_count(reinterpret_cast<uv_pipe_t*>(handle)) > 0) {
+    type = uv_pipe_pending_type(reinterpret_cast<uv_pipe_t*>(handle));
+  }
 
-void StreamWrap::OnRead2(uv_pipe_t* handle,
-                         ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type pending) {
-  OnReadCommon(reinterpret_cast<uv_stream_t*>(handle), nread, buf, pending);
+  OnReadCommon(handle, nread, buf, type);
 }
 
 

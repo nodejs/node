@@ -178,10 +178,6 @@ class StreamWrap : public HandleWrap {
   static void OnRead(uv_stream_t* handle,
                      ssize_t nread,
                      const uv_buf_t* buf);
-  static void OnRead2(uv_pipe_t* handle,
-                      ssize_t nread,
-                      const uv_buf_t* buf,
-                      uv_handle_type pending);
   static void OnReadCommon(uv_stream_t* handle,
                            ssize_t nread,
                            const uv_buf_t* buf,
