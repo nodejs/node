@@ -1552,6 +1552,12 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowUVException(err, "uv_cwd");
   }
 
+#ifdef _WIN32
+  // TODO(tjfontaine) in the future libuv will report the size include the null
+  // for now only windows does, remove conditionals after libuv upgrade
+  cwd_len -= 1;
+#endif
+
   Local<String> cwd = String::NewFromUtf8(env->isolate(),
                                           buf,
                                           String::kNormalString,
