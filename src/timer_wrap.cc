@@ -144,13 +144,12 @@ class TimerWrap : public HandleWrap {
     args.GetReturnValue().Set(static_cast<double>(repeat));
   }
 
-  static void OnTimeout(uv_timer_t* handle, int status) {
+  static void OnTimeout(uv_timer_t* handle) {
     TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    Local<Value> argv[1] = { Integer::New(env->isolate(), status) };
-    wrap->MakeCallback(kOnTimeout, ARRAY_SIZE(argv), argv);
+    wrap->MakeCallback(kOnTimeout, 0, NULL);
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {

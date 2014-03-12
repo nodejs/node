@@ -93,11 +93,11 @@ void Watchdog::Run(void* arg) {
 }
 
 
-void Watchdog::Async(uv_async_t* async, int status) {
+void Watchdog::Async(uv_async_t* async) {
 }
 
 
-void Watchdog::Timer(uv_timer_t* timer, int status) {
+void Watchdog::Timer(uv_timer_t* timer) {
   V8::TerminateExecution();
 }
 

@@ -38,8 +38,8 @@ class Watchdog {
   void Destroy();
 
   static void Run(void* arg);
-  static void Async(uv_async_t* async, int status);
-  static void Timer(uv_timer_t* timer, int status);
+  static void Async(uv_async_t* async);
+  static void Timer(uv_timer_t* timer);
 
   uv_thread_t thread_;
   uv_loop_t* loop_;
