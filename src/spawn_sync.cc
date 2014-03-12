@@ -617,8 +617,7 @@ void SyncProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 }
 
 
-void SyncProcessRunner::OnKillTimerTimeout(int status) {
-  assert(status == 0);
+void SyncProcessRunner::OnKillTimerTimeout() {
   SetError(UV_ETIMEDOUT);
   Kill();
 }
@@ -1037,9 +1036,9 @@ void SyncProcessRunner::ExitCallback(uv_process_t* handle,
 }
 
 
-void SyncProcessRunner::KillTimerCallback(uv_timer_t* handle, int status) {
+void SyncProcessRunner::KillTimerCallback(uv_timer_t* handle) {
   SyncProcessRunner* self = reinterpret_cast<SyncProcessRunner*>(handle->data);
-  self->OnKillTimerTimeout(status);
+  self->OnKillTimerTimeout();
 }
 
 

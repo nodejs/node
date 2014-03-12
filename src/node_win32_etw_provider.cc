@@ -124,7 +124,7 @@ void CodeAddressNotification(const JitCodeEvent* jevent) {
 // Note: It is possible to call v8 from ETW thread, but then
 //       event callbacks are received in the same thread. Attempts
 //       to write ETW events in this thread will fail.
-void etw_events_change_async(uv_async_t* handle, int status) {
+void etw_events_change_async(uv_async_t* handle) {
   if (events_enabled > 0) {
     NODE_V8SYMBOL_RESET();
     V8::SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting,

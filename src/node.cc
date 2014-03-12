@@ -185,7 +185,7 @@ void ArrayBufferAllocator::Free(void* data, size_t length) {
 }
 
 
-static void CheckImmediate(uv_check_t* handle, int status) {
+static void CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -193,7 +193,7 @@ static void CheckImmediate(uv_check_t* handle, int status) {
 }
 
 
-static void IdleImmediateDummy(uv_idle_t*, int) {
+static void IdleImmediateDummy(uv_idle_t* handle) {
   // Do nothing. Only for maintaining event loop.
   // TODO(bnoordhuis) Maybe make libuv accept NULL idle callbacks.
 }
@@ -2520,13 +2520,13 @@ static void NeedImmediateCallbackSetter(
 }
 
 
-void SetIdle(uv_prepare_t* handle, int) {
+void SetIdle(uv_prepare_t* handle) {
   Environment* env = Environment::from_idle_prepare_handle(handle);
   env->isolate()->GetCpuProfiler()->SetIdle(true);
 }
 
 
-void ClearIdle(uv_check_t* handle, int) {
+void ClearIdle(uv_check_t* handle) {
   Environment* env = Environment::from_idle_check_handle(handle);
   env->isolate()->GetCpuProfiler()->SetIdle(false);
 }
@@ -3103,7 +3103,7 @@ static void EnableDebug(Isolate* isolate, bool wait_connect) {
 
 
 // Called from the main thread.
-static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle, int status) {
+static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
   if (debugger_running == false) {
     fprintf(stderr, "Starting debugger agent.\n");
     EnableDebug(node_isolate, false);

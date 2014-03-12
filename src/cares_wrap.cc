@@ -80,7 +80,7 @@ RB_GENERATE_STATIC(ares_task_list, ares_task_t, node, cmp_ares_tasks)
 
 /* This is called once per second by loop->timer. It is used to constantly */
 /* call back into c-ares for possibly processing timeouts. */
-static void ares_timeout(uv_timer_t* handle, int status) {
+static void ares_timeout(uv_timer_t* handle) {
   Environment* env = Environment::from_cares_timer_handle(handle);
   assert(!RB_EMPTY(env->cares_task_list()));
   ares_process_fd(env->cares_channel(), ARES_SOCKET_BAD, ARES_SOCKET_BAD);

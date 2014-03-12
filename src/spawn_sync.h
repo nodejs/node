@@ -174,7 +174,7 @@ class SyncProcessRunner {
   void IncrementBufferSizeAndCheckOverflow(ssize_t length);
 
   void OnExit(int64_t exit_status, int term_signal);
-  void OnKillTimerTimeout(int status);
+  void OnKillTimerTimeout();
 
   int GetError();
   void SetError(int error);
@@ -202,7 +202,7 @@ class SyncProcessRunner {
   static void ExitCallback(uv_process_t* handle,
                            int64_t exit_status,
                            int term_signal);
-  static void KillTimerCallback(uv_timer_t* handle, int status);
+  static void KillTimerCallback(uv_timer_t* handle);
   static void KillTimerCloseCallback(uv_handle_t* handle);
 
   size_t max_buffer_;
