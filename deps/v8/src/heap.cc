@@ -155,7 +155,8 @@ Heap::Heap()
       configured_(false),
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
-      relocation_mutex_(NULL) {
+      relocation_mutex_(NULL),
+      gc_callbacks_depth_(0) {
   // Allow build-time customization of the max semispace size. Building
   // V8 with snapshots and a non-default max semispace size is much
   // easier if you can define it as part of the build environment.
@@ -1084,11 +1085,14 @@ bool Heap::PerformGarbageCollection(
   GCType gc_type =
       collector == MARK_COMPACTOR ? kGCTypeMarkSweepCompact : kGCTypeScavenge;
 
-  {
-    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    VMState<EXTERNAL> state(isolate_);
-    HandleScope handle_scope(isolate_);
-    CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
+  { GCCallbacksScope scope(this);
+    if (scope.CheckReenter()) {
+      AllowHeapAllocation allow_allocation;
+      GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+      VMState<EXTERNAL> state(isolate_);
+      HandleScope handle_scope(isolate_);
+      CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
+    }
   }
 
   EnsureFromSpaceIsCommitted();
@@ -1193,11 +1197,14 @@ bool Heap::PerformGarbageCollection(
         amount_of_external_allocated_memory_;
   }
 
-  {
-    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    VMState<EXTERNAL> state(isolate_);
-    HandleScope handle_scope(isolate_);
-    CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
+  { GCCallbacksScope scope(this);
+    if (scope.CheckReenter()) {
+      AllowHeapAllocation allow_allocation;
+      GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+      VMState<EXTERNAL> state(isolate_);
+      HandleScope handle_scope(isolate_);
+      CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
+    }
   }
 
 #ifdef VERIFY_HEAP

@@ -18563,6 +18563,8 @@ int prologue_call_count = 0;
 int epilogue_call_count = 0;
 int prologue_call_count_second = 0;
 int epilogue_call_count_second = 0;
+int prologue_call_count_alloc = 0;
+int epilogue_call_count_alloc = 0;
 
 void PrologueCallback(v8::GCType, v8::GCCallbackFlags flags) {
   CHECK_EQ(flags, v8::kNoGCCallbackFlags);
@@ -18621,6 +18623,46 @@ void EpilogueCallbackSecond(v8::Isolate* isolate,
   CHECK_EQ(flags, v8::kNoGCCallbackFlags);
   CHECK_EQ(gc_callbacks_isolate, isolate);
   ++epilogue_call_count_second;
+}
+
+
+void PrologueCallbackAlloc(v8::Isolate* isolate,
+                           v8::GCType,
+                           v8::GCCallbackFlags flags) {
+  v8::HandleScope scope(isolate);
+
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+  CHECK_EQ(gc_callbacks_isolate, isolate);
+  ++prologue_call_count_alloc;
+
+  // Simulate full heap to see if we will reenter this callback
+  SimulateFullSpace(CcTest::heap()->new_space());
+
+  Local<Object> obj = Object::New(isolate);
+  ASSERT(!obj.IsEmpty());
+
+  CcTest::heap()->CollectAllGarbage(
+      i::Heap::Heap::kAbortIncrementalMarkingMask);
+}
+
+
+void EpilogueCallbackAlloc(v8::Isolate* isolate,
+                           v8::GCType,
+                           v8::GCCallbackFlags flags) {
+  v8::HandleScope scope(isolate);
+
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+  CHECK_EQ(gc_callbacks_isolate, isolate);
+  ++epilogue_call_count_alloc;
+
+  // Simulate full heap to see if we will reenter this callback
+  SimulateFullSpace(CcTest::heap()->new_space());
+
+  Local<Object> obj = Object::New(isolate);
+  ASSERT(!obj.IsEmpty());
+
+  CcTest::heap()->CollectAllGarbage(
+      i::Heap::Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -18690,6 +18732,17 @@ TEST(GCCallbacks) {
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(2, prologue_call_count_second);
   CHECK_EQ(2, epilogue_call_count_second);
+
+  CHECK_EQ(0, prologue_call_count_alloc);
+  CHECK_EQ(0, epilogue_call_count_alloc);
+  isolate->AddGCPrologueCallback(PrologueCallbackAlloc);
+  isolate->AddGCEpilogueCallback(EpilogueCallbackAlloc);
+  CcTest::heap()->CollectAllGarbage(
+      i::Heap::Heap::kAbortIncrementalMarkingMask);
+  CHECK_EQ(1, prologue_call_count_alloc);
+  CHECK_EQ(1, epilogue_call_count_alloc);
+  isolate->RemoveGCPrologueCallback(PrologueCallbackAlloc);
+  isolate->RemoveGCEpilogueCallback(EpilogueCallbackAlloc);
 }
 
 

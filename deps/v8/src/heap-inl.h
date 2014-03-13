@@ -809,6 +809,21 @@ NoWeakObjectVerificationScope::~NoWeakObjectVerificationScope() {
 #endif
 
 
+GCCallbacksScope::GCCallbacksScope(Heap* heap) : heap_(heap) {
+  heap_->gc_callbacks_depth_++;
+}
+
+
+GCCallbacksScope::~GCCallbacksScope() {
+  heap_->gc_callbacks_depth_--;
+}
+
+
+bool GCCallbacksScope::CheckReenter() {
+  return heap_->gc_callbacks_depth_ == 1;
+}
+
+
 void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsHeapObject()) {
