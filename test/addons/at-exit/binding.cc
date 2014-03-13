@@ -16,9 +16,11 @@ static int at_exit_cb1_called = 0;
 static int at_exit_cb2_called = 0;
 
 static void at_exit_cb1(void* arg) {
-  HandleScope scope(Isolate::GetCurrent());
+  // FIXME(bnoordhuis) Isolate::GetCurrent() is on its way out.
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope handle_scope(isolate);
   assert(arg == 0);
-  Local<Object> obj = Object::New();
+  Local<Object> obj = Object::New(isolate);
   assert(!obj.IsEmpty()); // assert VM is still alive
   assert(obj->IsObject());
   at_exit_cb1_called++;

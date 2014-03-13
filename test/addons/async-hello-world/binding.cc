@@ -24,15 +24,18 @@ void AfterAsync(uv_work_t* r) {
   HandleScope scope(isolate);
   async_req* req = reinterpret_cast<async_req*>(r->data);
 
-  Handle<Value> argv[2] = { Null(), Integer::New(req->output) };
+  Handle<Value> argv[2] = {
+    Null(isolate),
+    Integer::New(isolate, req->output)
+  };
 
   TryCatch try_catch;
 
   Local<Function> callback = Local<Function>::New(isolate, req->callback);
-  callback->Call(Context::GetCurrent()->Global(), 2, argv);
+  callback->Call(isolate->GetCurrentContext()->Global(), 2, argv);
 
   // cleanup
-  req->callback.Dispose();
+  req->callback.Reset();
   delete req;
 
   if (try_catch.HasCaught()) {

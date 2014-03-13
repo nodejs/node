@@ -82,7 +82,7 @@ class ObjectWrap {
 
 
   inline void MakeWeak(void) {
-    persistent().MakeWeak(this, WeakCallback);
+    persistent().SetWeak(this, WeakCallback);
     persistent().MarkIndependent();
   }
 
@@ -116,13 +116,16 @@ class ObjectWrap {
   int refs_;  // ro
 
  private:
-  static void WeakCallback(v8::Isolate* isolate,
-                           v8::Persistent<v8::Object>* pobj,
-                           ObjectWrap* wrap) {
+  static void WeakCallback(
+      const v8::WeakCallbackData<v8::Object, ObjectWrap>& data) {
+    v8::Isolate* isolate = data.GetIsolate();
     v8::HandleScope scope(isolate);
+    ObjectWrap* wrap = data.GetParameter();
     assert(wrap->refs_ == 0);
-    assert(*pobj == wrap->persistent());
-    assert((*pobj).IsNearDeath());
+    assert(wrap->handle_.IsNearDeath());
+    assert(
+        data.GetValue() == v8::Local<v8::Object>::New(isolate, wrap->handle_));
+    wrap->handle_.Reset();
     delete wrap;
   }
 

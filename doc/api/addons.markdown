@@ -160,8 +160,8 @@ function calls and return a result. This is the main and only needed source
         return;
       }
 
-      Local<Number> num = Number::New(args[0]->NumberValue() +
-          args[1]->NumberValue());
+      double value = args[0]->NumberValue() + args[1]->NumberValue();
+      Local<Number> num = Number::New(isolate, value);
 
       args.GetReturnValue().Set(num);
     }
@@ -197,7 +197,7 @@ there. Here's `addon.cc`:
       Local<Function> cb = Local<Function>::Cast(args[0]);
       const unsigned argc = 1;
       Local<Value> argv[argc] = { String::NewFromUtf8(isolate, "hello world") };
-      cb->Call(Context::GetCurrent()->Global(), argc, argv);
+      cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     }
 
     void Init(Handle<Object> exports, Handle<Object> module) {
@@ -236,7 +236,7 @@ the string passed to `createObject()`:
       Isolate* isolate = Isolate::GetCurrent();
       HandleScope scope(isolate);
 
-      Local<Object> obj = Object::New();
+      Local<Object> obj = Object::New(isolate);
       obj->Set(String::NewFromUtf8(isolate, "msg"), args[0]->ToString());
 
       args.GetReturnValue().Set(obj);
@@ -278,7 +278,7 @@ wraps a C++ function:
       Isolate* isolate = Isolate::GetCurrent();
       HandleScope scope(isolate);
 
-      Local<FunctionTemplate> tpl = FunctionTemplate::New(MyFunction);
+      Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, MyFunction);
       Local<Function> fn = tpl->GetFunction();
 
       // omit this to make it anonymous
@@ -366,7 +366,7 @@ prototype:
       Isolate* isolate = Isolate::GetCurrent();
 
       // Prepare constructor template
-      Local<FunctionTemplate> tpl = FunctionTemplate::New(New);
+      Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
       tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject"));
       tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -404,7 +404,7 @@ prototype:
       MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.This());
       obj->value_ += 1;
 
-      args.GetReturnValue().Set(Number::New(obj->value_));
+      args.GetReturnValue().Set(Number::New(isolate, obj->value_));
     }
 
 Test it with:
@@ -494,7 +494,7 @@ The implementation is similar to the above in `myobject.cc`:
     void MyObject::Init() {
       Isolate* isolate = Isolate::GetCurrent();
       // Prepare constructor template
-      Local<FunctionTemplate> tpl = FunctionTemplate::New(New);
+      Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
       tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject"));
       tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -542,7 +542,7 @@ The implementation is similar to the above in `myobject.cc`:
       MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.This());
       obj->value_ += 1;
 
-      args.GetReturnValue().Set(Number::New(obj->value_));
+      args.GetReturnValue().Set(Number::New(isolate, obj->value_));
     }
 
 Test it with:
@@ -591,7 +591,7 @@ In the following `addon.cc` we introduce a function `add()` that can take on two
           args[1]->ToObject());
 
       double sum = obj1->value() + obj2->value();
-      args.GetReturnValue().Set(Number::New(sum));
+      args.GetReturnValue().Set(Number::New(isolate, sum));
     }
 
     void InitAll(Handle<Object> exports) {
@@ -650,7 +650,7 @@ The implementation of `myobject.cc` is similar as before:
       Isolate* isolate = Isolate::GetCurrent();
 
       // Prepare constructor template
-      Local<FunctionTemplate> tpl = FunctionTemplate::New(New);
+      Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
       tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject"));
       tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
