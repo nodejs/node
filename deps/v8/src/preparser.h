@@ -616,10 +616,10 @@ class PreParserTraits {
 
   // Custom operations executed when FunctionStates are created and
   // destructed. (The PreParser doesn't need to do anything.)
-  template<typename FS>
-  static void SetUpFunctionState(FS* function_state, void*) {}
-  template<typename FS>
-  static void TearDownFunctionState(FS* function_state) {}
+  template<typename FunctionState>
+  static void SetUpFunctionState(FunctionState* function_state, void*) {}
+  template<typename FunctionState>
+  static void TearDownFunctionState(FunctionState* function_state) {}
 
   // Helper functions for recursive descent.
   static bool IsEvalOrArguments(PreParserIdentifier identifier) {
