@@ -35,4 +35,3 @@ assertEquals("Infinity", String(1/f()));
 assertEquals("Infinity", String(1/f()));
 %OptimizeFunctionOnNextCall(f);
 assertEquals("Infinity", String(1/f()));
-

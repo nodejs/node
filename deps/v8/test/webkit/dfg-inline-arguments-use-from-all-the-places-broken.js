@@ -58,4 +58,3 @@ function argsToStr(args) {
 
 for (var __i = 0; __i < 200; ++__i)
     shouldThrow("argsToStr(bar(\"a\" + __i, \"b\" + __i, \"c\" + __i))");
-

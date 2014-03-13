@@ -303,6 +303,101 @@
 })();
 
 
+// Test non-shallow nested graph of captured objects with duplicates
+(function testDeepDuplicate() {
+  function constructor1() {
+    this.x = 23;
+  }
+  function constructor2(nested) {
+    this.a = 17;
+    this.b = nested;
+    this.c = 42;
+  }
+  function deep(shouldDeopt) {
+    var o1 = new constructor1();
+    var o2 = new constructor2(o1);
+    var o3 = new constructor2(o1);
+    assertEquals(17, o2.a);
+    assertEquals(23, o2.b.x);
+    assertEquals(42, o2.c);
+    o3.c = 54;
+    o1.x = 99;
+    if (shouldDeopt) %DeoptimizeFunction(deep);
+    assertEquals(99, o1.x);
+    assertEquals(99, o2.b.x);
+    assertEquals(99, o3.b.x);
+    assertEquals(54, o3.c);
+    assertEquals(17, o3.a);
+    assertEquals(42, o2.c);
+    assertEquals(17, o2.a);
+    o3.b.x = 1;
+    assertEquals(1, o1.x);
+  }
+  deep(false); deep(false);
+  %OptimizeFunctionOnNextCall(deep);
+  deep(false); deep(false);
+  deep(true); deep(true);
+})();
+
+
+// Test non-shallow nested graph of captured objects with inline
+(function testDeepInline() {
+  function h() {
+    return { y : 3 };
+  }
+
+  function g(x) {
+    var u = { x : h() };
+    %DeoptimizeFunction(f);
+    return u;
+  }
+
+  function f() {
+    var l = { dummy : { } };
+    var r = g(l);
+    assertEquals(3, r.x.y);
+  }
+
+  f(); f(); f();
+  %OptimizeFunctionOnNextCall(f);
+  f();
+})();
+
+
+// Test two nested objects
+(function testTwoNestedObjects() {
+  function f() {
+    var l = { x : { y : 111 } };
+    var l2 = { x : { y : 111 } };
+    %DeoptimizeFunction(f);
+    assertEquals(111, l.x.y);
+    assertEquals(111, l2.x.y);
+  }
+
+  f(); f(); f();
+  %OptimizeFunctionOnNextCall(f);
+  f();
+})();
+
+
+// Test a nested object and a duplicate
+(function testTwoObjectsWithDuplicate() {
+  function f() {
+    var l = { x : { y : 111 } };
+    var dummy = { d : 0 };
+    var l2 = l.x;
+    %DeoptimizeFunction(f);
+    assertEquals(111, l.x.y);
+    assertEquals(111, l2.y);
+    assertEquals(0, dummy.d);
+  }
+
+  f(); f(); f();
+  %OptimizeFunctionOnNextCall(f);
+  f();
+})();
+
+
 // Test materialization of a field that requires a Smi value.
 (function testSmiField() {
   var deopt = { deopt:false };

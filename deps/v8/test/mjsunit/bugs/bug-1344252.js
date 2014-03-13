@@ -76,4 +76,3 @@ Object.prototype.__defineSetter__('z', function(value) { result_z = value; });
 o2.z = 27;
 assertEquals(27, result_z);
 assertTrue(typeof o2.z == 'undefined');
-

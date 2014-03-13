@@ -36,49 +36,8 @@
 namespace v8 {
 namespace internal {
 
-// Forward declarations
-class CompilationInfo;
 
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
-
-// -------------------------------------------------------------------------
-// CodeGenerator
-
-class CodeGenerator: public AstVisitor {
- public:
-  explicit CodeGenerator(Isolate* isolate) {
-    InitializeAstVisitor(isolate);
-  }
-
-  static bool MakeCode(CompilationInfo* info);
-
-  // Printing of AST, etc. as requested by flags.
-  static void MakeCodePrologue(CompilationInfo* info, const char* kind);
-
-  // Allocate and install the code.
-  static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
-                                       Code::Flags flags,
-                                       CompilationInfo* info);
-
-  // Print the code after compiling it.
-  static void PrintCode(Handle<Code> code, CompilationInfo* info);
-
-  static bool ShouldGenerateLog(Isolate* isolate, Expression* type);
-
-  static void SetFunctionInfo(Handle<JSFunction> fun,
-                              FunctionLiteral* lit,
-                              bool is_toplevel,
-                              Handle<Script> script);
-
-  static bool RecordPositions(MacroAssembler* masm,
-                              int pos,
-                              bool right_here = false);
-
-  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
-};
 
 
 class StringCharLoadGenerator : public AllStatic {

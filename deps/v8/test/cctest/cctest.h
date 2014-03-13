@@ -58,10 +58,11 @@
   static void Test##Name()
 #endif
 
-#define EXTENSION_LIST(V)                                                \
-  V(GC_EXTENSION,    "v8/gc")                                            \
-  V(PRINT_EXTENSION, "v8/print")                                         \
-  V(TRACE_EXTENSION, "v8/trace")
+#define EXTENSION_LIST(V)                                                      \
+  V(GC_EXTENSION,       "v8/gc")                                               \
+  V(PRINT_EXTENSION,    "v8/print")                                            \
+  V(PROFILER_EXTENSION, "v8/profiler")                                         \
+  V(TRACE_EXTENSION,    "v8/trace")
 
 #define DEFINE_EXTENSION_ID(Name, Ident) Name##_ID,
 enum CcTestExtensionIds {
@@ -128,6 +129,10 @@ class CcTest {
   static v8::Local<v8::Context> NewContext(
       CcTestExtensionFlags extensions,
       v8::Isolate* isolate = CcTest::isolate());
+
+  static void TearDown() {
+    if (isolate_ != NULL) isolate_->Dispose();
+  }
 
  private:
   friend int main(int argc, char** argv);
@@ -255,7 +260,7 @@ class LocalContext {
   virtual ~LocalContext() {
     v8::HandleScope scope(isolate_);
     v8::Local<v8::Context>::New(isolate_, context_)->Exit();
-    context_.Dispose();
+    context_.Reset();
   }
 
   v8::Context* operator->() {
@@ -289,12 +294,12 @@ class LocalContext {
 };
 
 static inline v8::Local<v8::Value> v8_num(double x) {
-  return v8::Number::New(x);
+  return v8::Number::New(v8::Isolate::GetCurrent(), x);
 }
 
 
 static inline v8::Local<v8::String> v8_str(const char* x) {
-  return v8::String::New(x);
+  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x);
 }
 
 
@@ -305,7 +310,8 @@ static inline v8::Local<v8::Script> v8_compile(const char* x) {
 
 // Helper function that compiles and runs the source.
 static inline v8::Local<v8::Value> CompileRun(const char* source) {
-  return v8::Script::Compile(v8::String::New(source))->Run();
+  return v8::Script::Compile(
+      v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), source))->Run();
 }
 
 
@@ -314,10 +320,12 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         const char* origin_url,
                                                         int line_number,
                                                         int column_number) {
-  v8::ScriptOrigin origin(v8::String::New(origin_url),
-                          v8::Integer::New(line_number),
-                          v8::Integer::New(column_number));
-  return v8::Script::Compile(v8::String::New(source), &origin)->Run();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::ScriptOrigin origin(v8::String::NewFromUtf8(isolate, origin_url),
+                          v8::Integer::New(isolate, line_number),
+                          v8::Integer::New(isolate, column_number));
+  return v8::Script::Compile(v8::String::NewFromUtf8(isolate, source), &origin)
+      ->Run();
 }
 
 
@@ -332,6 +340,7 @@ static inline int FlagDependentPortOffset() {
 static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
   int new_linear_size = static_cast<int>(
       *space->allocation_limit_address() - *space->allocation_top_address());
+  if (new_linear_size == 0) return;
   v8::internal::MaybeObject* maybe = space->AllocateRaw(new_linear_size);
   v8::internal::FreeListNode* node = v8::internal::FreeListNode::cast(maybe);
   node->set_size(space->heap(), new_linear_size);
@@ -340,9 +349,7 @@ static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
 
 // Helper function that simulates a full old-space in the heap.
 static inline void SimulateFullSpace(v8::internal::PagedSpace* space) {
-  int old_linear_size = static_cast<int>(space->limit() - space->top());
-  space->Free(space->top(), old_linear_size);
-  space->SetTop(space->limit(), space->limit());
+  space->EmptyAllocationInfo();
   space->ResetFreeList();
   space->ClearStats();
 }
@@ -356,13 +363,13 @@ class HeapObjectsTracker {
   HeapObjectsTracker() {
     heap_profiler_ = i::Isolate::Current()->heap_profiler();
     CHECK_NE(NULL, heap_profiler_);
-    heap_profiler_->StartHeapAllocationsRecording();
+    heap_profiler_->StartHeapObjectsTracking(true);
   }
 
   ~HeapObjectsTracker() {
     i::Isolate::Current()->heap()->CollectAllAvailableGarbage();
-    CHECK_EQ(0, heap_profiler_->FindUntrackedObjects());
-    heap_profiler_->StopHeapAllocationsRecording();
+    CHECK_EQ(0, heap_profiler_->heap_object_map()->FindUntrackedObjects());
+    heap_profiler_->StopHeapObjectsTracking();
   }
 
  private:

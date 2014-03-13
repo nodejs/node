@@ -50,4 +50,3 @@ for (var i = 0; i < 200; ++i) {
         expected = 56;
     shouldBe("callFoo(o)", "" + expected);
 }
-

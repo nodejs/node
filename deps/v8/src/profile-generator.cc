@@ -352,9 +352,8 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
 }
 
 
-CpuProfile::CpuProfile(const char* title, unsigned uid, bool record_samples)
+CpuProfile::CpuProfile(const char* title, bool record_samples)
     : title_(title),
-      uid_(uid),
       record_samples_(record_samples),
       start_time_(Time::NowFromSystemTime()) {
   timer_.Start();
@@ -486,9 +485,8 @@ CpuProfilesCollection::~CpuProfilesCollection() {
 }
 
 
-bool CpuProfilesCollection::StartProfiling(const char* title, unsigned uid,
+bool CpuProfilesCollection::StartProfiling(const char* title,
                                            bool record_samples) {
-  ASSERT(uid > 0);
   current_profiles_semaphore_.Wait();
   if (current_profiles_.length() >= kMaxSimultaneousProfiles) {
     current_profiles_semaphore_.Signal();
@@ -501,7 +499,7 @@ bool CpuProfilesCollection::StartProfiling(const char* title, unsigned uid,
       return false;
     }
   }
-  current_profiles_.Add(new CpuProfile(title, uid, record_samples));
+  current_profiles_.Add(new CpuProfile(title, record_samples));
   current_profiles_semaphore_.Signal();
   return true;
 }
@@ -537,9 +535,8 @@ bool CpuProfilesCollection::IsLastProfile(const char* title) {
 
 void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
   // Called from VM thread for a completed profile.
-  unsigned uid = profile->uid();
   for (int i = 0; i < finished_profiles_.length(); i++) {
-    if (uid == finished_profiles_[i]->uid()) {
+    if (profile == finished_profiles_[i]) {
       finished_profiles_.Remove(i);
       return;
     }

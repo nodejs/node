@@ -41,4 +41,3 @@ shouldBe("foo(0, 1, 0)", "0.5");
 
 for (var i = 0; i < 200; ++i)
     shouldBe("foo(i, i + 1, i + 2)", "1");
-

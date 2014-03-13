@@ -376,10 +376,7 @@ function ArrayToLocaleString() {
 
 
 function ArrayJoin(separator) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.join"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.join");
 
   var length = TO_UINT32(this.length);
   if (IS_UNDEFINED(separator)) {
@@ -414,15 +411,17 @@ function ObservedArrayPop(n) {
 // Removes the last element from the array and returns it. See
 // ECMA-262, section 15.4.4.6.
 function ArrayPop() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.pop"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.pop");
 
   var n = TO_UINT32(this.length);
   if (n == 0) {
     this.length = n;
     return;
+  }
+
+  if ($Object.isSealed(this)) {
+    throw MakeTypeError("array_functions_change_sealed",
+                        ["Array.prototype.pop"]);
   }
 
   if (%IsObserved(this))
@@ -457,16 +456,18 @@ function ObservedArrayPush() {
 // Appends the arguments to the end of the array and returns the new
 // length of the array. See ECMA-262, section 15.4.4.7.
 function ArrayPush() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.push");
+
+  var n = TO_UINT32(this.length);
+  var m = %_ArgumentsLength();
+  if (m > 0 && $Object.isSealed(this)) {
+    throw MakeTypeError("array_functions_change_sealed",
                         ["Array.prototype.push"]);
   }
 
   if (%IsObserved(this))
     return ObservedArrayPush.apply(this, arguments);
 
-  var n = TO_UINT32(this.length);
-  var m = %_ArgumentsLength();
   for (var i = 0; i < m; i++) {
     this[i+n] = %_Arguments(i);
   }
@@ -479,10 +480,7 @@ function ArrayPush() {
 // by the array elements of each argument in order. See ECMA-262,
 // section 15.4.4.7.
 function ArrayConcat(arg1) {  // length == 1
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.concat"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.concat");
 
   var array = ToObject(this);
   var arg_count = %_ArgumentsLength();
@@ -541,10 +539,7 @@ function SparseReverse(array, len) {
 
 
 function ArrayReverse() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.reverse"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reverse");
 
   var j = TO_UINT32(this.length) - 1;
 
@@ -592,16 +587,18 @@ function ObservedArrayShift(len) {
 }
 
 function ArrayShift() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.shift"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.shift");
 
   var len = TO_UINT32(this.length);
 
   if (len === 0) {
     this.length = 0;
     return;
+  }
+
+  if ($Object.isSealed(this)) {
+    throw MakeTypeError("array_functions_change_sealed",
+                        ["Array.prototype.shift"]);
   }
 
   if (%IsObserved(this))
@@ -640,20 +637,34 @@ function ObservedArrayUnshift() {
 }
 
 function ArrayUnshift(arg1) {  // length == 1
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.unshift");
+
+  var len = TO_UINT32(this.length);
+  var num_arguments = %_ArgumentsLength();
+  var is_sealed = $Object.isSealed(this);
+
+  if (num_arguments > 0 && is_sealed) {
+    throw MakeTypeError("array_functions_change_sealed",
                         ["Array.prototype.unshift"]);
   }
 
   if (%IsObserved(this))
     return ObservedArrayUnshift.apply(this, arguments);
 
-  var len = TO_UINT32(this.length);
-  var num_arguments = %_ArgumentsLength();
-
-  if (IS_ARRAY(this)) {
+  if (IS_ARRAY(this) && !is_sealed) {
     SmartMove(this, 0, 0, len, num_arguments);
   } else {
+    if (num_arguments == 0 && $Object.isFrozen(this)) {
+      // In the zero argument case, values from the prototype come into the
+      // object. This can't be allowed on frozen arrays.
+      for (var i = 0; i < len; i++) {
+        if (!this.hasOwnProperty(i) && !IS_UNDEFINED(this[i])) {
+          throw MakeTypeError("array_functions_on_frozen",
+                              ["Array.prototype.shift"]);
+        }
+      }
+    }
+
     SimpleMove(this, 0, 0, len, num_arguments);
   }
 
@@ -663,15 +674,12 @@ function ArrayUnshift(arg1) {  // length == 1
 
   this.length = len + num_arguments;
 
-  return len + num_arguments;
+  return this.length;
 }
 
 
 function ArraySlice(start, end) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.slice"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.slice");
 
   var len = TO_UINT32(this.length);
   var start_i = TO_INTEGER(start);
@@ -785,10 +793,7 @@ function ObservedArraySplice(start, delete_count) {
 
 
 function ArraySplice(start, delete_count) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.splice"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.splice");
 
   if (%IsObserved(this))
     return ObservedArraySplice.apply(this, arguments);
@@ -801,6 +806,14 @@ function ArraySplice(start, delete_count) {
   var deleted_elements = [];
   deleted_elements.length = del_count;
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
+
+  if (del_count != num_elements_to_add && $Object.isSealed(this)) {
+    throw MakeTypeError("array_functions_change_sealed",
+                        ["Array.prototype.splice"]);
+  } else if (del_count > 0 && $Object.isFrozen(this)) {
+    throw MakeTypeError("array_functions_on_frozen",
+                        ["Array.prototype.splice"]);
+  }
 
   var use_simple_splice = true;
   if (IS_ARRAY(this) &&
@@ -838,10 +851,7 @@ function ArraySplice(start, delete_count) {
 
 
 function ArraySort(comparefn) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.sort"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.sort");
 
   // In-place QuickSort algorithm.
   // For short (length <= 22) arrays, insertion sort is used for efficiency.
@@ -1131,10 +1141,7 @@ function ArraySort(comparefn) {
 // preserving the semantics, since the calls to the receiver function can add
 // or delete elements from the array.
 function ArrayFilter(f, receiver) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.filter"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.filter");
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
@@ -1182,10 +1189,7 @@ function ArrayFilter(f, receiver) {
 
 
 function ArrayForEach(f, receiver) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.forEach"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.forEach");
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
@@ -1226,10 +1230,7 @@ function ArrayForEach(f, receiver) {
 // Executes the function once for each element present in the
 // array until it finds one where callback returns true.
 function ArraySome(f, receiver) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.some"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.some");
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
@@ -1269,10 +1270,7 @@ function ArraySome(f, receiver) {
 
 
 function ArrayEvery(f, receiver) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.every"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.every");
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
@@ -1311,10 +1309,7 @@ function ArrayEvery(f, receiver) {
 }
 
 function ArrayMap(f, receiver) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.map"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.map");
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
@@ -1357,10 +1352,7 @@ function ArrayMap(f, receiver) {
 
 
 function ArrayIndexOf(element, index) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.indexOf"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.indexOf");
 
   var length = TO_UINT32(this.length);
   if (length == 0) return -1;
@@ -1416,10 +1408,7 @@ function ArrayIndexOf(element, index) {
 
 
 function ArrayLastIndexOf(element, index) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.lastIndexOf"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.lastIndexOf");
 
   var length = TO_UINT32(this.length);
   if (length == 0) return -1;
@@ -1471,10 +1460,7 @@ function ArrayLastIndexOf(element, index) {
 
 
 function ArrayReduce(callback, current) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.reduce"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduce");
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
@@ -1524,10 +1510,7 @@ function ArrayReduce(callback, current) {
 }
 
 function ArrayReduceRight(callback, current) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.reduceRight"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduceRight");
 
   // Pull out the length so that side effects are visible before the
   // callback function is checked.

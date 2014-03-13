@@ -59,24 +59,24 @@ struct Effect {
   Effect(Bounds b, Modality m = DEFINITE) : modality(m), bounds(b) {}
 
   // The unknown effect.
-  static Effect Unknown(Isolate* isolate) {
-    return Effect(Bounds::Unbounded(isolate), POSSIBLE);
+  static Effect Unknown(Zone* zone) {
+    return Effect(Bounds::Unbounded(zone), POSSIBLE);
   }
 
-  static Effect Forget(Isolate* isolate) {
-    return Effect(Bounds::Unbounded(isolate), DEFINITE);
+  static Effect Forget(Zone* zone) {
+    return Effect(Bounds::Unbounded(zone), DEFINITE);
   }
 
   // Sequential composition, as in 'e1; e2'.
-  static Effect Seq(Effect e1, Effect e2, Isolate* isolate) {
+  static Effect Seq(Effect e1, Effect e2, Zone* zone) {
     if (e2.modality == DEFINITE) return e2;
-    return Effect(Bounds::Either(e1.bounds, e2.bounds, isolate), e1.modality);
+    return Effect(Bounds::Either(e1.bounds, e2.bounds, zone), e1.modality);
   }
 
   // Alternative composition, as in 'cond ? e1 : e2'.
-  static Effect Alt(Effect e1, Effect e2, Isolate* isolate) {
+  static Effect Alt(Effect e1, Effect e2, Zone* zone) {
     return Effect(
-        Bounds::Either(e1.bounds, e2.bounds, isolate),
+        Bounds::Either(e1.bounds, e2.bounds, zone),
         e1.modality == POSSIBLE ? POSSIBLE : e2.modality);
   }
 };
@@ -106,20 +106,20 @@ class EffectsMixin: public Base {
   Effect Lookup(Var var) {
     Locator locator;
     return this->Find(var, &locator)
-        ? locator.value() : Effect::Unknown(Base::isolate());
+        ? locator.value() : Effect::Unknown(Base::zone());
   }
 
   Bounds LookupBounds(Var var) {
     Effect effect = Lookup(var);
     return effect.modality == Effect::DEFINITE
-        ? effect.bounds : Bounds::Unbounded(Base::isolate());
+        ? effect.bounds : Bounds::Unbounded(Base::zone());
   }
 
   // Sequential composition.
   void Seq(Var var, Effect effect) {
     Locator locator;
     if (!this->Insert(var, &locator)) {
-      effect = Effect::Seq(locator.value(), effect, Base::isolate());
+      effect = Effect::Seq(locator.value(), effect, Base::zone());
     }
     locator.set_value(effect);
   }
@@ -133,7 +133,7 @@ class EffectsMixin: public Base {
   void Alt(Var var, Effect effect) {
     Locator locator;
     if (!this->Insert(var, &locator)) {
-      effect = Effect::Alt(locator.value(), effect, Base::isolate());
+      effect = Effect::Alt(locator.value(), effect, Base::zone());
     }
     locator.set_value(effect);
   }
@@ -148,7 +148,7 @@ class EffectsMixin: public Base {
   // Invalidation.
   void Forget() {
     Overrider override = {
-        Effect::Forget(Base::isolate()), Effects(Base::zone()) };
+        Effect::Forget(Base::zone()), Effects(Base::zone()) };
     this->ForEach(&override);
     Seq(override.effects);
   }
@@ -206,7 +206,6 @@ class EffectsBase {
       EffectsMixin<Var, NestedEffectsBase<Var, kNoVar>, Effects<Var, kNoVar> >;
 
   Zone* zone() { return map_->allocator().zone(); }
-  Isolate* isolate() { return zone()->isolate(); }
 
   struct SplayTreeConfig {
     typedef Var Key;
@@ -277,7 +276,6 @@ class NestedEffectsBase {
   typedef typename EffectsBase<Var, kNoVar>::Locator Locator;
 
   Zone* zone() { return node_->zone; }
-  Isolate* isolate() { return zone()->isolate(); }
 
   void push() { node_ = new(node_->zone) Node(node_->zone, node_); }
   void pop() { node_ = node_->previous; }

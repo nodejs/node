@@ -33,4 +33,3 @@ function foo(x) {
 for (var i = 0; i < 1000; ++i) {
     shouldBe("foo({f:[]})", "42");
 }
-

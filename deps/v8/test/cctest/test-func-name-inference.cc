@@ -89,13 +89,13 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   // Verify inferred function name.
   SmartArrayPointer<char> inferred_name =
       shared_func_info->inferred_name()->ToCString();
-  CHECK_EQ(ref_inferred_name, *inferred_name);
+  CHECK_EQ(ref_inferred_name, inferred_name.get());
 #endif  // ENABLE_DEBUGGER_SUPPORT
 }
 
 
-static v8::Handle<v8::Script> Compile(const char* src) {
-  return v8::Script::Compile(v8::String::New(src));
+static v8::Handle<v8::Script> Compile(v8::Isolate* isolate, const char* src) {
+  return v8::Script::Compile(v8::String::NewFromUtf8(isolate, src));
 }
 
 
@@ -104,6 +104,7 @@ TEST(GlobalProperty) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "fun1 = function() { return 1; }\n"
       "fun2 = function() { return 2; }\n");
   CheckFunctionName(script, "return 1", "fun1");
@@ -116,6 +117,7 @@ TEST(GlobalVar) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "var fun1 = function() { return 1; }\n"
       "var fun2 = function() { return 2; }\n");
   CheckFunctionName(script, "return 1", "fun1");
@@ -128,6 +130,7 @@ TEST(LocalVar) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function outer() {\n"
       "  var fun1 = function() { return 1; }\n"
       "  var fun2 = function() { return 2; }\n"
@@ -142,6 +145,7 @@ TEST(InConstructor) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function MyClass() {\n"
       "  this.method1 = function() { return 1; }\n"
       "  this.method2 = function() { return 2; }\n"
@@ -156,6 +160,7 @@ TEST(Factory) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function createMyObj() {\n"
       "  var obj = {};\n"
       "  obj.method1 = function() { return 1; }\n"
@@ -172,6 +177,7 @@ TEST(Static) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function MyClass() {}\n"
       "MyClass.static1 = function() { return 1; }\n"
       "MyClass.static2 = function() { return 2; }\n"
@@ -190,6 +196,7 @@ TEST(Prototype) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function MyClass() {}\n"
       "MyClass.prototype.method1 = function() { return 1; }\n"
       "MyClass.prototype.method2 = function() { return 2; }\n"
@@ -208,6 +215,7 @@ TEST(ObjectLiteral) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function MyClass() {}\n"
       "MyClass.prototype = {\n"
       "  method1: function() { return 1; },\n"
@@ -222,6 +230,7 @@ TEST(AsParameter) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function f1(a) { return a(); }\n"
       "function f2(a, b) { return a() + b(); }\n"
       "var result1 = f1(function() { return 1; })\n"
@@ -238,6 +247,7 @@ TEST(MultipleFuncsConditional) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "fun1 = 0 ?\n"
       "    function() { return 1; } :\n"
       "    function() { return 2; }");
@@ -251,6 +261,7 @@ TEST(MultipleFuncsInLiteral) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function MyClass() {}\n"
       "MyClass.prototype = {\n"
       "  method1: 0 ? function() { return 1; } :\n"
@@ -265,6 +276,7 @@ TEST(AnonymousInAnonymousClosure1) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "(function() {\n"
       "  (function() {\n"
       "      var a = 1;\n"
@@ -284,6 +296,7 @@ TEST(AnonymousInAnonymousClosure2) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "(function() {\n"
       "  (function() {\n"
       "      var a = 1;\n"
@@ -300,6 +313,7 @@ TEST(NamedInAnonymousClosure) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "var foo = function() {\n"
       "  (function named() {\n"
       "      var a = 1;\n"
@@ -317,6 +331,7 @@ TEST(Issue380) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function a() {\n"
       "var result = function(p,a,c,k,e,d)"
       "{return p}(\"if blah blah\",62,1976,\'a|b\'.split(\'|\'),0,{})\n"
@@ -330,6 +345,7 @@ TEST(MultipleAssignments) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "var fun1 = fun2 = function () { return 1; }\n"
       "var bar1 = bar2 = bar3 = function () { return 2; }\n"
       "foo1 = foo2 = function () { return 3; }\n"
@@ -346,6 +362,7 @@ TEST(AsConstructorParameter) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function Foo() {}\n"
       "var foo = new Foo(function() { return 1; })\n"
       "var bar = new Foo(function() { return 2; }, function() { return 3; })");
@@ -360,6 +377,7 @@ TEST(FactoryHashmap) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function createMyObj() {\n"
       "  var obj = {};\n"
       "  obj[\"method1\"] = function() { return 1; }\n"
@@ -376,6 +394,7 @@ TEST(FactoryHashmapVariable) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function createMyObj() {\n"
       "  var obj = {};\n"
       "  var methodName = \"method1\";\n"
@@ -395,6 +414,7 @@ TEST(FactoryHashmapConditional) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "function createMyObj() {\n"
       "  var obj = {};\n"
       "  obj[0 ? \"method1\" : \"method2\"] = function() { return 1; }\n"
@@ -410,6 +430,7 @@ TEST(GlobalAssignmentAndCall) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "var Foo = function() {\n"
       "  return 1;\n"
       "}();\n"
@@ -428,6 +449,7 @@ TEST(AssignmentAndCall) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "(function Enclosing() {\n"
       "  var Foo;\n"
       "  Foo = function() {\n"
@@ -451,6 +473,7 @@ TEST(MethodAssignmentInAnonymousFunctionCall) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "(function () {\n"
       "    var EventSource = function () { };\n"
       "    EventSource.prototype.addListener = function () {\n"
@@ -467,6 +490,7 @@ TEST(ReturnAnonymousFunction) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Handle<v8::Script> script = Compile(
+      CcTest::isolate(),
       "(function() {\n"
       "  function wrapCode() {\n"
       "    return function () {\n"

@@ -33,7 +33,7 @@ function foo(haveABadTime) {
     for (var i = 0; i < result.length; ++i) {
         if (i == haveABadTime) {
             debug("Henceforth I will have a bad time.");
-            Array.prototype.__defineSetter__("3", function() { debug("Ouch!"); ouches++; });
+            Array.prototype.__defineSetter__("3", function() { ouches++; });
         }
         result[i] = i;
     }

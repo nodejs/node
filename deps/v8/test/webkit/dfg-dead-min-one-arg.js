@@ -44,4 +44,3 @@ for (var i = 0; i < 200; ++i) {
         shouldBe("ok", "" + i);
     shouldBe("result", "" + expected);
 }
-

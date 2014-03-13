@@ -67,4 +67,3 @@ function h() {
 h();
 
 assertFalse(exception);
-

@@ -53,6 +53,22 @@ typedef Operand MemOperand;
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
+enum SmiOperationConstraint {
+  PRESERVE_SOURCE_REGISTER,
+  BAILOUT_ON_NO_OVERFLOW,
+  BAILOUT_ON_OVERFLOW,
+  NUMBER_OF_CONSTRAINTS
+};
+
+STATIC_ASSERT(NUMBER_OF_CONSTRAINTS <= 8);
+
+class SmiOperationExecutionMode : public EnumSet<SmiOperationConstraint, byte> {
+ public:
+  SmiOperationExecutionMode() : EnumSet<SmiOperationConstraint, byte>(0) { }
+  explicit SmiOperationExecutionMode(byte bits)
+      : EnumSet<SmiOperationConstraint, byte>(bits) { }
+};
+
 bool AreAliased(Register r1, Register r2, Register r3, Register r4);
 
 // Forward declaration.
@@ -319,48 +335,38 @@ class MacroAssembler: public Assembler {
   void InitializeRootRegister() {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
-    movq(kRootRegister, roots_array_start);
+    Move(kRootRegister, roots_array_start);
     addq(kRootRegister, Immediate(kRootRegisterBias));
   }
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
-  // Set up call kind marking in rcx. The method takes rcx as an
-  // explicit first parameter to make the code more readable at the
-  // call sites.
-  void SetCallKind(Register dst, CallKind kind);
-
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper,
-                  CallKind call_kind);
-
-  void InvokeCode(Handle<Code> code,
-                  const ParameterCount& expected,
-                  const ParameterCount& actual,
-                  RelocInfo::Mode rmode,
-                  InvokeFlag flag,
-                  const CallWrapper& call_wrapper,
-                  CallKind call_kind);
+                  const CallWrapper& call_wrapper);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
+
+  void InvokeFunction(Register function,
+                      const ParameterCount& expected,
+                      const ParameterCount& actual,
+                      InvokeFlag flag,
+                      const CallWrapper& call_wrapper);
 
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
@@ -384,9 +390,8 @@ class MacroAssembler: public Assembler {
   void SafePush(Smi* src);
 
   void InitializeSmiConstantRegister() {
-    movq(kSmiConstantRegister,
-         reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
-         RelocInfo::NONE64);
+    Move(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
+         Assembler::RelocInfoNone());
   }
 
   // Conversions between tagged smi values and non-tagged integer values.
@@ -548,7 +553,8 @@ class MacroAssembler: public Assembler {
   void SmiAddConstant(Register dst,
                       Register src,
                       Smi* constant,
-                      Label* on_not_smi_result,
+                      SmiOperationExecutionMode mode,
+                      Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
@@ -561,7 +567,8 @@ class MacroAssembler: public Assembler {
   void SmiSubConstant(Register dst,
                       Register src,
                       Smi* constant,
-                      Label* on_not_smi_result,
+                      SmiOperationExecutionMode mode,
+                      Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
 
   // Negating a smi can give a negative zero or too large positive value.
@@ -714,7 +721,7 @@ class MacroAssembler: public Assembler {
 
   void Move(const Operand& dst, Smi* source) {
     Register constant = GetSmiConstant(source);
-    movq(dst, constant);
+    movp(dst, constant);
   }
 
   void Push(Smi* smi);
@@ -775,6 +782,11 @@ class MacroAssembler: public Assembler {
       Label* on_fail,
       Label::Distance near_jump = Label::kFar);
 
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,
+                                 Register value,
+                                 uint32_t encoding_mask);
+
   // Checks if the given register or operand is a unique name
   void JumpIfNotUniqueName(Register reg, Label* not_unique_name,
                            Label::Distance distance = Label::kFar);
@@ -790,7 +802,7 @@ class MacroAssembler: public Assembler {
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
-  void Set(const Operand& dst, int64_t x);
+  void Set(const Operand& dst, intptr_t x);
 
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
@@ -829,22 +841,42 @@ class MacroAssembler: public Assembler {
   void Pop(Register dst) { pop(dst); }
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
-  void MoveDouble(Register dst, const Operand& src) { movq(dst, src); }
-  void MoveDouble(const Operand& dst, Register src) { movq(dst, src); }
+  void Move(Register dst, ExternalReference ext) {
+    movp(dst, reinterpret_cast<Address>(ext.address()),
+         RelocInfo::EXTERNAL_REFERENCE);
+  }
+
+  // Loads a pointer into a register with a relocation mode.
+  void Move(Register dst, void* ptr, RelocInfo::Mode rmode) {
+    // This method must not be used with heap object references. The stored
+    // address is not GC safe. Use the handle version instead.
+    ASSERT(rmode > RelocInfo::LAST_GCED_ENUM);
+    movp(dst, ptr, rmode);
+  }
+
+  void Move(Register dst, Handle<Object> value, RelocInfo::Mode rmode) {
+    AllowDeferredHandleDereference using_raw_address;
+    ASSERT(!RelocInfo::IsNone(rmode));
+    ASSERT(value->IsHeapObject());
+    ASSERT(!isolate()->heap()->InNewSpace(*value));
+    movp(dst, value.location(), rmode);
+  }
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
+  void Jump(const Operand& op);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
+  void Call(const Operand& op);
   void Call(Handle<Code> code_object,
             RelocInfo::Mode rmode,
             TypeFeedbackId ast_id = TypeFeedbackId::None());
 
   // The size of the code generated for different call instructions.
-  int CallSize(Address destination, RelocInfo::Mode rmode) {
+  int CallSize(Address destination) {
     return kCallSequenceLength;
   }
   int CallSize(ExternalReference ext);
@@ -916,13 +948,8 @@ class MacroAssembler: public Assembler {
                                    Label* fail,
                                    int elements_offset = 0);
 
-  // Compare an object's map with the specified map and its transitioned
-  // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. FLAGS are set with
-  // result of map compare. If multiple map compares are required, the compare
-  // sequences branches to early_success.
-  void CompareMap(Register obj,
-                  Handle<Map> map,
-                  Label* early_success);
+  // Compare an object's map with the specified map.
+  void CompareMap(Register obj, Handle<Map> map);
 
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a
@@ -1042,6 +1069,12 @@ class MacroAssembler: public Assembler {
   // Propagate an uncatchable exception out of the current JS stack.
   void ThrowUncatchable(Register value);
 
+  // Throw a message string as an exception.
+  void Throw(BailoutReason reason);
+
+  // Throw a message string as an exception if a condition is not true.
+  void ThrowIf(Condition cc, BailoutReason reason);
+
   // ---------------------------------------------------------------------------
   // Inline caching support
 
@@ -1099,15 +1132,6 @@ class MacroAssembler: public Assembler {
                 Register scratch,
                 Label* gc_required,
                 AllocationFlags flags);
-
-  // Record a JS object allocation if allocations tracking mode is on.
-  void RecordObjectAllocation(Isolate* isolate,
-                              Register object,
-                              Register object_size);
-
-  void RecordObjectAllocation(Isolate* isolate,
-                              Register object,
-                              int object_size);
 
   // Undo allocation in new space. The object passed and objects allocated after
   // it will no longer be allocated. Make sure that no pointers are left to the
@@ -1284,7 +1308,7 @@ class MacroAssembler: public Assembler {
   // from handle and propagates exceptions.  Clobbers r14, r15, rbx and
   // caller-save registers.  Restores context.  On return removes
   // stack_space * kPointerSize (GCed).
-  void CallApiFunctionAndReturn(Address function_address,
+  void CallApiFunctionAndReturn(Register function_address,
                                 Address thunk_address,
                                 Register thunk_last_arg,
                                 int stack_space,
@@ -1375,8 +1399,6 @@ class MacroAssembler: public Assembler {
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() { return generating_stub_; }
-  void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
-  bool allow_stub_calls() { return allow_stub_calls_; }
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
@@ -1414,6 +1436,10 @@ class MacroAssembler: public Assembler {
     bind(&no_memento_found);
   }
 
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
+
  private:
   // Order general registers are pushed by Pushad.
   // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
@@ -1422,7 +1448,6 @@ class MacroAssembler: public Assembler {
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
   bool generating_stub_;
-  bool allow_stub_calls_;
   bool has_frame_;
   bool root_array_available_;
 
@@ -1447,8 +1472,7 @@ class MacroAssembler: public Assembler {
                       bool* definitely_mismatches,
                       InvokeFlag flag,
                       Label::Distance near_jump = Label::kFar,
-                      const CallWrapper& call_wrapper = NullCallWrapper(),
-                      CallKind call_kind = CALL_AS_METHOD);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   void EnterExitFramePrologue(bool save_rax);
 

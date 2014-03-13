@@ -1439,6 +1439,72 @@ TEST(17) {
 }
 
 
+#define TEST_SDIV(expected_, dividend_, divisor_) \
+    t.dividend = dividend_; \
+    t.divisor = divisor_; \
+    t.result = 0; \
+    dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0); \
+    CHECK_EQ(expected_, t.result);
+
+
+TEST(18) {
+  // Test the sdiv.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t dividend;
+    uint32_t divisor;
+    uint32_t result;
+  } T;
+  T t;
+
+  Assembler assm(isolate, NULL, 0);
+
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    CpuFeatureScope scope(&assm, SUDIV);
+
+    __ mov(r3, Operand(r0));
+
+    __ ldr(r0, MemOperand(r3, OFFSET_OF(T, dividend)));
+    __ ldr(r1, MemOperand(r3, OFFSET_OF(T, divisor)));
+
+    __ sdiv(r2, r0, r1);
+    __ str(r2, MemOperand(r3, OFFSET_OF(T, result)));
+
+  __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Object* code = isolate->heap()->CreateCode(
+        desc,
+        Code::ComputeFlags(Code::STUB),
+        Handle<Code>())->ToObjectChecked();
+    CHECK(code->IsCode());
+#ifdef DEBUG
+    Code::cast(code)->Print();
+#endif
+    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    Object* dummy;
+    TEST_SDIV(1073741824, kMinInt, -2);
+    TEST_SDIV(kMinInt, kMinInt, -1);
+    TEST_SDIV(5, 10, 2);
+    TEST_SDIV(3, 10, 3);
+    TEST_SDIV(-5, 10, -2);
+    TEST_SDIV(-3, 10, -3);
+    TEST_SDIV(-5, -10, 2);
+    TEST_SDIV(-3, -10, 3);
+    TEST_SDIV(5, -10, -2);
+    TEST_SDIV(3, -10, -3);
+    USE(dummy);
+  }
+}
+
+
+#undef TEST_SDIV
+
+
 TEST(code_relative_offset) {
   // Test extracting the offset of a label from the beginning of the code
   // in a register.

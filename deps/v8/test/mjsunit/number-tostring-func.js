@@ -362,6 +362,3 @@ testToPrecision("-1.234e+4", Number(-12344.67), (4));
 // dtoa does not do this in its original form.
 assertEquals("1.3", 1.25.toPrecision(2), "1.25.toPrecision(2)");
 assertEquals("1.4", 1.35.toPrecision(2), "1.35.toPrecision(2)");
-
-
-

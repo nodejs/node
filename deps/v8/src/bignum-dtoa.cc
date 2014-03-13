@@ -394,7 +394,8 @@ static int EstimatePower(int exponent) {
 
   // For doubles len(f) == 53 (don't forget the hidden bit).
   const int kSignificandSize = 53;
-  double estimate = ceil((exponent + kSignificandSize - 1) * k1Log10 - 1e-10);
+  double estimate =
+      std::ceil((exponent + kSignificandSize - 1) * k1Log10 - 1e-10);
   return static_cast<int>(estimate);
 }
 

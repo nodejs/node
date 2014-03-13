@@ -30,6 +30,8 @@
 #if V8_LIBC_GLIBC || V8_OS_BSD
 # include <cxxabi.h>
 # include <execinfo.h>
+#elif V8_OS_QNX
+# include <backtrace.h>
 #endif  // V8_LIBC_GLIBC || V8_OS_BSD
 #include <stdio.h>
 
@@ -64,6 +66,26 @@ static V8_INLINE void DumpBacktrace() {
     }
   }
   free(symbols);
+#elif V8_OS_QNX
+  char out[1024];
+  bt_accessor_t acc;
+  bt_memmap_t memmap;
+  bt_init_accessor(&acc, BT_SELF);
+  bt_load_memmap(&acc, &memmap);
+  bt_sprn_memmap(&memmap, out, sizeof(out));
+  i::OS::PrintError(out);
+  bt_addr_t trace[100];
+  int size = bt_get_backtrace(&acc, trace, ARRAY_SIZE(trace));
+  i::OS::PrintError("\n==== C stack trace ===============================\n\n");
+  if (size == 0) {
+    i::OS::PrintError("(empty)\n");
+  } else {
+    bt_sprnf_addrs(&memmap, trace, size, const_cast<char*>("%a\n"),
+                   out, sizeof(out), NULL);
+    i::OS::PrintError(out);
+  }
+  bt_unload_memmap(&memmap);
+  bt_release_accessor(&acc);
 #endif  // V8_LIBC_GLIBC || V8_OS_BSD
 }
 
@@ -116,20 +138,8 @@ void CheckNonEqualsHelper(const char* file,
 }
 
 
-void API_Fatal(const char* location, const char* format, ...) {
-  i::OS::PrintError("\n#\n# Fatal error in %s\n# ", location);
-  va_list arguments;
-  va_start(arguments, format);
-  i::OS::VPrintError(format, arguments);
-  va_end(arguments);
-  i::OS::PrintError("\n#\n\n");
-  i::OS::Abort();
-}
-
-
 namespace v8 { namespace internal {
 
   intptr_t HeapObjectTagMask() { return kHeapObjectTagMask; }
 
 } }  // namespace v8::internal
-

@@ -31,4 +31,3 @@ function foo(array, i) {
 
 for (var i = 0; i < 100; ++i)
     shouldBe("foo([, 1.5], 0)", "void 0");
-

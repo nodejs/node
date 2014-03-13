@@ -35,6 +35,7 @@ void LookupResult::Iterate(ObjectVisitor* visitor) {
   LookupResult* current = this;  // Could be NULL.
   while (current != NULL) {
     visitor->VisitPointer(BitCast<Object**>(&current->holder_));
+    visitor->VisitPointer(BitCast<Object**>(&current->transition_));
     current = current->next_;
   }
 }
@@ -82,13 +83,13 @@ void LookupResult::Print(FILE* out) {
         case FIELD:
           PrintF(out, " -type = map transition\n");
           PrintF(out, " -map:\n");
-          GetTransitionMap()->Print(out);
+          GetTransitionTarget()->Print(out);
           PrintF(out, "\n");
           return;
         case CONSTANT:
           PrintF(out, " -type = constant property transition\n");
           PrintF(out, " -map:\n");
-          GetTransitionMap()->Print(out);
+          GetTransitionTarget()->Print(out);
           PrintF(out, "\n");
           return;
         case CALLBACKS:

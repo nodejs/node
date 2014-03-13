@@ -116,41 +116,47 @@ def ExpandConstants(lines, constants):
   return lines
 
 
+def ExpandMacroDefinition(lines, pos, name_pattern, macro, expander):
+  pattern_match = name_pattern.search(lines, pos)
+  while pattern_match is not None:
+    # Scan over the arguments
+    height = 1
+    start = pattern_match.start()
+    end = pattern_match.end()
+    assert lines[end - 1] == '('
+    last_match = end
+    arg_index = [0]  # Wrap state into array, to work around Python "scoping"
+    mapping = { }
+    def add_arg(str):
+      # Remember to expand recursively in the arguments
+      replacement = expander(str.strip())
+      mapping[macro.args[arg_index[0]]] = replacement
+      arg_index[0] += 1
+    while end < len(lines) and height > 0:
+      # We don't count commas at higher nesting levels.
+      if lines[end] == ',' and height == 1:
+        add_arg(lines[last_match:end])
+        last_match = end + 1
+      elif lines[end] in ['(', '{', '[']:
+        height = height + 1
+      elif lines[end] in [')', '}', ']']:
+        height = height - 1
+      end = end + 1
+    # Remember to add the last match.
+    add_arg(lines[last_match:end-1])
+    result = macro.expand(mapping)
+    # Replace the occurrence of the macro with the expansion
+    lines = lines[:start] + result + lines[end:]
+    pattern_match = name_pattern.search(lines, start + len(result))
+  return lines
+
 def ExpandMacros(lines, macros):
   # We allow macros to depend on the previously declared macros, but
   # we don't allow self-dependecies or recursion.
   for name_pattern, macro in reversed(macros):
-    pattern_match = name_pattern.search(lines, 0)
-    while pattern_match is not None:
-      # Scan over the arguments
-      height = 1
-      start = pattern_match.start()
-      end = pattern_match.end()
-      assert lines[end - 1] == '('
-      last_match = end
-      arg_index = [0]  # Wrap state into array, to work around Python "scoping"
-      mapping = { }
-      def add_arg(str):
-        # Remember to expand recursively in the arguments
-        replacement = ExpandMacros(str.strip(), macros)
-        mapping[macro.args[arg_index[0]]] = replacement
-        arg_index[0] += 1
-      while end < len(lines) and height > 0:
-        # We don't count commas at higher nesting levels.
-        if lines[end] == ',' and height == 1:
-          add_arg(lines[last_match:end])
-          last_match = end + 1
-        elif lines[end] in ['(', '{', '[']:
-          height = height + 1
-        elif lines[end] in [')', '}', ']']:
-          height = height - 1
-        end = end + 1
-      # Remember to add the last match.
-      add_arg(lines[last_match:end-1])
-      result = macro.expand(mapping)
-      # Replace the occurrence of the macro with the expansion
-      lines = lines[:start] + result + lines[end:]
-      pattern_match = name_pattern.search(lines, start + len(result))
+    def expander(s):
+      return ExpandMacros(s, macros)
+    lines = ExpandMacroDefinition(lines, 0, name_pattern, macro, expander)
   return lines
 
 class TextMacro:
@@ -210,6 +216,34 @@ def ReadMacros(lines):
           raise ("Illegal line: " + line)
   return (constants, macros)
 
+INLINE_MACRO_PATTERN = re.compile(r'macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\n')
+INLINE_MACRO_END_PATTERN = re.compile(r'endmacro\s*\n')
+
+def ExpandInlineMacros(lines, filename):
+  pos = 0
+  while True:
+    macro_match = INLINE_MACRO_PATTERN.search(lines, pos)
+    if macro_match is None:
+      # no more macros
+      return lines
+    name = macro_match.group(1)
+    args = [match.strip() for match in macro_match.group(2).split(',')]
+    end_macro_match = INLINE_MACRO_END_PATTERN.search(lines, macro_match.end());
+    if end_macro_match is None:
+      raise ("Macro %s unclosed in %s" % (name, filename))
+    body = lines[macro_match.end():end_macro_match.start()]
+
+    # remove macro definition
+    lines = lines[:macro_match.start()] + lines[end_macro_match.end():]
+    name_pattern = re.compile("\\b%s\\(" % name)
+    macro = TextMacro(args, body)
+
+    # advance position to where the macro defintion was
+    pos = macro_match.start()
+
+    def non_expander(s):
+      return s
+    lines = ExpandMacroDefinition(lines, pos, name_pattern, macro, non_expander)
 
 HEADER_TEMPLATE = """\
 // Copyright 2011 Google Inc. All Rights Reserved.
@@ -325,6 +359,8 @@ def JS2C(source, target, env):
     lines = ReadFile(filename)
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
+    lines = RemoveCommentsAndTrailingWhitespace(lines)
+    lines = ExpandInlineMacros(lines, filename)
     Validate(lines, filename)
     lines = minifier.JSMinify(lines)
     id = (os.path.split(filename)[1])[:-3]

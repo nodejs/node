@@ -571,6 +571,8 @@ class MarkCompactCollector {
 
   static void Initialize();
 
+  void SetUp();
+
   void TearDown();
 
   void CollectEvacuationCandidates(PagedSpace* space);
@@ -715,13 +717,11 @@ class MarkCompactCollector {
   MarkingParity marking_parity() { return marking_parity_; }
 
   // Concurrent and parallel sweeping support.
-  void SweepInParallel(PagedSpace* space,
-                       FreeList* private_free_list,
-                       FreeList* free_list);
+  void SweepInParallel(PagedSpace* space);
 
   void WaitUntilSweepingCompleted();
 
-  intptr_t StealMemoryFromSweeperThreads(PagedSpace* space);
+  intptr_t RefillFreeLists(PagedSpace* space);
 
   bool AreSweeperThreadsActivated();
 
@@ -739,8 +739,14 @@ class MarkCompactCollector {
   // marking its contents.
   void MarkWeakObjectToCodeTable();
 
+  // Special case for processing weak references in a full collection. We need
+  // to artifically keep AllocationSites alive for a time.
+  void MarkAllocationSite(AllocationSite* site);
+
  private:
-  MarkCompactCollector();
+  class SweeperTask;
+
+  explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();
 
   bool MarkInvalidatedCode();
@@ -786,6 +792,8 @@ class MarkCompactCollector {
 
   // True if concurrent or parallel sweeping is currently in progress.
   bool sweeping_pending_;
+
+  Semaphore pending_sweeper_jobs_semaphore_;
 
   bool sequential_sweeping_;
 
@@ -936,6 +944,12 @@ class MarkCompactCollector {
 
   void SweepSpace(PagedSpace* space, SweeperType sweeper);
 
+  // Finalizes the parallel sweeping phase. Marks all the pages that were
+  // swept in parallel.
+  void ParallelSweepSpacesComplete();
+
+  void ParallelSweepSpaceComplete(PagedSpace* space);
+
 #ifdef DEBUG
   friend class MarkObjectVisitor;
   static void VisitObject(HeapObject* obj);
@@ -952,6 +966,9 @@ class MarkCompactCollector {
 
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;
+
+  SmartPointer<FreeList> free_list_old_data_space_;
+  SmartPointer<FreeList> free_list_old_pointer_space_;
 
   friend class Heap;
 };

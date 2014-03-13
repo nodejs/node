@@ -148,10 +148,11 @@ TEST(StressJS) {
   map->AppendDescriptor(&d, witness);
 
   // Add the Foo constructor the global object.
-  env->Global()->Set(v8::String::New("Foo"), v8::Utils::ToLocal(function));
+  env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "Foo"),
+                     v8::Utils::ToLocal(function));
   // Call the accessor through JavaScript.
-  v8::Handle<v8::Value> result =
-      v8::Script::Compile(v8::String::New("(new Foo).get"))->Run();
+  v8::Handle<v8::Value> result = v8::Script::Compile(
+      v8::String::NewFromUtf8(CcTest::isolate(), "(new Foo).get"))->Run();
   CHECK_EQ(42, result->Int32Value());
   env->Exit();
 }
@@ -197,11 +198,11 @@ TEST(CodeRange) {
     if (current_allocated < code_range_size / 10) {
       // Allocate a block.
       // Geometrically distributed sizes, greater than
-      // Page::kMaxNonCodeHeapObjectSize (which is greater than code page area).
+      // Page::kMaxRegularHeapObjectSize (which is greater than code page area).
       // TODO(gc): instead of using 3 use some contant based on code_range_size
       // kMaxHeapObjectSize.
       size_t requested =
-          (Page::kMaxNonCodeHeapObjectSize << (Pseudorandom() % 3)) +
+          (Page::kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
           Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
       Address base = code_range.AllocateRawMemory(requested,

@@ -30,7 +30,6 @@
 #define V8_HANDLES_INL_H_
 
 #include "api.h"
-#include "apiutils.h"
 #include "handles.h"
 #include "heap.h"
 #include "isolate.h"
@@ -110,8 +109,7 @@ bool Handle<T>::IsDereferenceAllowed(DereferenceCheckMode mode) const {
 
 
 HandleScope::HandleScope(Isolate* isolate) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
+  HandleScopeData* current = isolate->handle_scope_data();
   isolate_ = isolate;
   prev_next_ = current->next;
   prev_limit_ = current->limit;
@@ -127,8 +125,7 @@ HandleScope::~HandleScope() {
 void HandleScope::CloseScope(Isolate* isolate,
                              Object** prev_next,
                              Object** prev_limit) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
+  HandleScopeData* current = isolate->handle_scope_data();
 
   std::swap(current->next, prev_next);
   current->level--;
@@ -146,8 +143,7 @@ void HandleScope::CloseScope(Isolate* isolate,
 
 template <typename T>
 Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate_->handle_scope_data();
+  HandleScopeData* current = isolate_->handle_scope_data();
 
   T* value = *handle_value;
   // Throw away all handles in the current scope.
@@ -167,8 +163,7 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
 template <typename T>
 T** HandleScope::CreateHandle(Isolate* isolate, T* value) {
   ASSERT(AllowHandleAllocation::IsAllowed());
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
+  HandleScopeData* current = isolate->handle_scope_data();
 
   internal::Object** cur = current->next;
   if (cur == current->limit) cur = Extend(isolate);
@@ -187,8 +182,7 @@ T** HandleScope::CreateHandle(Isolate* isolate, T* value) {
 inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
   // Make sure the current thread is allowed to create handles to begin with.
   CHECK(AllowHandleAllocation::IsAllowed());
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate_->handle_scope_data();
+  HandleScopeData* current = isolate_->handle_scope_data();
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.
   limit_ = current->limit;
@@ -201,8 +195,7 @@ inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
 inline SealHandleScope::~SealHandleScope() {
   // Restore state in current handle scope to re-enable handle
   // allocations.
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate_->handle_scope_data();
+  HandleScopeData* current = isolate_->handle_scope_data();
   ASSERT_EQ(0, current->level);
   current->level = level_;
   ASSERT_EQ(current->next, current->limit);

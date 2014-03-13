@@ -34,43 +34,6 @@
 namespace v8 {
 namespace internal {
 
-// Forward declarations
-class CompilationInfo;
-
-// -------------------------------------------------------------------------
-// CodeGenerator
-
-class CodeGenerator {
- public:
-  // Printing of AST, etc. as requested by flags.
-  static void MakeCodePrologue(CompilationInfo* info, const char* kind);
-
-  // Allocate and install the code.
-  static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
-                                       Code::Flags flags,
-                                       CompilationInfo* info);
-
-  // Print the code after compiling it.
-  static void PrintCode(Handle<Code> code, CompilationInfo* info);
-
-  static bool ShouldGenerateLog(Isolate* isolate, Expression* type);
-
-  static bool RecordPositions(MacroAssembler* masm,
-                              int pos,
-                              bool right_here = false);
-
-
-  static Operand FixedArrayElementOperand(Register array,
-                                          Register index_as_smi,
-                                          int additional_offset = 0) {
-    int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
-    return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
-};
-
 
 class StringCharLoadGenerator : public AllStatic {
  public:

@@ -47,6 +47,7 @@ PASS String.prototype.charCodeAt.__proto__ is Function.prototype
 PASS String.prototype.indexOf.__proto__ is Function.prototype
 PASS String.prototype.lastIndexOf.__proto__ is Function.prototype
 PASS String.prototype.match.__proto__ is Function.prototype
+PASS String.prototype.normalize.__proto__ is Function.prototype
 PASS String.prototype.replace.__proto__ is Function.prototype
 PASS String.prototype.search.__proto__ is Function.prototype
 PASS String.prototype.slice.__proto__ is Function.prototype

@@ -246,6 +246,231 @@ void CodeEventLogger::RegExpCodeCreateEvent(Code* code, String* source) {
 }
 
 
+// Linux perf tool logging support
+class PerfBasicLogger : public CodeEventLogger {
+ public:
+  PerfBasicLogger();
+  virtual ~PerfBasicLogger();
+
+  virtual void CodeMoveEvent(Address from, Address to) { }
+  virtual void CodeDeleteEvent(Address from) { }
+
+ private:
+  virtual void LogRecordedBuffer(Code* code,
+                                 SharedFunctionInfo* shared,
+                                 const char* name,
+                                 int length);
+
+  // Extension added to V8 log file name to get the low-level log name.
+  static const char kFilenameFormatString[];
+  static const int kFilenameBufferPadding;
+
+  // File buffer size of the low-level log. We don't use the default to
+  // minimize the associated overhead.
+  static const int kLogBufferSize = 2 * MB;
+
+  FILE* perf_output_handle_;
+};
+
+const char PerfBasicLogger::kFilenameFormatString[] = "/tmp/perf-%d.map";
+// Extra space for the PID in the filename
+const int PerfBasicLogger::kFilenameBufferPadding = 16;
+
+PerfBasicLogger::PerfBasicLogger()
+    : perf_output_handle_(NULL) {
+  // Open the perf JIT dump file.
+  int bufferSize = sizeof(kFilenameFormatString) + kFilenameBufferPadding;
+  ScopedVector<char> perf_dump_name(bufferSize);
+  int size = OS::SNPrintF(
+      perf_dump_name,
+      kFilenameFormatString,
+      OS::GetCurrentProcessId());
+  CHECK_NE(size, -1);
+  perf_output_handle_ = OS::FOpen(perf_dump_name.start(), OS::LogFileOpenMode);
+  CHECK_NE(perf_output_handle_, NULL);
+  setvbuf(perf_output_handle_, NULL, _IOFBF, kLogBufferSize);
+}
+
+
+PerfBasicLogger::~PerfBasicLogger() {
+  fclose(perf_output_handle_);
+  perf_output_handle_ = NULL;
+}
+
+
+void PerfBasicLogger::LogRecordedBuffer(Code* code,
+                                       SharedFunctionInfo*,
+                                       const char* name,
+                                       int length) {
+  ASSERT(code->instruction_start() == code->address() + Code::kHeaderSize);
+
+  OS::FPrint(perf_output_handle_, "%llx %x %.*s\n",
+      reinterpret_cast<uint64_t>(code->instruction_start()),
+      code->instruction_size(),
+      length, name);
+}
+
+
+// Linux perf tool logging support
+class PerfJitLogger : public CodeEventLogger {
+ public:
+  PerfJitLogger();
+  virtual ~PerfJitLogger();
+
+  virtual void CodeMoveEvent(Address from, Address to) { }
+  virtual void CodeDeleteEvent(Address from) { }
+
+ private:
+  virtual void LogRecordedBuffer(Code* code,
+                                 SharedFunctionInfo* shared,
+                                 const char* name,
+                                 int length);
+
+  // Extension added to V8 log file name to get the low-level log name.
+  static const char kFilenameFormatString[];
+  static const int kFilenameBufferPadding;
+
+  // File buffer size of the low-level log. We don't use the default to
+  // minimize the associated overhead.
+  static const int kLogBufferSize = 2 * MB;
+
+  void LogWriteBytes(const char* bytes, int size);
+  void LogWriteHeader();
+
+  static const uint32_t kJitHeaderMagic = 0x4F74496A;
+  static const uint32_t kJitHeaderVersion = 0x2;
+  static const uint32_t kElfMachIA32 = 3;
+  static const uint32_t kElfMachX64 = 62;
+  static const uint32_t kElfMachARM = 40;
+  static const uint32_t kElfMachMIPS = 10;
+
+  struct jitheader {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t total_size;
+    uint32_t elf_mach;
+    uint32_t pad1;
+    uint32_t pid;
+    uint64_t timestamp;
+  };
+
+  enum jit_record_type {
+    JIT_CODE_LOAD = 0
+    // JIT_CODE_UNLOAD = 1,
+    // JIT_CODE_CLOSE = 2,
+    // JIT_CODE_DEBUG_INFO = 3,
+    // JIT_CODE_PAGE_MAP = 4,
+    // JIT_CODE_MAX = 5
+  };
+
+  struct jr_code_load {
+    uint32_t id;
+    uint32_t total_size;
+    uint64_t timestamp;
+    uint64_t vma;
+    uint64_t code_addr;
+    uint32_t code_size;
+    uint32_t align;
+  };
+
+  uint32_t GetElfMach() {
+#if V8_TARGET_ARCH_IA32
+    return kElfMachIA32;
+#elif V8_TARGET_ARCH_X64
+    return kElfMachX64;
+#elif V8_TARGET_ARCH_ARM
+    return kElfMachARM;
+#elif V8_TARGET_ARCH_MIPS
+    return kElfMachMIPS;
+#else
+    UNIMPLEMENTED();
+    return 0;
+#endif
+  }
+
+  FILE* perf_output_handle_;
+};
+
+const char PerfJitLogger::kFilenameFormatString[] = "/tmp/jit-%d.dump";
+
+// Extra padding for the PID in the filename
+const int PerfJitLogger::kFilenameBufferPadding = 16;
+
+PerfJitLogger::PerfJitLogger()
+    : perf_output_handle_(NULL) {
+  // Open the perf JIT dump file.
+  int bufferSize = sizeof(kFilenameFormatString) + kFilenameBufferPadding;
+  ScopedVector<char> perf_dump_name(bufferSize);
+  int size = OS::SNPrintF(
+      perf_dump_name,
+      kFilenameFormatString,
+      OS::GetCurrentProcessId());
+  CHECK_NE(size, -1);
+  perf_output_handle_ = OS::FOpen(perf_dump_name.start(), OS::LogFileOpenMode);
+  CHECK_NE(perf_output_handle_, NULL);
+  setvbuf(perf_output_handle_, NULL, _IOFBF, kLogBufferSize);
+
+  LogWriteHeader();
+}
+
+
+PerfJitLogger::~PerfJitLogger() {
+  fclose(perf_output_handle_);
+  perf_output_handle_ = NULL;
+}
+
+
+void PerfJitLogger::LogRecordedBuffer(Code* code,
+                                      SharedFunctionInfo*,
+                                      const char* name,
+                                      int length) {
+  ASSERT(code->instruction_start() == code->address() + Code::kHeaderSize);
+  ASSERT(perf_output_handle_ != NULL);
+
+  const char* code_name = name;
+  uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code->instruction_start());
+  uint32_t code_size = code->instruction_size();
+
+  static const char string_terminator[] = "\0";
+
+  jr_code_load code_load;
+  code_load.id = JIT_CODE_LOAD;
+  code_load.total_size = sizeof(code_load) + length + 1 + code_size;
+  code_load.timestamp =
+      static_cast<uint64_t>(OS::TimeCurrentMillis() * 1000.0);
+  code_load.vma = 0x0;  //  Our addresses are absolute.
+  code_load.code_addr = reinterpret_cast<uint64_t>(code->instruction_start());
+  code_load.code_size = code_size;
+  code_load.align = 0;
+
+  LogWriteBytes(reinterpret_cast<const char*>(&code_load), sizeof(code_load));
+  LogWriteBytes(code_name, length);
+  LogWriteBytes(string_terminator, 1);
+  LogWriteBytes(reinterpret_cast<const char*>(code_pointer), code_size);
+}
+
+
+void PerfJitLogger::LogWriteBytes(const char* bytes, int size) {
+  size_t rv = fwrite(bytes, 1, size, perf_output_handle_);
+  ASSERT(static_cast<size_t>(size) == rv);
+  USE(rv);
+}
+
+
+void PerfJitLogger::LogWriteHeader() {
+  ASSERT(perf_output_handle_ != NULL);
+  jitheader header;
+  header.magic = kJitHeaderMagic;
+  header.version = kJitHeaderVersion;
+  header.total_size = sizeof(jitheader);
+  header.pad1 = 0xdeadbeef;
+  header.elf_mach = GetElfMach();
+  header.pid = OS::GetCurrentProcessId();
+  header.timestamp = static_cast<uint64_t>(OS::TimeCurrentMillis() * 1000.0);
+  LogWriteBytes(reinterpret_cast<const char*>(&header), sizeof(header));
+}
+
+
 // Low-level logging support.
 #define LL_LOG(Call) if (ll_logger_) ll_logger_->Call;
 
@@ -711,6 +936,8 @@ Logger::Logger(Isolate* isolate)
     log_events_(NULL),
     is_logging_(false),
     log_(new Log(this)),
+    perf_basic_logger_(NULL),
+    perf_jit_logger_(NULL),
     ll_logger_(NULL),
     jit_logger_(NULL),
     listeners_(5),
@@ -814,7 +1041,7 @@ void Logger::ApiNamedSecurityCheck(Object* key) {
   if (key->IsString()) {
     SmartArrayPointer<char> str =
         String::cast(key)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    ApiEvent("api,check-security,\"%s\"\n", *str);
+    ApiEvent("api,check-security,\"%s\"\n", str.get());
   } else if (key->IsSymbol()) {
     Symbol* symbol = Symbol::cast(key);
     if (symbol->name()->IsUndefined()) {
@@ -824,7 +1051,7 @@ void Logger::ApiNamedSecurityCheck(Object* key) {
       SmartArrayPointer<char> str = String::cast(symbol->name())->ToCString(
           DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
       ApiEvent("api,check-security,symbol(\"%s\" hash %x)\n",
-               *str,
+               str.get(),
                Symbol::cast(key)->Hash());
     }
   } else if (key->IsUndefined()) {
@@ -1026,17 +1253,18 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
   if (name->IsString()) {
     SmartArrayPointer<char> property_name =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    ApiEvent("api,%s,\"%s\",\"%s\"\n", tag, *class_name, *property_name);
+    ApiEvent("api,%s,\"%s\",\"%s\"\n", tag, class_name.get(),
+             property_name.get());
   } else {
     Symbol* symbol = Symbol::cast(name);
     uint32_t hash = symbol->Hash();
     if (symbol->name()->IsUndefined()) {
-      ApiEvent("api,%s,\"%s\",symbol(hash %x)\n", tag, *class_name, hash);
+      ApiEvent("api,%s,\"%s\",symbol(hash %x)\n", tag, class_name.get(), hash);
     } else {
       SmartArrayPointer<char> str = String::cast(symbol->name())->ToCString(
           DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
       ApiEvent("api,%s,\"%s\",symbol(\"%s\" hash %x)\n",
-               tag, *class_name, *str, hash);
+               tag, class_name.get(), str.get(), hash);
     }
   }
 }
@@ -1048,7 +1276,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
   String* class_name_obj = holder->class_name();
   SmartArrayPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  ApiEvent("api,%s,\"%s\",%u\n", tag, *class_name, index);
+  ApiEvent("api,%s,\"%s\",%u\n", tag, class_name.get(), index);
 }
 
 
@@ -1057,7 +1285,7 @@ void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
   String* class_name_obj = object->class_name();
   SmartArrayPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  ApiEvent("api,%s,\"%s\"\n", tag, *class_name);
+  ApiEvent("api,%s,\"%s\"\n", tag, class_name.get());
 }
 
 
@@ -1105,7 +1333,7 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
   if (name->IsString()) {
     SmartArrayPointer<char> str =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    msg.Append(",1,\"%s%s\"", prefix, *str);
+    msg.Append(",1,\"%s%s\"", prefix, str.get());
   } else {
     Symbol* symbol = Symbol::cast(name);
     if (symbol->name()->IsUndefined()) {
@@ -1113,7 +1341,8 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
     } else {
       SmartArrayPointer<char> str = String::cast(symbol->name())->ToCString(
           DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-      msg.Append(",1,symbol(\"%s\" hash %x)", prefix, *str, symbol->Hash());
+      msg.Append(",1,symbol(\"%s\" hash %x)", prefix, str.get(),
+                 symbol->Hash());
     }
   }
   msg.Append('\n');
@@ -1203,8 +1432,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   CALL_LISTENERS(CodeCreateEvent(tag, code, shared, info, name));
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  if (code == isolate_->builtins()->builtin(
-      Builtins::kLazyCompile))
+  if (code == isolate_->builtins()->builtin(Builtins::kCompileUnoptimized))
     return;
 
   Log::MessageBuilder msg(log_);
@@ -1212,7 +1440,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   if (name->IsString()) {
     SmartArrayPointer<char> str =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    msg.Append("\"%s\"", *str);
+    msg.Append("\"%s\"", str.get());
   } else {
     msg.AppendSymbolName(Symbol::cast(name));
   }
@@ -1243,11 +1471,11 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   AppendCodeCreateHeader(&msg, tag, code);
   SmartArrayPointer<char> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("\"%s ", *name);
+  msg.Append("\"%s ", name.get());
   if (source->IsString()) {
     SmartArrayPointer<char> sourcestr =
        String::cast(source)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    msg.Append("%s", *sourcestr);
+    msg.Append("%s", sourcestr.get());
   } else {
     msg.AppendSymbolName(Symbol::cast(source));
   }
@@ -1611,12 +1839,7 @@ void Logger::LogCodeObject(Object* object) {
     case Code::FUNCTION:
     case Code::OPTIMIZED_FUNCTION:
       return;  // We log this later using LogCompiledFunctions.
-    case Code::BINARY_OP_IC: {
-      BinaryOpStub stub(code_object->extended_extra_ic_state());
-      description = stub.GetName().Detach();
-      tag = Logger::STUB_TAG;
-      break;
-    }
+    case Code::BINARY_OP_IC:
     case Code::COMPARE_IC:  // fall through
     case Code::COMPARE_NIL_IC:   // fall through
     case Code::TO_BOOLEAN_IC:  // fall through
@@ -1654,14 +1877,6 @@ void Logger::LogCodeObject(Object* object) {
     case Code::KEYED_STORE_IC:
       description = "A keyed store IC from the snapshot";
       tag = Logger::KEYED_STORE_IC_TAG;
-      break;
-    case Code::CALL_IC:
-      description = "A call IC from the snapshot";
-      tag = Logger::CALL_IC_TAG;
-      break;
-    case Code::KEYED_CALL_IC:
-      description = "A keyed call IC from the snapshot";
-      tag = Logger::KEYED_CALL_IC_TAG;
       break;
     case Code::NUMBER_OF_KINDS:
       break;
@@ -1743,8 +1958,8 @@ void Logger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
-    if (*code_objects[i] == isolate_->builtins()->builtin(
-        Builtins::kLazyCompile))
+    if (code_objects[i].is_identical_to(
+            isolate_->builtins()->CompileUnoptimized()))
       continue;
     LogExistingFunction(sfis[i], code_objects[i]);
   }
@@ -1842,10 +2057,21 @@ bool Logger::SetUp(Isolate* isolate) {
 
   SmartArrayPointer<const char> log_file_name =
       PrepareLogFileName(isolate, FLAG_logfile);
-  log_->Initialize(*log_file_name);
+  log_->Initialize(log_file_name.get());
+
+
+  if (FLAG_perf_basic_prof) {
+    perf_basic_logger_ = new PerfBasicLogger();
+    addCodeEventListener(perf_basic_logger_);
+  }
+
+  if (FLAG_perf_jit_prof) {
+    perf_jit_logger_ = new PerfJitLogger();
+    addCodeEventListener(perf_jit_logger_);
+  }
 
   if (FLAG_ll_prof) {
-    ll_logger_ = new LowLevelLogger(*log_file_name);
+    ll_logger_ = new LowLevelLogger(log_file_name.get());
     addCodeEventListener(ll_logger_);
   }
 
@@ -1905,6 +2131,18 @@ FILE* Logger::TearDown() {
 
   delete ticker_;
   ticker_ = NULL;
+
+  if (perf_basic_logger_) {
+    removeCodeEventListener(perf_basic_logger_);
+    delete perf_basic_logger_;
+    perf_basic_logger_ = NULL;
+  }
+
+  if (perf_jit_logger_) {
+    removeCodeEventListener(perf_jit_logger_);
+    delete perf_jit_logger_;
+    perf_jit_logger_ = NULL;
+  }
 
   if (ll_logger_) {
     removeCodeEventListener(ll_logger_);

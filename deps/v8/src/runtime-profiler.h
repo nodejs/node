@@ -45,47 +45,18 @@ class RuntimeProfiler {
 
   void OptimizeNow();
 
-  void SetUp();
-  void Reset();
-  void TearDown();
-
   void NotifyICChanged() { any_ic_changed_ = true; }
-
-  // Rate limiting support.
-
-  void UpdateSamplesAfterScavenge();
-  void RemoveDeadSamples();
-  void UpdateSamplesAfterCompact(ObjectVisitor* visitor);
 
   void AttemptOnStackReplacement(JSFunction* function);
 
  private:
-  static const int kSamplerWindowSize = 16;
-
   void Optimize(JSFunction* function, const char* reason);
-
-  void ClearSampleBuffer();
-
-  void ClearSampleBufferNewSpaceEntries();
-
-  int LookupSample(JSFunction* function);
-
-  void AddSample(JSFunction* function, int weight);
 
   bool CodeSizeOKForOSR(Code* shared_code);
 
   Isolate* isolate_;
 
-  int sampler_threshold_;
-  int sampler_threshold_size_factor_;
-  int sampler_ticks_until_threshold_adjustment_;
-
-  Object* sampler_window_[kSamplerWindowSize];
-  int sampler_window_position_;
-  int sampler_window_weight_[kSamplerWindowSize];
-
   bool any_ic_changed_;
-  bool code_generated_;
 };
 
 } }  // namespace v8::internal

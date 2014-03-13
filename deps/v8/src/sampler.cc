@@ -35,7 +35,10 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
+
+#if !V8_OS_QNX
 #include <sys/syscall.h>
+#endif
 
 #if V8_OS_MACOSX
 #include <mach/mach.h>
@@ -45,12 +48,14 @@
     && !V8_OS_OPENBSD
 #include <ucontext.h>
 #endif
+
 #include <unistd.h>
 
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
-    defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
+    (defined(__arm__) || defined(__aarch64__)) && \
+    !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
 #include <asm/sigcontext.h>
 #endif
 
@@ -88,6 +93,18 @@ typedef struct sigcontext mcontext_t;
 typedef struct ucontext {
   uint32_t uc_flags;
   struct ucontext* uc_link;
+  stack_t uc_stack;
+  mcontext_t uc_mcontext;
+  // Other fields are not used by V8, don't define them here.
+} ucontext_t;
+
+#elif defined(__aarch64__)
+
+typedef struct sigcontext mcontext_t;
+
+typedef struct ucontext {
+  uint64_t uc_flags;
+  struct ucontext *uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   // Other fields are not used by V8, don't define them here.
@@ -222,13 +239,27 @@ class SimulatorHelper {
   }
 
   inline void FillRegisters(RegisterState* state) {
+#if V8_TARGET_ARCH_ARM
     state->pc = reinterpret_cast<Address>(simulator_->get_pc());
     state->sp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::sp));
-#if V8_TARGET_ARCH_ARM
     state->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::r11));
+#elif V8_TARGET_ARCH_A64
+    if (simulator_->sp() == 0 || simulator_->fp() == 0) {
+      // It possible that the simulator is interrupted while it is updating
+      // the sp or fp register. A64 simulator does this in two steps:
+      // first setting it to zero and then setting it to the new value.
+      // Bailout if sp/fp doesn't contain the new value.
+      return;
+    }
+    state->pc = reinterpret_cast<Address>(simulator_->pc());
+    state->sp = reinterpret_cast<Address>(simulator_->sp());
+    state->fp = reinterpret_cast<Address>(simulator_->fp());
 #elif V8_TARGET_ARCH_MIPS
+    state->pc = reinterpret_cast<Address>(simulator_->get_pc());
+    state->sp = reinterpret_cast<Address>(simulator_->get_register(
+        Simulator::sp));
     state->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::fp));
 #endif
@@ -266,7 +297,11 @@ class SignalHandler : public AllStatic {
     struct sigaction sa;
     sa.sa_sigaction = &HandleProfilerSignal;
     sigemptyset(&sa.sa_mask);
+#if V8_OS_QNX
+    sa.sa_flags = SA_SIGINFO;
+#else
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
+#endif
     signal_handler_installed_ =
         (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
   }
@@ -321,6 +356,11 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   SimulatorHelper helper;
   if (!helper.Init(sampler, isolate)) return;
   helper.FillRegisters(&state);
+  // It possible that the simulator is interrupted while it is updating
+  // the sp or fp register. A64 simulator does this in two steps:
+  // first setting it to zero and then setting it to the new value.
+  // Bailout if sp/fp doesn't contain the new value.
+  if (state.sp == 0 || state.fp == 0) return;
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
@@ -350,6 +390,11 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.fp = reinterpret_cast<Address>(mcontext.arm_fp);
 #endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
         // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#elif V8_HOST_ARCH_A64
+  state.pc = reinterpret_cast<Address>(mcontext.pc);
+  state.sp = reinterpret_cast<Address>(mcontext.sp);
+  // FP is an alias for x29.
+  state.fp = reinterpret_cast<Address>(mcontext.regs[29]);
 #elif V8_HOST_ARCH_MIPS
   state.pc = reinterpret_cast<Address>(mcontext.pc);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
@@ -415,7 +460,17 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.pc = reinterpret_cast<Address>(mcontext.gregs[REG_PC]);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_SP]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[REG_FP]);
-#endif  // V8_OS_SOLARIS
+#elif V8_OS_QNX
+#if V8_HOST_ARCH_IA32
+  state.pc = reinterpret_cast<Address>(mcontext.cpu.eip);
+  state.sp = reinterpret_cast<Address>(mcontext.cpu.esp);
+  state.fp = reinterpret_cast<Address>(mcontext.cpu.ebp);
+#elif V8_HOST_ARCH_ARM
+  state.pc = reinterpret_cast<Address>(mcontext.cpu.gpr[ARM_REG_PC]);
+  state.sp = reinterpret_cast<Address>(mcontext.cpu.gpr[ARM_REG_SP]);
+  state.fp = reinterpret_cast<Address>(mcontext.cpu.gpr[ARM_REG_FP]);
+#endif  // V8_HOST_ARCH_*
+#endif  // V8_OS_QNX
 #endif  // USE_SIMULATOR
   sampler->SampleStack(state);
 #endif  // V8_OS_NACL

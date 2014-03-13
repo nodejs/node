@@ -51,4 +51,3 @@ for (var i = 0; i < 200; ++i) {
     shouldBe("bar({f:True})", "0");
     shouldBe("bar({f:False})", "1");
 }
-

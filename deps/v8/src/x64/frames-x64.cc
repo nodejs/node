@@ -40,10 +40,24 @@ namespace internal {
 
 Register JavaScriptFrame::fp_register() { return rbp; }
 Register JavaScriptFrame::context_register() { return rsi; }
+Register JavaScriptFrame::constant_pool_pointer_register() {
+  UNREACHABLE();
+  return no_reg;
+}
 
 
 Register StubFailureTrampolineFrame::fp_register() { return rbp; }
 Register StubFailureTrampolineFrame::context_register() { return rsi; }
+Register StubFailureTrampolineFrame::constant_pool_pointer_register() {
+  UNREACHABLE();
+  return no_reg;
+}
+
+
+Object*& ExitFrame::constant_pool_slot() const {
+  UNREACHABLE();
+  return Memory::Object_at(NULL);
+}
 
 
 } }  // namespace v8::internal

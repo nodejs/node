@@ -49,6 +49,14 @@ void HComputeMinusZeroChecksPhase::Run() {
           PropagateMinusZeroChecks(change->value());
           visited_.Clear();
         }
+      } else if (current->IsCompareMinusZeroAndBranch()) {
+        HCompareMinusZeroAndBranch* check =
+            HCompareMinusZeroAndBranch::cast(current);
+        if (check->value()->representation().IsSmiOrInteger32()) {
+          ASSERT(visited_.IsEmpty());
+          PropagateMinusZeroChecks(check->value());
+          visited_.Clear();
+        }
       }
     }
   }

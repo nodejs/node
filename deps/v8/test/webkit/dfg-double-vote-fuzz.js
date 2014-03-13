@@ -87,5 +87,3 @@ for (var i = 0; i < 256; ++i) {
 }
 
 shouldBe("grandResult", "14578304");
-
-

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --no-fold-constants
 
 function add(x, y) {
   return x + y;
@@ -35,3 +35,59 @@ assertEquals(0, add(0, 0));
 assertEquals(0, add(0, 0));
 %OptimizeFunctionOnNextCall(add);
 assertEquals(-0, add(-0, -0));
+
+
+function test(x, y) {
+  assertTrue(%_IsMinusZero(-0));
+  assertTrue(%_IsMinusZero(1/(-Infinity)));
+  assertTrue(%_IsMinusZero(x));
+
+  assertFalse(%_IsMinusZero(0));
+  assertFalse(%_IsMinusZero(1/Infinity));
+  assertFalse(%_IsMinusZero(0.1));
+  assertFalse(%_IsMinusZero(-0.2));
+  assertFalse(%_IsMinusZero({}));
+  assertFalse(%_IsMinusZero(""));
+  assertFalse(%_IsMinusZero("-0"));
+  assertFalse(%_IsMinusZero(function() {}));
+  assertFalse(%_IsMinusZero(y));
+}
+
+test(-0, 1.2);
+test(-0, 1.2);
+%OptimizeFunctionOnNextCall(test);
+test(-0, 1.2);
+assertOptimized(test);
+
+
+function testsin() {
+  assertTrue(%_IsMinusZero(Math.sin(-0)));
+}
+
+testsin();
+testsin();
+%OptimizeFunctionOnNextCall(testsin);
+testsin();
+
+
+function testfloor() {
+  assertTrue(%_IsMinusZero(Math.floor(-0)));
+  assertFalse(%_IsMinusZero(Math.floor(2)));
+}
+
+testfloor();
+testfloor();
+%OptimizeFunctionOnNextCall(testfloor);
+testfloor();
+
+
+var double_one = Math.cos(0);
+
+function add(a, b) {
+  return a + b;
+}
+
+assertEquals(1, 1/add(double_one, 0));
+assertEquals(1, 1/add(0, double_one));
+%OptimizeFunctionOnNextCall(add);
+assertEquals(1/(-0 + -0), 1/add(-0, -0));

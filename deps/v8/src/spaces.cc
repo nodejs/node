@@ -483,7 +483,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_ = static_cast<int>(area_start - base);
-  chunk->parallel_sweeping_ = 0;
+  chunk->set_parallel_sweeping(PARALLEL_SWEEPING_DONE);
   chunk->available_in_small_free_list_ = 0;
   chunk->available_in_medium_free_list_ = 0;
   chunk->available_in_large_free_list_ = 0;
@@ -560,21 +560,12 @@ bool MemoryChunk::CommitArea(size_t requested) {
 
 
 void MemoryChunk::InsertAfter(MemoryChunk* other) {
-  next_chunk_ = other->next_chunk_;
-  prev_chunk_ = other;
+  MemoryChunk* other_next = other->next_chunk();
 
-  // This memory barrier is needed since concurrent sweeper threads may iterate
-  // over the list of pages while a new page is inserted.
-  // TODO(hpayer): find a cleaner way to guarantee that the page list can be
-  // expanded concurrently
-  MemoryBarrier();
-
-  // The following two write operations can take effect in arbitrary order
-  // since pages are always iterated by the sweeper threads in LIFO order, i.e,
-  // the inserted page becomes visible for the sweeper threads after
-  // other->next_chunk_ = this;
-  other->next_chunk_->prev_chunk_ = this;
-  other->next_chunk_ = this;
+  set_next_chunk(other_next);
+  set_prev_chunk(other);
+  other_next->set_prev_chunk(this);
+  other->set_next_chunk(this);
 }
 
 
@@ -583,10 +574,12 @@ void MemoryChunk::Unlink() {
     heap_->decrement_scan_on_scavenge_pages();
     ClearFlag(SCAN_ON_SCAVENGE);
   }
-  next_chunk_->prev_chunk_ = prev_chunk_;
-  prev_chunk_->next_chunk_ = next_chunk_;
-  prev_chunk_ = NULL;
-  next_chunk_ = NULL;
+  MemoryChunk* next_element = next_chunk();
+  MemoryChunk* prev_element = prev_chunk();
+  next_element->set_prev_chunk(prev_element);
+  prev_element->set_next_chunk(next_element);
+  set_prev_chunk(NULL);
+  set_next_chunk(NULL);
 }
 
 
@@ -1079,12 +1072,7 @@ intptr_t PagedSpace::SizeOfFirstPage() {
         // upgraded to handle small pages.
         size = AreaSize();
       } else {
-#if V8_TARGET_ARCH_MIPS
-        // TODO(plind): Investigate larger code stubs size on MIPS.
         size = 480 * KB;
-#else
-        size = 416 * KB;
-#endif
       }
       break;
     default:
@@ -1122,6 +1110,11 @@ void PagedSpace::ResetFreeListStatistics() {
 }
 
 
+void PagedSpace::IncreaseCapacity(int size) {
+  accounting_stats_.ExpandSpace(size);
+}
+
+
 void PagedSpace::ReleasePage(Page* page, bool unlink) {
   ASSERT(page->LiveBytes() == 0);
   ASSERT(AreaSize() == page->area_size());
@@ -1141,6 +1134,11 @@ void PagedSpace::ReleasePage(Page* page, bool unlink) {
   } else {
     DecreaseUnsweptFreeBytes(page);
   }
+
+  // TODO(hpayer): This check is just used for debugging purpose and
+  // should be removed or turned into an assert after investigating the
+  // crash in concurrent sweeping.
+  CHECK(!free_list_.ContainsPageFreeListItems(page));
 
   if (Page::FromAllocationTop(allocation_info_.top()) == page) {
     allocation_info_.set_top(NULL);
@@ -1345,7 +1343,6 @@ void NewSpace::Shrink() {
       }
     }
   }
-  allocation_info_.set_limit(to_space_.page_high());
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
@@ -1354,14 +1351,7 @@ void NewSpace::UpdateAllocationInfo() {
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.set_top(to_space_.page_low());
   allocation_info_.set_limit(to_space_.page_high());
-
-  // Lower limit during incremental marking.
-  if (heap()->incremental_marking()->IsMarking() &&
-      inline_allocation_limit_step() != 0) {
-    Address new_limit =
-        allocation_info_.top() + inline_allocation_limit_step();
-    allocation_info_.set_limit(Min(new_limit, allocation_info_.limit()));
-  }
+  UpdateInlineAllocationLimit(0);
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
@@ -1375,6 +1365,26 @@ void NewSpace::ResetAllocationInfo() {
   while (it.has_next()) {
     Bitmap::Clear(it.next());
   }
+}
+
+
+void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
+  if (heap()->inline_allocation_disabled()) {
+    // Lowest limit when linear allocation was disabled.
+    Address high = to_space_.page_high();
+    Address new_top = allocation_info_.top() + size_in_bytes;
+    allocation_info_.set_limit(Min(new_top, high));
+  } else if (inline_allocation_limit_step() == 0) {
+    // Normal limit is the end of the current page.
+    allocation_info_.set_limit(to_space_.page_high());
+  } else {
+    // Lower limit during incremental marking.
+    Address high = to_space_.page_high();
+    Address new_top = allocation_info_.top() + size_in_bytes;
+    Address new_limit = new_top + inline_allocation_limit_step_;
+    allocation_info_.set_limit(Min(new_limit, high));
+  }
+  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 
@@ -1412,18 +1422,16 @@ bool NewSpace::AddFreshPage() {
 
 MaybeObject* NewSpace::SlowAllocateRaw(int size_in_bytes) {
   Address old_top = allocation_info_.top();
-  Address new_top = old_top + size_in_bytes;
   Address high = to_space_.page_high();
   if (allocation_info_.limit() < high) {
-    // Incremental marking has lowered the limit to get a
-    // chance to do a step.
-    Address new_limit = Min(
-        allocation_info_.limit() + inline_allocation_limit_step_,
-        high);
-    allocation_info_.set_limit(new_limit);
+    // Either the limit has been lowered because linear allocation was disabled
+    // or because incremental marking wants to get a chance to do a step. Set
+    // the new limit accordingly.
+    Address new_top = old_top + size_in_bytes;
     int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
     heap()->incremental_marking()->Step(
         bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
+    UpdateInlineAllocationLimit(size_in_bytes);
     top_on_previous_step_ = new_top;
     return AllocateRaw(size_in_bytes);
   } else if (AddFreshPage()) {
@@ -1511,6 +1519,7 @@ void SemiSpace::SetUp(Address start,
   initial_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
   capacity_ = initial_capacity;
   maximum_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
+  maximum_committed_ = 0;
   committed_ = false;
   start_ = start;
   address_mask_ = ~(maximum_capacity - 1);
@@ -1543,6 +1552,7 @@ bool SemiSpace::Commit() {
     current = new_page;
   }
 
+  SetCapacity(capacity_);
   committed_ = true;
   Reset();
   return true;
@@ -1591,7 +1601,7 @@ bool SemiSpace::GrowTo(int new_capacity) {
       start_ + capacity_, delta, executable())) {
     return false;
   }
-  capacity_ = new_capacity;
+  SetCapacity(new_capacity);
   NewSpacePage* last_page = anchor()->prev_page();
   ASSERT(last_page != anchor());
   for (int i = pages_before; i < pages_after; i++) {
@@ -1631,7 +1641,7 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
     ASSERT((current_page_ >= first_page()) && (current_page_ <= new_last_page));
   }
 
-  capacity_ = new_capacity;
+  SetCapacity(new_capacity);
 
   return true;
 }
@@ -1691,6 +1701,14 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   to->FlipPages(flags, NewSpacePage::kCopyOnFlipFlagsMask);
 
   from->FlipPages(0, 0);
+}
+
+
+void SemiSpace::SetCapacity(int new_capacity) {
+  capacity_ = new_capacity;
+  if (capacity_ > maximum_committed_) {
+    maximum_committed_ = capacity_;
+  }
 }
 
 
@@ -2057,20 +2075,21 @@ void FreeListNode::set_next(FreeListNode* next) {
 
 intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
   intptr_t free_bytes = 0;
-  if (category->top_ != NULL) {
-    ASSERT(category->end_ != NULL);
+  if (category->top() != NULL) {
     // This is safe (not going to deadlock) since Concatenate operations
     // are never performed on the same free lists at the same time in
     // reverse order.
     LockGuard<Mutex> target_lock_guard(mutex());
     LockGuard<Mutex> source_lock_guard(category->mutex());
+    ASSERT(category->end_ != NULL);
     free_bytes = category->available();
     if (end_ == NULL) {
       end_ = category->end();
     } else {
-      category->end()->set_next(top_);
+      category->end()->set_next(top());
     }
-    top_ = category->top();
+    set_top(category->top());
+    NoBarrier_Store(&top_, category->top_);
     available_ += category->available();
     category->Reset();
   }
@@ -2079,15 +2098,16 @@ intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
 
 
 void FreeListCategory::Reset() {
-  top_ = NULL;
-  end_ = NULL;
-  available_ = 0;
+  set_top(NULL);
+  set_end(NULL);
+  set_available(0);
 }
 
 
 intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
   int sum = 0;
-  FreeListNode** n = &top_;
+  FreeListNode* t = top();
+  FreeListNode** n = &t;
   while (*n != NULL) {
     if (Page::FromAddress((*n)->address()) == p) {
       FreeSpace* free_space = reinterpret_cast<FreeSpace*>(*n);
@@ -2097,16 +2117,27 @@ intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
       n = (*n)->next_address();
     }
   }
-  if (top_ == NULL) {
-    end_ = NULL;
+  set_top(t);
+  if (top() == NULL) {
+    set_end(NULL);
   }
   available_ -= sum;
   return sum;
 }
 
 
+bool FreeListCategory::ContainsPageFreeListItemsInList(Page* p) {
+  FreeListNode* node = top();
+  while (node != NULL) {
+    if (Page::FromAddress(node->address()) == p) return true;
+    node = node->next();
+  }
+  return false;
+}
+
+
 FreeListNode* FreeListCategory::PickNodeFromList(int *node_size) {
-  FreeListNode* node = top_;
+  FreeListNode* node = top();
 
   if (node == NULL) return NULL;
 
@@ -2145,8 +2176,8 @@ FreeListNode* FreeListCategory::PickNodeFromList(int size_in_bytes,
 
 
 void FreeListCategory::Free(FreeListNode* node, int size_in_bytes) {
-  node->set_next(top_);
-  top_ = node;
+  node->set_next(top());
+  set_top(node);
   if (end_ == NULL) {
     end_ = node;
   }
@@ -2155,7 +2186,7 @@ void FreeListCategory::Free(FreeListNode* node, int size_in_bytes) {
 
 
 void FreeListCategory::RepairFreeList(Heap* heap) {
-  FreeListNode* n = top_;
+  FreeListNode* n = top();
   while (n != NULL) {
     Map** map_location = reinterpret_cast<Map**>(n->address());
     if (*map_location == NULL) {
@@ -2264,7 +2295,8 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   }
 
   int huge_list_available = huge_list_.available();
-  for (FreeListNode** cur = huge_list_.GetTopAddress();
+  FreeListNode* top_node = huge_list_.top();
+  for (FreeListNode** cur = &top_node;
        *cur != NULL;
        cur = (*cur)->next_address()) {
     FreeListNode* cur_node = *cur;
@@ -2298,6 +2330,7 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
     }
   }
 
+  huge_list_.set_top(top_node);
   if (huge_list_.top() == NULL) {
     huge_list_.set_end(NULL);
   }
@@ -2359,7 +2392,7 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   int new_node_size = 0;
   FreeListNode* new_node = FindNodeFor(size_in_bytes, &new_node_size);
   if (new_node == NULL) {
-    owner_->SetTop(NULL, NULL);
+    owner_->SetTopAndLimit(NULL, NULL);
     return NULL;
   }
 
@@ -2384,26 +2417,31 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // a little of this again immediately - see below.
   owner_->Allocate(new_node_size);
 
-  if (bytes_left > kThreshold &&
-      owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
-      FLAG_incremental_marking_steps) {
+  if (owner_->heap()->inline_allocation_disabled()) {
+    // Keep the linear allocation area empty if requested to do so, just
+    // return area back to the free list instead.
+    owner_->Free(new_node->address() + size_in_bytes, bytes_left);
+    ASSERT(owner_->top() == NULL && owner_->limit() == NULL);
+  } else if (bytes_left > kThreshold &&
+             owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
+             FLAG_incremental_marking_steps) {
     int linear_size = owner_->RoundSizeDownToObjectAlignment(kThreshold);
     // We don't want to give too large linear areas to the allocator while
     // incremental marking is going on, because we won't check again whether
     // we want to do another increment until the linear area is used up.
     owner_->Free(new_node->address() + size_in_bytes + linear_size,
                  new_node_size - size_in_bytes - linear_size);
-    owner_->SetTop(new_node->address() + size_in_bytes,
-                   new_node->address() + size_in_bytes + linear_size);
+    owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
+                           new_node->address() + size_in_bytes + linear_size);
   } else if (bytes_left > 0) {
     // Normally we give the rest of the node to the allocator as its new
     // linear allocation area.
-    owner_->SetTop(new_node->address() + size_in_bytes,
-                   new_node->address() + new_node_size);
+    owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
+                           new_node->address() + new_node_size);
   } else {
     // TODO(gc) Try not freeing linear allocation region when bytes_left
     // are zero.
-    owner_->SetTop(NULL, NULL);
+    owner_->SetTopAndLimit(NULL, NULL);
   }
 
   return new_node;
@@ -2427,6 +2465,14 @@ intptr_t FreeList::EvictFreeListItems(Page* p) {
 }
 
 
+bool FreeList::ContainsPageFreeListItems(Page* p) {
+  return huge_list_.EvictFreeListItemsInList(p) ||
+         small_list_.EvictFreeListItemsInList(p) ||
+         medium_list_.EvictFreeListItemsInList(p) ||
+         large_list_.EvictFreeListItemsInList(p);
+}
+
+
 void FreeList::RepairLists(Heap* heap) {
   small_list_.RepairFreeList(heap);
   medium_list_.RepairFreeList(heap);
@@ -2438,7 +2484,7 @@ void FreeList::RepairLists(Heap* heap) {
 #ifdef DEBUG
 intptr_t FreeListCategory::SumFreeList() {
   intptr_t sum = 0;
-  FreeListNode* cur = top_;
+  FreeListNode* cur = top();
   while (cur != NULL) {
     ASSERT(cur->map() == cur->GetHeap()->raw_unchecked_free_space_map());
     FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(cur);
@@ -2454,7 +2500,7 @@ static const int kVeryLongFreeList = 500;
 
 int FreeListCategory::FreeListLength() {
   int length = 0;
-  FreeListNode* cur = top_;
+  FreeListNode* cur = top();
   while (cur != NULL) {
     length++;
     cur = cur->next();
@@ -2489,37 +2535,10 @@ intptr_t FreeList::SumFreeLists() {
 // -----------------------------------------------------------------------------
 // OldSpace implementation
 
-bool NewSpace::ReserveSpace(int bytes) {
-  // We can't reliably unpack a partial snapshot that needs more new space
-  // space than the minimum NewSpace size.  The limit can be set lower than
-  // the end of new space either because there is more space on the next page
-  // or because we have lowered the limit in order to get periodic incremental
-  // marking.  The most reliable way to ensure that there is linear space is
-  // to do the allocation, then rewind the limit.
-  ASSERT(bytes <= InitialCapacity());
-  MaybeObject* maybe = AllocateRaw(bytes);
-  Object* object = NULL;
-  if (!maybe->ToObject(&object)) return false;
-  HeapObject* allocation = HeapObject::cast(object);
-  Address top = allocation_info_.top();
-  if ((top - bytes) == allocation->address()) {
-    allocation_info_.set_top(allocation->address());
-    return true;
-  }
-  // There may be a borderline case here where the allocation succeeded, but
-  // the limit and top have moved on to a new page.  In that case we try again.
-  return ReserveSpace(bytes);
-}
-
-
 void PagedSpace::PrepareForMarkCompact() {
   // We don't have a linear allocation area while sweeping.  It will be restored
   // on the first allocation after the sweep.
-  // Mark the old linear allocation area with a free space map so it can be
-  // skipped when scanning the heap.
-  int old_linear_size = static_cast<int>(limit() - top());
-  Free(top(), old_linear_size);
-  SetTop(NULL, NULL);
+  EmptyAllocationInfo();
 
   // Stop lazy sweeping and clear marking bits for unswept pages.
   if (first_unswept_page_ != NULL) {
@@ -2546,28 +2565,6 @@ void PagedSpace::PrepareForMarkCompact() {
 }
 
 
-bool PagedSpace::ReserveSpace(int size_in_bytes) {
-  ASSERT(size_in_bytes <= AreaSize());
-  ASSERT(size_in_bytes == RoundSizeDownToObjectAlignment(size_in_bytes));
-  Address current_top = allocation_info_.top();
-  Address new_top = current_top + size_in_bytes;
-  if (new_top <= allocation_info_.limit()) return true;
-
-  HeapObject* new_area = free_list_.Allocate(size_in_bytes);
-  if (new_area == NULL) new_area = SlowAllocateRaw(size_in_bytes);
-  if (new_area == NULL) return false;
-
-  int old_linear_size = static_cast<int>(limit() - top());
-  // Mark the old linear allocation area with a free space so it can be
-  // skipped when scanning the heap.  This also puts it back in the free list
-  // if it is big enough.
-  Free(top(), old_linear_size);
-
-  SetTop(new_area->address(), new_area->address() + size_in_bytes);
-  return true;
-}
-
-
 intptr_t PagedSpace::SizeOfObjects() {
   ASSERT(!heap()->IsSweepingComplete() || (unswept_free_bytes_ == 0));
   return Size() - unswept_free_bytes_ - (limit() - top());
@@ -2580,15 +2577,6 @@ intptr_t PagedSpace::SizeOfObjects() {
 // fix them.
 void PagedSpace::RepairFreeListsAfterBoot() {
   free_list_.RepairLists(heap());
-}
-
-
-// You have to call this last, since the implementation from PagedSpace
-// doesn't know that memory was 'promised' to large object space.
-bool LargeObjectSpace::ReserveSpace(int bytes) {
-  return heap()->OldGenerationCapacityAvailable() >= bytes &&
-         (!heap()->incremental_marking()->IsStopped() ||
-           heap()->OldGenerationSpaceAvailable() >= bytes);
 }
 
 
@@ -2645,7 +2633,7 @@ bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->AreSweeperThreadsActivated()) {
     if (collector->IsConcurrentSweepingInProgress()) {
-      if (collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
+      if (collector->RefillFreeLists(this) < size_in_bytes) {
         if (!collector->sequential_sweeping()) {
           collector->WaitUntilSweepingCompleted();
           return true;
@@ -2846,23 +2834,6 @@ void PagedSpace::ReportStatistics() {
 }
 #endif
 
-// -----------------------------------------------------------------------------
-// FixedSpace implementation
-
-void FixedSpace::PrepareForMarkCompact() {
-  // Call prepare of the super class.
-  PagedSpace::PrepareForMarkCompact();
-
-  // During a non-compacting collection, everything below the linear
-  // allocation pointer except wasted top-of-page blocks is considered
-  // allocated and we will rediscover available bytes during the
-  // collection.
-  accounting_stats_.AllocateBytes(free_list_.available());
-
-  // Clear the free list before a full GC---it will be rebuilt afterward.
-  free_list_.Reset();
-}
-
 
 // -----------------------------------------------------------------------------
 // MapSpace implementation
@@ -2938,6 +2909,7 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap,
 bool LargeObjectSpace::SetUp() {
   first_page_ = NULL;
   size_ = 0;
+  maximum_committed_ = 0;
   page_count_ = 0;
   objects_size_ = 0;
   chunk_map_.Clear();
@@ -2983,6 +2955,10 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
   page_count_++;
   page->set_next_page(first_page_);
   first_page_ = page;
+
+  if (size_ > maximum_committed_) {
+    maximum_committed_ = size_;
+  }
 
   // Register all MemoryChunk::kAlignment-aligned chunks covered by
   // this large page in the chunk map.

@@ -74,4 +74,3 @@ TEST(MultipleRecords) {
   }
   CHECK(cq.IsEmpty());
 }
-

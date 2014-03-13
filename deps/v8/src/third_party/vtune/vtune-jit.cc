@@ -193,7 +193,7 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
         jmethod.method_name = temp_method_name;
 
         Handle<Script> script = event->script;
-		
+
         if (*script != NULL) {
           // Get the source file name and set it to jmethod.source_file_name
          if ((*script->GetScriptName())->IsString()) {
@@ -228,7 +228,7 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
             }
             GetEntries()->erase(event->code_start);
           }
-        } 
+        }
 
         iJIT_NotifyEvent(iJVM_EVENT_TYPE_METHOD_LOAD_FINISHED,
                          reinterpret_cast<void*>(&jmethod));
@@ -261,11 +261,11 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
       case v8::JitCodeEvent::CODE_END_LINE_INFO_RECORDING: {
         GetEntries()->insert(std::pair <void*, void*>(event->code_start, event->user_data));
         break;
-      } 
+      }
       default:
         break;
     }
-  } 
+  }
   return;
 }
 

@@ -133,18 +133,6 @@ Unlocker::~Unlocker() {
 }
 
 
-void Locker::StartPreemption(v8::Isolate* isolate, int every_n_ms) {
-  v8::internal::ContextSwitcher::StartPreemption(
-      reinterpret_cast<i::Isolate*>(isolate), every_n_ms);
-}
-
-
-void Locker::StopPreemption(v8::Isolate* isolate) {
-  v8::internal::ContextSwitcher::StopPreemption(
-      reinterpret_cast<i::Isolate*>(isolate));
-}
-
-
 namespace internal {
 
 
@@ -416,64 +404,6 @@ void ThreadManager::TerminateExecution(ThreadId thread_id) {
       state->set_terminate_on_restore(true);
     }
   }
-}
-
-
-ContextSwitcher::ContextSwitcher(Isolate* isolate, int every_n_ms)
-  : Thread("v8:CtxtSwitcher"),
-    keep_going_(true),
-    sleep_ms_(every_n_ms),
-    isolate_(isolate) {
-}
-
-
-// Set the scheduling interval of V8 threads. This function starts the
-// ContextSwitcher thread if needed.
-void ContextSwitcher::StartPreemption(Isolate* isolate, int every_n_ms) {
-  ASSERT(Locker::IsLocked(reinterpret_cast<v8::Isolate*>(isolate)));
-  if (isolate->context_switcher() == NULL) {
-    // If the ContextSwitcher thread is not running at the moment start it now.
-    isolate->set_context_switcher(new ContextSwitcher(isolate, every_n_ms));
-    isolate->context_switcher()->Start();
-  } else {
-    // ContextSwitcher thread is already running, so we just change the
-    // scheduling interval.
-    isolate->context_switcher()->sleep_ms_ = every_n_ms;
-  }
-}
-
-
-// Disable preemption of V8 threads. If multiple threads want to use V8 they
-// must cooperatively schedule amongst them from this point on.
-void ContextSwitcher::StopPreemption(Isolate* isolate) {
-  ASSERT(Locker::IsLocked(reinterpret_cast<v8::Isolate*>(isolate)));
-  if (isolate->context_switcher() != NULL) {
-    // The ContextSwitcher thread is running. We need to stop it and release
-    // its resources.
-    isolate->context_switcher()->keep_going_ = false;
-    // Wait for the ContextSwitcher thread to exit.
-    isolate->context_switcher()->Join();
-    // Thread has exited, now we can delete it.
-    delete(isolate->context_switcher());
-    isolate->set_context_switcher(NULL);
-  }
-}
-
-
-// Main loop of the ContextSwitcher thread: Preempt the currently running V8
-// thread at regular intervals.
-void ContextSwitcher::Run() {
-  while (keep_going_) {
-    OS::Sleep(sleep_ms_);
-    isolate()->stack_guard()->Preempt();
-  }
-}
-
-
-// Acknowledge the preemption by the receiving thread.
-void ContextSwitcher::PreemptionReceived() {
-  // There is currently no accounting being done for this. But could be in the
-  // future, which is why we leave this in.
 }
 
 

@@ -314,3 +314,26 @@ assertTrue(%HasFastProperties(obj));
 Object.freeze(obj);
 assertTrue(%HasFastProperties(obj));
 assertTrue(Object.isFrozen(obj));
+
+// Test array built-in functions with freeze.
+obj = [1,2,3];
+Object.freeze(obj);
+// if frozen implies sealed, then the tests in object-seal.js are mostly
+// sufficient.
+assertTrue(Object.isSealed(obj));
+
+assertDoesNotThrow(function() { obj.push(); });
+assertDoesNotThrow(function() { obj.unshift(); });
+assertDoesNotThrow(function() { obj.splice(0,0); });
+assertTrue(Object.isFrozen(obj));
+
+// Verify that an item can't be changed with splice.
+assertThrows(function() { obj.splice(0,1,1); }, TypeError);
+
+// Verify that unshift() with no arguments will fail if it reifies from
+// the prototype into the object.
+obj = [1,,3];
+obj.__proto__[1] = 1;
+assertEquals(1, obj[1]);
+Object.freeze(obj);
+assertThrows(function() { obj.unshift(); }, TypeError);

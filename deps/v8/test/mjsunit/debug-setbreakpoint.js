@@ -214,4 +214,3 @@ function SetBreakpointInI1Script() {
 // moment. Since there's no way of simply getting the pointer to the function,
 // we run this code while the script function is being activated on stack.
 eval('SetBreakpointInI1Script()\nfunction i1(){}\n\n\n\nfunction i2(){}\n');
-

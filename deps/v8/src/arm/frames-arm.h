@@ -64,8 +64,8 @@ const RegList kCalleeSaved =
   1 <<  4 |  //  r4 v1
   1 <<  5 |  //  r5 v2
   1 <<  6 |  //  r6 v3
-  1 <<  7 |  //  r7 v4 (pp in JavaScript code)
-  1 <<  8 |  //  r8 v5 (cp in JavaScript code)
+  1 <<  7 |  //  r7 v4 (cp in JavaScript code)
+  1 <<  8 |  //  r8 v5 (pp in JavaScript code)
   kR9Available <<  9 |  //  r9 v6
   1 << 10 |  // r10 v7
   1 << 11;   // r11 v8 (fp in JavaScript code)
@@ -102,14 +102,20 @@ const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
 class EntryFrameConstants : public AllStatic {
  public:
-  static const int kCallerFPOffset      = -3 * kPointerSize;
+  static const int kCallerFPOffset =
+      -(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
 };
 
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kCodeOffset = -2 * kPointerSize;
-  static const int kSPOffset = -1 * kPointerSize;
+  static const int kFrameSize          = FLAG_enable_ool_constant_pool ?
+                                         3 * kPointerSize : 2 * kPointerSize;
+
+  static const int kConstantPoolOffset = FLAG_enable_ool_constant_pool ?
+                                         -3 * kPointerSize : 0;
+  static const int kCodeOffset         = -2 * kPointerSize;
+  static const int kSPOffset           = -1 * kPointerSize;
 
   // The caller fields are below the frame pointer on the stack.
   static const int kCallerFPOffset = 0 * kPointerSize;

@@ -27,16 +27,13 @@
 
 // Flags: --allow-natives-syntax --no-inline-new --nouse-allocation-folding
 
-%SetAllocationTimeout(10, 0);
+%SetAllocationTimeout(20, 0);
 function f() {
   return [[1, 2, 3], [1.1, 1.2, 1.3], [[], [], []]];
 }
 
 f(); f(); f();
 %OptimizeFunctionOnNextCall(f);
-for (var i=0; i<1000; i++) {
+for (var i=0; i<50; i++) {
   f();
 }
-
-
-

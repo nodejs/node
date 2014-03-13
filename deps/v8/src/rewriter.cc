@@ -43,8 +43,8 @@ class Processor: public AstVisitor {
         result_assigned_(false),
         is_set_(false),
         in_try_(false),
-        factory_(zone->isolate(), zone) {
-    InitializeAstVisitor(zone->isolate());
+        factory_(zone) {
+    InitializeAstVisitor(zone);
   }
 
   virtual ~Processor() { }
@@ -207,11 +207,6 @@ void Processor::VisitSwitchStatement(SwitchStatement* node) {
 }
 
 
-void Processor::VisitCaseClause(CaseClause* clause) {
-  UNREACHABLE();
-}
-
-
 void Processor::VisitContinueStatement(ContinueStatement* node) {
   is_set_ = false;
 }
@@ -263,7 +258,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
   ZoneList<Statement*>* body = function->body();
   if (!body->is_empty()) {
     Variable* result = scope->NewTemporary(
-        info->isolate()->factory()->result_string());
+        info->isolate()->factory()->dot_result_string());
     Processor processor(result, info->zone());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;

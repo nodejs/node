@@ -64,34 +64,34 @@ def Win32SetErrorMode(mode):
 
 
 def RunProcess(verbose, timeout, args, **rest):
-  if verbose: print "#", " ".join(args)
-  popen_args = args
-  prev_error_mode = SEM_INVALID_VALUE
-  if utils.IsWindows():
-    popen_args = subprocess.list2cmdline(args)
-    # Try to change the error mode to avoid dialogs on fatal errors. Don't
-    # touch any existing error mode flags by merging the existing error mode.
-    # See http://blogs.msdn.com/oldnewthing/archive/2004/07/27/198410.aspx.
-    error_mode = SEM_NOGPFAULTERRORBOX
-    prev_error_mode = Win32SetErrorMode(error_mode)
-    Win32SetErrorMode(error_mode | prev_error_mode)
-  process = subprocess.Popen(
-    shell=utils.IsWindows(),
-    args=popen_args,
-    **rest
-  )
-  if (utils.IsWindows() and prev_error_mode != SEM_INVALID_VALUE):
-    Win32SetErrorMode(prev_error_mode)
-  # Compute the end time - if the process crosses this limit we
-  # consider it timed out.
-  if timeout is None: end_time = None
-  else: end_time = time.time() + timeout
-  timed_out = False
-  # Repeatedly check the exit code from the process in a
-  # loop and keep track of whether or not it times out.
-  exit_code = None
-  sleep_time = INITIAL_SLEEP_TIME
   try:
+    if verbose: print "#", " ".join(args)
+    popen_args = args
+    prev_error_mode = SEM_INVALID_VALUE
+    if utils.IsWindows():
+      popen_args = subprocess.list2cmdline(args)
+      # Try to change the error mode to avoid dialogs on fatal errors. Don't
+      # touch any existing error mode flags by merging the existing error mode.
+      # See http://blogs.msdn.com/oldnewthing/archive/2004/07/27/198410.aspx.
+      error_mode = SEM_NOGPFAULTERRORBOX
+      prev_error_mode = Win32SetErrorMode(error_mode)
+      Win32SetErrorMode(error_mode | prev_error_mode)
+    process = subprocess.Popen(
+      shell=utils.IsWindows(),
+      args=popen_args,
+      **rest
+    )
+    if (utils.IsWindows() and prev_error_mode != SEM_INVALID_VALUE):
+      Win32SetErrorMode(prev_error_mode)
+    # Compute the end time - if the process crosses this limit we
+    # consider it timed out.
+    if timeout is None: end_time = None
+    else: end_time = time.time() + timeout
+    timed_out = False
+    # Repeatedly check the exit code from the process in a
+    # loop and keep track of whether or not it times out.
+    exit_code = None
+    sleep_time = INITIAL_SLEEP_TIME
     while exit_code is None:
       if (not end_time is None) and (time.time() >= end_time):
         # Kill the process and wait for it to exit.
@@ -131,10 +131,10 @@ def CheckedUnlink(name):
 
 
 def Execute(args, verbose=False, timeout=None):
-  args = [ c for c in args if c != "" ]
-  (fd_out, outname) = tempfile.mkstemp()
-  (fd_err, errname) = tempfile.mkstemp()
   try:
+    args = [ c for c in args if c != "" ]
+    (fd_out, outname) = tempfile.mkstemp()
+    (fd_err, errname) = tempfile.mkstemp()
     (exit_code, timed_out) = RunProcess(
       verbose,
       timeout,
@@ -142,12 +142,15 @@ def Execute(args, verbose=False, timeout=None):
       stdout=fd_out,
       stderr=fd_err
     )
+  except KeyboardInterrupt:
+    raise
   except:
     raise
-  os.close(fd_out)
-  os.close(fd_err)
-  out = file(outname).read()
-  errors = file(errname).read()
-  CheckedUnlink(outname)
-  CheckedUnlink(errname)
+  finally:
+    os.close(fd_out)
+    os.close(fd_err)
+    out = file(outname).read()
+    errors = file(errname).read()
+    CheckedUnlink(outname)
+    CheckedUnlink(errname)
   return output.Output(exit_code, timed_out, out, errors)

@@ -28,6 +28,7 @@
 #include <stdlib.h>
 
 #include "v8.h"
+#include "stub-cache.h"
 
 #include "debug.h"
 #include "disasm.h"
@@ -254,7 +255,7 @@ TEST(DisasmIa320) {
   __ bind(&L2);
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
-  Handle<Code> ic(isolate->builtins()->builtin(Builtins::kLoadIC_Initialize));
+  Handle<Code> ic(LoadIC::initialize_stub(isolate, NOT_CONTEXTUAL));
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);
@@ -348,7 +349,37 @@ TEST(DisasmIa320) {
   __ fdivp(3);
   __ fcompp();
   __ fwait();
+  __ frndint();
+  __ fninit();
   __ nop();
+
+  // SSE instruction
+  {
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatureScope fscope(&assm, SSE2);
+      // Move operation
+      __ movaps(xmm0, xmm1);
+      __ shufps(xmm0, xmm0, 0x0);
+
+      // logic operation
+      __ andps(xmm0, xmm1);
+      __ andps(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ orps(xmm0, xmm1);
+      __ orps(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ xorps(xmm0, xmm1);
+      __ xorps(xmm0, Operand(ebx, ecx, times_4, 10000));
+
+      // Arithmetic operation
+      __ addps(xmm1, xmm0);
+      __ addps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ subps(xmm1, xmm0);
+      __ subps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ mulps(xmm1, xmm0);
+      __ mulps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ divps(xmm1, xmm0);
+      __ divps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    }
+  }
   {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope fscope(&assm, SSE2);
@@ -356,7 +387,6 @@ TEST(DisasmIa320) {
       __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
-      __ movaps(xmm0, xmm1);
       // 128 bit move instructions.
       __ movdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ movdqa(Operand(ebx, ecx, times_4, 10000), xmm0);
@@ -370,7 +400,6 @@ TEST(DisasmIa320) {
       __ ucomisd(xmm0, xmm1);
       __ cmpltsd(xmm0, xmm1);
 
-      __ andps(xmm0, xmm1);
       __ andpd(xmm0, xmm1);
       __ psllq(xmm0, 17);
       __ psllq(xmm0, xmm1);

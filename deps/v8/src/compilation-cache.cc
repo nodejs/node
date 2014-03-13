@@ -421,7 +421,6 @@ Handle<SharedFunctionInfo> CompilationCache::LookupScript(
 Handle<SharedFunctionInfo> CompilationCache::LookupEval(
     Handle<String> source,
     Handle<Context> context,
-    bool is_global,
     LanguageMode language_mode,
     int scope_position) {
   if (!IsEnabled()) {
@@ -429,7 +428,7 @@ Handle<SharedFunctionInfo> CompilationCache::LookupEval(
   }
 
   Handle<SharedFunctionInfo> result;
-  if (is_global) {
+  if (context->IsNativeContext()) {
     result = eval_global_.Lookup(
         source, context, language_mode, scope_position);
   } else {
@@ -454,9 +453,7 @@ Handle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
 void CompilationCache::PutScript(Handle<String> source,
                                  Handle<Context> context,
                                  Handle<SharedFunctionInfo> function_info) {
-  if (!IsEnabled()) {
-    return;
-  }
+  if (!IsEnabled()) return;
 
   script_.Put(source, context, function_info);
 }
@@ -464,15 +461,12 @@ void CompilationCache::PutScript(Handle<String> source,
 
 void CompilationCache::PutEval(Handle<String> source,
                                Handle<Context> context,
-                               bool is_global,
                                Handle<SharedFunctionInfo> function_info,
                                int scope_position) {
-  if (!IsEnabled()) {
-    return;
-  }
+  if (!IsEnabled()) return;
 
   HandleScope scope(isolate());
-  if (is_global) {
+  if (context->IsNativeContext()) {
     eval_global_.Put(source, context, function_info, scope_position);
   } else {
     ASSERT(scope_position != RelocInfo::kNoPosition);

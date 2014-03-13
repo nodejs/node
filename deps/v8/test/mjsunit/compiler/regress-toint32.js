@@ -42,4 +42,3 @@ assertEquals(G, f(G));
 assertEquals(G, f(G));
 %OptimizeFunctionOnNextCall(f);
 assertEquals(G, f(G));
-

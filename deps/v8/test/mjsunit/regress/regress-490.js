@@ -42,6 +42,9 @@ for (var i = 0; i < 10; i++) {
   var  b = '';
   for (var j = 0; j < 10; j++) {
     b += '$1';
+
+    // TODO(machenbach): Do we need all these replacements? Wouldn't corner
+    // cases like smallest and biggest suffice?
     a.replace(/^(.*)/, b);
   }
   a += a;

@@ -43,4 +43,3 @@ main(o.g);
 main(o.g);
 %OptimizeFunctionOnNextCall(main);
 main(o.g);
-

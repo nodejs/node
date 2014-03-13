@@ -51,4 +51,3 @@ assertEquals("x is not defined",
 o.message = "another message";
 assertEquals("another message", o.message);
 assertEquals("x is not defined", error2.message);
-

@@ -51,6 +51,3 @@ assertTrue(isNaN(boom(0)));
 assertTrue(isNaN(boom(0)));
 assertTrue(isNaN(boom(0)));
 assertTrue(isNaN(boom(0)));
-
-
-

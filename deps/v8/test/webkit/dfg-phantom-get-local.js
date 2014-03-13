@@ -39,4 +39,3 @@ function foo(o) {
 
 for (var i = 0; i < 200; ++i)
     shouldBe("foo(i < 190 ? {f:42, g:{h:3}} : {f:42, g:{}})", "false");
-

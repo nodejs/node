@@ -109,33 +109,8 @@ class FreeStoreAllocationPolicy {
 };
 
 
-// Allocation policy for allocating in preallocated space.
-// Used as an allocation policy for ScopeInfo when generating
-// stack traces.
-class PreallocatedStorage {
- public:
-  explicit PreallocatedStorage(size_t size);
-  size_t size() { return size_; }
-
- private:
-  size_t size_;
-  PreallocatedStorage* previous_;
-  PreallocatedStorage* next_;
-
-  void LinkTo(PreallocatedStorage* other);
-  void Unlink();
-
-  friend class Isolate;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PreallocatedStorage);
-};
-
-
-struct PreallocatedStorageAllocationPolicy {
-  INLINE(void* New(size_t size));
-  INLINE(static void Delete(void* ptr));
-};
-
+void* AlignedAlloc(size_t size, size_t alignment);
+void AlignedFree(void *ptr);
 
 } }  // namespace v8::internal
 

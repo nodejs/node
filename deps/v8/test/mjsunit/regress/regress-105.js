@@ -41,4 +41,3 @@ object.toString = custom_toString;
 
 assertEquals(2, Number(object));
 assertEquals('I', String(object)[0]);
-

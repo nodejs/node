@@ -41,4 +41,3 @@ assertEquals(Infinity, 1/bar(5));
 assertEquals(Infinity, 1/bar(5));
 %OptimizeFunctionOnNextCall(bar);
 assertEquals(-Infinity, 1/bar(-5));
-

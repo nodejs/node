@@ -84,7 +84,7 @@ class CompilationInfo {
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   Handle<Context> context() const { return context_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
-  uint32_t osr_pc_offset() const { return osr_pc_offset_; }
+  Handle<Code> unoptimized_code() const { return unoptimized_code_; }
   int opt_count() const { return opt_count_; }
   int num_parameters() const;
   int num_heap_slots() const;
@@ -97,6 +97,17 @@ class CompilationInfo {
   void MarkAsGlobal() {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
+  }
+  void set_parameter_count(int parameter_count) {
+    ASSERT(IsStub());
+    parameter_count_ = parameter_count;
+  }
+
+  void set_this_has_uses(bool has_no_uses) {
+    this_has_uses_ = has_no_uses;
+  }
+  bool this_has_uses() {
+    return this_has_uses_;
   }
   void SetLanguageMode(LanguageMode language_mode) {
     ASSERT(this->language_mode() == CLASSIC_MODE ||
@@ -164,10 +175,8 @@ class CompilationInfo {
     ASSERT(function_ == NULL);
     function_ = literal;
   }
-  void SetScope(Scope* scope) {
-    ASSERT(scope_ == NULL);
-    scope_ = scope;
-  }
+  // When the scope is applied, we may have deferred work to do on the function.
+  void PrepareForCompilation(Scope* scope);
   void SetGlobalScope(Scope* global_scope) {
     ASSERT(global_scope_ == NULL);
     global_scope_ = global_scope;
@@ -184,18 +193,15 @@ class CompilationInfo {
   void SetContext(Handle<Context> context) {
     context_ = context;
   }
-  void MarkCompilingForDebugging(Handle<Code> current_code) {
-    ASSERT(mode_ != OPTIMIZE);
-    ASSERT(current_code->kind() == Code::FUNCTION);
+
+  void MarkCompilingForDebugging() {
     flags_ |= IsCompilingForDebugging::encode(true);
-    if (current_code->is_compiled_optimizable()) {
-      EnableDeoptimizationSupport();
-    } else {
-      mode_ = CompilationInfo::NONOPT;
-    }
   }
   bool IsCompilingForDebugging() {
     return IsCompilingForDebugging::decode(flags_);
+  }
+  void MarkNonOptimizable() {
+    SetMode(CompilationInfo::NONOPT);
   }
 
   bool ShouldTrapOnDeopt() const {
@@ -216,9 +222,12 @@ class CompilationInfo {
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
   bool IsOptimizable() const { return mode_ == BASE; }
   bool IsStub() const { return mode_ == STUB; }
-  void SetOptimizing(BailoutId osr_ast_id) {
+  void SetOptimizing(BailoutId osr_ast_id, Handle<Code> unoptimized) {
+    ASSERT(!shared_info_.is_null());
     SetMode(OPTIMIZE);
     osr_ast_id_ = osr_ast_id;
+    unoptimized_code_ = unoptimized;
+    optimization_id_ = isolate()->NextOptimizationId();
   }
   void DisableOptimization();
 
@@ -233,11 +242,6 @@ class CompilationInfo {
 
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();
-
-  // Reset code to the unoptimized version when optimization is aborted.
-  void AbortOptimization() {
-    SetCode(handle(shared_info()->code()));
-  }
 
   void set_deferred_handles(DeferredHandles* deferred_handles) {
     ASSERT(deferred_handles_ == NULL);
@@ -261,6 +265,7 @@ class CompilationInfo {
     SaveHandle(&shared_info_);
     SaveHandle(&context_);
     SaveHandle(&script_);
+    SaveHandle(&unoptimized_code_);
   }
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
@@ -298,22 +303,20 @@ class CompilationInfo {
   }
 
   void AbortDueToDependencyChange() {
-    ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
+    ASSERT(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
     abort_due_to_dependency_ = true;
   }
 
   bool HasAbortedDueToDependencyChange() {
-    ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
+    ASSERT(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
     return abort_due_to_dependency_;
   }
 
-  void set_osr_pc_offset(uint32_t pc_offset) {
-    osr_pc_offset_ = pc_offset;
+  bool HasSameOsrEntry(Handle<JSFunction> function, BailoutId osr_ast_id) {
+    return osr_ast_id_ == osr_ast_id && function.is_identical_to(closure_);
   }
 
-  bool HasSameOsrEntry(Handle<JSFunction> function, uint32_t pc_offset) {
-    return osr_pc_offset_ == pc_offset && function.is_identical_to(closure_);
-  }
+  int optimization_id() const { return optimization_id_; }
 
  protected:
   CompilationInfo(Handle<Script> script,
@@ -409,9 +412,10 @@ class CompilationInfo {
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
   BailoutId osr_ast_id_;
-  // The pc_offset corresponding to osr_ast_id_ in unoptimized code.
-  // We can look this up in the back edge table, but cache it for quick access.
-  uint32_t osr_pc_offset_;
+  // The unoptimized code we patched for OSR may not be the shared code
+  // afterwards, since we may need to compile it again to include deoptimization
+  // data.  Keep track which code we patched.
+  Handle<Code> unoptimized_code_;
 
   // Flag whether compilation needs to be aborted due to dependency change.
   bool abort_due_to_dependency_;
@@ -442,7 +446,14 @@ class CompilationInfo {
   // during graph optimization.
   int opt_count_;
 
+  // Number of parameters used for compilation of stubs that require arguments.
+  int parameter_count_;
+
+  bool this_has_uses_;
+
   Handle<Foreign> object_wrapper_;
+
+  int optimization_id_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
@@ -504,9 +515,9 @@ class LChunk;
 // fail, bail-out to the full code generator or succeed.  Apart from
 // their return value, the status of the phase last run can be checked
 // using last_status().
-class RecompileJob: public ZoneObject {
+class OptimizedCompileJob: public ZoneObject {
  public:
-  explicit RecompileJob(CompilationInfo* info)
+  explicit OptimizedCompileJob(CompilationInfo* info)
       : info_(info),
         graph_builder_(NULL),
         graph_(NULL),
@@ -520,14 +531,21 @@ class RecompileJob: public ZoneObject {
 
   MUST_USE_RESULT Status CreateGraph();
   MUST_USE_RESULT Status OptimizeGraph();
-  MUST_USE_RESULT Status GenerateAndInstallCode();
+  MUST_USE_RESULT Status GenerateCode();
 
   Status last_status() const { return last_status_; }
   CompilationInfo* info() const { return info_; }
   Isolate* isolate() const { return info()->isolate(); }
 
-  MUST_USE_RESULT Status AbortOptimization() {
-    info_->AbortOptimization();
+  MUST_USE_RESULT Status AbortOptimization(
+      BailoutReason reason = kNoReason) {
+    if (reason != kNoReason) info_->set_bailout_reason(reason);
+    return SetLastStatus(BAILED_OUT);
+  }
+
+  MUST_USE_RESULT Status AbortAndDisableOptimization(
+      BailoutReason reason = kNoReason) {
+    if (reason != kNoReason) info_->set_bailout_reason(reason);
     info_->shared_info()->DisableOptimization(info_->bailout_reason());
     return SetLastStatus(BAILED_OUT);
   }
@@ -557,7 +575,7 @@ class RecompileJob: public ZoneObject {
   void RecordOptimizationStats();
 
   struct Timer {
-    Timer(RecompileJob* job, TimeDelta* location)
+    Timer(OptimizedCompileJob* job, TimeDelta* location)
         : job_(job), location_(location) {
       ASSERT(location_ != NULL);
       timer_.Start();
@@ -567,7 +585,7 @@ class RecompileJob: public ZoneObject {
       *location_ += timer_.Elapsed();
     }
 
-    RecompileJob* job_;
+    OptimizedCompileJob* job_;
     ElapsedTimer timer_;
     TimeDelta* location_;
   };
@@ -587,56 +605,53 @@ class RecompileJob: public ZoneObject {
 
 class Compiler : public AllStatic {
  public:
-  // Call count before primitive functions trigger their own optimization.
-  static const int kCallsUntilPrimitiveOpt = 200;
+  static Handle<Code> GetUnoptimizedCode(Handle<JSFunction> function);
+  static Handle<Code> GetUnoptimizedCode(Handle<SharedFunctionInfo> shared);
+  static bool EnsureCompiled(Handle<JSFunction> function,
+                             ClearExceptionFlag flag);
+  static Handle<Code> GetCodeForDebugging(Handle<JSFunction> function);
 
-  // All routines return a SharedFunctionInfo.
-  // If an error occurs an exception is raised and the return handle
-  // contains NULL.
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  static void CompileForLiveEdit(Handle<Script> script);
+#endif
 
-  // Compile a String source within a context.
-  static Handle<SharedFunctionInfo> Compile(Handle<String> source,
-                                            Handle<Object> script_name,
-                                            int line_offset,
-                                            int column_offset,
-                                            bool is_shared_cross_origin,
-                                            Handle<Context> context,
-                                            v8::Extension* extension,
-                                            ScriptDataImpl* pre_data,
-                                            Handle<Object> script_data,
-                                            NativesFlag is_natives_code);
-
-  // Compile a String source within a context for Eval.
-  static Handle<SharedFunctionInfo> CompileEval(Handle<String> source,
+  // Compile a String source within a context for eval.
+  static Handle<JSFunction> GetFunctionFromEval(Handle<String> source,
                                                 Handle<Context> context,
-                                                bool is_global,
                                                 LanguageMode language_mode,
                                                 ParseRestriction restriction,
                                                 int scope_position);
 
-  // Compile from function info (used for lazy compilation). Returns true on
-  // success and false if the compilation resulted in a stack overflow.
-  static bool CompileLazy(CompilationInfo* info);
+  // Compile a String source within a context.
+  static Handle<SharedFunctionInfo> CompileScript(Handle<String> source,
+                                                  Handle<Object> script_name,
+                                                  int line_offset,
+                                                  int column_offset,
+                                                  bool is_shared_cross_origin,
+                                                  Handle<Context> context,
+                                                  v8::Extension* extension,
+                                                  ScriptDataImpl* pre_data,
+                                                  Handle<Object> script_data,
+                                                  NativesFlag is_natives_code);
 
-  static bool RecompileConcurrent(Handle<JSFunction> function,
-                                  uint32_t osr_pc_offset = 0);
-
-  // Compile a shared function info object (the function is possibly lazily
-  // compiled).
+  // Create a shared function info object (the code may be lazily compiled).
   static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
                                                       Handle<Script> script);
 
-  // Set the function info for a newly compiled function.
-  static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
-                              FunctionLiteral* lit,
-                              bool is_toplevel,
-                              Handle<Script> script);
+  enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 
-  static Handle<Code> InstallOptimizedCode(RecompileJob* job);
+  // Generate and return optimized code or start a concurrent optimization job.
+  // In the latter case, return the InOptimizationQueue builtin.  On failure,
+  // return the empty handle.
+  static Handle<Code> GetOptimizedCode(
+      Handle<JSFunction> function,
+      Handle<Code> current_code,
+      ConcurrencyMode mode,
+      BailoutId osr_ast_id = BailoutId::None());
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  static bool MakeCodeForLiveEdit(CompilationInfo* info);
-#endif
+  // Generate and return code from previously queued optimization job.
+  // On failure, return the empty handle.
+  static Handle<Code> GetConcurrentlyOptimizedCode(OptimizedCompileJob* job);
 
   static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                         CompilationInfo* info,

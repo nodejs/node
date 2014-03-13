@@ -260,6 +260,12 @@ MemOperand::MemOperand(Register rm, int32_t offset) : Operand(rm) {
 }
 
 
+MemOperand::MemOperand(Register rm, int32_t unit, int32_t multiplier,
+                       OffsetAddend offset_addend) : Operand(rm) {
+  offset_ = unit * multiplier + offset_addend;
+}
+
+
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
@@ -326,6 +332,7 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->origin = this;
 }
 
 
@@ -1622,6 +1629,15 @@ void Assembler::ext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
 }
 
 
+void Assembler::pref(int32_t hint, const MemOperand& rs) {
+  ASSERT(kArchVariant != kLoongson);
+  ASSERT(is_uint5(hint) && is_uint16(rs.offset_));
+  Instr instr = PREF | (rs.rm().code() << kRsShift) | (hint << kRtShift)
+      | (rs.offset_);
+  emit(instr);
+}
+
+
 //--------Coprocessor-instructions----------------
 
 // Load, store, move.
@@ -2027,6 +2043,14 @@ void Assembler::db(uint8_t data) {
 void Assembler::dd(uint32_t data) {
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
+  pc_ += sizeof(uint32_t);
+}
+
+
+void Assembler::emit_code_stub_address(Code* stub) {
+  CheckBuffer();
+  *reinterpret_cast<uint32_t*>(pc_) =
+      reinterpret_cast<uint32_t>(stub->instruction_start());
   pc_ += sizeof(uint32_t);
 }
 

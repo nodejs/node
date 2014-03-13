@@ -49,4 +49,3 @@ for (var i = 0; i < 1000; ++i) {
     shouldBe("foo({f:\"" + a + "\"}, {f:\"" + b + "\"})", "[" + (a.length + b.length) + ", " + areEqual + "]");
     shouldBe("bar({f:\"" + a + "\"}, {f:\"" + b + "\"})", "" + (areEqual ? a.length + b.length + 1 : a.length + b.length - 1));
 }
-

@@ -637,8 +637,9 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
 
   // Find all the named properties.
   if (kind & PropertyKind.Named) {
-    // Get the local property names.
-    propertyNames = %GetLocalPropertyNames(this.value_, true);
+    // Get all the local property names.
+    propertyNames =
+        %GetLocalPropertyNames(this.value_, PROPERTY_ATTRIBUTES_NONE);
     total += propertyNames.length;
 
     // Get names for named interceptor properties if any.

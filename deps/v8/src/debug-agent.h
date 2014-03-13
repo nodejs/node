@@ -83,6 +83,7 @@ class DebuggerAgentSession: public Thread {
   DebuggerAgentSession(DebuggerAgent* agent, Socket* client)
       : Thread("v8:DbgAgntSessn"),
         agent_(agent), client_(client) {}
+  ~DebuggerAgentSession();
 
   void DebuggerMessage(Vector<uint16_t> message);
   void Shutdown();

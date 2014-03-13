@@ -54,5 +54,3 @@ for (var i = 0; i < 150; ++i) {
     else
         shouldBe("o.foo", "void 0");
 }
-
-

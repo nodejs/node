@@ -34,4 +34,3 @@ shouldBe('indexArguments(1, "a")', '"a"');
 shouldBe('indexArguments("1 ", "a")', 'undefined');
 shouldBe('indexArguments(0xDEADBEEF)', 'undefined');
 shouldBe('indexArguments(0xFFFFFFFF)', 'undefined');
-

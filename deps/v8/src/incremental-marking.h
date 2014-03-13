@@ -100,7 +100,7 @@ class IncrementalMarking {
   // Do some marking every time this much memory has been allocated or that many
   // heavy (color-checking) write barriers have been invoked.
   static const intptr_t kAllocatedThreshold = 65536;
-  static const intptr_t kWriteBarriersInvokedThreshold = 65536;
+  static const intptr_t kWriteBarriersInvokedThreshold = 32768;
   // Start off by marking this many times more memory than has been allocated.
   static const intptr_t kInitialMarkingSpeed = 1;
   // But if we are promoting a lot of data we need to mark faster to keep up

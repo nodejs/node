@@ -53,4 +53,3 @@ for (var i = 0; i < 300; ++i) {
     }
     shouldBe("baz(arg1, arg2)", "" + expected);
 }
-

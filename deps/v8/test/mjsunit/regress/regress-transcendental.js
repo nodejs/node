@@ -46,4 +46,3 @@ function test(f, x, name) {
 
 test(Math.tan, -1.57079632679489660000, "Math.tan");
 test(Math.sin, 6.283185307179586, "Math.sin");
-

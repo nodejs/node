@@ -72,5 +72,3 @@ function foo(a) {
 
 for (var i = 0; i < 200; ++i)
     shouldBe("foo(2147483647)", "2147483552");
-
-

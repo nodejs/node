@@ -36,9 +36,7 @@ var expected_MinInt = div(kMinInt);
 var expected_minus_zero = div(0);
 %OptimizeFunctionOnNextCall(div);
 assertEquals(expected_MinInt, div(kMinInt));
-assertOptimized(div);
 assertEquals(expected_minus_zero , div(0));
-assertOptimized(div);
 
 function mul(g) {
   return (g * -1) ^ 1

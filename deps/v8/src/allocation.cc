@@ -32,6 +32,10 @@
 #include "platform.h"
 #include "utils.h"
 
+#if V8_LIBC_BIONIC
+#include <malloc.h>  // NOLINT
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -101,23 +105,32 @@ char* StrNDup(const char* str, int n) {
 }
 
 
-void PreallocatedStorage::LinkTo(PreallocatedStorage* other) {
-  next_ = other->next_;
-  other->next_->previous_ = this;
-  previous_ = other;
-  other->next_ = this;
+void* AlignedAlloc(size_t size, size_t alignment) {
+  ASSERT(IsPowerOf2(alignment) && alignment >= V8_ALIGNOF(void*));  // NOLINT
+  void* ptr;
+#if V8_OS_WIN
+  ptr = _aligned_malloc(size, alignment);
+#elif V8_LIBC_BIONIC
+  // posix_memalign is not exposed in some Android versions, so we fall back to
+  // memalign. See http://code.google.com/p/android/issues/detail?id=35391.
+  ptr = memalign(alignment, size);
+#else
+  if (posix_memalign(&ptr, alignment, size)) ptr = NULL;
+#endif
+  if (ptr == NULL) FatalProcessOutOfMemory("AlignedAlloc");
+  return ptr;
 }
 
 
-void PreallocatedStorage::Unlink() {
-  next_->previous_ = previous_;
-  previous_->next_ = next_;
-}
-
-
-PreallocatedStorage::PreallocatedStorage(size_t size)
-  : size_(size) {
-  previous_ = next_ = this;
+void AlignedFree(void *ptr) {
+#if V8_OS_WIN
+  _aligned_free(ptr);
+#elif V8_LIBC_BIONIC
+  // Using free is not correct in general, but for V8_LIBC_BIONIC it is.
+  free(ptr);
+#else
+  free(ptr);
+#endif
 }
 
 } }  // namespace v8::internal

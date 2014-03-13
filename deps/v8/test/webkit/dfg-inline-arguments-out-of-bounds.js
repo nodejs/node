@@ -50,4 +50,3 @@ for (var i = 0; i < 3000; ++i) {
     result = "" + bar();
     shouldBe("result", expected);
 }
-

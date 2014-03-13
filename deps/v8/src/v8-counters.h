@@ -101,6 +101,8 @@ namespace internal {
      V8.MemoryHeapSamplePropertyCellSpaceCommitted)                   \
   HM(heap_sample_code_space_committed,                                \
      V8.MemoryHeapSampleCodeSpaceCommitted)                           \
+  HM(heap_sample_maximum_committed,                                   \
+     V8.MemoryHeapSampleMaximumCommitted)                             \
 
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
@@ -240,18 +242,12 @@ namespace internal {
   SC(math_asin, V8.MathAsin)                                          \
   SC(math_atan, V8.MathAtan)                                          \
   SC(math_atan2, V8.MathAtan2)                                        \
-  SC(math_ceil, V8.MathCeil)                                          \
-  SC(math_cos, V8.MathCos)                                            \
   SC(math_exp, V8.MathExp)                                            \
   SC(math_floor, V8.MathFloor)                                        \
   SC(math_log, V8.MathLog)                                            \
   SC(math_pow, V8.MathPow)                                            \
   SC(math_round, V8.MathRound)                                        \
-  SC(math_sin, V8.MathSin)                                            \
   SC(math_sqrt, V8.MathSqrt)                                          \
-  SC(math_tan, V8.MathTan)                                            \
-  SC(transcendental_cache_hit, V8.TranscendentalCacheHit)             \
-  SC(transcendental_cache_miss, V8.TranscendentalCacheMiss)           \
   SC(stack_interrupts, V8.StackInterrupts)                            \
   SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                 \
   SC(bounds_checks_eliminated, V8.BoundsChecksEliminated)             \
@@ -259,6 +255,9 @@ namespace internal {
   SC(soft_deopts_requested, V8.SoftDeoptsRequested)                   \
   SC(soft_deopts_inserted, V8.SoftDeoptsInserted)                     \
   SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                     \
+  /* Number of write barriers in generated code. */                   \
+  SC(write_barriers_dynamic, V8.WriteBarriersDynamic)                 \
+  SC(write_barriers_static, V8.WriteBarriersStatic)                   \
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)      \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)      \
   SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                \
@@ -341,7 +340,7 @@ class Counters {
     { return &count_of_CODE_AGE_##name##_; } \
   StatsCounter* size_of_CODE_AGE_##name() \
     { return &size_of_CODE_AGE_##name##_; }
-  CODE_AGE_LIST_WITH_NO_AGE(SC)
+  CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
 
   enum Id {
@@ -371,7 +370,7 @@ class Counters {
 #undef COUNTER_ID
 #define COUNTER_ID(name) kCountOfCODE_AGE__##name, \
     kSizeOfCODE_AGE__##name,
-    CODE_AGE_LIST_WITH_NO_AGE(COUNTER_ID)
+    CODE_AGE_LIST_COMPLETE(COUNTER_ID)
 #undef COUNTER_ID
     stats_counter_count
   };
@@ -421,7 +420,7 @@ class Counters {
 #define SC(name) \
   StatsCounter size_of_CODE_AGE_##name##_; \
   StatsCounter count_of_CODE_AGE_##name##_;
-  CODE_AGE_LIST_WITH_NO_AGE(SC)
+  CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
 
   friend class Isolate;

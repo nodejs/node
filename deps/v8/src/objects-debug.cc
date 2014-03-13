@@ -104,34 +104,18 @@ void HeapObject::HeapObjectVerify() {
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpaceVerify();
       break;
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-      ExternalPixelArray::cast(this)->ExternalPixelArrayVerify();
+
+#define VERIFY_TYPED_ARRAY(Type, type, TYPE, ctype, size)                      \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                         \
+      External##Type##Array::cast(this)->External##Type##ArrayVerify();        \
+      break;                                                                   \
+    case FIXED_##TYPE##_ARRAY_TYPE:                                            \
+      Fixed##Type##Array::cast(this)->FixedTypedArrayVerify();                 \
       break;
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-      ExternalByteArray::cast(this)->ExternalByteArrayVerify();
-      break;
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      ExternalUnsignedByteArray::cast(this)->ExternalUnsignedByteArrayVerify();
-      break;
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-      ExternalShortArray::cast(this)->ExternalShortArrayVerify();
-      break;
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      ExternalUnsignedShortArray::cast(this)->
-          ExternalUnsignedShortArrayVerify();
-      break;
-    case EXTERNAL_INT_ARRAY_TYPE:
-      ExternalIntArray::cast(this)->ExternalIntArrayVerify();
-      break;
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      ExternalUnsignedIntArray::cast(this)->ExternalUnsignedIntArrayVerify();
-      break;
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-      ExternalFloatArray::cast(this)->ExternalFloatArrayVerify();
-      break;
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
-      ExternalDoubleArray::cast(this)->ExternalDoubleArrayVerify();
-      break;
+
+    TYPED_ARRAYS(VERIFY_TYPED_ARRAY)
+#undef VERIFY_TYPED_ARRAY
+
     case CODE_TYPE:
       Code::cast(this)->CodeVerify();
       break;
@@ -243,6 +227,7 @@ void Symbol::SymbolVerify() {
   CHECK(HasHashCode());
   CHECK_GT(Hash(), 0);
   CHECK(name()->IsUndefined() || name()->IsString());
+  CHECK(flags()->IsSmi());
 }
 
 
@@ -261,48 +246,20 @@ void FreeSpace::FreeSpaceVerify() {
 }
 
 
-void ExternalPixelArray::ExternalPixelArrayVerify() {
-  CHECK(IsExternalPixelArray());
-}
+#define EXTERNAL_ARRAY_VERIFY(Type, type, TYPE, ctype, size)                  \
+  void External##Type##Array::External##Type##ArrayVerify() {                 \
+    CHECK(IsExternal##Type##Array());                                         \
+  }
+
+TYPED_ARRAYS(EXTERNAL_ARRAY_VERIFY)
+#undef EXTERNAL_ARRAY_VERIFY
 
 
-void ExternalByteArray::ExternalByteArrayVerify() {
-  CHECK(IsExternalByteArray());
-}
-
-
-void ExternalUnsignedByteArray::ExternalUnsignedByteArrayVerify() {
-  CHECK(IsExternalUnsignedByteArray());
-}
-
-
-void ExternalShortArray::ExternalShortArrayVerify() {
-  CHECK(IsExternalShortArray());
-}
-
-
-void ExternalUnsignedShortArray::ExternalUnsignedShortArrayVerify() {
-  CHECK(IsExternalUnsignedShortArray());
-}
-
-
-void ExternalIntArray::ExternalIntArrayVerify() {
-  CHECK(IsExternalIntArray());
-}
-
-
-void ExternalUnsignedIntArray::ExternalUnsignedIntArrayVerify() {
-  CHECK(IsExternalUnsignedIntArray());
-}
-
-
-void ExternalFloatArray::ExternalFloatArrayVerify() {
-  CHECK(IsExternalFloatArray());
-}
-
-
-void ExternalDoubleArray::ExternalDoubleArrayVerify() {
-  CHECK(IsExternalDoubleArray());
+template <class Traits>
+void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
+  CHECK(IsHeapObject() &&
+        HeapObject::cast(this)->map()->instance_type() ==
+            Traits::kInstanceType);
 }
 
 
@@ -366,9 +323,6 @@ void Map::MapVerify() {
     SLOW_ASSERT(transitions()->IsSortedNoDuplicates());
     SLOW_ASSERT(transitions()->IsConsistentWithBackPointers(this));
   }
-  ASSERT(!is_observed() || instance_type() < FIRST_JS_OBJECT_TYPE ||
-         instance_type() > LAST_JS_OBJECT_TYPE ||
-         has_slow_elements_kind() || has_external_array_elements());
 }
 
 
@@ -413,7 +367,7 @@ void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
 void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
   VerifyObjectField(kStorage1Offset);
   VerifyObjectField(kStorage2Offset);
-  VerifyHeapPointer(type_feedback_cells());
+  VerifyHeapPointer(feedback_vector());
 }
 
 
@@ -536,7 +490,6 @@ void JSMessageObject::JSMessageObjectVerify() {
   VerifyObjectField(kEndPositionOffset);
   VerifyObjectField(kArgumentsOffset);
   VerifyObjectField(kScriptOffset);
-  VerifyObjectField(kStackTraceOffset);
   VerifyObjectField(kStackFramesOffset);
 }
 
@@ -1081,17 +1034,15 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       info->number_of_fast_unused_elements_ += holes;
       break;
     }
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      info->number_of_objects_with_fast_elements_++;
-      ExternalPixelArray* e = ExternalPixelArray::cast(elements());
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                          \
+    case TYPE##_ELEMENTS:
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+    { info->number_of_objects_with_fast_elements_++;
+      FixedArrayBase* e = FixedArrayBase::cast(elements());
       info->number_of_fast_used_elements_ += e->length();
       break;
     }

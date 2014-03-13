@@ -88,6 +88,7 @@
 //  V8_OS_NETBSD        - NetBSD
 //  V8_OS_OPENBSD       - OpenBSD
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
+//  V8_OS_QNX           - QNX Neutrino
 //  V8_OS_SOLARIS       - Sun Solaris and OpenSolaris
 //  V8_OS_WIN           - Microsoft Windows
 
@@ -127,6 +128,9 @@
 # define V8_OS_BSD 1
 # define V8_OS_OPENBSD 1
 # define V8_OS_POSIX 1
+#elif defined(__QNXNTO__)
+# define V8_OS_POSIX 1
+# define V8_OS_QNX 1
 #elif defined(_WIN32)
 # define V8_OS_WIN 1
 #endif
@@ -135,6 +139,7 @@
 // -----------------------------------------------------------------------------
 // C library detection
 //
+//  V8_LIBC_MSVCRT  - MSVC libc
 //  V8_LIBC_BIONIC  - Bionic libc
 //  V8_LIBC_BSD     - BSD libc derivate
 //  V8_LIBC_GLIBC   - GNU C library
@@ -146,7 +151,9 @@
 //   ...
 //  #endif
 
-#if defined(__BIONIC__)
+#if defined (_MSC_VER)
+# define V8_LIBC_MSVCRT 1
+#elif defined(__BIONIC__)
 # define V8_LIBC_BIONIC 1
 # define V8_LIBC_BSD 1
 #elif defined(__UCLIBC__)
@@ -187,6 +194,7 @@
 //                                        supported
 //  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
+//  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
@@ -216,6 +224,7 @@
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
+# define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
@@ -247,6 +256,7 @@
 # define V8_HAS_ATTRIBUTE_DEPRECATED (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE (V8_GNUC_PREREQ(4, 5, 0))
 # define V8_HAS_ATTRIBUTE_NOINLINE (V8_GNUC_PREREQ(3, 4, 0))
+# define V8_HAS_ATTRIBUTE_UNUSED (V8_GNUC_PREREQ(2, 95, 0))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (!V8_CC_INTEL && V8_GNUC_PREREQ(4, 1, 0))
@@ -331,6 +341,14 @@ declarator __attribute__((deprecated))
 # define V8_DEPRECATED(message, declarator) __declspec(deprecated) declarator
 #else
 # define V8_DEPRECATED(message, declarator) declarator
+#endif
+
+
+// A macro to mark variables or types as unused, avoiding compiler warnings.
+#if V8_HAS_ATTRIBUTE_UNUSED
+# define V8_UNUSED __attribute__((unused))
+#else
+# define V8_UNUSED
 #endif
 
 

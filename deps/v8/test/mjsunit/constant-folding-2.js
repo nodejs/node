@@ -128,30 +128,6 @@ test(function mathMax() {
   assertEquals("Infinity", String(1 / Math.max(0.0, -0.0)));
 });
 
-test(function mathSin() {
-  assertEquals(0.0, Math.sin(0.0));
-  assertTrue(0.8 < Math.sin(1) && Math.sin(1) < 0.9);
-  assertEquals("NaN", String(Math.sin(Infinity)));
-  assertEquals("NaN", String(Math.sin(-Infinity)));
-  assertEquals("NaN", String(Math.sin(NaN)));
-});
-
-test(function mathCos() {
-  assertEquals(1.0, Math.cos(0.0));
-  assertTrue(0.5 < Math.cos(1) && Math.cos(1) < 0.6);
-  assertEquals("NaN", String(Math.cos(Infinity)));
-  assertEquals("NaN", String(Math.cos(-Infinity)));
-  assertEquals("NaN", String(Math.cos(NaN)));
-});
-
-test(function mathTan() {
-  assertEquals(0.0, Math.tan(0.0));
-  assertTrue(1.5 < Math.tan(1) && Math.tan(1) < 1.6);
-  assertEquals("NaN", String(Math.tan(Infinity)));
-  assertEquals("NaN", String(Math.tan(-Infinity)));
-  assertEquals("NaN", String(Math.tan(NaN)));
-});
-
 test(function mathExp() {
   assertEquals(1.0, Math.exp(0.0));
   assertTrue(2.7 < Math.exp(1) && Math.exp(1) < 2.8);

@@ -139,6 +139,10 @@ macro IS_SPEC_OBJECT(arg)   = (%_IsSpecObject(arg));
 # we cannot handle those anyway.
 macro IS_SPEC_FUNCTION(arg) = (%_ClassOf(arg) === 'Function');
 
+# Macro for ES6 CheckObjectCoercible
+# Will throw a TypeError of the form "[functionName] called on null or undefined".
+macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL_OR_UNDEFINED(arg) && !IS_UNDETECTABLE(arg)) throw MakeTypeError('called_on_null_or_undefined', [functionName]);
+
 # Indices in bound function info retrieved by %BoundFunctionGetBindings(...).
 const kBoundFunctionIndex = 0;
 const kBoundThisIndex = 1;
@@ -156,6 +160,14 @@ macro TO_STRING_INLINE(arg) = (IS_STRING(%IS_VAR(arg)) ? arg : NonStringToString
 macro TO_NUMBER_INLINE(arg) = (IS_NUMBER(%IS_VAR(arg)) ? arg : NonNumberToNumber(arg));
 macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : ToObject(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
+
+# Private names.
+macro NEW_PRIVATE(name) = (%CreatePrivateSymbol(name));
+macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));
+macro HAS_PRIVATE(obj, sym) = (sym in obj);
+macro GET_PRIVATE(obj, sym) = (obj[sym]);
+macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);
+macro DELETE_PRIVATE(obj, sym) = (delete obj[sym]);
 
 # Constants.  The compiler constant folds them.
 const NAN = $NaN;
@@ -253,3 +265,9 @@ const COMPILATION_TYPE_JSON = 2;
 
 # Matches Messages::kNoLineNumberInfo from v8.h
 const kNoLineNumberInfo = 0;
+
+# Matches PropertyAttributes from property-details.h
+const PROPERTY_ATTRIBUTES_NONE = 0;
+const PROPERTY_ATTRIBUTES_STRING = 8;
+const PROPERTY_ATTRIBUTES_SYMBOLIC = 16;
+const PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32;

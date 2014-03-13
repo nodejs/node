@@ -139,34 +139,6 @@ class ThreadManager {
 };
 
 
-// The ContextSwitcher thread is used to schedule regular preemptions to
-// multiple running V8 threads. Generally it is necessary to call
-// StartPreemption if there is more than one thread running. If not, a single
-// JavaScript can take full control of V8 and not allow other threads to run.
-class ContextSwitcher: public Thread {
- public:
-  // Set the preemption interval for the ContextSwitcher thread.
-  static void StartPreemption(Isolate* isolate, int every_n_ms);
-
-  // Stop sending preemption requests to threads.
-  static void StopPreemption(Isolate* isolate);
-
-  // Preempted thread needs to call back to the ContextSwitcher to acknowledge
-  // the handling of a preemption request.
-  static void PreemptionReceived();
-
- private:
-  ContextSwitcher(Isolate* isolate, int every_n_ms);
-
-  Isolate* isolate() const { return isolate_; }
-
-  void Run();
-
-  bool keep_going_;
-  int sleep_ms_;
-  Isolate* isolate_;
-};
-
 } }  // namespace v8::internal
 
 #endif  // V8_V8THREADS_H_

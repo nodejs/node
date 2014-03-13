@@ -58,4 +58,3 @@ this.y = 42;
 
 // Check that IC bails out.
 assertEquals(42, g());
-

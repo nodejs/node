@@ -27,11 +27,11 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 
 PASS (1 instanceof 1) threw exception TypeError: Expecting a function in instanceof check, but got 1.
-PASS ({} instanceof 1) threw exception TypeError: Expecting a function in instanceof check, but got #<Object>.
-PASS (obj instanceof 1) threw exception TypeError: Expecting a function in instanceof check, but got #<Constructor>.
-PASS (1 instanceof {}) threw exception TypeError: Expecting a function in instanceof check, but got 1.
+PASS ({} instanceof 1) threw exception TypeError: Expecting a function in instanceof check, but got 1.
+PASS (obj instanceof 1) threw exception TypeError: Expecting a function in instanceof check, but got 1.
+PASS (1 instanceof {}) threw exception TypeError: Expecting a function in instanceof check, but got #<Object>.
 PASS ({} instanceof {}) threw exception TypeError: Expecting a function in instanceof check, but got #<Object>.
-PASS (obj instanceof {}) threw exception TypeError: Expecting a function in instanceof check, but got #<Constructor>.
+PASS (obj instanceof {}) threw exception TypeError: Expecting a function in instanceof check, but got #<Object>.
 PASS (1 instanceof Constructor) is false
 PASS ({} instanceof Constructor) is false
 PASS (obj instanceof Constructor) is true

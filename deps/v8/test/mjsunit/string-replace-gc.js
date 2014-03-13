@@ -53,4 +53,3 @@ var moving_string = "b" + "c";
 var bar = foo.replace(/[a]/g, moving_string);
 
 print(bar.length);
-

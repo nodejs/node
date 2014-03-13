@@ -30,8 +30,6 @@
 
 #include "checks.h"
 
-void API_Fatal(const char* location, const char* format, ...);
-
 namespace v8 {
   class Value;
   template <class T> class Handle;

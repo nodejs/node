@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --notrack_allocation_sites
 
 // Limit the number of stress runs to reduce polymorphism it defeats some of the
 // assumptions made about how elements transitions work because transition stubs
@@ -39,11 +38,6 @@
 // by default, only a no-snapshot build actually has smi-only arrays enabled
 // in this test case.  Depending on whether smi-only arrays are actually
 // enabled, this test takes the appropriate code path to check smi-only arrays.
-
-// Reset the GC stress mode to be off. Needed because AllocationMementos only
-// live for one gc, so a gc that happens in certain fragile areas of the test
-// can break assumptions.
-%SetFlags("--gc-interval=-1")
 
 support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
 
@@ -114,8 +108,20 @@ function assertKind(expected, obj, name_opt) {
 }
 
 %NeverOptimizeFunction(construct_smis);
+
+// This code exists to eliminate the learning influence of AllocationSites
+// on the following tests.
+var __sequence = 0;
+function make_array_string() {
+  this.__sequence = this.__sequence + 1;
+  return "/* " + this.__sequence + " */  [0, 0, 0];"
+}
+function make_array() {
+  return eval(make_array_string());
+}
+
 function construct_smis() {
-  var a = [0, 0, 0];
+  var a = make_array();
   a[0] = 0;  // Send the COW array map to the steak house.
   assertKind(elements_kind.fast_smi_only, a);
   return a;

@@ -44,12 +44,8 @@ SweeperThread::SweeperThread(Isolate* isolate)
        collector_(heap_->mark_compact_collector()),
        start_sweeping_semaphore_(0),
        end_sweeping_semaphore_(0),
-       stop_semaphore_(0),
-       free_list_old_data_space_(heap_->paged_space(OLD_DATA_SPACE)),
-       free_list_old_pointer_space_(heap_->paged_space(OLD_POINTER_SPACE)),
-       private_free_list_old_data_space_(heap_->paged_space(OLD_DATA_SPACE)),
-       private_free_list_old_pointer_space_(
-           heap_->paged_space(OLD_POINTER_SPACE)) {
+       stop_semaphore_(0) {
+  ASSERT(!FLAG_job_based_sweeping);
   NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
 }
 
@@ -68,24 +64,10 @@ void SweeperThread::Run() {
       return;
     }
 
-    collector_->SweepInParallel(heap_->old_data_space(),
-                                &private_free_list_old_data_space_,
-                                &free_list_old_data_space_);
-    collector_->SweepInParallel(heap_->old_pointer_space(),
-                                &private_free_list_old_pointer_space_,
-                                &free_list_old_pointer_space_);
+    collector_->SweepInParallel(heap_->old_data_space());
+    collector_->SweepInParallel(heap_->old_pointer_space());
     end_sweeping_semaphore_.Signal();
   }
-}
-
-
-intptr_t SweeperThread::StealMemory(PagedSpace* space) {
-  if (space->identity() == OLD_POINTER_SPACE) {
-    return space->free_list()->Concatenate(&free_list_old_pointer_space_);
-  } else if (space->identity() == OLD_DATA_SPACE) {
-    return space->free_list()->Concatenate(&free_list_old_data_space_);
-  }
-  return 0;
 }
 
 
@@ -105,4 +87,14 @@ void SweeperThread::StartSweeping() {
 void SweeperThread::WaitForSweeperThread() {
   end_sweeping_semaphore_.Wait();
 }
+
+
+int SweeperThread::NumberOfThreads(int max_available) {
+  if (!FLAG_concurrent_sweeping && !FLAG_parallel_sweeping) return 0;
+  if (FLAG_sweeper_threads > 0) return FLAG_sweeper_threads;
+  if (FLAG_concurrent_sweeping) return max_available - 1;
+  ASSERT(FLAG_parallel_sweeping);
+  return max_available;
+}
+
 } }  // namespace v8::internal

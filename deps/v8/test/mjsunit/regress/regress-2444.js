@@ -116,5 +116,3 @@ assertEquals(0,
                       object_factory(1,   0, [1, 0, 0]),
                       object_factory(2,   1, [1, 1, 0])));
 assertFlags([1, 1, 1]);
-
-

@@ -49,7 +49,6 @@
 #endif  // !V8_SHARED
 
 #ifdef V8_SHARED
-#include "../include/v8-defaults.h"
 #include "../include/v8-testing.h"
 #endif  // V8_SHARED
 
@@ -62,12 +61,12 @@
 #ifndef V8_SHARED
 #include "api.h"
 #include "checks.h"
+#include "cpu.h"
 #include "d8-debug.h"
 #include "debug.h"
 #include "natives.h"
 #include "platform.h"
 #include "v8.h"
-#include "v8-defaults.h"
 #endif  // V8_SHARED
 
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -81,8 +80,8 @@
 namespace v8 {
 
 
-static Handle<Value> Throw(const char* message) {
-  return ThrowException(String::New(message));
+static Handle<Value> Throw(Isolate* isolate, const char* message) {
+  return isolate->ThrowException(String::NewFromUtf8(isolate, message));
 }
 
 
@@ -91,15 +90,15 @@ class PerIsolateData {
  public:
   explicit PerIsolateData(Isolate* isolate) : isolate_(isolate), realms_(NULL) {
     HandleScope scope(isolate);
-    isolate->SetData(this);
+    isolate->SetData(0, this);
   }
 
   ~PerIsolateData() {
-    isolate_->SetData(NULL);  // Not really needed, just to be sure...
+    isolate_->SetData(0, NULL);  // Not really needed, just to be sure...
   }
 
   inline static PerIsolateData* Get(Isolate* isolate) {
-    return reinterpret_cast<PerIsolateData*>(isolate->GetData());
+    return reinterpret_cast<PerIsolateData*>(isolate->GetData(0));
   }
 
   class RealmScope {
@@ -169,10 +168,9 @@ ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
 
 
+#ifndef V8_SHARED
 const int MB = 1024 * 1024;
 
-
-#ifndef V8_SHARED
 bool CounterMap::Match(void* key1, void* key2) {
   const char* name1 = reinterpret_cast<const char*>(key1);
   const char* name2 = reinterpret_cast<const char*>(key2);
@@ -245,7 +243,8 @@ bool Shell::ExecuteString(Isolate* isolate,
               v8::Local<v8::Context>::New(isolate, utility_context_);
           v8::Context::Scope context_scope(context);
           Handle<Object> global = context->Global();
-          Handle<Value> fun = global->Get(String::New("Stringify"));
+          Handle<Value> fun =
+              global->Get(String::NewFromUtf8(isolate, "Stringify"));
           Handle<Value> argv[1] = { result };
           Handle<Value> s = Handle<Function>::Cast(fun)->Call(global, 1, argv);
           if (try_catch.HasCaught()) return true;
@@ -268,17 +267,16 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realms_ = new Persistent<Context>[1];
   data_->realms_[0].Reset(data_->isolate_,
                           data_->isolate_->GetEnteredContext());
-  data_->realm_shared_.Clear();
 }
 
 
 PerIsolateData::RealmScope::~RealmScope() {
   // Drop realms to avoid keeping them alive.
   for (int i = 0; i < data_->realm_count_; ++i)
-    data_->realms_[i].Dispose();
+    data_->realms_[i].Reset();
   delete[] data_->realms_;
   if (!data_->realm_shared_.IsEmpty())
-    data_->realm_shared_.Dispose();
+    data_->realm_shared_.Reset();
 }
 
 
@@ -314,7 +312,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsObject()) {
-    Throw("Invalid argument");
+    Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
   int index = data->RealmFind(args[0]->ToObject()->CreationContext());
@@ -328,12 +326,12 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PerIsolateData* data = PerIsolateData::Get(args.GetIsolate());
   if (args.Length() < 1 || !args[0]->IsNumber()) {
-    Throw("Invalid argument");
+    Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty()) {
-    Throw("Invalid realm index");
+    Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
   args.GetReturnValue().Set(
@@ -364,18 +362,17 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsNumber()) {
-    Throw("Invalid argument");
+    Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty() ||
       index == 0 ||
       index == data->realm_current_ || index == data->realm_switch_) {
-    Throw("Invalid realm index");
+    Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
-  data->realms_[index].Dispose();
-  data->realms_[index].Clear();
+  data->realms_[index].Reset();
 }
 
 
@@ -384,12 +381,12 @@ void Shell::RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsNumber()) {
-    Throw("Invalid argument");
+    Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty()) {
-    Throw("Invalid realm index");
+    Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
   data->realm_switch_ = index;
@@ -401,12 +398,12 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 2 || !args[0]->IsNumber() || !args[1]->IsString()) {
-    Throw("Invalid argument");
+    Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty()) {
-    Throw("Invalid realm index");
+    Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
   Handle<Script> script = Script::New(args[1]->ToString());
@@ -433,7 +430,6 @@ void Shell::RealmSharedSet(Local<String> property,
                            const PropertyCallbackInfo<void>& info) {
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  if (!data->realm_shared_.IsEmpty()) data->realm_shared_.Dispose();
   data->realm_shared_.Reset(isolate, value);
 }
 
@@ -473,12 +469,12 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value file(args[0]);
   if (*file == NULL) {
-    Throw("Error loading file");
+    Throw(args.GetIsolate(), "Error loading file");
     return;
   }
   Handle<String> source = ReadFile(args.GetIsolate(), *file);
   if (source.IsEmpty()) {
-    Throw("Error loading file");
+    Throw(args.GetIsolate(), "Error loading file");
     return;
   }
   args.GetReturnValue().Set(source);
@@ -488,7 +484,7 @@ void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
 Handle<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
-  Handle<String> accumulator = String::New("");
+  Handle<String> accumulator = String::NewFromUtf8(isolate, "");
   int length;
   while (true) {
     // Continue reading if the line ends with an escape '\\' or the line has
@@ -504,12 +500,18 @@ Handle<String> Shell::ReadFromStdin(Isolate* isolate) {
     if (length == 0) {
       return accumulator;
     } else if (buffer[length-1] != '\n') {
-      accumulator = String::Concat(accumulator, String::New(buffer, length));
+      accumulator = String::Concat(
+          accumulator,
+          String::NewFromUtf8(isolate, buffer, String::kNormalString, length));
     } else if (length > 1 && buffer[length-2] == '\\') {
       buffer[length-2] = '\n';
-      accumulator = String::Concat(accumulator, String::New(buffer, length-1));
+      accumulator = String::Concat(
+          accumulator, String::NewFromUtf8(isolate, buffer,
+                                           String::kNormalString, length - 1));
     } else {
-      return String::Concat(accumulator, String::New(buffer, length-1));
+      return String::Concat(
+          accumulator, String::NewFromUtf8(isolate, buffer,
+                                           String::kNormalString, length - 1));
     }
   }
 }
@@ -520,20 +522,20 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     HandleScope handle_scope(args.GetIsolate());
     String::Utf8Value file(args[i]);
     if (*file == NULL) {
-      Throw("Error loading file");
+      Throw(args.GetIsolate(), "Error loading file");
       return;
     }
     Handle<String> source = ReadFile(args.GetIsolate(), *file);
     if (source.IsEmpty()) {
-      Throw("Error loading file");
+      Throw(args.GetIsolate(), "Error loading file");
       return;
     }
     if (!ExecuteString(args.GetIsolate(),
                        source,
-                       String::New(*file),
+                       String::NewFromUtf8(args.GetIsolate(), *file),
                        false,
                        true)) {
-      Throw("Error executing file");
+      Throw(args.GetIsolate(), "Error executing file");
       return;
     }
   }
@@ -548,7 +550,8 @@ void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(String::New(V8::GetVersion()));
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(args.GetIsolate(), V8::GetVersion()));
 }
 
 
@@ -556,7 +559,7 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   HandleScope handle_scope(isolate);
 #if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
   Handle<Context> utility_context;
-  bool enter_context = !Context::InContext();
+  bool enter_context = !isolate->InContext();
   if (enter_context) {
     utility_context = Local<Context>::New(isolate, utility_context_);
     utility_context->Enter();
@@ -606,49 +609,52 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
 Handle<Array> Shell::GetCompletions(Isolate* isolate,
                                     Handle<String> text,
                                     Handle<String> full) {
-  HandleScope handle_scope(isolate);
+  EscapableHandleScope handle_scope(isolate);
   v8::Local<v8::Context> utility_context =
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(utility_context);
   Handle<Object> global = utility_context->Global();
-  Handle<Value> fun = global->Get(String::New("GetCompletions"));
+  Local<Value> fun =
+      global->Get(String::NewFromUtf8(isolate, "GetCompletions"));
   static const int kArgc = 3;
   v8::Local<v8::Context> evaluation_context =
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
   Handle<Value> argv[kArgc] = { evaluation_context->Global(), text, full };
-  Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
-  return handle_scope.Close(Handle<Array>::Cast(val));
+  Local<Value> val = Local<Function>::Cast(fun)->Call(global, kArgc, argv);
+  return handle_scope.Escape(Local<Array>::Cast(val));
 }
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-Handle<Object> Shell::DebugMessageDetails(Isolate* isolate,
-                                          Handle<String> message) {
-  HandleScope handle_scope(isolate);
+Local<Object> Shell::DebugMessageDetails(Isolate* isolate,
+                                         Handle<String> message) {
+  EscapableHandleScope handle_scope(isolate);
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(context);
   Handle<Object> global = context->Global();
-  Handle<Value> fun = global->Get(String::New("DebugMessageDetails"));
+  Handle<Value> fun =
+      global->Get(String::NewFromUtf8(isolate, "DebugMessageDetails"));
   static const int kArgc = 1;
   Handle<Value> argv[kArgc] = { message };
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
-  return Handle<Object>::Cast(val);
+  return handle_scope.Escape(Local<Object>(Handle<Object>::Cast(val)));
 }
 
 
-Handle<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
-                                               Handle<String> command) {
-  HandleScope handle_scope(isolate);
+Local<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
+                                              Handle<String> command) {
+  EscapableHandleScope handle_scope(isolate);
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(context);
   Handle<Object> global = context->Global();
-  Handle<Value> fun = global->Get(String::New("DebugCommandToJSONRequest"));
+  Handle<Value> fun =
+      global->Get(String::NewFromUtf8(isolate, "DebugCommandToJSONRequest"));
   static const int kArgc = 1;
   Handle<Value> argv[kArgc] = { command };
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
-  return val;
+  return handle_scope.Escape(Local<Value>(val));
 }
 
 
@@ -783,8 +789,8 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   debug->Load();
   i::Handle<i::JSObject> js_debug
       = i::Handle<i::JSObject>(debug->debug_context()->global_object());
-  utility_context->Global()->Set(String::New("$debug"),
-                                  Utils::ToLocal(js_debug));
+  utility_context->Global()->Set(String::NewFromUtf8(isolate, "$debug"),
+                                 Utils::ToLocal(js_debug));
   debug->debug_context()->set_security_token(
       reinterpret_cast<i::Isolate*>(isolate)->heap()->undefined_value());
 #endif  // ENABLE_DEBUGGER_SUPPORT
@@ -795,10 +801,12 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
       i::NativesCollection<i::D8>::GetRawScriptSource(source_index);
   i::Vector<const char> shell_source_name =
       i::NativesCollection<i::D8>::GetScriptName(source_index);
-  Handle<String> source = String::New(shell_source.start(),
-      shell_source.length());
-  Handle<String> name = String::New(shell_source_name.start(),
-      shell_source_name.length());
+  Handle<String> source =
+      String::NewFromUtf8(isolate, shell_source.start(), String::kNormalString,
+                          shell_source.length());
+  Handle<String> name =
+      String::NewFromUtf8(isolate, shell_source_name.start(),
+                          String::kNormalString, shell_source_name.length());
   Handle<Script> script = Script::Compile(source, name);
   script->Run();
   // Mark the d8 shell script as native to avoid it showing up as normal source
@@ -850,49 +858,56 @@ class BZip2Decompressor : public v8::StartupDataDecompressor {
 
 
 Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
-  Handle<ObjectTemplate> global_template = ObjectTemplate::New();
-  global_template->Set(String::New("print"), FunctionTemplate::New(Print));
-  global_template->Set(String::New("write"), FunctionTemplate::New(Write));
-  global_template->Set(String::New("read"), FunctionTemplate::New(Read));
-  global_template->Set(String::New("readbuffer"),
-                       FunctionTemplate::New(ReadBuffer));
-  global_template->Set(String::New("readline"),
-                       FunctionTemplate::New(ReadLine));
-  global_template->Set(String::New("load"), FunctionTemplate::New(Load));
-  global_template->Set(String::New("quit"), FunctionTemplate::New(Quit));
-  global_template->Set(String::New("version"), FunctionTemplate::New(Version));
+  Handle<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
+  global_template->Set(String::NewFromUtf8(isolate, "print"),
+                       FunctionTemplate::New(isolate, Print));
+  global_template->Set(String::NewFromUtf8(isolate, "write"),
+                       FunctionTemplate::New(isolate, Write));
+  global_template->Set(String::NewFromUtf8(isolate, "read"),
+                       FunctionTemplate::New(isolate, Read));
+  global_template->Set(String::NewFromUtf8(isolate, "readbuffer"),
+                       FunctionTemplate::New(isolate, ReadBuffer));
+  global_template->Set(String::NewFromUtf8(isolate, "readline"),
+                       FunctionTemplate::New(isolate, ReadLine));
+  global_template->Set(String::NewFromUtf8(isolate, "load"),
+                       FunctionTemplate::New(isolate, Load));
+  global_template->Set(String::NewFromUtf8(isolate, "quit"),
+                       FunctionTemplate::New(isolate, Quit));
+  global_template->Set(String::NewFromUtf8(isolate, "version"),
+                       FunctionTemplate::New(isolate, Version));
 
   // Bind the Realm object.
-  Handle<ObjectTemplate> realm_template = ObjectTemplate::New();
-  realm_template->Set(String::New("current"),
-                      FunctionTemplate::New(RealmCurrent));
-  realm_template->Set(String::New("owner"),
-                      FunctionTemplate::New(RealmOwner));
-  realm_template->Set(String::New("global"),
-                      FunctionTemplate::New(RealmGlobal));
-  realm_template->Set(String::New("create"),
-                      FunctionTemplate::New(RealmCreate));
-  realm_template->Set(String::New("dispose"),
-                      FunctionTemplate::New(RealmDispose));
-  realm_template->Set(String::New("switch"),
-                      FunctionTemplate::New(RealmSwitch));
-  realm_template->Set(String::New("eval"),
-                      FunctionTemplate::New(RealmEval));
-  realm_template->SetAccessor(String::New("shared"),
+  Handle<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);
+  realm_template->Set(String::NewFromUtf8(isolate, "current"),
+                      FunctionTemplate::New(isolate, RealmCurrent));
+  realm_template->Set(String::NewFromUtf8(isolate, "owner"),
+                      FunctionTemplate::New(isolate, RealmOwner));
+  realm_template->Set(String::NewFromUtf8(isolate, "global"),
+                      FunctionTemplate::New(isolate, RealmGlobal));
+  realm_template->Set(String::NewFromUtf8(isolate, "create"),
+                      FunctionTemplate::New(isolate, RealmCreate));
+  realm_template->Set(String::NewFromUtf8(isolate, "dispose"),
+                      FunctionTemplate::New(isolate, RealmDispose));
+  realm_template->Set(String::NewFromUtf8(isolate, "switch"),
+                      FunctionTemplate::New(isolate, RealmSwitch));
+  realm_template->Set(String::NewFromUtf8(isolate, "eval"),
+                      FunctionTemplate::New(isolate, RealmEval));
+  realm_template->SetAccessor(String::NewFromUtf8(isolate, "shared"),
                               RealmSharedGet, RealmSharedSet);
-  global_template->Set(String::New("Realm"), realm_template);
+  global_template->Set(String::NewFromUtf8(isolate, "Realm"), realm_template);
 
 #ifndef V8_SHARED
-  Handle<ObjectTemplate> performance_template = ObjectTemplate::New();
-  performance_template->Set(String::New("now"),
-                            FunctionTemplate::New(PerformanceNow));
-  global_template->Set(String::New("performance"), performance_template);
+  Handle<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
+  performance_template->Set(String::NewFromUtf8(isolate, "now"),
+                            FunctionTemplate::New(isolate, PerformanceNow));
+  global_template->Set(String::NewFromUtf8(isolate, "performance"),
+                       performance_template);
 #endif  // V8_SHARED
 
 #if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
-  Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
-  AddOSMethods(os_templ);
-  global_template->Set(String::New("os"), os_templ);
+  Handle<ObjectTemplate> os_templ = ObjectTemplate::New(isolate);
+  AddOSMethods(isolate, os_templ);
+  global_template->Set(String::NewFromUtf8(isolate, "os"), os_templ);
 #endif  // V8_SHARED
 
   return global_template;
@@ -950,7 +965,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
 #endif  // V8_SHARED
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  HandleScope handle_scope(isolate);
+  EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, NULL, global_template);
   ASSERT(!context.IsEmpty());
   Context::Scope scope(context);
@@ -967,10 +982,10 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   }
   i::Handle<i::JSArray> arguments_jsarray =
       factory->NewJSArrayWithElements(arguments_array);
-  context->Global()->Set(String::New("arguments"),
+  context->Global()->Set(String::NewFromUtf8(isolate, "arguments"),
                          Utils::ToLocal(arguments_jsarray));
 #endif  // V8_SHARED
-  return handle_scope.Close(context);
+  return handle_scope.Escape(context);
 }
 
 
@@ -1081,16 +1096,22 @@ static char* ReadChars(Isolate* isolate, const char* name, int* size_out) {
   return chars;
 }
 
-static void ReadBufferWeakCallback(v8::Isolate* isolate,
-                                   Persistent<ArrayBuffer>* array_buffer,
-                                   uint8_t* data) {
-  size_t byte_length =
-      Local<ArrayBuffer>::New(isolate, *array_buffer)->ByteLength();
-  isolate->AdjustAmountOfExternalAllocatedMemory(
+
+struct DataAndPersistent {
+  uint8_t* data;
+  Persistent<ArrayBuffer> handle;
+};
+
+
+static void ReadBufferWeakCallback(
+    const v8::WeakCallbackData<ArrayBuffer, DataAndPersistent>& data) {
+  size_t byte_length = data.GetValue()->ByteLength();
+  data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
       -static_cast<intptr_t>(byte_length));
 
-  delete[] data;
-  array_buffer->Dispose();
+  delete[] data.GetParameter()->data;
+  data.GetParameter()->handle.Reset();
+  delete data.GetParameter();
 }
 
 
@@ -1099,21 +1120,24 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value filename(args[0]);
   int length;
   if (*filename == NULL) {
-    Throw("Error loading file");
+    Throw(args.GetIsolate(), "Error loading file");
     return;
   }
 
   Isolate* isolate = args.GetIsolate();
-  uint8_t* data = reinterpret_cast<uint8_t*>(
+  DataAndPersistent* data = new DataAndPersistent;
+  data->data = reinterpret_cast<uint8_t*>(
       ReadChars(args.GetIsolate(), *filename, &length));
-  if (data == NULL) {
-    Throw("Error reading file");
+  if (data->data == NULL) {
+    delete data;
+    Throw(args.GetIsolate(), "Error reading file");
     return;
   }
-  Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(data, length);
-  v8::Persistent<v8::ArrayBuffer> weak_handle(isolate, buffer);
-  weak_handle.MakeWeak(data, ReadBufferWeakCallback);
-  weak_handle.MarkIndependent();
+  Handle<v8::ArrayBuffer> buffer =
+      ArrayBuffer::New(isolate, data->data, length);
+  data->handle.Reset(isolate, buffer);
+  data->handle.SetWeak(data, ReadBufferWeakCallback);
+  data->handle.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(length);
 
   args.GetReturnValue().Set(buffer);
@@ -1148,7 +1172,8 @@ Handle<String> Shell::ReadFile(Isolate* isolate, const char* name) {
   int size = 0;
   char* chars = ReadChars(isolate, name, &size);
   if (chars == NULL) return Handle<String>();
-  Handle<String> result = String::New(chars, size);
+  Handle<String> result =
+      String::NewFromUtf8(isolate, chars, String::kNormalString, size);
   delete[] chars;
   return result;
 }
@@ -1161,7 +1186,7 @@ void Shell::RunShell(Isolate* isolate) {
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
   v8::Context::Scope context_scope(context);
   PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-  Handle<String> name = String::New("(d8)");
+  Handle<String> name = String::NewFromUtf8(isolate, "(d8)");
   LineEditor* console = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
   console->Open(isolate);
@@ -1230,7 +1255,8 @@ void ShellThread::Run() {
         Shell::Exit(1);
       }
 
-      Shell::ExecuteString(isolate_, str, String::New(filename), false, false);
+      Shell::ExecuteString(
+          isolate_, str, String::NewFromUtf8(isolate_, filename), false, false);
     }
 
     ptr = next_line;
@@ -1254,8 +1280,8 @@ void SourceGroup::Execute(Isolate* isolate) {
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
       // Execute argument given to -e option directly.
       HandleScope handle_scope(isolate);
-      Handle<String> file_name = String::New("unnamed");
-      Handle<String> source = String::New(argv_[i + 1]);
+      Handle<String> file_name = String::NewFromUtf8(isolate, "unnamed");
+      Handle<String> source = String::NewFromUtf8(isolate, argv_[i + 1]);
       if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
         exception_was_thrown = true;
         break;
@@ -1266,7 +1292,7 @@ void SourceGroup::Execute(Isolate* isolate) {
     } else {
       // Use all other arguments as names of files to load and run.
       HandleScope handle_scope(isolate);
-      Handle<String> file_name = String::New(arg);
+      Handle<String> file_name = String::NewFromUtf8(isolate, arg);
       Handle<String> source = ReadFile(isolate, arg);
       if (source.IsEmpty()) {
         printf("Error reading '%s'\n", arg);
@@ -1288,7 +1314,8 @@ Handle<String> SourceGroup::ReadFile(Isolate* isolate, const char* name) {
   int size;
   char* chars = ReadChars(isolate, name, &size);
   if (chars == NULL) return Handle<String>();
-  Handle<String> result = String::New(chars, size);
+  Handle<String> result =
+      String::NewFromUtf8(isolate, chars, String::kNormalString, size);
   delete[] chars;
   return result;
 }
@@ -1364,6 +1391,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--stress-deopt") == 0) {
       options.stress_deopt = true;
       argv[i] = NULL;
+    } else if (strcmp(argv[i], "--mock-arraybuffer-allocator") == 0) {
+      options.mock_arraybuffer_allocator = true;
+      argv[i] = NULL;
     } else if (strcmp(argv[i], "--noalways-opt") == 0) {
       // No support for stressing if we can't use --always-opt.
       options.stress_opt = false;
@@ -1377,43 +1407,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--send-idle-notification") == 0) {
       options.send_idle_notification = true;
       argv[i] = NULL;
-    } else if (strcmp(argv[i], "--preemption") == 0) {
-#ifdef V8_SHARED
-      printf("D8 with shared library does not support multi-threading\n");
-      return false;
-#else
-      options.use_preemption = true;
-      argv[i] = NULL;
-#endif  // V8_SHARED
-    } else if (strcmp(argv[i], "--nopreemption") == 0) {
-#ifdef V8_SHARED
-      printf("D8 with shared library does not support multi-threading\n");
-      return false;
-#else
-      options.use_preemption = false;
-      argv[i] = NULL;
-#endif  // V8_SHARED
-    } else if (strcmp(argv[i], "--preemption-interval") == 0) {
-#ifdef V8_SHARED
-      printf("D8 with shared library does not support multi-threading\n");
-      return false;
-#else
-      if (++i < argc) {
-        argv[i-1] = NULL;
-        char* end = NULL;
-        options.preemption_interval = strtol(argv[i], &end, 10);  // NOLINT
-        if (options.preemption_interval <= 0
-            || *end != '\0'
-            || errno == ERANGE) {
-          printf("Invalid value for --preemption-interval '%s'\n", argv[i]);
-          return false;
-        }
-        argv[i] = NULL;
-      } else {
-        printf("Missing value for --preemption-interval\n");
-        return false;
-      }
-#endif  // V8_SHARED
     } else if (strcmp(argv[i], "-f") == 0) {
       // Ignore any -f flags for compatibility with other stand-alone
       // JavaScript engines.
@@ -1552,14 +1545,6 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
         V8::IdleNotification(kLongIdlePauseInMs);
       }
     }
-
-#ifndef V8_SHARED
-    // Start preemption if threads have been created and preemption is enabled.
-    if (threads.length() > 0
-        && options.use_preemption) {
-      Locker::StartPreemption(isolate, options.preemption_interval);
-    }
-#endif  // V8_SHARED
   }
 
 #ifndef V8_SHARED
@@ -1572,11 +1557,6 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
     thread->Join();
     delete thread;
   }
-
-  if (threads.length() > 0 && options.use_preemption) {
-    Locker lock(isolate);
-    Locker::StopPreemption(isolate);
-  }
 #endif  // V8_SHARED
   return 0;
 }
@@ -1584,12 +1564,14 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 
 #ifdef V8_SHARED
 static void SetStandaloneFlagsViaCommandLine() {
-  int fake_argc = 2;
-  char **fake_argv = new char*[2];
+  int fake_argc = 3;
+  char **fake_argv = new char*[3];
   fake_argv[0] = NULL;
   fake_argv[1] = strdup("--trace-hydrogen-file=hydrogen.cfg");
+  fake_argv[2] = strdup("--redirect-code-traces-to=code.asm");
   v8::V8::SetFlagsFromCommandLine(&fake_argc, fake_argv, false);
   free(fake_argv[1]);
+  free(fake_argv[2]);
   delete[] fake_argv;
 }
 #endif
@@ -1672,19 +1654,43 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 };
 
 
+class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t) V8_OVERRIDE {
+    return malloc(0);
+  }
+  virtual void* AllocateUninitialized(size_t length) V8_OVERRIDE {
+    return malloc(0);
+  }
+  virtual void Free(void*, size_t) V8_OVERRIDE {
+  }
+};
+
+
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU();
 #ifndef V8_SHARED
   i::FLAG_trace_hydrogen_file = "hydrogen.cfg";
+  i::FLAG_redirect_code_traces_to = "code.asm";
 #else
   SetStandaloneFlagsViaCommandLine();
 #endif
-  v8::SetDefaultResourceConstraintsForCurrentPlatform();
   ShellArrayBufferAllocator array_buffer_allocator;
-  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+  MockArrayBufferAllocator mock_arraybuffer_allocator;
+  if (options.mock_arraybuffer_allocator) {
+    v8::V8::SetArrayBufferAllocator(&mock_arraybuffer_allocator);
+  } else {
+    v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+  }
   int result = 0;
   Isolate* isolate = Isolate::GetCurrent();
+#ifndef V8_SHARED
+  v8::ResourceConstraints constraints;
+  constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory(),
+                                i::CPU::NumberOfProcessorsOnline());
+  v8::SetResourceConstraints(isolate, &constraints);
+#endif
   DumbLineEditor dumb_line_editor(isolate);
   {
     Initialize(isolate);

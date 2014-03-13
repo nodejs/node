@@ -34,9 +34,9 @@ function function_with_n_locals(n) {
   test_suffix = " suffix";
   var src = "test_prefix + (function () {"
   for (var i = 1; i <= n; i++) {
-    src += "var x" + i + ";";
+    src += "; var x" + i;
   }
-  src += "return " + n + ";})() + test_suffix";
+  src += "; return " + n + ";})() + test_suffix";
   return eval(src);
 }
 

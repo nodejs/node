@@ -36,262 +36,62 @@
 namespace v8 {
 namespace internal {
 
-const int kMaxKeyedPolymorphism = 4;
-
-//         Unknown
-//           |   \____________
-//           |                |
-//      Primitive       Non-primitive
-//           |   \_______     |
-//           |           |    |
-//        Number       String |
-//         /   \         |    |
-//    Double  Integer32  |   /
-//        |      |      /   /
-//        |     Smi    /   /
-//        |      |    / __/
-//        Uninitialized.
-
-class TypeInfo {
- public:
-  TypeInfo() : type_(kUninitialized) { }
-
-  static TypeInfo Unknown() { return TypeInfo(kUnknown); }
-  // We know it's a primitive type.
-  static TypeInfo Primitive() { return TypeInfo(kPrimitive); }
-  // We know it's a number of some sort.
-  static TypeInfo Number() { return TypeInfo(kNumber); }
-  // We know it's a signed 32 bit integer.
-  static TypeInfo Integer32() { return TypeInfo(kInteger32); }
-  // We know it's a Smi.
-  static TypeInfo Smi() { return TypeInfo(kSmi); }
-  // We know it's a heap number.
-  static TypeInfo Double() { return TypeInfo(kDouble); }
-  // We know it's a string.
-  static TypeInfo String() { return TypeInfo(kString); }
-  // We know it's an internalized string.
-  static TypeInfo InternalizedString() { return TypeInfo(kInternalizedString); }
-  // We know it's a non-primitive (object) type.
-  static TypeInfo NonPrimitive() { return TypeInfo(kNonPrimitive); }
-  // We haven't started collecting info yet.
-  static TypeInfo Uninitialized() { return TypeInfo(kUninitialized); }
-
-  int ToInt() {
-    return type_;
-  }
-
-  static TypeInfo FromInt(int bit_representation) {
-    Type t = static_cast<Type>(bit_representation);
-    ASSERT(t == kUnknown ||
-           t == kPrimitive ||
-           t == kNumber ||
-           t == kInteger32 ||
-           t == kSmi ||
-           t == kDouble ||
-           t == kString ||
-           t == kNonPrimitive);
-    return TypeInfo(t);
-  }
-
-  // Return the weakest (least precise) common type.
-  static TypeInfo Combine(TypeInfo a, TypeInfo b) {
-    return TypeInfo(static_cast<Type>(a.type_ & b.type_));
-  }
-
-
-  // Integer32 is an integer that can be represented as a signed
-  // 32-bit integer. It has to be
-  // in the range [-2^31, 2^31 - 1]. We also have to check for negative 0
-  // as it is not an Integer32.
-  static inline bool IsInt32Double(double value) {
-    const DoubleRepresentation minus_zero(-0.0);
-    DoubleRepresentation rep(value);
-    if (rep.bits == minus_zero.bits) return false;
-    if (value >= kMinInt && value <= kMaxInt &&
-        value == static_cast<int32_t>(value)) {
-      return true;
-    }
-    return false;
-  }
-
-  static TypeInfo FromValue(Handle<Object> value);
-
-  bool Equals(const TypeInfo& other) {
-    return type_ == other.type_;
-  }
-
-  inline bool IsUnknown() {
-    ASSERT(type_ != kUninitialized);
-    return type_ == kUnknown;
-  }
-
-  inline bool IsPrimitive() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kPrimitive) == kPrimitive);
-  }
-
-  inline bool IsNumber() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kNumber) == kNumber);
-  }
-
-  inline bool IsSmi() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kSmi) == kSmi);
-  }
-
-  inline bool IsInternalizedString() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kInternalizedString) == kInternalizedString);
-  }
-
-  inline bool IsNonInternalizedString() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kInternalizedString) == kString);
-  }
-
-  inline bool IsInteger32() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kInteger32) == kInteger32);
-  }
-
-  inline bool IsDouble() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kDouble) == kDouble);
-  }
-
-  inline bool IsString() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kString) == kString);
-  }
-
-  inline bool IsNonPrimitive() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kNonPrimitive) == kNonPrimitive);
-  }
-
-  inline bool IsUninitialized() {
-    return type_ == kUninitialized;
-  }
-
-  const char* ToString() {
-    switch (type_) {
-      case kUnknown: return "Unknown";
-      case kPrimitive: return "Primitive";
-      case kNumber: return "Number";
-      case kInteger32: return "Integer32";
-      case kSmi: return "Smi";
-      case kInternalizedString: return "InternalizedString";
-      case kDouble: return "Double";
-      case kString: return "String";
-      case kNonPrimitive: return "Object";
-      case kUninitialized: return "Uninitialized";
-    }
-    UNREACHABLE();
-    return "Unreachable code";
-  }
-
- private:
-  enum Type {
-    kUnknown = 0,                // 0000000
-    kPrimitive = 0x10,           // 0010000
-    kNumber = 0x11,              // 0010001
-    kInteger32 = 0x13,           // 0010011
-    kSmi = 0x17,                 // 0010111
-    kDouble = 0x19,              // 0011001
-    kString = 0x30,              // 0110000
-    kInternalizedString = 0x32,  // 0110010
-    kNonPrimitive = 0x40,        // 1000000
-    kUninitialized = 0x7f        // 1111111
-  };
-
-  explicit inline TypeInfo(Type t) : type_(t) { }
-
-  Type type_;
-};
-
-
-enum StringStubFeedback {
-  DEFAULT_STRING_STUB = 0,
-  STRING_INDEX_OUT_OF_BOUNDS = 1
-};
-
-
 // Forward declarations.
-// TODO(rossberg): these should all go away eventually.
-class Assignment;
-class Call;
-class CallNew;
-class CaseClause;
-class CompilationInfo;
-class CountOperation;
-class Expression;
-class ForInStatement;
 class ICStub;
-class Property;
 class SmallMapList;
-class ObjectLiteral;
-class ObjectLiteralProperty;
 
 
 class TypeFeedbackOracle: public ZoneObject {
  public:
   TypeFeedbackOracle(Handle<Code> code,
                      Handle<Context> native_context,
-                     Isolate* isolate,
                      Zone* zone);
 
-  bool LoadIsMonomorphicNormal(Property* expr);
-  bool LoadIsUninitialized(Property* expr);
-  bool LoadIsPreMonomorphic(Property* expr);
-  bool LoadIsPolymorphic(Property* expr);
-  bool StoreIsUninitialized(TypeFeedbackId ast_id);
-  bool StoreIsMonomorphicNormal(TypeFeedbackId ast_id);
-  bool StoreIsPreMonomorphic(TypeFeedbackId ast_id);
-  bool StoreIsKeyedPolymorphic(TypeFeedbackId ast_id);
-  bool CallIsMonomorphic(Call* expr);
-  bool CallNewIsMonomorphic(CallNew* expr);
-  bool ObjectLiteralStoreIsMonomorphic(ObjectLiteralProperty* prop);
+  bool LoadIsUninitialized(TypeFeedbackId id);
+  bool StoreIsUninitialized(TypeFeedbackId id);
+  bool StoreIsKeyedPolymorphic(TypeFeedbackId id);
+  bool CallIsMonomorphic(int slot);
+  bool CallIsMonomorphic(TypeFeedbackId aid);
+  bool KeyedArrayCallIsHoley(TypeFeedbackId id);
+  bool CallNewIsMonomorphic(int slot);
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
   // to various cycles in our headers.
-  byte ForInType(ForInStatement* expr);
+  // TODO(rossberg): once all oracle access is removed from ast.cc, it should
+  // be possible.
+  byte ForInType(int feedback_vector_slot);
 
-  Handle<Map> LoadMonomorphicReceiverType(Property* expr);
-  Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId id);
+  KeyedAccessStoreMode GetStoreMode(TypeFeedbackId id);
 
-  KeyedAccessStoreMode GetStoreMode(TypeFeedbackId ast_id);
+  void PropertyReceiverTypes(TypeFeedbackId id,
+                             Handle<String> name,
+                             SmallMapList* receiver_types,
+                             bool* is_prototype);
+  void KeyedPropertyReceiverTypes(TypeFeedbackId id,
+                                  SmallMapList* receiver_types,
+                                  bool* is_string);
+  void AssignmentReceiverTypes(TypeFeedbackId id,
+                               Handle<String> name,
+                               SmallMapList* receiver_types);
+  void KeyedAssignmentReceiverTypes(TypeFeedbackId id,
+                                    SmallMapList* receiver_types,
+                                    KeyedAccessStoreMode* store_mode);
+  void CountReceiverTypes(TypeFeedbackId id,
+                          SmallMapList* receiver_types);
 
-  void LoadReceiverTypes(Property* expr,
-                         Handle<String> name,
-                         SmallMapList* types);
-  void StoreReceiverTypes(Assignment* expr,
-                          Handle<String> name,
-                          SmallMapList* types);
-  void CallReceiverTypes(Call* expr,
-                         Handle<String> name,
-                         CallKind call_kind,
-                         SmallMapList* types);
-  void CollectKeyedReceiverTypes(TypeFeedbackId ast_id,
-                                 SmallMapList* types);
-  void CollectPolymorphicStoreReceiverTypes(TypeFeedbackId ast_id,
-                                            SmallMapList* types);
+  void CollectReceiverTypes(TypeFeedbackId id,
+                            SmallMapList* types);
 
   static bool CanRetainOtherContext(Map* map, Context* native_context);
   static bool CanRetainOtherContext(JSFunction* function,
                                     Context* native_context);
 
-  void CollectPolymorphicMaps(Handle<Code> code, SmallMapList* types);
+  Handle<JSFunction> GetCallTarget(int slot);
+  Handle<JSFunction> GetCallNewTarget(int slot);
+  Handle<AllocationSite> GetCallNewAllocationSite(int slot);
 
-  CheckType GetCallCheckType(Call* expr);
-  Handle<JSFunction> GetCallTarget(Call* expr);
-  Handle<JSFunction> GetCallNewTarget(CallNew* expr);
-  Handle<Cell> GetCallNewAllocationInfoCell(CallNew* expr);
-
-  Handle<Map> GetObjectLiteralStoreMap(ObjectLiteralProperty* prop);
-
-  bool LoadIsBuiltin(Property* expr, Builtins::Name id);
-  bool LoadIsStub(Property* expr, ICStub* stub);
+  bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
+  bool LoadIsStub(TypeFeedbackId id, ICStub* stub);
 
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
@@ -300,31 +100,30 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Get type information for arithmetic operations and compares.
   void BinaryType(TypeFeedbackId id,
-                  Handle<Type>* left,
-                  Handle<Type>* right,
-                  Handle<Type>* result,
+                  Type** left,
+                  Type** right,
+                  Type** result,
                   Maybe<int>* fixed_right_arg,
+                  Handle<AllocationSite>* allocation_site,
                   Token::Value operation);
 
   void CompareType(TypeFeedbackId id,
-                   Handle<Type>* left,
-                   Handle<Type>* right,
-                   Handle<Type>* combined);
+                   Type** left,
+                   Type** right,
+                   Type** combined);
 
-  Handle<Type> ClauseType(TypeFeedbackId id);
-
-  Handle<Type> IncrementType(CountOperation* expr);
+  Type* CountType(TypeFeedbackId id);
 
   Zone* zone() const { return zone_; }
-  Isolate* isolate() const { return isolate_; }
+  Isolate* isolate() const { return zone_->isolate(); }
 
  private:
-  void CollectReceiverTypes(TypeFeedbackId ast_id,
+  void CollectReceiverTypes(TypeFeedbackId id,
                             Handle<String> name,
                             Code::Flags flags,
                             SmallMapList* types);
 
-  void SetInfo(TypeFeedbackId ast_id, Object* target);
+  void SetInfo(TypeFeedbackId id, Object* target);
 
   void BuildDictionary(Handle<Code> code);
   void GetRelocInfos(Handle<Code> code, ZoneList<RelocInfo>* infos);
@@ -333,20 +132,20 @@ class TypeFeedbackOracle: public ZoneObject {
                           byte* old_start,
                           byte* new_start);
   void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
-  void ProcessTypeFeedbackCells(Handle<Code> code);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
-  Handle<Object> GetInfo(TypeFeedbackId ast_id);
+  Handle<Object> GetInfo(TypeFeedbackId id);
 
-  // Return the cell that contains type feedback.
-  Handle<Cell> GetInfoCell(TypeFeedbackId ast_id);
+  // Returns an element from the type feedback vector. Returns undefined
+  // if there is no information.
+  Handle<Object> GetInfo(int slot);
 
  private:
   Handle<Context> native_context_;
-  Isolate* isolate_;
   Zone* zone_;
   Handle<UnseededNumberDictionary> dictionary_;
+  Handle<FixedArray> feedback_vector_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

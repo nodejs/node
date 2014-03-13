@@ -201,7 +201,7 @@ void HEnvironmentLivenessAnalysisPhase::Run() {
       HBasicBlock* block = graph()->blocks()->at(block_id);
       UpdateLivenessAtBlockEnd(block, &live);
 
-      for (HInstruction* instr = block->last(); instr != NULL;
+      for (HInstruction* instr = block->end(); instr != NULL;
            instr = instr->previous()) {
         UpdateLivenessAtInstruction(instr, &live);
       }

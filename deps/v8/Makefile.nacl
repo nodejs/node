@@ -77,11 +77,11 @@ GYPENV += host_os=${HOST_OS}
 # ICU doesn't support NaCl.
 GYPENV += v8_enable_i18n_support=0
 
-NACL_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(NACL_ARCHES))
+NACL_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(NACL_BUILDS))
 .SECONDEXPANSION:
 # For some reason the $$(basename $$@) expansion didn't work here...
 $(NACL_BUILDS): $(NACL_MAKEFILES)
-	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$(basename $@) \
+	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
 	            CXX=${NACL_CXX} \
 	            LINK=${NACL_LINK} \
 	            BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
@@ -90,12 +90,12 @@ $(NACL_BUILDS): $(NACL_MAKEFILES)
 
 # NACL GYP file generation targets.
 $(NACL_MAKEFILES):
-	@GYP_GENERATORS=make \
+	GYP_GENERATORS=make \
 	GYP_DEFINES="${GYPENV}" \
 	CC=${NACL_CC} \
 	CXX=${NACL_CXX} \
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
 	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
-	              -S.$(subst .,,$(suffix $@)) $(GYPFLAGS) \
+	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS) \
                       -Dwno_array_bounds=-Wno-array-bounds

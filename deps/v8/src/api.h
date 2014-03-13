@@ -31,7 +31,6 @@
 #include "v8.h"
 
 #include "../include/v8-testing.h"
-#include "apiutils.h"
 #include "contexts.h"
 #include "factory.h"
 #include "isolate.h"
@@ -56,7 +55,7 @@ class Consts {
 // env-independent JSObjects used by the api.
 class NeanderObject {
  public:
-  explicit NeanderObject(int size);
+  explicit NeanderObject(v8::internal::Isolate* isolate, int size);
   explicit inline NeanderObject(v8::internal::Handle<v8::internal::Object> obj);
   explicit inline NeanderObject(v8::internal::Object* obj);
   inline v8::internal::Object* get(int index);
@@ -72,7 +71,7 @@ class NeanderObject {
 // array abstraction built on neander-objects.
 class NeanderArray {
  public:
-  NeanderArray();
+  explicit NeanderArray(v8::internal::Isolate* isolate);
   explicit inline NeanderArray(v8::internal::Handle<v8::internal::Object> obj);
   inline v8::internal::Handle<v8::internal::JSObject> value() {
     return obj_.value();
@@ -196,7 +195,12 @@ class RegisteredExtension {
 
 class Utils {
  public:
-  static bool ReportApiFailure(const char* location, const char* message);
+  static inline bool ApiCheck(bool condition,
+                              const char* location,
+                              const char* message) {
+    if (!condition) Utils::ReportApiFailure(location, message);
+    return condition;
+  }
 
   static Local<FunctionTemplate> ToFunctionTemplate(NeanderObject obj);
   static Local<ObjectTemplate> ToObjectTemplate(NeanderObject obj);
@@ -303,17 +307,20 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
   static inline v8::internal::Handle<To> OpenHandle(v8::Local<From> handle) {
     return OpenHandle(*handle);
   }
+
+ private:
+  static void ReportApiFailure(const char* location, const char* message);
 };
 
 
 template <class T>
 v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
-    v8::HandleScope* scope) {
+    v8::EscapableHandleScope* scope) {
   v8::internal::Handle<T> handle;
   if (!is_null()) {
     handle = *this;
   }
-  return Utils::OpenHandle(*scope->Close(Utils::ToLocal(handle)), true);
+  return Utils::OpenHandle(*scope->Escape(Utils::ToLocal(handle)), true);
 }
 
 
@@ -337,11 +344,11 @@ inline v8::Local<T> ToApiHandle(
   }
 
 
-#define MAKE_TO_LOCAL_TYPED_ARRAY(TypedArray, typeConst)                    \
-  Local<v8::TypedArray> Utils::ToLocal##TypedArray(                         \
+#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)        \
+  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                       \
       v8::internal::Handle<v8::internal::JSTypedArray> obj) {               \
-    ASSERT(obj->type() == typeConst);                                       \
-    return Convert<v8::internal::JSTypedArray, v8::TypedArray>(obj);        \
+    ASSERT(obj->type() == kExternal##Type##Array);                          \
+    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj);       \
   }
 
 
@@ -358,15 +365,7 @@ MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
 MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
 
-MAKE_TO_LOCAL_TYPED_ARRAY(Uint8Array, kExternalUnsignedByteArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Uint8ClampedArray, kExternalPixelArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Int8Array, kExternalByteArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Uint16Array, kExternalUnsignedShortArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Int16Array, kExternalShortArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Uint32Array, kExternalUnsignedIntArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Int32Array, kExternalIntArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Float32Array, kExternalFloatArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Float64Array, kExternalDoubleArray)
+TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 
 MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)
@@ -543,7 +542,8 @@ class HandleScopeImplementer {
   inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
   inline void EnterContext(Handle<Context> context);
-  inline bool LeaveContext(Handle<Context> context);
+  inline void LeaveContext();
+  inline bool LastEnteredContextWas(Handle<Context> context);
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
@@ -599,7 +599,7 @@ class HandleScopeImplementer {
   int call_depth_;
   Object** last_handle_before_deferred_block_;
   // This is only used for threading support.
-  v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
+  HandleScopeData handle_scope_data_;
 
   void IterateThis(ObjectVisitor* v);
   char* RestoreThreadHelper(char* from);
@@ -635,12 +635,13 @@ void HandleScopeImplementer::EnterContext(Handle<Context> context) {
 }
 
 
-bool HandleScopeImplementer::LeaveContext(Handle<Context> context) {
-  if (entered_contexts_.is_empty()) return false;
-  // TODO(dcarney): figure out what's wrong here
-  // if (entered_contexts_.last() != *context) return false;
+void HandleScopeImplementer::LeaveContext() {
   entered_contexts_.RemoveLast();
-  return true;
+}
+
+
+bool HandleScopeImplementer::LastEnteredContextWas(Handle<Context> context) {
+  return !entered_contexts_.is_empty() && entered_contexts_.last() == *context;
 }
 
 

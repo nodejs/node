@@ -26,9 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 var a = [];
-var new_space_string = "";
-for (var i = 0; i < 128; i++) {
-  new_space_string += String.fromCharCode((Math.random() * 26 + 65) | 0);
+var new_space_string = "a";
+for (var i = 0; i < 8; i++) {
+  new_space_string += new_space_string;
 }
 for (var i = 0; i < 10000; i++) a.push(new_space_string);
 
@@ -40,12 +40,12 @@ json2 = JSON.stringify(a);
 assertTrue(json1 == json2, "GC caused JSON.stringify to fail.");
 
 // Check that the slow path of JSON.stringify works correctly wrt GC.
-for (var i = 0; i < 100000; i++) {
+for (var i = 0; i < 10000; i++) {
   var s = i.toString();
   assertEquals('"' + s + '"', JSON.stringify(s, null, 0));
 }
 
-for (var i = 0; i < 100000; i++) {
+for (var i = 0; i < 10000; i++) {
   var s = i.toString() + "\u2603";
   assertEquals('"' + s + '"', JSON.stringify(s, null, 0));
 }

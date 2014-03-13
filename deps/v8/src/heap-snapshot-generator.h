@@ -57,14 +57,15 @@ class HeapGraphEdge BASE_EMBEDDED {
 
   Type type() const { return static_cast<Type>(type_); }
   int index() const {
-    ASSERT(type_ == kElement || type_ == kHidden || type_ == kWeak);
+    ASSERT(type_ == kElement || type_ == kHidden);
     return index_;
   }
   const char* name() const {
     ASSERT(type_ == kContextVariable
         || type_ == kProperty
         || type_ == kInternal
-        || type_ == kShortcut);
+        || type_ == kShortcut
+        || type_ == kWeak);
     return name_;
   }
   INLINE(HeapEntry* from() const);
@@ -113,14 +114,14 @@ class HeapEntry BASE_EMBEDDED {
             Type type,
             const char* name,
             SnapshotObjectId id,
-            int self_size);
+            size_t self_size);
 
   HeapSnapshot* snapshot() { return snapshot_; }
   Type type() { return static_cast<Type>(type_); }
   const char* name() { return name_; }
   void set_name(const char* name) { name_ = name; }
   inline SnapshotObjectId id() { return id_; }
-  int self_size() { return self_size_; }
+  size_t self_size() { return self_size_; }
   INLINE(int index() const);
   int children_count() const { return children_count_; }
   INLINE(int set_children_index(int index));
@@ -138,8 +139,6 @@ class HeapEntry BASE_EMBEDDED {
   void Print(
       const char* prefix, const char* edge_name, int max_depth, int indent);
 
-  Handle<HeapObject> GetHeapObject();
-
  private:
   INLINE(HeapGraphEdge** children_arr());
   const char* TypeAsString();
@@ -147,28 +146,26 @@ class HeapEntry BASE_EMBEDDED {
   unsigned type_: 4;
   int children_count_: 28;
   int children_index_;
-  int self_size_;
+  size_t self_size_;
   SnapshotObjectId id_;
   HeapSnapshot* snapshot_;
   const char* name_;
 };
 
 
-class HeapSnapshotsCollection;
-
 // HeapSnapshot represents a single heap snapshot. It is stored in
-// HeapSnapshotsCollection, which is also a factory for
+// HeapProfiler, which is also a factory for
 // HeapSnapshots. All HeapSnapshots share strings copied from JS heap
 // to be able to return them even if they were collected.
 // HeapSnapshotGenerator fills in a HeapSnapshot.
 class HeapSnapshot {
  public:
-  HeapSnapshot(HeapSnapshotsCollection* collection,
+  HeapSnapshot(HeapProfiler* profiler,
                const char* title,
                unsigned uid);
   void Delete();
 
-  HeapSnapshotsCollection* collection() { return collection_; }
+  HeapProfiler* profiler() { return profiler_; }
   const char* title() { return title_; }
   unsigned uid() { return uid_; }
   size_t RawSnapshotSize() const;
@@ -189,7 +186,7 @@ class HeapSnapshot {
   HeapEntry* AddEntry(HeapEntry::Type type,
                       const char* name,
                       SnapshotObjectId id,
-                      int size);
+                      size_t size);
   HeapEntry* AddRootEntry();
   HeapEntry* AddGcRootsEntry();
   HeapEntry* AddGcSubrootEntry(int tag);
@@ -202,7 +199,7 @@ class HeapSnapshot {
   void PrintEntriesSize();
 
  private:
-  HeapSnapshotsCollection* collection_;
+  HeapProfiler* profiler_;
   const char* title_;
   unsigned uid_;
   int root_index_;
@@ -227,13 +224,11 @@ class HeapObjectsMap {
 
   Heap* heap() const { return heap_; }
 
-  void SnapshotGenerationFinished();
   SnapshotObjectId FindEntry(Address addr);
   SnapshotObjectId FindOrAddEntry(Address addr,
                                   unsigned int size,
                                   bool accessed = true);
   void MoveObject(Address from, Address to, int size);
-  void NewObject(Address addr, int size);
   void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
     return next_id_ - kObjectIdStep;
@@ -243,7 +238,7 @@ class HeapObjectsMap {
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
   size_t GetUsedMemorySize() const;
 
-  static SnapshotObjectId GenerateId(Heap* heap, v8::RetainedObjectInfo* info);
+  SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
   static inline SnapshotObjectId GetNthGcSubrootId(int delta);
 
   static const int kObjectIdStep = 2;
@@ -256,6 +251,7 @@ class HeapObjectsMap {
   int FindUntrackedObjects();
 
   void UpdateHeapObjectsMap();
+  void RemoveDeadEntries();
 
  private:
   struct EntryInfo {
@@ -275,8 +271,6 @@ class HeapObjectsMap {
     uint32_t count;
   };
 
-  void RemoveDeadEntries();
-
   SnapshotObjectId next_id_;
   HashMap entries_map_;
   List<EntryInfo> entries_;
@@ -284,63 +278,6 @@ class HeapObjectsMap {
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
-};
-
-
-class HeapSnapshotsCollection {
- public:
-  explicit HeapSnapshotsCollection(Heap* heap);
-  ~HeapSnapshotsCollection();
-
-  Heap* heap() const { return ids_.heap(); }
-
-  bool is_tracking_objects() { return is_tracking_objects_; }
-  SnapshotObjectId PushHeapObjectsStats(OutputStream* stream) {
-    return ids_.PushHeapObjectsStats(stream);
-  }
-  void StartHeapObjectsTracking();
-  void StopHeapObjectsTracking();
-
-  HeapSnapshot* NewSnapshot(const char* name, unsigned uid);
-  void SnapshotGenerationFinished(HeapSnapshot* snapshot);
-  List<HeapSnapshot*>* snapshots() { return &snapshots_; }
-  void RemoveSnapshot(HeapSnapshot* snapshot);
-
-  StringsStorage* names() { return &names_; }
-  AllocationTracker* allocation_tracker() { return allocation_tracker_; }
-
-  SnapshotObjectId FindObjectId(Address object_addr) {
-    return ids_.FindEntry(object_addr);
-  }
-  SnapshotObjectId GetObjectId(Address object_addr, int object_size) {
-    return ids_.FindOrAddEntry(object_addr, object_size);
-  }
-  Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
-  void ObjectMoveEvent(Address from, Address to, int size) {
-    ids_.MoveObject(from, to, size);
-  }
-  void NewObjectEvent(Address addr, int size);
-  void UpdateObjectSizeEvent(Address addr, int size) {
-    ids_.UpdateObjectSize(addr, size);
-  }
-  SnapshotObjectId last_assigned_id() const {
-    return ids_.last_assigned_id();
-  }
-  size_t GetUsedMemorySize() const;
-
-  int FindUntrackedObjects() { return ids_.FindUntrackedObjects(); }
-
-  void UpdateHeapObjectsMap() { ids_.UpdateHeapObjectsMap(); }
-
- private:
-  bool is_tracking_objects_;  // Whether tracking object moves is needed.
-  List<HeapSnapshot*> snapshots_;
-  StringsStorage names_;
-  // Mapping from HeapObject addresses to objects' uids.
-  HeapObjectsMap ids_;
-  AllocationTracker* allocation_tracker_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotsCollection);
 };
 
 
@@ -447,6 +384,12 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   int EstimateObjectsCount(HeapIterator* iterator);
   bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
   void TagGlobalObjects();
+  void TagCodeObject(Code* code);
+  void TagBuiltinCodeObject(Code* code, const char* name);
+  HeapEntry* AddEntry(Address address,
+                      HeapEntry::Type type,
+                      const char* name,
+                      size_t size);
 
   static String* GetConstructorName(JSObject* object);
 
@@ -457,6 +400,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapEntry* AddEntry(HeapObject* object,
                       HeapEntry::Type type,
                       const char* name);
+
   const char* GetSystemEntryName(HeapObject* object);
 
   void ExtractReferences(HeapObject* obj);
@@ -471,9 +415,11 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
   void ExtractCodeCacheReferences(int entry, CodeCache* code_cache);
   void ExtractCodeReferences(int entry, Code* code);
+  void ExtractBoxReferences(int entry, Box* box);
   void ExtractCellReferences(int entry, Cell* cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
+  void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
   void ExtractClosureReferences(JSObject* js_obj, int entry);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
   bool ExtractAccessorPairProperty(JSObject* js_obj, int entry,
@@ -510,7 +456,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                           Object* child);
   void SetWeakReference(HeapObject* parent_obj,
                         int parent,
-                        int index,
+                        const char* reference_name,
                         Object* child_obj,
                         int field_offset);
   void SetPropertyReference(HeapObject* parent_obj,
@@ -534,7 +480,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   Heap* heap_;
   HeapSnapshot* snapshot_;
-  HeapSnapshotsCollection* collection_;
+  StringsStorage* names_;
+  HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
   SnapshotFillerInterface* filler_;
   HeapObjectsSet objects_tags_;
@@ -595,7 +542,7 @@ class NativeObjectsExplorer {
 
   Isolate* isolate_;
   HeapSnapshot* snapshot_;
-  HeapSnapshotsCollection* collection_;
+  StringsStorage* names_;
   SnapshottingProgressReportingInterface* progress_;
   bool embedder_queried_;
   HeapObjectsSet in_groups_;
@@ -702,4 +649,3 @@ class HeapSnapshotJSONSerializer {
 } }  // namespace v8::internal
 
 #endif  // V8_HEAP_SNAPSHOT_GENERATOR_H_
-

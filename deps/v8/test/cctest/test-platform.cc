@@ -53,6 +53,12 @@ using namespace ::v8::internal;
   do { \
     ASM("str %%sp, %0" : "=g" (sp_addr)); \
   } while (0)
+#elif defined(__AARCH64EL__)
+#define GET_STACK_POINTER() \
+  static int sp_addr = 0; \
+  do { \
+    ASM("mov x16, sp; str x16, %0" : "=g" (sp_addr)); \
+  } while (0)
 #elif defined(__MIPSEL__)
 #define GET_STACK_POINTER() \
   static int sp_addr = 0; \
@@ -72,9 +78,10 @@ void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 TEST(StackAlignment) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->Set(v8_str("get_stack_pointer"),
-                       v8::FunctionTemplate::New(GetStackPointer));
+                       v8::FunctionTemplate::New(isolate, GetStackPointer));
 
   LocalContext env(NULL, global_template);
   CompileRun(

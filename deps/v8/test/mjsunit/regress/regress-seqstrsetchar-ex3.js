@@ -42,4 +42,3 @@ test();
 test();
 %OptimizeFunctionOnNextCall(test);
 test();
-

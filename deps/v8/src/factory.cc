@@ -132,11 +132,14 @@ Handle<ObjectHashSet> Factory::NewObjectHashSet(int at_least_space_for) {
 }
 
 
-Handle<ObjectHashTable> Factory::NewObjectHashTable(int at_least_space_for) {
+Handle<ObjectHashTable> Factory::NewObjectHashTable(
+    int at_least_space_for,
+    MinimumCapacity capacity_option) {
   ASSERT(0 <= at_least_space_for);
   CALL_HEAP_FUNCTION(isolate(),
                      ObjectHashTable::Allocate(isolate()->heap(),
-                                               at_least_space_for),
+                                               at_least_space_for,
+                                               capacity_option),
                      ObjectHashTable);
 }
 
@@ -147,7 +150,7 @@ Handle<WeakHashTable> Factory::NewWeakHashTable(int at_least_space_for) {
       isolate(),
       WeakHashTable::Allocate(isolate()->heap(),
                               at_least_space_for,
-                              WeakHashTable::USE_DEFAULT_MINIMUM_CAPACITY,
+                              USE_DEFAULT_MINIMUM_CAPACITY,
                               TENURED),
       WeakHashTable);
 }
@@ -203,9 +206,8 @@ Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
 
 // Internalized strings are created in the old generation (data space).
 Handle<String> Factory::InternalizeUtf8String(Vector<const char> string) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeUtf8String(string),
-                     String);
+  Utf8StringKey key(string, isolate()->heap()->HashSeed());
+  return InternalizeStringWithKey(&key);
 }
 
 
@@ -218,26 +220,36 @@ Handle<String> Factory::InternalizeString(Handle<String> string) {
 
 
 Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeOneByteString(string),
-                     String);
+  OneByteStringKey key(string, isolate()->heap()->HashSeed());
+  return InternalizeStringWithKey(&key);
 }
 
 
 Handle<String> Factory::InternalizeOneByteString(
     Handle<SeqOneByteString> string, int from, int length) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeOneByteString(
-                         string, from, length),
-                     String);
+  SubStringKey<uint8_t> key(string, from, length);
+  return InternalizeStringWithKey(&key);
 }
 
 
 Handle<String> Factory::InternalizeTwoByteString(Vector<const uc16> string) {
+  TwoByteStringKey key(string, isolate()->heap()->HashSeed());
+  return InternalizeStringWithKey(&key);
+}
+
+
+template<class StringTableKey>
+Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeTwoByteString(string),
+                     isolate()->heap()->InternalizeStringWithKey(key),
                      String);
 }
+
+
+template Handle<String> Factory::InternalizeStringWithKey<
+    SubStringKey<uint8_t> > (SubStringKey<uint8_t>* key);
+template Handle<String> Factory::InternalizeStringWithKey<
+    SubStringKey<uint16_t> > (SubStringKey<uint16_t>* key);
 
 
 Handle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
@@ -284,11 +296,43 @@ Handle<SeqTwoByteString> Factory::NewRawTwoByteString(int length,
 }
 
 
-Handle<String> Factory::NewConsString(Handle<String> first,
-                                      Handle<String> second) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateConsString(*first, *second),
-                     String);
+// Returns true for a character in a range.  Both limits are inclusive.
+static inline bool Between(uint32_t character, uint32_t from, uint32_t to) {
+  // This makes uses of the the unsigned wraparound.
+  return character - from <= to - from;
+}
+
+
+static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
+                                                          uint16_t c1,
+                                                          uint16_t c2) {
+  // Numeric strings have a different hash algorithm not known by
+  // LookupTwoCharsStringIfExists, so we skip this step for such strings.
+  if (!Between(c1, '0', '9') || !Between(c2, '0', '9')) {
+    String* result;
+    StringTable* table = isolate->heap()->string_table();
+    if (table->LookupTwoCharsStringIfExists(c1, c2, &result)) {
+      return handle(result);
+    }
+  }
+
+  // Now we know the length is 2, we might as well make use of that fact
+  // when building the new string.
+  if (static_cast<unsigned>(c1 | c2) <= String::kMaxOneByteCharCodeU) {
+    // We can do this.
+    ASSERT(IsPowerOf2(String::kMaxOneByteCharCodeU + 1));  // because of this.
+    Handle<SeqOneByteString> str = isolate->factory()->NewRawOneByteString(2);
+    uint8_t* dest = str->GetChars();
+    dest[0] = static_cast<uint8_t>(c1);
+    dest[1] = static_cast<uint8_t>(c2);
+    return str;
+  } else {
+    Handle<SeqTwoByteString> str = isolate->factory()->NewRawTwoByteString(2);
+    uc16* dest = str->GetChars();
+    dest[0] = c1;
+    dest[1] = c2;
+    return str;
+  }
 }
 
 
@@ -304,11 +348,103 @@ Handle<String> ConcatStringContent(Handle<StringType> result,
 }
 
 
+Handle<ConsString> Factory::NewRawConsString(String::Encoding encoding) {
+  Handle<Map> map = (encoding == String::ONE_BYTE_ENCODING)
+      ? cons_ascii_string_map() : cons_string_map();
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->Allocate(*map, NEW_SPACE),
+                     ConsString);
+}
+
+
+Handle<String> Factory::NewConsString(Handle<String> left,
+                                      Handle<String> right) {
+  int left_length = left->length();
+  if (left_length == 0) return right;
+  int right_length = right->length();
+  if (right_length == 0) return left;
+
+  int length = left_length + right_length;
+
+  if (length == 2) {
+    uint16_t c1 = left->Get(0);
+    uint16_t c2 = right->Get(0);
+    return MakeOrFindTwoCharacterString(isolate(), c1, c2);
+  }
+
+  // Make sure that an out of memory exception is thrown if the length
+  // of the new cons string is too large.
+  if (length > String::kMaxLength || length < 0) {
+    isolate()->context()->mark_out_of_memory();
+    V8::FatalProcessOutOfMemory("String concatenation result too large.");
+    UNREACHABLE();
+    return Handle<String>::null();
+  }
+
+  bool left_is_one_byte = left->IsOneByteRepresentation();
+  bool right_is_one_byte = right->IsOneByteRepresentation();
+  bool is_one_byte = left_is_one_byte && right_is_one_byte;
+  bool is_one_byte_data_in_two_byte_string = false;
+  if (!is_one_byte) {
+    // At least one of the strings uses two-byte representation so we
+    // can't use the fast case code for short ASCII strings below, but
+    // we can try to save memory if all chars actually fit in ASCII.
+    is_one_byte_data_in_two_byte_string =
+        left->HasOnlyOneByteChars() && right->HasOnlyOneByteChars();
+    if (is_one_byte_data_in_two_byte_string) {
+      isolate()->counters()->string_add_runtime_ext_to_ascii()->Increment();
+    }
+  }
+
+  // If the resulting string is small make a flat string.
+  if (length < ConsString::kMinLength) {
+    // Note that neither of the two inputs can be a slice because:
+    STATIC_ASSERT(ConsString::kMinLength <= SlicedString::kMinLength);
+    ASSERT(left->IsFlat());
+    ASSERT(right->IsFlat());
+
+    if (is_one_byte) {
+      Handle<SeqOneByteString> result = NewRawOneByteString(length);
+      DisallowHeapAllocation no_gc;
+      uint8_t* dest = result->GetChars();
+      // Copy left part.
+      const uint8_t* src = left->IsExternalString()
+          ? Handle<ExternalAsciiString>::cast(left)->GetChars()
+          : Handle<SeqOneByteString>::cast(left)->GetChars();
+      for (int i = 0; i < left_length; i++) *dest++ = src[i];
+      // Copy right part.
+      src = right->IsExternalString()
+          ? Handle<ExternalAsciiString>::cast(right)->GetChars()
+          : Handle<SeqOneByteString>::cast(right)->GetChars();
+      for (int i = 0; i < right_length; i++) *dest++ = src[i];
+      return result;
+    }
+
+    return (is_one_byte_data_in_two_byte_string)
+        ? ConcatStringContent<uint8_t>(NewRawOneByteString(length), left, right)
+        : ConcatStringContent<uc16>(NewRawTwoByteString(length), left, right);
+  }
+
+  Handle<ConsString> result = NewRawConsString(
+      (is_one_byte || is_one_byte_data_in_two_byte_string)
+          ? String::ONE_BYTE_ENCODING
+          : String::TWO_BYTE_ENCODING);
+
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+
+  result->set_hash_field(String::kEmptyHashField);
+  result->set_length(length);
+  result->set_first(*left, mode);
+  result->set_second(*right, mode);
+  return result;
+}
+
+
 Handle<String> Factory::NewFlatConcatString(Handle<String> first,
                                             Handle<String> second) {
   int total_length = first->length() + second->length();
-  if (first->IsOneByteRepresentationUnderneath() &&
-      second->IsOneByteRepresentationUnderneath()) {
+  if (first->IsOneByteRepresentation() && second->IsOneByteRepresentation()) {
     return ConcatStringContent<uint8_t>(
         NewRawOneByteString(total_length), first, second);
   } else {
@@ -318,22 +454,89 @@ Handle<String> Factory::NewFlatConcatString(Handle<String> first,
 }
 
 
-Handle<String> Factory::NewSubString(Handle<String> str,
-                                     int begin,
-                                     int end) {
+Handle<SlicedString> Factory::NewRawSlicedString(String::Encoding encoding) {
+  Handle<Map> map = (encoding == String::ONE_BYTE_ENCODING)
+      ? sliced_ascii_string_map() : sliced_string_map();
   CALL_HEAP_FUNCTION(isolate(),
-                     str->SubString(begin, end),
-                     String);
+                     isolate()->heap()->Allocate(*map, NEW_SPACE),
+                     SlicedString);
 }
 
 
 Handle<String> Factory::NewProperSubString(Handle<String> str,
                                            int begin,
                                            int end) {
+#if VERIFY_HEAP
+  if (FLAG_verify_heap) str->StringVerify();
+#endif
   ASSERT(begin > 0 || end < str->length());
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateSubString(*str, begin, end),
-                     String);
+
+  int length = end - begin;
+  if (length <= 0) return empty_string();
+  if (length == 1) {
+    return LookupSingleCharacterStringFromCode(isolate(), str->Get(begin));
+  }
+  if (length == 2) {
+    // Optimization for 2-byte strings often used as keys in a decompression
+    // dictionary.  Check whether we already have the string in the string
+    // table to prevent creation of many unnecessary strings.
+    uint16_t c1 = str->Get(begin);
+    uint16_t c2 = str->Get(begin + 1);
+    return MakeOrFindTwoCharacterString(isolate(), c1, c2);
+  }
+
+  if (!FLAG_string_slices || length < SlicedString::kMinLength) {
+    if (str->IsOneByteRepresentation()) {
+      Handle<SeqOneByteString> result = NewRawOneByteString(length);
+      uint8_t* dest = result->GetChars();
+      DisallowHeapAllocation no_gc;
+      String::WriteToFlat(*str, dest, begin, end);
+      return result;
+    } else {
+      Handle<SeqTwoByteString> result = NewRawTwoByteString(length);
+      uc16* dest = result->GetChars();
+      DisallowHeapAllocation no_gc;
+      String::WriteToFlat(*str, dest, begin, end);
+      return result;
+    }
+  }
+
+  int offset = begin;
+
+  while (str->IsConsString()) {
+    Handle<ConsString> cons = Handle<ConsString>::cast(str);
+    int split = cons->first()->length();
+    if (split <= offset) {
+      // Slice is fully contained in the second part.
+      str = Handle<String>(cons->second(), isolate());
+      offset -= split;  // Adjust for offset.
+      continue;
+    } else if (offset + length <= split) {
+      // Slice is fully contained in the first part.
+      str = Handle<String>(cons->first(), isolate());
+      continue;
+    }
+    break;
+  }
+
+  if (str->IsSlicedString()) {
+    Handle<SlicedString> slice = Handle<SlicedString>::cast(str);
+    str = Handle<String>(slice->parent(), isolate());
+    offset += slice->offset();
+  } else {
+    str = FlattenGetString(str);
+  }
+
+  ASSERT(str->IsSeqString() || str->IsExternalString());
+  Handle<SlicedString> slice = NewRawSlicedString(
+      str->IsOneByteRepresentation() ? String::ONE_BYTE_ENCODING
+                                     : String::TWO_BYTE_ENCODING);
+
+  slice->set_hash_field(String::kEmptyHashField);
+  slice->set_length(length);
+  slice->set_parent(*str);
+  slice->set_offset(offset);
+  return slice;
 }
 
 
@@ -359,6 +562,14 @@ Handle<Symbol> Factory::NewSymbol() {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateSymbol(),
+      Symbol);
+}
+
+
+Handle<Symbol> Factory::NewPrivateSymbol() {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocatePrivateSymbol(),
       Symbol);
 }
 
@@ -441,6 +652,15 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 }
 
 
+Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
+    int aliased_context_slot) {
+  Handle<AliasedArgumentsEntry> entry = Handle<AliasedArgumentsEntry>::cast(
+      NewStruct(ALIASED_ARGUMENTS_ENTRY_TYPE));
+  entry->set_aliased_context_slot(aliased_context_slot);
+  return entry;
+}
+
+
 Handle<DeclaredAccessorDescriptor> Factory::NewDeclaredAccessorDescriptor() {
   return Handle<DeclaredAccessorDescriptor>::cast(
       NewStruct(DECLARED_ACCESSOR_DESCRIPTOR_TYPE));
@@ -518,7 +738,7 @@ Handle<ExternalArray> Factory::NewExternalArray(int length,
                                                 ExternalArrayType array_type,
                                                 void* external_pointer,
                                                 PretenureFlag pretenure) {
-  ASSERT(0 <= length);
+  ASSERT(0 <= length && length <= Smi::kMaxValue);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateExternalArray(length,
@@ -526,6 +746,20 @@ Handle<ExternalArray> Factory::NewExternalArray(int length,
                                                external_pointer,
                                                pretenure),
       ExternalArray);
+}
+
+
+Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
+    int length,
+    ExternalArrayType array_type,
+    PretenureFlag pretenure) {
+  ASSERT(0 <= length && length <= Smi::kMaxValue);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateFixedTypedArray(length,
+                                                 array_type,
+                                                 pretenure),
+      FixedTypedArrayBase);
 }
 
 
@@ -573,10 +807,32 @@ Handle<Map> Factory::NewMap(InstanceType type,
 
 
 Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateFunctionPrototype(*function),
-      JSObject);
+  // Make sure to use globals from the function's context, since the function
+  // can be from a different context.
+  Handle<Context> native_context(function->context()->native_context());
+  Handle<Map> new_map;
+  if (function->shared()->is_generator()) {
+    // Generator prototypes can share maps since they don't have "constructor"
+    // properties.
+    new_map = handle(native_context->generator_object_prototype_map());
+  } else {
+    // Each function prototype gets a fresh map to avoid unwanted sharing of
+    // maps between prototypes of different constructors.
+    Handle<JSFunction> object_function(native_context->object_function());
+    ASSERT(object_function->has_initial_map());
+    new_map = Map::Copy(handle(object_function->initial_map()));
+  }
+
+  Handle<JSObject> prototype = NewJSObjectFromMap(new_map);
+
+  if (!function->shared()->is_generator()) {
+    JSObject::SetLocalPropertyIgnoreAttributes(prototype,
+                                               constructor_string(),
+                                               function,
+                                               DONT_ENUM);
+  }
+
+  return prototype;
 }
 
 
@@ -594,11 +850,12 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
   int instance_size_delta = extra_inobject_properties * kPointerSize;
   int max_instance_size_delta =
       JSObject::kMaxInstanceSize - copy->instance_size();
-  if (instance_size_delta > max_instance_size_delta) {
+  int max_extra_properties = max_instance_size_delta >> kPointerSizeLog2;
+  if (extra_inobject_properties > max_extra_properties) {
     // If the instance size overflows, we allocate as many properties
     // as we can as inobject properties.
     instance_size_delta = max_instance_size_delta;
-    extra_inobject_properties = max_instance_size_delta >> kPointerSizeLog2;
+    extra_inobject_properties = max_extra_properties;
   }
   // Adjust the map with the extra inobject properties.
   int inobject_properties =
@@ -690,7 +947,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   result->set_context(*context);
 
-  int index = function_info->SearchOptimizedCodeMap(context->native_context());
+  int index = function_info->SearchOptimizedCodeMap(context->native_context(),
+                                                    BailoutId::None());
   if (!function_info->bound() && index < 0) {
     int number_of_literals = function_info->num_literals();
     Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
@@ -706,7 +964,10 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   if (index > 0) {
     // Caching of optimized code enabled and optimized code found.
-    function_info->InstallFromOptimizedCodeMap(*result, index);
+    FixedArray* literals =
+        function_info->GetLiteralsFromOptimizedCodeMap(index);
+    if (literals != NULL) result->set_literals(literals);
+    result->ReplaceCode(function_info->GetCodeFromOptimizedCodeMap(index));
     return result;
   }
 
@@ -717,7 +978,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
       function_info->allows_lazy_compilation() &&
       !function_info->optimization_disabled() &&
       !isolate()->DebuggerHasBreakPoints()) {
-    result->MarkForLazyRecompilation();
+    result->MarkForOptimization();
   }
   return result;
 }
@@ -812,7 +1073,7 @@ Handle<Object> Factory::NewError(const char* maker,
                                  const char* message,
                                  Vector< Handle<Object> > args) {
   // Instantiate a closeable HandleScope for EscapeFrom.
-  v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));
+  v8::EscapableHandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));
   Handle<FixedArray> array = NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
     array->set(i, *args[i]);
@@ -854,10 +1115,10 @@ Handle<String> Factory::EmergencyNewError(const char* message,
       if (space > 0) {
         MaybeObject* maybe_arg = args->GetElement(isolate(), i);
         Handle<String> arg_str(reinterpret_cast<String*>(maybe_arg));
-        const char* arg = *arg_str->ToCString();
+        SmartArrayPointer<char> arg = arg_str->ToCString();
         Vector<char> v2(p, static_cast<int>(space));
-        OS::StrNCpy(v2, arg, space);
-        space -= Min(space, strlen(arg));
+        OS::StrNCpy(v2, arg.get(), space);
+        space -= Min(space, strlen(arg.get()));
         p = &buffer[kBufferSize] - space;
       }
     }
@@ -1039,14 +1300,9 @@ Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
 }
 
 
-Handle<String> Factory::InternalizedStringFromString(Handle<String> value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeString(*value), String);
-}
-
-
 Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
                                       PretenureFlag pretenure) {
+  JSFunction::EnsureHasInitialMap(constructor);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObject(*constructor, pretenure), JSObject);
@@ -1193,6 +1449,19 @@ void Factory::SetContent(Handle<JSArray> array,
 }
 
 
+Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
+    Handle<JSFunction> function) {
+  ASSERT(function->shared()->is_generator());
+  JSFunction::EnsureHasInitialMap(function);
+  Handle<Map> map(function->initial_map());
+  ASSERT(map->instance_type() == JS_GENERATOR_OBJECT_TYPE);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSObjectFromMap(*map),
+      JSGeneratorObject);
+}
+
+
 Handle<JSArrayBuffer> Factory::NewJSArrayBuffer() {
   Handle<JSFunction> array_buffer_fun(
       isolate()->context()->native_context()->array_buffer_fun());
@@ -1217,32 +1486,12 @@ static JSFunction* GetTypedArrayFun(ExternalArrayType type,
                                     Isolate* isolate) {
   Context* native_context = isolate->context()->native_context();
   switch (type) {
-    case kExternalUnsignedByteArray:
-      return native_context->uint8_array_fun();
+#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype, size)                        \
+    case kExternal##Type##Array:                                              \
+      return native_context->type##_array_fun();
 
-    case kExternalByteArray:
-      return native_context->int8_array_fun();
-
-    case kExternalUnsignedShortArray:
-      return native_context->uint16_array_fun();
-
-    case kExternalShortArray:
-      return native_context->int16_array_fun();
-
-    case kExternalUnsignedIntArray:
-      return native_context->uint32_array_fun();
-
-    case kExternalIntArray:
-      return native_context->int32_array_fun();
-
-    case kExternalFloatArray:
-      return native_context->float_array_fun();
-
-    case kExternalDoubleArray:
-      return native_context->double_array_fun();
-
-    case kExternalPixelArray:
-      return native_context->uint8c_array_fun();
+    TYPED_ARRAYS(TYPED_ARRAY_FUN)
+#undef TYPED_ARRAY_FUN
 
     default:
       UNREACHABLE();
@@ -1317,7 +1566,6 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
     int start_position,
     int end_position,
     Handle<Object> script,
-    Handle<Object> stack_trace,
     Handle<Object> stack_frames) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateJSMessageObject(*type,
@@ -1325,7 +1573,6 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
                          start_position,
                          end_position,
                          *script,
-                         *stack_trace,
                          *stack_frames),
                      JSMessageObject);
 }

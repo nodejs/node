@@ -266,6 +266,9 @@ INLINE(static void CopyCharsUnsigned(sinkchar* dest,
 INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
 INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars));
 INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
+#elif defined(V8_HOST_ARCH_MIPS)
+INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
 #endif
 
 // Copy from ASCII/16bit chars to ASCII/16bit chars.
@@ -419,6 +422,24 @@ void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
     default:
       OS::MemCopy(dest, src, chars * sizeof(*dest));
       break;
+  }
+}
+
+
+#elif defined(V8_HOST_ARCH_MIPS)
+void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
+  if (chars < OS::kMinComplexMemCopy) {
+    memcpy(dest, src, chars);
+  } else {
+    OS::MemCopy(dest, src, chars);
+  }
+}
+
+void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
+  if (chars < OS::kMinComplexMemCopy) {
+    memcpy(dest, src, chars * sizeof(*dest));
+  } else {
+    OS::MemCopy(dest, src, chars * sizeof(*dest));
   }
 }
 #endif

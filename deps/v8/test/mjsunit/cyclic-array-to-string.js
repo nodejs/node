@@ -62,4 +62,3 @@ a1.push(a2);
 assertEquals("", a1.toString());
 assertEquals("", a1.toLocaleString());
 assertEquals("", a1.join());
-

@@ -202,7 +202,7 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
   intptr_t handler =
       reinterpret_cast<intptr_t>(descriptor->deoptimization_handler_);
-  int params = descriptor->environment_length();
+  int params = descriptor->GetHandlerParameterCount();
   output_frame->SetRegister(eax.code(), params);
   output_frame->SetRegister(ebx.code(), handler);
 }

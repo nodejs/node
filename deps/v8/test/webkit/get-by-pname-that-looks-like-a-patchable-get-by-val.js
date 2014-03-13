@@ -40,5 +40,3 @@ function foo() {
 }
 
 shouldBe("foo()", "300");
-
-

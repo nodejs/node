@@ -56,5 +56,3 @@ for (var j = 0; j < 10; j++) {
 
 assertEquals(10, i);
 assertEquals(10, j);
-
-

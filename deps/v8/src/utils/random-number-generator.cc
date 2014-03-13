@@ -27,8 +27,8 @@
 
 #include "utils/random-number-generator.h"
 
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "flags.h"
 #include "platform/mutex.h"

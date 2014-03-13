@@ -484,3 +484,25 @@ for (var i = 9; i >= 0; i--) {
   w.clear();
   assertFalse(w.has(k));
 })();
+
+
+(function TestMinusZeroSet() {
+  var m = new Set();
+  m.add(0);
+  m.add(-0);
+  assertEquals(1, m.size);
+  assertTrue(m.has(0));
+  assertTrue(m.has(-0));
+})();
+
+
+(function TestMinusZeroMap() {
+  var m = new Map();
+  m.set(0, 'plus');
+  m.set(-0, 'minus');
+  assertEquals(1, m.size);
+  assertTrue(m.has(0));
+  assertTrue(m.has(-0));
+  assertEquals('minus', m.get(0));
+  assertEquals('minus', m.get(-0));
+})();

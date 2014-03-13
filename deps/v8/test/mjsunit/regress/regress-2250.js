@@ -65,4 +65,3 @@ test();
 // function should no longer deopt when called.
 test();
 assertOptimized(test);
-

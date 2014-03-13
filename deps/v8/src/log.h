@@ -113,16 +113,21 @@ struct TickSample;
   V(BUILTIN_TAG,                    "Builtin")                          \
   V(CALL_DEBUG_BREAK_TAG,           "CallDebugBreak")                   \
   V(CALL_DEBUG_PREPARE_STEP_IN_TAG, "CallDebugPrepareStepIn")           \
-  V(CALL_IC_TAG,                    "CallIC")                           \
   V(CALL_INITIALIZE_TAG,            "CallInitialize")                   \
   V(CALL_MEGAMORPHIC_TAG,           "CallMegamorphic")                  \
   V(CALL_MISS_TAG,                  "CallMiss")                         \
   V(CALL_NORMAL_TAG,                "CallNormal")                       \
   V(CALL_PRE_MONOMORPHIC_TAG,       "CallPreMonomorphic")               \
+  V(LOAD_INITIALIZE_TAG,            "LoadInitialize")                   \
+  V(LOAD_PREMONOMORPHIC_TAG,        "LoadPreMonomorphic")               \
+  V(LOAD_MEGAMORPHIC_TAG,           "LoadMegamorphic")                  \
+  V(STORE_INITIALIZE_TAG,           "StoreInitialize")                  \
+  V(STORE_PREMONOMORPHIC_TAG,       "StorePreMonomorphic")              \
+  V(STORE_GENERIC_TAG,              "StoreGeneric")                     \
+  V(STORE_MEGAMORPHIC_TAG,          "StoreMegamorphic")                 \
   V(KEYED_CALL_DEBUG_BREAK_TAG,     "KeyedCallDebugBreak")              \
   V(KEYED_CALL_DEBUG_PREPARE_STEP_IN_TAG,                               \
     "KeyedCallDebugPrepareStepIn")                                      \
-  V(KEYED_CALL_IC_TAG,              "KeyedCallIC")                      \
   V(KEYED_CALL_INITIALIZE_TAG,      "KeyedCallInitialize")              \
   V(KEYED_CALL_MEGAMORPHIC_TAG,     "KeyedCallMegamorphic")             \
   V(KEYED_CALL_MISS_TAG,            "KeyedCallMiss")                    \
@@ -154,7 +159,9 @@ struct TickSample;
 
 
 class JitLogger;
+class PerfBasicLogger;
 class LowLevelLogger;
+class PerfJitLogger;
 class Sampler;
 
 class Logger {
@@ -437,6 +444,8 @@ class Logger {
 
   bool is_logging_;
   Log* log_;
+  PerfBasicLogger* perf_basic_logger_;
+  PerfJitLogger* perf_jit_logger_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
   List<CodeEventListener*> listeners_;

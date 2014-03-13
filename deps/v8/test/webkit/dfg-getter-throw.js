@@ -47,5 +47,3 @@ for (var i = 0; i < 200; ++i) {
     });
     shouldBe("bar(o)", i < 100 ? "\"Returned result: " + i + "\"" : "\"Threw exception: Oh hi, I'm an exception!\"");
 }
-
-

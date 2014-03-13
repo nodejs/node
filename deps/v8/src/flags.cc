@@ -566,7 +566,7 @@ void FlagList::PrintHelp() {
     Flag* f = &flags[i];
     SmartArrayPointer<const char> value = ToString(f);
     printf("  --%s (%s)\n        type: %s  default: %s\n",
-           f->name(), f->comment(), Type2String(f->type()), *value);
+           f->name(), f->comment(), Type2String(f->type()), value.get());
   }
 }
 

@@ -31,4 +31,3 @@ assertEquals("abcdefghijklmn\xffopq",
 assertEquals("\xff", "\u0178".toLowerCase());
 assertEquals("ABCDEFGHIJKLMN\u0178OPQ",
              ("abcdefghijk" + "lmn\xffopq").toUpperCase());
-

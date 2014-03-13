@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
     // Capture 100 frames if anything happens.
     V8::SetCaptureStackTraceForUncaughtExceptions(true, 100);
     HandleScope scope(isolate);
-    v8::Context::Scope(v8::Local<v8::Context>::New(isolate, context));
+    v8::Context::Scope cscope(v8::Local<v8::Context>::New(isolate, context));
     const char* name = i::FLAG_extra_code;
     FILE* file = i::OS::FOpen(name, "rb");
     if (file == NULL) {
@@ -332,7 +332,7 @@ int main(int argc, char** argv) {
       i += read;
     }
     fclose(file);
-    Local<String> source = String::New(chars);
+    Local<String> source = String::NewFromUtf8(isolate, chars);
     TryCatch try_catch;
     Local<Script> script = Script::Compile(source);
     if (try_catch.HasCaught()) {
@@ -358,7 +358,7 @@ int main(int argc, char** argv) {
   internal_isolate->heap()->CollectAllGarbage(
       i::Heap::kNoGCFlags, "mksnapshot");
   i::Object* raw_context = *v8::Utils::OpenPersistent(context);
-  context.Dispose();
+  context.Reset();
   CppByteSink sink(argv[1]);
   // This results in a somewhat smaller snapshot, probably because it gets rid
   // of some things that are cached between garbage collections.
@@ -399,5 +399,8 @@ int main(int argc, char** argv) {
       ser.CurrentAllocationAddress(i::MAP_SPACE),
       ser.CurrentAllocationAddress(i::CELL_SPACE),
       ser.CurrentAllocationAddress(i::PROPERTY_CELL_SPACE));
+  isolate->Exit();
+  isolate->Dispose();
+  V8::Dispose();
   return 0;
 }

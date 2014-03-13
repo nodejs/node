@@ -46,4 +46,3 @@ assertEquals(0.5, f(arr, 0));
 assertEquals(0.5, f(arr, 0));
 do_set = true;
 assertEquals(2, f(arr, 1));
-

@@ -116,6 +116,7 @@ function testArgumentTypes(name, argc) {
 
 var knownProblems = {
   "Abort": true,
+  "ThrowMessage": true,
 
   // Avoid calling the concat operation, because weird lengths
   // may lead to out-of-memory.  Ditto for StringBuilderJoin.
@@ -148,9 +149,9 @@ var knownProblems = {
   "PushCatchContext": true,
   "PushBlockContext": true,
   "PushModuleContext": true,
-  "LazyCompile": true,
-  "LazyRecompile": true,
-  "ConcurrentRecompile": true,
+  "CompileUnoptimized": true,
+  "CompileOptimized": true,
+  "CompileOptimizedConcurrent": true,
   "NotifyDeoptimized": true,
   "NotifyStubFailure": true,
   "NotifyOSR": true,
@@ -171,6 +172,7 @@ var knownProblems = {
 
   // Vararg with minimum number > 0.
   "Call": true,
+  "SetAllocationTimeout": true,
 
   // Requires integer arguments to be non-negative.
   "Apply": true,
@@ -204,11 +206,15 @@ var knownProblems = {
   "_OneByteSeqStringSetChar": true,
   "_TwoByteSeqStringSetChar": true,
 
+  // Only applicable to TypedArrays.
+  "TypedArrayInitialize": true,
+
   // Only applicable to generators.
   "_GeneratorNext": true,
   "_GeneratorThrow": true,
 
   // Only applicable to DataViews.
+  "DataViewInitialize": true,
   "DataViewGetBuffer": true,
   "DataViewGetByteLength": true,
   "DataViewGetByteOffset": true

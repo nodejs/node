@@ -52,4 +52,3 @@ function fuzz() {
 }
 
 shouldBe("bar.call({f:baz}, fuzz)", "\"fuzz\"");
-

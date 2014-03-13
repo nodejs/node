@@ -34,4 +34,3 @@ function foo(a) {
 
 for (var i = 0; i < 100; ++i)
     shouldBe("foo(" + i + ")()", "" + i);
-

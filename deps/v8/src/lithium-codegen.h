@@ -66,6 +66,8 @@ class LCodeGenBase BASE_EMBEDDED {
 
   int GetNextEmittedBlock() const;
 
+  void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
+
  protected:
   enum Status {
     UNUSED,

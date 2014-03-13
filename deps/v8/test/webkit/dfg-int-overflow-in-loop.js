@@ -37,4 +37,3 @@ function foo(a) {
 }
 
 shouldBe("foo(0)", "-4094336");
-

@@ -43,4 +43,3 @@ for (var i = 0; i < 1000; ++i) {
     shouldBe("result.a", "" + eval("((" + a + " + " + b + ") | 0)"))
     shouldBe("result.b", "" + eval(a + " + " + b))
 }
-

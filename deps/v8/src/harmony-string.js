@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -34,12 +34,9 @@
 
 // -------------------------------------------------------------------
 
-// ES6 draft 07-15-13, section 15.5.3.21
+// ES6 draft 01-20-14, section 21.1.3.13
 function StringRepeat(count) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["String.prototype.repeat"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.repeat");
 
   var s = TO_STRING_INLINE(this);
   var n = ToInteger(count);
@@ -56,14 +53,17 @@ function StringRepeat(count) {
 }
 
 
-// ES6 draft 07-15-13, section 15.5.3.22
+// ES6 draft 01-20-14, section 21.1.3.18
 function StringStartsWith(searchString /* position */) {  // length == 1
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.startsWith");
+
+  var s = TO_STRING_INLINE(this);
+
+  if (IS_REGEXP(searchString)) {
+    throw MakeTypeError("first_argument_not_regexp",
                         ["String.prototype.startsWith"]);
   }
 
-  var s = TO_STRING_INLINE(this);
   var ss = TO_STRING_INLINE(searchString);
   var pos = 0;
   if (%_ArgumentsLength() > 1) {
@@ -82,14 +82,17 @@ function StringStartsWith(searchString /* position */) {  // length == 1
 }
 
 
-// ES6 draft 07-15-13, section 15.5.3.23
+// ES6 draft 01-20-14, section 21.1.3.7
 function StringEndsWith(searchString /* position */) {  // length == 1
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.endsWith");
+
+  var s = TO_STRING_INLINE(this);
+
+  if (IS_REGEXP(searchString)) {
+    throw MakeTypeError("first_argument_not_regexp",
                         ["String.prototype.endsWith"]);
   }
 
-  var s = TO_STRING_INLINE(this);
   var ss = TO_STRING_INLINE(searchString);
   var s_len = s.length;
   var pos = s_len;
@@ -111,12 +114,9 @@ function StringEndsWith(searchString /* position */) {  // length == 1
 }
 
 
-// ES6 draft 07-15-13, section 15.5.3.24
+// ES6 draft 01-20-14, section 21.1.3.6
 function StringContains(searchString /* position */) {  // length == 1
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["String.prototype.contains"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.contains");
 
   var s = TO_STRING_INLINE(this);
   var ss = TO_STRING_INLINE(searchString);

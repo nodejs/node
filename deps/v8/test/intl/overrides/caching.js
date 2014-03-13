@@ -57,4 +57,3 @@ collatorTime = endTime.getTime() - startTime.getTime();
 assertTrue(collatorTime < cachedTime);
 // Non-cached time is much slower, measured to 12.5 times.
 assertTrue(cachedTime < nonCachedTime);
-

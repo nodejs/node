@@ -60,4 +60,3 @@ function thingy(o) {
 
 for (var i = 0; i < 200; ++i)
     shouldBe("thingy(o)", "42");
-

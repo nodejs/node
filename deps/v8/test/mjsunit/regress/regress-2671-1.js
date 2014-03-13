@@ -42,4 +42,3 @@ f();
 f();
 %OptimizeFunctionOnNextCall(f);
 f();
-

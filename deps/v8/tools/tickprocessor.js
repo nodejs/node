@@ -950,4 +950,3 @@ ArgumentsProcessor.prototype.printUsageAndExit = function() {
   }
   quit(2);
 };
-

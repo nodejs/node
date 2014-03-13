@@ -221,5 +221,3 @@ var fun = (function(p) {
   };
 })(Object);
 TestCaseWithDebugger(fun);
-
-

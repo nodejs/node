@@ -80,4 +80,3 @@ assertEquals(42, f(2, 21));
 f = new Function(x, y, z);
 assertEquals(25, f(5, 5));
 assertEquals(42, f(2, 21));
-

@@ -201,4 +201,3 @@ try {
   [true, false].verifyUndefined(frames, "getFileName");
   ["eval at <anonymous> ("].verifyContains(frames, "getEvalOrigin");
 }
-

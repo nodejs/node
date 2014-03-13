@@ -58,6 +58,9 @@ class AstTyper: public AstVisitor {
  private:
   explicit AstTyper(CompilationInfo* info);
 
+  Effect ObservedOnStack(Object* value);
+  void ObserveTypesAtOsrEntry(IterationStatement* stmt);
+
   static const int kNoVar = INT_MIN;
   typedef v8::internal::Effects<int, kNoVar> Effects;
   typedef v8::internal::NestedEffects<int, kNoVar> Store;
@@ -67,13 +70,12 @@ class AstTyper: public AstVisitor {
   Store store_;
 
   TypeFeedbackOracle* oracle() { return &oracle_; }
-  Zone* zone() const { return info_->zone(); }
 
   void NarrowType(Expression* e, Bounds b) {
-    e->set_bounds(Bounds::Both(e->bounds(), b, isolate_));
+    e->set_bounds(Bounds::Both(e->bounds(), b, zone()));
   }
-  void NarrowLowerType(Expression* e, Handle<Type> t) {
-    e->set_bounds(Bounds::NarrowLower(e->bounds(), t, isolate_));
+  void NarrowLowerType(Expression* e, Type* t) {
+    e->set_bounds(Bounds::NarrowLower(e->bounds(), t, zone()));
   }
 
   Effects EnterEffects() {
@@ -82,9 +84,15 @@ class AstTyper: public AstVisitor {
   }
   void ExitEffects() { store_ = store_.Pop(); }
 
+  int parameter_index(int index) { return -index - 2; }
+  int stack_local_index(int index) { return index; }
+
   int variable_index(Variable* var) {
-    return var->IsStackLocal() ? var->index() :
-           var->IsParameter() ? -var->index() : kNoVar;
+    // Stack locals have the range [0 .. l]
+    // Parameters have the range [-1 .. p]
+    // We map this to [-p-2 .. -1, 0 .. l]
+    return var->IsStackLocal() ? stack_local_index(var->index()) :
+           var->IsParameter() ? parameter_index(var->index()) : kNoVar;
   }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);

@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test of arguments.
 
 // Test passing null or undefined as receiver.
@@ -35,8 +37,15 @@ function h() { return f.apply(void 0, arguments); }
 
 var foo = 42;
 
-for (var i=0; i<1000000; i++) assertEquals(42, g());
-for (var i=0; i<1000000; i++) assertEquals(42, h());
+for (var i = 0; i < 3; i++) assertEquals(42, g());
+%OptimizeFunctionOnNextCall(g);
+%OptimizeFunctionOnNextCall(f);
+assertEquals(42, g());
+
+for (var i = 0; i < 3; i++) assertEquals(42, h());
+%OptimizeFunctionOnNextCall(h);
+%OptimizeFunctionOnNextCall(f);
+assertEquals(42, h());
 
 var G1 = 21;
 var G2 = 22;
@@ -49,4 +58,7 @@ function u() {
 Number.prototype.foo = 42;
 delete Number.prototype.foo;
 
-for (var i=0; i<100000; i++) assertEquals(void 0, u());
+for (var i = 0; i < 3; i++) assertEquals(void 0, u());
+%OptimizeFunctionOnNextCall(u);
+%OptimizeFunctionOnNextCall(f);
+assertEquals(void 0, u());

@@ -78,7 +78,7 @@ var kMessages = {
   getter_must_be_callable:       ["Getter must be a function: ", "%0"],
   setter_must_be_callable:       ["Setter must be a function: ", "%0"],
   value_and_accessor:            ["Invalid property.  A property cannot both have accessors and be writable or have a value, ", "%0"],
-  proto_object_or_null:          ["Object prototype may only be an Object or null"],
+  proto_object_or_null:          ["Object prototype may only be an Object or null: ", "%0"],
   property_desc_object:          ["Property description must be an object: ", "%0"],
   redefine_disallowed:           ["Cannot redefine property: ", "%0"],
   define_disallowed:             ["Cannot define property:", "%0", ", object is not extensible."],
@@ -104,17 +104,23 @@ var kMessages = {
   observe_perform_non_string:    ["Invalid non-string changeType"],
   observe_perform_non_function:  ["Cannot perform non-function"],
   observe_notify_non_notifier:   ["notify called on non-notifier object"],
-  proto_poison_pill:             ["Generic use of __proto__ accessor not allowed"],
   not_typed_array:               ["this is not a typed array."],
   invalid_argument:              ["invalid_argument"],
   data_view_not_array_buffer:    ["First argument to DataView constructor must be an ArrayBuffer"],
   constructor_not_function:      ["Constructor ", "%0", " requires 'new'"],
+  not_a_promise:                 ["%0", " is not a promise"],
+  resolver_not_a_function:       ["Promise resolver ", "%0", " is not a function"],
+  promise_cyclic:                ["Chaining cycle detected for promise ", "%0"],
+  array_functions_on_frozen:     ["Cannot modify frozen array elements"],
+  array_functions_change_sealed: ["Cannot add/remove sealed array elements"],
+  first_argument_not_regexp:     ["First argument to ", "%0", " must not be a regular expression"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
+  invalid_string_length:         ["Invalid string length"],
   invalid_typed_array_offset:    ["Start offset is too large:"],
   invalid_typed_array_length:    ["Invalid typed array length"],
-  invalid_typed_array_alignment: ["%0", "of", "%1", "should be a multiple of", "%3"],
+  invalid_typed_array_alignment: ["%0", " of ", "%1", " should be a multiple of ", "%2"],
   typed_array_set_source_too_large:
                                  ["Source is too large"],
   typed_array_set_negative_offset:
@@ -148,22 +154,15 @@ var kMessages = {
   illegal_access:                ["Illegal access"],
   invalid_preparser_data:        ["Invalid preparser data for function ", "%0"],
   strict_mode_with:              ["Strict mode code may not include a with statement"],
-  strict_catch_variable:         ["Catch variable may not be eval or arguments in strict mode"],
+  strict_eval_arguments:         ["Unexpected eval or arguments in strict mode"],
   too_many_arguments:            ["Too many arguments in function call (only 32766 allowed)"],
   too_many_parameters:           ["Too many parameters in function definition (only 32766 allowed)"],
   too_many_variables:            ["Too many variables declared (only 131071 allowed)"],
-  strict_param_name:             ["Parameter name eval or arguments is not allowed in strict mode"],
   strict_param_dupe:             ["Strict mode function may not have duplicate parameter names"],
-  strict_var_name:               ["Variable name may not be eval or arguments in strict mode"],
-  strict_function_name:          ["Function name may not be eval or arguments in strict mode"],
   strict_octal_literal:          ["Octal literals are not allowed in strict mode."],
   strict_duplicate_property:     ["Duplicate data property in object literal not allowed in strict mode"],
   accessor_data_property:        ["Object literal may not have data and accessor property with the same name"],
   accessor_get_set:              ["Object literal may not have multiple get/set accessors with the same name"],
-  strict_lhs_assignment:         ["Assignment to eval or arguments is not allowed in strict mode"],
-  strict_lhs_postfix:            ["Postfix increment/decrement may not have eval or arguments operand in strict mode"],
-  strict_lhs_prefix:             ["Prefix increment/decrement may not have eval or arguments operand in strict mode"],
-  strict_reserved_word:          ["Use of future reserved word in strict mode"],
   strict_delete:                 ["Delete of an unqualified identifier in strict mode."],
   strict_delete_property:        ["Cannot delete property '", "%0", "' of ", "%1"],
   strict_const:                  ["Use of const in strict mode."],
@@ -196,6 +195,10 @@ function FormatString(format, args) {
         // str is one of %0, %1, %2 or %3.
         try {
           str = NoSideEffectToString(args[arg_num]);
+          if (str.length > 256) {
+            str = %SubString(str, 0, 239) + "...<omitted>..." +
+                  %SubString(str, str.length - 2, str.length);
+          }
         } catch (e) {
           if (%IsJSModule(args[arg_num]))
             str = "module";
@@ -783,64 +786,67 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-var CallSiteReceiverKey = %CreateSymbol("receiver");
-var CallSiteFunctionKey = %CreateSymbol("function");
-var CallSitePositionKey = %CreateSymbol("position");
-var CallSiteStrictModeKey = %CreateSymbol("strict mode");
+//TODO(rossberg)
+var CallSiteReceiverKey = NEW_PRIVATE("receiver");
+var CallSiteFunctionKey = NEW_PRIVATE("function");
+var CallSitePositionKey = NEW_PRIVATE("position");
+var CallSiteStrictModeKey = NEW_PRIVATE("strict mode");
 
 function CallSite(receiver, fun, pos, strict_mode) {
-  this[CallSiteReceiverKey] = receiver;
-  this[CallSiteFunctionKey] = fun;
-  this[CallSitePositionKey] = pos;
-  this[CallSiteStrictModeKey] = strict_mode;
+  SET_PRIVATE(this, CallSiteReceiverKey, receiver);
+  SET_PRIVATE(this, CallSiteFunctionKey, fun);
+  SET_PRIVATE(this, CallSitePositionKey, pos);
+  SET_PRIVATE(this, CallSiteStrictModeKey, strict_mode);
 }
 
 function CallSiteGetThis() {
-  return this[CallSiteStrictModeKey] ? UNDEFINED : this[CallSiteReceiverKey];
+  return GET_PRIVATE(this, CallSiteStrictModeKey)
+      ? UNDEFINED : GET_PRIVATE(this, CallSiteReceiverKey);
 }
 
 function CallSiteGetTypeName() {
-  return GetTypeName(this[CallSiteReceiverKey], false);
+  return GetTypeName(GET_PRIVATE(this, CallSiteReceiverKey), false);
 }
 
 function CallSiteIsToplevel() {
-  if (this[CallSiteReceiverKey] == null) {
+  if (GET_PRIVATE(this, CallSiteReceiverKey) == null) {
     return true;
   }
-  return IS_GLOBAL(this[CallSiteReceiverKey]);
+  return IS_GLOBAL(GET_PRIVATE(this, CallSiteReceiverKey));
 }
 
 function CallSiteIsEval() {
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   return script && script.compilation_type == COMPILATION_TYPE_EVAL;
 }
 
 function CallSiteGetEvalOrigin() {
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   return FormatEvalOrigin(script);
 }
 
 function CallSiteGetScriptNameOrSourceURL() {
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   return script ? script.nameOrSourceURL() : null;
 }
 
 function CallSiteGetFunction() {
-  return this[CallSiteStrictModeKey] ? UNDEFINED : this[CallSiteFunctionKey];
+  return GET_PRIVATE(this, CallSiteStrictModeKey)
+      ? UNDEFINED : GET_PRIVATE(this, CallSiteFunctionKey);
 }
 
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
-  var name = this[CallSiteFunctionKey].name;
+  var name = GET_PRIVATE(this, CallSiteFunctionKey).name;
   if (name) {
     return name;
   }
-  name = %FunctionGetInferredName(this[CallSiteFunctionKey]);
+  name = %FunctionGetInferredName(GET_PRIVATE(this, CallSiteFunctionKey));
   if (name) {
     return name;
   }
   // Maybe this is an evaluation?
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   if (script && script.compilation_type == COMPILATION_TYPE_EVAL) {
     return "eval";
   }
@@ -850,8 +856,8 @@ function CallSiteGetFunctionName() {
 function CallSiteGetMethodName() {
   // See if we can find a unique property on the receiver that holds
   // this function.
-  var receiver = this[CallSiteReceiverKey];
-  var fun = this[CallSiteFunctionKey];
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
   var ownName = fun.name;
   if (ownName && receiver &&
       (%_CallFunction(receiver, ownName, ObjectLookupGetter) === fun ||
@@ -880,49 +886,51 @@ function CallSiteGetMethodName() {
 }
 
 function CallSiteGetFileName() {
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   return script ? script.name : null;
 }
 
 function CallSiteGetLineNumber() {
-  if (this[CallSitePositionKey] == -1) {
+  if (GET_PRIVATE(this, CallSitePositionKey) == -1) {
     return null;
   }
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   var location = null;
   if (script) {
-    location = script.locationFromPosition(this[CallSitePositionKey], true);
+    location = script.locationFromPosition(
+        GET_PRIVATE(this, CallSitePositionKey), true);
   }
   return location ? location.line + 1 : null;
 }
 
 function CallSiteGetColumnNumber() {
-  if (this[CallSitePositionKey] == -1) {
+  if (GET_PRIVATE(this, CallSitePositionKey) == -1) {
     return null;
   }
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   var location = null;
   if (script) {
-    location = script.locationFromPosition(this[CallSitePositionKey], true);
+    location = script.locationFromPosition(
+      GET_PRIVATE(this, CallSitePositionKey), true);
   }
   return location ? location.column + 1: null;
 }
 
 function CallSiteIsNative() {
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   return script ? (script.type == TYPE_NATIVE) : false;
 }
 
 function CallSiteGetPosition() {
-  return this[CallSitePositionKey];
+  return GET_PRIVATE(this, CallSitePositionKey);
 }
 
 function CallSiteIsConstructor() {
-  var receiver = this[CallSiteReceiverKey];
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
   var constructor = (receiver != null && IS_OBJECT(receiver))
                         ? %GetDataProperty(receiver, "constructor") : null;
   if (!constructor) return false;
-  return this[CallSiteFunctionKey] === constructor;
+  return GET_PRIVATE(this, CallSiteFunctionKey) === constructor;
 }
 
 function CallSiteToString() {
@@ -931,14 +939,10 @@ function CallSiteToString() {
   if (this.isNative()) {
     fileLocation = "native";
   } else {
-    if (this.isEval()) {
-      fileName = this.getScriptNameOrSourceURL();
-      if (!fileName) {
-        fileLocation = this.getEvalOrigin();
-        fileLocation += ", ";  // Expecting source position to follow.
-      }
-    } else {
-      fileName = this.getFileName();
+    fileName = this.getScriptNameOrSourceURL();
+    if (!fileName && this.isEval()) {
+      fileLocation = this.getEvalOrigin();
+      fileLocation += ", ";  // Expecting source position to follow.
     }
 
     if (fileName) {
@@ -965,7 +969,7 @@ function CallSiteToString() {
   var isConstructor = this.isConstructor();
   var isMethodCall = !(this.isToplevel() || isConstructor);
   if (isMethodCall) {
-    var typeName = GetTypeName(this[CallSiteReceiverKey], true);
+    var typeName = GetTypeName(GET_PRIVATE(this, CallSiteReceiverKey), true);
     var methodName = this.getMethodName();
     if (functionName) {
       if (typeName &&
@@ -1247,23 +1251,24 @@ var visited_errors = new InternalArray();
 var cyclic_error_marker = new $Object();
 
 function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
+  var current = error;
   // Climb the prototype chain until we find the holder.
-  while (error && !%HasLocalProperty(error, name)) {
-    error = %GetPrototype(error);
+  while (current && !%HasLocalProperty(current, name)) {
+    current = %GetPrototype(current);
   }
-  if (IS_NULL(error)) return UNDEFINED;
-  if (!IS_OBJECT(error)) return error[name];
+  if (IS_NULL(current)) return UNDEFINED;
+  if (!IS_OBJECT(current)) return error[name];
   // If the property is an accessor on one of the predefined errors that can be
   // generated statically by the compiler, don't touch it. This is to address
   // http://code.google.com/p/chromium/issues/detail?id=69187
-  var desc = %GetOwnProperty(error, name);
+  var desc = %GetOwnProperty(current, name);
   if (desc && desc[IS_ACCESSOR_INDEX]) {
     var isName = name === "name";
-    if (error === $ReferenceError.prototype)
+    if (current === $ReferenceError.prototype)
       return isName ? "ReferenceError" : UNDEFINED;
-    if (error === $SyntaxError.prototype)
+    if (current === $SyntaxError.prototype)
       return isName ? "SyntaxError" : UNDEFINED;
-    if (error === $TypeError.prototype)
+    if (current === $TypeError.prototype)
       return isName ? "TypeError" : UNDEFINED;
   }
   // Otherwise, read normally.

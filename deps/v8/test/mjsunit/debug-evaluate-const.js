@@ -118,4 +118,3 @@ Debug.setListener(null);
 
 assertFalse(exception, "exception in listener")
 assertTrue(listenerComplete);
-

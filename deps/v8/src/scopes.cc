@@ -35,8 +35,6 @@
 #include "messages.h"
 #include "scopeinfo.h"
 
-#include "allocation-inl.h"
-
 namespace v8 {
 namespace internal {
 
@@ -292,8 +290,7 @@ bool Scope::Analyze(CompilationInfo* info) {
 
   // Allocate the variables.
   {
-    AstNodeFactory<AstNullVisitor> ast_node_factory(info->isolate(),
-                                                    info->zone());
+    AstNodeFactory<AstNullVisitor> ast_node_factory(info->zone());
     if (!top->AllocateVariables(info, &ast_node_factory)) return false;
   }
 
@@ -310,7 +307,7 @@ bool Scope::Analyze(CompilationInfo* info) {
   }
 #endif
 
-  info->SetScope(scope);
+  info->PrepareForCompilation(scope);
   return true;
 }
 
@@ -802,7 +799,7 @@ static void Indent(int n, const char* str) {
 
 static void PrintName(Handle<String> name) {
   SmartArrayPointer<char> s = name->ToCString(DISALLOW_NULLS);
-  PrintF("%s", *s);
+  PrintF("%s", s.get());
 }
 
 
@@ -1302,7 +1299,7 @@ void Scope::AllocateParameterLocals() {
 
 void Scope::AllocateNonParameterLocal(Variable* var) {
   ASSERT(var->scope() == this);
-  ASSERT(!var->IsVariable(isolate_->factory()->result_string()) ||
+  ASSERT(!var->IsVariable(isolate_->factory()->dot_result_string()) ||
          !var->IsStackLocal());
   if (var->IsUnallocated() && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {

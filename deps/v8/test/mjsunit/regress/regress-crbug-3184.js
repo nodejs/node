@@ -80,4 +80,3 @@ Object.extend( Array.prototype,
 });
 assertEquals("Test1 test1", "test1 test1".cap());
 assertEquals("Test2 Test2", "test2 test2".cap(true));
-

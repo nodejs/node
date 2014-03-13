@@ -47,7 +47,7 @@ TEST(ObjectHashTable) {
   Handle<ObjectHashTable> table = factory->NewObjectHashTable(23);
   Handle<JSObject> a = factory->NewJSArray(7);
   Handle<JSObject> b = factory->NewJSArray(11);
-  table = PutIntoObjectHashTable(table, a, b);
+  table = ObjectHashTable::Put(table, a, b);
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_EQ(table->Lookup(*a), *b);
   CHECK_EQ(table->Lookup(*b), CcTest::heap()->the_hole_value());
@@ -59,12 +59,12 @@ TEST(ObjectHashTable) {
   CHECK_EQ(table->Lookup(*b), CcTest::heap()->the_hole_value());
 
   // Keys that are overwritten should not change number of elements.
-  table = PutIntoObjectHashTable(table, a, factory->NewJSArray(13));
+  table = ObjectHashTable::Put(table, a, factory->NewJSArray(13));
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_NE(table->Lookup(*a), *b);
 
   // Keys mapped to the hole should be removed permanently.
-  table = PutIntoObjectHashTable(table, a, factory->the_hole_value());
+  table = ObjectHashTable::Put(table, a, factory->the_hole_value());
   CHECK_EQ(table->NumberOfElements(), 0);
   CHECK_EQ(table->NumberOfDeletedElements(), 1);
   CHECK_EQ(table->Lookup(*a), CcTest::heap()->the_hole_value());
@@ -74,21 +74,21 @@ TEST(ObjectHashTable) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     Handle<JSObject> value = factory->NewJSArray(11);
-    table = PutIntoObjectHashTable(table, key, value);
+    table = ObjectHashTable::Put(table, key, value);
     CHECK_EQ(table->NumberOfElements(), i + 1);
     CHECK_NE(table->FindEntry(*key), ObjectHashTable::kNotFound);
     CHECK_EQ(table->Lookup(*key), *value);
-    CHECK(key->GetIdentityHash(OMIT_CREATION)->ToObjectChecked()->IsSmi());
+    CHECK(key->GetIdentityHash()->IsSmi());
   }
 
   // Keys never added to the map which already have an identity hash
   // code should not be found.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    CHECK(key->GetIdentityHash(ALLOW_CREATION)->ToObjectChecked()->IsSmi());
+    CHECK(JSReceiver::GetOrCreateIdentityHash(key)->IsSmi());
     CHECK_EQ(table->FindEntry(*key), ObjectHashTable::kNotFound);
     CHECK_EQ(table->Lookup(*key), CcTest::heap()->the_hole_value());
-    CHECK(key->GetIdentityHash(OMIT_CREATION)->ToObjectChecked()->IsSmi());
+    CHECK(key->GetIdentityHash()->IsSmi());
   }
 
   // Keys that don't have an identity hash should not be found and also
@@ -96,7 +96,7 @@ TEST(ObjectHashTable) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK_EQ(table->Lookup(*key), CcTest::heap()->the_hole_value());
-    CHECK_EQ(key->GetIdentityHash(OMIT_CREATION),
+    CHECK_EQ(key->GetIdentityHash(),
              CcTest::heap()->undefined_value());
   }
 }
@@ -175,13 +175,17 @@ TEST(ObjectHashSetCausesGC) {
   SimulateFullSpace(CcTest::heap()->old_pointer_space());
 
   // Calling Contains() should not cause GC ever.
+  int gc_count = isolate->heap()->gc_count();
   CHECK(!table->Contains(*key));
+  CHECK(gc_count == isolate->heap()->gc_count());
 
-  // Calling Remove() should not cause GC ever.
-  CHECK(!table->Remove(*key)->IsFailure());
+  // Calling Remove() will not cause GC in this case.
+  table = ObjectHashSet::Remove(table, key);
+  CHECK(gc_count == isolate->heap()->gc_count());
 
-  // Calling Add() should request GC by returning a failure.
-  CHECK(table->Add(*key)->IsRetryAfterGC());
+  // Calling Add() should cause GC.
+  table = ObjectHashSet::Add(table, key);
+  CHECK(gc_count < isolate->heap()->gc_count());
 }
 #endif
 
@@ -211,6 +215,8 @@ TEST(ObjectHashTableCausesGC) {
   CHECK(table->Lookup(*key)->IsTheHole());
 
   // Calling Put() should request GC by returning a failure.
-  CHECK(table->Put(*key, *key)->IsRetryAfterGC());
+  int gc_count = isolate->heap()->gc_count();
+  ObjectHashTable::Put(table, key, key);
+  CHECK(gc_count < isolate->heap()->gc_count());
 }
 #endif

@@ -100,6 +100,8 @@ consts_misc = [
 
     { 'name': 'off_fp_context',
         'value': 'StandardFrameConstants::kContextOffset' },
+    { 'name': 'off_fp_constant_pool',
+        'value': 'StandardFrameConstants::kConstantPoolOffset' },
     { 'name': 'off_fp_marker',
         'value': 'StandardFrameConstants::kMarkerOffset' },
     { 'name': 'off_fp_function',

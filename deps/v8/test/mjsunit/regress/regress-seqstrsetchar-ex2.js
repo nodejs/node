@@ -32,4 +32,3 @@ String.fromCharCode(0x7C, 0x7C);
 %OptimizeFunctionOnNextCall(String.fromCharCode);
 String.fromCharCode(0x7C, 0x7C);
 String.fromCharCode(0xFFF, 0xFFF);
-

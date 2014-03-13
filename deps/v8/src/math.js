@@ -74,12 +74,13 @@ function MathAtan2(y, x) {
 
 // ECMA 262 - 15.8.2.6
 function MathCeil(x) {
-  return %Math_ceil(TO_NUMBER_INLINE(x));
+  return -MathFloor(-x);
 }
 
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
-  return %_MathCos(TO_NUMBER_INLINE(x));
+  x = MathAbs(x);  // Convert to number and get rid of -0.
+  return TrigonometricInterpolation(x, 1);
 }
 
 // ECMA 262 - 15.8.2.8
@@ -117,9 +118,8 @@ function MathMax(arg1, arg2) {  // length == 2
     if (arg2 > arg1) return arg2;
     if (arg1 > arg2) return arg1;
     if (arg1 == arg2) {
-      // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can be
-      // a Smi or a heap number.
-      return (arg1 == 0 && !%_IsSmi(arg1) && 1 / arg1 < 0) ? arg2 : arg1;
+      // Make sure -0 is considered less than +0.
+      return (arg1 === 0 && %_IsMinusZero(arg1)) ? arg2 : arg1;
     }
     // All comparisons failed, one of the arguments must be NaN.
     return NAN;
@@ -128,10 +128,8 @@ function MathMax(arg1, arg2) {  // length == 2
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
-    // Make sure +0 is considered greater than -0.  -0 is never a Smi, +0 can be
-    // a Smi or heap number.
-    if (NUMBER_IS_NAN(n) || n > r ||
-        (r == 0 && n == 0 && !%_IsSmi(r) && 1 / r < 0)) {
+    // Make sure +0 is considered greater than -0.
+    if (NUMBER_IS_NAN(n) || n > r || (r === 0 && n === 0 && %_IsMinusZero(r))) {
       r = n;
     }
   }
@@ -147,9 +145,8 @@ function MathMin(arg1, arg2) {  // length == 2
     if (arg2 > arg1) return arg1;
     if (arg1 > arg2) return arg2;
     if (arg1 == arg2) {
-      // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can be
-      // a Smi or a heap number.
-      return (arg1 == 0 && !%_IsSmi(arg1) && 1 / arg1 < 0) ? arg1 : arg2;
+      // Make sure -0 is considered less than +0.
+      return (arg1 === 0 && %_IsMinusZero(arg1)) ? arg1 : arg2;
     }
     // All comparisons failed, one of the arguments must be NaN.
     return NAN;
@@ -158,10 +155,8 @@ function MathMin(arg1, arg2) {  // length == 2
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
-    // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can be a
-    // Smi or a heap number.
-    if (NUMBER_IS_NAN(n) || n < r ||
-        (r == 0 && n == 0 && !%_IsSmi(n) && 1 / n < 0)) {
+    // Make sure -0 is considered less than +0.
+    if (NUMBER_IS_NAN(n) || n < r || (r === 0 && n === 0 && %_IsMinusZero(n))) {
       r = n;
     }
   }
@@ -174,8 +169,15 @@ function MathPow(x, y) {
 }
 
 // ECMA 262 - 15.8.2.14
+var rngstate;  // Initialized to a Uint32Array during genesis.
 function MathRandom() {
-  return %_RandomHeapNumber();
+  var r0 = (MathImul(18273, rngstate[0] & 0xFFFF) + (rngstate[0] >>> 16)) | 0;
+  rngstate[0] = r0;
+  var r1 = (MathImul(36969, rngstate[1] & 0xFFFF) + (rngstate[1] >>> 16)) | 0;
+  rngstate[1] = r1;
+  var x = ((r0 << 16) + (r1 & 0xFFFF)) | 0;
+  // Division by 0x100000000 through multiplication by reciprocal.
+  return (x < 0 ? (x + 0x100000000) : x) * 2.3283064365386962890625e-10;
 }
 
 // ECMA 262 - 15.8.2.15
@@ -185,7 +187,9 @@ function MathRound(x) {
 
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
-  return %_MathSin(TO_NUMBER_INLINE(x));
+  x = x * 1;  // Convert to number and deal with -0.
+  if (%_IsMinusZero(x)) return x;
+  return TrigonometricInterpolation(x, 0);
 }
 
 // ECMA 262 - 15.8.2.17
@@ -195,7 +199,7 @@ function MathSqrt(x) {
 
 // ECMA 262 - 15.8.2.18
 function MathTan(x) {
-  return %_MathTan(TO_NUMBER_INLINE(x));
+  return MathSin(x) / MathCos(x);
 }
 
 // Non-standard extension.
@@ -203,6 +207,73 @@ function MathImul(x, y) {
   return %NumberImul(TO_NUMBER_INLINE(x), TO_NUMBER_INLINE(y));
 }
 
+
+var kInversePiHalf      = 0.636619772367581343;      // 2 / pi
+var kInversePiHalfS26   = 9.48637384723993156e-9;    // 2 / pi / (2^26)
+var kS26                = 1 << 26;
+var kTwoStepThreshold   = 1 << 27;
+// pi / 2 rounded up
+var kPiHalf             = 1.570796326794896780;      // 0x192d4454fb21f93f
+// We use two parts for pi/2 to emulate a higher precision.
+// pi_half_1 only has 26 significant bits for mantissa.
+// Note that pi_half > pi_half_1 + pi_half_2
+var kPiHalf1            = 1.570796325802803040;      // 0x00000054fb21f93f
+var kPiHalf2            = 9.920935796805404252e-10;  // 0x3326a611460b113e
+
+var kSamples;            // Initialized to a number during genesis.
+var kIndexConvert;       // Initialized to kSamples / (pi/2) during genesis.
+var kSinTable;           // Initialized to a Float64Array during genesis.
+var kCosXIntervalTable;  // Initialized to a Float64Array during genesis.
+
+// This implements sine using the following algorithm.
+// 1) Multiplication takes care of to-number conversion.
+// 2) Reduce x to the first quadrant [0, pi/2].
+//    Conveniently enough, in case of +/-Infinity, we get NaN.
+//    Note that we try to use only 26 instead of 52 significant bits for
+//    mantissa to avoid rounding errors when multiplying.  For very large
+//    input we therefore have additional steps.
+// 3) Replace x by (pi/2-x) if x was in the 2nd or 4th quadrant.
+// 4) Do a table lookup for the closest samples to the left and right of x.
+// 5) Find the derivatives at those sampling points by table lookup:
+//    dsin(x)/dx = cos(x) = sin(pi/2-x) for x in [0, pi/2].
+// 6) Use cubic spline interpolation to approximate sin(x).
+// 7) Negate the result if x was in the 3rd or 4th quadrant.
+// 8) Get rid of -0 by adding 0.
+function TrigonometricInterpolation(x, phase) {
+  if (x < 0 || x > kPiHalf) {
+    var multiple;
+    while (x < -kTwoStepThreshold || x > kTwoStepThreshold) {
+      // Let's assume this loop does not terminate.
+      // All numbers x in each loop forms a set S.
+      // (1) abs(x) > 2^27 for all x in S.
+      // (2) abs(multiple) != 0 since (2^27 * inverse_pi_half_s26) > 1
+      // (3) multiple is rounded down in 2^26 steps, so the rounding error is
+      //     at most max(ulp, 2^26).
+      // (4) so for x > 2^27, we subtract at most (1+pi/4)x and at least
+      //     (1-pi/4)x
+      // (5) The subtraction results in x' so that abs(x') <= abs(x)*pi/4.
+      //     Note that this difference cannot be simply rounded off.
+      // Set S cannot exist since (5) violates (1).  Loop must terminate.
+      multiple = MathFloor(x * kInversePiHalfS26) * kS26;
+      x = x - multiple * kPiHalf1 - multiple * kPiHalf2;
+    }
+    multiple = MathFloor(x * kInversePiHalf);
+    x = x - multiple * kPiHalf1 - multiple * kPiHalf2;
+    phase += multiple;
+  }
+  var double_index = x * kIndexConvert;
+  if (phase & 1) double_index = kSamples - double_index;
+  var index = double_index | 0;
+  var t1 = double_index - index;
+  var t2 = 1 - t1;
+  var y1 = kSinTable[index];
+  var y2 = kSinTable[index + 1];
+  var dy = y2 - y1;
+  return (t2 * y1 + t1 * y2 +
+              t1 * t2 * ((kCosXIntervalTable[index] - dy) * t2 +
+                         (dy - kCosXIntervalTable[index + 1]) * t1))
+         * (1 - (phase & 2)) + 0;
+}
 
 // -------------------------------------------------------------------
 
@@ -214,44 +285,20 @@ function SetUpMath() {
   %FunctionSetInstanceClassName(MathConstructor, 'Math');
 
   // Set up math constants.
-  // ECMA-262, section 15.8.1.1.
-  %OptimizeObjectForAddingMultipleProperties($Math, 8);
-  %SetProperty($Math,
-               "E",
-               2.7182818284590452354,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  // ECMA-262, section 15.8.1.2.
-  %SetProperty($Math,
-               "LN10",
-               2.302585092994046,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  // ECMA-262, section 15.8.1.3.
-  %SetProperty($Math,
-               "LN2",
-               0.6931471805599453,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  // ECMA-262, section 15.8.1.4.
-  %SetProperty($Math,
-               "LOG2E",
-               1.4426950408889634,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %SetProperty($Math,
-               "LOG10E",
-               0.4342944819032518,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %SetProperty($Math,
-               "PI",
-               3.1415926535897932,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %SetProperty($Math,
-               "SQRT1_2",
-               0.7071067811865476,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %SetProperty($Math,
-               "SQRT2",
-               1.4142135623730951,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %ToFastProperties($Math);
+  InstallConstants($Math, $Array(
+    // ECMA-262, section 15.8.1.1.
+    "E", 2.7182818284590452354,
+    // ECMA-262, section 15.8.1.2.
+    "LN10", 2.302585092994046,
+    // ECMA-262, section 15.8.1.3.
+    "LN2", 0.6931471805599453,
+    // ECMA-262, section 15.8.1.4.
+    "LOG2E", 1.4426950408889634,
+    "LOG10E", 0.4342944819032518,
+    "PI", 3.1415926535897932,
+    "SQRT1_2", 0.7071067811865476,
+    "SQRT2", 1.4142135623730951
+  ));
 
   // Set up non-enumerable functions of the Math object and
   // set their names.
@@ -276,6 +323,13 @@ function SetUpMath() {
     "min", MathMin,
     "imul", MathImul
   ));
+
+  %SetInlineBuiltinFlag(MathCeil);
+  %SetInlineBuiltinFlag(MathRandom);
+  %SetInlineBuiltinFlag(MathSin);
+  %SetInlineBuiltinFlag(MathCos);
+  %SetInlineBuiltinFlag(MathTan);
+  %SetInlineBuiltinFlag(TrigonometricInterpolation);
 }
 
 SetUpMath();

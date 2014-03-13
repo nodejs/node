@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays --notrack-allocation-sites
+// Flags: --allow-natives-syntax --smi-only-arrays
+// Flags: --nostress-opt
 
 support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
 
@@ -36,14 +37,26 @@ if (support_smi_only_arrays) {
 }
 
 if (support_smi_only_arrays) {
+  // This code exists to eliminate the learning influence of AllocationSites
+  // on the following tests.
+  var __sequence = 0;
+  function make_array_string(length) {
+    this.__sequence = this.__sequence + 1;
+    return "/* " + this.__sequence + " */  new Array(" + length + ");";
+  }
+  function make_array(length) {
+    return eval(make_array_string(length));
+  }
+
   function test(test_double, test_object, set, length) {
     // We apply the same operations to two identical arrays.  The first array
     // triggers an IC miss, upon which the conversion stub is generated, but the
     // actual conversion is done in runtime.  The second array, arriving at
     // the previously patched IC, is then converted using the conversion stub.
-    var array_1 = new Array(length);
-    var array_2 = new Array(length);
+    var array_1 = make_array(length);
+    var array_2 = make_array(length);
 
+    // false, true, nice setter function, 20
     assertTrue(%HasFastSmiElements(array_1));
     assertTrue(%HasFastSmiElements(array_2));
     for (var i = 0; i < length; i++) {
@@ -86,15 +99,20 @@ if (support_smi_only_arrays) {
     assertEquals(length, array_2.length);
   }
 
-  test(false, false, function(a,i,v){ a[i] = v; }, 20);
-  test(true,  false, function(a,i,v){ a[i] = v; }, 20);
-  test(false, true,  function(a,i,v){ a[i] = v; }, 20);
-  test(true,  true,  function(a,i,v){ a[i] = v; }, 20);
+  function run_test(test_double, test_object, set, length) {
+    test(test_double, test_object, set, length);
+    %ClearFunctionTypeFeedback(test);
+  }
 
-  test(false, false, function(a,i,v){ a[i] = v; }, 10000);
-  test(true,  false, function(a,i,v){ a[i] = v; }, 10000);
-  test(false, true,  function(a,i,v){ a[i] = v; }, 10000);
-  test(true,  true,  function(a,i,v){ a[i] = v; }, 10000);
+  run_test(false, false, function(a,i,v){ a[i] = v; }, 20);
+  run_test(true,  false, function(a,i,v){ a[i] = v; }, 20);
+  run_test(false, true,  function(a,i,v){ a[i] = v; }, 20);
+  run_test(true,  true,  function(a,i,v){ a[i] = v; }, 20);
+
+  run_test(false, false, function(a,i,v){ a[i] = v; }, 10000);
+  run_test(true,  false, function(a,i,v){ a[i] = v; }, 10000);
+  run_test(false, true,  function(a,i,v){ a[i] = v; }, 10000);
+  run_test(true,  true,  function(a,i,v){ a[i] = v; }, 10000);
 
   // Check COW arrays
   function get_cow() { return [1, 2, 3]; }

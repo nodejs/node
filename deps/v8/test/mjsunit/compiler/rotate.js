@@ -306,5 +306,3 @@ assertEquals(ROR4(0xFFFFFFFF, 40), ROR4_sa40(0xFFFFFFFF));
 assertEquals(ROR4(0xFFFFFFFF, 40), ROR4_sa40(0xFFFFFFFF));
 %OptimizeFunctionOnNextCall(ROR4_sa40);
 assertEquals(ROR4(0xFFFFFFFF, 40), ROR4_sa40(0xFFFFFFFF));
-
-

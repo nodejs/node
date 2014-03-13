@@ -38,7 +38,6 @@
 #include "factory.h"
 #include "objects.h"
 #include "cctest.h"
-#include "zone-inl.h"
 
 // Adapted from http://en.wikipedia.org/wiki/Multiply-with-carry
 class MyRandomNumberGenerator {
@@ -100,12 +99,10 @@ static const int DEEP_DEPTH = 8 * 1024;
 static const int SUPER_DEEP_DEPTH = 80 * 1024;
 
 
-class Resource: public v8::String::ExternalStringResource,
-                public ZoneObject {
+class Resource: public v8::String::ExternalStringResource {
  public:
-  explicit Resource(Vector<const uc16> string): data_(string.start()) {
-    length_ = string.length();
-  }
+  Resource(const uc16* data, size_t length): data_(data), length_(length) {}
+  ~Resource() { i::DeleteArray(data_); }
   virtual const uint16_t* data() const { return data_; }
   virtual size_t length() const { return length_; }
 
@@ -115,12 +112,11 @@ class Resource: public v8::String::ExternalStringResource,
 };
 
 
-class AsciiResource: public v8::String::ExternalAsciiStringResource,
-                public ZoneObject {
+class AsciiResource: public v8::String::ExternalAsciiStringResource {
  public:
-  explicit AsciiResource(Vector<const char> string): data_(string.start()) {
-    length_ = string.length();
-  }
+  AsciiResource(const char* data, size_t length)
+      : data_(data), length_(length) {}
+  ~AsciiResource() { i::DeleteArray(data_); }
   virtual const char* data() const { return data_; }
   virtual size_t length() const { return length_; }
 
@@ -133,8 +129,7 @@ class AsciiResource: public v8::String::ExternalAsciiStringResource,
 static void InitializeBuildingBlocks(Handle<String>* building_blocks,
                                      int bb_length,
                                      bool long_blocks,
-                                     MyRandomNumberGenerator* rng,
-                                     Zone* zone) {
+                                     MyRandomNumberGenerator* rng) {
   // A list of pointers that we don't have any interest in cleaning up.
   // If they are reachable from a root then leak detection won't complain.
   Isolate* isolate = CcTest::i_isolate();
@@ -189,25 +184,28 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         break;
       }
       case 2: {
-        uc16* buf = zone->NewArray<uc16>(len);
+        uc16* buf = NewArray<uc16>(len);
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x10000);
         }
-        Resource* resource = new(zone) Resource(Vector<const uc16>(buf, len));
-        building_blocks[i] = factory->NewExternalStringFromTwoByte(resource);
+        Resource* resource = new Resource(buf, len);
+        building_blocks[i] =
+            v8::Utils::OpenHandle(
+                *v8::String::NewExternal(CcTest::isolate(), resource));
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
         break;
       }
       case 3: {
-        char* buf = zone->NewArray<char>(len);
+        char* buf = NewArray<char>(len);
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x80);
         }
-        AsciiResource* resource =
-            new(zone) AsciiResource(Vector<const char>(buf, len));
-        building_blocks[i] = factory->NewExternalStringFromAscii(resource);
+        AsciiResource* resource = new AsciiResource(buf, len);
+        building_blocks[i] =
+            v8::Utils::OpenHandle(
+                *v8::String::NewExternal(CcTest::isolate(), resource));
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -263,7 +261,7 @@ void ConsStringStats::VerifyEqual(const ConsStringStats& that) const {
 class ConsStringGenerationData {
  public:
   static const int kNumberOfBuildingBlocks = 256;
-  ConsStringGenerationData(bool long_blocks, Zone* zone);
+  explicit ConsStringGenerationData(bool long_blocks);
   void Reset();
   inline Handle<String> block(int offset);
   inline Handle<String> block(uint32_t offset);
@@ -285,11 +283,10 @@ class ConsStringGenerationData {
 };
 
 
-ConsStringGenerationData::ConsStringGenerationData(bool long_blocks,
-                                                   Zone* zone) {
+ConsStringGenerationData::ConsStringGenerationData(bool long_blocks) {
   rng_.init();
   InitializeBuildingBlocks(
-      building_blocks_, kNumberOfBuildingBlocks, long_blocks, &rng_, zone);
+      building_blocks_, kNumberOfBuildingBlocks, long_blocks, &rng_);
   empty_string_ = CcTest::heap()->empty_string();
   Reset();
 }
@@ -571,8 +568,7 @@ TEST(Traverse) {
   printf("TestTraverse\n");
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(CcTest::i_isolate());
-  ConsStringGenerationData data(false, &zone);
+  ConsStringGenerationData data(false);
   Handle<String> flat = ConstructBalanced(&data);
   FlattenString(flat);
   Handle<String> left_asymmetric = ConstructLeft(&data, DEEP_DEPTH);
@@ -661,8 +657,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Zone zone(isolate);
-  ConsStringGenerationData data(true, &zone);
+  ConsStringGenerationData data(true);
   for (int i = 0; i < test_cases; i++) {
     printf("%d\n", i);
     HandleScope inner_scope(isolate);
@@ -889,9 +884,9 @@ TEST(Utf8Conversion) {
   v8::HandleScope handle_scope(CcTest::isolate());
   // A simple ascii string
   const char* ascii_string = "abcdef12345";
-  int len =
-      v8::String::New(ascii_string,
-                      StrLength(ascii_string))->Utf8Length();
+  int len = v8::String::NewFromUtf8(CcTest::isolate(), ascii_string,
+                                    v8::String::kNormalString,
+                                    StrLength(ascii_string))->Utf8Length();
   CHECK_EQ(StrLength(ascii_string), len);
   // A mixed ascii and non-ascii string
   // U+02E4 -> CB A4
@@ -906,7 +901,8 @@ TEST(Utf8Conversion) {
   // The number of bytes expected to be written for each length
   const int lengths[12] = {0, 0, 2, 3, 3, 3, 6, 7, 7, 7, 10, 11};
   const int char_lengths[12] = {0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 5};
-  v8::Handle<v8::String> mixed = v8::String::New(mixed_string, 5);
+  v8::Handle<v8::String> mixed = v8::String::NewFromTwoByte(
+      CcTest::isolate(), mixed_string, v8::String::kNormalString, 5);
   CHECK_EQ(10, mixed->Utf8Length());
   // Try encoding the string with all capacities
   char buffer[11];
@@ -930,9 +926,6 @@ TEST(Utf8Conversion) {
 
 
 TEST(ExternalShortStringAdd) {
-  Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate);
-
   LocalContext context;
   v8::HandleScope handle_scope(CcTest::isolate());
 
@@ -942,34 +935,34 @@ TEST(ExternalShortStringAdd) {
 
   // Allocate two JavaScript arrays for holding short strings.
   v8::Handle<v8::Array> ascii_external_strings =
-      v8::Array::New(kMaxLength + 1);
+      v8::Array::New(CcTest::isolate(), kMaxLength + 1);
   v8::Handle<v8::Array> non_ascii_external_strings =
-      v8::Array::New(kMaxLength + 1);
+      v8::Array::New(CcTest::isolate(), kMaxLength + 1);
 
   // Generate short ascii and non-ascii external strings.
   for (int i = 0; i <= kMaxLength; i++) {
-    char* ascii = zone.NewArray<char>(i + 1);
+    char* ascii = NewArray<char>(i + 1);
     for (int j = 0; j < i; j++) {
       ascii[j] = 'a';
     }
     // Terminating '\0' is left out on purpose. It is not required for external
     // string data.
-    AsciiResource* ascii_resource =
-        new(&zone) AsciiResource(Vector<const char>(ascii, i));
+    AsciiResource* ascii_resource = new AsciiResource(ascii, i);
     v8::Local<v8::String> ascii_external_string =
-        v8::String::NewExternal(ascii_resource);
+        v8::String::NewExternal(CcTest::isolate(), ascii_resource);
 
-    ascii_external_strings->Set(v8::Integer::New(i), ascii_external_string);
-    uc16* non_ascii = zone.NewArray<uc16>(i + 1);
+    ascii_external_strings->Set(v8::Integer::New(CcTest::isolate(), i),
+                                ascii_external_string);
+    uc16* non_ascii = NewArray<uc16>(i + 1);
     for (int j = 0; j < i; j++) {
       non_ascii[j] = 0x1234;
     }
     // Terminating '\0' is left out on purpose. It is not required for external
     // string data.
-    Resource* resource = new(&zone) Resource(Vector<const uc16>(non_ascii, i));
+    Resource* resource = new Resource(non_ascii, i);
     v8::Local<v8::String> non_ascii_external_string =
-      v8::String::NewExternal(resource);
-    non_ascii_external_strings->Set(v8::Integer::New(i),
+      v8::String::NewExternal(CcTest::isolate(), resource);
+    non_ascii_external_strings->Set(v8::Integer::New(CcTest::isolate(), i),
                                     non_ascii_external_string);
   }
 
@@ -977,7 +970,8 @@ TEST(ExternalShortStringAdd) {
   v8::Handle<v8::Object> global = context->Global();
   global->Set(v8_str("external_ascii"), ascii_external_strings);
   global->Set(v8_str("external_non_ascii"), non_ascii_external_strings);
-  global->Set(v8_str("max_length"), v8::Integer::New(kMaxLength));
+  global->Set(v8_str("max_length"),
+              v8::Integer::New(CcTest::isolate(), kMaxLength));
 
   // Add short external ascii and non-ascii strings checking the result.
   static const char* source =
@@ -1019,8 +1013,6 @@ TEST(ExternalShortStringAdd) {
 
 TEST(JSONStringifySliceMadeExternal) {
   CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate);
   // Create a sliced string from a one-byte string.  The latter is turned
   // into a two-byte external string.  Check that JSON.stringify works.
   v8::HandleScope handle_scope(CcTest::isolate());
@@ -1034,10 +1026,9 @@ TEST(JSONStringifySliceMadeExternal) {
   CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
 
   int length = underlying->Length();
-  uc16* two_byte = zone.NewArray<uc16>(length + 1);
+  uc16* two_byte = NewArray<uc16>(length + 1);
   underlying->Write(two_byte);
-  Resource* resource =
-      new(&zone) Resource(Vector<const uc16>(two_byte, length));
+  Resource* resource = new Resource(two_byte, length);
   CHECK(underlying->MakeExternal(resource));
   CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
   CHECK(v8::Utils::OpenHandle(*underlying)->IsExternalTwoByteString());
@@ -1053,7 +1044,6 @@ TEST(CachedHashOverflow) {
   // values didn't fit in the hash field.
   // See http://code.google.com/p/v8/issues/detail?id=728
   Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate);
 
   v8::HandleScope handle_scope(CcTest::isolate());
   // Lines must be executed sequentially. Combining them into one script
@@ -1083,8 +1073,8 @@ TEST(CachedHashOverflow) {
   const char* line;
   for (int i = 0; (line = lines[i]); i++) {
     printf("%s\n", line);
-    v8::Local<v8::Value> result =
-        v8::Script::Compile(v8::String::New(line))->Run();
+    v8::Local<v8::Value> result = v8::Script::Compile(
+        v8::String::NewFromUtf8(CcTest::isolate(), line))->Run();
     CHECK_EQ(results[i]->IsUndefined(), result->IsUndefined());
     CHECK_EQ(results[i]->IsNumber(), result->IsNumber());
     if (result->IsNumber()) {
@@ -1174,7 +1164,7 @@ TEST(TrivialSlice) {
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSlicedString());
-  CHECK_EQ("bcdefghijklmnopqrstuvwxy", *(string->ToCString()));
+  CHECK_EQ("bcdefghijklmnopqrstuvwxy", string->ToCString().get());
 }
 
 
@@ -1196,14 +1186,14 @@ TEST(SliceFromSlice) {
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSlicedString());
   CHECK(SlicedString::cast(*string)->parent()->IsSeqString());
-  CHECK_EQ("bcdefghijklmnopqrstuvwxy", *(string->ToCString()));
+  CHECK_EQ("bcdefghijklmnopqrstuvwxy", string->ToCString().get());
 
   result = CompileRun(slice_from_slice);
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSlicedString());
   CHECK(SlicedString::cast(*string)->parent()->IsSeqString());
-  CHECK_EQ("cdefghijklmnopqrstuvwx", *(string->ToCString()));
+  CHECK_EQ("cdefghijklmnopqrstuvwx", string->ToCString().get());
 }
 
 
@@ -1213,7 +1203,7 @@ TEST(AsciiArrayJoin) {
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
   constraints.set_max_old_space_size(4 * K * K);
-  v8::SetResourceConstraints(&constraints);
+  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   // String s is made of 2^17 = 131072 'c' characters and a is an array
   // starting with 'bad', followed by 2^14 times the string s. That means the
@@ -1230,8 +1220,8 @@ TEST(AsciiArrayJoin) {
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   v8::V8::IgnoreOutOfMemoryException();
-  v8::Local<v8::Script> script =
-      v8::Script::Compile(v8::String::New(join_causing_out_of_memory));
+  v8::Local<v8::Script> script = v8::Script::Compile(
+      v8::String::NewFromUtf8(CcTest::isolate(), join_causing_out_of_memory));
   v8::Local<v8::Value> result = script->Run();
 
   // Check for out of memory state.
@@ -1268,7 +1258,7 @@ TEST(RobustSubStringStub) {
   // Ordinary HeapNumbers can be handled (in runtime).
   result = CompileRun("%_SubString(short, Math.sqrt(4), 5.1);");
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK_EQ("cde", *(string->ToCString()));
+  CHECK_EQ("cde", string->ToCString().get());
 
   CompileRun("var long = 'abcdefghijklmnopqrstuvwxyz';");
   // Invalid indices.
@@ -1283,7 +1273,7 @@ TEST(RobustSubStringStub) {
   // Ordinary HeapNumbers within bounds can be handled (in runtime).
   result = CompileRun("%_SubString(long, Math.sqrt(4), 17.1);");
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK_EQ("cdefghijklmnopq", *(string->ToCString()));
+  CHECK_EQ("cdefghijklmnopq", string->ToCString().get());
 
   // Test that out-of-bounds substring of a slice fails when the indices
   // would have been valid for the underlying string.

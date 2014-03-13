@@ -257,7 +257,8 @@ Handle<ObjectTemplateInfo> GetEternal(Isolate* isolate) {
     return Handle<ObjectTemplateInfo>::cast(
         isolate->eternal_handles()->GetSingleton(field));
   }
-  v8::Local<v8::ObjectTemplate> raw_template(v8::ObjectTemplate::New());
+  v8::Local<v8::ObjectTemplate> raw_template =
+      v8::ObjectTemplate::New(reinterpret_cast<v8::Isolate*>(isolate));
   raw_template->SetInternalFieldCount(internal_fields);
   return Handle<ObjectTemplateInfo>::cast(
       isolate->eternal_handles()->CreateSingleton(
@@ -864,15 +865,24 @@ icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
 }
 
 
-void DateFormat::DeleteDateFormat(v8::Isolate* isolate,
-                                  Persistent<v8::Value>* object,
-                                  void* param) {
-  // First delete the hidden C++ object.
-  delete reinterpret_cast<icu::SimpleDateFormat*>(Handle<JSObject>::cast(
-      v8::Utils::OpenPersistent(object))->GetInternalField(0));
+template<class T>
+void DeleteNativeObjectAt(const v8::WeakCallbackData<v8::Value, void>& data,
+                          int index) {
+  v8::Local<v8::Object> obj = v8::Handle<v8::Object>::Cast(data.GetValue());
+  delete reinterpret_cast<T*>(obj->GetAlignedPointerFromInternalField(index));
+}
 
-  // Then dispose of the persistent handle to JS object.
-  object->Dispose();
+
+static void DestroyGlobalHandle(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
+}
+
+
+void DateFormat::DeleteDateFormat(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  DeleteNativeObjectAt<icu::SimpleDateFormat>(data, 0);
+  DestroyGlobalHandle(data);
 }
 
 
@@ -928,15 +938,10 @@ icu::DecimalFormat* NumberFormat::UnpackNumberFormat(
 }
 
 
-void NumberFormat::DeleteNumberFormat(v8::Isolate* isolate,
-                                      Persistent<v8::Value>* object,
-                                      void* param) {
-  // First delete the hidden C++ object.
-  delete reinterpret_cast<icu::DecimalFormat*>(Handle<JSObject>::cast(
-      v8::Utils::OpenPersistent(object))->GetInternalField(0));
-
-  // Then dispose of the persistent handle to JS object.
-  object->Dispose();
+void NumberFormat::DeleteNumberFormat(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  DeleteNativeObjectAt<icu::DecimalFormat>(data, 0);
+  DestroyGlobalHandle(data);
 }
 
 
@@ -989,15 +994,10 @@ icu::Collator* Collator::UnpackCollator(Isolate* isolate,
 }
 
 
-void Collator::DeleteCollator(v8::Isolate* isolate,
-                              Persistent<v8::Value>* object,
-                              void* param) {
-  // First delete the hidden C++ object.
-  delete reinterpret_cast<icu::Collator*>(Handle<JSObject>::cast(
-      v8::Utils::OpenPersistent(object))->GetInternalField(0));
-
-  // Then dispose of the persistent handle to JS object.
-  object->Dispose();
+void Collator::DeleteCollator(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  DeleteNativeObjectAt<icu::Collator>(data, 0);
+  DestroyGlobalHandle(data);
 }
 
 
@@ -1053,18 +1053,11 @@ icu::BreakIterator* BreakIterator::UnpackBreakIterator(Isolate* isolate,
 }
 
 
-void BreakIterator::DeleteBreakIterator(v8::Isolate* isolate,
-                                        Persistent<v8::Value>* object,
-                                        void* param) {
-  // First delete the hidden C++ object.
-  delete reinterpret_cast<icu::BreakIterator*>(Handle<JSObject>::cast(
-      v8::Utils::OpenPersistent(object))->GetInternalField(0));
-
-  delete reinterpret_cast<icu::UnicodeString*>(Handle<JSObject>::cast(
-      v8::Utils::OpenPersistent(object))->GetInternalField(1));
-
-  // Then dispose of the persistent handle to JS object.
-  object->Dispose();
+void BreakIterator::DeleteBreakIterator(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  DeleteNativeObjectAt<icu::BreakIterator>(data, 0);
+  DeleteNativeObjectAt<icu::UnicodeString>(data, 1);
+  DestroyGlobalHandle(data);
 }
 
 } }  // namespace v8::internal

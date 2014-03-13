@@ -25,3 +25,6 @@ crbug.com/178745 [ Win Debug ] plugins/open-and-close-window-with-plugin.html [ 
 [ Linux Debug ] fast/js/regress/function-dot-apply.html [ Slow ]
 crbug.com/249894 [ Linux Debug ] fast/js/regress/inline-arguments-access.html  [ Pass Failure Crash Slow ]
 [ Linux Debug ] fast/js/regress/inline-arguments-local-escape.html [ Slow ]
+
+# This test is temporarily disabled in Blink, too.
+crbug.com/340639 fast/js/reserved-words-as-property.html [ Pass Failure ]

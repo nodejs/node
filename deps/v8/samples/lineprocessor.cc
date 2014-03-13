@@ -99,7 +99,7 @@ enum MainCycleType {
 
 const char* ToCString(const v8::String::Utf8Value& value);
 void ReportException(v8::Isolate* isolate, v8::TryCatch* handler);
-v8::Handle<v8::String> ReadFile(const char* name);
+v8::Handle<v8::String> ReadFile(v8::Isolate* isolate, const char* name);
 v8::Handle<v8::String> ReadLine();
 
 void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -174,14 +174,14 @@ int RunMain(int argc, char* argv[]) {
     } else if (strncmp(str, "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
-      script_source = v8::String::New(argv[i + 1]);
-      script_name = v8::String::New("unnamed");
+      script_source = v8::String::NewFromUtf8(isolate, argv[i + 1]);
+      script_name = v8::String::NewFromUtf8(isolate, "unnamed");
       i++;
       script_param_counter++;
     } else {
       // Use argument as a name of file to load.
-      script_source = ReadFile(str);
-      script_name = v8::String::New(str);
+      script_source = ReadFile(isolate, str);
+      script_name = v8::String::NewFromUtf8(isolate, str);
       if (script_source.IsEmpty()) {
         printf("Error reading '%s'\n", str);
         return 1;
@@ -200,15 +200,16 @@ int RunMain(int argc, char* argv[]) {
   }
 
   // Create a template for the global object.
-  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
 
   // Bind the global 'print' function to the C++ Print callback.
-  global->Set(v8::String::New("print"), v8::FunctionTemplate::New(Print));
+  global->Set(v8::String::NewFromUtf8(isolate, "print"),
+              v8::FunctionTemplate::New(isolate, Print));
 
   if (cycle_type == CycleInJs) {
     // Bind the global 'read_line' function to the C++ Print callback.
-    global->Set(v8::String::New("read_line"),
-                v8::FunctionTemplate::New(ReadLine));
+    global->Set(v8::String::NewFromUtf8(isolate, "read_line"),
+                v8::FunctionTemplate::New(isolate, ReadLine));
   }
 
   // Create a new execution environment containing the built-in
@@ -277,7 +278,8 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
   v8::Locker lock(isolate);
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
-  v8::Handle<v8::String> fun_name = v8::String::New("ProcessLine");
+  v8::Handle<v8::String> fun_name =
+      v8::String::NewFromUtf8(isolate, "ProcessLine");
   v8::Handle<v8::Value> process_val = context->Global()->Get(fun_name);
 
   // If there is no Process function, or if it is not a function,
@@ -338,7 +340,7 @@ const char* ToCString(const v8::String::Utf8Value& value) {
 
 
 // Reads a file into a v8 string.
-v8::Handle<v8::String> ReadFile(const char* name) {
+v8::Handle<v8::String> ReadFile(v8::Isolate* isolate, const char* name) {
   FILE* file = fopen(name, "rb");
   if (file == NULL) return v8::Handle<v8::String>();
 
@@ -353,7 +355,8 @@ v8::Handle<v8::String> ReadFile(const char* name) {
     i += read;
   }
   fclose(file);
-  v8::Handle<v8::String> result = v8::String::New(chars, size);
+  v8::Handle<v8::String> result =
+      v8::String::NewFromUtf8(isolate, chars, v8::String::kNormalString, size);
   delete[] chars;
   return result;
 }
@@ -417,7 +420,8 @@ void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // function is called. Reads a string from standard input and returns.
 void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() > 0) {
-    args.GetIsolate()->ThrowException(v8::String::New("Unexpected arguments"));
+    args.GetIsolate()->ThrowException(
+        v8::String::NewFromUtf8(args.GetIsolate(), "Unexpected arguments"));
     return;
   }
   args.GetReturnValue().Set(ReadLine());
@@ -435,8 +439,9 @@ v8::Handle<v8::String> ReadLine() {
 #endif  // ENABLE_DEBUGGER_SUPPORT
     res = fgets(buffer, kBufferSize, stdin);
   }
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   if (res == NULL) {
-    v8::Handle<v8::Primitive> t = v8::Undefined(v8::Isolate::GetCurrent());
+    v8::Handle<v8::Primitive> t = v8::Undefined(isolate);
     return v8::Handle<v8::String>::Cast(t);
   }
   // Remove newline char
@@ -446,5 +451,5 @@ v8::Handle<v8::String> ReadLine() {
       break;
     }
   }
-  return v8::String::New(buffer);
+  return v8::String::NewFromUtf8(isolate, buffer);
 }

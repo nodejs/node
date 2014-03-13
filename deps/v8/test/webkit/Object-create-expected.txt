@@ -26,8 +26,8 @@ Test to ensure correct behaviour of Object.defineProperties
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-PASS Object.create() threw exception TypeError: Object prototype may only be an Object or null.
-PASS Object.create('a string') threw exception TypeError: Object prototype may only be an Object or null.
+PASS Object.create() threw exception TypeError: Object prototype may only be an Object or null: undefined.
+PASS Object.create('a string') threw exception TypeError: Object prototype may only be an Object or null: a string.
 PASS Object.create({}, 'a string') threw exception TypeError: Property description must be an object: a.
 PASS Object.create(null, 'a string') threw exception TypeError: Property description must be an object: a.
 PASS JSON.stringify(Object.create(null,{property:{value:'foo', enumerable:true}, property2:{value:'foo', enumerable:true}})) is '{"property":"foo","property2":"foo"}'

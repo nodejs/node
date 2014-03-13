@@ -47,5 +47,3 @@ for (var i = 0; i < 150; ++i) {
     shouldBe("o.f", "6");
     shouldBe("o.g", "7");
 }
-
-

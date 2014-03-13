@@ -40,7 +40,7 @@ namespace v8 {
 namespace internal {
 
 class HOptimizedGraphBuilder;
-class RecompileJob;
+class OptimizedCompileJob;
 class SharedFunctionInfo;
 
 class OptimizingCompilerThread : public Thread {
@@ -62,10 +62,10 @@ class OptimizingCompilerThread : public Thread {
       osr_attempts_(0),
       blocked_jobs_(0) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
-    input_queue_ = NewArray<RecompileJob*>(input_queue_capacity_);
+    input_queue_ = NewArray<OptimizedCompileJob*>(input_queue_capacity_);
     if (FLAG_concurrent_osr) {
       // Allocate and mark OSR buffer slots as empty.
-      osr_buffer_ = NewArray<RecompileJob*>(osr_buffer_capacity_);
+      osr_buffer_ = NewArray<OptimizedCompileJob*>(osr_buffer_capacity_);
       for (int i = 0; i < osr_buffer_capacity_; i++) osr_buffer_[i] = NULL;
     }
   }
@@ -75,12 +75,12 @@ class OptimizingCompilerThread : public Thread {
   void Run();
   void Stop();
   void Flush();
-  void QueueForOptimization(RecompileJob* optimizing_compiler);
+  void QueueForOptimization(OptimizedCompileJob* optimizing_compiler);
   void Unblock();
   void InstallOptimizedFunctions();
-  RecompileJob* FindReadyOSRCandidate(Handle<JSFunction> function,
-                                      uint32_t osr_pc_offset);
-  bool IsQueuedForOSR(Handle<JSFunction> function, uint32_t osr_pc_offset);
+  OptimizedCompileJob* FindReadyOSRCandidate(Handle<JSFunction> function,
+                                             BailoutId osr_ast_id);
+  bool IsQueuedForOSR(Handle<JSFunction> function, BailoutId osr_ast_id);
 
   bool IsQueuedForOSR(JSFunction* function);
 
@@ -96,7 +96,12 @@ class OptimizingCompilerThread : public Thread {
     AddToOsrBuffer(NULL);
   }
 
+  static bool Enabled(int max_available) {
+    return (FLAG_concurrent_recompilation && max_available > 1);
+  }
+
 #ifdef DEBUG
+  static bool IsOptimizerThread(Isolate* isolate);
   bool IsOptimizerThread();
 #endif
 
@@ -107,11 +112,11 @@ class OptimizingCompilerThread : public Thread {
   void FlushOutputQueue(bool restore_function_code);
   void FlushOsrBuffer(bool restore_function_code);
   void CompileNext();
-  RecompileJob* NextInput();
+  OptimizedCompileJob* NextInput();
 
   // Add a recompilation task for OSR to the cyclic buffer, awaiting OSR entry.
   // Tasks evicted from the cyclic buffer are discarded.
-  void AddToOsrBuffer(RecompileJob* compiler);
+  void AddToOsrBuffer(OptimizedCompileJob* compiler);
 
   inline int InputQueueIndex(int i) {
     int result = (i + input_queue_shift_) % input_queue_capacity_;
@@ -130,17 +135,17 @@ class OptimizingCompilerThread : public Thread {
   Semaphore input_queue_semaphore_;
 
   // Circular queue of incoming recompilation tasks (including OSR).
-  RecompileJob** input_queue_;
+  OptimizedCompileJob** input_queue_;
   int input_queue_capacity_;
   int input_queue_length_;
   int input_queue_shift_;
   Mutex input_queue_mutex_;
 
   // Queue of recompilation tasks ready to be installed (excluding OSR).
-  UnboundQueue<RecompileJob*> output_queue_;
+  UnboundQueue<OptimizedCompileJob*> output_queue_;
 
   // Cyclic buffer of recompilation tasks for OSR.
-  RecompileJob** osr_buffer_;
+  OptimizedCompileJob** osr_buffer_;
   int osr_buffer_capacity_;
   int osr_buffer_cursor_;
 

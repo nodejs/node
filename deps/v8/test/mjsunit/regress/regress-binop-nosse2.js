@@ -165,4 +165,3 @@ assertEquals(t2(1.3,null), 1.3/0);
 assertEquals(t2(undefined,2), NaN/2);
 assertEquals(t2(1,1<<30), 1/(1<<30));
 assertEquals(t2(1,2), 1/2);
-

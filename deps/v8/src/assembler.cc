@@ -59,6 +59,8 @@
 #include "ia32/assembler-ia32-inl.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/assembler-x64-inl.h"
+#elif V8_TARGET_ARCH_A64
+#include "a64/assembler-a64-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/assembler-arm-inl.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -73,6 +75,8 @@
 #include "ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/regexp-macro-assembler-x64.h"
+#elif V8_TARGET_ARCH_A64
+#include "a64/regexp-macro-assembler-a64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -122,7 +126,6 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
-
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
@@ -306,7 +309,9 @@ int Label::pos() const {
 //                dropped, and last non-zero chunk tagged with 1.)
 
 
+#ifdef DEBUG
 const int kMaxStandardNonCompactModes = 14;
+#endif
 
 const int kTagBits = 2;
 const int kTagMask = (1 << kTagBits) - 1;
@@ -764,8 +769,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "embedded object";
     case RelocInfo::CONSTRUCT_CALL:
       return "code target (js construct call)";
-    case RelocInfo::CODE_TARGET_CONTEXT:
-      return "code target (context)";
     case RelocInfo::DEBUG_BREAK:
 #ifndef ENABLE_DEBUGGER_SUPPORT
       UNREACHABLE();
@@ -819,14 +822,14 @@ void RelocInfo::Print(Isolate* isolate, FILE* out) {
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     ExternalReferenceEncoder ref_encoder(isolate);
     PrintF(out, " (%s)  (%p)",
-           ref_encoder.NameOfAddress(*target_reference_address()),
-           *target_reference_address());
+           ref_encoder.NameOfAddress(target_reference()),
+           target_reference());
   } else if (IsCodeTarget(rmode_)) {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
     PrintF(out, " (%s)  (%p)", Code::Kind2String(code->kind()),
            target_address());
     if (rmode_ == CODE_TARGET_WITH_ID) {
-      PrintF(" (id=%d)", static_cast<int>(data_));
+      PrintF(out, " (id=%d)", static_cast<int>(data_));
     }
   } else if (IsPosition(rmode_)) {
     PrintF(out, "  (%" V8_PTR_PREFIX "d)", data());
@@ -860,7 +863,6 @@ void RelocInfo::Verify() {
       break;
 #endif
     case CONSTRUCT_CALL:
-    case CODE_TARGET_CONTEXT:
     case CODE_TARGET_WITH_ID:
     case CODE_TARGET: {
       // convert inline target address to code object
@@ -936,7 +938,7 @@ void ExternalReference::InitializeMathExpData() {
     // The rest is black magic. Do not attempt to understand it. It is
     // loosely based on the "expd" function published at:
     // http://herumi.blogspot.com/2011/08/fast-double-precision-exponential.html
-    const double constant3 = (1 << kTableSizeBits) / log(2.0);
+    const double constant3 = (1 << kTableSizeBits) / std::log(2.0);
     math_exp_constants_array[3] = constant3;
     math_exp_constants_array[4] =
         static_cast<double>(static_cast<int64_t>(3) << 51);
@@ -947,7 +949,7 @@ void ExternalReference::InitializeMathExpData() {
 
     math_exp_log_table_array = new double[kTableSize];
     for (int i = 0; i < kTableSize; i++) {
-      double value = pow(2, i / kTableSizeDouble);
+      double value = std::pow(2, i / kTableSizeDouble);
       uint64_t bits = BitCast<uint64_t, double>(value);
       bits &= (static_cast<uint64_t>(1) << 52) - 1;
       double mantissa = BitCast<double, uint64_t>(bits);
@@ -1053,25 +1055,11 @@ ExternalReference ExternalReference::perform_gc_function(Isolate* isolate) {
 }
 
 
-ExternalReference ExternalReference::fill_heap_number_with_random_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate,
-      FUNCTION_ADDR(V8::FillHeapNumberWithRandom)));
-}
-
-
 ExternalReference ExternalReference::delete_handle_scope_extensions(
     Isolate* isolate) {
   return ExternalReference(Redirect(
       isolate,
       FUNCTION_ADDR(HandleScope::DeleteExtensions)));
-}
-
-
-ExternalReference ExternalReference::random_uint32_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(V8::Random)));
 }
 
 
@@ -1102,13 +1090,6 @@ ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
 
 ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
   return ExternalReference(isolate->stress_deopt_count_address());
-}
-
-
-ExternalReference ExternalReference::transcendental_cache_array_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->transcendental_cache()->cache_array_address());
 }
 
 
@@ -1343,14 +1324,6 @@ ExternalReference ExternalReference::address_of_the_hole_nan() {
 }
 
 
-ExternalReference ExternalReference::record_object_allocation_function(
-  Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate,
-               FUNCTION_ADDR(HeapProfiler::RecordObjectAllocationFromMasm)));
-}
-
-
 ExternalReference ExternalReference::address_of_uint32_bias() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.uint32_bias));
@@ -1366,6 +1339,8 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   function = FUNCTION_ADDR(RegExpMacroAssemblerX64::CheckStackGuardState);
 #elif V8_TARGET_ARCH_IA32
   function = FUNCTION_ADDR(RegExpMacroAssemblerIA32::CheckStackGuardState);
+#elif V8_TARGET_ARCH_A64
+  function = FUNCTION_ADDR(RegExpMacroAssemblerA64::CheckStackGuardState);
 #elif V8_TARGET_ARCH_ARM
   function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
 #elif V8_TARGET_ARCH_MIPS
@@ -1415,79 +1390,11 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
 #endif  // V8_INTERPRETED_REGEXP
 
 
-static double add_two_doubles(double x, double y) {
-  return x + y;
-}
-
-
-static double sub_two_doubles(double x, double y) {
-  return x - y;
-}
-
-
-static double mul_two_doubles(double x, double y) {
-  return x * y;
-}
-
-
-static double div_two_doubles(double x, double y) {
-  return x / y;
-}
-
-
-static double mod_two_doubles(double x, double y) {
-  return modulo(x, y);
-}
-
-
-static double math_sin_double(double x) {
-  return sin(x);
-}
-
-
-static double math_cos_double(double x) {
-  return cos(x);
-}
-
-
-static double math_tan_double(double x) {
-  return tan(x);
-}
-
-
-static double math_log_double(double x) {
-  return log(x);
-}
-
-
-ExternalReference ExternalReference::math_sin_double_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(math_sin_double),
-                                    BUILTIN_FP_CALL));
-}
-
-
-ExternalReference ExternalReference::math_cos_double_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(math_cos_double),
-                                    BUILTIN_FP_CALL));
-}
-
-
-ExternalReference ExternalReference::math_tan_double_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(math_tan_double),
-                                    BUILTIN_FP_CALL));
-}
-
-
 ExternalReference ExternalReference::math_log_double_function(
     Isolate* isolate) {
+  typedef double (*d2d)(double x);
   return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(math_log_double),
+                                    FUNCTION_ADDR(static_cast<d2d>(std::log)),
                                     BUILTIN_FP_CALL));
 }
 
@@ -1558,12 +1465,16 @@ double power_double_double(double x, double y) {
   // special cases that are different.
   if ((x == 0.0 || std::isinf(x)) && std::isfinite(y)) {
     double f;
-    if (modf(y, &f) != 0.0) return ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
+    if (std::modf(y, &f) != 0.0) {
+      return ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
+    }
   }
 
   if (x == 2.0) {
     int y_int = static_cast<int>(y);
-    if (y == y_int) return ldexp(1.0, y_int);
+    if (y == y_int) {
+      return std::ldexp(1.0, y_int);
+    }
   }
 #endif
 
@@ -1572,7 +1483,7 @@ double power_double_double(double x, double y) {
   if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
     return OS::nan_value();
   }
-  return pow(x, y);
+  return std::pow(x, y);
 }
 
 
@@ -1589,12 +1500,6 @@ ExternalReference ExternalReference::power_double_int_function(
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(power_double_int),
                                     BUILTIN_FP_INT_CALL));
-}
-
-
-static int native_compare_doubles(double y, double x) {
-  if (x == y) return EQUAL;
-  return x < y ? LESS : GREATER;
 }
 
 
@@ -1615,39 +1520,11 @@ bool EvalComparison(Token::Value op, double op1, double op2) {
 }
 
 
-ExternalReference ExternalReference::double_fp_operation(
-    Token::Value operation, Isolate* isolate) {
-  typedef double BinaryFPOperation(double x, double y);
-  BinaryFPOperation* function = NULL;
-  switch (operation) {
-    case Token::ADD:
-      function = &add_two_doubles;
-      break;
-    case Token::SUB:
-      function = &sub_two_doubles;
-      break;
-    case Token::MUL:
-      function = &mul_two_doubles;
-      break;
-    case Token::DIV:
-      function = &div_two_doubles;
-      break;
-    case Token::MOD:
-      function = &mod_two_doubles;
-      break;
-    default:
-      UNREACHABLE();
-  }
+ExternalReference ExternalReference::mod_two_doubles_operation(
+    Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(function),
+                                    FUNCTION_ADDR(modulo),
                                     BUILTIN_FP_FP_CALL));
-}
-
-
-ExternalReference ExternalReference::compare_doubles(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(native_compare_doubles),
-                                    BUILTIN_COMPARE_CALL));
 }
 
 

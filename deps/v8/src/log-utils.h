@@ -47,7 +47,8 @@ class Log {
   static bool InitLogAtStart() {
     return FLAG_log || FLAG_log_runtime || FLAG_log_api
         || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-        || FLAG_log_regexp || FLAG_ll_prof || FLAG_log_internal_timer_events;
+        || FLAG_log_regexp || FLAG_ll_prof || FLAG_perf_basic_prof
+        || FLAG_perf_jit_prof || FLAG_log_internal_timer_events;
   }
 
   // Frees all resources acquired in Initialize and Open... functions.

@@ -114,11 +114,13 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
   test(isTestingGet, "Int8", undefined, 0);
   test(isTestingGet, "Int8", 8, -128);
   test(isTestingGet, "Int8", 15, -1);
+  test(isTestingGet, "Int8", 1e12, undefined);
 
   test(isTestingGet, "Uint8", 0, 0);
   test(isTestingGet, "Uint8", undefined, 0);
   test(isTestingGet, "Uint8", 8, 128);
   test(isTestingGet, "Uint8", 15, 255);
+  test(isTestingGet, "Uint8", 1e12, undefined);
 
   // Little endian.
   test(isTestingGet, "Int16", 0, 256, true);
@@ -126,6 +128,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
   test(isTestingGet, "Int16", 5, 26213, true);
   test(isTestingGet, "Int16", 9, -32127, true);
   test(isTestingGet, "Int16", 14, -2, true);
+  test(isTestingGet, "Int16", 1e12, undefined, true);
 
   // Big endian.
   test(isTestingGet, "Int16", 0, 1);
@@ -133,6 +136,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
   test(isTestingGet, "Int16", 5, 25958);
   test(isTestingGet, "Int16", 9, -32382);
   test(isTestingGet, "Int16", 14, -257);
+  test(isTestingGet, "Int16", 1e12, undefined);
 
   // Little endian.
   test(isTestingGet, "Uint16", 0, 256, true);
@@ -140,6 +144,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
   test(isTestingGet, "Uint16", 5, 26213, true);
   test(isTestingGet, "Uint16", 9, 33409, true);
   test(isTestingGet, "Uint16", 14, 65534, true);
+  test(isTestingGet, "Uint16", 1e12, undefined, true);
 
   // Big endian.
   test(isTestingGet, "Uint16", 0, 1);
@@ -147,6 +152,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
   test(isTestingGet, "Uint16", 5, 25958);
   test(isTestingGet, "Uint16", 9, 33154);
   test(isTestingGet, "Uint16", 14, 65279);
+  test(isTestingGet, "Uint16", 1e12, undefined);
 
   // Little endian.
   test(isTestingGet, "Int32", 0, 50462976, true);
@@ -155,6 +161,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
   test(isTestingGet, "Int32", 6, -2122291354, true);
   test(isTestingGet, "Int32", 9, -58490239, true);
   test(isTestingGet, "Int32", 12,-66052, true);
+  test(isTestingGet, "Int32", 1e12, undefined, true);
 
   // Big endian.
   test(isTestingGet, "Int32", 0, 66051);
@@ -163,6 +170,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
   test(isTestingGet, "Int32", 6, 1718059137);
   test(isTestingGet, "Int32", 9, -2122152964);
   test(isTestingGet, "Int32", 12, -50462977);
+  test(isTestingGet, "Int32", 1e12, undefined);
 
   // Little endian.
   test(isTestingGet, "Uint32", 0, 50462976, true);
@@ -171,6 +179,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
   test(isTestingGet, "Uint32", 6, 2172675942, true);
   test(isTestingGet, "Uint32", 9, 4236477057, true);
   test(isTestingGet, "Uint32", 12,4294901244, true);
+  test(isTestingGet, "Uint32", 1e12, undefined, true);
 
   // Big endian.
   test(isTestingGet, "Uint32", 0, 66051);
@@ -179,6 +188,7 @@ function runIntegerTestCases(isTestingGet, array, start, length) {
   test(isTestingGet, "Uint32", 6, 1718059137);
   test(isTestingGet, "Uint32", 9, 2172814332);
   test(isTestingGet, "Uint32", 12, 4244504319);
+  test(isTestingGet, "Uint32", 1e12, undefined);
 }
 
 function testFloat(isTestingGet, func, array, start, expected) {
@@ -192,6 +202,7 @@ function testFloat(isTestingGet, func, array, start, expected) {
   test(isTestingGet, func, 7, expected, true);
   createDataView(array, 10, true, start);
   test(isTestingGet, func, 10, expected, true);
+  test(isTestingGet, func, 1e12, undefined, true);
 
   // Big endian.
   createDataView(array, 0, false);
@@ -203,6 +214,7 @@ function testFloat(isTestingGet, func, array, start, expected) {
   test(isTestingGet, func, 7, expected, false);
   createDataView(array, 10, false);
   test(isTestingGet, func, 10, expected, false);
+  test(isTestingGet, func, 1e12, undefined, false);
 }
 
 function runFloatTestCases(isTestingGet, start) {

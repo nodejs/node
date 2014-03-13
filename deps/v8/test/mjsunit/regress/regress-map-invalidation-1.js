@@ -30,7 +30,7 @@
 var c = { x: 2, y: 1 };
 
 function h() {
-  %MigrateInstance(c);
+  %TryMigrateInstance(c);
   return 2;
 }
 %NeverOptimizeFunction(h);
@@ -45,4 +45,3 @@ function f() {
 }
 
 f();
-

@@ -222,7 +222,6 @@ class CompilationCache {
   // contain a script for the given source string.
   Handle<SharedFunctionInfo> LookupEval(Handle<String> source,
                                         Handle<Context> context,
-                                        bool is_global,
                                         LanguageMode language_mode,
                                         int scope_position);
 
@@ -241,7 +240,6 @@ class CompilationCache {
   // with the shared function info. This may overwrite an existing mapping.
   void PutEval(Handle<String> source,
                Handle<Context> context,
-               bool is_global,
                Handle<SharedFunctionInfo> function_info,
                int scope_position);
 

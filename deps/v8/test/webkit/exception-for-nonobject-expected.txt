@@ -27,7 +27,7 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 
 PASS new {}.undefined threw exception TypeError: undefined is not a function.
-PASS 1 instanceof {}.undefined threw exception TypeError: Expecting a function in instanceof check, but got 1.
+PASS 1 instanceof {}.undefined threw exception TypeError: Expecting a function in instanceof check, but got undefined.
 PASS successfullyParsed is true
 
 TEST COMPLETE

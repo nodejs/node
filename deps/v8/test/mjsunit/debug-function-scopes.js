@@ -159,4 +159,3 @@ CheckNoScopeVisible(Function.toString);
 
 // This getter is known to be implemented as closure.
 CheckNoScopeVisible(new Error().__lookupGetter__("stack"));
-

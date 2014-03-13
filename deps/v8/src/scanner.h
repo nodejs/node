@@ -139,12 +139,17 @@ class UnicodeCache {
   bool IsIdentifierPart(unibrow::uchar c) { return kIsIdentifierPart.get(c); }
   bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
   bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
+  bool IsWhiteSpaceOrLineTerminator(unibrow::uchar c) {
+    return kIsWhiteSpaceOrLineTerminator.get(c);
+  }
 
  private:
   unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
   unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
   unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
-  unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
+  unibrow::Predicate<WhiteSpace, 128> kIsWhiteSpace;
+  unibrow::Predicate<WhiteSpaceOrLineTerminator, 128>
+      kIsWhiteSpaceOrLineTerminator;
   StaticResource<Utf8Decoder> utf8_decoder_;
 
   DISALLOW_COPY_AND_ASSIGN(UnicodeCache);

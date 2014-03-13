@@ -29,7 +29,7 @@ function Cons() {
 }
 
 var ouches = 0;
-Cons.prototype.__defineSetter__("3", function() { debug("Ouch!"); ouches++; });
+Cons.prototype.__defineSetter__("3", function() { ouches++; });
 
 function foo() {
     var result = new Cons();

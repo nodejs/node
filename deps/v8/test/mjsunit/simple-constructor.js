@@ -137,4 +137,3 @@ assertEquals(2, o.y);
 o = new g();
 assertEquals(1, o.x);
 assertEquals(2, o.y);
-

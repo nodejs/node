@@ -71,7 +71,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     // LLazyBailout instructions with nops if necessary.
     CodePatcher patcher(call_address, Assembler::kCallSequenceLength);
     patcher.masm()->Call(GetDeoptimizationEntry(isolate, i, LAZY),
-                         RelocInfo::NONE64);
+                         Assembler::RelocInfoNone());
     ASSERT(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
     ASSERT(call_address + patch_size() <= code->instruction_end());
@@ -97,7 +97,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
 
   // Fill the frame content from the actual data on the frame.
   for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint64_at(tos + i));
+    input_->SetFrameSlot(i, Memory::uintptr_at(tos + i));
   }
 }
 
@@ -106,7 +106,7 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
   intptr_t handler =
       reinterpret_cast<intptr_t>(descriptor->deoptimization_handler_);
-  int params = descriptor->environment_length();
+  int params = descriptor->GetHandlerParameterCount();
   output_frame->SetRegister(rax.code(), params);
   output_frame->SetRegister(rbx.code(), handler);
 }
@@ -156,7 +156,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ push(r);
   }
 
-  const int kSavedRegistersAreaSize = kNumberOfRegisters * kPointerSize +
+  const int kSavedRegistersAreaSize = kNumberOfRegisters * kRegisterSize +
                                       kDoubleRegsSize;
 
   // We use this to keep the value of the fifth argument temporarily.
@@ -165,32 +165,32 @@ void Deoptimizer::EntryGenerator::Generate() {
   Register arg5 = r11;
 
   // Get the bailout id from the stack.
-  __ movq(arg_reg_3, Operand(rsp, kSavedRegistersAreaSize));
+  __ movp(arg_reg_3, Operand(rsp, kSavedRegistersAreaSize));
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  __ movq(arg_reg_4,
-          Operand(rsp, kSavedRegistersAreaSize + 1 * kPointerSize));
-  __ lea(arg5, Operand(rsp, kSavedRegistersAreaSize + 2 * kPointerSize));
+  __ movp(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize));
+  __ lea(arg5, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize +
+                            kPCOnStackSize));
 
   __ subq(arg5, rbp);
   __ neg(arg5);
 
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6);
-  __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  __ movq(arg_reg_1, rax);
+  __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ movp(arg_reg_1, rax);
   __ Set(arg_reg_2, type());
   // Args 3 and 4 are already in the right registers.
 
   // On windows put the arguments on the stack (PrepareCallCFunction
   // has created space for this). On linux pass the arguments in r8 and r9.
 #ifdef _WIN64
-  __ movq(Operand(rsp, 4 * kPointerSize), arg5);
+  __ movq(Operand(rsp, 4 * kRegisterSize), arg5);
   __ LoadAddress(arg5, ExternalReference::isolate_address(isolate()));
-  __ movq(Operand(rsp, 5 * kPointerSize), arg5);
+  __ movq(Operand(rsp, 5 * kRegisterSize), arg5);
 #else
-  __ movq(r8, arg5);
+  __ movp(r8, arg5);
   __ LoadAddress(r9, ExternalReference::isolate_address(isolate()));
 #endif
 
@@ -199,7 +199,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
-  __ movq(rbx, Operand(rax, Deoptimizer::input_offset()));
+  __ movp(rbx, Operand(rax, Deoptimizer::input_offset()));
 
   // Fill in the input registers.
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
@@ -215,11 +215,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Remove the bailout id and return address from the stack.
-  __ addq(rsp, Immediate(2 * kPointerSize));
+  __ addq(rsp, Immediate(1 * kRegisterSize + kPCOnStackSize));
 
   // Compute a pointer to the unwinding limit in register rcx; that is
   // the first stack slot not part of the input frame.
-  __ movq(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
+  __ movp(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
   __ addq(rcx, rsp);
 
   // Unwind the stack down to - but not including - the unwinding
@@ -239,7 +239,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Compute the output frame in the deoptimizer.
   __ push(rax);
   __ PrepareCallCFunction(2);
-  __ movq(arg_reg_1, rax);
+  __ movp(arg_reg_1, rax);
   __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate()));
   {
     AllowExternalCallThatCantCauseGC scope(masm());
@@ -254,13 +254,13 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Outer loop state: rax = current FrameDescription**, rdx = one past the
   // last FrameDescription**.
   __ movl(rdx, Operand(rax, Deoptimizer::output_count_offset()));
-  __ movq(rax, Operand(rax, Deoptimizer::output_offset()));
+  __ movp(rax, Operand(rax, Deoptimizer::output_offset()));
   __ lea(rdx, Operand(rax, rdx, times_pointer_size, 0));
   __ jmp(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: rbx = current FrameDescription*, rcx = loop index.
-  __ movq(rbx, Operand(rax, 0));
-  __ movq(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
+  __ movp(rbx, Operand(rax, 0));
+  __ movp(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
   __ jmp(&inner_loop_header);
   __ bind(&inner_push_loop);
   __ subq(rcx, Immediate(sizeof(intptr_t)));

@@ -62,4 +62,3 @@ assertEquals(42, o.x);
 delete o.x;
 store(o);
 assertEquals(42, o.x);
-

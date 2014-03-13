@@ -54,9 +54,9 @@ bool HUint32AnalysisPhase::IsSafeUint32Use(HValue* val, HValue* use) {
       // operation.
       if (store->value() == val) {
         // Clamping or a conversion to double should have beed inserted.
-        ASSERT(store->elements_kind() != EXTERNAL_PIXEL_ELEMENTS);
-        ASSERT(store->elements_kind() != EXTERNAL_FLOAT_ELEMENTS);
-        ASSERT(store->elements_kind() != EXTERNAL_DOUBLE_ELEMENTS);
+        ASSERT(store->elements_kind() != EXTERNAL_UINT8_CLAMPED_ELEMENTS);
+        ASSERT(store->elements_kind() != EXTERNAL_FLOAT32_ELEMENTS);
+        ASSERT(store->elements_kind() != EXTERNAL_FLOAT64_ELEMENTS);
         return true;
       }
     }

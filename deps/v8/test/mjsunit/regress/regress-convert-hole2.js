@@ -24,7 +24,7 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// Flags: --allow-natives-syntax --notrack-allocation-sites
+// Flags: --allow-natives-syntax
 
 // Test adding undefined from hole in double-holey to string.
 var a = [1.5, , 1.8];

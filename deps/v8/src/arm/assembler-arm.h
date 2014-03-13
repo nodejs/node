@@ -164,18 +164,12 @@ struct Register {
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
-    if (FLAG_enable_ool_constant_pool && (reg.code() >= kRegister_r8_Code)) {
-      return reg.code() - 1;
-    }
     ASSERT(reg.code() < kMaxNumAllocatableRegisters);
     return reg.code();
   }
 
   static Register FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
-    if (FLAG_enable_ool_constant_pool && (index >= 7)) {
-      return from_code(index + 1);
-    }
     return from_code(index);
   }
 
@@ -285,6 +279,7 @@ struct DwVfpRegister {
   // Any code included in the snapshot must be able to run both with 16 or 32
   // registers.
   inline static int NumRegisters();
+  inline static int NumReservedRegisters();
   inline static int NumAllocatableRegisters();
 
   inline static int ToAllocationIndex(DwVfpRegister reg);
@@ -785,10 +780,6 @@ class Assembler : public AssemblerBase {
   // the branch/call instruction at pc, or the object in a mov.
   INLINE(static Address target_pointer_address_at(Address pc));
 
-  // Read/Modify the pointer in the branch/call/move instruction at pc.
-  INLINE(static Address target_pointer_at(Address pc));
-  INLINE(static void set_target_pointer_at(Address pc, Address target));
-
   // Read/Modify the code target address in the branch/call instruction at pc.
   INLINE(static Address target_address_at(Address pc));
   INLINE(static void set_target_address_at(Address pc, Address target));
@@ -805,11 +796,6 @@ class Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
       Address constant_pool_entry, Address target);
-
-  // This sets the branch destination (which is in the constant pool on ARM).
-  // This is for calls and branches to runtime code.
-  inline static void set_external_target_at(Address constant_pool_entry,
-                                            Address target);
 
   // Here we are patching the address in the constant pool, not the actual call
   // instruction.  The address in the constant pool is the same size as a
@@ -1325,6 +1311,9 @@ class Assembler : public AssemblerBase {
   // Check whether an immediate fits an addressing mode 1 instruction.
   bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
 
+  // Check whether an immediate fits an addressing mode 2 instruction.
+  bool ImmediateFitsAddrMode2Instruction(int32_t imm32);
+
   // Class for scoping postponing the constant pool generation.
   class BlockConstPoolScope {
    public:
@@ -1393,6 +1382,9 @@ class Assembler : public AssemblerBase {
   void db(uint8_t data);
   void dd(uint32_t data);
 
+  // Emits the address of the code stub's first instruction.
+  void emit_code_stub_address(Code* stub);
+
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Read/patch instructions
@@ -1444,7 +1436,8 @@ class Assembler : public AssemblerBase {
   static const int kMaxDistToIntPool = 4*KB;
   static const int kMaxDistToFPPool = 1*KB;
   // All relocations could be integer, it therefore acts as the limit.
-  static const int kMaxNumPendingRelocInfo = kMaxDistToIntPool/kInstrSize;
+  static const int kMaxNumPending32RelocInfo = kMaxDistToIntPool/kInstrSize;
+  static const int kMaxNumPending64RelocInfo = kMaxDistToFPPool/kInstrSize;
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
@@ -1482,11 +1475,16 @@ class Assembler : public AssemblerBase {
   // StartBlockConstPool to have an effect.
   void EndBlockConstPool() {
     if (--const_pool_blocked_nesting_ == 0) {
+#ifdef DEBUG
+      // Max pool start (if we need a jump and an alignment).
+      int start = pc_offset() + kInstrSize + 2 * kPointerSize;
       // Check the constant pool hasn't been blocked for too long.
-      ASSERT((num_pending_reloc_info_ == 0) ||
-             (pc_offset() < (first_const_pool_use_ + kMaxDistToIntPool)));
+      ASSERT((num_pending_32_bit_reloc_info_ == 0) ||
+             (start + num_pending_64_bit_reloc_info_ * kDoubleSize <
+              (first_const_pool_32_use_ + kMaxDistToIntPool)));
       ASSERT((num_pending_64_bit_reloc_info_ == 0) ||
-             (pc_offset() < (first_const_pool_use_ + kMaxDistToFPPool)));
+             (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
+#endif
       // Two cases:
       //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
       //    still blocked
@@ -1535,7 +1533,8 @@ class Assembler : public AssemblerBase {
 
   // Keep track of the first instruction requiring a constant pool entry
   // since the previous constant pool was emitted.
-  int first_const_pool_use_;
+  int first_const_pool_32_use_;
+  int first_const_pool_64_use_;
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
@@ -1549,12 +1548,12 @@ class Assembler : public AssemblerBase {
   // If every instruction in a long sequence is accessing the pool, we need one
   // pending relocation entry per instruction.
 
-  // the buffer of pending relocation info
-  RelocInfo pending_reloc_info_[kMaxNumPendingRelocInfo];
-  // number of pending reloc info entries in the buffer
-  int num_pending_reloc_info_;
-  // Number of pending reloc info entries included above which also happen to
-  // be 64-bit.
+  // The buffers of pending relocation info.
+  RelocInfo pending_32_bit_reloc_info_[kMaxNumPending32RelocInfo];
+  RelocInfo pending_64_bit_reloc_info_[kMaxNumPending64RelocInfo];
+  // Number of pending reloc info entries in the 32 bits buffer.
+  int num_pending_32_bit_reloc_info_;
+  // Number of pending reloc info entries in the 64 bits buffer.
   int num_pending_64_bit_reloc_info_;
 
   // The bound position, before this we cannot do instruction elimination.

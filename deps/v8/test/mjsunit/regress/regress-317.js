@@ -28,4 +28,3 @@
 // Ensure replacement with string allows $ in replacement string.
 
 assertEquals("a$ec", "abc".replace("b", "$e"), "$e isn't meaningful");
-

@@ -51,5 +51,3 @@ for (var i = 0; i < 1000; ++i) {
     shouldBe("foo1(new Stuff())", "43");
     shouldBe("foo2(new Stuff())", "58");
 }
-
-

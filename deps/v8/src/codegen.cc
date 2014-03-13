@@ -81,7 +81,7 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
           CodeStub::MajorName(info->code_stub()->MajorKey(), true);
       PrintF("%s", name == NULL ? "<unknown>" : name);
     } else {
-      PrintF("%s", *info->function()->debug_name()->ToCString());
+      PrintF("%s", info->function()->debug_name()->ToCString().get());
     }
     PrintF("]\n");
   }
@@ -89,12 +89,12 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 #ifdef DEBUG
   if (!info->IsStub() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
-           PrettyPrinter(info->isolate()).PrintProgram(info->function()));
+           PrettyPrinter(info->zone()).PrintProgram(info->function()));
   }
 
   if (!info->IsStub() && print_ast) {
     PrintF("--- AST ---\n%s\n",
-           AstPrinter(info->isolate()).PrintProgram(info->function()));
+           AstPrinter(info->zone()).PrintProgram(info->function()));
   }
 #endif  // DEBUG
 }
@@ -136,10 +136,12 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     FunctionLiteral* function = info->function();
     bool print_source = code->kind() == Code::OPTIMIZED_FUNCTION ||
         code->kind() == Code::FUNCTION;
+
+    CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
     if (print_source) {
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
-        PrintF("--- Raw source ---\n");
+        PrintF(tracing_scope.file(), "--- Raw source ---\n");
         ConsStringIteratorOp op;
         StringCharacterStream stream(String::cast(script->source()),
                                      &op,
@@ -149,31 +151,38 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
         int source_len =
             function->end_position() - function->start_position() + 1;
         for (int i = 0; i < source_len; i++) {
-          if (stream.HasMore()) PrintF("%c", stream.GetNext());
+          if (stream.HasMore()) {
+            PrintF(tracing_scope.file(), "%c", stream.GetNext());
+          }
         }
-        PrintF("\n\n");
+        PrintF(tracing_scope.file(), "\n\n");
       }
     }
     if (info->IsOptimizing()) {
       if (FLAG_print_unopt_code) {
-        PrintF("--- Unoptimized code ---\n");
+        PrintF(tracing_scope.file(), "--- Unoptimized code ---\n");
         info->closure()->shared()->code()->Disassemble(
-            *function->debug_name()->ToCString());
+            function->debug_name()->ToCString().get(), tracing_scope.file());
       }
-      PrintF("--- Optimized code ---\n");
+      PrintF(tracing_scope.file(), "--- Optimized code ---\n");
+      PrintF(tracing_scope.file(),
+             "optimization_id = %d\n", info->optimization_id());
     } else {
-      PrintF("--- Code ---\n");
+      PrintF(tracing_scope.file(), "--- Code ---\n");
     }
     if (print_source) {
-      PrintF("source_position = %d\n", function->start_position());
+      PrintF(tracing_scope.file(),
+             "source_position = %d\n", function->start_position());
     }
     if (info->IsStub()) {
       CodeStub::Major major_key = info->code_stub()->MajorKey();
-      code->Disassemble(CodeStub::MajorName(major_key, false));
+      code->Disassemble(CodeStub::MajorName(major_key, false),
+                        tracing_scope.file());
     } else {
-      code->Disassemble(*function->debug_name()->ToCString());
+      code->Disassemble(function->debug_name()->ToCString().get(),
+                        tracing_scope.file());
     }
-    PrintF("--- End code ---\n");
+    PrintF(tracing_scope.file(), "--- End code ---\n");
   }
 #endif  // ENABLE_DISASSEMBLER
 }

@@ -42,4 +42,3 @@ for (var i = 0; i < 300; ++i) {
     var c = i + 3;
     shouldBe("foo(a, b, c)", "6");
 }
-

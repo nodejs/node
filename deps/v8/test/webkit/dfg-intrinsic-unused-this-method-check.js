@@ -47,4 +47,3 @@ for (var i = 0; i < 1000; ++i) {
 
     shouldBe("baz(object, " + i + ", " + (i * 2) + ")", "" + (offset + Math.max(i, i * 2)));
 }
-

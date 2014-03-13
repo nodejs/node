@@ -602,27 +602,6 @@ Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
 }
 
 
-static void CompileScriptForTracker(Isolate* isolate, Handle<Script> script) {
-  // TODO(635): support extensions.
-  PostponeInterruptsScope postpone(isolate);
-
-  // Build AST.
-  CompilationInfoWithZone info(script);
-  info.MarkAsGlobal();
-  // Parse and don't allow skipping lazy functions.
-  if (Parser::Parse(&info)) {
-    // Compile the code.
-    LiveEditFunctionTracker tracker(info.isolate(), info.function());
-    if (Compiler::MakeCodeForLiveEdit(&info)) {
-      ASSERT(!info.code().is_null());
-      tracker.RecordRootFunctionInfo(info.code());
-    } else {
-      info.isolate()->StackOverflow();
-    }
-  }
-}
-
-
 // Unwraps JSValue object, returning its field "value"
 static Handle<Object> UnwrapJSValue(Handle<JSValue> jsValue) {
   return Handle<Object>(jsValue->value(), jsValue->GetIsolate());
@@ -951,7 +930,7 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
     try_catch.SetVerbose(true);
 
     // A logical 'try' section.
-    CompileScriptForTracker(isolate, script);
+    Compiler::CompileForLiveEdit(script);
   }
 
   // A logical 'catch' section.

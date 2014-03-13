@@ -49,4 +49,3 @@ for (var i = 0; i < 3000; ++i) {
     result = "" +foo.apply(void 0, args);
     shouldBe("result", expected);
 }
-

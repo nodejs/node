@@ -35,4 +35,3 @@ function foo(b) {
 
 for (var i = 0; i < 100; ++i)
     shouldBe("foo(-1)", "[-1, 4294967295]");
-

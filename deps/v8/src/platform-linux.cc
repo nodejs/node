@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for Linux goes here. For the POSIX comaptible parts
-// the implementation is in platform-posix.cc.
+// Platform-specific code for Linux goes here. For the POSIX-compatible
+// parts, the implementation is in platform-posix.cc.
 
 #include <pthread.h>
 #include <semaphore.h>
@@ -53,8 +53,13 @@
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
 #if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
-    defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
+    (defined(__arm__) || defined(__aarch64__)) && \
+    !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
 #include <asm/sigcontext.h>
+#endif
+
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
 #endif
 
 #undef MAP_TYPE
@@ -115,7 +120,7 @@ bool OS::ArmUsingHardFloat() {
 
 const char* OS::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
-  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
+  time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return "";
   return t->tm_zone;
@@ -348,6 +353,9 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
 
   address_ = static_cast<void*>(aligned_base);
   size_ = aligned_size;
+#if defined(LEAK_SANITIZER)
+  __lsan_register_root_region(address_, size_);
+#endif
 }
 
 
@@ -397,6 +405,9 @@ void* VirtualMemory::ReserveRegion(size_t size) {
 
   if (result == MAP_FAILED) return NULL;
 
+#if defined(LEAK_SANITIZER)
+  __lsan_register_root_region(result, size);
+#endif
   return result;
 }
 
@@ -433,6 +444,9 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
 
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
+#if defined(LEAK_SANITIZER)
+  __lsan_unregister_root_region(base, size);
+#endif
   return munmap(base, size) == 0;
 }
 

@@ -52,8 +52,8 @@ class JumpPatchSite;
 // debugger to piggybag on.
 class BreakableStatementChecker: public AstVisitor {
  public:
-  explicit BreakableStatementChecker(Isolate* isolate) : is_breakable_(false) {
-    InitializeAstVisitor(isolate);
+  explicit BreakableStatementChecker(Zone* zone) : is_breakable_(false) {
+    InitializeAstVisitor(zone);
   }
 
   void Check(Statement* stmt);
@@ -96,11 +96,7 @@ class FullCodeGenerator: public AstVisitor {
                          ? info->function()->ast_node_count() : 0,
                          info->zone()),
         back_edges_(2, info->zone()),
-        type_feedback_cells_(info->HasDeoptimizationSupport()
-                             ? info->function()->ast_node_count() : 0,
-                             info->zone()),
-        ic_total_count_(0),
-        zone_(info->zone()) {
+        ic_total_count_(0) {
     Initialize();
   }
 
@@ -122,8 +118,6 @@ class FullCodeGenerator: public AstVisitor {
     return NULL;
   }
 
-  Zone* zone() const { return zone_; }
-
   static const int kMaxBackEdgeWeight = 127;
 
   // Platform-specific code size multiplier.
@@ -132,6 +126,9 @@ class FullCodeGenerator: public AstVisitor {
 #elif V8_TARGET_ARCH_X64
   static const int kCodeSizeMultiplier = 162;
 #elif V8_TARGET_ARCH_ARM
+  static const int kCodeSizeMultiplier = 142;
+#elif V8_TARGET_ARCH_A64
+// TODO(all): Copied ARM value. Check this is sensible for A64.
   static const int kCodeSizeMultiplier = 142;
 #elif V8_TARGET_ARCH_MIPS
   static const int kCodeSizeMultiplier = 142;
@@ -437,9 +434,15 @@ class FullCodeGenerator: public AstVisitor {
   void PrepareForBailout(Expression* node, State state);
   void PrepareForBailoutForId(BailoutId id, State state);
 
-  // Cache cell support.  This associates AST ids with global property cells
-  // that will be cleared during GC and collected by the type-feedback oracle.
-  void RecordTypeFeedbackCell(TypeFeedbackId id, Handle<Cell> cell);
+  // Feedback slot support. The feedback vector will be cleared during gc and
+  // collected by the type-feedback oracle.
+  Handle<FixedArray> FeedbackVector() {
+    return feedback_vector_;
+  }
+  void StoreFeedbackVectorSlot(int slot, Handle<Object> object) {
+    feedback_vector_->set(slot, *object);
+  }
+  void InitializeFeedbackVector();
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -482,8 +485,8 @@ class FullCodeGenerator: public AstVisitor {
   void EmitReturnSequence();
 
   // Platform-specific code sequences for calls
-  void EmitCallWithStub(Call* expr, CallFunctionFlags flags);
-  void EmitCallWithIC(Call* expr, Handle<Object> name, RelocInfo::Mode mode);
+  void EmitCallWithStub(Call* expr);
+  void EmitCallWithIC(Call* expr);
   void EmitKeyedCallWithIC(Call* expr, Expression* key);
 
   // Platform-specific code for inline runtime calls.
@@ -496,11 +499,6 @@ class FullCodeGenerator: public AstVisitor {
   INLINE_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
   INLINE_RUNTIME_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
 #undef EMIT_INLINE_RUNTIME_CALL
-
-  void EmitSeqStringSetCharCheck(Register string,
-                                 Register index,
-                                 Register value,
-                                 uint32_t encoding_mask);
 
   // Platform-specific code for resuming generators.
   void EmitGeneratorResume(Expression *generator,
@@ -560,6 +558,11 @@ class FullCodeGenerator: public AstVisitor {
   void EmitVariableAssignment(Variable* var,
                               Token::Value op);
 
+  // Helper functions to EmitVariableAssignment
+  void EmitStoreToStackLocalOrContextSlot(Variable* var,
+                                          MemOperand location);
+  void EmitCallStoreContextSlot(Handle<String> name, LanguageMode mode);
+
   // Complete a named property assignment.  The receiver is expected on top
   // of the stack and the right-hand-side value in the accumulator.
   void EmitNamedPropertyAssignment(Assignment* expr);
@@ -570,8 +573,11 @@ class FullCodeGenerator: public AstVisitor {
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
   void CallIC(Handle<Code> code,
-              RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
               TypeFeedbackId id = TypeFeedbackId::None());
+
+  void CallLoadIC(ContextualMode mode,
+                  TypeFeedbackId id = TypeFeedbackId::None());
+  void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
@@ -602,6 +608,9 @@ class FullCodeGenerator: public AstVisitor {
   bool is_eval() { return info_->is_eval(); }
   bool is_native() { return info_->is_native(); }
   bool is_classic_mode() { return language_mode() == CLASSIC_MODE; }
+  StrictModeFlag strict_mode() {
+    return is_classic_mode() ? kNonStrictMode : kStrictMode;
+  }
   LanguageMode language_mode() { return function()->language_mode(); }
   FunctionLiteral* function() { return info_->function(); }
   Scope* scope() { return scope_; }
@@ -635,7 +644,6 @@ class FullCodeGenerator: public AstVisitor {
   void Generate();
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
-  void PopulateTypeFeedbackCells(Handle<Code> code);
 
   Handle<FixedArray> handler_table() { return handler_table_; }
 
@@ -649,12 +657,6 @@ class FullCodeGenerator: public AstVisitor {
     unsigned pc;
     uint32_t loop_depth;
   };
-
-  struct TypeFeedbackCellEntry {
-    TypeFeedbackId ast_id;
-    Handle<Cell> cell;
-  };
-
 
   class ExpressionContext BASE_EMBEDDED {
    public:
@@ -845,12 +847,11 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<BailoutEntry> bailout_entries_;
   GrowableBitVector prepared_bailout_ids_;
   ZoneList<BackEdgeEntry> back_edges_;
-  ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
+  Handle<FixedArray> feedback_vector_;
   Handle<Cell> profiling_counter_;
   bool generate_debug_code_;
-  Zone* zone_;
 
   friend class NestedStatement;
 
@@ -933,10 +934,10 @@ class BackEdgeTable {
 
   // Change a back edge patched for on-stack replacement to perform a
   // stack check first.
-  static void AddStackCheck(CompilationInfo* info);
+  static void AddStackCheck(Handle<Code> code, uint32_t pc_offset);
 
-  // Remove the stack check, if available, and replace by on-stack replacement.
-  static void RemoveStackCheck(CompilationInfo* info);
+  // Revert the patch by AddStackCheck.
+  static void RemoveStackCheck(Handle<Code> code, uint32_t pc_offset);
 
   // Return the current patch state of the back edge.
   static BackEdgeState GetBackEdgeState(Isolate* isolate,

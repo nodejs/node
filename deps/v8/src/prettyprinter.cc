@@ -38,11 +38,11 @@ namespace internal {
 
 #ifdef DEBUG
 
-PrettyPrinter::PrettyPrinter(Isolate* isolate) {
+PrettyPrinter::PrettyPrinter(Zone* zone) {
   output_ = NULL;
   size_ = 0;
   pos_ = 0;
-  InitializeAstVisitor(isolate);
+  InitializeAstVisitor(zone);
 }
 
 
@@ -493,8 +493,8 @@ const char* PrettyPrinter::PrintProgram(FunctionLiteral* program) {
 }
 
 
-void PrettyPrinter::PrintOut(Isolate* isolate, AstNode* node) {
-  PrettyPrinter printer(isolate);
+void PrettyPrinter::PrintOut(Zone* zone, AstNode* node) {
+  PrettyPrinter printer(zone);
   PrintF("%s", printer.Print(node));
 }
 
@@ -657,7 +657,7 @@ class IndentedScope BASE_EMBEDDED {
 //-----------------------------------------------------------------------------
 
 
-AstPrinter::AstPrinter(Isolate* isolate) : PrettyPrinter(isolate), indent_(0) {
+AstPrinter::AstPrinter(Zone* zone) : PrettyPrinter(zone), indent_(0) {
 }
 
 

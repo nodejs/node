@@ -1,0 +1,7 @@
+CODE_REVIEW_SERVER: https://codereview.chromium.org
+CC_LIST: v8-dev@googlegroups.com
+VIEW_VC: https://code.google.com/p/v8/source/detail?r=
+STATUS: http://v8-status.appspot.com/status
+TRY_ON_UPLOAD: False
+TRYSERVER_SVN_URL: svn://svn.chromium.org/chrome-try-v8
+TRYSERVER_ROOT: v8

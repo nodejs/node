@@ -96,7 +96,7 @@ class AllocationTracker {
   ~AllocationTracker();
 
   void PrepareForSerialization();
-  void NewObjectEvent(Address addr, int size);
+  void AllocationEvent(Address addr, int size);
 
   AllocationTraceTree* trace_tree() { return &trace_tree_; }
   HashMap* id_to_function_info() { return &id_to_function_info_; }
@@ -112,9 +112,9 @@ class AllocationTracker {
     void Resolve();
 
    private:
-    static void HandleWeakScript(v8::Isolate* isolate,
-                                 v8::Persistent<v8::Value>* obj,
-                                 void* data);
+    static void HandleWeakScript(
+        const v8::WeakCallbackData<v8::Value, void>& data);
+
     Handle<Script> script_;
     int start_position_;
     FunctionInfo* info_;
@@ -135,4 +135,3 @@ class AllocationTracker {
 } }  // namespace v8::internal
 
 #endif  // V8_ALLOCATION_TRACKER_H_
-

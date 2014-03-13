@@ -28,6 +28,7 @@
 // Tests the Object.seal and Object.isSealed methods - ES 15.2.3.9 and
 // ES 15.2.3.12
 
+// Flags: --allow-natives-syntax --noalways-opt
 
 // Test that we throw an error if an object is not passed as argument.
 var non_objects = new Array(undefined, null, 1, -1, 0, 42.43);
@@ -192,3 +193,77 @@ assertFalse(Object.isSealed(obj4));
 // Make sure that Object.seal returns the sealed object.
 var obj4 = {};
 assertTrue(obj4 === Object.seal(obj4));
+
+//
+// Test that built-in array functions can't modify a sealed array.
+//
+obj = [1, 2, 3];
+var objControl = [4, 5, 6];
+
+// Allow these functions to set up monomorphic calls, using custom built-ins.
+var push_call = function(a) { a.push(10); return a; }
+var pop_call = function(a) { return a.pop(); }
+for (var i = 0; i < 3; i++) {
+  push_call(obj);
+  pop_call(obj);
+}
+
+Object.seal(obj);
+assertThrows(function() { push_call(obj); }, TypeError);
+assertThrows(function() { pop_call(obj); }, TypeError);
+
+// But the control object is fine at these sites.
+assertDoesNotThrow(function() { push_call(objControl); });
+assertDoesNotThrow(function() { pop_call(objControl); });
+
+assertDoesNotThrow(function() { obj.push(); });
+assertThrows(function() { obj.push(3); }, TypeError);
+assertThrows(function() { obj.pop(); }, TypeError);
+assertThrows(function() { obj.shift(3); }, TypeError);
+assertDoesNotThrow(function() { obj.unshift(); });
+assertThrows(function() { obj.unshift(1); }, TypeError);
+assertThrows(function() { obj.splice(0, 0, 100, 101, 102); }, TypeError);
+assertDoesNotThrow(function() { obj.splice(0,0); });
+
+assertDoesNotThrow(function() { objControl.push(3); });
+assertDoesNotThrow(function() { objControl.pop(); });
+assertDoesNotThrow(function() { objControl.shift(3); });
+assertDoesNotThrow(function() { objControl.unshift(); });
+assertDoesNotThrow(function() { objControl.splice(0, 0, 100, 101, 102); });
+
+// Verify that crankshaft still does the right thing.
+obj = [1, 2, 3];
+
+push_call = function(a) { a.push(1000); return a; }
+// Include a call site that doesn't have a custom built-in.
+var shift_call = function(a) { a.shift(1000); return a; }
+for (var i = 0; i < 3; i++) {
+  push_call(obj);
+  shift_call(obj);
+}
+
+%OptimizeFunctionOnNextCall(push_call);
+%OptimizeFunctionOnNextCall(shift_call);
+push_call(obj);
+shift_call(obj);
+assertOptimized(push_call);
+assertOptimized(shift_call);
+Object.seal(obj);
+assertThrows(function() { push_call(obj); }, TypeError);
+assertThrows(function() { shift_call(obj); }, TypeError);
+assertUnoptimized(push_call);
+assertUnoptimized(shift_call);
+assertDoesNotThrow(function() { push_call(objControl); });
+assertDoesNotThrow(function() { shift_call(objControl); });
+
+// Verify special behavior of splice on sealed objects.
+obj = [1,2,3];
+Object.seal(obj);
+assertDoesNotThrow(function() { obj.splice(0,1,100); });
+assertEquals(100, obj[0]);
+assertDoesNotThrow(function() { obj.splice(0,2,1,2); });
+assertDoesNotThrow(function() { obj.splice(1,2,1,2); });
+// Count of items to delete is clamped by length.
+assertDoesNotThrow(function() { obj.splice(1,2000,1,2); });
+assertThrows(function() { obj.splice(0,0,1); }, TypeError);
+assertThrows(function() { obj.splice(1,2000,1,2,3); }, TypeError);

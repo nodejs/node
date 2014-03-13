@@ -34,4 +34,3 @@ var b = {0: 5, 1: 4, 2: 3, 3: 2, 4: 1, 5: 0, length: 6};
 Object.freeze(b);
 Array.prototype.sort.call(b);
 assertPropertiesEqual({0: 5, 1: 4, 2: 3, 3: 2, 4: 1, 5: 0, length: 6}, b);
-

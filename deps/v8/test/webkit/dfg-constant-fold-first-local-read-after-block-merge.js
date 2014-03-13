@@ -44,4 +44,3 @@ function bar(x) {
 
 for (var i = 0; i < 200; ++i)
     shouldBe("bar(5)", "42");
-

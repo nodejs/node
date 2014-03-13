@@ -71,9 +71,9 @@ class DateFormat {
 
   // Release memory we allocated for the DateFormat once the JS object that
   // holds the pointer gets garbage collected.
-  static void DeleteDateFormat(v8::Isolate* isolate,
-                               Persistent<v8::Value>* object,
-                               void* param);
+  static void DeleteDateFormat(
+      const v8::WeakCallbackData<v8::Value, void>& data);
+
  private:
   DateFormat();
 };
@@ -95,9 +95,9 @@ class NumberFormat {
 
   // Release memory we allocated for the NumberFormat once the JS object that
   // holds the pointer gets garbage collected.
-  static void DeleteNumberFormat(v8::Isolate* isolate,
-                                 Persistent<v8::Value>* object,
-                                 void* param);
+  static void DeleteNumberFormat(
+      const v8::WeakCallbackData<v8::Value, void>& data);
+
  private:
   NumberFormat();
 };
@@ -118,9 +118,9 @@ class Collator {
 
   // Release memory we allocated for the Collator once the JS object that holds
   // the pointer gets garbage collected.
-  static void DeleteCollator(v8::Isolate* isolate,
-                             Persistent<v8::Value>* object,
-                             void* param);
+  static void DeleteCollator(
+      const v8::WeakCallbackData<v8::Value, void>& data);
+
  private:
   Collator();
 };
@@ -141,9 +141,8 @@ class BreakIterator {
 
   // Release memory we allocated for the BreakIterator once the JS object that
   // holds the pointer gets garbage collected.
-  static void DeleteBreakIterator(v8::Isolate* isolate,
-                                  Persistent<v8::Value>* object,
-                                  void* param);
+  static void DeleteBreakIterator(
+      const v8::WeakCallbackData<v8::Value, void>& data);
 
  private:
   BreakIterator();

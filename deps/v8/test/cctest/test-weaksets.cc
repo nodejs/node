@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <utility>
+
 #include "v8.h"
 
 #include "global-handles.h"
@@ -56,7 +58,7 @@ static Handle<JSWeakSet> AllocateJSWeakSet(Isolate* isolate) {
 static void PutIntoWeakSet(Handle<JSWeakSet> weakset,
                            Handle<JSObject> key,
                            Handle<Object> value) {
-  Handle<ObjectHashTable> table = PutIntoObjectHashTable(
+  Handle<ObjectHashTable> table = ObjectHashTable::Put(
       Handle<ObjectHashTable>(ObjectHashTable::cast(weakset->table())),
       Handle<JSObject>(JSObject::cast(*key)),
       value);
@@ -64,12 +66,14 @@ static void PutIntoWeakSet(Handle<JSWeakSet> weakset,
 }
 
 static int NumberOfWeakCalls = 0;
-static void WeakPointerCallback(v8::Isolate* isolate,
-                                v8::Persistent<v8::Value>* handle,
-                                void* id) {
-  ASSERT(id == reinterpret_cast<void*>(1234));
+static void WeakPointerCallback(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  std::pair<v8::Persistent<v8::Value>*, int>* p =
+      reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
+          data.GetParameter());
+  ASSERT_EQ(1234, p->second);
   NumberOfWeakCalls++;
-  handle->Dispose();
+  p->first->Reset();
 }
 
 
@@ -112,9 +116,10 @@ TEST(WeakSet_Weakness) {
   // Make the global reference to the key weak.
   {
     HandleScope scope(isolate);
-    global_handles->MakeWeak(key.location(),
-                             reinterpret_cast<void*>(1234),
-                             &WeakPointerCallback);
+    std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
+    GlobalHandles::MakeWeak(key.location(),
+                            reinterpret_cast<void*>(&handle_and_id),
+                            &WeakPointerCallback);
   }
   CHECK(global_handles->IsWeak(key.location()));
 

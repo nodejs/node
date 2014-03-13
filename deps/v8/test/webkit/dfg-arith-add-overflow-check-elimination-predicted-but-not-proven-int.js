@@ -64,4 +64,3 @@ for (var i = 0; i < warmup + badCases.length; ++i) {
     }
     shouldBe("bar(" + a + ", " + b + ", {f:" + c + "})", "" + expected);
 }
-

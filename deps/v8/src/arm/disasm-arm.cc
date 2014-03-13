@@ -1679,6 +1679,14 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
                                     "constant pool begin (length %d)",
                                     DecodeConstantPoolLength(instruction_bits));
     return Instruction::kInstrSize;
+  } else if (instruction_bits == kCodeAgeJumpInstruction) {
+    // The code age prologue has a constant immediatly following the jump
+    // instruction.
+    Instruction* target = Instruction::At(instr_ptr + Instruction::kInstrSize);
+    DecodeType2(instr);
+    OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                 " (0x%08x)", target->InstructionBits());
+    return 2 * Instruction::kInstrSize;
   }
   switch (instr->TypeValue()) {
     case 0:

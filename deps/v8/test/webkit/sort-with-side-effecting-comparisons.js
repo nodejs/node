@@ -40,5 +40,3 @@ array.sort(function(a, b) {
 });
 
 testPassed("It worked.");
-
-

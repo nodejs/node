@@ -45,4 +45,3 @@ var used_custom_lookup = false;
 var expected_message = "ReferenceError: f is not defined";
 assertTrue(stack.indexOf(expected_message) >= 0);
 assertFalse(used_custom_lookup);
-

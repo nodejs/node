@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --track-allocation-sites --noalways-opt
+// Flags: --noalways-opt
 
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile
@@ -34,11 +34,6 @@
 // by default, only a no-snapshot build actually has smi-only arrays enabled
 // in this test case.  Depending on whether smi-only arrays are actually
 // enabled, this test takes the appropriate code path to check smi-only arrays.
-
-// Reset the GC stress mode to be off. Needed because AllocationMementos only
-// live for one gc, so a gc that happens in certain fragile areas of the test
-// can break assumptions.
-%SetFlags("--gc-interval=-1")
 
 // support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
 support_smi_only_arrays = true;
@@ -90,66 +85,66 @@ if (support_smi_only_arrays) {
   // Verify that basic elements kind feedback works for non-constructor
   // array calls (as long as the call is made through an IC, and not
   // a CallStub).
-  (function (){
-    function create0() {
-      return Array();
-    }
+  // (function (){
+  //   function create0() {
+  //     return Array();
+  //   }
 
-    // Calls through ICs need warm up through uninitialized, then
-    // premonomorphic first.
-    create0();
-    create0();
-    a = create0();
-    assertKind(elements_kind.fast_smi_only, a);
-    a[0] = 3.5;
-    b = create0();
-    assertKind(elements_kind.fast_double, b);
+  //   // Calls through ICs need warm up through uninitialized, then
+  //   // premonomorphic first.
+  //   create0();
+  //   create0();
+  //   a = create0();
+  //   assertKind(elements_kind.fast_smi_only, a);
+  //   a[0] = 3.5;
+  //   b = create0();
+  //   assertKind(elements_kind.fast_double, b);
 
-    function create1(arg) {
-      return Array(arg);
-    }
+  //   function create1(arg) {
+  //     return Array(arg);
+  //   }
 
-    create1(0);
-    create1(0);
-    a = create1(0);
-    assertFalse(isHoley(a));
-    assertKind(elements_kind.fast_smi_only, a);
-    a[0] = "hello";
-    b = create1(10);
-    assertTrue(isHoley(b));
-    assertKind(elements_kind.fast, b);
+  //   create1(0);
+  //   create1(0);
+  //   a = create1(0);
+  //   assertFalse(isHoley(a));
+  //   assertKind(elements_kind.fast_smi_only, a);
+  //   a[0] = "hello";
+  //   b = create1(10);
+  //   assertTrue(isHoley(b));
+  //   assertKind(elements_kind.fast, b);
 
-    a = create1(100000);
-    assertKind(elements_kind.dictionary, a);
+  //   a = create1(100000);
+  //   assertKind(elements_kind.dictionary, a);
 
-    function create3(arg1, arg2, arg3) {
-      return Array(arg1, arg2, arg3);
-    }
+  //   function create3(arg1, arg2, arg3) {
+  //     return Array(arg1, arg2, arg3);
+  //   }
 
-    create3();
-    create3();
-    a = create3(1,2,3);
-    a[0] = 3.5;
-    b = create3(1,2,3);
-    assertKind(elements_kind.fast_double, b);
-    assertFalse(isHoley(b));
-  })();
+  //   create3();
+  //   create3();
+  //   a = create3(1,2,3);
+  //   a[0] = 3.5;
+  //   b = create3(1,2,3);
+  //   assertKind(elements_kind.fast_double, b);
+  //   assertFalse(isHoley(b));
+  // })();
 
 
   // Verify that keyed calls work
-  (function (){
-    function create0(name) {
-      return this[name]();
-    }
+  // (function (){
+  //   function create0(name) {
+  //     return this[name]();
+  //   }
 
-    name = "Array";
-    create0(name);
-    create0(name);
-    a = create0(name);
-    a[0] = 3.5;
-    b = create0(name);
-    assertKind(elements_kind.fast_double, b);
-  })();
+  //   name = "Array";
+  //   create0(name);
+  //   create0(name);
+  //   a = create0(name);
+  //   a[0] = 3.5;
+  //   b = create0(name);
+  //   assertKind(elements_kind.fast_double, b);
+  // })();
 
 
   // Verify that the IC can't be spoofed by patching
@@ -173,28 +168,28 @@ if (support_smi_only_arrays) {
   // though the type information is reset.
   // TODO(mvstanton): instead, consume the type feedback gathered up
   // until crankshaft time.
-  (function (){
-    function create0() {
-      return Array();
-    }
+  // (function (){
+  //   function create0() {
+  //     return Array();
+  //   }
 
-    create0();
-    create0();
-    a = create0();
-    a[0] = 3.5;
-    %OptimizeFunctionOnNextCall(create0);
-    create0();
-    // This test only makes sense if crankshaft is allowed
-    if (4 != %GetOptimizationStatus(create0)) {
-      create0();
-      b = create0();
-      assertKind(elements_kind.fast_smi_only, b);
-      b[0] = 3.5;
-      c = create0();
-      assertKind(elements_kind.fast_double, c);
-      assertOptimized(create0);
-    }
-  })();
+  //   create0();
+  //   create0();
+  //   a = create0();
+  //   a[0] = 3.5;
+  //   %OptimizeFunctionOnNextCall(create0);
+  //   create0();
+  //   // This test only makes sense if crankshaft is allowed
+  //   if (4 != %GetOptimizationStatus(create0)) {
+  //     create0();
+  //     b = create0();
+  //     assertKind(elements_kind.fast_smi_only, b);
+  //     b[0] = 3.5;
+  //     c = create0();
+  //     assertKind(elements_kind.fast_double, c);
+  //     assertOptimized(create0);
+  //   }
+  // })();
 
 
   // Verify that cross context calls work

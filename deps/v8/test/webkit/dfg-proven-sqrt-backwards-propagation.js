@@ -47,4 +47,3 @@ for (var i = 0; i < 200; ++i) {
     }
     shouldBe("foo(array, 0)", expected);
 }
-

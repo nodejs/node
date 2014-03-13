@@ -44,27 +44,6 @@ namespace internal {
 
 // Utility functions
 
-// Test whether a 64-bit value is in a specific range.
-inline bool is_uint32(int64_t x) {
-  static const uint64_t kMaxUInt32 = V8_UINT64_C(0xffffffff);
-  return static_cast<uint64_t>(x) <= kMaxUInt32;
-}
-
-inline bool is_int32(int64_t x) {
-  static const int64_t kMinInt32 = -V8_INT64_C(0x80000000);
-  return is_uint32(x - kMinInt32);
-}
-
-inline bool uint_is_int32(uint64_t x) {
-  static const uint64_t kMaxInt32 = V8_UINT64_C(0x7fffffff);
-  return x <= kMaxInt32;
-}
-
-inline bool is_uint32(uint64_t x) {
-  static const uint64_t kMaxUInt32 = V8_UINT64_C(0xffffffff);
-  return x <= kMaxUInt32;
-}
-
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
@@ -91,11 +70,10 @@ struct Register {
   // The non-allocatable registers are:
   //  rsp - stack pointer
   //  rbp - frame pointer
-  //  rsi - context register
   //  r10 - fixed scratch register
   //  r12 - smi constant register
   //  r13 - root register
-  static const int kMaxNumAllocatableRegisters = 10;
+  static const int kMaxNumAllocatableRegisters = 11;
   static int NumAllocatableRegisters() {
     return kMaxNumAllocatableRegisters;
   }
@@ -118,6 +96,7 @@ struct Register {
       "rbx",
       "rdx",
       "rcx",
+      "rsi",
       "rdi",
       "r8",
       "r9",
@@ -395,7 +374,7 @@ enum ScaleFactor {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
-  times_pointer_size = times_8
+  times_pointer_size = (kPointerSize == 8) ? times_8 : times_4
 };
 
 
@@ -530,6 +509,10 @@ class CpuFeatures : public AllStatic {
 };
 
 
+#define ASSEMBLER_INSTRUCTION_LIST(V)  \
+  V(mov)
+
+
 class Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
@@ -586,11 +569,13 @@ class Assembler : public AssemblerBase {
     set_target_address_at(instruction_payload, target);
   }
 
-  // This sets the branch destination (which is a load instruction on x64).
-  // This is for calls and branches to runtime code.
-  inline static void set_external_target_at(Address instruction_payload,
-                                            Address target) {
-    *reinterpret_cast<Address*>(instruction_payload) = target;
+  static inline RelocInfo::Mode RelocInfoNone() {
+    if (kPointerSize == kInt64Size) {
+      return RelocInfo::NONE64;
+    } else {
+      ASSERT(kPointerSize == kInt32Size);
+      return RelocInfo::NONE32;
+    }
   }
 
   inline Handle<Object> code_target_object_handle_at(Address pc);
@@ -665,6 +650,24 @@ class Assembler : public AssemblerBase {
   // Some mnemonics, such as "and", are the same as C++ keywords.
   // Naming conflicts with C++ keywords are resolved by adding a trailing '_'.
 
+#define DECLARE_INSTRUCTION(instruction)                \
+  template<class P1, class P2>                          \
+  void instruction##p(P1 p1, P2 p2) {                   \
+    emit_##instruction(p1, p2, kPointerSize);           \
+  }                                                     \
+                                                        \
+  template<class P1, class P2>                          \
+  void instruction##l(P1 p1, P2 p2) {                   \
+    emit_##instruction(p1, p2, kInt32Size);             \
+  }                                                     \
+                                                        \
+  template<class P1, class P2>                          \
+  void instruction##q(P1 p1, P2 p2) {                   \
+    emit_##instruction(p1, p2, kInt64Size);             \
+  }
+  ASSEMBLER_INSTRUCTION_LIST(DECLARE_INSTRUCTION)
+#undef DECLARE_INSTRUCTION
+
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
   // of m, where m must be a power of 2.
@@ -694,38 +697,24 @@ class Assembler : public AssemblerBase {
   void movb(Register dst, const Operand& src);
   void movb(Register dst, Immediate imm);
   void movb(const Operand& dst, Register src);
+  void movb(const Operand& dst, Immediate imm);
 
   // Move the low 16 bits of a 64-bit register value to a 16-bit
   // memory location.
+  void movw(Register dst, const Operand& src);
   void movw(const Operand& dst, Register src);
+  void movw(const Operand& dst, Immediate imm);
 
-  void movl(Register dst, Register src);
-  void movl(Register dst, const Operand& src);
-  void movl(const Operand& dst, Register src);
-  void movl(const Operand& dst, Immediate imm);
-  // Load a 32-bit immediate value, zero-extended to 64 bits.
-  void movl(Register dst, Immediate imm32);
-
-  // Move 64 bit register value to 64-bit memory location.
-  void movq(const Operand& dst, Register src);
-  // Move 64 bit memory location to 64-bit register value.
-  void movq(Register dst, const Operand& src);
-  void movq(Register dst, Register src);
-  // Sign extends immediate 32-bit value to 64 bits.
-  void movq(Register dst, Immediate x);
   // Move the offset of the label location relative to the current
   // position (after the move) to the destination.
   void movl(const Operand& dst, Label* src);
 
-  // Move sign extended immediate to memory location.
-  void movq(const Operand& dst, Immediate value);
-  // Instructions to load a 64-bit immediate into a register.
-  // All 64-bit immediates must have a relocation mode.
-  void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
-  void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
-  // Moves the address of the external reference into the register.
-  void movq(Register dst, ExternalReference ext);
-  void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
+  // Loads a pointer into a register with a relocation mode.
+  void movp(Register dst, void* ptr, RelocInfo::Mode rmode);
+
+  // Loads a 64-bit immediate into a register.
+  void movq(Register dst, int64_t value);
+  void movq(Register dst, uint64_t value);
 
   void movsxbq(Register dst, const Operand& src);
   void movsxwq(Register dst, const Operand& src);
@@ -1011,7 +1000,6 @@ class Assembler : public AssemblerBase {
     immediate_arithmetic_op_32(0x1, dst, src);
   }
 
-
   void rcl(Register dst, Immediate imm8) {
     shift(dst, imm8, 0x2);
   }
@@ -1251,9 +1239,6 @@ class Assembler : public AssemblerBase {
   // Call near absolute indirect, address in register
   void call(Register adr);
 
-  // Call near indirect
-  void call(const Operand& operand);
-
   // Jumps
   // Jump short or near relative.
   // Use a 32-bit signed displacement.
@@ -1264,9 +1249,6 @@ class Assembler : public AssemblerBase {
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
-
-  // Jump near absolute indirect (m64)
-  void jmp(const Operand& src);
 
   // Conditional jumps
   void j(Condition cc,
@@ -1350,13 +1332,27 @@ class Assembler : public AssemblerBase {
   void movaps(XMMRegister dst, XMMRegister src);
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
+  void shufps(XMMRegister dst, XMMRegister src, byte imm8);
 
   void cvttss2si(Register dst, const Operand& src);
   void cvttss2si(Register dst, XMMRegister src);
   void cvtlsi2ss(XMMRegister dst, Register src);
 
-  void xorps(XMMRegister dst, XMMRegister src);
   void andps(XMMRegister dst, XMMRegister src);
+  void andps(XMMRegister dst, const Operand& src);
+  void orps(XMMRegister dst, XMMRegister src);
+  void orps(XMMRegister dst, const Operand& src);
+  void xorps(XMMRegister dst, XMMRegister src);
+  void xorps(XMMRegister dst, const Operand& src);
+
+  void addps(XMMRegister dst, XMMRegister src);
+  void addps(XMMRegister dst, const Operand& src);
+  void subps(XMMRegister dst, XMMRegister src);
+  void subps(XMMRegister dst, const Operand& src);
+  void mulps(XMMRegister dst, XMMRegister src);
+  void mulps(XMMRegister dst, const Operand& src);
+  void divps(XMMRegister dst, XMMRegister src);
+  void divps(XMMRegister dst, const Operand& src);
 
   void movmskps(Register dst, XMMRegister src);
 
@@ -1476,6 +1472,13 @@ class Assembler : public AssemblerBase {
   byte byte_at(int pos)  { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
+ protected:
+  // Call near indirect
+  void call(const Operand& operand);
+
+  // Jump near absolute indirect (m64)
+  void jmp(const Operand& src);
+
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }
   uint32_t long_at(int pos)  {
@@ -1582,6 +1585,25 @@ class Assembler : public AssemblerBase {
   // numbers have a high bit set.
   inline void emit_optional_rex_32(const Operand& op);
 
+  template<class P1>
+  void emit_rex(P1 p1, int size) {
+    if (size == kInt64Size) {
+      emit_rex_64(p1);
+    } else {
+      ASSERT(size == kInt32Size);
+      emit_optional_rex_32(p1);
+    }
+  }
+
+  template<class P1, class P2>
+  void emit_rex(P1 p1, P2 p2, int size) {
+    if (size == kInt64Size) {
+      emit_rex_64(p1, p2);
+    } else {
+      ASSERT(size == kInt32Size);
+      emit_optional_rex_32(p1, p2);
+    }
+  }
 
   // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also encodes
@@ -1666,6 +1688,12 @@ class Assembler : public AssemblerBase {
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
+
+  void emit_mov(Register dst, const Operand& src, int size);
+  void emit_mov(Register dst, Register src, int size);
+  void emit_mov(const Operand& dst, Register src, int size);
+  void emit_mov(Register dst, Immediate value, int size);
+  void emit_mov(const Operand& dst, Immediate value, int size);
 
   friend class CodePatcher;
   friend class EnsureSpace;

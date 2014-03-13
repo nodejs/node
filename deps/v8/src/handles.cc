@@ -55,17 +55,16 @@ int HandleScope::NumberOfHandles(Isolate* isolate) {
 
 
 Object** HandleScope::Extend(Isolate* isolate) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
+  HandleScopeData* current = isolate->handle_scope_data();
 
   Object** result = current->next;
 
   ASSERT(result == current->limit);
   // Make sure there's at least one scope on the stack and that the
   // top of the scope stack isn't a barrier.
-  if (current->level == 0) {
-    Utils::ReportApiFailure("v8::HandleScope::CreateHandle()",
-                            "Cannot create a handle without a HandleScope");
+  if (!Utils::ApiCheck(current->level != 0,
+                       "v8::HandleScope::CreateHandle()",
+                       "Cannot create a handle without a HandleScope")) {
     return NULL;
   }
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
@@ -95,8 +94,7 @@ Object** HandleScope::Extend(Isolate* isolate) {
 
 
 void HandleScope::DeleteExtensions(Isolate* isolate) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
+  HandleScopeData* current = isolate->handle_scope_data();
   isolate->handle_scope_implementer()->DeleteExtensions(current->limit);
 }
 
@@ -160,30 +158,12 @@ Handle<String> FlattenGetString(Handle<String> string) {
 }
 
 
-Handle<Object> SetProperty(Isolate* isolate,
-                           Handle<Object> object,
-                           Handle<Object> key,
-                           Handle<Object> value,
-                           PropertyAttributes attributes,
-                           StrictModeFlag strict_mode) {
-  CALL_HEAP_FUNCTION(
-      isolate,
-      Runtime::SetObjectProperty(
-          isolate, object, key, value, attributes, strict_mode),
-      Object);
-}
-
-
 Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> key,
                                 Handle<Object> value,
                                 PropertyAttributes attributes) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(
-      isolate,
-      Runtime::ForceSetObjectProperty(
-          isolate, object, key, value, attributes),
-      Object);
+  return Runtime::ForceSetObjectProperty(object->GetIsolate(), object, key,
+                                        value, attributes);
 }
 
 
@@ -229,11 +209,12 @@ Handle<Object> GetProperty(Isolate* isolate,
 }
 
 
-Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
+Handle<String> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index) {
   CALL_HEAP_FUNCTION(
       isolate,
-      isolate->heap()->LookupSingleCharacterStringFromCode(index), Object);
+      isolate->heap()->LookupSingleCharacterStringFromCode(index),
+      String);
 }
 
 
@@ -243,26 +224,24 @@ Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
 // collector will call the weak callback on the global handle
 // associated with the wrapper and get rid of both the wrapper and the
 // handle.
-static void ClearWrapperCache(v8::Isolate* v8_isolate,
-                              Persistent<v8::Value>* handle,
-                              void*) {
-  Handle<Object> cache = Utils::OpenPersistent(handle);
-  JSValue* wrapper = JSValue::cast(*cache);
+static void ClearWrapperCache(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  Object** location = reinterpret_cast<Object**>(data.GetParameter());
+  JSValue* wrapper = JSValue::cast(*location);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();
-  ASSERT(foreign->foreign_address() ==
-         reinterpret_cast<Address>(cache.location()));
+  ASSERT_EQ(foreign->foreign_address(), reinterpret_cast<Address>(location));
   foreign->set_foreign_address(0);
-  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-  isolate->global_handles()->Destroy(cache.location());
+  GlobalHandles::Destroy(location);
+  Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   isolate->counters()->script_wrappers()->Decrement();
 }
 
 
 Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   if (script->wrapper()->foreign_address() != NULL) {
-    // Return the script wrapper directly from the cache.
+    // Return a handle for the existing script wrapper from the cache.
     return Handle<JSValue>(
-        reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
+        *reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
   }
   Isolate* isolate = script->GetIsolate();
   // Construct a new script wrapper.
@@ -273,10 +252,10 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
 
   // The allocation might have triggered a GC, which could have called this
   // function recursively, and a wrapper has already been created and cached.
-  // In that case, simply return the cached wrapper.
+  // In that case, simply return a handle for the cached wrapper.
   if (script->wrapper()->foreign_address() != NULL) {
     return Handle<JSValue>(
-        reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
+        *reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
   }
 
   result->set_value(*script);
@@ -285,9 +264,9 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   // for future use. The cache will automatically be cleared by the
   // garbage collector when it is not used anymore.
   Handle<Object> handle = isolate->global_handles()->Create(*result);
-  isolate->global_handles()->MakeWeak(handle.location(),
-                                      NULL,
-                                      &ClearWrapperCache);
+  GlobalHandles::MakeWeak(handle.location(),
+                          reinterpret_cast<void*>(handle.location()),
+                          &ClearWrapperCache);
   script->wrapper()->set_foreign_address(
       reinterpret_cast<Address>(handle.location()));
   return result;
@@ -655,7 +634,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
       // present enum cache. The first step to using the cache is to set the
       // enum length of the map by counting the number of own descriptors that
       // are not DONT_ENUM or SYMBOLIC.
-      if (own_property_count == Map::kInvalidEnumCache) {
+      if (own_property_count == kInvalidEnumCacheSentinel) {
         own_property_count = object->map()->NumberOfDescribedProperties(
             OWN_DESCRIPTORS, DONT_SHOW);
 
@@ -767,36 +746,10 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 }
 
 
-Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
-                                       Handle<Object> key) {
-  CALL_HEAP_FUNCTION(table->GetIsolate(),
-                     table->Add(*key),
-                     ObjectHashSet);
-}
-
-
-Handle<ObjectHashSet> ObjectHashSetRemove(Handle<ObjectHashSet> table,
-                                          Handle<Object> key) {
-  CALL_HEAP_FUNCTION(table->GetIsolate(),
-                     table->Remove(*key),
-                     ObjectHashSet);
-}
-
-
-Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<Object> key,
-                                               Handle<Object> value) {
-  CALL_HEAP_FUNCTION(table->GetIsolate(),
-                     table->Put(*key, *value),
-                     ObjectHashTable);
-}
-
-
 DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
   impl_->BeginDeferredScope();
-  v8::ImplementationUtilities::HandleScopeData* data =
-      impl_->isolate()->handle_scope_data();
+  HandleScopeData* data = impl_->isolate()->handle_scope_data();
   Object** new_next = impl_->GetSpareOrNewBlock();
   Object** new_limit = &new_next[kHandleBlockSize];
   ASSERT(data->limit == &impl_->blocks()->last()[kHandleBlockSize]);
@@ -822,8 +775,7 @@ DeferredHandleScope::~DeferredHandleScope() {
 
 DeferredHandles* DeferredHandleScope::Detach() {
   DeferredHandles* deferred = impl_->Detach(prev_limit_);
-  v8::ImplementationUtilities::HandleScopeData* data =
-      impl_->isolate()->handle_scope_data();
+  HandleScopeData* data = impl_->isolate()->handle_scope_data();
   data->next = prev_next_;
   data->limit = prev_limit_;
 #ifdef DEBUG

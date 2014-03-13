@@ -53,7 +53,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   CHECK(buffer);
   HandleScope handles(isolate);
   MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size));
-  assm.set_allow_stub_calls(false);
   int offset =
     source_reg.is(esp) ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
   DoubleToIStub stub(source_reg, destination_reg, offset, true);
@@ -73,7 +72,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save registers make sure they don't get clobbered.
   int reg_num = 0;
   for (;reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
-    Register reg = Register::from_code(reg_num);
+    Register reg = Register::FromAllocationIndex(reg_num);
     if (!reg.is(esp) && !reg.is(ebp) && !reg.is(destination_reg)) {
       __ push(reg);
       param_offset += kPointerSize;
@@ -91,7 +90,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 0; --reg_num) {
-    Register reg = Register::from_code(reg_num);
+    Register reg = Register::FromAllocationIndex(reg_num);
     if (!reg.is(esp) && !reg.is(ebp) && !reg.is(destination_reg)) {
       __ cmp(reg, MemOperand(esp, 0));
       __ Assert(equal, kRegisterWasClobbered);

@@ -34,4 +34,3 @@ this.__defineSetter__(42, function(value) {
 this[42] = "foo";
 
 shouldBe("thingy", "\"foo\"");
-

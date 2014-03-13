@@ -65,4 +65,3 @@ for (var i = 0; i < 10; ++i) {
     shouldBe("doMultiplyConstant4(-1073741824)", "-4294967296");
     shouldBe("doMultiplyConstant4(-2147483648)", "-8589934592");
 }
-

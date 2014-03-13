@@ -667,7 +667,7 @@ TEST(Regress1433) {
       v8::HandleScope handle_scope(isolate);
       v8::Handle<Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
-      v8::Handle<String> source = v8::String::New("1+1");
+      v8::Handle<String> source = v8::String::NewFromUtf8(isolate, "1+1");
       v8::Handle<Script> script = v8::Script::Compile(source);
       v8::Handle<Value> result = script->Run();
       v8::String::Utf8Value utf8(result);

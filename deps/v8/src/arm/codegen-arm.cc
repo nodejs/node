@@ -37,18 +37,6 @@ namespace v8 {
 namespace internal {
 
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
-  switch (type) {
-    case TranscendentalCache::SIN: return &sin;
-    case TranscendentalCache::COS: return &cos;
-    case TranscendentalCache::TAN: return &tan;
-    case TranscendentalCache::LOG: return &log;
-    default: UNIMPLEMENTED();
-  }
-  return NULL;
-}
-
-
 #define __ masm.
 
 
@@ -62,10 +50,10 @@ double fast_exp_simulator(double x) {
 
 
 UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &exp;
+  if (!FLAG_fast_math) return &std::exp;
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &exp;
+  if (buffer == NULL) return &std::exp;
   ExternalReference::InitializeMathExpData();
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
@@ -359,12 +347,32 @@ OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
 }
 #endif
 
-#undef __
-
-
 UnaryMathFunction CreateSqrtFunction() {
-  return &sqrt;
+#if defined(USE_SIMULATOR)
+  return &std::sqrt;
+#else
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  if (buffer == NULL) return &std::sqrt;
+
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+
+  __ MovFromFloatParameter(d0);
+  __ vsqrt(d0, d0);
+  __ MovToFloatResult(d0);
+  __ Ret();
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  ASSERT(!RelocInfo::RequiresRelocation(desc));
+
+  CPU::FlushICache(buffer, actual_size);
+  OS::ProtectCode(buffer, actual_size);
+  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+#endif
 }
+
+#undef __
 
 
 // -------------------------------------------------------------------------
@@ -836,8 +844,10 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
 #undef __
 
+#ifdef DEBUG
 // add(r0, pc, Operand(-8))
 static const uint32_t kCodeAgePatchFirstInstruction = 0xe24f0008;
+#endif
 
 static byte* GetNoCodeAgeSequence(uint32_t* length) {
   // The sequence of instructions that is patched out for aging code is the
@@ -847,11 +857,15 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
   byte* byte_sequence = reinterpret_cast<byte*>(sequence);
   *length = kNoCodeAgeSequenceLength * Assembler::kInstrSize;
   if (!initialized) {
-    CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
-    PredictableCodeSizeScope scope(patcher.masm(), *length);
-    patcher.masm()->stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
-    patcher.masm()->nop(ip.code());
-    patcher.masm()->add(fp, sp, Operand(2 * kPointerSize));
+    // Since patcher is a large object, allocate it dynamically when needed,
+    // to avoid overloading the stack in stress conditions.
+    SmartPointer<CodePatcher>
+        patcher(new CodePatcher(byte_sequence, kNoCodeAgeSequenceLength));
+    PredictableCodeSizeScope scope(patcher->masm(), *length);
+    patcher->masm()->PushFixedFrame(r1);
+    patcher->masm()->nop(ip.code());
+    patcher->masm()->add(
+        fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
     initialized = true;
   }
   return byte_sequence;
@@ -896,7 +910,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     CodePatcher patcher(sequence, young_length / Assembler::kInstrSize);
     patcher.masm()->add(r0, pc, Operand(-8));
     patcher.masm()->ldr(pc, MemOperand(pc, -4));
-    patcher.masm()->dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+    patcher.masm()->emit_code_stub_address(stub);
   }
 }
 

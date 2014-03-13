@@ -72,7 +72,8 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
 function SetUpProxy() {
   %CheckIsBootstrapping()
 
-  global.Proxy = $Proxy;
+  var global_receiver = %GlobalReceiver(global);
+  global_receiver.Proxy = $Proxy;
 
   // Set up non-enumerable properties of the Proxy object.
   InstallFunctions($Proxy, DONT_ENUM, [

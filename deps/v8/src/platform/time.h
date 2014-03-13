@@ -28,7 +28,7 @@
 #ifndef V8_PLATFORM_TIME_H_
 #define V8_PLATFORM_TIME_H_
 
-#include <ctime>
+#include <time.h>
 #include <limits>
 
 #include "../allocation.h"

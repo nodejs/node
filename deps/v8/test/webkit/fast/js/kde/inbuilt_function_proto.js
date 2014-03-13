@@ -43,6 +43,7 @@ shouldBe("String.prototype.charCodeAt.__proto__","Function.prototype");
 shouldBe("String.prototype.indexOf.__proto__","Function.prototype");
 shouldBe("String.prototype.lastIndexOf.__proto__","Function.prototype");
 shouldBe("String.prototype.match.__proto__","Function.prototype");
+shouldBe("String.prototype.normalize.__proto__","Function.prototype");
 shouldBe("String.prototype.replace.__proto__","Function.prototype");
 shouldBe("String.prototype.search.__proto__","Function.prototype");
 shouldBe("String.prototype.slice.__proto__","Function.prototype");

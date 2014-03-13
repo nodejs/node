@@ -46,4 +46,3 @@ class JUnitTestOutput:
 
   def FinishAndWrite(self, file):
     xml.ElementTree(self.root).write(file, "UTF-8")
-

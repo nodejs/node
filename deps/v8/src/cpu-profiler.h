@@ -158,6 +158,11 @@ class ProfilerEventsProcessor : public Thread {
   inline TickSample* StartTickSample();
   inline void FinishTickSample();
 
+  // SamplingCircularQueue has stricter alignment requirements than a normal new
+  // can fulfil, so we need to provide our own new/delete here.
+  void* operator new(size_t size);
+  void operator delete(void* ptr);
+
  private:
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
@@ -268,7 +273,6 @@ class CpuProfiler : public CodeEventListener {
   Isolate* isolate_;
   TimeDelta sampling_interval_;
   CpuProfilesCollection* profiles_;
-  unsigned next_profile_uid_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   bool saved_is_logging_;

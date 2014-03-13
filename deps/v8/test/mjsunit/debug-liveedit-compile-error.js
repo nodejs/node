@@ -56,5 +56,3 @@ assertEquals("Unexpected token )",
     caught_exception.details.syntaxErrorMessage);
 
 assertEquals(2, caught_exception.details.position.start.line);
-
-

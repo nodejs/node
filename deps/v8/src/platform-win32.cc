@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for Win32.
+// Platform-specific code for Win32.
 
 // Secure API functions are not available using MinGW with msvcrt.dll
 // on Windows XP. Make sure MINGW_HAS_SECURE_API is not defined to
@@ -133,11 +133,6 @@ intptr_t OS::MaxVirtualMemory() {
 }
 
 
-double ceiling(double x) {
-  return ceil(x);
-}
-
-
 #if V8_TARGET_ARCH_IA32
 static void MemMoveWrapper(void* dest, const void* src, size_t size) {
   memmove(dest, src, size);
@@ -201,10 +196,6 @@ double fast_##name(double x) {                           \
   return (*fast_##name##_function)(x);                   \
 }
 
-UNARY_MATH_FUNCTION(sin, CreateTranscendentalFunction(TranscendentalCache::SIN))
-UNARY_MATH_FUNCTION(cos, CreateTranscendentalFunction(TranscendentalCache::COS))
-UNARY_MATH_FUNCTION(tan, CreateTranscendentalFunction(TranscendentalCache::TAN))
-UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
 UNARY_MATH_FUNCTION(exp, CreateExpFunction())
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
@@ -222,10 +213,6 @@ void MathSetup() {
 #ifdef _WIN64
   init_modulo_function();
 #endif
-  init_fast_sin_function();
-  init_fast_cos_function();
-  init_fast_tan_function();
-  init_fast_log_function();
   // fast_exp is initialized lazily.
   init_fast_sqrt_function();
 }

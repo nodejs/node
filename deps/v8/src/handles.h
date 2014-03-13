@@ -29,7 +29,6 @@
 #define V8_HANDLES_H_
 
 #include "allocation.h"
-#include "apiutils.h"
 #include "objects.h"
 
 namespace v8 {
@@ -83,7 +82,7 @@ class Handle {
 
   // Closes the given scope, but lets this handle escape. See
   // implementation in api.h.
-  inline Handle<T> EscapeFrom(v8::HandleScope* scope);
+  inline Handle<T> EscapeFrom(v8::EscapableHandleScope* scope);
 
 #ifdef DEBUG
   enum DereferenceCheckMode { INCLUDE_DEFERRED_CHECK, NO_DEFERRED_CHECK };
@@ -228,13 +227,6 @@ void FlattenString(Handle<String> str);
 // string.
 Handle<String> FlattenGetString(Handle<String> str);
 
-Handle<Object> SetProperty(Isolate* isolate,
-                           Handle<Object> object,
-                           Handle<Object> key,
-                           Handle<Object> value,
-                           PropertyAttributes attributes,
-                           StrictModeFlag strict_mode);
-
 Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> key,
                                 Handle<Object> value,
@@ -252,7 +244,7 @@ Handle<Object> GetProperty(Isolate* isolate,
                            Handle<Object> obj,
                            Handle<Object> key);
 
-Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
+Handle<String> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index);
 
 Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,
@@ -303,16 +295,6 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
     Handle<JSFunction> constructor,
     Handle<JSGlobalProxy> global);
 
-Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
-                                       Handle<Object> key);
-
-Handle<ObjectHashSet> ObjectHashSetRemove(Handle<ObjectHashSet> table,
-                                          Handle<Object> key);
-
-Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<Object> key,
-                                               Handle<Object> value);
-
 void AddWeakObjectToCodeDependency(Heap* heap,
                                    Handle<Object> object,
                                    Handle<Code> code);
@@ -332,6 +314,17 @@ class SealHandleScope BASE_EMBEDDED {
   Object** limit_;
   int level_;
 #endif
+};
+
+struct HandleScopeData {
+  internal::Object** next;
+  internal::Object** limit;
+  int level;
+
+  void Initialize() {
+    next = limit = NULL;
+    level = 0;
+  }
 };
 
 } }  // namespace v8::internal

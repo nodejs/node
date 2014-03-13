@@ -219,8 +219,6 @@ class ShellOptions {
  public:
   ShellOptions() :
 #ifndef V8_SHARED
-     use_preemption(true),
-     preemption_interval(10),
      num_parallel_files(0),
      parallel_files(NULL),
 #endif  // V8_SHARED
@@ -233,6 +231,7 @@ class ShellOptions {
      test_shell(false),
      dump_heap_constants(false),
      expected_to_throw(false),
+     mock_arraybuffer_allocator(false),
      num_isolates(1),
      isolate_sources(NULL) { }
 
@@ -244,8 +243,6 @@ class ShellOptions {
   }
 
 #ifndef V8_SHARED
-  bool use_preemption;
-  int preemption_interval;
   int num_parallel_files;
   char** parallel_files;
 #endif  // V8_SHARED
@@ -258,6 +255,7 @@ class ShellOptions {
   bool test_shell;
   bool dump_heap_constants;
   bool expected_to_throw;
+  bool mock_arraybuffer_allocator;
   int num_isolates;
   SourceGroup* isolate_sources;
 };
@@ -296,10 +294,10 @@ class Shell : public i::AllStatic {
   static void MapCounters(const char* name);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  static Handle<Object> DebugMessageDetails(Isolate* isolate,
-                                            Handle<String> message);
-  static Handle<Value> DebugCommandToJSONRequest(Isolate* isolate,
-                                                 Handle<String> command);
+  static Local<Object> DebugMessageDetails(Isolate* isolate,
+                                           Handle<String> message);
+  static Local<Value> DebugCommandToJSONRequest(Isolate* isolate,
+                                                Handle<String> command);
   static void DispatchDebugMessages();
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
@@ -379,7 +377,8 @@ class Shell : public i::AllStatic {
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void AddOSMethods(Handle<ObjectTemplate> os_template);
+  static void AddOSMethods(v8::Isolate* isolate,
+                           Handle<ObjectTemplate> os_template);
 
   static const char* kPrompt;
   static ShellOptions options;

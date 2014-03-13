@@ -43,7 +43,9 @@ enum InterruptFlag {
   TERMINATE = 1 << 4,
   GC_REQUEST = 1 << 5,
   FULL_DEOPT = 1 << 6,
-  INSTALL_CODE = 1 << 7
+  INSTALL_CODE = 1 << 7,
+  API_INTERRUPT = 1 << 8,
+  DEOPT_MARKED_ALLOCATION_SITES = 1 << 9
 };
 
 
@@ -171,6 +173,9 @@ class Execution : public AllStatic {
   static Handle<Object> TryGetConstructorDelegate(Isolate* isolate,
                                                   Handle<Object> object,
                                                   bool* has_pending_exception);
+
+  static void RunMicrotasks(Isolate* isolate);
+  static void EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask);
 };
 
 
@@ -218,7 +223,14 @@ class StackGuard {
   void RequestInstallCode();
   bool IsFullDeopt();
   void FullDeopt();
+  bool IsDeoptMarkedAllocationSites();
+  void DeoptMarkedAllocationSites();
   void Continue(InterruptFlag after_what);
+
+  void RequestInterrupt(InterruptCallback callback, void* data);
+  void ClearInterrupt();
+  bool IsAPIInterrupt();
+  void InvokeInterruptCallback();
 
   // This provides an asynchronous read of the stack limits for the current
   // thread.  There are no locks protecting this, but it is assumed that you
@@ -270,7 +282,7 @@ class StackGuard {
   void EnableInterrupts();
   void DisableInterrupts();
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_A64
   static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
   static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
 #else
@@ -305,6 +317,9 @@ class StackGuard {
     int nesting_;
     int postpone_interrupts_nesting_;
     int interrupt_flags_;
+
+    InterruptCallback interrupt_callback_;
+    void* interrupt_callback_data_;
   };
 
   // TODO(isolates): Technically this could be calculated directly from a

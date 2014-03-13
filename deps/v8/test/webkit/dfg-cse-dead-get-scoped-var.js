@@ -38,4 +38,3 @@ function foo(a) {
 
 for (var i = 0; i < 1000; ++i)
     shouldBe("foo(i)(false)", "42");
-

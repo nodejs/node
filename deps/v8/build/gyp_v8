@@ -36,13 +36,8 @@ import platform
 import shlex
 import sys
 
-script_dir = os.path.dirname(__file__)
-v8_root = os.path.normpath(os.path.join(script_dir, os.pardir))
-
-if __name__ == '__main__':
-  os.chdir(v8_root)
-  script_dir = os.path.dirname(__file__)
-  v8_root = '.'
+script_dir = os.path.dirname(os.path.realpath(__file__))
+v8_root = os.path.abspath(os.path.join(script_dir, os.pardir))
 
 sys.path.insert(0, os.path.join(v8_root, 'build', 'gyp', 'pylib'))
 import gyp
@@ -142,10 +137,7 @@ if __name__ == '__main__':
       # path separators even on Windows due to the use of shlex.split().
       args.extend(shlex.split(gyp_file))
     else:
-      # Note that this must not start with "./" or things break.
-      # So we rely on having done os.chdir(v8_root) above and use the
-      # relative path.
-      args.append(os.path.join('build', 'all.gyp'))
+      args.append(os.path.join(script_dir, 'all.gyp'))
 
   args.extend(['-I' + i for i in additional_include_files(args)])
 
@@ -153,7 +145,7 @@ if __name__ == '__main__':
   args.append('--no-circular-check')
 
   # Set the GYP DEPTH variable to the root of the V8 project.
-  args.append('--depth=' + v8_root)
+  args.append('--depth=' + os.path.relpath(v8_root))
 
   # If V8_GYP_SYNTAX_CHECK is set to 1, it will invoke gyp with --check
   # to enfore syntax checking.
@@ -167,5 +159,12 @@ if __name__ == '__main__':
   # Generate for the architectures supported on the given platform.
   gyp_args = list(args)
   if platform.system() == 'Linux':
+    # Work around for crbug.com/331475.
+    for f in glob.glob(os.path.join(v8_root, 'out', 'Makefile.*')):
+      os.unlink(f)
+    # --generator-output defines where the Makefile goes.
     gyp_args.append('--generator-output=out')
+    # -Goutput_dir defines where the build output goes, relative to the
+    # Makefile. Set it to . so that the build output doesn't end up in out/out.
+    gyp_args.append('-Goutput_dir=.')
   run_gyp(gyp_args)

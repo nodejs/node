@@ -43,4 +43,3 @@ assertEquals('Стара Планина', result[6]);
 assertEquals('ћук', result[7]);
 assertEquals('чука', result[8]);
 assertEquals('џак', result[9]);
-

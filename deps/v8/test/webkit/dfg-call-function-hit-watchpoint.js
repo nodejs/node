@@ -43,4 +43,3 @@ for (var i = 0; i < 200; ++i) {
         expected = -1;
     shouldBe("bar(i, i + 1)", "" + expected);
 }
-

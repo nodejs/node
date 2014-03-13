@@ -29,6 +29,7 @@
 
 #include "v8.h"
 #include "profile-generator-inl.h"
+#include "profiler-extension.h"
 #include "cctest.h"
 #include "cpu-profiler.h"
 #include "../include/v8-profiler.h"
@@ -47,42 +48,42 @@ using i::Vector;
 
 TEST(ProfileNodeFindOrAddChild) {
   ProfileTree tree;
-  ProfileNode node(&tree, NULL);
+  ProfileNode* node = tree.root();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
-  ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
+  ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
   CHECK_NE(NULL, childNode1);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
   CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
-  ProfileNode* childNode2 = node.FindOrAddChild(&entry2);
+  ProfileNode* childNode2 = node->FindOrAddChild(&entry2);
   CHECK_NE(NULL, childNode2);
   CHECK_NE(childNode1, childNode2);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
-  CHECK_EQ(childNode2, node.FindOrAddChild(&entry2));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
+  CHECK_EQ(childNode2, node->FindOrAddChild(&entry2));
   CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
-  ProfileNode* childNode3 = node.FindOrAddChild(&entry3);
+  ProfileNode* childNode3 = node->FindOrAddChild(&entry3);
   CHECK_NE(NULL, childNode3);
   CHECK_NE(childNode1, childNode3);
   CHECK_NE(childNode2, childNode3);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
-  CHECK_EQ(childNode2, node.FindOrAddChild(&entry2));
-  CHECK_EQ(childNode3, node.FindOrAddChild(&entry3));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
+  CHECK_EQ(childNode2, node->FindOrAddChild(&entry2));
+  CHECK_EQ(childNode3, node->FindOrAddChild(&entry3));
 }
 
 
 TEST(ProfileNodeFindOrAddChildForSameFunction) {
   const char* aaa = "aaa";
   ProfileTree tree;
-  ProfileNode node(&tree, NULL);
+  ProfileNode* node = tree.root();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, aaa);
-  ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
+  ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
   CHECK_NE(NULL, childNode1);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
   // The same function again.
   CodeEntry entry2(i::Logger::FUNCTION_TAG, aaa);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry2));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry2));
   // Now with a different security token.
   CodeEntry entry3(i::Logger::FUNCTION_TAG, aaa);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry3));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry3));
 }
 
 
@@ -400,7 +401,7 @@ class TestSetup {
 TEST(RecordTickSample) {
   TestSetup test_setup;
   CpuProfilesCollection profiles(CcTest::heap());
-  profiles.StartProfiling("", 1, false);
+  profiles.StartProfiling("", false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -466,7 +467,7 @@ static void CheckNodeIds(ProfileNode* node, int* expectedId) {
 TEST(SampleIds) {
   TestSetup test_setup;
   CpuProfilesCollection profiles(CcTest::heap());
-  profiles.StartProfiling("", 1, true);
+  profiles.StartProfiling("", true);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -514,7 +515,7 @@ TEST(SampleIds) {
 TEST(NoSamples) {
   TestSetup test_setup;
   CpuProfilesCollection profiles(CcTest::heap());
-  profiles.StartProfiling("", 1, false);
+  profiles.StartProfiling("", false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
@@ -536,60 +537,6 @@ TEST(NoSamples) {
 }
 
 
-// --- P r o f i l e r   E x t e n s i o n ---
-
-class ProfilerExtension : public v8::Extension {
- public:
-  ProfilerExtension() : v8::Extension("v8/profiler", kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
-      v8::Handle<v8::String> name);
-  static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
- private:
-  static const char* kSource;
-};
-
-
-const char* ProfilerExtension::kSource =
-    "native function startProfiling();"
-    "native function stopProfiling();";
-
-v8::Handle<v8::FunctionTemplate> ProfilerExtension::GetNativeFunction(
-    v8::Handle<v8::String> name) {
-  if (name->Equals(v8::String::New("startProfiling"))) {
-    return v8::FunctionTemplate::New(ProfilerExtension::StartProfiling);
-  } else if (name->Equals(v8::String::New("stopProfiling"))) {
-    return v8::FunctionTemplate::New(ProfilerExtension::StopProfiling);
-  } else {
-    CHECK(false);
-    return v8::Handle<v8::FunctionTemplate>();
-  }
-}
-
-
-void ProfilerExtension::StartProfiling(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::CpuProfiler* cpu_profiler = args.GetIsolate()->GetCpuProfiler();
-  if (args.Length() > 0)
-    cpu_profiler->StartCpuProfiling(args[0].As<v8::String>());
-  else
-    cpu_profiler->StartCpuProfiling(v8::String::New(""));
-}
-
-
-void ProfilerExtension::StopProfiling(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::CpuProfiler* cpu_profiler = args.GetIsolate()->GetCpuProfiler();
-  if (args.Length() > 0)
-    cpu_profiler->StopCpuProfiling(args[0].As<v8::String>());
-  else
-    cpu_profiler->StopCpuProfiling(v8::String::New(""));
-}
-
-
-static ProfilerExtension kProfilerExtension;
-v8::DeclareExtension kProfilerExtensionDeclaration(&kProfilerExtension);
-
 static const ProfileNode* PickChild(const ProfileNode* parent,
                                     const char* name) {
   for (int i = 0; i < parent->children()->length(); ++i) {
@@ -605,12 +552,9 @@ TEST(RecordStackTraceAtStartProfiling) {
   // don't appear in the stack trace.
   i::FLAG_use_inlining = false;
 
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
-  context->Enter();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
 
   CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   CHECK_EQ(0, profiler->GetProfilesCount());
@@ -658,12 +602,10 @@ TEST(Issue51919) {
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     i::Vector<char> title = i::Vector<char>::New(16);
     i::OS::SNPrintF(title, "%d", i);
-    // UID must be > 0.
-    CHECK(collection.StartProfiling(title.start(), i + 1, false));
+    CHECK(collection.StartProfiling(title.start(), false));
     titles[i] = title.start();
   }
-  CHECK(!collection.StartProfiling(
-      "maximum", CpuProfilesCollection::kMaxSimultaneousProfiles + 1, false));
+  CHECK(!collection.StartProfiling("maximum", false));
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)
     i::DeleteArray(titles[i]);
 }
@@ -673,7 +615,7 @@ static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
                                            const char* name) {
   for (int i = 0; i < parent->GetChildrenCount(); ++i) {
     const v8::CpuProfileNode* child = parent->GetChild(i);
-    v8::String::AsciiValue function_name(child->GetFunctionName());
+    v8::String::Utf8Value function_name(child->GetFunctionName());
     if (strcmp(*function_name, name) == 0) return child;
   }
   return NULL;
@@ -685,23 +627,24 @@ TEST(ProfileNodeScriptId) {
   // don't appear in the stack trace.
   i::FLAG_use_inlining = false;
 
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  LocalContext env(&config);
-  v8::HandleScope hs(env->GetIsolate());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
 
   v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
-  CHECK_EQ(0, profiler->GetProfileCount());
-  v8::Handle<v8::Script> script_a = v8::Script::Compile(v8::String::New(
-      "function a() { startProfiling(); }\n"));
+  i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
+  CHECK_EQ(0, iprofiler->GetProfilesCount());
+  v8::Handle<v8::Script> script_a = v8::Script::Compile(v8::String::NewFromUtf8(
+      env->GetIsolate(), "function a() { startProfiling(); }\n"));
   script_a->Run();
-  v8::Handle<v8::Script> script_b = v8::Script::Compile(v8::String::New(
-      "function b() { a(); }\n"
-      "b();\n"
-      "stopProfiling();\n"));
+  v8::Handle<v8::Script> script_b =
+      v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
+                                                  "function b() { a(); }\n"
+                                                  "b();\n"
+                                                  "stopProfiling();\n"));
   script_b->Run();
-  CHECK_EQ(1, profiler->GetProfileCount());
-  const v8::CpuProfile* profile = profiler->GetCpuProfile(0);
+  CHECK_EQ(1, iprofiler->GetProfilesCount());
+  const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
   reinterpret_cast<ProfileNode*>(
       const_cast<v8::CpuProfileNode*>(current))->Print(0);
@@ -786,29 +729,31 @@ TEST(LineNumber) {
 
 
 TEST(BailoutReason) {
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  LocalContext env(&config);
-  v8::HandleScope hs(env->GetIsolate());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
 
   v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
-  CHECK_EQ(0, profiler->GetProfileCount());
-  v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::New(
-      "function TryCatch() {\n"
-      "  try {\n"
-      "    startProfiling();\n"
-      "  } catch (e) { };\n"
-      "}\n"
-      "function TryFinally() {\n"
-      "  try {\n"
-      "    TryCatch();\n"
-      "  } finally { };\n"
-      "}\n"
-      "TryFinally();\n"
-      "stopProfiling();"));
+  i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
+  CHECK_EQ(0, iprofiler->GetProfilesCount());
+  v8::Handle<v8::Script> script =
+      v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
+                                                  "function TryCatch() {\n"
+                                                  "  try {\n"
+                                                  "    startProfiling();\n"
+                                                  "  } catch (e) { };\n"
+                                                  "}\n"
+                                                  "function TryFinally() {\n"
+                                                  "  try {\n"
+                                                  "    TryCatch();\n"
+                                                  "  } finally { };\n"
+                                                  "}\n"
+                                                  "TryFinally();\n"
+                                                  "stopProfiling();"));
   script->Run();
-  CHECK_EQ(1, profiler->GetProfileCount());
-  const v8::CpuProfile* profile = profiler->GetCpuProfile(0);
+  CHECK_EQ(1, iprofiler->GetProfilesCount());
+  const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
+  CHECK(profile);
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
   reinterpret_cast<ProfileNode*>(
       const_cast<v8::CpuProfileNode*>(current))->Print(0);

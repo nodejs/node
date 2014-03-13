@@ -35,4 +35,3 @@ for (var i = 0; i < 200; ++i) {
     foo(array);
     shouldBe("array[0]", "0x8005465c");
 }
-

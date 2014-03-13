@@ -327,9 +327,9 @@ TEST(NewSpace) {
                         CcTest::heap()->ReservedSemiSpaceSize()));
   CHECK(new_space.HasBeenSetUp());
 
-  while (new_space.Available() >= Page::kMaxNonCodeHeapObjectSize) {
+  while (new_space.Available() >= Page::kMaxRegularHeapObjectSize) {
     Object* obj =
-        new_space.AllocateRaw(Page::kMaxNonCodeHeapObjectSize)->
+        new_space.AllocateRaw(Page::kMaxRegularHeapObjectSize)->
         ToObjectUnchecked();
     CHECK(new_space.Contains(HeapObject::cast(obj)));
   }
@@ -359,7 +359,7 @@ TEST(OldSpace) {
   CHECK(s->SetUp());
 
   while (s->Available() > 0) {
-    s->AllocateRaw(Page::kMaxNonCodeHeapObjectSize)->ToObjectUnchecked();
+    s->AllocateRaw(Page::kMaxRegularHeapObjectSize)->ToObjectUnchecked();
   }
 
   s->TearDown();

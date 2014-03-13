@@ -49,7 +49,8 @@ class SweeperThread : public Thread {
   void Stop();
   void StartSweeping();
   void WaitForSweeperThread();
-  intptr_t StealMemory(PagedSpace* space);
+
+  static int NumberOfThreads(int max_available);
 
  private:
   Isolate* isolate_;
@@ -58,10 +59,6 @@ class SweeperThread : public Thread {
   Semaphore start_sweeping_semaphore_;
   Semaphore end_sweeping_semaphore_;
   Semaphore stop_semaphore_;
-  FreeList free_list_old_data_space_;
-  FreeList free_list_old_pointer_space_;
-  FreeList private_free_list_old_data_space_;
-  FreeList private_free_list_old_pointer_space_;
   volatile AtomicWord stop_thread_;
 };
 

@@ -82,4 +82,3 @@ debugger;
 assertEquals([], listenerExceptions, "Exception in listener");
 // Make sure that the debug event listener vas invoked.
 assertEquals(2, listenerCallCount, "Listener not called");
-

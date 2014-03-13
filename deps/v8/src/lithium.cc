@@ -41,6 +41,9 @@
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-mips.h"
 #include "mips/lithium-codegen-mips.h"
+#elif V8_TARGET_ARCH_A64
+#include "a64/lithium-a64.h"
+#include "a64/lithium-codegen-a64.h"
 #else
 #error "Unknown architecture."
 #endif
@@ -237,7 +240,8 @@ int StackSlotOffset(int index) {
   if (index >= 0) {
     // Local or spill slot. Skip the frame pointer, function, and
     // context in the fixed part of the frame.
-    return -(index + 3) * kPointerSize;
+    return -(index + 1) * kPointerSize -
+        StandardFrameConstants::kFixedFrameSizeFromFp;
   } else {
     // Incoming parameter. Skip the return address.
     return -(index + 1) * kPointerSize + kFPOnStackSize + kPCOnStackSize;
@@ -342,7 +346,8 @@ int LChunk::GetParameterStackSlot(int index) const {
   // shift all parameter indexes down by the number of parameters, and
   // make sure they end up negative so they are distinguishable from
   // spill slots.
-  int result = index - info()->scope()->num_parameters() - 1;
+  int result = index - info()->num_parameters() - 1;
+
   ASSERT(result < 0);
   return result;
 }
@@ -457,6 +462,139 @@ void LChunk::set_allocated_double_registers(BitVector* allocated_registers) {
       }
     }
     iterator.Advance();
+  }
+}
+
+
+LEnvironment* LChunkBuilderBase::CreateEnvironment(
+    HEnvironment* hydrogen_env,
+    int* argument_index_accumulator,
+    ZoneList<HValue*>* objects_to_materialize) {
+  if (hydrogen_env == NULL) return NULL;
+
+  LEnvironment* outer = CreateEnvironment(hydrogen_env->outer(),
+                                          argument_index_accumulator,
+                                          objects_to_materialize);
+  BailoutId ast_id = hydrogen_env->ast_id();
+  ASSERT(!ast_id.IsNone() ||
+         hydrogen_env->frame_type() != JS_FUNCTION);
+  int value_count = hydrogen_env->length() - hydrogen_env->specials_count();
+  LEnvironment* result =
+      new(zone()) LEnvironment(hydrogen_env->closure(),
+                               hydrogen_env->frame_type(),
+                               ast_id,
+                               hydrogen_env->parameter_count(),
+                               argument_count_,
+                               value_count,
+                               outer,
+                               hydrogen_env->entry(),
+                               zone());
+  int argument_index = *argument_index_accumulator;
+
+  // Store the environment description into the environment
+  // (with holes for nested objects)
+  for (int i = 0; i < hydrogen_env->length(); ++i) {
+    if (hydrogen_env->is_special_index(i)) continue;
+
+    LOperand* op;
+    HValue* value = hydrogen_env->values()->at(i);
+    if (value->IsArgumentsObject() || value->IsCapturedObject()) {
+      op = LEnvironment::materialization_marker();
+    } else if (value->IsPushArgument()) {
+      op = new(zone()) LArgument(argument_index++);
+    } else {
+      op = UseAny(value);
+    }
+    result->AddValue(op,
+                     value->representation(),
+                     value->CheckFlag(HInstruction::kUint32));
+  }
+
+  // Recursively store the nested objects into the environment
+  for (int i = 0; i < hydrogen_env->length(); ++i) {
+    if (hydrogen_env->is_special_index(i)) continue;
+
+    HValue* value = hydrogen_env->values()->at(i);
+    if (value->IsArgumentsObject() || value->IsCapturedObject()) {
+      AddObjectToMaterialize(value, objects_to_materialize, result);
+    }
+  }
+
+  if (hydrogen_env->frame_type() == JS_FUNCTION) {
+    *argument_index_accumulator = argument_index;
+  }
+
+  return result;
+}
+
+
+// Add an object to the supplied environment and object materialization list.
+//
+// Notes:
+//
+// We are building three lists here:
+//
+// 1. In the result->object_mapping_ list (added to by the
+//    LEnvironment::Add*Object methods), we store the lengths (number
+//    of fields) of the captured objects in depth-first traversal order, or
+//    in case of duplicated objects, we store the index to the duplicate object
+//    (with a tag to differentiate between captured and duplicated objects).
+//
+// 2. The object fields are stored in the result->values_ list
+//    (added to by the LEnvironment.AddValue method) sequentially as lists
+//    of fields with holes for nested objects (the holes will be expanded
+//    later by LCodegen::AddToTranslation according to the
+//    LEnvironment.object_mapping_ list).
+//
+// 3. The auxiliary objects_to_materialize array stores the hydrogen values
+//    in the same order as result->object_mapping_ list. This is used
+//    to detect duplicate values and calculate the corresponding object index.
+void LChunkBuilderBase::AddObjectToMaterialize(HValue* value,
+    ZoneList<HValue*>* objects_to_materialize, LEnvironment* result) {
+  int object_index = objects_to_materialize->length();
+  // Store the hydrogen value into the de-duplication array
+  objects_to_materialize->Add(value, zone());
+  // Find out whether we are storing a duplicated value
+  int previously_materialized_object = -1;
+  for (int prev = 0; prev < object_index; ++prev) {
+    if (objects_to_materialize->at(prev) == value) {
+      previously_materialized_object = prev;
+      break;
+    }
+  }
+  // Store the captured object length (or duplicated object index)
+  // into the environment. For duplicated objects, we stop here.
+  int length = value->OperandCount();
+  bool is_arguments = value->IsArgumentsObject();
+  if (previously_materialized_object >= 0) {
+    result->AddDuplicateObject(previously_materialized_object);
+    return;
+  } else {
+    result->AddNewObject(is_arguments ? length - 1 : length, is_arguments);
+  }
+  // Store the captured object's fields into the environment
+  for (int i = is_arguments ? 1 : 0; i < length; ++i) {
+    LOperand* op;
+    HValue* arg_value = value->OperandAt(i);
+    if (arg_value->IsArgumentsObject() || arg_value->IsCapturedObject()) {
+      // Insert a hole for nested objects
+      op = LEnvironment::materialization_marker();
+    } else {
+      ASSERT(!arg_value->IsPushArgument());
+      // For ordinary values, tell the register allocator we need the value
+      // to be alive here
+      op = UseAny(arg_value);
+    }
+    result->AddValue(op,
+                     arg_value->representation(),
+                     arg_value->CheckFlag(HInstruction::kUint32));
+  }
+  // Recursively store all the nested captured objects into the environment
+  for (int i = is_arguments ? 1 : 0; i < length; ++i) {
+    HValue* arg_value = value->OperandAt(i);
+    if (arg_value->IsArgumentsObject() || arg_value->IsCapturedObject()) {
+      AddObjectToMaterialize(arg_value, objects_to_materialize, result);
+    }
   }
 }
 

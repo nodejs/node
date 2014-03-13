@@ -54,3 +54,5 @@ assertUnoptimized(f, "no sync");
 // Optimization eventually bails out due to map dependency.
 assertUnoptimized(f, "sync");
 assertEquals(2, f(o));
+//Clear type info for stress runs.
+%ClearFunctionTypeFeedback(f);

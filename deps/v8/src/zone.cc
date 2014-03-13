@@ -185,25 +185,31 @@ Address Zone::NewExpand(int size) {
   // except that we employ a maximum segment size when we delete. This
   // is to avoid excessive malloc() and free() overhead.
   Segment* head = segment_head_;
-  int old_size = (head == NULL) ? 0 : head->size();
-  static const int kSegmentOverhead = sizeof(Segment) + kAlignment;
-  int new_size_no_overhead = size + (old_size << 1);
-  int new_size = kSegmentOverhead + new_size_no_overhead;
+  const size_t old_size = (head == NULL) ? 0 : head->size();
+  static const size_t kSegmentOverhead = sizeof(Segment) + kAlignment;
+  const size_t new_size_no_overhead = size + (old_size << 1);
+  size_t new_size = kSegmentOverhead + new_size_no_overhead;
+  const size_t min_new_size = kSegmentOverhead + static_cast<size_t>(size);
   // Guard against integer overflow.
-  if (new_size_no_overhead < size || new_size < kSegmentOverhead) {
+  if (new_size_no_overhead < static_cast<size_t>(size) ||
+      new_size < static_cast<size_t>(kSegmentOverhead)) {
     V8::FatalProcessOutOfMemory("Zone");
     return NULL;
   }
-  if (new_size < kMinimumSegmentSize) {
+  if (new_size < static_cast<size_t>(kMinimumSegmentSize)) {
     new_size = kMinimumSegmentSize;
-  } else if (new_size > kMaximumSegmentSize) {
+  } else if (new_size > static_cast<size_t>(kMaximumSegmentSize)) {
     // Limit the size of new segments to avoid growing the segment size
     // exponentially, thus putting pressure on contiguous virtual address space.
     // All the while making sure to allocate a segment large enough to hold the
     // requested size.
-    new_size = Max(kSegmentOverhead + size, kMaximumSegmentSize);
+    new_size = Max(min_new_size, static_cast<size_t>(kMaximumSegmentSize));
   }
-  Segment* segment = NewSegment(new_size);
+  if (new_size > INT_MAX) {
+    V8::FatalProcessOutOfMemory("Zone");
+    return NULL;
+  }
+  Segment* segment = NewSegment(static_cast<int>(new_size));
   if (segment == NULL) {
     V8::FatalProcessOutOfMemory("Zone");
     return NULL;
@@ -213,7 +219,10 @@ Address Zone::NewExpand(int size) {
   Address result = RoundUp(segment->start(), kAlignment);
   position_ = result + size;
   // Check for address overflow.
-  if (position_ < result) {
+  // (Should not happen since the segment is guaranteed to accomodate
+  // size bytes + header and alignment padding)
+  if (reinterpret_cast<uintptr_t>(position_)
+      < reinterpret_cast<uintptr_t>(result)) {
     V8::FatalProcessOutOfMemory("Zone");
     return NULL;
   }

@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Check pushes with various number of arguments.
 (function() {
   var a = [];
@@ -112,4 +114,35 @@
     x.push("a");
     assertEquals(i + 1, x.length, i + 'th iteration');
   }
+})();
+
+(function() {
+  function f(a, i) {
+    a.push(i);
+  }
+
+  var a = [1,2,3];
+  a.f = function() { return 10; }
+  f(a, 4);
+  f(a, 5);
+  f(a, 6);
+  f(a, 7);
+  f(a, {});
+  assertEquals(10, a.f());
+})();
+
+(function() {
+  function f(a, i) {
+    a.push(i);
+  }
+
+  var a = [1,2,3];
+  a.f = function() { return 10; }
+  f(a, 4);
+  f(a, 5);
+  f(a, 6);
+  %OptimizeFunctionOnNextCall(f);
+  f(a, 7);
+  f(a, {});
+  assertEquals(10, a.f());
 })();

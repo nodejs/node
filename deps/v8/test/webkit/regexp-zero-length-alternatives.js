@@ -272,4 +272,3 @@ shouldBe('emptyStr.match(re34)', '[""]');
 shouldBe('s1.match(re34)', '[""]');
 shouldBe('s2.match(re34)', '[""]');
 shouldBe('s3.match(re34)', '[""]');
-

@@ -68,6 +68,20 @@ function SymbolValueOf() {
   return %_ValueOf(this);
 }
 
+
+// ES6 19.1.2.8
+function ObjectGetOwnPropertySymbols(obj) {
+  if (!IS_SPEC_OBJECT(obj)) {
+    throw MakeTypeError("called_on_non_object",
+                        ["Object.getOwnPropertySymbols"]);
+  }
+
+  // TODO(arv): Proxies use a shared trap for String and Symbol keys.
+
+  return ObjectGetOwnPropertyKeys(obj, true);
+}
+
+
 //-------------------------------------------------------------------
 
 function SetUpSymbol() {
@@ -85,3 +99,14 @@ function SetUpSymbol() {
 }
 
 SetUpSymbol();
+
+
+function ExtendObject() {
+  %CheckIsBootstrapping();
+
+  InstallFunctions($Object, DONT_ENUM, $Array(
+    "getOwnPropertySymbols", ObjectGetOwnPropertySymbols
+  ));
+}
+
+ExtendObject();

@@ -37,18 +37,18 @@ var state;
 
 function f() {
   var a = 1978;
-  for (state[2] = 0; state[2] < 5; state[2]++) {
+  for (state[2] = 0; state[2] < 3; state[2]++) {
     void String(a);
   }
 }
 function g() {
-  for (state[1] = 0; state[1] < 5; state[1]++) {
+  for (state[1] = 0; state[1] < 3; state[1]++) {
     f();
   }
 }
 function h() {
   state = [-1, -1, -1];
-  for (state[0] = 0; state[0] < 5; state[0]++) {
+  for (state[0] = 0; state[0] < 3; state[0]++) {
     g();
   }
 }
@@ -123,10 +123,10 @@ TestCase(0, 5, "0,0,1");
 TestCase(0, 8, "0,0,3");
 
 // Stepping in the frame #1.
-TestCase(1, 0, "0,0,5");
-TestCase(1, 3, "0,1,5");
-TestCase(1, 8, "0,4,5");
+TestCase(1, 0, "0,0,3");
+TestCase(1, 3, "0,1,3");
+TestCase(1, 7, "0,3,3");
 
 // Stepping in the frame #2.
-TestCase(2, 3, "1,5,5");
-TestCase(2, 8, "4,5,5");
+TestCase(2, 3, "1,3,3");
+TestCase(2, 7, "3,3,3");

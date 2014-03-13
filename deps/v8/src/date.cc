@@ -36,7 +36,6 @@ namespace v8 {
 namespace internal {
 
 
-static const int kDays4Years[] = {0, 365, 2 * 365, 3 * 365 + 1};
 static const int kDaysIn4Years = 4 * 365 + 1;
 static const int kDaysIn100Years = 25 * kDaysIn4Years - 1;
 static const int kDaysIn400Years = 4 * kDaysIn100Years + 1;

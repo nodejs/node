@@ -37,6 +37,7 @@
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
+    'v8_deprecation_warnings': 1,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.5',
     'variables': {
@@ -44,14 +45,18 @@
         'variables': {
           'conditions': [
             ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
-               OS=="netbsd" or OS=="mac"', {
+               OS=="netbsd" or OS=="mac" or OS=="qnx"', {
               # This handles the Unix platforms we generally deal with.
               # Anything else gets passed through, which probably won't work
               # very well; such hosts should pass an explicit target_arch
               # to gyp.
               'host_arch%':
                 '<!(uname -m | sed -e "s/i.86/ia32/;\
-                  s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/mips.*/mipsel/")',
+                                       s/x86_64/x64/;\
+                                       s/amd64/x64/;\
+                                       s/aarch64/a64/;\
+                                       s/arm.*/arm/;\
+                                       s/mips.*/mipsel/")',
             }, {
               # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
               # OS!="netbsd" and OS!="mac"
@@ -96,9 +101,10 @@
 
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
+        (v8_target_arch=="a64" and host_arch!="a64") or \
         (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
         (v8_target_arch=="x64" and host_arch!="x64") or \
-        (OS=="android")', {
+        (OS=="android" or OS=="qnx")', {
         'want_separate_host_toolset': 1,
       }, {
         'want_separate_host_toolset': 0,
@@ -116,7 +122,7 @@
       }],
     ],
     # Default ARM variable settings.
-    'armv7%': 'default',
+    'arm_version%': 'default',
     'arm_neon%': 0,
     'arm_fpu%': 'vfpv3',
     'arm_float_abi%': 'default',
@@ -185,6 +191,32 @@
     }],
     # 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"
     #  or OS=="netbsd"'
+    ['OS=="qnx"', {
+      'target_defaults': {
+        'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
+                    '-fno-exceptions' ],
+        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti' ],
+        'conditions': [
+          [ 'visibility=="hidden"', {
+            'cflags': [ '-fvisibility=hidden' ],
+          }],
+          [ 'component=="shared_library"', {
+            'cflags': [ '-fPIC' ],
+          }],
+        ],
+        'target_conditions': [
+          [ '_toolset=="host" and host_os=="linux"', {
+            'cflags': [ '-pthread' ],
+            'ldflags': [ '-pthread' ],
+            'libraries': [ '-lrt' ],
+          }],
+          [ '_toolset=="target"', {
+            'cflags': [ '-Wno-psabi' ],
+            'libraries': [ '-lbacktrace', '-lsocket', '-lm' ],
+          }],
+        ],
+      },
+    }],  # OS=="qnx"
     ['OS=="win"', {
       'target_defaults': {
         'defines': [
@@ -272,8 +304,6 @@
           'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
           'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',      # -fvisibility=hidden
           'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
-          'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
-          'GCC_VERSION': 'com.apple.compilers.llvmgcc42',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
           'GCC_WARN_NON_VIRTUAL_DESTRUCTOR': 'YES', # -Wnon-virtual-dtor
           # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
@@ -291,6 +321,13 @@
             '-Wno-unused-parameter',
           ],
         },
+        'conditions': [
+          ['werror==""', {
+            'xcode_settings': {'GCC_TREAT_WARNINGS_AS_ERRORS': 'NO'},
+          }, {
+            'xcode_settings': {'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES'},
+          }],
+        ],
         'target_conditions': [
           ['_type!="static_library"', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-search_paths_first']},

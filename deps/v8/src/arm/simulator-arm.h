@@ -207,6 +207,10 @@ class Simulator {
   void set_pc(int32_t value);
   int32_t get_pc() const;
 
+  Address get_sp() {
+    return reinterpret_cast<Address>(static_cast<intptr_t>(get_register(sp)));
+  }
+
   // Accessor to the internal simulator stack area.
   uintptr_t StackLimit() const;
 
@@ -269,7 +273,7 @@ class Simulator {
 
   // Checks if the current instruction should be executed based on its
   // condition bits.
-  bool ConditionallyExecute(Instruction* instr);
+  inline bool ConditionallyExecute(Instruction* instr);
 
   // Helper functions to set the conditional flags in the architecture state.
   void SetNZFlags(int32_t val);

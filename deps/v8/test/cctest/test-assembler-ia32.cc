@@ -522,7 +522,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
   int res = f();
-  args.GetReturnValue().Set(v8::Integer::New(res));
+  args.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
 }
 
 
@@ -534,8 +534,10 @@ TEST(StackAlignmentForSSE2) {
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
-  global_template->Set(v8_str("do_sse2"), v8::FunctionTemplate::New(DoSSE2));
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
+  global_template->Set(v8_str("do_sse2"),
+                       v8::FunctionTemplate::New(isolate, DoSSE2));
 
   LocalContext env(NULL, global_template);
   CompileRun(
@@ -548,7 +550,7 @@ TEST(StackAlignmentForSSE2) {
       v8::Local<v8::Function>::Cast(global_object->Get(v8_str("foo")));
 
   int32_t vec[ELEMENT_COUNT] = { -1, 1, 1, 1 };
-  v8::Local<v8::Array> v8_vec = v8::Array::New(ELEMENT_COUNT);
+  v8::Local<v8::Array> v8_vec = v8::Array::New(isolate, ELEMENT_COUNT);
   for (int i = 0; i < ELEMENT_COUNT; i++) {
       v8_vec->Set(i, v8_num(vec[i]));
   }
@@ -596,6 +598,46 @@ TEST(AssemblerIa32Extractps) {
   CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
   uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
   CHECK_EQ(0x87654321, f(uint64_to_double(value2)));
+}
+
+
+typedef int (*F8)(float x, float y);
+TEST(AssemblerIa32SSE) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(SSE2)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, SSE2);
+    __ movss(xmm0, Operand(esp, kPointerSize));
+    __ movss(xmm1, Operand(esp, 2 * kPointerSize));
+    __ shufps(xmm0, xmm0, 0x0);
+    __ shufps(xmm1, xmm1, 0x0);
+    __ movaps(xmm2, xmm1);
+    __ addps(xmm2, xmm0);
+    __ mulps(xmm2, xmm1);
+    __ subps(xmm2, xmm0);
+    __ divps(xmm2, xmm1);
+    __ cvttss2si(eax, xmm2);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Code* code = Code::cast(isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked());
+  CHECK(code->IsCode());
+#ifdef OBJECT_PRINT
+  Code::cast(code)->Print();
+#endif
+
+  F8 f = FUNCTION_CAST<F8>(Code::cast(code)->entry());
+  CHECK_EQ(2, f(1.0, 2.0));
 }
 
 

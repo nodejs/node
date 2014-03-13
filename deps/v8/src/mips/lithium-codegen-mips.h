@@ -242,10 +242,7 @@ class LCodeGen: public LCodeGenBase {
                          int formal_parameter_count,
                          int arity,
                          LInstruction* instr,
-                         CallKind call_kind,
                          A1State a1_state);
-
-  void LoadHeapObject(Register result, Handle<HeapObject> object);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
@@ -273,7 +270,6 @@ class LCodeGen: public LCodeGenBase {
                         bool is_uint32,
                         int* object_index_pointer,
                         int* dematerialized_index_pointer);
-  void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
 
@@ -281,6 +277,10 @@ class LCodeGen: public LCodeGenBase {
 
   Register ToRegister(int index) const;
   DoubleRegister ToDoubleRegister(int index) const;
+
+  MemOperand BuildSeqStringOperand(Register string,
+                                   LOperand* index,
+                                   String::Encoding encoding);
 
   void EmitIntegerMathAbs(LMathAbs* instr);
 
@@ -302,6 +302,8 @@ class LCodeGen: public LCodeGenBase {
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
+
+  // EmitBranch expects to be the last instruction of a block.
   template<class InstrType>
   void EmitBranch(InstrType instr,
                   Condition condition,
@@ -312,6 +314,11 @@ class LCodeGen: public LCodeGenBase {
                    Condition condition,
                    FPURegister src1,
                    FPURegister src2);
+  template<class InstrType>
+  void EmitFalseBranch(InstrType instr,
+                       Condition condition,
+                       Register src1,
+                       const Operand& src2);
   template<class InstrType>
   void EmitFalseBranchF(InstrType instr,
                         Condition condition,
@@ -414,12 +421,18 @@ class LCodeGen: public LCodeGenBase {
       codegen_->expected_safepoint_kind_ = kind;
 
       switch (codegen_->expected_safepoint_kind_) {
-        case Safepoint::kWithRegisters:
-          codegen_->masm_->PushSafepointRegisters();
+        case Safepoint::kWithRegisters: {
+          StoreRegistersStateStub stub1(kDontSaveFPRegs);
+          codegen_->masm_->push(ra);
+          codegen_->masm_->CallStub(&stub1);
           break;
-        case Safepoint::kWithRegistersAndDoubles:
-          codegen_->masm_->PushSafepointRegistersAndDoubles();
+        }
+        case Safepoint::kWithRegistersAndDoubles: {
+          StoreRegistersStateStub stub2(kSaveFPRegs);
+          codegen_->masm_->push(ra);
+          codegen_->masm_->CallStub(&stub2);
           break;
+        }
         default:
           UNREACHABLE();
       }
@@ -429,12 +442,18 @@ class LCodeGen: public LCodeGenBase {
       Safepoint::Kind kind = codegen_->expected_safepoint_kind_;
       ASSERT((kind & Safepoint::kWithRegisters) != 0);
       switch (kind) {
-        case Safepoint::kWithRegisters:
-          codegen_->masm_->PopSafepointRegisters();
+        case Safepoint::kWithRegisters: {
+          RestoreRegistersStateStub stub1(kDontSaveFPRegs);
+          codegen_->masm_->push(ra);
+          codegen_->masm_->CallStub(&stub1);
           break;
-        case Safepoint::kWithRegistersAndDoubles:
-          codegen_->masm_->PopSafepointRegistersAndDoubles();
+        }
+        case Safepoint::kWithRegistersAndDoubles: {
+          RestoreRegistersStateStub stub2(kSaveFPRegs);
+          codegen_->masm_->push(ra);
+          codegen_->masm_->CallStub(&stub2);
           break;
+        }
         default:
           UNREACHABLE();
       }

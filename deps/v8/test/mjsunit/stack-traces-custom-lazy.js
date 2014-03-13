@@ -46,4 +46,3 @@ function testPrepareStackTrace(closure) {
 
 testPrepareStackTrace(function() { throw new Error("foo"); });
 testPrepareStackTrace(function f() { f(); });
-

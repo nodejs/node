@@ -29,15 +29,23 @@
 
 function test() {
   var s1 = %NewString(26, true);
+  for (i = 0; i < 26; i++) %_OneByteSeqStringSetChar(s1, i, 65);
+  assertEquals("AAAAAAAAAAAAAAAAAAAAAAAAAA", s1);
+  %_OneByteSeqStringSetChar(s1, 25, 66);
+  assertEquals("AAAAAAAAAAAAAAAAAAAAAAAAAB", s1);
   for (i = 0; i < 26; i++) %_OneByteSeqStringSetChar(s1, i, i+65);
   assertEquals("ABCDEFGHIJKLMNOPQRSTUVWXYZ", s1);
   s1 = %TruncateString(s1, 13);
   assertEquals("ABCDEFGHIJKLM", s1);
 
   var s2 = %NewString(26, false);
+  for (i = 0; i < 26; i++) %_TwoByteSeqStringSetChar(s2, i, 65);
+  assertEquals("AAAAAAAAAAAAAAAAAAAAAAAAAA", s2);
+  %_TwoByteSeqStringSetChar(s2, 25, 66);
+  assertEquals("AAAAAAAAAAAAAAAAAAAAAAAAAB", s2);
   for (i = 0; i < 26; i++) %_TwoByteSeqStringSetChar(s2, i, i+65);
   assertEquals("ABCDEFGHIJKLMNOPQRSTUVWXYZ", s2);
-  s2 = %TruncateString(s1, 13);
+  s2 = %TruncateString(s2, 13);
   assertEquals("ABCDEFGHIJKLM", s2);
 
   var s3 = %NewString(26, false);
@@ -69,4 +77,3 @@ test();
 test();
 %OptimizeFunctionOnNextCall(test);
 test();
-

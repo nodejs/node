@@ -36,4 +36,3 @@ function f() {
 };
 
 assertThrows("f()");
-

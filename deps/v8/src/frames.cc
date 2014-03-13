@@ -38,8 +38,6 @@
 #include "string-stream.h"
 #include "vm-state-inl.h"
 
-#include "allocation-inl.h"
-
 namespace v8 {
 namespace internal {
 
@@ -546,6 +544,9 @@ void ExitFrame::Iterate(ObjectVisitor* v) const {
   // the calling frame.
   IteratePc(v, pc_address(), LookupCode());
   v->VisitPointer(&code_slot());
+  if (FLAG_enable_ool_constant_pool) {
+    v->VisitPointer(&constant_pool_slot());
+  }
 }
 
 
@@ -826,7 +827,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
             SmartArrayPointer<char> c_script_name =
                 script_name->ToCString(DISALLOW_NULLS,
                                        ROBUST_STRING_TRAVERSAL);
-            PrintF(file, " at %s:%d", *c_script_name, line);
+            PrintF(file, " at %s:%d", c_script_name.get(), line);
           } else {
             PrintF(file, " at <unknown>:%d", line);
           }
@@ -986,14 +987,16 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
       // to construct a stack trace, the receiver is always in a stack slot.
       opcode = static_cast<Translation::Opcode>(it.Next());
       ASSERT(opcode == Translation::STACK_SLOT ||
-             opcode == Translation::LITERAL);
+             opcode == Translation::LITERAL ||
+             opcode == Translation::CAPTURED_OBJECT ||
+             opcode == Translation::DUPLICATED_OBJECT);
       int index = it.Next();
 
       // Get the correct receiver in the optimized frame.
       Object* receiver = NULL;
       if (opcode == Translation::LITERAL) {
         receiver = data->LiteralArray()->get(index);
-      } else {
+      } else if (opcode == Translation::STACK_SLOT) {
         // Positive index means the value is spilled to the locals
         // area. Negative means it is stored in the incoming parameter
         // area.
@@ -1009,6 +1012,12 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
               ? this->receiver()
               : this->GetParameter(parameter_index);
         }
+      } else {
+        // TODO(3029): Materializing a captured object (or duplicated
+        // object) is hard, we return undefined for now. This breaks the
+        // produced stack trace, as constructor frames aren't marked as
+        // such anymore.
+        receiver = isolate()->heap()->undefined_value();
       }
 
       Code* code = function->shared()->code();
@@ -1337,7 +1346,7 @@ void EntryFrame::Iterate(ObjectVisitor* v) const {
 
 
 void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
-  const int offset = StandardFrameConstants::kContextOffset;
+  const int offset = StandardFrameConstants::kLastObjectOffset;
   Object** base = &Memory::Object_at(sp());
   Object** limit = &Memory::Object_at(fp() + offset) + 1;
   for (StackHandlerIterator it(this, top_handler()); !it.done(); it.Advance()) {
@@ -1375,7 +1384,7 @@ void StubFailureTrampolineFrame::Iterate(ObjectVisitor* v) const {
                                       kFirstRegisterParameterFrameOffset);
   v->VisitPointers(base, limit);
   base = &Memory::Object_at(fp() + StandardFrameConstants::kMarkerOffset);
-  const int offset = StandardFrameConstants::kContextOffset;
+  const int offset = StandardFrameConstants::kLastObjectOffset;
   limit = &Memory::Object_at(fp() + offset) + 1;
   v->VisitPointers(base, limit);
   IteratePc(v, pc_address(), LookupCode());

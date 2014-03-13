@@ -190,16 +190,6 @@ Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
 }
 
 
-Object** RelocInfo::target_object_address() {
-  // Provide a "natural pointer" to the embedded object,
-  // which can be de-referenced during heap iteration.
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  reconstructed_obj_ptr_ =
-      reinterpret_cast<Object*>(Assembler::target_address_at(pc_));
-  return &reconstructed_obj_ptr_;
-}
-
-
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());
@@ -213,10 +203,9 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
 }
 
 
-Address* RelocInfo::target_reference_address() {
+Address RelocInfo::target_reference() {
   ASSERT(rmode_ == EXTERNAL_REFERENCE);
-  reconstructed_adr_ptr_ = Assembler::target_address_at(pc_);
-  return &reconstructed_adr_ptr_;
+  return Assembler::target_address_at(pc_);
 }
 
 
@@ -321,6 +310,15 @@ Object** RelocInfo::call_object_address() {
 
 void RelocInfo::set_call_object(Object* target) {
   *call_object_address() = target;
+}
+
+
+void RelocInfo::WipeOut() {
+  ASSERT(IsEmbeddedObject(rmode_) ||
+         IsCodeTarget(rmode_) ||
+         IsRuntimeEntry(rmode_) ||
+         IsExternalReference(rmode_));
+  Assembler::set_target_address_at(pc_, NULL);
 }
 
 

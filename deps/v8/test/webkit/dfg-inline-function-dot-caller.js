@@ -66,4 +66,3 @@ shouldBe("resultArray[3]", "\"g\"");
 shouldBe("resultArray[2]", "\"makeInlinableCall\"");
 shouldBe("resultArray[1]", "\"inlineable\"");
 shouldBe("resultArray[0]", "\"nonInlineable\"");
-

@@ -72,7 +72,7 @@ inline int FastD2IChecked(double x) {
 // The result is unspecified if x is infinite or NaN, or if the rounded
 // integer value is outside the range of type int.
 inline int FastD2I(double x) {
-  return static_cast<int>(x);
+  return static_cast<int32_t>(x);
 }
 
 inline unsigned int FastD2UI(double x);

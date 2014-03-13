@@ -89,6 +89,7 @@ class SimpleProgressIndicator(ProgressIndicator):
         print failed.output.stdout.strip()
       print "Command: %s" % EscapeCommand(self.runner.GetCommand(failed))
       if failed.output.HasCrashed():
+        print "exit code: %d" % failed.output.exit_code
         print "--- CRASHED ---"
       if failed.output.HasTimedOut():
         print "--- TIMEOUT ---"

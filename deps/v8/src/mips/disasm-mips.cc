@@ -899,6 +899,9 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
     case LWR:
       Format(instr, "lwr     'rt, 'imm16s('rs)");
       break;
+    case PREF:
+      Format(instr, "pref    'rt, 'imm16s('rs)");
+      break;
     case SB:
       Format(instr, "sb      'rt, 'imm16s('rs)");
       break;

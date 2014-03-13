@@ -107,5 +107,3 @@ function SetUpArrayBuffer() {
 }
 
 SetUpArrayBuffer();
-
-

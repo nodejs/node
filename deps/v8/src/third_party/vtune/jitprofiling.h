@@ -67,54 +67,54 @@ typedef enum iJIT_jvm_event
 {
 
     /* shutdown  */
-    
-    /* 
+
+    /*
      * Program exiting EventSpecificData NA
      */
-    iJVM_EVENT_TYPE_SHUTDOWN = 2, 
+    iJVM_EVENT_TYPE_SHUTDOWN = 2,
 
     /* JIT profiling  */
-    
-    /* 
+
+    /*
      * issued after method code jitted into memory but before code is executed
      * EventSpecificData is an iJIT_Method_Load
      */
-    iJVM_EVENT_TYPE_METHOD_LOAD_FINISHED=13,     
+    iJVM_EVENT_TYPE_METHOD_LOAD_FINISHED=13,
 
-    /* issued before unload. Method code will no longer be executed, but code 
-     * and info are still in memory. The VTune profiler may capture method 
+    /* issued before unload. Method code will no longer be executed, but code
+     * and info are still in memory. The VTune profiler may capture method
      * code only at this point EventSpecificData is iJIT_Method_Id
      */
-    iJVM_EVENT_TYPE_METHOD_UNLOAD_START,         
+    iJVM_EVENT_TYPE_METHOD_UNLOAD_START,
 
     /* Method Profiling */
 
-    /* method name, Id and stack is supplied 
-     * issued when a method is about to be entered EventSpecificData is 
+    /* method name, Id and stack is supplied
+     * issued when a method is about to be entered EventSpecificData is
      * iJIT_Method_NIDS
      */
-    iJVM_EVENT_TYPE_ENTER_NIDS = 19, 
+    iJVM_EVENT_TYPE_ENTER_NIDS = 19,
 
-    /* method name, Id and stack is supplied 
-     * issued when a method is about to be left EventSpecificData is 
+    /* method name, Id and stack is supplied
+     * issued when a method is about to be left EventSpecificData is
      * iJIT_Method_NIDS
      */
-    iJVM_EVENT_TYPE_LEAVE_NIDS               
+    iJVM_EVENT_TYPE_LEAVE_NIDS
 } iJIT_JVM_EVENT;
 
 typedef enum _iJIT_ModeFlags
 {
     /* No need to Notify VTune, since VTune is not running */
-    iJIT_NO_NOTIFICATIONS          = 0x0000,     
+    iJIT_NO_NOTIFICATIONS          = 0x0000,
 
-    /* when turned on the jit must call 
+    /* when turned on the jit must call
      * iJIT_NotifyEvent
      * (
      *     iJVM_EVENT_TYPE_METHOD_LOAD_FINISHED,
      * )
      * for all the method already jitted
      */
-    iJIT_BE_NOTIFY_ON_LOAD         = 0x0001,     
+    iJIT_BE_NOTIFY_ON_LOAD         = 0x0001,
 
     /* when turned on the jit must call
      * iJIT_NotifyEvent
@@ -122,19 +122,19 @@ typedef enum _iJIT_ModeFlags
      *     iJVM_EVENT_TYPE_METHOD_UNLOAD_FINISHED,
      *  ) for all the method that are unloaded
      */
-    iJIT_BE_NOTIFY_ON_UNLOAD       = 0x0002,     
+    iJIT_BE_NOTIFY_ON_UNLOAD       = 0x0002,
 
     /* when turned on the jit must instrument all
      * the currently jited code with calls on
      * method entries
      */
-    iJIT_BE_NOTIFY_ON_METHOD_ENTRY = 0x0004,     
+    iJIT_BE_NOTIFY_ON_METHOD_ENTRY = 0x0004,
 
     /* when turned on the jit must instrument all
      * the currently jited code with calls
      * on method exit
      */
-    iJIT_BE_NOTIFY_ON_METHOD_EXIT  = 0x0008      
+    iJIT_BE_NOTIFY_ON_METHOD_EXIT  = 0x0008
 
 } iJIT_ModeFlags;
 
@@ -143,13 +143,13 @@ typedef enum _iJIT_ModeFlags
 typedef enum _iJIT_IsProfilingActiveFlags
 {
     /* No profiler is running. Currently not used */
-    iJIT_NOTHING_RUNNING           = 0x0000,     
+    iJIT_NOTHING_RUNNING           = 0x0000,
 
     /* Sampling is running. This is the default value
      * returned by iJIT_IsProfilingActive()
      */
-    iJIT_SAMPLING_ON               = 0x0001,     
-    
+    iJIT_SAMPLING_ON               = 0x0001,
+
       /* Call Graph is running */
     iJIT_CALLGRAPH_ON              = 0x0002
 
@@ -174,7 +174,7 @@ typedef struct _iJIT_Method_Id
    /* Id of the method (same as the one passed in
    * the iJIT_Method_Load struct
    */
-    unsigned int       method_id;              
+    unsigned int       method_id;
 
 } *piJIT_Method_Id, iJIT_Method_Id;
 
@@ -188,13 +188,13 @@ typedef struct _iJIT_Method_Id
 typedef struct _iJIT_Method_NIDS
 {
     /* unique method ID */
-    unsigned int       method_id;              
+    unsigned int       method_id;
 
     /* NOTE: no need to fill this field, it's filled by VTune */
-    unsigned int       stack_id;               
+    unsigned int       stack_id;
 
     /* method name (just the method, without the class) */
-    char*              method_name;            
+    char*              method_name;
 } *piJIT_Method_NIDS, iJIT_Method_NIDS;
 
 /* structures for the events:
@@ -204,54 +204,54 @@ typedef struct _iJIT_Method_NIDS
 typedef struct _LineNumberInfo
 {
     /* x86 Offset from the begining of the method*/
-    unsigned int        Offset;                 
-    
+    unsigned int        Offset;
+
     /* source line number from the begining of the source file */
-    unsigned int        LineNumber;             
+    unsigned int        LineNumber;
 
 } *pLineNumberInfo, LineNumberInfo;
 
 typedef struct _iJIT_Method_Load
 {
     /* unique method ID - can be any unique value, (except 0 - 999) */
-    unsigned int        method_id;              
+    unsigned int        method_id;
 
     /* method name (can be with or without the class and signature, in any case
      * the class name will be added to it)
      */
-    char*               method_name;            
+    char*               method_name;
 
     /* virtual address of that method - This determines the method range for the
      * iJVM_EVENT_TYPE_ENTER/LEAVE_METHOD_ADDR events
      */
-    void*               method_load_address;    
+    void*               method_load_address;
 
     /* Size in memory - Must be exact */
-    unsigned int        method_size;            
+    unsigned int        method_size;
 
     /* Line Table size in number of entries - Zero if none */
-    unsigned int        line_number_size;       
-    
+    unsigned int        line_number_size;
+
     /* Pointer to the begining of the line numbers info array */
-    pLineNumberInfo     line_number_table;      
+    pLineNumberInfo     line_number_table;
 
     /* unique class ID */
-    unsigned int        class_id;               
-    
+    unsigned int        class_id;
+
     /* class file name */
-    char*               class_file_name;        
+    char*               class_file_name;
 
     /* source file name */
-    char*               source_file_name;       
+    char*               source_file_name;
 
     /* bits supplied by the user for saving in the JIT file */
-    void*               user_data;              
+    void*               user_data;
 
     /* the size of the user data buffer */
-    unsigned int        user_data_size;         
+    unsigned int        user_data_size;
 
     /* NOTE: no need to fill this field, it's filled by VTune */
-    iJDEnvironmentType  env;                    
+    iJDEnvironmentType  env;
 
 } *piJIT_Method_Load, iJIT_Method_Load;
 
@@ -280,7 +280,7 @@ typedef void (*iJIT_ModeChangedEx)(void *UserData, iJIT_ModeFlags Flags);
 int JITAPI iJIT_NotifyEvent(iJIT_JVM_EVENT event_type, void *EventSpecificData);
 
 /* The new mode call back routine */
-void JITAPI iJIT_RegisterCallbackEx(void *userdata, 
+void JITAPI iJIT_RegisterCallbackEx(void *userdata,
                                     iJIT_ModeChangedEx NewModeCallBackFuncEx);
 
 iJIT_IsProfilingActiveFlags JITAPI iJIT_IsProfilingActive(void);

@@ -36,4 +36,3 @@ assertEquals("12A",
 
 assertEquals(1, JSON.parse('{"0":1}')[0]);
 assertEquals(undefined, JSON.parse('{"00":1}')[0]);
-

@@ -38,4 +38,3 @@ function outer() {
 }
 
 outer();
-

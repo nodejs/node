@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test to exceed the Heap::MaxRegularSpaceAllocationSize with an array
+// Test to exceed the Page::MaxRegularHeapObjectSize with an array
 // constructor call taking many arguments.
 
 function boom() {

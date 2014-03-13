@@ -43,4 +43,3 @@
   };
   fail("case 10", "Default case", "Heap number not recognized as Smi value");
 })();
-

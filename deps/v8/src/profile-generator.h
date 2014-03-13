@@ -196,14 +196,13 @@ class ProfileTree {
 
 class CpuProfile {
  public:
-  CpuProfile(const char* title, unsigned uid, bool record_samples);
+  CpuProfile(const char* title, bool record_samples);
 
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(const Vector<CodeEntry*>& path);
   void CalculateTotalTicksAndSamplingRate();
 
   const char* title() const { return title_; }
-  unsigned uid() const { return uid_; }
   const ProfileTree* top_down() const { return &top_down_; }
 
   int samples_count() const { return samples_.length(); }
@@ -218,7 +217,6 @@ class CpuProfile {
 
  private:
   const char* title_;
-  unsigned uid_;
   bool record_samples_;
   Time start_time_;
   Time end_time_;
@@ -281,7 +279,7 @@ class CpuProfilesCollection {
   explicit CpuProfilesCollection(Heap* heap);
   ~CpuProfilesCollection();
 
-  bool StartProfiling(const char* title, unsigned uid, bool record_samples);
+  bool StartProfiling(const char* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
   List<CpuProfile*>* profiles() { return &finished_profiles_; }
   const char* GetName(Name* name) {

@@ -31,6 +31,7 @@
 // When running the tests use loops to ensure that the call site moves through
 // the different IC states and that both the runtime system and the generated
 // IC code is tested.
+
 function RunTests() {
   for (var i = 0; i < 10; i++) {
     assertEquals('object', 'xxx'.TypeOfThis());

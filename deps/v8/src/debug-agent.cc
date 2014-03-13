@@ -173,6 +173,11 @@ void DebuggerAgent::DebuggerMessage(const v8::Debug::Message& message) {
 }
 
 
+DebuggerAgentSession::~DebuggerAgentSession() {
+  delete client_;
+}
+
+
 void DebuggerAgent::OnSessionClosed(DebuggerAgentSession* session) {
   // Don't do anything during termination.
   if (terminate_) {
@@ -192,7 +197,7 @@ void DebuggerAgent::OnSessionClosed(DebuggerAgentSession* session) {
 
 void DebuggerAgentSession::Run() {
   // Send the hello message.
-  bool ok = DebuggerAgentUtil::SendConnectMessage(client_, *agent_->name_);
+  bool ok = DebuggerAgentUtil::SendConnectMessage(client_, agent_->name_.get());
   if (!ok) return;
 
   while (true) {
@@ -200,7 +205,7 @@ void DebuggerAgentSession::Run() {
     SmartArrayPointer<char> message =
         DebuggerAgentUtil::ReceiveMessage(client_);
 
-    const char* msg = *message;
+    const char* msg = message.get();
     bool is_closing_session = (msg == NULL);
 
     if (msg == NULL) {

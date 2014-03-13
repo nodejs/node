@@ -109,4 +109,3 @@ if (has_packed_elements) {
   test_with_optimization(test5);
   test_with_optimization(test6);
 }
-

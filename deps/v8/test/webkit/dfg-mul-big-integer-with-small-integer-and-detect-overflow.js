@@ -31,5 +31,3 @@ function foo(a) {
 
 for (var i = 0; i < 1000; ++i)
     shouldBe("foo(2147483647)", "140737488289792");
-
-

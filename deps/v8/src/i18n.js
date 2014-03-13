@@ -45,6 +45,11 @@ var AVAILABLE_SERVICES = ['collator',
                           'dateformat',
                           'breakiterator'];
 
+var NORMALIZATION_FORMS = ['NFC',
+                           'NFD',
+                           'NFKC',
+                           'NFKD'];
+
 /**
  * Caches available locales for each service.
  */
@@ -1302,10 +1307,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
  */
 function formatNumber(formatter, value) {
   // Spec treats -0 and +0 as 0.
-  var number = $Number(value);
-  if (number === -0) {
-    number = 0;
-  }
+  var number = $Number(value) + 0;
 
   return %InternalNumberFormat(formatter.formatter, number);
 }
@@ -1987,6 +1989,40 @@ $Object.defineProperty($String.prototype, 'localeCompare', {
 %FunctionSetName($String.prototype.localeCompare, 'localeCompare');
 %FunctionRemovePrototype($String.prototype.localeCompare);
 %SetNativeFlag($String.prototype.localeCompare);
+
+
+/**
+ * Unicode normalization. This method is called with one argument that
+ * specifies the normalization form.
+ * If none is specified, "NFC" is assumed.
+ * If the form is not one of "NFC", "NFD", "NFKC", or "NFKD", then throw
+ * a RangeError Exception.
+ */
+$Object.defineProperty($String.prototype, 'normalize', {
+  value: function(that) {
+    if (%_IsConstructCall()) {
+      throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
+    }
+
+    CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
+
+    var form = $String(%_Arguments(0) || 'NFC');
+
+    var normalizationForm = NORMALIZATION_FORMS.indexOf(form);
+    if (normalizationForm === -1) {
+      throw new $RangeError('The normalization form should be one of '
+          + NORMALIZATION_FORMS.join(', ') + '.');
+    }
+
+    return %StringNormalize(this, normalizationForm);
+  },
+  writable: true,
+  configurable: true,
+  enumerable: false
+});
+%FunctionSetName($String.prototype.normalize, 'normalize');
+%FunctionRemovePrototype($String.prototype.normalize);
+%SetNativeFlag($String.prototype.normalize);
 
 
 /**

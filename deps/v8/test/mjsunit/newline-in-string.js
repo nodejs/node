@@ -42,5 +42,3 @@ assertEquals('asdfasdf', eval(code));
 // Allow LF+CR in multiline string literals.
 code = "'asdf\\" + String.fromCharCode(0xA) + String.fromCharCode(0xD) + "asdf'";
 assertEquals('asdfasdf', eval(code));
-
-

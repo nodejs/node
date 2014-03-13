@@ -56,4 +56,3 @@ test({ y: 42 }, "function f() { eval('1'); assertEquals(27, x) }; f();");
 // in the eval scopes.  Deeper nesting this time.
 test({ x: 42 }, "function f() { function g() { eval('1'); assertEquals(42, x) }; g() }; f();");
 test({ y: 42 }, "function f() { function g() { eval('1'); assertEquals(27, x) }; g() }; f();");
-

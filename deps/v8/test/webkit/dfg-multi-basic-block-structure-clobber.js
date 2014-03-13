@@ -53,4 +53,3 @@ for (var i = 0; i < 200; ++i) {
     }
     shouldBe("foo(predicate, {f:object})", "" + expected);
 }
-

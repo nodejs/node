@@ -216,7 +216,7 @@ PASS baz(i) is 66
 PASS baz(i) is 66
 PASS baz(i) is 66
 PASS baz(i) is 66
-Caught exception: TypeError: Cannot call method 'g' of null
+Caught exception: TypeError: Cannot read property 'g' of null
 PASS baz(i) is "ERROR"
 PASS baz(i) is 66
 PASS baz(i) is 66

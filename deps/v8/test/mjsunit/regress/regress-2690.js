@@ -26,4 +26,3 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 assertTrue(/\1[a]/.test("\1a"));
-

@@ -169,13 +169,6 @@ class GlobalHandles::Node {
     flags_ = IsInNewSpaceList::update(flags_, v);
   }
 
-  bool is_revivable_callback() {
-    return IsRevivableCallback::decode(flags_);
-  }
-  void set_revivable_callback(bool v) {
-    flags_ = IsRevivableCallback::update(flags_, v);
-  }
-
   bool IsNearDeath() const {
     // Check for PENDING to ensure correct answer when processing callbacks.
     return state() == PENDING || state() == NEAR_DEATH;
@@ -234,21 +227,12 @@ class GlobalHandles::Node {
     parameter_or_next_free_.next_free = value;
   }
 
-  void MakeWeak(void* parameter,
-                WeakCallback weak_callback,
-                RevivableCallback revivable_callback) {
-    ASSERT((weak_callback == NULL) != (revivable_callback == NULL));
+  void MakeWeak(void* parameter, WeakCallback weak_callback) {
+    ASSERT(weak_callback != NULL);
     ASSERT(state() != FREE);
     set_state(WEAK);
     set_parameter(parameter);
-    if (weak_callback != NULL) {
-      weak_callback_ = weak_callback;
-      set_revivable_callback(false);
-    } else {
-      weak_callback_ =
-          reinterpret_cast<WeakCallback>(revivable_callback);
-      set_revivable_callback(true);
-    }
+    weak_callback_ = weak_callback;
   }
 
   void ClearWeakness() {
@@ -278,20 +262,12 @@ class GlobalHandles::Node {
       // Leaving V8.
       VMState<EXTERNAL> state(isolate);
       HandleScope handle_scope(isolate);
-      if (is_revivable_callback()) {
-        RevivableCallback revivable =
-            reinterpret_cast<RevivableCallback>(weak_callback_);
-        revivable(reinterpret_cast<v8::Isolate*>(isolate),
-                  reinterpret_cast<Persistent<Value>*>(&object),
-                  par);
-      } else {
-        Handle<Object> handle(*object, isolate);
-        v8::WeakCallbackData<v8::Value, void> data(
-            reinterpret_cast<v8::Isolate*>(isolate),
-            v8::Utils::ToLocal(handle),
-            par);
-        weak_callback_(data);
-      }
+      Handle<Object> handle(*object, isolate);
+      v8::WeakCallbackData<v8::Value, void> data(
+          reinterpret_cast<v8::Isolate*>(isolate),
+          v8::Utils::ToLocal(handle),
+          par);
+      weak_callback_(data);
     }
     // Absence of explicit cleanup or revival of weak handle
     // in most of the cases would lead to memory leak.
@@ -325,7 +301,6 @@ class GlobalHandles::Node {
   class IsIndependent:        public BitField<bool,  4, 1> {};
   class IsPartiallyDependent: public BitField<bool,  5, 1> {};
   class IsInNewSpaceList:     public BitField<bool,  6, 1> {};
-  class IsRevivableCallback:  public BitField<bool,  7, 1> {};
 
   uint8_t flags_;
 
@@ -522,10 +497,8 @@ void GlobalHandles::Destroy(Object** location) {
 
 void GlobalHandles::MakeWeak(Object** location,
                              void* parameter,
-                             WeakCallback weak_callback,
-                             RevivableCallback revivable_callback) {
-  Node::FromLocation(location)->MakeWeak(
-      parameter, weak_callback, revivable_callback);
+                             WeakCallback weak_callback) {
+  Node::FromLocation(location)->MakeWeak(parameter, weak_callback);
 }
 
 

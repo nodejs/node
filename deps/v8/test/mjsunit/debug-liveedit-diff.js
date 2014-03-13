@@ -110,4 +110,3 @@ CheckCompare(
     "yesterday\nall\nmy\ntroubles\nseemed\nso\nfar\naway",
     "yesterday\nall\nmy\ntroubles\nseemed\nso\n"
 );
-

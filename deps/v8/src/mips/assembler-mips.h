@@ -386,7 +386,15 @@ class Operand BASE_EMBEDDED {
 // Class MemOperand represents a memory operand in load and store instructions.
 class MemOperand : public Operand {
  public:
+  // Immediate value attached to offset.
+  enum OffsetAddend {
+    offset_minus_one = -1,
+    offset_zero = 0
+  };
+
   explicit MemOperand(Register rn, int32_t offset = 0);
+  explicit MemOperand(Register rn, int32_t unit, int32_t multiplier,
+                      OffsetAddend offset_addend = offset_zero);
   int32_t offset() const { return offset_; }
 
   bool OffsetIsInt16Encodable() const {
@@ -535,13 +543,6 @@ class Assembler : public AssemblerBase {
     set_target_address_at(
         instruction_payload - kInstructionsFor32BitConstant * kInstrSize,
         target);
-  }
-
-  // This sets the branch destination.
-  // This is for calls and branches to runtime code.
-  inline static void set_external_target_at(Address instruction_payload,
-                                            Address target) {
-    set_target_address_at(instruction_payload, target);
   }
 
   // Size of an instruction.
@@ -716,6 +717,11 @@ class Assembler : public AssemblerBase {
   void sw(Register rd, const MemOperand& rs);
   void swl(Register rd, const MemOperand& rs);
   void swr(Register rd, const MemOperand& rs);
+
+
+  //----------------Prefetch--------------------
+
+  void pref(int32_t hint, const MemOperand& rs);
 
 
   //-------------Misc-instructions--------------
@@ -895,6 +901,9 @@ class Assembler : public AssemblerBase {
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
   void dd(uint32_t data);
+
+  // Emits the address of the code stub's first instruction.
+  void emit_code_stub_address(Code* stub);
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 

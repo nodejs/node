@@ -39,4 +39,3 @@ assertFalse(f(-10));
 assertFalse(f(-5));
 assertFalse(f(0));
 assertFalse(f(10));
-

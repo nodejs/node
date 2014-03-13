@@ -62,4 +62,3 @@ try {
 } catch (e) {
     testPassed("Exception thrown and caught");
 }
-

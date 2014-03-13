@@ -32,7 +32,7 @@
 #include <mach/task.h>
 #endif
 
-#include <cerrno>
+#include <errno.h>
 
 #include "checks.h"
 #include "platform/time.h"

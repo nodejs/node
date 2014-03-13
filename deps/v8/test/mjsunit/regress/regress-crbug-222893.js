@@ -61,4 +61,3 @@ function g(a, b) {
 g.apply(this, array);
 g("a", "b", "c");
 assertNull(error);
-

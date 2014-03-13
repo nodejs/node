@@ -50,12 +50,6 @@ class CompilationInfo;
   V(KEYED_LOAD_IC)                              \
   V(STORE_IC)                                   \
   V(KEYED_STORE_IC)                             \
-  V(CALL_IC)                                    \
-  V(CALL_INITIALIZE)                            \
-  V(CALL_PRE_MONOMORPHIC)                       \
-  V(CALL_NORMAL)                                \
-  V(CALL_MEGAMORPHIC)                           \
-  V(CALL_MISS)                                  \
   V(STUB)                                       \
   V(BUILTIN)                                    \
   V(SCRIPT)                                     \

@@ -881,6 +881,19 @@ def FormatDisasmLine(start, heap, line):
   if stack_slot:
     marker = "=>"
   code = AnnotateAddresses(heap, line[1])
+
+  # Compute the actual call target which the disassembler is too stupid
+  # to figure out (it adds the call offset to the disassembly offset rather
+  # than the absolute instruction address).
+  if heap.reader.arch == MD_CPU_ARCHITECTURE_X86:
+    if code.startswith("e8"):
+      words = code.split()
+      if len(words) > 6 and words[5] == "call":
+        offset = int(words[4] + words[3] + words[2] + words[1], 16)
+        target = (line_address + offset + 5) & 0xFFFFFFFF
+        code = code.replace(words[6], "0x%08x" % target)
+  # TODO(jkummerow): port this hack to ARM and x64.
+
   return "%s%08x %08x: %s" % (marker, line_address, line[0], code)
 
 

@@ -65,4 +65,3 @@ GetPrototypeOfObject(y);
 GetPrototypeOfObject({x:5});
 GetPrototypeOfObject(F);
 GetPrototypeOfObject(RegExp);
-

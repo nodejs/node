@@ -61,5 +61,3 @@ for (var i = 0; i < 150; ++i) {
     shouldBe("o.m", "13");
     shouldBe("o.n", "14");
 }
-
-

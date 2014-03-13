@@ -791,6 +791,35 @@ class LChunk : public ZoneObject {
 };
 
 
+class LChunkBuilderBase BASE_EMBEDDED {
+ public:
+  explicit LChunkBuilderBase(Zone* zone)
+      : argument_count_(0),
+        zone_(zone) { }
+
+  virtual ~LChunkBuilderBase() { }
+
+ protected:
+  // An input operand in register, stack slot or a constant operand.
+  // Will not be moved to a register even if one is freely available.
+  virtual MUST_USE_RESULT LOperand* UseAny(HValue* value) = 0;
+
+  LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
+                                  int* argument_index_accumulator,
+                                  ZoneList<HValue*>* objects_to_materialize);
+  void AddObjectToMaterialize(HValue* value,
+                              ZoneList<HValue*>* objects_to_materialize,
+                              LEnvironment* result);
+
+  Zone* zone() const { return zone_; }
+
+  int argument_count_;
+
+ private:
+  Zone* zone_;
+};
+
+
 int StackSlotOffset(int index);
 
 enum NumberUntagDMode {

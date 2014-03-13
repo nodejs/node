@@ -394,15 +394,16 @@ char* DoubleToRadixCString(double value, int radix) {
   if (is_negative) value = -value;
 
   // Get the integer part and the decimal part.
-  double integer_part = floor(value);
+  double integer_part = std::floor(value);
   double decimal_part = value - integer_part;
 
   // Convert the integer part starting from the back.  Always generate
   // at least one digit.
   int integer_pos = kBufferSize - 2;
   do {
-    integer_buffer[integer_pos--] =
-        chars[static_cast<int>(fmod(integer_part, radix))];
+    double remainder = std::fmod(integer_part, radix);
+    integer_buffer[integer_pos--] = chars[static_cast<int>(remainder)];
+    integer_part -= remainder;
     integer_part /= radix;
   } while (integer_part >= 1.0);
   // Sanity check.
@@ -423,8 +424,8 @@ char* DoubleToRadixCString(double value, int radix) {
   while ((decimal_part > 0.0) && (decimal_pos < kBufferSize - 1)) {
     decimal_part *= radix;
     decimal_buffer[decimal_pos++] =
-        chars[static_cast<int>(floor(decimal_part))];
-    decimal_part -= floor(decimal_part);
+        chars[static_cast<int>(std::floor(decimal_part))];
+    decimal_part -= std::floor(decimal_part);
   }
   decimal_buffer[decimal_pos] = '\0';
 

@@ -58,7 +58,7 @@ void Read(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Load(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
-v8::Handle<v8::String> ReadFile(const char* name);
+v8::Handle<v8::String> ReadFile(v8::Isolate* isolate, const char* name);
 void ReportException(v8::Isolate* isolate, v8::TryCatch* handler);
 
 
@@ -98,17 +98,22 @@ const char* ToCString(const v8::String::Utf8Value& value) {
 // functions.
 v8::Handle<v8::Context> CreateShellContext(v8::Isolate* isolate) {
   // Create a template for the global object.
-  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
   // Bind the global 'print' function to the C++ Print callback.
-  global->Set(v8::String::New("print"), v8::FunctionTemplate::New(Print));
+  global->Set(v8::String::NewFromUtf8(isolate, "print"),
+              v8::FunctionTemplate::New(isolate, Print));
   // Bind the global 'read' function to the C++ Read callback.
-  global->Set(v8::String::New("read"), v8::FunctionTemplate::New(Read));
+  global->Set(v8::String::NewFromUtf8(isolate, "read"),
+              v8::FunctionTemplate::New(isolate, Read));
   // Bind the global 'load' function to the C++ Load callback.
-  global->Set(v8::String::New("load"), v8::FunctionTemplate::New(Load));
+  global->Set(v8::String::NewFromUtf8(isolate, "load"),
+              v8::FunctionTemplate::New(isolate, Load));
   // Bind the 'quit' function
-  global->Set(v8::String::New("quit"), v8::FunctionTemplate::New(Quit));
+  global->Set(v8::String::NewFromUtf8(isolate, "quit"),
+              v8::FunctionTemplate::New(isolate, Quit));
   // Bind the 'version' function
-  global->Set(v8::String::New("version"), v8::FunctionTemplate::New(Version));
+  global->Set(v8::String::NewFromUtf8(isolate, "version"),
+              v8::FunctionTemplate::New(isolate, Version));
 
   return v8::Context::New(isolate, NULL, global);
 }
@@ -141,19 +146,19 @@ void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     args.GetIsolate()->ThrowException(
-        v8::String::New("Bad parameters"));
+        v8::String::NewFromUtf8(args.GetIsolate(), "Bad parameters"));
     return;
   }
   v8::String::Utf8Value file(args[0]);
   if (*file == NULL) {
     args.GetIsolate()->ThrowException(
-        v8::String::New("Error loading file"));
+        v8::String::NewFromUtf8(args.GetIsolate(), "Error loading file"));
     return;
   }
-  v8::Handle<v8::String> source = ReadFile(*file);
+  v8::Handle<v8::String> source = ReadFile(args.GetIsolate(), *file);
   if (source.IsEmpty()) {
     args.GetIsolate()->ThrowException(
-        v8::String::New("Error loading file"));
+        v8::String::NewFromUtf8(args.GetIsolate(), "Error loading file"));
     return;
   }
   args.GetReturnValue().Set(source);
@@ -169,22 +174,22 @@ void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::String::Utf8Value file(args[i]);
     if (*file == NULL) {
       args.GetIsolate()->ThrowException(
-          v8::String::New("Error loading file"));
+          v8::String::NewFromUtf8(args.GetIsolate(), "Error loading file"));
       return;
     }
-    v8::Handle<v8::String> source = ReadFile(*file);
+    v8::Handle<v8::String> source = ReadFile(args.GetIsolate(), *file);
     if (source.IsEmpty()) {
       args.GetIsolate()->ThrowException(
-           v8::String::New("Error loading file"));
+           v8::String::NewFromUtf8(args.GetIsolate(), "Error loading file"));
       return;
     }
     if (!ExecuteString(args.GetIsolate(),
                        source,
-                       v8::String::New(*file),
+                       v8::String::NewFromUtf8(args.GetIsolate(), *file),
                        false,
                        false)) {
       args.GetIsolate()->ThrowException(
-          v8::String::New("Error executing file"));
+          v8::String::NewFromUtf8(args.GetIsolate(), "Error executing file"));
       return;
     }
   }
@@ -204,12 +209,13 @@ void Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 void Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(v8::String::New(v8::V8::GetVersion()));
+  args.GetReturnValue().Set(
+      v8::String::NewFromUtf8(args.GetIsolate(), v8::V8::GetVersion()));
 }
 
 
 // Reads a file into a v8 string.
-v8::Handle<v8::String> ReadFile(const char* name) {
+v8::Handle<v8::String> ReadFile(v8::Isolate* isolate, const char* name) {
   FILE* file = fopen(name, "rb");
   if (file == NULL) return v8::Handle<v8::String>();
 
@@ -224,7 +230,8 @@ v8::Handle<v8::String> ReadFile(const char* name) {
     i += read;
   }
   fclose(file);
-  v8::Handle<v8::String> result = v8::String::New(chars, size);
+  v8::Handle<v8::String> result =
+      v8::String::NewFromUtf8(isolate, chars, v8::String::kNormalString, size);
   delete[] chars;
   return result;
 }
@@ -245,13 +252,15 @@ int RunMain(v8::Isolate* isolate, int argc, char* argv[]) {
               "Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
       // Execute argument given to -e option directly.
-      v8::Handle<v8::String> file_name = v8::String::New("unnamed");
-      v8::Handle<v8::String> source = v8::String::New(argv[++i]);
+      v8::Handle<v8::String> file_name =
+          v8::String::NewFromUtf8(isolate, "unnamed");
+      v8::Handle<v8::String> source =
+          v8::String::NewFromUtf8(isolate, argv[++i]);
       if (!ExecuteString(isolate, source, file_name, false, true)) return 1;
     } else {
       // Use all other arguments as names of files to load and run.
-      v8::Handle<v8::String> file_name = v8::String::New(str);
-      v8::Handle<v8::String> source = ReadFile(str);
+      v8::Handle<v8::String> file_name = v8::String::NewFromUtf8(isolate, str);
+      v8::Handle<v8::String> source = ReadFile(isolate, str);
       if (source.IsEmpty()) {
         fprintf(stderr, "Error reading '%s'\n", str);
         continue;
@@ -269,7 +278,8 @@ void RunShell(v8::Handle<v8::Context> context) {
   static const int kBufferSize = 256;
   // Enter the execution environment before evaluating any code.
   v8::Context::Scope context_scope(context);
-  v8::Local<v8::String> name(v8::String::New("(shell)"));
+  v8::Local<v8::String> name(
+      v8::String::NewFromUtf8(context->GetIsolate(), "(shell)"));
   while (true) {
     char buffer[kBufferSize];
     fprintf(stderr, "> ");
@@ -277,7 +287,7 @@ void RunShell(v8::Handle<v8::Context> context) {
     if (str == NULL) break;
     v8::HandleScope handle_scope(context->GetIsolate());
     ExecuteString(context->GetIsolate(),
-                  v8::String::New(str),
+                  v8::String::NewFromUtf8(context->GetIsolate(), str),
                   name,
                   true,
                   true);

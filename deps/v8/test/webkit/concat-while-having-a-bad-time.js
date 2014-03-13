@@ -27,5 +27,3 @@ description(
 
 Object.defineProperty(Array.prototype, 0, { writable: false });
 shouldBe("[42].concat()", "[42]");
-
-

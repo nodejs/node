@@ -46,4 +46,3 @@ Debug.setListener(listener);
 eval("debugger");
 Debug.setListener(null);
 assertTrue(listened);
-

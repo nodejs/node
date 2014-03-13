@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// This file was generated at 2012-03-06 09:55:58.934483
+// This file was generated at 2014-02-07 15:31:16.733174
 
 #include "unicode-inl.h"
 #include <stdlib.h>
@@ -710,28 +710,6 @@ bool Letter::Is(uchar c) {
 }
 
 
-// Space:                point.category == 'Zs'
-
-static const uint16_t kSpaceTable0Size = 4;
-static const int32_t kSpaceTable0[4] = {
-  32, 160, 5760, 6158 };  // NOLINT
-static const uint16_t kSpaceTable1Size = 5;
-static const int32_t kSpaceTable1[5] = {
-  1073741824, 10, 47, 95, 4096 };  // NOLINT
-bool Space::Is(uchar c) {
-  int chunk_index = c >> 13;
-  switch (chunk_index) {
-    case 0: return LookupPredicate(kSpaceTable0,
-                                       kSpaceTable0Size,
-                                       c);
-    case 1: return LookupPredicate(kSpaceTable1,
-                                       kSpaceTable1Size,
-                                       c);
-    default: return false;
-  }
-}
-
-
 // Number:               point.category == 'Nd'
 
 static const uint16_t kNumberTable0Size = 56;
@@ -767,14 +745,14 @@ bool Number::Is(uchar c) {
 }
 
 
-// WhiteSpace:           'Ws' in point.properties
+// WhiteSpace:           point.category == 'Zs'
 
-static const uint16_t kWhiteSpaceTable0Size = 7;
-static const int32_t kWhiteSpaceTable0[7] = {
-  1073741833, 13, 32, 133, 160, 5760, 6158 };  // NOLINT
-static const uint16_t kWhiteSpaceTable1Size = 7;
-static const int32_t kWhiteSpaceTable1[7] = {
-  1073741824, 10, 1073741864, 41, 47, 95, 4096 };  // NOLINT
+static const uint16_t kWhiteSpaceTable0Size = 4;
+static const int32_t kWhiteSpaceTable0[4] = {
+  32, 160, 5760, 6158 };  // NOLINT
+static const uint16_t kWhiteSpaceTable1Size = 5;
+static const int32_t kWhiteSpaceTable1[5] = {
+  1073741824, 10, 47, 95, 4096 };  // NOLINT
 bool WhiteSpace::Is(uchar c) {
   int chunk_index = c >> 13;
   switch (chunk_index) {
@@ -1833,8 +1811,6 @@ int UnicodeData::GetByteCount() {
       + kLetterTable5Size * sizeof(int32_t)  // NOLINT
       + kLetterTable6Size * sizeof(int32_t)  // NOLINT
       + kLetterTable7Size * sizeof(int32_t)  // NOLINT
-      + kSpaceTable0Size * sizeof(int32_t)  // NOLINT
-      + kSpaceTable1Size * sizeof(int32_t)  // NOLINT
       + kNumberTable0Size * sizeof(int32_t)  // NOLINT
       + kNumberTable5Size * sizeof(int32_t)  // NOLINT
       + kNumberTable7Size * sizeof(int32_t)  // NOLINT

@@ -278,7 +278,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
     return out;
   }
 
-  // Makes an exact copy of this set. O(|this| + |that|).
+  // Makes an exact copy of this set. O(|this|).
   UniqueSet<T>* Copy(Zone* zone) const {
     UniqueSet<T>* copy = new(zone) UniqueSet<T>();
     copy->size_ = this->size_;

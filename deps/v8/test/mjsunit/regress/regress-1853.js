@@ -113,4 +113,3 @@ eval('function test2() {                \n' +
 test1();
 test2();
 assertEquals(3, break_count);
-

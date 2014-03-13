@@ -25,10 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays --notrack-allocation-sites
-
-// No tracking of allocation sites because it interfers with the semantics
-// the test is trying to ensure.
+// Flags: --allow-natives-syntax --smi-only-arrays
+// Flags: --nostress-opt
 
 // Ensure that ElementsKind transitions in various situations are hoisted (or
 // not hoisted) correctly, don't change the semantics programs and don't trigger
@@ -42,7 +40,7 @@ if (support_smi_only_arrays) {
   print("Tests do NOT include smi-only arrays.");
 }
 
-if (support_smi_only_arrays) {
+function test_wrapper() {
   // Make sure that a simple elements array transitions inside a loop before
   // stores to an array gets hoisted in a way that doesn't generate a deopt in
   // simple cases.}
@@ -238,4 +236,11 @@ if (support_smi_only_arrays) {
   testStraightLineDupeElinination(new Array(5),0,0,0,0,0);
   assertOptimized(testStraightLineDupeElinination);
   %ClearFunctionTypeFeedback(testStraightLineDupeElinination);
+}
+
+if (support_smi_only_arrays) {
+  // The test is called in a test wrapper that has type feedback cleared to
+  // prevent the influence of allocation-sites, which learn from transitions.
+  test_wrapper();
+  %ClearFunctionTypeFeedback(test_wrapper);
 }

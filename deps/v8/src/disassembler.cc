@@ -224,10 +224,10 @@ static int DecodeIt(Isolate* isolate,
         StringStream accumulator(&allocator);
         relocinfo.target_object()->ShortPrint(&accumulator);
         SmartArrayPointer<const char> obj_name = accumulator.ToCString();
-        out.AddFormatted("    ;; object: %s", *obj_name);
+        out.AddFormatted("    ;; object: %s", obj_name.get());
       } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
         const char* reference_name =
-            ref_encoder.NameOfAddress(*relocinfo.target_reference_address());
+            ref_encoder.NameOfAddress(relocinfo.target_reference());
         out.AddFormatted("    ;; external reference (%s)", reference_name);
       } else if (RelocInfo::IsCodeTarget(rmode)) {
         out.AddFormatted("    ;; code:");
@@ -237,7 +237,8 @@ static int DecodeIt(Isolate* isolate,
         Code* code = Code::GetCodeFromTargetAddress(relocinfo.target_address());
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {
-          if (rmode == RelocInfo::CODE_TARGET_CONTEXT) {
+          if (kind == Code::LOAD_IC &&
+              LoadIC::GetContextualMode(code->extra_ic_state()) == CONTEXTUAL) {
             out.AddFormatted(" contextual,");
           }
           InlineCacheState ic_state = code->ic_state();
@@ -246,9 +247,6 @@ static int DecodeIt(Isolate* isolate,
           if (ic_state == MONOMORPHIC) {
             Code::StubType type = code->type();
             out.AddFormatted(", %s", Code::StubType2String(type));
-          }
-          if (kind == Code::CALL_IC || kind == Code::KEYED_CALL_IC) {
-            out.AddFormatted(", argc = %d", code->arguments_count());
           }
         } else if (kind == Code::STUB || kind == Code::HANDLER) {
           // Reverse lookup required as the minor key cannot be retrieved

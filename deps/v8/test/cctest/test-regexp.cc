@@ -49,6 +49,11 @@
 #include "arm/macro-assembler-arm.h"
 #include "arm/regexp-macro-assembler-arm.h"
 #endif
+#if V8_TARGET_ARCH_A64
+#include "a64/assembler-a64.h"
+#include "a64/macro-assembler-a64.h"
+#include "a64/regexp-macro-assembler-a64.h"
+#endif
 #if V8_TARGET_ARCH_MIPS
 #include "mips/assembler-mips.h"
 #include "mips/macro-assembler-mips.h"
@@ -132,7 +137,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
 
 
 #define CHECK_PARSE_ERROR(input) CHECK(!CheckParse(input))
-#define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, *Parse(input))
+#define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, Parse(input).get())
 #define CHECK_SIMPLE(input, simple) CHECK_EQ(simple, CheckSimple(input));
 #define CHECK_MIN_MAX(input, min, max)                                         \
   { MinMaxPair min_max = CheckMinMaxMatch(input);                              \
@@ -399,7 +404,7 @@ static void ExpectError(const char* input,
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
   SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
-  CHECK_EQ(expected, *str);
+  CHECK_EQ(expected, str.get());
 }
 
 
@@ -430,7 +435,7 @@ TEST(Errors) {
     accumulator.Add("()");
   }
   SmartArrayPointer<const char> many_captures(accumulator.ToCString());
-  ExpectError(*many_captures, kTooManyCaptures);
+  ExpectError(many_captures.get(), kTooManyCaptures);
 }
 
 
@@ -444,27 +449,15 @@ static bool NotDigit(uc16 c) {
 }
 
 
-static bool IsWhiteSpace(uc16 c) {
-  switch (c) {
-    case 0x09:
-    case 0x0A:
-    case 0x0B:
-    case 0x0C:
-    case 0x0d:
-    case 0x20:
-    case 0xA0:
-    case 0x2028:
-    case 0x2029:
-    case 0xFEFF:
-      return true;
-    default:
-      return unibrow::Space::Is(c);
-  }
+static bool IsWhiteSpaceOrLineTerminator(uc16 c) {
+  // According to ECMA 5.1, 15.10.2.12 the CharacterClassEscape \s includes
+  // WhiteSpace (7.2) and LineTerminator (7.3) values.
+  return v8::internal::WhiteSpaceOrLineTerminator::Is(c);
 }
 
 
-static bool NotWhiteSpace(uc16 c) {
-  return !IsWhiteSpace(c);
+static bool NotWhiteSpaceNorLineTermiantor(uc16 c) {
+  return !IsWhiteSpaceOrLineTerminator(c);
 }
 
 
@@ -494,8 +487,8 @@ TEST(CharacterClassEscapes) {
   TestCharacterClassEscapes('.', IsRegExpNewline);
   TestCharacterClassEscapes('d', IsDigit);
   TestCharacterClassEscapes('D', NotDigit);
-  TestCharacterClassEscapes('s', IsWhiteSpace);
-  TestCharacterClassEscapes('S', NotWhiteSpace);
+  TestCharacterClassEscapes('s', IsWhiteSpaceOrLineTerminator);
+  TestCharacterClassEscapes('S', NotWhiteSpaceNorLineTermiantor);
   TestCharacterClassEscapes('w', IsRegExpWord);
   TestCharacterClassEscapes('W', NotWord);
 }
@@ -539,7 +532,6 @@ static void Execute(const char* input,
 #ifdef DEBUG
   if (dot_output) {
     RegExpEngine::DotPrint(input, node, false);
-    exit(0);
   }
 #endif  // DEBUG
 }
@@ -702,6 +694,8 @@ typedef RegExpMacroAssemblerIA32 ArchRegExpMacroAssembler;
 typedef RegExpMacroAssemblerX64 ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_ARM
 typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
+#elif V8_TARGET_ARCH_A64
+typedef RegExpMacroAssemblerA64 ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_MIPS
 typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
 #endif

@@ -66,5 +66,3 @@ assertEquals(8, z6());
 var z100 = Factory(100)();
 
 assertEquals(102, z100());
-
-

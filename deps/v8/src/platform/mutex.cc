@@ -27,7 +27,7 @@
 
 #include "platform/mutex.h"
 
-#include <cerrno>
+#include <errno.h>
 
 namespace v8 {
 namespace internal {

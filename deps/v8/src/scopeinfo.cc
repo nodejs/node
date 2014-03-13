@@ -32,8 +32,6 @@
 #include "scopeinfo.h"
 #include "scopes.h"
 
-#include "allocation-inl.h"
-
 namespace v8 {
 namespace internal {
 
@@ -374,15 +372,14 @@ bool ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
   int end = start + local_count;
   for (int i = start; i < end; ++i) {
     int context_index = Context::MIN_CONTEXT_SLOTS + i - start;
-    RETURN_IF_EMPTY_HANDLE_VALUE(
+    Handle<Object> result = Runtime::SetObjectProperty(
         isolate,
-        SetProperty(isolate,
-                    scope_object,
-                    Handle<String>(String::cast(scope_info->get(i))),
-                    Handle<Object>(context->get(context_index), isolate),
-                    ::NONE,
-                    kNonStrictMode),
-        false);
+        scope_object,
+        Handle<String>(String::cast(scope_info->get(i))),
+        Handle<Object>(context->get(context_index), isolate),
+        ::NONE,
+        kNonStrictMode);
+    RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, false);
   }
   return true;
 }

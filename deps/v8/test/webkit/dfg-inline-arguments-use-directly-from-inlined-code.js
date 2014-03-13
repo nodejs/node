@@ -45,4 +45,3 @@ function argsToStr(args) {
 
 for (var __i = 0; __i < 200; ++__i)
     shouldBe("argsToStr(bar(\"a\" + __i, \"b\" + __i, \"c\" + __i))", "\"[object Arguments]: a" + __i + ", b" + __i + ", c" + __i + "\"");
-

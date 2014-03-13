@@ -274,9 +274,10 @@ void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
   // Register state for CallFunctionStub (from code-stubs-mips.cc).
   // ----------- S t a t e -------------
   //  -- a1 : function
-  //  -- a2 : cache cell for call target
+  //  -- a2 : feedback array
+  //  -- a3 : slot in feedback array
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, a1.bit() | a2.bit(), 0);
+  Generate_DebugBreakCallHelper(masm, a1.bit() | a2.bit() | a3.bit(), 0);
 }
 
 
@@ -295,9 +296,10 @@ void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0     : number of arguments (not smi)
   //  -- a1     : constructor function
-  //  -- a2     : cache cell for call target
+  //  -- a2     : feedback array
+  //  -- a3     : feedback slot (smi)
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, a1.bit() | a2.bit(), a0.bit());
+  Generate_DebugBreakCallHelper(masm, a1.bit() | a2.bit() | a3.bit(), a0.bit());
 }
 
 

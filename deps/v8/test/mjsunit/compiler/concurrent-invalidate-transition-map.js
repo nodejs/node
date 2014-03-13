@@ -59,3 +59,5 @@ assertUnoptimized(add_field, "no sync");
 %UnblockConcurrentRecompilation();
 // Sync with background thread to conclude optimization that bailed out.
 assertUnoptimized(add_field, "sync");
+// Clear type info for stress runs.
+%ClearFunctionTypeFeedback(add_field);

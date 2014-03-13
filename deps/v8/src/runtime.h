@@ -85,10 +85,9 @@ namespace internal {
   F(GetConstructorDelegate, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
   F(NewStrictArgumentsFast, 3, 1) \
-  F(LazyCompile, 1, 1) \
-  F(LazyRecompile, 1, 1) \
-  F(ConcurrentRecompile, 1, 1) \
-  F(TryInstallRecompiledCode, 1, 1) \
+  F(CompileUnoptimized, 1, 1) \
+  F(CompileOptimized, 2, 1) \
+  F(TryInstallOptimizedCode, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyStubFailure, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
@@ -100,17 +99,17 @@ namespace internal {
   F(GetOptimizationStatus, -1, 1) \
   F(GetOptimizationCount, 1, 1) \
   F(UnblockConcurrentRecompilation, 0, 1) \
-  F(CompileForOnStackReplacement, 2, 1) \
-  F(SetAllocationTimeout, 2, 1) \
+  F(CompileForOnStackReplacement, 1, 1) \
+  F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
   F(AllocateInNewSpace, 1, 1) \
-  F(AllocateInOldPointerSpace, 1, 1) \
-  F(AllocateInOldDataSpace, 1, 1) \
+  F(AllocateInTargetSpace, 2, 1) \
   F(SetNativeFlag, 1, 1) \
+  F(SetInlineBuiltinFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
   F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
   F(FlattenString, 1, 1) \
-  F(MigrateInstance, 1, 1) \
+  F(TryMigrateInstance, 1, 1) \
   F(NotifyContextDisposed, 0, 1) \
   F(MaxSmi, 0, 1) \
   \
@@ -179,17 +178,14 @@ namespace internal {
   F(Math_asin, 1, 1) \
   F(Math_atan, 1, 1) \
   F(Math_atan2, 2, 1) \
-  F(Math_ceil, 1, 1) \
-  F(Math_cos, 1, 1) \
   F(Math_exp, 1, 1) \
   F(Math_floor, 1, 1) \
   F(Math_log, 1, 1) \
   F(Math_pow, 2, 1) \
   F(Math_pow_cfunction, 2, 1) \
   F(RoundNumber, 1, 1) \
-  F(Math_sin, 1, 1) \
   F(Math_sqrt, 1, 1) \
-  F(Math_tan, 1, 1) \
+  F(Math_fround, 1, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
@@ -278,6 +274,7 @@ namespace internal {
   \
   /* Eval */ \
   F(GlobalReceiver, 1, 1) \
+  F(IsAttachedGlobal, 1, 1) \
   F(ResolvePossiblyDirectEval, 5, 2) \
   \
   F(SetProperty, -1 /* 4 or 5 */, 1) \
@@ -300,8 +297,8 @@ namespace internal {
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4, 1)\
   F(CreateObjectLiteral, 4, 1) \
-  F(CreateArrayLiteral, 3, 1) \
-  F(CreateArrayLiteralShallow, 3, 1) \
+  F(CreateArrayLiteral, 4, 1) \
+  F(CreateArrayLiteralStubBailout, 3, 1) \
   \
   /* Harmony generators */ \
   F(CreateJSGeneratorObject, 0, 1) \
@@ -312,12 +309,17 @@ namespace internal {
   /* ES5 */ \
   F(ObjectFreeze, 1, 1) \
   \
+  /* Harmony Microtasks */ \
+  F(GetMicrotaskState, 0, 1) \
+  \
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \
   \
   /* Harmony symbols */ \
   F(CreateSymbol, 1, 1) \
+  F(CreatePrivateSymbol, 1, 1) \
   F(SymbolName, 1, 1) \
+  F(SymbolIsPrivate, 1, 1) \
   \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \
@@ -351,10 +353,13 @@ namespace internal {
   F(WeakCollectionDelete, 2, 1) \
   F(WeakCollectionSet, 3, 1) \
   \
+  /* Harmony events */ \
+  F(SetMicrotaskPending, 1, 1) \
+  F(RunMicrotasks, 0, 1) \
+  \
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \
   F(SetIsObserved, 1, 1) \
-  F(SetObserverDeliveryPending, 0, 1) \
   F(GetObservationState, 0, 1) \
   F(ObservationWeakMapCreate, 0, 1) \
   F(UnwrapGlobalProxy, 1, 1) \
@@ -406,6 +411,7 @@ namespace internal {
   F(ReThrow, 1, 1) \
   F(ThrowReferenceError, 1, 1) \
   F(ThrowNotDateError, 0, 1) \
+  F(ThrowMessage, 1, 1) \
   F(StackGuard, 0, 1) \
   F(Interrupt, 0, 1) \
   F(PromoteScheduledException, 0, 1) \
@@ -436,7 +442,8 @@ namespace internal {
   F(DebugTrace, 0, 1) \
   F(TraceEnter, 0, 1) \
   F(TraceExit, 1, 1) \
-  F(Abort, 2, 1) \
+  F(Abort, 1, 1) \
+  F(AbortJS, 1, 1) \
   /* Logging */ \
   F(Log, 2, 1) \
   /* ES5 */ \
@@ -459,16 +466,16 @@ namespace internal {
   F(HasFastHoleyElements, 1, 1) \
   F(HasDictionaryElements, 1, 1) \
   F(HasNonStrictArgumentsElements, 1, 1) \
-  F(HasExternalPixelElements, 1, 1) \
+  F(HasExternalUint8ClampedElements, 1, 1) \
   F(HasExternalArrayElements, 1, 1) \
-  F(HasExternalByteElements, 1, 1) \
-  F(HasExternalUnsignedByteElements, 1, 1) \
-  F(HasExternalShortElements, 1, 1) \
-  F(HasExternalUnsignedShortElements, 1, 1) \
-  F(HasExternalIntElements, 1, 1) \
-  F(HasExternalUnsignedIntElements, 1, 1) \
-  F(HasExternalFloatElements, 1, 1) \
-  F(HasExternalDoubleElements, 1, 1) \
+  F(HasExternalInt8Elements, 1, 1) \
+  F(HasExternalUint8Elements, 1, 1) \
+  F(HasExternalInt16Elements, 1, 1) \
+  F(HasExternalUint16Elements, 1, 1) \
+  F(HasExternalInt32Elements, 1, 1) \
+  F(HasExternalUint32Elements, 1, 1) \
+  F(HasExternalFloat32Elements, 1, 1) \
+  F(HasExternalFloat64Elements, 1, 1) \
   F(HasFastProperties, 1, 1) \
   F(TransitionElementsKind, 2, 1) \
   F(HaveSameMap, 2, 1) \
@@ -566,6 +573,9 @@ namespace internal {
   F(CreateCollator, 3, 1) \
   F(InternalCompare, 3, 1) \
   \
+  /* String.prototype.normalize. */ \
+  F(StringNormalize, 2, 1) \
+  \
   /* Break iterator. */ \
   F(CreateBreakIterator, 3, 1) \
   F(BreakIteratorAdoptText, 2, 1) \
@@ -620,19 +630,15 @@ namespace internal {
   F(OneByteSeqStringSetChar, 3, 1)                                           \
   F(TwoByteSeqStringSetChar, 3, 1)                                           \
   F(ObjectEquals, 2, 1)                                                      \
-  F(RandomHeapNumber, 0, 1)                                                  \
   F(IsObject, 1, 1)                                                          \
   F(IsFunction, 1, 1)                                                        \
   F(IsUndetectableObject, 1, 1)                                              \
   F(IsSpecObject, 1, 1)                                                      \
   F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
   F(MathPow, 2, 1)                                                           \
-  F(MathSin, 1, 1)                                                           \
-  F(MathCos, 1, 1)                                                           \
-  F(MathTan, 1, 1)                                                           \
   F(MathSqrt, 1, 1)                                                          \
   F(MathLog, 1, 1)                                                           \
-  F(IsRegExpEquivalent, 2, 1)                                                \
+  F(IsMinusZero, 1, 1)                                                       \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
   F(FastAsciiArrayJoin, 2, 1)                                                \
@@ -778,7 +784,7 @@ class Runtime : public AllStatic {
       Handle<Object> object,
       uint32_t index);
 
-  MUST_USE_RESULT static MaybeObject* SetObjectProperty(
+  static Handle<Object> SetObjectProperty(
       Isolate* isolate,
       Handle<Object> object,
       Handle<Object> key,
@@ -786,15 +792,7 @@ class Runtime : public AllStatic {
       PropertyAttributes attr,
       StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT static MaybeObject* SetObjectPropertyOrFail(
-      Isolate* isolate,
-      Handle<Object> object,
-      Handle<Object> key,
-      Handle<Object> value,
-      PropertyAttributes attr,
-      StrictModeFlag strict_mode);
-
-  MUST_USE_RESULT static MaybeObject* ForceSetObjectProperty(
+  static Handle<Object> ForceSetObjectProperty(
       Isolate* isolate,
       Handle<JSObject> object,
       Handle<Object> key,
@@ -838,6 +836,22 @@ class Runtime : public AllStatic {
       Isolate* isolate,
       JSArrayBuffer* phantom_array_buffer);
 
+  enum TypedArrayId {
+    // arrayIds below should be synchromized with typedarray.js natives.
+    ARRAY_ID_UINT8 = 1,
+    ARRAY_ID_INT8 = 2,
+    ARRAY_ID_UINT16 = 3,
+    ARRAY_ID_INT16 = 4,
+    ARRAY_ID_UINT32 = 5,
+    ARRAY_ID_INT32 = 6,
+    ARRAY_ID_FLOAT32 = 7,
+    ARRAY_ID_FLOAT64 = 8,
+    ARRAY_ID_UINT8_CLAMPED = 9
+  };
+
+  static void ArrayIdToTypeAndSize(int array_id,
+      ExternalArrayType *type, size_t *element_size);
+
   // Helper functions used stubs.
   static void PerformGC(Object* result, Isolate* isolate);
 
@@ -851,6 +865,9 @@ class Runtime : public AllStatic {
 
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
+
+class AllocateDoubleAlignFlag:    public BitField<bool,            0, 1> {};
+class AllocateTargetSpace:        public BitField<AllocationSpace, 1, 3> {};
 
 class DeclareGlobalsEvalFlag:     public BitField<bool,         0, 1> {};
 class DeclareGlobalsNativeFlag:   public BitField<bool,         1, 1> {};

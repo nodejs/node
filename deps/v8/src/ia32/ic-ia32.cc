@@ -611,7 +611,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   char_at_generator.GenerateSlow(masm, call_helper);
 
   __ bind(&miss);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -653,7 +653,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   __ TailCallExternalReference(ref, 2, 1);
 
   __ bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -678,7 +678,7 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ mov(eax, unmapped_location);
   __ Ret();
   __ bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -707,7 +707,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ RecordWrite(ebx, edi, edx, kDontSaveFPRegs);
   __ Ret();
   __ bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -733,6 +733,19 @@ static void KeyedStoreGenerateGenericHelper(
     __ cmp(edi, masm->isolate()->factory()->fixed_array_map());
     __ j(not_equal, fast_double);
   }
+
+  // HOLECHECK: guards "A[i] = V"
+  // We have to go to the runtime if the current value is the hole because
+  // there may be a callback on the element
+  Label holecheck_passed1;
+  __ cmp(FixedArrayElementOperand(ebx, ecx),
+         masm->isolate()->factory()->the_hole_value());
+  __ j(not_equal, &holecheck_passed1);
+  __ JumpIfDictionaryInPrototypeChain(edx, ebx, edi, slow);
+  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
+
+  __ bind(&holecheck_passed1);
+
   // Smi stores don't require further checks.
   Label non_smi_value;
   __ JumpIfNotSmi(eax, &non_smi_value);
@@ -742,7 +755,7 @@ static void KeyedStoreGenerateGenericHelper(
            Immediate(Smi::FromInt(1)));
   }
   // It's irrelevant whether array is smi-only or not when writing a smi.
-  __ mov(CodeGenerator::FixedArrayElementOperand(ebx, ecx), eax);
+  __ mov(FixedArrayElementOperand(ebx, ecx), eax);
   __ ret(0);
 
   __ bind(&non_smi_value);
@@ -757,7 +770,7 @@ static void KeyedStoreGenerateGenericHelper(
     __ add(FieldOperand(edx, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
   }
-  __ mov(CodeGenerator::FixedArrayElementOperand(ebx, ecx), eax);
+  __ mov(FixedArrayElementOperand(ebx, ecx), eax);
   // Update write barrier for the elements array address.
   __ mov(edx, eax);  // Preserve the value which is returned.
   __ RecordWriteArray(
@@ -773,6 +786,16 @@ static void KeyedStoreGenerateGenericHelper(
     // If the value is a number, store it as a double in the FastDoubleElements
     // array.
   }
+
+  // HOLECHECK: guards "A[i] double hole?"
+  // We have to see if the double version of the hole is present. If so
+  // go to the runtime.
+  uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
+  __ cmp(FieldOperand(ebx, ecx, times_4, offset), Immediate(kHoleNanUpper32));
+  __ j(not_equal, &fast_double_without_map_check);
+  __ JumpIfDictionaryInPrototypeChain(edx, ebx, edi, slow);
+  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
+
   __ bind(&fast_double_without_map_check);
   __ StoreNumberToDoubleElements(eax, ebx, ecx, edi, xmm0,
                                  &transition_double_elements, false);
@@ -851,10 +874,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ JumpIfSmi(edx, &slow);
   // Get the map from the receiver.
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
-  // Check that the receiver does not require access checks.  We need
-  // to do this because this generic stub does not perform map checks.
+  // Check that the receiver does not require access checks and is not observed.
+  // The generic stub does not perform map checks or handle observed objects.
   __ test_b(FieldOperand(edi, Map::kBitFieldOffset),
-            1 << Map::kIsAccessCheckNeeded);
+            1 << Map::kIsAccessCheckNeeded | 1 << Map::kIsObserved);
   __ j(not_zero, &slow);
   // Check that the key is a smi.
   __ JumpIfNotSmi(ecx, &slow);
@@ -924,377 +947,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 }
 
 
-// The generated code does not accept smi keys.
-// The generated code falls through if both probes miss.
-void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
-                                               int argc,
-                                               Code::Kind kind,
-                                               Code::ExtraICState extra_state) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- edx                 : receiver
-  // -----------------------------------
-  Label number, non_number, non_string, boolean, probe, miss;
-
-  // Probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(kind,
-                                         MONOMORPHIC,
-                                         extra_state,
-                                         Code::NORMAL,
-                                         argc);
-  Isolate* isolate = masm->isolate();
-  isolate->stub_cache()->GenerateProbe(masm, flags, edx, ecx, ebx, eax);
-
-  // If the stub cache probing failed, the receiver might be a value.
-  // For value objects, we use the map of the prototype objects for
-  // the corresponding JSValue for the cache and that is what we need
-  // to probe.
-  //
-  // Check for number.
-  __ JumpIfSmi(edx, &number);
-  __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ebx);
-  __ j(not_equal, &non_number);
-  __ bind(&number);
-  StubCompiler::GenerateLoadGlobalFunctionPrototype(
-      masm, Context::NUMBER_FUNCTION_INDEX, edx);
-  __ jmp(&probe);
-
-  // Check for string.
-  __ bind(&non_number);
-  __ CmpInstanceType(ebx, FIRST_NONSTRING_TYPE);
-  __ j(above_equal, &non_string);
-  StubCompiler::GenerateLoadGlobalFunctionPrototype(
-      masm, Context::STRING_FUNCTION_INDEX, edx);
-  __ jmp(&probe);
-
-  // Check for boolean.
-  __ bind(&non_string);
-  __ cmp(edx, isolate->factory()->true_value());
-  __ j(equal, &boolean);
-  __ cmp(edx, isolate->factory()->false_value());
-  __ j(not_equal, &miss);
-  __ bind(&boolean);
-  StubCompiler::GenerateLoadGlobalFunctionPrototype(
-      masm, Context::BOOLEAN_FUNCTION_INDEX, edx);
-
-  // Probe the stub cache for the value object.
-  __ bind(&probe);
-  isolate->stub_cache()->GenerateProbe(masm, flags, edx, ecx, ebx, no_reg);
-  __ bind(&miss);
-}
-
-
-static void GenerateFunctionTailCall(MacroAssembler* masm,
-                                     int argc,
-                                     Label* miss) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- edi                 : function
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-
-  // Check that the result is not a smi.
-  __ JumpIfSmi(edi, miss);
-
-  // Check that the value is a JavaScript function, fetching its map into eax.
-  __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
-  __ j(not_equal, miss);
-
-  // Invoke the function.
-  ParameterCount actual(argc);
-  __ InvokeFunction(edi, actual, JUMP_FUNCTION,
-                    NullCallWrapper(), CALL_AS_METHOD);
-}
-
-
-// The generated code falls through if the call should be handled by runtime.
-void CallICBase::GenerateNormal(MacroAssembler* masm, int argc) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-  Label miss;
-
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-
-  GenerateNameDictionaryReceiverCheck(masm, edx, eax, ebx, &miss);
-
-  // eax: elements
-  // Search the dictionary placing the result in edi.
-  GenerateDictionaryLoad(masm, &miss, eax, ecx, edi, ebx, edi);
-  GenerateFunctionTailCall(masm, argc, &miss);
-
-  __ bind(&miss);
-}
-
-
-void CallICBase::GenerateMiss(MacroAssembler* masm,
-                              int argc,
-                              IC::UtilityId id,
-                              Code::ExtraICState extra_state) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-
-  Counters* counters = masm->isolate()->counters();
-  if (id == IC::kCallIC_Miss) {
-    __ IncrementCounter(counters->call_miss(), 1);
-  } else {
-    __ IncrementCounter(counters->keyed_call_miss(), 1);
-  }
-
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push the receiver and the name of the function.
-    __ push(edx);
-    __ push(ecx);
-
-    // Call the entry.
-    CEntryStub stub(1);
-    __ mov(eax, Immediate(2));
-    __ mov(ebx, Immediate(ExternalReference(IC_Utility(id), masm->isolate())));
-    __ CallStub(&stub);
-
-    // Move result to edi and exit the internal frame.
-    __ mov(edi, eax);
-  }
-
-  // Check if the receiver is a global object of some sort.
-  // This can happen only for regular CallIC but not KeyedCallIC.
-  if (id == IC::kCallIC_Miss) {
-    Label invoke, global;
-    __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));  // receiver
-    __ JumpIfSmi(edx, &invoke, Label::kNear);
-    __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
-    __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-    __ cmp(ebx, JS_GLOBAL_OBJECT_TYPE);
-    __ j(equal, &global, Label::kNear);
-    __ cmp(ebx, JS_BUILTINS_OBJECT_TYPE);
-    __ j(not_equal, &invoke, Label::kNear);
-
-    // Patch the receiver on the stack.
-    __ bind(&global);
-    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
-    __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
-    __ bind(&invoke);
-  }
-
-  // Invoke the function.
-  CallKind call_kind = CallICBase::Contextual::decode(extra_state)
-      ? CALL_AS_FUNCTION
-      : CALL_AS_METHOD;
-  ParameterCount actual(argc);
-  __ InvokeFunction(edi,
-                    actual,
-                    JUMP_FUNCTION,
-                    NullCallWrapper(),
-                    call_kind);
-}
-
-
-void CallIC::GenerateMegamorphic(MacroAssembler* masm,
-                                 int argc,
-                                 Code::ExtraICState extra_state) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-  CallICBase::GenerateMonomorphicCacheProbe(masm, argc, Code::CALL_IC,
-                                            extra_state);
-
-  GenerateMiss(masm, argc, extra_state);
-}
-
-
-void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-
-  Label do_call, slow_call, slow_load, slow_reload_receiver;
-  Label check_number_dictionary, check_name, lookup_monomorphic_cache;
-  Label index_smi, index_name;
-
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(ecx, &check_name);
-
-  __ bind(&index_smi);
-  // Now the key is known to be a smi. This place is also jumped to from
-  // where a numeric string is converted to a smi.
-
-  GenerateKeyedLoadReceiverCheck(
-      masm, edx, eax, Map::kHasIndexedInterceptor, &slow_call);
-
-  GenerateFastArrayLoad(
-      masm, edx, ecx, eax, edi, &check_number_dictionary, &slow_load);
-  Isolate* isolate = masm->isolate();
-  Counters* counters = isolate->counters();
-  __ IncrementCounter(counters->keyed_call_generic_smi_fast(), 1);
-
-  __ bind(&do_call);
-  // receiver in edx is not used after this point.
-  // ecx: key
-  // edi: function
-  GenerateFunctionTailCall(masm, argc, &slow_call);
-
-  __ bind(&check_number_dictionary);
-  // eax: elements
-  // ecx: smi key
-  // Check whether the elements is a number dictionary.
-  __ CheckMap(eax,
-              isolate->factory()->hash_table_map(),
-              &slow_load,
-              DONT_DO_SMI_CHECK);
-  __ mov(ebx, ecx);
-  __ SmiUntag(ebx);
-  // ebx: untagged index
-  // Receiver in edx will be clobbered, need to reload it on miss.
-  __ LoadFromNumberDictionary(
-      &slow_reload_receiver, eax, ecx, ebx, edx, edi, edi);
-  __ IncrementCounter(counters->keyed_call_generic_smi_dict(), 1);
-  __ jmp(&do_call);
-
-  __ bind(&slow_reload_receiver);
-  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-
-  __ bind(&slow_load);
-  // This branch is taken when calling KeyedCallIC_Miss is neither required
-  // nor beneficial.
-  __ IncrementCounter(counters->keyed_call_generic_slow_load(), 1);
-
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(ecx);  // save the key
-    __ push(edx);  // pass the receiver
-    __ push(ecx);  // pass the key
-    __ CallRuntime(Runtime::kKeyedGetProperty, 2);
-    __ pop(ecx);  // restore the key
-    // Leave the internal frame.
-  }
-
-  __ mov(edi, eax);
-  __ jmp(&do_call);
-
-  __ bind(&check_name);
-  GenerateKeyNameCheck(masm, ecx, eax, ebx, &index_name, &slow_call);
-
-  // The key is known to be a unique name.
-  // If the receiver is a regular JS object with slow properties then do
-  // a quick inline probe of the receiver's dictionary.
-  // Otherwise do the monomorphic cache probe.
-  GenerateKeyedLoadReceiverCheck(
-      masm, edx, eax, Map::kHasNamedInterceptor, &lookup_monomorphic_cache);
-
-  __ mov(ebx, FieldOperand(edx, JSObject::kPropertiesOffset));
-  __ CheckMap(ebx,
-              isolate->factory()->hash_table_map(),
-              &lookup_monomorphic_cache,
-              DONT_DO_SMI_CHECK);
-
-  GenerateDictionaryLoad(masm, &slow_load, ebx, ecx, eax, edi, edi);
-  __ IncrementCounter(counters->keyed_call_generic_lookup_dict(), 1);
-  __ jmp(&do_call);
-
-  __ bind(&lookup_monomorphic_cache);
-  __ IncrementCounter(counters->keyed_call_generic_lookup_cache(), 1);
-  CallICBase::GenerateMonomorphicCacheProbe(masm, argc, Code::KEYED_CALL_IC,
-                                            Code::kNoExtraICState);
-  // Fall through on miss.
-
-  __ bind(&slow_call);
-  // This branch is taken if:
-  // - the receiver requires boxing or access check,
-  // - the key is neither smi nor a unique name,
-  // - the value loaded is not a function,
-  // - there is hope that the runtime will create a monomorphic call stub
-  //   that will get fetched next time.
-  __ IncrementCounter(counters->keyed_call_generic_slow(), 1);
-  GenerateMiss(masm, argc);
-
-  __ bind(&index_name);
-  __ IndexFromHash(ebx, ecx);
-  // Now jump to the place where smi keys are handled.
-  __ jmp(&index_smi);
-}
-
-
-void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
-                                             int argc) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-  Label slow, notin;
-  Factory* factory = masm->isolate()->factory();
-  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-  Operand mapped_location =
-      GenerateMappedArgumentsLookup(masm, edx, ecx, ebx, eax, &notin, &slow);
-  __ mov(edi, mapped_location);
-  GenerateFunctionTailCall(masm, argc, &slow);
-  __ bind(&notin);
-  // The unmapped lookup expects that the parameter map is in ebx.
-  Operand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, ecx, ebx, eax, &slow);
-  __ cmp(unmapped_location, factory->the_hole_value());
-  __ j(equal, &slow);
-  __ mov(edi, unmapped_location);
-  GenerateFunctionTailCall(masm, argc, &slow);
-  __ bind(&slow);
-  GenerateMiss(masm, argc);
-}
-
-
-void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-
-  // Check if the name is really a name.
-  Label miss;
-  __ JumpIfSmi(ecx, &miss);
-  Condition cond = masm->IsObjectNameType(ecx, eax, eax);
-  __ j(NegateCondition(cond), &miss);
-  CallICBase::GenerateNormal(masm, argc);
-  __ bind(&miss);
-  GenerateMiss(masm, argc);
-}
-
-
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
@@ -1303,9 +955,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // -----------------------------------
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, Code::kNoExtraICState,
-      Code::NORMAL, Code::LOAD_IC);
+  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, edx, ecx, ebx, eax);
 
@@ -1373,7 +1023,7 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
+void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : key
   //  -- edx    : receiver
@@ -1388,10 +1038,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   __ push(ebx);  // return address
 
   // Perform tail call to the entry.
-  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
-      ? ExternalReference(IC_Utility(kKeyedLoadIC_MissForceGeneric),
-                          masm->isolate())
-      : ExternalReference(IC_Utility(kKeyedLoadIC_Miss), masm->isolate());
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedLoadIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 2, 1);
 }
 
@@ -1413,18 +1061,14 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
-                                  StrictModeFlag strict_mode) {
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-
-  Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, strict_mode,
-      Code::NORMAL, Code::STORE_IC);
+  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, edx, ecx, ebx, no_reg);
 
@@ -1528,7 +1172,7 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
@@ -1543,10 +1187,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   __ push(ebx);
 
   // Do tail-call to runtime routine.
-  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
-      ? ExternalReference(IC_Utility(kKeyedStoreIC_MissForceGeneric),
-                          masm->isolate())
-      : ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 

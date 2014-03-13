@@ -37,7 +37,7 @@ namespace internal {
 class HMarkUnreachableBlocksPhase : public HPhase {
  public:
   explicit HMarkUnreachableBlocksPhase(HGraph* graph)
-      : HPhase("H_Mark unrechable blocks", graph) { }
+      : HPhase("H_Mark unreachable blocks", graph) { }
 
   void Run();
 

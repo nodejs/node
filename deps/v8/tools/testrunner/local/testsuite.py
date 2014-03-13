@@ -93,11 +93,24 @@ class TestSuite(object):
   def _FilterFlaky(flaky, mode):
     return (mode == "run" and not flaky) or (mode == "skip" and flaky)
 
-  def FilterTestCasesByStatus(self, warn_unused_rules, flaky_tests="dontcare"):
+  @staticmethod
+  def _FilterSlow(slow, mode):
+    return (mode == "run" and not slow) or (mode == "skip" and slow)
+
+  @staticmethod
+  def _FilterPassFail(pass_fail, mode):
+    return (mode == "run" and not pass_fail) or (mode == "skip" and pass_fail)
+
+  def FilterTestCasesByStatus(self, warn_unused_rules,
+                              flaky_tests="dontcare",
+                              slow_tests="dontcare",
+                              pass_fail_tests="dontcare"):
     filtered = []
     used_rules = set()
     for t in self.tests:
       flaky = False
+      slow = False
+      pass_fail = False
       testname = self.CommonTestName(t)
       if testname in self.rules:
         used_rules.add(testname)
@@ -107,6 +120,8 @@ class TestSuite(object):
         if statusfile.DoSkip(t.outcomes):
           continue  # Don't add skipped tests to |filtered|.
         flaky = statusfile.IsFlaky(t.outcomes)
+        slow = statusfile.IsSlow(t.outcomes)
+        pass_fail = statusfile.IsPassOrFail(t.outcomes)
       skip = False
       for rule in self.wildcards:
         assert rule[-1] == '*'
@@ -117,7 +132,11 @@ class TestSuite(object):
             skip = True
             break  # "for rule in self.wildcards"
           flaky = flaky or statusfile.IsFlaky(t.outcomes)
-      if skip or self._FilterFlaky(flaky, flaky_tests):
+          slow = slow or statusfile.IsSlow(t.outcomes)
+          pass_fail = pass_fail or statusfile.IsPassOrFail(t.outcomes)
+      if (skip or self._FilterFlaky(flaky, flaky_tests)
+          or self._FilterSlow(slow, slow_tests)
+          or self._FilterPassFail(pass_fail, pass_fail_tests)):
         continue  # "for t in self.tests"
       filtered.append(t)
     self.tests = filtered

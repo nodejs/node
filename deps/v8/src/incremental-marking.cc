@@ -498,12 +498,10 @@ bool IncrementalMarking::WorthActivating() {
   // debug tests run with incremental marking and some without.
   static const intptr_t kActivationThreshold = 0;
 #endif
-  // Only start incremental marking in a safe state: 1) when expose GC is
-  // deactivated, 2) when incremental marking is turned on, 3) when we are
-  // currently not in a GC, and 4) when we are currently not serializing
-  // or deserializing the heap.
-  return !FLAG_expose_gc &&
-      FLAG_incremental_marking &&
+  // Only start incremental marking in a safe state: 1) when incremental
+  // marking is turned on, 2) when we are currently not in a GC, and
+  // 3) when we are currently not serializing or deserializing the heap.
+  return FLAG_incremental_marking &&
       FLAG_incremental_marking_steps &&
       heap_->gc_state() == Heap::NOT_IN_GC &&
       !Serializer::enabled() &&

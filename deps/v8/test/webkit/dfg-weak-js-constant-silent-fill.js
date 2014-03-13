@@ -45,4 +45,3 @@ for (var i = 0; i < 1000; ++i) {
     shouldBe("o2.f", "false");
     shouldBe("o3.f", "false");
 }
-

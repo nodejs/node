@@ -210,6 +210,21 @@ function JSONStringify(value, replacer, space) {
   } else {
     gap = "";
   }
+  if (IS_ARRAY(replacer)) {
+    // Deduplicate replacer array items.
+    var property_list = new InternalArray();
+    var seen_properties = {};
+    var length = replacer.length;
+    for (var i = 0; i < length; i++) {
+      var item = replacer[i];
+      if (IS_NUMBER(item)) item = %_NumberToString(item);
+      if (IS_STRING(item) && !(item in seen_properties)) {
+        property_list.push(item);
+        seen_properties[item] = true;
+      }
+    }
+    replacer = property_list;
+  }
   return JSONSerialize('', {'': value}, replacer, new InternalArray(), "", gap);
 }
 

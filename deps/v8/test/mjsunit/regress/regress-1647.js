@@ -40,4 +40,3 @@ for (var i = 0; i < 10; i++) f();
 %OptimizeFunctionOnNextCall(f);
 t.number = 2;
 f();
-

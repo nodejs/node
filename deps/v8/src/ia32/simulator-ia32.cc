@@ -27,4 +27,3 @@
 
 
 // Since there is no simulator for the ia32 architecture this file is empty.
-

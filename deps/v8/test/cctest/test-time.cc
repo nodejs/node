@@ -25,9 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <cstdlib>
-
 #include "v8.h"
+
+#if V8_OS_POSIX
+#include <sys/time.h>  // NOLINT
+#endif
 
 #include "cctest.h"
 #if V8_OS_WIN

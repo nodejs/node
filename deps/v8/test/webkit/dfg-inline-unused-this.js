@@ -54,4 +54,3 @@ for (var i = 0; i < 1000; ++i) {
 
     shouldBe("baz(object, " + i + ", " + (i * 2) + ")", "" + (offset + i + i * 2));
 }
-

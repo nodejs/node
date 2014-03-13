@@ -39,4 +39,3 @@ for (var i = 0; i < 200; ++i) {
     var expected = i + (i == 199 ? 2147483647 : 5) + (i !== 5 ? 1 : -1)
     shouldBe("foo(i, 5, i == 199 ? 2147483647 : 5)", "" + expected);
 }
-

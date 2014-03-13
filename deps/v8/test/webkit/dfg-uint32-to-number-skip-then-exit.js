@@ -42,4 +42,3 @@ for (var i = 0; i < 200; ++i) {
     }
     shouldBe("foo(i, 1, o)", "" + expected);
 }
-

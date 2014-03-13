@@ -104,7 +104,7 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
   ApiFunction function(descriptor->deoptimization_handler_);
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
   intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
-  int params = descriptor->environment_length();
+  int params = descriptor->GetHandlerParameterCount();
   output_frame->SetRegister(s0.code(), params);
   output_frame->SetRegister(s1.code(), (params - 1) * kPointerSize);
   output_frame->SetRegister(s2.code(), handler);
@@ -239,13 +239,13 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ Addu(a3, a1, Operand(FrameDescription::frame_content_offset()));
   Label pop_loop;
   Label pop_loop_header;
-  __ Branch(&pop_loop_header);
+  __ BranchShort(&pop_loop_header);
   __ bind(&pop_loop);
   __ pop(t0);
   __ sw(t0, MemOperand(a3, 0));
   __ addiu(a3, a3, sizeof(uint32_t));
   __ bind(&pop_loop_header);
-  __ Branch(&pop_loop, ne, a2, Operand(sp));
+  __ BranchShort(&pop_loop, ne, a2, Operand(sp));
 
   // Compute the output frame in the deoptimizer.
   __ push(a0);  // Preserve deoptimizer object across call.
@@ -280,11 +280,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ lw(t3, MemOperand(t2, FrameDescription::frame_content_offset()));
   __ push(t3);
   __ bind(&inner_loop_header);
-  __ Branch(&inner_push_loop, ne, a3, Operand(zero_reg));
+  __ BranchShort(&inner_push_loop, ne, a3, Operand(zero_reg));
 
   __ Addu(t0, t0, Operand(kPointerSize));
   __ bind(&outer_loop_header);
-  __ Branch(&outer_push_loop, lt, t0, Operand(a1));
+  __ BranchShort(&outer_push_loop, lt, t0, Operand(a1));
 
   __ lw(a1, MemOperand(a0, Deoptimizer::input_offset()));
   for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {

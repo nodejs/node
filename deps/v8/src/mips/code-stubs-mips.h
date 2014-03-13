@@ -38,30 +38,6 @@ namespace internal {
 void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
 
 
-// Compute a transcendental math function natively, or call the
-// TranscendentalCache runtime function.
-class TranscendentalCacheStub: public PlatformCodeStub {
- public:
-  enum ArgumentType {
-    TAGGED = 0 << TranscendentalCache::kTranscendentalTypeBits,
-    UNTAGGED = 1 << TranscendentalCache::kTranscendentalTypeBits
-  };
-
-  TranscendentalCacheStub(TranscendentalCache::Type type,
-                          ArgumentType argument_type)
-      : type_(type), argument_type_(argument_type) { }
-  void Generate(MacroAssembler* masm);
- private:
-  TranscendentalCache::Type type_;
-  ArgumentType argument_type_;
-  void GenerateCallCFunction(MacroAssembler* masm, Register scratch);
-
-  Major MajorKey() { return TranscendentalCache; }
-  int MinorKey() { return type_ | argument_type_; }
-  Runtime::FunctionId RuntimeFunction();
-};
-
-
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
@@ -69,7 +45,6 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
@@ -83,18 +58,6 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
 
 class StringHelper : public AllStatic {
  public:
-  // Generate code for copying characters using a simple loop. This should only
-  // be used in places where the number of characters is small and the
-  // additional setup and checking in GenerateCopyCharactersLong adds too much
-  // overhead. Copying of overlapping regions is not supported.
-  // Dest register ends at the position after the last character written.
-  static void GenerateCopyCharacters(MacroAssembler* masm,
-                                     Register dest,
-                                     Register src,
-                                     Register count,
-                                     Register scratch,
-                                     bool ascii);
-
   // Generate code for copying a large number of characters. This function
   // is allowed to spend extra time setting up conditions to make copying
   // faster. Copying of overlapping regions is not supported.
@@ -110,23 +73,6 @@ class StringHelper : public AllStatic {
                                          Register scratch5,
                                          int flags);
 
-
-  // Probe the string table for a two character string. If the string is
-  // not found by probing a jump to the label not_found is performed. This jump
-  // does not guarantee that the string is not in the string table. If the
-  // string is found the code falls through with the string in register r0.
-  // Contents of both c1 and c2 registers are modified. At the exit c1 is
-  // guaranteed to contain halfword with low and high bytes equal to
-  // initial contents of c1 and c2 respectively.
-  static void GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
-                                                   Register c1,
-                                                   Register c2,
-                                                   Register scratch1,
-                                                   Register scratch2,
-                                                   Register scratch3,
-                                                   Register scratch4,
-                                                   Register scratch5,
-                                                   Label* not_found);
 
   // Generate string hash.
   static void GenerateHashInit(MacroAssembler* masm,
@@ -145,32 +91,6 @@ class StringHelper : public AllStatic {
 };
 
 
-class StringAddStub: public PlatformCodeStub {
- public:
-  explicit StringAddStub(StringAddFlags flags) : flags_(flags) {}
-
- private:
-  Major MajorKey() { return StringAdd; }
-  int MinorKey() { return flags_; }
-
-  void Generate(MacroAssembler* masm);
-
-  void GenerateConvertArgument(MacroAssembler* masm,
-                               int stack_offset,
-                               Register arg,
-                               Register scratch1,
-                               Register scratch2,
-                               Register scratch3,
-                               Register scratch4,
-                               Label* slow);
-
-  void GenerateRegisterArgsPush(MacroAssembler* masm);
-  void GenerateRegisterArgsPop(MacroAssembler* masm);
-
-  const StringAddFlags flags_;
-};
-
-
 class SubStringStub: public PlatformCodeStub {
  public:
   SubStringStub() {}
@@ -182,6 +102,33 @@ class SubStringStub: public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 };
 
+class StoreRegistersStateStub: public PlatformCodeStub {
+ public:
+  explicit StoreRegistersStateStub(SaveFPRegsMode with_fp)
+      : save_doubles_(with_fp) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+ private:
+  Major MajorKey() { return StoreRegistersState; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  SaveFPRegsMode save_doubles_;
+
+  void Generate(MacroAssembler* masm);
+};
+
+class RestoreRegistersStateStub: public PlatformCodeStub {
+ public:
+  explicit RestoreRegistersStateStub(SaveFPRegsMode with_fp)
+      : save_doubles_(with_fp) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+ private:
+  Major MajorKey() { return RestoreRegistersState; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  SaveFPRegsMode save_doubles_;
+
+  void Generate(MacroAssembler* masm);
+};
 
 class StringCompareStub: public PlatformCodeStub {
  public:
@@ -240,7 +187,6 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
     ASSERT(SignRegisterBits::is_valid(sign_.code()));
   }
 
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE;
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
 
  private:
@@ -291,8 +237,6 @@ class RecordWriteStub: public PlatformCodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE;
-  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
   static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {

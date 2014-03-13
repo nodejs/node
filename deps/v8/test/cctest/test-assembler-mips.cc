@@ -765,10 +765,8 @@ TEST(MIPS10) {
     double b;
     int32_t dbl_mant;
     int32_t dbl_exp;
-    int32_t long_hi;
-    int32_t long_lo;
-    int32_t b_long_hi;
-    int32_t b_long_lo;
+    int32_t word;
+    int32_t b_word;
   } T;
   T t;
 
@@ -786,18 +784,14 @@ TEST(MIPS10) {
     __ sw(t1, MemOperand(a0, OFFSET_OF(T, dbl_exp)));
 
     // Convert double in f0 to long, save hi/lo parts.
-    __ cvt_l_d(f0, f0);
-    __ mfc1(t0, f0);  // f0 has LS 32 bits of long.
-    __ mfc1(t1, f1);  // f1 has MS 32 bits of long.
-    __ sw(t0, MemOperand(a0, OFFSET_OF(T, long_lo)));
-    __ sw(t1, MemOperand(a0, OFFSET_OF(T, long_hi)));
+    __ cvt_w_d(f0, f0);
+    __ mfc1(t0, f0);  // f0 has a 32-bits word.
+    __ sw(t0, MemOperand(a0, OFFSET_OF(T, word)));
 
     // Convert the b long integers to double b.
-    __ lw(t0, MemOperand(a0, OFFSET_OF(T, b_long_lo)));
-    __ lw(t1, MemOperand(a0, OFFSET_OF(T, b_long_hi)));
-    __ mtc1(t0, f8);  // f8 has LS 32-bits.
-    __ mtc1(t1, f9);  // f9 has MS 32-bits.
-    __ cvt_d_l(f10, f8);
+    __ lw(t0, MemOperand(a0, OFFSET_OF(T, b_word)));
+    __ mtc1(t0, f8);  // f8 has a 32-bits word.
+    __ cvt_d_w(f10, f8);
     __ sdc1(f10, MemOperand(a0, OFFSET_OF(T, b)));
 
     __ jr(ra);
@@ -811,18 +805,16 @@ TEST(MIPS10) {
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
     F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
-    t.a = 2.147483647e9;       // 0x7fffffff -> 0x41DFFFFFFFC00000 as double.
-    t.b_long_hi = 0x000000ff;  // 0xFF00FF00FF -> 0x426FE01FE01FE000 as double.
-    t.b_long_lo = 0x00ff00ff;
+    t.a = 2.147483646e+09;       // 0x7FFFFFFE -> 0xFF80000041DFFFFF as double.
+    t.b_word = 0x0ff00ff0;       // 0x0FF00FF0 -> 0x as double.
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
 
     CHECK_EQ(0x41DFFFFF, t.dbl_exp);
-    CHECK_EQ(0xFFC00000, t.dbl_mant);
-    CHECK_EQ(0, t.long_hi);
-    CHECK_EQ(0x7fffffff, t.long_lo);
-    // 0xFF00FF00FF -> 1.095233372415e12.
-    CHECK_EQ(1.095233372415e12, t.b);
+    CHECK_EQ(0xFF800000, t.dbl_mant);
+    CHECK_EQ(0X7FFFFFFE, t.word);
+    // 0x0FF00FF0 -> 2.6739096+e08
+    CHECK_EQ(2.6739096e08, t.b);
   }
 }
 

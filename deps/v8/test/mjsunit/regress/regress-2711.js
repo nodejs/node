@@ -27,7 +27,7 @@
 
 // Test that frozen arrays don't let their length change
 var a = Object.freeze([1]);
-a.push(2);
+assertThrows(function() { a.push(2); }, TypeError);
 assertEquals(1, a.length);
-a.push(2);
+assertThrows(function() { a.push(2); }, TypeError);
 assertEquals(1, a.length);

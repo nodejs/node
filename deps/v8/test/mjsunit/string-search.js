@@ -37,4 +37,3 @@ for (var i = 0; i < 100; i++) {
   var r = s.search(s);
   assertEquals(0, r);
 }
-

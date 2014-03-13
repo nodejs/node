@@ -63,4 +63,3 @@ for (var i in b) {
       "assertFalse(" + x + " >= NaN, '' + " + x + " + ' >= NaN');\n";
   eval(program);
 }
-

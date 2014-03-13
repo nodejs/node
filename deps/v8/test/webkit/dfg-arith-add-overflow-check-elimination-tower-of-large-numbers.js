@@ -57,4 +57,3 @@ for (var i = 0; i < warmup + 1; ++i) {
     }
     shouldBe("bar(" + a + ", " + b + ")", "" + expected);
 }
-

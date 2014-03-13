@@ -28,6 +28,7 @@
 #include "v8.h"
 #include "accessors.h"
 
+#include "compiler.h"
 #include "contexts.h"
 #include "deoptimizer.h"
 #include "execution.h"
@@ -90,10 +91,22 @@ static V8_INLINE bool CheckForName(Handle<String> name,
 }
 
 
-bool Accessors::IsJSObjectFieldAccessor(
-      Handle<Map> map, Handle<String> name,
-      int* object_offset) {
-  Isolate* isolate = map->GetIsolate();
+// Returns true for properties that are accessors to object fields.
+// If true, *object_offset contains offset of object field.
+template <class T>
+bool Accessors::IsJSObjectFieldAccessor(typename T::TypeHandle type,
+                                        Handle<String> name,
+                                        int* object_offset) {
+  Isolate* isolate = name->GetIsolate();
+
+  if (type->Is(T::String())) {
+    return CheckForName(name, isolate->heap()->length_string(),
+                        String::kLengthOffset, object_offset);
+  }
+
+  if (!type->IsClass()) return false;
+  Handle<Map> map = type->AsClass();
+
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
       return
@@ -121,16 +134,22 @@ bool Accessors::IsJSObjectFieldAccessor(
                      JSDataView::kByteOffsetOffset, object_offset) ||
         CheckForName(name, isolate->heap()->buffer_string(),
                      JSDataView::kBufferOffset, object_offset);
-    default: {
-      if (map->instance_type() < FIRST_NONSTRING_TYPE) {
-        return
-          CheckForName(name, isolate->heap()->length_string(),
-                       String::kLengthOffset, object_offset);
-      }
+    default:
       return false;
-    }
   }
 }
+
+
+template
+bool Accessors::IsJSObjectFieldAccessor<Type>(Type* type,
+                                              Handle<String> name,
+                                              int* object_offset);
+
+
+template
+bool Accessors::IsJSObjectFieldAccessor<HeapType>(Handle<HeapType> type,
+                                                  Handle<String> name,
+                                                  int* object_offset);
 
 
 //
@@ -148,45 +167,49 @@ MaybeObject* Accessors::ArrayGetLength(Isolate* isolate,
 
 
 // The helper function will 'flatten' Number objects.
-Object* Accessors::FlattenNumber(Isolate* isolate, Object* value) {
+Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
+                                        Handle<Object> value) {
   if (value->IsNumber() || !value->IsJSValue()) return value;
-  JSValue* wrapper = JSValue::cast(value);
+  Handle<JSValue> wrapper = Handle<JSValue>::cast(value);
   ASSERT(wrapper->GetIsolate()->context()->native_context()->number_function()->
       has_initial_map());
-  Map* number_map = isolate->context()->native_context()->
-      number_function()->initial_map();
-  if (wrapper->map() == number_map) return wrapper->value();
+  if (wrapper->map() ==
+      isolate->context()->native_context()->number_function()->initial_map()) {
+    return handle(wrapper->value(), isolate);
+  }
+
   return value;
 }
 
 
 MaybeObject* Accessors::ArraySetLength(Isolate* isolate,
-                                       JSObject* object,
-                                       Object* value,
+                                       JSObject* object_raw,
+                                       Object* value_raw,
                                        void*) {
+  HandleScope scope(isolate);
+  Handle<JSObject> object(object_raw, isolate);
+  Handle<Object> value(value_raw, isolate);
+
   // This means one of the object's prototypes is a JSArray and the
   // object does not have a 'length' property.  Calling SetProperty
   // causes an infinite loop.
   if (!object->IsJSArray()) {
-    return object->SetLocalPropertyIgnoreAttributesTrampoline(
-        isolate->heap()->length_string(), value, NONE);
+    Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(object,
+        isolate->factory()->length_string(), value, NONE);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   }
 
   value = FlattenNumber(isolate, value);
 
-  // Need to call methods that may trigger GC.
-  HandleScope scope(isolate);
-
-  // Protect raw pointers.
-  Handle<JSArray> array_handle(JSArray::cast(object), isolate);
-  Handle<Object> value_handle(value, isolate);
+  Handle<JSArray> array_handle = Handle<JSArray>::cast(object);
 
   bool has_exception;
   Handle<Object> uint32_v =
-      Execution::ToUint32(isolate, value_handle, &has_exception);
+      Execution::ToUint32(isolate, value, &has_exception);
   if (has_exception) return Failure::Exception();
   Handle<Object> number_v =
-      Execution::ToNumber(isolate, value_handle, &has_exception);
+      Execution::ToNumber(isolate, value, &has_exception);
   if (has_exception) return Failure::Exception();
 
   if (uint32_v->Number() == number_v->Number()) {
@@ -578,26 +601,28 @@ MaybeObject* Accessors::FunctionGetPrototype(Isolate* isolate,
 
 
 MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
-                                             JSObject* object,
+                                             JSObject* object_raw,
                                              Object* value_raw,
                                              void*) {
-  Heap* heap = isolate->heap();
-  JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, object);
-  if (function_raw == NULL) return heap->undefined_value();
-  if (!function_raw->should_have_prototype()) {
-    // Since we hit this accessor, object will have no prototype property.
-    return object->SetLocalPropertyIgnoreAttributesTrampoline(
-        heap->prototype_string(), value_raw, NONE);
-  }
+  JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, object_raw);
+  if (function_raw == NULL) return isolate->heap()->undefined_value();
 
   HandleScope scope(isolate);
   Handle<JSFunction> function(function_raw, isolate);
+  Handle<JSObject> object(object_raw, isolate);
   Handle<Object> value(value_raw, isolate);
+  if (!function->should_have_prototype()) {
+    // Since we hit this accessor, object will have no prototype property.
+    Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(object,
+        isolate->factory()->prototype_string(), value, NONE);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
+  }
 
   Handle<Object> old_value;
   bool is_observed =
       FLAG_harmony_observation &&
-      *function == object &&
+      *function == *object &&
       function->map()->is_observed();
   if (is_observed) {
     if (function->has_prototype())
@@ -611,7 +636,7 @@ MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
 
   if (is_observed && !old_value->SameValue(*value)) {
     JSObject::EnqueueChangeRecord(
-        function, "updated", isolate->factory()->prototype_string(), old_value);
+        function, "update", isolate->factory()->prototype_string(), old_value);
   }
 
   return *function;
@@ -642,9 +667,9 @@ MaybeObject* Accessors::FunctionGetLength(Isolate* isolate,
   // If the function isn't compiled yet, the length is not computed correctly
   // yet. Compile it now and return the right length.
   HandleScope scope(isolate);
-  Handle<JSFunction> handle(function);
-  if (JSFunction::CompileLazy(handle, KEEP_EXCEPTION)) {
-    return Smi::FromInt(handle->shared()->length());
+  Handle<JSFunction> function_handle(function);
+  if (Compiler::EnsureCompiled(function_handle, KEEP_EXCEPTION)) {
+    return Smi::FromInt(function_handle->shared()->length());
   }
   return Failure::Exception();
 }
@@ -699,21 +724,22 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
     int inlined_frame_index) {
   Isolate* isolate = inlined_function->GetIsolate();
   Factory* factory = isolate->factory();
-  Vector<SlotRef> args_slots =
-      SlotRef::ComputeSlotMappingForArguments(
-          frame,
-          inlined_frame_index,
-          inlined_function->shared()->formal_parameter_count());
-  int args_count = args_slots.length();
+  SlotRefValueBuilder slot_refs(
+      frame,
+      inlined_frame_index,
+      inlined_function->shared()->formal_parameter_count());
+
+  int args_count = slot_refs.args_length();
   Handle<JSObject> arguments =
       factory->NewArgumentsObject(inlined_function, args_count);
   Handle<FixedArray> array = factory->NewFixedArray(args_count);
+  slot_refs.Prepare(isolate);
   for (int i = 0; i < args_count; ++i) {
-    Handle<Object> value = args_slots[i].GetValue(isolate);
+    Handle<Object> value = slot_refs.GetNext(isolate, 0);
     array->set(i, *value);
   }
+  slot_refs.Finish(isolate);
   arguments->set_elements(*array);
-  args_slots.Dispose();
 
   // Return the freshly allocated arguments object.
   return *arguments;

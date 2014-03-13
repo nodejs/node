@@ -57,4 +57,3 @@ StringFromCharCode(0x7C, 0x7C);
 %OptimizeFunctionOnNextCall(StringFromCharCode);
 StringFromCharCode(0x7C, 0x7C);
 StringFromCharCode(0xFFF, 0xFFF);
-

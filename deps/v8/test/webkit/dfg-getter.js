@@ -34,5 +34,3 @@ for (var i = 0; i < 200; ++i) {
     o.__defineGetter__("f", function(){ return i; });
     shouldBe("foo(o)", "" + i);
 }
-
-

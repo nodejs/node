@@ -83,7 +83,7 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
 }
 
 
-void SafepointTable::PrintEntry(unsigned index) const {
+void SafepointTable::PrintEntry(unsigned index, FILE* out) const {
   disasm::NameConverter converter;
   SafepointEntry entry = GetEntry(index);
   uint8_t* bits = entry.bits();
@@ -93,25 +93,25 @@ void SafepointTable::PrintEntry(unsigned index) const {
     ASSERT(IsAligned(kNumSafepointRegisters, kBitsPerByte));
     const int first = kNumSafepointRegisters >> kBitsPerByteLog2;
     int last = entry_size_ - 1;
-    for (int i = first; i < last; i++) PrintBits(bits[i], kBitsPerByte);
+    for (int i = first; i < last; i++) PrintBits(out, bits[i], kBitsPerByte);
     int last_bits = code_->stack_slots() - ((last - first) * kBitsPerByte);
-    PrintBits(bits[last], last_bits);
+    PrintBits(out, bits[last], last_bits);
 
     // Print the registers (if any).
     if (!entry.HasRegisters()) return;
     for (int j = 0; j < kNumSafepointRegisters; j++) {
       if (entry.HasRegisterAt(j)) {
-        PrintF(" | %s", converter.NameOfCPURegister(j));
+        PrintF(out, " | %s", converter.NameOfCPURegister(j));
       }
     }
   }
 }
 
 
-void SafepointTable::PrintBits(uint8_t byte, int digits) {
+void SafepointTable::PrintBits(FILE* out, uint8_t byte, int digits) {
   ASSERT(digits >= 0 && digits <= kBitsPerByte);
   for (int i = 0; i < digits; i++) {
-    PrintF("%c", ((byte & (1 << i)) == 0) ? '0' : '1');
+    PrintF(out, "%c", ((byte & (1 << i)) == 0) ? '0' : '1');
   }
 }
 

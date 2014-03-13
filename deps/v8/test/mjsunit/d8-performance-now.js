@@ -30,11 +30,6 @@
 // Test the performance.now() function of d8.  This test only makes sense with
 // d8.
 
-// Don't run this test in gc stress mode. Time differences may be long
-// due to garbage collections.
-%SetFlags("--gc-interval=-1");
-%SetFlags("--nostress-compaction");
-
 if (this.performance && performance.now) {
   (function run() {
     var start_test = performance.now();

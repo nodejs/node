@@ -39,4 +39,3 @@ assertClose( Math.PI / 4, Math.atan2(pinf, pinf));
 assertClose(-Math.PI / 4, Math.atan2(ninf, pinf));
 assertClose( 3 * Math.PI / 4, Math.atan2(pinf, ninf));
 assertClose(-3 * Math.PI / 4, Math.atan2(ninf, ninf));
-

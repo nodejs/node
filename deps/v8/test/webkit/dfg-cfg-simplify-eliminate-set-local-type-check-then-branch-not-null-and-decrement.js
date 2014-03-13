@@ -51,5 +51,3 @@ for (var i = 0; i < 500; ++i) {
     }
     shouldBe("foo(o)", expected);
 }
-
-

@@ -35,4 +35,3 @@ function sum(nums) {
 
 for (var i = 0; i < 200; ++i)
     shouldBe("sum([2147483646, 2147483644])", "4294967290");
-

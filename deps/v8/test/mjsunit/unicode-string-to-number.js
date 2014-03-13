@@ -43,4 +43,3 @@ for (var i = 0; i < 7; i++) {
   s += s;
 }
 assertTrue(isNaN(Number(s)), "long-string");
-

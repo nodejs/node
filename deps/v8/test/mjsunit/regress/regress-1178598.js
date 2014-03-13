@@ -86,5 +86,3 @@ var value = (function() {
 })();
 
 assertEquals(87, value);
-
-

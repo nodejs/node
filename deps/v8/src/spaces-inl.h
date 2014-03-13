@@ -165,7 +165,7 @@ Page* Page::Initialize(Heap* heap,
                        Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
-  ASSERT(page->area_size() <= kNonCodeObjectAreaSize);
+  ASSERT(page->area_size() <= kMaxRegularHeapObjectSize);
   ASSERT(chunk->owner() == owner);
   owner->IncreaseCapacity(page->area_size());
   owner->Free(page->area_start(), page->area_size());
@@ -274,17 +274,11 @@ HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
 
 
 // Raw allocation.
-MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
-                                     AllocationType event) {
-  HeapProfiler* profiler = heap()->isolate()->heap_profiler();
-
+MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
   HeapObject* object = AllocateLinearly(size_in_bytes);
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
-    }
-    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(object->address(), size_in_bytes);
     }
     return object;
   }
@@ -298,9 +292,6 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
     }
-    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(object->address(), size_in_bytes);
-    }
     return object;
   }
 
@@ -308,9 +299,6 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
-    }
-    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(object->address(), size_in_bytes);
     }
     return object;
   }
@@ -348,11 +336,6 @@ MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
   HeapObject* obj = HeapObject::FromAddress(old_top);
   allocation_info_.set_top(allocation_info_.top() + size_in_bytes);
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-
-  HeapProfiler* profiler = heap()->isolate()->heap_profiler();
-  if (profiler != NULL && profiler->is_tracking_allocations()) {
-    profiler->NewObjectEvent(obj->address(), size_in_bytes);
-  }
 
   return obj;
 }

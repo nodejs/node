@@ -265,9 +265,10 @@ void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
   // Register state for CallFunctionStub (from code-stubs-arm.cc).
   // ----------- S t a t e -------------
   //  -- r1 : function
-  //  -- r2 : cache cell for call target
+  //  -- r2 : feedback array
+  //  -- r3 : slot in feedback array
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, r1.bit() | r2.bit(), 0);
+  Generate_DebugBreakCallHelper(masm, r1.bit() | r2.bit() | r3.bit(), 0);
 }
 
 
@@ -286,9 +287,10 @@ void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments (not smi)
   //  -- r1     : constructor function
-  //  -- r2     : cache cell for call target
+  //  -- r2     : feedback array
+  //  -- r3     : feedback slot (smi)
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, r1.bit() | r2.bit(), r0.bit());
+  Generate_DebugBreakCallHelper(masm, r1.bit() | r2.bit() | r3.bit(), r0.bit());
 }
 
 

@@ -59,4 +59,3 @@ assertSame(undefined, Realm.eval(realmB, "Realm.shared.__proto__"));
 Realm.eval(realmB, "Realm.shared.__proto__ = {c: 3}");
 assertSame(1, o.a);
 assertSame(undefined, o.c);
-

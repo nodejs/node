@@ -30,7 +30,6 @@
 
 #include "code-stubs.h"
 #include "runtime.h"
-#include "type-info.h"
 
 // Include the declaration of the architecture defined class CodeGenerator.
 // The contract  to the shared code is that the the CodeGenerator is a subclass
@@ -73,6 +72,8 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 #include "ia32/codegen-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/codegen-x64.h"
+#elif V8_TARGET_ARCH_A64
+#include "a64/codegen-a64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/codegen-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -84,12 +85,39 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 namespace v8 {
 namespace internal {
 
+
+class CompilationInfo;
+
+
+class CodeGenerator {
+ public:
+  // Printing of AST, etc. as requested by flags.
+  static void MakeCodePrologue(CompilationInfo* info, const char* kind);
+
+  // Allocate and install the code.
+  static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
+                                       Code::Flags flags,
+                                       CompilationInfo* info);
+
+  // Print the code after compiling it.
+  static void PrintCode(Handle<Code> code, CompilationInfo* info);
+
+  static bool ShouldGenerateLog(Isolate* isolate, Expression* type);
+
+  static bool RecordPositions(MacroAssembler* masm,
+                              int pos,
+                              bool right_here = false);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
+};
+
+
 // Results of the library implementation of transcendental functions may differ
 // from the one we use in our generated code.  Therefore we use the same
 // generated code both in runtime and compiled code.
 typedef double (*UnaryMathFunction)(double x);
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type);
 UnaryMathFunction CreateExpFunction();
 UnaryMathFunction CreateSqrtFunction();
 
@@ -111,6 +139,8 @@ class ElementsTransitionGenerator : public AllStatic {
  private:
   DISALLOW_COPY_AND_ASSIGN(ElementsTransitionGenerator);
 };
+
+static const int kNumberDictionaryProbes = 4;
 
 
 } }  // namespace v8::internal

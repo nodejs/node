@@ -40,6 +40,22 @@ var $WeakSet = global.WeakSet;
 // supported internally but required for Harmony sets and maps.
 var undefined_sentinel = {};
 
+
+// Map and Set uses SameValueZero which means that +0 and -0 should be treated
+// as the same value.
+function NormalizeKey(key) {
+  if (IS_UNDEFINED(key)) {
+    return undefined_sentinel;
+  }
+
+  if (key === 0) {
+    return 0;
+  }
+
+  return key;
+}
+
+
 // -------------------------------------------------------------------
 // Harmony Set
 
@@ -57,10 +73,7 @@ function SetAdd(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.add', this]);
   }
-  if (IS_UNDEFINED(key)) {
-    key = undefined_sentinel;
-  }
-  return %SetAdd(this, key);
+  return %SetAdd(this, NormalizeKey(key));
 }
 
 
@@ -69,10 +82,7 @@ function SetHas(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.has', this]);
   }
-  if (IS_UNDEFINED(key)) {
-    key = undefined_sentinel;
-  }
-  return %SetHas(this, key);
+  return %SetHas(this, NormalizeKey(key));
 }
 
 
@@ -81,9 +91,7 @@ function SetDelete(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.delete', this]);
   }
-  if (IS_UNDEFINED(key)) {
-    key = undefined_sentinel;
-  }
+  key = NormalizeKey(key);
   if (%SetHas(this, key)) {
     %SetDelete(this, key);
     return true;
@@ -151,10 +159,7 @@ function MapGet(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.get', this]);
   }
-  if (IS_UNDEFINED(key)) {
-    key = undefined_sentinel;
-  }
-  return %MapGet(this, key);
+  return %MapGet(this, NormalizeKey(key));
 }
 
 
@@ -163,10 +168,7 @@ function MapSet(key, value) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.set', this]);
   }
-  if (IS_UNDEFINED(key)) {
-    key = undefined_sentinel;
-  }
-  return %MapSet(this, key, value);
+  return %MapSet(this, NormalizeKey(key), value);
 }
 
 
@@ -175,10 +177,7 @@ function MapHas(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.has', this]);
   }
-  if (IS_UNDEFINED(key)) {
-    key = undefined_sentinel;
-  }
-  return %MapHas(this, key);
+  return %MapHas(this, NormalizeKey(key));
 }
 
 
@@ -187,10 +186,7 @@ function MapDelete(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.delete', this]);
   }
-  if (IS_UNDEFINED(key)) {
-    key = undefined_sentinel;
-  }
-  return %MapDelete(this, key);
+  return %MapDelete(this, NormalizeKey(key));
 }
 
 

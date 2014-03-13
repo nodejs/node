@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-new-space-size=256 --allow-natives-syntax
+// Flags: --max-new-space-size=128 --allow-natives-syntax
 
 var test_id = 0;
 
@@ -60,15 +60,19 @@ function test() {
   testFloor(0, 0.49999999999999994);
   testFloor(0, 0.5);
   testFloor(0, 0.7);
+  testFloor(0, 1.0 - Number.EPSILON);
   testFloor(-1, -0.1);
   testFloor(-1, -0.49999999999999994);
   testFloor(-1, -0.5);
   testFloor(-1, -0.7);
   testFloor(1, 1);
   testFloor(1, 1.1);
+  testFloor(1, 1.0 + Number.EPSILON);
   testFloor(1, 1.5);
   testFloor(1, 1.7);
   testFloor(-1, -1);
+  testFloor(-1, -1 + Number.EPSILON);
+  testFloor(-2, -1 - Number.EPSILON);
   testFloor(-2, -1.1);
   testFloor(-2, -1.5);
   testFloor(-2, -1.7);
@@ -83,6 +87,7 @@ function test() {
 
 
 // Test in a loop to cover the custom IC and GC-related issues.
-for (var i = 0; i < 100; i++) {
+for (var i = 0; i < 10; i++) {
   test();
+  new Array(i * 10000);
 }

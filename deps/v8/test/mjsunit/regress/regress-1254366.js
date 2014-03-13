@@ -35,4 +35,3 @@ Object.prototype.findOrStore = function() {
 var a =  new Object();
 assertEquals(gee, a.findOrStore());
 assertEquals(gee, a.findOrStore());
-

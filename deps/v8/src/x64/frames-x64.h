@@ -66,6 +66,8 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
+  static const int kFrameSize       = 2 * kPointerSize;
+
   static const int kCodeOffset      = -2 * kPointerSize;
   static const int kSPOffset        = -1 * kPointerSize;
 

@@ -42,4 +42,3 @@ for (var i = 0; i < 100; ++i) {
     shouldBe("foo(42).length", "1");
     shouldBe("foo(42, 23)[1]", "23");
 }
-

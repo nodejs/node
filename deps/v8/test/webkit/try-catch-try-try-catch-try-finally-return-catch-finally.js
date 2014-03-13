@@ -50,4 +50,3 @@ try {
 } catch (e) {
     testPassed("It worked.");
 }
-

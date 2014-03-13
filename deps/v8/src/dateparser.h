@@ -122,7 +122,7 @@ class DateParser : public AllStatic {
     }
 
     bool SkipWhiteSpace() {
-      if (unicode_cache_->IsWhiteSpace(ch_)) {
+      if (unicode_cache_->IsWhiteSpaceOrLineTerminator(ch_)) {
         Next();
         return true;
       }

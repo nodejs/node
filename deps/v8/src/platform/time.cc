@@ -34,7 +34,7 @@
 #include <mach/mach_time.h>
 #endif
 
-#include <cstring>
+#include <string.h>
 
 #include "checks.h"
 #include "cpu.h"

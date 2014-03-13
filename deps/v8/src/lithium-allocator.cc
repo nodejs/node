@@ -35,6 +35,8 @@
 #include "ia32/lithium-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/lithium-x64.h"
+#elif V8_TARGET_ARCH_A64
+#include "a64/lithium-a64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -1369,7 +1371,7 @@ void LAllocator::BuildLiveRanges() {
           ASSERT(chunk_->info()->IsOptimizing());
           AllowHandleDereference allow_deref;
           PrintF("Function: %s\n",
-                 *chunk_->info()->function()->debug_name()->ToCString());
+                 chunk_->info()->function()->debug_name()->ToCString().get());
         }
         PrintF("Value %d used before first definition!\n", operand_index);
         LiveRange* range = LiveRangeFor(operand_index);

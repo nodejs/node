@@ -69,4 +69,3 @@ for (var i in tests) {
     shouldBe('testInOperator(' + i + ')', tests[i][2]);
     shouldBe('testForEachFunction(' + i + ')', tests[i][2]);
 }
-

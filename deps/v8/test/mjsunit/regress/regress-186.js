@@ -69,4 +69,3 @@ function testGlobal() {
 runTest(testLocal);
 runTest(testConstLocal);
 runTest(testGlobal);
-

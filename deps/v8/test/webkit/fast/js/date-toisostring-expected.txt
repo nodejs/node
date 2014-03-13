@@ -26,8 +26,8 @@ Tests for Date.toISOString
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-PASS Date.toISOString.call({}) threw exception TypeError: Cannot call method 'call' of undefined.
-PASS Date.toISOString.call(0) threw exception TypeError: Cannot call method 'call' of undefined.
+PASS Date.toISOString.call({}) threw exception TypeError: Cannot read property 'call' of undefined.
+PASS Date.toISOString.call(0) threw exception TypeError: Cannot read property 'call' of undefined.
 PASS new Date(-400).toISOString() is '1969-12-31T23:59:59.600Z'
 PASS new Date(0).toISOString() is '1970-01-01T00:00:00.000Z'
 PASS new Date('1 January 1500 UTC').toISOString() is '1500-01-01T00:00:00.000Z'

@@ -62,4 +62,3 @@ function f(){
 f();
 %OptimizeFunctionOnNextCall(f);
 f();
-

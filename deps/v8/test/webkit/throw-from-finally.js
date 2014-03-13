@@ -78,4 +78,3 @@ try {
 }
 
 shouldBe("\"\" + events", "\"1:try,1:finally,2:finally,2:thingy,3:thingy,3:finally,4:thingy,4:finally,4:another thingy,5:hi,5:wat\"");
-

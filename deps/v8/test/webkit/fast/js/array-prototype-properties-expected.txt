@@ -42,7 +42,7 @@ PASS Array.prototype.every.call(undefined, toString) threw exception TypeError: 
 PASS Array.prototype.forEach.call(undefined, toString) threw exception TypeError: Array.prototype.forEach called on null or undefined.
 PASS Array.prototype.some.call(undefined, toString) threw exception TypeError: Array.prototype.some called on null or undefined.
 PASS Array.prototype.indexOf.call(undefined, 0) threw exception TypeError: Array.prototype.indexOf called on null or undefined.
-PASS Array.prototype.indlastIndexOfexOf.call(undefined, 0) threw exception TypeError: Cannot call method 'call' of undefined.
+PASS Array.prototype.indlastIndexOfexOf.call(undefined, 0) threw exception TypeError: Cannot read property 'call' of undefined.
 PASS Array.prototype.filter.call(undefined, toString) threw exception TypeError: Array.prototype.filter called on null or undefined.
 PASS Array.prototype.reduce.call(undefined, toString) threw exception TypeError: Array.prototype.reduce called on null or undefined.
 PASS Array.prototype.reduceRight.call(undefined, toString) threw exception TypeError: Array.prototype.reduceRight called on null or undefined.

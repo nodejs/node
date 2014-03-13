@@ -93,5 +93,3 @@ assertEquals(69, MultiChunkTranslator.Translate(59));
 assertEquals(2010, MultiChunkTranslator.Translate(60, Return2010));
 assertEquals(70, MultiChunkTranslator.Translate(70));
 assertEquals(75, MultiChunkTranslator.Translate(75));
-
-

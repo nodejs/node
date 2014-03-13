@@ -213,6 +213,10 @@ class Token {
     return COMMA <= op && op <= MOD;
   }
 
+  static bool IsTruncatingBinaryOp(Value op) {
+    return BIT_OR <= op && op <= ROR;
+  }
+
   static bool IsCompareOp(Value op) {
     return EQ <= op && op <= IN;
   }

@@ -146,7 +146,7 @@
               '-Wl,--icf=safe',
             ],
           }],
-          ['target_arch=="arm" and armv7==1', {
+          ['target_arch=="arm" and arm_version==7', {
             'cflags': [
               '-march=armv7-a',
               '-mtune=cortex-a8',
@@ -164,12 +164,12 @@
               '-I<(android_stlport_include)',
             ],
             'conditions': [
-              ['target_arch=="arm" and armv7==1', {
+              ['target_arch=="arm" and arm_version==7', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/armeabi-v7a',
                 ],
               }],
-              ['target_arch=="arm" and armv7==0', {
+              ['target_arch=="arm" and arm_version < 7', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/armeabi',
                 ],
@@ -182,6 +182,11 @@
               ['target_arch=="ia32"', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/x86',
+                ],
+              }],
+              ['target_arch=="a64"', {
+                'ldflags': [
+                  '-L<(android_stlport_libs)/arm64',
                 ],
               }],
             ],
@@ -208,10 +213,19 @@
         ],
         'target_conditions': [
           ['_type=="executable"', {
+            'conditions': [
+              ['target_arch=="a64"', {
+                'ldflags': [
+                  '-Wl,-dynamic-linker,/system/bin/linker64',
+                ],
+              }, {
+                'ldflags': [
+                  '-Wl,-dynamic-linker,/system/bin/linker',
+                ],
+              }]
+            ],
             'ldflags': [
               '-Bdynamic',
-              '-Wl,-dynamic-linker,/system/bin/linker',
-              '-Wl,--gc-sections',
               '-Wl,-z,nocopyreloc',
               # crtbegin_dynamic.o should be the last item in ldflags.
               '<(android_lib)/crtbegin_dynamic.o',

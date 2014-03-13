@@ -33,4 +33,3 @@ function strict_function() {
 }
 
 assertThrows(strict_function);
-

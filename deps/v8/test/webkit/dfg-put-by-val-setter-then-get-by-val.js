@@ -43,4 +43,3 @@ for (var i = 0; i < 200; ++i) {
     shouldBe("foo(array, -1, i)", "42");
     shouldBe("thingy", "" + i);
 }
-

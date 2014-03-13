@@ -131,9 +131,9 @@ enum BindingFlags {
   V(INT16_ARRAY_FUN_INDEX, JSFunction, int16_array_fun) \
   V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun) \
   V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun) \
-  V(FLOAT_ARRAY_FUN_INDEX, JSFunction, float_array_fun) \
-  V(DOUBLE_ARRAY_FUN_INDEX, JSFunction, double_array_fun) \
-  V(UINT8C_ARRAY_FUN_INDEX, JSFunction, uint8c_array_fun) \
+  V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun) \
+  V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun) \
+  V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun) \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun) \
   V(FUNCTION_MAP_INDEX, Map, function_map) \
   V(STRICT_MODE_FUNCTION_MAP_INDEX, Map, strict_mode_function_map) \
@@ -166,6 +166,8 @@ enum BindingFlags {
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings) \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object, \
     error_message_for_code_gen_from_strings) \
+  V(RUN_MICROTASKS_INDEX, JSFunction, run_microtasks) \
+  V(ENQUEUE_EXTERNAL_MICROTASK_INDEX, JSFunction, enqueue_external_microtask) \
   V(TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX, JSFunction, \
     to_complete_property_descriptor) \
   V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap) \
@@ -178,14 +180,12 @@ enum BindingFlags {
     observers_begin_perform_splice) \
   V(OBSERVERS_END_SPLICE_INDEX, JSFunction, \
     observers_end_perform_splice) \
-  V(OBSERVERS_DELIVER_CHANGES_INDEX, JSFunction, observers_deliver_changes) \
   V(GENERATOR_FUNCTION_MAP_INDEX, Map, generator_function_map) \
   V(STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX, Map, \
     strict_mode_generator_function_map) \
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, \
     generator_object_prototype_map) \
-  V(GENERATOR_RESULT_MAP_INDEX, Map, generator_result_map) \
-  V(RANDOM_SEED_INDEX, ByteArray, random_seed)
+  V(GENERATOR_RESULT_MAP_INDEX, Map, generator_result_map)
 
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
@@ -297,9 +297,9 @@ class Context: public FixedArray {
     INT16_ARRAY_FUN_INDEX,
     UINT32_ARRAY_FUN_INDEX,
     INT32_ARRAY_FUN_INDEX,
-    FLOAT_ARRAY_FUN_INDEX,
-    DOUBLE_ARRAY_FUN_INDEX,
-    UINT8C_ARRAY_FUN_INDEX,
+    FLOAT32_ARRAY_FUN_INDEX,
+    FLOAT64_ARRAY_FUN_INDEX,
+    UINT8_CLAMPED_ARRAY_FUN_INDEX,
     DATA_VIEW_FUN_INDEX,
     MESSAGE_LISTENERS_INDEX,
     MAKE_MESSAGE_FUN_INDEX,
@@ -318,6 +318,8 @@ class Context: public FixedArray {
     EMBEDDER_DATA_INDEX,
     ALLOW_CODE_GEN_FROM_STRINGS_INDEX,
     ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX,
+    RUN_MICROTASKS_INDEX,
+    ENQUEUE_EXTERNAL_MICROTASK_INDEX,
     TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX,
     DERIVED_HAS_TRAP_INDEX,
     DERIVED_GET_TRAP_INDEX,
@@ -327,12 +329,10 @@ class Context: public FixedArray {
     OBSERVERS_ENQUEUE_SPLICE_INDEX,
     OBSERVERS_BEGIN_SPLICE_INDEX,
     OBSERVERS_END_SPLICE_INDEX,
-    OBSERVERS_DELIVER_CHANGES_INDEX,
     GENERATOR_FUNCTION_MAP_INDEX,
     STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX,
     GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,
     GENERATOR_RESULT_MAP_INDEX,
-    RANDOM_SEED_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-new-space-size=256 --allow-natives-syntax
+// Flags: --max-new-space-size=128 --allow-natives-syntax
 
 // Test inlining of Math.floor when assigned to a local.
 var test_id = 0;
@@ -140,8 +140,9 @@ function test() {
 
 
 // Test in a loop to cover the custom IC and GC-related issues.
-for (var i = 0; i < 50; i++) {
+for (var i = 0; i < 10; i++) {
   test();
+  new Array(i * 10000);
 }
 
 

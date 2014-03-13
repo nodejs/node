@@ -27,8 +27,8 @@
 
 #include "platform/condition-variable.h"
 
-#include <cerrno>
-#include <ctime>
+#include <errno.h>
+#include <time.h>
 
 #include "platform/time.h"
 

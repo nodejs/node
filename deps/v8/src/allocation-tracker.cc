@@ -46,6 +46,7 @@ AllocationTraceNode::AllocationTraceNode(
 
 
 AllocationTraceNode::~AllocationTraceNode() {
+  for (int i = 0; i < children_.length(); i++) delete children_[i];
 }
 
 
@@ -155,6 +156,11 @@ AllocationTracker::AllocationTracker(
 
 AllocationTracker::~AllocationTracker() {
   unresolved_locations_.Iterate(DeleteUnresolvedLocation);
+  for (HashMap::Entry* p = id_to_function_info_.Start();
+       p != NULL;
+       p = id_to_function_info_.Next(p)) {
+    delete reinterpret_cast<AllocationTracker::FunctionInfo* >(p->value);
+  }
 }
 
 
@@ -169,7 +175,7 @@ void AllocationTracker::PrepareForSerialization() {
 }
 
 
-void AllocationTracker::NewObjectEvent(Address addr, int size) {
+void AllocationTracker::AllocationEvent(Address addr, int size) {
   DisallowHeapAllocation no_allocation;
   Heap* heap = ids_->heap();
 
@@ -185,7 +191,8 @@ void AllocationTracker::NewObjectEvent(Address addr, int size) {
   while (!it.done() && length < kMaxAllocationTraceLength) {
     JavaScriptFrame* frame = it.frame();
     SharedFunctionInfo* shared = frame->function()->shared();
-    SnapshotObjectId id = ids_->FindEntry(shared->address());
+    SnapshotObjectId id = ids_->FindOrAddEntry(
+        shared->address(), shared->Size(), false);
     allocation_trace_buffer_[length++] = id;
     AddFunctionInfo(shared, id);
     it.Advance();
@@ -245,34 +252,33 @@ AllocationTracker::UnresolvedLocation::UnresolvedLocation(
       info_(info) {
   script_ = Handle<Script>::cast(
       script->GetIsolate()->global_handles()->Create(script));
-  GlobalHandles::MakeWeak(
-      reinterpret_cast<Object**>(script_.location()),
-      this, &HandleWeakScript);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()),
+                          this,
+                          &HandleWeakScript);
 }
 
 
 AllocationTracker::UnresolvedLocation::~UnresolvedLocation() {
   if (!script_.is_null()) {
-    script_->GetIsolate()->global_handles()->Destroy(
-        reinterpret_cast<Object**>(script_.location()));
+    GlobalHandles::Destroy(reinterpret_cast<Object**>(script_.location()));
   }
 }
 
 
 void AllocationTracker::UnresolvedLocation::Resolve() {
   if (script_.is_null()) return;
+  HandleScope scope(script_->GetIsolate());
   info_->line = GetScriptLineNumber(script_, start_position_);
   info_->column = GetScriptColumnNumber(script_, start_position_);
 }
 
 
 void AllocationTracker::UnresolvedLocation::HandleWeakScript(
-    v8::Isolate* isolate,
-    v8::Persistent<v8::Value>* obj,
-    void* data) {
-  UnresolvedLocation* location = reinterpret_cast<UnresolvedLocation*>(data);
-  location->script_ = Handle<Script>::null();
-  obj->Dispose();
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  UnresolvedLocation* loc =
+      reinterpret_cast<UnresolvedLocation*>(data.GetParameter());
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(loc->script_.location()));
+  loc->script_ = Handle<Script>::null();
 }
 
 

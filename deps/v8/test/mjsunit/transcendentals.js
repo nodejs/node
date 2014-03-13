@@ -46,4 +46,3 @@ assertTrue(Math.acos(x) != Math.acos(y));
 assertTrue(Math.atan(x) != Math.atan(y));
 
 assertTrue(Math.exp(x) != Math.exp(y));
-

@@ -125,12 +125,6 @@ Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
 }
 
 
-Object** RelocInfo::target_object_address() {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return &Memory::Object_at(pc_);
-}
-
-
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());
@@ -145,9 +139,9 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
 }
 
 
-Address* RelocInfo::target_reference_address() {
+Address RelocInfo::target_reference() {
   ASSERT(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
-  return reinterpret_cast<Address*>(pc_);
+  return Memory::Address_at(pc_);
 }
 
 
@@ -246,6 +240,18 @@ Object** RelocInfo::call_object_address() {
   ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   return reinterpret_cast<Object**>(pc_ + 1);
+}
+
+
+void RelocInfo::WipeOut() {
+  if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_)) {
+    Memory::Address_at(pc_) = NULL;
+  } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
+    // Effectively write zero into the relocation.
+    Assembler::set_target_address_at(pc_, pc_ + sizeof(int32_t));
+  } else {
+    UNREACHABLE();
+  }
 }
 
 

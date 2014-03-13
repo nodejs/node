@@ -83,26 +83,20 @@ void AllocationSiteCreationContext::ExitScope(
 }
 
 
-Handle<AllocationSite> AllocationSiteUsageContext::EnterNewScope() {
-  if (top().is_null()) {
-    InitializeTraversal(top_site_);
-  } else {
-    // Advance current site
-    Object* nested_site = current()->nested_site();
-    // Something is wrong if we advance to the end of the list here.
-    ASSERT(nested_site->IsAllocationSite());
-    update_current_site(AllocationSite::cast(nested_site));
+bool AllocationSiteUsageContext::ShouldCreateMemento(Handle<JSObject> object) {
+  if (activated_ && AllocationSite::CanTrack(object->map()->instance_type())) {
+    if (FLAG_allocation_site_pretenuring ||
+        AllocationSite::GetMode(object->GetElementsKind()) ==
+        TRACK_ALLOCATION_SITE) {
+      if (FLAG_trace_creation_allocation_sites) {
+        PrintF("*** Creating Memento for %s %p\n",
+               object->IsJSArray() ? "JSArray" : "JSObject",
+               static_cast<void*>(*object));
+      }
+      return true;
+    }
   }
-  return Handle<AllocationSite>(*current(), isolate());
-}
-
-
-void AllocationSiteUsageContext::ExitScope(
-    Handle<AllocationSite> scope_site,
-    Handle<JSObject> object) {
-  // This assert ensures that we are pointing at the right sub-object in a
-  // recursive walk of a nested literal.
-  ASSERT(object.is_null() || *object == scope_site->transition_info());
+  return false;
 }
 
 } }  // namespace v8::internal

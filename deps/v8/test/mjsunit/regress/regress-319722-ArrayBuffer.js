@@ -25,9 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --nostress-opt --allow-natives-syntax
+// Flags: --nostress-opt --allow-natives-syntax --mock-arraybuffer-allocator
 var maxSize = %MaxSmi() + 1;
-var ab = new ArrayBuffer(maxSize);
+var ab;
+
+// Allocate the largest ArrayBuffer we can on this architecture.
+for (k = 8; k >= 1 && ab == null; k = k/2) {
+  try {
+    ab = new ArrayBuffer(maxSize * k);
+  } catch (e) {
+    ab = null;
+  }
+}
+
+assertTrue(ab != null);
 
 function TestArray(constr) {
   assertThrows(function() {
@@ -44,4 +55,3 @@ TestArray(Int32Array);
 TestArray(Float32Array);
 TestArray(Float64Array);
 TestArray(Uint8ClampedArray);
-

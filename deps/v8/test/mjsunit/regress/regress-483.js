@@ -32,4 +32,3 @@ function X() {
 X.prototype.x = {x:1}
 
 new X()
-

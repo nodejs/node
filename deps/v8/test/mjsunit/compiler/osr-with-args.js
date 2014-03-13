@@ -29,7 +29,7 @@
 
 function f() {
   var sum = 0;
-  for (var i = 0; i < 1000000; i++) {
+  for (var i = 0; i < 100000; i++) {
     var t = arguments[0] + 2;
     var x = arguments[1] + 2;
     var y = t + x + 5;
@@ -39,6 +39,6 @@ function f() {
   return sum;
 }
 
-for (var i = 0; i < 4; i++) {
-  assertEquals(17000000, f(2, 3));
+for (var i = 0; i < 3; i++) {
+  assertEquals(1700000, f(2, 3));
 }

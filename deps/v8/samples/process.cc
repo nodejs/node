@@ -160,8 +160,9 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
 
   // Create a template for the global object where we set the
   // built-in global functions.
-  Handle<ObjectTemplate> global = ObjectTemplate::New();
-  global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
+  Handle<ObjectTemplate> global = ObjectTemplate::New(GetIsolate());
+  global->Set(String::NewFromUtf8(GetIsolate(), "log"),
+              FunctionTemplate::New(GetIsolate(), LogCallback));
 
   // Each processor gets its own context so different processors don't
   // affect each other. Context::New returns a persistent handle which
@@ -185,7 +186,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
 
   // The script compiled and ran correctly.  Now we fetch out the
   // Process function from the global object.
-  Handle<String> process_name = String::New("Process");
+  Handle<String> process_name = String::NewFromUtf8(GetIsolate(), "Process");
   Handle<Value> process_val = context->Global()->Get(process_name);
 
   // If there is no Process function, or if it is not a function,
@@ -244,10 +245,12 @@ bool JsHttpRequestProcessor::InstallMaps(map<string, string>* opts,
       v8::Local<v8::Context>::New(GetIsolate(), context_);
 
   // Set the options object as a property on the global object.
-  context->Global()->Set(String::New("options"), opts_obj);
+  context->Global()->Set(String::NewFromUtf8(GetIsolate(), "options"),
+                         opts_obj);
 
   Handle<Object> output_obj = WrapMap(output);
-  context->Global()->Set(String::New("output"), output_obj);
+  context->Global()->Set(String::NewFromUtf8(GetIsolate(), "output"),
+                         output_obj);
 
   return true;
 }
@@ -291,8 +294,8 @@ JsHttpRequestProcessor::~JsHttpRequestProcessor() {
   // Dispose the persistent handles.  When noone else has any
   // references to the objects stored in the handles they will be
   // automatically reclaimed.
-  context_.Dispose();
-  process_.Dispose();
+  context_.Reset();
+  process_.Reset();
 }
 
 
@@ -308,7 +311,7 @@ Persistent<ObjectTemplate> JsHttpRequestProcessor::map_template_;
 // JavaScript object.
 Handle<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
   // Handle scope for temporary handles.
-  HandleScope handle_scope(GetIsolate());
+  EscapableHandleScope handle_scope(GetIsolate());
 
   // Fetch the template for creating JavaScript map wrappers.
   // It only has to be created once, which we do on demand.
@@ -320,11 +323,11 @@ Handle<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
       Local<ObjectTemplate>::New(GetIsolate(), map_template_);
 
   // Create an empty map wrapper.
-  Handle<Object> result = templ->NewInstance();
+  Local<Object> result = templ->NewInstance();
 
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
-  Handle<External> map_ptr = External::New(obj);
+  Handle<External> map_ptr = External::New(GetIsolate(), obj);
 
   // Store the map pointer in the JavaScript wrapper.
   result->SetInternalField(0, map_ptr);
@@ -333,7 +336,7 @@ Handle<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
   // of these handles will go away when the handle scope is deleted
   // we need to call Close to let one, the result, escape into the
   // outer handle scope.
-  return handle_scope.Close(result);
+  return handle_scope.Escape(result);
 }
 
 
@@ -370,8 +373,9 @@ void JsHttpRequestProcessor::MapGet(Local<String> name,
 
   // Otherwise fetch the value and wrap it in a JavaScript string
   const string& value = (*iter).second;
-  info.GetReturnValue().Set(
-      String::New(value.c_str(), static_cast<int>(value.length())));
+  info.GetReturnValue().Set(String::NewFromUtf8(
+      info.GetIsolate(), value.c_str(), String::kNormalString,
+      static_cast<int>(value.length())));
 }
 
 
@@ -395,14 +399,14 @@ void JsHttpRequestProcessor::MapSet(Local<String> name,
 
 Handle<ObjectTemplate> JsHttpRequestProcessor::MakeMapTemplate(
     Isolate* isolate) {
-  HandleScope handle_scope(isolate);
+  EscapableHandleScope handle_scope(isolate);
 
-  Handle<ObjectTemplate> result = ObjectTemplate::New();
+  Local<ObjectTemplate> result = ObjectTemplate::New(isolate);
   result->SetInternalFieldCount(1);
   result->SetNamedPropertyHandler(MapGet, MapSet);
 
   // Again, return the result through the current handle scope.
-  return handle_scope.Close(result);
+  return handle_scope.Escape(result);
 }
 
 
@@ -416,7 +420,7 @@ Handle<ObjectTemplate> JsHttpRequestProcessor::MakeMapTemplate(
  */
 Handle<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
   // Handle scope for temporary handles.
-  HandleScope handle_scope(GetIsolate());
+  EscapableHandleScope handle_scope(GetIsolate());
 
   // Fetch the template for creating JavaScript http request wrappers.
   // It only has to be created once, which we do on demand.
@@ -428,11 +432,11 @@ Handle<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
       Local<ObjectTemplate>::New(GetIsolate(), request_template_);
 
   // Create an empty http request wrapper.
-  Handle<Object> result = templ->NewInstance();
+  Local<Object> result = templ->NewInstance();
 
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
-  Handle<External> request_ptr = External::New(request);
+  Handle<External> request_ptr = External::New(GetIsolate(), request);
 
   // Store the request pointer in the JavaScript wrapper.
   result->SetInternalField(0, request_ptr);
@@ -441,7 +445,7 @@ Handle<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
   // of these handles will go away when the handle scope is deleted
   // we need to call Close to let one, the result, escape into the
   // outer handle scope.
-  return handle_scope.Close(result);
+  return handle_scope.Escape(result);
 }
 
 
@@ -465,8 +469,9 @@ void JsHttpRequestProcessor::GetPath(Local<String> name,
   const string& path = request->Path();
 
   // Wrap the result in a JavaScript string and return it.
-  info.GetReturnValue().Set(
-      String::New(path.c_str(), static_cast<int>(path.length())));
+  info.GetReturnValue().Set(String::NewFromUtf8(
+      info.GetIsolate(), path.c_str(), String::kNormalString,
+      static_cast<int>(path.length())));
 }
 
 
@@ -475,8 +480,9 @@ void JsHttpRequestProcessor::GetReferrer(
     const PropertyCallbackInfo<Value>& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->Referrer();
-  info.GetReturnValue().Set(
-      String::New(path.c_str(), static_cast<int>(path.length())));
+  info.GetReturnValue().Set(String::NewFromUtf8(
+      info.GetIsolate(), path.c_str(), String::kNormalString,
+      static_cast<int>(path.length())));
 }
 
 
@@ -484,8 +490,9 @@ void JsHttpRequestProcessor::GetHost(Local<String> name,
                                      const PropertyCallbackInfo<Value>& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->Host();
-  info.GetReturnValue().Set(
-      String::New(path.c_str(), static_cast<int>(path.length())));
+  info.GetReturnValue().Set(String::NewFromUtf8(
+      info.GetIsolate(), path.c_str(), String::kNormalString,
+      static_cast<int>(path.length())));
 }
 
 
@@ -494,26 +501,35 @@ void JsHttpRequestProcessor::GetUserAgent(
     const PropertyCallbackInfo<Value>& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->UserAgent();
-  info.GetReturnValue().Set(
-      String::New(path.c_str(), static_cast<int>(path.length())));
+  info.GetReturnValue().Set(String::NewFromUtf8(
+      info.GetIsolate(), path.c_str(), String::kNormalString,
+      static_cast<int>(path.length())));
 }
 
 
 Handle<ObjectTemplate> JsHttpRequestProcessor::MakeRequestTemplate(
     Isolate* isolate) {
-  HandleScope handle_scope(isolate);
+  EscapableHandleScope handle_scope(isolate);
 
-  Handle<ObjectTemplate> result = ObjectTemplate::New();
+  Local<ObjectTemplate> result = ObjectTemplate::New(isolate);
   result->SetInternalFieldCount(1);
 
   // Add accessors for each of the fields of the request.
-  result->SetAccessor(String::NewSymbol("path"), GetPath);
-  result->SetAccessor(String::NewSymbol("referrer"), GetReferrer);
-  result->SetAccessor(String::NewSymbol("host"), GetHost);
-  result->SetAccessor(String::NewSymbol("userAgent"), GetUserAgent);
+  result->SetAccessor(
+      String::NewFromUtf8(isolate, "path", String::kInternalizedString),
+      GetPath);
+  result->SetAccessor(
+      String::NewFromUtf8(isolate, "referrer", String::kInternalizedString),
+      GetReferrer);
+  result->SetAccessor(
+      String::NewFromUtf8(isolate, "host", String::kInternalizedString),
+      GetHost);
+  result->SetAccessor(
+      String::NewFromUtf8(isolate, "userAgent", String::kInternalizedString),
+      GetUserAgent);
 
   // Again, return the result through the current handle scope.
-  return handle_scope.Close(result);
+  return handle_scope.Escape(result);
 }
 
 
@@ -575,7 +591,7 @@ void ParseOptions(int argc,
 
 
 // Reads a file into a v8 string.
-Handle<String> ReadFile(const string& name) {
+Handle<String> ReadFile(Isolate* isolate, const string& name) {
   FILE* file = fopen(name.c_str(), "rb");
   if (file == NULL) return Handle<String>();
 
@@ -590,7 +606,8 @@ Handle<String> ReadFile(const string& name) {
     i += read;
   }
   fclose(file);
-  Handle<String> result = String::New(chars, size);
+  Handle<String> result =
+      String::NewFromUtf8(isolate, chars, String::kNormalString, size);
   delete[] chars;
   return result;
 }
@@ -636,7 +653,7 @@ int main(int argc, char* argv[]) {
   }
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
-  Handle<String> source = ReadFile(file);
+  Handle<String> source = ReadFile(isolate, file);
   if (source.IsEmpty()) {
     fprintf(stderr, "Error reading '%s'.\n", file.c_str());
     return 1;

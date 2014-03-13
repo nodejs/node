@@ -256,7 +256,7 @@ void LGapResolver::EmitMove(int index) {
       if (cgen_->IsInteger32(constant_source)) {
         __ li(dst, Operand(cgen_->ToRepresentation(constant_source, r)));
       } else {
-        __ LoadObject(dst, cgen_->ToHandle(constant_source));
+        __ li(dst, cgen_->ToHandle(constant_source));
       }
     } else if (destination->IsDoubleRegister()) {
       DoubleRegister result = cgen_->ToDoubleRegister(destination);
@@ -271,8 +271,7 @@ void LGapResolver::EmitMove(int index) {
         __ li(kLithiumScratchReg,
               Operand(cgen_->ToRepresentation(constant_source, r)));
       } else {
-        __ LoadObject(kLithiumScratchReg,
-                      cgen_->ToHandle(constant_source));
+        __ li(kLithiumScratchReg, cgen_->ToHandle(constant_source));
       }
       __ sw(kLithiumScratchReg, cgen_->ToMemOperand(destination));
     }

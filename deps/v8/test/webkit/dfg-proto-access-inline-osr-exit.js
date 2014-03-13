@@ -41,4 +41,3 @@ for (var i = 0; i < 200; ++i) {
         myProto.g = 67;
     shouldBe("foo({g:new Thingy()})", "42");
 }
-

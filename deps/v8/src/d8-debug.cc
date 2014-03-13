@@ -30,6 +30,7 @@
 #include "d8.h"
 #include "d8-debug.h"
 #include "debug-agent.h"
+#include "platform/socket.h"
 
 
 namespace v8 {
@@ -63,7 +64,8 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
   TryCatch try_catch;
 
   // Get the toJSONProtocol function on the event and get the JSON format.
-  Local<String> to_json_fun_name = String::New("toJSONProtocol");
+  Local<String> to_json_fun_name =
+      String::NewFromUtf8(isolate, "toJSONProtocol");
   Handle<Object> event_data = event_details.GetEventData();
   Local<Function> to_json_fun =
       Local<Function>::Cast(event_data->Get(to_json_fun_name));
@@ -80,7 +82,7 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
     Shell::ReportException(isolate, &try_catch);
     return;
   }
-  String::Utf8Value str(details->Get(String::New("text")));
+  String::Utf8Value str(details->Get(String::NewFromUtf8(isolate, "text")));
   if (str.length() == 0) {
     // Empty string is used to signal not to process this event.
     return;
@@ -88,7 +90,8 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
   printf("%s\n", *str);
 
   // Get the debug command processor.
-  Local<String> fun_name = String::New("debugCommandProcessor");
+  Local<String> fun_name =
+      String::NewFromUtf8(isolate, "debugCommandProcessor");
   Handle<Object> exec_state = event_details.GetExecutionState();
   Local<Function> fun = Local<Function>::Cast(exec_state->Get(fun_name));
   Local<Object> cmd_processor =
@@ -112,8 +115,8 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
     TryCatch try_catch;
 
     // Convert the debugger command to a JSON debugger request.
-    Handle<Value> request =
-        Shell::DebugCommandToJSONRequest(isolate, String::New(command));
+    Handle<Value> request = Shell::DebugCommandToJSONRequest(
+        isolate, String::NewFromUtf8(isolate, command));
     if (try_catch.HasCaught()) {
       Shell::ReportException(isolate, &try_catch);
       continue;
@@ -134,7 +137,7 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
     // Invoke the JavaScript to convert the debug command line to a JSON
     // request, invoke the JSON request and convert the JSON respose to a text
     // representation.
-    fun_name = String::New("processDebugRequest");
+    fun_name = String::NewFromUtf8(isolate, "processDebugRequest");
     fun = Handle<Function>::Cast(cmd_processor->Get(fun_name));
     args[0] = request;
     Handle<Value> response_val = fun->Call(cmd_processor, kArgc, args);
@@ -151,12 +154,14 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
       Shell::ReportException(isolate, &try_catch);
       continue;
     }
-    String::Utf8Value text_str(response_details->Get(String::New("text")));
+    String::Utf8Value text_str(
+        response_details->Get(String::NewFromUtf8(isolate, "text")));
     if (text_str.length() > 0) {
       printf("%s\n", *text_str);
     }
-    running =
-        response_details->Get(String::New("running"))->ToBoolean()->Value();
+    running = response_details->Get(String::NewFromUtf8(isolate, "running"))
+                  ->ToBoolean()
+                  ->Value();
   }
 }
 
@@ -273,15 +278,14 @@ void RemoteDebugger::HandleMessageReceived(char* message) {
 
   // Print the event details.
   TryCatch try_catch;
-  Handle<Object> details =
-      Shell::DebugMessageDetails(isolate_,
-                                 Handle<String>::Cast(String::New(message)));
+  Handle<Object> details = Shell::DebugMessageDetails(
+      isolate_, Handle<String>::Cast(String::NewFromUtf8(isolate_, message)));
   if (try_catch.HasCaught()) {
     Shell::ReportException(isolate_, &try_catch);
     PrintPrompt();
     return;
   }
-  String::Utf8Value str(details->Get(String::New("text")));
+  String::Utf8Value str(details->Get(String::NewFromUtf8(isolate_, "text")));
   if (str.length() == 0) {
     // Empty string is used to signal not to process this event.
     return;
@@ -292,7 +296,9 @@ void RemoteDebugger::HandleMessageReceived(char* message) {
     printf("???\n");
   }
 
-  bool is_running = details->Get(String::New("running"))->ToBoolean()->Value();
+  bool is_running = details->Get(String::NewFromUtf8(isolate_, "running"))
+                        ->ToBoolean()
+                        ->Value();
   PrintPrompt(is_running);
 }
 
@@ -303,8 +309,8 @@ void RemoteDebugger::HandleKeyboardCommand(char* command) {
 
   // Convert the debugger command to a JSON debugger request.
   TryCatch try_catch;
-  Handle<Value> request =
-      Shell::DebugCommandToJSONRequest(isolate_, String::New(command));
+  Handle<Value> request = Shell::DebugCommandToJSONRequest(
+      isolate_, String::NewFromUtf8(isolate_, command));
   if (try_catch.HasCaught()) {
     Shell::ReportException(isolate_, &try_catch);
     PrintPrompt();
@@ -327,13 +333,13 @@ void ReceiverThread::Run() {
   // Receive the connect message (with empty body).
   i::SmartArrayPointer<char> message =
       i::DebuggerAgentUtil::ReceiveMessage(remote_debugger_->conn());
-  ASSERT(*message == NULL);
+  ASSERT(message.get() == NULL);
 
   while (true) {
     // Receive a message.
     i::SmartArrayPointer<char> message =
         i::DebuggerAgentUtil::ReceiveMessage(remote_debugger_->conn());
-    if (*message == NULL) {
+    if (message.get() == NULL) {
       remote_debugger_->ConnectionClosed();
       return;
     }

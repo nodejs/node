@@ -33,5 +33,3 @@ function foo(array) {
 
 for (var i = 0; i < 100; ++i)
     shouldBe("foo([75])", "[1,2]");
-
-

@@ -59,8 +59,3 @@ function testEvalDontShadow(source) {
   eval('eval(' + source +')');
 }
 testEvalDontShadow('assertEquals(42, x)');
-
-
-
-
-

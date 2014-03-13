@@ -89,5 +89,3 @@ var test = new Object;
 test.__proto__ = (new Array()).__proto__;
 test.length = 14;
 assertEquals(14, test.length);
-
-

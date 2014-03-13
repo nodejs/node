@@ -82,7 +82,7 @@ Counters::Counters(Isolate* isolate) {
         StatsCounter(isolate, "c:" "V8.CountOf_CODE_AGE-" #name); \
     size_of_CODE_AGE_##name##_ = \
         StatsCounter(isolate, "c:" "V8.SizeOf_CODE_AGE-" #name);
-    CODE_AGE_LIST_WITH_NO_AGE(SC)
+    CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
 }
 

@@ -53,7 +53,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   CHECK(buffer);
   HandleScope handles(isolate);
   MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size));
-  masm.set_allow_stub_calls(false);
   DoubleToIStub stub(source_reg, destination_reg, 0, true, inline_fastpath);
 
   byte* start = stub.GetCode(isolate)->instruction_start();

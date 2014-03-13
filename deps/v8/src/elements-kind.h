@@ -53,29 +53,46 @@ enum ElementsKind {
   DICTIONARY_ELEMENTS,
   NON_STRICT_ARGUMENTS_ELEMENTS,
   // The "fast" kind for external arrays
-  EXTERNAL_BYTE_ELEMENTS,
-  EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
-  EXTERNAL_SHORT_ELEMENTS,
-  EXTERNAL_UNSIGNED_SHORT_ELEMENTS,
-  EXTERNAL_INT_ELEMENTS,
-  EXTERNAL_UNSIGNED_INT_ELEMENTS,
-  EXTERNAL_FLOAT_ELEMENTS,
-  EXTERNAL_DOUBLE_ELEMENTS,
-  EXTERNAL_PIXEL_ELEMENTS,
+  EXTERNAL_INT8_ELEMENTS,
+  EXTERNAL_UINT8_ELEMENTS,
+  EXTERNAL_INT16_ELEMENTS,
+  EXTERNAL_UINT16_ELEMENTS,
+  EXTERNAL_INT32_ELEMENTS,
+  EXTERNAL_UINT32_ELEMENTS,
+  EXTERNAL_FLOAT32_ELEMENTS,
+  EXTERNAL_FLOAT64_ELEMENTS,
+  EXTERNAL_UINT8_CLAMPED_ELEMENTS,
+
+  // Fixed typed arrays
+  UINT8_ELEMENTS,
+  INT8_ELEMENTS,
+  UINT16_ELEMENTS,
+  INT16_ELEMENTS,
+  UINT32_ELEMENTS,
+  INT32_ELEMENTS,
+  FLOAT32_ELEMENTS,
+  FLOAT64_ELEMENTS,
+  UINT8_CLAMPED_ELEMENTS,
 
   // Derived constants from ElementsKind
   FIRST_ELEMENTS_KIND = FAST_SMI_ELEMENTS,
-  LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
+  LAST_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
   FIRST_FAST_ELEMENTS_KIND = FAST_SMI_ELEMENTS,
   LAST_FAST_ELEMENTS_KIND = FAST_HOLEY_DOUBLE_ELEMENTS,
-  FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_BYTE_ELEMENTS,
-  LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
+  FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_INT8_ELEMENTS,
+  LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_UINT8_CLAMPED_ELEMENTS,
+  FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_ELEMENTS,
+  LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
   TERMINAL_FAST_ELEMENTS_KIND = FAST_HOLEY_ELEMENTS
 };
 
 const int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
 const int kFastElementsKindCount = LAST_FAST_ELEMENTS_KIND -
     FIRST_FAST_ELEMENTS_KIND + 1;
+
+// The number to add to a packed elements kind to reach a holey elements kind
+const int kFastElementsKindPackedToHoley =
+    FAST_HOLEY_SMI_ELEMENTS - FAST_SMI_ELEMENTS;
 
 int ElementsKindToShiftSize(ElementsKind elements_kind);
 const char* ElementsKindToString(ElementsKind kind);
@@ -99,6 +116,12 @@ inline bool IsExternalArrayElementsKind(ElementsKind kind) {
 }
 
 
+inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
+  return kind >= FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND &&
+      kind <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
+}
+
+
 inline bool IsFastElementsKind(ElementsKind kind) {
   ASSERT(FIRST_FAST_ELEMENTS_KIND == 0);
   return kind <= FAST_HOLEY_DOUBLE_ELEMENTS;
@@ -112,14 +135,20 @@ inline bool IsFastDoubleElementsKind(ElementsKind kind) {
 
 
 inline bool IsExternalFloatOrDoubleElementsKind(ElementsKind kind) {
-  return kind == EXTERNAL_DOUBLE_ELEMENTS ||
-      kind == EXTERNAL_FLOAT_ELEMENTS;
+  return kind == EXTERNAL_FLOAT64_ELEMENTS ||
+      kind == EXTERNAL_FLOAT32_ELEMENTS;
+}
+
+
+inline bool IsFixedFloatElementsKind(ElementsKind kind) {
+  return kind == FLOAT32_ELEMENTS || kind == FLOAT64_ELEMENTS;
 }
 
 
 inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
   return IsFastDoubleElementsKind(kind) ||
-      IsExternalFloatOrDoubleElementsKind(kind);
+      IsExternalFloatOrDoubleElementsKind(kind) ||
+      IsFixedFloatElementsKind(kind);
 }
 
 

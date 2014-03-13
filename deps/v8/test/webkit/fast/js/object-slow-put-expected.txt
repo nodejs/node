@@ -26,108 +26,107 @@ Tests that defining a setter on the prototype of an object used for indexed stor
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL ouches should be 100. Was 0.
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS ouches is 100
 PASS successfullyParsed is true
 
 TEST COMPLETE
-

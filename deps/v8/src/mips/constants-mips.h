@@ -124,6 +124,16 @@ const uint32_t kFCSRFlagMask =
 
 const uint32_t kFCSRExceptionFlagMask = kFCSRFlagMask ^ kFCSRInexactFlagMask;
 
+// 'pref' instruction hints
+const int32_t kPrefHintLoad = 0;
+const int32_t kPrefHintStore = 1;
+const int32_t kPrefHintLoadStreamed = 4;
+const int32_t kPrefHintStoreStreamed = 5;
+const int32_t kPrefHintLoadRetained = 6;
+const int32_t kPrefHintStoreRetained = 7;
+const int32_t kPrefHintWritebackInvalidate = 25;
+const int32_t kPrefHintPrepareForStore = 30;
+
 // Helper functions for converting between register numbers and names.
 class Registers {
  public:
@@ -296,6 +306,8 @@ enum Opcode {
 
   LWC1      =   ((6 << 3) + 1) << kOpcodeShift,
   LDC1      =   ((6 << 3) + 5) << kOpcodeShift,
+
+  PREF      =   ((6 << 3) + 3) << kOpcodeShift,
 
   SWC1      =   ((7 << 3) + 1) << kOpcodeShift,
   SDC1      =   ((7 << 3) + 5) << kOpcodeShift,

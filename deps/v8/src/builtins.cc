@@ -153,8 +153,8 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 #endif
 
 
-static inline bool CalledAsConstructor(Isolate* isolate) {
 #ifdef DEBUG
+static inline bool CalledAsConstructor(Isolate* isolate) {
   // Calculate the result using a full stack frame iterator and check
   // that the state of the stack is as we assume it to be in the
   // code below.
@@ -163,7 +163,6 @@ static inline bool CalledAsConstructor(Isolate* isolate) {
   it.Advance();
   StackFrame* frame = it.frame();
   bool reference_result = frame->is_construct();
-#endif
   Address fp = Isolate::c_entry_fp(isolate->thread_local_top());
   // Because we know fp points to an exit frame we can use the relevant
   // part of ExitFrame::ComputeCallerState directly.
@@ -180,6 +179,7 @@ static inline bool CalledAsConstructor(Isolate* isolate) {
   ASSERT_EQ(result, reference_result);
   return result;
 }
+#endif
 
 
 // ----------------------------------------------------------------------------
@@ -276,15 +276,10 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
   FixedArrayBase* new_elms = FixedArrayBase::cast(HeapObject::FromAddress(
       elms->address() + size_delta));
   HeapProfiler* profiler = heap->isolate()->heap_profiler();
-  if (profiler->is_profiling()) {
+  if (profiler->is_tracking_object_moves()) {
     profiler->ObjectMoveEvent(elms->address(),
                               new_elms->address(),
                               new_elms->Size());
-    if (profiler->is_tracking_allocations()) {
-      // Report filler object as a new allocation.
-      // Otherwise it will become an untracked object.
-      profiler->NewObjectEvent(elms->address(), elms->Size());
-    }
   }
   return new_elms;
 }
@@ -311,6 +306,8 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
     Heap* heap, Object* receiver, Arguments* args, int first_added_arg) {
   if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
+  if (array->map()->is_observed()) return NULL;
+  if (!array->map()->is_extensible()) return NULL;
   HeapObject* elms = array->elements();
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
@@ -1103,7 +1100,7 @@ BUILTIN(StrictModePoisonPill) {
 static inline Object* FindHidden(Heap* heap,
                                  Object* object,
                                  FunctionTemplateInfo* type) {
-  if (object->IsInstanceOf(type)) return object;
+  if (type->IsTemplateFor(object)) return object;
   Object* proto = object->GetPrototype(heap->isolate());
   if (proto->IsJSObject() &&
       JSObject::cast(proto)->map()->is_hidden_prototype()) {
@@ -1174,6 +1171,15 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     ASSERT(isolate->has_pending_exception() == pending_exception);
     if (pending_exception) return Failure::Exception();
     fun_data = *desc;
+  }
+
+  SharedFunctionInfo* shared = function->shared();
+  if (shared->is_classic_mode() && !shared->native()) {
+    Object* recv = args[0];
+    ASSERT(!recv->IsNull());
+    if (recv->IsUndefined()) {
+      args[0] = function->context()->global_object()->global_receiver();
+    }
   }
 
   Object* raw_holder = TypeCheck(heap, args.length(), &args[0], fun_data);
@@ -1303,23 +1309,8 @@ BUILTIN(HandleApiCallAsConstructor) {
 }
 
 
-static void Generate_LoadIC_Initialize(MacroAssembler* masm) {
-  LoadIC::GenerateInitialize(masm);
-}
-
-
-static void Generate_LoadIC_PreMonomorphic(MacroAssembler* masm) {
-  LoadIC::GeneratePreMonomorphic(masm);
-}
-
-
 static void Generate_LoadIC_Miss(MacroAssembler* masm) {
   LoadIC::GenerateMiss(masm);
-}
-
-
-static void Generate_LoadIC_Megamorphic(MacroAssembler* masm) {
-  LoadIC::GenerateMegamorphic(masm);
 }
 
 
@@ -1330,7 +1321,8 @@ static void Generate_LoadIC_Normal(MacroAssembler* masm) {
 
 static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
   LoadStubCompiler::GenerateLoadViaGetter(
-      masm, LoadStubCompiler::registers()[0], Handle<JSFunction>());
+      masm, Handle<HeapType>::null(),
+      LoadStubCompiler::registers()[0], Handle<JSFunction>());
 }
 
 
@@ -1350,12 +1342,7 @@ static void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
 
 
 static void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMiss(masm, MISS);
-}
-
-
-static void Generate_KeyedLoadIC_MissForceGeneric(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMiss(masm, MISS_FORCE_GENERIC);
+  KeyedLoadIC::GenerateMiss(masm);
 }
 
 
@@ -1389,31 +1376,6 @@ static void Generate_StoreIC_Slow(MacroAssembler* masm) {
 }
 
 
-static void Generate_StoreIC_Slow_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateSlow(masm);
-}
-
-
-static void Generate_StoreIC_Initialize(MacroAssembler* masm) {
-  StoreIC::GenerateInitialize(masm);
-}
-
-
-static void Generate_StoreIC_Initialize_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateInitialize(masm);
-}
-
-
-static void Generate_StoreIC_PreMonomorphic(MacroAssembler* masm) {
-  StoreIC::GeneratePreMonomorphic(masm);
-}
-
-
-static void Generate_StoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
-  StoreIC::GeneratePreMonomorphic(masm);
-}
-
-
 static void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }
@@ -1424,43 +1386,9 @@ static void Generate_StoreIC_Normal(MacroAssembler* masm) {
 }
 
 
-static void Generate_StoreIC_Normal_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateNormal(masm);
-}
-
-
-static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm, kNonStrictMode);
-}
-
-
-static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm, kStrictMode);
-}
-
-
-static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kNonStrictMode);
-}
-
-
-static void Generate_StoreIC_GlobalProxy_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kStrictMode);
-}
-
-
 static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
-  StoreStubCompiler::GenerateStoreViaSetter(masm, Handle<JSFunction>());
-}
-
-
-static void Generate_StoreIC_Generic(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kNonStrictMode);
-}
-
-
-static void Generate_StoreIC_Generic_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kStrictMode);
+  StoreStubCompiler::GenerateStoreViaSetter(
+      masm, Handle<HeapType>::null(), Handle<JSFunction>());
 }
 
 
@@ -1475,21 +1403,11 @@ static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm, MISS);
-}
-
-
-static void Generate_KeyedStoreIC_MissForceGeneric(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm, MISS_FORCE_GENERIC);
+  KeyedStoreIC::GenerateMiss(masm);
 }
 
 
 static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateSlow(masm);
-}
-
-
-static void Generate_KeyedStoreIC_Slow_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateSlow(masm);
 }
 
@@ -1676,13 +1594,12 @@ void Builtins::InitBuiltinFunctionTable() {
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
     ++functions;
 
-#define DEF_FUNCTION_PTR_H(aname, kind, extra)                              \
+#define DEF_FUNCTION_PTR_H(aname, kind)                                     \
     functions->generator = FUNCTION_ADDR(Generate_##aname);                 \
     functions->c_code = NULL;                                               \
     functions->s_name = #aname;                                             \
     functions->name = k##aname;                                             \
-    functions->flags = Code::ComputeFlags(                                  \
-        Code::HANDLER, MONOMORPHIC, extra, Code::NORMAL, Code::kind);       \
+    functions->flags = Code::ComputeHandlerFlags(Code::kind);               \
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
     ++functions;
 
@@ -1708,7 +1625,9 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   // For now we generate builtin adaptor code into a stack-allocated
   // buffer, before copying it into individual code objects. Be careful
   // with alignment, some platforms don't like unaligned code.
-  union { int force_alignment; byte buffer[8*KB]; } u;
+  // TODO(jbramley): I had to increase the size of this buffer from 8KB because
+  // we can generate a lot of debug code on A64.
+  union { int force_alignment; byte buffer[16*KB]; } u;
 
   // Traverse the list of builtins and generate an adaptor in a
   // separate code object for each one.
@@ -1750,9 +1669,10 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       builtins_[i] = code;
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_builtin_code) {
-        PrintF("Builtin: %s\n", functions[i].s_name);
-        Code::cast(code)->Disassemble(functions[i].s_name);
-        PrintF("\n");
+        CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
+        PrintF(trace_scope.file(), "Builtin: %s\n", functions[i].s_name);
+        Code::cast(code)->Disassemble(functions[i].s_name, trace_scope.file());
+        PrintF(trace_scope.file(), "\n");
       }
 #endif
     } else {
@@ -1813,7 +1733,7 @@ Handle<Code> Builtins::name() {                             \
       reinterpret_cast<Code**>(builtin_address(k##name));   \
   return Handle<Code>(code_address);                        \
 }
-#define DEFINE_BUILTIN_ACCESSOR_H(name, kind, extra)        \
+#define DEFINE_BUILTIN_ACCESSOR_H(name, kind)               \
 Handle<Code> Builtins::name() {                             \
   Code** code_address =                                     \
       reinterpret_cast<Code**>(builtin_address(k##name));   \

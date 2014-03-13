@@ -201,5 +201,3 @@ function reviveIntroducesNewArrayLikeObject(i, v) {
 }
 
 shouldBe('JSON.stringify(JSON.parse("[0,1]", reviveIntroducesNewArrayLikeObject))', '\'[0,["a","a"]]\'');
-
-

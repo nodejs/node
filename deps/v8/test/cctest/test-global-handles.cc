@@ -316,6 +316,8 @@ TEST(ImplicitReferences) {
          reinterpret_cast<HeapObject**>(g2s1.location()));
   ASSERT(implicit_refs->at(1)->length == 1);
   ASSERT(implicit_refs->at(1)->children[0] == g2c1.location());
+  global_handles->RemoveObjectGroups();
+  global_handles->RemoveImplicitRefGroups();
 }
 
 
@@ -334,8 +336,8 @@ TEST(EternalHandles) {
   for (int i = 0; i < kArrayLength; i++) {
     indices[i] = -1;
     HandleScope scope(isolate);
-    v8::Local<v8::Object> object = v8::Object::New();
-    object->Set(i, v8::Integer::New(i, v8_isolate));
+    v8::Local<v8::Object> object = v8::Object::New(v8_isolate);
+    object->Set(i, v8::Integer::New(v8_isolate, i));
     // Create with internal api
     eternal_handles->Create(
         isolate, *v8::Utils::OpenHandle(*object), &indices[i]);
@@ -370,7 +372,7 @@ TEST(EternalHandles) {
   // Create an eternal via the constructor
   {
     HandleScope scope(isolate);
-    v8::Local<v8::Object> object = v8::Object::New();
+    v8::Local<v8::Object> object = v8::Object::New(v8_isolate);
     v8::Eternal<v8::Object> eternal(v8_isolate, object);
     CHECK(!eternal.IsEmpty());
     CHECK(object == eternal.Get(v8_isolate));

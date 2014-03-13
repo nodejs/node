@@ -115,9 +115,7 @@ Object** TransitionArray::GetPrototypeTransitionsSlot() {
 Object** TransitionArray::GetKeySlot(int transition_number) {
   ASSERT(!IsSimpleTransition());
   ASSERT(transition_number < number_of_transitions());
-  return HeapObject::RawField(
-      reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToKeyIndex(transition_number)));
+  return RawFieldOfElementAt(ToKeyIndex(transition_number));
 }
 
 
@@ -162,9 +160,7 @@ void TransitionArray::SetTarget(int transition_number, Map* value) {
 
 PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
   Map* map = GetTarget(transition_number);
-  DescriptorArray* descriptors = map->instance_descriptors();
-  int descriptor = map->LastAdded();
-  return descriptors->GetDetails(descriptor);
+  return map->GetLastDescriptorDetails();
 }
 
 

@@ -61,10 +61,11 @@ void HRepresentationChangesPhase::InsertRepresentationChangeForUse(
   if (new_value == NULL) {
     new_value = new(graph()->zone()) HChange(
         value, to, is_truncating_to_smi, is_truncating_to_int);
-    if (use_value->position() != RelocInfo::kNoPosition) {
-      new_value->set_position(use_value->position());
+    if (!use_value->operand_position(use_index).IsUnknown()) {
+      new_value->set_position(use_value->operand_position(use_index));
     } else {
-      ASSERT(!FLAG_emit_opt_code_positions || !graph()->info()->IsOptimizing());
+      ASSERT(!FLAG_hydrogen_track_positions ||
+             !graph()->info()->IsOptimizing());
     }
   }
 

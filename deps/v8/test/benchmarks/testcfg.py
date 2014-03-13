@@ -64,7 +64,7 @@ class BenchmarksTestSuite(testsuite.TestSuite):
         "octane/crypto",
         "octane/deltablue",
         "octane/earley-boyer",
-        "octane/gbemu",
+        "octane/gbemu-part1",
         "octane/mandreel",
         "octane/navier-stokes",
         "octane/pdfjs",
@@ -72,6 +72,8 @@ class BenchmarksTestSuite(testsuite.TestSuite):
         "octane/regexp",
         "octane/richards",
         "octane/splay",
+        "octane/typescript",
+        "octane/zlib",
 
         "sunspider/3d-cube",
         "sunspider/3d-morph",
@@ -111,6 +113,14 @@ class BenchmarksTestSuite(testsuite.TestSuite):
     elif testcase.path.startswith("octane"):
       result.append(os.path.join(self.testroot, "octane/base.js"))
       result.append(os.path.join(self.testroot, "%s.js" % testcase.path))
+      if testcase.path.startswith("octane/gbemu"):
+        result.append(os.path.join(self.testroot, "octane/gbemu-part2.js"))
+      elif testcase.path.startswith("octane/typescript"):
+        result.append(os.path.join(self.testroot,
+                                   "octane/typescript-compiler.js"))
+        result.append(os.path.join(self.testroot, "octane/typescript-input.js"))
+      elif testcase.path.startswith("octane/zlib"):
+        result.append(os.path.join(self.testroot, "octane/zlib-data.js"))
       result += ["-e", "BenchmarkSuite.RunSuites({});"]
     elif testcase.path.startswith("sunspider"):
       result.append(os.path.join(self.testroot, "%s.js" % testcase.path))
@@ -158,8 +168,8 @@ class BenchmarksTestSuite(testsuite.TestSuite):
 
     self._DownloadIfNecessary(
         ("http://svn.webkit.org/repository/webkit/trunk/PerformanceTests/"
-         "SunSpider/tests/sunspider-1.0/"),
-        "153700", "sunspider")
+         "SunSpider/tests/sunspider-1.0.2/"),
+        "159499", "sunspider")
 
     self._DownloadIfNecessary(
         ("http://kraken-mirror.googlecode.com/svn/trunk/kraken/tests/"
@@ -168,7 +178,7 @@ class BenchmarksTestSuite(testsuite.TestSuite):
 
     self._DownloadIfNecessary(
         "http://octane-benchmark.googlecode.com/svn/trunk/",
-        "22", "octane")
+        "26", "octane")
 
     os.chdir(old_cwd)
 

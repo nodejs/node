@@ -54,6 +54,10 @@ var assertSame;
 // and the properties of non-Array objects).
 var assertEquals;
 
+
+// The difference between expected and found value is within certain tolerance.
+var assertEqualsDelta;
+
 // The found object is an Array with the same length and elements
 // as the expected object. The expected object doesn't need to be an Array,
 // as long as it's "array-ish".
@@ -247,6 +251,12 @@ var assertUnoptimized;
   };
 
 
+  assertEqualsDelta =
+      function assertEqualsDelta(expected, found, delta, name_opt) {
+    assertTrue(Math.abs(expected - found) <= delta, name_opt);
+  };
+
+
   assertArrayEquals = function assertArrayEquals(expected, found, name_opt) {
     var start = "";
     if (name_opt) {
@@ -383,4 +393,3 @@ var assertUnoptimized;
   }
 
 })();
-

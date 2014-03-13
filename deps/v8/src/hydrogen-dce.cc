@@ -64,7 +64,7 @@ void HDeadCodeEliminationPhase::PrintLive(HValue* ref, HValue* instr) {
   }
   stream.Add(" -> ");
   instr->PrintTo(&stream);
-  PrintF("[MarkLive %s]\n", *stream.ToCString());
+  PrintF("[MarkLive %s]\n", stream.ToCString().get());
 }
 
 

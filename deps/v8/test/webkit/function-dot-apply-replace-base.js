@@ -44,6 +44,3 @@ function bar() {
 }
 
 shouldBe("bar()", "3");
-
-
-

@@ -42,4 +42,3 @@ for (var i = 0; i < 200; ++i) {
     shouldBe("thingy.length", "1");
     shouldBe("thingy[0]", "false");
 }
-

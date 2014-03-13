@@ -43,15 +43,15 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
                                           Handle<Object> message_obj) {
   SmartArrayPointer<char> str = GetLocalizedMessage(isolate, message_obj);
   if (loc == NULL) {
-    PrintF("%s\n", *str);
+    PrintF("%s\n", str.get());
   } else {
     HandleScope scope(isolate);
     Handle<Object> data(loc->script()->name(), isolate);
     SmartArrayPointer<char> data_str;
     if (data->IsString())
       data_str = Handle<String>::cast(data)->ToCString(DISALLOW_NULLS);
-    PrintF("%s:%i: %s\n", *data_str ? *data_str : "<unknown>",
-           loc->start_pos(), *str);
+    PrintF("%s:%i: %s\n", data_str.get() ? data_str.get() : "<unknown>",
+           loc->start_pos(), str.get());
   }
 }
 
@@ -61,7 +61,6 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     const char* type,
     MessageLocation* loc,
     Vector< Handle<Object> > args,
-    Handle<String> stack_trace,
     Handle<JSArray> stack_frames) {
   Factory* factory = isolate->factory();
   Handle<String> type_handle = factory->InternalizeUtf8String(type);
@@ -82,10 +81,6 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     script_handle = GetScriptWrapper(loc->script());
   }
 
-  Handle<Object> stack_trace_handle = stack_trace.is_null()
-      ? Handle<Object>::cast(factory->undefined_value())
-      : Handle<Object>::cast(stack_trace);
-
   Handle<Object> stack_frames_handle = stack_frames.is_null()
       ? Handle<Object>::cast(factory->undefined_value())
       : Handle<Object>::cast(stack_frames);
@@ -96,7 +91,6 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
                                   start,
                                   end,
                                   script_handle,
-                                  stack_trace_handle,
                                   stack_frames_handle);
 
   return message;

@@ -977,58 +977,57 @@ PASS "0,1,2,3,4" is "0,1,2,3,4"
 PASS "0,1,2,3,4" is "0,1,2,3,4"
 PASS "0,1,2,3,4" is "0,1,2,3,4"
 Henceforth I will have a bad time.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL "0,1,2,3,4" should be 0,1,2,,4. Was 0,1,2,3,4.
-FAIL ouches should be 50. Was 0.
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS "0,1,2,,4" is "0,1,2,,4"
+PASS ouches is 50
 PASS successfullyParsed is true
 
 TEST COMPLETE
-

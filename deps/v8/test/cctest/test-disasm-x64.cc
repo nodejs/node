@@ -90,11 +90,7 @@ TEST(DisasmX64) {
   __ or_(rdx, Immediate(3));
   __ xor_(rdx, Immediate(3));
   __ nop();
-  {
-    CHECK(CpuFeatures::IsSupported(CPUID));
-    CpuFeatures::Scope fscope(CPUID);
-    __ cpuid();
-  }
+  __ cpuid();
   __ movsxbq(rdx, Operand(rcx, 0));
   __ movsxwq(rdx, Operand(rcx, 0));
   __ movzxbl(rdx, Operand(rcx, 0));
@@ -334,15 +330,34 @@ TEST(DisasmX64) {
   __ fdivp(3);
   __ fcompp();
   __ fwait();
+  __ frndint();
+  __ fninit();
   __ nop();
 
   // SSE instruction
   {
+    // Move operation
     __ cvttss2si(rdx, Operand(rbx, rcx, times_4, 10000));
     __ cvttss2si(rdx, xmm1);
     __ movaps(xmm0, xmm1);
 
+    // logic operation
     __ andps(xmm0, xmm1);
+    __ andps(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ orps(xmm0, xmm1);
+    __ ordps(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ xorps(xmm0, xmm1);
+    __ xordps(xmm0, Operand(rbx, rcx, times_4, 10000));
+
+    // Arithmetic operation
+    __ addps(xmm1, xmm0);
+    __ addps(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ subps(xmm1, xmm0);
+    __ subps(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ mulps(xmm1, xmm0);
+    __ mulps(xmm1, Operand(rbx, ecx, times_4, 10000));
+    __ divps(xmm1, xmm0);
+    __ divps(xmm1, Operand(rbx, rcx, times_4, 10000));
   }
   // SSE 2 instructions
   {

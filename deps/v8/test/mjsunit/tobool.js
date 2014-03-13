@@ -32,5 +32,3 @@ assertTrue(!!new Boolean(false), "new Boolean(false)");
 assertTrue(!!new Number(-1), "new Number(-1)");
 assertTrue(!!new Number(0), "new Number(0)");
 assertTrue(!!new Number(1), "new Number(1)");
-
-

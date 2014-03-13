@@ -30,12 +30,12 @@
 
 #include "heap-snapshot-generator-inl.h"
 #include "isolate.h"
+#include "smart-pointers.h"
 
 namespace v8 {
 namespace internal {
 
 class HeapSnapshot;
-class HeapSnapshotsCollection;
 
 class HeapProfiler {
  public:
@@ -53,22 +53,24 @@ class HeapProfiler {
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
 
-  void StartHeapObjectsTracking();
+  void StartHeapObjectsTracking(bool track_allocations);
   void StopHeapObjectsTracking();
-
-  static void RecordObjectAllocationFromMasm(Isolate* isolate,
-                                             Address obj,
-                                             int size);
+  AllocationTracker* allocation_tracker() const {
+    return allocation_tracker_.get();
+  }
+  HeapObjectsMap* heap_object_map() const { return ids_.get(); }
+  StringsStorage* names() const { return names_.get(); }
 
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
   int GetSnapshotsCount();
   HeapSnapshot* GetSnapshot(int index);
   SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
   void DeleteAllSnapshots();
+  void RemoveSnapshot(HeapSnapshot* snapshot);
 
   void ObjectMoveEvent(Address from, Address to, int size);
 
-  void NewObjectEvent(Address addr, int size);
+  void AllocationEvent(Address addr, int size);
 
   void UpdateObjectSizeEvent(Address addr, int size);
 
@@ -77,32 +79,27 @@ class HeapProfiler {
 
   v8::RetainedObjectInfo* ExecuteWrapperClassCallback(uint16_t class_id,
                                                       Object** wrapper);
-  INLINE(bool is_profiling()) {
-    return snapshots_->is_tracking_objects();
-  }
-
   void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
 
-  bool is_tracking_allocations() {
-    return is_tracking_allocations_;
+  bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
+  bool is_tracking_allocations() const {
+    return !allocation_tracker_.is_empty();
   }
 
-  void StartHeapAllocationsRecording();
-  void StopHeapAllocationsRecording();
-
-  int FindUntrackedObjects() {
-    return snapshots_->FindUntrackedObjects();
-  }
-
-  void DropCompiledCode();
+  Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
+  void ClearHeapObjectMap();
 
  private:
-  Heap* heap() const { return snapshots_->heap(); }
+  Heap* heap() const { return ids_->heap(); }
 
-  HeapSnapshotsCollection* snapshots_;
+  // Mapping from HeapObject addresses to objects' uids.
+  SmartPointer<HeapObjectsMap> ids_;
+  List<HeapSnapshot*> snapshots_;
+  SmartPointer<StringsStorage> names_;
   unsigned next_snapshot_uid_;
   List<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
-  bool is_tracking_allocations_;
+  SmartPointer<AllocationTracker> allocation_tracker_;
+  bool is_tracking_object_moves_;
 };
 
 } }  // namespace v8::internal

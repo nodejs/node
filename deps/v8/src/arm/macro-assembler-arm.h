@@ -45,8 +45,8 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
 
 
 // Give alias names to registers
-const Register pp = { kRegister_r7_Code };  // Constant pool pointer.
-const Register cp = { kRegister_r8_Code };  // JavaScript context pointer.
+const Register cp = { kRegister_r7_Code };  // JavaScript context pointer.
+const Register pp = { kRegister_r8_Code };  // Constant pool pointer.
 const Register kRootRegister = { kRegister_r10_Code };  // Roots array pointer.
 
 // Flags used for AllocateHeapNumber
@@ -160,6 +160,9 @@ class MacroAssembler: public Assembler {
   void Move(Register dst, Handle<Object> value);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DwVfpRegister dst, DwVfpRegister src);
+
+  void Load(Register dst, const MemOperand& src, Representation r);
+  void Store(Register src, const MemOperand& dst, Representation r);
 
   // Load an object from the root table.
   void LoadRoot(Register destination,
@@ -386,7 +389,7 @@ class MacroAssembler: public Assembler {
       }
     } else {
       Pop(src2, src3, cond);
-      str(src1, MemOperand(sp, 4, PostIndex), cond);
+      ldr(src1, MemOperand(sp, 4, PostIndex), cond);
     }
   }
 
@@ -422,6 +425,12 @@ class MacroAssembler: public Assembler {
       ldr(src1, MemOperand(sp, 4, PostIndex), cond);
     }
   }
+
+  // Push a fixed frame, consisting of lr, fp, constant pool (if
+  // FLAG_enable_ool_constant_pool), context and JS function / marker id if
+  // marker_reg is a valid register.
+  void PushFixedFrame(Register marker_reg = no_reg);
+  void PopFixedFrame(Register marker_reg = no_reg);
 
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
@@ -531,6 +540,9 @@ class MacroAssembler: public Assembler {
   // Generates function and stub prologue code.
   void Prologue(PrologueFrameMode frame_mode);
 
+  // Loads the constant pool pointer (pp) register.
+  void LoadConstantPoolPointerRegister();
+
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.
   void EnterExitFrame(bool save_doubles, int stack_space = 0);
@@ -582,40 +594,31 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
-  // Set up call kind marking in ecx. The method takes ecx as an
-  // explicit first parameter to make the code more readable at the
-  // call sites.
-  void SetCallKind(Register dst, CallKind kind);
-
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper,
-                  CallKind call_kind);
-
-  void InvokeCode(Handle<Code> code,
-                  const ParameterCount& expected,
-                  const ParameterCount& actual,
-                  RelocInfo::Mode rmode,
-                  InvokeFlag flag,
-                  CallKind call_kind);
+                  const CallWrapper& call_wrapper);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
+
+  void InvokeFunction(Register function,
+                      const ParameterCount& expected,
+                      const ParameterCount& actual,
+                      InvokeFlag flag,
+                      const CallWrapper& call_wrapper);
 
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   void IsObjectJSObjectType(Register heap_object,
                             Register map,
@@ -657,6 +660,12 @@ class MacroAssembler: public Assembler {
   // Propagates an uncatchable exception to the top of the current JS stack's
   // handler chain.
   void ThrowUncatchable(Register value);
+
+  // Throw a message string as an exception.
+  void Throw(BailoutReason reason);
+
+  // Throw a message string as an exception if a condition is not true.
+  void ThrowIf(Condition cc, BailoutReason reason);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -836,10 +845,20 @@ class MacroAssembler: public Assembler {
   // are the same register).  It leaves the heap object in the heap_object
   // register unless the heap_object register is the same register as one of the
   // other registers.
+  // Type_reg can be no_reg. In that case ip is used.
   void CompareObjectType(Register heap_object,
                          Register map,
                          Register type_reg,
                          InstanceType type);
+
+  // Compare object type for heap object. Branch to false_label if type
+  // is lower than min_type or greater than max_type.
+  // Load map into the register map.
+  void CheckObjectTypeRange(Register heap_object,
+                            Register map,
+                            InstanceType min_type,
+                            InstanceType max_type,
+                            Label* false_label);
 
   // Compare instance type in a map.  map contains a valid map object whose
   // object type should be compared with the given type.  This both
@@ -1090,9 +1109,9 @@ class MacroAssembler: public Assembler {
   // whether soft or hard floating point ABI is used. These functions
   // abstract parameter passing for the three different ways we call
   // C functions from generated code.
-  void SetCallCDoubleArguments(DwVfpRegister dreg);
-  void SetCallCDoubleArguments(DwVfpRegister dreg1, DwVfpRegister dreg2);
-  void SetCallCDoubleArguments(DwVfpRegister dreg, Register reg);
+  void MovToFloatParameter(DwVfpRegister src);
+  void MovToFloatParameters(DwVfpRegister src1, DwVfpRegister src2);
+  void MovToFloatResult(DwVfpRegister src);
 
   // Calls a C function and cleans up the space for arguments allocated
   // by PrepareCallCFunction. The called function is not allowed to trigger a
@@ -1108,16 +1127,15 @@ class MacroAssembler: public Assembler {
                      int num_reg_arguments,
                      int num_double_arguments);
 
-  void GetCFunctionDoubleResult(const DwVfpRegister dst);
+  void MovFromFloatParameter(DwVfpRegister dst);
+  void MovFromFloatResult(DwVfpRegister dst);
 
   // Calls an API function.  Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions.  Restores context.  stack_space
   // - space to be unwound on exit (includes the call JS arguments space and
   // the additional space allocated for the fast call).
-  void CallApiFunctionAndReturn(ExternalReference function,
-                                Address function_address,
+  void CallApiFunctionAndReturn(Register function_address,
                                 ExternalReference thunk_ref,
-                                Register thunk_last_arg,
                                 int stack_space,
                                 MemOperand return_value_operand,
                                 MemOperand* context_restore_operand);
@@ -1172,8 +1190,6 @@ class MacroAssembler: public Assembler {
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() { return generating_stub_; }
-  void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
-  bool allow_stub_calls() { return allow_stub_calls_; }
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
@@ -1340,6 +1356,11 @@ class MacroAssembler: public Assembler {
 
   void JumpIfNotUniqueName(Register reg, Label* not_unique_name);
 
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,
+                                 Register value,
+                                 uint32_t encoding_mask);
+
   // ---------------------------------------------------------------------------
   // Patching helpers.
 
@@ -1370,7 +1391,8 @@ class MacroAssembler: public Assembler {
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
-  void LeaveFrame(StackFrame::Type type);
+  // Returns the pc offset at which the frame ends.
+  int LeaveFrame(StackFrame::Type type);
 
   // Expects object in r0 and returns map with validated enum cache
   // in r0.  Assumes that any other register can be used as a scratch.
@@ -1396,6 +1418,10 @@ class MacroAssembler: public Assembler {
     bind(&no_memento_found);
   }
 
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
+
  private:
   void CallCFunctionHelper(Register function,
                            int num_reg_arguments,
@@ -1411,8 +1437,7 @@ class MacroAssembler: public Assembler {
                       Label* done,
                       bool* definitely_mismatches,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   void InitializeNewString(Register string,
                            Register length,
@@ -1443,7 +1468,6 @@ class MacroAssembler: public Assembler {
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
 
   bool generating_stub_;
-  bool allow_stub_calls_;
   bool has_frame_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;

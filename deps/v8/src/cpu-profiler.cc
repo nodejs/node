@@ -156,6 +156,16 @@ void ProfilerEventsProcessor::Run() {
 }
 
 
+void* ProfilerEventsProcessor::operator new(size_t size) {
+  return AlignedAlloc(size, V8_ALIGNOF(ProfilerEventsProcessor));
+}
+
+
+void ProfilerEventsProcessor::operator delete(void* ptr) {
+  AlignedFree(ptr);
+}
+
+
 int CpuProfiler::GetProfilesCount() {
   // The count of profiles doesn't depend on a security token.
   return profiles_->profiles()->length();
@@ -176,6 +186,10 @@ void CpuProfiler::DeleteAllProfiles() {
 void CpuProfiler::DeleteProfile(CpuProfile* profile) {
   profiles_->RemoveProfile(profile);
   delete profile;
+  if (profiles_->profiles()->is_empty() && !is_profiling_) {
+    // If this was the last profile, clean up all accessory data as well.
+    ResetProfiles();
+  }
 }
 
 
@@ -376,7 +390,6 @@ CpuProfiler::CpuProfiler(Isolate* isolate)
       sampling_interval_(TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
       profiles_(new CpuProfilesCollection(isolate->heap())),
-      next_profile_uid_(1),
       generator_(NULL),
       processor_(NULL),
       is_profiling_(false) {
@@ -391,7 +404,6 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
       sampling_interval_(TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
       profiles_(test_profiles),
-      next_profile_uid_(1),
       generator_(test_generator),
       processor_(test_processor),
       is_profiling_(false) {
@@ -417,7 +429,7 @@ void CpuProfiler::ResetProfiles() {
 
 
 void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
-  if (profiles_->StartProfiling(title, next_profile_uid_++, record_samples)) {
+  if (profiles_->StartProfiling(title, record_samples)) {
     StartProcessorIfNotStarted();
   }
   processor_->AddCurrentStack(isolate_);
@@ -437,18 +449,8 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     logger->is_logging_ = false;
     generator_ = new ProfileGenerator(profiles_);
     Sampler* sampler = logger->sampler();
-#if V8_CC_MSVC && (_MSC_VER >= 1800)
-    // VS2013 reports "warning C4316: 'v8::internal::ProfilerEventsProcessor'
-    // : object allocated on the heap may not be aligned 64".  We need to
-    // figure out if this is a legitimate warning or a compiler bug.
-    #pragma warning(push)
-    #pragma warning(disable:4316)
-#endif
     processor_ = new ProfilerEventsProcessor(
         generator_, sampler, sampling_interval_);
-#if V8_CC_MSVC && (_MSC_VER >= 1800)
-    #pragma warning(pop)
-#endif
     is_profiling_ = true;
     // Enumerate stuff we already have in the heap.
     ASSERT(isolate_->heap()->HasBeenSetUp());

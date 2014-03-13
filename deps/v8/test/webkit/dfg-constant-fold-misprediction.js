@@ -56,5 +56,3 @@ function foo(x) {
 // Call foo() enough times to make totally sure that we optimize.
 for (var i = 0; i < 5; ++i)
     shouldBe("foo(0.5)", "1000.50025");
-
-

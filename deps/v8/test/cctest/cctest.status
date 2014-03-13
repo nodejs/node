@@ -60,7 +60,82 @@
   # running several variants. Note that this still takes ages, because there
   # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
+
+  ############################################################################
+  # Slow tests.
+  'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
+  'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
+  'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
+  'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
 }],  # ALWAYS
+
+##############################################################################
+['arch == a64', {
+
+  'test-api/Bug618': [PASS],
+
+  # BUG(v8:2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
+
+  # Runs out of memory in debug mode.
+  'test-api/OutOfMemory': [PASS, ['mode == debug', FAIL]],
+  'test-api/OutOfMemoryNested': [PASS, ['mode == debug', FAIL]],
+
+  # BUG(v8:3154).
+  'test-heap/ReleaseOverReservedPages': [PASS, ['mode == debug', FAIL]],
+
+  # BUG(v8:3155).
+  'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
+}],  # 'arch == a64'
+
+['arch == a64 and simulator_run == True', {
+
+  # Pass but take too long with the simulator.
+  'test-api/ExternalArrays': [PASS, TIMEOUT],
+  'test-api/Threading1': [SKIP],
+}],  # 'arch == a64 and simulator_run == True'
+
+['arch == a64 and mode == debug and simulator_run == True', {
+
+  # Pass but take too long with the simulator in debug mode.
+  'test-api/ExternalDoubleArray': [SKIP],
+  'test-api/ExternalFloat32Array': [SKIP],
+  'test-api/ExternalFloat64Array': [SKIP],
+  'test-api/ExternalFloatArray': [SKIP],
+  'test-api/Float32Array': [SKIP],
+  'test-api/Float64Array': [SKIP],
+  'test-debug/DebugBreakLoop': [SKIP],
+}],  # 'arch == a64 and mode == debug and simulator_run == True'
+
+##############################################################################
+['asan == True', {
+  # Skip tests not suitable for ASAN.
+  'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
+  'test-lockers/MultithreadedParallelIsolates': [SKIP],
+}],  # 'asan == True'
+
+##############################################################################
+['system == windows', {
+
+  # BUG(2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
+  'test-cpu-profiler/JsNativeJsSample': [PASS, FLAKY],
+
+  # BUG(3055).
+  'test-cpu-profiler/JsNative1JsNative2JsSample': [PASS, ['mode == release', FAIL], ['mode == debug', FLAKY]],
+
+  # BUG(3005).
+  'test-alloc/CodeRange': [PASS, FAIL],
+}],  # 'system == windows'
+
+##############################################################################
+['system == macos', {
+
+  # BUG(3125).
+  'test-debug/DebugGetLoadedScripts': [PASS, FLAKY],
+  'test-debug/DebugStepLinear': [PASS, FLAKY],
+  'test-debug/DebuggerClearMessageHandler': [PASS, FLAKY],
+}],  # 'system == macos'
 
 ##############################################################################
 ['arch == arm', {
@@ -79,7 +154,18 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  # BUG(2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FLAKY],
+
+  ############################################################################
+  # Slow tests.
+  'test-api/Threading1': [PASS, SLOW],
+  'test-api/Threading2': [PASS, SLOW],
+  'test-api/Threading3': [PASS, SLOW],
+  'test-api/Threading4': [PASS, SLOW],
 }],  # 'arch == arm'
+
 ##############################################################################
 ['arch == mipsel', {
 
@@ -132,5 +218,11 @@
 
   # Fails since 16322 (new test).
   'test-code-stubs-arm/ConvertDToI': [SKIP],
+
+  # BUG(2998).
+  'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [SKIP],
+
+  # BUG(3150).
+  'test-api/PreCompileInvalidPreparseDataError': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 ]

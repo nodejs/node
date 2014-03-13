@@ -37,5 +37,3 @@ for (var repetitions = 0; repetitions < 20; repetitions++) {
     array[i * stride] = i;
   }
 }
-
-

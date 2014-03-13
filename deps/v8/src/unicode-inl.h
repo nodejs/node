@@ -107,8 +107,14 @@ unsigned Utf8::EncodeOneByte(char* str, uint8_t c) {
   return 2;
 }
 
-
-unsigned Utf8::Encode(char* str, uchar c, int previous) {
+// Encode encodes the UTF-16 code units c and previous into the given str
+// buffer, and combines surrogate code units into single code points. If
+// replace_invalid is set to true, orphan surrogate code units will be replaced
+// with kBadChar.
+unsigned Utf8::Encode(char* str,
+                      uchar c,
+                      int previous,
+                      bool replace_invalid) {
   static const int kMask = ~(1 << 6);
   if (c <= kMaxOneByteChar) {
     str[0] = c;
@@ -118,12 +124,16 @@ unsigned Utf8::Encode(char* str, uchar c, int previous) {
     str[1] = 0x80 | (c & kMask);
     return 2;
   } else if (c <= kMaxThreeByteChar) {
-    if (Utf16::IsTrailSurrogate(c) &&
-        Utf16::IsLeadSurrogate(previous)) {
+    if (Utf16::IsSurrogatePair(previous, c)) {
       const int kUnmatchedSize = kSizeOfUnmatchedSurrogate;
       return Encode(str - kUnmatchedSize,
                     Utf16::CombineSurrogatePair(previous, c),
-                    Utf16::kNoPreviousCharacter) - kUnmatchedSize;
+                    Utf16::kNoPreviousCharacter,
+                    replace_invalid) - kUnmatchedSize;
+    } else if (replace_invalid &&
+               (Utf16::IsLeadSurrogate(c) ||
+               Utf16::IsTrailSurrogate(c))) {
+      c = kBadChar;
     }
     str[0] = 0xE0 | (c >> 12);
     str[1] = 0x80 | ((c >> 6) & kMask);

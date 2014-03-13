@@ -34,4 +34,3 @@ for (var i = 0; i < 100; ++i) {
         String.prototype.toString = function() { return 42; }
     shouldBe("foo.call(new String(\"foo\"))", i >= 99 ? "\"42\"" : "\"foo\"");
 }
-

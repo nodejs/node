@@ -58,4 +58,3 @@ for(var i = 0; i < 1024; i++) {
 for(var i = 0; i < 1024; i++) {
   assertEquals(i, obj[i]);
 }
-

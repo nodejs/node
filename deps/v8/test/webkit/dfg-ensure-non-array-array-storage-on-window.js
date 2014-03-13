@@ -85,4 +85,3 @@ shouldBe("thingy", "42");
 shouldBe("foo(w)", "1");
 w.length = 2;
 shouldBe("foo(w)", "0/0");
-

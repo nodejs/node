@@ -122,31 +122,37 @@ class HFlowEngine {
 
       // Skip blocks not dominated by the root node.
       if (SkipNonDominatedBlock(root, block)) continue;
-      State* state = StateAt(block);
+      State* state = State::Finish(StateAt(block), block, zone_);
 
-      if (block->IsLoopHeader()) {
-        // Apply loop effects before analyzing loop body.
-        ComputeLoopEffects(block)->Apply(state);
-      } else {
-        // Must have visited all predecessors before this block.
-        CheckPredecessorCount(block);
-      }
+      if (block->IsReachable()) {
+        ASSERT(state != NULL);
+        if (block->IsLoopHeader()) {
+          // Apply loop effects before analyzing loop body.
+          ComputeLoopEffects(block)->Apply(state);
+        } else {
+          // Must have visited all predecessors before this block.
+          CheckPredecessorCount(block);
+        }
 
-      // Go through all instructions of the current block, updating the state.
-      for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-        state = state->Process(it.Current(), zone_);
+        // Go through all instructions of the current block, updating the state.
+        for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+          state = state->Process(it.Current(), zone_);
+        }
       }
 
       // Propagate the block state forward to all successor blocks.
-      for (int i = 0; i < block->end()->SuccessorCount(); i++) {
+      int max = block->end()->SuccessorCount();
+      for (int i = 0; i < max; i++) {
         HBasicBlock* succ = block->end()->SuccessorAt(i);
         IncrementPredecessorCount(succ);
-        if (StateAt(succ) == NULL) {
-          // This is the first state to reach the successor.
-          SetStateAt(succ, state->Copy(succ, zone_));
+
+        if (max == 1 && succ->predecessors()->length() == 1) {
+          // Optimization: successor can inherit this state.
+          SetStateAt(succ, state);
         } else {
           // Merge the current state with the state already at the successor.
-          SetStateAt(succ, state->Merge(succ, StateAt(succ), zone_));
+          SetStateAt(succ,
+                     State::Merge(StateAt(succ), succ, state, block, zone_));
         }
       }
     }
@@ -178,6 +184,7 @@ class HFlowEngine {
         i = member->loop_information()->GetLastBackEdge()->block_id();
       } else {
         // Process all the effects of the block.
+        if (member->IsUnreachable()) continue;
         ASSERT(member->current_loop() == loop);
         for (HInstructionIterator it(member); !it.Done(); it.Advance()) {
           effects->Process(it.Current(), zone_);

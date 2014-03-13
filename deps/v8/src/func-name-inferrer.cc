@@ -62,7 +62,7 @@ void FuncNameInferrer::PushLiteralName(Handle<String> name) {
 
 
 void FuncNameInferrer::PushVariableName(Handle<String> name) {
-  if (IsOpen() && !isolate()->heap()->result_string()->Equals(*name)) {
+  if (IsOpen() && !isolate()->heap()->dot_result_string()->Equals(*name)) {
     names_stack_.Add(Name(name, kVariableName), zone());
   }
 }

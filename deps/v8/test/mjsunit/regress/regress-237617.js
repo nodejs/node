@@ -40,4 +40,3 @@ try {
 
 assertTrue(error_stack.indexOf("test stack") > 0);
 assertTrue(error_stack.indexOf("illegal") < 0);
-

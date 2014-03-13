@@ -364,7 +364,7 @@ class Deserializer: public SerializerDeserializer {
     high_water_[space_index] = address + size;
     HeapProfiler* profiler = isolate_->heap_profiler();
     if (profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(address, size);
+      profiler->AllocationEvent(address, size);
     }
     return address;
   }
@@ -377,6 +377,7 @@ class Deserializer: public SerializerDeserializer {
     return HeapObject::FromAddress(high_water_[space] - offset);
   }
 
+  void FlushICacheForNewCodeObjects();
 
   // Cached current isolate.
   Isolate* isolate_;
@@ -578,7 +579,6 @@ class Serializer : public SerializerDeserializer {
   // relative addresses for back references.
   int fullness_[LAST_SPACE + 1];
   SnapshotByteSink* sink_;
-  int current_root_index_;
   ExternalReferenceEncoder* external_reference_encoder_;
   static bool serialization_enabled_;
   // Did we already make use of the fact that serialization was not enabled?

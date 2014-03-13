@@ -333,15 +333,9 @@ class Deoptimizer : public Malloced {
                          int object_index,
                          int field_index);
 
-  enum DeoptimizerTranslatedValueType {
-    TRANSLATED_VALUE_IS_NATIVE,
-    TRANSLATED_VALUE_IS_TAGGED
-  };
-
   void DoTranslateCommand(TranslationIterator* iterator,
-      int frame_index,
-      unsigned output_offset,
-      DeoptimizerTranslatedValueType value_type = TRANSLATED_VALUE_IS_TAGGED);
+                          int frame_index,
+                          unsigned output_offset);
 
   unsigned ComputeInputFrameSize() const;
   unsigned ComputeFixedSize(JSFunction* function) const;
@@ -441,6 +435,11 @@ class Deoptimizer : public Malloced {
   List<ObjectMaterializationDescriptor> deferred_objects_;
   List<HeapNumberMaterializationDescriptor<Address> > deferred_heap_numbers_;
 
+  // Key for lookup of previously materialized objects
+  Address stack_fp_;
+  Handle<FixedArray> previously_materialized_objects_;
+  int prev_materialized_count_;
+
   // Output frame information. Only used during heap object materialization.
   List<Handle<JSFunction> > jsframe_functions_;
   List<bool> jsframe_has_adapted_arguments_;
@@ -455,7 +454,7 @@ class Deoptimizer : public Malloced {
   DisallowHeapAllocation* disallow_heap_allocation_;
 #endif  // DEBUG
 
-  bool trace_;
+  CodeTracer::Scope* trace_scope_;
 
   static const int table_entry_size_;
 
@@ -549,6 +548,11 @@ class FrameDescription {
   intptr_t GetContext() const { return context_; }
   void SetContext(intptr_t context) { context_ = context; }
 
+  intptr_t GetConstantPool() const { return constant_pool_; }
+  void SetConstantPool(intptr_t constant_pool) {
+    constant_pool_ = constant_pool;
+  }
+
   Smi* GetState() const { return state_; }
   void SetState(Smi* state) { state_ = state; }
 
@@ -611,6 +615,7 @@ class FrameDescription {
   intptr_t pc_;
   intptr_t fp_;
   intptr_t context_;
+  intptr_t constant_pool_;
   StackFrame::Type type_;
   Smi* state_;
 
@@ -783,7 +788,13 @@ class SlotRef BASE_EMBEDDED {
     INT32,
     UINT32,
     DOUBLE,
-    LITERAL
+    LITERAL,
+    DEFERRED_OBJECT,   // Object captured by the escape analysis.
+                       // The number of nested objects can be obtained
+                       // with the DeferredObjectLength() method
+                       // (the SlotRefs of the nested objects follow
+                       // this SlotRef in the depth-first order.)
+    DUPLICATE_OBJECT   // Duplicated object of a deferred object.
   };
 
   SlotRef()
@@ -795,52 +806,66 @@ class SlotRef BASE_EMBEDDED {
   SlotRef(Isolate* isolate, Object* literal)
       : literal_(literal, isolate), representation_(LITERAL) { }
 
-  Handle<Object> GetValue(Isolate* isolate) {
-    switch (representation_) {
-      case TAGGED:
-        return Handle<Object>(Memory::Object_at(addr_), isolate);
-
-      case INT32: {
-        int value = Memory::int32_at(addr_);
-        if (Smi::IsValid(value)) {
-          return Handle<Object>(Smi::FromInt(value), isolate);
-        } else {
-          return isolate->factory()->NewNumberFromInt(value);
-        }
-      }
-
-      case UINT32: {
-        uint32_t value = Memory::uint32_at(addr_);
-        if (value <= static_cast<uint32_t>(Smi::kMaxValue)) {
-          return Handle<Object>(Smi::FromInt(static_cast<int>(value)), isolate);
-        } else {
-          return isolate->factory()->NewNumber(static_cast<double>(value));
-        }
-      }
-
-      case DOUBLE: {
-        double value = read_double_value(addr_);
-        return isolate->factory()->NewNumber(value);
-      }
-
-      case LITERAL:
-        return literal_;
-
-      default:
-        UNREACHABLE();
-        return Handle<Object>::null();
-    }
+  static SlotRef NewDeferredObject(int length) {
+    SlotRef slot;
+    slot.representation_ = DEFERRED_OBJECT;
+    slot.deferred_object_length_ = length;
+    return slot;
   }
 
-  static Vector<SlotRef> ComputeSlotMappingForArguments(
-      JavaScriptFrame* frame,
-      int inlined_frame_index,
-      int formal_parameter_count);
+  SlotRepresentation Representation() { return representation_; }
+
+  static SlotRef NewDuplicateObject(int id) {
+    SlotRef slot;
+    slot.representation_ = DUPLICATE_OBJECT;
+    slot.duplicate_object_id_ = id;
+    return slot;
+  }
+
+  int DeferredObjectLength() { return deferred_object_length_; }
+
+  int DuplicateObjectId() { return duplicate_object_id_; }
+
+  Handle<Object> GetValue(Isolate* isolate);
 
  private:
   Address addr_;
   Handle<Object> literal_;
   SlotRepresentation representation_;
+  int deferred_object_length_;
+  int duplicate_object_id_;
+};
+
+class SlotRefValueBuilder BASE_EMBEDDED {
+ public:
+  SlotRefValueBuilder(
+      JavaScriptFrame* frame,
+      int inlined_frame_index,
+      int formal_parameter_count);
+
+  void Prepare(Isolate* isolate);
+  Handle<Object> GetNext(Isolate* isolate, int level);
+  void Finish(Isolate* isolate);
+
+  int args_length() { return args_length_; }
+
+ private:
+  List<Handle<Object> > materialized_objects_;
+  Handle<FixedArray> previously_materialized_objects_;
+  int prev_materialized_count_;
+  Address stack_frame_id_;
+  List<SlotRef> slot_refs_;
+  int current_slot_;
+  int args_length_;
+  int first_slot_index_;
+
+  static SlotRef ComputeSlotForNextArgument(
+      Translation::Opcode opcode,
+      TranslationIterator* iterator,
+      DeoptimizationInputData* data,
+      JavaScriptFrame* frame);
+
+  Handle<Object> GetPreviouslyMaterialized(Isolate* isolate, int length);
 
   static Address SlotAddress(JavaScriptFrame* frame, int slot_index) {
     if (slot_index >= 0) {
@@ -852,15 +877,27 @@ class SlotRef BASE_EMBEDDED {
     }
   }
 
-  static SlotRef ComputeSlotForNextArgument(TranslationIterator* iterator,
-                                            DeoptimizationInputData* data,
-                                            JavaScriptFrame* frame);
+  Handle<Object> GetDeferredObject(Isolate* isolate);
+};
 
-  static void ComputeSlotsForArguments(
-      Vector<SlotRef>* args_slots,
-      TranslationIterator* iterator,
-      DeoptimizationInputData* data,
-      JavaScriptFrame* frame);
+class MaterializedObjectStore {
+ public:
+  explicit MaterializedObjectStore(Isolate* isolate) : isolate_(isolate) {
+  }
+
+  Handle<FixedArray> Get(Address fp);
+  void Set(Address fp, Handle<FixedArray> materialized_objects);
+  void Remove(Address fp);
+
+ private:
+  Isolate* isolate() { return isolate_; }
+  Handle<FixedArray> GetStackEntries();
+  Handle<FixedArray> EnsureStackEntries(int size);
+
+  int StackIdToIndex(Address fp);
+
+  Isolate* isolate_;
+  List<Address> frame_fps_;
 };
 
 

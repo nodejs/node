@@ -52,7 +52,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   CHECK(buffer);
   HandleScope handles(isolate);
   MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size));
-  assm.set_allow_stub_calls(false);
   int offset =
     source_reg.is(rsp) ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
   DoubleToIStub stub(source_reg, destination_reg, offset, true);
@@ -65,21 +64,25 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ push(rdi);
 
   if (!source_reg.is(rsp)) {
-    __ lea(source_reg, MemOperand(rsp, -8 * kPointerSize - offset));
+    // The argument we pass to the stub is not a heap number, but instead
+    // stack-allocated and offset-wise made to look like a heap number for
+    // the stub.  We create that "heap number" after pushing all allocatable
+    // registers.
+    int double_argument_slot =
+        (Register::NumAllocatableRegisters() - 1) * kPointerSize + kDoubleSize;
+    __ lea(source_reg, MemOperand(rsp, -double_argument_slot - offset));
   }
 
-  int param_offset = 7 * kPointerSize;
   // Save registers make sure they don't get clobbered.
   int reg_num = 0;
   for (;reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
-    Register reg = Register::from_code(reg_num);
+    Register reg = Register::FromAllocationIndex(reg_num);
     if (!reg.is(rsp) && !reg.is(rbp) && !reg.is(destination_reg)) {
       __ push(reg);
-      param_offset += kPointerSize;
     }
   }
 
-  // Re-push the double argument
+  // Put the double argument into the designated double argument slot.
   __ subq(rsp, Immediate(kDoubleSize));
   __ movsd(MemOperand(rsp, 0), xmm0);
 
@@ -90,7 +93,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 0; --reg_num) {
-    Register reg = Register::from_code(reg_num);
+    Register reg = Register::FromAllocationIndex(reg_num);
     if (!reg.is(rsp) && !reg.is(rbp) && !reg.is(destination_reg)) {
       __ cmpq(reg, MemOperand(rsp, 0));
       __ Assert(equal, kRegisterWasClobbered);

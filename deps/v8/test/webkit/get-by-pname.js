@@ -45,4 +45,3 @@ for (var i = 0; i < 100; ++i) {
     shouldBe("foo(r)", "113");
     shouldBe("foo(s)", "182");
 }
-

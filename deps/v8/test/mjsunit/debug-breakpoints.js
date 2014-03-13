@@ -222,4 +222,3 @@ for(var i = 0; i < scenario.length; i++) {
       Debug.BreakPositionAlignment.BreakPosition).indexOf(scenario[i][1]) > 0);
   Debug.clearBreakPoint(bp1);
 }
-

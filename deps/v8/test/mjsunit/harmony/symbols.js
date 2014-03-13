@@ -59,6 +59,7 @@ function TestType() {
   for (var i in symbols) {
     assertEquals("symbol", typeof symbols[i])
     assertTrue(typeof symbols[i] === "symbol")
+    assertFalse(%SymbolIsPrivate(symbols[i]))
     assertEquals(null, %_ClassOf(symbols[i]))
     assertEquals("Symbol", %_ClassOf(new Symbol(symbols[i])))
     assertEquals("Symbol", %_ClassOf(Object(symbols[i])))
@@ -272,7 +273,7 @@ function TestKeyGet(obj) {
 }
 
 
-function TestKeyHas() {
+function TestKeyHas(obj) {
   for (var i in symbols) {
     assertTrue(symbols[i] in obj)
     assertTrue(Object.hasOwnProperty.call(obj, symbols[i]))
@@ -293,6 +294,15 @@ function TestKeyNames(obj) {
   var names = Object.getOwnPropertyNames(obj)
   for (var i in names) {
     assertEquals("string", typeof names[i])
+  }
+}
+
+
+function TestGetOwnPropertySymbols(obj) {
+  var syms = Object.getOwnPropertySymbols(obj)
+  assertEquals(syms.length, symbols.length)
+  for (var i in syms) {
+    assertEquals("symbol", typeof syms[i])
   }
 }
 
@@ -330,6 +340,7 @@ for (var i in objs) {
   TestKeyHas(obj)
   TestKeyEnum(obj)
   TestKeyNames(obj)
+  TestGetOwnPropertySymbols(obj)
   TestKeyDescriptor(obj)
   TestKeyDelete(obj)
 }
@@ -344,8 +355,49 @@ function TestCachedKeyAfterScavenge() {
   var a = {};
   a[key] = "abc";
 
-  for (var i = 0; i < 1000000; i++) {
+  for (var i = 0; i < 100000; i++) {
     a[key] += "a";  // Allocations cause a scavenge.
   }
 }
 TestCachedKeyAfterScavenge();
+
+
+function TestGetOwnPropertySymbolsWithProto() {
+  // We need to be have fast properties to have insertion order for property
+  // keys. The current limit is currently 30 properties.
+  var syms = symbols.slice(0, 30);
+  var proto = {}
+  var object = Object.create(proto)
+  for (var i = 0; i < syms.length; i++) {
+    // Even on object, odd on proto.
+    if (i % 2) {
+      proto[syms[i]] = i
+    } else {
+      object[syms[i]] = i
+    }
+  }
+
+  assertTrue(%HasFastProperties(object));
+
+  var objectOwnSymbols = Object.getOwnPropertySymbols(object)
+  assertEquals(objectOwnSymbols.length, syms.length / 2)
+
+  for (var i = 0; i < objectOwnSymbols.length; i++) {
+    assertEquals(objectOwnSymbols[i], syms[i * 2])
+  }
+}
+TestGetOwnPropertySymbolsWithProto()
+
+
+function TestGetOwnPropertySymbolsWithPrivateSymbols() {
+  var privateSymbol = %CreatePrivateSymbol("private")
+  var publicSymbol = Symbol()
+  var publicSymbol2 = Symbol()
+  var obj = {}
+  obj[publicSymbol] = 1
+  obj[privateSymbol] = 2
+  obj[publicSymbol2] = 3
+  var syms = Object.getOwnPropertySymbols(obj)
+  assertEquals(syms, [publicSymbol, publicSymbol2])
+}
+TestGetOwnPropertySymbolsWithPrivateSymbols()

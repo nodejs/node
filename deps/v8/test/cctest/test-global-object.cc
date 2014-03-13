@@ -39,7 +39,7 @@ TEST(StrictUndeclaredGlobalVariable) {
   LocalContext context;
   v8::TryCatch try_catch;
   v8::Local<v8::Script> script = v8_compile("\"use strict\"; x = 42;");
-  v8::Handle<v8::Object> proto = v8::Object::New();
+  v8::Handle<v8::Object> proto = v8::Object::New(CcTest::isolate());
   v8::Handle<v8::Object> global =
       context->Global()->GetPrototype().As<v8::Object>();
   proto->Set(var_name, v8_num(100));

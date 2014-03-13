@@ -347,7 +347,7 @@ DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
     env->Enter();
 
     const char* c_source = "\"1234\".length";
-    v8::Local<v8::String> source = v8::String::New(c_source);
+    v8::Local<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
     v8::Local<v8::Script> script = v8::Script::Compile(source);
     CHECK_EQ(4, script->Run()->Int32Value());
   }
@@ -365,7 +365,7 @@ DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
     env->Enter();
 
     const char* c_source = "\"1234\".length";
-    v8::Local<v8::String> source = v8::String::New(c_source);
+    v8::Local<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
     v8::Local<v8::Script> script = v8::Script::Compile(source);
     CHECK_EQ(4, script->Run()->Int32Value());
   }
@@ -402,7 +402,7 @@ TEST(PartialSerialization) {
     Object* raw_foo;
     {
       v8::HandleScope handle_scope(v8_isolate);
-      v8::Local<v8::String> foo = v8::String::New("foo");
+      v8::Local<v8::String> foo = v8::String::NewFromUtf8(v8_isolate, "foo");
       ASSERT(!foo.IsEmpty());
       raw_foo = *(v8::Utils::OpenHandle(*foo));
     }
@@ -415,7 +415,7 @@ TEST(PartialSerialization) {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
     }
-    env.Dispose();
+    env.Reset();
 
     FileByteSink startup_sink(startup_name.start());
     StartupSerializer startup_serializer(isolate, &startup_sink);
@@ -562,7 +562,7 @@ TEST(ContextSerialization) {
 
     i::Object* raw_context = *v8::Utils::OpenPersistent(env);
 
-    env.Dispose();
+    env.Reset();
 
     FileByteSink startup_sink(startup_name.start());
     StartupSerializer startup_serializer(isolate, &startup_sink);

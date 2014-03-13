@@ -55,5 +55,3 @@ assertEquals('\027', '\27');
 
 assertEquals(73,  '\111'.charCodeAt(0));
 assertEquals(105, '\151'.charCodeAt(0));
-
-

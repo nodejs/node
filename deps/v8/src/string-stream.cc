@@ -30,8 +30,6 @@
 #include "factory.h"
 #include "string-stream.h"
 
-#include "allocation-inl.h"
-
 namespace v8 {
 namespace internal {
 
@@ -299,8 +297,7 @@ Handle<String> StringStream::ToString(Isolate* isolate) {
 void StringStream::ClearMentionedObjectCache(Isolate* isolate) {
   isolate->set_string_stream_current_security_token(NULL);
   if (isolate->string_stream_debug_object_cache() == NULL) {
-    isolate->set_string_stream_debug_object_cache(
-        new List<HeapObject*, PreallocatedStorageAllocationPolicy>(0));
+    isolate->set_string_stream_debug_object_cache(new DebugObjectCache(0));
   }
   isolate->string_stream_debug_object_cache()->Clear();
 }

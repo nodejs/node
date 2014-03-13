@@ -75,39 +75,39 @@
   'js1_2/function/Number': [SKIP],
 
   # TODO(2018): Temporarily allow timeout in debug mode.
-  'js1_5/GC/regress-203278-2': [PASS, ['mode == debug', TIMEOUT, FAIL]],
+  'js1_5/GC/regress-203278-2': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS, FAIL]],
 
   ##################### SLOW TESTS #####################
 
   # This takes a long time to run (~100 seconds). It should only be run
   # by the really patient.
-  'js1_5/GC/regress-324278': [SLOW],
+  'js1_5/GC/regress-324278': [SKIP],
 
   # This takes a long time to run because our indexOf operation is
   # pretty slow - it causes a lot of GCs; see issue
   # #926379. We could consider marking this SKIP because it takes a
   # while to run to completion.
-  'js1_5/GC/regress-338653': [SLOW],
+  'js1_5/GC/regress-338653': [SKIP],
 
   # This test is designed to run until it runs out of memory. This takes
   # a very long time because it builds strings character by character
   # and compiles a lot of regular expressions. We could consider marking
   # this SKIP because it takes a while to run to completion.
-  'js1_5/GC/regress-346794': [SLOW],
+  'js1_5/GC/regress-346794': [SKIP],
 
   # Runs out of memory while trying to build huge string of 'x'
   # characters. This takes a long time to run (~32 seconds).
-  'js1_5/GC/regress-348532': [SLOW],
+  'js1_5/GC/regress-348532': [SKIP],
 
 
   ##################### FLAKY TESTS #####################
 
   # These tests time out in debug mode but pass in product mode
-  'js1_5/Regress/regress-360969-03': [PASS, ['mode == debug', TIMEOUT]],
-  'js1_5/Regress/regress-360969-04': [PASS, ['mode == debug', TIMEOUT]],
-  'js1_5/Regress/regress-360969-05': [PASS, ['mode == debug', TIMEOUT]],
-  'js1_5/Regress/regress-360969-06': [PASS, ['mode == debug', TIMEOUT]],
-  'js1_5/extensions/regress-365527': [PASS, ['mode == debug', TIMEOUT]],
+  'js1_5/Regress/regress-360969-03': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-04': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-05': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-06': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/extensions/regress-365527': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
   'js1_5/Regress/regress-280769-3': [PASS, ['mode == debug', FAIL]],
   'js1_5/Regress/regress-203278-1': [PASS, ['mode == debug', FAIL]],
@@ -116,7 +116,7 @@
   'js1_5/GC/regress-278725': [PASS, ['mode == debug', FAIL]],
   # http://b/issue?id=1206983
   'js1_5/Regress/regress-367561-03': [PASS, ['mode == debug', FAIL]],
-  'ecma/Date/15.9.5.10-2': [PASS, FAIL, ['mode == debug', TIMEOUT]],
+  'ecma/Date/15.9.5.10-2': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
   # These tests create two Date objects just after each other and
   # expects them to match.  Sometimes this happens on the border
@@ -166,7 +166,7 @@
   'js1_5/Array/regress-99120-01': [PASS, FAIL],
   'js1_5/Array/regress-99120-02': [PASS, FAIL],
   'js1_5/Regress/regress-347306-01': [PASS, FAIL],
-  'js1_5/Regress/regress-416628': [PASS, FAIL, ['mode == debug', TIMEOUT]],
+  'js1_5/Regress/regress-416628': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
 
   # The following two tests assume that daylight savings time starts first
@@ -187,7 +187,7 @@
 
   # Tests that sorting arrays of ints is less than 3 times as fast
   # as sorting arrays of strings.
-  'js1_5/extensions/regress-371636': [PASS, FAIL, ['mode == debug', TIMEOUT]],
+  'js1_5/extensions/regress-371636': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
 
   # Tests depend on GC timings. Inherently flaky.
@@ -273,14 +273,18 @@
   # PCRE's match limit is reached.  SpiderMonkey hangs on the first one,
   # JSC returns true somehow.  Maybe they up the match limit?  There is
   # an open V8 bug 676063 about this.
-  'ecma_3/RegExp/regress-330684': [TIMEOUT],
+  # TODO(yangguo): Hangs on complex regexp. Please investigate if this gives
+  # any useful coverage.
+  'ecma_3/RegExp/regress-330684': [SKIP],
 
 
   # This test contains a regexp that runs exponentially long.  Spidermonkey
   # standalone will hang, though apparently inside Firefox it will trigger a
   # long-running-script timeout.  JSCRE passes by hitting the matchLimit and
   # just pretending that an exhaustive search found no match.
-  'ecma_3/RegExp/regress-307456': [PASS, TIMEOUT],
+  # TODO(yangguo): Hangs on complex regexp. Please investigate if this gives
+  # any useful coverage.
+  'ecma_3/RegExp/regress-307456': [SKIP],
 
 
   # We do not detect overflow in bounds for back references and {}
@@ -599,7 +603,6 @@
   # Negative hexadecimal literals are parsed as NaN. This test is outdated.
   'ecma/TypeConversion/9.3.1-3': [FAIL_OK],
 
-
   ##################### FAILING TESTS #####################
 
   # This section is for tests that fail in V8 and pass in JSC.
@@ -614,7 +617,7 @@
 
   # This test seems designed to fail (it produces a 700Mbyte string).
   # We fail on out of memory.  The important thing is not to crash.
-  'js1_5/Regress/regress-303213': [FAIL, ['mode == debug', TIMEOUT]],
+  'js1_5/Regress/regress-303213': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
   # This test fails since we now throw in String.prototype.match when apply
   # is given null or undefined as this argument (and so does firefox nightly).
@@ -748,12 +751,15 @@
   'js1_5/extensions/toLocaleFormat-01': [FAIL_OK],
   'js1_5/extensions/toLocaleFormat-02': [FAIL_OK],
 
-  'js1_5/extensions/regress-330569': [TIMEOUT],
-  'js1_5/extensions/regress-351448': [TIMEOUT],
+  # TODO(yangguo): Both tests have complex regular expressions (nested (.*)*
+  # and the like). Please investigate if these tests provide any coverage.
+  # Furthermore, an exception is expected which is not thrown by v8.
+  'js1_5/extensions/regress-330569': [SKIP],
+  'js1_5/extensions/regress-351448': [SKIP],
   # In the 64-bit version, this test takes longer to run out of memory
   # than it does in the 32-bit version when attempting to generate a huge
   # error message in debug mode.
-  'js1_5/extensions/regress-336410-1': [FAIL_OK, ['mode == debug and arch == x64', TIMEOUT]],
+  'js1_5/extensions/regress-336410-1': [FAIL_OK, ['mode == debug and arch == x64', TIMEOUT, NO_VARIANTS]],
 
   ##################### DECOMPILATION TESTS #####################
 
@@ -816,7 +822,7 @@
 }],  # ALWAYS
 
 
-['arch == arm', {
+['arch == arm or arch == a64', {
 
   # BUG(3251229): Times out when running new crankshaft test script.
   'ecma_3/RegExp/regress-311414': [SKIP],
@@ -832,8 +838,14 @@
 
 
   # BUG(1040): Allow this test to timeout.
-  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT],
-}],  # 'arch == arm'
+  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
+}],  # 'arch == arm or arch == a64'
+
+
+['arch ==  a64', {
+  # BUG(v8:3152): Runs out of stack in debug mode.
+  'js1_5/extensions/regress-355497': [FAIL_OK, ['mode == debug', SKIP]],
+}],  # 'arch ==  a64'
 
 
 ['arch == mipsel', {
@@ -852,6 +864,27 @@
 
 
   # BUG(1040): Allow this test to timeout.
-  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT],
+  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mipsel'
+
+['arch == a64 and simulator_run == True', {
+
+  'js1_5/GC/regress-203278-2': [SKIP],
+
+  # These tests time out in debug mode but pass in product mode
+  'js1_5/Regress/regress-360969-03': [SKIP],
+  'js1_5/Regress/regress-360969-04': [SKIP],
+  'js1_5/Regress/regress-360969-05': [SKIP],
+  'js1_5/Regress/regress-360969-06': [SKIP],
+  'js1_5/extensions/regress-365527': [SKIP],
+  'ecma/Date/15.9.5.10-2': [SKIP],
+  'js1_5/Regress/regress-416628': [SKIP],
+  'js1_5/extensions/regress-371636': [SKIP],
+  'ecma_3/RegExp/regress-330684': [SKIP],
+  'ecma_3/RegExp/regress-307456': [SKIP],
+  'js1_5/Regress/regress-303213': [SKIP],
+  'js1_5/extensions/regress-330569': [SKIP],
+  'js1_5/extensions/regress-351448': [SKIP],
+  'js1_5/extensions/regress-336410-1': [SKIP],
+}],  # 'arch == a64 and simulator_run == True'
 ]

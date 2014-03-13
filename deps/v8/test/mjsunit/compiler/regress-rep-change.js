@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Regression test for the case where a phi has two input operands with
 // the same value.
 
@@ -35,8 +37,11 @@ function test(start) {
   for (var i = start; i < 10; i++) { }
 }
 
-var n = 5000000;
+var n = 3;
 
 for (var i = 0; i < n; ++i) {
   test(0);
 }
+
+%OptimizeFunctionOnNextCall(test);
+test(0);

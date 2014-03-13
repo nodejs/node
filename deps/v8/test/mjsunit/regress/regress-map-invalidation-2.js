@@ -47,7 +47,9 @@ function g() {
 var fun = g();
 fun(false, c);
 fun(false, c);
+%OptimizeFunctionOnNextCall(fun);
 fun(false, c);
+%TryMigrateInstance(c);
 %OptimizeFunctionOnNextCall(fun);
 fun(false, c);
 fun(true, c);

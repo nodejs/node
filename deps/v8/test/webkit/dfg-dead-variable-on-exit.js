@@ -84,4 +84,3 @@ for (var i = 0; i < 300; ++i) {
     code += "); foo(firstArg, secondArg)";
     shouldBe(code, "1");
 }
-

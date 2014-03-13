@@ -488,7 +488,7 @@ void LGapResolver::EmitSwap(int index) {
         cgen_->ToOperand(source->IsDoubleRegister() ? destination : source);
     __ movsd(xmm0, other);
     __ movsd(other, reg);
-    __ movsd(reg, Operand(xmm0));
+    __ movaps(reg, xmm0);
   } else if (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot()) {
     CpuFeatureScope scope(cgen_->masm(), SSE2);
     // Double-width memory-to-memory.  Spill on demand to use a general

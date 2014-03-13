@@ -47,14 +47,153 @@ function MathTrunc(x) {
 }
 
 
+// ES6 draft 09-27-13, section 20.2.2.30.
+function MathSinh(x) {
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  // Idempotent for NaN, +/-0 and +/-Infinity.
+  if (x === 0 || !NUMBER_IS_FINITE(x)) return x;
+  return (MathExp(x) - MathExp(-x)) / 2;
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.12.
+function MathCosh(x) {
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  if (!NUMBER_IS_FINITE(x)) return MathAbs(x);
+  return (MathExp(x) + MathExp(-x)) / 2;
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.33.
+function MathTanh(x) {
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  // Idempotent for +/-0.
+  if (x === 0) return x;
+  // Returns +/-1 for +/-Infinity.
+  if (!NUMBER_IS_FINITE(x)) return MathSign(x);
+  var exp1 = MathExp(x);
+  var exp2 = MathExp(-x);
+  return (exp1 - exp2) / (exp1 + exp2);
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.5.
+function MathAsinh(x) {
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  // Idempotent for NaN, +/-0 and +/-Infinity.
+  if (x === 0 || !NUMBER_IS_FINITE(x)) return x;
+  if (x > 0) return MathLog(x + MathSqrt(x * x + 1));
+  // This is to prevent numerical errors caused by large negative x.
+  return -MathLog(-x + MathSqrt(x * x + 1));
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.3.
+function MathAcosh(x) {
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  if (x < 1) return NAN;
+  // Idempotent for NaN and +Infinity.
+  if (!NUMBER_IS_FINITE(x)) return x;
+  return MathLog(x + MathSqrt(x + 1) * MathSqrt(x - 1));
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.7.
+function MathAtanh(x) {
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  // Idempotent for +/-0.
+  if (x === 0) return x;
+  // Returns NaN for NaN and +/- Infinity.
+  if (!NUMBER_IS_FINITE(x)) return NAN;
+  return 0.5 * MathLog((1 + x) / (1 - x));
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.21.
+function MathLog10(x) {
+  return MathLog(x) * 0.434294481903251828;  // log10(x) = log(x)/log(10).
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.22.
+function MathLog2(x) {
+  return MathLog(x) * 1.442695040888963407;  // log2(x) = log(x)/log(2).
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.17.
+function MathHypot(x, y) {  // Function length is 2.
+  // We may want to introduce fast paths for two arguments and when
+  // normalization to avoid overflow is not necessary.  For now, we
+  // simply assume the general case.
+  var length = %_ArgumentsLength();
+  var args = new InternalArray(length);
+  var max = 0;
+  for (var i = 0; i < length; i++) {
+    var n = %_Arguments(i);
+    if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
+    if (n === INFINITY || n === -INFINITY) return INFINITY;
+    n = MathAbs(n);
+    if (n > max) max = n;
+    args[i] = n;
+  }
+
+  // Kahan summation to avoid rounding errors.
+  // Normalize the numbers to the largest one to avoid overflow.
+  if (max === 0) max = 1;
+  var sum = 0;
+  var compensation = 0;
+  for (var i = 0; i < length; i++) {
+    var n = args[i] / max;
+    var summand = n * n - compensation;
+    var preliminary = sum + summand;
+    compensation = (preliminary - sum) - summand;
+    sum = preliminary;
+  }
+  return MathSqrt(sum) * max;
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.16.
+function MathFround(x) {
+  return %Math_fround(TO_NUMBER_INLINE(x));
+}
+
+
+function MathClz32(x) {
+  x = ToUint32(TO_NUMBER_INLINE(x));
+  if (x == 0) return 32;
+  var result = 0;
+  // Binary search.
+  if ((x & 0xFFFF0000) === 0) { x <<= 16; result += 16; };
+  if ((x & 0xFF000000) === 0) { x <<=  8; result +=  8; };
+  if ((x & 0xF0000000) === 0) { x <<=  4; result +=  4; };
+  if ((x & 0xC0000000) === 0) { x <<=  2; result +=  2; };
+  if ((x & 0x80000000) === 0) { x <<=  1; result +=  1; };
+  return result;
+}
+
+
 function ExtendMath() {
   %CheckIsBootstrapping();
 
   // Set up the non-enumerable functions on the Math object.
   InstallFunctions($Math, DONT_ENUM, $Array(
     "sign", MathSign,
-    "trunc", MathTrunc
+    "trunc", MathTrunc,
+    "sinh", MathSinh,
+    "cosh", MathCosh,
+    "tanh", MathTanh,
+    "asinh", MathAsinh,
+    "acosh", MathAcosh,
+    "atanh", MathAtanh,
+    "log10", MathLog10,
+    "log2", MathLog2,
+    "hypot", MathHypot,
+    "fround", MathFround,
+    "clz32", MathClz32
   ));
 }
+
 
 ExtendMath();

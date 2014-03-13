@@ -51,4 +51,3 @@ for (var i = 0; i < 500; ++i) {
     shouldBe("result[0]", expectedFirst);
     shouldBe("result[1]", expectedSecond);
 }
-

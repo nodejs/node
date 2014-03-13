@@ -213,11 +213,11 @@ unsigned Utf8ToUtf16CharacterStream::FillBuffer(unsigned char_position,
 
 
 static const byte kUtf8MultiByteMask = 0xC0;
-static const byte kUtf8MultiByteCharStart = 0xC0;
 static const byte kUtf8MultiByteCharFollower = 0x80;
 
 
 #ifdef DEBUG
+static const byte kUtf8MultiByteCharStart = 0xC0;
 static bool IsUtf8MultiCharacterStart(byte first_byte) {
   return (first_byte & kUtf8MultiByteMask) == kUtf8MultiByteCharStart;
 }

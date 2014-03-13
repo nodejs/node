@@ -30,7 +30,6 @@
 
 #include "../include/v8-debug.h"
 #include "allocation.h"
-#include "apiutils.h"
 #include "assert-scope.h"
 #include "atomicops.h"
 #include "builtins.h"
@@ -52,12 +51,14 @@ namespace v8 {
 namespace internal {
 
 class Bootstrapper;
+struct CallInterfaceDescriptor;
 class CodeGenerator;
 class CodeRange;
 struct CodeStubInterfaceDescriptor;
+class CodeTracer;
 class CompilationCache;
+class ConsStringIteratorOp;
 class ContextSlotCache;
-class ContextSwitcher;
 class Counters;
 class CpuFeatures;
 class CpuProfiler;
@@ -73,20 +74,19 @@ class HeapProfiler;
 class HStatistics;
 class HTracer;
 class InlineRuntimeFunctionsTable;
-class NoAllocationStringAllocator;
 class InnerPointerToCodeCache;
-class PreallocatedMemoryThread;
+class MaterializedObjectStore;
+class NoAllocationStringAllocator;
 class RandomNumberGenerator;
 class RegExpStack;
 class SaveContext;
-class UnicodeCache;
-class ConsStringIteratorOp;
 class StringTracker;
 class StubCache;
 class SweeperThread;
 class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
+class UnicodeCache;
 template <StateTag Tag> class VMState;
 
 // 'void function pointer', used to roundtrip the
@@ -102,6 +102,7 @@ class DebuggerAgent;
 #endif
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
 class Redirection;
 class Simulator;
@@ -207,6 +208,11 @@ class ThreadId {
 };
 
 
+#define FIELD_ACCESSOR(type, name)                 \
+  inline void set_##name(type v) { name##_ = v; }  \
+  inline type name() const { return name##_; }
+
+
 class ThreadLocalTop BASE_EMBEDDED {
  public:
   // Does early low-level initialization that does not depend on the
@@ -233,14 +239,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // stack, try_catch_handler_address returns a JS stack address that
   // corresponds to the place on the JS stack where the C++ handler
   // would have been if the stack were not separate.
-  inline Address try_catch_handler_address() {
-    return try_catch_handler_address_;
-  }
-
-  // Set the address of the top C++ try catch handler.
-  inline void set_try_catch_handler_address(Address address) {
-    try_catch_handler_address_ = address;
-  }
+  FIELD_ACCESSOR(Address, try_catch_handler_address)
 
   void Free() {
     ASSERT(!has_pending_message_);
@@ -300,20 +299,6 @@ class ThreadLocalTop BASE_EMBEDDED {
 };
 
 
-class SystemThreadManager {
- public:
-  enum ParallelSystemComponent {
-    PARALLEL_SWEEPING,
-    CONCURRENT_SWEEPING,
-    PARALLEL_RECOMPILATION
-  };
-
-  static int NumberOfParallelSystemThreads(ParallelSystemComponent type);
-
-  static const int kMaxThreads = 4;
-};
-
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
@@ -344,7 +329,7 @@ class SystemThreadManager {
   V(uint32_t, private_random_seed, 2)                                          \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
-typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
+typedef List<HeapObject*> DebugObjectCache;
 
 #define ISOLATE_INIT_LIST(V)                                                   \
   /* SerializerDeserializer state. */                                          \
@@ -374,10 +359,17 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   /* AstNode state. */                                                         \
   V(int, ast_node_id, 0)                                                       \
   V(unsigned, ast_node_count, 0)                                               \
-  V(bool, observer_delivery_pending, false)                                    \
+  V(bool, microtask_pending, false)                                            \
+  V(bool, autorun_microtasks, true)                                            \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
+  V(CodeTracer*, code_tracer, NULL)                                            \
   ISOLATE_DEBUGGER_INIT_LIST(V)
+
+#define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
+  inline void set_##name(type v) { thread_local_top_.name##_ = v; }  \
+  inline type name() const { return thread_local_top_.name##_; }
+
 
 class Isolate {
   // These forward declarations are required to make the friend declarations in
@@ -398,6 +390,7 @@ class Isolate {
           stack_limit_(0),
           thread_state_(NULL),
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
           simulator_(NULL),
 #endif
@@ -405,17 +398,14 @@ class Isolate {
           prev_(NULL) { }
     Isolate* isolate() const { return isolate_; }
     ThreadId thread_id() const { return thread_id_; }
-    void set_stack_limit(uintptr_t value) { stack_limit_ = value; }
-    uintptr_t stack_limit() const { return stack_limit_; }
-    ThreadState* thread_state() const { return thread_state_; }
-    void set_thread_state(ThreadState* value) { thread_state_ = value; }
+
+    FIELD_ACCESSOR(uintptr_t, stack_limit)
+    FIELD_ACCESSOR(ThreadState*, thread_state)
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
-    Simulator* simulator() const { return simulator_; }
-    void set_simulator(Simulator* simulator) {
-      simulator_ = simulator;
-    }
+    FIELD_ACCESSOR(Simulator*, simulator)
 #endif
 
     bool Matches(Isolate* isolate, ThreadId thread_id) const {
@@ -429,6 +419,7 @@ class Isolate {
     ThreadState* thread_state_;
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
     Simulator* simulator_;
 #endif
@@ -554,38 +545,35 @@ class Isolate {
   }
   Context** context_address() { return &thread_local_top_.context_; }
 
-  SaveContext* save_context() { return thread_local_top_.save_context_; }
-  void set_save_context(SaveContext* save) {
-    thread_local_top_.save_context_ = save;
-  }
+  THREAD_LOCAL_TOP_ACCESSOR(SaveContext*, save_context)
 
   // Access to current thread id.
-  ThreadId thread_id() { return thread_local_top_.thread_id_; }
-  void set_thread_id(ThreadId id) { thread_local_top_.thread_id_ = id; }
+  THREAD_LOCAL_TOP_ACCESSOR(ThreadId, thread_id)
 
   // Interface to pending exception.
   MaybeObject* pending_exception() {
     ASSERT(has_pending_exception());
     return thread_local_top_.pending_exception_;
   }
-  bool external_caught_exception() {
-    return thread_local_top_.external_caught_exception_;
-  }
-  void set_external_caught_exception(bool value) {
-    thread_local_top_.external_caught_exception_ = value;
-  }
+
   void set_pending_exception(MaybeObject* exception) {
     thread_local_top_.pending_exception_ = exception;
   }
+
   void clear_pending_exception() {
     thread_local_top_.pending_exception_ = heap_.the_hole_value();
   }
+
   MaybeObject** pending_exception_address() {
     return &thread_local_top_.pending_exception_;
   }
+
   bool has_pending_exception() {
     return !thread_local_top_.pending_exception_->IsTheHole();
   }
+
+  THREAD_LOCAL_TOP_ACCESSOR(bool, external_caught_exception)
+
   void clear_pending_message() {
     thread_local_top_.has_pending_message_ = false;
     thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
@@ -600,12 +588,8 @@ class Isolate {
   bool* external_caught_exception_address() {
     return &thread_local_top_.external_caught_exception_;
   }
-  v8::TryCatch* catcher() {
-    return thread_local_top_.catcher_;
-  }
-  void set_catcher(v8::TryCatch* catcher) {
-    thread_local_top_.catcher_ = catcher;
-  }
+
+  THREAD_LOCAL_TOP_ACCESSOR(v8::TryCatch*, catcher)
 
   MaybeObject** scheduled_exception_address() {
     return &thread_local_top_.scheduled_exception_;
@@ -721,18 +705,12 @@ class Isolate {
   // Tells whether the current context has experienced an out of memory
   // exception.
   bool is_out_of_memory();
-  bool ignore_out_of_memory() {
-    return thread_local_top_.ignore_out_of_memory_;
-  }
-  void set_ignore_out_of_memory(bool value) {
-    thread_local_top_.ignore_out_of_memory_ = value;
-  }
+
+  THREAD_LOCAL_TOP_ACCESSOR(bool,  ignore_out_of_memory)
 
   void PrintCurrentStackTrace(FILE* out);
-  void PrintStackTrace(FILE* out, char* thread_data);
   void PrintStack(StringStream* accumulator);
   void PrintStack(FILE* out);
-  void PrintStack();
   Handle<String> StackTraceString();
   NO_INLINE(void PushStackTraceAndDie(unsigned int magic,
                                       Object* object,
@@ -800,9 +778,6 @@ class Isolate {
   // Attempts to compute the current source location, storing the
   // result in the target out parameter.
   void ComputeLocation(MessageLocation* target);
-
-  // Override command line flag.
-  void TraceException(bool flag);
 
   // Out of resource exception helpers.
   Failure* StackOverflow();
@@ -888,9 +863,8 @@ class Isolate {
   StubCache* stub_cache() { return stub_cache_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
-
-  TranscendentalCache* transcendental_cache() const {
-    return transcendental_cache_;
+  MaterializedObjectStore* materialized_object_store() {
+    return materialized_object_store_;
   }
 
   MemoryAllocator* memory_allocator() {
@@ -909,9 +883,8 @@ class Isolate {
     return descriptor_lookup_cache_;
   }
 
-  v8::ImplementationUtilities::HandleScopeData* handle_scope_data() {
-    return &handle_scope_data_;
-  }
+  HandleScopeData* handle_scope_data() { return &handle_scope_data_; }
+
   HandleScopeImplementer* handle_scope_implementer() {
     ASSERT(handle_scope_implementer_);
     return handle_scope_implementer_;
@@ -933,12 +906,6 @@ class Isolate {
   EternalHandles* eternal_handles() { return eternal_handles_; }
 
   ThreadManager* thread_manager() { return thread_manager_; }
-
-  ContextSwitcher* context_switcher() { return context_switcher_; }
-
-  void set_context_switcher(ContextSwitcher* switcher) {
-    context_switcher_ = switcher;
-  }
 
   StringTracker* string_tracker() { return string_tracker_; }
 
@@ -964,11 +931,7 @@ class Isolate {
 
   RuntimeState* runtime_state() { return &runtime_state_; }
 
-  void set_fp_stubs_generated(bool value) {
-    fp_stubs_generated_ = value;
-  }
-
-  bool fp_stubs_generated() { return fp_stubs_generated_; }
+  FIELD_ACCESSOR(bool, fp_stubs_generated);
 
   Builtins* builtins() { return &builtins_; }
 
@@ -989,10 +952,6 @@ class Isolate {
       interp_canonicalize_mapping() {
     return &interp_canonicalize_mapping_;
   }
-
-  void* PreallocatedStorageNew(size_t size);
-  void PreallocatedStorageDelete(void* p);
-  void PreallocatedStorageInit(size_t size);
 
   inline bool IsCodePreAgingActive();
 
@@ -1024,53 +983,31 @@ class Isolate {
 #endif
 
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
+    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
     V8_TARGET_ARCH_MIPS && !defined(__mips__)
-  bool simulator_initialized() { return simulator_initialized_; }
-  void set_simulator_initialized(bool initialized) {
-    simulator_initialized_ = initialized;
-  }
-
-  HashMap* simulator_i_cache() { return simulator_i_cache_; }
-  void set_simulator_i_cache(HashMap* hash_map) {
-    simulator_i_cache_ = hash_map;
-  }
-
-  Redirection* simulator_redirection() {
-    return simulator_redirection_;
-  }
-  void set_simulator_redirection(Redirection* redirection) {
-    simulator_redirection_ = redirection;
-  }
+  FIELD_ACCESSOR(bool, simulator_initialized)
+  FIELD_ACCESSOR(HashMap*, simulator_i_cache)
+  FIELD_ACCESSOR(Redirection*, simulator_redirection)
 #endif
 
   Factory* factory() { return reinterpret_cast<Factory*>(this); }
 
   static const int kJSRegexpStaticOffsetsVectorSize = 128;
 
-  ExternalCallbackScope* external_callback_scope() {
-    return thread_local_top_.external_callback_scope_;
+  THREAD_LOCAL_TOP_ACCESSOR(ExternalCallbackScope*, external_callback_scope)
+
+  THREAD_LOCAL_TOP_ACCESSOR(StateTag, current_vm_state)
+
+  void SetData(uint32_t slot, void* data) {
+    ASSERT(slot < Internals::kNumIsolateDataSlots);
+    embedder_data_[slot] = data;
   }
-  void set_external_callback_scope(ExternalCallbackScope* scope) {
-    thread_local_top_.external_callback_scope_ = scope;
+  void* GetData(uint32_t slot) {
+    ASSERT(slot < Internals::kNumIsolateDataSlots);
+    return embedder_data_[slot];
   }
 
-  StateTag current_vm_state() {
-    return thread_local_top_.current_vm_state_;
-  }
-
-  void set_current_vm_state(StateTag state) {
-    thread_local_top_.current_vm_state_ = state;
-  }
-
-  void SetData(void* data) { embedder_data_ = data; }
-  void* GetData() { return embedder_data_; }
-
-  LookupResult* top_lookup_result() {
-    return thread_local_top_.top_lookup_result_;
-  }
-  void SetTopLookupResult(LookupResult* top) {
-    thread_local_top_.top_lookup_result_ = top;
-  }
+  THREAD_LOCAL_TOP_ACCESSOR(LookupResult*, top_lookup_result)
 
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
@@ -1101,6 +1038,17 @@ class Isolate {
   CodeStubInterfaceDescriptor*
       code_stub_interface_descriptor(int index);
 
+  enum CallDescriptorKey {
+    KeyedCall,
+    NamedCall,
+    CallHandler,
+    ArgumentAdaptorCall,
+    ApiFunctionCall,
+    NUMBER_OF_CALL_DESCRIPTORS
+  };
+
+  CallInterfaceDescriptor* call_descriptor(CallDescriptorKey index);
+
   void IterateDeferredHandles(ObjectVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
@@ -1109,8 +1057,32 @@ class Isolate {
   bool IsDeferredHandle(Object** location);
 #endif  // DEBUG
 
+  FIELD_ACCESSOR(int, max_available_threads);
+
+  bool concurrent_recompilation_enabled() {
+    // Thread is only available with flag enabled.
+    ASSERT(optimizing_compiler_thread_ == NULL ||
+           FLAG_concurrent_recompilation);
+    return optimizing_compiler_thread_ != NULL;
+  }
+
+  bool concurrent_osr_enabled() const {
+    // Thread is only available with flag enabled.
+    ASSERT(optimizing_compiler_thread_ == NULL ||
+           FLAG_concurrent_recompilation);
+    return optimizing_compiler_thread_ != NULL && FLAG_concurrent_osr;
+  }
+
   OptimizingCompilerThread* optimizing_compiler_thread() {
     return optimizing_compiler_thread_;
+  }
+
+  int num_sweeper_threads() const {
+    return num_sweeper_threads_;
+  }
+
+  SweeperThread** sweeper_threads() {
+    return sweeper_thread_;
   }
 
   // PreInits and returns a default isolate. Needed when a new thread tries
@@ -1118,14 +1090,11 @@ class Isolate {
   // TODO(svenpanne) This method is on death row...
   static v8::Isolate* GetDefaultIsolateForLocking();
 
-  SweeperThread** sweeper_threads() {
-    return sweeper_thread_;
-  }
-
   int id() const { return static_cast<int>(id_); }
 
   HStatistics* GetHStatistics();
   HTracer* GetHTracer();
+  CodeTracer* GetCodeTracer();
 
   FunctionEntryHook function_entry_hook() { return function_entry_hook_; }
   void set_function_entry_hook(FunctionEntryHook function_entry_hook) {
@@ -1138,6 +1107,14 @@ class Isolate {
 
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
+
+  int NextOptimizationId() {
+    int id = next_optimization_id_++;
+    if (!Smi::IsValid(next_optimization_id_)) {
+      next_optimization_id_ = 0;
+    }
+    return id;
+  }
 
  private:
   Isolate();
@@ -1153,9 +1130,9 @@ class Isolate {
   // These fields are accessed through the API, offsets must be kept in sync
   // with v8::internal::Internals (in include/v8.h) constants. This is also
   // verified in Isolate::Init() using runtime checks.
-  State state_;  // Will be padded to kApiPointerSize.
-  void* embedder_data_;
+  void* embedder_data_[Internals::kNumIsolateDataSlots];
   Heap heap_;
+  State state_;  // Will be padded to kApiPointerSize.
 
   // The per-process lock should be acquired before the ThreadDataTable is
   // modified.
@@ -1231,11 +1208,8 @@ class Isolate {
   // at the same time, this should be prevented using external locking.
   void Exit();
 
-  void PreallocatedMemoryThreadStart();
-  void PreallocatedMemoryThreadStop();
   void InitializeThreadLocal();
 
-  void PrintStackTrace(FILE* out, ThreadLocalTop* thread);
   void MarkCompactPrologue(bool is_compacting,
                            ThreadLocalTop* archived_thread_data);
   void MarkCompactEpilogue(bool is_compacting,
@@ -1255,10 +1229,7 @@ class Isolate {
   EntryStackItem* entry_stack_;
   int stack_trace_nesting_level_;
   StringStream* incomplete_message_;
-  // The preallocated memory thread singleton.
-  PreallocatedMemoryThread* preallocated_memory_thread_;
   Address isolate_addresses_[kIsolateAddressCount + 1];  // NOLINT
-  NoAllocationStringAllocator* preallocated_message_space_;
   Bootstrapper* bootstrapper_;
   RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
@@ -1272,27 +1243,23 @@ class Isolate {
   StatsTable* stats_table_;
   StubCache* stub_cache_;
   DeoptimizerData* deoptimizer_data_;
+  MaterializedObjectStore* materialized_object_store_;
   ThreadLocalTop thread_local_top_;
   bool capture_stack_trace_for_uncaught_exceptions_;
   int stack_trace_for_uncaught_exceptions_frame_limit_;
   StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_;
-  TranscendentalCache* transcendental_cache_;
   MemoryAllocator* memory_allocator_;
   KeyedLookupCache* keyed_lookup_cache_;
   ContextSlotCache* context_slot_cache_;
   DescriptorLookupCache* descriptor_lookup_cache_;
-  v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
+  HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
   Zone runtime_zone_;
-  PreallocatedStorage in_use_list_;
-  PreallocatedStorage free_list_;
-  bool preallocated_storage_preallocated_;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_;
   ConsStringIteratorOp* write_iterator_;
   GlobalHandles* global_handles_;
   EternalHandles* eternal_handles_;
-  ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
   bool fp_stubs_generated_;
@@ -1310,6 +1277,7 @@ class Isolate {
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
+  CallInterfaceDescriptor* call_descriptors_;
   RandomNumberGenerator* random_number_generator_;
 
   // True if fatal error has been signaled for this isolate.
@@ -1325,6 +1293,7 @@ class Isolate {
   double time_millis_at_init_;
 
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
+    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
     V8_TARGET_ARCH_MIPS && !defined(__mips__)
   bool simulator_initialized_;
   HashMap* simulator_i_cache_;
@@ -1370,9 +1339,16 @@ class Isolate {
   DeferredHandles* deferred_handles_head_;
   OptimizingCompilerThread* optimizing_compiler_thread_;
   SweeperThread** sweeper_thread_;
+  int num_sweeper_threads_;
+
+  // TODO(yangguo): This will become obsolete once ResourceConstraints
+  // becomes an argument to Isolate constructor.
+  int max_available_threads_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;
+
+  int next_optimization_id_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
@@ -1391,6 +1367,10 @@ class Isolate {
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
+
+
+#undef FIELD_ACCESSOR
+#undef THREAD_LOCAL_TOP_ACCESSOR
 
 
 // If the GCC version is 4.1.x or 4.2.x an additional field is added to the
@@ -1481,18 +1461,21 @@ class StackLimitCheck BASE_EMBEDDED {
 class PostponeInterruptsScope BASE_EMBEDDED {
  public:
   explicit PostponeInterruptsScope(Isolate* isolate)
-      : stack_guard_(isolate->stack_guard()) {
+      : stack_guard_(isolate->stack_guard()), isolate_(isolate) {
+    ExecutionAccess access(isolate_);
     stack_guard_->thread_local_.postpone_interrupts_nesting_++;
     stack_guard_->DisableInterrupts();
   }
 
   ~PostponeInterruptsScope() {
+    ExecutionAccess access(isolate_);
     if (--stack_guard_->thread_local_.postpone_interrupts_nesting_ == 0) {
       stack_guard_->EnableInterrupts();
     }
   }
  private:
   StackGuard* stack_guard_;
+  Isolate* isolate_;
 };
 
 
@@ -1507,6 +1490,73 @@ inline void Context::mark_out_of_memory() {
   native_context()->set_out_of_memory(GetIsolate()->heap()->true_value());
 }
 
+class CodeTracer V8_FINAL : public Malloced {
+ public:
+  explicit CodeTracer(int isolate_id)
+      : file_(NULL),
+        scope_depth_(0) {
+    if (!ShouldRedirect()) {
+      file_ = stdout;
+      return;
+    }
+
+    if (FLAG_redirect_code_traces_to == NULL) {
+      OS::SNPrintF(filename_,
+                   "code-%d-%d.asm",
+                   OS::GetCurrentProcessId(),
+                   isolate_id);
+    } else {
+      OS::StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
+    }
+
+    WriteChars(filename_.start(), "", 0, false);
+  }
+
+  class Scope {
+   public:
+    explicit Scope(CodeTracer* tracer) : tracer_(tracer) { tracer->OpenFile(); }
+    ~Scope() { tracer_->CloseFile();  }
+
+    FILE* file() const { return tracer_->file(); }
+
+   private:
+    CodeTracer* tracer_;
+  };
+
+  void OpenFile() {
+    if (!ShouldRedirect()) {
+      return;
+    }
+
+    if (file_ == NULL) {
+      file_ = OS::FOpen(filename_.start(), "a");
+    }
+
+    scope_depth_++;
+  }
+
+  void CloseFile() {
+    if (!ShouldRedirect()) {
+      return;
+    }
+
+    if (--scope_depth_ == 0) {
+      fclose(file_);
+      file_ = NULL;
+    }
+  }
+
+  FILE* file() const { return file_; }
+
+ private:
+  static bool ShouldRedirect() {
+    return FLAG_redirect_code_traces;
+  }
+
+  EmbeddedVector<char, 128> filename_;
+  FILE* file_;
+  int scope_depth_;
+};
 
 } }  // namespace v8::internal
 

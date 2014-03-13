@@ -171,18 +171,27 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       return kVisitJSFunction;
 
     case HEAP_NUMBER_TYPE:
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-    case EXTERNAL_INT_ARRAY_TYPE:
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
+#define EXTERNAL_ARRAY_CASE(Type, type, TYPE, ctype, size)                     \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:
+
+    TYPED_ARRAYS(EXTERNAL_ARRAY_CASE)
       return GetVisitorIdForSize(kVisitDataObject,
                                  kVisitDataObjectGeneric,
                                  instance_size);
+#undef EXTERNAL_ARRAY_CASE
+
+    case FIXED_UINT8_ARRAY_TYPE:
+    case FIXED_INT8_ARRAY_TYPE:
+    case FIXED_UINT16_ARRAY_TYPE:
+    case FIXED_INT16_ARRAY_TYPE:
+    case FIXED_UINT32_ARRAY_TYPE:
+    case FIXED_INT32_ARRAY_TYPE:
+    case FIXED_FLOAT32_ARRAY_TYPE:
+    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
+      return kVisitFixedTypedArray;
+
+    case FIXED_FLOAT64_ARRAY_TYPE:
+      return kVisitFixedFloat64Array;
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
         case NAME##_TYPE:

@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --track-allocation-sites --noalways-opt
+// Flags: --noalways-opt
 
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile
@@ -88,11 +88,15 @@ if (support_smi_only_arrays) {
   }
 
   get_literal(3);
-  get_literal(3);
-  %OptimizeFunctionOnNextCall(get_literal);
+  // It's important to store a from before we crankshaft get_literal, because
+  // mementos won't be created from crankshafted code at all.
   a = get_literal(3);
+  %OptimizeFunctionOnNextCall(get_literal);
+  get_literal(3);
   assertOptimized(get_literal);
   assertTrue(%HasFastSmiElements(a));
+  // a has a memento so the transition caused by the store will affect the
+  // boilerplate.
   a[0] = 3.5;
 
   // We should have transitioned the boilerplate array to double, and

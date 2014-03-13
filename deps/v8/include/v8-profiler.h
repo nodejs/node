@@ -96,9 +96,6 @@ class V8_EXPORT CpuProfileNode {
  */
 class V8_EXPORT CpuProfile {
  public:
-  /** Returns CPU profile UID (assigned by the profiler.) */
-  unsigned GetUid() const;
-
   /** Returns CPU profile title. */
   Handle<String> GetTitle() const;
 
@@ -132,10 +129,6 @@ class V8_EXPORT CpuProfile {
   /**
    * Deletes the profile and removes it from CpuProfiler's list.
    * All pointers to nodes previously returned become invalid.
-   * Profiles with the same uid but obtained using different
-   * security token are not deleted, but become inaccessible
-   * using FindProfile method. It is embedder's responsibility
-   * to call Delete on these profiles.
    */
   void Delete();
 };
@@ -155,15 +148,6 @@ class V8_EXPORT CpuProfiler {
   void SetSamplingInterval(int us);
 
   /**
-   * Returns the number of profiles collected (doesn't include
-   * profiles that are being collected at the moment of call.)
-   */
-  int GetProfileCount();
-
-  /** Returns a profile by index. */
-  const CpuProfile* GetCpuProfile(int index);
-
-  /**
    * Starts collecting CPU profile. Title may be an empty string. It
    * is allowed to have several profiles being collected at
    * once. Attempts to start collecting several profiles with the same
@@ -181,13 +165,6 @@ class V8_EXPORT CpuProfiler {
    * If the title given is empty, finishes the last profile started.
    */
   const CpuProfile* StopCpuProfiling(Handle<String> title);
-
-  /**
-   * Deletes all existing profiles, also cancelling all profiling
-   * activity.  All previously returned pointers to profiles and their
-   * contents become invalid after this call.
-   */
-  void DeleteAllCpuProfiles();
 
   /**
    * Tells the profiler whether the embedder is idle.
@@ -280,19 +257,17 @@ class V8_EXPORT HeapGraphNode {
   SnapshotObjectId GetId() const;
 
   /** Returns node's own size, in bytes. */
-  int GetSelfSize() const;
+  V8_DEPRECATED("Use GetShallowSize instead",
+                int GetSelfSize() const);
+
+  /** Returns node's own size, in bytes. */
+  size_t GetShallowSize() const;
 
   /** Returns child nodes count of the node. */
   int GetChildrenCount() const;
 
   /** Retrieves a child by index. */
   const HeapGraphEdge* GetChild(int index) const;
-
-  /**
-   * Finds and returns a value from the heap corresponding to this node,
-   * if the value is still reachable.
-   */
-  Handle<Value> GetHeapValue() const;
 };
 
 
@@ -393,6 +368,19 @@ class V8_EXPORT HeapProfiler {
   SnapshotObjectId GetObjectId(Handle<Value> value);
 
   /**
+   * Returns heap object with given SnapshotObjectId if the object is alive,
+   * otherwise empty handle is returned.
+   */
+  Handle<Value> FindObjectById(SnapshotObjectId id);
+
+  /**
+   * Clears internal map from SnapshotObjectId to heap object. The new objects
+   * will not be added into it unless a heap snapshot is taken or heap object
+   * tracking is kicked off.
+   */
+  void ClearObjectIds();
+
+  /**
    * A constant for invalid SnapshotObjectId. GetSnapshotObjectId will return
    * it in case heap profiler cannot find id  for the object passed as
    * parameter. HeapSnapshot::GetNodeById will always return NULL for such id.
@@ -425,8 +413,12 @@ class V8_EXPORT HeapProfiler {
    * Starts tracking of heap objects population statistics. After calling
    * this method, all heap objects relocations done by the garbage collector
    * are being registered.
+   *
+   * |track_allocations| parameter controls whether stack trace of each
+   * allocation in the heap will be recorded and reported as part of
+   * HeapSnapshot.
    */
-  void StartTrackingHeapObjects();
+  void StartTrackingHeapObjects(bool track_allocations = false);
 
   /**
    * Adds a new time interval entry to the aggregated statistics array. The
@@ -474,19 +466,6 @@ class V8_EXPORT HeapProfiler {
    * Sets a RetainedObjectInfo for an object group (see V8::SetObjectGroupId).
    */
   void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
-
-  /**
-   * Starts recording JS allocations immediately as they arrive and tracking of
-   * heap objects population statistics.
-   */
-  void StartRecordingHeapAllocations();
-
-  /**
-   * Stops recording JS allocations and tracking of heap objects population
-   * statistics, cleans all collected heap objects population statistics data.
-   */
-  void StopRecordingHeapAllocations();
-
 
  private:
   HeapProfiler();

@@ -75,4 +75,3 @@ assertEquals("Friends,", words[0]);
 words[0] = "Enemies,";
 words = string.split(" ");
 assertEquals("Friends,", words[0]);
-

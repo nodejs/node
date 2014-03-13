@@ -26,7 +26,7 @@ description(
 );
 
 var ouches = 0;
-Array.prototype.__defineSetter__("3", function() { debug("Ouch!"); ouches++; });
+Array.prototype.__defineSetter__("3", function() { ouches++; });
 
 function foo() {
     var result = [];

@@ -36,9 +36,9 @@ var ARRAY_ITERATOR_KIND_VALUES = 2;
 var ARRAY_ITERATOR_KIND_ENTRIES = 3;
 // The spec draft also has "sparse" but it is never used.
 
-var iteratorObjectSymbol = %CreateSymbol(UNDEFINED);
-var arrayIteratorNextIndexSymbol = %CreateSymbol(UNDEFINED);
-var arrayIterationKindSymbol = %CreateSymbol(UNDEFINED);
+var iteratorObjectSymbol = NEW_PRIVATE("iterator_object");
+var arrayIteratorNextIndexSymbol = NEW_PRIVATE("iterator_next");
+var arrayIterationKindSymbol = NEW_PRIVATE("iterator_kind");
 
 function ArrayIterator() {}
 
@@ -46,9 +46,9 @@ function ArrayIterator() {}
 function CreateArrayIterator(array, kind) {
   var object = ToObject(array);
   var iterator = new ArrayIterator;
-  iterator[iteratorObjectSymbol] = object;
-  iterator[arrayIteratorNextIndexSymbol] = 0;
-  iterator[arrayIterationKindSymbol] = kind;
+  SET_PRIVATE(iterator, iteratorObjectSymbol, object);
+  SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, 0);
+  SET_PRIVATE(iterator, arrayIterationKindSymbol, kind);
   return iterator;
 }
 
@@ -60,24 +60,24 @@ function CreateIteratorResultObject(value, done) {
 // 15.4.5.2.2 ArrayIterator.prototype.next( )
 function ArrayIteratorNext() {
   var iterator = ToObject(this);
-  var array = iterator[iteratorObjectSymbol];
+  var array = GET_PRIVATE(iterator, iteratorObjectSymbol);
   if (!array) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Array Iterator.prototype.next']);
   }
 
-  var index = iterator[arrayIteratorNextIndexSymbol];
-  var itemKind = iterator[arrayIterationKindSymbol];
+  var index = GET_PRIVATE(iterator, arrayIteratorNextIndexSymbol);
+  var itemKind = GET_PRIVATE(iterator, arrayIterationKindSymbol);
   var length = TO_UINT32(array.length);
 
   // "sparse" is never used.
 
   if (index >= length) {
-    iterator[arrayIteratorNextIndexSymbol] = 1 / 0; // Infinity
+    SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, INFINITY);
     return CreateIteratorResultObject(UNDEFINED, true);
   }
 
-  iterator[arrayIteratorNextIndexSymbol] = index + 1;
+  SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, index + 1);
 
   if (itemKind == ARRAY_ITERATOR_KIND_VALUES)
     return CreateIteratorResultObject(array[index], false);

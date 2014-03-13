@@ -33,28 +33,6 @@
 #include "cctest.h"
 
 
-TEST(Preemption) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::Locker locker(isolate);
-  v8::V8::Initialize();
-  v8::HandleScope scope(isolate);
-  v8::Handle<v8::Context> context = v8::Context::New(isolate);
-  v8::Context::Scope context_scope(context);
-
-  v8::Locker::StartPreemption(isolate, 100);
-
-  v8::Handle<v8::Script> script = v8::Script::Compile(
-      v8::String::New("var count = 0; var obj = new Object(); count++;\n"));
-
-  script->Run();
-
-  v8::Locker::StopPreemption(isolate);
-  v8::internal::OS::Sleep(500);  // Make sure the timer fires.
-
-  script->Run();
-}
-
-
 enum Turn {
   FILL_CACHE,
   CLEAN_CACHE,
@@ -80,7 +58,8 @@ class ThreadA : public v8::internal::Thread {
 
     // Fill String.search cache.
     v8::Handle<v8::Script> script = v8::Script::Compile(
-        v8::String::New(
+        v8::String::NewFromUtf8(
+          isolate,
           "for (var i = 0; i < 3; i++) {"
           "  var result = \"a\".search(\"a\");"
           "  if (result != 0) throw \"result: \" + result + \" @\" + i;"
@@ -180,18 +159,18 @@ TEST(ThreadIdValidation) {
   const int kNThreads = 100;
   i::List<ThreadIdValidationThread*> threads(kNThreads);
   i::List<i::ThreadId> refs(kNThreads);
-  i::Semaphore* semaphore = new i::Semaphore(0);
+  i::Semaphore semaphore(0);
   ThreadIdValidationThread* prev = NULL;
   for (int i = kNThreads - 1; i >= 0; i--) {
     ThreadIdValidationThread* newThread =
-        new ThreadIdValidationThread(prev, &refs, i, semaphore);
+        new ThreadIdValidationThread(prev, &refs, i, &semaphore);
     threads.Add(newThread);
     prev = newThread;
     refs.Add(i::ThreadId::Invalid());
   }
   prev->Start();
   for (int i = 0; i < kNThreads; i++) {
-    semaphore->Wait();
+    semaphore.Wait();
   }
   for (int i = 0; i < kNThreads; i++) {
     delete threads[i];

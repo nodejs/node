@@ -27,29 +27,42 @@
 
 #include "v8.h"
 
-#include "deoptimizer.h"
 #include "heap-profiler.h"
+
+#include "allocation-tracker.h"
 #include "heap-snapshot-generator-inl.h"
 
 namespace v8 {
 namespace internal {
 
 HeapProfiler::HeapProfiler(Heap* heap)
-    : snapshots_(new HeapSnapshotsCollection(heap)),
+    : ids_(new HeapObjectsMap(heap)),
+      names_(new StringsStorage(heap)),
       next_snapshot_uid_(1),
-      is_tracking_allocations_(false) {
+      is_tracking_object_moves_(false) {
+}
+
+
+static void DeleteHeapSnapshot(HeapSnapshot** snapshot_ptr) {
+  delete *snapshot_ptr;
 }
 
 
 HeapProfiler::~HeapProfiler() {
-  delete snapshots_;
+  snapshots_.Iterate(DeleteHeapSnapshot);
+  snapshots_.Clear();
 }
 
 
 void HeapProfiler::DeleteAllSnapshots() {
-  Heap* the_heap = heap();
-  delete snapshots_;
-  snapshots_ = new HeapSnapshotsCollection(the_heap);
+  snapshots_.Iterate(DeleteHeapSnapshot);
+  snapshots_.Clear();
+  names_.Reset(new StringsStorage(heap()));
+}
+
+
+void HeapProfiler::RemoveSnapshot(HeapSnapshot* snapshot) {
+  snapshots_.RemoveElement(snapshot);
 }
 
 
@@ -76,15 +89,18 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
     const char* name,
     v8::ActivityControl* control,
     v8::HeapProfiler::ObjectNameResolver* resolver) {
-  HeapSnapshot* result = snapshots_->NewSnapshot(name, next_snapshot_uid_++);
+  HeapSnapshot* result = new HeapSnapshot(this, name, next_snapshot_uid_++);
   {
     HeapSnapshotGenerator generator(result, control, resolver, heap());
     if (!generator.GenerateSnapshot()) {
       delete result;
       result = NULL;
+    } else {
+      snapshots_.Add(result);
     }
   }
-  snapshots_->SnapshotGenerationFinished(result);
+  ids_->RemoveDeadEntries();
+  is_tracking_object_moves_ = true;
   return result;
 }
 
@@ -93,59 +109,79 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
     String* name,
     v8::ActivityControl* control,
     v8::HeapProfiler::ObjectNameResolver* resolver) {
-  return TakeSnapshot(snapshots_->names()->GetName(name), control, resolver);
+  return TakeSnapshot(names_->GetName(name), control, resolver);
 }
 
 
-void HeapProfiler::StartHeapObjectsTracking() {
-  snapshots_->StartHeapObjectsTracking();
+void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
+  ids_->UpdateHeapObjectsMap();
+  is_tracking_object_moves_ = true;
+  ASSERT(!is_tracking_allocations());
+  if (track_allocations) {
+    allocation_tracker_.Reset(new AllocationTracker(ids_.get(), names_.get()));
+    heap()->DisableInlineAllocation();
+  }
 }
 
 
 SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
-  return snapshots_->PushHeapObjectsStats(stream);
+  return ids_->PushHeapObjectsStats(stream);
 }
 
 
 void HeapProfiler::StopHeapObjectsTracking() {
-  snapshots_->StopHeapObjectsTracking();
+  ids_->StopHeapObjectsTracking();
+  if (is_tracking_allocations()) {
+    allocation_tracker_.Reset(NULL);
+    heap()->EnableInlineAllocation();
+  }
 }
 
 
 size_t HeapProfiler::GetMemorySizeUsedByProfiler() {
-  return snapshots_->GetUsedMemorySize();
+  size_t size = sizeof(*this);
+  size += names_->GetUsedMemorySize();
+  size += ids_->GetUsedMemorySize();
+  size += GetMemoryUsedByList(snapshots_);
+  for (int i = 0; i < snapshots_.length(); ++i) {
+    size += snapshots_[i]->RawSnapshotSize();
+  }
+  return size;
 }
 
 
 int HeapProfiler::GetSnapshotsCount() {
-  return snapshots_->snapshots()->length();
+  return snapshots_.length();
 }
 
 
 HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
-  return snapshots_->snapshots()->at(index);
+  return snapshots_.at(index);
 }
 
 
 SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
   if (!obj->IsHeapObject())
     return v8::HeapProfiler::kUnknownObjectId;
-  return snapshots_->FindObjectId(HeapObject::cast(*obj)->address());
+  return ids_->FindEntry(HeapObject::cast(*obj)->address());
 }
 
 
 void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
-  snapshots_->ObjectMoveEvent(from, to, size);
+  ids_->MoveObject(from, to, size);
 }
 
 
-void HeapProfiler::NewObjectEvent(Address addr, int size) {
-  snapshots_->NewObjectEvent(addr, size);
+void HeapProfiler::AllocationEvent(Address addr, int size) {
+  DisallowHeapAllocation no_allocation;
+  if (!allocation_tracker_.is_empty()) {
+    allocation_tracker_->AllocationEvent(addr, size);
+  }
 }
 
 
 void HeapProfiler::UpdateObjectSizeEvent(Address addr, int size) {
-  snapshots_->UpdateObjectSizeEvent(addr, size);
+  ids_->UpdateObjectSize(addr, size);
 }
 
 
@@ -156,63 +192,29 @@ void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
 }
 
 
-void HeapProfiler::StartHeapAllocationsRecording() {
-  StartHeapObjectsTracking();
-  is_tracking_allocations_ = true;
-  DropCompiledCode();
-  snapshots_->UpdateHeapObjectsMap();
-}
-
-
-void HeapProfiler::StopHeapAllocationsRecording() {
-  StopHeapObjectsTracking();
-  is_tracking_allocations_ = false;
-  DropCompiledCode();
-}
-
-
-void HeapProfiler::RecordObjectAllocationFromMasm(Isolate* isolate,
-                                                  Address obj,
-                                                  int size) {
-  isolate->heap_profiler()->NewObjectEvent(obj, size);
-}
-
-
-void HeapProfiler::DropCompiledCode() {
-  Isolate* isolate = heap()->isolate();
-  HandleScope scope(isolate);
-
-  if (FLAG_concurrent_recompilation) {
-    isolate->optimizing_compiler_thread()->Flush();
-  }
-
-  Deoptimizer::DeoptimizeAll(isolate);
-
-  Handle<Code> lazy_compile =
-      Handle<Code>(isolate->builtins()->builtin(Builtins::kLazyCompile));
-
+Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                            "switch allocations tracking");
-
+                            "HeapProfiler::FindHeapObjectById");
   DisallowHeapAllocation no_allocation;
-
-  HeapIterator iterator(heap());
-  HeapObject* obj = NULL;
-  while (((obj = iterator.next()) != NULL)) {
-    if (obj->IsJSFunction()) {
-      JSFunction* function = JSFunction::cast(obj);
-      SharedFunctionInfo* shared = function->shared();
-
-      if (!shared->allows_lazy_compilation()) continue;
-      if (!shared->script()->IsScript()) continue;
-
-      Code::Kind kind = function->code()->kind();
-      if (kind == Code::FUNCTION || kind == Code::BUILTIN) {
-        function->set_code(*lazy_compile);
-        shared->set_code(*lazy_compile);
-      }
+  HeapObject* object = NULL;
+  HeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
+  // Make sure that object with the given id is still reachable.
+  for (HeapObject* obj = iterator.next();
+       obj != NULL;
+       obj = iterator.next()) {
+    if (ids_->FindEntry(obj->address()) == id) {
+      ASSERT(object == NULL);
+      object = obj;
+      // Can't break -- kFilterUnreachable requires full heap traversal.
     }
   }
+  return object != NULL ? Handle<HeapObject>(object) : Handle<HeapObject>();
+}
+
+
+void HeapProfiler::ClearHeapObjectMap() {
+  ids_.Reset(new HeapObjectsMap(heap()));
+  if (!is_tracking_allocations()) is_tracking_object_moves_ = false;
 }
 
 

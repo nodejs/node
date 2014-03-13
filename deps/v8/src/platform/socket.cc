@@ -37,7 +37,7 @@
 #include <unistd.h>
 #endif
 
-#include <cerrno>
+#include <errno.h>
 
 #include "checks.h"
 #include "once.h"

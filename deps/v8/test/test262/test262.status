@@ -29,12 +29,6 @@
 [ALWAYS, {
   ############################### BUGS ###################################
 
-  # Sequencing of getter side effects on receiver and argument properties
-  # is wrong. The receiver callback should be called before any arguments
-  # are evaluated.
-  # V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
-  '11.2.3-3_3': [FAIL],
-
   '15.5.4.9_CE': [['no_i18n', SKIP]],
 
   ######################## NEEDS INVESTIGATION ###########################
@@ -73,6 +67,7 @@
   # trigonometric functions are platform/compiler dependent.  Furthermore, the
   # expectation values by far deviates from the actual result given by an
   # arbitrary-precision calculator, making those tests partly bogus.
+  'S15.8.2.7_A7': [PASS, FAIL_OK],  # Math.cos
   'S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
   'S15.8.2.16_A7': [PASS, FAIL_OK],  # Math.sin
   'S15.8.2.18_A7': [PASS, FAIL_OK],  # Math.tan
@@ -104,7 +99,7 @@
   'S15.1.3.2_A2.5_T1': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
 
-['arch == arm or arch == mipsel', {
+['arch == arm or arch == mipsel or arch == a64', {
 
   # TODO(mstarzinger): Causes stack overflow on simulators due to eager
   # compilation of parenthesized function literals. Needs investigation.
@@ -117,5 +112,5 @@
   'S15.1.3.2_A2.5_T1': [SKIP],
   'S15.1.3.3_A2.3_T1': [SKIP],
   'S15.1.3.4_A2.3_T1': [SKIP],
-}],  # 'arch == arm or arch == mipsel'
+}],  # 'arch == arm or arch == mipsel or arch == a64'
 ]

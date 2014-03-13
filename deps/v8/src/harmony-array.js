@@ -35,10 +35,7 @@
 
 // ES6 draft 07-15-13, section 15.4.3.23
 function ArrayFind(predicate /* thisArg */) {  // length == 1
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.find"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.find");
 
   var array = ToObject(this);
   var length = ToInteger(array.length);
@@ -73,10 +70,7 @@ function ArrayFind(predicate /* thisArg */) {  // length == 1
 
 // ES6 draft 07-15-13, section 15.4.3.24
 function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.findIndex"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.findIndex");
 
   var array = ToObject(this);
   var length = ToInteger(array.length);

@@ -89,9 +89,10 @@ void Interface::DoAdd(
   ZoneHashMap** map = &Chase()->exports_;
   ZoneAllocationPolicy allocator(zone);
 
-  if (*map == NULL)
-    *map = new ZoneHashMap(Match, ZoneHashMap::kDefaultHashMapCapacity,
-                           allocator);
+  if (*map == NULL) {
+    *map = new(zone->New(sizeof(ZoneHashMap)))
+        ZoneHashMap(Match, ZoneHashMap::kDefaultHashMapCapacity, allocator);
+  }
 
   ZoneHashMap::Entry* p = (*map)->Lookup(name, hash, !IsFrozen(), allocator);
   if (p == NULL) {

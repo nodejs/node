@@ -34,4 +34,3 @@ for (var i = 0; i < 100; ++i) {
     foo(array, -1);
     shouldBe("array[-1]", "42");
 }
-

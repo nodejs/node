@@ -132,5 +132,47 @@ TEST(CopyBytes) {
 }
 
 
+static void TestNaN(const char *code) {
+  // NaN value is different on MIPS and x86 architectures, and TEST(NaNx)
+  // tests checks the case where a x86 NaN value is serialized into the
+  // snapshot on the simulator during cross compilation.
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> context = CcTest::NewContext(PRINT_EXTENSION);
+  v8::Context::Scope context_scope(context);
+
+  v8::Local<v8::Script> script = v8::Script::Compile(v8_str(code));
+  v8::Local<v8::Object> result = v8::Local<v8::Object>::Cast(script->Run());
+  // Have to populate the handle manually, as it's not Cast-able.
+  i::Handle<i::JSObject> o =
+      v8::Utils::OpenHandle<v8::Object, i::JSObject>(result);
+  i::Handle<i::JSArray> array1(reinterpret_cast<i::JSArray*>(*o));
+  i::FixedDoubleArray* a = i::FixedDoubleArray::cast(array1->elements());
+  double value = a->get_scalar(0);
+  CHECK(std::isnan(value) &&
+        i::BitCast<uint64_t>(value) ==
+        i::BitCast<uint64_t>(
+            i::FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
+}
+
+
+TEST(NaN0) {
+  TestNaN(
+          "var result;"
+          "for (var i = 0; i < 2; i++) {"
+          "  result = new Array(Number.NaN, Number.POSITIVE_INFINITY);"
+          "}"
+          "result;");
+}
+
+
+TEST(NaN1) {
+  TestNaN(
+          "var result;"
+          "for (var i = 0; i < 2; i++) {"
+          "  result = [NaN];"
+          "}"
+          "result;");
+}
+
 
 #undef __

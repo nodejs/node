@@ -79,4 +79,3 @@ assertEquals("-91.123", (-91.1234).toPrecision(5));
 assertEquals("-91.1234", (-91.1234).toPrecision(6));
 assertEquals("-91.12340", (-91.1234).toPrecision(7));
 assertEquals("-91.123400", (-91.1234).toPrecision(8));
-
