@@ -50,6 +50,7 @@ namespace cares_wrap {
 
 using v8::Array;
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
@@ -194,8 +195,8 @@ static void ares_sockstate_cb(void* data,
 
 
 static Local<Array> HostentToAddresses(Environment* env, struct hostent* host) {
-  HandleScope scope(env->isolate());
-  Local<Array> addresses = Array::New();
+  EscapableHandleScope scope(env->isolate());
+  Local<Array> addresses = Array::New(env->isolate());
 
   char ip[INET6_ADDRSTRLEN];
   for (uint32_t i = 0; host->h_addr_list[i] != NULL; ++i) {
@@ -204,20 +205,20 @@ static Local<Array> HostentToAddresses(Environment* env, struct hostent* host) {
     addresses->Set(i, address);
   }
 
-  return scope.Close(addresses);
+  return scope.Escape(addresses);
 }
 
 
 static Local<Array> HostentToNames(Environment* env, struct hostent* host) {
-  HandleScope scope(env->isolate());
-  Local<Array> names = Array::New();
+  EscapableHandleScope scope(env->isolate());
+  Local<Array> names = Array::New(env->isolate());
 
   for (uint32_t i = 0; host->h_aliases[i] != NULL; ++i) {
     Local<String> address = OneByteString(env->isolate(), host->h_aliases[i]);
     names->Set(i, address);
   }
 
-  return scope.Close(names);
+  return scope.Escape(names);
 }
 
 
@@ -229,7 +230,7 @@ class QueryWrap : public AsyncWrap {
 
   virtual ~QueryWrap() {
     assert(!persistent().IsEmpty());
-    persistent().Dispose();
+    persistent().Reset();
   }
 
   // Subclasses should implement the appropriate Send method.
@@ -278,7 +279,7 @@ class QueryWrap : public AsyncWrap {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
     Local<Value> argv[] = {
-      Integer::New(0, env()->isolate()),
+      Integer::New(env()->isolate(), 0),
       answer
     };
     MakeCallback(env()->oncomplete_string(), ARRAY_SIZE(argv), argv);
@@ -288,7 +289,7 @@ class QueryWrap : public AsyncWrap {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
     Local<Value> argv[] = {
-      Integer::New(0, env()->isolate()),
+      Integer::New(env()->isolate(), 0),
       answer,
       family
     };
@@ -452,7 +453,7 @@ class QueryCnameWrap: public QueryWrap {
 
     // A cname lookup always returns a single record but we follow the
     // common API here.
-    Local<Array> result = Array::New(1);
+    Local<Array> result = Array::New(env()->isolate(), 1);
     result->Set(0, OneByteString(env()->isolate(), host->h_name));
     ares_free_hostent(host);
 
@@ -489,17 +490,17 @@ class QueryMxWrap: public QueryWrap {
       return;
     }
 
-    Local<Array> mx_records = Array::New();
+    Local<Array> mx_records = Array::New(env()->isolate());
     Local<String> exchange_symbol = env()->exchange_string();
     Local<String> priority_symbol = env()->priority_string();
 
     ares_mx_reply* current = mx_start;
     for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
-      Local<Object> mx_record = Object::New();
+      Local<Object> mx_record = Object::New(env()->isolate());
       mx_record->Set(exchange_symbol,
                      OneByteString(env()->isolate(), current->host));
       mx_record->Set(priority_symbol,
-                     Integer::New(current->priority, env()->isolate()));
+                     Integer::New(env()->isolate(), current->priority));
       mx_records->Set(i, mx_record);
     }
 
@@ -574,7 +575,7 @@ class QueryTxtWrap: public QueryWrap {
       return;
     }
 
-    Local<Array> txt_records = Array::New();
+    Local<Array> txt_records = Array::New(env()->isolate());
 
     ares_txt_reply* current = txt_out;
     for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
@@ -617,7 +618,7 @@ class QuerySrvWrap: public QueryWrap {
       return;
     }
 
-    Local<Array> srv_records = Array::New();
+    Local<Array> srv_records = Array::New(env()->isolate());
     Local<String> name_symbol = env()->name_string();
     Local<String> port_symbol = env()->port_string();
     Local<String> priority_symbol = env()->priority_string();
@@ -625,15 +626,15 @@ class QuerySrvWrap: public QueryWrap {
 
     ares_srv_reply* current = srv_start;
     for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
-      Local<Object> srv_record = Object::New();
+      Local<Object> srv_record = Object::New(env()->isolate());
       srv_record->Set(name_symbol,
                       OneByteString(env()->isolate(), current->host));
       srv_record->Set(port_symbol,
-                      Integer::New(current->port, env()->isolate()));
+                      Integer::New(env()->isolate(), current->port));
       srv_record->Set(priority_symbol,
-                      Integer::New(current->priority, env()->isolate()));
+                      Integer::New(env()->isolate(), current->priority));
       srv_record->Set(weight_symbol,
-                      Integer::New(current->weight, env()->isolate()));
+                      Integer::New(env()->isolate(), current->weight));
       srv_records->Set(i, srv_record);
     }
 
@@ -672,7 +673,7 @@ class QueryNaptrWrap: public QueryWrap {
       return;
     }
 
-    Local<Array> naptr_records = Array::New();
+    Local<Array> naptr_records = Array::New(env()->isolate());
     Local<String> flags_symbol = env()->flags_string();
     Local<String> service_symbol = env()->service_string();
     Local<String> regexp_symbol = env()->regexp_string();
@@ -682,7 +683,7 @@ class QueryNaptrWrap: public QueryWrap {
 
     ares_naptr_reply* current = naptr_start;
     for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
-      Local<Object> naptr_record = Object::New();
+      Local<Object> naptr_record = Object::New(env()->isolate());
       naptr_record->Set(flags_symbol,
                         OneByteString(env()->isolate(), current->flags));
       naptr_record->Set(service_symbol,
@@ -692,9 +693,9 @@ class QueryNaptrWrap: public QueryWrap {
       naptr_record->Set(replacement_symbol,
                         OneByteString(env()->isolate(), current->replacement));
       naptr_record->Set(order_symbol,
-                        Integer::New(current->order, env()->isolate()));
+                        Integer::New(env()->isolate(), current->order));
       naptr_record->Set(preference_symbol,
-                        Integer::New(current->preference, env()->isolate()));
+                        Integer::New(env()->isolate(), current->preference));
       naptr_records->Set(i, naptr_record);
     }
 
@@ -734,22 +735,22 @@ class QuerySoaWrap: public QueryWrap {
       return;
     }
 
-    Local<Object> soa_record = Object::New();
+    Local<Object> soa_record = Object::New(env()->isolate());
 
     soa_record->Set(env()->nsname_string(),
                     OneByteString(env()->isolate(), soa_out->nsname));
     soa_record->Set(env()->hostmaster_string(),
                     OneByteString(env()->isolate(), soa_out->hostmaster));
     soa_record->Set(env()->serial_string(),
-                    Integer::New(soa_out->serial, env()->isolate()));
+                    Integer::New(env()->isolate(), soa_out->serial));
     soa_record->Set(env()->refresh_string(),
-                    Integer::New(soa_out->refresh, env()->isolate()));
+                    Integer::New(env()->isolate(), soa_out->refresh));
     soa_record->Set(env()->retry_string(),
-                    Integer::New(soa_out->retry, env()->isolate()));
+                    Integer::New(env()->isolate(), soa_out->retry));
     soa_record->Set(env()->expire_string(),
-                    Integer::New(soa_out->expire, env()->isolate()));
+                    Integer::New(env()->isolate(), soa_out->expire));
     soa_record->Set(env()->minttl_string(),
-                    Integer::New(soa_out->minttl, env()->isolate()));
+                    Integer::New(env()->isolate(), soa_out->minttl));
 
     ares_free_data(soa_out);
 
@@ -816,7 +817,7 @@ class GetHostByNameWrap: public QueryWrap {
     HandleScope scope(env()->isolate());
 
     Local<Array> addresses = HostentToAddresses(env(), host);
-    Local<Integer> family = Integer::New(host->h_addrtype, env()->isolate());
+    Local<Integer> family = Integer::New(env()->isolate(), host->h_addrtype);
 
     this->CallOnComplete(addresses, family);
   }
@@ -853,7 +854,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   Context::Scope context_scope(env->context());
 
   Local<Value> argv[] = {
-    Integer::New(status, env->isolate()),
+    Integer::New(env->isolate(), status),
     Null(env->isolate())
   };
 
@@ -868,7 +869,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     }
 
     // Create the response array.
-    Local<Array> results = Array::New(n);
+    Local<Array> results = Array::New(env->isolate(), n);
 
     char ip[INET6_ADDRSTRLEN];
     const char *addr;
@@ -947,7 +948,7 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  String::AsciiValue ip(args[0]);
+  String::Utf8Value ip(args[0]);
   char address_buffer[sizeof(struct in6_addr)];
 
   int rc = 0;
@@ -1014,7 +1015,7 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  Local<Array> server_array = Array::New();
+  Local<Array> server_array = Array::New(env->isolate());
 
   ares_addr_node* servers;
 
@@ -1160,11 +1161,11 @@ static void Initialize(Handle<Object> target,
   NODE_SET_METHOD(target, "setServers", SetServers);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
-              Integer::New(AF_INET, env->isolate()));
+              Integer::New(env->isolate(), AF_INET));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET6"),
-              Integer::New(AF_INET6, env->isolate()));
+              Integer::New(env->isolate(), AF_INET6));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_UNSPEC"),
-              Integer::New(AF_UNSPEC, env->isolate()));
+              Integer::New(env->isolate(), AF_UNSPEC));
 }
 
 }  // namespace cares_wrap

@@ -51,7 +51,8 @@ class ProcessWrap : public HandleWrap {
                          Handle<Value> unused,
                          Handle<Context> context) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = FunctionTemplate::New(New);
+    Local<FunctionTemplate> constructor = FunctionTemplate::New(env->isolate(),
+                                                                New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"));
 
@@ -234,7 +235,7 @@ class ProcessWrap : public HandleWrap {
     if (err == 0) {
       assert(wrap->process_.data == wrap);
       wrap->object()->Set(env->pid_string(),
-                          Integer::New(wrap->process_.pid, env->isolate()));
+                          Integer::New(env->isolate(), wrap->process_.pid));
     }
 
     if (options.args) {

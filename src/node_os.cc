@@ -148,11 +148,11 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   if (err)
     return;
 
-  Local<Array> cpus = Array::New();
+  Local<Array> cpus = Array::New(env->isolate());
   for (i = 0; i < count; i++) {
     uv_cpu_info_t* ci = cpu_infos + i;
 
-    Local<Object> times_info = Object::New();
+    Local<Object> times_info = Object::New(env->isolate());
     times_info->Set(env->user_string(),
                     Number::New(env->isolate(), ci->cpu_times.user));
     times_info->Set(env->nice_string(),
@@ -164,7 +164,7 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
     times_info->Set(env->irq_string(),
                     Number::New(env->isolate(), ci->cpu_times.irq));
 
-    Local<Object> cpu_info = Object::New();
+    Local<Object> cpu_info = Object::New(env->isolate());
     cpu_info->Set(env->model_string(),
                   OneByteString(env->isolate(), ci->model));
     cpu_info->Set(env->speed_string(),
@@ -214,10 +214,10 @@ static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(env->isolate());
   double loadavg[3];
   uv_loadavg(loadavg);
-  Local<Array> loads = Array::New(3);
-  loads->Set(0, Number::New(loadavg[0]));
-  loads->Set(1, Number::New(loadavg[1]));
-  loads->Set(2, Number::New(loadavg[2]));
+  Local<Array> loads = Array::New(env->isolate(), 3);
+  loads->Set(0, Number::New(env->isolate(), loadavg[0]));
+  loads->Set(1, Number::New(env->isolate(), loadavg[1]));
+  loads->Set(2, Number::New(env->isolate(), loadavg[2]));
   args.GetReturnValue().Set(loads);
 }
 
@@ -236,7 +236,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
 
   int err = uv_interface_addresses(&interfaces, &count);
 
-  ret = Object::New();
+  ret = Object::New(env->isolate());
 
   if (err == UV_ENOSYS) {
     args.GetReturnValue().Set(ret);
@@ -249,7 +249,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     if (ret->Has(name)) {
       ifarr = Local<Array>::Cast(ret->Get(name));
     } else {
-      ifarr = Array::New();
+      ifarr = Array::New(env->isolate());
       ret->Set(name, ifarr);
     }
 
@@ -276,7 +276,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
       family = env->unknown_string();
     }
 
-    o = Object::New();
+    o = Object::New(env->isolate());
     o->Set(env->address_string(), OneByteString(env->isolate(), ip));
     o->Set(env->netmask_string(), OneByteString(env->isolate(), netmask));
     o->Set(env->family_string(), family);
@@ -284,7 +284,8 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
 
     if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uint32_t scopeid = interfaces[i].address.address6.sin6_scope_id;
-      o->Set(env->scopeid_string(), Integer::NewFromUnsigned(scopeid));
+      o->Set(env->scopeid_string(),
+             Integer::NewFromUnsigned(env->isolate(), scopeid));
     }
 
     const bool internal = interfaces[i].is_internal;

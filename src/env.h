@@ -422,6 +422,8 @@ class Environment {
 #undef V
 
  private:
+  static const int kIsolateSlot = 0;
+
   class GCInfo;
   class IsolateData;
   inline explicit Environment(v8::Local<v8::Context> context);

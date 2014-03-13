@@ -70,7 +70,7 @@ inline uint64_t Environment::GCInfo::timestamp() const {
 
 inline Environment::IsolateData* Environment::IsolateData::Get(
     v8::Isolate* isolate) {
-  return static_cast<IsolateData*>(isolate->GetData());
+  return static_cast<IsolateData*>(isolate->GetData(kIsolateSlot));
 }
 
 inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
@@ -78,7 +78,7 @@ inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
   IsolateData* isolate_data = Get(isolate);
   if (isolate_data == NULL) {
     isolate_data = new IsolateData(isolate);
-    isolate->SetData(isolate_data);
+    isolate->SetData(kIsolateSlot, isolate_data);
   }
   isolate_data->ref_count_ += 1;
   return isolate_data;
@@ -86,7 +86,7 @@ inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
 
 inline void Environment::IsolateData::Put() {
   if (--ref_count_ == 0) {
-    isolate()->SetData(NULL);
+    isolate()->SetData(kIsolateSlot, NULL);
     delete this;
   }
 }
@@ -230,8 +230,8 @@ inline Environment::Environment(v8::Local<v8::Context> context)
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());
   v8::Context::Scope context_scope(context);
-  set_binding_cache_object(v8::Object::New());
-  set_module_load_list_array(v8::Array::New());
+  set_binding_cache_object(v8::Object::New(isolate()));
+  set_module_load_list_array(v8::Array::New(isolate()));
   RB_INIT(&cares_task_list_);
   QUEUE_INIT(&gc_tracker_queue_);
 }
@@ -240,7 +240,7 @@ inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, NULL);
-#define V(PropertyName, TypeName) PropertyName ## _.Dispose();
+#define V(PropertyName, TypeName) PropertyName ## _.Reset();
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
   isolate_data()->Put();
@@ -370,7 +370,7 @@ inline Environment::IsolateData* Environment::isolate_data() const {
 #define THROW_ERROR(fun)                                                      \
   do {                                                                        \
     v8::HandleScope scope(isolate);                                           \
-    v8::ThrowException(fun(OneByteString(isolate, errmsg)));                 \
+    isolate->ThrowException(fun(OneByteString(isolate, errmsg)));             \
   }                                                                           \
   while (0)
 
@@ -404,7 +404,7 @@ inline void Environment::ThrowErrnoException(int errorno,
                                              const char* syscall,
                                              const char* message,
                                              const char* path) {
-  v8::ThrowException(
+  isolate()->ThrowException(
       ErrnoException(isolate(), errorno, syscall, message, path));
 }
 
@@ -412,7 +412,7 @@ inline void Environment::ThrowUVException(int errorno,
                                           const char* syscall,
                                           const char* message,
                                           const char* path) {
-  v8::ThrowException(
+  isolate()->ThrowException(
       UVException(isolate(), errorno, syscall, message, path));
 }
 

@@ -37,6 +37,7 @@
 namespace node {
 
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -54,13 +55,13 @@ typedef class ReqWrap<uv_connect_t> ConnectWrap;
 
 
 Local<Object> TCPWrap::Instantiate(Environment* env) {
-  HandleScope handle_scope(env->isolate());
+  EscapableHandleScope handle_scope(env->isolate());
   assert(env->tcp_constructor_template().IsEmpty() == false);
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   assert(constructor.IsEmpty() == false);
   Local<Object> instance = constructor->NewInstance();
   assert(instance.IsEmpty() == false);
-  return handle_scope.Close(instance);
+  return handle_scope.Escape(instance);
 }
 
 
@@ -69,7 +70,7 @@ void TCPWrap::Initialize(Handle<Object> target,
                          Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -256,7 +257,7 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
 
-  String::AsciiValue ip_address(args[0]);
+  String::Utf8Value ip_address(args[0]);
   int port = args[1]->Int32Value();
 
   sockaddr_in addr;
@@ -277,7 +278,7 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.This());
 
-  String::AsciiValue ip6_address(args[0]);
+  String::Utf8Value ip6_address(args[0]);
   int port = args[1]->Int32Value();
 
   sockaddr_in6 addr;
@@ -319,8 +320,8 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
   assert(tcp_wrap->persistent().IsEmpty() == false);
 
   Local<Value> argv[2] = {
-    Integer::New(status, env->isolate()),
-    Undefined()
+    Integer::New(env->isolate(), status),
+    Undefined(env->isolate())
   };
 
   if (status == 0) {
@@ -356,7 +357,7 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
 
   Local<Object> req_wrap_obj = req_wrap->object();
   Local<Value> argv[5] = {
-    Integer::New(status, env->isolate()),
+    Integer::New(env->isolate(), status),
     wrap->object(),
     req_wrap_obj,
     v8::True(env->isolate()),
@@ -380,7 +381,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   assert(args[2]->Uint32Value());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  String::AsciiValue ip_address(args[1]);
+  String::Utf8Value ip_address(args[1]);
   int port = args[2]->Uint32Value();
 
   sockaddr_in addr;
@@ -414,7 +415,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   assert(args[2]->Uint32Value());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  String::AsciiValue ip_address(args[1]);
+  String::Utf8Value ip_address(args[1]);
   int port = args[2]->Int32Value();
 
   sockaddr_in6 addr;
@@ -441,14 +442,14 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
 Local<Object> AddressToJS(Environment* env,
                           const sockaddr* addr,
                           Local<Object> info) {
-  HandleScope scope(env->isolate());
+  EscapableHandleScope scope(env->isolate());
   char ip[INET6_ADDRSTRLEN];
   const sockaddr_in *a4;
   const sockaddr_in6 *a6;
   int port;
 
   if (info.IsEmpty())
-    info = Object::New();
+    info = Object::New(env->isolate());
 
   switch (addr->sa_family) {
   case AF_INET6:
@@ -457,7 +458,7 @@ Local<Object> AddressToJS(Environment* env,
     port = ntohs(a6->sin6_port);
     info->Set(env->address_string(), OneByteString(env->isolate(), ip));
     info->Set(env->family_string(), env->ipv6_string());
-    info->Set(env->port_string(), Integer::New(port, env->isolate()));
+    info->Set(env->port_string(), Integer::New(env->isolate(), port));
     break;
 
   case AF_INET:
@@ -466,14 +467,14 @@ Local<Object> AddressToJS(Environment* env,
     port = ntohs(a4->sin_port);
     info->Set(env->address_string(), OneByteString(env->isolate(), ip));
     info->Set(env->family_string(), env->ipv4_string());
-    info->Set(env->port_string(), Integer::New(port, env->isolate()));
+    info->Set(env->port_string(), Integer::New(env->isolate(), port));
     break;
 
   default:
     info->Set(env->address_string(), String::Empty(env->isolate()));
   }
 
-  return scope.Close(info);
+  return scope.Escape(info);
 }
 
 

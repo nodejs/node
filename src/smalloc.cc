@@ -50,6 +50,7 @@ using v8::Persistent;
 using v8::RetainedObjectInfo;
 using v8::Uint32;
 using v8::Value;
+using v8::WeakCallbackData;
 using v8::kExternalUnsignedByteArray;
 
 
@@ -59,12 +60,11 @@ struct CallbackInfo {
   Persistent<Object> p_obj;
 };
 
-void TargetCallback(Isolate* isolate,
-                    Persistent<Object>* target,
-                    char* arg);
+void TargetCallback(const WeakCallbackData<Object, char>& data);
 void TargetFreeCallback(Isolate* isolate,
                         Persistent<Object>* target,
-                        CallbackInfo* arg);
+                        CallbackInfo* cb_info);
+void TargetFreeCallback(const WeakCallbackData<Object, CallbackInfo>& data);
 
 
 // return size of external array type, or 0 if unrecognized
@@ -270,7 +270,7 @@ void Alloc(Environment* env,
   assert(!obj->HasIndexedPropertiesInExternalArrayData());
   Persistent<Object> p_obj(env->isolate(), obj);
   env->isolate()->AdjustAmountOfExternalAllocatedMemory(length);
-  p_obj.MakeWeak(data, TargetCallback);
+  p_obj.SetWeak(data, TargetCallback);
   p_obj.MarkIndependent();
   p_obj.SetWrapperClassId(ALLOC_ID);
   size_t size = length / ExternalArraySize(type);
@@ -278,11 +278,11 @@ void Alloc(Environment* env,
 }
 
 
-void TargetCallback(Isolate* isolate,
-                    Persistent<Object>* target,
-                    char* data) {
-  HandleScope handle_scope(isolate);
-  Local<Object> obj = PersistentToLocal(isolate, *target);
+void TargetCallback(const WeakCallbackData<Object, char>& data) {
+  HandleScope handle_scope(data.GetIsolate());
+  char* info = data.GetParameter();
+
+  Local<Object> obj = data.GetValue();
   size_t len = obj->GetIndexedPropertiesExternalArrayDataLength();
   enum ExternalArrayType array_type =
     obj->GetIndexedPropertiesExternalArrayDataType();
@@ -290,11 +290,13 @@ void TargetCallback(Isolate* isolate,
   assert(array_size > 0);
   assert(array_size * len >= len);
   len *= array_size;
-  if (data != NULL && len > 0) {
-    isolate->AdjustAmountOfExternalAllocatedMemory(-len);
-    free(data);
+  if (info != NULL && len > 0) {
+    data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(-len);
+    free(info);
   }
-  (*target).Dispose();
+
+  // XXX: Persistent is no longer passed here
+  // persistent.Reset();
 }
 
 
@@ -377,11 +379,12 @@ void Alloc(Environment* env,
   cb_info->cb = fn;
   cb_info->hint = hint;
   cb_info->p_obj.Reset(env->isolate(), obj);
-  obj->SetHiddenValue(env->smalloc_p_string(), External::New(cb_info));
+  obj->SetHiddenValue(env->smalloc_p_string(),
+                      External::New(env->isolate(), cb_info));
 
   env->isolate()->AdjustAmountOfExternalAllocatedMemory(length +
                                                         sizeof(*cb_info));
-  cb_info->p_obj.MakeWeak(cb_info, TargetFreeCallback);
+  cb_info->p_obj.SetWeak(cb_info, TargetFreeCallback);
   cb_info->p_obj.MarkIndependent();
   cb_info->p_obj.SetWrapperClassId(ALLOC_ID);
   size_t size = length / ExternalArraySize(type);
@@ -405,9 +408,15 @@ void TargetFreeCallback(Isolate* isolate,
     len *= array_size;
   }
   isolate->AdjustAmountOfExternalAllocatedMemory(-(len + sizeof(*cb_info)));
-  cb_info->p_obj.Dispose();
+  cb_info->p_obj.Reset();
   cb_info->cb(data, cb_info->hint);
   delete cb_info;
+}
+
+
+void TargetFreeCallback(const WeakCallbackData<Object, CallbackInfo>& data) {
+  CallbackInfo* cb_info = data.GetParameter();
+  TargetFreeCallback(data.GetIsolate(), &cb_info->p_obj, cb_info);
 }
 
 
@@ -495,7 +504,7 @@ void Initialize(Handle<Object> exports,
   NODE_SET_METHOD(exports, "hasExternalData", HasExternalData);
 
   exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
-               Uint32::NewFromUnsigned(kMaxLength, env->isolate()));
+               Uint32::NewFromUnsigned(env->isolate(), kMaxLength));
 
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
   heap_profiler->SetWrapperClassInfoProvider(ALLOC_ID, WrapperInfo);

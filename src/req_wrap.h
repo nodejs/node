@@ -53,7 +53,7 @@ class ReqWrap : public AsyncWrap {
     // Assert that someone has called Dispatched()
     assert(req_.data == this);
     assert(!persistent().IsEmpty());
-    persistent().Dispose();
+    persistent().Reset();
   }
 
   // Call this after the req has been dispatched.

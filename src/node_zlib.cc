@@ -225,14 +225,14 @@ class ZCtx : public AsyncWrap {
   static void AfterSync(ZCtx* ctx, const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
-    Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out,
-                                            env->isolate());
-    Local<Integer> avail_in = Integer::New(ctx->strm_.avail_in,
-                                           env->isolate());
+    Local<Integer> avail_out = Integer::New(env->isolate(),
+                                            ctx->strm_.avail_out);
+    Local<Integer> avail_in = Integer::New(env->isolate(),
+                                           ctx->strm_.avail_in);
 
     ctx->write_in_progress_ = false;
 
-    Local<Array> result = Array::New(2);
+    Local<Array> result = Array::New(env->isolate(), 2);
     result->Set(0, avail_in);
     result->Set(1, avail_out);
     args.GetReturnValue().Set(result);
@@ -329,10 +329,10 @@ class ZCtx : public AsyncWrap {
     if (!CheckError(ctx))
       return;
 
-    Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out,
-                                            env->isolate());
-    Local<Integer> avail_in = Integer::New(ctx->strm_.avail_in,
-                                           env->isolate());
+    Local<Integer> avail_out = Integer::New(env->isolate(),
+                                            ctx->strm_.avail_out);
+    Local<Integer> avail_in = Integer::New(env->isolate(),
+                                           ctx->strm_.avail_in);
 
     ctx->write_in_progress_ = false;
 
@@ -358,7 +358,7 @@ class ZCtx : public AsyncWrap {
     HandleScope scope(env->isolate());
     Local<Value> args[2] = {
       OneByteString(env->isolate(), message),
-      Number::New(ctx->err_)
+      Number::New(env->isolate(), ctx->err_)
     };
     ctx->MakeCallback(env->onerror_string(), ARRAY_SIZE(args), args);
 
@@ -613,7 +613,7 @@ void InitZlib(Handle<Object> target,
               Handle<Context> context,
               void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Local<FunctionTemplate> z = FunctionTemplate::New(ZCtx::New);
+  Local<FunctionTemplate> z = FunctionTemplate::New(env->isolate(), ZCtx::New);
 
   z->InstanceTemplate()->SetInternalFieldCount(1);
 

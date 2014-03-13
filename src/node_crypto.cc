@@ -91,7 +91,6 @@ using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::String;
-using v8::ThrowException;
 using v8::V8;
 using v8::Value;
 
@@ -226,7 +225,8 @@ bool EntropySource(unsigned char* buffer, size_t length) {
 
 
 void SecureContext::Initialize(Environment* env, Handle<Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(SecureContext::New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),
+                                                    SecureContext::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"));
 
@@ -713,7 +713,7 @@ void SecureContext::SetSessionIdContext(
     BIO_free_all(bio);
   }
 
-  ThrowException(Exception::TypeError(message));
+  args.GetIsolate()->ThrowException(Exception::TypeError(message));
 }
 
 
@@ -960,7 +960,7 @@ void SSLWrap<Base>::OnClientHello(void* arg,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  Local<Object> hello_obj = Object::New();
+  Local<Object> hello_obj = Object::New(env->isolate());
   Local<Object> buff = Buffer::New(
       env,
       reinterpret_cast<const char*>(hello.session_id()),
@@ -974,7 +974,8 @@ void SSLWrap<Base>::OnClientHello(void* arg,
                                              hello.servername_size());
     hello_obj->Set(env->servername_string(), servername);
   }
-  hello_obj->Set(env->tls_ticket_string(), Boolean::New(hello.has_ticket()));
+  hello_obj->Set(env->tls_ticket_string(),
+                 Boolean::New(env->isolate(), hello.has_ticket()));
 
   Local<Value> argv[] = { hello_obj };
   w->MakeCallback(env->onclienthello_string(), ARRAY_SIZE(argv), argv);
@@ -993,7 +994,7 @@ void SSLWrap<Base>::GetPeerCertificate(
   ClearErrorOnReturn clear_error_on_return;
   (void) &clear_error_on_return;  // Silence unused variable warning.
 
-  Local<Object> info = Object::New();
+  Local<Object> info = Object::New(env->isolate());
   X509* peer_cert = SSL_get_peer_certificate(w->ssl_);
   if (peer_cert != NULL) {
     BIO* bio = BIO_new(BIO_s_mem());
@@ -1100,7 +1101,7 @@ void SSLWrap<Base>::GetPeerCertificate(
     STACK_OF(ASN1_OBJECT)* eku = static_cast<STACK_OF(ASN1_OBJECT)*>(
         X509_get_ext_d2i(peer_cert, NID_ext_key_usage, NULL, NULL));
     if (eku != NULL) {
-      Local<Array> ext_key_usage = Array::New();
+      Local<Array> ext_key_usage = Array::New(env->isolate());
       char buf[256];
 
       int j = 0;
@@ -1211,7 +1212,7 @@ void SSLWrap<Base>::LoadSession(const FunctionCallbackInfo<Value>& args) {
       SSL_SESSION_free(w->next_sess_);
     w->next_sess_ = sess;
 
-    Local<Object> info = Object::New();
+    Local<Object> info = Object::New(env->isolate());
 #ifndef OPENSSL_NO_TLSEXT
     if (sess->tlsext_hostname == NULL) {
       info->Set(env->servername_string(), False(args.GetIsolate()));
@@ -1396,7 +1397,7 @@ void SSLWrap<Base>::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   if (c == NULL)
     return;
 
-  Local<Object> info = Object::New();
+  Local<Object> info = Object::New(env->isolate());
   const char* cipher_name = SSL_CIPHER_get_name(c);
   info->Set(env->name_string(), OneByteString(args.GetIsolate(), cipher_name));
   const char* cipher_version = SSL_CIPHER_get_version(c);
@@ -1444,7 +1445,7 @@ int SSLWrap<Base>::SelectNextProtoCallback(SSL* s,
   Context::Scope context_scope(env->context());
 
   // Release old protocol handler if present
-  w->selected_npn_proto_.Dispose();
+  w->selected_npn_proto_.Reset();
 
   if (w->npn_protos_.IsEmpty()) {
     // We should at least select one protocol
@@ -1690,7 +1691,8 @@ void Connection::NewSessionDoneCb() {
 
 
 void Connection::Initialize(Environment* env, Handle<Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(Connection::New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),
+                                                    Connection::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Connection"));
 
@@ -1785,7 +1787,7 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
 
     // Call the SNI callback and use its return value as context
     if (!conn->sniObject_.IsEmpty()) {
-      conn->sniContext_.Dispose();
+      conn->sniContext_.Reset();
 
       Local<Value> arg = PersistentToLocal(env->isolate(), conn->servername_);
       Local<Value> ret = conn->MakeCallback(env->onselect_string(), 1, &arg);
@@ -2175,7 +2177,7 @@ void Connection::SetSNICallback(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Must give a Function as first argument");
   }
 
-  Local<Object> obj = Object::New();
+  Local<Object> obj = Object::New(env->isolate());
   obj->Set(FIXED_ONE_BYTE_STRING(args.GetIsolate(), "onselect"), args[0]);
   conn->sniObject_.Reset(args.GetIsolate(), obj);
 }
@@ -2183,7 +2185,7 @@ void Connection::SetSNICallback(const FunctionCallbackInfo<Value>& args) {
 
 
 void CipherBase::Initialize(Environment* env, Handle<Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -2557,7 +2559,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 
 
 void Hmac::Initialize(Environment* env, v8::Handle<v8::Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -2698,7 +2700,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 
 
 void Hash::Initialize(Environment* env, v8::Handle<v8::Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -2853,7 +2855,7 @@ void SignBase::CheckThrow(SignBase::Error error) {
 
 
 void Sign::Initialize(Environment* env, v8::Handle<v8::Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -3037,7 +3039,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 
 
 void Verify::Initialize(Environment* env, v8::Handle<v8::Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -3252,7 +3254,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 
 
 void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
 
   static enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
@@ -3278,7 +3280,8 @@ void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"),
               t->GetFunction());
 
-  Local<FunctionTemplate> t2 = FunctionTemplate::New(DiffieHellmanGroup);
+  Local<FunctionTemplate> t2 = FunctionTemplate::New(env->isolate(),
+                                                     DiffieHellmanGroup);
   t2->InstanceTemplate()->SetInternalFieldCount(1);
 
   NODE_SET_PROTOTYPE_METHOD(t2, "generateKeys", GenerateKeys);
@@ -3677,7 +3680,7 @@ class PBKDF2Request : public AsyncWrap {
   }
 
   ~PBKDF2Request() {
-    persistent().Dispose();
+    persistent().Reset();
   }
 
   uv_work_t* work_req() {
@@ -3881,7 +3884,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     digest = EVP_sha1();
   }
 
-  obj = Object::New();
+  obj = Object::New(env->isolate());
   req = new PBKDF2Request(env,
                           obj,
                           digest,
@@ -3906,7 +3909,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     EIO_PBKDF2(req);
     EIO_PBKDF2After(req, argv);
     if (argv[0]->IsObject())
-      ThrowException(argv[0]);
+      env->isolate()->ThrowException(argv[0]);
     else
       args.GetReturnValue().Set(argv[1]);
   }
@@ -3932,7 +3935,7 @@ class RandomBytesRequest : public AsyncWrap {
   }
 
   ~RandomBytesRequest() {
-    persistent().Dispose();
+    persistent().Reset();
   }
 
   uv_work_t* work_req() {
@@ -4053,7 +4056,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("size > Buffer::kMaxLength");
   }
 
-  Local<Object> obj = Object::New();
+  Local<Object> obj = Object::New(env->isolate());
   RandomBytesRequest* req = new RandomBytesRequest(env, obj, size);
 
   if (args[1]->IsFunction()) {
@@ -4073,7 +4076,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     delete req;
 
     if (!argv[0]->IsNull())
-      ThrowException(argv[0]);
+      env->isolate()->ThrowException(argv[0]);
     else
       args.GetReturnValue().Set(argv[1]);
   }
@@ -4095,7 +4098,7 @@ void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("SSL_new() failed.");
   }
 
-  Local<Array> arr = Array::New();
+  Local<Array> arr = Array::New(env->isolate());
   STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(ssl);
 
   for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); ++i) {
@@ -4112,7 +4115,9 @@ void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
 
 class CipherPushContext {
  public:
-  explicit CipherPushContext(Environment* env) : arr(Array::New()), env_(env) {
+  explicit CipherPushContext(Environment* env)
+      : arr(Array::New(env->isolate())),
+        env_(env) {
   }
 
   inline Environment* env() const { return env_; }
@@ -4155,7 +4160,7 @@ void GetHashes(const FunctionCallbackInfo<Value>& args) {
 void Certificate::Initialize(Environment* env, Handle<Object> target) {
   HandleScope scope(env->isolate());
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 

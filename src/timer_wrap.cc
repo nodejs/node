@@ -50,11 +50,12 @@ class TimerWrap : public HandleWrap {
                          Handle<Value> unused,
                          Handle<Context> context) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = FunctionTemplate::New(New);
+    Local<FunctionTemplate> constructor = FunctionTemplate::New(env->isolate(),
+                                                                New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Timer"));
     constructor->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnTimeout"),
-                     Integer::New(kOnTimeout, env->isolate()));
+                     Integer::New(env->isolate(), kOnTimeout));
 
     NODE_SET_METHOD(constructor, "now", Now);
 
@@ -148,7 +149,7 @@ class TimerWrap : public HandleWrap {
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    Local<Value> argv[1] = { Integer::New(status, env->isolate()) };
+    Local<Value> argv[1] = { Integer::New(env->isolate(), status) };
     wrap->MakeCallback(kOnTimeout, ARRAY_SIZE(argv), argv);
   }
 

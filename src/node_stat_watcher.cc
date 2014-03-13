@@ -48,7 +48,8 @@ using v8::Value;
 void StatWatcher::Initialize(Environment* env, Handle<Object> target) {
   HandleScope scope(env->isolate());
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(StatWatcher::New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),
+                                                    StatWatcher::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher"));
 
@@ -92,7 +93,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   Local<Value> argv[] = {
     BuildStatsObject(env, curr),
     BuildStatsObject(env, prev),
-    Integer::New(status, env->isolate())
+    Integer::New(env->isolate(), status)
   };
   wrap->MakeCallback(env->onchange_string(), ARRAY_SIZE(argv), argv);
 }

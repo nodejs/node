@@ -63,6 +63,7 @@ namespace Buffer {
 
 using v8::ArrayBuffer;
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -117,7 +118,7 @@ size_t Length(Handle<Object> obj) {
 
 
 Local<Object> New(Isolate* isolate, Handle<String> string, enum encoding enc) {
-  HandleScope scope(isolate);
+  EscapableHandleScope scope(isolate);
 
   size_t length = StringBytes::Size(isolate, string, enc);
 
@@ -125,25 +126,25 @@ Local<Object> New(Isolate* isolate, Handle<String> string, enum encoding enc) {
   char* data = Buffer::Data(buf);
   StringBytes::Write(isolate, data, length, string, enc);
 
-  return scope.Close(buf);
+  return scope.Escape(buf);
 }
 
 
 Local<Object> New(Isolate* isolate, size_t length) {
-  HandleScope handle_scope(isolate);
+  EscapableHandleScope handle_scope(isolate);
   Local<Object> obj = Buffer::New(Environment::GetCurrent(isolate), length);
-  return handle_scope.Close(obj);
+  return handle_scope.Escape(obj);
 }
 
 
 // TODO(trevnorris): these have a flaw by needing to call the Buffer inst then
 // Alloc. continue to look for a better architecture.
 Local<Object> New(Environment* env, size_t length) {
-  HandleScope scope(env->isolate());
+  EscapableHandleScope scope(env->isolate());
 
   assert(length <= kMaxLength);
 
-  Local<Value> arg = Uint32::NewFromUnsigned(length, env->isolate());
+  Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
   Local<Object> obj = env->buffer_constructor_function()->NewInstance(1, &arg);
 
   // TODO(trevnorris): done like this to handle HasInstance since only checks
@@ -159,15 +160,15 @@ Local<Object> New(Environment* env, size_t length) {
   }
   smalloc::Alloc(env, obj, data, length);
 
-  return scope.Close(obj);
+  return scope.Escape(obj);
 }
 
 
 Local<Object> New(Isolate* isolate, const char* data, size_t length) {
   Environment* env = Environment::GetCurrent(isolate);
-  HandleScope handle_scope(env->isolate());
+  EscapableHandleScope handle_scope(env->isolate());
   Local<Object> obj = Buffer::New(env, data, length);
-  return handle_scope.Close(obj);
+  return handle_scope.Escape(obj);
 }
 
 
@@ -175,11 +176,11 @@ Local<Object> New(Isolate* isolate, const char* data, size_t length) {
 // but for consistency w/ the other should use data. And a copy version renamed
 // to something else.
 Local<Object> New(Environment* env, const char* data, size_t length) {
-  HandleScope scope(env->isolate());
+  EscapableHandleScope scope(env->isolate());
 
   assert(length <= kMaxLength);
 
-  Local<Value> arg = Uint32::NewFromUnsigned(length, env->isolate());
+  Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
   Local<Object> obj = env->buffer_constructor_function()->NewInstance(1, &arg);
 
   // TODO(trevnorris): done like this to handle HasInstance since only checks
@@ -197,7 +198,7 @@ Local<Object> New(Environment* env, const char* data, size_t length) {
 
   smalloc::Alloc(env, obj, new_data, length);
 
-  return scope.Close(obj);
+  return scope.Escape(obj);
 }
 
 
@@ -207,9 +208,9 @@ Local<Object> New(Isolate* isolate,
                   smalloc::FreeCallback callback,
                   void* hint) {
   Environment* env = Environment::GetCurrent(isolate);
-  HandleScope handle_scope(env->isolate());
+  EscapableHandleScope handle_scope(env->isolate());
   Local<Object> obj = Buffer::New(env, data, length, callback, hint);
-  return handle_scope.Close(obj);
+  return handle_scope.Escape(obj);
 }
 
 
@@ -218,38 +219,38 @@ Local<Object> New(Environment* env,
                   size_t length,
                   smalloc::FreeCallback callback,
                   void* hint) {
-  HandleScope scope(env->isolate());
+  EscapableHandleScope scope(env->isolate());
 
   assert(length <= kMaxLength);
 
-  Local<Value> arg = Uint32::NewFromUnsigned(length, env->isolate());
+  Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
   Local<Object> obj = env->buffer_constructor_function()->NewInstance(1, &arg);
 
   smalloc::Alloc(env, obj, data, length, callback, hint);
 
-  return scope.Close(obj);
+  return scope.Escape(obj);
 }
 
 
 Local<Object> Use(Isolate* isolate, char* data, uint32_t length) {
   Environment* env = Environment::GetCurrent(isolate);
-  HandleScope handle_scope(env->isolate());
+  EscapableHandleScope handle_scope(env->isolate());
   Local<Object> obj = Buffer::Use(env, data, length);
-  return handle_scope.Close(obj);
+  return handle_scope.Escape(obj);
 }
 
 
 Local<Object> Use(Environment* env, char* data, uint32_t length) {
-  HandleScope scope(env->isolate());
+  EscapableHandleScope scope(env->isolate());
 
   assert(length <= kMaxLength);
 
-  Local<Value> arg = Uint32::NewFromUnsigned(length, env->isolate());
+  Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
   Local<Object> obj = env->buffer_constructor_function()->NewInstance(1, &arg);
 
   smalloc::Alloc(env, obj, data, length);
 
-  return scope.Close(obj);
+  return scope.Escape(obj);
 }
 
 
@@ -586,7 +587,7 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
 
   memcpy(adata, obj_data, obj_length);
 
-  Local<ArrayBuffer> abuf = ArrayBuffer::New(adata, obj_length);
+  Local<ArrayBuffer> abuf = ArrayBuffer::New(env->isolate(), adata, obj_length);
   args.GetReturnValue().Set(abuf);
 }
 
@@ -652,7 +653,7 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   // for backwards compatibility
   proto->Set(env->offset_string(),
-             Uint32::New(0, env->isolate()),
+             Uint32::New(env->isolate(), 0),
              v8::ReadOnly);
 
   assert(args[1]->IsObject());
@@ -660,7 +661,8 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   Local<Object> internal = args[1].As<Object>();
 
   internal->Set(env->byte_length_string(),
-                FunctionTemplate::New(ByteLength)->GetFunction());
+                FunctionTemplate::New(
+                    env->isolate(), ByteLength)->GetFunction());
 }
 
 
@@ -669,7 +671,8 @@ void Initialize(Handle<Object> target,
                 Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "setupBufferJS"),
-              FunctionTemplate::New(SetupBufferJS)->GetFunction());
+              FunctionTemplate::New(env->isolate(), SetupBufferJS)
+                  ->GetFunction());
 }
 
 

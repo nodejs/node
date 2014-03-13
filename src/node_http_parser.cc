@@ -243,7 +243,7 @@ class Parser : public BaseObject {
     if (!cb->IsFunction())
       return 0;
 
-    Local<Object> message_info = Object::New();
+    Local<Object> message_info = Object::New(env()->isolate());
 
     if (have_flushed_) {
       // Slow case, flush remaining headers.
@@ -259,22 +259,23 @@ class Parser : public BaseObject {
     // METHOD
     if (parser_.type == HTTP_REQUEST) {
       message_info->Set(env()->method_string(),
-                        Uint32::NewFromUnsigned(parser_.method));
+                        Uint32::NewFromUnsigned(env()->isolate(),
+                                                parser_.method));
     }
 
     // STATUS
     if (parser_.type == HTTP_RESPONSE) {
       message_info->Set(env()->status_code_string(),
-                        Integer::New(parser_.status_code, env()->isolate()));
+                        Integer::New(env()->isolate(), parser_.status_code));
       message_info->Set(env()->status_message_string(),
                         status_message_.ToString(env()));
     }
 
     // VERSION
     message_info->Set(env()->version_major_string(),
-                      Integer::New(parser_.http_major, env()->isolate()));
+                      Integer::New(env()->isolate(), parser_.http_major));
     message_info->Set(env()->version_minor_string(),
-                      Integer::New(parser_.http_minor, env()->isolate()));
+                      Integer::New(env()->isolate(), parser_.http_minor));
 
     message_info->Set(env()->should_keep_alive_string(),
                       http_should_keep_alive(&parser_) ?
@@ -308,8 +309,8 @@ class Parser : public BaseObject {
 
     Local<Value> argv[3] = {
       current_buffer_,
-      Integer::NewFromUnsigned(at - current_buffer_data_, env()->isolate()),
-      Integer::NewFromUnsigned(length, env()->isolate())
+      Integer::NewFromUnsigned(env()->isolate(), at - current_buffer_data_),
+      Integer::NewFromUnsigned(env()->isolate(), length)
     };
 
     Local<Value> r = cb.As<Function>()->Call(obj, ARRAY_SIZE(argv), argv);
@@ -407,7 +408,7 @@ class Parser : public BaseObject {
     if (parser->got_exception_)
       return;
 
-    Local<Integer> nparsed_obj = Integer::New(nparsed, env->isolate());
+    Local<Integer> nparsed_obj = Integer::New(env->isolate(), nparsed);
     // If there was a parse error in one of the callbacks
     // TODO(bnoordhuis) What if there is an error on EOF?
     if (!parser->parser_.upgrade && nparsed != buffer_len) {
@@ -445,7 +446,7 @@ class Parser : public BaseObject {
 
       Local<Value> e = env->parse_error_string();
       Local<Object> obj = e->ToObject();
-      obj->Set(env->bytes_parsed_string(), Integer::New(0, env->isolate()));
+      obj->Set(env->bytes_parsed_string(), Integer::New(env->isolate(), 0));
       obj->Set(env->code_string(),
                OneByteString(env->isolate(), http_errno_name(err)));
 
@@ -485,7 +486,7 @@ class Parser : public BaseObject {
   Local<Array> CreateHeaders() {
     // num_values_ is either -1 or the entry # of the last header
     // so num_values_ == 0 means there's a single header
-    Local<Array> headers = Array::New(2 * num_values_);
+    Local<Array> headers = Array::New(env()->isolate(), 2 * num_values_);
 
     for (int i = 0; i < num_values_; ++i) {
       headers->Set(2 * i, fields_[i].ToString(env()));
@@ -565,24 +566,25 @@ void InitHttpParser(Handle<Object> target,
                     Handle<Context> context,
                     void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Local<FunctionTemplate> t = FunctionTemplate::New(Parser::New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),
+                                                    Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"));
 
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "REQUEST"),
-         Integer::New(HTTP_REQUEST, env->isolate()));
+         Integer::New(env->isolate(), HTTP_REQUEST));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "RESPONSE"),
-         Integer::New(HTTP_RESPONSE, env->isolate()));
+         Integer::New(env->isolate(), HTTP_RESPONSE));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnHeaders"),
-         Integer::NewFromUnsigned(kOnHeaders, env->isolate()));
+         Integer::NewFromUnsigned(env->isolate(), kOnHeaders));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnHeadersComplete"),
-         Integer::NewFromUnsigned(kOnHeadersComplete, env->isolate()));
+         Integer::NewFromUnsigned(env->isolate(), kOnHeadersComplete));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnBody"),
-         Integer::NewFromUnsigned(kOnBody, env->isolate()));
+         Integer::NewFromUnsigned(env->isolate(), kOnBody));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnMessageComplete"),
-         Integer::NewFromUnsigned(kOnMessageComplete, env->isolate()));
+         Integer::NewFromUnsigned(env->isolate(), kOnMessageComplete));
 
-  Local<Array> methods = Array::New();
+  Local<Array> methods = Array::New(env->isolate());
 #define V(num, name, string)                                                  \
     methods->Set(num, FIXED_ONE_BYTE_STRING(env->isolate(), #string));
   HTTP_METHOD_MAP(V)

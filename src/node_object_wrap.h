@@ -40,7 +40,7 @@ class ObjectWrap {
       return;
     assert(persistent().IsNearDeath());
     persistent().ClearWeak();
-    persistent().Dispose();
+    persistent().Reset();
   }
 
 

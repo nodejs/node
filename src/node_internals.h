@@ -38,7 +38,7 @@ struct sockaddr;
 
 namespace node {
 
-// If persistent.IsWeak() == false, then do not call persistent.Dispose()
+// If persistent.IsWeak() == false, then do not call persistent.Reset()
 // while the returned Local<T> is still in scope, it will destroy the
 // reference to the object.
 template <class TypeName>

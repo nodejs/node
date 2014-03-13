@@ -117,7 +117,7 @@ void Environment::AfterGarbageCollectionCallback(const GCInfo* before,
                                                  const GCInfo* after) {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
-  Local<Value> argv[] = { Object::New(), Object::New() };
+  Local<Value> argv[] = { Object::New(isolate()), Object::New(isolate()) };
   const GCInfo* infov[] = { before, after };
   for (unsigned i = 0; i < ARRAY_SIZE(argv); i += 1) {
     Local<Object> obj = argv[i].As<Object>();
@@ -132,7 +132,7 @@ void Environment::AfterGarbageCollectionCallback(const GCInfo* before,
       default:
         UNREACHABLE();
     }
-    obj->Set(flags_string(), Uint32::NewFromUnsigned(info->flags(), isolate()));
+    obj->Set(flags_string(), Uint32::NewFromUnsigned(isolate(), info->flags()));
     obj->Set(timestamp_string(), Number::New(isolate(), info->timestamp()));
     // TODO(trevnorris): Setting many object properties in C++ is a significant
     // performance hit. Redo this to pass the results to JS and create/set the
@@ -140,7 +140,7 @@ void Environment::AfterGarbageCollectionCallback(const GCInfo* before,
 #define V(name)                                                               \
     do {                                                                      \
       obj->Set(name ## _string(),                                             \
-               Uint32::NewFromUnsigned(info->stats()->name(), isolate()));    \
+               Uint32::NewFromUnsigned(isolate(), info->stats()->name()));    \
     } while (0)
     V(total_heap_size);
     V(total_heap_size_executable);
@@ -185,12 +185,12 @@ void GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(isolate);
   HeapStatistics s;
   isolate->GetHeapStatistics(&s);
-  Local<Object> info = Object::New();
+  Local<Object> info = Object::New(isolate);
   // TODO(trevnorris): Setting many object properties in C++ is a significant
   // performance hit. Redo this to pass the results to JS and create/set the
   // properties there.
 #define V(name)                                                               \
-  info->Set(env->name ## _string(), Uint32::NewFromUnsigned(s.name(), isolate))
+  info->Set(env->name ## _string(), Uint32::NewFromUnsigned(isolate, s.name()))
   V(total_heap_size);
   V(total_heap_size_executable);
   V(total_physical_size);

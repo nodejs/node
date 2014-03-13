@@ -47,7 +47,8 @@ class SignalWrap : public HandleWrap {
                          Handle<Value> unused,
                          Handle<Context> context) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = FunctionTemplate::New(New);
+    Local<FunctionTemplate> constructor = FunctionTemplate::New(env->isolate(),
+                                                                New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Signal"));
 
@@ -109,7 +110,7 @@ class SignalWrap : public HandleWrap {
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
 
-    Local<Value> arg = Integer::New(signum, env->isolate());
+    Local<Value> arg = Integer::New(env->isolate(), signum);
     wrap->MakeCallback(env->onsignal_string(), 1, &arg);
   }
 

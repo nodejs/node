@@ -83,7 +83,7 @@ void FSEventWrap::Initialize(Handle<Object> target,
                              Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),  New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(env->fsevent_string());
 
@@ -172,7 +172,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   }
 
   Local<Value> argv[] = {
-    Integer::New(status, env->isolate()),
+    Integer::New(env->isolate(), status),
     event_string,
     Null(env->isolate())
   };

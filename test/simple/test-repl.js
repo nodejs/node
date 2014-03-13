@@ -162,7 +162,7 @@ function error_test() {
     { client: client_unix, send: '(function() { "use strict"; var x; delete x; })()',
       expect: /^SyntaxError: Delete of an unqualified identifier in strict mode/ },
     { client: client_unix, send: '(function() { "use strict"; eval = 17; })()',
-      expect: /^SyntaxError: Assignment to eval or arguments is not allowed in strict mode/ },
+      expect: /^SyntaxError: Unexpected eval or arguments in strict mode/ },
     { client: client_unix, send: '(function() { "use strict"; if (true){ function f() { } } })()',
       expect: /^SyntaxError: In strict mode code, functions can only be declared at top level or immediately within another function/ },
     // Named functions can be used:

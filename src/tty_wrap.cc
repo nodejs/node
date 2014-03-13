@@ -53,7 +53,7 @@ void TTYWrap::Initialize(Handle<Object> target,
                          Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -141,8 +141,8 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
 
   if (err == 0) {
     Local<v8::Array> a = args[0].As<Array>();
-    a->Set(0, Integer::New(width, env->isolate()));
-    a->Set(1, Integer::New(height, env->isolate()));
+    a->Set(0, Integer::New(env->isolate(), width));
+    a->Set(1, Integer::New(env->isolate(), height));
   }
 
   args.GetReturnValue().Set(err);

@@ -60,7 +60,7 @@ namespace node {
 
 #define UNREACHABLE() abort()
 
-// If persistent.IsWeak() == false, then do not call persistent.Dispose()
+// If persistent.IsWeak() == false, then do not call persistent.Reset()
 // while the returned Local<T> is still in scope, it will destroy the
 // reference to the object.
 template <class TypeName>
@@ -71,7 +71,7 @@ inline v8::Local<TypeName> PersistentToLocal(
 // Unchecked conversion from a non-weak Persistent<T> to Local<TLocal<T>,
 // use with care!
 //
-// Do not call persistent.Dispose() while the returned Local<T> is still in
+// Do not call persistent.Reset() while the returned Local<T> is still in
 // scope, it will destroy the reference to the object.
 template <class TypeName>
 inline v8::Local<TypeName> StrongPersistentToLocal(

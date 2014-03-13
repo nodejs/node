@@ -154,8 +154,8 @@ class SSLWrap {
     }
 
 #ifdef OPENSSL_NPN_NEGOTIATED
-    npn_protos_.Dispose();
-    selected_npn_proto_.Dispose();
+    npn_protos_.Reset();
+    selected_npn_proto_.Reset();
 #endif
   }
 
@@ -240,9 +240,9 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
  public:
   ~Connection() {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-    sniObject_.Dispose();
-    sniContext_.Dispose();
-    servername_.Dispose();
+    sniObject_.Reset();
+    sniContext_.Reset();
+    servername_.Reset();
 #endif
   }
 

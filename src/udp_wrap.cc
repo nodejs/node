@@ -91,7 +91,7 @@ void UDPWrap::Initialize(Handle<Object> target,
                          Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"));
 
@@ -371,7 +371,7 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
     Environment* env = req_wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    Local<Value> arg = Integer::New(status, env->isolate());
+    Local<Value> arg = Integer::New(env->isolate(), status);
     req_wrap->MakeCallback(env->oncomplete_string(), 1, &arg);
   }
   delete req_wrap;
@@ -410,7 +410,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
   Local<Object> wrap_obj = wrap->object();
   Local<Value> argv[] = {
-    Integer::New(nread, env->isolate()),
+    Integer::New(env->isolate(), nread),
     wrap_obj,
     Undefined(env->isolate()),
     Undefined(env->isolate())
