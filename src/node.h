@@ -114,16 +114,19 @@ inline v8::Local<v8::Value> UVException(int errorno,
  */
 
 NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
+    v8::Isolate* isolate,
     v8::Handle<v8::Object> recv,
     const char* method,
     int argc,
     v8::Handle<v8::Value>* argv);
 NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
+    v8::Isolate* isolate,
     v8::Handle<v8::Object> recv,
     v8::Handle<v8::String> symbol,
     int argc,
     v8::Handle<v8::Value>* argv);
 NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
+    v8::Isolate* isolate,
     v8::Handle<v8::Object> recv,
     v8::Handle<v8::Function> callback,
     int argc,
