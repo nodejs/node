@@ -48,9 +48,6 @@ using v8::Value;
 template <typename ResourceType, typename TypeName>
 class ExternString: public ResourceType {
   public:
-    explicit ExternString(Isolate* isolate) : isolate_(isolate) {
-    }
-
     ~ExternString() {
       delete[] data_;
       isolate()->AdjustAmountOfExternalAllocatedMemory(-length_);
