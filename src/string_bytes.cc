@@ -50,7 +50,8 @@ class ExternString: public ResourceType {
   public:
     ~ExternString() {
       delete[] data_;
-      isolate()->AdjustAmountOfExternalAllocatedMemory(-length_);
+      int64_t change_in_bytes = -static_cast<int64_t>(length_);
+      isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
     }
 
     const TypeName* data() const {

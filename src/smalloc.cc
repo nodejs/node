@@ -291,7 +291,8 @@ void TargetCallback(const WeakCallbackData<Object, char>& data) {
   assert(array_size * len >= len);
   len *= array_size;
   if (info != NULL && len > 0) {
-    data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(-len);
+    int64_t change_in_bytes = -static_cast<int64_t>(len);
+    data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
     free(info);
   }
 
@@ -338,7 +339,8 @@ void AllocDispose(Environment* env, Handle<Object> obj) {
     free(data);
   }
   if (length != 0) {
-    env->isolate()->AdjustAmountOfExternalAllocatedMemory(-length);
+    int64_t change_in_bytes = -static_cast<int64_t>(length);
+    env->isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
   }
 }
 
@@ -407,7 +409,8 @@ void TargetFreeCallback(Isolate* isolate,
     assert(len * array_size > len);
     len *= array_size;
   }
-  isolate->AdjustAmountOfExternalAllocatedMemory(-(len + sizeof(*cb_info)));
+  int64_t change_in_bytes = -static_cast<int64_t>(len + sizeof(*cb_info));
+  isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
   cb_info->p_obj.Reset();
   cb_info->cb(data, cb_info->hint);
   delete cb_info;
