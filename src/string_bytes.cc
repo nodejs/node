@@ -301,6 +301,7 @@ size_t StringBytes::Write(Isolate* isolate,
   size_t len = 0;
   bool is_extern = GetExternalParts(isolate, val, &data, &len);
 
+  CHECK(val->IsString() == true);
   Local<String> str = val.As<String>();
   len = len < buflen ? len : buflen;
 

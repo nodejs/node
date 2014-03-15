@@ -764,20 +764,9 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() >= 2) {
     ASSERT_IS_BUFFER(args[1]);
-
-    int passlen = Buffer::Length(args[1]);
-    if (passlen < 0) {
-      BIO_free_all(in);
-      return env->ThrowTypeError("Bad password");
-    }
+    size_t passlen = Buffer::Length(args[1]);
     pass = new char[passlen + 1];
-    int pass_written = DecodeWrite(env->isolate(),
-                                   pass,
-                                   passlen,
-                                   args[1],
-                                   BINARY);
-
-    assert(pass_written == passlen);
+    memcpy(pass, Buffer::Data(args[1]), passlen);
     pass[passlen] = '\0';
   }
 
@@ -1167,18 +1156,12 @@ void SSLWrap<Base>::SetSession(const FunctionCallbackInfo<Value>& args) {
   }
 
   ASSERT_IS_BUFFER(args[0]);
-  ssize_t slen = Buffer::Length(args[0]);
-
-  if (slen < 0)
-    return env->ThrowTypeError("Bad argument");
-
+  size_t slen = Buffer::Length(args[0]);
   char* sbuf = new char[slen];
-
-  ssize_t wlen = DecodeWrite(env->isolate(), sbuf, slen, args[0], BINARY);
-  assert(wlen == slen);
+  memcpy(sbuf, Buffer::Data(args[0]), slen);
 
   const unsigned char* p = reinterpret_cast<const unsigned char*>(sbuf);
-  SSL_SESSION* sess = d2i_SSL_SESSION(NULL, &p, wlen);
+  SSL_SESSION* sess = d2i_SSL_SESSION(NULL, &p, slen);
 
   delete[] sbuf;
 
@@ -3810,8 +3793,6 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   ssize_t passlen = -1;
   ssize_t saltlen = -1;
   ssize_t keylen = -1;
-  ssize_t pass_written = -1;
-  ssize_t salt_written = -1;
   ssize_t iter = -1;
   PBKDF2Request* req = NULL;
   Local<Object> obj;
@@ -3832,8 +3813,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   if (pass == NULL) {
     FatalError("node::PBKDF2()", "Out of Memory");
   }
-  pass_written = DecodeWrite(env->isolate(), pass, passlen, args[0], BINARY);
-  assert(pass_written == passlen);
+  memcpy(pass, Buffer::Data(args[0]), passlen);
 
   ASSERT_IS_BUFFER(args[1]);
   saltlen = Buffer::Length(args[1]);
@@ -3846,8 +3826,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   if (salt == NULL) {
     FatalError("node::PBKDF2()", "Out of Memory");
   }
-  salt_written = DecodeWrite(env->isolate(), salt, saltlen, args[1], BINARY);
-  assert(salt_written == saltlen);
+  memcpy(salt, Buffer::Data(args[1]), saltlen);
 
   if (!args[2]->IsNumber()) {
     type_error = "Iterations not a number";
