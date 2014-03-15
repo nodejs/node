@@ -162,7 +162,9 @@ void NODE_NET_STREAM_END(node_dtrace_connection_t* conn,
 }
 
 
-void NODE_GC_START(v8::GCType type, v8::GCCallbackFlags flags) {
+void NODE_GC_START(v8::GCType type,
+                   v8::GCCallbackFlags flags,
+                   v8::Isolate* isolate) {
   if (events_enabled > 0) {
     EVENT_DATA_DESCRIPTOR descriptors[2];
     ETW_WRITE_GC(descriptors, type, flags);
@@ -171,7 +173,9 @@ void NODE_GC_START(v8::GCType type, v8::GCCallbackFlags flags) {
 }
 
 
-void NODE_GC_DONE(v8::GCType type, v8::GCCallbackFlags flags) {
+void NODE_GC_DONE(v8::GCType type,
+                  v8::GCCallbackFlags flags,
+                  v8::Isolate* isolate) {
   if (events_enabled > 0) {
     EVENT_DATA_DESCRIPTOR descriptors[2];
     ETW_WRITE_GC(descriptors, type, flags);

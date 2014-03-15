@@ -75,8 +75,8 @@ provider node {
       string a, int p, string m, string u, int fd);
 	probe http__client__response(node_dtrace_connection_t *c, const char *a,
 	    int p, int fd) : (node_connection_t *c, string a, int p, int fd);
-	probe gc__start(int t, int f);
-	probe gc__done(int t, int f);
+	probe gc__start(int t, int f, void *isolate);
+	probe gc__done(int t, int f, void *isolate);
 };
 
 #pragma D attributes Evolving/Evolving/ISA provider node provider

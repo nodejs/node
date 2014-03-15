@@ -46,8 +46,8 @@
 #define NODE_NET_SOCKET_READ_ENABLED() (0)
 #define NODE_NET_SOCKET_WRITE(arg0, arg1, arg2, arg3, arg4)
 #define NODE_NET_SOCKET_WRITE_ENABLED() (0)
-#define NODE_GC_START(arg0, arg1)
-#define NODE_GC_DONE(arg0, arg1)
+#define NODE_GC_START(arg0, arg1, arg2)
+#define NODE_GC_DONE(arg0, arg1, arg2)
 #endif
 
 #include "env.h"
@@ -63,6 +63,7 @@ using v8::GCPrologueCallback;
 using v8::GCType;
 using v8::Handle;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::String;
@@ -287,19 +288,17 @@ void DTRACE_HTTP_CLIENT_RESPONSE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-int dtrace_gc_start(GCType type, GCCallbackFlags flags) {
-  NODE_GC_START(type, flags);
-  /*
-   * We avoid the tail-call elimination of the USDT probe (which screws up
-   * args) by forcing a return of 0.
-   */
-  return 0;
+void dtrace_gc_start(Isolate* isolate, GCType type, GCCallbackFlags flags) {
+  // Previous versions of this probe point only logged type and flags.
+  // That's why for reasons of backwards compatibility the isolate goes last.
+  NODE_GC_START(type, flags, isolate);
 }
 
 
-int dtrace_gc_done(GCType type, GCCallbackFlags flags) {
-  NODE_GC_DONE(type, flags);
-  return 0;
+void dtrace_gc_done(Isolate* isolate, GCType type, GCCallbackFlags flags) {
+  // Previous versions of this probe point only logged type and flags.
+  // That's why for reasons of backwards compatibility the isolate goes last.
+  NODE_GC_DONE(type, flags, isolate);
 }
 
 
@@ -334,8 +333,8 @@ void InitDTrace(Environment* env, Handle<Object> target) {
 #endif
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
-  v8::V8::AddGCPrologueCallback((GCPrologueCallback)dtrace_gc_start);
-  v8::V8::AddGCEpilogueCallback((GCEpilogueCallback)dtrace_gc_done);
+  env->isolate()->AddGCPrologueCallback(dtrace_gc_start);
+  env->isolate()->AddGCEpilogueCallback(dtrace_gc_done);
 #endif
 }
 
