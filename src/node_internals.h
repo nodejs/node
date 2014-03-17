@@ -23,8 +23,6 @@
 #define SRC_NODE_INTERNALS_H_
 
 #include "node.h"
-#include "env.h"
-#include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
 #include "uv.h"
@@ -37,6 +35,9 @@
 struct sockaddr;
 
 namespace node {
+
+// Forward declaration
+class Environment;
 
 // If persistent.IsWeak() == false, then do not call persistent.Reset()
 // while the returned Local<T> is still in scope, it will destroy the
@@ -169,36 +170,50 @@ inline MUST_USE_RESULT bool ParseArrayIndex(v8::Handle<v8::Value> arg,
   return true;
 }
 
-NODE_DEPRECATED("Use env->ThrowError()",
+void ThrowError(v8::Isolate* isolate, const char* errmsg);
+void ThrowTypeError(v8::Isolate* isolate, const char* errmsg);
+void ThrowRangeError(v8::Isolate* isolate, const char* errmsg);
+void ThrowErrnoException(v8::Isolate* isolate,
+                         int errorno,
+                         const char* syscall = NULL,
+                         const char* message = NULL,
+                         const char* path = NULL);
+void ThrowUVException(v8::Isolate* isolate,
+                      int errorno,
+                      const char* syscall = NULL,
+                      const char* message = NULL,
+                      const char* path = NULL);
+
+NODE_DEPRECATED("Use ThrowError(isolate)",
                 inline void ThrowError(const char* errmsg) {
-  Environment* env = Environment::GetCurrent(v8::Isolate::GetCurrent());
-  return env->ThrowError(errmsg);
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  return ThrowError(isolate, errmsg);
 })
-NODE_DEPRECATED("Use env->ThrowTypeError()",
+NODE_DEPRECATED("Use ThrowTypeError(isolate)",
                 inline void ThrowTypeError(const char* errmsg) {
-  Environment* env = Environment::GetCurrent(v8::Isolate::GetCurrent());
-  return env->ThrowTypeError(errmsg);
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  return ThrowTypeError(isolate, errmsg);
 })
-NODE_DEPRECATED("Use env->ThrowRangeError()",
+NODE_DEPRECATED("Use ThrowRangeError(isolate)",
                 inline void ThrowRangeError(const char* errmsg) {
-  Environment* env = Environment::GetCurrent(v8::Isolate::GetCurrent());
-  return env->ThrowRangeError(errmsg);
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  return ThrowRangeError(isolate, errmsg);
 })
-NODE_DEPRECATED("Use env->ThrowErrnoException()",
+NODE_DEPRECATED("Use ThrowErrnoException(isolate)",
                 inline void ThrowErrnoException(int errorno,
                                                 const char* syscall = NULL,
                                                 const char* message = NULL,
                                                 const char* path = NULL) {
-  Environment* env = Environment::GetCurrent(v8::Isolate::GetCurrent());
-  return env->ThrowErrnoException(errorno, syscall, message, path);
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  return ThrowErrnoException(isolate, errorno, syscall, message, path);
 })
-NODE_DEPRECATED("Use env->ThrowUVException()",
+NODE_DEPRECATED("Use ThrowUVException(isolate)",
                 inline void ThrowUVException(int errorno,
-                                                const char* syscall = NULL,
-                                                const char* message = NULL,
-                                                const char* path = NULL) {
-  Environment* env = Environment::GetCurrent(v8::Isolate::GetCurrent());
-  return env->ThrowUVException(errorno, syscall, message, path);
+                                             const char* syscall = NULL,
+                                             const char* message = NULL,
+                                             const char* path = NULL) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  return ThrowUVException(isolate, errorno, syscall, message, path);
 })
 
 }  // namespace node

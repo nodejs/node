@@ -676,6 +676,48 @@ const char *signo_string(int signo) {
 }
 
 
+// Convenience methods
+
+
+void ThrowError(v8::Isolate* isolate, const char* errmsg) {
+  Environment::GetCurrent(isolate)->ThrowError(errmsg);
+}
+
+
+void ThrowTypeError(v8::Isolate* isolate, const char* errmsg) {
+  Environment::GetCurrent(isolate)->ThrowTypeError(errmsg);
+}
+
+
+void ThrowRangeError(v8::Isolate* isolate, const char* errmsg) {
+  Environment::GetCurrent(isolate)->ThrowRangeError(errmsg);
+}
+
+
+void ThrowErrnoException(v8::Isolate* isolate,
+                         int errorno,
+                         const char* syscall,
+                         const char* message,
+                         const char* path) {
+  Environment::GetCurrent(isolate)->ThrowErrnoException(errorno,
+                                                        syscall,
+                                                        message,
+                                                        path);
+}
+
+
+void ThrowUVException(v8::Isolate* isolate,
+                      int errorno,
+                      const char* syscall,
+                      const char* message,
+                      const char* path) {
+  Environment::GetCurrent(isolate)->ThrowErrnoException(errorno,
+                                                        syscall,
+                                                        message,
+                                                        path);
+}
+
+
 Local<Value> ErrnoException(Isolate* isolate,
                             int errorno,
                             const char *syscall,
