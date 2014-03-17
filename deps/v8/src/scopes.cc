@@ -307,7 +307,7 @@ bool Scope::Analyze(CompilationInfo* info) {
   }
 #endif
 
-  info->PrepareForCompilation(scope);
+  info->SetScope(scope);
   return true;
 }
 

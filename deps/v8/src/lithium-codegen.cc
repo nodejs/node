@@ -38,9 +38,6 @@
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-arm.h"
 #include "arm/lithium-codegen-arm.h"
-#elif V8_TARGET_ARCH_A64
-#include "a64/lithium-a64.h"
-#include "a64/lithium-codegen-a64.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-mips.h"
 #include "mips/lithium-codegen-mips.h"
@@ -107,9 +104,11 @@ bool LCodeGenBase::GenerateBody() {
     GenerateBodyInstructionPre(instr);
 
     HValue* value = instr->hydrogen_value();
-    if (!value->position().IsUnknown()) {
-      RecordAndWritePosition(
-        chunk()->graph()->SourcePositionToScriptPosition(value->position()));
+    if (value->position() != RelocInfo::kNoPosition) {
+      ASSERT(!graph()->info()->IsOptimizing() ||
+             !FLAG_emit_opt_code_positions ||
+             value->position() != RelocInfo::kNoPosition);
+      RecordAndWritePosition(value->position());
     }
 
     instr->CompileToNative(codegen);

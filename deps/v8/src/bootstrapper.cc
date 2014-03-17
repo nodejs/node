@@ -1582,9 +1582,6 @@ void Genesis::InstallNativeFunctions() {
 
 void Genesis::InstallExperimentalNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "RunMicrotasks", run_microtasks);
-  INSTALL_NATIVE(JSFunction, "EnqueueExternalMicrotask",
-                 enqueue_external_microtask);
-
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
@@ -2569,9 +2566,7 @@ class NoTrackDoubleFieldsForSerializerScope {
     }
   }
   ~NoTrackDoubleFieldsForSerializerScope() {
-    if (Serializer::enabled()) {
-      FLAG_track_double_fields = flag_;
-    }
+    FLAG_track_double_fields = flag_;
   }
 
  private:

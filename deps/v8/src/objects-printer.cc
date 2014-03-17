@@ -555,8 +555,8 @@ void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
   PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
-  PrintF(out, " - feedback_vector: ");
-  feedback_vector()->FixedArrayPrint(out);
+  PrintF(out, " - type_feedback_cells: ");
+  type_feedback_cells()->FixedArrayPrint(out);
 }
 
 
@@ -624,6 +624,8 @@ void JSMessageObject::JSMessageObjectPrint(FILE* out) {
   PrintF(out, "\n - end_position: %d", end_position());
   PrintF(out, "\n - script: ");
   script()->ShortPrint(out);
+  PrintF(out, "\n - stack_trace: ");
+  stack_trace()->ShortPrint(out);
   PrintF(out, "\n - stack_frames: ");
   stack_frames()->ShortPrint(out);
   PrintF(out, "\n");

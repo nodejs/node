@@ -59,7 +59,7 @@ PropertyDetails::PropertyDetails(Smi* smi) {
 }
 
 
-Smi* PropertyDetails::AsSmi() const {
+Smi* PropertyDetails::AsSmi() {
   // Ensure the upper 2 bits have the same value by sign extending it. This is
   // necessary to be able to use the 31st bit of the property details.
   int value = value_ << 1;
@@ -67,7 +67,7 @@ Smi* PropertyDetails::AsSmi() const {
 }
 
 
-PropertyDetails PropertyDetails::AsDeleted() const {
+PropertyDetails PropertyDetails::AsDeleted() {
   Smi* smi = Smi::FromInt(value_ | DeletedField::encode(1));
   return PropertyDetails(smi);
 }
@@ -760,6 +760,16 @@ bool Object::IsDependentCode() {
 }
 
 
+bool Object::IsTypeFeedbackCells() {
+  if (!IsFixedArray()) return false;
+  // There's actually no way to see the difference between a fixed array and
+  // a cache cells array.  Since this is used for asserts we can check that
+  // the length is plausible though.
+  if (FixedArray::cast(this)->length() % 2 != 0) return false;
+  return true;
+}
+
+
 bool Object::IsContext() {
   if (!Object::IsHeapObject()) return false;
   Map* map = HeapObject::cast(this)->map();
@@ -927,8 +937,7 @@ bool Object::IsJSGlobalProxy() {
   bool result = IsHeapObject() &&
                 (HeapObject::cast(this)->map()->instance_type() ==
                  JS_GLOBAL_PROXY_TYPE);
-  ASSERT(!result ||
-         HeapObject::cast(this)->map()->is_access_check_needed());
+  ASSERT(!result || IsAccessCheckNeeded());
   return result;
 }
 
@@ -953,14 +962,8 @@ bool Object::IsUndetectableObject() {
 
 
 bool Object::IsAccessCheckNeeded() {
-  if (!IsHeapObject()) return false;
-  if (IsJSGlobalProxy()) {
-    JSGlobalProxy* proxy = JSGlobalProxy::cast(this);
-    GlobalObject* global =
-        proxy->GetIsolate()->context()->global_object();
-    return proxy->IsDetachedFrom(global);
-  }
-  return HeapObject::cast(this)->map()->is_access_check_needed();
+  return IsHeapObject()
+    && HeapObject::cast(this)->map()->is_access_check_needed();
 }
 
 
@@ -1561,7 +1564,9 @@ inline bool AllocationSite::DigestPretenuringFeedback() {
     set_pretenure_decision(result);
     if (current_mode != GetPretenureMode()) {
       decision_changed = true;
-      set_deopt_dependent_code(true);
+      dependent_code()->MarkCodeForDeoptimization(
+          GetIsolate(),
+          DependentCode::kAllocationSiteTenuringChangedGroup);
     }
   }
 
@@ -2792,6 +2797,7 @@ CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(DependentCode)
+CAST_ACCESSOR(TypeFeedbackCells)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(JSFunctionResultCache)
 CAST_ACCESSOR(NormalizedMapCache)
@@ -4205,13 +4211,27 @@ InlineCacheState Code::ic_state() {
 
 
 ExtraICState Code::extra_ic_state() {
-  ASSERT(is_inline_cache_stub() || ic_state() == DEBUG_STUB);
+  ASSERT((is_inline_cache_stub() && !needs_extended_extra_ic_state(kind()))
+         || ic_state() == DEBUG_STUB);
   return ExtractExtraICStateFromFlags(flags());
+}
+
+
+ExtraICState Code::extended_extra_ic_state() {
+  ASSERT(is_inline_cache_stub() || ic_state() == DEBUG_STUB);
+  ASSERT(needs_extended_extra_ic_state(kind()));
+  return ExtractExtendedExtraICStateFromFlags(flags());
 }
 
 
 Code::StubType Code::type() {
   return ExtractTypeFromFlags(flags());
+}
+
+
+int Code::arguments_count() {
+  ASSERT(kind() == STUB || is_handler());
+  return ExtractArgumentsCountFromFlags(flags());
 }
 
 
@@ -4418,7 +4438,7 @@ void Code::set_back_edges_patched_for_osr(bool value) {
 
 
 byte Code::to_boolean_state() {
-  return extra_ic_state();
+  return extended_extra_ic_state();
 }
 
 
@@ -4489,13 +4509,18 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                InlineCacheState ic_state,
                                ExtraICState extra_ic_state,
                                StubType type,
+                               int argc,
                                InlineCacheHolderFlag holder) {
+  ASSERT(argc <= Code::kMaxArguments);
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind)
       | ICStateField::encode(ic_state)
       | TypeField::encode(type)
-      | ExtraICStateField::encode(extra_ic_state)
+      | ExtendedExtraICStateField::encode(extra_ic_state)
       | CacheHolderField::encode(holder);
+  if (!Code::needs_extended_extra_ic_state(kind)) {
+    bits |= (argc << kArgumentsCountShift);
+  }
   return static_cast<Flags>(bits);
 }
 
@@ -4503,15 +4528,9 @@ Code::Flags Code::ComputeFlags(Kind kind,
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
                                           InlineCacheHolderFlag holder,
-                                          StubType type) {
-  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, holder);
-}
-
-
-Code::Flags Code::ComputeHandlerFlags(Kind handler_kind,
-                                      StubType type,
-                                      InlineCacheHolderFlag holder) {
-  return ComputeFlags(Code::HANDLER, MONOMORPHIC, handler_kind, type, holder);
+                                          StubType type,
+                                          int argc) {
+  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, argc, holder);
 }
 
 
@@ -4530,8 +4549,19 @@ ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
 }
 
 
+ExtraICState Code::ExtractExtendedExtraICStateFromFlags(
+    Flags flags) {
+  return ExtendedExtraICStateField::decode(flags);
+}
+
+
 Code::StubType Code::ExtractTypeFromFlags(Flags flags) {
   return TypeField::decode(flags);
+}
+
+
+int Code::ExtractArgumentsCountFromFlags(Flags flags) {
+  return (flags & kArgumentsCountMask) >> kArgumentsCountShift;
 }
 
 
@@ -5656,6 +5686,7 @@ JSDate* JSDate::cast(Object* obj) {
 ACCESSORS(JSMessageObject, type, String, kTypeOffset)
 ACCESSORS(JSMessageObject, arguments, JSArray, kArgumentsOffset)
 ACCESSORS(JSMessageObject, script, Object, kScriptOffset)
+ACCESSORS(JSMessageObject, stack_trace, Object, kStackTraceOffset)
 ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
@@ -6538,28 +6569,43 @@ MaybeObject* ConstantPoolArray::Copy() {
 }
 
 
-Handle<Object> TypeFeedbackInfo::UninitializedSentinel(Isolate* isolate) {
+void TypeFeedbackCells::SetAstId(int index, TypeFeedbackId id) {
+  set(1 + index * 2, Smi::FromInt(id.ToInt()));
+}
+
+
+TypeFeedbackId TypeFeedbackCells::AstId(int index) {
+  return TypeFeedbackId(Smi::cast(get(1 + index * 2))->value());
+}
+
+
+void TypeFeedbackCells::SetCell(int index, Cell* cell) {
+  set(index * 2, cell);
+}
+
+
+Cell* TypeFeedbackCells::GetCell(int index) {
+  return Cell::cast(get(index * 2));
+}
+
+
+Handle<Object> TypeFeedbackCells::UninitializedSentinel(Isolate* isolate) {
   return isolate->factory()->the_hole_value();
 }
 
 
-Handle<Object> TypeFeedbackInfo::PremonomorphicSentinel(Isolate* isolate) {
-  return isolate->factory()->null_value();
-}
-
-
-Handle<Object> TypeFeedbackInfo::MegamorphicSentinel(Isolate* isolate) {
+Handle<Object> TypeFeedbackCells::MegamorphicSentinel(Isolate* isolate) {
   return isolate->factory()->undefined_value();
 }
 
 
-Handle<Object> TypeFeedbackInfo::MonomorphicArraySentinel(Isolate* isolate,
+Handle<Object> TypeFeedbackCells::MonomorphicArraySentinel(Isolate* isolate,
     ElementsKind elements_kind) {
   return Handle<Object>(Smi::FromInt(static_cast<int>(elements_kind)), isolate);
 }
 
 
-Object* TypeFeedbackInfo::RawUninitializedSentinel(Heap* heap) {
+Object* TypeFeedbackCells::RawUninitializedSentinel(Heap* heap) {
   return heap->the_hole_value();
 }
 
@@ -6642,8 +6688,8 @@ bool TypeFeedbackInfo::matches_inlined_type_change_checksum(int checksum) {
 }
 
 
-ACCESSORS(TypeFeedbackInfo, feedback_vector, FixedArray,
-          kFeedbackVectorOffset)
+ACCESSORS(TypeFeedbackInfo, type_feedback_cells, TypeFeedbackCells,
+          kTypeFeedbackCellsOffset)
 
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)

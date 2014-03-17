@@ -174,7 +174,6 @@ static void XSetter(Local<Value> value, const Info& info, int offset) {
   CHECK_EQ(x_holder, info.This());
   CHECK_EQ(x_holder, info.Holder());
   x_register[offset] = value->Int32Value();
-  info.GetReturnValue().Set(v8_num(-1));
 }
 
 
@@ -211,20 +210,20 @@ THREADED_TEST(AccessorIC) {
     "var key_1 = 'x1';"
     "for (var j = 0; j < 10; j++) {"
     "  var i = 4*j;"
-    "  result.push(holder.x0 = i);"
+    "  holder.x0 = i;"
     "  result.push(obj.x0);"
-    "  result.push(holder.x1 = i + 1);"
+    "  holder.x1 = i + 1;"
     "  result.push(obj.x1);"
-    "  result.push(holder[key_0] = i + 2);"
+    "  holder[key_0] = i + 2;"
     "  result.push(obj[key_0]);"
-    "  result.push(holder[key_1] = i + 3);"
+    "  holder[key_1] = i + 3;"
     "  result.push(obj[key_1]);"
     "}"
     "result"));
-  CHECK_EQ(80, array->Length());
-  for (int i = 0; i < 80; i++) {
+  CHECK_EQ(40, array->Length());
+  for (int i = 0; i < 40; i++) {
     v8::Handle<Value> entry = array->Get(v8::Integer::New(isolate, i));
-    CHECK_EQ(v8::Integer::New(isolate, i/2), entry);
+    CHECK_EQ(v8::Integer::New(isolate, i), entry);
   }
 }
 

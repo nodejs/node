@@ -120,7 +120,7 @@ var kMessages = {
   invalid_string_length:         ["Invalid string length"],
   invalid_typed_array_offset:    ["Start offset is too large:"],
   invalid_typed_array_length:    ["Invalid typed array length"],
-  invalid_typed_array_alignment: ["%0", " of ", "%1", " should be a multiple of ", "%2"],
+  invalid_typed_array_alignment: ["%0", "of", "%1", "should be a multiple of", "%3"],
   typed_array_set_source_too_large:
                                  ["Source is too large"],
   typed_array_set_negative_offset:
@@ -939,10 +939,14 @@ function CallSiteToString() {
   if (this.isNative()) {
     fileLocation = "native";
   } else {
-    fileName = this.getScriptNameOrSourceURL();
-    if (!fileName && this.isEval()) {
-      fileLocation = this.getEvalOrigin();
-      fileLocation += ", ";  // Expecting source position to follow.
+    if (this.isEval()) {
+      fileName = this.getScriptNameOrSourceURL();
+      if (!fileName) {
+        fileLocation = this.getEvalOrigin();
+        fileLocation += ", ";  // Expecting source position to follow.
+      }
+    } else {
+      fileName = this.getFileName();
     }
 
     if (fileName) {

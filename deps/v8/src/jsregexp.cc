@@ -49,8 +49,6 @@
 #include "ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/regexp-macro-assembler-x64.h"
-#elif V8_TARGET_ARCH_A64
-#include "a64/regexp-macro-assembler-a64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -3599,12 +3597,9 @@ class AlternativeGenerationList {
 
 
 // The '2' variant is has inclusive from and exclusive to.
-// This covers \s as defined in ECMA-262 5.1, 15.10.2.12,
-// which include WhiteSpace (7.2) or LineTerminator (7.3) values.
-static const int kSpaceRanges[] = { '\t', '\r' + 1, ' ', ' ' + 1,
-    0x00A0, 0x00A1, 0x1680, 0x1681, 0x180E, 0x180F, 0x2000, 0x200B,
-    0x2028, 0x202A, 0x202F, 0x2030, 0x205F, 0x2060, 0x3000, 0x3001,
-    0xFEFF, 0xFF00, 0x10000 };
+static const int kSpaceRanges[] = { '\t', '\r' + 1, ' ', ' ' + 1, 0x00A0,
+    0x00A1, 0x1680, 0x1681, 0x180E, 0x180F, 0x2000, 0x200B, 0x2028, 0x202A,
+    0x202F, 0x2030, 0x205F, 0x2060, 0x3000, 0x3001, 0xFEFF, 0xFF00, 0x10000 };
 static const int kSpaceRangeCount = ARRAY_SIZE(kSpaceRanges);
 
 static const int kWordRanges[] = {
@@ -6090,14 +6085,9 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
 #elif V8_TARGET_ARCH_ARM
   RegExpMacroAssemblerARM macro_assembler(mode, (data->capture_count + 1) * 2,
                                           zone);
-#elif V8_TARGET_ARCH_A64
-  RegExpMacroAssemblerA64 macro_assembler(mode, (data->capture_count + 1) * 2,
-                                          zone);
 #elif V8_TARGET_ARCH_MIPS
   RegExpMacroAssemblerMIPS macro_assembler(mode, (data->capture_count + 1) * 2,
                                            zone);
-#else
-#error "Unsupported architecture"
 #endif
 
 #else  // V8_INTERPRETED_REGEXP

@@ -173,7 +173,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
   __ Move(kScratchRegister, after_break_target);
-  __ Jump(Operand(kScratchRegister, 0));
+  __ jmp(Operand(kScratchRegister, 0));
 }
 
 
@@ -261,11 +261,9 @@ void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
   // Register state for CallFunctionStub (from code-stubs-x64.cc).
   // ----------- S t a t e -------------
   //  -- rdi : function
-  //  -- rbx: feedback array
-  //  -- rdx: slot in feedback array
+  //  -- rbx: cache cell for call target
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdx.bit() | rdi.bit(),
-                                0, false);
+  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdi.bit(), 0, false);
 }
 
 
@@ -287,12 +285,10 @@ void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
   // above IC call.
   // ----------- S t a t e -------------
   //  -- rax: number of arguments
-  //  -- rbx: feedback array
-  //  -- rdx: feedback slot (smi)
+  //  -- rbx: cache cell for call target
   // -----------------------------------
   // The number of arguments in rax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdx.bit() | rdi.bit(),
-                                rax.bit(), false);
+  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdi.bit(), rax.bit(), false);
 }
 
 

@@ -47,12 +47,6 @@ TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
                                        Zone* zone)
     : native_context_(native_context),
       zone_(zone) {
-  Object* raw_info = code->type_feedback_info();
-  if (raw_info->IsTypeFeedbackInfo()) {
-    feedback_vector_ = Handle<FixedArray>(TypeFeedbackInfo::cast(raw_info)->
-                                          feedback_vector());
-  }
-
   BuildDictionary(code);
   ASSERT(dictionary_->IsDictionary());
 }
@@ -73,17 +67,6 @@ Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
     } else {
       return Handle<Object>(value, isolate());
     }
-  }
-  return Handle<Object>::cast(isolate()->factory()->undefined_value());
-}
-
-
-Handle<Object> TypeFeedbackOracle::GetInfo(int slot) {
-  ASSERT(slot >= 0 && slot < feedback_vector_->length());
-  Object* obj = feedback_vector_->get(slot);
-  if (!obj->IsJSFunction() ||
-      !CanRetainOtherContext(JSFunction::cast(obj), *native_context_)) {
-    return Handle<Object>(obj, isolate());
   }
   return Handle<Object>::cast(isolate()->factory()->undefined_value());
 }
@@ -118,22 +101,22 @@ bool TypeFeedbackOracle::StoreIsKeyedPolymorphic(TypeFeedbackId ast_id) {
 }
 
 
-bool TypeFeedbackOracle::CallIsMonomorphic(int slot) {
-  Handle<Object> value = GetInfo(slot);
+bool TypeFeedbackOracle::CallIsMonomorphic(TypeFeedbackId id) {
+  Handle<Object> value = GetInfo(id);
   return value->IsAllocationSite() || value->IsJSFunction();
 }
 
 
-bool TypeFeedbackOracle::CallNewIsMonomorphic(int slot) {
-  Handle<Object> info = GetInfo(slot);
+bool TypeFeedbackOracle::CallNewIsMonomorphic(TypeFeedbackId id) {
+  Handle<Object> info = GetInfo(id);
   return info->IsAllocationSite() || info->IsJSFunction();
 }
 
 
-byte TypeFeedbackOracle::ForInType(int feedback_vector_slot) {
-  Handle<Object> value = GetInfo(feedback_vector_slot);
+byte TypeFeedbackOracle::ForInType(TypeFeedbackId id) {
+  Handle<Object> value = GetInfo(id);
   return value->IsSmi() &&
-      Smi::cast(*value)->value() == TypeFeedbackInfo::kForInFastCaseMarker
+      Smi::cast(*value)->value() == TypeFeedbackCells::kForInFastCaseMarker
           ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
 }
 
@@ -151,8 +134,8 @@ KeyedAccessStoreMode TypeFeedbackOracle::GetStoreMode(
 }
 
 
-Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(int slot) {
-  Handle<Object> info = GetInfo(slot);
+Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(TypeFeedbackId id) {
+  Handle<Object> info = GetInfo(id);
   if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate()->global_context()->array_function());
   } else {
@@ -161,8 +144,8 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(int slot) {
 }
 
 
-Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(int slot) {
-  Handle<Object> info = GetInfo(slot);
+Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(TypeFeedbackId id) {
+  Handle<Object> info = GetInfo(id);
   if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate()->global_context()->array_function());
   } else {
@@ -171,8 +154,9 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(int slot) {
 }
 
 
-Handle<AllocationSite> TypeFeedbackOracle::GetCallNewAllocationSite(int slot) {
-  Handle<Object> info = GetInfo(slot);
+Handle<AllocationSite> TypeFeedbackOracle::GetCallNewAllocationSite(
+    TypeFeedbackId id) {
+  Handle<Object> info = GetInfo(id);
   if (info->IsAllocationSite()) {
     return Handle<AllocationSite>::cast(info);
   }
@@ -222,7 +206,7 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
     CompareIC::StubInfoToType(
         stub_minor_key, left_type, right_type, combined_type, map, zone());
   } else if (code->is_compare_nil_ic_stub()) {
-    CompareNilICStub stub(code->extra_ic_state());
+    CompareNilICStub stub(code->extended_extra_ic_state());
     *combined_type = stub.GetType(zone(), map);
     *left_type = *right_type = stub.GetInputType(zone(), map);
   }
@@ -249,7 +233,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   }
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
-  BinaryOpIC::State state(code->extra_ic_state());
+  BinaryOpIC::State state(code->extended_extra_ic_state());
   ASSERT_EQ(op, state.op());
 
   *left = state.GetLeftType(zone());
@@ -271,7 +255,7 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   if (!object->IsCode()) return Type::None(zone());
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
-  BinaryOpIC::State state(code->extra_ic_state());
+  BinaryOpIC::State state(code->extended_extra_ic_state());
   return state.GetLeftType(zone());
 }
 
@@ -283,7 +267,9 @@ void TypeFeedbackOracle::PropertyReceiverTypes(
   FunctionPrototypeStub proto_stub(Code::LOAD_IC);
   *is_prototype = LoadIsStub(id, &proto_stub);
   if (!*is_prototype) {
-    Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
+    Code::Flags flags = Code::ComputeFlags(
+        Code::HANDLER, MONOMORPHIC, kNoExtraICState,
+        Code::NORMAL, Code::LOAD_IC);
     CollectReceiverTypes(id, name, flags, receiver_types);
   }
 }
@@ -304,7 +290,9 @@ void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
 void TypeFeedbackOracle::AssignmentReceiverTypes(
     TypeFeedbackId id, Handle<String> name, SmallMapList* receiver_types) {
   receiver_types->Clear();
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::HANDLER, MONOMORPHIC, kNoExtraICState,
+      Code::NORMAL, Code::STORE_IC);
   CollectReceiverTypes(id, name, flags, receiver_types);
 }
 
@@ -421,6 +409,7 @@ void TypeFeedbackOracle::BuildDictionary(Handle<Code> code) {
   GetRelocInfos(code, &infos);
   CreateDictionary(code, &infos);
   ProcessRelocInfos(&infos);
+  ProcessTypeFeedbackCells(code);
   // Allocate handle in the parent scope.
   dictionary_ = scope.CloseAndEscape(dictionary_);
 }
@@ -438,9 +427,13 @@ void TypeFeedbackOracle::GetRelocInfos(Handle<Code> code,
 void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
                                           ZoneList<RelocInfo>* infos) {
   AllowHeapAllocation allocation_allowed;
+  int cell_count = code->type_feedback_info()->IsTypeFeedbackInfo()
+      ? TypeFeedbackInfo::cast(code->type_feedback_info())->
+          type_feedback_cells()->CellCount()
+      : 0;
+  int length = infos->length() + cell_count;
   byte* old_start = code->instruction_start();
-  dictionary_ =
-      isolate()->factory()->NewUnseededNumberDictionary(infos->length());
+  dictionary_ = isolate()->factory()->NewUnseededNumberDictionary(length);
   byte* new_start = code->instruction_start();
   RelocateRelocInfos(infos, old_start, new_start);
 }
@@ -477,6 +470,26 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
 
       default:
         break;
+    }
+  }
+}
+
+
+void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
+  Object* raw_info = code->type_feedback_info();
+  if (!raw_info->IsTypeFeedbackInfo()) return;
+  Handle<TypeFeedbackCells> cache(
+      TypeFeedbackInfo::cast(raw_info)->type_feedback_cells());
+  for (int i = 0; i < cache->CellCount(); i++) {
+    TypeFeedbackId ast_id = cache->AstId(i);
+    Cell* cell = cache->GetCell(i);
+    Object* value = cell->value();
+    if (value->IsSmi() ||
+        value->IsAllocationSite() ||
+        (value->IsJSFunction() &&
+         !CanRetainOtherContext(JSFunction::cast(value),
+                                *native_context_))) {
+      SetInfo(ast_id, cell);
     }
   }
 }

@@ -137,60 +137,6 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
-['arch == a64', {
-
-  # Requires bigger stack size in the Genesis and if stack size is increased,
-  # the test requires too much time to run.  However, the problem test covers
-  # should be platform-independent.
-  'regress/regress-1132': [SKIP],
-
-  # Pass but take too long to run. Skip.
-  # Some similar tests (with fewer iterations) may be included in a64-js tests.
-  'compiler/regress-arguments': [SKIP],
-  'compiler/regress-gvn': [SKIP],
-  'compiler/regress-max-locals-for-osr': [SKIP],
-  'compiler/regress-4': [SKIP],
-  'compiler/regress-or': [SKIP],
-  'compiler/regress-rep-change': [SKIP],
-  'regress/regress-1117': [SKIP],
-  'regress/regress-1145': [SKIP],
-  'regress/regress-1849': [SKIP],
-  'regress/regress-3247124': [SKIP],
-  'regress/regress-634': [SKIP],
-  'regress/regress-91008': [SKIP],
-  'regress/regress-91010': [SKIP],
-  'regress/regress-91013': [SKIP],
-  'regress/regress-99167': [SKIP],
-
-  # Long running tests.
-  'regress/regress-2185': [PASS, ['mode == debug', PASS, TIMEOUT]],
-  'regress/regress-2185-2': [PASS, TIMEOUT],
-  'whitespaces': [PASS, TIMEOUT],
-
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debug-liveedit-check-stack': [SKIP],
-  'debug-liveedit-stack-padding': [SKIP],
-  'debug-liveedit-restart-frame': [SKIP],
-  'debug-liveedit-double-call': [SKIP],
-
-  # BUG(v8:3147). It works on other architectures by accident.
-  'regress/regress-conditional-position': [FAIL],
-
-  # BUG(v8:3156): Fails on gc stress bots.
-  'compiler/concurrent-invalidate-transition-map': [PASS, ['gc_stress == True', FAIL]],
-}],  # 'arch == a64'
-
-['arch == a64 and mode == debug and simulator_run == True', {
-
-  # Pass but take too long with the simulator in debug mode.
-  'array-sort': [PASS, TIMEOUT],
-  'packed-elements': [SKIP],
-  'regexp-global': [SKIP],
-  'compiler/alloc-numbers': [SKIP],
-  'harmony/symbols': [SKIP],
-}],  # 'arch == a64 and mode == debug and simulator_run == True'
-
-##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'big-array-literal': [SKIP],

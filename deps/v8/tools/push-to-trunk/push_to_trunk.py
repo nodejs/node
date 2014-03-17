@@ -54,7 +54,7 @@ CONFIG = {
 
 class PushToTrunkOptions(CommonOptions):
   @staticmethod
-  def MakeForcedOptions(author, reviewer, chrome_path):
+  def MakeForcedOptions(reviewer, chrome_path):
     """Convenience wrapper."""
     class Options(object):
       pass
@@ -63,8 +63,8 @@ class PushToTrunkOptions(CommonOptions):
     options.l = None
     options.f = True
     options.m = False
+    options.r = reviewer
     options.c = chrome_path
-    options.a = author
     return PushToTrunkOptions(options)
 
   def __init__(self, options):
@@ -73,9 +73,8 @@ class PushToTrunkOptions(CommonOptions):
     self.wait_for_lgtm = not options.f
     self.tbr_commit = not options.m
     self.l = options.l
-    self.reviewer = options.reviewer
+    self.r = options.r
     self.c = options.c
-    self.author = getattr(options, 'a', None)
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -239,10 +238,7 @@ class CommitLocal(Step):
 
     # Include optional TBR only in the git command. The persisted commit
     # message is used for finding the commit again later.
-    if self._options.tbr_commit:
-      review = "\n\nTBR=%s" % self._options.reviewer
-    else:
-      review = ""
+    review = "\n\nTBR=%s" % self._options.r if self._options.tbr_commit else ""
     if self.Git("commit -a -m \"%s%s\"" % (prep_commit_msg, review)) is None:
       self.Die("'git commit -a' failed.")
 
@@ -483,9 +479,9 @@ class UploadCL(Step):
     ver = "%s.%s.%s" % (self._state["major"],
                         self._state["minor"],
                         self._state["build"])
-    if self._options.reviewer:
-      print "Using account %s for review." % self._options.reviewer
-      rev = self._options.reviewer
+    if self._options.r:
+      print "Using account %s for review." % self._options.r
+      rev = self._options.r
     else:
       print "Please enter the email address of a reviewer for the roll CL: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
@@ -496,11 +492,8 @@ class UploadCL(Step):
             % (ver, self._state["svn_revision"], rev))
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
-    author_option = self._options.author
-    author = " --email \"%s\"" % author_option if author_option else ""
     force_flag = " -f" if self._options.force_upload else ""
-    if self.Git("cl upload%s --send-mail%s" % (author, force_flag),
-                pipe=False) is None:
+    if self.Git("cl upload --send-mail%s" % force_flag, pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
     print "CL uploaded."
 
@@ -575,8 +568,6 @@ def RunPushToTrunk(config,
 
 def BuildOptions():
   result = optparse.OptionParser()
-  result.add_option("-a", "--author", dest="a",
-                    help=("Specify the author email used for rietveld."))
   result.add_option("-c", "--chromium", dest="c",
                     help=("Specify the path to your Chromium src/ "
                           "directory to automate the V8 roll."))
@@ -589,7 +580,7 @@ def BuildOptions():
   result.add_option("-m", "--manual", dest="m",
                     help="Prompt the user at every important step.",
                     default=False, action="store_true")
-  result.add_option("-r", "--reviewer",
+  result.add_option("-r", "--reviewer", dest="r",
                     help=("Specify the account name to be used for reviews."))
   result.add_option("-s", "--step", dest="s",
                     help="Specify the step where to start work. Default: 0.",
@@ -601,7 +592,7 @@ def ProcessOptions(options):
   if options.s < 0:
     print "Bad step number %d" % options.s
     return False
-  if not options.m and not options.reviewer:
+  if not options.m and not options.r:
     print "A reviewer (-r) is required in (semi-)automatic mode."
     return False
   if options.f and options.m:
@@ -609,9 +600,6 @@ def ProcessOptions(options):
     return False
   if not options.m and not options.c:
     print "A chromium checkout (-c) is required in (semi-)automatic mode."
-    return False
-  if not options.m and not options.a:
-    print "Specify your chromium.org email with -a in (semi-)automatic mode."
     return False
   return True
 

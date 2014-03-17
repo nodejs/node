@@ -96,6 +96,9 @@ class FullCodeGenerator: public AstVisitor {
                          ? info->function()->ast_node_count() : 0,
                          info->zone()),
         back_edges_(2, info->zone()),
+        type_feedback_cells_(info->HasDeoptimizationSupport()
+                             ? info->function()->ast_node_count() : 0,
+                             info->zone()),
         ic_total_count_(0) {
     Initialize();
   }
@@ -126,9 +129,6 @@ class FullCodeGenerator: public AstVisitor {
 #elif V8_TARGET_ARCH_X64
   static const int kCodeSizeMultiplier = 162;
 #elif V8_TARGET_ARCH_ARM
-  static const int kCodeSizeMultiplier = 142;
-#elif V8_TARGET_ARCH_A64
-// TODO(all): Copied ARM value. Check this is sensible for A64.
   static const int kCodeSizeMultiplier = 142;
 #elif V8_TARGET_ARCH_MIPS
   static const int kCodeSizeMultiplier = 142;
@@ -434,15 +434,9 @@ class FullCodeGenerator: public AstVisitor {
   void PrepareForBailout(Expression* node, State state);
   void PrepareForBailoutForId(BailoutId id, State state);
 
-  // Feedback slot support. The feedback vector will be cleared during gc and
-  // collected by the type-feedback oracle.
-  Handle<FixedArray> FeedbackVector() {
-    return feedback_vector_;
-  }
-  void StoreFeedbackVectorSlot(int slot, Handle<Object> object) {
-    feedback_vector_->set(slot, *object);
-  }
-  void InitializeFeedbackVector();
+  // Cache cell support.  This associates AST ids with global property cells
+  // that will be cleared during GC and collected by the type-feedback oracle.
+  void RecordTypeFeedbackCell(TypeFeedbackId id, Handle<Cell> cell);
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -558,11 +552,6 @@ class FullCodeGenerator: public AstVisitor {
   void EmitVariableAssignment(Variable* var,
                               Token::Value op);
 
-  // Helper functions to EmitVariableAssignment
-  void EmitStoreToStackLocalOrContextSlot(Variable* var,
-                                          MemOperand location);
-  void EmitCallStoreContextSlot(Handle<String> name, LanguageMode mode);
-
   // Complete a named property assignment.  The receiver is expected on top
   // of the stack and the right-hand-side value in the accumulator.
   void EmitNamedPropertyAssignment(Assignment* expr);
@@ -573,11 +562,13 @@ class FullCodeGenerator: public AstVisitor {
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
   void CallIC(Handle<Code> code,
+              ContextualMode mode = NOT_CONTEXTUAL,
               TypeFeedbackId id = TypeFeedbackId::None());
 
   void CallLoadIC(ContextualMode mode,
                   TypeFeedbackId id = TypeFeedbackId::None());
-  void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
+  void CallStoreIC(ContextualMode mode,
+                   TypeFeedbackId id = TypeFeedbackId::None());
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
@@ -644,6 +635,7 @@ class FullCodeGenerator: public AstVisitor {
   void Generate();
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
+  void PopulateTypeFeedbackCells(Handle<Code> code);
 
   Handle<FixedArray> handler_table() { return handler_table_; }
 
@@ -657,6 +649,12 @@ class FullCodeGenerator: public AstVisitor {
     unsigned pc;
     uint32_t loop_depth;
   };
+
+  struct TypeFeedbackCellEntry {
+    TypeFeedbackId ast_id;
+    Handle<Cell> cell;
+  };
+
 
   class ExpressionContext BASE_EMBEDDED {
    public:
@@ -847,9 +845,9 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<BailoutEntry> bailout_entries_;
   GrowableBitVector prepared_bailout_ids_;
   ZoneList<BackEdgeEntry> back_edges_;
+  ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
-  Handle<FixedArray> feedback_vector_;
   Handle<Cell> profiling_counter_;
   bool generate_debug_code_;
 

@@ -45,7 +45,7 @@ enum InterruptFlag {
   FULL_DEOPT = 1 << 6,
   INSTALL_CODE = 1 << 7,
   API_INTERRUPT = 1 << 8,
-  DEOPT_MARKED_ALLOCATION_SITES = 1 << 9
+  DEOPT_MARKED_CODE = 1 << 9
 };
 
 
@@ -175,7 +175,6 @@ class Execution : public AllStatic {
                                                   bool* has_pending_exception);
 
   static void RunMicrotasks(Isolate* isolate);
-  static void EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask);
 };
 
 
@@ -223,8 +222,8 @@ class StackGuard {
   void RequestInstallCode();
   bool IsFullDeopt();
   void FullDeopt();
-  bool IsDeoptMarkedAllocationSites();
-  void DeoptMarkedAllocationSites();
+  bool IsDeoptMarkedCode();
+  void DeoptMarkedCode();
   void Continue(InterruptFlag after_what);
 
   void RequestInterrupt(InterruptCallback callback, void* data);
@@ -282,7 +281,7 @@ class StackGuard {
   void EnableInterrupts();
   void DisableInterrupts();
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_A64
+#if V8_TARGET_ARCH_X64
   static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
   static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
 #else

@@ -720,13 +720,15 @@ class LMathFloor V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LMathRound V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LMathRound V8_FINAL : public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LMathRound(LOperand* value) {
+  explicit LMathRound(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-round")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)

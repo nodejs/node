@@ -794,7 +794,9 @@ class SlotRef BASE_EMBEDDED {
                        // with the DeferredObjectLength() method
                        // (the SlotRefs of the nested objects follow
                        // this SlotRef in the depth-first order.)
-    DUPLICATE_OBJECT   // Duplicated object of a deferred object.
+    DUPLICATE_OBJECT,  // Duplicated object of a deferred object.
+    ARGUMENTS_OBJECT   // Arguments object - only used to keep indexing
+                       // in sync, it should not be materialized.
   };
 
   SlotRef()
@@ -805,6 +807,13 @@ class SlotRef BASE_EMBEDDED {
 
   SlotRef(Isolate* isolate, Object* literal)
       : literal_(literal, isolate), representation_(LITERAL) { }
+
+  static SlotRef NewArgumentsObject(int length) {
+    SlotRef slot;
+    slot.representation_ = ARGUMENTS_OBJECT;
+    slot.deferred_object_length_ = length;
+    return slot;
+  }
 
   static SlotRef NewDeferredObject(int length) {
     SlotRef slot;
@@ -822,7 +831,14 @@ class SlotRef BASE_EMBEDDED {
     return slot;
   }
 
-  int DeferredObjectLength() { return deferred_object_length_; }
+  int GetChildrenCount() {
+    if (representation_ == DEFERRED_OBJECT ||
+        representation_ == ARGUMENTS_OBJECT) {
+      return deferred_object_length_;
+    } else {
+      return 0;
+    }
+  }
 
   int DuplicateObjectId() { return duplicate_object_id_; }
 

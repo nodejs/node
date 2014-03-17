@@ -155,8 +155,7 @@ Heap::Heap()
       configured_(false),
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
-      relocation_mutex_(NULL),
-      gc_callbacks_depth_(0) {
+      relocation_mutex_(NULL) {
   // Allow build-time customization of the max semispace size. Building
   // V8 with snapshots and a non-default max semispace size is much
   // easier if you can define it as part of the build environment.
@@ -546,9 +545,7 @@ void Heap::ProcessPretenuringFeedback() {
       }
     }
 
-    if (trigger_deoptimization) {
-      isolate_->stack_guard()->DeoptMarkedAllocationSites();
-    }
+    if (trigger_deoptimization) isolate_->stack_guard()->DeoptMarkedCode();
 
     FlushAllocationSitesScratchpad();
 
@@ -570,25 +567,6 @@ void Heap::ProcessPretenuringFeedback() {
 }
 
 
-void Heap::DeoptMarkedAllocationSites() {
-  // TODO(hpayer): If iterating over the allocation sites list becomes a
-  // performance issue, use a cache heap data structure instead (similar to the
-  // allocation sites scratchpad).
-  Object* list_element = allocation_sites_list();
-  while (list_element->IsAllocationSite()) {
-    AllocationSite* site = AllocationSite::cast(list_element);
-    if (site->deopt_dependent_code()) {
-      site->dependent_code()->MarkCodeForDeoptimization(
-          isolate_,
-          DependentCode::kAllocationSiteTenuringChangedGroup);
-      site->set_deopt_dependent_code(false);
-    }
-    list_element = site->weak_next();
-  }
-  Deoptimizer::DeoptimizeMarkedCode(isolate_);
-}
-
-
 void Heap::GarbageCollectionEpilogue() {
   store_buffer()->GCEpilogue();
 
@@ -596,9 +574,6 @@ void Heap::GarbageCollectionEpilogue() {
   if (Heap::ShouldZapGarbage()) {
     ZapFromSpace();
   }
-
-  // Process pretenuring feedback and update allocation sites.
-  ProcessPretenuringFeedback();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -774,21 +749,6 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
 }
 
 
-void Heap::EnsureFillerObjectAtTop() {
-  // There may be an allocation memento behind every object in new space.
-  // If we evacuate a not full new space or if we are on the last page of
-  // the new space, then there may be uninitialized memory behind the top
-  // pointer of the new space page. We store a filler object there to
-  // identify the unused space.
-  Address from_top = new_space_.top();
-  Address from_limit = new_space_.limit();
-  if (from_top < from_limit) {
-    int remaining_in_page = static_cast<int>(from_limit - from_top);
-    CreateFillerObjectAt(from_top, remaining_in_page);
-  }
-}
-
-
 bool Heap::CollectGarbage(GarbageCollector collector,
                           const char* gc_reason,
                           const char* collector_reason,
@@ -805,7 +765,17 @@ bool Heap::CollectGarbage(GarbageCollector collector,
   allocation_timeout_ = Max(6, FLAG_gc_interval);
 #endif
 
-  EnsureFillerObjectAtTop();
+  // There may be an allocation memento behind every object in new space.
+  // If we evacuate a not full new space or if we are on the last page of
+  // the new space, then there may be uninitialized memory behind the top
+  // pointer of the new space page. We store a filler object there to
+  // identify the unused space.
+  Address from_top = new_space_.top();
+  Address from_limit = new_space_.limit();
+  if (from_top < from_limit) {
+    int remaining_in_page = static_cast<int>(from_limit - from_top);
+    CreateFillerObjectAt(from_top, remaining_in_page);
+  }
 
   if (collector == SCAVENGER && !incremental_marking()->IsStopped()) {
     if (FLAG_trace_incremental_marking) {
@@ -876,6 +846,16 @@ int Heap::NotifyContextDisposed() {
   flush_monomorphic_ics_ = true;
   AgeInlineCaches();
   return ++contexts_disposed_;
+}
+
+
+void Heap::PerformScavenge() {
+  GCTracer tracer(this, NULL, NULL);
+  if (incremental_marking()->IsStopped()) {
+    PerformGarbageCollection(SCAVENGER, &tracer);
+  } else {
+    PerformGarbageCollection(MARK_COMPACTOR, &tracer);
+  }
 }
 
 
@@ -1085,14 +1065,11 @@ bool Heap::PerformGarbageCollection(
   GCType gc_type =
       collector == MARK_COMPACTOR ? kGCTypeMarkSweepCompact : kGCTypeScavenge;
 
-  { GCCallbacksScope scope(this);
-    if (scope.CheckReenter()) {
-      AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-      VMState<EXTERNAL> state(isolate_);
-      HandleScope handle_scope(isolate_);
-      CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
-    }
+  {
+    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    VMState<EXTERNAL> state(isolate_);
+    HandleScope handle_scope(isolate_);
+    CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
   }
 
   EnsureFromSpaceIsCommitted();
@@ -1197,14 +1174,11 @@ bool Heap::PerformGarbageCollection(
         amount_of_external_allocated_memory_;
   }
 
-  { GCCallbacksScope scope(this);
-    if (scope.CheckReenter()) {
-      AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-      VMState<EXTERNAL> state(isolate_);
-      HandleScope handle_scope(isolate_);
-      CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
-    }
+  {
+    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    VMState<EXTERNAL> state(isolate_);
+    HandleScope handle_scope(isolate_);
+    CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
   }
 
 #ifdef VERIFY_HEAP
@@ -1644,6 +1618,8 @@ void Heap::Scavenge() {
   IncrementYoungSurvivorsCounter(static_cast<int>(
       (PromotedSpaceSizeOfObjects() - survived_watermark) + new_space_.Size()));
 
+  ProcessPretenuringFeedback();
+
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
   gc_state_ = NOT_IN_GC;
@@ -2023,12 +1999,14 @@ void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
     AllocationSite* casted = AllocationSite::cast(cur);
     if (casted->GetPretenureMode() == flag) {
       casted->ResetPretenureDecision();
-      casted->set_deopt_dependent_code(true);
-      marked = true;
+      bool got_marked = casted->dependent_code()->MarkCodeForDeoptimization(
+          isolate_,
+          DependentCode::kAllocationSiteTenuringChangedGroup);
+      if (got_marked) marked = true;
     }
     cur = casted->weak_next();
   }
-  if (marked) isolate_->stack_guard()->DeoptMarkedAllocationSites();
+  if (marked) isolate_->stack_guard()->DeoptMarkedCode();
 }
 
 
@@ -2691,7 +2669,8 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
     if (!maybe_info->To(&info)) return maybe_info;
   }
   info->initialize_storage();
-  info->set_feedback_vector(empty_fixed_array(), SKIP_WRITE_BARRIER);
+  info->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
+                                SKIP_WRITE_BARRIER);
   return info;
 }
 
@@ -3073,17 +3052,6 @@ void Heap::CreateFixedStubs() {
   // The eliminates the need for doing dictionary lookup in the
   // stub cache for these stubs.
   HandleScope scope(isolate());
-
-  // Create stubs that should be there, so we don't unexpectedly have to
-  // create them if we need them during the creation of another stub.
-  // Stub creation mixes raw pointers and handles in an unsafe manner so
-  // we cannot create stubs while we are creating stubs.
-  CodeStub::GenerateStubsAheadOfTime(isolate());
-
-  // MacroAssembler::Abort calls (usually enabled with --debug-code) depend on
-  // CEntryStub, so we need to call GenerateStubsAheadOfTime before JSEntryStub
-  // is created.
-
   // gcc-4.4 has problem generating correct code of following snippet:
   // {  JSEntryStub stub;
   //    js_entry_code_ = *stub.GetCode();
@@ -3094,6 +3062,12 @@ void Heap::CreateFixedStubs() {
   // To workaround the problem, make separate functions without inlining.
   Heap::CreateJSEntryStub();
   Heap::CreateJSConstructEntryStub();
+
+  // Create stubs that should be there, so we don't unexpectedly have to
+  // create them if we need them during the creation of another stub.
+  // Stub creation mixes raw pointers and handles in an unsafe manner so
+  // we cannot create stubs while we are creating stubs.
+  CodeStub::GenerateStubsAheadOfTime(isolate());
 }
 
 
@@ -3294,15 +3268,6 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_observation_state(JSObject::cast(obj));
-
-  // Allocate object to hold object microtask state.
-  { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  { MaybeObject* maybe_obj = AllocateJSObjectFromMap(Map::cast(obj));
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_microtask_state(JSObject::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateSymbol();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -3657,14 +3622,8 @@ void Heap::InitializeAllocationSitesScratchpad() {
 
 void Heap::AddAllocationSiteToScratchpad(AllocationSite* site) {
   if (allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize) {
-    // We cannot use the normal write-barrier because slots need to be
-    // recorded with non-incremental marking as well. We have to explicitly
-    // record the slot to take evacuation candidates into account.
     allocation_sites_scratchpad()->set(
-        allocation_sites_scratchpad_length_, site, SKIP_WRITE_BARRIER);
-    Object** slot = allocation_sites_scratchpad()->RawFieldOfElementAt(
-        allocation_sites_scratchpad_length_);
-    mark_compact_collector()->RecordSlot(slot, slot, *slot);
+        allocation_sites_scratchpad_length_, site);
     allocation_sites_scratchpad_length_++;
   }
 }
@@ -3811,6 +3770,7 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
                                            int start_position,
                                            int end_position,
                                            Object* script,
+                                           Object* stack_trace,
                                            Object* stack_frames) {
   Object* result;
   { MaybeObject* maybe_result = Allocate(message_object_map(), NEW_SPACE);
@@ -3825,6 +3785,7 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
   message->set_start_position(start_position);
   message->set_end_position(end_position);
   message->set_script(script);
+  message->set_stack_trace(stack_trace);
   message->set_stack_frames(stack_frames);
   return result;
 }
@@ -5862,9 +5823,6 @@ void Heap::Verify() {
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
 
-  VerifySmisVisitor smis_visitor;
-  IterateSmiRoots(&smis_visitor);
-
   new_space_.Verify();
 
   old_pointer_space_->Verify(&visitor);
@@ -6162,12 +6120,6 @@ void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
 }
 
 
-void Heap::IterateSmiRoots(ObjectVisitor* v) {
-  v->VisitPointers(&roots_[kSmiRootsStart], &roots_[kRootListLength]);
-  v->Synchronize(VisitorSynchronization::kSmiRootList);
-}
-
-
 void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize(VisitorSynchronization::kStrongRootList);
@@ -6390,7 +6342,7 @@ intptr_t Heap::PromotedSpaceSizeOfObjects() {
 
 
 bool Heap::AdvanceSweepers(int step_size) {
-  ASSERT(!mark_compact_collector()->AreSweeperThreadsActivated());
+  ASSERT(isolate()->num_sweeper_threads() == 0);
   bool sweeping_complete = old_data_space()->AdvanceSweeper(step_size);
   sweeping_complete &= old_pointer_space()->AdvanceSweeper(step_size);
   return sweeping_complete;

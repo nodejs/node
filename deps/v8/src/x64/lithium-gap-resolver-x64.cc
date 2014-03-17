@@ -198,7 +198,7 @@ void LGapResolver::EmitMove(int index) {
       if (cgen_->IsSmiConstant(constant_source)) {
         __ Move(dst, cgen_->ToSmi(constant_source));
       } else if (cgen_->IsInteger32Constant(constant_source)) {
-        __ Set(dst, cgen_->ToInteger32(constant_source));
+        __ Set(dst, static_cast<uint32_t>(cgen_->ToInteger32(constant_source)));
       } else {
         __ Move(dst, cgen_->ToHandle(constant_source));
       }

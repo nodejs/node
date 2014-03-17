@@ -687,7 +687,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
 }
 
 
-Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
+Object* JSObject::GetNormalizedProperty(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
   if (IsGlobalObject()) {
@@ -699,7 +699,7 @@ Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
 
 
 void JSObject::SetNormalizedProperty(Handle<JSObject> object,
-                                     const LookupResult* result,
+                                     LookupResult* result,
                                      Handle<Object> value) {
   ASSERT(!object->HasFastProperties());
   NameDictionary* property_dictionary = object->property_dictionary();
@@ -732,7 +732,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   Handle<NameDictionary> property_dictionary(object->property_dictionary());
 
   if (!name->IsUniqueName()) {
-    name = object->GetIsolate()->factory()->InternalizeString(
+    name = object->GetIsolate()->factory()->InternalizedStringFromString(
         Handle<String>::cast(name));
   }
 
@@ -2152,7 +2152,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
 
   if (!name->IsUniqueName()) {
-    name = isolate->factory()->InternalizeString(
+    name = isolate->factory()->InternalizedStringFromString(
         Handle<String>::cast(name));
   }
 
@@ -3135,7 +3135,7 @@ static int AppendUniqueCallbacks(NeanderArray* callbacks,
     Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)));
     if (entry->name()->IsUniqueName()) continue;
     Handle<String> key =
-        isolate->factory()->InternalizeString(
+        isolate->factory()->InternalizedStringFromString(
             Handle<String>(String::cast(entry->name())));
     entry->set_name(*key);
   }
@@ -10631,18 +10631,18 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
 }
 
 
-void Code::ClearTypeFeedbackInfo(Heap* heap) {
+void Code::ClearTypeFeedbackCells(Heap* heap) {
   if (kind() != FUNCTION) return;
   Object* raw_info = type_feedback_info();
   if (raw_info->IsTypeFeedbackInfo()) {
-    FixedArray* feedback_vector =
-        TypeFeedbackInfo::cast(raw_info)->feedback_vector();
-    for (int i = 0; i < feedback_vector->length(); i++) {
-      Object* obj = feedback_vector->get(i);
-      if (!obj->IsAllocationSite()) {
-        // TODO(mvstanton): Can't I avoid a write barrier for this sentinel?
-        feedback_vector->set(i,
-                             TypeFeedbackInfo::RawUninitializedSentinel(heap));
+    TypeFeedbackCells* type_feedback_cells =
+        TypeFeedbackInfo::cast(raw_info)->type_feedback_cells();
+    for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
+      Cell* cell = type_feedback_cells->GetCell(i);
+      // Don't clear AllocationSites
+      Object* value = cell->value();
+      if (value == NULL || !value->IsAllocationSite()) {
+        cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
       }
     }
   }
@@ -11091,7 +11091,8 @@ void Code::Disassemble(const char* name, FILE* out) {
   }
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
-    PrintExtraICState(out, kind(), extra_ic_state());
+    PrintExtraICState(out, kind(), needs_extended_extra_ic_state(kind()) ?
+        extended_extra_ic_state() : extra_ic_state());
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", StubType2String(type()));
     }
@@ -11564,7 +11565,7 @@ Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
 
   cache->set(entry + kProtoTransitionPrototypeOffset, *prototype);
   cache->set(entry + kProtoTransitionMapOffset, *target_map);
-  map->SetNumberOfProtoTransitions(transitions);
+  map->SetNumberOfProtoTransitions(last + 1);
 
   return map;
 }
@@ -11763,14 +11764,23 @@ bool DependentCode::MarkCodeForDeoptimization(
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
   for (int i = start; i < end; i++) {
-    if (is_code_at(i)) {
-      Code* code = code_at(i);
+    Object* object = object_at(i);
+    // TODO(hpayer): This is a temporary hack. Foreign objects move after
+    // new space evacuation. Since pretenuring may mark these objects as aborted
+    // we have to follow the forwarding pointer in that case.
+    MapWord map_word = HeapObject::cast(object)->map_word();
+    if (map_word.IsForwardingAddress()) {
+      object = map_word.ToForwardingAddress();
+    }
+    if (object->IsCode()) {
+      Code* code = Code::cast(object);
       if (!code->marked_for_deoptimization()) {
         code->set_marked_for_deoptimization(true);
         marked = true;
       }
     } else {
-      CompilationInfo* info = compilation_info_at(i);
+      CompilationInfo* info = reinterpret_cast<CompilationInfo*>(
+          Foreign::cast(object)->foreign_address());
       info->AbortDueToDependencyChange();
     }
   }

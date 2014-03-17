@@ -118,7 +118,7 @@ Handle<Code> StubCache::FindHandler(Handle<Name> name,
                                     Code::Kind kind,
                                     InlineCacheHolderFlag cache_holder) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::HANDLER, kNoExtraICState, cache_holder, Code::NORMAL);
+      Code::HANDLER, kNoExtraICState, cache_holder, Code::NORMAL, kind);
 
   Handle<Object> probe(stub_holder->FindInCodeCache(*name, flags), isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -127,11 +127,11 @@ Handle<Code> StubCache::FindHandler(Handle<Name> name,
 
 
 Handle<Code> StubCache::ComputeMonomorphicIC(
-    Code::Kind kind,
     Handle<Name> name,
     Handle<HeapType> type,
     Handle<Code> handler,
     ExtraICState extra_ic_state) {
+  Code::Kind kind = handler->handler_kind();
   InlineCacheHolderFlag flag = IC::GetCodeCacheFlag(*type);
 
   Handle<Map> stub_holder;
@@ -369,13 +369,14 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
 
 
 Handle<Code> StubCache::ComputePolymorphicIC(
-    Code::Kind kind,
     TypeHandleList* types,
     CodeHandleList* handlers,
     int number_of_valid_types,
     Handle<Name> name,
     ExtraICState extra_ic_state) {
+
   Handle<Code> handler = handlers->at(0);
+  Code::Kind kind = handler->handler_kind();
   Code::StubType type = number_of_valid_types == 1 ? handler->type()
                                                    : Code::NORMAL;
   if (kind == Code::LOAD_IC) {
@@ -689,7 +690,9 @@ Handle<Code> StubCompiler::CompileLoadPreMonomorphic(Code::Flags flags) {
 
 
 Handle<Code> StubCompiler::CompileLoadMegamorphic(Code::Flags flags) {
-  LoadIC::GenerateMegamorphic(masm());
+  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
+  ContextualMode mode = LoadIC::GetContextualMode(extra_state);
+  LoadIC::GenerateMegamorphic(masm(), mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadMegamorphic");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::LOAD_MEGAMORPHIC_TAG, *code, 0));
@@ -731,7 +734,8 @@ Handle<Code> StubCompiler::CompileStoreGeneric(Code::Flags flags) {
 
 
 Handle<Code> StubCompiler::CompileStoreMegamorphic(Code::Flags flags) {
-  StoreIC::GenerateMegamorphic(masm());
+  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
+  StoreIC::GenerateMegamorphic(masm(), extra_state);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreMegamorphic");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG, *code, 0));
@@ -947,10 +951,8 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
   ASSERT(call_optimization.is_simple_api_call());
   Handle<JSFunction> callback = call_optimization.constant_function();
   CallbackHandlerFrontend(type, receiver(), holder, name, callback);
-  Handle<Map>receiver_map = IC::TypeToMap(*type, isolate());
-  GenerateFastApiCall(
-      masm(), call_optimization, receiver_map,
-      receiver(), scratch1(), false, 0, NULL);
+  GenerateLoadCallback(call_optimization, IC::TypeToMap(*type, isolate()));
+
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
 }
@@ -1129,22 +1131,6 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
 }
 
 
-Handle<Code> StoreStubCompiler::CompileStoreCallback(
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Handle<Name> name,
-    const CallOptimization& call_optimization) {
-  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
-                  receiver(), holder, name);
-  Register values[] = { value() };
-  GenerateFastApiCall(
-      masm(), call_optimization, handle(object->map()),
-      receiver(), scratch1(), true, 1, values);
-  // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
-}
-
-
 Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
     Handle<Map> receiver_map) {
   ElementsKind elements_kind = receiver_map->elements_kind();
@@ -1250,8 +1236,8 @@ Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
 Handle<Code> BaseLoadStoreStubCompiler::GetCode(Code::Kind kind,
                                                 Code::StubType type,
                                                 Handle<Name> name) {
-  ASSERT_EQ(kNoExtraICState, extra_state());
-  Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder_);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::HANDLER, MONOMORPHIC, extra_state(), type, kind, cache_holder_);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);

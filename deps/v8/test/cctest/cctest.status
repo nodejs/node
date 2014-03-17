@@ -70,44 +70,6 @@
 }],  # ALWAYS
 
 ##############################################################################
-['arch == a64', {
-
-  'test-api/Bug618': [PASS],
-
-  # BUG(v8:2999).
-  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
-
-  # Runs out of memory in debug mode.
-  'test-api/OutOfMemory': [PASS, ['mode == debug', FAIL]],
-  'test-api/OutOfMemoryNested': [PASS, ['mode == debug', FAIL]],
-
-  # BUG(v8:3154).
-  'test-heap/ReleaseOverReservedPages': [PASS, ['mode == debug', FAIL]],
-
-  # BUG(v8:3155).
-  'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
-}],  # 'arch == a64'
-
-['arch == a64 and simulator_run == True', {
-
-  # Pass but take too long with the simulator.
-  'test-api/ExternalArrays': [PASS, TIMEOUT],
-  'test-api/Threading1': [SKIP],
-}],  # 'arch == a64 and simulator_run == True'
-
-['arch == a64 and mode == debug and simulator_run == True', {
-
-  # Pass but take too long with the simulator in debug mode.
-  'test-api/ExternalDoubleArray': [SKIP],
-  'test-api/ExternalFloat32Array': [SKIP],
-  'test-api/ExternalFloat64Array': [SKIP],
-  'test-api/ExternalFloatArray': [SKIP],
-  'test-api/Float32Array': [SKIP],
-  'test-api/Float64Array': [SKIP],
-  'test-debug/DebugBreakLoop': [SKIP],
-}],  # 'arch == a64 and mode == debug and simulator_run == True'
-
-##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
@@ -221,8 +183,5 @@
 
   # BUG(2998).
   'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [SKIP],
-
-  # BUG(3150).
-  'test-api/PreCompileInvalidPreparseDataError': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 ]

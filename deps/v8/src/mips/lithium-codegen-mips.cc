@@ -267,8 +267,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
       HValue* value =
           instructions_->at(code->instruction_index())->hydrogen_value();
-      RecordAndWritePosition(
-          chunk()->graph()->SourcePositionToScriptPosition(value->position()));
+      RecordAndWritePosition(value->position());
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -860,7 +859,6 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
       translations_.CreateByteArray(isolate()->factory());
   data->SetTranslationByteArray(*translations);
   data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
-  data->SetOptimizationId(Smi::FromInt(info_->optimization_id()));
 
   Handle<FixedArray> literals =
       factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
@@ -3969,18 +3967,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   Handle<Map> transition = instr->transition();
-  SmiCheck check_needed =
-      instr->hydrogen()->value()->IsHeapObject()
-          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
   if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     Register value = ToRegister(instr->value());
     if (!instr->hydrogen()->value()->type().IsHeapObject()) {
       __ SmiTst(value, scratch);
       DeoptimizeIf(eq, instr->environment(), scratch, Operand(zero_reg));
-
-      // We know that value is a smi now, so we can omit the check below.
-      check_needed = OMIT_SMI_CHECK;
     }
   } else if (representation.IsDouble()) {
     ASSERT(transition.is_null());
@@ -4010,6 +4002,9 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   // Do the store.
   Register value = ToRegister(instr->value());
+  SmiCheck check_needed =
+      instr->hydrogen()->value()->IsHeapObject()
+          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
   if (access.IsInobject()) {
     MemOperand operand = FieldMemOperand(object, offset);
     __ Store(value, operand, representation);
@@ -5201,7 +5196,11 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   }
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-    __ Allocate(size, result, scratch, scratch2, deferred->entry(), flags);
+    if (size <= Page::kMaxRegularHeapObjectSize) {
+      __ Allocate(size, result, scratch, scratch2, deferred->entry(), flags);
+    } else {
+      __ jmp(deferred->entry());
+    }
   } else {
     Register size = ToRegister(instr->size());
     __ Allocate(size,

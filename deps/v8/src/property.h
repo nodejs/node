@@ -187,12 +187,12 @@ class LookupResult BASE_EMBEDDED {
         transition_(NULL),
         cacheable_(true),
         details_(NONE, NONEXISTENT, Representation::None()) {
-    isolate->set_top_lookup_result(this);
+    isolate->SetTopLookupResult(this);
   }
 
   ~LookupResult() {
     ASSERT(isolate()->top_lookup_result() == this);
-    isolate()->set_top_lookup_result(next_);
+    isolate()->SetTopLookupResult(next_);
   }
 
   Isolate* isolate() const { return isolate_; }
@@ -200,9 +200,9 @@ class LookupResult BASE_EMBEDDED {
   void DescriptorResult(JSObject* holder, PropertyDetails details, int number) {
     lookup_type_ = DESCRIPTOR_TYPE;
     holder_ = holder;
-    transition_ = NULL;
     details_ = details;
     number_ = number;
+    transition_ = NULL;
   }
 
   bool CanHoldValue(Handle<Object> value) {
@@ -246,93 +246,92 @@ class LookupResult BASE_EMBEDDED {
     lookup_type_ = NOT_FOUND;
     details_ = PropertyDetails(NONE, NONEXISTENT, Representation::None());
     holder_ = NULL;
-    transition_ = NULL;
   }
 
-  JSObject* holder() const {
+  JSObject* holder() {
     ASSERT(IsFound());
     return JSObject::cast(holder_);
   }
 
-  JSProxy* proxy() const {
+  JSProxy* proxy() {
     ASSERT(IsHandler());
     return JSProxy::cast(holder_);
   }
 
-  PropertyType type() const {
+  PropertyType type() {
     ASSERT(IsFound());
     return details_.type();
   }
 
-  Representation representation() const {
+  Representation representation() {
     ASSERT(IsFound());
     ASSERT(!IsTransition());
     ASSERT(details_.type() != NONEXISTENT);
     return details_.representation();
   }
 
-  PropertyAttributes GetAttributes() const {
+  PropertyAttributes GetAttributes() {
     ASSERT(!IsTransition());
     ASSERT(IsFound());
     ASSERT(details_.type() != NONEXISTENT);
     return details_.attributes();
   }
 
-  PropertyDetails GetPropertyDetails() const {
+  PropertyDetails GetPropertyDetails() {
     ASSERT(!IsTransition());
     return details_;
   }
 
-  bool IsFastPropertyType() const {
+  bool IsFastPropertyType() {
     ASSERT(IsFound());
     return IsTransition() || type() != NORMAL;
   }
 
   // Property callbacks does not include transitions to callbacks.
-  bool IsPropertyCallbacks() const {
+  bool IsPropertyCallbacks() {
     ASSERT(!(details_.type() == CALLBACKS && !IsFound()));
     return details_.type() == CALLBACKS;
   }
 
-  bool IsReadOnly() const {
+  bool IsReadOnly() {
     ASSERT(IsFound());
     ASSERT(!IsTransition());
     ASSERT(details_.type() != NONEXISTENT);
     return details_.IsReadOnly();
   }
 
-  bool IsField() const {
+  bool IsField() {
     ASSERT(!(details_.type() == FIELD && !IsFound()));
     return details_.type() == FIELD;
   }
 
-  bool IsNormal() const {
+  bool IsNormal() {
     ASSERT(!(details_.type() == NORMAL && !IsFound()));
     return details_.type() == NORMAL;
   }
 
-  bool IsConstant() const {
+  bool IsConstant() {
     ASSERT(!(details_.type() == CONSTANT && !IsFound()));
     return details_.type() == CONSTANT;
   }
 
-  bool IsConstantFunction() const {
+  bool IsConstantFunction() {
     return IsConstant() && GetValue()->IsJSFunction();
   }
 
-  bool IsDontDelete() const { return details_.IsDontDelete(); }
-  bool IsDontEnum() const { return details_.IsDontEnum(); }
-  bool IsFound() const { return lookup_type_ != NOT_FOUND; }
-  bool IsTransition() const { return lookup_type_ == TRANSITION_TYPE; }
-  bool IsHandler() const { return lookup_type_ == HANDLER_TYPE; }
-  bool IsInterceptor() const { return lookup_type_ == INTERCEPTOR_TYPE; }
+  bool IsDontDelete() { return details_.IsDontDelete(); }
+  bool IsDontEnum() { return details_.IsDontEnum(); }
+  bool IsFound() { return lookup_type_ != NOT_FOUND; }
+  bool IsTransition() { return lookup_type_ == TRANSITION_TYPE; }
+  bool IsHandler() { return lookup_type_ == HANDLER_TYPE; }
+  bool IsInterceptor() { return lookup_type_ == INTERCEPTOR_TYPE; }
 
   // Is the result is a property excluding transitions and the null descriptor?
-  bool IsProperty() const {
+  bool IsProperty() {
     return IsFound() && !IsTransition();
   }
 
-  bool IsDataProperty() const {
+  bool IsDataProperty() {
     switch (type()) {
       case FIELD:
       case NORMAL:
@@ -352,10 +351,10 @@ class LookupResult BASE_EMBEDDED {
     return false;
   }
 
-  bool IsCacheable() const { return cacheable_; }
+  bool IsCacheable() { return cacheable_; }
   void DisallowCaching() { cacheable_ = false; }
 
-  Object* GetLazyValue() const {
+  Object* GetLazyValue() {
     switch (type()) {
       case FIELD:
         return holder()->RawFastPropertyAt(GetFieldIndex().field_index());
@@ -380,62 +379,66 @@ class LookupResult BASE_EMBEDDED {
     return NULL;
   }
 
-  Map* GetTransitionTarget() const {
+  Map* GetTransitionTarget() {
     return transition_;
   }
 
-  PropertyDetails GetTransitionDetails() const {
-    ASSERT(IsTransition());
+  PropertyDetails GetTransitionDetails() {
     return transition_->GetLastDescriptorDetails();
   }
 
-  bool IsTransitionToField() const {
+  bool IsTransitionToField() {
     return IsTransition() && GetTransitionDetails().type() == FIELD;
   }
 
-  bool IsTransitionToConstant() const {
+  bool IsTransitionToConstant() {
     return IsTransition() && GetTransitionDetails().type() == CONSTANT;
   }
 
-  int GetDescriptorIndex() const {
+  int GetTransitionIndex() {
+    ASSERT(IsTransition());
+    return number_;
+  }
+
+  int GetDescriptorIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     return number_;
   }
 
-  PropertyIndex GetFieldIndex() const {
+  PropertyIndex GetFieldIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     return PropertyIndex::NewFieldIndex(GetFieldIndexFromMap(holder()->map()));
   }
 
-  int GetLocalFieldIndexFromMap(Map* map) const {
+  int GetLocalFieldIndexFromMap(Map* map) {
     return GetFieldIndexFromMap(map) - map->inobject_properties();
   }
 
-  int GetDictionaryEntry() const {
+  int GetDictionaryEntry() {
     ASSERT(lookup_type_ == DICTIONARY_TYPE);
     return number_;
   }
 
-  JSFunction* GetConstantFunction() const {
+  JSFunction* GetConstantFunction() {
     ASSERT(type() == CONSTANT);
     return JSFunction::cast(GetValue());
   }
 
-  Object* GetConstantFromMap(Map* map) const {
+  Object* GetConstantFromMap(Map* map) {
     ASSERT(type() == CONSTANT);
     return GetValueFromMap(map);
   }
 
-  JSFunction* GetConstantFunctionFromMap(Map* map) const {
+  JSFunction* GetConstantFunctionFromMap(Map* map) {
     return JSFunction::cast(GetConstantFromMap(map));
   }
 
-  Object* GetConstant() const {
+  Object* GetConstant() {
     ASSERT(type() == CONSTANT);
     return GetValue();
   }
 
-  Object* GetCallbackObject() const {
+  Object* GetCallbackObject() {
     ASSERT(type() == CALLBACKS && !IsTransition());
     return GetValue();
   }
@@ -444,7 +447,7 @@ class LookupResult BASE_EMBEDDED {
   void Print(FILE* out);
 #endif
 
-  Object* GetValue() const {
+  Object* GetValue() {
     if (lookup_type_ == DESCRIPTOR_TYPE) {
       return GetValueFromMap(holder()->map());
     }

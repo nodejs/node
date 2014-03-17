@@ -110,8 +110,8 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
 void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { ebx, edx };
-  descriptor->register_param_count_ = 2;
+  static Register registers[] = { ebx };
+  descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ = NULL;
 }
@@ -2322,74 +2322,66 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
 
 static void GenerateRecordCallTarget(MacroAssembler* masm) {
-  // Cache the called function in a feedback vector slot.  Cache states
+  // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
   // eax : number of arguments to the construct function
-  // ebx : Feedback vector
-  // edx : slot in feedback vector (Smi)
+  // ebx : cache cell for call target
   // edi : the function to call
   Isolate* isolate = masm->isolate();
-  Label check_array, initialize_array, initialize_non_array, megamorphic, done;
+  Label initialize, done, miss, megamorphic, not_array_function;
 
   // Load the cache state into ecx.
-  __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
-                           FixedArray::kHeaderSize));
+  __ mov(ecx, FieldOperand(ebx, Cell::kValueOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
   __ cmp(ecx, edi);
-  __ j(equal, &done, Label::kFar);
-  __ cmp(ecx, Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
-  __ j(equal, &done, Label::kFar);
+  __ j(equal, &done);
+  __ cmp(ecx, Immediate(TypeFeedbackCells::MegamorphicSentinel(isolate)));
+  __ j(equal, &done);
 
-  // Load the global or builtins object from the current context and check
-  // if we're dealing with the Array function or not.
+  // If we came here, we need to see if we are the array function.
+  // If we didn't have a matching function, and we didn't find the megamorph
+  // sentinel, then we have in the cell either some other function or an
+  // AllocationSite. Do a map check on the object in ecx.
+  Handle<Map> allocation_site_map =
+      masm->isolate()->factory()->allocation_site_map();
+  __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
+  __ j(not_equal, &miss);
+
+  // Load the global or builtins object from the current context
   __ LoadGlobalContext(ecx);
+  // Make sure the function is the Array() function
   __ cmp(edi, Operand(ecx,
                       Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
-  __ j(equal, &check_array);
-
-  // Non-array cache: Reload the cache state and check it.
-  __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
-                           FixedArray::kHeaderSize));
-  __ cmp(ecx, Immediate(TypeFeedbackInfo::PremonomorphicSentinel(isolate)));
-  __ j(equal, &initialize_non_array);
-  __ cmp(ecx, Immediate(TypeFeedbackInfo::UninitializedSentinel(isolate)));
   __ j(not_equal, &megamorphic);
+  __ jmp(&done);
 
-  // Non-array cache: Uninitialized -> premonomorphic. The sentinel is an
-  // immortal immovable object (null) so no write-barrier is needed.
-  __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
-                      FixedArray::kHeaderSize),
-         Immediate(TypeFeedbackInfo::PremonomorphicSentinel(isolate)));
-  __ jmp(&done, Label::kFar);
+  __ bind(&miss);
 
-  // Array cache: Reload the cache state and check to see if we're in a
-  // monomorphic state where the state object is an AllocationSite object.
-  __ bind(&check_array);
-  __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
-                           FixedArray::kHeaderSize));
-  Handle<Map> allocation_site_map = isolate->factory()->allocation_site_map();
-  __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
-  __ j(equal, &done, Label::kFar);
-
-  // Array cache: Uninitialized or premonomorphic -> monomorphic.
-  __ cmp(ecx, Immediate(TypeFeedbackInfo::UninitializedSentinel(isolate)));
-  __ j(equal, &initialize_array);
-  __ cmp(ecx, Immediate(TypeFeedbackInfo::PremonomorphicSentinel(isolate)));
-  __ j(equal, &initialize_array);
-
-  // Both caches: Monomorphic -> megamorphic. The sentinel is an
-  // immortal immovable object (undefined) so no write-barrier is needed.
+  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
+  // megamorphic.
+  __ cmp(ecx, Immediate(TypeFeedbackCells::UninitializedSentinel(isolate)));
+  __ j(equal, &initialize);
+  // MegamorphicSentinel is an immortal immovable object (undefined) so no
+  // write-barrier is needed.
   __ bind(&megamorphic);
-  __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
-                      FixedArray::kHeaderSize),
-         Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
-  __ jmp(&done, Label::kFar);
+  __ mov(FieldOperand(ebx, Cell::kValueOffset),
+         Immediate(TypeFeedbackCells::MegamorphicSentinel(isolate)));
+  __ jmp(&done, Label::kNear);
 
-  // Array cache: Uninitialized or premonomorphic -> monomorphic.
-  __ bind(&initialize_array);
+  // An uninitialized cache is patched with the function or sentinel to
+  // indicate the ElementsKind if function is the Array constructor.
+  __ bind(&initialize);
+  __ LoadGlobalContext(ecx);
+  // Make sure the function is the Array() function
+  __ cmp(edi, Operand(ecx,
+                      Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+  __ j(not_equal, &not_array_function);
+
+  // The target function is the Array constructor,
+  // Create an AllocationSite if we don't already have it, store it in the cell
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -2397,41 +2389,28 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     __ SmiTag(eax);
     __ push(eax);
     __ push(edi);
-    __ push(edx);
     __ push(ebx);
 
     CreateAllocationSiteStub create_stub;
     __ CallStub(&create_stub);
 
     __ pop(ebx);
-    __ pop(edx);
     __ pop(edi);
     __ pop(eax);
     __ SmiUntag(eax);
   }
   __ jmp(&done);
 
-  // Non-array cache: Premonomorphic -> monomorphic.
-  __ bind(&initialize_non_array);
-  __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
-                      FixedArray::kHeaderSize),
-         edi);
-  __ push(edi);
-  __ push(ebx);
-  __ push(edx);
-  __ RecordWriteArray(ebx, edi, edx, kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ pop(edx);
-  __ pop(ebx);
-  __ pop(edi);
+  __ bind(&not_array_function);
+  __ mov(FieldOperand(ebx, Cell::kValueOffset), edi);
+  // No need for a write barrier here - cells are rescanned.
 
   __ bind(&done);
 }
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  // ebx : feedback vector
-  // edx : (only if ebx is not undefined) slot in feedback vector (Smi)
+  // ebx : cache cell for call target
   // edi : the function to call
   Isolate* isolate = masm->isolate();
   Label slow, non_function, wrap, cont;
@@ -2490,9 +2469,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       // If there is a call target cache, mark it megamorphic in the
       // non-function case.  MegamorphicSentinel is an immortal immovable
       // object (undefined) so no write barrier is needed.
-      __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
-                          FixedArray::kHeaderSize),
-             Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
+      __ mov(FieldOperand(ebx, Cell::kValueOffset),
+             Immediate(TypeFeedbackCells::MegamorphicSentinel(isolate)));
     }
     // Check for function proxy.
     __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
@@ -2536,8 +2514,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
 void CallConstructStub::Generate(MacroAssembler* masm) {
   // eax : number of arguments
-  // ebx : feedback vector
-  // edx : (only if ebx is not undefined) slot in feedback vector (Smi)
+  // ebx : cache cell for call target
   // edi : constructor function
   Label slow, non_function_call;
 
@@ -5160,8 +5137,7 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : argc (only if argument_count_ == ANY)
-  //  -- ebx : feedback vector (fixed array or undefined)
-  //  -- edx : slot index (if ebx is fixed array)
+  //  -- ebx : type info cell
   //  -- edi : constructor
   //  -- esp[0] : return address
   //  -- esp[4] : last argument
@@ -5182,27 +5158,22 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ CmpObjectType(ecx, MAP_TYPE, ecx);
     __ Assert(equal, kUnexpectedInitialMapForArrayFunction);
 
-    // We should either have undefined in ebx or a valid fixed array.
+    // We should either have undefined in ebx or a valid cell
     Label okay_here;
-    Handle<Map> fixed_array_map = masm->isolate()->factory()->fixed_array_map();
+    Handle<Map> cell_map = masm->isolate()->factory()->cell_map();
     __ cmp(ebx, Immediate(undefined_sentinel));
     __ j(equal, &okay_here);
-    __ cmp(FieldOperand(ebx, 0), Immediate(fixed_array_map));
-    __ Assert(equal, kExpectedFixedArrayInRegisterEbx);
-
-    // edx should be a smi if we don't have undefined in ebx.
-    __ AssertSmi(edx);
-
+    __ cmp(FieldOperand(ebx, 0), Immediate(cell_map));
+    __ Assert(equal, kExpectedPropertyCellInRegisterEbx);
     __ bind(&okay_here);
   }
 
   Label no_info;
-  // If the feedback vector is undefined, or contains anything other than an
+  // If the type cell is undefined, or contains anything other than an
   // AllocationSite, call an array constructor that doesn't use AllocationSites.
   __ cmp(ebx, Immediate(undefined_sentinel));
   __ j(equal, &no_info);
-  __ mov(ebx, FieldOperand(ebx, edx, times_half_pointer_size,
-                           FixedArray::kHeaderSize));
+  __ mov(ebx, FieldOperand(ebx, Cell::kValueOffset));
   __ cmp(FieldOperand(ebx, 0), Immediate(
       masm->isolate()->factory()->allocation_site_map()));
   __ j(not_equal, &no_info);
@@ -5258,6 +5229,7 @@ void InternalArrayConstructorStub::GenerateCase(
 void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : argc
+  //  -- ebx : type info cell
   //  -- edi : constructor
   //  -- esp[0] : return address
   //  -- esp[4] : last argument
@@ -5329,7 +5301,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Register context = esi;
 
   int argc = ArgumentBits::decode(bit_field_);
-  bool is_store = IsStoreBits::decode(bit_field_);
+  bool restore_context = RestoreContextBits::decode(bit_field_);
   bool call_data_undefined = CallDataUndefinedBits::decode(bit_field_);
 
   typedef FunctionCallbackArguments FCA;
@@ -5410,20 +5382,15 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
 
   Operand context_restore_operand(ebp,
                                   (2 + FCA::kContextSaveIndex) * kPointerSize);
-  // Stores return the first js argument
-  int return_value_offset = 0;
-  if (is_store) {
-    return_value_offset = 2 + FCA::kArgsLength;
-  } else {
-    return_value_offset = 2 + FCA::kReturnValueOffset;
-  }
-  Operand return_value_operand(ebp, return_value_offset * kPointerSize);
+  Operand return_value_operand(ebp,
+                               (2 + FCA::kReturnValueOffset) * kPointerSize);
   __ CallApiFunctionAndReturn(api_function_address,
                               thunk_address,
                               ApiParameterOperand(1),
                               argc + FCA::kArgsLength + 1,
                               return_value_operand,
-                              &context_restore_operand);
+                              restore_context ?
+                                  &context_restore_operand : NULL);
 }
 
 

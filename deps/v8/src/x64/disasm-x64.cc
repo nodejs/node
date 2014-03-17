@@ -1451,7 +1451,8 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
           data += 3;
           break;
         case OPERAND_DOUBLEWORD_SIZE:
-          addr = reinterpret_cast<byte*>(*reinterpret_cast<int32_t*>(data + 1));
+          addr =
+              reinterpret_cast<byte*>(*reinterpret_cast<uint32_t*>(data + 1));
           data += 5;
           break;
         case OPERAND_QUADWORD_SIZE:

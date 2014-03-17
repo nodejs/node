@@ -276,8 +276,6 @@ void OS::Abort() {
 void OS::DebugBreak() {
 #if V8_HOST_ARCH_ARM
   asm("bkpt 0");
-#elif V8_HOST_ARCH_A64
-  asm("brk 0");
 #elif V8_HOST_ARCH_MIPS
   asm("break");
 #elif V8_HOST_ARCH_IA32

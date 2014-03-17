@@ -1108,9 +1108,8 @@ enum ParserSyncTestResult {
   kError
 };
 
-template <typename Traits>
-void SetParserFlags(i::ParserBase<Traits>* parser,
-                    i::EnumSet<ParserFlag> flags) {
+
+void SetParserFlags(i::ParserBase* parser, i::EnumSet<ParserFlag> flags) {
   parser->set_allow_lazy(flags.Contains(kAllowLazy));
   parser->set_allow_natives_syntax(flags.Contains(kAllowNativesSyntax));
   parser->set_allow_harmony_scoping(flags.Contains(kAllowHarmonyScoping));
@@ -1391,7 +1390,7 @@ void RunParserSyncTest(const char* context_data[][2],
 
   static const ParserFlag flags[] = {
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf, kAllowNativesSyntax
+    kAllowForOf
   };
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
@@ -2013,111 +2012,4 @@ TEST(NoErrorsTryCatchFinally) {
   };
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
-}
-
-
-TEST(ErrorsRegexpLiteral) {
-  const char* context_data[][2] = {
-    {"var r = ", ""},
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "/unterminated",
-    NULL
-  };
-
-  RunParserSyncTest(context_data, statement_data, kError);
-}
-
-
-TEST(NoErrorsRegexpLiteral) {
-  const char* context_data[][2] = {
-    {"var r = ", ""},
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "/foo/",
-    "/foo/g",
-    "/foo/whatever",  // This is an error but not detected by the parser.
-    NULL
-  };
-
-  RunParserSyncTest(context_data, statement_data, kSuccess);
-}
-
-
-TEST(Intrinsics) {
-  const char* context_data[][2] = {
-    {"", ""},
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "%someintrinsic(arg)",
-    NULL
-  };
-
-  // Parsing will fail or succeed depending on whether we allow natives syntax
-  // or not.
-  RunParserSyncTest(context_data, statement_data, kSuccessOrError);
-}
-
-
-TEST(NoErrorsNewExpression) {
-  const char* context_data[][2] = {
-    {"", ""},
-    {"var f =", ""},
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "new foo",
-    "new foo();",
-    "new foo(1);",
-    "new foo(1, 2);",
-    // The first () will be processed as a part of the NewExpression and the
-    // second () will be processed as part of LeftHandSideExpression.
-    "new foo()();",
-    // The first () will be processed as a part of the inner NewExpression and
-    // the second () will be processed as a part of the outer NewExpression.
-    "new new foo()();",
-    "new foo.bar;",
-    "new foo.bar();",
-    "new foo.bar.baz;",
-    "new foo.bar().baz;",
-    "new foo[bar];",
-    "new foo[bar]();",
-    "new foo[bar][baz];",
-    "new foo[bar]()[baz];",
-    "new foo[bar].baz(baz)()[bar].baz;",
-    "new \"foo\"",  // Runtime error
-    "new 1",  // Runtime error
-    "new foo++",
-    // This even runs:
-    "(new new Function(\"this.x = 1\")).x;",
-    "new new Test_Two(String, 2).v(0123).length;",
-    NULL
-  };
-
-  RunParserSyncTest(context_data, statement_data, kSuccess);
-}
-
-
-TEST(ErrorsNewExpression) {
-  const char* context_data[][2] = {
-    {"", ""},
-    {"var f =", ""},
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "new foo bar",
-    "new ) foo",
-    "new ++foo",
-    NULL
-  };
-
-  RunParserSyncTest(context_data, statement_data, kError);
 }

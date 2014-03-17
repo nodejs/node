@@ -227,8 +227,6 @@ class CommonOptions(object):
     self.force_readline_defaults = not manual
     self.force_upload = not manual
     self.manual = manual
-    self.reviewer = getattr(options, 'reviewer', None)
-    self.author = getattr(options, 'a', None)
 
 
 class Step(object):
@@ -301,10 +299,6 @@ class Step(object):
 
   def Git(self, args="", prefix="", pipe=True, retry_on=None):
     cmd = lambda: self._side_effect_handler.Command("git", args, prefix, pipe)
-    return self.Retry(cmd, retry_on, [5, 30])
-
-  def SVN(self, args="", prefix="", pipe=True, retry_on=None):
-    cmd = lambda: self._side_effect_handler.Command("svn", args, prefix, pipe)
     return self.Retry(cmd, retry_on, [5, 30])
 
   def Editor(self, args):
@@ -467,18 +461,15 @@ class UploadStep(Step):
   MESSAGE = "Upload for code review."
 
   def RunStep(self):
-    if self._options.reviewer:
-      print "Using account %s for review." % self._options.reviewer
-      reviewer = self._options.reviewer
+    if self._options.r:
+      print "Using account %s for review." % self._options.r
+      reviewer = self._options.r
     else:
       print "Please enter the email address of a V8 reviewer for your patch: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-    author_option = self._options.author
-    author = " --email \"%s\"" % author_option if author_option else ""
     force_flag = " -f" if self._options.force_upload else ""
-    args = ("cl upload%s -r \"%s\" --send-mail%s"
-            % (author, reviewer, force_flag))
+    args = "cl upload -r \"%s\" --send-mail%s" % (reviewer, force_flag)
     # TODO(machenbach): Check output in forced mode. Verify that all required
     # base files were uploaded, if not retry.
     if self.Git(args, pipe=False) is None:

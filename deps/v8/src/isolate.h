@@ -102,7 +102,6 @@ class DebuggerAgent;
 #endif
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
-    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
 class Redirection;
 class Simulator;
@@ -208,11 +207,6 @@ class ThreadId {
 };
 
 
-#define FIELD_ACCESSOR(type, name)                 \
-  inline void set_##name(type v) { name##_ = v; }  \
-  inline type name() const { return name##_; }
-
-
 class ThreadLocalTop BASE_EMBEDDED {
  public:
   // Does early low-level initialization that does not depend on the
@@ -239,7 +233,14 @@ class ThreadLocalTop BASE_EMBEDDED {
   // stack, try_catch_handler_address returns a JS stack address that
   // corresponds to the place on the JS stack where the C++ handler
   // would have been if the stack were not separate.
-  FIELD_ACCESSOR(Address, try_catch_handler_address)
+  inline Address try_catch_handler_address() {
+    return try_catch_handler_address_;
+  }
+
+  // Set the address of the top C++ try catch handler.
+  inline void set_try_catch_handler_address(Address address) {
+    try_catch_handler_address_ = address;
+  }
 
   void Free() {
     ASSERT(!has_pending_message_);
@@ -359,17 +360,11 @@ typedef List<HeapObject*> DebugObjectCache;
   /* AstNode state. */                                                         \
   V(int, ast_node_id, 0)                                                       \
   V(unsigned, ast_node_count, 0)                                               \
-  V(bool, microtask_pending, false)                                            \
-  V(bool, autorun_microtasks, true)                                            \
+  V(bool, microtask_pending, false)                                           \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
   V(CodeTracer*, code_tracer, NULL)                                            \
   ISOLATE_DEBUGGER_INIT_LIST(V)
-
-#define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
-  inline void set_##name(type v) { thread_local_top_.name##_ = v; }  \
-  inline type name() const { return thread_local_top_.name##_; }
-
 
 class Isolate {
   // These forward declarations are required to make the friend declarations in
@@ -390,7 +385,6 @@ class Isolate {
           stack_limit_(0),
           thread_state_(NULL),
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
-    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
           simulator_(NULL),
 #endif
@@ -398,14 +392,17 @@ class Isolate {
           prev_(NULL) { }
     Isolate* isolate() const { return isolate_; }
     ThreadId thread_id() const { return thread_id_; }
-
-    FIELD_ACCESSOR(uintptr_t, stack_limit)
-    FIELD_ACCESSOR(ThreadState*, thread_state)
+    void set_stack_limit(uintptr_t value) { stack_limit_ = value; }
+    uintptr_t stack_limit() const { return stack_limit_; }
+    ThreadState* thread_state() const { return thread_state_; }
+    void set_thread_state(ThreadState* value) { thread_state_ = value; }
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
-    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
-    FIELD_ACCESSOR(Simulator*, simulator)
+    Simulator* simulator() const { return simulator_; }
+    void set_simulator(Simulator* simulator) {
+      simulator_ = simulator;
+    }
 #endif
 
     bool Matches(Isolate* isolate, ThreadId thread_id) const {
@@ -419,7 +416,6 @@ class Isolate {
     ThreadState* thread_state_;
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
-    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
     Simulator* simulator_;
 #endif
@@ -545,35 +541,38 @@ class Isolate {
   }
   Context** context_address() { return &thread_local_top_.context_; }
 
-  THREAD_LOCAL_TOP_ACCESSOR(SaveContext*, save_context)
+  SaveContext* save_context() { return thread_local_top_.save_context_; }
+  void set_save_context(SaveContext* save) {
+    thread_local_top_.save_context_ = save;
+  }
 
   // Access to current thread id.
-  THREAD_LOCAL_TOP_ACCESSOR(ThreadId, thread_id)
+  ThreadId thread_id() { return thread_local_top_.thread_id_; }
+  void set_thread_id(ThreadId id) { thread_local_top_.thread_id_ = id; }
 
   // Interface to pending exception.
   MaybeObject* pending_exception() {
     ASSERT(has_pending_exception());
     return thread_local_top_.pending_exception_;
   }
-
+  bool external_caught_exception() {
+    return thread_local_top_.external_caught_exception_;
+  }
+  void set_external_caught_exception(bool value) {
+    thread_local_top_.external_caught_exception_ = value;
+  }
   void set_pending_exception(MaybeObject* exception) {
     thread_local_top_.pending_exception_ = exception;
   }
-
   void clear_pending_exception() {
     thread_local_top_.pending_exception_ = heap_.the_hole_value();
   }
-
   MaybeObject** pending_exception_address() {
     return &thread_local_top_.pending_exception_;
   }
-
   bool has_pending_exception() {
     return !thread_local_top_.pending_exception_->IsTheHole();
   }
-
-  THREAD_LOCAL_TOP_ACCESSOR(bool, external_caught_exception)
-
   void clear_pending_message() {
     thread_local_top_.has_pending_message_ = false;
     thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
@@ -588,8 +587,12 @@ class Isolate {
   bool* external_caught_exception_address() {
     return &thread_local_top_.external_caught_exception_;
   }
-
-  THREAD_LOCAL_TOP_ACCESSOR(v8::TryCatch*, catcher)
+  v8::TryCatch* catcher() {
+    return thread_local_top_.catcher_;
+  }
+  void set_catcher(v8::TryCatch* catcher) {
+    thread_local_top_.catcher_ = catcher;
+  }
 
   MaybeObject** scheduled_exception_address() {
     return &thread_local_top_.scheduled_exception_;
@@ -705,8 +708,12 @@ class Isolate {
   // Tells whether the current context has experienced an out of memory
   // exception.
   bool is_out_of_memory();
-
-  THREAD_LOCAL_TOP_ACCESSOR(bool,  ignore_out_of_memory)
+  bool ignore_out_of_memory() {
+    return thread_local_top_.ignore_out_of_memory_;
+  }
+  void set_ignore_out_of_memory(bool value) {
+    thread_local_top_.ignore_out_of_memory_ = value;
+  }
 
   void PrintCurrentStackTrace(FILE* out);
   void PrintStack(StringStream* accumulator);
@@ -931,7 +938,11 @@ class Isolate {
 
   RuntimeState* runtime_state() { return &runtime_state_; }
 
-  FIELD_ACCESSOR(bool, fp_stubs_generated);
+  void set_fp_stubs_generated(bool value) {
+    fp_stubs_generated_ = value;
+  }
+
+  bool fp_stubs_generated() { return fp_stubs_generated_; }
 
   Builtins* builtins() { return &builtins_; }
 
@@ -983,20 +994,43 @@ class Isolate {
 #endif
 
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
-    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
     V8_TARGET_ARCH_MIPS && !defined(__mips__)
-  FIELD_ACCESSOR(bool, simulator_initialized)
-  FIELD_ACCESSOR(HashMap*, simulator_i_cache)
-  FIELD_ACCESSOR(Redirection*, simulator_redirection)
+  bool simulator_initialized() { return simulator_initialized_; }
+  void set_simulator_initialized(bool initialized) {
+    simulator_initialized_ = initialized;
+  }
+
+  HashMap* simulator_i_cache() { return simulator_i_cache_; }
+  void set_simulator_i_cache(HashMap* hash_map) {
+    simulator_i_cache_ = hash_map;
+  }
+
+  Redirection* simulator_redirection() {
+    return simulator_redirection_;
+  }
+  void set_simulator_redirection(Redirection* redirection) {
+    simulator_redirection_ = redirection;
+  }
 #endif
 
   Factory* factory() { return reinterpret_cast<Factory*>(this); }
 
   static const int kJSRegexpStaticOffsetsVectorSize = 128;
 
-  THREAD_LOCAL_TOP_ACCESSOR(ExternalCallbackScope*, external_callback_scope)
+  ExternalCallbackScope* external_callback_scope() {
+    return thread_local_top_.external_callback_scope_;
+  }
+  void set_external_callback_scope(ExternalCallbackScope* scope) {
+    thread_local_top_.external_callback_scope_ = scope;
+  }
 
-  THREAD_LOCAL_TOP_ACCESSOR(StateTag, current_vm_state)
+  StateTag current_vm_state() {
+    return thread_local_top_.current_vm_state_;
+  }
+
+  void set_current_vm_state(StateTag state) {
+    thread_local_top_.current_vm_state_ = state;
+  }
 
   void SetData(uint32_t slot, void* data) {
     ASSERT(slot < Internals::kNumIsolateDataSlots);
@@ -1007,7 +1041,12 @@ class Isolate {
     return embedder_data_[slot];
   }
 
-  THREAD_LOCAL_TOP_ACCESSOR(LookupResult*, top_lookup_result)
+  LookupResult* top_lookup_result() {
+    return thread_local_top_.top_lookup_result_;
+  }
+  void SetTopLookupResult(LookupResult* top) {
+    thread_local_top_.top_lookup_result_ = top;
+  }
 
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
@@ -1057,7 +1096,13 @@ class Isolate {
   bool IsDeferredHandle(Object** location);
 #endif  // DEBUG
 
-  FIELD_ACCESSOR(int, max_available_threads);
+  int max_available_threads() const {
+    return max_available_threads_;
+  }
+
+  void set_max_available_threads(int value) {
+    max_available_threads_ = value;
+  }
 
   bool concurrent_recompilation_enabled() {
     // Thread is only available with flag enabled.
@@ -1107,14 +1152,6 @@ class Isolate {
 
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
-
-  int NextOptimizationId() {
-    int id = next_optimization_id_++;
-    if (!Smi::IsValid(next_optimization_id_)) {
-      next_optimization_id_ = 0;
-    }
-    return id;
-  }
 
  private:
   Isolate();
@@ -1293,7 +1330,6 @@ class Isolate {
   double time_millis_at_init_;
 
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
-    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
     V8_TARGET_ARCH_MIPS && !defined(__mips__)
   bool simulator_initialized_;
   HashMap* simulator_i_cache_;
@@ -1348,8 +1384,6 @@ class Isolate {
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;
 
-  int next_optimization_id_;
-
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
   friend class IsolateInitializer;
@@ -1367,10 +1401,6 @@ class Isolate {
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
-
-
-#undef FIELD_ACCESSOR
-#undef THREAD_LOCAL_TOP_ACCESSOR
 
 
 // If the GCC version is 4.1.x or 4.2.x an additional field is added to the

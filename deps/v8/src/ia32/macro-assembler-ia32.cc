@@ -2980,8 +2980,16 @@ void MacroAssembler::CheckStackAlignment() {
 
 
 void MacroAssembler::Abort(BailoutReason reason) {
-#ifdef DEBUG
+  // We want to pass the msg string like a smi to avoid GC
+  // problems, however msg is not guaranteed to be aligned
+  // properly. Instead, we pass an aligned pointer that is
+  // a proper v8 smi, but also pass the alignment difference
+  // from the real pointer as a smi.
   const char* msg = GetBailoutReason(reason);
+  intptr_t p1 = reinterpret_cast<intptr_t>(msg);
+  intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
+  ASSERT(reinterpret_cast<Object*>(p0)->IsSmi());
+#ifdef DEBUG
   if (msg != NULL) {
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -2994,15 +3002,16 @@ void MacroAssembler::Abort(BailoutReason reason) {
 #endif
 
   push(eax);
-  push(Immediate(reinterpret_cast<intptr_t>(Smi::FromInt(reason))));
+  push(Immediate(p0));
+  push(Immediate(reinterpret_cast<intptr_t>(Smi::FromInt(p1 - p0))));
   // Disable stub call restrictions to always allow calls to abort.
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort, 2);
   } else {
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort, 2);
   }
   // will not return here
   int3();

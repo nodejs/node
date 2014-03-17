@@ -41,9 +41,6 @@
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-mips.h"
 #include "mips/lithium-codegen-mips.h"
-#elif V8_TARGET_ARCH_A64
-#include "a64/lithium-a64.h"
-#include "a64/lithium-codegen-a64.h"
 #else
 #error "Unknown architecture."
 #endif

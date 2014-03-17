@@ -2806,8 +2806,16 @@ void MacroAssembler::Check(Condition cond, BailoutReason reason) {
 void MacroAssembler::Abort(BailoutReason reason) {
   Label abort_start;
   bind(&abort_start);
-#ifdef DEBUG
+  // We want to pass the msg string like a smi to avoid GC
+  // problems, however msg is not guaranteed to be aligned
+  // properly. Instead, we pass an aligned pointer that is
+  // a proper v8 smi, but also pass the alignment difference
+  // from the real pointer as a smi.
   const char* msg = GetBailoutReason(reason);
+  intptr_t p1 = reinterpret_cast<intptr_t>(msg);
+  intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
+  ASSERT(reinterpret_cast<Object*>(p0)->IsSmi());
+#ifdef DEBUG
   if (msg != NULL) {
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -2819,24 +2827,25 @@ void MacroAssembler::Abort(BailoutReason reason) {
   }
 #endif
 
-  mov(r0, Operand(Smi::FromInt(reason)));
+  mov(r0, Operand(p0));
   push(r0);
-
+  mov(r0, Operand(Smi::FromInt(p1 - p0)));
+  push(r0);
   // Disable stub call restrictions to always allow calls to abort.
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort, 2);
   } else {
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort, 2);
   }
   // will not return here
   if (is_const_pool_blocked()) {
     // If the calling code cares about the exact number of
     // instructions generated, we insert padding here to keep the size
     // of the Abort macro constant.
-    static const int kExpectedAbortInstructions = 7;
+    static const int kExpectedAbortInstructions = 10;
     int abort_instructions = InstructionsGeneratedSince(&abort_start);
     ASSERT(abort_instructions <= kExpectedAbortInstructions);
     while (abort_instructions++ < kExpectedAbortInstructions) {

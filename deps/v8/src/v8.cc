@@ -148,36 +148,20 @@ void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 void V8::FireCallCompletedCallback(Isolate* isolate) {
   bool has_call_completed_callbacks = call_completed_callbacks_ != NULL;
-  bool run_microtasks = isolate->autorun_microtasks() &&
-                        isolate->microtask_pending();
-  if (!has_call_completed_callbacks && !run_microtasks) return;
+  bool microtask_pending = isolate->microtask_pending();
+  if (!has_call_completed_callbacks && !microtask_pending) return;
 
   HandleScopeImplementer* handle_scope_implementer =
       isolate->handle_scope_implementer();
   if (!handle_scope_implementer->CallDepthIsZero()) return;
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
   handle_scope_implementer->IncrementCallDepth();
-  if (run_microtasks) Execution::RunMicrotasks(isolate);
+  if (microtask_pending) Execution::RunMicrotasks(isolate);
   if (has_call_completed_callbacks) {
     for (int i = 0; i < call_completed_callbacks_->length(); i++) {
       call_completed_callbacks_->at(i)();
     }
   }
-  handle_scope_implementer->DecrementCallDepth();
-}
-
-
-void V8::RunMicrotasks(Isolate* isolate) {
-  if (!isolate->microtask_pending())
-    return;
-
-  HandleScopeImplementer* handle_scope_implementer =
-      isolate->handle_scope_implementer();
-  ASSERT(handle_scope_implementer->CallDepthIsZero());
-
-  // Increase call depth to prevent recursive callbacks.
-  handle_scope_implementer->IncrementCallDepth();
-  Execution::RunMicrotasks(isolate);
   handle_scope_implementer->DecrementCallDepth();
 }
 

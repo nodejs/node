@@ -106,8 +106,8 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
 void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a2, a3 };
-  descriptor->register_param_count_ = 2;
+  static Register registers[] = { a2 };
+  descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ = NULL;
 }
@@ -3152,85 +3152,67 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
 
 static void GenerateRecordCallTarget(MacroAssembler* masm) {
-  // Cache the called function in a feedback vector slot.  Cache states
+  // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
   // a0 : number of arguments to the construct function
   // a1 : the function to call
-  // a2 : Feedback vector
-  // a3 : slot in feedback vector (Smi)
-  Label check_array, initialize_array, initialize_non_array, megamorphic, done;
+  // a2 : cache cell for call target
+  Label initialize, done, miss, megamorphic, not_array_function;
 
-  ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
+  ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->undefined_value());
-  Heap::RootListIndex kMegamorphicRootIndex = Heap::kUndefinedValueRootIndex;
-  ASSERT_EQ(*TypeFeedbackInfo::UninitializedSentinel(masm->isolate()),
+  ASSERT_EQ(*TypeFeedbackCells::UninitializedSentinel(masm->isolate()),
             masm->isolate()->heap()->the_hole_value());
-  Heap::RootListIndex kUninitializedRootIndex = Heap::kTheHoleValueRootIndex;
-  ASSERT_EQ(*TypeFeedbackInfo::PremonomorphicSentinel(masm->isolate()),
-            masm->isolate()->heap()->null_value());
-  Heap::RootListIndex kPremonomorphicRootIndex = Heap::kNullValueRootIndex;
 
-  // Load the cache state into t0.
-  __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t0, a2, Operand(t0));
-  __ lw(t0, FieldMemOperand(t0, FixedArray::kHeaderSize));
+  // Load the cache state into a3.
+  __ lw(a3, FieldMemOperand(a2, Cell::kValueOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
-  __ Branch(&done, eq, t0, Operand(a1));
-  __ LoadRoot(at, kMegamorphicRootIndex);
-  __ Branch(&done, eq, t0, Operand(at));
+  __ Branch(&done, eq, a3, Operand(a1));
 
-  // Check if we're dealing with the Array function or not.
-  __ LoadArrayFunction(t1);
-  __ Branch(&check_array, eq, a1, Operand(t1));
-
-  // Non-array cache: Check the cache state.
-  __ LoadRoot(at, kPremonomorphicRootIndex);
-  __ Branch(&initialize_non_array, eq, t0, Operand(at));
-  __ LoadRoot(at, kUninitializedRootIndex);
-  __ Branch(&megamorphic, ne, t0, Operand(at));
-
-  // Non-array cache: Uninitialized -> premonomorphic. The sentinel is an
-  // immortal immovable object (null) so no write-barrier is needed.
-  __ sll(at, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t0, a2, at);
-  __ LoadRoot(at, kPremonomorphicRootIndex);
-  __ Branch(USE_DELAY_SLOT, &done);
-  __ sw(at, FieldMemOperand(t0, FixedArray::kHeaderSize));  // In delay slot.
-
-  // Array cache: Check the cache state to see if we're in a monomorphic
-  // state where the state object is an AllocationSite object.
-  __ bind(&check_array);
-  __ lw(t1, FieldMemOperand(t0, 0));
+  // If we came here, we need to see if we are the array function.
+  // If we didn't have a matching function, and we didn't find the megamorph
+  // sentinel, then we have in the cell either some other function or an
+  // AllocationSite. Do a map check on the object in a3.
+  __ lw(t1, FieldMemOperand(a3, 0));
   __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
-  __ Branch(&done, eq, t1, Operand(at));
+  __ Branch(&miss, ne, t1, Operand(at));
 
-  // Array cache: Uninitialized or premonomorphic -> monomorphic.
-  __ LoadRoot(at, kUninitializedRootIndex);
-  __ Branch(&initialize_array, eq, t0, Operand(at));
-  __ LoadRoot(at, kPremonomorphicRootIndex);
-  __ Branch(&initialize_array, eq, t0, Operand(at));
+  // Make sure the function is the Array() function
+  __ LoadArrayFunction(a3);
+  __ Branch(&megamorphic, ne, a1, Operand(a3));
+  __ jmp(&done);
 
-  // Both caches: Monomorphic -> megamorphic. The sentinel is an
-  // immortal immovable object (undefined) so no write-barrier is needed.
+  __ bind(&miss);
+
+  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
+  // megamorphic.
+  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+  __ Branch(&initialize, eq, a3, Operand(at));
+  // MegamorphicSentinel is an immortal immovable object (undefined) so no
+  // write-barrier is needed.
   __ bind(&megamorphic);
-  __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t0, a2, Operand(t0));
-  __ LoadRoot(at, kMegamorphicRootIndex);
-  __ Branch(USE_DELAY_SLOT, &done);
-  __ sw(at, FieldMemOperand(t0, FixedArray::kHeaderSize));  // In delay slot.
+  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ sw(at, FieldMemOperand(a2, Cell::kValueOffset));
+  __ jmp(&done);
 
-  // Array cache: Uninitialized or premonomorphic -> monomorphic.
-  __ bind(&initialize_array);
+  // An uninitialized cache is patched with the function or sentinel to
+  // indicate the ElementsKind if function is the Array constructor.
+  __ bind(&initialize);
+  // Make sure the function is the Array() function
+  __ LoadArrayFunction(a3);
+  __ Branch(&not_array_function, ne, a1, Operand(a3));
+
+  // The target function is the Array constructor.
+  // Create an AllocationSite if we don't already have it, store it in the cell.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     const RegList kSavedRegs =
         1 << 4  |  // a0
         1 << 5  |  // a1
-        1 << 6  |  // a2
-        1 << 7;    // a3
+        1 << 6;    // a2
 
     // Arguments register must be smi-tagged to call out.
     __ SmiTag(a0);
@@ -3244,17 +3226,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   }
   __ Branch(&done);
 
-  // Non-array cache: Premonomorphic -> monomorphic.
-  __ bind(&initialize_non_array);
-  __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t0, a2, Operand(t0));
-  __ Addu(t0, t0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sw(a1, MemOperand(t0, 0));
-
-  __ Push(t0, a2, a1);
-  __ RecordWrite(a2, t0, a1, kRAHasNotBeenSaved, kDontSaveFPRegs,
-                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ Pop(t0, a2, a1);
+  __ bind(&not_array_function);
+  __ sw(a1, FieldMemOperand(a2, Cell::kValueOffset));
+  // No need for a write barrier here - cells are rescanned.
 
   __ bind(&done);
 }
@@ -3262,8 +3236,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1 : the function to call
-  // a2 : feedback vector
-  // a3 : (only if a2 is not undefined) slot in feedback vector (Smi)
+  // a2 : cache cell for call target
   Label slow, non_function, wrap, cont;
 
   if (NeedsChecks()) {
@@ -3272,8 +3245,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ JumpIfSmi(a1, &non_function);
 
     // Goto slow case if we do not have a function.
-    __ GetObjectType(a1, t0, t0);
-    __ Branch(&slow, ne, t0, Operand(JS_FUNCTION_TYPE));
+    __ GetObjectType(a1, a3, a3);
+    __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
 
     if (RecordCallTarget()) {
       GenerateRecordCallTarget(masm);
@@ -3318,15 +3291,13 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       // If there is a call target cache, mark it megamorphic in the
       // non-function case.  MegamorphicSentinel is an immortal immovable
       // object (undefined) so no write barrier is needed.
-      ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
+      ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
                 masm->isolate()->heap()->undefined_value());
-      __ sll(t1, a3, kPointerSizeLog2 - kSmiTagSize);
-      __ Addu(t1, a2, Operand(t1));
       __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-      __ sw(at, FieldMemOperand(t1, FixedArray::kHeaderSize));
+      __ sw(at, FieldMemOperand(a2, Cell::kValueOffset));
     }
     // Check for function proxy.
-    __ Branch(&non_function, ne, t0, Operand(JS_FUNCTION_PROXY_TYPE));
+    __ Branch(&non_function, ne, a3, Operand(JS_FUNCTION_PROXY_TYPE));
     __ push(a1);  // Put proxy as additional argument.
     __ li(a0, Operand(argc_ + 1, RelocInfo::NONE32));
     __ li(a2, Operand(0, RelocInfo::NONE32));
@@ -3366,22 +3337,21 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 void CallConstructStub::Generate(MacroAssembler* masm) {
   // a0 : number of arguments
   // a1 : the function to call
-  // a2 : feedback vector
-  // a3 : (only if a2 is not undefined) slot in feedback vector (Smi)
+  // a2 : cache cell for call target
   Label slow, non_function_call;
 
   // Check that the function is not a smi.
   __ JumpIfSmi(a1, &non_function_call);
   // Check that the function is a JSFunction.
-  __ GetObjectType(a1, t0, t0);
-  __ Branch(&slow, ne, t0, Operand(JS_FUNCTION_TYPE));
+  __ GetObjectType(a1, a3, a3);
+  __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
   }
 
   // Jump to the function-specific construct stub.
-  Register jmp_reg = t0;
+  Register jmp_reg = a3;
   __ lw(jmp_reg, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(jmp_reg, FieldMemOperand(jmp_reg,
                                  SharedFunctionInfo::kConstructStubOffset));
@@ -3390,10 +3360,10 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   // a0: number of arguments
   // a1: called object
-  // t0: object type
+  // a3: object type
   Label do_call;
   __ bind(&slow);
-  __ Branch(&non_function_call, ne, t0, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ Branch(&non_function_call, ne, a3, Operand(JS_FUNCTION_PROXY_TYPE));
   __ GetBuiltinFunction(a1, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
   __ jmp(&do_call);
 
@@ -5391,7 +5361,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     __ TailCallStub(&stub);
   } else if (mode == DONT_OVERRIDE) {
     // We are going to create a holey array, but our kind is non-holey.
-    // Fix kind and retry (only if we have an allocation site in the slot).
+    // Fix kind and retry (only if we have an allocation site in the cell).
     __ Addu(a3, a3, Operand(1));
 
     if (FLAG_debug_code) {
@@ -5498,8 +5468,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : argc (only if argument_count_ == ANY)
   //  -- a1 : constructor
-  //  -- a2 : feedback vector (fixed array or undefined)
-  //  -- a3 : slot index (if a2 is fixed array)
+  //  -- a2 : type info cell
   //  -- sp[0] : return address
   //  -- sp[4] : last argument
   // -----------------------------------
@@ -5508,27 +5477,23 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // builtin Array functions which always have maps.
 
     // Initial map for the builtin Array function should be a map.
-    __ lw(t0, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
+    __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
-    __ SmiTst(t0, at);
+    __ SmiTst(a3, at);
     __ Assert(ne, kUnexpectedInitialMapForArrayFunction,
         at, Operand(zero_reg));
-    __ GetObjectType(t0, t0, t1);
+    __ GetObjectType(a3, a3, t0);
     __ Assert(eq, kUnexpectedInitialMapForArrayFunction,
-        t1, Operand(MAP_TYPE));
+        t0, Operand(MAP_TYPE));
 
-    // We should either have undefined in a2 or a valid fixed array.
+    // We should either have undefined in a2 or a valid cell.
     Label okay_here;
-    Handle<Map> fixed_array_map = masm->isolate()->factory()->fixed_array_map();
+    Handle<Map> cell_map = masm->isolate()->factory()->cell_map();
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(&okay_here, eq, a2, Operand(at));
-    __ lw(t0, FieldMemOperand(a2, 0));
-    __ Assert(eq, kExpectedFixedArrayInRegisterA2,
-        t0, Operand(fixed_array_map));
-
-    // a3 should be a smi if we don't have undefined in a2
-    __ AssertSmi(a3);
-
+    __ lw(a3, FieldMemOperand(a2, 0));
+    __ Assert(eq, kExpectedPropertyCellInRegisterA2,
+        a3, Operand(cell_map));
     __ bind(&okay_here);
   }
 
@@ -5536,11 +5501,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // Get the elements kind and case on that.
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
   __ Branch(&no_info, eq, a2, Operand(at));
-  __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(a2, a2, Operand(t0));
-  __ lw(a2, FieldMemOperand(a2, FixedArray::kHeaderSize));
+  __ lw(a2, FieldMemOperand(a2, Cell::kValueOffset));
 
-  // If the feedback vector is undefined, or contains anything other than an
+  // If the type cell is undefined, or contains anything other than an
   // AllocationSite, call an array constructor that doesn't use AllocationSites.
   __ lw(t0, FieldMemOperand(a2, 0));
   __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
@@ -5652,7 +5615,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Register context = cp;
 
   int argc = ArgumentBits::decode(bit_field_);
-  bool is_store = IsStoreBits::decode(bit_field_);
+  bool restore_context = RestoreContextBits::decode(bit_field_);
   bool call_data_undefined = CallDataUndefinedBits::decode(bit_field_);
 
   typedef FunctionCallbackArguments FCA;
@@ -5719,20 +5682,15 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   AllowExternalCallThatCantCauseGC scope(masm);
   MemOperand context_restore_operand(
       fp, (2 + FCA::kContextSaveIndex) * kPointerSize);
-  // Stores return the first js argument.
-  int return_value_offset = 0;
-  if (is_store) {
-    return_value_offset = 2 + FCA::kArgsLength;
-  } else {
-    return_value_offset = 2 + FCA::kReturnValueOffset;
-  }
-  MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
+  MemOperand return_value_operand(fp,
+                                  (2 + FCA::kReturnValueOffset) * kPointerSize);
 
   __ CallApiFunctionAndReturn(api_function_address,
                               thunk_ref,
                               kStackUnwindSpace,
                               return_value_operand,
-                              &context_restore_operand);
+                              restore_context ?
+                                  &context_restore_operand : NULL);
 }
 
 

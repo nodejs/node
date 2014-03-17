@@ -783,14 +783,13 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 // Generate call to api function.
-void StubCompiler::GenerateFastApiCall(MacroAssembler* masm,
-                                       const CallOptimization& optimization,
-                                       Handle<Map> receiver_map,
-                                       Register receiver,
-                                       Register scratch_in,
-                                       bool is_store,
-                                       int argc,
-                                       Register* values) {
+static void GenerateFastApiCall(MacroAssembler* masm,
+                                const CallOptimization& optimization,
+                                Handle<Map> receiver_map,
+                                Register receiver,
+                                Register scratch_in,
+                                int argc,
+                                Register* values) {
   ASSERT(!receiver.is(scratch_in));
   __ push(receiver);
   // Write the arguments to stack frame.
@@ -855,7 +854,7 @@ void StubCompiler::GenerateFastApiCall(MacroAssembler* masm,
   __ mov(api_function_address, Operand(ref));
 
   // Jump to stub.
-  CallApiFunctionStub stub(is_store, call_data_undefined, argc);
+  CallApiFunctionStub stub(true, call_data_undefined, argc);
   __ TailCallStub(&stub);
 }
 
@@ -1077,6 +1076,15 @@ void LoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
 
 
 void LoadStubCompiler::GenerateLoadCallback(
+    const CallOptimization& call_optimization,
+    Handle<Map> receiver_map) {
+  GenerateFastApiCall(
+      masm(), call_optimization, receiver_map,
+      receiver(), scratch3(), 0, NULL);
+}
+
+
+void LoadStubCompiler::GenerateLoadCallback(
     Register reg,
     Handle<ExecutableAccessorInfo> callback) {
   // Build AccessorInfo::args_ list on the stack and push property name below
@@ -1252,6 +1260,24 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 }
 
 
+Handle<Code> StoreStubCompiler::CompileStoreCallback(
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Handle<Name> name,
+    const CallOptimization& call_optimization) {
+  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
+                  receiver(), holder, name);
+
+  Register values[] = { value() };
+  GenerateFastApiCall(
+      masm(), call_optimization, handle(object->map()),
+      receiver(), scratch3(), 1, values);
+
+  // Return the generated code.
+  return GetCode(kind(), Code::FAST, name);
+}
+
+
 #undef __
 #define __ ACCESS_MASM(masm)
 
@@ -1310,12 +1336,31 @@ void StoreStubCompiler::GenerateStoreViaSetter(
 Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
     Handle<JSObject> object,
     Handle<Name> name) {
+  Label miss;
+
+  // Check that the map of the object hasn't changed.
+  __ CheckMap(receiver(), scratch1(), Handle<Map>(object->map()), &miss,
+              DO_SMI_CHECK);
+
+  // Perform global security token check if needed.
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(receiver(), scratch1(), &miss);
+  }
+
+  // Stub is never generated for non-global objects that require access
+  // checks.
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+
   __ Push(receiver(), this->name(), value());
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty), isolate());
   __ TailCallExternalReference(store_ic_property, 3, 1);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

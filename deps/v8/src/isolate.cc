@@ -778,7 +778,7 @@ static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
 
 bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
                              v8::AccessType type) {
-  ASSERT(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
+  ASSERT(receiver->IsAccessCheckNeeded());
 
   // The callers of this method are not expecting a GC.
   DisallowHeapAllocation no_gc;
@@ -829,7 +829,7 @@ bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
 bool Isolate::MayIndexedAccess(JSObject* receiver,
                                uint32_t index,
                                v8::AccessType type) {
-  ASSERT(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
+  ASSERT(receiver->IsAccessCheckNeeded());
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
   ASSERT(context());
@@ -946,7 +946,6 @@ Failure* Isolate::ReThrow(MaybeObject* exception) {
 
 
 Failure* Isolate::ThrowIllegalOperation() {
-  if (FLAG_stack_trace_on_illegal) PrintStack(stdout);
   return Throw(heap_.illegal_access_string());
 }
 
@@ -1123,6 +1122,8 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
     // while the bootstrapper is active since the infrastructure may not have
     // been properly initialized.
     if (!bootstrapping) {
+      Handle<String> stack_trace;
+      if (FLAG_trace_exception) stack_trace = StackTraceString();
       Handle<JSArray> stack_trace_object;
       if (capture_stack_trace_for_uncaught_exceptions_) {
         if (IsErrorObject(exception_handle)) {
@@ -1162,6 +1163,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
           "uncaught_exception",
           location,
           HandleVector<Object>(&exception_arg, 1),
+          stack_trace,
           stack_trace_object);
       thread_local_top()->pending_message_obj_ = *message_obj;
       if (location != NULL) {
@@ -1564,8 +1566,7 @@ Isolate::Isolate()
       sweeper_thread_(NULL),
       num_sweeper_threads_(0),
       max_available_threads_(0),
-      stress_deopt_count_(0),
-      next_optimization_id_(0) {
+      stress_deopt_count_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
@@ -1581,7 +1582,6 @@ Isolate::Isolate()
   thread_manager_->isolate_ = this;
 
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
-    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
     V8_TARGET_ARCH_MIPS && !defined(__mips__)
   simulator_initialized_ = false;
   simulator_i_cache_ = NULL;
@@ -1672,10 +1672,6 @@ void Isolate::Deinit() {
     delete[] sweeper_thread_;
     sweeper_thread_ = NULL;
 
-    if (FLAG_job_based_sweeping &&
-        heap_.mark_compact_collector()->IsConcurrentSweepingInProgress()) {
-      heap_.mark_compact_collector()->WaitUntilSweepingCompleted();
-    }
 
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
@@ -1971,7 +1967,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_A64 || V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   Simulator::Initialize(this);
 #endif
 #endif
@@ -2017,10 +2013,7 @@ bool Isolate::Init(Deserializer* des) {
     max_available_threads_ = Max(Min(CPU::NumberOfProcessorsOnline(), 4), 1);
   }
 
-  if (!FLAG_job_based_sweeping) {
-    num_sweeper_threads_ =
-        SweeperThread::NumberOfThreads(max_available_threads_);
-  }
+  num_sweeper_threads_ = SweeperThread::NumberOfThreads(max_available_threads_);
 
   if (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");

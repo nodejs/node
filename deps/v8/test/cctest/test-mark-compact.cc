@@ -496,7 +496,6 @@ TEST(BootUpMemoryUse) {
   intptr_t initial_memory = MemoryInUse();
   // Avoid flakiness.
   FLAG_crankshaft = false;
-  FLAG_concurrent_osr = false;
   FLAG_concurrent_recompilation = false;
 
   // Only Linux has the proc filesystem and only if it is mapped.  If it's not

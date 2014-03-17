@@ -277,8 +277,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
       HValue* value =
           instructions_->at(code->instruction_index())->hydrogen_value();
-      RecordAndWritePosition(
-          chunk()->graph()->SourcePositionToScriptPosition(value->position()));
+      RecordAndWritePosition(value->position());
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -907,7 +906,6 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
       translations_.CreateByteArray(isolate()->factory());
   data->SetTranslationByteArray(*translations);
   data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
-  data->SetOptimizationId(Smi::FromInt(info_->optimization_id()));
 
   Handle<FixedArray> literals =
       factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
@@ -1343,45 +1341,54 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
 
 void LCodeGen::DoDivI(LDivI* instr) {
   if (!instr->is_flooring() && instr->hydrogen()->RightIsPowerOf2()) {
-    Register dividend = ToRegister(instr->left());
-    HDiv* hdiv = instr->hydrogen();
-    int32_t divisor = hdiv->right()->GetInteger32Constant();
-    Register result = ToRegister(instr->result());
-    ASSERT(!result.is(dividend));
+    const Register dividend = ToRegister(instr->left());
+    const Register result = ToRegister(instr->result());
+    int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
+    int32_t test_value = 0;
+    int32_t power = 0;
 
-    // Check for (0 / -x) that will produce negative zero.
-    if (hdiv->left()->RangeCanInclude(0) && divisor < 0 &&
-        hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ cmp(dividend, Operand::Zero());
-      DeoptimizeIf(eq, instr->environment());
-    }
-    // Check for (kMinInt / -1).
-    if (hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1 &&
-        hdiv->CheckFlag(HValue::kCanOverflow)) {
-      __ cmp(dividend, Operand(kMinInt));
-      DeoptimizeIf(eq, instr->environment());
-    }
-    // Deoptimize if remainder will not be 0.
-    if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
-        Abs(divisor) != 1) {
-      __ tst(dividend, Operand(Abs(divisor) - 1));
-      DeoptimizeIf(ne, instr->environment());
-    }
-    if (divisor == -1) {  // Nice shortcut, not needed for correctness.
-      __ rsb(result, dividend, Operand(0));
-      return;
-    }
-    int32_t shift = WhichPowerOf2(Abs(divisor));
-    if (shift == 0) {
-      __ mov(result, dividend);
-    } else if (shift == 1) {
-      __ add(result, dividend, Operand(dividend, LSR, 31));
+    if (divisor > 0) {
+      test_value = divisor - 1;
+      power = WhichPowerOf2(divisor);
     } else {
-      __ mov(result, Operand(dividend, ASR, 31));
-      __ add(result, dividend, Operand(result, LSR, 32 - shift));
+      // Check for (0 / -x) that will produce negative zero.
+      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        __ cmp(dividend, Operand::Zero());
+        DeoptimizeIf(eq, instr->environment());
+      }
+      // Check for (kMinInt / -1).
+      if (divisor == -1 && instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+        __ cmp(dividend, Operand(kMinInt));
+        DeoptimizeIf(eq, instr->environment());
+      }
+      test_value = - divisor - 1;
+      power = WhichPowerOf2(-divisor);
     }
-    if (shift > 0) __ mov(result, Operand(result, ASR, shift));
-    if (divisor < 0) __ rsb(result, result, Operand(0));
+
+    if (test_value != 0) {
+      if (instr->hydrogen()->CheckFlag(
+          HInstruction::kAllUsesTruncatingToInt32)) {
+        __ sub(result, dividend, Operand::Zero(), SetCC);
+        __ rsb(result, result, Operand::Zero(), LeaveCC, lt);
+        __ mov(result, Operand(result, ASR, power));
+        if (divisor > 0) __ rsb(result, result, Operand::Zero(), LeaveCC, lt);
+        if (divisor < 0) __ rsb(result, result, Operand::Zero(), LeaveCC, gt);
+        return;  // Don't fall through to "__ rsb" below.
+      } else {
+        // Deoptimize if remainder is not 0.
+        __ tst(dividend, Operand(test_value));
+        DeoptimizeIf(ne, instr->environment());
+        __ mov(result, Operand(dividend, ASR, power));
+        if (divisor < 0) __ rsb(result, result, Operand(0));
+      }
+    } else {
+      if (divisor < 0) {
+        __ rsb(result, dividend, Operand(0));
+      } else {
+        __ Move(result, dividend);
+      }
+    }
+
     return;
   }
 
@@ -4044,18 +4051,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   Handle<Map> transition = instr->transition();
-  SmiCheck check_needed =
-      instr->hydrogen()->value()->IsHeapObject()
-          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
   if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     Register value = ToRegister(instr->value());
     if (!instr->hydrogen()->value()->type().IsHeapObject()) {
       __ SmiTst(value);
       DeoptimizeIf(eq, instr->environment());
-
-      // We know that value is a smi now, so we can omit the check below.
-      check_needed = OMIT_SMI_CHECK;
     }
   } else if (representation.IsDouble()) {
     ASSERT(transition.is_null());
@@ -4085,6 +4086,9 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   // Do the store.
   Register value = ToRegister(instr->value());
+  SmiCheck check_needed =
+      instr->hydrogen()->value()->IsHeapObject()
+          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
   if (access.IsInobject()) {
     MemOperand operand = FieldMemOperand(object, offset);
     __ Store(value, operand, representation);
@@ -5245,7 +5249,11 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
 
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-    __ Allocate(size, result, scratch, scratch2, deferred->entry(), flags);
+    if (size <= Page::kMaxRegularHeapObjectSize) {
+      __ Allocate(size, result, scratch, scratch2, deferred->entry(), flags);
+    } else {
+      __ jmp(deferred->entry());
+    }
   } else {
     Register size = ToRegister(instr->size());
     __ Allocate(size,

@@ -792,7 +792,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
     isolate->ComputeLocation(&computed_location);
     Handle<Object> message = MessageHandler::MakeMessageObject(
         isolate, "error_loading_debugger", &computed_location,
-        Vector<Handle<Object> >::empty(), Handle<JSArray>());
+        Vector<Handle<Object> >::empty(), Handle<String>(), Handle<JSArray>());
     ASSERT(!isolate->has_pending_exception());
     if (!exception.is_null()) {
       isolate->set_pending_exception(*exception);

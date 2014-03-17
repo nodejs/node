@@ -164,7 +164,6 @@ int TypeImpl<Config>::LubBitset(i::Object* value) {
     if (value->IsNull()) return kNull;
     if (value->IsBoolean()) return kBoolean;
     if (value->IsTheHole()) return kAny;  // TODO(rossberg): kNone?
-    if (value->IsUninitialized()) return kNone;
     UNREACHABLE();
   }
   return LubBitset(map);

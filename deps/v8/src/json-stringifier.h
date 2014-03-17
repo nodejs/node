@@ -360,6 +360,7 @@ Handle<Object> BasicJsonStringifier::ApplyToJsonFunction(
   PropertyAttributes attr;
   Handle<Object> fun =
       Object::GetProperty(object, object, &lookup, tojson_string_, &attr);
+  if (fun.is_null()) return Handle<Object>::null();
   if (!fun->IsJSFunction()) return object;
 
   // Call toJSON function.

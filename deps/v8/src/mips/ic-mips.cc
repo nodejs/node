@@ -229,8 +229,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   __ lw(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check bit field.
   __ lbu(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-  __ And(at, scratch,
-         Operand((1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit)));
+  __ And(at, scratch, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
   __ Branch(slow, ne, at, Operand(zero_reg));
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
@@ -339,7 +338,8 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
 }
 
 
-void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
+void LoadIC::GenerateMegamorphic(MacroAssembler* masm,
+                                 ExtraICState extra_state) {
   // ----------- S t a t e -------------
   //  -- a2    : name
   //  -- ra    : return address
@@ -347,7 +347,9 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // -----------------------------------
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::HANDLER, MONOMORPHIC, extra_state,
+      Code::NORMAL, Code::LOAD_IC);
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, a0, a2, a3, t0, t1, t2);
 
@@ -647,7 +649,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyNameCheck(masm, key, a2, a3, &index_name, &slow);
 
   GenerateKeyedLoadReceiverCheck(
-       masm, receiver, a2, a3, Map::kHasNamedInterceptor, &slow);
+       masm, receiver, a2, a3, Map::kHasIndexedInterceptor, &slow);
 
 
   // If the receiver is a fast-case object, check the keyed lookup
@@ -1178,7 +1180,8 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
+                                  ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : receiver
@@ -1187,7 +1190,9 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // -----------------------------------
 
   // Get the receiver from the stack and probe the stub cache.
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::HANDLER, MONOMORPHIC, extra_ic_state,
+      Code::NORMAL, Code::STORE_IC);
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, a1, a2, a3, t0, t1, t2);
 

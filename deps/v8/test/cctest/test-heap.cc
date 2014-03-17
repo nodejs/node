@@ -180,7 +180,7 @@ TEST(HeapObjects) {
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMaxValue, Smi::cast(value)->value());
 
-#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_A64)
+#ifndef V8_TARGET_ARCH_X64
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
   value = heap->NumberFromInt32(Smi::kMinValue - 1)->ToObjectChecked();
   CHECK(value->IsHeapNumber());
@@ -433,7 +433,7 @@ TEST(WeakGlobalHandlesScavenge) {
                           &TestWeakGlobalHandleCallback);
 
   // Scavenge treats weak pointers as normal roots.
-  heap->CollectGarbage(NEW_SPACE);
+  heap->PerformScavenge();
 
   CHECK((*h1)->IsString());
   CHECK((*h2)->IsHeapNumber());
@@ -518,7 +518,7 @@ TEST(DeleteWeakGlobalHandle) {
                           &TestWeakGlobalHandleCallback);
 
   // Scanvenge does not recognize weak reference.
-  heap->CollectGarbage(NEW_SPACE);
+  heap->PerformScavenge();
 
   CHECK(!WeakPointerCleared);
 
@@ -1436,7 +1436,7 @@ TEST(TestInternalWeakLists) {
 
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
-      CcTest::heap()->CollectGarbage(NEW_SPACE);
+      CcTest::heap()->PerformScavenge();
       CHECK_EQ(opt ? 5 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
 
@@ -1448,14 +1448,14 @@ TEST(TestInternalWeakLists) {
     // Get rid of f3 and f5 in the same way.
     CompileRun("f3=null");
     for (int j = 0; j < 10; j++) {
-      CcTest::heap()->CollectGarbage(NEW_SPACE);
+      CcTest::heap()->PerformScavenge();
       CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
     CompileRun("f5=null");
     for (int j = 0; j < 10; j++) {
-      CcTest::heap()->CollectGarbage(NEW_SPACE);
+      CcTest::heap()->PerformScavenge();
       CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
@@ -1477,7 +1477,7 @@ TEST(TestInternalWeakLists) {
 
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
-      CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+      CcTest::heap()->PerformScavenge();
       CHECK_EQ(kNumTestContexts - i, CountNativeContexts());
     }
 
@@ -2210,10 +2210,10 @@ TEST(OptimizedPretenuringAllocationFolding) {
       "var number_elements = 20000;"
       "var elements = new Array();"
       "function f() {"
-      "  for (var i = 0; i < number_elements; i++) {"
+      "  for (var i = 0; i < 20000-1; i++) {"
       "    elements[i] = new DataObject();"
       "  }"
-      "  return elements[number_elements-1]"
+      "  return new DataObject()"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2826,7 +2826,7 @@ TEST(Regress2211) {
 }
 
 
-TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
+TEST(IncrementalMarkingClearsTypeFeedbackCells) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -2848,28 +2848,24 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
   // originating from two different native contexts.
   CcTest::global()->Set(v8_str("fun1"), fun1);
   CcTest::global()->Set(v8_str("fun2"), fun2);
-  CompileRun("function f(a, b) { a(); b(); }"
-             "f(fun1, fun2);"  // Run twice to skip premonomorphic state.
-             "f(fun1, fun2)");
-
+  CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
               CcTest::global()->Get(v8_str("f"))));
+  Handle<TypeFeedbackCells> cells(TypeFeedbackInfo::cast(
+      f->shared()->code()->type_feedback_info())->type_feedback_cells());
 
-  Handle<FixedArray> feedback_vector(TypeFeedbackInfo::cast(
-      f->shared()->code()->type_feedback_info())->feedback_vector());
-
-  CHECK_EQ(2, feedback_vector->length());
-  CHECK(feedback_vector->get(0)->IsJSFunction());
-  CHECK(feedback_vector->get(1)->IsJSFunction());
+  CHECK_EQ(2, cells->CellCount());
+  CHECK(cells->GetCell(0)->value()->IsJSFunction());
+  CHECK(cells->GetCell(1)->value()->IsJSFunction());
 
   SimulateIncrementalMarking();
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
-  CHECK_EQ(2, feedback_vector->length());
-  CHECK(feedback_vector->get(0)->IsTheHole());
-  CHECK(feedback_vector->get(1)->IsTheHole());
+  CHECK_EQ(2, cells->CellCount());
+  CHECK(cells->GetCell(0)->value()->IsTheHole());
+  CHECK(cells->GetCell(1)->value()->IsTheHole());
 }
 
 

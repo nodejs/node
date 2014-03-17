@@ -32,39 +32,39 @@
 namespace v8 {
 namespace internal {
 
-class HInstructionMap V8_FINAL : public ZoneObject {
+class HValueMap: public ZoneObject {
  public:
-  HInstructionMap(Zone* zone, SideEffectsTracker* side_effects_tracker)
+  explicit HValueMap(Zone* zone)
       : array_size_(0),
         lists_size_(0),
         count_(0),
+        present_flags_(0),
         array_(NULL),
         lists_(NULL),
-        free_list_head_(kNil),
-        side_effects_tracker_(side_effects_tracker) {
+        free_list_head_(kNil) {
     ResizeLists(kInitialSize, zone);
     Resize(kInitialSize, zone);
   }
 
-  void Kill(SideEffects side_effects);
+  void Kill(GVNFlagSet flags);
 
-  void Add(HInstruction* instr, Zone* zone) {
-    present_depends_on_.Add(side_effects_tracker_->ComputeDependsOn(instr));
-    Insert(instr, zone);
+  void Add(HValue* value, Zone* zone) {
+    present_flags_.Add(value->gvn_flags());
+    Insert(value, zone);
   }
 
-  HInstruction* Lookup(HInstruction* instr) const;
+  HValue* Lookup(HValue* value) const;
 
-  HInstructionMap* Copy(Zone* zone) const {
-    return new(zone) HInstructionMap(zone, this);
+  HValueMap* Copy(Zone* zone) const {
+    return new(zone) HValueMap(zone, this);
   }
 
   bool IsEmpty() const { return count_ == 0; }
 
  private:
-  // A linked list of HInstruction* values.  Stored in arrays.
-  struct HInstructionMapListElement {
-    HInstruction* instr;
+  // A linked list of HValue* values.  Stored in arrays.
+  struct HValueMapListElement {
+    HValue* value;
     int next;  // Index in the array of the next list element.
   };
   static const int kNil = -1;  // The end of a linked list
@@ -72,36 +72,34 @@ class HInstructionMap V8_FINAL : public ZoneObject {
   // Must be a power of 2.
   static const int kInitialSize = 16;
 
-  HInstructionMap(Zone* zone, const HInstructionMap* other);
+  HValueMap(Zone* zone, const HValueMap* other);
 
   void Resize(int new_size, Zone* zone);
   void ResizeLists(int new_size, Zone* zone);
-  void Insert(HInstruction* instr, Zone* zone);
+  void Insert(HValue* value, Zone* zone);
   uint32_t Bound(uint32_t value) const { return value & (array_size_ - 1); }
 
   int array_size_;
   int lists_size_;
-  int count_;  // The number of values stored in the HInstructionMap.
-  SideEffects present_depends_on_;
-  HInstructionMapListElement* array_;
-  // Primary store - contains the first value
+  int count_;  // The number of values stored in the HValueMap.
+  GVNFlagSet present_flags_;  // All flags that are in any value in the
+                              // HValueMap.
+  HValueMapListElement* array_;  // Primary store - contains the first value
   // with a given hash.  Colliding elements are stored in linked lists.
-  HInstructionMapListElement* lists_;
-  // The linked lists containing hash collisions.
+  HValueMapListElement* lists_;  // The linked lists containing hash collisions.
   int free_list_head_;  // Unused elements in lists_ are on the free list.
-  SideEffectsTracker* side_effects_tracker_;
 };
 
 
-class HSideEffectMap V8_FINAL BASE_EMBEDDED {
+class HSideEffectMap BASE_EMBEDDED {
  public:
   HSideEffectMap();
   explicit HSideEffectMap(HSideEffectMap* other);
   HSideEffectMap& operator= (const HSideEffectMap& other);
 
-  void Kill(SideEffects side_effects);
+  void Kill(GVNFlagSet flags);
 
-  void Store(SideEffects side_effects, HInstruction* instr);
+  void Store(GVNFlagSet flags, HInstruction* instr);
 
   bool IsEmpty() const { return count_ == 0; }
 
@@ -154,36 +152,35 @@ void TraceGVN(const char* msg, ...) {
   }
 
 
-HInstructionMap::HInstructionMap(Zone* zone, const HInstructionMap* other)
+HValueMap::HValueMap(Zone* zone, const HValueMap* other)
     : array_size_(other->array_size_),
       lists_size_(other->lists_size_),
       count_(other->count_),
-      present_depends_on_(other->present_depends_on_),
-      array_(zone->NewArray<HInstructionMapListElement>(other->array_size_)),
-      lists_(zone->NewArray<HInstructionMapListElement>(other->lists_size_)),
-      free_list_head_(other->free_list_head_),
-      side_effects_tracker_(other->side_effects_tracker_) {
+      present_flags_(other->present_flags_),
+      array_(zone->NewArray<HValueMapListElement>(other->array_size_)),
+      lists_(zone->NewArray<HValueMapListElement>(other->lists_size_)),
+      free_list_head_(other->free_list_head_) {
   OS::MemCopy(
-      array_, other->array_, array_size_ * sizeof(HInstructionMapListElement));
+      array_, other->array_, array_size_ * sizeof(HValueMapListElement));
   OS::MemCopy(
-      lists_, other->lists_, lists_size_ * sizeof(HInstructionMapListElement));
+      lists_, other->lists_, lists_size_ * sizeof(HValueMapListElement));
 }
 
 
-void HInstructionMap::Kill(SideEffects changes) {
-  if (!present_depends_on_.ContainsAnyOf(changes)) return;
-  present_depends_on_.RemoveAll();
+void HValueMap::Kill(GVNFlagSet flags) {
+  GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(flags);
+  if (!present_flags_.ContainsAnyOf(depends_flags)) return;
+  present_flags_.RemoveAll();
   for (int i = 0; i < array_size_; ++i) {
-    HInstruction* instr = array_[i].instr;
-    if (instr != NULL) {
+    HValue* value = array_[i].value;
+    if (value != NULL) {
       // Clear list of collisions first, so we know if it becomes empty.
       int kept = kNil;  // List of kept elements.
       int next;
       for (int current = array_[i].next; current != kNil; current = next) {
         next = lists_[current].next;
-        HInstruction* instr = lists_[current].instr;
-        SideEffects depends_on = side_effects_tracker_->ComputeDependsOn(instr);
-        if (depends_on.ContainsAnyOf(changes)) {
+        HValue* value = lists_[current].value;
+        if (value->gvn_flags().ContainsAnyOf(depends_flags)) {
           // Drop it.
           count_--;
           lists_[current].next = free_list_head_;
@@ -192,41 +189,40 @@ void HInstructionMap::Kill(SideEffects changes) {
           // Keep it.
           lists_[current].next = kept;
           kept = current;
-          present_depends_on_.Add(depends_on);
+          present_flags_.Add(value->gvn_flags());
         }
       }
       array_[i].next = kept;
 
       // Now possibly drop directly indexed element.
-      instr = array_[i].instr;
-      SideEffects depends_on = side_effects_tracker_->ComputeDependsOn(instr);
-      if (depends_on.ContainsAnyOf(changes)) {  // Drop it.
+      value = array_[i].value;
+      if (value->gvn_flags().ContainsAnyOf(depends_flags)) {  // Drop it.
         count_--;
         int head = array_[i].next;
         if (head == kNil) {
-          array_[i].instr = NULL;
+          array_[i].value = NULL;
         } else {
-          array_[i].instr = lists_[head].instr;
+          array_[i].value = lists_[head].value;
           array_[i].next = lists_[head].next;
           lists_[head].next = free_list_head_;
           free_list_head_ = head;
         }
       } else {
-        present_depends_on_.Add(depends_on);  // Keep it.
+        present_flags_.Add(value->gvn_flags());  // Keep it.
       }
     }
   }
 }
 
 
-HInstruction* HInstructionMap::Lookup(HInstruction* instr) const {
-  uint32_t hash = static_cast<uint32_t>(instr->Hashcode());
+HValue* HValueMap::Lookup(HValue* value) const {
+  uint32_t hash = static_cast<uint32_t>(value->Hashcode());
   uint32_t pos = Bound(hash);
-  if (array_[pos].instr != NULL) {
-    if (array_[pos].instr->Equals(instr)) return array_[pos].instr;
+  if (array_[pos].value != NULL) {
+    if (array_[pos].value->Equals(value)) return array_[pos].value;
     int next = array_[pos].next;
     while (next != kNil) {
-      if (lists_[next].instr->Equals(instr)) return lists_[next].instr;
+      if (lists_[next].value->Equals(value)) return lists_[next].value;
       next = lists_[next].next;
     }
   }
@@ -234,7 +230,7 @@ HInstruction* HInstructionMap::Lookup(HInstruction* instr) const {
 }
 
 
-void HInstructionMap::Resize(int new_size, Zone* zone) {
+void HValueMap::Resize(int new_size, Zone* zone) {
   ASSERT(new_size > count_);
   // Hashing the values into the new array has no more collisions than in the
   // old hash map, so we can use the existing lists_ array, if we are careful.
@@ -244,33 +240,33 @@ void HInstructionMap::Resize(int new_size, Zone* zone) {
     ResizeLists(lists_size_ << 1, zone);
   }
 
-  HInstructionMapListElement* new_array =
-      zone->NewArray<HInstructionMapListElement>(new_size);
-  memset(new_array, 0, sizeof(HInstructionMapListElement) * new_size);
+  HValueMapListElement* new_array =
+      zone->NewArray<HValueMapListElement>(new_size);
+  memset(new_array, 0, sizeof(HValueMapListElement) * new_size);
 
-  HInstructionMapListElement* old_array = array_;
+  HValueMapListElement* old_array = array_;
   int old_size = array_size_;
 
   int old_count = count_;
   count_ = 0;
-  // Do not modify present_depends_on_.  It is currently correct.
+  // Do not modify present_flags_.  It is currently correct.
   array_size_ = new_size;
   array_ = new_array;
 
   if (old_array != NULL) {
     // Iterate over all the elements in lists, rehashing them.
     for (int i = 0; i < old_size; ++i) {
-      if (old_array[i].instr != NULL) {
+      if (old_array[i].value != NULL) {
         int current = old_array[i].next;
         while (current != kNil) {
-          Insert(lists_[current].instr, zone);
+          Insert(lists_[current].value, zone);
           int next = lists_[current].next;
           lists_[current].next = free_list_head_;
           free_list_head_ = current;
           current = next;
         }
-        // Rehash the directly stored instruction.
-        Insert(old_array[i].instr, zone);
+        // Rehash the directly stored value.
+        Insert(old_array[i].value, zone);
       }
     }
   }
@@ -279,22 +275,21 @@ void HInstructionMap::Resize(int new_size, Zone* zone) {
 }
 
 
-void HInstructionMap::ResizeLists(int new_size, Zone* zone) {
+void HValueMap::ResizeLists(int new_size, Zone* zone) {
   ASSERT(new_size > lists_size_);
 
-  HInstructionMapListElement* new_lists =
-      zone->NewArray<HInstructionMapListElement>(new_size);
-  memset(new_lists, 0, sizeof(HInstructionMapListElement) * new_size);
+  HValueMapListElement* new_lists =
+      zone->NewArray<HValueMapListElement>(new_size);
+  memset(new_lists, 0, sizeof(HValueMapListElement) * new_size);
 
-  HInstructionMapListElement* old_lists = lists_;
+  HValueMapListElement* old_lists = lists_;
   int old_size = lists_size_;
 
   lists_size_ = new_size;
   lists_ = new_lists;
 
   if (old_lists != NULL) {
-    OS::MemCopy(
-        lists_, old_lists, old_size * sizeof(HInstructionMapListElement));
+    OS::MemCopy(lists_, old_lists, old_size * sizeof(HValueMapListElement));
   }
   for (int i = old_size; i < lists_size_; ++i) {
     lists_[i].next = free_list_head_;
@@ -303,15 +298,15 @@ void HInstructionMap::ResizeLists(int new_size, Zone* zone) {
 }
 
 
-void HInstructionMap::Insert(HInstruction* instr, Zone* zone) {
-  ASSERT(instr != NULL);
+void HValueMap::Insert(HValue* value, Zone* zone) {
+  ASSERT(value != NULL);
   // Resizing when half of the hashtable is filled up.
   if (count_ >= array_size_ >> 1) Resize(array_size_ << 1, zone);
   ASSERT(count_ < array_size_);
   count_++;
-  uint32_t pos = Bound(static_cast<uint32_t>(instr->Hashcode()));
-  if (array_[pos].instr == NULL) {
-    array_[pos].instr = instr;
+  uint32_t pos = Bound(static_cast<uint32_t>(value->Hashcode()));
+  if (array_[pos].value == NULL) {
+    array_[pos].value = value;
     array_[pos].next = kNil;
   } else {
     if (free_list_head_ == kNil) {
@@ -320,9 +315,9 @@ void HInstructionMap::Insert(HInstruction* instr, Zone* zone) {
     int new_element_pos = free_list_head_;
     ASSERT(new_element_pos != kNil);
     free_list_head_ = lists_[free_list_head_].next;
-    lists_[new_element_pos].instr = instr;
+    lists_[new_element_pos].value = value;
     lists_[new_element_pos].next = array_[pos].next;
-    ASSERT(array_[pos].next == kNil || lists_[array_[pos].next].instr != NULL);
+    ASSERT(array_[pos].next == kNil || lists_[array_[pos].next].value != NULL);
     array_[pos].next = new_element_pos;
   }
 }
@@ -346,9 +341,10 @@ HSideEffectMap& HSideEffectMap::operator= (const HSideEffectMap& other) {
 }
 
 
-void HSideEffectMap::Kill(SideEffects side_effects) {
+void HSideEffectMap::Kill(GVNFlagSet flags) {
   for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
-    if (side_effects.ContainsFlag(GVNFlagFromInt(i))) {
+    GVNFlag changes_flag = HValue::ChangesFlagFromInt(i);
+    if (flags.Contains(changes_flag)) {
       if (data_[i] != NULL) count_--;
       data_[i] = NULL;
     }
@@ -356,103 +352,14 @@ void HSideEffectMap::Kill(SideEffects side_effects) {
 }
 
 
-void HSideEffectMap::Store(SideEffects side_effects, HInstruction* instr) {
+void HSideEffectMap::Store(GVNFlagSet flags, HInstruction* instr) {
   for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
-    if (side_effects.ContainsFlag(GVNFlagFromInt(i))) {
+    GVNFlag changes_flag = HValue::ChangesFlagFromInt(i);
+    if (flags.Contains(changes_flag)) {
       if (data_[i] == NULL) count_++;
       data_[i] = instr;
     }
   }
-}
-
-
-SideEffects SideEffectsTracker::ComputeChanges(HInstruction* instr) {
-  SideEffects result(instr->ChangesFlags());
-  if (result.ContainsFlag(kInobjectFields)) {
-    int index;
-    if (instr->IsStoreNamedField() &&
-        ComputeInobjectField(HStoreNamedField::cast(instr)->access(), &index)) {
-      result.RemoveFlag(kInobjectFields);
-      result.AddSpecial(index);
-    } else {
-      result.AddAllSpecial();
-    }
-  }
-  return result;
-}
-
-
-SideEffects SideEffectsTracker::ComputeDependsOn(HInstruction* instr) {
-  SideEffects result(instr->DependsOnFlags());
-  if (result.ContainsFlag(kInobjectFields)) {
-    int index;
-    if (instr->IsLoadNamedField() &&
-        ComputeInobjectField(HLoadNamedField::cast(instr)->access(), &index)) {
-      result.RemoveFlag(kInobjectFields);
-      result.AddSpecial(index);
-    } else {
-      result.AddAllSpecial();
-    }
-  }
-  return result;
-}
-
-
-void SideEffectsTracker::PrintSideEffectsTo(StringStream* stream,
-                                          SideEffects side_effects) const {
-  const char* separator = "";
-  stream->Add("[");
-  for (int bit = 0; bit < kNumberOfFlags; ++bit) {
-    GVNFlag flag = GVNFlagFromInt(bit);
-    if (side_effects.ContainsFlag(flag)) {
-      stream->Add(separator);
-      separator = ", ";
-      switch (flag) {
-#define DECLARE_FLAG(Type)      \
-        case k##Type:           \
-          stream->Add(#Type);   \
-          break;
-GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
-GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
-#undef DECLARE_FLAG
-        default:
-            break;
-      }
-    }
-  }
-  for (int index = 0; index < num_inobject_fields_; ++index) {
-    if (side_effects.ContainsSpecial(index)) {
-      stream->Add(separator);
-      separator = ", ";
-      inobject_fields_[index].PrintTo(stream);
-    }
-  }
-  stream->Add("]");
-}
-
-
-bool SideEffectsTracker::ComputeInobjectField(HObjectAccess access,
-                                              int* index) {
-  for (int i = 0; i < num_inobject_fields_; ++i) {
-    if (access.Equals(inobject_fields_[i])) {
-      *index = i;
-      return true;
-    }
-  }
-  if (num_inobject_fields_ < SideEffects::kNumberOfSpecials) {
-    if (FLAG_trace_gvn) {
-      HeapStringAllocator allocator;
-      StringStream stream(&allocator);
-      stream.Add("Tracking inobject field access ");
-      access.PrintTo(&stream);
-      stream.Add(" (mapped to special index %d)\n", num_inobject_fields_);
-      stream.OutputToStdOut();
-    }
-    *index = num_inobject_fields_;
-    inobject_fields_[num_inobject_fields_++] = access;
-    return true;
-  }
-  return false;
 }
 
 
@@ -463,10 +370,10 @@ HGlobalValueNumberingPhase::HGlobalValueNumberingPhase(HGraph* graph)
       loop_side_effects_(graph->blocks()->length(), zone()),
       visited_on_paths_(graph->blocks()->length(), zone()) {
   ASSERT(!AllowHandleAllocation::IsAllowed());
-  block_side_effects_.AddBlock(
-      SideEffects(), graph->blocks()->length(), zone());
-  loop_side_effects_.AddBlock(
-      SideEffects(), graph->blocks()->length(), zone());
+  block_side_effects_.AddBlock(GVNFlagSet(), graph->blocks()->length(),
+                                zone());
+  loop_side_effects_.AddBlock(GVNFlagSet(), graph->blocks()->length(),
+                              zone());
 }
 
 
@@ -502,12 +409,12 @@ void HGlobalValueNumberingPhase::ComputeBlockSideEffects() {
   for (int i = graph()->blocks()->length() - 1; i >= 0; --i) {
     // Compute side effects for the block.
     HBasicBlock* block = graph()->blocks()->at(i);
-    SideEffects side_effects;
+    GVNFlagSet side_effects;
     if (block->IsReachable() && !block->IsDeoptimizing()) {
       int id = block->block_id();
       for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
         HInstruction* instr = it.Current();
-        side_effects.Add(side_effects_tracker_.ComputeChanges(instr));
+        side_effects.Add(instr->ChangesFlags());
       }
       block_side_effects_[id].Add(side_effects);
 
@@ -531,22 +438,103 @@ void HGlobalValueNumberingPhase::ComputeBlockSideEffects() {
 }
 
 
+SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
+  char underlying_buffer[kNumberOfFlags * 128];
+  Vector<char> buffer(underlying_buffer, sizeof(underlying_buffer));
+#if DEBUG
+  int offset = 0;
+  const char* separator = "";
+  const char* comma = ", ";
+  buffer[0] = 0;
+  uint32_t set_depends_on = 0;
+  uint32_t set_changes = 0;
+  for (int bit = 0; bit < kNumberOfFlags; ++bit) {
+    if (flags.Contains(static_cast<GVNFlag>(bit))) {
+      if (bit % 2 == 0) {
+        set_changes++;
+      } else {
+        set_depends_on++;
+      }
+    }
+  }
+  bool positive_changes = set_changes < (kNumberOfFlags / 2);
+  bool positive_depends_on = set_depends_on < (kNumberOfFlags / 2);
+  if (set_changes > 0) {
+    if (positive_changes) {
+      offset += OS::SNPrintF(buffer + offset, "changes [");
+    } else {
+      offset += OS::SNPrintF(buffer + offset, "changes all except [");
+    }
+    for (int bit = 0; bit < kNumberOfFlags; ++bit) {
+      if (flags.Contains(static_cast<GVNFlag>(bit)) == positive_changes) {
+        switch (static_cast<GVNFlag>(bit)) {
+#define DECLARE_FLAG(type)                                       \
+          case kChanges##type:                                   \
+            offset += OS::SNPrintF(buffer + offset, separator);  \
+            offset += OS::SNPrintF(buffer + offset, #type);      \
+            separator = comma;                                   \
+            break;
+GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
+GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
+#undef DECLARE_FLAG
+          default:
+              break;
+        }
+      }
+    }
+    offset += OS::SNPrintF(buffer + offset, "]");
+  }
+  if (set_depends_on > 0) {
+    separator = "";
+    if (set_changes > 0) {
+      offset += OS::SNPrintF(buffer + offset, ", ");
+    }
+    if (positive_depends_on) {
+      offset += OS::SNPrintF(buffer + offset, "depends on [");
+    } else {
+      offset += OS::SNPrintF(buffer + offset, "depends on all except [");
+    }
+    for (int bit = 0; bit < kNumberOfFlags; ++bit) {
+      if (flags.Contains(static_cast<GVNFlag>(bit)) == positive_depends_on) {
+        switch (static_cast<GVNFlag>(bit)) {
+#define DECLARE_FLAG(type)                                       \
+          case kDependsOn##type:                                 \
+            offset += OS::SNPrintF(buffer + offset, separator);  \
+            offset += OS::SNPrintF(buffer + offset, #type);      \
+            separator = comma;                                   \
+            break;
+GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
+GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
+#undef DECLARE_FLAG
+          default:
+            break;
+        }
+      }
+    }
+    offset += OS::SNPrintF(buffer + offset, "]");
+  }
+#else
+  OS::SNPrintF(buffer, "0x%08X", flags.ToIntegral());
+#endif
+  size_t string_len = strlen(underlying_buffer) + 1;
+  ASSERT(string_len <= sizeof(underlying_buffer));
+  char* result = new char[strlen(underlying_buffer) + 1];
+  OS::MemCopy(result, underlying_buffer, string_len);
+  return SmartArrayPointer<char>(result);
+}
+
+
 void HGlobalValueNumberingPhase::LoopInvariantCodeMotion() {
   TRACE_GVN_1("Using optimistic loop invariant code motion: %s\n",
               graph()->use_optimistic_licm() ? "yes" : "no");
   for (int i = graph()->blocks()->length() - 1; i >= 0; --i) {
     HBasicBlock* block = graph()->blocks()->at(i);
     if (block->IsLoopHeader()) {
-      SideEffects side_effects = loop_side_effects_[block->block_id()];
-      if (FLAG_trace_gvn) {
-        HeapStringAllocator allocator;
-        StringStream stream(&allocator);
-        stream.Add("Try loop invariant motion for block B%d changes ",
-                   block->block_id());
-        side_effects_tracker_.PrintSideEffectsTo(&stream, side_effects);
-        stream.Add("\n");
-        stream.OutputToStdOut();
-      }
+      GVNFlagSet side_effects = loop_side_effects_[block->block_id()];
+      TRACE_GVN_2("Try loop invariant motion for block B%d %s\n",
+                  block->block_id(),
+                  GetGVNFlagsString(side_effects).get());
+
       HBasicBlock* last = block->loop_information()->GetLastBackEdge();
       for (int j = block->block_id(); j <= last->block_id(); ++j) {
         ProcessLoopBlock(graph()->blocks()->at(j), block, side_effects);
@@ -559,37 +547,22 @@ void HGlobalValueNumberingPhase::LoopInvariantCodeMotion() {
 void HGlobalValueNumberingPhase::ProcessLoopBlock(
     HBasicBlock* block,
     HBasicBlock* loop_header,
-    SideEffects loop_kills) {
+    GVNFlagSet loop_kills) {
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
-  if (FLAG_trace_gvn) {
-    HeapStringAllocator allocator;
-    StringStream stream(&allocator);
-    stream.Add("Loop invariant code motion for B%d depends on ",
-               block->block_id());
-    side_effects_tracker_.PrintSideEffectsTo(&stream, loop_kills);
-    stream.Add("\n");
-    stream.OutputToStdOut();
-  }
+  GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
+  TRACE_GVN_2("Loop invariant motion for B%d %s\n",
+              block->block_id(),
+              GetGVNFlagsString(depends_flags).get());
   HInstruction* instr = block->first();
   while (instr != NULL) {
     HInstruction* next = instr->next();
     if (instr->CheckFlag(HValue::kUseGVN)) {
-      SideEffects changes = side_effects_tracker_.ComputeChanges(instr);
-      SideEffects depends_on = side_effects_tracker_.ComputeDependsOn(instr);
-      if (FLAG_trace_gvn) {
-        HeapStringAllocator allocator;
-        StringStream stream(&allocator);
-        stream.Add("Checking instruction i%d (%s) changes ",
-                   instr->id(), instr->Mnemonic());
-        side_effects_tracker_.PrintSideEffectsTo(&stream, changes);
-        stream.Add(", depends on ");
-        side_effects_tracker_.PrintSideEffectsTo(&stream, depends_on);
-        stream.Add(". Loop changes ");
-        side_effects_tracker_.PrintSideEffectsTo(&stream, loop_kills);
-        stream.Add("\n");
-        stream.OutputToStdOut();
-      }
-      bool can_hoist = !depends_on.ContainsAnyOf(loop_kills);
+      TRACE_GVN_4("Checking instruction %d (%s) %s. Loop %s\n",
+                  instr->id(),
+                  instr->Mnemonic(),
+                  GetGVNFlagsString(instr->gvn_flags()).get(),
+                  GetGVNFlagsString(loop_kills).get());
+      bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
       if (can_hoist && !graph()->use_optimistic_licm()) {
         can_hoist = block->IsLoopSuccessorDominator();
       }
@@ -631,10 +604,10 @@ bool HGlobalValueNumberingPhase::ShouldMove(HInstruction* instr,
 }
 
 
-SideEffects
+GVNFlagSet
 HGlobalValueNumberingPhase::CollectSideEffectsOnPathsToDominatedBlock(
     HBasicBlock* dominator, HBasicBlock* dominated) {
-  SideEffects side_effects;
+  GVNFlagSet side_effects;
   for (int i = 0; i < dominated->predecessors()->length(); ++i) {
     HBasicBlock* block = dominated->predecessors()->at(i);
     if (dominator->block_id() < block->block_id() &&
@@ -663,13 +636,13 @@ class GvnBasicBlockState: public ZoneObject {
  public:
   static GvnBasicBlockState* CreateEntry(Zone* zone,
                                          HBasicBlock* entry_block,
-                                         HInstructionMap* entry_map) {
+                                         HValueMap* entry_map) {
     return new(zone)
         GvnBasicBlockState(NULL, entry_block, entry_map, NULL, zone);
   }
 
   HBasicBlock* block() { return block_; }
-  HInstructionMap* map() { return map_; }
+  HValueMap* map() { return map_; }
   HSideEffectMap* dominators() { return &dominators_; }
 
   GvnBasicBlockState* next_in_dominator_tree_traversal(
@@ -696,7 +669,7 @@ class GvnBasicBlockState: public ZoneObject {
 
  private:
   void Initialize(HBasicBlock* block,
-                  HInstructionMap* map,
+                  HValueMap* map,
                   HSideEffectMap* dominators,
                   bool copy_map,
                   Zone* zone) {
@@ -712,7 +685,7 @@ class GvnBasicBlockState: public ZoneObject {
 
   GvnBasicBlockState(GvnBasicBlockState* previous,
                      HBasicBlock* block,
-                     HInstructionMap* map,
+                     HValueMap* map,
                      HSideEffectMap* dominators,
                      Zone* zone)
       : previous_(previous), next_(NULL) {
@@ -759,7 +732,7 @@ class GvnBasicBlockState: public ZoneObject {
   GvnBasicBlockState* previous_;
   GvnBasicBlockState* next_;
   HBasicBlock* block_;
-  HInstructionMap* map_;
+  HValueMap* map_;
   HSideEffectMap dominators_;
   int dominated_index_;
   int length_;
@@ -772,14 +745,13 @@ class GvnBasicBlockState: public ZoneObject {
 // GvnBasicBlockState instances.
 void HGlobalValueNumberingPhase::AnalyzeGraph() {
   HBasicBlock* entry_block = graph()->entry_block();
-  HInstructionMap* entry_map =
-      new(zone()) HInstructionMap(zone(), &side_effects_tracker_);
+  HValueMap* entry_map = new(zone()) HValueMap(zone());
   GvnBasicBlockState* current =
       GvnBasicBlockState::CreateEntry(zone(), entry_block, entry_map);
 
   while (current != NULL) {
     HBasicBlock* block = current->block();
-    HInstructionMap* map = current->map();
+    HValueMap* map = current->map();
     HSideEffectMap* dominators = current->dominators();
 
     TRACE_GVN_2("Analyzing block B%d%s\n",
@@ -798,15 +770,17 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
       if (instr->CheckFlag(HValue::kTrackSideEffectDominators)) {
         for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
           HValue* other = dominators->at(i);
-          GVNFlag flag = GVNFlagFromInt(i);
-          if (instr->DependsOnFlags().Contains(flag) && other != NULL) {
+          GVNFlag changes_flag = HValue::ChangesFlagFromInt(i);
+          GVNFlag depends_on_flag = HValue::DependsOnFlagFromInt(i);
+          if (instr->DependsOnFlags().Contains(depends_on_flag) &&
+              (other != NULL)) {
             TRACE_GVN_5("Side-effect #%d in %d (%s) is dominated by %d (%s)\n",
                         i,
                         instr->id(),
                         instr->Mnemonic(),
                         other->id(),
                         other->Mnemonic());
-            if (instr->HandleSideEffectDominator(flag, other)) {
+            if (instr->HandleSideEffectDominator(changes_flag, other)) {
               removed_side_effects_ = true;
             }
           }
@@ -815,27 +789,21 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
       // Instruction was unlinked during graph traversal.
       if (!instr->IsLinked()) continue;
 
-      SideEffects changes = side_effects_tracker_.ComputeChanges(instr);
-      if (!changes.IsEmpty()) {
+      GVNFlagSet flags = instr->ChangesFlags();
+      if (!flags.IsEmpty()) {
         // Clear all instructions in the map that are affected by side effects.
         // Store instruction as the dominating one for tracked side effects.
-        map->Kill(changes);
-        dominators->Store(changes, instr);
-        if (FLAG_trace_gvn) {
-          HeapStringAllocator allocator;
-          StringStream stream(&allocator);
-          stream.Add("Instruction i%d changes ", instr->id());
-          side_effects_tracker_.PrintSideEffectsTo(&stream, changes);
-          stream.Add("\n");
-          stream.OutputToStdOut();
-        }
+        map->Kill(flags);
+        dominators->Store(flags, instr);
+        TRACE_GVN_2("Instruction %d %s\n", instr->id(),
+                    GetGVNFlagsString(flags).get());
       }
       if (instr->CheckFlag(HValue::kUseGVN)) {
         ASSERT(!instr->HasObservableSideEffects());
-        HInstruction* other = map->Lookup(instr);
+        HValue* other = map->Lookup(instr);
         if (other != NULL) {
           ASSERT(instr->Equals(other) && other->Equals(instr));
-          TRACE_GVN_4("Replacing instruction i%d (%s) with i%d (%s)\n",
+          TRACE_GVN_4("Replacing value %d (%s) with value %d (%s)\n",
                       instr->id(),
                       instr->Mnemonic(),
                       other->id(),
@@ -855,7 +823,7 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
 
     if (next != NULL) {
       HBasicBlock* dominated = next->block();
-      HInstructionMap* successor_map = next->map();
+      HValueMap* successor_map = next->map();
       HSideEffectMap* successor_dominators = next->dominators();
 
       // Kill everything killed on any path between this block and the
@@ -866,7 +834,7 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
       if ((!successor_map->IsEmpty() || !successor_dominators->IsEmpty()) &&
           dominator_block->block_id() + 1 < dominated->block_id()) {
         visited_on_paths_.Clear();
-        SideEffects side_effects_on_all_paths =
+        GVNFlagSet side_effects_on_all_paths =
             CollectSideEffectsOnPathsToDominatedBlock(dominator_block,
                                                       dominated);
         successor_map->Kill(side_effects_on_all_paths);

@@ -35,11 +35,7 @@
 namespace v8 {
 namespace internal {
 
-#if V8_TARGET_ARCH_A64
-typedef uint64_t RegList;
-#else
 typedef uint32_t RegList;
-#endif
 
 // Get the number of registers in a given register list.
 int NumRegs(RegList list);

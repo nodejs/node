@@ -345,6 +345,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
                         info->function()->scope()->AllowsLazyCompilation());
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
+  cgen.PopulateTypeFeedbackCells(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_handler_table(*cgen.handler_table());
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -386,15 +387,6 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 }
 
 
-void FullCodeGenerator::InitializeFeedbackVector() {
-  int length = info_->function()->slot_count();
-  ASSERT_EQ(isolate()->heap()->the_hole_value(),
-            *TypeFeedbackInfo::UninitializedSentinel(isolate()));
-  feedback_vector_ = isolate()->factory()->NewFixedArrayWithHoles(length,
-                                                                  TENURED);
-}
-
-
 void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   // Fill in the deoptimization information.
   ASSERT(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());
@@ -413,7 +405,6 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
 void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   Handle<TypeFeedbackInfo> info = isolate()->factory()->NewTypeFeedbackInfo();
   info->set_ic_total_count(ic_total_count_);
-  info->set_feedback_vector(*FeedbackVector());
   ASSERT(!isolate()->heap()->InNewSpace(*info));
   code->set_type_feedback_info(*info);
 }
@@ -434,6 +425,21 @@ void FullCodeGenerator::Initialize() {
 }
 
 
+void FullCodeGenerator::PopulateTypeFeedbackCells(Handle<Code> code) {
+  if (type_feedback_cells_.is_empty()) return;
+  int length = type_feedback_cells_.length();
+  int array_size = TypeFeedbackCells::LengthOfFixedArray(length);
+  Handle<TypeFeedbackCells> cache = Handle<TypeFeedbackCells>::cast(
+      isolate()->factory()->NewFixedArray(array_size, TENURED));
+  for (int i = 0; i < length; i++) {
+    cache->SetAstId(i, type_feedback_cells_[i].ast_id);
+    cache->SetCell(i, *type_feedback_cells_[i].cell);
+  }
+  TypeFeedbackInfo::cast(code->type_feedback_info())->set_type_feedback_cells(
+      *cache);
+}
+
+
 void FullCodeGenerator::PrepareForBailout(Expression* node, State state) {
   PrepareForBailoutForId(node->id(), state);
 }
@@ -443,13 +449,13 @@ void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
                                    TypeFeedbackId id) {
   ExtraICState extra_state = LoadIC::ComputeExtraICState(contextual_mode);
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), extra_state);
-  CallIC(ic, id);
+  CallIC(ic, contextual_mode, id);
 }
 
 
-void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
+void FullCodeGenerator::CallStoreIC(ContextualMode mode, TypeFeedbackId id) {
   Handle<Code> ic = StoreIC::initialize_stub(isolate(), strict_mode());
-  CallIC(ic, id);
+  CallIC(ic, mode, id);
 }
 
 
@@ -481,6 +487,13 @@ void FullCodeGenerator::PrepareForBailoutForId(BailoutId id, State state) {
   ASSERT(!prepared_bailout_ids_.Contains(id.ToInt()));
   prepared_bailout_ids_.Add(id.ToInt(), zone());
   bailout_entries_.Add(entry, zone());
+}
+
+
+void FullCodeGenerator::RecordTypeFeedbackCell(
+    TypeFeedbackId id, Handle<Cell> cell) {
+  TypeFeedbackCellEntry entry = { id, cell };
+  type_feedback_cells_.Add(entry, zone());
 }
 
 

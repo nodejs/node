@@ -36,77 +36,15 @@
 namespace v8 {
 namespace internal {
 
-// This class extends GVNFlagSet with additional "special" dynamic side effects,
-// which can be used to represent side effects that cannot be expressed using
-// the GVNFlags of an HInstruction. These special side effects are tracked by a
-// SideEffectsTracker (see below).
-class SideEffects V8_FINAL {
- public:
-  static const int kNumberOfSpecials = 64 - kNumberOfFlags;
-
-  SideEffects() : bits_(0) {
-    ASSERT(kNumberOfFlags + kNumberOfSpecials == sizeof(bits_) * CHAR_BIT);
-  }
-  explicit SideEffects(GVNFlagSet flags) : bits_(flags.ToIntegral()) {}
-  bool IsEmpty() const { return bits_ == 0; }
-  bool ContainsFlag(GVNFlag flag) const {
-    return (bits_ & MaskFlag(flag)) != 0;
-  }
-  bool ContainsSpecial(int special) const {
-    return (bits_ & MaskSpecial(special)) != 0;
-  }
-  bool ContainsAnyOf(SideEffects set) const { return (bits_ & set.bits_) != 0; }
-  void Add(SideEffects set) { bits_ |= set.bits_; }
-  void AddSpecial(int special) { bits_ |= MaskSpecial(special); }
-  void AddAllSpecial() { bits_ |= ~static_cast<uint64_t>(0) << kNumberOfFlags; }
-  void RemoveFlag(GVNFlag flag) { bits_ &= ~MaskFlag(flag); }
-  void RemoveAll() { bits_ = 0; }
-  uint64_t ToIntegral() const { return bits_; }
-  void PrintTo(StringStream* stream) const;
-
- private:
-  uint64_t MaskFlag(GVNFlag flag) const {
-    return static_cast<uint64_t>(1) << static_cast<unsigned>(flag);
-  }
-  uint64_t MaskSpecial(int special) const {
-    ASSERT(special >= 0);
-    ASSERT(special < kNumberOfSpecials);
-    return static_cast<uint64_t>(1) << static_cast<unsigned>(
-        special + kNumberOfFlags);
-  }
-
-  uint64_t bits_;
-};
-
-
-// Tracks inobject field loads/stores in a fine grained fashion, and represents
-// them using the "special" dynamic side effects of the SideEffects class (see
-// above). This way unrelated inobject field stores don't prevent hoisting and
-// merging of inobject field loads.
-class SideEffectsTracker V8_FINAL BASE_EMBEDDED {
- public:
-  SideEffectsTracker() : num_inobject_fields_(0) {}
-  SideEffects ComputeChanges(HInstruction* instr);
-  SideEffects ComputeDependsOn(HInstruction* instr);
-  void PrintSideEffectsTo(StringStream* stream, SideEffects side_effects) const;
-
- private:
-  bool ComputeInobjectField(HObjectAccess access, int* index);
-
-  HObjectAccess inobject_fields_[SideEffects::kNumberOfSpecials];
-  int num_inobject_fields_;
-};
-
-
 // Perform common subexpression elimination and loop-invariant code motion.
-class HGlobalValueNumberingPhase V8_FINAL : public HPhase {
+class HGlobalValueNumberingPhase : public HPhase {
  public:
   explicit HGlobalValueNumberingPhase(HGraph* graph);
 
   void Run();
 
  private:
-  SideEffects CollectSideEffectsOnPathsToDominatedBlock(
+  GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
       HBasicBlock* dominator,
       HBasicBlock* dominated);
   void AnalyzeGraph();
@@ -114,18 +52,17 @@ class HGlobalValueNumberingPhase V8_FINAL : public HPhase {
   void LoopInvariantCodeMotion();
   void ProcessLoopBlock(HBasicBlock* block,
                         HBasicBlock* before_loop,
-                        SideEffects loop_kills);
+                        GVNFlagSet loop_kills);
   bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
 
-  SideEffectsTracker side_effects_tracker_;
   bool removed_side_effects_;
 
   // A map of block IDs to their side effects.
-  ZoneList<SideEffects> block_side_effects_;
+  ZoneList<GVNFlagSet> block_side_effects_;
 
   // A map of loop header block IDs to their loop's side effects.
-  ZoneList<SideEffects> loop_side_effects_;
+  ZoneList<GVNFlagSet> loop_side_effects_;
 
   // Used when collecting side effects on paths from dominator to
   // dominated.
@@ -133,6 +70,7 @@ class HGlobalValueNumberingPhase V8_FINAL : public HPhase {
 
   DISALLOW_COPY_AND_ASSIGN(HGlobalValueNumberingPhase);
 };
+
 
 } }  // namespace v8::internal
 

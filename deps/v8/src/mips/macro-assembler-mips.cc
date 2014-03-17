@@ -3440,8 +3440,8 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   bind(&is_nan);
   // Load canonical NaN for storing into the double array.
   LoadRoot(at, Heap::kNanValueRootIndex);
-  lw(mantissa_reg, FieldMemOperand(at, HeapNumber::kMantissaOffset));
-  lw(exponent_reg, FieldMemOperand(at, HeapNumber::kExponentOffset));
+  lw(mantissa_reg, FieldMemOperand(at, HeapNumber::kValueOffset));
+  lw(exponent_reg, FieldMemOperand(at, HeapNumber::kValueOffset + 4));
   jmp(&have_double_value);
 
   bind(&smi_value);
@@ -4346,8 +4346,16 @@ void MacroAssembler::Check(Condition cc, BailoutReason reason,
 void MacroAssembler::Abort(BailoutReason reason) {
   Label abort_start;
   bind(&abort_start);
-#ifdef DEBUG
+  // We want to pass the msg string like a smi to avoid GC
+  // problems, however msg is not guaranteed to be aligned
+  // properly. Instead, we pass an aligned pointer that is
+  // a proper v8 smi, but also pass the alignment difference
+  // from the real pointer as a smi.
   const char* msg = GetBailoutReason(reason);
+  intptr_t p1 = reinterpret_cast<intptr_t>(msg);
+  intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
+  ASSERT(reinterpret_cast<Object*>(p0)->IsSmi());
+#ifdef DEBUG
   if (msg != NULL) {
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -4359,16 +4367,18 @@ void MacroAssembler::Abort(BailoutReason reason) {
   }
 #endif
 
-  li(a0, Operand(Smi::FromInt(reason)));
+  li(a0, Operand(p0));
+  push(a0);
+  li(a0, Operand(Smi::FromInt(p1 - p0)));
   push(a0);
   // Disable stub call restrictions to always allow calls to abort.
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort, 2);
   } else {
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort, 2);
   }
   // Will not return here.
   if (is_trampoline_pool_blocked()) {
@@ -4376,8 +4386,8 @@ void MacroAssembler::Abort(BailoutReason reason) {
     // instructions generated, we insert padding here to keep the size
     // of the Abort macro constant.
     // Currently in debug mode with debug_code enabled the number of
-    // generated instructions is 10, so we use this as a maximum value.
-    static const int kExpectedAbortInstructions = 10;
+    // generated instructions is 14, so we use this as a maximum value.
+    static const int kExpectedAbortInstructions = 14;
     int abort_instructions = InstructionsGeneratedSince(&abort_start);
     ASSERT(abort_instructions <= kExpectedAbortInstructions);
     while (abort_instructions++ < kExpectedAbortInstructions) {

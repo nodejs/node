@@ -789,7 +789,6 @@ void Deserializer::Deserialize(Isolate* isolate) {
   ASSERT(isolate_->handle_scope_implementer()->blocks()->is_empty());
   ASSERT_EQ(NULL, external_reference_decoder_);
   external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
-  isolate_->heap()->IterateSmiRoots(this);
   isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
   isolate_->heap()->RepairFreeListsAfterBoot();
   isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
@@ -1254,6 +1253,7 @@ void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
 Serializer::Serializer(Isolate* isolate, SnapshotByteSink* sink)
     : isolate_(isolate),
       sink_(sink),
+      current_root_index_(0),
       external_reference_encoder_(new ExternalReferenceEncoder(isolate)),
       root_index_wave_front_(0) {
   // The serializer is meant to be used only to generate initial heap images
@@ -1279,7 +1279,7 @@ void StartupSerializer::SerializeStrongReferences() {
   CHECK_EQ(0, isolate->eternal_handles()->NumberOfHandles());
   // We don't support serializing installed extensions.
   CHECK(!isolate->has_installed_extensions());
-  isolate->heap()->IterateSmiRoots(this);
+
   isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
 }
 

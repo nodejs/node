@@ -323,7 +323,7 @@ void AstTyper::VisitForStatement(ForStatement* stmt) {
 void AstTyper::VisitForInStatement(ForInStatement* stmt) {
   // Collect type feedback.
   stmt->set_for_in_type(static_cast<ForInStatement::ForInType>(
-      oracle()->ForInType(stmt->ForInFeedbackSlot())));
+      oracle()->ForInType(stmt->ForInFeedbackId())));
 
   RECURSE(Visit(stmt->enumerable()));
   store_.Forget();  // Control may transfer here via looping or 'continue'.
@@ -530,9 +530,8 @@ void AstTyper::VisitCall(Call* expr) {
   // Collect type feedback.
   RECURSE(Visit(expr->expression()));
   if (!expr->expression()->IsProperty() &&
-      expr->HasCallFeedbackSlot() &&
-      oracle()->CallIsMonomorphic(expr->CallFeedbackSlot())) {
-    expr->set_target(oracle()->GetCallTarget(expr->CallFeedbackSlot()));
+      oracle()->CallIsMonomorphic(expr->CallFeedbackId())) {
+    expr->set_target(oracle()->GetCallTarget(expr->CallFeedbackId()));
   }
 
   ZoneList<Expression*>* args = expr->arguments();

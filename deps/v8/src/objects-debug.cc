@@ -367,7 +367,7 @@ void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
 void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
   VerifyObjectField(kStorage1Offset);
   VerifyObjectField(kStorage2Offset);
-  VerifyHeapPointer(feedback_vector());
+  VerifyHeapPointer(type_feedback_cells());
 }
 
 
@@ -490,6 +490,7 @@ void JSMessageObject::JSMessageObjectVerify() {
   VerifyObjectField(kEndPositionOffset);
   VerifyObjectField(kArgumentsOffset);
   VerifyObjectField(kScriptOffset);
+  VerifyObjectField(kStackTraceOffset);
   VerifyObjectField(kStackFramesOffset);
 }
 

@@ -88,7 +88,6 @@
         'test-liveedit.cc',
         'test-lockers.cc',
         'test-log.cc',
-        'test-microtask-delivery.cc',
         'test-mark-compact.cc',
         'test-mementos.cc',
         'test-mutex.cc',
@@ -150,18 +149,6 @@
             'test-code-stubs-arm.cc',
             'test-disasm-arm.cc',
             'test-macro-assembler-arm.cc'
-          ],
-        }],
-        ['v8_target_arch=="a64"', {
-          'sources': [
-            'test-utils-a64.cc',
-            'test-assembler-a64.cc',
-            'test-code-stubs.cc',
-            'test-code-stubs-a64.cc',
-            'test-disasm-a64.cc',
-            'test-fuzz-a64.cc',
-            'test-javascript-a64.cc',
-            'test-js-a64-variables.cc'
           ],
         }],
         ['v8_target_arch=="mipsel"', {

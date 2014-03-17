@@ -105,6 +105,10 @@ var tojson_via_getter = { get toJSON() {
                           a: 1 };
 TestStringify('321', tojson_via_getter);
 
+assertThrows(function() {
+  JSON.stringify({ get toJSON() { throw "error"; } });
+});
+
 // Test toJSON with key.
 tojson_obj = { toJSON: function(key) { return key + key; } };
 var tojson_with_key_1 = { a: tojson_obj, b: tojson_obj };

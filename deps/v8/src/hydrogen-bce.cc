@@ -91,8 +91,8 @@ class BoundsCheckKey : public ZoneObject {
 
  private:
   BoundsCheckKey(HValue* index_base, HValue* length)
-    : index_base_(index_base),
-      length_(length) { }
+      : index_base_(index_base),
+        length_(length) { }
 
   HValue* index_base_;
   HValue* length_;
@@ -144,10 +144,7 @@ class BoundsCheckBbData: public ZoneObject {
   // (either upper or lower; note that HasSingleCheck() becomes false).
   // Otherwise one of the current checks is modified so that it also covers
   // new_offset, and new_check is removed.
-  //
-  // If the check cannot be modified because the context is unknown it
-  // returns false, otherwise it returns true.
-  bool CoverCheck(HBoundsCheck* new_check,
+  void CoverCheck(HBoundsCheck* new_check,
                   int32_t new_offset) {
     ASSERT(new_check->index()->representation().IsSmiOrInteger32());
     bool keep_new_check = false;
@@ -158,15 +155,7 @@ class BoundsCheckBbData: public ZoneObject {
         keep_new_check = true;
         upper_check_ = new_check;
       } else {
-        bool result = BuildOffsetAdd(upper_check_,
-                                     &added_upper_index_,
-                                     &added_upper_offset_,
-                                     Key()->IndexBase(),
-                                     new_check->index()->representation(),
-                                     new_offset);
-        if (!result) return false;
-        upper_check_->ReplaceAllUsesWith(upper_check_->index());
-        upper_check_->SetOperandAt(0, added_upper_index_);
+        TightenCheck(upper_check_, new_check);
       }
     } else if (new_offset < lower_offset_) {
       lower_offset_ = new_offset;
@@ -174,32 +163,27 @@ class BoundsCheckBbData: public ZoneObject {
         keep_new_check = true;
         lower_check_ = new_check;
       } else {
-        bool result = BuildOffsetAdd(lower_check_,
-                                     &added_lower_index_,
-                                     &added_lower_offset_,
-                                     Key()->IndexBase(),
-                                     new_check->index()->representation(),
-                                     new_offset);
-        if (!result) return false;
-        lower_check_->ReplaceAllUsesWith(lower_check_->index());
-        lower_check_->SetOperandAt(0, added_lower_index_);
+        TightenCheck(lower_check_, new_check);
       }
     } else {
-      ASSERT(false);
+      // Should never have called CoverCheck() in this case.
+      UNREACHABLE();
     }
 
     if (!keep_new_check) {
       new_check->block()->graph()->isolate()->counters()->
           bounds_checks_eliminated()->Increment();
       new_check->DeleteAndReplaceWith(new_check->ActualValue());
+    } else {
+      HBoundsCheck* first_check = new_check == lower_check_ ? upper_check_
+                                                            : lower_check_;
+      // The length is guaranteed to be live at first_check.
+      ASSERT(new_check->length() == first_check->length());
+      HInstruction* old_position = new_check->next();
+      new_check->Unlink();
+      new_check->InsertAfter(first_check);
+      MoveIndexIfNecessary(new_check->index(), new_check, old_position);
     }
-
-    return true;
-  }
-
-  void RemoveZeroOperations() {
-    RemoveZeroAdd(&added_lower_index_, &added_lower_offset_);
-    RemoveZeroAdd(&added_upper_index_, &added_upper_offset_);
   }
 
   BoundsCheckBbData(BoundsCheckKey* key,
@@ -210,18 +194,14 @@ class BoundsCheckBbData: public ZoneObject {
                     HBoundsCheck* upper_check,
                     BoundsCheckBbData* next_in_bb,
                     BoundsCheckBbData* father_in_dt)
-  : key_(key),
-    lower_offset_(lower_offset),
-    upper_offset_(upper_offset),
-    basic_block_(bb),
-    lower_check_(lower_check),
-    upper_check_(upper_check),
-    added_lower_index_(NULL),
-    added_lower_offset_(NULL),
-    added_upper_index_(NULL),
-    added_upper_offset_(NULL),
-    next_in_bb_(next_in_bb),
-    father_in_dt_(father_in_dt) { }
+      : key_(key),
+        lower_offset_(lower_offset),
+        upper_offset_(upper_offset),
+        basic_block_(bb),
+        lower_check_(lower_check),
+        upper_check_(upper_check),
+        next_in_bb_(next_in_bb),
+        father_in_dt_(father_in_dt) { }
 
  private:
   BoundsCheckKey* key_;
@@ -230,57 +210,56 @@ class BoundsCheckBbData: public ZoneObject {
   HBasicBlock* basic_block_;
   HBoundsCheck* lower_check_;
   HBoundsCheck* upper_check_;
-  HInstruction* added_lower_index_;
-  HConstant* added_lower_offset_;
-  HInstruction* added_upper_index_;
-  HConstant* added_upper_offset_;
   BoundsCheckBbData* next_in_bb_;
   BoundsCheckBbData* father_in_dt_;
 
-  // Given an existing add instruction and a bounds check it tries to
-  // find the current context (either of the add or of the check index).
-  HValue* IndexContext(HInstruction* add, HBoundsCheck* check) {
-    if (add != NULL && add->IsAdd()) {
-      return HAdd::cast(add)->context();
+  void MoveIndexIfNecessary(HValue* index_raw,
+                            HBoundsCheck* insert_before,
+                            HInstruction* end_of_scan_range) {
+    if (!index_raw->IsAdd() && !index_raw->IsSub()) {
+      // index_raw can be HAdd(index_base, offset), HSub(index_base, offset),
+      // or index_base directly. In the latter case, no need to move anything.
+      return;
     }
-    if (check->index()->IsBinaryOperation()) {
-      return HBinaryOperation::cast(check->index())->context();
+    HArithmeticBinaryOperation* index =
+        HArithmeticBinaryOperation::cast(index_raw);
+    HValue* left_input = index->left();
+    HValue* right_input = index->right();
+    bool must_move_index = false;
+    bool must_move_left_input = false;
+    bool must_move_right_input = false;
+    for (HInstruction* cursor = end_of_scan_range; cursor != insert_before;) {
+      if (cursor == left_input) must_move_left_input = true;
+      if (cursor == right_input) must_move_right_input = true;
+      if (cursor == index) must_move_index = true;
+      if (cursor->previous() == NULL) {
+        cursor = cursor->block()->dominator()->end();
+      } else {
+        cursor = cursor->previous();
+      }
     }
-    return NULL;
+    if (must_move_index) {
+      index->Unlink();
+      index->InsertBefore(insert_before);
+    }
+    // The BCE algorithm only selects mergeable bounds checks that share
+    // the same "index_base", so we'll only ever have to move constants.
+    if (must_move_left_input) {
+      HConstant::cast(left_input)->Unlink();
+      HConstant::cast(left_input)->InsertBefore(index);
+    }
+    if (must_move_right_input) {
+      HConstant::cast(right_input)->Unlink();
+      HConstant::cast(right_input)->InsertBefore(index);
+    }
   }
 
-  // This function returns false if it cannot build the add because the
-  // current context cannot be determined.
-  bool BuildOffsetAdd(HBoundsCheck* check,
-                      HInstruction** add,
-                      HConstant** constant,
-                      HValue* original_value,
-                      Representation representation,
-                      int32_t new_offset) {
-    HValue* index_context = IndexContext(*add, check);
-    if (index_context == NULL) return false;
-
-    Zone* zone = BasicBlock()->zone();
-    HConstant* new_constant = HConstant::New(zone, index_context,
-                                             new_offset, representation);
-    if (*add == NULL) {
-      new_constant->InsertBefore(check);
-      (*add) = HAdd::New(zone, index_context, original_value, new_constant);
-      (*add)->AssumeRepresentation(representation);
-      (*add)->InsertBefore(check);
-    } else {
-      new_constant->InsertBefore(*add);
-      (*constant)->DeleteAndReplaceWith(new_constant);
-    }
-    *constant = new_constant;
-    return true;
-  }
-
-  void RemoveZeroAdd(HInstruction** add, HConstant** constant) {
-    if (*add != NULL && (*add)->IsAdd() && (*constant)->Integer32Value() == 0) {
-      (*add)->DeleteAndReplaceWith(HAdd::cast(*add)->left());
-      (*constant)->DeleteAndReplaceWith(NULL);
-    }
+  void TightenCheck(HBoundsCheck* original_check,
+                    HBoundsCheck* tighter_check) {
+    ASSERT(original_check->length() == tighter_check->length());
+    MoveIndexIfNecessary(tighter_check->index(), original_check, tighter_check);
+    original_check->ReplaceAllUsesWith(original_check->index());
+    original_check->SetOperandAt(0, tighter_check->index());
   }
 
   DISALLOW_COPY_AND_ASSIGN(BoundsCheckBbData);
@@ -394,11 +373,10 @@ BoundsCheckBbData* HBoundsCheckEliminationPhase::PreProcessBlock(
       bb->graph()->isolate()->counters()->
           bounds_checks_eliminated()->Increment();
       check->DeleteAndReplaceWith(check->ActualValue());
-    } else if (data->BasicBlock() != bb ||
-               !data->CoverCheck(check, offset)) {
-      // If the check is in the current BB we try to modify it by calling
-      // "CoverCheck", but if also that fails we record the current offsets
-      // in a new data instance because from now on they are covered.
+    } else if (data->BasicBlock() == bb) {
+      data->CoverCheck(check, offset);
+    } else if (graph()->use_optimistic_licm() ||
+               bb->IsLoopSuccessorDominator()) {
       int32_t new_lower_offset = offset < data->LowerOffset()
           ? offset
           : data->LowerOffset();
@@ -424,7 +402,6 @@ BoundsCheckBbData* HBoundsCheckEliminationPhase::PreProcessBlock(
 void HBoundsCheckEliminationPhase::PostProcessBlock(
     HBasicBlock* block, BoundsCheckBbData* data) {
   while (data != NULL) {
-    data->RemoveZeroOperations();
     if (data->FatherInDominatorTree()) {
       table_.Insert(data->Key(), data->FatherInDominatorTree(), zone());
     } else {

@@ -234,9 +234,9 @@ TEST(HeapSnapshotObjectSizes) {
   CHECK_NE(NULL, x2);
 
   // Test sizes.
-  CHECK_NE(0, static_cast<int>(x->GetShallowSize()));
-  CHECK_NE(0, static_cast<int>(x1->GetShallowSize()));
-  CHECK_NE(0, static_cast<int>(x2->GetShallowSize()));
+  CHECK_NE(0, x->GetSelfSize());
+  CHECK_NE(0, x1->GetSelfSize());
+  CHECK_NE(0, x2->GetSelfSize());
 }
 
 
@@ -2067,8 +2067,7 @@ TEST(AllocationSitesAreVisible) {
                   "elements");
   CHECK_NE(NULL, elements);
   CHECK_EQ(v8::HeapGraphNode::kArray, elements->GetType());
-  CHECK_EQ(v8::internal::FixedArray::SizeFor(3),
-           static_cast<int>(elements->GetShallowSize()));
+  CHECK_EQ(v8::internal::FixedArray::SizeFor(3), elements->GetSelfSize());
 
   v8::Handle<v8::Value> array_val =
       heap_profiler->FindObjectById(transition_info->GetId());
@@ -2382,71 +2381,6 @@ TEST(ArrayBufferAndArrayBufferView) {
   const v8::HeapGraphNode* first_view =
       GetProperty(arr1_buffer, v8::HeapGraphEdge::kWeak, "weak_first_view");
   CHECK_NE(NULL, first_view);
-  const v8::HeapGraphNode* backing_store =
-      GetProperty(arr1_buffer, v8::HeapGraphEdge::kInternal, "backing_store");
-  CHECK_NE(NULL, backing_store);
-  CHECK_EQ(400, static_cast<int>(backing_store->GetShallowSize()));
-}
-
-
-static int GetRetainersCount(const v8::HeapSnapshot* snapshot,
-                             const v8::HeapGraphNode* node) {
-  int count = 0;
-  for (int i = 0, l = snapshot->GetNodesCount(); i < l; ++i) {
-    const v8::HeapGraphNode* parent = snapshot->GetNode(i);
-    for (int j = 0, l2 = parent->GetChildrenCount(); j < l2; ++j) {
-      if (parent->GetChild(j)->GetToNode() == node) {
-        ++count;
-      }
-    }
-  }
-  return count;
-}
-
-
-TEST(ArrayBufferSharedBackingStore) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
-
-  v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 1024);
-  CHECK_EQ(1024, static_cast<int>(ab->ByteLength()));
-  CHECK(!ab->IsExternal());
-  v8::ArrayBuffer::Contents ab_contents = ab->Externalize();
-  CHECK(ab->IsExternal());
-
-  CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
-  void* data = ab_contents.Data();
-  ASSERT(data != NULL);
-  v8::Local<v8::ArrayBuffer> ab2 =
-      v8::ArrayBuffer::New(isolate, data, ab_contents.ByteLength());
-  CHECK(ab2->IsExternal());
-  env->Global()->Set(v8_str("ab1"), ab);
-  env->Global()->Set(v8_str("ab2"), ab2);
-
-  v8::Handle<v8::Value> result = CompileRun("ab2.byteLength");
-  CHECK_EQ(1024, result->Int32Value());
-
-  const v8::HeapSnapshot* snapshot =
-      heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
-  CHECK(ValidateSnapshot(snapshot));
-  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* ab1_node =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "ab1");
-  CHECK_NE(NULL, ab1_node);
-  const v8::HeapGraphNode* ab1_data =
-      GetProperty(ab1_node, v8::HeapGraphEdge::kInternal, "backing_store");
-  CHECK_NE(NULL, ab1_data);
-  const v8::HeapGraphNode* ab2_node =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "ab2");
-  CHECK_NE(NULL, ab2_node);
-  const v8::HeapGraphNode* ab2_data =
-      GetProperty(ab2_node, v8::HeapGraphEdge::kInternal, "backing_store");
-  CHECK_NE(NULL, ab2_data);
-  CHECK_EQ(ab1_data, ab2_data);
-  CHECK_EQ(2, GetRetainersCount(snapshot, ab1_data));
-  free(data);
 }
 
 

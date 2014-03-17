@@ -138,7 +138,7 @@ class Representation {
 
     ASSERT(kind_ != kExternal);
     ASSERT(other.kind_ != kExternal);
-    if (IsHeapObject()) return other.IsDouble() || other.IsNone();
+    if (IsHeapObject()) return other.IsNone();
     if (kind_ == kUInteger8 && other.kind_ == kInteger8) return false;
     if (kind_ == kUInteger16 && other.kind_ == kInteger16) return false;
     return kind_ > other.kind_;
@@ -233,11 +233,11 @@ class PropertyDetails BASE_EMBEDDED {
         | FieldIndexField::encode(field_index);
   }
 
-  int pointer() const { return DescriptorPointer::decode(value_); }
+  int pointer() { return DescriptorPointer::decode(value_); }
 
   PropertyDetails set_pointer(int i) { return PropertyDetails(value_, i); }
 
-  PropertyDetails CopyWithRepresentation(Representation representation) const {
+  PropertyDetails CopyWithRepresentation(Representation representation) {
     return PropertyDetails(value_, representation);
   }
   PropertyDetails CopyAddAttributes(PropertyAttributes new_attributes) {
@@ -248,7 +248,7 @@ class PropertyDetails BASE_EMBEDDED {
 
   // Conversion for storing details as Object*.
   explicit inline PropertyDetails(Smi* smi);
-  inline Smi* AsSmi() const;
+  inline Smi* AsSmi();
 
   static uint8_t EncodeRepresentation(Representation representation) {
     return representation.kind();
@@ -258,26 +258,26 @@ class PropertyDetails BASE_EMBEDDED {
     return Representation::FromKind(static_cast<Representation::Kind>(bits));
   }
 
-  PropertyType type() const { return TypeField::decode(value_); }
+  PropertyType type() { return TypeField::decode(value_); }
 
   PropertyAttributes attributes() const {
     return AttributesField::decode(value_);
   }
 
-  int dictionary_index() const {
+  int dictionary_index() {
     return DictionaryStorageField::decode(value_);
   }
 
-  Representation representation() const {
+  Representation representation() {
     ASSERT(type() != NORMAL);
     return DecodeRepresentation(RepresentationField::decode(value_));
   }
 
-  int field_index() const {
+  int  field_index() {
     return FieldIndexField::decode(value_);
   }
 
-  inline PropertyDetails AsDeleted() const;
+  inline PropertyDetails AsDeleted();
 
   static bool IsValidIndex(int index) {
     return DictionaryStorageField::is_valid(index);

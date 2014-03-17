@@ -744,8 +744,6 @@ class MarkCompactCollector {
   void MarkAllocationSite(AllocationSite* site);
 
  private:
-  class SweeperTask;
-
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();
 
@@ -792,8 +790,6 @@ class MarkCompactCollector {
 
   // True if concurrent or parallel sweeping is currently in progress.
   bool sweeping_pending_;
-
-  Semaphore pending_sweeper_jobs_semaphore_;
 
   bool sequential_sweeping_;
 
@@ -943,12 +939,6 @@ class MarkCompactCollector {
   void EvacuateNewSpaceAndCandidates();
 
   void SweepSpace(PagedSpace* space, SweeperType sweeper);
-
-  // Finalizes the parallel sweeping phase. Marks all the pages that were
-  // swept in parallel.
-  void ParallelSweepSpacesComplete();
-
-  void ParallelSweepSpaceComplete(PagedSpace* space);
 
 #ifdef DEBUG
   friend class MarkObjectVisitor;

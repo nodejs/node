@@ -313,21 +313,11 @@ class MemoryChunk {
 
   bool is_valid() { return address() != NULL; }
 
-  MemoryChunk* next_chunk() const {
-    return reinterpret_cast<MemoryChunk*>(Acquire_Load(&next_chunk_));
-  }
+  MemoryChunk* next_chunk() const { return next_chunk_; }
+  MemoryChunk* prev_chunk() const { return prev_chunk_; }
 
-  MemoryChunk* prev_chunk() const {
-    return reinterpret_cast<MemoryChunk*>(Acquire_Load(&prev_chunk_));
-  }
-
-  void set_next_chunk(MemoryChunk* next) {
-    Release_Store(&next_chunk_, reinterpret_cast<AtomicWord>(next));
-  }
-
-  void set_prev_chunk(MemoryChunk* prev) {
-    Release_Store(&prev_chunk_, reinterpret_cast<AtomicWord>(prev));
-  }
+  void set_next_chunk(MemoryChunk* next) { next_chunk_ = next; }
+  void set_prev_chunk(MemoryChunk* prev) { prev_chunk_ = prev; }
 
   Space* owner() const {
     if ((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
@@ -467,32 +457,16 @@ class MemoryChunk {
   // Return all current flags.
   intptr_t GetFlags() { return flags_; }
 
-
-  // PARALLEL_SWEEPING_PENDING - This page is ready for parallel sweeping.
-  // PARALLEL_SWEEPING_IN_PROGRESS - This page is currently swept or was
-  // swept by a sweeper thread.
-  // PARALLEL_SWEEPING_DONE - The page state when sweeping is complete or
-  // sweeping must not be performed on that page.
-  enum ParallelSweepingState {
-    PARALLEL_SWEEPING_DONE,
-    PARALLEL_SWEEPING_IN_PROGRESS,
-    PARALLEL_SWEEPING_PENDING
-  };
-
-  ParallelSweepingState parallel_sweeping() {
-    return static_cast<ParallelSweepingState>(
-        NoBarrier_Load(&parallel_sweeping_));
+  intptr_t parallel_sweeping() const {
+    return parallel_sweeping_;
   }
 
-  void set_parallel_sweeping(ParallelSweepingState state) {
-    NoBarrier_Store(&parallel_sweeping_, state);
+  void set_parallel_sweeping(intptr_t state) {
+    parallel_sweeping_ = state;
   }
 
   bool TryParallelSweeping() {
-    return NoBarrier_CompareAndSwap(&parallel_sweeping_,
-                                    PARALLEL_SWEEPING_PENDING,
-                                    PARALLEL_SWEEPING_IN_PROGRESS) ==
-                                        PARALLEL_SWEEPING_PENDING;
+    return NoBarrier_CompareAndSwap(&parallel_sweeping_, 1, 0) == 1;
   }
 
   // Manage live byte count (count of bytes known to be live,
@@ -562,7 +536,7 @@ class MemoryChunk {
 
   static const intptr_t kAlignmentMask = kAlignment - 1;
 
-  static const intptr_t kSizeOffset = 0;
+  static const intptr_t kSizeOffset = kPointerSize + kPointerSize;
 
   static const intptr_t kLiveBytesOffset =
      kSizeOffset + kPointerSize + kPointerSize + kPointerSize +
@@ -576,8 +550,7 @@ class MemoryChunk {
 
   static const size_t kHeaderSize = kWriteBarrierCounterOffset + kPointerSize +
                                     kIntSize + kIntSize + kPointerSize +
-                                    5 * kPointerSize +
-                                    kPointerSize + kPointerSize;
+                                    5 * kPointerSize;
 
   static const int kBodyOffset =
       CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
@@ -649,7 +622,7 @@ class MemoryChunk {
 
   inline Heap* heap() { return heap_; }
 
-  static const int kFlagsOffset = kPointerSize;
+  static const int kFlagsOffset = kPointerSize * 3;
 
   bool IsEvacuationCandidate() { return IsFlagSet(EVACUATION_CANDIDATE); }
 
@@ -698,6 +671,8 @@ class MemoryChunk {
   static inline void UpdateHighWaterMark(Address mark);
 
  protected:
+  MemoryChunk* next_chunk_;
+  MemoryChunk* prev_chunk_;
   size_t size_;
   intptr_t flags_;
 
@@ -727,7 +702,7 @@ class MemoryChunk {
   // count highest number of bytes ever allocated on the page.
   int high_water_mark_;
 
-  AtomicWord parallel_sweeping_;
+  intptr_t parallel_sweeping_;
 
   // PagedSpace free-list statistics.
   intptr_t available_in_small_free_list_;
@@ -743,12 +718,6 @@ class MemoryChunk {
                                  Address area_end,
                                  Executability executable,
                                  Space* owner);
-
- private:
-  // next_chunk_ holds a pointer of type MemoryChunk
-  AtomicWord next_chunk_;
-  // prev_chunk_ holds a pointer of type MemoryChunk
-  AtomicWord prev_chunk_;
 
   friend class MemoryAllocator;
 };
@@ -1534,7 +1503,7 @@ class FreeListNode: public HeapObject {
 class FreeListCategory {
  public:
   FreeListCategory() :
-      top_(0),
+      top_(NULL),
       end_(NULL),
       available_(0) {}
 
@@ -1552,13 +1521,9 @@ class FreeListCategory {
 
   void RepairFreeList(Heap* heap);
 
-  FreeListNode* top() const {
-    return reinterpret_cast<FreeListNode*>(NoBarrier_Load(&top_));
-  }
-
-  void set_top(FreeListNode* top) {
-    NoBarrier_Store(&top_, reinterpret_cast<AtomicWord>(top));
-  }
+  FreeListNode** GetTopAddress() { return &top_; }
+  FreeListNode* top() const { return top_; }
+  void set_top(FreeListNode* top) { top_ = top; }
 
   FreeListNode** GetEndAddress() { return &end_; }
   FreeListNode* end() const { return end_; }
@@ -1571,7 +1536,7 @@ class FreeListCategory {
   Mutex* mutex() { return &mutex_; }
 
   bool IsEmpty() {
-    return top() == 0;
+    return top_ == NULL;
   }
 
 #ifdef DEBUG
@@ -1580,8 +1545,7 @@ class FreeListCategory {
 #endif
 
  private:
-  // top_ points to the top FreeListNode* in the free list category.
-  AtomicWord top_;
+  FreeListNode* top_;
   FreeListNode* end_;
   Mutex mutex_;
 

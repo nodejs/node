@@ -280,12 +280,10 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
   // Register state for CallFunctionStub (from code-stubs-ia32.cc).
   // ----------- S t a t e -------------
-  //  -- ebx: feedback array
-  //  -- edx: slot in feedback array
+  //  -- ebx: cache cell for call target
   //  -- edi: function
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, ebx.bit() | edx.bit() | edi.bit(),
-                                0, false);
+  Generate_DebugBreakCallHelper(masm, ebx.bit() | edi.bit(), 0, false);
 }
 
 
@@ -308,13 +306,11 @@ void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
   // above IC call.
   // ----------- S t a t e -------------
   //  -- eax: number of arguments (not smi)
-  //  -- ebx: feedback array
-  //  -- edx: feedback slot (smi)
+  //  -- ebx: cache cell for call target
   //  -- edi: constructor function
   // -----------------------------------
   // The number of arguments in eax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, ebx.bit() | edx.bit() | edi.bit(),
-                                eax.bit(), false);
+  Generate_DebugBreakCallHelper(masm, ebx.bit() | edi.bit(), eax.bit(), false);
 }
 
 

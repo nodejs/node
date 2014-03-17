@@ -422,14 +422,13 @@ static void CompileCallLoadPropertyWithInterceptor(
 // This function uses push() to generate smaller, faster code than
 // the version above. It is an optimization that should will be removed
 // when api call ICs are generated in hydrogen.
-void StubCompiler::GenerateFastApiCall(MacroAssembler* masm,
-                                       const CallOptimization& optimization,
-                                       Handle<Map> receiver_map,
-                                       Register receiver,
-                                       Register scratch_in,
-                                       bool is_store,
-                                       int argc,
-                                       Register* values) {
+static void GenerateFastApiCall(MacroAssembler* masm,
+                                const CallOptimization& optimization,
+                                Handle<Map> receiver_map,
+                                Register receiver,
+                                Register scratch_in,
+                                int argc,
+                                Register* values) {
   // Copy return value.
   __ pop(scratch_in);
   // receiver
@@ -494,7 +493,7 @@ void StubCompiler::GenerateFastApiCall(MacroAssembler* masm,
   __ mov(api_function_address, Immediate(function_address));
 
   // Jump to stub.
-  CallApiFunctionStub stub(is_store, call_data_undefined, argc);
+  CallApiFunctionStub stub(true, call_data_undefined, argc);
   __ TailCallStub(&stub);
 }
 
@@ -1067,6 +1066,15 @@ void LoadStubCompiler::GenerateLoadField(Register reg,
 
 
 void LoadStubCompiler::GenerateLoadCallback(
+    const CallOptimization& call_optimization,
+    Handle<Map> receiver_map) {
+  GenerateFastApiCall(
+      masm(), call_optimization, receiver_map,
+      receiver(), scratch1(), 0, NULL);
+}
+
+
+void LoadStubCompiler::GenerateLoadCallback(
     Register reg,
     Handle<ExecutableAccessorInfo> callback) {
   // Insert additional parameters into the stack frame above return address.
@@ -1249,6 +1257,24 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty), isolate());
   __ TailCallExternalReference(store_callback_property, 5, 1);
+
+  // Return the generated code.
+  return GetCode(kind(), Code::FAST, name);
+}
+
+
+Handle<Code> StoreStubCompiler::CompileStoreCallback(
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Handle<Name> name,
+    const CallOptimization& call_optimization) {
+  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
+                  receiver(), holder, name);
+
+  Register values[] = { value() };
+  GenerateFastApiCall(
+      masm(), call_optimization, handle(object->map()),
+      receiver(), scratch1(), 1, values);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

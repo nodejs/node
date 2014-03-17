@@ -60,18 +60,12 @@ function test_id(fun, rev, value) {
 });
 
 
-[Math.sinh, Math.asinh].forEach(function(fun) {
+[Math.sinh, Math.asinh, Math.cosh].forEach(function(fun) {
   assertEquals("-Infinity", String(fun(-Infinity)));
   assertEquals("Infinity", String(fun(Infinity)));
   assertEquals("-Infinity", String(fun("-Infinity")));
   assertEquals("Infinity", String(fun("Infinity")));
 });
-
-
-assertEquals("Infinity", String(Math.cosh(-Infinity)));
-assertEquals("Infinity", String(Math.cosh(Infinity)));
-assertEquals("Infinity", String(Math.cosh("-Infinity")));
-assertEquals("Infinity", String(Math.cosh("Infinity")));
 
 
 assertEquals("-Infinity", String(Math.atanh(-1)));

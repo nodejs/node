@@ -234,6 +234,7 @@ DEFINE_implication(track_double_fields, track_fields)
 DEFINE_implication(track_heap_object_fields, track_fields)
 DEFINE_implication(track_computed_fields, track_fields)
 DEFINE_bool(smi_binop, true, "support smi representation in binary operations")
+DEFINE_bool(smi_x64_store_opt, false, "optimized stores of smi on x64")
 
 // Flags for optimization types.
 DEFINE_bool(optimize_for_size, false,
@@ -254,9 +255,6 @@ DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
 DEFINE_bool(use_escape_analysis, true, "use hydrogen escape analysis")
 DEFINE_bool(use_allocation_folding, true, "use allocation folding")
-DEFINE_bool(use_local_allocation_folding, false, "only fold in basic blocks")
-DEFINE_bool(use_write_barrier_elimination, true,
-            "eliminate write barriers targeting allocations in optimized code")
 DEFINE_int(max_inlining_levels, 5, "maximum number of inlining levels")
 DEFINE_int(max_inlined_source_size, 600,
            "maximum source size in bytes considered for a single inlining")
@@ -418,6 +416,10 @@ DEFINE_bool(disable_native_files, false, "disable builtin natives files")
 // builtins-ia32.cc
 DEFINE_bool(inline_new, true, "use fast inline allocation")
 
+// checks.cc
+DEFINE_bool(stack_trace_on_abort, true,
+            "print a stack trace if an assertion failure occurs")
+
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(trace_codegen, false,
             "print name of functions for which code is generated")
@@ -533,7 +535,6 @@ DEFINE_bool(parallel_sweeping, true, "enable parallel sweeping")
 DEFINE_bool(concurrent_sweeping, false, "enable concurrent sweeping")
 DEFINE_int(sweeper_threads, 0,
            "number of parallel and concurrent sweeping threads")
-DEFINE_bool(job_based_sweeping, false, "enable job based sweeping")
 #ifdef VERIFY_HEAP
 DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
 #endif
@@ -581,35 +582,19 @@ DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")
 DEFINE_bool(trace_parse, false, "trace parsing and preparsing")
 
-// simulator-arm.cc, simulator-a64.cc and simulator-mips.cc
+// simulator-arm.cc and simulator-mips.cc
 DEFINE_bool(trace_sim, false, "Trace simulator execution")
 DEFINE_bool(check_icache, false,
             "Check icache flushes in ARM and MIPS simulator")
 DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions")
-#ifdef V8_TARGET_ARCH_A64
-DEFINE_int(sim_stack_alignment, 16,
-           "Stack alignment in bytes in simulator. This must be a power of two "
-           "and it must be at least 16. 16 is default.")
-#else
 DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
-#endif
-DEFINE_int(sim_stack_size, 2 * MB / KB,
-           "Stack size of the A64 simulator in kBytes (default is 2 MB)")
-DEFINE_bool(log_regs_modified, true,
-            "When logging register values, only print modified registers.")
-DEFINE_bool(log_colour, true,
-            "When logging, try to use coloured output.")
-DEFINE_bool(ignore_asm_unimplemented_break, false,
-            "Don't break for ASM_UNIMPLEMENTED_BREAK macros.")
-DEFINE_bool(trace_sim_messages, false,
-            "Trace simulator debug messages. Implied by --trace-sim.")
 
 // isolate.cc
-DEFINE_bool(stack_trace_on_illegal, false,
-            "print stack trace when an illegal exception is thrown")
 DEFINE_bool(abort_on_uncaught_exception, false,
             "abort program (dump core) when an uncaught exception is thrown")
+DEFINE_bool(trace_exception, false,
+            "print stack trace when throwing exceptions")
 DEFINE_bool(randomize_hashes, true,
             "randomize hashes to avoid predictable hash collisions "
             "(with snapshots this option cannot override the baked-in seed)")
@@ -814,20 +799,12 @@ DEFINE_bool(log_timer_events, false,
             "Time events including external callbacks.")
 DEFINE_implication(log_timer_events, log_internal_timer_events)
 DEFINE_implication(log_internal_timer_events, prof)
-DEFINE_bool(log_instruction_stats, false, "Log AArch64 instruction statistics.")
-DEFINE_string(log_instruction_file, "a64_inst.csv",
-              "AArch64 instruction statistics log file.")
-DEFINE_int(log_instruction_period, 1 << 22,
-           "AArch64 instruction statistics logging period.")
 
 DEFINE_bool(redirect_code_traces, false,
             "output deopt information and disassembly into file "
             "code-<pid>-<isolate id>.asm")
 DEFINE_string(redirect_code_traces_to, NULL,
             "output deopt information and disassembly into the given file")
-
-DEFINE_bool(hydrogen_track_positions, false,
-            "track source code positions when building IR")
 
 //
 // Disassembler only flags
@@ -861,6 +838,8 @@ DEFINE_bool(print_unopt_code, false, "print unoptimized code before "
             "printing optimized code based on it")
 DEFINE_bool(print_code_verbose, false, "print more information for code")
 DEFINE_bool(print_builtin_code, false, "print generated code for builtins")
+DEFINE_bool(emit_opt_code_positions, false,
+            "annotate optimize code with source code positions")
 
 #ifdef ENABLE_DISASSEMBLER
 DEFINE_bool(sodium, false, "print generated code output suitable for use with "
@@ -869,7 +848,7 @@ DEFINE_bool(sodium, false, "print generated code output suitable for use with "
 DEFINE_implication(sodium, print_code_stubs)
 DEFINE_implication(sodium, print_code)
 DEFINE_implication(sodium, print_opt_code)
-DEFINE_implication(sodium, hydrogen_track_positions)
+DEFINE_implication(sodium, emit_opt_code_positions)
 DEFINE_implication(sodium, code_comments)
 
 DEFINE_bool(print_all_code, false, "enable all flags related to printing code")

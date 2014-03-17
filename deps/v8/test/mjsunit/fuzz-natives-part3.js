@@ -216,10 +216,7 @@ var knownProblems = {
   "DataViewInitialize":true,
   "DataViewGetBuffer": true,
   "DataViewGetByteLength": true,
-  "DataViewGetByteOffset": true,
-
-  // Only ever called internally.
-  "RunMicrotasks": true
+  "DataViewGetByteOffset": true
 };
 
 var currentlyUncallable = {

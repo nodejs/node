@@ -85,7 +85,8 @@ ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
       callback_(callback),
       previous_scope_(isolate->external_callback_scope()) {
 #ifdef USE_SIMULATOR
-  scope_address_ = Simulator::current(isolate)->get_sp();
+  int32_t sp = Simulator::current(isolate)->get_register(Simulator::sp);
+  scope_address_ = reinterpret_cast<Address>(static_cast<intptr_t>(sp));
 #endif
   isolate_->set_external_callback_scope(this);
 }

@@ -1889,30 +1889,10 @@ SetUpFunction();
 // Eventually, we should move to a real event queue that allows to maintain
 // relative ordering of different kinds of tasks.
 
-function GetMicrotaskQueue() {
-  var microtaskState = %GetMicrotaskState();
-  if (IS_UNDEFINED(microtaskState.queue)) {
-    microtaskState.queue = new InternalArray;
-  }
-  return microtaskState.queue;
-}
+RunMicrotasks.runners = new InternalArray;
 
 function RunMicrotasks() {
   while (%SetMicrotaskPending(false)) {
-    var microtaskState = %GetMicrotaskState();
-    if (IS_UNDEFINED(microtaskState.queue))
-      return;
-
-    var microtasks = microtaskState.queue;
-    microtaskState.queue = new InternalArray;
-
-    for (var i = 0; i < microtasks.length; i++) {
-      microtasks[i]();
-    }
+    for (var i in RunMicrotasks.runners) RunMicrotasks.runners[i]();
   }
-}
-
-function EnqueueExternalMicrotask(fn) {
-  GetMicrotaskQueue().push(fn);
-  %SetMicrotaskPending(true);
 }

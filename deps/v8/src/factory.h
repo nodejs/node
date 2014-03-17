@@ -225,6 +225,9 @@ class Factory {
                                   Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
 
+  // Return the internalized version of the passed in string.
+  Handle<String> InternalizedStringFromString(Handle<String> value);
+
   // Allocate a new struct.  The struct is pretenured (allocated directly in
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
@@ -525,6 +528,7 @@ class Factory {
       int start_position,
       int end_position,
       Handle<Object> script,
+      Handle<Object> stack_trace,
       Handle<Object> stack_frames);
 
   Handle<SeededNumberDictionary> DictionaryAtNumberPut(

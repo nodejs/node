@@ -165,8 +165,6 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
             function->debug_name()->ToCString().get(), tracing_scope.file());
       }
       PrintF(tracing_scope.file(), "--- Optimized code ---\n");
-      PrintF(tracing_scope.file(),
-             "optimization_id = %d\n", info->optimization_id());
     } else {
       PrintF(tracing_scope.file(), "--- Code ---\n");
     }

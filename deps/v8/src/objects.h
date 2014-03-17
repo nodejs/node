@@ -37,9 +37,7 @@
 #include "property-details.h"
 #include "smart-pointers.h"
 #include "unicode-inl.h"
-#if V8_TARGET_ARCH_A64
-#include "a64/constants-a64.h"
-#elif V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
 #include "arm/constants-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/constants-mips.h"
@@ -1040,6 +1038,7 @@ class MaybeObject BASE_EMBEDDED {
   V(DeoptimizationInputData)                   \
   V(DeoptimizationOutputData)                  \
   V(DependentCode)                             \
+  V(TypeFeedbackCells)                         \
   V(FixedArray)                                \
   V(FixedDoubleArray)                          \
   V(ConstantPoolArray)                         \
@@ -1130,9 +1129,6 @@ class MaybeObject BASE_EMBEDDED {
   V(kCodeObjectNotProperlyPatched, "Code object not properly patched")        \
   V(kCompoundAssignmentToLookupSlot, "Compound assignment to lookup slot")    \
   V(kContextAllocatedArguments, "Context-allocated arguments")                \
-  V(kCopyBuffersOverlap, "Copy buffers overlap")                              \
-  V(kCouldNotGenerateZero, "Could not generate +0.0")                         \
-  V(kCouldNotGenerateNegativeZero, "Could not generate -0.0")                 \
   V(kDebuggerIsActive, "Debugger is active")                                  \
   V(kDebuggerStatement, "DebuggerStatement")                                  \
   V(kDeclarationInCatchContext, "Declaration in catch context")               \
@@ -1145,32 +1141,18 @@ class MaybeObject BASE_EMBEDDED {
     "DontDelete cells can't contain the hole")                                \
   V(kDoPushArgumentNotImplementedForDoubleType,                               \
     "DoPushArgument not implemented for double type")                         \
-  V(kEliminatedBoundsCheckFailed, "Eliminated bounds check failed")           \
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                              \
     "EmitLoadRegister: Unsupported double immediate")                         \
   V(kEval, "eval")                                                            \
   V(kExpected0AsASmiSentinel, "Expected 0 as a Smi sentinel")                 \
-  V(kExpectedAlignmentMarker, "Expected alignment marker")                    \
-  V(kExpectedAllocationSite, "Expected allocation site")                      \
-  V(kExpectedFunctionObject, "Expected function object in register")          \
-  V(kExpectedHeapNumber, "Expected HeapNumber")                               \
-  V(kExpectedNativeContext, "Expected native context")                        \
-  V(kExpectedNonIdenticalObjects, "Expected non-identical objects")           \
-  V(kExpectedNonNullContext, "Expected non-null context")                     \
-  V(kExpectedPositiveZero, "Expected +0.0")                                   \
-  V(kExpectedAllocationSiteInCell,                                            \
-    "Expected AllocationSite in property cell")                               \
-  V(kExpectedFixedArrayInFeedbackVector,                                      \
-    "Expected fixed array in feedback vector")                                \
-  V(kExpectedFixedArrayInRegisterA2,                                          \
-    "Expected fixed array in register a2")                                    \
-  V(kExpectedFixedArrayInRegisterEbx,                                         \
-    "Expected fixed array in register ebx")                                   \
-  V(kExpectedFixedArrayInRegisterR2,                                          \
-    "Expected fixed array in register r2")                                    \
-  V(kExpectedFixedArrayInRegisterRbx,                                         \
-    "Expected fixed array in register rbx")                                   \
-  V(kExpectedSmiOrHeapNumber, "Expected smi or HeapNumber")                   \
+  V(kExpectedAlignmentMarker, "expected alignment marker")                    \
+  V(kExpectedAllocationSite, "expected allocation site")                      \
+  V(kExpectedPropertyCellInRegisterA2,                                        \
+    "Expected property cell in register a2")                                  \
+  V(kExpectedPropertyCellInRegisterEbx,                                       \
+    "Expected property cell in register ebx")                                 \
+  V(kExpectedPropertyCellInRegisterRbx,                                       \
+    "Expected property cell in register rbx")                                 \
   V(kExpectingAlignmentForCopyBytes,                                          \
     "Expecting alignment for CopyBytes")                                      \
   V(kExportDeclaration, "Export declaration")                                 \
@@ -1215,7 +1197,6 @@ class MaybeObject BASE_EMBEDDED {
   V(kInliningBailedOut, "Inlining bailed out")                                \
   V(kInputGPRIsExpectedToHaveUpper32Cleared,                                  \
     "Input GPR is expected to have upper32 cleared")                          \
-  V(kInputStringTooLong, "Input string too long")                             \
   V(kInstanceofStubUnexpectedCallSiteCacheCheck,                              \
     "InstanceofStub unexpected call site cache (check)")                      \
   V(kInstanceofStubUnexpectedCallSiteCacheCmp1,                               \
@@ -1229,7 +1210,6 @@ class MaybeObject BASE_EMBEDDED {
   V(kInvalidCaptureReferenced, "Invalid capture referenced")                  \
   V(kInvalidElementsKindForInternalArrayOrInternalPackedArray,                \
     "Invalid ElementsKind for InternalArray or InternalPackedArray")          \
-  V(kInvalidFullCodegenState, "invalid full-codegen state")                   \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                    \
   V(kInvalidLeftHandSideInAssignment, "Invalid left-hand side in assignment") \
   V(kInvalidLhsInCompoundAssignment, "Invalid lhs in compound assignment")    \
@@ -1242,10 +1222,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kJSObjectWithFastElementsMapHasSlowElements,                              \
     "JSObject with fast elements map has slow elements")                      \
   V(kLetBindingReInitialization, "Let binding re-initialization")             \
-  V(kLhsHasBeenClobbered, "lhs has been clobbered")                           \
   V(kLiveBytesCountOverflowChunkSize, "Live Bytes Count overflow chunk size") \
-  V(kLiveEditFrameDroppingIsNotSupportedOnA64,                                \
-    "LiveEdit frame dropping is not supported on a64")                        \
   V(kLiveEditFrameDroppingIsNotSupportedOnArm,                                \
     "LiveEdit frame dropping is not supported on arm")                        \
   V(kLiveEditFrameDroppingIsNotSupportedOnMips,                               \
@@ -1281,7 +1258,6 @@ class MaybeObject BASE_EMBEDDED {
     "Object literal with complex property")                                   \
   V(kOddballInStringTableIsNotUndefinedOrTheHole,                             \
     "Oddball in string table is not undefined or the hole")                   \
-  V(kOffsetOutOfRange, "Offset out of range")                                 \
   V(kOperandIsASmiAndNotAName, "Operand is a smi and not a name")             \
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")         \
   V(kOperandIsASmi, "Operand is a smi")                                       \
@@ -1297,7 +1273,6 @@ class MaybeObject BASE_EMBEDDED {
     "Out of virtual registers while trying to allocate temp register")        \
   V(kParseScopeError, "Parse/scope error")                                    \
   V(kPossibleDirectCallToEval, "Possible direct call to eval")                \
-  V(kPreconditionsWereNotMet, "Preconditions were not met")                   \
   V(kPropertyAllocationCountFailed, "Property allocation count failed")       \
   V(kReceivedInvalidReturnAddress, "Received invalid return address")         \
   V(kReferenceToAVariableWhichRequiresDynamicLookup,                          \
@@ -1307,37 +1282,24 @@ class MaybeObject BASE_EMBEDDED {
   V(kReferenceToUninitializedVariable, "Reference to uninitialized variable") \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root") \
   V(kRegisterWasClobbered, "Register was clobbered")                          \
-  V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
-  V(kReturnAddressNotFoundInFrame, "Return address not found in frame")       \
-  V(kRhsHasBeenClobbered, "Rhs has been clobbered")                           \
   V(kScopedBlock, "ScopedBlock")                                              \
   V(kSmiAdditionOverflow, "Smi addition overflow")                            \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                      \
-  V(kStackAccessBelowStackPointer, "Stack access below stack pointer")        \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                \
   V(kSwitchStatementMixedOrNonLiteralSwitchLabels,                            \
     "SwitchStatement: mixed or non-literal switch labels")                    \
   V(kSwitchStatementTooManyClauses, "SwitchStatement: too many clauses")      \
-  V(kTheCurrentStackPointerIsBelowCsp,                                        \
-    "The current stack pointer is below csp")                                 \
   V(kTheInstructionShouldBeALui, "The instruction should be a lui")           \
   V(kTheInstructionShouldBeAnOri, "The instruction should be an ori")         \
   V(kTheInstructionToPatchShouldBeALoadFromPc,                                \
     "The instruction to patch should be a load from pc")                      \
-  V(kTheInstructionToPatchShouldBeAnLdrLiteral,                               \
-    "The instruction to patch should be a ldr literal")                       \
   V(kTheInstructionToPatchShouldBeALui,                                       \
     "The instruction to patch should be a lui")                               \
   V(kTheInstructionToPatchShouldBeAnOri,                                      \
     "The instruction to patch should be an ori")                              \
-  V(kTheSourceAndDestinationAreTheSame,                                       \
-    "The source and destination are the same")                                \
-  V(kTheStackWasCorruptedByMacroAssemblerCall,                                \
-    "The stack was corrupted by MacroAssembler::Call()")                      \
   V(kTooManyParametersLocals, "Too many parameters/locals")                   \
   V(kTooManyParameters, "Too many parameters")                                \
   V(kTooManySpillSlotsNeededForOSR, "Too many spill slots needed for OSR")    \
-  V(kToOperand32UnsupportedImmediate, "ToOperand32 unsupported immediate.")   \
   V(kToOperandIsDoubleRegisterUnimplemented,                                  \
     "ToOperand IsDoubleRegister unimplemented")                               \
   V(kToOperandUnsupportedDoubleImmediate,                                     \
@@ -1346,12 +1308,10 @@ class MaybeObject BASE_EMBEDDED {
   V(kTryFinallyStatement, "TryFinallyStatement")                              \
   V(kUnableToEncodeValueAsSmi, "Unable to encode value as smi")               \
   V(kUnalignedAllocationInNewSpace, "Unaligned allocation in new space")      \
-  V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")          \
   V(kUndefinedValueNotLoaded, "Undefined value not loaded")                   \
   V(kUndoAllocationOfNonAllocatedMemory,                                      \
     "Undo allocation of non allocated memory")                                \
   V(kUnexpectedAllocationTop, "Unexpected allocation top")                    \
-  V(kUnexpectedColorFound, "Unexpected color bit pattern found")              \
   V(kUnexpectedElementsKindInArrayConstructor,                                \
     "Unexpected ElementsKind in array constructor")                           \
   V(kUnexpectedFallthroughFromCharCodeAtSlowCase,                             \
@@ -1378,20 +1338,16 @@ class MaybeObject BASE_EMBEDDED {
     "Unexpected initial map for InternalArray function")                      \
   V(kUnexpectedLevelAfterReturnFromApiCall,                                   \
     "Unexpected level after return from api call")                            \
-  V(kUnexpectedNegativeValue, "Unexpected negative value")                    \
   V(kUnexpectedNumberOfPreAllocatedPropertyFields,                            \
     "Unexpected number of pre-allocated property fields")                     \
-  V(kUnexpectedSmi, "Unexpected smi value")                                   \
   V(kUnexpectedStringFunction, "Unexpected String function")                  \
   V(kUnexpectedStringType, "Unexpected string type")                          \
   V(kUnexpectedStringWrapperInstanceSize,                                     \
     "Unexpected string wrapper instance size")                                \
   V(kUnexpectedTypeForRegExpDataFixedArrayExpected,                           \
     "Unexpected type for RegExp data, FixedArray expected")                   \
-  V(kUnexpectedValue, "Unexpected value")                                     \
   V(kUnexpectedUnusedPropertiesOfStringWrapper,                               \
     "Unexpected unused properties of string wrapper")                         \
-  V(kUnimplemented, "unimplemented")                                          \
   V(kUninitializedKSmiConstantRegister, "Uninitialized kSmiConstantRegister") \
   V(kUnknown, "Unknown")                                                      \
   V(kUnsupportedConstCompoundAssignment,                                      \
@@ -2284,12 +2240,12 @@ class JSObject: public JSReceiver {
 
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
-  Object* GetNormalizedProperty(const LookupResult* result);
+  Object* GetNormalizedProperty(LookupResult* result);
 
   // Sets the property value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
   static void SetNormalizedProperty(Handle<JSObject> object,
-                                    const LookupResult* result,
+                                    LookupResult* result,
                                     Handle<Object> value);
 
   // Sets the property value in a normalized object given (key, value, details).
@@ -2359,6 +2315,10 @@ class JSObject: public JSReceiver {
   // Returns true if this is an instance of an api function and has
   // been modified since it was created.  May give false positives.
   bool IsDirty();
+
+  // If the receiver is a JSGlobalProxy this method will return its prototype,
+  // otherwise the result is the receiver itself.
+  inline Object* BypassGlobalProxy();
 
   // Accessors for hidden properties object.
   //
@@ -4991,8 +4951,7 @@ class DeoptimizationInputData: public FixedArray {
   static const int kLiteralArrayIndex = 2;
   static const int kOsrAstIdIndex = 3;
   static const int kOsrPcOffsetIndex = 4;
-  static const int kOptimizationIdIndex = 5;
-  static const int kFirstDeoptEntryIndex = 6;
+  static const int kFirstDeoptEntryIndex = 5;
 
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kAstIdRawOffset = 0;
@@ -5015,7 +4974,6 @@ class DeoptimizationInputData: public FixedArray {
   DEFINE_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
   DEFINE_ELEMENT_ACCESSORS(OsrAstId, Smi)
   DEFINE_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
-  DEFINE_ELEMENT_ACCESSORS(OptimizationId, Smi)
 
 #undef DEFINE_ELEMENT_ACCESSORS
 
@@ -5111,6 +5069,49 @@ class DeoptimizationOutputData: public FixedArray {
 // Forward declaration.
 class Cell;
 class PropertyCell;
+
+// TypeFeedbackCells is a fixed array used to hold the association between
+// cache cells and AST ids for code generated by the full compiler.
+// The format of the these objects is
+//   [i * 2]: Global property cell of ith cache cell.
+//   [i * 2 + 1]: Ast ID for ith cache cell.
+class TypeFeedbackCells: public FixedArray {
+ public:
+  int CellCount() { return length() / 2; }
+  static int LengthOfFixedArray(int cell_count) { return cell_count * 2; }
+
+  // Accessors for AST ids associated with cache values.
+  inline TypeFeedbackId AstId(int index);
+  inline void SetAstId(int index, TypeFeedbackId id);
+
+  // Accessors for global property cells holding the cache values.
+  inline Cell* GetCell(int index);
+  inline void SetCell(int index, Cell* cell);
+
+  // The object that indicates an uninitialized cache.
+  static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
+
+  // The object that indicates a megamorphic state.
+  static inline Handle<Object> MegamorphicSentinel(Isolate* isolate);
+
+  // The object that indicates a monomorphic state of Array with
+  // ElementsKind
+  static inline Handle<Object> MonomorphicArraySentinel(Isolate* isolate,
+      ElementsKind elements_kind);
+
+  // A raw version of the uninitialized sentinel that's safe to read during
+  // garbage collection (e.g., for patching the cache).
+  static inline Object* RawUninitializedSentinel(Heap* heap);
+
+  // Casting.
+  static inline TypeFeedbackCells* cast(Object* obj);
+
+  static const int kForInFastCaseMarker = 0;
+  static const int kForInSlowCaseMarker = 1;
+};
+
+
+// Forward declaration.
 class SafepointEntry;
 class TypeFeedbackInfo;
 
@@ -5229,10 +5230,24 @@ class Code: public HeapObject {
 
   // [flags]: Access to specific code flags.
   inline Kind kind();
+  inline Kind handler_kind() {
+    return static_cast<Kind>(arguments_count());
+  }
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
 
+  inline ExtraICState extended_extra_ic_state();  // Only valid for
+                                                  // non-call IC stubs.
+  static bool needs_extended_extra_ic_state(Kind kind) {
+    // TODO(danno): This is a bit of a hack right now since there are still
+    // clients of this API that pass "extra" values in for argc. These clients
+    // should be retrofitted to used ExtendedExtraICState.
+    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC ||
+           kind == BINARY_OP_IC;
+  }
+
   inline StubType type();  // Only valid for monomorphic IC stubs.
+  inline int arguments_count();  // Only valid for call IC stubs.
 
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub();
@@ -5371,24 +5386,23 @@ class Code: public HeapObject {
       InlineCacheState ic_state = UNINITIALIZED,
       ExtraICState extra_ic_state = kNoExtraICState,
       StubType type = NORMAL,
+      int argc = -1,
       InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
       ExtraICState extra_ic_state = kNoExtraICState,
       InlineCacheHolderFlag holder = OWN_MAP,
-      StubType type = NORMAL);
-
-  static inline Flags ComputeHandlerFlags(
-      Kind handler_kind,
       StubType type = NORMAL,
-      InlineCacheHolderFlag holder = OWN_MAP);
+      int argc = -1);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline StubType ExtractTypeFromFlags(Flags flags);
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
+  static inline ExtraICState ExtractExtendedExtraICStateFromFlags(Flags flags);
+  static inline int ExtractArgumentsCountFromFlags(Flags flags);
 
   static inline Flags RemoveTypeFromFlags(Flags flags);
 
@@ -5458,7 +5472,7 @@ class Code: public HeapObject {
   void ClearInlineCaches();
   void ClearInlineCaches(Kind kind);
 
-  void ClearTypeFeedbackInfo(Heap* heap);
+  void ClearTypeFeedbackCells(Heap* heap);
 
   BailoutId TranslatePcOffsetToAstId(uint32_t pc_offset);
   uint32_t TranslateAstIdToPcOffset(BailoutId ast_id);
@@ -5553,8 +5567,10 @@ class Code: public HeapObject {
   class CacheHolderField: public BitField<InlineCacheHolderFlag, 5, 1> {};
   class KindField: public BitField<Kind, 6, 4> {};
   // TODO(bmeurer): Bit 10 is available for free use. :-)
-  class ExtraICStateField: public BitField<ExtraICState, 11,
+  class ExtraICStateField: public BitField<ExtraICState, 11, 6> {};
+  class ExtendedExtraICStateField: public BitField<ExtraICState, 11,
       PlatformSmiTagging::kSmiValueSize - 11 + 1> {};  // NOLINT
+  STATIC_ASSERT(ExtraICStateField::kShift == ExtendedExtraICStateField::kShift);
 
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
@@ -5608,8 +5624,19 @@ class Code: public HeapObject {
   class BackEdgesPatchedForOSRField: public BitField<bool,
       kIsCrankshaftedBit + 1 + 29, 1> {};  // NOLINT
 
-  static const int kArgumentsBits = 16;
+  // Signed field cannot be encoded using the BitField class.
+  static const int kArgumentsCountShift = 17;
+  static const int kArgumentsCountMask = ~((1 << kArgumentsCountShift) - 1);
+  static const int kArgumentsBits =
+      PlatformSmiTagging::kSmiValueSize - Code::kArgumentsCountShift + 1;
   static const int kMaxArguments = (1 << kArgumentsBits) - 1;
+
+  // ICs can use either argument count or ExtendedExtraIC, since their storage
+  // overlaps.
+  STATIC_ASSERT(ExtraICStateField::kShift +
+                ExtraICStateField::kSize + kArgumentsBits ==
+                ExtendedExtraICStateField::kShift +
+                ExtendedExtraICStateField::kSize);
 
   // This constant should be encodable in an ARM instruction.
   static const int kFlagsNotUsedInLookup =
@@ -7776,6 +7803,9 @@ class JSMessageObject: public JSObject {
   // [script]: the script from which the error message originated.
   DECL_ACCESSORS(script, Object)
 
+  // [stack_trace]: the stack trace for this error message.
+  DECL_ACCESSORS(stack_trace, Object)
+
   // [stack_frames]: an array of stack frames for this error object.
   DECL_ACCESSORS(stack_frames, Object)
 
@@ -7798,7 +7828,8 @@ class JSMessageObject: public JSObject {
   static const int kTypeOffset = JSObject::kHeaderSize;
   static const int kArgumentsOffset = kTypeOffset + kPointerSize;
   static const int kScriptOffset = kArgumentsOffset + kPointerSize;
-  static const int kStackFramesOffset = kScriptOffset + kPointerSize;
+  static const int kStackTraceOffset = kScriptOffset + kPointerSize;
+  static const int kStackFramesOffset = kStackTraceOffset + kPointerSize;
   static const int kStartPositionOffset = kStackFramesOffset + kPointerSize;
   static const int kEndPositionOffset = kStartPositionOffset + kPointerSize;
   static const int kSize = kEndPositionOffset + kPointerSize;
@@ -8157,7 +8188,7 @@ class TypeFeedbackInfo: public Struct {
   inline void set_inlined_type_change_checksum(int checksum);
   inline bool matches_inlined_type_change_checksum(int checksum);
 
-  DECL_ACCESSORS(feedback_vector, FixedArray)
+  DECL_ACCESSORS(type_feedback_cells, TypeFeedbackCells)
 
   static inline TypeFeedbackInfo* cast(Object* obj);
 
@@ -8167,30 +8198,8 @@ class TypeFeedbackInfo: public Struct {
 
   static const int kStorage1Offset = HeapObject::kHeaderSize;
   static const int kStorage2Offset = kStorage1Offset + kPointerSize;
-  static const int kFeedbackVectorOffset =
-      kStorage2Offset + kPointerSize;
-  static const int kSize = kFeedbackVectorOffset + kPointerSize;
-
-  // The object that indicates an uninitialized cache.
-  static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
-
-  // The object that indicates a cache in pre-monomorphic state.
-  static inline Handle<Object> PremonomorphicSentinel(Isolate* isolate);
-
-  // The object that indicates a megamorphic state.
-  static inline Handle<Object> MegamorphicSentinel(Isolate* isolate);
-
-  // The object that indicates a monomorphic state of Array with
-  // ElementsKind
-  static inline Handle<Object> MonomorphicArraySentinel(Isolate* isolate,
-      ElementsKind elements_kind);
-
-  // A raw version of the uninitialized sentinel that's safe to read during
-  // garbage collection (e.g., for patching the cache).
-  static inline Object* RawUninitializedSentinel(Heap* heap);
-
-  static const int kForInFastCaseMarker = 0;
-  static const int kForInSlowCaseMarker = 1;
+  static const int kTypeFeedbackCellsOffset = kStorage2Offset + kPointerSize;
+  static const int kSize = kTypeFeedbackCellsOffset + kPointerSize;
 
  private:
   static const int kTypeChangeChecksumBits = 7;
@@ -8253,9 +8262,8 @@ class AllocationSite: public Struct {
   class DoNotInlineBit:         public BitField<bool,         29,  1> {};
 
   // Bitfields for pretenure_data
-  class MementoFoundCountBits:  public BitField<int,               0, 27> {};
-  class PretenureDecisionBits:  public BitField<PretenureDecision, 27, 2> {};
-  class DeoptDependentCodeBit:  public BitField<bool,              29, 1> {};
+  class MementoFoundCountBits:  public BitField<int,          0, 28> {};
+  class PretenureDecisionBits:  public BitField<PretenureDecision, 28, 2> {};
   STATIC_ASSERT(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
 
   // Increments the mementos found counter and returns true when the first
@@ -8277,18 +8285,6 @@ class AllocationSite: public Struct {
     int value = pretenure_data()->value();
     set_pretenure_data(
         Smi::FromInt(PretenureDecisionBits::update(value, decision)),
-        SKIP_WRITE_BARRIER);
-  }
-
-  bool deopt_dependent_code() {
-    int value = pretenure_data()->value();
-    return DeoptDependentCodeBit::decode(value);
-  }
-
-  void set_deopt_dependent_code(bool deopt) {
-    int value = pretenure_data()->value();
-    set_pretenure_data(
-        Smi::FromInt(DeoptDependentCodeBit::update(value, deopt)),
         SKIP_WRITE_BARRIER);
   }
 
@@ -8631,7 +8627,7 @@ class Name: public HeapObject {
   // kMaxCachedArrayIndexLength.
   STATIC_CHECK(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
 
-  static const unsigned int kContainsCachedArrayIndexMask =
+  static const int kContainsCachedArrayIndexMask =
       (~kMaxCachedArrayIndexLength << kArrayIndexHashLengthShift) |
       kIsNotArrayIndexMask;
 
@@ -10650,7 +10646,6 @@ class BreakPointInfo: public Struct {
   V(kStringTable, "string_table", "(Internalized strings)")             \
   V(kExternalStringsTable, "external_strings_table", "(External strings)") \
   V(kStrongRootList, "strong_root_list", "(Strong roots)")              \
-  V(kSmiRootList, "smi_root_list", "(Smi roots)")                       \
   V(kInternalizedString, "internalized_string", "(Internal string)")    \
   V(kBootstrapper, "bootstrapper", "(Bootstrapper)")                    \
   V(kTop, "top", "(Isolate)")                                           \

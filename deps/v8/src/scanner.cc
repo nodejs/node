@@ -246,8 +246,7 @@ Token::Value Scanner::Next() {
 }
 
 
-// TODO(yangguo): check whether this is actually necessary.
-static inline bool IsLittleEndianByteOrderMark(uc32 c) {
+static inline bool IsByteOrderMark(uc32 c) {
   // The Unicode value U+FFFE is guaranteed never to be assigned as a
   // Unicode character; this implies that in a Unicode context the
   // 0xFF, 0xFE byte pattern can only be interpreted as the U+FEFF
@@ -255,7 +254,7 @@ static inline bool IsLittleEndianByteOrderMark(uc32 c) {
   // not be a U+FFFE character expressed in big-endian byte
   // order). Nevertheless, we check for it to be compatible with
   // Spidermonkey.
-  return c == 0xFFFE;
+  return c == 0xFEFF || c == 0xFFFE;
 }
 
 
@@ -263,14 +262,14 @@ bool Scanner::SkipWhiteSpace() {
   int start_position = source_pos();
 
   while (true) {
-    while (true) {
-      // Advance as long as character is a WhiteSpace or LineTerminator.
-      // Remember if the latter is the case.
+    // We treat byte-order marks (BOMs) as whitespace for better
+    // compatibility with Spidermonkey and other JavaScript engines.
+    while (unicode_cache_->IsWhiteSpace(c0_) || IsByteOrderMark(c0_)) {
+      // IsWhiteSpace() includes line terminators!
       if (unicode_cache_->IsLineTerminator(c0_)) {
+        // Ignore line terminators, but remember them. This is necessary
+        // for automatic semicolon insertion.
         has_line_terminator_before_next_ = true;
-      } else if (!unicode_cache_->IsWhiteSpace(c0_) &&
-                 !IsLittleEndianByteOrderMark(c0_)) {
-        break;
       }
       Advance();
     }

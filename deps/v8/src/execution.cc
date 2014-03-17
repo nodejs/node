@@ -368,20 +368,6 @@ void Execution::RunMicrotasks(Isolate* isolate) {
 }
 
 
-void Execution::EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask) {
-  bool threw = false;
-  Handle<Object> args[] = { microtask };
-  Execution::Call(
-      isolate,
-      isolate->enqueue_external_microtask(),
-      isolate->factory()->undefined_value(),
-      1,
-      args,
-      &threw);
-  ASSERT(!threw);
-}
-
-
 bool StackGuard::IsStackOverflow() {
   ExecutionAccess access(isolate_);
   return (thread_local_.jslimit_ != kInterruptLimit &&
@@ -516,15 +502,15 @@ void StackGuard::FullDeopt() {
 }
 
 
-bool StackGuard::IsDeoptMarkedAllocationSites() {
+bool StackGuard::IsDeoptMarkedCode() {
   ExecutionAccess access(isolate_);
-  return (thread_local_.interrupt_flags_ & DEOPT_MARKED_ALLOCATION_SITES) != 0;
+  return (thread_local_.interrupt_flags_ & DEOPT_MARKED_CODE) != 0;
 }
 
 
-void StackGuard::DeoptMarkedAllocationSites() {
+void StackGuard::DeoptMarkedCode() {
   ExecutionAccess access(isolate_);
-  thread_local_.interrupt_flags_ |= DEOPT_MARKED_ALLOCATION_SITES;
+  thread_local_.interrupt_flags_ |= DEOPT_MARKED_CODE;
   set_interrupt_limits(access);
 }
 
@@ -1040,9 +1026,9 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
     stack_guard->Continue(FULL_DEOPT);
     Deoptimizer::DeoptimizeAll(isolate);
   }
-  if (stack_guard->IsDeoptMarkedAllocationSites()) {
-    stack_guard->Continue(DEOPT_MARKED_ALLOCATION_SITES);
-    isolate->heap()->DeoptMarkedAllocationSites();
+  if (stack_guard->IsDeoptMarkedCode()) {
+    stack_guard->Continue(DEOPT_MARKED_CODE);
+    Deoptimizer::DeoptimizeMarkedCode(isolate);
   }
   if (stack_guard->IsInstallCodeRequest()) {
     ASSERT(isolate->concurrent_recompilation_enabled());

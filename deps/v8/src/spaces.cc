@@ -483,7 +483,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_ = static_cast<int>(area_start - base);
-  chunk->set_parallel_sweeping(PARALLEL_SWEEPING_DONE);
+  chunk->parallel_sweeping_ = 0;
   chunk->available_in_small_free_list_ = 0;
   chunk->available_in_medium_free_list_ = 0;
   chunk->available_in_large_free_list_ = 0;
@@ -560,12 +560,21 @@ bool MemoryChunk::CommitArea(size_t requested) {
 
 
 void MemoryChunk::InsertAfter(MemoryChunk* other) {
-  MemoryChunk* other_next = other->next_chunk();
+  next_chunk_ = other->next_chunk_;
+  prev_chunk_ = other;
 
-  set_next_chunk(other_next);
-  set_prev_chunk(other);
-  other_next->set_prev_chunk(this);
-  other->set_next_chunk(this);
+  // This memory barrier is needed since concurrent sweeper threads may iterate
+  // over the list of pages while a new page is inserted.
+  // TODO(hpayer): find a cleaner way to guarantee that the page list can be
+  // expanded concurrently
+  MemoryBarrier();
+
+  // The following two write operations can take effect in arbitrary order
+  // since pages are always iterated by the sweeper threads in LIFO order, i.e,
+  // the inserted page becomes visible for the sweeper threads after
+  // other->next_chunk_ = this;
+  other->next_chunk_->prev_chunk_ = this;
+  other->next_chunk_ = this;
 }
 
 
@@ -574,12 +583,10 @@ void MemoryChunk::Unlink() {
     heap_->decrement_scan_on_scavenge_pages();
     ClearFlag(SCAN_ON_SCAVENGE);
   }
-  MemoryChunk* next_element = next_chunk();
-  MemoryChunk* prev_element = prev_chunk();
-  next_element->set_prev_chunk(prev_element);
-  prev_element->set_next_chunk(next_element);
-  set_prev_chunk(NULL);
-  set_next_chunk(NULL);
+  next_chunk_->prev_chunk_ = prev_chunk_;
+  prev_chunk_->next_chunk_ = next_chunk_;
+  prev_chunk_ = NULL;
+  next_chunk_ = NULL;
 }
 
 
@@ -2075,21 +2082,20 @@ void FreeListNode::set_next(FreeListNode* next) {
 
 intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
   intptr_t free_bytes = 0;
-  if (category->top() != NULL) {
+  if (category->top_ != NULL) {
+    ASSERT(category->end_ != NULL);
     // This is safe (not going to deadlock) since Concatenate operations
     // are never performed on the same free lists at the same time in
     // reverse order.
     LockGuard<Mutex> target_lock_guard(mutex());
     LockGuard<Mutex> source_lock_guard(category->mutex());
-    ASSERT(category->end_ != NULL);
     free_bytes = category->available();
     if (end_ == NULL) {
       end_ = category->end();
     } else {
-      category->end()->set_next(top());
+      category->end()->set_next(top_);
     }
-    set_top(category->top());
-    NoBarrier_Store(&top_, category->top_);
+    top_ = category->top();
     available_ += category->available();
     category->Reset();
   }
@@ -2098,16 +2104,15 @@ intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
 
 
 void FreeListCategory::Reset() {
-  set_top(NULL);
-  set_end(NULL);
-  set_available(0);
+  top_ = NULL;
+  end_ = NULL;
+  available_ = 0;
 }
 
 
 intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
   int sum = 0;
-  FreeListNode* t = top();
-  FreeListNode** n = &t;
+  FreeListNode** n = &top_;
   while (*n != NULL) {
     if (Page::FromAddress((*n)->address()) == p) {
       FreeSpace* free_space = reinterpret_cast<FreeSpace*>(*n);
@@ -2117,9 +2122,8 @@ intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
       n = (*n)->next_address();
     }
   }
-  set_top(t);
-  if (top() == NULL) {
-    set_end(NULL);
+  if (top_ == NULL) {
+    end_ = NULL;
   }
   available_ -= sum;
   return sum;
@@ -2127,17 +2131,17 @@ intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
 
 
 bool FreeListCategory::ContainsPageFreeListItemsInList(Page* p) {
-  FreeListNode* node = top();
-  while (node != NULL) {
-    if (Page::FromAddress(node->address()) == p) return true;
-    node = node->next();
+  FreeListNode** n = &top_;
+  while (*n != NULL) {
+    if (Page::FromAddress((*n)->address()) == p) return true;
+    n = (*n)->next_address();
   }
   return false;
 }
 
 
 FreeListNode* FreeListCategory::PickNodeFromList(int *node_size) {
-  FreeListNode* node = top();
+  FreeListNode* node = top_;
 
   if (node == NULL) return NULL;
 
@@ -2176,8 +2180,8 @@ FreeListNode* FreeListCategory::PickNodeFromList(int size_in_bytes,
 
 
 void FreeListCategory::Free(FreeListNode* node, int size_in_bytes) {
-  node->set_next(top());
-  set_top(node);
+  node->set_next(top_);
+  top_ = node;
   if (end_ == NULL) {
     end_ = node;
   }
@@ -2186,7 +2190,7 @@ void FreeListCategory::Free(FreeListNode* node, int size_in_bytes) {
 
 
 void FreeListCategory::RepairFreeList(Heap* heap) {
-  FreeListNode* n = top();
+  FreeListNode* n = top_;
   while (n != NULL) {
     Map** map_location = reinterpret_cast<Map**>(n->address());
     if (*map_location == NULL) {
@@ -2295,8 +2299,7 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   }
 
   int huge_list_available = huge_list_.available();
-  FreeListNode* top_node = huge_list_.top();
-  for (FreeListNode** cur = &top_node;
+  for (FreeListNode** cur = huge_list_.GetTopAddress();
        *cur != NULL;
        cur = (*cur)->next_address()) {
     FreeListNode* cur_node = *cur;
@@ -2330,7 +2333,6 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
     }
   }
 
-  huge_list_.set_top(top_node);
   if (huge_list_.top() == NULL) {
     huge_list_.set_end(NULL);
   }
@@ -2484,7 +2486,7 @@ void FreeList::RepairLists(Heap* heap) {
 #ifdef DEBUG
 intptr_t FreeListCategory::SumFreeList() {
   intptr_t sum = 0;
-  FreeListNode* cur = top();
+  FreeListNode* cur = top_;
   while (cur != NULL) {
     ASSERT(cur->map() == cur->GetHeap()->raw_unchecked_free_space_map());
     FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(cur);
@@ -2500,7 +2502,7 @@ static const int kVeryLongFreeList = 500;
 
 int FreeListCategory::FreeListLength() {
   int length = 0;
-  FreeListNode* cur = top();
+  FreeListNode* cur = top_;
   while (cur != NULL) {
     length++;
     cur = cur->next();

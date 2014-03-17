@@ -31,17 +31,15 @@ import tempfile
 import traceback
 import unittest
 
+import common_includes
+from common_includes import *
+import push_to_trunk
+from push_to_trunk import *
 import auto_roll
 from auto_roll import AutoRollOptions
 from auto_roll import CheckLastPush
 from auto_roll import FetchLatestRevision
 from auto_roll import SETTINGS_LOCATION
-import common_includes
-from common_includes import *
-import merge_to_branch
-from merge_to_branch import *
-import push_to_trunk
-from push_to_trunk import *
 
 
 TEST_CONFIG = {
@@ -58,15 +56,11 @@ TEST_CONFIG = {
   CHROMIUM: "/tmp/test-v8-push-to-trunk-tempfile-chromium",
   DEPS_FILE: "/tmp/test-v8-push-to-trunk-tempfile-chromium/DEPS",
   SETTINGS_LOCATION: None,
-  ALREADY_MERGING_SENTINEL_FILE:
-      "/tmp/test-merge-to-branch-tempfile-already-merging",
-  COMMIT_HASHES_FILE: "/tmp/test-merge-to-branch-tempfile-PATCH_COMMIT_HASHES",
-  TEMPORARY_PATCH_FILE: "/tmp/test-merge-to-branch-tempfile-temporary-patch",
 }
 
 
-def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None, a=None,
-                status_password=None, revert_bleeding_edge=None, p=None):
+def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None,
+                status_password=None):
   """Convenience wrapper."""
   class Options(object):
       pass
@@ -75,12 +69,9 @@ def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None, a=None,
   options.l = l
   options.f = f
   options.m = m
-  options.reviewer = r
+  options.r = r
   options.c = c
-  options.a = a
-  options.p = p
   options.status_password = status_password
-  options.revert_bleeding_edge = revert_bleeding_edge
   return options
 
 
@@ -236,7 +227,7 @@ class SimpleMock(object):
     try:
       expected_call = self._recipe[self._index]
     except IndexError:
-      raise NoRetryException("Calling %s %s" % (self._name, " ".join(args)))
+      raise Exception("Calling %s %s" % (self._name, " ".join(args)))
 
     # Pack expectations without arguments into a list.
     if not isinstance(expected_call, list):
@@ -311,10 +302,6 @@ class ScriptTest(unittest.TestCase):
 
   MOCKS = {
     "git": GitMock,
-    # TODO(machenbach): Little hack to reuse the git mock for the one svn call
-    # in merge-to-branch. The command should be made explicit in the test
-    # expectations.
-    "svn": GitMock,
     "vi": LogMock,
   }
 
@@ -686,8 +673,7 @@ Performance and stability improvements on all platforms.""", commit)
         "Now working on version 3.22.6.%s\"" % review_suffix),
        " 2 files changed\n",
         CheckPreparePush],
-      [("cl upload --email \"author@chromium.org\" "
-        "-r \"reviewer@chromium.org\" --send-mail%s" % force_flag),
+      ["cl upload -r \"reviewer@chromium.org\" --send-mail%s" % force_flag,
        "done\n"],
       ["cl presubmit", "Presubmit successfull\n"],
       ["cl dcommit -f --bypass-hooks", "Closing issue\n"],
@@ -712,8 +698,7 @@ Performance and stability improvements on all platforms.""", commit)
         "(based on bleeding_edge revision r123455).\n\n"
         "TBR=reviewer@chromium.org\""),
        ""],
-      ["cl upload --email \"author@chromium.org\" --send-mail%s" % force_flag,
-       ""],
+      ["cl upload --send-mail%s" % force_flag, ""],
       ["checkout -f some_branch", ""],
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
@@ -743,7 +728,7 @@ Performance and stability improvements on all platforms.""", commit)
     if force:
       self.ExpectReadline([])
 
-    options = MakeOptions(f=force, m=manual, a="author@chromium.org",
+    options = MakeOptions(f=force, m=manual,
                           r="reviewer@chromium.org" if not manual else None,
                           c = TEST_CONFIG[CHROMIUM])
     RunPushToTrunk(TEST_CONFIG, PushToTrunkOptions(options), self)
@@ -848,124 +833,6 @@ Performance and stability improvements on all platforms.""", commit)
     def RunAutoRoll():
       auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(MakeOptions()), self)
     self.assertRaises(Exception, RunAutoRoll)
-
-  def testMergeToBranch(self):
-    TEST_CONFIG[ALREADY_MERGING_SENTINEL_FILE] = self.MakeEmptyTempFile()
-    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
-    TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
-    os.environ["EDITOR"] = "vi"
-    extra_patch = self.MakeEmptyTempFile()
-
-    def VerifyPatch(patch):
-      return lambda: self.assertEquals(patch,
-          FileToText(TEST_CONFIG[TEMPORARY_PATCH_FILE]))
-
-    msg = """Merged r12345, r23456, r34567, r45678, r56789 into trunk branch.
-
-Title4
-
-Title2
-
-Title3
-
-Title1
-
-Title5
-
-BUG=123,234,345,456,567,v8:123
-LOG=N
-"""
-
-    def VerifySVNCommit():
-      commit = FileToText(TEST_CONFIG[COMMITMSG_FILE])
-      self.assertEquals(msg, commit)
-      version = FileToText(TEST_CONFIG[VERSION_FILE])
-      self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
-      self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
-      self.assertTrue(re.search(r"#define PATCH_LEVEL\s+1", version))
-      self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
-
-    self.ExpectGit([
-      ["status -s -uno", ""],
-      ["status -s -b -uno", "## some_branch\n"],
-      ["svn fetch", ""],
-      ["branch", "  branch1\n* branch2\n"],
-      ["checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""],
-      ["branch", "  branch1\n* branch2\n"],
-      ["checkout -b %s svn/trunk" % TEST_CONFIG[BRANCHNAME], ""],
-      ["log svn/bleeding_edge --reverse --format=%H --grep=\"Port r12345\"",
-       "hash1\nhash2"],
-      ["svn find-rev hash1 svn/bleeding_edge", "45678"],
-      ["log -1 --format=%s hash1", "Title1"],
-      ["svn find-rev hash2 svn/bleeding_edge", "23456"],
-      ["log -1 --format=%s hash2", "Title2"],
-      ["log svn/bleeding_edge --reverse --format=%H --grep=\"Port r23456\"",
-       ""],
-      ["log svn/bleeding_edge --reverse --format=%H --grep=\"Port r34567\"",
-       "hash3"],
-      ["svn find-rev hash3 svn/bleeding_edge", "56789"],
-      ["log -1 --format=%s hash3", "Title3"],
-      ["svn find-rev \"r12345\" svn/bleeding_edge", "hash4"],
-      ["svn find-rev \"r23456\" svn/bleeding_edge", "hash2"],
-      ["svn find-rev \"r34567\" svn/bleeding_edge", "hash3"],
-      ["svn find-rev \"r45678\" svn/bleeding_edge", "hash1"],
-      ["svn find-rev \"r56789\" svn/bleeding_edge", "hash5"],
-      ["log -1 --format=%s hash4", "Title4"],
-      ["log -1 --format=%s hash2", "Title2"],
-      ["log -1 --format=%s hash3", "Title3"],
-      ["log -1 --format=%s hash1", "Title1"],
-      ["log -1 --format=%s hash5", "Title5"],
-      ["log -1 hash4", "Title4\nBUG=123\nBUG=234"],
-      ["log -1 hash2", "Title2\n BUG = v8:123,345"],
-      ["log -1 hash3", "Title3\nLOG=n\nBUG=567, 456"],
-      ["log -1 hash1", "Title1"],
-      ["log -1 hash5", "Title5"],
-      ["log -1 -p hash4", "patch4"],
-      ["apply --index --reject  \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
-       "", VerifyPatch("patch4")],
-      ["log -1 -p hash2", "patch2"],
-      ["apply --index --reject  \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
-       "", VerifyPatch("patch2")],
-      ["log -1 -p hash3", "patch3"],
-      ["apply --index --reject  \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
-       "", VerifyPatch("patch3")],
-      ["log -1 -p hash1", "patch1"],
-      ["apply --index --reject  \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
-       "", VerifyPatch("patch1")],
-      ["log -1 -p hash5", "patch5"],
-      ["apply --index --reject  \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
-       "", VerifyPatch("patch5")],
-      ["apply --index --reject  \"%s\"" % extra_patch, ""],
-      ["commit -a -F \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], ""],
-      ["cl upload -r \"reviewer@chromium.org\" --send-mail", ""],
-      ["checkout %s" % TEST_CONFIG[BRANCHNAME], ""],
-      ["cl presubmit", "Presubmit successfull\n"],
-      ["cl dcommit -f --bypass-hooks", "Closing issue\n", VerifySVNCommit],
-      ["svn fetch", ""],
-      ["log -1 --format=%%H --grep=\"%s\" svn/trunk" % msg, "hash6"],
-      ["svn find-rev hash6", "1324"],
-      [("copy -r 1324 https://v8.googlecode.com/svn/trunk "
-        "https://v8.googlecode.com/svn/tags/3.22.5.1 -m "
-        "\"Tagging version 3.22.5.1\""), ""],
-      ["checkout -f some_branch", ""],
-      ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
-      ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
-    ])
-
-    self.ExpectReadline([
-      "Y",  # Automatically add corresponding ports (34567, 56789)?
-      "Y",  # Automatically increment patch level?
-      "reviewer@chromium.org",  # V8 reviewer.
-      "LGTM",  # Enter LGTM for V8 CL.
-    ])
-
-    options = MakeOptions(p=extra_patch, f=True)
-    # r12345 and r34567 are patches. r23456 (included) and r45678 are the MIPS
-    # ports of r12345. r56789 is the MIPS port of r34567.
-    args = ["trunk", "12345", "23456", "34567"]
-    self.assertTrue(merge_to_branch.ProcessOptions(options, args))
-    RunMergeToBranch(TEST_CONFIG, MergeToBranchOptions(options, args), self)
-
 
 class SystemTest(unittest.TestCase):
   def testReload(self):

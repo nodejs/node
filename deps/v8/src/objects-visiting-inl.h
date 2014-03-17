@@ -427,7 +427,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(
   Heap* heap = map->GetHeap();
   Code* code = Code::cast(object);
   if (FLAG_cleanup_code_caches_at_gc) {
-    code->ClearTypeFeedbackInfo(heap);
+    code->ClearTypeFeedbackCells(heap);
   }
   if (FLAG_age_code && !Serializer::enabled()) {
     code->MakeOlder(heap->mark_compact_collector()->marking_parity());

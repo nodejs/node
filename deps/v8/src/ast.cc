@@ -593,17 +593,6 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-int Call::ComputeFeedbackSlotCount(Isolate* isolate) {
-  CallType call_type = GetCallType(isolate);
-  if (call_type == LOOKUP_SLOT_CALL || call_type == OTHER_CALL) {
-    // Call only uses a slot in some cases.
-    return 1;
-  }
-
-  return 0;
-}
-
-
 Call::CallType Call::GetCallType(Isolate* isolate) const {
   VariableProxy* proxy = expression()->AsVariableProxy();
   if (proxy != NULL) {
@@ -644,10 +633,10 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 
 void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   allocation_site_ =
-      oracle->GetCallNewAllocationSite(CallNewFeedbackSlot());
-  is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackSlot());
+      oracle->GetCallNewAllocationSite(CallNewFeedbackId());
+  is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackId());
   if (is_monomorphic_) {
-    target_ = oracle->GetCallNewTarget(CallNewFeedbackSlot());
+    target_ = oracle->GetCallNewTarget(CallNewFeedbackId());
     if (!allocation_site_.is_null()) {
       elements_kind_ = allocation_site_->GetElementsKind();
     }
@@ -1050,11 +1039,6 @@ CaseClause::CaseClause(Zone* zone,
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
   }
-#define REGULAR_NODE_WITH_FEEDBACK_SLOTS(NodeType) \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_slot_node(node); \
-  }
 #define DONT_OPTIMIZE_NODE(NodeType) \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
@@ -1065,12 +1049,6 @@ CaseClause::CaseClause(Zone* zone,
 #define DONT_SELFOPTIMIZE_NODE(NodeType) \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
-    add_flag(kDontSelfOptimize); \
-  }
-#define DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType) \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_slot_node(node); \
     add_flag(kDontSelfOptimize); \
   }
 #define DONT_CACHE_NODE(NodeType) \
@@ -1107,8 +1085,8 @@ REGULAR_NODE(CountOperation)
 REGULAR_NODE(BinaryOperation)
 REGULAR_NODE(CompareOperation)
 REGULAR_NODE(ThisFunction)
-REGULAR_NODE_WITH_FEEDBACK_SLOTS(Call)
-REGULAR_NODE_WITH_FEEDBACK_SLOTS(CallNew)
+REGULAR_NODE(Call)
+REGULAR_NODE(CallNew)
 // In theory, for VariableProxy we'd have to add:
 // if (node->var()->IsLookupSlot()) add_flag(kDontInline);
 // But node->var() is usually not bound yet at VariableProxy creation time, and
@@ -1133,11 +1111,10 @@ DONT_OPTIMIZE_NODE(NativeFunctionLiteral)
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)
 DONT_SELFOPTIMIZE_NODE(ForStatement)
-DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(ForInStatement)
+DONT_SELFOPTIMIZE_NODE(ForInStatement)
 DONT_SELFOPTIMIZE_NODE(ForOfStatement)
 
 DONT_CACHE_NODE(ModuleLiteral)
-
 
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
   increase_node_count();

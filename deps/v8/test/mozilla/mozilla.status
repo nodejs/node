@@ -822,7 +822,7 @@
 }],  # ALWAYS
 
 
-['arch == arm or arch == a64', {
+['arch == arm', {
 
   # BUG(3251229): Times out when running new crankshaft test script.
   'ecma_3/RegExp/regress-311414': [SKIP],
@@ -839,13 +839,7 @@
 
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
-}],  # 'arch == arm or arch == a64'
-
-
-['arch ==  a64', {
-  # BUG(v8:3152): Runs out of stack in debug mode.
-  'js1_5/extensions/regress-355497': [FAIL_OK, ['mode == debug', SKIP]],
-}],  # 'arch ==  a64'
+}],  # 'arch == arm'
 
 
 ['arch == mipsel', {
@@ -866,25 +860,4 @@
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mipsel'
-
-['arch == a64 and simulator_run == True', {
-
-  'js1_5/GC/regress-203278-2': [SKIP],
-
-  # These tests time out in debug mode but pass in product mode
-  'js1_5/Regress/regress-360969-03': [SKIP],
-  'js1_5/Regress/regress-360969-04': [SKIP],
-  'js1_5/Regress/regress-360969-05': [SKIP],
-  'js1_5/Regress/regress-360969-06': [SKIP],
-  'js1_5/extensions/regress-365527': [SKIP],
-  'ecma/Date/15.9.5.10-2': [SKIP],
-  'js1_5/Regress/regress-416628': [SKIP],
-  'js1_5/extensions/regress-371636': [SKIP],
-  'ecma_3/RegExp/regress-330684': [SKIP],
-  'ecma_3/RegExp/regress-307456': [SKIP],
-  'js1_5/Regress/regress-303213': [SKIP],
-  'js1_5/extensions/regress-330569': [SKIP],
-  'js1_5/extensions/regress-351448': [SKIP],
-  'js1_5/extensions/regress-336410-1': [SKIP],
-}],  # 'arch == a64 and simulator_run == True'
 ]

@@ -1121,8 +1121,9 @@ LInstruction* LChunkBuilder::DoMathFloor(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
-  LOperand* input = UseRegisterAtStart(instr->value());
-  LMathRound* result = new(zone()) LMathRound(input);
+  LOperand* input = UseRegister(instr->value());
+  LOperand* temp = FixedTemp(xmm4);
+  LMathRound* result = new(zone()) LMathRound(input, temp);
   return AssignEnvironment(DefineAsRegister(result));
 }
 
@@ -1240,10 +1241,10 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     ASSERT(instr->right()->representation().Equals(instr->representation()));
     if (instr->RightIsPowerOf2()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
-      LOperand* value = UseRegister(instr->left());
+      LOperand* value = UseRegisterAtStart(instr->left());
       LDivI* div =
           new(zone()) LDivI(value, UseOrConstant(instr->right()), NULL);
-      return AssignEnvironment(DefineAsRegister(div));
+      return AssignEnvironment(DefineSameAsFirst(div));
     }
     // The temporary operand is necessary to ensure that right is not allocated
     // into rdx.
@@ -1427,15 +1428,16 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
 LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
   LOperand* left = NULL;
   LOperand* right = NULL;
-  if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().Equals(instr->representation()));
-    ASSERT(instr->right()->representation().Equals(instr->representation()));
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  if (instr->representation().IsSmi()) {
+    left = UseRegisterAtStart(instr->BetterLeftOperand());
+    right = UseAtStart(instr->BetterRightOperand());
+  } else if (instr->representation().IsInteger32()) {
     left = UseRegisterAtStart(instr->BetterLeftOperand());
     right = UseOrConstantAtStart(instr->BetterRightOperand());
   } else {
     ASSERT(instr->representation().IsDouble());
-    ASSERT(instr->left()->representation().IsDouble());
-    ASSERT(instr->right()->representation().IsDouble());
     left = UseRegisterAtStart(instr->left());
     right = UseRegisterAtStart(instr->right());
   }

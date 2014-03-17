@@ -34,7 +34,6 @@
 
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 
-
 // The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
 // development, but they should not be relied on in the final product.
 #ifdef DEBUG
@@ -50,23 +49,6 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 #define UNIMPLEMENTED()                         \
   V8_Fatal("", 0, "unimplemented code")
 #define UNREACHABLE() ((void) 0)
-#endif
-
-// Simulator specific helpers.
-#if defined(USE_SIMULATOR) && defined(V8_TARGET_ARCH_A64)
-  // TODO(all): If possible automatically prepend an indicator like
-  // UNIMPLEMENTED or LOCATION.
-  #define ASM_UNIMPLEMENTED(message)                                         \
-  __ Debug(message, __LINE__, NO_PARAM)
-  #define ASM_UNIMPLEMENTED_BREAK(message)                                   \
-  __ Debug(message, __LINE__,                                                \
-           FLAG_ignore_asm_unimplemented_break ? NO_PARAM : BREAK)
-  #define ASM_LOCATION(message)                                              \
-  __ Debug("LOCATION: " message, __LINE__, NO_PARAM)
-#else
-  #define ASM_UNIMPLEMENTED(message)
-  #define ASM_UNIMPLEMENTED_BREAK(message)
-  #define ASM_LOCATION(message)
 #endif
 
 

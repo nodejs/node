@@ -802,7 +802,7 @@ class MacroAssembler: public Assembler {
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
-  void Set(const Operand& dst, intptr_t x);
+  void Set(const Operand& dst, int64_t x);
 
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
@@ -865,12 +865,10 @@ class MacroAssembler: public Assembler {
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
-  void Jump(const Operand& op);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
-  void Call(const Operand& op);
   void Call(Handle<Code> code_object,
             RelocInfo::Mode rmode,
             TypeFeedbackId ast_id = TypeFeedbackId::None());

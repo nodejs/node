@@ -4127,12 +4127,13 @@ class V8_EXPORT Isolate {
 
   /**
    * Enables the host application to receive a notification before a
-   * garbage collection. Allocations are allowed in the callback function,
-   * but the callback is not re-entrant: if the allocation inside it will
-   * trigger the Garbage Collection, the callback won't be called again.
-   * It is possible to specify the GCType filter for your callback. But it is
-   * not possible to register the same callback function two times with
-   * different GCType filters.
+   * garbage collection.  Allocations are not allowed in the
+   * callback function, you therefore cannot manipulate objects (set
+   * or delete properties for example) since it is possible such
+   * operations will result in the allocation of objects. It is possible
+   * to specify the GCType filter for your callback. But it is not possible to
+   * register the same callback function two times with different
+   * GCType filters.
    */
   void AddGCPrologueCallback(
       GCPrologueCallback callback, GCType gc_type_filter = kGCTypeAll);
@@ -4145,12 +4146,13 @@ class V8_EXPORT Isolate {
 
   /**
    * Enables the host application to receive a notification after a
-   * garbage collection. Allocations are allowed in the callback function,
-   * but the callback is not re-entrant: if the allocation inside it will
-   * trigger the Garbage Collection, the callback won't be called again.
-   * It is possible to specify the GCType filter for your callback. But it is
-   * not possible to register the same callback function two times with
-   * different GCType filters.
+   * garbage collection.  Allocations are not allowed in the
+   * callback function, you therefore cannot manipulate objects (set
+   * or delete properties for example) since it is possible such
+   * operations will result in the allocation of objects. It is possible
+   * to specify the GCType filter for your callback. But it is not possible to
+   * register the same callback function two times with different
+   * GCType filters.
    */
   void AddGCEpilogueCallback(
       GCEpilogueCallback callback, GCType gc_type_filter = kGCTypeAll);
@@ -4575,22 +4577,6 @@ class V8_EXPORT V8 {
    * Removes callback that was installed by AddCallCompletedCallback.
    */
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);
-
-  /**
-   * Experimental: Runs the Microtask Work Queue until empty
-   */
-  static void RunMicrotasks(Isolate* isolate);
-
-  /**
-   * Experimental: Enqueues the callback to the Microtask Work Queue
-   */
-  static void EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask);
-
-   /**
-   * Experimental: Controls whether the Microtask Work Queue is automatically
-   * run when the script call depth decrements to zero.
-   */
-  static void SetAutorunMicrotasks(Isolate *source, bool autorun);
 
   /**
    * Initializes from snapshot if possible. Otherwise, attempts to
@@ -5412,7 +5398,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 141;
+  static const int kEmptyStringRootIndex = 147;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
