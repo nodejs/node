@@ -224,7 +224,11 @@ class ContextifyContext {
                                              CreateDataWrapper(env));
     object_template->SetAccessCheckCallbacks(GlobalPropertyNamedAccessCheck,
                                              GlobalPropertyIndexedAccessCheck);
-    return scope.Escape(Context::New(env->isolate(), NULL, object_template));
+
+    Local<Context> ctx = Context::New(env->isolate(), NULL, object_template);
+    if (!ctx.IsEmpty())
+      ctx->SetSecurityToken(env->context()->GetSecurityToken());
+    return scope.Escape(ctx);
   }
 
 
