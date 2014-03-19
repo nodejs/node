@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-PUBLISH" "1" "February 2014" "" ""
+.TH "NPM\-PUBLISH" "1" "March 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-publish\fR \-\- Publish a package
@@ -9,8 +9,8 @@
 .SH "SYNOPSIS"
 .
 .nf
-npm publish <tarball>
-npm publish <folder>
+npm publish <tarball> [\-\-tag <tag>]
+npm publish <folder> [\-\-tag <tag>]
 .
 .fi
 .
@@ -26,11 +26,22 @@ A folder containing a package\.json file
 A url or file path to a gzipped tar archive containing a single folder
 with a package\.json file inside\.
 .
+.IP "\(bu" 4
+\fB[\-\-tag <tag>]\fR
+Registers the published package with the given tag, such that \fBnpm install
+<name>@<tag>\fR will install this version\.  By default, \fBnpm publish\fR updates
+and \fBnpm install\fR installs the \fBlatest\fR tag\.
+.
 .IP "" 0
 .
 .P
 Fails if the package name and version combination already exists in
-the registry\.  Overwrites when the "\-\-force" flag is set\.
+the registry\.
+.
+.P
+Once a package is published with a given name and version, that
+specific name and version combination can never be used again, even if
+npm help it is removed with npm\-unpublish\.
 .
 .SH "SEE ALSO"
 .

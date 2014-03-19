@@ -60,6 +60,7 @@ The following shorthands are parsed on the command-line:
 * `-D`: `--save-dev`
 * `-O`: `--save-optional`
 * `-B`: `--save-bundle`
+* `-E`: `--save-exact`
 * `-y`: `--yes`
 * `-n`: `--yes false`
 * `ll` and `la` commands: `ls --long`
@@ -620,20 +621,30 @@ bundledDependencies list.
 
 Save installed packages to a package.json file as devDependencies.
 
-When used with the `npm rm` command, it removes it from the devDependencies
-hash.
+When used with the `npm rm` command, it removes it from the
+devDependencies hash.
 
 Only works if there is already a package.json file present.
+
+### save-exact
+
+* Default: false
+* Type: Boolean
+
+Dependencies saved to package.json using `--save`, `--save-dev` or
+`--save-optional` will be configured with an exact version rather than
+using npm's default semver range operator.
 
 ### save-optional
 
 * Default: false
 * Type: Boolean
 
-Save installed packages to a package.json file as optionalDependencies.
+Save installed packages to a package.json file as
+optionalDependencies.
 
-When used with the `npm rm` command, it removes it from the devDependencies
-hash.
+When used with the `npm rm` command, it removes it from the
+devDependencies hash.
 
 Only works if there is already a package.json file present.
 

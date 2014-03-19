@@ -3,9 +3,11 @@
   <title>semver</title>
   <meta http-equiv="content-type" value="text/html;utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <script async=true src="../../static/toc.js"></script>
 
   <body>
     <div id="wrapper">
+
 <h1><a href="../misc/semver.html">semver</a></h1> <p>The semantic versioner for npm</p>
 
 <h2 id="Usage">Usage</h2>
@@ -60,7 +62,14 @@ not satisfy this range, but <code>2.3.0-beta</code> will.</li><li><code>&lt;=1.2
 ARE allowed, so <code>1.2.3-beta</code> would satisfy.</li><li><code>1.2.3 - 2.3.4</code> := <code>&gt;=1.2.3 &lt;=2.3.4</code></li><li><code>~1.2.3</code> := <code>&gt;=1.2.3-0 &lt;1.3.0-0</code>  &quot;Reasonably close to 1.2.3&quot;.  When
 using tilde operators, prerelease versions are supported as well,
 but a prerelease of the next significant digit will NOT be
-satisfactory, so <code>1.3.0-beta</code> will not satisfy <code>~1.2.3</code>.</li><li><code>~1.2</code> := <code>&gt;=1.2.0-0 &lt;1.3.0-0</code> &quot;Any version starting with 1.2&quot;</li><li><code>1.2.x</code> := <code>&gt;=1.2.0-0 &lt;1.3.0-0</code> &quot;Any version starting with 1.2&quot;</li><li><code>~1</code> := <code>&gt;=1.0.0-0 &lt;2.0.0-0</code> &quot;Any version starting with 1&quot;</li><li><code>1.x</code> := <code>&gt;=1.0.0-0 &lt;2.0.0-0</code> &quot;Any version starting with 1&quot;</li></ul>
+satisfactory, so <code>1.3.0-beta</code> will not satisfy <code>~1.2.3</code>.</li><li><code>^1.2.3</code> := <code>&gt;=1.2.3-0 &lt;2.0.0-0</code>  &quot;Compatible with 1.2.3&quot;.  When
+using caret operators, anything from the specified version (including
+prerelease) will be supported up to, but not including, the next
+major version (or its prereleases). <code>1.5.1</code> will satisfy <code>^1.2.3</code>,
+while <code>1.2.2</code> and <code>2.0.0-beta</code> will not.</li><li><code>^0.1.3</code> := <code>&gt;=0.1.3-0 &lt;0.2.0-0</code> &quot;Compatible with 0.1.3&quot;. 0.x.x versions are
+special: the first non-zero component indicates potentially breaking changes,
+meaning the caret operator matches any version with the same first non-zero
+component starting at the specified version.</li><li><code>^0.0.2</code> := <code>=0.0.2</code> &quot;Only the version 0.0.2 is considered compatible&quot;</li><li><code>~1.2</code> := <code>&gt;=1.2.0-0 &lt;1.3.0-0</code> &quot;Any version starting with 1.2&quot;</li><li><code>^1.2</code> := <code>&gt;=1.2.0-0 &lt;2.0.0-0</code> &quot;Any version compatible with 1.2&quot;</li><li><code>1.2.x</code> := <code>&gt;=1.2.0-0 &lt;1.3.0-0</code> &quot;Any version starting with 1.2&quot;</li><li><code>~1</code> := <code>&gt;=1.0.0-0 &lt;2.0.0-0</code> &quot;Any version starting with 1&quot;</li><li><code>^1</code> := <code>&gt;=1.0.0-0 &lt;2.0.0-0</code> &quot;Any version compatible with 1&quot;</li><li><code>1.x</code> := <code>&gt;=1.0.0-0 &lt;2.0.0-0</code> &quot;Any version starting with 1&quot;</li></ul>
 
 <p>Ranges can be joined with either a space (which implies &quot;and&quot;) or a
 <code>||</code> (which implies &quot;or&quot;).</p>
@@ -92,37 +101,33 @@ in descending order when passed to Array.sort().</li></ul>
 
 <ul><li>validRange(range): Return the valid range or null if it&#39;s not valid</li><li>satisfies(version, range): Return true if the version satisfies the
 range.</li><li>maxSatisfying(versions, range): Return the highest version in the list
-that satisfies the range, or null if none of them do.</li></ul>
+that satisfies the range, or null if none of them do.</li><li>gtr(version, range): Return true if version is greater than all the
+versions possible in the range.</li><li>ltr(version, range): Return true if version is less than all the
+versions possible in the range.</li><li>outside(version, range, hilo): Return true if the version is outside
+the bounds of the range in either the high or low direction.  The
+<code>hilo</code> argument must be either the string <code>&#39;&gt;&#39;</code> or <code>&#39;&lt;&#39;</code>.  (This is
+the function called by <code>gtr</code> and <code>ltr</code>.)</li></ul>
+
+<p>Note that, since ranges may be non-contiguous, a version might not be
+greater than a range, less than a range, <em>or</em> satisfy a range!  For
+example, the range <code>1.2 &lt;1.2.9 || &gt;2.0.0</code> would have a hole from <code>1.2.9</code>
+until <code>2.0.0</code>, so the version <code>1.2.10</code> would not be greater than the
+range (because 2.0.1 satisfies, which is higher), nor less than the
+range (since 1.2.8 satisfies, which is lower), and it also does not
+satisfy the range.</p>
+
+<p>If you want to know if a version satisfies or does not satisfy a
+range, use the <code>satisfies(version, range)</code> function.</p>
 </div>
-<p id="footer">semver &mdash; npm@1.4.3</p>
-<script>
-;(function () {
-var wrapper = document.getElementById("wrapper")
-var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
-  .filter(function (el) {
-    return el.parentNode === wrapper
-        && el.tagName.match(/H[1-6]/)
-        && el.id
-  })
-var l = 2
-  , toc = document.createElement("ul")
-toc.innerHTML = els.map(function (el) {
-  var i = el.tagName.charAt(1)
-    , out = ""
-  while (i > l) {
-    out += "<ul>"
-    l ++
-  }
-  while (i < l) {
-    out += "</ul>"
-    l --
-  }
-  out += "<li><a href='#" + el.id + "'>" +
-    ( el.innerText || el.text || el.innerHTML)
-    + "</a>"
-  return out
-}).join("\n")
-toc.id = "toc"
-document.body.appendChild(toc)
-})()
-</script>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">semver &mdash; npm@1.4.6</p>
+

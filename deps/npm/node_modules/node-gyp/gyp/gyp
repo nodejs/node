@@ -3,5 +3,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-BASE=`dirname $0`
-python $BASE/gyp_main.py "$@"
+set -e
+base=$(dirname "$0")
+exec python "${base}/gyp_main.py" "$@"

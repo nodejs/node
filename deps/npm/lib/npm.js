@@ -112,6 +112,7 @@ var commandCache = {}
               , "login": "adduser"
               , "add-user": "adduser"
               , "tst": "test"
+              , "t": "test"
               , "find-dupes": "dedupe"
               , "ddp": "dedupe"
               , "v": "view"

@@ -9,12 +9,17 @@ var test = require("tap").test
   , tmp = path.join(pkg, "tmp")
   , cache = path.join(pkg, "cache")
 
-test("git-cache-locking: install a git dependency", function (t) {
-  t.plan(1)
 
-  cleanup()
+test("setup", function (t) {
+  rimraf.sync(pkg)
+  mkdirp.sync(pkg)
   mkdirp.sync(cache)
   mkdirp.sync(tmp)
+  mkdirp.sync(path.resolve(pkg, 'node_modules'))
+  t.end()
+})
+
+test("git-cache-locking: install a git dependency", function (t) {
 
   // package c depends on a.git#master and b.git#master
   // package b depends on a.git#master
@@ -34,10 +39,11 @@ test("git-cache-locking: install a git dependency", function (t) {
 
   child.on("close", function (code) {
     t.equal(0, code, "npm install should succeed")
-    cleanup()
+    t.end()
   })
 })
 
-function cleanup() {
+test('cleanup', function(t) {
   rimraf.sync(pkg)
-}
+  t.end()
+})

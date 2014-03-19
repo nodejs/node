@@ -32,9 +32,7 @@ tap.test("create new user account", function (t) {
 
     req.on("end", function () {
       var o = JSON.parse(b)
-      var salt = o.salt
-      userdata.salt = salt
-      userdata.password_sha = sha(password + salt)
+      userdata.password = password
       userdata.date = o.date
       t.deepEqual(o, userdata)
 

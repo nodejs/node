@@ -7,7 +7,7 @@ function installedDeep (opts, cb) {
   var local
     , global
     , depth = npm.config.get("depth")
-    , opt = { depth: depth }
+    , opt = { depth: depth, dev: true }
 
   if (npm.config.get("global")) local = [], next()
   else readInstalled(npm.prefix, opt, function (er, data) {

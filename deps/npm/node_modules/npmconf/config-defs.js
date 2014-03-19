@@ -186,6 +186,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , save : false
     , "save-bundle": false
     , "save-dev" : false
+    , "save-exact" : false
     , "save-optional" : false
     , searchopts: ""
     , searchexclude: null
@@ -287,6 +288,7 @@ exports.types =
   , save : Boolean
   , "save-bundle": Boolean
   , "save-dev" : Boolean
+  , "save-exact" : Boolean
   , "save-optional" : Boolean
   , searchopts : String
   , searchexclude: [null, String]
@@ -346,6 +348,7 @@ exports.shorthands =
   , g : ["--global"]
   , S : ["--save"]
   , D : ["--save-dev"]
+  , E : ["--save-exact"]
   , O : ["--save-optional"]
   , y : ["--yes"]
   , n : ["--no-yes"]

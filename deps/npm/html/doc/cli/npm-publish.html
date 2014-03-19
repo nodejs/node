@@ -3,15 +3,17 @@
   <title>npm-publish</title>
   <meta http-equiv="content-type" value="text/html;utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <script async=true src="../../static/toc.js"></script>
 
   <body>
     <div id="wrapper">
+
 <h1><a href="../cli/npm-publish.html">npm-publish</a></h1> <p>Publish a package</p>
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<pre><code>npm publish &lt;tarball&gt;
-npm publish &lt;folder&gt;</code></pre>
+<pre><code>npm publish &lt;tarball&gt; [--tag &lt;tag&gt;]
+npm publish &lt;folder&gt; [--tag &lt;tag&gt;]</code></pre>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -20,44 +22,31 @@ npm publish &lt;folder&gt;</code></pre>
 <ul><li><p><code>&lt;folder&gt;</code>:
 A folder containing a package.json file</p></li><li><p><code>&lt;tarball&gt;</code>:
 A url or file path to a gzipped tar archive containing a single folder
-with a package.json file inside.</p></li></ul>
+with a package.json file inside.</p></li><li><p><code>[--tag &lt;tag&gt;]</code>
+Registers the published package with the given tag, such that <code>npm install
+&lt;name&gt;@&lt;tag&gt;</code> will install this version.  By default, <code>npm publish</code> updates
+and <code>npm install</code> installs the <code>latest</code> tag.</p></li></ul>
 
 <p>Fails if the package name and version combination already exists in
-the registry.  Overwrites when the &quot;--force&quot; flag is set.</p>
+the registry.</p>
+
+<p>Once a package is published with a given name and version, that
+specific name and version combination can never be used again, even if
+it is removed with <a href="../cli/npm-unpublish.html">npm-unpublish(1)</a>.</p>
 
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
 <ul><li><a href="../misc/npm-registry.html">npm-registry(7)</a></li><li><a href="../cli/npm-adduser.html">npm-adduser(1)</a></li><li><a href="../cli/npm-owner.html">npm-owner(1)</a></li><li><a href="../cli/npm-deprecate.html">npm-deprecate(1)</a></li><li><a href="../cli/npm-tag.html">npm-tag(1)</a></li></ul>
 </div>
-<p id="footer">npm-publish &mdash; npm@1.4.3</p>
-<script>
-;(function () {
-var wrapper = document.getElementById("wrapper")
-var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
-  .filter(function (el) {
-    return el.parentNode === wrapper
-        && el.tagName.match(/H[1-6]/)
-        && el.id
-  })
-var l = 2
-  , toc = document.createElement("ul")
-toc.innerHTML = els.map(function (el) {
-  var i = el.tagName.charAt(1)
-    , out = ""
-  while (i > l) {
-    out += "<ul>"
-    l ++
-  }
-  while (i < l) {
-    out += "</ul>"
-    l --
-  }
-  out += "<li><a href='#" + el.id + "'>" +
-    ( el.innerText || el.text || el.innerHTML)
-    + "</a>"
-  return out
-}).join("\n")
-toc.id = "toc"
-document.body.appendChild(toc)
-})()
-</script>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-publish &mdash; npm@1.4.6</p>
+

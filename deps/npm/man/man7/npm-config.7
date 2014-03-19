@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CONFIG" "7" "February 2014" "" ""
+.TH "NPM\-CONFIG" "7" "March 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-config\fR \-\- More than you probably want to know about npm configuration
@@ -103,6 +103,9 @@ The following shorthands are parsed on the command\-line:
 .
 .IP "\(bu" 4
 \fB\-B\fR: \fB\-\-save\-bundle\fR
+.
+.IP "\(bu" 4
+\fB\-E\fR: \fB\-\-save\-exact\fR
 .
 .IP "\(bu" 4
 \fB\-y\fR: \fB\-\-yes\fR
@@ -1093,11 +1096,25 @@ Type: Boolean
 Save installed packages to a package\.json file as devDependencies\.
 .
 .P
-When used with the \fBnpm rm\fR command, it removes it from the devDependencies
-hash\.
+When used with the \fBnpm rm\fR command, it removes it from the
+devDependencies hash\.
 .
 .P
 Only works if there is already a package\.json file present\.
+.
+.SS "save\-exact"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Dependencies saved to package\.json using \fB\-\-save\fR, \fB\-\-save\-dev\fR or \fB\-\-save\-optional\fR will be configured with an exact version rather than
+using npm\'s default semver range operator\.
 .
 .SS "save\-optional"
 .
@@ -1110,11 +1127,12 @@ Type: Boolean
 .IP "" 0
 .
 .P
-Save installed packages to a package\.json file as optionalDependencies\.
+Save installed packages to a package\.json file as
+optionalDependencies\.
 .
 .P
-When used with the \fBnpm rm\fR command, it removes it from the devDependencies
-hash\.
+When used with the \fBnpm rm\fR command, it removes it from the
+devDependencies hash\.
 .
 .P
 Only works if there is already a package\.json file present\.

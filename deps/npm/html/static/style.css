@@ -141,7 +141,7 @@ q q:after, q q q q:after, q q q q q q:after, q q q q q q q q:after { content:"â€
 
 a { color:#00f; text-decoration:none; }
 a:visited { color:#636; }
-a:hover, a:active { color:#900!important; text-decoration:underline; }
+a:hover, a:active { color:#c00!important; text-decoration:underline; }
 
 h1 {
   font-weight:bold;
@@ -150,7 +150,7 @@ h1 {
 h1 a, h1 a:visited {
   font-family:monospace;
   font-size:60px;
-  color:#900;
+  color:#c00;
   display:block;
 }
 h1 a:focus, h1 a:hover, h1 a:active {
@@ -276,11 +276,12 @@ input.submit, input#submit, input.button, button, input[type=submit] {
 }
 
 #footer, #footer * {
-  text-align:right;
+  text-align:center;
   font-size:16px;
   color:#ccc;
   font-style:italic;
   word-spacing:1em;
+  margin-top:0;
 }
 
 #toc {
@@ -313,6 +314,12 @@ input.submit, input#submit, input.button, button, input[type=submit] {
 #toc li a {
   position:relative;
   display:block;
+}
+
+table#npmlogo {
+  line-height:10px;
+  width:180px;
+  margin:0 auto;
 }
 
 @media print {

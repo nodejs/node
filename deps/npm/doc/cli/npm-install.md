@@ -7,7 +7,7 @@ npm-install(1) -- Install a package
     npm install <tarball file>
     npm install <tarball url>
     npm install <folder>
-    npm install <name> [--save|--save-dev|--save-optional]
+    npm install <name> [--save|--save-dev|--save-optional] [--save-exact]
     npm install <name>@<tag>
     npm install <name>@<version>
     npm install <name>@<version range>
@@ -91,11 +91,19 @@ after packing it up into a tarball (b).
 
     * `--save-optional`: Package will appear in your `optionalDependencies`.
 
+    When using any of the above options to save dependencies to your
+    package.json, there is an additional, optional flag:
+
+    * `--save-exact`: Saved dependencies will be configured with an
+      exact version rather than using npm's default semver range
+      operator.
+
     Examples:
 
           npm install sax --save
           npm install node-tap --save-dev
           npm install dtrace-provider --save-optional
+          npm install readable-stream --save --save-exact
 
 
     **Note**: If there is a file or folder named `<name>` in the current

@@ -231,16 +231,30 @@ function readme (file, data, cb) {
                 if (data.readme) return cb(null, data);
                 var dir = path.dirname(file)
                 var globOpts = { cwd: dir, nocase: true, mark: true }
-                glob("README?(.*)", globOpts, function (er, files) {
+                glob("{README,README.*}", globOpts, function (er, files) {
                                 if (er) return cb(er);
                                 // don't accept directories.
                                 files = files.filter(function (file) {
                                                 return !file.match(/\/$/)
                                 })
                                 if (!files.length) return cb();
-                                var rm = path.resolve(dir, files[0])
+                                var fn = preferMarkdownReadme(files)
+                                var rm = path.resolve(dir, fn)
                                 readme_(file, data, rm, cb)
                 })
+}
+function preferMarkdownReadme(files) {
+                var fallback = 0;
+                var re = /\.m?a?r?k?d?o?w?n?$/i
+                for (var i = 0; i < files.length; i++) {
+                                if (files[i].match(re))
+                                                return files[i]
+                                else if (files[i].match(/README$/))
+                                                fallback = i
+                }
+                // prefer README.md, followed by README; otherwise, return
+                // the first filename (which could be README)
+                return files[fallback];
 }
 function readme_(file, data, rm, cb) {
                 var rmfn = path.basename(rm);

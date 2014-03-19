@@ -5,7 +5,6 @@ markdowns = $(shell find doc -name '*.md' | grep -v 'index') README.md
 
 html_docdeps = html/dochead.html \
                html/docfoot.html \
-               html/docfoot-script.html \
                scripts/doc-build.sh \
                package.json
 
@@ -190,10 +189,10 @@ doc-publish: doc
   done
 	rsync -vazu --stats --no-implied-dirs --delete \
     html/doc/* \
-    node@npmjs.org:/home/node/npm-www/doc
+    ../npm-www/doc
 	rsync -vazu --stats --no-implied-dirs --delete \
     html/static/style.css \
-    node@npmjs.org:/home/node/npm-www/static/
+    ../npm-www/static/
 	#cleanup
 	rm -rf html/api
 	for f in html/doc/*.html; do \
