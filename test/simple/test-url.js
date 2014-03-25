@@ -34,6 +34,28 @@ var parseTests = {
     'path': '//some_path'
   },
 
+  'http:\\\\evil-phisher\\foo.html#h\\a\\s\\h': {
+    protocol: 'http:',
+    slashes: true,
+    host: 'evil-phisher',
+    hostname: 'evil-phisher',
+    pathname: '/foo.html',
+    path: '/foo.html',
+    hash: '#h%5Ca%5Cs%5Ch',
+    href: 'http://evil-phisher/foo.html#h%5Ca%5Cs%5Ch'
+  },
+
+
+  'http:\\\\evil-phisher\\foo.html': {
+    protocol: 'http:',
+    slashes: true,
+    host: 'evil-phisher',
+    hostname: 'evil-phisher',
+    pathname: '/foo.html',
+    path: '/foo.html',
+    href: 'http://evil-phisher/foo.html'
+  },
+
   'HTTP://www.example.com/' : {
     'href': 'http://www.example.com/',
     'protocol': 'http:',
@@ -757,9 +779,9 @@ var parseTests = {
     host: 'x:1',
     port: '1',
     hostname: 'x',
-    pathname: '/%27%20%3C%3E%22%60/%7B%7D%7C%5C%5E~%60/',
-    path: '/%27%20%3C%3E%22%60/%7B%7D%7C%5C%5E~%60/',
-    href: 'http://x:1/%27%20%3C%3E%22%60/%7B%7D%7C%5C%5E~%60/'
+    pathname: '/%27%20%3C%3E%22%60/%7B%7D%7C/%5E~%60/',
+    path: '/%27%20%3C%3E%22%60/%7B%7D%7C/%5E~%60/',
+    href: 'http://x:1/%27%20%3C%3E%22%60/%7B%7D%7C/%5E~%60/'
   },
 
   'http://a@b@c/': {
