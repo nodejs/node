@@ -20,9 +20,12 @@ function main(conf) {
   var fn = 'read' + conf.type;
 
   buff.writeDoubleLE(0, 0, noAssert);
+  var testFunction = new Function('buff', [
+    "for (var i = 0; i !== " + len + "; i++) {",
+    "  buff." + fn + "(0, " + JSON.stringify(noAssert) + ");",
+    "}"
+  ].join("\n"));
   bench.start();
-  for (var i = 0; i < len; i++) {
-    buff[fn](0, noAssert);
-  }
+  testFunction(buff);
   bench.end(len / 1e6);
 }
