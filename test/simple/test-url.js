@@ -34,6 +34,28 @@ var parseTests = {
     'path': '//some_path'
   },
 
+  'http:\\\\evil-phisher\\foo.html#h\\a\\s\\h': {
+    protocol: 'http:',
+    slashes: true,
+    host: 'evil-phisher',
+    hostname: 'evil-phisher',
+    pathname: '/foo.html',
+    path: '/foo.html',
+    hash: '#h\\a\\s\\h',
+    href: 'http://evil-phisher/foo.html#h\\a\\s\\h'
+  },
+
+
+  'http:\\\\evil-phisher\\foo.html': {
+    protocol: 'http:',
+    slashes: true,
+    host: 'evil-phisher',
+    hostname: 'evil-phisher',
+    pathname: '/foo.html',
+    path: '/foo.html',
+    href: 'http://evil-phisher/foo.html'
+  },
+
   'HTTP://www.example.com/' : {
     'href': 'http://www.example.com/',
     'protocol': 'http:',
@@ -1457,3 +1479,7 @@ relativeTests2.forEach(function(relativeTest) {
                'format(' + relativeTest[1] + ') == ' + expected +
                '\nactual:' + actual);
 });
+
+// backslashes should be like forward slashes
+var res = url.resolve('http://example.com/x', '\\\\foo.com\\bar');
+assert.equal(res, 'http://foo.com/bar');
