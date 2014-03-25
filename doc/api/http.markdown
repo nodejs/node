@@ -619,7 +619,8 @@ To configure any of them, you must create your own `Agent` object.
 ```javascript
 var http = require('http');
 var keepAliveAgent = new http.Agent({ keepAlive: true });
-keepAliveAgent.request(options, onResponseCallback);
+options.agent = keepAliveAgent;
+http.request(options, onResponseCallback);
 ```
 
 ### agent.maxSockets
