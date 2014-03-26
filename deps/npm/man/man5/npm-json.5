@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "PACKAGE\.JSON" "5" "February 2014" "" ""
+.TH "PACKAGE\.JSON" "5" "March 2014" "" ""
 .
 .SH "NAME"
 \fBpackage.json\fR \-\- Specifics of npm\'s package\.json handling
@@ -506,15 +506,20 @@ an argument to \fBgit checkout\fR\|\.  The default is \fBmaster\fR\|\.
 .SH "GitHub URLs"
 As of version 1\.1\.65, you can refer to GitHub urls as just "foo": "user/foo\-project"\. For example:
 .
-.P
-\fBjson
+.IP "" 4
+.
+.nf
 {
   "name": "foo",
   "version": "0\.0\.0",
   "dependencies": {
     "express": "visionmedia/express"
   }
-}\fR
+}
+.
+.fi
+.
+.IP "" 0
 .
 .SH "devDependencies"
 If someone is planning on downloading and using your module in their
@@ -537,8 +542,9 @@ script to do this, and make the required package a devDependency\.
 .P
 For example:
 .
-.P
-\fBjson
+.IP "" 4
+.
+.nf
 { "name": "ethopia\-waza",
   "description": "a delightfully fruity coffee varietal",
   "version": "1\.2\.3",
@@ -549,7 +555,11 @@ For example:
     "prepublish": "coffee \-o lib/ \-c src/waza\.coffee"
   },
   "main": "lib/waza\.js"
-}\fR
+}
+.
+.fi
+.
+.IP "" 0
 .
 .P
 The \fBprepublish\fR script will be run before publishing, so that users

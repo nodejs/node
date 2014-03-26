@@ -1,4 +1,3 @@
-<script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")
 var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
@@ -27,5 +26,4 @@ toc.innerHTML = els.map(function (el) {
 }).join("\n")
 toc.id = "toc"
 document.body.appendChild(toc)
-})()
-</script>
+})();

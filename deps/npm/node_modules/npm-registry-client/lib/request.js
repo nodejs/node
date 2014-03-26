@@ -1,6 +1,7 @@
 module.exports = regRequest
 
 var url = require("url")
+  , zlib = require("zlib")
   , fs = require("graceful-fs")
   , rm = require("rimraf")
   , asyncMap = require("slide").asyncMap
@@ -128,6 +129,7 @@ function makeRequest (method, remote, where, what, etag, nofollow, cb_) {
   if (strict === undefined) strict = true
   var opts = { url: remote
              , method: method
+             , encoding: null // tell request let body be Buffer instance
              , ca: this.conf.get('ca')
              , localAddress: this.conf.get('local-address')
              , cert: this.conf.get('cert')
@@ -140,6 +142,7 @@ function makeRequest (method, remote, where, what, etag, nofollow, cb_) {
   }
 
   headers.accept = "application/json"
+  headers['accept-encoding'] = 'gzip'
 
   headers["user-agent"] = this.conf.get('user-agent') ||
                           'node/' + process.version
@@ -170,7 +173,7 @@ function makeRequest (method, remote, where, what, etag, nofollow, cb_) {
   this.log.http(method, remote.href || "/")
 
   var done = requestDone.call(this, method, where, cb)
-  var req = request(opts, done)
+  var req = request(opts, decodeResponseBody(done))
 
   req.on("error", cb)
   req.on("socket", function (s) {
@@ -179,6 +182,20 @@ function makeRequest (method, remote, where, what, etag, nofollow, cb_) {
 
   if (what && (what instanceof Stream)) {
     what.pipe(req)
+  }
+}
+
+function decodeResponseBody(cb) {
+  return function (er, response, data) {
+    if (er) return cb(er, response, data)
+
+    if (response.headers['content-encoding'] !== 'gzip') return cb(er, response, data)
+
+    zlib.gunzip(data, function (er, buf) {
+      if (er) return cb(er, response, data)
+
+      cb(null, response, buf)
+    })
   }
 }
 

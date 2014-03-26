@@ -14,7 +14,7 @@ rebuild.usage = "npm rebuild [<name>[@<version>] [name[@<version>] ...]]"
 rebuild.completion = require("./utils/completion/installed-deep.js")
 
 function rebuild (args, cb) {
-  var opt = { depth: npm.config.get("depth") }
+  var opt = { depth: npm.config.get("depth"), dev: true }
   readInstalled(npm.prefix, opt, function (er, data) {
     log.info("readInstalled", typeof data)
     if (er) return cb(er)

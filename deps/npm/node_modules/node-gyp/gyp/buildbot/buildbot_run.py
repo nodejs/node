@@ -23,6 +23,8 @@ BUILDBOT_DIR = os.path.dirname(os.path.abspath(__file__))
 TRUNK_DIR = os.path.dirname(BUILDBOT_DIR)
 ROOT_DIR = os.path.dirname(TRUNK_DIR)
 ANDROID_DIR = os.path.join(ROOT_DIR, 'android')
+CMAKE_DIR = os.path.join(ROOT_DIR, 'cmake')
+CMAKE_BIN_DIR = os.path.join(CMAKE_DIR, 'bin')
 OUT_DIR = os.path.join(TRUNK_DIR, 'out')
 
 
@@ -32,6 +34,43 @@ def CallSubProcess(*args, **kwargs):
   if retcode != 0:
     print '@@@STEP_EXCEPTION@@@'
     sys.exit(1)
+
+
+def PrepareCmake():
+  """Build CMake 2.8.8 since the version in Precise is 2.8.7."""
+  if os.environ['BUILDBOT_CLOBBER'] == '1':
+    print '@@@BUILD_STEP Clobber CMake checkout@@@'
+    shutil.rmtree(CMAKE_DIR)
+
+  # We always build CMake 2.8.8, so no need to do anything
+  # if the directory already exists.
+  if os.path.isdir(CMAKE_DIR):
+    return
+
+  print '@@@BUILD_STEP Initialize CMake checkout@@@'
+  os.mkdir(CMAKE_DIR)
+  CallSubProcess(['git', 'config', '--global', 'user.name', 'trybot'])
+  CallSubProcess(['git', 'config', '--global',
+                  'user.email', 'chrome-bot@google.com'])
+  CallSubProcess(['git', 'config', '--global', 'color.ui', 'false'])
+
+  print '@@@BUILD_STEP Sync CMake@@@'
+  CallSubProcess(
+      ['git', 'clone',
+       '--depth', '1',
+       '--single-branch',
+       '--branch', 'v2.8.8',
+       '--',
+       'git://cmake.org/cmake.git',
+       CMAKE_DIR],
+      cwd=CMAKE_DIR)
+
+  print '@@@BUILD_STEP Build CMake@@@'
+  CallSubProcess(
+      ['/bin/bash', 'bootstrap', '--prefix=%s' % CMAKE_DIR],
+      cwd=CMAKE_DIR)
+
+  CallSubProcess( ['make', 'cmake'], cwd=CMAKE_DIR)
 
 
 def PrepareAndroidTree():
@@ -91,6 +130,7 @@ def GypTestFormat(title, format=None, msvs_version=None):
        '--all',
        '--passed',
        '--format', format,
+       '--path', CMAKE_BIN_DIR,
        '--chdir', 'trunk'])
   if format == 'android':
     # gyptest needs the environment setup from envsetup/lunch in order to build
@@ -124,6 +164,8 @@ def GypBuild():
   elif sys.platform.startswith('linux'):
     retcode += GypTestFormat('ninja')
     retcode += GypTestFormat('make')
+    PrepareCmake()
+    retcode += GypTestFormat('cmake')
   elif sys.platform == 'darwin':
     retcode += GypTestFormat('ninja')
     retcode += GypTestFormat('xcode')

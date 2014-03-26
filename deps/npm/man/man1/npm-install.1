@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-INSTALL" "1" "February 2014" "" ""
+.TH "NPM\-INSTALL" "1" "March 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-install\fR \-\- Install a package
@@ -13,7 +13,7 @@ npm install (with no args in a package dir)
 npm install <tarball file>
 npm install <tarball url>
 npm install <folder>
-npm install <name> [\-\-save|\-\-save\-dev|\-\-save\-optional]
+npm install <name> [\-\-save|\-\-save\-dev|\-\-save\-optional] [\-\-save\-exact]
 npm install <name>@<tag>
 npm install <name>@<version>
 npm install <name>@<version range>
@@ -151,12 +151,22 @@ the package version in your main package\.json:
 \fB\-\-save\-optional\fR: Package will appear in your \fBoptionalDependencies\fR\|\.
 .
 .IP
+When using any of the above options to save dependencies to your
+package\.json, there is an additional, optional flag:
+.
+.IP "\(bu" 4
+\fB\-\-save\-exact\fR: Saved dependencies will be configured with an
+exact version rather than using npm\'s default semver range
+operator\.
+.
+.IP
 Examples:
 .
 .IP
   npm install sax \-\-save
   npm install node\-tap \-\-save\-dev
   npm install dtrace\-provider \-\-save\-optional
+  npm install readable\-stream \-\-save \-\-save\-exact
 .
 .IP
 \fBNote\fR: If there is a file or folder named \fB<name>\fR in the current

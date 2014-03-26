@@ -1,0 +1,37 @@
+{
+  "name": "sorted-object",
+  "description": "Returns a copy of an object with its keys sorted",
+  "keywords": [
+    "sort",
+    "keys",
+    "object"
+  ],
+  "version": "1.0.0",
+  "author": {
+    "name": "Domenic Denicola",
+    "email": "domenic@domenicdenicola.com",
+    "url": "http://domenic.me/"
+  },
+  "license": "WTFPL",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/domenic/sorted-object.git"
+  },
+  "bugs": {
+    "url": "http://github.com/domenic/sorted-object/issues"
+  },
+  "main": "lib/sorted-object.js",
+  "scripts": {
+    "test": "tape test/tests.js",
+    "lint": "jshint lib && jshint test"
+  },
+  "devDependencies": {
+    "jshint": "~2.4.3",
+    "tape": "~2.4.2"
+  },
+  "readme": "# Get a Version of an Object with Sorted Keys\n\nAlthough objects in JavaScript are theoretically unsorted, in practice most engines use insertion order—at least, ignoring numeric keys. This manifests itself most prominently when dealing with an object's JSON serialization.\n\nSo, for example, you might be trying to serialize some object to a JSON file. But every time you write it, it ends up being output in a different order, depending on how you created it in the first place! This makes for some ugly diffs.\n\n**sorted-object** gives you the answer. Just use this package to create a version of your object with its keys sorted before serializing, and you'll get a consistent order every time.\n\n```js\nvar sortedObject = require(\"sorted-object\");\n\nvar objectToSerialize = generateStuffNondeterministically();\n\n// Before:\nfs.writeFileSync(\"dest.json\", JSON.stringify(objectToSerialize));\n\n// After:\nvar sortedVersion = sortedObject(objectToSerialize);\nfs.writeFileSync(\"dest.json\", JSON.stringify(sortedVersion));\n```\n",
+  "readmeFilename": "README.md",
+  "homepage": "https://github.com/domenic/sorted-object",
+  "_id": "sorted-object@1.0.0",
+  "_from": "sorted-object@"
+}

@@ -8,6 +8,7 @@ var npm = require("./npm.js")
   , fs = require("fs")
   , path = require("path")
   , readJson = require("read-package-json")
+  , sortedObject = require("sorted-object")
 
 shrinkwrap.usage = "npm shrinkwrap"
 
@@ -58,7 +59,7 @@ function shrinkwrap_ (pkginfo, silent, dev, cb) {
 function save (pkginfo, silent, cb) {
   // copy the keys over in a well defined order
   // because javascript objects serialize arbitrarily
-  pkginfo.dependencies = copyOrder(pkginfo.dependencies)
+  pkginfo.dependencies = sortedObject(pkginfo.dependencies)
   try {
     var swdata = JSON.stringify(pkginfo, null, 2) + "\n"
   } catch (er) {
@@ -74,13 +75,4 @@ function save (pkginfo, silent, cb) {
     console.log("wrote npm-shrinkwrap.json")
     cb(null, pkginfo)
   })
-}
-
-function copyOrder(obj) {
-  var result = {}
-  var keys = Object.keys(obj).sort()
-  keys.forEach(function (key) {
-    result[key] = obj[key]
-  })
-  return result
 }

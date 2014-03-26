@@ -360,15 +360,13 @@ an argument to `git checkout`.  The default is `master`.
 
 As of version 1.1.65, you can refer to GitHub urls as just "foo": "user/foo-project". For example:
 
-```json
-{
-  "name": "foo",
-  "version": "0.0.0",
-  "dependencies": {
-    "express": "visionmedia/express"
-  }
-}
-```
+    {
+      "name": "foo",
+      "version": "0.0.0",
+      "dependencies": {
+        "express": "visionmedia/express"
+      }
+    }
 
 ## devDependencies
 
@@ -389,19 +387,17 @@ script to do this, and make the required package a devDependency.
 
 For example:
 
-```json
-{ "name": "ethopia-waza",
-  "description": "a delightfully fruity coffee varietal",
-  "version": "1.2.3",
-  "devDependencies": {
-    "coffee-script": "~1.6.3"
-  },
-  "scripts": {
-    "prepublish": "coffee -o lib/ -c src/waza.coffee"
-  },
-  "main": "lib/waza.js"
-}
-```
+    { "name": "ethopia-waza",
+      "description": "a delightfully fruity coffee varietal",
+      "version": "1.2.3",
+      "devDependencies": {
+        "coffee-script": "~1.6.3"
+      },
+      "scripts": {
+        "prepublish": "coffee -o lib/ -c src/waza.coffee"
+      },
+      "main": "lib/waza.js"
+    }
 
 The `prepublish` script will be run before publishing, so that users
 can consume the functionality without requiring them to compile it

@@ -36,7 +36,7 @@ paths, etc.) then read on.
 ## Fancy Install (Unix)
 
 There's a pretty robust install script at
-<https://npmjs.org/install.sh>.  You can download that and run it.
+<https://www.npmjs.org/install.sh>.  You can download that and run it.
 
 ### Slightly Fancier
 

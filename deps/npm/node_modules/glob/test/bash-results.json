@@ -298,6 +298,7 @@
     "./test/new-glob-optional-options.js",
     "./test/nocase-nomagic.js",
     "./test/pause-resume.js",
+    "./test/readme-issue.js",
     "./test/root-nomount.js",
     "./test/root.js",
     "./test/stat.js",

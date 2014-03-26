@@ -24,8 +24,7 @@ function adduser (username, password, email, cb) {
   var salt = crypto.randomBytes(30).toString('hex')
     , userobj =
       { name : username
-      , salt : salt
-      , password_sha : sha(password + salt)
+      , password : password
       , email : email
       , _id : 'org.couchdb.user:'+username
       , type : "user"
@@ -51,7 +50,7 @@ function adduser (username, password, email, cb) {
   cb = done.call(this, cb, pre)
 
   var logObj = Object.keys(userobj).map(function (k) {
-    if (k === 'salt' || k === 'password_sha') return [k, 'XXXXX']
+    if (k === 'password') return [k, 'XXXXX']
     return [k, userobj[k]]
   }).reduce(function (s, kv) {
     s[kv[0]] = kv[1]

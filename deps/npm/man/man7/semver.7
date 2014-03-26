@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "SEMVER" "7" "February 2014" "" ""
+.TH "SEMVER" "7" "March 2014" "" ""
 .
 .SH "NAME"
 \fBsemver\fR \-\- The semantic versioner for npm
@@ -83,13 +83,35 @@ but a prerelease of the next significant digit will NOT be
 satisfactory, so \fB1\.3\.0\-beta\fR will not satisfy \fB~1\.2\.3\fR\|\.
 .
 .IP "\(bu" 4
+\fB^1\.2\.3\fR := \fB>=1\.2\.3\-0 <2\.0\.0\-0\fR  "Compatible with 1\.2\.3"\.  When
+using caret operators, anything from the specified version (including
+prerelease) will be supported up to, but not including, the next
+major version (or its prereleases)\. \fB1\.5\.1\fR will satisfy \fB^1\.2\.3\fR,
+while \fB1\.2\.2\fR and \fB2\.0\.0\-beta\fR will not\.
+.
+.IP "\(bu" 4
+\fB^0\.1\.3\fR := \fB>=0\.1\.3\-0 <0\.2\.0\-0\fR "Compatible with 0\.1\.3"\. 0\.x\.x versions are
+special: the first non\-zero component indicates potentially breaking changes,
+meaning the caret operator matches any version with the same first non\-zero
+component starting at the specified version\.
+.
+.IP "\(bu" 4
+\fB^0\.0\.2\fR := \fB=0\.0\.2\fR "Only the version 0\.0\.2 is considered compatible"
+.
+.IP "\(bu" 4
 \fB~1\.2\fR := \fB>=1\.2\.0\-0 <1\.3\.0\-0\fR "Any version starting with 1\.2"
+.
+.IP "\(bu" 4
+\fB^1\.2\fR := \fB>=1\.2\.0\-0 <2\.0\.0\-0\fR "Any version compatible with 1\.2"
 .
 .IP "\(bu" 4
 \fB1\.2\.x\fR := \fB>=1\.2\.0\-0 <1\.3\.0\-0\fR "Any version starting with 1\.2"
 .
 .IP "\(bu" 4
 \fB~1\fR := \fB>=1\.0\.0\-0 <2\.0\.0\-0\fR "Any version starting with 1"
+.
+.IP "\(bu" 4
+\fB^1\fR := \fB>=1\.0\.0\-0 <2\.0\.0\-0\fR "Any version compatible with 1"
 .
 .IP "\(bu" 4
 \fB1\.x\fR := \fB>=1\.0\.0\-0 <2\.0\.0\-0\fR "Any version starting with 1"
@@ -168,5 +190,30 @@ range\.
 maxSatisfying(versions, range): Return the highest version in the list
 that satisfies the range, or null if none of them do\.
 .
+.IP "\(bu" 4
+gtr(version, range): Return true if version is greater than all the
+versions possible in the range\.
+.
+.IP "\(bu" 4
+ltr(version, range): Return true if version is less than all the
+versions possible in the range\.
+.
+.IP "\(bu" 4
+outside(version, range, hilo): Return true if the version is outside
+the bounds of the range in either the high or low direction\.  The \fBhilo\fR argument must be either the string \fB\'>\'\fR or \fB\'<\'\fR\|\.  (This is
+the function called by \fBgtr\fR and \fBltr\fR\|\.)
+.
 .IP "" 0
-
+.
+.P
+Note that, since ranges may be non\-contiguous, a version might not be
+greater than a range, less than a range, \fIor\fR satisfy a range!  For
+example, the range \fB1\.2 <1\.2\.9 || >2\.0\.0\fR would have a hole from \fB1\.2\.9\fR
+until \fB2\.0\.0\fR, so the version \fB1\.2\.10\fR would not be greater than the
+range (because 2\.0\.1 satisfies, which is higher), nor less than the
+range (since 1\.2\.8 satisfies, which is lower), and it also does not
+satisfy the range\.
+.
+.P
+If you want to know if a version satisfies or does not satisfy a
+range, use the \fBsatisfies(version, range)\fR function\.

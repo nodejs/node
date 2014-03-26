@@ -18,7 +18,7 @@ function uidNumber (uid, gid, cb) {
   if (typeof cb !== "function") cb = uid, uid = null
   if (gid == null) gid = process.getgid()
   if (uid == null) uid = process.getuid()
-  if (!isNaN(gid)) gid = uidCache[gid] = +gid
+  if (!isNaN(gid)) gid = gidCache[gid] = +gid
   if (!isNaN(uid)) uid = uidCache[uid] = +uid
 
   if (uidCache.hasOwnProperty(uid)) uid = uidCache[uid]
@@ -49,6 +49,6 @@ function uidNumber (uid, gid, cb) {
     if (isNaN(out.uid) || isNaN(out.gid)) return cb(new Error(
       "Could not get uid/gid: "+JSON.stringify(out)))
 
-    cb(null, uidCache[uid] = +out.uid, uidCache[gid] = +out.gid)
+    cb(null, uidCache[uid] = +out.uid, gidCache[gid] = +out.gid)
   })
 }

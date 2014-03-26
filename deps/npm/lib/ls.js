@@ -36,7 +36,7 @@ function ls (args, silent, cb) {
   })
 
   var depth = npm.config.get("depth")
-  var opt = { depth: depth, log: log.warn }
+  var opt = { depth: depth, log: log.warn, dev: true }
   readInstalled(dir, opt, function (er, data) {
     var bfs = bfsify(data, args)
       , lite = getLite(bfs)

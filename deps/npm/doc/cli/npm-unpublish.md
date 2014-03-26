@@ -23,6 +23,10 @@ entry and removing the tarball.
 If no version is specified, or if all versions are removed then
 the root package entry is removed from the registry entirely.
 
+Even if a package version is unpublished, that specific name and
+version combination can never be reused.  In order to publish the
+package again, a new version number must be used.
+
 ## SEE ALSO
 
 * npm-deprecate(1)

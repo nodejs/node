@@ -822,8 +822,7 @@ def ExpandVariables(input, phase, variables, build_file):
           rel_build_file_dir = build_file_dir
         qualified_out_dir = generator_filelist_paths['qualified_out_dir']
         path = os.path.join(qualified_out_dir, rel_build_file_dir, replacement)
-        if not os.path.isdir(os.path.dirname(path)):
-          os.makedirs(os.path.dirname(path))
+        gyp.common.EnsureDirExists(path)
 
       replacement = gyp.common.RelativePath(path, build_file_dir)
       f = gyp.common.WriteOnDiff(path)
@@ -2278,6 +2277,7 @@ def ProcessListFiltersInDict(name, the_dict):
       continue
 
     if not isinstance(the_dict[list_key], list):
+      value = the_dict[list_key]
       raise ValueError, name + ' key ' + list_key + \
                         ' must be list, not ' + \
                         value.__class__.__name__ + ' when applying ' + \

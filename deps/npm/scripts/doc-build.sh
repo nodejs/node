@@ -73,8 +73,7 @@ case $dest in
       else
         cat
       fi) \
-    > $dest \
-    && cat html/docfoot-script.html >> $dest
+    > $dest
     exit $?
     ;;
   *)

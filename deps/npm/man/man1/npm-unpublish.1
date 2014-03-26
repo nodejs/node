@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-UNPUBLISH" "1" "February 2014" "" ""
+.TH "NPM\-UNPUBLISH" "1" "March 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-unpublish\fR \-\- Remove a package from the registry
@@ -31,6 +31,11 @@ entry and removing the tarball\.
 .P
 If no version is specified, or if all versions are removed then
 the root package entry is removed from the registry entirely\.
+.
+.P
+Even if a package version is unpublished, that specific name and
+version combination can never be reused\.  In order to publish the
+package again, a new version number must be used\.
 .
 .SH "SEE ALSO"
 .

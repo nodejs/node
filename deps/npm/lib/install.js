@@ -74,6 +74,7 @@ var npm = require("./npm.js")
   , archy = require("archy")
   , isGitUrl = require("./utils/is-git-url.js")
   , npmInstallChecks = require("npm-install-checks")
+  , sortedObject = require("sorted-object")
 
 function install (args, cb_) {
   var hasArguments = !!args.length
@@ -187,7 +188,7 @@ function install (args, cb_) {
 }
 
 function findPeerInvalid (where, cb) {
-  readInstalled(where, { log: log.warn }, function (er, data) {
+  readInstalled(where, { log: log.warn, dev: true }, function (er, data) {
     if (er) return cb(er)
 
     cb(null, findPeerInvalid_(data.dependencies, []))
@@ -350,7 +351,8 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
         return w
       }).reduce(function (set, k) {
         var rangeDescriptor = semver.valid(k[1], true) &&
-                              semver.gte(k[1], "0.1.0", true)
+                              semver.gte(k[1], "0.1.0", true) &&
+                              !npm.config.get("save-exact")
                             ? "^" : ""
         set[k[0]] = rangeDescriptor + k[1]
         return set
@@ -378,7 +380,7 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
       var bundle = data.bundleDependencies || data.bundledDependencies
       delete data.bundledDependencies
       if (!Array.isArray(bundle)) bundle = []
-      data.bundleDependencies = bundle
+      data.bundleDependencies = bundle.sort()
     }
 
     log.verbose('saving', things)
@@ -390,6 +392,8 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
         if (i === -1) bundle.push(t)
       }
     })
+
+    data[deps] = sortedObject(data[deps])
 
     data = JSON.stringify(data, null, 2) + "\n"
     fs.writeFile(saveTarget, data, function (er) {
