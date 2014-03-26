@@ -274,7 +274,11 @@
     delete NativeModule._source.config;
 
     // strip the gyp comment line at the beginning
-    config = config.split('\n').slice(1).join('\n').replace(/'/g, '"');
+    config = config.split('\n')
+                   .slice(1)
+                   .join('\n')
+                   .replace(/"/g, '\\"')
+                   .replace(/'/g, '"');
 
     process.config = JSON.parse(config, function(key, value) {
       if (value === 'true') return true;
