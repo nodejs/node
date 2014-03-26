@@ -3062,6 +3062,26 @@ static void ParseArgs(int* argc,
 }
 
 
+static void SetCompileTimeV8Options(const char** argv) {
+#ifdef NODE_V8_OPTIONS
+  int v8_argc;
+  static const char* v8_argv[] = { NULL, NODE_V8_OPTIONS };
+  if (ARRAY_SIZE(v8_argv) == 1)
+    return;
+
+  v8_argv[0] = argv[0];
+  v8_argc = ARRAY_SIZE(v8_argv);
+  V8::SetFlagsFromCommandLine(&v8_argc, const_cast<char**>(v8_argv), true);
+
+  // Anything that's still in v8_argv is not a V8 or a node option.
+  for (int i = 1; i < v8_argc; i++)
+    fprintf(stderr, "%s: bad option: %s\n", argv[0], v8_argv[i]);
+  if (v8_argc > 1)
+    exit(9);
+#endif  // NODE_V8_OPTIONS
+}
+
+
 // Called from V8 Debug Agent TCP thread.
 static void DispatchMessagesDebugAgentCallback() {
   uv_async_send(&dispatch_debug_messages_async);
@@ -3354,6 +3374,8 @@ void Init(int* argc,
                 &dispatch_debug_messages_async,
                 DispatchDebugMessagesAsyncCallback);
   uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
+
+  SetCompileTimeV8Options(argv);
 
   // Parse a few arguments which are specific to Node.
   int v8_argc;
