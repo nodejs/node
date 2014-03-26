@@ -242,7 +242,9 @@ inline void CheckEntropy() {
     CHECK_GE(status, 0);  // Cannot fail.
     if (status != 0)
       break;
-    if (RAND_poll() == 0)  // Give up, RAND_poll() not supported.
+
+    // Give up, RAND_poll() not supported.
+    if (RAND_poll() == 0)
       break;
   }
 }
