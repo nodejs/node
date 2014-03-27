@@ -1003,3 +1003,14 @@ assert.throws(function () {
 assert.throws(function () {
   new SlowBuffer(smalloc.kMaxLength + 1);
 }, RangeError);
+
+// Test truncation after decode
+var crypto = require('crypto');
+
+var b1 = new Buffer('YW55=======', 'base64');
+var b2 = new Buffer('YW55', 'base64');
+
+assert.equal(
+  crypto.createHash('sha1').update(b1).digest('hex'),
+  crypto.createHash('sha1').update(b2).digest('hex')
+);
