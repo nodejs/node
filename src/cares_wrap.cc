@@ -576,12 +576,23 @@ class QueryTxtWrap: public QueryWrap {
     }
 
     Local<Array> txt_records = Array::New(env()->isolate());
+    Local<Array> txt_chunk;
 
     ares_txt_reply* current = txt_out;
-    for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
+    uint32_t i = 0;
+    for (uint32_t j = 0; current != NULL; current = current->next) {
       Local<String> txt = OneByteString(env()->isolate(), current->txt);
-      txt_records->Set(i, txt);
+      // New record found - write out the current chunk
+      if (current->record_start) {
+        if (!txt_chunk.IsEmpty())
+          txt_records->Set(i++, txt_chunk);
+        txt_chunk = Array::New(env()->isolate());
+        j = 0;
+      }
+      txt_chunk->Set(j++, txt);
     }
+    // Push last chunk
+    txt_records->Set(i, txt_chunk);
 
     ares_free_data(txt_out);
 
