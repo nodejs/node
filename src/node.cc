@@ -1614,15 +1614,11 @@ static void CheckStatus(uv_timer_t* watcher, int status) {
 
 static Handle<Value> Uptime(const Arguments& args) {
   HandleScope scope;
-  double uptime;
 
-  uv_err_t err = uv_uptime(&uptime);
+  uv_update_time(uv_default_loop());
+  double delta = (uv_now(uv_default_loop()) - prog_start_time) / 1000;
 
-  if (err.code != UV_OK) {
-    return Undefined();
-  }
-
-  return scope.Close(Number::New(uptime - prog_start_time));
+  return scope.Close(Number::New(static_cast<int64_t>(delta)));
 }
 
 
@@ -2772,7 +2768,7 @@ static Handle<Value> DebugEnd(const Arguments& args) {
 
 char** Init(int argc, char *argv[]) {
   // Initialize prog_start_time to get relative uptime.
-  uv_uptime(&prog_start_time);
+  prog_start_time = uv_now(uv_default_loop());
 
   // Make inherited handles noninheritable.
   uv_disable_stdio_inheritance();
