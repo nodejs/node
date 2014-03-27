@@ -504,6 +504,35 @@ bool HasExternalData(Environment* env, Local<Object> obj) {
 }
 
 
+void AllocTruncate(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  Local<Object> obj = args[0].As<Object>();
+
+  // can't perform this check in JS
+  if (!obj->HasIndexedPropertiesInExternalArrayData())
+    return env->ThrowTypeError("object has no external array data");
+
+  char* data = static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
+  enum ExternalArrayType array_type =
+      obj->GetIndexedPropertiesExternalArrayDataType();
+  int length = obj->GetIndexedPropertiesExternalArrayDataLength();
+
+  unsigned int new_len = args[1]->Uint32Value();
+  if (new_len > kMaxLength)
+    return env->ThrowRangeError("truncate length is bigger than kMaxLength");
+
+  if (static_cast<int>(new_len) > length)
+    return env->ThrowRangeError("truncate length is bigger than current one");
+
+  obj->SetIndexedPropertiesToExternalArrayData(data,
+                                               array_type,
+                                               static_cast<int>(new_len));
+}
+
+
+
 class RetainedAllocInfo: public RetainedObjectInfo {
  public:
   explicit RetainedAllocInfo(Handle<Value> wrapper);
@@ -572,6 +601,7 @@ void Initialize(Handle<Object> exports,
 
   NODE_SET_METHOD(exports, "alloc", Alloc);
   NODE_SET_METHOD(exports, "dispose", AllocDispose);
+  NODE_SET_METHOD(exports, "truncate", AllocTruncate);
 
   NODE_SET_METHOD(exports, "hasExternalData", HasExternalData);
 
