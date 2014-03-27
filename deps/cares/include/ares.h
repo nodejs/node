@@ -520,6 +520,8 @@ struct ares_txt_reply {
   struct ares_txt_reply  *next;
   unsigned char          *txt;
   size_t                  length;  /* length excludes null termination */
+  unsigned char           record_start;  /* 1 - if start of new record
+                                          * 0 - if a chunk in the same record */
 };
 
 struct ares_naptr_reply {
