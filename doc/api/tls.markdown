@@ -252,7 +252,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
     are ignored.
 
   - `pfx`: A string or `Buffer` containing the private key, certificate and
-    CA certs of the server in PFX or PKCS12 format.
+    CA certs of the client in PFX or PKCS12 format.
 
   - `key`: A string or `Buffer` containing the private key of the client in
     PEM format.
