@@ -207,8 +207,7 @@ parser.add_option('--tag',
 parser.add_option('--v8-options',
     action='store',
     dest='v8_options',
-    help='v8 options to pass, see `node --v8-options` for examples. '
-         'The flags should be separated by a comma')
+    help='v8 options to pass, see `node --v8-options` for examples.')
 
 parser.add_option('--with-arm-float-abi',
     action='store',
@@ -520,10 +519,7 @@ def configure_node(o):
     o['variables']['node_tag'] = ''
 
   if options.v8_options:
-    opts = options.v8_options.split(',')
-    o['variables']['node_v8_options'] = '"' + '","'.join(opts) + '"'
-  else:
-    o['variables']['node_v8_options'] = ''
+    o['variables']['node_v8_options'] = options.v8_options.replace('"', '\\"')
 
 
 def configure_libz(o):
